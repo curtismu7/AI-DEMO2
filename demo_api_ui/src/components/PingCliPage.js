@@ -294,8 +294,18 @@ function writeSectionOpen(id, open) {
   }
 }
 
-/** Collapsible section with open state remembered across reloads. */
-function CollapsibleSection({ id, title, defaultOpen = true, children, className = '' }) {
+/**
+ * Collapsible section with open state remembered across reloads.
+ * When `forceOpen` is true/false, that value wins until cleared (still tracks toggles).
+ */
+function CollapsibleSection({
+  id,
+  title,
+  defaultOpen = true,
+  children,
+  className = '',
+  forceOpen = null,
+}) {
   const [open, setOpen] = useState(() => {
     const saved = readSectionOpenMap()[id];
     return typeof saved === 'boolean' ? saved : defaultOpen;
@@ -310,20 +320,22 @@ function CollapsibleSection({ id, title, defaultOpen = true, children, className
     });
   };
 
+  const shown = forceOpen === null ? open : Boolean(forceOpen);
+
   return (
-    <div className={`pingcli-collapse${className ? ` ${className}` : ''}${open ? ' is-open' : ''}`}>
+    <div className={`pingcli-collapse${className ? ` ${className}` : ''}${shown ? ' is-open' : ''}`}>
       <button
         type="button"
         id={`pingcli-section-toggle-${id}`}
         className="pingcli-collapse-toggle"
-        aria-expanded={open}
+        aria-expanded={shown}
         aria-controls={`pingcli-section-body-${id}`}
         onClick={handleToggle}
       >
-        <span className="pingcli-collapse-chevron" aria-hidden="true">{open ? '▼' : '▶'}</span>
+        <span className="pingcli-collapse-chevron" aria-hidden="true">{shown ? '▼' : '▶'}</span>
         <span className="pingcli-collapse-title">{title}</span>
       </button>
-      {open && (
+      {shown && (
         <div id={`pingcli-section-body-${id}`} className="pingcli-collapse-body">
           {children}
         </div>
@@ -451,36 +463,38 @@ function InstallSection() {
       </CollapsibleSection>
 
       <CollapsibleSection id="howto" title="3. How to run commands" className="pingcli-install pingcli-howto" defaultOpen>
-        <h3>Option A — Live on this page</h3>
-        <ol className="pingcli-howto-list">
-          <li>Pick a command card below (for example List Users or List Groups).</li>
-          <li>Click <strong>Run</strong>. The demo uses its worker credentials, runs
-            {' '}<code>pingcli pingone auth login</code> if needed, then streams the result.</li>
-          <li>Review the <strong>What was needed to run this</strong> panel above the
-            output — that is the same install → init → auth → command chain.</li>
-          <li>Use <strong>Easy read</strong> for a table/form, or <strong>JSON</strong> for the raw payload.</li>
-          <li>Use <strong>Copy</strong> on a card (or on a prereq step) to paste the same command into your own terminal.</li>
-        </ol>
+        <CollapsibleSection id="howto-live" title="Option A — Live on this page" className="pingcli-collapse-nested" defaultOpen>
+          <ol className="pingcli-howto-list">
+            <li>Pick a command card below (for example List Users or List Groups).</li>
+            <li>Click <strong>Run</strong>. The demo uses its worker credentials, runs
+              {' '}<code>pingcli pingone auth login</code> if needed, then streams the result.</li>
+            <li>Review the <strong>What was needed to run this</strong> panel above the
+              output — that is the same install → init → auth → command chain.</li>
+            <li>Use <strong>Easy read</strong> for a table/form, or <strong>JSON</strong> for the raw payload.</li>
+            <li>Use <strong>Copy</strong> on a card (or on a prereq step) to paste the same command into your own terminal.</li>
+          </ol>
+        </CollapsibleSection>
 
-        <h3>Option B — In your own terminal</h3>
-        <p>After install, init, and auth (sections 1–2), run catalog commands like:</p>
-        <CodeCopyRow text={envsCmd} copyId="envs" copied={copied} onCopy={copy} />
-        <p className="pingcli-install-hint">
-          Environment-wide lists use the normal verb form.
-        </p>
-        <CodeCopyRow text={usersCmd} copyId="users" copied={copied} onCopy={copy} />
-        <p className="pingcli-install-hint">
-          Environment-scoped resources (users, groups, apps, …) use
-          {' '}<code>pingcli pingone api …</code> with your environment ID. Replace
-          {' '}<code>&lt;environment-id&gt;</code> with the ID from
-          {' '}<code>environments list</code> (or from <code>pingcli init</code>).
-          Always pass <code>-O json</code> for machine-readable output.
-        </p>
-        <p>
-          Tip: every card below already shows the complete command with this
-          demo&apos;s environment ID filled in — click Copy, then paste into your terminal
-          after you have authenticated locally.
-        </p>
+        <CollapsibleSection id="howto-terminal" title="Option B — In your own terminal" className="pingcli-collapse-nested" defaultOpen>
+          <p>After install, init, and auth (sections 1–2), run catalog commands like:</p>
+          <CodeCopyRow text={envsCmd} copyId="envs" copied={copied} onCopy={copy} />
+          <p className="pingcli-install-hint">
+            Environment-wide lists use the normal verb form.
+          </p>
+          <CodeCopyRow text={usersCmd} copyId="users" copied={copied} onCopy={copy} />
+          <p className="pingcli-install-hint">
+            Environment-scoped resources (users, groups, apps, …) use
+            {' '}<code>pingcli pingone api …</code> with your environment ID. Replace
+            {' '}<code>&lt;environment-id&gt;</code> with the ID from
+            {' '}<code>environments list</code> (or from <code>pingcli init</code>).
+            Always pass <code>-O json</code> for machine-readable output.
+          </p>
+          <p>
+            Tip: every card below already shows the complete command with this
+            demo&apos;s environment ID filled in — click Copy, then paste into your terminal
+            after you have authenticated locally.
+          </p>
+        </CollapsibleSection>
       </CollapsibleSection>
     </>
   );
@@ -739,78 +753,84 @@ export default function PingCliPage() {
 
       <InstallSection />
 
-      <p className="pingcli-run-note">
-        Setup is above (install → init → auth → run). Cards below execute live on
-        this demo&apos;s worker credentials, or Copy the command into your own terminal
-        after you authenticate locally.
-      </p>
+      <CollapsibleSection
+        id="live-commands"
+        title="4. Live commands"
+        className="pingcli-install"
+        defaultOpen
+      >
+        <p className="pingcli-run-note">
+          Cards execute live on this demo&apos;s worker credentials, or Copy the command
+          into your own terminal after you authenticate locally.
+        </p>
 
-      {CATEGORIES.map(({ title, commands }) => (
-        <CollapsibleSection
-          key={title}
-          id={`cat-${title}`}
-          title={title}
-          className="pingcli-cat-section"
-          defaultOpen
-        >
-          <div className={`pingcli-command-grid${running ? ' is-busy' : ''}`}>
-            {commands.map(({ key, label, desc }) => {
-              const meta = cmdMeta[key] || {};
-              const runnable = meta.runnable ?? RUNNABLE.has(key);
-              const copyText = meta.label || desc;
-              const isRunning = running === key;
-              const isDone = runStatus?.phase === 'done' && runStatus.key === key;
-              const runClass = [
-                'pingcli-cmd-run',
-                isRunning ? 'pingcli-cmd-run--busy' : '',
-                isDone ? 'pingcli-cmd-run--done' : '',
-              ].filter(Boolean).join(' ');
-              let runLabel = 'Run ▸';
-              if (isRunning) runLabel = 'Running…';
-              else if (isDone) runLabel = runStatus.exitCode === 0 ? 'Done ✓' : 'Failed ✗';
-              return (
-                <div
-                  key={key}
-                  id={`pingcli-card-${key}`}
-                  className={`pingcli-cmd-btn${activeKey === key ? ' active' : ''}${isRunning ? ' running' : ''}${isDone ? ' done' : ''}`}
-                >
-                  <div className="pingcli-cmd-top">
-                    <span className="pingcli-cmd-label">
-                      {isRunning && (
-                        <span className="pingcli-spinner" aria-hidden="true" />
-                      )}
-                      {label}
-                    </span>
+        {CATEGORIES.map(({ title, commands }) => (
+          <CollapsibleSection
+            key={title}
+            id={`cat-${title}`}
+            title={title}
+            className="pingcli-collapse-nested pingcli-cat-section"
+            defaultOpen
+          >
+            <div className={`pingcli-command-grid${running ? ' is-busy' : ''}`}>
+              {commands.map(({ key, label, desc }) => {
+                const meta = cmdMeta[key] || {};
+                const runnable = meta.runnable ?? RUNNABLE.has(key);
+                const copyText = meta.label || desc;
+                const isRunning = running === key;
+                const isDone = runStatus?.phase === 'done' && runStatus.key === key;
+                const runClass = [
+                  'pingcli-cmd-run',
+                  isRunning ? 'pingcli-cmd-run--busy' : '',
+                  isDone ? 'pingcli-cmd-run--done' : '',
+                ].filter(Boolean).join(' ');
+                let runLabel = 'Run ▸';
+                if (isRunning) runLabel = 'Running…';
+                else if (isDone) runLabel = runStatus.exitCode === 0 ? 'Done ✓' : 'Failed ✗';
+                return (
+                  <div
+                    key={key}
+                    id={`pingcli-card-${key}`}
+                    className={`pingcli-cmd-btn${activeKey === key ? ' active' : ''}${isRunning ? ' running' : ''}${isDone ? ' done' : ''}`}
+                  >
+                    <div className="pingcli-cmd-top">
+                      <span className="pingcli-cmd-label">
+                        {isRunning && (
+                          <span className="pingcli-spinner" aria-hidden="true" />
+                        )}
+                        {label}
+                      </span>
+                      <button
+                        type="button"
+                        id={`pingcli-card-copy-${key}`}
+                        className="pingcli-cmd-copy"
+                        title="Copy command"
+                        onClick={() => copyCmd(key, copyText)}
+                      >
+                        {copiedKey === key ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
+                    <div className="pingcli-cmd-command" title={copyText}>{copyText}</div>
                     <button
                       type="button"
-                      id={`pingcli-card-copy-${key}`}
-                      className="pingcli-cmd-copy"
-                      title="Copy command"
-                      onClick={() => copyCmd(key, copyText)}
+                      id={`pingcli-run-${key}`}
+                      className={runClass}
+                      disabled={!runnable || running !== null}
+                      aria-busy={isRunning}
+                      onClick={() => run(key)}
                     >
-                      {copiedKey === key ? 'Copied!' : 'Copy'}
+                      {isRunning && (
+                        <span className="pingcli-spinner pingcli-spinner-on-dark" aria-hidden="true" />
+                      )}
+                      {runLabel}
                     </button>
                   </div>
-                  <div className="pingcli-cmd-command" title={copyText}>{copyText}</div>
-                  <button
-                    type="button"
-                    id={`pingcli-run-${key}`}
-                    className={runClass}
-                    disabled={!runnable || running !== null}
-                    aria-busy={isRunning}
-                    onClick={() => run(key)}
-                  >
-                    {isRunning && (
-                      <span className="pingcli-spinner pingcli-spinner-on-dark" aria-hidden="true" />
-                    )}
-                    {runLabel}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </CollapsibleSection>
-      ))}
+                );
+              })}
+            </div>
+          </CollapsibleSection>
+        ))}
+      </CollapsibleSection>
 
       {(showTerminal || runStatus) && (
         <div id="pingcli-output" ref={outputRef} className="pingcli-output" tabIndex={-1}>
@@ -851,124 +871,131 @@ export default function PingCliPage() {
           )}
 
           {showTerminal && prereqs.length > 0 && (
-        <div className="pingcli-prereqs" aria-label="Steps required to run this command">
-          <div className="pingcli-prereqs-header">
-            <span className="pingcli-prereqs-title">What was needed to run this</span>
-            <span className="pingcli-prereqs-meta">
-              Install → configure → auth → command (as on your own machine)
-            </span>
-          </div>
-          <ol className="pingcli-prereqs-list">
-            {prereqs.map((step, i) => (
-              <li key={`${step.title}-${i}`} className="pingcli-prereqs-step">
-                <div className="pingcli-prereqs-step-top">
-                  <span className="pingcli-prereqs-step-title">
-                    <span className="pingcli-prereqs-num">{i + 1}</span>
-                    {step.title}
-                  </span>
-                  {step.command && (
-                    <button
-                      type="button"
-                      className="pingcli-cmd-copy"
-                      title="Copy command"
-                      onClick={() => copyPrereq(i, step.command)}
-                    >
-                      {copiedPrereq === i ? 'Copied!' : 'Copy'}
-                    </button>
-                  )}
-                </div>
-                {step.command && (
-                  <code className="pingcli-prereqs-cmd">{step.command}</code>
-                )}
-                {step.note && <p className="pingcli-prereqs-note">{step.note}</p>}
-              </li>
-            ))}
-          </ol>
-        </div>
+            <CollapsibleSection
+              id="prereqs"
+              title="What was needed to run this"
+              className="pingcli-install pingcli-prereqs-section"
+              defaultOpen
+            >
+              <p className="pingcli-prereqs-meta">
+                Install → configure → auth → command (as on your own machine)
+              </p>
+              <ol className="pingcli-prereqs-list">
+                {prereqs.map((step, i) => (
+                  <li key={`${step.title}-${i}`} className="pingcli-prereqs-step">
+                    <div className="pingcli-prereqs-step-top">
+                      <span className="pingcli-prereqs-step-title">
+                        <span className="pingcli-prereqs-num">{i + 1}</span>
+                        {step.title}
+                      </span>
+                      {step.command && (
+                        <button
+                          type="button"
+                          className="pingcli-cmd-copy"
+                          title="Copy command"
+                          onClick={() => copyPrereq(i, step.command)}
+                        >
+                          {copiedPrereq === i ? 'Copied!' : 'Copy'}
+                        </button>
+                      )}
+                    </div>
+                    {step.command && (
+                      <code className="pingcli-prereqs-cmd">{step.command}</code>
+                    )}
+                    {step.note && <p className="pingcli-prereqs-note">{step.note}</p>}
+                  </li>
+                ))}
+              </ol>
+            </CollapsibleSection>
           )}
-
-          {showTerminal && viewToggle}
 
           {showTerminal && (
-        <div
-          id="pingcli-terminal"
-          className="pingcli-terminal"
-        >
-          <div className="pingcli-terminal-header">
-            <span className="pingcli-terminal-prompt">
-              $ <span className="cmd-text">{cmdLabel || '…'}</span>
-            </span>
-            {exitCode !== null && (
-              <span className={`pingcli-terminal-status ${statusClass}`}>
-                {exitCode === 0 ? '✓ exit 0' : `✗ exit ${exitCode}`}
-              </span>
-            )}
-          </div>
-          {viewMode === 'easy' && readable?.kind === 'table' && (
-            <div className="pingcli-results pingcli-results-in-terminal">
-              <div className="pingcli-results-header">
-                <span className="pingcli-results-title">Table</span>
-                <span className="pingcli-results-meta">
-                  {readable.rows.length} item{readable.rows.length === 1 ? '' : 's'}
-                  {readable.message ? ` · ${readable.message}` : ''}
-                </span>
-              </div>
-              {readable.rows.length === 0 ? (
-                <p className="pingcli-results-empty">No rows returned.</p>
-              ) : (
-                <div className="pingcli-results-scroll">
-                  <table className="pingcli-results-table">
-                    <thead>
-                      <tr>
-                        {readable.columns.map((c) => <th key={c}>{c}</th>)}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {readable.rows.map((row, i) => (
-                        <tr key={row.id ?? i}>
-                          {readable.columns.map((c) => (
-                            <td key={c}>
-                              {row[c] === undefined || row[c] === null ? '—' : String(row[c])}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            <CollapsibleSection
+              id="response"
+              title="Command response"
+              className="pingcli-install pingcli-response-section"
+              defaultOpen
+              forceOpen={running !== null ? true : null}
+            >
+              {viewToggle}
+
+              <div id="pingcli-terminal" className="pingcli-terminal">
+                <div className="pingcli-terminal-header">
+                  <span className="pingcli-terminal-prompt">
+                    $ <span className="cmd-text">{cmdLabel || '…'}</span>
+                  </span>
+                  {exitCode !== null && (
+                    <span className={`pingcli-terminal-status ${statusClass}`}>
+                      {exitCode === 0 ? '✓ exit 0' : `✗ exit ${exitCode}`}
+                    </span>
+                  )}
                 </div>
-              )}
-            </div>
-          )}
-          {viewMode === 'easy' && readable?.kind === 'form' && (
-            <div className="pingcli-form-view">
-              <div className="pingcli-results-header">
-                <span className="pingcli-results-title">Details</span>
-                <span className="pingcli-results-meta">
-                  {readable.message || (readable.status ? String(readable.status) : 'Key / value')}
-                </span>
-              </div>
-              <dl className="pingcli-form-list">
-                {readable.fields.map((f) => (
-                  <div key={f.key} className="pingcli-form-row">
-                    <dt>{f.key}</dt>
-                    <dd>{f.value === '' ? '—' : f.value}</dd>
+                {viewMode === 'easy' && readable?.kind === 'table' && (
+                  <div className="pingcli-results pingcli-results-in-terminal">
+                    <div className="pingcli-results-header">
+                      <span className="pingcli-results-title">Table</span>
+                      <span className="pingcli-results-meta">
+                        {readable.rows.length} item{readable.rows.length === 1 ? '' : 's'}
+                        {readable.message ? ` · ${readable.message}` : ''}
+                      </span>
+                    </div>
+                    {readable.rows.length === 0 ? (
+                      <p className="pingcli-results-empty">No rows returned.</p>
+                    ) : (
+                      <div className="pingcli-results-scroll">
+                        <table className="pingcli-results-table">
+                          <thead>
+                            <tr>
+                              {readable.columns.map((c) => <th key={c}>{c}</th>)}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {readable.rows.map((row, i) => (
+                              <tr key={row.id ?? i}>
+                                {readable.columns.map((c) => (
+                                  <td key={c}>
+                                    {row[c] === undefined || row[c] === null ? '—' : String(row[c])}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
-                ))}
-              </dl>
-            </div>
-          )}
-          {(viewMode === 'json' || !canEasyRead) && (() => {
-            const tokens = output ? tokenizeJson(output) : null;
-            if (tokens) {
-              return <div className="pingcli-terminal-body">{tokens}</div>;
-            }
-            return (
-              <div className={`pingcli-terminal-body${running ? ' loading' : ''}`}>
-                {output || (running ? 'Running…' : '(no output)')}
+                )}
+                {viewMode === 'easy' && readable?.kind === 'form' && (
+                  <div className="pingcli-form-view">
+                    <div className="pingcli-results-header">
+                      <span className="pingcli-results-title">Details</span>
+                      <span className="pingcli-results-meta">
+                        {readable.message || (readable.status ? String(readable.status) : 'Key / value')}
+                      </span>
+                    </div>
+                    <dl className="pingcli-form-list">
+                      {readable.fields.map((f) => (
+                        <div key={f.key} className="pingcli-form-row">
+                          <dt>{f.key}</dt>
+                          <dd>{f.value === '' ? '—' : f.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                )}
+                {(viewMode === 'json' || !canEasyRead) && (() => {
+                  const tokens = output ? tokenizeJson(output) : null;
+                  if (tokens) {
+                    return <div className="pingcli-terminal-body">{tokens}</div>;
+                  }
+                  return (
+                    <div className={`pingcli-terminal-body${running ? ' loading' : ''}`}>
+                      {output || (running ? 'Running…' : '(no output)')}
+                    </div>
+                  );
+                })()}
               </div>
-            );
-          })()}
-        </div>
+            </CollapsibleSection>
           )}
         </div>
       )}

@@ -52,24 +52,42 @@
   padding-top: 6px;
 }
 
-.pingcli-cat-section {
-  margin: 0 0 14px;
-  padding: 4px 0 0;
-  border: none;
-  background: transparent;
+/* Nested sections inside install / live-commands cards */
+.pingcli-collapse-nested {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 14px 12px;
+  margin: 0 0 12px;
+}
+
+.pingcli-collapse-nested .pingcli-collapse-title {
+  font-size: 13px;
 }
 
 .pingcli-cat-section .pingcli-collapse-title {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #64748b;
+  letter-spacing: 0.05em;
+  color: #475569;
 }
 
 .pingcli-output {
   margin-top: 8px;
   outline: none;
+}
+
+.pingcli-prereqs-section .pingcli-prereqs-meta,
+.pingcli-response-section .pingcli-view-bar {
+  margin-top: 0;
+}
+
+.pingcli-prereqs-section .pingcli-prereqs-meta {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+  margin: 0 0 10px;
 }
 
 .pingcli-code-block {
