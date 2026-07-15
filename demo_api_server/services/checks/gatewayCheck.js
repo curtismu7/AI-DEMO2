@@ -14,12 +14,18 @@ const RESOURCE_ID = 'accounts:self';
 
 const realPath = {
   id: 'gateway.real_path', name: 'Real gateway path (introspect -> authorize -> mcp-call)',
-  category: 'Agent Gateway', heavy: true,
+  category: 'Agent Gateway',
+  severity: 'gate',
+  // Default run when PingGateway is selected — required for READY on SE.
   appliesWhen: (flags) => flags.ff_mcp_gateway_pinggateway === true,
   async run(ctx) {
     const userToken = ctx.req?.session?.oauthTokens?.accessToken;
     if (!userToken || userToken === '_cookie_session') {
-      return { status: 'skip', detail: 'No live user session token — log in and re-run to test the real gateway' };
+      return {
+        status: 'fail',
+        detail: 'No live user session token',
+        nextAction: 'Sign in with the demo user, open Demo check, Run again',
+      };
     }
     const hops = [];
     const fail = (name, detail) => { hops.push({ name, status: 'fail', detail }); return { status: 'fail', detail: `${name}: ${detail}`, meta: { hops } }; };

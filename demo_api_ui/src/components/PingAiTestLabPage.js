@@ -34,9 +34,6 @@ function ResultRow({ test, result, running, onRun }) {
           {open ? '▾' : '▸'}
         </button>
         <span className="patl-row-label">{test.label}</span>
-        {test.runnableCount != null && (
-          <span className="patl-row-hint">{test.runnableCount}/{test.checkCount} checks runnable</span>
-        )}
         <span className="patl-row-spacer" />
         {result?.latencyMs != null && <span className="patl-latency">{result.latencyMs} ms</span>}
         {result ? <StatusBadge status={result.status} /> : null}
@@ -147,20 +144,14 @@ export default function PingAiTestLabPage() {
     });
   };
 
-  const evalsSuite = suites.find((s) => s.key === 'evals');
-  const evalStages = evalsSuite
-    ? [...new Set(evalsSuite.tests.map((t) => t.stage))]
-    : [];
-
   return (
     <div className="patl-page">
       <header className="patl-header">
         <h1>Ping AI Test Lab</h1>
         <p className="patl-sub">
-          Exercises Ping&apos;s AI-first headless identity surface — Agent Skills (domain expertise),
-          agent-ready docs (discovery), and MCP servers plus PingCLI (interactive configuration) —
-          and the ping-bench CIAM eval checks. PingOne is reached only through CLI, skills, and MCP
-          servers; never direct Management API calls.
+          Demo readiness — confirm the live stack is up and the launcher paths work:
+          process health, real MCP tool calls (RFC 8693 + gateway), and use-case PERMIT/DENY
+          checks. Run while signed in so session-backed paths execute.
         </p>
         <div className="patl-actions">
           <button type="button" className="patl-btn patl-btn-primary" disabled={!!running} onClick={() => runStream(null, 'all')}>
@@ -178,7 +169,7 @@ export default function PingAiTestLabPage() {
         {error && <div className="patl-error">❌ {error}</div>}
       </header>
 
-      {suites.filter((s) => s.key !== 'evals').map((suite) => (
+      {suites.map((suite) => (
         <section key={suite.key} className="patl-suite">
           <div className="patl-suite-head">
             <h2>{suite.label}</h2>
@@ -197,31 +188,6 @@ export default function PingAiTestLabPage() {
           ))}
         </section>
       ))}
-
-      {evalsSuite && (
-        <section className="patl-suite">
-          <div className="patl-suite-head">
-            <h2>{evalsSuite.label}</h2>
-            <p>{evalsSuite.description}</p>
-            <button
-              type="button"
-              className="patl-btn patl-btn-small"
-              disabled={!!running}
-              onClick={() => runStream(['evals'], 'evals')}
-            >
-              {running === 'evals' ? `Running… ${progress?.done ?? 0}` : 'Run all eval rows'}
-            </button>
-          </div>
-          {evalStages.map((stage) => (
-            <div key={stage} className="patl-stage">
-              <h3 className="patl-stage-title">{stage}</h3>
-              {evalsSuite.tests.filter((t) => t.stage === stage).map((test) => (
-                <ResultRow key={test.key} test={test} result={results[test.key]} running={running} onRun={runOne} />
-              ))}
-            </div>
-          ))}
-        </section>
-      )}
     </div>
   );
 }

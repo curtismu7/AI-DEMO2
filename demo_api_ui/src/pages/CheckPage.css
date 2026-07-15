@@ -179,3 +179,21 @@
 .detail-pane { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; }
 .detail-head { display: flex; align-items: center; gap: 11px; margin-bottom: 4px; }
 .detail-head h3 { margin: 0; font-size: 16px; }
+
+.check-page-head { margin-bottom: 16px; }
+.check-page-head h1 { margin: 0 0 6px; font-size: 22px; color: var(--text); }
+.check-page-sub { margin: 0; font-size: 13.5px; color: var(--text-muted); max-width: 52rem; line-height: 1.45; }
+.chk-gate-badge {
+  display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px;
+  font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  background: var(--accent-soft); color: var(--accent); vertical-align: middle;
+}
+.chk-next { display: block; margin-top: 4px; color: var(--accent); font-weight: 600; text-align: right; }
+.chk-meta { width: 100%; margin: 8px 0 0; flex-basis: 100%; }
+.chk-meta summary { cursor: pointer; font-size: 12px; color: var(--text-muted); font-weight: 600; }
+.chk-meta pre {
+  margin: 8px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--surface-2);
+  border: 1px solid var(--border); font-family: var(--mono); font-size: 11px;
+  overflow: auto; max-height: 240px; color: var(--text); text-align: left;
+}
+.chk-row { flex-wrap: wrap; }

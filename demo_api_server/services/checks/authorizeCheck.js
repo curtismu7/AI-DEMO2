@@ -9,6 +9,7 @@ const TEST_USER = 'check-preflight-user';
 
 const mode = {
   id: 'authorize.mode', name: 'Authorize mode', category: 'PingOne Authorize',
+  severity: 'advisory',
   async run({ flags }) {
     const simulated = flags.ff_authorize_simulated === true;
     return {
@@ -21,6 +22,7 @@ const mode = {
 
 const realDecision = {
   id: 'authorize.real_decision', name: 'Real decision (force-live)', category: 'PingOne Authorize',
+  severity: 'advisory',
   async run({ flags }) {
     if (!p1az.isConfigured()) {
       return { status: 'fail', detail: 'PingOne Authorize worker credentials + decision endpoint are not configured' };
@@ -50,6 +52,7 @@ const realDecision = {
 
 const failOpen = {
   id: 'authorize.fail_open', name: 'Fail-open awareness', category: 'PingOne Authorize',
+  severity: 'advisory',
   async run({ flags }) {
     return flags.ff_authorize_fail_open === false
       ? { status: 'warn', detail: 'Fail-open is OFF — Authorize errors will hard-deny mid-demo' }
