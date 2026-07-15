@@ -87,6 +87,87 @@ export function parsePingcliResults(raw) {
   };
 }
 
+/**
+ * Turn flattened object fields into ordered key/value pairs for the form view.
+ */
+function objectToFormFields(obj) {
+  const flat = flattenResultRow(obj);
+  return Object.entries(flat).map(([key, value]) => ({
+    key,
+    value: value === null || value === undefined ? '' : String(value),
+  }));
+}
+
+/**
+ * Build an easy-read model from raw command output.
+ * - kind: 'table' for list envelopes (and empty success lists)
+ * - kind: 'form' for a single object (envelope data or top-level JSON)
+ * Returns null when the output is not structured JSON we can present.
+ */
+export function buildReadableView(raw) {
+  if (!raw || typeof raw !== 'string') return null;
+
+  const table = parsePingcliResults(raw);
+  if (table && (table.rows.length > 0 || table.status === 'success')) {
+    return { kind: 'table', ...table };
+  }
+
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch { return null; }
+  if (!parsed || typeof parsed !== 'object') return null;
+
+  if (Array.isArray(parsed)) {
+    if (parsed.length === 0) {
+      return { kind: 'table', status: '', message: '', columns: [], rows: [] };
+    }
+    const rows = parsed.map(flattenResultRow);
+    const present = new Set();
+    for (const row of rows) for (const k of Object.keys(row)) present.add(k);
+    const columns = PREFERRED_COLUMNS.filter((c) => present.has(c));
+    for (const k of present) {
+      if (columns.length >= MAX_COLUMNS) break;
+      if (!columns.includes(k)) columns.push(k);
+    }
+    return {
+      kind: 'table',
+      status: '',
+      message: '',
+      columns: columns.slice(0, MAX_COLUMNS),
+      rows,
+    };
+  }
+
+  // Envelope with a single resource object as data (not a list / _embedded).
+  if (
+    parsed.schemaVersion
+    && parsed.data
+    && typeof parsed.data === 'object'
+    && !Array.isArray(parsed.data)
+    && !parsed.data._embedded
+  ) {
+    const fields = objectToFormFields(parsed.data);
+    if (fields.length > 0) {
+      return {
+        kind: 'form',
+        status: parsed.status || '',
+        message: parsed.message || '',
+        fields,
+      };
+    }
+  }
+
+  const fields = objectToFormFields(parsed);
+  if (fields.length > 0) {
+    return {
+      kind: 'form',
+      status: parsed.status || '',
+      message: parsed.message || '',
+      fields,
+    };
+  }
+  return null;
+}
+
 // Cap for per-token JSON highlighting. PingOne list payloads (users/groups/apps)
 // routinely exceed this once pretty-printed with _links — coloring every token
 // injects tens of thousands of React nodes and can crash the render so the
@@ -237,6 +318,9 @@ export default function PingCliPage() {
   const [cmdMeta, setCmdMeta]     = useState({});
   const [copiedKey, setCopiedKey] = useState(null);
   const [copiedPrereq, setCopiedPrereq] = useState(null);
+  // 'json' (raw) or 'easy' (table / form). Auto-switches to easy when a run
+  // finishes with structured JSON the reader can present.
+  const [viewMode, setViewMode]   = useState('json');
   const [installedVersion, setInstalledVersion] = useState(null);
   const abortRef = useRef(null);
 
@@ -288,6 +372,7 @@ export default function PingCliPage() {
     setCmdLabel('');
     setOutput('');
     setExitCode(null);
+    setViewMode('json');
     // Seed prereqs from catalog immediately so the panel appears above the
     // response while the stream connects; SSE meta may refine the list.
     setPrereqs(Array.isArray(cmdMeta[commandKey]?.prereqs) ? cmdMeta[commandKey].prereqs : []);
@@ -391,6 +476,15 @@ export default function PingCliPage() {
   // already have output (belt-and-suspenders if exitCode never lands).
   const showTerminal = running !== null || exitCode !== null || output !== '';
   const statusClass  = exitCode === 0 ? 'ok' : exitCode !== null ? 'err' : '';
+  const readable = (!running && output) ? buildReadableView(output) : null;
+  const canEasyRead = readable !== null;
+
+  // When a run finishes with structured JSON, open Easy read so the table/form
+  // is the default; user can flip back to JSON with the header button.
+  useEffect(() => {
+    if (running !== null || exitCode === null || !output) return;
+    if (buildReadableView(output)) setViewMode('easy');
+  }, [running, exitCode, output]);
 
   return (
     <div className="pingcli-page">
@@ -494,53 +588,92 @@ export default function PingCliPage() {
         </div>
       )}
 
-      {showTerminal && !running && exitCode === 0 && (() => {
-        const results = output ? parsePingcliResults(output) : null;
-        if (!results || results.status !== 'success' || results.rows.length === 0) return null;
-        return (
-          <div className="pingcli-results">
-            <div className="pingcli-results-header">
-              <span className="pingcli-results-title">Results</span>
-              <span className="pingcli-results-meta">
-                {results.rows.length} item{results.rows.length === 1 ? '' : 's'}
-                {results.message ? ` · ${results.message}` : ''}
-              </span>
-            </div>
-            <div className="pingcli-results-scroll">
-              <table className="pingcli-results-table">
-                <thead>
-                  <tr>
-                    {results.columns.map((c) => <th key={c}>{c}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {results.rows.map((row, i) => (
-                    <tr key={row.id ?? i}>
-                      {results.columns.map((c) => (
-                        <td key={c}>{row[c] === undefined || row[c] === null ? '—' : String(row[c])}</td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        );
-      })()}
-
       {showTerminal && (
         <div className="pingcli-terminal">
           <div className="pingcli-terminal-header">
             <span className="pingcli-terminal-prompt">
               $ <span className="cmd-text">{cmdLabel || '…'}</span>
             </span>
-            {exitCode !== null && (
-              <span className={`pingcli-terminal-status ${statusClass}`}>
-                {exitCode === 0 ? '✓ exit 0' : `✗ exit ${exitCode}`}
-              </span>
-            )}
+            <div className="pingcli-terminal-actions">
+              {canEasyRead && (
+                <div className="pingcli-view-toggle" role="group" aria-label="Output view">
+                  <button
+                    type="button"
+                    className={`pingcli-view-btn${viewMode === 'easy' ? ' active' : ''}`}
+                    onClick={() => setViewMode('easy')}
+                  >
+                    Easy read
+                  </button>
+                  <button
+                    type="button"
+                    className={`pingcli-view-btn${viewMode === 'json' ? ' active' : ''}`}
+                    onClick={() => setViewMode('json')}
+                  >
+                    JSON
+                  </button>
+                </div>
+              )}
+              {exitCode !== null && (
+                <span className={`pingcli-terminal-status ${statusClass}`}>
+                  {exitCode === 0 ? '✓ exit 0' : `✗ exit ${exitCode}`}
+                </span>
+              )}
+            </div>
           </div>
-          {(() => {
+          {viewMode === 'easy' && readable?.kind === 'table' && (
+            <div className="pingcli-results pingcli-results-in-terminal">
+              <div className="pingcli-results-header">
+                <span className="pingcli-results-title">Table</span>
+                <span className="pingcli-results-meta">
+                  {readable.rows.length} item{readable.rows.length === 1 ? '' : 's'}
+                  {readable.message ? ` · ${readable.message}` : ''}
+                </span>
+              </div>
+              {readable.rows.length === 0 ? (
+                <p className="pingcli-results-empty">No rows returned.</p>
+              ) : (
+                <div className="pingcli-results-scroll">
+                  <table className="pingcli-results-table">
+                    <thead>
+                      <tr>
+                        {readable.columns.map((c) => <th key={c}>{c}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {readable.rows.map((row, i) => (
+                        <tr key={row.id ?? i}>
+                          {readable.columns.map((c) => (
+                            <td key={c}>
+                              {row[c] === undefined || row[c] === null ? '—' : String(row[c])}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+          {viewMode === 'easy' && readable?.kind === 'form' && (
+            <div className="pingcli-form-view">
+              <div className="pingcli-results-header">
+                <span className="pingcli-results-title">Details</span>
+                <span className="pingcli-results-meta">
+                  {readable.message || (readable.status ? String(readable.status) : 'Key / value')}
+                </span>
+              </div>
+              <dl className="pingcli-form-list">
+                {readable.fields.map((f) => (
+                  <div key={f.key} className="pingcli-form-row">
+                    <dt>{f.key}</dt>
+                    <dd>{f.value === '' ? '—' : f.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )}
+          {(viewMode === 'json' || !canEasyRead) && (() => {
             const tokens = output ? tokenizeJson(output) : null;
             if (tokens) {
               return <div className="pingcli-terminal-body">{tokens}</div>;
