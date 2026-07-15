@@ -1,6 +1,7 @@
 """Tests for the CodeGraph agent factory / runner."""
 
-from unittest.mock import patch, MagicMock, AsyncMock
+import pytest
+from unittest.mock import patch, MagicMock
 
 from src.codegraph.agent import (
     SYSTEM_PROMPT,
@@ -95,3 +96,59 @@ def test_system_prompt_mentions_grep_and_read_file():
     lowered = SYSTEM_PROMPT.lower()
     assert "grep" in lowered
     assert "read_file" in lowered
+
+
+@pytest.mark.asyncio
+async def test_retrieve_emits_keepalive_while_llm_is_slow(monkeypatch):
+    """Slow LLM must not go silent — keepalive comments keep proxies awake."""
+    import asyncio
+    from langchain_core.messages import HumanMessage
+    import src.codegraph.agent as agent_mod
+
+    monkeypatch.setattr(agent_mod, "KEEPALIVE_SECONDS", 0.05)
+
+    class SlowLLM:
+        async def astream(self, _msgs):
+            await asyncio.sleep(0.2)
+            chunk = MagicMock()
+            chunk.content = "ok"
+            yield chunk
+
+        async def ainvoke(self, _msgs):
+            raise AssertionError("ainvoke should not run when astream yields")
+
+    runner = CodegraphRunner(mode="retrieve", provider="llamacpp", llm=SlowLLM(), graph=None)
+    frames = []
+    with patch("src.codegraph.agent.gather_context", return_value="CTX"):
+        async for frame in runner._stream_retrieve([HumanMessage(content="q")]):
+            frames.append(frame)
+
+    joined = "".join(frames)
+    assert ": keepalive" in joined
+    assert '"type": "token"' in joined
+    assert "ok" in joined
+
+
+@pytest.mark.asyncio
+async def test_retrieve_empty_llm_emits_error():
+    from langchain_core.messages import HumanMessage
+
+    class EmptyLLM:
+        async def astream(self, _msgs):
+            if False:
+                yield None
+
+        async def ainvoke(self, _msgs):
+            chunk = MagicMock()
+            chunk.content = ""
+            return chunk
+
+    runner = CodegraphRunner(mode="retrieve", provider="llamacpp", llm=EmptyLLM(), graph=None)
+    frames = []
+    with patch("src.codegraph.agent.gather_context", return_value="CTX"):
+        async for frame in runner._stream_retrieve([HumanMessage(content="q")]):
+            frames.append(frame)
+
+    joined = "".join(frames)
+    assert '"type": "error"' in joined
+    assert "empty answer" in joined

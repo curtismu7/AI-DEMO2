@@ -21,6 +21,9 @@ logger = logging.getLogger(__name__)
 
 Mode = Literal["react", "retrieve"]
 
+# SSE comment interval while waiting on a slow LLM (proxies/ALBs idle-close).
+KEEPALIVE_SECONDS = 10.0
+
 SYSTEM_PROMPT = """You are a code navigator for the AI-Demo repository — a multi-vertical AI agent \
 security demo built on PingOne, MCP, and LangChain. The repo contains:
 - demo_api_server: Node.js BFF
@@ -240,22 +243,58 @@ class CodegraphRunner:
             ),
         ]
 
-        # Prefer token streaming; fall back to a single invoke for Helix et al.
-        streamed = False
-        try:
-            async for chunk in self.llm.astream(synth):
-                text = _chunk_text(getattr(chunk, "content", ""))
-                if text:
-                    streamed = True
-                    yield f"data: {json.dumps({'type': 'token', 'text': text})}\n\n"
-        except Exception as exc:
-            logger.info("CodeGraph retrieve astream unavailable (%s) — using invoke", exc)
+        # Stream tokens with SSE comment keepalives so proxies/ALBs do not idle-
+        # close the connection while a slow local LLM warms up (browser then
+        # shows a network error). Comment frames are ignored by the UI parser.
+        queue: asyncio.Queue = asyncio.Queue()
 
-        if not streamed:
-            result = await self.llm.ainvoke(synth)
-            text = _chunk_text(getattr(result, "content", "")) or str(result)
-            if text:
-                yield f"data: {json.dumps({'type': 'token', 'text': text})}\n\n"
+        async def _produce() -> None:
+            streamed = False
+            try:
+                async for chunk in self.llm.astream(synth):
+                    text = _chunk_text(getattr(chunk, "content", ""))
+                    if text:
+                        streamed = True
+                        await queue.put(("token", text))
+            except Exception as exc:
+                logger.info("CodeGraph retrieve astream unavailable (%s) — using invoke", exc)
+
+            if not streamed:
+                try:
+                    result = await self.llm.ainvoke(synth)
+                    text = _chunk_text(getattr(result, "content", ""))
+                    if text:
+                        await queue.put(("token", text))
+                    else:
+                        await queue.put((
+                            "error",
+                            "LLM returned an empty answer. Try again or switch CODEGRAPH_LLM_PROVIDER.",
+                        ))
+                except Exception as exc:
+                    await queue.put(("error", str(exc) or type(exc).__name__))
+            await queue.put(("done", None))
+
+        producer = asyncio.create_task(_produce())
+        try:
+            while True:
+                try:
+                    kind, payload = await asyncio.wait_for(queue.get(), timeout=KEEPALIVE_SECONDS)
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+                    continue
+                if kind == "token":
+                    yield f"data: {json.dumps({'type': 'token', 'text': payload})}\n\n"
+                elif kind == "error":
+                    yield f"data: {json.dumps({'type': 'error', 'text': payload})}\n\n"
+                elif kind == "done":
+                    break
+        finally:
+            if not producer.done():
+                producer.cancel()
+                try:
+                    await producer
+                except asyncio.CancelledError:
+                    pass
 
 
 def create_codegraph_agent(api_key: str) -> CodegraphRunner:
