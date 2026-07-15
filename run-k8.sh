@@ -32,6 +32,8 @@
 #   ./run-k8.sh sim-deploy   # deploy GHCR images to local K8s only (no rebuild)
 #
 # Ping SE DevOps cluster (ping-dev-aws-us-east-2):
+#   Prefer: ./run-pingaws.sh [start|build|deploy|status|undeploy|update …]
+#   Low-level (same behavior):
 #   ./run-k8.sh se-build      # build images + push to GHCR (needs GITHUB_OWNER)
 #   ./run-k8.sh se-deploy     # deploy to SE cluster (auto-derives your namespace)
 #   ./run-k8.sh se-all        # se-build + se-deploy
@@ -39,7 +41,7 @@
 #   ./run-k8.sh se-undeploy   # remove all app resources from your SE namespace (run when done!)
 #
 #   Namespace is auto-derived from your Ping email (cmuir@pingidentity.com → ping-devops-cmuir).
-#   Override with: SE_NAMESPACE=ping-devops-yourname ./run-k8.sh se-deploy
+#   Override with: SE_NAMESPACE=ping-devops-yourname ./run-pingaws.sh
 #
 # AWS EKS:
 #   ./run-k8.sh aws-build    # build images + push to GHCR (needs GITHUB_OWNER)
@@ -383,7 +385,12 @@ aws_build() {
   info "Building images..."
   # -p: build under the K8 project so prod-stage images never land on the dev
   # stack's ai-demo-* tags (see K8_COMPOSE_PROJECT above).
-  docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml build
+  # --profile agents: openai/mastra/pydantic (IMAGE_MAP below).
+  # --profile demo-auth: mcp-gateway + authz-server (also in IMAGE_MAP).
+  # Bare `compose build` skips profiled services → "No such image" on push.
+  # COMPOSE_PARALLEL_LIMIT=1: OrbStack often OOM-/daemon-crash on parallel builds.
+  COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml \
+    --profile agents --profile demo-auth build
 
   # local-image:ghcr-image pairs (indexed array — works on macOS bash 3.2).
   # Local side = compose default naming under -p: ai-demo-k8-<service>.
@@ -402,6 +409,17 @@ aws_build() {
     "ai-demo-k8-mastra-agent:ai-demo-mastra-agent"
     "ai-demo-k8-pydantic-agent:ai-demo-pydantic-agent"
   )
+
+  # Fail fast if any expected image is missing (avoids a partial GHCR push).
+  local missing=()
+  for entry in "${IMAGE_MAP[@]}"; do
+    local_name="${entry%%:*}"
+    docker image inspect "${local_name}:latest" &>/dev/null \
+      || missing+=("${local_name}:latest")
+  done
+  if ((${#missing[@]})); then
+    die "Build finished but missing local image(s): ${missing[*]}"
+  fi
 
   for entry in "${IMAGE_MAP[@]}"; do
     local_name="${entry%%:*}"
