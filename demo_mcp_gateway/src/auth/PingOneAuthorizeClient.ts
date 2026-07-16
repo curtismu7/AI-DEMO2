@@ -237,7 +237,14 @@ export class PingOneAuthorizeClient {
       axios.post(
         `${base}/governance/pap/alpha/policy/${this.config.pingAuthorizeWorkerId}/decision`,
         body,
-        { timeout: 5000, headers: { 'Content-Type': 'application/json' } },
+        {
+          timeout: 5000,
+          headers: { 'Content-Type': 'application/json' },
+          // Accept all HTTP statuses so 4xx (bad request / auth / not found) are
+          // handled as decisions, not thrown as network errors. Only true network
+          // errors and timeouts should trigger failover.
+          validateStatus: () => true,
+        },
       );
 
     // HI-09: lift decision_id / policy_version / trace_id off the
@@ -270,8 +277,21 @@ export class PingOneAuthorizeClient {
 
     try {
       const response = await postDecision(primary);
-      // A 5xx (axios throws by default) lands in catch; a 200 + DENY is a valid
-      // decision and must NOT trigger failover.
+      // 4xx: config/request error — fail closed with a specific reason. Do NOT
+      // failover (the mock would get the same bad parameters). Log for operator.
+      if (response.status >= 400 && response.status < 500) {
+        const errBody = response.data;
+        const reason = typeof errBody?.message === 'string' ? errBody.message
+          : typeof errBody?.error === 'string' ? errBody.error
+          : `PingOne Authorize returned HTTP ${response.status}`;
+        console.error(`[PingOneAuthorizeClient] P1AZ ${response.status}: ${reason} (endpoint: ${primary})`);
+        return { decision: 'DENY', reason: `authorize_config_error: ${reason}`, engine: primaryEngine, sentParameters: params };
+      }
+      // 5xx (axios won't throw now): trigger failover
+      if (response.status >= 500) {
+        throw new Error(`PingOne Authorize returned ${response.status}`);
+      }
+      // A 200 + DENY is a valid decision and must NOT trigger failover.
       return { ...toDecision(response.data, primaryEngine), sentParameters: params };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

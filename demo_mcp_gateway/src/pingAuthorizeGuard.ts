@@ -260,7 +260,7 @@ export async function guardToolCall(
     const postDecision = (base: string) => axios.post(
       `${base}/governance/pap/alpha/policy/${config.pingAuthorizeWorkerId}/decision`,
       body,
-      { timeout: 5000, headers: authzHeaders() },
+      { timeout: 5000, headers: authzHeaders(), validateStatus: () => true },
     );
 
     const mockBase = config.pingAuthorizeMockBase;
@@ -269,6 +269,19 @@ export async function guardToolCall(
     let response;
     try {
       response = await postDecision(config.pingAuthorizeEndpoint);
+      // 4xx: config/request error — fail closed with specific reason, no failover
+      if (response.status >= 400 && response.status < 500) {
+        const errBody = response.data;
+        const reason = typeof errBody?.message === 'string' ? errBody.message
+          : typeof errBody?.error === 'string' ? errBody.error
+          : `PingOne Authorize returned HTTP ${response.status}`;
+        console.error(`[GW-WS] P1AZ ${response.status}: ${reason}`);
+        return { permitted: false, reason: `authorize_config_error: ${reason}` };
+      }
+      // 5xx: trigger failover
+      if (response.status >= 500) {
+        throw new Error(`PingOne Authorize returned ${response.status}`);
+      }
     } catch (primaryErr) {
       if (!canFailover) throw primaryErr;
       const pmsg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
