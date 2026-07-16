@@ -204,13 +204,17 @@ export default function TokenExchangeTesterPage() {
               {result.request && (
                 <div className='request-section'>
                   <h3>Exchange Request</h3>
-                  <JsonHighlight data={result.request} maxHeight='200px' />
+                  <pre style={{ maxHeight: '200px', overflow: 'auto' }}>
+                    <JsonHighlight value={result.request} />
+                  </pre>
                 </div>
               )}
 
               <div className='raw-response-section'>
                 <h3>Full Response</h3>
-                <JsonHighlight data={result} maxHeight='300px' />
+                <pre style={{ maxHeight: '300px', overflow: 'auto' }}>
+                  <JsonHighlight value={result} />
+                </pre>
               </div>
             </div>
           )}
