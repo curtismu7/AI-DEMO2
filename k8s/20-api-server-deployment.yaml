@@ -100,24 +100,33 @@ spec:
           readOnly: true
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "500m"
+            memory: "768Mi"
+            cpu: "750m"
           limits:
             memory: "2Gi"
             cpu: "2000m"
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 3001
+            scheme: HTTPS
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 12
         livenessProbe:
           tcpSocket:
             port: 3001
-          initialDelaySeconds: 15
+          initialDelaySeconds: 5
           periodSeconds: 60
           timeoutSeconds: 5
           failureThreshold: 3
         readinessProbe:
           exec:
             command: ["curl", "-k", "-f", "https://localhost:3001/api/healthz"]
-          initialDelaySeconds: 5
-          periodSeconds: 30
-          timeoutSeconds: 3
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
           failureThreshold: 3
       volumes:
       - name: tls-certs
