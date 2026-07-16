@@ -1,15 +1,13 @@
 /**
  * parseCitations — Unit Tests
- *
- * Run: npx jest client/utils/__tests__/parseCitations.test.js
  */
 
-const {
+import {
   parseCitations,
   extractCitationIds,
   hasCitations,
   createCitationResolver,
-} = require('../parseCitations');
+} from '../parseCitations';
 
 // ===========================================================================
 // parseCitations()

@@ -5,8 +5,8 @@
  */
 
 const path = require('path');
-const okfLoader = require('../okfLoaderService');
-const { toolDefinition, handler } = require('../okfMcpTool');
+const okfLoader = require('../../services/okfLoaderService');
+const { toolDefinition, handler } = require('../../services/okfMcpTool');
 
 // ---------------------------------------------------------------------------
 // Setup: initialize loader with the real bundles

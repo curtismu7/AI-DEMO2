@@ -8,7 +8,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const okfLoader = require('../okfLoaderService');
+const okfLoader = require('../../services/okfLoaderService');
 
 // ---------------------------------------------------------------------------
 // Helpers
