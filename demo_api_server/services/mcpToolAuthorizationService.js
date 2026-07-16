@@ -365,6 +365,50 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
       ? { autoDisabledGroupPolicy: true, flagId: 'ff_authorize_group_policy' }
       : null;
 
+    // Policy not found: P1AZ evaluated fine but no policy matched — code/policy
+    // drift (e.g. a new tool the deployed policy doesn't know), not a deny.
+    // Must be checked before the DENY branch because _normalizeDecision collapses
+    // NOT_APPLICABLE to DENY (fail-closed), and we need the distinct 503 response.
+    if (r.policyNotFound) {
+      return {
+        ran: true,
+        block: {
+          status: 503,
+          body: {
+            error: 'policy_not_found',
+            error_description: 'Policy not found, please contact administrator.',
+            authorize_engine: 'pingone',
+            decisionContext: 'McpFirstTool',
+            decisionId: r.decisionId,
+            ...autoDisabled,
+          },
+        },
+      };
+    }
+
+    // DENY takes absolute precedence — a hard deny means "no, period" regardless
+    // of any HITL/step-up obligations that may also be present on the response.
+    if (r.decision === 'DENY') {
+      return {
+        ran: true,
+        block: {
+          status: 403,
+          body: {
+            error: 'mcp_authorization_denied',
+            error_description: 'PingOne Authorize denied MCP tool access for this session.',
+            authorize_engine: 'pingone',
+            decisionContext: 'McpFirstTool',
+            decisionId: r.decisionId,
+            deny_reason: r.raw?.reason || null,
+            deny_parameters: r.raw?.parameters || null,
+            authorize_request: r._debug?.request || null,
+            authorize_response: r._debug?.response || r.raw || null,
+            ...autoDisabled,
+          },
+        },
+      };
+    }
+
     if (r.stepUpRequired) {
       return {
         ran: true,
@@ -413,48 +457,6 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
             authorize_engine: 'pingone',
             decisionContext: 'McpFirstTool',
             decisionId: r.decisionId,
-            ...autoDisabled,
-          },
-        },
-      };
-    }
-
-    // Policy not found: P1AZ evaluated fine but no policy matched — code/policy
-    // drift (e.g. a new tool the deployed policy doesn't know), not a deny.
-    // Read the side-channel flag: _normalizeDecision stays fail-closed and
-    // returns DENY, so `r.decision` is never 'NOT_APPLICABLE'.
-    if (r.policyNotFound) {
-      return {
-        ran: true,
-        block: {
-          status: 503,
-          body: {
-            error: 'policy_not_found',
-            error_description: 'Policy not found, please contact administrator.',
-            authorize_engine: 'pingone',
-            decisionContext: 'McpFirstTool',
-            decisionId: r.decisionId,
-            ...autoDisabled,
-          },
-        },
-      };
-    }
-
-    if (r.decision === 'DENY') {
-      return {
-        ran: true,
-        block: {
-          status: 403,
-          body: {
-            error: 'mcp_authorization_denied',
-            error_description: 'PingOne Authorize denied MCP tool access for this session.',
-            authorize_engine: 'pingone',
-            decisionContext: 'McpFirstTool',
-            decisionId: r.decisionId,
-            deny_reason: r.raw?.reason || null,
-            deny_parameters: r.raw?.parameters || null,
-            authorize_request: r._debug?.request || null,
-            authorize_response: r._debug?.response || r.raw || null,
             ...autoDisabled,
           },
         },
