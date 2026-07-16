@@ -1,6 +1,6 @@
 {
-  "@context": "https://okf.ping.dev/v0.1",
-  "id": "urn:okf:ping:banking-domain:a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "@context": "https://knowledge.ping.dev/v0.1",
+  "id": "urn:knowledge:ping:banking-domain:a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "version": "0.1.0",
   "domain": "banking-domain",
   "title": "Banking Domain Knowledge — Demo Agent Grounding",

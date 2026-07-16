@@ -25,7 +25,7 @@ import './CitationPill.css';
 const resolver = createCitationResolver();
 
 /**
- * Invalidates the citation resolver cache. Call after POST /api/okf/reload
+ * Invalidates the citation resolver cache. Call after POST /api/knowledge/reload
  * so that subsequent citation resolutions fetch fresh assertion data.
  */
 export function invalidateCitationCache() {
@@ -95,7 +95,7 @@ export function CitationPill({ id, assertion, loading = false }) {
   return (
     <span
       ref={pillRef}
-      className={`okf-citation-pill ${assertion ? 'resolved' : ''} ${loading ? 'loading' : ''}`}
+      className={`kg-citation-pill ${assertion ? 'resolved' : ''} ${loading ? 'loading' : ''}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
@@ -105,24 +105,24 @@ export function CitationPill({ id, assertion, loading = false }) {
       aria-label={`Citation ${id}${assertion ? `: ${assertion.source}` : ''}`}
       aria-expanded={showPopover}
     >
-      <span className="okf-citation-pill__label">[{id}]</span>
+      <span className="kg-citation-pill__label">[{id}]</span>
 
       {showPopover && assertion && (
         <span
-          className={`okf-citation-popover ${popoverPosition === 'below' ? 'okf-citation-popover--below' : ''}`}
+          className={`kg-citation-popover ${popoverPosition === 'below' ? 'kg-citation-popover--below' : ''}`}
           role="tooltip"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
-          <span className="okf-citation-popover__header">
-            <span className="okf-citation-popover__id">{id}</span>
-            <span className="okf-citation-popover__source">{assertion.source}</span>
+          <span className="kg-citation-popover__header">
+            <span className="kg-citation-popover__id">{id}</span>
+            <span className="kg-citation-popover__source">{assertion.source}</span>
           </span>
-          <span className="okf-citation-popover__claim">{assertion.claim}</span>
+          <span className="kg-citation-popover__claim">{assertion.claim}</span>
           {assertion.citations && assertion.citations.length > 0 && (
-            <span className="okf-citation-popover__refs">
+            <span className="kg-citation-popover__refs">
               {assertion.citations.map((c, i) => (
-                <span key={i} className="okf-citation-popover__ref">
+                <span key={i} className="kg-citation-popover__ref">
                   {c.uri ? (
                     <a href={c.uri} target="_blank" rel="noopener noreferrer">{c.ref}</a>
                   ) : (
@@ -177,7 +177,7 @@ export function CitedMessage({ text, domain = 'banking-domain', className = '' }
   const segments = parseCitations(text);
 
   return (
-    <span className={`okf-cited-message ${className}`.trim()}>
+    <span className={`kg-cited-message ${className}`.trim()}>
       {segments.map((segment, i) => {
         if (segment.type === 'text') {
           return <span key={i}>{segment.content}</span>;
@@ -229,29 +229,29 @@ export function CitationFooter({ text, domain = 'banking-domain' }) {
   if (ids.length === 0) return null;
 
   return (
-    <div className="okf-citation-footer">
+    <div className="kg-citation-footer">
       <button
-        className="okf-citation-footer__toggle"
+        className="kg-citation-footer__toggle"
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
       >
-        <span className="okf-citation-footer__icon">📚</span>
-        <span className="okf-citation-footer__count">
+        <span className="kg-citation-footer__icon">📚</span>
+        <span className="kg-citation-footer__count">
           {ids.length} source{ids.length !== 1 ? 's' : ''}
         </span>
-        <span className={`okf-citation-footer__chevron ${expanded ? 'expanded' : ''}`}>
+        <span className={`kg-citation-footer__chevron ${expanded ? 'expanded' : ''}`}>
           ▾
         </span>
       </button>
 
       {expanded && (
-        <div className="okf-citation-footer__list">
+        <div className="kg-citation-footer__list">
           {ids.map(id => {
             const assertion = assertions.get(id);
             return (
-              <div key={id} className="okf-citation-footer__item">
-                <span className="okf-citation-footer__item-id">[{id}]</span>
-                <span className="okf-citation-footer__item-text">
+              <div key={id} className="kg-citation-footer__item">
+                <span className="kg-citation-footer__item-id">[{id}]</span>
+                <span className="kg-citation-footer__item-text">
                   {assertion ? assertion.source : 'Loading...'}
                 </span>
               </div>

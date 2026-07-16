@@ -1,4 +1,8 @@
-# Open Knowledge Format (OKF) — Bundle Specification
+# Knowledge Bundle Specification
+
+> A demo-local format for authored, citable knowledge assertions. Distinct from
+> Google Cloud's Open Knowledge Format (OKF), which is a directory of Markdown
+> concept files linked by `[[path]]` traversal — a different design.
 
 **Version:** 0.1.0  
 **Status:** Draft  
@@ -8,9 +12,9 @@
 
 ## 1. Overview
 
-An OKF bundle is a self-contained, machine-readable collection of **assertions** — deterministic knowledge claims with provenance — designed to be injected into LLM system prompts for grounded, citable reasoning.
+A knowledge bundle is a self-contained, machine-readable collection of **assertions** — deterministic knowledge claims with provenance — designed to be injected into LLM system prompts for grounded, citable reasoning.
 
-Bundles are JSON files (`.okf.json`) conforming to a JSON-LD-compatible envelope.
+Bundles are JSON files (`.kb.json`) conforming to a JSON-LD-compatible envelope.
 
 ---
 
@@ -30,8 +34,8 @@ Bundles are JSON files (`.okf.json`) conforming to a JSON-LD-compatible envelope
 
 ```jsonc
 {
-  "@context": "https://okf.ping.dev/v0.1",
-  "id": "urn:okf:<org>:<domain>:<uuid>",
+  "@context": "https://knowledge.ping.dev/v0.1",
+  "id": "urn:knowledge:<org>:<domain>:<uuid>",
   "version": "0.1.0",
   "domain": "<domain-slug>",
   "title": "<Human-readable bundle title>",
@@ -47,8 +51,8 @@ Bundles are JSON files (`.okf.json`) conforming to a JSON-LD-compatible envelope
 
 | Field | Type | Description |
 |---|---|---|
-| `@context` | `string` | JSON-LD context URI. Must be `https://okf.ping.dev/v0.1` for this version |
-| `id` | `string` | URN-style unique identifier: `urn:okf:<org>:<domain>:<uuid>` |
+| `@context` | `string` | JSON-LD context URI. Must be `https://knowledge.ping.dev/v0.1` for this version |
+| `id` | `string` | URN-style unique identifier: `urn:knowledge:<org>:<domain>:<uuid>` |
 | `version` | `string` | Semver version of the bundle content |
 | `domain` | `string` | Kebab-case domain slug (e.g., `banking-ops`, `repo-topology`) |
 | `title` | `string` | Human-readable title |
@@ -133,9 +137,9 @@ When injected into an LLM system prompt, a bundle is rendered as:
 
 | Convention | Value |
 |---|---|
-| Extension | `.okf.json` |
+| Extension | `.kb.json` |
 | Location | `graphify-out/` directory at repo root |
-| Naming | `<domain-slug>.okf.json` (matches the `domain` field) |
+| Naming | `<domain-slug>.kb.json` (matches the `domain` field) |
 | Encoding | UTF-8, no BOM |
 | Max assertions per bundle | 50 (soft limit for token budget) |
 
@@ -143,7 +147,7 @@ When injected into an LLM system prompt, a bundle is rendered as:
 
 ## 7. Validation
 
-Bundles MUST validate against `schemas/okf-bundle.schema.json`. The loader rejects invalid bundles at startup with a descriptive error.
+Bundles MUST validate against `schemas/knowledge-bundle.schema.json`. The loader rejects invalid bundles at startup with a descriptive error.
 
 ---
 
@@ -157,9 +161,9 @@ Bundles MUST validate against `schemas/okf-bundle.schema.json`. The loader rejec
 
 ## 9. Relationship to RAG
 
-OKF and RAG are complementary, not competing:
+Knowledge grounding and RAG are complementary, not competing:
 
-| Dimension | OKF | RAG |
+| Dimension | Knowledge grounding | RAG |
 |---|---|---|
 | Source of truth | Authored, deterministic | Retrieved, probabilistic |
 | Latency | Zero (pre-loaded) | Query-time retrieval |
@@ -167,4 +171,4 @@ OKF and RAG are complementary, not competing:
 | Citability | Guaranteed | Best-effort |
 | Use case | Policy, definitions, rules | Code search, large corpus |
 
-When both are active, OKF assertions take precedence for covered topics.
+When both are active, knowledge assertions take precedence for covered topics.

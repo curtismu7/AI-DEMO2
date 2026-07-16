@@ -1,7 +1,7 @@
 /**
- * OKF Knowledge Assertions — MCP tool for dev agents.
+ * Knowledge Knowledge Assertions — MCP tool for dev agents.
  *
- * Reads OKF bundles from graphify-out/ and returns assertions
+ * Reads knowledge bundles from graphify-out/ and returns assertions
  * for codebase-aware coding agents (Claude Code, Cursor, etc.).
  */
 
@@ -13,7 +13,7 @@ import * as path from 'path';
 // Schemas
 // ---------------------------------------------------------------------------
 
-export const getOkfAssertionsSchema = z.object({
+export const getKnowledgeAssertionsSchema = z.object({
   domain: z.string().describe(
     'Domain slug to query: "repo-topology" (codebase architecture) or "banking-domain" (banking policies). Use "list" to see all available domains.'
   ),
@@ -41,7 +41,7 @@ interface Assertion {
   tags?: string[];
 }
 
-interface OkfBundle {
+interface KnowledgeBundle {
   '@context': string;
   id: string;
   version: string;
@@ -51,7 +51,7 @@ interface OkfBundle {
   assertions: Assertion[];
 }
 
-let bundleCache: Map<string, OkfBundle> | null = null;
+let bundleCache: Map<string, KnowledgeBundle> | null = null;
 let bundleCacheDir: string | null = null;
 
 function findBundleDir(): string {
@@ -65,12 +65,12 @@ function findBundleDir(): string {
   return candidate; // return default even if missing (will error gracefully)
 }
 
-function loadBundles(): Map<string, OkfBundle> {
+function loadBundles(): Map<string, KnowledgeBundle> {
   // Return cached bundles if available
   if (bundleCache) return bundleCache;
 
   const dir = findBundleDir();
-  const bundles = new Map<string, OkfBundle>();
+  const bundles = new Map<string, KnowledgeBundle>();
 
   if (!fs.existsSync(dir)) {
     bundleCache = bundles;
@@ -78,11 +78,11 @@ function loadBundles(): Map<string, OkfBundle> {
     return bundles;
   }
 
-  const files = fs.readdirSync(dir).filter(f => f.endsWith('.okf.json'));
+  const files = fs.readdirSync(dir).filter(f => f.endsWith('.kb.json'));
   for (const file of files) {
     try {
       const raw = fs.readFileSync(path.join(dir, file), 'utf-8');
-      const bundle = JSON.parse(raw) as OkfBundle;
+      const bundle = JSON.parse(raw) as KnowledgeBundle;
       if (bundle.domain && bundle.assertions) {
         bundles.set(bundle.domain, bundle);
       }
@@ -94,7 +94,7 @@ function loadBundles(): Map<string, OkfBundle> {
   return bundles;
 }
 
-/** Force-reload bundles from disk (e.g., after editing a .okf.json file) */
+/** Force-reload bundles from disk (e.g., after editing a .kb.json file) */
 export function reloadBundles(): void {
   bundleCache = null;
   bundleCacheDir = null;
@@ -104,7 +104,7 @@ export function reloadBundles(): void {
 // Tool handler
 // ---------------------------------------------------------------------------
 
-export async function getOkfAssertions(params: z.infer<typeof getOkfAssertionsSchema>): Promise<string> {
+export async function getKnowledgeAssertions(params: z.infer<typeof getKnowledgeAssertionsSchema>): Promise<string> {
   const bundles = loadBundles();
   const { domain, tags, id, format = 'structured' } = params;
 

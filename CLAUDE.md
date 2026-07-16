@@ -42,7 +42,7 @@ skill disagrees with that file, the file wins.
 
 Hard rule from `§0` that always applies here:
 
-- **Emoji allowlist only:** `⚠️` `✅` `❌` `🔐` `✕` `✓` `👤` `🔑` `🪟`.
+- **Emoji allowlist only:** `⚠️` `✅` `❌` `🔐` `✕` `✓` `👤` `🔑` `🪟` `📚`.
   Everything else: plain text, CSS, or semantic HTML.
 
 ## Working practice — worktree (required)
@@ -82,6 +82,20 @@ tools for app/population/user reads during development.
 - After code edits, run `graphify update .` (AST-only). For codebase questions,
   prefer `graphify query|path|explain` when `graphify-out/graph.json` exists;
   use `graphify-out/wiki/index.md` for broad navigation when present.
+
+## Knowledge bundles
+
+Authored, citable facts live in `graphify-out/*.kb.json` (tracked; the loader
+serves them via `knowledgeLoaderService`). Two bundles: `repo-topology`
+(service boundaries, token exchange, scope topology, the feature-flag
+three-point wiring, compose profiles, MCP tools) and `banking-domain` (balance
+definitions, transfer limits, fraud holds the demo agent enforces). Consult the
+relevant bundle before grepping to rediscover a documented fact; if you verify a
+new durable fact, add an assertion (`id`, `claim`, `source`, `confidence`)
+validated against `schemas/knowledge-bundle.schema.json`. `banking-domain`
+grounds the demo agent when the **Knowledge Grounding** flag
+(`ff_knowledge_grounding`) is ON — this is the demo's citable-facts feature, not
+Google's Open Knowledge Format.
 
 ## Repo map (high level)
 

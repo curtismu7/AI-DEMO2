@@ -124,7 +124,7 @@ function extractCitationIds(text) {
 }
 
 /**
- * Checks whether a message contains any valid OKF citations.
+ * Checks whether a message contains any valid Knowledge citations.
  *
  * @param {string} text
  * @returns {boolean}
@@ -141,10 +141,10 @@ function hasCitations(text) {
  * Creates a citation resolver that fetches assertion metadata from the API.
  * Caches results per domain to avoid redundant network calls.
  *
- * @param {string} [apiBase='/api/okf'] - Base URL for OKF API
+ * @param {string} [apiBase='/api/knowledge'] - Base URL for Knowledge API
  * @returns {object} Resolver with resolve(domain, id) method
  */
-function createCitationResolver(apiBase = '/api/okf') {
+function createCitationResolver(apiBase = '/api/knowledge') {
   const cache = new Map(); // domain -> Map<id, assertion>
 
   return {

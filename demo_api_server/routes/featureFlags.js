@@ -486,13 +486,13 @@ const FLAG_REGISTRY = [
     defaultValue: true,
   },
 
-  // ── OKF Knowledge Grounding ────────────────────────────────────────────────
+  // ── Knowledge Grounding ────────────────────────────────────────────────
   {
-    id:           'ff_okf_grounding',
-    name:         'OKF Knowledge Grounding',
+    id:           'ff_knowledge_grounding',
+    name:         'Knowledge Grounding',
     category:     'Agent',
     description:
-      'When **ON**, injects deterministic OKF knowledge assertions into the demo agent system prompt. ' +
+      'When **ON**, injects deterministic knowledge assertions into the demo agent system prompt. ' +
       'The agent answers from authored, citable definitions ([K1]–[K12]) sourced from banking policy documents. ' +
       'When **OFF** (default), the agent uses only the manifest system prompt (no grounding, no RAG).',
     impact:

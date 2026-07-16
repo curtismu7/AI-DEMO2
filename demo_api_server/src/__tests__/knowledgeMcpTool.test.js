@@ -1,12 +1,12 @@
 /**
- * OKF MCP Tool — Unit Tests
+ * Knowledge MCP Tool — Unit Tests
  *
- * Run: npx jest server/services/__tests__/okfMcpTool.test.js
+ * Run: npx jest server/services/__tests__/knowledgeMcpTool.test.js
  */
 
 const path = require('path');
-const okfLoader = require('../../services/okfLoaderService');
-const { toolDefinition, handler } = require('../../services/okfMcpTool');
+const knowledgeLoader = require('../../services/knowledgeLoaderService');
+const { toolDefinition, handler } = require('../../services/knowledgeMcpTool');
 
 // ---------------------------------------------------------------------------
 // Setup: initialize loader with the real bundles
@@ -15,11 +15,11 @@ const { toolDefinition, handler } = require('../../services/okfMcpTool');
 const BUNDLE_DIR = path.resolve(__dirname, '../../../graphify-out');
 
 beforeAll(() => {
-  okfLoader.initialize(BUNDLE_DIR);
+  knowledgeLoader.initialize(BUNDLE_DIR);
 });
 
 afterAll(() => {
-  okfLoader.reset();
+  knowledgeLoader.reset();
 });
 
 // ===========================================================================
@@ -28,7 +28,7 @@ afterAll(() => {
 
 describe('toolDefinition', () => {
   test('has required MCP tool fields', () => {
-    expect(toolDefinition.name).toBe('get_okf_assertions');
+    expect(toolDefinition.name).toBe('get_knowledge_assertions');
     expect(toolDefinition.description).toBeTruthy();
     expect(toolDefinition.inputSchema).toBeDefined();
     expect(toolDefinition.inputSchema.type).toBe('object');

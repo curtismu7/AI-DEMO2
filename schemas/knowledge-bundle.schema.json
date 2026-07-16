@@ -1,21 +1,21 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://okf.ping.dev/v0.1/bundle.schema.json",
+  "$id": "https://knowledge.ping.dev/v0.1/bundle.schema.json",
   "title": "OKF Bundle",
-  "description": "Schema for Open Knowledge Format bundles (.okf.json)",
+  "description": "Schema for Open Knowledge Format bundles (.kb.json)",
   "type": "object",
   "required": ["@context", "id", "version", "domain", "title", "assertions"],
   "additionalProperties": false,
   "properties": {
     "@context": {
       "type": "string",
-      "const": "https://okf.ping.dev/v0.1",
-      "description": "JSON-LD context URI. Must be https://okf.ping.dev/v0.1 for this version."
+      "const": "https://knowledge.ping.dev/v0.1",
+      "description": "JSON-LD context URI. Must be https://knowledge.ping.dev/v0.1 for this version."
     },
     "id": {
       "type": "string",
-      "pattern": "^urn:okf:[a-z0-9\\-]+:[a-z0-9\\-]+:[0-9a-f\\-]{36}$",
-      "description": "URN-style unique identifier: urn:okf:<org>:<domain>:<uuid>"
+      "pattern": "^urn:knowledge:[a-z0-9\\-]+:[a-z0-9\\-]+:[0-9a-f\\-]{36}$",
+      "description": "URN-style unique identifier: urn:knowledge:<org>:<domain>:<uuid>"
     },
     "version": {
       "type": "string",

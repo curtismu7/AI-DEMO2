@@ -66,9 +66,9 @@ import {
   pingoneUpdateUserAttributeSchema,
 } from "./tools/pingone";
 import {
-  getOkfAssertions,
-  getOkfAssertionsSchema,
-} from "./tools/okf";
+  getKnowledgeAssertions,
+  getKnowledgeAssertionsSchema,
+} from "./tools/knowledge";
 
 interface ToolEntry {
   name: string;
@@ -363,13 +363,13 @@ const tools: ToolEntry[] = [
     readOnly: true,
   },
 
-  // OKF — knowledge assertions for coding agents
+  // Knowledge — knowledge assertions for coding agents
   {
-    name: "get_okf_assertions",
+    name: "get_knowledge_assertions",
     description:
-      "Retrieve deterministic knowledge assertions from OKF bundles. Use domain 'repo-topology' for codebase architecture facts, 'banking-domain' for banking policy definitions. Use domain 'list' to see all available domains and tags.",
-    schema: getOkfAssertionsSchema,
-    handler: (a) => getOkfAssertions(getOkfAssertionsSchema.parse(a)),
+      "Retrieve deterministic knowledge assertions from knowledge bundles. Use domain 'repo-topology' for codebase architecture facts, 'banking-domain' for banking policy definitions. Use domain 'list' to see all available domains and tags.",
+    schema: getKnowledgeAssertionsSchema,
+    handler: (a) => getKnowledgeAssertions(getKnowledgeAssertionsSchema.parse(a)),
     readOnly: true,
   },
 ];

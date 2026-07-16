@@ -1,27 +1,27 @@
 /**
- * OKF MCP Tool — get_okf_assertions
+ * Knowledge MCP Tool — get_knowledge_assertions
  *
- * Exposes OKF knowledge bundles to MCP-connected coding agents (Claude Code,
+ * Exposes knowledge bundles to MCP-connected coding agents (Claude Code,
  * LlamaIndex, Cursor, etc.) via the Model Context Protocol tool interface.
  *
  * Follows the pattern of existing MCP tools in this repo (code_search, get_code,
  * list_codebases) — a tool definition object + a handler function.
  *
  * Registration:
- *   const { toolDefinition, handler } = require('./okfMcpTool');
+ *   const { toolDefinition, handler } = require('./knowledgeMcpTool');
  *   mcpServer.addTool(toolDefinition, handler);
  */
 
-const okfLoader = require('./okfLoaderService');
+const knowledgeLoader = require('./knowledgeLoaderService');
 
 // ---------------------------------------------------------------------------
 // Tool Definition (MCP schema)
 // ---------------------------------------------------------------------------
 
 const toolDefinition = {
-  name: 'get_okf_assertions',
+  name: 'get_knowledge_assertions',
   description:
-    'Retrieves deterministic knowledge assertions from OKF bundles. ' +
+    'Retrieves deterministic knowledge assertions from knowledge bundles. ' +
     'Use this to get authoritative facts about the codebase architecture ' +
     '(domain: "repo-topology") or banking domain policies (domain: "banking-domain"). ' +
     'Returns structured assertions with claims, sources, and citation references.',
@@ -64,7 +64,7 @@ const toolDefinition = {
 // ---------------------------------------------------------------------------
 
 /**
- * MCP tool handler for get_okf_assertions.
+ * MCP tool handler for get_knowledge_assertions.
  *
  * @param {object} params - Tool input parameters
  * @param {string} params.domain - Domain slug or "list"
@@ -75,11 +75,11 @@ const toolDefinition = {
  */
 async function handler(params) {
   // Ensure loader is initialized
-  if (!okfLoader.isInitialized()) {
-    const initResult = okfLoader.initialize();
+  if (!knowledgeLoader.isInitialized()) {
+    const initResult = knowledgeLoader.initialize();
     if (initResult.loaded === 0 && initResult.errors.length > 0) {
       return formatError(
-        'OKF loader failed to initialize: ' + initResult.errors.join('; ')
+        'Knowledge loader failed to initialize: ' + initResult.errors.join('; ')
       );
     }
   }
@@ -92,7 +92,7 @@ async function handler(params) {
   }
 
   // Validate domain exists
-  const domains = okfLoader.listDomains();
+  const domains = knowledgeLoader.listDomains();
   if (!domains.includes(domain)) {
     return formatError(
       `Domain "${domain}" not found. Available domains: ${domains.join(', ')}. ` +
@@ -111,8 +111,8 @@ async function handler(params) {
     opts.tags = tags;
   }
 
-  const assertions = okfLoader.getAssertions(domain, opts);
-  const meta = okfLoader.getBundleMeta(domain);
+  const assertions = knowledgeLoader.getAssertions(domain, opts);
+  const meta = knowledgeLoader.getBundleMeta(domain);
 
   // Format output based on requested format
   switch (format) {
@@ -131,9 +131,9 @@ async function handler(params) {
 // ---------------------------------------------------------------------------
 
 function formatListDomains() {
-  const domains = okfLoader.listDomains();
+  const domains = knowledgeLoader.listDomains();
   const domainDetails = domains.map(d => {
-    const meta = okfLoader.getBundleMeta(d);
+    const meta = knowledgeLoader.getBundleMeta(d);
     return {
       domain: d,
       title: meta.title,
@@ -146,7 +146,7 @@ function formatListDomains() {
   // Derive tag examples dynamically from loaded assertions
   const tagExamples = {};
   domains.forEach(d => {
-    const assertions = okfLoader.getAssertions(d);
+    const assertions = knowledgeLoader.getAssertions(d);
     const tags = new Set(assertions.flatMap(a => a.tags || []));
     tagExamples[d] = Array.from(tags).slice(0, 8);
   });
@@ -158,7 +158,7 @@ function formatListDomains() {
         text: JSON.stringify(
           {
             availableDomains: domainDetails,
-            usage: 'Call get_okf_assertions with domain set to one of the domain slugs above.',
+            usage: 'Call get_knowledge_assertions with domain set to one of the domain slugs above.',
             tagExamples,
           },
           null,
@@ -170,7 +170,7 @@ function formatListDomains() {
 }
 
 function formatSingleAssertion(domain, id) {
-  const assertions = okfLoader.getAssertions(domain);
+  const assertions = knowledgeLoader.getAssertions(domain);
   const assertion = assertions.find(a => a.id === id);
 
   if (!assertion) {
@@ -226,7 +226,7 @@ function formatAsStructured(domain, assertions, meta, opts) {
 }
 
 function formatAsPrompt(domain, opts) {
-  const promptBlock = okfLoader.formatForPrompt(domain, opts);
+  const promptBlock = knowledgeLoader.formatForPrompt(domain, opts);
 
   if (!promptBlock) {
     return formatError(`No assertions found for domain "${domain}" with the given filters.`);

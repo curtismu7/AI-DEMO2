@@ -1,44 +1,44 @@
 /**
- * OKF REST API Routes
+ * Knowledge REST API Routes
  *
  * Provides endpoints for client-side citation resolution.
  *
  * Routes:
- *   GET /api/okf/assertions/:domain        — all assertions for a domain
- *   GET /api/okf/assertions/:domain/:id    — single assertion by ID
- *   GET /api/okf/domains                    — list available domains
- *   GET /api/okf/status                     — injection status (admin/debug)
+ *   GET /api/knowledge/assertions/:domain        — all assertions for a domain
+ *   GET /api/knowledge/assertions/:domain/:id    — single assertion by ID
+ *   GET /api/knowledge/domains                    — list available domains
+ *   GET /api/knowledge/status                     — injection status (admin/debug)
  *
  * Usage:
  *   const express = require('express');
  *   const router = express.Router();
- *   require('./okfRoutes')(router);
- *   app.use('/api/okf', router);
+ *   require('./knowledgeRoutes')(router);
+ *   app.use('/api/knowledge', router);
  */
 
-const okfLoader = require('../services/okfLoaderService');
-const { getInjectionStatus } = require('../services/okfPromptInjector');
+const knowledgeLoader = require('../services/knowledgeLoaderService');
+const { getInjectionStatus } = require('../services/knowledgePromptInjector');
 
 /**
- * Registers OKF routes on the given Express router.
+ * Registers knowledge routes on the given Express router.
  * @param {import('express').Router} router
  */
-function registerOkfRoutes(router) {
+function registerKnowledgeRoutes(router) {
   // Lazy initialization helper — ensures loader is ready on first request,
   // not at route registration time (avoids startup order issues with volumes).
   function ensureInitialized() {
-    if (!okfLoader.isInitialized()) {
-      okfLoader.initialize();
+    if (!knowledgeLoader.isInitialized()) {
+      knowledgeLoader.initialize();
     }
   }
 
   /**
-   * GET /api/okf/domains
+   * GET /api/knowledge/domains
    * Returns list of all loaded domain slugs.
    */
   router.get('/domains', (req, res) => {
     ensureInitialized();
-    const domains = okfLoader.listDomains();
+    const domains = knowledgeLoader.listDomains();
     res.json({
       domains,
       count: domains.length,
@@ -46,7 +46,7 @@ function registerOkfRoutes(router) {
   });
 
   /**
-   * GET /api/okf/assertions/:domain
+   * GET /api/knowledge/assertions/:domain
    * Returns all assertions for a domain, optionally filtered by tags.
    *
    * Query params:
@@ -62,17 +62,17 @@ function registerOkfRoutes(router) {
       opts.tags = tags.split(',').map(t => t.trim()).filter(Boolean);
     }
 
-    const assertions = okfLoader.getAssertions(domain, opts);
+    const assertions = knowledgeLoader.getAssertions(domain, opts);
 
-    if (assertions.length === 0 && !okfLoader.listDomains().includes(domain)) {
+    if (assertions.length === 0 && !knowledgeLoader.listDomains().includes(domain)) {
       return res.status(404).json({
         error: 'Domain not found',
         domain,
-        availableDomains: okfLoader.listDomains(),
+        availableDomains: knowledgeLoader.listDomains(),
       });
     }
 
-    const meta = okfLoader.getBundleMeta(domain);
+    const meta = knowledgeLoader.getBundleMeta(domain);
 
     res.json({
       domain,
@@ -87,7 +87,7 @@ function registerOkfRoutes(router) {
   });
 
   /**
-   * GET /api/okf/assertions/:domain/:id
+   * GET /api/knowledge/assertions/:domain/:id
    * Returns a single assertion by domain and ID (e.g., K1).
    */
   router.get('/assertions/:domain/:id', (req, res) => {
@@ -102,7 +102,7 @@ function registerOkfRoutes(router) {
       });
     }
 
-    const assertions = okfLoader.getAssertions(domain);
+    const assertions = knowledgeLoader.getAssertions(domain);
     const assertion = assertions.find(a => a.id === id);
 
     if (!assertion) {
@@ -121,8 +121,8 @@ function registerOkfRoutes(router) {
   });
 
   /**
-   * GET /api/okf/status
-   * Returns current OKF injection status (for admin/debug panel).
+   * GET /api/knowledge/status
+   * Returns current knowledge injection status (for admin/debug panel).
    */
   router.get('/status', (req, res) => {
     ensureInitialized();
@@ -131,13 +131,13 @@ function registerOkfRoutes(router) {
 
     res.json({
       ...status,
-      availableDomains: okfLoader.listDomains(),
-      loaderInitialized: okfLoader.isInitialized(),
+      availableDomains: knowledgeLoader.listDomains(),
+      loaderInitialized: knowledgeLoader.isInitialized(),
     });
   });
 
   /**
-   * POST /api/okf/reload
+   * POST /api/knowledge/reload
    * Hot-reloads bundles from disk (admin action).
    * Requires admin role — rejects with 403 for non-admin users.
    */
@@ -146,18 +146,18 @@ function registerOkfRoutes(router) {
     const userRole = req?.session?.user?.role;
     if (userRole !== 'admin') {
       return res.status(403).json({
-        error: 'Forbidden — admin role required for OKF bundle reload',
+        error: 'Forbidden — admin role required for knowledge bundle reload',
       });
     }
 
-    const result = okfLoader.initialize(); // Re-initialize from default dir
+    const result = knowledgeLoader.initialize(); // Re-initialize from default dir
     res.json({
       success: result.loaded > 0 || result.errors.length === 0,
       loaded: result.loaded,
       errors: result.errors,
-      domains: okfLoader.listDomains(),
+      domains: knowledgeLoader.listDomains(),
     });
   });
 }
 
-module.exports = registerOkfRoutes;
+module.exports = registerKnowledgeRoutes;

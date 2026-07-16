@@ -13,7 +13,8 @@ truth — if the skill and this file disagree, this file wins.
   code, and UI text are `⚠️` (warning), `✅` (green check), `❌` (red X),
   `🔐` (security/lock — HITL trigger chips), `✕` (close / dismiss), `✓`
   (check / confirm), `👤` (HITL consent marker), `🔑` (step-up / MFA
-  marker), and `🪟` (pop out to new window — draggable modals/panels).
+  marker), `🪟` (pop out to new window — draggable modals/panels), and
+  `📚` (knowledge grounding — Knowledge Grounding flag + citation footer).
   Everything else is plain text or CSS icons / semantic HTML.
 - **No muted modal text:** modals use solid high-contrast colors, never
   low-contrast gray hint text.

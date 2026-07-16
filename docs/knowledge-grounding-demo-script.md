@@ -1,17 +1,17 @@
-# OKF Knowledge Grounding — Demo Script & Talking Points
+# Knowledge Grounding — Demo Script & Talking Points
 
 **Audience:** Solutions Engineers demonstrating to prospects  
 **Duration:** 5–7 minutes  
-**Prerequisite:** Demo app running with `graphify-out/banking-domain.okf.json` present
+**Prerequisite:** Demo app running with `graphify-out/banking-domain.kb.json` present
 
 ---
 
 ## 1. Setup (before the call)
 
 1. Ensure the demo is running (standard `docker-compose up`)
-2. Verify the OKF bundle is loaded: visit `GET /api/okf/status`  
+2. Verify the knowledge bundle is loaded: visit `GET /api/knowledge/status`  
    → Should show `{ "enabled": false, "bundleLoaded": true, "assertionCount": 12 }`
-3. Confirm `ff_okf_grounding` is **OFF** (the 📚 OKF pill in the header should be dim)
+3. Confirm `ff_knowledge_grounding` is **OFF** (the 📚 Knowledge Grounding pill in the header should be dim)
 4. Open the banking agent chat in one browser tab
 
 ---
@@ -37,12 +37,12 @@
 
 ## 3. Act 2 — The Fix (flag ON)
 
-> **Talking point:** "Now I'll turn on OKF Knowledge Grounding —
+> **Talking point:** "Now I'll turn on Knowledge Grounding —
 > deterministic, authored assertions from our banking operations manual."
 
 ### Toggle the flag:
-- Click the **📚 OKF** pill in the header toolbar (it turns green)
-- Or: Settings → Feature Flags → OKF Knowledge Grounding → ON
+- Click the **📚 Knowledge Grounding** pill in the header toolbar (it turns green)
+- Or: Settings → Feature Flags → Knowledge Grounding → ON
 
 ### Ask the SAME questions again:
 
@@ -73,7 +73,7 @@
 
 ## 5. Contrast Summary (for the whiteboard)
 
-| Dimension | Flag OFF (Vibes) | Flag ON (OKF Grounded) |
+| Dimension | Flag OFF (Vibes) | Flag ON (Knowledge-Grounded) |
 |---|---|---|
 | Source | Model's training data | Authored assertions |
 | Accuracy | Best-effort | Deterministic |
@@ -91,13 +91,13 @@
 
 > "RAG retrieves chunks probabilistically from a large corpus — great for
 > broad coverage, but you can't guarantee it finds the right chunk, and the
-> model can still contradict what it retrieves. OKF is the opposite: a small,
+> model can still contradict what it retrieves. Knowledge grounding is the opposite: a small,
 > curated set of ground-truth assertions injected directly into the prompt.
-> They complement each other — RAG for breadth, OKF for precision."
+> They complement each other — RAG for breadth, knowledge grounding for precision."
 
 ### "What if our policies change?"
 
-> "Edit the JSON bundle, hit the reload endpoint (`POST /api/okf/reload`),
+> "Edit the JSON bundle, hit the reload endpoint (`POST /api/knowledge/reload`),
 > and the agent immediately uses the new assertions. No retraining, no
 > re-indexing, no deployment. In production you'd version-control the bundle
 > like any config artifact."
@@ -132,21 +132,21 @@
 │                                                              │
 │  INSTRUCTIONS: Cite [Kn] inline. Do not contradict...        │
 └─────────────────────────────────────────────────────────────┘
-         ↓ only when ff_okf_grounding = ON
+         ↓ only when ff_knowledge_grounding = ON
 ```
 
-- **Bundle format:** JSON-LD envelope + assertions array (see `okf-spec.md`)
-- **Loader:** `okfLoaderService.js` — reads `graphify-out/*.okf.json`, validates, indexes by domain
-- **Injector:** `okfPromptInjector.js` — checks flag, calls `formatForPrompt()`, appends to system prompt
-- **API:** `/api/okf/*` — client fetches assertion metadata for citation popover rendering
-- **Flag:** `ff_okf_grounding` in FLAG_REGISTRY + FIELD_DEFS + QUICK_FLAGS
+- **Bundle format:** JSON-LD envelope + assertions array (see `knowledge-bundle-spec.md`)
+- **Loader:** `knowledgeLoaderService.js` — reads `graphify-out/*.kb.json`, validates, indexes by domain
+- **Injector:** `knowledgePromptInjector.js` — checks flag, calls `formatForPrompt()`, appends to system prompt
+- **API:** `/api/knowledge/*` — client fetches assertion metadata for citation popover rendering
+- **Flag:** `ff_knowledge_grounding` in FLAG_REGISTRY + FIELD_DEFS + QUICK_FLAGS
 
 ---
 
 ## 8. Closing
 
 > "What you just saw is the difference between an AI that _thinks_ it knows
-> your policies and one that _provably_ knows them. OKF gives you
+> your policies and one that _provably_ knows them. Knowledge grounding gives you
 > determinism, citations, and auditability — without the complexity of a
 > full RAG pipeline. And the flag lets you prove it live."
 

@@ -1,15 +1,15 @@
 /**
- * OKF Loader Service
+ * Knowledge Loader Service
  *
- * Reads, validates, and serves Open Knowledge Format (OKF) bundles from disk.
+ * Reads, validates, and serves knowledge bundles from disk.
  * Bundles are indexed by domain slug and served to consumers (e.g., the demo
  * agent's system prompt builder) via `getAssertions(domain)` and `formatForPrompt(domain)`.
  *
  * Usage:
- *   const okfLoader = require('./okfLoaderService');
- *   await okfLoader.initialize();  // or initialize('/custom/path')
- *   const assertions = okfLoader.getAssertions('banking-domain');
- *   const promptBlock = okfLoader.formatForPrompt('banking-domain');
+ *   const knowledgeLoader = require('./knowledgeLoaderService');
+ *   await knowledgeLoader.initialize();  // or initialize('/custom/path')
+ *   const assertions = knowledgeLoader.getAssertions('banking-domain');
+ *   const promptBlock = knowledgeLoader.formatForPrompt('banking-domain');
  */
 
 const fs = require('fs');
@@ -20,7 +20,7 @@ const path = require('path');
 // ---------------------------------------------------------------------------
 
 const DEFAULT_BUNDLE_DIR = path.resolve(__dirname, '../../graphify-out');
-const REQUIRED_CONTEXT = 'https://okf.ping.dev/v0.1';
+const REQUIRED_CONTEXT = 'https://knowledge.ping.dev/v0.1';
 const MAX_ASSERTIONS = 50;
 
 // ---------------------------------------------------------------------------
@@ -41,7 +41,7 @@ let loadedFromDir = null;
 // ---------------------------------------------------------------------------
 
 /**
- * Validates a parsed bundle object against OKF v0.1 requirements.
+ * Validates a parsed bundle object against Knowledge v0.1 requirements.
  * Returns { valid: true } or { valid: false, errors: string[] }.
  */
 function validateBundle(bundle, filename) {
@@ -55,8 +55,8 @@ function validateBundle(bundle, filename) {
   if (bundle['@context'] !== REQUIRED_CONTEXT) {
     errors.push(`${filename}: @context must be "${REQUIRED_CONTEXT}", got "${bundle['@context']}"`);
   }
-  if (typeof bundle.id !== 'string' || !/^urn:okf:[a-z0-9\-]+:[a-z0-9\-]+:[0-9a-f\-]{36}$/.test(bundle.id)) {
-    errors.push(`${filename}: id must match urn:okf:<org>:<domain>:<uuid> pattern`);
+  if (typeof bundle.id !== 'string' || !/^urn:knowledge:[a-z0-9\-]+:[a-z0-9\-]+:[0-9a-f\-]{36}$/.test(bundle.id)) {
+    errors.push(`${filename}: id must match urn:knowledge:<org>:<domain>:<uuid> pattern`);
   }
   if (typeof bundle.version !== 'string' || !/^\d+\.\d+\.\d+$/.test(bundle.version)) {
     errors.push(`${filename}: version must be semver (e.g., "1.0.0")`);
@@ -112,7 +112,7 @@ function validateBundle(bundle, filename) {
 // ---------------------------------------------------------------------------
 
 /**
- * Initializes the loader by scanning a directory for .okf.json files.
+ * Initializes the loader by scanning a directory for .kb.json files.
  * Safe to call multiple times (re-initializes / hot-reloads).
  *
  * @param {string} [bundleDir] - Path to the bundle directory. Defaults to graphify-out/
@@ -132,10 +132,10 @@ function initialize(bundleDir) {
     return result;
   }
 
-  const files = fs.readdirSync(dir).filter(f => f.endsWith('.okf.json'));
+  const files = fs.readdirSync(dir).filter(f => f.endsWith('.kb.json'));
 
   if (files.length === 0) {
-    result.errors.push(`No .okf.json files found in ${dir}`);
+    result.errors.push(`No .kb.json files found in ${dir}`);
     initialized = true;
     loadedFromDir = dir;
     return result;
