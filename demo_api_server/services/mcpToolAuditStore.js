@@ -71,6 +71,7 @@ function getToolCalls(userId) {
 
 function clearToolCalls() {
 	_events.length = 0;
+	_chainIndex = 0;
 }
 
 module.exports = { recordToolCall, getToolCalls, clearToolCalls };

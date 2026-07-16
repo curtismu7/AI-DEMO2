@@ -41,7 +41,7 @@ export default function LogoutPage() {
     if (countdown === 0) {
       navigateToCustomerOAuthForceLogin();
     }
-  }, [countdown]);
+  }, [countdown, navigate]);
 
   return (
     <div className="logout-page">

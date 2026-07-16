@@ -211,6 +211,15 @@ export function subscribe(fn) {
   return () => listeners.delete(fn);
 }
 
+/**
+ * Cancel pending debounce timers. Called during HMR teardown or test cleanup
+ * to prevent stale callbacks firing after the module is re-evaluated.
+ */
+export function teardown() {
+  if (_persistTimer) { clearTimeout(_persistTimer); _persistTimer = null; }
+  if (_notifyTimer) { clearTimeout(_notifyTimer); _notifyTimer = null; }
+}
+
 // ─── MCP + token-event injection ─────────────────────────────────────────────
 
 const TOKEN_EVENT_STATUS_LABELS = {
