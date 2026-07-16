@@ -1362,6 +1362,20 @@ body > .banking-agent-float-root .banking-agent-panel {
   letter-spacing: 0.5px;
 }
 
+/* Attack sim results — neutral dark background so they don't look like errors */
+.banking-agent-msg.assistant[data-source="attack-sim"] .banking-agent-msg-bubble {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+  border-left: 3px solid #f59e0b !important;
+}
+.banking-agent-panel.ba-mode-light
+  .banking-agent-msg.assistant[data-source="attack-sim"]
+  .banking-agent-msg-bubble {
+  background: #f8fafc !important;
+  color: #1e293b !important;
+  border-left: 3px solid #f59e0b !important;
+}
+
 /* Source indicator labels */
 .banking-agent-msg-label {
   font-size: 11px;

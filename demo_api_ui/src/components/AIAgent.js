@@ -5834,6 +5834,8 @@ export default function BankingAgent({
           ]
             .filter(Boolean)
             .join("\n"),
+          null,
+          { source: "attack-sim" },
         );
       } catch (err) {
         addMessage(
