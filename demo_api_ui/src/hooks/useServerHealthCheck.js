@@ -17,24 +17,10 @@ export function useServerHealthCheck() {
       })
       .catch(() => {
         if (cancelled) return;
-        setDownServers([
-          {
-            name: "Banking API Server",
-            key: "api_server",
-            up: false,
-            startCmd: "cd demo_api_server && npm start",
-            description: "Express BFF",
-            port: 3001,
-          },
-          {
-            name: "Banking MCP Server",
-            key: "mcp_server",
-            up: false,
-            startCmd: "cd demo_mcp_server && npm run dev",
-            description: "MCP tool server",
-            port: 8080,
-          },
-        ]);
+        // Network error or server unreachable — don't assume both servers are
+        // down; leave state as null (indeterminate) so the modal isn't shown
+        // on transient network blips (e.g. laptop wake, offline).
+        setDownServers(null);
       });
     return () => {
       cancelled = true;

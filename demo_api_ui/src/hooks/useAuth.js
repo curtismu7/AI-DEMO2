@@ -18,6 +18,7 @@ export function useAuth() {
 
   const checkOAuthSession = useCallback(async () => {
     const applyUser = (u) => {
+      _didLogOut = false; // Reset logout flag — user successfully re-authenticated
       setUser(u);
       if (!sessionEstablishedRef.current) {
         sessionEstablishedRef.current = true;
@@ -144,9 +145,14 @@ export function useAuth() {
     };
   }, [checkOAuthSession]);
 
-  // userAuthenticated event listener
+  // userAuthenticated event listener — only re-check if session was NOT just
+  // established by this hook (avoids redundant triple-API-call when applyUser
+  // dispatches userAuthenticated and the listener immediately re-invokes check).
   useEffect(() => {
-    const handler = () => void checkOAuthSession();
+    const handler = () => {
+      if (sessionEstablishedRef.current) return; // already authenticated by us
+      void checkOAuthSession();
+    };
     window.addEventListener("userAuthenticated", handler);
     return () => window.removeEventListener("userAuthenticated", handler);
   }, [checkOAuthSession]);

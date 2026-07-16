@@ -8,8 +8,12 @@
 const cache = {};
 const CACHE_TTL_MS = 3000; // 3 seconds
 
-// Auto-invalidate cache on auth transitions
-if (typeof window !== 'undefined') {
+// Auto-invalidate cache on auth transitions.
+// Listeners are idempotent (module loads once in bundled SPA) but guarded
+// with an _initialized flag to prevent accumulation during HMR / SSR.
+let _listenersAttached = false;
+if (typeof window !== 'undefined' && !_listenersAttached) {
+  _listenersAttached = true;
   window.addEventListener('userAuthenticated', () => clearStatusCache());
   window.addEventListener('userLoggedOut', () => clearStatusCache());
 }

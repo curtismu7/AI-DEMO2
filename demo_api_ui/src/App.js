@@ -728,6 +728,22 @@ function AppWithAuth() {
                   path="/copilot"
                   element={<CopilotPageRoute user={user} logout={logout} />}
                 />
+                {/* Transaction consent — accessible without login so deep-links
+                    (e.g. from PingOne Authorize challenges) land correctly.
+                    The page component handles its own auth gating via BFF login. */}
+                <Route
+                  path="/transaction-consent"
+                  element={
+                    loading ? null : (
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <TransactionConsentPage user={user} />
+                        </main>
+                      </>
+                    )
+                  }
+                />
                 <Route
                   path="/compliance-modal-popout"
                   element={<ComplianceModalPopout />}
@@ -1176,10 +1192,6 @@ function AppWithAuth() {
                                   <UserTransactions user={user} />
                                 )
                               }
-                            />
-                            <Route
-                              path="/transaction-consent"
-                              element={<TransactionConsentPage user={user} />}
                             />
                             <Route
                               path="/delegated-access"

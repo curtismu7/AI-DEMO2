@@ -32,8 +32,10 @@ const _isProd = () => !!(process.env.REPL_ID || process.env.REPLIT_DEPLOYMENT ||
 function sanitizePostLoginReturnPath(raw) {
   if (raw == null || typeof raw !== 'string') return null;
   const t = raw.trim();
-  if (!t.startsWith('/') || t.startsWith('//') || t.length > 160) return null;
-  if (!/^[/a-zA-Z0-9._~-]+$/.test(t)) return null;
+  if (!t.startsWith('/') || t.startsWith('//') || t.length > 300) return null;
+  // Allow path + query string characters (? & = % +) so deep-links like
+  // /transaction-consent?challenge=abc123 survive the round-trip.
+  if (!/^[/a-zA-Z0-9._~?&=%+-]+$/.test(t)) return null;
   return t;
 }
 

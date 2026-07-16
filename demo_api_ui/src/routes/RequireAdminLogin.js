@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import ConfirmModal from "../components/ConfirmModal";
+import { notifyError } from "../utils/appToast";
 import { startRoleSwitch } from "../utils/roleSwitch";
 
 /**
@@ -12,6 +14,7 @@ import { startRoleSwitch } from "../utils/roleSwitch";
 export default function RequireAdminLogin({ user, children }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const [switching, setSwitching] = useState(false);
 
   if (user?.role === "admin") return children;
 
@@ -20,13 +23,20 @@ export default function RequireAdminLogin({ user, children }) {
       isOpen
       title="Admin sign-in required"
       message="This is an admin feature. Log in as admin to continue? Your current session will end."
-      confirmLabel="Log in as admin"
+      confirmLabel={switching ? "Switching..." : "Log in as admin"}
       cancelLabel="Cancel"
-      onConfirm={() =>
-        startRoleSwitch("admin", location.pathname).catch((e) =>
-          console.error("[RequireAdminLogin] Role switch failed:", e.message),
-        )
-      }
+      onConfirm={async () => {
+        setSwitching(true);
+        try {
+          await startRoleSwitch("admin", location.pathname);
+        } catch (e) {
+          setSwitching(false);
+          notifyError(
+            "Failed to switch to admin. Please try again.",
+          );
+          console.error("[RequireAdminLogin] Role switch failed:", e.message);
+        }
+      }}
       onCancel={() => navigate("/", { replace: true })}
     />
   );

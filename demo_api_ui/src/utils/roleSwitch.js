@@ -15,6 +15,13 @@ export async function startRoleSwitch(targetRole, returnTo) {
     throw new Error(`Switch returned ${contentType}, expected application/json`);
   }
   const { redirectUrl } = await r.json();
+
+  // Validate redirectUrl is same-origin to prevent open redirect attacks.
+  // Accept relative paths (/api/...) and same-origin absolute URLs only.
+  if (redirectUrl && !redirectUrl.startsWith('/') && !redirectUrl.startsWith(window.location.origin)) {
+    throw new Error('Unexpected redirect URL from switch endpoint — possible open redirect');
+  }
+
   const sep = redirectUrl.includes("?") ? "&" : "?";
   window.location.href = returnTo
     ? `${redirectUrl}${sep}return_to=${encodeURIComponent(returnTo)}`

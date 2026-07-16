@@ -208,7 +208,7 @@ router.get('/callback', async (req, res) => {
           console.warn('[redirect-uri-guard] admin recovery attempt failed:', e.message);
         });
       }
-      return res.redirect(`${getFrontendOrigin()}/login?error=oauth_error`);
+      return res.redirect(`${getFrontendOrigin()}/?error=oauth_error`);
     }
 
     // Validate state — prefer session, fall back to PKCE cookie (Vercel serverless)
