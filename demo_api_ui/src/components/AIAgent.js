@@ -5794,6 +5794,8 @@ export default function BankingAgent({
         addMessage("assistant", "Sign in to run demo steps.");
         return;
       }
+      // Reset token chain trace so the proof strip shows this use case
+      try { tokenChainTraceStore.beginTrace({ prompt: trigger.text }); } catch (_) {}
       // Resume path stamps useCaseId onto sendAgentMessage (same as /use-cases Run).
       pendingUcIdRef.current = uc.useCaseId || null;
       pendingNlResumeRef.current = null;
@@ -9415,8 +9417,13 @@ export default function BankingAgent({
                           ff_ciba: false,
                           ff_rar: false,
                           ff_dpop: false,
+                          ff_mcp_rate_limit: false,
                         },
                       }).catch(() => {});
+                      // Reset demo account balances to starting values
+                      apiClient.post("/api/accounts/reset-demo").catch(() => {});
+                      // Clear in-memory demo state (events, token chain, audit)
+                      apiClient.post("/api/admin/reset-demo").catch(() => {});
                     }}
                     title="Clear conversation and start fresh"
                   >
