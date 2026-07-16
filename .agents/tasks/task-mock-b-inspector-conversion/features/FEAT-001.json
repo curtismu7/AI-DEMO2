@@ -2,7 +2,7 @@
   "id": "FEAT-001",
   "type": "refactor",
   "description": "Convert McpInspector.js from page-shell chip-based layout to Mock B dark IDE three-column layout, matching PingOneMcpInspector.js pattern exactly.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Read PingOneMcpInspector.js thoroughly as the reference implementation for layout structure, state management, and rendering patterns.",
     "Rewrite McpInspector.js to use the p1mcp-* CSS class three-column layout: (1) top bar with connection dot, title 'Demo MCP Inspector', status showing connected tool count, Refresh button; (2) three-column grid with p1mcp-grid class; (3) Column 1: tool tree with search, grouped by resource type using existing groupByResource logic, items with colored dots (green=read, amber=write, red=sensitive), active item highlighted blue; (4) Column 2: form panel with selected tool name (monospace), description, parameter fields with required asterisk + type hint, Execute/Clear buttons; (5) Column 3: output panel with tabs (Response, Request JSON-RPC), syntax-highlighted JSON via JsonHighlight, footer with Status/Duration/Transport.",
@@ -26,5 +26,5 @@
     "cd demo_api_ui && HTTPS=false npx vite build"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Conversion successful. Removed old McpInspector.css import and appShellPages.css import since the component now uses only PingOneMcpInspector.css classes. The MCP call history is shown both in the tree footer (last 10 calls) and as a dedicated output tab. The needsLogin notice and toolsSourceInfo warning are displayed as dark-themed inline banners below the top bar. The Section component was removed as it is no longer needed in the three-column layout. Build passes cleanly with vite build."
 }
