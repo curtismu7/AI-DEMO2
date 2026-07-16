@@ -1022,7 +1022,7 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
     'The MCP gateway and PingOne Authorize confirmed the transfer matches the declared intent.',
     { authorization_details: rarDetails, requestedAmount: amount, grantedAmount },
   ));
-  _stampUseCaseId(tokenChainEvents, useCaseId);
+  stampUseCaseId(tokenChainEvents, useCaseId);
   return { sim, useCaseId, status: 200, errorCode: null, reason: 'PERMIT — within granted RAR cap', tokenChainEvents };
 }
 
