@@ -27,6 +27,7 @@ import TokenExchangeTesterPage from "../pages/TokenExchangeTesterPage";
 import SdkLoginPage from "../pages/SdkLoginPage";
 import SdkLoginCallback from "../pages/SdkLoginCallback";
 import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
+import PrivilegeMcpClientPage from "../pages/PrivilegeMcpClientPage";
 
 export default function PublicRoutes({ user, logout }) {
   return (
@@ -171,6 +172,15 @@ export function PrivilegeDemoPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <PrivilegeDemoPage />
+    </AppShell>
+  );
+}
+
+/** PingOne Privilege MCP Client — chat-first tool discovery through Privilege Gateway. */
+export function PrivilegeMcpClientPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <PrivilegeMcpClientPage />
     </AppShell>
   );
 }

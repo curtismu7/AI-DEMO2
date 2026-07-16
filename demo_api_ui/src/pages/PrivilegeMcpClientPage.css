@@ -1,0 +1,289 @@
+/* demo_api_ui/src/pages/PrivilegeMcpClientPage.css */
+/* Dark chat-first theme for PingOne Privilege MCP Client */
+
+.pmc-page {
+  min-height: 100vh;
+  background: #0d1117;
+  color: #e6edf3;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.pmc-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #30363d;
+}
+
+.pmc-topbar h1 {
+  margin: 0;
+  font-size: 20px;
+  color: #e6edf3;
+}
+
+.pmc-topbar p {
+  margin: 4px 0 0;
+  color: #8b949e;
+  font-size: 13px;
+}
+
+.pmc-pill {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #7f1d1d;
+  font-size: 12px;
+  color: #fca5a5;
+  white-space: nowrap;
+}
+
+.pmc-pill--connected {
+  color: #34d399;
+  border-color: #065f46;
+}
+
+.pmc-layout {
+  height: calc(100vh - 70px);
+  display: grid;
+  grid-template-columns: 320px 1fr 360px;
+  gap: 12px;
+  padding: 12px;
+}
+
+@media (max-width: 1200px) {
+  .pmc-layout {
+    grid-template-columns: 280px 1fr;
+  }
+  .pmc-inspector {
+    display: none;
+  }
+}
+
+@media (max-width: 800px) {
+  .pmc-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .pmc-sidebar {
+    max-height: 400px;
+    overflow-y: auto;
+  }
+}
+
+.pmc-panel {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  padding: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.pmc-panel h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: #e6edf3;
+}
+
+.pmc-panel h3 {
+  margin: 10px 0 6px;
+  font-size: 14px;
+  color: #c9d1d9;
+}
+
+.pmc-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #8b949e;
+}
+
+.pmc-input {
+  width: 100%;
+  background: #0d1117;
+  color: #e6edf3;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 8px;
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.pmc-input:focus {
+  outline: none;
+  border-color: #58a6ff;
+}
+
+select.pmc-input {
+  cursor: pointer;
+}
+
+.pmc-buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.pmc-btn {
+  background: #21262d;
+  color: #e6edf3;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.pmc-btn:hover {
+  border-color: #58a6ff;
+}
+
+.pmc-btn--primary {
+  background: #1f6feb;
+  border-color: #1f6feb;
+  color: #fff;
+}
+
+.pmc-btn--primary:hover {
+  background: #388bfd;
+  border-color: #388bfd;
+}
+
+.pmc-pre {
+  margin: 4px 0;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 11px;
+  line-height: 1.4;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  overflow: auto;
+  color: #c9d1d9;
+}
+
+.pmc-tools-summary {
+  min-height: 80px;
+  max-height: 200px;
+  flex-shrink: 0;
+}
+
+/* Chat panel */
+.pmc-chat-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pmc-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pmc-bubble {
+  max-width: 92%;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.pmc-bubble--user {
+  align-self: flex-end;
+  background: #1f2937;
+}
+
+.pmc-bubble--assistant {
+  align-self: flex-start;
+  background: #111827;
+}
+
+.pmc-bubble--system {
+  align-self: center;
+  background: #172534;
+  color: #7dd3fc;
+  font-size: 12px;
+}
+
+.pmc-bubble-text {
+  display: block;
+}
+
+.pmc-bubble-meta {
+  margin-top: 8px;
+  padding: 6px;
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #8b949e;
+}
+
+.pmc-thinking {
+  border: 1px dashed #3b82f6;
+  border-radius: 8px;
+  padding: 8px;
+  color: #93c5fd;
+  font-size: 12px;
+  align-self: flex-start;
+}
+
+.pmc-composer {
+  display: grid;
+  grid-template-columns: 1fr 100px;
+  gap: 8px;
+}
+
+.pmc-composer textarea {
+  min-height: 60px;
+}
+
+/* Inspector panel */
+.pmc-inspector {
+  gap: 10px;
+}
+
+.pmc-event-log {
+  flex: 1;
+  min-height: 180px;
+  max-height: 300px;
+  overflow-y: auto;
+  font-size: 10px;
+}
+
+.pmc-details {
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 8px;
+  overflow-y: auto;
+}
+
+.pmc-details summary {
+  cursor: pointer;
+  color: #93c5fd;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.pmc-sidebar {
+  overflow-y: auto;
+}

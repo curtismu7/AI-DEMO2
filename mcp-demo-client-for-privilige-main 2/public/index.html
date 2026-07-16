@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MCP Privilege Demo Chat</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <h1>MCP Privilege Demo Chat</h1>
+        <p>Claude-style MCP demo with real-time protected tool visibility.</p>
+      </div>
+      <div class="pill" id="connectionPill">Disconnected</div>
+    </header>
+
+    <main class="layout">
+      <aside class="panel sidebar">
+        <h2>Connection</h2>
+        <label>
+          MCP URL
+          <input id="mcpUrl" />
+        </label>
+        <label>
+          OAuth Client ID
+          <input id="clientId" />
+        </label>
+        <label>
+          Scopes
+          <input id="scopes" />
+        </label>
+        <label>
+          LLM URL
+          <input id="llmUrl" />
+        </label>
+        <label>
+          LLM Model
+          <input id="llmModel" />
+        </label>
+        <div class="buttons">
+          <button id="saveConfigBtn">Save</button>
+          <button id="startAuthBtn">Sign In</button>
+        </div>
+        <pre id="statusBox"></pre>
+
+        <h2>Available Tools</h2>
+        <pre id="toolsSummary"></pre>
+        <div class="buttons">
+          <button id="listToolsBtn">Refresh Now</button>
+        </div>
+      </aside>
+
+      <section class="panel chatPanel">
+        <div id="chatMessages" class="chatMessages"></div>
+        <div id="chatThinking" class="thinking hidden">Thinking and checking tools...</div>
+        <div class="composer">
+          <textarea id="chatPrompt">List available tools from the connected MCP server.</textarea>
+          <button id="sendChatBtn">Send</button>
+        </div>
+      </section>
+
+      <aside class="panel inspector">
+        <h2>Live Relay</h2>
+        <pre id="eventLog"></pre>
+
+        <details>
+          <summary>Advanced: Raw MCP + Tool Call + Local LLM</summary>
+
+          <h3>Raw MCP RPC</h3>
+          <textarea id="rawRpcBox">
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/list",
+  "params": {}
+}
+          </textarea>
+          <div class="buttons">
+            <button id="sendRawRpcBtn">Send RPC</button>
+          </div>
+          <pre id="rawRpcResult"></pre>
+
+          <h3>Direct Tool Call</h3>
+          <select id="toolSelect"></select>
+          <textarea id="toolArgs">{}</textarea>
+          <div class="buttons">
+            <button id="callToolBtn">Call Tool</button>
+          </div>
+          <pre id="toolResult"></pre>
+
+          <h3>Local LLM (direct)</h3>
+          <textarea id="llmPrompt">Suggest the best tool call for listing applications.</textarea>
+          <div class="buttons">
+            <button id="askLlmBtn">Ask LLM</button>
+          </div>
+          <pre id="llmResult"></pre>
+        </details>
+      </aside>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
