@@ -2,7 +2,7 @@
   "id": "FEAT-006",
   "type": "fix",
   "description": "Address review findings: grid overflow in McpInspector, clearForm inconsistencies, and restore educational content in AgentGatewayTester.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Fix grid overflow in McpInspector by adding a CSS modifier class that accounts for PageNav height.",
     "Fix AgentGatewayTester clearForm to also reset argsText to '{}'.",
@@ -22,5 +22,5 @@
     "cd demo_api_ui && HTTPS=false npx vite build"
   ],
   "blocked_reason": null,
-  "findings": null
+  "findings": "All 4 priority review issues addressed: (1) Grid overflow fixed with CSS modifier class p1mcp-grid--with-pagenav that reduces grid height by 50px when PageNav is present. (2) AgentGatewayTester clearForm now resets argsText to '{}', burstResp to null, and outputTab to 'result'. (3) All components now have consistent Clear behavior that resets both form state and output state. (4) Educational content restored in AgentGatewayTester with structured P1AZ attribute table (Decision, ToolName, ClientId, ActClientId, UserId, Scopes, RiskLevel, PolicyId, Reason) in Authorize Decision tab and 5W1H structured table (Who, What, When, Where, Why, How) in McpAudit tab, both shown above raw JSON. Build passes cleanly."
 }
