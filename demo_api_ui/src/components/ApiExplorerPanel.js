@@ -1,89 +1,30 @@
-// banking_api_ui/src/components/ApiExplorerPanel.js
+// demo_api_ui/src/components/ApiExplorerPanel.js
+// Redesign: Dark IDE three-column layout (Mock B)
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import JsonHighlight from './shared/JsonHighlight';
+import './PingOneMcpInspector.css';
 import './ApiExplorerPanel.css';
 
 const POLL_MS = 30000;
 
-function methodCls(m) { return `aep-method aep-method--${(m || 'GET').toUpperCase()}`; }
-function statusCls(s) { return `aep-status ${s >= 200 && s < 300 ? 'aep-status--ok' : 'aep-status--err'}`; }
+/** Color-coded method badge class */
+const methodBadgeClass = (m) => {
+  const method = (m || 'GET').toUpperCase();
+  return `aep-method-badge aep-method-badge--${method}`;
+};
 
-function CallRow({ call, isSelected, onClick }) {
-  const status = call.response?.status;
-  const isErr = !call.success;
-  return (
-    <div
-      className={`aep-call-row${isSelected ? ' aep-call-row--selected' : ''}${isErr ? ' aep-call-row--err' : ''}`}
-      onClick={onClick} role="button" tabIndex={0}
-      onKeyDown={e => e.key === 'Enter' && onClick()}
-    >
-      <div className="aep-call-meta">
-        <span className={methodCls(call.method)}>{call.method}</span>
-        {status != null && <span className={statusCls(status)}>{status}</span>}
-        {(call.durationMs ?? call.duration) != null && <span className="aep-dur">{call.durationMs ?? call.duration}ms</span>}
-        <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: '#374151' }}>{isSelected ? '◀' : '▶'}</span>
-      </div>
-      <div className="aep-url" title={call.url}>{call.url}</div>
-    </div>
-  );
-}
+/** Status dot class for call success/failure */
+const statusDotClass = (call) => {
+  if (!call.success) return 'p1mcp-tree-item__dot p1mcp-tree-item__dot--sensitive';
+  return 'p1mcp-tree-item__dot';
+};
 
-function DetailPanel({ call, onClose }) {
-  const [tab, setTab] = useState('response');
-
-  if (!call) return (
-    <div className="aep-detail aep-detail--empty">
-      <div style={{ fontSize: '2rem', marginBottom: '10px' }}>→</div>
-      <div>Click any call on the left to inspect its response &amp; request</div>
-    </div>
-  );
-
-  const status = call.response?.status;
-  const tabs = [
-    { id: 'response', label: 'Response Body' },
-    { id: 'request',  label: 'Request Body' },
-    { id: 'headers',  label: 'Headers' },
-  ];
-
-  return (
-    <div className="aep-detail">
-      <div className="aep-detail-header">
-        <span className={methodCls(call.method)}>{call.method}</span>
-        {status != null && <span className={statusCls(status)}>{status}</span>}
-        {call.durationMs != null && <span style={{ fontSize: '0.72rem', color: '#374151' }}>{call.durationMs}ms</span>}
-        <button type="button" className="aep-close-btn" onClick={onClose} title="Close">✕</button>
-      </div>
-      <div className="aep-url-full" title={call.url}>{call.url}</div>
-
-      <div className="aep-detail-tabs">
-        {tabs.map(t => (
-          <button key={t.id} type="button"
-            className={`aep-detail-tab${tab === t.id ? ' aep-detail-tab--active' : ''}`}
-            onClick={() => setTab(t.id)}
-          >{t.label}</button>
-        ))}
-      </div>
-
-      <div className="aep-detail-body">
-        {tab === 'response' && (
-          call.response?.body
-            ? <pre className="aep-json jh-dark"><JsonHighlight value={call.response.body} /></pre>
-            : <pre className="aep-json aep-json--none">No response body captured</pre>
-        )}
-        {tab === 'request' && (
-          call.request?.body
-            ? <pre className="aep-json jh-dark"><JsonHighlight value={call.request.body} /></pre>
-            : <pre className="aep-json aep-json--none">No request body</pre>
-        )}
-        {tab === 'headers' && (
-          call.request?.headers && Object.keys(call.request.headers).length > 0
-            ? <pre className="aep-json jh-dark"><JsonHighlight value={call.request.headers} /></pre>
-            : <pre className="aep-json aep-json--none">No headers captured</pre>
-        )}
-      </div>
-    </div>
-  );
-}
+/** Truncate a URL for tree display */
+const truncateUrl = (url, maxLen = 28) => {
+  if (!url) return '';
+  if (url.length <= maxLen) return url;
+  return url.slice(0, maxLen) + '\u2026';
+};
 
 export default function ApiExplorerPanel() {
   const [calls, setCalls] = useState([]);
@@ -91,13 +32,14 @@ export default function ApiExplorerPanel() {
   const [selected, setSelected] = useState(null);
   const [live, setLive] = useState(true);
   const [error, setError] = useState(null);
+  const [outputTab, setOutputTab] = useState('response');
+  const [search, setSearch] = useState('');
   const liveRef = useRef(live);
   liveRef.current = live;
 
   const fetchCalls = useCallback(async () => {
     if (!liveRef.current) return;
     try {
-      // Shared global buffer — includes agent/Bearer calls that lack a browser session cookie
       const res = await fetch('/api/api-calls?limit=100', { credentials: 'include' });
       if (!res.ok) { setError(`HTTP ${res.status}`); return; }
       const data = await res.json();
@@ -115,48 +57,210 @@ export default function ApiExplorerPanel() {
     return () => clearInterval(id);
   }, [fetchCalls]);
 
+  const handleClear = () => {
+    fetch('/api/api-calls', { method: 'DELETE', credentials: 'include' })
+      .then(() => { setCalls([]); setSelected(null); setStats(null); });
+  };
+
   const reversed = [...calls].reverse();
 
+  // Filter calls by search
+  const filteredCalls = search.trim()
+    ? reversed.filter(c =>
+        (c.url || '').toLowerCase().includes(search.trim().toLowerCase()) ||
+        (c.method || '').toLowerCase().includes(search.trim().toLowerCase())
+      )
+    : reversed;
+
+  const selectedCall = selected;
+  const status = selectedCall?.response?.status;
+  const duration = selectedCall?.durationMs ?? selectedCall?.duration;
+
   return (
-    <div className="aep-root">
-      <div className="aep-toolbar">
-        <span className="aep-title">API Explorer</span>
-        <span className="aep-count">{calls.length} calls</span>
-        {error && <span style={{ fontSize: '0.78rem', color: '#991b1b' }}>⚠️ {error}</span>}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-          <button className="aep-btn" onClick={() => setLive(v => !v)}>{live ? 'Pause' : 'Live'}</button>
-          <button className="aep-btn" onClick={() => {
-            fetch('/api/api-calls', { method: 'DELETE', credentials: 'include' })
-              .then(() => { setCalls([]); setSelected(null); });
-          }}>Clear</button>
+    <div className="p1mcp-page">
+      {/* Top bar */}
+      <div className="p1mcp-topbar">
+        <span className={`p1mcp-topbar__dot ${live ? '' : 'p1mcp-topbar__dot--off'}`} />
+        <h1>API Explorer</h1>
+        <span className="p1mcp-topbar__status">
+          {calls.length} calls {live ? '- Live' : '- Paused'}
+        </span>
+        {error && <span className="aep-topbar-error">{error}</span>}
+        <div className="p1mcp-topbar__right">
+          <button
+            className={`p1mcp-topbar__btn ${live ? 'p1mcp-topbar__btn--active' : ''}`}
+            onClick={() => setLive(v => !v)}
+          >
+            {live ? 'Pause' : 'Live'}
+          </button>
+          <button className="p1mcp-topbar__btn" onClick={handleClear}>
+            Clear
+          </button>
         </div>
       </div>
 
-      {stats && (
-        <div className="aep-stats-row">
-          <div className="aep-stat"><span>Total:</span><strong>{stats.total}</strong></div>
-          <div className="aep-stat"><span>Success:</span><strong style={{ color: '#15803d' }}>{stats.success ?? stats.successful}</strong></div>
-          <div className="aep-stat"><span>Errors:</span><strong style={{ color: (stats.errors ?? stats.failed) > 0 ? '#991b1b' : '#64748b' }}>{stats.errors ?? stats.failed}</strong></div>
-          {(stats.avgDurationMs ?? stats.averageDuration) != null && (
-            <div className="aep-stat"><span>Avg:</span><strong>{Math.round(stats.avgDurationMs ?? stats.averageDuration)}ms</strong></div>
+      {/* Three-column grid */}
+      <div className="p1mcp-grid">
+        {/* Column 1: Call list (tree) */}
+        <div className="p1mcp-col-tree">
+          <div className="p1mcp-tree-header">
+            <span>Calls ({calls.length})</span>
+            {stats && (
+              <span className="aep-stats-compact">
+                {stats.success ?? stats.successful}ok / {stats.errors ?? stats.failed}err
+              </span>
+            )}
+          </div>
+          <div className="p1mcp-tree-search">
+            <input
+              type="search"
+              placeholder="Filter calls..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              spellCheck={false}
+            />
+          </div>
+          <div className="p1mcp-tree-body">
+            {filteredCalls.length === 0 ? (
+              <div style={{ padding: '20px 16px', color: '#64748b', fontSize: 13 }}>
+                {calls.length === 0
+                  ? 'No API calls yet. Use the AI agent or test pages to generate calls.'
+                  : `No calls match "${search}".`}
+              </div>
+            ) : filteredCalls.map(call => (
+              <div
+                key={call.id}
+                className={`p1mcp-tree-item ${selected?.id === call.id ? 'p1mcp-tree-item--active' : ''}`}
+                onClick={() => {
+                  setSelected(prev => prev?.id === call.id ? null : call);
+                  setOutputTab('response');
+                }}
+                role="button"
+                tabIndex={0}
+                onKeyDown={e => e.key === 'Enter' && setSelected(prev => prev?.id === call.id ? null : call)}
+              >
+                <span className={statusDotClass(call)} />
+                <span className={methodBadgeClass(call.method)}>{(call.method || 'GET').toUpperCase()}</span>
+                <span className="aep-tree-url">{truncateUrl(call.url)}</span>
+                {call.response?.status != null && (
+                  <span className={`aep-tree-status ${call.response.status >= 200 && call.response.status < 300 ? 'aep-tree-status--ok' : 'aep-tree-status--err'}`}>
+                    {call.response.status}
+                  </span>
+                )}
+                {(call.durationMs ?? call.duration) != null && (
+                  <span className="aep-tree-dur">{call.durationMs ?? call.duration}ms</span>
+                )}
+              </div>
+            ))}
+          </div>
+          {/* Stats footer */}
+          {stats && (
+            <div className="aep-tree-footer">
+              <div className="aep-tree-footer__stat">Total: <strong>{stats.total}</strong></div>
+              <div className="aep-tree-footer__stat">Success: <strong className="aep-tree-footer__ok">{stats.success ?? stats.successful}</strong></div>
+              <div className="aep-tree-footer__stat">Errors: <strong className="aep-tree-footer__err">{stats.errors ?? stats.failed}</strong></div>
+              {(stats.avgDurationMs ?? stats.averageDuration) != null && (
+                <div className="aep-tree-footer__stat">Avg: <strong>{Math.round(stats.avgDurationMs ?? stats.averageDuration)}ms</strong></div>
+              )}
+            </div>
           )}
         </div>
-      )}
 
-      <div className="aep-body">
-        <div className="aep-list">
-          {reversed.length === 0 ? (
-            <div className="aep-list-empty">No API calls yet.<br />Use the AI agent or test pages to generate calls.</div>
-          ) : reversed.map(call => (
-            <CallRow
-              key={call.id}
-              call={call}
-              isSelected={selected?.id === call.id}
-              onClick={() => setSelected(prev => prev?.id === call.id ? null : call)}
-            />
-          ))}
+        {/* Column 2: Call metadata (form-like detail) */}
+        <div className="p1mcp-col-form">
+          {selectedCall ? (
+            <>
+              <div className="p1mcp-form-header">
+                <div className="p1mcp-form-header__name">{(selectedCall.method || 'GET').toUpperCase()} Request</div>
+                <div className="p1mcp-form-header__desc">Inspect the selected API call details</div>
+              </div>
+              <div className="p1mcp-form-body">
+                <div className="p1mcp-field">
+                  <label>URL</label>
+                  <input type="text" value={selectedCall.url || ''} readOnly />
+                </div>
+                <div className="p1mcp-field">
+                  <label>Method</label>
+                  <input type="text" value={(selectedCall.method || 'GET').toUpperCase()} readOnly />
+                </div>
+                <div className="p1mcp-field">
+                  <label>Status Code</label>
+                  <input type="text" value={status != null ? String(status) : 'N/A'} readOnly />
+                </div>
+                <div className="p1mcp-field">
+                  <label>Duration</label>
+                  <input type="text" value={duration != null ? `${duration}ms` : 'N/A'} readOnly />
+                </div>
+                {selectedCall.request?.body && (
+                  <div className="p1mcp-field">
+                    <label>Request Body</label>
+                    <textarea
+                      rows={6}
+                      readOnly
+                      value={typeof selectedCall.request.body === 'string'
+                        ? selectedCall.request.body
+                        : JSON.stringify(selectedCall.request.body, null, 2)}
+                    />
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="p1mcp-form-empty">
+              Select an API call from the list to inspect its details.
+            </div>
+          )}
         </div>
-        <DetailPanel call={selected} onClose={() => setSelected(null)} />
+
+        {/* Column 3: Output (tabbed) */}
+        <div className="p1mcp-col-output">
+          <div className="p1mcp-output-tabs">
+            <button
+              className={`p1mcp-output-tab ${outputTab === 'response' ? 'p1mcp-output-tab--active' : ''}`}
+              onClick={() => setOutputTab('response')}
+            >Response Body</button>
+            <button
+              className={`p1mcp-output-tab ${outputTab === 'request' ? 'p1mcp-output-tab--active' : ''}`}
+              onClick={() => setOutputTab('request')}
+            >Request Body</button>
+            <button
+              className={`p1mcp-output-tab ${outputTab === 'headers' ? 'p1mcp-output-tab--active' : ''}`}
+              onClick={() => setOutputTab('headers')}
+            >Headers</button>
+          </div>
+          {selectedCall ? (
+            <>
+              <div className="p1mcp-output-body">
+                <pre className="p1mcp-output-code">
+                  {outputTab === 'response' && (
+                    selectedCall.response?.body
+                      ? <JsonHighlight value={selectedCall.response.body} />
+                      : <span style={{ color: '#64748b', fontStyle: 'italic' }}>No response body captured</span>
+                  )}
+                  {outputTab === 'request' && (
+                    selectedCall.request?.body
+                      ? <JsonHighlight value={selectedCall.request.body} />
+                      : <span style={{ color: '#64748b', fontStyle: 'italic' }}>No request body</span>
+                  )}
+                  {outputTab === 'headers' && (
+                    selectedCall.request?.headers && Object.keys(selectedCall.request.headers).length > 0
+                      ? <JsonHighlight value={selectedCall.request.headers} />
+                      : <span style={{ color: '#64748b', fontStyle: 'italic' }}>No headers captured</span>
+                  )}
+                </pre>
+              </div>
+              <div className="p1mcp-output-footer">
+                <span><strong>Status:</strong> {status != null ? status : 'N/A'}</span>
+                <span><strong>Duration:</strong> {duration != null ? `${duration}ms` : 'N/A'}</span>
+                <span><strong>Transport:</strong> HTTP</span>
+              </div>
+            </>
+          ) : (
+            <div className="p1mcp-output-empty">
+              Select an API call to view its response, request body, and headers.
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

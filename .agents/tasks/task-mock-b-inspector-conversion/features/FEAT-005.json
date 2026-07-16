@@ -2,7 +2,7 @@
   "id": "FEAT-005",
   "type": "refactor",
   "description": "Convert ApiExplorerPanel.js from light two-panel split layout to Mock B dark IDE three-column layout.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Read PingOneMcpInspector.js as the reference for Mock B layout structure.",
     "Rewrite ApiExplorerPanel.js to use p1mcp-* CSS classes for Mock B three-column layout: (1) Top bar with status dot (green when live polling, grey when paused), title 'API Explorer', status showing call count and live/paused state, Pause/Live button and Clear button in top-right; (2) Column 1 (tree): the call list -- each API call shown as a tree item with method badge (color-coded GET=blue, POST=green, DELETE=red, etc.), URL truncated, status code, and duration; the stats row (Total/Success/Errors/Avg) shown as a tree header or footer; active/selected call highlighted in blue; (3) Column 2 (form): since this is a viewer not a command issuer, column 2 shows the selected call's metadata -- full URL, method, status code, duration -- formatted like a 'tool' description area, plus any request body displayed in editable-looking (but readonly) fields; (4) Column 3 (output): tabbed output with 'Response Body', 'Request Body', 'Headers' tabs (same as existing detail panel tabs), JsonHighlight-rendered content, footer with status code and duration.",
