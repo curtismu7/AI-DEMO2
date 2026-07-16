@@ -1087,6 +1087,8 @@ app.use('/api/setup', setupRoutes);
 // unauthenticated visitors; tools/call and context check auth inside each handler.
 app.use('/api/mcp', mcpToolScopesRouter);
 app.use('/api/mcp/inspector', mcpInspectorRoutes);
+// Privilege MCP Client — relay for the chat-first Privilege Gateway MCP client page
+app.use('/api/privilege-mcp', require('./routes/privilegeMcpClient'));
 // MCP Gateway Config — status + generated PingGateway mcp.json (open to any authenticated session)
 app.use('/api/admin/mcp-gateway', mcpGatewayConfigRouter);
 // User-accessible alias — mirrors /api/admin/mcp-gateway/* for enduser sessions

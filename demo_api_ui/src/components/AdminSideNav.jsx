@@ -145,7 +145,7 @@ const EXPANDED_SECTIONS_KEY_BASE = "adminSideNav.expandedSections";
 // `allNavItems` below — update both together when renaming a group.
 const AUTO_EXPAND_SECTIONS = [
   { id: "ai-agents", paths: ["/ai-control-plane", "/agent", "/copilot", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
-  { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup"] },
+  { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client"] },
   { id: "banking-mcp", paths: ["/webmcp", "/mcp-inspector", "/ping-ai-test-lab"] },
   { id: "pingone-demo-apps", paths: ["/self-service", "/pingone-test", "/mfa-test", "/token-exchange-tester", "/oauth-academy", "/oas-demo", "/privilege-demo", "/sdk-login"] },
   { id: "delegation-consent", paths: ["/delegation", "/delegated-access", "/transaction-consent", "/actor-token-education"] },
@@ -471,6 +471,7 @@ export default function AdminSideNav({ user }) {
           icon: "tool",
         },
         { label: "PingOne MCP Setup", path: "/pingone-setup", icon: "cfg" },
+        { label: "Privilege MCP Client", path: "/privilege-mcp-client", icon: "shld" },
       ],
     },
     {

@@ -142,6 +142,7 @@ import PublicRoutes, {
   OAuthAcademyPageRoute,
   OnboardingRoute,
   PrivilegeDemoPageRoute,
+  PrivilegeMcpClientPageRoute,
   PingOneSetupPageRoute,
   PingOneTestPageRoute,
   ReportsPageRoute,
@@ -594,6 +595,12 @@ function AppWithAuth() {
                   path="/privilege-demo"
                   element={
                     <PrivilegeDemoPageRoute user={user} logout={logout} />
+                  }
+                />
+                <Route
+                  path="/privilege-mcp-client"
+                  element={
+                    <PrivilegeMcpClientPageRoute user={user} logout={logout} />
                   }
                 />
                 <Route
