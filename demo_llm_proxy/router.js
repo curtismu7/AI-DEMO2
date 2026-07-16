@@ -33,6 +33,20 @@ const IDLE_DECAY_MS = parseInt(
 const IDLE_DECAY_DISABLED = !Number.isFinite(IDLE_DECAY_MS) || IDLE_DECAY_MS <= 0;
 const PIN_TIER_PORT = parseInt(process.env.LLM_PROXY_PIN_TIER || '', 10);
 
+// Resident set: tier ports kept loaded at all times (comma-separated). Swap mode
+// keeps ONE tier loaded, so the BFF (pins phi-4-mini) and the agent (pins
+// gpt-oss-20b) evict each other — whichever is used second pays a full model
+// swap, and when that swap outruns the caller the BFF falls back to the
+// heuristic catalog. Listing both ports here loads both at boot, so the router
+// always finds a loaded tier covering the class and never swaps.
+// Unset ⇒ classic swap mode, unchanged.
+const RESIDENT_PORTS = new Set(
+  (process.env.LLM_PROXY_RESIDENT_TIERS || '')
+    .split(',')
+    .map((p) => parseInt(p.trim(), 10))
+    .filter((p) => Number.isFinite(p) && p > 0),
+);
+
 // Three tiers (US-origin): small (Phi-4-mini, :8091), big (gpt-oss-20b, :8096),
 // and an experimental mid-size tool-calling tier (Llama-3-Groq-8B-Tool-Use,
 // :8093) appended LAST (class 2) so it never changes the existing class-0/
@@ -251,6 +265,9 @@ async function selectTier(cls) {
 // request to sit through a multi-minute reload (or 503 with the downgrade guard).
 setInterval(() => {
   if (IDLE_DECAY_DISABLED || PIN_TIER_INDEX >= 0) return;
+  // A resident tier is meant to stay warm; decaying it away would re-introduce
+  // the swap on the next request — the exact stall residency exists to remove.
+  if (TIERS.slice(1).some((t) => RESIDENT_PORTS.has(t.port))) return;
   if (Date.now() - lastRequestAt < IDLE_DECAY_MS) return;
   if (swapInFlight) return;
   const biggerLoaded = TIERS.slice(1).some((t) => t.healthy);
