@@ -302,23 +302,6 @@ const FLAG_REGISTRY = [
 
   // ── Token Exchange ──────────────────────────────────────────────────────────
   {
-    id:           'ff_inject_may_act',
-    name:         'Token Exchange — Auto-inject may_act (BFF synthetic)',
-    category:     'Token Exchange',
-    description:
-      'When the user access token is missing a `may_act` claim, the BFF **synthesises** one ' +
-      '(`{ client_id: <bff-client-id> }`) before attempting RFC 8693 token exchange. ' +
-      'This lets you demo a successful exchange without modifying PingOne token policies. ' +
-      '**Educational only** — PingOne still validates the real token; the synthetic claim only affects what the ' +
-      'BFF passes as `subject_token`. Disable in production once PingOne is configured to add `may_act` natively.',
-    impact:
-      'OFF (default) = missing may_act shows a warning and exchange may fail per PingOne policy. ' +
-      'ON = BFF adds synthetic may_act before exchange; Token Chain shows an "injected" badge.',
-    type:         'boolean',
-    defaultValue: false,
-    warnIfEnabled: true,
-  },
-  {
     id:           'ff_inject_audience',
     name:         'Token Exchange — Auto-inject audience (BFF synthetic)',
     category:     'Token Exchange',

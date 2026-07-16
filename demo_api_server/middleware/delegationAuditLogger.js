@@ -4,7 +4,7 @@
  * delegationAuditLogger.js
  * 
  * Middleware to extract and log delegation chains from JWT tokens.
- * Captures act and may_act claims for audit trail and compliance reporting.
+ * Captures act claims for audit trail and compliance reporting.
  * 
  * Logs structured JSON events: { user, actor, action, resource, timestamp, correlationId }
  */
@@ -69,16 +69,6 @@ function extractDelegationChain(claims) {
     }
   }
 
-  // Extract may_act claim (prospective authorization)
-  if (claims.may_act) {
-    chain.delegationChain.push({
-      type: 'may_act',
-      clientId: claims.may_act.client_id || null,
-      sub: claims.may_act.sub || null,
-      iss: claims.may_act.iss || null,
-    });
-  }
-
   return chain;
 }
 
@@ -137,7 +127,7 @@ function buildAuditEvent(req, delegationChain) {
 
 /**
  * Delegation audit logging middleware
- * Extracts act/may_act claims from session tokens and logs delegation events
+ * Extracts act claims from session tokens and logs delegation events
  */
 function delegationAuditMiddleware(req, res, next) {
   // Only log for authenticated requests with tokens

@@ -1,5 +1,5 @@
 /**
- * Tests for act/may_act Claims Validation Middleware
+ * Tests for act Claims Validation Middleware
  */
 
 const jwt = require('jsonwebtoken');
@@ -15,7 +15,7 @@ jest.mock('../../utils/logger', () => {
   return { logger: mockLogger, LOG_LEVELS: {}, LOG_CATEGORIES: {} };
 });
 
-describe('act/may_act Claims Validation', () => {
+describe('act Claims Validation', () => {
   describe('validateActClaim', () => {
     it('should validate valid act claim', () => {
       const actClaim = {
@@ -108,9 +108,6 @@ describe('act/may_act Claims Validation', () => {
         act: {
           client_id: 'bff-client',
           iss: 'https://auth.pingone.com'
-        },
-        may_act: {
-          client_id: 'bff-client'
         }
       };
 
@@ -118,25 +115,22 @@ describe('act/may_act Claims Validation', () => {
 
       expect(chain.subject).toBe('user123');
       expect(chain.actor.client_id).toBe('bff-client');
-      expect(chain.mayAct.client_id).toBe('bff-client');
       expect(chain.delegationPresent).toBe(true);
     });
 
     it('should handle token without act claim', () => {
       const token = {
-        sub: 'user123',
-        may_act: { client_id: 'bff-client' }
+        sub: 'user123'
       };
 
       const chain = extractDelegationChain(token);
 
       expect(chain.subject).toBe('user123');
       expect(chain.actor).toBeNull();
-      expect(chain.mayAct.client_id).toBe('bff-client');
       expect(chain.delegationPresent).toBe(false);
     });
 
-    it('should handle token without may_act claim', () => {
+    it('should handle token with act claim', () => {
       const token = {
         sub: 'user123',
         act: { client_id: 'bff-client' }
@@ -146,18 +140,16 @@ describe('act/may_act Claims Validation', () => {
 
       expect(chain.subject).toBe('user123');
       expect(chain.actor.client_id).toBe('bff-client');
-      expect(chain.mayAct).toBeNull();
       expect(chain.delegationPresent).toBe(true);
     });
 
-    it('should handle token with neither act nor may_act', () => {
+    it('should handle token without act', () => {
       const token = { sub: 'user123' };
 
       const chain = extractDelegationChain(token);
 
       expect(chain.subject).toBe('user123');
       expect(chain.actor).toBeNull();
-      expect(chain.mayAct).toBeNull();
       expect(chain.delegationPresent).toBe(false);
     });
 

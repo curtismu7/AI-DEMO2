@@ -2,7 +2,7 @@
 /**
  * verify-act-claims.js
  * 
- * Utility to verify if PingOne is issuing act and may_act claims in tokens.
+ * Utility to verify if PingOne is issuing act claims in tokens.
  * Tests token exchange flow and inspects the returned token for delegation claims.
  * 
  * Usage:
@@ -48,17 +48,15 @@ function createMockRequest(accessToken) {
 }
 
 async function verifyActClaims() {
-  console.log('\n=== PingOne act/may_act Claim Verification ===\n');
+  console.log('\n=== PingOne act Claim Verification ===\n');
 
   // Check environment configuration
   const mcpResourceUri = process.env.PINGONE_RESOURCE_MCP_SERVER_URI || process.env.MCP_RESOURCE_URI;
   const useActor = process.env.USE_AGENT_ACTOR_FOR_MCP === 'true';
-  const requireMayAct = process.env.REQUIRE_MAY_ACT === 'true';
 
   console.log('Configuration:');
   console.log(`  PINGONE_RESOURCE_MCP_SERVER_URI: ${mcpResourceUri || '(not set - exchange will be skipped)'}`);
   console.log(`  USE_AGENT_ACTOR_FOR_MCP: ${useActor}`);
-  console.log(`  REQUIRE_MAY_ACT: ${requireMayAct}`);
   console.log(`  PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID: ${process.env.PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID || process.env.AGENT_OAUTH_CLIENT_ID || '(not set)'}\n`);
 
   if (!mcpResourceUri) {
@@ -93,13 +91,6 @@ async function verifyActClaims() {
   console.log(`  aud: ${t1Decoded.claims.aud}`);
   console.log(`  scope: ${t1Decoded.claims.scope}`);
   console.log(`  exp: ${new Date(t1Decoded.claims.exp * 1000).toISOString()}`);
-  
-  if (t1Decoded.claims.may_act) {
-    console.log(`  ✅ may_act: ${JSON.stringify(t1Decoded.claims.may_act)}`);
-  } else {
-    console.log(`  ❌ may_act: (not present)`);
-    console.log('     Token exchange may fail unless PingOne policy allows exchange without may_act.');
-  }
   console.log('');
 
   // Perform token exchange
@@ -117,10 +108,6 @@ async function verifyActClaims() {
     result.tokenEvents.forEach((event, idx) => {
       console.log(`Event ${idx + 1}: ${event.label} (${event.status})`);
       console.log(`  ${event.explanation}`);
-      if (event.mayActPresent !== undefined) {
-        console.log(`  may_act present: ${event.mayActPresent}`);
-        console.log(`  may_act valid: ${event.mayActValid}`);
-      }
       if (event.actPresent !== undefined) {
         console.log(`  act present: ${event.actPresent}`);
         if (event.actDetails) {
@@ -147,10 +134,6 @@ async function verifyActClaims() {
           console.log('\n⚠️  WARNING: Token exchange succeeded but act claim is missing.');
           console.log('   PingOne policy may need configuration to include act claim.');
           console.log('   See: https://docs.pingidentity.com/r/en-us/pingone/p1_t_configure_token_exchange');
-        }
-
-        if (t2Decoded.claims.may_act) {
-          console.log(`  may_act: ${JSON.stringify(t2Decoded.claims.may_act)} (should not be on MCP token)`);
         }
       }
     } else {

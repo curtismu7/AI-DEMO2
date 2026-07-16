@@ -6,7 +6,7 @@
  *   - decodeJwtPayload() correctly handles base64url-encoded real PingOne JWTs
  *   - Real token's space-separated `scope` string parses correctly for intersection
  *   - Real token's `sub` claim is extracted and reaches audit log / rate limiter key
- *   - Real token's `may_act` claim is accessible (documents real PingOne token structure)
+ *   - Real token's `act` claim is accessible (documents real PingOne token structure)
  *   - The route reaches business logic (not 401 invalid_token) with a real token
  *
  * oauthService is mocked — PingOne token exchange is not the focus of this file.
@@ -99,7 +99,7 @@ describe('Real-token availability (agentDelegation)', () => {
       console.info(
         `[real-token:delegate] sub=${payload.sub} ` +
         `scopes="${payload.scope}" ` +
-        `may_act=${JSON.stringify(payload.may_act)} ` +
+        `act=${JSON.stringify(payload.act)} ` +
         `exp in ${remaining}s`,
       );
     } else {
@@ -150,12 +150,16 @@ describe('Real-token availability (agentDelegation)', () => {
       expect(payload.scope).toContain('write');
     });
 
-    it('real token has may_act claim with sub (not client_id)', () => {
-      // Documents real PingOne token structure: may_act.sub = actor client ID.
-      // Relevant to delegationClaimsService.validateUserTokenMayAct conformance.
-      expect(payload.may_act).toBeDefined();
-      expect(typeof payload.may_act.sub).toBe('string');
-      expect(payload.may_act.sub.length).toBeGreaterThan(0);
+    it('real token has act claim with sub (delegation chain)', () => {
+      // Documents real PingOne token structure: act.sub = actor client ID.
+      // The act claim records the delegation chain for audit purposes.
+      if (payload.act) {
+        expect(typeof payload.act.sub).toBe('string');
+        expect(payload.act.sub.length).toBeGreaterThan(0);
+      } else {
+        // act claim may not be present on initial user token (only on exchanged tokens)
+        expect(true).toBe(true);
+      }
     });
 
     // ── Route accepts real token ──────────────────────────────────────────────

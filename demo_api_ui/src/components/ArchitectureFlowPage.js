@@ -141,7 +141,7 @@ function ArchNode({ data }) {
           {data.stepLabel}
         </div>
       )}
-      {/* Token badge — shows aud/act/may_act with changed claims highlighted */}
+      {/* Token badge — shows aud/act with changed claims highlighted */}
       {b && (
         <div
           style={{
@@ -164,19 +164,6 @@ function ArchNode({ data }) {
               }}
             >
               aud: {b.aud}
-            </div>
-          )}
-          {b.may_act && (
-            <div
-              style={{
-                fontSize: "0.56rem",
-                fontFamily: "inherit",
-                lineHeight: 1.4,
-                color: "#b45309",
-                fontWeight: 700,
-              }}
-            >
-              may_act: {b.may_act}
             </div>
           )}
           {b.act && (
@@ -803,25 +790,23 @@ const SIMULATE_STEPS = [
     // 15
     nodeIds: ["idp-oauth-as"],
     colorClass: "active",
-    stepLabel: "PingOne issues subject token with may_act",
+    stepLabel: "PingOne issues subject token scoped to agent",
     description:
-      "PingOne issues a subject token with sub=alice@bank.com, aud=agent1 (the agent is the audience), and may_act={sub: agent1}. The may_act claim pre-authorizes the agent to act on behalf of the user for this token.",
+      "PingOne issues a subject token with sub=alice@bank.com, aud=agent1 (the agent is the audience). Platform-level authorization (PingOne app grants) controls which agents can perform token exchange on behalf of this user.",
     activeEdgeIds: [],
     edgeStyle: A,
     nodeBadges: {
       user: {
         aud: "agent1",
-        may_act: "{sub: agent1}",
-        _changed: ["aud", "may_act"],
+        _changed: ["aud"],
       },
     },
     token: {
       type: "Subject Token (issued)",
       sub: "alice@bank.com",
       aud: "agent1",
-      may_act: "{sub: agent1}",
       scope: "balance",
-      note: "may_act pre-authorizes agent to act on behalf of user for this token",
+      note: "Platform-level grants control which agents can exchange this token via RFC 8693",
     },
   },
   {
@@ -834,13 +819,12 @@ const SIMULATE_STEPS = [
     activeEdgeIds: ["user-agent"],
     edgeStyle: A,
     nodeBadges: {
-      agent: { aud: "agent1", may_act: "{sub: agent1}", _changed: [] },
+      agent: { aud: "agent1", _changed: [] },
     },
     token: {
       type: "Subject Token (delivered)",
       sub: "alice@bank.com",
       aud: "agent1",
-      may_act: "{sub: agent1}",
       scope: "balance",
     },
   },
