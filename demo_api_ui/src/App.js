@@ -124,7 +124,6 @@ import EducationRoutes from "./routes/EducationRoutes";
 import MonitoringRoutes, {
   AgentFlowInspectorRoute,
   ApiTrafficRoute,
-  DevToolsRoute,
   LogsRoute,
   McpTrafficRoute,
   SequenceDiagramRoute,
@@ -671,10 +670,6 @@ function AppWithAuth() {
                   element={<McpTrafficRoute user={user} logout={logout} />}
                 />
                 <Route
-                  path="/dev-tools"
-                  element={<DevToolsRoute user={user} logout={logout} />}
-                />
-                <Route
                   path="/sequence-diagram"
                   element={<SequenceDiagramRoute user={user} logout={logout} />}
                 />
@@ -958,8 +953,8 @@ function AppWithAuth() {
                             />
 
                             {/* === Monitoring routes inside the wildcard (these aren't reachable as
-                              top-level routes — /api-traffic, /mcp-traffic, /dev-tools are top-level
-                              at lines 356-358 and shadow any duplicate here, so don't re-add them.) */}
+                              top-level routes — /api-traffic, /mcp-traffic are top-level
+                              and shadow any duplicate here, so don't re-add them.) */}
                             <Route
                               path="/logs"
                               element={

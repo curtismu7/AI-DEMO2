@@ -191,8 +191,8 @@ export function buildReadableView(raw) {
 // routinely exceed this once pretty-printed with _links — coloring every token
 // injects tens of thousands of React nodes and can crash the render so the
 // terminal flashes then vanishes. Above the cap we still pretty-print, but as a
-// single text node.
-const JSON_HIGHLIGHT_MAX_CHARS = 8000;
+// single text node. Raised to 40KB to cover most real payloads while staying safe.
+const JSON_HIGHLIGHT_MAX_CHARS = 40000;
 
 // Syntax-highlight a JSON string into an array of React nodes (colored <span>s
 // interleaved with plain text). Returns null if the text is not valid JSON
@@ -985,11 +985,50 @@ export default function PingCliPage() {
                 )}
                 {(viewMode === 'json' || !canEasyRead) && (() => {
                   const tokens = output ? tokenizeJson(output) : null;
+                  const prettyOutput = (() => {
+                    if (!output) return '';
+                    try { return JSON.stringify(JSON.parse(output), null, 2); } catch { return output; }
+                  })();
+                  const lineCount = prettyOutput ? prettyOutput.split('\n').length : 0;
                   if (tokens) {
-                    return <div className="pingcli-terminal-body">{tokens}</div>;
+                    return (
+                      <div className="pingcli-terminal-body pingcli-editor">
+                        <div className="pingcli-editor-toolbar">
+                          <span className="pingcli-editor-lang">JSON</span>
+                          <span className="pingcli-editor-lines">{lineCount} lines</span>
+                          <button
+                            type="button"
+                            className="pingcli-editor-copy"
+                            onClick={() => copyToClipboard(prettyOutput)}
+                          >
+                            Copy
+                          </button>
+                        </div>
+                        <div className="pingcli-editor-content">
+                          <div className="pingcli-line-numbers" aria-hidden="true">
+                            {Array.from({ length: lineCount }, (_, i) => (
+                              <span key={i}>{i + 1}</span>
+                            ))}
+                          </div>
+                          <pre className="pingcli-editor-code">{tokens}</pre>
+                        </div>
+                      </div>
+                    );
                   }
                   return (
                     <div className={`pingcli-terminal-body${running ? ' loading' : ''}`}>
+                      <div className="pingcli-editor-toolbar">
+                        <span className="pingcli-editor-lang">Output</span>
+                        {output && (
+                          <button
+                            type="button"
+                            className="pingcli-editor-copy"
+                            onClick={() => copyToClipboard(output)}
+                          >
+                            Copy
+                          </button>
+                        )}
+                      </div>
                       {output || (running ? 'Running…' : '(no output)')}
                     </div>
                   );

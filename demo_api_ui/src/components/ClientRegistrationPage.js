@@ -260,7 +260,7 @@ export default function ClientRegistrationPage({ user, onLogout }) {
 
   return (
     <AdminSubPageShell
-      title="OAuth Client Registration"
+      title="CIMD Simulation"
       lead={(
         <>
           Fill in client metadata using the <strong>Client ID Metadata Document (CIMD)</strong> format.
@@ -269,7 +269,7 @@ export default function ClientRegistrationPage({ user, onLogout }) {
       )}
       wide={false}
     >
-      <PageNav user={user} onLogout={onLogout} title="Client Registration" />
+      <PageNav user={user} onLogout={onLogout} title="CIMD Simulation" />
       <div className="app-page-toolbar app-page-toolbar--start">
         <button
           type="button"
