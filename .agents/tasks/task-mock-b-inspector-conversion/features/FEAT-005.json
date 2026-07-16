@@ -2,7 +2,7 @@
   "id": "FEAT-005",
   "type": "refactor",
   "description": "Convert ApiExplorerPanel.js from light two-panel split layout to Mock B dark IDE three-column layout.",
-  "status": "in_progress",
+  "status": "completed",
   "steps": [
     "Read PingOneMcpInspector.js as the reference for Mock B layout structure.",
     "Rewrite ApiExplorerPanel.js to use p1mcp-* CSS classes for Mock B three-column layout: (1) Top bar with status dot (green when live polling, grey when paused), title 'API Explorer', status showing call count and live/paused state, Pause/Live button and Clear button in top-right; (2) Column 1 (tree): the call list -- each API call shown as a tree item with method badge (color-coded GET=blue, POST=green, DELETE=red, etc.), URL truncated, status code, and duration; the stats row (Total/Success/Errors/Avg) shown as a tree header or footer; active/selected call highlighted in blue; (3) Column 2 (form): since this is a viewer not a command issuer, column 2 shows the selected call's metadata -- full URL, method, status code, duration -- formatted like a 'tool' description area, plus any request body displayed in editable-looking (but readonly) fields; (4) Column 3 (output): tabbed output with 'Response Body', 'Request Body', 'Headers' tabs (same as existing detail panel tabs), JsonHighlight-rendered content, footer with status code and duration.",
@@ -23,5 +23,5 @@
     "cd demo_api_ui && HTTPS=false npx vite build"
   ],
   "blocked_reason": null,
-  "findings": ""
+  "findings": "Conversion successful. Replaced light two-panel split layout with p1mcp-* three-column dark IDE grid. Top bar shows live/paused status dot (green=live, grey=paused), title 'API Explorer', call count with live/paused label, Pause/Live and Clear buttons. Column 1 (tree) shows API calls as tree items with color-coded method badges (GET=blue, POST=green, DELETE=red, PUT=amber), truncated URL, status code badge, duration, and green/red dot for success/error. Search filter and stats footer included. Column 2 (form) shows selected call metadata in readonly fields: URL, method, status code, duration, request body textarea. Column 3 (output) has three tabs: Response Body, Request Body, Headers, each with JsonHighlight syntax highlighting and a footer showing status/duration/transport. Imports PingOneMcpInspector.css for base p1mcp-* styles; ApiExplorerPanel.css reduced to dark-themed component-specific overrides (aep-* prefix for tree items, method badges, stats footer). All API calls preserved using raw fetch (not apiClient). Build passes cleanly."
 }
