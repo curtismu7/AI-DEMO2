@@ -173,10 +173,6 @@ export class BankingAPIClient {
     
     console.log(`[BankingAPIClient] getMyAccounts raw response:`, {
       status: response.status,
-      data: response.data,
-      dataType: typeof response.data,
-      isArray: Array.isArray(response.data),
-      accountsArray: Array.isArray(response.data.accounts),
       accountsLength: response.data.accounts?.length
     });
     
@@ -227,10 +223,6 @@ export class BankingAPIClient {
     
     console.log(`[BankingAPIClient] getMyTransactions raw response:`, {
       status: response.status,
-      data: response.data,
-      dataType: typeof response.data,
-      isArray: Array.isArray(response.data),
-      transactionsArray: Array.isArray(response.data.transactions),
       transactionsLength: response.data.transactions?.length
     });
     
@@ -507,7 +499,12 @@ export class BankingAPIClient {
           async () => {
             return await this.client.request<T>(config);
           },
-          (error: Error) => this.shouldRetryRequest(error)
+          (error: Error) => {
+            // Never retry non-idempotent POST/PUT/PATCH requests to prevent double-execution
+            // (e.g., creating a transaction twice on timeout when the first request succeeded).
+            if (['post', 'put', 'patch'].includes(config.method)) return false;
+            return this.shouldRetryRequest(error);
+          }
         );
       });
     } catch (error) {

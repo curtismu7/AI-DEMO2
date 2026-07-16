@@ -11,10 +11,12 @@ app = FastAPI(title="Pydantic AI Agent Service")
 
 # Restrict CORS to only trusted origins (agent service should be called from BFF only)
 allowed_origins = []
-if bff_origin := os.getenv("BFF_ORIGIN"):
+if cors_origins := os.getenv("CORS_ORIGINS"):
+    allowed_origins = [o.strip() for o in cors_origins.split(",") if o.strip()]
+elif bff_origin := os.getenv("BFF_ORIGIN"):
     allowed_origins.append(bff_origin)
 if not allowed_origins:
-    allowed_origins = ["http://localhost:3001"]  # Default for dev; MUST be overridden in prod
+    allowed_origins = ["http://localhost:3001"]  # Default for dev; overridden via CORS_ORIGINS in prod
 
 app.add_middleware(
     CORSMiddleware,

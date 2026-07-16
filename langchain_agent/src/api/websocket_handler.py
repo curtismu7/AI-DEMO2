@@ -4,6 +4,7 @@ WebSocket handler for real-time chat communication.
 import asyncio
 import json
 import logging
+import os
 from typing import Dict, Any, Optional, Set
 from datetime import datetime, timezone
 import uuid
@@ -100,6 +101,21 @@ class ChatWebSocketHandler:
         user_token = None  # resolved via session_init message
 
         try:
+            # Per-user connection limit: prevent resource exhaustion from a single user
+            # opening many WebSocket connections (DoS vector).
+            MAX_CONNECTIONS_PER_USER = int(os.environ.get("WS_MAX_CONNECTIONS_PER_USER", "10"))
+            user_connections = sum(
+                1 for meta in self._connection_metadata.values()
+                if meta.get("ip") == (getattr(websocket, 'remote_address', (None,))[0])
+            )
+            if user_connections >= MAX_CONNECTIONS_PER_USER:
+                logger.warning(
+                    f"Connection limit reached for IP {getattr(websocket, 'remote_address', ('?',))[0]} "
+                    f"({user_connections}/{MAX_CONNECTIONS_PER_USER})"
+                )
+                await websocket.close(4029, "Too many connections")
+                return
+
             # Register connection
             self._connections[connection_id] = websocket
             self._connection_metadata[connection_id] = {
@@ -107,7 +123,8 @@ class ChatWebSocketHandler:
                 "path": raw_path or '/',
                 "session_id": None,
                 "user_id": None,
-                "user_token": user_token
+                "user_token": user_token,
+                "ip": getattr(websocket, 'remote_address', (None,))[0],
             }
             
             logger.info(f"New WebSocket connection: {connection_id}")
