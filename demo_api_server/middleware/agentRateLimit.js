@@ -112,8 +112,9 @@ async function agentRateLimitMiddleware(req, res, next) {
 
       console.warn(`[rateLimit] Rate limit exceeded for agent ${agentId}: ${requestCount}/${limit} (violation: ${violationCount})`);
 
-      // Check auto-kill trigger
-      const shouldAutoKill = await checkAutoKill(agentId, sessionStore);
+      // Check auto-kill trigger — use the count we already have from INCR
+      // (avoids a redundant GET that could return a different value due to concurrency)
+      const shouldAutoKill = violationCount >= AGENT_RATE_LIMIT.auto_kill_violation_threshold;
       if (shouldAutoKill) {
         try {
           // Auto-trigger kill switch

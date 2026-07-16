@@ -164,13 +164,26 @@ class DataStore {
   }
 
   async persistAllData() {
-    try {
-      const snapshot = this.getSnapshot();
-      const json = JSON.stringify(snapshot, null, 2);
-      this._atomicWrite(RUNTIME_DATA_PATH, json);
-    } catch (err) {
-      console.error('[DataStore] Failed to persist data:', err.message);
-    }
+    // Debounce: batch rapid consecutive calls (e.g. provisionDemoAccounts which
+    // creates 15+ records sequentially) into a single disk write. The first call
+    // sets a timer; subsequent calls within 50ms are no-ops that reuse the same
+    // pending write. This prevents 15 full JSON.stringify + file writes during
+    // account provisioning while still ensuring data reaches disk promptly.
+    if (this._persistPending) return this._persistPending;
+    this._persistPending = new Promise((resolve) => {
+      setTimeout(() => {
+        this._persistPending = null;
+        try {
+          const snapshot = this.getSnapshot();
+          const json = JSON.stringify(snapshot, null, 2);
+          this._atomicWrite(RUNTIME_DATA_PATH, json);
+        } catch (err) {
+          console.error('[DataStore] Failed to persist data:', err.message);
+        }
+        resolve();
+      }, 50);
+    });
+    return this._persistPending;
   }
 
   createBackup() {
@@ -471,7 +484,14 @@ class DataStore {
     if (!Number.isFinite(amt) || amt <= 0) return { ok: false, reason: 'invalid_amount' };
 
     const lockKey = [fromAccountId, toAccountId].filter(Boolean).sort().join('|');
-    const release = await this._acquireLock(lockKey);
+    // Acquire locks on EACH individual account (sorted to prevent deadlock).
+    // This prevents concurrent debits from the same source to different targets
+    // (e.g. A→B and A→C) from both passing the balance check simultaneously.
+    const lockKeys = [fromAccountId, toAccountId].filter(Boolean).sort();
+    const releases = [];
+    for (const key of lockKeys) {
+      releases.push(await this._acquireLock(key));
+    }
 
     try {
       // ── synchronous critical section — DO NOT add `await` inside ──────────────
@@ -494,11 +514,9 @@ class DataStore {
       await this.persistAllData();
       return { ok: true, fromBalance: from ? from.balance : undefined, toBalance: to ? to.balance : undefined };
     } finally {
-      release();
-      // Clean up lock entry to prevent unbounded Map growth
-      if (this._transferLocks.get(lockKey) === Promise.resolve()) {
-        this._transferLocks.delete(lockKey);
-      }
+      // Release all individual account locks
+      for (const release of releases) release();
+      for (const key of lockKeys) this._transferLocks.delete(key);
     }
   }
 

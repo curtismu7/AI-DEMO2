@@ -31,11 +31,6 @@ export default function StaleSessionBanner() {
   const [stale, setStale] = useState(null); // { reason } | null
   const silentAttemptedRef = useRef(false);
 
-  // Detect if we just returned from a failed silent reauth attempt.
-  const silentFailed =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("silent_reauth_failed") === "1";
-
   useEffect(() => {
     let cancelled = false;
     const check = async () => {
@@ -47,6 +42,13 @@ export default function StaleSessionBanner() {
           setStale(null);
           return;
         }
+        // Detect if we just returned from a failed silent reauth attempt.
+        // Read inside the effect (not at render time) so URL cleanup hooks
+        // that strip this param don't create a stale-closure race.
+        const silentFailed =
+          typeof window !== "undefined" &&
+          new URLSearchParams(window.location.search).get("silent_reauth_failed") === "1";
+
         // Attempt silent reauth once before showing the banner.
         // Skip if: we already tried this page load, the URL says it already failed,
         // or sessionStorage says we tried in a previous load this session.
