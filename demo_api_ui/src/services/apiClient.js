@@ -192,39 +192,6 @@ class ApiClient {
     // noisy fallback refresh attempts to /api/auth/oauth/refresh.
     return null;
   }
-        if (userRefreshResponse.data.accessToken) {
-          console.debug('Successfully refreshed end user token');
-          return userRefreshResponse.data.accessToken;
-        }
-      } catch (userRefreshError) {
-        console.warn('End user token refresh failed:', userRefreshError.response?.data?.error || userRefreshError.message);
-        // If refresh is not implemented (501) or no refresh token (401), don't try admin refresh
-        if (userRefreshError.response?.status === 501 || userRefreshError.response?.status === 401) {
-          throw userRefreshError;
-        }
-      }
-
-      // Try to refresh the admin token
-      try {
-        const adminRefreshResponse = await axios.post('/api/auth/oauth/refresh');
-        if (adminRefreshResponse.data.accessToken) {
-          console.debug('Successfully refreshed admin token');
-          return adminRefreshResponse.data.accessToken;
-        }
-      } catch (adminRefreshError) {
-        console.warn('Admin token refresh failed:', adminRefreshError.response?.data?.error || adminRefreshError.message);
-        throw adminRefreshError;
-      }
-
-      throw new Error('All token refresh attempts failed');
-    } catch (error) {
-      console.error('Token refresh failed:', error);
-      if (error.response?.status === 501) {
-      } else if (error.response?.status === 401) {
-      }
-      throw error;
-    }
-  }
 
   handleAuthFailure() {
     console.warn('Authentication failed, redirecting to login');
