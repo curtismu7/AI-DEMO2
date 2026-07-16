@@ -184,7 +184,7 @@ export function CitedMessage({ text, domain = 'banking-domain', className = '' }
 export function CitationFooter({ text, domain = 'banking-domain' }) {
   const [assertions, setAssertions] = useState(new Map());
   const [expanded, setExpanded] = useState(false);
-  const [ids, setIds] = useState([]);
+  const [ids, setIds] = useState(() => extractCitationIds(text));
 
   useEffect(() => {
     const extracted = extractCitationIds(text);

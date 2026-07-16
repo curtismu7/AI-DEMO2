@@ -196,7 +196,8 @@ function getAssertions(domain, opts = {}) {
     );
   }
 
-  return assertions;
+  // Return a shallow copy to prevent consumers from mutating the bundle index
+  return assertions === bundle.assertions ? [...assertions] : assertions;
 }
 
 /**
@@ -212,9 +213,13 @@ function formatForPrompt(domain, opts = {}) {
   if (assertions.length === 0) return '';
 
   const bundle = bundleIndex.get(domain);
-  const lines = assertions.map(a =>
-    `[${a.id}] ${a.claim} Source: ${a.source}`
-  );
+  const lines = assertions.map(a => {
+    // Sanitize claims: strip any XML-like tags that could break the prompt structure
+    // or inject rogue instructions (e.g., </knowledge>, <|im_end|>)
+    const safeClaim = a.claim.replace(/<[^>]*>/g, '').replace(/<\|[^|]*\|>/g, '');
+    const safeSource = a.source.replace(/<[^>]*>/g, '');
+    return `[${a.id}] ${safeClaim} Source: ${safeSource}`;
+  });
 
   return [
     `<knowledge domain="${domain}" version="${bundle.version}">`,

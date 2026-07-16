@@ -185,6 +185,8 @@ function createCitationResolver(apiBase = '/api/okf') {
 
     /**
      * Resolves all citation IDs in a message at once.
+     * Fetches the full domain on first call (populating cache), then serves
+     * remaining IDs from cache. Short-circuits if the domain fetch fails.
      *
      * @param {string} domain
      * @param {string[]} ids - Array of citation IDs
@@ -192,11 +194,22 @@ function createCitationResolver(apiBase = '/api/okf') {
      */
     async resolveAll(domain, ids) {
       const results = new Map();
-      // Trigger cache population with first resolve
-      for (const id of ids) {
-        const assertion = await this.resolve(domain, id);
-        if (assertion) results.set(id, assertion);
+      if (!ids || ids.length === 0) return results;
+
+      // Single fetch attempt for the domain — populates cache for all IDs
+      const first = await this.resolve(domain, ids[0]);
+      if (first) results.set(ids[0], first);
+
+      // If cache is now populated, resolve remaining from cache (instant)
+      // If fetch failed (cache still empty), skip remaining to avoid N retries
+      if (cache.has(domain)) {
+        for (let i = 1; i < ids.length; i++) {
+          const domainCache = cache.get(domain);
+          const assertion = domainCache.get(ids[i]);
+          if (assertion) results.set(ids[i], assertion);
+        }
       }
+
       return results;
     },
 

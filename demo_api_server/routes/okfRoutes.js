@@ -91,8 +91,8 @@ function registerOkfRoutes(router) {
     ensureInitialized();
     const { domain, id } = req.params;
 
-    // Validate ID format
-    if (!/^K\d{1,2}$/.test(id)) {
+    // Validate ID format — must be K1 through K50 (aligned with schema)
+    if (!/^K([1-9]|[1-4]\d|50)$/.test(id)) {
       return res.status(400).json({
         error: 'Invalid assertion ID format. Expected K1–K50.',
         id,
