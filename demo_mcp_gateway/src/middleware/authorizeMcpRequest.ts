@@ -684,6 +684,8 @@ export function buildAuthorizeMcpRequest(
           hitlChallengeId,
         );
       } else {
+        // Read active vertical from BFF server-to-server header (parity with WS path)
+        const _activeVertical = _hdr('x-active-vertical');
         authzDecision = await authorizeClient.evaluate(
           decoded,
           method,
@@ -694,6 +696,7 @@ export function buildAuthorizeMcpRequest(
           _tratClaims,
           config.introspectionProvider === 'p1az' ? introspectionResult : undefined,
           hitlChallengeId,
+          _activeVertical,
         );
       }
     } catch {

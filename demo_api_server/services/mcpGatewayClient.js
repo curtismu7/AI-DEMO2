@@ -136,6 +136,15 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     if (opts.intentToken) {
         headers['X-Intent-Token'] = opts.intentToken;
     }
+    // Vertical: pass the active vertical to the gateway so PingOne Authorize
+    // can use it in policy decisions (parity with the WS path which sends it
+    // on the upgrade request). Sourced from configStore — never user-controlled.
+    try {
+      const activeVertical = (opts && opts.vertical) || configStore.getEffective('active_vertical');
+      if (activeVertical) {
+        headers['X-Active-Vertical'] = activeVertical;
+      }
+    } catch (_) { /* best-effort */ }
     // DPoP (RFC 9449): sign a fresh per-hop proof bound to this request URL + access
     // token when the session has a DPoP key (ff_dpop). The htu path must match what
     // the gateway sees (/mcp). Best-effort — never block the call on proof failure.

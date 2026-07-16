@@ -195,6 +195,7 @@ export class PingOneAuthorizeClient {
     tratClaims?: TratClaims | null,
     introspectionResult?: { active: boolean; sub?: string; exp?: number; scope?: string; aud?: string } | undefined,
     hitlChallengeId?: string,
+    vertical?: string,
   ): Promise<AuthzDecision> {
     // When Authorization Server is not configured, fall back to local scope decision
     // for tools/call. This allows development/testing without P1AZ. For other methods,
@@ -226,7 +227,7 @@ export class PingOneAuthorizeClient {
       tratClaims ?? null,
       hitlApproved,
       intentValidation,
-      undefined,
+      vertical,
       introspectionResult,
       hitlChallengeId,
     );
