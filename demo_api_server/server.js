@@ -1004,12 +1004,19 @@ app.get('/api/auth/oauth/redirect-info', (_req, res) => {
 // browser-side @forgerock/oidc-client. Mirrors the public redirect-info handler
 // above. Returns ONLY non-secret values (this is a public PKCE SPA client; it has
 // no secret to leak). The browser builds its OIDC client from these.
-app.get('/api/sdk-demo/config', (_req, res) => {
+app.get('/api/sdk-demo/config', (req, res) => {
     try {
+        // Auto-derive redirectUri from the request origin if not explicitly configured.
+        let redirectUri = configStore.getEffective('pingone_sdk_demo_redirect_uri');
+        if (!redirectUri) {
+            const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+            const host = req.headers['x-forwarded-host'] || req.headers.host;
+            redirectUri = `${proto}://${host}/sdk-login/callback`;
+        }
         res.json({
             wellknown:   getDiscoveryEndpoint(),
             clientId:    configStore.getEffective('pingone_sdk_demo_client_id'),
-            redirectUri: configStore.getEffective('pingone_sdk_demo_redirect_uri'),
+            redirectUri,
             scope:       configStore.getEffective('pingone_sdk_demo_scope'),
         });
     } catch (err) {

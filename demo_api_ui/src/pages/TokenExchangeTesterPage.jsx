@@ -11,10 +11,8 @@ export default function TokenExchangeTesterPage() {
   const [hasSession, setHasSession] = useState(false);
 
   useEffect(() => {
-    // Check if user has a session
     fetch('/api/tokens/session-preview', { credentials: 'include' })
       .then(r => {
-        // Non-2xx (e.g. 401 with JSON error body) must not be parsed as valid session data
         if (!r.ok) throw new Error(`session-preview returned ${r.status}`);
         return r.json();
       })
@@ -65,159 +63,168 @@ export default function TokenExchangeTesterPage() {
     { label: 'Enduser', value: 'enduser.ping.demo' }
   ];
 
+  const decision = result
+    ? (error ? 'error' : 'success')
+    : null;
+
   return (
-    <div className='token-exchange-tester-page'>
-      <div className='page-header'>
-        <h1>RFC 8693 Token Exchange Tester</h1>
-        <p>Exchange your session token for a scoped MCP token using real PingOne credentials.</p>
-      </div>
+    <div className="tet-page">
+      {/* Header */}
+      <header className="tet-header">
+        <h1 className="tet-title">RFC 8693 Token Exchange Tester</h1>
+        <p className="tet-subtitle">
+          Exchange your session token for a scoped delegation token using real PingOne credentials.
+          See the full request and response in real time.
+        </p>
+      </header>
 
       {!hasSession ? (
-        <div className='no-session-message'>
-          <p>Please log in first to test token exchange.</p>
+        <div className="tet-no-session">
+          <div className="tet-no-session__icon">!</div>
+          <div>
+            <strong>No active session</strong>
+            <p>Log in first to test token exchange. The exchange requires a valid subject token from your session.</p>
+          </div>
         </div>
       ) : (
-        <div className='content'>
-          <div className='form-section'>
-            <h2>Exchange Configuration</h2>
-            <form onSubmit={handleExchange}>
-              <div className='form-group'>
-                <label htmlFor='audience'>Target Audience (Resource URI)</label>
-                <div className='audience-selector'>
+        <div className="tet-layout">
+          {/* Left: Form + quick token comparison */}
+          <div className="tet-left">
+            <div className="tet-form-card">
+              <h2 className="tet-form-title">Exchange Parameters</h2>
+              <form onSubmit={handleExchange}>
+                <div className="tet-field">
+                  <label className="tet-label">Target Audience (resource)</label>
                   <select
-                    value={audience}
-                    onChange={(e) => setAudience(e.target.value)}
+                    className="tet-select"
+                    value={predefinedAudiences.find(a => a.value === audience) ? audience : '__custom'}
+                    onChange={(e) => {
+                      if (e.target.value !== '__custom') setAudience(e.target.value);
+                    }}
                   >
                     {predefinedAudiences.map(opt => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
+                      <option key={opt.value} value={opt.value}>{opt.label} ({opt.value})</option>
                     ))}
+                    <option value="__custom">Custom...</option>
                   </select>
-                  <span className='separator'>or</span>
                   <input
-                    type='text'
-                    placeholder='Custom audience'
+                    type="text"
+                    className="tet-input"
                     value={audience}
                     onChange={(e) => setAudience(e.target.value)}
-                    className='custom-input'
+                    placeholder="Custom audience URI"
                   />
                 </div>
-              </div>
 
-              <div className='form-group'>
-                <label htmlFor='scopes'>Scopes (space-separated)</label>
-                <input
-                  type='text'
-                  id='scopes'
-                  value={scopes}
-                  onChange={(e) => setScopes(e.target.value)}
-                  placeholder='e.g. read write agent:invoke'
-                />
-              </div>
+                <div className="tet-field">
+                  <label className="tet-label">Scopes (space-separated)</label>
+                  <input
+                    type="text"
+                    className="tet-input tet-input--mono"
+                    value={scopes}
+                    onChange={(e) => setScopes(e.target.value)}
+                    placeholder="e.g. read write agent:invoke"
+                  />
+                </div>
 
-              <button
-                type='submit'
-                disabled={loading}
-                className='exchange-button'
-              >
-                {loading ? 'Exchanging...' : 'Exchange Token'}
-              </button>
-            </form>
+                <button type="submit" disabled={loading} className="tet-btn">
+                  {loading ? 'Exchanging...' : 'Exchange Token'}
+                </button>
+              </form>
+            </div>
+
+            {/* Token comparison cards - shown after exchange */}
+            {result && !error && (
+              <div className="tet-tokens">
+                <div className="tet-token-card tet-token-card--original">
+                  <div className="tet-token-card__head">Subject Token (input)</div>
+                  {result.original?.content?.payload ? (
+                    <dl className="tet-claims">
+                      <div className="tet-claim"><dt>sub</dt><dd>{result.original.content.payload.sub}</dd></div>
+                      <div className="tet-claim"><dt>aud</dt><dd>{Array.isArray(result.original.content.payload.aud) ? result.original.content.payload.aud.join(', ') : result.original.content.payload.aud}</dd></div>
+                      <div className="tet-claim"><dt>scope</dt><dd>{result.original.content.payload.scope}</dd></div>
+                      <div className="tet-claim"><dt>exp</dt><dd>{result.original.content.expires_at}</dd></div>
+                    </dl>
+                  ) : (
+                    <p className="tet-muted">No subject token details available</p>
+                  )}
+                </div>
+                <div className="tet-token-card tet-token-card--exchanged">
+                  <div className="tet-token-card__head">Exchanged Token (output)</div>
+                  {result.exchanged?.content?.payload ? (
+                    <dl className="tet-claims">
+                      <div className="tet-claim"><dt>sub</dt><dd>{result.exchanged.content.payload.sub}</dd></div>
+                      <div className="tet-claim"><dt>aud</dt><dd>{Array.isArray(result.exchanged.content.payload.aud) ? result.exchanged.content.payload.aud.join(', ') : result.exchanged.content.payload.aud}</dd></div>
+                      <div className="tet-claim"><dt>scope</dt><dd>{result.exchanged.content.payload.scope}</dd></div>
+                      {result.exchanged.content.payload.act && (
+                        <div className="tet-claim tet-claim--highlight"><dt>act</dt><dd>{JSON.stringify(result.exchanged.content.payload.act)}</dd></div>
+                      )}
+                      <div className="tet-claim"><dt>exp</dt><dd>{result.exchanged.content.expires_at}</dd></div>
+                    </dl>
+                  ) : (
+                    <p className="tet-muted">No exchanged token details available</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
-          {error && (
-            <div className='error-section'>
-              <h3>Error</h3>
-              <div className='error-box'>{error}</div>
-            </div>
-          )}
-
-          {result && (
-            <div className='result-section'>
-              <h2>Exchange Result</h2>
-
-              <div className='token-comparison'>
-                <div className='token-card original'>
-                  <h3>Original Token (Subject)</h3>
-                  {result.original?.content && (
-                    <div className='token-display'>
-                      {result.original.content.payload && (
-                        <div className='token-claims'>
-                          <div className='claim'>
-                            <span className='claim-label'>Subject (sub):</span>
-                            <span className='claim-value'>{result.original.content.payload.sub}</span>
-                          </div>
-                          <div className='claim'>
-                            <span className='claim-label'>Audience (aud):</span>
-                            <span className='claim-value'>{Array.isArray(result.original.content.payload.aud) ? result.original.content.payload.aud.join(', ') : result.original.content.payload.aud}</span>
-                          </div>
-                          <div className='claim'>
-                            <span className='claim-label'>Scopes:</span>
-                            <span className='claim-value'>{result.original.content.payload.scope}</span>
-                          </div>
-                          <div className='claim'>
-                            <span className='claim-label'>Expires:</span>
-                            <span className='claim-value'>{result.original.content.expires_at}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className='token-card exchanged'>
-                  <h3>Exchanged Token (Result)</h3>
-                  {result.exchanged?.content && (
-                    <div className='token-display'>
-                      {result.exchanged.content.payload && (
-                        <div className='token-claims'>
-                          <div className='claim'>
-                            <span className='claim-label'>Subject (sub):</span>
-                            <span className='claim-value'>{result.exchanged.content.payload.sub}</span>
-                          </div>
-                          <div className='claim'>
-                            <span className='claim-label'>Audience (aud):</span>
-                            <span className='claim-value'>{Array.isArray(result.exchanged.content.payload.aud) ? result.exchanged.content.payload.aud.join(', ') : result.exchanged.content.payload.aud}</span>
-                          </div>
-                          <div className='claim'>
-                            <span className='claim-label'>Scopes:</span>
-                            <span className='claim-value'>{result.exchanged.content.payload.scope}</span>
-                          </div>
-                          {result.exchanged.content.payload.act && (
-                            <div className='claim'>
-                              <span className='claim-label'>Actor (act):</span>
-                              <span className='claim-value'>{JSON.stringify(result.exchanged.content.payload.act)}</span>
-                            </div>
-                          )}
-                          <div className='claim'>
-                            <span className='claim-label'>Expires:</span>
-                            <span className='claim-value'>{result.exchanged.content.expires_at}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+          {/* Right: Request + Response panels (always visible, prominent) */}
+          <div className="tet-right">
+            <div className={`tet-panel tet-panel--request${decision ? ' tet-panel--has-data' : ''}`}>
+              <div className="tet-panel__head">
+                <span className="tet-panel__title">Exchange Request</span>
+                <span className="tet-panel__badge">POST /as/token.oauth2</span>
               </div>
-
-              {result.request && (
-                <div className='request-section'>
-                  <h3>Exchange Request</h3>
-                  <pre style={{ maxHeight: '200px', overflow: 'auto' }}>
-                    <JsonHighlight value={result.request} />
-                  </pre>
-                </div>
-              )}
-
-              <div className='raw-response-section'>
-                <h3>Full Response</h3>
-                <pre style={{ maxHeight: '300px', overflow: 'auto' }}>
-                  <JsonHighlight value={result} />
-                </pre>
+              <div className="tet-panel__body">
+                {result?.request ? (
+                  <pre className="tet-json"><JsonHighlight value={result.request} deep /></pre>
+                ) : (
+                  <div className="tet-panel__empty">
+                    <p>The RFC 8693 token exchange request will appear here after you click <strong>Exchange Token</strong>.</p>
+                    <div className="tet-panel__preview">
+                      <code>grant_type=urn:ietf:params:oauth:grant-type:token-exchange</code>
+                      <code>subject_token=&lt;your_access_token&gt;</code>
+                      <code>subject_token_type=urn:ietf:params:oauth:token-type:access_token</code>
+                      <code>audience={audience}</code>
+                      <code>scope={scopes}</code>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          )}
+
+            <div className={`tet-panel tet-panel--response${decision === 'success' ? ' tet-panel--success' : ''}${decision === 'error' ? ' tet-panel--error' : ''}`}>
+              <div className="tet-panel__head">
+                <span className="tet-panel__title">Full Response</span>
+                {decision === 'success' && <span className="tet-panel__status tet-panel__status--ok">200 OK</span>}
+                {decision === 'error' && <span className="tet-panel__status tet-panel__status--err">Error</span>}
+              </div>
+              <div className="tet-panel__body">
+                {result ? (
+                  <pre className="tet-json"><JsonHighlight value={result} deep /></pre>
+                ) : (
+                  <div className="tet-panel__empty">
+                    <p>The full PingOne response (token + metadata) will appear here after exchange.</p>
+                    <div className="tet-panel__preview">
+                      <code>{"{"}</code>
+                      <code>{"  "}access_token: "...",</code>
+                      <code>{"  "}token_type: "Bearer",</code>
+                      <code>{"  "}expires_in: 3600,</code>
+                      <code>{"  "}scope: "read write"</code>
+                      <code>{"}"}</code>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {error && (
+              <div className="tet-error-banner">
+                <strong>Exchange failed:</strong> {error}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

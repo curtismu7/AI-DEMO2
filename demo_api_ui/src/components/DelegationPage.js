@@ -116,7 +116,7 @@ const S = {
 };
 
 // ---------------------------------------------------------------------------
-// AI Agent Authorization card (RFC 8693 may_act)
+// AI Agent Authorization card (RFC 8693 token exchange + act claim)
 // ---------------------------------------------------------------------------
 function AgentAuthorizationCard() {
   const [status, setStatus] = useState(null); // { authorized, enforced } | null
@@ -157,7 +157,7 @@ function AgentAuthorizationCard() {
       </div>
       <p style={S.muted}>
         Controls whether the AI agent is permitted to act on your behalf (RFC 8693{' '}
-        <span style={S.infoPill}>may_act</span>).
+        <span style={S.infoPill}>token exchange</span> with <span style={S.infoPill}>act</span> claim).
       </p>
       {enforced && (
         <p style={{ fontSize: 12, color: '#374151', margin: '0 0 16px 0' }}>
@@ -205,7 +205,7 @@ function HowItWorksPanel() {
             <span style={S.flowArrow}>→</span>
             <div style={S.flowBox('#0891b2')}>3. Send email via<br/>PingOne Messages API</div>
             <span style={S.flowArrow}>→</span>
-            <div style={S.flowBox('#059669')}>4. Delegate logs in →<br/>BFF injects may_act token</div>
+            <div style={S.flowBox('#059669')}>4. Delegate logs in →<br/>BFF performs token exchange</div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 8 }}>
@@ -244,15 +244,13 @@ function HowItWorksPanel() {
             {'    '}<span style={S.claimKey}>"sub"</span>: <span style={S.claimVal}>"delegator-user-id"</span>,{'\n'}
             {'    '}<span style={S.claimKey}>"email"</span>: <span style={S.claimVal}>"owner@example.com"</span>{'\n'}
             {'  '}<span style={S.claimOp}>{'}'}</span>,{'\n'}
-            {'  '}<span style={S.claimKey}>"may_act"</span>: <span style={S.claimOp}>{'{'}</span>{'\n'}
-            {'    '}<span style={S.claimKey}>"sub"</span>: <span style={S.claimVal}>"agent-client-id"</span>{'\n'}
-            {'  '}<span style={S.claimOp}>{'}'}</span>{'\n'}
+            {'  '}<span style={S.claimKey}>"aud"</span>: <span style={S.claimVal}>"banking-api"</span>{'\n'}
             <span style={S.claimOp}>{'}'}</span>
           </div>
           <p style={{ fontSize: 12, color: '#374151', marginTop: 8 }}>
-            The <span style={S.infoPill}>act</span> claim proves <em>on whose behalf</em> the request runs.
-            The <span style={S.infoPill}>may_act</span> claim controls which agents are permitted to perform the next step of exchange.
-            Both are verified cryptographically by PingOne on every request.
+            The <span style={S.infoPill}>act</span> claim proves <em>who is acting</em> and <em>on whose behalf</em>.
+            The delegation is established via RFC 8693 token exchange — the authorization server validates the exchange request
+            and embeds the act claim. No pre-authorization claim is needed on the original token.
           </p>
 
           <p style={{ fontSize: 13, fontWeight: 700, color: '#374151', marginTop: 16, marginBottom: 6 }}>

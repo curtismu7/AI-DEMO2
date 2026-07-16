@@ -203,8 +203,7 @@ const TOKEN_FLOW_SIMULATE_STEPS = [
       aud: "banking-app-client",
       sub: "alice@bank.com",
       scope: "openid profile read write",
-      may_act: '{ "client_id": "bff-client-id" }',
-      note: "BFF sends this to IdP for exchange → IdP validates may_act before issuing delegation token",
+      note: "BFF sends this as subject_token in the RFC 8693 exchange request",
     },
     tokenOut: {
       type: "Delegated Token (issued)",
@@ -356,7 +355,6 @@ const TOKEN_FLOW_AUD_HOPS = [
     icon: "👤",
     label: "User Token",
     aud: "banking-app-client",
-    may_act: "bff-client-id",
     activeFrom: 3,
     activeTo: 5,
   },
@@ -425,7 +423,7 @@ const SCENARIO_STEPS_TF = {
     {
       regionIds: ["pingone-aic", "chatbot"],
       colorClass: "active",
-      label: "Access Token issued — with may_act",
+      label: "Access Token issued — subject token for exchange",
       token: {
         type: "Access Token",
         _type: "oauth",
@@ -433,8 +431,7 @@ const SCENARIO_STEPS_TF = {
         aud: "banking-app-client",
         sub: "alice@bank.com",
         scope: "openid profile read write",
-        may_act: '{ "client_id": "bff-client-id" }',
-        note: "may_act grants BFF permission to perform RFC 8693 exchange on behalf of this user",
+        note: "This becomes the subject_token in the RFC 8693 exchange — the BFF exchanges it for a delegation token with an act claim",
       },
     },
     {

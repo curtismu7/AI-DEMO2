@@ -75,10 +75,8 @@ async function build() {
     );
   }
   if (!cfg.redirectUri) {
-    throw new Error(
-      "SDK demo redirect URI is not configured. Set PINGONE_SDK_DEMO_REDIRECT_URI " +
-        "(must match the value registered on the PingOne SPA client) and restart the server."
-    );
+    // Auto-derive from the current origin if the server didn't provide one.
+    cfg.redirectUri = `${window.location.origin}/sdk-login/callback`;
   }
   // The SDK omits the openid scope when scope is empty, which only fails after the
   // full browser redirect with a confusing state/grant error. Catch it up front.

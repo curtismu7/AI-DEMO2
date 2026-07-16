@@ -1036,7 +1036,6 @@ const AUD_HOPS = [
     icon: "🪪",
     label: "Subject Token",
     aud: "agent1",
-    may_act: "agent1",
     activeFrom: 13,
     activeTo: 15,
   },
@@ -1099,14 +1098,13 @@ const SCENARIO_STEPS_FLOW = {
     {
       nodeIds: ["idp-oauth-as", "agent"],
       colorClass: "active",
-      stepLabel: "Access Token issued — with may_act",
+      stepLabel: "Access Token issued — subject for exchange",
       activeEdgeIds: ["idp-agent"],
       edgeStyle: A,
       nodeBadges: {
         agent: {
           aud: "banking-app-client",
-          may_act: '{"client_id":"bff-client-id"}',
-          _changed: ["aud", "may_act"],
+          _changed: ["aud"],
         },
       },
       token: {

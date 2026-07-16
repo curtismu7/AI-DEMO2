@@ -14,24 +14,19 @@ export default function MayActPanel({ isOpen, onClose, initialTabId }) {
             The delegation lifecycle starts with explicit user consent. If you haven't authorized the agent, PingOne will not issue a delegated token — no consent means no delegation.
           </p>
           <p>
-            When you sign in, PingOne can include a small note inside your security pass that says:{' '}
-            <strong>"The AI assistant is allowed to act on your behalf."</strong>
+            When you grant the AI agent permission to act on your behalf, the system performs an{' '}
+            <strong>RFC 8693 token exchange</strong>. Your security pass (access token) is exchanged for a new
+            delegation token that carries an <code>act</code> claim — proving who is acting and on whose behalf.
           </p>
           <p>
-            That pre-approval note is called <code>may_act</code> — it&apos;s like a landlord writing on a lease:{' '}
-            <em>"The building manager may enter the property to make repairs."</em> Nobody has entered yet; the note
-            just says they&apos;re allowed to.
-          </p>
-          <p>
-            Later, when the AI actually makes a request on your behalf, it gets a fresh pass of its own that includes
-            an <code>act</code> claim. That claim says: <strong>"I am the AI assistant, and I am acting right now for [your User ID]
-            on this specific request."</strong>
+            Think of it like a power of attorney: <strong>"The AI assistant is authorized to perform
+            these specific actions for [your name]."</strong> The <code>act</code> claim is the
+            cryptographic proof that this delegation happened.
           </p>
           <p>
             <strong>User ID (sub claim)</strong> — Identifies who the action benefits (you, the account holder).<br />
             <strong>Agent ID (act.sub claim)</strong> — Identifies who is performing the action (the AI assistant).<br />
-            Together, these create a complete, auditable chain: <em>who approved the delegation</em> (<code>may_act</code>)
-            and <em>who is executing it right now</em> (<code>act</code>).
+            Together, these create a complete, auditable delegation chain verified by PingOne on every request.
           </p>
         </>
       ),
@@ -44,45 +39,39 @@ export default function MayActPanel({ isOpen, onClose, initialTabId }) {
           <h3>From sign-in to action</h3>
           <ol>
             <li>
-              <strong>You sign in</strong> — PingOne issues a security pass that may include a pre-approval note
-              (RFC 8693 §4.4 uses <code>sub</code>, not <code>client_id</code>):
-              <pre className="edu-code">{`"may_act": { "sub": "<agent-client-id>" }
-  ↑ "this specific AI app is allowed to act on your behalf"`}</pre>
+              <strong>You sign in</strong> — PingOne issues your access token (standard OAuth2 authorization code flow with PKCE).
+              This token identifies you as the subject.
             </li>
             <li>
-              <strong>You ask the AI to do something</strong> — the BFF performs a token exchange.
-              In this demo the BFF performs a single exchange (1-exchange). A second optional path exists but is not the default:
+              <strong>You ask the AI to do something</strong> — the BFF performs an RFC 8693 token exchange:
               <ul style={{ marginTop: 6, marginBottom: 6 }}>
                 <li>
-                  <strong>1-exchange:</strong> user token + agent CC token → exchanged token in one step.
-                  The resulting token carries <code>act.sub</code> (agent ID) and
-                  an <code>aud</code> claim scoped to the target MCP server.
+                  <strong>subject_token:</strong> your access token (proves who benefits from the action)
                 </li>
                 <li>
-                  <strong>2-exchange (optional, not default):</strong> user token → delegated intermediate token →
-                  resource-specific service token. Useful when different scopes are needed per resource.
+                  <strong>actor_token:</strong> the agent's own client-credentials token (proves agent identity)
+                </li>
+                <li>
+                  <strong>Result:</strong> a new delegation token with <code>act.sub</code> = agent ID
                 </li>
               </ul>
               <p style={{ color: "#374151", marginBottom: "0.5rem", marginTop: "0.5rem" }}>
-                The actor token in Exchange #1 is the agent&apos;s own identity proof — it&apos;s obtained via client credentials and proves the agent app is who it claims to be, independent of the user&apos;s token.
+                The actor token is obtained via client credentials and proves the agent app is who it claims to be, independent of the user&apos;s token.
               </p>
             </li>
             <li>
-              <strong>PingOne issues the AI&apos;s pass</strong> — it includes:
-              <pre className="edu-code">{`"sub": "your-user-id"                 ← User ID (who benefits)
-"act": { "sub": "<agent-client-id>" }  ← Agent ID (who acts)
-"aud": "https://mcp.bxfinance.io"      ← Target resource (MCP server)`}</pre>
-              The Token Chain display shows these as 👤 User ID and 🤖 Agent ID.
+              <strong>PingOne issues the delegation token</strong> — it includes:
+              <pre className="edu-code">{`"sub": "your-user-id"                 <- User ID (who benefits)
+"act": { "sub": "<agent-client-id>" }  <- Agent ID (who acts)
+"aud": "https://mcp.bxfinance.io"      <- Target resource (MCP server)
+"scope": "read write"                   <- Narrowed permissions`}</pre>
+              The Token Chain display shows these as User ID and Agent ID.
             </li>
             <li>
-              <strong>The AI uses that pass</strong> — every banking tool call is signed with this pass,
+              <strong>The AI uses that token</strong> — every banking tool call is signed with this delegation token,
               creating an audit trail showing exactly who did what on whose behalf.
             </li>
           </ol>
-          <p style={{ fontSize: '0.82rem', color: '#374151', marginTop: 8 }}>
-            The <code>act.sub</code> value is the application&apos;s subject (client ID or user ID returned by PingOne),
-            not a human-readable label. Actual values come from your PingOne environment config.
-          </p>
         </>
       ),
     },
@@ -95,24 +84,29 @@ export default function MayActPanel({ isOpen, onClose, initialTabId }) {
           <ol>
             <li>
               <p style={{ color: "#374151", marginBottom: "0.5rem" }}>
-                <strong>Rogue app protection:</strong> PingOne validates the <code className="edu-code">actor_token.sub</code> against the <code className="edu-code">may_act.sub</code> claim in the subject token before issuing the exchanged token.
-              </p>
-              <p style={{ color: "#374151", marginBottom: "0.5rem" }}>
-                Example: Agent A&apos;s <code className="edu-code">client_id</code> is <code className="edu-code">abc-123</code>. Your access token has <code className="edu-code">may_act: {"{"} sub: 'abc-123' {"}"}</code>. Rogue agent B (<code className="edu-code">client_id: xyz-999</code>) attempts the exchange using your token as the subject. PingOne checks that the presenting <code className="edu-code">actor_token.sub</code> (<code className="edu-code">xyz-999</code>) matches <code className="edu-code">may_act.sub</code> (<code className="edu-code">abc-123</code>) — it doesn&apos;t, so PingOne returns <code className="edu-code">invalid_grant</code> and the exchange is rejected.
+                <strong>Rogue app protection:</strong> PingOne validates that the <code className="edu-code">actor_token</code>
+                was issued to a registered AI Agent application with the TOKEN_EXCHANGE grant. Only apps
+                explicitly configured for token exchange can perform the delegation.
               </p>
             </li>
             <li>
-              <strong>Someone tries to exchange a pass that has no approval note</strong> — rejected:
-              if no <code>may_act</code> (or equivalent policy) exists, no exchange is allowed.
+              <strong>Unauthorized exchange attempt</strong> — rejected:
+              if the presenting client is not registered for token exchange or the subject token
+              audience doesn't match, PingOne returns <code>invalid_grant</code>.
             </li>
             <li>
               <strong>The AI tries to request more permissions than you have</strong> — rejected:
-              the new pass can only contain a <em>subset</em> of the permissions in your original pass.
+              the exchanged token can only contain a <em>subset</em> of the permissions in your original token.
               The AI can never do more than you can.
+            </li>
+            <li>
+              <strong>Scope downscoping:</strong> the exchange request specifies which scopes the
+              delegation needs — PingOne intersects this with the user's granted scopes and never
+              issues more than what's requested AND allowed.
             </li>
           </ol>
           <p style={{ background: 'rgba(99,102,241,0.08)', borderLeft: '3px solid #6366f1', padding: '8px 12px', borderRadius: 4 }}>
-            🔐 These checks are enforced by PingOne automatically — the app doesn&apos;t need to implement them itself.
+            These checks are enforced by PingOne automatically — the app doesn&apos;t need to implement them itself.
           </p>
         </>
       ),
@@ -210,7 +204,7 @@ export default function MayActPanel({ isOpen, onClose, initialTabId }) {
       label: 'In this repo',
       content: (
         <>
-          <h3 style={{ marginTop: 0 }}>Where <code>may_act</code> / <code>act</code> appear in code</h3>
+          <h3 style={{ marginTop: 0 }}>Where <code>act</code> claim and token exchange appear in code</h3>
           <EduImplIntro repoPath="banking_api_server/services/agentMcpTokenService.js">
             Sanitized claims feed the Token Chain UI; exchange uses the real JWT from session.
           </EduImplIntro>
