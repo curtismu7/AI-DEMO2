@@ -358,6 +358,7 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     rarPermittedPayees,
     toAccountId,
     useCaseId,
+    verticalId,
   };
 
   const mapLivePingOneResult = (r, { autoDisabledGroupPolicy = false } = {}) => {

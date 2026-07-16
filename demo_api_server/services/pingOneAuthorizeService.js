@@ -502,6 +502,8 @@ async function evaluateMcpToolDelegation({
   rarMaxAmount = null,
   rarPermittedPayees = null,
   toAccountId = null,
+  // Active vertical — sent as Vertical so PingOne policy can key on it
+  verticalId = null,
 }) {
   const creds = _getCredentials();
   const endpointId = decisionEndpointId || creds.mcpDecisionEndpointId;
@@ -529,12 +531,13 @@ async function evaluateMcpToolDelegation({
     ...(requiredGroup ? { RequiredGroup: requiredGroup } : {}),
     ...(userTier ? { UserTier: userTier } : {}),
     ...(inRequiredGroup != null ? { InRequiredGroup: inRequiredGroup } : {}),
-    ...(amount != null ? { Amount: amount } : {}),
+    ...(amount != null ? { Amount: amount, TransactionAmount: String(amount) } : {}),
     ...(transactionType ? { TransactionType: transactionType } : {}),
     ...(resourceOwnerId ? { ResourceOwnerId: resourceOwnerId } : {}),
     ...(rarMaxAmount != null ? { RarMaxAmount: rarMaxAmount } : {}),
     ...(Array.isArray(rarPermittedPayees) ? { RarPermittedPayees: rarPermittedPayees } : {}),
     ...(toAccountId ? { ToAccountId: toAccountId } : {}),
+    ...(verticalId ? { Vertical: verticalId } : {}),
     Timestamp: new Date().toISOString(),
   };
 
