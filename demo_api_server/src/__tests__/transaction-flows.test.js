@@ -141,11 +141,16 @@ jest.mock('../../data/store', () => ({
     return tx;
   }),
   updateAccountBalance: jest.fn(),
-  applyTransfer: jest.fn(async (fromId, toId, amount) => {
-    const from = fromId ? mockAccounts[fromId] : null;
-    const to = toId ? mockAccounts[toId] : null;
-    if (fromId && !from) return { ok: false, reason: 'from_not_found' };
-    if (toId && !to) return { ok: false, reason: 'to_not_found' };
+  // Mirrors the real data/store.js contract: a single options object (see
+  // 944cb7126 "Phase 1: concurrent user safety", which changed applyTransfer from
+  // positional args to an object). Keeping the old positional shape here made the
+  // route's object argument land in `fromId`, so every money-moving request came
+  // back from_not_found → HTTP 404.
+  applyTransfer: jest.fn(async ({ fromAccountId, toAccountId, amount }) => {
+    const from = fromAccountId ? mockAccounts[fromAccountId] : null;
+    const to = toAccountId ? mockAccounts[toAccountId] : null;
+    if (fromAccountId && !from) return { ok: false, reason: 'from_not_found' };
+    if (toAccountId && !to) return { ok: false, reason: 'to_not_found' };
     if (from && from.balance < amount) return { ok: false, reason: 'insufficient_funds' };
     return { ok: true };
   }),
