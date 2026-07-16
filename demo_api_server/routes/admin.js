@@ -460,18 +460,25 @@ router.get('/activity/export', requireAdmin, requireScopes(['admin']), (req, res
 
     // Create CSV content
     const csvHeaders = 'ID,User ID,Username,Action,Endpoint,IP Address,User Agent,Response Status,Duration (ms),Timestamp\n';
+    // Escape CSV cells to prevent formula injection (=, +, -, @, tab, carriage return)
+    const escapeCsvCell = (val) => {
+      const s = String(val || '');
+      if (/^[=+\-@\t\r]/.test(s)) return `"'${s.replace(/"/g, '""')}"`;
+      if (s.includes(',') || s.includes('"') || s.includes('\n')) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
     const csvRows = logs.map(log => {
       return [
-        log.id,
-        log.userId || '',
-        log.username || '',
-        log.action || '',
-        log.endpoint || '',
-        log.ipAddress || '',
-        `"${(log.userAgent || '').replace(/"/g, '""')}"`,
-        log.responseStatus || '',
-        log.duration || '',
-        log.timestamp
+        escapeCsvCell(log.id),
+        escapeCsvCell(log.userId),
+        escapeCsvCell(log.username),
+        escapeCsvCell(log.action),
+        escapeCsvCell(log.endpoint),
+        escapeCsvCell(log.ipAddress),
+        escapeCsvCell(log.userAgent),
+        escapeCsvCell(log.responseStatus),
+        escapeCsvCell(log.duration),
+        escapeCsvCell(log.timestamp)
       ].join(',');
     }).join('\n');
 
@@ -642,7 +649,7 @@ router.post('/bootstrap/export', requireAdmin, requireScopes(['admin']), async (
 /**
  * POST /banking/accounts/:accountId/seed-charges — add synthetic withdrawal rows (demo / QA).
  */
-router.post('/banking/accounts/:accountId/seed-charges', async (req, res) => {
+router.post('/banking/accounts/:accountId/seed-charges', requireAdmin, requireScopes(['admin']), async (req, res) => {
   try {
     const account = dataStore.getAccountById(req.params.accountId);
     if (!account) {

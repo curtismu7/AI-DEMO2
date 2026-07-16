@@ -38,6 +38,7 @@ router.use(agentSessionMiddleware);
 // ---------------------------------------------------------------------------
 const _traceStore = new Map(); // runId → { events: Array, expiresAt: number }
 const _TRACE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const _MAX_TRACE_ENTRIES = 500; // Cap to prevent memory exhaustion between cleanup intervals
 const _hitlConsentSubs = new Map(); // runId → { unsub, res }
 
 /** Subscribe to cross-instance consent pub/sub and forward to the open SSE stream. */
@@ -79,6 +80,15 @@ function _recordTraceEvents(runId, chunk, owner) {
     // cannot be read by another authenticated user who guesses the runId.
     entry = { events: [], expiresAt: Date.now() + _TRACE_TTL_MS, owner: owner || null };
     _traceStore.set(runId, entry);
+    // Evict oldest entries if store exceeds cap
+    if (_traceStore.size > _MAX_TRACE_ENTRIES) {
+      let oldest = null;
+      let oldestKey = null;
+      for (const [k, v] of _traceStore) {
+        if (!oldest || v.expiresAt < oldest.expiresAt) { oldest = v; oldestKey = k; }
+      }
+      if (oldestKey) _traceStore.delete(oldestKey);
+    }
   }
   for (const line of text.split('\n')) {
     if (!line.startsWith('data: ')) continue;
