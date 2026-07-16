@@ -586,7 +586,7 @@ export default function AdminSideNav({ user }) {
           adminOnly: true,
         },
         {
-          label: "Client Registration",
+          label: "CIMD Simulation",
           path: "/client-registration",
           icon: "edt",
           adminOnly: true,
@@ -770,7 +770,6 @@ export default function AdminSideNav({ user }) {
         { label: "Code Explorer", path: "/code-explorer", icon: "tst" },
         { label: "Code Search", path: "/code-search", icon: "srch" },
         { label: "Graphify", path: "/graphify", icon: "arc" },
-        { label: "Dev Tools", path: "/dev-tools", icon: "tool" },
       ],
     },
     {

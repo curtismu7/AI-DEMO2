@@ -215,7 +215,7 @@ export default function AuthzTestPage() {
 	// History (client-side ring buffer)
 	const [history, setHistory] = useState([]);
 
-	// Engine settings panel
+	// Engine settings panel — always starts open so user can switch freely
 	const [engineSettingsOpen, setEngineSettingsOpen] = useState(true);
 	const [engineMode, setEngineMode] = useState("simulated"); // "simulated" | "pingone"
 	const [endpointId, setEndpointId] = useState("");
@@ -343,7 +343,7 @@ export default function AuthzTestPage() {
 				text: `Engine set to ${engineMode === "simulated" ? "Simulated" : "PingOne Authorize"}. Reloading status…`,
 			});
 			setWorkerClientSecret(""); // clear secret from UI after save
-			setEngineSettingsOpen(false);
+			// Keep panel open so user can switch modes again without hunting for it
 			await loadStatus(false); // false = don't overwrite user's engine selection
 		} catch (err) {
 			const status = err.response?.status;

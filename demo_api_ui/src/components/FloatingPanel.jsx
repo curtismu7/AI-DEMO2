@@ -5,12 +5,37 @@ import './FloatingPanel.css';
 /**
  * Renders children into a pop-out window using a real React root so that
  * all state, event listeners, and live data work correctly.
+ * Uses a retry mechanism to handle the race between document.write/close
+ * and React portal mounting.
  */
 function PopOutPortal({ win, children }) {
-  const [container] = useState(() => {
-    const el = win.document.getElementById('fp-popout-root');
-    return el;
+  const [container, setContainer] = useState(() => {
+    try {
+      return win.document.getElementById('fp-popout-root') || null;
+    } catch { return null; }
   });
+
+  useEffect(() => {
+    if (container) return;
+    // Retry finding the container — document.write may not have flushed yet
+    let attempts = 0;
+    const maxAttempts = 20;
+    const interval = setInterval(() => {
+      attempts++;
+      try {
+        const el = win.document.getElementById('fp-popout-root');
+        if (el) {
+          setContainer(el);
+          clearInterval(interval);
+        } else if (attempts >= maxAttempts) {
+          clearInterval(interval);
+        }
+      } catch {
+        clearInterval(interval);
+      }
+    }, 50);
+    return () => clearInterval(interval);
+  }, [win, container]);
 
   if (!container) return null;
   return createPortal(children, container);
@@ -123,7 +148,7 @@ export default function FloatingPanel({
     const h = size.h + 80;
     const left = window.screenX + pos.x;
     const top = window.screenY + pos.y;
-    const win = window.open('', `panel_${title}`, `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+    const win = window.open('about:blank', `panel_${title}`, `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
     if (!win) return;
 
     // Write minimal shell with styles copied from the parent document
@@ -152,7 +177,7 @@ export default function FloatingPanel({
     win.document.close();
 
     // Show a proper URL in the popup address bar instead of about:blank
-    try { win.history.pushState({}, '', '/dev-tools-popout'); } catch (_) {}
+    try { win.history.pushState({}, '', '/panel-popout'); } catch (_) {}
 
     win.addEventListener('beforeunload', () => {
       setPopoutWin(null);
