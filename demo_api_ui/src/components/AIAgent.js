@@ -6148,13 +6148,15 @@ export default function BankingAgent({
           }
           ingestActivity(response, text);
           if (maybeHandleCustomerLogin(response, response.source)) return;
-          // HITL consent / step-up: these are valid gated responses, not errors.
+          // HITL consent / step-up / authorization deny: these are valid gated responses, not errors.
           // Show the agent reply (which explains the gate) and surface token events.
           if (
             response.error === "hitl_required" ||
             response.error === "mcp_hitl_required" ||
             response.error === "step_up_required" ||
-            response.error === "mcp_step_up_required"
+            response.error === "mcp_step_up_required" ||
+            response.error === "authorization_denied" ||
+            response.error === "mcp_authorization_denied"
           ) {
             const replyText = response.reply || "This action requires additional authorization.";
             const replyWithAgentBadge = `[CUSTOMER AGENT]\n${replyText}`;
