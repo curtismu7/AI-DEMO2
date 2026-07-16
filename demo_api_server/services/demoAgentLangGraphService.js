@@ -113,6 +113,15 @@ async function _callTransactionsApi(body, userToken) {
 async function dispatchBankingAction(action, params, userId, ctx) {
   const { userToken, req, subjectToken, isAdmin, terminology: _term } = ctx;
 
+  // Normalize test actions to their real counterparts so NL-path Demo Steps
+  // don't fall through to the LLM/catalog. The chip UI has dedicated handlers
+  // for these; the NL path (nlResumeAfterAuth → processAgentMessage) needs them
+  // dispatched as real transfers.
+  if (action === 'transfer_600_test') {
+    action = 'transfer';
+    params = { fromId: params.fromId || 'checking', toId: params.toId || 'savings', amount: params.amount || 600, ...params };
+  }
+
   try {
     // Public catalog — no RFC 8693 exchange (progressive trust Act 1 / UC24).
     if (action === 'branch_hours') {
