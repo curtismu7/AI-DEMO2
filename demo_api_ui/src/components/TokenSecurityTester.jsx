@@ -1,57 +1,60 @@
+// TokenSecurityTester.jsx
+// Dark IDE three-column layout (Mock B) - Educational component for token
+// validation demonstration. Shows how MCP server rejects invalid tokens with
+// educational error messages.
 import React, { useState } from 'react';
 import apiClient from '../services/apiClient';
+import JsonHighlight from './shared/JsonHighlight';
+import './PingOneMcpInspector.css';
 import './TokenSecurityTester.css';
 
-/**
- * TokenSecurityTester - Educational component for token validation demonstration
- * Shows how MCP server rejects invalid tokens with educational error messages
- * 
- * Phase 158: Add Token Validation Test Scenarios
- */
+const SCENARIOS = [
+  {
+    id: 'wrong-scope',
+    name: 'User Token (Wrong Scope)',
+    description: 'User token lacks agent-required scopes'
+  },
+  {
+    id: 'wrong-aud',
+    name: 'User Token (Wrong Audience)',
+    description: 'Token audience mismatch (BFF vs MCP)'
+  },
+  {
+    id: 'missing-act',
+    name: 'Missing Act Claim',
+    description: 'No delegation proof (RFC 8693)'
+  },
+  {
+    id: 'agent-token-user-endpoint',
+    name: 'Agent Token on User Endpoint',
+    description: 'Agent token used incorrectly'
+  },
+  {
+    id: 'expired-token',
+    name: 'Expired Token',
+    description: 'Past expiration time'
+  }
+];
+
 export default function TokenSecurityTester() {
-  const [selectedScenario, setSelectedScenario] = useState('wrong-scope');
+  const [selectedScenario, setSelectedScenario] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [outputTab, setOutputTab] = useState('result');
 
-  const scenarios = [
-    {
-      id: 'wrong-scope',
-      name: 'User Token (Wrong Scope)',
-      description: 'User token lacks agent-required scopes'
-    },
-    {
-      id: 'wrong-aud',
-      name: 'User Token (Wrong Audience)',
-      description: 'Token audience mismatch (BFF vs MCP)'
-    },
-    {
-      id: 'missing-act',
-      name: 'Missing Act Claim',
-      description: 'No delegation proof (RFC 8693)'
-    },
-    {
-      id: 'agent-token-user-endpoint',
-      name: 'Agent Token on User Endpoint',
-      description: 'Agent token used incorrectly'
-    },
-    {
-      id: 'expired-token',
-      name: 'Expired Token',
-      description: 'Past expiration time'
-    }
-  ];
-
-  const handleRunTest = async () => {
+  const handleExecute = async () => {
+    if (!selectedScenario) return;
     setLoading(true);
     setError(null);
     setResult(null);
 
     try {
       const response = await apiClient.post(
-        `/api/test/token-validation/scenario/${selectedScenario}`
+        `/api/test/token-validation/scenario/${selectedScenario.id}`
       );
       setResult(response.data);
+      setOutputTab('result');
     } catch (err) {
       console.error('[TokenSecurityTester] Error:', err);
       setError(
@@ -65,188 +68,235 @@ export default function TokenSecurityTester() {
     }
   };
 
+  const handleClear = () => {
+    setResult(null);
+    setError(null);
+    setSelectedScenario(null);
+    setOutputTab('result');
+  };
+
+  const selectScenario = (scenario) => {
+    setSelectedScenario(scenario);
+    setResult(null);
+    setError(null);
+    setOutputTab('result');
+  };
+
   return (
-    <div className="token-security-tester">
-      {/* Demo Warning Banner */}
-      <div className="tester-warning-banner">
-        <div className="warning-icon">⚠️</div>
-        <div className="warning-text">
-          <strong>Demonstration Feature</strong>
-          <p>This is an educational demonstration. It is disabled in production.</p>
+    <div className="p1mcp-page">
+      {/* Top bar */}
+      <div className="p1mcp-topbar">
+        <span className="p1mcp-topbar__dot" />
+        <h1>Token Security Tester</h1>
+        <span className="p1mcp-topbar__status">
+          Educational demonstration &mdash; {SCENARIOS.length} scenarios
+        </span>
+        <div className="p1mcp-topbar__right">
+          <span className="tst-topbar-badge">Demo Only</span>
         </div>
       </div>
 
-      {/* Scenario Selector */}
-      <div className="tester-controls">
-        <div className="tester-control-group">
-          <label htmlFor="scenario-select" className="tester-label">
-            Select Test Scenario:
-          </label>
-          <select
-            id="scenario-select"
-            value={selectedScenario}
-            onChange={(e) => setSelectedScenario(e.target.value)}
-            className="tester-select"
-            disabled={loading}
-          >
-            {scenarios.map((scenario) => (
-              <option key={scenario.id} value={scenario.id}>
-                {scenario.name} — {scenario.description}
-              </option>
-            ))}
-          </select>
+      {/* Three-column grid */}
+      <div className="p1mcp-grid">
+        {/* Column 1: Tree - Scenarios */}
+        <div className="p1mcp-col-tree">
+          <div className="p1mcp-tree-header">
+            <span>Scenarios ({SCENARIOS.length})</span>
+          </div>
+          <div className="p1mcp-tree-body">
+            <div className="p1mcp-tree-group">
+              <div className="p1mcp-tree-group__label">Failure Scenarios</div>
+              {SCENARIOS.map((scenario) => (
+                <div
+                  key={scenario.id}
+                  className={`p1mcp-tree-item ${selectedScenario?.id === scenario.id ? 'p1mcp-tree-item--active' : ''}`}
+                  onClick={() => selectScenario(scenario)}
+                >
+                  <span className="p1mcp-tree-item__dot p1mcp-tree-item__dot--error" />
+                  <span className="tst-tree-item-text">{scenario.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        <button
-          onClick={handleRunTest}
-          disabled={loading}
-          className="tester-button"
-        >
-          {loading ? 'Running Test...' : 'Run Test'}
-        </button>
-      </div>
+        {/* Column 2: Form */}
+        <div className="p1mcp-col-form">
+          {selectedScenario ? (
+            <>
+              <div className="p1mcp-form-header">
+                <div className="p1mcp-form-header__name">{selectedScenario.name}</div>
+                <div className="p1mcp-form-header__desc">{selectedScenario.description}</div>
+              </div>
+              <div className="p1mcp-form-actions p1mcp-form-actions--top">
+                <button
+                  className="p1mcp-btn-call"
+                  onClick={handleExecute}
+                  disabled={loading}
+                >
+                  {loading ? 'Executing...' : 'Execute'}
+                </button>
+                <button className="p1mcp-btn-clear" onClick={handleClear}>Clear</button>
+              </div>
+              <div className="p1mcp-form-body">
+                <div className="tst-demo-notice">
+                  <span className="tst-demo-notice__icon">&#x26A0;</span>
+                  <span className="tst-demo-notice__text">
+                    <strong>Demonstration Feature</strong> &mdash; This is an educational
+                    demonstration. It is disabled in production.
+                  </span>
+                </div>
 
-      {/* Error Display */}
-      {error && (
-        <div className="tester-error-box">
-          <div className="error-icon">✕</div>
-          <div className="error-content">
-            <strong>Error:</strong>
-            <p>{error}</p>
-          </div>
+                <div className="tst-scenario-info">
+                  <div className="p1mcp-field">
+                    <label>Scenario ID <span className="type">string</span></label>
+                    <input type="text" value={selectedScenario.id} readOnly />
+                  </div>
+                  <div className="p1mcp-field">
+                    <label>API Endpoint <span className="type">POST</span></label>
+                    <input
+                      type="text"
+                      value={`/api/test/token-validation/scenario/${selectedScenario.id}`}
+                      readOnly
+                    />
+                  </div>
+                </div>
+
+                <details className="tst-about-scenarios">
+                  <summary>About These Scenarios</summary>
+                  <div className="tst-about-scenarios__body">
+                    <p>
+                      These test scenarios demonstrate how the MCP server validates tokens and
+                      rejects requests that violate security controls. Each scenario intentionally
+                      violates a different rule:
+                    </p>
+                    <ul>
+                      <li><strong>Wrong Scope:</strong> Token lacks required OAuth scopes.</li>
+                      <li><strong>Wrong Audience:</strong> Token issued for a different service.</li>
+                      <li><strong>Missing Act:</strong> Token lacks RFC 8693 delegation proof.</li>
+                      <li><strong>Agent Token on User Endpoint:</strong> Agent token used on user-level API.</li>
+                      <li><strong>Expired Token:</strong> Token past expiration time.</li>
+                    </ul>
+                  </div>
+                </details>
+              </div>
+              <div className="p1mcp-form-actions">
+                <button
+                  className="p1mcp-btn-call"
+                  onClick={handleExecute}
+                  disabled={loading}
+                >
+                  {loading ? 'Executing...' : 'Execute'}
+                </button>
+                <button className="p1mcp-btn-clear" onClick={handleClear}>Clear</button>
+                {error && <span className="p1mcp-form-error">{error}</span>}
+              </div>
+            </>
+          ) : (
+            <div className="p1mcp-form-empty">
+              Select a scenario from the tree to inspect and execute it.
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Results Display */}
-      {result && (
-        <div className="tester-result-box">
-          <div className="result-header">
-            <h3>{result.scenario_name || result.scenario}</h3>
-            <span className="result-http-status">{result.http_status}</span>
+        {/* Column 3: Output */}
+        <div className="p1mcp-col-output">
+          <div className="p1mcp-output-tabs">
+            <button
+              className={`p1mcp-output-tab ${outputTab === 'result' ? 'p1mcp-output-tab--active' : ''}`}
+              onClick={() => setOutputTab('result')}
+            >Result</button>
+            <button
+              className={`p1mcp-output-tab ${outputTab === 'teaching' ? 'p1mcp-output-tab--active' : ''}`}
+              onClick={() => setOutputTab('teaching')}
+            >Teaching</button>
+            <button
+              className={`p1mcp-output-tab ${outputTab === 'token' ? 'p1mcp-output-tab--active' : ''}`}
+              onClick={() => setOutputTab('token')}
+            >Token Details</button>
+            <button
+              className={`p1mcp-output-tab ${outputTab === 'raw' ? 'p1mcp-output-tab--active' : ''}`}
+              onClick={() => setOutputTab('raw')}
+            >Request/Response</button>
           </div>
 
-          {/* Error Code and Description */}
-          <div className="result-section">
-            <div className="result-row">
-              <label>Error Code:</label>
-              <span className="result-error-code">{result.error_code}</span>
-            </div>
-            <div className="result-row">
-              <label>Error Description:</label>
-              <span className="result-error-description">
-                {result.error_description}
-              </span>
-            </div>
-          </div>
-
-          {/* Teaching Message (Highlighted) */}
-          <div className="result-teaching-box">
-            <div className="teaching-header">
-              <strong>💡 What This Teaches:</strong>
-            </div>
-            <div className="teaching-message">
-              {result.teaching_message}
-            </div>
-          </div>
-
-          {/* Token Details (Collapsible) */}
-          {result.token_details && (
-            <details className="result-details">
-              <summary>Token Details</summary>
-              <div className="token-details-content">
-                <div className="detail-row">
-                  <strong>Subject (sub):</strong>
-                  <code>{result.token_details.sub}</code>
-                </div>
-                <div className="detail-row">
-                  <strong>Audience (aud):</strong>
-                  <code>{result.token_details.aud}</code>
-                </div>
-                <div className="detail-row">
-                  <strong>Issued At (iat):</strong>
-                  <code>{result.token_details.iat}</code>
-                </div>
-                <div className="detail-row">
-                  <strong>Expires (exp):</strong>
-                  <code>{result.token_details.exp}</code>
-                </div>
-                <div className="detail-row">
-                  <strong>Scopes:</strong>
-                  <code>{result.token_details.scopes?.join(' ')}</code>
-                </div>
-                {result.token_details.has_act_claim !== undefined && (
-                  <div className="detail-row">
-                    <strong>Has act Claim:</strong>
-                    <code>{String(result.token_details.has_act_claim)}</code>
+          {result ? (
+            <>
+              <div className="p1mcp-output-body">
+                {outputTab === 'result' && (
+                  <div className="tst-result-panel">
+                    <div className="tst-result-row">
+                      <span className="tst-result-label">Error Code</span>
+                      <span className="tst-result-value tst-result-value--error">
+                        {result.error_code}
+                      </span>
+                    </div>
+                    <div className="tst-result-row">
+                      <span className="tst-result-label">HTTP Status</span>
+                      <span className="tst-result-value tst-result-value--status">
+                        {result.http_status}
+                      </span>
+                    </div>
+                    <div className="tst-result-row">
+                      <span className="tst-result-label">Scenario</span>
+                      <span className="tst-result-value">
+                        {result.scenario_name || result.scenario}
+                      </span>
+                    </div>
+                    <div className="tst-result-row">
+                      <span className="tst-result-label">Description</span>
+                      <span className="tst-result-value">
+                        {result.error_description}
+                      </span>
+                    </div>
                   </div>
                 )}
-                {result.token_details.act_claim && (
-                  <div className="detail-row">
-                    <strong>Act Claim:</strong>
-                    <pre className="detail-json">
-                      {JSON.stringify(result.token_details.act_claim, null, 2)}
-                    </pre>
+
+                {outputTab === 'teaching' && (
+                  <div className="tst-teaching-panel">
+                    <div className="tst-teaching-header">What This Teaches</div>
+                    <div className="tst-teaching-message">
+                      {result.teaching_message}
+                    </div>
                   </div>
                 )}
-              </div>
-            </details>
-          )}
 
-          {/* Request/Response Details */}
-          {result.request && (
-            <details className="result-details">
-              <summary>Request Details</summary>
-              <div className="request-response-content">
-                <pre>{JSON.stringify(result.request, null, 2)}</pre>
-              </div>
-            </details>
-          )}
+                {outputTab === 'token' && (
+                  <pre className="p1mcp-output-code">
+                    <JsonHighlight
+                      value={result.token_details || { message: 'No token details available' }}
+                      deep
+                    />
+                  </pre>
+                )}
 
-          {result.response && (
-            <details className="result-details">
-              <summary>API Response</summary>
-              <div className="request-response-content">
-                <pre>{JSON.stringify(result.response, null, 2)}</pre>
+                {outputTab === 'raw' && (
+                  <pre className="p1mcp-output-code">
+                    <JsonHighlight
+                      value={{
+                        request: result.request || null,
+                        response: result.response || null
+                      }}
+                      deep
+                    />
+                  </pre>
+                )}
               </div>
-            </details>
+
+              <div className="p1mcp-output-footer">
+                <span><strong>Status:</strong> {result.http_status || 'Error'}</span>
+                <span><strong>Scenario:</strong> {result.scenario_name || selectedScenario?.name}</span>
+                <span><strong>Type:</strong> Token Validation</span>
+              </div>
+            </>
+          ) : (
+            <div className="p1mcp-output-empty">
+              {selectedScenario
+                ? 'Click Execute to run the scenario and see the result here.'
+                : 'Select a scenario and execute it to see results.'}
+            </div>
           )}
         </div>
-      )}
-
-      {/* Scenarios Reference */}
-      <div className="tester-footer">
-        <details className="scenarios-reference">
-          <summary>About These Scenarios</summary>
-          <div className="scenarios-description">
-            <p>
-              These test scenarios demonstrate how the MCP server validates tokens and rejects
-              requests that violate security controls. Each scenario intentionally violates a
-              different rule:
-            </p>
-            <ul>
-              <li>
-                <strong>Wrong Scope:</strong> Token lacks required OAuth scopes. This ensures
-                only authorized applications can delegate operations to agents.
-              </li>
-              <li>
-                <strong>Wrong Audience:</strong> Token was issued for a different service. This
-                prevents token reuse attacks across services.
-              </li>
-              <li>
-                <strong>Missing Act:</strong> Token lacks RFC 8693 delegation proof. This
-                ensures non-delegated user tokens cannot be used for agent operations.
-              </li>
-              <li>
-                <strong>Agent Token on User Endpoint:</strong> Agent token used on a user-level
-                API. This prevents agents from acting outside their authorized scope.
-              </li>
-              <li>
-                <strong>Expired Token:</strong> Token past expiration time. This limits the
-                window for stolen tokens to be useful.
-              </li>
-            </ul>
-          </div>
-        </details>
       </div>
     </div>
   );

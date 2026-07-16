@@ -1,0 +1,31 @@
+{
+  "project_type": "React SPA (Vite) with Node.js BFF backend",
+  "language": "JavaScript/JSX (React 19)",
+  "build_system": "Vite 8 with npm; esbuild transforms .js files as JSX",
+  "test_framework": "Vitest with jsdom environment, Playwright for E2E",
+  "build_command": "cd demo_api_ui && HTTPS=false npx vite build",
+  "test_command": "cd demo_api_ui && HTTPS=false npx vitest run --reporter=verbose",
+  "verification_instructions": "Run vite build (no TLS) to confirm no compilation errors. The test suite is available but may timeout in sandbox -- use build verification as primary signal.",
+  "snapshot_or_generated_files": null,
+  "setup_instructions": "cd demo_api_ui && npm install",
+  "environment_constraints": "Dependencies installed via npm. No Docker daemon. TLS certs not available so HTTPS=false required. Vitest may timeout in sandbox -- use vite build as primary verification.",
+  "contribution_requirements": "Use existing CSS class prefixes. Follow PingOneMcpInspector.js as the reference implementation for Mock B pattern.",
+  "key_patterns": "PingOneMcpInspector.js is the gold standard Mock B implementation: p1mcp-* CSS classes, three-column grid (240px/380px/1fr), top bar with status dot, tree column with search/groups, form column with tool name/desc/params/Execute/Clear, output column with tabs/JSON/footer. All components use JsonHighlight from shared/JsonHighlight.jsx for syntax highlighting. apiClient from services/apiClient for HTTP calls.",
+  "relevant_files": [
+    "demo_api_ui/src/components/PingOneMcpInspector.js",
+    "demo_api_ui/src/components/PingOneMcpInspector.css",
+    "demo_api_ui/src/components/McpInspector.js",
+    "demo_api_ui/src/components/McpInspector.css",
+    "demo_api_ui/src/components/AgentGatewayTester.jsx",
+    "demo_api_ui/src/components/McpGatewayConfig.css",
+    "demo_api_ui/src/components/ResourceServerTester.jsx",
+    "demo_api_ui/src/components/ResourceServerTester.css",
+    "demo_api_ui/src/components/TokenSecurityTester.jsx",
+    "demo_api_ui/src/components/TokenSecurityTester.css",
+    "demo_api_ui/src/components/ApiExplorerPanel.js",
+    "demo_api_ui/src/components/ApiExplorerPanel.css",
+    "demo_api_ui/src/components/shared/JsonHighlight.jsx",
+    "demo_api_ui/src/components/shared/JsonHighlight.css"
+  ],
+  "directory_structure": "demo_api_ui/src/components/ contains all UI components. Shared utilities in demo_api_ui/src/components/shared/. CSS co-located with components. Tests in demo_api_ui/src/components/__tests__/."
+}

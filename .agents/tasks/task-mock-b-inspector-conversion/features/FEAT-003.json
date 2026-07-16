@@ -1,0 +1,28 @@
+{
+  "id": "FEAT-003",
+  "type": "refactor",
+  "description": "Convert ResourceServerTester.jsx from collapsible-sections layout to Mock B dark IDE three-column layout.",
+  "status": "completed",
+  "steps": [
+    "Read PingOneMcpInspector.js as the reference for Mock B layout structure.",
+    "Rewrite ResourceServerTester.jsx to use p1mcp-* CSS classes for Mock B three-column layout: (1) Top bar with status dot, title 'Resource Server Tester', status text, token source indicator; (2) Column 1 (tree): list of test operations as tree items -- 'Show Token', 'Real RS Validation', 'Decode + Policy', 'Live Request Probe' -- each is a selectable 'tool' in the tree, with token source selector (radio buttons for 'My access token' / 'My ID token' / 'Paste a JWT') shown below the tree or as a configuration group; (3) Column 2 (form): selected operation name + description, any parameters specific to that operation (e.g., target endpoint dropdown for the Probe mode, paste textarea for JWT mode), Execute/Clear buttons; (4) Column 3 (output): tabbed output with 'Result' (showing verdict PERMIT/REJECT with RuleList), 'Claims' (decoded token claims), 'Raw Token' tabs, footer with status info.",
+    "Preserve all existing functionality: the useRunner hook pattern, PolicyPanel logic, ProbePanel logic, RevealPanel logic, RuleList, ClaimsDetails, SignInButton, ErrorLine components.",
+    "The component remains a named export (export default function ResourceServerTester) with the same props API (endpointBase, sources, intro).",
+    "Import PingOneMcpInspector.css. Remove or minimize ResourceServerTester.css usage in favor of the p1mcp-* classes.",
+    "Keep the existing bffAxios import and all endpoint calls."
+  ],
+  "acceptance_criteria": [
+    "ResourceServerTester.jsx renders a dark IDE three-column layout with p1mcp-* CSS classes",
+    "Column 1 shows test operations as tree items with token source selection",
+    "Column 2 shows the selected operation's form with appropriate inputs",
+    "Column 3 shows tabbed results (Result, Claims, Raw Token) with syntax highlighting",
+    "Top bar shows status and token source indicator",
+    "All existing validation/decode/probe/reveal operations still function correctly",
+    "vite build succeeds without errors"
+  ],
+  "verification": [
+    "cd demo_api_ui && HTTPS=false npx vite build"
+  ],
+  "blocked_reason": null,
+  "findings": "Conversion successful. Replaced collapsible-sections layout with p1mcp-* three-column grid. Tree column shows 4 test operations (Show Token, Real RS Validation, Decode + Policy, Live Request Probe) as selectable items plus token source selection (access/id/paste) as a second group. Form column shows selected operation name, description, token source display, JWT paste textarea (when paste source selected), and probe target dropdown (for Live Request Probe operation). Output column has three tabs: Result (verdict/rules/claims), Claims (decoded claims JSON), Raw Response (full response object). Dark-themed CSS overrides in ResourceServerTester.css for verdict badges, rule lists, error lines, and raw token display. Removed old Collapsible/PolicyPanel/ProbePanel/RevealPanel wrapper components in favor of unified execute-per-operation pattern using separate useRunner hooks. All API calls preserved (bffAxios POST to /reveal, /validate, /decode, /probe). Build passes cleanly with vite build."
+}

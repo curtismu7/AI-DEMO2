@@ -1,28 +1,16 @@
 // AgentGatewayTester.jsx
-//
-// Setup -> "Gateway Tester" tab. Sends a single MCP tool call THROUGH the active
-// gateway (Demo Agent Gateway or PingOne Agent Gateway, per ff_mcp_gateway_pinggateway)
-// and shows the response, the gateway's authorize DECISION (PERMIT/DENY + reason) and
-// audit trail, and the authorization RULES the gateway is applying. Lets you flip the
-// active gateway and the authorize backend (simulated vs real) inline.
-//
-// Backend: GET /api/mcp-gateway/active, POST /api/mcp-gateway/test,
-// GET /api/mcp/inspector/tools, GET /api/authorize/rules, PATCH /api/admin/feature-flags.
-
-import React, { useState, useEffect, useCallback } from 'react';
+// Dark IDE three-column layout (Mock B) - sends MCP tool calls through the
+// active gateway and shows response, authorize decision, audit trail.
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import apiClient from '../services/apiClient';
 import { notifyError } from '../utils/appToast';
 import { formatAxiosError } from '../utils/formatAxiosError';
 import JsonHighlight from './shared/JsonHighlight';
-import './McpGatewayConfig.css';
+import './PingOneMcpInspector.css';
 
 const GATEWAY_FLAG = 'ff_mcp_gateway_pinggateway';
 const AUTHZ_FLAG = 'ff_authorize_simulated';
-const MCP_SECURITY_GATEWAY_DOC =
-  'https://docs.pingidentity.com/pinggateway/2026/mcp/index.html';
 
-// Fallback when the live tools/list is gated (MFA step-up) or empty — the tool call
-// itself mints the delegated token server-side, so these still work.
 const FALLBACK_TOOLS = [
   { name: 'get_my_accounts', description: 'List all bank accounts with balances and status.' },
   { name: 'get_my_transactions', description: 'Retrieve transaction history for the authenticated user.' },
@@ -31,61 +19,36 @@ const FALLBACK_TOOLS = [
   { name: 'create_transfer', description: 'Transfer funds between accounts (write; may require HITL consent).' },
 ];
 
-// Curated, human-ordered subset of the P1AZ decision `parameters` block to show
-// in the inspector table. The full set stays in the raw audit-trail JSON below.
-const P1AZ_ATTR_ROWS = [
-  ['DecisionContext', 'Decision context'],
-  ['ToolName', 'Tool'],
-  ['ClientId', 'Subject (user)'],
-  ['ActClientId', 'Acting agent'],
-  ['ActChainDepth', 'Delegation depth'],
-  ['TokenScopes', 'Token scopes'],
-  ['TokenAudience', 'Resource audience'],
-  ['TransactionAmount', 'Amount'],
-  ['TransactionType', 'Transaction type'],
-];
-
-const METADATA_LABELS = {
-  bff: 'BFF (API server)',
-  mcp_olb: 'MCP OLB Server',
-  mcp_gw: 'Demo Agent Gateway',
-  mcp_invest: 'MCP Invest',
+const TOOL_GROUPS = {
+  Accounts: ['get_my_accounts', 'get_account_balance', 'get_sensitive_account_details'],
+  Transactions: ['get_my_transactions'],
+  Transfers: ['create_transfer'],
 };
 
-/** Render key RFC 9728 fields for one service in the metadata panel. */
-function MetadataServiceRow({ serviceKey, data }) {
-  const label = METADATA_LABELS[serviceKey] || serviceKey;
-  const status = data?._status || 'unreachable';
-  if (status !== 'ok') {
-    return (
-      <tr>
-        <td className="mgc-env-key">{label}</td>
-        <td className="mgc-env-val">
-          <span className="mgc-badge mgc-badge--error">{status}</span>
-          {data?._error ? ` — ${data._error}` : ''}
-        </td>
-      </tr>
-    );
+const groupKey = (name) => {
+  for (const [group, tools] of Object.entries(TOOL_GROUPS)) {
+    if (tools.includes(name)) return group;
   }
-  const resource = data.resource || '(missing)';
-  const asList = Array.isArray(data.authorization_servers)
-    ? data.authorization_servers.join(', ')
-    : '(none)';
-  return (
-    <tr>
-      <td className="mgc-env-key">{label}</td>
-      <td className="mgc-env-val">
-        <div><strong>resource:</strong> <code>{resource}</code></div>
-        <div style={{ marginTop: 4 }}><strong>authorization_servers:</strong> <code>{asList}</code></div>
-      </td>
-    </tr>
-  );
-}
+  return 'Other';
+};
+
+const toolDotClass = (name) => {
+  const lower = name.toLowerCase();
+  if (lower.includes('sensitive')) return 'p1mcp-tree-item__dot--sensitive';
+  if (lower.startsWith('create') || lower.includes('transfer')) return 'p1mcp-tree-item__dot--write';
+  return '';
+};
+
+const PRESETS = [
+  { id: 'uc18-throttle', label: 'UC18 throttling (Demo Gateway)' },
+  { id: 'real-throttle-ig', label: 'UC18 throttling (Real IG)' },
+  { id: 'real-policy', label: 'Real IG policy (simulated authz)' },
+];
 
 export default function AgentGatewayTester() {
   const [tools, setTools] = useState(FALLBACK_TOOLS);
   const [toolsSource, setToolsSource] = useState('static');
-  const [tool, setTool] = useState(FALLBACK_TOOLS[0].name);
+  const [selectedTool, setSelectedTool] = useState(null);
   const [argsText, setArgsText] = useState('{}');
   const [sending, setSending] = useState(false);
   const [resp, setResp] = useState(null);
@@ -99,6 +62,9 @@ export default function AgentGatewayTester() {
   const [presetBusy, setPresetBusy] = useState('');
   const [bursting, setBursting] = useState(false);
   const [burstResp, setBurstResp] = useState(null);
+  const [toolSearch, setToolSearch] = useState('');
+  const [outputTab, setOutputTab] = useState('result');
+  const [treeSection, setTreeSection] = useState('tools');
 
   const fetchActive = useCallback(async () => {
     try {
@@ -125,7 +91,6 @@ export default function AgentGatewayTester() {
       if (list.length) {
         setTools(list);
         setToolsSource(data._source || 'live');
-        if (!list.find((t) => t.name === tool)) setTool(list[0].name);
       } else {
         setTools(FALLBACK_TOOLS);
         setToolsSource(data.mfa_required ? 'static (live list is MFA-gated)' : 'static');
@@ -134,7 +99,7 @@ export default function AgentGatewayTester() {
       setTools(FALLBACK_TOOLS);
       setToolsSource('static (BFF unreachable)');
     }
-  }, [tool]);
+  }, []);
 
   const fetchRules = useCallback(async () => {
     try {
@@ -212,6 +177,7 @@ export default function AgentGatewayTester() {
   }, [fetchActive, fetchRateStatus, fetchRules]);
 
   const send = useCallback(async () => {
+    if (!selectedTool) return;
     let args;
     try {
       args = argsText.trim() ? JSON.parse(argsText) : {};
@@ -222,16 +188,18 @@ export default function AgentGatewayTester() {
     setSending(true);
     setResp(null);
     try {
-      const { data } = await apiClient.post('/api/mcp-gateway/test', { tool, args });
+      const { data } = await apiClient.post('/api/mcp-gateway/test', { tool: selectedTool.name, args });
       setResp(data);
+      setOutputTab('result');
     } catch (e) {
       setResp({ clientError: formatAxiosError(e, 'Request failed') });
     } finally {
       setSending(false);
     }
-  }, [tool, argsText]);
+  }, [selectedTool, argsText]);
 
   const runBurst = useCallback(async () => {
+    if (!selectedTool) return;
     let args;
     try {
       args = argsText.trim() ? JSON.parse(argsText) : {};
@@ -243,7 +211,7 @@ export default function AgentGatewayTester() {
     setBurstResp(null);
     try {
       const { data } = await apiClient.post('/api/mcp-gateway/test/burst', {
-        tool,
+        tool: selectedTool.name,
         args,
         count: 5,
       });
@@ -253,7 +221,7 @@ export default function AgentGatewayTester() {
     } finally {
       setBursting(false);
     }
-  }, [tool, argsText]);
+  }, [selectedTool, argsText]);
 
   const usePing = active?.usePingGateway;
   const simulated = active?.simulated;
@@ -262,478 +230,478 @@ export default function AgentGatewayTester() {
   const decision = resp?.decision || az?.decision || null;
   const isRateLimited = resp?.rateLimited || resp?.error === 'rate_limited' || resp?.httpStatus === 429;
   const resultValue = resp?.result ?? resp?.rpcData ?? (resp ? { error: resp.error, message: resp.message } : null);
-  const mcpWhenLabel = mcpAudit?.when
-    ? new Date(typeof mcpAudit.when === 'number' ? mcpAudit.when : Number(mcpAudit.when)).toISOString()
-    : null;
+
+  // Tool tree grouping with search
+  const groupedTools = useMemo(() => {
+    const q = toolSearch.trim().toLowerCase();
+    const filtered = q
+      ? tools.filter(t => t.name.toLowerCase().includes(q) || (t.description || '').toLowerCase().includes(q))
+      : tools;
+    const groups = {};
+    for (const t of filtered) {
+      const g = groupKey(t.name);
+      if (!groups[g]) groups[g] = [];
+      groups[g].push(t);
+    }
+    const order = ['Accounts', 'Transactions', 'Transfers', 'Other'];
+    return order.filter(g => groups[g]?.length).map(g => ({ label: g, tools: groups[g] }));
+  }, [tools, toolSearch]);
+
+  const selectTool = (t) => {
+    setSelectedTool(t);
+    setArgsText('{}');
+    setResp(null);
+    setOutputTab('result');
+  };
+
+  const clearForm = () => {
+    setArgsText('{}');
+    setResp(null);
+    setBurstResp(null);
+    setOutputTab('result');
+  };
 
   return (
-    <div className="mgc-root">
-      <div className="mgc-header">
-        <div>
-          <h2 className="mgc-title">Agent Gateway Tester</h2>
-          <p className="mgc-subtitle">
-            Send an MCP tool call through the active gateway and inspect protected-resource
-            metadata (RFC 9728), rate limiting (UC18), authorize decisions, and audit trails.
-          </p>
-          <p className="mgc-subtitle" style={{ marginTop: 6 }}>
-            Official Ping docs:{' '}
-            <a href={MCP_SECURITY_GATEWAY_DOC} target="_blank" rel="noopener noreferrer">
-              MCP security gateway | PingGateway 2026
-            </a>
-            {' '}— audit MCP requests and actors, throttle, OAuth RS controls, fine-grained
-            Authorize, and token transformation.
-          </p>
+    <div className="p1mcp-page">
+      {/* Top bar */}
+      <div className="p1mcp-topbar">
+        <span className={`p1mcp-topbar__dot ${active ? '' : 'p1mcp-topbar__dot--off'}`} />
+        <h1>Agent Gateway Tester</h1>
+        <span className="p1mcp-topbar__status">
+          {active
+            ? `${active.name} | Authz: ${active.authzBackend}`
+            : 'Loading...'}
+        </span>
+        <div className="p1mcp-topbar__right">
+          <button
+            className="p1mcp-topbar__btn"
+            onClick={() => { fetchActive(); fetchTools(); fetchRules(); fetchRateStatus(); }}
+          >
+            Refresh
+          </button>
+          <button
+            className="p1mcp-topbar__btn"
+            disabled={toggling === GATEWAY_FLAG || !active}
+            onClick={() => toggleFlag(GATEWAY_FLAG, usePing)}
+          >
+            {toggling === GATEWAY_FLAG ? 'Switching...' : `Switch to ${usePing ? 'Demo' : 'PingOne'} GW`}
+          </button>
+          <button
+            className="p1mcp-topbar__btn"
+            disabled={toggling === AUTHZ_FLAG || !active}
+            onClick={() => toggleFlag(AUTHZ_FLAG, simulated)}
+          >
+            {toggling === AUTHZ_FLAG ? 'Switching...' : `Authz: ${simulated ? 'simulated' : 'real'}`}
+          </button>
         </div>
       </div>
 
-      {/* What McpAuditFilter records — visible before any request so demos can point at it */}
-      <div className="mgc-section">
-        <h4 style={{ marginTop: 0 }}>McpAuditFilter — who / what / when / where / how</h4>
-        <p className="mgc-field-hint">
-          Real PingOne Agent Gateway runs <code>McpAuditFilter</code> on every MCP route. It emits
-          MCP-specific audit events for <em>who called which tool, where, and with what result</em>,
-          writes them to <code>audit/mcp.audit.json</code>, and mirrors the same payload on{' '}
-          <code>X-Gw-Audit-Trail.mcpAudit</code> (shown below after you send a request; also on Token Chain).
-        </p>
-        <table className="mgc-env-table">
-          <tbody>
-            <tr><td className="mgc-env-key">Who</td><td className="mgc-env-val">User <code>sub</code> + acting agent (<code>act.sub</code> / client) and delegation depth</td></tr>
-            <tr><td className="mgc-env-key">What</td><td className="mgc-env-val">MCP method (e.g. <code>tools/call</code>) and tool name</td></tr>
-            <tr><td className="mgc-env-key">When</td><td className="mgc-env-val">Event timestamp (latency also via Prometheus <code>ig_mcp_*</code> metrics)</td></tr>
-            <tr><td className="mgc-env-key">Where</td><td className="mgc-env-val">Gateway resource / route and target MCP service</td></tr>
-            <tr><td className="mgc-env-key">How / result</td><td className="mgc-env-val">Forwarded vs blocked; Authorize PERMIT / DENY / INDETERMINATE</td></tr>
-          </tbody>
-        </table>
-        <p className="mgc-field-hint" style={{ marginTop: 8 }}>
-          Switch to <strong>Real PingOne Agent Gateway</strong> below, send a tool call, then expand the live
-          5W1H table in the response. Docs:{' '}
-          <a href={MCP_SECURITY_GATEWAY_DOC} target="_blank" rel="noopener noreferrer">
-            MCP security gateway
-          </a>
-          {' · '}
-          <a href="https://docs.pingidentity.com/pinggateway/2026/reference/McpAuditFilter.html" target="_blank" rel="noopener noreferrer">
-            McpAuditFilter
-          </a>
-        </p>
-      </div>
-
-      {/* Active gateway + authz backend, with inline toggles */}
-      <div className="mgc-section">
-        <div className="mgc-info-grid">
-          <div className="mgc-info-item">
-            <span className="mgc-info-label">Active gateway</span>
-            <span className={usePing ? 'mgc-badge mgc-badge--pingone-mode' : 'mgc-badge mgc-badge--mock'}>
-              {active ? active.name : 'loading...'}
+      {/* Three-column grid */}
+      <div className="p1mcp-grid">
+        {/* Column 1: Tree */}
+        <div className="p1mcp-col-tree">
+          <div className="p1mcp-tree-header">
+            <span>
+              <button
+                className={`p1mcp-topbar__btn ${treeSection === 'tools' ? 'p1mcp-topbar__btn--active' : ''}`}
+                style={{ fontSize: 10, padding: '2px 8px' }}
+                onClick={() => setTreeSection('tools')}
+              >Tools</button>
+              {' '}
+              <button
+                className={`p1mcp-topbar__btn ${treeSection === 'config' ? 'p1mcp-topbar__btn--active' : ''}`}
+                style={{ fontSize: 10, padding: '2px 8px' }}
+                onClick={() => setTreeSection('config')}
+              >Config</button>
             </span>
-            {active?.url && <code style={{ fontSize: 12 }}>{active.url}</code>}
-            <button type="button" className="mgc-push-btn" style={{ marginTop: 8 }}
-              disabled={toggling === GATEWAY_FLAG || !active}
-              onClick={() => toggleFlag(GATEWAY_FLAG, usePing)}>
-              {toggling === GATEWAY_FLAG ? 'Switching...' : `Switch to ${usePing ? 'Demo' : 'PingOne'} Agent Gateway`}
-            </button>
           </div>
-          <div className="mgc-info-item">
-            <span className="mgc-info-label">Authorize backend</span>
-            <span className={simulated ? 'mgc-badge mgc-badge--mock' : 'mgc-badge mgc-badge--live'}>
-              {active ? active.authzBackend : 'loading...'}
-            </span>
-            <button type="button" className="mgc-push-btn" style={{ marginTop: 8 }}
-              disabled={toggling === AUTHZ_FLAG || !active}
-              onClick={() => toggleFlag(AUTHZ_FLAG, simulated)}>
-              {toggling === AUTHZ_FLAG ? 'Switching...' : `Use ${simulated ? 'real PingOne' : 'simulated'} authorize`}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Demo presets */}
-      <div className="mgc-section">
-        <h4>Demo presets</h4>
-        <p className="mgc-field-hint">
-          One-click setup for presenter flows. Open this page at{' '}
-          <code>https://api.ping.demo:4000/setup?tab=mcp-gateway&amp;subtab=tester</code>
-        </p>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button type="button" className="mgc-push-btn" disabled={!!presetBusy}
-            onClick={() => runPreset('uc18-throttle')}>
-            {presetBusy === 'uc18-throttle' ? 'Applying...' : 'UC18 throttling (Demo Gateway)'}
-          </button>
-          <button type="button" className="mgc-push-btn" disabled={!!presetBusy}
-            onClick={() => runPreset('real-throttle-ig')}>
-            {presetBusy === 'real-throttle-ig' ? 'Applying...' : 'UC18 throttling (Real IG)'}
-          </button>
-          <button type="button" className="mgc-push-btn" disabled={!!presetBusy}
-            onClick={() => runPreset('real-policy')}>
-            {presetBusy === 'real-policy' ? 'Applying...' : 'Real IG policy (simulated authz)'}
-          </button>
-        </div>
-      </div>
-
-      <div className="mgc-section" id="rfc9728-metadata">
-        <h4>Protected resource metadata (RFC 9728)</h4>
-        <p className="mgc-field-hint">
-          Each MCP hop publishes <code>/.well-known/oauth-protected-resource</code>. The gateway
-          owns its own metadata — the <code>resource</code> URI is the gateway audience (RFC 8707),
-          not the upstream MCP server.
-        </p>
-        <button type="button" className="mgc-push-btn" onClick={fetchMetadata} disabled={metadataLoading}>
-          {metadataLoading ? 'Fetching metadata...' : 'Fetch live metadata'}
-        </button>
-        {metadata && (
-          <table className="mgc-env-table" style={{ marginTop: 10 }}>
-            <tbody>
-              {Object.entries(metadata).map(([key, data]) => (
-                <MetadataServiceRow key={key} serviceKey={key} data={data} />
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* UC18 rate limiting */}
-      <div className="mgc-section" id="uc18">
-        <h4>Rate limiting (UC18)</h4>
-        <p className="mgc-field-hint">
-          Throttled requests return HTTP 429 <strong>before</strong> PingOne Authorize runs —
-          protecting P1AZ API quota. Demo Agent Gateway limits in-process; PingOne Agent Gateway
-          limits in PingGateway (<code>uc18-rate-limit.groovy</code>) when this flag is on.
-        </p>
-        {rateStatus && (
-          <table className="mgc-env-table">
-            <tbody>
-              <tr>
-                <td className="mgc-env-key">Active layer</td>
-                <td className="mgc-env-val">{rateStatus.rateLimitLayer || 'off'}</td>
-              </tr>
-              <tr>
-                <td className="mgc-env-key">BFF flag (ff_mcp_rate_limit)</td>
-                <td className="mgc-env-val">{rateStatus.bffFlag ? 'ON' : 'OFF'}</td>
-              </tr>
-              {rateStatus.usePingGateway && (
-                <tr>
-                  <td className="mgc-env-key">PingGateway UC18 filter</td>
-                  <td className="mgc-env-val">
-                    {rateStatus.bffEnabled
-                      ? `ON — ${rateStatus.bffMaxRequests} calls / ${rateStatus.bffWindowMs}ms (via X-UC18-Rate-Limit)`
-                      : 'OFF'}
-                  </td>
-                </tr>
-              )}
-              {!rateStatus.usePingGateway && (
-                <tr>
-                  <td className="mgc-env-key">Gateway rate limit</td>
-                  <td className="mgc-env-val">
-                    {rateStatus.gatewayEnabled
-                      ? `ON — ${rateStatus.maxRequests} calls / ${rateStatus.windowMs}ms`
-                      : 'OFF'}
-                  </td>
-                </tr>
-              )}
-              <tr>
-                <td className="mgc-env-key">Aligned</td>
-                <td className="mgc-env-val">
-                  <span className={rateStatus.aligned ? 'mgc-badge mgc-badge--live' : 'mgc-badge mgc-badge--error'}>
-                    {rateStatus.aligned ? 'YES' : 'NO'}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        )}
-        <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button type="button" className="mgc-push-btn" onClick={toggleUc18Demo}
-            disabled={uc18Busy}>
-            {uc18Busy
-              ? 'Updating...'
-              : (rateStatus?.aligned ? 'Disable UC18 demo mode' : 'Enable UC18 demo mode')}
-          </button>
-          <button type="button" className="mgc-push-btn" onClick={runBurst}
-            disabled={bursting || !tool || !rateStatus?.aligned}>
-            {bursting ? 'Running burst...' : 'Burst test (5 calls)'}
-          </button>
-        </div>
-        {burstResp && !burstResp.clientError && (
-          <div style={{ marginTop: 10 }}>
-            <div className="mgc-field-label">{burstResp.summary}</div>
-            <table className="mgc-env-table">
-              <tbody>
-                {(burstResp.results || []).map((r) => (
-                  <tr key={r.index}>
-                    <td className="mgc-env-key">Call {r.index}</td>
-                    <td className="mgc-env-val">
-                      <span className={r.ok ? 'mgc-badge mgc-badge--live' : 'mgc-badge mgc-badge--error'}>
-                        {r.ok ? 'SUCCESS' : (r.rateLimited
-                          ? `RATE LIMITED (429${r.rateLimitLayer ? ` @ ${r.rateLimitLayer}` : ''})`
-                          : (r.error || 'ERROR'))}
-                      </span>
-                      {r.retryAfterMs ? ` — retry after ${r.retryAfterMs}ms` : ''}
-                      <code style={{ marginLeft: 8 }}>{r.durationMs}ms</code>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {burstResp?.clientError && (
-          <div className="mgc-alert mgc-alert--error" style={{ marginTop: 10 }}>{burstResp.clientError}</div>
-        )}
-      </div>
-
-      {/* Request composer */}
-      <div className="mgc-section">
-        <h4>Send a request</h4>
-        <label className="mgc-field">
-          <span className="mgc-field-label">MCP tool</span>
-          <select className="mgc-input" value={tool} onChange={(e) => setTool(e.target.value)}>
-            {tools.map((t) => (
-              <option key={t.name} value={t.name}>{t.name}</option>
-            ))}
-          </select>
-          <span className="mgc-field-hint">
-            {tools.find((t) => t.name === tool)?.description || 'Pick a tool to call through the gateway.'}
-            {` — tool list source: ${toolsSource}`}
-          </span>
-        </label>
-        <label className="mgc-field">
-          <span className="mgc-field-label">Arguments (JSON)</span>
-          <textarea className="mgc-input" rows={4} value={argsText}
-            onChange={(e) => setArgsText(e.target.value)} placeholder='{}' spellCheck={false}
-            style={{ fontFamily: 'monospace' }} />
-        </label>
-        <button type="button" className="mgc-push-btn" onClick={send} disabled={sending || !tool}>
-          {sending ? 'Sending through gateway...' : 'Send through Agent Gateway'}
-        </button>
-      </div>
-
-      {/* Response */}
-      {resp && (
-        <div className="mgc-section">
-          <h4>Response</h4>
-          {resp.clientError ? (
-            <div className="mgc-alert mgc-alert--error">{String(resp.clientError)}</div>
-          ) : (
+          {treeSection === 'tools' && (
             <>
-              <div className="mgc-info-grid">
-                <div className="mgc-info-item">
-                  <span className="mgc-info-label">Outcome</span>
-                  <span className={
-                    resp.ok
-                      ? 'mgc-badge mgc-badge--live'
-                      : isRateLimited
-                        ? 'mgc-badge mgc-badge--mock'
-                        : 'mgc-badge mgc-badge--error'
-                  }>
-                    {resp.ok ? 'SUCCESS' : (isRateLimited ? 'RATE LIMITED (429)' : (resp.error || 'ERROR'))}
-                  </span>
-                </div>
-                <div className="mgc-info-item">
-                  <span className="mgc-info-label">Via</span>
-                  <code>{resp.gateway?.name} ({resp.gateway?.url})</code>
-                </div>
-                {decision && !isRateLimited && (
-                  <div className="mgc-info-item">
-                    <span className="mgc-info-label">Authorize decision</span>
-                    <span className={decision === 'PERMIT' ? 'mgc-badge mgc-badge--live' : 'mgc-badge mgc-badge--error'}>
-                      {decision}
-                    </span>
-                  </div>
-                )}
-                <div className="mgc-info-item">
-                  <span className="mgc-info-label">Duration</span>
-                  <code>{resp.durationMs}ms</code>
-                </div>
-                {resp.retryAfterMs > 0 && (
-                  <div className="mgc-info-item">
-                    <span className="mgc-info-label">Retry after</span>
-                    <code>{resp.retryAfterMs}ms</code>
-                  </div>
-                )}
+              <div className="p1mcp-tree-search">
+                <input
+                  type="search"
+                  placeholder="Filter tools..."
+                  value={toolSearch}
+                  onChange={e => setToolSearch(e.target.value)}
+                  spellCheck={false}
+                />
               </div>
-
-              {isRateLimited && (
-                <div className="mgc-alert mgc-alert--info" style={{ marginTop: 10 }}>
-                  Throttled ({resp.rateLimitLayer === 'ig' ? 'PingGateway' : resp.rateLimitLayer === 'bff' ? 'BFF edge' : 'gateway'}, UC18) —
-                  no PingOne Authorize decision was made.
-                  {resp.retryAfterMs ? ` Retry after ${resp.retryAfterMs}ms.` : ''}
-                </div>
-              )}
-
-              {(az?.reason || resp.message) && (
-                <div className={`mgc-alert ${resp.ok ? 'mgc-alert--info' : 'mgc-alert--error'}`} style={{ marginTop: 10 }}>
-                  {az?.reason || resp.message}
-                </div>
-              )}
-
-              {az && !isRateLimited && (az.attributes || az.decisionId || az.engine) && (
-                <div className="mgc-section" style={{ marginTop: 12 }}>
-                  <h4 style={{ marginTop: 0 }}>PingOne Authorize decision</h4>
-                  <p className="mgc-field-hint">
-                    Fine-grained ABAC layered on top of the gateway's coarse OAuth scope check.
-                    In production this is the pre-built <code>PingOneApiAccessManagementFilter</code>;
-                    this demo gateway emulates it by calling the P1AZ decision endpoint
-                    (<code>{'POST /governance/pap/alpha/policy/{workerId}/decision'}</code>).
-                  </p>
-                  <table className="mgc-env-table">
-                    <tbody>
-                      <tr><td className="mgc-env-key">Decision</td><td className="mgc-env-val">{az.decision}</td></tr>
-                      {az.engine && <tr><td className="mgc-env-key">Engine</td><td className="mgc-env-val">{az.engine}</td></tr>}
-                      {az.decisionId && <tr><td className="mgc-env-key">Decision ID</td><td className="mgc-env-val"><code>{az.decisionId}</code></td></tr>}
-                      {az.policyVersion && <tr><td className="mgc-env-key">Policy version</td><td className="mgc-env-val"><code>{az.policyVersion}</code></td></tr>}
-                      {az.traceId && <tr><td className="mgc-env-key">Trace ID</td><td className="mgc-env-val"><code>{az.traceId}</code></td></tr>}
-                    </tbody>
-                  </table>
-                  {az.attributes && (
-                    <>
-                      <div className="mgc-field-label" style={{ marginTop: 10 }}>Attributes evaluated by policy</div>
-                      <table className="mgc-env-table">
-                        <tbody>
-                          {P1AZ_ATTR_ROWS
-                            .filter(([key]) => az.attributes[key] !== undefined && az.attributes[key] !== '')
-                            .map(([key, label]) => (
-                              <tr key={key}>
-                                <td className="mgc-env-key">{label}</td>
-                                <td className="mgc-env-val"><code>{az.attributes[key]}</code></td>
-                              </tr>
-                            ))}
-                        </tbody>
-                      </table>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {mcpAudit && (
-                <div className="mgc-section" style={{ marginTop: 12 }}>
-                  <h4 style={{ marginTop: 0 }}>Live McpAuditFilter event (5W1H)</h4>
-                  <p className="mgc-field-hint">
-                    From <code>X-Gw-Audit-Trail.mcpAudit</code> on this response — the same story
-                    PingGateway writes to <code>audit/mcp.audit.json</code>.
-                  </p>
-                  <table className="mgc-env-table">
-                    <tbody>
-                      <tr>
-                        <td className="mgc-env-key">Who</td>
-                        <td className="mgc-env-val">
-                          user <code>{mcpAudit.who?.userSub || '—'}</code>
-                          {mcpAudit.who?.agentSub ? (
-                            <> via agent <code>{mcpAudit.who.agentSub}</code></>
-                          ) : null}
-                          {mcpAudit.who?.actDepth != null ? (
-                            <> (depth {String(mcpAudit.who.actDepth)})</>
-                          ) : null}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="mgc-env-key">What</td>
-                        <td className="mgc-env-val">
-                          <code>{mcpAudit.what?.mcpMethod || '—'}</code>
-                          {mcpAudit.what?.tool ? <> → <code>{mcpAudit.what.tool}</code></> : null}
-                        </td>
-                      </tr>
-                      {mcpWhenLabel && (
-                        <tr>
-                          <td className="mgc-env-key">When</td>
-                          <td className="mgc-env-val"><code>{mcpWhenLabel}</code></td>
-                        </tr>
-                      )}
-                      <tr>
-                        <td className="mgc-env-key">Where</td>
-                        <td className="mgc-env-val">
-                          <code>{mcpAudit.where?.resourceId || mcpAudit.where?.routePath || '—'}</code>
-                          {mcpAudit.where?.vertical ? <> ({mcpAudit.where.vertical})</> : null}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="mgc-env-key">How</td>
-                        <td className="mgc-env-val">
-                          <span className={
-                            mcpAudit.how?.decision === 'PERMIT' || mcpAudit.how?.result === 'forwarded'
-                              ? 'mgc-badge mgc-badge--live'
-                              : 'mgc-badge mgc-badge--error'
-                          }>
-                            {mcpAudit.how?.decision || '—'}
-                          </span>
-                          {mcpAudit.how?.result ? ` → ${mcpAudit.how.result}` : ''}
-                          {mcpAudit.how?.backend ? ` (${mcpAudit.how.backend})` : ''}
-                        </td>
-                      </tr>
-                      {mcpAudit.eventName && (
-                        <tr>
-                          <td className="mgc-env-key">Event</td>
-                          <td className="mgc-env-val"><code>{mcpAudit.eventName}</code></td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                  <div className="mgc-field-label" style={{ marginTop: 10 }}>mcpAudit (JSON)</div>
-                  <div className="mgc-code-block">
-                    <pre className="mgc-pre mgc-pre--code jh-dark"><JsonHighlight value={mcpAudit} /></pre>
+              <div className="p1mcp-tree-body">
+                {groupedTools.map(group => (
+                  <div className="p1mcp-tree-group" key={group.label}>
+                    <div className="p1mcp-tree-group__label">{group.label} ({group.tools.length})</div>
+                    {group.tools.map(t => (
+                      <div
+                        key={t.name}
+                        className={`p1mcp-tree-item ${selectedTool?.name === t.name ? 'p1mcp-tree-item--active' : ''}`}
+                        onClick={() => selectTool(t)}
+                      >
+                        <span className={`p1mcp-tree-item__dot ${toolDotClass(t.name)}`} />
+                        <span>{t.name}</span>
+                        {toolDotClass(t.name).includes('write') && (
+                          <span className="p1mcp-tree-item__badge p1mcp-tree-item__badge--write">W</span>
+                        )}
+                        {toolDotClass(t.name).includes('sensitive') && (
+                          <span className="p1mcp-tree-item__badge p1mcp-tree-item__badge--sensitive">S</span>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                </div>
-              )}
-              {resp.gateway?.usePingGateway && resp.gwAuditTrail && !mcpAudit && (
-                <p className="mgc-field-hint" style={{ marginTop: 10 }}>
-                  Gateway returned an audit trail but no <code>mcpAudit</code> block. Restart PingGateway
-                  after enabling <code>McpAuditFilter</code> so <code>p1az-decision.groovy</code> emits the
-                  5W1H payload on <code>X-Gw-Audit-Trail</code>.
-                </p>
-              )}
-
-              {resp.gwAuditTrail && (
-                <div style={{ marginTop: 10 }}>
-                  <div className="mgc-field-label">Full gateway audit trail</div>
-                  <div className="mgc-code-block">
-                    <pre className="mgc-pre mgc-pre--code jh-dark"><JsonHighlight value={resp.gwAuditTrail} /></pre>
+                ))}
+                {groupedTools.length === 0 && (
+                  <div style={{ padding: '20px 16px', color: '#64748b', fontSize: 13 }}>
+                    {tools.length === 0 ? 'No tools loaded.' : `No tools match "${toolSearch}".`}
                   </div>
-                </div>
-              )}
-              {resp.gateway?.usePingGateway && !resp.gwAuditTrail && !isRateLimited && (
-                <p className="mgc-field-hint">
-                  No X-Gw-Audit-Trail on this response. PingGateway (IG) emits it on both PERMIT and
-                  DENY from its authorize filter, so an absent trail means the request was rejected
-                  before that filter ran (e.g. a 401 at token introspection). See the Gateway Logs tab
-                  for the raw decision.
-                </p>
-              )}
-
-              <div style={{ marginTop: 10 }}>
-                <div className="mgc-field-label">Result</div>
-                <div className="mgc-code-block">
-                  <pre className="mgc-pre mgc-pre--code jh-dark">
-                    <JsonHighlight value={resultValue} />
-                  </pre>
+                )}
+                <div style={{ padding: '8px 16px', fontSize: 10, color: '#475569' }}>
+                  Source: {toolsSource}
                 </div>
               </div>
             </>
           )}
+          {treeSection === 'config' && (
+            <div className="p1mcp-tree-body">
+              <div className="p1mcp-tree-group">
+                <div className="p1mcp-tree-group__label">Gateway</div>
+                <div className="p1mcp-tree-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4, cursor: 'default' }}>
+                  <span style={{ fontSize: 11, color: '#475569' }}>Active: {active?.name || '...'}</span>
+                  {active?.url && <code style={{ fontSize: 10, color: '#64748b' }}>{active.url}</code>}
+                </div>
+              </div>
+              <div className="p1mcp-tree-group">
+                <div className="p1mcp-tree-group__label">Rate Limiting (UC18)</div>
+                {rateStatus && (
+                  <>
+                    <div className="p1mcp-tree-item" style={{ cursor: 'default', fontSize: 11 }}>
+                      <span className="p1mcp-tree-item__dot" style={{ background: rateStatus.aligned ? '#22c55e' : '#ef4444' }} />
+                      <span>Layer: {rateStatus.rateLimitLayer || 'off'}</span>
+                    </div>
+                    <div className="p1mcp-tree-item" style={{ cursor: 'default', fontSize: 11 }}>
+                      <span className="p1mcp-tree-item__dot" style={{ background: rateStatus.bffFlag ? '#22c55e' : '#64748b' }} />
+                      <span>BFF flag: {rateStatus.bffFlag ? 'ON' : 'OFF'}</span>
+                    </div>
+                    <div className="p1mcp-tree-item" style={{ cursor: 'default', fontSize: 11 }}>
+                      <span className="p1mcp-tree-item__dot" style={{ background: rateStatus.aligned ? '#22c55e' : '#f59e0b' }} />
+                      <span>Aligned: {rateStatus.aligned ? 'YES' : 'NO'}</span>
+                    </div>
+                  </>
+                )}
+                <div
+                  className="p1mcp-tree-item"
+                  onClick={toggleUc18Demo}
+                  style={{ color: uc18Busy ? '#475569' : '#3b82f6', fontSize: 11 }}
+                >
+                  <span className="p1mcp-tree-item__dot" style={{ background: '#3b82f6' }} />
+                  <span>{uc18Busy ? 'Updating...' : (rateStatus?.aligned ? 'Disable UC18' : 'Enable UC18')}</span>
+                </div>
+                <div
+                  className="p1mcp-tree-item"
+                  onClick={() => !bursting && selectedTool && rateStatus?.aligned && runBurst()}
+                  style={{ color: (!selectedTool || !rateStatus?.aligned || bursting) ? '#475569' : '#3b82f6', fontSize: 11 }}
+                >
+                  <span className="p1mcp-tree-item__dot" style={{ background: '#f59e0b' }} />
+                  <span>{bursting ? 'Running...' : 'Burst test (5 calls)'}</span>
+                </div>
+              </div>
+              <div className="p1mcp-tree-group">
+                <div className="p1mcp-tree-group__label">Demo Presets</div>
+                {PRESETS.map(p => (
+                  <div
+                    key={p.id}
+                    className="p1mcp-tree-item"
+                    onClick={() => !presetBusy && runPreset(p.id)}
+                    style={{ color: presetBusy ? '#475569' : '#3b82f6', fontSize: 11 }}
+                  >
+                    <span className="p1mcp-tree-item__dot" style={{ background: '#8b5cf6' }} />
+                    <span>{presetBusy === p.id ? 'Applying...' : p.label}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="p1mcp-tree-group">
+                <div className="p1mcp-tree-group__label">RFC 9728 Metadata</div>
+                <div
+                  className="p1mcp-tree-item"
+                  onClick={() => !metadataLoading && fetchMetadata()}
+                  style={{ color: metadataLoading ? '#475569' : '#3b82f6', fontSize: 11 }}
+                >
+                  <span className="p1mcp-tree-item__dot" style={{ background: '#06b6d4' }} />
+                  <span>{metadataLoading ? 'Fetching...' : 'Fetch live metadata'}</span>
+                </div>
+                {metadata && Object.entries(metadata).map(([key, data]) => (
+                  <div key={key} className="p1mcp-tree-item" style={{ cursor: 'default', fontSize: 10 }}>
+                    <span className="p1mcp-tree-item__dot" style={{ background: data?._status === 'ok' ? '#22c55e' : '#ef4444' }} />
+                    <span>{key}: {data?._status || 'unknown'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Rules the gateway applies */}
-      <div className="mgc-section">
-        <h4>Rules applied by the gateway</h4>
-        <p className="mgc-field-hint">
-          Both gateways evaluate the same authorization rules (the simulated authorize backend,
-          or real PingOne Authorize). These are the rules in effect right now.
-        </p>
-        {!rules ? (
-          <div className="mgc-loading">Loading rules...</div>
-        ) : (
-          <table className="mgc-env-table">
-            <tbody>
-              <tr><td className="mgc-env-key">Engine</td><td className="mgc-env-val">{rules.activeEngine || (simulated ? 'simulated' : 'pingone')}</td></tr>
-              <tr><td className="mgc-env-key">Confirm threshold (HITL)</td><td className="mgc-env-val">${rules.simulated?.confirmAmount}</td></tr>
-              <tr><td className="mgc-env-key">Step-up threshold</td><td className="mgc-env-val">${rules.simulated?.stepUpAmount}</td></tr>
-              <tr><td className="mgc-env-key">Deny threshold</td><td className="mgc-env-val">${rules.simulated?.denyAmount}</td></tr>
-              <tr><td className="mgc-env-key">Denied MCP tools</td><td className="mgc-env-val">{(rules.simulated?.mcpDenyTools || []).join(', ') || '(none)'}</td></tr>
-              <tr><td className="mgc-env-key">HITL MCP tools</td><td className="mgc-env-val">{(rules.simulated?.mcpHitlTools || []).join(', ') || '(none)'}</td></tr>
-              <tr><td className="mgc-env-key">MCP first-tool gate</td><td className="mgc-env-val">{rules.flags?.ff_authorize_mcp_first_tool ? 'ON' : 'OFF'}</td></tr>
-            </tbody>
-          </table>
-        )}
-        <div className="mgc-code-block" style={{ marginTop: 10 }}>
-          <pre className="mgc-pre mgc-pre--code jh-dark">{rules ? <JsonHighlight value={rules} /> : ''}</pre>
+        {/* Column 2: Form */}
+        <div className="p1mcp-col-form">
+          {selectedTool ? (
+            <>
+              <div className="p1mcp-form-header">
+                <div className="p1mcp-form-header__name">{selectedTool.name}</div>
+                {selectedTool.description && (
+                  <div className="p1mcp-form-header__desc">{selectedTool.description}</div>
+                )}
+              </div>
+              <div className="p1mcp-form-actions p1mcp-form-actions--top">
+                <button className="p1mcp-btn-call" onClick={send} disabled={sending}>
+                  {sending ? 'Sending...' : 'Execute'}
+                </button>
+                <button className="p1mcp-btn-clear" onClick={clearForm}>Clear</button>
+              </div>
+              <div className="p1mcp-form-body">
+                <div className="p1mcp-field">
+                  <label>
+                    Arguments (JSON)
+                    <span className="type">object</span>
+                  </label>
+                  <textarea
+                    value={argsText}
+                    onChange={e => setArgsText(e.target.value)}
+                    placeholder='{}'
+                    spellCheck={false}
+                    rows={6}
+                    style={{ fontFamily: "'SF Mono', monospace" }}
+                  />
+                </div>
+                {active && (
+                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 8, lineHeight: 1.6 }}>
+                    <div>Gateway: <strong style={{ color: '#334155' }}>{active.name}</strong></div>
+                    <div>Authorize: <strong style={{ color: '#334155' }}>{active.authzBackend}</strong></div>
+                    {active.url && <div>URL: <code style={{ fontSize: 10 }}>{active.url}</code></div>}
+                  </div>
+                )}
+              </div>
+              <div className="p1mcp-form-actions">
+                <button className="p1mcp-btn-call" onClick={send} disabled={sending}>
+                  {sending ? 'Sending...' : 'Execute'}
+                </button>
+                <button className="p1mcp-btn-clear" onClick={clearForm}>Clear</button>
+                {rateStatus?.aligned && (
+                  <button
+                    className="p1mcp-btn-clear"
+                    onClick={runBurst}
+                    disabled={bursting}
+                    style={{ marginLeft: 'auto' }}
+                  >
+                    {bursting ? 'Burst...' : 'Burst x5'}
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="p1mcp-form-empty">
+              Select a tool from the tree to send through the Agent Gateway.
+            </div>
+          )}
+        </div>
+
+        {/* Column 3: Output */}
+        <div className="p1mcp-col-output">
+          <div className="p1mcp-output-tabs">
+            {['result', 'audit', 'authorize', 'mcpAudit'].map(tab => (
+              <button
+                key={tab}
+                className={`p1mcp-output-tab ${outputTab === tab ? 'p1mcp-output-tab--active' : ''}`}
+                onClick={() => setOutputTab(tab)}
+              >
+                {tab === 'result' && 'Result'}
+                {tab === 'audit' && 'Audit Trail'}
+                {tab === 'authorize' && 'Authorize Decision'}
+                {tab === 'mcpAudit' && 'McpAudit (5W1H)'}
+              </button>
+            ))}
+          </div>
+          {resp ? (
+            <>
+              <div className="p1mcp-output-body">
+                <pre className="p1mcp-output-code">
+                  {outputTab === 'result' && <JsonHighlight value={resultValue} />}
+                  {outputTab === 'audit' && (
+                    <JsonHighlight value={resp.gwAuditTrail || { note: 'No audit trail on this response.' }} />
+                  )}
+                  {outputTab === 'authorize' && (
+                    <>
+                      {az ? (
+                        <div style={{ padding: '0 0 16px' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontFamily: "'SF Mono', monospace" }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1px solid #cbd5e1' }}>
+                                <th style={{ textAlign: 'left', padding: '6px 10px', color: '#64748b', fontWeight: 600 }}>P1AZ Field</th>
+                                <th style={{ textAlign: 'left', padding: '6px 10px', color: '#64748b', fontWeight: 600 }}>Value</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {az.decision && (
+                                <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                  <td style={{ padding: '5px 10px', color: '#64748b' }}>Decision</td>
+                                  <td style={{ padding: '5px 10px', color: az.decision === 'PERMIT' ? '#16a34a' : '#dc2626', fontWeight: 700 }}>{az.decision}</td>
+                                </tr>
+                              )}
+                              {az.toolName && (
+                                <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                  <td style={{ padding: '5px 10px', color: '#64748b' }}>ToolName</td>
+                                  <td style={{ padding: '5px 10px', color: '#1e293b' }}>{az.toolName}</td>
+                                </tr>
+                              )}
+                              {az.clientId && (
+                                <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                  <td style={{ padding: '5px 10px', color: '#64748b' }}>ClientId</td>
+                                  <td style={{ padding: '5px 10px', color: '#1e293b' }}>{az.clientId}</td>
+                                </tr>
+                              )}
+                              {az.actClientId && (
+                                <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                  <td style={{ padding: '5px 10px', color: '#64748b' }}>ActClientId</td>
+                                  <td style={{ padding: '5px 10px', color: '#1e293b' }}>{az.actClientId}</td>
+                                </tr>
+                              )}
+                              {az.userId && (
+                                <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                  <td style={{ padding: '5px 10px', color: '#64748b' }}>UserId</td>
+                                  <td style={{ padding: '5px 10px', color: '#1e293b' }}>{az.userId}</td>
+                                </tr>
+                              )}
+                              {az.scopes && (
+                                <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                  <td style={{ padding: '5px 10px', color: '#64748b' }}>Scopes</td>
+                                  <td style={{ padding: '5px 10px', color: '#1e293b' }}>{Array.isArray(az.scopes) ? az.scopes.join(', ') : String(az.scopes)}</td>
+                                </tr>
+                              )}
+                              {az.riskLevel && (
+                                <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                  <td style={{ padding: '5px 10px', color: '#64748b' }}>RiskLevel</td>
+                                  <td style={{ padding: '5px 10px', color: '#1e293b' }}>{az.riskLevel}</td>
+                                </tr>
+                              )}
+                              {az.policyId && (
+                                <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                  <td style={{ padding: '5px 10px', color: '#64748b' }}>PolicyId</td>
+                                  <td style={{ padding: '5px 10px', color: '#1e293b' }}>{az.policyId}</td>
+                                </tr>
+                              )}
+                              {az.reason && (
+                                <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                  <td style={{ padding: '5px 10px', color: '#64748b' }}>Reason</td>
+                                  <td style={{ padding: '5px 10px', color: '#1e293b' }}>{az.reason}</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                          <div style={{ marginTop: 12, borderTop: '1px solid #cbd5e1', paddingTop: 12 }}>
+                            <div style={{ fontSize: 10, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Raw JSON</div>
+                            <JsonHighlight value={az} />
+                          </div>
+                        </div>
+                      ) : (
+                        <JsonHighlight value={{ note: 'No authorize decision on this response.' }} />
+                      )}
+                    </>
+                  )}
+                  {outputTab === 'mcpAudit' && (
+                    <>
+                      {mcpAudit ? (
+                        <div style={{ padding: '0 0 16px' }}>
+                          <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10, lineHeight: 1.5 }}>
+                            <strong style={{ color: '#1e293b' }}>McpAuditFilter 5W1H</strong> - Structured audit event capturing Who, What, When, Where, Why, and How.
+                          </div>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontFamily: "'SF Mono', monospace" }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1px solid #cbd5e1' }}>
+                                <th style={{ textAlign: 'left', padding: '6px 10px', color: '#64748b', fontWeight: 600 }}>5W1H</th>
+                                <th style={{ textAlign: 'left', padding: '6px 10px', color: '#64748b', fontWeight: 600 }}>Value</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {mcpAudit.who && (
+                                <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                  <td style={{ padding: '5px 10px', color: '#d97706', fontWeight: 600 }}>Who</td>
+                                  <td style={{ padding: '5px 10px', color: '#1e293b' }}>{typeof mcpAudit.who === 'object' ? JSON.stringify(mcpAudit.who) : mcpAudit.who}</td>
+                                </tr>
+                              )}
+                              {mcpAudit.what && (
+                                <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                  <td style={{ padding: '5px 10px', color: '#d97706', fontWeight: 600 }}>What</td>
+                                  <td style={{ padding: '5px 10px', color: '#1e293b' }}>{typeof mcpAudit.what === 'object' ? JSON.stringify(mcpAudit.what) : mcpAudit.what}</td>
+                                </tr>
+                              )}
+                              {mcpAudit.when && (
+                                <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                  <td style={{ padding: '5px 10px', color: '#d97706', fontWeight: 600 }}>When</td>
+                                  <td style={{ padding: '5px 10px', color: '#1e293b' }}>{typeof mcpAudit.when === 'object' ? JSON.stringify(mcpAudit.when) : mcpAudit.when}</td>
+                                </tr>
+                              )}
+                              {mcpAudit.where && (
+                                <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                  <td style={{ padding: '5px 10px', color: '#d97706', fontWeight: 600 }}>Where</td>
+                                  <td style={{ padding: '5px 10px', color: '#1e293b' }}>{typeof mcpAudit.where === 'object' ? JSON.stringify(mcpAudit.where) : mcpAudit.where}</td>
+                                </tr>
+                              )}
+                              {mcpAudit.why && (
+                                <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                  <td style={{ padding: '5px 10px', color: '#d97706', fontWeight: 600 }}>Why</td>
+                                  <td style={{ padding: '5px 10px', color: '#1e293b' }}>{typeof mcpAudit.why === 'object' ? JSON.stringify(mcpAudit.why) : mcpAudit.why}</td>
+                                </tr>
+                              )}
+                              {mcpAudit.how && (
+                                <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                  <td style={{ padding: '5px 10px', color: '#d97706', fontWeight: 600 }}>How</td>
+                                  <td style={{ padding: '5px 10px', color: '#1e293b' }}>{typeof mcpAudit.how === 'object' ? JSON.stringify(mcpAudit.how) : mcpAudit.how}</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                          <div style={{ marginTop: 12, borderTop: '1px solid #cbd5e1', paddingTop: 12 }}>
+                            <div style={{ fontSize: 10, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Raw JSON</div>
+                            <JsonHighlight value={mcpAudit} />
+                          </div>
+                        </div>
+                      ) : (
+                        <JsonHighlight value={{ note: 'No McpAudit event. Ensure McpAuditFilter is active in PingGateway.' }} />
+                      )}
+                    </>
+                  )}
+                </pre>
+              </div>
+              <div className="p1mcp-output-footer">
+                <span>
+                  <strong>Status:</strong>{' '}
+                  {resp.clientError
+                    ? 'Error'
+                    : isRateLimited
+                      ? '429 Rate Limited'
+                      : resp.ok
+                        ? '200 OK'
+                        : `Error: ${resp.error || 'unknown'}`}
+                </span>
+                <span><strong>Duration:</strong> {resp.durationMs ?? '?'}ms</span>
+                <span><strong>Decision:</strong> {decision || 'N/A'}</span>
+                <span><strong>Gateway:</strong> {resp.gateway?.name || active?.name || '?'}</span>
+              </div>
+            </>
+          ) : burstResp ? (
+            <>
+              <div className="p1mcp-output-body">
+                <pre className="p1mcp-output-code">
+                  <JsonHighlight value={burstResp} />
+                </pre>
+              </div>
+              <div className="p1mcp-output-footer">
+                <span><strong>Burst test:</strong> {burstResp.summary || `${(burstResp.results || []).length} calls`}</span>
+              </div>
+            </>
+          ) : (
+            <div className="p1mcp-output-empty">
+              {selectedTool
+                ? 'Click Execute to send through the gateway and see results here.'
+                : 'Select a tool, then execute it to see results.'}
+            </div>
+          )}
         </div>
       </div>
     </div>

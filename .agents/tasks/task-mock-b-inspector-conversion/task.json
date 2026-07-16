@@ -1,0 +1,7 @@
+{
+  "task_id": "task-mock-b-inspector-conversion",
+  "task_description": "Convert all inspector/tester components (McpInspector, AgentGatewayTester, ResourceServerTester, TokenSecurityTester, ApiExplorerPanel) to the Mock B dark IDE three-column layout pattern used by PingOneMcpInspector.js. Excludes agent components (AIAgent.js, UnifiedTokenFlowInspector.jsx).",
+  "status": "in_progress",
+  "feature_order": ["FEAT-001", "FEAT-002", "FEAT-003", "FEAT-004", "FEAT-005"],
+  "blocked_reason": null
+}

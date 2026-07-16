@@ -1,0 +1,30 @@
+{
+  "id": "FEAT-001",
+  "type": "refactor",
+  "description": "Convert McpInspector.js from page-shell chip-based layout to Mock B dark IDE three-column layout, matching PingOneMcpInspector.js pattern exactly.",
+  "status": "completed",
+  "steps": [
+    "Read PingOneMcpInspector.js thoroughly as the reference implementation for layout structure, state management, and rendering patterns.",
+    "Rewrite McpInspector.js to use the p1mcp-* CSS class three-column layout: (1) top bar with connection dot, title 'Demo MCP Inspector', status showing connected tool count, Refresh button; (2) three-column grid with p1mcp-grid class; (3) Column 1: tool tree with search, grouped by resource type using existing groupByResource logic, items with colored dots (green=read, amber=write, red=sensitive), active item highlighted blue; (4) Column 2: form panel with selected tool name (monospace), description, parameter fields with required asterisk + type hint, Execute/Clear buttons; (5) Column 3: output panel with tabs (Response, Request JSON-RPC), syntax-highlighted JSON via JsonHighlight, footer with Status/Duration/Transport.",
+    "Preserve all existing functionality: tool fetching from /api/mcp/inspector/tools, tool invocation via /api/mcp/inspector/invoke, param coercion logic, MCP call history tracking, the toolsSourceInfo notice, the needsLogin error state, and the static fallback tools.",
+    "Keep the existing imports (apiClient, notifyError, formatAxiosError, getCalls/subscribe/appendMcpCall, navigateToCustomerOAuthLogin, JsonHighlight, useEducationUI, EDU, PageNav) but remove any that become unused.",
+    "Remove the old McpInspector.css styles that are no longer needed. The component should use PingOneMcpInspector.css classes (already imported).",
+    "The MCP call history section should appear in the tree column footer or as a collapsible section below the tree, maintaining the existing mcpHistory state.",
+    "Keep the existing PageNav component at the top for navigation consistency, but place the Mock B top bar directly below it.",
+    "The 'What is MCP?' education button and 'PingOne MCP Inspector' link can move to the top bar right section alongside Refresh."
+  ],
+  "acceptance_criteria": [
+    "McpInspector.js renders a dark IDE three-column layout matching PingOneMcpInspector.js visual structure",
+    "Tool tree in column 1 shows tools grouped by resource with colored dots and search filter",
+    "Selecting a tool populates column 2 with tool name, description, and parameter fields",
+    "Executing a tool shows response in column 3 with tabs for Response and Request JSON-RPC",
+    "Output footer shows Status, Duration, and Transport info",
+    "All existing API calls (/api/mcp/inspector/tools, /api/mcp/inspector/invoke) still work",
+    "vite build succeeds without errors"
+  ],
+  "verification": [
+    "cd demo_api_ui && HTTPS=false npx vite build"
+  ],
+  "blocked_reason": null,
+  "findings": "Conversion successful. Removed old McpInspector.css import and appShellPages.css import since the component now uses only PingOneMcpInspector.css classes. The MCP call history is shown both in the tree footer (last 10 calls) and as a dedicated output tab. The needsLogin notice and toolsSourceInfo warning are displayed as dark-themed inline banners below the top bar. The Section component was removed as it is no longer needed in the three-column layout. Build passes cleanly with vite build."
+}

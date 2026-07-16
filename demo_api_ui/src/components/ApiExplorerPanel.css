@@ -1,282 +1,87 @@
-.aep-root {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  font-family: var(--font-sans, sans-serif);
-  min-width: 0;
-}
-.aep-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  border-bottom: 1px solid #e2e8f0;
-  flex-shrink: 0;
-  flex-wrap: wrap;
-}
-.aep-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--brand-navy, #1a365d);
-}
-.aep-count {
-  font-size: 0.78rem;
-  color: #94a3b8;
-  font-family: inherit;
-}
-.aep-btn {
-  padding: 5px 12px;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
-  color: #475569;
-  cursor: pointer;
-  font-size: 0.82rem;
-  font-weight: 600;
-}
-.aep-btn:hover {
-  background: #f1f5f9;
+/* ApiExplorerPanel.css — Light grey IDE three-column layout overrides (Mock B) */
+/* Base layout provided by PingOneMcpInspector.css (p1mcp-* classes) */
+
+/* Top bar error indicator */
+.aep-topbar-error {
+  font-size: 11px;
+  color: #f87171;
+  padding: 2px 8px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 4px;
 }
 
-/* Split layout */
-.aep-body {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-.aep-list {
-  width: 260px;
-  min-width: 180px;
-  flex-shrink: 0;
-  border-right: 2px solid #e2e8f0;
-  overflow-y: auto;
-}
-.aep-list-empty {
-  padding: 40px 16px;
-  text-align: center;
-  color: #94a3b8;
-  font-size: 0.85rem;
-  line-height: 1.6;
-}
-
-/* Call rows */
-.aep-call-row {
-  padding: 9px 12px;
-  border-bottom: 1px solid #f1f5f9;
-  cursor: pointer;
-}
-.aep-call-row:hover {
-  background: #f8fafc;
-}
-.aep-call-row--selected {
-  background: #eff6ff;
-  border-left: 3px solid #3b82f6;
-}
-.aep-call-row--err {
-  border-left: 3px solid #ef4444;
-}
-.aep-call-row--err.aep-call-row--selected {
-  border-left-color: #3b82f6;
-}
-.aep-call-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.aep-method {
-  font-size: 0.68rem;
+/* Method badges in tree items */
+.aep-method-badge {
+  font-size: 9px;
   font-weight: 700;
   padding: 1px 5px;
   border-radius: 3px;
-  font-family: inherit;
+  font-family: 'SF Mono', SFMono-Regular, monospace;
   white-space: nowrap;
+  flex-shrink: 0;
 }
-.aep-method--GET {
-  background: #dbeafe;
-  color: #1d4ed8;
-}
-.aep-method--POST {
-  background: #dcfce7;
-  color: #15803d;
-}
-.aep-method--PUT {
-  background: #fef9c3;
-  color: #854d0e;
-}
-.aep-method--DELETE {
-  background: #fee2e2;
-  color: #991b1b;
-}
-.aep-method--PATCH {
-  background: #e2e8f0;
-  color: #334155;
-}
-.aep-status {
-  font-size: 0.68rem;
-  font-weight: 700;
-  font-family: inherit;
-  padding: 1px 5px;
-  border-radius: 3px;
-}
-.aep-status--ok {
-  background: #dcfce7;
-  color: #15803d;
-}
-.aep-status--err {
-  background: #fee2e2;
-  color: #991b1b;
-}
-.aep-url {
-  font-size: 0.72rem;
+.aep-method-badge--GET { background: #dbeafe; color: #1d4ed8; }
+.aep-method-badge--POST { background: #dcfce7; color: #166534; }
+.aep-method-badge--PUT { background: #fef3c7; color: #92400e; }
+.aep-method-badge--DELETE { background: #fee2e2; color: #991b1b; }
+.aep-method-badge--PATCH { background: #e2e8f0; color: #475569; }
+.aep-method-badge--OPTIONS { background: #e2e8f0; color: #475569; }
+.aep-method-badge--HEAD { background: #e2e8f0; color: #475569; }
+
+/* Tree item URL text */
+.aep-tree-url {
+  font-size: 11px;
   color: #475569;
-  font-family: inherit;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-top: 3px;
-}
-.aep-dur {
-  font-size: 0.68rem;
-  color: #94a3b8;
-}
-
-/* Detail panel (right side) */
-.aep-detail {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.aep-detail--empty {
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  color: #94a3b8;
-  font-size: 0.88rem;
-  padding: 40px 24px;
 }
 
-.aep-detail-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  border-bottom: 1px solid #e2e8f0;
-  background: #f8fafc;
-  flex-shrink: 0;
-}
-.aep-close-btn {
-  margin-left: auto;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 0.95rem;
-  color: #94a3b8;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-.aep-close-btn:hover {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.aep-url-full {
-  font-size: 0.76rem;
-  font-family: inherit;
-  color: #1d4ed8;
-  word-break: break-all;
-  background: #eff6ff;
-  padding: 6px 14px;
-  flex-shrink: 0;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-/* Inner tab bar */
-.aep-detail-tabs {
-  display: flex;
-  gap: 2px;
-  padding: 6px 14px 0;
-  background: #f8fafc;
-  border-bottom: 2px solid #e2e8f0;
-  flex-shrink: 0;
-}
-.aep-detail-tab {
-  padding: 5px 14px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  border: 1px solid transparent;
-  border-bottom: none;
-  border-radius: 4px 4px 0 0;
-  background: none;
-  cursor: pointer;
-  color: #64748b;
-}
-.aep-detail-tab:hover {
-  background: #e2e8f0;
-}
-.aep-detail-tab--active {
-  background: #fff;
-  border-color: #e2e8f0;
-  color: #1d4ed8;
-  margin-bottom: -2px;
-  border-bottom: 2px solid #fff;
-}
-
-/* Scrollable body area */
-.aep-detail-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px 14px;
-}
-
-.aep-json {
-  background: #0f172a;
-  color: #e2e8f0;
-  padding: 12px 14px;
-  border-radius: 6px;
-  font-size: 0.78rem;
-  font-family: inherit;
-  white-space: pre-wrap;
-  word-break: break-all;
-  overflow: auto;
-  line-height: 1.6;
-  margin: 0;
-  max-height: 500px;
-}
-.aep-json--none {
-  color: #64748b;
-  font-style: italic;
-  background: #f8fafc;
-  border: 1px dashed #e2e8f0;
-}
-.aep-section-label {
-  font-size: 0.68rem;
+/* Tree item status badge */
+.aep-tree-status {
+  font-size: 9px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #94a3b8;
-  margin-bottom: 6px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.aep-tree-status--ok { background: #dcfce7; color: #166534; }
+.aep-tree-status--err { background: #fee2e2; color: #991b1b; }
+
+/* Tree item duration */
+.aep-tree-dur {
+  font-size: 9px;
+  color: #64748b;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
-/* Stats bar */
-.aep-stats-row {
+/* Stats compact in header */
+.aep-stats-compact {
+  font-size: 9px;
+  color: #64748b;
+  font-weight: 400;
+}
+
+/* Tree footer stats */
+.aep-tree-footer {
+  padding: 8px 16px;
+  border-top: 1px solid #cbd5e1;
   display: flex;
-  gap: 16px;
   flex-wrap: wrap;
-  padding: 6px 16px;
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
-  font-size: 0.75rem;
+  gap: 10px;
+  font-size: 10px;
   color: #64748b;
   flex-shrink: 0;
 }
-.aep-stat {
+.aep-tree-footer__stat {
   display: flex;
-  gap: 4px;
+  gap: 3px;
 }
-.aep-stat strong {
-  color: #1e293b;
+.aep-tree-footer__stat strong {
+  color: #334155;
 }
+.aep-tree-footer__ok { color: #16a34a !important; }
+.aep-tree-footer__err { color: #dc2626 !important; }

@@ -30,6 +30,7 @@ import PrivilegesGatewayPreviewPage from "./components/agentStudioPreview/Privil
 import PlatformGapsPage from "./components/agentStudioPreview/PlatformGapsPage";
 import AgentFlowDiagramPanel from "./components/AgentFlowDiagramPanel";
 import { AgenticTrustEducation } from "./components/AgenticTrustEducation";
+import AgentGatewayTester from "./components/AgentGatewayTester";
 import OwaspLearnerPage from "./components/OwaspLearnerPage";
 import UngovernedAgentPage from "./components/UngovernedAgentPage";
 import AIAgent from "./components/AIAgent";
@@ -79,6 +80,7 @@ import AuthorizeFallbackListener from "./components/AuthorizeFallbackListener";
 import SessionReauthBanner from "./components/SessionReauthBanner";
 import SportingGoodsAdminOps from "./components/SportingGoodsAdminOps";
 import SpinnerHost from "./components/shared/SpinnerHost";
+import TokenSecurityTester from "./components/TokenSecurityTester";
 import TopNav from "./components/TopNav";
 import TransactionConsentPage from "./components/TransactionConsentPage";
 import Transactions from "./components/Transactions";
@@ -982,6 +984,14 @@ function AppWithAuth() {
                                   onLogout={logout}
                                 />
                               }
+                            />
+                            <Route
+                              path="/pinggateway-test"
+                              element={<AgentGatewayTester />}
+                            />
+                            <Route
+                              path="/token-security"
+                              element={<TokenSecurityTester />}
                             />
                             <Route
                               path="/webmcp"
