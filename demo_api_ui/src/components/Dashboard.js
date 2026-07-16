@@ -76,6 +76,7 @@ const Dashboard = ({ user, onLogout }) => {
   const [apiCallsModalOpen, setApiCallsModalOpen] = useState(false);
   const [showEventStream, setShowEventStream] = useState(false);
   const fetchingRef = React.useRef(false);
+  const mountedRef = React.useRef(true);
   const [scopeInjectionEnabled, setScopeInjectionEnabled] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState(null);
   const [metricDetails, setMetricDetails] = useState(null);
@@ -274,6 +275,8 @@ const Dashboard = ({ user, onLogout }) => {
     async (attempt = 0) => {
       if (fetchingRef.current && attempt === 0) return;
       if (attempt === 0) fetchingRef.current = true;
+      // Guard: abort retries if component has unmounted
+      if (mountedRef.current === false) return;
       try {
         setLoading(true);
         const [statsResult, activityResult] = await Promise.allSettled([
@@ -376,7 +379,9 @@ const Dashboard = ({ user, onLogout }) => {
   );
 
   useEffect(() => {
+    mountedRef.current = true;
     fetchDashboardData();
+    return () => { mountedRef.current = false; };
   }, [fetchDashboardData]);
 
   useEffect(() => {

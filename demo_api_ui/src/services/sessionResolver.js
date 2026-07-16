@@ -9,20 +9,33 @@ import { getCachedJson } from './cachedStatusService';
  * Cache cleared on login/logout events. BFF cookie auth means cached status is safe.
  */
 export async function resolveSessionUser() {
-  const [admin, endUser, session] = await Promise.allSettled([
-    getCachedJson('/api/auth/oauth/status'),
-    getCachedJson('/api/auth/oauth/user/status'),
-    getCachedJson('/api/auth/session'),
-  ]);
+  const SESSION_RESOLVE_TIMEOUT = 10000; // 10s timeout to prevent indefinite UI hang
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('Session resolution timed out')), SESSION_RESOLVE_TIMEOUT)
+  );
 
-  const adminUser = admin.status === 'fulfilled' && admin.value?.data?.authenticated ? admin.value.data.user : null;
-  if (adminUser) return adminUser;
+  try {
+    const [admin, endUser, session] = await Promise.race([
+      Promise.allSettled([
+        getCachedJson('/api/auth/oauth/status'),
+        getCachedJson('/api/auth/oauth/user/status'),
+        getCachedJson('/api/auth/session'),
+      ]),
+      timeoutPromise.then(() => { throw new Error('timeout'); }),
+    ]);
 
-  const endUserUser = endUser.status === 'fulfilled' && endUser.value?.data?.authenticated ? endUser.value.data.user : null;
-  if (endUserUser) return endUserUser;
+    const adminUser = admin.status === 'fulfilled' && admin.value?.data?.authenticated ? admin.value.data.user : null;
+    if (adminUser) return adminUser;
 
-  const sessionUser = session.status === 'fulfilled' && session.value?.data?.authenticated ? session.value.data.user : null;
-  return sessionUser || null;
+    const endUserUser = endUser.status === 'fulfilled' && endUser.value?.data?.authenticated ? endUser.value.data.user : null;
+    if (endUserUser) return endUserUser;
+
+    const sessionUser = session.status === 'fulfilled' && session.value?.data?.authenticated ? session.value.data.user : null;
+    return sessionUser || null;
+  } catch (err) {
+    console.warn('[sessionResolver] resolveSessionUser failed or timed out:', err.message);
+    return null;
+  }
 }
 
 /**

@@ -26,33 +26,37 @@ const Transactions = ({ user, onLogout }) => {
   const sort = useSortableTable(transactions, TRANSACTION_SORT_ACCESSORS, 'date');
 
   useEffect(() => {
-    fetchTransactions();
+    let cancelled = false;
+    const doFetch = async () => {
+      try {
+        setLoading(true);
+        const sessionUser = await resolveSessionUser();
+        if (cancelled) return;
+        if (!sessionUser) {
+          toastAdminSessionError('Your session has expired. Please sign in again.', navigateToAdminOAuthLogin);
+          return;
+        }
+        const response = await bffAxios.get('/api/transactions');
+        if (cancelled) return;
+        setTransactions(response.data.transactions);
+      } catch (error) {
+        if (cancelled) return;
+        console.error('Transactions error:', error);
+
+        if (error.response?.status === 401) {
+          toastAdminSessionError('Your session has expired. Please sign in again.', navigateToAdminOAuthLogin);
+        } else if (error.response?.status === 403) {
+          notifyError('You do not have permission to view transactions.');
+        } else {
+          notifyError('Failed to load transactions');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    doFetch();
+    return () => { cancelled = true; };
   }, []);
-
-  const fetchTransactions = async () => {
-    try {
-      setLoading(true);
-      const sessionUser = await resolveSessionUser();
-      if (!sessionUser) {
-        toastAdminSessionError('Your session has expired. Please sign in again.', navigateToAdminOAuthLogin);
-        return;
-      }
-      const response = await bffAxios.get('/api/transactions');
-      setTransactions(response.data.transactions);
-    } catch (error) {
-      console.error('Transactions error:', error);
-
-      if (error.response?.status === 401) {
-        toastAdminSessionError('Your session has expired. Please sign in again.', navigateToAdminOAuthLogin);
-      } else if (error.response?.status === 403) {
-        notifyError('You do not have permission to view transactions.');
-      } else {
-        notifyError('Failed to load transactions');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getTransactionTypeColor = (type) => {
     const colors = {

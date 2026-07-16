@@ -172,17 +172,14 @@ const setupBrowserExtensionHandling = () => {
   // Monitor for extension-related errors
   const originalConsoleError = console.error;
   console.error = (...args) => {
-    // Check for browser extension errors
-    const message = args.join(" ");
-    if (
-      message.includes("bootstrap-autofill-overlay.js") ||
-      message.includes("Cannot read properties of null (reading 'includes')")
-    ) {
+    // Only suppress errors whose STACK (not message) references the known extension script.
+    // This avoids masking legitimate app bugs that happen to contain similar message text.
+    const stack = new Error().stack || '';
+    if (stack.includes('bootstrap-autofill-overlay.js')) {
       console.warn(
-        "[Browser Extension] Detected extension interference:",
-        message,
+        "[Browser Extension] Suppressed extension error (matched stack):",
+        args[0]?.toString?.().slice(0, 100),
       );
-      // Don't let extension errors break our app
       return;
     }
     originalConsoleError.apply(console, args);
@@ -190,7 +187,7 @@ const setupBrowserExtensionHandling = () => {
 
   // Add global error handler for extension interference
   const handleGlobalError = (event) => {
-    if (event.error?.message?.includes("bootstrap-autofill-overlay.js")) {
+    if (event.error?.stack?.includes("bootstrap-autofill-overlay.js")) {
       console.warn(
         "[Browser Extension] Prevented extension error from crashing app",
       );

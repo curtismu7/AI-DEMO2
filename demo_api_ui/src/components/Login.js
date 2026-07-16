@@ -28,6 +28,8 @@ const Login = () => {
   useEffect(() => {
     const errorParam = searchParams.get('error');
     if (errorParam) {
+      // Sanitize URL-derived values to prevent rendering attacker-controlled content
+      const sanitize = (s) => (s || '').slice(0, 120).replace(/[<>&"']/g, '');
       let errorMessage = '';
       switch (errorParam) {
         case 'oauth_error':
@@ -40,7 +42,7 @@ const Login = () => {
           errorMessage = 'No authorization code received. Please try again.';
           break;
         case 'callback_failed': {
-          const detail = searchParams.get('detail') || '';
+          const detail = sanitize(searchParams.get('detail'));
           if (detail === 'invalid_client') {
             errorMessage = 'Sign-in failed due to a configuration issue. Please contact your administrator.';
           } else if (detail === 'invalid_grant') {
