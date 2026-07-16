@@ -2,7 +2,7 @@
   "id": "FEAT-002",
   "type": "refactor",
   "description": "Convert AgentGatewayTester.jsx from mgc-root vertical sections layout to Mock B dark IDE three-column layout.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Read PingOneMcpInspector.js as the reference for Mock B layout structure.",
     "Rewrite AgentGatewayTester.jsx to use the p1mcp-* CSS classes for Mock B three-column layout: (1) Top bar with connection dot (green when gateway is active), title 'Agent Gateway Tester', status showing active gateway name + authorize backend, Refresh/Switch Gateway buttons; (2) Column 1 (tree): list of available MCP tools as tree items (from the tools state, grouped conceptually), with colored dots, active highlight on selected tool, plus a 'Configuration' group showing gateway mode toggles, rate-limit status, and demo preset buttons as actionable tree items; (3) Column 2 (form): selected tool name + description at top, Arguments (JSON) textarea as the parameter field, Execute button + Clear button, plus inline display of gateway/authz state relevant to the call; (4) Column 3 (output): tabbed output with tabs for 'Result', 'Audit Trail', 'Authorize Decision', 'McpAudit (5W1H)' -- each showing the relevant JSON-highlighted section from the response.",
