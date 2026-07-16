@@ -41,6 +41,9 @@ COPY scope-topology.json /scope-topology.json
 COPY service-topology.json /service-topology.json
 # geminiNlIntent.js resolves to /docs/HELIX_AGENT_DIRECTIVES.json
 COPY docs/ /docs/
+
+# OKF knowledge bundles (banking-domain.okf.json, repo-topology.okf.json)
+COPY graphify-out/*.okf.json /graphify-out/
 # llamacppModelsService.js resolves to /demo_llm_proxy/modelCatalog.js (../../ from /app/services)
 COPY demo_llm_proxy/modelCatalog.js /demo_llm_proxy/modelCatalog.js
 # pingOneAuthorizeService.getAuthorizationPoliciesFromSnapshot resolves to /snapshots/… (../../ from /app/services)

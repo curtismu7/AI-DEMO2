@@ -62,9 +62,9 @@ function isFlagEnabled() {
  * @returns {string} The (possibly augmented) system prompt
  */
 function injectOkfKnowledge(systemPrompt, opts = {}) {
-  // Guard: if systemPrompt is null/undefined (e.g., missing manifest), passthrough
+  // Guard: if systemPrompt is null/undefined (e.g., missing manifest), passthrough unchanged
   if (!systemPrompt) {
-    return systemPrompt || '';
+    return systemPrompt;
   }
 
   const {
