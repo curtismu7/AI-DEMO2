@@ -5819,6 +5819,8 @@ export default function BankingAgent({
         trigger.sim === "wrong-aud-token" ? "wrong-aud" : trigger.sim;
       addMessage("user", stepLabel);
       setNlLoading(true);
+      // Reset token chain trace so the proof strip shows this use case, not a stale one
+      try { tokenChainTraceStore.beginTrace({ prompt: stepLabel }); } catch (_) {}
       try {
         const { data } = await apiClient.post("/api/demo/attack-sim/run", { sim });
         const status = data?.status;
