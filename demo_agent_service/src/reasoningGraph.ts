@@ -45,6 +45,11 @@ function toAnthropicMessages(messages: ReasonMessage[]): Anthropic.MessageParam[
       }
       out.push({ role: 'assistant', content: blocks });
       i++;
+    } else if (msg.role === 'system') {
+      // Skip system messages — they should be passed via the `system` parameter
+      // in the Anthropic API call, not as a message. Including them as 'user'
+      // would confuse the model by treating instructions as user input.
+      i++;
     } else {
       out.push({ role: msg.role as 'user' | 'assistant', content: msg.content });
       i++;

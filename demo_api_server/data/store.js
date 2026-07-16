@@ -458,14 +458,12 @@ class DataStore {
     if (!this._transferLocks.has(key)) {
       this._transferLocks.set(key, Promise.resolve());
     }
-    const currentLock = this._transferLocks.get(key);
-    const newLock = currentLock.then(() => {
-      return new Promise(resolve => {
-        setTimeout(resolve, 0);
-      });
-    });
-    this._transferLocks.set(key, newLock);
-    return currentLock;
+    let releaseFn;
+    const prev = this._transferLocks.get(key);
+    const gate = new Promise(resolve => { releaseFn = resolve; });
+    this._transferLocks.set(key, gate);
+    // Wait for previous lock holder to finish, then return a release function
+    return prev.then(() => releaseFn);
   }
 
   async applyTransfer({ fromAccountId, toAccountId, amount, userId, description }) {
@@ -473,27 +471,35 @@ class DataStore {
     if (!Number.isFinite(amt) || amt <= 0) return { ok: false, reason: 'invalid_amount' };
 
     const lockKey = [fromAccountId, toAccountId].filter(Boolean).sort().join('|');
-    await this._acquireLock(lockKey);
+    const release = await this._acquireLock(lockKey);
 
-    // ── synchronous critical section — DO NOT add `await` inside ──────────────
-    const from = fromAccountId ? this.accounts.get(fromAccountId) : null;
-    const to = toAccountId ? this.accounts.get(toAccountId) : null;
-    if (fromAccountId && !from) return { ok: false, reason: 'from_not_found' };
-    if (toAccountId && !to) return { ok: false, reason: 'to_not_found' };
-    if (from && from.balance < amt) return { ok: false, reason: 'insufficient_funds' };
+    try {
+      // ── synchronous critical section — DO NOT add `await` inside ──────────────
+      const from = fromAccountId ? this.accounts.get(fromAccountId) : null;
+      const to = toAccountId ? this.accounts.get(toAccountId) : null;
+      if (fromAccountId && !from) return { ok: false, reason: 'from_not_found' };
+      if (toAccountId && !to) return { ok: false, reason: 'to_not_found' };
+      if (from && from.balance < amt) return { ok: false, reason: 'insufficient_funds' };
 
-    if (from) {
-      from.balance = roundToCents(from.balance - amt);
-      this.accounts.set(fromAccountId, from);
+      if (from) {
+        from.balance = roundToCents(from.balance - amt);
+        this.accounts.set(fromAccountId, from);
+      }
+      if (to) {
+        to.balance = roundToCents(to.balance + amt);
+        this.accounts.set(toAccountId, to);
+      }
+      // ── end critical section ──────────────────────────────────────────────────
+
+      await this.persistAllData();
+      return { ok: true, fromBalance: from ? from.balance : undefined, toBalance: to ? to.balance : undefined };
+    } finally {
+      release();
+      // Clean up lock entry to prevent unbounded Map growth
+      if (this._transferLocks.get(lockKey) === Promise.resolve()) {
+        this._transferLocks.delete(lockKey);
+      }
     }
-    if (to) {
-      to.balance = roundToCents(to.balance + amt);
-      this.accounts.set(toAccountId, to);
-    }
-    // ── end critical section ──────────────────────────────────────────────────
-
-    await this.persistAllData();
-    return { ok: true, fromBalance: from ? from.balance : undefined, toBalance: to ? to.balance : undefined };
   }
 
   searchUsers(query) {

@@ -1,6 +1,7 @@
 // banking_api_server/services/exchangeAuditStore.js
 /**
  * In-memory token-exchange audit log (ring buffer).
+ * Uses push + slice-from-end for O(1) insertions (avoids unshift's O(n) cost).
  */
 'use strict';
 
@@ -12,11 +13,12 @@ const _events = [];
  * @param {object} event  Arbitrary object; `timestamp` is added if absent.
  */
 async function writeExchangeEvent(event) {
-  _events.unshift({
+  _events.push({
     ...event,
     timestamp: event.timestamp || new Date().toISOString(),
   });
-  if (_events.length > MAX_EVENTS) _events.length = MAX_EVENTS;
+  // Trim from the front (oldest) when over capacity
+  if (_events.length > MAX_EVENTS) _events.splice(0, _events.length - MAX_EVENTS);
 }
 
 /**
@@ -25,7 +27,9 @@ async function writeExchangeEvent(event) {
  * @returns {Promise<object[]>}
  */
 async function readExchangeEvents(limit = MAX_EVENTS) {
-  return _events.slice(0, Math.min(limit, _events.length));
+  // Return newest first (reverse of insertion order)
+  const start = Math.max(0, _events.length - limit);
+  return _events.slice(start).reverse();
 }
 
 module.exports = { writeExchangeEvent, readExchangeEvents };

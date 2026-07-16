@@ -23,8 +23,8 @@ const logTokenInfo = (token, context = '') => {
       return;
     }
 
-    const header = JSON.parse(Buffer.from(parts[0], 'base64').toString());
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+    const header = JSON.parse(Buffer.from(parts[0], 'base64url').toString());
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
 
     if (!header || !payload) {
       verboseOAuthLog(`🔐 [${context}] Failed to decode token`);

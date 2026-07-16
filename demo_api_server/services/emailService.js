@@ -60,6 +60,17 @@ function formatCurrency(amount) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
 }
 
+/** Escape HTML special characters to prevent XSS in email templates. */
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function buildEmailHtml({ type, amount, fromAccount, toAccount, newBalance, transactionId, userName, date }) {
   const typeLabels = { transfer: 'Transfer', deposit: 'Deposit', withdrawal: 'Withdrawal' };
   const typeColors = { transfer: '#277ba5', deposit: '#16a34a', withdrawal: '#dc2626' };
@@ -69,15 +80,21 @@ function buildEmailHtml({ type, amount, fromAccount, toAccount, newBalance, tran
   const color = typeColors[type] || '#277ba5';
   const icon  = typeIcons[type]  || '💰';
 
+  // Sanitize user-controlled values to prevent XSS
+  const safeUserName = escapeHtml(userName);
+  const safeFromAccount = escapeHtml(fromAccount);
+  const safeToAccount = escapeHtml(toAccount);
+  const safeTransactionId = escapeHtml(transactionId);
+
   let accountRows = '';
   if (type === 'transfer' && fromAccount && toAccount) {
     accountRows = `
-      <tr><td style="color:#6b7280;padding:4px 0">From</td><td style="padding:4px 0"><strong>${fromAccount}</strong></td></tr>
-      <tr><td style="color:#6b7280;padding:4px 0">To</td><td style="padding:4px 0"><strong>${toAccount}</strong></td></tr>`;
+      <tr><td style="color:#6b7280;padding:4px 0">From</td><td style="padding:4px 0"><strong>${safeFromAccount}</strong></td></tr>
+      <tr><td style="color:#6b7280;padding:4px 0">To</td><td style="padding:4px 0"><strong>${safeToAccount}</strong></td></tr>`;
   } else if (toAccount) {
-    accountRows = `<tr><td style="color:#6b7280;padding:4px 0">Account</td><td style="padding:4px 0"><strong>${toAccount}</strong></td></tr>`;
+    accountRows = `<tr><td style="color:#6b7280;padding:4px 0">Account</td><td style="padding:4px 0"><strong>${safeToAccount}</strong></td></tr>`;
   } else if (fromAccount) {
-    accountRows = `<tr><td style="color:#6b7280;padding:4px 0">Account</td><td style="padding:4px 0"><strong>${fromAccount}</strong></td></tr>`;
+    accountRows = `<tr><td style="color:#6b7280;padding:4px 0">Account</td><td style="padding:4px 0"><strong>${safeFromAccount}</strong></td></tr>`;
   }
 
   const balanceRow = newBalance !== undefined
@@ -95,7 +112,7 @@ function buildEmailHtml({ type, amount, fromAccount, toAccount, newBalance, tran
         <div style="color:#fff;font-size:22px;font-weight:700">${icon} ${label} Confirmation</div>
       </td></tr>
       <tr><td style="padding:28px 32px">
-        <p style="margin:0 0 20px;color:#374151;font-size:15px">Hi ${userName},</p>
+        <p style="margin:0 0 20px;color:#374151;font-size:15px">Hi ${safeUserName},</p>
         <p style="margin:0 0 24px;color:#374151;font-size:15px">
           Your ${label.toLowerCase()} of <strong style="color:${color}">${formatCurrency(amount)}</strong> was processed successfully.
         </p>
@@ -104,7 +121,7 @@ function buildEmailHtml({ type, amount, fromAccount, toAccount, newBalance, tran
           ${accountRows}
           ${balanceRow}
           <tr><td style="color:#6b7280;padding:4px 0">Date</td><td style="padding:4px 0">${date}</td></tr>
-          <tr><td style="color:#6b7280;padding:4px 0">Reference</td><td style="padding:4px 0"><code style="font-size:12px;background:#f3f4f6;padding:2px 6px;border-radius:4px">${transactionId}</code></td></tr>
+          <tr><td style="color:#6b7280;padding:4px 0">Reference</td><td style="padding:4px 0"><code style="font-size:12px;background:#f3f4f6;padding:2px 6px;border-radius:4px">${safeTransactionId}</code></td></tr>
         </table>
       </td></tr>
       <tr><td style="background:#f9fafb;padding:16px 32px;border-top:1px solid #e5e7eb">
