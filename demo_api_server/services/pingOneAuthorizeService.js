@@ -460,6 +460,9 @@ async function evaluateMcpToolDelegation({
   nestedActClientId,
   mcpResourceUri,
   acr,
+  // Transaction type (transfer/deposit/withdrawal) for amount-threshold-aware
+  // policy evaluation. Without this, PingOne can't distinguish amount bands.
+  transactionType = null,
   // HITL receipt (receipt-aware PERMIT). When the BFF/gateway has verified an
   // approved, caller-bound HITL challenge for THIS tool call, it sets
   // hitlApproved=true. We only FORWARD it as a decision parameter — the Trust
@@ -527,6 +530,7 @@ async function evaluateMcpToolDelegation({
     ...(userTier ? { UserTier: userTier } : {}),
     ...(inRequiredGroup != null ? { InRequiredGroup: inRequiredGroup } : {}),
     ...(amount != null ? { Amount: amount } : {}),
+    ...(transactionType ? { TransactionType: transactionType } : {}),
     ...(resourceOwnerId ? { ResourceOwnerId: resourceOwnerId } : {}),
     ...(rarMaxAmount != null ? { RarMaxAmount: rarMaxAmount } : {}),
     ...(Array.isArray(rarPermittedPayees) ? { RarPermittedPayees: rarPermittedPayees } : {}),
