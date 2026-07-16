@@ -191,12 +191,7 @@ class ApiClient {
     // Returning null causes the interceptor to re-raise the original error without
     // noisy fallback refresh attempts to /api/auth/oauth/refresh.
     return null;
-
-    // eslint-disable-next-line no-unreachable
-    try {
-      // Try to refresh the end user token first
-      try {
-        const userRefreshResponse = await axios.post('/api/auth/oauth/user/refresh');
+  }
         if (userRefreshResponse.data.accessToken) {
           console.debug('Successfully refreshed end user token');
           return userRefreshResponse.data.accessToken;

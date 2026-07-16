@@ -179,6 +179,9 @@ export function useAuth() {
   const logout = useCallback(() => {
     console.info("Starting logout — navigating to /api/auth/logout");
     localStorage.setItem("userLoggedOut", "true");
+    // NOTE: These removals are legacy cleanup. The BFF pattern means tokens
+    // should never be stored client-side. We remove them defensively in case
+    // any legacy code path wrote them.
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("authToken");

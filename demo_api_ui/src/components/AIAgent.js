@@ -993,14 +993,20 @@ export default function BankingAgent({
       if (e.detail?.autoSend) {
         setIsOpen(true); // no-op for inline (effectiveIsOpen is already true)
         // Defer so the panel mounts and runDrawerAttackRef points at the live closure.
-        setTimeout(() => runDrawerAttackRef.current?.({ message: msg }), 80);
+        const tid = setTimeout(() => runDrawerAttackRef.current?.({ message: msg }), 80);
+        timerIds.push(tid);
         return;
       }
       setNlInput(msg);
-      setTimeout(() => nlInputRef.current?.focus(), 50);
+      const tid2 = setTimeout(() => nlInputRef.current?.focus(), 50);
+      timerIds.push(tid2);
     };
+    const timerIds = [];
     window.addEventListener("banking-agent-prefill", handler);
-    return () => window.removeEventListener("banking-agent-prefill", handler);
+    return () => {
+      window.removeEventListener("banking-agent-prefill", handler);
+      timerIds.forEach(clearTimeout);
+    };
   }, []);
 
   // Open demo guide when event dispatched from side menu
