@@ -257,6 +257,8 @@ export default function AgentGatewayTester() {
   const clearForm = () => {
     setArgsText('{}');
     setResp(null);
+    setBurstResp(null);
+    setOutputTab('result');
   };
 
   return (
@@ -518,10 +520,145 @@ export default function AgentGatewayTester() {
                     <JsonHighlight value={resp.gwAuditTrail || { note: 'No audit trail on this response.' }} />
                   )}
                   {outputTab === 'authorize' && (
-                    <JsonHighlight value={az || { note: 'No authorize decision on this response.' }} />
+                    <>
+                      {az ? (
+                        <div style={{ padding: '0 0 16px' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontFamily: "'SF Mono', monospace" }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1px solid #334155' }}>
+                                <th style={{ textAlign: 'left', padding: '6px 10px', color: '#64748b', fontWeight: 600 }}>P1AZ Field</th>
+                                <th style={{ textAlign: 'left', padding: '6px 10px', color: '#64748b', fontWeight: 600 }}>Value</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {az.decision && (
+                                <tr style={{ borderBottom: '1px solid #1e293b' }}>
+                                  <td style={{ padding: '5px 10px', color: '#94a3b8' }}>Decision</td>
+                                  <td style={{ padding: '5px 10px', color: az.decision === 'PERMIT' ? '#22c55e' : '#ef4444', fontWeight: 700 }}>{az.decision}</td>
+                                </tr>
+                              )}
+                              {az.toolName && (
+                                <tr style={{ borderBottom: '1px solid #1e293b' }}>
+                                  <td style={{ padding: '5px 10px', color: '#94a3b8' }}>ToolName</td>
+                                  <td style={{ padding: '5px 10px', color: '#e2e8f0' }}>{az.toolName}</td>
+                                </tr>
+                              )}
+                              {az.clientId && (
+                                <tr style={{ borderBottom: '1px solid #1e293b' }}>
+                                  <td style={{ padding: '5px 10px', color: '#94a3b8' }}>ClientId</td>
+                                  <td style={{ padding: '5px 10px', color: '#e2e8f0' }}>{az.clientId}</td>
+                                </tr>
+                              )}
+                              {az.actClientId && (
+                                <tr style={{ borderBottom: '1px solid #1e293b' }}>
+                                  <td style={{ padding: '5px 10px', color: '#94a3b8' }}>ActClientId</td>
+                                  <td style={{ padding: '5px 10px', color: '#e2e8f0' }}>{az.actClientId}</td>
+                                </tr>
+                              )}
+                              {az.userId && (
+                                <tr style={{ borderBottom: '1px solid #1e293b' }}>
+                                  <td style={{ padding: '5px 10px', color: '#94a3b8' }}>UserId</td>
+                                  <td style={{ padding: '5px 10px', color: '#e2e8f0' }}>{az.userId}</td>
+                                </tr>
+                              )}
+                              {az.scopes && (
+                                <tr style={{ borderBottom: '1px solid #1e293b' }}>
+                                  <td style={{ padding: '5px 10px', color: '#94a3b8' }}>Scopes</td>
+                                  <td style={{ padding: '5px 10px', color: '#e2e8f0' }}>{Array.isArray(az.scopes) ? az.scopes.join(', ') : String(az.scopes)}</td>
+                                </tr>
+                              )}
+                              {az.riskLevel && (
+                                <tr style={{ borderBottom: '1px solid #1e293b' }}>
+                                  <td style={{ padding: '5px 10px', color: '#94a3b8' }}>RiskLevel</td>
+                                  <td style={{ padding: '5px 10px', color: '#e2e8f0' }}>{az.riskLevel}</td>
+                                </tr>
+                              )}
+                              {az.policyId && (
+                                <tr style={{ borderBottom: '1px solid #1e293b' }}>
+                                  <td style={{ padding: '5px 10px', color: '#94a3b8' }}>PolicyId</td>
+                                  <td style={{ padding: '5px 10px', color: '#e2e8f0' }}>{az.policyId}</td>
+                                </tr>
+                              )}
+                              {az.reason && (
+                                <tr style={{ borderBottom: '1px solid #1e293b' }}>
+                                  <td style={{ padding: '5px 10px', color: '#94a3b8' }}>Reason</td>
+                                  <td style={{ padding: '5px 10px', color: '#e2e8f0' }}>{az.reason}</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                          <div style={{ marginTop: 12, borderTop: '1px solid #334155', paddingTop: 12 }}>
+                            <div style={{ fontSize: 10, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Raw JSON</div>
+                            <JsonHighlight value={az} />
+                          </div>
+                        </div>
+                      ) : (
+                        <JsonHighlight value={{ note: 'No authorize decision on this response.' }} />
+                      )}
+                    </>
                   )}
                   {outputTab === 'mcpAudit' && (
-                    <JsonHighlight value={mcpAudit || { note: 'No McpAudit event. Ensure McpAuditFilter is active in PingGateway.' }} />
+                    <>
+                      {mcpAudit ? (
+                        <div style={{ padding: '0 0 16px' }}>
+                          <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 10, lineHeight: 1.5 }}>
+                            <strong style={{ color: '#e2e8f0' }}>McpAuditFilter 5W1H</strong> - Structured audit event capturing Who, What, When, Where, Why, and How.
+                          </div>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontFamily: "'SF Mono', monospace" }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1px solid #334155' }}>
+                                <th style={{ textAlign: 'left', padding: '6px 10px', color: '#64748b', fontWeight: 600 }}>5W1H</th>
+                                <th style={{ textAlign: 'left', padding: '6px 10px', color: '#64748b', fontWeight: 600 }}>Value</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {mcpAudit.who && (
+                                <tr style={{ borderBottom: '1px solid #1e293b' }}>
+                                  <td style={{ padding: '5px 10px', color: '#f59e0b', fontWeight: 600 }}>Who</td>
+                                  <td style={{ padding: '5px 10px', color: '#e2e8f0' }}>{typeof mcpAudit.who === 'object' ? JSON.stringify(mcpAudit.who) : mcpAudit.who}</td>
+                                </tr>
+                              )}
+                              {mcpAudit.what && (
+                                <tr style={{ borderBottom: '1px solid #1e293b' }}>
+                                  <td style={{ padding: '5px 10px', color: '#f59e0b', fontWeight: 600 }}>What</td>
+                                  <td style={{ padding: '5px 10px', color: '#e2e8f0' }}>{typeof mcpAudit.what === 'object' ? JSON.stringify(mcpAudit.what) : mcpAudit.what}</td>
+                                </tr>
+                              )}
+                              {mcpAudit.when && (
+                                <tr style={{ borderBottom: '1px solid #1e293b' }}>
+                                  <td style={{ padding: '5px 10px', color: '#f59e0b', fontWeight: 600 }}>When</td>
+                                  <td style={{ padding: '5px 10px', color: '#e2e8f0' }}>{typeof mcpAudit.when === 'object' ? JSON.stringify(mcpAudit.when) : mcpAudit.when}</td>
+                                </tr>
+                              )}
+                              {mcpAudit.where && (
+                                <tr style={{ borderBottom: '1px solid #1e293b' }}>
+                                  <td style={{ padding: '5px 10px', color: '#f59e0b', fontWeight: 600 }}>Where</td>
+                                  <td style={{ padding: '5px 10px', color: '#e2e8f0' }}>{typeof mcpAudit.where === 'object' ? JSON.stringify(mcpAudit.where) : mcpAudit.where}</td>
+                                </tr>
+                              )}
+                              {mcpAudit.why && (
+                                <tr style={{ borderBottom: '1px solid #1e293b' }}>
+                                  <td style={{ padding: '5px 10px', color: '#f59e0b', fontWeight: 600 }}>Why</td>
+                                  <td style={{ padding: '5px 10px', color: '#e2e8f0' }}>{typeof mcpAudit.why === 'object' ? JSON.stringify(mcpAudit.why) : mcpAudit.why}</td>
+                                </tr>
+                              )}
+                              {mcpAudit.how && (
+                                <tr style={{ borderBottom: '1px solid #1e293b' }}>
+                                  <td style={{ padding: '5px 10px', color: '#f59e0b', fontWeight: 600 }}>How</td>
+                                  <td style={{ padding: '5px 10px', color: '#e2e8f0' }}>{typeof mcpAudit.how === 'object' ? JSON.stringify(mcpAudit.how) : mcpAudit.how}</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                          <div style={{ marginTop: 12, borderTop: '1px solid #334155', paddingTop: 12 }}>
+                            <div style={{ fontSize: 10, color: '#475569', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Raw JSON</div>
+                            <JsonHighlight value={mcpAudit} />
+                          </div>
+                        </div>
+                      ) : (
+                        <JsonHighlight value={{ note: 'No McpAudit event. Ensure McpAuditFilter is active in PingGateway.' }} />
+                      )}
+                    </>
                   )}
                 </pre>
               </div>

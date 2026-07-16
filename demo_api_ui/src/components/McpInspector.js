@@ -422,7 +422,7 @@ const McpInspector = ({ user, onLogout }) => {
         )}
 
         {/* Three-column grid */}
-        <div className="p1mcp-grid">
+        <div className="p1mcp-grid p1mcp-grid--with-pagenav">
           {/* Column 1: Tree */}
           <div className="p1mcp-col-tree">
             <div className="p1mcp-tree-header">

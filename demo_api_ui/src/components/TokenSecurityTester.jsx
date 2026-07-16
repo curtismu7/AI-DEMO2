@@ -71,6 +71,8 @@ export default function TokenSecurityTester() {
   const handleClear = () => {
     setResult(null);
     setError(null);
+    setSelectedScenario(null);
+    setOutputTab('result');
   };
 
   const selectScenario = (scenario) => {

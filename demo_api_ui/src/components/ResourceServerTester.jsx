@@ -167,14 +167,11 @@ export default function ResourceServerTester({
   }, [selectedOp, payload, probeTarget]);
 
   const clearOutput = () => {
-    if (!selectedOp) return;
-    const runner = getRunner(selectedOp.id);
-    if (runner) {
-      // Reset runner state by re-rendering - but we cannot reset hooks directly,
-      // so we just deselect and reselect
-    }
-    // Clear by deselecting
+    // Reset all runners by re-creating the component state - we reset via deselect + reselect
     setSelectedOp(null);
+    setOutputTab('result');
+    // Also reset the paste field if source is paste
+    if (source === 'paste') setPasted('');
   };
 
   const currentRunner = selectedOp ? getRunner(selectedOp.id) : null;

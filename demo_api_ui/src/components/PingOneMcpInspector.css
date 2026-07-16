@@ -35,6 +35,10 @@
   height: calc(100vh - 45px);
   overflow: hidden;
 }
+/* Modifier: when a PageNav sits above the p1mcp-page wrapper, reduce grid height */
+.p1mcp-grid--with-pagenav {
+  height: calc(100vh - 45px - 50px);
+}
 
 /* Column 1: Tool tree */
 .p1mcp-col-tree {
