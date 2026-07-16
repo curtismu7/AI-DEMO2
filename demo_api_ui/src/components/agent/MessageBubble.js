@@ -1,6 +1,8 @@
 // banking_api_ui/src/components/agent/MessageBubble.js
 import React from 'react';
 import { InlineMd, MarkdownContent } from '../shared/MarkdownText';
+import { hasCitations } from '../../utils/parseCitations';
+import { CitedMessage, CitationFooter } from '../CitationPill';
 
 /**
  * Modern message bubble component with accessibility and animations
@@ -120,6 +122,11 @@ export default function MessageBubble({
               </svg>
               <span><InlineMd text={content} /></span>
             </div>
+          ) : !isUser && hasCitations(content) ? (
+            <>
+              <MarkdownContent text={content} className="agent-message-text" />
+              <CitationFooter text={content} domain="banking-domain" />
+            </>
           ) : (
             <MarkdownContent text={content} className="agent-message-text" />
           )}

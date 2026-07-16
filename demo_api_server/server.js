@@ -981,6 +981,12 @@ app.use('/api/admin/scope-audit', authenticateToken, require('./routes/scopeAudi
 app.use('/api/admin/token-compliance', authenticateToken, require('./routes/tokenCompliance'));
 app.use('/api/admin/lighthouse', authenticateToken, require('./routes/lighthouseRoute'));
 
+// OKF Knowledge Assertions API — citation resolution for the chat UI + admin reload.
+// Public read (assertions/domains/status); admin-only write (reload).
+const okfRouter = require('express').Router();
+require('./routes/okfRoutes')(okfRouter);
+app.use('/api/okf', okfRouter);
+
 // PingOne redirect URI allowlist (JSON). Registered here BEFORE /api/auth so the path is not
 // handled only by routes/auth.js (avoids "Cannot GET" on some deployments).
 app.get('/api/auth/oauth/redirect-info', (_req, res) => {

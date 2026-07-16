@@ -28,6 +28,7 @@ const crypto = require('crypto');
 const { logDelegationEvent } = require('../middleware/delegationAuditLogger');
 const { verticalManifest } = require('./verticalManifest');
 const verticalDispatch = require('./verticalDispatch');
+const { injectOkfKnowledge } = require('./okfPromptInjector');
 const { recordToolCall: recordMcpToolCall } = require('./mcpToolAuditStore');
 const conversationStore = require('./lmdb/conversationStore.lmdb');
 
@@ -1412,7 +1413,6 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     // When ff_okf_grounding is ON, appends deterministic knowledge assertions
     // from graphify-out/banking-domain.okf.json. The agent will cite these as
     // [K1]–[K12]. When OFF, this is a no-op (returns systemPrompt unchanged).
-    const { injectOkfKnowledge } = require('./okfPromptInjector');
     const groundedPrompt = injectOkfKnowledge(systemPrompt, {
       domain: 'banking-domain',
     });
