@@ -252,6 +252,11 @@ async function executeBffToolWithToken({ name, args, req = null, tokenEvents = [
     deps: callDeps,
     suppliedToken,
     suppliedUserSub,
+    // A2A specialist calls carry a pre-minted nested-act token. The gateway
+    // runs its own PingOne Authorize evaluation on that token — the BFF-side
+    // evaluateMcpFirstToolGate is redundant and may DENY because the policy
+    // doesn't have rules for specialist tools at the BFF decision endpoint.
+    skipBffAuthorize: true,
   };
   const outcome = await runMcpToolPipeline(ctx);
   if (Array.isArray(outcome.tokenEvents)) {

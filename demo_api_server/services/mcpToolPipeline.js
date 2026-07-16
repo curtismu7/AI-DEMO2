@@ -301,6 +301,12 @@ async function runMcpToolPipeline(ctx) {
     // PingOne Authorize (or simulated) on every MCP tool call — docs/PINGONE_AUTHORIZE_PLAN.md §7
     /** @type {object|undefined} */
     let mcpAuthorizeEvaluationThisRequest;
+    // A2A specialist calls (suppliedToken + skipBffAuthorize): the gateway runs
+    // its own PingOne Authorize on the nested-act token. Skip the BFF pre-flight
+    // to avoid redundant denials from a policy that doesn't cover specialist tools.
+    if (ctx.skipBffAuthorize) {
+        deps.emit({ phase: 'authorize_gate_skipped', reason: 'a2a_supplied_token' });
+    } else {
     try {
         deps.emit({
             phase: 'authorize_gate_begin'
@@ -471,6 +477,7 @@ async function runMcpToolPipeline(ctx) {
             tokenEvents,
         } };
     }
+    } // end else (skipBffAuthorize)
 
     // Introspect session token for zero-trust validation (RFC 7662)
     const sessionAccessToken = deps.getSessionAccessToken(req);
