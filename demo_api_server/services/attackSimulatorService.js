@@ -986,7 +986,10 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
     configStore.getEffective('admin_client_id') || '',
     { rarDetails },
   );
-  const tratContextHeader = JSON.stringify({ ...tratCtx, trat_sim: true });
+  // HitlApproved: true discharges the gateway's HITL consent gate for this demo call.
+  // The RAR demo is specifically about intent-binding enforcement, not HITL — without
+  // this, the real PingOne Authorize policy denies ALL transfers (consent required).
+  const tratContextHeader = JSON.stringify({ ...tratCtx, trat_sim: true, HitlApproved: true });
 
   tokenChainEvents.push(buildTokenEvent(
     'sim-rar-grant',
