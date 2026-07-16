@@ -175,15 +175,19 @@ function TryItTab({ cibaStatus }) {
   // Poll effect
   useEffect(() => {
     if (status !== 'pending' || !authReqId) return;
+    let cancelled = false;
     pollRef.current = setInterval(async () => {
+      if (cancelled) return;
       try {
         const { data } = await axios.get(`/api/auth/ciba/poll/${authReqId}`);
+        if (cancelled) return;
         log(`poll → ${data.status}${data.slow_down ? ' (slow_down)' : ''}`);
         if (data.status === 'approved') {
           stopPolling();
           setStatus('approved');
         }
       } catch (err) {
+        if (cancelled) return;
         const s = err.response?.data?.status;
         if (s === 'denied') {
           stopPolling();
@@ -199,7 +203,7 @@ function TryItTab({ cibaStatus }) {
         }
       }
     }, 5000);
-    return stopPolling;
+    return () => { cancelled = true; stopPolling(); };
   }, [status, authReqId, stopPolling]);
 
   // Countdown timer
@@ -208,7 +212,10 @@ function TryItTab({ cibaStatus }) {
     timerRef.current = setInterval(() => {
       const left = Math.max(0, Math.round((expiresAt - Date.now()) / 1000));
       setTimeLeft(left);
-      if (left === 0) stopPolling();
+      if (left === 0) {
+        stopPolling();
+        setStatus('expired');
+      }
     }, 1000);
     return () => clearInterval(timerRef.current);
   }, [expiresAt, stopPolling]);

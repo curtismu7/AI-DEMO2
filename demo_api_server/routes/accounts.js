@@ -100,12 +100,6 @@ router.get('/', authenticateToken, requireScopes(['read']), async (req, res) => 
 
 // Provision demo accounts + sample history for a user. Idempotent — always resets balances.
 async function provisionDemoAccounts(userId) {
-  const uid = userId.replace(/-/g, '').slice(0, 10);
-  const checkingId = `chk-${uid}`;
-  const savingsId  = `sav-${uid}`;
-  const loanId     = `loan-${uid}`;
-  const creditId   = `cc-${uid}`;
-
   // Remove existing accounts for this user so we can reset balances cleanly
   const existing = dataStore.getAccountsByUserId(userId);
   const deletedAccountIds = new Set(existing.map((a) => a.id));
@@ -131,6 +125,14 @@ async function provisionDemoAccounts(userId) {
     provisioned.push(await dataStore.createAccount(buildBankingAccount(userId, spec)));
   }
   const [checking, savings, carLoan, creditCard] = provisioned;
+
+  // Use the ACTUAL IDs from the created accounts (not hardcoded patterns)
+  // so sample transactions always reference valid account IDs regardless of
+  // how buildBankingAccount generates them.
+  const checkingId = checking.id;
+  const savingsId  = savings.id;
+  const loanId     = carLoan.id;
+  const creditId   = creditCard.id;
 
   // Save snapshot for cold-start recovery
   await saveAccountSnapshot(userId);

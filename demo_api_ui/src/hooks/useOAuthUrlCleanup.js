@@ -45,4 +45,19 @@ export function useOAuthUrlCleanup() {
     window.history.replaceState(null, "", newUrl);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot on mount only
   }, []);
+
+  // Silent reauth failure: strip ?silent_reauth_failed= param (no error toast needed —
+  // StaleSessionBanner handles the UX). Must run independently of the error-toast
+  // check above which only fires when ?error= is also present.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search || "");
+    if (!params.has("silent_reauth_failed")) return;
+    params.delete("silent_reauth_failed");
+    const newSearch = params.toString();
+    const newUrl =
+      window.location.pathname + (newSearch ? `?${newSearch}` : "");
+    window.history.replaceState(null, "", newUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot on mount only
+  }, []);
 }

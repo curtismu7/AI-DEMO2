@@ -41,6 +41,11 @@ async function _getWorkerToken() {
       const bufferSeconds = Math.min(30, Math.max(0, response.data.expires_in - 5));
       _tokenExpiry = Date.now() + (response.data.expires_in - bufferSeconds) * 1000;
       return _cachedToken;
+    } catch (err) {
+      // Clear stale cache so next call retries instead of using a revoked/expired token
+      _cachedToken = null;
+      _tokenExpiry = 0;
+      throw err;
     } finally {
       _pendingTokenPromise = null;
     }
