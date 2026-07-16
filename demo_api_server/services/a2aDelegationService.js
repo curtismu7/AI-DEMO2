@@ -27,9 +27,9 @@
  *    exchange. Whether the delegation is *allowed* (beyond act-claim mechanics) is
  *    still a separate policy decision made by PingOne Authorize over the `act` chain
  *    at tool-call time (see authorize-pipeline / Slice 2) — deliberately separate
- *    from resolveMcpAccessTokenWithEvents()'s exchange path, which is why A2A lives
- *    in its own service. (The `ff_require_may_act` pre-flight gate that path used to
- *    have was removed — authorization now keys on the `act` chain end to end.)
+ *  - `ff_require_act_for_agent_tools` pre-flight gate is the act-based replacement
+ *    for the removed may_act-based checks. Authorization now keys on the `act`
+ *    chain end to end.
  *  - Least-privilege: Agent 2 is granted ONLY `invest:read`, so T_invest cannot
  *    read checking accounts or move money — provable at the gateway/Authorize gate.
  *  - Gated behind ff_a2a_delegation; additive and isolated from the single- and

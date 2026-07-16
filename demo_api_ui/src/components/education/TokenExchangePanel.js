@@ -27,7 +27,7 @@ function TokenFlowLink({ onClick }) {
     }}>
       <span style={{ fontSize: '1.1rem' }}>🔗</span>
       <span style={{ color: '#93c5fd', fontSize: '0.85rem', flex: '1 1 160px' }}>
-        <strong>See also:</strong> Token Flow Education Panel — full token exchange walkthrough with act / may_act claim chain, scope narrowing, and a live What Changed table.
+        <strong>See also:</strong> Token Flow Education Panel — full token exchange walkthrough with act claim chain, scope narrowing, and a live What Changed table.
       </span>
       <button
         onClick={onClick}
@@ -100,7 +100,7 @@ function TokenFlowDiagram() {
           arrow="── User Token (subject_token) ──→"
           arrowColor="#a78bfa"
           note="Token Exchange Request"
-          right={<Box label="PingOne" icon="🔐" color="#2d1b69" border="#8b5cf6" note="Validates may_act + issues MCP Token" />}
+          right={<Box label="PingOne" icon="🔐" color="#2d1b69" border="#8b5cf6" note="Validates grants + issues MCP Token" />}
         />
         <ConnectorDown right />
 
@@ -144,7 +144,6 @@ function TokenFlowDiagram() {
           claims={[
             { key: 'aud', val: 'Backend-for-Frontend (BFF) / PingOne client', note: 'broad' },
             { key: 'scope', val: 'openid email *', note: 'broad' },
-            { key: 'may_act', val: '{ "sub": "bff-client-id" }', note: 'prospective permission' },
             { key: 'act', val: '(absent)', note: '' },
             { key: 'stays in', val: 'Backend-for-Frontend (BFF) session only', note: '🔒 never forwarded' },
           ]}
@@ -157,7 +156,6 @@ function TokenFlowDiagram() {
           claims={[
             { key: 'aud', val: 'mcp-server-resource-uri', note: 'narrowed ✓' },
             { key: 'scope', val: 'read write', note: 'narrowed ✓' },
-            { key: 'may_act', val: '(removed)', note: '' },
             { key: 'act', val: '{ "sub": "bff-client-id" }', note: 'delegation fact ✓' },
             { key: 'sent to', val: 'MCP Server + Banking API', note: '✅' },
           ]}

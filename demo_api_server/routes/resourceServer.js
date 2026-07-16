@@ -63,7 +63,6 @@ router.get('/summary', (req, res) => {
       issuedAt: rawClaims.iat ? new Date(rawClaims.iat * 1000).toISOString() : null,
       issuer: rawClaims.iss || null,
       actorClaim: rawClaims.act || null,
-      mayActClaim: rawClaims.may_act || null,
     };
 
     const resourceServerInfo = {

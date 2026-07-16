@@ -59,7 +59,7 @@ export default function LangChainPage() {
   const [status, setStatus] = useState(null);
 
   useEffect(() => {
-    fetch("/api/langchain/config/status")
+    fetch("/api/langchain/config/status", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => d && setStatus(d))
       .catch(() => null);

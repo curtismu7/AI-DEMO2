@@ -173,18 +173,17 @@ Content-Type: application/json
 
           <h4>PingOne: How act is gated during exchange</h4>
           <p>
-            PingOne only sets the <code>act</code> claim when the actor's <code>client_id</code> matches the
-            subject token's <code>may_act.sub</code>. This is enforced via an Advanced Expression on the custom
-            resource's <code>act</code> attribute:
+            PingOne sets the <code>act</code> claim when the actor's credentials are valid and
+            platform-level delegation policies authorize the exchange. The <code>act</code> claim
+            is populated via an Advanced Expression on the custom resource's attribute:
           </p>
-          <pre className="edu-code">{`(#root.context.requestData.subjectToken.may_act.sub
-  == #root.context.requestData.actorToken.client_id)
-  ? #root.context.requestData.subjectToken.may_act
+          <pre className="edu-code">{`(#root.context.requestData.actorToken.client_id != null)
+  ? { "sub": #root.context.requestData.actorToken.client_id }
   : null`}</pre>
           <p style={{ fontSize: '0.82rem', color: '#374151' }}>
-            If the IDs don't match, <code>act</code> is set to <code>null</code>. If the attribute is marked
-            required, the exchange fails outright. This is why "act absent" appears in the Token Chain when the
-            actor token's <code>client_id</code> doesn't match what's in <code>may_act</code>.
+            If the actor token is absent or invalid, <code>act</code> is set to <code>null</code>. If the attribute is marked
+            required, the exchange fails outright. This is why "act absent" appears in the Token Chain when
+            the agent credentials are not properly configured.
           </p>
           <p style={{ fontSize: '0.82rem', color: '#374151' }}>
             For <code>client_credentials</code> grants (no user), the expression returns <code>"noActor"</code>
@@ -292,7 +291,7 @@ Content-Type: application/json
           <ul>
             <li><strong>Subject Token Validation</strong> - Verify subject token is valid and not expired</li>
             <li><strong>Actor Token Validation</strong> - Verify actor token has permission to act</li>
-            <li><strong>Policy Enforcement</strong> - Check may_act policies before allowing exchange</li>
+            <li><strong>Policy Enforcement</strong> - Check platform-level delegation policies before allowing exchange</li>
             <li><strong>Audit Logging</strong> - Record all token exchanges for security monitoring</li>
           </ul>
 

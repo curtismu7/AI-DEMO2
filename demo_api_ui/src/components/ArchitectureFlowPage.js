@@ -6,7 +6,7 @@
  *   → RFC 8693 (scope-narrowed) → MCP Server → Banking API
  *
  * Pause / Resume / Next-Step controls let you read each token card.
- * Token badges on nodes show aud / act / may_act with changed claims highlighted.
+ * Token badges on nodes show aud / act with changed claims highlighted.
  */
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import HistoryModal from "./HistoryModal";
@@ -1036,7 +1036,6 @@ const AUD_HOPS = [
     icon: "🪪",
     label: "Subject Token",
     aud: "agent1",
-    may_act: "agent1",
     activeFrom: 13,
     activeTo: 15,
   },
@@ -1099,14 +1098,13 @@ const SCENARIO_STEPS_FLOW = {
     {
       nodeIds: ["idp-oauth-as", "agent"],
       colorClass: "active",
-      stepLabel: "Access Token issued — with may_act",
+      stepLabel: "Access Token issued — scoped for delegation",
       activeEdgeIds: ["idp-agent"],
       edgeStyle: A,
       nodeBadges: {
         agent: {
           aud: "banking-app-client",
-          may_act: '{"client_id":"bff-client-id"}',
-          _changed: ["aud", "may_act"],
+          _changed: ["aud"],
         },
       },
       token: {
@@ -1116,8 +1114,7 @@ const SCENARIO_STEPS_FLOW = {
         aud: "banking-app-client",
         sub: "alice@bank.com",
         scope: "openid profile read write",
-        may_act: '{ "client_id": "bff-client-id" }',
-        note: "may_act grants BFF permission to perform RFC 8693 exchange on behalf of this user",
+        note: "Platform-level grants authorize the BFF to perform RFC 8693 exchange on behalf of this user",
       },
     },
     {

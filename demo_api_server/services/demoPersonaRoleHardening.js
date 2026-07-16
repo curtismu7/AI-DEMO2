@@ -34,9 +34,6 @@ async function ensureDemoPersonaRoles() {
   const enabled =
     configStore.getEffective('persona_role_harden_on_startup') ??
     process.env.PERSONA_ROLE_HARDEN_ON_STARTUP ??
-    // Legacy name from the removed mayActHardening boot step.
-    configStore.getEffective('mayact_harden_on_startup') ??
-    process.env.MAYACT_HARDEN_ON_STARTUP ??
     'true';
   if (String(enabled).toLowerCase() === 'false') {
     return { status: 'skipped', detail: 'disabled (PERSONA_ROLE_HARDEN_ON_STARTUP=false)' };

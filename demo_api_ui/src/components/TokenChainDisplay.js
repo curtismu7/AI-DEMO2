@@ -180,9 +180,6 @@ function ClaimsPanel({ claims, alg }) {
   }
 
   const highlight = (key) => {
-    if (key === "may_act") {
-      return "tcd-claim--may-act";
-    }
     if (key === "act") {
       return "tcd-claim--act";
     }
@@ -205,9 +202,6 @@ function ClaimsPanel({ claims, alg }) {
     }
     if (key === "act") {
       return "act — Delegation (Agent)";
-    }
-    if (key === "may_act") {
-      return "may_act — Permitted Agent";
     }
     if (key === "iss") {
       return "iss — Issuer";
@@ -249,9 +243,6 @@ function ClaimsPanel({ claims, alg }) {
     if (key === "scope") {
       return "Authorized scopes for this audience";
     }
-    if (key === "may_act") {
-      return "Permitted actor — pre-authorises delegation at login time (RFC 8693 §4.1)";
-    }
     if (key === "cnf") {
       return "Confirmation — JWK thumbprint (jkt) binding this token to a DPoP key; a stolen bearer is useless without the private key (RFC 9449 §3)";
     }
@@ -273,7 +264,7 @@ function ClaimsPanel({ claims, alg }) {
   };
 
   // Family delegation (user→user) — surfaced as its own lane, separate from the
-  // agent's may_act. Only present after a delegation grant is provisioned.
+  // agent's delegation. Only present after a delegation grant is provisioned.
   const delegatedTo = Array.isArray(claims.delegated_to) ? claims.delegated_to : [];
 
   return (
@@ -377,23 +368,10 @@ function ActEduBox({ event }) {
         )}
         <div className="tcd-edu-body">
           <p>
-            <code>act</code> is the <em>current delegation fact</em>. Compare
-            with <code>may_act</code> on the user token:
-          </p>
-          <ul>
-            <li>
-              <code>may_act</code> (user token) — <em>prospective:</em> "this
-              client is allowed to act"
-            </li>
-            <li>
-              <code>act</code> (MCP token) — <em>current fact:</em> "this client
-              IS acting right now"
-            </li>
-          </ul>
-          <p>
-            The MCP server validates <code>act.client_id</code> to confirm the
-            BFF — not any random client — made this call, establishing a
-            verifiable audit trail.
+            <code>act</code> is the <em>current delegation fact</em> — it records
+            who is acting on behalf of whom. The MCP server validates{" "}
+            <code>act.client_id</code> to confirm the BFF — not any random
+            client — made this call, establishing a verifiable audit trail.
           </p>
           {event.actDetails && (
             <p className="tcd-edu-detail">
@@ -1143,19 +1121,12 @@ function ExchangeCheckList({ event }) {
             Error: {event.error}
           </p>
         )}
-        {failed && event.mayActPresent === false && (
-          <p className="tcd-edu-absent-warn">
-            ⚠️ may_act was absent from the user token — this is likely why
-            exchange failed. Go to /demo-data → Enable may_act → re-login, then
-            try again.
-          </p>
-        )}
         <ul className="tcd-edu-checklist">
           <li>
             <span className="tcd-edu-check-lbl">1.</span>
             <span>
-              <code>may_act.client_id</code> on subject token must match the
-              requesting BFF client
+              Platform-level grants must authorize the BFF client to perform
+              token exchange on behalf of this user
             </span>
           </li>
           <li>

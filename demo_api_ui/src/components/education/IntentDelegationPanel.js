@@ -230,10 +230,9 @@ export default function IntentDelegationPanel({ isOpen, onClose, initialTabId })
             </button>
           </p>
 
-          <h3>Delegation chain — may_act and act claims</h3>
+          <h3>Delegation chain — act claims</h3>
           <p>
-            The RFC 8693 exchanged token carries a <code>may_act</code> claim on the user token
-            (authorizing the BFF to act on the user's behalf) and an <code>act</code> claim on the
+            The RFC 8693 exchanged token carries an <code>act</code> claim on the
             MCP token (recording the delegation chain: user → AI agent → MCP service). Any
             downstream service can verify the full chain without trusting the agent's assertions.
           </p>
@@ -241,9 +240,9 @@ export default function IntentDelegationPanel({ isOpen, onClose, initialTabId })
             <button
               type="button"
               className="edu-link-btn"
-              onClick={() => open(EDU.MAY_ACT, 'what')}
+              onClick={() => open(EDU.TOKEN_EXCHANGE, 'what')}
             >
-              Explore may_act / act claims
+              Explore act claims and delegation chain
             </button>
           </p>
 
@@ -278,7 +277,7 @@ export default function IntentDelegationPanel({ isOpen, onClose, initialTabId })
                 ['Spend cap / amount constraint', 'HITL threshold (configurable, server-enforced)'],
                 ['Async human confirmation', 'CIBA push + Step-up MFA'],
                 ['Delegation chain proof', 'act claim in exchanged token'],
-                ['Delegated agent authority', 'may_act claim on user token'],
+                ['Delegated agent authority', 'act claim in delegation chain'],
                 ['Rich intent in auth request', 'RAR (RFC 9396) authorization_details'],
                 ['Granular scopes', 'read / write / mcp:invoke'],
               ].map(([term, impl]) => (

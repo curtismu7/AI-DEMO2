@@ -32,6 +32,7 @@ function useColumnRun(action, defaultAmount) {
     try {
       const res = await fetch("/api/demo/intent-binding/run", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, requestedAmount: Number(amount), live }),
       });

@@ -11,7 +11,6 @@ jest.mock('../services/configStore', () => ({
     if (key === 'ai_agent_client_id') return 'agent-client-id';
     if (key === 'pingone_client_id') return 'client-id';
     if (key === 'pingone_client_secret') return 'client-secret';
-    if (key === 'ff_require_may_act') return false;
     return null;
   }),
 }));

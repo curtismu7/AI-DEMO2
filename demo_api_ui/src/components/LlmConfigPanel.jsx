@@ -38,7 +38,7 @@ export default function LlmConfigPanel() {
   // Load config from API
   const loadConfig = async () => {
     try {
-      const response = await fetch('/api/langchain/config/status');
+      const response = await fetch('/api/langchain/config/status', { credentials: 'include' });
       if (!response.ok) throw new Error('Failed to load config');
 
       const config = await response.json();
@@ -66,7 +66,7 @@ export default function LlmConfigPanel() {
     const statuses = {};
     for (const provider of PROVIDERS) {
       try {
-        const response = await fetch(`/api/langchain/provider/${provider}/status`);
+        const response = await fetch(`/api/langchain/provider/${provider}/status`, { credentials: 'include' });
         if (response.ok) {
           const data = await response.json();
           statuses[provider] = data;
@@ -83,7 +83,7 @@ export default function LlmConfigPanel() {
   // Section stays hidden when the local proxy isn't running.
   const loadTiers = async () => {
     try {
-      const response = await fetch('/api/langchain/llamacpp/tiers');
+      const response = await fetch('/api/langchain/llamacpp/tiers', { credentials: 'include' });
       if (response.ok) setTiers(await response.json());
     } catch {
       /* local LLM proxy not running — tier section hidden */
@@ -107,6 +107,7 @@ export default function LlmConfigPanel() {
       setMessage(`Loading ${model}… (can take up to ~30s cold)`);
       const response = await fetch('/api/langchain/llamacpp/prewarm', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model }),
       });
@@ -136,6 +137,7 @@ export default function LlmConfigPanel() {
       setSaving(true);
       const response = await fetch('/api/langchain/config', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider, model }),
       });
@@ -165,6 +167,7 @@ export default function LlmConfigPanel() {
       setSaving(true);
       const response = await fetch('/api/langchain/config', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key_type: keyType, key }),
       });
@@ -192,6 +195,7 @@ export default function LlmConfigPanel() {
       setSaving(true);
       const response = await fetch(`/api/langchain/config/key/${keyType}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
 
       if (!response.ok) throw new Error('Failed to clear key');
@@ -217,6 +221,7 @@ export default function LlmConfigPanel() {
       const body = { provider: currentProvider, model: currentModel, fallback_order: fallbackChain };
       const response = await fetch('/api/langchain/config', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
@@ -239,6 +244,7 @@ export default function LlmConfigPanel() {
       setSaving(true);
       const response = await fetch('/api/langchain/config', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model }),
       });
@@ -283,6 +289,7 @@ export default function LlmConfigPanel() {
     try {
       const response = await fetch('/api/langchain/config', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fallback_order: chain }),
       });
