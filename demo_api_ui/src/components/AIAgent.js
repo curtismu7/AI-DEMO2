@@ -4840,8 +4840,19 @@ export default function BankingAgent({
         // "checking to savings" without explicit "from"
         next.fromId = matchedTypes[0];
         next.toId = matchedTypes[1];
+      } else if (matchedTypes.length === 1) {
+        // Single account type provided — fill in the first missing slot.
+        if (!next.fromId) next.fromId = matchedTypes[0];
+        else if (!next.toId) next.toId = matchedTypes[0];
       }
-      return next.amount != null && next.fromId && next.toId ? next : null;
+      // Return partial progress even if not all slots are filled — the caller
+      // will re-ask for remaining missing params on the next turn.
+      const hasProgress = (next.amount != null && !partialParams.amount) ||
+        (next.fromId && !partialParams.fromId) ||
+        (next.toId && !partialParams.toId);
+      if (next.amount != null && next.fromId && next.toId) return next;
+      // Return partial if we made progress — caller will update partialParams and re-ask.
+      return hasProgress ? next : null;
     }
 
     // Generic slot-fill: treat the entire reply as the value for the first
@@ -4963,6 +4974,24 @@ export default function BankingAgent({
         // the parser try a normal interpretation.
         addMessage("assistant", `Sorry, I didn't catch that. ${pc.asked}`, null, { paramHint: pc.hint || null });
         setPendingClarification(pc);
+        nlSendGuardRef.current.release();
+        return;
+      }
+
+      // For transfers: check if all required slots are filled. If not, re-ask
+      // with the accumulated partial params so incremental slot-filling works.
+      if (pc.action === "transfer" && !(merged.amount != null && merged.fromId && merged.toId)) {
+        const still = [];
+        if (!merged.fromId) still.push('source account (e.g. "from checking")');
+        if (!merged.toId) still.push('destination account (e.g. "to savings")');
+        if (merged.amount == null) still.push('amount (e.g. "$100")');
+        const reAsk = `Got it. I still need: ${still.join(', ')}.\n\nExample: "from checking to savings $100"`;
+        addMessage("assistant", reAsk, null, { paramHint: pc.hint || null });
+        setPendingClarification({
+          ...pc,
+          partialParams: merged,
+          asked: reAsk,
+        });
         nlSendGuardRef.current.release();
         return;
       }
@@ -5854,6 +5883,23 @@ export default function BankingAgent({
         // Couldn't extract — re-ask once, then let a normal interpretation try.
         addMessage("assistant", `Sorry, I didn't catch that. ${pc.asked}`, null, { paramHint: pc.hint || null });
         setPendingClarification(pc);
+        return;
+      }
+
+      // For transfers: check if all required slots are filled. If not, re-ask
+      // with the accumulated partial params so incremental slot-filling works.
+      if (pc.action === "transfer" && !(merged.amount != null && merged.fromId && merged.toId)) {
+        const still = [];
+        if (!merged.fromId) still.push('source account (e.g. "from checking")');
+        if (!merged.toId) still.push('destination account (e.g. "to savings")');
+        if (merged.amount == null) still.push('amount (e.g. "$100")');
+        const reAsk = `Got it. I still need: ${still.join(', ')}.\n\nExample: "from checking to savings $100"`;
+        addMessage("assistant", reAsk, null, { paramHint: pc.hint || null });
+        setPendingClarification({
+          ...pc,
+          partialParams: merged,
+          asked: reAsk,
+        });
         return;
       }
 
