@@ -50,12 +50,23 @@ describe('DemoStepsDropdown', () => {
       />,
     );
     await waitFor(() => expect(screen.getByTestId('demo-steps-popout')).toBeInTheDocument());
-    const items = screen.getAllByTestId(/^demo-step-/);
-    expect(items.map((el) => el.getAttribute('data-testid'))).toEqual(
-      DEMO_USE_CASE_IDS.map((id) => `demo-step-${id}`),
+
+    // Primary steps are always visible
+    const primaryItems = screen.getAllByTestId(/^demo-step-/);
+    expect(primaryItems.map((el) => el.getAttribute('data-testid'))).toEqual(
+      DEMO_USE_CASE_IDS.slice(0, 6).map((id) => `demo-step-${id}`),
     );
     expect(screen.getByTestId('demo-step-UC1')).toHaveTextContent(/Step 1/);
-    expect(screen.getByTestId('demo-step-UC2')).toHaveTextContent(/Step 2/);
+
+    // Expand the advanced section to reveal remaining steps
+    fireEvent.click(screen.getByTestId('demo-steps-advanced-toggle'));
+
+    const allItems = screen.getAllByTestId(/^demo-step-/);
+    expect(allItems.map((el) => el.getAttribute('data-testid'))).toEqual(
+      DEMO_USE_CASE_IDS.map((id) => `demo-step-${id}`),
+    );
+    // UC2 is the first advanced step (step 7)
+    expect(screen.getByTestId('demo-step-UC2')).toHaveTextContent(/Step 7/);
   });
 
   it('calls onSelect with the catalog entry when a step is clicked', async () => {
