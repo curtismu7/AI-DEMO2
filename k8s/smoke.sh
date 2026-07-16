@@ -51,6 +51,10 @@ fi
 info "1/7 rollout status of every deployment in $NS (llm stack can take minutes after restart)..."
 ROLLOUT_FAILED=""
 for dep in $DEPLOYMENTS; do
+  # Skip deployments scaled to zero — these are intentionally dormant (optional
+  # agents, CPU-only LLM tiers) and `rollout status` hangs/fails on them.
+  DESIRED=$(kubectl get deployment "$dep" -n "$NS" -o jsonpath='{.spec.replicas}' 2>/dev/null)
+  [ "${DESIRED:-0}" -eq 0 ] && continue
   if ! kubectl rollout status "deployment/$dep" -n "$NS" --timeout=300s >/dev/null 2>&1; then
     ROLLOUT_FAILED="$ROLLOUT_FAILED $dep"
   fi
