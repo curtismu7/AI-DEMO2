@@ -9377,6 +9377,15 @@ export default function BankingAgent({
                       setNlInput("");
                       setInputHistory([]);
                       setHistoryIndex(-1);
+                      // Reset feature flags that demo steps may have auto-enabled
+                      apiClient.patch("/api/admin/feature-flags", {
+                        updates: {
+                          ff_a2a_delegation: false,
+                          ff_ciba: false,
+                          ff_rar: false,
+                          ff_dpop: false,
+                        },
+                      }).catch(() => {});
                     }}
                     title="Clear conversation and start fresh"
                   >
