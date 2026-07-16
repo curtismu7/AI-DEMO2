@@ -1,143 +1,60 @@
-/* ResourceServerTester — interactive tester panel on the OIDC Resource Server page. */
+/* ResourceServerTester.css — Dark-themed overrides for Mock B three-column layout.
+   The component primarily uses p1mcp-* classes from PingOneMcpInspector.css.
+   These styles handle domain-specific elements (verdicts, rules, raw tokens). */
 
-.rst-collapsible {
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  background: #fff;
-  margin-top: 14px;
-  overflow: hidden;
-}
-
-.rst-collapsible-head {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 18px;
-  background: #f8fafc;
-  border: none;
-  cursor: pointer;
-  font-size: 15px;
-  font-weight: 600;
-  color: #1e293b;
-  text-align: left;
-}
-
-.rst-collapsible-head:hover { background: #f1f5f9; }
-.rst-collapsible.is-open > .rst-collapsible-head { border-bottom: 1px solid #e2e8f0; }
-
-.rst-caret { color: #64748b; font-size: 12px; width: 14px; }
-.rst-collapsible-title { flex: 1; }
-
-.rst-collapsible-body { padding: 16px 18px; }
-
-/* Nested mode panels sit a little inset and lighter. */
-.rst-collapsible-body .rst-collapsible {
-  border-color: #eef2f7;
-  margin-top: 12px;
-}
-.rst-collapsible-body .rst-collapsible-head {
-  background: #fcfdff;
-  font-size: 14px;
-  padding: 11px 14px;
-}
-
-.rst-intro {
-  margin: 0 0 14px;
-  color: #475569;
-  font-size: 13.5px;
-  line-height: 1.5;
-}
-
-.rst-source {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 12px 14px;
-}
-
-.rst-source-label {
-  display: block;
-  font-size: 12px;
+/* Verdict badge */
+.rst-verdict {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 6px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #64748b;
-  margin-bottom: 8px;
-}
-
-.rst-source-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-.rst-source-controls label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
   font-size: 14px;
-  color: #334155;
-  cursor: pointer;
+  letter-spacing: 0.03em;
 }
+.rst-verdict.permit { background: #052e16; color: #4ade80; border: 1px solid #166534; }
+.rst-verdict.reject { background: #450a0a; color: #fca5a5; border: 1px solid #991b1b; }
 
-.rst-paste {
-  width: 100%;
-  margin-top: 10px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+/* Rules list (dark theme) */
+.rst-rules {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rst-rules li {
+  display: grid;
+  grid-template-columns: 22px 100px 1fr;
+  align-items: baseline;
+  gap: 8px;
   font-size: 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  padding: 8px 10px;
-  resize: vertical;
-  box-sizing: border-box;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: #1e293b;
 }
+.rst-rules li.fail { background: #1c1017; }
+.rst-rule-name { font-weight: 600; color: #e2e8f0; font-family: 'SF Mono', monospace; }
+.rst-rule-detail { color: #94a3b8; }
 
-.rst-mode-desc {
-  margin: 0 0 12px;
-  color: #475569;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.rst-target {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  color: #334155;
-  margin-bottom: 12px;
-}
-
-.rst-run {
-  background: #1e6fff;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  padding: 9px 18px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.rst-run:hover:not(:disabled) { background: #155ad6; }
-.rst-run:disabled { background: #cbd5e1; cursor: not-allowed; }
-
+/* Error line (dark theme) */
 .rst-error {
   margin-top: 12px;
   padding: 10px 12px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  background: #450a0a;
+  border: 1px solid #991b1b;
   border-radius: 6px;
-  color: #b91c1c;
-  font-size: 13.5px;
+  color: #fca5a5;
+  font-size: 13px;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
 }
 
-/* Sign-in CTA shown next to a 401 in the tester results. */
+/* Sign-in CTA (dark theme) */
 .rst-signin {
-  background: #1e6fff;
+  background: #2563eb;
   color: #fff;
   border: none;
   border-radius: 6px;
@@ -147,7 +64,7 @@
   cursor: pointer;
   flex: none;
 }
-.rst-signin:hover { background: #155ad6; }
+.rst-signin:hover { background: #1d4ed8; }
 
 .rst-signin-row {
   margin-top: 10px;
@@ -156,76 +73,10 @@
   flex-wrap: wrap;
   gap: 10px;
   font-size: 13px;
-  color: #991b1b;
+  color: #fca5a5;
 }
 
-.rst-result { margin-top: 14px; }
-
-.rst-note {
-  margin: 10px 0 0;
-  padding: 8px 12px;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 6px;
-  color: #1e40af;
-  font-size: 12.5px;
-}
-
-.rst-verdict {
-  display: inline-block;
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-weight: 700;
-  font-size: 14px;
-  letter-spacing: 0.03em;
-}
-.rst-verdict.permit { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
-.rst-verdict.reject { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
-
-.rst-rules {
-  list-style: none;
-  margin: 14px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.rst-rules li {
-  display: grid;
-  grid-template-columns: 22px 90px 1fr;
-  align-items: baseline;
-  gap: 8px;
-  font-size: 13px;
-  padding: 6px 8px;
-  border-radius: 5px;
-  background: #f8fafc;
-}
-.rst-rules li.fail { background: #fef6f6; }
-.rst-rule-name { font-weight: 600; color: #1e293b; font-family: ui-monospace, Menlo, monospace; }
-.rst-rule-detail { color: #475569; }
-
-.rst-claims { margin-top: 14px; }
-.rst-claims summary { cursor: pointer; font-size: 13px; color: #1e6fff; }
-
-.rst-json {
-  margin: 10px 0 0;
-  padding: 12px 14px;
-  border-radius: 8px;
-  overflow-x: auto;
-  font-size: 12px;
-}
-
-/* Always-visible label naming the token currently under test. */
-.rst-active-token {
-  margin-top: 10px;
-  font-size: 13px;
-  color: #475569;
-}
-.rst-active-token strong {
-  color: #1e6fff;
-}
-
-/* Reveal panel — the raw JWT shown on demand (token named by the always-visible label). */
+/* Raw token reveal (dark theme) */
 .rst-raw-label {
   font-size: 11px;
   font-weight: 700;
@@ -236,12 +87,24 @@
 .rst-raw-token {
   margin: 6px 0 0;
   padding: 12px 14px;
-  border-radius: 8px;
+  border-radius: 6px;
   background: #0f172a;
+  border: 1px solid #334155;
   color: #e2e8f0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: 'SF Mono', SFMono-Regular, monospace;
   font-size: 12px;
   line-height: 1.5;
   word-break: break-all;
   white-space: pre-wrap;
+}
+
+/* Introspection note (dark theme) */
+.rst-note {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #93c5fd;
+  font-size: 12px;
 }
