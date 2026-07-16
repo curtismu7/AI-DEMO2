@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mock B — MCP Inspector — IDE-Style Three Column</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; }
+
+/* Top bar */
+.topbar { background: #1e293b; border-bottom: 1px solid #334155; padding: 10px 20px; display: flex; align-items: center; gap: 14px; }
+.topbar h1 { font-size: 16px; font-weight: 600; color: #f8fafc; }
+.topbar .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+.topbar .status { font-size: 12px; color: #94a3b8; }
+.topbar .right { margin-left: auto; display: flex; gap: 10px; }
+.topbar .btn { font-size: 12px; padding: 5px 12px; border-radius: 4px; border: 1px solid #475569; background: #1e293b; color: #cbd5e1; cursor: pointer; }
+.topbar .btn:hover { background: #334155; }
+
+/* Three-column grid */
+.grid { display: grid; grid-template-columns: 240px 360px 1fr; height: calc(100vh - 45px); }
+
+/* Column 1: Tool tree */
+.col-tree { background: #1e293b; border-right: 1px solid #334155; overflow-y: auto; }
+.tree-header { padding: 12px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; border-bottom: 1px solid #334155; }
+.tree-group { padding: 8px 0; }
+.tree-group__label { padding: 6px 16px; font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em; }
+.tree-item { padding: 6px 16px 6px 28px; font-size: 13px; color: #cbd5e1; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.tree-item:hover { background: #334155; }
+.tree-item--active { background: #1d4ed8; color: #fff; border-radius: 4px; margin: 0 8px; padding-left: 20px; }
+.tree-item__icon { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; }
+.tree-item__icon--write { background: #f59e0b; }
+.tree-item__icon--danger { background: #ef4444; }
+
+/* Column 2: Input/Form */
+.col-form { background: #1a2332; border-right: 1px solid #334155; display: flex; flex-direction: column; overflow-y: auto; }
+.form-header { padding: 16px 20px; border-bottom: 1px solid #334155; }
+.form-header__name { font-family: 'SF Mono', monospace; font-size: 15px; font-weight: 700; color: #f8fafc; }
+.form-header__desc { font-size: 13px; color: #94a3b8; margin-top: 4px; line-height: 1.4; }
+.form-body { padding: 16px 20px; flex: 1; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 4px; font-family: monospace; }
+.field label .req { color: #f87171; }
+.field label .type { font-weight: 400; color: #64748b; }
+.field input { width: 100%; padding: 8px 10px; font-size: 13px; background: #0f172a; border: 1px solid #475569; border-radius: 4px; color: #e2e8f0; }
+.field input:focus { outline: none; border-color: #3b82f6; }
+.field input::placeholder { color: #475569; }
+.form-actions { padding: 12px 20px; border-top: 1px solid #334155; display: flex; gap: 10px; }
+.btn-call { padding: 9px 20px; font-size: 13px; font-weight: 600; background: #2563eb; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+.btn-call:hover { background: #1d4ed8; }
+.btn-clear { padding: 9px 14px; font-size: 13px; background: transparent; color: #94a3b8; border: 1px solid #475569; border-radius: 6px; cursor: pointer; }
+
+/* Column 3: Output */
+.col-output { background: #0f172a; display: flex; flex-direction: column; }
+.output-tabs { display: flex; border-bottom: 1px solid #334155; }
+.output-tab { font-size: 12px; font-weight: 500; color: #64748b; padding: 10px 16px; border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.output-tab--active { color: #e2e8f0; border-bottom-color: #3b82f6; }
+.output-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+.output-code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; line-height: 1.7; color: #e2e8f0; white-space: pre; }
+.output-code .key { color: #7dd3fc; }
+.output-code .str { color: #86efac; }
+.output-code .num { color: #fcd34d; }
+.output-code .bool { color: #c4b5fd; }
+.output-code .null { color: #fb7185; }
+.output-footer { padding: 8px 20px; border-top: 1px solid #334155; font-size: 11px; color: #64748b; display: flex; gap: 20px; }
+.output-footer strong { color: #94a3b8; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="dot"></span>
+  <h1>PingOne MCP Inspector</h1>
+  <span class="status">Connected — 110 tools loaded</span>
+  <div class="right">
+    <button class="btn">Refresh</button>
+    <button class="btn">Disconnect</button>
+  </div>
+</div>
+
+<div class="grid">
+  <!-- Column 1: Tree -->
+  <div class="col-tree">
+    <div class="tree-header">Tools (110)</div>
+    <div class="tree-group">
+      <div class="tree-group__label">Environments (5)</div>
+      <div class="tree-item"><span class="tree-item__icon"></span>readOneEnvironment</div>
+      <div class="tree-item"><span class="tree-item__icon"></span>readAllEnvironments</div>
+      <div class="tree-item"><span class="tree-item__icon--write"></span>updateEnvironment</div>
+    </div>
+    <div class="tree-group">
+      <div class="tree-group__label">Users (8)</div>
+      <div class="tree-item tree-item--active"><span class="tree-item__icon"></span>readUser</div>
+      <div class="tree-item"><span class="tree-item__icon"></span>readAllUsers</div>
+      <div class="tree-item"><span class="tree-item__icon--write"></span>createUser</div>
+      <div class="tree-item"><span class="tree-item__icon--write"></span>updateUser</div>
+      <div class="tree-item"><span class="tree-item__icon"></span>manageUserMfa</div>
+    </div>
+    <div class="tree-group">
+      <div class="tree-group__label">Applications (30)</div>
+      <div class="tree-item"><span class="tree-item__icon"></span>readOneApplication</div>
+      <div class="tree-item"><span class="tree-item__icon"></span>readAllApplications</div>
+      <div class="tree-item"><span class="tree-item__icon--write"></span>createApplication</div>
+    </div>
+    <div class="tree-group">
+      <div class="tree-group__label">Populations (4)</div>
+      <div class="tree-item"><span class="tree-item__icon"></span>readOnePopulation</div>
+      <div class="tree-item"><span class="tree-item__icon"></span>readAllPopulations</div>
+    </div>
+    <div class="tree-group">
+      <div class="tree-group__label">DaVinci (23)</div>
+      <div class="tree-item"><span class="tree-item__icon"></span>readAllDavinciFlows</div>
+      <div class="tree-item"><span class="tree-item__icon"></span>readOneDavinciFlow</div>
+    </div>
+  </div>
+
+  <!-- Column 2: Form -->
+  <div class="col-form">
+    <div class="form-header">
+      <div class="form-header__name">readUser</div>
+      <div class="form-header__desc">Read a single user by ID from the PingOne directory. Returns full profile with account status, MFA enrollment, and population membership.</div>
+    </div>
+    <div class="form-body">
+      <div class="field">
+        <label>environmentId <span class="req">*</span> <span class="type">string</span></label>
+        <input type="text" value="a1b2c3d4-e5f6-7890-abcd-ef1234567890" />
+      </div>
+      <div class="field">
+        <label>userId <span class="req">*</span> <span class="type">string</span></label>
+        <input type="text" placeholder="Enter user UUID..." />
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn-call">Execute</button>
+      <button class="btn-clear">Clear</button>
+    </div>
+  </div>
+
+  <!-- Column 3: Output -->
+  <div class="col-output">
+    <div class="output-tabs">
+      <button class="output-tab output-tab--active">Response</button>
+      <button class="output-tab">Request JSON-RPC</button>
+      <button class="output-tab">Raw HTTP</button>
+    </div>
+    <div class="output-body">
+      <pre class="output-code">{
+  <span class="key">"content"</span>: [
+    {
+      <span class="key">"type"</span>: <span class="str">"text"</span>,
+      <span class="key">"text"</span>: <span class="str">"{\"id\":\"f8a1b2c3-...\",\"username\":\"demo.customer@example.com\",\"name\":{\"given\":\"Jane\",\"family\":\"Customer\"},\"email\":\"demo.customer@example.com\",\"population\":{\"id\":\"default-pop\"},\"mfaEnabled\":true,\"account\":{\"status\":\"OK\"}}"</span>
+    }
+  ],
+  <span class="key">"isError"</span>: <span class="bool">false</span>
+}</pre>
+    </div>
+    <div class="output-footer">
+      <span><strong>Status:</strong> 200 OK</span>
+      <span><strong>Duration:</strong> 243ms</span>
+      <span><strong>Transport:</strong> HTTP/SSE → PingOne Management API</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mock C — MCP Inspector — Resizable Postman-Style</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #fafbfc; color: #0f172a; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar__left">
+    <h1>PingOne MCP Inspector</h1>
+    <span class="conn-badge">Connected</span>
+    <span class="tool-count">110 tools</span>
+  </div>
+
+  <div class="topbar__right">
+    <button class="icon-btn" title="Refresh">&#8635;</button>
+    <button class="icon-btn" title="Settings">&#9881;</button>
+  </div>
+</div>
+
+<div class="layout">
+  <!-- LEFT: Command Area -->
+  <div class="left">
+    <!-- Tool selector bar -->
+    <div class="tool-selector">
+      <select class="tool-select">
+        <optgroup label="Users (8)">
+          <option selected>readUser</option>
+          <option>readAllUsers</option>
+          <option>createUser</option>
+          <option>updateUser</option>
+        </optgroup>
+        <optgroup label="Applications (30)">
+          <option>readOneApplication</option>
+          <option>readAllApplications</option>
+        </optgroup>
+        <optgroup label="Environments (5)">
+          <option>readOneEnvironment</option>
+        </optgroup>
+      </select>
+      <button class="exec-btn">Execute</button>
+    </div>
+
+
+    <!-- Tool description -->
+    <div class="tool-desc">
+      <strong>readUser</strong> — Read a single user by ID from the PingOne directory.
+    </div>
+
+    <!-- Request body / params -->
+    <div class="section-label">Parameters</div>
+    <div class="params-table">
+      <div class="param">
+        <span class="param__key">environmentId <span class="req">*</span></span>
+        <input class="param__val" type="text" value="a1b2c3d4-..." />
+        <span class="param__type">string</span>
+      </div>
+      <div class="param">
+        <span class="param__key">userId <span class="req">*</span></span>
+        <input class="param__val" type="text" placeholder="Enter UUID" />
+        <span class="param__type">string</span>
+      </div>
+    </div>
+
+    <!-- JSON-RPC Request Preview -->
+    <div class="section-label">Request Preview</div>
+    <pre class="code-block code-block--light">{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "readUser",
+    "arguments": {
+      "environmentId": "a1b2c3d4-...",
+      "userId": ""
+    }
+  },
+  "id": 1
+}</pre>
+  </div>
+
+
+  <!-- Resizer -->
+  <div class="resizer"></div>
+
+  <!-- RIGHT: Result Area -->
+  <div class="right">
+    <div class="result-header">
+      <span class="result-status result-status--ok">200 OK</span>
+      <span class="result-time">243ms</span>
+      <span class="result-size">1.2 KB</span>
+    </div>
+    <pre class="code-block code-block--dark">{
+  "content": [
+    {
+      "type": "text",
+      "text": {
+        "id": "f8a1b2c3-...",
+        "username": "demo.customer@example.com",
+        "name": {
+          "given": "Jane",
+          "family": "Customer"
+        },
+        "email": "demo.customer@example.com",
+        "population": { "id": "default-pop" },
+        "mfaEnabled": true,
+        "account": { "status": "OK" }
+      }
+    }
+  ],
+  "isError": false
+}</pre>
+  </div>
+</div>
+
+
+<style>
+.topbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+.topbar__left { display: flex; align-items: center; gap: 12px; }
+.topbar__left h1 { font-size: 18px; font-weight: 700; }
+.conn-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #dcfce7; color: #15803d; }
+.tool-count { font-size: 12px; color: #64748b; }
+.topbar__right { display: flex; gap: 8px; }
+.icon-btn { width: 32px; height: 32px; border-radius: 6px; border: 1px solid #e2e8f0; background: #fff; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.icon-btn:hover { background: #f1f5f9; }
+
+.layout { display: flex; height: calc(100vh - 57px); }
+.left { flex: 1; min-width: 380px; max-width: 50%; display: flex; flex-direction: column; padding: 16px 20px; overflow-y: auto; background: #fff; }
+.resizer { width: 5px; background: #e2e8f0; cursor: col-resize; position: relative; }
+.resizer:hover { background: #3b82f6; }
+.right { flex: 1; display: flex; flex-direction: column; background: #f8fafc; overflow-y: auto; }
+
+.tool-selector { display: flex; gap: 8px; margin-bottom: 12px; }
+.tool-select { flex: 1; padding: 9px 12px; font-size: 14px; font-family: 'SF Mono', monospace; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; color: #0f172a; }
+.exec-btn { padding: 9px 20px; font-size: 14px; font-weight: 600; background: #2563eb; color: #fff; border: none; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+.exec-btn:hover { background: #1d4ed8; }
+
+.tool-desc { font-size: 13px; color: #475569; padding: 8px 0 14px; border-bottom: 1px solid #f1f5f9; margin-bottom: 14px; }
+.tool-desc strong { color: #0f172a; font-family: monospace; }
+
+.section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; margin-bottom: 8px; margin-top: 14px; }
+
+.params-table { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.param { display: grid; grid-template-columns: 160px 1fr 60px; gap: 8px; align-items: center; }
+.param__key { font-family: monospace; font-size: 13px; font-weight: 500; }
+.param__key .req { color: #ef4444; }
+.param__val { padding: 7px 10px; font-size: 13px; border: 1px solid #e2e8f0; border-radius: 6px; }
+.param__val:focus { outline: none; border-color: #3b82f6; }
+.param__type { font-size: 11px; color: #94a3b8; }
+
+.code-block { font-family: 'SF Mono', monospace; font-size: 12px; line-height: 1.6; padding: 14px; border-radius: 8px; overflow-x: auto; white-space: pre; }
+.code-block--light { background: #f8fafc; border: 1px solid #e2e8f0; color: #334155; }
+.code-block--dark { background: #1e293b; color: #e2e8f0; margin: 0; flex: 1; border-radius: 0; padding: 20px 24px; }
+
+.result-header { display: flex; align-items: center; gap: 14px; padding: 12px 24px; border-bottom: 1px solid #e2e8f0; background: #fff; }
+.result-status { font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 4px; }
+.result-status--ok { background: #dcfce7; color: #15803d; }
+.result-status--error { background: #fee2e2; color: #b91c1c; }
+.result-time { font-size: 12px; color: #64748b; }
+.result-size { font-size: 12px; color: #64748b; }
+</style>
+</body>
+</html>
