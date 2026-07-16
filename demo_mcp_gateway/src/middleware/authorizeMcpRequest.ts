@@ -875,11 +875,14 @@ export function buildAuthorizeMcpRequest(
       const ex = await doExchange(bearerToken);
       upstreamToken = ex.token;
     } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      const axiosData = (err as any)?.response?.data;
+      const detail = axiosData?.error_description || axiosData?.error || errMsg;
       teachLog.error('[GW] HTTP token exchange failed', err instanceof Error ? err : undefined, { tool: toolName });
       sendRpcError(502, parsedBody.id, {
         code: -32500,
-        message: 'Token exchange failed',
-        data: { error: 'token_exchange_failed' },
+        message: `Token exchange failed: ${detail}`,
+        data: { error: 'token_exchange_failed', detail },
       });
       return;
     }

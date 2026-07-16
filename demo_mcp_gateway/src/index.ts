@@ -826,8 +826,11 @@ async function handleMessage(
       exchangeCached = ex.cached;
       exchangeTargetAud = ex.targetAud;
     } catch (err) {
-      console.error(`[GW] Token exchange failed for ${toolName}:`, err instanceof Error ? err.message : err);
-      send(jsonRpcError(id, -32500, 'Token exchange failed', { error: 'token_exchange_failed' }));
+      const errMsg = err instanceof Error ? err.message : String(err);
+      const axiosData = (err as any)?.response?.data;
+      const detail = axiosData?.error_description || axiosData?.error || errMsg;
+      console.error(`[GW] Token exchange failed for ${toolName}:`, detail);
+      send(jsonRpcError(id, -32500, `Token exchange failed: ${detail}`, { error: 'token_exchange_failed', detail }));
       return;
     }
 
