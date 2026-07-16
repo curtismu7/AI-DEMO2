@@ -248,7 +248,6 @@ function sanitizeClaims(claims) {
   if (claims.exp)    result.exp    = claims.exp;
   if (claims.iat)    result.iat    = claims.iat;
   if (claims.nbf)    result.nbf    = claims.nbf;
-  if (claims.may_act) result.may_act = claims.may_act;
   if (claims.act)    result.act    = claims.act;
   if (claims.client_id) result.client_id = claims.client_id;
   if (claims.azp)    result.azp    = claims.azp;
@@ -414,54 +413,7 @@ function buildTratContext(req, tool, userSub, agentClientId, gatewayClientId, ex
   return ctx;
 }
 
-// ─── may_act validation (informational — PingOne does the real check) ─────────
-
-/**
- * Inspect the subject token's may_act claim and return a human-readable result.
- * This mirrors the validation algorithm in may_act.md §Reference Validation Algorithm.
- * The actual enforcement is performed by PingOne during the token exchange; this
- * function produces the explanation text shown in the UI.
- */
-function describeMayAct(claims, bffClientId) {
-  if (!claims) return { valid: false, reason: 'no claims decoded' };
-  const { may_act } = claims;
-
-  if (!may_act) {
-    return {
-      valid: false,
-      reason: 'may_act claim absent — PingOne may reject the exchange; add the may_act claim via a PingOne token policy to guarantee acceptance',
-    };
-  }
-  if (typeof may_act !== 'object' || Array.isArray(may_act)) {
-    return { valid: false, reason: 'may_act is not a JSON object — invalid per RFC 8693 / may_act spec' };
-  }
-
-  const checks = [];
-  let mismatch = false;
-
-  if (may_act.client_id) {
-    const match = !bffClientId || may_act.client_id === bffClientId;
-    const mismatchMsg = match ? '✅ matches Backend-for-Frontend (BFF)' : `❌ mismatch (Backend-for-Frontend (BFF) is ${bffClientId})`;
-    checks.push(`client_id: ${may_act.client_id} ${mismatchMsg}`);
-    if (!match) mismatch = true;
-  }
-  if (may_act.sub) {
-    checks.push(`sub: ${may_act.sub}`);
-  }
-  if (may_act.iss) {
-    checks.push(`iss: ${may_act.iss}`);
-  }
-
-  if (checks.length === 0) {
-    return { valid: false, reason: 'may_act has no recognised fields (client_id / sub / iss)' };
-  }
-
-  return {
-    valid: !mismatch,
-    reason: checks.join(' · '),
-    mayActObj: may_act,
-  };
-}
+// ─── (may_act removed — delegation authorization is now platform-level) ──────
 
 /**
  * Append the user access token row to tokenEvents (same shape as MCP tool-call flow).
@@ -527,8 +479,6 @@ function appendUserTokenEvent(tokenEvents, userToken, req = null) {
   const userAccessTokenDecoded = decodeJwtClaims(userToken);
   const userAccessTokenClaims = userAccessTokenDecoded?.claims;
   const userSub = userAccessTokenClaims?.sub != null ? String(userAccessTokenClaims.sub) : null;
-  const bffClientId = configStore.getEffective('user_client_id') || process.env.PINGONE_CLIENT_ID || null;
-  const mayActInfo = describeMayAct(userAccessTokenClaims, bffClientId);
 
   // Scope: prefer JWT claim, fall back to scope stored in session (PingOne may omit it from JWT)
   const jwtScope = userAccessTokenClaims?.scope;
@@ -570,9 +520,6 @@ function appendUserTokenEvent(tokenEvents, userToken, req = null) {
       scopeCount: tokenScopes.length,
       hasAgentScope,
       agentScopesInToken,
-      mayActPresent: !!userAccessTokenClaims?.may_act,
-      mayActValid: mayActInfo.valid,
-      mayActDetails: mayActInfo.reason,
     }
   ));
 
@@ -1106,66 +1053,12 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   }
   // ─────────────────────────────────────────────────────────────────────────
 
-  // ── RFC 8693 may_act Support Configuration ───────────────────────────────
-  // DEPRECATED: Synthetic may_act injection via ff_inject_may_act (kept for backwards compatibility).
-  // New code should use enableMayActSupport with PingOne token policies for RFC 8693 compliance.
-  const ffInjectMayAct =
-    configStore.getEffective('ff_inject_may_act') === true ||
-    configStore.getEffective('ff_inject_may_act') === 'true';
+  // ── RFC 8693 may_act Support Removed ──────────────────────────────────────
+  // Delegation authorization is now handled at the platform level (PingOne app
+  // grants and delegation policies) rather than via a may_act claim in the token.
+  // The act claim in the exchanged token records the delegation chain for audit.
 
   let userAccessTokenClaims = _rawUserClaims;
-  if (ffInjectMayAct && userAccessTokenClaims && !userAccessTokenClaims.may_act) {
-    const bffClientId =
-      oauthService.config?.clientId ||
-      configStore.getEffective('user_client_id') ||
-      process.env.PINGONE_CLIENT_ID ||
-      null;
-    if (bffClientId) {
-      // DEPRECATED: Patch claims in memory only — the JWT itself is unchanged.
-      // This is a backwards-compatibility shortcut. For production RFC 8693 compliance,
-      // configure PingOne to add may_act natively via token policy + enableMayActSupport.
-      userAccessTokenClaims = { ...userAccessTokenClaims, may_act: { client_id: bffClientId } };
-      // Update the user-token event that was just pushed to reflect the injection.
-      const utEvent = tokenEvents.find(e => e.id === 'user-token');
-      if (utEvent) {
-        utEvent.mayActPresent = true;
-        utEvent.mayActValid   = true;
-        utEvent.mayActInjected = true;
-        utEvent.mayActDetails =
-          `may_act synthesised by BFF (ff_inject_may_act = true): { client_id: "${bffClientId}" }. ` +
-          'DEPRECATED: This is a demo/dev shortcut — enable may_act in your PingOne token policy and set enableMayActSupport=true for RFC 8693 compliance.';
-        utEvent.explanation =
-          (utEvent.explanation || '') +
-          ` [BFF-INJECTED may_act: { client_id: "${bffClientId}" } — enable ff_inject_may_act is ON — DEPRECATED]`;
-      }
-      tokenEvents.push(buildTokenEvent(
-        'may-act-injected',
-        'may_act — BFF synthetic injection (DEPRECATED)',
-        'active',
-        null,
-        `ff_inject_may_act is ON. The user access token had no may_act claim so the BFF has ` +
-          `synthesised { client_id: "${bffClientId}" } in memory before attempting RFC 8693 token exchange. ` +
-          'DEPRECATED: This is a demo/dev shortcut. For production RFC 8693 compliance, configure PingOne to add may_act natively ' +
-          'via an attribute mapping expression, enable enableMayActSupport=true, then disable this flag.',
-        { rfc: 'RFC 8693 §4.1', synthetic: true, deprecated: true, injectedValue: { client_id: bffClientId } }
-      ));
-    }
-  }
-  
-  // ── RFC 8693 may_act Support Configuration (Production) ──────────────────
-  // Validate RFC 8693-compliant may_act claims from PingOne token policies (not synthetic injection).
-  const mayActSupported = configStore.getEffective('enableMayActSupport') === true ||
-    configStore.getEffective('enableMayActSupport') === 'true';
-
-  // NOTE: the RFC 8693 exchange is no longer hard-blocked here on a missing
-  // may_act claim. Authorization decisions now key on the resulting `act`
-  // claim (see demo_authz_server/routes/decision.js Rule 2.5,
-  // REQUIRE_ACT_FOR_AGENT_TOOLS) rather than pre-flighting may_act — a
-  // revoked/never-authorized agent still fails to mint `act` (PingOne's
-  // resource SPEL seeds `act` from the subject token's `may_act`), so
-  // agent-mediated tools are still denied downstream; this just moves the
-  // authorization decision to the same place the rest of the chain is
-  // evaluated instead of a separate may_act-specific pre-check.
 
   // ── ff_inject_scopes — Demo Scope Injection (Phase 146 — D-04) ───────────
   // When ON and the user access token lacks * scopes, the BFF injects
@@ -1934,7 +1827,6 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
         requestContext: err.requestContext,
         rfc: 'RFC 8693',
         trigger: toolTrigger,
-        mayActPresent: !!userAccessTokenClaims?.may_act,
       }
     ));
 
@@ -1956,7 +1848,6 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
       pingoneErrorDetail: err.pingoneErrorDetail,
       requestContext: err.requestContext,
       mcpResourceUri,
-      mayActPresent: !!userAccessTokenClaims?.may_act,
       rfc: 'RFC 8693',
     });
 
@@ -2247,7 +2138,7 @@ async function _performTwoExchangeDelegation(
     'acquiring',
     null,
     `Exchange #1 (RFC 8693): exchanger=${aiAgentClientId}, ` +
-      `subject=Subject Token (may_act.sub must equal actor_token.aud[0]=${aiAgentClientId}), ` +
+      `subject=Subject Token, ` +
       `audience=${intermediateAud}, scope="${exchange1Scopes.join(' ')}" ` +
       `(agent:invoke + tool scopes mirrored on Agent Gateway; carried into intermediate token for Exchange #2 narrowing).`,
     { rfc: 'RFC 8693', exchangeStep: '1-exchange',
@@ -2611,7 +2502,7 @@ function mapErrorToStructuredResponse(error, context = {}) {
   } else if (errorMessage.includes('invalid_token')) {
     errorCode = 'invalid_token';
   } else if (errorMessage.includes('may_act')) {
-    errorCode = 'may_act_validation_failed';
+    errorCode = 'invalid_grant';
   } else if (errorMessage.includes('subject')) {
     errorCode = 'subject_mismatch';
   } else if (errorMessage.includes('access_denied')) {

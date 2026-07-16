@@ -128,7 +128,7 @@ export const SCENARIOS = [
         nodes: ['n-pingone'],
         edges: ['e-mcpgw-pingone'],
         desc: 'Ping Agent Gateway → PingOne: RFC 8693 Token Exchange (grant_type=token-exchange).',
-        why: 'The gateway presents the subject_token (user identity) and an actor_token (the AI_AGENT app\'s credentials). PingOne checks the may_act claim on the user\'s record — listing which agent client IDs are permitted to act on their behalf. If may_act is absent or doesn\'t match, the exchange is rejected. This is delegated authority, not impersonation.',
+        why: 'The gateway presents the subject_token (user identity) and an actor_token (the AI_AGENT app\'s credentials). PingOne validates that the agent app has the token_exchange grant and is authorized to act on behalf of this user via platform-level app configuration. If the agent is not authorized, the exchange is rejected. This is delegated authority, not impersonation.',
       },
       {
         nodes: ['n-mcp-gw'],
@@ -511,8 +511,8 @@ export const SCENARIOS = [
       {
         nodes: ['n-browser'],
         edges: [],
-        desc: 'Rogue agent attempts to act on behalf of a user whose PingOne may_act record does not authorise it.',
-        why: 'The confused deputy attack exploits a legitimate service\'s elevated access — here, the rogue agent tries to use its registered AI_AGENT credentials to act on behalf of a user who never granted it delegation authority. Without the may_act check, any agent client could impersonate any user through token exchange.',
+        desc: 'Rogue agent attempts to act on behalf of a user it is not authorized to represent.',
+        why: 'The confused deputy attack exploits a legitimate service\'s elevated access — here, the rogue agent tries to use its registered AI_AGENT credentials to act on behalf of a user who never granted it delegation authority. Without platform-level authorization checks, any agent client could impersonate any user through token exchange.',
       },
       {
         nodes: ['n-bff'],
@@ -524,15 +524,15 @@ export const SCENARIOS = [
         nodes: ['n-mcp-gw'],
         edges: ['e-bff-mcpgw'],
         desc: 'Rogue agent → Ping Agent Gateway: tool call arrives. Gateway submits RFC 8693 exchange with subject_token=user token + actor_token=rogue agent credentials.',
-        why: 'The actor_token in RFC 8693 identifies the agent itself — its client_id is embedded in the credentials. PingOne must now verify that this agent\'s client_id is listed in the user\'s may_act attribute. may_act is set during user provisioning and is the explicit allowlist of agents authorised to act on that user\'s behalf.',
+        why: 'The actor_token in RFC 8693 identifies the agent itself — its client_id is embedded in the credentials. PingOne must verify that this agent\'s client_id is authorized to perform token exchange on behalf of this user. Authorization is configured at the platform level (PingOne app grants and delegation policies) — not embedded in the token.',
       },
       {
         nodes: [],
         edges: ['e-mcpgw-pingone'],
         blocked: ['n-pingone'],
         isBlock: true,
-        desc: 'BLOCKED — PingOne: may_act check fails — rogue agent\'s client_id not in user\'s may_act allowlist → RFC 8693 exchange rejected.',
-        why: 'PingOne evaluates the user\'s may_act attribute against the actor_token\'s client_id. No match means the delegation is refused and no narrowed MCP token is issued. The confused deputy cannot proceed without the user\'s explicit prior authorisation — stored at the identity provider level, not on any local server the attacker could modify.',
+        desc: 'BLOCKED — PingOne: delegation authorization check fails — rogue agent not authorized for this user → RFC 8693 exchange rejected.',
+        why: 'PingOne evaluates the agent\'s authorization to act on behalf of this user via platform-level delegation policies. No authorization means the delegation is refused and no narrowed MCP token is issued. The confused deputy cannot proceed without proper platform-level authorization — configured at the identity provider level, not on any local server the attacker could modify.',
       },
     ],
   },

@@ -11,7 +11,7 @@ import TokenChainTraceRail from './TokenChainTraceRail';
  * Displays:
  * - Visual diagram of token transformation during delegation
  * - Clear explanation of actor/agent terminology
- * - Act and may_act claims purposes
+ * - Act claim purpose and nested delegation chain
  * - FAQ for common questions
  */
 export const ActorTokenEducation: React.FC = () => {
@@ -30,17 +30,17 @@ export const ActorTokenEducation: React.FC = () => {
     {
       question: 'How is it different from my regular token?',
       answer:
-        'Your regular token identifies just you. An actor/agent token identifies both you AND the agent acting on your behalf. This is called "delegation" — you delegate specific actions to the agent. The token includes an "act claim" (proof of agent identity) and a "may_act claim" (what the agent can do).'
+        'Your regular token identifies just you. An actor/agent token identifies both you AND the agent acting on your behalf. This is called "delegation" — you delegate specific actions to the agent. The token includes an "act claim" that records the full delegation chain: who is acting, and on whose behalf.'
     },
     {
       question: 'Can the agent access more than I permit?',
       answer:
-        'No. The "may_act" claim limits exactly what the agent can do. If you grant the agent permission to read your transaction history, it can only read transactions — not transfer money, delete accounts, or access other APIs. You have full control over delegation scope.'
+        'No. The delegated token is scoped to only the permissions you grant. If you grant the agent permission to read your transaction history, it can only read transactions — not transfer money, delete accounts, or access other APIs. Platform-level authorization (PingOne app grants and scopes) controls what the agent can do.'
     },
     {
       question: 'How do I know what my agent did?',
       answer:
-        'Every action performed by an agent is logged with: who the agent is (act claim), which user it acted for (subject), what permission it used (may_act), and the timestamp. You can view this audit trail in the operations log section of the dashboard.'
+        'Every action performed by an agent is logged with: who the agent is (act claim with nested delegation chain), which user it acted for (subject), what scopes were used, and the timestamp. You can view this audit trail in the operations log section of the dashboard.'
     },
     {
       question: 'Can I revoke agent access?',
@@ -100,7 +100,7 @@ export const ActorTokenEducation: React.FC = () => {
                 Actor Token<br />
                 sub: "your-id"<br />
                 act: {"{"} sub: "agent-id" {"}"}<br />
-                may_act: {"{"} scope: ["read"] {"}"}<br />
+                scope: ["read"]<br />
                 aud: "banking-api"
               </code>
             </div>
@@ -114,10 +114,10 @@ export const ActorTokenEducation: React.FC = () => {
               <strong>sub</strong> ("subject"): That's you — the original authenticated user
             </li>
             <li>
-              <strong>act</strong> ("actor identity"): That's the agent/service acting on your behalf
+              <strong>act</strong> ("actor identity"): That's the agent/service acting on your behalf — records the full delegation chain
             </li>
             <li>
-              <strong>may_act</strong> ("actor permissions"): Exactly what the agent is allowed to do (scopes)
+              <strong>scope</strong> ("permissions"): The narrowed set of permissions granted for this delegation
             </li>
           </ul>
         </p>
@@ -137,25 +137,18 @@ export const ActorTokenEducation: React.FC = () => {
         <div className={styles.term}>
           <h4>Act Claim</h4>
           <p>
-            The part of the token that says "This agent/actor XYZ is authorized to act on behalf of user ABC". It's
-            proof that the agent identity is legitimate.
-          </p>
-        </div>
-
-        <div className={styles.term}>
-          <h4>May_Act Claim</h4>
-          <p>
-            The part of the token that lists exactly what the agent is allowed to do. If it says{' '}
-            <code className={styles.inline}>scope: ["transaction:read"]</code>, the agent can only read transactions,
-            not transfer money.
+            The part of the token that says "This agent/actor XYZ is authorized to act on behalf of user ABC". It
+            records the full delegation chain — each hop in a multi-agent flow appends a nested act claim, creating
+            an audit trail of who delegated what.
           </p>
         </div>
 
         <div className={styles.term}>
           <h4>Delegation</h4>
           <p>
-            The process of you granting the agent a specific set of permissions to act on your behalf. You always control
-            what the agent can and cannot do.
+            The process of you granting the agent a specific set of permissions to act on your behalf. Authorization
+            is controlled at the platform level (PingOne app grants and scopes), and the act claim provides
+            cryptographic proof of the delegation chain.
           </p>
         </div>
       </div>

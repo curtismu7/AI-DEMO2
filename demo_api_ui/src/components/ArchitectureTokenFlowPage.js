@@ -134,7 +134,7 @@ const TOKEN_FLOW_SIMULATE_STEPS = [
   {
     regionIds: ["pingone-aic", "chatbot"],
     colorClass: "active",
-    label: "IdP issues ID Token + Access Token (with may_act)",
+    label: "IdP issues ID Token + Access Token (scoped for delegation)",
     // PID → WA  (i40, y=2041)
     stepArrow: { yPct: 40.2, xMinPct: 12.1, xMaxPct: 40.6 },
     token: {
@@ -155,8 +155,7 @@ const TOKEN_FLOW_SIMULATE_STEPS = [
       aud: "banking-app-client",
       sub: "alice@bank.com",
       scope: "openid profile read write",
-      may_act: '{ "client_id": "bff-client-id" }',
-      note: "may_act pre-authorizes BFF/gateway to exchange on behalf of user (RFC 8693 §4.2)",
+      note: "Platform-level authorization (PingOne app grants) controls which agents can exchange this token via RFC 8693",
     },
   },
   {
@@ -172,8 +171,7 @@ const TOKEN_FLOW_SIMULATE_STEPS = [
       aud: "banking-app-client",
       sub: "alice@bank.com",
       scope: "openid profile read write",
-      may_act: '{ "client_id": "bff-client-id" }',
-      note: "may_act is the key that enables RFC 8693 delegation — BFF is the authorized exchanger",
+      note: "BFF holds the user access token; platform-level grants authorize the BFF to perform RFC 8693 delegation exchange",
     },
   },
   {

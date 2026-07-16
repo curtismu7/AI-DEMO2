@@ -1,5 +1,5 @@
 /**
- * Middleware to validate and extract act/may_act claims from tokens
+ * Middleware to validate and extract act claims from tokens
  * for delegation chain verification and audit logging.
  * 
  * RFC 8693 §4.1: act claim structure validation
@@ -54,7 +54,6 @@ function extractDelegationChain(decodedToken) {
   const chain = {
     subject: decodedToken.sub || null,
     actor: null,
-    mayAct: null,
     delegationPresent: false
   };
 
@@ -63,15 +62,6 @@ function extractDelegationChain(decodedToken) {
     const actValidation = validateActClaim(decodedToken.act);
     chain.actor = actValidation.actor;
     chain.delegationPresent = actValidation.valid;
-  }
-
-  // Extract may_act claim (prospective delegation)
-  if (decodedToken.may_act) {
-    chain.mayAct = {
-      client_id: decodedToken.may_act.client_id || null,
-      sub: decodedToken.may_act.sub || null,
-      iss: decodedToken.may_act.iss || null
-    };
   }
 
   return chain;

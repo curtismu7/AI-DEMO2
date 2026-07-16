@@ -6,7 +6,7 @@
  *   2. MessageContent rendering — paragraph splitting, no <pre> monospace
  *   3. CSS sanity — index.css has the global pre reset
  *   4. BankingAgent — no raw markdown (** / backticks) in message strings
- *   5. TokenChainDisplay — EventRow act/may_act hint derivation logic
+ *   5. TokenChainDisplay — EventRow act hint derivation logic
  *   6. accountsHydration — guard against regression (smoke re-run)
  *
  * These tests are pure-logic (no DOM mount) where possible to keep them fast.
@@ -383,19 +383,10 @@ describe("BankingAgent: no raw markdown markers in message strings", () => {
   });
 });
 
-// ─── 5. TokenChainDisplay: act/mayAct hint derivation ────────────────────────
+// ─── 5. TokenChainDisplay: act hint derivation ────────────────────────
 
-describe("Token chain act/mayAct hint derivation logic", () => {
+describe("Token chain act hint derivation logic", () => {
   // Mirrors the hint logic from EventRow in TokenChainDisplay.js
-  const mayActHint = (event) =>
-    event.mayActPresent === true
-      ? event.mayActValid
-        ? { text: "✅ may_act valid", cls: "ok" }
-        : { text: "❌ may_act mismatch", cls: "error" }
-      : event.mayActPresent === false
-        ? { text: "⚠️ may_act absent", cls: "warn" }
-        : null;
-
   const actHint = (event) =>
     event.actPresent === true
       ? { text: "✅ act claimed", cls: "ok" }
@@ -404,31 +395,6 @@ describe("Token chain act/mayAct hint derivation logic", () => {
         : event.actPresent === false && event.actExpectedHere === false
           ? { text: "ℹ️ act added after Exchange #2", cls: "info" }
           : null;
-
-  it("mayAct: returns ok when present and valid", () => {
-    expect(mayActHint({ mayActPresent: true, mayActValid: true })).toEqual({
-      text: "✅ may_act valid",
-      cls: "ok",
-    });
-  });
-
-  it("mayAct: returns error when present but mismatched", () => {
-    expect(mayActHint({ mayActPresent: true, mayActValid: false })).toEqual({
-      text: "❌ may_act mismatch",
-      cls: "error",
-    });
-  });
-
-  it("mayAct: returns warn when absent", () => {
-    expect(mayActHint({ mayActPresent: false })).toEqual({
-      text: "⚠️ may_act absent",
-      cls: "warn",
-    });
-  });
-
-  it("mayAct: returns null when undefined (not applicable)", () => {
-    expect(mayActHint({})).toBeNull();
-  });
 
   it("act: returns ok when present", () => {
     expect(actHint({ actPresent: true })).toEqual({
@@ -453,18 +419,6 @@ describe("Token chain act/mayAct hint derivation logic", () => {
 
   it("act: returns null when actPresent is undefined", () => {
     expect(actHint({})).toBeNull();
-  });
-
-  it("combined: may_act valid + act present → both green", () => {
-    const event = { mayActPresent: true, mayActValid: true, actPresent: true };
-    expect(mayActHint(event).cls).toBe("ok");
-    expect(actHint(event).cls).toBe("ok");
-  });
-
-  it("combined: may_act absent + act absent → both show warnings", () => {
-    const event = { mayActPresent: false, actPresent: false };
-    expect(mayActHint(event).cls).toBe("warn");
-    expect(actHint(event).cls).toBe("warn");
   });
 });
 
