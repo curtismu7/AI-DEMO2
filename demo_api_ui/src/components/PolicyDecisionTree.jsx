@@ -72,12 +72,12 @@ function overallDecision(result) {
 const STATUS_GLYPH = { permit: "✓", deny: "✕", step_up: "!", consent: "!", set: "–", na: "N/A" };
 const EFFECT_CLASS = (e) => (/DENY/.test(e || "") ? "deny" : "permit");
 
-const DECISION_ICONS = {
-  PERMIT: "✅",
-  DENY: "🚫",
-  STEP_UP: "⚠️",
-  CONSENT: "🤝",
-  INDETERMINATE: "❓",
+const DECISION_LABELS = {
+  PERMIT: "APPROVED",
+  DENY: "DENIED",
+  STEP_UP: "STEP-UP REQUIRED",
+  CONSENT: "CONSENT REQUIRED",
+  INDETERMINATE: "INDETERMINATE",
 };
 
 /**
@@ -292,9 +292,8 @@ export default function PolicyDecisionTree({ policies, result, floating = false 
     <div className={floating ? "p1dt p1dt--floating" : "p1dt"}>
       {/* Prominent Decision Banner */}
       <div className={`p1dt-decision-banner p1dt-decision-banner--${decision.toLowerCase()}`}>
-        <span className="p1dt-decision-banner__icon">{DECISION_ICONS[decision] || "❓"}</span>
         <span className="p1dt-decision-banner__label">Decision:</span>
-        <span className="p1dt-decision-banner__value">{decision.replace(/_/g, " ")}</span>
+        <span className="p1dt-decision-banner__value">{DECISION_LABELS[decision] || decision.replace(/_/g, " ")}</span>
         {timing && <span className="p1dt-decision-banner__timing">{timing}</span>}
       </div>
 
@@ -339,7 +338,7 @@ export default function PolicyDecisionTree({ policies, result, floating = false 
           ))}
           {unmatched.length > 0 && (
             <div className="p1dt-stmt" style={{ color: "#b45309" }}>
-              ⚠️ {unmatched.length} statement{unmatched.length !== 1 ? "s" : ""} could not be mapped to a rule node
+              {unmatched.length} statement{unmatched.length !== 1 ? "s" : ""} could not be mapped to a rule node
               (shown above, not highlighted on the tree).
             </div>
           )}
