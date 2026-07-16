@@ -116,22 +116,10 @@ class ApiClient {
           });
         }
 
-        // Check if error is due to token expiration (401) and we haven't already tried to refresh
-        if (error.response?.status === 401 && !originalRequest._retry) {
-          originalRequest._retry = true;
-          try {
-            const newToken = await this.refreshToken();
-            if (newToken) {
-              originalRequest.headers.Authorization = `Bearer ${newToken}`;
-              return this.client(originalRequest);
-            }
-          } catch (refreshError) {
-            console.error('Token refresh failed:', refreshError);
-            // Do not redirect: refresh often returns 501 (not implemented) or 401 while the
-            // Backend-for-Frontend (BFF) session cookie is still valid. Let the caller surface the original 401.
-            return Promise.reject(error);
-          }
-        }
+        // BFF pattern: the server handles token refresh transparently via
+        // refreshIfExpiring middleware. No client-side retry needed — the
+        // session cookie is the auth mechanism. Previous dead-code retry
+        // (refreshToken() always returned null) has been removed.
 
         // Check for insufficient scope errors (403)
         if (error.response?.status === 403) {
@@ -158,25 +146,11 @@ class ApiClient {
     return null;
   }
 
+  /** @deprecated BFF pattern — server never exposes accessToken to the client. */
   async getTokenFromSession() {
-    try {
-      // Try end user OAuth session first
-      const userResponse = await axios.get('/api/auth/oauth/user/status');
-      if (userResponse.data.authenticated && userResponse.data.accessToken) {
-        return userResponse.data.accessToken;
-      }
-
-      // Try admin OAuth session as fallback
-      const adminResponse = await axios.get('/api/auth/oauth/status');
-      if (adminResponse.data.authenticated && adminResponse.data.accessToken) {
-        return adminResponse.data.accessToken;
-      }
-
-      return null;
-    } catch (error) {
-      console.error('Error getting token from session:', error);
-      return null;
-    }
+    // The /status endpoints intentionally omit accessToken (BFF pattern).
+    // This method exists for backwards compatibility but always returns null.
+    return null;
   }
 
   isTokenExpired(_token) {
@@ -188,47 +162,7 @@ class ApiClient {
     // BFF pattern: the server holds the access token and refreshes it transparently
     // via the refreshIfExpiring middleware before every authenticated request.
     // The client never has the token, so there is nothing to refresh here.
-    // Returning null causes the interceptor to re-raise the original error without
-    // noisy fallback refresh attempts to /api/auth/oauth/refresh.
     return null;
-
-    // eslint-disable-next-line no-unreachable
-    try {
-      // Try to refresh the end user token first
-      try {
-        const userRefreshResponse = await axios.post('/api/auth/oauth/user/refresh');
-        if (userRefreshResponse.data.accessToken) {
-          console.debug('Successfully refreshed end user token');
-          return userRefreshResponse.data.accessToken;
-        }
-      } catch (userRefreshError) {
-        console.warn('End user token refresh failed:', userRefreshError.response?.data?.error || userRefreshError.message);
-        // If refresh is not implemented (501) or no refresh token (401), don't try admin refresh
-        if (userRefreshError.response?.status === 501 || userRefreshError.response?.status === 401) {
-          throw userRefreshError;
-        }
-      }
-
-      // Try to refresh the admin token
-      try {
-        const adminRefreshResponse = await axios.post('/api/auth/oauth/refresh');
-        if (adminRefreshResponse.data.accessToken) {
-          console.debug('Successfully refreshed admin token');
-          return adminRefreshResponse.data.accessToken;
-        }
-      } catch (adminRefreshError) {
-        console.warn('Admin token refresh failed:', adminRefreshError.response?.data?.error || adminRefreshError.message);
-        throw adminRefreshError;
-      }
-
-      throw new Error('All token refresh attempts failed');
-    } catch (error) {
-      console.error('Token refresh failed:', error);
-      if (error.response?.status === 501) {
-      } else if (error.response?.status === 401) {
-      }
-      throw error;
-    }
   }
 
   handleAuthFailure() {

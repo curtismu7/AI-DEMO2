@@ -144,11 +144,11 @@ async function trackTokenEvent(eventData) {
 
   console.log('[tokenChain] Event recorded. Total events for user:', tokenEvents.get(userId).length);
 
-  // Keep only last 50 events per user
+  // Keep only last 100 events per user (unified limit across all entry points)
   const userEvents = tokenEvents.get(userId);
-  if (userEvents.length > 50) {
-    tokenEvents.set(userId, userEvents.slice(-50));
-    console.log('[tokenChain] Trimmed events to last 50 for user:', userId);
+  if (userEvents.length > 100) {
+    tokenEvents.set(userId, userEvents.slice(-100));
+    console.log('[tokenChain] Trimmed events to last 100 for user:', userId);
   }
 
   return event;
@@ -294,6 +294,10 @@ async function getMCPToolCalls(userId, req = null) {
   try {
     // Derive MCP server HTTP origin from MCP_SERVER_URL (ws://host:port → http://host:port)
     const mcpWsUrl = process.env.MCP_SERVER_URL || configStore.getEffective('mcp_server_url');
+    if (!mcpWsUrl) {
+      // No MCP server configured — return local-only events without attempting remote fetch
+      return mergeMcpToolCallEvents(userId, []);
+    }
     const mcpHttpBase = mcpWsUrl.replace(/^ws(s?):/, 'http$1:');
     // The MCP /audit endpoint requires a live agent bearer (validateAgentToken).
     // A static MCP_AGENT_TOKEN would expire, so when it is unset and we have a
@@ -350,10 +354,10 @@ function recordEvent(event) {
   }
   tokenEvents.get(event.userId).push(event);
 
-  // Keep only last 500 events per user
+  // Keep only last 100 events per user (unified limit across all entry points)
   const userEvents = tokenEvents.get(event.userId);
-  if (userEvents.length > 500) {
-    tokenEvents.set(event.userId, userEvents.slice(-500));
+  if (userEvents.length > 100) {
+    tokenEvents.set(event.userId, userEvents.slice(-100));
   }
 }
 
@@ -373,7 +377,7 @@ async function persistToDisk() {
       fs.mkdirSync(TOKEN_CHAIN_DIR, { recursive: true });
     }
 
-    // Save each user's events to separate file
+    // Save each user's events to separate file (async to avoid blocking event loop)
     for (const [userId, events] of tokenEvents.entries()) {
       // Sanitize userId to prevent path traversal — only allow alphanumeric, dash, underscore
       const safeUserId = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -386,7 +390,7 @@ async function persistToDisk() {
         continue;
       }
       const data = JSON.stringify(events, null, 2);
-      fs.writeFileSync(filePath, data, 'utf8');
+      await fs.promises.writeFile(filePath, data, 'utf8');
     }
 
     return true;

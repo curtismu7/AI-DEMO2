@@ -688,14 +688,9 @@ const authenticateToken = async (req, res, next) => {
         }
 
         logger.debug(LOG_CATEGORIES.AUTHENTICATION, 'Using session token as fallback (no Authorization header)', requestContext);
-        // Re-use the full validation pipeline below via reassignment
-        const authHeader2 = `Bearer ${sessionToken}`;
-        req.headers['authorization'] = authHeader2;
-        // Fall through by recursing minimally: just extract and continue
+        // Validate session token WITHOUT mutating req.headers — avoids leaking
+        // the token into downstream logging/audit that captures raw headers.
         const sessionTokenExtracted = sessionToken;
-        // Use sessionTokenExtracted as the token for all validation below
-        // (the rest of the function uses `token` — update it via closure workaround)
-        // We reassign token here by falling through to the try block below with the session token.
         try {
           const { valid, decoded, error } = await validatePingOneCoreToken(sessionTokenExtracted, requestContext);
           if (!valid) {
@@ -1024,6 +1019,9 @@ const requireAdmin = (req, res, next) => {
 
 // Check if user owns the resource or is admin
 const requireOwnershipOrAdmin = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'unauthenticated', message: 'Authentication required.' });
+  }
   const { userId } = req.params;
   
   if (req.user.role === 'admin' || req.user.id === userId) {

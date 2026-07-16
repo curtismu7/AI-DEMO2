@@ -70,7 +70,8 @@ const STUCK_TIMEOUT_MS = 60000; // safety: force-hide if spinner stuck (raised t
 /** Routes that fire too frequently to ever show a spinner (polling, streaming, NL, MCP tools). */
 const SILENT_URL_PREFIXES = [
   '/api/auth/session',
-  '/api/auth/oauth',
+  '/api/auth/oauth/status',
+  '/api/auth/oauth/user/status',
   '/api/config/thresholds',
   '/api/app-events',
   '/api/mcp/flow-sse',

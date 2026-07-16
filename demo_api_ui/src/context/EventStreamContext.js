@@ -30,8 +30,12 @@ const INITIAL_STATE = {
 
 function reducer(state, action) {
   switch (action.type) {
-    case 'ADD_EVENT':
-      return { ...state, events: [...state.events, action.event] };
+    case 'ADD_EVENT': {
+      const updated = [...state.events, action.event];
+      // Cap events to prevent unbounded memory growth during long sessions
+      const events = updated.length > 500 ? updated.slice(-500) : updated;
+      return { ...state, events };
+    }
     case 'CLEAR_HISTORY':
       return { ...state, events: [] };
     case 'TOGGLE_PANEL':

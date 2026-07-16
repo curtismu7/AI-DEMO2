@@ -76,6 +76,7 @@ export default function SecurityCenter() {
         method: 'DELETE',
         credentials: 'include',
       });
+      if (!mountedRef.current) return;
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.message || `Server error ${res.status}`);
@@ -83,9 +84,10 @@ export default function SecurityCenter() {
       setDevices(prev => prev.filter(d => d.id !== deviceId));
       notifySuccess('Device removed.');
     } catch (err) {
+      if (!mountedRef.current) return;
       notifyError(err.message || 'Failed to remove device.');
     } finally {
-      setDeletingId(null);
+      if (mountedRef.current) setDeletingId(null);
     }
   }
 
@@ -104,6 +106,7 @@ export default function SecurityCenter() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nickname: renameValue.trim() }),
       });
+      if (!mountedRef.current) return;
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.message || `Server error ${res.status}`);
@@ -113,9 +116,10 @@ export default function SecurityCenter() {
       setRenamingId(null);
       notifySuccess('Device renamed.');
     } catch (err) {
+      if (!mountedRef.current) return;
       notifyError(err.message || 'Failed to rename device.');
     } finally {
-      setRenameBusy(false);
+      if (mountedRef.current) setRenameBusy(false);
     }
   }
 

@@ -72,6 +72,13 @@ export function SessionTokenProvider({ children }) {
     return () => clearInterval(id);
   }, [tokenExpiresAt]);
 
+  // Periodic re-fetch of token status to pick up server-side silent refreshes.
+  // Without this, the pill shows "expired" even when the BFF has already refreshed.
+  useEffect(() => {
+    const id = setInterval(refreshTokenStatus, 60000); // every 60s
+    return () => clearInterval(id);
+  }, [refreshTokenStatus]);
+
   // Register/unregister the page-owned token modal opener. Returns a cleanup
   // that only clears the opener if it is still the one this caller registered.
   const registerTokenModalOpener = useCallback((fn) => {

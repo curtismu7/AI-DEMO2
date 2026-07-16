@@ -11,7 +11,7 @@ import { resolveApiBaseUrl } from '../utils/resolveApiBaseUrl';
 const bffAxios = axios.create({
   baseURL: resolveApiBaseUrl(),
   withCredentials: true,
-  timeout: 30000,
+  timeout: 15000, // 15s — aligned closer to apiClient (10s) for consistent UX
 });
 
 export default bffAxios;
