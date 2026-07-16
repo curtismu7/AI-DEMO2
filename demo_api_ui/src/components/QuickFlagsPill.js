@@ -26,6 +26,7 @@ const QUICK_FLAGS = [
   { id: 'ff_heuristic_enabled',         group: 'Agent',           control: 'toggle',    label: 'Routing — Fallback to Heuristics' },
   { id: 'ff_agent_results_panel',       group: 'Agent',           control: 'toggle',    label: 'Floating Results Panel' },
   { id: 'ff_helix_lmstudio_fallback',   group: 'Agent',           control: 'toggle',    label: 'Helix → LM Studio Fallback' },
+  { id: 'ff_okf_grounding',             group: 'Agent',           control: 'toggle',    label: '📚 OKF Knowledge Grounding' },
   { id: 'ff_tracing',                   group: 'Observability',   control: 'toggle',    label: 'Tracing (OTel → Jaeger)' },
 ];
 const GROUPS = ['Token & Gateway', 'AuthN / AuthZ', 'Agent', 'Observability'];

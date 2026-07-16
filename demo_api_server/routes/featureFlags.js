@@ -503,6 +503,23 @@ const FLAG_REGISTRY = [
     defaultValue: true,
   },
 
+  // ── OKF Knowledge Grounding ────────────────────────────────────────────────
+  {
+    id:           'ff_okf_grounding',
+    name:         'OKF Knowledge Grounding',
+    category:     'Agent',
+    description:
+      'When **ON**, injects deterministic OKF knowledge assertions into the demo agent system prompt. ' +
+      'The agent answers from authored, citable definitions ([K1]–[K12]) sourced from banking policy documents. ' +
+      'When **OFF** (default), the agent uses only the manifest system prompt (no grounding, no RAG).',
+    impact:
+      'OFF (default) = agent answers from parametric knowledge only (vibes mode). ' +
+      'ON = agent answers are grounded in deterministic assertions with inline [Kn] citations and source references. ' +
+      'RAG remains orthogonal (compose profile, not this flag).',
+    type:         'boolean',
+    defaultValue: false,
+  },
+
   // ── UI / Dashboard ─────────────────────────────────────────────────────────
   {
     id:           'ff_show_agent_in_middle',

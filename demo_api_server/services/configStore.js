@@ -276,6 +276,7 @@ const FIELD_DEFS = {
   ff_tracing:                  { public: true, default: 'true'  }, // OTel→Jaeger tracing; reconciled by run-docker.sh demo-sync
   // Helix → LM Studio failover: when Helix returns a quota-exhausted reply, retry the turn on a local LM Studio model
   ff_helix_lmstudio_fallback:  { public: true, default: 'true'  },
+  ff_okf_grounding:            { public: true, default: 'false' }, // OKF knowledge grounding — inject deterministic assertions into agent system prompt with [Kn] citations
   lmstudio_base_url:           { public: true, default: 'http://localhost:1234/v1' },
   lmstudio_model:              { public: true, default: '' }, // empty → LM Studio uses its currently loaded model
   ff_rar:                          { public: true, default: 'false' }, // UC14: RFC 9396 RAR enforcement — bind agent tools to attested amount/payee from azd.authorization_details; default OFF
