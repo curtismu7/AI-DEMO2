@@ -45,7 +45,12 @@ function toAnthropicMessages(messages: ReasonMessage[]): Anthropic.MessageParam[
       }
       out.push({ role: 'assistant', content: blocks });
       i++;
-    } else if (msg.role === 'system') {
+    // Cast: ReasonMessage.role is 'user'|'assistant'|'tool', so TS narrows
+    // 'system' away here (TS2367) and the strict build fails — which silently
+    // kept a stale agent-service image, since a failed `npm run build` in the
+    // Dockerfile leaves the previous one in place. The BFF is plain JS and is
+    // not bound by that type, so keep this defensive runtime guard.
+    } else if ((msg.role as string) === 'system') {
       // Skip system messages — they should be passed via the `system` parameter
       // in the Anthropic API call, not as a message. Including them as 'user'
       // would confuse the model by treating instructions as user input.
@@ -343,6 +348,17 @@ export async function reasonOnce(req: ReasonRequest): Promise<ReasonResponse> {
         model,
         temperature: 0,
         apiKey: 'llama-cpp', // llama-server ignores the key, but the SDK requires one
+        // gpt-oss is a reasoning model: unset, it defaults to a high effort and
+        // spends most of max_tokens on hidden reasoning. The BFF drives up to
+        // MAX_TOOL_ITERATIONS (10) sequential reasonOnce calls per user turn, so
+        // per-call cost is multiplied by 10. Measured on an M4 Max, one call with
+        // an agent-shaped prompt: low 14.0s / medium 18.3s / high 30.2s — i.e. the
+        // default costs minutes per turn. 'low' also returns real content instead
+        // of burning the budget on reasoning_content (which this path would drop).
+        // Passed via modelKwargs so it lands in the body verbatim as
+        // `reasoning_effort` (llama-server honors it via --jinja). The typed
+        // `reasoningEffort` field is a call option here, not a constructor field.
+        modelKwargs: { reasoning_effort: process.env.LLAMACPP_REASONING_EFFORT || 'low' },
         configuration: { baseURL },
       });
       const withTools = req.tools.length > 0
