@@ -70,6 +70,8 @@
   bottom: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%);
+  /* Prevent clipping at horizontal edges */
+  max-width: min(380px, calc(100vw - 32px));
   z-index: 1000;
   display: flex;
   flex-direction: column;
@@ -239,6 +241,29 @@
 
 .okf-cited-message {
   display: inline;
+}
+
+/* ---------------------------------------------------------------------------
+   Popover — below variant (flips when not enough space above)
+   --------------------------------------------------------------------------- */
+
+.okf-citation-popover--below {
+  bottom: auto;
+  top: calc(100% + 8px);
+}
+
+.okf-citation-popover--below::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: #ffffff;
+}
+
+.okf-citation-popover--below::before {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: #e5e7eb;
 }
 
 /* ---------------------------------------------------------------------------

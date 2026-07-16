@@ -79,6 +79,9 @@ function registerOkfRoutes(router) {
       version: meta ? meta.version : null,
       title: meta ? meta.title : null,
       assertionCount: assertions.length,
+      totalAssertions: meta ? meta.assertionCount : assertions.length,
+      filtered: !!(opts.tags && opts.tags.length > 0),
+      filterTags: opts.tags || null,
       assertions,
     });
   });

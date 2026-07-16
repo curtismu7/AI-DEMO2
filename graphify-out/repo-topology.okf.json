@@ -21,8 +21,8 @@
     },
     {
       "id": "K2",
-      "claim": "Feature flags follow a three-point wiring pattern: (1) FLAG_REGISTRY in featureFlags.js (~line 33), (2) FIELD_DEFS in configStore.js (~line 299), and optionally (3) QUICK_FLAGS in QuickFlagsPill.js (~line 16) for a header toggle pill. A flag needs all three to be fully operational in the UI.",
-      "source": "server/config/featureFlags.js, server/config/configStore.js, client/components/QuickFlagsPill.js",
+      "claim": "Feature flags follow a three-point wiring pattern: (1) FLAG_REGISTRY in featureFlags.js (~line 33), (2) FIELD_DEFS in configStore.js (~line 152), and optionally (3) QUICK_FLAGS in QuickFlagsPill.js (~line 16) for a header toggle pill. A flag needs all three to be fully operational in the UI.",
+      "source": "demo_api_server/routes/featureFlags.js, demo_api_server/services/configStore.js, demo_api_ui/src/components/QuickFlagsPill.js",
       "confidence": 1.0,
       "citations": [
         { "ref": "featureFlags.js:33" },
@@ -93,8 +93,8 @@
     },
     {
       "id": "K9",
-      "claim": "The configStore (configStore.js) is the persistence layer for all runtime configuration including feature flags. FIELD_DEFS (~line 299) declares the schema for each config field: type, default, label, description, category, and whether changes require restart. Fields with restart:false take effect immediately.",
-      "source": "server/config/configStore.js:299",
+      "claim": "The configStore (configStore.js) is the persistence layer for all runtime configuration including feature flags. FIELD_DEFS (~line 152) declares the schema for each config field: type, default, label, description, category, and whether changes require restart. Fields with restart:false take effect immediately.",
+      "source": "demo_api_server/services/configStore.js:152",
       "confidence": 1.0,
       "citations": [
         { "ref": "configStore.js FIELD_DEFS ~line 299" }
@@ -113,11 +113,11 @@
     },
     {
       "id": "K11",
-      "claim": "Service boundaries: the server/ directory contains Express.js services (config, agents, routes). The client/ directory contains the React frontend. Services communicate via internal REST APIs. The LangGraph agent service is the most complex — it orchestrates tool calls, manages conversation state, and assembles prompts.",
+      "claim": "Service boundaries: the demo_api_server/ directory contains Express.js services (config, agents, routes). The demo_api_ui/ directory contains the React frontend. Services communicate via internal REST APIs. The LangGraph agent service is the most complex — it orchestrates tool calls, manages conversation state, and assembles prompts.",
       "source": "Project directory structure, service implementations",
       "confidence": 1.0,
       "citations": [
-        { "ref": "server/ and client/ directory structure" }
+        { "ref": "demo_api_server/ and demo_api_ui/ directory structure" }
       ],
       "tags": ["architecture", "service-boundaries", "directory-structure"]
     },

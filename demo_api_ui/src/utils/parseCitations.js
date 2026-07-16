@@ -271,13 +271,12 @@ function createUseCitationHook({ useState, useEffect, useRef }) {
 // Exports
 // ---------------------------------------------------------------------------
 
-module.exports = {
+export {
   parseCitations,
   extractCitationIds,
   hasCitations,
   createCitationResolver,
   createUseCitationHook,
-  // Exported for testing
   CITATION_PATTERN,
   MAX_ASSERTION_NUM,
   createCitationRegex,

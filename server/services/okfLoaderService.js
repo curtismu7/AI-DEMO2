@@ -214,10 +214,15 @@ function formatForPrompt(domain, opts = {}) {
 
   const bundle = bundleIndex.get(domain);
   const lines = assertions.map(a => {
-    // Sanitize claims: strip any XML-like tags that could break the prompt structure
-    // or inject rogue instructions (e.g., </knowledge>, <|im_end|>)
-    const safeClaim = a.claim.replace(/<[^>]*>/g, '').replace(/<\|[^|]*\|>/g, '');
-    const safeSource = a.source.replace(/<[^>]*>/g, '');
+    // Sanitize claims: strip only known dangerous patterns that could break
+    // the <knowledge> block structure or inject LLM control sequences.
+    // Preserves legitimate angle brackets (e.g., "< $5,000", "<IBAN>").
+    const safeClaim = a.claim
+      .replace(/<\/?knowledge[^>]*>/gi, '')    // strip </knowledge> injection attempts
+      .replace(/<\|[^|]*\|>/g, '');            // strip <|im_end|>, <|system|> etc.
+    const safeSource = a.source
+      .replace(/<\/?knowledge[^>]*>/gi, '')
+      .replace(/<\|[^|]*\|>/g, '');
     return `[${a.id}] ${safeClaim} Source: ${safeSource}`;
   });
 

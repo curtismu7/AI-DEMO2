@@ -44,6 +44,7 @@ export function invalidateCitationCache() {
  */
 export function CitationPill({ id, assertion, loading = false }) {
   const [showPopover, setShowPopover] = useState(false);
+  const [popoverPosition, setPopoverPosition] = useState('above'); // 'above' or 'below'
   const pillRef = useRef(null);
   const timeoutRef = useRef(null);
 
@@ -61,12 +62,35 @@ export function CitationPill({ id, assertion, loading = false }) {
     setShowPopover(prev => !prev);
   }, []);
 
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setShowPopover(prev => !prev);
+    }
+    if (e.key === 'Escape') {
+      setShowPopover(false);
+    }
+  }, []);
+
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, []);
+
+  // Determine popover position based on available space
+  useEffect(() => {
+    if (showPopover && pillRef.current) {
+      const rect = pillRef.current.getBoundingClientRect();
+      // If less than 200px above the pill, flip to below
+      if (rect.top < 200) {
+        setPopoverPosition('below');
+      } else {
+        setPopoverPosition('above');
+      }
+    }
+  }, [showPopover]);
 
   return (
     <span
@@ -75,6 +99,7 @@ export function CitationPill({ id, assertion, loading = false }) {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
       role="button"
       tabIndex={0}
       aria-label={`Citation ${id}${assertion ? `: ${assertion.source}` : ''}`}
@@ -84,7 +109,7 @@ export function CitationPill({ id, assertion, loading = false }) {
 
       {showPopover && assertion && (
         <span
-          className="okf-citation-popover"
+          className={`okf-citation-popover ${popoverPosition === 'below' ? 'okf-citation-popover--below' : ''}`}
           role="tooltip"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}

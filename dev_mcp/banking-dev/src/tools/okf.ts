@@ -29,7 +29,7 @@ export const getOkfAssertionsSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// Bundle loader (lightweight, reads from disk each time — bundles are small)
+// Bundle loader (cached — reads from disk once, reloads on explicit request)
 // ---------------------------------------------------------------------------
 
 interface Assertion {
@@ -51,6 +51,9 @@ interface OkfBundle {
   assertions: Assertion[];
 }
 
+let bundleCache: Map<string, OkfBundle> | null = null;
+let bundleCacheDir: string | null = null;
+
 function findBundleDir(): string {
   // Walk up from this file to find graphify-out/
   let dir = path.resolve(__dirname, '..', '..', '..', '..');
@@ -63,10 +66,17 @@ function findBundleDir(): string {
 }
 
 function loadBundles(): Map<string, OkfBundle> {
+  // Return cached bundles if available
+  if (bundleCache) return bundleCache;
+
   const dir = findBundleDir();
   const bundles = new Map<string, OkfBundle>();
 
-  if (!fs.existsSync(dir)) return bundles;
+  if (!fs.existsSync(dir)) {
+    bundleCache = bundles;
+    bundleCacheDir = dir;
+    return bundles;
+  }
 
   const files = fs.readdirSync(dir).filter(f => f.endsWith('.okf.json'));
   for (const file of files) {
@@ -79,7 +89,15 @@ function loadBundles(): Map<string, OkfBundle> {
     } catch { /* skip invalid */ }
   }
 
+  bundleCache = bundles;
+  bundleCacheDir = dir;
   return bundles;
+}
+
+/** Force-reload bundles from disk (e.g., after editing a .okf.json file) */
+export function reloadBundles(): void {
+  bundleCache = null;
+  bundleCacheDir = null;
 }
 
 // ---------------------------------------------------------------------------

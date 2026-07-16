@@ -124,7 +124,7 @@ export default function MessageBubble({
             </div>
           ) : !isUser && hasCitations(content) ? (
             <>
-              <MarkdownContent text={content} className="agent-message-text" />
+              <CitedMessage text={content} domain="banking-domain" className="agent-message-text" />
               <CitationFooter text={content} domain="banking-domain" />
             </>
           ) : (
