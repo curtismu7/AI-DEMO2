@@ -473,3 +473,19 @@ module.exports = {
   getTokenStatistics,
   validateTokenForApi
 };
+
+// Automatically schedule token cleanup every 60 seconds to prevent unbounded
+// memory growth. Also purge revoked tokens that have been dead > 5 minutes.
+const _cleanupInterval = setInterval(() => {
+  cleanupExpiredTokens();
+  // Also remove revoked tokens older than 5 minutes (they only need to be
+  // retained briefly so introspect can return { active: false }).
+  const now = Math.floor(Date.now() / 1000);
+  for (const [tokenId, record] of tokenStore.entries()) {
+    if (record.revoked && now - record.issued_at > 300) {
+      tokenStore.delete(tokenId);
+    }
+  }
+}, 60_000);
+// Allow the process to exit without waiting for the interval
+if (_cleanupInterval.unref) _cleanupInterval.unref();

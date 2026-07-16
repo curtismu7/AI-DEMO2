@@ -565,7 +565,7 @@ function verifyOtp(req, challengeId, otpCode) {
   }
 
   ch.otpAttempts = (ch.otpAttempts || 0) + 1;
-  const isDemoBypass = otpCode.trim() === '123123';
+  const isDemoBypass = process.env.NODE_ENV !== 'production' && otpCode.trim() === '123123';
   if (!isDemoBypass) {
     const expected = hashOtp(otpCode.trim(), ch.otpSalt);
     if (!safeEqual(ch.otpHash, expected)) {
@@ -630,8 +630,8 @@ async function verifyMfa(req, challengeId, params, origin) {
   const { deviceId, otp, fido2Assertion } = params || {};
   const userAccessToken = req.session?.oauthTokens?.accessToken;
 
-  // Demo bypass — accept without calling PingOne
-  if (otp && String(otp).trim() === '123123') {
+  // Demo bypass — accept without calling PingOne (non-production only)
+  if (process.env.NODE_ENV !== 'production' && otp && String(otp).trim() === '123123') {
     console.log(`[ConsentChallenge] MFA demo bypass accepted challenge=${challengeId.slice(0, 8)}… user=${req.user.id}`);
   } else {
     try {

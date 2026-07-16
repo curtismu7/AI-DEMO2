@@ -660,11 +660,18 @@ let _encryptionKeyCache = null;
 
 function _getEncryptionKey() {
   if (_encryptionKeyCache) return _encryptionKeyCache;
-  const rawKey = process.env.CONFIG_ENCRYPTION_KEY || process.env.SESSION_SECRET || 'dev-fallback-key-do-not-use-in-production';
-  if (!process.env.CONFIG_ENCRYPTION_KEY && !process.env.SESSION_SECRET) {
-    console.error('[ConfigStore] CRITICAL: No CONFIG_ENCRYPTION_KEY or SESSION_SECRET set — using insecure dev fallback key. Set one of these env vars in production.');
+  const rawKey = process.env.CONFIG_ENCRYPTION_KEY || process.env.SESSION_SECRET || '';
+  if (!rawKey) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        '[ConfigStore] FATAL: CONFIG_ENCRYPTION_KEY or SESSION_SECRET must be set in production. ' +
+        'Refusing to start with an insecure fallback key.'
+      );
+    }
+    console.error('[ConfigStore] CRITICAL: No CONFIG_ENCRYPTION_KEY or SESSION_SECRET set — using insecure dev fallback key. Set one of these env vars before deploying.');
   }
-  _encryptionKeyCache = crypto.scryptSync(rawKey, 'banking-config-salt-v1', 32);
+  const effectiveKey = rawKey || 'dev-fallback-key-do-not-use-in-production';
+  _encryptionKeyCache = crypto.scryptSync(effectiveKey, 'banking-config-salt-v1', 32);
   return _encryptionKeyCache;
 }
 

@@ -327,9 +327,9 @@ export class TokenExchangeService {
       );
     }
 
-    if (response.token_type !== 'Bearer') {
+    if (response.token_type?.toLowerCase() !== 'bearer') {
       throw new AuthenticationError(
-        'Only Bearer token_type is supported',
+        `Only Bearer token_type is supported (received: ${response.token_type})`,
         AuthErrorCodes.INVALID_TOKEN
       );
     }
@@ -544,6 +544,6 @@ export class TokenExchangeService {
    * Generate unique request ID
    */
   private generateRequestId(): string {
-    return `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `tx_${Date.now()}_${require('crypto').randomUUID().replace(/-/g, '').slice(0, 12)}`;
   }
 }

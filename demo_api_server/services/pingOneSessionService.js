@@ -6,32 +6,47 @@ const { logger } = require('../utils/logger');
 
 let _cachedToken = null;
 let _tokenExpiry = 0;
+let _pendingTokenPromise = null;
 
 async function _getWorkerToken() {
   if (_cachedToken && Date.now() < _tokenExpiry) return _cachedToken;
 
-  const region = configStore.getEffective('pingone_region') || 'com';
-  const envId = configStore.getEffective('pingone_environment_id');
-  const clientId = configStore.getEffective('pingone_worker_token_client_id');
-  const clientSecret = configStore.getEffective('pingone_worker_token_client_secret');
+  // Deduplicate concurrent requests — if a fetch is already in-flight, reuse it
+  // to avoid hammering PingOne and triggering rate limits (429).
+  if (_pendingTokenPromise) return _pendingTokenPromise;
 
-  if (!envId || !clientId || !clientSecret) {
-    throw new Error('pingOneSessionService: worker credentials not configured');
-  }
+  _pendingTokenPromise = (async () => {
+    try {
+      const region = configStore.getEffective('pingone_region') || 'com';
+      const envId = configStore.getEffective('pingone_environment_id');
+      const clientId = configStore.getEffective('pingone_worker_token_client_id');
+      const clientSecret = configStore.getEffective('pingone_worker_token_client_secret');
 
-  const response = await axios.post(
-    `https://auth.pingone.${region}/${envId}/as/token`,
-    'grant_type=client_credentials',
-    {
-      auth: { username: clientId, password: clientSecret },
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      timeout: 5000,
+      if (!envId || !clientId || !clientSecret) {
+        throw new Error('pingOneSessionService: worker credentials not configured');
+      }
+
+      const response = await axios.post(
+        `https://auth.pingone.${region}/${envId}/as/token`,
+        'grant_type=client_credentials',
+        {
+          auth: { username: clientId, password: clientSecret },
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          timeout: 5000,
+        }
+      );
+
+      _cachedToken = response.data.access_token;
+      // Clamp buffer to avoid negative expiry when expires_in is very short
+      const bufferSeconds = Math.min(30, Math.max(0, response.data.expires_in - 5));
+      _tokenExpiry = Date.now() + (response.data.expires_in - bufferSeconds) * 1000;
+      return _cachedToken;
+    } finally {
+      _pendingTokenPromise = null;
     }
-  );
+  })();
 
-  _cachedToken = response.data.access_token;
-  _tokenExpiry = Date.now() + (response.data.expires_in - 30) * 1000;
-  return _cachedToken;
+  return _pendingTokenPromise;
 }
 
 function _apiBase() {
