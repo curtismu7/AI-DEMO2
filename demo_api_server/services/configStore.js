@@ -171,7 +171,7 @@ const FIELD_DEFS = {
   // endpoint auth = None, no secret). Browser-side token custody; this is NOT the
   // BFF login. Consumed by GET /api/sdk-demo/config + demo_api_ui SdkLoginPage.
   PINGONE_SDK_DEMO_CLIENT_ID:     { public: true,  default: '' },
-  PINGONE_SDK_DEMO_REDIRECT_URI:  { public: true,  default: 'https://api.ping.demo:4000/sdk-login/callback' },
+  PINGONE_SDK_DEMO_REDIRECT_URI:  { public: true,  default: '' },
   PINGONE_SDK_DEMO_SCOPE:         { public: true,  default: 'openid profile email' },
 
   // Management API worker (client_credentials) — CIMD registration, email, bootstrap run.

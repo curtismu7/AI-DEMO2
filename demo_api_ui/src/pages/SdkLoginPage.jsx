@@ -347,10 +347,19 @@ export default function SdkLoginPage() {
             <div style={styles.cardH}>
               SDK session <span style={styles.tag("rev")}>not available</span>
             </div>
-            <p style={{ color: C.muted, margin: "0 0 16px" }}>
-              The SDK client could not start. Confirm a public PKCE client is provisioned and
-              <code> GET /api/sdk-demo/config</code> returns a client id and well-known URL.
+            <p style={{ color: C.muted, margin: "0 0 12px" }}>
+              The SDK client could not start. This usually means the PingOne PKCE SPA client
+              is not configured.
             </p>
+            <div style={{ background: C.code, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 14px", marginBottom: 16, fontSize: 12 }}>
+              <p style={{ color: C.muted, margin: "0 0 8px", fontWeight: 700 }}>To fix:</p>
+              <ol style={{ margin: 0, padding: "0 0 0 18px", color: C.muted, lineHeight: 1.7 }}>
+                <li>Create a SPA (public PKCE) application in PingOne</li>
+                <li>Set redirect URI to: <code style={{ color: C.blue }}>{window.location.origin}/sdk-login/callback</code></li>
+                <li>Go to <a href="/settings" style={{ color: C.blue }}>Settings</a> and set <code>PINGONE_SDK_DEMO_CLIENT_ID</code></li>
+                <li>Restart the server (or save in Settings)</li>
+              </ol>
+            </div>
             <button
               type="button"
               style={{ ...styles.btn, ...styles.btnGhost }}
