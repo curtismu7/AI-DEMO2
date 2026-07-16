@@ -1,5 +1,14 @@
 /* PingOneMcpInspector.css — Light grey IDE three-column layout */
 
+/* Page wrapper */
+.p1mcp-page {
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #f8fafc;
+}
+
 /* Top bar */
 .p1mcp-topbar {
   background: #f1f5f9;
