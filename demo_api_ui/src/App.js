@@ -80,6 +80,7 @@ import AuthorizeFallbackListener from "./components/AuthorizeFallbackListener";
 import SessionReauthBanner from "./components/SessionReauthBanner";
 import SportingGoodsAdminOps from "./components/SportingGoodsAdminOps";
 import SpinnerHost from "./components/shared/SpinnerHost";
+import TokenSecurityTester from "./components/TokenSecurityTester";
 import TopNav from "./components/TopNav";
 import TransactionConsentPage from "./components/TransactionConsentPage";
 import Transactions from "./components/Transactions";
@@ -985,6 +986,10 @@ function AppWithAuth() {
                             <Route
                               path="/pinggateway-test"
                               element={<AgentGatewayTester />}
+                            />
+                            <Route
+                              path="/token-security"
+                              element={<TokenSecurityTester />}
                             />
                             <Route
                               path="/webmcp"
