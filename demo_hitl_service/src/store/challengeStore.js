@@ -62,7 +62,7 @@ function get(id) {
   return { ...ch };
 }
 
-function resolve(id, decision) {
+function resolve(id, decision, responderId) {
   const ch = _store.get(id);
   if (!ch) return null;
   if (ch.status !== 'pending') {
@@ -79,6 +79,7 @@ function resolve(id, decision) {
   ch.status = decision;
   ch.resolvedAt = Date.now();
   ch.decision = decision;
+  ch.responderId = responderId || null;
   return { ...ch };
 }
 

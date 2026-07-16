@@ -36,8 +36,14 @@ async function fetchJwks(jwksUri) {
     return cached.keys;
   }
 
+  // Enforce HTTPS — JWKS must never be fetched over plaintext to prevent MITM
+  // injection of attacker-controlled signing keys.
+  const url = new URL(jwksUri);
+  if (url.protocol !== 'https:') {
+    throw new Error(`JWKS URI must use HTTPS (got ${url.protocol}). Refusing to fetch signing keys over insecure transport.`);
+  }
+
   return new Promise((resolve, reject) => {
-    const url = new URL(jwksUri);
     const options = {
       hostname: url.hostname,
       path: url.pathname + url.search,

@@ -43,6 +43,9 @@ class CircuitBreaker {
       return false;
     }
     // half_open: only the in-flight probe is allowed; everyone else fast-fails.
+    // NOTE: The check-and-set below is safe in single-threaded Node.js (event loop
+    // guarantees no interleaving between the read and write within a synchronous call).
+    // If this module is ever used from worker_threads, wrap in Atomics or a mutex.
     if (this._probeInFlight) return false;
     this._probeInFlight = true;
     return true;

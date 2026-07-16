@@ -375,7 +375,16 @@ async function persistToDisk() {
 
     // Save each user's events to separate file
     for (const [userId, events] of tokenEvents.entries()) {
-      const filePath = path.join(TOKEN_CHAIN_DIR, `${userId}.json`);
+      // Sanitize userId to prevent path traversal — only allow alphanumeric, dash, underscore
+      const safeUserId = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
+      if (!safeUserId) continue;
+      const filePath = path.join(TOKEN_CHAIN_DIR, `${safeUserId}.json`);
+      // Double-check resolved path stays within TOKEN_CHAIN_DIR
+      const resolved = path.resolve(filePath);
+      if (!resolved.startsWith(path.resolve(TOKEN_CHAIN_DIR))) {
+        console.error(`[tokenChainService] Path traversal blocked for userId: ${userId}`);
+        continue;
+      }
       const data = JSON.stringify(events, null, 2);
       fs.writeFileSync(filePath, data, 'utf8');
     }
@@ -393,6 +402,8 @@ async function reloadFromDisk() {
 
     const files = fs.readdirSync(TOKEN_CHAIN_DIR).filter(f => f.endsWith('.json'));
     for (const file of files) {
+      // Validate filename is safe (no path separators or traversal)
+      if (file.includes('/') || file.includes('\\') || file.includes('..')) continue;
       const userId = file.replace('.json', '');
       const filePath = path.join(TOKEN_CHAIN_DIR, file);
       const data = fs.readFileSync(filePath, 'utf8');
