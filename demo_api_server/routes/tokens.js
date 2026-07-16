@@ -485,14 +485,28 @@ router.post('/exchange-test', async (req, res) => {
         }
       });
     } catch (error) {
+      // Always include the request details so the UI can show what was attempted,
+      // even when the exchange itself fails (PingOne error, misconfigured grant, etc.)
       res.status(400).json({
         success: false,
         error: error.message,
+        request: {
+          audience,
+          scopes: exchangeScopes,
+          grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
+          subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+          client_id: oauthService.config?.clientId || '(not configured)',
+          token_endpoint: oauthService.config?.tokenEndpoint || '(not configured)',
+        },
         details: error.pingoneError ? {
           pingoneError: error.pingoneError,
           pingoneErrorDescription: error.pingoneErrorDescription,
-          pingoneErrorDetail: error.pingoneErrorDetail
-        } : null
+          pingoneErrorDetail: error.pingoneErrorDetail,
+          httpStatus: error.httpStatus,
+        } : null,
+        original: {
+          content: await parseTokenContent(sessionToken).catch(() => null)
+        },
       });
     }
   } catch (error) {

@@ -135,11 +135,12 @@ export default function TokenExchangeTesterPage() {
 
           {result && (
             <div className='result-section'>
-              <h2>Exchange Result</h2>
+              <h2>{result.success ? 'Exchange Result' : 'Exchange Failed'}</h2>
 
-              <div className='token-comparison'>
-                <div className='token-card original'>
-                  <h3>Original Token (Subject)</h3>
+              {result.success && (
+                <div className='token-comparison'>
+                  <div className='token-card original'>
+                    <h3>Original Token (Subject)</h3>
                   {result.original?.content && (
                     <div className='token-display'>
                       {result.original.content.payload && (
@@ -200,6 +201,16 @@ export default function TokenExchangeTesterPage() {
                   )}
                 </div>
               </div>
+              )}
+
+              {result.details && (
+                <div className='error-details-section' style={{ marginBottom: '1rem', padding: '1rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px' }}>
+                  <h3 style={{ color: '#dc2626', margin: '0 0 0.5rem' }}>PingOne Error Details</h3>
+                  <pre style={{ maxHeight: '200px', overflow: 'auto', fontSize: '0.85rem' }}>
+                    <JsonHighlight value={result.details} />
+                  </pre>
+                </div>
+              )}
 
               {result.request && (
                 <div className='request-section'>
