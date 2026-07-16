@@ -32,13 +32,29 @@ try {
 }
 const ENSURE_TIMEOUT_MS = 180000; // cold load of the 11GB gpt-oss can be slow
 
+// Resident tiers must survive a swap. `ensure <port>` stops every OTHER tier, so
+// a router swap-up would evict a tier that residency had just loaded (observed:
+// ensure-set loaded 8091+8096, then a gpt-oss request drove `ensure 8096` and
+// killed phi 1s later). With residency configured we ensure the resident SET
+// plus the requested port instead, so a swap only ever adds.
+const RESIDENT_PORTS = (process.env.LLM_PROXY_RESIDENT_TIERS || '')
+  .split(',')
+  .map((p) => p.trim())
+  .filter((p) => /^\d+$/.test(p));
+
 let queue = Promise.resolve();     // serializes swaps
 let inFlight = null;               // { port, promise } — coalesce duplicate asks
 
 function runEnsure(port) {
+  // With residency configured, keep the resident tiers loaded alongside the
+  // requested one (ensure-set = load these, stop the rest). Without it, classic
+  // `ensure` semantics: this port only, everything else stopped.
+  const args = RESIDENT_PORTS.length
+    ? ['ensure-set', [...new Set([...RESIDENT_PORTS, port])].join(',')]
+    : ['ensure', port];
   return new Promise((resolve, reject) => {
-    execFile('bash', [SCRIPT, 'ensure', port], { timeout: ENSURE_TIMEOUT_MS }, (err, stdout, stderr) => {
-      if (err) reject(new Error(`ensure ${port} failed: ${err.message}\n${stdout}\n${stderr}`));
+    execFile('bash', [SCRIPT, ...args], { timeout: ENSURE_TIMEOUT_MS }, (err, stdout, stderr) => {
+      if (err) reject(new Error(`${args[0]} ${port} failed: ${err.message}\n${stdout}\n${stderr}`));
       else resolve(stdout);
     });
   });

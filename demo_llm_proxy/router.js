@@ -233,8 +233,14 @@ function swapTo(cls) {
     while (Date.now() < deadline) {
       if (await probeTier(target)) {
         // The others were just unloaded — refresh the whole health map now
-        // instead of serving stale "healthy" flags for stopped tiers.
-        for (const t of TIERS) { t.healthy = t === target; t.lastCheck = Date.now(); }
+        // instead of serving stale "healthy" flags for stopped tiers. Resident
+        // tiers are NOT unloaded by a swap (the tier-manager keeps them), so
+        // marking them dead here would force a pointless swap back.
+        for (const t of TIERS) {
+          if (t !== target && RESIDENT_PORTS.has(t.port)) continue;
+          t.healthy = t === target;
+          t.lastCheck = Date.now();
+        }
         console.log(`[proxy] swap complete — ${target.name} is the loaded tier`);
         return;
       }
