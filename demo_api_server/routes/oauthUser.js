@@ -38,6 +38,34 @@ function sanitizePostLoginReturnPath(raw) {
 }
 
 /**
+ * MFA step-up post-login destination — same-origin only.
+ * Accepts a relative SPA path or an absolute URL whose origin matches
+ * getFrontendOrigin(). Rejects open redirects (CWE-601) via return_to.
+ * @param {unknown} raw
+ * @returns {string} absolute same-origin URL (no stepup query yet)
+ */
+function sanitizeStepUpReturnTo(raw) {
+  const origin = getFrontendOrigin();
+  const fallback = `${origin}/dashboard`;
+  if (raw == null || typeof raw !== 'string') return fallback;
+  const t = raw.trim();
+  if (!t) return fallback;
+
+  const pathOnly = sanitizePostLoginReturnPath(t);
+  if (pathOnly) return `${origin}${pathOnly}`;
+
+  try {
+    const u = new URL(t);
+    const expected = new URL(origin);
+    if (u.origin !== expected.origin) return fallback;
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return fallback;
+    return `${u.origin}${u.pathname}${u.search}`;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
  * After end-user OAuth failure, redirect to an SPA path where App still mounts BankingAgent
  * (`/`). `/login` is not in that set — users lose FAB + dock there.
  * @param {import('express').Request} req
@@ -723,7 +751,10 @@ router.get('/stepup', (req, res) => {
     const acrValue = process.env.STEP_UP_ACR_VALUE !== undefined
       ? process.env.STEP_UP_ACR_VALUE.trim()
       : 'Multi_Factor';
-    const returnTo = req.query.return_to || `${getFrontendOrigin()}/dashboard`;
+    // return_to must be same-origin — unsanitized values were an open redirect
+    // after MFA (callback does res.redirect(stepUpReturnTo)).
+    const returnTo = sanitizeStepUpReturnTo(req.query.return_to);
+    const stepUpSep = returnTo.includes('?') ? '&' : '?';
 
     const state = oauthService.generateState();
     const codeVerifier = oauthService.generateCodeVerifier();
@@ -744,7 +775,7 @@ router.get('/stepup', (req, res) => {
     req.session.oauthRedirectUri = redirectUri;
     req.session.oauthNonce = nonce;
     req.session.oauthType = 'user';
-    req.session.stepUpReturnTo = `${returnTo}?stepup=done`;
+    req.session.stepUpReturnTo = `${returnTo}${stepUpSep}stepup=done`;
 
     // Vercel / serverless: PKCE cookie fallback
     setPkceCookie(res, { state, codeVerifier, redirectUri, nonce }, _isProd());
@@ -1166,3 +1197,4 @@ router.post('/verify-otp', async (req, res) => {
 
 module.exports = router;
 module.exports.sanitizePostLoginReturnPath = sanitizePostLoginReturnPath;
+module.exports.sanitizeStepUpReturnTo = sanitizeStepUpReturnTo;

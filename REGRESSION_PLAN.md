@@ -274,6 +274,26 @@ scratch, and doesn't re-chase the TLS/scheme theories already ruled out above.
 frontend`, `kubectl -n ai-demo get networkpolicy`, and `kubectl -n ai-demo exec
 deploy/api-server -- curl -vk https://frontend:4000/` to see the actual refusal
 point.
+### 2026-07-16 — MFA step-up `return_to` open redirect (CWE-601)
+
+**Files changed:** `demo_api_server/routes/oauthUser.js`,
+`demo_api_server/tests/oauthUser.test.js`.
+
+**What was broken:** `GET /api/auth/oauth/user/stepup?return_to=` stored the
+raw query value in `req.session.stepUpReturnTo`. After PingOne MFA, the OAuth
+callback did `res.redirect(stepUpReturnTo)` with no same-origin check — an
+attacker link like `…/stepup?return_to=https://evil.example/phish` sent the
+victim to the attacker site after authenticating.
+
+**What was fixed:** `sanitizeStepUpReturnTo` accepts only relative SPA paths
+or absolute URLs whose origin matches `getFrontendOrigin()`; otherwise falls
+back to `${origin}/dashboard`. Appends `stepup=done` with `?`/`&` correctly.
+
+**Do not break:** UserDashboard / UserDashboardPing2026 step-up links that pass
+`${CLIENT_URL}/dashboard` must keep working. Normal login still uses
+`sanitizePostLoginReturnPath` (path-only, unchanged).
+
+**Verify:** `cd demo_api_server && npx jest tests/oauthUser.test.js --forceExit`.
 
 ### 2026-07-15 — Code Explorer browser "network error" (nginx SSE buffering)
 
