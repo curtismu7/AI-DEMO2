@@ -2,6 +2,11 @@
 
 const express = require('express');
 const router  = express.Router();
+
+/** Basic email format validation (defence-in-depth before PingOne API call). */
+const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
+function isValidEmail(v) { return typeof v === 'string' && v.length <= 320 && EMAIL_RE.test(v); }
+
 const {
   grantDelegation,
   revokeDelegation,
@@ -102,6 +107,13 @@ router.get('/admin/all', requireAdmin, async (req, res) => {
 router.post('/admin/grant', requireAdmin, async (req, res) => {
   try {
     const { delegatorEmail, delegateEmail, scopes } = req.body || {};
+    // Validate email format before calling PingOne APIs
+    if (!isValidEmail(delegatorEmail) || !isValidEmail(delegateEmail)) {
+      return res.status(400).json({
+        error: 'validation_error',
+        message: 'delegatorEmail and delegateEmail must be valid email addresses (max 320 chars).',
+      });
+    }
     const result = await adminGrantDelegation({
       delegatorEmail,
       delegateEmail,

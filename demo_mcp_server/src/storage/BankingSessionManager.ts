@@ -344,6 +344,14 @@ export class BankingSessionManager {
       this.agentTokenIndex.delete(session.agentTokenHash);
       // Remove session stats
       this.sessionStats.delete(sessionId);
+      // Clean up sessionEmails and cibaRequests to prevent memory leaks
+      this.sessionEmails.delete(sessionId);
+      // Remove any CIBA requests associated with this session
+      for (const [key, _] of this.cibaRequests.entries()) {
+        if (key.startsWith(`${sessionId}::`)) {
+          this.cibaRequests.delete(key);
+        }
+      }
       // Keep creation time for duration calculation
       // this.sessionCreationTimes.delete(sessionId); // Keep for stats calculation
 

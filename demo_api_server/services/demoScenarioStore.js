@@ -9,9 +9,17 @@
 const lmdb = require('./lmdb/demoScenarioStore.lmdb');
 
 const memory = new Map();
+const MAX_CACHE_SIZE = 500; // Prevent unbounded growth
 
 function key(userId) {
   return `demo-scenario:${userId}`;
+}
+
+function _evictOldest() {
+  if (memory.size <= MAX_CACHE_SIZE) return;
+  // Evict the first (oldest-inserted) entry
+  const firstKey = memory.keys().next().value;
+  if (firstKey !== undefined) memory.delete(firstKey);
 }
 
 function isPersistenceConfigured() {
@@ -29,6 +37,7 @@ async function load(userId) {
 
   const persisted = lmdb.get(key(userId));
   const value = persisted || { stepUpAmountThreshold: null };
+  _evictOldest();
   memory.set(userId, value);
   return value;
 }
@@ -39,6 +48,7 @@ async function load(userId) {
 async function save(userId, patch) {
   const prev = await load(userId);
   const next = { ...prev, ...patch, updatedAt: new Date().toISOString() };
+  _evictOldest();
   memory.set(userId, next);
   if (userId) lmdb.put(key(userId), next);
   return next;

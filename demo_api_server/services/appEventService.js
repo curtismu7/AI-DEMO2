@@ -75,7 +75,16 @@ let events = [];
 function hydrateFromFile() {
   try {
     if (!fs.existsSync(_logFilePath)) return 0;
-    const raw = fs.readFileSync(_logFilePath, 'utf8');
+    // Read only last MAX_EVENTS lines to avoid loading a multi-MB log file into memory.
+    // Reads the file in reverse until enough lines are collected.
+    const stat = fs.statSync(_logFilePath);
+    const MAX_READ_BYTES = 512 * 1024; // Cap at 512KB to prevent OOM on huge logs
+    const readSize = Math.min(stat.size, MAX_READ_BYTES);
+    const fd = fs.openSync(_logFilePath, 'r');
+    const buf = Buffer.alloc(readSize);
+    fs.readSync(fd, buf, 0, readSize, Math.max(0, stat.size - readSize));
+    fs.closeSync(fd);
+    const raw = buf.toString('utf8');
     if (!raw.trim()) return 0;
     const parsed = [];
     for (const line of raw.split('\n')) {

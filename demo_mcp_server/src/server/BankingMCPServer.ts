@@ -869,8 +869,10 @@ export class BankingMCPServer extends EventEmitter {
 (function () {
   var msg = { type: "auth_complete", session: "${result.sessionId}" };
   try {
-    // Notify the opener (your AI agent web app)
-    window.opener && window.opener.postMessage(msg, "*");
+    // Notify the opener — use explicit origin to prevent cross-origin interception.
+    // Falls back to "*" only if FRONTEND_ORIGIN env is not configured.
+    var targetOrigin = "${process.env.FRONTEND_ORIGIN || process.env.PUBLIC_APP_URL || 'https://api.ping.demo:4000'}";
+    window.opener && window.opener.postMessage(msg, targetOrigin);
   } catch (e) {}
   // Close the popup regardless
   window.close();
@@ -1047,9 +1049,17 @@ export class BankingMCPServer extends EventEmitter {
   }
 
   private async parseRequestBody(req: any): Promise<any> {
+    const MAX_BODY_SIZE = 1_048_576; // 1 MB limit to prevent DoS via large POST bodies
     return new Promise((resolve, reject) => {
       let body = '';
+      let size = 0;
       req.on('data', (chunk: string) => {
+        size += chunk.length;
+        if (size > MAX_BODY_SIZE) {
+          req.destroy();
+          reject(new Error(`Request body exceeds maximum size of ${MAX_BODY_SIZE} bytes`));
+          return;
+        }
         body += chunk.toString();
       });
       req.on('end', () => {
