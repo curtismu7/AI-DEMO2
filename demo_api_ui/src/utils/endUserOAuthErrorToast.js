@@ -95,7 +95,7 @@ export function showEndUserOAuthErrorToast(searchParams) {
 export function stripEndUserOAuthErrorParamsFromUrl() {
   if (typeof window === 'undefined') return;
   const url = new URL(window.location.href);
-  const keys = ['error', 'error_description', 'idp_error', 'detail', 'info'];
+  const keys = ['error', 'error_description', 'idp_error', 'detail', 'info', 'silent_reauth_failed'];
   let changed = false;
   for (const k of keys) {
     if (url.searchParams.has(k)) {

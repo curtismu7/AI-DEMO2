@@ -19,6 +19,16 @@ const _refreshInFlight = new Set();
 const _refreshBlacklist = new Map();
 const BLACKLIST_TTL = 10 * 60 * 1000; // 10 minutes
 
+// Periodic cleanup of expired blacklist entries to prevent unbounded memory growth.
+// Runs every 5 minutes; only iterates entries that exist (O(n) with n = blacklisted sessions).
+const BLACKLIST_CLEANUP_INTERVAL = 5 * 60 * 1000;
+setInterval(() => {
+  const now = Date.now();
+  for (const [sid, expiry] of _refreshBlacklist) {
+    if (now >= expiry) _refreshBlacklist.delete(sid);
+  }
+}, BLACKLIST_CLEANUP_INTERVAL).unref(); // .unref() so the timer doesn't prevent process exit
+
 /**
  * Effective access-token expiry (ms). Uses session.expiresAt when set; otherwise
  * decodes JWT `exp` so we still refresh when expiresAt was never persisted.
