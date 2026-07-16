@@ -65,9 +65,14 @@ async function _getWorkerToken() {
 }
 
 let _cachedDefaultPolicyId = null;
+let _cachedDefaultPolicyAt = 0;
+const DEFAULT_POLICY_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 async function _getDefaultMfaPolicy(workerToken) {
-  if (_cachedDefaultPolicyId) return _cachedDefaultPolicyId;
+  // Return cached value if still within TTL
+  if (_cachedDefaultPolicyId && (Date.now() - _cachedDefaultPolicyAt) < DEFAULT_POLICY_CACHE_TTL_MS) {
+    return _cachedDefaultPolicyId;
+  }
   const token = workerToken || (await _getWorkerToken());
   // Use the modern deviceAuthenticationPolicies endpoint — the legacy
   // /mfaPolicies alias rejects the worker bearer (403) in this environment.
@@ -83,6 +88,7 @@ async function _getDefaultMfaPolicy(workerToken) {
   if (!def) throw new Error("No MFA policies found in PingOne environment");
   mfaDebug("[MFA] resolved default policy id=%s name=%s", def.id, def.name);
   _cachedDefaultPolicyId = def.id;
+  _cachedDefaultPolicyAt = Date.now();
   return def.id;
 }
 
@@ -472,28 +478,40 @@ async function submitFido2Assertion(daId, assertion, userAccessToken, origin) {
     err.status = 400;
     throw err;
   }
+
+  const url = `${_authBaseUrl()}/deviceAuthentications/${daId}`;
+  // PingOne requires the assertion field to be a JSON string (not an object).
+  // Ref: PingOne docs "Check Assertion (FIDO Device)" — assertion type: String
+  const assertionStr =
+    typeof assertion === "string" ? assertion : JSON.stringify(assertion);
+  const body = {
+    origin: resolvedOrigin,
+    assertion: assertionStr,
+    compatibility: "FULL",
+  };
+  const debugRequest = {
+    method: "POST",
+    url: url,
+    body: { ...body, assertion: "<base64-encoded WebAuthn assertion>" },
+    contentType: "application/vnd.pingidentity.assertion.check+json",
+    headers: _debugHeaders(
+      userAccessToken,
+      "application/vnd.pingidentity.assertion.check+json",
+    ),
+  };
+
+  const _attemptAssertion = async (token) => {
+    const resp = await axios.post(url, body, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/vnd.pingidentity.assertion.check+json",
+      },
+      timeout: 45000,
+    });
+    return resp.data;
+  };
+
   try {
-    const url = `${_authBaseUrl()}/deviceAuthentications/${daId}`;
-    // PingOne requires the assertion field to be a JSON string (not an object).
-    // Ref: PingOne docs "Check Assertion (FIDO Device)" — assertion type: String
-    const assertionStr =
-      typeof assertion === "string" ? assertion : JSON.stringify(assertion);
-    const body = {
-      origin: resolvedOrigin,
-      assertion: assertionStr,
-      compatibility: "FULL",
-    };
-    const debugUrl = url;
-    const debugRequest = {
-      method: "POST",
-      url: debugUrl,
-      body: { ...body, assertion: "<base64-encoded WebAuthn assertion>" },
-      contentType: "application/vnd.pingidentity.assertion.check+json",
-      headers: _debugHeaders(
-        userAccessToken,
-        "application/vnd.pingidentity.assertion.check+json",
-      ),
-    };
     mfaDebug(
       "[MFA] ═══════════════════════════════════════════════════════════════",
     );
@@ -509,22 +527,33 @@ async function submitFido2Assertion(daId, assertion, userAccessToken, origin) {
     mfaDebug(
       "[MFA] ═══════════════════════════════════════════════════════════════",
     );
+
     let data;
     try {
-      const resp = await axios.post(url, body, {
-        headers: {
-          Authorization: `Bearer ${userAccessToken}`,
-          "Content-Type": "application/vnd.pingidentity.assertion.check+json",
-        },
-        timeout: 45000,
-      });
-      data = resp.data;
+      data = await _attemptAssertion(userAccessToken);
     } catch (err) {
-      err._debug = {
-        request: debugRequest,
-        response: err.response?.data || null,
-      };
-      throw err;
+      // If user token is expired/invalid, retry with worker token (same pattern
+      // as selectDevice/submitOtp — PingOne accepts worker tokens for assertion.check).
+      const status = err.response?.status;
+      if (status === 401) {
+        mfaDebug("[MFA] submitFido2Assertion: user token rejected (401), retrying with worker token");
+        try {
+          const workerToken = await _getWorkerToken();
+          data = await _attemptAssertion(workerToken);
+        } catch (retryErr) {
+          retryErr._debug = {
+            request: debugRequest,
+            response: retryErr.response?.data || null,
+          };
+          throw retryErr;
+        }
+      } else {
+        err._debug = {
+          request: debugRequest,
+          response: err.response?.data || null,
+        };
+        throw err;
+      }
     }
     return {
       ...data,
@@ -1285,5 +1314,6 @@ module.exports = {
   // Test helper — resets the cached default policy ID (used in unit tests)
   _resetDefaultPolicyCache() {
     _cachedDefaultPolicyId = null;
+    _cachedDefaultPolicyAt = 0;
   },
 };

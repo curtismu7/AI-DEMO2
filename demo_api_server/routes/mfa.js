@@ -1,11 +1,43 @@
 'use strict';
 const express = require('express');
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
 const { authenticateToken } = require('../middleware/auth');
 const mfaService = require('../services/mfaService');
 const oauthService = require('../services/oauthService');
 const posthog = require('../services/posthog');
 const configStore = require('../services/configStore');
+
+// ── MFA-specific rate limiting ──
+// Prevents OTP brute-force: max 10 challenge submission attempts per minute per IP.
+// Initiation (/challenge POST) is looser (20/min) — selecting a device triggers
+// code delivery, which PingOne already rate-limits server-side.
+const rateLimitDisabled = ['1', 'true', 'yes'].includes(
+  String(process.env.DISABLE_RATE_LIMIT || '').toLowerCase()
+);
+
+const mfaSubmitLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'mfa_rate_limited', message: 'Too many MFA attempts. Please wait a moment before trying again.' },
+  skip: () => rateLimitDisabled,
+  keyGenerator: (req) => {
+    // Key on session ID (per-user) when available, else IP
+    return req.session?.id || req.ip;
+  },
+});
+
+const mfaInitLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'mfa_rate_limited', message: 'Too many MFA challenge requests. Please wait a moment.' },
+  skip: () => rateLimitDisabled,
+  keyGenerator: (req) => req.session?.id || req.ip,
+});
 
 // The FIDO2 relying-party id must equal (or be a registrable suffix of) the
 // origin the app is served from, or the browser rejects passkey registration
@@ -21,6 +53,22 @@ function resolveFido2RpId() {
 }
 
 const STEP_UP_TTL_MS = 5 * 60 * 1000; // 5 min step-up validity
+
+// One-time warning: if session store is memory-only, step-up tokens do not
+// survive restarts and may be lost under load. Logged once per process.
+let _memoryStoreWarned = false;
+function _warnIfMemoryStore(req) {
+  if (_memoryStoreWarned) return;
+  // express-session MemoryStore is the default when no external store is configured
+  const storeName = req.sessionStore?.constructor?.name;
+  if (storeName === 'MemoryStore') {
+    console.warn(
+      '[MFA] WARNING: Session store is in-memory (MemoryStore). MFA step-up tokens will be lost on server restart. ' +
+      'Configure LMDB or another persistent session store for production reliability.'
+    );
+    _memoryStoreWarned = true;
+  }
+}
 
 /**
  * Attempt a one-shot silent token refresh and update the session.
@@ -45,7 +93,7 @@ async function _tryRefresh(req) {
 // POST /api/auth/mfa/challenge
 // Initiates PingOne deviceAuthentications for the logged-in user.
 // Returns { daId, status, devices[] } with status DEVICE_SELECTION_REQUIRED.
-router.post('/challenge', authenticateToken, async (req, res) => {
+router.post('/challenge', mfaInitLimiter, authenticateToken, async (req, res) => {
   try {
     // PingOne MFA APIs key on the PingOne user UUID (oauthId/sub), NOT the
     // local datastore id (ARCHITECTURE-TRUTH T-6). Using .id makes PingOne 404
@@ -96,7 +144,7 @@ router.post('/challenge', authenticateToken, async (req, res) => {
 //   { deviceId, otp }        → submit OTP code (email OTP or TOTP)
 //   { assertion }            → relay FIDO2/WebAuthn assertion
 // Sets req.session.stepUpVerified = true on COMPLETED.
-router.put('/challenge/:daId', authenticateToken, async (req, res) => {
+router.put('/challenge/:daId', mfaSubmitLimiter, authenticateToken, async (req, res) => {
   try {
     const { daId } = req.params;
     const { deviceId, otp, assertion, origin } = req.body;
@@ -121,6 +169,7 @@ router.put('/challenge/:daId', authenticateToken, async (req, res) => {
 
     const completed = result.status === 'COMPLETED';
     if (completed) {
+      _warnIfMemoryStore(req);
       req.session.stepUpVerified = Date.now() + STEP_UP_TTL_MS;
       await new Promise((resolve, reject) =>
         req.session.save((err) => (err ? reject(err) : resolve()))
@@ -224,7 +273,7 @@ router.get('/challenge/:daId/status', authenticateToken, async (req, res) => {
 // POST /api/auth/mfa/test/otp-verify
 // TEST MODE ONLY: Accept 123123 as valid OTP for testing purposes
 // Logs OTP verification without hitting PingOne
-router.post('/test/otp-verify', authenticateToken, async (req, res) => {
+router.post('/test/otp-verify', mfaSubmitLimiter, authenticateToken, async (req, res) => {
   try {
     const { daId, deviceId, otp } = req.body;
     if (!daId || !deviceId || !otp) {
