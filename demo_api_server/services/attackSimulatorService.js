@@ -986,10 +986,7 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
     configStore.getEffective('admin_client_id') || '',
     { rarDetails },
   );
-  // HitlApproved: true discharges the gateway's HITL consent gate for this demo call.
-  // The RAR demo is specifically about intent-binding enforcement, not HITL — without
-  // this, the real PingOne Authorize policy denies ALL transfers (consent required).
-  const tratContextHeader = JSON.stringify({ ...tratCtx, trat_sim: true, HitlApproved: true });
+  const tratContextHeader = JSON.stringify({ ...tratCtx, trat_sim: true });
 
   tokenChainEvents.push(buildTokenEvent(
     'sim-rar-grant',
@@ -1001,12 +998,33 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
     { authorization_details: rarDetails },
   ));
 
+  // The RAR permit demo focuses on intent-binding (RFC 9396) enforcement at the
+  // gateway. PingOne Authorize requires HITL consent for ALL transfers — to let
+  // the RAR check be the focus, pre-create and approve a HITL challenge so the
+  // gateway sees a valid receipt and permits the call through to RAR evaluation.
+  let hitlChallengeId = null;
+  try {
+    const hitlClient = require('./hitlServiceClient');
+    const userSub2 = req?.session?.user?.sub || req?.user?.sub || '';
+    const challenge = await hitlClient.createChallenge({
+      tool: 'create_transfer',
+      userId: userSub2,
+      context: { amount, to_account_id: 'sim-acc-001', demo: 'rar-permit' },
+    });
+    if (challenge?.challengeId) {
+      await hitlClient.respondToChallenge(challenge.challengeId, 'approved');
+      hitlChallengeId = challenge.challengeId;
+    }
+  } catch (hitlErr) {
+    console.warn('[_runRarPermit] HITL pre-approval failed (non-fatal):', hitlErr.message);
+  }
+
   try {
     await callToolViaGateway(
       null,
       exchanged.token,
       'create_transfer',
-      { amount, to_account_id: 'sim-acc-001' },
+      { amount, to_account_id: 'sim-acc-001', ...(hitlChallengeId ? { _hitl_challenge_id: hitlChallengeId } : {}) },
       { tratContextHeader },
     );
   } catch (err) {
