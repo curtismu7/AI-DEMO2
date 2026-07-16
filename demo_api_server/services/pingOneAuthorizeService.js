@@ -427,6 +427,7 @@ async function _postDecisionEndpoint(endpointId, parameters) {
 async function _evaluateViaDecisionEndpoint({ endpointId, userId, amount, type, acr, extra = {} }) {
   const parameters = {
     Amount: amount,
+    TransactionAmount: amount != null ? String(amount) : '',
     TransactionType: type,
     UserId: userId,
     ...(acr ? { Acr: acr } : {}),
