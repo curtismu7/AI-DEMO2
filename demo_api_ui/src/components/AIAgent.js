@@ -6192,6 +6192,26 @@ export default function BankingAgent({
                 addMessage("token-event", agentTokenMsg, null);
               }
             }
+            // Trigger HITL consent modal when the response has transaction details
+            if (
+              (response.error === "hitl_required" || response.error === "mcp_hitl_required") &&
+              response.transactionAmount != null
+            ) {
+              const intentPayload = {
+                type: response.transactionType || "transfer",
+                fromAccountId: response.fromAccountId || response.from_account_id,
+                toAccountId: response.toAccountId || response.to_account_id,
+                amount: response.transactionAmount,
+                description: `Agent ${response.transactionType || "transfer"}`,
+              };
+              setHitlPendingIntent({
+                actionId: response.transactionType || "transfer",
+                form: {},
+                intentPayload,
+                threshold: response.hitl_threshold_usd ?? APP_CONFIG.THRESHOLDS.HITL_DEFAULT,
+                hitlChallengeId: response.hitlChallengeId || response.challengeId || null,
+              });
+            }
           } else if (response.error || !response.success) {
             reportNlFailure({ code: response.error || "unknown", message: response.message || response.error || response.reply });
             // Dispatch error event to EventStream
