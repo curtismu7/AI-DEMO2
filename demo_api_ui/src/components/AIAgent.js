@@ -6102,8 +6102,29 @@ export default function BankingAgent({
           }
           ingestActivity(response, text);
           if (maybeHandleCustomerLogin(response, response.source)) return;
-          if (response.error || !response.success) {
-            reportNlFailure({ code: response.error || "unknown" });
+          // HITL consent / step-up: these are valid gated responses, not errors.
+          // Show the agent reply (which explains the gate) and surface token events.
+          if (
+            response.error === "hitl_required" ||
+            response.error === "mcp_hitl_required" ||
+            response.error === "step_up_required" ||
+            response.error === "mcp_step_up_required"
+          ) {
+            const replyText = response.reply || "This action requires additional authorization.";
+            const replyWithAgentBadge = `[CUSTOMER AGENT]\n${replyText}`;
+            addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
+            if (response.tokenEvents?.length) {
+              appendTokenEvents(response.tokenEvents);
+              if (tokenChain) {
+                tokenChain.setTokenEvents("agent", response.tokenEvents);
+              }
+              const agentTokenMsg = buildTokenEventMsg(response.tokenEvents);
+              if (agentTokenMsg) {
+                addMessage("token-event", agentTokenMsg, null);
+              }
+            }
+          } else if (response.error || !response.success) {
+            reportNlFailure({ code: response.error || "unknown", message: response.message || response.error || response.reply });
             // Dispatch error event to EventStream
             addEvent({
               type: 'error',
