@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import Editor from '@monaco-editor/react';
 import './PingCliPage.css';
 
 // Fallback runnable set when GET /commands hasn't loaded yet. Server catalog is
@@ -692,11 +693,12 @@ export default function PingCliPage() {
   // for objects/arrays after buildReadableView's fallback).
   const canEasyRead = readable !== null;
 
-  // When a run finishes with structured JSON, open Easy read so the table/form
-  // is the default; user can flip back to JSON with the toolbar button.
+  // When a run finishes with structured JSON, keep JSON view as default so the
+  // colorized output is immediately visible. User can switch to Easy read.
   useEffect(() => {
     if (running !== null || exitCode === null || !output) return;
-    if (buildReadableView(output)) setViewMode('easy');
+    // Keep viewMode as 'json' — the colored output is the primary experience.
+    // Easy read is available via the toggle.
   }, [running, exitCode, output]);
 
   // Scroll the response pane into view when a run starts. Prefer the nearest
@@ -984,9 +986,42 @@ export default function PingCliPage() {
                   </div>
                 )}
                 {(viewMode === 'json' || !canEasyRead) && (() => {
-                  const tokens = output ? tokenizeJson(output) : null;
-                  if (tokens) {
-                    return <div className="pingcli-terminal-body">{tokens}</div>;
+                  // Try to parse and pretty-print for the editor
+                  let jsonValue = output;
+                  let isValidJson = false;
+                  try {
+                    const parsed = JSON.parse(output);
+                    jsonValue = JSON.stringify(parsed, null, 2);
+                    isValidJson = true;
+                  } catch {
+                    // Not valid JSON — show raw text
+                  }
+
+                  if (isValidJson && !running) {
+                    return (
+                      <div className="pingcli-terminal-body pingcli-terminal-body--editor">
+                        <Editor
+                          height={Math.min(600, Math.max(200, jsonValue.split('\n').length * 19 + 20))}
+                          language="json"
+                          theme="vs-dark"
+                          value={jsonValue}
+                          options={{
+                            readOnly: true,
+                            minimap: { enabled: false },
+                            scrollBeyondLastLine: false,
+                            fontSize: 12.5,
+                            fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+                            lineNumbers: 'on',
+                            renderLineHighlight: 'none',
+                            folding: true,
+                            wordWrap: 'on',
+                            padding: { top: 12, bottom: 12 },
+                            contextmenu: true,
+                            copyWithSyntaxHighlighting: true,
+                          }}
+                        />
+                      </div>
+                    );
                   }
                   return (
                     <div className={`pingcli-terminal-body${running ? ' loading' : ''}`}>

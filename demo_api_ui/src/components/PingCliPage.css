@@ -644,6 +644,16 @@
 .pingcli-terminal-body .j-bool { color: #d8b4fe; }
 .pingcli-terminal-body .j-null { color: #94a3b8; font-style: italic; }
 
+/* Monaco editor inside the terminal pane */
+.pingcli-terminal-body--editor {
+  padding: 0;
+  background: #1e1e1e;
+  min-height: 200px;
+}
+.pingcli-terminal-body--editor .monaco-editor {
+  border-radius: 0 0 8px 8px;
+}
+
 /* ── Friendly results table (rendered above the terminal) ────────────── */
 .pingcli-results {
   margin-top: 24px;

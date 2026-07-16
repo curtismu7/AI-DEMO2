@@ -281,6 +281,36 @@ const SecuritySettings = ({ user, onLogout }) => {
         </button>
       </div>
 
+      {/* Related settings surfaces — single-entry-point navigation */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+        {[
+          { href: '/feature-flags', label: 'Feature Flags', desc: 'Runtime toggles (HITL, heuristics, agent modes)', icon: '🎛️' },
+          { href: '/llm-config', label: 'LLM Provider', desc: 'Model selection (Helix, Anthropic, Google, local)', icon: '🤖' },
+          { href: '/configure', label: 'PingOne Setup', desc: 'Environment config, credentials, quick-start', icon: '🔧' },
+          { href: '/pingone-authorize', label: 'Authorize Console', desc: 'Live policy testing, decision endpoints', icon: '🛡️' },
+        ].map(({ href, label, desc, icon }) => (
+          <a
+            key={href}
+            href={href}
+            style={{
+              display: 'flex', alignItems: 'flex-start', gap: '10px',
+              padding: '12px 14px', borderRadius: '8px',
+              border: '1px solid #e5e7eb', background: '#fafafa',
+              textDecoration: 'none', color: 'inherit',
+              transition: 'border-color 0.15s, background 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#93c5fd'; e.currentTarget.style.background = '#eff6ff'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.background = '#fafafa'; }}
+          >
+            <span style={{ fontSize: '20px', lineHeight: 1 }}>{icon}</span>
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>{label}</div>
+              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>{desc}</div>
+            </div>
+          </a>
+        ))}
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '24px', alignItems: 'start' }}>
 
         {/* Settings form */}
