@@ -620,6 +620,14 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearP
           className="p1dt-floating-panel"
         >
           <PolicyDecisionTree policies={policies} result={result} floating />
+          {/* Fallback when PolicyDecisionTree returns null (no policies loaded) */}
+          {(!Array.isArray(policies) || policies.length === 0) && (
+            <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+              <p style={{ marginBottom: '12px', fontWeight: 600, color: '#0f172a' }}>No policy tree available</p>
+              <p>The decision trace requires the authorization policy tree from PingOne. Either the policies have not loaded yet or the worker credentials are not configured.</p>
+              <p style={{ marginTop: '12px', fontSize: '12px' }}>The raw API request and response are shown inline below the Evaluate result.</p>
+            </div>
+          )}
         </FloatingPanel>
       )}
     </div>
