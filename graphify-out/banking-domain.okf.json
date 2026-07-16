@@ -1,0 +1,133 @@
+{
+  "@context": "https://okf.ping.dev/v0.1",
+  "id": "urn:okf:ping:banking-domain:a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "version": "0.1.0",
+  "domain": "banking-domain",
+  "title": "Banking Domain Knowledge — Demo Agent Grounding",
+  "description": "Deterministic assertions about retail banking operations, policies, and definitions used to ground the demo banking agent's responses.",
+  "created": "2026-07-15T00:00:00Z",
+  "updated": "2026-07-15T00:00:00Z",
+  "authors": ["ping-identity-demo-team"],
+  "assertions": [
+    {
+      "id": "K1",
+      "claim": "Available balance is defined as the ledger balance minus all pending holds minus all pending debits that have not yet settled.",
+      "source": "Banking Operations Manual §3.2",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "banking-ops-manual §3.2" }
+      ],
+      "tags": ["balance", "definitions"]
+    },
+    {
+      "id": "K2",
+      "claim": "The daily domestic transfer limit is $5,000 per account. Transfers exceeding this amount require manager approval and trigger a compliance review.",
+      "source": "Compliance Policy v2.4 §4.1",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "compliance-policy v2.4 §4.1" }
+      ],
+      "tags": ["transfers", "limits", "compliance"]
+    },
+    {
+      "id": "K3",
+      "claim": "The daily international transfer limit is $2,500 per account. International transfers also incur a 1.5% foreign exchange fee calculated at the time of initiation.",
+      "source": "Compliance Policy v2.4 §4.3",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "compliance-policy v2.4 §4.3" }
+      ],
+      "tags": ["transfers", "limits", "international"]
+    },
+    {
+      "id": "K4",
+      "claim": "A fraud hold is placed when a transaction triggers two or more risk signals. The hold freezes the transaction amount for up to 72 hours while the fraud team investigates. The customer is notified via SMS and in-app alert within 15 minutes of hold placement.",
+      "source": "Fraud Prevention Playbook §2.1",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "fraud-prevention-playbook §2.1" }
+      ],
+      "tags": ["fraud", "holds", "policy"]
+    },
+    {
+      "id": "K5",
+      "claim": "A fraud hold can only be released by a fraud analyst with Level 2 or higher clearance. Automatic release occurs after 72 hours if no analyst action is taken, at which point the transaction proceeds.",
+      "source": "Fraud Prevention Playbook §2.3",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "fraud-prevention-playbook §2.3" }
+      ],
+      "tags": ["fraud", "holds", "resolution"]
+    },
+    {
+      "id": "K6",
+      "claim": "Account authentication requires a valid OAuth 2.0 access token with the 'accounts:read' scope for balance inquiries and the 'accounts:transfer' scope for initiating transfers. Tokens are issued by the Ping Identity authorization server with a default lifetime of 300 seconds.",
+      "source": "API Security Specification §1.2",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "api-security-spec §1.2" }
+      ],
+      "tags": ["auth", "scopes", "tokens"]
+    },
+    {
+      "id": "K7",
+      "claim": "Overdraft protection allows a negative available balance up to $500 for accounts enrolled in the overdraft program. A $35 overdraft fee is charged per transaction that draws the balance below zero, capped at 3 fees per business day.",
+      "source": "Account Services Guide §5.4",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "account-services-guide §5.4" }
+      ],
+      "tags": ["overdraft", "fees", "account-features"]
+    },
+    {
+      "id": "K8",
+      "claim": "Scheduled transfers execute at 02:00 UTC on the specified date. If the available balance is insufficient at execution time, the transfer fails and the customer is notified. No retry is attempted automatically.",
+      "source": "Transfer Processing SLA §3.1",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "transfer-processing-sla §3.1" }
+      ],
+      "tags": ["transfers", "scheduling", "processing"]
+    },
+    {
+      "id": "K9",
+      "claim": "The customer's transaction history is retained for 7 years in compliance with regulatory requirements. The agent may access the last 90 days of history; older records require an archive retrieval request with a 24-hour SLA.",
+      "source": "Data Retention Policy §2.2",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "data-retention-policy §2.2" }
+      ],
+      "tags": ["history", "retention", "compliance"]
+    },
+    {
+      "id": "K10",
+      "claim": "A 'pending' transaction is one that has been authorized but not yet settled. Pending transactions reduce available balance but do not affect ledger balance. Settlement typically occurs within 1-3 business days.",
+      "source": "Banking Operations Manual §3.5",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "banking-ops-manual §3.5" }
+      ],
+      "tags": ["transactions", "pending", "definitions"]
+    },
+    {
+      "id": "K11",
+      "claim": "The agent must never disclose internal risk scores, fraud model outputs, or the specific signals that triggered a fraud hold to the customer. The agent may confirm that a hold exists and provide the expected resolution timeline.",
+      "source": "Customer Communication Policy §7.1",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "customer-communication-policy §7.1" }
+      ],
+      "tags": ["fraud", "communication", "policy"]
+    },
+    {
+      "id": "K12",
+      "claim": "Step-up authentication is required for transfers above $1,000 or to new recipients. Step-up prompts the customer for a one-time SMS code valid for 5 minutes. Failure after 3 attempts locks the transfer channel for 30 minutes.",
+      "source": "API Security Specification §3.4",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "api-security-spec §3.4" }
+      ],
+      "tags": ["auth", "step-up", "transfers"]
+    }
+  ]
+}

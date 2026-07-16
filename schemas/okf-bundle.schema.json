@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://okf.ping.dev/v0.1/bundle.schema.json",
+  "title": "OKF Bundle",
+  "description": "Schema for Open Knowledge Format bundles (.okf.json)",
+  "type": "object",
+  "required": ["@context", "id", "version", "domain", "title", "assertions"],
+  "additionalProperties": false,
+  "properties": {
+    "@context": {
+      "type": "string",
+      "const": "https://okf.ping.dev/v0.1",
+      "description": "JSON-LD context URI. Must be https://okf.ping.dev/v0.1 for this version."
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^urn:okf:[a-z0-9\\-]+:[a-z0-9\\-]+:[0-9a-f\\-]{36}$",
+      "description": "URN-style unique identifier: urn:okf:<org>:<domain>:<uuid>"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semver version of the bundle content"
+    },
+    "domain": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "description": "Kebab-case domain slug"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Human-readable bundle title"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Longer description of bundle scope"
+    },
+    "created": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 creation timestamp"
+    },
+    "updated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 last-modified timestamp"
+    },
+    "authors": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "List of author identifiers"
+    },
+    "assertions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 50,
+      "items": { "$ref": "#/$defs/Assertion" },
+      "description": "Array of knowledge assertions"
+    }
+  },
+  "$defs": {
+    "Assertion": {
+      "type": "object",
+      "required": ["id", "claim", "source", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^K\\d+$",
+          "description": "Short citation anchor (K1, K2, ...)"
+        },
+        "claim": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 500,
+          "description": "The deterministic knowledge statement. Must be self-contained and unambiguous."
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300,
+          "description": "Human-readable provenance string"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Confidence level. 1.0 for authored facts."
+        },
+        "citations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Citation" },
+          "description": "References to source material"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "description": "Free-form tags for filtering/grouping"
+        }
+      }
+    },
+    "Citation": {
+      "type": "object",
+      "required": ["ref"],
+      "additionalProperties": false,
+      "properties": {
+        "ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Document or section reference"
+        },
+        "uri": {
+          "type": "string",
+          "format": "uri",
+          "description": "Optional URI to the source material"
+        }
+      }
+    }
+  }
+}

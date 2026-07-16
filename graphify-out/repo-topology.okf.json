@@ -1,0 +1,166 @@
+{
+  "@context": "https://okf.ping.dev/v0.1",
+  "id": "urn:okf:ping:repo-topology:b2c3d4e5-f6a7-8901-bcde-f12345678901",
+  "version": "0.1.0",
+  "domain": "repo-topology",
+  "title": "Repository Topology — Ping Identity Demo Platform",
+  "description": "Architectural assertions about the demo platform codebase: service boundaries, token exchange chain, scope topology, feature flag machinery, RAG stack, compose profiles, and MCP tools. Intended for coding agents to avoid repeated rediscovery.",
+  "created": "2026-07-15T00:00:00Z",
+  "updated": "2026-07-15T00:00:00Z",
+  "authors": ["ping-identity-demo-team"],
+  "assertions": [
+    {
+      "id": "K1",
+      "claim": "The demo banking agents are implemented in demoAgentLangGraphService.js using LangGraph. The agent's system prompt is assembled from a vertical manifest starting at approximately line 1407. This is the sole injection point for grounding context (OKF or otherwise).",
+      "source": "server/services/demoAgentLangGraphService.js:1407",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "demoAgentLangGraphService.js ~line 1407" }
+      ],
+      "tags": ["agents", "prompt-assembly", "entry-point"]
+    },
+    {
+      "id": "K2",
+      "claim": "Feature flags follow a three-point wiring pattern: (1) FLAG_REGISTRY in featureFlags.js (~line 33), (2) FIELD_DEFS in configStore.js (~line 299), and optionally (3) QUICK_FLAGS in QuickFlagsPill.js (~line 16) for a header toggle pill. A flag needs all three to be fully operational in the UI.",
+      "source": "server/config/featureFlags.js, server/config/configStore.js, client/components/QuickFlagsPill.js",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "featureFlags.js:33" },
+        { "ref": "configStore.js:299" },
+        { "ref": "QuickFlagsPill.js:16" }
+      ],
+      "tags": ["feature-flags", "config", "ui"]
+    },
+    {
+      "id": "K3",
+      "claim": "The RAG stack consists of Weaviate (vector DB), a llama.cpp embedder, and a code chunker/indexer. It is gated by the 'rag' docker-compose profile (docker-compose.yml ~line 840), NOT by a feature flag. There is no ff_* flag for RAG.",
+      "source": "docker-compose.yml:840",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "docker-compose.yml ~line 840" }
+      ],
+      "tags": ["rag", "infrastructure", "compose-profiles"]
+    },
+    {
+      "id": "K4",
+      "claim": "The RAG stack powers the Code Explorer page and exposes three MCP tools: code_search, get_code, and list_codebases. These tools are NOT wired into the demo banking agent prompts — the agents get context exclusively from the manifest system prompt.",
+      "source": "MCP tool registry, Code Explorer page implementation",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "MCP tool definitions for code_search, get_code, list_codebases" }
+      ],
+      "tags": ["rag", "mcp-tools", "agents"]
+    },
+    {
+      "id": "K5",
+      "claim": "Docker-compose profiles gate infrastructure services. The 'rag' profile activates Weaviate + embedder + indexer. Services without a profile run in the default stack. To start RAG: 'docker-compose --profile rag up'. Profiles are an infrastructure decision, distinct from feature flags which are runtime toggles.",
+      "source": "docker-compose.yml profile declarations",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "docker-compose.yml profiles section" }
+      ],
+      "tags": ["compose-profiles", "infrastructure", "deployment"]
+    },
+    {
+      "id": "K6",
+      "claim": "Token exchange follows the OAuth 2.0 token exchange grant (RFC 8693). The client presents a subject token to the Ping Identity authorization server, which validates it and issues a new access token with scoped permissions. The gateway enforces token validity before routing to downstream services.",
+      "source": "OAuth 2.0 Token Exchange implementation, gateway middleware",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "RFC 8693 implementation in auth middleware" }
+      ],
+      "tags": ["token-exchange", "auth", "gateway"]
+    },
+    {
+      "id": "K7",
+      "claim": "The scope topology defines permission boundaries: 'accounts:read' for balance inquiries, 'accounts:transfer' for initiating transfers, 'admin:config' for configuration changes. Scopes are declared in the authorization server and enforced at the gateway and service level.",
+      "source": "Authorization server scope configuration, gateway enforcement",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "Scope declarations in auth server config" }
+      ],
+      "tags": ["scopes", "auth", "permissions"]
+    },
+    {
+      "id": "K8",
+      "claim": "The gateway acts as the single entry point for all API requests. It performs token validation, scope enforcement, rate limiting, and request routing. Gateway-level flags (distinct from application feature flags) can disable entire routes without code changes.",
+      "source": "Gateway middleware implementation",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "Gateway middleware chain" }
+      ],
+      "tags": ["gateway", "routing", "middleware"]
+    },
+    {
+      "id": "K9",
+      "claim": "The configStore (configStore.js) is the persistence layer for all runtime configuration including feature flags. FIELD_DEFS (~line 299) declares the schema for each config field: type, default, label, description, category, and whether changes require restart. Fields with restart:false take effect immediately.",
+      "source": "server/config/configStore.js:299",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "configStore.js FIELD_DEFS ~line 299" }
+      ],
+      "tags": ["config", "persistence", "feature-flags"]
+    },
+    {
+      "id": "K10",
+      "claim": "The QuickFlagsPill component renders a row of toggle pills in the application header. Each pill corresponds to an entry in the QUICK_FLAGS array (~line 16). Clicking a pill toggles the associated feature flag in real-time without page reload — designed for live demo toggling by SEs.",
+      "source": "client/components/QuickFlagsPill.js:16",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "QuickFlagsPill.js QUICK_FLAGS ~line 16" }
+      ],
+      "tags": ["ui", "feature-flags", "demo"]
+    },
+    {
+      "id": "K11",
+      "claim": "Service boundaries: the server/ directory contains Express.js services (config, agents, routes). The client/ directory contains the React frontend. Services communicate via internal REST APIs. The LangGraph agent service is the most complex — it orchestrates tool calls, manages conversation state, and assembles prompts.",
+      "source": "Project directory structure, service implementations",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "server/ and client/ directory structure" }
+      ],
+      "tags": ["architecture", "service-boundaries", "directory-structure"]
+    },
+    {
+      "id": "K12",
+      "claim": "The graphify-out/ directory stores OKF (Open Knowledge Format) bundles — JSON files with .okf.json extension containing deterministic knowledge assertions. Each bundle declares a domain slug and is indexed by the okfLoaderService. The banking-domain bundle grounds the demo agent; the repo-topology bundle describes this codebase for coding agents.",
+      "source": "graphify-out/ directory, okf-spec.md",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "okf-spec.md §6 File Conventions" }
+      ],
+      "tags": ["okf", "knowledge-bundles", "directory-structure"]
+    },
+    {
+      "id": "K13",
+      "claim": "To add a new feature flag: (1) Add entry to FLAG_REGISTRY in featureFlags.js with name, label, description, default, category. (2) Add entry to FIELD_DEFS in configStore.js with type, default, label, description, category, restart. (3) Optionally add to QUICK_FLAGS in QuickFlagsPill.js for header toggle. (4) Read the flag with getFlag('ff_your_flag') in consuming code.",
+      "source": "Feature flag pattern across featureFlags.js, configStore.js, QuickFlagsPill.js",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "featureFlags.js FLAG_REGISTRY pattern" },
+        { "ref": "configStore.js FIELD_DEFS pattern" }
+      ],
+      "tags": ["feature-flags", "how-to", "patterns"]
+    },
+    {
+      "id": "K14",
+      "claim": "The ff_okf_grounding feature flag controls OKF knowledge injection into the demo agent. When ON, okfPromptInjector.js appends a <knowledge> block with [K1]-[Kn] assertions after the manifest system prompt. When OFF, the agent uses only the manifest prompt. RAG remains orthogonal — controlled by compose profile, not this flag.",
+      "source": "server/services/okfPromptInjector.js, server/config/featureFlags.okf-patch.js",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "okfPromptInjector.js injectOkfKnowledge()" }
+      ],
+      "tags": ["okf", "feature-flags", "agents"]
+    },
+    {
+      "id": "K15",
+      "claim": "MCP (Model Context Protocol) tools are exposed for AI coding agents. Existing tools: code_search (RAG-powered code search), get_code (retrieve code by path), list_codebases (enumerate indexed repos). The get_okf_assertions tool queries OKF bundles by domain and optional tag filter. MCP tools are distinct from the demo agent's tool-use capabilities.",
+      "source": "MCP tool registry, server/services/okfMcpTool.js",
+      "confidence": 1.0,
+      "citations": [
+        { "ref": "MCP tool definitions" }
+      ],
+      "tags": ["mcp-tools", "coding-agents", "okf"]
+    }
+  ]
+}

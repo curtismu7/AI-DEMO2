@@ -1,0 +1,265 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   OKF Citation Pill — Styles
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ---------------------------------------------------------------------------
+   Citation Pill (inline badge)
+   --------------------------------------------------------------------------- */
+
+.okf-citation-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.okf-citation-pill__label {
+  display: inline-block;
+  padding: 1px 5px;
+  margin: 0 1px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  line-height: 1.4;
+  color: #1a56db;
+  background: #e8f0fe;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.okf-citation-pill:hover .okf-citation-pill__label,
+.okf-citation-pill:focus .okf-citation-pill__label {
+  color: #1e40af;
+  background: #dbeafe;
+  border-color: #93c5fd;
+  box-shadow: 0 1px 3px rgba(26, 86, 219, 0.15);
+}
+
+.okf-citation-pill.resolved .okf-citation-pill__label {
+  color: #166534;
+  background: #dcfce7;
+  border-color: #86efac;
+}
+
+.okf-citation-pill.resolved:hover .okf-citation-pill__label {
+  background: #bbf7d0;
+  border-color: #4ade80;
+}
+
+
+.okf-citation-pill.loading .okf-citation-pill__label {
+  color: #9ca3af;
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+  animation: okf-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes okf-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ---------------------------------------------------------------------------
+   Citation Popover (hover/click tooltip)
+   --------------------------------------------------------------------------- */
+
+.okf-citation-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 280px;
+  max-width: 380px;
+  padding: 12px 14px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
+  font-size: 0.825rem;
+  line-height: 1.5;
+  text-align: left;
+  pointer-events: auto;
+}
+
+/* Arrow */
+.okf-citation-popover::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #ffffff;
+}
+
+.okf-citation-popover::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 7px solid transparent;
+  border-top-color: #e5e7eb;
+}
+
+.okf-citation-popover__header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.okf-citation-popover__id {
+  font-weight: 700;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: #1a56db;
+  font-size: 0.75rem;
+}
+
+.okf-citation-popover__source {
+  color: #6b7280;
+  font-style: italic;
+  font-size: 0.75rem;
+}
+
+.okf-citation-popover__claim {
+  color: #1f2937;
+  font-size: 0.8rem;
+}
+
+
+.okf-citation-popover__refs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.okf-citation-popover__ref {
+  font-size: 0.7rem;
+  color: #6b7280;
+  padding: 2px 6px;
+  background: #f9fafb;
+  border-radius: 3px;
+}
+
+.okf-citation-popover__ref a {
+  color: #1a56db;
+  text-decoration: none;
+}
+
+.okf-citation-popover__ref a:hover {
+  text-decoration: underline;
+}
+
+/* ---------------------------------------------------------------------------
+   Citation Footer (message-level summary)
+   --------------------------------------------------------------------------- */
+
+.okf-citation-footer {
+  margin-top: 8px;
+  border-top: 1px solid #f3f4f6;
+  padding-top: 8px;
+}
+
+.okf-citation-footer__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: #4b5563;
+  transition: all 0.15s ease;
+}
+
+.okf-citation-footer__toggle:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.okf-citation-footer__icon {
+  font-size: 0.85rem;
+}
+
+.okf-citation-footer__count {
+  font-weight: 500;
+}
+
+.okf-citation-footer__chevron {
+  font-size: 0.7rem;
+  transition: transform 0.2s ease;
+}
+
+.okf-citation-footer__chevron.expanded {
+  transform: rotate(180deg);
+}
+
+.okf-citation-footer__list {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.okf-citation-footer__item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #f9fafb;
+  font-size: 0.75rem;
+}
+
+.okf-citation-footer__item-id {
+  font-weight: 700;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: #1a56db;
+  flex-shrink: 0;
+}
+
+.okf-citation-footer__item-text {
+  color: #4b5563;
+}
+
+/* ---------------------------------------------------------------------------
+   Cited Message wrapper
+   --------------------------------------------------------------------------- */
+
+.okf-cited-message {
+  display: inline;
+}
+
+/* ---------------------------------------------------------------------------
+   Dark mode support (if app has .dark-mode or [data-theme="dark"])
+   --------------------------------------------------------------------------- */
+
+.dark-mode .okf-citation-pill__label,
+[data-theme="dark"] .okf-citation-pill__label {
+  color: #93c5fd;
+  background: #1e3a5f;
+  border-color: #2563eb;
+}
+
+.dark-mode .okf-citation-popover,
+[data-theme="dark"] .okf-citation-popover {
+  background: #1f2937;
+  border-color: #374151;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.dark-mode .okf-citation-popover__claim,
+[data-theme="dark"] .okf-citation-popover__claim {
+  color: #e5e7eb;
+}
