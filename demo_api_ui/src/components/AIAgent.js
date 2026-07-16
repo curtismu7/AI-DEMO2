@@ -5768,6 +5768,27 @@ export default function BankingAgent({
     const stepLabel = `Demo step ${stepNumber}: ${uc.id} — ${uc.title}`;
     const trigger = uc.trigger || {};
 
+    // Auto-enable feature flags required by flag-gated demo steps.
+    // This ensures presenters don't need to manually toggle flags before running.
+    if (uc.maturity && typeof uc.maturity === "string" && uc.maturity.startsWith("flag:")) {
+      const flagName = uc.maturity.replace("flag:", "");
+      try {
+        await apiClient.patch("/api/admin/feature-flags", { updates: { [flagName]: true } });
+        console.log(`[handleDemoStepSelect] Auto-enabled ${flagName} for ${uc.id}`);
+      } catch (e) {
+        console.warn(`[handleDemoStepSelect] Could not auto-enable ${flagName}:`, e.message);
+      }
+    }
+    // UC2.5 (A2A orchestrator) needs ff_a2a_delegation but has maturity 'works'
+    if (uc.id === "UC2.5") {
+      try {
+        await apiClient.patch("/api/admin/feature-flags", { updates: { ff_a2a_delegation: true } });
+        console.log("[handleDemoStepSelect] Auto-enabled ff_a2a_delegation for UC2.5");
+      } catch (e) {
+        console.warn("[handleDemoStepSelect] Could not auto-enable ff_a2a_delegation:", e.message);
+      }
+    }
+
     if (trigger.type === "chip" && trigger.text) {
       if (!(isLoggedIn || marketingGuestChatEnabled)) {
         addMessage("assistant", "Sign in to run demo steps.");
