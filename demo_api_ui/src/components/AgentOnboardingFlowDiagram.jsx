@@ -7,7 +7,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import FloatingPanel from "./FloatingPanel";
 import EditableSticky from "./EditableSticky";
-import TokenStepIndicator from "./TokenStepIndicator";
 import { ROWS, LEGEND, FLOWS, FLOW_ORDER } from "../data/agentOnboardingFlows";
 import "./AgentOnboardingFlowDiagram.css";
 
@@ -175,14 +174,9 @@ function StepControls({ stepIndex, total, playing, onPrev, onNext, onPlayToggle,
       <button type="button" className="aof-ctrl-btn aof-ctrl-btn--ghost" onClick={onReset}>
         Reset
       </button>
-      <div className="aof-step-count">
-        <TokenStepIndicator
-          currentStep={stepIndex + 1}
-          totalSteps={total}
-          compact={true}
-          showLabel={true}
-        />
-      </div>
+      <span className="aof-step-count">
+        Step {stepIndex + 1} of {total}
+      </span>
     </div>
   );
 }

@@ -4,45 +4,47 @@
 'use strict';
 
 const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
-if (!otlpEndpoint) {
-  return;
-}
 
-// In Docker this file is bind-mounted at /otel, outside the service tree, so a
-// plain require() never searches the service's /app/node_modules. Resolve from
-// the service's working directory instead, falling back to normal resolution
-// for native mode (where this file sits inside the repo and hoisting applies).
-let req = require;
-try {
-  req.resolve('@opentelemetry/sdk-node');
-} catch (_) {
-  req = require('module').createRequire(
-    require('path').join(process.cwd(), 'package.json')
-  );
-}
+// No-op when OTEL_EXPORTER_OTLP_ENDPOINT is unset. Wrap the body in an if-block
+// instead of a top-level `return` so the file parses cleanly as an ES module
+// (Jest's Babel transformer parses it as ESM, where top-level return is illegal).
+if (otlpEndpoint) {
+  // In Docker this file is bind-mounted at /otel, outside the service tree, so a
+  // plain require() never searches the service's /app/node_modules. Resolve from
+  // the service's working directory instead, falling back to normal resolution
+  // for native mode (where this file sits inside the repo and hoisting applies).
+  let req = require;
+  try {
+    req.resolve('@opentelemetry/sdk-node');
+  } catch (_) {
+    req = require('module').createRequire(
+      require('path').join(process.cwd(), 'package.json')
+    );
+  }
 
-try {
-  const { NodeSDK } = req('@opentelemetry/sdk-node');
-  const { OTLPTraceExporter } = req('@opentelemetry/exporter-trace-otlp-grpc');
-  const { getNodeAutoInstrumentations } = req('@opentelemetry/auto-instrumentations-node');
-  const resources = req('@opentelemetry/resources');
-  const { ATTR_SERVICE_NAME } = req('@opentelemetry/semantic-conventions');
+  try {
+    const { NodeSDK } = req('@opentelemetry/sdk-node');
+    const { OTLPTraceExporter } = req('@opentelemetry/exporter-trace-otlp-grpc');
+    const { getNodeAutoInstrumentations } = req('@opentelemetry/auto-instrumentations-node');
+    const resources = req('@opentelemetry/resources');
+    const { ATTR_SERVICE_NAME } = req('@opentelemetry/semantic-conventions');
 
-  const serviceName = process.env.OTEL_SERVICE_NAME || 'unknown-service';
-  const attrs = { [ATTR_SERVICE_NAME || 'service.name']: serviceName };
-  // Services pin different @opentelemetry/resources majors: 1.x exports the
-  // Resource class, 2.x replaced it with resourceFromAttributes().
-  const resource = typeof resources.Resource === 'function'
-    ? new resources.Resource(attrs)
-    : resources.resourceFromAttributes(attrs);
+    const serviceName = process.env.OTEL_SERVICE_NAME || 'unknown-service';
+    const attrs = { [ATTR_SERVICE_NAME || 'service.name']: serviceName };
+    // Services pin different @opentelemetry/resources majors: 1.x exports the
+    // Resource class, 2.x replaced it with resourceFromAttributes().
+    const resource = typeof resources.Resource === 'function'
+      ? new resources.Resource(attrs)
+      : resources.resourceFromAttributes(attrs);
 
-  const sdk = new NodeSDK({
-    traceExporter: new OTLPTraceExporter({ url: otlpEndpoint }),
-    instrumentations: [getNodeAutoInstrumentations()],
-    resource,
-  });
-  sdk.start();
-  console.log(`[otel] tracing to ${otlpEndpoint} as ${serviceName}`);
-} catch (err) {
-  console.warn(`[otel] tracing disabled — ${err.message}`);
+    const sdk = new NodeSDK({
+      traceExporter: new OTLPTraceExporter({ url: otlpEndpoint }),
+      instrumentations: [getNodeAutoInstrumentations()],
+      resource,
+    });
+    sdk.start();
+    console.log(`[otel] tracing to ${otlpEndpoint} as ${serviceName}`);
+  } catch (err) {
+    console.warn(`[otel] tracing disabled — ${err.message}`);
+  }
 }
