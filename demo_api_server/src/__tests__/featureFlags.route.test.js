@@ -80,7 +80,6 @@ describe('Feature Flags Route', () => {
       expect(res.body.flags.length).toBeGreaterThan(0);
 
       const flagIds = res.body.flags.map(f => f.id);
-      expect(flagIds).toContain('ff_inject_may_act');
       expect(flagIds).toContain('ff_hitl_enabled');
       expect(flagIds).toContain('step_up_enabled');
     });
@@ -118,64 +117,64 @@ describe('Feature Flags Route', () => {
     it('updates a single flag and persists', async () => {
       // Get current value
       const getRes = await request(app).get('/api/admin/feature-flags');
-      const currentFlag = getRes.body.flags.find(f => f.id === 'ff_inject_may_act');
+      const currentFlag = getRes.body.flags.find(f => f.id === 'ff_hitl_enabled');
       const originalValue = currentFlag.value;
 
       // Toggle it
       const newValue = !originalValue;
       const patchRes = await request(app).patch('/api/admin/feature-flags').send({
-        updates: { ff_inject_may_act: newValue }
+        updates: { ff_hitl_enabled: newValue }
       });
       expect(patchRes.status).toBe(200);
 
       // Verify returned value
-      const updatedFlag = patchRes.body.flags.find(f => f.id === 'ff_inject_may_act');
+      const updatedFlag = patchRes.body.flags.find(f => f.id === 'ff_hitl_enabled');
       expect(updatedFlag.value).toBe(newValue);
 
       // Verify persistence via GET
       const verifyRes = await request(app).get('/api/admin/feature-flags');
-      const persistedFlag = verifyRes.body.flags.find(f => f.id === 'ff_inject_may_act');
+      const persistedFlag = verifyRes.body.flags.find(f => f.id === 'ff_hitl_enabled');
       expect(persistedFlag.value).toBe(newValue);
 
       // Restore original
       await request(app).patch('/api/admin/feature-flags').send({
-        updates: { ff_inject_may_act: originalValue }
+        updates: { ff_hitl_enabled: originalValue }
       });
     });
 
     it('updates multiple flags at once', async () => {
       const patchRes = await request(app).patch('/api/admin/feature-flags').send({
         updates: {
-          ff_inject_may_act: true,
+          ff_inject_scopes: true,
           ff_hitl_enabled: false,
           step_up_enabled: true
         }
       });
       expect(patchRes.status).toBe(200);
-      expect(patchRes.body.flags.find(f => f.id === 'ff_inject_may_act').value).toBe(true);
+      expect(patchRes.body.flags.find(f => f.id === 'ff_inject_scopes').value).toBe(true);
       expect(patchRes.body.flags.find(f => f.id === 'ff_hitl_enabled').value).toBe(false);
       expect(patchRes.body.flags.find(f => f.id === 'step_up_enabled').value).toBe(true);
     });
 
     it('rejects a non-boolean value for a boolean flag', async () => {
       const res = await request(app).patch('/api/admin/feature-flags').send({
-        updates: { ff_inject_may_act: 'invalid-string' }
+        updates: { ff_hitl_enabled: 'invalid-string' }
       });
       expect(res.status).toBe(400);
       // Stored value is unchanged — garbage is never persisted
       const verifyRes = await request(app).get('/api/admin/feature-flags');
-      const flag = verifyRes.body.flags.find(f => f.id === 'ff_inject_may_act');
+      const flag = verifyRes.body.flags.find(f => f.id === 'ff_hitl_enabled');
       expect(typeof flag.value).toBe('boolean');
     });
 
     it('accepts "true"/"false" string forms for boolean flags', async () => {
       const res = await request(app).patch('/api/admin/feature-flags').send({
-        updates: { ff_inject_may_act: 'true' }
+        updates: { ff_hitl_enabled: 'true' }
       });
       expect(res.status).toBe(200);
-      expect(res.body.flags.find(f => f.id === 'ff_inject_may_act').value).toBe(true);
+      expect(res.body.flags.find(f => f.id === 'ff_hitl_enabled').value).toBe(true);
       await request(app).patch('/api/admin/feature-flags').send({
-        updates: { ff_inject_may_act: false }
+        updates: { ff_hitl_enabled: false }
       });
     });
 

@@ -9,7 +9,6 @@ const FLAG_LABELS = {
   ff_authorize_fail_open: 'Allow Transactions if Auth Unavailable',
   step_up_enabled: 'MFA Step-up',
   ff_hitl_enabled: 'Human-in-the-Loop Consent',
-  ff_inject_may_act: 'may_act Delegation Claim',
   ff_skip_token_exchange: 'Skip Token Exchange (RFC 8693)',
   ff_inject_scopes: 'Inject Banking Scopes',
 };
@@ -19,7 +18,6 @@ const FLAG_DESCRIPTIONS = {
   ff_authorize_fail_open: 'Allow operations to proceed when authorization service is unavailable',
   step_up_enabled: 'Prompt for MFA on transactions above the step-up threshold',
   ff_hitl_enabled: 'Show a consent challenge before executing sensitive operations',
-  ff_inject_may_act: 'Inject may_act claim into tokens to enable delegated agent access',
   ff_skip_token_exchange: 'Bypass RFC 8693 token exchange — also enables Inject Banking Scopes so MCP calls still work',
   ff_inject_scopes: 'Add read / write scopes to the token (required when skipping token exchange)',
 };

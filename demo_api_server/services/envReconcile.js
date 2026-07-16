@@ -159,8 +159,6 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'simulated_authorize_stepup_amount', 'simulated_mcp_deny_tools', 'simulated_mcp_hitl_tools',
   // authorize mode / failover behavioral flags
   'authorize_failover_mode', 'authorize_mode',
-  // RFC 8693 behavioral flags
-  'enablemayactsupport',
   // server debug/logging
   'log_level', 'debug_show_token_details', 'debug_show_api_calls', 'log_filter_categories',
   // routing / MCP inspector flags (feature/behavior, not env identity)

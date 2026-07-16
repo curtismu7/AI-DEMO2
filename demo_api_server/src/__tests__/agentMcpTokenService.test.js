@@ -1231,7 +1231,6 @@ describe('RFC 8693 Compliance - Subject Preservation & may_act Validation', () =
     configStore.getEffective.mockImplementation((key) => {
       if (key === 'pingone_resource_mcp_server_uri' || key === 'mcp_resource_uri')
         return 'https://mcp-server.banking-demo.com';
-      if (key === 'enableMayActSupport') return 'true';
       // Exchanger creds now route through configStore (a3db6dbd); without them
       // the single-exchange path skips the actor token + exchange, so the
       // subject-preservation comparison never runs.
@@ -1298,11 +1297,10 @@ describe('RFC 8693 Compliance - Subject Preservation & may_act Validation', () =
     expect(injectedEvent).toBeUndefined();
   });
 
-  it('should skip may_act validation when enableMayActSupport is false', async () => {
+  it('should skip token exchange gracefully when exchange config is minimal', async () => {
     configStore.getEffective.mockImplementation((key) => {
       if (key === 'pingone_resource_mcp_server_uri' || key === 'mcp_resource_uri') 
         return 'https://mcp-server.banking-demo.com';
-      if (key === 'enableMayActSupport') return 'false'; // DISABLED
       return null;
     });
     
@@ -1311,7 +1309,7 @@ describe('RFC 8693 Compliance - Subject Preservation & may_act Validation', () =
     const req = makeReq(sampleJwtUserAccessToken);
     const { tokenEvents } = await resolveMcpAccessTokenWithEvents(req, 'get_my_accounts');
     
-    // Should NOT emit may_act validation events
+    // Should NOT emit may_act validation events (feature removed)
     const mayActEvents = tokenEvents.filter(e => e.id && e.id.includes('may-act'));
     expect(mayActEvents.length).toBe(0);
   });

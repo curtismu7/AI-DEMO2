@@ -282,9 +282,6 @@ const FIELD_DEFS = {
   ff_rar:                          { public: true, default: 'false' }, // UC14: RFC 9396 RAR enforcement — bind agent tools to attested amount/payee from azd.authorization_details; default OFF
   ff_require_act_for_agent_tools: { public: true, default: 'true' }, // UC16: deny agent-mediated tool calls that carry no act claim (impersonation block); default ON — the act-based replacement for the removed may_act-based checks
   ff_a2a_delegation:       { public: true, default: 'false' }, // Enable agent-to-agent (A2A) specialist delegation — Investment Advisor (Agent 2) via chained RFC 8693 nested act; authorization decided by Authorize over the act chain (no may_act)
-  ff_inject_may_act:       { public: true, default: 'false' }, // BFF-synthesise may_act when absent from user token (demo/dev — no PingOne change needed)
-  // DEPRECATED: ff_inject_may_act. Use enableMayActSupport instead (RFC 8693 configuration-based approach).
-  enableMayActSupport:     { public: true, default: 'true'  }, // Enable validation of RFC 8693 may_act claims from PingOne token policies (not synthetic injection)
   ff_inject_audience:      { public: true, default: 'false' }, // BFF-add mcp_resource_uri to aud claim snapshot when absent (demo/dev — no PingOne change needed)
   ff_inject_scopes:        { public: true, default: 'false' }, // BFF-inject read write scopes when absent from user token (demo/dev — no PingOne change needed)
   ff_skip_token_exchange:  { public: true, default: 'false' }, // Skip RFC 8693 — pass user access token directly to MCP (demo mode; token exchange not required)

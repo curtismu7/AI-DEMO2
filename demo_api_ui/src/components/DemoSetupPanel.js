@@ -831,7 +831,6 @@ export default function DemoSetupPanel() {
               </p>
               <div className="demo-data-actions demo-data-actions--wrap" style={{ marginTop: '0.5rem' }}>
                 <Link className="demo-data-btn primary" to="/configure?tab=feature-flags">Open Feature Flags</Link>
-                <Link className="demo-data-btn ghost" to="/configure?tab=feature-flags&flag=ff_inject_may_act">Jump to may_act injection</Link>
                 <Link className="demo-data-btn ghost" to="/configure?tab=feature-flags&flag=authorize_enabled">Jump to PingOne Authorize</Link>
               </div>
             </div>

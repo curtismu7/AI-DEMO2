@@ -179,13 +179,13 @@ describe('Demo Controls Integration — Agent Honors Thresholds & Flags', () => 
       });
     });
 
-    it('ff_inject_may_act flag controls token exchange behavior', async () => {
+    it('ff_hitl_enabled flag controls consent challenge behavior', async () => {
       await request(app).patch('/api/admin/feature-flags').send({
-        updates: { ff_inject_may_act: true }
+        updates: { ff_hitl_enabled: true }
       });
 
       await request(app).patch('/api/admin/feature-flags').send({
-        updates: { ff_inject_may_act: false }
+        updates: { ff_hitl_enabled: false }
       });
     });
   });

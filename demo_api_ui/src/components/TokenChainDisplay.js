@@ -350,125 +350,6 @@ function NotApplicableNote({ rfc, rfcDesc, event }) {
 }
 
 /**
- * Rich educational callout for the may_act claim (RFC 8693 §4.1).
- * Shows valid / mismatch / absent states with fix steps. Renders on user-token events.
- */
-function MayActEduBox({ event }) {
-  const { mayActPresent, mayActValid, mayActDetails } = event;
-  if (mayActPresent === undefined)
-    return (
-      <NotApplicableNote
-        event={event}
-        rfc="RFC 8693 §4.1"
-        rfcDesc="Token Exchange delegation permission. Pre-authorises a specific OAuth client to exchange this token on the resource owner's behalf, enabling delegated agent access."
-      />
-    );
-  const mayActValue = event.claims?.may_act;
-
-  if (mayActPresent && mayActValid) {
-    return (
-      <div className="tcd-edu-box tcd-edu-box--ok">
-        <div className="tcd-edu-box-hd">
-          <span className="tcd-edu-icon">✅</span>
-          <strong>may_act — delegation permission granted</strong>
-          <RfcRef rfc="RFC 8693 §4.1" />
-        </div>
-        {mayActValue && (
-          <pre className="tcd-edu-code"><JsonHighlight value={{ may_act: mayActValue }} /></pre>
-        )}
-        <div className="tcd-edu-body">
-          <p>
-            This claim pre-authorises the BFF to exchange this token on the
-            user's behalf. PingOne validates it during RFC 8693 Token Exchange.
-          </p>
-          <ul>
-            <li>
-              <code>client_id</code> must equal the BFF OAuth app client ID — ✅
-              matches
-            </li>
-            <li>
-              BFF presents its own credentials as <code>actor_token</code>
-            </li>
-            <li>
-              PingOne issues an MCP token with an <code>act</code> claim (the
-              delegation fact)
-            </li>
-          </ul>
-          {mayActDetails && <p className="tcd-edu-detail">{mayActDetails}</p>}
-        </div>
-      </div>
-    );
-  }
-
-  if (mayActPresent && !mayActValid) {
-    return (
-      <div className="tcd-edu-box tcd-edu-box--error">
-        <div className="tcd-edu-box-hd">
-          <span className="tcd-edu-icon">❌</span>
-          <strong>may_act — client_id mismatch</strong>
-          <RfcRef rfc="RFC 8693 §4.1" />
-        </div>
-        {mayActValue && (
-          <pre className="tcd-edu-code"><JsonHighlight value={{ may_act: mayActValue }} /></pre>
-        )}
-        <div className="tcd-edu-body">
-          <p>
-            The claim is present but <code>may_act.client_id</code> does not
-            match this BFF's OAuth app. PingOne will reject the RFC 8693
-            exchange.
-          </p>
-          {mayActDetails && (
-            <p className="tcd-edu-detail">❌ {mayActDetails}</p>
-          )}
-        </div>
-        <div className="tcd-edu-fix">
-          <strong>Fix:</strong> In PingOne → token policy, update the{" "}
-          <code>may_act</code> expression to reference your BFF client ID, then
-          sign out and sign in again.
-        </div>
-      </div>
-    );
-  }
-
-  // absent
-  return (
-    <div className="tcd-edu-box tcd-edu-box--warn">
-      <div className="tcd-edu-box-hd">
-        <span className="tcd-edu-icon">⚠️</span>
-        <strong>may_act absent — exchange may fail</strong>
-        <RfcRef rfc="RFC 8693 §4.1" />
-      </div>
-      <div className="tcd-edu-body">
-        <p>
-          The user token has no <code>may_act</code> claim. The RFC 8693 Token
-          Exchange will be attempted — whether PingOne accepts it depends on
-          your token policy. Without <code>may_act</code>, PingOne may reject
-          the exchange.
-        </p>
-        <p>
-          <strong>may_act</strong> is a prospective permission: it
-          pre-authorises the BFF to exchange this token. It must be added by
-          PingOne at login time via a token policy expression.
-        </p>
-        <div className="tcd-edu-steps">
-          <strong>Fix steps:</strong>
-          <ol>
-            <li>
-              Go to <strong>/demo-data</strong> → click{" "}
-              <strong>Enable may_act</strong>
-            </li>
-            <li>
-              Sign out and sign in again (the token is only updated at login)
-            </li>
-            <li>Re-run the tool — this row will show ✅ may_act valid</li>
-          </ol>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
  * Rich educational callout for the act claim (RFC 8693 §4.4).
  * Shows delegation proven / absent states. Renders on MCP token events.
  */
@@ -2081,11 +1962,6 @@ function EventDetail({ event }) {
         title="Audience (aud)"
         event={event}
         Component={AudienceEduBox}
-      />
-      <CollapsibleEdu
-        title="may_act — Delegation Permission"
-        event={event}
-        Component={MayActEduBox}
       />
       <CollapsibleEdu
         title="act — Actor Claim"

@@ -184,21 +184,9 @@ export class TokenIntrospector {
       teachLog.info('token audience validated', { resource_uri: resourceUri });
     }
 
-    // RFC 8693 §4.2 — enforce may_act when BFF_CLIENT_ID + REQUIRE_MAY_ACT are configured.
-    // Ensures only tokens exchanged by the designated Backend-for-Frontend (BFF) client are accepted by this MCP server.
-    const bffClientId = process.env.BFF_CLIENT_ID;
-    const requireMayAct = process.env.REQUIRE_MAY_ACT === 'true';
-    if (requireMayAct && bffClientId) {
-      const mayAct = (tokenInfo as any).may_act;
-      if (!mayAct || mayAct.client_id !== bffClientId) {
-        teachLog.error('may_act enforcement failed', undefined, { operation: 'may_act_enforcement', expected_client_id: bffClientId, actual: mayAct?.client_id || 'none' });
-        throw new AuthenticationError(
-          'Token missing valid may_act claim for Backend-for-Frontend (BFF) client',
-          AuthErrorCodes.INVALID_AGENT_TOKEN
-        );
-      }
-      teachLog.info('may_act validated', { actor: mayAct.client_id });
-    }
+    // RFC 8693 §4.2 — may_act enforcement removed. Delegation authorization is now
+    // handled at the platform level (PingOne app grants). The act claim in exchanged
+    // tokens records the delegation chain for audit purposes.
 
     // Optional defense-in-depth: match reference architecture checks for act.sub, act.client_id,
     // and act.act.sub (e.g. MCP identity as URI vs PingOne client id). Off unless env vars are set.

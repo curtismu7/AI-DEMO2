@@ -1065,7 +1065,7 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   // read and write into the local claim snapshot. This lets the
   // demo flow proceed without a PingOne custom resource server. All injections are
   // logged to tokenEvents with [BFF-INJECTED] labels (visible in Token Chain UI).
-  // Pattern mirrors ff_inject_may_act and ff_inject_audience.
+  // Pattern mirrors ff_inject_audience.
   const ffInjectScopes =
     configStore.getEffective('ff_inject_scopes') === true ||
     configStore.getEffective('ff_inject_scopes') === 'true';

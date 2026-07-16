@@ -72,13 +72,11 @@ export const SNIP_MAY_ACT_SANITIZE = `// agentMcpTokenService.js — claims show
 function sanitizeClaims(claims) {
   const result = {};
   if (claims.sub) result.sub = claims.sub;
-  if (claims.scope) result.scope = claims.scope;
-  if (claims.may_act) result.may_act = claims.may_act;
   if (claims.act) result.act = claims.act;
   // …aud, exp, etc.
   return result;
 }
-// Optional demo: ff_inject_may_act patches claims in memory only before exchange.`;
+// Delegation authorization is handled at the platform level (PingOne app grants).`;
 
 export const SNIP_INTROSPECT = `// middleware/tokenIntrospection.js — RFC 7662 to PingOne
 const response = await axios.post(introspectionEndpoint,
