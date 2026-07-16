@@ -2,7 +2,7 @@
   "id": "FEAT-004",
   "type": "refactor",
   "description": "Convert TokenSecurityTester.jsx from vertical form layout to Mock B dark IDE three-column layout.",
-  "status": "pending",
+  "status": "in_progress",
   "steps": [
     "Read PingOneMcpInspector.js as the reference for Mock B layout structure.",
     "Rewrite TokenSecurityTester.jsx to use p1mcp-* CSS classes for Mock B three-column layout: (1) Top bar with status dot (always green since this is educational/demo), title 'Token Security Tester', subtitle 'Educational demonstration'; (2) Column 1 (tree): list of test scenarios as tree items -- 'User Token (Wrong Scope)', 'User Token (Wrong Audience)', 'Missing Act Claim', 'Agent Token on User Endpoint', 'Expired Token' -- each with a colored dot (red for all since these are failure scenarios), active highlight on selected scenario; (3) Column 2 (form): selected scenario name + description displayed in the form header area, the warning banner ('Demonstration Feature' notice) displayed as a small notice, Execute/Clear buttons, and the 'About These Scenarios' reference info accessible via a details section below; (4) Column 3 (output): tabbed output with 'Result' (showing error code, description, HTTP status), 'Teaching' (the teaching_message highlighted section), 'Token Details', 'Request/Response' tabs, all with JsonHighlight syntax highlighting where appropriate.",
