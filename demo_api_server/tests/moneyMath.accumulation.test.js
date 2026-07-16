@@ -63,7 +63,7 @@ describe('money-math — stored balances never drift off whole cents', () => {
     test('1000 one-cent transfers leave both balances on exact cents', async () => {
       dataStore.accounts.set('A', { id: 'A', userId: 'u', accountType: 'checking', balance: 100 });
       for (let i = 0; i < 1000; i++) {
-        const r = await dataStore.applyTransfer('A', 'B', 0.01);
+        const r = await dataStore.applyTransfer({ fromAccountId: 'A', toAccountId: 'B', amount: 0.01 });
         expect(r.ok).toBe(true);
       }
       expect(dataStore.getAccountById('A').balance).toBe(90);
@@ -75,8 +75,8 @@ describe('money-math — stored balances never drift off whole cents', () => {
     test('a round-trip transfer (A→B→A) restores the original balance', async () => {
       dataStore.accounts.set('A', { id: 'A', userId: 'u', accountType: 'checking', balance: 0.30 });
       for (let i = 0; i < 500; i++) {
-        await dataStore.applyTransfer('A', 'B', 0.10);
-        await dataStore.applyTransfer('B', 'A', 0.10);
+        await dataStore.applyTransfer({ fromAccountId: 'A', toAccountId: 'B', amount: 0.10 });
+        await dataStore.applyTransfer({ fromAccountId: 'B', toAccountId: 'A', amount: 0.10 });
       }
       expect(dataStore.getAccountById('A').balance).toBe(0.30);
       expect(dataStore.getAccountById('B').balance).toBe(0);
