@@ -24,17 +24,26 @@ const DEFAULT_DOMAIN = 'banking-domain';
 /**
  * Resolves the current value of ff_okf_grounding.
  * Uses configStore.getEffective() — the same pattern as the rest of the BFF.
+ * Avoids caching a broken require — re-attempts on each call so that if
+ * configStore initializes late, subsequent calls succeed.
  *
  * @returns {boolean}
  */
 function isFlagEnabled() {
+  // Primary: try configStore (may not be available during early startup or in tests)
   try {
     const configStore = require('./configStore');
+    if (typeof configStore.getEffective !== 'function') {
+      // Module loaded but not fully initialized — fall through to env
+      return process.env.FF_OKF_GROUNDING === 'true' || process.env.FF_OKF_GROUNDING === '1';
+    }
     const raw = configStore.getEffective('ff_okf_grounding');
     // configStore stores booleans as strings ('true'/'false')
     return raw === true || raw === 'true' || raw === '1';
-  } catch {
-    // If configStore isn't available (testing, standalone), check env
+  } catch (err) {
+    // configStore not available (testing, standalone, or startup race).
+    // Do NOT cache this failure — next call re-attempts require() which
+    // returns the cached module if it has since loaded successfully.
     return process.env.FF_OKF_GROUNDING === 'true' || process.env.FF_OKF_GROUNDING === '1';
   }
 }

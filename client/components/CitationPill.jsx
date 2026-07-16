@@ -19,9 +19,18 @@ import './CitationPill.css';
 
 // ---------------------------------------------------------------------------
 // Shared resolver instance (singleton across all CitedMessage components)
+// Exposes invalidateCache() for use after bundle reloads.
 // ---------------------------------------------------------------------------
 
 const resolver = createCitationResolver();
+
+/**
+ * Invalidates the citation resolver cache. Call after POST /api/okf/reload
+ * so that subsequent citation resolutions fetch fresh assertion data.
+ */
+export function invalidateCitationCache() {
+  resolver.clearCache();
+}
 
 // ---------------------------------------------------------------------------
 // CitationPill — Single citation badge
@@ -175,14 +184,18 @@ export function CitedMessage({ text, domain = 'banking-domain', className = '' }
 export function CitationFooter({ text, domain = 'banking-domain' }) {
   const [assertions, setAssertions] = useState(new Map());
   const [expanded, setExpanded] = useState(false);
-
-  const ids = extractCitationIds(text);
+  const [ids, setIds] = useState([]);
 
   useEffect(() => {
-    if (ids.length === 0) return;
+    const extracted = extractCitationIds(text);
+    setIds(extracted);
+    if (extracted.length === 0) {
+      setAssertions(new Map());
+      return;
+    }
 
     let cancelled = false;
-    resolver.resolveAll(domain, ids).then(result => {
+    resolver.resolveAll(domain, extracted).then(result => {
       if (!cancelled) setAssertions(result);
     });
     return () => { cancelled = true; };

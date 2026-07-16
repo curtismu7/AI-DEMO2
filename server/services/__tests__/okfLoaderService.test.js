@@ -198,7 +198,7 @@ describe('okfLoaderService', () => {
       const result = okfLoader.initialize(dir);
 
       expect(result.loaded).toBe(0);
-      expect(result.errors.some(e => e.includes('K<number>'))).toBe(true);
+      expect(result.errors.some(e => e.includes('K1–K50') || e.includes('K<number>'))).toBe(true);
     });
 
     test('rejects assertion with confidence > 1', () => {

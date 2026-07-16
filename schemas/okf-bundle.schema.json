@@ -72,8 +72,8 @@
       "properties": {
         "id": {
           "type": "string",
-          "pattern": "^K\\d+$",
-          "description": "Short citation anchor (K1, K2, ...)"
+          "pattern": "^K([1-9]|[1-4]\\d|50)$",
+          "description": "Short citation anchor (K1 through K50)"
         },
         "claim": {
           "type": "string",

@@ -76,16 +76,27 @@ function validateBundle(bundle, filename) {
 
   // Validate each assertion
   if (Array.isArray(bundle.assertions)) {
+    const seenIds = new Set();
     bundle.assertions.forEach((a, i) => {
       const prefix = `${filename} assertions[${i}]`;
-      if (typeof a.id !== 'string' || !/^K\d+$/.test(a.id)) {
-        errors.push(`${prefix}: id must match K<number> (got "${a.id}")`);
+      if (typeof a.id !== 'string' || !/^K([1-9]|[1-4]\d|50)$/.test(a.id)) {
+        errors.push(`${prefix}: id must match K1–K50 (got "${a.id}")`);
+      } else if (seenIds.has(a.id)) {
+        errors.push(`${prefix}: duplicate assertion id "${a.id}" — each id must be unique within a bundle`);
+      } else {
+        seenIds.add(a.id);
       }
       if (typeof a.claim !== 'string' || a.claim.length < 10) {
         errors.push(`${prefix}: claim must be a string of at least 10 chars`);
       }
+      if (typeof a.claim === 'string' && a.claim.length > 500) {
+        errors.push(`${prefix}: claim exceeds max length of 500 chars (got ${a.claim.length})`);
+      }
       if (typeof a.source !== 'string' || a.source.length === 0) {
         errors.push(`${prefix}: source is required`);
+      }
+      if (typeof a.source === 'string' && a.source.length > 300) {
+        errors.push(`${prefix}: source exceeds max length of 300 chars (got ${a.source.length})`);
       }
       if (typeof a.confidence !== 'number' || a.confidence < 0 || a.confidence > 1) {
         errors.push(`${prefix}: confidence must be a number between 0 and 1`);

@@ -21,11 +21,20 @@
 // Constants
 // ---------------------------------------------------------------------------
 
-/** Matches [K1] through [K50] — greedy but non-overlapping */
-const CITATION_REGEX = /\[K(\d{1,2})\]/g;
+/** Pattern for matching [K1] through [K50] */
+const CITATION_PATTERN = '\\[K(\\d{1,2})\\]';
 
 /** Max valid assertion ID number (matches schema maxItems: 50) */
 const MAX_ASSERTION_NUM = 50;
+
+/**
+ * Creates a fresh regex instance (avoids stateful /g lastIndex issues with
+ * shared module-level regex). Each function call gets its own regex.
+ * @returns {RegExp}
+ */
+function createCitationRegex() {
+  return new RegExp(CITATION_PATTERN, 'g');
+}
 
 // ---------------------------------------------------------------------------
 // Core Parser
@@ -42,12 +51,10 @@ function parseCitations(text) {
 
   const segments = [];
   let lastIndex = 0;
-
-  // Reset regex state
-  CITATION_REGEX.lastIndex = 0;
+  const regex = createCitationRegex();
 
   let match;
-  while ((match = CITATION_REGEX.exec(text)) !== null) {
+  while ((match = regex.exec(text)) !== null) {
     const num = parseInt(match[1], 10);
 
     // Only treat as citation if within valid range
@@ -99,10 +106,10 @@ function extractCitationIds(text) {
   if (!text || typeof text !== 'string') return [];
 
   const ids = new Set();
-  CITATION_REGEX.lastIndex = 0;
+  const regex = createCitationRegex();
 
   let match;
-  while ((match = CITATION_REGEX.exec(text)) !== null) {
+  while ((match = regex.exec(text)) !== null) {
     const num = parseInt(match[1], 10);
     if (num >= 1 && num <= MAX_ASSERTION_NUM) {
       ids.add(`K${num}`);
@@ -258,6 +265,7 @@ module.exports = {
   createCitationResolver,
   createUseCitationHook,
   // Exported for testing
-  CITATION_REGEX,
+  CITATION_PATTERN,
   MAX_ASSERTION_NUM,
+  createCitationRegex,
 };

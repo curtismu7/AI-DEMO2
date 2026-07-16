@@ -143,6 +143,14 @@ function formatListDomains() {
     };
   });
 
+  // Derive tag examples dynamically from loaded assertions
+  const tagExamples = {};
+  domains.forEach(d => {
+    const assertions = okfLoader.getAssertions(d);
+    const tags = new Set(assertions.flatMap(a => a.tags || []));
+    tagExamples[d] = Array.from(tags).slice(0, 8);
+  });
+
   return {
     content: [
       {
@@ -151,10 +159,7 @@ function formatListDomains() {
           {
             availableDomains: domainDetails,
             usage: 'Call get_okf_assertions with domain set to one of the domain slugs above.',
-            tagExamples: {
-              'repo-topology': ['feature-flags', 'auth', 'agents', 'mcp-tools', 'compose-profiles', 'architecture'],
-              'banking-domain': ['balance', 'transfers', 'fraud', 'auth', 'compliance'],
-            },
+            tagExamples,
           },
           null,
           2

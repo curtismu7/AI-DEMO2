@@ -24,9 +24,12 @@ const { getInjectionStatus } = require('../services/okfPromptInjector');
  * @param {import('express').Router} router
  */
 function registerOkfRoutes(router) {
-  // Ensure loader is initialized before handling requests
-  if (!okfLoader.isInitialized()) {
-    okfLoader.initialize();
+  // Lazy initialization helper — ensures loader is ready on first request,
+  // not at route registration time (avoids startup order issues with volumes).
+  function ensureInitialized() {
+    if (!okfLoader.isInitialized()) {
+      okfLoader.initialize();
+    }
   }
 
   /**
@@ -34,6 +37,7 @@ function registerOkfRoutes(router) {
    * Returns list of all loaded domain slugs.
    */
   router.get('/domains', (req, res) => {
+    ensureInitialized();
     const domains = okfLoader.listDomains();
     res.json({
       domains,
@@ -49,6 +53,7 @@ function registerOkfRoutes(router) {
    *   ?tags=fraud,holds — comma-separated tag filter (OR logic)
    */
   router.get('/assertions/:domain', (req, res) => {
+    ensureInitialized();
     const { domain } = req.params;
     const { tags } = req.query;
 
@@ -83,6 +88,7 @@ function registerOkfRoutes(router) {
    * Returns a single assertion by domain and ID (e.g., K1).
    */
   router.get('/assertions/:domain/:id', (req, res) => {
+    ensureInitialized();
     const { domain, id } = req.params;
 
     // Validate ID format
@@ -116,6 +122,7 @@ function registerOkfRoutes(router) {
    * Returns current OKF injection status (for admin/debug panel).
    */
   router.get('/status', (req, res) => {
+    ensureInitialized();
     const { domain } = req.query;
     const status = getInjectionStatus({ domain });
 
@@ -129,8 +136,17 @@ function registerOkfRoutes(router) {
   /**
    * POST /api/okf/reload
    * Hot-reloads bundles from disk (admin action).
+   * Requires admin role — rejects with 403 for non-admin users.
    */
   router.post('/reload', (req, res) => {
+    // Gate behind admin role (same pattern as other admin endpoints in this repo)
+    const userRole = req?.session?.user?.role;
+    if (userRole !== 'admin') {
+      return res.status(403).json({
+        error: 'Forbidden — admin role required for OKF bundle reload',
+      });
+    }
+
     const result = okfLoader.initialize(); // Re-initialize from default dir
     res.json({
       success: result.loaded > 0 || result.errors.length === 0,
