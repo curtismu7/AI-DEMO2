@@ -207,6 +207,12 @@ const PingOneMcpInspector = ({ user, onLogout }) => {
                   <div className="p1mcp-form-header__desc">{selectedTool.description}</div>
                 )}
               </div>
+              <div className="p1mcp-form-actions p1mcp-form-actions--top">
+                <button className="p1mcp-btn-call" onClick={callTool} disabled={calling || !enabled}>
+                  {calling ? 'Calling…' : 'Execute'}
+                </button>
+                <button className="p1mcp-btn-clear" onClick={clearForm}>Clear</button>
+              </div>
               <div className="p1mcp-form-body">
                 {Object.entries(schemaProps).map(([key, schema]) => (
                   <div className="p1mcp-field" key={key}>

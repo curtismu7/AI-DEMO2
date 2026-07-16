@@ -193,6 +193,10 @@
   gap: 10px;
   align-items: center;
 }
+.p1mcp-form-actions--top {
+  border-top: none;
+  border-bottom: 1px solid #334155;
+}
 .p1mcp-btn-call {
   padding: 9px 20px;
   font-size: 13px;
