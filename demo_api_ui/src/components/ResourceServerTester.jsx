@@ -324,7 +324,7 @@ export default function ResourceServerTester({
           </div>
 
           {/* Tree footer: intro text */}
-          <div style={{ padding: '12px 16px', borderTop: '1px solid #334155', fontSize: 11, color: '#64748b', lineHeight: 1.5 }}>
+          <div style={{ padding: '12px 16px', borderTop: '1px solid #cbd5e1', fontSize: 11, color: '#64748b', lineHeight: 1.5 }}>
             {intro}
           </div>
         </div>
@@ -336,6 +336,16 @@ export default function ResourceServerTester({
               <div className="p1mcp-form-header">
                 <div className="p1mcp-form-header__name">{selectedOp.name}</div>
                 <div className="p1mcp-form-header__desc">{selectedOp.desc}</div>
+              </div>
+              <div className="p1mcp-form-actions p1mcp-form-actions--top">
+                <button
+                  className="p1mcp-btn-call"
+                  onClick={executeOp}
+                  disabled={!ready || (currentRunner && currentRunner.loading)}
+                >
+                  {currentRunner && currentRunner.loading ? 'Running...' : 'Execute'}
+                </button>
+                <button className="p1mcp-btn-clear" onClick={clearOutput}>Clear</button>
               </div>
               <div className="p1mcp-form-body">
                 {/* Token source display */}
@@ -375,10 +385,10 @@ export default function ResourceServerTester({
                         padding: '8px 10px',
                         fontSize: 13,
                         fontFamily: "'SF Mono', monospace",
-                        background: '#0f172a',
-                        border: '1px solid #475569',
+                        background: '#ffffff',
+                        border: '1px solid #94a3b8',
                         borderRadius: 4,
-                        color: '#e2e8f0',
+                        color: '#1e293b',
                       }}
                       value={probeTarget}
                       onChange={(e) => setProbeTarget(e.target.value)}

@@ -30,6 +30,7 @@ import PrivilegesGatewayPreviewPage from "./components/agentStudioPreview/Privil
 import PlatformGapsPage from "./components/agentStudioPreview/PlatformGapsPage";
 import AgentFlowDiagramPanel from "./components/AgentFlowDiagramPanel";
 import { AgenticTrustEducation } from "./components/AgenticTrustEducation";
+import AgentGatewayTester from "./components/AgentGatewayTester";
 import OwaspLearnerPage from "./components/OwaspLearnerPage";
 import UngovernedAgentPage from "./components/UngovernedAgentPage";
 import AIAgent from "./components/AIAgent";
@@ -980,6 +981,10 @@ function AppWithAuth() {
                                   onLogout={logout}
                                 />
                               }
+                            />
+                            <Route
+                              path="/pinggateway-test"
+                              element={<AgentGatewayTester />}
                             />
                             <Route
                               path="/webmcp"

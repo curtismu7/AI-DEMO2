@@ -495,7 +495,7 @@ export default function AdminSideNav({ user }) {
         },
         {
           label: "PingGateway Test",
-          path: "/pinggateway-test.html",
+          path: "/pinggateway-test",
           icon: "tst",
         },
       ],

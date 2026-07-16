@@ -1,13 +1,5 @@
-/* ApiExplorerPanel.css — Dark IDE three-column layout overrides (Mock B) */
+/* ApiExplorerPanel.css — Light grey IDE three-column layout overrides (Mock B) */
 /* Base layout provided by PingOneMcpInspector.css (p1mcp-* classes) */
-
-/* Page wrapper */
-.p1mcp-page {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background: #0f172a;
-}
 
 /* Top bar error indicator */
 .aep-topbar-error {
@@ -28,18 +20,18 @@
   white-space: nowrap;
   flex-shrink: 0;
 }
-.aep-method-badge--GET { background: #1e3a5f; color: #60a5fa; }
-.aep-method-badge--POST { background: #14532d; color: #4ade80; }
-.aep-method-badge--PUT { background: #422006; color: #fbbf24; }
-.aep-method-badge--DELETE { background: #450a0a; color: #fca5a5; }
-.aep-method-badge--PATCH { background: #1e293b; color: #94a3b8; }
-.aep-method-badge--OPTIONS { background: #1e293b; color: #94a3b8; }
-.aep-method-badge--HEAD { background: #1e293b; color: #94a3b8; }
+.aep-method-badge--GET { background: #dbeafe; color: #1d4ed8; }
+.aep-method-badge--POST { background: #dcfce7; color: #166534; }
+.aep-method-badge--PUT { background: #fef3c7; color: #92400e; }
+.aep-method-badge--DELETE { background: #fee2e2; color: #991b1b; }
+.aep-method-badge--PATCH { background: #e2e8f0; color: #475569; }
+.aep-method-badge--OPTIONS { background: #e2e8f0; color: #475569; }
+.aep-method-badge--HEAD { background: #e2e8f0; color: #475569; }
 
 /* Tree item URL text */
 .aep-tree-url {
   font-size: 11px;
-  color: #94a3b8;
+  color: #475569;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -55,8 +47,8 @@
   border-radius: 3px;
   flex-shrink: 0;
 }
-.aep-tree-status--ok { background: #14532d; color: #4ade80; }
-.aep-tree-status--err { background: #450a0a; color: #fca5a5; }
+.aep-tree-status--ok { background: #dcfce7; color: #166534; }
+.aep-tree-status--err { background: #fee2e2; color: #991b1b; }
 
 /* Tree item duration */
 .aep-tree-dur {
@@ -76,7 +68,7 @@
 /* Tree footer stats */
 .aep-tree-footer {
   padding: 8px 16px;
-  border-top: 1px solid #334155;
+  border-top: 1px solid #cbd5e1;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -89,7 +81,7 @@
   gap: 3px;
 }
 .aep-tree-footer__stat strong {
-  color: #cbd5e1;
+  color: #334155;
 }
-.aep-tree-footer__ok { color: #4ade80 !important; }
-.aep-tree-footer__err { color: #fca5a5 !important; }
+.aep-tree-footer__ok { color: #16a34a !important; }
+.aep-tree-footer__err { color: #dc2626 !important; }

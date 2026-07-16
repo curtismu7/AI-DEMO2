@@ -128,6 +128,16 @@ export default function TokenSecurityTester() {
                 <div className="p1mcp-form-header__name">{selectedScenario.name}</div>
                 <div className="p1mcp-form-header__desc">{selectedScenario.description}</div>
               </div>
+              <div className="p1mcp-form-actions p1mcp-form-actions--top">
+                <button
+                  className="p1mcp-btn-call"
+                  onClick={handleExecute}
+                  disabled={loading}
+                >
+                  {loading ? 'Executing...' : 'Execute'}
+                </button>
+                <button className="p1mcp-btn-clear" onClick={handleClear}>Clear</button>
+              </div>
               <div className="p1mcp-form-body">
                 <div className="tst-demo-notice">
                   <span className="tst-demo-notice__icon">&#x26A0;</span>
@@ -252,7 +262,7 @@ export default function TokenSecurityTester() {
                 )}
 
                 {outputTab === 'token' && (
-                  <pre className="p1mcp-output-code jh-dark">
+                  <pre className="p1mcp-output-code">
                     <JsonHighlight
                       value={result.token_details || { message: 'No token details available' }}
                       deep
@@ -261,7 +271,7 @@ export default function TokenSecurityTester() {
                 )}
 
                 {outputTab === 'raw' && (
-                  <pre className="p1mcp-output-code jh-dark">
+                  <pre className="p1mcp-output-code">
                     <JsonHighlight
                       value={{
                         request: result.request || null,

@@ -1,4 +1,4 @@
-/* ResourceServerTester.css — Dark-themed overrides for Mock B three-column layout.
+/* ResourceServerTester.css — Light-themed overrides for Mock B three-column layout.
    The component primarily uses p1mcp-* classes from PingOneMcpInspector.css.
    These styles handle domain-specific elements (verdicts, rules, raw tokens). */
 
@@ -11,10 +11,10 @@
   font-size: 14px;
   letter-spacing: 0.03em;
 }
-.rst-verdict.permit { background: #052e16; color: #4ade80; border: 1px solid #166534; }
-.rst-verdict.reject { background: #450a0a; color: #fca5a5; border: 1px solid #991b1b; }
+.rst-verdict.permit { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+.rst-verdict.reject { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
 
-/* Rules list (dark theme) */
+/* Rules list (light theme) */
 .rst-rules {
   list-style: none;
   margin: 14px 0 0;
@@ -31,20 +31,20 @@
   font-size: 12px;
   padding: 6px 8px;
   border-radius: 4px;
-  background: #1e293b;
+  background: #f1f5f9;
 }
-.rst-rules li.fail { background: #1c1017; }
-.rst-rule-name { font-weight: 600; color: #e2e8f0; font-family: 'SF Mono', monospace; }
-.rst-rule-detail { color: #94a3b8; }
+.rst-rules li.fail { background: #fef2f2; }
+.rst-rule-name { font-weight: 600; color: #1e293b; font-family: 'SF Mono', monospace; }
+.rst-rule-detail { color: #475569; }
 
-/* Error line (dark theme) */
+/* Error line (light theme) */
 .rst-error {
   margin-top: 12px;
   padding: 10px 12px;
-  background: #450a0a;
-  border: 1px solid #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
   border-radius: 6px;
-  color: #fca5a5;
+  color: #991b1b;
   font-size: 13px;
   display: flex;
   align-items: center;
@@ -52,7 +52,7 @@
   gap: 10px;
 }
 
-/* Sign-in CTA (dark theme) */
+/* Sign-in CTA */
 .rst-signin {
   background: #2563eb;
   color: #fff;
@@ -73,10 +73,10 @@
   flex-wrap: wrap;
   gap: 10px;
   font-size: 13px;
-  color: #fca5a5;
+  color: #991b1b;
 }
 
-/* Raw token reveal (dark theme) */
+/* Raw token reveal (light theme) */
 .rst-raw-label {
   font-size: 11px;
   font-weight: 700;
@@ -88,9 +88,9 @@
   margin: 6px 0 0;
   padding: 12px 14px;
   border-radius: 6px;
-  background: #0f172a;
-  border: 1px solid #334155;
-  color: #e2e8f0;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #1e293b;
   font-family: 'SF Mono', SFMono-Regular, monospace;
   font-size: 12px;
   line-height: 1.5;
@@ -98,13 +98,13 @@
   white-space: pre-wrap;
 }
 
-/* Introspection note (dark theme) */
+/* Introspection note (light theme) */
 .rst-note {
   margin: 10px 0 0;
   padding: 8px 12px;
-  background: #1e293b;
-  border: 1px solid #334155;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
   border-radius: 6px;
-  color: #93c5fd;
+  color: #1d4ed8;
   font-size: 12px;
 }

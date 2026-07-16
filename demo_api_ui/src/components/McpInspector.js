@@ -403,14 +403,14 @@ const McpInspector = ({ user, onLogout }) => {
 
         {/* Notices */}
         {toolsSourceInfo?.local && (
-          <div style={{ background: '#422006', color: '#fbbf24', padding: '8px 20px', fontSize: 12 }}>
+          <div style={{ background: '#fffbeb', color: '#92400e', padding: '8px 20px', fontSize: 12 }}>
             <strong>Showing static / local catalog.</strong>{' '}
             {toolsSourceInfo.reason ? `(${toolsSourceInfo.reason}) ` : ''}
             Start the stack and sign in so the BFF can reach the banking MCP server, then refresh.
           </div>
         )}
         {needsLogin && (
-          <div style={{ background: '#450a0a', color: '#fca5a5', padding: '8px 20px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ background: '#fef2f2', color: '#991b1b', padding: '8px 20px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
             <strong>Sign in required.</strong> This tools/call needs a valid BFF session.
             <button
               className="p1mcp-topbar__btn p1mcp-topbar__btn--active"
@@ -471,7 +471,7 @@ const McpInspector = ({ user, onLogout }) => {
             </div>
             {/* MCP call history in tree footer */}
             {mcpHistory.length > 0 && (
-              <div className="p1mcp-tree-footer" style={{ borderTop: '1px solid #334155', padding: '8px 12px', fontSize: 11, color: '#64748b', maxHeight: 140, overflowY: 'auto' }}>
+              <div className="p1mcp-tree-footer" style={{ borderTop: '1px solid #cbd5e1', padding: '8px 12px', fontSize: 11, color: '#64748b', maxHeight: 140, overflowY: 'auto' }}>
                 <div style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
                   History ({mcpHistory.length})
                 </div>
@@ -480,9 +480,9 @@ const McpInspector = ({ user, onLogout }) => {
                   return (
                     <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 0' }}>
                       <span style={{ width: 6, height: 6, borderRadius: '50%', background: ok ? '#22c55e' : '#ef4444', flexShrink: 0 }} />
-                      <span style={{ color: '#cbd5e1', fontFamily: 'monospace', fontSize: 11 }}>{entry.tool}</span>
+                      <span style={{ color: '#334155', fontFamily: 'monospace', fontSize: 11 }}>{entry.tool}</span>
                       {entry.duration != null && (
-                        <span style={{ marginLeft: 'auto', color: '#475569' }}>{entry.duration}ms</span>
+                        <span style={{ marginLeft: 'auto', color: '#64748b' }}>{entry.duration}ms</span>
                       )}
                     </div>
                   );
@@ -506,7 +506,13 @@ const McpInspector = ({ user, onLogout }) => {
                     </div>
                   )}
                 </div>
-                <div className="p1mcp-form-body">
+                <div className="p1mcp-form-actions p1mcp-form-actions--top">
+                <button className="p1mcp-btn-call" onClick={handleInvoke} disabled={busy}>
+                  {busy ? 'Calling...' : 'Execute'}
+                </button>
+                <button className="p1mcp-btn-clear" onClick={clearForm}>Clear</button>
+              </div>
+              <div className="p1mcp-form-body">
                   {Object.entries(schemaProps).map(([key, schema]) => (
                     <div className="p1mcp-field" key={key}>
                       <label>
