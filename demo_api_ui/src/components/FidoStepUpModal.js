@@ -6,6 +6,8 @@ export default function FidoStepUpModal({ show, onSubmit, onCancel, contextLine 
   const [status, setStatus] = useState('ready'); // 'ready' | 'waiting' | 'error' | 'timeout'
   const [errorMsg, setErrorMsg] = useState('');
   const timeoutRef = React.useRef(null);
+  const onSubmitRef = React.useRef(onSubmit);
+  onSubmitRef.current = onSubmit;
 
   useEffect(() => {
     if (!show) return;
@@ -20,7 +22,7 @@ export default function FidoStepUpModal({ show, onSubmit, onCancel, contextLine 
       clearTimeout(timeoutRef.current);
       if (event.detail?.credentialResponse) {
         setStatus('ready');
-        onSubmit?.(event.detail.credentialResponse);
+        onSubmitRef.current?.(event.detail.credentialResponse);
       }
     };
     const handleFidoError = (event) => {
@@ -36,7 +38,7 @@ export default function FidoStepUpModal({ show, onSubmit, onCancel, contextLine 
       window.removeEventListener('fido-verification-success', handleFidoSuccess);
       window.removeEventListener('fido-verification-error', handleFidoError);
     };
-  }, [show, onSubmit]);
+  }, [show]);
 
   const handleCancel = () => {
     clearTimeout(timeoutRef.current);

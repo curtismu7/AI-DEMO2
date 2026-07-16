@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { toast } from 'react-toastify';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { notifySuccess, notifyError } from '../utils/appToast';
 import './SecurityCenter.css';
 
 function deviceTypeLabel(type) {
@@ -21,6 +21,12 @@ export default function SecurityCenter() {
   const [devices, setDevices] = useState(null);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(null);
+
+  // Mounted guard — prevents setState on unmounted component during async operations
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
 
   // Delete
   const [deletingId, setDeletingId] = useState(null);
@@ -75,9 +81,9 @@ export default function SecurityCenter() {
         throw new Error(body.message || `Server error ${res.status}`);
       }
       setDevices(prev => prev.filter(d => d.id !== deviceId));
-      toast.success('Device removed.');
+      notifySuccess('Device removed.');
     } catch (err) {
-      toast.error(err.message || 'Failed to remove device.');
+      notifyError(err.message || 'Failed to remove device.');
     } finally {
       setDeletingId(null);
     }
@@ -105,9 +111,9 @@ export default function SecurityCenter() {
       const updated = await res.json();
       setDevices(prev => prev.map(d => d.id === deviceId ? { ...d, name: updated.nickname } : d));
       setRenamingId(null);
-      toast.success('Device renamed.');
+      notifySuccess('Device renamed.');
     } catch (err) {
-      toast.error(err.message || 'Failed to rename device.');
+      notifyError(err.message || 'Failed to rename device.');
     } finally {
       setRenameBusy(false);
     }
@@ -151,13 +157,13 @@ export default function SecurityCenter() {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.message || `Server error ${res.status}`);
       }
-      toast.success('Email OTP device enrolled.');
+      notifySuccess('Email OTP device enrolled.');
       closeEnrollPicker();
       fetchDevices();
     } catch (err) {
       setEnrollError(err.message || 'Failed to enroll email device.');
     } finally {
-      setEnrollBusy(false);
+      if (mountedRef.current) setEnrollBusy(false);
     }
   }
 
@@ -182,7 +188,7 @@ export default function SecurityCenter() {
     } catch (err) {
       setEnrollError(err.message || 'Failed to initiate SMS enrollment.');
     } finally {
-      setEnrollBusy(false);
+      if (mountedRef.current) setEnrollBusy(false);
     }
   }
 
@@ -201,13 +207,13 @@ export default function SecurityCenter() {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.message || `Server error ${res.status}`);
       }
-      toast.success('SMS OTP device enrolled.');
+      notifySuccess('SMS OTP device enrolled.');
       closeEnrollPicker();
       fetchDevices();
     } catch (err) {
       setEnrollError(err.message || 'Failed to complete SMS enrollment.');
     } finally {
-      setEnrollBusy(false);
+      if (mountedRef.current) setEnrollBusy(false);
     }
   }
 

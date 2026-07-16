@@ -28,20 +28,29 @@ export default function Fido2Challenge({ daId, deviceId, onSuccess, onCancel, on
   const [status, setStatus] = useState('starting'); // 'starting' | 'waiting' | 'error'
   const [errorMsg, setErrorMsg] = useState(null);
 
+  // Use refs to always call the latest callback without re-running the effect
+  const onSuccessRef = React.useRef(onSuccess);
+  const onErrorRef = React.useRef(onError);
+  onSuccessRef.current = onSuccess;
+  onErrorRef.current = onError;
+
   useEffect(() => {
     if (!daId || !deviceId) return;
+    let cancelled = false;
 
     async function runFido2() {
       try {
         // Browser support check
         if (typeof window.PublicKeyCredential === 'undefined' || !navigator.credentials?.get) {
           const msg = 'Your browser does not support passkeys / FIDO2. Please use a different verification method.';
+          if (cancelled) return;
           setErrorMsg(msg);
           setStatus('error');
-          onError(msg);
+          onErrorRef.current(msg);
           return;
         }
 
+        if (cancelled) return;
         setStatus('waiting');
 
         // Step 1: Get publicKeyCredentialRequestOptions from BFF
@@ -69,8 +78,9 @@ export default function Fido2Challenge({ daId, deviceId, onSuccess, onCancel, on
           throw new Error('FIDO2 assertion was not accepted by PingOne. Please try again.');
         }
 
-        onSuccess();
+        if (!cancelled) onSuccessRef.current();
       } catch (err) {
+        if (cancelled) return;
         let msg;
         if (err.name === 'NotAllowedError') {
           msg = 'Passkey authentication was cancelled or timed out.';
@@ -81,11 +91,12 @@ export default function Fido2Challenge({ daId, deviceId, onSuccess, onCancel, on
         }
         setErrorMsg(msg);
         setStatus('error');
-        onError(msg);
+        onErrorRef.current(msg);
       }
     }
 
     runFido2();
+    return () => { cancelled = true; };
   }, [daId, deviceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
