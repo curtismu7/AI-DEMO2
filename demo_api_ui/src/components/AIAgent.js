@@ -5837,6 +5837,13 @@ export default function BankingAgent({
           null,
           { source: "attack-sim" },
         );
+        // Surface token chain events from the attack sim (exchange, gateway deny, etc.)
+        if (data?.tokenChainEvents?.length) {
+          appendTokenEvents(data.tokenChainEvents);
+          if (tokenChain) {
+            tokenChain.setTokenEvents("agent", data.tokenChainEvents);
+          }
+        }
       } catch (err) {
         addMessage(
           "assistant",
