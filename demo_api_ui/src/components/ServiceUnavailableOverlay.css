@@ -1,0 +1,119 @@
+.svc-unavail-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(4px);
+  padding: 1rem;
+  animation: svc-unavail-fadein 0.3s ease-out;
+}
+
+@keyframes svc-unavail-fadein {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.svc-unavail-card {
+  text-align: center;
+  max-width: 480px;
+  width: 100%;
+  padding: 2.5rem 2rem;
+  background: #1e293b;
+  border-radius: 16px;
+  border: 1px solid #334155;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.svc-unavail-icon {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 1.5rem;
+  border-radius: 50%;
+  background: #1e3a5f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: svc-unavail-pulse 2s ease-in-out infinite;
+}
+
+@keyframes svc-unavail-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.85; }
+}
+
+.svc-unavail-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 0.75rem;
+}
+
+.svc-unavail-subtitle {
+  font-size: 1rem;
+  color: #94a3b8;
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+.svc-unavail-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: #0f172a;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+  color: #fbbf24;
+}
+
+.svc-unavail-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fbbf24;
+  animation: svc-unavail-blink 1.2s ease-in-out infinite;
+}
+
+@keyframes svc-unavail-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.svc-unavail-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.svc-unavail-btn:hover {
+  background: #1d4ed8;
+}
+
+.svc-unavail-btn:active {
+  transform: scale(0.97);
+}
+
+.svc-unavail-auto-retry {
+  margin-top: 1.25rem;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.svc-unavail-auto-retry span {
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}

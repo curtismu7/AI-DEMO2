@@ -22,6 +22,15 @@ data:
         root /usr/share/nginx/html;
         index index.html;
 
+        # Custom error page when BFF is unreachable (502/503/504).
+        # proxy_intercept_errors lets nginx replace the upstream's error body
+        # with our branded page. The =502 preserves the original status code.
+        proxy_intercept_errors on;
+        error_page 502 503 504 /502.html;
+        location = /502.html {
+            internal;
+        }
+
         # Handle React Router
         location / {
             try_files $uri $uri/ /index.html;

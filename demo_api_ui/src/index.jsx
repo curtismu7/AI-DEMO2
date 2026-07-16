@@ -9,6 +9,7 @@ import './styles/controls.css';
 import App from './App';
 import { patchFetch } from './services/apiTrafficStore';
 import ErrorBoundary from './components/ErrorBoundary';
+import ServiceUnavailableOverlay from './components/ServiceUnavailableOverlay';
 
 // Redirect localhost → canonical host (api.ping.demo) so CORS + cookies work correctly
 if (
@@ -34,6 +35,7 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
     <ErrorBoundary>
+      <ServiceUnavailableOverlay />
       <App />
     </ErrorBoundary>
   </React.StrictMode>

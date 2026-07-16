@@ -105,6 +105,16 @@ class ApiClient {
           });
         }
 
+        // ── 502 / 503 / network error — backend unreachable ─────────────────
+        const status = error.response?.status;
+        if (status === 502 || status === 503 || (!error.response && error.code === 'ERR_NETWORK')) {
+          // Dispatch a custom event so the UI can show a global "servers restarting" banner.
+          // Individual callers still get the rejected promise for their own error handling.
+          window.dispatchEvent(new CustomEvent('bff-unavailable', {
+            detail: { status: status || 0, url: error.config?.url, timestamp: Date.now() },
+          }));
+        }
+
         // ── Original error handling ──────────────────────────────────────────
         const originalRequest = error.config;
 
