@@ -97,7 +97,7 @@ const logActivity = (req, res, next) => {
         };
       }
 
-      // Capture authorization header for cURL generation
+      // Capture authorization header for cURL generation (REDACTED for security)
       const authHeader = req.get('Authorization');
       
       // Create activity log entry
@@ -108,9 +108,9 @@ const logActivity = (req, res, next) => {
         endpoint: `${method} ${fullPath}`,
         ipAddress: (req.ip || req.connection.remoteAddress) === '::1' ? '127.0.0.1' : (req.ip || req.connection.remoteAddress),
         userAgent: req.get('User-Agent'),
-        authorization: authHeader,
+        authorization: authHeader ? `${authHeader.split(' ')[0]} [REDACTED]` : null,
         requestBody: method === 'POST' || method === 'PUT' ? req.body : null,
-        responseBody,
+        responseBody: null, // Response body capture disabled — may contain PII/sensitive data
         responseStatus: res.statusCode,
         duration,
         timestamp: new Date()

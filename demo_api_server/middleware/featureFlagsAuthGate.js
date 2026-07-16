@@ -17,8 +17,16 @@
  */
 function makeFeatureFlagsAuthGate(authenticateToken) {
   return function featureFlagsAuthGate(req, res, next) {
-    const requireAuth = /^(1|true|yes|on)$/i.test(String(process.env.FF_ADMIN_REQUIRE_AUTH || ''));
-    if (!requireAuth || req.method === 'GET' || req.method === 'HEAD') return next();
+    // Reads (GET/HEAD) are always open so the UI pill can display flag state.
+    if (req.method === 'GET' || req.method === 'HEAD') return next();
+    // Mutations (PATCH/PUT/POST/DELETE) require authentication by default.
+    // Only allow anonymous mutations when FF_ADMIN_ALLOW_ANONYMOUS_MUTATIONS is
+    // explicitly set (dev/demo ergonomics). This is fail-secure: unset = require auth.
+    const allowAnonymous = /^(1|true|yes|on)$/i.test(String(process.env.FF_ADMIN_ALLOW_ANONYMOUS_MUTATIONS || ''));
+    if (allowAnonymous) {
+      console.warn('[featureFlags] WARNING: Anonymous feature flag mutations are allowed (FF_ADMIN_ALLOW_ANONYMOUS_MUTATIONS=true)');
+      return next();
+    }
     return authenticateToken(req, res, next);
   };
 }

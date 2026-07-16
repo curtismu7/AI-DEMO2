@@ -3,6 +3,7 @@ Message processor for coordinating between chat interface and agent.
 """
 import asyncio
 import logging
+import os
 from typing import Dict, Any, Optional, Tuple
 from datetime import datetime, timezone, timedelta
 import uuid
@@ -426,7 +427,29 @@ class MessageProcessor:
                 except asyncio.TimeoutError:
                     continue
                 worker.last_activity = datetime.now(timezone.utc)
-                await self._handle_queued_message(message_data)
+                # Per-message processing timeout: prevent indefinite hangs from
+                # stuck LLM calls or slow tool execution. Default 5 minutes.
+                _MSG_TIMEOUT = int(os.environ.get("SESSION_WORKER_MSG_TIMEOUT_SECONDS", "300"))
+                try:
+                    await asyncio.wait_for(
+                        self._handle_queued_message(message_data),
+                        timeout=_MSG_TIMEOUT,
+                    )
+                except asyncio.TimeoutError:
+                    logger.error(
+                        "Session worker for %s: message processing timed out after %ds",
+                        session_id, _MSG_TIMEOUT,
+                    )
+                    # Notify the user via WebSocket if possible
+                    try:
+                        ws_handler = self.websocket_handler
+                        await ws_handler._send_to_session(session_id, {
+                            "type": "error",
+                            "error": "processing_timeout",
+                            "message": "Your request took too long to process. Please try again.",
+                        })
+                    except Exception:
+                        pass
                 worker.last_activity = datetime.now(timezone.utc)
         except asyncio.CancelledError:
             logger.debug("Session worker for %s cancelled", session_id)

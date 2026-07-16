@@ -184,12 +184,23 @@ async function evaluateTransactionPolicy({
 
   try {
     if (runSimulated) {
-      const r = await simulatedAuthorizeService.evaluateTransaction({
-        userId,
-        amount,
-        type,
-        acr,
-      });
+      let r;
+      try {
+        r = await simulatedAuthorizeService.evaluateTransaction({
+          userId,
+          amount,
+          type,
+          acr,
+        });
+      } catch (simErr) {
+        // Simulated engine threw — fail closed rather than letting the
+        // transaction through unguarded. This catches coding bugs in
+        // simulatedAuthorizeService that would otherwise bypass authorization.
+        logEvent(EVENT_CATEGORIES.AUTHORIZE, 'error',
+          `[Authorize] Simulated engine threw — failing closed: ${simErr.message}`,
+          { tag: 'authorize/simulated-threw', metadata: { type, amount, userId, error: simErr.message } });
+        return { ran: true, simulatedError: simErr };
+      }
 
       logEvent(EVENT_CATEGORIES.AUTHORIZE, 'info',
         `Authorize simulated — ${type} $${amount} — decision=${r.decision} consent=${r.consentRequired} stepUp=${r.stepUpRequired}`,
