@@ -273,15 +273,18 @@ async function delegateToSpecialist(req, opts = {}) {
       { a2aRole: 'agent1-actor', vertical },
     ));
 
-    const tAgent1 = await oauth.performTokenExchangeAs(
-      userToken,
-      agent1Actor,
-      c.agent1ClientId,
-      c.agent1Secret,
-      c.intermediateAud,
-      [c.intermediateScope],
-      c.exchangeAuthMethod,
-    );
+    const tAgent1 = await Promise.race([
+      oauth.performTokenExchangeAs(
+        userToken,
+        agent1Actor,
+        c.agent1ClientId,
+        c.agent1Secret,
+        c.intermediateAud,
+        [c.intermediateScope],
+        c.exchangeAuthMethod,
+      ),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('A2A Exchange #1 timed out (30s)')), 30000)),
+    ]);
     const tAgent1Decoded = decodeJwt(tAgent1);
     tokenEvents.push(buildA2aEvent(
       'a2a-exchange1',
@@ -315,15 +318,18 @@ async function delegateToSpecialist(req, opts = {}) {
       { a2aRole: 'agent2-actor', vertical, specialist: specialist.specialistName },
     ));
 
-    const tInvest = await oauth.performTokenExchangeAs(
-      tAgent1,
-      agent2Actor,
-      c.agent2ClientId,
-      c.agent2Secret,
-      c.specialistAud,
-      specialistScopes,
-      c.exchangeAuthMethod,
-    );
+    const tInvest = await Promise.race([
+      oauth.performTokenExchangeAs(
+        tAgent1,
+        agent2Actor,
+        c.agent2ClientId,
+        c.agent2Secret,
+        c.specialistAud,
+        specialistScopes,
+        c.exchangeAuthMethod,
+      ),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('A2A Exchange #2 timed out (30s)')), 30000)),
+    ]);
     const tInvestDecoded = decodeJwt(tInvest);
     const act = tInvestDecoded?.claims?.act || null;
     const actChainDepth = countActDepth(act);

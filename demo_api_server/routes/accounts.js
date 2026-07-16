@@ -427,7 +427,7 @@ router.patch('/:id/contact-email', authenticateToken, requireScopes(['write']), 
       return res.status(404).json({ error: 'Account not found' });
     }
     // Authorization: only the account owner (userId) can update their own account
-    if (account.userId !== req.user.sub) {
+    if (account.userId !== req.user.id) {
       return res.status(403).json({
         error: 'Forbidden',
         reason: 'resource_owner_mismatch',

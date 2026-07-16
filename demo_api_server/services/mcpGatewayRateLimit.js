@@ -20,6 +20,16 @@ class SlidingWindowLimiter {
     this.windowMs = windowMs;
     this.maxRequests = maxRequests;
     this._windows = new Map();
+    // Periodically evict stale keys to prevent unbounded Map growth
+    this._evictionInterval = setInterval(() => {
+      const now = Date.now();
+      const cutoff = now - this.windowMs;
+      for (const [k, timestamps] of this._windows.entries()) {
+        if (timestamps.length === 0 || timestamps[timestamps.length - 1] < cutoff) {
+          this._windows.delete(k);
+        }
+      }
+    }, Math.max(60_000, this.windowMs)).unref();
   }
 
   /** Check whether key is within limit; records the call when allowed. */

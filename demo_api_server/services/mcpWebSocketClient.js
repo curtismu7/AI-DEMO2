@@ -123,6 +123,18 @@ function releaseMcpWsSlot() {
 }
 
 /**
+ * Reject all pending elicitation promises (called on WebSocket close/error).
+ * Prevents memory leaks and unresolved promises when the connection drops.
+ */
+function rejectAllPendingElicitations(reason) {
+  for (const [requestId, pending] of elicitationPendingPromises.entries()) {
+    clearTimeout(pending.timeoutHandle);
+    pending.reject(new Error(reason || 'WebSocket connection closed'));
+  }
+  elicitationPendingPromises.clear();
+}
+
+/**
  * Elicitation management: store pending elicitation responses per request ID.
  * Map key: `${requestId}`, value: { resolve, reject, timeout }
  */
