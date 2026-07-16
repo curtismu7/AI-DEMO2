@@ -1,0 +1,27 @@
+{
+  "id": "FEAT-004",
+  "type": "refactor",
+  "description": "Convert TokenSecurityTester.jsx from vertical form layout to Mock B dark IDE three-column layout.",
+  "status": "pending",
+  "steps": [
+    "Read PingOneMcpInspector.js as the reference for Mock B layout structure.",
+    "Rewrite TokenSecurityTester.jsx to use p1mcp-* CSS classes for Mock B three-column layout: (1) Top bar with status dot (always green since this is educational/demo), title 'Token Security Tester', subtitle 'Educational demonstration'; (2) Column 1 (tree): list of test scenarios as tree items -- 'User Token (Wrong Scope)', 'User Token (Wrong Audience)', 'Missing Act Claim', 'Agent Token on User Endpoint', 'Expired Token' -- each with a colored dot (red for all since these are failure scenarios), active highlight on selected scenario; (3) Column 2 (form): selected scenario name + description displayed in the form header area, the warning banner ('Demonstration Feature' notice) displayed as a small notice, Execute/Clear buttons, and the 'About These Scenarios' reference info accessible via a details section below; (4) Column 3 (output): tabbed output with 'Result' (showing error code, description, HTTP status), 'Teaching' (the teaching_message highlighted section), 'Token Details', 'Request/Response' tabs, all with JsonHighlight syntax highlighting where appropriate.",
+    "Preserve all existing functionality: scenario selection, API call to /api/test/token-validation/scenario/:id, result display including teaching message, token details, request/response details.",
+    "Import PingOneMcpInspector.css. Remove or minimize TokenSecurityTester.css dependency.",
+    "Keep the existing apiClient import and endpoint calls."
+  ],
+  "acceptance_criteria": [
+    "TokenSecurityTester.jsx renders a dark IDE three-column layout with p1mcp-* CSS classes",
+    "Column 1 shows test scenarios as tree items with red dots (failure scenarios)",
+    "Column 2 shows the selected scenario description and Execute button",
+    "Column 3 shows tabbed output (Result, Teaching, Token Details, Request/Response)",
+    "Selecting a scenario and clicking Execute calls the correct API endpoint",
+    "Teaching message is prominently displayed in the Teaching tab",
+    "vite build succeeds without errors"
+  ],
+  "verification": [
+    "cd demo_api_ui && HTTPS=false npx vite build"
+  ],
+  "blocked_reason": null,
+  "findings": ""
+}
