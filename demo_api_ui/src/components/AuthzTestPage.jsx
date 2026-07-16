@@ -238,16 +238,18 @@ export default function AuthzTestPage() {
 		);
 	}, []);
 
-	const loadStatus = useCallback(() => {
+	const loadStatus = useCallback((syncEngineMode = true) => {
 		setStatusLoading(true);
 		apiClient
 			.get("/api/authorize/test-status")
 			.then(({ data }) => {
 				setStatus(data);
-				// Sync engine toggle to what server reports
-				if (data.simulatedMode) setEngineMode("simulated");
-				else if (data.activeEngine === "pingone") setEngineMode("pingone");
-				else if (data.authorizeEnabled === false) setEngineMode("simulated");
+				// Only sync the engine toggle on initial load (not after user-initiated apply)
+				if (syncEngineMode) {
+					if (data.simulatedMode) setEngineMode("simulated");
+					else if (data.activeEngine === "pingone") setEngineMode("pingone");
+					else if (data.authorizeEnabled === false) setEngineMode("simulated");
+				}
 				// Prefill credential fields from server config
 				if (data.decisionEndpointId) setEndpointId(data.decisionEndpointId);
 				if (data.workerClientId) setWorkerClientId(data.workerClientId);
@@ -342,7 +344,7 @@ export default function AuthzTestPage() {
 			});
 			setWorkerClientSecret(""); // clear secret from UI after save
 			setEngineSettingsOpen(false);
-			await loadStatus();
+			await loadStatus(false); // false = don't overwrite user's engine selection
 		} catch (err) {
 			const status = err.response?.status;
 			const needsLogin = status === 401 || status === 403;
@@ -380,7 +382,7 @@ export default function AuthzTestPage() {
 			});
 			if (!res.data?.updated) throw new Error("Flag update failed");
 			notifySuccess("Simulated authorization enabled");
-			await loadStatus();
+			await loadStatus(false);
 		} catch (err) {
 			const status = err.response?.status;
 			if (status === 401 || status === 403) {
@@ -406,7 +408,7 @@ export default function AuthzTestPage() {
 						});
 						if (!res.data?.updated) throw new Error("not updated");
 						notifySuccess("Simulated mode enabled — running scenario…");
-						await loadStatus();
+						await loadStatus(false);
 					} catch (enableErr) {
 						const httpStatus = enableErr.response?.status;
 						if (httpStatus === 401 || httpStatus === 403) {
