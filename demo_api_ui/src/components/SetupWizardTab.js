@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
+import { DEFAULT_STEP_UP_ACR_VALUE } from '../config/setupDefaults';
 import './SetupWizardTab.css';
 
 const SetupWizardTab = () => {
@@ -16,7 +17,7 @@ const SetupWizardTab = () => {
     workerClientSecret: '',
     region: 'com',
     publicAppUrl: window.location.origin,
-    stepUpAcrValue: 'Multi_Factor'
+    stepUpAcrValue: DEFAULT_STEP_UP_ACR_VALUE
   });
 
   // UI state
@@ -390,7 +391,7 @@ const SetupWizardTab = () => {
               type="text"
               value={formData.stepUpAcrValue}
               onChange={handleInputChange}
-              placeholder="Multi_Factor"
+              placeholder={DEFAULT_STEP_UP_ACR_VALUE}
               className={errors.stepUpAcrValue ? 'error' : ''}
               disabled={running}
             />

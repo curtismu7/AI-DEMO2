@@ -2,6 +2,7 @@
 // Comprehensive "Demo Controls" widget with thresholds, feature flags, MFA/consent modes.
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { Link } from 'react-router-dom';
 import './ThresholdControls.css';
 
 const FLAG_LABELS = {
@@ -24,23 +25,12 @@ const FLAG_DESCRIPTIONS = {
 
 const IMPORTANT_FLAG_IDS = Object.keys(FLAG_LABELS);
 
-// Flags that must be toggled together to keep the demo working
-const FLAG_PAIRS = {
-  ff_skip_token_exchange: 'ff_inject_scopes',
-  ff_inject_scopes: 'ff_skip_token_exchange',
-};
-
 export default function ThresholdControls() {
   const [open, setOpen] = useState(false);
   const [panelPos, setPanelPos] = useState({ top: 0, right: 0 });
   const [confirm, setConfirm] = useState('');
   const [mfa, setMfa] = useState('');
   const [flags, setFlags] = useState([]);
-  const [flagSaving, setFlagSaving] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState(null);
-  const [, setFlagError] = useState(null);
-  const [, setIsAdmin] = useState(false);
   const [openSections, setOpenSections] = useState({ thresholds: true, verticalThresholds: false, flags: true });
   const btnRef = useRef(null);
   const panelRef = useRef(null);
@@ -152,63 +142,6 @@ export default function ThresholdControls() {
     }
   };
 
-  const saveThresholds = async () => {
-    setSaving(true);
-    setStatus(null);
-    try {
-      const body = {};
-      if (confirm) body.confirm_threshold_usd = Number(confirm);
-      if (mfa) body.mfa_threshold_usd = Number(mfa);
-      const res = await fetch('/api/config/thresholds', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(body),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setConfirm(String(data.confirm_threshold_usd));
-        setMfa(String(data.mfa_threshold_usd));
-        setStatus('saved');
-        setTimeout(() => setStatus(null), 2000);
-      } else {
-        setStatus('error');
-      }
-    } catch (_) {
-      setStatus('error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const toggleFlag = async (flagId, nextValue) => {
-    setFlagSaving(flagId);
-    setFlagError(null);
-    try {
-      const res = await fetch('/api/admin/feature-flags', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ updates: { [flagId]: nextValue, ...(FLAG_PAIRS[flagId] ? { [FLAG_PAIRS[flagId]]: nextValue } : {}) } }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const flagMap = new Map((data.flags || []).map((f) => [f.id, f]));
-        setFlags((prev) => prev.map((f) => flagMap.get(f.id) || f));
-      } else if (res.status === 403) {
-        setFlagError('Admin session required to modify flags');
-        setIsAdmin(false);
-      } else {
-        const errData = await res.json();
-        setFlagError(errData?.message || 'Failed to update flag');
-      }
-    } catch (err) {
-      setFlagError('Network error: ' + (err?.message || 'Unknown error'));
-    } finally {
-      setFlagSaving(null);
-    }
-  };
-
   const panel = open ? createPortal(
     <div
       ref={panelRef}
@@ -228,43 +161,18 @@ export default function ThresholdControls() {
         {openSections.thresholds && (
           <>
             <div className="thresh-ctrl__field">
-              <label className="thresh-ctrl__label">
-                Confirm (consent) $
-                <input
-                  className="thresh-ctrl__input"
-                  type="number"
-                  min="1"
-                  step="50"
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                />
-              </label>
+              <span className="thresh-ctrl__label">Confirm (consent) $</span>
+              <span className="thresh-ctrl__value">{confirm || '—'}</span>
               <span className="thresh-ctrl__help">Amount that triggers consent challenge</span>
             </div>
             <div className="thresh-ctrl__field">
-              <label className="thresh-ctrl__label">
-                MFA step-up $
-                <input
-                  className="thresh-ctrl__input"
-                  type="number"
-                  min="1"
-                  step="50"
-                  value={mfa}
-                  onChange={(e) => setMfa(e.target.value)}
-                />
-              </label>
+              <span className="thresh-ctrl__label">MFA step-up $</span>
+              <span className="thresh-ctrl__value">{mfa || '—'}</span>
               <span className="thresh-ctrl__help">Amount that triggers MFA step-up challenge</span>
             </div>
-            <button
-              type="button"
-              className="thresh-ctrl__save"
-              onClick={saveThresholds}
-              disabled={saving}
-            >
-              {saving ? 'Saving…' : 'Save Thresholds'}
-            </button>
-            {status === 'saved' && <span className="thresh-ctrl__ok">✓ Saved</span>}
-            {status === 'error' && <span className="thresh-ctrl__err">Error</span>}
+            <Link to="/settings" className="thresh-ctrl__editlink">
+              Edit in Settings →
+            </Link>
           </>
         )}
       </div>
@@ -343,29 +251,33 @@ export default function ThresholdControls() {
         </div>
       )}
 
-      {/* Feature Flags — important flags only */}
+      {/* Feature Flags — important flags only, read-only (edit at /feature-flags) */}
       {flags.filter((f) => IMPORTANT_FLAG_IDS.includes(f.id)).length > 0 && (
         <div className="thresh-ctrl__section">
           <button type="button" className="thresh-ctrl__section-toggle" onClick={() => toggleSection('flags')}>
             <span className="thresh-ctrl__section-title">Feature Flags</span>
             <span className="thresh-ctrl__chevron">{openSections.flags ? '▲' : '▼'}</span>
           </button>
-          {openSections.flags && flags
-            .filter((f) => IMPORTANT_FLAG_IDS.includes(f.id))
-            .map((flag) => (
-              <div key={flag.id} className="thresh-ctrl__flag-item">
-                <label className="thresh-ctrl__checkbox">
-                  <input
-                    type="checkbox"
-                    checked={flag.value === true}
-                    onChange={(e) => toggleFlag(flag.id, e.target.checked)}
-                    disabled={flagSaving === flag.id}
-                  />
-                  <span>{FLAG_LABELS[flag.id]}</span>
-                </label>
-                <span className="thresh-ctrl__help">{FLAG_DESCRIPTIONS[flag.id]}</span>
-              </div>
-            ))}
+          {openSections.flags && (
+            <>
+              {flags
+                .filter((f) => IMPORTANT_FLAG_IDS.includes(f.id))
+                .map((flag) => (
+                  <div key={flag.id} className="thresh-ctrl__flag-item">
+                    <div className="thresh-ctrl__flag-row">
+                      <span>{FLAG_LABELS[flag.id]}</span>
+                      <span className={flag.value === true ? 'thresh-ctrl__ok' : 'thresh-ctrl__flag-off'}>
+                        {flag.value === true ? 'On' : 'Off'}
+                      </span>
+                    </div>
+                    <span className="thresh-ctrl__help">{FLAG_DESCRIPTIONS[flag.id]}</span>
+                  </div>
+                ))}
+              <Link to="/feature-flags" className="thresh-ctrl__editlink">
+                Edit in Feature Flags →
+              </Link>
+            </>
+          )}
         </div>
       )}
     </div>,

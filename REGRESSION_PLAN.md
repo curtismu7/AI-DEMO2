@@ -49,7 +49,6 @@ minimal diff.
 | Admin role detection | `routes/oauthUser.js` 4-signal check |
 | Customer-only data endpoints | `middleware/auth.js` `requireNotAdmin`, `routes/accounts.js` + `routes/transactions.js` (`/my`) — admin tokens must 403 |
 | configStore / Config UI | `services/configStore.js`, `routes/adminConfig.js` |
-| Demo Controls diagnose | `ThresholdControls.js` — `data.checks?.userAttribute?.pass` shape |
 | AI Agent FAB (`banking-agent-fab` classes) | `components/AIAgent.js`, `App.js` |
 | Float panel resize | `AIAgent.js` resize caps (`MAX_W`/`MAX_H` = 95% viewport, `MIN_W`/`MIN_H` = 280/220; drag itself intentionally unclamped for second-monitor use), `AIAgent.css` float-root/panel rules |
 | Agent mode taxonomy SSOT | `demo_api_ui/src/config/agentModes.js` — one client mode→provider table; must equal server `services/agentModeResolver.js` (guarded by `config/__tests__/agentModes.test.js`); don't re-inline in `AIAgent.js`/`AgentModeSelector.jsx` |
@@ -176,6 +175,45 @@ EMPTY/error-card asserts remain the hard gate after the poll.
 `E2E_EVIDENCE_MODES="heuristics" npx playwright test tests/e2e/evidence-screenshots.real.spec.js --config=playwright.real.config.js`
 (13 passed) and the same with `llamacpp` (13 passed).
 
+### 2026-07-16 — Settings consolidation: step-up threshold dual-store gap + ThresholdControls duplicate writers
+
+**Files changed:** `demo_api_server/services/configStore.js`, `demo_api_server/routes/admin.js`,
+`demo_api_server/src/__tests__/configStore-stepUpThresholdSave.test.js`,
+`demo_api_server/src/__tests__/adminSettings.stepUpThresholdBridge.test.js`,
+`demo_api_server/src/__tests__/transactionConsentChallenge.test.js`,
+`demo_api_ui/src/config/setupDefaults.js`,
+`demo_api_ui/src/components/SetupPage.js`, `SetupWizard.js`, `SetupWizardTab.js`,
+`demo_api_ui/src/components/ThresholdControls.js`, `ThresholdControls.css`,
+`demo_api_ui/src/components/__tests__/ThresholdControls.test.js`.
+
+**What was broken:** (1) `confirm_stepup_threshold_usd` — read by
+`transactionConsentChallenge.js`'s `device_picker` HITL MFA gate — was never
+registered in `configStore`'s `FIELD_DEFS`, so `setConfig()` silently dropped
+it; no UI could ever actually change that gate's real threshold, which always
+fell back to a hardcoded `500`. (2) `ThresholdControls.js`'s global-threshold
+and feature-flag sections duplicated write paths that already exist at
+`/settings` and `/feature-flags` respectively, with no indication which was
+authoritative. (3) `stepUpAcrValue`'s setup-wizard default was hardcoded
+independently in 6 places across 3 files.
+
+**What was fixed:** registered the missing `FIELD_DEFS` key; extended
+`routes/admin.js`'s existing `maxTransactionAmount` dual-store-bridge pattern
+to also mirror `stepUpAmountThreshold` into `configStore` (closing the
+`device_picker` gap); `ThresholdControls.js`'s global-thresholds and
+feature-flags sections are now read-only with links to their real editors;
+its per-vertical thresholds section (which has no duplicate anywhere else)
+is untouched; consolidated the 6 hardcoded ACR-value literals onto one
+`demo_api_ui/src/config/setupDefaults.js` constant. Also removed a stale §1
+row ("Demo Controls diagnose") that referenced code no longer present in
+`ThresholdControls.js`.
+
+**Do not break:** the per-vertical threshold section in `ThresholdControls.js`
+must stay fully editable — it's not a duplicate of anything. HITL enforcement
+*logic* (amount comparisons, `mfaMode` branch selection, 428 handling) was
+not touched, only a previously-dead config key's write path.
+
+**Verify:** `cd demo_api_server && npx jest src/__tests__/configStore-stepUpThresholdSave.test.js src/__tests__/adminSettings.stepUpThresholdBridge.test.js src/__tests__/transactionConsentChallenge.test.js --testPathIgnorePatterns="/node_modules/"`;
+`cd demo_api_ui && npx vitest run src/config/__tests__/setupDefaults.test.js src/config/__tests__/setupDefaults.usage.test.js src/components/__tests__/ThresholdControls.test.js && npm run build`.
 ### 2026-07-16 — Silent-reauth infinite redirect loop (`?silent_reauth_failed=1` refreshing forever)
 
 **Files changed:** `demo_api_ui/src/components/StaleSessionBanner.jsx`,

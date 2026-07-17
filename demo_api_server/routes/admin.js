@@ -543,6 +543,25 @@ router.put('/settings', requireAdmin, requireScopes(['admin']), async (req, res)
       }
     }
 
+    // Dual-store bridge (write side): mirror a valid stepUpAmountThreshold into
+    // configStore. confirm_stepup_threshold_usd is what
+    // transactionConsentChallenge.js's getStepUpThreshold() reads for the
+    // device_picker HITL MFA gate; mfa_threshold_usd/step_up_amount_threshold/
+    // SIMULATED_AUTHORIZE_STEPUP_AMOUNT are read by other paths (ThresholdControls'
+    // display, the simulated authorize server). Without this write-through,
+    // device_picker mode silently ignores whatever this endpoint sets.
+    if (req.body.stepUpAmountThreshold !== undefined) {
+      const parsedThreshold = parseFloat(req.body.stepUpAmountThreshold);
+      if (Number.isFinite(parsedThreshold) && parsedThreshold > 0) {
+        await configStore.setConfig({
+          mfa_threshold_usd: String(parsedThreshold),
+          confirm_stepup_threshold_usd: String(parsedThreshold),
+          SIMULATED_AUTHORIZE_STEPUP_AMOUNT: String(parsedThreshold),
+          step_up_amount_threshold: String(parsedThreshold),
+        });
+      }
+    }
+
     console.log(`[Settings] Updated by ${changedBy}:`, req.body);
     res.json({ message: 'Settings updated successfully.', settings: result.settings });
   } catch (error) {

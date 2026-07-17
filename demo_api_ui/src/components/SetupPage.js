@@ -4,6 +4,7 @@ import SetupWizard from './SetupWizard';
 import SetupStepHelix from './SetupStepHelix';
 import SetupStepVerify from './SetupStepVerify';
 import apiClient from '../services/apiClient';
+import { DEFAULT_STEP_UP_ACR_VALUE } from '../config/setupDefaults';
 import './SetupPage.css';
 
 const STEPS = [
@@ -42,7 +43,7 @@ export default function SetupPage() {
     workerClientSecret: '',
     region: 'com',
     publicAppUrl: window.location.origin.replace(':3000', ':4000'),
-    stepUpAcrValue: 'Multi_Factor',
+    stepUpAcrValue: DEFAULT_STEP_UP_ACR_VALUE,
   });
   const navigate = useNavigate();
 

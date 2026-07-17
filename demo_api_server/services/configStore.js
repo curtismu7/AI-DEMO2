@@ -472,6 +472,7 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   confirm_threshold_usd:           { public: true, default: '250' },
   mfa_threshold_usd:               { public: true, default: '500' },
   step_up_amount_threshold:        { public: true, default: '500' },
+  confirm_stepup_threshold_usd:    { public: true, default: '500' },
 
   // Debug / server logging
   log_level:                       { public: true, default: 'info' },
