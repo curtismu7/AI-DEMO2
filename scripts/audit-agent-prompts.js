@@ -148,10 +148,11 @@ function extractAiAttacksPanel() {
   const filePath = path.join(ROOT, 'demo_api_ui/src/components/education/AiAttacksPanel.js');
   const src = fs.readFileSync(filePath, 'utf8');
   const entries = [];
-  // RUN_BY_TAB entries: kind:'catalog' carries literal text in `message`,
-  // backed by a real catalog useCaseId (its expectedOutcome is pulled from
-  // config/useCases.js, same as extractCatalog() above) — replaced the old
-  // kind:'prompt' shape, which had no catalog entry and no expected outcome.
+  // RUN_BY_TAB entries: kind:'catalog' carries only a useCaseId — the prompt
+  // text lives in the catalog (config/useCases.js) and is resolved at RUNTIME
+  // via POST /api/use-cases/demo/run, not hardcoded here (that's the whole
+  // point: no drift between this panel and the catalog). Resolve the same way
+  // for the audit: look up the useCaseId's banking trigger.text directly.
   // kind:'showcase' fires a named canned showcase, not free text.
   const blockMatch = src.match(/const RUN_BY_TAB = \{([\s\S]*?)\n\};/);
   if (!blockMatch) return entries;
@@ -161,15 +162,15 @@ function extractAiAttacksPanel() {
   while ((m = entryRe.exec(block))) {
     const [, tabId, body] = m;
     if (/kind:\s*'catalog'/.test(body)) {
-      const msg = body.match(/message:\s*'([^']*)'/);
       const useCaseIdMatch = body.match(/useCaseId:\s*'([^']*)'/);
-      if (msg) {
-        const uc = useCaseIdMatch ? USE_CASES.find((u) => u.useCaseId === useCaseIdMatch[1]) : null;
+      const uc = useCaseIdMatch ? USE_CASES.find((u) => u.useCaseId === useCaseIdMatch[1]) : null;
+      const text = uc && uc.trigger && uc.trigger.type === 'chip' ? uc.trigger.text : null;
+      if (text) {
         entries.push({
-          text: msg[1],
-          source: 'AiAttacksPanel.js (catalog)',
-          location: `RUN_BY_TAB['${tabId}'] -> ${useCaseIdMatch ? useCaseIdMatch[1] : 'unknown useCaseId'}`,
-          outcome: uc ? uc.expectedOutcome || null : null,
+          text,
+          source: 'AiAttacksPanel.js (catalog, resolved via /api/use-cases/demo/run)',
+          location: `RUN_BY_TAB['${tabId}'] -> ${useCaseIdMatch[1]}`,
+          outcome: uc.expectedOutcome || null,
         });
       }
     } else if (/kind:\s*'showcase'/.test(body)) {

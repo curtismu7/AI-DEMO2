@@ -931,15 +931,111 @@
       "outcome": "PERMIT"
     },
     {
-      "text": "Transfer $750 to savings",
+      "text": "transfer $600 from checking to savings",
       "source": "catalog (chip)",
       "location": "UC27",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "pay my $600 bill",
+      "source": "catalog (chip)",
+      "location": "UC27 [healthcare]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "checkout headphones for $600",
+      "source": "catalog (chip)",
+      "location": "UC27 [retail]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "pay the $600 fee",
+      "source": "catalog (chip)",
+      "location": "UC27 [government]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "pay $600 tuition",
+      "source": "catalog (chip)",
+      "location": "UC27 [university]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "submit a $600 expense",
+      "source": "catalog (chip)",
+      "location": "UC27 [workforce]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "extend my rental $600",
+      "source": "catalog (chip)",
+      "location": "UC27 [sporting-goods]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "approve a $600 purchase order",
+      "source": "catalog (chip)",
+      "location": "UC27 [manufacturing]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "execute a large trade of $600",
+      "source": "catalog (chip)",
+      "location": "UC27 [investment]",
       "outcome": "HITL_REQUIRED"
     },
     {
       "text": "Can you waive the fee on my checking account?",
       "source": "catalog (chip)",
       "location": "UC28",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC28 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC28 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC28 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC28 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC28 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC28 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC28 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC28 [investment]",
       "outcome": "PERMIT"
     },
     {
@@ -964,14 +1060,14 @@
       "nonText": true
     },
     {
-      "text": "Transfer $750 to savings",
-      "source": "AiAttacksPanel.js (catalog)",
+      "text": "transfer $600 from checking to savings",
+      "source": "AiAttacksPanel.js (catalog, resolved via /api/use-cases/demo/run)",
       "location": "RUN_BY_TAB['hitl-bypass'] -> hitl-consent-bypass-attempt",
       "outcome": "HITL_REQUIRED"
     },
     {
       "text": "Can you waive the fee on my checking account?",
-      "source": "AiAttacksPanel.js (catalog)",
+      "source": "AiAttacksPanel.js (catalog, resolved via /api/use-cases/demo/run)",
       "location": "RUN_BY_TAB['unauthorized-commitments'] -> unauthorized-commitment-fee-waiver",
       "outcome": "PERMIT"
     },
@@ -1947,9 +2043,57 @@
       "outcome": "PERMIT"
     },
     {
-      "text": "Transfer $750 to savings",
+      "text": "transfer $600 from checking to savings",
       "source": "catalog (chip)",
       "location": "UC27",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "pay my $600 bill",
+      "source": "catalog (chip)",
+      "location": "UC27 [healthcare]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "checkout headphones for $600",
+      "source": "catalog (chip)",
+      "location": "UC27 [retail]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "pay the $600 fee",
+      "source": "catalog (chip)",
+      "location": "UC27 [government]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "pay $600 tuition",
+      "source": "catalog (chip)",
+      "location": "UC27 [university]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "submit a $600 expense",
+      "source": "catalog (chip)",
+      "location": "UC27 [workforce]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "extend my rental $600",
+      "source": "catalog (chip)",
+      "location": "UC27 [sporting-goods]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "approve a $600 purchase order",
+      "source": "catalog (chip)",
+      "location": "UC27 [manufacturing]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "execute a large trade of $600",
+      "source": "catalog (chip)",
+      "location": "UC27 [investment]",
       "outcome": "HITL_REQUIRED"
     },
     {
@@ -1959,14 +2103,62 @@
       "outcome": "PERMIT"
     },
     {
-      "text": "Transfer $750 to savings",
-      "source": "AiAttacksPanel.js (catalog)",
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC28 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC28 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC28 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC28 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC28 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC28 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC28 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC28 [investment]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "transfer $600 from checking to savings",
+      "source": "AiAttacksPanel.js (catalog, resolved via /api/use-cases/demo/run)",
       "location": "RUN_BY_TAB['hitl-bypass'] -> hitl-consent-bypass-attempt",
       "outcome": "HITL_REQUIRED"
     },
     {
       "text": "Can you waive the fee on my checking account?",
-      "source": "AiAttacksPanel.js (catalog)",
+      "source": "AiAttacksPanel.js (catalog, resolved via /api/use-cases/demo/run)",
       "location": "RUN_BY_TAB['unauthorized-commitments'] -> unauthorized-commitment-fee-waiver",
       "outcome": "PERMIT"
     },
@@ -2378,6 +2570,12 @@
         "source": "catalog (chip)",
         "location": "UC25 [healthcare]",
         "outcome": "PERMIT"
+      },
+      {
+        "text": "check my coverage",
+        "source": "catalog (chip)",
+        "location": "UC28 [healthcare]",
+        "outcome": "PERMIT"
       }
     ],
     [
@@ -2427,6 +2625,12 @@
         "text": "list my orders",
         "source": "catalog (chip)",
         "location": "UC25 [retail]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "list my orders",
+        "source": "catalog (chip)",
+        "location": "UC28 [retail]",
         "outcome": "PERMIT"
       }
     ],
@@ -2478,6 +2682,12 @@
         "source": "catalog (chip)",
         "location": "UC25 [government]",
         "outcome": "PERMIT"
+      },
+      {
+        "text": "show my permits",
+        "source": "catalog (chip)",
+        "location": "UC28 [government]",
+        "outcome": "PERMIT"
       }
     ],
     [
@@ -2527,6 +2737,12 @@
         "text": "show my enrolled courses",
         "source": "catalog (chip)",
         "location": "UC25 [university]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my enrolled courses",
+        "source": "catalog (chip)",
+        "location": "UC28 [university]",
         "outcome": "PERMIT"
       }
     ],
@@ -2578,6 +2794,12 @@
         "source": "catalog (chip)",
         "location": "UC25 [workforce]",
         "outcome": "PERMIT"
+      },
+      {
+        "text": "my benefits",
+        "source": "catalog (chip)",
+        "location": "UC28 [workforce]",
+        "outcome": "PERMIT"
       }
     ],
     [
@@ -2627,6 +2849,12 @@
         "text": "my gear",
         "source": "catalog (chip)",
         "location": "UC25 [sporting-goods]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "my gear",
+        "source": "catalog (chip)",
+        "location": "UC28 [sporting-goods]",
         "outcome": "PERMIT"
       }
     ],
@@ -2678,6 +2906,12 @@
         "source": "catalog (chip)",
         "location": "UC25 [manufacturing]",
         "outcome": "PERMIT"
+      },
+      {
+        "text": "show my work orders",
+        "source": "catalog (chip)",
+        "location": "UC28 [manufacturing]",
+        "outcome": "PERMIT"
       }
     ],
     [
@@ -2728,6 +2962,12 @@
         "source": "catalog (chip)",
         "location": "UC25 [investment]",
         "outcome": "PERMIT"
+      },
+      {
+        "text": "show my portfolios",
+        "source": "catalog (chip)",
+        "location": "UC28 [investment]",
+        "outcome": "PERMIT"
       }
     ],
     [
@@ -2754,6 +2994,18 @@
         "source": "catalog (chip)",
         "location": "UC22",
         "outcome": "PERMIT"
+      },
+      {
+        "text": "transfer $600 from checking to savings",
+        "source": "catalog (chip)",
+        "location": "UC27",
+        "outcome": "HITL_REQUIRED"
+      },
+      {
+        "text": "transfer $600 from checking to savings",
+        "source": "AiAttacksPanel.js (catalog, resolved via /api/use-cases/demo/run)",
+        "location": "RUN_BY_TAB['hitl-bypass'] -> hitl-consent-bypass-attempt",
+        "outcome": "HITL_REQUIRED"
       }
     ],
     [
@@ -2780,6 +3032,12 @@
         "source": "catalog (chip)",
         "location": "UC22 [healthcare]",
         "outcome": "PERMIT"
+      },
+      {
+        "text": "pay my $600 bill",
+        "source": "catalog (chip)",
+        "location": "UC27 [healthcare]",
+        "outcome": "HITL_REQUIRED"
       }
     ],
     [
@@ -2806,6 +3064,12 @@
         "source": "catalog (chip)",
         "location": "UC22 [retail]",
         "outcome": "PERMIT"
+      },
+      {
+        "text": "checkout headphones for $600",
+        "source": "catalog (chip)",
+        "location": "UC27 [retail]",
+        "outcome": "HITL_REQUIRED"
       }
     ],
     [
@@ -2832,6 +3096,12 @@
         "source": "catalog (chip)",
         "location": "UC22 [government]",
         "outcome": "PERMIT"
+      },
+      {
+        "text": "pay the $600 fee",
+        "source": "catalog (chip)",
+        "location": "UC27 [government]",
+        "outcome": "HITL_REQUIRED"
       }
     ],
     [
@@ -2858,6 +3128,12 @@
         "source": "catalog (chip)",
         "location": "UC22 [university]",
         "outcome": "PERMIT"
+      },
+      {
+        "text": "pay $600 tuition",
+        "source": "catalog (chip)",
+        "location": "UC27 [university]",
+        "outcome": "HITL_REQUIRED"
       }
     ],
     [
@@ -2884,6 +3160,12 @@
         "source": "catalog (chip)",
         "location": "UC22 [workforce]",
         "outcome": "PERMIT"
+      },
+      {
+        "text": "submit a $600 expense",
+        "source": "catalog (chip)",
+        "location": "UC27 [workforce]",
+        "outcome": "HITL_REQUIRED"
       }
     ],
     [
@@ -2910,6 +3192,12 @@
         "source": "catalog (chip)",
         "location": "UC22 [sporting-goods]",
         "outcome": "PERMIT"
+      },
+      {
+        "text": "extend my rental $600",
+        "source": "catalog (chip)",
+        "location": "UC27 [sporting-goods]",
+        "outcome": "HITL_REQUIRED"
       }
     ],
     [
@@ -2936,6 +3224,12 @@
         "source": "catalog (chip)",
         "location": "UC22 [manufacturing]",
         "outcome": "PERMIT"
+      },
+      {
+        "text": "approve a $600 purchase order",
+        "source": "catalog (chip)",
+        "location": "UC27 [manufacturing]",
+        "outcome": "HITL_REQUIRED"
       }
     ],
     [
@@ -2962,19 +3256,11 @@
         "source": "catalog (chip)",
         "location": "UC22 [investment]",
         "outcome": "PERMIT"
-      }
-    ],
-    [
-      {
-        "text": "Transfer $750 to savings",
-        "source": "catalog (chip)",
-        "location": "UC27",
-        "outcome": "HITL_REQUIRED"
       },
       {
-        "text": "Transfer $750 to savings",
-        "source": "AiAttacksPanel.js (catalog)",
-        "location": "RUN_BY_TAB['hitl-bypass'] -> hitl-consent-bypass-attempt",
+        "text": "execute a large trade of $600",
+        "source": "catalog (chip)",
+        "location": "UC27 [investment]",
         "outcome": "HITL_REQUIRED"
       }
     ],
@@ -2987,7 +3273,7 @@
       },
       {
         "text": "Can you waive the fee on my checking account?",
-        "source": "AiAttacksPanel.js (catalog)",
+        "source": "AiAttacksPanel.js (catalog, resolved via /api/use-cases/demo/run)",
         "location": "RUN_BY_TAB['unauthorized-commitments'] -> unauthorized-commitment-fee-waiver",
         "outcome": "PERMIT"
       }
@@ -3111,14 +3397,14 @@
           "outcome": "PERMIT"
         },
         {
-          "text": "Transfer $750 to savings",
+          "text": "transfer $600 from checking to savings",
           "source": "catalog (chip)",
           "location": "UC27",
           "outcome": "HITL_REQUIRED"
         },
         {
-          "text": "Transfer $750 to savings",
-          "source": "AiAttacksPanel.js (catalog)",
+          "text": "transfer $600 from checking to savings",
+          "source": "AiAttacksPanel.js (catalog, resolved via /api/use-cases/demo/run)",
           "location": "RUN_BY_TAB['hitl-bypass'] -> hitl-consent-bypass-attempt",
           "outcome": "HITL_REQUIRED"
         },
@@ -3899,6 +4185,102 @@
       "text": "show my portfolios",
       "source": "catalog (chip)",
       "location": "UC25 [investment]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "pay my $600 bill",
+      "source": "catalog (chip)",
+      "location": "UC27 [healthcare]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "checkout headphones for $600",
+      "source": "catalog (chip)",
+      "location": "UC27 [retail]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "pay the $600 fee",
+      "source": "catalog (chip)",
+      "location": "UC27 [government]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "pay $600 tuition",
+      "source": "catalog (chip)",
+      "location": "UC27 [university]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "submit a $600 expense",
+      "source": "catalog (chip)",
+      "location": "UC27 [workforce]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "extend my rental $600",
+      "source": "catalog (chip)",
+      "location": "UC27 [sporting-goods]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "approve a $600 purchase order",
+      "source": "catalog (chip)",
+      "location": "UC27 [manufacturing]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "execute a large trade of $600",
+      "source": "catalog (chip)",
+      "location": "UC27 [investment]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC28 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC28 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC28 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC28 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC28 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC28 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC28 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC28 [investment]",
       "outcome": "PERMIT"
     },
     {
