@@ -1,42 +1,46 @@
 /**
- * primaryTool drift gates.
+ * primaryTool drift gates — per-vertical prompt/response contract.
  *
- * A use case whose `primaryTool` names a tool that doesn't exist — or whose chip
- * routes somewhere else entirely — demos the WRONG thing while every pipeline
- * check stays green. Near-miss that motivated this: a planned catalog entry
- * ("Can you waive the fee on my checking account?", primaryTool
- * request_fee_waiver) actually routes to `accounts` — the chip would list
- * accounts and the tool-boundary story would silently never run.
+ * Every vertical stores its OWN primaryTool (even where values duplicate a
+ * neighbour's) — isolation over DRY, so changing or removing one vertical's
+ * entry cannot silently change what another vertical's chip demos. These gates
+ * hold each vertical to its own stored truth:
  *
- * Two gates, scoped to what the catalog's own semantics support:
+ * 1. EXISTENCE: every resolved (vertical, useCase) primaryTool must exist in a
+ *    real tool surface. Catches renames/removals and dangling premises.
+ * 2. ROUTING (ALL verticals): every chip must ROUTE to its own vertical's
+ *    stored primaryTool. Catches the wrong-tool class — e.g. a planned entry
+ *    ("Can you waive the fee on my checking account?", primaryTool
+ *    request_fee_waiver) actually routes to `accounts`: the chip would list
+ *    accounts while the tool-boundary story silently never runs, and every
+ *    pipeline check would stay green.
  *
- * 1. EXISTENCE (all entries): every distinct primaryTool must exist in a real
- *    tool surface. Catches renames/removals and dangling premises.
- * 2. ROUTING (banking write-chips only): a banking chip whose primaryTool is an
- *    amount-gated write tool must ROUTE to that tool. Scoped to banking because
- *    vertical overlays legitimately dispatch their own tools (healthcare UC6's
- *    chip runs pay_bill while base primaryTool says create_transfer) — auditing
- *    all verticals produced 68/72 "mismatches" that are overlay semantics, not
- *    bugs. Banking has no overlay, so there a mismatch IS a bug.
+ * History: this gate was originally scoped to banking because primaryTool was
+ * banking-base metadata shared by all verticals (68/72 vertical entries "lied"
+ * about their own tool). Per-vertical storage removed that limitation. If a
+ * value in READ_PRIMARY_TOOL_BY_VERTICAL / AMOUNT_PRIMARY_TOOL_BY_VERTICAL is
+ * wrong, the routing gate fails naming the vertical, chip, and both tools.
  */
 const fs = require('fs');
 const path = require('path');
-const { USE_CASES, resolveUseCase } = require('../config/useCases.js');
+const { USE_CASES, VERTICALS, resolveUseCase } = require('../config/useCases.js');
 const { parseHeuristic, resolveVerticalCtx } = require('../services/nlIntentParser');
-const { WRITE_TOOL_TYPE_MAP } = require('../services/mcpToolAuthorizationService');
 
 const ROOT = path.resolve(__dirname, '../..');
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 
 /** Not MCP tools: orchestration actions handled by the A2A layer, not a registry. */
 const NON_MCP_PRIMARY_TOOLS = new Set(['delegate_to_specialist']);
+/** A2A handoff chips are intentionally not heuristic-routable — the known baseline. */
+const A2A_UNROUTABLE = /specialist/i;
 
 /**
- * Banking heuristic ACTION -> dispatched TOOL. transfer_600_test is a scripted
+ * Heuristic ACTION -> dispatched TOOL where they differ. Vertical plugin actions
+ * ARE their tool names (identity fallback). transfer_600_test is a scripted
  * showcase alias: its AIAgent case calls createTransfer(DEMO_LARGE_TRANSFER) and
- * the HITL gate fires in normalizeAgentToolResult — i.e. it IS create_transfer.
+ * the HITL gate fires — it IS create_transfer.
  */
-const BANKING_ACTION_TO_TOOL = {
+const ACTION_TO_TOOL = {
   transfer: 'create_transfer',
   transfer_600_test: 'create_transfer',
   deposit: 'create_deposit',
@@ -47,61 +51,76 @@ const BANKING_ACTION_TO_TOOL = {
   branch_hours: 'get_branch_hours',
 };
 
-describe('primaryTool existence — no dangling tool premises', () => {
-  test('every catalog primaryTool exists in a tool registry', () => {
-    const bankingRegistry = read('demo_mcp_server/src/tools/BankingToolRegistry.ts');
-    const verticalRegistry = read('demo_mcp_server/src/tools/handlers/verticalTools.generated.ts');
+/** Every (vertical, useCase) chip entry with a real resolved primaryTool. */
+function chipEntries() {
+  const out = [];
+  for (const vertical of VERTICALS) {
+    for (const u of USE_CASES) {
+      const uc = resolveUseCase(u.id, vertical) || u;
+      const t = uc.trigger || {};
+      if (t.type !== 'chip' || !t.text) continue;
+      if (A2A_UNROUTABLE.test(t.text)) continue;
+      if (!uc.primaryTool || NON_MCP_PRIMARY_TOOLS.has(uc.primaryTool)) continue;
+      out.push({ vertical, id: u.id, text: t.text, primaryTool: uc.primaryTool });
+    }
+  }
+  return out;
+}
+
+describe('primaryTool existence — no dangling tool premises, any vertical', () => {
+  test('every resolved primaryTool exists in a tool registry', () => {
+    const surfaces = [
+      read('demo_mcp_server/src/tools/BankingToolRegistry.ts'),
+      read('demo_mcp_server/src/tools/handlers/verticalTools.generated.ts'),
+    ];
     const missing = [];
-    for (const tool of new Set(USE_CASES.map((u) => u.primaryTool).filter(Boolean))) {
-      if (NON_MCP_PRIMARY_TOOLS.has(tool)) continue;
-      const exists =
-        bankingRegistry.includes(`'${tool}'`) ||
-        bankingRegistry.includes(`${tool}:`) ||
-        verticalRegistry.includes(`"${tool}"`);
+    for (const tool of new Set(chipEntries().map((e) => e.primaryTool))) {
+      const exists = surfaces.some(
+        (s) => s.includes(`'${tool}'`) || s.includes(`"${tool}"`) || s.includes(`${tool}:`),
+      );
       if (!exists) missing.push(tool);
     }
     if (missing.length) {
       throw new Error(
-        `primaryTool(s) named in useCases.js but found in NO tool registry: ${missing.join(', ')}. ` +
-          `A use case whose tool does not exist demos nothing — its whole premise is dangling. ` +
-          `Fix the tool name, or if it is a new non-MCP orchestration action, add it to ` +
+        `primaryTool(s) stored in useCases.js but found in NO tool registry: ${missing.join(', ')}. ` +
+          `A use case whose tool does not exist demos nothing — its premise is dangling. Fix the ` +
+          `tool name, or if it is a new non-MCP orchestration action, add it to ` +
           `NON_MCP_PRIMARY_TOOLS here WITH a justification.`,
       );
     }
   });
 });
 
-describe('banking chips route to their primaryTool', () => {
-  const ctx = resolveVerticalCtx('banking');
-  // ALL banking chips with a real (non-A2A) primaryTool — not just amount-gated
-  // writes. Scoping to WRITE_TOOL_TYPE_MAP would have missed the motivating
-  // near-miss: request_fee_waiver is a write but not amount-gated, and its
-  // planned chip routed to `accounts`.
-  const entries = USE_CASES.filter((u) => {
-    const uc = resolveUseCase(u.id, 'banking') || u;
-    const t = uc.trigger || {};
-    return t.type === 'chip' && t.text && u.primaryTool && !NON_MCP_PRIMARY_TOOLS.has(u.primaryTool);
+describe('every vertical chip routes to its OWN stored primaryTool', () => {
+  const entries = chipEntries();
+
+  test('the gate covers every vertical (guard against silent scoping-away)', () => {
+    const covered = new Set(entries.map((e) => e.vertical));
+    for (const v of VERTICALS) {
+      if (!covered.has(v)) {
+        throw new Error(
+          `${v}: no chip entry carries a primaryTool — the vertical has fallen out of the ` +
+            `per-vertical prompt/response contract (check READ_PRIMARY_TOOL_BY_VERTICAL / ` +
+            `AMOUNT_PRIMARY_TOOL_BY_VERTICAL in useCases.js).`,
+        );
+      }
+    }
   });
 
-  test('there are banking chips to gate (guard against silent scoping-away)', () => {
-    expect(entries.length).toBeGreaterThan(0);
-    // WRITE_TOOL_TYPE_MAP is imported to keep the amount-gating contract visible
-    // to readers of this gate; the coverage suite asserts it per-vertical.
-    expect(Object.keys(WRITE_TOOL_TYPE_MAP).length).toBeGreaterThan(0);
-  });
-
-  test.each(entries.map((u) => [u.id, (resolveUseCase(u.id, 'banking') || u).trigger.text, u.primaryTool]))(
-    '%s "%s" routes to %s',
-    (id, text, primaryTool) => {
-      const r = parseHeuristic(text, 'banking', ctx, {});
+  test.each(entries.map((e) => [e.vertical, e.id, e.text, e.primaryTool]))(
+    '%s %s "%s" -> %s',
+    (vertical, id, text, primaryTool) => {
+      const ctx = resolveVerticalCtx(vertical);
+      const r = parseHeuristic(text, vertical, ctx, {});
       const action = r ? (r.banking?.action ?? r.action ?? null) : null;
-      const tool = BANKING_ACTION_TO_TOOL[action] || action;
+      const tool = ACTION_TO_TOOL[action] || action;
       if (tool !== primaryTool) {
         throw new Error(
-          `${id}: chip "${text}" routes to action "${action}" -> tool "${tool}", but primaryTool is ` +
-            `"${primaryTool}". The chip demos the WRONG thing while every pipeline check stays green. ` +
-            `Either the trigger phrase collides with another heuristic (reword it), no heuristic exists ` +
-            `for the tool (add one), or primaryTool is wrong (fix the metadata).`,
+          `${vertical}/${id}: chip "${text}" routes to action "${action}" -> tool "${tool}", but this ` +
+            `vertical's stored primaryTool is "${primaryTool}". The chip demos the WRONG thing while ` +
+            `every pipeline check stays green. Either the trigger phrase collides with another ` +
+            `heuristic (reword it), no heuristic exists for the tool (add one), or the stored ` +
+            `per-vertical primaryTool is wrong (fix it in useCases.js).`,
         );
       }
     },

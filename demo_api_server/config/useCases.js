@@ -69,11 +69,55 @@ function chipOverrides(textByVertical, extraByVertical = {}) {
   return out;
 }
 
-const READ_PER_VERTICAL = chipOverrides(READ_TRIGGER_BY_VERTICAL);
+/**
+ * Per-vertical PRIMARY TOOL — every vertical stores its OWN value, even where it
+ * duplicates a neighbour. Deliberate: isolation over DRY. Changing or removing
+ * one vertical's entry must never silently change what another vertical's chip
+ * demos. Before this, `primaryTool` was banking-base metadata shared by all
+ * verticals, so 68/72 vertical entries "lied" about their own tool and the
+ * routing drift-gate could only cover banking. The drift gate
+ * (useCases.primaryTool.test.js) verifies each value against what the chip
+ * ACTUALLY routes to — get a value wrong here and pre-push fails naming it.
+ * (Banking's own values live on the base entries; resolveUseCase serves the
+ * base unchanged for banking.)
+ */
+const READ_PRIMARY_TOOL_BY_VERTICAL = {
+  healthcare: 'view_coverage',
+  retail: 'list_orders',
+  government: 'view_permits',
+  university: 'view_courses',
+  workforce: 'view_benefits',
+  'sporting-goods': 'list_gear',
+  manufacturing: 'view_work_orders',
+  investment: 'view_portfolios',
+};
+
+/** Amount-gated write tool per vertical (UC6/7/8 DENY / step-up / consent). */
+const AMOUNT_PRIMARY_TOOL_BY_VERTICAL = {
+  healthcare: 'pay_bill',
+  retail: 'checkout',
+  government: 'pay_fee',
+  university: 'pay_tuition_balance',
+  workforce: 'submit_expense',
+  'sporting-goods': 'extend_rental',
+  manufacturing: 'approve_purchase_order',
+  investment: 'large_trade',
+};
+
+/** Merge per-vertical primaryTool into chipOverrides extras. */
+const withPrimaryTool = (toolByVertical, extraByVertical = {}) => {
+  const out = { ...extraByVertical };
+  for (const [v, primaryTool] of Object.entries(toolByVertical)) {
+    out[v] = { primaryTool, ...(out[v] || {}) };
+  }
+  return out;
+};
+
+const READ_PER_VERTICAL = chipOverrides(READ_TRIGGER_BY_VERTICAL, withPrimaryTool(READ_PRIMARY_TOOL_BY_VERTICAL));
 const AMOUNT_PER_VERTICAL = (amount, whatToSayByVertical = {}) =>
-  chipOverrides(amountTriggerByVertical(amount), Object.fromEntries(
+  chipOverrides(amountTriggerByVertical(amount), withPrimaryTool(AMOUNT_PRIMARY_TOOL_BY_VERTICAL, Object.fromEntries(
     Object.entries(whatToSayByVertical).map(([v, whatToSay]) => [v, { whatToSay }])
-  ));
+  )));
 
 
 /** @type {UseCase[]} */
@@ -484,6 +528,9 @@ const RAW_USE_CASES = [
       gw:    'Allows the unauthenticated tool call while remaining fail-closed for all other tools.',
     },
     primaryTool: 'get_branch_hours',
+    // Every vertical stores its own primaryTool even though the value is the
+    // same everywhere (the public catalog tool) — isolation over DRY, so a
+    // change to one vertical's entry cannot ripple into another's.
     perVertical: chipOverrides({
       healthcare: 'What clinics are near me?',
       retail: 'What stores are near me?',
@@ -492,7 +539,17 @@ const RAW_USE_CASES = [
       workforce: 'What office locations are near me?',
       'sporting-goods': 'What stores are near me?',
       manufacturing: 'What plant locations are near me?',
-    }),
+      investment: 'What branches are near me?',
+    }, withPrimaryTool({
+      healthcare: 'get_branch_hours',
+      retail: 'get_branch_hours',
+      government: 'get_branch_hours',
+      university: 'get_branch_hours',
+      workforce: 'get_branch_hours',
+      'sporting-goods': 'get_branch_hours',
+      manufacturing: 'get_branch_hours',
+      investment: 'get_branch_hours',
+    })),
   },
   {
     id: 'UC26',
