@@ -5631,7 +5631,38 @@ export default function BankingAgent({
           setTimeout(() => navigateToCustomerOAuthForceLogin(), 1500);
           return;
         }
-        /* otherwise fall through to default below */
+        // /nl ALREADY resolved this prompt to a real action — the failure is in
+        // EXECUTION, not understanding. Falling through renders "I didn't catch
+        // that…try 'show my accounts'", which blames the parser, suggests banking
+        // phrases inside a non-banking vertical, and hides the actual cause. A
+        // silent/misleading failure is never acceptable: say what happened.
+        const timedOut = isAbortError(e) || isLocalModelTimeout(e, activeLlmProvider) ||
+          e?.name === "TimeoutError" ||
+          /timed out|aborted/i.test(String(e?.message || ""));
+        if (timedOut) {
+          notifyError("⏱️ That took too long — the request timed out.", { autoClose: agentToastMs.errShort });
+          addMessage(
+            "assistant",
+            `That took too long to answer, so I stopped waiting — this was **${result.action.replace(/_/g, " ")}**, ` +
+              `not a misunderstanding. The local model is faster once warmed up; try again, or switch Agent mode to Heuristics for a deterministic answer.`,
+            null,
+            {
+              source: _source,
+              ...(isLocalModelTimeout(e, activeLlmProvider)
+                ? { showPrewarmRetryAction: true, retryFn: () => dispatchNlResult(result, _source, nlUserText, useCaseId) }
+                : {}),
+            },
+          );
+          return;
+        }
+        addMessage(
+          "assistant",
+          `I understood that as **${result.action.replace(/_/g, " ")}**, but couldn't complete it` +
+            `${e?.message ? `: ${e.message}` : "."} Try again, or switch Agent mode to Heuristics.`,
+          null,
+          { source: _source },
+        );
+        return;
       }
     }
     // Prefer the server's message (heuristic / LLM produces a useful one).
