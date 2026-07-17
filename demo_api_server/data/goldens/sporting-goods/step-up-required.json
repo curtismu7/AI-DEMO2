@@ -1,0 +1,12 @@
+{
+  "vertical": "sporting-goods",
+  "useCaseId": "step-up-required",
+  "ucId": "UC7",
+  "trigger": "extend my rental $600",
+  "expectedOutcome": "STEP_UP",
+  "capturedAt": "2026-07-17T15:13:20.113Z",
+  "seedHash": "c48bf4072b509915",
+  "reply": "Simulated authorization policy requires step-up before MCP tools (education mode).",
+  "agentPath": null,
+  "tokenEventCount": 13
+}

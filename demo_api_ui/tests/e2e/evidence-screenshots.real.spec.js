@@ -155,8 +155,12 @@ const PROBES = [
 // Rendered-reply failure signatures: if the chat delta or an error toast
 // matches, the "answer" was an error card, not a result — FAIL even when the
 // network hops looked plausible.
+// "produced no reply" / "empty reply" are the never-silent guards firing
+// (AIAgent addMessage + agentInvokeRoute ensureNonEmptyReply): the guard turned
+// a silent failure into visible text — for evidence purposes that IS a failure,
+// just an attributable one instead of a blank bubble.
 const REPLY_ERROR_RE =
-  /unknown action|policy denied|denied by gateway|forbidden by gateway|could not parse|mcp_error|error_description/i;
+  /unknown action|policy denied|denied by gateway|forbidden by gateway|could not parse|mcp_error|error_description|produced no reply|empty reply/i;
 const NEEDS_LLM_RE = /needs an llm mode/i;
 
 const unknown = MODES.filter((m) => !MODE_PROVIDER[m]);
@@ -304,8 +308,17 @@ async function runProbe(page, panel, mode, probe) {
   await expect
     .poll(
       async () => {
-        const len = ((await messages.innerText().catch(() => '')) || '').length;
-        if (len > beforeLen + probe.message.length) return true;
+        // Same stripping as the EMPTY assert below: the echoed prompt + "You"/
+        // PROMPT/Copy chrome must not count as a rendered reply, or the poll
+        // resolves on the echo alone and races a pipeline that takes a few
+        // seconds (real PingGateway introspection + authorize + exchanges).
+        const text = ((await messages.innerText().catch(() => '')) || '');
+        const rendered = text
+          .slice(beforeLen)
+          .split(probe.message).join('')
+          .replace(/\b(PROMPT|Copy|You)\b/g, '')
+          .trim();
+        if (rendered.length > 0) return true;
         if (probe.kind === 'hitl') {
           return (await consentUi.first().isVisible().catch(() => false)) || null;
         }
@@ -322,6 +335,18 @@ async function runProbe(page, panel, mode, probe) {
   const afterText = (await messages.innerText().catch(() => '')) || '';
   const delta = afterText.slice(beforeLen);
   const tail = JSON.stringify(delta.slice(-200));
+  // The delta includes the user's own prompt bubble, so an EMPTY assistant reply
+  // still produces a non-empty delta. Strip the echoed prompt (and the PROMPT/
+  // Copy chrome around it) and require real assistant text to remain — a blank
+  // bubble must fail here, not slip through as "no error card".
+  const assistantText = delta
+    .split(probe.message).join('')
+    .replace(/\b(PROMPT|Copy|You)\b/g, '')
+    .trim();
+  expect(
+    assistantText.length > 0,
+    `${mode}/${probe.id}: assistant reply is EMPTY — a silent turn (tail: ${tail})`,
+  ).toBe(true);
   if (probe.kind === 'reasoning' && mode === 'heuristics') {
     expect(
       NEEDS_LLM_RE.test(delta) || /could not parse/i.test(delta),

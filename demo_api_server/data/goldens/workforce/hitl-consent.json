@@ -1,0 +1,13 @@
+{
+  "vertical": "workforce",
+  "useCaseId": "hitl-consent",
+  "ucId": "UC8",
+  "trigger": "submit a $300 expense",
+  "expectedOutcome": "HITL_REQUIRED",
+  "capturedAt": "2026-07-17T15:13:17.771Z",
+  "seedHash": "53b2bac25e5daf21",
+  "reply": "Simulated authorization policy requires human approval before MCP tools (education mode).",
+  "requiresConsent": true,
+  "agentPath": null,
+  "tokenEventCount": 13
+}

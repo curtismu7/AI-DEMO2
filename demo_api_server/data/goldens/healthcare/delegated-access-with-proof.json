@@ -1,0 +1,12 @@
+{
+  "vertical": "healthcare",
+  "useCaseId": "delegated-access-with-proof",
+  "ucId": "UC1",
+  "trigger": "check my coverage",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-17T15:13:00.899Z",
+  "seedHash": "956244bc8453547f",
+  "reply": "❌ Gateway upstream error (HTTP 500)",
+  "agentPath": null,
+  "tokenEventCount": 14
+}

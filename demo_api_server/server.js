@@ -1009,8 +1009,11 @@ app.get('/api/sdk-demo/config', (req, res) => {
         // Auto-derive redirectUri from the request origin if not explicitly configured.
         let redirectUri = configStore.getEffective('pingone_sdk_demo_redirect_uri');
         if (!redirectUri) {
-            const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-            const host = req.headers['x-forwarded-host'] || req.headers.host;
+            // Behind multiple proxies these arrive as a list ("https, http") — the
+            // first hop is the client-facing one. An unsplit value yields a
+            // redirect_uri PingOne can never match.
+            const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
+            const host = (req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
             redirectUri = `${proto}://${host}/sdk-login/callback`;
         }
         res.json({
@@ -1074,7 +1077,11 @@ app.use('/api/agent', require('./routes/agentConsentRoute')); // AG-UI Phase 4.1
 app.use('/api/langchain', langchainConfigRoutes);
 app.use('/api/langchain/lmstudio', lmstudioRoutes);
 app.use('/api/langchain/llamacpp', llamacppModelsRoutes);
-app.use('/api/conversations', conversationRoutes);
+// authenticateToken is REQUIRED here: routes/conversations.js guards ownership on
+// req.user.sub (`me` → your own history, 403 cross-user). Mounted without it,
+// req.user was always undefined, so every request 401'd — even with a valid
+// session — and the summary panel could never render.
+app.use('/api/conversations', authenticateToken, conversationRoutes);
 app.use('/api/authorize', authorizeRoutes);
 // Pre-Demo Check — readiness checks for the demo. Any logged-in user.
 const { authenticateToken: authForCheck } = require('./middleware/auth');

@@ -82,6 +82,7 @@ const ENV_SCOPED_KEYS = new Set([
 const ENV_AGNOSTIC_KEYS = new Set([
   // helix (separate environment from the PingOne env_id)
   'helix_base_url', 'helix_api_key', 'helix_environment_id', 'helix_agent_id', 'helix_prompt_field_id',
+  'helix_agent_version',
   // deployment topology URLs
   'mcp_server_url', 'mcp_gateway_http_url', 'mcp_pinggateway_url', 'mcp_demo_gateway_url', 'mcp_step9_resource_uri',
   'frontend_url', 'frontend_admin_url', 'react_app_client_url', 'public_app_url', 'frontend_dashboard_url',

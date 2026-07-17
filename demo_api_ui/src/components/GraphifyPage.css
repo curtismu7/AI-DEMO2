@@ -254,6 +254,32 @@
   color: #0f766e;
 }
 
+.graphify-mode-banner {
+  background: #e3f2fd;
+  border: 1px solid #90caf9;
+  border-left: 4px solid #1976d2;
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+  color: #0d47a1;
+}
+.graphify-mode-banner strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+.graphify-mode-banner p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.graphify-mode-banner code {
+  background: rgba(0, 0, 0, 0.07);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.8rem;
+}
+
 .graphify-note {
   margin: 0;
   font-size: 0.8rem;

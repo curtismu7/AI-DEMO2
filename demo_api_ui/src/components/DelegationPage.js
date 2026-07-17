@@ -262,7 +262,7 @@ function HowItWorksPanel() {
             {[
               ['RFC 8693', 'Token Exchange'],
               ['RFC 7519', 'JSON Web Tokens'],
-              ['OIDC Core', 'act / may_act claims'],
+              ['OIDC Core', 'act claim'],
               ['PingOne Management API', 'User provisioning'],
               ['PingOne Messages API', 'Email notifications'],
             ].map(([rfc, label]) => (
@@ -374,7 +374,7 @@ function LiveTokenChainPanel() {
             }}>
               <span style={S.infoPill}>{chain.validationMode || 'standard'}</span>
               {chain.validationMode === 'strict'
-                ? ' RFC 8693 act/may_act claims verified on every request'
+                ? ' RFC 8693 act claim verified on every request'
                 : ' Token exchange logged; act claims not strictly enforced'}
             </div>
             <p style={{ fontSize: 12, color: '#374151', marginTop: 8 }}>
@@ -496,7 +496,7 @@ function DemoTalkTrackPanel() {
             {
               num: 4,
               heading: 'Show the token structure',
-              text: 'Point at the code block showing the act and may_act claims.',
+              text: 'Point at the code block showing the act claim.',
               quote: '"This is not custom code — it\'s a standard anyone can verify. The act.sub claim is cryptographically bound to the delegator\'s identity. A resource server or AI agent can read this claim and know exactly whose data it\'s touching and on whose behalf."',
             },
             {
@@ -701,7 +701,7 @@ export default function DelegationPage({ user }) {
       <div style={S.inner}>
         {pageError && <div style={S.errorBanner}>{pageError}</div>}
 
-        {/* AI agent authorization (RFC 8693 may_act) */}
+        {/* AI agent authorization (RFC 8693 act claim, gated by the PingOne may_act attribute) */}
         <AgentAuthorizationCard />
 
         {/* How it works — top explainer */}

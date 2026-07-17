@@ -1,0 +1,13 @@
+{
+  "vertical": "retail",
+  "useCaseId": "hitl-consent",
+  "ucId": "UC8",
+  "trigger": "checkout headphones for $300",
+  "expectedOutcome": "HITL_REQUIRED",
+  "capturedAt": "2026-07-17T15:13:08.773Z",
+  "seedHash": "6a8345537e56d245",
+  "reply": "Simulated authorization policy requires human approval before MCP tools (education mode).",
+  "requiresConsent": true,
+  "agentPath": null,
+  "tokenEventCount": 13
+}

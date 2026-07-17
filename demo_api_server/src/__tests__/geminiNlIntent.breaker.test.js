@@ -33,6 +33,7 @@ jest.mock('../../services/configStore', () => ({
 jest.mock('../../services/llamacppLlmService', () => ({ callLlamaCpp: jest.fn() }));
 
 const breaker = require('../../services/llmCircuitBreaker');
+const resultCache = require('../../services/nlIntentResultCache');
 const { parseNaturalLanguage } = require('../../services/geminiNlIntent');
 
 describe('geminiNlIntent circuit breaker', () => {
@@ -40,6 +41,10 @@ describe('geminiNlIntent circuit breaker', () => {
 
   beforeEach(() => {
     breaker._resetAll();
+    // geminiNlIntent caches successful non-heuristic answers, so a repeat of the
+    // same free-text skips the provider entirely. Every test here counts provider
+    // calls, so the cache must start empty.
+    resultCache.clear();
     callLlamaCpp = require('../../services/llamacppLlmService').callLlamaCpp;
     callLlamaCpp.mockReset();
   });
@@ -76,6 +81,10 @@ describe('geminiNlIntent circuit breaker', () => {
     await ask();
     const ok = await ask();                           // success — resets count
     expect(ok.source).toBe('llamacpp');
+    // That success is now cached under this message's key; without clearing it the
+    // asks below would be served from cache, never reach the provider, and record
+    // no failures — the breaker would stay closed for the wrong reason.
+    resultCache.clear();
     callLlamaCpp.mockRejectedValue(new Error('boom'));
     await ask();
     await ask();

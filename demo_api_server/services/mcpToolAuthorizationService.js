@@ -121,6 +121,10 @@ const WRITE_TOOL_TYPE_MAP = {
   submit_expense: 'transfer',
   extend_rental: 'transfer',
   approve_purchase_order: 'transfer',
+  // investment (Meridian Wealth) UC6/7/8 — "execute a large trade of $N". Absent
+  // here the chip routes but the amount policy never fires: no DENY, no step-up,
+  // no consent, and the demo looks correct while authorizing everything.
+  large_trade: 'transfer',
 };
 
 /**
@@ -135,6 +139,42 @@ function resolveResourceOwnerId(tool, toolParams) {
     return account ? account.userId : null;
   }
   return null;
+}
+
+/**
+ * Amount for policy evaluation when a write tool names a RECORD instead of stating
+ * a figure. Returns null when it does not apply, so the caller keeps its own value.
+ *
+ * "pay bill 402" states an id, not a price — but norm() strips "$" before the
+ * heuristic parses, so a bare id was also matched as the amount ({ amount: 402,
+ * recordId: "402" }) and fed to PingOne Authorize as `Amount`. A $20 bill was then
+ * evaluated as a $402 payment and could trip a consent/step-up/DENY rule it should
+ * never reach. (The money moved was always right: store.payBill(userId, billId)
+ * ignores the amount entirely — only the DECISION was made on a fabricated number.)
+ *
+ * Reads the amount from the record itself, via the plugin's own data store, so the
+ * policy decides on the real figure. Fails soft — any miss returns null and the
+ * caller falls back to the stated amount, so the gate is never blinded.
+ *
+ * @param {string} tool
+ * @param {object} toolParams
+ * @param {string} verticalId
+ * @param {string} userId - BFF internal user id (the key the vertical store uses)
+ * @returns {number|null}
+ */
+function resolveAmountForPolicy(tool, toolParams, verticalId, userId) {
+  if (tool !== 'pay_bill' || !toolParams || !userId || !verticalId) return null;
+  const recordId = toolParams.billId || toolParams.recordId;
+  if (!recordId) return null; // amount-driven chip ("pay my $300 bill") — stated amount stands
+  try {
+    const plugin = verticalManifest.plugins.get(verticalId);
+    const store = plugin && typeof plugin.getDataStore === 'function' ? plugin.getDataStore() : null;
+    const bills = (store && store.get(userId) && store.get(userId).billingHistory) || [];
+    const bill = bills.find((b) => String(b.id) === String(recordId));
+    return bill && typeof bill.amountDue === 'number' ? bill.amountDue : null;
+  } catch (_) {
+    return null; // never throw into the gate
+  }
 }
 
 /**
@@ -171,10 +211,18 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     return { ran: false, reason: 'admin_role_exempt' };
   }
 
+  // Resolved once here (not at the group-policy block below) because the amount
+  // resolution needs it too.
+  const activeVerticalId = verticalManifest.resolver.activeIdFor(req) || 'banking';
+
   // Extract amount and transaction type from params for write-tool policy evaluation
   const transactionType = WRITE_TOOL_TYPE_MAP[tool] || null;
+  // A tool that names a RECORD carries no amount of its own — read it from the
+  // record so the policy decides on the real figure, never on a number parsed out
+  // of the phrase. Returns null when it does not apply, so the stated amount stands.
+  const recordAmount = resolveAmountForPolicy(tool, toolParams, activeVerticalId, req.user && req.user.id);
   const toolAmount = transactionType && toolParams
-    ? parseFloat(toolParams.amount || 0)
+    ? (recordAmount !== null ? recordAmount : parseFloat(toolParams.amount || 0))
     : null;
 
   const USE_SIMULATED = simulatedAuthorizeService.isSimulatedModeEnabled(configStore);
@@ -256,7 +304,7 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
   let userGroups = null;
   let userTier = null;
   let inRequiredGroup = null;
-  const verticalId = verticalManifest.resolver.activeIdFor(req) || 'banking';
+  const verticalId = activeVerticalId;
   const useCaseId = resolveActiveUseCaseId(req);
   if (groupPolicy.isEnabled(configStore) || shouldApplyEntitlementTierDemo(useCaseId)) {
     userGroups = await groupPolicy.groupsForUser(
@@ -737,4 +785,8 @@ module.exports = {
   getMcpFirstToolGateStatus,
   resolveExpectedMcpResourceUri,
   nestedActIdFromClaim,
+  resolveAmountForPolicy,
+  // Exported so tests can assert the gate contract: a vertical's amount action that
+  // is absent here routes fine but is NEVER amount-gated (silent authorize).
+  WRITE_TOOL_TYPE_MAP,
 };

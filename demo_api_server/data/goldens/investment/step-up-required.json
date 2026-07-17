@@ -1,0 +1,12 @@
+{
+  "vertical": "investment",
+  "useCaseId": "step-up-required",
+  "ucId": "UC7",
+  "trigger": "execute a large trade of $600",
+  "expectedOutcome": "STEP_UP",
+  "capturedAt": "2026-07-17T15:13:25.021Z",
+  "seedHash": null,
+  "reply": "Simulated authorization policy requires step-up before MCP tools (education mode).",
+  "agentPath": null,
+  "tokenEventCount": 13
+}

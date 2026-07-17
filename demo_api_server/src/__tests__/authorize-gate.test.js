@@ -302,7 +302,7 @@ describe('PingOne Authorize Gate — POST /api/transactions', () => {
 
   // ── Policy not found (drift) → fail closed with a clear message ───────────────
   describe('when the engine evaluated but no policy matched (policyNotFound)', () => {
-    it('should return 403 policy_not_found, not a generic deny', async () => {
+    it('should return 503 policy_not_found, not a generic deny', async () => {
       runtimeSettings.update({ authorizeEnabled: true, authorizePolicyId: 'test-policy-id' }, 'test');
       // decision stays fail-closed (DENY); the drift is carried on the side channel.
       evaluateTransaction.mockResolvedValueOnce({ decision: 'DENY', policyNotFound: true, raw: {} });
@@ -312,7 +312,10 @@ describe('PingOne Authorize Gate — POST /api/transactions', () => {
         .set('x-test-user', customerUser())
         .send(withdrawalBody);
 
-      expect(res.status).toBe(403);
+      // 503, not 403: the engine evaluated fine but no policy matched — code/policy
+      // drift, deliberately distinct from the 403 deny so the two aren't conflated
+      // (transactionAuthorizationService.js policyNotFound branch; cf. 4a1f8a2d8).
+      expect(res.status).toBe(503);
       expect(res.body.error).toBe('policy_not_found');
       expect(res.body.error_description).toMatch(/contact administrator/i);
     });

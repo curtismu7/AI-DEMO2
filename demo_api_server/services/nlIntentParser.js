@@ -615,6 +615,14 @@ function parseBanking(t) {
     // ceremony; we should answer.
     return { kind: "banking", banking: { action: "balance" } };
   }
+  // Fee waiver — the agent can only REQUEST a waiver (logged for human review);
+  // no tool exists that can grant one (the Air Canada tool-boundary demo, UC28).
+  // Must precede every account-flavored pattern: "waive the fee on my checking
+  // account" otherwise matches the accounts-list heuristic and the chip demos
+  // the wrong thing.
+  if (/\bwaiv\w*\b.*\b(fee|charge)s?\b|\b(fee|charge)s?\b.*\bwaiv\w*\b/.test(t)) {
+    return { kind: "banking", banking: { action: "request_fee_waiver" } };
+  }
   // Account nickname — narrow read; must precede generic accounts list
   if (matchesAccountNickname(t)) {
     return { kind: "banking", banking: { action: "account_nickname" } };
@@ -907,19 +915,37 @@ function parseHeuristic(
   // Plugin-first: a vertical with a plugin matches its OWN heuristics/actions.
   // No banking fallback — a non-match returns kind:'none', never a banking action.
   if (verticalDispatch.hasPlugin(vertical)) {
-    // Guard: if this message is the exact text of a mode=llm chip, skip heuristic
-    // matching entirely. Heuristics must not capture LLM-only chips — they would
-    // route to a wrong action instead of returning kind:'none' and letting the LLM path run.
+    // Guard: if this message is the exact text of a mode=llm or mode=direct chip,
+    // skip heuristic matching entirely. Heuristics must not capture these chips:
+    // 'llm' needs a real LLM provider, and 'direct' dispatches straight to its own
+    // tool/denyTool without ever going through the NL parser (extractChips.js
+    // documents both as non-heuristic-resolvable) — either would otherwise risk
+    // routing to a wrong banking action instead of returning kind:'none'.
     // Exception: heuristics-only mode has no LLM fallthrough, so allow matching
     // (education / analysis chips that have a deterministic action still answer).
     const heuristicsOnly = options.heuristicsOnly === true;
     if (!heuristicsOnly) {
-      const llmOnlyChipMessages = new Set(
-        (verticalCtx?.chips || [])
-          .filter((c) => c.mode === "llm")
+      const chips = verticalCtx?.chips || [];
+      // A message text can be shared by more than one chip (e.g. a vertical's
+      // "Direct MCP" demo chip often reuses a real both-mode chip's exact
+      // wording). If ANY chip with this text is heuristic-resolvable, the
+      // guard below must not block it — only exclude text that belongs
+      // EXCLUSIVELY to llm/direct chips.
+      const heuristicMessages = new Set(
+        chips
+          .filter((c) => (c.mode || "both") === "both")
           .map((c) => norm(c.message)),
       );
-      if (llmOnlyChipMessages.size > 0 && llmOnlyChipMessages.has(t)) {
+      const nonHeuristicChipMessages = new Set(
+        chips
+          .filter(
+            (c) =>
+              (c.mode === "llm" || c.mode === "direct") &&
+              !heuristicMessages.has(norm(c.message)),
+          )
+          .map((c) => norm(c.message)),
+      );
+      if (nonHeuristicChipMessages.size > 0 && nonHeuristicChipMessages.has(t)) {
         return { kind: "none", message: buildCatalogMessage(verticalCtx) };
       }
     }
@@ -1077,7 +1103,24 @@ function parseHeuristic(
         }
         if (h.extractsRecordId) {
           // Record IDs are numeric ("101"). Accept an optional "record"/"rec" prefix.
-          const recMatch = t.match(/\b(?:rec(?:ord)?[\s-]*)?(\d{2,})\b/);
+          //
+          // …unless this heuristic ALSO extracts an amount. norm() strips "$"
+          // before we get here, so "pay my $300 bill" arrives as "pay my 300
+          // bill" and a bare-number id pattern matches the AMOUNT — emitting
+          // { amount: 300, recordId: "300" }. That broke the chip: pay_bill's
+          // handler does `params.billId || params.recordId` and only falls back
+          // to the first outstanding bill when neither is set (its comment says
+          // amount-driven chips "don't carry a bill id" — they did), so it paid
+          // bill "300". Real bill ids are 401+ → "bill not found".
+          //
+          // When both are extracted, require the id to be introduced by its noun
+          // ("pay bill 402", "approve purchase order 5001"), which is exactly the
+          // phrasing every paramHint documents. A leading figure is then the
+          // amount and the handler's fallback works as intended.
+          const recRe = h.extractsAmount
+            ? /\b(?:rec(?:ord)?|bill|invoice|po|(?:purchase\s+)?order)[\s-]*(\d{2,})\b/
+            : /\b(?:rec(?:ord)?[\s-]*)?(\d{2,})\b/;
+          const recMatch = t.match(recRe);
           if (recMatch) params = { ...params, recordId: recMatch[1] };
         }
         if (h.extractsDays) {

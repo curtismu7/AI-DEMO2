@@ -21,4 +21,24 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     fi
   fi
 done
+
+# ─── local CI gate ────────────────────────────────────────────────────────────
+# GitHub Actions is billing-blocked (jobs die in ~3s with 0 steps; see issue
+# #524), so every PR is red regardless of the code and nothing verifies a merge.
+# Run the same checks ci.yml runs, here, until Actions is paying its bills again.
+# ~65s. Bypassable with --no-verify.
+if [ "$status" -eq 0 ]; then
+  gate="$(git rev-parse --show-toplevel)/scripts/ci-local.sh"
+  if [ ! -f "$gate" ]; then
+    # This checkout predates the gate (older worktree, or a clone that has not
+    # pulled yet). Skip loudly rather than blocking: a missing script is not a
+    # failed check, and blocking here would teach people to use --no-verify,
+    # which ALSO disables the secret guards in pre-commit.
+    echo "pre-push: local CI gate not present in this checkout — skipping." >&2
+    echo "          (expected at scripts/ci-local.sh; pull main to enable it)" >&2
+  elif ! bash "$gate"; then
+    status=1
+  fi
+fi
+
 exit $status

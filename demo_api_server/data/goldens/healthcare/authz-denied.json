@@ -1,0 +1,12 @@
+{
+  "vertical": "healthcare",
+  "useCaseId": "authz-denied",
+  "ucId": "UC6",
+  "trigger": "pay my $2500 bill",
+  "expectedOutcome": "DENY",
+  "capturedAt": "2026-07-17T15:13:02.998Z",
+  "seedHash": "956244bc8453547f",
+  "reply": "❌ MCP tool access was denied by the simulated authorization policy (education mode).",
+  "agentPath": null,
+  "tokenEventCount": 13
+}

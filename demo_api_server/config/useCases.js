@@ -30,6 +30,7 @@
 const VERTICALS = [
   'banking', 'healthcare', 'retail', 'government',
   'university', 'workforce', 'sporting-goods', 'manufacturing',
+  'investment',
 ];
 
 
@@ -42,6 +43,7 @@ const READ_TRIGGER_BY_VERTICAL = {
   workforce: 'my benefits',
   'sporting-goods': 'my gear',
   manufacturing: 'show my work orders',
+  investment: 'show my portfolios',
 };
 
 /** Amount-gated write phrases ($300 HITL / $600 step-up / $2500 deny). */
@@ -55,6 +57,7 @@ function amountTriggerByVertical(amount) {
     workforce: `submit a $${n} expense`,
     'sporting-goods': `extend my rental $${n}`,
     manufacturing: `approve a $${n} purchase order`,
+    investment: `execute a large trade of $${n}`,
   };
 }
 
@@ -66,11 +69,55 @@ function chipOverrides(textByVertical, extraByVertical = {}) {
   return out;
 }
 
-const READ_PER_VERTICAL = chipOverrides(READ_TRIGGER_BY_VERTICAL);
+/**
+ * Per-vertical PRIMARY TOOL — every vertical stores its OWN value, even where it
+ * duplicates a neighbour. Deliberate: isolation over DRY. Changing or removing
+ * one vertical's entry must never silently change what another vertical's chip
+ * demos. Before this, `primaryTool` was banking-base metadata shared by all
+ * verticals, so 68/72 vertical entries "lied" about their own tool and the
+ * routing drift-gate could only cover banking. The drift gate
+ * (useCases.primaryTool.test.js) verifies each value against what the chip
+ * ACTUALLY routes to — get a value wrong here and pre-push fails naming it.
+ * (Banking's own values live on the base entries; resolveUseCase serves the
+ * base unchanged for banking.)
+ */
+const READ_PRIMARY_TOOL_BY_VERTICAL = {
+  healthcare: 'view_coverage',
+  retail: 'list_orders',
+  government: 'view_permits',
+  university: 'view_courses',
+  workforce: 'view_benefits',
+  'sporting-goods': 'list_gear',
+  manufacturing: 'view_work_orders',
+  investment: 'view_portfolios',
+};
+
+/** Amount-gated write tool per vertical (UC6/7/8 DENY / step-up / consent). */
+const AMOUNT_PRIMARY_TOOL_BY_VERTICAL = {
+  healthcare: 'pay_bill',
+  retail: 'checkout',
+  government: 'pay_fee',
+  university: 'pay_tuition_balance',
+  workforce: 'submit_expense',
+  'sporting-goods': 'extend_rental',
+  manufacturing: 'approve_purchase_order',
+  investment: 'large_trade',
+};
+
+/** Merge per-vertical primaryTool into chipOverrides extras. */
+const withPrimaryTool = (toolByVertical, extraByVertical = {}) => {
+  const out = { ...extraByVertical };
+  for (const [v, primaryTool] of Object.entries(toolByVertical)) {
+    out[v] = { primaryTool, ...(out[v] || {}) };
+  }
+  return out;
+};
+
+const READ_PER_VERTICAL = chipOverrides(READ_TRIGGER_BY_VERTICAL, withPrimaryTool(READ_PRIMARY_TOOL_BY_VERTICAL));
 const AMOUNT_PER_VERTICAL = (amount, whatToSayByVertical = {}) =>
-  chipOverrides(amountTriggerByVertical(amount), Object.fromEntries(
+  chipOverrides(amountTriggerByVertical(amount), withPrimaryTool(AMOUNT_PRIMARY_TOOL_BY_VERTICAL, Object.fromEntries(
     Object.entries(whatToSayByVertical).map(([v, whatToSay]) => [v, { whatToSay }])
-  ));
+  )));
 
 
 /** @type {UseCase[]} */
@@ -172,7 +219,7 @@ const RAW_USE_CASES = [
       idp:   "Seeds the act claim from the user's may_act attribute during token exchange.",
       authz: 'Evaluates the act claim against the authorized actor on every tool call before it is allowed.',
     },
-    primaryTool: null,
+    primaryTool: 'get_account_balance',
     perVertical: READ_PER_VERTICAL,
   },
   {
@@ -195,7 +242,7 @@ const RAW_USE_CASES = [
     productRoles: {
       idp:   'Manages the agent app as a first-class identity; disabling or rotating the credential blocks all subsequent token exchanges.',
     },
-    primaryTool: null,
+    primaryTool: 'get_account_balance',
     perVertical: READ_PER_VERTICAL,
   },
   {
@@ -220,7 +267,7 @@ const RAW_USE_CASES = [
       gw:    'Logs the tool call, the acting agent, and the Authorize decision outcome.',
       authz: 'Records the policy decision (PERMIT/DENY/STEP_UP) for every evaluated request.',
     },
-    primaryTool: null,
+    primaryTool: 'get_account_balance',
     perVertical: READ_PER_VERTICAL,
   },
 
@@ -247,7 +294,7 @@ const RAW_USE_CASES = [
       authz: 'Evaluates scope requirements per tool; a token carrying only the needed scope is the correct posture.',
       gw:    'Enforces the required scopes at the gateway boundary — excess scope is harmless here but the mismatch is visible.',
     },
-    primaryTool: null,
+    primaryTool: 'get_account_balance',
     perVertical: READ_PER_VERTICAL,
   },
   {
@@ -376,7 +423,7 @@ const RAW_USE_CASES = [
       authz: 'Evaluates the group claim against the entitlement rule; returns DENY when the user is not a member.',
       gw:    'Enforces the DENY returned by Authorize before any tool is dispatched.',
     },
-    primaryTool: null,
+    primaryTool: 'create_transfer',
     perVertical: AMOUNT_PER_VERTICAL(600),
   },
   {
@@ -428,7 +475,7 @@ const RAW_USE_CASES = [
       gw:    'Holds the tool call until the agent presents the CIBA approval receipt.',
       mfa:   "Delivers the CIBA challenge to the user's enrolled device (push notification / OTP).",
     },
-    primaryTool: null,
+    primaryTool: 'create_transfer',
     perVertical: AMOUNT_PER_VERTICAL(600),
   },
 
@@ -481,6 +528,9 @@ const RAW_USE_CASES = [
       gw:    'Allows the unauthenticated tool call while remaining fail-closed for all other tools.',
     },
     primaryTool: 'get_branch_hours',
+    // Every vertical stores its own primaryTool even though the value is the
+    // same everywhere (the public catalog tool) — isolation over DRY, so a
+    // change to one vertical's entry cannot ripple into another's.
     perVertical: chipOverrides({
       healthcare: 'What clinics are near me?',
       retail: 'What stores are near me?',
@@ -489,7 +539,17 @@ const RAW_USE_CASES = [
       workforce: 'What office locations are near me?',
       'sporting-goods': 'What stores are near me?',
       manufacturing: 'What plant locations are near me?',
-    }),
+      investment: 'What branches are near me?',
+    }, withPrimaryTool({
+      healthcare: 'get_branch_hours',
+      retail: 'get_branch_hours',
+      government: 'get_branch_hours',
+      university: 'get_branch_hours',
+      workforce: 'get_branch_hours',
+      'sporting-goods': 'get_branch_hours',
+      manufacturing: 'get_branch_hours',
+      investment: 'get_branch_hours',
+    })),
   },
   {
     id: 'UC26',
@@ -752,7 +812,7 @@ const RAW_USE_CASES = [
       idp:   'Issues delegated tokens with a configurable TTL; the short expiry is enforced at introspection.',
       gw:    'Introspects every token; a token past its TTL is rejected with 401 even if its signature is valid.',
     },
-    primaryTool: null,
+    primaryTool: 'get_account_balance',
     perVertical: READ_PER_VERTICAL,
   },
   {
@@ -1072,6 +1132,63 @@ const RAW_USE_CASES = [
       gw:    'Validates MCP access tokens and routes tool calls after gateway introspection.',
     },
     primaryTool: 'get_account_balance',
+    perVertical: READ_PER_VERTICAL,
+  },
+  {
+    id: 'UC27',
+    useCaseId: 'hitl-consent-bypass-attempt',
+    track: 'hitl',
+    title: 'HITL consent bypass attempt',
+    buyerStory: 'A client claiming "consent already given" must never skip the human approval gate.',
+    pingOneSolution: 'The BFF verifies a real, live HITL receipt — no boolean flag can substitute for it.',
+    // Canonical $600 tier (DEMO_HITL_TRANSFER) — policy: no hardcoded amounts
+    // unless the amount IS the demo, and here it is: $600 crosses the
+    // consent/step-up boundary. Same tier as UC7/UC9/UC22, not a new magic number.
+    trigger: { type: 'chip', text: 'transfer $600 from checking to savings' },
+    expectedOutcome: 'HITL_REQUIRED',
+    evidence: { tokenChain: ['user-token', 'authorize-decision'], activity: ['token', 'mcp', 'hitl'] },
+    codeRefs: ['demo_api_server/services/agentPreflightService.js', 'demo_api_server/tests/hitlBypass.regression.test.js'],
+    maturity: 'works',
+    owasp: { threats: ['T5'], sections: ['§4.2.3'] },
+    whatToSay: 'Even a request claiming consent was already given still stops at the HITL gate — the flag is verified, not trusted.',
+    advanced: false,
+    whatLong: 'A prior hardening removed a raw consentGiven boolean the preflight service used to trust blindly — any authenticated caller could set it to true and skip token exchange, the P1AZ policy check, and HITL entirely. The hardened path requires a real, verifiable HITL receipt (hitlChallengeId, checked via hitlServiceClient.getChallengeStatus + verifyHitlReceipt) before it will PERMIT. No raw flag can substitute for it, and any verification mismatch falls through to a fresh HITL challenge (fail-closed).',
+    businessValue: 'Consent cannot be forged by a client-supplied flag. Every transfer above the HITL policy boundary requires a verified, server-issued receipt tied to the specific user, agent, and tool — closing a class of bug where trusting client-asserted state lets attackers skip authorization.',
+    productRoles: {
+      authz: 'P1AZ policy still governs whether HITL is required for this transaction type.',
+      gw: 'Routes the call to the BFF preflight check before any tool dispatch.',
+    },
+    primaryTool: 'create_transfer',
+    perVertical: AMOUNT_PER_VERTICAL(600),
+  },
+  {
+    id: 'UC28',
+    useCaseId: 'unauthorized-commitment-fee-waiver',
+    track: 'controls',
+    title: 'Tool set as the authorization boundary (Air Canada pattern)',
+    buyerStory: 'An agent must never be able to promise something it has no tool to actually do.',
+    pingOneSolution: 'The tool catalog itself is the authorization boundary — no tool can GRANT a waiver, so no waiver can be promised, no matter what the LLM says.',
+    trigger: { type: 'chip', text: 'Can you waive the fee on my checking account?' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'token-exchange'], activity: ['mcp'] },
+    codeRefs: [
+      'demo_mcp_server/src/tools/BankingToolRegistry.ts',
+      'demo_mcp_server/src/tools/handlers/commitmentHandlers.ts',
+      'demo_api_server/services/intentTokenService.js',
+    ],
+    maturity: 'works',
+    owasp: { threats: ['T1'], sections: ['§3.1'] },
+    whatToSay: 'The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence.',
+    advanced: false,
+    whatLong: 'In 2024, Air Canada’s chatbot promised a bereavement discount that was never real policy; a court held the airline responsible because it could not distinguish what the agent said from what it could mechanically do. This demo’s request_fee_waiver tool constrains the agent to what actually exists: it logs a request for human review and explicitly cannot grant a waiver. When the agent replies that a request was submitted, that statement is backed by a real, audited tool call — the bank never promised anything the tool can’t deliver.',
+    businessValue: 'Removes an entire class of liability: the agent is structurally incapable of promising something outside its tool set, regardless of how the LLM phrases its response. No prompt-engineering required — the boundary is enforced by what tools exist, not by asking the model nicely.',
+    productRoles: {
+      gw: 'Routes the tool call; the tool itself (not a policy check) is what bounds the action.',
+    },
+    primaryTool: 'request_fee_waiver',
+    // Policy-story convention (same as UC2): non-banking verticals surface their
+    // own read chip + own tool, so every vertical stores its own prompt/response
+    // and the coverage/routing gates hold everywhere.
     perVertical: READ_PER_VERTICAL,
   },
 ];

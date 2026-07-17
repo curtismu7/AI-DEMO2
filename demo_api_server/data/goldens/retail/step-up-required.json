@@ -1,0 +1,12 @@
+{
+  "vertical": "retail",
+  "useCaseId": "step-up-required",
+  "ucId": "UC7",
+  "trigger": "checkout headphones for $600",
+  "expectedOutcome": "STEP_UP",
+  "capturedAt": "2026-07-17T15:13:07.848Z",
+  "seedHash": "6a8345537e56d245",
+  "reply": "Simulated authorization policy requires step-up before MCP tools (education mode).",
+  "agentPath": null,
+  "tokenEventCount": 13
+}

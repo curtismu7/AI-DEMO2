@@ -160,14 +160,21 @@ console.info = function(...args) {
 };
 
 function captureLog(level, args) {
+  // logger.js (utils/logger.js) passes the structured log entry as its own
+  // object arg alongside the printed message, so console-captured logs can
+  // show real detail instead of a message-only line with nothing else.
+  const detailArg = args.find(arg => typeof arg === 'object' && arg !== null);
+
   const logEntry = {
     id: nextConsoleLogId++,
     timestamp: new Date().toISOString(),
     level,
-    message: args.map(arg => 
-      typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
-    ).join(' '),
-    args: args.map(arg => 
+    message: args
+      .filter(arg => typeof arg !== 'object' || arg === null)
+      .map(arg => String(arg))
+      .join(' '),
+    detail: detailArg ? JSON.stringify(detailArg, null, 2) : undefined,
+    args: args.map(arg =>
       typeof arg === 'object' ? arg : String(arg)
     )
   };

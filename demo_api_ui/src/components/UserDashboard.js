@@ -1537,6 +1537,17 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
         beginStepUp(error.response.data);
       } else if (rfc9470StepUp) {
         beginStepUp(rfc9470StepUp);
+      } else if (d?.error === "policy_not_found") {
+        // Policy drift, NOT a permission problem: the action has no matching
+        // authorization policy. Independent of HTTP status — the real PingOne
+        // Authorize engine returns 503 for this, while insufficient_scope and
+        // other permission denials stay 403. Say so, so nobody chases scopes
+        // or user perms.
+        notifyError(
+          d?.error_description ||
+            "Policy not found — this action has no matching authorization policy. Please contact your administrator.",
+          5000,
+        );
       } else if (error.response?.status === 403) {
         const scopeError = d?.error === "insufficient_scope";
         if (scopeError) {
@@ -1546,14 +1557,6 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
             userScopes.length > 0 ? userScopes.join(", ") : "(none)";
           notifyError(
             `Insufficient scope: This action requires '${requiredScope}' scope.\nYour token has: ${userScopesStr}\nRe-authenticate to request additional scopes.`,
-            5000,
-          );
-        } else if (d?.error === "policy_not_found") {
-          // Policy drift, NOT a permission problem: the action has no matching
-          // authorization policy. Say so, so nobody chases scopes or user perms.
-          notifyError(
-            d?.error_description ||
-              "Policy not found — this action has no matching authorization policy. Please contact your administrator.",
             5000,
           );
         } else {
@@ -1645,6 +1648,17 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
         beginStepUp(error.response.data);
       } else if (rfc9470StepUp) {
         beginStepUp(rfc9470StepUp);
+      } else if (d?.error === "policy_not_found") {
+        // Policy drift, NOT a permission problem: the action has no matching
+        // authorization policy. Independent of HTTP status — the real PingOne
+        // Authorize engine returns 503 for this, while insufficient_scope and
+        // other permission denials stay 403. Say so, so nobody chases scopes
+        // or user perms.
+        notifyError(
+          d?.error_description ||
+            "Policy not found — this action has no matching authorization policy. Please contact your administrator.",
+          5000,
+        );
       } else if (error.response?.status === 403) {
         const scopeError = d?.error === "insufficient_scope";
         if (scopeError) {
@@ -1654,14 +1668,6 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
             userScopes.length > 0 ? userScopes.join(", ") : "(none)";
           notifyError(
             `Insufficient scope: This action requires '${requiredScope}' scope.\nYour token has: ${userScopesStr}\nRe-authenticate to request additional scopes.`,
-            5000,
-          );
-        } else if (d?.error === "policy_not_found") {
-          // Policy drift, NOT a permission problem: the action has no matching
-          // authorization policy. Say so, so nobody chases scopes or user perms.
-          notifyError(
-            d?.error_description ||
-              "Policy not found — this action has no matching authorization policy. Please contact your administrator.",
             5000,
           );
         } else {
@@ -1758,6 +1764,17 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
         beginStepUp(error.response.data);
       } else if (rfc9470StepUp) {
         beginStepUp(rfc9470StepUp);
+      } else if (d?.error === "policy_not_found") {
+        // Policy drift, NOT a permission problem: the action has no matching
+        // authorization policy. Independent of HTTP status — the real PingOne
+        // Authorize engine returns 503 for this, while insufficient_scope and
+        // other permission denials stay 403. Say so, so nobody chases scopes
+        // or user perms.
+        notifyError(
+          d?.error_description ||
+            "Policy not found — this action has no matching authorization policy. Please contact your administrator.",
+          5000,
+        );
       } else if (error.response?.status === 403) {
         const scopeError = d?.error === "insufficient_scope";
         if (scopeError) {
@@ -1767,14 +1784,6 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
             userScopes.length > 0 ? userScopes.join(", ") : "(none)";
           notifyError(
             `Insufficient scope: This action requires '${requiredScope}' scope.\nYour token has: ${userScopesStr}\nRe-authenticate to request additional scopes.`,
-            5000,
-          );
-        } else if (d?.error === "policy_not_found") {
-          // Policy drift, NOT a permission problem: the action has no matching
-          // authorization policy. Say so, so nobody chases scopes or user perms.
-          notifyError(
-            d?.error_description ||
-              "Policy not found — this action has no matching authorization policy. Please contact your administrator.",
             5000,
           );
         } else {
@@ -2253,7 +2262,7 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
               From: {selectedAccount.accountType} -{" "}
               {selectedAccount.accountNumber} ({fmt(selectedAccount.balance)})
             </p>
-            <form onSubmit={handleTransfer}>
+            <form onSubmit={handleTransfer} aria-label="Transfer form">
               <div className="form-group">
                 <label>To Account:</label>
                 <select

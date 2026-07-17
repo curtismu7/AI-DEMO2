@@ -1,0 +1,12 @@
+{
+  "vertical": "sporting-goods",
+  "useCaseId": "delegated-access-with-proof",
+  "ucId": "UC1",
+  "trigger": "my gear",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-17T15:13:18.947Z",
+  "seedHash": "c48bf4072b509915",
+  "reply": "❌ Gateway upstream error (HTTP 500)",
+  "agentPath": null,
+  "tokenEventCount": 14
+}

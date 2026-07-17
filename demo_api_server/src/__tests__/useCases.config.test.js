@@ -11,16 +11,18 @@ const MATURITY = /^(works|needs-console-import|needs-build|flag:[a-z0-9_]+)$/;
 const UTILITY_TRACKS = ['tools', 'learn'];
 
 describe('useCases catalog SoT', () => {
-  test('contains all 41 use cases including UC1..UC26 and UC23..UC24', () => {
-    expect(USE_CASES).toHaveLength(41);
+  test('contains all 43 use cases including UC1..UC28 and UC23..UC24', () => {
+    expect(USE_CASES).toHaveLength(43);
     const ids = USE_CASES.map((u) => u.id);
-    expect(new Set(ids).size).toBe(41);
+    expect(new Set(ids).size).toBe(43);
     for (let n = 1; n <= 22; n++) expect(ids).toContain(`UC${n}`);
     expect(ids).toContain('UC23');
     expect(ids).toContain('UC24');
     expect(ids).toContain('UC25');
     expect(ids).toContain('UC26');
-    expect(ids).not.toContain('UC27');
+    expect(ids).toContain('UC27');
+    expect(ids).toContain('UC28');
+    expect(ids).not.toContain('UC29'); // next free id — update when minting it
   });
 
   test('every entry is schema-valid', () => {
@@ -64,10 +66,16 @@ describe('useCases catalog SoT', () => {
     expect(blob).not.toMatch(/banking:(read|write|admin)/);
   });
 
-  test('VERTICALS lists the 8 supported verticals', () => {
+  test('VERTICALS lists the 9 supported verticals', () => {
+    // Adding a vertical here is not cosmetic: VERTICALS is what gives a vertical its
+    // perVertical chip overrides AND is the list every audit loops over. Omitting one
+    // makes it inherit banking phrases its own heuristics cannot route (kind:'none' ->
+    // "I didn't catch that", Authorize/Gateway never reached) while no test can see it.
+    // investment was 6/7 dead exactly that way.
     expect(VERTICALS).toEqual([
       'banking', 'healthcare', 'retail', 'government',
       'university', 'workforce', 'sporting-goods', 'manufacturing',
+      'investment',
     ]);
   });
 
@@ -149,6 +157,17 @@ describe('useCases catalog SoT', () => {
         UC8: 'approve a $300 purchase order',
         UC24: 'What plant locations are near me?',
       },
+      investment: {
+        // Verified against investment's OWN heuristics: 'show my portfolios' ->
+        // view_portfolios, 'execute a large trade of $N' -> large_trade {amount:N}.
+        // The banking defaults it used to inherit ("transfer $N from checking to
+        // savings") match no investment heuristic — that is what left it 6/7 dead.
+        UC1: 'show my portfolios',
+        UC6: 'execute a large trade of $2500',
+        UC7: 'execute a large trade of $600',
+        UC8: 'execute a large trade of $300',
+        UC24: 'What branches are near me?',
+      },
     };
     for (const vertical of VERTICALS) {
       for (const [id, text] of Object.entries(expected[vertical])) {
@@ -157,9 +176,9 @@ describe('useCases catalog SoT', () => {
     }
   });
 
-  test('listUseCases returns all 41 resolved for a vertical', () => {
-    expect(listUseCases('healthcare')).toHaveLength(41);
-    expect(listUseCases()).toHaveLength(41);
+  test('listUseCases returns all 43 resolved for a vertical', () => {
+    expect(listUseCases('healthcare')).toHaveLength(43);
+    expect(listUseCases()).toHaveLength(43);
   });
 
   test('only UC14 and UC15 are advanced', () => {

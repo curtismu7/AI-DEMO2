@@ -1,0 +1,12 @@
+{
+  "vertical": "university",
+  "useCaseId": "step-up-required",
+  "ucId": "UC7",
+  "trigger": "pay $600 tuition",
+  "expectedOutcome": "STEP_UP",
+  "capturedAt": "2026-07-17T15:13:14.342Z",
+  "seedHash": "55fb07346bdb7866",
+  "reply": "Simulated authorization policy requires step-up before MCP tools (education mode).",
+  "agentPath": null,
+  "tokenEventCount": 13
+}

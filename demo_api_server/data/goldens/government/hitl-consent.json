@@ -1,0 +1,13 @@
+{
+  "vertical": "government",
+  "useCaseId": "hitl-consent",
+  "ucId": "UC8",
+  "trigger": "pay the $300 fee",
+  "expectedOutcome": "HITL_REQUIRED",
+  "capturedAt": "2026-07-17T15:13:12.221Z",
+  "seedHash": "883b08745d6e1401",
+  "reply": "Simulated authorization policy requires human approval before MCP tools (education mode).",
+  "requiresConsent": true,
+  "agentPath": null,
+  "tokenEventCount": 13
+}

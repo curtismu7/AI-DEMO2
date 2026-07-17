@@ -84,6 +84,97 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-17 — LLM-only routing fell back to heuristics on every chip phrase
+
+**Files changed:** `demo_api_server/services/geminiNlIntent.js`,
+`demo_api_server/tests/geminiNlIntent.llmOnly.test.js` (new).
+
+**What was broken:** in LLM-only mode (routing toggle = "LLM only", i.e.
+`ff_heuristic_enabled=false`) every dashboard chip phrase still answered as
+"Heuristic". The llama.cpp intent-router grammar (`INTENT_JSON_SCHEMA`) only
+required `{ kind: <string> }`. Under grammar-constrained decoding gpt-oss-20b
+satisfied that by emitting `{"kind":"banking"}` — with no `banking.action` —
+and stopping (confirmed by replaying the real router prompt: it returned
+`{"kind":"banking"}` and, on the balance query, malformed `{"kind":"banking,"}`).
+`validateIntent` correctly rejected the incomplete shapes, so the JSON router
+"missed" (twice, including after the JSON-only retry nudge) and the
+deterministic heuristic chip floor answered. The LLM *did* run
+(`llm_attempted:true`) and the rendered answer was correct, but LLM-only mode
+was structurally unable to route action phrases.
+
+**What was fixed:** replaced the flat schema with `buildIntentSchema(activeVertical)`,
+which forces the COMPLETE per-vertical shape via anyOf — banking verticals must
+emit `banking.action`, other verticals must emit `vertical`+`action` — while
+still allowing `education` and `none` so open questions fall through to the
+conversational path (kind:none → validateIntent null → conversational) instead
+of being forced to fabricate an action. Replayed against the live model: all
+three banking phrases now route `source=llamacpp` with the correct action;
+"weather" still yields kind:none. validateIntent remains the strict post-parse
+check.
+
+**Do not break:** `buildIntentSchema` must keep `none` in the anyOf (else the
+grammar forces a fabricated action on genuine free text). Only the llama.cpp
+branch passes the schema; mlx passes none (unchanged). The llamacppLlmService
+proxy drops the schema on an HTTP 400, so the schema must stay within llama.cpp
+grammar support (the anyOf form is accepted — verified live, no 400).
+
+**Verify:** `cd demo_api_server && npx jest tests/geminiNlIntent.llmOnly.test.js`
+(5 pass: schema-shape guards + LLM-only routes through llama.cpp, not the
+floor). Live: set ff_heuristic_enabled=false, POST /api/demo-agent/nl
+{message:"show my accounts", provider:"llamacpp"} → source=llamacpp,
+action=accounts. Test note: the shared setup.js runs jest.resetModules() in
+afterEach, so the test re-requires the module-under-test + its mock together
+per test (loadFresh) to keep the lazy-require mock identity aligned.
+
+### 2026-07-17 — Agent write tools 401 at the BFF + evidence-spec echo race (bk4/bk7 red)
+
+**Files changed:** `demo_api_server/middleware/auth.js`,
+`demo_api_server/tests/verticalToolAudience.regression.test.js` (PR #566);
+`demo_api_server/services/simulatedAuthorizeService.js`,
+`demo_api_server/tests/simulatedConsentTypes.test.js` (PR #567);
+`demo_api_ui/tests/e2e/evidence-screenshots.real.spec.js` (this PR).
+Live-env only (no commit): ping-gateway container recreate (stale single-file
+bind mount of `mcp-tool-schemas.json` — macOS VirtioFS loses the mount when
+the host file is replaced, PingGateway then 500s every `/mcp` POST),
+`MORTGAGE_SERVICE_API_KEY` re-mint + vault sync, and
+`SIMULATED_AUTHORIZE_CONSENT_TYPES=` (explicit empty) in `demo_api_server/.env`.
+
+**What was broken:** three stacked faults surfaced once the PingGateway `/mcp`
+route was restored. (1) The July-16 audience hardening allowlisted only READ
+MCP-server→BFF callbacks (`/my`, `/:id`, `/balance`, `/vertical-tool`,
+`/identity`) for gateway-audience tokens; the same `BankingAPIClient` POSTs
+`/api/transactions` and the account write callbacks, so every agent-initiated
+write 401'd (`aud mcpgateway.ping.demo != enduser.ping.demo`) and the chat
+turn hung on a spinner. (2) The simulated-authorize consent-types getter's
+`||` fallback made an explicitly-empty `SIMULATED_AUTHORIZE_CONSENT_TYPES`
+fall through to the `'transfer'` default — type-based consent could never be
+turned off, so a $100 transfer 428'd despite the amount tiers starting at the
+confirm threshold. (3) The evidence spec's render poll counted the echoed
+prompt + "You" chrome as a reply, passed ~1.6s after Enter, waited 500ms, and
+asserted assistant text — losing the race against the restored PingGateway
+pipeline's ~3s round-trip, so bk4 failed "assistant reply is EMPTY" while the
+reply landed a second later.
+
+**What was fixed:** write callbacks matched on `method` + `req.baseUrl`
+(router-relative path is `/`) so exactly `POST /api/transactions`,
+`POST /api/accounts/:id/fee-waiver-request`, and
+`PATCH /api/accounts/:id/contact-email` accept gateway-audience tokens;
+nullish fallbacks in `getConsentTypes()` so explicit empty means "no
+type-based consent" (unset default unchanged); the spec's poll now strips the
+echo/chrome exactly like its EMPTY assert and only resolves on real assistant
+text.
+
+**Do not break:** every non-callback route still rejects gateway-audience
+tokens (locked by 18 checks in `verticalToolAudience.regression.test.js`);
+Authorize decision, HITL 428, scope and role enforcement on the widened
+routes run downstream of the audience check and were untouched; the spec's
+EMPTY/error-card asserts remain the hard gate after the poll.
+
+**Verify:** `cd demo_api_server && npx jest tests/verticalToolAudience.regression.test.js tests/simulatedConsentTypes.test.js`
+(16 pass); full evidence suite green both modes:
+`E2E_EVIDENCE_MODES="heuristics" npx playwright test tests/e2e/evidence-screenshots.real.spec.js --config=playwright.real.config.js`
+(13 passed) and the same with `llamacpp` (13 passed).
+
 ### 2026-07-16 — Settings consolidation: step-up threshold dual-store gap + ThresholdControls duplicate writers
 
 **Files changed:** `demo_api_server/services/configStore.js`, `demo_api_server/routes/admin.js`,
@@ -123,6 +214,105 @@ not touched, only a previously-dead config key's write path.
 
 **Verify:** `cd demo_api_server && npx jest src/__tests__/configStore-stepUpThresholdSave.test.js src/__tests__/adminSettings.stepUpThresholdBridge.test.js src/__tests__/transactionConsentChallenge.test.js --testPathIgnorePatterns="/node_modules/"`;
 `cd demo_api_ui && npx vitest run src/config/__tests__/setupDefaults.test.js src/config/__tests__/setupDefaults.usage.test.js src/components/__tests__/ThresholdControls.test.js && npm run build`.
+### 2026-07-16 — Silent-reauth infinite redirect loop (`?silent_reauth_failed=1` refreshing forever)
+
+**Files changed:** `demo_api_ui/src/components/StaleSessionBanner.jsx`,
+`demo_api_ui/src/components/StaleSessionBanner.test.jsx` (new).
+
+**What was broken:** Commit `af059d9e7` (same day, "fix: 10 real bugs...")
+fixed bug #35 (`StaleSessionBanner`'s `silentFailed` URL check) and bug #39
+(`useOAuthUrlCleanup` stripping the `?silent_reauth_failed=1` param) in the
+same patch, but the two interact: `useOAuthUrlCleanup`'s effect strips the
+param from the URL *synchronously* on mount, while `StaleSessionBanner` only
+read the param *after* an `await getCachedJson(...)` — by which point the
+param was already gone, so its `silentFailed` guard was always `false`.
+Separately, `StaleSessionBanner`'s sessionStorage-guard-clear effect
+(`if (!stale) sessionStorage.removeItem(...)`) fired on the component's very
+first mount too, because `stale` initializes to `null` — wiping the
+sessionStorage guard on the exact page load meant to be protected by it. With
+both loop guards defeated at once, the banner immediately re-redirected to
+`/api/auth/oauth/user/silent-reauth`, PingOne failed again (no SSO session),
+and the browser looped on `?silent_reauth_failed=1` forever. The server-side
+half of the flow (`demo_api_server/routes/oauthUser.js`) was already correct
+and single-shot; the loop was entirely client-side.
+
+**What was fixed:** `StaleSessionBanner` now captures `silent_reauth_failed`
+from `window.location.search` in a `useRef` lazy initializer — evaluated
+during the component's initial render, strictly before any effect (including
+`useOAuthUrlCleanup`'s) runs, so the read can no longer race the URL cleanup
+regardless of effect mount order. The sessionStorage-guard-clear effect now
+skips its first invocation (tracked via a ref) so it only fires on a genuine
+stale→valid transition, not on the initial `null` mount.
+
+**Do not break:** the two loop guards (`silentAttemptedRef` in-memory,
+`SILENT_ATTEMPTED_KEY` in `sessionStorage`) still exist and must both survive
+a page landing on `?silent_reauth_failed=1` without being cleared before the
+async status check reads them. `useOAuthUrlCleanup`'s param-stripping effect
+was left untouched — stripping the param from the visible URL is correct
+UX; the bug was only in `StaleSessionBanner` reading it too late.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/components/StaleSessionBanner.test.jsx`
+(2 pass — one reproduces the loop against the pre-fix code by mounting
+`StaleSessionBanner` under `useOAuthUrlCleanup()` the way `App.js` really
+does); `npm run build` (exit 0).
+
+### 2026-07-16 — 7/16 punch-list batch 2 (graphify framing, may_act terminology sweep, debug log detail)
+
+**Files changed:** `demo_api_ui/src/components/GraphifyPage.jsx`,
+`demo_api_ui/src/components/GraphifyPage.css`,
+`demo_api_ui/src/components/DelegationPage.js`,
+`demo_api_server/utils/logger.js`, `demo_api_server/routes/logs.js`.
+
+**What was broken / requested:**
+
+1. `/graphify` — user reported "I do not see how to actually run this?" The
+   page already stated (in small body text under "Try it") that it's a
+   canned-snapshot showcase with no live backend, but nothing above the fold
+   said so — easy to miss.
+2. `/delegation` — 4 leftover `may_act` mentions in user-facing copy
+   (`OIDC Core` chip label, validation-mode status line, a demo talk-track
+   step, one code comment) hadn't been swept to the "act claim" terminology
+   already used everywhere else in the education surfaces.
+3. `/logs?mode=learn` (Debug tab) — the "Details" column was always empty.
+   `logger.js`'s `log()` method stringified the entire structured entry
+   (including `metadata`) into ONE colored string and passed it as the sole
+   `console.log` argument; `routes/logs.js`'s `captureLog()` never populated
+   `detail` at all, and had no clean object to derive it from even if it had.
+
+**What was fixed:**
+
+1. Added a high-contrast info banner (matching the existing
+   `.mfa-test-info-banner` convention in `MFATestPage.css`) right after the
+   page thesis, before the stats: explicitly states this is a showcase with
+   no "Run" button and no backend call, and points at "Try it" below.
+   Tightened the "Try it" section's copy to spell out copy → paste in a
+   terminal → run. No backend/live-execution work — this was explicitly
+   scoped to framing only, not a live runner (three options were on the
+   table; smallest was chosen).
+2. Swept the 4 remaining `may_act` UI-copy mentions in `DelegationPage.js` to
+   "act claim" language, consistent with `ActorTokenEducation.tsx`'s already
+   -completed sweep. Left the backend `may_act` *mechanism* itself untouched
+   (it's real, load-bearing PingOne attribute logic, not deprecated — see the
+   `may_act` grep summary in the 2026-07-16 entry above this one).
+3. `logger.js`'s `log()` now passes the structured `entry` object as a
+   second, separate `console.log` argument instead of folding it into one
+   stringified/colored message. `routes/logs.js`'s `captureLog()` now picks
+   the first object-type arg (if any) as `detail` (pretty-printed JSON) and
+   keeps `message` as the joined string args only — so `logger.info()`/
+   `.warn()`/`.error()` calls made through `utils/logger.js` now show real
+   structured detail in the Debug tab instead of "—".
+
+**Do not break:** `captureLog()`'s `detail` derivation only looks at
+console-captured args, not `appEventService`'s data (Activity Log stays a
+separate, intentionally-not-merged data source — see the settings/logs
+cluster note in the 2026-07-16 punch-list report). Plain `console.log('a
+string')` calls elsewhere in the app (the vast majority, unrelated to this
+logger) are unaffected — `detail` stays `undefined` for them, same as before.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0); `cd demo_api_server &&
+npx jest src/__tests__/logs.test.js tests/agentRestrictionsGate.test.js
+src/__tests__/agent-module-smoke.test.js --testPathIgnorePatterns="/node_modules/"`
+(53 pass, 0 fail).
 
 ### 2026-07-16 — 7/16 punch-list batch (onboarding close button, code-search error text, banking token-chain jump)
 
@@ -255,6 +445,26 @@ scratch, and doesn't re-chase the TLS/scheme theories already ruled out above.
 frontend`, `kubectl -n ai-demo get networkpolicy`, and `kubectl -n ai-demo exec
 deploy/api-server -- curl -vk https://frontend:4000/` to see the actual refusal
 point.
+### 2026-07-16 — MFA step-up `return_to` open redirect (CWE-601)
+
+**Files changed:** `demo_api_server/routes/oauthUser.js`,
+`demo_api_server/tests/oauthUser.test.js`.
+
+**What was broken:** `GET /api/auth/oauth/user/stepup?return_to=` stored the
+raw query value in `req.session.stepUpReturnTo`. After PingOne MFA, the OAuth
+callback did `res.redirect(stepUpReturnTo)` with no same-origin check — an
+attacker link like `…/stepup?return_to=https://evil.example/phish` sent the
+victim to the attacker site after authenticating.
+
+**What was fixed:** `sanitizeStepUpReturnTo` accepts only relative SPA paths
+or absolute URLs whose origin matches `getFrontendOrigin()`; otherwise falls
+back to `${origin}/dashboard`. Appends `stepup=done` with `?`/`&` correctly.
+
+**Do not break:** UserDashboard / UserDashboardPing2026 step-up links that pass
+`${CLIENT_URL}/dashboard` must keep working. Normal login still uses
+`sanitizePostLoginReturnPath` (path-only, unchanged).
+
+**Verify:** `cd demo_api_server && npx jest tests/oauthUser.test.js --forceExit`.
 
 ### 2026-07-15 — Code Explorer browser "network error" (nginx SSE buffering)
 
@@ -1171,6 +1381,20 @@ backends), `bash ping-gateway/scripts/validate-config.sh` (PASS),
 **Do not break:** the LaunchAgent / any supervisor must NEVER call `start-local-models.sh start` (all-5). Load the smallest tier via `ensure 8091` and let the tier-manager swap. Do not force `ensure` on a timer unconditionally — it evicts an in-use tier and fights the router; only ensure when nothing is loaded.
 
 **Verify:** `bash -n demo_llm_proxy/supervise-swap.sh`; run it and confirm only one tier is up (`for p in 8091 8092 8093 8094 8096; do curl -s 127.0.0.1:$p/health -o /dev/null -w "$p:%{http_code}\n"; done`); `launchctl list | grep llama-models`.
+
+### 2026-07-17 — Heuristics silently called a frontier API; /api/conversations mounted without auth
+
+**Files changed:**
+- `demo_api_server/routes/agentRun.js` — `/run` resolved the LLM provider without ever consulting `agent_mode`, so a run that arrived with no explicit provider (Heuristics selected, a stale session provider, or the HITL resume/cancel runs which send none) fell through to a hard-coded `'anthropic'` — the `401 invalid x-api-key` seen on the SE deploy. Now resolves the mode first (`resolveAgentMode`) and pins `provider='none'` for heuristics before the provider chain.
+- `demo_api_server/routes/langchainConfig.js` — `POST /config` only wrote the provider when `am.provider` was truthy, so switching *to* heuristics left the previous LLM provider in the session for `agentRun` to pick up. Now writes `am.provider || null` on every mode change.
+- `demo_api_server/server.js` — `/api/conversations` was mounted **without** `authenticateToken`, so `req.user` was always undefined and every ownership-guarded request 401'd (the route's own docstring wrongly claimed it was authenticated). Added the middleware.
+- `demo_api_ui/src/hooks/useAgentRun.js`, `demo_api_ui/src/components/AIAgent.js` — thread the selected `mode` through every run path (including HITL resume/cancel), so "Heuristics only" is authoritative and cannot be overridden by a server-wide `AGENT_MODE` pod env.
+- `demo_api_ui/src/components/ConversationSummaryPanel.jsx` — latch a 401/403 per page-load so a stale session stops re-firing the summaries request (~10 console 401s in seconds → ask once).
+- `demo_api_server/tests/agentRunHeuristicsProvider.test.js` (NEW) — pins that heuristics resolves to `provider='none'` across the body-mode, stale-session, and HITL-resume paths, and that LLM modes still resolve their provider.
+
+**Do not break:** heuristics MUST resolve `provider='none'` — never fall through to `'anthropic'`. `/api/conversations` MUST stay behind `authenticateToken`. (Extracted from PR #405; its agent-hidden/clinical-split third was dropped — PR #527 already shipped that fix more completely.)
+
+**Verify:** `CI=true npx jest tests/agentRunHeuristicsProvider.test.js` (6/6); grep `server.js` for `'/api/conversations', authenticateToken`.
 
 ### 2026-07-05 — Agent dock silent-failure when "llama.cpp only" selected but provider down (+ hardening)
 

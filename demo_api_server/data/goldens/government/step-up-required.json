@@ -1,0 +1,12 @@
+{
+  "vertical": "government",
+  "useCaseId": "step-up-required",
+  "ucId": "UC7",
+  "trigger": "pay the $600 fee",
+  "expectedOutcome": "STEP_UP",
+  "capturedAt": "2026-07-17T15:13:11.537Z",
+  "seedHash": "883b08745d6e1401",
+  "reply": "Simulated authorization policy requires step-up before MCP tools (education mode).",
+  "agentPath": null,
+  "tokenEventCount": 13
+}

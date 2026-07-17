@@ -83,10 +83,12 @@ function getStepUpAmountUsd() {
   );
 }
 
-/** Transaction types that always require consent (comma-separated, e.g., "transfer,withdrawal"). */
+/** Transaction types that always require consent (comma-separated, e.g., "transfer,withdrawal").
+ * An explicitly-set empty value means "no type-based consent" (amount thresholds still apply) —
+ * nullish fallbacks, not ||, so operators can actually turn the type rule off. */
 function getConsentTypes() {
-  const raw = configStore.get('SIMULATED_AUTHORIZE_CONSENT_TYPES') ||
-              process.env.SIMULATED_AUTHORIZE_CONSENT_TYPES ||
+  const raw = configStore.get('SIMULATED_AUTHORIZE_CONSENT_TYPES') ??
+              process.env.SIMULATED_AUTHORIZE_CONSENT_TYPES ??
               'transfer';
   return new Set(
     raw

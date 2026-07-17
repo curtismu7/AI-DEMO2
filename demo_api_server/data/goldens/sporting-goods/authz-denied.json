@@ -1,0 +1,12 @@
+{
+  "vertical": "sporting-goods",
+  "useCaseId": "authz-denied",
+  "ucId": "UC6",
+  "trigger": "extend my rental $2500",
+  "expectedOutcome": "DENY",
+  "capturedAt": "2026-07-17T15:13:19.491Z",
+  "seedHash": "c48bf4072b509915",
+  "reply": "❌ MCP tool access was denied by the simulated authorization policy (education mode).",
+  "agentPath": null,
+  "tokenEventCount": 13
+}

@@ -106,8 +106,11 @@ class StructuredLogger {
     };
     
     const resetColor = '\x1b[0m';
-    console.log(`${colorCode[level]}[${level}]${resetColor} ${formatted}`);
-    
+    // Pass the structured entry as its own arg (not stringified into the
+    // message) so the /logs Debug tab's console capture can surface it as
+    // real detail instead of one opaque colored JSON blob.
+    console.log(`${colorCode[level]}[${level}]${resetColor} [${category}] ${message}`, entry);
+
     // Write to file if enabled
     this.writeToFile(formatted, level);
     

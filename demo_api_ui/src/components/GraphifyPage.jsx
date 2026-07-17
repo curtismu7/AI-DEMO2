@@ -45,6 +45,17 @@ export default function GraphifyPage() {
           then open only the files the graph pointed at.
         </p>
 
+        <div className="graphify-mode-banner" role="note">
+          <strong>This page is a showcase, not a live tool.</strong>
+          <p>
+            Everything below — stats, demo commands, and outputs — is a
+            snapshot from <code>graphify-out/</code>, computed ahead of time.
+            There is no "Run" button here and no backend call. To run
+            Graphify yourself, copy a command from "Try it" below and run it
+            in a terminal at the repo root.
+          </p>
+        </div>
+
         <div className="graphify-stats" aria-label="Graph snapshot stats">
           <div className="graphify-stat">
             <span className="graphify-stat__value">{GRAPHIFY_STATS.nodes}</span>
@@ -112,8 +123,9 @@ export default function GraphifyPage() {
         <section className="graphify-section">
           <h2>Try it</h2>
           <p>
-            Canned outputs from this repo’s graph — no backend. Copy a command
-            and run it in a terminal with <code>graphify-out/</code> present.
+            Canned outputs from this repo’s graph — no backend. This tab
+            doesn't run anything itself: click "Copy", paste the command into
+            a terminal at the repo root, then press enter.
           </p>
           <div className="graphify-demos" role="tablist" aria-label="Graphify demos">
             {GRAPHIFY_DEMOS.map((d) => (

@@ -1,0 +1,13 @@
+{
+  "vertical": "university",
+  "useCaseId": "hitl-consent",
+  "ucId": "UC8",
+  "trigger": "pay $300 tuition",
+  "expectedOutcome": "HITL_REQUIRED",
+  "capturedAt": "2026-07-17T15:13:15.168Z",
+  "seedHash": "55fb07346bdb7866",
+  "reply": "Simulated authorization policy requires human approval before MCP tools (education mode).",
+  "requiresConsent": true,
+  "agentPath": null,
+  "tokenEventCount": 13
+}

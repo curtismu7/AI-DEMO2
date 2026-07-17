@@ -1,0 +1,13 @@
+{
+  "vertical": "investment",
+  "useCaseId": "hitl-consent",
+  "ucId": "UC8",
+  "trigger": "execute a large trade of $300",
+  "expectedOutcome": "HITL_REQUIRED",
+  "capturedAt": "2026-07-17T15:13:25.598Z",
+  "seedHash": null,
+  "reply": "Simulated authorization policy requires human approval before MCP tools (education mode).",
+  "requiresConsent": true,
+  "agentPath": null,
+  "tokenEventCount": 13
+}

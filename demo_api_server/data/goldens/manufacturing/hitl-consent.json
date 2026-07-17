@@ -1,0 +1,13 @@
+{
+  "vertical": "manufacturing",
+  "useCaseId": "hitl-consent",
+  "ucId": "UC8",
+  "trigger": "approve a $300 purchase order",
+  "expectedOutcome": "HITL_REQUIRED",
+  "capturedAt": "2026-07-17T15:13:23.171Z",
+  "seedHash": "dcba7c79003a5241",
+  "reply": "Simulated authorization policy requires human approval before MCP tools (education mode).",
+  "requiresConsent": true,
+  "agentPath": null,
+  "tokenEventCount": 13
+}
