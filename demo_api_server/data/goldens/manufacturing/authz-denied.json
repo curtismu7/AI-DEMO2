@@ -1,0 +1,11 @@
+{
+  "vertical": "manufacturing",
+  "useCaseId": "authz-denied",
+  "ucId": "UC6",
+  "trigger": "approve a $2500 purchase order",
+  "expectedOutcome": "DENY",
+  "capturedAt": "2026-07-17T13:52:41.788Z",
+  "reply": "❌ MCP tool access was denied by the simulated authorization policy (education mode).",
+  "agentPath": null,
+  "tokenEventCount": 13
+}

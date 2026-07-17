@@ -232,6 +232,13 @@ for r in "${ROWS[@]}"; do
   printf '%s %-24s %s\n' "$icon" "$name" "$detail"
 done
 echo
+# Fallback ladder readiness — which layer are you walking into if something dies?
+echo "— fallback ladder —"
+node scripts/check-goldens.js 2>/dev/null | head -1 || echo "  (goldens check unavailable)"
+echo "  L1 heuristics: always available (mode switch)"
+echo "  L2 simulated authorize: PATCH ff_authorize_simulated=true (+ authz-server)"
+echo "  L3 REPLAY: button on any chip-failure message (needs goldens above)"
+echo
 if [[ $FAIL -eq 0 ]]; then
   echo "✅ ALL CHECKS PASSED (${PASS}) — you're good to demo."
   exit 0

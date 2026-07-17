@@ -1,0 +1,11 @@
+{
+  "vertical": "manufacturing",
+  "useCaseId": "step-up-required",
+  "ucId": "UC7",
+  "trigger": "approve a $600 purchase order",
+  "expectedOutcome": "STEP_UP",
+  "capturedAt": "2026-07-17T13:52:42.397Z",
+  "reply": "Simulated authorization policy requires step-up before MCP tools (education mode).",
+  "agentPath": null,
+  "tokenEventCount": 13
+}

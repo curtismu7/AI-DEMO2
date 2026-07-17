@@ -1,0 +1,11 @@
+{
+  "vertical": "workforce",
+  "useCaseId": "delegated-access-with-proof",
+  "ucId": "UC1",
+  "trigger": "my benefits",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-17T13:52:36.617Z",
+  "reply": "❌ Gateway upstream error (HTTP 500)",
+  "agentPath": null,
+  "tokenEventCount": 14
+}

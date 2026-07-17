@@ -1,0 +1,11 @@
+{
+  "vertical": "workforce",
+  "useCaseId": "step-up-required",
+  "ucId": "UC7",
+  "trigger": "submit a $600 expense",
+  "expectedOutcome": "STEP_UP",
+  "capturedAt": "2026-07-17T13:52:37.719Z",
+  "reply": "Simulated authorization policy requires step-up before MCP tools (education mode).",
+  "agentPath": null,
+  "tokenEventCount": 13
+}

@@ -1,0 +1,11 @@
+{
+  "vertical": "investment",
+  "useCaseId": "authz-denied",
+  "ucId": "UC6",
+  "trigger": "execute a large trade of $2500",
+  "expectedOutcome": "DENY",
+  "capturedAt": "2026-07-17T13:52:44.201Z",
+  "reply": "❌ MCP tool access was denied by the simulated authorization policy (education mode).",
+  "agentPath": null,
+  "tokenEventCount": 13
+}
