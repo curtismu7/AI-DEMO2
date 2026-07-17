@@ -85,6 +85,55 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-17 — Agent write tools 401 at the BFF + evidence-spec echo race (bk4/bk7 red)
+
+**Files changed:** `demo_api_server/middleware/auth.js`,
+`demo_api_server/tests/verticalToolAudience.regression.test.js` (PR #566);
+`demo_api_server/services/simulatedAuthorizeService.js`,
+`demo_api_server/tests/simulatedConsentTypes.test.js` (PR #567);
+`demo_api_ui/tests/e2e/evidence-screenshots.real.spec.js` (this PR).
+Live-env only (no commit): ping-gateway container recreate (stale single-file
+bind mount of `mcp-tool-schemas.json` — macOS VirtioFS loses the mount when
+the host file is replaced, PingGateway then 500s every `/mcp` POST),
+`MORTGAGE_SERVICE_API_KEY` re-mint + vault sync, and
+`SIMULATED_AUTHORIZE_CONSENT_TYPES=` (explicit empty) in `demo_api_server/.env`.
+
+**What was broken:** three stacked faults surfaced once the PingGateway `/mcp`
+route was restored. (1) The July-16 audience hardening allowlisted only READ
+MCP-server→BFF callbacks (`/my`, `/:id`, `/balance`, `/vertical-tool`,
+`/identity`) for gateway-audience tokens; the same `BankingAPIClient` POSTs
+`/api/transactions` and the account write callbacks, so every agent-initiated
+write 401'd (`aud mcpgateway.ping.demo != enduser.ping.demo`) and the chat
+turn hung on a spinner. (2) The simulated-authorize consent-types getter's
+`||` fallback made an explicitly-empty `SIMULATED_AUTHORIZE_CONSENT_TYPES`
+fall through to the `'transfer'` default — type-based consent could never be
+turned off, so a $100 transfer 428'd despite the amount tiers starting at the
+confirm threshold. (3) The evidence spec's render poll counted the echoed
+prompt + "You" chrome as a reply, passed ~1.6s after Enter, waited 500ms, and
+asserted assistant text — losing the race against the restored PingGateway
+pipeline's ~3s round-trip, so bk4 failed "assistant reply is EMPTY" while the
+reply landed a second later.
+
+**What was fixed:** write callbacks matched on `method` + `req.baseUrl`
+(router-relative path is `/`) so exactly `POST /api/transactions`,
+`POST /api/accounts/:id/fee-waiver-request`, and
+`PATCH /api/accounts/:id/contact-email` accept gateway-audience tokens;
+nullish fallbacks in `getConsentTypes()` so explicit empty means "no
+type-based consent" (unset default unchanged); the spec's poll now strips the
+echo/chrome exactly like its EMPTY assert and only resolves on real assistant
+text.
+
+**Do not break:** every non-callback route still rejects gateway-audience
+tokens (locked by 18 checks in `verticalToolAudience.regression.test.js`);
+Authorize decision, HITL 428, scope and role enforcement on the widened
+routes run downstream of the audience check and were untouched; the spec's
+EMPTY/error-card asserts remain the hard gate after the poll.
+
+**Verify:** `cd demo_api_server && npx jest tests/verticalToolAudience.regression.test.js tests/simulatedConsentTypes.test.js`
+(16 pass); full evidence suite green both modes:
+`E2E_EVIDENCE_MODES="heuristics" npx playwright test tests/e2e/evidence-screenshots.real.spec.js --config=playwright.real.config.js`
+(13 passed) and the same with `llamacpp` (13 passed).
+
 ### 2026-07-16 — Silent-reauth infinite redirect loop (`?silent_reauth_failed=1` refreshing forever)
 
 **Files changed:** `demo_api_ui/src/components/StaleSessionBanner.jsx`,

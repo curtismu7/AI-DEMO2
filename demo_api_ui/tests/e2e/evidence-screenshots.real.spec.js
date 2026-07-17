@@ -308,8 +308,17 @@ async function runProbe(page, panel, mode, probe) {
   await expect
     .poll(
       async () => {
-        const len = ((await messages.innerText().catch(() => '')) || '').length;
-        if (len > beforeLen + probe.message.length) return true;
+        // Same stripping as the EMPTY assert below: the echoed prompt + "You"/
+        // PROMPT/Copy chrome must not count as a rendered reply, or the poll
+        // resolves on the echo alone and races a pipeline that takes a few
+        // seconds (real PingGateway introspection + authorize + exchanges).
+        const text = ((await messages.innerText().catch(() => '')) || '');
+        const rendered = text
+          .slice(beforeLen)
+          .split(probe.message).join('')
+          .replace(/\b(PROMPT|Copy|You)\b/g, '')
+          .trim();
+        if (rendered.length > 0) return true;
         if (probe.kind === 'hitl') {
           return (await consentUi.first().isVisible().catch(() => false)) || null;
         }
