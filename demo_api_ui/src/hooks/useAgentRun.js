@@ -122,7 +122,7 @@ export function useAgentRun({
     setIsRunning(false);
   }, []);
 
-  const run = useCallback(async ({ threadId, runId, messages, resume, provider } = {}) => {
+  const run = useCallback(async ({ threadId, runId, messages, resume, provider, mode } = {}) => {
     // Abort any in-flight run
     if (abortRef.current) {
       abortRef.current.abort();
@@ -164,6 +164,11 @@ export function useAgentRun({
     // 'anthropic' default. Omitted when null so the BFF's session/config fallback
     // still applies.
     if (provider) body.provider = provider;
+    // Always send the MODE, even when the provider is null (heuristics). The BFF
+    // otherwise falls back to server-wide config, where an AGENT_MODE pod env
+    // outranks the user's picker — so "Heuristics only" could still resolve to
+    // an LLM. The mode is what the user actually chose; make it authoritative.
+    if (mode) body.mode = mode;
 
     let response;
     try {

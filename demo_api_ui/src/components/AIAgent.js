@@ -1994,13 +1994,17 @@ export default function BankingAgent({
         threadId,
         runId,
         messages: conversationHistory,
+        // HITL resume used to send neither provider nor mode, so the BFF fell
+        // back to its 'anthropic' default — an LLM call even in Heuristics.
+        provider: activeLlmProvider,
+        mode: agentProviderMode,
         resume: [{ interruptId: interrupt.id, status: 'approved' }],
       }).finally(() => setNlLoading(false));
     };
 
     setOtpContextLine("Verify your identity to approve this agent action");
     setShowOtpModal(true);
-  }, [aguiHitlPending, aguiRun, aguiState.messages, submitConsent]);
+  }, [aguiHitlPending, aguiRun, aguiState.messages, submitConsent, activeLlmProvider, agentProviderMode]);
 
   const handleAguiHitlDismiss = useCallback(async () => {
     const interrupt = aguiHitlPending;
@@ -2021,9 +2025,11 @@ export default function BankingAgent({
       threadId,
       runId,
       messages: conversationHistory,
+      provider: activeLlmProvider,
+      mode: agentProviderMode,
       resume: [{ interruptId: interrupt.id, status: 'cancelled' }],
     });
-  }, [aguiHitlPending, aguiRun, aguiState.messages, submitConsent]);
+  }, [aguiHitlPending, aguiRun, aguiState.messages, submitConsent, activeLlmProvider, agentProviderMode]);
 
     // Cancel any previous in-flight send, create a fresh AbortController, and
   // return the new signal. Called once at the top of every real send path.
@@ -4949,6 +4955,7 @@ export default function BankingAgent({
         runId,
         messages: [...priorHistory, { role: 'user', content: text }],
         provider: activeLlmProvider,
+        mode: agentProviderMode,
       }).finally(() => {
         setNlLoading(false);
         nlSendGuardRef.current.release();
@@ -6241,6 +6248,7 @@ export default function BankingAgent({
           runId: aguiActiveRunIdRef.current,
           messages: [...priorHistory, { role: "user", content: text }],
           provider: activeLlmProvider,
+          mode: agentProviderMode,
         });
         return;
       }
