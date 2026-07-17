@@ -66,7 +66,8 @@ change what the app does?" — the answer for one real flow was no.
 | --- | --- |
 | Global default writer | **`SecuritySettings.js` only** — unchanged, already correct |
 | Per-user override (`DemoSetupPanel`) | **Keep as-is** — distinct, intentional feature |
-| `ThresholdControls` | **Read-only** — becomes a display of the *effective* threshold with a link to `/settings`; its write path is removed |
+| `ThresholdControls` global thresholds + feature flags | **Read-only** — display + link to `/settings` / `/feature-flags`; those two write paths removed |
+| `ThresholdControls` per-vertical thresholds | **Unchanged** — stays fully editable in place; no duplicate exists elsewhere |
 | ACR default duplication in setup wizard | **Consolidate** the 3 hardcoded copies onto one shared frontend constant |
 | `runtimeSettings.js`'s own `'Multi_Factor'` fallback | **Leave alone** — already a single line in one file, not scattered |
 | `DemoDataPage.js` (confirmed dead code found during investigation) | **Out of scope** — unrelated file, not touched by this change |
@@ -78,9 +79,12 @@ change what the app does?" — the answer for one real flow was no.
   (`SecuritySettings.js` → `/api/admin/settings`).
 - Preserve the per-user demo-scenario override feature in `DemoSetupPanel.js`
   unchanged.
-- `ThresholdControls` still tells the operator the threshold that's actually
-  in effect (global or per-user override) at a glance from any dashboard —
-  it just can't change it anymore from there.
+- `ThresholdControls`' global threshold and feature-flag sections still tell
+  the operator the current effective values at a glance from any
+  dashboard — they just link out to `/settings` / `/feature-flags` to
+  change them, instead of duplicating the write path inline. Its
+  per-vertical section is untouched and stays fully editable in place — it
+  has no duplicate elsewhere.
 - `stepUpAcrValue`'s setup-wizard default exists in exactly one place in the
   frontend bundle.
 - Setting the step-up threshold in `/settings` actually changes both real
@@ -171,17 +175,44 @@ above where this new block goes.
 
 ### `ThresholdControls.js` / `ThresholdControls.css`
 
-- Remove the editable input, the "Save" action, and the
-  `POST /api/config/thresholds` call entirely.
-- Keep the existing `GET` (effective threshold display) and the diagnose
-  panel (`data.checks?.userAttribute?.pass` shape — protected by
-  REGRESSION_PLAN §1, must not change its shape).
-- Add an "Edit in Settings →" link/button that navigates to `/settings`.
-- No component/file rename. Only user-facing copy change: wherever the
-  widget currently implies it's editable (e.g. an input or a "Save"-adjacent
-  label), replace with plain display text plus the "Edit in Settings →"
-  link. Exact wording is an implementation-time call within that constraint,
-  not a design decision.
+**Correction after reading the actual file:** this component is a larger
+"Demo Controls" popover with three independent sections, not a single
+threshold field. Scope is narrower than originally written — only two of
+the three sections change:
+
+1. **Step-up Thresholds section** (`confirm`/`mfa` state, `saveThresholds()`,
+   the "Save Thresholds" button) — **becomes read-only.** Remove the two
+   `<input>` fields and the "Save Thresholds" button/`saveThresholds()` call.
+   Replace with plain display text for the current `confirm`/`mfa` values
+   (still sourced from the existing `GET /api/config/thresholds` call in
+   `loadAll()` — unchanged) plus an "Edit in Settings →" link to `/settings`.
+2. **Per-Vertical Thresholds section** (`selectedVertical`, `vertConfirm`,
+   `vertMfa`, `saveVerticalThresholds()`) — **unchanged, stays fully
+   editable.** Per user decision: no other page has per-vertical threshold
+   overrides, so there's nothing to redirect to. Keep this section, its
+   state, and its `POST /api/config/thresholds` call exactly as they are.
+3. **Feature Flags section** (`toggleFlag()`, the 6 `IMPORTANT_FLAG_IDS`
+   checkboxes) — **becomes read-only**, same reasoning as thresholds:
+   `FeatureFlagsPage.js` (`/feature-flags`) already calls the identical
+   `PATCH /api/admin/feature-flags` endpoint for the full flag set, so this
+   is a genuine, safe-to-redirect duplicate. Replace checkboxes with a
+   plain listing of each flag's current state (label + on/off) plus an
+   "Edit in Feature Flags →" link to `/feature-flags`. Keep `loadAll()`'s
+   existing `GET /api/admin/feature-flags` call so the display still shows
+   live state.
+4. `toggleSection()`, `openSections` state, and the collapsible section
+   chevrons stay as-is for all three sections (structure unchanged, only
+   the editable controls inside sections 1 and 3 become display-only).
+
+**REGRESSION_PLAN §1 correction:** its "Demo Controls diagnose" row claims
+`ThresholdControls.js` has a `data.checks?.userAttribute?.pass`-shaped
+diagnose panel. Reading the current file (391 lines, full read) — no such
+code exists. This invariant appears stale (the code it protects was
+apparently removed in an earlier change without updating the table). Part
+of this change: delete that stale row from REGRESSION_PLAN.md §1 so a
+future agent doesn't try to "protect" nonexistent code. If live testing
+turns up a diagnose panel this design missed, stop and re-add the row
+instead of deleting it.
 
 ### `DemoDataPage.js` calling the same thresholds endpoint
 
@@ -228,10 +259,12 @@ above where this new block goes.
   of the `scopeTopology.stepUpThresholdUsd()` fallback, once
   `confirm_stepup_threshold_usd` is set (extends the existing
   `transactionConsentChallenge.test.js`, which already mocks this key).
-- Update `ThresholdControls`' existing tests to reflect read-only behavior:
-  remove assertions on the save/write flow, add an assertion that no
-  `POST /api/config/thresholds` call fires from this component and that the
-  "Edit in Settings" link points at `/settings`.
+- Update `ThresholdControls`' existing tests: remove assertions on the
+  global-threshold save flow and the feature-flag toggle flow; add
+  assertions that the "Edit in Settings" and "Edit in Feature Flags" links
+  point at `/settings` and `/feature-flags` respectively. **Do not** remove
+  or weaken any existing per-vertical threshold test — that section's
+  behavior is unchanged and must keep passing as-is.
 - `SecuritySettings.js` write-path tests are unaffected (no behavior change).
 - New/updated: a test on the setup-wizard family confirming all three import
   `DEFAULT_STEP_UP_ACR_VALUE` rather than a literal, so a future edit to one
