@@ -34,6 +34,7 @@ import AgentGatewayTester from "./components/AgentGatewayTester";
 import OwaspLearnerPage from "./components/OwaspLearnerPage";
 import UngovernedAgentPage from "./components/UngovernedAgentPage";
 import AIAgent from "./components/AIAgent";
+import ErrorBoundary from "./components/ErrorBoundary";
 import ApiKeyPathPage from "./components/ApiKeyPathPage";
 import AuditPage from "./components/AuditPage";
 import BankingAdminOps from "./components/BankingAdminOps";
@@ -1240,14 +1241,16 @@ function AppWithAuth() {
                 />
               </Routes>
               {shouldMountSingleAgent && (
-                <AIAgent
-                  user={user}
-                  onLogout={logout}
-                  embeddedFocus={resolveEmbeddedFocus(pathname)}
-                  distinctFloatingChrome
-                  surfaceHostEl={surfaceHostEl}
-                  {...singleAgentSurfaceProps}
-                />
+                <ErrorBoundary>
+                  <AIAgent
+                    user={user}
+                    onLogout={logout}
+                    embeddedFocus={resolveEmbeddedFocus(pathname)}
+                    distinctFloatingChrome
+                    surfaceHostEl={surfaceHostEl}
+                    {...singleAgentSurfaceProps}
+                  />
+                </ErrorBoundary>
               )}
               {!isApiTrafficOnlyPage && appFlags.showEducationPanel && (
                 <EducationPanelsHost />
@@ -1275,10 +1278,12 @@ function AppWithAuth() {
               {!loading &&
                 !onUserDashboardRoute &&
                 !(!user && isPublicMarketingAgentPath(pathname)) && (
-                  <EmbeddedAgentDock
-                    user={user}
-                    agentPlacement={agentPlacement}
-                  />
+                  <ErrorBoundary>
+                    <EmbeddedAgentDock
+                      user={user}
+                      agentPlacement={agentPlacement}
+                    />
+                  </ErrorBoundary>
                 )}
               {!isApiTrafficOnlyPage && <Footer user={user} />}
               <AuthorizeFallbackListener />
