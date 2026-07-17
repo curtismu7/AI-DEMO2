@@ -1077,7 +1077,24 @@ function parseHeuristic(
         }
         if (h.extractsRecordId) {
           // Record IDs are numeric ("101"). Accept an optional "record"/"rec" prefix.
-          const recMatch = t.match(/\b(?:rec(?:ord)?[\s-]*)?(\d{2,})\b/);
+          //
+          // …unless this heuristic ALSO extracts an amount. norm() strips "$"
+          // before we get here, so "pay my $300 bill" arrives as "pay my 300
+          // bill" and a bare-number id pattern matches the AMOUNT — emitting
+          // { amount: 300, recordId: "300" }. That broke the chip: pay_bill's
+          // handler does `params.billId || params.recordId` and only falls back
+          // to the first outstanding bill when neither is set (its comment says
+          // amount-driven chips "don't carry a bill id" — they did), so it paid
+          // bill "300". Real bill ids are 401+ → "bill not found".
+          //
+          // When both are extracted, require the id to be introduced by its noun
+          // ("pay bill 402", "approve purchase order 5001"), which is exactly the
+          // phrasing every paramHint documents. A leading figure is then the
+          // amount and the handler's fallback works as intended.
+          const recRe = h.extractsAmount
+            ? /\b(?:rec(?:ord)?|bill|invoice|po|(?:purchase\s+)?order)[\s-]*(\d{2,})\b/
+            : /\b(?:rec(?:ord)?[\s-]*)?(\d{2,})\b/;
+          const recMatch = t.match(recRe);
           if (recMatch) params = { ...params, recordId: recMatch[1] };
         }
         if (h.extractsDays) {
