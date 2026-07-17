@@ -21,6 +21,15 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const GOLDENS = path.join(ROOT, 'demo_api_server', 'data', 'goldens');
 const REQUIRED = ['vertical', 'useCaseId', 'trigger', 'capturedAt', 'reply'];
+const crypto = require('crypto');
+const MAX_AGE_DAYS = Number(process.env.GOLDEN_MAX_AGE_DAYS || 30);
+
+/** Current seed hash for a vertical (null when no static seed — e.g. banking). */
+function seedHashFor(vertical) {
+  const seed = path.join(ROOT, 'demo_api_server', 'config', 'verticals', vertical, 'seed.json');
+  if (!fs.existsSync(seed)) return null;
+  return crypto.createHash('sha256').update(fs.readFileSync(seed)).digest('hex').slice(0, 16);
+}
 const A2A_UNROUTABLE = /specialist/i;
 
 function catalogChips() {
@@ -41,6 +50,8 @@ function catalogChips() {
 
 function checkGoldens() {
   const failures = [];
+  const warnings = [];
+  let oldestDays = 0;
   const chips = catalogChips();
   const seen = new Set();
 
@@ -72,18 +83,32 @@ function checkGoldens() {
         if ((g.expectedOutcome || null) !== (cat.expectedOutcome || null)) {
           failures.push(`[stale] ${key}: golden expectedOutcome ${JSON.stringify(g.expectedOutcome || null)} != catalog ${JSON.stringify(cat.expectedOutcome || null)} — re-capture`);
         }
+        // VALUE drift: the seed the replay's numbers came from has changed.
+        // Trigger/outcome still match, but the replay would show outdated data
+        // with a straight face — same fiction class as a stale trigger.
+        const nowHash = seedHashFor(vertical);
+        if (nowHash && g.seedHash && g.seedHash !== nowHash) {
+          failures.push(`[seed-drift] ${key}: ${vertical}'s seed.json changed since capture — replay values are outdated, re-capture`);
+        }
+        const days = (Date.now() - Date.parse(g.capturedAt)) / 86400000;
+        if (Number.isFinite(days)) {
+          oldestDays = Math.max(oldestDays, Math.floor(days));
+          if (days > MAX_AGE_DAYS) warnings.push(`[age] ${key}: captured ${Math.floor(days)}d ago (> ${MAX_AGE_DAYS}d) — consider re-capturing before the next demo`);
+        }
       }
     }
   }
 
   const missing = [...chips.keys()].filter((k) => !seen.has(k));
-  return { failures, missing, covered: seen.size, total: chips.size };
+  return { failures, warnings, oldestDays, missing, covered: seen.size, total: chips.size };
 }
 
 if (require.main === module) {
-  const { failures, missing, covered, total } = checkGoldens();
+  const { failures, warnings, oldestDays, missing, covered, total } = checkGoldens();
   console.log(`[check-goldens] replay coverage: ${covered}/${total} catalog chips have goldens` +
-    (missing.length ? ` (${missing.length} missing — capture with capture-goldens.real.spec.js)` : ''));
+    (missing.length ? ` (${missing.length} missing — capture with capture-goldens.real.spec.js)` : '') +
+    (covered ? `; oldest capture ${oldestDays}d ago` : ''));
+  for (const w of warnings) console.warn('  ' + w);
   if (failures.length) {
     console.error('[check-goldens] FAILED:');
     for (const f of failures) console.error('  ' + f);

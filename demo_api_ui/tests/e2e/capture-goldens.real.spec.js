@@ -23,6 +23,17 @@ const { activateVertical } = require('./helpers/chipPipeline');
 const { USE_CASES, VERTICALS, resolveUseCase } = require('../../../demo_api_server/config/useCases.js');
 
 const GOLDENS_ROOT = path.resolve(__dirname, '../../../demo_api_server/data/goldens');
+const crypto = require('crypto');
+
+/** Hash of the vertical's seed data — lets check-goldens detect VALUE drift
+ * (catalog trigger unchanged, but the numbers a replay would show are stale).
+ * Banking has no static seed (runtimeData mutates with every transfer), so its
+ * goldens are age-tracked instead of hash-tracked. */
+function seedHashFor(vertical) {
+  const seed = path.resolve(__dirname, `../../../demo_api_server/config/verticals/${vertical}/seed.json`);
+  if (!fs.existsSync(seed)) return null;
+  return crypto.createHash('sha256').update(fs.readFileSync(seed)).digest('hex').slice(0, 16);
+}
 const A2A_UNROUTABLE = /specialist/i;
 
 function chipsFor(vertical) {
@@ -84,6 +95,7 @@ test.describe('capture goldens from real runs', () => {
           trigger: chip.text,
           expectedOutcome: chip.expectedOutcome,
           capturedAt: new Date().toISOString(),
+          seedHash: seedHashFor(vertical),
           reply: body.reply,
           requiresConsent: body.requiresConsent === true || undefined,
           agentPath: body.agentPath || null,

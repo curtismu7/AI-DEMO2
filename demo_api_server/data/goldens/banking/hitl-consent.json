@@ -4,7 +4,8 @@
   "ucId": "UC8",
   "trigger": "transfer $300 from checking to savings",
   "expectedOutcome": "HITL_REQUIRED",
-  "capturedAt": "2026-07-17T13:52:25.577Z",
+  "capturedAt": "2026-07-17T15:12:58.303Z",
+  "seedHash": null,
   "reply": "Simulated authorization policy requires human approval before MCP tools (education mode).",
   "agentPath": null,
   "tokenEventCount": 13
