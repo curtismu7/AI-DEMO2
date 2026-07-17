@@ -24,7 +24,7 @@ jest.mock('../services/tokenValidationService', () => ({
 
 const { authenticateToken } = require('../middleware/auth');
 
-function invoke(path, aud) {
+function invoke(path, aud, opts = {}) {
   mockPayload = {
     sub: 'demo',
     scope: 'read write admin',
@@ -34,9 +34,10 @@ function invoke(path, aud) {
   };
   return new Promise((resolve) => {
     const req = {
-      method: 'POST',
+      method: opts.method || 'POST',
       path,
-      originalUrl: path,
+      baseUrl: opts.baseUrl || '',
+      originalUrl: (opts.baseUrl || '') + path,
       url: path,
       headers: { authorization: 'Bearer x.y.z', 'user-agent': 'axios/1.16.0' },
       ip: '127.0.0.1',
@@ -98,5 +99,45 @@ describe('vertical-tool callback audience acceptance', () => {
   test('still rejects PingGateway audience on a normal route', async () => {
     const r = await invoke('/api/accounts/my', 'https://api.ping.demo:3036/mcp');
     expect(isAudience401(r)).toBe(true);
+  });
+});
+
+// MCP-server write callbacks: BankingAPIClient POSTs transactions (create_transfer/
+// deposit/withdrawal) and account writes (fee waiver, contact email) with the
+// gateway-audience token when Step 9 exchange is not configured. These exact
+// mounted routes must accept the gateway audience; any other router root must not.
+describe('MCP write-callback audience acceptance', () => {
+  test('accepts MCP gateway audience on POST /api/transactions (router-relative /)', async () => {
+    const r = await invoke('/', 'mcpgateway.ping.demo', { baseUrl: '/api/transactions' });
+    expect(isAudience401(r)).toBe(false);
+    expect(r.outcome).toBe('next');
+  });
+
+  test('accepts MCP gateway audience on POST /api/accounts/:id/fee-waiver-request', async () => {
+    const r = await invoke('/acct-1/fee-waiver-request', 'mcpgateway.ping.demo', { baseUrl: '/api/accounts' });
+    expect(isAudience401(r)).toBe(false);
+    expect(r.outcome).toBe('next');
+  });
+
+  test('accepts MCP gateway audience on PATCH /api/accounts/:id/contact-email', async () => {
+    const r = await invoke('/acct-1/contact-email', 'mcpgateway.ping.demo', { baseUrl: '/api/accounts', method: 'PATCH' });
+    expect(isAudience401(r)).toBe(false);
+    expect(r.outcome).toBe('next');
+  });
+
+  test('still rejects MCP gateway audience on another router root POST', async () => {
+    const r = await invoke('/', 'mcpgateway.ping.demo', { baseUrl: '/api/admin' });
+    expect(isAudience401(r)).toBe(true);
+  });
+
+  test('still rejects MCP gateway audience on GET /api/transactions root', async () => {
+    const r = await invoke('/', 'mcpgateway.ping.demo', { baseUrl: '/api/transactions', method: 'GET' });
+    expect(isAudience401(r)).toBe(true);
+  });
+
+  test('still accepts enduser audience on POST /api/transactions', async () => {
+    const r = await invoke('/', 'enduser.ping.demo', { baseUrl: '/api/transactions' });
+    expect(isAudience401(r)).toBe(false);
+    expect(r.outcome).toBe('next');
   });
 });
