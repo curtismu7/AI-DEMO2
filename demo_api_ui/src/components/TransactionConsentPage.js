@@ -129,6 +129,7 @@ export default function TransactionConsentPage({ user }) {
         open
         challengeId="simulate-demo"
         user={user}
+        simulated
         preloadedSnapshot={simulating.snapshot}
         onClose={() => setSimulating(null)}
         onTransactionSuccess={() => setSimulating(null)}
