@@ -85,6 +85,48 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-16 — Silent-reauth infinite redirect loop (`?silent_reauth_failed=1` refreshing forever)
+
+**Files changed:** `demo_api_ui/src/components/StaleSessionBanner.jsx`,
+`demo_api_ui/src/components/StaleSessionBanner.test.jsx` (new).
+
+**What was broken:** Commit `af059d9e7` (same day, "fix: 10 real bugs...")
+fixed bug #35 (`StaleSessionBanner`'s `silentFailed` URL check) and bug #39
+(`useOAuthUrlCleanup` stripping the `?silent_reauth_failed=1` param) in the
+same patch, but the two interact: `useOAuthUrlCleanup`'s effect strips the
+param from the URL *synchronously* on mount, while `StaleSessionBanner` only
+read the param *after* an `await getCachedJson(...)` — by which point the
+param was already gone, so its `silentFailed` guard was always `false`.
+Separately, `StaleSessionBanner`'s sessionStorage-guard-clear effect
+(`if (!stale) sessionStorage.removeItem(...)`) fired on the component's very
+first mount too, because `stale` initializes to `null` — wiping the
+sessionStorage guard on the exact page load meant to be protected by it. With
+both loop guards defeated at once, the banner immediately re-redirected to
+`/api/auth/oauth/user/silent-reauth`, PingOne failed again (no SSO session),
+and the browser looped on `?silent_reauth_failed=1` forever. The server-side
+half of the flow (`demo_api_server/routes/oauthUser.js`) was already correct
+and single-shot; the loop was entirely client-side.
+
+**What was fixed:** `StaleSessionBanner` now captures `silent_reauth_failed`
+from `window.location.search` in a `useRef` lazy initializer — evaluated
+during the component's initial render, strictly before any effect (including
+`useOAuthUrlCleanup`'s) runs, so the read can no longer race the URL cleanup
+regardless of effect mount order. The sessionStorage-guard-clear effect now
+skips its first invocation (tracked via a ref) so it only fires on a genuine
+stale→valid transition, not on the initial `null` mount.
+
+**Do not break:** the two loop guards (`silentAttemptedRef` in-memory,
+`SILENT_ATTEMPTED_KEY` in `sessionStorage`) still exist and must both survive
+a page landing on `?silent_reauth_failed=1` without being cleared before the
+async status check reads them. `useOAuthUrlCleanup`'s param-stripping effect
+was left untouched — stripping the param from the visible URL is correct
+UX; the bug was only in `StaleSessionBanner` reading it too late.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/components/StaleSessionBanner.test.jsx`
+(2 pass — one reproduces the loop against the pre-fix code by mounting
+`StaleSessionBanner` under `useOAuthUrlCleanup()` the way `App.js` really
+does); `npm run build` (exit 0).
+
 ### 2026-07-16 — 7/16 punch-list batch 2 (graphify framing, may_act terminology sweep, debug log detail)
 
 **Files changed:** `demo_api_ui/src/components/GraphifyPage.jsx`,
