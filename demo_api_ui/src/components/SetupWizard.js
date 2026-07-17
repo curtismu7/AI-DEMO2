@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { DEFAULT_STEP_UP_ACR_VALUE } from '../config/setupDefaults';
 import './SetupWizard.css';
 
 const STEPS = [
@@ -86,7 +87,7 @@ const generateEnvContents = (result, creds) => [
   `PINGONE_WORKER_CLIENT_SECRET=${creds.workerClientSecret}`,
   '',
   '# MFA Step-up Configuration',
-  `STEP_UP_ACR_VALUE=${creds.stepUpAcrValue || 'Multi_Factor'}`,
+  `STEP_UP_ACR_VALUE=${creds.stepUpAcrValue || DEFAULT_STEP_UP_ACR_VALUE}`,
 ].join('\n');
 
 function getStepCircleClass(stepKey, activeStep, stepStatuses) {
@@ -115,7 +116,7 @@ export default function SetupWizard({
     workerClientSecret: '',
     region: 'com',
     publicAppUrl: window.location.origin.replace(':3000', ':4000'),
-    stepUpAcrValue: 'Multi_Factor'
+    stepUpAcrValue: DEFAULT_STEP_UP_ACR_VALUE
   });
   const creds = credsProp || internalCreds;
   const setCreds = onCredsChange || setInternalCreds;
@@ -479,7 +480,7 @@ export default function SetupWizard({
           type="text"
           value={creds.stepUpAcrValue}
           onChange={e => setCreds(p => ({ ...p, stepUpAcrValue: e.target.value }))}
-          placeholder="Multi_Factor"
+          placeholder={DEFAULT_STEP_UP_ACR_VALUE}
         />
       </div>
       {verifyError && <div className="wizard-error" style={{ marginBottom: 12 }}>{verifyError}</div>}
