@@ -84,6 +84,40 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-17 — Chip clicks ignored the "LLM only" Routing toggle in every vertical
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js` (suggestion-chip
+click handler, ~line 7623).
+
+**What was broken:** clicking a suggestion chip (e.g. "My gear" on Super
+Sports) always answered `source=heuristic` even with Agent mode=llama.cpp and
+Routing="LLM only" selected. Root cause: the chip-click fetch to
+`/api/demo-agent/nl` decided `provider` from `(requiresLlm ||
+agentProviderMode === "helix_google") ? (activeLlmProvider || "heuristic") :
+"heuristic"` — `requiresLlm` comes from the chip's static `chip.mode ===
+'llm'` flag (`BankingChips.jsx`), not from the Routing dropdown
+(`heuristicEnabled` state). Chips backed by a heuristic regex action (e.g.
+`list_gear` in `config/verticals/sporting-goods/index.js`) are never flagged
+`mode:'llm'`, so they always sent `provider:"heuristic"` regardless of
+Routing. This is one shared component, so the same behavior affected every
+vertical's fast-path chips uniformly — not vertical-specific config.
+
+**What was fixed:** added `!heuristicEnabled` to the condition, so
+Routing="LLM only" now forces every chip through the active provider, matching
+what the dropdown label says. Routing="Fallback (Heuristics)" (default)
+behavior is unchanged — fast-path chips still answer heuristically for speed.
+
+**Do not break:** the direct-MCP-path chip handler (a separate call site,
+`AIAgent.js` ~line 7439, `direct: true` chips) intentionally always sends
+`provider:"heuristic"` unconditionally by design (it only resolves a tool name
+via regex, never calls an LLM) — do not fold that branch into this one.
+`agentModes.js` / `agentModeResolver.js` SSOT provider tables are unrelated
+and untouched.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0). Live: Routing="LLM
+only" + Agent mode=llama.cpp, click any fast-path chip (e.g. "My gear" on
+Super Sports) → response now sources from the LLM, not heuristic.
+
 ### 2026-07-17 — LLM-only routing fell back to heuristics on every chip phrase
 
 **Files changed:** `demo_api_server/services/geminiNlIntent.js`,

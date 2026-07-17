@@ -7616,11 +7616,13 @@ export default function BankingAgent({
                               message: message,
                               // In helix_google (Helix only) mode every chip goes through Helix —
                               // heuristic is only used as a fallback when Helix fails, not as the
-                              // first-choice path. Outside of that mode, chips with requiresLlm=false
-                              // deliberately bypass the LLM for speed.
+                              // first-choice path. Routing="LLM only" (!heuristicEnabled) also forces
+                              // every chip through the active provider — the dropdown means what it
+                              // says. Otherwise (Fallback/Heuristics routing), chips with
+                              // requiresLlm=false deliberately bypass the LLM for speed.
                               // PingOne Admin chips are handled above (POST /message); this /nl
                               // path only sees non-pingone chips.
-                              provider: (requiresLlm || agentProviderMode === "helix_google")
+                              provider: (requiresLlm || agentProviderMode === "helix_google" || !heuristicEnabled)
                                 ? (activeLlmProvider || "heuristic")
                                 : "heuristic",
                             }),
