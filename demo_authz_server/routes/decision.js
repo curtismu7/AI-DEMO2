@@ -221,6 +221,28 @@ module.exports = async function decisionHandler(req, res) {
     return deny(res, `invalid_aud: audience does not include ${EXPECTED_AUDS.join(' | ')}`);
   }
 
+  // ── Rule 0b-2: anti-bypass (D-05) — actual aud must NOT target an upstream ──
+  // Parity with the Node gateway's GatewayTokenPolicy (bypass_attempt). A token
+  // whose ACTUAL introspected aud already carries a backend/RS audience — even
+  // alongside the gateway URI in a multi-aud token — is a confused-deputy
+  // bypass: the client must obtain a gateway-targeted token and let the gateway
+  // exchange it for the next hop. Only TokenAudActual (the real introspected
+  // aud) is authoritative; older callers that omit it keep the legacy behaviour.
+  if (TokenAudActual) {
+    let actualList;
+    try {
+      const parsed = JSON.parse(TokenAudActual);
+      actualList = Array.isArray(parsed) ? parsed : [String(parsed)];
+    } catch {
+      actualList = TokenAudActual.split(/\s+/).filter(Boolean);
+    }
+    const upstreamHit = scopeTopology.upstreamAudiences().find((u) => actualList.includes(u));
+    if (upstreamHit) {
+      warn(`[AuthzServer/decision] DENY — bypass_attempt: aud [${actualList.join(',')}] targets upstream ${upstreamHit}`);
+      return deny(res, `bypass_attempt: token aud targets upstream ${upstreamHit} — cannot bypass gateway (D-05)`);
+    }
+  }
+
   // ── Rule 0c: TokenAudience must equal McpResourceUri ──────────────────────
   // Mirrors the cloud policy's HasValidMcpAudience condition (TokenAudience ==
   // McpResourceUri). The PingGateway sends the same gatewayResourceUri for both

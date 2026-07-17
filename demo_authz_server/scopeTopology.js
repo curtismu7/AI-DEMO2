@@ -92,6 +92,24 @@ function gatewayAudience() {
   return manifest.resources?.['Super Banking MCP Gateway']?.uri || '';
 }
 
+/**
+ * Backend/upstream audiences the gateway may exchange toward — the anti-bypass
+ * (D-05) blacklist. A valid INBOUND token never carries any of these; a client
+ * must obtain a gateway-targeted token and let the gateway exchange it for the
+ * next hop. Mirrors demo_mcp_gateway GatewayTokenPolicy's upstreamAuds
+ * (mcpOlbResourceUri, mcpInvestResourceUri, bankingResourceServerResourceUri),
+ * sourced from the SoT manifest + env, with the gateway's own URI excluded.
+ */
+function upstreamAudiences() {
+  const r = manifest.resources || {};
+  const gw = gatewayAudience();
+  return [
+    r['Super Banking MCP Server']?.uri,
+    r['Super Banking MCP Invest']?.uri,
+    process.env.BANKING_RESOURCE_SERVER_RESOURCE_URI || 'https://banking-resource-server.ping.demo',
+  ].filter((u) => u && u !== gw);
+}
+
 /** The full set of valid scope names declared in the SoT scopes map. */
 function allowedScopes() {
   return Object.keys(manifest.scopes || {});
@@ -110,6 +128,7 @@ module.exports = {
   isA2aDelegatedTool,
   isAgentMediatedTool,
   gatewayAudience,
+  upstreamAudiences,
   allowedScopes,
   gatewayToolNames,
 };
