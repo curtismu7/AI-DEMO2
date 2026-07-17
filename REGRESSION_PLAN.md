@@ -85,6 +85,48 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-17 — LLM-only routing fell back to heuristics on every chip phrase
+
+**Files changed:** `demo_api_server/services/geminiNlIntent.js`,
+`demo_api_server/tests/geminiNlIntent.llmOnly.test.js` (new).
+
+**What was broken:** in LLM-only mode (routing toggle = "LLM only", i.e.
+`ff_heuristic_enabled=false`) every dashboard chip phrase still answered as
+"Heuristic". The llama.cpp intent-router grammar (`INTENT_JSON_SCHEMA`) only
+required `{ kind: <string> }`. Under grammar-constrained decoding gpt-oss-20b
+satisfied that by emitting `{"kind":"banking"}` — with no `banking.action` —
+and stopping (confirmed by replaying the real router prompt: it returned
+`{"kind":"banking"}` and, on the balance query, malformed `{"kind":"banking,"}`).
+`validateIntent` correctly rejected the incomplete shapes, so the JSON router
+"missed" (twice, including after the JSON-only retry nudge) and the
+deterministic heuristic chip floor answered. The LLM *did* run
+(`llm_attempted:true`) and the rendered answer was correct, but LLM-only mode
+was structurally unable to route action phrases.
+
+**What was fixed:** replaced the flat schema with `buildIntentSchema(activeVertical)`,
+which forces the COMPLETE per-vertical shape via anyOf — banking verticals must
+emit `banking.action`, other verticals must emit `vertical`+`action` — while
+still allowing `education` and `none` so open questions fall through to the
+conversational path (kind:none → validateIntent null → conversational) instead
+of being forced to fabricate an action. Replayed against the live model: all
+three banking phrases now route `source=llamacpp` with the correct action;
+"weather" still yields kind:none. validateIntent remains the strict post-parse
+check.
+
+**Do not break:** `buildIntentSchema` must keep `none` in the anyOf (else the
+grammar forces a fabricated action on genuine free text). Only the llama.cpp
+branch passes the schema; mlx passes none (unchanged). The llamacppLlmService
+proxy drops the schema on an HTTP 400, so the schema must stay within llama.cpp
+grammar support (the anyOf form is accepted — verified live, no 400).
+
+**Verify:** `cd demo_api_server && npx jest tests/geminiNlIntent.llmOnly.test.js`
+(5 pass: schema-shape guards + LLM-only routes through llama.cpp, not the
+floor). Live: set ff_heuristic_enabled=false, POST /api/demo-agent/nl
+{message:"show my accounts", provider:"llamacpp"} → source=llamacpp,
+action=accounts. Test note: the shared setup.js runs jest.resetModules() in
+afterEach, so the test re-requires the module-under-test + its mock together
+per test (loadFresh) to keep the lazy-require mock identity aligned.
+
 ### 2026-07-17 — Agent write tools 401 at the BFF + evidence-spec echo race (bk4/bk7 red)
 
 **Files changed:** `demo_api_server/middleware/auth.js`,
