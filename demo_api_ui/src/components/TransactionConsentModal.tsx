@@ -46,6 +46,10 @@ interface TransactionConsentModalProps {
   onTransactionSuccess: (message: string) => void;
   onDeclinedConfirmed: () => void;
   preloadedSnapshot?: ConsentSnapshot | null;
+  // Preview the modal with no live challenge behind it: approving must not call
+  // the server, which holds no challenge to confirm. Not implied by
+  // preloadedSnapshot — real dashboard/HITL flows preload a real challenge.
+  simulated?: boolean;
 }
 
 function accountSummaryLine(account: Account): string {
@@ -67,6 +71,7 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
   onTransactionSuccess,
   onDeclinedConfirmed,
   preloadedSnapshot = null,
+  simulated = false,
 }) => {
   const { preset } = useIndustryBranding() as any;
   const { open: openEducation } = useEducationUI();
@@ -249,6 +254,11 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
 
   const handleConfirm = async () => {
     if (!agreed || submitting || !snapshot || !challengeId || !user?.id) return;
+    if (simulated) {
+      notifySuccess("Simulation complete — no real transaction was made.");
+      onTransactionSuccess("Simulation complete — no real transaction was made.");
+      return;
+    }
     setSubmitting(true);
     try {
       const { data } = await bffAxios.post(

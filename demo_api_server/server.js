@@ -1009,8 +1009,11 @@ app.get('/api/sdk-demo/config', (req, res) => {
         // Auto-derive redirectUri from the request origin if not explicitly configured.
         let redirectUri = configStore.getEffective('pingone_sdk_demo_redirect_uri');
         if (!redirectUri) {
-            const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-            const host = req.headers['x-forwarded-host'] || req.headers.host;
+            // Behind multiple proxies these arrive as a list ("https, http") — the
+            // first hop is the client-facing one. An unsplit value yields a
+            // redirect_uri PingOne can never match.
+            const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
+            const host = (req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
             redirectUri = `${proto}://${host}/sdk-login/callback`;
         }
         res.json({
