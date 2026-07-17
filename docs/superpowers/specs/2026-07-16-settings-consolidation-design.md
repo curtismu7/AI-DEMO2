@@ -163,6 +163,19 @@ key (`confirm_stepup_threshold_usd`) actually receive a value, the same way
 `maxTransactionAmount` already does for `MAX_TRANSACTION_AMOUNT` three lines
 above where this new block goes.
 
+- **Prerequisite found while verifying `setConfig()`'s behavior:**
+  `configStore.setConfig()` silently drops any key not registered in its
+  `FIELD_DEFS` map (`if (!(key in FIELD_DEFS)) continue;`).
+  `confirm_stepup_threshold_usd` is **not currently registered** — this is
+  a second, independent reason it's orphaned, not just "no UI writes it."
+  Must add `confirm_stepup_threshold_usd: { public: true, default: '500' }`
+  to `FIELD_DEFS` (`demo_api_server/services/configStore.js`, in the
+  existing "Step-up / HITL thresholds (USD)" group, alongside
+  `confirm_threshold_usd`/`mfa_threshold_usd`/`step_up_amount_threshold`)
+  *before* the write-side bridge below can work at all. Default `'500'`
+  matches the sibling keys and `scopeTopology.stepUpThresholdUsd()`'s
+  existing fallback, so nothing's effective value changes for anyone not
+  yet using this design's bridge.
 - Add a new block in the `PUT /settings` handler (`demo_api_server/routes/admin.js`),
   alongside the existing `maxTransactionAmount` dual-store bridge: when
   `req.body.stepUpAmountThreshold` is present and a positive finite number,
