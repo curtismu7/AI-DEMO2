@@ -284,6 +284,7 @@ export default function AgentOnboardingFlowDiagram() {
         minWidth={620}
         minHeight={420}
         className="aof-floating-panel"
+        onClose={() => window.history.back()}
       >
         <div className="aof-root">
           <div className="aof-flow-tabs" role="tablist" aria-label="Onboarding flow">

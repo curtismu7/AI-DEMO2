@@ -1,5 +1,5 @@
 // VerticalOpsConsole.jsx
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import bffAxios from '../../services/bffAxios';
 import { notifySuccess, notifyError } from '../../utils/appToast';
 import { getVerticalConfig } from './verticalOpsConfig';
@@ -13,6 +13,13 @@ export default function VerticalOpsConsole({ vertical }) {
   const [result, setResult] = useState(null); // { customer, categories }
   const [loading, setLoading] = useState(false);
   const [drawer, setDrawer] = useState(null);  // { category, row }
+  const traceRef = useRef(null);
+
+  const jumpToTrace = useCallback(() => {
+    if (!traceRef.current) return;
+    traceRef.current.open = true;
+    traceRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
 
   const doLookup = useCallback(async (e) => {
     e.preventDefault();
@@ -54,6 +61,9 @@ export default function VerticalOpsConsole({ vertical }) {
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={cfg.lookupPlaceholder} aria-label="Lookup" />
           <button type="submit" disabled={loading}>{loading ? '…' : 'Look up'}</button>
         </form>
+        <button type="button" className="vops__jumpbtn" onClick={jumpToTrace}>
+          Jump to token chain ↓
+        </button>
       </header>
 
       {result?.customer && (
@@ -88,7 +98,7 @@ export default function VerticalOpsConsole({ vertical }) {
         </section>
       )}
 
-      <details className="vops__trace" data-testid="vops-token-chain">
+      <details className="vops__trace" data-testid="vops-token-chain" ref={traceRef}>
         <summary>Token Chain — MCP Route (Agent → MCP Server)</summary>
         <div className="vops__tracebody">
           <TokenChainTraceRail mcpRouteOnly />
