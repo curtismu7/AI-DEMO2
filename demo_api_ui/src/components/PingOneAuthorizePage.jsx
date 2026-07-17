@@ -619,8 +619,17 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearP
           onClose={() => setTraceOpen(false)}
           className="p1dt-floating-panel"
         >
-          <PolicyDecisionTree policies={policies} result={result} floating />
-          {/* Fallback when PolicyDecisionTree returns null (no policies loaded) */}
+          {/* Only mount the tree once policies exist. It calls useState AFTER its
+              own `policies.length === 0` early-return, so rendering it empty and
+              then letting the fetch resolve would take it from 0 hooks to 1 hook
+              on the same mount — React throws "Rendered more hooks than during
+              the previous render" and the panel blanks. Gating here also keeps
+              its auto-collapse correct: the useState initializer runs once, so it
+              must first run with real policies, not with []. */}
+          {Array.isArray(policies) && policies.length > 0 && (
+            <PolicyDecisionTree policies={policies} result={result} floating />
+          )}
+          {/* Fallback when there is no tree to show (no policies loaded) */}
           {(!Array.isArray(policies) || policies.length === 0) && (
             <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
               <p style={{ marginBottom: '12px', fontWeight: 600, color: '#0f172a' }}>No policy tree available</p>
