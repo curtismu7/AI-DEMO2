@@ -121,8 +121,8 @@ router.post('/nl', async (req, res) => {
   try {
     const u = req.session?.user;
     const context = u
-      ? { role: u.role, firstName: u.firstName, vertical }
-      : { anonymous: true, vertical };
+      ? { role: u.role, firstName: u.firstName, vertical, req }
+      : { anonymous: true, vertical, req };
 
     // Pass langchain_config so NL routing can respect configured LLM provider (Helix, etc.)
     const langchainConfig = req.session?.langchain_config || {};
