@@ -85,6 +85,64 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-16 — 7/16 punch-list batch 2 (graphify framing, may_act terminology sweep, debug log detail)
+
+**Files changed:** `demo_api_ui/src/components/GraphifyPage.jsx`,
+`demo_api_ui/src/components/GraphifyPage.css`,
+`demo_api_ui/src/components/DelegationPage.js`,
+`demo_api_server/utils/logger.js`, `demo_api_server/routes/logs.js`.
+
+**What was broken / requested:**
+
+1. `/graphify` — user reported "I do not see how to actually run this?" The
+   page already stated (in small body text under "Try it") that it's a
+   canned-snapshot showcase with no live backend, but nothing above the fold
+   said so — easy to miss.
+2. `/delegation` — 4 leftover `may_act` mentions in user-facing copy
+   (`OIDC Core` chip label, validation-mode status line, a demo talk-track
+   step, one code comment) hadn't been swept to the "act claim" terminology
+   already used everywhere else in the education surfaces.
+3. `/logs?mode=learn` (Debug tab) — the "Details" column was always empty.
+   `logger.js`'s `log()` method stringified the entire structured entry
+   (including `metadata`) into ONE colored string and passed it as the sole
+   `console.log` argument; `routes/logs.js`'s `captureLog()` never populated
+   `detail` at all, and had no clean object to derive it from even if it had.
+
+**What was fixed:**
+
+1. Added a high-contrast info banner (matching the existing
+   `.mfa-test-info-banner` convention in `MFATestPage.css`) right after the
+   page thesis, before the stats: explicitly states this is a showcase with
+   no "Run" button and no backend call, and points at "Try it" below.
+   Tightened the "Try it" section's copy to spell out copy → paste in a
+   terminal → run. No backend/live-execution work — this was explicitly
+   scoped to framing only, not a live runner (three options were on the
+   table; smallest was chosen).
+2. Swept the 4 remaining `may_act` UI-copy mentions in `DelegationPage.js` to
+   "act claim" language, consistent with `ActorTokenEducation.tsx`'s already
+   -completed sweep. Left the backend `may_act` *mechanism* itself untouched
+   (it's real, load-bearing PingOne attribute logic, not deprecated — see the
+   `may_act` grep summary in the 2026-07-16 entry above this one).
+3. `logger.js`'s `log()` now passes the structured `entry` object as a
+   second, separate `console.log` argument instead of folding it into one
+   stringified/colored message. `routes/logs.js`'s `captureLog()` now picks
+   the first object-type arg (if any) as `detail` (pretty-printed JSON) and
+   keeps `message` as the joined string args only — so `logger.info()`/
+   `.warn()`/`.error()` calls made through `utils/logger.js` now show real
+   structured detail in the Debug tab instead of "—".
+
+**Do not break:** `captureLog()`'s `detail` derivation only looks at
+console-captured args, not `appEventService`'s data (Activity Log stays a
+separate, intentionally-not-merged data source — see the settings/logs
+cluster note in the 2026-07-16 punch-list report). Plain `console.log('a
+string')` calls elsewhere in the app (the vast majority, unrelated to this
+logger) are unaffected — `detail` stays `undefined` for them, same as before.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0); `cd demo_api_server &&
+npx jest src/__tests__/logs.test.js tests/agentRestrictionsGate.test.js
+src/__tests__/agent-module-smoke.test.js --testPathIgnorePatterns="/node_modules/"`
+(53 pass, 0 fail).
+
 ### 2026-07-16 — 7/16 punch-list batch (onboarding close button, code-search error text, banking token-chain jump)
 
 **Files changed:** `demo_api_ui/src/components/AgentOnboardingFlowDiagram.jsx`,
