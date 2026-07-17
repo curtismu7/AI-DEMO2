@@ -40,6 +40,43 @@ elif [ -n "$TOPO_TOUCHED" ]; then
   echo "[pre-commit] ✅ Snapshot updated + topology:verify passed."
 fi
 
+# ─── Worktree guard: no SOURCE commits from the shared main checkout ──────────
+# CLAUDE.md: "Edit -> test -> commit only in an isolated git worktree." Concurrent
+# sessions share one index, and this has silently clobbered work twice:
+#   2026-07-11  5f5770de8 swept in a stale AIAgent.js, reverting 855f8a78a (§4).
+#   2026-07-16  85f2b1e44 swept in stale demo_api_ui files, silently reverting
+#               three commits. No test or build failure. Recovered in #516.
+# PR #532 added a Claude Code PreToolUse hook for this, but that only binds Claude
+# -- Cursor, Kilo, aider and a plain terminal are unaffected (.cursor/ exists here
+# and jest.config.js still ignores /\.kilo/worktrees/). This is the same rule at
+# the git layer, so it binds every tool.
+#
+# Detection is generic (no hardcoded paths): in a linked worktree --absolute-git-dir
+# is <repo>/.git/worktrees/<name> while --git-common-dir is the shared <repo>/.git;
+# in the main checkout the two resolve to the SAME directory.
+GITDIR=$(git rev-parse --absolute-git-dir 2>/dev/null || true)
+COMMONDIR=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)
+if [ -n "$GITDIR" ] && [ "$GITDIR" = "$COMMONDIR" ]; then
+  # Exempt agent config and the contract docs: the clobber pattern is stale SOURCE
+  # swept into a commit, not config -- and these must stay editable in the main
+  # checkout or the hooks themselves become unmaintainable. Same list as #532.
+  SRC=$(git diff --cached --name-only --diff-filter=ACM \
+    | grep -vE '^(\.claude/|CLAUDE\.md$|REGRESSION_PLAN\.md$|AGENTS\.md$)' \
+    | grep -E '\.(js|jsx|ts|tsx|py|sh|css|scss|json|ya?ml)$' || true)
+  if [ -n "$SRC" ]; then
+    echo "[pre-commit] ❌ Source commit from the shared MAIN checkout — blocked."
+    echo "$SRC" | head -5 | sed 's/^/    /'
+    [ "$(echo "$SRC" | wc -l)" -gt 5 ] && echo "    ... $(echo "$SRC" | wc -l | tr -d ' ') files total"
+    echo "[pre-commit]    Concurrent sessions share one index; this has silently"
+    echo "[pre-commit]    clobbered work twice (REGRESSION_PLAN §4, 07-11 and 07-16)."
+    echo "[pre-commit]    Commit from a worktree instead:"
+    echo "[pre-commit]      git worktree add .claude/worktrees/<name> -b <branch>"
+    echo "[pre-commit]    Exempt: .claude/**, CLAUDE.md, REGRESSION_PLAN.md, AGENTS.md."
+    echo "[pre-commit]    Deliberate exception: git commit --no-verify"
+    exit 1
+  fi
+fi
+
 # ─── Secret & backup-artifact guard (added to prevent leak/stale-data recurrence) ───
 # 1) Block accidental commits of app-generated backups even if .gitignore is bypassed (git add -f).
 #    Only inspect added/modified files (--diff-filter=ACM) so REMOVING these backups is allowed.
