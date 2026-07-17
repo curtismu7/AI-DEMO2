@@ -1344,6 +1344,20 @@ backends), `bash ping-gateway/scripts/validate-config.sh` (PASS),
 
 **Verify:** `bash -n demo_llm_proxy/supervise-swap.sh`; run it and confirm only one tier is up (`for p in 8091 8092 8093 8094 8096; do curl -s 127.0.0.1:$p/health -o /dev/null -w "$p:%{http_code}\n"; done`); `launchctl list | grep llama-models`.
 
+### 2026-07-17 — Heuristics silently called a frontier API; /api/conversations mounted without auth
+
+**Files changed:**
+- `demo_api_server/routes/agentRun.js` — `/run` resolved the LLM provider without ever consulting `agent_mode`, so a run that arrived with no explicit provider (Heuristics selected, a stale session provider, or the HITL resume/cancel runs which send none) fell through to a hard-coded `'anthropic'` — the `401 invalid x-api-key` seen on the SE deploy. Now resolves the mode first (`resolveAgentMode`) and pins `provider='none'` for heuristics before the provider chain.
+- `demo_api_server/routes/langchainConfig.js` — `POST /config` only wrote the provider when `am.provider` was truthy, so switching *to* heuristics left the previous LLM provider in the session for `agentRun` to pick up. Now writes `am.provider || null` on every mode change.
+- `demo_api_server/server.js` — `/api/conversations` was mounted **without** `authenticateToken`, so `req.user` was always undefined and every ownership-guarded request 401'd (the route's own docstring wrongly claimed it was authenticated). Added the middleware.
+- `demo_api_ui/src/hooks/useAgentRun.js`, `demo_api_ui/src/components/AIAgent.js` — thread the selected `mode` through every run path (including HITL resume/cancel), so "Heuristics only" is authoritative and cannot be overridden by a server-wide `AGENT_MODE` pod env.
+- `demo_api_ui/src/components/ConversationSummaryPanel.jsx` — latch a 401/403 per page-load so a stale session stops re-firing the summaries request (~10 console 401s in seconds → ask once).
+- `demo_api_server/tests/agentRunHeuristicsProvider.test.js` (NEW) — pins that heuristics resolves to `provider='none'` across the body-mode, stale-session, and HITL-resume paths, and that LLM modes still resolve their provider.
+
+**Do not break:** heuristics MUST resolve `provider='none'` — never fall through to `'anthropic'`. `/api/conversations` MUST stay behind `authenticateToken`. (Extracted from PR #405; its agent-hidden/clinical-split third was dropped — PR #527 already shipped that fix more completely.)
+
+**Verify:** `CI=true npx jest tests/agentRunHeuristicsProvider.test.js` (6/6); grep `server.js` for `'/api/conversations', authenticateToken`.
+
 ### 2026-07-05 — Agent dock silent-failure when "llama.cpp only" selected but provider down (+ hardening)
 
 **Files changed:**

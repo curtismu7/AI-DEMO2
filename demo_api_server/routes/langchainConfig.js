@@ -215,7 +215,11 @@ router.post('/config', async (req, res) => {
     } catch (err) {
       console.error('[langchainConfig POST] agent_mode persist failed:', err.message);
     }
-    if (am.provider) setLangchainConfig(req, { provider: am.provider });
+    // Write the provider on EVERY mode change, including null for heuristics.
+    // Guarding on `am.provider` meant switching TO heuristics left the previous
+    // LLM provider (e.g. anthropic) sitting in the session, which agentRun then
+    // picked up — heuristics quietly calling a frontier API.
+    setLangchainConfig(req, { provider: am.provider || null });
   }
 
   // Persist Helix credentials to SQLite
