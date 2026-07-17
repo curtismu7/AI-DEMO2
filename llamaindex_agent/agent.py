@@ -97,7 +97,15 @@ def run_agent(question: str, codebase_id: str, limit: int = 8) -> dict:
             resp = asyncio.run(handler)
             answer = str(resp)
             if collected:
+                # Best-effort on this path: a ReActAgent AgentOutput is not a raw
+                # completion, so _is_truncated only fires when the underlying
+                # payload is exposed. It never mislabels a good answer (unknown
+                # shape → False).
+                agent_truncated = _is_truncated(resp)
+                if agent_truncated:
+                    answer += TRUNCATION_NOTICE
                 return {"answer": answer, "sources": _dedup(collected),
+                        "truncated": agent_truncated or None,
                         "toolCalls": max(1, len(collected) // max(1, limit)),
                         "mode": "agent"}
             # Model answered without calling the tool → force one retrieval (grounding).
@@ -114,8 +122,37 @@ def run_agent(question: str, codebase_id: str, limit: int = 8) -> dict:
     completion = llm.complete(
         f"{SYSTEM}\n\nSnippets:\n{context}\n\nQuestion: {question}\nAnswer:"
     )
-    return {"answer": _completion_text(completion), "sources": _dedup(hits),
+    answer = _completion_text(completion)
+    truncated = _is_truncated(completion)
+    if truncated:
+        answer += TRUNCATION_NOTICE
+    return {"answer": answer, "sources": _dedup(hits), "truncated": truncated or None,
             "toolCalls": 1 if hits else 0, "mode": "single-shot"}
+
+
+TRUNCATION_NOTICE = (
+    "\n\n⚠️ This answer was cut off — it reached the response length limit. "
+    "Ask a narrower question, or raise the response limit (AGENT_MAX_TOKENS) "
+    "if this keeps happening."
+)
+
+
+def _is_truncated(completion):
+    """Did the model stop because it ran out of tokens rather than because it was done?
+
+    A cut-off answer is otherwise indistinguishable from a complete one — it just
+    stops mid-sentence. Reads the provider's own stop signal off the raw
+    OpenAI-compatible payload (llama-server reports finish_reason 'length').
+    Best-effort: any shape we do not recognise is treated as not truncated, so a
+    normal answer is never mislabelled.
+    """
+    raw = getattr(completion, "raw", None)
+    try:
+        choice = raw["choices"][0] if isinstance(raw, dict) else raw.choices[0]
+        finish = choice["finish_reason"] if isinstance(choice, dict) else choice.finish_reason
+        return finish == "length"
+    except Exception:
+        return False
 
 
 def _completion_text(completion):
