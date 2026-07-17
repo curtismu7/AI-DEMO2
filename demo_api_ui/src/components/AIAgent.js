@@ -5028,9 +5028,13 @@ export default function BankingAgent({
           r.json().catch(() => ({
             result: { kind: "none", message: "Could not parse response." },
             source: "heuristic",
+            // Transport failure (BFF down / proxy 502): the provider really did
+            // not answer, so this must still offer the Heuristics fallback.
+            // Explicit because absent now means "heuristic floor answered first".
+            llm_attempted: false,
           })),
         )
-        .then(({ result, source, llm_not_configured }) => {
+        .then(({ result, source, llm_attempted, llm_not_configured }) => {
           tokenChain?.setNlRoutingEvent({
             prompt: text,
             source: source || "heuristic",
@@ -5039,7 +5043,7 @@ export default function BankingAgent({
             heuristicSaved: !source || source === "heuristic",
           });
           // Pure-mode provider unavailable → ask before using heuristics (#1).
-          if (maybeDeferToHeuristicPrompt({ result, source, text, llm_not_configured })) {
+          if (maybeDeferToHeuristicPrompt({ result, source, text, llm_attempted, llm_not_configured })) {
             return undefined;
           }
           return dispatchNlResult(result, source || "heuristic", text);
@@ -5166,12 +5170,25 @@ export default function BankingAgent({
    * stash the heuristic result and surface an explicit "use Heuristics?" prompt.
    * Returns true when it deferred (caller must skip its own dispatch).
    */
-  function maybeDeferToHeuristicPrompt({ result, source, text, llm_not_configured }) {
+  function maybeDeferToHeuristicPrompt({ result, source, text, llm_attempted, llm_not_configured }) {
     if (!PURE_LLM_MODES.includes(agentProviderMode)) return false;
-    // In a pure LLM mode (heuristicRouting:false) a `heuristic` source can only
-    // mean the chosen provider didn't answer — unconfigured, unreachable, or it
-    // couldn't map the request. Any non-heuristic source is a real LLM answer.
+    // Any non-heuristic source is a real LLM answer.
     if (source && source !== "heuristic") return false;
+    // `source:'heuristic'` does NOT imply the provider failed. The BFF's heuristic
+    // floor answers a matched chip phrase BEFORE calling the LLM whenever
+    // ff_heuristic_enabled is on — in EVERY mode, pure or not (geminiNlIntent:
+    // llmModeSelected → heuristicRoutingEnabled = heuristicEnabled → early return).
+    // The LLM is never called on that path (verified: zero completions on the proxy
+    // during such a turn), so telling the user "llama.cpp is unavailable" was false,
+    // and returning true here skipped dispatchNlResult entirely — every chip phrase
+    // hung in a pure LLM mode until the user answered a prompt that should not exist.
+    //
+    // `llm_attempted` is the discriminator the BFF already sends:
+    //   absent → heuristic floor answered first; LLM not needed  → dispatch
+    //   true   → the LLM ran (its answer may have been overridden) → dispatch
+    //   false  → the LLM was needed and could not run (breaker open / not
+    //            configured; both paths set it explicitly)         → prompt
+    if (llm_attempted !== false) return false;
     const label = PURE_LLM_LABELS[agentProviderMode] || "the selected model";
     const why = llm_not_configured ? "not configured" : "unavailable or couldn't answer that";
     addMessage(
@@ -6117,7 +6134,7 @@ export default function BankingAgent({
         body: JSON.stringify({ message: text, provider: activeLlmProvider || "heuristic", vertical: effectiveVerticalId }),
         signal: anySignal([AbortSignal.timeout(activeLlmProvider === "anthropic-lmstudio" || activeLlmProvider === "llamacpp" || activeLlmProvider === "mlx" || activeLlmProvider === "helix" ? 60000 : 15000), signal]),
       });
-      const { result: _nlResult, source: _nlSource, llm_not_configured: _nlNotConfigured } = await _nlRes
+      const { result: _nlResult, source: _nlSource, llm_attempted: _nlAttempted, llm_not_configured: _nlNotConfigured } = await _nlRes
         .json()
         .catch(() => ({
           result: {
@@ -6126,6 +6143,9 @@ export default function BankingAgent({
               'Could not parse request. Try: "show my accounts" or "transfer $100 to savings".',
           },
           source: "heuristic",
+          // See the sibling envelope above: transport failure, not the heuristic
+          // floor — keep offering the Heuristics fallback.
+          llm_attempted: false,
         }));
       // Record NL routing as step 0 in Token Chain before token events arrive
       tokenChain?.setNlRoutingEvent({
@@ -6136,7 +6156,7 @@ export default function BankingAgent({
         heuristicSaved: !_nlSource || _nlSource === "heuristic",
       });
       // Pure-mode provider unavailable → ask before using heuristics (#1 consistency).
-      if (maybeDeferToHeuristicPrompt({ result: _nlResult, source: _nlSource, text, llm_not_configured: _nlNotConfigured })) {
+      if (maybeDeferToHeuristicPrompt({ result: _nlResult, source: _nlSource, text, llm_attempted: _nlAttempted, llm_not_configured: _nlNotConfigured })) {
         return;
       }
       await dispatchNlResult(_nlResult, _nlSource || "heuristic", text);
