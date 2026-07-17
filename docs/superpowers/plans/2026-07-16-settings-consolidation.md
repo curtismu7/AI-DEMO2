@@ -418,7 +418,7 @@ describe('setupDefaults', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd demo_api_ui && npx jest src/config/__tests__/setupDefaults.test.js`
+Run: `cd demo_api_ui && npx vitest run src/config/__tests__/setupDefaults.test.js`
 Expected: FAIL — cannot find module `../setupDefaults`.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -438,7 +438,7 @@ export const DEFAULT_STEP_UP_ACR_VALUE = 'Multi_Factor';
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd demo_api_ui && npx jest src/config/__tests__/setupDefaults.test.js`
+Run: `cd demo_api_ui && npx vitest run src/config/__tests__/setupDefaults.test.js`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
@@ -504,7 +504,7 @@ describe('setup-wizard family uses the shared DEFAULT_STEP_UP_ACR_VALUE constant
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd demo_api_ui && npx jest src/config/__tests__/setupDefaults.usage.test.js`
+Run: `cd demo_api_ui && npx vitest run src/config/__tests__/setupDefaults.usage.test.js`
 Expected: FAIL — all 3 files currently hardcode the literal and don't import the constant.
 
 - [ ] **Step 3: Write minimal implementation**
@@ -612,7 +612,7 @@ Leave line 398 (the help-text prose "e.g., Multi_Factor") untouched.
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd demo_api_ui && npx jest src/config/__tests__/setupDefaults.usage.test.js`
+Run: `cd demo_api_ui && npx vitest run src/config/__tests__/setupDefaults.usage.test.js`
 Expected: PASS (6/6)
 
 - [ ] **Step 5: Run the UI build gate**
@@ -979,7 +979,7 @@ section is untouched -- it has no duplicate anywhere else in the app."
 
 - [ ] **Step 1: Check what test tooling this codebase uses for React components**
 
-Run: `grep -l "@testing-library/react" demo_api_ui/src/components/__tests__/*.test.js* | head -3` and open one to confirm the exact render/query helpers and router-wrapping pattern used (this component uses `<Link>`, so it needs a Router wrapper in tests — check how an existing test that also uses `react-router-dom` components handles this, e.g. `MemoryRouter`).
+`demo_api_ui` uses **Vitest, not Jest** (confirmed: `package.json`'s `"test"` script runs `vitest`; every existing component test imports `describe/it/expect/vi` from `'vitest'`) — the code sketch below already uses `vi.fn()`/`vi.resetAllMocks()` accordingly. Still run: `grep -l "@testing-library/react" demo_api_ui/src/components/__tests__/*.test.js* | head -3` and open one to confirm the exact render/query helpers and router-wrapping pattern used (this component uses `<Link>`, so it needs a Router wrapper in tests — check how an existing test that also uses `react-router-dom` components handles this, e.g. `MemoryRouter`).
 
 - [ ] **Step 2: Write the tests**
 
@@ -987,6 +987,7 @@ Create `demo_api_ui/src/components/__tests__/ThresholdControls.test.js` (adjust 
 
 ```javascript
 import React from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import ThresholdControls from '../ThresholdControls';
@@ -996,7 +997,7 @@ function renderWithRouter(ui) {
 }
 
 beforeEach(() => {
-  global.fetch = jest.fn((url) => {
+  global.fetch = vi.fn((url) => {
     if (url === '/api/config/thresholds') {
       return Promise.resolve({
         ok: true,
@@ -1022,7 +1023,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  jest.resetAllMocks();
+  vi.resetAllMocks();
 });
 
 async function openPanel() {
@@ -1062,7 +1063,7 @@ describe('ThresholdControls', () => {
   });
 
   it('per-vertical thresholds section is untouched: selecting a vertical still shows editable inputs', async () => {
-    global.fetch = jest.fn((url) => {
+    global.fetch = vi.fn((url) => {
       if (url === '/api/config/thresholds') {
         return Promise.resolve({
           ok: true,
@@ -1095,7 +1096,7 @@ describe('ThresholdControls', () => {
 
 - [ ] **Step 3: Run the tests**
 
-Run: `cd demo_api_ui && npx jest src/components/__tests__/ThresholdControls.test.js`
+Run: `cd demo_api_ui && npx vitest run src/components/__tests__/ThresholdControls.test.js`
 Expected: PASS (4/4). If the router-wrap or `dialog`/`role` queries don't match Task 6's actual rendered output (e.g. `role="dialog"` `aria-label="Demo controls"` is already in the code at `<div ... role="dialog" aria-label="Demo controls" ...>` — confirm this exact string didn't change), adjust selectors to match reality rather than changing the component to match the test.
 
 - [ ] **Step 4: Run the UI build gate once more**
@@ -1182,7 +1183,7 @@ must stay fully editable — it's not a duplicate of anything. HITL enforcement
 not touched, only a previously-dead config key's write path.
 
 **Verify:** `cd demo_api_server && npx jest src/__tests__/configStore-stepUpThresholdSave.test.js src/__tests__/adminSettings.stepUpThresholdBridge.test.js src/__tests__/transactionConsentChallenge.test.js --testPathIgnorePatterns="/node_modules/"`;
-`cd demo_api_ui && npx jest src/config/__tests__/setupDefaults.test.js src/config/__tests__/setupDefaults.usage.test.js src/components/__tests__/ThresholdControls.test.js && npm run build`.
+`cd demo_api_ui && npx vitest run src/config/__tests__/setupDefaults.test.js src/config/__tests__/setupDefaults.usage.test.js src/components/__tests__/ThresholdControls.test.js && npm run build`.
 ```
 
 - [ ] **Step 4: Run the complete verification suite for this whole plan**
@@ -1194,7 +1195,7 @@ cd demo_api_server && npx jest src/__tests__/configStore-stepUpThresholdSave.tes
 Expected: all PASS.
 
 ```bash
-cd demo_api_ui && npx jest src/config/__tests__/setupDefaults.test.js src/config/__tests__/setupDefaults.usage.test.js src/components/__tests__/ThresholdControls.test.js
+cd demo_api_ui && npx vitest run src/config/__tests__/setupDefaults.test.js src/config/__tests__/setupDefaults.usage.test.js src/components/__tests__/ThresholdControls.test.js
 ```
 Expected: all PASS.
 
