@@ -3,17 +3,26 @@
 
 /**
  * Master list of every literal, agent-facing prompt hardcoded across the demo:
- * the /use-cases catalog plus four scattered UI sources that separately fire
- * text at the live agent (AiAttacksPanel, OASDemoPage, PingOneTestPage,
- * AgentDemoGuide). Groups near-duplicate intents (same ask, different wording)
- * so additions don't silently pile up more variants of "check my balance" or
- * "transfer $X" — and flags which prompts have no documented expected outcome
- * at all, since only the catalog's `expectedOutcome` and AgentDemoGuide's
- * `watch[]` array assert anything about what should happen.
+ * the /use-cases catalog (resolved across EVERY vertical, not just banking —
+ * config/useCases.js's perVertical override system swaps in different trigger
+ * text per vertical for 15 of 41 use cases, 119 additional prompt texts that a
+ * banking-only scan misses entirely) plus scattered UI sources that separately
+ * fire text at the live agent (AiAttacksPanel, OASDemoPage) or a non-text
+ * backend simulation (AdminSideNav's "Intent Bypass"). Groups near-duplicate
+ * intents (same ask, different wording) so additions don't silently pile up
+ * more variants of "check my balance" or "transfer $X" — and flags which
+ * prompts have no documented expected outcome at all, since only the
+ * catalog's `expectedOutcome` and AgentDemoGuide's `watch[]` array assert
+ * anything about what should happen.
  *
  * This is a STATIC inventory only — it does not run any prompt against a live
- * agent. See the `chip-correctness-testing` skill for the live-verification
- * methodology as a follow-up once this report shows what's worth checking.
+ * agent, and does not verify a prompt against any specific agent mode/backend
+ * (see AGENT_MODES below — heuristics/gemini/llamacpp/mlx/claude/helix_google/
+ * groq are the modes the main chat can run under; PingOneTestPage.jsx and
+ * /langchain, /copilot were checked and confirmed to have no hardcoded
+ * prompts of their own, so they are not separate "sources"). See the
+ * `chip-correctness-testing` skill for the live-verification methodology as
+ * a follow-up once this report shows what's worth checking, per agent mode.
  */
 
 const fs = require('node:fs');
@@ -23,7 +32,14 @@ const ROOT = path.join(__dirname, '..');
 const OUT_MD = path.join(ROOT, 'docs/agent-prompts/audit.md');
 const OUT_JSON = path.join(ROOT, 'docs/agent-prompts/audit.json');
 
-const { USE_CASES } = require(path.join(ROOT, 'demo_api_server/config/useCases'));
+const { USE_CASES, VERTICALS, resolveUseCase } = require(path.join(ROOT, 'demo_api_server/config/useCases'));
+
+// The main chat's known LLM/heuristic backends (demo_api_ui/src/config/agentModes.js
+// is the client SSOT; kept as a literal copy here since this script runs outside
+// the React build). No prompt in this report has been live-verified against any
+// of these yet — `chip-correctness-testing` is the methodology for that, this
+// list just names what "verified" would need to cover.
+const AGENT_MODES = ['heuristics', 'gemini', 'llamacpp', 'mlx', 'claude', 'helix_google', 'groq'];
 
 // ---------------------------------------------------------------------------
 // Extraction — one function per source, each returning PromptEntry[]:
@@ -34,29 +50,60 @@ const { USE_CASES } = require(path.join(ROOT, 'demo_api_server/config/useCases')
 
 function extractCatalog() {
   const entries = [];
+  const allVerticals = ['banking', ...VERTICALS];
   for (const uc of USE_CASES) {
-    const t = uc.trigger || {};
-    if (t.type === 'chip' && t.text) {
-      entries.push({
-        text: t.text,
-        source: 'catalog (chip)',
-        location: uc.id,
-        outcome: uc.expectedOutcome || null,
-      });
-    } else if (t.type === 'attack' && t.sim) {
-      // Not free text — a backend simulation id. Recorded separately so the
-      // report doesn't silently drop these, but excluded from text-based
-      // duplicate grouping since there's no wording to compare.
-      entries.push({
-        text: `[simulation: ${t.sim}]`,
-        source: 'catalog (attack-sim)',
-        location: uc.id,
-        outcome: uc.expectedOutcome || null,
-        nonText: true,
-      });
+    // De-dupe: a UC with no perVertical override resolves to the identical
+    // base trigger for every vertical — only emit that once (as 'banking',
+    // the default), not 10 identical copies. A UC WITH a perVertical entry
+    // for a given vertical gets its own row, since the text genuinely differs.
+    const seenForThisUc = new Set();
+    for (const v of allVerticals) {
+      const resolved = (v === 'banking' ? uc : resolveUseCase(uc.id, v)) || uc;
+      const t = resolved.trigger || {};
+      const hasOverrideForThisVertical = v !== 'banking' && uc.perVertical?.[v];
+      if (v !== 'banking' && !hasOverrideForThisVertical) continue; // identical to banking row, skip
+      if (t.type === 'chip' && t.text) {
+        const dedupeKey = `${t.text.trim().toLowerCase()}`;
+        if (seenForThisUc.has(dedupeKey)) continue; // same text resolved twice for this UC (rare) — one row is enough
+        seenForThisUc.add(dedupeKey);
+        entries.push({
+          text: t.text,
+          source: 'catalog (chip)',
+          location: v === 'banking' ? uc.id : `${uc.id} [${v}]`,
+          outcome: resolved.expectedOutcome || uc.expectedOutcome || null,
+        });
+      } else if (t.type === 'attack' && t.sim) {
+        // Not free text — a backend simulation id. Recorded separately so the
+        // report doesn't silently drop these, but excluded from text-based
+        // duplicate grouping since there's no wording to compare.
+        entries.push({
+          text: `[simulation: ${t.sim}]`,
+          source: 'catalog (attack-sim)',
+          location: v === 'banking' ? uc.id : `${uc.id} [${v}]`,
+          outcome: resolved.expectedOutcome || uc.expectedOutcome || null,
+          nonText: true,
+        });
+      }
     }
   }
   return entries;
+}
+
+function extractSideNavNonTextTriggers() {
+  // AdminSideNav.jsx's "AI Attack Demos" section: 5 entries just call
+  // openEdu(EDU.AI_ATTACKS, tab) — already covered via AiAttacksPanel's own
+  // extraction. "Intent Bypass" is different: it dispatches a
+  // 'banking-attack-demo' event straight to a backend simulation endpoint
+  // (AIAgent.js -> POST /api/dev/intent-bypass-demo), no free text involved.
+  // Hand-recorded here rather than regex-scraped from AdminSideNav.jsx, since
+  // it's one fixed entry, not a pattern likely to grow silently.
+  return [{
+    text: '[simulation: intent-bypass, POST /api/dev/intent-bypass-demo]',
+    source: 'AdminSideNav.jsx (AI Attack Demos > Intent Bypass)',
+    location: "action handler, 'banking-attack-demo' event",
+    outcome: null,
+    nonText: true,
+  }];
 }
 
 function extractAiAttacksPanel() {
@@ -110,6 +157,13 @@ function extractOasDemoPage() {
 }
 
 function extractPingOneTestPage() {
+  // Confirmed by direct read (2026-07-17): these agentPrompt strings are
+  // illustrative-only — a typewriter-effect preview attached to this page's
+  // own onTest() button, which tests PingOne token-exchange *configuration*,
+  // not the live banking agent. Never navigates to /dashboard, never
+  // dispatches an agent event. Kept in this report anyway (still real
+  // prompt-shaped text that can go stale/duplicate) but labeled so nobody
+  // chases a "why doesn't this launch the agent" bug that doesn't exist.
   const filePath = path.join(ROOT, 'demo_api_ui/src/components/PingOneTestPage.jsx');
   const src = fs.readFileSync(filePath, 'utf8');
   const entries = [];
@@ -121,7 +175,7 @@ function extractPingOneTestPage() {
     const line = src.slice(0, m.index).split('\n').length;
     entries.push({
       text: m[1],
-      source: 'PingOneTestPage.jsx',
+      source: 'PingOneTestPage.jsx (illustrative text only — does not launch the agent)',
       location: `agentPrompt #${i} (line ${line})`,
       outcome: null,
     });
@@ -218,6 +272,7 @@ function buildReport() {
     ...extractOasDemoPage(),
     ...extractPingOneTestPage(),
     ...extractAgentDemoGuide(),
+    ...extractSideNavNonTextTriggers(),
   ];
 
   const textEntries = all.filter((e) => !e.nonText);
@@ -249,7 +304,11 @@ function buildReport() {
   const unverified = textEntries.filter((e) => !e.outcome);
   const unbucketed = textEntries.filter((e) => !bucketFor(e.text));
 
-  return { all, textEntries, nonTextEntries, exactDuplicates, nearDuplicates, unverified, unbucketed };
+  return {
+    all, textEntries, nonTextEntries, exactDuplicates, nearDuplicates, unverified, unbucketed,
+    agentModes: AGENT_MODES,
+    liveVerifiedAgentModes: [], // none yet — chip-correctness-testing follow-up populates this
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -261,16 +320,28 @@ function esc(s) {
 }
 
 function renderMarkdown(report) {
-  const { textEntries, nonTextEntries, exactDuplicates, nearDuplicates, unverified } = report;
+  const { textEntries, nonTextEntries, exactDuplicates, nearDuplicates, unverified, agentModes } = report;
   const lines = [
     '<!-- AUTO-GENERATED by scripts/audit-agent-prompts.js — do not hand-edit -->',
     '',
     '# Agent Prompt Audit — master list',
     '',
     '> Scans every hardcoded, agent-facing prompt across the /use-cases catalog',
-    '> and four scattered UI sources. Static inventory only — does not run any',
-    '> prompt against a live agent (see the `chip-correctness-testing` skill for',
-    '> that as a follow-up).',
+    '> — resolved across EVERY vertical, not just banking (config/useCases.js\'s',
+    '> perVertical override system swaps in different trigger text for 15 of 41',
+    '> use cases) — plus AiAttacksPanel.js, OASDemoPage.jsx, AgentDemoGuide.jsx,',
+    '> and AdminSideNav.jsx\'s one non-text "Intent Bypass" trigger.',
+    '> `PingOneTestPage.jsx` is included but labeled illustrative-only — its',
+    '> agentPrompt strings never reach the live agent (confirmed by reading the',
+    '> component: they\'re a typewriter-effect preview on an unrelated',
+    '> token-exchange config test button). `LearningHub.tsx`, `/langchain`,',
+    '> `/copilot`, `/ai-control-plane` were checked and confirmed to have no',
+    '> hardcoded prompts of their own — not sources, not omissions.',
+    '>',
+    '> Static inventory only — does not run any prompt against a live agent, and',
+    '> does not verify a prompt against any specific agent mode (see "Agent',
+    '> modes" below). See the `chip-correctness-testing` skill for that',
+    '> methodology as a follow-up.',
     '>',
     '> Regenerate: `npm run prompts:audit:gen` (from `demo_api_server/`).',
     '>',
@@ -289,6 +360,15 @@ function renderMarkdown(report) {
     `| Exact-duplicate groups (same literal text, 2+ places) | ${exactDuplicates.length} |`,
     `| Near-duplicate intent groups (same ask, different wording) | ${nearDuplicates.length} |`,
     `| Prompts with NO documented expected outcome | ${unverified.length} |`,
+    '',
+    '## Agent modes (not yet live-verified against)',
+    '',
+    '> The main chat can run under any of these backends. Nothing in this',
+    '> report has been run against any of them yet — this list exists so the',
+    '> `chip-correctness-testing` follow-up has a fixed target set, not so this',
+    '> script can claim coverage it hasn\'t done.',
+    '',
+    agentModes.map((m) => `- \`${m}\``).join('\n'),
     '',
   ];
 

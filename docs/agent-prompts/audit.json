@@ -7,9 +7,105 @@
       "outcome": "PERMIT"
     },
     {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC1 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC1 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC1 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC1 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC1 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC1 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC1 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC1 [investment]",
+      "outcome": "PERMIT"
+    },
+    {
       "text": "hand off to a specialist",
       "source": "catalog (chip)",
       "location": "UC2",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC2 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC2 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC2 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC2 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC2 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC2 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC2 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC2 [investment]",
       "outcome": "PERMIT"
     },
     {
@@ -25,9 +121,105 @@
       "outcome": "PERMIT"
     },
     {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC3 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC3 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC3 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC3 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC3 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC3 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC3 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC3 [investment]",
+      "outcome": "PERMIT"
+    },
+    {
       "text": "show my balance",
       "source": "catalog (chip)",
       "location": "UC19",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC19 [healthcare]",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC19 [retail]",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC19 [government]",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC19 [university]",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC19 [workforce]",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC19 [sporting-goods]",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC19 [manufacturing]",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC19 [investment]",
       "outcome": "DENY_401"
     },
     {
@@ -37,9 +229,105 @@
       "outcome": "PERMIT"
     },
     {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC20 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC20 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC20 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC20 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC20 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC20 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC20 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC20 [investment]",
+      "outcome": "PERMIT"
+    },
+    {
       "text": "show my balance",
       "source": "catalog (chip)",
       "location": "UC4",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC4 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC4 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC4 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC4 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC4 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC4 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC4 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC4 [investment]",
       "outcome": "PERMIT"
     },
     {
@@ -49,9 +337,105 @@
       "outcome": "DENY"
     },
     {
+      "text": "pay my $2500 bill",
+      "source": "catalog (chip)",
+      "location": "UC6 [healthcare]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "checkout headphones for $2500",
+      "source": "catalog (chip)",
+      "location": "UC6 [retail]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "pay the $2500 fee",
+      "source": "catalog (chip)",
+      "location": "UC6 [government]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "pay $2500 tuition",
+      "source": "catalog (chip)",
+      "location": "UC6 [university]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "submit a $2500 expense",
+      "source": "catalog (chip)",
+      "location": "UC6 [workforce]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "extend my rental $2500",
+      "source": "catalog (chip)",
+      "location": "UC6 [sporting-goods]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "approve a $2500 purchase order",
+      "source": "catalog (chip)",
+      "location": "UC6 [manufacturing]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "execute a large trade of $2500",
+      "source": "catalog (chip)",
+      "location": "UC6 [investment]",
+      "outcome": "DENY"
+    },
+    {
       "text": "transfer $600 from checking to savings",
       "source": "catalog (chip)",
       "location": "UC7",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "pay my $600 bill",
+      "source": "catalog (chip)",
+      "location": "UC7 [healthcare]",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "checkout headphones for $600",
+      "source": "catalog (chip)",
+      "location": "UC7 [retail]",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "pay the $600 fee",
+      "source": "catalog (chip)",
+      "location": "UC7 [government]",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "pay $600 tuition",
+      "source": "catalog (chip)",
+      "location": "UC7 [university]",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "submit a $600 expense",
+      "source": "catalog (chip)",
+      "location": "UC7 [workforce]",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "extend my rental $600",
+      "source": "catalog (chip)",
+      "location": "UC7 [sporting-goods]",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "approve a $600 purchase order",
+      "source": "catalog (chip)",
+      "location": "UC7 [manufacturing]",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "execute a large trade of $600",
+      "source": "catalog (chip)",
+      "location": "UC7 [investment]",
       "outcome": "STEP_UP"
     },
     {
@@ -61,9 +445,105 @@
       "outcome": "HITL_REQUIRED"
     },
     {
+      "text": "pay my $300 bill",
+      "source": "catalog (chip)",
+      "location": "UC8 [healthcare]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "checkout headphones for $300",
+      "source": "catalog (chip)",
+      "location": "UC8 [retail]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "pay the $300 fee",
+      "source": "catalog (chip)",
+      "location": "UC8 [government]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "pay $300 tuition",
+      "source": "catalog (chip)",
+      "location": "UC8 [university]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "submit a $300 expense",
+      "source": "catalog (chip)",
+      "location": "UC8 [workforce]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "extend my rental $300",
+      "source": "catalog (chip)",
+      "location": "UC8 [sporting-goods]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "approve a $300 purchase order",
+      "source": "catalog (chip)",
+      "location": "UC8 [manufacturing]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "execute a large trade of $300",
+      "source": "catalog (chip)",
+      "location": "UC8 [investment]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
       "text": "transfer $600 from checking to savings",
       "source": "catalog (chip)",
       "location": "UC9",
+      "outcome": "DENY"
+    },
+    {
+      "text": "pay my $600 bill",
+      "source": "catalog (chip)",
+      "location": "UC9 [healthcare]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "checkout headphones for $600",
+      "source": "catalog (chip)",
+      "location": "UC9 [retail]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "pay the $600 fee",
+      "source": "catalog (chip)",
+      "location": "UC9 [government]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "pay $600 tuition",
+      "source": "catalog (chip)",
+      "location": "UC9 [university]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "submit a $600 expense",
+      "source": "catalog (chip)",
+      "location": "UC9 [workforce]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "extend my rental $600",
+      "source": "catalog (chip)",
+      "location": "UC9 [sporting-goods]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "approve a $600 purchase order",
+      "source": "catalog (chip)",
+      "location": "UC9 [manufacturing]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "execute a large trade of $600",
+      "source": "catalog (chip)",
+      "location": "UC9 [investment]",
       "outcome": "DENY"
     },
     {
@@ -73,9 +553,105 @@
       "outcome": "PERMIT"
     },
     {
+      "text": "pay my $600 bill",
+      "source": "catalog (chip)",
+      "location": "UC21 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "checkout headphones for $600",
+      "source": "catalog (chip)",
+      "location": "UC21 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "pay the $600 fee",
+      "source": "catalog (chip)",
+      "location": "UC21 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "pay $600 tuition",
+      "source": "catalog (chip)",
+      "location": "UC21 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "submit a $600 expense",
+      "source": "catalog (chip)",
+      "location": "UC21 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "extend my rental $600",
+      "source": "catalog (chip)",
+      "location": "UC21 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "approve a $600 purchase order",
+      "source": "catalog (chip)",
+      "location": "UC21 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "execute a large trade of $600",
+      "source": "catalog (chip)",
+      "location": "UC21 [investment]",
+      "outcome": "PERMIT"
+    },
+    {
       "text": "transfer $600 from checking to savings",
       "source": "catalog (chip)",
       "location": "UC22",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "pay my $600 bill",
+      "source": "catalog (chip)",
+      "location": "UC22 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "checkout headphones for $600",
+      "source": "catalog (chip)",
+      "location": "UC22 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "pay the $600 fee",
+      "source": "catalog (chip)",
+      "location": "UC22 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "pay $600 tuition",
+      "source": "catalog (chip)",
+      "location": "UC22 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "submit a $600 expense",
+      "source": "catalog (chip)",
+      "location": "UC22 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "extend my rental $600",
+      "source": "catalog (chip)",
+      "location": "UC22 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "approve a $600 purchase order",
+      "source": "catalog (chip)",
+      "location": "UC22 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "execute a large trade of $600",
+      "source": "catalog (chip)",
+      "location": "UC22 [investment]",
       "outcome": "PERMIT"
     },
     {
@@ -83,6 +659,49 @@
       "source": "catalog (chip)",
       "location": "UC24",
       "outcome": "PERMIT"
+    },
+    {
+      "text": "What clinics are near me?",
+      "source": "catalog (chip)",
+      "location": "UC24 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "What stores are near me?",
+      "source": "catalog (chip)",
+      "location": "UC24 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "What city offices are near me?",
+      "source": "catalog (chip)",
+      "location": "UC24 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "What campus locations are near me?",
+      "source": "catalog (chip)",
+      "location": "UC24 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "What office locations are near me?",
+      "source": "catalog (chip)",
+      "location": "UC24 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "What plant locations are near me?",
+      "source": "catalog (chip)",
+      "location": "UC24 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "[simulation: insufficient-scope]",
+      "source": "catalog (attack-sim)",
+      "location": "UC5",
+      "outcome": "DENY_403",
+      "nonText": true
     },
     {
       "text": "[simulation: insufficient-scope]",
@@ -99,9 +718,30 @@
       "nonText": true
     },
     {
+      "text": "[simulation: cross-owner-account]",
+      "source": "catalog (attack-sim)",
+      "location": "UC10",
+      "outcome": "DENY",
+      "nonText": true
+    },
+    {
       "text": "[simulation: wrong-aud]",
       "source": "catalog (attack-sim)",
       "location": "UC11",
+      "outcome": "DENY_401",
+      "nonText": true
+    },
+    {
+      "text": "[simulation: wrong-aud]",
+      "source": "catalog (attack-sim)",
+      "location": "UC11",
+      "outcome": "DENY_401",
+      "nonText": true
+    },
+    {
+      "text": "[simulation: replayed-token]",
+      "source": "catalog (attack-sim)",
+      "location": "UC12",
       "outcome": "DENY_401",
       "nonText": true
     },
@@ -120,10 +760,31 @@
       "nonText": true
     },
     {
+      "text": "[simulation: rogue-actor]",
+      "source": "catalog (attack-sim)",
+      "location": "UC13",
+      "outcome": "DENY",
+      "nonText": true
+    },
+    {
       "text": "[simulation: rar-exceeded]",
       "source": "catalog (attack-sim)",
       "location": "UC14",
       "outcome": "DENY",
+      "nonText": true
+    },
+    {
+      "text": "[simulation: rar-exceeded]",
+      "source": "catalog (attack-sim)",
+      "location": "UC14",
+      "outcome": "DENY",
+      "nonText": true
+    },
+    {
+      "text": "[simulation: tampered-intent-token]",
+      "source": "catalog (attack-sim)",
+      "location": "UC15",
+      "outcome": "DENY_401",
       "nonText": true
     },
     {
@@ -141,10 +802,72 @@
       "nonText": true
     },
     {
+      "text": "[simulation: impersonation-no-act]",
+      "source": "catalog (attack-sim)",
+      "location": "UC16",
+      "outcome": "DENY_401",
+      "nonText": true
+    },
+    {
       "text": "show my balance",
       "source": "catalog (chip)",
       "location": "UC17",
       "outcome": "PERMIT"
+    },
+    {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC17 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC17 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC17 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC17 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC17 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC17 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC17 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC17 [investment]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "[simulation: rate-limit-burst]",
+      "source": "catalog (attack-sim)",
+      "location": "UC18",
+      "outcome": "DENY_429",
+      "nonText": true
     },
     {
       "text": "[simulation: rate-limit-burst]",
@@ -157,6 +880,54 @@
       "text": "show my balance",
       "source": "catalog (chip)",
       "location": "UC25",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC25 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC25 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC25 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC25 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC25 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC25 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC25 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC25 [investment]",
       "outcome": "PERMIT"
     },
     {
@@ -200,13 +971,13 @@
     },
     {
       "text": "Show me my account balances",
-      "source": "PingOneTestPage.jsx",
+      "source": "PingOneTestPage.jsx (illustrative text only — does not launch the agent)",
       "location": "agentPrompt #1 (line 48)",
       "outcome": null
     },
     {
       "text": "Transfer $500 from checking to savings on behalf of the user",
-      "source": "PingOneTestPage.jsx",
+      "source": "PingOneTestPage.jsx (illustrative text only — does not launch the agent)",
       "location": "agentPrompt #2 (line 56)",
       "outcome": null
     },
@@ -349,6 +1120,13 @@
       "location": "line 883",
       "outcome": null,
       "nonText": true
+    },
+    {
+      "text": "[simulation: intent-bypass, POST /api/dev/intent-bypass-demo]",
+      "source": "AdminSideNav.jsx (AI Attack Demos > Intent Bypass)",
+      "location": "action handler, 'banking-attack-demo' event",
+      "outcome": null,
+      "nonText": true
     }
   ],
   "textEntries": [
@@ -359,9 +1137,105 @@
       "outcome": "PERMIT"
     },
     {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC1 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC1 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC1 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC1 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC1 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC1 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC1 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC1 [investment]",
+      "outcome": "PERMIT"
+    },
+    {
       "text": "hand off to a specialist",
       "source": "catalog (chip)",
       "location": "UC2",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC2 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC2 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC2 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC2 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC2 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC2 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC2 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC2 [investment]",
       "outcome": "PERMIT"
     },
     {
@@ -377,9 +1251,105 @@
       "outcome": "PERMIT"
     },
     {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC3 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC3 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC3 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC3 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC3 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC3 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC3 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC3 [investment]",
+      "outcome": "PERMIT"
+    },
+    {
       "text": "show my balance",
       "source": "catalog (chip)",
       "location": "UC19",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC19 [healthcare]",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC19 [retail]",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC19 [government]",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC19 [university]",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC19 [workforce]",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC19 [sporting-goods]",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC19 [manufacturing]",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC19 [investment]",
       "outcome": "DENY_401"
     },
     {
@@ -389,9 +1359,105 @@
       "outcome": "PERMIT"
     },
     {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC20 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC20 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC20 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC20 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC20 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC20 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC20 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC20 [investment]",
+      "outcome": "PERMIT"
+    },
+    {
       "text": "show my balance",
       "source": "catalog (chip)",
       "location": "UC4",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC4 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC4 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC4 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC4 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC4 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC4 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC4 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC4 [investment]",
       "outcome": "PERMIT"
     },
     {
@@ -401,9 +1467,105 @@
       "outcome": "DENY"
     },
     {
+      "text": "pay my $2500 bill",
+      "source": "catalog (chip)",
+      "location": "UC6 [healthcare]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "checkout headphones for $2500",
+      "source": "catalog (chip)",
+      "location": "UC6 [retail]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "pay the $2500 fee",
+      "source": "catalog (chip)",
+      "location": "UC6 [government]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "pay $2500 tuition",
+      "source": "catalog (chip)",
+      "location": "UC6 [university]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "submit a $2500 expense",
+      "source": "catalog (chip)",
+      "location": "UC6 [workforce]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "extend my rental $2500",
+      "source": "catalog (chip)",
+      "location": "UC6 [sporting-goods]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "approve a $2500 purchase order",
+      "source": "catalog (chip)",
+      "location": "UC6 [manufacturing]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "execute a large trade of $2500",
+      "source": "catalog (chip)",
+      "location": "UC6 [investment]",
+      "outcome": "DENY"
+    },
+    {
       "text": "transfer $600 from checking to savings",
       "source": "catalog (chip)",
       "location": "UC7",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "pay my $600 bill",
+      "source": "catalog (chip)",
+      "location": "UC7 [healthcare]",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "checkout headphones for $600",
+      "source": "catalog (chip)",
+      "location": "UC7 [retail]",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "pay the $600 fee",
+      "source": "catalog (chip)",
+      "location": "UC7 [government]",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "pay $600 tuition",
+      "source": "catalog (chip)",
+      "location": "UC7 [university]",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "submit a $600 expense",
+      "source": "catalog (chip)",
+      "location": "UC7 [workforce]",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "extend my rental $600",
+      "source": "catalog (chip)",
+      "location": "UC7 [sporting-goods]",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "approve a $600 purchase order",
+      "source": "catalog (chip)",
+      "location": "UC7 [manufacturing]",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "execute a large trade of $600",
+      "source": "catalog (chip)",
+      "location": "UC7 [investment]",
       "outcome": "STEP_UP"
     },
     {
@@ -413,9 +1575,105 @@
       "outcome": "HITL_REQUIRED"
     },
     {
+      "text": "pay my $300 bill",
+      "source": "catalog (chip)",
+      "location": "UC8 [healthcare]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "checkout headphones for $300",
+      "source": "catalog (chip)",
+      "location": "UC8 [retail]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "pay the $300 fee",
+      "source": "catalog (chip)",
+      "location": "UC8 [government]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "pay $300 tuition",
+      "source": "catalog (chip)",
+      "location": "UC8 [university]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "submit a $300 expense",
+      "source": "catalog (chip)",
+      "location": "UC8 [workforce]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "extend my rental $300",
+      "source": "catalog (chip)",
+      "location": "UC8 [sporting-goods]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "approve a $300 purchase order",
+      "source": "catalog (chip)",
+      "location": "UC8 [manufacturing]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "execute a large trade of $300",
+      "source": "catalog (chip)",
+      "location": "UC8 [investment]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
       "text": "transfer $600 from checking to savings",
       "source": "catalog (chip)",
       "location": "UC9",
+      "outcome": "DENY"
+    },
+    {
+      "text": "pay my $600 bill",
+      "source": "catalog (chip)",
+      "location": "UC9 [healthcare]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "checkout headphones for $600",
+      "source": "catalog (chip)",
+      "location": "UC9 [retail]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "pay the $600 fee",
+      "source": "catalog (chip)",
+      "location": "UC9 [government]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "pay $600 tuition",
+      "source": "catalog (chip)",
+      "location": "UC9 [university]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "submit a $600 expense",
+      "source": "catalog (chip)",
+      "location": "UC9 [workforce]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "extend my rental $600",
+      "source": "catalog (chip)",
+      "location": "UC9 [sporting-goods]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "approve a $600 purchase order",
+      "source": "catalog (chip)",
+      "location": "UC9 [manufacturing]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "execute a large trade of $600",
+      "source": "catalog (chip)",
+      "location": "UC9 [investment]",
       "outcome": "DENY"
     },
     {
@@ -425,9 +1683,105 @@
       "outcome": "PERMIT"
     },
     {
+      "text": "pay my $600 bill",
+      "source": "catalog (chip)",
+      "location": "UC21 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "checkout headphones for $600",
+      "source": "catalog (chip)",
+      "location": "UC21 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "pay the $600 fee",
+      "source": "catalog (chip)",
+      "location": "UC21 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "pay $600 tuition",
+      "source": "catalog (chip)",
+      "location": "UC21 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "submit a $600 expense",
+      "source": "catalog (chip)",
+      "location": "UC21 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "extend my rental $600",
+      "source": "catalog (chip)",
+      "location": "UC21 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "approve a $600 purchase order",
+      "source": "catalog (chip)",
+      "location": "UC21 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "execute a large trade of $600",
+      "source": "catalog (chip)",
+      "location": "UC21 [investment]",
+      "outcome": "PERMIT"
+    },
+    {
       "text": "transfer $600 from checking to savings",
       "source": "catalog (chip)",
       "location": "UC22",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "pay my $600 bill",
+      "source": "catalog (chip)",
+      "location": "UC22 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "checkout headphones for $600",
+      "source": "catalog (chip)",
+      "location": "UC22 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "pay the $600 fee",
+      "source": "catalog (chip)",
+      "location": "UC22 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "pay $600 tuition",
+      "source": "catalog (chip)",
+      "location": "UC22 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "submit a $600 expense",
+      "source": "catalog (chip)",
+      "location": "UC22 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "extend my rental $600",
+      "source": "catalog (chip)",
+      "location": "UC22 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "approve a $600 purchase order",
+      "source": "catalog (chip)",
+      "location": "UC22 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "execute a large trade of $600",
+      "source": "catalog (chip)",
+      "location": "UC22 [investment]",
       "outcome": "PERMIT"
     },
     {
@@ -437,15 +1791,147 @@
       "outcome": "PERMIT"
     },
     {
+      "text": "What clinics are near me?",
+      "source": "catalog (chip)",
+      "location": "UC24 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "What stores are near me?",
+      "source": "catalog (chip)",
+      "location": "UC24 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "What city offices are near me?",
+      "source": "catalog (chip)",
+      "location": "UC24 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "What campus locations are near me?",
+      "source": "catalog (chip)",
+      "location": "UC24 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "What office locations are near me?",
+      "source": "catalog (chip)",
+      "location": "UC24 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "What plant locations are near me?",
+      "source": "catalog (chip)",
+      "location": "UC24 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
       "text": "show my balance",
       "source": "catalog (chip)",
       "location": "UC17",
       "outcome": "PERMIT"
     },
     {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC17 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC17 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC17 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC17 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC17 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC17 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC17 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC17 [investment]",
+      "outcome": "PERMIT"
+    },
+    {
       "text": "show my balance",
       "source": "catalog (chip)",
       "location": "UC25",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC25 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC25 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC25 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC25 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC25 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC25 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC25 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC25 [investment]",
       "outcome": "PERMIT"
     },
     {
@@ -468,13 +1954,13 @@
     },
     {
       "text": "Show me my account balances",
-      "source": "PingOneTestPage.jsx",
+      "source": "PingOneTestPage.jsx (illustrative text only — does not launch the agent)",
       "location": "agentPrompt #1 (line 48)",
       "outcome": null
     },
     {
       "text": "Transfer $500 from checking to savings on behalf of the user",
-      "source": "PingOneTestPage.jsx",
+      "source": "PingOneTestPage.jsx (illustrative text only — does not launch the agent)",
       "location": "agentPrompt #2 (line 56)",
       "outcome": null
     },
@@ -579,6 +2065,20 @@
       "nonText": true
     },
     {
+      "text": "[simulation: insufficient-scope]",
+      "source": "catalog (attack-sim)",
+      "location": "UC5",
+      "outcome": "DENY_403",
+      "nonText": true
+    },
+    {
+      "text": "[simulation: cross-owner-account]",
+      "source": "catalog (attack-sim)",
+      "location": "UC10",
+      "outcome": "DENY",
+      "nonText": true
+    },
+    {
       "text": "[simulation: cross-owner-account]",
       "source": "catalog (attack-sim)",
       "location": "UC10",
@@ -589,6 +2089,20 @@
       "text": "[simulation: wrong-aud]",
       "source": "catalog (attack-sim)",
       "location": "UC11",
+      "outcome": "DENY_401",
+      "nonText": true
+    },
+    {
+      "text": "[simulation: wrong-aud]",
+      "source": "catalog (attack-sim)",
+      "location": "UC11",
+      "outcome": "DENY_401",
+      "nonText": true
+    },
+    {
+      "text": "[simulation: replayed-token]",
+      "source": "catalog (attack-sim)",
+      "location": "UC12",
       "outcome": "DENY_401",
       "nonText": true
     },
@@ -607,6 +2121,20 @@
       "nonText": true
     },
     {
+      "text": "[simulation: rogue-actor]",
+      "source": "catalog (attack-sim)",
+      "location": "UC13",
+      "outcome": "DENY",
+      "nonText": true
+    },
+    {
+      "text": "[simulation: rar-exceeded]",
+      "source": "catalog (attack-sim)",
+      "location": "UC14",
+      "outcome": "DENY",
+      "nonText": true
+    },
+    {
       "text": "[simulation: rar-exceeded]",
       "source": "catalog (attack-sim)",
       "location": "UC14",
@@ -621,10 +2149,31 @@
       "nonText": true
     },
     {
+      "text": "[simulation: tampered-intent-token]",
+      "source": "catalog (attack-sim)",
+      "location": "UC15",
+      "outcome": "DENY_401",
+      "nonText": true
+    },
+    {
       "text": "[simulation: impersonation-no-act]",
       "source": "catalog (attack-sim)",
       "location": "UC16",
       "outcome": "DENY_401",
+      "nonText": true
+    },
+    {
+      "text": "[simulation: impersonation-no-act]",
+      "source": "catalog (attack-sim)",
+      "location": "UC16",
+      "outcome": "DENY_401",
+      "nonText": true
+    },
+    {
+      "text": "[simulation: rate-limit-burst]",
+      "source": "catalog (attack-sim)",
+      "location": "UC18",
+      "outcome": "DENY_429",
       "nonText": true
     },
     {
@@ -703,6 +2252,13 @@
       "location": "line 883",
       "outcome": null,
       "nonText": true
+    },
+    {
+      "text": "[simulation: intent-bypass, POST /api/dev/intent-bypass-demo]",
+      "source": "AdminSideNav.jsx (AI Attack Demos > Intent Bypass)",
+      "location": "action handler, 'banking-attack-demo' event",
+      "outcome": null,
+      "nonText": true
     }
   ],
   "exactDuplicates": [
@@ -752,6 +2308,406 @@
     ],
     [
       {
+        "text": "check my coverage",
+        "source": "catalog (chip)",
+        "location": "UC1 [healthcare]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "check my coverage",
+        "source": "catalog (chip)",
+        "location": "UC2 [healthcare]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "check my coverage",
+        "source": "catalog (chip)",
+        "location": "UC3 [healthcare]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "check my coverage",
+        "source": "catalog (chip)",
+        "location": "UC19 [healthcare]",
+        "outcome": "DENY_401"
+      },
+      {
+        "text": "check my coverage",
+        "source": "catalog (chip)",
+        "location": "UC20 [healthcare]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "check my coverage",
+        "source": "catalog (chip)",
+        "location": "UC4 [healthcare]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "check my coverage",
+        "source": "catalog (chip)",
+        "location": "UC17 [healthcare]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "check my coverage",
+        "source": "catalog (chip)",
+        "location": "UC25 [healthcare]",
+        "outcome": "PERMIT"
+      }
+    ],
+    [
+      {
+        "text": "list my orders",
+        "source": "catalog (chip)",
+        "location": "UC1 [retail]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "list my orders",
+        "source": "catalog (chip)",
+        "location": "UC2 [retail]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "list my orders",
+        "source": "catalog (chip)",
+        "location": "UC3 [retail]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "list my orders",
+        "source": "catalog (chip)",
+        "location": "UC19 [retail]",
+        "outcome": "DENY_401"
+      },
+      {
+        "text": "list my orders",
+        "source": "catalog (chip)",
+        "location": "UC20 [retail]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "list my orders",
+        "source": "catalog (chip)",
+        "location": "UC4 [retail]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "list my orders",
+        "source": "catalog (chip)",
+        "location": "UC17 [retail]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "list my orders",
+        "source": "catalog (chip)",
+        "location": "UC25 [retail]",
+        "outcome": "PERMIT"
+      }
+    ],
+    [
+      {
+        "text": "show my permits",
+        "source": "catalog (chip)",
+        "location": "UC1 [government]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my permits",
+        "source": "catalog (chip)",
+        "location": "UC2 [government]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my permits",
+        "source": "catalog (chip)",
+        "location": "UC3 [government]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my permits",
+        "source": "catalog (chip)",
+        "location": "UC19 [government]",
+        "outcome": "DENY_401"
+      },
+      {
+        "text": "show my permits",
+        "source": "catalog (chip)",
+        "location": "UC20 [government]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my permits",
+        "source": "catalog (chip)",
+        "location": "UC4 [government]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my permits",
+        "source": "catalog (chip)",
+        "location": "UC17 [government]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my permits",
+        "source": "catalog (chip)",
+        "location": "UC25 [government]",
+        "outcome": "PERMIT"
+      }
+    ],
+    [
+      {
+        "text": "show my enrolled courses",
+        "source": "catalog (chip)",
+        "location": "UC1 [university]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my enrolled courses",
+        "source": "catalog (chip)",
+        "location": "UC2 [university]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my enrolled courses",
+        "source": "catalog (chip)",
+        "location": "UC3 [university]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my enrolled courses",
+        "source": "catalog (chip)",
+        "location": "UC19 [university]",
+        "outcome": "DENY_401"
+      },
+      {
+        "text": "show my enrolled courses",
+        "source": "catalog (chip)",
+        "location": "UC20 [university]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my enrolled courses",
+        "source": "catalog (chip)",
+        "location": "UC4 [university]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my enrolled courses",
+        "source": "catalog (chip)",
+        "location": "UC17 [university]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my enrolled courses",
+        "source": "catalog (chip)",
+        "location": "UC25 [university]",
+        "outcome": "PERMIT"
+      }
+    ],
+    [
+      {
+        "text": "my benefits",
+        "source": "catalog (chip)",
+        "location": "UC1 [workforce]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "my benefits",
+        "source": "catalog (chip)",
+        "location": "UC2 [workforce]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "my benefits",
+        "source": "catalog (chip)",
+        "location": "UC3 [workforce]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "my benefits",
+        "source": "catalog (chip)",
+        "location": "UC19 [workforce]",
+        "outcome": "DENY_401"
+      },
+      {
+        "text": "my benefits",
+        "source": "catalog (chip)",
+        "location": "UC20 [workforce]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "my benefits",
+        "source": "catalog (chip)",
+        "location": "UC4 [workforce]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "my benefits",
+        "source": "catalog (chip)",
+        "location": "UC17 [workforce]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "my benefits",
+        "source": "catalog (chip)",
+        "location": "UC25 [workforce]",
+        "outcome": "PERMIT"
+      }
+    ],
+    [
+      {
+        "text": "my gear",
+        "source": "catalog (chip)",
+        "location": "UC1 [sporting-goods]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "my gear",
+        "source": "catalog (chip)",
+        "location": "UC2 [sporting-goods]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "my gear",
+        "source": "catalog (chip)",
+        "location": "UC3 [sporting-goods]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "my gear",
+        "source": "catalog (chip)",
+        "location": "UC19 [sporting-goods]",
+        "outcome": "DENY_401"
+      },
+      {
+        "text": "my gear",
+        "source": "catalog (chip)",
+        "location": "UC20 [sporting-goods]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "my gear",
+        "source": "catalog (chip)",
+        "location": "UC4 [sporting-goods]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "my gear",
+        "source": "catalog (chip)",
+        "location": "UC17 [sporting-goods]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "my gear",
+        "source": "catalog (chip)",
+        "location": "UC25 [sporting-goods]",
+        "outcome": "PERMIT"
+      }
+    ],
+    [
+      {
+        "text": "show my work orders",
+        "source": "catalog (chip)",
+        "location": "UC1 [manufacturing]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my work orders",
+        "source": "catalog (chip)",
+        "location": "UC2 [manufacturing]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my work orders",
+        "source": "catalog (chip)",
+        "location": "UC3 [manufacturing]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my work orders",
+        "source": "catalog (chip)",
+        "location": "UC19 [manufacturing]",
+        "outcome": "DENY_401"
+      },
+      {
+        "text": "show my work orders",
+        "source": "catalog (chip)",
+        "location": "UC20 [manufacturing]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my work orders",
+        "source": "catalog (chip)",
+        "location": "UC4 [manufacturing]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my work orders",
+        "source": "catalog (chip)",
+        "location": "UC17 [manufacturing]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my work orders",
+        "source": "catalog (chip)",
+        "location": "UC25 [manufacturing]",
+        "outcome": "PERMIT"
+      }
+    ],
+    [
+      {
+        "text": "show my portfolios",
+        "source": "catalog (chip)",
+        "location": "UC1 [investment]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my portfolios",
+        "source": "catalog (chip)",
+        "location": "UC2 [investment]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my portfolios",
+        "source": "catalog (chip)",
+        "location": "UC3 [investment]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my portfolios",
+        "source": "catalog (chip)",
+        "location": "UC19 [investment]",
+        "outcome": "DENY_401"
+      },
+      {
+        "text": "show my portfolios",
+        "source": "catalog (chip)",
+        "location": "UC20 [investment]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my portfolios",
+        "source": "catalog (chip)",
+        "location": "UC4 [investment]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my portfolios",
+        "source": "catalog (chip)",
+        "location": "UC17 [investment]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "show my portfolios",
+        "source": "catalog (chip)",
+        "location": "UC25 [investment]",
+        "outcome": "PERMIT"
+      }
+    ],
+    [
+      {
         "text": "transfer $600 from checking to savings",
         "source": "catalog (chip)",
         "location": "UC7",
@@ -773,6 +2729,214 @@
         "text": "transfer $600 from checking to savings",
         "source": "catalog (chip)",
         "location": "UC22",
+        "outcome": "PERMIT"
+      }
+    ],
+    [
+      {
+        "text": "pay my $600 bill",
+        "source": "catalog (chip)",
+        "location": "UC7 [healthcare]",
+        "outcome": "STEP_UP"
+      },
+      {
+        "text": "pay my $600 bill",
+        "source": "catalog (chip)",
+        "location": "UC9 [healthcare]",
+        "outcome": "DENY"
+      },
+      {
+        "text": "pay my $600 bill",
+        "source": "catalog (chip)",
+        "location": "UC21 [healthcare]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "pay my $600 bill",
+        "source": "catalog (chip)",
+        "location": "UC22 [healthcare]",
+        "outcome": "PERMIT"
+      }
+    ],
+    [
+      {
+        "text": "checkout headphones for $600",
+        "source": "catalog (chip)",
+        "location": "UC7 [retail]",
+        "outcome": "STEP_UP"
+      },
+      {
+        "text": "checkout headphones for $600",
+        "source": "catalog (chip)",
+        "location": "UC9 [retail]",
+        "outcome": "DENY"
+      },
+      {
+        "text": "checkout headphones for $600",
+        "source": "catalog (chip)",
+        "location": "UC21 [retail]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "checkout headphones for $600",
+        "source": "catalog (chip)",
+        "location": "UC22 [retail]",
+        "outcome": "PERMIT"
+      }
+    ],
+    [
+      {
+        "text": "pay the $600 fee",
+        "source": "catalog (chip)",
+        "location": "UC7 [government]",
+        "outcome": "STEP_UP"
+      },
+      {
+        "text": "pay the $600 fee",
+        "source": "catalog (chip)",
+        "location": "UC9 [government]",
+        "outcome": "DENY"
+      },
+      {
+        "text": "pay the $600 fee",
+        "source": "catalog (chip)",
+        "location": "UC21 [government]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "pay the $600 fee",
+        "source": "catalog (chip)",
+        "location": "UC22 [government]",
+        "outcome": "PERMIT"
+      }
+    ],
+    [
+      {
+        "text": "pay $600 tuition",
+        "source": "catalog (chip)",
+        "location": "UC7 [university]",
+        "outcome": "STEP_UP"
+      },
+      {
+        "text": "pay $600 tuition",
+        "source": "catalog (chip)",
+        "location": "UC9 [university]",
+        "outcome": "DENY"
+      },
+      {
+        "text": "pay $600 tuition",
+        "source": "catalog (chip)",
+        "location": "UC21 [university]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "pay $600 tuition",
+        "source": "catalog (chip)",
+        "location": "UC22 [university]",
+        "outcome": "PERMIT"
+      }
+    ],
+    [
+      {
+        "text": "submit a $600 expense",
+        "source": "catalog (chip)",
+        "location": "UC7 [workforce]",
+        "outcome": "STEP_UP"
+      },
+      {
+        "text": "submit a $600 expense",
+        "source": "catalog (chip)",
+        "location": "UC9 [workforce]",
+        "outcome": "DENY"
+      },
+      {
+        "text": "submit a $600 expense",
+        "source": "catalog (chip)",
+        "location": "UC21 [workforce]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "submit a $600 expense",
+        "source": "catalog (chip)",
+        "location": "UC22 [workforce]",
+        "outcome": "PERMIT"
+      }
+    ],
+    [
+      {
+        "text": "extend my rental $600",
+        "source": "catalog (chip)",
+        "location": "UC7 [sporting-goods]",
+        "outcome": "STEP_UP"
+      },
+      {
+        "text": "extend my rental $600",
+        "source": "catalog (chip)",
+        "location": "UC9 [sporting-goods]",
+        "outcome": "DENY"
+      },
+      {
+        "text": "extend my rental $600",
+        "source": "catalog (chip)",
+        "location": "UC21 [sporting-goods]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "extend my rental $600",
+        "source": "catalog (chip)",
+        "location": "UC22 [sporting-goods]",
+        "outcome": "PERMIT"
+      }
+    ],
+    [
+      {
+        "text": "approve a $600 purchase order",
+        "source": "catalog (chip)",
+        "location": "UC7 [manufacturing]",
+        "outcome": "STEP_UP"
+      },
+      {
+        "text": "approve a $600 purchase order",
+        "source": "catalog (chip)",
+        "location": "UC9 [manufacturing]",
+        "outcome": "DENY"
+      },
+      {
+        "text": "approve a $600 purchase order",
+        "source": "catalog (chip)",
+        "location": "UC21 [manufacturing]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "approve a $600 purchase order",
+        "source": "catalog (chip)",
+        "location": "UC22 [manufacturing]",
+        "outcome": "PERMIT"
+      }
+    ],
+    [
+      {
+        "text": "execute a large trade of $600",
+        "source": "catalog (chip)",
+        "location": "UC7 [investment]",
+        "outcome": "STEP_UP"
+      },
+      {
+        "text": "execute a large trade of $600",
+        "source": "catalog (chip)",
+        "location": "UC9 [investment]",
+        "outcome": "DENY"
+      },
+      {
+        "text": "execute a large trade of $600",
+        "source": "catalog (chip)",
+        "location": "UC21 [investment]",
+        "outcome": "PERMIT"
+      },
+      {
+        "text": "execute a large trade of $600",
+        "source": "catalog (chip)",
+        "location": "UC22 [investment]",
         "outcome": "PERMIT"
       }
     ]
@@ -825,7 +2989,7 @@
         },
         {
           "text": "Show me my account balances",
-          "source": "PingOneTestPage.jsx",
+          "source": "PingOneTestPage.jsx (illustrative text only — does not launch the agent)",
           "location": "agentPrompt #1 (line 48)",
           "outcome": null
         },
@@ -902,7 +3066,7 @@
         },
         {
           "text": "Transfer $500 from checking to savings on behalf of the user",
-          "source": "PingOneTestPage.jsx",
+          "source": "PingOneTestPage.jsx (illustrative text only — does not launch the agent)",
           "location": "agentPrompt #2 (line 56)",
           "outcome": null
         },
@@ -965,22 +3129,730 @@
     },
     {
       "text": "Show me my account balances",
-      "source": "PingOneTestPage.jsx",
+      "source": "PingOneTestPage.jsx (illustrative text only — does not launch the agent)",
       "location": "agentPrompt #1 (line 48)",
       "outcome": null
     },
     {
       "text": "Transfer $500 from checking to savings on behalf of the user",
-      "source": "PingOneTestPage.jsx",
+      "source": "PingOneTestPage.jsx (illustrative text only — does not launch the agent)",
       "location": "agentPrompt #2 (line 56)",
       "outcome": null
     }
   ],
   "unbucketed": [
     {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC1 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC1 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC1 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC1 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC1 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC1 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC1 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC1 [investment]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC2 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC2 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC2 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC2 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC2 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC2 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC2 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC2 [investment]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC3 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC3 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC3 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC3 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC3 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC3 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC3 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC3 [investment]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC19 [healthcare]",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC19 [retail]",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC19 [government]",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC19 [university]",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC19 [workforce]",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC19 [sporting-goods]",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC19 [manufacturing]",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC19 [investment]",
+      "outcome": "DENY_401"
+    },
+    {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC20 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC20 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC20 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC20 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC20 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC20 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC20 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC20 [investment]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC4 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC4 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC4 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC4 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC4 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC4 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC4 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC4 [investment]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "pay my $2500 bill",
+      "source": "catalog (chip)",
+      "location": "UC6 [healthcare]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "checkout headphones for $2500",
+      "source": "catalog (chip)",
+      "location": "UC6 [retail]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "pay the $2500 fee",
+      "source": "catalog (chip)",
+      "location": "UC6 [government]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "pay $2500 tuition",
+      "source": "catalog (chip)",
+      "location": "UC6 [university]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "submit a $2500 expense",
+      "source": "catalog (chip)",
+      "location": "UC6 [workforce]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "extend my rental $2500",
+      "source": "catalog (chip)",
+      "location": "UC6 [sporting-goods]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "approve a $2500 purchase order",
+      "source": "catalog (chip)",
+      "location": "UC6 [manufacturing]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "execute a large trade of $2500",
+      "source": "catalog (chip)",
+      "location": "UC6 [investment]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "pay my $600 bill",
+      "source": "catalog (chip)",
+      "location": "UC7 [healthcare]",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "checkout headphones for $600",
+      "source": "catalog (chip)",
+      "location": "UC7 [retail]",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "pay the $600 fee",
+      "source": "catalog (chip)",
+      "location": "UC7 [government]",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "pay $600 tuition",
+      "source": "catalog (chip)",
+      "location": "UC7 [university]",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "submit a $600 expense",
+      "source": "catalog (chip)",
+      "location": "UC7 [workforce]",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "extend my rental $600",
+      "source": "catalog (chip)",
+      "location": "UC7 [sporting-goods]",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "approve a $600 purchase order",
+      "source": "catalog (chip)",
+      "location": "UC7 [manufacturing]",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "execute a large trade of $600",
+      "source": "catalog (chip)",
+      "location": "UC7 [investment]",
+      "outcome": "STEP_UP"
+    },
+    {
+      "text": "pay my $300 bill",
+      "source": "catalog (chip)",
+      "location": "UC8 [healthcare]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "checkout headphones for $300",
+      "source": "catalog (chip)",
+      "location": "UC8 [retail]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "pay the $300 fee",
+      "source": "catalog (chip)",
+      "location": "UC8 [government]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "pay $300 tuition",
+      "source": "catalog (chip)",
+      "location": "UC8 [university]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "submit a $300 expense",
+      "source": "catalog (chip)",
+      "location": "UC8 [workforce]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "extend my rental $300",
+      "source": "catalog (chip)",
+      "location": "UC8 [sporting-goods]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "approve a $300 purchase order",
+      "source": "catalog (chip)",
+      "location": "UC8 [manufacturing]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "execute a large trade of $300",
+      "source": "catalog (chip)",
+      "location": "UC8 [investment]",
+      "outcome": "HITL_REQUIRED"
+    },
+    {
+      "text": "pay my $600 bill",
+      "source": "catalog (chip)",
+      "location": "UC9 [healthcare]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "checkout headphones for $600",
+      "source": "catalog (chip)",
+      "location": "UC9 [retail]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "pay the $600 fee",
+      "source": "catalog (chip)",
+      "location": "UC9 [government]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "pay $600 tuition",
+      "source": "catalog (chip)",
+      "location": "UC9 [university]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "submit a $600 expense",
+      "source": "catalog (chip)",
+      "location": "UC9 [workforce]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "extend my rental $600",
+      "source": "catalog (chip)",
+      "location": "UC9 [sporting-goods]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "approve a $600 purchase order",
+      "source": "catalog (chip)",
+      "location": "UC9 [manufacturing]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "execute a large trade of $600",
+      "source": "catalog (chip)",
+      "location": "UC9 [investment]",
+      "outcome": "DENY"
+    },
+    {
+      "text": "pay my $600 bill",
+      "source": "catalog (chip)",
+      "location": "UC21 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "checkout headphones for $600",
+      "source": "catalog (chip)",
+      "location": "UC21 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "pay the $600 fee",
+      "source": "catalog (chip)",
+      "location": "UC21 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "pay $600 tuition",
+      "source": "catalog (chip)",
+      "location": "UC21 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "submit a $600 expense",
+      "source": "catalog (chip)",
+      "location": "UC21 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "extend my rental $600",
+      "source": "catalog (chip)",
+      "location": "UC21 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "approve a $600 purchase order",
+      "source": "catalog (chip)",
+      "location": "UC21 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "execute a large trade of $600",
+      "source": "catalog (chip)",
+      "location": "UC21 [investment]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "pay my $600 bill",
+      "source": "catalog (chip)",
+      "location": "UC22 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "checkout headphones for $600",
+      "source": "catalog (chip)",
+      "location": "UC22 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "pay the $600 fee",
+      "source": "catalog (chip)",
+      "location": "UC22 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "pay $600 tuition",
+      "source": "catalog (chip)",
+      "location": "UC22 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "submit a $600 expense",
+      "source": "catalog (chip)",
+      "location": "UC22 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "extend my rental $600",
+      "source": "catalog (chip)",
+      "location": "UC22 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "approve a $600 purchase order",
+      "source": "catalog (chip)",
+      "location": "UC22 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "execute a large trade of $600",
+      "source": "catalog (chip)",
+      "location": "UC22 [investment]",
+      "outcome": "PERMIT"
+    },
+    {
       "text": "What branches are near me?",
       "source": "catalog (chip)",
       "location": "UC24",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "What clinics are near me?",
+      "source": "catalog (chip)",
+      "location": "UC24 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "What stores are near me?",
+      "source": "catalog (chip)",
+      "location": "UC24 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "What city offices are near me?",
+      "source": "catalog (chip)",
+      "location": "UC24 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "What campus locations are near me?",
+      "source": "catalog (chip)",
+      "location": "UC24 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "What office locations are near me?",
+      "source": "catalog (chip)",
+      "location": "UC24 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "What plant locations are near me?",
+      "source": "catalog (chip)",
+      "location": "UC24 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC17 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC17 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC17 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC17 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC17 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC17 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC17 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC17 [investment]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "check my coverage",
+      "source": "catalog (chip)",
+      "location": "UC25 [healthcare]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "list my orders",
+      "source": "catalog (chip)",
+      "location": "UC25 [retail]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my permits",
+      "source": "catalog (chip)",
+      "location": "UC25 [government]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my enrolled courses",
+      "source": "catalog (chip)",
+      "location": "UC25 [university]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my benefits",
+      "source": "catalog (chip)",
+      "location": "UC25 [workforce]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "my gear",
+      "source": "catalog (chip)",
+      "location": "UC25 [sporting-goods]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my work orders",
+      "source": "catalog (chip)",
+      "location": "UC25 [manufacturing]",
+      "outcome": "PERMIT"
+    },
+    {
+      "text": "show my portfolios",
+      "source": "catalog (chip)",
+      "location": "UC25 [investment]",
       "outcome": "PERMIT"
     },
     {
@@ -997,5 +3869,15 @@
       "outcome": "watch[] has 3 entries",
       "nonText": false
     }
-  ]
+  ],
+  "agentModes": [
+    "heuristics",
+    "gemini",
+    "llamacpp",
+    "mlx",
+    "claude",
+    "helix_google",
+    "groq"
+  ],
+  "liveVerifiedAgentModes": []
 }
