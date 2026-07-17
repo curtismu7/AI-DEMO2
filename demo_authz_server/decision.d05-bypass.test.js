@@ -24,6 +24,7 @@ const GATEWAY_AUD = 'mcpgateway.ping.demo';
 const OLB_AUD = 'mcpserver.ping.demo';
 const INVEST_AUD = 'mcp-invest.ping.demo';
 const BANKING_RS_AUD = 'https://banking-resource-server.ping.demo';
+const AI_AGENT_ACTOR = 'test-ai-agent';
 
 let OVERLAY;
 let decisionHandler;
@@ -49,6 +50,10 @@ function params(extra = {}) {
     DecisionContext:   'McpToolCall',
     ToolName:          'create_transfer',
     ClientId:          'user-1',
+    // create_transfer is agent-mediated, so Rule 2.5 (UC16) requires an act
+    // claim; AI_AGENT_ACTOR satisfies Rule 2's authorized-actor check. Without
+    // it every case DENYs on missing_act and never reaches the D-05 rule.
+    ActClientId:       AI_AGENT_ACTOR,
     TokenScopes:       'read write transfer',
     TokenAudience:     GATEWAY_AUD,
     TokenAudActual:    GATEWAY_AUD,
@@ -73,6 +78,7 @@ beforeEach(() => {
   OVERLAY = path.join(os.tmpdir(), `d05-${process.pid}-${Math.floor(process.hrtime()[1])}.json`);
   process.env.AUTHZ_RULES_OVERLAY_PATH = OVERLAY;
   process.env.MCP_GATEWAY_RESOURCE_URI = GATEWAY_AUD;
+  process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID = AI_AGENT_ACTOR;
   delete process.env.PINGONE_ENVIRONMENT_ID; // disable iss check
   delete process.env.BANKING_RESOURCE_SERVER_RESOURCE_URI; // use the default literal
   try { fs.unlinkSync(OVERLAY); } catch { /* ignore */ }
