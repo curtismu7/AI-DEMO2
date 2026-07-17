@@ -101,6 +101,22 @@ const params = r.banking?.params ?? r.params ?? null;
 
 ## Where ground truth lives
 
+**Which TOOL a chip must hit (the response contract): the catalog itself.** Since
+PR #553, every vertical stores its OWN `primaryTool` per chip in
+`demo_api_server/config/useCases.js` — `READ_PRIMARY_TOOL_BY_VERTICAL` and
+`AMOUNT_PRIMARY_TOOL_BY_VERTICAL`, threaded through `chipOverrides`. Duplicates
+across verticals are DELIBERATE (isolation over DRY): editing one vertical's
+entry must never change another's. Do NOT read the banking base entry as any
+other vertical's truth — that shared-metadata world is gone (it made 68/72
+vertical entries lie about their own tool and forced the routing gate down to
+banking-only). `useCases.primaryTool.test.js` enforces the contract at pre-push:
+129 checks, every vertical × chip must route to its own stored tool, and a
+vertical with NO stored entries fails by itself. **Adding a chip or a vertical
+means adding its map entries — the gate tells you if you forget.**
+
+**Which VALUES the tool must return: the seed/store** (below). The rendered
+prose must match that turn's `/api/mcp/tool` payload (grounding).
+
 | vertical | store | money keys |
 |---|---|---|
 | banking | `demo_api_server/data/runtimeData.json` (`users`/`accounts`, match `userId`) | `balance` |
@@ -156,8 +172,11 @@ Get a vertical's real chips (never invent phrases):
 cd demo_api_server && node -e "
 const { USE_CASES, resolveUseCase } = require('./config/useCases.js');
 for (const u of USE_CASES) { const r = resolveUseCase(u.id,'retail')||u; const t=r.trigger||{};
-  if (t.type==='chip' && t.text) console.log(u.id, JSON.stringify(t.text)); }"
+  if (t.type==='chip' && t.text) console.log(u.id, JSON.stringify(t.text), '->', r.primaryTool); }"
 ```
+
+The printed `primaryTool` is that vertical's OWN stored contract value — what the
+routing gate holds the chip to.
 
 ## What this catches (real finds, first run)
 
