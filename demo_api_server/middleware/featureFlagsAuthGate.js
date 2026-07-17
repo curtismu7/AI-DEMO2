@@ -1,13 +1,16 @@
 'use strict';
 
 /**
- * Opt-in auth gate for the feature-flags admin endpoint.
+ * Auth gate for the feature-flags admin endpoint.
  *
- * The endpoint is unauthenticated by default (a deliberate demo-ergonomics
- * choice so any signed-in user can toggle flags from the header pill). Setting
- * FF_ADMIN_REQUIRE_AUTH to a truthy value requires an authenticated session for
- * MUTATIONS (anything that is not a GET/HEAD read). Reads stay open in both
+ * Fail-secure: MUTATIONS (anything that is not a GET/HEAD read) require an
+ * authenticated session by DEFAULT. Setting FF_ADMIN_ALLOW_ANONYMOUS_MUTATIONS to
+ * a truthy value opts back in to anonymous mutations for dev/demo ergonomics (so
+ * any visitor can toggle flags from the header pill). Reads stay open in both
  * modes so the pill can always display flag state.
+ *
+ * NOTE: this replaced an earlier opt-IN FF_ADMIN_REQUIRE_AUTH gate (unset =
+ * open). That env var is no longer read — setting it has no effect.
  *
  * Factory form (takes the app's authenticateToken middleware) keeps the gate
  * unit-testable without booting the server.

@@ -12,9 +12,15 @@
  * manifest itself and does not use this extractor.
  *
  * Each chips10 entry is { id, label, message, mode, tool? }. `mode` partitions
- * them into the same two buckets the old constants did:
- *   - 'both' | 'direct' → heuristic-resolvable (no LLM provider needed)
- *   - 'llm'             → requires an LLM provider
+ * them by how the chip is dispatched:
+ *   - 'both' | unset → heuristic-resolvable: the NL parser must map the message
+ *                      to an action (no LLM provider needed)
+ *   - 'direct'       → dispatched straight to the chip's own `tool` / `denyTool`;
+ *                      the NL parser is not in the path, so the message is NOT
+ *                      required to parse (e.g. bk-deny's "show my health record"
+ *                      deliberately names a HEALTHCARE tool from banking to
+ *                      trigger an Authorize DENY — no banking action exists for it)
+ *   - 'llm'          → requires an LLM provider
  */
 const path = require('path');
 
@@ -29,16 +35,19 @@ function extract() {
 
   const norm = (c) => ({ id: c.id, label: c.label, message: c.message });
 
-  // `mode` partitions the chips: 'llm' needs an LLM provider; everything else
-  // ('both' / 'direct' / unset) is heuristic-resolvable.
-  const heuristicChips = chips10.filter((c) => c.mode !== 'llm').map(norm);
+  // 'llm' needs an LLM provider. 'direct' is dispatched to the chip's own
+  // tool/denyTool and never reaches the NL parser, so it is not heuristic-
+  // resolvable — only 'both'/unset must map to an action via parseHeuristic.
+  const heuristicChips = chips10.filter((c) => c.mode !== 'llm' && c.mode !== 'direct').map(norm);
+  const directChips = chips10.filter((c) => c.mode === 'direct').map(norm);
   const llmChips = chips10.filter((c) => c.mode === 'llm').map(norm);
 
   const allChips = [
     ...heuristicChips.map((c) => ({ ...c, kind: 'heuristic-builtin' })),
+    ...directChips.map((c) => ({ ...c, kind: 'direct-builtin' })),
     ...llmChips.map((c) => ({ ...c, kind: 'llm-builtin' })),
   ];
-  return { heuristicChips, llmChips, allChips };
+  return { heuristicChips, directChips, llmChips, allChips };
 }
 
 module.exports = extract();

@@ -12,9 +12,14 @@ const ctxWithToken = { flags: { ff_mcp_gateway_pinggateway: true }, req: { sessi
 describe('gatewayCheck.real_path', () => {
   afterEach(() => jest.clearAllMocks());
 
-  test('skips without a session token', async () => {
+  // 5f01bc881 made this a severity:'gate' check required for pre-demo READY, so a
+  // missing session token FAILS (with a sign-in nextAction) rather than skipping —
+  // skipping would let the Demo check report READY without a live user session.
+  test('fails without a session token', async () => {
     const r = await realPath.run({ flags: { ff_mcp_gateway_pinggateway: true }, req: { session: {} } });
-    expect(r.status).toBe('skip');
+    expect(r.status).toBe('fail');
+    expect(r.detail).toMatch(/no live user session token/i);
+    expect(r.nextAction).toMatch(/sign in/i);
   });
 
   test('passes when all three hops succeed', async () => {

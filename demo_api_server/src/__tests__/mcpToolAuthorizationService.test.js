@@ -360,7 +360,10 @@ describe('mcpToolAuthorizationService', () => {
       });
 
       expect(r.ran).toBe(true);
-      expect(r.block.status).toBe(403);
+      // 503, not 403: policy_not_found means P1AZ evaluated fine but no policy
+      // matched — code/policy drift, deliberately distinct from the 403 deny
+      // (see 4a1f8a2d8, which ordered policyNotFound=503 before DENY=403).
+      expect(r.block.status).toBe(503);
       expect(r.block.body.error).toBe('policy_not_found');
       expect(r.block.body.error_description).toMatch(/contact administrator/i);
       expect(r.block.body.decisionContext).toBe('McpFirstTool');

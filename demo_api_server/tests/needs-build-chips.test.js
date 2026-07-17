@@ -95,13 +95,20 @@ describe('needs-build chip behaviors', () => {
 
   describe('UC20 audit-trail', () => {
     it('logEvent surfaces useCaseId on activity events', () => {
-      const before = getEvents().length;
       const ev = logEvent('agent', 'info', 'test audit stamp', {
         tag: 'test/audit-trail',
         useCaseId: 'audit-trail',
       });
       expect(ev.useCaseId).toBe('audit-trail');
-      expect(getEvents().length).toBeGreaterThan(before);
+
+      // Assert the event was RECORDED, not that the list grew: getEvents()
+      // defaults to the first 100 of an oldest-first ring buffer, so in a full
+      // suite run (where earlier tests have already logged 100+) the count is
+      // pinned and a new event isn't in the default window at all. Ask for the
+      // whole ring and find it by id.
+      const recorded = getEvents({ limit: 500 }).find((e) => e.id === ev.id);
+      expect(recorded).toBeDefined();
+      expect(recorded.useCaseId).toBe('audit-trail');
     });
   });
 });

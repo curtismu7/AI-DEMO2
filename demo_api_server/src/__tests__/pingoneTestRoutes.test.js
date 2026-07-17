@@ -127,9 +127,16 @@ const MOCK_APPS = [
   { id: 'app-7', name: 'Demo AI App - Purchase Specialist Agent',  type: 'WEB_APP',  oidcOptions: { clientId: 'pur-cid' } },
   { id: 'app-8', name: 'Demo AI App - Membership Specialist Agent',type: 'WEB_APP',  oidcOptions: { clientId: 'mem-cid' } },
   { id: 'app-9', name: 'Demo AI App - Payroll Specialist Agent',   type: 'WEB_APP',  oidcOptions: { clientId: 'pay-cid' } },
+  { id: 'app-10', name: 'Demo AI App - Tax Records Specialist Agent',       type: 'WEB_APP', oidcOptions: { clientId: 'tax-cid' } },
+  { id: 'app-11', name: 'Demo AI App - Financial Aid Specialist Agent',     type: 'WEB_APP', oidcOptions: { clientId: 'aid-cid' } },
+  { id: 'app-12', name: 'Demo AI App - Supplier Contract Specialist Agent', type: 'WEB_APP', oidcOptions: { clientId: 'sup-cid' } },
   { id: 'app-w', name: 'Demo AI App - Introspection Worker',       type: 'WORKER',   oidcOptions: { clientId: 'worker-cid' } },
   { id: 'app-x', name: 'Some Unrelated App',                       type: 'WEB_APP',  oidcOptions: { clientId: 'other-cid' } },
 ];
+// This fixture stands in for the live PingOne app list, so it must contain every
+// SoT app that has a grant — SOT.requiredNames above is derived from
+// scope-topology.json provisioning.appNames. Adding a specialist agent there
+// without adding it here surfaces as steps[].status === 'not_found'.
 
 // The two AI_AGENT-typed apps the ai-agent-apps cross-reference recognises.
 const KNOWN_AI_APPS = ['Demo AI App - Token Exchanger', 'Demo AI App - AI Agent Actor'];

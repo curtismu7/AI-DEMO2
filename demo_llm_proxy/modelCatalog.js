@@ -35,6 +35,12 @@ const TIERS = [
     label: 'Llama-3-Groq-8B-Tool-Use (8B) — experimental, tool-calling, US-origin',
     repo: 'bartowski/Llama-3-Groq-8B-Tool-Use-GGUF',
     sizeBytes: 4_920_000_000,
+    // Opt-in only: the router/tier-manager know this tier and will route to it if
+    // it is running, but the default local stack does NOT start it, pin it in the
+    // UI, or map it in langchainConfig (its GGUF is not part of the standard
+    // download set). Machine-readable so the tier-drift guard can compare the
+    // default set against those consumers instead of demanding they carry it.
+    experimental: true,
   },
   {
     tier: 5,

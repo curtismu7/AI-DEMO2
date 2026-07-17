@@ -1,9 +1,16 @@
 /**
- * C4 — opt-in auth gate for the feature-flags admin endpoint.
- * Default OFF preserves the unauthenticated demo posture; FF_ADMIN_REQUIRE_AUTH
- * guards mutations only (reads stay open for the header pill).
+ * C4 — auth gate for the feature-flags admin endpoint.
+ *
+ * Fail-secure: mutations require auth by DEFAULT. 9acedbddf ("resolve bugs
+ * #41-#50 across auth, logging, retry, CORS, and agents") inverted this gate — it
+ * used to be opt-IN auth via FF_ADMIN_REQUIRE_AUTH (unset = open), and is now
+ * opt-IN *anonymous* via FF_ADMIN_ALLOW_ANONYMOUS_MUTATIONS (unset = require
+ * auth). Reads (GET/HEAD) stay open in both modes so the header pill can always
+ * display flag state.
  */
 const { makeFeatureFlagsAuthGate } = require('../middleware/featureFlagsAuthGate');
+
+const ENV_KEY = 'FF_ADMIN_ALLOW_ANONYMOUS_MUTATIONS';
 
 function run(gate, method) {
   const calls = { next: 0, auth: 0 };
@@ -14,41 +21,42 @@ function run(gate, method) {
 }
 
 describe('featureFlagsAuthGate (C4)', () => {
-  const prev = process.env.FF_ADMIN_REQUIRE_AUTH;
+  const prev = process.env[ENV_KEY];
   afterEach(() => {
-    if (prev === undefined) delete process.env.FF_ADMIN_REQUIRE_AUTH;
-    else process.env.FF_ADMIN_REQUIRE_AUTH = prev;
+    if (prev === undefined) delete process.env[ENV_KEY];
+    else process.env[ENV_KEY] = prev;
   });
 
-  test('default (unset): PATCH passes through without auth — demo posture preserved', () => {
-    delete process.env.FF_ADMIN_REQUIRE_AUTH;
-    const c = run(makeFeatureFlagsAuthGate, 'PATCH');
-    expect(c.next).toBe(1);
-    expect(c.auth).toBe(0);
-  });
-
-  test('FF_ADMIN_REQUIRE_AUTH=true: PATCH is routed through authenticateToken', () => {
-    process.env.FF_ADMIN_REQUIRE_AUTH = 'true';
+  test('default (unset): PATCH is routed through authenticateToken — fail-secure', () => {
+    delete process.env[ENV_KEY];
     const c = run(makeFeatureFlagsAuthGate, 'PATCH');
     expect(c.auth).toBe(1);
     expect(c.next).toBe(0);
   });
 
-  test('FF_ADMIN_REQUIRE_AUTH=true: GET reads stay open (pill can display state)', () => {
-    process.env.FF_ADMIN_REQUIRE_AUTH = 'true';
+  test('ALLOW_ANONYMOUS_MUTATIONS=true: PATCH passes through without auth', () => {
+    process.env[ENV_KEY] = 'true';
+    const c = run(makeFeatureFlagsAuthGate, 'PATCH');
+    expect(c.next).toBe(1);
+    expect(c.auth).toBe(0);
+  });
+
+  test('GET reads stay open while mutations require auth (pill can display state)', () => {
+    delete process.env[ENV_KEY];
     const c = run(makeFeatureFlagsAuthGate, 'GET');
     expect(c.next).toBe(1);
     expect(c.auth).toBe(0);
   });
 
-  test('accepts common truthy spellings (1/yes/on), ignores others', () => {
+  test('accepts common truthy spellings (1/yes/on) to allow anonymous, ignores others', () => {
     for (const v of ['1', 'yes', 'on', 'TRUE']) {
-      process.env.FF_ADMIN_REQUIRE_AUTH = v;
-      expect(run(makeFeatureFlagsAuthGate, 'PATCH').auth).toBe(1);
-    }
-    for (const v of ['0', 'false', 'off', '']) {
-      process.env.FF_ADMIN_REQUIRE_AUTH = v;
+      process.env[ENV_KEY] = v;
       expect(run(makeFeatureFlagsAuthGate, 'PATCH').next).toBe(1);
+    }
+    // Anything else — including empty — falls back to the fail-secure default.
+    for (const v of ['0', 'false', 'off', '']) {
+      process.env[ENV_KEY] = v;
+      expect(run(makeFeatureFlagsAuthGate, 'PATCH').auth).toBe(1);
     }
   });
 });
