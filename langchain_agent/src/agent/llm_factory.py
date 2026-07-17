@@ -29,6 +29,7 @@ No other module may inline a provider default.
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any, Optional
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -40,7 +41,14 @@ def get_llm(
     model: Optional[str] = None,
     api_key: Optional[str] = None,
     temperature: float = 0.7,
-    max_tokens: int = 1000,
+    # 1000 was too low for a reasoning model. LANGCHAIN_LLM_PROVIDER=llamacpp pins
+    # gpt-oss-20b, which spends most of its budget on reasoning before emitting any
+    # visible answer: measured here, an open-ended prompt burned all 1000 tokens on
+    # reasoning and returned finish_reason='length' with a content string of ZERO
+    # bytes — the user saw only "I'm sorry, I couldn't process your request."
+    # 3000 matches llamaindex_agent's AGENT_MAX_TOKENS, which was raised for exactly
+    # this ("800 tokens regularly produced an EMPTY content string").
+    max_tokens: int = 3000,
     streaming: bool = True,
     lmstudio_base_url: str = "http://localhost:1234/v1",
     anthropic_base_url: str = "",
@@ -155,6 +163,13 @@ def get_llm(
             openai_api_key="llama-cpp",  # llama-server ignores the key; any non-empty string works
             temperature=temperature,
             max_tokens=max_tokens,
+            # Explicit, because max_tokens was raised: at the ~44 tok/s worst case
+            # measured locally (far slower on the SE cluster's large tier) a full
+            # 3000-token generation outlives the client's 60s default and aborts
+            # mid-stream — trading truncation for "assistant unavailable", which is
+            # worse. llamaindex_agent's AGENT_LLM_TIMEOUT=240 exists for the same
+            # reason; mirror it.
+            request_timeout=float(os.getenv("LANGCHAIN_LLM_TIMEOUT", "240")),
             streaming=streaming,
         )
 

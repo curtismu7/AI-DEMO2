@@ -72,7 +72,9 @@ class LangChainConfig:
     """Configuration for LangChain agent."""
     model_name: str = "llama3.2"
     temperature: float = 0.7
-    max_tokens: int = 1000
+    # See llm_factory.get_llm: 1000 let gpt-oss spend the whole budget on reasoning
+    # and return an EMPTY answer. Matches llamaindex_agent's AGENT_MAX_TOKENS.
+    max_tokens: int = 3000
     openai_api_key: str = ""
     verbose: bool = False
     max_iterations: int = 10
@@ -442,7 +444,7 @@ class ConfigManager:
         langchain_config = LangChainConfig(
             model_name=get_env_value("LANGCHAIN_MODEL_NAME", "llama3.2"),
             temperature=float(get_env_value("LANGCHAIN_TEMPERATURE", "0.7")),
-            max_tokens=int(get_env_value("LANGCHAIN_MAX_TOKENS", "1000")),
+            max_tokens=int(get_env_value("LANGCHAIN_MAX_TOKENS", "3000")),
             openai_api_key=get_env_value("OPENAI_API_KEY", ""),
             verbose=get_env_value("LANGCHAIN_VERBOSE", "false").lower() == "true",
             max_iterations=int(get_env_value("LANGCHAIN_MAX_ITERATIONS", "10")),

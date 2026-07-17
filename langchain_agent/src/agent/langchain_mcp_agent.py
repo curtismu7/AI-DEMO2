@@ -1005,6 +1005,7 @@ What's your email address?"""
             logger.info("Executing LangGraph agent via astream_events...")
             start_time = datetime.now()
             last_response = ""
+            truncated = False
 
             async for event in self._graph.astream_events(agent_input, config=config, version="v2"):
                 event_name = event.get("event")
@@ -1050,6 +1051,16 @@ What's your email address?"""
                         if msgs:
                             last_msg = msgs[-1]
                             if getattr(last_msg, "type", None) == "ai":
+                                # Did the model stop because it ran out of tokens
+                                # rather than because it was done? Otherwise a
+                                # cut-off answer is indistinguishable from a
+                                # complete one — and when a reasoning model burns
+                                # the whole budget thinking, `content` is EMPTY and
+                                # the user just gets "I'm sorry, I couldn't process
+                                # your request", which blames the wrong thing.
+                                meta = getattr(last_msg, "response_metadata", None) or {}
+                                if meta.get("finish_reason") == "length":
+                                    truncated = True
                                 # Content may be a str OR a list of content
                                 # blocks (Anthropic-style) — flatten both.
                                 content = _content_to_text(getattr(last_msg, "content", ""))
@@ -1058,6 +1069,19 @@ What's your email address?"""
 
             processing_time = int((datetime.now() - start_time).total_seconds() * 1000)
             response = last_response or "I'm sorry, I couldn't process your request."
+            if truncated:
+                # Keep whatever was produced — usually mostly useful — but say it is
+                # incomplete. Without this a cut-off answer reads as a finished one,
+                # and an empty one reads as a mystery failure.
+                logger.warning(
+                    "LLM answer truncated (finish_reason=length, max_tokens=%s) — telling the user",
+                    getattr(self._llm, "max_tokens", "?"),
+                )
+                response += (
+                    "\n\n⚠️ This answer was cut off — it reached the response length limit. "
+                    "Ask a narrower question, or raise the response limit "
+                    "(LANGCHAIN_MAX_TOKENS) if this keeps happening."
+                )
             estimated_output_tokens = len(response.split()) * 1.3
             self._log_llm_end(tracer, response, processing_time, int(estimated_output_tokens))
             
