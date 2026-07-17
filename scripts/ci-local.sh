@@ -80,7 +80,13 @@ run_api_tests() {
     JEST_IGNORES=()
   fi
 
-  ( cd demo_api_server && npx jest --forceExit --maxWorkers=50% "${JEST_IGNORES[@]}" ) >"$log" 2>&1
+  # ${arr[@]+"${arr[@]}"}, not "${arr[@]}": macOS ships bash 3.2, where expanding an
+  # EMPTY array under `set -u` is a fatal "unbound variable". That is the main-checkout
+  # branch above, so this job died before jest started -- 0s, no output, reported as
+  # "[failed twice — real]" because the retry died the same way. Worktrees were unaffected
+  # (their array is non-empty), which is why it survived: the gate's jest job had never
+  # actually run in a main checkout.
+  ( cd demo_api_server && npx jest --forceExit --maxWorkers=50% ${JEST_IGNORES[@]+"${JEST_IGNORES[@]}"} ) >"$log" 2>&1
   local rc=$?
 
   # Retry once, re-running ONLY the suites that just failed (2s, not 45s).
@@ -92,7 +98,7 @@ run_api_tests() {
   # secret guards.
   if [ "$rc" -ne 0 ]; then
     local rlog; rlog=$(mktemp)
-    if ( cd demo_api_server && npx jest --forceExit --onlyFailures "${JEST_IGNORES[@]}" ) >"$rlog" 2>&1; then
+    if ( cd demo_api_server && npx jest --forceExit --onlyFailures ${JEST_IGNORES[@]+"${JEST_IGNORES[@]}"} ) >"$rlog" 2>&1; then
       printf 'PASS  (%ss)  [flaky: %s passed on retry]\n' "$(( $(date +%s) - s ))" \
         "$(grep -oE 'Tests: .*' "$rlog" | tail -1 | sed 's/Tests: *//')"
       rm -f "$log" "$rlog"; return 0
