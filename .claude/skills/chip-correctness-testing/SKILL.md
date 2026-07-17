@@ -34,7 +34,34 @@ Data never comes from the LLM. It flows store → MCP tool → gateway → BFF. 
 Test at the **API level** (`/api/demo-agent/nl` + `/api/mcp/tool`) for 1 and 2 — fast, no
 browser flake. Only 3 needs a browser, because only a browser sees rendered prose.
 
-## Trap 1 — chips never reach the LLM (this invalidates naive "cross-mode" tests)
+## Trap 0 — "Routing: LLM only" changes everything below, and nothing tests it
+
+The **Routing** dropdown is NOT a per-request setting. It flips the **global**
+`ff_heuristic_enabled` flag (`AIAgent.js`: `heuristicFallback={heuristicEnabled}`).
+With it OFF, the heuristic floor stops answering matched chip phrases and **every
+prompt goes to the LLM** — so Trap 1 below does not apply.
+
+Every chip test in the repo (including the 110-call heuristic-vs-llamacpp matrix)
+runs with the floor **ON**, which is exactly why they are all green. Measured,
+sporting-goods `"my gear"`:
+
+| floor | `/nl` | `/agent/invoke` |
+|---|---|---|
+| ON | **36ms** (heuristic answers) | — |
+| OFF ("LLM only") | **4649ms** (the LLM really runs) | 724ms (`forceHeuristic`) |
+
+**Before claiming chip coverage, state which floor state you tested.** "All chips
+pass" with the floor ON says nothing about the mode a presenter selects when they
+pick "LLM only". Coverage: `demo_api_ui/tests/e2e/repro-llm-only-hang.real.spec.js`
+(flips the flag and restores it in `afterAll` — it is global state on a live stack).
+
+Budget mismatch worth knowing: `/nl` allows **60s** for llamacpp; `/agent/invoke`
+hard-codes **30s**, provider-blind. The cheap hop gets double the expensive one's
+budget. A warm turn is ~2 calls / ~11s, so 30s is fine warm — a cold or swapping
+tier is what pushes it over, and #547 makes that surface as a truthful message
+instead of "I didn't catch that".
+
+## Trap 1 — chips never reach the LLM *while the floor is ON* (invalidates naive "cross-mode" tests)
 
 The BFF's heuristic floor answers a matched chip phrase **before calling the LLM**, in
 **every** mode, whenever `ff_heuristic_enabled` is on (`geminiNlIntent`: `llmModeSelected →
@@ -73,6 +100,22 @@ const params = r.banking?.params ?? r.params ?? null;
 ```
 
 ## Where ground truth lives
+
+**Which TOOL a chip must hit (the response contract): the catalog itself.** Since
+PR #553, every vertical stores its OWN `primaryTool` per chip in
+`demo_api_server/config/useCases.js` — `READ_PRIMARY_TOOL_BY_VERTICAL` and
+`AMOUNT_PRIMARY_TOOL_BY_VERTICAL`, threaded through `chipOverrides`. Duplicates
+across verticals are DELIBERATE (isolation over DRY): editing one vertical's
+entry must never change another's. Do NOT read the banking base entry as any
+other vertical's truth — that shared-metadata world is gone (it made 68/72
+vertical entries lie about their own tool and forced the routing gate down to
+banking-only). `useCases.primaryTool.test.js` enforces the contract at pre-push:
+129 checks, every vertical × chip must route to its own stored tool, and a
+vertical with NO stored entries fails by itself. **Adding a chip or a vertical
+means adding its map entries — the gate tells you if you forget.**
+
+**Which VALUES the tool must return: the seed/store** (below). The rendered
+prose must match that turn's `/api/mcp/tool` payload (grounding).
 
 | vertical | store | money keys |
 |---|---|---|
@@ -129,8 +172,11 @@ Get a vertical's real chips (never invent phrases):
 cd demo_api_server && node -e "
 const { USE_CASES, resolveUseCase } = require('./config/useCases.js');
 for (const u of USE_CASES) { const r = resolveUseCase(u.id,'retail')||u; const t=r.trigger||{};
-  if (t.type==='chip' && t.text) console.log(u.id, JSON.stringify(t.text)); }"
+  if (t.type==='chip' && t.text) console.log(u.id, JSON.stringify(t.text), '->', r.primaryTool); }"
 ```
+
+The printed `primaryTool` is that vertical's OWN stored contract value — what the
+routing gate holds the chip to.
 
 ## What this catches (real finds, first run)
 

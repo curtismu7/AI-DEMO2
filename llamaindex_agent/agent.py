@@ -130,6 +130,13 @@ def run_agent(question: str, codebase_id: str, limit: int = 8) -> dict:
             "toolCalls": 1 if hits else 0, "mode": "single-shot"}
 
 
+EMPTY_ANSWER_NOTICE = (
+    "The model returned no answer for this question — it produced only internal "
+    "reasoning before running out of room. The sources below were retrieved "
+    "correctly, so this is a model limit, not a search failure. Try a narrower "
+    "question, or raise AGENT_MAX_TOKENS."
+)
+
 TRUNCATION_NOTICE = (
     "\n\n⚠️ This answer was cut off — it reached the response length limit. "
     "Ask a narrower question, or raise the response limit (AGENT_MAX_TOKENS) "
@@ -177,7 +184,12 @@ def _completion_text(completion):
             reasoning = getattr(msg, "reasoning_content", None) or (
                 (getattr(msg, "model_extra", None) or {}).get("reasoning_content") or ""
             )
-        return str(reasoning).strip()
+        text = str(reasoning).strip()
+        if text:
+            return text
     except Exception:
-        return ""
+        pass
+    # Never return "" — an empty answer renders as NOTHING and the user cannot
+    # tell a model failure from a broken page. Say what happened instead.
+    return EMPTY_ANSWER_NOTICE
 

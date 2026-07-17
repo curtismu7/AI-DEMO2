@@ -1,0 +1,11 @@
+{
+  "vertical": "banking",
+  "useCaseId": "delegated-access-with-proof",
+  "ucId": "UC1",
+  "trigger": "show my balance",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-17T13:52:23.963Z",
+  "reply": "❌ Gateway upstream error (HTTP 500)",
+  "agentPath": null,
+  "tokenEventCount": 14
+}

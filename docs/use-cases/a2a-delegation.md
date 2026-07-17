@@ -16,7 +16,7 @@ PingOne mints a nested-act delegated token for the specialist; scope is narrowed
 
 ## How to Run
 
-**Trigger:** Chip message: `show my balance`  
+**Trigger:** Chip message: `hand off to a specialist`  
 **Expected outcome:** `PERMIT`
 
 ## What to Say
@@ -25,13 +25,13 @@ PingOne mints a nested-act delegated token for the specialist; scope is narrowed
 
 ## Evidence
 
-**Token chain steps:** user-token → token-exchange → a2a-exchange → authorize-decision → tool-dispatched  
-**Activity categories:** token, authorize, mcp
+**Token chain steps:** user-token → a2a-agent1-actor → a2a-exchange1 → a2a-agent2-actor → a2a-exchange2 → tool-dispatched  
+**Activity categories:** token, delegate, authorize, mcp
 
 ## Code References
 
-- `demo_api_server/services/a2aTokenService.js`
-- `demo_api_server/routes/a2a.js`
+- `demo_api_server/services/a2aDelegationService.js`
+- `demo_api_server/services/demoAgentLangGraphService.js`
 
 
 

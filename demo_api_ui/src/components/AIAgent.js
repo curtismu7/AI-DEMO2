@@ -2353,8 +2353,21 @@ export default function BankingAgent({
     const { id: exId, ...rest } = extra;
     const id = exId || `${Date.now()}`;
     // Ensure content is always a string for React rendering
-    const contentString =
-      typeof content === "string" ? content : JSON.stringify(content);
+    let contentString =
+      typeof content === "string" ? content : content == null ? "" : JSON.stringify(content);
+    // Never render a silent assistant bubble. Every message passes through here,
+    // so this is the last-resort net for ANY future path that produces an empty
+    // reply (a variable unexpectedly '', a dropped await, a provider returning
+    // nothing): the user sees an honest notice instead of a blank bubble they
+    // cannot distinguish from a broken page. No assistant call sites pass empty
+    // content intentionally (verified when this guard was added) — hitting this
+    // in dev means the CALLER has a bug; fix it there, don't special-case here.
+    if (role === "assistant" && !contentString.trim()) {
+      console.warn("[agent] empty assistant reply intercepted — substituting notice", rest);
+      contentString =
+        "⚠️ The agent produced no reply for this turn. That is a bug in the demo " +
+        "(not your request) — please try again, and report what you asked if it repeats.";
+    }
     setMessages((prev) => [
       ...prev,
       { id, role, content: contentString ?? "", tool, ...rest },
@@ -5200,6 +5213,42 @@ export default function BankingAgent({
     return true;
   }
 
+  /**
+   * Layer-3 demo fallback: render the captured known-good run for a catalog use
+   * case. Presenter-chosen (a button on the failure message), and ALWAYS labeled
+   * REPLAY with its capture date — a fallback rescues the narrative, never
+   * impersonates the proof. Goldens are captured from real runs
+   * (capture-goldens.real.spec.js) into demo_api_server/data/goldens/.
+   */
+  async function runGoldenReplay(useCaseId) {
+    try {
+      const res = await fetch(
+        `/api/use-cases/golden/${encodeURIComponent(effectiveVerticalId || "banking")}/${encodeURIComponent(useCaseId)}`,
+        { credentials: "include" },
+      );
+      if (!res.ok) {
+        addMessage(
+          "assistant",
+          `No captured result exists for this scenario (${useCaseId}) — re-run the golden capture ` +
+            "(capture-goldens.real.spec.js) against a healthy stack to record one.",
+          null, {},
+        );
+        return;
+      }
+      const g = await res.json();
+      const captured = g.capturedAt ? new Date(g.capturedAt).toLocaleDateString() : "unknown date";
+      addMessage(
+        "assistant",
+        `REPLAY — captured ${captured}, not a live run. Expected outcome: ${g.expectedOutcome || "n/a"}.\n\n${g.reply || ""}` +
+          `\n\n(Token chain and activity panels are NOT populated by a replay — live proof only.)`,
+        null,
+        { replay: true },
+      );
+    } catch (err) {
+      addMessage("assistant", `Couldn't load the captured result: ${err?.message || err}`, null, {});
+    }
+  }
+
   async function dispatchNlResult(
     result,
     _source = "heuristic",
@@ -5393,6 +5442,37 @@ export default function BankingAgent({
           data: txList,
           terminology,
         });
+        return;
+      }
+      if (action === "request_fee_waiver") {
+        // UC28 — tool set as the authorization boundary (Air Canada pattern).
+        // The tool SUBMITS a request for human review; nothing can grant a
+        // waiver, so the agent is structurally unable to promise one. The tool
+        // requires account_id, so resolve the first account before calling.
+        const acctRes = await getMyAccounts({ useCaseId, vertical: effectiveVerticalId }).catch(() => null);
+        const acctNorm = acctRes ? normalizeAgentToolResult(acctRes.result) : null;
+        const account = acctNorm?.accounts?.[0];
+        if (!account?.id) {
+          addMessage("assistant", "I couldn't look up your accounts to file the waiver request — please try again.", null, { source: _source });
+          return;
+        }
+        const waiverRes = await callMcpTool(
+          "request_fee_waiver",
+          { account_id: String(account.id), reason: nlUserText || "Customer request" },
+          { useCaseId, vertical: effectiveVerticalId },
+        ).catch((e) => ({ error: e?.message || "request failed" }));
+        if (waiverRes?.error) {
+          addMessage("assistant", `The fee-waiver request could not be submitted: ${waiverRes.error}`, null, { source: _source });
+          return;
+        }
+        addMessage(
+          "assistant",
+          "I've submitted a fee-waiver REQUEST for human review — that is the only fee-waiver " +
+            "action I have a tool for. I cannot grant or promise a waiver: no such tool exists, " +
+            "so nothing I say can create one. A human reviewer will respond within 2 business days.",
+          null,
+          { source: _source },
+        );
         return;
       }
       if (action === "accounts" || action === "transactions") {
@@ -5631,7 +5711,46 @@ export default function BankingAgent({
           setTimeout(() => navigateToCustomerOAuthForceLogin(), 1500);
           return;
         }
-        /* otherwise fall through to default below */
+        // /nl ALREADY resolved this prompt to a real action — the failure is in
+        // EXECUTION, not understanding. Falling through renders "I didn't catch
+        // that…try 'show my accounts'", which blames the parser, suggests banking
+        // phrases inside a non-banking vertical, and hides the actual cause. A
+        // silent/misleading failure is never acceptable: say what happened.
+        const timedOut = isAbortError(e) || isLocalModelTimeout(e, activeLlmProvider) ||
+          e?.name === "TimeoutError" ||
+          /timed out|aborted/i.test(String(e?.message || ""));
+        if (timedOut) {
+          notifyError("⏱️ That took too long — the request timed out.", { autoClose: agentToastMs.errShort });
+          addMessage(
+            "assistant",
+            `That took too long to answer, so I stopped waiting — this was **${result.action.replace(/_/g, " ")}**, ` +
+              `not a misunderstanding. The local model is faster once warmed up; try again, or switch Agent mode to Heuristics for a deterministic answer.`,
+            null,
+            {
+              source: _source,
+              ...(isLocalModelTimeout(e, activeLlmProvider)
+                ? { showPrewarmRetryAction: true, retryFn: () => dispatchNlResult(result, _source, nlUserText, useCaseId) }
+                : useCaseId
+                  ? { showReplayAction: true, replayFn: () => runGoldenReplay(useCaseId) }
+                  : {}),
+            },
+          );
+          return;
+        }
+        addMessage(
+          "assistant",
+          `I understood that as **${result.action.replace(/_/g, " ")}**, but couldn't complete it` +
+            `${e?.message ? `: ${e.message}` : "."} Try again, or switch Agent mode to Heuristics.`,
+          null,
+          {
+            source: _source,
+            // Layer-3 demo rescue: when this turn came from a catalog chip, offer
+            // the captured known-good run — presenter-chosen, always labeled REPLAY,
+            // never silently substituted (the demo's product is trust in the proof).
+            ...(useCaseId ? { showReplayAction: true, replayFn: () => runGoldenReplay(useCaseId) } : {}),
+          },
+        );
+        return;
       }
     }
     // Prefer the server's message (heuristic / LLM produces a useful one).
@@ -9135,6 +9254,24 @@ export default function BankingAgent({
                                 onClick={() => handlePrewarmRetry(msg.id, msg.retryFn)}
                               >
                                 {isWarming ? "Warming up… (up to ~1 min)" : "Pre-warm the model & retry"}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    if (msg.role === "assistant" && msg.showReplayAction) {
+                      return (
+                        <div key={msg.id} className="banking-agent-msg assistant">
+                          <div className="banking-agent-msg-bubble banking-agent-msg-bubble--session-fix">
+                            <MessageContent text={msg.content} terminology={terminology} />
+                            <div className="ba-session-fix-actions">
+                              <button
+                                type="button"
+                                className="ba-session-fix-btn"
+                                onClick={() => msg.replayFn && msg.replayFn()}
+                              >
+                                Show the expected result (REPLAY)
                               </button>
                             </div>
                           </div>

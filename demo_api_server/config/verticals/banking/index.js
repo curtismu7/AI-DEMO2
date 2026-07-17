@@ -25,6 +25,11 @@ const HEURISTICS = [
   // account_nickname — narrow read; must precede generic accounts
   ACCOUNT_NICKNAME_HEURISTIC,
   // accounts — exclude "account history" (transactions catalog phrase)
+  // Fee waiver — the agent can only REQUEST a waiver (logged for human review);
+  // no tool exists that can grant one (the Air Canada tool-boundary demo, UC28).
+  // MUST precede the accounts rule: "waive the fee on my checking account"
+  // otherwise matches \baccounts?\b and the chip demos the wrong thing.
+  { re: /\bwaiv\w*\b.*\b(fee|charge)s?\b|\b(fee|charge)s?\b.*\bwaiv\w*\b/, action: 'request_fee_waiver' },
   { re: /\b(accounts?|account\s*(list|overview|summary)|my\s*accounts?|check\s*accounts?|view\s*accounts?)\b(?!\s*history)/, action: 'accounts' },
   // biggest_purchase
   { re: /\b(biggest|largest|highest|top)\b.*(purchase|spend|transaction|payment)\b|\b(purchase|spend|transaction|payment).*(biggest|largest|highest)\b|\bmost expensive\b|\bspent the most\b|\bbiggest spend\b/, action: 'biggest_purchase' },
@@ -88,6 +93,15 @@ function getToolsWithActionAliases() {
       description: 'Show the user\'s bank accounts.',
       inputSchema: { type: 'object', properties: {} },
       scopes: ['read'],
+      authz: {},
+    },
+    {
+      // The agent can only REQUEST a waiver (logged for human review) — no tool
+      // can grant one. The tool set is the authorization boundary (UC28).
+      name: 'request_fee_waiver',
+      description: 'Submit a fee-waiver request for human review. Cannot grant a waiver.',
+      inputSchema: { type: 'object', properties: {} },
+      scopes: ['write'],
       authz: {},
     },
     {

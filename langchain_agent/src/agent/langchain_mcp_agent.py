@@ -1068,7 +1068,25 @@ What's your email address?"""
                                     last_response = content
 
             processing_time = int((datetime.now() - start_time).total_seconds() * 1000)
-            response = last_response or "I'm sorry, I couldn't process your request."
+            # "I'm sorry, I couldn't process your request" blames the request. The
+            # request was almost certainly fine: the graph ran and the model simply
+            # emitted no visible content (a reasoning model spending its whole budget
+            # thinking is the common case — see `truncated` below). Say what actually
+            # happened so the user can act, and log it so an empty reply is never
+            # invisible to us either.
+            if not last_response:
+                logger.warning(
+                    "LLM produced no visible content (provider=%s model=%s max_tokens=%s) — "
+                    "telling the user rather than blaming their request",
+                    getattr(self._llm, "openai_api_base", "?"),
+                    getattr(self._llm, "model_name", "?"),
+                    getattr(self._llm, "max_tokens", "?"),
+                )
+            response = last_response or (
+                "The model finished without producing an answer — your request was understood, "
+                "but no visible reply came back (a reasoning model can spend its whole budget "
+                "thinking). Try again, or ask a narrower question."
+            )
             if truncated:
                 # Keep whatever was produced — usually mostly useful — but say it is
                 # incomplete. Without this a cut-off answer reads as a finished one,

@@ -1,0 +1,11 @@
+{
+  "vertical": "banking",
+  "useCaseId": "step-up-required",
+  "ucId": "UC7",
+  "trigger": "transfer $600 from checking to savings",
+  "expectedOutcome": "STEP_UP",
+  "capturedAt": "2026-07-17T13:52:25.022Z",
+  "reply": "Simulated authorization policy requires step-up before MCP tools (education mode).",
+  "agentPath": null,
+  "tokenEventCount": 13
+}
