@@ -5633,7 +5633,18 @@ export default function BankingAgent({
         ingestActivity(response, nlUserText || result.action);
         if (response?.reply) {
           const paramHint = response.needsParams?.hint || null;
-          const replyWithAgentBadge = `[CUSTOMER AGENT - LangGraph]\n${response.reply}`;
+          // HITL/step-up blocks: don't echo the raw error_description as chat text —
+          // it duplicates the approval modal opened below and reads as a canned
+          // refusal ("no tool ran") rather than a pending-approval state.
+          const isHitlBlock = [
+            "hitl_required",
+            "mcp_hitl_required",
+            "step_up_required",
+            "mcp_step_up_required",
+          ].includes(response.error);
+          const replyWithAgentBadge = isHitlBlock
+            ? "[CUSTOMER AGENT - LangGraph]\nThis action needs your approval before it can run — check the approval prompt."
+            : `[CUSTOMER AGENT - LangGraph]\n${response.reply}`;
           addMessage("assistant", replyWithAgentBadge, null, { source: _source, ...verticalResultExtra(response), paramHint });
           // Teaching directive: open the requested education panel (P2/P3). Mirrors the
           // kind:'education' path; fires only for a resolvable panel id.

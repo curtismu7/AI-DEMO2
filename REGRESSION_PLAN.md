@@ -84,6 +84,40 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-17 — HITL-blocked vertical actions echoed the raw error text twice instead of a clear pending-approval notice
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js` (`kind:'vertical'`
+chip-dispatch handler, ~line 5634).
+
+**What was broken:** clicking a consent-gated chip (e.g. "Extend my rental"
+on Super Sports, `authz: { consent: true }` in
+`config/verticals/sporting-goods/tools.js`) correctly got blocked
+server-side (`mcpToolAuthorizationService.js` returns 428
+`mcp_hitl_required` — genuine PingOne Authorize gate, tool correctly did not
+run) but the UI rendered the raw `response.reply` (which already contains
+PingOne Authorize's `error_description`, "requires human approval before MCP
+tools can run") as a plain heuristic-labeled chat bubble, then separately
+triggered the approval modal via `setHitlPendingIntent`. Result: confusing
+duplicated/canned-looking text alongside (or instead of, if the modal wasn't
+noticed) the actual approval prompt.
+
+**What was fixed:** when `response.error` is one of
+`hitl_required`/`mcp_hitl_required`/`step_up_required`/`mcp_step_up_required`,
+render a single clear line ("This action needs your approval before it can
+run — check the approval prompt.") instead of echoing the raw reply text. The
+`setHitlPendingIntent` modal trigger below is untouched — this only changes
+what's shown in chat, not the consent flow itself.
+
+**Do not break:** the `setHitlPendingIntent` call in this handler (unlike a
+similar handler at ~line 6300+ used for the OAuth-resume replay path) does
+NOT gate on `response.transactionAmount != null` — keep it unconditional for
+this path, since vertical actions like `extend_rental` aren't monetary
+transfers and have no `transactionAmount`.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0). Live: click a
+consent-gated vertical chip (e.g. "Extend my rental") → one clear
+pending-approval message, approval modal opens, no raw duplicated error text.
+
 ### 2026-07-17 — Chip clicks ignored the "LLM only" Routing toggle in every vertical
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js` (suggestion-chip
