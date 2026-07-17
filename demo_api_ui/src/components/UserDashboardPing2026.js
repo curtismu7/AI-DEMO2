@@ -2291,7 +2291,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               From: {selectedAccount.accountType} -{" "}
               {selectedAccount.accountNumber} ({fmt(selectedAccount.balance)})
             </p>
-            <form onSubmit={handleTransfer}>
+            <form onSubmit={handleTransfer} aria-label="Transfer form">
               <div className="form-group">
                 <label>To Account:</label>
                 <select

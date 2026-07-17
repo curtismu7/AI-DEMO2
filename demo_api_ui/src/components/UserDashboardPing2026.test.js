@@ -184,9 +184,7 @@ describe("UserDashboardPing2026", () => {
     const transferButtons = await screen.findAllByRole("button", { name: "Transfer" });
     fireEvent.click(transferButtons[0]);
 
-    const heading = await screen.findByText("Transfer Money");
-    const transferSection = heading.closest(".section");
-    const form = within(transferSection).getByRole("combobox").closest("form");
+    const form = await screen.findByRole("form", { name: "Transfer form" });
     const toSelect = within(form).getByRole("combobox");
     const amountInput = within(form).getByPlaceholderText("Enter amount");
 
