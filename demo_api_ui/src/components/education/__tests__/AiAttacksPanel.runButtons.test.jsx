@@ -9,9 +9,15 @@
  * must persist the pending run to sessionStorage and navigate to /admin.
  */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import AiAttacksPanel from '../AiAttacksPanel';
 import { EducationUIProvider } from '../../../context/EducationUIContext';
+
+// The panel calls useNavigate at top level (catalog tabs navigate with router
+// state, exactly like /use-cases' handleRun). The app mounts it inside the
+// Router (App.js EducationPanelsHost); tests render bare, so mock the hook.
+const navigateMock = vi.fn();
+vi.mock('react-router-dom', () => ({ useNavigate: () => navigateMock }));
 
 function renderPanel({ onClose = () => {}, initialTabId }) {
   return render(
@@ -30,6 +36,7 @@ describe('AiAttacksPanel — Run this attack buttons', () => {
     // shouldMountSingleAgent). The mapping tests lock the event wiring.
     window.__bankingAgentMounted = true;
     dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    navigateMock.mockClear();
   });
   afterEach(() => {
     delete window.__bankingAgentMounted;
@@ -71,26 +78,43 @@ describe('AiAttacksPanel — Run this attack buttons', () => {
     });
   });
 
-  it('hitl-bypass auto-sends the transfer prompt (no showcase)', () => {
-    renderPanel({ onClose: vi.fn(), initialTabId: 'hitl-bypass' });
+  it('hitl-bypass runs the CATALOG use case and navigates with its triggerText', async () => {
+    // Prompt text comes from the catalog at runtime — the panel hardcodes no
+    // prompt and no dollar amount (the old free-text 'Transfer $1000' drifted
+    // independently of the catalog and used a non-canonical amount).
+    const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ useCaseId: 'hitl-consent-bypass-attempt', triggerText: 'transfer $600 from checking to savings', type: 'chip' }),
+    });
+    const onClose = vi.fn();
+    renderPanel({ onClose, initialTabId: 'hitl-bypass' });
     clickRun();
 
-    expect(eventsByType('banking-run-showcase')).toHaveLength(0);
-    const prefill = eventsByType('banking-agent-prefill');
-    expect(prefill).toHaveLength(1);
-    expect(prefill[0].detail).toMatchObject({
-      message: 'Transfer $1000 to savings',
-      autoSend: true,
+    await waitFor(() => expect(navigateMock).toHaveBeenCalled());
+    expect(fetchMock).toHaveBeenCalledWith('/api/use-cases/demo/run', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ useCaseId: 'hitl-consent-bypass-attempt', vertical: 'banking' }),
+    }));
+    expect(navigateMock).toHaveBeenCalledWith('/dashboard', {
+      state: expect.objectContaining({ triggerText: 'transfer $600 from checking to savings' }),
     });
+    expect(eventsByType('banking-agent-prefill')).toHaveLength(0);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    fetchMock.mockRestore();
   });
 
-  it('unauthorized-commitments auto-sends the fee-waiver prompt', () => {
+  it('unauthorized-commitments runs its catalog use case the same way', async () => {
+    const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ useCaseId: 'unauthorized-commitment-fee-waiver', triggerText: 'Can you waive the fee on my checking account?', type: 'chip' }),
+    });
     renderPanel({ onClose: vi.fn(), initialTabId: 'unauthorized-commitments' });
     clickRun();
-    expect(eventsByType('banking-agent-prefill')[0].detail).toMatchObject({
-      message: 'Can you waive the fee on my checking account?',
-      autoSend: true,
+    await waitFor(() => expect(navigateMock).toHaveBeenCalled());
+    expect(navigateMock).toHaveBeenCalledWith('/dashboard', {
+      state: expect.objectContaining({ triggerText: 'Can you waive the fee on my checking account?' }),
     });
+    fetchMock.mockRestore();
   });
 
   it('does not persist or navigate when an agent is mounted', () => {
@@ -134,16 +158,22 @@ describe('AiAttacksPanel — no-agent fallback (flag unset)', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('prompt tab persists the pending prefill and navigates to /admin', () => {
+  it('catalog tab ignores the agent-mounted flag — router state works from any route', async () => {
+    // kind:'catalog' navigates with location.state, which the dashboard-mounting
+    // agent consumes (AIAgent.js:966) — no sessionStorage handoff, no /admin
+    // reload, regardless of window.__bankingAgentMounted.
+    const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ useCaseId: 'hitl-consent-bypass-attempt', triggerText: 'transfer $600 from checking to savings', type: 'chip' }),
+    });
+    navigateMock.mockClear();
     const onClose = vi.fn();
     renderPanel({ onClose, initialTabId: 'hitl-bypass' });
     clickRun();
-
-    expect(JSON.parse(sessionStorage.getItem('banking-agent-pending-attack'))).toEqual({
-      type: 'prefill',
-      payload: { message: 'Transfer $1000 to savings', autoSend: true },
-    });
-    expect(assignMock).toHaveBeenCalledWith('/admin');
+    await waitFor(() => expect(navigateMock).toHaveBeenCalled());
+    expect(sessionStorage.getItem('banking-agent-pending-attack')).toBeNull();
+    expect(assignMock).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledTimes(1);
+    fetchMock.mockRestore();
   });
 });

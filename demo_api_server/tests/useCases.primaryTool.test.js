@@ -91,6 +91,43 @@ describe('primaryTool existence — no dangling tool premises, any vertical', ()
   });
 });
 
+describe('chip dollar amounts are canonical threshold tiers', () => {
+  // Policy: no hardcoded amounts unless the amount IS the demo. The three tiers
+  // demonstrate the three policy outcomes ($300 consent, $600 step-up, $2500
+  // DENY) and map to the thresholds the gates actually evaluate. An arbitrary
+  // amount ("Transfer $1000", "$750") demos nothing the tiers don't, drifts
+  // independently, and confuses which policy boundary is being shown — the old
+  // AiAttacksPanel free-text "$1000" prompt was exactly this.
+  const CANONICAL_AMOUNTS = new Set([300, 600, 2500]);
+  // Add an entry here ONLY when a use case's whole point is a non-tier amount,
+  // with the reason: e.g. { 3000: 'UC99 demos the daily cumulative cap' }.
+  const AMOUNT_EXCEPTIONS = {};
+
+  test('every $ amount in a chip trigger is a canonical tier or a justified exception', () => {
+    const offenders = [];
+    for (const vertical of VERTICALS) {
+      for (const u of USE_CASES) {
+        const uc = resolveUseCase(u.id, vertical) || u;
+        const t = uc.trigger || {};
+        if (t.type !== 'chip' || !t.text) continue;
+        const m = t.text.match(/\$\s?([0-9][0-9,]*(?:\.[0-9]+)?)/);
+        if (!m) continue;
+        const n = Number(m[1].replace(/,/g, ''));
+        if (!CANONICAL_AMOUNTS.has(n) && !(n in AMOUNT_EXCEPTIONS)) {
+          offenders.push(`${vertical}/${u.id} "${t.text}" uses $${n}`);
+        }
+      }
+    }
+    if (offenders.length) {
+      throw new Error(
+        `Non-canonical dollar amount(s) in chip triggers:\n  ${offenders.join('\n  ')}\n` +
+          `Use a canonical tier ($300 consent / $600 step-up / $2500 DENY) via ` +
+          `amountTriggerByVertical(n), or add a justified entry to AMOUNT_EXCEPTIONS.`,
+      );
+    }
+  });
+});
+
 describe('every vertical chip routes to its OWN stored primaryTool', () => {
   const entries = chipEntries();
 

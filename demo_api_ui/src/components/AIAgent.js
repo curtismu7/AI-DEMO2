@@ -5408,6 +5408,37 @@ export default function BankingAgent({
         });
         return;
       }
+      if (action === "request_fee_waiver") {
+        // UC28 — tool set as the authorization boundary (Air Canada pattern).
+        // The tool SUBMITS a request for human review; nothing can grant a
+        // waiver, so the agent is structurally unable to promise one. The tool
+        // requires account_id, so resolve the first account before calling.
+        const acctRes = await getMyAccounts({ useCaseId, vertical: effectiveVerticalId }).catch(() => null);
+        const acctNorm = acctRes ? normalizeAgentToolResult(acctRes.result) : null;
+        const account = acctNorm?.accounts?.[0];
+        if (!account?.id) {
+          addMessage("assistant", "I couldn't look up your accounts to file the waiver request — please try again.", null, { source: _source });
+          return;
+        }
+        const waiverRes = await callMcpTool(
+          "request_fee_waiver",
+          { account_id: String(account.id), reason: nlUserText || "Customer request" },
+          { useCaseId, vertical: effectiveVerticalId },
+        ).catch((e) => ({ error: e?.message || "request failed" }));
+        if (waiverRes?.error) {
+          addMessage("assistant", `The fee-waiver request could not be submitted: ${waiverRes.error}`, null, { source: _source });
+          return;
+        }
+        addMessage(
+          "assistant",
+          "I've submitted a fee-waiver REQUEST for human review — that is the only fee-waiver " +
+            "action I have a tool for. I cannot grant or promise a waiver: no such tool exists, " +
+            "so nothing I say can create one. A human reviewer will respond within 2 business days.",
+          null,
+          { source: _source },
+        );
+        return;
+      }
       if (action === "accounts" || action === "transactions") {
         await runAction(action, {}, { skipUserLabel: true, nlSource: _source, useCaseId, vertical: effectiveVerticalId });
       } else if (action === "balance" && (p.accountId || p.accountType)) {

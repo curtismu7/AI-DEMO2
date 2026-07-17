@@ -615,6 +615,14 @@ function parseBanking(t) {
     // ceremony; we should answer.
     return { kind: "banking", banking: { action: "balance" } };
   }
+  // Fee waiver — the agent can only REQUEST a waiver (logged for human review);
+  // no tool exists that can grant one (the Air Canada tool-boundary demo, UC28).
+  // Must precede every account-flavored pattern: "waive the fee on my checking
+  // account" otherwise matches the accounts-list heuristic and the chip demos
+  // the wrong thing.
+  if (/\bwaiv\w*\b.*\b(fee|charge)s?\b|\b(fee|charge)s?\b.*\bwaiv\w*\b/.test(t)) {
+    return { kind: "banking", banking: { action: "request_fee_waiver" } };
+  }
   // Account nickname — narrow read; must precede generic accounts list
   if (matchesAccountNickname(t)) {
     return { kind: "banking", banking: { action: "account_nickname" } };

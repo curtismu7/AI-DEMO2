@@ -30,6 +30,7 @@ See also: [Audit Table](./audit-table.md)
 - [**UC21** — Entitlement-tiered capability](./entitlement-tiered-capability.md) ✅ 🛡️
 - [**UC17** — JIT / ephemeral credentials](./jit-ephemeral-credentials.md) ✅ 🛡️
 - [**UC25** — Enterprise-managed MCP access](./enterprise-managed-mcp-access.md) 🚩 🛡️
+- [**UC28** — Tool set as the authorization boundary (Air Canada pattern)](./unauthorized-commitment-fee-waiver.md) ✅ 🛡️
 
 ## Attacks
 
@@ -48,6 +49,7 @@ See also: [Audit Table](./audit-table.md)
 - [**UC7** — Step-up required](./step-up-required.md) ✅ 🛡️
 - [**UC8** — HITL consent](./hitl-consent.md) ✅ 🛡️
 - [**UC22** — CIBA out-of-band approval](./ciba-out-of-band-approval.md) 🚩 🛡️
+- [**UC27** — HITL consent bypass attempt](./hitl-consent-bypass-attempt.md) ✅ 🛡️
 
 ## Tools
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import EducationDrawer from '../shared/EducationDrawer';
 import { useEducationUI } from '../../context/EducationUIContext';
 import { EDU } from './educationIds';
@@ -24,8 +25,12 @@ const RUN_BY_TAB = {
   'prompt-injection': { kind: 'showcase', showcase: 'atk_prompt_injection', label: 'Prompt Injection' },
   'indirect-injection': { kind: 'showcase', showcase: 'atk_indirect_injection', label: 'Indirect Injection' },
   'scope-abuse': { kind: 'showcase', showcase: 'atk_scope_escalation', label: 'Scope Abuse' },
-  'hitl-bypass': { kind: 'prompt', message: 'Transfer $1000 to savings', label: 'HITL Bypass' },
-  'unauthorized-commitments': { kind: 'prompt', message: 'Can you waive the fee on my checking account?', label: 'Unauthorized Commitments' },
+  // kind:'catalog' — the prompt text lives in the CATALOG (useCases.js), not
+  // here: /api/use-cases/demo/run returns triggerText, so this panel hardcodes
+  // no prompt and no dollar amount. (The old free-text 'Transfer $1000' used a
+  // non-canonical amount and drifted independently of the catalog.)
+  'hitl-bypass': { kind: 'catalog', useCaseId: 'hitl-consent-bypass-attempt', label: 'HITL Bypass' },
+  'unauthorized-commitments': { kind: 'catalog', useCaseId: 'unauthorized-commitment-fee-waiver', label: 'Unauthorized Commitments' },
 };
 
 export default function AiAttacksPanel({ isOpen, onClose, initialTabId }) {
@@ -34,10 +39,34 @@ export default function AiAttacksPanel({ isOpen, onClose, initialTabId }) {
   // "Run this attack" — launches the live AI Agent and executes the attack for
   // real (poison seeded + surfaced, or prompt auto-sent), then closes the drawer
   // so the agent chat / HITL modal / token chain are visible.
+  const navigate = useNavigate();
   const RunAttackButton = ({ tabId }) => {
     const run = RUN_BY_TAB[tabId];
     if (!run) return null;
-    const onRun = () => {
+    const onRun = async () => {
+      if (run.kind === 'catalog') {
+        // Same pattern as /use-cases' handleRun: the BFF resolves the catalog
+        // entry (trigger text, type) and AIAgent.js:966 consumes
+        // location.state.triggerText and auto-sends it. Prompt text comes from
+        // the catalog at runtime — nothing hardcoded here to drift.
+        try {
+          const res = await fetch('/api/use-cases/demo/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ useCaseId: run.useCaseId, vertical: 'banking' }),
+          });
+          if (!res.ok) throw new Error(`demo/run HTTP ${res.status}`);
+          const data = await res.json();
+          if (onClose) onClose();
+          navigate('/dashboard', {
+            state: { useCaseId: data.useCaseId, triggerText: data.triggerText, type: data.type, vertical: 'banking' },
+          });
+        } catch (err) {
+          console.error('Failed to launch catalog attack demo:', err);
+        }
+        return;
+      }
       window.dispatchEvent(new CustomEvent('banking-agent-open'));
       if (run.kind === 'showcase') {
         window.dispatchEvent(new CustomEvent('banking-run-showcase', { detail: { showcase: run.showcase, label: run.label } }));
@@ -224,7 +253,7 @@ export default function AiAttacksPanel({ isOpen, onClose, initialTabId }) {
         <>
           <p style={{ color: '#374151', marginBottom: '1rem' }}>
             <strong>Attack:</strong> A user (or a prompt-injected agent) posts{' '}
-            <code>{'{"message": "transfer $1000", "consentGiven": true}'}</code> to{' '}
+            <code>{'{"message": "transfer $600", "consentGiven": true}'}</code> to{' '}
             <code>/api/demo-agent/message</code>. The pre-flight service sees{' '}
             <code>consentGiven === true</code> and returns <code>PERMIT</code> immediately —
             before token exchange, before any policy check, before HITL. The entire gate is skipped.
@@ -282,8 +311,9 @@ async function evaluate({ req, tool, params = {}, hitlChallengeId = null }) {
           <h3>Try it</h3>
           <RunAttackButton tabId="hitl-bypass" />
           <p style={{ color: '#374151' }}>
-            Sends <em>&ldquo;Transfer $1000 to savings&rdquo;</em> to the live agent. The hardened gate
-            re-fires — the HITL consent modal appears and no <code>consentGiven</code> flag can skip it.
+            Runs the catalog&rsquo;s HITL-bypass scenario (a $600 transfer — the canonical
+            consent/step-up tier) against the live agent. The hardened gate re-fires — the HITL
+            consent modal appears and no <code>consentGiven</code> flag can skip it.
           </p>
         </>
       ),
