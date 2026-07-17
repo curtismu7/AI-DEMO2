@@ -8,9 +8,12 @@
  */
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import UserDashboardPing2026 from "./UserDashboardPing2026";
+import apiClient from "../services/apiClient";
+import { getCachedJson } from "../services/cachedStatusService";
+import { notifyError } from "../utils/appToast";
 
 // ── Context hooks ────────────────────────────────────────────────────────────
 
@@ -143,5 +146,63 @@ describe("UserDashboardPing2026", () => {
 
   it("does not crash when user prop is null", () => {
     expect(() => renderDashboard(null)).not.toThrow();
+  });
+
+  it("shows the policy_not_found friendly message (not a generic failure) when the real Authorize engine returns 503", async () => {
+    const accounts = [
+      { id: "acc-1", accountType: "checking", accountNumber: "1111", balance: 500 },
+      { id: "acc-2", accountType: "savings", accountNumber: "2222", balance: 900 },
+    ];
+
+    vi.mocked(getCachedJson).mockImplementation(async (url) => {
+      if (url === "/api/auth/oauth/user/status") {
+        return { data: { authenticated: true, user: mockUser } };
+      }
+      return { data: { authenticated: false } };
+    });
+
+    vi.mocked(apiClient.get).mockImplementation(async (url) => {
+      if (url === "/api/accounts/my") return { data: { accounts } };
+      if (url === "/api/transactions/my") return { data: { transactions: [] } };
+      return { data: [] };
+    });
+
+    vi.mocked(apiClient.post).mockRejectedValue({
+      response: {
+        status: 503,
+        data: {
+          error: "policy_not_found",
+          error_description:
+            "Policy not found — this action has no matching authorization policy. Please contact your administrator.",
+        },
+      },
+    });
+
+    renderDashboard();
+
+    // Wait for the real (non-demo) accounts to load, then select the first one to transfer from.
+    const transferButtons = await screen.findAllByRole("button", { name: "Transfer" });
+    fireEvent.click(transferButtons[0]);
+
+    const heading = await screen.findByText("Transfer Money");
+    const transferSection = heading.closest(".section");
+    const form = within(transferSection).getByRole("combobox").closest("form");
+    const toSelect = within(form).getByRole("combobox");
+    const amountInput = within(form).getByPlaceholderText("Enter amount");
+
+    fireEvent.change(toSelect, { target: { value: "acc-2" } });
+    fireEvent.change(amountInput, { target: { value: "100" } });
+    fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(notifyError).toHaveBeenCalledWith(
+        "Policy not found — this action has no matching authorization policy. Please contact your administrator.",
+        5000,
+      );
+    });
+    // The bug this guards: falling through to the generic status-only branch,
+    // which would show the raw error code instead of the friendly message.
+    expect(notifyError).not.toHaveBeenCalledWith("policy_not_found");
+    expect(notifyError).not.toHaveBeenCalledWith("Transfer failed");
   });
 });
