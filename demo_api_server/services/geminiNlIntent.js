@@ -155,15 +155,60 @@ const JSON_RETRY_NUDGE =
   `do NOT answer conversationally. The tools fill defaults server-side.`;
 
 /**
- * Grammar constraint for llama.cpp intent routing: forces a JSON object with a
- * "kind" field. Deliberately permissive — themes add per-vertical shapes and
- * kind:"none" is a legal model answer; validateIntent does the strict check.
+ * Grammar constraint for llama.cpp intent routing.
+ *
+ * The old schema only required `{ kind: <string> }`. Under grammar-constrained
+ * decoding a small model satisfies that by emitting `{"kind":"banking"}` and
+ * STOPPING — no `banking.action` — which validateIntent then rejects, so the
+ * JSON router "missed" on every dashboard chip phrase and the heuristic floor
+ * answered (shown as "Heuristic" even in LLM-only mode). See REGRESSION_PLAN §4.
+ *
+ * buildIntentSchema forces the COMPLETE shape for the active vertical via an
+ * anyOf: banking verticals must emit `banking.action`, other verticals must
+ * emit `vertical`+`action`. `education` and `none` stay allowed so the model
+ * can still answer open questions conversationally (kind:none → validateIntent
+ * returns null → conversational fallback) instead of being forced to fabricate
+ * an action. validateIntent remains the strict post-parse check.
  */
-const INTENT_JSON_SCHEMA = {
-  type: 'object',
-  required: ['kind'],
-  properties: { kind: { type: 'string' } },
-};
+function buildIntentSchema(activeVertical) {
+  const bankingShape = {
+    type: 'object',
+    required: ['kind', 'banking'],
+    properties: {
+      kind: { type: 'string', const: 'banking' },
+      banking: {
+        type: 'object',
+        required: ['action'],
+        properties: { action: { type: 'string' }, params: { type: 'object' } },
+      },
+    },
+  };
+  const verticalShape = {
+    type: 'object',
+    required: ['kind', 'vertical', 'action'],
+    properties: {
+      kind: { type: 'string', const: 'vertical' },
+      vertical: { type: 'string' },
+      action: { type: 'string' },
+      params: { type: 'object' },
+    },
+  };
+  const educationShape = {
+    type: 'object',
+    required: ['kind', 'education'],
+    properties: {
+      kind: { type: 'string', const: 'education' },
+      education: { type: 'object' },
+    },
+  };
+  const noneShape = {
+    type: 'object',
+    required: ['kind'],
+    properties: { kind: { type: 'string', const: 'none' } },
+  };
+  const actionShape = activeVertical === 'banking' ? bankingShape : verticalShape;
+  return { anyOf: [actionShape, educationShape, noneShape] };
+}
 
 /** Conversational answer using Claude (Anthropic) — same result shape as answerWithHelix. */
 async function answerWithClaude(userMessage, context = {}) {
@@ -688,12 +733,13 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
       return { source: 'heuristic', result: heuristicResult, llm_attempted: false, breaker_open: true };
     }
     const systemWithCtx = buildSystemWithCtx(activeVertical, context);
+    const intentSchema = buildIntentSchema(activeVertical);
     try {
       const { callLlamaCpp } = require('./llamacppLlmService');
       const raw = await callLlamaCpp([
         { role: 'system', content: systemWithCtx },
         { role: 'user', content: message },
-      ], { jsonSchema: INTENT_JSON_SCHEMA });
+      ], { jsonSchema: intentSchema });
       llmBreaker.recordSuccess('llamacpp');
       let parsed = tryParseIntentJson(raw);
       if (parsed) return logAndReturn({ source: 'llamacpp', result: parsed });
@@ -703,7 +749,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
           const retry = await callLlamaCpp([
             { role: 'system', content: systemWithCtx + JSON_RETRY_NUDGE },
             { role: 'user', content: message },
-          ], { jsonSchema: INTENT_JSON_SCHEMA });
+          ], { jsonSchema: intentSchema });
           parsed = tryParseIntentJson(retry);
           if (parsed) return logAndReturn({ source: 'llamacpp', result: parsed });
         } catch (e) {
@@ -796,5 +842,5 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
 module.exports = {
   parseNaturalLanguage,
   EDU,
-  __test: { buildSystem, buildSystemWithCtx, ensureRenderableAnswer, tryParseIntentJson, conversationalSystemPrompt },
+  __test: { buildSystem, buildSystemWithCtx, ensureRenderableAnswer, tryParseIntentJson, conversationalSystemPrompt, buildIntentSchema },
 };
