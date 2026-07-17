@@ -1,5 +1,5 @@
 // banking_api_ui/src/context/AgentUiModeContext.js
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 const STORAGE_KEY_LEGACY = 'banking_agent_ui_mode';
 const STORAGE_KEY_V2 = 'banking_agent_ui_v2';
@@ -101,7 +101,21 @@ export function AgentUiModeProvider({ children }) {
   const [state, setState] = useState(() => readState());
   const [webMcpLastResult, setWebMcpLastResult] = useState(null);
   const [surfaceHostEl, setSurfaceHostEl] = useState(null);
-  const [clinicalSplit, setClinicalSplit] = useState(false);
+
+  // clinicalSplit is registered by TalkPane (setClinicalSplit(true) on mount,
+  // setClinicalSplit(false) on unmount). Ownership-safe via a ref-count: React
+  // StrictMode double-invokes effects (mount->cleanup->mount) and a route/skin
+  // swap can briefly overlap two TalkPanes — a plain boolean lets the losing/first
+  // cleanup's setClinicalSplit(false) clear the mode while a live TalkPane still
+  // owns it, which drops App back to float chrome, unmounts the TalkPane host, and
+  // leaves the agent unportaled (hidden). Counting registrations keeps the mode ON
+  // until the LAST owner unmounts.
+  const clinicalSplitCountRef = useRef(0);
+  const [clinicalSplit, setClinicalSplitState] = useState(false);
+  const setClinicalSplit = useCallback((on) => {
+    clinicalSplitCountRef.current = Math.max(0, clinicalSplitCountRef.current + (on ? 1 : -1));
+    setClinicalSplitState(clinicalSplitCountRef.current > 0);
+  }, []);
 
   useEffect(() => {
     try {
@@ -163,8 +177,9 @@ export function AgentUiModeProvider({ children }) {
       clinicalSplit,
       setClinicalSplit,
     }),
-    // setters from useState are stable refs — excluded per react-hooks/exhaustive-deps
-    [state.placement, state.fab, state.mode, setAgentUi, webMcpLastResult, surfaceHostEl, clinicalSplit]
+    // useState setters are stable refs (excluded); setClinicalSplit is a stable
+    // useCallback([]) but listed to satisfy react-hooks/exhaustive-deps.
+    [state.placement, state.fab, state.mode, setAgentUi, webMcpLastResult, surfaceHostEl, clinicalSplit, setClinicalSplit]
   );
 
   return (
