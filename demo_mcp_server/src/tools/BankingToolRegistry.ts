@@ -23,6 +23,11 @@ import {
   SHOW_VERTICAL_OUTPUT,
   SEARCH_TRANSACTIONS_OUTPUT,
   GET_TRANSACTION_DETAIL_OUTPUT,
+  LIST_ACCOUNT_TYPES_OUTPUT,
+  LIST_TRANSACTION_TYPES_OUTPUT,
+  SHOW_SUPPORTED_CURRENCIES_OUTPUT,
+  GET_FEE_SCHEDULE_OUTPUT,
+  LIST_VERTICALS_OUTPUT,
 } from './outputSchemas';
 
 export interface BankingToolDefinition extends ToolDefinition {
@@ -899,6 +904,142 @@ export class BankingToolRegistry {
           }
         },
         required: ['query'],
+        additionalProperties: false
+      }
+    },
+
+    list_account_types: {
+      name: 'list_account_types',
+      title: 'Account Types',
+      description: 'List all available account types (checking, savings, loan, credit, investment). No authentication required.',
+      requiresUserAuth: false,
+      requiredScopes: [],
+      handler: 'executeListAccountTypes',
+      readOnly: true,
+      icons: [],
+      annotations: {
+        userFacing: {
+          readable: true,
+          destructive: false,
+          idempotent: true,
+          openWorld: false
+        }
+      },
+      outputSchema: LIST_ACCOUNT_TYPES_OUTPUT,
+      inputSchema: {
+        type: 'object',
+        properties: {},
+        required: [],
+        additionalProperties: false
+      }
+    },
+
+    list_transaction_types: {
+      name: 'list_transaction_types',
+      title: 'Transaction Types',
+      description: 'List all available transaction categories (deposit, withdrawal, transfer, payment, purchase). No authentication required.',
+      requiresUserAuth: false,
+      requiredScopes: [],
+      handler: 'executeListTransactionTypes',
+      readOnly: true,
+      icons: [],
+      annotations: {
+        userFacing: {
+          readable: true,
+          destructive: false,
+          idempotent: true,
+          openWorld: false
+        }
+      },
+      outputSchema: LIST_TRANSACTION_TYPES_OUTPUT,
+      inputSchema: {
+        type: 'object',
+        properties: {},
+        required: [],
+        additionalProperties: false
+      }
+    },
+
+    show_supported_currencies: {
+      name: 'show_supported_currencies',
+      title: 'Supported Currencies',
+      description: 'List all supported currencies (USD, EUR, GBP, JPY, CAD, AUD, CHF, CNY, INR, MXN). No authentication required.',
+      requiresUserAuth: false,
+      requiredScopes: [],
+      handler: 'executeShowSupportedCurrencies',
+      readOnly: true,
+      icons: [],
+      annotations: {
+        userFacing: {
+          readable: true,
+          destructive: false,
+          idempotent: true,
+          openWorld: false
+        }
+      },
+      outputSchema: SHOW_SUPPORTED_CURRENCIES_OUTPUT,
+      inputSchema: {
+        type: 'object',
+        properties: {},
+        required: [],
+        additionalProperties: false
+      }
+    },
+
+    get_fee_schedule: {
+      name: 'get_fee_schedule',
+      title: 'Fee Schedule',
+      description: 'List public fee schedule with optional category filter. Shows all fees charged by the bank (monthly maintenance, wire transfer, overdraft, etc.). No authentication required.',
+      requiresUserAuth: false,
+      requiredScopes: [],
+      handler: 'executeGetFeeSchedule',
+      readOnly: true,
+      icons: [],
+      annotations: {
+        userFacing: {
+          readable: true,
+          destructive: false,
+          idempotent: true,
+          openWorld: false
+        }
+      },
+      outputSchema: GET_FEE_SCHEDULE_OUTPUT,
+      inputSchema: {
+        type: 'object',
+        properties: {
+          category: {
+            type: 'string',
+            enum: ['account', 'transfer', 'payment', 'overdraft', 'foreign_exchange'],
+            description: 'Optional category filter to get fees for a specific category'
+          }
+        },
+        required: [],
+        additionalProperties: false
+      }
+    },
+
+    list_verticals: {
+      name: 'list_verticals',
+      title: 'Available Verticals',
+      description: 'List available vertical services and their descriptions (banking, mortgage, healthcare, retail, sporting-goods, workforce, education, government). No authentication required.',
+      requiresUserAuth: false,
+      requiredScopes: [],
+      handler: 'executeListVerticals',
+      readOnly: true,
+      icons: [],
+      annotations: {
+        userFacing: {
+          readable: true,
+          destructive: false,
+          idempotent: true,
+          openWorld: false
+        }
+      },
+      outputSchema: LIST_VERTICALS_OUTPUT,
+      inputSchema: {
+        type: 'object',
+        properties: {},
+        required: [],
         additionalProperties: false
       }
     },

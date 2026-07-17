@@ -60,6 +60,9 @@ export default function MCPToolsListModal({ show, onClose, tools = [], onToolSel
             >
               <div className="mcp-tool-name">
                 <span className="mcp-tool-icon">🔧</span>
+                {tool.requiredScopes?.length > 0 && (
+                  <span className="mcp-tool-lock-icon" title="Requires authentication">🔐</span>
+                )}
                 {tool.name}
               </div>
               <p className="mcp-tool-description">{tool.description || '(no description)'}</p>

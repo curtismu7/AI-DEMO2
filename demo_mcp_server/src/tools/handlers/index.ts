@@ -12,6 +12,13 @@ import { executeRequestFeeWaiver } from './commitmentHandlers';
 import { executeSearchTransactions, executeGetTransactionDetail } from './searchHandlers';
 import { executeGetBranchHours } from './publicCatalogHandlers';
 import { executeCodeSearch, executeGetCode, executeListCodebases } from './codeSearchHandlers';
+import {
+  executeListAccountTypes,
+  executeListTransactionTypes,
+  executeShowSupportedCurrencies,
+  executeGetFeeSchedule,
+  executeListVerticals,
+} from './publicTools';
 import { verticalHandlerMap } from './verticalHandlers';
 import {
   executeLookupCustomer,
@@ -44,6 +51,11 @@ export const handlerMap: Record<string, HandlerFn> = {
   executeGetCode,
   executeListCodebases,
   executeGetBranchHours,
+  executeListAccountTypes,
+  executeListTransactionTypes,
+  executeShowSupportedCurrencies,
+  executeGetFeeSchedule,
+  executeListVerticals,
   ...verticalHandlerMap,
   executeLookupCustomer,
   executeGetCustomerProfile,

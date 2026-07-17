@@ -239,3 +239,101 @@ export const ADMIN_WRITE_OUTPUT: JSONSchema = {
   },
   required: ['success'],
 };
+
+export const LIST_ACCOUNT_TYPES_OUTPUT: JSONSchema = {
+  type: 'object',
+  properties: {
+    success: { type: 'boolean' },
+    accountTypes: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          type: { type: 'string' },
+          description: { type: 'string' },
+        },
+        required: ['type'],
+      },
+    },
+  },
+  required: ['success', 'accountTypes'],
+};
+
+export const LIST_TRANSACTION_TYPES_OUTPUT: JSONSchema = {
+  type: 'object',
+  properties: {
+    success: { type: 'boolean' },
+    transactionTypes: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          type: { type: 'string' },
+          description: { type: 'string' },
+        },
+        required: ['type'],
+      },
+    },
+  },
+  required: ['success', 'transactionTypes'],
+};
+
+export const SHOW_SUPPORTED_CURRENCIES_OUTPUT: JSONSchema = {
+  type: 'object',
+  properties: {
+    success: { type: 'boolean' },
+    currencies: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          code: { type: 'string' },
+          name: { type: 'string' },
+          symbol: { type: 'string' },
+        },
+        required: ['code'],
+      },
+    },
+  },
+  required: ['success', 'currencies'],
+};
+
+export const GET_FEE_SCHEDULE_OUTPUT: JSONSchema = {
+  type: 'object',
+  properties: {
+    success: { type: 'boolean' },
+    fees: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          category: { type: 'string' },
+          name: { type: 'string' },
+          amount: { type: 'number' },
+          description: { type: 'string' },
+        },
+        required: ['category', 'name', 'amount'],
+      },
+    },
+  },
+  required: ['success', 'fees'],
+};
+
+export const LIST_VERTICALS_OUTPUT: JSONSchema = {
+  type: 'object',
+  properties: {
+    success: { type: 'boolean' },
+    verticals: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          description: { type: 'string' },
+        },
+        required: ['name'],
+      },
+    },
+  },
+  required: ['success', 'verticals'],
+};
