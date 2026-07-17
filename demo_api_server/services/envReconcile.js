@@ -104,6 +104,7 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'introspectionprovider',
   // thresholds / step-up
   'confirm_threshold_usd', 'mfa_threshold_usd', 'step_up_amount_threshold',
+  'confirm_stepup_threshold_usd',
   'step_up_method', 'step_up_acr_value',
   // HITL consent challenge UX mode ('onetime' | 'multi') — behaviour, not env identity
   'hitl_consent_mfa_mode',
