@@ -4,7 +4,8 @@
   "ucId": "UC7",
   "trigger": "pay my $600 bill",
   "expectedOutcome": "STEP_UP",
-  "capturedAt": "2026-07-17T13:52:28.162Z",
+  "capturedAt": "2026-07-17T15:13:03.686Z",
+  "seedHash": "956244bc8453547f",
   "reply": "Simulated authorization policy requires step-up before MCP tools (education mode).",
   "agentPath": null,
   "tokenEventCount": 13

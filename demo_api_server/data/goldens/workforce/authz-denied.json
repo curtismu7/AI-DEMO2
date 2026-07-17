@@ -4,7 +4,8 @@
   "ucId": "UC6",
   "trigger": "submit a $2500 expense",
   "expectedOutcome": "DENY",
-  "capturedAt": "2026-07-17T13:52:37.185Z",
+  "capturedAt": "2026-07-17T15:13:16.583Z",
+  "seedHash": "53b2bac25e5daf21",
   "reply": "❌ MCP tool access was denied by the simulated authorization policy (education mode).",
   "agentPath": null,
   "tokenEventCount": 13

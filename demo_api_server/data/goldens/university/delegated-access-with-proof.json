@@ -4,7 +4,8 @@
   "ucId": "UC1",
   "trigger": "show my enrolled courses",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-17T13:52:34.225Z",
+  "capturedAt": "2026-07-17T15:13:12.969Z",
+  "seedHash": "55fb07346bdb7866",
   "reply": "❌ Gateway upstream error (HTTP 500)",
   "agentPath": null,
   "tokenEventCount": 14

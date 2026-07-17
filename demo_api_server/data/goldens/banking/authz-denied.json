@@ -4,7 +4,8 @@
   "ucId": "UC6",
   "trigger": "transfer $2500 from checking to savings",
   "expectedOutcome": "DENY",
-  "capturedAt": "2026-07-17T13:52:24.539Z",
+  "capturedAt": "2026-07-17T15:12:54.627Z",
+  "seedHash": null,
   "reply": "Transfer failed: MCP tool access was denied by the simulated authorization policy (education mode).",
   "agentPath": null,
   "tokenEventCount": 13

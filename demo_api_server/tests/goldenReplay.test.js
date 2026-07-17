@@ -88,6 +88,44 @@ describe('check-goldens drift rules', () => {
     expect(failures.some((f) => f.includes('missing "reply"'))).toBe(true);
   });
 
+  test('SEED-DRIFT (vertical seed changed since capture) fails', () => {
+    // A golden stamped with a different seed hash than the current seed.json
+    // would replay outdated VALUES with a straight face — must fail.
+    const dir = path.join(GOLDENS, 'retail');
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, 'delegated-access-with-proof.json');
+    const { resolveUseCase } = require('../config/useCases.js');
+    const uc = resolveUseCase('UC1', 'retail');
+    fs.writeFileSync(file, JSON.stringify({
+      vertical: 'retail', useCaseId: 'delegated-access-with-proof',
+      trigger: uc.trigger.text, expectedOutcome: uc.expectedOutcome || null,
+      capturedAt: new Date().toISOString(), reply: 'r', seedHash: 'deadbeefdeadbeef',
+    }));
+    try {
+      const { failures } = checkGoldens();
+      expect(failures.some((f) => f.includes('[seed-drift] retail/delegated-access-with-proof'))).toBe(true);
+    } finally { fs.unlinkSync(file); }
+  });
+
+  test('OLD goldens warn (never fail) with their age', () => {
+    fs.mkdirSync(TMP_DIR, { recursive: true });
+    // Orphan key (fails as orphan) but the AGE path must produce only a warning
+    // — verify via a real catalog key with an old timestamp instead.
+    const { resolveUseCase } = require('../config/useCases.js');
+    const uc = resolveUseCase('UC1', 'banking');
+    const file = path.join(TMP_DIR, 'delegated-access-with-proof.json');
+    fs.writeFileSync(file, JSON.stringify({
+      vertical: 'banking', useCaseId: 'delegated-access-with-proof',
+      trigger: uc.trigger.text, expectedOutcome: uc.expectedOutcome || null,
+      capturedAt: '2020-01-01T00:00:00Z', reply: 'r',
+    }));
+    try {
+      const { failures, warnings } = checkGoldens();
+      expect(warnings.some((w) => w.includes('[age] banking/delegated-access-with-proof'))).toBe(true);
+      expect(failures.some((f) => f.includes('banking/delegated-access-with-proof'))).toBe(false);
+    } finally { fs.unlinkSync(file); }
+  });
+
   test('MISSING goldens only warn — the count is reported, not failed', () => {
     const { failures, missing, total } = checkGoldens();
     // Whatever the current capture coverage, absence itself is never a failure.
