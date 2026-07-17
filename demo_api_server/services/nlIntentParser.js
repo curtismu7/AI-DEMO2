@@ -804,44 +804,45 @@ function resolveVerticalCtx(verticalId) {
 }
 
 /**
- * Resolve vertical id + heuristic context for an HTTP request.
- * Request `vertical` wins over the server-global active vertical when valid.
- * @param {unknown} requestVertical
- * @returns {{ verticalId: string, verticalCtx: { terminology: object, chips: Array }|null }}
+ * Session-pinned vertical for this request, if any. Does NOT fall back to the
+ * process-global — that global is still mutated by any session's
+ * POST /verticals/active and must not steal NL/heuristics from a pinned (or
+ * banking) demo.
+ * @param {import('express').Request|null|undefined} req
+ * @returns {string|null}
  */
-function resolveVerticalRouting(requestVertical) {
-  const explicit = parseVerticalParam(requestVertical);
-  let verticalId = "banking";
-  try {
-    const { verticalManifest } = require("./verticalManifest");
-    verticalId = explicit || verticalManifest.resolver.activeId() || "banking";
-  } catch (_e) {
-    verticalId = explicit || "banking";
-  }
-  const verticalCtx =
-    explicit != null
-      ? resolveVerticalCtx(explicit)
-      : resolveActiveVerticalCtx();
-  return { verticalId, verticalCtx };
+function sessionVerticalId(req) {
+  const id = req && req.session && req.session.active_vertical;
+  return typeof id === "string" && id ? parseVerticalParam(id) : null;
 }
 
 /**
- * Resolve the active vertical's heuristic context — `{ terminology, chips }` —
- * from the manifest, or null for banking / unresolved. Single source shared by
- * every heuristic entry point (NL endpoint, agent message path) so the
- * `{ terminology, chips }` shape and its chip-location fallback can't drift.
- * Lazy-requires verticalManifest to avoid a require cycle (verticalManifest →
- * scope → … → nlIntentParser). Best-effort: never throws into the request path.
+ * Resolve vertical id + heuristic context for an HTTP request.
+ * Precedence (demo-safe — process-global must never yank heuristics):
+ *   1. Valid request `vertical` body/query (SPA page context)
+ *   2. This session's pinned `active_vertical`
+ *   3. `banking` (safe default)
+ * The process-global `activeId()` is intentionally unused here — it remains
+ * the first-load default / SSE hydration source only.
+ * @param {unknown} requestVertical
+ * @param {import('express').Request|null|undefined} [req]
+ * @returns {{ verticalId: string, verticalCtx: { terminology: object, chips: Array }|null }}
+ */
+function resolveVerticalRouting(requestVertical, req = null) {
+  const explicit = parseVerticalParam(requestVertical);
+  const verticalId = explicit || sessionVerticalId(req) || "banking";
+  return { verticalId, verticalCtx: resolveVerticalCtx(verticalId) };
+}
+
+/**
+ * Resolve heuristic context for the session-or-banking vertical (never the
+ * process-global). Shared by heuristic entry points so chip-location fallback
+ * can't drift. Lazy-requires verticalManifest to avoid a require cycle.
+ * @param {import('express').Request|null|undefined} [req]
  * @returns {{ terminology: object, chips: Array }|null}
  */
-function resolveActiveVerticalCtx() {
-  try {
-    const { verticalManifest } = require("./verticalManifest");
-    return resolveVerticalCtx(verticalManifest.resolver.activeId());
-  } catch (_e) {
-    /* best-effort; fall back to banking wording */
-  }
-  return null;
+function resolveActiveVerticalCtx(req = null) {
+  return resolveVerticalCtx(sessionVerticalId(req) || "banking");
 }
 
 function parseHeuristic(

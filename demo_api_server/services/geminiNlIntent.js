@@ -361,7 +361,10 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
   // Set true once any LLM router call has been made, so heuristic-floor returns
   // reached after the LLM falls through still report llm_attempted to the UI.
   let llmAttempted = false;
-  const { verticalId: activeVertical, verticalCtx: _verticalCtx } = resolveVerticalRouting(context?.vertical);
+  const { verticalId: activeVertical, verticalCtx: _verticalCtx } = resolveVerticalRouting(
+    context?.vertical,
+    context?.req || null,
+  );
   const isAdmin = context?.role === 'admin' || context?.isAdmin === true;
   // Heuristics-only (provider:"heuristic" or agent_mode heuristics) has no LLM
   // fallthrough — allow mode=llm chip messages to match deterministic heuristics

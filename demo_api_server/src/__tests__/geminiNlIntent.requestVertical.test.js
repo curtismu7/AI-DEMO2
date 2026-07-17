@@ -27,7 +27,10 @@ describe('parseNaturalLanguage — request vertical overrides global active', ()
   it('routes heuristics with workforce when context.vertical is workforce', async () => {
     await parseNaturalLanguage('my benefits', { vertical: 'workforce' }, 'heuristic', {});
 
-    expect(resolveVerticalRouting).toHaveBeenCalledWith('workforce');
+    // resolveVerticalRouting now also takes req (session-vertical fallback,
+    // fix/session-vertical-heuristics) — this call site's context carries no
+    // req, so the second arg is null.
+    expect(resolveVerticalRouting).toHaveBeenCalledWith('workforce', null);
     expect(parseHeuristic).toHaveBeenCalledWith(
       'my benefits',
       'workforce',
