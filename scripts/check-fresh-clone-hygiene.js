@@ -137,6 +137,37 @@ for (const [file, label] of [['docker-compose.yml', 'docker'], ['k8s/02-configma
   }
 }
 
+// ── Never-silent reply invariant ──
+// A silent agent reply is the worst demo failure: the user cannot tell a model
+// limit from a broken page, and Authorize/Gateway "not running" looks like a chat
+// glitch. These are the exact shapes that produced silent replies before they
+// were fixed (PRs #520/#526/#531/#547/#550) — each check locks one fix so a
+// refactor cannot quietly reintroduce it. Narrow by design: one file, one shape.
+{
+  const li = read('llamaindex_agent/agent.py');
+  if (/except Exception:\s*\n\s*return ""/.test(li)) {
+    fail('never-silent', 'llamaindex_agent/agent.py: bare `except Exception: return ""` is back — an empty answer renders as NOTHING (the "HTTP 200 with sources but EMPTY answer" bug). Route every exit through EMPTY_ANSWER_NOTICE.');
+  }
+  if (!li.includes('EMPTY_ANSWER_NOTICE')) {
+    fail('never-silent', 'llamaindex_agent/agent.py: EMPTY_ANSWER_NOTICE is gone — _completion_text has no non-silent fallback.');
+  }
+
+  const lc = read('langchain_agent/src/agent/langchain_mcp_agent.py');
+  if (/or\s+"I'm sorry, I couldn't process your request\."/.test(lc)) {
+    fail('never-silent', "langchain_agent langchain_mcp_agent.py: the generic \"I'm sorry, I couldn't process your request\" fallback is back — it blames the REQUEST when the model produced no visible content. Say what happened instead.");
+  }
+
+  const route = read('demo_api_server/routes/agentInvokeRoute.js');
+  if ((route.match(/ensureNonEmptyReply\(/g) || []).length < 2) {
+    fail('never-silent', 'demo_api_server/routes/agentInvokeRoute.js: ensureNonEmptyReply must exist AND be called before res.json — it is the server-side net for every agent turn.');
+  }
+
+  const ui = read('demo_api_ui/src/components/AIAgent.js');
+  if (!ui.includes('empty assistant reply intercepted')) {
+    fail('never-silent', 'demo_api_ui/src/components/AIAgent.js: the addMessage empty-reply guard is gone — a blank assistant bubble can render again.');
+  }
+}
+
 // ── Report ──
 if (fails.length) {
   console.error('✗ fresh-clone hygiene FAILED:\n');
