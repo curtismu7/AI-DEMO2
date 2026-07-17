@@ -73,13 +73,13 @@ export default function CodeSearchAsk({ codebaseId }) {
         body: JSON.stringify({ question, codebase_id: codebaseId }),
         signal: ctrl.signal,
       });
-      const body = await r.json();
+      const body = await r.json().catch(() => ({}));
       if (!r.ok) {
         // BFF/MCP use message|error; FastAPI (llamaindex-agent) uses detail.
         const detail = Array.isArray(body.detail)
           ? body.detail.map((d) => d.msg || JSON.stringify(d)).join('; ')
           : body.detail;
-        throw new Error(body.message || body.error || detail || 'assistant unavailable');
+        throw new Error(body.message || body.error || detail || `assistant unavailable (status ${r.status})`);
       }
       setLastAssistant({
         content: body.answer || '(no answer)',

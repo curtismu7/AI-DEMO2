@@ -85,6 +85,75 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-16 — 7/16 punch-list batch (onboarding close button, code-search error text, banking token-chain jump)
+
+**Files changed:** `demo_api_ui/src/components/AgentOnboardingFlowDiagram.jsx`,
+`demo_api_ui/src/components/CodeSearchAsk.jsx`,
+`demo_api_ui/src/components/verticalOps/VerticalOpsConsole.jsx`,
+`demo_api_ui/src/components/verticalOps/VerticalOpsConsole.css`.
+
+**What was broken:**
+
+1. Agent Onboarding Flow's `FloatingPanel` (`/agent-onboarding-flow`) never passed
+   an `onClose`, so the panel's close (`✕`) button never rendered — every other
+   `FloatingPanel` consumer in the app passes one.
+2. `/code-search`'s Ask tab (`CodeSearchAsk.jsx`) called `await r.json()`
+   unconditionally with no error guard; a non-JSON error response (e.g. an
+   nginx 502 HTML page when an upstream RAG service is down) threw a raw
+   `SyntaxError` that surfaced verbatim in the chat bubble
+   (`"Unexpected token '<' ... is not valid JSON"`).
+3. `/admin/banking` (and every other vertical ops console — healthcare, retail,
+   sporting-goods, workforce, all sharing `VerticalOpsConsole.jsx`) had no way
+   to jump to the collapsed "Token Chain — MCP Route" section at the bottom of
+   a potentially long record list.
+
+**What was fixed:**
+
+1. Added `onClose={() => window.history.back()}` to the onboarding page's
+   `FloatingPanel`, matching the existing `DevToolsRoute` convention for
+   standalone (non-toggle) `FloatingPanel` pages.
+2. `CodeSearchAsk.jsx` now parses the response body with `.catch(() => ({}))`
+   (same defensive pattern already used in `services/codeSearchAPI.js`'s
+   `throwIfNotOk`) and falls back to `` `assistant unavailable (status ${r.status})` ``
+   instead of throwing the raw parse error.
+3. Added a "Jump to token chain ↓" button in `VerticalOpsConsole`'s header that
+   opens the `<details>` token-chain section and smooth-scrolls it into view
+   (`traceRef`, `jumpToTrace`).
+
+**Do not break:** `FloatingPanel`'s `onClose` button only renders when a
+consumer passes `onClose` — don't remove it from onboarding without deciding
+what "close" should do first. `CodeSearchAsk.jsx`'s fallback message shape
+(`message`/`error`/`detail` chain) must stay compatible with both the BFF/MCP
+error shape (`message`/`error`) and the FastAPI llamaindex-agent shape
+(`detail`, possibly an array of `{msg}`). `VerticalOpsConsole` is shared by
+five verticals — `traceRef`/`jumpToTrace` must stay generic (no vertical-specific
+logic).
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0, confirmed). No automated
+test coverage added — manual click-through recommended for the jump button and
+close button; the code-search fix needs a live 502/down-upstream scenario to
+fully confirm the friendlier message renders.
+
+**Explicitly NOT fixed in this pass (investigated, no safe fix found):**
+- `/check` reporting services as down when they're up (punch-list #22): the
+  leading theory (TLS verification not relaxed under `NODE_ENV=production` in
+  `demo_api_server/services/checks/serversCheck.js`) does not hold — the actual
+  k8s deployment (`k8s/20-api-server-deployment.yaml`) explicitly overrides
+  `NODE_ENV=development` for the api-server pod (required by
+  `simulatedAuthorizeService`), so TLS verification is already relaxed there.
+  No other concrete root cause was confirmed statically; needs a live look at
+  the failing check's actual error in the browser/network tab before touching
+  this file.
+- `/admin/verticals` "completely broken" (punch-list #16): the leading theory
+  (swap `pageManifest` for `agentManifest` in `VerticalEditorPage.jsx`) was
+  wrong — `agentManifest`/`adminManifest` resolves to a fixed `'admin-console'`
+  manifest server-side (`services/verticalManifest/scope.js`), not "whichever
+  vertical the admin is editing." The page already has an "Active:" `<select>`
+  wired to `setActive()` for choosing which vertical to edit via the shared
+  session-pinned active vertical — that part looks correct by design. No
+  confirmed bug found statically; needs a live repro (open the page as admin,
+  check the console/network tab) before changing anything here.
+
 ### 2026-07-15 — Code Explorer browser "network error" (nginx SSE buffering)
 
 **Files changed:** `demo_api_ui/nginx.conf`, `k8s/02-configmap.yaml` (nginx-config),
