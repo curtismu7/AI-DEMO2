@@ -191,8 +191,20 @@ export function buildReadableView(raw) {
 // routinely exceed this once pretty-printed with _links — coloring every token
 // injects tens of thousands of React nodes and can crash the render so the
 // terminal flashes then vanishes. Above the cap we still pretty-print, but as a
-// single text node. Raised to 40KB to cover most real payloads while staying safe.
-const JSON_HIGHLIGHT_MAX_CHARS = 40000;
+// single text node.
+//
+// 8000 is empirically derived, not a guess — do not raise it without a
+// measurement. This cap has already been walked down twice for the same crash:
+//   da465f84b  introduced it at 24000 ("stop large JSON highlighting from
+//              wiping the terminal")
+//   93d207c5e  lowered 24000 -> 8000 — 24000 was NOT low enough; real list
+//              payloads still wiped the terminal
+// 0e9bd0ed4 then raised it to 40000 on the strength of a comment alone (no test,
+// no measurement) — 5x the value proven safe and 1.67x the value already proven
+// insufficient. That is this same regression a third time, so it is reverted here.
+// The renderer is unchanged (still one React <span> per token), so nothing about
+// the original crash has been fixed; only the cap keeps it away.
+const JSON_HIGHLIGHT_MAX_CHARS = 8000;
 
 // Syntax-highlight a JSON string into an array of React nodes (colored <span>s
 // interleaved with plain text). Returns null if the text is not valid JSON
