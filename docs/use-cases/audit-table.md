@@ -41,6 +41,8 @@
 | UC-PAM-SCRIPT | [Privilege Demo — Request Access Script](./privilege-demo-script.md) | learn | ✅ works |  |  |
 | UC-LEARN8 | [Enterprise-Managed MCP Authorization](./enterprise-managed-mcp-auth.md) | learn | ✅ works |  |  |
 | UC-LEARN9 | [ID-JAG / Cross-App Access](./id-jag-cross-app-access.md) | learn | ✅ works |  |  |
+| UC27 | [HITL consent bypass attempt](./hitl-consent-bypass-attempt.md) | hitl | ✅ works | 🛡️ T5 |  |
+| UC28 | [Tool set as the authorization boundary (Air Canada pattern)](./unauthorized-commitment-fee-waiver.md) | controls | ✅ works | 🛡️ T1 |  |
 
 ## 🚩 Flag-gated (`flag:*`)
 
@@ -65,8 +67,8 @@
 
 | Status | Count |
 |---|---|
-| ✅ Works | 32 |
+| ✅ Works | 34 |
 | 🚩 Flag-gated | 7 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 2 |
-| **Total** | **41** |
+| **Total** | **43** |

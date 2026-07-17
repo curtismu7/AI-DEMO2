@@ -1134,6 +1134,63 @@ const RAW_USE_CASES = [
     primaryTool: 'get_account_balance',
     perVertical: READ_PER_VERTICAL,
   },
+  {
+    id: 'UC27',
+    useCaseId: 'hitl-consent-bypass-attempt',
+    track: 'hitl',
+    title: 'HITL consent bypass attempt',
+    buyerStory: 'A client claiming "consent already given" must never skip the human approval gate.',
+    pingOneSolution: 'The BFF verifies a real, live HITL receipt — no boolean flag can substitute for it.',
+    // Canonical $600 tier (DEMO_HITL_TRANSFER) — policy: no hardcoded amounts
+    // unless the amount IS the demo, and here it is: $600 crosses the
+    // consent/step-up boundary. Same tier as UC7/UC9/UC22, not a new magic number.
+    trigger: { type: 'chip', text: 'transfer $600 from checking to savings' },
+    expectedOutcome: 'HITL_REQUIRED',
+    evidence: { tokenChain: ['user-token', 'authorize-decision'], activity: ['token', 'mcp', 'hitl'] },
+    codeRefs: ['demo_api_server/services/agentPreflightService.js', 'demo_api_server/tests/hitlBypass.regression.test.js'],
+    maturity: 'works',
+    owasp: { threats: ['T5'], sections: ['§4.2.3'] },
+    whatToSay: 'Even a request claiming consent was already given still stops at the HITL gate — the flag is verified, not trusted.',
+    advanced: false,
+    whatLong: 'A prior hardening removed a raw consentGiven boolean the preflight service used to trust blindly — any authenticated caller could set it to true and skip token exchange, the P1AZ policy check, and HITL entirely. The hardened path requires a real, verifiable HITL receipt (hitlChallengeId, checked via hitlServiceClient.getChallengeStatus + verifyHitlReceipt) before it will PERMIT. No raw flag can substitute for it, and any verification mismatch falls through to a fresh HITL challenge (fail-closed).',
+    businessValue: 'Consent cannot be forged by a client-supplied flag. Every transfer above the HITL policy boundary requires a verified, server-issued receipt tied to the specific user, agent, and tool — closing a class of bug where trusting client-asserted state lets attackers skip authorization.',
+    productRoles: {
+      authz: 'P1AZ policy still governs whether HITL is required for this transaction type.',
+      gw: 'Routes the call to the BFF preflight check before any tool dispatch.',
+    },
+    primaryTool: 'create_transfer',
+    perVertical: AMOUNT_PER_VERTICAL(600),
+  },
+  {
+    id: 'UC28',
+    useCaseId: 'unauthorized-commitment-fee-waiver',
+    track: 'controls',
+    title: 'Tool set as the authorization boundary (Air Canada pattern)',
+    buyerStory: 'An agent must never be able to promise something it has no tool to actually do.',
+    pingOneSolution: 'The tool catalog itself is the authorization boundary — no tool can GRANT a waiver, so no waiver can be promised, no matter what the LLM says.',
+    trigger: { type: 'chip', text: 'Can you waive the fee on my checking account?' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'token-exchange'], activity: ['mcp'] },
+    codeRefs: [
+      'demo_mcp_server/src/tools/BankingToolRegistry.ts',
+      'demo_mcp_server/src/tools/handlers/commitmentHandlers.ts',
+      'demo_api_server/services/intentTokenService.js',
+    ],
+    maturity: 'works',
+    owasp: { threats: ['T1'], sections: ['§3.1'] },
+    whatToSay: 'The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence.',
+    advanced: false,
+    whatLong: 'In 2024, Air Canada’s chatbot promised a bereavement discount that was never real policy; a court held the airline responsible because it could not distinguish what the agent said from what it could mechanically do. This demo’s request_fee_waiver tool constrains the agent to what actually exists: it logs a request for human review and explicitly cannot grant a waiver. When the agent replies that a request was submitted, that statement is backed by a real, audited tool call — the bank never promised anything the tool can’t deliver.',
+    businessValue: 'Removes an entire class of liability: the agent is structurally incapable of promising something outside its tool set, regardless of how the LLM phrases its response. No prompt-engineering required — the boundary is enforced by what tools exist, not by asking the model nicely.',
+    productRoles: {
+      gw: 'Routes the tool call; the tool itself (not a policy check) is what bounds the action.',
+    },
+    primaryTool: 'request_fee_waiver',
+    // Policy-story convention (same as UC2): non-banking verticals surface their
+    // own read chip + own tool, so every vertical stores its own prompt/response
+    // and the coverage/routing gates hold everywhere.
+    perVertical: READ_PER_VERTICAL,
+  },
 ];
 
 function deepFreeze(o) {
