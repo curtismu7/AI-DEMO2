@@ -36,6 +36,30 @@ another, and `SecuritySettings` on a third has no way to tell which one is
 authoritative, and the setup wizard's copy of the ACR default can silently go
 stale relative to the others.
 
+**Second, more serious problem found while re-verifying the design (2026-07-16):**
+"the step-up threshold" is actually **two disconnected values** in the
+backend, not one:
+
+- `runtimeSettings.stepUpAmountThreshold` — written by all three UIs above
+  (directly by `SecuritySettings`/`ThresholdControls`; mirrored by
+  `POST /api/config/thresholds`). Read by `mcpLocalTools.js`'s
+  `checkLocalStepUp()` — the step-up gate for the **local MCP tool path**
+  (the AI agent calling a tool directly).
+- `configStore`'s `confirm_stepup_threshold_usd` key — read by
+  `transactionConsentChallenge.js`'s local `getStepUpThreshold()`, which
+  gates the **real browser-based transfer/HITL consent flow** when
+  `hitl_consent_mfa_mode` is `'device_picker'`. **No UI writes this key at
+  all.** It always falls back to a hardcoded `500` from
+  `scopeTopology.stepUpThresholdUsd()`, silently ignoring whatever any
+  settings UI has set. (Not reachable in the default `mfaMode: 'onetime'`
+  configuration — only matters once `device_picker` mode is selected — but
+  silent when it does matter.)
+
+So today, changing "the" step-up threshold in any UI reliably changes local
+MCP tool behavior, but never changes the `device_picker` HITL flow's actual
+gate. This is the concrete version of "does adjusting the value actually
+change what the app does?" — the answer for one real flow was no.
+
 ## Decisions (from brainstorming)
 
 | Topic | Choice |
@@ -46,6 +70,7 @@ stale relative to the others.
 | ACR default duplication in setup wizard | **Consolidate** the 3 hardcoded copies onto one shared frontend constant |
 | `runtimeSettings.js`'s own `'Multi_Factor'` fallback | **Leave alone** — already a single line in one file, not scattered |
 | `DemoDataPage.js` (confirmed dead code found during investigation) | **Out of scope** — unrelated file, not touched by this change |
+| Orphaned `confirm_stepup_threshold_usd` key | **Fold in now** — wire it to the same consolidated value so `device_picker` mode's gate actually respects what `/settings` sets, using the exact "dual-store bridge" pattern `routes/admin.js` already uses for `maxTransactionAmount` |
 
 ## Goals
 
@@ -58,6 +83,9 @@ stale relative to the others.
   it just can't change it anymore from there.
 - `stepUpAcrValue`'s setup-wizard default exists in exactly one place in the
   frontend bundle.
+- Setting the step-up threshold in `/settings` actually changes both real
+  enforcement paths (local MCP tool gate AND the `device_picker` HITL
+  consent gate), not just one of them silently.
 
 ## Non-Goals
 
@@ -74,12 +102,28 @@ stale relative to the others.
 SecuritySettings.js  (/settings)
     │  PUT /api/admin/settings
     ▼
-runtimeSettings.js  ── GLOBAL default (stepUpAmountThreshold, stepUpAcrValue)
-    ▲
-    │  fallback when no per-user override
+routes/admin.js  PUT /settings handler
     │
+    ├──► runtimeSettings.update(...)         GLOBAL default, live in-process
+    │       (already happens today)
+    │
+    └──► NEW dual-store bridge, only when req.body.stepUpAmountThreshold set:
+         configStore.setConfig({
+           mfa_threshold_usd,
+           confirm_stepup_threshold_usd,      ← closes the orphaned-key gap
+           SIMULATED_AUTHORIZE_STEPUP_AMOUNT,
+           step_up_amount_threshold,
+         })
+             │                                          │
+             ▼                                          ▼
+  mcpLocalTools.js                        transactionConsentChallenge.js
+  checkLocalStepUp()                      getStepUpThreshold()
+  reads runtimeSettings directly          reads configStore.confirm_stepup_threshold_usd
+  (local MCP tool gate)                   (device_picker HITL gate)
+
 demoScenarioStore.js  ◄── DemoSetupPanel.js  (/configure, Demo Data tab)
     │  PER-USER override (stepUpAmountThreshold only), LMDB-backed
+    │  fallback when unset: the global default above
     ▼
 GET /api/config/thresholds  (effective = per-user override ?? global default)
     ▲
@@ -94,7 +138,36 @@ runtimeDefault)` already implements exactly that resolution and something in
 the current read path must already expose it (the widget currently displays
 *some* current value before editing).
 
+The dual-store bridge is the same pattern already in `routes/admin.js` for
+`maxTransactionAmount` (see the existing code comment there: *"Dual-store
+bridge (write side)... Without this write-through the setting is dead"*) —
+this design adds a second instance of that pattern for
+`stepUpAmountThreshold`, it does not invent a new mechanism.
+
 ## Component changes
+
+### `demo_api_server/routes/admin.js` — `PUT /settings` dual-store bridge
+
+This file's `PUT /settings` handler and `transactionConsentChallenge.js`
+(reached indirectly, via the `configStore` key this handler writes) are
+listed in REGRESSION_PLAN §1 ("Transfer HITL enforcement",
+"`configStore` / Config UI"). **What this change will NOT break:** the
+actual HITL enforcement *logic* — amount comparisons, which `mfaMode`
+branches fire, the 428 status-code enforcement in `routes/transactions.js`
+— is untouched. This is a write-side mirror only: it makes an already-read
+key (`confirm_stepup_threshold_usd`) actually receive a value, the same way
+`maxTransactionAmount` already does for `MAX_TRANSACTION_AMOUNT` three lines
+above where this new block goes.
+
+- Add a new block in the `PUT /settings` handler (`demo_api_server/routes/admin.js`),
+  alongside the existing `maxTransactionAmount` dual-store bridge: when
+  `req.body.stepUpAmountThreshold` is present and a positive finite number,
+  call `configStore.setConfig({ mfa_threshold_usd, confirm_stepup_threshold_usd,
+  SIMULATED_AUTHORIZE_STEPUP_AMOUNT, step_up_amount_threshold })` with that
+  value (all four keys, matching what `routes/thresholds.js`'s POST handler
+  already writes for the equivalent case — see its `mfa_threshold_usd` branch).
+- `runtimeSettings.update(...)` (already called earlier in the same handler)
+  is unchanged — this is additive.
 
 ### `ThresholdControls.js` / `ThresholdControls.css`
 
@@ -147,6 +220,14 @@ the current read path must already expose it (the widget currently displays
 
 ## Testing
 
+- New: a test on `PUT /api/admin/settings` confirming that setting
+  `stepUpAmountThreshold` results in `configStore.getEffective('confirm_stepup_threshold_usd')`
+  reflecting the new value (the dual-store bridge actually bridges).
+- New: a test on `transactionConsentChallenge.js` confirming
+  `getStepUpThreshold()` returns the value set via the bridge above instead
+  of the `scopeTopology.stepUpThresholdUsd()` fallback, once
+  `confirm_stepup_threshold_usd` is set (extends the existing
+  `transactionConsentChallenge.test.js`, which already mocks this key).
 - Update `ThresholdControls`' existing tests to reflect read-only behavior:
   remove assertions on the save/write flow, add an assertion that no
   `POST /api/config/thresholds` call fires from this component and that the
@@ -165,3 +246,10 @@ the current read path must already expose it (the widget currently displays
   server route.
 - `DemoDataPage.js` removal.
 - Any change to `stepUpAcrValue`'s per-request/live resolution logic.
+- Any change to HITL enforcement decision logic itself (amount comparisons,
+  428 status handling, `mfaMode` branch selection) — only the *value* one
+  branch reads is being fixed, not the branching logic.
+- Making `confirm_threshold_usd` (the separate "does this transfer need
+  consent at all" key — distinct from the step-up/MFA threshold this design
+  touches) editable from `SecuritySettings.js`. Not currently exposed there;
+  not part of this design.
