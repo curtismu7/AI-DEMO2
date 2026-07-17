@@ -219,7 +219,7 @@ const RAW_USE_CASES = [
       idp:   "Seeds the act claim from the user's may_act attribute during token exchange.",
       authz: 'Evaluates the act claim against the authorized actor on every tool call before it is allowed.',
     },
-    primaryTool: null,
+    primaryTool: 'get_account_balance',
     perVertical: READ_PER_VERTICAL,
   },
   {
@@ -242,7 +242,7 @@ const RAW_USE_CASES = [
     productRoles: {
       idp:   'Manages the agent app as a first-class identity; disabling or rotating the credential blocks all subsequent token exchanges.',
     },
-    primaryTool: null,
+    primaryTool: 'get_account_balance',
     perVertical: READ_PER_VERTICAL,
   },
   {
@@ -267,7 +267,7 @@ const RAW_USE_CASES = [
       gw:    'Logs the tool call, the acting agent, and the Authorize decision outcome.',
       authz: 'Records the policy decision (PERMIT/DENY/STEP_UP) for every evaluated request.',
     },
-    primaryTool: null,
+    primaryTool: 'get_account_balance',
     perVertical: READ_PER_VERTICAL,
   },
 
@@ -294,7 +294,7 @@ const RAW_USE_CASES = [
       authz: 'Evaluates scope requirements per tool; a token carrying only the needed scope is the correct posture.',
       gw:    'Enforces the required scopes at the gateway boundary — excess scope is harmless here but the mismatch is visible.',
     },
-    primaryTool: null,
+    primaryTool: 'get_account_balance',
     perVertical: READ_PER_VERTICAL,
   },
   {
@@ -423,7 +423,7 @@ const RAW_USE_CASES = [
       authz: 'Evaluates the group claim against the entitlement rule; returns DENY when the user is not a member.',
       gw:    'Enforces the DENY returned by Authorize before any tool is dispatched.',
     },
-    primaryTool: null,
+    primaryTool: 'create_transfer',
     perVertical: AMOUNT_PER_VERTICAL(600),
   },
   {
@@ -475,7 +475,7 @@ const RAW_USE_CASES = [
       gw:    'Holds the tool call until the agent presents the CIBA approval receipt.',
       mfa:   "Delivers the CIBA challenge to the user's enrolled device (push notification / OTP).",
     },
-    primaryTool: null,
+    primaryTool: 'create_transfer',
     perVertical: AMOUNT_PER_VERTICAL(600),
   },
 
@@ -812,7 +812,7 @@ const RAW_USE_CASES = [
       idp:   'Issues delegated tokens with a configurable TTL; the short expiry is enforced at introspection.',
       gw:    'Introspects every token; a token past its TTL is rejected with 401 even if its signature is valid.',
     },
-    primaryTool: null,
+    primaryTool: 'get_account_balance',
     perVertical: READ_PER_VERTICAL,
   },
   {
