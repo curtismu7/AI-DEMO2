@@ -26,10 +26,12 @@ and not all of those places are duplicates for the same reason:
   reachable from every dashboard page.
 - **`stepUpAcrValue`** additionally has the literal string `'Multi_Factor'`
   hardcoded independently in `SetupPage.js`, `SetupWizardTab.js`, and
-  `SetupWizard.js` (4 occurrences total, across form initial-state and a
-  generated `.env` template) — one-time initial-setup-wizard code, not a live
-  runtime writer, but still four places that can drift from each other and
-  from `runtimeSettings.js`'s own default.
+  `SetupWizard.js` (6 occurrences total across the 3 files — 2 initial-state
+  literals, 1 `.env` template fallback, 2 JSX placeholder attributes, plus
+  `SetupWizard.js`'s dual controlled/uncontrolled `internalCreds` default)
+  — one-time initial-setup-wizard code, not a live runtime writer, but still
+  multiple places that can drift from each other and from
+  `runtimeSettings.js`'s own default.
 
 An operator using `ThresholdControls` on one dashboard, `DemoSetupPanel` on
 another, and `SecuritySettings` on a third has no way to tell which one is
@@ -252,8 +254,11 @@ instead of deleting it.
 
 - New file: `demo_api_ui/src/config/setupDefaults.js` exporting
   `DEFAULT_STEP_UP_ACR_VALUE = 'Multi_Factor'`.
-- All 4 occurrences (form initial state ×3, `.env` template line) import and
-  use this constant instead of a literal string.
+- All 6 occurrences (`SetupPage.js:45`, `SetupWizard.js:89,118,482`,
+  `SetupWizardTab.js:19,393`) import and use this constant instead of a
+  literal string. (`SetupWizardTab.js:398`'s help-text prose mentioning
+  "Multi_Factor" as an example is left as-is — it's descriptive text, not a
+  code default.)
 
 ## Error handling
 
