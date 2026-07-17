@@ -89,6 +89,23 @@ run_api_tests() {
   ( cd demo_api_server && npx jest --forceExit --maxWorkers=50% ${JEST_IGNORES[@]+"${JEST_IGNORES[@]}"} ) >"$log" 2>&1
   local rc=$?
 
+  # Did jest actually run? A completed jest run ALWAYS prints a "Tests:" summary
+  # line (even "Tests: 0 total"); "No tests found" and any crash-before-start
+  # print none. So `rc != 0` with no summary means jest never started -- a bad
+  # invocation, missing module, broken config, or the ignore-list override
+  # misfiring -- NOT a test failure. Report that distinctly and dump the real
+  # output, instead of "[failed twice — real]", which sends people hunting for a
+  # broken test that does not exist. (This is exactly how the bash-3.2 empty-array
+  # bug hid for so long: 0s exit, no output, labelled "real". Fixed in #557; this
+  # keeps the NEXT such failure honest.)
+  if [ "$rc" -ne 0 ] && ! grep -qE '^Tests:' "$log"; then
+    printf 'ERROR (%ss)  [jest did not start — harness failure, not a test failure]\n' "$(( $(date +%s) - s ))"
+    FAILED="$FAILED test:api-server"
+    echo "  ---- jest produced no test summary; tail of its output ----"
+    tail -15 "$log" | sed 's/^/  | /'
+    rm -f "$log"; return 1
+  fi
+
   # Retry once, re-running ONLY the suites that just failed (2s, not 45s).
   # This suite is flaky locally at ~1-2 failures per 6000 -- a different test each
   # run -- because a 16-core box spawns ~15 workers that contend with the running
