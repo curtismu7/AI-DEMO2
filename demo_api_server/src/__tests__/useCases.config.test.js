@@ -64,10 +64,16 @@ describe('useCases catalog SoT', () => {
     expect(blob).not.toMatch(/banking:(read|write|admin)/);
   });
 
-  test('VERTICALS lists the 8 supported verticals', () => {
+  test('VERTICALS lists the 9 supported verticals', () => {
+    // Adding a vertical here is not cosmetic: VERTICALS is what gives a vertical its
+    // perVertical chip overrides AND is the list every audit loops over. Omitting one
+    // makes it inherit banking phrases its own heuristics cannot route (kind:'none' ->
+    // "I didn't catch that", Authorize/Gateway never reached) while no test can see it.
+    // investment was 6/7 dead exactly that way.
     expect(VERTICALS).toEqual([
       'banking', 'healthcare', 'retail', 'government',
       'university', 'workforce', 'sporting-goods', 'manufacturing',
+      'investment',
     ]);
   });
 
@@ -148,6 +154,17 @@ describe('useCases catalog SoT', () => {
         UC7: 'approve a $600 purchase order',
         UC8: 'approve a $300 purchase order',
         UC24: 'What plant locations are near me?',
+      },
+      investment: {
+        // Verified against investment's OWN heuristics: 'show my portfolios' ->
+        // view_portfolios, 'execute a large trade of $N' -> large_trade {amount:N}.
+        // The banking defaults it used to inherit ("transfer $N from checking to
+        // savings") match no investment heuristic — that is what left it 6/7 dead.
+        UC1: 'show my portfolios',
+        UC6: 'execute a large trade of $2500',
+        UC7: 'execute a large trade of $600',
+        UC8: 'execute a large trade of $300',
+        UC24: 'What branches are near me?',
       },
     };
     for (const vertical of VERTICALS) {
