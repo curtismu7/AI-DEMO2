@@ -148,7 +148,10 @@ function extractAiAttacksPanel() {
   const filePath = path.join(ROOT, 'demo_api_ui/src/components/education/AiAttacksPanel.js');
   const src = fs.readFileSync(filePath, 'utf8');
   const entries = [];
-  // RUN_BY_TAB entries: kind:'prompt' carries literal text in `message`;
+  // RUN_BY_TAB entries: kind:'catalog' carries literal text in `message`,
+  // backed by a real catalog useCaseId (its expectedOutcome is pulled from
+  // config/useCases.js, same as extractCatalog() above) — replaced the old
+  // kind:'prompt' shape, which had no catalog entry and no expected outcome.
   // kind:'showcase' fires a named canned showcase, not free text.
   const blockMatch = src.match(/const RUN_BY_TAB = \{([\s\S]*?)\n\};/);
   if (!blockMatch) return entries;
@@ -157,14 +160,16 @@ function extractAiAttacksPanel() {
   let m;
   while ((m = entryRe.exec(block))) {
     const [, tabId, body] = m;
-    if (/kind:\s*'prompt'/.test(body)) {
+    if (/kind:\s*'catalog'/.test(body)) {
       const msg = body.match(/message:\s*'([^']*)'/);
+      const useCaseIdMatch = body.match(/useCaseId:\s*'([^']*)'/);
       if (msg) {
+        const uc = useCaseIdMatch ? USE_CASES.find((u) => u.useCaseId === useCaseIdMatch[1]) : null;
         entries.push({
           text: msg[1],
-          source: 'AiAttacksPanel.js',
-          location: `RUN_BY_TAB['${tabId}']`,
-          outcome: null, // no expected-outcome field on this component
+          source: 'AiAttacksPanel.js (catalog)',
+          location: `RUN_BY_TAB['${tabId}'] -> ${useCaseIdMatch ? useCaseIdMatch[1] : 'unknown useCaseId'}`,
+          outcome: uc ? uc.expectedOutcome || null : null,
         });
       }
     } else if (/kind:\s*'showcase'/.test(body)) {
@@ -184,7 +189,11 @@ function extractAiAttacksPanel() {
 function extractOasDemoPage() {
   const filePath = path.join(ROOT, 'demo_api_ui/src/components/OASDemoPage.jsx');
   const src = fs.readFileSync(filePath, 'utf8');
-  const m = src.match(/encodeURIComponent\('([^']*)'\)/);
+  // Fixed 2026-07-17: handleLaunchAgent used to build a dead '?vertical=&msg='
+  // query string via encodeURIComponent(...) that nothing read. It now
+  // navigates with location.state.triggerText directly (same mechanism
+  // /use-cases' handleRun and AiAttacksPanel's catalog tabs use).
+  const m = src.match(/triggerText:\s*'([^']*)'/);
   if (!m) return [];
   return [{
     text: m[1],
