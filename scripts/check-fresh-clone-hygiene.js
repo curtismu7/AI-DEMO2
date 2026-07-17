@@ -137,6 +137,28 @@ for (const [file, label] of [['docker-compose.yml', 'docker'], ['k8s/02-configma
   }
 }
 
+// ── Dead agent-launch invariant ──
+// Nothing in the app reads `?vertical=` / `msg=` query params, so a launch built
+// on them silently drops the prompt on every click (OASDemoPage's "Launch AI
+// Agent →" did exactly this — a dead button shipping for months). The working
+// pattern is navigate('/dashboard', { state: { triggerText } }) — AIAgent.js
+// consumes location.state.triggerText and auto-sends it.
+{
+  const DEAD_LAUNCH_RES = [
+    /navigate\(\s*['"`]\/?\?vertical=/,          // navigate('/?vertical=...')
+    /[?&]msg=['"`]?\s*\+\s*encodeURIComponent/,  // '...msg=' + encodeURIComponent(prompt)
+  ];
+  for (const p of trackedAll()) {
+    if (!p.startsWith('demo_api_ui/src/') || !/\.(jsx?|tsx?)$/.test(p)) continue;
+    const txt = read(p);
+    for (const re of DEAD_LAUNCH_RES) {
+      if (re.test(txt)) {
+        fail('dead-launch', `${p}: agent launch via query params (${re}) — nothing reads them; the prompt is silently dropped. Use navigate('/dashboard', { state: { triggerText } }).`);
+      }
+    }
+  }
+}
+
 // ── Never-silent reply invariant ──
 // A silent agent reply is the worst demo failure: the user cannot tell a model
 // limit from a broken page, and Authorize/Gateway "not running" looks like a chat
