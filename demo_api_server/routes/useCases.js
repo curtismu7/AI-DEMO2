@@ -337,4 +337,30 @@ router.post('/uc10/scope-check', authenticateToken, (req, res) => {
   }
 });
 
+/**
+ * GET /golden/:vertical/:useCaseId — the captured known-good run for a catalog
+ * chip (Layer-3 demo fallback). Goldens are CAPTURED from real runs
+ * (demo_api_ui/tests/e2e/capture-goldens.real.spec.js), never hand-written, and
+ * the UI renders them with an explicit REPLAY label. Params are allowlisted to
+ * slug characters — no path traversal.
+ */
+router.get('/golden/:vertical/:useCaseId', (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  const slug = /^[a-z0-9][a-z0-9-]*$/i;
+  const { vertical, useCaseId } = req.params;
+  if (!slug.test(vertical) || !slug.test(useCaseId)) {
+    return res.status(400).json({ error: 'bad_golden_key' });
+  }
+  const file = path.join(__dirname, '..', 'data', 'goldens', vertical, `${useCaseId}.json`);
+  if (!fs.existsSync(file)) {
+    return res.status(404).json({ error: 'golden_not_found', vertical, useCaseId });
+  }
+  try {
+    return res.json(JSON.parse(fs.readFileSync(file, 'utf8')));
+  } catch (e) {
+    return res.status(500).json({ error: 'golden_unreadable', message: e.message });
+  }
+});
+
 module.exports = router;
