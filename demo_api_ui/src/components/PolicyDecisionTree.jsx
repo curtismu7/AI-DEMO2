@@ -213,8 +213,8 @@ function Branch({ node, ov, collapsedIds, toggleCollapse }) {
                   title={isCollapsed ? "Show inactive branches" : "Hide inactive branches"}
                 >
                   {isCollapsed
-                    ? `⊕ ${inactiveKids.length} inactive ${inactiveKids.length === 1 ? 'branch' : 'branches'} hidden`
-                    : `⊖ Collapse ${inactiveKids.length} inactive`}
+                    ? `+ ${inactiveKids.length} inactive ${inactiveKids.length === 1 ? 'branch' : 'branches'} hidden`
+                    : `- Collapse ${inactiveKids.length} inactive`}
                 </button>
               </>
             )}
