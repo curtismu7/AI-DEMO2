@@ -134,25 +134,88 @@ test coverage added — manual click-through recommended for the jump button and
 close button; the code-search fix needs a live 502/down-upstream scenario to
 fully confirm the friendlier message renders.
 
-**Explicitly NOT fixed in this pass (investigated, no safe fix found):**
-- `/check` reporting services as down when they're up (punch-list #22): the
-  leading theory (TLS verification not relaxed under `NODE_ENV=production` in
-  `demo_api_server/services/checks/serversCheck.js`) does not hold — the actual
-  k8s deployment (`k8s/20-api-server-deployment.yaml`) explicitly overrides
-  `NODE_ENV=development` for the api-server pod (required by
-  `simulatedAuthorizeService`), so TLS verification is already relaxed there.
-  No other concrete root cause was confirmed statically; needs a live look at
-  the failing check's actual error in the browser/network tab before touching
-  this file.
-- `/admin/verticals` "completely broken" (punch-list #16): the leading theory
-  (swap `pageManifest` for `agentManifest` in `VerticalEditorPage.jsx`) was
-  wrong — `agentManifest`/`adminManifest` resolves to a fixed `'admin-console'`
-  manifest server-side (`services/verticalManifest/scope.js`), not "whichever
-  vertical the admin is editing." The page already has an "Active:" `<select>`
-  wired to `setActive()` for choosing which vertical to edit via the shared
-  session-pinned active vertical — that part looks correct by design. No
-  confirmed bug found statically; needs a live repro (open the page as admin,
-  check the console/network tab) before changing anything here.
+**Investigated further, live against `ai-demo.ping-devops.com`, after this
+commit (see the two entries immediately below for what was found/fixed):**
+`/check` reporting services down and `/admin/verticals` "completely broken."
+Both earlier static theories in this entry were wrong; live reproduction found
+the real causes.
+
+### 2026-07-16 — `/admin/verticals` manifest editor invisible (Monaco container collapsed to 5px)
+
+**Files changed:** `demo_api_ui/src/vertical/AdminEditor/VerticalEditorPage.css`
+(new), `demo_api_ui/src/vertical/AdminEditor/VerticalEditorPage.jsx` (added the
+CSS import).
+
+**What was broken:** live repro (signed in as `demoAdmin` against
+`ai-demo.ping-devops.com/admin/verticals`) showed the page chrome (Active
+selector, Clone/Delete/Reset/Save-state buttons, tabs) rendering correctly,
+but the manifest editor area was blank white space. `page.evaluate` against
+the live DOM confirmed Monaco had genuinely mounted with the real manifest
+(`data-mode-id="json"`, a populated model) — this was never a data-loading or
+`pageManifest`/`agentManifest` wiring bug (an earlier theory in this file,
+above, guessed the latter and was wrong). `VerticalEditorPage.jsx` had **no
+CSS file at all** — `.vertical-editor__body`/`.vertical-editor__main` had no
+explicit height, so Monaco's default `height: '100%'` resolved against an
+`auto`-height ancestor chain and collapsed to a measured 5px tall, rendering
+the fully-loaded editor invisible.
+
+**What was fixed:** added `VerticalEditorPage.css` giving `.vertical-editor__body`
+an explicit `height: calc(100vh - 180px)` (matching the height already used
+for this page's Pipeline Map tab), `.vertical-editor__main` a flex column with
+`min-height: 0`, and `.vertical-editor__main > div:first-child` (Monaco's own
+wrapper, which has no class of its own) `flex: 1; min-height: 0` so its
+`height: 100%` now resolves against a real pixel height instead of collapsing.
+
+**Do not break:** `.vertical-editor__main > div:first-child` is a fragile
+selector — it assumes Monaco is the first child of `.vertical-editor__main`
+(true today; the JSX renders `<Monaco />` then `<div className="vertical-editor__actions">`
+below it). If Monaco's position in that JSX changes, this selector must move
+with it.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0, confirmed). Not yet
+re-verified live against the deployed site (this fix hasn't shipped yet) —
+next deploy should confirm the manifest editor is visible and scrollable at
+`/admin/verticals`.
+
+### 2026-07-16 — `/check` reports "Banking UI" down while it's serving the browser running the check (live finding, not yet fixed)
+
+**Not fixed — root cause needs cluster access I don't have from this session.**
+Live run of `/check` against `ai-demo.ping-devops.com` (signed in as
+`demoAdmin`) returned, verbatim, for the `servers.all_up` check:
+`{"key":"ui","name":"Banking UI","up":false,"error":"ECONNREFUSED"}` — reported
+down at the exact moment the browser was using that same Banking UI to run the
+check. This is the punch-list #22 complaint, confirmed reproducible, and it is
+specifically about `ui` (and to a lesser extent `mcp-proxy`, also
+`ECONNREFUSED`) — most of the rest of that run's "Down" list (LangChain/OpenAI/
+Mastra/Pydantic agent variants, Mock Authz Server, llama-tier-1/6) are
+plausibly genuine absences in this environment's lean-core deploy profile, not
+false positives (`authorize.mode` passed with "Real PingOne Authorize",
+consistent with Mock Authz Server intentionally not being deployed; `llm.status`
+correctly showed only 1/3 tiers healthy).
+
+**Two earlier theories in this file (above) were checked and ruled out:**
+TLS verification is not the cause (`NODE_ENV=development` override in
+`k8s/20-api-server-deployment.yaml` already relaxes it), and it's not an
+HTTP-vs-HTTPS scheme mismatch either — `k8s/02-configmap.yaml` confirms nginx
+inside the `frontend` container does `listen 3000 ssl;`, matching the probe's
+`https://frontend:4000` candidate (Service port 4000 → container port 3000)
+in `demo_api_server/data/serverInventory.js`. `ECONNREFUSED` means the TCP
+connection was actively refused, not timed out or TLS-rejected — from within
+this coding session I can't distinguish between "frontend pod not Ready by
+k8s's accounting despite serving external traffic," "a NetworkPolicy blocking
+api-server→frontend pod-to-pod traffic while allowing ingress traffic through
+a different path," or another cluster-networking cause. That needs `kubectl`
+access (checking Service endpoints, NetworkPolicies, pod readiness) that this
+session doesn't have.
+
+**Do not break:** nothing changed here — this is a diagnosis-only entry so the
+next pass (with cluster access) doesn't re-derive the same evidence from
+scratch, and doesn't re-chase the TLS/scheme theories already ruled out above.
+
+**Verify (for whoever picks this up next):** `kubectl -n ai-demo get endpoints
+frontend`, `kubectl -n ai-demo get networkpolicy`, and `kubectl -n ai-demo exec
+deploy/api-server -- curl -vk https://frontend:4000/` to see the actual refusal
+point.
 
 ### 2026-07-15 — Code Explorer browser "network error" (nginx SSE buffering)
 
