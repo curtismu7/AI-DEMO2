@@ -64,9 +64,21 @@ function parseEnv(absPath) {
     if (!line || line.startsWith('#')) continue;
     const eq = line.indexOf('=');
     if (eq === -1) continue;
-    map.set(line.slice(0, eq).trim(), line.slice(eq + 1).trim());
+    map.set(line.slice(0, eq).trim(), unquote(line.slice(eq + 1).trim()));
   }
   return map;
+}
+
+/**
+ * Strip one matching pair of surrounding quotes. Quoting is legal in a .env
+ * (`PG_OLB_SCOPE="read mcp:invoke"`) and dotenv strips it, so a parser that
+ * keeps the quotes reports every token of a quoted scope LIST as undeclared
+ * ('"read', 'mcp:invoke"'). That fires only on real .env files, which are
+ * gitignored — so it never reproduced in CI and only ever broke local runs.
+ */
+function unquote(value) {
+  const m = /^(['"])([\s\S]*)\1$/.exec(value);
+  return m ? m[2] : value;
 }
 
 const problems = [];
