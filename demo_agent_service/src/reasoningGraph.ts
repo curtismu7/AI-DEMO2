@@ -45,7 +45,12 @@ function toAnthropicMessages(messages: ReasonMessage[]): Anthropic.MessageParam[
       }
       out.push({ role: 'assistant', content: blocks });
       i++;
-    } else if (msg.role === 'system') {
+    // Cast: ReasonMessage.role is 'user'|'assistant'|'tool', so TS narrows
+    // 'system' away here (TS2367) and the strict build fails — which silently
+    // kept a stale agent-service image, since a failed `npm run build` in the
+    // Dockerfile leaves the previous one in place. The BFF is plain JS and is
+    // not bound by that type, so keep this defensive runtime guard.
+    } else if ((msg.role as string) === 'system') {
       // Skip system messages — they should be passed via the `system` parameter
       // in the Anthropic API call, not as a message. Including them as 'user'
       // would confuse the model by treating instructions as user input.
@@ -343,6 +348,26 @@ export async function reasonOnce(req: ReasonRequest): Promise<ReasonResponse> {
         model,
         temperature: 0,
         apiKey: 'llama-cpp', // llama-server ignores the key, but the SDK requires one
+        // Bound generation. This was the ONLY provider branch with no token cap
+        // (the anthropic branch above uses max_tokens: 4096), so gpt-oss — a
+        // reasoning model — could reason until it exhausted llama-server's
+        // context slot. Measured live against the real banking tools: a single
+        // call generated 7412 tokens in 155s and ended `truncated = 1` (the
+        // agent tier runs --ctx-size 8192), i.e. slow AND garbage. The BFF's
+        // runReasonLoop gives up on this endpoint at 70s, so any call over that
+        // is wasted work regardless.
+        // 2560 is sized from live data: above the largest legitimate response
+        // observed (2313 tokens) and below the 70s budget at the worst observed
+        // rate (~41.7 tok/s → ~2900). Override with LLAMACPP_MAX_TOKENS.
+        maxTokens: parseInt(process.env.LLAMACPP_MAX_TOKENS || '2560', 10),
+        // gpt-oss defaults to a high reasoning effort and spends most of the
+        // budget on hidden reasoning. Measured, agent-shaped prompt: low 14.0s /
+        // medium 18.3s / high 30.2s. 'low' also returns real content instead of
+        // only reasoning_content (which this path drops).
+        // Passed via modelKwargs so it lands in the body verbatim as
+        // `reasoning_effort` (llama-server honors it via --jinja). The typed
+        // `reasoningEffort` field is a call option here, not a constructor field.
+        modelKwargs: { reasoning_effort: process.env.LLAMACPP_REASONING_EFFORT || 'low' },
         configuration: { baseURL },
       });
       const withTools = req.tools.length > 0
