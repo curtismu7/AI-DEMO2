@@ -37,4 +37,8 @@ export interface ReasoningState {
 
 export type ReasonResponse =
   | { type: 'tool_calls'; calls: Array<{ id: string; name: string; args: Record<string, unknown> }>; messages: ReasonMessage[]; reasoning?: ReasoningState }
-  | { type: 'final'; answer: string; messages: ReasonMessage[]; reasoningUnavailable?: boolean; inputTokens?: number; outputTokens?: number; reasoning?: ReasoningState };
+  // `truncated`: the model hit its token ceiling and `answer` is cut off mid-output.
+  // Optional so providers that cannot report it simply omit it. The BFF keeps the
+  // partial answer and appends a notice — a cut-off answer must never be presented
+  // as a complete one.
+  | { type: 'final'; answer: string; messages: ReasonMessage[]; reasoningUnavailable?: boolean; truncated?: boolean; inputTokens?: number; outputTokens?: number; reasoning?: ReasoningState };

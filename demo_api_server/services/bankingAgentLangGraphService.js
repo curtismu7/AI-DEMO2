@@ -711,7 +711,7 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     }
 
     const { resolveLlmProvider } = require('./llmProviderResolver');
-    const { runReasonLoop } = require('./agentReasoningClient');
+    const { runReasonLoop, withTruncationNotice } = require('./agentReasoningClient');
 
     // PingOne Admin path — tool schemas from the hosted PingOne MCP server (HTTP), no token exchange
     if (langchainConfig?.provider === 'pingone-admin') {
@@ -753,7 +753,8 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
             { tag: 'agent_prompt/llm_complete', metadata: { userId, response: String(p1LoopResult.answer || ''), model: llmModel || undefined } });
         }
         return {
-          reply: p1LoopResult.answer,
+          reply: withTruncationNotice(p1LoopResult.answer, p1LoopResult.truncated),
+          truncated: p1LoopResult.truncated || undefined,
           success: true,
           toolsCalled: [],
           inputTokens: p1LoopResult.inputTokens ?? 0,
@@ -844,8 +845,18 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     if (loopResult.ok) {
       appEventService.logEvent('agent_prompt', 'info', `LLM response: ${String(loopResult.answer || '')}`,
         { tag: 'agent_prompt/llm_complete', metadata: { userId, response: String(loopResult.answer || ''), model: model || undefined } });
+      if (loopResult.truncated) {
+        // Surface it as a warning too: a cut-off answer is invisible in the logs
+        // otherwise, so a too-low limit would never get noticed. Mirrors the
+        // agent/recursion_limit warning above.
+        console.warn('[processAgentMessage] LLM answer truncated (hit token limit)');
+        appEventService.logEvent('agent', 'warning',
+          'Agent answer was truncated — the model hit its response length limit',
+          { tag: 'agent/truncated' });
+      }
       return {
-        reply: loopResult.answer,
+        reply: withTruncationNotice(loopResult.answer, loopResult.truncated),
+        truncated: loopResult.truncated || undefined,
         success: true,
         toolsCalled: [],
         inputTokens: loopResult.inputTokens ?? 0,

@@ -103,6 +103,19 @@ function stripThink(text: string): string {
   return text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 }
 
+// Did the model stop because it ran out of tokens, rather than because it was
+// finished? A truncated answer is cut mid-output and must never be presented as a
+// complete one, so the BFF labels it. Reads the LangChain response_metadata, which
+// carries the provider's own stop signal: OpenAI-compatible (llama.cpp, LM Studio)
+// report finish_reason 'length'; Google reports finishReason 'MAX_TOKENS'.
+// Anthropic does not go through LangChain here — it is checked inline against its
+// SDK's stop_reason. Helix has no reliable signal, so it is not claimed.
+function isTruncatedResponse(response: BaseMessage): boolean {
+  const meta = (response as { response_metadata?: Record<string, unknown> }).response_metadata;
+  if (!meta) return false;
+  return meta.finish_reason === 'length' || meta.finishReason === 'MAX_TOKENS';
+}
+
 // ChatOpenAI normally returns `content` as a string, but some versions/models
 // return MessageContentComplex[] (an array of text/other blocks). Extract the
 // text from either shape so a non-string content can never silently collapse to
@@ -247,6 +260,10 @@ export async function reasonOnce(req: ReasonRequest): Promise<ReasonResponse> {
         type: 'final',
         answer,
         messages: [...req.messages, { role: 'assistant', content: answer }],
+        // Anthropic's own stop signal — this path uses the SDK directly, not
+        // LangChain, so there is no response_metadata.finish_reason to read.
+        // max_tokens: 4096 above can truncate here too.
+        truncated: response.stop_reason === 'max_tokens' || undefined,
         inputTokens,
         outputTokens,
         reasoning,
@@ -324,6 +341,7 @@ export async function reasonOnce(req: ReasonRequest): Promise<ReasonResponse> {
         type: 'final',
         answer: text,
         messages: [...req.messages, { role: 'assistant', content: text }],
+        truncated: isTruncatedResponse(response) || undefined,
         inputTokens: response.usage_metadata?.input_tokens,
         outputTokens: response.usage_metadata?.output_tokens,
       };
@@ -396,6 +414,7 @@ export async function reasonOnce(req: ReasonRequest): Promise<ReasonResponse> {
         type: 'final',
         answer: text,
         messages: [...req.messages, { role: 'assistant', content: text }],
+        truncated: isTruncatedResponse(response) || undefined,
         inputTokens: response.usage_metadata?.input_tokens,
         outputTokens: response.usage_metadata?.output_tokens,
       };
