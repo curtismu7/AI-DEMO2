@@ -4,6 +4,7 @@ import { useVertical } from '../useVertical';
 import { OverlayBadge } from './OverlayBadge';
 import { CloneModal } from './CloneModal';
 import { VerticalPipelineMap } from './VerticalPipelineMap';
+import './VerticalEditorPage.css';
 
 const PROTECTED = new Set(['banking', 'admin-console']);
 const ID_RE = /^[a-z][a-z0-9-]*$/;
