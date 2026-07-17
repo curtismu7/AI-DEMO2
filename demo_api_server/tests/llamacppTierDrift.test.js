@@ -20,7 +20,17 @@ const REPO_ROOT = path.resolve(__dirname, '../..');
 const { TIERS: CATALOG_TIERS } = require(path.join(PROXY_DIR, 'modelCatalog'));
 
 const catalogPorts = CATALOG_TIERS.map((t) => t.port).sort((a, b) => a - b);
-const catalogPinNames = CATALOG_TIERS.map((t) => t.pinName).sort();
+
+// Default (non-experimental) tiers. The router/tier-manager know EVERY tier and
+// route to one if it happens to be running, but the default local stack only
+// starts / pins / maps the default set — an experimental tier's GGUF is not in
+// the standard download set. Comparing those consumers against the full catalog
+// would force them to launch a model that isn't on disk, so they are checked
+// against the default set instead. Mark a tier `experimental: true` in
+// modelCatalog.js to add it to the router without dragging in the local stack.
+const DEFAULT_TIERS = CATALOG_TIERS.filter((t) => !t.experimental);
+const defaultPorts = DEFAULT_TIERS.map((t) => t.port).sort((a, b) => a - b);
+const defaultPinNames = DEFAULT_TIERS.map((t) => t.pinName).sort();
 
 describe('llama.cpp tier SSOT drift guard', () => {
   test('modelCatalog.js has at least one tier', () => {
@@ -53,7 +63,7 @@ describe('llama.cpp tier SSOT drift guard', () => {
     // Each MODELS entry is "PORT:TierN:file:threads:[extra]" — pull the leading port.
     const portMatches = [...script.matchAll(/"(\d{4}):Tier/g)];
     const scriptPorts = portMatches.map((m) => parseInt(m[1], 10)).sort((a, b) => a - b);
-    expect(scriptPorts).toEqual(catalogPorts);
+    expect(scriptPorts).toEqual(defaultPorts);
   });
 
   test('langchainConfig.js LLAMACPP_TIER_PORTS match modelCatalog.js', () => {
@@ -64,8 +74,8 @@ describe('llama.cpp tier SSOT drift guard', () => {
     const portMatches = [...block.matchAll(/'([^']+)':\s*(\d+)/g)];
     const pins = portMatches.map((m) => m[1]).sort();
     const ports = portMatches.map((m) => parseInt(m[2], 10)).sort((a, b) => a - b);
-    expect(pins).toEqual(catalogPinNames);
-    expect(ports).toEqual(catalogPorts);
+    expect(pins).toEqual(defaultPinNames);
+    expect(ports).toEqual(defaultPorts);
   });
 
   test('LlamaCppPanel.jsx PIN_MODELS match modelCatalog.js pinNames', () => {
@@ -80,6 +90,6 @@ describe('llama.cpp tier SSOT drift guard', () => {
       .map((s) => s.trim().replace(/['"]/g, ''))
       .filter(Boolean)
       .sort();
-    expect(pins).toEqual(catalogPinNames);
+    expect(pins).toEqual(defaultPinNames);
   });
 });

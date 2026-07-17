@@ -39,6 +39,7 @@ global.fetch = jest.fn().mockRejectedValue(new Error('network unavailable'));
 
 const { parseHeuristic } = require('../../services/nlIntentParser');
 const configStore = require('../../services/configStore');
+const resultCache = require('../../services/nlIntentResultCache');
 const { parseNaturalLanguage } = require('../../services/geminiNlIntent');
 
 // Helix needs at least base_url + api_key to be considered configured
@@ -70,6 +71,11 @@ function setHeuristicMode() {
 beforeEach(() => {
   jest.clearAllMocks();
   callHelixAgent.mockReset();
+  // geminiNlIntent caches successful non-heuristic answers keyed by message.
+  // These tests deliberately reuse the same message ('something unclear') with
+  // different Helix behaviour, so a cached helix_fallback from an earlier test
+  // would be served here and mask the path under test.
+  resultCache.clear();
 });
 
 describe('geminiNlIntent — LLM-only mode (ff_heuristic_enabled=false)', () => {

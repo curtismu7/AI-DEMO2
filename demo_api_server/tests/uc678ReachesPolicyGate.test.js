@@ -20,13 +20,31 @@ function requiredFor(vertical, action) {
 }
 
 describe('UC6/7/8 amount chips reach the Authorize gate (no clarify stall)', () => {
-  test('banking transfer chip parses with source + destination + amount', () => {
-    const r = parseHeuristic('transfer $600 from checking to savings', 'banking', {});
+  // UC6 ($2500 → DENY) and UC8 ($300 → HITL) hit the generic transfer rule, which
+  // extracts every required param up front.
+  test.each([
+    ['transfer $2500 from checking to savings', 2500],
+    ['transfer $300 from checking to savings', 300],
+  ])('banking transfer chip %s parses with source + destination + amount', (msg, amount) => {
+    const r = parseHeuristic(msg, 'banking', {});
     const p = r.banking ? r.banking : r;
     expect(p.action).toBe('transfer');
     expect(p.params.fromId).toBeTruthy();
     expect(p.params.toId).toBeTruthy();
-    expect(Number(p.params.amount)).toBe(600);
+    expect(Number(p.params.amount)).toBe(amount);
+  });
+
+  // UC7's $600 chip is special-cased to the demo action `transfer_600_test`
+  // (config/verticals/banking/index.js — the rule deliberately precedes the
+  // generic transfer for specificity, and the chip UI has a dedicated handler).
+  // It carries no params; demoAgentLangGraphService normalizes it back to a real
+  // transfer (checking → savings, 600) before any clarify check, so the chip
+  // still reaches the Authorize step-up gate without stalling.
+  test('UC7 $600 chip maps to the transfer_600_test demo action', () => {
+    const r = parseHeuristic('transfer $600 from checking to savings', 'banking', {});
+    const p = r.banking ? r.banking : r;
+    expect(r.kind).toBe('banking');
+    expect(p.action).toBe('transfer_600_test');
   });
 
   const verticalChips = [

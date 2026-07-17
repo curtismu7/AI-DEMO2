@@ -48,6 +48,11 @@ const HEURISTICS = [
   { re: /\b(logout|log out|sign out|signout)\b/, action: 'logout' },
   // Testing compliance scenarios — all API-DIRECT chips, no LLM routing needed
   { re: /\btest\s+wrong\s+scope\b/, action: 'test_wrong_scope' },
+  // The bk-bad-scope chip (manifest.json, mode 'both') says "look up all customers"
+  // rather than "test wrong scope", so it needs its own rule — a 'both' chip MUST
+  // resolve heuristically (see nlIntentParser.catalog.test.js) and without this it
+  // fell through to kind:'none'.
+  { re: /\blook\s+up\s+all\s+customers\b/, action: 'test_wrong_scope' },
   { re: /\btest\s+wrong\s+audience\b/, action: 'test_wrong_audience' },
   { re: /\btest\s+hitl\b|\btest.*consent\b/, action: 'test_hitl_required' },
   { re: /\btest\s+otp\b|\btest.*step[- ]?up\b|\btest.*mfa\b/, action: 'test_otp_required' },
