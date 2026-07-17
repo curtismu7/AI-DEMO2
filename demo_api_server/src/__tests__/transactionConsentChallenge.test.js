@@ -321,6 +321,40 @@ describe('confirmChallenge — PingOne MFA branch', () => {
     });
   }
 
+  // Every other device_picker test above mocks configStore.getEffective directly
+  // (devicePickerConfig()) to isolate this file's branching logic from configStore.
+  // This test does the opposite on purpose: it drives the REAL configStore end to
+  // end — no getEffective mock at all — to prove Tasks 1-2 actually close the gap
+  // (confirm_stepup_threshold_usd registered in FIELD_DEFS + writable via the admin
+  // settings route). A mock that just hands back the same literal values passed to
+  // setConfig() would pass even if the registration bug were still present, so it
+  // can't stand in for this check.
+  describe('device_picker mode — end-to-end with the real configStore (not mocked)', () => {
+    it('respects a threshold set via PUT /api/admin/settings, not just the scopeTopology fallback', async () => {
+      const { txConsentFresh, configStoreFresh } = freshRequires();
+
+      // Simulate what Task 2's route now does when an admin sets the threshold to 900.
+      await configStoreFresh.setConfig({
+        hitl_consent_mfa_mode: 'device_picker',
+        confirm_stepup_threshold_usd: '900',
+        confirm_threshold_usd: '250',
+      });
+
+      // Amount 800 is below the 900 threshold now in effect -- should NOT trigger
+      // the device-picker MFA path (before this fix, the hardcoded 500 fallback
+      // would have incorrectly triggered it, since 800 >= 500).
+      const req = makeReq({ session: { txConsentChallenges: {
+        'ch-real-1': {
+          userId: '5', snapshot: { type: 'withdrawal', amount: 800, fromAccountId: 'acc1', toAccountId: null, description: '' },
+          status: 'pending', createdAt: Date.now(), expiresAt: Date.now() + 600_000,
+        },
+      }}});
+      const result = await txConsentFresh.confirmChallenge(req, 'ch-real-1');
+      expect(result.ok).toBe(true);
+      expect(result.mfaRequired).toBeUndefined();
+    });
+  });
+
   test('device_picker + FRESH token but PingOne INVALID_TOKEN → 502 (no session_expired re-auth loop)', async () => {
     const { txConsentFresh, mfaServiceFresh, configStoreFresh } = freshRequires();
     mfaServiceFresh.initiateDeviceAuth.mockRejectedValue(deviceAuthTokenErr());
