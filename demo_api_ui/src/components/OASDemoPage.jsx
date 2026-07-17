@@ -172,7 +172,12 @@ export default function OASDemoPage() {
     : allOperations.filter(({ op }) => (op.tags || []).includes(filterTag));
 
   const handleLaunchAgent = () => {
-    navigate('/?vertical=pingone-admin&msg=' + encodeURIComponent('Show me the tools available from the PingOne MCP server'));
+    // navigate state, not query params: nothing anywhere reads `?vertical=`/`msg=`
+    // (the old form silently dropped the prompt on every click). AIAgent.js:966
+    // consumes location.state.triggerText and auto-sends it.
+    navigate('/dashboard', {
+      state: { triggerText: 'Show me the tools available from the PingOne MCP server' },
+    });
   };
 
   return (
