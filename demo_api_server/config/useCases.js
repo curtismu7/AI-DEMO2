@@ -30,6 +30,7 @@
 const VERTICALS = [
   'banking', 'healthcare', 'retail', 'government',
   'university', 'workforce', 'sporting-goods', 'manufacturing',
+  'investment',
 ];
 
 
@@ -42,6 +43,7 @@ const READ_TRIGGER_BY_VERTICAL = {
   workforce: 'my benefits',
   'sporting-goods': 'my gear',
   manufacturing: 'show my work orders',
+  investment: 'show my portfolios',
 };
 
 /** Amount-gated write phrases ($300 HITL / $600 step-up / $2500 deny). */
@@ -55,6 +57,7 @@ function amountTriggerByVertical(amount) {
     workforce: `submit a $${n} expense`,
     'sporting-goods': `extend my rental $${n}`,
     manufacturing: `approve a $${n} purchase order`,
+    investment: `execute a large trade of $${n}`,
   };
 }
 

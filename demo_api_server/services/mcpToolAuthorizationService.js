@@ -121,6 +121,10 @@ const WRITE_TOOL_TYPE_MAP = {
   submit_expense: 'transfer',
   extend_rental: 'transfer',
   approve_purchase_order: 'transfer',
+  // investment (Meridian Wealth) UC6/7/8 — "execute a large trade of $N". Absent
+  // here the chip routes but the amount policy never fires: no DENY, no step-up,
+  // no consent, and the demo looks correct while authorizing everything.
+  large_trade: 'transfer',
 };
 
 /**
@@ -782,4 +786,7 @@ module.exports = {
   resolveExpectedMcpResourceUri,
   nestedActIdFromClaim,
   resolveAmountForPolicy,
+  // Exported so tests can assert the gate contract: a vertical's amount action that
+  // is absent here routes fine but is NEVER amount-gated (silent authorize).
+  WRITE_TOOL_TYPE_MAP,
 };
