@@ -34,7 +34,34 @@ Data never comes from the LLM. It flows store → MCP tool → gateway → BFF. 
 Test at the **API level** (`/api/demo-agent/nl` + `/api/mcp/tool`) for 1 and 2 — fast, no
 browser flake. Only 3 needs a browser, because only a browser sees rendered prose.
 
-## Trap 1 — chips never reach the LLM (this invalidates naive "cross-mode" tests)
+## Trap 0 — "Routing: LLM only" changes everything below, and nothing tests it
+
+The **Routing** dropdown is NOT a per-request setting. It flips the **global**
+`ff_heuristic_enabled` flag (`AIAgent.js`: `heuristicFallback={heuristicEnabled}`).
+With it OFF, the heuristic floor stops answering matched chip phrases and **every
+prompt goes to the LLM** — so Trap 1 below does not apply.
+
+Every chip test in the repo (including the 110-call heuristic-vs-llamacpp matrix)
+runs with the floor **ON**, which is exactly why they are all green. Measured,
+sporting-goods `"my gear"`:
+
+| floor | `/nl` | `/agent/invoke` |
+|---|---|---|
+| ON | **36ms** (heuristic answers) | — |
+| OFF ("LLM only") | **4649ms** (the LLM really runs) | 724ms (`forceHeuristic`) |
+
+**Before claiming chip coverage, state which floor state you tested.** "All chips
+pass" with the floor ON says nothing about the mode a presenter selects when they
+pick "LLM only". Coverage: `demo_api_ui/tests/e2e/repro-llm-only-hang.real.spec.js`
+(flips the flag and restores it in `afterAll` — it is global state on a live stack).
+
+Budget mismatch worth knowing: `/nl` allows **60s** for llamacpp; `/agent/invoke`
+hard-codes **30s**, provider-blind. The cheap hop gets double the expensive one's
+budget. A warm turn is ~2 calls / ~11s, so 30s is fine warm — a cold or swapping
+tier is what pushes it over, and #547 makes that surface as a truthful message
+instead of "I didn't catch that".
+
+## Trap 1 — chips never reach the LLM *while the floor is ON* (invalidates naive "cross-mode" tests)
 
 The BFF's heuristic floor answers a matched chip phrase **before calling the LLM**, in
 **every** mode, whenever `ff_heuristic_enabled` is on (`geminiNlIntent`: `llmModeSelected →
