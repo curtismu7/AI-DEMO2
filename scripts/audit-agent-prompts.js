@@ -28,6 +28,44 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+/**
+ * Cross-reference against real recorded conversations, if any exist.
+ * `demo_api_server/services/lmdb/conversationStore.lmdb.js` stores actual
+ * prompt+response pairs per turn ({ role, content, ... }); `mcpAuditStore`
+ * stores real tool-call results. If a prompt in this report has a matching
+ * `role: 'user'` entry, that's real live ground truth, not just a declared
+ * expectedOutcome. Best-effort and optional — the `lmdb` package or the data
+ * directory may not be present in every environment this script runs in
+ * (e.g. a bare CI checkout), so any failure here degrades to "unknown"
+ * rather than crashing the whole report.
+ */
+function checkLmdbGroundTruth() {
+  const result = { checked: true, error: null, conversationEntries: 0, mcpAuditEntries: 0, matchedPromptTexts: new Set() };
+  let env;
+  try {
+    // eslint-disable-next-line global-require
+    const { open } = require(path.join(ROOT, 'demo_api_server/node_modules/lmdb'));
+    // readOnly: this may run against the main checkout's live LMDB file while
+    // a real server has it open — never write, never risk lock contention.
+    env = open({ path: path.join(ROOT, 'demo_api_server/data/persistent/lmdb'), maxDbs: 32, readOnly: true });
+    const conversations = env.openDB('conversations', { encoding: 'json' });
+    for (const { value } of conversations.getRange()) {
+      result.conversationEntries++;
+      if (value && value.role === 'user' && typeof value.content === 'string') {
+        result.matchedPromptTexts.add(value.content.trim().toLowerCase());
+      }
+    }
+    const mcpAudit = env.openDB('mcpAudit', { encoding: 'json' });
+    for (const _ of mcpAudit.getRange()) { result.mcpAuditEntries++; }
+  } catch (err) {
+    result.checked = false;
+    result.error = err.message;
+  } finally {
+    if (env) { try { env.close(); } catch (_) { /* already closed / never opened */ } }
+  }
+  return result;
+}
+
 const ROOT = path.join(__dirname, '..');
 const OUT_MD = path.join(ROOT, 'docs/agent-prompts/audit.md');
 const OUT_JSON = path.join(ROOT, 'docs/agent-prompts/audit.json');
@@ -304,10 +342,24 @@ function buildReport() {
   const unverified = textEntries.filter((e) => !e.outcome);
   const unbucketed = textEntries.filter((e) => !bucketFor(e.text));
 
+  // LMDB ground truth is a live, point-in-time snapshot (entry counts change
+  // with real usage, not with source changes) — included in the JSON output
+  // for whoever wants the live numbers, but deliberately NOT rendered into
+  // the markdown (renderMarkdown below), since that file is diff-checked by
+  // `check` mode and a volatile count would make every real conversation
+  // look like "drift".
+  const lmdbGroundTruth = checkLmdbGroundTruth();
+  const matchedCount = textEntries.filter(
+    (e) => lmdbGroundTruth.matchedPromptTexts.has(e.text.trim().toLowerCase())
+  ).length;
+  lmdbGroundTruth.matchedPromptTexts = [...lmdbGroundTruth.matchedPromptTexts]; // Set -> array for JSON
+  lmdbGroundTruth.matchedAgainstThisReport = matchedCount;
+
   return {
     all, textEntries, nonTextEntries, exactDuplicates, nearDuplicates, unverified, unbucketed,
     agentModes: AGENT_MODES,
     liveVerifiedAgentModes: [], // none yet — chip-correctness-testing follow-up populates this
+    lmdbGroundTruth,
   };
 }
 
@@ -342,6 +394,15 @@ function renderMarkdown(report) {
     '> does not verify a prompt against any specific agent mode (see "Agent',
     '> modes" below). See the `chip-correctness-testing` skill for that',
     '> methodology as a follow-up.',
+    '>',
+    '> `conversationStore.lmdb.js` and `mcpAuditStore.lmdb.js` DO store real',
+    '> prompt+response pairs and tool-call results when the demo is actively',
+    '> used — checked directly, cross-referenced against this report\'s prompt',
+    '> texts, and included in `audit.json` (`lmdbGroundTruth`). Deliberately',
+    '> NOT rendered here: those counts change with live usage, not with source',
+    '> changes, and this file is diff-checked by `prompts:audit:check` — a',
+    '> volatile number here would make every real conversation look like drift.',
+    '> Check `audit.json` for the live snapshot.',
     '>',
     '> Regenerate: `npm run prompts:audit:gen` (from `demo_api_server/`).',
     '>',

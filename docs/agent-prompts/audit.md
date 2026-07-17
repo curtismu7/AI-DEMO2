@@ -19,6 +19,15 @@
 > modes" below). See the `chip-correctness-testing` skill for that
 > methodology as a follow-up.
 >
+> `conversationStore.lmdb.js` and `mcpAuditStore.lmdb.js` DO store real
+> prompt+response pairs and tool-call results when the demo is actively
+> used — checked directly, cross-referenced against this report's prompt
+> texts, and included in `audit.json` (`lmdbGroundTruth`). Deliberately
+> NOT rendered here: those counts change with live usage, not with source
+> changes, and this file is diff-checked by `prompts:audit:check` — a
+> volatile number here would make every real conversation look like drift.
+> Check `audit.json` for the live snapshot.
+>
 > Regenerate: `npm run prompts:audit:gen` (from `demo_api_server/`).
 >
 > AgentDemoGuide.jsx reuses its `prompt:` field for both real agent-chat

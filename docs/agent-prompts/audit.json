@@ -3879,5 +3879,13 @@
     "helix_google",
     "groq"
   ],
-  "liveVerifiedAgentModes": []
+  "liveVerifiedAgentModes": [],
+  "lmdbGroundTruth": {
+    "checked": false,
+    "error": "Cannot read properties of undefined (reading 'getRange')",
+    "conversationEntries": 0,
+    "mcpAuditEntries": 0,
+    "matchedPromptTexts": [],
+    "matchedAgainstThisReport": 0
+  }
 }
