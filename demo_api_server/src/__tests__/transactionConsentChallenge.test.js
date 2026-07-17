@@ -331,7 +331,13 @@ describe('confirmChallenge — PingOne MFA branch', () => {
   // can't stand in for this check.
   describe('device_picker mode — end-to-end with the real configStore (not mocked)', () => {
     it('respects a threshold set via PUT /api/admin/settings, not just the scopeTopology fallback', async () => {
-      const { txConsentFresh, configStoreFresh } = freshRequires();
+      const { txConsentFresh, mfaServiceFresh, configStoreFresh } = freshRequires();
+
+      // configStore is LMDB-backed and shares one persistent store across the whole
+      // Jest worker; jest.resetModules() only clears the require cache, not the
+      // on-disk rows. Wipe leaked rows from sibling suites before writing ours, same
+      // guard as thresholdsToSimulatedAuthorize.regression.test.js.
+      await configStoreFresh.resetConfig();
 
       // Simulate what Task 2's route now does when an admin sets the threshold to 900.
       await configStoreFresh.setConfig({
@@ -344,12 +350,13 @@ describe('confirmChallenge — PingOne MFA branch', () => {
       // the device-picker MFA path (before this fix, the hardcoded 500 fallback
       // would have incorrectly triggered it, since 800 >= 500).
       const req = makeReq({ session: { txConsentChallenges: {
-        'ch-real-1': {
+        [`${CHALLENGE_ID}-real-1`]: {
           userId: '5', snapshot: { type: 'withdrawal', amount: 800, fromAccountId: 'acc1', toAccountId: null, description: '' },
           status: 'pending', createdAt: Date.now(), expiresAt: Date.now() + 600_000,
         },
       }}});
-      const result = await txConsentFresh.confirmChallenge(req, 'ch-real-1');
+      const result = await txConsentFresh.confirmChallenge(req, `${CHALLENGE_ID}-real-1`);
+      expect(mfaServiceFresh.initiateDeviceAuth).not.toHaveBeenCalled();
       expect(result.ok).toBe(true);
       expect(result.mfaRequired).toBeUndefined();
     });
