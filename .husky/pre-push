@@ -21,4 +21,16 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     fi
   fi
 done
+
+# ─── local CI gate ────────────────────────────────────────────────────────────
+# GitHub Actions is billing-blocked (jobs die in ~3s with 0 steps; see issue
+# #524), so every PR is red regardless of the code and nothing verifies a merge.
+# Run the same checks ci.yml runs, here, until Actions is paying its bills again.
+# ~65s. Bypassable with --no-verify.
+if [ "$status" -eq 0 ]; then
+  if ! bash "$(git rev-parse --show-toplevel)/scripts/ci-local.sh"; then
+    status=1
+  fi
+fi
+
 exit $status
