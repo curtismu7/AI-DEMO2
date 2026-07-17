@@ -94,6 +94,29 @@ describe('primaryTool existence — no dangling tool premises, any vertical', ()
 describe('every vertical chip routes to its OWN stored primaryTool', () => {
   const entries = chipEntries();
 
+  test('every chip DECLARES a primaryTool — none may escape the contract', () => {
+    // chipEntries() filters on `uc.primaryTool`, so a chip ADDED without one
+    // would silently skip the routing gate — exactly the drift this suite
+    // exists to prevent. 7 banking base entries escaped this way until
+    // 2026-07-17. A2A "specialist" chips are the only sanctioned exception.
+    const naked = [];
+    for (const vertical of VERTICALS) {
+      for (const u of USE_CASES) {
+        const uc = resolveUseCase(u.id, vertical) || u;
+        const t = uc.trigger || {};
+        if (t.type !== 'chip' || !t.text || A2A_UNROUTABLE.test(t.text)) continue;
+        if (!uc.primaryTool) naked.push(`${vertical} ${u.id} "${t.text}"`);
+      }
+    }
+    if (naked.length) {
+      throw new Error(
+        `${naked.length} chip(s) declare NO primaryTool and therefore silently skip the routing ` +
+          `contract:\n  ${naked.join('\n  ')}\nAdd the tool to the entry (banking: base entry; ` +
+          `other verticals: READ_/AMOUNT_PRIMARY_TOOL_BY_VERTICAL in useCases.js).`,
+      );
+    }
+  });
+
   test('the gate covers every vertical (guard against silent scoping-away)', () => {
     const covered = new Set(entries.map((e) => e.vertical));
     for (const v of VERTICALS) {
