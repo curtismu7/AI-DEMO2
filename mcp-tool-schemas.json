@@ -855,6 +855,27 @@
         "additionalProperties": false
       }
     },
+    "get_fee_schedule": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "account",
+              "transfer",
+              "payment",
+              "overdraft",
+              "foreign_exchange"
+            ],
+            "description": "Optional category filter to get fees for a specific category"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
     "get_investment_accounts": {
       "source": "invest",
       "inputSchema": {
@@ -1026,6 +1047,15 @@
         "additionalProperties": false
       }
     },
+    "list_account_types": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
     "list_addresses": {
       "source": "olb",
       "inputSchema": {
@@ -1167,6 +1197,24 @@
       }
     },
     "list_support_tickets": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "list_transaction_types": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    "list_verticals": {
       "source": "olb",
       "inputSchema": {
         "type": "object",
@@ -2021,6 +2069,15 @@
       "inputSchema": {
         "type": "object",
         "properties": {},
+        "additionalProperties": false
+      }
+    },
+    "show_supported_currencies": {
+      "source": "olb",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
         "additionalProperties": false
       }
     },
