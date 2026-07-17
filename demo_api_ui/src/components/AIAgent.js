@@ -2353,8 +2353,21 @@ export default function BankingAgent({
     const { id: exId, ...rest } = extra;
     const id = exId || `${Date.now()}`;
     // Ensure content is always a string for React rendering
-    const contentString =
-      typeof content === "string" ? content : JSON.stringify(content);
+    let contentString =
+      typeof content === "string" ? content : content == null ? "" : JSON.stringify(content);
+    // Never render a silent assistant bubble. Every message passes through here,
+    // so this is the last-resort net for ANY future path that produces an empty
+    // reply (a variable unexpectedly '', a dropped await, a provider returning
+    // nothing): the user sees an honest notice instead of a blank bubble they
+    // cannot distinguish from a broken page. No assistant call sites pass empty
+    // content intentionally (verified when this guard was added) — hitting this
+    // in dev means the CALLER has a bug; fix it there, don't special-case here.
+    if (role === "assistant" && !contentString.trim()) {
+      console.warn("[agent] empty assistant reply intercepted — substituting notice", rest);
+      contentString =
+        "⚠️ The agent produced no reply for this turn. That is a bug in the demo " +
+        "(not your request) — please try again, and report what you asked if it repeats.";
+    }
     setMessages((prev) => [
       ...prev,
       { id, role, content: contentString ?? "", tool, ...rest },

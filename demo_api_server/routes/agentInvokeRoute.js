@@ -33,6 +33,39 @@ const { buildTokenEvent, decodeJwtClaims, resolveMcpAccessTokenWithEvents, build
 const router = express.Router();
 
 /**
+ * Never send a silent reply. Called at the single exit for every agent turn, so
+ * it is the server-side net for ANY path that produced an empty reply (a
+ * reasoning model spent its whole budget thinking, a service returned '', a new
+ * vertical forgot its canned text). Card envelopes (consent / customer-login)
+ * carry their own UI and are exempt; everything else must say something.
+ * Logged as agent/empty_reply (mirroring agent/truncated) so recurrence shows up
+ * in the activity feed instead of waiting for a live demo to fail.
+ * Mutates and returns the envelope; sets empty_reply:true when it fired.
+ */
+function ensureNonEmptyReply(agentResponse) {
+  if (!agentResponse || typeof agentResponse !== 'object') return agentResponse;
+  const replyEmpty = typeof agentResponse.reply !== 'string' || !agentResponse.reply.trim();
+  if (!replyEmpty || agentResponse.requiresConsent || agentResponse.requiresCustomerLogin) {
+    return agentResponse;
+  }
+  console.warn('[agentInvokeRoute] empty agent reply intercepted — substituting notice', {
+    agentPath: agentResponse.agentPath, success: agentResponse.success, error: agentResponse.error,
+  });
+  try {
+    const appEventService = require('../services/appEventService');
+    appEventService.logEvent('agent', 'warning',
+      'Agent returned an EMPTY reply — substituted an honest notice',
+      { tag: 'agent/empty_reply', metadata: { agentPath: agentResponse.agentPath || null, error: agentResponse.error || null } });
+  } catch (_) { /* telemetry must never block the reply */ }
+  agentResponse.empty_reply = true;
+  agentResponse.reply =
+    'The agent produced no reply for this turn — your request was understood, but no text ' +
+    'came back from the selected provider. Try again, or switch Agent mode to Heuristics ' +
+    'for a deterministic answer.';
+  return agentResponse;
+}
+
+/**
  * Extract intent and confidence from user prompt using heuristic NL parser.
  * This enables PRE-EXECUTION intent gating before the agent runs tools.
  *
@@ -381,6 +414,7 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
 
     // ── PHASE 5: RETURN RESPONSE ──
     agentResponse.runId = runId;
+    ensureNonEmptyReply(agentResponse);
     return res.json(agentResponse);
   } catch (error) {
     console.error('[agentInvokeRoute] Error:', error.message);
@@ -414,3 +448,6 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
 });
 
 module.exports = router;
+// Exported for the never-silent contract test — the guard is the reply
+// invariant, not an implementation detail.
+module.exports.ensureNonEmptyReply = ensureNonEmptyReply;
