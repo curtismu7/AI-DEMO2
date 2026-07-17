@@ -45,7 +45,7 @@ async function processAdminMessage({ message, userId, sessionId, tokenEvents = [
     }
 
     const { resolveLlmProvider } = require('./llmProviderResolver');
-    const { runReasonLoop } = require('./agentReasoningClient');
+    const { runReasonLoop, withTruncationNotice } = require('./agentReasoningClient');
     const { provider: llmProvider, model: llmModel } = resolveLlmProvider(
       { ...langchainConfig, provider: undefined }
     );
@@ -102,9 +102,15 @@ async function processAdminMessage({ message, userId, sessionId, tokenEvents = [
 
     if (loopResult.ok) {
       appEventService.logEvent('agent', 'info', 'Admin agent response ready', { tag: 'agent/admin_complete' });
+      if (loopResult.truncated) {
+        appEventService.logEvent('agent', 'warning',
+          'Admin agent answer was truncated — the model hit its response length limit',
+          { tag: 'agent/truncated' });
+      }
       const displayModel = llmModel || 'Claude 3.5 Sonnet';
       return {
-        reply: loopResult.answer,
+        reply: withTruncationNotice(loopResult.answer, loopResult.truncated),
+        truncated: loopResult.truncated || undefined,
         success: true,
         toolsCalled: [],
         inputTokens: loopResult.inputTokens ?? 0,

@@ -9,6 +9,21 @@ const configStore = require('./configStore');
 const REASON_URL =
   (process.env.AGENT_SERVICE_URL || 'http://localhost:3006') + '/api/agent/reason';
 
+/**
+ * Label a cut-off answer. A truncated reply is otherwise indistinguishable from a
+ * complete one — it just stops mid-sentence — so the user has no way to know the
+ * model ran out of room. Keep the partial answer (usually mostly useful) and say so.
+ * Callers pass loopResult.truncated straight through; no-op when false.
+ * @param {string} answer
+ * @param {boolean} truncated
+ * @returns {string}
+ */
+function withTruncationNotice(answer, truncated) {
+  if (!truncated) return answer;
+  return `${answer || ''}\n\n⚠️ This answer was cut off — it reached the response length limit. ` +
+    'Ask a narrower question, or raise the response limit (LLAMACPP_MAX_TOKENS) if this keeps happening.';
+}
+
 /** Resolve Google/Gemini API key from configStore or env (never a user token). */
 function resolveGoogleApiKey(override) {
   return override ||
@@ -54,7 +69,17 @@ async function runReasonLoop(p) {
     const data = resp.data;
     if (data.type === 'final') {
       if (data.reasoningUnavailable) return { ok: false, reason: 'reasoning_unavailable' };
-      return { ok: true, answer: data.answer, inputTokens: data.inputTokens ?? 0, outputTokens: data.outputTokens ?? 0 };
+      // `truncated`: the model hit its token ceiling, so `answer` is cut off. Keep
+      // the partial answer (it is usually mostly useful) but pass the flag up so the
+      // caller labels it — a cut-off answer must never look like a complete one.
+      // Only present when true, so the untruncated shape is unchanged for callers.
+      return {
+        ok: true,
+        answer: data.answer,
+        ...(data.truncated === true ? { truncated: true } : {}),
+        inputTokens: data.inputTokens ?? 0,
+        outputTokens: data.outputTokens ?? 0,
+      };
     }
     if (data.type === 'tool_calls') {
       const toolMessages = [];
@@ -84,4 +109,4 @@ async function runReasonLoop(p) {
   return { ok: false, reason: 'max_iterations' };
 }
 
-module.exports = { runReasonLoop, resolveGoogleApiKey };
+module.exports = { runReasonLoop, resolveGoogleApiKey, withTruncationNotice };
