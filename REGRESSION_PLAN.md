@@ -85,6 +85,33 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-17 — #539 amount-from-record dead on session-only `/api/mcp/tool`
+
+**Files changed:** `demo_api_server/services/mcpToolAuthorizationService.js`,
+`demo_api_server/src/__tests__/mcpToolAuthorizationService.test.js`.
+
+**What was broken:** `#539` added `resolveAmountForPolicy()` so `pay_bill`
+policy uses the bill's `amountDue`, not a figure parsed from the phrase
+(e.g. id `402` → Amount `$402`). The call site passed only
+`req.user && req.user.id`. `POST /api/mcp/tool` (chip / MCP path) is gated by
+`requireSession`, which never sets `req.user`, so `userId` was always falsy →
+`resolveAmountForPolicy` always returned null → the gate fell back to the
+fabricated phrase amount. Agent `/api/agent/invoke` (authenticateToken) was
+fine; the primary chip path was not.
+
+**What was fixed:** Resolve `policyUserId` as
+`req.user.id || userSub || session.oauthId || session.id` before calling
+`resolveAmountForPolicy`. Added regression tests for session-only and
+userSub-only reqs asserting Amount=`amountDue` (25), not 402.
+
+**Do not break:** `admin_role_exempt`, HITL receipt verification, aud/scope
+checks, fail-closed behaviour when authorize is unconfigured, or the soft
+null fallback when no record id is present.
+
+**Verify:** `npx jest src/__tests__/mcpToolAuthorizationService.test.js
+tests/mcpToolAuthorization.amountFromRecord.test.js
+--testPathIgnorePatterns="/node_modules/"`.
+
 ### 2026-07-16 — 7/16 punch-list batch 2 (graphify framing, may_act terminology sweep, debug log detail)
 
 **Files changed:** `demo_api_ui/src/components/GraphifyPage.jsx`,

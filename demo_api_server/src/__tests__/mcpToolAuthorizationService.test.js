@@ -417,6 +417,56 @@ describe('mcpToolAuthorizationService', () => {
         expect.objectContaining({ amount: null, transactionType: null }),
       );
     });
+
+    // #539 call-site regression: /api/mcp/tool uses requireSession (session only,
+    // no req.user). policyUserId must still resolve so pay_bill uses amountDue.
+    it('pay_bill on session-only req uses bill amountDue, not the fabricated phrase amount', async () => {
+      const { verticalManifest } = require('../../services/verticalManifest');
+      const USER = 'session-only-paybill-user';
+      const store = verticalManifest.plugins.get('healthcare').getDataStore();
+      const bill = (store.get(USER).billingHistory || []).find((b) => String(b.id) === '402');
+      expect(bill).toBeTruthy();
+      expect(bill.amountDue).toBe(25);
+      expect(bill.amountDue).not.toBe(402);
+
+      await evaluateMcpFirstToolGate({
+        // Mirror POST /api/mcp/tool: requireSession sets nothing on req.user.
+        req: {
+          session: {
+            user: { id: 'local-seq-1', oauthId: USER, role: 'user' },
+            active_vertical: 'healthcare',
+          },
+        },
+        tool: 'pay_bill',
+        agentToken: jwtWithPayload({ sub: USER }),
+        userSub: null,
+        toolParams: { recordId: '402', amount: 402 },
+      });
+
+      expect(simulatedAuthorizeService.evaluateMcpFirstTool).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: 25, transactionType: 'transfer' }),
+      );
+    });
+
+    it('pay_bill uses userSub when req.user and session ids are absent', async () => {
+      const { verticalManifest } = require('../../services/verticalManifest');
+      const USER = 'usersub-paybill-user';
+      const store = verticalManifest.plugins.get('healthcare').getDataStore();
+      const bill = (store.get(USER).billingHistory || []).find((b) => String(b.id) === '402');
+      expect(bill.amountDue).toBe(25);
+
+      await evaluateMcpFirstToolGate({
+        req: { session: { active_vertical: 'healthcare' } },
+        tool: 'pay_bill',
+        agentToken: jwtWithPayload({ sub: USER }),
+        userSub: USER,
+        toolParams: { billId: '402', amount: 402 },
+      });
+
+      expect(simulatedAuthorizeService.evaluateMcpFirstTool).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: 25, transactionType: 'transfer' }),
+      );
+    });
   });
 
   // ── HITL receipt verification (findings #1 + #2): hitlApproved is derived

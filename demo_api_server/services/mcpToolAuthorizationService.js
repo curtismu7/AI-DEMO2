@@ -220,7 +220,19 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
   // A tool that names a RECORD carries no amount of its own — read it from the
   // record so the policy decides on the real figure, never on a number parsed out
   // of the phrase. Returns null when it does not apply, so the stated amount stands.
-  const recordAmount = resolveAmountForPolicy(tool, toolParams, activeVerticalId, req.user && req.user.id);
+  //
+  // User id must match the vertical store key. POST /api/mcp/tool is gated by
+  // requireSession only — it never sets req.user — so falling back to
+  // userSub / session.oauthId / session.id is required. Using only req.user.id
+  // made resolveAmountForPolicy always return null on the chip path, and the
+  // gate fell back to the fabricated phrase amount (#539 regression).
+  const policyUserId =
+    (req.user && req.user.id) ||
+    userSub ||
+    req.session?.user?.oauthId ||
+    req.session?.user?.id ||
+    null;
+  const recordAmount = resolveAmountForPolicy(tool, toolParams, activeVerticalId, policyUserId);
   const toolAmount = transactionType && toolParams
     ? (recordAmount !== null ? recordAmount : parseFloat(toolParams.amount || 0))
     : null;
