@@ -492,7 +492,7 @@ const logTokenInfo = (token, context = '') => {
 // Validate a PingOne access token using JWKS (JWT signature verification).
 // Replaces the previous PingOne Core/ForgeRock introspection approach.
 const validatePingOneCoreToken = async (token, requestContext = {}) => {
-  const { method = 'UNKNOWN', path = 'UNKNOWN' } = requestContext;
+  const { method = 'UNKNOWN', path = 'UNKNOWN', baseUrl = '' } = requestContext;
 
   logger.debug(LOG_CATEGORIES.OAUTH_VALIDATION, 'Starting PingOne token validation', {
     method,
@@ -573,7 +573,17 @@ const validatePingOneCoreToken = async (token, requestContext = {}) => {
       const isMcpCallback = path === '/vertical-tool' || path === '/api/path/vertical-tool'
         || path === '/identity' || path === '/api/resource-server/identity'
         || path === '/my'                              // GET /api/accounts/my, GET /api/transactions/my
-        || /^\/[^/]+(\/balance)?$/.test(path);         // GET /api/accounts/:id, GET /api/accounts/:id/balance
+        || /^\/[^/]+(\/balance)?$/.test(path)          // GET /api/accounts/:id, GET /api/accounts/:id/balance
+        // Write callbacks from the same BankingAPIClient. Matched on baseUrl+method
+        // (path is router-relative '/'), so only the exact mounted route is widened:
+        //   create_transfer/deposit/withdrawal → POST /api/transactions
+        //   request_fee_waiver                 → POST /api/accounts/:id/fee-waiver-request
+        //   update_contact_email               → PATCH /api/accounts/:id/contact-email
+        // The gateway's Authorize decision already ran for the tool call; HITL 428,
+        // scope, and role enforcement on these routes still apply after this check.
+        || (method === 'POST' && baseUrl === '/api/transactions' && path === '/')
+        || (method === 'POST' && baseUrl === '/api/accounts' && /^\/[^/]+\/fee-waiver-request$/.test(path))
+        || (method === 'PATCH' && baseUrl === '/api/accounts' && /^\/[^/]+\/contact-email$/.test(path));
       const gwAuds = String(MCP_GW_RESOURCE_URI).split(',').map((s) => s.trim()).filter(Boolean);
       if (PINGGATEWAY_RESOURCE_URI && !gwAuds.includes(PINGGATEWAY_RESOURCE_URI)) {
         gwAuds.push(PINGGATEWAY_RESOURCE_URI);
@@ -652,6 +662,7 @@ const authenticateToken = async (req, res, next) => {
   const requestContext = {
     method: req.method,
     path: req.path || req.url,
+    baseUrl: req.baseUrl || '',
     userAgent: req.headers['user-agent'],
     ip: req.ip || req.connection.remoteAddress
   };
