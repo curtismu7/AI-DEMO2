@@ -97,6 +97,29 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         const nodeUrl = (process.env.MCP_GATEWAY_HTTP_URL || configStore.getEffective('mcp_gateway_http_url') || '').replace(/\/$/, '');
         if (nodeUrl) base = nodeUrl;
     }
+    // A2A nested-act tokens are audienced to the DEDICATED A2A gateway resource
+    // (a2a_gateway_audience / A2A_GATEWAY_AUDIENCE), which only the Node Demo
+    // Agent Gateway accepts (comma-list MCP_GW_RESOURCE_URI). PingGateway (IG)
+    // introspects against its own resource URI and its McpProtectionFilter also
+    // requires scope gateway:mcp:invoke, so an A2A specialist call routed there
+    // always fails (401 wrong aud / 403 insufficient_scope). Pin A2A-audienced
+    // bearers to the Node gateway, same Node-only routing as Path B/C above and
+    // the RAR sims (#603). mcp_demo_gateway_url, not MCP_GATEWAY_HTTP_URL — the
+    // latter is baked per-container and may point at IG (#375).
+    if (pgUrl && base === pgUrl) {
+        const a2aAud = process.env.A2A_GATEWAY_AUDIENCE
+            || configStore.getEffective('a2a_gateway_audience') || '';
+        if (a2aAud) {
+            const claims = decodeJwt(bearerToken)?.claims;
+            const audList = Array.isArray(claims?.aud) ? claims.aud.map(String)
+                : (claims?.aud != null ? [String(claims.aud)] : []);
+            if (audList.includes(a2aAud)) {
+                const nodeUrl = (process.env.MCP_DEMO_GATEWAY_URL
+                    || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
+                if (nodeUrl) base = nodeUrl;
+            }
+        }
+    }
     const isIgBase = !!pgUrl && base === pgUrl;
     const url  = isIgBase && APIKEY_TOOLS.has(tool) ? `${base}/mcp/apikey` : `${base}/mcp`;
 
