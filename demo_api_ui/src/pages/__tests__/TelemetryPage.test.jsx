@@ -74,4 +74,58 @@ describe("TelemetryPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Fetch" }));
     await waitFor(() => expect(global.fetch.mock.calls.length).toBeGreaterThan(calls));
   });
+
+  it("clicking a recent trace issues exactly one graph request for that trace", async () => {
+    stubFetch();
+    render(<TelemetryPage />);
+    await waitFor(() => expect(screen.getByRole("button", { name: /POST \/run/ })).toBeInTheDocument());
+    global.fetch.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: /POST \/run/ }));
+    await waitFor(() => {
+      const graphCalls = global.fetch.mock.calls.filter(([u]) => String(u).includes("graph?traceId="));
+      expect(graphCalls).toHaveLength(1);
+    });
+  });
+
+  it("ignores stale graph responses that resolve after a newer request", async () => {
+    const staleGraph = {
+      tracingEnabled: true,
+      fetchedAt: "x",
+      nodes: [{ id: "stale-node", label: "stale-node", latency: "1ms", status: "ok" }],
+      edges: [],
+    };
+    let resolveSlow;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url) => {
+        const u = String(url);
+        if (u.includes("graph?traceId=aaaaaaaaaaaaaaaa")) {
+          return new Promise((res) => {
+            resolveSlow = () => res({ ok: true, json: () => Promise.resolve(staleGraph) });
+          });
+        }
+        if (u.includes("/tracing/graph")) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve(GRAPH) });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              traces: [
+                { traceId: "aaaaaaaaaaaaaaaa", operation: "slow-trace", spanCount: 1, durationMs: 1, startTime: "x" },
+                { traceId: "bbbbbbbbbbbbbbbb", operation: "fast-trace", spanCount: 1, durationMs: 1, startTime: "x" },
+              ],
+            }),
+        });
+      }),
+    );
+    render(<TelemetryPage />);
+    await waitFor(() => expect(screen.getByRole("button", { name: /slow-trace/ })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /slow-trace/ }));
+    fireEvent.click(screen.getByRole("button", { name: /fast-trace/ }));
+    await waitFor(() => expect(screen.getByText("demo-api-server")).toBeInTheDocument());
+    resolveSlow();
+    await waitFor(() => expect(screen.queryByText("stale-node")).not.toBeInTheDocument());
+    expect(screen.getByText("demo-api-server")).toBeInTheDocument();
+  });
 });

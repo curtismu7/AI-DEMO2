@@ -43,19 +43,23 @@ export default function TelemetryPage() {
   const svgRef = useRef(null);
   const positionsRef = useRef(positions);
   positionsRef.current = positions;
+  const reqSeqRef = useRef(0);
 
   const loadGraph = useCallback(async (opts = {}) => {
     const traceId = opts.traceId ?? (opts.view === "detailed" ? opts.selectedTraceId : null);
     const url = traceId
       ? `/api/health/tracing/graph?traceId=${encodeURIComponent(traceId)}`
       : "/api/health/tracing/graph?lookback=1h";
+    const seq = ++reqSeqRef.current;
     try {
       const data = await fetchJson(url);
+      if (seq !== reqSeqRef.current) return; // superseded by a newer request
       setGraph(data);
       setPositions((prev) => mergePositions(prev, data, VIEW_W, VIEW_H));
       setLastUpdated(new Date());
       setError(null);
     } catch (err) {
+      if (seq !== reqSeqRef.current) return;
       setError(err.message);
     }
   }, []);
@@ -158,13 +162,10 @@ export default function TelemetryPage() {
   const selectTrace = (traceId) => {
     setSelectedTraceId(traceId);
     setView("detailed");
-    loadGraph({ traceId });
   };
 
   const changeView = (next) => {
     setView(next);
-    if (next === "overview") loadGraph({});
-    else if (selectedTraceId) loadGraph({ traceId: selectedTraceId });
   };
 
   const tracingOff = graph && graph.tracingEnabled === false;
