@@ -1077,7 +1077,10 @@ export default function BankingAgent({
           // memo is in the read window; result must be `assistant` (not
           // token-event) so it stays visible when RFC info is off.
           const readParams = inj.readTool === "get_my_transactions" ? { limit: 100 } : {};
-          const readResp = await callMcpTool(inj.readTool, readParams, { vertical: "banking" });
+          const readResp = await callMcpTool(inj.readTool, readParams, {
+            vertical: "banking",
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent(inj.readTool, ev),
+          });
           const surfaced = JSON.stringify(readResp?.result ?? "").includes("[SYSTEM:");
           addMessage(
             "assistant",
@@ -2598,7 +2601,11 @@ export default function BankingAgent({
           });
           let mortgageResp;
           try {
-            mortgageResp = await callMcpTool("show_mortgage", {}, { useCaseId, vertical });
+            mortgageResp = await callMcpTool("show_mortgage", {}, {
+              useCaseId,
+              vertical,
+              onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+            });
           } catch (e) {
             console.error(
               "[BankingAgent] mortgage_demo dispatch failed:",
@@ -2666,7 +2673,11 @@ export default function BankingAgent({
           });
           let investResp;
           try {
-            investResp = await callMcpTool("show_investment", {}, { useCaseId, vertical });
+            investResp = await callMcpTool("show_investment", {}, {
+              useCaseId,
+              vertical,
+              onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+            });
           } catch (e) {
             console.error(
               "[BankingAgent] invest_demo dispatch failed:",
@@ -2758,7 +2769,11 @@ export default function BankingAgent({
           });
           let featureResp;
           try {
-            featureResp = await callMcpTool(featureTool, {}, { useCaseId, vertical });
+            featureResp = await callMcpTool(featureTool, {}, {
+              useCaseId,
+              vertical,
+              onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+            });
           } catch (e) {
             console.error("[BankingAgent] vertical_feature_demo dispatch failed:", e?.message);
             toast.dismiss(toastId);
@@ -2830,7 +2845,11 @@ export default function BankingAgent({
           response = await callMcpTool(
             "get_account_nickname",
             form.accountId ? { account_id: form.accountId } : {},
-            { useCaseId, vertical },
+            {
+              useCaseId,
+              vertical,
+              onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+            },
           );
           break;
         case "deposit":
@@ -3037,7 +3056,11 @@ export default function BankingAgent({
           let scopeTestRes;
           try {
             // admin_get_all_users requires admin scope not in customer token
-            scopeTestRes = await callMcpTool("admin_get_all_users", {}, { useCaseId, vertical });
+            scopeTestRes = await callMcpTool("admin_get_all_users", {}, {
+              useCaseId,
+              vertical,
+              onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+            });
           } catch (scopeErr) {
             scopeTestRes = {
               error: scopeErr.code || scopeErr.message,
@@ -3674,46 +3697,74 @@ export default function BankingAgent({
           toast.update(toastId, { render: "Reasoning…" });
           response = await callMcpTool("sequential_think", {
             query: "What can I help you with today?",
-          }, { useCaseId, vertical });
+          }, {
+            useCaseId,
+            vertical,
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+          });
           break;
         case "ai_helix_demo":
           toast.update(toastId, { render: "Reasoning…" });
           response = await callMcpTool("sequential_think", {
             query: "What are best practices for account security?",
-          }, { useCaseId, vertical });
+          }, {
+            useCaseId,
+            vertical,
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+          });
           break;
         case "ai_explain":
           toast.update(toastId, { render: "Reasoning…" });
           response = await callMcpTool("sequential_think", {
             query:
               "Explain how OAuth 2.0 and RFC 8693 token exchange work in this demo",
-          }, { useCaseId, vertical });
+          }, {
+            useCaseId,
+            vertical,
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+          });
           break;
         case "ai_helix_explain":
           toast.update(toastId, { render: "Reasoning…" });
           response = await callMcpTool("sequential_think", {
             query: "Explain the difference between OAuth and SAML",
-          }, { useCaseId, vertical });
+          }, {
+            useCaseId,
+            vertical,
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+          });
           break;
         case "ai_analyze":
           toast.update(toastId, { render: "Reasoning…" });
           response = await callMcpTool("sequential_think", {
             query: "Summarize how the MCP tool flow works in this demo",
-          }, { useCaseId, vertical });
+          }, {
+            useCaseId,
+            vertical,
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+          });
           break;
         case "ai_advice":
           toast.update(toastId, { render: "Reasoning…" });
           response = await callMcpTool("sequential_think", {
             query:
               "What are some good tips for managing checking and savings accounts?",
-          }, { useCaseId, vertical });
+          }, {
+            useCaseId,
+            vertical,
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+          });
           break;
         case "ai_helix_advice":
           toast.update(toastId, { render: "Reasoning…" });
           response = await callMcpTool("sequential_think", {
             query:
               "Give me 5 tips for reducing transaction fees and managing money better",
-          }, { useCaseId, vertical });
+          }, {
+            useCaseId,
+            vertical,
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+          });
           break;
         case "api_key_demo": {
           // Phase 266/267 Path A: exercise the gateway API-key credential swap.
@@ -3790,7 +3841,11 @@ export default function BankingAgent({
               actionId === "unusual_patterns"
                 ? "Check my recent transactions for unusual patterns"
                 : "Could my savings cover a big upcoming expense?",
-          }, { useCaseId, vertical });
+          }, {
+            useCaseId,
+            vertical,
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+          });
           break;
         }
         default: {
@@ -3799,7 +3854,11 @@ export default function BankingAgent({
             toast.update(toastId, { render: "Reasoning…" });
             response = await callMcpTool("sequential_think", {
               query: customChip.prompt,
-            }, { useCaseId, vertical });
+            }, {
+              useCaseId,
+              vertical,
+              onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+            });
             break;
           }
           throw new Error(`Unknown action: ${actionId}`);
@@ -5653,7 +5712,10 @@ export default function BankingAgent({
           ? `${result.action.replace(/_/g, ' ')} ${Object.values(result.params).join(' ')}`
           : (nlUserText || result.action);
         const verticalOpts = { forceHeuristic: true, vertical: verticalId, consentGiven: !!result.consentGiven, ...(useCaseId ? { useCaseId } : {}) };
-        const response = await sendAgentMessage(agentMessage, null, verticalOpts);
+        const response = await sendAgentMessage(agentMessage, null, {
+          ...verticalOpts,
+          onTokenEvent: (ev) => tokenChain?.appendTokenEvent(result.action || "agent", ev),
+        });
         // Admin token on the customer agent → action card (login as customer / cancel).
         if (maybeHandleCustomerLogin(response, _source)) return;
         // A tokenless session must surface as "sign in again" + redirect — not as
@@ -6369,7 +6431,12 @@ export default function BankingAgent({
       addMessage("user", text, null, { isPrompt: !!useCaseId });
       setNlLoading(true);
       try {
-        const response = await sendAgentMessage(text, null, { signal, vertical: effectiveVerticalId, useCaseId });
+        const response = await sendAgentMessage(text, null, {
+          signal,
+          vertical: effectiveVerticalId,
+          useCaseId,
+          onTokenEvent: (ev) => tokenChain?.appendTokenEvent("agent", ev),
+        });
         if (!cancelled && !signal.aborted) {
           // Dispatch backend events to EventStream
           if (response.events && Array.isArray(response.events)) {
@@ -7282,7 +7349,9 @@ export default function BankingAgent({
                           (async () => {
                             const tool = denyTool || "show_health_record";
                             try {
-                              const r = await callMcpTool(tool, {});
+                              const r = await callMcpTool(tool, {}, {
+                                onTokenEvent: (ev) => tokenChain?.appendTokenEvent(tool, ev),
+                              });
                               const denied =
                                 r?.status === 403 ||
                                 isAgentToolErrorResult(normalizeAgentToolResult(r?.result));
@@ -7519,7 +7588,11 @@ export default function BankingAgent({
                               addMessage("assistant", "Could not resolve an MCP tool for this request — try rephrasing.", null);
                               return;
                             }
-                            const mcpResp = await callMcpTool(resolvedTool, resolvedParams, { useCaseId: chipUseCaseId, vertical: effectiveVerticalId });
+                            const mcpResp = await callMcpTool(resolvedTool, resolvedParams, {
+                              useCaseId: chipUseCaseId,
+                              vertical: effectiveVerticalId,
+                              onTokenEvent: (ev) => tokenChain?.appendTokenEvent(resolvedTool, ev),
+                            });
                             if (tokenChain && Array.isArray(mcpResp?.tokenEvents)) {
                               tokenChain.setTokenEvents(resolvedTool, mcpResp.tokenEvents);
                             }
@@ -8174,6 +8247,7 @@ export default function BankingAgent({
                         const response = await sendAgentMessage(
                           originalMessage,
                           pendingId,
+                          { onTokenEvent: (ev) => tokenChain?.appendTokenEvent("agent", ev) },
                         );
                         addMessage(
                           "assistant",
