@@ -197,6 +197,35 @@ const FRONTIER_MODES = ["claude"];
 const AGENT_UNAVAILABLE_MESSAGE =
   "The assistant didn't return a response — the agent service may be unavailable. Check that the agent runtime is running.";
 
+// One plain sentence per BFF failure class, keyed by the code the BFF returns.
+// The agent transcript must never show a raw backend error string, so
+// reportNlFailure resolves through here and falls back to NL_FAILURE_FALLBACK
+// for any code not listed rather than echoing err.message.
+const NL_FAILURE_MESSAGES = {
+  gateway_policy_denied:
+    "That step was declined by the gateway's authorization policy — no changes were made.",
+  mcp_authorization_denied:
+    "That step was declined by the authorization policy — no changes were made.",
+  mcp_authorize_unavailable:
+    "The authorization service isn't reachable right now, so the step was declined. Try again in a moment.",
+  policy_not_found: "Policy not found, please contact administrator.",
+  mcp_scope_denied:
+    "This demo step isn't permitted by the agent's granted scopes.",
+  missing_exchange_scopes:
+    "This demo step isn't permitted by the agent's granted scopes.",
+  rate_limited: "Too many requests just now — wait a moment and try again.",
+  gateway_misconfigured:
+    "The gateway isn't configured for this step yet. Check the gateway settings.",
+  gateway_upstream_error:
+    "The service behind the gateway didn't respond. Try again in a moment.",
+  server_unavailable:
+    "The server isn't available right now. Try again in a moment.",
+  connection_timeout:
+    "The server took too long to respond — it may still be starting up. Try again in a moment.",
+};
+const NL_FAILURE_FALLBACK =
+  "That step couldn't be completed. Try again, or pick another demo step.";
+
 // Security Showcase dispatch tables (static — defined once at module scope).
 // showcase keys whose live harness is an existing runAction case.
 const SHOWCASE_RUN_ACTION = {
@@ -5686,9 +5715,16 @@ export default function BankingAgent({
             "step_up_required",
             "mcp_step_up_required",
           ].includes(response.error);
+          // A failed tool call arrives as success:false + the backend's own prose
+          // (e.g. "❌ Gateway policy denied the tool call"). Never echo that into
+          // the transcript — resolve the code to a plain sentence instead.
+          const failureSentence =
+            !isHitlBlock && response.success === false && response.error
+              ? NL_FAILURE_MESSAGES[response.error] || NL_FAILURE_FALLBACK
+              : null;
           const replyWithAgentBadge = isHitlBlock
             ? "[CUSTOMER AGENT - LangGraph]\nThis action needs your approval before it can run — check the approval prompt."
-            : `[CUSTOMER AGENT - LangGraph]\n${response.reply}`;
+            : `[CUSTOMER AGENT - LangGraph]\n${failureSentence || response.reply}`;
           addMessage("assistant", replyWithAgentBadge, null, { source: _source, ...verticalResultExtra(response), paramHint });
           // Teaching directive: open the requested education panel (P2/P3). Mirrors the
           // kind:'education' path; fires only for a resolvable panel id.
@@ -5923,14 +5959,19 @@ export default function BankingAgent({
       );
       return;
     }
-    const errorMessage =
-      err.message ||
-      err.error ||
-      "An unexpected error occurred. Please try again.";
-    notifyError(`❌ Could not parse request: ${errorMessage}`, {
+    // A demo step must never render a raw backend error string. Map the BFF
+    // failure code to a plain sentence; anything unrecognised (including a
+    // missing code) falls back to the generic one rather than echoing
+    // err.message, which is how "Could not parse: ❌ Gateway policy denied the
+    // tool call" reached the transcript.
+    const friendly =
+      NL_FAILURE_MESSAGES[err?.code] ||
+      NL_FAILURE_MESSAGES[err?.error] ||
+      NL_FAILURE_FALLBACK;
+    notifyError(`❌ ${friendly}`, {
       autoClose: agentToastMs.errShort,
     });
-    addMessage("assistant", `Could not parse: ${errorMessage}`);
+    addMessage("assistant", friendly);
   }
 
   /** Click handler for the "Pre-warm the model & retry" action (Task: prewarm-retry-timeout). */

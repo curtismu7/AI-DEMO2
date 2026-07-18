@@ -84,6 +84,51 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-18 — Demo steps showed raw backend error prose; demo-sync stopped authz-server while the BFF still required it
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`
+(`NL_FAILURE_MESSAGES` and `NL_FAILURE_FALLBACK`, `reportNlFailure`,
+vertical-branch reply render),
+`demo_api_server/services/verticalMcpExecution.js` (carry `errorCode`),
+`demo_api_server/services/demoAgentLangGraphService.js` (put the code on the
+response envelope), `run-docker.sh` (`_read_demo_stack_flags` awaits
+`ensureInitialized()`), test in
+`demo_api_ui/src/components/__tests__/AIAgent.chips.test.js`.
+
+**What was broken:** (1) Sporting-goods Demo Step 1 ("My gear") rendered
+`Could not parse: ❌ Gateway policy denied the tool call`. The tool-failure path
+kept only `err.message` and dropped the code (`verticalMcpExecution.js`), so the
+response envelope carried no `error`; the UI had no branch for it and echoed the
+backend's own prose as a parse failure. The vertical branch separately rendered
+`response.reply` verbatim, leaking the same string a second way. (2) The
+underlying DENY: `configStore` initialises **asynchronously**, but
+`_read_demo_stack_flags` called `getEffective()` in a fresh `node -e` without
+awaiting `ensureInitialized()`, so it read env/registry defaults. With
+`ff_authorize_simulated` persisted ON, demo-sync read `simulated=0`, stopped
+`authz-server`, and PingGateway then failed closed on every tool call
+(`[P1AZ] httpPost failed … authz-server` → `DECISION: DENY`).
+
+**What was fixed:** the machine code now survives to the client, and both UI
+render paths resolve it through `NL_FAILURE_MESSAGES` to one plain sentence per
+failure class, falling back to `NL_FAILURE_FALLBACK` for unknown codes instead
+of echoing `err.message`/`response.reply`. `_read_demo_stack_flags` awaits
+`ensureInitialized()` so demo-sync sees the value the BFF actually enforces.
+
+**Do not break:** the agent transcript must never render a raw backend error
+string — new failure codes get a `NL_FAILURE_MESSAGES` entry, and anything
+unmapped must fall through to `NL_FAILURE_FALLBACK`. HITL/step-up codes
+(`hitl_required`, `mcp_hitl_required`, `step_up_required`,
+`mcp_step_up_required`) are gated responses, not failures, and must keep their
+existing approval-prompt text. Any fresh-process `configStore` read must await
+`ensureInitialized()` or it silently reports defaults.
+
+**Verify:** vitest `AIAgent.chips` ("agent failure envelopes render a plain
+sentence, not the raw error", 2 tests; suite 60 pass / 3 pre-existing failures
+unrelated to this change); `npm run build` exits 0; jest
+`demoAgentLangGraphService.{modes,tokens,heuristicVerticalTokenGuard}` 9 pass;
+`bash -n run-docker.sh`; live — awaited flag read matches
+`GET /api/admin/feature-flags`.
+
 ### 2026-07-17 — #539 amount-from-record dead on session-only `/api/mcp/tool`
 
 **Files changed:** `demo_api_server/services/mcpToolAuthorizationService.js`,

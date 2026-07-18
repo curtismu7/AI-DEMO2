@@ -1033,6 +1033,82 @@ describe("NL error envelope (BFF restarting) degrades gracefully", () => {
   });
 });
 
+// ─── Agent-run failures must never render the raw backend error ──────────────
+// Regression: a gateway policy DENY came back as HTTP 200 {success:false,
+// reply:"❌ Gateway policy denied the tool call"}. reportNlFailure had no branch
+// for the code, so it echoed the reply as "Could not parse: ❌ Gateway policy
+// denied the tool call" — a demo step showing a raw backend string.
+
+describe("agent failure envelopes render a plain sentence, not the raw error", () => {
+  let origFetch;
+
+  // Real chip path: /nl resolves a vertical intent (fetch), then sendAgentMessage
+  // (mocked service) runs the tool and returns success:false with backend prose.
+  const mockAgentFailure = async (body) => {
+    demoAgentService.sendAgentMessage.mockResolvedValue(body);
+    global.fetch = jest.fn((url) => {
+      if (String(url).includes("/api/demo-agent/nl")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            result: { kind: "vertical", action: "list_gear", vertical: "sporting-goods", params: {} },
+            source: "heuristic",
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    });
+  };
+
+  beforeEach(() => {
+    origFetch = global.fetch;
+  });
+
+  afterEach(() => {
+    global.fetch = origFetch;
+  });
+
+  it("maps gateway_policy_denied to a friendly sentence", async () => {
+    await mockAgentFailure({
+      success: false,
+      error: "gateway_policy_denied",
+      reply: "❌ Gateway policy denied the tool call",
+    });
+    renderAgent({ user: customerUser, mode: "inline" });
+    const input = screen.getByPlaceholderText(/^Message |^Ask about/);
+    fireEvent.change(input, { target: { value: "my gear" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => {
+      expect(
+        screen.getByText(/declined by the gateway's authorization policy/i),
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Could not parse/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Gateway policy denied the tool call/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("falls back to a plain sentence for an unrecognised code", async () => {
+    await mockAgentFailure({
+      success: false,
+      error: "some_new_backend_code",
+      reply: "❌ ECONNRESET at upstream::0x7f",
+    });
+    renderAgent({ user: customerUser, mode: "inline" });
+    const input = screen.getByPlaceholderText(/^Message |^Ask about/);
+    fireEvent.change(input, { target: { value: "my gear" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => {
+      expect(
+        screen.getByText(/couldn't be completed.*pick another demo step/i),
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/ECONNRESET/i)).not.toBeInTheDocument();
+  });
+});
+
 // ─── Chip useCaseId → dispatchNlResult → sendAgentMessage ────────────────────
 // Most chips are NOT `direct: true` — they fall through onChipClick to
 // dispatchNlResult's "vertical" branch, which calls
