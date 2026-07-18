@@ -33,7 +33,7 @@ import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 import axios, { AxiosError } from 'axios';
 import { GatewayConfig, isInternalSecretUsable } from '../config';
-import { adminConfigSafeView } from '../adminConfig';
+import { adminConfigSafeView, applyAdminConfigUpdate, ADMIN_CONFIG_ALLOWED_KEYS } from '../adminConfig';
 import { extractBearerToken, validateInboundToken, TokenValidationError } from '../tokenValidator';
 import { extractCorrelationId } from '../correlationId';
 import { selfBaseUrl } from '../selfBaseUrl';
@@ -183,6 +183,45 @@ export class GatewayServer {
       if (!this.requireInternalSecret(req, res)) return;
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(adminConfigSafeView(this.config)));
+      return;
+    }
+
+    // POST /admin/config — dynamic config updates (the BFF's sim arming:
+    // requireRarIntent / intentTokenRequired / requireActForAgentTools, and the
+    // Setup UI's devBypass toggle). The WS-era listener had this handler in
+    // index.ts (handleHttp) but it was never wired to this HTTP ingress, so
+    // every pushGatewayAdminConfig call 404'd and demo arming silently failed.
+    // Same secret gate as GET; all validation/hardening (strict booleans,
+    // production devBypass refusal) lives in applyAdminConfigUpdate.
+    if (url === '/admin/config' && method === 'POST') {
+      if (!this.requireInternalSecret(req, res)) return;
+      let adminBody: Buffer;
+      try {
+        adminBody = await this.readBody(req);
+      } catch {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'bad_request', message: 'Could not read request body' }));
+        return;
+      }
+      let updates: Partial<Record<string, unknown>>;
+      try {
+        updates = JSON.parse(adminBody.toString('utf-8') || '{}');
+      } catch {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+        return;
+      }
+      const result = applyAdminConfigUpdate(this.config, updates, process.env.NODE_ENV);
+      if (result.mutated) {
+        console.log(
+          '[GW] /admin/config updated:',
+          Object.keys(updates).filter((k) =>
+            ADMIN_CONFIG_ALLOWED_KEYS.includes(k as keyof typeof this.config),
+          ),
+        );
+      }
+      res.writeHead(result.status, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(result.body));
       return;
     }
 
