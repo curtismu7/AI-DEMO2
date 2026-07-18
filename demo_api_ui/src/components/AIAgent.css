@@ -4932,7 +4932,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   justify-content: center;
   width: 22px;
   height: 22px;
-  margin: 0 12px 0 4px;
+  margin: 0 14px 0 6px;
   border-radius: 999px;
   border: 1.5px solid var(--ba-text-secondary, #64748b);
   background: transparent;
