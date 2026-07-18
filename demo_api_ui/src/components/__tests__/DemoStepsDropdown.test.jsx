@@ -118,10 +118,11 @@ describe('DemoStepsDropdown', () => {
 
   it('opens the explain modal from the per-step icon without running the step', async () => {
     const onSelect = vi.fn();
+    const onOpenChange = vi.fn();
     render(
       <DemoStepsDropdown
         open
-        onOpenChange={() => {}}
+        onOpenChange={onOpenChange}
         onSelect={onSelect}
       />,
     );
@@ -132,5 +133,8 @@ describe('DemoStepsDropdown', () => {
     expect(await screen.findByText('Long explanation for UC1')).toBeInTheDocument();
     // The icon explains only — running the step stays on the row button.
     expect(onSelect).not.toHaveBeenCalled();
+    // The popout MUST close: it is z-index 100061 and DraggableModal is 9999,
+    // so leaving it open renders the explanation behind the dropdown.
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 });

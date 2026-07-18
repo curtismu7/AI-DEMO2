@@ -132,6 +132,16 @@ export default function DemoStepsDropdown({
     setTick((n) => n + 1);
   }
 
+  /**
+   * Open the explanation for a step. The popout must close first: it is
+   * z-index 100061 (`.ba-actions-popout`) and DraggableModal defaults to 9999,
+   * so leaving it open renders the modal behind the dropdown.
+   */
+  function handleExplain(uc) {
+    onOpenChange(false);
+    setExplainUc(uc);
+  }
+
   /** Reset demo check-offs for a fresh presenter pass. */
   function handleClearProgress() {
     clearCompletedUseCases();
@@ -167,7 +177,7 @@ export default function DemoStepsDropdown({
         <button
           type="button"
           className="ba-demo-steps-popout__explain"
-          onClick={() => setExplainUc(uc)}
+          onClick={() => handleExplain(uc)}
           title="Explain this step"
           aria-label={`Explain step ${stepNumber}: ${uc.id} — ${uc.title}`}
           data-testid={`demo-explain-${uc.id}`}
