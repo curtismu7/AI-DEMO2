@@ -12,8 +12,16 @@ const ledger = require('../../services/lmdb/transactionLedger.lmdb');
 const { assemble } = require('../../services/transactionAssembler');
 const router = require('../../routes/transactionTrace');
 
-function app() {
+// Defaults to an admin identity so pre-existing tests that aren't about
+// ownership (list/limit/degrade/traceId behaviour) keep exercising exactly
+// what they did before ownership enforcement was added. Ownership-specific
+// tests below pass an explicit non-admin user.
+function app(user = { id: 'admin-test', role: 'admin' }) {
   const a = express();
+  a.use((req, res, next) => {
+    req.user = user;
+    next();
+  });
   a.use('/api/transaction-trace', router);
   return a;
 }
@@ -68,5 +76,75 @@ describe('GET /api/transaction-trace', () => {
     const res = await request(app()).get('/api/transaction-trace');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ transactions: [] });
+  });
+});
+
+describe('ownership enforcement — GET /api/transaction-trace/:correlationId', () => {
+  beforeEach(() => { jest.clearAllMocks(); });
+
+  test('non-admin gets their own record', async () => {
+    assemble.mockResolvedValue({
+      correlationId: 'c1', startedAt: 'A', endedAt: 'B', principal: 'user-1',
+      hops: [{ seq: 1, phase: 'ui.request', service: 'demo-api-server' }],
+    });
+    const res = await request(app({ id: 'user-1', role: 'customer' })).get('/api/transaction-trace/c1');
+    expect(res.status).toBe(200);
+    expect(res.body.correlationId).toBe('c1');
+  });
+
+  test('non-admin gets 404 (not 403) for another principal\'s record', async () => {
+    assemble.mockResolvedValue({
+      correlationId: 'c1', startedAt: 'A', endedAt: 'B', principal: 'other-user', hops: [],
+    });
+    const res = await request(app({ id: 'user-1', role: 'customer' })).get('/api/transaction-trace/c1');
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'not_found' });
+  });
+
+  test('non-admin gets 404 for a record with an unattributed (unknown) principal', async () => {
+    assemble.mockResolvedValue({
+      correlationId: 'c1', startedAt: 'A', endedAt: 'B', principal: null, hops: [],
+    });
+    const res = await request(app({ id: 'user-1', role: 'customer' })).get('/api/transaction-trace/c1');
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'not_found' });
+  });
+
+  test('admin gets a record owned by another principal', async () => {
+    assemble.mockResolvedValue({
+      correlationId: 'c1', startedAt: 'A', endedAt: 'B', principal: 'other-user', hops: [],
+    });
+    const res = await request(app({ id: 'admin-1', role: 'admin' })).get('/api/transaction-trace/c1');
+    expect(res.status).toBe(200);
+  });
+
+  test('admin gets a record with an unattributed (unknown) principal', async () => {
+    assemble.mockResolvedValue({
+      correlationId: 'c1', startedAt: 'A', endedAt: 'B', principal: null, hops: [],
+    });
+    const res = await request(app({ id: 'admin-1', role: 'admin' })).get('/api/transaction-trace/c1');
+    expect(res.status).toBe(200);
+  });
+});
+
+describe('ownership enforcement — GET /api/transaction-trace (list)', () => {
+  beforeEach(() => { jest.clearAllMocks(); });
+
+  const RECORDS = [
+    { correlationId: 'c1', startedAt: 'B', endedAt: 'B', hopCount: 1, principal: 'user-1' },
+    { correlationId: 'c2', startedAt: 'A', endedAt: 'A', hopCount: 1, principal: 'user-2' },
+    { correlationId: 'c3', startedAt: 'C', endedAt: 'C', hopCount: 1, principal: null },
+  ];
+
+  test('non-admin sees only their own transactions', async () => {
+    ledger.listRecords.mockReturnValue(RECORDS);
+    const res = await request(app({ id: 'user-1', role: 'customer' })).get('/api/transaction-trace');
+    expect(res.body.transactions.map((t) => t.correlationId)).toEqual(['c1']);
+  });
+
+  test('admin sees all transactions, including unattributed ones', async () => {
+    ledger.listRecords.mockReturnValue(RECORDS);
+    const res = await request(app({ id: 'admin-1', role: 'admin' })).get('/api/transaction-trace');
+    expect(res.body.transactions.map((t) => t.correlationId)).toEqual(['c1', 'c2', 'c3']);
   });
 });

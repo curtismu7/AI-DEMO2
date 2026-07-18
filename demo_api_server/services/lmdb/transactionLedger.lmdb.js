@@ -60,6 +60,7 @@ function appendHop(correlationId, hop) {
     startedAt: hopTs,
     endedAt: hopTs,
     hops: [],
+    principal: null,
     _insertedAt: now,
   };
 
@@ -67,6 +68,13 @@ function appendHop(correlationId, hop) {
   // endedAt tracks the latest hop timestamp seen, in the same (logical) clock
   // domain as startedAt, so it can never read earlier than startedAt.
   record.endedAt = _laterOf(record.endedAt, hopTs);
+  // principal is the first non-null hop.identity.sub seen for this transaction,
+  // set once and never overwritten. Hops arrive out of order from six services;
+  // a later hop (possibly a different subject) must not be able to reassign
+  // ownership once it has been established.
+  if (!record.principal && hop.identity && hop.identity.sub) {
+    record.principal = hop.identity.sub;
+  }
   db.putSync(correlationId, record);
 
   // Only a NEW transaction can push the store over the cap — appending to an
@@ -110,7 +118,7 @@ function getRecord(correlationId) {
  * Newest-first transaction summaries.
  * @param {object} [opts]
  * @param {number} [opts.limit=100]
- * @returns {object[]} [{ correlationId, startedAt, endedAt, hopCount }]
+ * @returns {object[]} [{ correlationId, startedAt, endedAt, hopCount, principal }]
  */
 function listRecords(opts = {}) {
   const limit = Number.isFinite(opts.limit) ? opts.limit : 100;
@@ -122,6 +130,7 @@ function listRecords(opts = {}) {
       startedAt: value.startedAt,
       endedAt: value.endedAt,
       hopCount: Array.isArray(value.hops) ? value.hops.length : 0,
+      principal: value.principal || null,
     });
   }
   out.sort((a, b) => (a.startedAt < b.startedAt ? 1 : a.startedAt > b.startedAt ? -1 : 0));

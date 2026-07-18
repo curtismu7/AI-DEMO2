@@ -98,6 +98,38 @@ describe('transactionLedger', () => {
     expect(ledger.listRecords({ limit: 10000 })).toHaveLength(ledger.MAX_TRANSACTIONS);
   });
 
+  test('principal is set from the first hop carrying identity.sub', () => {
+    ledger.appendHop('c1', { service: 'x', phase: 'ui.request', identity: { sub: 'user-1' } });
+    expect(ledger.getRecord('c1').principal).toBe('user-1');
+  });
+
+  test('principal is NOT overwritten by a later hop with a different sub', () => {
+    ledger.appendHop('c1', { service: 'x', phase: 'ui.request', identity: { sub: 'user-1' } });
+    ledger.appendHop('c1', { service: 'y', phase: 'mcp.tool', identity: { sub: 'user-2' } });
+    expect(ledger.getRecord('c1').principal).toBe('user-1');
+  });
+
+  test('a record whose hops never carry a sub has a null principal', () => {
+    ledger.appendHop('c1', { service: 'x', phase: 'ui.request' });
+    ledger.appendHop('c1', { service: 'y', phase: 'response', identity: {} });
+    expect(ledger.getRecord('c1').principal).toBeNull();
+  });
+
+  test('a later hop can set principal when no earlier hop carried a sub', () => {
+    ledger.appendHop('c1', { service: 'x', phase: 'ui.request' });
+    ledger.appendHop('c1', { service: 'y', phase: 'mcp.tool', identity: { sub: 'user-1' } });
+    expect(ledger.getRecord('c1').principal).toBe('user-1');
+  });
+
+  test('listRecords includes principal in the summary', () => {
+    ledger.appendHop('c1', { service: 'x', phase: 'ui.request', identity: { sub: 'user-1' } });
+    ledger.appendHop('c2', { service: 'x', phase: 'ui.request' });
+    const list = ledger.listRecords();
+    const byId = Object.fromEntries(list.map((r) => [r.correlationId, r.principal]));
+    expect(byId.c1).toBe('user-1');
+    expect(byId.c2).toBeNull();
+  });
+
   test('clear wipes the store', () => {
     ledger.appendHop('c1', { service: 'x', phase: 'ui.request' });
     ledger.clear();

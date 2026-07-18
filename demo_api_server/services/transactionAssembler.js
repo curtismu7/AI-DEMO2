@@ -48,9 +48,14 @@ function _toDerivedHop(evt) {
   };
 }
 
-async function _derivedTokenHops(correlationId) {
+async function _derivedTokenHops(correlationId, principal) {
+  // No attributable principal on this record (no hop ever carried an
+  // identity.sub) — do NOT fall back to the unscoped, all-users
+  // getTokenChain() call. That fallback is the confidentiality leak this
+  // scoping closes: it could surface a different principal's sub/act/scopes.
+  if (!principal) return [];
   try {
-    const events = await tokenChainService.getTokenChain();
+    const events = await tokenChainService.getTokenChain(principal);
     return (Array.isArray(events) ? events : [])
       .filter((e) => !_isFixtureRecord(e))
       .filter((e) => e && e.correlationId === correlationId)
@@ -73,8 +78,9 @@ async function assemble(correlationId) {
   const record = ledger.getRecord(correlationId);
   if (!record) return null;
 
+  const principal = record.principal || null;
   const emitted = (record.hops || []).map((h) => ({ ...h, source: h.source || 'emit' }));
-  const derived = await _derivedTokenHops(correlationId);
+  const derived = await _derivedTokenHops(correlationId, principal);
 
   const hops = [...emitted, ...derived]
     .sort((a, b) => (String(a.ts) < String(b.ts) ? -1 : String(a.ts) > String(b.ts) ? 1 : 0))
@@ -84,6 +90,7 @@ async function assemble(correlationId) {
     correlationId: record.correlationId,
     startedAt: record.startedAt,
     endedAt: record.endedAt,
+    principal,
     hops,
   };
 }
