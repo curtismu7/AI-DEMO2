@@ -1,9 +1,11 @@
 // Pure geometry/layout helpers for the Telemetry page graph. No DOM, no fetch —
 // vitest-testable in isolation (mirrors the tracingServiceSelect.js pattern).
 
-export const NODE_RADIUS = 40;
+// Node cards are rounded rectangles (mindmap style), not circles.
+export const CARD_W = 150;
+export const CARD_H = 54;
 
-const MARGIN_X = 70;
+const MARGIN_X = 100;
 const MARGIN_Y = 60;
 
 /**
@@ -61,7 +63,7 @@ export function autoLayout(graph, width, height) {
   const positions = new Map();
   for (const [depth, ids] of byDepth) {
     const evenSpread = (height - 2 * MARGIN_Y) / Math.max(1, ids.length - 1);
-    const rowStep = Math.max(2 * NODE_RADIUS + 24, evenSpread);
+    const rowStep = Math.max(CARD_H + 30, evenSpread);
     ids.forEach((id, i) => {
       const y = height / 2 + (i - (ids.length - 1) / 2) * rowStep;
       positions.set(id, { x: MARGIN_X + depth * colStep, y });
@@ -84,28 +86,26 @@ export function mergePositions(prev, graph, width, height) {
 }
 
 /**
- * Line endpoints trimmed to circle borders plus a midpoint label position
- * offset perpendicular to the line.
+ * Curved ribbon between two cards: a horizontal cubic bezier from the source
+ * card's right edge to the target card's left edge, plus a label position
+ * nudged above the curve midpoint (the page renders labels in a top layer
+ * with a white halo so they never hide behind cards or ribbons).
  */
-export function edgeGeometry(sourcePos, targetPos, radius = NODE_RADIUS) {
-  const dx = targetPos.x - sourcePos.x;
-  const dy = targetPos.y - sourcePos.y;
-  const dist = Math.hypot(dx, dy) || 1;
-  const ux = dx / dist;
-  const uy = dy / dist;
-  const x1 = sourcePos.x + ux * (radius + 2);
-  const y1 = sourcePos.y + uy * (radius + 2);
-  const x2 = targetPos.x - ux * (radius + 6);
-  const y2 = targetPos.y - uy * (radius + 6);
+export function edgePath(sourcePos, targetPos) {
+  const x1 = sourcePos.x + CARD_W / 2;
+  const y1 = sourcePos.y;
+  const x2 = targetPos.x - CARD_W / 2;
+  const y2 = targetPos.y;
+  const mx = (x1 + x2) / 2;
   return {
-    x1, y1, x2, y2,
-    labelX: (x1 + x2) / 2 - uy * 12,
-    labelY: (y1 + y2) / 2 + ux * 12 - 4,
+    d: `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`,
+    labelX: mx,
+    labelY: (y1 + y2) / 2 - 10,
   };
 }
 
 /** Wrap a label to at most 2 lines of ~maxChars; ellipsize overflow. */
-export function wrapLabel(label, maxChars = 12) {
+export function wrapLabel(label, maxChars = 20) {
   const words = String(label || '').split(/\s+/).filter(Boolean);
   const lines = [];
   let current = '';

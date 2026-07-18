@@ -59,8 +59,9 @@ describe('GET /api/health/tracing/graph', () => {
     const res = await request(makeApp()).get('/api/health/tracing/graph?lookback=1h');
     expect(res.status).toBe(200);
     expect(res.body.tracingEnabled).toBe(true);
-    expect(res.body.nodes.map((n) => n.id).sort()).toEqual(['demo-api-server', 'mcp-gateway']);
+    expect(res.body.nodes.map((n) => n.id).sort()).toEqual(['chat-ui', 'demo-api-server', 'mcp-gateway']);
     expect(res.body.edges).toEqual([
+      { source: 'chat-ui', target: 'demo-api-server', label: 'HTTPS' },
       { source: 'demo-api-server', target: 'mcp-gateway', label: 'mcp:tool' },
     ]);
   });

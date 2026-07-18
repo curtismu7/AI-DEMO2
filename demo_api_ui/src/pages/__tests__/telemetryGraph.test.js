@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  NODE_RADIUS,
+  CARD_W,
+  CARD_H,
   autoLayout,
-  edgeGeometry,
+  edgePath,
   mergePositions,
   wrapLabel,
 } from "../telemetryGraph";
@@ -36,10 +37,10 @@ describe("autoLayout", () => {
     };
     const pos = autoLayout(g, 900, 400);
     expect(pos.get("x").x).toBe(pos.get("y").x);
-    expect(Math.abs(pos.get("x").y - pos.get("y").y)).toBeGreaterThanOrEqual(2 * NODE_RADIUS);
+    expect(Math.abs(pos.get("x").y - pos.get("y").y)).toBeGreaterThanOrEqual(CARD_H);
   });
 
-  it("keeps at least 2*NODE_RADIUS separation even with many same-depth nodes", () => {
+  it("keeps at least CARD_H separation even with many same-depth nodes", () => {
     const g = {
       nodes: [{ id: "r" }, { id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }, { id: "e" }],
       edges: ["a", "b", "c", "d", "e"].map((id) => ({ source: "r", target: id, label: "" })),
@@ -47,7 +48,7 @@ describe("autoLayout", () => {
     const pos = autoLayout(g, 900, 400);
     const ys = ["a", "b", "c", "d", "e"].map((id) => pos.get(id).y).sort((m, n) => m - n);
     for (let i = 1; i < ys.length; i++) {
-      expect(ys[i] - ys[i - 1]).toBeGreaterThanOrEqual(2 * NODE_RADIUS);
+      expect(ys[i] - ys[i - 1]).toBeGreaterThanOrEqual(CARD_H);
     }
   });
 
@@ -80,19 +81,22 @@ describe("mergePositions", () => {
   });
 });
 
-describe("edgeGeometry", () => {
-  it("trims endpoints to the circle borders", () => {
-    const g = edgeGeometry({ x: 0, y: 0 }, { x: 100, y: 0 }, 40);
-    expect(g.x1).toBeCloseTo(42, 0);
-    expect(g.x2).toBeCloseTo(100 - 46, 0);
-    expect(g.y1).toBeCloseTo(0, 5);
+describe("edgePath", () => {
+  it("connects the source card's right edge to the target card's left edge", () => {
+    const g = edgePath({ x: 0, y: 0 }, { x: 400, y: 100 });
+    const x1 = CARD_W / 2;
+    const x2 = 400 - CARD_W / 2;
+    const mx = (x1 + x2) / 2;
+    expect(g.d).toBe(`M ${x1} 0 C ${mx} 0, ${mx} 100, ${x2} 100`);
+    expect(g.labelX).toBe(mx);
+    expect(g.labelY).toBe(50 - 10);
   });
 });
 
 describe("wrapLabel", () => {
   it("returns one line for short labels, two lines for long ones", () => {
     expect(wrapLabel("BFF")).toEqual(["BFF"]);
-    const lines = wrapLabel("demo-api-server: POST /api/agent/run");
+    const lines = wrapLabel("demo-api-server: POST /api/agent/run with extras");
     expect(lines).toHaveLength(2);
   });
 });
