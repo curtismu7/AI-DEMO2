@@ -102,8 +102,13 @@ function buildOverviewGraph(traces) {
   const edgeMap = new Map(); // "src-->tgt" -> label
 
   for (const trace of Array.isArray(traces) ? traces : []) {
-    const spans = Array.isArray(trace?.spans) ? trace.spans : [];
     const processes = trace?.processes || {};
+    // Jaeger instruments itself; its query-handling spans join BFF traces via
+    // context propagation. Drop them entirely so the demo graph never shows a
+    // jaeger-all-in-one node or edges to it.
+    const spans = (Array.isArray(trace?.spans) ? trace.spans : []).filter(
+      (s) => serviceOf(s, processes) !== 'jaeger-all-in-one',
+    );
     const spanIds = new Set(spans.map((s) => s.spanID));
     const byId = new Map(spans.map((s) => [s.spanID, s]));
 

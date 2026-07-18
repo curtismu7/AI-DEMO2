@@ -149,6 +149,20 @@ describe('buildOverviewGraph', () => {
     ]);
   });
 
+  it('drops jaeger-all-in-one spans (Jaeger self-instrumentation)', () => {
+    const t = fixtureTrace();
+    t.processes.p9 = { serviceName: 'jaeger-all-in-one' };
+    t.spans.push({
+      traceID: 'abc123', spanID: 's9', processID: 'p9',
+      operationName: 'getServices', startTime: 9000, duration: 1000,
+      references: [{ refType: 'CHILD_OF', traceID: 'abc123', spanID: 's1' }],
+      tags: [],
+    });
+    const g = buildOverviewGraph([t]);
+    expect(g.nodes.map((n) => n.id)).not.toContain('jaeger-all-in-one');
+    expect(g.edges.some((e) => e.target === 'jaeger-all-in-one')).toBe(false);
+  });
+
   it('returns empty graph for no traces', () => {
     expect(buildOverviewGraph([])).toEqual({ nodes: [], edges: [] });
   });

@@ -641,6 +641,73 @@ _purge_leftover_stack() {
     docker rm -f ${ids} 2>/dev/null || true
   fi
   docker network rm ai-demo_ai-demo 2>/dev/null || true
+  # `network rm` returns before the daemon finishes tearing the network down.
+  # The next `compose up` then creates a fresh ai-demo_ai-demo and the lagging
+  # removal deletes it out from under the starting containers — the start dies
+  # with "failed to set up container networking: network ai-demo_ai-demo not
+  # found". Block until it is really gone (~5s ceiling; proceed anyway after).
+  local waited=0
+  while docker network inspect ai-demo_ai-demo >/dev/null 2>&1; do
+    (( waited >= 50 )) && { warn "network ai-demo_ai-demo still present after 5s — continuing"; break; }
+    sleep 0.1
+    (( waited++ )) || true
+  done
+}
+
+# Post-start gate: every core service must actually be RUNNING before the script
+# reports success. Two real failures motivated this and both reported success:
+#   - `up -d ... ${otel_services}` in cmd_demo_sync is `>/dev/null 2>&1 || true`,
+#     so an mcp-server that failed to come up was silent — the gateway then
+#     PERMITted the tool call and returned 502 with no backend behind it.
+#   - the UI container raced the BFF, Vite died before binding :4000, and the
+#     container still showed Up (it has no healthcheck).
+# One restart is attempted per down service; anything still down is reported by
+# name so the operator sees it instead of a broken demo step.
+_verify_core_running() {
+  local svc cname down=() fixed=() err_svc=()
+  for svc in "${_CORE_UP[@]}" demo-api-server; do
+    # Compose service -> container name (demo-api-server is the one that differs).
+    cname="ai-demo-${svc}"
+    [[ "${svc}" == "demo-api-server" ]] && cname="ai-demo-api-server"
+    docker inspect -f '{{.State.Running}}' "${cname}" 2>/dev/null | grep -q true && continue
+    down+=("${svc}")
+  done
+
+  if [[ ${#down[@]} -gt 0 ]]; then
+    warn "Core service(s) not running after start: ${down[*]} — retrying once"
+    docker compose "${COMPOSE_FILES[@]}" up -d "${down[@]}" 2>&1 | tail -3
+    sleep 5
+    for svc in "${down[@]}"; do
+      cname="ai-demo-${svc}"
+      [[ "${svc}" == "demo-api-server" ]] && cname="ai-demo-api-server"
+      docker inspect -f '{{.State.Running}}' "${cname}" 2>/dev/null | grep -q true \
+        && fixed+=("${svc}") \
+        || err_svc+=("${svc}")
+    done
+    [[ ${#fixed[@]} -gt 0 ]] && ok "Recovered: ${fixed[*]}"
+  fi
+
+  # The UI has no healthcheck, so Running is not enough — confirm Vite bound the
+  # port. A dead dev server here renders a blank dashboard with no other signal.
+  if printf '%s\n' "${_CORE_UP[@]}" | grep -qx 'ui'; then
+    if ! docker exec ai-demo-ui sh -c 'netstat -tln 2>/dev/null | grep -q ":4000 "' 2>/dev/null; then
+      warn "UI container is up but Vite is not listening on :4000 (it can lose the race with the BFF) — restarting it"
+      docker restart ai-demo-ui >/dev/null 2>&1 || true
+      sleep 12
+      if docker exec ai-demo-ui sh -c 'netstat -tln 2>/dev/null | grep -q ":4000 "' 2>/dev/null; then
+        ok "UI recovered — Vite listening on :4000"
+      else
+        warn "UI still not serving :4000 — check: ./run-docker.sh logs ui"
+      fi
+    fi
+  fi
+
+  if [[ ${#err_svc[@]} -gt 0 ]]; then
+    warn "STILL DOWN after retry: ${err_svc[*]} — the demo will fail on any step that needs them."
+    warn "Check: ./run-docker.sh logs <service>"
+    return 1
+  fi
+  return 0
 }
 
 _compose_down() {
@@ -1152,6 +1219,12 @@ cmd_start() {
 
   echo ""
   cmd_demo_sync
+
+  # Runs AFTER demo-sync: that step recreates instrumented services (mcp-server
+  # among them) with its errors suppressed, so this is the first point where the
+  # real end state is known.
+  echo ""
+  _verify_core_running || true
 
   echo ""
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
