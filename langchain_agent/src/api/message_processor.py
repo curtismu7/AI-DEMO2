@@ -1062,6 +1062,12 @@ class MessageProcessor:
         turn_reply_text = ""
         pending_tool_calls: dict = {}
         turn_tool_calls: list = []
+        # True once the run has produced ANYTHING the user can see (streamed
+        # text, a single-shot fallback message, or a tool call). A model that
+        # returns empty content and calls no tool -- seen intermittently with
+        # Groq on ambiguous prompts -- otherwise leaves the user staring at a
+        # blank chat with no error and no explanation.
+        any_visible_output = False
 
         async for event in active_graph.astream_events(
             agent_input, config=active_config, version="v2"
@@ -1082,6 +1088,7 @@ class MessageProcessor:
                         llm_streaming = True
                     await emitter.on_llm_new_token(token)
                     turn_reply_text += token
+                    any_visible_output = True
 
             elif event_name == "on_chat_model_end":
                 output = event_data.get("output")
@@ -1096,6 +1103,7 @@ class MessageProcessor:
                         await emitter.on_llm_start()
                         await emitter.on_llm_new_token(final_text)
                         await emitter.on_llm_end()
+                        any_visible_output = True
                 if output and (usage := getattr(output, "usage_metadata", None)):
                     # usage_metadata is a TypedDict (plain dict at runtime), so
                     # attribute access always yields the default 0 — read keys.
@@ -1138,6 +1146,7 @@ class MessageProcessor:
                     "name": event.get("name", "unknown_tool"),
                     "args": event_data.get("input"),
                 }
+                any_visible_output = True
                 await emitter.on_tool_start(
                     serialized,
                     tool_call_id=tool_call_id,
@@ -1165,6 +1174,17 @@ class MessageProcessor:
         # 4. Close the LLM message if it was still open at stream end.
         if llm_streaming:
             await emitter.on_llm_end()
+
+        if not any_visible_output:
+            logger.warning(
+                "[AG-UI] run produced no visible output (no text, no tool call) for session %s",
+                session_id,
+            )
+            await emitter.on_error(RuntimeError(
+                "The model didn't return a usable response. Try rephrasing your "
+                "request or sending it again."
+            ))
+            return
 
         if contains_commitment_claim(turn_reply_text):
             try:
