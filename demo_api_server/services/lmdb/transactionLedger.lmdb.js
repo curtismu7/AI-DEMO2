@@ -26,6 +26,23 @@ function _db() {
 }
 
 /**
+ * Resolve a hop's timestamp: a caller-supplied `ts` is trusted only if it
+ * parses to a real date; anything missing or malformed falls back to
+ * wall-clock `now` rather than propagating garbage into the record.
+ */
+function _resolveHopTs(rawTs, now) {
+  if (typeof rawTs === 'string' && rawTs && !Number.isNaN(new Date(rawTs).getTime())) {
+    return rawTs;
+  }
+  return now;
+}
+
+/** The later of two ISO timestamps, compared as dates (not strings). */
+function _laterOf(a, b) {
+  return new Date(b) > new Date(a) ? b : a;
+}
+
+/**
  * Append a hop to its transaction, creating the record on first hop.
  * @param {string} correlationId
  * @param {object} hop
@@ -34,12 +51,22 @@ function _db() {
 function appendHop(correlationId, hop) {
   const db = _db();
   const now = new Date().toISOString();
-  const hopTs = hop.ts || now;
+  const hopTs = _resolveHopTs(hop.ts, now);
   const existing = db.get(correlationId) || null;
-  const record = existing || { correlationId, startedAt: hopTs, endedAt: now, hops: [] };
+  // _insertedAt is internal wall-clock bookkeeping for eviction ordering only
+  // — never caller-supplied, never exposed via listRecords/getRecord callers.
+  const record = existing || {
+    correlationId,
+    startedAt: hopTs,
+    endedAt: hopTs,
+    hops: [],
+    _insertedAt: now,
+  };
 
   record.hops.push({ ...hop, seq: record.hops.length + 1, ts: hopTs });
-  record.endedAt = now;
+  // endedAt tracks the latest hop timestamp seen, in the same (logical) clock
+  // domain as startedAt, so it can never read earlier than startedAt.
+  record.endedAt = _laterOf(record.endedAt, hopTs);
   db.putSync(correlationId, record);
 
   // Only a NEW transaction can push the store over the cap — appending to an
@@ -59,9 +86,14 @@ function _evict(db) {
 
   const entries = [];
   for (const { key, value } of db.getRange()) {
-    entries.push({ key, startedAt: (value && value.startedAt) || '' });
+    // _insertedAt (wall-clock, set once at creation) drives eviction order so
+    // a caller-supplied startedAt can't make a fresh record look oldest and
+    // get evicted before the rest of its hops arrive. Records written before
+    // this field existed fall back to startedAt.
+    const order = (value && (value._insertedAt || value.startedAt)) || '';
+    entries.push({ key, order });
   }
-  entries.sort((a, b) => (a.startedAt < b.startedAt ? -1 : a.startedAt > b.startedAt ? 1 : 0));
+  entries.sort((a, b) => (a.order < b.order ? -1 : a.order > b.order ? 1 : 0));
   for (const e of entries.slice(0, entries.length - MAX_TRANSACTIONS)) db.removeSync(e.key);
 }
 

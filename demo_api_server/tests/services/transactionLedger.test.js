@@ -104,4 +104,62 @@ describe('transactionLedger', () => {
     expect(ledger.getRecord('c1')).toBeNull();
     expect(ledger.listRecords()).toEqual([]);
   });
+
+  test('a stale first-hop ts does not make a brand-new record preferentially evictable', () => {
+    // Fill the store to capacity with genuinely-old-by-insertion records.
+    for (let i = 0; i < ledger.MAX_TRANSACTIONS; i++) {
+      ledger.appendHop(`c${String(i).padStart(4, '0')}`, { service: 'x', phase: 'ui.request' });
+    }
+    // A brand-new transaction whose first hop carries a very old (e.g. replayed)
+    // ts. Eviction must go by real insertion order, not this spoofable value.
+    ledger.appendHop('stale-ts', {
+      service: 'x',
+      phase: 'ui.request',
+      ts: '1999-01-01T00:00:00.000Z',
+    });
+
+    expect(ledger.listRecords({ limit: 10000 })).toHaveLength(ledger.MAX_TRANSACTIONS);
+    expect(ledger.getRecord('stale-ts')).not.toBeNull();
+    expect(ledger.getRecord('c0000')).toBeNull(); // actually-oldest-inserted record is evicted instead
+  });
+
+  test('pre-existing records lacking _insertedAt still evict by startedAt fallback', () => {
+    const db = openEnvMock.getDb(ledger.DB_NAME);
+    // Simulate data written before _insertedAt existed: no _insertedAt field.
+    db.putSync('legacy-oldest', {
+      correlationId: 'legacy-oldest',
+      startedAt: '2020-01-01T00:00:00.000Z',
+      endedAt: '2020-01-01T00:00:00.000Z',
+      hops: [{ service: 'x', phase: 'ui.request', seq: 1, ts: '2020-01-01T00:00:00.000Z' }],
+    });
+    for (let i = 0; i < ledger.MAX_TRANSACTIONS; i++) {
+      ledger.appendHop(`c${String(i).padStart(4, '0')}`, { service: 'x', phase: 'ui.request' });
+    }
+
+    expect(ledger.listRecords({ limit: 10000 })).toHaveLength(ledger.MAX_TRANSACTIONS);
+    expect(ledger.getRecord('legacy-oldest')).toBeNull();
+  });
+
+  test('endedAt is never earlier than startedAt, even when a later hop carries an earlier ts', () => {
+    ledger.appendHop('c1', { service: 'x', phase: 'ui.request', ts: '2026-07-18T12:00:00.000Z' });
+    const rec = ledger.appendHop('c1', {
+      service: 'y',
+      phase: 'response',
+      ts: '2026-07-18T01:00:00.000Z', // earlier than the first hop's ts
+    });
+
+    expect(rec.startedAt).toBe('2026-07-18T12:00:00.000Z');
+    expect(new Date(rec.endedAt).getTime()).toBeGreaterThanOrEqual(new Date(rec.startedAt).getTime());
+  });
+
+  test('an unparseable ts does not corrupt startedAt/endedAt ordering', () => {
+    const rec = ledger.appendHop('bad-ts', { service: 'x', phase: 'ui.request', ts: 'not-a-timestamp' });
+
+    expect(Number.isNaN(new Date(rec.startedAt).getTime())).toBe(false);
+    expect(Number.isNaN(new Date(rec.endedAt).getTime())).toBe(false);
+    expect(new Date(rec.endedAt).getTime()).toBeGreaterThanOrEqual(new Date(rec.startedAt).getTime());
+
+    const second = ledger.appendHop('bad-ts', { service: 'y', phase: 'response', ts: 'also-garbage' });
+    expect(new Date(second.endedAt).getTime()).toBeGreaterThanOrEqual(new Date(second.startedAt).getTime());
+  });
 });
