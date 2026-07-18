@@ -6444,7 +6444,19 @@ export default function BankingAgent({
             response.error === "authorization_denied" ||
             response.error === "mcp_authorization_denied"
           ) {
-            const replyText = response.reply || "This action requires additional authorization.";
+            // HITL/step-up blocks: show the pending-approval notice, not the raw
+            // error_description (same reasoning as the kind:'vertical' handler —
+            // the raw text reads as a canned refusal next to the approval modal).
+            // A hard DENY still echoes the reply, which explains the denial.
+            const isApprovalGate = [
+              "hitl_required",
+              "mcp_hitl_required",
+              "step_up_required",
+              "mcp_step_up_required",
+            ].includes(response.error);
+            const replyText = isApprovalGate
+              ? "This action needs your approval before it can run — check the approval prompt."
+              : (response.reply || "This action requires additional authorization.");
             const replyWithAgentBadge = `[CUSTOMER AGENT]\n${replyText}`;
             addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
             if (response.tokenEvents?.length) {
@@ -6457,25 +6469,51 @@ export default function BankingAgent({
                 addMessage("token-event", agentTokenMsg, null);
               }
             }
-            // Trigger HITL consent modal when the response has transaction details
-            if (
-              (response.error === "hitl_required" || response.error === "mcp_hitl_required") &&
-              response.transactionAmount != null
-            ) {
-              const intentPayload = {
-                type: response.transactionType || "transfer",
-                fromAccountId: response.fromAccountId || response.from_account_id,
-                toAccountId: response.toAccountId || response.to_account_id,
-                amount: response.transactionAmount,
-                description: `Agent ${response.transactionType || "transfer"}`,
-              };
-              setHitlPendingIntent({
-                actionId: response.transactionType || "transfer",
-                form: {},
-                intentPayload,
-                threshold: response.hitl_threshold_usd ?? APP_CONFIG.THRESHOLDS.HITL_DEFAULT,
-                hitlChallengeId: response.hitlChallengeId || response.challengeId || null,
-              });
+            // Trigger the approval modal. Two shapes, both required here:
+            //   - banking transfers/deposits/withdrawals carry transactionAmount
+            //     → monetary consent intent (unchanged).
+            //   - vertical plugin tools (extend_rental, pay_bill, checkout, …)
+            //     carry NO amount → the isVerticalConsent shape, same as the
+            //     kind:'vertical' handler. Step-up (mcp_step_up_required) must
+            //     open it too; without this, Demo Steps UC7/UC8 printed the gate
+            //     text and never prompted the user.
+            if (isApprovalGate) {
+              if (response.transactionAmount != null) {
+                const intentPayload = {
+                  type: response.transactionType || "transfer",
+                  fromAccountId: response.fromAccountId || response.from_account_id,
+                  toAccountId: response.toAccountId || response.to_account_id,
+                  amount: response.transactionAmount,
+                  description: `Agent ${response.transactionType || "transfer"}`,
+                };
+                setHitlPendingIntent({
+                  actionId: response.transactionType || "transfer",
+                  form: {},
+                  intentPayload,
+                  threshold: response.hitl_threshold_usd ?? APP_CONFIG.THRESHOLDS.HITL_DEFAULT,
+                  hitlChallengeId: response.hitlChallengeId || response.challengeId || null,
+                });
+              } else {
+                const actionLabel = (response.action || "").replace(/_/g, " ");
+                const isStepUp =
+                  response.error === "step_up_required" ||
+                  response.error === "mcp_step_up_required" ||
+                  !!response.requiresStepUp ||
+                  !!response.step_up_required;
+                setHitlPendingIntent({
+                  isVerticalConsent: true,
+                  verticalMessage: text,
+                  // Retry opts must NOT carry the aborted-by-now signal.
+                  verticalOpts: { vertical: effectiveVerticalId, useCaseId, forceHeuristic: !!useCaseId },
+                  hitlChallengeId: response.hitlChallengeId || response.challengeId || null,
+                  tool: response.action || null,
+                  intentPayload: {
+                    type: isStepUp ? "Identity Verification Required" : "Action Confirmation",
+                    description: actionLabel.charAt(0).toUpperCase() + actionLabel.slice(1),
+                    amount: 0,
+                  },
+                });
+              }
             }
           } else if (response.error || !response.success) {
             reportNlFailure({ code: response.error || "unknown", message: response.reply || response.message || response.error });

@@ -140,6 +140,46 @@ popout via `document.querySelector(".ba-actions-trigger[aria-haspopup='dialog']"
 so they opened the Demo steps popout instead. They now query by accessible name;
 the admin-chips test awaits the async manifest load (`findByText`). Test-only
 change; no component behaviour altered.
+### 2026-07-18 — Demo Steps HITL/step-up gates printed the denial text and never opened the approval modal
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js` (the NL-resume
+replay handler, ~line 6396 — the sibling path called out in the 2026-07-17
+entry below).
+
+**What was broken:** Demo Steps (`handleDemoStepSelect`) runs a use case by
+setting `nlResumeAfterAuth`, which replays through `sendAgentMessage` directly
+and never reaches the `kind:'vertical'` handler at ~5627. Its own gate branch
+(a) echoed the raw `error_description` ("PingOne Authorize requires human
+approval before MCP tools can run.") as the agent reply, and (b) opened the
+consent modal only when `response.transactionAmount != null` — true for
+banking `create_transfer/deposit/withdrawal`, never for vertical plugin tools
+(`extend_rental`, `pay_bill`, `checkout`, …), which are gated by
+`authz: { consent: true }` and carry no amount. Step-up had no modal branch at
+all. Net effect on Super Sports: UC8 ("extend my rental $300") and UC7
+("extend my rental $600") both blocked correctly server-side, rendered as a
+canned refusal plus a "denied as expected" proof badge, and the user was never
+prompted to approve.
+
+**What was fixed:** in that branch, gate on the four approval codes
+(`hitl_required`/`mcp_hitl_required`/`step_up_required`/`mcp_step_up_required`)
+and (a) render the same single "needs your approval — check the approval
+prompt" line the vertical handler uses, (b) always open the modal: monetary
+responses keep the existing `transactionAmount` intent verbatim, amount-less
+ones use the `isVerticalConsent` shape (`verticalMessage` = the replayed text,
+`verticalOpts` rebuilt WITHOUT the request's abort signal so the approve-retry
+can re-send). A hard DENY (`authorization_denied`) still echoes its reply.
+
+**Do not break:** the monetary branch — banking `create_transfer` consent must
+keep sending `{type, fromAccountId, toAccountId, amount, description}` and
+`threshold`, since `hitlPendingIntent` drives the transfer retry. The
+`verticalOpts` here must not carry `signal`: it is aborted by the time the user
+approves. Keep both this handler and the `kind:'vertical'` handler in sync —
+they are two entry points to one flow and have now drifted twice.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0);
+`CI=true npx jest src/__tests__/BankingAgent`. Live: Demo steps → UC8 then UC7
+on Super Sports → approval modal opens (UC7 adds the OTP step), and approving
+runs the tool.
 
 ### 2026-07-17 — #539 amount-from-record dead on session-only `/api/mcp/tool`
 
