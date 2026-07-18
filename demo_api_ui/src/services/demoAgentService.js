@@ -160,7 +160,7 @@ export async function warmupAuthz() {
  * @param {object} params - Tool parameters
  * @returns {Promise<{ result: any, tokenEvents: Array }>}
  */
-export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertical } = {}) {
+export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertical, onTokenEvent } = {}) {
   log.debug("=== MCP TOOL CALL START ===");
   log.debug("tool:", tool);
   log.debug("params:", JSON.stringify(params));
@@ -226,6 +226,7 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
       tokenEventsFromSse.push(tokenEvent);
       // Immediately append so Token Chain UI updates in real time
       appendTokenEvents(tool, [tokenEvent]);
+      onTokenEvent?.(tokenEvent);
     }
 
     // MCP tool result arrived via SSE — update MCP Results tab immediately.
@@ -990,7 +991,7 @@ export function ingestLegacyRunTrace(data, { forceHeuristic = false } = {}) {
   } catch { /* display-only */ }
 }
 
-export async function sendAgentMessage(message, consentId = null, { signal, forceHeuristic = false, vertical = null, consentGiven = false, hitlChallengeId = null, useCaseId = null } = {}) {
+export async function sendAgentMessage(message, consentId = null, { signal, forceHeuristic = false, vertical = null, consentGiven = false, hitlChallengeId = null, useCaseId = null, onTokenEvent } = {}) {
   const body = { prompt: message };
   if (consentId) body.consentId = consentId;
   if (useCaseId) body.useCaseId = useCaseId;
@@ -1035,6 +1036,11 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
   setCurrentTurn(flowTraceId, turnLabel);
 
   const closeSse = openMcpFlowSse(flowTraceId, (data) => {
+    if (data && data.type === "token-event") {
+      const tokenEvent = { ...data };
+      delete tokenEvent.type;
+      onTokenEvent?.(tokenEvent);
+    }
     try {
       agentFlowDiagram.applyServerEvent(data);
     } catch (_) {
