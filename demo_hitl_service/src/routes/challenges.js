@@ -117,19 +117,28 @@ router.post('/:id/respond', requireSecret, (req, res) => {
 
   // params carries the consented arguments — INV-7 compares them against the
   // arguments the tool actually executed with.
-  emitHop({
-    phase: 'hitl.consent',
-    op: challenge.tool,
-    correlationId: challenge.correlationId,
-    identity: { sub: challenge.userId || null, act: challenge.agentId ? [challenge.agentId] : [] },
-    decision: {
-      outcome: challenge.decision === 'approved' ? 'permit' : 'deny',
-      by: 'gateway',
-      reason: `hitl_${challenge.decision}`,
-    },
-    params: challenge.context || {},
-    status: 'ok',
-  });
+  //
+  // Only emit when the challenge itself carries a correlationId. Do NOT let
+  // emitHop() fall back to the per-request ALS id: correlationMiddleware
+  // fabricates a fresh random UUID for every request that doesn't supply one
+  // (see correlationMiddleware.js), so a challenge created without a
+  // correlationId would otherwise emit a hop stamped with an unrelated,
+  // fabricated id — an orphan single-hop transaction record in the UI.
+  if (challenge.correlationId) {
+    emitHop({
+      phase: 'hitl.consent',
+      op: challenge.tool,
+      correlationId: challenge.correlationId,
+      identity: { sub: challenge.userId || null, act: challenge.agentId ? [challenge.agentId] : [] },
+      decision: {
+        outcome: challenge.decision === 'approved' ? 'permit' : 'deny',
+        by: 'gateway',
+        reason: `hitl_${challenge.decision}`,
+      },
+      params: challenge.context || {},
+      status: 'ok',
+    });
+  }
 
   res.json({
     challengeId: challenge.id,
