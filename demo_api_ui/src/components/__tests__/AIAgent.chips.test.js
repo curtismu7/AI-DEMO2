@@ -370,11 +370,11 @@ describe("Action chips — all 3 modes", () => {
     await act(async () => {
       fireEvent.click(fab);
     });
-    // Float mode: open the Actions popout via its trigger
+    // Float mode: open the Actions popout via its trigger. Query by accessible
+    // name — the Demo steps trigger shares the ".ba-actions-trigger" class and
+    // aria-haspopup="dialog", and renders first, so a CSS selector picks it up.
     await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
-    const actionsBtn = document.querySelector(
-      ".ba-actions-trigger[aria-haspopup='dialog']",
-    );
+    const actionsBtn = screen.getByRole("button", { name: /^Actions/i });
     await act(async () => {
       fireEvent.click(actionsBtn);
     });
@@ -512,9 +512,7 @@ describe("Discovery popout — '⊞ All actions' button", () => {
     });
     // Float mode: "Actions" button opens the discovery popout
     await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
-    const actionsBtn = document.querySelector(
-      ".ba-actions-trigger[aria-haspopup='dialog']",
-    );
+    const actionsBtn = screen.getByRole("button", { name: /^Actions/i });
     await act(async () => {
       fireEvent.click(actionsBtn);
     });
@@ -869,7 +867,7 @@ describe("Action chip dispatch — MCP tool calls", () => {
     expect(input.value).toMatch(/Think:/i);
   });
 
-  it("admin actions popout renders the admin action chips", () => {
+  it("admin actions popout renders the admin action chips", async () => {
     renderAgent({
       user: adminUser,
       mode: "inline",
@@ -881,7 +879,11 @@ describe("Action chip dispatch — MCP tool calls", () => {
     // customer-admin tools (Look Up Customer, …) and the PingOne admin tools
     // (List all apps, …). The old hardcoded "Query User by Email" admin group +
     // query-template pre-fill were removed in the scope-picker redesign.
-    expect(within(dialog).getByText("Look Up Customer")).toBeInTheDocument();
+    // BankingChips loads chips10 in an effect and renders "Loading chips..."
+    // until it resolves, so the admin chips appear asynchronously.
+    expect(
+      await within(dialog).findByText("Look Up Customer"),
+    ).toBeInTheDocument();
     expect(within(dialog).getByText("List all apps")).toBeInTheDocument();
   });
 });
@@ -1035,6 +1037,100 @@ describe("NL error envelope (BFF restarting) degrades gracefully", () => {
     expect(
       screen.queryByText(/Could not parse: Cannot read properties/i),
     ).not.toBeInTheDocument();
+  });
+});
+
+// ─── Agent-run failures must never render the raw backend error ──────────────
+// Regression: a gateway policy DENY came back as HTTP 200 {success:false,
+// reply:"❌ Gateway policy denied the tool call"}. reportNlFailure had no branch
+// for the code, so it echoed the reply as "Could not parse: ❌ Gateway policy
+// denied the tool call" — a demo step showing a raw backend string.
+
+describe("agent failure envelopes render a plain sentence, not the raw error", () => {
+  let origFetch;
+
+  // Real chip path: /nl resolves a vertical intent (fetch), then sendAgentMessage
+  // (mocked service) runs the tool and returns success:false with backend prose.
+  const mockAgentFailure = async (body) => {
+    demoAgentService.sendAgentMessage.mockResolvedValue(body);
+    global.fetch = jest.fn((url) => {
+      if (String(url).includes("/api/demo-agent/nl")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            result: { kind: "vertical", action: "list_gear", vertical: "sporting-goods", params: {} },
+            source: "heuristic",
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    });
+  };
+
+  beforeEach(() => {
+    origFetch = global.fetch;
+  });
+
+  afterEach(() => {
+    global.fetch = origFetch;
+  });
+
+  it("maps gateway_policy_denied to a friendly sentence", async () => {
+    await mockAgentFailure({
+      success: false,
+      error: "gateway_policy_denied",
+      reply: "❌ Gateway policy denied the tool call",
+    });
+    renderAgent({ user: customerUser, mode: "inline" });
+    const input = screen.getByPlaceholderText(/^Message |^Ask about/);
+    fireEvent.change(input, { target: { value: "my gear" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => {
+      expect(
+        screen.getByText(/declined by the gateway's authorization policy/i),
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Could not parse/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Gateway policy denied the tool call/i),
+    ).not.toBeInTheDocument();
+  });
+
+  // needsParams is also success:false, but its reply is the useful clarification
+  // question — it must NOT be swallowed by the failure-sentence mapping.
+  it("keeps the needsParams clarification reply intact", async () => {
+    await mockAgentFailure({
+      success: false,
+      reply: "To show gear order, I need: Order ID. Please provide this detail.",
+      needsParams: { action: "show_gear_order", missing: ["orderId"], hint: null },
+    });
+    renderAgent({ user: customerUser, mode: "inline" });
+    const input = screen.getByPlaceholderText(/^Message |^Ask about/);
+    fireEvent.change(input, { target: { value: "my gear order" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => {
+      expect(screen.getByText(/I need: Order ID/i)).toBeInTheDocument();
+    });
+  });
+
+  it("falls back to a plain sentence when the failure carries no code", async () => {
+    // No `error` field at all — the shape a BFF that predates the errorCode
+    // plumbing returns. Must still resolve to a sentence, never the raw reply.
+    await mockAgentFailure({
+      success: false,
+      reply: "❌ ECONNRESET at upstream::0x7f",
+    });
+    renderAgent({ user: customerUser, mode: "inline" });
+    const input = screen.getByPlaceholderText(/^Message |^Ask about/);
+    fireEvent.change(input, { target: { value: "my gear" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => {
+      expect(
+        screen.getByText(/couldn't be completed.*pick another demo step/i),
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/ECONNRESET/i)).not.toBeInTheDocument();
   });
 });
 

@@ -18,6 +18,7 @@ const CATALOG = DEMO_USE_CASE_IDS.map((id, i) => ({
   id,
   useCaseId: `slug-${id}`,
   title: `Title for ${id}`,
+  whatLong: `Long explanation for ${id}`,
   trigger: { type: 'chip', text: `prompt for ${id}` },
   // Insert a decoy so order-from-catalog ≠ demo script order
   _order: DEMO_USE_CASE_IDS.length - i,
@@ -113,5 +114,23 @@ describe('DemoStepsDropdown', () => {
     expect(screen.getByTestId('demo-steps-clear')).toBeInTheDocument();
     expect(screen.getByTestId('demo-step-UC1').querySelector('.ba-demo-steps-popout__check')).toBeFalsy();
     expect(sessionStorage.getItem('bx_uc_completed')).toBeNull();
+  });
+
+  it('opens the explain modal from the per-step icon without running the step', async () => {
+    const onSelect = vi.fn();
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={onSelect}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-explain-UC1')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId('demo-explain-UC1'));
+
+    expect(await screen.findByText('Long explanation for UC1')).toBeInTheDocument();
+    // The icon explains only — running the step stays on the row button.
+    expect(onSelect).not.toHaveBeenCalled();
   });
 });

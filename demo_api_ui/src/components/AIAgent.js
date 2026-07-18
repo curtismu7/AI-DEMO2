@@ -197,6 +197,35 @@ const FRONTIER_MODES = ["claude"];
 const AGENT_UNAVAILABLE_MESSAGE =
   "The assistant didn't return a response — the agent service may be unavailable. Check that the agent runtime is running.";
 
+// One plain sentence per BFF failure class, keyed by the code the BFF returns.
+// The agent transcript must never show a raw backend error string, so
+// reportNlFailure resolves through here and falls back to NL_FAILURE_FALLBACK
+// for any code not listed rather than echoing err.message.
+const NL_FAILURE_MESSAGES = {
+  gateway_policy_denied:
+    "That step was declined by the gateway's authorization policy — no changes were made.",
+  mcp_authorization_denied:
+    "That step was declined by the authorization policy — no changes were made.",
+  mcp_authorize_unavailable:
+    "The authorization service isn't reachable right now, so the step was declined. Try again in a moment.",
+  policy_not_found: "Policy not found, please contact administrator.",
+  mcp_scope_denied:
+    "This demo step isn't permitted by the agent's granted scopes.",
+  missing_exchange_scopes:
+    "This demo step isn't permitted by the agent's granted scopes.",
+  rate_limited: "Too many requests just now — wait a moment and try again.",
+  gateway_misconfigured:
+    "The gateway isn't configured for this step yet. Check the gateway settings.",
+  gateway_upstream_error:
+    "The service behind the gateway didn't respond. Try again in a moment.",
+  server_unavailable:
+    "The server isn't available right now. Try again in a moment.",
+  connection_timeout:
+    "The server took too long to respond — it may still be starting up. Try again in a moment.",
+};
+const NL_FAILURE_FALLBACK =
+  "That step couldn't be completed. Try again, or pick another demo step.";
+
 // Security Showcase dispatch tables (static — defined once at module scope).
 // showcase keys whose live harness is an existing runAction case.
 const SHOWCASE_RUN_ACTION = {
@@ -5748,9 +5777,18 @@ export default function BankingAgent({
             "step_up_required",
             "mcp_step_up_required",
           ].includes(response.error);
+          // A failed tool call arrives as success:false + the backend's own prose
+          // (e.g. "❌ Gateway policy denied the tool call"). Never echo that into
+          // the transcript — resolve it to a plain sentence instead. needsParams
+          // is excluded: it is also success:false but its reply is the useful
+          // "I need: Order ID" clarification, not a backend error string.
+          const failureSentence =
+            !isHitlBlock && response.success === false && !response.needsParams
+              ? NL_FAILURE_MESSAGES[response.error] || NL_FAILURE_FALLBACK
+              : null;
           const replyWithAgentBadge = isHitlBlock
             ? "[CUSTOMER AGENT - LangGraph]\nThis action needs your approval before it can run — check the approval prompt."
-            : `[CUSTOMER AGENT - LangGraph]\n${response.reply}`;
+            : `[CUSTOMER AGENT - LangGraph]\n${failureSentence || response.reply}`;
           addMessage("assistant", replyWithAgentBadge, null, { source: _source, ...verticalResultExtra(response), paramHint });
           // Teaching directive: open the requested education panel (P2/P3). Mirrors the
           // kind:'education' path; fires only for a resolvable panel id.
@@ -5844,7 +5882,7 @@ export default function BankingAgent({
           e?.name === "TimeoutError" ||
           /timed out|aborted/i.test(String(e?.message || ""));
         if (timedOut) {
-          notifyError("⏱️ That took too long — the request timed out.", { autoClose: agentToastMs.errShort });
+          notifyError("⚠️ That took too long — the request timed out.", { autoClose: agentToastMs.errShort });
           addMessage(
             "assistant",
             `That took too long to answer, so I stopped waiting — this was **${result.action.replace(/_/g, " ")}**, ` +
@@ -5921,7 +5959,7 @@ export default function BankingAgent({
       err?.name === "TimeoutError" ||
       (typeof err?.message === "string" && err.message.includes("timed out"));
     if (isTimeout) {
-      notifyError("⏱️ The model took too long to respond — request timed out.", {
+      notifyError("⚠️ The model took too long to respond — request timed out.", {
         autoClose: agentToastMs.errShort,
       });
       // Only llama.cpp timeouts get the pre-warm retry action — there's no
@@ -5985,14 +6023,19 @@ export default function BankingAgent({
       );
       return;
     }
-    const errorMessage =
-      err.message ||
-      err.error ||
-      "An unexpected error occurred. Please try again.";
-    notifyError(`❌ Could not parse request: ${errorMessage}`, {
+    // A demo step must never render a raw backend error string. Map the BFF
+    // failure code to a plain sentence; anything unrecognised (including a
+    // missing code) falls back to the generic one rather than echoing
+    // err.message, which is how "Could not parse: ❌ Gateway policy denied the
+    // tool call" reached the transcript.
+    const friendly =
+      NL_FAILURE_MESSAGES[err?.code] ||
+      NL_FAILURE_MESSAGES[err?.error] ||
+      NL_FAILURE_FALLBACK;
+    notifyError(`❌ ${friendly}`, {
       autoClose: agentToastMs.errShort,
     });
-    addMessage("assistant", `Could not parse: ${errorMessage}`);
+    addMessage("assistant", friendly);
   }
 
   /** Click handler for the "Pre-warm the model & retry" action (Task: prewarm-retry-timeout). */
@@ -6431,10 +6474,18 @@ export default function BankingAgent({
       addMessage("user", text, null, { isPrompt: !!useCaseId });
       setNlLoading(true);
       try {
+        // forceHeuristic (only when useCaseId is set — a scripted Demo Steps/
+        // use-case chip, not free-form chat): the chip's trigger phrase already
+        // maps to a known deterministic action, so it must run regardless of
+        // agent_mode — otherwise a non-heuristics mode (e.g. local dev's
+        // llama.cpp default) routes it to the LLM instead, which handles it
+        // conversationally and never reaches the real tool/step-up pipeline.
+        // Same reasoning as the kind:'vertical' forceHeuristic re-dispatch above.
         const response = await sendAgentMessage(text, null, {
           signal,
           vertical: effectiveVerticalId,
           useCaseId,
+          forceHeuristic: !!useCaseId,
           onTokenEvent: (ev) => tokenChain?.appendTokenEvent("agent", ev),
         });
         if (!cancelled && !signal.aborted) {
@@ -6461,7 +6512,19 @@ export default function BankingAgent({
             response.error === "authorization_denied" ||
             response.error === "mcp_authorization_denied"
           ) {
-            const replyText = response.reply || "This action requires additional authorization.";
+            // HITL/step-up blocks: show the pending-approval notice, not the raw
+            // error_description (same reasoning as the kind:'vertical' handler —
+            // the raw text reads as a canned refusal next to the approval modal).
+            // A hard DENY still echoes the reply, which explains the denial.
+            const isApprovalGate = [
+              "hitl_required",
+              "mcp_hitl_required",
+              "step_up_required",
+              "mcp_step_up_required",
+            ].includes(response.error);
+            const replyText = isApprovalGate
+              ? "This action needs your approval before it can run — check the approval prompt."
+              : (response.reply || "This action requires additional authorization.");
             const replyWithAgentBadge = `[CUSTOMER AGENT]\n${replyText}`;
             addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
             if (response.tokenEvents?.length) {
@@ -6474,25 +6537,51 @@ export default function BankingAgent({
                 addMessage("token-event", agentTokenMsg, null);
               }
             }
-            // Trigger HITL consent modal when the response has transaction details
-            if (
-              (response.error === "hitl_required" || response.error === "mcp_hitl_required") &&
-              response.transactionAmount != null
-            ) {
-              const intentPayload = {
-                type: response.transactionType || "transfer",
-                fromAccountId: response.fromAccountId || response.from_account_id,
-                toAccountId: response.toAccountId || response.to_account_id,
-                amount: response.transactionAmount,
-                description: `Agent ${response.transactionType || "transfer"}`,
-              };
-              setHitlPendingIntent({
-                actionId: response.transactionType || "transfer",
-                form: {},
-                intentPayload,
-                threshold: response.hitl_threshold_usd ?? APP_CONFIG.THRESHOLDS.HITL_DEFAULT,
-                hitlChallengeId: response.hitlChallengeId || response.challengeId || null,
-              });
+            // Trigger the approval modal. Two shapes, both required here:
+            //   - banking transfers/deposits/withdrawals carry transactionAmount
+            //     → monetary consent intent (unchanged).
+            //   - vertical plugin tools (extend_rental, pay_bill, checkout, …)
+            //     carry NO amount → the isVerticalConsent shape, same as the
+            //     kind:'vertical' handler. Step-up (mcp_step_up_required) must
+            //     open it too; without this, Demo Steps UC7/UC8 printed the gate
+            //     text and never prompted the user.
+            if (isApprovalGate) {
+              if (response.transactionAmount != null) {
+                const intentPayload = {
+                  type: response.transactionType || "transfer",
+                  fromAccountId: response.fromAccountId || response.from_account_id,
+                  toAccountId: response.toAccountId || response.to_account_id,
+                  amount: response.transactionAmount,
+                  description: `Agent ${response.transactionType || "transfer"}`,
+                };
+                setHitlPendingIntent({
+                  actionId: response.transactionType || "transfer",
+                  form: {},
+                  intentPayload,
+                  threshold: response.hitl_threshold_usd ?? APP_CONFIG.THRESHOLDS.HITL_DEFAULT,
+                  hitlChallengeId: response.hitlChallengeId || response.challengeId || null,
+                });
+              } else {
+                const actionLabel = (response.action || "").replace(/_/g, " ");
+                const isStepUp =
+                  response.error === "step_up_required" ||
+                  response.error === "mcp_step_up_required" ||
+                  !!response.requiresStepUp ||
+                  !!response.step_up_required;
+                setHitlPendingIntent({
+                  isVerticalConsent: true,
+                  verticalMessage: text,
+                  // Retry opts must NOT carry the aborted-by-now signal.
+                  verticalOpts: { vertical: effectiveVerticalId, useCaseId, forceHeuristic: !!useCaseId },
+                  hitlChallengeId: response.hitlChallengeId || response.challengeId || null,
+                  tool: response.action || null,
+                  intentPayload: {
+                    type: isStepUp ? "Identity Verification Required" : "Action Confirmation",
+                    description: actionLabel.charAt(0).toUpperCase() + actionLabel.slice(1),
+                    amount: 0,
+                  },
+                });
+              }
             }
           } else if (response.error || !response.success) {
             reportNlFailure({ code: response.error || "unknown", message: response.reply || response.message || response.error });

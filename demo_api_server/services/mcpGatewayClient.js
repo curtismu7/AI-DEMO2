@@ -308,11 +308,34 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             cause = 'wrong_audience';
             code = 'GATEWAY_AUDIENCE_MISMATCH';
             needsLogin = false;
-            message =
-                `Wrong audience: the access token's aud is [${tokenAud.join(', ')}] but the gateway requires ` +
-                `"${expectedAud}". This is a configuration drift, not an expired token — signing in again will ` +
-                `NOT fix it. Fix: set MCP_SERVER_RESOURCE_URI="${expectedAud}" in the BFF config ` +
-                `(demo_api_server/.env or the /config admin page) to match scope-topology.json, then restart.`;
+            if (opts.simulatedAttack) {
+                // An attack sim presents a deliberately wrong-audience token — the
+                // mismatch IS the expected result. Framing it as config drift sends
+                // the operator off to "fix" a config that is already correct.
+                message =
+                    `Audience binding rejected the token as expected: aud is [${tokenAud.join(', ')}] but the ` +
+                    `gateway requires "${expectedAud}". No configuration change is needed — this is the ` +
+                    `simulated attack being blocked.`;
+            } else {
+                // Name the setting that actually drives the expected audience in the
+                // ACTIVE mode. Hardcoding MCP_SERVER_RESOURCE_URI was wrong on the
+                // PingGateway path, where the audience comes from the pinggateway
+                // resource URI instead.
+                const svc = require('./mcpToolAuthorizationService');
+                const setting = typeof svc.resolveExpectedMcpResourceSetting === 'function'
+                    ? svc.resolveExpectedMcpResourceSetting()
+                    : null;
+                const fixHint = setting
+                    ? `Fix: set ${setting.envVar || setting.settingKey}="${expectedAud}" in the BFF config ` +
+                      `(${setting.envVar ? 'demo_api_server/.env or ' : ''}the /config admin page, ` +
+                      `${setting.mode} mode) to match scope-topology.json, then restart.`
+                    : `Fix: point the BFF's MCP resource URI for the active gateway mode at "${expectedAud}" ` +
+                      `to match scope-topology.json, then restart.`;
+                message =
+                    `Wrong audience: the access token's aud is [${tokenAud.join(', ')}] but the gateway requires ` +
+                    `"${expectedAud}". This is a configuration drift, not an expired token — signing in again will ` +
+                    `NOT fix it. ${fixHint}`;
+            }
         } else if (expired) {
             cause = 'expired';
             code = 'TOKEN_INACTIVE';

@@ -84,6 +84,185 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-18 — Per-step explain icon on the Demo Steps dropdown (feature)
+
+**Files changed:** `demo_api_ui/src/components/DemoStepsDropdown.jsx`,
+`demo_api_ui/src/components/AIAgent.css` (additive block after
+`.ba-demo-steps-popout__title`), `demo_api_ui/src/components/__tests__/DemoStepsDropdown.test.jsx`.
+
+**What was missing:** Demo Steps rows rendered only `uc.id` + `uc.title`, so a
+presenter had no way to read what a step actually demonstrates without leaving
+the agent for `/use-cases`. The long-form copy already existed — `whatLong`,
+`businessValue`, `productRoles` are returned whole by `GET /api/use-cases` and
+`DemoStepsDropdown` already held the full `uc` object in state — and
+`UseCaseExplainModal` already rendered exactly those fields. Neither was wired
+to the dropdown.
+
+**What was added:** each `<li>` becomes `ba-demo-steps-popout__row` (flex) with
+a new `ba-demo-steps-popout__explain` button as a **sibling** of the existing
+run-step button — not nested, since a `<button>` inside a `<button>` is invalid
+HTML and swallows the row click target. The icon is a CSS circle with
+`::before { content: 'i' }` (no emoji, per §0). Clicking it sets `explainUc`
+and opens the existing `UseCaseExplainModal`; no new fetch, no new field, no
+change to `onSelect`. The modal renders OUTSIDE the `{open && ...}` popout block
+so it survives the dropdown's outside-pointerdown close.
+
+**Do not break:** the icon must never call `onSelect` — explain and run are
+separate targets (covered by the new test's `expect(onSelect).not.toHaveBeenCalled()`).
+The explain testid is `demo-explain-<id>`, deliberately NOT `demo-step-explain-<id>`:
+the existing order assertion does `getAllByTestId(/^demo-step-/)` and a shared
+prefix silently doubles its match count (6 → 12). Keep new row-level testids off
+the `demo-step-` prefix. CSS is additive only — `__item`, `__item--done`,
+`__check`, `__title` rules are untouched, so completion checkmarks and the done
+row tint keep working. Because the item button no longer spans the row, the
+done and hover tints are re-applied at row level via
+`.ba-demo-steps-popout__row:has(…)` — drop those and the row shows an untinted
+seam under the icon. Hover is declared after done so it still wins on a
+completed row.
+
+**Verify:** vitest `DemoStepsDropdown` (incl. the new explain-icon case) +
+`UseCaseExplainModal` — 12 passed; UI build gate `npm run build` exit 0.
+### 2026-07-18 — Demo steps showed raw backend error prose; demo-sync stopped authz-server while the BFF still required it
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`
+(`NL_FAILURE_MESSAGES` and `NL_FAILURE_FALLBACK`, `reportNlFailure`,
+vertical-branch reply render),
+`demo_api_server/services/verticalMcpExecution.js` (carry `errorCode`),
+`demo_api_server/services/demoAgentLangGraphService.js` (put the code on the
+response envelope), `run-docker.sh` (`_read_demo_stack_flags` awaits
+`ensureInitialized()`), test in
+`demo_api_ui/src/components/__tests__/AIAgent.chips.test.js`.
+
+**What was broken:** (1) Sporting-goods Demo Step 1 ("My gear") rendered
+`Could not parse: ❌ Gateway policy denied the tool call`. The tool-failure path
+kept only `err.message` and dropped the code (`verticalMcpExecution.js`), so the
+response envelope carried no `error`; the UI had no branch for it and echoed the
+backend's own prose as a parse failure. The vertical branch separately rendered
+`response.reply` verbatim, leaking the same string a second way. (2) The
+underlying DENY: `configStore` initialises **asynchronously**, but
+`_read_demo_stack_flags` called `getEffective()` in a fresh `node -e` without
+awaiting `ensureInitialized()`, so it read env/registry defaults. With
+`ff_authorize_simulated` persisted ON, demo-sync read `simulated=0`, stopped
+`authz-server`, and PingGateway then failed closed on every tool call
+(`[P1AZ] httpPost failed … authz-server` → `DECISION: DENY`).
+
+**What was fixed:** the machine code now survives to the client, and both UI
+render paths resolve it through `NL_FAILURE_MESSAGES` to one plain sentence per
+failure class, falling back to `NL_FAILURE_FALLBACK` for unknown codes instead
+of echoing `err.message`/`response.reply`. `_read_demo_stack_flags` awaits
+`ensureInitialized()` so demo-sync sees the value the BFF actually enforces.
+
+**Do not break:** the agent transcript must never render a raw backend error
+string — new failure codes get a `NL_FAILURE_MESSAGES` entry, and anything
+unmapped must fall through to `NL_FAILURE_FALLBACK`. HITL/step-up codes
+(`hitl_required`, `mcp_hitl_required`, `step_up_required`,
+`mcp_step_up_required`) are gated responses, not failures, and must keep their
+existing approval-prompt text. `needsParams` is likewise `success:false` but its
+reply is the useful "I need: Order ID" clarification — it must stay exempt from
+the failure-sentence mapping. Any fresh-process `configStore` read must await
+`ensureInitialized()` or it silently reports defaults.
+
+**Verify:** vitest `AIAgent.chips` 64 pass (includes the three "agent failure
+envelopes render a plain sentence, not the raw error" tests); `npm run build`
+exits 0; jest `demoAgentLangGraphService.{modes,tokens,heuristicVerticalTokenGuard}`
+9 pass; `bash -n run-docker.sh`. Live proof of the read defect: with
+`ff_authorize_simulated` persisted ON, an un-awaited one-shot read reports
+`sim=0` while the awaited read reports `sim=1`. Live proof of the message fix:
+authz-server down + simulated ON, Demo Step 1 (sporting-goods "my gear") renders
+"That step couldn't be completed…" while the gateway logs
+`DECISION: DENY | tool=list_gear` and the BFF logs the old raw string.
+
+**Also fixed here:** three stale `AIAgent.chips` tests that selected the Actions
+popout via `document.querySelector(".ba-actions-trigger[aria-haspopup='dialog']")`
+— `DemoStepsDropdown.jsx` renders the same class/attribute earlier in the header,
+so they opened the Demo steps popout instead. They now query by accessible name;
+the admin-chips test awaits the async manifest load (`findByText`). Test-only
+change; no component behaviour altered.
+### 2026-07-18 — Gateway-denied attack sims (UC5/UC11/UC12) always rendered "Incomplete"
+
+**Files changed:** `demo_api_server/config/useCases.js` (UC5/UC11/UC12
+`evidence.tokenChain`), `demo_api_ui/src/utils/pingProducts.js` (sim step ids),
+`demo_api_server/services/mcpToolAuthorizationService.js`
+(`resolveExpectedMcpResourceSetting`), `demo_api_server/services/mcpGatewayClient.js`
+(401 aud-mismatch message), `demo_api_server/services/attackSimulatorService.js`
+(`simulatedAttack` opt on the two wrong-aud sims).
+
+**What was broken:** UC5/UC11/UC12 declared `evidence.tokenChain:
+['user-token','authorize-decision']`, but all three sims are blocked at the
+gateway (aud binding / scope check) BEFORE PingOne Authorize is consulted, so
+`trace.authorize` is never set. `ingestTokenEvents` also *replaces* the event
+array, wiping any earlier `user-token`. `computeVerdict` short-circuits on
+`missingSteps.length > 0` before `expectedOutcome` is ever compared, so a
+correct 401 DENY still rendered "Incomplete" on every run. Separately, the
+401 handler hardcoded `Fix: set MCP_SERVER_RESOURCE_URI=<expectedAud>` — wrong
+on the PingGateway path (that audience comes from
+`pingone_resource_pinggateway_uri`), so following the advice would have broken
+a correct config; and it framed the sims' *deliberate* wrong audience as
+configuration drift.
+
+**What was fixed:** the three evidence contracts now declare the events the
+sims actually emit (`sim-exchange-ok` / `sim-replay-start` + `sim-gateway-deny`);
+those ids were added to the product-badge map (idp + gw — Authorize genuinely
+is not involved). The remediation text now names the setting that drives the
+audience in the *active* mode, and an attack sim passes `simulatedAttack: true`
+so the mismatch is reported as the expected block, not as drift.
+
+**Do not break:** `resolveExpectedMcpResourceUri()` must keep returning exactly
+what it returned before (the mode branches were extracted to `_resolveResourceMode()`
+with no behavior change); `computeVerdict`'s short-circuit on missing evidence
+is unchanged — only the catalog's declared evidence moved. A use case whose sim
+DOES reach Authorize (UC10/UC13/UC14/UC16) must keep `authorize-decision`.
+
+**Verify:** `npx jest demo_api_server/src/__tests__/attackSimulator.test.js
+demo_api_server/src/__tests__/mcpGatewayClient.reauth.test.js
+demo_api_server/tests/use-cases-maturity.test.js
+demo_api_server/src/__tests__/attackSimulator.wrongAudFields.test.js
+--testPathIgnorePatterns="/node_modules/"` (26 passed); `cd demo_api_ui &&
+npx vitest run src/context/__tests__/ProofOfEnforcementContext.test.js
+src/utils/pingProducts.test.js` (33 passed); `cd demo_api_ui && npm run build`
+(exit 0).
+
+### 2026-07-18 — Demo Steps HITL/step-up gates printed the denial text and never opened the approval modal
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js` (the NL-resume
+replay handler, ~line 6396 — the sibling path called out in the 2026-07-17
+entry below).
+
+**What was broken:** Demo Steps (`handleDemoStepSelect`) runs a use case by
+setting `nlResumeAfterAuth`, which replays through `sendAgentMessage` directly
+and never reaches the `kind:'vertical'` handler at ~5627. Its own gate branch
+(a) echoed the raw `error_description` ("PingOne Authorize requires human
+approval before MCP tools can run.") as the agent reply, and (b) opened the
+consent modal only when `response.transactionAmount != null` — true for
+banking `create_transfer/deposit/withdrawal`, never for vertical plugin tools
+(`extend_rental`, `pay_bill`, `checkout`, …), which are gated by
+`authz: { consent: true }` and carry no amount. Step-up had no modal branch at
+all. Net effect on Super Sports: UC8 ("extend my rental $300") and UC7
+("extend my rental $600") both blocked correctly server-side, rendered as a
+canned refusal plus a "denied as expected" proof badge, and the user was never
+prompted to approve.
+
+**What was fixed:** in that branch, gate on the four approval codes
+(`hitl_required`/`mcp_hitl_required`/`step_up_required`/`mcp_step_up_required`)
+and (a) render the same single "needs your approval — check the approval
+prompt" line the vertical handler uses, (b) always open the modal: monetary
+responses keep the existing `transactionAmount` intent verbatim, amount-less
+ones use the `isVerticalConsent` shape (`verticalMessage` = the replayed text,
+`verticalOpts` rebuilt WITHOUT the request's abort signal so the approve-retry
+can re-send). A hard DENY (`authorization_denied`) still echoes its reply.
+
+**Do not break:** the monetary branch — banking `create_transfer` consent must
+keep sending `{type, fromAccountId, toAccountId, amount, description}` and
+`threshold`, since `hitlPendingIntent` drives the transfer retry. The
+`verticalOpts` here must not carry `signal`: it is aborted by the time the user
+approves. Keep both this handler and the `kind:'vertical'` handler in sync —
+they are two entry points to one flow and have now drifted twice.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0);
+`CI=true npx jest src/__tests__/BankingAgent`. Live: Demo steps → UC8 then UC7
+on Super Sports → approval modal opens (UC7 adds the OTP step), and approving
+runs the tool.
+
 ### 2026-07-17 — #539 amount-from-record dead on session-only `/api/mcp/tool`
 
 **Files changed:** `demo_api_server/services/mcpToolAuthorizationService.js`,
