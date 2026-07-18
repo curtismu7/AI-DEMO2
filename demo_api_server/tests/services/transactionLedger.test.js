@@ -1,0 +1,107 @@
+'use strict';
+
+jest.mock('../../services/lmdb/openEnv', () => {
+  const dbs = new Map();
+  function openDB(name) {
+    if (!dbs.has(name)) dbs.set(name, new Map());
+    const m = dbs.get(name);
+    return {
+      get(key) { return m.has(key) ? m.get(key) : undefined; },
+      putSync(key, value) { m.set(key, value); },
+      removeSync(key) { m.delete(key); },
+      getKeys() { return [...m.keys()]; },
+      getStats() { return { entryCount: m.size }; },
+      getRange({ reverse } = {}) {
+        const out = [...m.entries()].map(([key, value]) => ({ key, value }));
+        return reverse ? out.reverse() : out;
+      },
+    };
+  }
+  return {
+    openEnv: () => ({ openDB }),
+    getDb: (name) => openDB(name),
+    LMDB_PATH: '/tmp/fake',
+    __reset: () => dbs.clear(),
+  };
+});
+
+const ledger = require('../../services/lmdb/transactionLedger.lmdb');
+const openEnvMock = require('../../services/lmdb/openEnv');
+
+describe('transactionLedger', () => {
+  beforeEach(() => { openEnvMock.__reset(); });
+
+  test('getRecord returns null for an unknown correlation id', () => {
+    expect(ledger.getRecord('nope')).toBeNull();
+  });
+
+  test('appendHop creates a record and assigns seq 1', () => {
+    const rec = ledger.appendHop('c1', { service: 'demo-api-server', phase: 'ui.request' });
+    expect(rec.correlationId).toBe('c1');
+    expect(rec.hops).toHaveLength(1);
+    expect(rec.hops[0].seq).toBe(1);
+    expect(rec.hops[0].phase).toBe('ui.request');
+    expect(typeof rec.hops[0].ts).toBe('string');
+  });
+
+  test('hops accumulate in arrival order with increasing seq', () => {
+    ledger.appendHop('c1', { service: 'demo-api-server', phase: 'ui.request' });
+    ledger.appendHop('c1', { service: 'mcp-server', phase: 'mcp.tool', op: 'get_balance' });
+    const rec = ledger.getRecord('c1');
+    expect(rec.hops.map((h) => h.seq)).toEqual([1, 2]);
+    expect(rec.hops.map((h) => h.phase)).toEqual(['ui.request', 'mcp.tool']);
+  });
+
+  test('a caller-supplied ts is preserved', () => {
+    ledger.appendHop('c1', { service: 'x', phase: 'mcp.tool', ts: '2026-07-18T00:00:00.000Z' });
+    expect(ledger.getRecord('c1').hops[0].ts).toBe('2026-07-18T00:00:00.000Z');
+  });
+
+  test('endedAt advances as hops arrive but startedAt does not', () => {
+    ledger.appendHop('c1', { service: 'x', phase: 'ui.request' });
+    const first = ledger.getRecord('c1');
+    ledger.appendHop('c1', { service: 'y', phase: 'response' });
+    const second = ledger.getRecord('c1');
+    expect(second.startedAt).toBe(first.startedAt);
+    expect(second.endedAt >= first.endedAt).toBe(true);
+  });
+
+  test('listRecords returns newest-first summaries', () => {
+    ledger.appendHop('older', { service: 'x', phase: 'ui.request', ts: '2026-07-18T00:00:00.000Z' });
+    ledger.appendHop('newer', { service: 'x', phase: 'ui.request', ts: '2026-07-18T01:00:00.000Z' });
+    const list = ledger.listRecords();
+    expect(list.map((r) => r.correlationId)).toEqual(['newer', 'older']);
+    expect(list[0].hopCount).toBe(1);
+  });
+
+  test('listRecords honours limit', () => {
+    for (let i = 0; i < 5; i++) ledger.appendHop(`c${i}`, { service: 'x', phase: 'ui.request' });
+    expect(ledger.listRecords({ limit: 2 })).toHaveLength(2);
+  });
+
+  test('evicts the oldest transactions past MAX_TRANSACTIONS', () => {
+    for (let i = 0; i < ledger.MAX_TRANSACTIONS + 3; i++) {
+      ledger.appendHop(`c${String(i).padStart(4, '0')}`, {
+        service: 'x',
+        phase: 'ui.request',
+        ts: `2026-07-18T00:00:${String(i % 60).padStart(2, '0')}.${String(i).padStart(3, '0')}Z`,
+      });
+    }
+    expect(ledger.listRecords({ limit: 10000 })).toHaveLength(ledger.MAX_TRANSACTIONS);
+    expect(ledger.getRecord('c0000')).toBeNull();
+  });
+
+  test('appending to an existing transaction does not trigger eviction', () => {
+    for (let i = 0; i < ledger.MAX_TRANSACTIONS; i++) ledger.appendHop(`c${i}`, { service: 'x', phase: 'ui.request' });
+    ledger.appendHop('c0', { service: 'x', phase: 'response' });
+    expect(ledger.getRecord('c0').hops).toHaveLength(2);
+    expect(ledger.listRecords({ limit: 10000 })).toHaveLength(ledger.MAX_TRANSACTIONS);
+  });
+
+  test('clear wipes the store', () => {
+    ledger.appendHop('c1', { service: 'x', phase: 'ui.request' });
+    ledger.clear();
+    expect(ledger.getRecord('c1')).toBeNull();
+    expect(ledger.listRecords()).toEqual([]);
+  });
+});
