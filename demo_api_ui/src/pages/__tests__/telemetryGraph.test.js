@@ -39,6 +39,18 @@ describe("autoLayout", () => {
     expect(Math.abs(pos.get("x").y - pos.get("y").y)).toBeGreaterThanOrEqual(2 * NODE_RADIUS);
   });
 
+  it("keeps at least 2*NODE_RADIUS separation even with many same-depth nodes", () => {
+    const g = {
+      nodes: [{ id: "r" }, { id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }, { id: "e" }],
+      edges: ["a", "b", "c", "d", "e"].map((id) => ({ source: "r", target: id, label: "" })),
+    };
+    const pos = autoLayout(g, 900, 400);
+    const ys = ["a", "b", "c", "d", "e"].map((id) => pos.get(id).y).sort((m, n) => m - n);
+    for (let i = 1; i < ys.length; i++) {
+      expect(ys[i] - ys[i - 1]).toBeGreaterThanOrEqual(2 * NODE_RADIUS);
+    }
+  });
+
   it("handles cycles without hanging and places every node", () => {
     const g = {
       nodes: [{ id: "a" }, { id: "b" }],

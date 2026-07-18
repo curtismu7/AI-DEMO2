@@ -60,9 +60,10 @@ export function autoLayout(graph, width, height) {
 
   const positions = new Map();
   for (const [depth, ids] of byDepth) {
-    const rowStep = Math.max(2 * NODE_RADIUS + 24, (height - 2 * MARGIN_Y) / Math.max(1, ids.length - 1));
+    const evenSpread = (height - 2 * MARGIN_Y) / Math.max(1, ids.length - 1);
+    const rowStep = Math.max(2 * NODE_RADIUS + 24, evenSpread);
     ids.forEach((id, i) => {
-      const y = ids.length === 1 ? height / 2 : MARGIN_Y + i * Math.min(rowStep, (height - 2 * MARGIN_Y) / Math.max(1, ids.length - 1));
+      const y = height / 2 + (i - (ids.length - 1) / 2) * rowStep;
       positions.set(id, { x: MARGIN_X + depth * colStep, y });
     });
   }
