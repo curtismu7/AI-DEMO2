@@ -595,6 +595,15 @@ See **[docs/SETUP.md](docs/user-guide/SETUP.md)** (§ 2 — PingOne Application 
 
 ## Testing
 
+**A red X on a PR's GitHub Actions checks does not necessarily mean the code is
+broken.** This is a private repo on the Free plan's 2,000 Actions-minutes/month
+cap (see `.github/workflows/ci.yml` header); once the cap is hit, jobs fail in
+~3-4 seconds with 0 steps executed — that failure is the billing gate, not a
+test result. `git push` runs the same checks locally via `scripts/ci-local.sh`
+(a pre-push hook) and that result is authoritative — trust it over a starved
+remote run. To tell the two apart on a PR: open the failing check's job page —
+0 steps and a multi-second runtime means billing-blocked, not a real failure.
+
 Run the full test suite across all services:
 
 ```bash

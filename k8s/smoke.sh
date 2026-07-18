@@ -9,10 +9,16 @@
 #   ./k8s/smoke.sh ping-devops-<you>
 #
 # Optional env:
-#   APP_URL            — public origin (default https://ai-demo.ping-devops.com)
-#   DEPLOY_START_EPOCH — unix epoch of deploy start; any pod started BEFORE it
-#                        is flagged stale (catches deploy.sh dying mid-rollout
-#                        and leaving services on pre-push images)
+#   APP_URL                  — public origin (default https://ai-demo.ping-devops.com)
+#   DEPLOY_START_EPOCH       — unix epoch of deploy start; any pod started BEFORE it
+#                              is flagged stale (catches deploy.sh dying mid-rollout
+#                              and leaving services on pre-push images)
+#   SMOKE_CHECK_DEPLOYMENTS  — space-separated deployment names; when set, check 2/7
+#                              only flags staleness for these (a single-service targeted
+#                              push, e.g. se-update-code.sh <service>, never touches every
+#                              other deployment, so checking all of them there is a
+#                              guaranteed false positive, not a real signal). Unset (the
+#                              full-deploy path) checks every deployment, as before.
 #
 # Checks (each prints PASS/FAIL; exits 1 if any failed):
 #   1. every deployment's rollout is complete
@@ -83,7 +89,14 @@ if [ -n "${DEPLOY_START_EPOCH:-}" ]; then
     if [ "$start_epoch" -ne 0 ] && [ "$start_epoch" -lt "$DEPLOY_START_EPOCH" ]; then
       # Pod name = <deployment>-<rs-hash>-<pod-hash>: strip the last TWO
       # segments (%%-* kept only the first segment, e.g. "demo").
-      STALE="$STALE ${name%-*-*}"
+      dep="${name%-*-*}"
+      # Single-service targeted push: only this run's own deployment(s) are
+      # expected to be fresh — every other running pod legitimately predates
+      # it, so skip anything not in the allowlist instead of false-failing.
+      if [ -n "${SMOKE_CHECK_DEPLOYMENTS:-}" ]; then
+        case " $SMOKE_CHECK_DEPLOYMENTS " in *" $dep "*) ;; *) continue ;; esac
+      fi
+      STALE="$STALE $dep"
     fi
   done < <(kubectl get pods -n "$NS" -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.startTime}{"\n"}{end}')
   if [ -n "$STALE" ]; then
