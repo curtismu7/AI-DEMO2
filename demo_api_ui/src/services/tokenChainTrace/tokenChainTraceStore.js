@@ -72,6 +72,21 @@ export const tokenChainTraceStore = {
     trace.tokenEvents = events.slice();
     emit();
   },
+  ingestTokenEvent(event) {
+    if (!event || !event.id) return;
+    ensureTrace();
+    const idx = trace.tokenEvents.findIndex((e) => e.id === event.id);
+    if (idx >= 0) {
+      trace.tokenEvents = [
+        ...trace.tokenEvents.slice(0, idx),
+        event,
+        ...trace.tokenEvents.slice(idx + 1),
+      ];
+    } else {
+      trace.tokenEvents = [...trace.tokenEvents, event];
+    }
+    emit();
+  },
   ingestAuthorize(evaluation) {
     if (!evaluation) return;
     ensureTrace();

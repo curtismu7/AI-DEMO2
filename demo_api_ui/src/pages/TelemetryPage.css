@@ -166,23 +166,29 @@
 .telemetry-node:active { cursor: grabbing; }
 
 .telemetry-node-label {
-  font-size: 11px;
-  font-weight: 700;
-  fill: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  fill: #2c3e50;
   pointer-events: none;
 }
 
 .telemetry-node-latency {
   font-size: 10px;
-  fill: #d6eaf8;
+  fill: #95a5a6;
   pointer-events: none;
 }
 
-.telemetry-node-latency--error { fill: #fadbd8; }
+.telemetry-node-latency--error { fill: #e74c3c; }
 
 .telemetry-edge-label {
   font-size: 10px;
-  fill: #7f8c8d;
+  fill: #566573;
+  /* White halo: labels render in the topmost layer and stay readable over
+     colored ribbons and card edges. */
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 4px;
+  stroke-linejoin: round;
 }
 
 .telemetry-empty {
@@ -223,6 +229,6 @@
   margin-right: 4px;
 }
 
-.telemetry-legend-dot--ok { background: #2e86c1; }
-.telemetry-legend-dot--error { background: #cb4335; }
+.telemetry-legend-dot--ok { background: #fff; border: 2px solid #b7bec4; }
+.telemetry-legend-dot--error { background: #fff; border: 2px solid #e74c3c; }
 .telemetry-legend-hint { color: #95a5a6; }

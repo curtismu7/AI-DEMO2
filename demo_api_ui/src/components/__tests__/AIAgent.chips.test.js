@@ -827,8 +827,13 @@ describe("Action chip dispatch — MCP tool calls", () => {
         {},
         // 3rd arg: runAction now always forwards { useCaseId, vertical } opts
         // (null here — this chip is clicked directly, not via a chip carrying
-        // a useCaseId) so proof-of-enforcement context threads through.
-        { useCaseId: null, vertical: null },
+        // a useCaseId) so proof-of-enforcement context threads through, plus
+        // an onTokenEvent callback that live-appends to Token Chain.
+        expect.objectContaining({
+          useCaseId: null,
+          vertical: null,
+          onTokenEvent: expect.any(Function),
+        }),
       ),
     );
   });

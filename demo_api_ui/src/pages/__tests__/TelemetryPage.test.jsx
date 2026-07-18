@@ -83,9 +83,9 @@ describe("TelemetryPage", () => {
       fetchedAt: "x",
       nodes: [
         { id: "root", label: "root", latency: "1ms", status: "ok" },
-        ...["a", "b", "c", "d", "e"].map((id) => ({ id, label: id, latency: "1ms", status: "ok" })),
+        ...["a", "b", "c", "d", "e", "f", "g", "h", "i"].map((id) => ({ id, label: id, latency: "1ms", status: "ok" })),
       ],
-      edges: ["a", "b", "c", "d", "e"].map((id) => ({ source: "root", target: id, label: "" })),
+      edges: ["a", "b", "c", "d", "e", "f", "g", "h", "i"].map((id) => ({ source: "root", target: id, label: "" })),
     };
     stubFetch({ graph: fanout });
     const { container } = render(<TelemetryPage />);

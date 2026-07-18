@@ -4900,6 +4900,59 @@ body > .banking-agent-float-root .banking-agent-panel {
   font-weight: 600;
 }
 
+/* Row wrapper — the explain icon is a sibling of the run button, never nested
+   inside it (nested <button> is invalid HTML and breaks the click target). */
+.ba-demo-steps-popout__row {
+  display: flex;
+  align-items: stretch;
+}
+
+.ba-demo-steps-popout__row .ba-demo-steps-popout__item {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-right: 4px;
+}
+
+/* The item no longer spans the row, so its done/hover tints must extend across
+   the icon strip or the row shows a seam. Hover is listed last so it wins. */
+.ba-demo-steps-popout__row:has(.ba-demo-steps-popout__item--done) {
+  background: rgba(21, 128, 61, 0.06);
+}
+
+.ba-demo-steps-popout__row:has(.ba-demo-steps-popout__item:hover) {
+  background: var(--ba-chip-bg-hover, #eff6ff);
+}
+
+/* CSS-only "i" glyph — no emoji (REGRESSION_PLAN §0 allowlist). */
+.ba-demo-steps-popout__explain {
+  flex: 0 0 auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin: 0 12px 0 4px;
+  border-radius: 999px;
+  border: 1.5px solid var(--ba-text-secondary, #64748b);
+  background: transparent;
+  color: var(--ba-text-secondary, #64748b);
+  font: 700 12px/1 Georgia, 'Times New Roman', serif;
+  cursor: pointer;
+}
+
+.ba-demo-steps-popout__explain::before {
+  content: 'i';
+}
+
+.ba-demo-steps-popout__explain:hover,
+.ba-demo-steps-popout__explain:focus-visible {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: #e0e7ff;
+  outline: none;
+}
+
 /* Popout overlay — anchored to .ba-header (position:relative), opens below header */
 .ba-actions-popout {
   position: fixed;

@@ -88,6 +88,11 @@ async function processAdminMessage({ message, userId, sessionId, tokenEvents = [
 
     const systemPrompt = buildAdminSystemPrompt(customer);
 
+    // Scoped separately from the worker-token-card require above (that one is
+    // local to its own try block) — needed here to record a Token Chain step
+    // for each admin tool call the LLM makes below.
+    const { buildTokenEvent } = require('./agentMcpTokenService');
+
     const loopResult = await runReasonLoop({
       messages: [{ role: 'user', content: message }],
       tools: toolSchemas,
@@ -97,7 +102,58 @@ async function processAdminMessage({ message, userId, sessionId, tokenEvents = [
       helixConfig: _extractHelixConfig(langchainConfig),
       anthropicApiKey: process.env.ANTHROPIC_API_KEY,
       maxIterations: MAX_TOOL_ITERATIONS,
-      executeTool: executeAdminTool,
+      executeTool: async (name, args) => {
+        const startedAt = Date.now();
+        try {
+          const result = await executeAdminTool(name, args);
+
+          // executeAdminTool never rejects on a real PingOne API failure — it
+          // catches internally and resolves with a JSON-stringified
+          // { error, message } string (config/admin/tools.js). Detect that
+          // shape so a genuine failure isn't recorded as a 'success' step.
+          let resolvedError = null;
+          try {
+            const parsed = JSON.parse(result);
+            if (parsed && typeof parsed === 'object' && parsed.error) {
+              resolvedError = parsed;
+            }
+          } catch (_parseErr) {
+            // Not JSON, or not an error payload — treat as a normal success result.
+          }
+
+          if (resolvedError) {
+            tokenEvents.push(buildTokenEvent(
+              `pingone-admin-api:${name}`,
+              `PingOne Admin API — ${name}`,
+              'failed',
+              null,
+              `Admin agent's PingOne Management API tool "${name}" failed: ${resolvedError.message || resolvedError.error}`,
+              { tool: name, args, error: resolvedError.message || resolvedError.error },
+            ));
+            return result;
+          }
+
+          tokenEvents.push(buildTokenEvent(
+            `pingone-admin-api:${name}`,
+            `PingOne Admin API — ${name}`,
+            'success',
+            null,
+            `Admin agent called PingOne Management API tool "${name}" (${Date.now() - startedAt}ms).`,
+            { tool: name, args, durationMs: Date.now() - startedAt },
+          ));
+          return result;
+        } catch (err) {
+          tokenEvents.push(buildTokenEvent(
+            `pingone-admin-api:${name}`,
+            `PingOne Admin API — ${name}`,
+            'failed',
+            null,
+            `Admin agent's PingOne Management API tool "${name}" failed: ${err.message}`,
+            { tool: name, args, error: err.message },
+          ));
+          throw err;
+        }
+      },
     });
 
     if (loopResult.ok) {

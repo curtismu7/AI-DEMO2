@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./TelemetryPage.css";
 import {
-  NODE_RADIUS,
-  edgeGeometry,
+  CARD_W,
+  CARD_H,
+  edgePath,
   mergePositions,
   wrapLabel,
 } from "./telemetryGraph";
@@ -11,6 +12,12 @@ const REFRESH_MS = 5000;
 const VIEW_W = 900;
 const VIEW_H = 480;
 const DEFAULT_SERVICE = "demo-api-server";
+
+// One ribbon color per call, mindmap style; cycles for larger graphs.
+const EDGE_PALETTE = [
+  "#26c6da", "#66bb6a", "#ffa726", "#42a5f5",
+  "#ef5350", "#ab47bc", "#26a69a", "#ec407a",
+];
 
 async function fetchJson(url) {
   const res = await fetch(url, { credentials: "include" });
@@ -296,38 +303,27 @@ export default function TelemetryPage() {
               onPointerCancel={onPointerUp}
             >
               <defs>
-                <marker id="telemetry-arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
-                  <polygon points="0 0, 10 4, 0 8" fill="#95a5a6" />
-                </marker>
-                <linearGradient id="telemetry-grad-ok" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#5dade2" />
-                  <stop offset="100%" stopColor="#2e86c1" />
-                </linearGradient>
-                <linearGradient id="telemetry-grad-error" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#ec7063" />
-                  <stop offset="100%" stopColor="#cb4335" />
-                </linearGradient>
                 <filter id="telemetry-shadow" x="-50%" y="-50%" width="200%" height="200%">
-                  <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.2" />
+                  <feDropShadow dx="0" dy="2" stdDeviation="4" floodOpacity="0.13" />
                 </filter>
               </defs>
 
               <g>
-                {visibleEdges.map((e) => {
+                {visibleEdges.map((e, i) => {
                   const s = positions.get(e.source);
                   const t = positions.get(e.target);
                   if (!s || !t) return null;
-                  const geo = edgeGeometry(s, t, NODE_RADIUS);
+                  const geo = edgePath(s, t);
                   return (
-                    <g key={`${e.source}-${e.target}`}>
-                      <line
-                        x1={geo.x1} y1={geo.y1} x2={geo.x2} y2={geo.y2}
-                        stroke="#95a5a6" strokeWidth="2" markerEnd="url(#telemetry-arrow)"
-                      />
-                      <text x={geo.labelX} y={geo.labelY} className="telemetry-edge-label" textAnchor="middle">
-                        {e.label}
-                      </text>
-                    </g>
+                    <path
+                      key={`${e.source}-${e.target}`}
+                      d={geo.d}
+                      fill="none"
+                      stroke={EDGE_PALETTE[i % EDGE_PALETTE.length]}
+                      strokeWidth="5"
+                      strokeLinecap="round"
+                      opacity="0.85"
+                    />
                   );
                 })}
               </g>
@@ -345,13 +341,17 @@ export default function TelemetryPage() {
                       filter="url(#telemetry-shadow)"
                       className="telemetry-node"
                     >
-                      <circle
-                        r={NODE_RADIUS}
-                        fill={n.status === "error" ? "url(#telemetry-grad-error)" : "url(#telemetry-grad-ok)"}
-                        stroke="white"
-                        strokeWidth="3"
+                      <rect
+                        x={-CARD_W / 2}
+                        y={-CARD_H / 2}
+                        width={CARD_W}
+                        height={CARD_H}
+                        rx="14"
+                        fill="white"
+                        stroke={n.status === "error" ? "#e74c3c" : "#e6e9ec"}
+                        strokeWidth={n.status === "error" ? 2 : 1}
                       />
-                      <text className="telemetry-node-label" textAnchor="middle" y={lines.length === 2 ? -10 : -4}>
+                      <text className="telemetry-node-label" textAnchor="middle" y={lines.length === 2 ? -12 : -4}>
                         {lines.map((line, i) => (
                           <tspan key={line + i} x="0" dy={i === 0 ? 0 : 12}>{line}</tspan>
                         ))}
@@ -359,11 +359,32 @@ export default function TelemetryPage() {
                       <text
                         className={`telemetry-node-latency${n.status === "error" ? " telemetry-node-latency--error" : ""}`}
                         textAnchor="middle"
-                        y={lines.length === 2 ? 18 : 14}
+                        y={lines.length === 2 ? 17 : 15}
                       >
                         {n.latency}
                       </text>
                     </g>
+                  );
+                })}
+              </g>
+
+              {/* Edge labels last: topmost layer + halo, never hidden behind cards or ribbons. */}
+              <g>
+                {visibleEdges.map((e) => {
+                  const s = positions.get(e.source);
+                  const t = positions.get(e.target);
+                  if (!s || !t) return null;
+                  const geo = edgePath(s, t);
+                  return (
+                    <text
+                      key={`label-${e.source}-${e.target}`}
+                      x={geo.labelX}
+                      y={geo.labelY}
+                      className="telemetry-edge-label"
+                      textAnchor="middle"
+                    >
+                      {e.label}
+                    </text>
                   );
                 })}
               </g>
@@ -373,7 +394,7 @@ export default function TelemetryPage() {
           <div className="telemetry-legend">
             <span><i className="telemetry-legend-dot telemetry-legend-dot--ok" /> OK</span>
             <span><i className="telemetry-legend-dot telemetry-legend-dot--error" /> Error</span>
-            <span className="telemetry-legend-hint">Drag nodes to rearrange</span>
+            <span className="telemetry-legend-hint">Drag cards to rearrange</span>
           </div>
         </section>
       </div>

@@ -122,6 +122,11 @@ async function runMcpToolPipeline(ctx) {
   // audit store and SSE payload so the MCP Results tab shows the actual wire request.
   const requestJson = { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: tool, arguments: { ...ctx.params } } };
   const { config } = deps;
+  // Hoisted above the authorize-gate block (below) so both the simulated-path
+  // gw-authorize pushes (PERMIT and DENY branches) and the real-gateway call
+  // site further down can gate on the same value — a call either goes through
+  // the real gateway or it doesn't, decided once per pipeline run.
+  const useGateway = deps.config.useGateway;
 
   const flowTraceId = ctx.flowTraceId;
   const startTime = ctx.startTime;
@@ -394,6 +399,37 @@ async function runMcpToolPipeline(ctx) {
                     logger.error(_CAT, `[MCP HITL] Failed to create challenge in HITL service: ${hitlErr.message}`);
                 }
             }
+            const authorizeDecision = mcpAuthz.block.body.error === 'mcp_step_up_required'
+                ? 'INDETERMINATE'
+                : mcpAuthz.block.body.error === 'mcp_hitl_required'
+                    ? 'INDETERMINATE'
+                    : 'DENY';
+            // BFF-simulated engine decided (ff_authorize_simulated, or a genuine
+            // PingOne-unreachable fallback): mirror the PERMIT branch below and
+            // push the gw-authorize Token Chain card here too, so DENY/step-up/
+            // HITL outcomes render the same card the real-gateway path would.
+            // NOT guarded by !useGateway (unlike the PERMIT branch below): this
+            // branch returns early, before the real gateway is ever called, so
+            // there is no later gwAuditTrail.authorize push that could ever
+            // supply a card — the simulated engine's decision is the only
+            // decision that will be made, so its card must always be pushed
+            // here regardless of useGateway (final whole-branch review finding).
+            if (mcpAuthz.block.body.authorize_engine === 'simulated') {
+                tokenEvents.push(deps.buildTokenEvent(
+                    'gw-authorize',
+                    'PingGateway → PingOne Authorize',
+                    authorizeDecision === 'INDETERMINATE' ? 'indeterminate' : 'deny',
+                    null,
+                    `PingOne Authorize decision: ${authorizeDecision}`,
+                    buildGwAuthorizeEventExtra({
+                        decision: authorizeDecision,
+                        engine: 'simulated',
+                        decisionId: mcpAuthz.block.body.decisionId,
+                        request: mcpAuthz.block.body.authorize_request,
+                        response: mcpAuthz.block.body.authorize_response,
+                    })
+                ));
+            }
             return { kind: 'block', httpStatus: mcpAuthz.block.status, tokenEvents, body: {
                 ...mcpAuthz.block.body,
                 tool,
@@ -407,11 +443,7 @@ async function runMcpToolPipeline(ctx) {
                 } : {}),
                 tokenEvents,
                 mcpAuthorizeEvaluation: {
-                    decision: mcpAuthz.block.body.error === 'mcp_step_up_required'
-                        ? 'INDETERMINATE'
-                        : mcpAuthz.block.body.error === 'mcp_hitl_required'
-                            ? 'INDETERMINATE'
-                            : 'DENY',
+                    decision: authorizeDecision,
                     engine: mcpAuthz.block.body.authorize_engine || null,
                     decisionContext: mcpAuthz.block.body.decisionContext,
                     decisionId: mcpAuthz.block.body.decisionId,
@@ -453,6 +485,27 @@ async function runMcpToolPipeline(ctx) {
             mcpAuthorizeEvaluationThisRequest = (ctx.useCaseId || ctx.vertical)
               ? { ...mcpAuthz.evaluation, ...(ctx.useCaseId ? { useCaseId: ctx.useCaseId } : {}), ...(ctx.vertical ? { vertical: ctx.vertical } : {}) }
               : mcpAuthz.evaluation;
+            // BFF-simulated engine decided (ff_authorize_simulated, or a genuine
+            // PingOne-unreachable fallback): no gateway audit trail exists for
+            // this call, so the gw-authorize Token Chain card is built here —
+            // same id/status contract as the real-gateway path (gwAuditTrail.
+            // authorize, above) so TokenChainDisplay renders the same card
+            // regardless of which backend actually decided.
+            // Guarded by !useGateway: when the call goes through the real
+            // gateway (ff_authorize_simulated + ff_mcp_gateway_pinggateway both
+            // on), PingGateway runs its own decision too and the audit-trail
+            // push below (gwAuditTrail.authorize) already covers it — pushing
+            // here as well would double the gw-authorize card for one call.
+            if (!useGateway && mcpAuthz.evaluation?.engine === 'simulated') {
+                tokenEvents.push(deps.buildTokenEvent(
+                    'gw-authorize',
+                    'PingGateway → PingOne Authorize',
+                    'permit',
+                    null,
+                    `PingOne Authorize decision: ${mcpAuthz.evaluation.decision || 'PERMIT'}`,
+                    buildGwAuthorizeEventExtra(mcpAuthz.evaluation)
+                ));
+            }
             deps.appEventLog('authorize', 'info',
                 `Authorize gate permitted — ${tool}`,
                 { tag: 'authorize/gate-permitted', metadata: { tool, useCaseId: ctx.useCaseId, vertical: ctx.vertical } });
@@ -590,7 +643,8 @@ async function runMcpToolPipeline(ctx) {
     // must already be scoped to the gateway audience (MCP_GW_RESOURCE_URI).
     // Graceful fallback: if MCP_GATEWAY_HTTP_URL is not set, use the previous direct path.
     const gatewayHttpUrl = deps.config.gatewayHttpUrl;
-    const useGateway = deps.config.useGateway;
+    // useGateway hoisted above the authorize-gate block — see declaration near
+    // the top of the function.
     const mcpUrl = deps.config.mcpUrl;
     const isLocalDefault = mcpUrl === 'ws://localhost:8080' && !deps.config.mcpServerUrlEnv;
     const useHttp2 = deps.config.useHttp2;
@@ -626,6 +680,7 @@ async function runMcpToolPipeline(ctx) {
         deps.appEventLog('mcp', 'info', `MCP tool done ← ${tool} (${Date.now() - startTime}ms)`, { tag: 'mcp/tool', metadata: { tool, durationMs: Date.now() - startTime } });
 
         // Build token events from gateway audit trail if present (Phase 259)
+        const gwEvents = [];
         if (gwAuditTrail) {
             if (gwAuditTrail.introspection) {
                 const introspRes = gwAuditTrail.introspection;
@@ -633,7 +688,7 @@ async function runMcpToolPipeline(ctx) {
                 const desc = introspRes.skipped
                     ? 'Gateway introspection skipped (endpoint not configured)'
                     : (introspRes.active ? 'Token verified active at gateway' : 'Token is revoked or no longer active');
-                tokenEvents.push(deps.buildTokenEvent(
+                const gwIntrospectionEvent = deps.buildTokenEvent(
                     'gw-introspection',
                     'PingGateway — Token Introspection (RFC 7662)',
                     status,
@@ -650,28 +705,32 @@ async function runMcpToolPipeline(ctx) {
                         skipped: introspRes.skipped,
                         rawResponse: introspRes,
                     }
-                ));
+                );
+                tokenEvents.push(gwIntrospectionEvent);
+                gwEvents.push(gwIntrospectionEvent);
             }
             if (gwAuditTrail.authorize) {
                 const authzRes = gwAuditTrail.authorize;
                 const decision = authzRes.decision; // PERMIT, DENY, INDETERMINATE
                 const status = decision === 'PERMIT' ? 'permit' : (decision === 'INDETERMINATE' ? 'indeterminate' : 'deny');
                 const desc = `PingOne Authorize decision: ${decision}${authzRes.reason ? ' — ' + authzRes.reason : ''}`;
-                tokenEvents.push(deps.buildTokenEvent(
+                const gwAuthorizeEvent = deps.buildTokenEvent(
                     'gw-authorize',
                     'PingGateway → PingOne Authorize',
                     status,
                     null,
                     desc,
                     buildGwAuthorizeEventExtra(authzRes)
-                ));
+                );
+                tokenEvents.push(gwAuthorizeEvent);
+                gwEvents.push(gwAuthorizeEvent);
             }
             if (gwAuditTrail.mcpAudit) {
                 const a = gwAuditTrail.mcpAudit;
                 const howResult = a.how?.result || a.how?.decision || 'recorded';
                 const whoUser = a.who?.userSub || a.who?.clientId || 'unknown';
                 const whatTool = a.what?.tool || a.what?.mcpMethod || 'mcp';
-                tokenEvents.push(deps.buildTokenEvent(
+                const gwMcpAuditEvent = deps.buildTokenEvent(
                     'gw-mcp-audit',
                     'PingGateway McpAuditFilter — who / what / when / where / how',
                     howResult === 'blocked' ? 'deny' : 'active',
@@ -686,7 +745,9 @@ async function runMcpToolPipeline(ctx) {
                         how: a.how,
                         eventName: a.eventName || 'PING-GATEWAY-MCP',
                     }
-                ));
+                );
+                tokenEvents.push(gwMcpAuditEvent);
+                gwEvents.push(gwMcpAuditEvent);
             }
             if (gwAuditTrail.mtls) {
                 const mtlsRes = gwAuditTrail.mtls;
@@ -694,15 +755,20 @@ async function runMcpToolPipeline(ctx) {
                 const desc = mtlsRes.enabled
                     ? `Gateway → MCP server mTLS verified. Client cert subject: ${mtlsRes.subject || 'banking-mcp-gateway'}`
                     : 'mTLS not enforced between gateway and MCP server (MCP_MTLS_ENABLED=false). Set MCP_MTLS_ENABLED=true to enforce.';
-                tokenEvents.push(deps.buildTokenEvent(
+                const gwMtlsEvent = deps.buildTokenEvent(
                     'gw-mtls',
                     'Gateway → MCP Server mTLS',
                     status,
                     null,
                     desc,
                     { mtlsEnabled: mtlsRes.enabled, subject: mtlsRes.subject }
-                ));
+                );
+                tokenEvents.push(gwMtlsEvent);
+                gwEvents.push(gwMtlsEvent);
             }
+        }
+        if (gwEvents.length > 0) {
+            deps.publishTokenEventsToSse(flowTraceId, gwEvents);
         }
 
         // Log the actual MCP result so it's queryable via /api/app-events
