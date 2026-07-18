@@ -274,6 +274,25 @@ describe('initiate-otp delivery target', () => {
     expect(res.body.maskedContact).not.toBe(ENROLLED_EMAIL);
   });
 
+  test('never returns a raw address in the response body', async () => {
+    mfaService.listMfaDevices.mockResolvedValue({
+      devices: [{ id: 'd1', type: 'EMAIL', status: 'ACTIVE', email: ENROLLED_EMAIL }],
+    });
+    mfaService.initiateOneTimeOtp.mockResolvedValue({
+      id: 'da-1',
+      _embedded: { devices: [{ email: ENROLLED_EMAIL }] },
+    });
+
+    const res = await request(authedApp)
+      .post('/api/auth/oauth/user/initiate-otp')
+      .send({})
+      .expect(200);
+
+    expect(res.body.email).toBeUndefined();
+    expect(JSON.stringify(res.body)).not.toContain(PROFILE_EMAIL);
+    expect(JSON.stringify(res.body)).not.toContain(ENROLLED_EMAIL);
+  });
+
   test('masks an echoed SMS number to its last four digits', async () => {
     mfaService.listMfaDevices.mockResolvedValue({
       devices: [{ id: 'd2', type: 'SMS', status: 'ACTIVE', phone: '+19725550123' }],

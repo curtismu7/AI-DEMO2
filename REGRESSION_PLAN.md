@@ -145,7 +145,8 @@ the host's TLD is one PingOne will accept, and on `.demo`/`.local`/`localhost`/
 be set and to demo passkeys on the public-domain deployment instead. (3) The
 `/devices` SMS branch accepts both the bare-string and `{ number }` phone
 shapes, and a new `maskContact()` masks the echoed address so `maskedContact`
-is always actually masked.
+is always actually masked. `/initiate-otp` no longer returns a raw `email`
+field at all — nothing consumed it and it carried the synthetic address.
 
 **Do not break:** PingOne returns an SMS device's number as a bare
 string (`"phone": "+19725231586"`), NOT `{ number }` — `resolveEnrolledContact`

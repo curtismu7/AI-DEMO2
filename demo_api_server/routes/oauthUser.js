@@ -1183,7 +1183,9 @@ router.post('/initiate-otp', async (req, res) => {
       deliveryError,
       method,
       expiresIn: 300,
-      email: user.email || '',
+      // No raw address here — the PingOne user profile email is provisioned
+      // synthetically (demoUser@<app host>) and is not the delivery target
+      // anyway. maskedContact is the only address the client needs.
       maskedContact,
       // devCode: only included in non-production so demos can complete step-up
       // without email/SMS delivery being configured.
