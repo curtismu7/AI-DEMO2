@@ -503,3 +503,56 @@ async def test_process_agui_message_no_correction_on_grounded_reply(
         messages_list=None,
     )
     mock_agui_emitter.on_grounding_correction.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_process_agui_message_signals_error_on_empty_output(
+    mock_config, mock_session_manager, mock_websocket_handler, mock_agui_emitter,
+):
+    """Groq (and others) can intermittently return empty content and call no
+    tool on an ambiguous prompt. Without a signal the user sees a blank chat
+    with no error and no explanation. The run must instead emit on_error and
+    skip the (pointless, on empty text) grounding check."""
+    agent = Mock()
+    agent.initialize_session_with_token = AsyncMock(return_value=None)
+    agent.llm = Mock()
+    agent.config = Mock()
+    agent.config.langchain = Mock(max_iterations=25)
+    agent._pre_model_hook = Mock()
+    agent._checkpointer = Mock()
+    agent.mcp_tool_provider = Mock()
+    agent.mcp_tool_provider.set_session_context = AsyncMock(return_value=None)
+    agent._build_system_message = AsyncMock(return_value="System prompt")
+    graph = Mock()
+    graph.get_state = Mock(return_value=Mock(values={}))
+
+    async def fake_astream_events(agent_input, config=None, version="v2"):
+        # No on_chat_model_stream chunk, no tool calls -- only an
+        # on_chat_model_end with empty content, which is the shape seen
+        # from Groq on an ambiguous prompt.
+        yield {
+            "event": "on_chat_model_end",
+            "data": {"output": Mock(content="", usage_metadata=None, tool_calls=[]), "input": {"messages": []}},
+            "metadata": {},
+        }
+
+    graph.astream_events = fake_astream_events
+    agent._graph = graph
+
+    processor = MessageProcessor(
+        agent=agent,
+        session_manager=mock_session_manager,
+        websocket_handler=mock_websocket_handler,
+        config=mock_config,
+    )
+    await processor.process_agui_message(
+        session_id="s1",
+        message="asdf",
+        auth_token="tok",
+        emitter=mock_agui_emitter,
+        bff_tool_url="",
+        tool_schemas=None,
+        messages_list=None,
+    )
+    mock_agui_emitter.on_error.assert_awaited_once()
+    mock_agui_emitter.on_grounding_correction.assert_not_awaited()
