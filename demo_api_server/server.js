@@ -2267,8 +2267,10 @@ async function runBackgroundStartupTasks() {
                 configStore.getEffective('REACT_APP_CLIENT_URL') ||
                 process.env.PUBLIC_APP_URL ||
                 'https://api.ping.demo:4000';
-            let rpId = 'api.ping.demo';
-            try { rpId = new URL(url).hostname; } catch (_) { /* keep default */ }
+            // Honours FIDO2_RP_ID / pingone_fido2_rp_id — required when several
+            // origins share one PingOne environment, since rp.id must then be
+            // their common parent domain rather than any one host.
+            const rpId = mfaService.resolveRelyingPartyId(url) || 'api.ping.demo';
             const r = await mfaService.ensureFido2RelyingParty(rpId);
             console.log(`[fido2-rp] bootstrap rpId=${rpId} policies=${r.count} changed=${r.changed}` +
                 (r.policies?.some(p => p.error) ? ` (errors: ${JSON.stringify(r.policies.filter(p => p.error).map(p => p.error))})` : ''));

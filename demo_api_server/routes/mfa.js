@@ -43,13 +43,16 @@ const mfaInitLimiter = rateLimit({
 // origin the app is served from, or the browser rejects passkey registration
 // ("'rp.id' cannot be used with the current origin"). PingOne defaults it to
 // its own domain. Resolve the rp.id from the public app origin.
+// Honours the FIDO2_RP_ID / pingone_fido2_rp_id override, which is what lets a
+// single PingOne environment serve passkeys to several origins at once (see
+// mfaService.resolveRelyingPartyId).
 function resolveFido2RpId() {
   const url =
     configStore.getEffective('PUBLIC_APP_URL') ||
     configStore.getEffective('REACT_APP_CLIENT_URL') ||
     process.env.PUBLIC_APP_URL ||
     'https://demo-api-server:3001';
-  try { return new URL(url).hostname; } catch { return 'demo-api-server'; }
+  return mfaService.resolveRelyingPartyId(url) || 'demo-api-server';
 }
 
 const STEP_UP_TTL_MS = 5 * 60 * 1000; // 5 min step-up validity
