@@ -5,6 +5,7 @@
 // (ARCHITECTURE-TRUTHS T-3 floor). Recursion cap enforced here.
 const axios = require('axios');
 const configStore = require('./configStore');
+const { REASON_LOOP_TIMEOUT_MS } = require('../../llm-timeouts.json');
 
 const REASON_URL =
   (process.env.AGENT_SERVICE_URL || 'http://localhost:3006') + '/api/agent/reason';
@@ -70,7 +71,7 @@ async function runReasonLoop(p) {
           googleApiKey: resolveGoogleApiKey(p.googleApiKey),
           groqApiKey: resolveGroqApiKey(p.groqApiKey),
         },
-        { headers: { 'x-internal-gateway-secret': secret }, timeout: 70000 },
+        { headers: { 'x-internal-gateway-secret': secret }, timeout: REASON_LOOP_TIMEOUT_MS },
       );
     } catch (err) {
       console.warn('[agentReasoningClient] :3006 reason call failed:', err.code || err.message);
