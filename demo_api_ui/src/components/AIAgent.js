@@ -5717,9 +5717,11 @@ export default function BankingAgent({
           ].includes(response.error);
           // A failed tool call arrives as success:false + the backend's own prose
           // (e.g. "❌ Gateway policy denied the tool call"). Never echo that into
-          // the transcript — resolve the code to a plain sentence instead.
+          // the transcript — resolve it to a plain sentence instead. needsParams
+          // is excluded: it is also success:false but its reply is the useful
+          // "I need: Order ID" clarification, not a backend error string.
           const failureSentence =
-            !isHitlBlock && response.success === false && response.error
+            !isHitlBlock && response.success === false && !response.needsParams
               ? NL_FAILURE_MESSAGES[response.error] || NL_FAILURE_FALLBACK
               : null;
           const replyWithAgentBadge = isHitlBlock
@@ -5818,7 +5820,7 @@ export default function BankingAgent({
           e?.name === "TimeoutError" ||
           /timed out|aborted/i.test(String(e?.message || ""));
         if (timedOut) {
-          notifyError("⏱️ That took too long — the request timed out.", { autoClose: agentToastMs.errShort });
+          notifyError("⚠️ That took too long — the request timed out.", { autoClose: agentToastMs.errShort });
           addMessage(
             "assistant",
             `That took too long to answer, so I stopped waiting — this was **${result.action.replace(/_/g, " ")}**, ` +
@@ -5895,7 +5897,7 @@ export default function BankingAgent({
       err?.name === "TimeoutError" ||
       (typeof err?.message === "string" && err.message.includes("timed out"));
     if (isTimeout) {
-      notifyError("⏱️ The model took too long to respond — request timed out.", {
+      notifyError("⚠️ The model took too long to respond — request timed out.", {
         autoClose: agentToastMs.errShort,
       });
       // Only llama.cpp timeouts get the pre-warm retry action — there's no

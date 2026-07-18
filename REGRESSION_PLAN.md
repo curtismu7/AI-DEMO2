@@ -119,15 +119,27 @@ string — new failure codes get a `NL_FAILURE_MESSAGES` entry, and anything
 unmapped must fall through to `NL_FAILURE_FALLBACK`. HITL/step-up codes
 (`hitl_required`, `mcp_hitl_required`, `step_up_required`,
 `mcp_step_up_required`) are gated responses, not failures, and must keep their
-existing approval-prompt text. Any fresh-process `configStore` read must await
+existing approval-prompt text. `needsParams` is likewise `success:false` but its
+reply is the useful "I need: Order ID" clarification — it must stay exempt from
+the failure-sentence mapping. Any fresh-process `configStore` read must await
 `ensureInitialized()` or it silently reports defaults.
 
-**Verify:** vitest `AIAgent.chips` ("agent failure envelopes render a plain
-sentence, not the raw error", 2 tests; suite 60 pass / 3 pre-existing failures
-unrelated to this change); `npm run build` exits 0; jest
-`demoAgentLangGraphService.{modes,tokens,heuristicVerticalTokenGuard}` 9 pass;
-`bash -n run-docker.sh`; live — awaited flag read matches
-`GET /api/admin/feature-flags`.
+**Verify:** vitest `AIAgent.chips` 64 pass (includes the three "agent failure
+envelopes render a plain sentence, not the raw error" tests); `npm run build`
+exits 0; jest `demoAgentLangGraphService.{modes,tokens,heuristicVerticalTokenGuard}`
+9 pass; `bash -n run-docker.sh`. Live proof of the read defect: with
+`ff_authorize_simulated` persisted ON, an un-awaited one-shot read reports
+`sim=0` while the awaited read reports `sim=1`. Live proof of the message fix:
+authz-server down + simulated ON, Demo Step 1 (sporting-goods "my gear") renders
+"That step couldn't be completed…" while the gateway logs
+`DECISION: DENY | tool=list_gear` and the BFF logs the old raw string.
+
+**Also fixed here:** three stale `AIAgent.chips` tests that selected the Actions
+popout via `document.querySelector(".ba-actions-trigger[aria-haspopup='dialog']")`
+— `DemoStepsDropdown.jsx` renders the same class/attribute earlier in the header,
+so they opened the Demo steps popout instead. They now query by accessible name;
+the admin-chips test awaits the async manifest load (`findByText`). Test-only
+change; no component behaviour altered.
 
 ### 2026-07-17 — #539 amount-from-record dead on session-only `/api/mcp/tool`
 
