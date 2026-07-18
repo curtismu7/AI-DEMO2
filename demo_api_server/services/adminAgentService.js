@@ -106,6 +106,33 @@ async function processAdminMessage({ message, userId, sessionId, tokenEvents = [
         const startedAt = Date.now();
         try {
           const result = await executeAdminTool(name, args);
+
+          // executeAdminTool never rejects on a real PingOne API failure — it
+          // catches internally and resolves with a JSON-stringified
+          // { error, message } string (config/admin/tools.js). Detect that
+          // shape so a genuine failure isn't recorded as a 'success' step.
+          let resolvedError = null;
+          try {
+            const parsed = JSON.parse(result);
+            if (parsed && typeof parsed === 'object' && parsed.error) {
+              resolvedError = parsed;
+            }
+          } catch (_parseErr) {
+            // Not JSON, or not an error payload — treat as a normal success result.
+          }
+
+          if (resolvedError) {
+            tokenEvents.push(buildTokenEvent(
+              `pingone-admin-api:${name}`,
+              `PingOne Admin API — ${name}`,
+              'failed',
+              null,
+              `Admin agent's PingOne Management API tool "${name}" failed: ${resolvedError.message || resolvedError.error}`,
+              { tool: name, args, error: resolvedError.message || resolvedError.error },
+            ));
+            return result;
+          }
+
           tokenEvents.push(buildTokenEvent(
             `pingone-admin-api:${name}`,
             `PingOne Admin API — ${name}`,
