@@ -10,6 +10,7 @@ import {
   DEMO_PRIMARY_USE_CASE_IDS,
 } from '../config/demoUseCaseSteps';
 import apiClient from '../services/apiClient';
+import UseCaseExplainModal from './UseCaseExplainModal';
 import {
   clearCompletedUseCases,
   isUseCaseCompleted,
@@ -38,6 +39,7 @@ export default function DemoStepsDropdown({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [tick, setTick] = useState(0);
+  const [explainUc, setExplainUc] = useState(null);
 
   const loadSteps = useCallback(() => {
     setLoading(true);
@@ -144,7 +146,7 @@ export default function DemoStepsDropdown({
     const completed = isUseCaseCompleted(uc.id);
     void tick;
     return (
-      <li key={uc.id}>
+      <li key={uc.id} className="ba-demo-steps-popout__row">
         <button
           type="button"
           className={`ba-demo-steps-popout__item${completed ? ' ba-demo-steps-popout__item--done' : ''}`}
@@ -162,6 +164,14 @@ export default function DemoStepsDropdown({
           )}
           <span className="ba-demo-steps-popout__title">{uc.title}</span>
         </button>
+        <button
+          type="button"
+          className="ba-demo-steps-popout__explain"
+          onClick={() => setExplainUc(uc)}
+          title="Explain this step"
+          aria-label={`Explain step ${stepNumber}: ${uc.id} — ${uc.title}`}
+          data-testid={`demo-explain-${uc.id}`}
+        />
       </li>
     );
   }
@@ -240,6 +250,13 @@ export default function DemoStepsDropdown({
           )}
         </div>
       )}
+      {/* Rendered outside the popout so the explanation survives the
+          outside-pointerdown close. */}
+      <UseCaseExplainModal
+        uc={explainUc}
+        open={Boolean(explainUc)}
+        onClose={() => setExplainUc(null)}
+      />
     </>
   );
 }

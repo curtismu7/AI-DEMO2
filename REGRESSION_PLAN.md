@@ -84,6 +84,44 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-18 — Per-step explain icon on the Demo Steps dropdown (feature)
+
+**Files changed:** `demo_api_ui/src/components/DemoStepsDropdown.jsx`,
+`demo_api_ui/src/components/AIAgent.css` (additive block after
+`.ba-demo-steps-popout__title`), `demo_api_ui/src/components/__tests__/DemoStepsDropdown.test.jsx`.
+
+**What was missing:** Demo Steps rows rendered only `uc.id` + `uc.title`, so a
+presenter had no way to read what a step actually demonstrates without leaving
+the agent for `/use-cases`. The long-form copy already existed — `whatLong`,
+`businessValue`, `productRoles` are returned whole by `GET /api/use-cases` and
+`DemoStepsDropdown` already held the full `uc` object in state — and
+`UseCaseExplainModal` already rendered exactly those fields. Neither was wired
+to the dropdown.
+
+**What was added:** each `<li>` becomes `ba-demo-steps-popout__row` (flex) with
+a new `ba-demo-steps-popout__explain` button as a **sibling** of the existing
+run-step button — not nested, since a `<button>` inside a `<button>` is invalid
+HTML and swallows the row click target. The icon is a CSS circle with
+`::before { content: 'i' }` (no emoji, per §0). Clicking it sets `explainUc`
+and opens the existing `UseCaseExplainModal`; no new fetch, no new field, no
+change to `onSelect`. The modal renders OUTSIDE the `{open && ...}` popout block
+so it survives the dropdown's outside-pointerdown close.
+
+**Do not break:** the icon must never call `onSelect` — explain and run are
+separate targets (covered by the new test's `expect(onSelect).not.toHaveBeenCalled()`).
+The explain testid is `demo-explain-<id>`, deliberately NOT `demo-step-explain-<id>`:
+the existing order assertion does `getAllByTestId(/^demo-step-/)` and a shared
+prefix silently doubles its match count (6 → 12). Keep new row-level testids off
+the `demo-step-` prefix. CSS is additive only — `__item`, `__item--done`,
+`__check`, `__title` rules are untouched, so completion checkmarks and the done
+row tint keep working. Because the item button no longer spans the row, the
+done and hover tints are re-applied at row level via
+`.ba-demo-steps-popout__row:has(…)` — drop those and the row shows an untinted
+seam under the icon. Hover is declared after done so it still wins on a
+completed row.
+
+**Verify:** vitest `DemoStepsDropdown` (incl. the new explain-icon case) +
+`UseCaseExplainModal` — 12 passed; UI build gate `npm run build` exit 0.
 ### 2026-07-18 — Demo steps showed raw backend error prose; demo-sync stopped authz-server while the BFF still required it
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`
