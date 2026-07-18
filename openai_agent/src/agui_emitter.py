@@ -18,6 +18,7 @@ class AGUIEmitter:
         self._turn_reply_text: str = ""
         self._turn_tool_calls: list = []
         self._pending_tool_calls: dict = {}
+        self._any_tool_call: bool = False
 
     async def _emit(self, event: dict) -> None:
         try:
@@ -29,6 +30,15 @@ class AGUIEmitter:
         await self._emit({"type": "RUN_STARTED", "runId": self._run_id, "threadId": self._thread_id})
 
     async def on_run_end(self) -> None:
+        # A well-formed stream with no text and no tool call renders as a
+        # silent blank bubble — same bug class as the Node reason-loop and
+        # langchain_agent empty-answer guards.
+        if not self._turn_reply_text.strip() and not self._any_tool_call:
+            logger.warning("[AG-UI] run %s produced no visible output (no text, no tool call)", self._run_id)
+            await self.on_error(RuntimeError(
+                "The model didn't return a usable response. Try rephrasing your request or sending it again."
+            ))
+            return
         await self._emit({"type": "RUN_FINISHED", "runId": self._run_id, "threadId": self._thread_id})
 
     async def on_llm_start(self) -> None:
@@ -47,6 +57,7 @@ class AGUIEmitter:
             self._current_message_id = None
 
     async def on_tool_start(self, tool_name: str, tool_call_id: str, args_json: str) -> None:
+        self._any_tool_call = True
         self._pending_tool_calls[tool_call_id] = {"name": tool_name, "args": args_json}
         await self._emit({"type": "TOOL_CALL_START", "toolCallId": tool_call_id, "toolCallName": tool_name})
         if args_json:

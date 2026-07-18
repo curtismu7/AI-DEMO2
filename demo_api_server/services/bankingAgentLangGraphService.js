@@ -745,6 +745,13 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
         maxIterations: MAX_TOOL_ITERATIONS,
         executeTool: async (name, args) => executePingOneTool(name, args),
       });
+      // A 200-but-empty answer is not a success (see demoAgentLangGraphService)
+      // — treat it as reasoning_unavailable so it falls to the honest error
+      // reply below instead of rendering a blank bubble as success:true.
+      if (p1LoopResult.ok && !String(p1LoopResult.answer || '').trim()) {
+        p1LoopResult.ok = false;
+        p1LoopResult.reason = p1LoopResult.reason || 'empty_answer';
+      }
       if (p1LoopResult.ok) {
         console.log('[processAgentMessage] PingOne Admin reason loop completed');
         appEventService.logEvent('agent', 'info', 'PingOne Admin response ready', { tag: 'agent/complete' });
@@ -842,6 +849,13 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     console.log('[processAgentMessage] Reason loop completed');
     appEventService.logEvent('agent', 'info', 'Agent response ready', { tag: 'agent/complete' });
 
+    // A 200-but-empty answer is not a success (see demoAgentLangGraphService)
+    // — treat it as reasoning_unavailable so heuristicFallbackResult or the
+    // honest error reply below wins instead of a blank success:true bubble.
+    if (loopResult.ok && !String(loopResult.answer || '').trim()) {
+      loopResult.ok = false;
+      loopResult.reason = loopResult.reason || 'empty_answer';
+    }
     if (loopResult.ok) {
       appEventService.logEvent('agent_prompt', 'info', `LLM response: ${String(loopResult.answer || '')}`,
         { tag: 'agent_prompt/llm_complete', metadata: { userId, response: String(loopResult.answer || ''), model: model || undefined } });

@@ -33,6 +33,14 @@ function resolveGoogleApiKey(override) {
     '';
 }
 
+/** Resolve GroqCloud API key from configStore or env (never a user token). */
+function resolveGroqApiKey(override) {
+  return override ||
+    configStore.getEffective('groq_api_key') ||
+    process.env.GROQ_API_KEY ||
+    '';
+}
+
 async function runReasonLoop(p) {
   // Prefer configStore (vault-loaded value) over process.env so that the vault
   // secret for BFF_INTERNAL_SECRET reaches :3006 correctly. The vault loads
@@ -60,6 +68,7 @@ async function runReasonLoop(p) {
           // Anthropic API key forwarded from BFF env; never a user token
           anthropicApiKey: p.anthropicApiKey,
           googleApiKey: resolveGoogleApiKey(p.googleApiKey),
+          groqApiKey: resolveGroqApiKey(p.groqApiKey),
         },
         { headers: { 'x-internal-gateway-secret': secret }, timeout: 70000 },
       );

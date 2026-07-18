@@ -6,6 +6,10 @@ export class AGUIEmitter {
   private runId: string;
   private threadId: string;
   private emit: EmitFn;
+  // A well-formed stream with no text and no tool call renders as a silent
+  // blank bubble — same bug class as the Node reason-loop and langchain_agent
+  // empty-answer guards.
+  private anyVisibleOutput = false;
 
   constructor(runId: string, threadId: string, emit: EmitFn) {
     this.runId = runId;
@@ -18,6 +22,12 @@ export class AGUIEmitter {
   }
 
   async onRunEnd(): Promise<void> {
+    if (!this.anyVisibleOutput) {
+      await this.onError(new Error(
+        "The model didn't return a usable response. Try rephrasing your request or sending it again."
+      ));
+      return;
+    }
     await this.emit({ type: 'RUN_FINISHED', runId: this.runId, threadId: this.threadId });
   }
 
@@ -26,6 +36,7 @@ export class AGUIEmitter {
   }
 
   async onLlmToken(delta: string): Promise<void> {
+    if (delta) this.anyVisibleOutput = true;
     await this.emit({ type: 'TEXT_MESSAGE_CONTENT', runId: this.runId, threadId: this.threadId, messageId: this.runId, delta });
   }
 
@@ -34,6 +45,7 @@ export class AGUIEmitter {
   }
 
   async onToolStart(toolCallId: string, toolName: string, args: unknown): Promise<void> {
+    this.anyVisibleOutput = true;
     await this.emit({ type: 'TOOL_CALL_START', runId: this.runId, threadId: this.threadId, toolCallId, toolName, args });
   }
 
