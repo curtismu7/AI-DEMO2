@@ -6369,7 +6369,14 @@ export default function BankingAgent({
       addMessage("user", text, null, { isPrompt: !!useCaseId });
       setNlLoading(true);
       try {
-        const response = await sendAgentMessage(text, null, { signal, vertical: effectiveVerticalId, useCaseId });
+        // forceHeuristic (only when useCaseId is set — a scripted Demo Steps/
+        // use-case chip, not free-form chat): the chip's trigger phrase already
+        // maps to a known deterministic action, so it must run regardless of
+        // agent_mode — otherwise a non-heuristics mode (e.g. local dev's
+        // llama.cpp default) routes it to the LLM instead, which handles it
+        // conversationally and never reaches the real tool/step-up pipeline.
+        // Same reasoning as the kind:'vertical' forceHeuristic re-dispatch above.
+        const response = await sendAgentMessage(text, null, { signal, vertical: effectiveVerticalId, useCaseId, forceHeuristic: !!useCaseId });
         if (!cancelled && !signal.aborted) {
           // Dispatch backend events to EventStream
           if (response.events && Array.isArray(response.events)) {
