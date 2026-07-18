@@ -308,6 +308,7 @@ services:
       MCP_CODE_SEARCH_URL: "http://demo-mcp-code-search:8095"
       # Parity with mcp-gateway: allow BFF TraT simulation header in demo compose.
       ALLOW_UNSIGNED_TRAT_CONTEXT: ${ALLOW_UNSIGNED_TRAT_CONTEXT:-true}
+      BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
     env_file:
       - path: ./demo_mcp_server/.env
         required: false   # copy demo_mcp_server/.env.example if you need overrides
@@ -421,6 +422,7 @@ services:
       # TraT simulation: BFF forwards unsigned X-TraT-Context when PingOne does not
       # embed TraT claims. Opt-in for demo compose; leave unset in production-like envs.
       ALLOW_UNSIGNED_TRAT_CONTEXT: ${ALLOW_UNSIGNED_TRAT_CONTEXT:-true}
+      BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
     env_file:
       - path: ./demo_mcp_gateway/.env
         required: false
@@ -463,6 +465,7 @@ services:
       # this as a minimum capability class (per-agent routing, swap mode).
       LLAMACPP_MODEL: "gpt-oss-20b"
       MLX_LM_BASE_URL: "http://host.docker.internal:8098"
+      BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
     env_file:
       - path: ./demo_agent_service/.env
         required: false

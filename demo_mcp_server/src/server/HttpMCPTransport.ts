@@ -30,6 +30,7 @@ import { AuditLogger } from '../utils/AuditLogger';
 import { Logger, createDefaultLoggerConfig } from '../utils/Logger';
 import { correlationFromMessage } from './correlationFromMessage';
 import { runWithCorrelation } from '../utils/correlationContext';
+import { emitHop } from '../utils/transactionHop';
 import { extractTratClaims } from '../auth/TratClaimsExtractor';
 
 // ---------------------------------------------------------------------------
@@ -545,6 +546,15 @@ export class HttpMCPTransport {
     // Correlation scope begins here: pre-route bearer/JWKS validation, gateway-contract and protocol-version checks (steps 1-6 above) run before the correlation id is bound. The RFC 7662 introspection that the teaching trace cares about runs inside handleMessage (within this scope) on both transports.
     await runWithCorrelation(correlationId, async () => {
       const mcpResponse = await this.messageHandler.handleMessage(message, context);
+
+      if (message.method === 'tools/call') {
+        emitHop({
+          phase: 'mcp.tool',
+          op: String((message.params as any)?.name ?? 'unknown'),
+          params: (message.params as any)?.arguments ?? {},
+          status: mcpResponse?.error ? 'error' : 'ok',
+        });
+      }
 
       // Capture negotiated protocol version from initialize response
       if (isInitialize && mcpResponse?.result?.['protocolVersion']) {

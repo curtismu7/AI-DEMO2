@@ -4,6 +4,7 @@ import { context as otelContext, trace } from '@opentelemetry/api';
 import { EventType } from '@ag-ui/core';
 import { reasonOnce } from './reasoningGraph';
 import { runWithCorrelation, getCorrelationId } from './correlationContext';
+import { emitHop } from './transactionHop';
 import type { ReasonMessage, ReasonResponse, ReasonToolSchema } from './reasonContract';
 
 const tracer = trace.getTracer('banking-agent-service');
@@ -418,6 +419,11 @@ export function makeAgentRunHandler(internalSecret: string, pinnedBffToolUrl?: s
           }
         }
         span.end();
+        emitHop({
+          phase: 'agent.reason',
+          op: `reasoning-step-${iter + 1}`,
+          status: 'ok',
+        });
       } catch (err) {
         span.end();
         emit(res, { type: EventType.RUN_ERROR, message: 'Reasoning failed: ' + String(err), code: 'REASONING_ERROR' });
@@ -523,6 +529,13 @@ export function makeAgentRunHandler(internalSecret: string, pinnedBffToolUrl?: s
             toolSpan.setAttribute('duration_ms', mcpEntry.durationMs);
           }
           toolSpan.end();
+          emitHop({
+            phase: 'agent.reason',
+            op: `tool:${call.name}`,
+            durationMs: mcpEntry?.durationMs,
+            params: call.args as Record<string, unknown>,
+            status: 'ok',
+          });
 
           const interrupt = extractHitlInterrupt(result);
           if (interrupt) {

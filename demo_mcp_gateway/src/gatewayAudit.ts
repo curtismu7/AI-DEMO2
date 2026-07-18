@@ -14,6 +14,7 @@
 import axios from 'axios';
 import type { GatewayConfig } from './config';
 import { getCorrelationId } from './correlationContext';
+import { emitHop } from './transactionHop';
 
 export interface GatewayAuditEvent {
   operation: string;          // tool name
@@ -48,6 +49,21 @@ export function recordGatewayAudit(event: GatewayAuditEvent, config: GatewayConf
     const enriched: GatewayAuditEvent = event.correlationId
       ? event
       : { ...event, correlationId: getCorrelationId() };
+    // Same chokepoint, second consumer: the durable audit trail keeps its
+    // existing shape while the ledger gets a hop with identity fields on it.
+    emitHop({
+      phase: 'gateway.authorize',
+      op: enriched.operation,
+      correlationId: enriched.correlationId,
+      durationMs: enriched.duration,
+      identity: { sub: enriched.userId ?? null, act: enriched.agentId ? [enriched.agentId] : [] },
+      decision: {
+        outcome: enriched.outcome === 'success' ? 'permit' : enriched.outcome === 'partial' ? 'n/a' : 'deny',
+        by: 'gateway',
+        reason: enriched.outcome,
+      },
+      status: enriched.outcome === 'failure' ? 'error' : 'ok',
+    });
     axios
       .post(url, enriched, {
         headers: { 'x-internal-gateway-secret': config.bffInternalSecret },
