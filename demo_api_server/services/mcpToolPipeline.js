@@ -626,6 +626,7 @@ async function runMcpToolPipeline(ctx) {
         deps.appEventLog('mcp', 'info', `MCP tool done ← ${tool} (${Date.now() - startTime}ms)`, { tag: 'mcp/tool', metadata: { tool, durationMs: Date.now() - startTime } });
 
         // Build token events from gateway audit trail if present (Phase 259)
+        const gwEvents = [];
         if (gwAuditTrail) {
             if (gwAuditTrail.introspection) {
                 const introspRes = gwAuditTrail.introspection;
@@ -633,7 +634,7 @@ async function runMcpToolPipeline(ctx) {
                 const desc = introspRes.skipped
                     ? 'Gateway introspection skipped (endpoint not configured)'
                     : (introspRes.active ? 'Token verified active at gateway' : 'Token is revoked or no longer active');
-                tokenEvents.push(deps.buildTokenEvent(
+                const gwIntrospectionEvent = deps.buildTokenEvent(
                     'gw-introspection',
                     'PingGateway — Token Introspection (RFC 7662)',
                     status,
@@ -650,28 +651,32 @@ async function runMcpToolPipeline(ctx) {
                         skipped: introspRes.skipped,
                         rawResponse: introspRes,
                     }
-                ));
+                );
+                tokenEvents.push(gwIntrospectionEvent);
+                gwEvents.push(gwIntrospectionEvent);
             }
             if (gwAuditTrail.authorize) {
                 const authzRes = gwAuditTrail.authorize;
                 const decision = authzRes.decision; // PERMIT, DENY, INDETERMINATE
                 const status = decision === 'PERMIT' ? 'permit' : (decision === 'INDETERMINATE' ? 'indeterminate' : 'deny');
                 const desc = `PingOne Authorize decision: ${decision}${authzRes.reason ? ' — ' + authzRes.reason : ''}`;
-                tokenEvents.push(deps.buildTokenEvent(
+                const gwAuthorizeEvent = deps.buildTokenEvent(
                     'gw-authorize',
                     'PingGateway → PingOne Authorize',
                     status,
                     null,
                     desc,
                     buildGwAuthorizeEventExtra(authzRes)
-                ));
+                );
+                tokenEvents.push(gwAuthorizeEvent);
+                gwEvents.push(gwAuthorizeEvent);
             }
             if (gwAuditTrail.mcpAudit) {
                 const a = gwAuditTrail.mcpAudit;
                 const howResult = a.how?.result || a.how?.decision || 'recorded';
                 const whoUser = a.who?.userSub || a.who?.clientId || 'unknown';
                 const whatTool = a.what?.tool || a.what?.mcpMethod || 'mcp';
-                tokenEvents.push(deps.buildTokenEvent(
+                const gwMcpAuditEvent = deps.buildTokenEvent(
                     'gw-mcp-audit',
                     'PingGateway McpAuditFilter — who / what / when / where / how',
                     howResult === 'blocked' ? 'deny' : 'active',
@@ -686,7 +691,9 @@ async function runMcpToolPipeline(ctx) {
                         how: a.how,
                         eventName: a.eventName || 'PING-GATEWAY-MCP',
                     }
-                ));
+                );
+                tokenEvents.push(gwMcpAuditEvent);
+                gwEvents.push(gwMcpAuditEvent);
             }
             if (gwAuditTrail.mtls) {
                 const mtlsRes = gwAuditTrail.mtls;
@@ -694,15 +701,20 @@ async function runMcpToolPipeline(ctx) {
                 const desc = mtlsRes.enabled
                     ? `Gateway → MCP server mTLS verified. Client cert subject: ${mtlsRes.subject || 'banking-mcp-gateway'}`
                     : 'mTLS not enforced between gateway and MCP server (MCP_MTLS_ENABLED=false). Set MCP_MTLS_ENABLED=true to enforce.';
-                tokenEvents.push(deps.buildTokenEvent(
+                const gwMtlsEvent = deps.buildTokenEvent(
                     'gw-mtls',
                     'Gateway → MCP Server mTLS',
                     status,
                     null,
                     desc,
                     { mtlsEnabled: mtlsRes.enabled, subject: mtlsRes.subject }
-                ));
+                );
+                tokenEvents.push(gwMtlsEvent);
+                gwEvents.push(gwMtlsEvent);
             }
+        }
+        if (gwEvents.length > 0) {
+            deps.publishTokenEventsToSse(flowTraceId, gwEvents);
         }
 
         // Log the actual MCP result so it's queryable via /api/app-events
