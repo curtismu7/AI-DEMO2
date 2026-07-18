@@ -520,7 +520,9 @@ async function _runWrongAud(subjectToken, useCaseId, tokenChainEvents) {
       null,
       exchangedToken,
       'get_accounts',
-      {}
+      {},
+      // The wrong audience is deliberate — suppress the "configuration drift" remediation.
+      { simulatedAttack: true }
     );
     // Unexpected permit
     tokenChainEvents.push(buildTokenEvent(
@@ -779,7 +781,9 @@ async function _runReplayedToken(subjectToken, useCaseId, tokenChainEvents) {
   ));
 
   try {
-    await callToolViaGateway(null, subjectToken, 'get_my_accounts', {});
+    // The replayed token's audience is deliberately wrong — suppress the
+    // "configuration drift" remediation text.
+    await callToolViaGateway(null, subjectToken, 'get_my_accounts', {}, { simulatedAttack: true });
     tokenChainEvents.push(buildTokenEvent(
       'sim-gateway-unexpected-permit',
       'Gateway PERMIT (unexpected)',

@@ -48,7 +48,7 @@ function nestedActIdFromClaim(act) {
  *
  * @returns {string} resolved resource URI, or '' when nothing is configured.
  */
-function resolveExpectedMcpResourceUri() {
+function _resolveResourceMode() {
   // useGateway: only true when explicitly configured (env var or persisted SQLite value).
   // Intentionally excludes FIELD_DEFS defaults — a default gateway URL doesn't mean the
   // gateway is deployed, so we must not switch audience resolution based on it.
@@ -56,19 +56,48 @@ function resolveExpectedMcpResourceUri() {
   const usePingGateway = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
   const twoExchangeOn = configStore.getEffective('ff_two_exchange_delegation') !== 'false';
 
+  if (usePingGateway) return 'pinggateway';
+  if (useGateway) return 'gateway';
+  if (twoExchangeOn) return 'two-exchange';
+  return 'single-exchange';
+}
+
+function resolveExpectedMcpResourceUri() {
   // When routing through PingGateway (IG), the final token audience is the
   // PingGateway resource URI (https://api.ping.demo:3036/mcp), not the Node
   // gateway audience (mcpgateway.ping.demo).
-  if (usePingGateway) {
-    return configStore.getEffective('pingone_resource_pinggateway_uri') || process.env.PINGONE_RESOURCE_PINGGATEWAY_URI || 'https://api.ping.demo:3036/mcp';
+  switch (_resolveResourceMode()) {
+    case 'pinggateway':
+      return configStore.getEffective('pingone_resource_pinggateway_uri') || process.env.PINGONE_RESOURCE_PINGGATEWAY_URI || 'https://api.ping.demo:3036/mcp';
+    case 'gateway':
+      return configStore.getEffective('pingone_resource_mcp_gateway_uri') || 'https://api.ping.demo:3000/mcp';
+    case 'two-exchange':
+      return configStore.getEffective('pingone_resource_two_exchange_uri') || configStore.getEffective('mcp_resource_uri') || 'https://api.ping.demo:3000/mcp';
+    default:
+      return configStore.getEffective('mcp_resource_uri') || 'https://api.ping.demo:3000/mcp';
   }
-  if (useGateway) {
-    return configStore.getEffective('pingone_resource_mcp_gateway_uri') || 'https://api.ping.demo:3000/mcp';
+}
+
+/**
+ * The setting that actually drives resolveExpectedMcpResourceUri() in the active
+ * mode. Used to render accurate remediation text on an audience mismatch — naming
+ * the wrong setting (e.g. MCP_SERVER_RESOURCE_URI on the PingGateway path) tells
+ * an operator to break a correct config.
+ *
+ * @returns {{ mode: string, settingKey: string, envVar: string|null }}
+ */
+function resolveExpectedMcpResourceSetting() {
+  const mode = _resolveResourceMode();
+  switch (mode) {
+    case 'pinggateway':
+      return { mode, settingKey: 'pingone_resource_pinggateway_uri', envVar: 'PINGONE_RESOURCE_PINGGATEWAY_URI' };
+    case 'gateway':
+      return { mode, settingKey: 'pingone_resource_mcp_gateway_uri', envVar: null };
+    case 'two-exchange':
+      return { mode, settingKey: 'pingone_resource_two_exchange_uri', envVar: null };
+    default:
+      return { mode, settingKey: 'mcp_resource_uri', envVar: null };
   }
-  if (twoExchangeOn) {
-    return configStore.getEffective('pingone_resource_two_exchange_uri') || configStore.getEffective('mcp_resource_uri') || 'https://api.ping.demo:3000/mcp';
-  }
-  return configStore.getEffective('mcp_resource_uri') || 'https://api.ping.demo:3000/mcp';
 }
 
 /**
@@ -796,6 +825,7 @@ module.exports = {
   evaluateMcpFirstToolGate,
   getMcpFirstToolGateStatus,
   resolveExpectedMcpResourceUri,
+  resolveExpectedMcpResourceSetting,
   nestedActIdFromClaim,
   resolveAmountForPolicy,
   // Exported so tests can assert the gate contract: a vertical's amount action that

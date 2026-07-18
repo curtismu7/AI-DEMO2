@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, act, waitFor } from '@testing-library/react';
-import { ProofOfEnforcementProvider, useProofOfEnforcement } from '../ProofOfEnforcementContext';
+import { ProofOfEnforcementProvider, useProofOfEnforcement, computeVerdict } from '../ProofOfEnforcementContext';
 import { tokenChainTraceStore } from '../../services/tokenChainTrace/tokenChainTraceStore';
 
 const CATALOG = [
@@ -214,4 +214,39 @@ test('session-only sticky useCaseId yields no verdict until call-scoped evidence
     ]);
   });
   await waitFor(() => expect(getByTestId('verdict').textContent).toBe('none'));
+});
+
+// Regression: gateway-level attack sims (aud/scope denies) are blocked BEFORE
+// PingOne Authorize runs, so they never produce an 'authorize-decision'. UC5/UC11/UC12
+// used to declare it as required evidence, which made computeVerdict short-circuit to
+// 'incomplete' on every run — even though the attack was correctly blocked with a 401.
+// Event ids below are the ones attackSimulatorService.js actually emits.
+describe('gateway-denied attack sims reach a verdict', () => {
+  const UC12 = {
+    useCaseId: 'token-theft-replay',
+    title: 'Token theft / replay defense',
+    expectedOutcome: 'DENY_401',
+    evidence: { tokenChain: ['sim-replay-start', 'sim-gateway-deny'], activity: ['token', 'gateway'] },
+  };
+
+  const replayTrace = {
+    tokenEvents: [{ id: 'sim-replay-start' }, { id: 'sim-gateway-deny' }],
+    authorize: null,
+    mcpResult: null,
+  };
+
+  test('UC12 replay sim is denied-as-expected, not incomplete', () => {
+    const v = computeVerdict(replayTrace, UC12);
+    expect(v.missingSteps).toEqual([]);
+    expect(v.state).toBe('denied-as-expected');
+  });
+
+  test('the old contract is what made it incomplete', () => {
+    const v = computeVerdict(replayTrace, {
+      ...UC12,
+      evidence: { tokenChain: ['user-token', 'authorize-decision'], activity: ['token', 'gateway'] },
+    });
+    expect(v.state).toBe('incomplete');
+    expect(v.missingSteps).toEqual(['user-token', 'authorize-decision']);
+  });
 });

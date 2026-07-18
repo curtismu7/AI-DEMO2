@@ -1040,6 +1040,9 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
   return {
     reply,
     success: !isErr,
+    // Carry the machine code (not the prose) so the UI can render its own
+    // plain-language sentence instead of echoing `reply` as a parse failure.
+    ...(isErr ? { error: data.errorCode || 'mcp_tool_failed' } : {}),
     toolsCalled: [action],
     tokensUsed: 0,
     requiresConsent: false,
