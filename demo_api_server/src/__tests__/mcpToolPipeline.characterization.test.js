@@ -182,6 +182,7 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     expect(outcome.body.error).toBe('mcp_authorization_denied');
     expect(outcome.body.mcpAuthorizeEvaluation).toEqual({
       decision: 'DENY',
+      outcome: 'DENY',
       engine: null,
       decisionContext: { x: 1 },
       decisionId: 'd1',
