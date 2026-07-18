@@ -4,6 +4,7 @@ import uuid
 from typing import AsyncIterator
 from fastapi import Request
 from fastapi.responses import StreamingResponse
+from pydantic_ai import Agent
 from pydantic_ai.messages import ModelRequest, ModelResponse, UserPromptPart, TextPart
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import UsageLimits
@@ -12,10 +13,29 @@ from .agui_emitter import AGUIEmitter
 from .bff_tool_adapter import resolve_bff_tool_url
 from .models import BffDeps
 from . import config as cfg
+from .grounding_guardrail import CommitmentGroundingValidator, ToolCallRecord, contains_commitment_claim
+from guardrails.validator_base import FailResult
+from pydantic_ai.messages import ToolCallPart, ToolReturnPart
 
 logger = logging.getLogger(__name__)
 
 _SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+
+
+def _extract_tool_calls(messages) -> list:
+    pending: dict = {}
+    records: list = []
+    for msg in messages:
+        for part in getattr(msg, "parts", []):
+            if isinstance(part, ToolCallPart):
+                pending[part.tool_call_id] = {"name": part.tool_name, "args": part.args}
+            elif isinstance(part, ToolReturnPart):
+                info = pending.pop(part.tool_call_id, None)
+                if info is not None:
+                    records.append(
+                        ToolCallRecord(name=info["name"], args=info["args"], result=str(part.content))
+                    )
+    return records
 
 
 async def _error_stream(run_id: str, thread_id: str, message: str) -> AsyncIterator[str]:
@@ -176,6 +196,51 @@ async def handle_run(request: Request) -> StreamingResponse:
                     await emitter.on_text_token(message_id, text)
                     while collected:
                         yield collected.pop(0)
+
+                final_text = await result.get_output()
+                # new_messages() (not all_messages()) — run_stream is called
+                # with message_history=msg_history (prior turns), so
+                # all_messages() would return the WHOLE conversation and leak
+                # earlier turns' tool calls into this turn's grounding check.
+                turn_tool_calls = _extract_tool_calls(result.new_messages())
+
+            if contains_commitment_claim(final_text):
+                try:
+                    async def _chat_fn(prompt: str) -> str:
+                        # Reuse the exact model object the conversation itself used
+                        # (agent.model) rather than re-deriving cfg/provider routing
+                        # here — that raw-httpx approach silently no-opped the
+                        # guardrail on Anthropic-routed sessions, since it always
+                        # posted to cfg.LLM_BASE_URL with cfg.LLM_API_KEY regardless
+                        # of which provider actually served the conversation.
+                        grounding_agent = Agent(agent.model, defer_model_check=True)
+                        result = await grounding_agent.run(prompt)
+                        return str(result.output)
+
+                    validator = CommitmentGroundingValidator(chat_fn=_chat_fn, on_fail="fix")
+                    check = await validator.async_validate(
+                        final_text, {"tool_calls": turn_tool_calls}
+                    )
+                    if isinstance(check, FailResult):
+                        await emitter.emit({
+                            "type": "CUSTOM",
+                            "name": "grounding_correction",
+                            "value": {
+                                "original": final_text,
+                                "corrected": check.fix_value,
+                                "correctionNote": check.error_message,
+                            },
+                        })
+                        while collected:
+                            yield collected.pop(0)
+                except Exception:
+                    # Fail open on ANY error in the grounding-check block (not
+                    # just the LLM call, which the validator itself already
+                    # fails open on internally) -- e.g. CommitmentGroundingValidator
+                    # construction raising ValueError when ~/.guardrailsrc is
+                    # missing. Never block or alter an already-streamed reply
+                    # on a grounding-check error.
+                    logger.exception("[grounding] guardrail check failed; failing open")
 
             await emitter.on_text_end(message_id)
             while collected:

@@ -11,6 +11,12 @@ import uuid
 from models.chat import ChatMessage, ChatSession
 from models.auth import AuthorizationCode
 from agent.langchain_mcp_agent import LangChainMCPAgent, _content_to_text
+from agent.grounding_guardrail import (
+    CommitmentGroundingValidator,
+    ToolCallRecord,
+    contains_commitment_claim,
+)
+from guardrails.validator_base import FailResult
 from .session_manager import SessionManager
 from .websocket_handler import ChatWebSocketHandler
 from config.settings import get_config
@@ -1053,6 +1059,9 @@ class MessageProcessor:
         llm_streaming = False
         total_input_tokens = 0
         total_output_tokens = 0
+        turn_reply_text = ""
+        pending_tool_calls: dict = {}
+        turn_tool_calls: list = []
 
         async for event in active_graph.astream_events(
             agent_input, config=active_config, version="v2"
@@ -1072,6 +1081,7 @@ class MessageProcessor:
                         await emitter.on_llm_start()
                         llm_streaming = True
                     await emitter.on_llm_new_token(token)
+                    turn_reply_text += token
 
             elif event_name == "on_chat_model_end":
                 output = event_data.get("output")
@@ -1124,6 +1134,10 @@ class MessageProcessor:
                     llm_streaming = False
                 serialized = {"name": event.get("name", "unknown_tool")}
                 tool_call_id = event.get("run_id")
+                pending_tool_calls[tool_call_id] = {
+                    "name": event.get("name", "unknown_tool"),
+                    "args": event_data.get("input"),
+                }
                 await emitter.on_tool_start(
                     serialized,
                     tool_call_id=tool_call_id,
@@ -1133,6 +1147,11 @@ class MessageProcessor:
             elif event_name == "on_tool_end":
                 output = event_data.get("output", "")
                 tool_call_id = event.get("run_id")
+                pending = pending_tool_calls.pop(tool_call_id, None)
+                if pending is not None:
+                    turn_tool_calls.append(
+                        ToolCallRecord(name=pending["name"], args=pending["args"], result=str(output))
+                    )
                 await emitter.on_tool_end(output, tool_call_id=tool_call_id)
 
             elif event_name == "on_chain_error":
@@ -1146,6 +1165,31 @@ class MessageProcessor:
         # 4. Close the LLM message if it was still open at stream end.
         if llm_streaming:
             await emitter.on_llm_end()
+
+        if contains_commitment_claim(turn_reply_text):
+            try:
+                async def _chat_fn(prompt: str) -> str:
+                    resp = await run_llm.ainvoke([HumanMessage(content=prompt)])
+                    return _content_to_text(getattr(resp, "content", ""))
+
+                validator = CommitmentGroundingValidator(chat_fn=_chat_fn, on_fail="fix")
+                check = await validator.async_validate(
+                    turn_reply_text, {"tool_calls": turn_tool_calls}
+                )
+                if isinstance(check, FailResult):
+                    await emitter.on_grounding_correction(
+                        original=turn_reply_text,
+                        corrected=check.fix_value,
+                        note=check.error_message,
+                    )
+            except Exception:
+                # Fail open on ANY error in the grounding-check block (not
+                # just the LLM call, which the validator itself already
+                # fails open on internally) -- e.g. CommitmentGroundingValidator
+                # construction raising ValueError when ~/.guardrailsrc is
+                # missing. Never block or alter an already-streamed reply on
+                # a grounding-check error.
+                logger.exception("[grounding] guardrail check failed; failing open")
 
         if total_input_tokens or total_output_tokens:
             await emitter.on_usage(total_input_tokens, total_output_tokens)

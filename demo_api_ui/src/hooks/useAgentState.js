@@ -42,6 +42,9 @@ const INITIAL_STATE = {
   error: null,
   // Token usage emitted by the active agent runtime (null = not reported)
   lastTokenUsage: null,
+  // Latest commitment-grounding correction (set by the CUSTOM
+  // grounding_correction event; null = no correction this run).
+  lastGroundingCorrection: null,
   // Reasoning visibility (driven by STATE_DELTA /reasoningState/*) — what the
   // agent is thinking: current phase, the tools it selected, and token usage.
   reasoningState: { phase: null, toolOptions: [], contextTokens: null },
@@ -101,7 +104,7 @@ export function useAgentState() {
 
     switch (event.type) {
       case 'RUN_STARTED':
-        setState((prev) => ({ ...prev, lastOutcome: null, error: null, hitlPending: null, lastTokenUsage: null }));
+        setState((prev) => ({ ...prev, lastOutcome: null, error: null, hitlPending: null, lastTokenUsage: null, lastGroundingCorrection: null }));
         break;
 
       case 'TEXT_MESSAGE_START': {
@@ -258,6 +261,16 @@ export function useAgentState() {
         }
         if (event.name === 'llm_detail' && event.value) {
           tokenChainTraceStore.ingestLlmDetail(event.value);
+        }
+        if (event.name === 'grounding_correction' && event.value) {
+          setState((prev) => ({
+            ...prev,
+            lastGroundingCorrection: {
+              original: event.value.original,
+              corrected: event.value.corrected,
+              correctionNote: event.value.correctionNote,
+            },
+          }));
         }
         break;
 

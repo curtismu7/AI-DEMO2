@@ -4,6 +4,8 @@ import uuid
 import logging
 from typing import Any, Callable
 
+from .grounding_guardrail import ToolCallRecord
+
 logger = logging.getLogger(__name__)
 
 
@@ -13,6 +15,9 @@ class AGUIEmitter:
         self._thread_id = thread_id
         self._sink = sink
         self._current_message_id: str | None = None
+        self._turn_reply_text: str = ""
+        self._turn_tool_calls: list = []
+        self._pending_tool_calls: dict = {}
 
     async def _emit(self, event: dict) -> None:
         try:
@@ -31,6 +36,7 @@ class AGUIEmitter:
         await self._emit({"type": "TEXT_MESSAGE_START", "messageId": self._current_message_id})
 
     async def on_llm_token(self, token: str) -> None:
+        self._turn_reply_text += token
         if not self._current_message_id:
             return
         await self._emit({"type": "TEXT_MESSAGE_CONTENT", "messageId": self._current_message_id, "delta": token})
@@ -41,11 +47,17 @@ class AGUIEmitter:
             self._current_message_id = None
 
     async def on_tool_start(self, tool_name: str, tool_call_id: str, args_json: str) -> None:
+        self._pending_tool_calls[tool_call_id] = {"name": tool_name, "args": args_json}
         await self._emit({"type": "TOOL_CALL_START", "toolCallId": tool_call_id, "toolCallName": tool_name})
         if args_json:
             await self._emit({"type": "TOOL_CALL_ARGS", "toolCallId": tool_call_id, "delta": args_json})
 
     async def on_tool_end(self, tool_call_id: str, result: Any) -> None:
+        pending = self._pending_tool_calls.pop(tool_call_id, None)
+        if pending is not None:
+            self._turn_tool_calls.append(
+                ToolCallRecord(name=pending["name"], args=pending["args"], result=str(result))
+            )
         # STATE_DELTA.delta must be a JSON-Patch op ARRAY (the client runs it
         # through applyJsonPatch) — a plain dict is silently dropped. Mirror the
         # shape used by bff_tool_adapter._emit_token_events.
@@ -64,6 +76,13 @@ class AGUIEmitter:
             "type": "CUSTOM",
             "name": "token_usage",
             "value": {"inputTokens": input_tokens, "outputTokens": output_tokens},
+        })
+
+    async def on_grounding_correction(self, original: str, corrected: str, note: str) -> None:
+        await self._emit({
+            "type": "CUSTOM",
+            "name": "grounding_correction",
+            "value": {"original": original, "corrected": corrected, "correctionNote": note},
         })
 
     async def on_error(self, error: Exception) -> None:
