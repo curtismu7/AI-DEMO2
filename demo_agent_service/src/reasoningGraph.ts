@@ -71,6 +71,7 @@ const DEFAULT_MODELS: Record<string, string> = {
   llamacpp: 'local-model',
   mlx: 'local-model',
   google: 'gemini-2.0-flash',
+  groq: 'llama-3.3-70b-versatile',
 };
 
 // Map our internal ReasonMessage[] to LangChain BaseMessage[] for the llama.cpp path.
@@ -347,6 +348,58 @@ export async function reasonOnce(req: ReasonRequest): Promise<ReasonResponse> {
       };
     } catch (err) {
       teachLog.error('Google reasoning step failed', err, { operation: 'reasonOnce' });
+      return { type: 'final', answer: '', messages: req.messages, reasoningUnavailable: true };
+    }
+  }
+
+  if (req.provider === 'groq') {
+    // GroqCloud — LPU-hosted, OpenAI-compatible /v1 API. Real key required
+    // (billed cloud service), same contract as the Google branch above.
+    const apiKey = req.groqApiKey || process.env.GROQ_API_KEY || '';
+    if (!apiKey) {
+      teachLog.error('Groq API key missing', null, { operation: 'reasonOnce' });
+      return { type: 'final', answer: '', messages: req.messages, reasoningUnavailable: true };
+    }
+    try {
+      const model = req.model || process.env.GROQ_MODEL || DEFAULT_MODELS.groq;
+      const llm = new ChatOpenAI({
+        model,
+        temperature: 0,
+        apiKey,
+        configuration: { baseURL: 'https://api.groq.com/openai/v1' },
+      });
+      const withTools = req.tools.length > 0
+        ? llm.bindTools(req.tools.map((t) => ({
+            type: 'function' as const,
+            function: { name: t.name, description: t.description, parameters: t.inputSchema },
+          })))
+        : llm;
+      const response = await withTools.invoke(toLangChainMessages(req.messages, req.systemPrompt));
+      const text = extractTextContent(response.content);
+      const toolCalls = response.tool_calls ?? [];
+      if (toolCalls.length > 0) {
+        const calls = toolCalls.map((tc) => ({
+          id: tc.id ?? `groq-${crypto.randomUUID()}`,
+          name: tc.name,
+          args: (tc.args ?? {}) as Record<string, unknown>,
+        }));
+        const assistantMsg: ReasonMessage = {
+          role: 'assistant',
+          content: text,
+          tool_calls: calls,
+        };
+        return { type: 'tool_calls', calls, messages: [...req.messages, assistantMsg] };
+      }
+      return {
+        type: 'final',
+        answer: text,
+        messages: [...req.messages, { role: 'assistant', content: text }],
+        truncated: isTruncatedResponse(response) || undefined,
+        inputTokens: response.usage_metadata?.input_tokens,
+        outputTokens: response.usage_metadata?.output_tokens,
+      };
+    } catch (err) {
+      teachLog.error('Groq reasoning step failed', err, { operation: 'reasonOnce' });
       return { type: 'final', answer: '', messages: req.messages, reasoningUnavailable: true };
     }
   }
