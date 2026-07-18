@@ -22,7 +22,16 @@
 - **Claims only — never raw tokens in the ledger.** Store `jti` plus decoded claims. No `access_token`, `id_token`, `refresh_token`, `subject_token`, or `actor_token` values.
 - **Emoji allowlist (REGRESSION_PLAN §0):** only `⚠️` `✅` `❌` `🔐` `✕` `✓` `👤` `🔑` `🪟` `📚` may appear in UI copy.
 - **Feature flag `ff_transaction_ledger`**, default `'true'`, wired at all three points (see Task 14).
-- **Run BFF jest with `CI=true`** — `CI=true npx jest ...` from `demo_api_server/`. Without it, supertest suites flake under default worker counts.
+- **Running BFF jest from this worktree needs an override, or it silently passes with zero tests.** `demo_api_server/jest.config.js:47-52` sets `testPathIgnorePatterns: ['/node_modules/', '/\\.claude/worktrees/', '/\\.kilo/worktrees/', '/tests/real/']`. Because this worktree lives under `.claude/worktrees/`, the plain command reports `0 matches` and **exits 0** — a false pass. Every BFF test command in this plan must be run as:
+
+  ```bash
+  cd demo_api_server && CI=true ./node_modules/.bin/jest <testpath> \
+    --testPathIgnorePatterns '/node_modules/' '/tests/real/'
+  ```
+
+  `CI=true` caps workers so the supertest suites do not flake. Re-listing `/node_modules/` and `/tests/real/` keeps those exclusions while dropping only the worktree ones — passing an empty `--testPathIgnorePatterns=''` would re-enable `tests/real/`, which hits live services. Use `./node_modules/.bin/jest`, not `npx jest`: a shell hook in this environment mangles `npx jest` into a parser error.
+
+  **Any BFF test run that reports `0 matches` or `No tests found` is a FAILURE, never a pass.** Read the suite/test counts before claiming green.
 - **Internal secret:** `BFF_INTERNAL_SECRET`, dev fallback literal `'dev-shared-secret-change-me'`, presented as header `x-internal-gateway-secret`, compared with `crypto.timingSafeEqual`.
 
 ## Deviations from the spec (resolved during planning)
