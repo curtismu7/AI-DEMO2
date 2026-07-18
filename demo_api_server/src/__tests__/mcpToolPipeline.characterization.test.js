@@ -346,6 +346,26 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     expect(outcome.body.mcpAuthorizeEvaluation).toEqual({ decision: 'PERMIT', decisionId: 'dz' });
   });
 
+  // Task 7 (docs/superpowers/sdd — token-chain dynamic steps plan): the
+  // BFF-simulated authorize decision (ff_authorize_simulated=true, engine
+  // 'simulated') must produce a gw-authorize Token Chain event with the SAME
+  // id/status contract as the real-gateway path (gwAuditTrail.authorize,
+  // tested above) — so TokenChainDisplay renders identically regardless of
+  // which backend actually decided.
+  test('permit path (simulated engine) → tokenEvents carries a gw-authorize card, same id/status contract as the real gateway path', async () => {
+    const deps = makeDeps();
+    deps.evaluateMcpFirstToolGate = jest.fn(async () => ({
+      ran: true,
+      permit: true,
+      evaluation: { engine: 'simulated', decision: 'PERMIT', decisionId: 'sim-1', path: 'simulated' },
+    }));
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    const gwAz = outcome.body.tokenEvents.find((e) => e.id === 'gw-authorize');
+    expect(gwAz).toBeDefined();
+    expect(['permit', 'deny', 'indeterminate']).toContain(gwAz.status);
+    expect(gwAz.status).toBe('permit');
+  });
+
   test('HTTP/2 transport → result Outcome carries stream:true marker', async () => {
     const deps = makeDeps();
     deps.config = { ...deps.config, useHttp2: true, mcpUrl: 'http://localhost:8080' };

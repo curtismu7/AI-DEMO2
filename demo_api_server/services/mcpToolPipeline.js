@@ -453,6 +453,22 @@ async function runMcpToolPipeline(ctx) {
             mcpAuthorizeEvaluationThisRequest = (ctx.useCaseId || ctx.vertical)
               ? { ...mcpAuthz.evaluation, ...(ctx.useCaseId ? { useCaseId: ctx.useCaseId } : {}), ...(ctx.vertical ? { vertical: ctx.vertical } : {}) }
               : mcpAuthz.evaluation;
+            // BFF-simulated engine decided (ff_authorize_simulated, or a genuine
+            // PingOne-unreachable fallback): no gateway audit trail exists for
+            // this call, so the gw-authorize Token Chain card is built here —
+            // same id/status contract as the real-gateway path (gwAuditTrail.
+            // authorize, above) so TokenChainDisplay renders the same card
+            // regardless of which backend actually decided.
+            if (mcpAuthz.evaluation?.engine === 'simulated') {
+                tokenEvents.push(deps.buildTokenEvent(
+                    'gw-authorize',
+                    'PingGateway → PingOne Authorize',
+                    'permit',
+                    null,
+                    `PingOne Authorize decision: ${mcpAuthz.evaluation.decision || 'PERMIT'}`,
+                    buildGwAuthorizeEventExtra(mcpAuthz.evaluation)
+                ));
+            }
             deps.appEventLog('authorize', 'info',
                 `Authorize gate permitted — ${tool}`,
                 { tag: 'authorize/gate-permitted', metadata: { tool, useCaseId: ctx.useCaseId, vertical: ctx.vertical } });
