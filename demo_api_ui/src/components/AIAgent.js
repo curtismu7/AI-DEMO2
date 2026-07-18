@@ -6428,7 +6428,7 @@ export default function BankingAgent({
               });
             }
           } else if (response.error || !response.success) {
-            reportNlFailure({ code: response.error || "unknown", message: response.message || response.error || response.reply });
+            reportNlFailure({ code: response.error || "unknown", message: response.reply || response.message || response.error });
             // Dispatch error event to EventStream
             addEvent({
               type: 'error',
@@ -7996,7 +7996,7 @@ export default function BankingAgent({
                             if (retryRes.error || !retryRes.success) {
                               addMessage(
                                 "assistant",
-                                `\u26A0\uFE0F ${retryRes.error || retryRes.reply || "Could not retrieve sensitive account details."}`,
+                                `\u26A0\uFE0F ${retryRes.reply || retryRes.error || "Could not retrieve sensitive account details."}`,
                                 "sensitive-account-details",
                               );
                               toast.update(retryToastId, {
@@ -8084,7 +8084,7 @@ export default function BankingAgent({
                       if (sensitiveRes.error || !sensitiveRes.success) {
                         addMessage(
                           "assistant",
-                          `\u26A0\uFE0F ${sensitiveRes.error || sensitiveRes.reply || "Could not retrieve sensitive account details."}`,
+                          `\u26A0\uFE0F ${sensitiveRes.reply || sensitiveRes.error || "Could not retrieve sensitive account details."}`,
                           "sensitive-account-details",
                         );
                         toast.update(sensToastId, {
