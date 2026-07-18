@@ -161,8 +161,16 @@ router.post('/check-chip', requireAdmin, express.json(), async (req, res) => {
   const workerId = process.env.PINGAUTHORIZE_WORKER_ID || 'mcp-gateway-policy';
   const p1azEnabled = process.env.MCP_GW_P1AZ_ENABLED === 'true';
 
+  // Contract C4 — omission is not permission. This used to return a local
+  // PERMIT, so an unconfigured authorization server rendered every chip as
+  // policy-approved. INDETERMINATE says what is true: no decision was made.
   if (!authzEndpoint || !p1azEnabled) {
-    return res.json({ decision: 'PERMIT', reason: 'Authorization Server not configured — local permit' });
+    return res.json({
+      decision: 'INDETERMINATE',
+      degraded: true,
+      policy_source: 'unconfigured',
+      reason: 'Authorization Server not configured (PINGAUTHORIZE_ENDPOINT / MCP_GW_P1AZ_ENABLED) — no decision was evaluated',
+    });
   }
 
   // Extract scopes from the current user's session token
@@ -175,6 +183,15 @@ router.post('/check-chip', requireAdmin, express.json(), async (req, res) => {
     } catch { /* ignore */ }
   }
 
+  // The decision call carried NO audience, so the authorization server's first
+  // rule (aud must include the expected gateway resource) DENIED `invalid_aud`
+  // before the ChipAuthorization rule could ever run — the rule was unreachable
+  // by construction. Send the same expected resource URI the live MCP gate uses
+  // (single source of truth, so the two can't drift). TokenAudience must equal
+  // McpResourceUri or the next rule denies too.
+  const expectedResourceUri =
+    require('../services/mcpToolAuthorizationService').resolveExpectedMcpResourceUri();
+
   try {
     const axios = require('axios');
     const response = await axios.post(
@@ -186,6 +203,9 @@ router.post('/check-chip', requireAdmin, express.json(), async (req, res) => {
           Vertical: vertical,
           TokenScopes: tokenScopes,
           ClientId: req.user?.sub || '',
+          TokenAudience: expectedResourceUri,
+          TokenAudActual: expectedResourceUri,
+          McpResourceUri: expectedResourceUri,
         },
       },
       { timeout: 3000, headers: { 'Content-Type': 'application/json' } },

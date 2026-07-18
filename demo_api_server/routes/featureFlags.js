@@ -673,6 +673,26 @@ const FLAG_REGISTRY = [
     defaultValue: true,
   },
   {
+    id:           'ff_local_fallback_on_exchange_failure',
+    name:         'Local Fallback on Exchange Failure',
+    category:     'MCP / Agent',
+    description:
+      'Controls what happens when the RFC 8693 token exchange fails (for example PingOne returns ' +
+      '"At least one scope must be granted", or the exchanger client is misconfigured). ' +
+      'When **ON**, the BFF runs the tool through its **local handler** so the operation still ' +
+      'completes — but that path never reaches the Agent Gateway or the MCP server, so it bypasses ' +
+      'the gateway policy decision, the PingOne Authorize evaluation, and the per-tool scope check. ' +
+      'Any such response is tagged `_degraded: true` and `policy_source: "local-fallback"`. ' +
+      'When **OFF (default)**, the exchange error is surfaced to the caller and the tool does not run.',
+    impact:
+      'OFF (default) = fail closed; a broken token chain shows up as an error instead of an ' +
+      'unauthorized-but-successful tool call. ' +
+      'ON = demo keeps working through a misconfigured exchange, at the cost of running tools ' +
+      'with no authorization check at all. Use only to demonstrate the failure mode.',
+    type:         'boolean',
+    defaultValue: false,
+  },
+  {
     id:           'ff_gateway_brokered_exchange',
     name:         'Gateway-Brokered Final Token Exchange',
     category:     'MCP / Agent',

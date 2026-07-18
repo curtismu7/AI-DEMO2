@@ -41,10 +41,13 @@ if (!envEnabled && !headerEnabled) {
     return next.handle(context, request)
 }
 
-def maxRequests = (System.getenv('PG_RATE_LIMIT_MAX_REQUESTS') ?: '3') as int
-def windowMs    = (System.getenv('PG_RATE_LIMIT_WINDOW_MS') ?: '10000') as long
-if (maxRequests <= 0) maxRequests = 3
-if (windowMs <= 0) windowMs = 10000L
+// Defaults match the Node gateway's UC18 limiter (20 requests per 60s) — the contract
+// requires the same limits on both paths, and 3-per-10s made the IG path reject bursts
+// the Node path allowed for the same token.
+def maxRequests = (System.getenv('PG_RATE_LIMIT_MAX_REQUESTS') ?: '20') as int
+def windowMs    = (System.getenv('PG_RATE_LIMIT_WINDOW_MS') ?: '60000') as long
+if (maxRequests <= 0) maxRequests = 20
+if (windowMs <= 0) windowMs = 60000L
 
 def rawBody = request.entity.string ?: ''
 if (rawBody) {
@@ -61,6 +64,11 @@ if (!(body instanceof Map) || body.method != 'tools/call') {
     return next.handle(context, request)
 }
 
+// Read the subject from BOTH claim locations. contexts['oauth2'] is populated only by
+// the introspection routes (OAuth2ResourceServerFilter); on the JWKS routes
+// jwks-token-validation.groovy:184 stores the claims in attributes['oauth2AccessToken']
+// instead, so this used to fall through to 'unknown' and EVERY JWKS caller shared one
+// rate-limit bucket (one user could exhaust the limit for all of them).
 def sub = 'unknown'
 try {
     def oauth2Ctx = contexts['oauth2']
@@ -70,8 +78,21 @@ try {
             sub = info.sub.toString()
         }
     }
+    if (sub == 'unknown') {
+        def rawAttr = attributes['oauth2AccessToken']
+        def attrInfo = (rawAttr instanceof Map)
+            ? rawAttr
+            : (rawAttr != null && rawAttr.respondsTo('getInfo') ? rawAttr.getInfo() : null)
+        if (attrInfo instanceof Map && attrInfo.sub) {
+            sub = attrInfo.sub.toString()
+        }
+    }
 } catch (Exception e) {
     logger.warn('[UC18] sub extraction failed: ' + e.message)
+}
+if (sub == 'unknown') {
+    logger.warn('[UC18] no sub in contexts[oauth2] or attributes[oauth2AccessToken] — ' +
+        'callers will share a single rate-limit bucket')
 }
 
 def toolName = (body.params instanceof Map && body.params.name) ? body.params.name.toString() : 'unknown_tool'

@@ -39,6 +39,7 @@ import { extractCorrelationId } from '../correlationId';
 import { selfBaseUrl } from '../selfBaseUrl';
 import { appendEnterpriseWwwAuthHint, buildEnterpriseExtensionBlock, isEnterpriseManagedMcpAuthEnabled } from '../enterpriseMcpAuth';
 import { runWithCorrelation } from '../correlationContext';
+import { buildAuthzHealth } from '../authzPosture';
 
 const MCP_SESSION_HEADER = 'mcp-session-id';
 const MCP_PROTO_HEADER = 'mcp-protocol-version';
@@ -171,6 +172,9 @@ export class GatewayServer {
         ts: new Date().toISOString(),
         devBypass: this.config.devBypass,
         gatewayResourceUri: this.config.gatewayResourceUri,
+        // Contract C3 — the aggregate "is the gate armed" signal. `failOpen`
+        // names every currently-active bypass; an empty array means fully armed.
+        authz: buildAuthzHealth(this.config),
       }));
       return;
     }

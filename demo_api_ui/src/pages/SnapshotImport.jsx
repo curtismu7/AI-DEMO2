@@ -69,7 +69,9 @@ export default function SnapshotImport() {
       const formData = new FormData();
       formData.append('snapshot', file);
       const res = await fetch(`${AUTHZ_BASE}/admin/import-snapshot`, { method: 'POST', body: formData });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      // 409 means the snapshot was rejected for parity conflicts — the body is a
+      // full conflict report, so render it instead of collapsing it to a status code.
+      if (!res.ok && res.status !== 409) throw new Error(`HTTP ${res.status}`);
       setResult(await res.json());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Import failed');

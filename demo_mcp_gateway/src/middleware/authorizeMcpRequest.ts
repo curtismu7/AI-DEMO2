@@ -51,7 +51,8 @@ import { recordGatewayAudit, auditOutcomeFromHttp, httpScopeAlertDetails } from 
 import { verifyDpopProof } from '../dpopVerify';
 import { verifyWebBotAuth } from '../webBotAuthVerify';
 import { enforceRarSubset, rarDetailsFromEnvelope, type RarDetail, type RarToolArgs } from '../rarEnforce';
-import type { TratClaims } from '../auth/PingOneAuthorizeClient';
+import type { TratClaims, PolicySource } from '../auth/PingOneAuthorizeClient';
+import { noteBindingHeaderSeen } from '../authzPosture';
 import { SlidingWindowLimiter, _resetLimiterForTest as _resetRateLimiterForTest } from '../rateLimit';
 
 // ---------------------------------------------------------------------------
@@ -105,6 +106,10 @@ export interface AuthorizeMcpRequestDeps {
       policyVersion?: string;
       traceId?: string;
       engine?: 'real' | 'mock' | 'mock-failover';
+      // Contract C2 — which authority decided, and whether it was a degraded
+      // (gateway-local) decision rather than a PDP one.
+      policySource?: PolicySource;
+      degraded?: boolean;
       sentParameters?: Record<string, string>;
     }>;
   exchange?: (subjectToken: string) => Promise<{ token: string; targetAud: string; cached: boolean }>;
@@ -327,7 +332,18 @@ export function buildAuthorizeMcpRequest(
       // Production path: transport-agnostic pipeline (introspection + policy)
       // HTTP-specific rendering (writeHead, WWW-Authenticate, JSON body shape)
       // stays here; the core only returns a tagged decision.
-      const pipelineResult = await runMcpAuthorizationPipeline(bearerToken, introspectionClient, config);
+      // UC16 needs the tool name at policy time. Peek at the JSON-RPC envelope
+      // here (it is re-parsed below for the main flow) so the require-act branch
+      // in GatewayTokenPolicy is reachable on HTTP — without these two arguments
+      // the check silently never fired.
+      const preParsed = parseJsonRpcBody(body);
+      const pipelineResult = await runMcpAuthorizationPipeline(
+        bearerToken,
+        introspectionClient,
+        config,
+        preParsed.params?.name,
+        preParsed.method === 'tools/call' ? 'McpToolCall' : undefined,
+      );
       auditTrail.introspection = pipelineResult.audit.introspection;
       auditTrail.policy = pipelineResult.audit.policy;
       // Capture introspection result for passing to P1AZ when introspectionProvider='p1az'.
@@ -389,6 +405,10 @@ export function buildAuthorizeMcpRequest(
       }
 
       decoded = pipelineResult.decoded;
+      // C3: an act claim is delegation evidence. If it is present while
+      // REQUIRE_ACT_FOR_AGENT_TOOLS is off, /health reports that as a live
+      // bypass rather than an untested optional control.
+      if (decoded?.act) noteBindingHeaderSeen('act');
     }
 
     // ── Step 2: Parse JSON-RPC to get method, tool name, and transaction args ──────
@@ -490,6 +510,10 @@ export function buildAuthorizeMcpRequest(
 
     // ── Step 2b: Intent token validation (parity with WS path in index.ts) ───
     const xIntentToken = _req?.headers?.['x-intent-token'] as string | undefined;
+    // C3: record that intent evidence is being presented, so /health can report
+    // "intent token received but INTENT_TOKEN_REQUIRED is off" as a live bypass
+    // rather than as an unexercised optional control.
+    if (xIntentToken) noteBindingHeaderSeen('intent');
     const intentRequired = config.intentTokenRequired === true;
     const intentValidation = xIntentToken || intentRequired
       ? validateIntentToken(xIntentToken, toolName ?? '')
@@ -544,11 +568,13 @@ export function buildAuthorizeMcpRequest(
     // is useless without the private key. Fail-closed only when REQUIRE_DPOP_PROOF=true;
     // otherwise observe + log + bridge so the demo runs with the flag on but enforcement off.
     const _dpopProof = _hdr('dpop');
+    if (_dpopProof) noteBindingHeaderSeen('dpop');
     let _cnfJkt: string | undefined;
     let _rarDetails: RarDetail[] | undefined;
     let _tratClaims: TratClaims | null = null;
     try {
       const xt = _hdr('x-trat-context');
+      if (xt) noteBindingHeaderSeen('rar');
       // Unsigned X-TraT-Context is demo-only; gate like MCP TratClaimsExtractor.
       if (xt && process.env.ALLOW_UNSIGNED_TRAT_CONTEXT === 'true') {
         const _env = JSON.parse(xt) as {
@@ -787,11 +813,20 @@ export function buildAuthorizeMcpRequest(
         return;
       }
 
+      // F8 — `required_scopes` is a hint derived from the LOCAL scope topology.
+      // It only describes the decision when the local scope engine IS what
+      // denied. Attaching it to a P1AZ denial for an unrelated reason (tier
+      // ceiling, group membership, actor chain) tells the operator to fix scopes
+      // that were never the problem — and can directly contradict the PDP.
+      const deniedLocally = authzDecision.policySource === 'local-fallback';
       res.end(JSON.stringify({
         error: 'insufficient_scope',
         message: authzDecision.reason ?? 'Request denied by policy',
         decision: authzDecision.decision,
-        required_scopes: getScopesForGatewayTool(toolName ?? ''),
+        // C2 — provenance travels with every decision the caller can see.
+        policy_source: authzDecision.policySource,
+        ...(authzDecision.degraded ? { degraded: true } : {}),
+        ...(deniedLocally ? { required_scopes: getScopesForGatewayTool(toolName ?? '') } : {}),
         login_required: false,
       }));
       return;

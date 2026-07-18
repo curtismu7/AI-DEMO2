@@ -31,6 +31,7 @@ import { Logger, createDefaultLoggerConfig } from '../utils/Logger';
 import { correlationFromMessage } from './correlationFromMessage';
 import { runWithCorrelation } from '../utils/correlationContext';
 import { extractTratClaims } from '../auth/TratClaimsExtractor';
+import { verifyActorChain, parseAllowedActors } from '../auth/actorChain';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -136,8 +137,16 @@ export class HttpMCPTransport {
   ): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
 
+    // Nothing configured ⇒ nothing to enforce. This check now runs on every
+    // request (it used to sit behind MCP_GATEWAY_MODE), so "unconfigured" must
+    // stay a no-op rather than becoming "deny everything". Requiring aud to be
+    // PRESENT is TokenIntrospector's job, and it does so fail-closed whenever
+    // MCP_SERVER_RESOURCE_URI is set.
+    const hasContract = !!(options.gatewayAudience || options.upstreamAudience);
+
     const aud = claims?.aud;
     if (!aud) {
+      if (!hasContract) return { valid: true, errors };
       errors.push('Missing aud claim — cannot enforce upstream contract');
       return { valid: false, errors };
     }
@@ -451,34 +460,69 @@ export class HttpMCPTransport {
       return;
     }
 
-    // 3a. TraT claim extraction — when MCP_TRAT_MODE_ENABLED is set, extract and log TraT context
+    // 3a. TraT claim extraction — when MCP_TRAT_MODE_ENABLED is set, extract the
+    // TraT context and BIND it to the request. A transaction token names the tool
+    // it was issued for (reqctx.tool); replaying it against a different tool would
+    // make the binding decorative, so a mismatch is refused here.
     const tratMode = process.env.MCP_TRAT_MODE_ENABLED === 'true';
     if (tratMode) {
       const xTratContext = req.headers['x-trat-context'] as string | undefined;
       const tratClaims = extractTratClaims(bearerToken, xTratContext, true);
       if (tratClaims) {
         console.log(`[HttpMCPTransport][TraT] Claims extracted — tool=${tratClaims.reqctx.tool} purp=${tratClaims.purp} sim=${tratClaims.trat_sim ?? false}`);
+        if (message.method === 'tools/call') {
+          const calledTool = (message.params as { name?: string } | undefined)?.name;
+          const boundTool = tratClaims.reqctx.tool;
+          if (calledTool && boundTool && calledTool !== boundTool) {
+            console.warn(`[HttpMCPTransport][TraT] Binding violation — token bound to "${boundTool}", call is "${calledTool}"`);
+            this.sendHttpError(
+              res,
+              403,
+              `TraT binding violation: transaction context is bound to tool "${boundTool}", not "${calledTool}"`,
+            );
+            return;
+          }
+        }
       } else {
         console.warn('[HttpMCPTransport][TraT] MCP_TRAT_MODE_ENABLED but no TraT claims found');
       }
     }
 
-    // 3b. Gateway mode: enforce next-hop upstream contract (D-05, Phase 243)
-    if (process.env.MCP_GATEWAY_MODE === 'true') {
-      const claims = this.decodeTokenPayload(bearerToken);
-      const upstreamAudience =
-        process.env.MCP_UPSTREAM_RESOURCE_URI ||
-        process.env.MCP_AUDIENCE ||
-        process.env.PINGONE_RESOURCE_MCP_URI;
-      const gatewayAudience = process.env.MCP_GW_RESOURCE_URI;
-      const contractCheck = HttpMCPTransport.enforceUpstreamContract(claims, {
-        upstreamAudience,
-        gatewayAudience,
-      });
-      if (!contractCheck.valid) {
-        this.sendUnauthorized(res, `Gateway next-hop contract violation: ${contractCheck.errors[0]}`);
-        return;
-      }
+    // 3b. Next-hop token contract — D-05 anti-bypass + RFC 8693 delegation chain.
+    //
+    // D-05 runs UNCONDITIONALLY (was: gated on MCP_GATEWAY_MODE, which is set in no
+    // deployment — docker-compose.yml and .env.example never define it — so the
+    // anti-bypass check was dead everywhere). enforceUpstreamContract is already
+    // self-disarming when neither audience is configured, so the flag added no
+    // safety, only an off switch nobody knew was on.
+    const claims = this.decodeTokenPayload(bearerToken);
+    const upstreamAudience =
+      process.env.MCP_UPSTREAM_RESOURCE_URI ||
+      process.env.MCP_AUDIENCE ||
+      process.env.PINGONE_RESOURCE_MCP_URI;
+    const gatewayAudience = process.env.MCP_GW_RESOURCE_URI;
+    const contractCheck = HttpMCPTransport.enforceUpstreamContract(claims, {
+      upstreamAudience,
+      gatewayAudience,
+    });
+    if (!contractCheck.valid) {
+      this.sendUnauthorized(res, `Gateway next-hop contract violation: ${contractCheck.errors[0]}`);
+      return;
+    }
+
+    // F10 — verify the delegation chain the gateway proved and then dropped.
+    // Armed by MCP_ALLOWED_ACTORS; fail-closed once armed (a token with no act
+    // claim has no provable actor). C4: an unarmed gate logs an explicit skip
+    // marker so it is never indistinguishable from a PERMIT.
+    const actorCheck = verifyActorChain(claims, {
+      allowedActors: parseAllowedActors(process.env.MCP_ALLOWED_ACTORS),
+    });
+    if (!actorCheck.ran) {
+      console.warn(`[HttpMCPTransport][F10] actor chain gate skipped — ran=false skipReason="${actorCheck.skipReason}"`);
+    } else if (!actorCheck.valid) {
+      console.warn(`[HttpMCPTransport][F10] actor chain denied — ${actorCheck.errors[0]}`);
+      this.sendUnauthorized(res, `Delegation chain rejected: ${actorCheck.errors[0]}`);
+      return;
     }
 
     // 4. MCP-Protocol-Version header — required on non-initialize requests, and
@@ -733,11 +777,18 @@ export class HttpMCPTransport {
     // is set, so the demo can run with the flag on but enforcement observe-only.
     if (process.env.REQUIRE_DPOP_PROOF === 'true') {
       const verified = (req.headers['x-dpop-verified'] as string | undefined) === 'true';
-      // When GW_MCP_BRIDGE_SECRET is configured, the verified flag is only trusted if it
-      // arrives with the matching gateway secret — preventing a direct caller (e.g. a
-      // stolen bearer hitting an exposed MCP port) from spoofing X-DPoP-Verified.
+      // X-DPoP-Verified is an assertion made by the gateway, so it is only worth as
+      // much as proof that the gateway is the one making it. GW_MCP_BRIDGE_SECRET is
+      // that proof and is now REQUIRED (was: `!bridgeSecret ||` — an unset secret
+      // trusted the header from any caller, so anyone able to reach the MCP port could
+      // send X-DPoP-Verified: true and satisfy the gate with no DPoP proof at all).
       const bridgeSecret = process.env.GW_MCP_BRIDGE_SECRET;
-      const secretOk = !bridgeSecret || (req.headers['x-gw-bridge-secret'] as string | undefined) === bridgeSecret;
+      if (!bridgeSecret) {
+        console.error('[HttpMCPTransport][DPoP] REQUIRE_DPOP_PROOF=true but GW_MCP_BRIDGE_SECRET is unset — X-DPoP-Verified cannot be authenticated, refusing.');
+        this.sendUnauthorized(res, 'DPoP bridge not configured (GW_MCP_BRIDGE_SECRET required to trust X-DPoP-Verified)');
+        return null;
+      }
+      const secretOk = (req.headers['x-gw-bridge-secret'] as string | undefined) === bridgeSecret;
       if (!verified || !secretOk) {
         this.sendUnauthorized(res, 'DPoP proof required (sender-constrained token)');
         return null;

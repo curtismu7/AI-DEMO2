@@ -84,6 +84,111 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-18 — Agent Gateway / P1AZ decision split: the real policy was inert (WS-A/B/C/D)
+
+**Files changed:** `demo_mcp_gateway/src/{config.ts,authzPosture.ts (new),auth/*,middleware/authorizeMcpRequest.ts,pingAuthorizeGuard.ts,server/GatewayServer.ts}`,
+`ping-gateway/scripts/groovy/{p1az-decision,olb-token-exchange,uc18-rate-limit,apikey-dispatch,p1az-readiness}.groovy` + 4 route JSONs,
+`demo_api_server/services/{pingOneAuthorizeService,mcpToolAuthorizationService,mcpToolPipeline,agentMcpTokenService,configStore}.js` + `routes/{featureFlags,verticalManifest}.js`,
+`demo_authz_server/routes/{decision,import-snapshot}.js`,
+`demo_api_ui/src/pages/SnapshotImport.jsx`, `docker-compose.yml`.
+Analysis: `docs/authorization-decision-split.md`; contract: `planning/authz-fix-contract.md`.
+
+**What was broken:** the demo looked policy-driven while the mock PDP did the
+enforcing and the real PingOne Authorize policy decided almost nothing.
+(1) Both gateways hardcoded `TokenAudience` **and** `McpResourceUri` to the same
+value, making the cloud rule `HasValidMcpAudience` and mock Rule 0c tautologies.
+(2) Neither gateway sent `Acr` or `Amount`, so tier/group rules were dead and a
+completed MFA could never discharge step-up. (3) `MCP_GW_P1AZ_ENABLED` defaulted
+**false**, so the gateway silently substituted its own local scope engine — a
+second PDP, unlabelled. (4) The BFF skipped the entire gate for admin sessions
+and returned an unmarked `{ran:false}` when `failoverMode='permit'`, so a skipped
+gate was indistinguishable from a PERMIT. (5) Exchange failure fell back to the
+local tool handler, bypassing gateway and MCP server. (6) The Intent Token and
+`X-TraT-Context` were minted and sent but verified nowhere on the **default**
+PingGateway path. (7) `X-BFF-Exchanged` let any caller suppress Exchange #3,
+ungated, while its sibling headers were secret-gated. (8) Snapshot parity
+failures were advisory, so importing a snapshot that drops consent tools silently
+un-gated them.
+
+**What was fixed:** `TokenAudience` now carries the token's real `aud` on all
+three callers, with mock Rule 0c comparing audience **sets** so the normal flow
+still PERMITs and a foreign aud DENYs. Canonical parameter set (contract C1)
+across BFF + both gateways, so the two evaluations can no longer disagree.
+`MCP_GW_P1AZ_ENABLED` defaults true; the local engine survives only as an opt-in
+and every decision carries `policy_source` (C2), with `local-fallback` also
+setting `degraded`. Admin bypass deleted — role now flows as a PDP input. Every
+skipped gate returns an explicit `skipReason` (C4). Intent Token and TraT are
+verified in PingGateway groovy. `X-BFF-Exchanged` is secret-gated. Snapshot
+parity returns 409 with the conflict report, and the UI renders it. New
+`GET /health` `authz` block lists every active bypass by name (C3).
+
+**Do not break:** `TokenAudience` must never be reset to the expected URI — that
+is the tautology this entry removed; `McpResourceUri` resolves to whichever
+accepted gateway identity the aud targeted (`PG_GATEWAY_RESOURCE_URI` and the
+real aud are different strings for the same gateway, so naive equality DENYs
+everything). Mock statements carry **`code` only** — adding an `id` or `type`
+makes the shared classifier shadow the code, classify to `null`, and silently
+defeat every step-up/HITL gate. `MCP_GW_ALLOW_UNVERIFIED_TOKENS: "true"` in
+compose preserves long-standing decode-only behaviour; removing it without
+configuring real JWKS makes the gateway refuse every token. Keep the BFF
+`McpFirstTool` gate — the Delegated Access page renders it.
+
+**Verify:** `demo_mcp_gateway` 331 passed / `tsc` clean; `demo_authz_server` 163 +
+68 (incl. `decision.pinggateway-parity.test.js` 15/15); `demo_api_server`
+6165 passed; `demo_api_ui` `npm run build` exit 0. Failing-suite lists are
+byte-identical to their pre-change baselines in every service.
+
+**Still open (deliberately unarmed — each needs a value only an operator has):**
+`MCP_ALLOWED_ACTORS`, `authorizedActorClientId` (falls back to
+`AGENT_OAUTH_CLIENT_ID`), `MCP_GW_ALLOW_UNVERIFIED_TOKENS`, and the cloud policy
+delta (widen `IsMcpFirstToolRequest` to `McpToolsList`/`McpRequest`, add the
+missing Trust Framework attributes) — deliverable only by snapshot import, since
+PingOne Authorize has no policy API for COMPARISON conditions.
+
+### 2026-07-18 — MCP server discarded every authorization fact the gateway proved (WS-E, F10)
+
+**Files changed:** `demo_mcp_server/src/auth/actorChain.ts` (new),
+`demo_mcp_server/src/server/HttpMCPTransport.ts`,
+`demo_mcp_server/src/server/BankingMCPServer.ts`; deleted
+`demo_mcp_server/src/middleware/{mcpTokenValidator,mcpScopeValidator,validateTokenAtGateway}.js`.
+
+**What was broken:** the last hop enforced per-tool scope and nothing else.
+(1) F10 — the RFC 8693 `act` delegation chain was verified at the gateway and
+then dropped; neither transport inspected it. (2) The D-05 anti-bypass check
+(gateway-audience token must not reach the backend directly) ran only under
+`MCP_GATEWAY_MODE=true`, a var set in no compose file and no `.env.example` —
+so it was off in every deployment. (3) Three Express-shaped security middleware
+modules sat in `src/middleware/` imported by nothing; with no Express dependency,
+no `req.user` producer, and `allowJs` off in `tsconfig.json` they were never even
+compiled — one carried a comment claiming it was "Used by the WebSocket/Express
+path". (4) `X-DPoP-Verified` — a header asserting the gateway checked the DPoP
+proof — was trusted unauthenticated whenever `GW_MCP_BRIDGE_SECRET` was unset.
+(5) TraT context was extracted and logged, binding nothing.
+
+**What was fixed:** `verifyActorChain` (new, pure) checks `act.client_id`/`act.sub`
+against `MCP_ALLOWED_ACTORS`, wired into both the HTTP POST path and the
+WebSocket connect path (HTTP-only would be bypassable by switching transport —
+the LangChain agent connects over `ws://mcp-server:8080`). D-05 now runs
+unconditionally; to keep "unconfigured" from becoming "deny everything" its
+`!aud` early-return became a no-op when neither audience is configured. The DPoP
+bridge secret is now mandatory when `REQUIRE_DPOP_PROOF=true`. TraT `reqctx.tool`
+is bound to the `tools/call` tool name (403 on mismatch). Dead middleware deleted.
+
+**Do not break:** both new gates are armed by config and disarmed by default —
+`MCP_ALLOWED_ACTORS` unset ⇒ actor check reports `ran:false` + `skipReason`
+(contract C4: an unarmed gate must stay distinguishable from a PERMIT, never
+silent). Do not make the actor check fail-closed-by-default until the gateway
+sends `actor_token` on Exchange #3 (WS-A); until then real tokens carry no `act`
+and arming it would deny every call. Keep the HTTP and WS actor checks in sync.
+`enforceUpstreamContract` must stay a no-op when no audience is configured —
+`MCP_UPSTREAM_RESOURCE_URI`/`MCP_GW_RESOURCE_URI` are unset in compose today.
+
+**Verify:** `cd demo_mcp_server && CI=true NODE_ENV=test npx jest --forceExit`
+(53 failed / 881 passed — byte-identical failing-suite list to the pre-change
+baseline of 53 failed / 852 passed; the 5 failing suites are pre-existing);
+`npx tsc --noEmit` (clean). Targeted: `npx jest tests/authz-last-hop.test.ts
+tests/no-dead-security-middleware.test.ts` (29 passed).
+
 ### 2026-07-18 — Demo Steps HITL/step-up gates printed the denial text and never opened the approval modal
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js` (the NL-resume

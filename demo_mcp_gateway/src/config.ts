@@ -30,9 +30,20 @@ export interface GatewayConfig {
   // evaluate() fails over to this base if the primary endpoint errors/5xx.
   pingAuthorizeMockBase?: string;
   // Feature flag — when false, P1AZ is never called regardless of endpoint config.
-  // Set MCP_GW_P1AZ_ENABLED=true to activate live P1AZ policy decisions.
-  // Defaults to false so credentials can be configured without activating the feature.
+  // Defaults to TRUE (contract D2): the PDP is the authority, and an operator must
+  // opt OUT by name (MCP_GW_P1AZ_ENABLED=false) rather than silently inherit a
+  // gateway-local shadow PDP because a flag was never set.
   p1azEnabled: boolean;
+  /**
+   * F1 — when P1AZ is inactive, may the gateway fall back to its OWN scope engine
+   * (toolScopes.evaluateScopeDecisionLocally) instead of failing closed?
+   *
+   * Default FALSE. This is a *degraded* mode, not a second policy engine: every
+   * decision it produces is labelled policySource:'local-fallback' + degraded:true
+   * (contract C2) so a locally-manufactured PERMIT can never be mistaken for a
+   * PDP PERMIT. Set MCP_GW_ALLOW_LOCAL_SCOPE_FALLBACK=true for offline dev.
+   */
+  allowLocalScopeFallback: boolean;
   // Optional HITL service URL — when set, INDETERMINATE decisions trigger a challenge
   hitlServiceUrl: string;
   // Optional RFC 7662 introspection endpoint
@@ -224,7 +235,9 @@ export function loadConfig(): GatewayConfig {
     pingAuthorizeEndpoint: optional('PINGAUTHORIZE_ENDPOINT', ''),
     pingAuthorizeWorkerId: optional('PINGAUTHORIZE_WORKER_ID', ''),
     pingAuthorizeMockBase: optional('PINGAUTHORIZE_MOCK_BASE', '') || undefined,
-    p1azEnabled: process.env.MCP_GW_P1AZ_ENABLED === 'true',
+    // Contract D2: default ON. Only the literal string 'false' disables the PDP.
+    p1azEnabled: process.env.MCP_GW_P1AZ_ENABLED !== 'false',
+    allowLocalScopeFallback: process.env.MCP_GW_ALLOW_LOCAL_SCOPE_FALLBACK === 'true',
     hitlServiceUrl: optional('HITL_SERVICE_URL', ''),
     introspectionEndpoint: optional('GW_INTROSPECTION_ENDPOINT',
       optional('PINGONE_INTROSPECTION_ENDPOINT', '')),

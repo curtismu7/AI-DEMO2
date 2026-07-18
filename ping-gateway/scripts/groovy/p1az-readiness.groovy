@@ -25,11 +25,18 @@ def required = [
 ]
 def missing = required.findAll { k, v -> !v }.keySet() as List
 
+// /health is UNAUTHENTICATED (it is the k8s readinessProbe target), so the response
+// carries a boolean readiness only. Enumerating the missing env var names told any
+// caller which credentials the gateway is configured with and which are absent —
+// a configuration map for an attacker probing the host port. The names are logged
+// instead, where the operator diagnosing the probe failure can still see them.
+if (!missing.isEmpty()) {
+    logger.warn('[P1AZReadiness] NOT READY — missing required env: ' + missing.join(', '))
+}
+
 def resp = new Response(missing.isEmpty() ? Status.OK : Status.SERVICE_UNAVAILABLE)
 resp.headers.put('Content-Type', 'application/json')
 resp.entity.setString(JsonOutput.toJson([
-    ready  : missing.isEmpty(),
-    backend: 'real',
-    missing: missing,
+    ready: missing.isEmpty(),
 ]))
 return Promises.newResultPromise(resp)

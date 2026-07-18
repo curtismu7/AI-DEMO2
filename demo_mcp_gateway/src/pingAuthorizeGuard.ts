@@ -13,7 +13,13 @@
 
 import axios from 'axios';
 import { GatewayTokenPolicy, GatewayTokenPolicyError } from './auth/GatewayTokenPolicy';
-import { buildAuthorizeParameters, ToolArgs, TratClaims } from './auth/PingOneAuthorizeClient';
+import {
+  buildAuthorizeParameters,
+  policySourceForEngine,
+  type PolicySource,
+  ToolArgs,
+  TratClaims,
+} from './auth/PingOneAuthorizeClient';
 import { getScopesForGatewayTool, evaluateScopeDecisionLocally } from './auth/toolScopes';
 import { GatewayConfig, isP1AZActive } from './config';
 import { getCorrelationId } from './correlationContext';
@@ -51,6 +57,14 @@ export interface AuthzDecision {
    * _meta.authzEngine so the BFF/UI can signal real vs. mock mode.
    */
   engine?: 'real' | 'mock' | 'mock-failover';
+  /**
+   * Contract C2 — which policy authority produced this decision. Always set.
+   * 'local-fallback' means the gateway decided for itself; such a decision is
+   * degraded and must never be presented as a PDP verdict.
+   */
+  policySource?: PolicySource;
+  /** Contract C2 — always true alongside policySource:'local-fallback'. */
+  degraded?: boolean;
 }
 
 /**
@@ -94,13 +108,41 @@ export async function guardToolsList(
   candidateTools?: string[],
 ): Promise<AuthzDecision> {
   if (!isP1AZActive(config)) {
-    // Authorization Server not configured — fail closed.
-    console.error('[GW] Authorization Server not configured for tools/list — failing closed. Set PINGAUTHORIZE_ENDPOINT.');
-    return { permitted: false, reason: 'Authorization Server not configured' };
+    // F1 — discovery and invocation must share one posture. This branch used to
+    // hard-deny while guardToolCall degraded to the local scope engine, so the same
+    // configuration produced opposite deny postures depending on the method.
+    if (!config.allowLocalScopeFallback) {
+      console.error('[GW] Authorization Server not configured for tools/list and local scope fallback is off — failing closed. Set PINGAUTHORIZE_ENDPOINT.');
+      return {
+        permitted: false,
+        reason: 'authz_unavailable: Authorization Server not configured and local scope fallback is disabled',
+        policySource: 'local-fallback',
+        degraded: true,
+      };
+    }
+    // Degraded discovery: apply the local scope engine to the candidate list so the
+    // caller still gets a per-tool answer, explicitly labelled as NOT a PDP decision.
+    const deniedTools = (candidateTools ?? []).flatMap((name) => {
+      const d = evaluateScopeDecisionLocally(name, decoded.scope);
+      return d.decision === 'DENY' ? [{ name, reason: `local-fallback: ${d.reason}` }] : [];
+    });
+    return {
+      permitted: true,
+      allowedVertical: activeVertical,
+      deniedTools,
+      engine: 'mock',
+      policySource: 'local-fallback',
+      degraded: true,
+    };
   }
 
   try {
     const tokenScopes = (decoded.scope ?? '').split(' ').filter(Boolean).join(' ');
+    // C1 rule 1 — the token's ACTUAL audience (array ⇒ first entry). Setting this
+    // to config.gatewayResourceUri, as this path used to, made the cloud rule
+    // HasValidMcpAudience compare McpResourceUri to itself — a tautology that
+    // could never deny. Omitted (not fabricated) when the token carries no aud.
+    const tokenAud = Array.isArray(decoded.aud) ? (decoded.aud[0] ?? '') : (decoded.aud ?? '');
     const body = {
       parameters: {
         DecisionContext: 'McpToolsList',
@@ -111,11 +153,12 @@ export async function guardToolsList(
         // McpToolsList too, so the Node discovery path must as well or it fails closed.
         UserId: decoded.sub,
         ActClientId: decoded.act?.sub || '',
-        TokenAudience: config.gatewayResourceUri,
+        ...(tokenAud ? { TokenAudience: tokenAud, TokenAudActual: tokenAud } : {}),
         McpResourceUri: config.gatewayResourceUri,
         TokenScopes: tokenScopes,
         ActiveVertical: activeVertical || '',
         Vertical: activeVertical || '',
+        Timestamp: new Date().toISOString(),
         CandidateTools: JSON.stringify(candidateTools || []),
       },
     };
@@ -126,9 +169,19 @@ export async function guardToolsList(
       { timeout: 5000, headers: authzHeaders() },
     );
 
+    // Config-shape label ONLY — this discovery (tools/list) path does not perform
+    // real->mock failover (that lives in PingOneAuthorizeClient.evaluate(), the
+    // tools/call path). So `engine` here is only ever 'real' or 'mock', NEVER
+    // 'mock-failover'. Discovery-path resilience is owned by the BFF's degraded
+    // fallback (agentToolsResolver retry + local catalog), not by this signal.
+    // Hoisted above the decision branch so a DENY carries provenance too (C2).
+    const mockBase = config.pingAuthorizeMockBase;
+    const engine: AuthzDecision['engine'] = (mockBase && mockBase !== config.pingAuthorizeEndpoint) ? 'real' : 'mock';
+    const policySource = policySourceForEngine(engine);
+
     const decision: string = response.data?.decision || 'DENY';
     if (decision !== 'PERMIT') {
-      return { permitted: false, reason: `PingAuthorize decision: ${decision}` };
+      return { permitted: false, reason: `PingAuthorize decision: ${decision}`, engine, policySource };
     }
     // Read the policy advice. AllowedVertical restricts which vertical the list is
     // scoped to; DeniedTools carries the per-tool scope denials (the permitted set
@@ -141,18 +194,19 @@ export async function guardToolsList(
     const adviceVertical = getAdvice('AllowedVertical');
     let deniedTools: Array<{ name: string; reason: string }> | undefined;
     try { const d = getAdvice('DeniedTools'); if (d) deniedTools = JSON.parse(d); } catch { /* ignore malformed advice */ }
-    const mockBase = config.pingAuthorizeMockBase;
-    // Config-shape label ONLY — this discovery (tools/list) path does not perform
-    // real->mock failover (that lives in PingOneAuthorizeClient.evaluate(), the
-    // tools/call path). So `engine` here is only ever 'real' or 'mock', NEVER
-    // 'mock-failover'. Discovery-path resilience is owned by the BFF's degraded
-    // fallback (agentToolsResolver retry + local catalog), not by this signal.
-    const engine: AuthzDecision['engine'] = (mockBase && mockBase !== config.pingAuthorizeEndpoint) ? 'real' : 'mock';
-    return { permitted: true, allowedVertical: adviceVertical || activeVertical, deniedTools, engine };
+    return { permitted: true, allowedVertical: adviceVertical || activeVertical, deniedTools, engine, policySource };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.warn('[GW] PingAuthorize guard failed — failing closed:', msg);
-    return { permitted: false, reason: 'Authorization check unavailable' };
+    // The PDP was the intended authority and it could not be reached — label the
+    // fail-closed DENY as such rather than leaving its provenance unknown.
+    return {
+      permitted: false,
+      reason: 'Authorization check unavailable',
+      policySource: policySourceForEngine(
+        config.pingAuthorizeMockBase && config.pingAuthorizeMockBase !== config.pingAuthorizeEndpoint ? 'real' : 'mock',
+      ),
+    };
   }
 }
 
@@ -218,17 +272,34 @@ export async function guardToolCall(
   // for tools/call. This allows development/testing without P1AZ. For tools/list and
   // other methods, fail closed since scope decision doesn't cover them.
   if (!isP1AZActive(config)) {
+    // F1 — same opt-in gate as the HTTP path: the local scope engine is a degraded
+    // mode an operator asks for, not a silent stand-in for the PDP.
+    if (!config.allowLocalScopeFallback) {
+      console.error('[GW-WS] Authorization Server not configured and local scope fallback is off — failing closed. Set PINGAUTHORIZE_ENDPOINT.');
+      return {
+        permitted: false,
+        reason: 'authz_unavailable: Authorization Server not configured and local scope fallback is disabled',
+        policySource: 'local-fallback',
+        degraded: true,
+      };
+    }
     if (toolName) {
       const decision = evaluateScopeDecisionLocally(toolName, decoded.scope);
       return {
         permitted: decision.decision === 'PERMIT',
-        reason: decision.decision === 'PERMIT' ? undefined : decision.reason,
+        reason: decision.decision === 'PERMIT' ? undefined : `local-fallback: ${decision.reason}`,
         engine: 'mock',
+        policySource: 'local-fallback',
+        degraded: true,
       };
     }
-    // tools/list and other methods require P1AZ
-    console.error('[GW-WS] Authorization Server not configured. Set PINGAUTHORIZE_ENDPOINT.');
-    return { permitted: false, reason: 'Authorization Server not configured' };
+    return {
+      permitted: true,
+      reason: 'local-fallback: no local rule for this method (degraded — not a PDP decision)',
+      engine: 'mock',
+      policySource: 'local-fallback',
+      degraded: true,
+    };
   }
 
   try {
@@ -265,6 +336,9 @@ export async function guardToolCall(
 
     const mockBase = config.pingAuthorizeMockBase;
     const canFailover = !!mockBase && mockBase !== config.pingAuthorizeEndpoint;
+    // Track which authority actually answered so every return below can be
+    // labelled (C2) — a failover DENY and a real-PDP DENY are not the same fact.
+    let engine: AuthzDecision['engine'] = canFailover ? 'real' : 'mock';
 
     let response;
     try {
@@ -276,7 +350,7 @@ export async function guardToolCall(
           : typeof errBody?.error === 'string' ? errBody.error
           : `PingOne Authorize returned HTTP ${response.status}`;
         console.error(`[GW-WS] P1AZ ${response.status}: ${reason}`);
-        return { permitted: false, reason: `authorize_config_error: ${reason}` };
+        return { permitted: false, reason: `authorize_config_error: ${reason}`, engine, policySource: policySourceForEngine(engine) };
       }
       // 5xx: trigger failover
       if (response.status >= 500) {
@@ -287,12 +361,14 @@ export async function guardToolCall(
       const pmsg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
       console.warn('[GW] PingAuthorize tool guard: real Authorize unreachable — failing over to mock:', pmsg);
       response = await postDecision(mockBase as string);
+      engine = 'mock-failover';
     }
 
+    const policySource = policySourceForEngine(engine);
     const decision: string = response.data?.decision || 'DENY';
-    if (decision === 'PERMIT') return { permitted: true };
+    if (decision === 'PERMIT') return { permitted: true, engine, policySource };
     if (decision === 'INDETERMINATE') {
-      return { permitted: false, reason: 'HITL_REQUIRED' };
+      return { permitted: false, reason: 'HITL_REQUIRED', engine, policySource };
     }
 
     // Preserve the policy engine's specific DENY reason (e.g. the mock's
@@ -304,10 +380,16 @@ export async function guardToolCall(
       typeof response.data?.reason === 'string' && response.data.reason
         ? response.data.reason
         : `PingAuthorize decision: ${decision}`;
-    return { permitted: false, reason: engineReason };
+    return { permitted: false, reason: engineReason, engine, policySource };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.warn('[GW] PingAuthorize tool guard failed — failing closed:', msg);
-    return { permitted: false, reason: 'Authorization check unavailable' };
+    return {
+      permitted: false,
+      reason: 'Authorization check unavailable',
+      policySource: policySourceForEngine(
+        config.pingAuthorizeMockBase && config.pingAuthorizeMockBase !== config.pingAuthorizeEndpoint ? 'real' : 'mock',
+      ),
+    };
   }
 }

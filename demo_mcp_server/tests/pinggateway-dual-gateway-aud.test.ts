@@ -33,8 +33,11 @@ function exp(offset = 300): number {
   return Math.floor(Date.now() / 1000) + offset;
 }
 
-// Mirror of the aud rule in src/middleware/validateTokenAtGateway.js (RFC 8693 §2.3),
-// which this feature does NOT modify. Array-aware membership check.
+// Local model of the RFC 8693 §2.3 array-aware aud membership rule, used below to
+// contrast the Node gateway's WS expectations with the HTTP path's D-05 rule.
+// (Previously described as mirroring src/middleware/validateTokenAtGateway.js —
+// that module was deleted in WS-E: it was imported by nothing and, with allowJs
+// off, was never even compiled, so it enforced nothing on any path.)
 function wsPathAudAccepts(aud: string | string[], expectedAudience: string): boolean {
   const audValues = Array.isArray(aud) ? aud : [aud];
   return audValues.includes(expectedAudience);
@@ -78,7 +81,7 @@ describe('PingGateway dual-gateway audience reconciliation', () => {
     });
   });
 
-  describe('Node gateway WS path aud rule (mirror of unchanged validateTokenAtGateway.js)', () => {
+  describe('Node gateway WS path aud rule (expectation model — not enforced at this server)', () => {
     it('accepts the unchanged gateway-aud token (aud = mcpgateway.ping.demo)', () => {
       expect(wsPathAudAccepts(GATEWAY_AUD, GATEWAY_AUD)).toBe(true);
     });

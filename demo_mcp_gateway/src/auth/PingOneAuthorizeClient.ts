@@ -24,6 +24,24 @@ import { evaluateScopeDecisionLocally, validateActClaim } from './toolScopes'; /
 
 export type AuthzDecisionOutcome = 'PERMIT' | 'DENY' | 'INDETERMINATE';
 
+/**
+ * Contract C2 — decision provenance. WHICH engine produced this verdict:
+ *   'p1az'           real PingOne Authorize
+ *   'p1az-mock'      the mock PDP (either configured directly, or reached via failover)
+ *   'local-fallback' the gateway's OWN scope engine — degraded, never authoritative
+ *   'simulated'      replayed//synthetic decision (tester surfaces)
+ */
+export type PolicySource = 'p1az' | 'p1az-mock' | 'local-fallback' | 'simulated';
+
+/**
+ * Map the transport-level `engine` label onto the contract's policy source.
+ * 'mock-failover' is an availability detail; for provenance both mock shapes are
+ * the same authority, so they normalise to 'p1az-mock'.
+ */
+export function policySourceForEngine(engine: AuthzDecision['engine']): PolicySource {
+  return engine === 'real' ? 'p1az' : 'p1az-mock';
+}
+
 export interface AuthzDecision {
   decision: AuthzDecisionOutcome;
   reason?: string;
@@ -39,6 +57,11 @@ export interface AuthzDecision {
   // 'mock' = primary endpoint IS the mock base, 'mock-failover' = real
   // endpoint failed and the mock base was used as fallback.
   engine?: 'real' | 'mock' | 'mock-failover';
+  // C2: which policy authority produced this decision. Always set.
+  policySource?: PolicySource;
+  // C2: true whenever the decision did NOT come from a policy engine — i.e. the
+  // gateway decided locally. A degraded PERMIT must never read as a PDP PERMIT.
+  degraded?: boolean;
   // The exact `parameters` block POSTed to the P1AZ decision endpoint, surfaced
   // so the Agent Gateway Tester can show WHAT was evaluated. Undefined on the
   // no-P1AZ local-scope fallback path (no decision call is made).
@@ -103,7 +126,8 @@ export function buildAuthorizeParameters(
 ): Record<string, string> {
   const decisionContext = method === 'tools/call' ? 'McpToolCall' : 'McpRequest';
   const tokenScopes = (decoded.scope ?? '').split(' ').filter(Boolean);
-  const tokenAud = Array.isArray(decoded.aud) ? decoded.aud.join(' ') : (decoded.aud ?? '');
+  // C1: the token's ACTUAL audience. Array ⇒ first entry.
+  const tokenAud = Array.isArray(decoded.aud) ? (decoded.aud[0] ?? '') : (decoded.aud ?? '');
   const base: Record<string, string> = {
     DecisionContext: decisionContext,
     McpMethod: method,
@@ -118,18 +142,49 @@ export function buildAuthorizeParameters(
     ActChainDepth: String(actChainDepth(decoded.act)),
     MayActSub: decoded.may_act?.sub ?? '',
     TokenScopes: tokenScopes.join(' '),
-    TokenAudience: gatewayResourceUri,
+    // McpResourceUri is the EXPECTED audience — the gateway's own identity. It is
+    // deliberately still a constant; TokenAudience below is the observed one, and
+    // the policy's job is to compare the two.
     McpResourceUri: gatewayResourceUri,
-    TokenAudActual: tokenAud,
     TokenExp: decoded.exp ? String(decoded.exp) : '',
     TokenIat: decoded.iat ? String(decoded.iat) : '',
     TokenNbf: decoded.nbf ? String(decoded.nbf) : '',
     TokenIss: decoded.iss ?? '',
-    TransactionAmount: toolArgs?.amount !== undefined ? String(toolArgs.amount) : '',
     TransactionType: toolArgs?.transaction_type ?? toolName ?? '',
     ToAccountId: toolArgs?.to_account_id ?? '',
     Vertical: vertical ?? '',
+    // C1: every decision is evaluated at a point in time; the cloud Trust
+    // Framework defines Timestamp but nothing was sending it.
+    Timestamp: new Date().toISOString(),
   };
+
+  // C1 rule 1 — TokenAudience is the token's REAL aud, never the expected URI.
+  // Both keys used to be hardcoded to gatewayResourceUri, which made the cloud
+  // rule HasValidMcpAudience (TokenAudience == McpResourceUri) and mock Rule 0c
+  // compare a value to itself: the audience check could not fail. When the token
+  // carries no aud at all we OMIT rather than fabricate — omission means
+  // "unknown", and a fabricated match would silently re-create the tautology.
+  if (tokenAud) {
+    base.TokenAudience = tokenAud;
+    base.TokenAudActual = tokenAud; // retained for mock back-compat
+  }
+
+  // C1 rule 2 — Amount and TransactionAmount always move together. The cloud
+  // Trust Framework only defines `Amount`, so the gateways' amount was being
+  // silently dropped by the real policy; the mock only reads TransactionAmount.
+  // Send both, or neither.
+  if (toolArgs?.amount !== undefined) {
+    base.Amount = String(toolArgs.amount);
+    base.TransactionAmount = String(toolArgs.amount);
+  }
+
+  // Authentication strength. Without this, the cloud rule RequiresMcpStepUp
+  // reduces to a pure tool-name test — NOT (Acr == Multi_Factor) is always true
+  // when Acr is absent, so a completed MFA could never discharge step-up on a
+  // gateway-originated call. Omitted when the token does not assert one.
+  if (decoded.acr) {
+    base.Acr = decoded.acr;
+  }
 
   if (tratClaims) {
     base['TratPurp'] = tratClaims.purp;
@@ -201,21 +256,51 @@ export class PingOneAuthorizeClient {
     // for tools/call. This allows development/testing without P1AZ. For other methods,
     // fail closed since scope decision doesn't cover them.
     if (!isP1AZActive(this.config)) {
+      // F1 — the local scope engine is a SHADOW PDP. It only runs when an operator
+      // has asked for it by name; otherwise an unconfigured gateway fails closed
+      // rather than quietly promoting itself to policy authority.
+      if (!this.config.allowLocalScopeFallback) {
+        console.error(
+          '[P1AZ] Authorization Server not configured and local scope fallback is off — failing closed. ' +
+          'Set PINGAUTHORIZE_ENDPOINT + PINGAUTHORIZE_WORKER_ID (MCP_GW_P1AZ_ENABLED defaults true), ' +
+          'or set MCP_GW_ALLOW_LOCAL_SCOPE_FALLBACK=true to accept degraded local decisions.',
+        );
+        return {
+          decision: 'DENY',
+          reason: 'authz_unavailable: Authorization Server not configured and local scope fallback is disabled',
+          engine: 'mock',
+          policySource: 'local-fallback',
+          degraded: true,
+        };
+      }
+
+      // Degraded mode. Both branches below are labelled identically so tools/call
+      // and every other method report the SAME posture — previously tools/call
+      // degraded to a local PERMIT while other methods hard-denied, which made the
+      // deny posture depend on the method rather than on the configuration.
       if (method === 'tools/call' && toolName) {
         const decision = evaluateScopeDecisionLocally(toolName, decoded.scope);
-        const reason = decision.decision === 'DENY' ? decision.reason : undefined;
+        const reason = decision.decision === 'DENY'
+          ? `local-fallback: ${decision.reason}`
+          : 'local-fallback: local scope engine (degraded — not a PDP decision)';
         return {
           decision: decision.decision,
           reason,
           engine: 'mock',
+          policySource: 'local-fallback',
+          degraded: true,
         };
       }
-      // tools/list and other methods require P1AZ
-      console.error(
-        '[P1AZ] Authorization Server not configured. ' +
-        'Set PINGAUTHORIZE_ENDPOINT + PINGAUTHORIZE_WORKER_ID + MCP_GW_P1AZ_ENABLED=true.',
-      );
-      return { decision: 'DENY', reason: 'Authorization Server not configured — set PINGAUTHORIZE_ENDPOINT', engine: 'mock' };
+      // Non-tool methods (tools/list, session lifecycle): the local engine has no
+      // rule to apply, so it cannot deny on policy grounds. Degrade WITH A LABEL
+      // instead of manufacturing a verdict either way.
+      return {
+        decision: 'PERMIT',
+        reason: `local-fallback: no local rule for method "${method}" (degraded — not a PDP decision)`,
+        engine: 'mock',
+        policySource: 'local-fallback',
+        degraded: true,
+      };
     }
 
     const params = buildAuthorizeParameters(
@@ -258,6 +343,7 @@ export class PingOneAuthorizeClient {
         policyVersion: (data?.policy_version ?? data?.policyVersion) as string | undefined,
         traceId: (data?.trace_id ?? data?.traceId) as string | undefined,
         engine,
+        policySource: policySourceForEngine(engine),
       };
       if (outcome === 'PERMIT') return { decision: 'PERMIT', ...meta };
       if (outcome === 'INDETERMINATE') return { decision: 'INDETERMINATE', reason: 'HITL_REQUIRED', ...meta };
@@ -303,11 +389,11 @@ export class PingOneAuthorizeClient {
         } catch (fbErr) {
           const fbMsg = fbErr instanceof Error ? fbErr.message : String(fbErr);
           console.warn('[PingOneAuthorizeClient] mock failover also unreachable — failing closed:', fbMsg);
-          return { decision: 'DENY', reason: 'Authorization service unavailable', engine: 'mock-failover', sentParameters: params };
+          return { decision: 'DENY', reason: 'Authorization service unavailable', engine: 'mock-failover', policySource: 'p1az-mock', sentParameters: params };
         }
       }
       console.warn('[PingOneAuthorizeClient] Authorize endpoint unavailable — failing closed:', msg);
-      return { decision: 'DENY', reason: 'Authorization service unavailable', engine: primaryEngine, sentParameters: params };
+      return { decision: 'DENY', reason: 'Authorization service unavailable', engine: primaryEngine, policySource: policySourceForEngine(primaryEngine), sentParameters: params };
     }
   }
 }

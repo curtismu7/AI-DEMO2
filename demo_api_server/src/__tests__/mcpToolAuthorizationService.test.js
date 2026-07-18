@@ -134,17 +134,32 @@ describe('mcpToolAuthorizationService', () => {
       expect(r).toMatchObject({ ran: true, permit: true });
     });
 
-    it('skips for admin role', async () => {
+    // WAS: 'skips for admin role' — asserted { ran: false } for any admin
+    // session, i.e. it pinned the F5 fail-open where the admin role bypassed
+    // the ENTIRE authorization gate in code. That test encoded the bug: an
+    // admin could invoke any MCP tool with no policy evaluation at all.
+    // The role is now a PDP input (UserRole), so policy decides.
+    // Full coverage lives in authzGateFailOpen.test.js.
+    it('does NOT skip for admin role — the gate runs and policy decides', async () => {
       configStore.get.mockImplementation((k) =>
         k === 'ff_authorize_mcp_first_tool' ? 'true' : null,
       );
+      pingOneAuthorizeService.isMcpDelegationDecisionReady.mockReturnValue(true);
+      pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({
+        decision: 'PERMIT', stepUpRequired: false, raw: {}, decisionId: 'd1',
+      });
+
       const r = await evaluateMcpFirstToolGate({
         req: { session: { user: { role: 'admin' } } },
         tool: 'get_my_accounts',
         agentToken: jwtWithPayload({ sub: 'u1' }),
         userSub: 'u1',
       });
-      expect(r).toMatchObject({ ran: false });
+
+      expect(r).toMatchObject({ ran: true, permit: true });
+      expect(
+        pingOneAuthorizeService.evaluateMcpToolDelegation.mock.calls[0][0].userRole,
+      ).toBe('admin');
     });
 
     it('runs simulated path and permits', async () => {

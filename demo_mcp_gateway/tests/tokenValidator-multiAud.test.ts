@@ -23,6 +23,17 @@ describe('validateInboundToken multi-audience', () => {
   const accepted =
     'mcpgateway.ping.demo,https://api.ping.demo:3036/mcp';
 
+  // These fixtures are alg:none tokens, so they only resolve on the decode-only
+  // path. Since F5 that path is opt-in by name — declare it here so this suite
+  // keeps testing AUDIENCE selection rather than the signature-verification gate
+  // (which tokenValidator-claims.test.ts covers).
+  const OLD_OPT_IN = process.env.MCP_GW_ALLOW_UNVERIFIED_TOKENS;
+  beforeAll(() => { process.env.MCP_GW_ALLOW_UNVERIFIED_TOKENS = 'true'; });
+  afterAll(() => {
+    if (OLD_OPT_IN === undefined) delete process.env.MCP_GW_ALLOW_UNVERIFIED_TOKENS;
+    else process.env.MCP_GW_ALLOW_UNVERIFIED_TOKENS = OLD_OPT_IN;
+  });
+
   test('accepts Node gateway audience from comma-separated list', async () => {
     const decoded = await validateInboundToken(makeToken('mcpgateway.ping.demo'), accepted);
     expect(decoded.sub).toBe('user-1');

@@ -415,6 +415,13 @@ services:
       PINGAUTHORIZE_WORKER_ID: "mcp-gateway"
       MCP_GW_P1AZ_ENABLED: "true"
       GW_INTROSPECTION_ENDPOINT: "http://authz-server:9001/as/introspect"
+      # This stack has never configured PINGONE_JWKS_ENDPOINT, so the gateway has
+      # always run decode-only (no signature verification). That used to be silent;
+      # it now requires this explicit opt-in and is reported in the failOpen list of
+      # GET /health. Closing it means pointing the gateway at real PingOne JWKS —
+      # which needs a live check first, because demo tokens introspect against the
+      # mock authz-server and some are minted HS256 locally.
+      MCP_GW_ALLOW_UNVERIFIED_TOKENS: "true"
       MORTGAGE_SERVICE_URL: "http://mortgage-service:8082"   # api-key dispatch backend (mortgage + invest routes)
       # Must match mortgage-service MORTGAGE_SERVICE_API_KEY (no committed demo default).
       DEMO_MORTGAGE_SERVICE_KEY: ${MORTGAGE_SERVICE_API_KEY:-mortgage-compose-dev-key}

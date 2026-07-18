@@ -43,8 +43,16 @@ function nestedActIdFromClaim(act) {
  *
  *   PingGateway mode (ff_mcp_gateway_pinggateway) → pingone_resource_pinggateway_uri
  *   Node gateway mode (MCP_GATEWAY_HTTP_URL set)  → pingone_resource_mcp_gateway_uri
- *   Two-Exchange (ff_two_exchange_delegation)     → pingone_resource_two_exchange_uri || mcp_resource_uri
- *   Single-Exchange (default)                     → mcp_resource_uri
+ *   Two-Exchange (the default)                    → pingone_resource_two_exchange_uri || mcp_resource_uri
+ *
+ * NOTE: this used to branch on configStore.getEffective('ff_two_exchange_delegation'),
+ * a key with NO entry in configStore FIELD_DEFS and no row in the featureFlags
+ * registry. getEffective() therefore returned undefined and `!== 'false'` was
+ * permanently true, making the final single-exchange branch dead code. The read
+ * was deleted rather than registered because the flag no longer drives anything:
+ * the exchange path is chosen by req.session.mcpExchangeMode
+ * (agentMcpTokenService.resolveMcpAccessTokenWithEvents — two exchanges are
+ * mandatory, 'single' is a debug-only escape hatch). Behaviour is unchanged.
  *
  * @returns {string} resolved resource URI, or '' when nothing is configured.
  */
@@ -54,7 +62,6 @@ function resolveExpectedMcpResourceUri() {
   // gateway is deployed, so we must not switch audience resolution based on it.
   const useGateway = !!(process.env.MCP_GATEWAY_HTTP_URL || configStore.get('mcp_gateway_http_url'));
   const usePingGateway = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
-  const twoExchangeOn = configStore.getEffective('ff_two_exchange_delegation') !== 'false';
 
   // When routing through PingGateway (IG), the final token audience is the
   // PingGateway resource URI (https://api.ping.demo:3036/mcp), not the Node
@@ -65,10 +72,7 @@ function resolveExpectedMcpResourceUri() {
   if (useGateway) {
     return configStore.getEffective('pingone_resource_mcp_gateway_uri') || 'https://api.ping.demo:3000/mcp';
   }
-  if (twoExchangeOn) {
-    return configStore.getEffective('pingone_resource_two_exchange_uri') || configStore.getEffective('mcp_resource_uri') || 'https://api.ping.demo:3000/mcp';
-  }
-  return configStore.getEffective('mcp_resource_uri') || 'https://api.ping.demo:3000/mcp';
+  return configStore.getEffective('pingone_resource_two_exchange_uri') || configStore.getEffective('mcp_resource_uri') || 'https://api.ping.demo:3000/mcp';
 }
 
 /**
@@ -81,12 +85,17 @@ function resolveExpectedMcpResourceUri() {
  * carry a native `act`; an empty actor there means genuinely no delegation, which the
  * UC16 no-actor guard must still be able to DENY. Mirrors resolveExpectedMcpResourceUri's
  * non-single-exchange branches so the bridge fallback and audience resolution agree.
+ *
+ * Two-exchange is the default and mandatory path (see resolveExpectedMcpResourceUri
+ * for why the unregistered ff_two_exchange_delegation read was removed), so this
+ * is true on every mode. It was ALREADY true on every mode — the deleted read
+ * returned undefined and `!== 'false'` was permanently true — so the deny posture
+ * is unchanged. Kept as a named predicate because the single-exchange escape
+ * hatch (req.session.mcpExchangeMode = 'single') is the case it exists to
+ * distinguish, and wiring that through is a separate change.
  */
 function isActorBridgedMode() {
-  const useGateway = !!(process.env.MCP_GATEWAY_HTTP_URL || configStore.get('mcp_gateway_http_url'));
-  const usePingGateway = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
-  const twoExchangeOn = configStore.getEffective('ff_two_exchange_delegation') !== 'false';
-  return useGateway || usePingGateway || twoExchangeOn;
+  return true;
 }
 
 /**
@@ -204,12 +213,13 @@ function resolveAmountForPolicy(tool, toolParams, verticalId, userId) {
  */
 async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAcr, toolParams, hitlChallengeId = null }) {
   if (!agentToken || typeof agentToken !== 'string') {
-    return { ran: false, reason: 'no_agent_token' };
+    return { ran: false, reason: 'no_agent_token', skipReason: 'no_agent_token' };
   }
 
-  if (req.session?.user?.role === 'admin') {
-    return { ran: false, reason: 'admin_role_exempt' };
-  }
+  // NOTE: admin sessions used to return early here, skipping the ENTIRE
+  // authorization gate in code (F5). Role is now forwarded to the PDP as
+  // UserRole so the POLICY decides whether admin means anything — a code-level
+  // skip is not an authorization decision.
 
   // Resolved once here (not at the group-policy block below) because the amount
   // resolution needs it too.
@@ -265,6 +275,27 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
   const actClientId = actClientIdFromToken
     || (isActorBridgedMode() ? (buildActorBridgeHeaders()['X-Act-Client-Id'] || '') : '');
   const nestedActClientId = nestedActIdFromClaim(claims.act);
+
+  // ── Contract C1 token facts (F3) ───────────────────────────────────────────
+  // The gateway McpToolCall gate sends these; the BFF McpFirstTool gate did
+  // not, so the two evaluations of the same call saw different inputs and could
+  // legitimately disagree. Read straight off the presented token; null when the
+  // claim is absent so evaluateMcpToolDelegation OMITS the key (C1 rule 3 —
+  // omission means "unknown", not "verified absent").
+  // tokenScopes in particular is the only way the PDP can enforce least
+  // privilege on the default path (F11).
+  const tokenScopes = typeof claims.scope === 'string' && claims.scope
+    ? claims.scope
+    : (Array.isArray(claims.scope) ? claims.scope.join(' ') : null);
+  const tokenExp = typeof claims.exp === 'number' ? claims.exp : null;
+  const tokenIat = typeof claims.iat === 'number' ? claims.iat : null;
+  const tokenNbf = typeof claims.nbf === 'number' ? claims.nbf : null;
+  const tokenIss = claims.iss ? String(claims.iss) : null;
+  const mayActSub = claims.may_act && typeof claims.may_act === 'object' && claims.may_act.sub
+    ? String(claims.may_act.sub)
+    : null;
+  // Role as a policy INPUT, replacing the removed admin code-level bypass (F5).
+  const userRole = req.session?.user?.role || null;
 
   // ── HITL receipt verification (the ONLY place hitlApproved is derived) ──────
   // On a retry the agent echoes back the challenge id. Verify it against the
@@ -389,11 +420,16 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     } else if (failoverMode === 'deny') {
       notConfiguredDeny = true;
     } else {
+      // Contract C4 — omission is not permission. The caller must be able to
+      // tell "the gate did not run" from "the gate PERMITted", so the skip
+      // carries an explicit, inspectable reason.
       console.warn(
         '[MCP Authorize] authorize_mcp_decision_endpoint_id (or worker credentials) is missing ' +
-          'and failover is permit — skipping the live PingOne MCP gate.',
+          `and failover is permit — SKIPPING the live PingOne MCP gate for tool=${tool}. ` +
+          'This call is NOT authorized.',
       );
-      return { ran: false };
+      return { ran: false, reason: 'authorize_not_configured_failover_permit',
+               skipReason: 'authorize_not_configured_failover_permit' };
     }
   }
 
@@ -419,6 +455,15 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     toAccountId,
     useCaseId,
     verticalId,
+    // Contract C1 (F3) + role as policy input (F5).
+    clientId: subjectId || null,
+    mayActSub,
+    tokenScopes,
+    tokenExp,
+    tokenIat,
+    tokenNbf,
+    tokenIss,
+    userRole,
   };
 
   const mapLivePingOneResult = (r, { autoDisabledGroupPolicy = false } = {}) => {
@@ -704,8 +749,13 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
       });
 
     if (failoverMode === 'permit') {
-      console.warn(`[MCP Authorize] PingOne error — fail open (failover=permit): ${err.message}`);
-      return { ran: false };
+      // Contract C4 — an unreachable PDP must not look like a PERMIT.
+      console.warn(
+        `[MCP Authorize] PingOne error — SKIPPING the gate (failover=permit) for tool=${tool}. ` +
+          `This call is NOT authorized: ${err.message}`,
+      );
+      return { ran: false, reason: 'pingone_error_failover_permit',
+               skipReason: 'pingone_error_failover_permit', authorizeFallback };
     }
 
     if (failoverMode === 'fallback_simulated') {

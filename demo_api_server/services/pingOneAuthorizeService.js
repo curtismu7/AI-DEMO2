@@ -505,6 +505,25 @@ async function evaluateMcpToolDelegation({
   toAccountId = null,
   // Active vertical — sent as Vertical so PingOne policy can key on it
   verticalId = null,
+  // ── Contract C1 (planning/authz-fix-contract.md) — canonical parameter set ──
+  // The gateway McpToolCall gate already sends these; the BFF McpFirstTool gate
+  // did not, so the two evaluations of the SAME call could legitimately
+  // disagree (F3). Every value below is read off the presented token by the
+  // caller. C1 rule 3: a caller that cannot supply a value passes null and the
+  // key is OMITTED — omission means "unknown", never "verified absent".
+  clientId = null,
+  mayActSub = null,
+  // F11 — the token's actual scopes. Without this the PDP cannot enforce
+  // least privilege on the default path, where the final token collapses to the
+  // single coarse scope gateway:mcp:invoke.
+  tokenScopes = null,
+  tokenExp = null,
+  tokenIat = null,
+  tokenNbf = null,
+  tokenIss = null,
+  // F5 — admin used to skip the whole gate in code. The role is now a policy
+  // INPUT so the PDP decides what (if anything) admin means.
+  userRole = null,
 }) {
   const creds = _getCredentials();
   const endpointId = decisionEndpointId || creds.mcpDecisionEndpointId;
@@ -518,14 +537,37 @@ async function evaluateMcpToolDelegation({
     );
   }
 
+  // Depth of the RFC 8693 actor chain, derived from the actor ids above so it
+  // can never disagree with them: no act ⇒ 0, act ⇒ 1, act.act (A2A) ⇒ 2.
+  // This was NEVER sent, and the Trust Framework attribute defaults to 0, so
+  // the cloud rule "Deny — Invalid A2A Generalist" (ActChainDepth > 1 AND
+  // NestedActClientId != <allowed>) was unreachable from the BFF (F3, §5.4).
+  const actChainDepth = nestedActClientId ? 2 : (actClientId ? 1 : 0);
+
   const parameters = {
     DecisionContext: 'McpFirstTool',
+    // C1 request key — the MCP method this decision is about. The BFF gate only
+    // ever guards a tool invocation.
+    McpMethod: 'tools/call',
     UserId: userId,
     ToolName: toolName || '',
     TokenAudience: tokenAudience != null ? String(tokenAudience) : '',
+    // C1: same value, retained for mock back-compat. The BFF reads the REAL aud
+    // off the presented token, so actual and reported audience are identical
+    // here (C1 rule 1 — never hardcode this to the expected URI).
+    TokenAudActual: tokenAudience != null ? String(tokenAudience) : '',
     ActClientId: actClientId || '',          // from act.client_id || act.sub
     NestedActClientId: nestedActClientId || '', // from act.act.client_id || act.act.sub
+    ActChainDepth: actChainDepth,
     McpResourceUri: mcpResourceUri || '',    // expected MCP resource URI from config
+    ...(clientId ? { ClientId: clientId } : {}),
+    ...(mayActSub ? { MayActSub: mayActSub } : {}),
+    ...(tokenScopes ? { TokenScopes: tokenScopes } : {}),
+    ...(tokenExp != null ? { TokenExp: tokenExp } : {}),
+    ...(tokenIat != null ? { TokenIat: tokenIat } : {}),
+    ...(tokenNbf != null ? { TokenNbf: tokenNbf } : {}),
+    ...(tokenIss ? { TokenIss: tokenIss } : {}),
+    ...(userRole ? { UserRole: userRole } : {}),
     ...(acr ? { Acr: acr } : {}),
     ...(hitlApproved ? { HitlApproved: true } : {}),
     ...(hitlApproved && hitlChallengeId ? { HitlChallengeId: hitlChallengeId } : {}),
@@ -1140,6 +1182,28 @@ async function setEndpointRecording(endpointId, enabled = true) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Statement codes the deployed policy set is known to emit that legitimately
+ * drive NO gate: PERMIT effects (nothing to enforce) and DENY effects (the
+ * enforcement is the top-level DENY decision, not the statement). Anything
+ * outside this set that also fails gate classification is drift — either a new
+ * policy effect nobody wired up, or a renamed code that has silently stopped
+ * enforcing (F8). Sourced from snapshots/Super_Banking_*.snapshot.json.
+ */
+const KNOWN_STATEMENT_CODES = new Set([
+  'transaction-approved',
+  'mcp-tool-authorized',
+  'transaction-denied',
+  'mcp-authorization-denied',
+  'mcp-invalid-audience',
+  'mcp-invalid-actor',
+  'mcp-invalid-a2a-generalist',
+  'mcp-missing-user-id',
+  'mcp-tier-amount-exceeded',
+  'mcp-tier-tool-not-allowed',
+  'mcp-user-not-in-group',
+]);
+
+/**
  * Classify a PingOne Authorize raw response into the three enforcement flags.
  *
  * This function owns ONLY the PingOne-specific source merge — a PA response
@@ -1171,14 +1235,28 @@ function _classifyRawObligations(raw) {
   ];
 
   // F4: warn on obligation/advice types the classifier doesn't recognise so
-  // policy changes don't silently fall through as PERMIT. Statements are
-  // excluded from this check: PERMIT statements (transaction-approved,
-  // mcp-tool-authorized) are benign non-gates and would be false positives.
-  const unrecognised = obligationsAndAdvice.filter((ob) => {
+  // policy changes don't silently fall through as PERMIT.
+  //
+  // F8: statements are checked too. They used to be excluded wholesale to avoid
+  // false positives on benign PERMIT effects — but that also silenced the case
+  // this warning exists for: a RENAMED statement code stops classifying to a
+  // gate and degrades to no enforcement with nothing in the logs. Statements
+  // are therefore checked against the known-code set below, so the benign
+  // effects stay quiet while an unknown/renamed code is reported.
+  const isUnrecognisedGate = (ob) => {
     const key = String((ob && (ob.type || ob.id || ob.code)) || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (!key) return false;
     return !key.includes('HITL') && !key.includes('STEPUP') && !key.includes('HUMANAPPROVAL');
-  });
+  };
+  const unrecognised = [
+    ...obligationsAndAdvice.filter(isUnrecognisedGate),
+    // A statement is only noteworthy when it is neither a gate NOR a known
+    // effect of the deployed policy set.
+    ...[...(raw.statements || []), ...(raw.details?.statements || [])].filter(
+      (st) => isUnrecognisedGate(st)
+        && !KNOWN_STATEMENT_CODES.has(String((st && (st.code || st.type || st.id)) || '').toLowerCase()),
+    ),
+  ];
   if (unrecognised.length > 0) {
     console.warn(
       '[PingOneAuthorize] Unrecognised obligation types — not enforced (check policy config):',

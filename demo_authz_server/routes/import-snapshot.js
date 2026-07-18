@@ -100,20 +100,43 @@ module.exports = async function importSnapshot(req, res) {
       }
     }
 
-    // Verify statement sharing (step-up must be shared)
-    const stepUpStmt = statements.find(s => s.id === '34567890-0003-4321-abcd-000000000003');
-    if (stepUpStmt && !stepUpStmt.shared) {
-      conflicts.push({
-        type: 'statement_not_shared',
-        statement: 'Step-Up MFA Required (34567890-0003)',
-        message: 'Must be shared: true to avoid multi-parent conflict',
-      });
+    // Verify statement sharing. Any statement referenced by MORE THAN ONE rule
+    // is multi-parented and must be `shared: true`, or the import produces a
+    // multi-parent conflict. This is derived from the snapshot's own rule graph
+    // rather than a hardcoded id: the previous check only covered the step-up
+    // statement, so `mcp-authorization-denied` — shared across seven MCP deny
+    // rules — was never validated.
+    const referencedBy = new Map();
+    for (const rule of rules) {
+      for (const ref of rule.statements || []) {
+        const id = typeof ref === 'string' ? ref : ref && ref.id;
+        if (!id) continue;
+        referencedBy.set(id, (referencedBy.get(id) || 0) + 1);
+      }
+    }
+    for (const stmt of statements) {
+      const count = referencedBy.get(stmt.id) || 0;
+      if (count > 1 && !stmt.shared) {
+        conflicts.push({
+          type: 'statement_not_shared',
+          statement: `${stmt.code || stmt.name || 'unknown'} (${stmt.id})`,
+          referencedBy: count,
+          message: `Referenced by ${count} rules — must be shared: true to avoid multi-parent conflict`,
+        });
+      }
     }
 
     report.conflicts = conflicts;
     report.valid = conflicts.length === 0;
 
-        res.json(report);
+    // Parity failures BLOCK the import (F9). Returning 200 with `valid:false`
+    // let an automated importer treat a drifted snapshot as success — e.g. a
+    // snapshot that drops tools from RequiresHitlConsent silently un-gates them.
+    // The full report is still returned so the caller can show the conflicts.
+    if (!report.valid) {
+      return res.status(409).json(report);
+    }
+    res.json(report);
   } catch (err) {
     res.status(400).json({
       error: 'Invalid snapshot file',

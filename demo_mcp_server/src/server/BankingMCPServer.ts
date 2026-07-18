@@ -18,6 +18,7 @@ import { BankingToolProvider } from '../tools/BankingToolProvider';
 import { MCPMessageHandler, MessageHandlerContext } from './MCPMessageHandler';
 import { HttpMCPTransport } from './HttpMCPTransport';
 import { correlationFromMessage } from './correlationFromMessage';
+import { verifyActorChain, parseAllowedActors, decodeJwtClaims } from '../auth/actorChain';
 import { runWithCorrelation } from '../utils/correlationContext';
 import { createMtlsVerifier } from '../auth/mtlsMiddleware';
 
@@ -278,6 +279,21 @@ export class BankingMCPServer extends EventEmitter {
         if (bearerToken) {
           try {
             await this.authManager.validateAgentToken(bearerToken);
+
+            // F10 — verify the RFC 8693 delegation chain, same gate as the HTTP
+            // transport. Without this the actor allow-list is bypassable simply by
+            // connecting over WebSocket instead of POSTing to /mcp.
+            const actorCheck = verifyActorChain(decodeJwtClaims(bearerToken), {
+              allowedActors: parseAllowedActors(process.env.MCP_ALLOWED_ACTORS),
+            });
+            if (!actorCheck.ran) {
+              console.warn(`[BankingMCPServer][F10] actor chain gate skipped — ran=false skipReason="${actorCheck.skipReason}"`);
+            } else if (!actorCheck.valid) {
+              console.warn(`[BankingMCPServer][F10] Rejecting connection ${connectionId}: ${actorCheck.errors[0]}`);
+              ws.close(1008, 'Delegation chain rejected');
+              return;
+            }
+
             connectionInfo.agentToken = bearerToken;
             console.log(`[BankingMCPServer] Agent token validated via Authorization header for connection ${connectionId}`);
           } catch (error) {

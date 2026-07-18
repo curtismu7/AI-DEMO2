@@ -2344,6 +2344,21 @@ async function _performTwoExchangeDelegation(
     const mcpTokenAud = finalClaims?.aud;
     const audMatches  = mcpTokenAud === finalAudTarget || (Array.isArray(mcpTokenAud) && mcpTokenAud.includes(finalAudTarget));
     const nestedActOk = !!finalClaims?.act?.sub && !!finalClaims?.act?.act?.sub;
+    // audMatches used to be computed here and then only REPORTED (in the event
+    // text and metadata), so a token minted for the wrong audience was sent
+    // anyway and failed downstream at the gateway/MCP server — far from the
+    // cause. Enforce it where it is known (F4). The catch below turns this into
+    // the standard delegation_chain_broken token-exchange error.
+    // (nestedActOk is deliberately NOT enforced: PingOne's SpEL cannot always
+    // construct a fully-nested act object, so an absent act.act is a documented,
+    // legitimate outcome — see docs/PINGONE_MAY_ACT_TWO_TOKEN_EXCHANGES.md §1e.
+    // It stays a reported signal on the token event.)
+    if (!audMatches) {
+      throw new Error(
+        `Final MCP token audience mismatch: expected "${finalAudTarget}", got ${JSON.stringify(mcpTokenAud)}. ` +
+          'Refusing to forward a token minted for the wrong audience.'
+      );
+    }
     tokenEvents.push(buildTokenEvent(
       'two-ex-final-token',
       '2-Exchange: Final MCP Token (nested act chain) ✔️',

@@ -14,6 +14,7 @@
 import type { DecodedGatewayToken } from '../tokenValidator';
 import type { GatewayConfig } from '../config';
 import { isAgentMediatedTool } from './scopeTopology';
+import { validateActClaim } from './toolScopes';
 
 export class GatewayTokenPolicyError extends Error {
   constructor(message: string, public readonly code: string) {
@@ -59,6 +60,21 @@ export class GatewayTokenPolicy {
         throw new GatewayTokenPolicyError(
           'Malformed delegation chain: act.sub is empty',
           'invalid_act',
+        );
+      }
+
+      // Actor allow-list. Until now this check was DEAD CODE: validateActClaim
+      // was imported here and in PingOneAuthorizeClient but never invoked, so the
+      // only actor requirement was "non-empty" — any client that could obtain a
+      // delegated token satisfied the chain. Mirrors what the PDP enforces via
+      // the ActClientId parameter (mock Rule 2 / cloud "Deny — Invalid Actor
+      // Chain"), so the PEP and the PDP agree on who may act.
+      // No-ops when authorizedActorClientId is unset (dev / no-actor mode).
+      const actorCheck = validateActClaim(actSub, config.authorizedActorClientId ?? '');
+      if (!actorCheck.valid) {
+        throw new GatewayTokenPolicyError(
+          `Unauthorized delegation actor: ${actorCheck.reason}`,
+          'unauthorized_actor',
         );
       }
     }

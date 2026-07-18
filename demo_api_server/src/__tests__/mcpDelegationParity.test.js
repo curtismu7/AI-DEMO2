@@ -160,4 +160,166 @@ describe('evaluateMcpToolDelegation — decision parameters', () => {
       expect(r.consentRequired).toBe(false);
     });
   });
+
+  // ── F3 / contract C1 — canonical decision parameter set ───────────────────
+  // The BFF McpFirstTool gate and the gateway McpToolCall gate must send the
+  // SAME keys, or they can legitimately disagree on the same call. These pin
+  // the keys the BFF was missing (planning/authz-fix-contract.md §C1).
+  describe('C1 canonical parameter set', () => {
+    // ActChainDepth was NEVER sent, so the cloud rule
+    // "Deny — Invalid A2A Generalist" (ActChainDepth > 1 AND NestedActClientId
+    // != <allowed>) could not fire from the BFF: the TF attribute defaults to 0.
+    test('sends ActChainDepth=0 when no actor is present', async () => {
+      mockWorkerThenDecision({ id: 'd1', decision: 'PERMIT', obligations: [] });
+      await svc.evaluateMcpToolDelegation({
+        userId: 'u1', toolName: 'get_my_accounts',
+        tokenAudience: 'mcp.aud', mcpResourceUri: 'mcp.aud',
+      });
+      const body = JSON.parse(fetchSpy.mock.calls[1][1].body).parameters;
+      expect(body.ActChainDepth).toBe(0);
+    });
+
+    test('sends ActChainDepth=1 for a single actor', async () => {
+      mockWorkerThenDecision({ id: 'd1', decision: 'PERMIT', obligations: [] });
+      await svc.evaluateMcpToolDelegation({
+        userId: 'u1', toolName: 'get_my_accounts',
+        tokenAudience: 'mcp.aud', mcpResourceUri: 'mcp.aud',
+        actClientId: 'agent-1',
+      });
+      const body = JSON.parse(fetchSpy.mock.calls[1][1].body).parameters;
+      expect(body.ActChainDepth).toBe(1);
+    });
+
+    // The reachability case: depth 2 is what makes the A2A generalist rule fire.
+    test('sends ActChainDepth=2 for a nested (A2A) actor chain', async () => {
+      mockWorkerThenDecision({ id: 'd1', decision: 'PERMIT', obligations: [] });
+      await svc.evaluateMcpToolDelegation({
+        userId: 'u1', toolName: 'get_my_accounts',
+        tokenAudience: 'mcp.aud', mcpResourceUri: 'mcp.aud',
+        actClientId: 'specialist-1', nestedActClientId: 'generalist-1',
+      });
+      const body = JSON.parse(fetchSpy.mock.calls[1][1].body).parameters;
+      expect(body.ActChainDepth).toBe(2);
+      expect(body.NestedActClientId).toBe('generalist-1');
+    });
+
+    // F11 — the ONLY place banking scopes can be enforced on the default path.
+    test('forwards TokenScopes so policy can enforce least privilege', async () => {
+      mockWorkerThenDecision({ id: 'd1', decision: 'PERMIT', obligations: [] });
+      await svc.evaluateMcpToolDelegation({
+        userId: 'u1', toolName: 'create_transfer',
+        tokenAudience: 'mcp.aud', mcpResourceUri: 'mcp.aud',
+        tokenScopes: 'gateway:mcp:invoke banking:transfers:write',
+      });
+      const body = JSON.parse(fetchSpy.mock.calls[1][1].body).parameters;
+      expect(body.TokenScopes).toBe('gateway:mcp:invoke banking:transfers:write');
+    });
+
+    // C1 rule 3: a caller that cannot supply a value OMITS the key rather than
+    // sending a falsy placeholder ("unknown" != "verified absent").
+    test('omits TokenScopes and the temporal claims when unknown', async () => {
+      mockWorkerThenDecision({ id: 'd1', decision: 'PERMIT', obligations: [] });
+      await svc.evaluateMcpToolDelegation({
+        userId: 'u1', toolName: 'get_my_accounts',
+        tokenAudience: 'mcp.aud', mcpResourceUri: 'mcp.aud',
+      });
+      const body = JSON.parse(fetchSpy.mock.calls[1][1].body).parameters;
+      expect(body.TokenScopes).toBeUndefined();
+      expect(body.TokenExp).toBeUndefined();
+      expect(body.TokenIat).toBeUndefined();
+      expect(body.TokenNbf).toBeUndefined();
+      expect(body.TokenIss).toBeUndefined();
+      expect(body.MayActSub).toBeUndefined();
+    });
+
+    test('forwards the remaining C1 token facts and request keys', async () => {
+      mockWorkerThenDecision({ id: 'd1', decision: 'PERMIT', obligations: [] });
+      await svc.evaluateMcpToolDelegation({
+        userId: 'u1', toolName: 'create_transfer',
+        tokenAudience: 'mcp.aud', mcpResourceUri: 'mcp.aud',
+        tokenExp: 1900000000, tokenIat: 1800000000, tokenNbf: 1800000000,
+        tokenIss: 'https://auth.pingone.com/env-123/as',
+        mayActSub: 'agent-1', clientId: 'u1',
+      });
+      const body = JSON.parse(fetchSpy.mock.calls[1][1].body).parameters;
+      // TokenAudActual mirrors TokenAudience (C1: retained for mock back-compat).
+      expect(body.TokenAudActual).toBe('mcp.aud');
+      expect(body.TokenExp).toBe(1900000000);
+      expect(body.TokenIat).toBe(1800000000);
+      expect(body.TokenNbf).toBe(1800000000);
+      expect(body.TokenIss).toBe('https://auth.pingone.com/env-123/as');
+      expect(body.MayActSub).toBe('agent-1');
+      expect(body.ClientId).toBe('u1');
+      expect(body.McpMethod).toBe('tools/call');
+    });
+
+    // F5 — admin is no longer a code-level skip; it is a policy INPUT.
+    test('forwards UserRole so policy can decide on admin, not code', async () => {
+      mockWorkerThenDecision({ id: 'd1', decision: 'PERMIT', obligations: [] });
+      await svc.evaluateMcpToolDelegation({
+        userId: 'u1', toolName: 'get_my_accounts',
+        tokenAudience: 'mcp.aud', mcpResourceUri: 'mcp.aud',
+        userRole: 'admin',
+      });
+      const body = JSON.parse(fetchSpy.mock.calls[1][1].body).parameters;
+      expect(body.UserRole).toBe('admin');
+    });
+  });
+
+  // ── F8 — silent contract drift on statement codes ─────────────────────────
+  // The unknown-type warning deliberately excluded `statements`, so a RENAMED
+  // statement code degraded to "no gate" with nothing in the logs. Statements
+  // are now checked against the known-code set; only genuinely unknown codes
+  // warn, so the benign PERMIT/DENY effects stay quiet.
+  describe('unrecognised statement codes warn (F8)', () => {
+    let warnSpy;
+    beforeEach(() => { warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {}); });
+    afterEach(() => { warnSpy.mockRestore(); });
+
+    const evaluate = () => svc.evaluateMcpToolDelegation({
+      userId: 'u1', toolName: 'create_transfer',
+      tokenAudience: 'mcp.aud', mcpResourceUri: 'mcp.aud',
+    });
+
+    test('warns when a statement code is not a known gate or known effect', async () => {
+      mockWorkerThenDecision({
+        id: 'd1', decision: 'PERMIT',
+        statements: [{ code: 'mcp-tier-amount-exceeded-v2' }],
+      });
+      await evaluate();
+      const warned = warnSpy.mock.calls.flat().map(String).join(' ');
+      expect(warned).toMatch(/mcp-tier-amount-exceeded-v2/);
+    });
+
+    test('stays quiet for benign PERMIT statements', async () => {
+      mockWorkerThenDecision({
+        id: 'd1', decision: 'PERMIT',
+        statements: [{ code: 'mcp-tool-authorized' }, { code: 'transaction-approved' }],
+      });
+      await evaluate();
+      const warned = warnSpy.mock.calls.flat().map(String).join(' ');
+      expect(warned).not.toMatch(/Unrecognised/i);
+    });
+
+    test('stays quiet for known DENY statements (decision carries the enforcement)', async () => {
+      mockWorkerThenDecision({
+        id: 'd1', decision: 'DENY',
+        statements: [{ code: 'mcp-tier-amount-exceeded' }],
+      });
+      await evaluate();
+      const warned = warnSpy.mock.calls.flat().map(String).join(' ');
+      expect(warned).not.toMatch(/Unrecognised/i);
+    });
+
+    test('stays quiet for a recognised gate statement', async () => {
+      mockWorkerThenDecision({
+        id: 'd1', decision: 'INDETERMINATE',
+        statements: [{ code: 'step-up-required' }],
+      });
+      const r = await evaluate();
+      expect(r.stepUpRequired).toBe(true);
+      const warned = warnSpy.mock.calls.flat().map(String).join(' ');
+      expect(warned).not.toMatch(/Unrecognised/i);
+    });
+  });
 });
