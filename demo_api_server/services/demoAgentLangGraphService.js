@@ -282,10 +282,10 @@ async function dispatchBankingAction(action, params, userId, ctx) {
         const { result } = parseToolResult(rawResult, { site: 'create_transfer' });
         const tc = classifyMcpToolResult(result);
         if (tc.kind === 'hitl') {
-          return { reply: tc.message || 'This transfer requires your approval. Please confirm in the consent dialog.', success: false, toolsCalled: ['create_transfer'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents, error: 'hitl_required', hitl: tc.hitl, hitl_threshold_usd: tc.hitl_threshold_usd || amount, fromAccountId: fromAcct.id, toAccountId: toAcct.id, transactionAmount: amount, transactionType: 'transfer' };
+          return { reply: tc.message || 'This transfer requires your approval. Please confirm in the consent dialog.', success: false, toolsCalled: ['create_transfer'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents, error: 'hitl_required', hitl: tc.hitl, hitl_threshold_usd: tc.hitl_threshold_usd || amount, fromAccountId: fromAcct.id, toAccountId: toAcct.id, transactionAmount: amount, transactionType: 'transfer', ...(result.mcpAuthorizeEvaluation ? { mcpAuthorizeEvaluation: result.mcpAuthorizeEvaluation } : {}) };
         }
         if (tc.kind === 'step_up') {
-          return { reply: tc.message || 'Step-up authentication required for this transfer.', success: false, toolsCalled: ['create_transfer'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents, error: 'step_up_required', step_up_method: tc.step_up_method, step_up_acr: tc.step_up_acr, hitlChallengeId: tc.hitlChallengeId, fromAccountId: fromAcct.id, toAccountId: toAcct.id, transactionAmount: amount, transactionType: 'transfer' };
+          return { reply: tc.message || 'Step-up authentication required for this transfer.', success: false, toolsCalled: ['create_transfer'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents, error: 'step_up_required', step_up_method: tc.step_up_method, step_up_acr: tc.step_up_acr, hitlChallengeId: tc.hitlChallengeId, fromAccountId: fromAcct.id, toAccountId: toAcct.id, transactionAmount: amount, transactionType: 'transfer', ...(result.mcpAuthorizeEvaluation ? { mcpAuthorizeEvaluation: result.mcpAuthorizeEvaluation } : {}) };
         }
         if (tc.kind === 'error') {
           return { reply: `Transfer failed: ${tc.message}`, success: false, toolsCalled: ['create_transfer'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents, error: tc.error || 'authorization_denied' };
@@ -327,10 +327,10 @@ async function dispatchBankingAction(action, params, userId, ctx) {
         const { result } = parseToolResult(rawResult, { site: 'create_deposit' });
         const dc = classifyMcpToolResult(result);
         if (dc.kind === 'hitl') {
-          return { reply: dc.message || 'This deposit requires your approval. Please confirm in the consent dialog.', success: false, toolsCalled: ['create_deposit'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents, error: 'hitl_required', hitl: dc.hitl, hitl_threshold_usd: dc.hitl_threshold_usd || amount, toAccountId: toAcct.id, transactionAmount: amount, transactionType: 'deposit' };
+          return { reply: dc.message || 'This deposit requires your approval. Please confirm in the consent dialog.', success: false, toolsCalled: ['create_deposit'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents, error: 'hitl_required', hitl: dc.hitl, hitl_threshold_usd: dc.hitl_threshold_usd || amount, toAccountId: toAcct.id, transactionAmount: amount, transactionType: 'deposit', ...(result.mcpAuthorizeEvaluation ? { mcpAuthorizeEvaluation: result.mcpAuthorizeEvaluation } : {}) };
         }
         if (dc.kind === 'step_up') {
-          return { reply: dc.message || 'Step-up authentication required for this deposit.', success: false, toolsCalled: ['create_deposit'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents, error: 'step_up_required', step_up_method: dc.step_up_method, step_up_acr: dc.step_up_acr, hitlChallengeId: dc.hitlChallengeId, toAccountId: toAcct.id, transactionAmount: amount, transactionType: 'deposit' };
+          return { reply: dc.message || 'Step-up authentication required for this deposit.', success: false, toolsCalled: ['create_deposit'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents, error: 'step_up_required', step_up_method: dc.step_up_method, step_up_acr: dc.step_up_acr, hitlChallengeId: dc.hitlChallengeId, toAccountId: toAcct.id, transactionAmount: amount, transactionType: 'deposit', ...(result.mcpAuthorizeEvaluation ? { mcpAuthorizeEvaluation: result.mcpAuthorizeEvaluation } : {}) };
         }
         if (dc.kind === 'error') {
           return { reply: `Deposit failed: ${dc.message}`, success: false, toolsCalled: ['create_deposit'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
@@ -372,10 +372,10 @@ async function dispatchBankingAction(action, params, userId, ctx) {
         const { result } = parseToolResult(rawResult, { site: 'create_withdrawal' });
         const wc = classifyMcpToolResult(result);
         if (wc.kind === 'hitl') {
-          return { reply: wc.message || 'This withdrawal requires your approval. Please confirm in the consent dialog.', success: false, toolsCalled: ['create_withdrawal'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents, error: 'hitl_required', hitl: wc.hitl, hitl_threshold_usd: wc.hitl_threshold_usd || amount, fromAccountId: fromAcct.id, transactionAmount: amount, transactionType: 'withdrawal' };
+          return { reply: wc.message || 'This withdrawal requires your approval. Please confirm in the consent dialog.', success: false, toolsCalled: ['create_withdrawal'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents, error: 'hitl_required', hitl: wc.hitl, hitl_threshold_usd: wc.hitl_threshold_usd || amount, fromAccountId: fromAcct.id, transactionAmount: amount, transactionType: 'withdrawal', ...(result.mcpAuthorizeEvaluation ? { mcpAuthorizeEvaluation: result.mcpAuthorizeEvaluation } : {}) };
         }
         if (wc.kind === 'step_up') {
-          return { reply: wc.message || 'Step-up authentication required for this withdrawal.', success: false, toolsCalled: ['create_withdrawal'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents, error: 'step_up_required', step_up_method: wc.step_up_method, step_up_acr: wc.step_up_acr, hitlChallengeId: wc.hitlChallengeId, fromAccountId: fromAcct.id, transactionAmount: amount, transactionType: 'withdrawal' };
+          return { reply: wc.message || 'Step-up authentication required for this withdrawal.', success: false, toolsCalled: ['create_withdrawal'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents, error: 'step_up_required', step_up_method: wc.step_up_method, step_up_acr: wc.step_up_acr, hitlChallengeId: wc.hitlChallengeId, fromAccountId: fromAcct.id, transactionAmount: amount, transactionType: 'withdrawal', ...(result.mcpAuthorizeEvaluation ? { mcpAuthorizeEvaluation: result.mcpAuthorizeEvaluation } : {}) };
         }
         if (wc.kind === 'error') {
           return { reply: `Withdrawal failed: ${wc.message}`, success: false, toolsCalled: ['create_withdrawal'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
