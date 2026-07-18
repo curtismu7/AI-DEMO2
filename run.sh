@@ -103,15 +103,14 @@ OTEL_NODE_OPTIONS="-r ${OTEL_BOOTSTRAP}"
 OTEL_SERVICE_NAME="demo-api-server"
 
 CERT_DIR="${BASEDIR}/certs"
-# mkcert names cert files after the first SAN argument, e.g.:
-#   mkcert api.ping.demo localhost 127.0.0.1  → api.ping.demo+2.pem
-#   mkcert localhost 127.0.0.1               → localhost+1.pem
-# We derive the expected filenames from API_HOST at runtime.
-_cert_sans_count=2   # api.ping.demo + localhost + 127.0.0.1 → +2
-[[ "$API_HOST" == "localhost" || "$API_HOST" == "127.0.0.1" ]] && _cert_sans_count=1
-CERT_FILE="${CERT_DIR}/${API_HOST}+${_cert_sans_count}.pem"
-KEY_FILE="${CERT_DIR}/${API_HOST}+${_cert_sans_count}-key.pem"
-unset _cert_sans_count
+# Fixed filenames, NOT derived from API_HOST or the SAN count. mkcert would
+# otherwise name the file after its first SAN and suffix it with the SAN count,
+# so changing API_HOST or adding a SAN would rename the cert — and
+# docker-compose.yml, nginx.conf, vite.config.js and ~7 other files hardcode
+# api.ping.demo+2.pem. The name is now just a constant; the SAN list below is
+# what actually decides which hosts the cert covers.
+CERT_FILE="${CERT_DIR}/api.ping.demo+2.pem"
+KEY_FILE="${CERT_DIR}/api.ping.demo+2-key.pem"
 
 # macOS default bash (3.2) does not support ${var^^}; use a helper for banners/help text.
 proto_label() {
@@ -169,7 +168,21 @@ else
     if [[ ! -f "${CERT_FILE}" ]] || [[ ! -f "${KEY_FILE}" ]]; then
       echo "[SSL] Generating SSL certs for ${API_HOST}..."
       mkdir -p "${CERT_DIR}"
-      (cd "${CERT_DIR}" && mkcert "${API_HOST}" localhost 127.0.0.1)
+      # local.ping-devops.com is always a SAN: WebAuthn requires rp.id to be the
+      # origin host or a registrable parent of it, and PingOne refuses a rp.id
+      # whose TLD isn't public — so passkeys can only be demoed from a host under
+      # ping-devops.com, never from api.ping.demo.
+      # Both local browser origins are always covered: api.ping.demo is also the
+      # docker-compose network alias used for intra-network TLS, so dropping it
+      # would break service-to-service calls.
+      _cert_sans=("${API_HOST}" localhost 127.0.0.1)
+      [[ "${API_HOST}" == "local.ping-devops.com" ]] || _cert_sans+=(local.ping-devops.com)
+      [[ "${API_HOST}" == "api.ping.demo" ]] || _cert_sans+=(api.ping.demo)
+      # -cert-file/-key-file pin the output names. Without them mkcert names the
+      # file after the SAN count, so adding a SAN would rename api.ping.demo+2.pem
+      # to +3 and break every hardcoded reference to it across the repo.
+      (cd "${CERT_DIR}" && mkcert -cert-file "${CERT_FILE}" -key-file "${KEY_FILE}" "${_cert_sans[@]}")
+      unset _cert_sans
       echo "[OK] Certs created in ${CERT_DIR}"
     fi
 

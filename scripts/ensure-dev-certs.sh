@@ -14,9 +14,25 @@ CERTS_DIR="${ROOT}/certs"
 CERT_FILE="${CERTS_DIR}/api.ping.demo+2.pem"
 KEY_FILE="${CERTS_DIR}/api.ping.demo+2-key.pem"
 
+# The cert must cover local.ping-devops.com as well as api.ping.demo: WebAuthn
+# requires rp.id to be the origin host or a registrable parent of it, and PingOne
+# refuses a rp.id whose TLD isn't public, so passkeys can only be demoed from a
+# host under ping-devops.com. The filename stays api.ping.demo+2.pem regardless
+# of SAN count (pinned via mkcert -cert-file) because ~10 files hardcode it.
+REQUIRED_SAN="local.ping-devops.com"
+CERT_SANS=(api.ping.demo "${REQUIRED_SAN}" localhost 127.0.0.1)
+
 warn() { echo "  !  $*" >&2; }
 err()  { echo "  x  $*" >&2; }
 ok()   { echo "  +  $*"; }
+
+# True when the cert on disk already lists REQUIRED_SAN. Certs generated before
+# passkey support predate that SAN and must be regenerated, not reused.
+cert_has_required_san() {
+  local f="$1"
+  command -v openssl >/dev/null 2>&1 || return 0   # can't check → assume usable
+  openssl x509 -in "${f}" -noout -text 2>/dev/null | grep -q "DNS:${REQUIRED_SAN}"
+}
 
 # Broken symlink (e.g. worktree removed while certs/ still pointed at it).
 if [[ -L "${CERTS_DIR}" && ! -e "${CERTS_DIR}" ]]; then
@@ -25,17 +41,23 @@ if [[ -L "${CERTS_DIR}" && ! -e "${CERTS_DIR}" ]]; then
 fi
 
 if [[ -f "${CERT_FILE}" && -f "${KEY_FILE}" ]]; then
-  ok "TLS certs present in certs/."
-  exit 0
+  if cert_has_required_san "${CERT_FILE}"; then
+    ok "TLS certs present in certs/."
+    exit 0
+  fi
+  warn "TLS certs predate ${REQUIRED_SAN} — regenerating so passkeys work."
+  rm -f "${CERT_FILE}" "${KEY_FILE}"
 fi
 
 # Another git worktree may already have generated certs — copy before mkcert.
 if git -C "${ROOT}" rev-parse --git-dir >/dev/null 2>&1; then
   while IFS= read -r wt; do
     [[ -z "${wt}" || "${wt}" == "${ROOT}" ]] && continue
-    local src_cert="${wt}/certs/api.ping.demo+2.pem"
-    local src_key="${wt}/certs/api.ping.demo+2-key.pem"
-    if [[ -f "${src_cert}" && -f "${src_key}" ]]; then
+    # NB: plain vars, not `local` — this loop is at file scope, where bash treats
+    # `local` as an error and set -e would abort the script.
+    src_cert="${wt}/certs/api.ping.demo+2.pem"
+    src_key="${wt}/certs/api.ping.demo+2-key.pem"
+    if [[ -f "${src_cert}" && -f "${src_key}" ]] && cert_has_required_san "${src_cert}"; then
       warn "TLS certs missing here — copying from ${wt}/certs/"
       mkdir -p "${CERTS_DIR}"
       cp "${src_cert}" "${src_key}" "${CERTS_DIR}/"
@@ -49,7 +71,7 @@ fi
 if ! command -v mkcert >/dev/null 2>&1; then
   err "Missing ${CERT_FILE} and mkcert is not installed."
   err "Run: brew install mkcert && mkcert -install"
-  err "Then: cd certs && mkcert api.ping.demo localhost 127.0.0.1"
+  err "Then: cd certs && mkcert -cert-file api.ping.demo+2.pem -key-file api.ping.demo+2-key.pem ${CERT_SANS[*]}"
   err "Or start the stack via ./run-docker.sh (not raw docker compose) so this check runs."
   exit 1
 fi
@@ -62,9 +84,9 @@ if [[ -n "${ca_root}" && -f "${ca_root}/rootCA.pem" && ! -f "${CERTS_DIR}/rootCA
 fi
 (
   cd "${CERTS_DIR}"
-  mkcert api.ping.demo localhost 127.0.0.1
+  mkcert -cert-file "${CERT_FILE}" -key-file "${KEY_FILE}" "${CERT_SANS[@]}"
 ) || {
-  err "mkcert cert generation failed — run: cd ${CERTS_DIR} && mkcert api.ping.demo localhost 127.0.0.1"
+  err "mkcert cert generation failed — run: cd ${CERTS_DIR} && mkcert -cert-file ${CERT_FILE} -key-file ${KEY_FILE} ${CERT_SANS[*]}"
   exit 1
 }
 ok "TLS certs generated in certs/."

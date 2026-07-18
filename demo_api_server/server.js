@@ -294,7 +294,10 @@ app.use(cors({
     // Fallback to false (block all cross-origin) rather than reflecting any Origin.
     // The React CRA dev proxy makes requests same-origin in development, so this
     // fallback only affects calls from a different origin without the env var set.
-    origin: process.env.CORS_ORIGIN || 'https://api.ping.demo',
+    // Comma-separated values are supported so a deployment can serve more than one
+    // browser origin (e.g. the passkey-capable local.ping-devops.com alongside the
+    // legacy api.ping.demo) without reflecting arbitrary Origins.
+    origin: (process.env.CORS_ORIGIN || 'https://api.ping.demo').split(',').map(o => o.trim()).filter(Boolean),
     credentials: true,
     // RFC 9470: let cross-origin clients read the step-up challenge header
     exposedHeaders: ['WWW-Authenticate']

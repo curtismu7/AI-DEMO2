@@ -74,9 +74,26 @@ minimal diff.
 | `8889` | LangChain Agent (chat WS) | `ws://localhost:8889` |
 | `8890` | LangChain Agent (health) | `http://localhost:8890` |
 
-`api.ping.demo` is the canonical local host (HTTPS via `mkcert`). Code must not
-hardcode `localhost:3001` / `localhost:4000` in OAuth callbacks — read the
-configured host.
+**`local.ping-devops.com` is the canonical local BROWSER origin** (HTTPS via
+`mkcert`); `api.ping.demo` remains valid and is still the docker-compose network
+alias used for intra-network TLS. Both are SANs on the same
+`certs/api.ping.demo+2.pem` — that filename is a fixed constant, not derived
+from the host or SAN count, because ~10 files hardcode it.
+
+Why two: passkeys only work on `local.ping-devops.com`. WebAuthn requires the
+FIDO2 `rp.id` to be the origin's host or a registrable parent of it, and PingOne
+rejects any `rp.id` whose TLD isn't public (`CONSTRAINT_VIOLATION … "must be a
+valid domain name with a valid TLD"`). So `api.ping.demo` can never be a
+relying-party id, while `rp.id=ping-devops.com` covers both
+`local.ping-devops.com` and `ai-demo.ping-devops.com` from one PingOne
+environment. Set via `FIDO2_RP_ID`.
+
+Code must not hardcode `localhost:3001` / `localhost:4000` in OAuth callbacks —
+read the configured host. A new browser origin must be added to ALL of:
+`CORS_ORIGIN` (comma-separated), `vite.config.js` `allowedHosts`, `nginx.conf`
+`server_name`, the mkcert SAN lists in `scripts/ensure-dev-certs.sh` and
+`run.sh`, and both `KNOWN_REDIRECT_ORIGINS` arrays
+(`services/knownRedirectOrigins.js`, `services/pingoneProvisionService.js`).
 
 ---
 
