@@ -115,7 +115,7 @@ invariantEngine            reconciler  ← second witness: mcpAuditStore + mcpTr
  (pure function)                          + tokenChainService + authz auditDecision
    └──────────┬────────────────┘
               ▼
-   GET /api/transactions[/:correlationId]
+   GET /api/transaction-trace[/:correlationId]
               ▼
    UI: Transaction Trace page  →  deep-links to Jaeger (latency) and Token Chain (existing)
 ```
@@ -126,11 +126,11 @@ invariantEngine            reconciler  ← second witness: mcpAuditStore + mcpTr
 |---|---|---|
 | Ledger store | `demo_api_server/services/lmdb/transactionLedger.lmdb.js` | Append hops, get by correlationId, list, evict past cap. Mirrors `mcpAuditStore.lmdb.js`. |
 | Ingest route | `demo_api_server/routes/transactionHopIngest.js` | `POST /internal/transaction-hop`, guarded by `x-internal-gateway-secret`. Mirrors `routes/mcpAuditIngest.js`. |
-| Read route | `demo_api_server/routes/transactions.js` | `GET /api/transactions`, `GET /api/transactions/:correlationId`. Assembles record, derives token hops, runs engine + reconciler. |
+| Read route | `demo_api_server/routes/transactionTrace.js` | `GET /api/transaction-trace`, `GET /api/transaction-trace/:correlationId`. Assembles record, derives token hops, runs engine + reconciler. |
 | Invariant engine | `demo_api_server/services/transactionInvariants.js` | Pure `evaluate(record) → {status, violations[]}`. No I/O. |
 | Reconciler | `demo_api_server/services/transactionReconciler.js` | Joins the second-witness sources by correlationId, emits `MATCH`/`MISMATCH`/`SOURCE_UNAVAILABLE`. |
-| Emitter | added to each service's existing `teachLogger` module | `emitHop(hop)` — reuses the module's correlation ALS and service name. |
-| UI page | `demo_api_ui/src/pages/TransactionsPage.jsx` | List plus vertical chain-of-custody detail. |
+| Emitter | `transactionHop` module per service (see plan deviation) | `emitHop(hop)` — reuses the module's correlation ALS and service name. |
+| UI page | `demo_api_ui/src/pages/TransactionTracePage.jsx` | List plus vertical chain-of-custody detail. |
 
 The emitter lives inside each service's existing `teachLogger` rather than in a new shared
 package. `teachLogger` is already copy-pasted across five services and already holds the
@@ -232,9 +232,9 @@ detected".
 
 ## UI
 
-New page at `/transactions`, added as the third child of the existing **Telemetry** nav group
+New page at `/transaction-trace`, added as the third child of the existing **Telemetry** nav group
 (`demo_api_ui/src/components/AdminSideNav.jsx:709-715`) alongside Tracing and Health Check.
-`/transactions` is added to `AUTO_EXPAND_SECTIONS` (`AdminSideNav.jsx:156`).
+`/transaction-trace` is added to `AUTO_EXPAND_SECTIONS` (`AdminSideNav.jsx:156`).
 
 Layout is a **vertical chain of custody**: hop cards stacked top to bottom, each showing
 identity and decision. Violations render inline as red bands anchored at the offending hop, so
@@ -295,7 +295,7 @@ Only allowlisted emoji are used, per REGRESSION_PLAN §0: ✅ PASS, ❌ FAIL, �
 
 - `POST /internal/transaction-hop` rejects requests without `x-internal-gateway-secret`;
   a malformed hop returns 400 and leaves the existing record intact.
-- `GET /api/transactions` and `GET /api/transactions/:correlationId`.
+- `GET /api/transaction-trace` and `GET /api/transaction-trace/:correlationId`.
 
 **Propagation regression, guarding the P0 fixes:**
 
