@@ -1229,6 +1229,10 @@ app.use('/internal', require('./routes/agentTool'));
 // cross-vertical tool-call outcome here to persist in LMDB (read back by the
 // admin MCP Audit Trail page). Secret-guarded; NOT browser-facing.
 app.use('/internal', require('./routes/mcpAuditIngest'));
+// Transaction chain of custody — every instrumentable service ships one hop
+// per phase here so the BFF can assemble the full chain. Secret-guarded;
+// NOT browser-facing. Read back at /api/transaction-trace.
+app.use('/internal', require('./routes/transactionHopIngest'));
 // Gateway-only vault-key bridge — IG fetches demo backend API keys (X-API-Key)
 // from here at request time. Secret-guarded + allow-listed; NOT browser-facing.
 app.use('/internal', require('./routes/vaultServiceKey'));
