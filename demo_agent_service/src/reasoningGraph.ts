@@ -314,6 +314,10 @@ export async function reasonOnce(req: ReasonRequest): Promise<ReasonResponse> {
         model,
         temperature: 0,
         apiKey,
+        // Default (6) retries with exponential backoff can eat the BFF's whole
+        // 70s call budget on a 429, so the quota error never surfaces — it just
+        // looks like a generic timeout. Fail fast instead.
+        maxRetries: 1,
       });
       const withTools = req.tools.length > 0
         ? llm.bindTools(req.tools.map((t) => ({

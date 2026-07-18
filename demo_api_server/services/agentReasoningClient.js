@@ -64,6 +64,7 @@ async function runReasonLoop(p) {
         { headers: { 'x-internal-gateway-secret': secret }, timeout: 70000 },
       );
     } catch (err) {
+      console.warn('[agentReasoningClient] :3006 reason call failed:', err.code || err.message);
       return { ok: false, reason: 'reasoning_unavailable' };
     }
     const data = resp.data;
