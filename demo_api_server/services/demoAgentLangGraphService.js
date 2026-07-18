@@ -619,7 +619,27 @@ function buildA2aReplyEnvelope(a2aResult, tokenEvents) {
 // Plugin-first executeTool. Returns a function with the reason-loop signature
 // (name, args) => Promise<string>. Plugin results are JSON-stringified so the
 // reason loop sees a string, matching executeBffTool's contract.
-function resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, sessionId, isAdmin = false }) {
+/**
+ * Tool error codes that mean "blocked pending human approval", not "failed".
+ * The SPA opens its approval modal on exactly these.
+ */
+const APPROVAL_GATE_ERRORS = new Set([
+  'hitl_required',
+  'mcp_hitl_required',
+  'step_up_required',
+  'mcp_step_up_required',
+]);
+
+/**
+ * @param {object} opts
+ * @param {(result: object, toolName: string, args: object) => void} [opts.onGate]
+ *   Called when a tool refuses pending approval. The reason loop stringifies
+ *   tool results for the LLM, which paraphrases the refusal into prose — so the
+ *   response envelope loses error, step-up and challenge fields, so the SPA never
+ *   opens the approval modal (the gate reads as "Incomplete"). Enforcement is
+ *   unaffected either way: the tool has already refused.
+ */
+function resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, sessionId, isAdmin = false, onGate = null }) {
   return async (name, args) => {
     if (name === 'delegate_to_specialist') {
       return executeA2aDelegation(activeId, args, { req, tokenEvents, sessionId });
@@ -639,7 +659,41 @@ function resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, ses
       activeId, name, args, { userId, userToken, req, tokenEvents, sessionId, isAdmin },
       (n, a) => executeBffTool({ name: n, args: a, userId, userToken, req, tokenEvents, sessionId }),
     );
+    if (onGate && out && typeof out === 'object' && APPROVAL_GATE_ERRORS.has(out.error)) {
+      onGate(out, name, args || {});
+    }
     return typeof out === 'string' ? out : JSON.stringify(out);
+  };
+}
+
+/**
+ * Rebuild the approval-gate envelope the SPA needs from a tool's refusal.
+ * Mirrors the field set the heuristic transfer/deposit/withdrawal paths emit,
+ * so the same SPA handler opens the same modal on the LLM path.
+ * @param {{ result: object, toolName: string, args: object }} gate
+ */
+function approvalGateResponse(gate, tokenEvents) {
+  const { result, toolName, args } = gate;
+  const amount = result.transactionAmount ?? args.amount ?? null;
+  return {
+    reply: result.message || 'This action needs your approval before it can run.',
+    success: false,
+    toolsCalled: [toolName],
+    tokensUsed: 0,
+    requiresConsent: false,
+    agentConfigured: true,
+    tokenEvents: tokenEvents || [],
+    error: result.error,
+    ...(result.hitl ? { hitl: result.hitl } : {}),
+    ...(result.hitl_threshold_usd != null ? { hitl_threshold_usd: result.hitl_threshold_usd } : {}),
+    ...(result.step_up_method ? { step_up_method: result.step_up_method } : {}),
+    ...(result.step_up_acr ? { step_up_acr: result.step_up_acr } : {}),
+    ...(result.hitlChallengeId ? { hitlChallengeId: result.hitlChallengeId } : {}),
+    ...(amount != null ? { transactionAmount: amount } : {}),
+    ...(args.fromAccountId ? { fromAccountId: args.fromAccountId } : {}),
+    ...(args.toAccountId ? { toAccountId: args.toAccountId } : {}),
+    ...(result.transactionType || args.type ? { transactionType: result.transactionType || args.type } : {}),
+    ...(result.mcpAuthorizeEvaluation ? { mcpAuthorizeEvaluation: result.mcpAuthorizeEvaluation } : {}),
   };
 }
 
@@ -1443,6 +1497,8 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     const historyMessages = conversationStore.getHistory(userId, verticalForHistory) || [];
     const messages = [...historyMessages, { role: 'user', content: message }];
 
+    // Set when a tool refuses pending approval mid-loop; see resolveExecuteTool.
+    let approvalGate = null;
     const loopResult = await runReasonLoop({
       messages,
       tools: toolSchemas,
@@ -1452,7 +1508,10 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
       helixConfig: extractHelixConfig(langchainConfig),
       anthropicApiKey: process.env.ANTHROPIC_API_KEY,
       maxIterations: MAX_TOOL_ITERATIONS,
-      executeTool: resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, sessionId, isAdmin: isAdminUser }),
+      executeTool: resolveExecuteTool(activeId, {
+        userId, userToken, req, tokenEvents, sessionId, isAdmin: isAdminUser,
+        onGate: (result, toolName, args) => { approvalGate = { result, toolName, args }; },
+      }),
     });
 
     console.log('[processAgentMessage] Reason loop completed');
@@ -1465,6 +1524,13 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     if (loopResult.ok && !String(loopResult.answer || '').trim()) {
       loopResult.ok = false;
       loopResult.reason = loopResult.reason || 'empty_answer';
+    }
+    // A tool refused pending approval but the LLM still produced a fluent answer,
+    // so the loop reports ok. Returning that prose drops the gate fields and the
+    // SPA renders "Incomplete" with no way to approve — re-emit the gate instead.
+    // The heuristic floor (which returns before this path) is untouched.
+    if (approvalGate) {
+      return approvalGateResponse(approvalGate, tokenEvents);
     }
     if (loopResult.ok) {
       appEventService.logEvent('agent_prompt', 'info', `LLM response: ${String(loopResult.answer || '')}`,
@@ -1626,5 +1692,5 @@ module.exports = {
   processAgentMessage,
   dispatchBankingAction,
   dispatchVerticalIntent,
-  __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation, normalizeVerticalToolArgs, applyAdminCustomerContext },
+  __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation, normalizeVerticalToolArgs, applyAdminCustomerContext, APPROVAL_GATE_ERRORS, approvalGateResponse },
 };
