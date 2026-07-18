@@ -142,6 +142,16 @@ export function buildAuthorizeParameters(
     // subset enforcement.
     if (Array.isArray(tratClaims.azd.authorization_details) && tratClaims.azd.authorization_details.length) {
       base['RarAuthorizationDetails'] = JSON.stringify(tratClaims.azd.authorization_details);
+      // Also surface the numeric granted ceiling as its own parameter so the
+      // PingOne Authorize policy's RarMaxAmount rule (Amount > RarMaxAmount ->
+      // DENY) can enforce the cap — comparisons cannot parse the JSON string
+      // above. Only emitted when the grant caps an amount; absent otherwise so
+      // non-RAR calls never trip the rule.
+      const grant0 = tratClaims.azd.authorization_details[0] as { amount?: unknown } | undefined;
+      const rarMax = Number(grant0?.amount);
+      if (Number.isFinite(rarMax) && rarMax > 0) {
+        base['RarMaxAmount'] = String(rarMax);
+      }
     }
   }
 
