@@ -39,6 +39,12 @@ jest.mock('../services/mfaService', () => ({
   listMfaDevices: jest.fn(),
   initiateOneTimeOtp: jest.fn(),
 }));
+// Must be mocked: the maskedContact fallback in /initiate-otp calls this
+// whenever PingOne's response carries no device, and an unmocked call reaches
+// the real network — which surfaces as an intermittent `read ECONNRESET`.
+jest.mock('../services/pingOneUserLookupService', () => ({
+  fetchPingOneUserById: jest.fn().mockResolvedValue({ user: null }),
+}));
 const mfaService = require('../services/mfaService');
 
 const app = express();
