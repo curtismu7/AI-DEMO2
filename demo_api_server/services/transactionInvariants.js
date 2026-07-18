@@ -144,6 +144,22 @@ function inv5DecisionCoverage(hops) {
   return out;
 }
 
+// Emitters fall back to the string 'unknown' — not null/absent — when they
+// cannot determine which tool a hop was for. See HttpMCPTransport.ts
+// (`op: String((message.params as any)?.name ?? 'unknown')`) and the MCP
+// gateway's `_audCtx` default of `{ operation: 'unknown' }` in
+// authorizeMcpRequest.ts (only overwritten when a tool name is present),
+// which flows into the `gateway.authorize` hop via gatewayAudit.ts. It is an
+// emitter-produced sentinel, never a real tool name, and must be treated as
+// unattributable exactly like a null/absent op — including when comparing
+// two hops that both happen to carry it.
+const UNATTRIBUTABLE_OP = 'unknown';
+
+/** True when `op` identifies a real, specific operation — not absent, and not the emitter sentinel. */
+function _isAttributableOp(op) {
+  return Boolean(op) && op !== UNATTRIBUTABLE_OP;
+}
+
 /** INV-6 — a denied operation must not then run. */
 function inv6DenyHonored(hops) {
   const out = [];
@@ -152,12 +168,16 @@ function inv6DenyHonored(hops) {
       DECISION_PHASES.has(d.phase) &&
       (d.seq || 0) < (tool.seq || 0) &&
       d.decision?.outcome === 'deny' &&
-      // A deny with no op recorded is unattributable, so it blocks everything
-      // after it. Treating it as "not my tool" would be a free pass.
-      (!d.op || d.op === tool.op));
+      // A deny with an unattributable op (absent, or the 'unknown' sentinel)
+      // blocks everything after it. Treating it as "not my tool" would be a
+      // free pass. Two unattributable ops are never "the same operation" —
+      // that branch only matches when d.op is a real, specific identifier.
+      (!_isAttributableOp(d.op) || d.op === tool.op));
     if (blocking) {
       out.push(_v('INV-6', 'error', tool.seq,
-        `"${tool.op}" executed after a deny at hop ${blocking.seq} (${blocking.decision.reason || 'no reason recorded'})`));
+        _isAttributableOp(blocking.op)
+          ? `"${tool.op}" executed after a deny for the same operation at hop ${blocking.seq} (${blocking.decision.reason || 'no reason recorded'})`
+          : `"${tool.op}" executed after an unattributable deny at hop ${blocking.seq} that could not be matched to a specific operation (${blocking.decision.reason || 'no reason recorded'})`));
     }
   }
   return out;
@@ -184,6 +204,9 @@ function inv7ConsentBinding(hops) {
       continue;
     }
 
+    // Latest matching consent wins: this mirrors real-time re-consent /
+    // step-up, where only the CURRENT HITL status is ever checked — an
+    // earlier, superseded consent for the same op must not govern.
     const consent = consents[consents.length - 1];
     if (consent.decision?.outcome !== 'permit') {
       out.push(_v('INV-7', 'error', tool.seq,
@@ -202,15 +225,21 @@ function inv7ConsentBinding(hops) {
       continue;
     }
 
+    // Collect every mismatched account key rather than stopping at the
+    // first — the verdict is already FAIL either way, but a full list is
+    // more useful forensic detail than whichever key happened to be first
+    // in CONSENT_BOUND_KEYS. Still exactly one INV-7 violation per tool hop.
+    const keyMismatches = [];
     for (const key of CONSENT_BOUND_KEYS) {
       const cVal = _normField(consented[key]);
       const eVal = _normField(executed[key]);
       if (cVal === null && eVal === null) continue;
       if (cVal !== eVal) {
-        out.push(_v('INV-7', 'error', tool.seq,
-          `"${tool.op}" consented ${key}=${cVal} but executed ${key}=${eVal}`));
-        break;
+        keyMismatches.push(`consented ${key}=${cVal} but executed ${key}=${eVal}`);
       }
+    }
+    if (keyMismatches.length > 0) {
+      out.push(_v('INV-7', 'error', tool.seq, `"${tool.op}" ${keyMismatches.join('; ')}`));
     }
   }
   return out;
