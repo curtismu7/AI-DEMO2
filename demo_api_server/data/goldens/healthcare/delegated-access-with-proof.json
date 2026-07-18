@@ -1,0 +1,12 @@
+{
+  "vertical": "healthcare",
+  "useCaseId": "delegated-access-with-proof",
+  "ucId": "UC1",
+  "trigger": "check my coverage",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-18T13:58:39.366Z",
+  "seedHash": "956244bc8453547f",
+  "reply": "Here is your Coverage.",
+  "agentPath": null,
+  "tokenEventCount": 18
+}

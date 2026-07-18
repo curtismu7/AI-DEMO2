@@ -1,0 +1,12 @@
+{
+  "vertical": "investment",
+  "useCaseId": "delegated-access-with-proof",
+  "ucId": "UC1",
+  "trigger": "show my portfolios",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-18T13:59:14.578Z",
+  "seedHash": null,
+  "reply": "Here are your portfolios.",
+  "agentPath": null,
+  "tokenEventCount": 18
+}
