@@ -87,7 +87,7 @@ describe('DemoStepsDropdown', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it('shows Clear progress once a step is completed, and clears checkmarks on click', async () => {
+  it('shows Clear progress even with nothing completed, and clears checkmarks on click', async () => {
     render(
       <DemoStepsDropdown
         open
@@ -96,7 +96,9 @@ describe('DemoStepsDropdown', () => {
       />,
     );
     await waitFor(() => expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument());
-    expect(screen.queryByTestId('demo-steps-clear')).not.toBeInTheDocument();
+    // Always visible — a presenter should be able to reset before any step
+    // has run, not just after one is marked done.
+    expect(screen.getByTestId('demo-steps-clear')).toBeInTheDocument();
 
     // Mark a step completed the way the real onSelect callback does, then click
     // a different primary step to force the tick-driven re-render.
@@ -108,7 +110,7 @@ describe('DemoStepsDropdown', () => {
 
     fireEvent.click(screen.getByTestId('demo-steps-clear'));
 
-    expect(screen.queryByTestId('demo-steps-clear')).not.toBeInTheDocument();
+    expect(screen.getByTestId('demo-steps-clear')).toBeInTheDocument();
     expect(screen.getByTestId('demo-step-UC1').querySelector('.ba-demo-steps-popout__check')).toBeFalsy();
     expect(sessionStorage.getItem('bx_uc_completed')).toBeNull();
   });

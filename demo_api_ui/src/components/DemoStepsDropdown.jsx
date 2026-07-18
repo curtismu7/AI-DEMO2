@@ -12,7 +12,6 @@ import {
 import apiClient from '../services/apiClient';
 import {
   clearCompletedUseCases,
-  getCompletedUseCaseIds,
   isUseCaseCompleted,
 } from '../utils/useCaseDemoProgress';
 
@@ -168,7 +167,6 @@ export default function DemoStepsDropdown({
   }
 
   void tick;
-  const completedCount = getCompletedUseCaseIds().size;
 
   return (
     <>
@@ -196,17 +194,15 @@ export default function DemoStepsDropdown({
         >
           <div className="ba-demo-steps-popout__header">
             <span>Demo steps — scripted walkthrough</span>
-            {completedCount > 0 && (
-              <button
-                type="button"
-                className="ba-demo-steps-popout__clear"
-                onClick={handleClearProgress}
-                title="Clear checkmarks for a fresh demo pass"
-                data-testid="demo-steps-clear"
-              >
-                Clear progress
-              </button>
-            )}
+            <button
+              type="button"
+              className="ba-demo-steps-popout__clear"
+              onClick={handleClearProgress}
+              title="Clear checkmarks for a fresh demo pass"
+              data-testid="demo-steps-clear"
+            >
+              Clear progress
+            </button>
           </div>
           {loading && (
             <p className="ba-demo-steps-popout__status">Loading…</p>
