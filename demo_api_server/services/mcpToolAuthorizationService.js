@@ -207,6 +207,53 @@ function resolveAmountForPolicy(tool, toolParams, verticalId, userId) {
 }
 
 /**
+ * Consult the Transaction decision endpoint for amount-bearing tool calls.
+ *
+ * The MCP first-tool gate answers "may this agent invoke this tool" — it does not
+ * evaluate transaction limits. The Amount rule lives on the Transaction policy,
+ * which until now was only reachable from routes/transactions.js (the direct
+ * transfer API). So an agent chip asking for a $2500 transfer got PERMIT + a HITL
+ * obligation from the gate and never met the limit rule at all — UC6 could not
+ * DENY through the agent path in any vertical.
+ *
+ * A DENY here overrides the gate's decision, mirroring the DENY-takes-precedence
+ * rule already applied to the gate's own response. Everything else is left alone:
+ * a PERMIT from the transaction policy must NOT clear a HITL/step-up obligation
+ * the gate attached, or UC7/UC8 would lose their approval gates.
+ *
+ * No amount → no call, so non-transactional tools are completely unaffected.
+ *
+ * @param {object} r - the gate's normalized PingOne result
+ * @param {{amount: number|null, transactionType: string|null, userId: string, acr: string}} opts
+ * @returns {Promise<object>} r, possibly with decision forced to DENY
+ */
+async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr }) {
+  if (!transactionType || !Number.isFinite(amount) || amount <= 0 || !userId) return r;
+  if (r.decision === 'DENY' || r.policyNotFound) return r; // already blocked — nothing to add
+  try {
+    const t = await pingOneAuthorizeService.evaluateTransaction({
+      userId, amount, type: transactionType, acr,
+    });
+    if (t && t.decision === 'DENY') {
+      return {
+        ...r,
+        decision: 'DENY',
+        // Surface the limit policy's own decision id/response so the Token Chain
+        // and the 403 body show the rule that actually denied, not the gate's.
+        decisionId: t.decisionId || r.decisionId,
+        raw: t.raw || r.raw,
+        transactionPolicyDenied: true,
+      };
+    }
+  } catch (err) {
+    // Fail OPEN to the gate's decision: the gate already ran and is the primary
+    // control. A transaction-policy outage must not block every priced tool call.
+    console.warn('[mcpAuthz] transaction policy consult failed — keeping gate decision:', err.message);
+  }
+  return r;
+}
+
+/**
  * Run MCP Authorize gate on every tool call when enabled. Evaluates aud/scope
  * from the token and business rules (e.g. HITL for transfers over threshold).
  *
@@ -694,7 +741,9 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     }
 
     const r = await pingOneAuthorizeService.evaluateMcpToolDelegation(liveDelegationArgs);
-    return mapLivePingOneResult(r);
+    return mapLivePingOneResult(await _applyTransactionPolicy(r, {
+      amount: toolAmount, transactionType, userId: policyUserId || subjectId, acr: userAcr,
+    }));
   } catch (err) {
     if (USE_SIMULATED) {
       return { ran: true, simulatedError: err };

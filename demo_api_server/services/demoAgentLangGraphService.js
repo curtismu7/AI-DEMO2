@@ -288,7 +288,7 @@ async function dispatchBankingAction(action, params, userId, ctx) {
           return { reply: tc.message || 'Step-up authentication required for this transfer.', success: false, toolsCalled: ['create_transfer'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents, error: 'step_up_required', step_up_method: tc.step_up_method, step_up_acr: tc.step_up_acr, hitlChallengeId: tc.hitlChallengeId, fromAccountId: fromAcct.id, toAccountId: toAcct.id, transactionAmount: amount, transactionType: 'transfer', ...(result.mcpAuthorizeEvaluation ? { mcpAuthorizeEvaluation: result.mcpAuthorizeEvaluation } : {}) };
         }
         if (tc.kind === 'error') {
-          return { reply: `Transfer failed: ${tc.message}`, success: false, toolsCalled: ['create_transfer'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents, error: tc.error || 'authorization_denied' };
+          return { reply: `Transfer failed: ${tc.message}`, success: false, toolsCalled: ['create_transfer'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents, error: tc.error || 'authorization_denied', ...(result.mcpAuthorizeEvaluation ? { mcpAuthorizeEvaluation: result.mcpAuthorizeEvaluation } : {}) };
         }
         return { reply: `Transferred **$${amount.toFixed(2)}** from ${fromAcct.accountType} to ${toAcct.accountType}.`, success: true, toolsCalled: ['create_transfer'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
       } catch (err) {
@@ -333,9 +333,9 @@ async function dispatchBankingAction(action, params, userId, ctx) {
           return { reply: dc.message || 'Step-up authentication required for this deposit.', success: false, toolsCalled: ['create_deposit'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents, error: 'step_up_required', step_up_method: dc.step_up_method, step_up_acr: dc.step_up_acr, hitlChallengeId: dc.hitlChallengeId, toAccountId: toAcct.id, transactionAmount: amount, transactionType: 'deposit', ...(result.mcpAuthorizeEvaluation ? { mcpAuthorizeEvaluation: result.mcpAuthorizeEvaluation } : {}) };
         }
         if (dc.kind === 'error') {
-          return { reply: `Deposit failed: ${dc.message}`, success: false, toolsCalled: ['create_deposit'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
+          return { reply: `Deposit failed: ${dc.message}`, success: false, toolsCalled: ['create_deposit'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents , ...(result.mcpAuthorizeEvaluation ? { mcpAuthorizeEvaluation: result.mcpAuthorizeEvaluation } : {}) }
         }
-        return { reply: `Deposited **$${amount.toFixed(2)}** into ${toAcct.accountType}.`, success: true, toolsCalled: ['create_deposit'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
+        return { reply: `Deposited **$${amount.toFixed(2)}** into ${toAcct.accountType}.`, success: true, toolsCalled: ['create_deposit'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents , ...(result.mcpAuthorizeEvaluation ? { mcpAuthorizeEvaluation: result.mcpAuthorizeEvaluation } : {}) }
       } catch (err) {
         // WR-07(a): non-Error throws have no .message — surface the real value.
         const detail = (err && err.message) ? err.message : String(err);
@@ -378,9 +378,9 @@ async function dispatchBankingAction(action, params, userId, ctx) {
           return { reply: wc.message || 'Step-up authentication required for this withdrawal.', success: false, toolsCalled: ['create_withdrawal'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents, error: 'step_up_required', step_up_method: wc.step_up_method, step_up_acr: wc.step_up_acr, hitlChallengeId: wc.hitlChallengeId, fromAccountId: fromAcct.id, transactionAmount: amount, transactionType: 'withdrawal', ...(result.mcpAuthorizeEvaluation ? { mcpAuthorizeEvaluation: result.mcpAuthorizeEvaluation } : {}) };
         }
         if (wc.kind === 'error') {
-          return { reply: `Withdrawal failed: ${wc.message}`, success: false, toolsCalled: ['create_withdrawal'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
+          return { reply: `Withdrawal failed: ${wc.message}`, success: false, toolsCalled: ['create_withdrawal'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents , ...(result.mcpAuthorizeEvaluation ? { mcpAuthorizeEvaluation: result.mcpAuthorizeEvaluation } : {}) }
         }
-        return { reply: `Withdrew **$${amount.toFixed(2)}** from ${fromAcct.accountType}.`, success: true, toolsCalled: ['create_withdrawal'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
+        return { reply: `Withdrew **$${amount.toFixed(2)}** from ${fromAcct.accountType}.`, success: true, toolsCalled: ['create_withdrawal'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents , ...(result.mcpAuthorizeEvaluation ? { mcpAuthorizeEvaluation: result.mcpAuthorizeEvaluation } : {}) }
       } catch (err) {
         // WR-07(a): non-Error throws have no .message — surface the real value.
         const detail = (err && err.message) ? err.message : String(err);
