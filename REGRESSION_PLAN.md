@@ -87,8 +87,10 @@ Reverse-chronological, newest first.
 ### 2026-07-18 — Step-up OTP mailed to an undeliverable synthetic address; passkey rp.id error told admins to do the impossible
 
 **Files changed:** `demo_api_server/routes/oauthUser.js` (new
-`resolveEnrolledContact`, delivery-target selection in `POST /initiate-otp`),
-`demo_api_server/tests/oauthUser.test.js`,
+`resolveEnrolledContact` + `maskContact`, delivery-target selection in
+`POST /initiate-otp`), `demo_api_server/routes/mfa.js` (`GET /devices` phone
+masking), `demo_api_server/tests/oauthUser.test.js`,
+`demo_api_server/tests/mfaDevices.route.test.js` (new),
 `demo_api_ui/src/components/OtpStepUpModal.js` (rp.id error copy only).
 
 **What was broken:** two separate defects behind one symptom ("verify your
@@ -109,6 +111,13 @@ identity" step-up not working).
    valid domain name with a valid TLD"` — so the policies stay pinned to
    `ai-demo.ping-devops.com` and the browser refuses with "'rp.id' cannot be
    used with the current origin". No number of restarts fixes it.
+3. Two contact-display defects from the same root confusion about PingOne's
+   device shape. `GET /api/auth/mfa/devices` read `d.phone?.number`, but PingOne
+   returns a bare E.164 string, so every SMS device came back with
+   `maskedContact: null` — and since that route strips the raw `phone` field,
+   the modal had no fallback and rendered "your phone". Separately,
+   `pingMaskedContact` in `/initiate-otp` returned PingOne's echoed address
+   verbatim despite its name, so the full address reached the client.
 
 **What was fixed:** (1) `resolveEnrolledContact(userId, method)` lists ACTIVE
 MFA devices and returns the enrolled `email` (or `phone`) for the requested
@@ -116,19 +125,25 @@ channel; `to` prefers it and falls back to the profile field only when nothing
 is enrolled or the lookup throws. (2) The rp.id message now branches on whether
 the host's TLD is one PingOne will accept, and on `.demo`/`.local`/`localhost`/
 `.test`/`.invalid`/`.internal`/no-TLD hosts states plainly that the host cannot
-be set and to demo passkeys on the public-domain deployment instead.
+be set and to demo passkeys on the public-domain deployment instead. (3) The
+`/devices` SMS branch accepts both the bare-string and `{ number }` phone
+shapes, and a new `maskContact()` masks the echoed address so `maskedContact`
+is always actually masked.
 
 **Do not break:** PingOne returns an SMS device's number as a bare
 string (`"phone": "+19725231586"`), NOT `{ number }` — `resolveEnrolledContact`
-reads `device.phone?.number || device.phone` and must keep both. The profile
-fallback must stay: users with no enrolled device still need step-up. Do not
-"simplify" the rp.id branch back to one message — the two cases have opposite
-remedies, and the public-domain branch's restart advice is correct.
+and the `/devices` masking both read `phone?.number || phone` and must keep
+both shapes. The profile fallback must stay: users with no enrolled device
+still need step-up. Do not "simplify" the rp.id branch back to one message —
+the two cases have opposite remedies, and the public-domain branch's restart
+advice is correct. `GET /devices` must keep stripping the raw `phone`/`email`
+off the response; only `maskedContact` goes to the client.
 
 **Verify:** `cd demo_api_ui && npm run build` (exit 0);
-`CI=true npx jest oauthUser mfaTest hitlPingOneMfa --testPathIgnorePatterns="/node_modules/"`.
-The four `initiate-otp delivery target` tests fail if the enrolled-device
-preference is reverted (mutation-checked).
+`CI=true npx jest oauthUser mfaDevices mfaTest hitlPingOneMfa --testPathIgnorePatterns="/node_modules/"`
+(70 passed). Mutation-checked: reverting the enrolled-device preference fails 2
+`initiate-otp delivery target` tests, reverting either masking fix fails 1 more
+each.
 
 ### 2026-07-18 — Demo Steps HITL/step-up gates printed the denial text and never opened the approval modal
 

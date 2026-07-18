@@ -337,9 +337,14 @@ router.get('/devices', authenticateToken, async (req, res) => {
           ? local[0] + '*'.repeat(local.length - 2) + local[local.length - 1]
           : local[0] + '*';
         maskedContact = vis + '@' + domain;
-      } else if ((type === 'SMS' || type === 'PHONE' || type === 'MOBILE_PHONE') && d.phone?.number) {
-        const digits = d.phone.number.replace(/\D/g, '');
-        maskedContact = digits.length >= 4 ? '***-***-' + digits.slice(-4) : d.phone.number;
+      } else if (type === 'SMS' || type === 'PHONE' || type === 'MOBILE_PHONE') {
+        // PingOne returns an SMS device's number as a bare E.164 string
+        // ("phone": "+19725551234"); accept the { number } shape too.
+        const number = d.phone?.number || (typeof d.phone === 'string' ? d.phone : null);
+        if (number) {
+          const digits = number.replace(/\D/g, '');
+          maskedContact = digits.length >= 4 ? '***-***-' + digits.slice(-4) : number;
+        }
       } else if (type === 'TOTP') {
         maskedContact = d.nickname || d.applicationName || 'Authenticator app';
       } else if (type === 'FIDO2') {

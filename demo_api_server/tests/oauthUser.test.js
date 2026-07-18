@@ -249,6 +249,41 @@ describe('initiate-otp delivery target', () => {
 
     expect(mfaService.initiateOneTimeOtp).toHaveBeenCalledWith('user-uuid', 'EMAIL', PROFILE_EMAIL);
   });
+
+  test('masks the address PingOne echoes back instead of returning it raw', async () => {
+    mfaService.listMfaDevices.mockResolvedValue({
+      devices: [{ id: 'd1', type: 'EMAIL', status: 'ACTIVE', email: ENROLLED_EMAIL }],
+    });
+    mfaService.initiateOneTimeOtp.mockResolvedValue({
+      id: 'da-1',
+      _embedded: { devices: [{ email: ENROLLED_EMAIL }] },
+    });
+
+    const res = await request(authedApp)
+      .post('/api/auth/oauth/user/initiate-otp')
+      .send({})
+      .expect(200);
+
+    expect(res.body.maskedContact).toBe('r*********n@example.com');
+    expect(res.body.maskedContact).not.toBe(ENROLLED_EMAIL);
+  });
+
+  test('masks an echoed SMS number to its last four digits', async () => {
+    mfaService.listMfaDevices.mockResolvedValue({
+      devices: [{ id: 'd2', type: 'SMS', status: 'ACTIVE', phone: '+19725550123' }],
+    });
+    mfaService.initiateOneTimeOtp.mockResolvedValue({
+      id: 'da-2',
+      _embedded: { devices: [{ phone: '+19725550123' }] },
+    });
+
+    const res = await request(authedApp)
+      .post('/api/auth/oauth/user/initiate-otp')
+      .send({ method: 'sms' })
+      .expect(200);
+
+    expect(res.body.maskedContact).toBe('***-***-0123');
+  });
 });
 
 describe('OAuth User Step-up return_to', () => {
