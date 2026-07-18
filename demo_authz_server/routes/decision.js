@@ -37,8 +37,9 @@
 const scopeTopology = require('../scopeTopology');
 const pingOneUserLookup = require('../pingOneUserLookup');
 const ruleStore = require('../ruleStore');
-const { setDecisionContext } = require('../correlationContext');
+const { setDecisionContext, getDecisionContext } = require('../correlationContext');
 const { log, warn, auditDecision } = require('../logger');
+const { emitHop } = require('../transactionHop');
 
 // Rule 2 (actor identity), Rule 4 (HITL threshold), the tool-discovery decision, and the
 // scope->tool / write-tool classification are EDITABLE at runtime via ruleStore (admin
@@ -725,20 +726,41 @@ function acrLooksStrong(acr) {
   return s.includes('mfa') || s.includes('multi') || s.includes('fido') || s.includes('passkey');
 }
 
+// Every decision path funnels through these four helpers, so emitting here
+// gives complete coverage. Early DENY guards return before setDecisionContext
+// runs, so their hops carry null tool/sub/actor — that gap is real and must
+// stay visible rather than being back-filled with guesses.
+function _emitDecisionHop(outcome, reason) {
+  const ctx = getDecisionContext();
+  emitHop({
+    phase: 'authz.decision',
+    op: ctx.tool || null,
+    identity: { sub: ctx.sub || null, act: ctx.actor ? [ctx.actor] : [] },
+    decision: { outcome, by: 'mock', reason: reason || null },
+    status: 'ok',
+  });
+}
+
 function permit(res, reason) {
+  auditDecision('PERMIT', reason);
+  _emitDecisionHop('permit', reason);
   res.json({ decision: 'PERMIT', reason, decision_id: randomId(), policy_version: 'mock-v1' });
 }
 
 function permitWithAdvice(res, reason, advice) {
+  auditDecision('PERMIT', reason);
+  _emitDecisionHop('permit', reason);
   res.json({ decision: 'PERMIT', reason, advice, decision_id: randomId(), policy_version: 'mock-v1' });
 }
 
 function deny(res, reason) {
   auditDecision('DENY', reason);
+  _emitDecisionHop('deny', reason);
   res.json({ decision: 'DENY', reason, decision_id: randomId(), policy_version: 'mock-v1' });
 }
 
 function indeterminate(res, reason) {
   auditDecision('INDETERMINATE', reason);
+  _emitDecisionHop('n/a', reason);
   res.json({ decision: 'INDETERMINATE', reason, decision_id: randomId(), policy_version: 'mock-v1' });
 }

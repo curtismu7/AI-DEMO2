@@ -29,8 +29,12 @@ function warn(...args) {
 }
 
 /**
- * Emit a structured audit record for a non-PERMIT decision.
- * @param {'DENY'|'INDETERMINATE'} decision
+ * Emit a structured audit record for a decision.
+ *
+ * PERMIT is audited alongside DENY / INDETERMINATE so the stdout trail is
+ * complete for a human reading container logs. Note this sink is stdout-only —
+ * the machine-readable path the reconciler uses is transactionHop.emitHop.
+ * @param {'PERMIT'|'DENY'|'INDETERMINATE'} decision
  * @param {string} reason
  */
 function auditDecision(decision, reason) {

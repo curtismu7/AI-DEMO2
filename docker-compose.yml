@@ -596,6 +596,7 @@ services:
       # (aud https://api.ping.demo:3036/mcp) is denied with invalid_aud. Also
       # includes the A2A specialists' dedicated Exchange #2 audience.
       MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo"
+      BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
     env_file:
       - path: ./demo_mcp_gateway/.env
         required: false
