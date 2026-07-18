@@ -25,7 +25,7 @@ The gateway validates aud/exp/iss/nbf before any routing; a bad token is rejecte
 
 ## Evidence
 
-**Token chain steps:** user-token → authorize-decision  
+**Token chain steps:** sim-exchange-ok → sim-gateway-deny  
 **Activity categories:** token, gateway
 
 ## Code References
