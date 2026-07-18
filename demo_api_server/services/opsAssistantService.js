@@ -37,6 +37,13 @@ async function processOpsMessage({ vertical, query, message, history = [], langc
     executeTool: async () => '',                 // never called (no tools)
   });
 
+  // A 200-but-empty answer is not a success (see demoAgentLangGraphService) —
+  // treat it as reasoning_unavailable so the honest error reply wins instead
+  // of a blank success:true bubble.
+  if (loop.ok && !String(loop.answer || '').trim()) {
+    loop.ok = false;
+    loop.reason = loop.reason || 'empty_answer';
+  }
   if (loop.ok) {
     return { reply: loop.answer, success: true, toolsCalled: [], inputTokens: loop.inputTokens || 0, outputTokens: loop.outputTokens || 0, agentConfigured: true };
   }
