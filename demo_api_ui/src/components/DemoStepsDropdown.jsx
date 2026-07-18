@@ -10,7 +10,11 @@ import {
   DEMO_PRIMARY_USE_CASE_IDS,
 } from '../config/demoUseCaseSteps';
 import apiClient from '../services/apiClient';
-import { isUseCaseCompleted } from '../utils/useCaseDemoProgress';
+import {
+  clearCompletedUseCases,
+  getCompletedUseCaseIds,
+  isUseCaseCompleted,
+} from '../utils/useCaseDemoProgress';
 
 /**
  * @param {object} props
@@ -127,6 +131,12 @@ export default function DemoStepsDropdown({
     setTick((n) => n + 1);
   }
 
+  /** Reset demo check-offs for a fresh presenter pass. */
+  function handleClearProgress() {
+    clearCompletedUseCases();
+    setTick((n) => n + 1);
+  }
+
   /**
    * Render one demo-step row.
    * @param {{ uc: object, stepNumber: number }} row
@@ -157,6 +167,9 @@ export default function DemoStepsDropdown({
     );
   }
 
+  void tick;
+  const completedCount = getCompletedUseCaseIds().size;
+
   return (
     <>
       <button
@@ -182,7 +195,18 @@ export default function DemoStepsDropdown({
           data-testid="demo-steps-popout"
         >
           <div className="ba-demo-steps-popout__header">
-            Demo steps — scripted walkthrough
+            <span>Demo steps — scripted walkthrough</span>
+            {completedCount > 0 && (
+              <button
+                type="button"
+                className="ba-demo-steps-popout__clear"
+                onClick={handleClearProgress}
+                title="Clear checkmarks for a fresh demo pass"
+                data-testid="demo-steps-clear"
+              >
+                Clear progress
+              </button>
+            )}
           </div>
           {loading && (
             <p className="ba-demo-steps-popout__status">Loading…</p>
