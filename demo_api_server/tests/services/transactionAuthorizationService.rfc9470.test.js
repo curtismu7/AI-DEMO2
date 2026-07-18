@@ -151,3 +151,34 @@ describe('step-up block mode switch (ff_rfc9470_challenge)', () => {
     expect(res.block.body.authorizeFallback).toEqual({ fellBack: true });
   });
 });
+
+// The agent step-up modal renders its device picker (SMS / email / passkey) ONLY
+// when the 428 body carries step_up_method === 'p1mfa' (AIAgent.js checks that
+// exact string). stepUpMethod is pass-through data, not a branch, so nothing in
+// this service would fail if the value stopped reaching the body — the modal
+// would just silently fall back to the stub OTP-only render. These pin it.
+describe('step_up_method is passed through to the 428 body', () => {
+  it.each(['p1mfa', 'email', 'ciba'])('emits %s verbatim', async (method) => {
+    configStore.getEffective.mockImplementation((key) =>
+      key === 'ff_rfc9470_challenge' ? 'false' : null
+    );
+    runtimeSettings.update({ stepUpMethod: method }, 'test');
+
+    const res = await evaluateTransactionPolicy(evaluateOpts);
+
+    expect(res.block.body.step_up_method).toBe(method);
+  });
+
+  it('prefers the configStore value over the runtimeSettings default', async () => {
+    configStore.getEffective.mockImplementation((key) => {
+      if (key === 'ff_rfc9470_challenge') return 'false';
+      if (key === 'step_up_method') return 'p1mfa';
+      return null;
+    });
+    runtimeSettings.update({ stepUpMethod: 'email' }, 'test');
+
+    const res = await evaluateTransactionPolicy(evaluateOpts);
+
+    expect(res.block.body.step_up_method).toBe('p1mfa');
+  });
+});
