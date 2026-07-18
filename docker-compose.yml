@@ -494,7 +494,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
       OTEL_SERVICE_NAME: "hitl-service"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
-      HITL_ALLOWED_ORIGINS: "http://api-server:3001,http://localhost:4000,https://api.ping.demo:3001"
+      HITL_ALLOWED_ORIGINS: "http://api-server:3001,http://localhost:4000,https://local.ping-devops.com:4000,https://api.ping.demo:4000,https://api.ping.demo:3001"
     env_file:
       - path: ./demo_hitl_service/.env
         required: false

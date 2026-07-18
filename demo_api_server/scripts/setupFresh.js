@@ -1078,17 +1078,30 @@ async function confirmInstallDirectory() {
 // We check upfront, prompt to fix, and on macOS open Terminal.app with the
 // sudo command pre-typed so the user runs it without leaving the flow.
 
-const APP_HOST = 'api.ping.demo';
+// Both hosts need loopback entries. local.ping-devops.com is the passkey-capable
+// origin — WebAuthn requires rp.id to be the origin's host or a registrable
+// parent of it, and PingOne rejects a rp.id whose TLD isn't public, so
+// api.ping.demo can never carry passkeys. api.ping.demo stays because it is the
+// docker-compose network alias used for intra-network TLS.
+const APP_HOSTS = ['api.ping.demo', 'local.ping-devops.com'];
 const HOSTS_FILE = '/etc/hosts';
-const HOSTS_LINE = `127.0.0.1  ${APP_HOST}`;
+const HOSTS_LINE = APP_HOSTS.map((h) => `127.0.0.1  ${h}`).join('\n');
 
-function hostsEntryPresent() {
+function hostEntryPresent(txt, host) {
+  // Match any line that maps a 127.x address to `host`.
+  const re = new RegExp(`^\\s*127\\.[0-9.]+\\s+(?:[^\\s#]+\\s+)*${host.replace(/\./g, '\\.')}(?:\\s|$)`, 'm');
+  return re.test(txt);
+}
+
+function missingHostsEntries() {
   try {
     const txt = fs.readFileSync(HOSTS_FILE, 'utf8');
-    // Match any line that maps a 127.x address to APP_HOST.
-    const re = new RegExp(`^\\s*127\\.[0-9.]+\\s+(?:[^\\s#]+\\s+)*${APP_HOST.replace(/\./g, '\\.')}(?:\\s|$)`, 'm');
-    return re.test(txt);
-  } catch (_e) { return false; }
+    return APP_HOSTS.filter((h) => !hostEntryPresent(txt, h));
+  } catch (_e) { return [...APP_HOSTS]; }
+}
+
+function hostsEntryPresent() {
+  return missingHostsEntries().length === 0;
 }
 
 function readlineQuestion(question, defaultYes = true) {
@@ -1201,9 +1214,9 @@ async function ensureHostsEntry() {
   if (hostsEntryPresent()) return true;
 
   console.log('');
-  console.log(`The ${APP_HOST} loopback entry is missing from /etc/hosts.`);
+  console.log(`Missing /etc/hosts loopback entries: ${missingHostsEntries().join(', ')}`);
   console.log('');
-  console.log('Why this matters: the demo serves on https://api.ping.demo:4000. Without the');
+  console.log('Why this matters: the demo serves on https://local.ping-devops.com:4000. Without the');
   console.log(`/etc/hosts entry your browser will fail to reach it after setup completes.`);
   console.log('');
   console.log('Required line:');
@@ -1244,7 +1257,7 @@ async function ensureHostsEntry() {
   while (Date.now() < deadline) {
     await new Promise(r => setTimeout(r, 2000));
     if (hostsEntryPresent()) {
-      console.log(`✅ ${APP_HOST} entry found.`);
+      console.log('✅ /etc/hosts entries found.');
       console.log('');
       return true;
     }
@@ -1320,9 +1333,17 @@ async function ensureMkcert() {
 
   // Step 4: generate certs if missing
   if (!fs.existsSync(certFile) || !fs.existsSync(keyFile)) {
-    console.log('  Generating TLS certs for api.ping.demo...');
+    console.log(`  Generating TLS certs for ${APP_HOSTS.join(', ')}...`);
     fs.mkdirSync(certsDir, { recursive: true });
-    const r = spawnSync('mkcert', ['api.ping.demo', 'localhost', '127.0.0.1'], { cwd: certsDir, stdio: 'inherit' });
+    // -cert-file/-key-file pin the output names: mkcert otherwise names the file
+    // after its first SAN plus the SAN count, so adding a host would rename
+    // api.ping.demo+2.pem and break the ~10 files that hardcode it.
+    const r = spawnSync(
+      'mkcert',
+      ['-cert-file', 'api.ping.demo+2.pem', '-key-file', 'api.ping.demo+2-key.pem',
+       ...APP_HOSTS, 'demo-api-server', 'localhost', '127.0.0.1'],
+      { cwd: certsDir, stdio: 'inherit' },
+    );
     if (r.status !== 0) {
       warn('mkcert cert generation failed — check output above');
       return;
