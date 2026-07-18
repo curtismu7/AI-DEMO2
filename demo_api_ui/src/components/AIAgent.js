@@ -1904,6 +1904,26 @@ export default function BankingAgent({
     // would re-fire this effect on unrelated renders.
   }, [aguiState.error]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // AG-UI grounding correction → visible chat bubble. Mirrors the error-bubble
+  // dedupe pattern above: useAgentState resets lastGroundingCorrection to null
+  // on RUN_STARTED, so each new correction produces exactly one bubble.
+  const aguiGroundingCorrectionRef = useRef(null);
+  useEffect(() => {
+    const correction = aguiState.lastGroundingCorrection;
+    if (!correction) {
+      aguiGroundingCorrectionRef.current = null;
+      return;
+    }
+    if (aguiGroundingCorrectionRef.current === correction) return;
+    aguiGroundingCorrectionRef.current = correction;
+    addMessage(
+      "token-event",
+      `⚠️ Correction: ${correction.corrected}`,
+    );
+    // addMessage has stable identity for the life of the component; listing it
+    // would re-fire this effect on unrelated renders.
+  }, [aguiState.lastGroundingCorrection]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Run finished → close the story (unless it's an HITL/step-up interrupt,
   // in which case the agent is suspended waiting for the user — keep running).
   useEffect(() => {
@@ -3023,6 +3043,8 @@ export default function BankingAgent({
               error: scopeErr.code || scopeErr.message,
               status: scopeErr.status,
               missingScopes: scopeErr.missingScopes,
+              requiredScopes: scopeErr.requiredScopes,
+              availableScopes: scopeErr.availableScopes,
               tokenEvents: scopeErr.tokenEvents || [],
             };
           }
@@ -3033,11 +3055,20 @@ export default function BankingAgent({
           const scopeOutcome = scopeRejected
             ? `✅ Gateway correctly rejected (403): required_scopes=[${(scopeTestRes.missingScopes || []).join(", ") || "admin"}]`
             : `❌ Expected 403 denial, got: ${scopeTestRes?.error || scopeTestRes?.status || "success"}`;
+          const scopeComparisonLines =
+            scopeTestRes?.availableScopes?.length || scopeTestRes?.requiredScopes?.length
+              ? [
+                  `Tried: token scopes=[${(scopeTestRes.availableScopes || []).join(", ") || "none"}]`,
+                  `Allowed (required): scopes=[${(scopeTestRes.requiredScopes || []).join(", ") || "unknown"}]`,
+                  "",
+                ]
+              : [];
           addMessage(
             "token-event",
             [
               "⚠️ Authorization Test: Insufficient Scope (RFC 6749 §3.3)",
               "",
+              ...scopeComparisonLines,
               scopeOutcome,
               "",
               "Step 4b-c: Gateway denial includes required_scopes metadata",
@@ -3068,67 +3099,80 @@ export default function BankingAgent({
           return;
         }
         case "test_wrong_audience": {
-          // Calls the MCP tool endpoint with a deliberately wrong audience value in the
-          // exchange request by temporarily disabling mcp_resource_uri and requesting a
-          // non-existent audience. The RFC 8693 exchange will fail with an audience error.
+          // Calls the real wrong-audience attack simulator (attackSimulatorService.js's
+          // _runWrongAud, exposed at POST /api/demo/attack-sim/run) — a real RFC 8693 token
+          // exchange to a genuinely different, real PingOne-registered audience, then a real
+          // gateway call expecting a genuine audience-mismatch denial. Both the audience that
+          // was tried and the audience the gateway actually expects come back as real,
+          // server-computed values (triedAudience / allowedAudience) — never fabricated
+          // client-side.
           // RFC 8693 §2.1 + RFC 8707 — token exchange requires the `audience` to match a
           // resource server the AS is authorised to issue for.
           toast.update(toastId, {
             render: "⚠️ Testing wrong audience on MCP token exchange…",
           });
-          let audTestRes;
+          let simRes;
           try {
-            // Request a tool whose exchange will target a nonsense audience
             const apiBase = process.env.REACT_APP_API_URL || "";
-            const r = await fetch(`${apiBase}/api/mcp/tool`, {
+            const r = await fetch(`${apiBase}/api/demo/attack-sim/run`, {
               method: "POST",
               credentials: "include",
               headers: { "Content-Type": "application/json" },
               _silent: true,
-              body: JSON.stringify({
-                tool: "get_my_accounts",
-                params: {},
-                _testAudience: "https://invalid-audience.example.com",
-              }),
+              body: JSON.stringify({ sim: "wrong-aud" }),
             });
-            audTestRes = await r.json();
-            audTestRes._httpStatus = r.status;
-          } catch (audErr) {
-            audTestRes = { error: audErr.message };
+            simRes = await r.json();
+            simRes._httpStatus = r.status;
+          } catch (simErr) {
+            simRes = { errorCode: "request_failed", reason: simErr.message };
           }
-          // Gateway should reject with 403 if audience validation is enforced
-          const audRejected = audTestRes._httpStatus >= 400;
-          const audOutcome = audRejected
-            ? `✅ Gateway correctly rejected (${audTestRes._httpStatus}): ${audTestRes.error || "invalid audience"}`
-            : `ℹ️ Server fell back to local handler (token exchange skipped or not configured) — HTTP ${audTestRes._httpStatus ?? 200}`;
+          const audienceLines =
+            simRes?.triedAudience && simRes?.allowedAudience
+              ? [
+                  `Tried: aud="${simRes.triedAudience}"`,
+                  `Allowed (gateway expects): aud="${simRes.allowedAudience}"`,
+                  "",
+                ]
+              : [];
+          let audOutcome;
+          if (simRes?.errorCode === "invalid_aud") {
+            audOutcome = `✅ Gateway correctly rejected (${simRes.status} ${simRes.errorCode}): ${simRes.reason}`;
+          } else if (simRes?.errorCode === "unexpected_permit") {
+            audOutcome = `❌ Gateway permitted a wrong-audience token — audience validation may not be active: ${simRes.reason}`;
+          } else if (
+            simRes?.errorCode === "gateway_not_configured" ||
+            simRes?.errorCode === "wrong_aud_not_configured"
+          ) {
+            audOutcome = `⚠️ Simulator not fully configured: ${simRes.reason}`;
+          } else {
+            audOutcome = `⚠️ Simulator error (${simRes?.status ?? simRes?._httpStatus ?? "?"} ${simRes?.errorCode || "unknown"}): ${simRes?.reason || "no reason given"}`;
+          }
           addMessage(
             "token-event",
             [
               "⚠️ Authorization Test: Wrong Audience (RFC 8693 §2.1 · RFC 8707)",
               "",
+              ...audienceLines,
               audOutcome,
-              "",
-              "Step 5b-c: Gateway denial includes audience validation",
-              `Status: ${audTestRes._httpStatus ?? "?"}`,
-              `Error: ${audTestRes?.error || "none"}`,
               "",
               "RFC 8693 §2.1 — The `audience` parameter in a token exchange request identifies which",
               "   resource server the resulting token is valid for. The AS verifies it against its policy.",
               "RFC 8707 — Resource Indicators bind access tokens to specific resource URIs.",
-              "   A token issued for `banking-api.example.com` MUST be rejected by `mcp-server.example.com`.",
+              "   A token issued for one resource MUST be rejected by a different resource server.",
               "   The `aud` claim in the MCP token must exactly match the MCP server's registered audience.",
               "",
               "Open Token Chain 🪟 → MCP access token → `aud` claim to see the audience after exchange.",
             ].join("\n"),
             actionId,
           );
-          if (audTestRes?.tokenEvents?.length) {
-            tokenChain?.setTokenEvents(actionId, audTestRes.tokenEvents);
+          if (simRes?.tokenChainEvents?.length) {
+            tokenChain?.setTokenEvents(actionId, simRes.tokenChainEvents);
           }
           toast.update(toastId, {
-            render: audRejected
-              ? "✅ Audience rejection confirmed"
-              : "ℹ️ Audience test sent",
+            render:
+              simRes?.errorCode === "invalid_aud"
+                ? "✅ Audience rejection confirmed"
+                : "Audience test complete",
             type: "info",
             isLoading: false,
             autoClose: agentToastMs.toolsLoaded,
@@ -7287,10 +7331,13 @@ export default function BankingAgent({
                               });
                               const data = await r.json().catch(() => ({}));
                               const denied = r.status >= 400 || isAgentToolErrorResult(normalizeAgentToolResult(data?.result));
+                              const allowedActorLine = data?.allowedActor
+                                ? `\nAllowed actor: "${data.allowedActor}"`
+                                : "";
                               addMessage(
                                 "assistant",
                                 denied
-                                  ? `❌ PingOne Authorize DENY (HTTP ${r.status}) — ${data.error || data.gatewayErrorCode || "mcp-invalid-actor"}\nHasValidActorChain → false: actor "${rogue}" is not among the registered actors (delegation is bound to the AI Agent, not a may_act allowlist).`
+                                  ? `❌ PingOne Authorize DENY (HTTP ${r.status}) — ${data.error || data.gatewayErrorCode || "mcp-invalid-actor"}\nTried: actor "${rogue}"${allowedActorLine}\nHasValidActorChain → false: actor "${rogue}" is not among the registered actors (delegation is bound to the AI Agent, not a may_act allowlist).`
                                   : `❌ Expected a DENY for a rogue actor chain, but the call returned HTTP ${r.status}.`,
                                 null,
                               );

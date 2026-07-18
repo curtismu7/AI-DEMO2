@@ -878,6 +878,9 @@ async function runMcpToolPipeline(ctx) {
                 gatewayErrorCode: err.gatewayErrorCode || err.code,
                 message: err.message,
                 tokenEvents,
+                ...(req.body?._testActClientId
+                    ? { allowedActor: require('./configStore').getEffective('pingone_ai_agent_client_id') || null }
+                    : {}),
             } };
         }
 

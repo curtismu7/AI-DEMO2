@@ -366,3 +366,140 @@ class TestMessageProcessor:
         
         # Processing task should be stopped
         assert message_processor._processing_task.done()
+
+from unittest.mock import Mock
+from guardrails.validator_base import FailResult
+
+
+@pytest.fixture
+def mock_agent_agui():
+    """Agent double for the AG-UI (process_agui_message) MCP-graph path."""
+    agent = Mock()
+    agent.initialize_session_with_token = AsyncMock(return_value=None)
+    agent.llm = Mock()
+    agent.config = Mock()
+    agent.config.langchain = Mock(max_iterations=25)
+    agent._pre_model_hook = Mock()
+    agent._checkpointer = Mock()
+    agent.mcp_tool_provider = Mock()
+    agent.mcp_tool_provider.set_session_context = AsyncMock(return_value=None)
+    agent._build_system_message = AsyncMock(return_value="System prompt")
+
+    graph = Mock()
+    graph.get_state = Mock(return_value=Mock(values={}))
+
+    async def fake_astream_events(agent_input, config=None, version="v2"):
+        yield {
+            "event": "on_tool_start",
+            "name": "request_fee_waiver",
+            "run_id": "call_1",
+            "data": {"input": {"account_id": "acc_1"}},
+        }
+        yield {
+            "event": "on_tool_end",
+            "run_id": "call_1",
+            "data": {"output": '{"requestId": "fwr-123", "status": "logged_for_review"}'},
+        }
+
+        class _Chunk:
+            content = "I've waived your fee!"
+
+        yield {"event": "on_chat_model_stream", "data": {"chunk": _Chunk()}}
+        yield {
+            "event": "on_chat_model_end",
+            "data": {"output": Mock(usage_metadata=None, tool_calls=[]), "input": {"messages": []}},
+            "metadata": {},
+        }
+
+    graph.astream_events = fake_astream_events
+    agent._graph = graph
+    return agent
+
+
+@pytest.fixture
+def mock_agui_emitter():
+    emitter = AsyncMock()
+    return emitter
+
+
+@pytest.mark.asyncio
+async def test_process_agui_message_emits_grounding_correction_on_overclaim(
+    mock_config, mock_agent_agui, mock_session_manager, mock_websocket_handler, mock_agui_emitter,
+):
+    processor = MessageProcessor(
+        agent=mock_agent_agui,
+        session_manager=mock_session_manager,
+        websocket_handler=mock_websocket_handler,
+        config=mock_config,
+    )
+    with patch(
+        "agent.grounding_guardrail.CommitmentGroundingValidator.async_validate",
+        new=AsyncMock(
+            return_value=FailResult(
+                error_message="overclaim",
+                fix_value="I've submitted a fee waiver request (ID: fwr-123) for human review.",
+            )
+        ),
+    ):
+        await processor.process_agui_message(
+            session_id="s1",
+            message="Can you waive the fee?",
+            auth_token="tok",
+            emitter=mock_agui_emitter,
+            bff_tool_url="",
+            tool_schemas=None,
+            messages_list=None,
+        )
+    mock_agui_emitter.on_grounding_correction.assert_awaited_once()
+    _, kwargs = mock_agui_emitter.on_grounding_correction.call_args
+    assert kwargs["original"] == "I've waived your fee!"
+    assert "fwr-123" in kwargs["corrected"]
+
+
+@pytest.mark.asyncio
+async def test_process_agui_message_no_correction_on_grounded_reply(
+    mock_config, mock_session_manager, mock_websocket_handler, mock_agui_emitter,
+):
+    agent = Mock()
+    agent.initialize_session_with_token = AsyncMock(return_value=None)
+    agent.llm = Mock()
+    agent.config = Mock()
+    agent.config.langchain = Mock(max_iterations=25)
+    agent._pre_model_hook = Mock()
+    agent._checkpointer = Mock()
+    agent.mcp_tool_provider = Mock()
+    agent.mcp_tool_provider.set_session_context = AsyncMock(return_value=None)
+    agent._build_system_message = AsyncMock(return_value="System prompt")
+    graph = Mock()
+    graph.get_state = Mock(return_value=Mock(values={}))
+
+    async def fake_astream_events(agent_input, config=None, version="v2"):
+        class _Chunk:
+            content = "Your checking balance is $1,204.55."
+
+        yield {"event": "on_chat_model_stream", "data": {"chunk": _Chunk()}}
+        yield {
+            "event": "on_chat_model_end",
+            "data": {"output": Mock(usage_metadata=None, tool_calls=[]), "input": {"messages": []}},
+            "metadata": {},
+        }
+
+    graph.astream_events = fake_astream_events
+    agent._graph = graph
+
+    processor = MessageProcessor(
+        agent=agent,
+        session_manager=mock_session_manager,
+        websocket_handler=mock_websocket_handler,
+        config=mock_config,
+    )
+    await processor.process_agui_message(
+        session_id="s1",
+        message="What's my balance?",
+        auth_token="tok",
+        emitter=mock_agui_emitter,
+        bff_tool_url="",
+        tool_schemas=None,
+        messages_list=None,
+    )
+    mock_agui_emitter.on_grounding_correction.assert_not_awaited()

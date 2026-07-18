@@ -141,6 +141,16 @@ class AGUIEventEmitter:
         except Exception:
             logger.exception("AG-UI sink error")
 
+    async def on_grounding_correction(self, original: str, corrected: str, note: str) -> None:
+        try:
+            await self._sink({
+                "type": "CUSTOM",
+                "name": "grounding_correction",
+                "value": {"original": original, "corrected": corrected, "correctionNote": note},
+            })
+        except Exception:
+            logger.exception("AG-UI sink error")
+
     async def on_error(self, error: Exception, **kwargs) -> None:
         # RUN_ERROR is the AG-UI terminal-error event the BFF and React hook
         # (useAgentRun.js) actually handle. RUN_FINISHED is NOT emitted after

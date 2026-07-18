@@ -16,6 +16,7 @@ aiohttp>=3.8.0,<3.14  # aioresponses 0.7.8 doesn't support aiohttp 3.14's Client
 cryptography>=41.0.0
 PyJWT[crypto]>=2.8.0  # Path A: PingOne JWKS access-token validation (token_validator.py)
 python-dotenv>=1.0.0
+guardrails-ai==0.10.2
 
 # Development dependencies
 pytest>=7.0.0
@@ -23,34 +24,6 @@ pytest-asyncio>=0.21.0
 pytest-mock>=3.10.0
 aioresponses>=0.7.0
 respx>=0.20.0
-black>=23.0.0
-isort>=5.12.0
-mypy>=1.0.0
-
-# Optional dependencies for specific features
-# Core dependencies
-# LLM providers: Helix (default, via helix_llm.py using httpx) and LM Studio.
-# langchain-openai is used only for LM Studio (OpenAI-compatible local endpoint); no cloud key required.
-langchain>=1.3.0,<2.0.0
-langchain-core>=1.4.0,<2.0.0
-# LangGraph — stateful agent runtime with MemorySaver checkpointer
-langgraph>=1.2.0,<2.0.0
-langchain-openai>=1.3.0,<2.0.0     # OpenAI-compatible local endpoints: LM Studio (provider="lmstudio") and llama.cpp (provider="llamacpp")
-langchain-anthropic>=1.4.0,<2.0.0  # LM Studio Anthropic-compatible endpoint (provider="anthropic-lmstudio")
-pydantic>=2.0.0,<3.0.0
-fastapi>=0.100.0
-uvicorn>=0.20.0
-websockets>=11.0.0
-httpx>=0.24.0
-aiohttp>=3.8.0,<3.14  # aioresponses 0.7.8 doesn't support aiohttp 3.14's ClientResponse signature; remove the pin when aioresponses catches up
-cryptography>=41.0.0
-PyJWT[crypto]>=2.8.0  # Path A: PingOne JWKS access-token validation (token_validator.py)
-python-dotenv>=1.0.0
-
-# Development dependencies
-pytest>=7.0.0
-pytest-asyncio>=0.21.0
-pytest-mock>=3.10.0
 black>=23.0.0
 isort>=5.12.0
 mypy>=1.0.0

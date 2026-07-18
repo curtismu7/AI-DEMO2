@@ -1,7 +1,7 @@
 import pytest
 import json
 import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 
 # Provide BFF_INTERNAL_SECRET; AGENT_LLM_* defaults to LM Studio so no key
 # is needed. (Regression: the previous test set OPENAI_API_KEY because the
@@ -58,6 +58,12 @@ def _make_mock_agent(tokens=None):  # type: ignore[no-untyped-def]
         async def stream_text(self, delta: bool = False):
             for t in tokens:
                 yield t
+
+        async def get_output(self):
+            return "".join(tokens)
+
+        def new_messages(self, *, output_tool_return_content=None):
+            return []
 
     mock_agent = MagicMock()
     mock_agent.run_stream.return_value = FakeStreamResult()
@@ -136,3 +142,125 @@ def test_run_forwards_llm_provider_config_to_build_agent():
         assert "base_url" in call_kwargs
         assert "api_key" in call_kwargs
         assert "model_name" in call_kwargs
+
+
+from guardrails.validator_base import FailResult
+
+
+def _make_mock_agent_with_tool_call(tokens, tool_name, tool_args, tool_result):
+    """Return a mock Agent whose run_stream yields tokens and whose
+    new_messages()/get_output() expose one tool call for grounding checks."""
+    from pydantic_ai.messages import ModelResponse, ToolCallPart, ToolReturnPart
+
+    class FakeStreamResult:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_):
+            pass
+
+        async def stream_text(self, delta: bool = False):
+            for t in tokens:
+                yield t
+
+        async def get_output(self):
+            return "".join(tokens)
+
+        def new_messages(self, *, output_tool_return_content=None):
+            return [
+                ModelResponse(parts=[
+                    ToolCallPart(tool_name=tool_name, args=tool_args, tool_call_id="call_1"),
+                ]),
+                ModelResponse(parts=[
+                    ToolReturnPart(tool_name=tool_name, content=tool_result, tool_call_id="call_1"),
+                ]),
+            ]
+
+    mock_agent = MagicMock()
+    mock_agent.run_stream.return_value = FakeStreamResult()
+    return mock_agent
+
+
+def test_run_emits_grounding_correction_on_overclaiming_reply():
+    mock_agent = _make_mock_agent_with_tool_call(
+        ["I've waived your fee!"],
+        "request_fee_waiver",
+        {"account_id": "acc_1"},
+        '{"requestId": "fwr-123", "status": "logged_for_review"}',
+    )
+    with patch("src.run_handler.build_agent", return_value=mock_agent), \
+         patch(
+             "src.grounding_guardrail.CommitmentGroundingValidator.async_validate",
+             new=AsyncMock(
+                 return_value=FailResult(
+                     error_message="overclaim",
+                     fix_value="I've submitted a fee waiver request (ID: fwr-123) for human review.",
+                 )
+             ),
+         ):
+        from src.main import app
+        client = TestClient(app)
+        resp = client.post("/run", json=RUN_PAYLOAD, headers=AUTH_HEADERS)
+    events = _parse_sse(resp.text)
+    custom_events = [e for e in events if e["type"] == "CUSTOM" and e["name"] == "grounding_correction"]
+    assert len(custom_events) == 1
+    assert "fwr-123" in custom_events[0]["value"]["corrected"]
+
+
+def test_run_emits_no_grounding_correction_on_grounded_reply():
+    mock_agent = _make_mock_agent_with_tool_call(
+        ["Your checking balance is $1,204.55."],
+        "get_accounts",
+        {},
+        '{"accounts": []}',
+    )
+    with patch("src.run_handler.build_agent", return_value=mock_agent):
+        from src.main import app
+        client = TestClient(app)
+        resp = client.post("/run", json=RUN_PAYLOAD, headers=AUTH_HEADERS)
+    events = _parse_sse(resp.text)
+    custom_events = [e for e in events if e["type"] == "CUSTOM" and e["name"] == "grounding_correction"]
+    assert len(custom_events) == 0
+
+
+def test_grounding_call_reuses_conversation_model_not_cfg():
+    """Regression test for the bug where the grounding _chat_fn always POSTed
+    to cfg.LLM_BASE_URL / cfg.LLM_API_KEY via raw httpx, ignoring whatever
+    model/provider actually served the conversation (e.g. Anthropic). That
+    made the guardrail a silent no-op for Anthropic-routed sessions, since
+    the wrong backend/model id would fail and fail-open to PassResult.
+
+    The fix constructs a throwaway `Agent(agent.model, ...)` inside _chat_fn,
+    reusing the exact model object the conversation's agent was built with.
+    We verify this by patching `src.run_handler.Agent` (the class itself) and
+    asserting it gets called with the mock agent's `.model` sentinel as the
+    first positional argument -- this would fail under the old raw-httpx
+    implementation, which never touches `Agent` or `agent.model` at all.
+    """
+    sentinel_model = object()
+
+    mock_agent = _make_mock_agent_with_tool_call(
+        ["I've waived your fee!"],
+        "request_fee_waiver",
+        {"account_id": "acc_1"},
+        '{"requestId": "fwr-123", "status": "logged_for_review"}',
+    )
+    mock_agent.model = sentinel_model
+
+    fake_grounding_agent = MagicMock()
+    fake_grounding_agent.run = AsyncMock(return_value=MagicMock(output="grounded response"))
+    mock_agent_cls = MagicMock(return_value=fake_grounding_agent)
+
+    with patch("src.run_handler.build_agent", return_value=mock_agent), \
+         patch("src.run_handler.Agent", new=mock_agent_cls):
+        from src.main import app
+        client = TestClient(app)
+        resp = client.post("/run", json=RUN_PAYLOAD, headers=AUTH_HEADERS)
+
+    assert resp.status_code == 200
+    # The grounding Agent(...) must have been constructed with the
+    # conversation's own model object, not re-derived from cfg.
+    mock_agent_cls.assert_called_once()
+    call_args = mock_agent_cls.call_args
+    assert call_args.args[0] is sentinel_model
+    assert call_args.kwargs.get("defer_model_check") is True
