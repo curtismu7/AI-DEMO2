@@ -886,7 +886,12 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
     return { sim, useCaseId, status: 500, errorCode: 'config_store_failed', reason: err.message, tokenChainEvents };
   }
 
-  const pushResult = await _pushGatewayFlags({ requireRarIntent: true }, demoGatewayUrl);
+  // RAR is enforced by PingOne Authorize by default (RarMaxAmount rule). Only arm
+  // the gateway's local requireRarIntent check when ff_rar_gateway_enforcement is ON.
+  const armGateway = configStore.getEffective('ff_rar_gateway_enforcement') === 'true';
+  const pushResult = armGateway
+    ? await _pushGatewayFlags({ requireRarIntent: true }, demoGatewayUrl)
+    : { ok: true };
   if (!pushResult.ok) {
     tokenChainEvents.push(buildTokenEvent(
       'sim-rar-arm-failed',
@@ -895,13 +900,21 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
       null,
       pushResult.error || 'Could not arm requireRarIntent on gateway',
     ));
-  } else {
+  } else if (armGateway) {
     tokenChainEvents.push(buildTokenEvent(
       'sim-rar-armed',
       'Gateway RAR enforcement armed (UC14)',
       'active',
       null,
-      'requireRarIntent enabled on Demo Agent Gateway for this burst.',
+      'requireRarIntent enabled on Demo Agent Gateway for this burst (ff_rar_gateway_enforcement ON).',
+    ));
+  } else {
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-rar-armed',
+      'RAR enforced by PingOne Authorize',
+      'active',
+      null,
+      'ff_rar_gateway_enforcement OFF — the RarMaxAmount rule in PingOne Authorize denies over-cap calls; gateway-local check not armed.',
     ));
   }
 
@@ -988,7 +1001,12 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
     return { sim, useCaseId, status: 500, errorCode: 'config_store_failed', reason: err.message, tokenChainEvents };
   }
 
-  const pushResult = await _pushGatewayFlags({ requireRarIntent: true }, demoGatewayUrl);
+  // RAR is enforced by PingOne Authorize by default (RarMaxAmount rule). Only arm
+  // the gateway's local requireRarIntent check when ff_rar_gateway_enforcement is ON.
+  const armGateway = configStore.getEffective('ff_rar_gateway_enforcement') === 'true';
+  const pushResult = armGateway
+    ? await _pushGatewayFlags({ requireRarIntent: true }, demoGatewayUrl)
+    : { ok: true };
   if (!pushResult.ok) {
     tokenChainEvents.push(buildTokenEvent(
       'sim-rar-arm-failed',
@@ -997,13 +1015,21 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
       null,
       pushResult.error || 'Could not arm requireRarIntent on gateway',
     ));
-  } else {
+  } else if (armGateway) {
     tokenChainEvents.push(buildTokenEvent(
       'sim-rar-armed',
       'Gateway RAR enforcement armed (Intent Binding demo)',
       'active',
       null,
-      'requireRarIntent enabled on Demo Agent Gateway for this call.',
+      'requireRarIntent enabled on Demo Agent Gateway for this call (ff_rar_gateway_enforcement ON).',
+    ));
+  } else {
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-rar-armed',
+      'RAR enforced by PingOne Authorize',
+      'active',
+      null,
+      'ff_rar_gateway_enforcement OFF — the RarMaxAmount rule in PingOne Authorize denies over-cap calls; gateway-local check not armed.',
     ));
   }
 
