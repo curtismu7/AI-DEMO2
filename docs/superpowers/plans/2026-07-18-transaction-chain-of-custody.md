@@ -14,6 +14,10 @@
 
 - **Worktree only.** All work happens in `.claude/worktrees/transaction-chain-of-custody` on branch `worktree-transaction-chain-of-custody`. A hard-block hook denies Write/Edit in the main checkout. Stage explicitly with `git add <files>` — never `git add -A`.
 - **No writes into protected auth code.** `demo_api_server/routes/oauth.js`, `demo_api_server/services/oauthService.js`, and the BFF session layer are REGRESSION_PLAN §1 protected and must not be modified by any task in this plan.
+- **Three further files this plan DOES touch are also REGRESSION_PLAN §1 protected.** Every edit to them must be strictly additive, minimal, and must state what it will not break before changing anything:
+  - `demo_api_server/server.js` (§1 *Session persistence*) — Tasks 5, 6 add route mounts and middleware only. Do not touch `req.session.save()` ordering, existing mount order, or any session configuration.
+  - `demo_api_server/services/configStore.js` (§1 *configStore / Config UI*) — Task 14 adds one key to the defaults map. Do not change any existing key, default, or the `public` flag of anything already present.
+  - `demo_api_ui/src/App.js` (§1 *Bottom dock on dashboard routes*, *AI Agent FAB*) — Task 16 adds one import and one `<Route>`. Do not touch the dock, FAB, or dashboard route blocks.
 - **Emission is fail-open.** Every `emitHop` call site is wrapped in try/catch and is fire-and-forget. A dead ledger drops hops; it never fails, blocks, or slows a request.
 - **Claims only — never raw tokens in the ledger.** Store `jti` plus decoded claims. No `access_token`, `id_token`, `refresh_token`, `subject_token`, or `actor_token` values.
 - **Emoji allowlist (REGRESSION_PLAN §0):** only `⚠️` `✅` `❌` `🔐` `✕` `✓` `👤` `🔑` `🪟` `📚` may appear in UI copy.
