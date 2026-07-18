@@ -1026,6 +1026,7 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
       tokensUsed: 0,
       agentConfigured: true,
       tokenEvents,
+      ...(parsed.mcpAuthorizeEvaluation ? { mcpAuthorizeEvaluation: parsed.mcpAuthorizeEvaluation } : {}),
     };
   }
   const out = mcpResult.out || { result: { error: 'mcp_tool_failed' }, render: 'text' };
