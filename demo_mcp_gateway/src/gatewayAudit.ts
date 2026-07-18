@@ -36,6 +36,31 @@ export function bffAuditUrl(config: GatewayConfig): string | null {
   return idUrl.replace(/\/internal\/id-token$/, '/internal/mcp-audit');
 }
 
+// Maps a recorded audit outcome to a chain-of-custody decision for the
+// emitted `gateway.authorize` hop. `auditOutcomeFromHttp` / `auditOutcomeFromResponse`
+// bucket EVERY non-2xx, non-HITL response as 'failure' — that includes both
+// genuine authorization denials (403 insufficient_scope / JSON-RPC -32005)
+// and unrelated infrastructure failures (token-exchange 502s, backend 500s,
+// timeouts). Only the former may report `deny`: INV-6 ("no mcp.tool hop may
+// follow a deny decision for the same op") must never fire on a transient
+// backend error that a retry then succeeds on. A scope denial is recognized
+// by `details.alert === true && details.reason === 'insufficient_scope'` —
+// the exact shape `buildScopeAlert` stamps via `scopeAlertDetails` (WS,
+// JSON-RPC -32005) and `httpScopeAlertDetails` (HTTP 403 insufficient_scope).
+export function decisionFromAuditOutcome(
+  outcome: GatewayAuditEvent['outcome'],
+  details?: Record<string, unknown>,
+): { outcome: 'permit' | 'deny' | 'n/a'; reason: string } {
+  if (outcome !== 'failure') {
+    return { outcome: outcome === 'success' ? 'permit' : 'n/a', reason: outcome };
+  }
+  const isAuthzDenial = details?.alert === true && details?.reason === 'insufficient_scope';
+  return {
+    outcome: isAuthzDenial ? 'deny' : 'n/a',
+    reason: isAuthzDenial ? 'failure:insufficient_scope' : 'failure:gateway_error',
+  };
+}
+
 // Called synchronously from inside the WS send / HTTP res.end wrappers, so the
 // whole body (URL derivation included) is wrapped: a throw here must NEVER
 // propagate into the tool-call response path.
@@ -51,6 +76,7 @@ export function recordGatewayAudit(event: GatewayAuditEvent, config: GatewayConf
       : { ...event, correlationId: getCorrelationId() };
     // Same chokepoint, second consumer: the durable audit trail keeps its
     // existing shape while the ledger gets a hop with identity fields on it.
+    const decision = decisionFromAuditOutcome(enriched.outcome, enriched.details);
     emitHop({
       phase: 'gateway.authorize',
       op: enriched.operation,
@@ -58,9 +84,9 @@ export function recordGatewayAudit(event: GatewayAuditEvent, config: GatewayConf
       durationMs: enriched.duration,
       identity: { sub: enriched.userId ?? null, act: enriched.agentId ? [enriched.agentId] : [] },
       decision: {
-        outcome: enriched.outcome === 'success' ? 'permit' : enriched.outcome === 'partial' ? 'n/a' : 'deny',
+        outcome: decision.outcome,
         by: 'gateway',
-        reason: enriched.outcome,
+        reason: decision.reason,
       },
       status: enriched.outcome === 'failure' ? 'error' : 'ok',
     });

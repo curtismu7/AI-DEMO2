@@ -1,5 +1,6 @@
 import { emitHop, __setFetchForTests } from '../src/transactionHop';
 import { runWithCorrelation } from '../src/correlationContext';
+import { decisionFromAuditOutcome } from '../src/gatewayAudit';
 
 describe('gateway emitHop', () => {
   const calls: Array<{ url: string; body: any; headers: any }> = [];
@@ -51,5 +52,46 @@ describe('gateway emitHop', () => {
     __setFetchForTests(async () => { throw new Error('network down'); });
     expect(() => runWithCorrelation('c1', () => emitHop({ phase: 'agent.reason' }))).not.toThrow();
     await new Promise((r) => setImmediate(r));
+  });
+});
+
+describe('decisionFromAuditOutcome', () => {
+  it('maps success to permit', () => {
+    expect(decisionFromAuditOutcome('success')).toEqual({ outcome: 'permit', reason: 'success' });
+  });
+
+  it('maps partial (HITL pending) to n/a', () => {
+    expect(decisionFromAuditOutcome('partial')).toEqual({ outcome: 'n/a', reason: 'partial' });
+  });
+
+  it('maps a failure carrying an insufficient-scope alert to deny', () => {
+    const details = {
+      alert: true,
+      reason: 'insufficient_scope',
+      requiredScopes: ['transfers:write'],
+      missingScopes: ['transfers:write'],
+      availableScopes: ['accounts:read'],
+    };
+    const result = decisionFromAuditOutcome('failure', details);
+    expect(result.outcome).toBe('deny');
+  });
+
+  it('maps a failure WITHOUT an insufficient-scope alert (e.g. backend 500 / timeout) to n/a, not deny', () => {
+    const details = { httpStatus: 502, dpop_bound: false, dpop_verified: false };
+    const result = decisionFromAuditOutcome('failure', details);
+    expect(result.outcome).toBe('n/a');
+  });
+
+  it('maps a failure with no details at all to n/a, not deny', () => {
+    const result = decisionFromAuditOutcome('failure');
+    expect(result.outcome).toBe('n/a');
+  });
+
+  it('distinguishes a denial from a non-authorization failure in the reason field', () => {
+    const denyReason = decisionFromAuditOutcome('failure', { alert: true, reason: 'insufficient_scope' }).reason;
+    const outageReason = decisionFromAuditOutcome('failure', { httpStatus: 500 }).reason;
+    expect(denyReason).not.toBe(outageReason);
+    expect(denyReason).toContain('insufficient_scope');
+    expect(outageReason).not.toContain('insufficient_scope');
   });
 });
