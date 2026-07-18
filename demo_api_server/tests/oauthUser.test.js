@@ -34,6 +34,13 @@ jest.mock('../services/appEventService', () => ({
   logEvent: jest.fn(),
 }));
 
+jest.mock('../services/mfaService', () => ({
+  getPingOneUserContact: jest.fn(),
+  listMfaDevices: jest.fn(),
+  initiateOneTimeOtp: jest.fn(),
+}));
+const mfaService = require('../services/mfaService');
+
 const app = express();
 app.use(
   session({
@@ -173,6 +180,74 @@ describe('sanitizeStepUpReturnTo', () => {
   test('defaults when return_to is missing', () => {
     expect(sanitizeStepUpReturnTo(undefined)).toBe(`${origin}/dashboard`);
     expect(sanitizeStepUpReturnTo('')).toBe(`${origin}/dashboard`);
+  });
+});
+
+// The PingOne user *profile* email is provisioned synthetically from the app
+// host (demoUser@api.ping.demo) and is undeliverable, so OTP delivery must
+// target the address on the user's registered MFA device instead.
+describe('initiate-otp delivery target', () => {
+  const PROFILE_EMAIL = 'demoUser@api.ping.demo';
+  const ENROLLED_EMAIL = 'real.person@example.com';
+
+  // Separate app: initiate-otp requires an authenticated user session.
+  const authedApp = express();
+  authedApp.use(session({ secret: 'test-secret', resave: false, saveUninitialized: true }));
+  authedApp.use(express.json());
+  authedApp.use((req, _res, next) => {
+    req.session.user = { oauthId: 'user-uuid', email: PROFILE_EMAIL };
+    req.session.oauthTokens = { accessToken: 'token' };
+    req.session.oauthType = 'user';
+    next();
+  });
+  authedApp.use('/api/auth/oauth/user', router);
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mfaService.getPingOneUserContact.mockResolvedValue({
+      email: PROFILE_EMAIL,
+      mobilePhone: null,
+    });
+    mfaService.initiateOneTimeOtp.mockResolvedValue({ id: 'da-1', _embedded: { devices: [] } });
+  });
+
+  test('sends to the enrolled EMAIL device, not the synthetic profile email', async () => {
+    mfaService.listMfaDevices.mockResolvedValue({
+      devices: [{ id: 'd1', type: 'EMAIL', status: 'ACTIVE', email: ENROLLED_EMAIL }],
+    });
+
+    await request(authedApp).post('/api/auth/oauth/user/initiate-otp').send({}).expect(200);
+
+    expect(mfaService.initiateOneTimeOtp).toHaveBeenCalledWith('user-uuid', 'EMAIL', ENROLLED_EMAIL);
+  });
+
+  test('sends to the enrolled SMS device phone (PingOne stores it as a string)', async () => {
+    mfaService.listMfaDevices.mockResolvedValue({
+      devices: [{ id: 'd2', type: 'SMS', status: 'ACTIVE', phone: '+19725550123' }],
+    });
+
+    await request(authedApp)
+      .post('/api/auth/oauth/user/initiate-otp')
+      .send({ method: 'sms' })
+      .expect(200);
+
+    expect(mfaService.initiateOneTimeOtp).toHaveBeenCalledWith('user-uuid', 'SMS', '+19725550123');
+  });
+
+  test('falls back to the profile email when no EMAIL device is enrolled', async () => {
+    mfaService.listMfaDevices.mockResolvedValue({ devices: [] });
+
+    await request(authedApp).post('/api/auth/oauth/user/initiate-otp').send({}).expect(200);
+
+    expect(mfaService.initiateOneTimeOtp).toHaveBeenCalledWith('user-uuid', 'EMAIL', PROFILE_EMAIL);
+  });
+
+  test('falls back to the profile email when the device lookup fails', async () => {
+    mfaService.listMfaDevices.mockRejectedValue(new Error('PingOne unavailable'));
+
+    await request(authedApp).post('/api/auth/oauth/user/initiate-otp').send({}).expect(200);
+
+    expect(mfaService.initiateOneTimeOtp).toHaveBeenCalledWith('user-uuid', 'EMAIL', PROFILE_EMAIL);
   });
 });
 

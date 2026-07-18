@@ -84,6 +84,52 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-18 — Step-up OTP mailed to an undeliverable synthetic address; passkey rp.id error told admins to do the impossible
+
+**Files changed:** `demo_api_server/routes/oauthUser.js` (new
+`resolveEnrolledContact`, delivery-target selection in `POST /initiate-otp`),
+`demo_api_server/tests/oauthUser.test.js`,
+`demo_api_ui/src/components/OtpStepUpModal.js` (rp.id error copy only).
+
+**What was broken:** two separate defects behind one symptom ("verify your
+identity" step-up not working).
+
+1. `/initiate-otp` took its delivery target from the PingOne user *profile*
+   email (`getPingOneUserContact().email`). Provisioning synthesizes that field
+   as `demoUser@${demoEmailDomain(publicAppUrl)}` — for local dev,
+   `demoUser@api.ping.demo`, a well-formed but undeliverable address. The code
+   was really sent there, so step-up only ever completed via the `123123`
+   bypass. Meanwhile demoUser had a genuine registered EMAIL MFA device
+   (`cmuir@pingidentity.com`) that the one-time-OTP path ignored, because it
+   passes an explicit `to` instead of selecting an enrolled device.
+2. The passkey rp.id failure told the operator to fix the Relying Party ID in
+   PingOne "or restart the API server to auto-configure it". On `api.ping.demo`
+   that is impossible: the boot bootstrap does run, but PingOne's Management API
+   rejects the value — `CONSTRAINT_VIOLATION target=relyingPartyId "must be a
+   valid domain name with a valid TLD"` — so the policies stay pinned to
+   `ai-demo.ping-devops.com` and the browser refuses with "'rp.id' cannot be
+   used with the current origin". No number of restarts fixes it.
+
+**What was fixed:** (1) `resolveEnrolledContact(userId, method)` lists ACTIVE
+MFA devices and returns the enrolled `email` (or `phone`) for the requested
+channel; `to` prefers it and falls back to the profile field only when nothing
+is enrolled or the lookup throws. (2) The rp.id message now branches on whether
+the host's TLD is one PingOne will accept, and on `.demo`/`.local`/`localhost`/
+`.test`/`.invalid`/`.internal`/no-TLD hosts states plainly that the host cannot
+be set and to demo passkeys on the public-domain deployment instead.
+
+**Do not break:** PingOne returns an SMS device's number as a bare
+string (`"phone": "+19725231586"`), NOT `{ number }` — `resolveEnrolledContact`
+reads `device.phone?.number || device.phone` and must keep both. The profile
+fallback must stay: users with no enrolled device still need step-up. Do not
+"simplify" the rp.id branch back to one message — the two cases have opposite
+remedies, and the public-domain branch's restart advice is correct.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0);
+`CI=true npx jest oauthUser mfaTest hitlPingOneMfa --testPathIgnorePatterns="/node_modules/"`.
+The four `initiate-otp delivery target` tests fail if the enrolled-device
+preference is reverted (mutation-checked).
+
 ### 2026-07-18 — Demo Steps HITL/step-up gates printed the denial text and never opened the approval modal
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js` (the NL-resume

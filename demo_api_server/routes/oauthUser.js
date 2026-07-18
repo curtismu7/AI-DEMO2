@@ -1015,6 +1015,32 @@ router.get('/consent-url', (req, res) => {
 });
 
 /**
+ * Contact address from the user's first ACTIVE MFA device of the requested
+ * channel. PingOne stores the address on the device itself (`email`, or `phone`
+ * as an E.164 string), which is the address the user enrolled — unlike the user
+ * profile's email, which this demo provisions synthetically. Returns null when
+ * nothing is enrolled so the caller can fall back.
+ *
+ * @param {string} userId - PingOne user UUID
+ * @param {'email'|'sms'} method
+ * @returns {Promise<string|null>}
+ */
+async function resolveEnrolledContact(userId, method) {
+  try {
+    const { devices } = await mfaService.listMfaDevices(userId);
+    const wanted = method === 'sms' ? ['SMS', 'VOICE'] : ['EMAIL'];
+    const device = (devices || []).find((d) => wanted.includes(String(d.type || '').toUpperCase()));
+    if (!device) return null;
+    return method === 'sms'
+      ? (device.phone?.number || device.phone || null)
+      : (device.email || null);
+  } catch (err) {
+    console.warn('[OTP] enrolled-device contact lookup failed, falling back to profile:', err.message);
+    return null;
+  }
+}
+
+/**
  * POST /api/auth/oauth/user/initiate-otp
  *
  * Email OTP step-up: generate a 6-digit code, store it in the session with a
@@ -1059,7 +1085,13 @@ router.post('/initiate-otp', async (req, res) => {
     try {
       const contact = await mfaService.getPingOneUserContact(pingoneUserId);
       const deliveryType = method === 'sms' ? 'SMS' : 'EMAIL';
-      const to = method === 'sms' ? contact.mobilePhone : contact.email;
+      // Prefer the address on the user's registered MFA device — that is what the
+      // user actually enrolled and can receive at. The PingOne user *profile*
+      // email is provisioned synthetically from the app host
+      // (demoUser@api.ping.demo, see pingoneProvisionService.demoEmailDomain) and
+      // is not deliverable, so it is only a last-resort fallback.
+      const enrolled = await resolveEnrolledContact(pingoneUserId, method);
+      const to = enrolled || (method === 'sms' ? contact.mobilePhone : contact.email);
       if (!to) {
         throw new Error(
           method === 'sms'

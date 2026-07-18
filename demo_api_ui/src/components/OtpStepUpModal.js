@@ -610,11 +610,19 @@ export default function OtpStepUpModal({
         : (err?.message || String(err));
       // The rp.id failure is a config issue, not a user error — tell the admin
       // exactly how to fix it (PingOne's FIDO2 Relying Party ID must match this
-      // host). This deployment auto-bootstraps it on api-server restart.
+      // host). Two different remedies: on a public domain the api-server's boot
+      // bootstrap can set it, but PingOne's Management API rejects a rp.id whose
+      // TLD isn't public ("must be a valid domain name with a valid TLD"), so on
+      // hosts like api.ping.demo no restart will ever fix it.
       const isRpId = /rp\.?id|relying party|registrable domain/i.test(detail);
       const host = (typeof window !== 'undefined' && window.location?.hostname) || 'this site';
+      const tld = host.includes('.') ? host.split('.').pop().toLowerCase() : '';
+      const hostRejectedByPingOne =
+        !tld || ['demo', 'local', 'localhost', 'test', 'invalid', 'internal'].includes(tld);
       const msg = isRpId
-        ? `Passkey isn't set up for this domain yet. PingOne's FIDO2 policy "Relying Party ID" must be "${host}". An admin can fix it in PingOne (MFA → FIDO Policy → Relying Party ID → Other → ${host}), or restart the API server to auto-configure it. (${detail})`
+        ? (hostRejectedByPingOne
+          ? `Passkeys can't be used on "${host}". PingOne's FIDO2 policy "Relying Party ID" must match this host, but PingOne rejects a Relying Party ID whose TLD isn't public — so "${host}" cannot be set and restarting the API server will not fix it. Demo passkeys on the public-domain deployment, or step up with email/SMS on this host. (${detail})`
+          : `Passkey isn't set up for this domain yet. PingOne's FIDO2 policy "Relying Party ID" must be "${host}". An admin can fix it in PingOne (MFA → FIDO Policy → Relying Party ID → Other → ${host}), or restart the API server to auto-configure it. (${detail})`)
         : `Passkey registration failed — ${detail}`;
       setP1Step('error');
       setP1Error(msg);
