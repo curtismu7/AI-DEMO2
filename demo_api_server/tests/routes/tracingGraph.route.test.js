@@ -77,4 +77,28 @@ describe('GET /api/health/tracing/graph', () => {
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('invalid_trace_id');
   });
+
+  it('detailed returns 404 when Jaeger has no such trace', async () => {
+    mockJaeger([
+      ['/api/services', () => Promise.resolve({ status: 200, data: { data: ['demo-api-server'] } })],
+      [`/api/traces/${TRACE.traceID}`, () => Promise.resolve({ status: 200, data: { data: [] } })],
+    ]);
+    const res = await request(makeApp()).get(`/api/health/tracing/graph?traceId=${TRACE.traceID}`);
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('trace_not_found');
+  });
+
+  it('detailed returns 404 when Jaeger itself 404s', async () => {
+    mockJaeger([
+      ['/api/services', () => Promise.resolve({ status: 200, data: { data: ['demo-api-server'] } })],
+      [`/api/traces/${TRACE.traceID}`, () => {
+        const err = new Error('Not Found');
+        err.response = { status: 404 };
+        return Promise.reject(err);
+      }],
+    ]);
+    const res = await request(makeApp()).get(`/api/health/tracing/graph?traceId=${TRACE.traceID}`);
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('trace_not_found');
+  });
 });
