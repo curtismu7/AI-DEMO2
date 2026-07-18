@@ -15,6 +15,9 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+// Must be imported BEFORE other modules to instrument spans
+import './otel';
+
 import express from 'express';
 import { loadConfig } from './config';
 import { loadVaultIntoEnv } from './vault';
