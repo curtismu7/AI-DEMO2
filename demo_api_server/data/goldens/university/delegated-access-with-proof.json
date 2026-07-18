@@ -1,0 +1,12 @@
+{
+  "vertical": "university",
+  "useCaseId": "delegated-access-with-proof",
+  "ucId": "UC1",
+  "trigger": "show my enrolled courses",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-18T13:58:54.150Z",
+  "seedHash": "55fb07346bdb7866",
+  "reply": "Here are your courses.",
+  "agentPath": null,
+  "tokenEventCount": 18
+}

@@ -1,0 +1,12 @@
+{
+  "vertical": "workforce",
+  "useCaseId": "delegated-access-with-proof",
+  "ucId": "UC1",
+  "trigger": "my benefits",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-18T13:58:59.659Z",
+  "seedHash": "53b2bac25e5daf21",
+  "reply": "Here are your benefits (6 total).",
+  "agentPath": null,
+  "tokenEventCount": 18
+}

@@ -1,0 +1,12 @@
+{
+  "vertical": "sporting-goods",
+  "useCaseId": "delegated-access-with-proof",
+  "ucId": "UC1",
+  "trigger": "my gear",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-18T13:59:04.442Z",
+  "seedHash": "c48bf4072b509915",
+  "reply": "Here are your Purchases (6 total).",
+  "agentPath": null,
+  "tokenEventCount": 18
+}
