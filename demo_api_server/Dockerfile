@@ -39,6 +39,8 @@ COPY demo_api_server/ .
 COPY scope-topology.json /scope-topology.json
 # startupConfigGuard.js resolves to /service-topology.json (boot-time SoT validation)
 COPY service-topology.json /service-topology.json
+# agentReasoningClient.js resolves to /llm-timeouts.json (../../ from /app/services)
+COPY llm-timeouts.json /llm-timeouts.json
 # geminiNlIntent.js resolves to /docs/HELIX_AGENT_DIRECTIVES.json
 COPY docs/ /docs/
 
