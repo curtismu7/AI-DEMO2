@@ -9,6 +9,7 @@
 const axios = require('axios');
 const configStore = require('./configStore');
 const { decodeJwt } = require('../utils/tokenUtils');
+const { buildTokenEvent } = require('./agentMcpTokenService');
 
 /**
  * Default Agent Gateway URL (local testing)
@@ -105,6 +106,14 @@ async function getAvailableTools(req, agentCCToken, options = {}) {
         throw err;
       }
 
+      tokenEvents.push(buildTokenEvent(
+        'tools-list-failed',
+        'MCP tools/list — Agent Gateway',
+        'failed',
+        null,
+        `MCP tools/list failed: ${errorMessage}`,
+        { rfc: 'MCP 2025-03-26 §Tools', errorCode, errorMessage },
+      ));
       const err = new Error(`Tools list request failed: ${errorMessage}`);
       err.code = errorCode;
       err.httpStatus = 502;
@@ -122,6 +131,14 @@ async function getAvailableTools(req, agentCCToken, options = {}) {
         toolNames: tools.map(t => t.name),
       });
     }
+    tokenEvents.push(buildTokenEvent(
+      'tools-list',
+      'MCP tools/list — Agent Gateway',
+      'success',
+      null,
+      `Agent Gateway returned ${tools.length} available tool(s) via MCP tools/list.`,
+      { rfc: 'MCP 2025-03-26 §Tools', toolCount: tools.length, toolNames: tools.map(t => t.name) },
+    ));
 
     // Parse token events from gateway response if present
     // (Gateway may include introspection and policy evaluation details)
@@ -160,6 +177,14 @@ async function getAvailableTools(req, agentCCToken, options = {}) {
         gatewayUrl,
       });
     }
+    tokenEvents.push(buildTokenEvent(
+      'tools-list-failed',
+      'MCP tools/list — Agent Gateway',
+      'failed',
+      null,
+      `MCP tools/list transport error: ${message}`,
+      { rfc: 'MCP 2025-03-26 §Tools', error: error.code || 'gateway_request_failed', gatewayUrl },
+    ));
 
     const err = new Error(`Failed to get tools from Agent Gateway: ${message}`);
     err.code = 'tools_list_failed';
