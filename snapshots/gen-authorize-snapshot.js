@@ -212,11 +212,15 @@ function reconcile(snap, { consent, stepUp }) {
     version: 'aaaaaaaa-0020-4321-abcd-000000000020', type: 'ATTRIBUTE',
     name: 'RarMaxAmount', fullName: 'RarMaxAmount',
     description: 'RFC 9396 RAR granted amount ceiling (azd.authorization_details[0].amount). ' +
-      'Sent by the Super Banking BFF/gateway on delegated tool calls that carry a RAR grant; absent otherwise.',
+      'Sent by the Super Banking BFF/gateway on delegated tool calls that carry a RAR grant; absent otherwise. ' +
+      'defaultValue 0 (like HitlApproved=false) so an ABSENT grant resolves to 0 instead of leaving the ' +
+      'comparison unresolved — an unresolved NUMBER makes the rule (and the whole MCP decision) INDETERMINATE.',
     parentId: null, numberOfChildren: null, valueProcessor: null,
     valueType: 'NUMBER',
     resolvers: [{ attributeResolverType: 'request', condition: { empty: {} }, valueProcessor: null, name: null }],
-    defaultValue: null, repetitionSource: null, valueSchema: null,
+    // MUST be 0, not null: absent RarMaxAmount → 0 → the "RarMaxAmount > 0" guard
+    // is false → the deny rule does not fire → ordinary (non-RAR) calls PERMIT.
+    defaultValue: 0, repetitionSource: null, valueSchema: null,
   }, true);
 
   // 8b) RarAmountExceeded condition: a grant is present (RarMaxAmount > 0) AND the
