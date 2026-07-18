@@ -19,8 +19,14 @@ import { addMilestone, updateMilestoneStatus } from "./milestonesStore";
 import { createLogger } from "./logger";
 import { anySignal } from "../components/demoAgentSafety";
 import { adminCustomerContext } from "./adminCustomerContext";
+import llmTimeouts from "../../../llm-timeouts.json";
 
 const log = createLogger("callMcpTool");
+
+// Must stay >= the BFF's own reason-loop timeout (same source file) or the
+// client aborts — and silently drops the reply, see the catch in AIAgent.js —
+// before the server's honest answer/error message has a chance to arrive.
+const AGENT_INVOKE_TIMEOUT_MS = llmTimeouts.REASON_LOOP_TIMEOUT_MS + 5000;
 const streamLog = createLogger("parseStreamingResponse");
 
 /**
@@ -1044,8 +1050,8 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
       body: JSON.stringify(body),
     };
     opts.signal = signal
-      ? anySignal([AbortSignal.timeout(30000), signal])
-      : AbortSignal.timeout(30000);
+      ? anySignal([AbortSignal.timeout(AGENT_INVOKE_TIMEOUT_MS), signal])
+      : AbortSignal.timeout(AGENT_INVOKE_TIMEOUT_MS);
 
     let res = await fetch("/api/agent/invoke", opts);
 
