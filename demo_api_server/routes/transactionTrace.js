@@ -13,6 +13,7 @@ const express = require('express');
 const router = express.Router();
 const ledger = require('../services/lmdb/transactionLedger.lmdb');
 const { traceIdFromCorrelation } = require('../utils/traceIdFromCorrelation');
+const { assemble } = require('../services/transactionAssembler');
 
 router.get('/', (req, res) => {
   const parsed = parseInt(String(req.query.limit), 10);
@@ -28,10 +29,10 @@ router.get('/', (req, res) => {
   }
 });
 
-router.get('/:correlationId', (req, res) => {
+router.get('/:correlationId', async (req, res) => {
   let record;
   try {
-    record = ledger.getRecord(req.params.correlationId);
+    record = await assemble(req.params.correlationId);
   } catch (err) {
     console.warn('[transactionTrace] read failed:', err?.message);
     return res.status(500).json({ error: 'internal_error' });

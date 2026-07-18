@@ -4,10 +4,12 @@ jest.mock('../../services/lmdb/transactionLedger.lmdb', () => ({
   getRecord: jest.fn(),
   listRecords: jest.fn(),
 }));
+jest.mock('../../services/transactionAssembler', () => ({ assemble: jest.fn() }));
 
 const express = require('express');
 const request = require('supertest');
 const ledger = require('../../services/lmdb/transactionLedger.lmdb');
+const { assemble } = require('../../services/transactionAssembler');
 const router = require('../../routes/transactionTrace');
 
 function app() {
@@ -42,14 +44,14 @@ describe('GET /api/transaction-trace', () => {
   });
 
   test('404 for an unknown correlation id', async () => {
-    ledger.getRecord.mockReturnValue(null);
+    assemble.mockResolvedValue(null);
     const res = await request(app()).get('/api/transaction-trace/nope');
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: 'not_found' });
   });
 
   test('returns the record with a derived traceId', async () => {
-    ledger.getRecord.mockReturnValue({
+    assemble.mockResolvedValue({
       correlationId: '3d5b456e-9de9-4091-850b-2d04fd0948b6',
       startedAt: 'A',
       endedAt: 'B',
