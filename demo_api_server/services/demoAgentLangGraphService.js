@@ -9,7 +9,7 @@ const { executeBffTool, executeBffToolWithToken } = require('./bffMcpToolExecuto
 const { searchPublicBranches, formatBranchCatalogReply } = require('../data/publicBranchCatalog');
 const { buildPublicCatalogTokenEvents } = require('./publicCatalogTokenEvents');
 const { isAdminClientToken, adminTokenAgentResponse, isVerticalExemptFromAdminTokenGuard } = require('./customerTokenGuard');
-const { executePluginToolViaMcp } = require('./verticalMcpExecution');
+const { executePluginToolViaMcp, parseMcpToolPayload } = require('./verticalMcpExecution');
 const { classifyMcpToolResult } = require('./mcpToolOutcome');
 const { parseToolResult } = require('./llmResponseContract');
 const { resolveMcpAccessTokenWithEvents } = require('./agentMcpTokenService');
@@ -619,13 +619,33 @@ function buildA2aReplyEnvelope(a2aResult, tokenEvents) {
 // Plugin-first executeTool. Returns a function with the reason-loop signature
 // (name, args) => Promise<string>. Plugin results are JSON-stringified so the
 // reason loop sees a string, matching executeBffTool's contract.
-function resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, sessionId, isAdmin = false }) {
+/**
+ * @param {object} opts
+ * @param {(envelope: object, toolName: string, args: object) => void} [opts.onGate]
+ *   Called when the raw MCP payload is a HITL/step-up gate. The reason loop hands
+ *   tool results to the LLM as text, which paraphrases the gate into prose — so
+ *   unlike executePluginToolViaMcp (which returns parseMcpToolPayload's
+ *   hitlEnvelope to dispatchVerticalIntent) this path dropped it, and the SPA
+ *   never opened the approval modal. Classified with the same
+ *   parseMcpToolPayload the vertical path uses so the two cannot drift on which
+ *   gate shapes they recognise. Enforcement is unaffected: the gate already ran.
+ */
+function resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, sessionId, isAdmin = false, onGate = null }) {
+  /** Classify the raw MCP payload, reporting a gate without altering the result. */
+  const noteGate = (raw, toolName, args) => {
+    if (!onGate) return raw;
+    try {
+      const parsed = parseMcpToolPayload(raw);
+      if (parsed.kind === 'hitl') onGate(parsed.hitlEnvelope, toolName, args || {});
+    } catch (e) { /* classification must never break tool execution */ }
+    return raw;
+  };
   return async (name, args) => {
     if (name === 'delegate_to_specialist') {
       return executeA2aDelegation(activeId, args, { req, tokenEvents, sessionId });
     }
     if (verticalDispatch.isPluginToolName(name)) {
-      return executeBffTool({
+      const raw = await executeBffTool({
         name,
         args: args || {},
         userId,
@@ -634,12 +654,48 @@ function resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, ses
         tokenEvents,
         sessionId,
       });
+      return noteGate(raw, name, args);
     }
     const out = await verticalDispatch.executeToolFor(
       activeId, name, args, { userId, userToken, req, tokenEvents, sessionId, isAdmin },
-      (n, a) => executeBffTool({ name: n, args: a, userId, userToken, req, tokenEvents, sessionId }),
+      (n, a) => executeBffTool({ name: n, args: a, userId, userToken, req, tokenEvents, sessionId })
+        .then((raw) => noteGate(raw, n, a)),
     );
     return typeof out === 'string' ? out : JSON.stringify(out);
+  };
+}
+
+/**
+ * Rebuild the approval-gate envelope the SPA needs from parseMcpToolPayload's
+ * hitlEnvelope. Mirrors the field set the heuristic transfer/deposit/withdrawal
+ * paths emit, so the same SPA handler opens the same modal on the LLM path.
+ * @param {{ envelope: object, toolName: string, args: object }} gate
+ */
+function approvalGateResponse(gate, tokenEvents) {
+  const { envelope, toolName, args } = gate;
+  const isStepUp = envelope.error === 'step_up_required';
+  const amount = envelope.transactionAmount ?? args.amount ?? null;
+  return {
+    reply: envelope.message
+      || (isStepUp ? 'Step-up authentication is required before this action can run.'
+                   : 'This action needs your approval before it can run.'),
+    success: false,
+    toolsCalled: [toolName],
+    tokensUsed: 0,
+    requiresConsent: false,
+    agentConfigured: true,
+    tokenEvents: tokenEvents || [],
+    error: envelope.error,
+    ...(envelope.hitl ? { hitl: envelope.hitl } : {}),
+    ...(envelope.hitl_threshold_usd != null ? { hitl_threshold_usd: envelope.hitl_threshold_usd } : {}),
+    ...(envelope.step_up_method ? { step_up_method: envelope.step_up_method } : {}),
+    ...(envelope.step_up_acr ? { step_up_acr: envelope.step_up_acr } : {}),
+    ...(envelope.hitlChallengeId ? { hitlChallengeId: envelope.hitlChallengeId } : {}),
+    ...(amount != null ? { transactionAmount: amount } : {}),
+    ...(args.fromAccountId ? { fromAccountId: args.fromAccountId } : {}),
+    ...(args.toAccountId ? { toAccountId: args.toAccountId } : {}),
+    ...(args.type ? { transactionType: args.type } : {}),
+    ...(envelope.mcpAuthorizeEvaluation ? { mcpAuthorizeEvaluation: envelope.mcpAuthorizeEvaluation } : {}),
   };
 }
 
@@ -1443,6 +1499,8 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     const historyMessages = conversationStore.getHistory(userId, verticalForHistory) || [];
     const messages = [...historyMessages, { role: 'user', content: message }];
 
+    // Set when a tool returns a HITL/step-up gate mid-loop; see resolveExecuteTool.
+    let approvalGate = null;
     const loopResult = await runReasonLoop({
       messages,
       tools: toolSchemas,
@@ -1452,7 +1510,10 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
       helixConfig: extractHelixConfig(langchainConfig),
       anthropicApiKey: process.env.ANTHROPIC_API_KEY,
       maxIterations: MAX_TOOL_ITERATIONS,
-      executeTool: resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, sessionId, isAdmin: isAdminUser }),
+      executeTool: resolveExecuteTool(activeId, {
+        userId, userToken, req, tokenEvents, sessionId, isAdmin: isAdminUser,
+        onGate: (envelope, toolName, args) => { approvalGate = { envelope, toolName, args }; },
+      }),
     });
 
     console.log('[processAgentMessage] Reason loop completed');
@@ -1465,6 +1526,14 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     if (loopResult.ok && !String(loopResult.answer || '').trim()) {
       loopResult.ok = false;
       loopResult.reason = loopResult.reason || 'empty_answer';
+    }
+    // A tool returned a HITL/step-up gate but the LLM still produced a fluent
+    // answer, so the loop reports ok. Returning that prose drops the gate fields
+    // and the SPA renders "Incomplete" with no way to approve — re-emit the gate.
+    // The heuristic floor (which returns before this path) is untouched, and so
+    // is enforcement: the gate already ran inside the pipeline.
+    if (approvalGate) {
+      return approvalGateResponse(approvalGate, tokenEvents);
     }
     if (loopResult.ok) {
       appEventService.logEvent('agent_prompt', 'info', `LLM response: ${String(loopResult.answer || '')}`,
@@ -1626,5 +1695,5 @@ module.exports = {
   processAgentMessage,
   dispatchBankingAction,
   dispatchVerticalIntent,
-  __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation, normalizeVerticalToolArgs, applyAdminCustomerContext },
+  __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation, normalizeVerticalToolArgs, applyAdminCustomerContext, approvalGateResponse },
 };
