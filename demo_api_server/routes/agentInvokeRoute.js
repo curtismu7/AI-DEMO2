@@ -414,6 +414,15 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
 
     // ── PHASE 5: RETURN RESPONSE ──
     agentResponse.runId = runId;
+    // Surface the PingOne Authorize evaluation the tool executor stashed on req.
+    // On a successful (PERMIT) agent tool call the evaluation lives only inside
+    // the pipeline outcome, which executeBffTool returns as a plain string — so
+    // without this the Proof trace's authorize-decision step never matched on the
+    // success path (UC1 rendered Incomplete though the tool ran). Only set when
+    // the agent envelope did not already carry one (deny/HITL paths do).
+    if (req._mcpAuthorizeEvaluation && !agentResponse.mcpAuthorizeEvaluation) {
+      agentResponse.mcpAuthorizeEvaluation = req._mcpAuthorizeEvaluation;
+    }
     ensureNonEmptyReply(agentResponse);
     return res.json(agentResponse);
   } catch (error) {

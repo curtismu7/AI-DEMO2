@@ -983,6 +983,32 @@ export function ingestLegacyRunTrace(data, { forceHeuristic = false } = {}) {
     if (data.mcpAuthorizeEvaluation) {
       tokenChainTraceStore.ingestAuthorize(data.mcpAuthorizeEvaluation);
     }
+    // Token-chain events from the response body. The agent path has no callMcpTool
+    // ingest, so without this the Proof trace only sees whatever the SSE stream
+    // delivered and UC1's token-exchange evidence never matched. Merge (not
+    // replace) so any live SSE events already in the trace survive.
+    if (Array.isArray(data.tokenEvents) && data.tokenEvents.length) {
+      const existing = tokenChainTraceStore.getState().trace.tokenEvents || [];
+      const merged = existing.slice();
+      for (const ev of data.tokenEvents) {
+        if (ev && !merged.some((e) => e.id === ev.id && e.timestamp === ev.timestamp)) {
+          merged.push(ev);
+        }
+      }
+      tokenChainTraceStore.ingestTokenEvents(merged);
+    }
+    // A successful tool dispatch satisfies the 'tool-dispatched' evidence step.
+    // The agent envelope returns `reply` prose, not a structured `result`, so
+    // synthesize a minimal marker from toolsCalled when the run succeeded — else
+    // every agent-driven success (UC1) rendered Incomplete though the tool ran.
+    if (data.success !== false && !data.error &&
+        Array.isArray(data.toolsCalled) && data.toolsCalled.length) {
+      tokenChainTraceStore.ingestMcpResult({
+        tool: data.toolsCalled[0],
+        toolsCalled: data.toolsCalled,
+        status: "success",
+      });
+    }
     if (typeof data.reply === "string" && data.reply) {
       tokenChainTraceStore.ingestLlmReply(data.reply);
     }
