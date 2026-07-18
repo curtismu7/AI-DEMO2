@@ -216,20 +216,26 @@ function resolveAmountForPolicy(tool, toolParams, verticalId, userId) {
  * obligation from the gate and never met the limit rule at all — UC6 could not
  * DENY through the agent path in any vertical.
  *
- * A DENY here overrides the gate's decision, mirroring the DENY-takes-precedence
- * rule already applied to the gate's own response. Everything else is left alone:
- * a PERMIT from the transaction policy must NOT clear a HITL/step-up obligation
- * the gate attached, or UC7/UC8 would lose their approval gates.
+ * The limit policy's outcome takes precedence over the gate's, in the natural
+ * ordering DENY > STEP_UP > HITL: a hard limit-DENY overrides everything (UC6,
+ * $2500), and a step-up obligation outranks the gate's HITL so UC7 ($600) demos
+ * MFA step-up rather than the consent gate UC8 ($300) shows. A limit-policy
+ * result with only a consent obligation (or none) leaves the gate's decision
+ * intact — it must never CLEAR a HITL/step-up obligation the gate attached.
+ *
+ * The transaction policy is where amount thresholds live (verified live:
+ * $300 -> HITL, $600 -> step-up, $2500 -> DENY); the MCP first-tool gate itself
+ * only ever emits HITL, so without this consult UC6/UC7 could not fire.
  *
  * No amount → no call, so non-transactional tools are completely unaffected.
  *
  * @param {object} r - the gate's normalized PingOne result
  * @param {{amount: number|null, transactionType: string|null, userId: string, acr: string}} opts
- * @returns {Promise<object>} r, possibly with decision forced to DENY
+ * @returns {Promise<object>} r, possibly upgraded to DENY or STEP_UP
  */
 async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr }) {
   if (!transactionType || !Number.isFinite(amount) || amount <= 0 || !userId) return r;
-  if (r.decision === 'DENY' || r.policyNotFound) return r; // already blocked — nothing to add
+  if (r.decision === 'DENY' || r.policyNotFound || r.stepUpRequired) return r; // already at/above what we could add
   try {
     const t = await pingOneAuthorizeService.evaluateTransaction({
       userId, amount, type: transactionType, acr,
@@ -243,6 +249,17 @@ async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr
         decisionId: t.decisionId || r.decisionId,
         raw: t.raw || r.raw,
         transactionPolicyDenied: true,
+      };
+    }
+    if (t && t.stepUpRequired) {
+      // Step-up outranks HITL. Setting stepUpRequired makes mapLivePingOneResult
+      // take its step-up branch (checked before HITL) — a 428 mcp_step_up_required.
+      return {
+        ...r,
+        stepUpRequired: true,
+        decisionId: t.decisionId || r.decisionId,
+        raw: t.raw || r.raw,
+        transactionPolicyStepUp: true,
       };
     }
   } catch (err) {

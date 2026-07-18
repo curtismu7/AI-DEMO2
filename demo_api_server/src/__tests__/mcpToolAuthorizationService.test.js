@@ -119,6 +119,16 @@ describe('mcpToolAuthorizationService', () => {
         expect(r.block.body.decisionId).toBe('limit-1');
       });
 
+      it('a transaction-policy STEP_UP obligation upgrades the gate HITL to step-up', async () => {
+        // $600 live: PERMIT + Step-Up MFA Required + HITL. Step-up outranks HITL.
+        pingOneAuthorizeService.evaluateTransaction.mockResolvedValue({
+          decision: 'PERMIT', stepUpRequired: true, hitlRequired: true, decisionId: 'limit-2',
+        });
+        const r = await call({ amount: 600 });
+        expect(r.block.status).toBe(428);
+        expect(r.block.body.error).toBe('mcp_step_up_required');
+      });
+
       it('a transaction-policy PERMIT leaves the HITL gate intact', async () => {
         const r = await call({ amount: 2500 });
         expect(r.block.status).toBe(428);
