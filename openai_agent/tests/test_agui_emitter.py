@@ -14,10 +14,26 @@ def sink_and_emitter():
 async def test_run_start_end(sink_and_emitter):
     collected, emitter = sink_and_emitter
     await emitter.on_run_start()
+    await emitter.on_llm_start()
+    await emitter.on_llm_token("hi")
+    await emitter.on_llm_end()
     await emitter.on_run_end()
     types = [e["type"] for e in collected]
     assert "RUN_STARTED" in types
     assert "RUN_FINISHED" in types
+
+
+@pytest.mark.asyncio
+async def test_empty_run_emits_error_not_silent_finish(sink_and_emitter):
+    """A run with no text and no tool call is the empty-answer bug (Gemini
+    returning zero tokens, etc.) — must surface RUN_ERROR, not a blank
+    RUN_FINISHED the UI hook renders as a silent empty bubble."""
+    collected, emitter = sink_and_emitter
+    await emitter.on_run_start()
+    await emitter.on_run_end()
+    types = [e["type"] for e in collected]
+    assert "RUN_FINISHED" not in types
+    assert "RUN_ERROR" in types
 
 
 @pytest.mark.asyncio

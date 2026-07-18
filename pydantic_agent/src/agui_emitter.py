@@ -10,8 +10,19 @@ class AGUIEmitter:
         self.run_id = run_id
         self.thread_id = thread_id
         self._sink = sink
+        # A well-formed stream with no text and no tool call renders as a
+        # silent blank bubble — same bug class as the Node reason-loop and
+        # langchain_agent empty-answer guards. Tracked in _emit (the single
+        # low-level sink both named methods and the public emit() bypass for
+        # tool adapters funnel through) so neither path is a blind spot.
+        self._any_visible_output: bool = False
 
     async def _emit(self, event: dict) -> None:
+        etype = event.get("type")
+        if etype == "TEXT_MESSAGE_CONTENT" and event.get("delta"):
+            self._any_visible_output = True
+        elif etype == "TOOL_CALL_START":
+            self._any_visible_output = True
         await self._sink(f"data: {json.dumps(event)}\n\n")
 
     async def emit(self, event: dict) -> None:
@@ -22,6 +33,11 @@ class AGUIEmitter:
         await self._emit({"type": "RUN_STARTED", "runId": self.run_id, "threadId": self.thread_id})
 
     async def on_run_end(self) -> None:
+        if not self._any_visible_output:
+            await self.on_error(
+                "The model didn't return a usable response. Try rephrasing your request or sending it again."
+            )
+            return
         await self._emit({"type": "RUN_FINISHED", "runId": self.run_id, "threadId": self.thread_id})
 
     async def on_text_start(self, message_id: str) -> None:

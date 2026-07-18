@@ -14,11 +14,20 @@ describe('AGUIEmitter', () => {
     expect(events[0]).toMatchObject({ type: 'RUN_STARTED', runId: 'run-1', threadId: 'thread-1' });
   });
 
-  it('onRunEnd emits RUN_FINISHED', async () => {
+  it('onRunEnd emits RUN_FINISHED when the run produced text', async () => {
+    const { events, emit } = makeCapture();
+    const e = new AGUIEmitter('run-1', 'thread-1', emit);
+    await e.onLlmToken('hi');
+    await e.onRunEnd();
+    expect(events[events.length - 1]).toMatchObject({ type: 'RUN_FINISHED', runId: 'run-1', threadId: 'thread-1' });
+  });
+
+  it('onRunEnd emits RUN_ERROR (not a silent RUN_FINISHED) when the run produced no text and no tool call', async () => {
     const { events, emit } = makeCapture();
     const e = new AGUIEmitter('run-1', 'thread-1', emit);
     await e.onRunEnd();
-    expect(events[0]).toMatchObject({ type: 'RUN_FINISHED', runId: 'run-1', threadId: 'thread-1' });
+    expect(events.some((ev) => ev.type === 'RUN_FINISHED')).toBe(false);
+    expect(events[0]).toMatchObject({ type: 'RUN_ERROR', runId: 'run-1', threadId: 'thread-1' });
   });
 
   it('onLlmStart emits TEXT_MESSAGE_START with role assistant', async () => {
