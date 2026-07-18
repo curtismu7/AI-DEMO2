@@ -152,7 +152,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "authorize", paths: ["/pingone-authorize", "/authz-test", "/scope-audit", "/scope-reference"] },
   { id: "users-accounts", paths: ["/users", "/accounts", "/transactions"] },
   { id: "industry-verticals", paths: ["/admin/banking", "/admin/healthcare", "/admin/retail", "/admin/sporting-goods", "/admin/workforce", "/admin/verticals", "/path/mortgage"] },
-  { id: "monitoring", paths: ["/audit", "/monitoring", "/reports", "/error-audit", "/tracing", "/check"] },
+  { id: "monitoring", paths: ["/audit", "/monitoring", "/reports", "/error-audit", "/tracing", "/telemetry", "/check"] },
   { id: "agent-studio-preview", paths: ["/agent-studio-preview", "/iga-for-ai", "/discovery-preview", "/privileges-gateway-preview", "/platform-gaps"] },
   { id: "learn-present", paths: ["/learning", "/agentic-trust", "/agent-guardrails", "/owasp", "/llama-vscode-guide"] },
   { id: "tests", paths: ["/resource-server", "/resource-server-cc"] },
@@ -697,6 +697,7 @@ export default function AdminSideNav({ user }) {
         },
         { label: "Run Reports", path: "/reports", icon: "rpt" },
         { label: "Tracing", path: "/tracing", icon: "log" },
+        { label: "Telemetry", path: "/telemetry", icon: "log" },
         { label: "Health Check", path: "/check", icon: "clk" },
         {
           label: "Error Audit Log",

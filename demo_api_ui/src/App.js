@@ -116,6 +116,7 @@ import AiControlPlanePage from "./pages/AiControlPlanePage";
 import CheckPage from "./pages/CheckPage";
 import ServersPage from "./pages/ServersPage";
 import TracingPage from "./pages/TracingPage";
+import TelemetryPage from "./pages/TelemetryPage";
 import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
 import PingCliPage from "./components/PingCliPage";
@@ -572,6 +573,21 @@ function AppWithAuth() {
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
                           <TracingPage />
+                        </main>
+                      </>
+                    ) : (
+                      <Navigate to="/" replace />
+                    )
+                  }
+                />
+                <Route
+                  path="/telemetry"
+                  element={
+                    loading ? null : user ? (
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <TelemetryPage />
                         </main>
                       </>
                     ) : (
