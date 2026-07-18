@@ -25,7 +25,7 @@ The MCP server validates required scopes before dispatching; a token missing a r
 
 ## Evidence
 
-**Token chain steps:** user-token → authorize-decision  
+**Token chain steps:** sim-exchange-ok → sim-gateway-deny  
 **Activity categories:** token, mcp
 
 ## Code References

@@ -35,8 +35,10 @@ function parseMcpToolPayload(raw) {
   }
   if (c.kind === 'error') {
     // c.message is the human-readable reason (error_description / deny_reason)
-    // so a deny renders as a sentence rather than a bare code.
-    return { kind: 'out', out: { result: { error: c.message }, render: 'text' } };
+    // so a deny renders as a sentence rather than a bare code. errorCode carries
+    // the machine code alongside it so the UI can pick its own plain-language
+    // sentence instead of echoing this string into the transcript.
+    return { kind: 'out', out: { result: { error: c.message, errorCode: c.error }, render: 'text' } };
   }
   return {
     kind: 'out',
@@ -74,7 +76,12 @@ async function executePluginToolViaMcp({ name, args, userId, userToken, req, tok
     // Session/token expiry must propagate for 401 + need_auth on the route.
     if (err && (err.code === 'TOKEN_INACTIVE' || err.login_required)) throw err;
     const msg = (err && err.message) || 'MCP tool execution failed';
-    return { out: { result: { error: msg }, render: 'text' } };
+    return {
+      out: {
+        result: { error: msg, errorCode: (err && (err.code || err.gatewayErrorCode)) || null },
+        render: 'text',
+      },
+    };
   }
   const parsed = parseMcpToolPayload(raw);
   if (parsed.kind === 'hitl') return { hitlEnvelope: parsed.hitlEnvelope };

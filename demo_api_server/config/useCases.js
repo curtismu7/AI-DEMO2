@@ -591,7 +591,9 @@ const RAW_USE_CASES = [
     pingOneSolution: 'The MCP server validates required scopes before dispatching; a token missing a required scope yields DENY.',
     trigger: { type: 'attack', sim: 'insufficient-scope' },
     expectedOutcome: 'DENY_403',
-    evidence: { tokenChain: ['user-token', 'authorize-decision'], activity: ['token', 'mcp'] },
+    // Gateway-level deny: the scope check runs BEFORE PingOne Authorize is consulted,
+    // so no 'authorize-decision' evidence exists. Declare the events the sim emits.
+    evidence: { tokenChain: ['sim-exchange-ok', 'sim-gateway-deny'], activity: ['token', 'mcp'] },
     codeRefs: ['demo_mcp_server/src/auth/validateTokenScopes.js', 'demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts'],
     maturity: 'works',
     owasp: { threats: ['T2', 'T3'], sections: ['§5.1'] },
@@ -638,7 +640,9 @@ const RAW_USE_CASES = [
     pingOneSolution: 'The gateway validates aud/exp/iss/nbf before any routing; a bad token is rejected with 401.',
     trigger: { type: 'attack', sim: 'wrong-aud' },
     expectedOutcome: 'DENY_401',
-    evidence: { tokenChain: ['user-token', 'authorize-decision'], activity: ['token', 'gateway'] },
+    // Gateway-level deny: aud/exp/iss/nbf validation runs BEFORE PingOne Authorize
+    // is consulted, so no 'authorize-decision' evidence exists.
+    evidence: { tokenChain: ['sim-exchange-ok', 'sim-gateway-deny'], activity: ['token', 'gateway'] },
     codeRefs: ['demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts'],
     maturity: 'works',
     owasp: { threats: ['T9'], sections: ['§8', '§4.2.2'] },
@@ -660,7 +664,10 @@ const RAW_USE_CASES = [
     pingOneSolution: 'The gateway enforces audience binding (D-05) unconditionally; DPoP key binding adds a proof-of-possession check when enabled.',
     trigger: { type: 'attack', sim: 'replayed-token' },
     expectedOutcome: 'DENY_401',
-    evidence: { tokenChain: ['user-token', 'authorize-decision'], activity: ['token', 'gateway'] },
+    // Audience binding is enforced at the gateway BEFORE PingOne Authorize is
+    // consulted, so this sim never produces an 'authorize-decision'. The replayed
+    // user token is carried on 'sim-replay-start'.
+    evidence: { tokenChain: ['sim-replay-start', 'sim-gateway-deny'], activity: ['token', 'gateway'] },
     codeRefs: ['demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts', 'demo_api_server/services/dpopKeyService.js'],
     maturity: 'flag:ff_dpop',
     owasp: { threats: ['T9'], sections: ['§3.2.8', '§4.2.3'] },
