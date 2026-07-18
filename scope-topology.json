@@ -2,9 +2,9 @@
   "$schema": "./scope-topology.schema.json",
   "version": 3,
   "deployment": {
-    "_comment": "Public app URLs per deployment environment. Master SoT for PINGONE_PUBLIC_APP_URL and PINGONE_RESOURCE_PINGGATEWAY_URI. Used to derive redirect URIs in configStore at startup. .env must still provide PingOne secrets (ClientID, ClientSecret) — this section is non-sensitive config only.",
+    "_comment": "Public app URLs per deployment environment. Master SoT for PINGONE_PUBLIC_APP_URL and PINGONE_RESOURCE_PINGGATEWAY_URI. Used to derive redirect URIs in configStore at startup. .env must still provide PingOne secrets (ClientID, ClientSecret) — this section is non-sensitive config only. local.publicAppUrl must stay under ping-devops.com: WebAuthn requires the FIDO2 rp.id to be the origin's host or a registrable parent of it, and PingOne rejects any rp.id whose TLD is not public, so passkeys can never work on api.ping.demo — it needs 127.0.0.1 local.ping-devops.com in /etc/hosts. pingGatewayResourceUri stays on api.ping.demo because it is an OAuth AUDIENCE registered in PingOne, not a browser origin; changing it causes invalid_aud.",
     "environments": {
-      "local": { "publicAppUrl": "https://api.ping.demo:4000", "pingGatewayResourceUri": "https://api.ping.demo:3036/mcp" },
+      "local": { "publicAppUrl": "https://local.ping-devops.com:4000", "pingGatewayResourceUri": "https://api.ping.demo:3036/mcp" },
       "k8s": { "publicAppUrl": "https://ai-demo.ping-devops.com", "pingGatewayResourceUri": "https://ai-demo.ping-devops.com/mcp" }
     },
     "redirectUris": { "_comment": "Derived from publicAppUrl by configStore at startup. Uncomment and set manually only to override auto-derivation.", "adminCallback": "/api/auth/oauth/callback", "userCallback": "/api/auth/oauth/user/callback" }
