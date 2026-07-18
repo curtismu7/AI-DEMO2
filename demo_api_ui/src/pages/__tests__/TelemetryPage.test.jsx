@@ -58,12 +58,42 @@ describe("TelemetryPage", () => {
   });
 
   it("Pause toggles to Resume and stops the auto-refresh interval", async () => {
-    stubFetch();
-    render(<TelemetryPage />);
-    await waitFor(() => expect(screen.getByText("demo-api-server")).toBeInTheDocument());
-    const btn = screen.getByRole("button", { name: "Pause" });
-    fireEvent.click(btn);
-    expect(screen.getByRole("button", { name: "Resume" })).toBeInTheDocument();
+    vi.useFakeTimers();
+    try {
+      stubFetch();
+      render(<TelemetryPage />);
+      await vi.waitFor(() => expect(screen.getByText("demo-api-server")).toBeInTheDocument());
+      const before = global.fetch.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(5100);
+      expect(global.fetch.mock.calls.length).toBeGreaterThan(before);
+      const btn = screen.getByRole("button", { name: "Pause" });
+      fireEvent.click(btn);
+      expect(screen.getByRole("button", { name: "Resume" })).toBeInTheDocument();
+      const paused = global.fetch.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(15000);
+      expect(global.fetch.mock.calls.length).toBe(paused);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("expands the viewBox when a layer has many nodes", async () => {
+    const fanout = {
+      tracingEnabled: true,
+      fetchedAt: "x",
+      nodes: [
+        { id: "root", label: "root", latency: "1ms", status: "ok" },
+        ...["a", "b", "c", "d", "e"].map((id) => ({ id, label: id, latency: "1ms", status: "ok" })),
+      ],
+      edges: ["a", "b", "c", "d", "e"].map((id) => ({ source: "root", target: id, label: "" })),
+    };
+    stubFetch({ graph: fanout });
+    const { container } = render(<TelemetryPage />);
+    await waitFor(() => expect(screen.getByText("root")).toBeInTheDocument());
+    const svg = container.querySelector("svg.telemetry-svg");
+    const [, y, , h] = svg.getAttribute("viewBox").split(" ").map(Number);
+    expect(y).toBeLessThan(0);
+    expect(h).toBeGreaterThan(480);
   });
 
   it("Fetch button triggers a new graph request", async () => {

@@ -6,6 +6,11 @@ const request = require('supertest');
 jest.mock('axios');
 const axios = require('axios');
 
+jest.mock('../../services/configStore', () => ({
+  getEffective: jest.fn(() => ''),
+}));
+const configStore = require('../../services/configStore');
+
 const tracingRouter = require('../../routes/tracing');
 
 function makeApp() {
@@ -34,6 +39,8 @@ const TRACE = {
 };
 
 afterEach(() => jest.resetAllMocks());
+
+beforeEach(() => configStore.getEffective.mockImplementation(() => ''));
 
 describe('GET /api/health/tracing/graph', () => {
   it('fail-soft 200 when Jaeger is unreachable', async () => {
@@ -100,5 +107,15 @@ describe('GET /api/health/tracing/graph', () => {
     const res = await request(makeApp()).get(`/api/health/tracing/graph?traceId=${TRACE.traceID}`);
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('trace_not_found');
+  });
+
+  it('fail-soft 200 with tracingEnabled:false when ff_tracing flag is off', async () => {
+    configStore.getEffective.mockImplementation((key) => (key === 'ff_tracing' ? 'false' : ''));
+    mockJaeger([
+      ['/api/services', () => Promise.resolve({ status: 200, data: { data: ['demo-api-server'] } })],
+    ]);
+    const res = await request(makeApp()).get('/api/health/tracing/graph');
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ tracingEnabled: false, nodes: [], edges: [] });
   });
 });

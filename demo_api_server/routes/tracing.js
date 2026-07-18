@@ -275,6 +275,12 @@ router.get('/graph', async (req, res) => {
     fetchedAt: new Date().toISOString(),
   });
 
+  // Spec rule: flag OFF behaves exactly like Jaeger-unreachable (fail-soft).
+  // ff_tracing defaults ON; only an explicit 'false' disables.
+  if (String(configStore.getEffective('ff_tracing')).trim() === 'false') {
+    return res.status(200).json(failSoft());
+  }
+
   const base = await resolveJaegerBase();
   if (!base) return res.status(200).json(failSoft());
 

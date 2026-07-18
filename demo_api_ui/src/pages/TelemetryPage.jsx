@@ -159,6 +159,16 @@ export default function TelemetryPage() {
     [graph, traces],
   );
 
+  const viewBox = useMemo(() => {
+    let minY = 0;
+    let maxY = VIEW_H;
+    for (const pos of positions.values()) {
+      if (pos.y - 60 < minY) minY = pos.y - 60;
+      if (pos.y + 60 > maxY) maxY = pos.y + 60;
+    }
+    return `0 ${minY} ${VIEW_W} ${maxY - minY}`;
+  }, [positions]);
+
   const selectTrace = (traceId) => {
     setSelectedTraceId(traceId);
     setView("detailed");
@@ -278,7 +288,7 @@ export default function TelemetryPage() {
           {!tracingOff && !emptyGraph && (
             <svg
               ref={svgRef}
-              viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
+              viewBox={viewBox}
               className="telemetry-svg"
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
