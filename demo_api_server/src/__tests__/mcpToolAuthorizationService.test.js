@@ -7,6 +7,9 @@ jest.mock('../../services/configStore');
 jest.mock('../../services/pingOneAuthorizeService', () => ({
   evaluateMcpToolDelegation: jest.fn(),
   isMcpDelegationDecisionReady: jest.fn(),
+  // Transaction-limit policy, consulted for amount-bearing tool calls.
+  // Default PERMIT so existing cases keep the gate's own decision.
+  evaluateTransaction: jest.fn(async () => ({ decision: 'PERMIT' })),
 }));
 jest.mock('../../services/simulatedAuthorizeService', () => ({
   evaluateMcpFirstTool: jest.fn(),
@@ -70,6 +73,85 @@ describe('mcpToolAuthorizationService', () => {
   });
 
   describe('evaluateMcpFirstToolGate', () => {
+    // Transaction-limit policy consult. The MCP first-tool gate answers "may this
+    // agent call this tool" and never evaluates amount limits — that rule lives on
+    // the Transaction decision endpoint, previously reachable only from
+    // routes/transactions.js. Without this consult a $2500 agent transfer got
+    // PERMIT + HITL and no use case could demo a hard limit DENY.
+    describe('transaction-limit policy consult', () => {
+      const readyGate = () => {
+        configStore.get.mockImplementation((k) =>
+          k === 'ff_authorize_mcp_first_tool' ? 'true' : null);
+        // The outer beforeEach assigns getEffective as a PLAIN function, so it has
+        // no .mockImplementation — reassign rather than configure.
+        configStore.getEffective = jest.fn((k) => configStore.get(k));
+        pingOneAuthorizeService.isMcpDelegationDecisionReady.mockReturnValue(true);
+        simulatedAuthorizeService.resolveAuthorizeMode.mockReturnValue({
+          mode: 'pingone', useSimulated: false, failoverMode: 'deny',
+        });
+        simulatedAuthorizeService.isSimulatedModeEnabled.mockReturnValue(false);
+      };
+      const call = (params) => evaluateMcpFirstToolGate({
+        req: { session: {}, user: { id: 'u1' } },
+        tool: 'create_transfer',
+        toolParams: params,
+        transactionType: 'transfer',
+        agentToken: jwtWithPayload({ sub: 'u1', aud: 'mcp' }),
+        userSub: 'u1',
+      });
+
+      beforeEach(() => {
+        readyGate();
+        // Gate itself permits with a HITL obligation — the live shape today.
+        pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({
+          decision: 'PERMIT', hitlRequired: true, decisionId: 'gate-1',
+        });
+        pingOneAuthorizeService.evaluateTransaction.mockResolvedValue({ decision: 'PERMIT' });
+      });
+
+      it('a transaction-policy DENY overrides the gate PERMIT+HITL', async () => {
+        pingOneAuthorizeService.evaluateTransaction.mockResolvedValue({
+          decision: 'DENY', decisionId: 'limit-1',
+        });
+        const r = await call({ amount: 2500 });
+        expect(r.block.status).toBe(403);
+        expect(r.block.body.error).toBe('mcp_authorization_denied');
+        expect(r.block.body.decisionId).toBe('limit-1');
+      });
+
+      it('a transaction-policy STEP_UP obligation upgrades the gate HITL to step-up', async () => {
+        // $600 live: PERMIT + Step-Up MFA Required + HITL. Step-up outranks HITL.
+        pingOneAuthorizeService.evaluateTransaction.mockResolvedValue({
+          decision: 'PERMIT', stepUpRequired: true, hitlRequired: true, decisionId: 'limit-2',
+        });
+        const r = await call({ amount: 600 });
+        expect(r.block.status).toBe(428);
+        expect(r.block.body.error).toBe('mcp_step_up_required');
+      });
+
+      it('a transaction-policy PERMIT leaves the HITL gate intact', async () => {
+        const r = await call({ amount: 2500 });
+        expect(r.block.status).toBe(428);
+        expect(r.block.body.error).toBe('mcp_hitl_required');
+      });
+
+      it('is not consulted at all when the tool carries no amount', async () => {
+        await evaluateMcpFirstToolGate({
+          req: { session: {}, user: { id: 'u1' } },
+          tool: 'get_my_accounts',
+          agentToken: jwtWithPayload({ sub: 'u1', aud: 'mcp' }),
+          userSub: 'u1',
+        });
+        expect(pingOneAuthorizeService.evaluateTransaction).not.toHaveBeenCalled();
+      });
+
+      it('fails open to the gate decision when the limit policy errors', async () => {
+        pingOneAuthorizeService.evaluateTransaction.mockRejectedValue(new Error('p1az down'));
+        const r = await call({ amount: 2500 });
+        expect(r.block.body.error).toBe('mcp_hitl_required');
+      });
+    });
+
     it('fails CLOSED (503) when no backend configured + failover=deny (PingOne-only default)', async () => {
       // simulated off + PingOne not ready + failover=deny (beforeEach) → must NOT
       // skip the gate (fail-open); it fails closed so an unconfigured install
