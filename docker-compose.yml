@@ -269,6 +269,7 @@ services:
     volumes:
       - ./demo_api_ui/src:/app/src  # Hot reload: Vite watches src changes
       - ./certs:/etc/nginx/certs:ro
+      - ./llm-timeouts.json:/llm-timeouts.json:ro   # demoAgentService.js resolves via ../../../ from /app/src/services
     networks:
       - ai-demo
     depends_on:
