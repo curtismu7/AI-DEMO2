@@ -22,11 +22,23 @@ describe('getAvailableTools — tools/list Token Chain step', () => {
     axios.post.mockResolvedValueOnce({
       data: { error: { code: 'gateway_error', message: 'boom' } },
     });
-    await expect(getAvailableTools({}, 'cc-token-123')).rejects.toThrow();
-    // The error carries the events so the caller (agentRun.js) can still surface the failure.
     try {
       await getAvailableTools({}, 'cc-token-123');
+      throw new Error('expected getAvailableTools to reject');
     } catch (err) {
+      if (err.message === 'expected getAvailableTools to reject') throw err;
+      expect(err.tokenEvents[0].id).toBe('tools-list-failed');
+      expect(err.tokenEvents[0].status).toBe('failed');
+    }
+  });
+
+  test('gateway transport error response includes a tools-list-failed step', async () => {
+    axios.post.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+    try {
+      await getAvailableTools({}, 'cc-token-123');
+      throw new Error('expected getAvailableTools to reject');
+    } catch (err) {
+      if (err.message === 'expected getAvailableTools to reject') throw err;
       expect(err.tokenEvents[0].id).toBe('tools-list-failed');
       expect(err.tokenEvents[0].status).toBe('failed');
     }
