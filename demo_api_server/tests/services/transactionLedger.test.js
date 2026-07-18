@@ -130,6 +130,36 @@ describe('transactionLedger', () => {
     expect(byId.c2).toBeNull();
   });
 
+  test('listRecords with a principal filter excludes other principals and unattributed records', () => {
+    ledger.appendHop('mine', { service: 'x', phase: 'ui.request', identity: { sub: 'user-1' } });
+    ledger.appendHop('theirs', { service: 'x', phase: 'ui.request', identity: { sub: 'user-2' } });
+    ledger.appendHop('nobody', { service: 'x', phase: 'ui.request' });
+    const list = ledger.listRecords({ principal: 'user-1' });
+    expect(list.map((r) => r.correlationId)).toEqual(['mine']);
+  });
+
+  test('listRecords applies the principal filter BEFORE the limit — a naive filter-after-slice would undercount', () => {
+    const ts = (i) => `2026-07-18T00:00:${String(i).padStart(2, '0')}.000Z`;
+    // The 5 newest records overall all belong to user-2; user-1 has 5 older
+    // records. A naive `listRecords({ limit }).filter(own)` would take the
+    // newest 3 (all user-2) and filter user-1 down to nothing, even though
+    // user-1 has 5 records in the store.
+    for (let i = 0; i < 5; i++) {
+      ledger.appendHop(`u1-${i}`, { service: 'x', phase: 'ui.request', ts: ts(i), identity: { sub: 'user-1' } });
+    }
+    for (let i = 5; i < 10; i++) {
+      ledger.appendHop(`u2-${i}`, { service: 'x', phase: 'ui.request', ts: ts(i), identity: { sub: 'user-2' } });
+    }
+
+    const naive = ledger.listRecords({ limit: 3 }).filter((r) => r.principal === 'user-1');
+    expect(naive).toHaveLength(0);
+
+    const correct = ledger.listRecords({ principal: 'user-1', limit: 3 });
+    expect(correct).toHaveLength(3);
+    expect(correct.every((r) => r.principal === 'user-1')).toBe(true);
+    expect(correct.map((r) => r.correlationId)).toEqual(['u1-4', 'u1-3', 'u1-2']);
+  });
+
   test('clear wipes the store', () => {
     ledger.appendHop('c1', { service: 'x', phase: 'ui.request' });
     ledger.clear();

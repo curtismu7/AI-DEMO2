@@ -118,13 +118,20 @@ function getRecord(correlationId) {
  * Newest-first transaction summaries.
  * @param {object} [opts]
  * @param {number} [opts.limit=100]
+ * @param {string} [opts.principal] - when supplied, restricts the scan to
+ *   records owned by this principal BEFORE `limit` is applied, so `limit`
+ *   means "up to N records the caller may see" rather than "up to N records,
+ *   then whatever of those happen to be theirs". Omit for an unfiltered
+ *   (admin) listing.
  * @returns {object[]} [{ correlationId, startedAt, endedAt, hopCount, principal }]
  */
 function listRecords(opts = {}) {
   const limit = Number.isFinite(opts.limit) ? opts.limit : 100;
+  const hasPrincipalFilter = Object.prototype.hasOwnProperty.call(opts, 'principal');
   const out = [];
   for (const { value } of _db().getRange()) {
     if (!value) continue;
+    if (hasPrincipalFilter && value.principal !== opts.principal) continue;
     out.push({
       correlationId: value.correlationId,
       startedAt: value.startedAt,

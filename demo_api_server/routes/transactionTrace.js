@@ -26,9 +26,14 @@ router.get('/', (req, res) => {
   const parsed = parseInt(String(req.query.limit), 10);
   try {
     const isAdmin = req.user?.role === 'admin';
-    const transactions = ledger
-      .listRecords({ limit: Number.isFinite(parsed) ? parsed : undefined })
-      .filter((t) => isAdmin || _isOwnRecord(req, t.principal));
+    // Ownership is pushed into listRecords as a `principal` option so the
+    // store filters BEFORE slicing to `limit` — filtering the already-sliced
+    // page here would mean a non-admin could see fewer than `limit` (or
+    // none) of their own transactions while their records sit just outside
+    // the pre-filter page, with nothing signalling the truncation.
+    const listOpts = { limit: Number.isFinite(parsed) ? parsed : undefined };
+    if (!isAdmin) listOpts.principal = req.user?.id;
+    const transactions = ledger.listRecords(listOpts);
     return res.json({ transactions });
   } catch (err) {
     // A read failure degrades to an empty list, not a 500 that breaks the page.
@@ -38,23 +43,44 @@ router.get('/', (req, res) => {
 });
 
 router.get('/:correlationId', async (req, res) => {
+  const correlationId = req.params.correlationId;
+
+  // Ownership is resolved from a cheap, synchronous ledger.getRecord BEFORE
+  // assemble() runs. assemble() performs an async, principal-scoped
+  // tokenChainService read (_derivedTokenHops) — real work a nonexistent
+  // correlationId never triggers. Checking ownership first means a rejected
+  // request ("exists but not yours") does no more work than a nonexistent
+  // one, so the two 404s can't be told apart by response latency either —
+  // closing a timing side channel that would otherwise reopen the
+  // confidentiality leak the identical 404 body/status was meant to close
+  // (correlationIds are guessable: X-Request-ID / X-Correlation-ID are
+  // client-influenced).
+  let stub;
+  try {
+    stub = ledger.getRecord(correlationId);
+  } catch (err) {
+    console.warn('[transactionTrace] read failed:', err?.message);
+    return res.status(500).json({ error: 'internal_error' });
+  }
+  if (!stub) return res.status(404).json({ error: 'not_found' });
+
+  // A non-admin requesting someone else's (or an unattributed) transaction
+  // gets the same 404 as a nonexistent one — a 403 would confirm the
+  // transaction exists, which is itself a disclosure given correlationIds
+  // are guessable.
+  const isAdmin = req.user?.role === 'admin';
+  if (!isAdmin && !_isOwnRecord(req, stub.principal)) {
+    return res.status(404).json({ error: 'not_found' });
+  }
+
   let record;
   try {
-    record = await assemble(req.params.correlationId);
+    record = await assemble(correlationId);
   } catch (err) {
     console.warn('[transactionTrace] read failed:', err?.message);
     return res.status(500).json({ error: 'internal_error' });
   }
   if (!record) return res.status(404).json({ error: 'not_found' });
-
-  // A non-admin requesting someone else's (or an unattributed) transaction
-  // gets the same 404 as a nonexistent one — a 403 would confirm the
-  // transaction exists, which is itself a disclosure given correlationIds
-  // are guessable (X-Request-ID / X-Correlation-ID are client-influenced).
-  const isAdmin = req.user?.role === 'admin';
-  if (!isAdmin && !_isOwnRecord(req, record.principal)) {
-    return res.status(404).json({ error: 'not_found' });
-  }
 
   return res.json({
     ...record,
