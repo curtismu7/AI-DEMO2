@@ -108,8 +108,13 @@ async function processAdminMessage({ message, userId, sessionId, tokenEvents = [
           { tag: 'agent/truncated' });
       }
       const displayModel = llmModel || 'Claude 3.5 Sonnet';
+      const rawAnswer = withTruncationNotice(loopResult.answer, loopResult.truncated);
       return {
-        reply: withTruncationNotice(loopResult.answer, loopResult.truncated),
+        // A conversational LLM can return whitespace-only text — truthy to
+        // loopResult.ok, but it renders as a blank agent bubble in the UI.
+        reply: rawAnswer && rawAnswer.trim() !== ''
+          ? rawAnswer
+          : "I'm not sure how to help with that one. Try one of the suggested actions, or rephrase your question.",
         truncated: loopResult.truncated || undefined,
         success: true,
         toolsCalled: [],

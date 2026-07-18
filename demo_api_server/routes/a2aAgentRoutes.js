@@ -135,6 +135,7 @@ router.post('/message', async (req, res) => {
     return res.status(500).json({
       error: 'internal_error',
       message: error.message,
+      reply: `A2A orchestrator error: ${error.message}`,
       success: false,
       toolsCalled: [],
       tokenEvents: [],
