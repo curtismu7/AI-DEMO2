@@ -852,13 +852,21 @@ _read_demo_stack_flags() {
     echo "0 1 1"
     return 0
   fi
+  # configStore loads LMDB asynchronously, so ensureInitialized() MUST be awaited
+  # here: a bare getEffective() in a fresh process returns env/registry defaults
+  # and reports simulated=0 while the running BFF is enforcing simulated=1 —
+  # demo-sync then stops authz-server out from under the gateway and every tool
+  # call fails closed with a policy DENY.
   docker exec ai-demo-api-server node -e "
     const cs = require('./services/configStore');
-    const t = (v) => (v === true || v === 'true') ? '1' : '0';
-    const sim = t(cs.getEffective('ff_authorize_simulated'));
-    const pgw = t(cs.getEffective('ff_mcp_gateway_pinggateway'));
-    const trc = (cs.getEffective('ff_tracing') === false || cs.getEffective('ff_tracing') === 'false') ? '0' : '1';
-    process.stdout.write(sim + ' ' + pgw + ' ' + trc);
+    (async () => {
+      await cs.ensureInitialized();
+      const t = (v) => (v === true || v === 'true') ? '1' : '0';
+      const sim = t(cs.getEffective('ff_authorize_simulated'));
+      const pgw = t(cs.getEffective('ff_mcp_gateway_pinggateway'));
+      const trc = (cs.getEffective('ff_tracing') === false || cs.getEffective('ff_tracing') === 'false') ? '0' : '1';
+      process.stdout.write(sim + ' ' + pgw + ' ' + trc);
+    })();
   " 2>/dev/null || echo "0 1 1"
 }
 
