@@ -490,6 +490,14 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     });
     expect(deps.callToolLocal).not.toHaveBeenCalled(); // policy denial does NOT fall back to local
   });
+
+  test('session-token-introspection step is present for every successful tool call', async () => {
+    const deps = makeDeps();
+    deps.mcpCallTool = jest.fn(async () => ({ content: [{ text: 'remote-ok' }] }));
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    expect(outcome.kind).toBe('result');
+    expect(outcome.body.tokenEvents.some((e) => e.id === 'session-token-introspection')).toBe(true);
+  });
 });
 
 // REGRESSION (transfer HTTP-code consistency, 2026-05-18): a transfer that
