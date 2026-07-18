@@ -408,11 +408,13 @@ async function runMcpToolPipeline(ctx) {
             // PingOne-unreachable fallback): mirror the PERMIT branch below and
             // push the gw-authorize Token Chain card here too, so DENY/step-up/
             // HITL outcomes render the same card the real-gateway path would.
-            // Guarded by !useGateway for the same reason as the PERMIT branch —
-            // when the call actually goes through the real gateway, the
-            // audit-trail-based push further down (gwAuditTrail.authorize) is
-            // the single source of truth and must not be duplicated here.
-            if (!useGateway && mcpAuthz.block.body.authorize_engine === 'simulated') {
+            // NOT guarded by !useGateway (unlike the PERMIT branch below): this
+            // branch returns early, before the real gateway is ever called, so
+            // there is no later gwAuditTrail.authorize push that could ever
+            // supply a card — the simulated engine's decision is the only
+            // decision that will be made, so its card must always be pushed
+            // here regardless of useGateway (final whole-branch review finding).
+            if (mcpAuthz.block.body.authorize_engine === 'simulated') {
                 tokenEvents.push(deps.buildTokenEvent(
                     'gw-authorize',
                     'PingGateway → PingOne Authorize',

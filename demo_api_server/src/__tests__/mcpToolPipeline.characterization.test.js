@@ -411,6 +411,31 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     expect(gwAzEvents.length).toBe(1);
   });
 
+  // Final whole-branch review follow-up: the DENY/block branch is NOT
+  // symmetric with the PERMIT branch above — it returns early (before any
+  // gateway call), so when useGateway=true there is no later
+  // gwAuditTrail.authorize push that could ever supply the card. The
+  // !useGateway guard on the block branch's push was copied from the PERMIT
+  // branch for the wrong reason: there is no double-push risk here because
+  // the gateway is never reached on a block. This must produce exactly one
+  // gw-authorize card with status 'deny', even with useGateway=true.
+  test('useGateway=true AND simulated engine DENY (gate block) → tokenEvents still carries a gw-authorize card (block branch never reaches the gateway)', async () => {
+    const deps = makeDeps();
+    deps.config = { ...deps.config, useGateway: true, gatewayHttpUrl: 'http://gw' };
+    deps.evaluateMcpFirstToolGate = jest.fn(async () => ({
+      ran: true,
+      block: {
+        status: 403,
+        body: { error: 'mcp_authorization_denied', decisionId: 'd2', decisionContext: { x: 1 }, authorize_engine: 'simulated' },
+      },
+    }));
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    const gwAzEvents = outcome.body.tokenEvents.filter((e) => e.id === 'gw-authorize');
+    expect(gwAzEvents.length).toBe(1);
+    expect(gwAzEvents[0].status).toBe('deny');
+    expect(deps.callToolViaGateway).not.toHaveBeenCalled();
+  });
+
   test('HTTP/2 transport → result Outcome carries stream:true marker', async () => {
     const deps = makeDeps();
     deps.config = { ...deps.config, useHttp2: true, mcpUrl: 'http://localhost:8080' };
