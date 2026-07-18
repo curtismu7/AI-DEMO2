@@ -351,6 +351,38 @@ describe('mcpToolAuthorizationService', () => {
       expect(r.block.body.error).toBe('mcp_step_up_required');
     });
 
+    // The agent step-up modal only renders its device picker (SMS / email /
+    // passkey) when the 428 body carries step_up_method === 'p1mfa'
+    // (AIAgent.js checks that exact string). The gate omitted the field
+    // entirely, so `normalized.step_up_method` was undefined and every agent
+    // step-up silently fell back to the stub OTP-only modal.
+    it('includes step_up_method on the step-up block so the UI can pick a device', async () => {
+      configStore.get.mockImplementation((k) =>
+        k === 'ff_authorize_mcp_first_tool' ? 'true' : null,
+      );
+      // jest automock leaves getEffective without mock helpers here; install one.
+      configStore.getEffective = jest.fn((k) => (k === 'step_up_method' ? 'p1mfa' : null));
+      simulatedAuthorizeService.isSimulatedModeEnabled.mockReturnValue(true);
+      simulatedAuthorizeService.evaluateMcpFirstTool.mockResolvedValue({
+        decision: 'INDETERMINATE',
+        stepUpRequired: true,
+        hitlRequired: false,
+        path: 'simulated',
+        decisionId: 'sim-stepup',
+        raw: {},
+      });
+
+      const r = await evaluateMcpFirstToolGate({
+        req: { session: { user: { role: 'user' } } },
+        tool: 'create_transfer',
+        agentToken: jwtWithPayload({ sub: 'u1' }),
+        userSub: 'u1',
+      });
+
+      expect(r.block.body.error).toBe('mcp_step_up_required');
+      expect(r.block.body.step_up_method).toBe('p1mfa');
+    });
+
     it('calls PingOne when live and MCP endpoint ready', async () => {
       configStore.get.mockImplementation((k) => {
         if (k === 'ff_authorize_mcp_first_tool') return 'true';
@@ -379,6 +411,41 @@ describe('mcpToolAuthorizationService', () => {
       expect(r.ran).toBe(true);
       expect(r.permit).toBe(true);
       expect(pingOneAuthorizeService.evaluateMcpToolDelegation).toHaveBeenCalled();
+    });
+
+    // The LIVE PingOne path is what the real stack runs (P1AZ + PingGateway), so
+    // this is the branch that actually decides whether the agent step-up modal
+    // can show its device picker. Covered separately from the simulated block —
+    // they are distinct response builders and only one was exercised before.
+    it('includes step_up_method on the LIVE PingOne step-up block', async () => {
+      configStore.get.mockImplementation((k) => {
+        if (k === 'ff_authorize_mcp_first_tool') return 'true';
+        if (k === 'ff_authorize_fail_open') return 'false';
+        if (k === 'authorize_mcp_decision_endpoint_id') return 'mcp-endpoint-uuid';
+        if (k === 'PINGONE_RESOURCE_MCP_SERVER_URI') return 'https://mcp';
+        return null;
+      });
+      configStore.getEffective = jest.fn((k) => (k === 'step_up_method' ? 'p1mfa' : null));
+      simulatedAuthorizeService.isSimulatedModeEnabled.mockReturnValue(false);
+      pingOneAuthorizeService.isMcpDelegationDecisionReady.mockReturnValue(true);
+      pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({
+        decision: 'INDETERMINATE',
+        stepUpRequired: true,
+        path: 'decision-endpoint',
+        decisionId: 'p1-stepup',
+        raw: {},
+      });
+
+      const r = await evaluateMcpFirstToolGate({
+        req: { session: { user: { role: 'user' } } },
+        tool: 'get_my_accounts',
+        agentToken: jwtWithPayload({ sub: 'sub-99', aud: 'https://mcp' }),
+        userSub: 'sub-99',
+      });
+
+      expect(r.block.status).toBe(428);
+      expect(r.block.body.error).toBe('mcp_step_up_required');
+      expect(r.block.body.step_up_method).toBe('p1mfa');
     });
 
     it('returns 428 HITL block when PingOne live requires human approval', async () => {

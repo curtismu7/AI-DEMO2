@@ -9,6 +9,7 @@
 'use strict';
 
 const configStore = require('./configStore');
+const runtimeSettings = require('../config/runtimeSettings');
 const pingOneAuthorizeService = require('./pingOneAuthorizeService');
 const simulatedAuthorizeService = require('./simulatedAuthorizeService');
 const { decodeJwtClaims } = require('./agentMcpTokenService');
@@ -204,6 +205,25 @@ function resolveAmountForPolicy(tool, toolParams, verticalId, userId) {
   } catch (_) {
     return null; // never throw into the gate
   }
+}
+
+/**
+ * Which step-up method the client should drive, echoed on every 428 step-up body.
+ *
+ * The agent step-up modal renders its device picker (SMS / email / passkey) only
+ * when this is exactly 'p1mfa'; any other value — including a missing field —
+ * makes it fall back to the stub OTP-only modal, so a passkey can never be
+ * chosen. Same resolution order as transactionAuthorizationService so the agent
+ * and direct transaction paths cannot disagree.
+ *
+ * @returns {string} 'p1mfa' | 'email' | 'ciba'
+ */
+function resolveStepUpMethod() {
+  return (
+    configStore.getEffective('step_up_method') ||
+    runtimeSettings.get('stepUpMethod') ||
+    'email'
+  );
 }
 
 /**
@@ -575,6 +595,10 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
             authorize_engine: 'pingone',
             decisionContext: 'McpFirstTool',
             decisionId: r.decisionId,
+            // Drives the agent step-up modal: only 'p1mfa' makes it show the
+            // device picker (SMS / email / passkey). Omitting the field left it
+            // undefined, so every agent step-up fell back to stub OTP-only.
+            step_up_method: resolveStepUpMethod(),
             ...autoDisabled,
           },
         },
@@ -649,6 +673,10 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
               authorize_engine: 'simulated',
               decisionContext: 'McpFirstTool',
               decisionId: r.decisionId,
+              // Drives the agent step-up modal: only 'p1mfa' makes it show the
+              // device picker (SMS / email / passkey). Omitting the field left it
+              // undefined, so every agent step-up fell back to stub OTP-only.
+              step_up_method: resolveStepUpMethod(),
             },
           },
         };
@@ -817,6 +845,10 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
             authorize_engine: 'fallback_simulated',
             decisionContext: 'McpFirstTool',
             decisionId: r.decisionId,
+            // Drives the agent step-up modal: only 'p1mfa' makes it show the
+            // device picker (SMS / email / passkey). Omitting the field left it
+            // undefined, so every agent step-up fell back to stub OTP-only.
+            step_up_method: resolveStepUpMethod(),
             authorizeFallback,
           } } };
         }
