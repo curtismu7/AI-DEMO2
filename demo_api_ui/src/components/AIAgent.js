@@ -92,6 +92,10 @@ import {
 } from "../services/apiResponseValidator";
 import { getColdStartRetryDelays } from "../services/apiErrorHandler";
 import APP_CONFIG from "../services/appConfig";
+import {
+  buildBankingHitlPendingFromAgentResponse,
+  buildBankingStepUpReplayFromAgentResponse,
+} from "../utils/agentHitlIntentFromResponse";
 import { useCustomChips } from "../hooks/useCustomChips";
 import AgentModeSelector from "./AgentModeSelector";
 import Check from "./common/Check";
@@ -6369,14 +6373,45 @@ export default function BankingAgent({
       addMessage("user", text, null, { isPrompt: !!useCaseId });
       setNlLoading(true);
       try {
-        // forceHeuristic (only when useCaseId is set — a scripted Demo Steps/
-        // use-case chip, not free-form chat): the chip's trigger phrase already
-        // maps to a known deterministic action, so it must run regardless of
-        // agent_mode — otherwise a non-heuristics mode (e.g. local dev's
-        // llama.cpp default) routes it to the LLM instead, which handles it
-        // conversationally and never reaches the real tool/step-up pipeline.
-        // Same reasoning as the kind:'vertical' forceHeuristic re-dispatch above.
-        const response = await sendAgentMessage(text, null, { signal, vertical: effectiveVerticalId, useCaseId, forceHeuristic: !!useCaseId });
+        // Demo Steps / launcher (useCaseId set): use the same /nl → dispatchNlResult
+        // path as chips. A direct sendAgentMessage hit the authorize gate, but this
+        // effect's gate UI was incomplete — banking HITL set form:{} (transfer replay
+        // then called createTransferWithConsent with undefined ids / NaN amount), and
+        // step-up / vertical HITL never opened a modal. Force provider:heuristic so
+        // agent_mode cannot divert a scripted chip to the LLM (same intent as the
+        // previous forceHeuristic: !!useCaseId on sendAgentMessage).
+        if (useCaseId) {
+          const nlRes = await fetch("/api/demo-agent/nl", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              message: text,
+              provider: "heuristic",
+              ...(effectiveVerticalId && { vertical: effectiveVerticalId }),
+            }),
+            signal,
+          });
+          const { result, source } = await nlRes.json().catch(() => ({
+            result: { kind: "none", message: "Could not parse request." },
+            source: "heuristic",
+          }));
+          if (!cancelled && !signal.aborted) {
+            tokenChain?.setNlRoutingEvent({
+              prompt: text,
+              source: source || "heuristic",
+              intent: result,
+              timestamp: new Date().toISOString(),
+              heuristicSaved: true,
+            });
+            await dispatchNlResult(result, source || "heuristic", text, useCaseId);
+          }
+          return;
+        }
+
+        // Post-auth free-form resume (no useCaseId): invoke the agent, then open
+        // the correct gate UI for banking HITL / step-up envelopes.
+        const response = await sendAgentMessage(text, null, { signal, vertical: effectiveVerticalId });
         if (!cancelled && !signal.aborted) {
           // Dispatch backend events to EventStream
           if (response.events && Array.isArray(response.events)) {
@@ -6414,25 +6449,57 @@ export default function BankingAgent({
                 addMessage("token-event", agentTokenMsg, null);
               }
             }
-            // Trigger HITL consent modal when the response has transaction details
-            if (
-              (response.error === "hitl_required" || response.error === "mcp_hitl_required") &&
-              response.transactionAmount != null
-            ) {
-              const intentPayload = {
-                type: response.transactionType || "transfer",
-                fromAccountId: response.fromAccountId || response.from_account_id,
-                toAccountId: response.toAccountId || response.to_account_id,
-                amount: response.transactionAmount,
-                description: `Agent ${response.transactionType || "transfer"}`,
-              };
-              setHitlPendingIntent({
-                actionId: response.transactionType || "transfer",
-                form: {},
-                intentPayload,
-                threshold: response.hitl_threshold_usd ?? APP_CONFIG.THRESHOLDS.HITL_DEFAULT,
-                hitlChallengeId: response.hitlChallengeId || response.challengeId || null,
-              });
+            // Banking HITL: populate form from transaction fields (not {}).
+            const bankingHitl = buildBankingHitlPendingFromAgentResponse(
+              response,
+              APP_CONFIG.THRESHOLDS.HITL_DEFAULT,
+            );
+            if (bankingHitl) {
+              setHitlPendingIntent(bankingHitl);
+            } else {
+              // Banking step-up (e.g. $600 transfer): open MFA, then replay via runAction.
+              const stepUpReplay = buildBankingStepUpReplayFromAgentResponse(response);
+              if (stepUpReplay) {
+                setOtpContextLine(
+                  `Transfer over $${response.transactionAmount} requires identity verification`,
+                );
+                pendingOtpActionRef.current = {
+                  actionId: stepUpReplay.actionId,
+                  form: stepUpReplay.form,
+                };
+                setStepUpMethod("otp");
+                setShowOtpModal(true);
+              } else if (
+                response.error === "hitl_required" ||
+                response.error === "mcp_hitl_required" ||
+                response.error === "step_up_required" ||
+                response.error === "mcp_step_up_required"
+              ) {
+                // Vertical (or other non-banking) gate: same isVerticalConsent path as chips.
+                const isStepUp =
+                  response.error === "step_up_required" ||
+                  response.error === "mcp_step_up_required" ||
+                  !!response.requiresStepUp ||
+                  !!response.step_up_required;
+                const actionLabel = (response.action || "").replace(/_/g, " ");
+                setHitlPendingIntent({
+                  isVerticalConsent: true,
+                  verticalMessage: text,
+                  verticalOpts: {
+                    forceHeuristic: true,
+                    vertical: effectiveVerticalId,
+                  },
+                  hitlChallengeId: response.hitlChallengeId || response.challengeId || null,
+                  tool: response.action || null,
+                  intentPayload: {
+                    type: isStepUp ? "Identity Verification Required" : "Action Confirmation",
+                    description: actionLabel
+                      ? actionLabel.charAt(0).toUpperCase() + actionLabel.slice(1)
+                      : "this action",
+                    amount: 0,
+                  },
+                });
+              }
             }
           } else if (response.error || !response.success) {
             reportNlFailure({ code: response.error || "unknown", message: response.reply || response.message || response.error });

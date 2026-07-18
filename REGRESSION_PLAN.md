@@ -84,6 +84,34 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-18 — Demo Steps / nlResumeAfterAuth HITL + step-up gate UI broken after #587
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/utils/agentHitlIntentFromResponse.js`,
+`demo_api_ui/src/utils/__tests__/agentHitlIntentFromResponse.test.js`,
+`demo_api_server/services/demoAgentLangGraphService.js`.
+
+**What was broken:** `#587` forced `forceHeuristic` on Demo Steps so scripted
+chips reach the real Authorize pipeline. The `nlResumeAfterAuth` effect then
+handled gated replies incompletely: banking HITL set `form: {}` while account
+ids lived only on `intentPayload`, so after consent
+`createTransferWithConsent(undefined, undefined, NaN)` failed; step-up (UC7
+`$600`) and vertical HITL never opened a modal at all — only a chat text reply.
+
+**What was fixed:** Demo Steps / launcher (`useCaseId` set) now route through
+the same `/nl` → `dispatchNlResult` path chips use (provider forced to
+`heuristic`). Post-auth free-form resume still uses `sendAgentMessage`, but
+builds a populated banking HITL form, opens MFA for banking step-up, and uses
+`isVerticalConsent` for non-banking gates. Banking HITL replies also forward
+`hitlChallengeId` (parity with step-up).
+
+**Do not break:** Chip `runAction` form field names (`fromId`/`toId`/`amount`),
+Transfer HITL 428 on `/api/transactions`, vertical `isVerticalConsent` approve
++ retry with challenge id, `#587` force-heuristic intent for scripted chips.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/utils/__tests__/agentHitlIntentFromResponse.test.js`
+and `npm run build`.
+
 ### 2026-07-17 — #539 amount-from-record dead on session-only `/api/mcp/tool`
 
 **Files changed:** `demo_api_server/services/mcpToolAuthorizationService.js`,
