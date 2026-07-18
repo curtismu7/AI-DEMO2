@@ -14,6 +14,7 @@ const router = express.Router();
 const ledger = require('../services/lmdb/transactionLedger.lmdb');
 const { traceIdFromCorrelation } = require('../utils/traceIdFromCorrelation');
 const { assemble } = require('../services/transactionAssembler');
+const { evaluate } = require('../services/transactionInvariants');
 
 // Ownership: any logged-in user sees only transactions attributed to their own
 // principal; admins see everything. A record whose principal is unknown (no
@@ -85,6 +86,7 @@ router.get('/:correlationId', async (req, res) => {
   return res.json({
     ...record,
     traceId: traceIdFromCorrelation(record.correlationId),
+    verdict: evaluate(record),
   });
 });
 

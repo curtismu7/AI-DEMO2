@@ -100,6 +100,21 @@ describe('GET /api/transaction-trace', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ transactions: [] });
   });
+
+  test('attaches a verdict computed from the assembled hops', async () => {
+    assemble.mockResolvedValue({
+      correlationId: 'c1',
+      startedAt: 'A',
+      endedAt: 'B',
+      hops: [
+        { seq: 1, ts: '2026-07-18T00:00:00.000Z', service: 'authz-server', phase: 'authz.decision', op: 'x', decision: { outcome: 'deny', by: 'mock', reason: 'nope' } },
+        { seq: 2, ts: '2026-07-18T00:00:01.000Z', service: 'mcp-server', phase: 'mcp.tool', op: 'x' },
+      ],
+    });
+    const res = await request(app()).get('/api/transaction-trace/c1');
+    expect(res.body.verdict.status).toBe('FAIL');
+    expect(res.body.verdict.violations.map((v) => v.id)).toContain('INV-6');
+  });
 });
 
 describe('ownership enforcement — GET /api/transaction-trace/:correlationId', () => {
