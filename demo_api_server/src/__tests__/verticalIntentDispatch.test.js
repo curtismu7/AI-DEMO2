@@ -170,7 +170,12 @@ describe('dispatchVerticalIntent', () => {
     // must normalise it to a consent envelope and thread the challengeId — the
     // behaviour the removed agentPreflightService preflight used to provide.
     executeBffTool.mockImplementationOnce(async () =>
-      JSON.stringify({ error: 'mcp_hitl_required', error_description: 'Human approval required.', challengeId: 'chal-1' }),
+      JSON.stringify({
+        error: 'mcp_hitl_required',
+        error_description: 'Human approval required.',
+        challengeId: 'chal-1',
+        mcpAuthorizeEvaluation: { decision: 'INDETERMINATE', engine: 'simulated', decisionId: 'd-1' },
+      }),
     );
     const heuristic = { kind: 'vertical', vertical: 'healthcare', action: 'release_records', params: { recordId: 'rec-1' } };
     const out = await __test.dispatchVerticalIntent(heuristic, { userId: 'u', userToken: 't', req: null, tokenEvents: [], sessionId: 's' });
@@ -179,5 +184,9 @@ describe('dispatchVerticalIntent', () => {
     expect(out.hitl).toEqual({ type: 'consent' });
     expect(out.hitlChallengeId).toBe('chal-1');
     expect(out.success).toBe(false);
+    // ProofOfEnforcement's authorize-decision step only lights up when this
+    // survives to the top-level response — see demoAgentService.js's
+    // ingestLegacyRunTrace, which gates ingestAuthorize() on its presence.
+    expect(out.mcpAuthorizeEvaluation).toEqual({ decision: 'INDETERMINATE', engine: 'simulated', decisionId: 'd-1' });
   });
 });
