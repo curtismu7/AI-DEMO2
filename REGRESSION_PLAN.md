@@ -140,6 +140,50 @@ popout via `document.querySelector(".ba-actions-trigger[aria-haspopup='dialog']"
 so they opened the Demo steps popout instead. They now query by accessible name;
 the admin-chips test awaits the async manifest load (`findByText`). Test-only
 change; no component behaviour altered.
+### 2026-07-18 — Gateway-denied attack sims (UC5/UC11/UC12) always rendered "Incomplete"
+
+**Files changed:** `demo_api_server/config/useCases.js` (UC5/UC11/UC12
+`evidence.tokenChain`), `demo_api_ui/src/utils/pingProducts.js` (sim step ids),
+`demo_api_server/services/mcpToolAuthorizationService.js`
+(`resolveExpectedMcpResourceSetting`), `demo_api_server/services/mcpGatewayClient.js`
+(401 aud-mismatch message), `demo_api_server/services/attackSimulatorService.js`
+(`simulatedAttack` opt on the two wrong-aud sims).
+
+**What was broken:** UC5/UC11/UC12 declared `evidence.tokenChain:
+['user-token','authorize-decision']`, but all three sims are blocked at the
+gateway (aud binding / scope check) BEFORE PingOne Authorize is consulted, so
+`trace.authorize` is never set. `ingestTokenEvents` also *replaces* the event
+array, wiping any earlier `user-token`. `computeVerdict` short-circuits on
+`missingSteps.length > 0` before `expectedOutcome` is ever compared, so a
+correct 401 DENY still rendered "Incomplete" on every run. Separately, the
+401 handler hardcoded `Fix: set MCP_SERVER_RESOURCE_URI=<expectedAud>` — wrong
+on the PingGateway path (that audience comes from
+`pingone_resource_pinggateway_uri`), so following the advice would have broken
+a correct config; and it framed the sims' *deliberate* wrong audience as
+configuration drift.
+
+**What was fixed:** the three evidence contracts now declare the events the
+sims actually emit (`sim-exchange-ok` / `sim-replay-start` + `sim-gateway-deny`);
+those ids were added to the product-badge map (idp + gw — Authorize genuinely
+is not involved). The remediation text now names the setting that drives the
+audience in the *active* mode, and an attack sim passes `simulatedAttack: true`
+so the mismatch is reported as the expected block, not as drift.
+
+**Do not break:** `resolveExpectedMcpResourceUri()` must keep returning exactly
+what it returned before (the mode branches were extracted to `_resolveResourceMode()`
+with no behavior change); `computeVerdict`'s short-circuit on missing evidence
+is unchanged — only the catalog's declared evidence moved. A use case whose sim
+DOES reach Authorize (UC10/UC13/UC14/UC16) must keep `authorize-decision`.
+
+**Verify:** `npx jest demo_api_server/src/__tests__/attackSimulator.test.js
+demo_api_server/src/__tests__/mcpGatewayClient.reauth.test.js
+demo_api_server/tests/use-cases-maturity.test.js
+demo_api_server/src/__tests__/attackSimulator.wrongAudFields.test.js
+--testPathIgnorePatterns="/node_modules/"` (26 passed); `cd demo_api_ui &&
+npx vitest run src/context/__tests__/ProofOfEnforcementContext.test.js
+src/utils/pingProducts.test.js` (33 passed); `cd demo_api_ui && npm run build`
+(exit 0).
+
 ### 2026-07-18 — Demo Steps HITL/step-up gates printed the denial text and never opened the approval modal
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js` (the NL-resume
