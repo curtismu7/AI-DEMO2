@@ -19,8 +19,10 @@ KEY_FILE="${CERTS_DIR}/api.ping.demo+2-key.pem"
 # refuses a rp.id whose TLD isn't public, so passkeys can only be demoed from a
 # host under ping-devops.com. The filename stays api.ping.demo+2.pem regardless
 # of SAN count (pinned via mkcert -cert-file) because ~10 files hardcode it.
+# demo-api-server is the in-container origin (compose service name) used for
+# service-to-service HTTPS — dropping it breaks intra-network TLS verification.
 REQUIRED_SAN="local.ping-devops.com"
-CERT_SANS=(api.ping.demo "${REQUIRED_SAN}" localhost 127.0.0.1)
+CERT_SANS=(api.ping.demo "${REQUIRED_SAN}" demo-api-server localhost 127.0.0.1)
 
 warn() { echo "  !  $*" >&2; }
 err()  { echo "  x  $*" >&2; }

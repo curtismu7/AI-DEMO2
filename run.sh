@@ -172,12 +172,14 @@ else
       # origin host or a registrable parent of it, and PingOne refuses a rp.id
       # whose TLD isn't public — so passkeys can only be demoed from a host under
       # ping-devops.com, never from api.ping.demo.
-      # Both local browser origins are always covered: api.ping.demo is also the
-      # docker-compose network alias used for intra-network TLS, so dropping it
-      # would break service-to-service calls.
+      # Both local browser origins are always covered, plus demo-api-server: the
+      # first is the compose network alias and the second the compose service
+      # name, and both are used for intra-network TLS — dropping either breaks
+      # service-to-service calls.
       _cert_sans=("${API_HOST}" localhost 127.0.0.1)
       [[ "${API_HOST}" == "local.ping-devops.com" ]] || _cert_sans+=(local.ping-devops.com)
       [[ "${API_HOST}" == "api.ping.demo" ]] || _cert_sans+=(api.ping.demo)
+      [[ "${API_HOST}" == "demo-api-server" ]] || _cert_sans+=(demo-api-server)
       # -cert-file/-key-file pin the output names. Without them mkcert names the
       # file after the SAN count, so adding a SAN would rename api.ping.demo+2.pem
       # to +3 and break every hardcoded reference to it across the repo.
