@@ -1,8 +1,11 @@
 import { Request, Response } from 'express';
 import { timingSafeEqual } from 'crypto';
+import { trace } from '@opentelemetry/api';
 import { EventType } from '@ag-ui/core';
 import { reasonOnce } from './reasoningGraph';
 import type { ReasonMessage, ReasonResponse, ReasonToolSchema } from './reasonContract';
+
+const tracer = trace.getTracer('banking-agent-service');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -261,30 +264,38 @@ function secretsMatch(a: string, b: string): boolean {
 
 export function makeAgentRunHandler(internalSecret: string, pinnedBffToolUrl?: string) {
   return async function agentRunHandler(req: Request, res: Response): Promise<void> {
-    const incoming = req.headers['x-internal-gateway-secret'];
-    if (typeof incoming !== 'string' || !secretsMatch(incoming, internalSecret)) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
+    const requestSpan = tracer.startSpan('agent-run-request', {
+      attributes: { 'http.method': 'POST', 'http.url': '/run' },
+    });
 
-    const body = req.body as RunAgentInput;
-    const { threadId, runId, messages: initialMessages, tools = [], context = {}, resume } = body;
-    let messages: ReasonMessage[] = [...initialMessages];
+    try {
+      const incoming = req.headers['x-internal-gateway-secret'];
+      if (typeof incoming !== 'string' || !secretsMatch(incoming, internalSecret)) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
 
-    if (!threadId || !runId || !Array.isArray(messages)) {
-      res.status(400).json({ error: 'threadId, runId, and messages are required' });
-      return;
-    }
+      const body = req.body as RunAgentInput;
+      const { threadId, runId, messages: initialMessages, tools = [], context = {}, resume } = body;
+      let messages: ReasonMessage[] = [...initialMessages];
 
-    const { bffToolUrl, sessionId, initialTokenEvents = [], provider, model } = context;
+      if (!threadId || !runId || !Array.isArray(messages)) {
+        res.status(400).json({ error: 'threadId, runId, and messages are required' });
+        return;
+      }
 
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no');
-    res.flushHeaders();
+      requestSpan.setAttribute('thread_id', threadId);
+      requestSpan.setAttribute('run_id', runId);
 
-    let aborted = false;
+      const { bffToolUrl, sessionId, initialTokenEvents = [], provider, model } = context;
+
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
+      res.flushHeaders();
+
+      let aborted = false;
     // Detect a genuine client disconnect via the RESPONSE stream, not the request.
     // `req.on('close')` fires when the request *body* stream ends (Node 16+) — for a
     // fully-read POST that happens mid-run, a false positive that aborted the content
@@ -348,6 +359,11 @@ export function makeAgentRunHandler(internalSecret: string, pinnedBffToolUrl?: s
 
       let reasonResult: ReasonResponse | undefined;
       try {
+        const span = tracer.startSpan(`reasoning-step-${iter + 1}`);
+        span.setAttribute('iteration', iter + 1);
+        span.setAttribute('message_count', conversationMessages.length);
+        span.setAttribute('provider', provider ?? process.env.AGENT_PROVIDER ?? 'anthropic');
+
         reasonResult = await reasonOnce({
           messages: conversationMessages,
           tools,
@@ -356,6 +372,21 @@ export function makeAgentRunHandler(internalSecret: string, pinnedBffToolUrl?: s
           anthropicApiKey: process.env.ANTHROPIC_API_KEY,
           googleApiKey: process.env.GOOGLE_API_KEY,
         });
+
+        if (reasonResult.type === 'final') {
+          if (reasonResult.inputTokens) {
+            span.setAttribute('input_tokens', reasonResult.inputTokens);
+          }
+          if (reasonResult.outputTokens) {
+            span.setAttribute('output_tokens', reasonResult.outputTokens);
+          }
+        } else if (reasonResult.reasoning?.contextTokens) {
+          span.setAttribute('input_tokens', reasonResult.reasoning.contextTokens.inputTokens);
+          if (reasonResult.reasoning.contextTokens.outputTokens) {
+            span.setAttribute('output_tokens', reasonResult.reasoning.contextTokens.outputTokens);
+          }
+        }
+        span.end();
       } catch (err) {
         emit(res, { type: EventType.RUN_ERROR, message: 'Reasoning failed: ' + String(err), code: 'REASONING_ERROR' });
         res.end();
@@ -449,7 +480,16 @@ export function makeAgentRunHandler(internalSecret: string, pinnedBffToolUrl?: s
           emit(res, { type: EventType.TOOL_CALL_ARGS, toolCallId: callId, delta: JSON.stringify(call.args) });
           emit(res, { type: EventType.TOOL_CALL_END, toolCallId: callId });
 
+          const toolSpan = tracer.startSpan(`tool-execution`);
+          toolSpan.setAttribute('tool_name', call.name);
+          toolSpan.setAttribute('tool_call_id', callId);
+
           const { result, mcpEntry, authorizeDecision, callTokenEvents } = await executeTool(call.name, call.args, bffToolUrl, pinnedBffToolUrl, sessionId, internalSecret);
+
+          if (mcpEntry?.durationMs) {
+            toolSpan.setAttribute('duration_ms', mcpEntry.durationMs);
+          }
+          toolSpan.end();
 
           const interrupt = extractHitlInterrupt(result);
           if (interrupt) {
@@ -530,7 +570,10 @@ export function makeAgentRunHandler(internalSecret: string, pinnedBffToolUrl?: s
       { op: 'replace', path: '/activeRun/status', value: 'error' },
       { op: 'replace', path: '/activeRun/currentStep', value: null },
     ]);
-    emit(res, { type: EventType.RUN_ERROR, message: 'max_iterations_reached', code: 'MAX_ITERATIONS' });
-    res.end();
+      emit(res, { type: EventType.RUN_ERROR, message: 'max_iterations_reached', code: 'MAX_ITERATIONS' });
+      res.end();
+    } finally {
+      requestSpan.end();
+    }
   };
 }
