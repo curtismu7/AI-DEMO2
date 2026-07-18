@@ -404,6 +404,18 @@ async function runMcpToolPipeline(ctx) {
                 : mcpAuthz.block.body.error === 'mcp_hitl_required'
                     ? 'INDETERMINATE'
                     : 'DENY';
+            // Which KIND of block this was. `authorizeDecision` above collapses
+            // step-up and HITL to the same 'INDETERMINATE', so a consumer checking
+            // "decision !== PERMIT" cannot tell a hard deny from an approval gate —
+            // that made a use case expecting DENY render green on a HITL block.
+            // The block's `error` code already names the outcome exactly; surface it.
+            const authorizeOutcome = {
+                mcp_authorization_denied: 'DENY',
+                mcp_step_up_required: 'STEP_UP',
+                mcp_hitl_required: 'HITL_REQUIRED',
+                mcp_hitl_receipt_rejected: 'HITL_REQUIRED',
+                policy_not_found: 'POLICY_NOT_FOUND',
+            }[mcpAuthz.block.body.error] || null;
             // BFF-simulated engine decided (ff_authorize_simulated, or a genuine
             // PingOne-unreachable fallback): mirror the PERMIT branch below and
             // push the gw-authorize Token Chain card here too, so DENY/step-up/
@@ -444,6 +456,7 @@ async function runMcpToolPipeline(ctx) {
                 tokenEvents,
                 mcpAuthorizeEvaluation: {
                     decision: authorizeDecision,
+                    outcome: authorizeOutcome,
                     engine: mcpAuthz.block.body.authorize_engine || null,
                     decisionContext: mcpAuthz.block.body.decisionContext,
                     decisionId: mcpAuthz.block.body.decisionId,

@@ -250,3 +250,44 @@ describe('gateway-denied attack sims reach a verdict', () => {
     expect(v.missingSteps).toEqual(['user-token', 'authorize-decision']);
   });
 });
+
+// Regression: a deny-like expectation used to be satisfied by ANY non-PERMIT
+// decision. mcpToolPipeline collapses step-up and HITL to 'INDETERMINATE', so a
+// use case advertising a hard DENY rendered "Verified (denied as expected)" when
+// the engine had actually returned PERMIT + a HITL approval obligation.
+// trace.authorize.outcome now names the block kind; the verdict must honour it.
+describe('deny-like verdicts discriminate block kind', () => {
+  const entry = (expectedOutcome) => ({
+    useCaseId: 'authz-denied', title: 'Authz denied', expectedOutcome,
+    evidence: { tokenChain: ['authorize-decision'], activity: ['authorize'] },
+  });
+  const trace = (outcome) => ({
+    tokenEvents: [], mcpResult: null,
+    authorize: { decision: 'INDETERMINATE', outcome },
+  });
+
+  test('DENY expected but a HITL gate fired is a mismatch', () => {
+    expect(computeVerdict(trace('HITL_REQUIRED'), entry('DENY')).state).toBe('mismatch');
+  });
+
+  test('DENY expected and DENY fired is denied-as-expected', () => {
+    expect(computeVerdict(trace('DENY'), entry('DENY')).state).toBe('denied-as-expected');
+  });
+
+  test('HITL_REQUIRED expected and HITL fired stays green', () => {
+    expect(computeVerdict(trace('HITL_REQUIRED'), entry('HITL_REQUIRED')).state).toBe('denied-as-expected');
+  });
+
+  test('STEP_UP expected and step-up fired stays green', () => {
+    expect(computeVerdict(trace('STEP_UP'), entry('STEP_UP')).state).toBe('denied-as-expected');
+  });
+
+  test('STEP_UP expected but DENY fired is a mismatch', () => {
+    expect(computeVerdict(trace('DENY'), entry('STEP_UP')).state).toBe('mismatch');
+  });
+
+  test('no outcome reported falls back to the PERMIT/non-PERMIT check', () => {
+    const t = { tokenEvents: [], mcpResult: null, authorize: { decision: 'DENY' } };
+    expect(computeVerdict(t, entry('DENY')).state).toBe('denied-as-expected');
+  });
+});

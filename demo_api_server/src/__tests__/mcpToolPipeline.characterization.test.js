@@ -182,6 +182,9 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     expect(outcome.body.error).toBe('mcp_authorization_denied');
     expect(outcome.body.mcpAuthorizeEvaluation).toEqual({
       decision: 'DENY',
+      // Names the block KIND. `decision` collapses step-up and HITL to the same
+      // 'INDETERMINATE', so it cannot tell a hard deny from an approval gate.
+      outcome: 'DENY',
       engine: null,
       decisionContext: { x: 1 },
       decisionId: 'd1',

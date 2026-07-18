@@ -10,6 +10,16 @@ const ProofContext = createContext(null);
 // true-by-default match to 'denied-as-expected' instead of 'verified'.
 const DENIED_LIKE_OUTCOMES = new Set(['DENY', 'DENY_401', 'DENY_403', 'DENY_429', 'STEP_UP', 'HITL_REQUIRED']);
 
+// Which block kind each catalog expectedOutcome demands. mcpToolPipeline stamps
+// the actual kind on trace.authorize.outcome (DENY / STEP_UP / HITL_REQUIRED /
+// POLICY_NOT_FOUND). Comparing families — rather than the old "decision !==
+// 'PERMIT'" — is what stops a use case expecting a hard DENY from rendering green
+// when the engine actually returned an approval gate.
+const EXPECTED_OUTCOME_FAMILY = {
+  DENY: 'DENY', DENY_401: 'DENY', DENY_403: 'DENY', DENY_429: 'DENY',
+  STEP_UP: 'STEP_UP', HITL_REQUIRED: 'HITL_REQUIRED',
+};
+
 // Sign-in / session cards are reused across runs (see beginTrace). Their tags
 // must not select the Proof catalog entry — that belongs to the current call.
 const SESSION_EVENT_IDS = new Set([
@@ -47,20 +57,14 @@ function verticalOf(trace) {
 }
 
 function decisionOf(trace) {
-  // NOTE (discovered during planning, not fixed by this plan): the PERMIT
-  // branch of mcpToolAuthorizationService.js populates evaluation.decision
-  // (e.g. 'PERMIT'), but its plain-DENY branch (services/mcpToolAuthorizationService.js:442-455)
-  // never sets `decision` on the block body at all — only `decisionContext`
-  // (a fixed string like 'McpFirstTool') and `decisionId`. So `trace.authorize.decision`
-  // is reliably present for PERMIT outcomes but absent for DENY/HITL/STEP_UP block
-  // outcomes. Fast-follow fix (out of scope here — touches mcpToolAuthorizationService.js,
-  // not just the tagging this plan adds): add `decision: r.decision` to that DENY
-  // branch's returned body, mirroring the PERMIT branch, then pass it through
-  // mcpToolPipeline.js's block-path mcpAuthorizeEvaluation alongside useCaseId.
-  // Until then, `computeVerdict` below treats a missing `decision` as "can't
-  // contradict expectedOutcome" (see outcomeMatches) rather than fabricate one —
-  // it relies on the evidence-step-completeness check (matchedSteps/missingSteps)
-  // as the primary signal, which does not depend on this field.
+  // `decision` IS populated on block outcomes — mcpToolPipeline.js synthesizes it
+  // for the block path ('INDETERMINATE' for step-up/HITL, 'DENY' otherwise), and
+  // mcpToolAuthorizationService.js's PERMIT branch sets the real value. It is NOT
+  // the raw PingOne decision on the block path: PingOne returns PERMIT plus a HITL
+  // obligation for an approval gate, which the pipeline maps to 'INDETERMINATE'.
+  // Because step-up and HITL collapse to the same value here, `decision` alone
+  // cannot identify the block kind — computeVerdict uses trace.authorize.outcome
+  // for that and keeps this only as the PERMIT/non-PERMIT fallback.
   const d = trace.authorize && trace.authorize.decision;
   return d || null;
 }
@@ -98,11 +102,19 @@ export function computeVerdict(trace, catalogEntry) {
   // binary question keyed on DENIED_LIKE_OUTCOMES membership, not a literal
   // string match against `expected`.
   const expectedIsDenyLike = !!expected && DENIED_LIKE_OUTCOMES.has(expected);
-  const outcomeMatches = !expected || !decision
-    ? true
-    : expectedIsDenyLike
-      ? decision !== 'PERMIT'
-      : decision === 'PERMIT';
+  // When the block path reported WHICH kind of block occurred, hold the run to
+  // the specific outcome the catalog claims. Without this, any non-PERMIT value
+  // satisfied every deny-like expectation, so a use case advertising a hard DENY
+  // went green on a HITL approval gate (and vice versa).
+  const actualOutcome = trace.authorize && trace.authorize.outcome;
+  const expectedFamily = expected && EXPECTED_OUTCOME_FAMILY[expected];
+  const outcomeMatches = expectedIsDenyLike && expectedFamily && actualOutcome
+    ? actualOutcome === expectedFamily
+    : !expected || !decision
+      ? true
+      : expectedIsDenyLike
+        ? decision !== 'PERMIT'
+        : decision === 'PERMIT';
   return {
     useCaseId,
     title: catalogEntry.title,
