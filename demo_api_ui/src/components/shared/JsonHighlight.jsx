@@ -65,17 +65,37 @@ function formatJson(value, deep) {
 
 const TOKEN_RE = /("(?:[^"\\]|\\.)*"\s*:)|("(?:[^"\\]|\\.)*")|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|(\b(?:true|false|null)\b)|([{}[\],:])/g;
 
+const CRITICAL_FIELDS = new Set(['decision', 'outcome', 'error', 'status', 'errorCode', 'error_code', 'result']);
+
+function extractFieldName(keyText) {
+  const m = keyText.match(/"([^"]+)"\s*:/);
+  return m ? m[1] : null;
+}
+
 function tokenize(text) {
   const tokens = [];
   let last = 0;
+  let lastKeyWasCritical = false;
   TOKEN_RE.lastIndex = 0;
   for (let m = TOKEN_RE.exec(text); m !== null; m = TOKEN_RE.exec(text)) {
     if (m.index > last) tokens.push({ type: "plain", text: text.slice(last, m.index) });
-    if (m[1]) tokens.push({ type: "key", text: m[1] });
-    else if (m[2]) tokens.push({ type: "string", text: m[2] });
-    else if (m[3]) tokens.push({ type: "number", text: m[3] });
-    else if (m[4]) tokens.push({ type: "keyword", text: m[4] });
-    else if (m[5]) tokens.push({ type: "punct", text: m[5] });
+    if (m[1]) {
+      const fieldName = extractFieldName(m[1]);
+      const isCritical = fieldName && CRITICAL_FIELDS.has(fieldName);
+      tokens.push({ type: "key", text: m[1], critical: isCritical });
+      lastKeyWasCritical = isCritical;
+    } else if (m[2]) {
+      tokens.push({ type: "string", text: m[2], critical: lastKeyWasCritical });
+      lastKeyWasCritical = false;
+    } else if (m[3]) {
+      tokens.push({ type: "number", text: m[3], critical: lastKeyWasCritical });
+      lastKeyWasCritical = false;
+    } else if (m[4]) {
+      tokens.push({ type: "keyword", text: m[4], critical: lastKeyWasCritical });
+      lastKeyWasCritical = false;
+    } else if (m[5]) {
+      tokens.push({ type: "punct", text: m[5] });
+    }
     last = TOKEN_RE.lastIndex;
   }
   if (last < text.length) tokens.push({ type: "plain", text: text.slice(last) });
@@ -87,9 +107,10 @@ export default function JsonHighlight({ value, deep = false }) {
   if (text === null) return <span className="jh-empty">—</span>;
   return (
     <>
-      {tokenize(text).map((t, i) => (
-        <span key={i} className={`jh-${t.type}`}>{t.text}</span>
-      ))}
+      {tokenize(text).map((t, i) => {
+        const className = t.critical ? `jh-${t.type} jh-critical` : `jh-${t.type}`;
+        return <span key={i} className={className}>{t.text}</span>;
+      })}
     </>
   );
 }
