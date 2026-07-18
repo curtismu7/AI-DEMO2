@@ -131,7 +131,7 @@ run_api_tests() {
   rm -f "$log"
 }
 
-echo "local CI (GitHub Actions is billing-blocked; see issue #524)"
+echo "local CI (GitHub Actions on this repo is billing-blocked — remote checks fail in ~3-4s with 0 steps executed; that red X is not a real result, this local run is authoritative)"
 ensure_deps demo_api_server
 ensure_deps demo_mcp_gateway
 

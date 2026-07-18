@@ -26,7 +26,7 @@ const log = createLogger("callMcpTool");
 // Must stay >= the BFF's own reason-loop timeout (same source file) or the
 // client aborts — and silently drops the reply, see the catch in AIAgent.js —
 // before the server's honest answer/error message has a chance to arrive.
-const AGENT_INVOKE_TIMEOUT_MS = llmTimeouts.REASON_LOOP_TIMEOUT_MS + 5000;
+export const AGENT_INVOKE_TIMEOUT_MS = llmTimeouts.REASON_LOOP_TIMEOUT_MS + 5000;
 const streamLog = createLogger("parseStreamingResponse");
 
 /**

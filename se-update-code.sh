@@ -238,8 +238,16 @@ else
 fi
 
 # ── Post-deploy smoke checks (fail at deploy time, not demo time) ─────────────
+# A single-service push (-n "$SERVICE") only ever touches that one deployment —
+# every other running pod legitimately predates it, so scope check 2/7's
+# staleness scan to just what this run actually rolled (see roll_deployment
+# calls above); the full (-z "$SERVICE") path leaves this empty and checks
+# everything, same as before.
+SMOKE_SCOPE=""
+[ -n "$SERVICE" ] && SMOKE_SCOPE="$(k8s_dep "$SERVICE")"
 info "Running post-deploy smoke checks..."
-SE_NAMESPACE="$NS" DEPLOY_START_EPOCH="$DEPLOY_START_EPOCH" bash "$BASEDIR/k8s/smoke.sh" \
+SE_NAMESPACE="$NS" DEPLOY_START_EPOCH="$DEPLOY_START_EPOCH" SMOKE_CHECK_DEPLOYMENTS="$SMOKE_SCOPE" \
+  bash "$BASEDIR/k8s/smoke.sh" \
   || die "Smoke checks failed — see [FAIL] lines above for what is degraded and how to fix it."
 
 success ""
