@@ -30,7 +30,15 @@ const ATTR = {
   Amount: '12345678-0001-4321-abcd-000000000001',
   ToolName: '12345678-0008-4321-abcd-000000000008',
   HitlApproved: '12345678-0013-4321-abcd-000000000013',
+  DecisionContext: '12345678-0007-4321-abcd-000000000007',
 };
+// Every DecisionContext value that must route to the MCP Delegation policy.
+// The condition originally listed only McpFirstTool + McpToolCall, but both
+// gateways send McpToolsList for tools/list and McpRequest for session
+// lifecycle. Those fell through to `NOT IsMcpFirstToolRequest`, so the
+// Transaction policy evaluated them with no Amount and returned an
+// unconditional PERMIT — no MCP delegation rule ever ran for tool discovery.
+const MCP_DECISION_CONTEXTS = ['McpFirstTool', 'McpToolCall', 'McpToolsList', 'McpRequest'];
 const COND = {
   HasMFAAuthentication: '23456789-0003-4321-abcd-000000000003',
   RequiresHitlConsent: '23456789-0010-4321-abcd-000000000010',
@@ -123,6 +131,20 @@ function reconcile(snap, { consent, stepUp }) {
     if (existing >= 0) snap[existing] = cond;
     else snap.splice(snap.findIndex((o) => o.type === 'SnapshotPackageFile$PackageSeparator'), 0, cond);
   }
+
+  // 3b) Widen IsMcpFirstToolRequest to every MCP DecisionContext the gateways
+  // actually send. Both policies are guarded on this condition (the MCP policy
+  // on it, the Transaction policy on its negation), so a context missing here
+  // is silently routed to the Transaction policy and, with no Amount present,
+  // reaches only the always-true Permit Standard rule.
+  const mcpCtxCond = byId.get(COND.IsMcpFirstToolRequest);
+  mcpCtxCond.description =
+    `DecisionContext is one of ${MCP_DECISION_CONTEXTS.join(', ')} — identifies an MCP request ` +
+    `(BFF first-tool gate, gateway tool call, tool discovery, or session lifecycle) and routes it ` +
+    `to the MCP Delegation policy. Generated — do not hand-edit.`;
+  mcpCtxCond.condition = { or: { conditions: MCP_DECISION_CONTEXTS.map((ctx) => ({
+    comparison: { left: { attribute: { id: ATTR.DecisionContext } }, op: 'Equals', right: { constant: { value: ctx } } },
+  })) } };
 
   // 4) Generalize the MCP HITL rule wording (condition ref unchanged — 0010).
   const mcpHitlRule = byId.get(RULE.mcpHitl);
