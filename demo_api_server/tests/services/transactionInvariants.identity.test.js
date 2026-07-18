@@ -59,6 +59,16 @@ describe('INV-2 subject stability', () => {
     ]));
     expect(ids(r)).not.toContain('INV-2');
   });
+
+  test('attributes the divergence to the hop that actually diverged (A,B,A), not the first or last hop', () => {
+    const r = evaluate(rec([
+      { service: 'a', phase: 'ui.request', identity: { sub: 'A' } },
+      { service: 'b', phase: 'mcp.tool', op: 't', identity: { sub: 'B' } },
+      { service: 'c', phase: 'mcp.tool', op: 't', identity: { sub: 'A' } },
+    ]));
+    expect(ids(r)).toContain('INV-2');
+    expect(r.violations.find((v) => v.id === 'INV-2').hopSeq).toBe(2);
+  });
 });
 
 describe('INV-3 no scope escalation', () => {
@@ -84,6 +94,24 @@ describe('INV-3 no scope escalation', () => {
       { service: 'a', phase: 'token.exchange', identity: { sub: 'u', scopes: ['banking:read'], aud: 'x' } },
       { service: 'b', phase: 'agent.reason' },
       { service: 'c', phase: 'mcp.tool', op: 't', identity: { sub: 'u', scopes: ['banking:read'], aud: 'x' } },
+    ]));
+    expect(ids(r)).not.toContain('INV-3');
+  });
+
+  test('flags an escalation across a scope-less gap (a reset-on-empty implementation would miss this)', () => {
+    const r = evaluate(rec([
+      { service: 'a', phase: 'token.exchange', identity: { sub: 'u', scopes: ['banking:read'], aud: 'x' } },
+      { service: 'b', phase: 'agent.reason' },
+      { service: 'c', phase: 'mcp.tool', op: 't', identity: { sub: 'u', scopes: ['banking:read', 'banking:transfer'], aud: 'x' } },
+    ]));
+    expect(ids(r)).toContain('INV-3');
+    expect(r.violations.find((v) => v.id === 'INV-3').detail).toContain('banking:transfer');
+  });
+
+  test('trims whitespace before comparing so formatting drift is not read as escalation', () => {
+    const r = evaluate(rec([
+      { service: 'a', phase: 'token.exchange', identity: { sub: 'u', scopes: ['banking:read'], aud: 'x' } },
+      { service: 'b', phase: 'mcp.tool', op: 't', identity: { sub: 'u', scopes: ['banking:read '], aud: 'x' } },
     ]));
     expect(ids(r)).not.toContain('INV-3');
   });
@@ -120,6 +148,15 @@ describe('INV-4 audience minted in this transaction', () => {
       { service: 'b', phase: 'mcp.tool', op: 't', identity: { sub: 'u', aud: ['mcp-server', 'other'] } },
     ]));
     expect(ids(r)).not.toContain('INV-4');
+  });
+
+  test('flags an audience presented before the later exchange hop that mints it (order matters)', () => {
+    const r = evaluate(rec([
+      { service: 'a', phase: 'mcp.tool', op: 't', identity: { sub: 'u', aud: 'payments-api' } },
+      { service: 'b', phase: 'token.exchange', identity: { sub: 'u', aud: 'payments-api' } },
+    ]));
+    expect(ids(r)).toContain('INV-4');
+    expect(r.violations.find((v) => v.id === 'INV-4').hopSeq).toBe(1);
   });
 });
 

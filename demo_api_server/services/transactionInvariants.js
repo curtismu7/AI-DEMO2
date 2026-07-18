@@ -43,7 +43,17 @@ function inv2SubjectStability(hops) {
   if (subs.length <= 1) return [];
   const offender = hops.find((h) => h.identity?.sub && String(h.identity.sub) !== subs[0]);
   return [_v('INV-2', 'error', offender ? offender.seq : null,
-    `transaction spans more than one subject: ${subs.join(', ')}`)];;
+    `transaction spans more than one subject: ${subs.join(', ')}`)];
+}
+
+/**
+ * Trim surrounding whitespace off each scope and drop entries that are
+ * empty after trimming. Deliberately does NOT lowercase — OAuth scope
+ * tokens are case-sensitive (RFC 6749 §3.3), so `banking:Read` and
+ * `banking:read` remain distinct scopes.
+ */
+function _normalizeScopes(scopes) {
+  return scopes.map((s) => String(s).trim()).filter((s) => s.length > 0);
 }
 
 /** INV-3 — RFC 8693 downscoping is monotonic; a later hop must not gain scope. */
@@ -51,8 +61,10 @@ function inv3NoScopeEscalation(hops) {
   const out = [];
   let prev = null;
   for (const h of hops) {
-    const scopes = h.identity?.scopes;
-    if (!Array.isArray(scopes) || scopes.length === 0) continue;
+    const rawScopes = h.identity?.scopes;
+    if (!Array.isArray(rawScopes) || rawScopes.length === 0) continue;
+    const scopes = _normalizeScopes(rawScopes);
+    if (scopes.length === 0) continue;
     if (prev) {
       const gained = scopes.filter((s) => !prev.scopes.includes(s));
       if (gained.length) {
@@ -82,6 +94,10 @@ function inv4AudienceMinted(hops) {
     }
     const presented = _audList(h.identity?.aud);
     if (presented.length === 0) continue;
+    // Deliberate "any" quantifier: an array-valued aud passes if ANY entry
+    // was minted here. This is weaker than "all" — a hop could smuggle an
+    // unminted audience alongside a legitimate one and this check would not
+    // catch it. Brief-mandated; do not change to "all" without a spec update.
     if (!presented.some((a) => minted.has(a))) {
       out.push(_v('INV-4', 'error', h.seq,
         `${h.service} presented audience "${presented.join(', ')}" which was never minted in this transaction`));
