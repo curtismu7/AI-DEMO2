@@ -101,6 +101,45 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-18 — A2A delegation (UC2/UC2.5, demo steps 7–8) 401'd on the PingGateway path
+
+**Files changed:** `demo_api_server/services/mcpGatewayClient.js` (A2A-audience
+pin in `callToolViaGateway`), new
+`demo_api_server/src/__tests__/mcpGatewayClient.a2aPin.test.js`.
+
+**What was broken:** with `ff_mcp_gateway_pinggateway=true`, "hand off to a
+specialist" minted the nested-act token audienced to the dedicated A2A gateway
+resource (`a2a_gateway_audience` = `mcpgateway-a2a.ping.demo`) — an audience
+only the Node Demo Agent Gateway accepts (comma-list `MCP_GW_RESOURCE_URI`) —
+then executed the specialist's tool through the flag's chokepoint, which
+resolved PingGateway. IG introspects aud against its own resource URI
+(`https://api.ping.demo:3036/mcp`) and its McpProtectionFilter requires scope
+`gateway:mcp:invoke`, so the call always failed (401 wrong_audience; the A2A
+token's `invest:read` would 403 regardless). UC2 rendered "That step couldn't
+be completed"; UC2.5 rendered "❌ Delegated to Investment Advisor, but
+get_portfolio_summary failed: mcp_error".
+
+**What was fixed:** `callToolViaGateway` now pins a bearer whose `aud` includes
+the resolved A2A gateway audience to the Node gateway
+(`MCP_DEMO_GATEWAY_URL`/`mcp_demo_gateway_url` — NOT `MCP_GATEWAY_HTTP_URL`,
+which is baked per-container and can point at IG, #375). Same Node-only routing
+as the dual-token/bankingdata tools and the #603 RAR-sim pin.
+
+**Do not break:** normal-audience tokens must keep routing per
+`ff_mcp_gateway_pinggateway`; the pin fires only when the base resolved to
+PingGateway AND the token carries the dedicated A2A audience. The 401
+aud-mismatch classification and `resolveExpectedMcpResourceUri()` are
+untouched. Do not "fix" the aud mismatch by widening PingGateway's accepted
+audiences or the BFF resource URI — the fix hint the 401 handler prints is
+wrong for this case (the A2A audience is deliberate, not drift).
+
+**Verify:** `npx jest src/__tests__/mcpGatewayClient.a2aPin.test.js
+src/__tests__/mcpGatewayClient.reauth.test.js tests/mcpGatewayResolver.test.js
+src/__tests__/intentBindingDemo.test.js src/__tests__/a2aDelegationService.test.js
+--testPathIgnorePatterns="/node_modules/"` (42 pass). Live: Demo steps 7 (UC2)
+and 8 (UC2.5) with the PG flag on — reply is "Delegation complete — Investment
+Advisor retrieved…" and the Node gateway logs the PERMIT.
+
 ### 2026-07-18 — Step-up OTP mailed to an undeliverable synthetic address; passkey rp.id error told admins to do the impossible
 
 **Files changed:** `demo_api_server/routes/oauthUser.js` (new

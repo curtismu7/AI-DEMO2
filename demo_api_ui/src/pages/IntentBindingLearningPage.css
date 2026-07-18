@@ -1,5 +1,20 @@
 .intent-binding-page { max-width: 980px; margin: 0 auto; padding: 24px; }
 
+.ib-back-btn {
+  background: #1f2937;
+  color: #fff;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-bottom: 16px;
+}
+.ib-back-btn:hover { background: #111827; }
+.ib-back-btn--bottom { margin-bottom: 0; margin-top: 20px; }
+
 .ib-header-band {
   background: linear-gradient(135deg, var(--brand-navy, #1d4ed8), var(--brand-navy-dark, #1e3a8a));
   color: #fff;

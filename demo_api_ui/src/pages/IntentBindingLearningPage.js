@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { EDU } from "../components/education/educationIds";
 import "./IntentBindingLearningPage.css";
@@ -96,12 +97,16 @@ export default function IntentBindingLearningPage() {
   // live mode; the toggle only switches the authorize-decision card between real
   // PingOne and the simulated engine.
   const [live, setLive] = useState(true);
+  const navigate = useNavigate();
   const permitCol = useColumnRun("permit", 80);
   const driftCol = useColumnRun("drift", 500);
   const edu = useEducationUIOptional();
 
   return (
     <div className="intent-binding-page">
+      <button className="ib-back-btn" onClick={() => navigate("/dashboard")}>
+        Back to Dashboard
+      </button>
       <header className="ib-header-band">
         <div className="ib-eyebrow">Learning · Intent Binding</div>
         <h1>Watch an agent's intent get checked, step by step</h1>
@@ -159,6 +164,10 @@ export default function IntentBindingLearningPage() {
           RAR education panel
         </button>.
       </p>
+
+      <button className="ib-back-btn ib-back-btn--bottom" onClick={() => navigate("/dashboard")}>
+        Back to Dashboard
+      </button>
     </div>
   );
 }
