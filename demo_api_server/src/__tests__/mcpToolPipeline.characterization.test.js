@@ -366,6 +366,51 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     expect(gwAz.status).toBe('permit');
   });
 
+  // Task-reviewer follow-up (Important #1): the DENY/step-up/HITL branch
+  // (mcpAuthz.block, simulated engine) must ALSO push a gw-authorize
+  // tokenEvent, mirroring the PERMIT branch above — same id/status contract,
+  // computed from the same DENY/INDETERMINATE decision value the block body
+  // already carries in mcpAuthorizeEvaluation.decision.
+  test('gate block (simulated engine) DENY → tokenEvents carries a gw-authorize card with status deny', async () => {
+    const deps = makeDeps();
+    deps.evaluateMcpFirstToolGate = jest.fn(async () => ({
+      ran: true,
+      block: {
+        status: 403,
+        body: { error: 'mcp_authorization_denied', decisionId: 'd1', decisionContext: { x: 1 }, authorize_engine: 'simulated' },
+      },
+    }));
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    const gwAz = outcome.body.tokenEvents.find((e) => e.id === 'gw-authorize');
+    expect(gwAz).toBeDefined();
+    expect(gwAz.status).toBe('deny');
+    // Sanity: outcome.body.mcpAuthorizeEvaluation.decision is the same source
+    // value ('DENY') the new tokenEvent's status is derived from — proves the
+    // fix reuses the existing computed decision rather than duplicating logic.
+    expect(outcome.body.mcpAuthorizeEvaluation.decision).toBe('DENY');
+  });
+
+  // Task-reviewer follow-up (Important #2): when useGateway is true AND the
+  // simulated engine ran a PERMIT, the real-gateway audit-trail push
+  // (gwAuditTrail.authorize, below) and the simulated-path push must not BOTH
+  // fire for the same call — exactly one gw-authorize event, not two.
+  test('useGateway=true AND simulated engine PERMIT AND gwAuditTrail.authorize populated → only ONE gw-authorize event (no double-push)', async () => {
+    const deps = makeDeps();
+    deps.config = { ...deps.config, useGateway: true, gatewayHttpUrl: 'http://gw' };
+    deps.evaluateMcpFirstToolGate = jest.fn(async () => ({
+      ran: true,
+      permit: true,
+      evaluation: { engine: 'simulated', decision: 'PERMIT', decisionId: 'sim-2', path: 'simulated' },
+    }));
+    deps.callToolViaGateway = jest.fn(async () => ({
+      result: { content: [{ text: 'gw-ok' }] },
+      gwAuditTrail: { authorize: { decision: 'PERMIT', tool: 'get_my_accounts' } },
+    }));
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    const gwAzEvents = outcome.body.tokenEvents.filter((e) => e.id === 'gw-authorize');
+    expect(gwAzEvents.length).toBe(1);
+  });
+
   test('HTTP/2 transport → result Outcome carries stream:true marker', async () => {
     const deps = makeDeps();
     deps.config = { ...deps.config, useHttp2: true, mcpUrl: 'http://localhost:8080' };
