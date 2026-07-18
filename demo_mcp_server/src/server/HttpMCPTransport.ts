@@ -541,7 +541,7 @@ export class HttpMCPTransport {
 
     // 7. Route message — wrapped in ALS correlation scope so all downstream
     // teachLog.step calls (TokenIntrospector etc.) inherit correlation_id automatically.
-    const correlationId = correlationFromMessage(message as any);
+    const correlationId = correlationFromMessage(message as any, req.headers);
     // Correlation scope begins here: pre-route bearer/JWKS validation, gateway-contract and protocol-version checks (steps 1-6 above) run before the correlation id is bound. The RFC 7662 introspection that the teaching trace cares about runs inside handleMessage (within this scope) on both transports.
     await runWithCorrelation(correlationId, async () => {
       const mcpResponse = await this.messageHandler.handleMessage(message, context);
