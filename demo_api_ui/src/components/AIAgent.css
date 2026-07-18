@@ -4772,6 +4772,10 @@ body > .banking-agent-float-root .banking-agent-panel {
 
 /* Demo steps popout — same script as /use-cases Demo section */
 .ba-demo-steps-popout__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding: 12px 14px 8px;
   font-size: 12px;
   font-weight: 700;
@@ -4779,6 +4783,23 @@ body > .banking-agent-float-root .banking-agent-panel {
   text-transform: uppercase;
   color: var(--ba-text-secondary, #64748b);
   border-bottom: 1px solid var(--ba-border, #e2e8f0);
+}
+
+.ba-demo-steps-popout__clear {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--ba-border, #d1d5db);
+  background: var(--ba-surface, #fff);
+  color: var(--ba-text-primary, #111);
+  cursor: pointer;
+}
+
+.ba-demo-steps-popout__clear:hover {
+  border-color: var(--ba-text-secondary, #6b7280);
 }
 
 .ba-demo-steps-popout__status {
