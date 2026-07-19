@@ -12,12 +12,76 @@ const GATEWAY_FLAG = 'ff_mcp_gateway_pinggateway';
 const AUTHZ_FLAG = 'ff_authorize_simulated';
 
 const FALLBACK_TOOLS = [
-  { name: 'get_my_accounts', description: 'List all bank accounts with balances and status.' },
-  { name: 'get_my_transactions', description: 'Retrieve transaction history for the authenticated user.' },
-  { name: 'get_account_balance', description: 'Get current balance for a specific account by ID.' },
-  { name: 'get_sensitive_account_details', description: 'Full account + routing number (sensitive:read + consent).' },
-  { name: 'create_transfer', description: 'Transfer funds between accounts (write; may require HITL consent).' },
+  {
+    name: 'get_my_accounts',
+    description: 'List all bank accounts with balances and status.',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'get_my_transactions',
+    description: 'Retrieve transaction history for the authenticated user.',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'get_account_balance',
+    description: 'Get current balance for a specific account by ID.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        account_id: {
+          type: 'string',
+          description: 'Account ID (UUID format, not account number) - use the "id" field from get_my_accounts response',
+        },
+      },
+      required: ['account_id'],
+    },
+  },
+  {
+    name: 'get_sensitive_account_details',
+    description: 'Full account + routing number (sensitive:read + consent).',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'create_transfer',
+    description: 'Transfer funds between accounts (write; may require HITL consent).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        from_account_id: {
+          type: 'string',
+          description: 'Source account ID (UUID format, not account number) - use the "id" field from get_my_accounts response',
+        },
+        to_account_id: {
+          type: 'string',
+          description: 'Destination account ID (UUID format, not account number) - use the "id" field from get_my_accounts response',
+        },
+        amount: { type: 'number', description: 'Amount to transfer (minimum $0.01)' },
+      },
+      required: ['from_account_id', 'to_account_id', 'amount'],
+    },
+  },
 ];
+
+const ARG_PLACEHOLDER_BY_TYPE = {
+  string: '',
+  number: 0,
+  integer: 0,
+  boolean: false,
+  array: [],
+  object: {},
+};
+
+/** Template args for a tool's required inputSchema properties (e.g. {"account_id": ""}); '{}' when none. */
+const buildArgsTemplate = (tool) => {
+  const required = tool?.inputSchema?.required || [];
+  if (!required.length) return '{}';
+  const template = {};
+  for (const key of required) {
+    const propType = tool.inputSchema.properties?.[key]?.type;
+    template[key] = propType in ARG_PLACEHOLDER_BY_TYPE ? ARG_PLACEHOLDER_BY_TYPE[propType] : '';
+  }
+  return JSON.stringify(template, null, 2);
+};
 
 const TOOL_GROUPS = {
   Accounts: ['get_my_accounts', 'get_account_balance', 'get_sensitive_account_details'],
@@ -249,7 +313,7 @@ export default function AgentGatewayTester() {
 
   const selectTool = (t) => {
     setSelectedTool(t);
-    setArgsText('{}');
+    setArgsText(buildArgsTemplate(t));
     setResp(null);
     setOutputTab('result');
   };
