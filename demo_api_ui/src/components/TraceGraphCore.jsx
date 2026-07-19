@@ -15,10 +15,15 @@ export default function TraceGraphCore({ rawUrl, refreshKey }) {
   const [error, setError] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
   const [selection, setSelection] = useState(null); // { kind: 'node'|'edge', data }
+  const prevRawUrlRef = useRef(rawUrl);
 
   useEffect(() => {
     let live = true;
-    setRaw(null); setError(null); setSelection(null);
+    const isNewSource = prevRawUrlRef.current !== rawUrl;
+    prevRawUrlRef.current = rawUrl;
+    if (isNewSource) {
+      setRaw(null); setError(null); setSelection(null);
+    }
     (async () => {
       try {
         const res = await fetch(rawUrl, { credentials: "include" });
@@ -27,7 +32,7 @@ export default function TraceGraphCore({ rawUrl, refreshKey }) {
           throw new Error(body.message || `HTTP ${res.status}`);
         }
         const data = await res.json();
-        if (live) setRaw(data);
+        if (live) { setError(null); setRaw(data); }
       } catch (e) {
         if (live) setError(e.message || "Failed to load trace");
       }
