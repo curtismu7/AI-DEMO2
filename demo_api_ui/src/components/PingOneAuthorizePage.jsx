@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import bffAxios from '../services/bffAxios';
 import PolicyDecisionTree from './PolicyDecisionTree';
 import FloatingPanel from './FloatingPanel';
 import JsonHighlight from './shared/JsonHighlight';
+import AuthzTestPage from './AuthzTestPage';
 import { explainAuthorizeResult, displayDecision as explainDisplayDecision } from '../utils/authorizeResultExplain';
 import './McpInspector.css';
 import './PingOneMcpInspector.css';
@@ -234,7 +236,7 @@ function DecisionRow({ d, idx }) {
 // Evaluate panel — preset-driven parameter builders, all routed through the
 // generic /api/authorize/evaluate-endpoint against the selected endpoint.
 // ---------------------------------------------------------------------------
-function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearPendingTest }) {
+function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearPendingTest, onEvaluated }) {
   const [preset, setPreset] = useState(autoPreset);
   const [result, setResult] = useState(null);
   const [traceOpen, setTraceOpen] = useState(false);
@@ -377,6 +379,13 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearP
         response: authorizeResponsePayload(res.data),
         timingsMs: elapsed,
         error: false,
+      });
+      onEvaluated?.({
+        preset,
+        decision: displayDecision(res.data),
+        engine: res.data.engine,
+        stepUpRequired: !!res.data.stepUpRequired,
+        decisionId: res.data.decisionId,
       });
     } catch (e) {
       const elapsed = Date.now() - started;
@@ -719,6 +728,22 @@ function PoliciesCard({ state, onTestRule }) {
 // Main page
 // ---------------------------------------------------------------------------
 export default function PingOneAuthorizePage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') === 'guided' ? 'guided' : 'console';
+  const setTab = useCallback((next) => {
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev);
+      if (next === 'guided') p.set('tab', 'guided'); else p.delete('tab');
+      return p;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  // Client-side ring buffer of this session's ad-hoc Evaluate calls (Console tab).
+  const [runHistory, setRunHistory] = useState([]);
+  const pushRunHistory = useCallback((entry) => {
+    setRunHistory((h) => [entry, ...h].slice(0, 8));
+  }, []);
+
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -808,12 +833,21 @@ export default function PingOneAuthorizePage() {
     } finally { setEnabling(false); }
   };
 
-  if (loading) return <div style={{ padding: '40px', color: '#64748b', fontSize: '14px' }}>Loading PingOne Authorize configuration…</div>;
-
   const notConfigured = !data?.workerConfigured;
 
   return (
     <div style={S.root}>
+      <div style={S.tabs}>
+        <span style={S.tab(tab === 'console')} onClick={() => setTab('console')}>Live / Simulated Console</span>
+        <span style={S.tab(tab === 'guided')} onClick={() => setTab('guided')}>Guided Scenarios &amp; Learn</span>
+      </div>
+
+      {tab === 'guided' && <AuthzTestPage />}
+
+      {tab === 'console' && (loading ? (
+        <div style={{ padding: '40px', color: '#64748b', fontSize: '14px' }}>Loading PingOne Authorize configuration…</div>
+      ) : (
+        <>
       <div style={S.header}>
         <div>
           <h2 style={S.title}>PingOne Authorize — Live Policy Console</h2>
@@ -902,7 +936,7 @@ export default function PingOneAuthorizePage() {
         <div style={S.cardHead}><span style={S.cardTitle}>Evaluate</span></div>
         <div style={S.cardBody}>
           {selectedId
-            ? <EvaluatePanel endpointId={selectedId} autoPreset={autoPreset} policies={policiesState.policies} pendingTest={pendingTest} onClearPendingTest={clearPendingTest} />
+            ? <EvaluatePanel endpointId={selectedId} autoPreset={autoPreset} policies={policiesState.policies} pendingTest={pendingTest} onClearPendingTest={clearPendingTest} onEvaluated={pushRunHistory} />
             : <div style={S.empty}>Select a decision endpoint to evaluate.</div>}
         </div>
       </div>
@@ -935,6 +969,40 @@ export default function PingOneAuthorizePage() {
           )}
         </div>
       </div>
+
+      {/* Run history — this session's ad-hoc Evaluate calls (any endpoint/preset) */}
+      <div style={S.card}>
+        <div style={S.cardHead}>
+          <span style={S.cardTitle}>Run History</span>
+          <span style={S.cardHint}>this session · {runHistory.length} loaded</span>
+        </div>
+        <div style={S.cardBody}>
+          {runHistory.length === 0 ? (
+            <div style={S.empty}>No evaluations run yet this session.</div>
+          ) : (
+            <table style={S.table}>
+              <thead><tr>
+                <th style={S.th}>#</th><th style={S.th}>Preset</th><th style={S.th}>Decision</th>
+                <th style={S.th}>Engine</th><th style={S.th}>Step-up</th><th style={S.th}>Decision ID</th>
+              </tr></thead>
+              <tbody>
+                {runHistory.map((h, i) => (
+                  <tr key={i}>
+                    <td style={S.td}>{i + 1}</td>
+                    <td style={S.td}>{{ transaction: 'Transaction', mcp: 'MCP First Tool', custom: 'Custom' }[h.preset] || h.preset}</td>
+                    <td style={S.td}><span style={S.dBadge(h.decision)}>{h.decision || '?'}</span></td>
+                    <td style={S.td}>{h.engine}</td>
+                    <td style={S.td}>{String(h.stepUpRequired)}</td>
+                    <td style={S.tdMono}>{h.decisionId || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+        </>
+      ))}
     </div>
   );
 }
