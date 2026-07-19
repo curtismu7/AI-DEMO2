@@ -333,11 +333,13 @@
 .tracing-graph-canvas {
   position: relative;
   width: 100%;
-  height: 520px;
+  height: 380px;
+  min-height: 220px;
   border: 1px solid #1e293b;
   border-radius: 10px;
   background: #0b1220;
-  overflow: hidden;
+  overflow: auto;
+  resize: vertical;
 }
 
 .tracing-graph-svg {
