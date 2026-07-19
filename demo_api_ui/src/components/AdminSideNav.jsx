@@ -739,9 +739,9 @@ export default function AdminSideNav({ user }) {
         },
         { label: "Sequence Diagram", path: "/sequence-diagram", icon: "log" },
         { label: "Canvas Diagram", path: "/architecture/canvas", icon: "⬡" },
-        { label: "Agent Onboarding Flow", path: "/agent-onboarding-flow", icon: "arc" },
-        { label: "Agent Onboarding Flow (Subway)", path: "/agent-onboarding-flow-subway", icon: "arc" },
-        { label: "Agent Onboarding Flow (Mermaid)", path: "/agent-onboarding-flow-mermaid", icon: "arc" },
+        { label: "Agent Onboarding Flow", path: "/agent-onboarding-flow", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
+        { label: "Agent Onboarding Flow (Subway)", path: "/agent-onboarding-flow-subway", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
+        { label: "Agent Onboarding Flow (Mermaid)", path: "/agent-onboarding-flow-mermaid", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
       ],
     },
     {
@@ -1089,7 +1089,7 @@ export default function AdminSideNav({ user }) {
                   <Link
                     key={childKey}
                     to={child.path}
-                    className={`admin-side-nav__item admin-side-nav__item--child${child.highlight ? " admin-side-nav__item--highlight-danger" : ""} ${isActive(child.path) ? " admin-side-nav__item--active" : ""}`}
+                    className={`admin-side-nav__item admin-side-nav__item--child${child.highlight ? " admin-side-nav__item--highlight-danger" : ""}${child.className ? ` ${child.className}` : ""} ${isActive(child.path) ? " admin-side-nav__item--active" : ""}`}
                     title={child.label}
                     aria-current={isActive(child.path) ? "page" : undefined}
                     onClick={
