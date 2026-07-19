@@ -64,7 +64,7 @@ checkout. Concurrent sessions share one index; collisions have wiped staged work
 |---|---|
 | Run | `./run.sh` (native); `./run-docker.sh` (Compose, lean core by default); `./run-k8.sh` |
 | SE AWS | `./run-pingaws.sh` — Ping SE cluster only (`ai-demo.ping-devops.com`); wraps `./run-k8.sh se-*` + `se-update-{code,config,pingone}.sh` |
-| API / UI | `https://api.ping.demo:3001` / UI `:4000` (hosts + `mkcert -install` once) |
+| API / UI | API `https://api.ping.demo:3001` / UI `https://local.ping-devops.com:4000` (hosts + `mkcert -install` once) |
 | Test | `./run-tests.sh unit` (fastest); `./run-tests.sh [api\|e2e\|all]`; `npm test` |
 | Hygiene | `npm run topology:verify`, `npm run hygiene:check` |
 | LLM proxy | `:8090` via `demo_llm_proxy/` (`LLM_BACKEND=llamacpp` default; `omlx` on Apple Silicon) |
@@ -77,6 +77,12 @@ tools for app/population/user reads during development.
 
 - Auth / token / session / UI: treat as protected; state what you will **not**
   break before editing.
+- **Sign-in only works on `local.ping-devops.com:4000`** — passkeys need an
+  rp.id matching the serving host, so `PUBLIC_APP_URL` and the OAuth callback
+  point there. `api.ping.demo:4000` still serves the app (allowed by
+  `CORS_ORIGIN`) but the session cookie is on the other host, so the dashboard
+  renders "Please sign in to use the Agent". Point `E2E_BASE_URL` at the same
+  host or every `*.real.spec.js` 401s in a way that looks like broken auth.
 - Do not invent conventions (error shapes, date handling, import paths) — match
   the nearest existing module.
 - After code edits, run `graphify update .` (AST-only). For codebase questions,
