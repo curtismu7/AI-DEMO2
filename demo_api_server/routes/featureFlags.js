@@ -673,14 +673,14 @@ const FLAG_REGISTRY = [
     name:         'Sidebar Customization',
     category:     'UI / Dashboard',
     description:
-      'When **ON**, the sidebar hides items the current user has unchecked on the Demo Config page ' +
-      '(`/demo-config`). When **OFF** (default), the full sidebar always shows regardless of any saved ' +
+      'When **ON** (default), the sidebar hides items the current user has unchecked on the Demo Config page ' +
+      '(`/demo-config`). When **OFF**, the full sidebar always shows regardless of any saved ' +
       'per-user selection — the selection is preserved server-side either way, so re-enabling restores it.',
     impact:
-      'OFF (default) = full sidebar for everyone, no change. ' +
-      'ON = each user sees only their own saved subset of top-level nav items.',
+      'ON (default) = each user sees only their own saved subset of top-level nav items. ' +
+      'OFF = full sidebar for everyone, no change.',
     type:         'boolean',
-    defaultValue: false,
+    defaultValue: true,
   },
   {
     id:           'ff_mcp_gateway_pinggateway',

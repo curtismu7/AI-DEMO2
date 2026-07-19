@@ -24,12 +24,14 @@ describe('GET /api/user/nav-config', () => {
     expect(res.body.activeConfigId).toBeNull();
   });
 
-  test('flag OFF (default) returns empty hiddenLabels even if prefs were saved', async () => {
+  test('flag OFF returns empty hiddenLabels even if prefs were saved', async () => {
+    await configStore.setRaw({ ff_sidebar_customization: 'false' });
     const app = makeApp('user-flag-off');
     await request(app).put('/api/user/nav-config').send({ hiddenLabels: ['Themes'], activeConfigId: null });
     const res = await request(app).get('/api/user/nav-config');
     expect(res.body.flagOn).toBe(false);
     expect(res.body.hiddenLabels).toEqual([]);
+    await configStore.setRaw({ ff_sidebar_customization: 'true' });
   });
 
   test('flag ON returns the stored hiddenLabels', async () => {
