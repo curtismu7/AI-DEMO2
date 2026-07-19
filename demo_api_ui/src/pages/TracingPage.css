@@ -306,3 +306,380 @@
   line-height: 1.5;
 }
 
+/* ── Trace service graph (TraceGraphView + D3 renderer) ─────────────────────── */
+.tracing-graph {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tracing-graph-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.tracing-graph-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+}
+
+.tracing-graph-canvas {
+  position: relative;
+  width: 100%;
+  height: 520px;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  background: #0b1220;
+  overflow: hidden;
+}
+
+.tracing-graph-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+
+.tracing-graph-node-group,
+.tracing-graph-edge-group {
+  cursor: pointer;
+}
+
+.tracing-graph-node-label {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  pointer-events: none;
+}
+
+.tracing-graph-edge-label {
+  pointer-events: none;
+}
+
+.tracing-graph-edge-label text {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Dim highlighting when a node/edge is selected. */
+.tracing-graph-dimmed {
+  opacity: 0.18;
+  transition: opacity 0.15s ease;
+}
+
+/* Tooltip — fixed to the viewport, dark panel with 12px sans labels. */
+.tracing-graph-tooltip {
+  position: fixed;
+  z-index: 50;
+  max-width: 280px;
+  padding: 8px 10px;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.tracing-graph-tooltip strong {
+  color: #f1f5f9;
+  font-weight: 600;
+}
+
+.tracing-graph-tooltip-muted {
+  color: #94a3b8;
+}
+
+.tracing-graph-tooltip-hr {
+  border: none;
+  border-top: 1px solid #334155;
+  margin: 5px 0;
+}
+
+.tracing-graph-hidden {
+  display: none;
+}
+
+/* Zoom controls — top-right of the canvas. */
+.tracing-graph-zoom {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 6px;
+}
+
+.tracing-graph-zoom-btn {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: #1e293b;
+  color: #e2e8f0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tracing-graph-zoom-btn:hover {
+  background: #334155;
+}
+
+/* Detail side panel (rendered by React, overlays the canvas top-right). */
+.tracing-graph-panel {
+  position: absolute;
+  top: 46px;
+  right: 12px;
+  width: 320px;
+  max-height: 480px;
+  overflow-y: auto;
+  padding: 14px 16px;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #e2e8f0;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.tracing-graph-panel h3 {
+  margin: 10px 0 8px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.tracing-graph-panel-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0 0 12px 0;
+  font-size: 12px;
+}
+
+.tracing-graph-panel-facts dt {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.tracing-graph-panel-facts dd {
+  margin: 0;
+  color: #e2e8f0;
+  font-variant-numeric: tabular-nums;
+}
+
+.tracing-graph-panel-spans {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid #1e293b;
+  padding-top: 10px;
+}
+
+.tracing-graph-panel-spans .tracing-span-row {
+  grid-template-columns: 1fr auto;
+  color: #cbd5e1;
+}
+
+.tracing-graph-panel-spans .tracing-span-dur {
+  color: #94a3b8;
+}
+
+/* ── Projected steps timeline (ProjectedTimeline) ──────────────────────────────── */
+.tracing-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tracing-step-card {
+  padding: 14px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tracing-step-card:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+.tracing-step-card--error {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.tracing-step-card--error:hover {
+  border-color: #f87171;
+  background: #fee2e2;
+}
+
+.tracing-step-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.tracing-step-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.tracing-step-icon--brain {
+  background: #bfdbfe;
+  color: #1e40af;
+}
+
+.tracing-step-icon--key {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.tracing-step-icon--shield {
+  background: #fed7aa;
+  color: #92400e;
+}
+
+.tracing-step-icon--bolt {
+  background: #fecaca;
+  color: #991b1b;
+}
+
+.tracing-step-icon--database {
+  background: #d1d5db;
+  color: #374151;
+}
+
+.tracing-step-icon--bell {
+  background: #fae8ff;
+  color: #831843;
+}
+
+.tracing-step-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #111827;
+}
+
+.tracing-step-dur {
+  margin-left: auto;
+  font-size: 12px;
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
+}
+
+.tracing-step-bar {
+  position: relative;
+  height: 8px;
+  background: rgba(127, 127, 127, 0.12);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.tracing-step-bar-fill {
+  position: absolute;
+  top: 0;
+  height: 8px;
+  border-radius: 2px;
+  background: #3b82f6;
+  min-width: 2px;
+}
+
+.tracing-step-facets {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 16px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.tracing-step-facet {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tracing-step-facet dt {
+  font-weight: 600;
+  color: #374151;
+}
+
+.tracing-step-facet dd {
+  margin: 0;
+  color: #4b5563;
+}
+
+.tracing-step-details {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.tracing-step-source {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.tracing-step-details pre {
+  margin: 0;
+  padding: 10px 12px;
+  background: #f3f4f6;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #374151;
+  overflow-x: auto;
+  line-height: 1.4;
+}
+
+/* ── Trace detail tabs (Waterfall | Graph | Steps) ─────────────────────────── */
+.tracing-detail-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 14px 0 14px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tracing-detail-tab {
+  padding: 8px 12px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tracing-detail-tab:hover {
+  color: #374151;
+}
+
+.tracing-detail-tab--active {
+  color: #1d4ed8;
+  border-bottom-color: #1d4ed8;
+}
+
