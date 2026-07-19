@@ -54,6 +54,7 @@ router.post('/mcp-audit', express.json(), (req, res) => {
       userId: ev.userId || null,
       duration: Number.isFinite(ev.duration) ? ev.duration : null,
       vertical: ev.vertical || null,
+      correlationId: ev.correlationId || null,
       details: ev.details && typeof ev.details === 'object' ? ev.details : {},
       timestamp: ev.timestamp,
     });

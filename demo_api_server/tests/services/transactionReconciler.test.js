@@ -74,23 +74,23 @@ describe('transactionReconciler', () => {
     expect(out.diffs).toEqual([]);
   });
 
-  test('corroborates authz decisions against the traffic log', () => {
+  test('corroborates mcp.tool hops against the traffic log', () => {
     trafficLogger.getMcpTrafficLog.mockReturnValue([
-      { correlationId: 'c1', type: 'authorize_response', tool: 'create_withdrawal', ok: false },
+      { correlationId: 'c1', type: 'rpc_response', method: 'tools/call', tool: 'create_withdrawal', ok: true },
     ]);
     const out = reconcile(rec([
-      { service: 'authz-server', phase: 'authz.decision', op: 'create_withdrawal', decision: { outcome: 'deny' } },
+      { service: 'mcp-server', phase: 'mcp.tool', op: 'create_withdrawal' },
     ]));
     expect(out.sources.mcpTrafficLog.status).toBe('MATCH');
     expect(out.status).toBe('MATCH');
   });
 
-  test('MISMATCH when an authz hop has no traffic-log counterpart', () => {
+  test('MISMATCH when an mcp.tool hop has no traffic-log counterpart', () => {
     trafficLogger.getMcpTrafficLog.mockReturnValue([
-      { correlationId: 'other', type: 'authorize_response', tool: 'x', ok: true },
+      { correlationId: 'other', type: 'rpc_response', method: 'tools/call', tool: 'x', ok: true },
     ]);
     const out = reconcile(rec([
-      { service: 'authz-server', phase: 'authz.decision', op: 'create_withdrawal', decision: { outcome: 'deny' } },
+      { service: 'mcp-server', phase: 'mcp.tool', op: 'create_withdrawal' },
     ]));
     expect(out.status).toBe('MISMATCH');
     expect(out.diffs).toContainEqual(expect.objectContaining({
@@ -100,10 +100,29 @@ describe('transactionReconciler', () => {
 
   test('a witness with nothing to corroborate is MATCH, not MISMATCH', () => {
     auditStore.query.mockReturnValue([{ correlationId: 'other', operation: 'x', outcome: 'success' }]);
-    trafficLogger.getMcpTrafficLog.mockReturnValue([{ correlationId: 'other', type: 'authorize_response', tool: 'x' }]);
+    trafficLogger.getMcpTrafficLog.mockReturnValue([
+      { correlationId: 'other', type: 'rpc_response', method: 'tools/call', tool: 'x', ok: true },
+    ]);
     const out = reconcile(rec([{ service: 'demo-api-server', phase: 'ui.request' }]));
     expect(out.status).toBe('MATCH');
     expect(out.diffs).toEqual([]);
+  });
+
+  test('clean happy path: matching gateway.authorize and mcp.tool hops corroborated by both witnesses is MATCH with no diffs', () => {
+    auditStore.query.mockReturnValue([
+      { correlationId: 'c1', operation: 'get_balance', outcome: 'success', userId: 'u1', agentId: 'a1' },
+    ]);
+    trafficLogger.getMcpTrafficLog.mockReturnValue([
+      { correlationId: 'c1', type: 'rpc_response', method: 'tools/call', tool: 'get_balance', ok: true },
+    ]);
+    const out = reconcile(rec([
+      { service: 'mcp-gateway', phase: 'gateway.authorize', op: 'get_balance', decision: { outcome: 'permit' } },
+      { service: 'mcp-server', phase: 'mcp.tool', op: 'get_balance' },
+    ]));
+    expect(out.status).toBe('MATCH');
+    expect(out.diffs).toEqual([]);
+    expect(out.sources.mcpAuditStore.status).toBe('MATCH');
+    expect(out.sources.mcpTrafficLog.status).toBe('MATCH');
   });
 
   test('duplicate ops are compared by count, so a replayed call surfaces', () => {

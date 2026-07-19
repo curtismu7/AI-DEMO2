@@ -120,6 +120,7 @@ describe('GET /api/transaction-trace', () => {
   });
 
   test('attaches reconciliation to the detail payload', async () => {
+    ledger.getRecord.mockReturnValue({ correlationId: 'c1', principal: null });
     assemble.mockResolvedValue({ correlationId: 'c1', startedAt: 'A', endedAt: 'B', hops: [] });
     const res = await request(app()).get('/api/transaction-trace/c1');
     expect(res.body.reconciliation.status).toBe('MATCH');
