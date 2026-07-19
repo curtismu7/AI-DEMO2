@@ -8,6 +8,8 @@ import {
   readStoredService,
   writeStoredService,
 } from "./tracingServiceSelect";
+import TraceGraphView from "../components/TraceGraphView";
+import ProjectedTimeline from "../components/ProjectedTimeline";
 
 const REFRESH_MS = 15000;
 const LOOKBACK_OPTIONS = [
@@ -74,6 +76,7 @@ export default function TracingPage() {
   const [errorKind, setErrorKind] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
+  const [detailTab, setDetailTab] = useState("waterfall");
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState(null);
@@ -89,6 +92,7 @@ export default function TracingPage() {
       return;
     }
     setExpandedId(traceId);
+    setDetailTab("waterfall");
     latestTraceReq.current = traceId;
     setDetail(null);
     setDetailError(null);
@@ -435,7 +439,23 @@ export default function TracingPage() {
                   {expandedId === t.traceId && (
                     <tr className="tracing-detail-row">
                       <td colSpan={6}>
-                        <TraceDetail loading={detailLoading} error={detailError} detail={detail} />
+                        <div className="tracing-detail-tabs" role="tablist">
+                          {[["waterfall", "Waterfall"], ["graph", "Graph"], ["steps", "Steps"]].map(([key, label]) => (
+                            <button
+                              key={key}
+                              type="button"
+                              role="tab"
+                              aria-selected={detailTab === key}
+                              className={`tracing-detail-tab ${detailTab === key ? "tracing-detail-tab--active" : ""}`}
+                              onClick={(e) => { e.stopPropagation(); setDetailTab(key); }}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                        {detailTab === "waterfall" && <TraceDetail loading={detailLoading} error={detailError} detail={detail} />}
+                        {detailTab === "graph" && <TraceGraphView traceId={t.traceId} />}
+                        {detailTab === "steps" && <ProjectedTimeline traceId={t.traceId} />}
                       </td>
                     </tr>
                   )}

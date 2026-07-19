@@ -655,3 +655,31 @@
   line-height: 1.4;
 }
 
+/* ── Trace detail tabs (Waterfall | Graph | Steps) ─────────────────────────── */
+.tracing-detail-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 14px 0 14px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tracing-detail-tab {
+  padding: 8px 12px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tracing-detail-tab:hover {
+  color: #374151;
+}
+
+.tracing-detail-tab--active {
+  color: #1d4ed8;
+  border-bottom-color: #1d4ed8;
+}
+
