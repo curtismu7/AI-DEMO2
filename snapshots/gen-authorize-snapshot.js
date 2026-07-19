@@ -209,7 +209,7 @@ function reconcile(snap, { consent, stepUp }) {
   // 8a) RarMaxAmount request attribute (NUMBER) — same resolver shape as Amount.
   upsert({
     objectType: 'AttributeDefinition', id: ATTR.RarMaxAmount,
-    version: 'aaaaaaaa-0020-4321-abcd-000000000020', type: 'ATTRIBUTE',
+    version: 'aaaaaaaa-0021-4321-abcd-000000000021', type: 'ATTRIBUTE',
     name: 'RarMaxAmount', fullName: 'RarMaxAmount',
     description: 'RFC 9396 RAR granted amount ceiling (azd.authorization_details[0].amount). ' +
       'Sent by the Super Banking BFF/gateway on delegated tool calls that carry a RAR grant; absent otherwise. ' +
@@ -228,7 +228,7 @@ function reconcile(snap, { consent, stepUp }) {
   // the guard is false, so ordinary calls never trip this.
   upsert({
     objectType: 'ConditionDefinition', id: COND.RarAmountExceeded,
-    version: 'bbbbbbbb-0020-4321-abcd-000000000020', type: 'CONDITION',
+    version: 'bbbbbbbb-0021-4321-abcd-000000000021', type: 'CONDITION',
     name: 'RarAmountExceeded', fullName: 'RarAmountExceeded',
     description: 'RarMaxAmount > 0 (a RAR grant is present) AND Amount > RarMaxAmount. ' +
       'Absent grant → false → non-RAR calls unaffected. Mirrors simulatedAuthorizeService NNP-1.',
@@ -241,7 +241,7 @@ function reconcile(snap, { consent, stepUp }) {
 
   // 8c) rar_amount_exceeded DENY statement (code matches the simulated deny_reason).
   upsert({
-    id: STMT.rarAmountExceeded, version: 'cccccccc-0020-4321-abcd-000000000020', type: 'Statement',
+    id: STMT.rarAmountExceeded, version: 'cccccccc-0021-4321-abcd-000000000021', type: 'Statement',
     name: 'RAR Amount Exceeded', shared: false,
     description: 'Returned when the requested amount exceeds the RFC 9396 RAR granted ceiling. ' +
       'code rar_amount_exceeded surfaces as the deny_reason in the BFF/Token Chain.',
@@ -254,7 +254,7 @@ function reconcile(snap, { consent, stepUp }) {
   // 8d) RAR deny rule — conditionalDenyElsePermit, same shape as "Deny Large
   // Transactions". DenyOverrides makes this win when it fires.
   upsert({
-    id: RULE.rarAmountExceeded, version: 'dddddddd-0020-4321-abcd-000000000020', type: 'Rule', targets: [],
+    id: RULE.rarAmountExceeded, version: 'dddddddd-0021-4321-abcd-000000000021', type: 'Rule', targets: [],
     name: 'Deny RAR Amount Overage',
     description: 'DENY when Amount exceeds the RFC 9396 RAR granted ceiling (RarMaxAmount). ' +
       'No RAR grant → condition false → permit contribution only. PingOne-side twin of the gateway requireRarIntent check.',
