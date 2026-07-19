@@ -36,6 +36,8 @@ import { GatewayConfig, isInternalSecretUsable } from '../config';
 import { adminConfigSafeView, applyAdminConfigUpdate, ADMIN_CONFIG_ALLOWED_KEYS } from '../adminConfig';
 import { extractBearerToken, validateInboundToken, TokenValidationError } from '../tokenValidator';
 import { extractCorrelationId } from '../correlationId';
+import { routeTool, backendWsUrl } from '../router';
+import { proxyJsonRpc } from '../proxy';
 import { selfBaseUrl } from '../selfBaseUrl';
 import { appendEnterpriseWwwAuthHint, buildEnterpriseExtensionBlock, isEnterpriseManagedMcpAuthEnabled } from '../enterpriseMcpAuth';
 import { runWithCorrelation } from '../correlationContext';
@@ -574,8 +576,30 @@ export class GatewayServer {
     const timeoutMs = parseInt(process.env.GW_UPSTREAM_TIMEOUT_MS || '30000', 10);
 
     // Parse body to determine if we need the initialize handshake
-    let jsonRpc: { method?: string; id?: unknown } = {};
+    let jsonRpc: { method?: string; id?: unknown; params?: { name?: string } } = {};
     try { jsonRpc = JSON.parse(body.toString('utf-8')); } catch { /* malformed — forward as-is */ }
+
+    // Invest tools live on the mcp-invest WS backend — the HTTP upstream
+    // (mcp-server) does not serve them. Mirror the WS ingress routing here;
+    // the middleware already exchanged upstreamToken for the invest audience.
+    const rpcToolName = jsonRpc.method === 'tools/call' ? jsonRpc.params?.name : undefined;
+    if (rpcToolName && routeTool(rpcToolName) === 'invest') {
+      try {
+        const rpcResult = await proxyJsonRpc(
+          backendWsUrl('invest', this.config),
+          upstreamToken,
+          JSON.parse(body.toString('utf-8')),
+        );
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(rpcResult));
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[GatewayServer] invest WS proxy error for ${rpcToolName}:`, msg);
+        res.writeHead(502, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ jsonrpc: '2.0', id: jsonRpc.id ?? null, error: { code: -32500, message: 'Backend error' } }));
+      }
+      return;
+    }
 
     const isInitialize = jsonRpc.method === 'initialize';
     const isNotification = !isInitialize && jsonRpc.id === undefined;
