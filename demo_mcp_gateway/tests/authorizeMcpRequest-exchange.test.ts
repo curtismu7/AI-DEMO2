@@ -30,7 +30,7 @@ describe('authorizeMcpRequest — RFC 8693 exchange before forward', () => {
     expect(forwarded).toEqual(['exchanged-tok']);
   });
 
-  it('exchanges with only the bearer token — the HTTP upstream is fixed to olb, no per-tool routing', async () => {
+  it('exchanges with the bearer token AND the tool name — per-tool routing picks the backend audience (invest tools need mcp-invest)', async () => {
     const forwarded: string[] = [];
     const exchange = jest.fn(async () => ({ token: 'exchanged-tok', targetAud: 'mcp-olb.ping.demo', cached: false }));
     const middleware = buildAuthorizeMcpRequest(stubConfig, {
@@ -40,7 +40,7 @@ describe('authorizeMcpRequest — RFC 8693 exchange before forward', () => {
     });
     const fakeRes = { writeHead: jest.fn(), end: jest.fn(), setHeader: jest.fn() } as any;
     await middleware('original-tx-token', body, {} as any, fakeRes, async (t) => { forwarded.push(t); });
-    expect(exchange).toHaveBeenCalledWith('original-tx-token');
+    expect(exchange).toHaveBeenCalledWith('original-tx-token', 'get_my_accounts');
   });
 
   it('fails closed with 502 + token_exchange_failed when exchange throws', async () => {

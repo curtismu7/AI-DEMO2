@@ -411,6 +411,12 @@ services:
       MCP_GW_OLB_WS_URL: "ws://mcp-server:8080"
       MCP_GW_INVEST_WS_URL: "ws://mcp-invest:8081"
       MCP_GW_PASSTHROUGH_TO_MCP_SERVER: "false"
+      # Accepted token audiences (comma list, tokenValidator.ts): Node-gateway +
+      # PingGateway + the A2A specialists' dedicated Exchange #2 audience. This
+      # list was wired onto demo-api-server/authz-server but never onto the
+      # gateway itself, whose env_file pinned the single Node audience — so every
+      # A2A specialist call 401'd at the gateway with "Audience mismatch".
+      MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo"
       PINGAUTHORIZE_ENDPOINT: "http://authz-server:9001"
       PINGAUTHORIZE_WORKER_ID: "mcp-gateway"
       MCP_GW_P1AZ_ENABLED: "true"
