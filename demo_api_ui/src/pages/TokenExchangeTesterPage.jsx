@@ -66,46 +66,43 @@ export default function TokenExchangeTesterPage() {
   ];
 
   return (
-    <div className='token-exchange-tester-page'>
-      <div className='page-header'>
+    <div className='tet-page'>
+      <div className='tet-topbar'>
         <h1>RFC 8693 Token Exchange Tester</h1>
-        <p>Exchange your session token for a scoped MCP token using real PingOne credentials.</p>
+        <span className='tet-topbar__status'>
+          Exchange your session token for a scoped MCP token using real PingOne credentials.
+        </span>
       </div>
 
       {!hasSession ? (
-        <div className='no-session-message'>
-          <p>Please log in first to test token exchange.</p>
-        </div>
+        <div className='tet-no-session'>Please log in first to test token exchange.</div>
       ) : (
-        <div className='content'>
-          <div className='form-section'>
-            <h2>Exchange Configuration</h2>
-            <form onSubmit={handleExchange}>
-              <div className='form-group'>
+        <div className='tet-grid'>
+          {/* Left column: tokens (form + claims) */}
+          <div className='tet-col-left'>
+            <div className='tet-section-label'>Exchange Configuration</div>
+            <form onSubmit={handleExchange} className='tet-form'>
+              <div className='tet-field'>
                 <label htmlFor='audience'>Target Audience (Resource URI)</label>
-                <div className='audience-selector'>
-                  <select
-                    value={audience}
-                    onChange={(e) => setAudience(e.target.value)}
-                  >
-                    {predefinedAudiences.map(opt => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                  <span className='separator'>or</span>
-                  <input
-                    type='text'
-                    placeholder='Custom audience'
-                    value={audience}
-                    onChange={(e) => setAudience(e.target.value)}
-                    className='custom-input'
-                  />
-                </div>
+                <select
+                  value={audience}
+                  onChange={(e) => setAudience(e.target.value)}
+                >
+                  {predefinedAudiences.map(opt => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type='text'
+                  placeholder='Custom audience'
+                  value={audience}
+                  onChange={(e) => setAudience(e.target.value)}
+                />
               </div>
 
-              <div className='form-group'>
+              <div className='tet-field'>
                 <label htmlFor='scopes'>Scopes (space-separated)</label>
                 <input
                   type='text'
@@ -116,119 +113,90 @@ export default function TokenExchangeTesterPage() {
                 />
               </div>
 
-              <button
-                type='submit'
-                disabled={loading}
-                className='exchange-button'
-              >
+              <button type='submit' disabled={loading} className='tet-btn'>
                 {loading ? 'Exchanging...' : 'Exchange Token'}
               </button>
             </form>
+
+            {result?.success && (
+              <>
+                <div className='tet-section-label'>Original Token (Subject)</div>
+                {result.original?.content?.payload && (
+                  <dl className='tet-claims'>
+                    <dt>sub</dt>
+                    <dd>{result.original.content.payload.sub}</dd>
+                    <dt>aud</dt>
+                    <dd>{Array.isArray(result.original.content.payload.aud) ? result.original.content.payload.aud.join(', ') : result.original.content.payload.aud}</dd>
+                    <dt>scope</dt>
+                    <dd>{result.original.content.payload.scope}</dd>
+                    <dt>expires</dt>
+                    <dd>{result.original.content.expires_at}</dd>
+                  </dl>
+                )}
+
+                <div className='tet-section-label'>Exchanged Token (Result)</div>
+                {result.exchanged?.content?.payload && (
+                  <dl className='tet-claims'>
+                    <dt>sub</dt>
+                    <dd>{result.exchanged.content.payload.sub}</dd>
+                    <dt>aud</dt>
+                    <dd>{Array.isArray(result.exchanged.content.payload.aud) ? result.exchanged.content.payload.aud.join(', ') : result.exchanged.content.payload.aud}</dd>
+                    <dt>scope</dt>
+                    <dd>{result.exchanged.content.payload.scope}</dd>
+                    {result.exchanged.content.payload.act && (
+                      <>
+                        <dt>act</dt>
+                        <dd>{JSON.stringify(result.exchanged.content.payload.act)}</dd>
+                      </>
+                    )}
+                    <dt>expires</dt>
+                    <dd>{result.exchanged.content.expires_at}</dd>
+                  </dl>
+                )}
+              </>
+            )}
           </div>
 
-          {error && (
-            <div className='error-section'>
-              <h3>Error</h3>
-              <div className='error-box'>{error}</div>
-            </div>
-          )}
+          {/* Right column: results (error / request / response) */}
+          <div className='tet-col-right'>
+            {error && (
+              <>
+                <div className='tet-section-label'>Error</div>
+                <div className='tet-error'>{error}</div>
+              </>
+            )}
 
-          {result && (
-            <div className='result-section'>
-              <h2>{result.success ? 'Exchange Result' : 'Exchange Failed'}</h2>
+            {result?.details && (
+              <>
+                <div className='tet-section-label'>PingOne Error Details</div>
+                <pre className='tet-json'>
+                  <JsonHighlight value={result.details} />
+                </pre>
+              </>
+            )}
 
-              {result.success && (
-                <div className='token-comparison'>
-                  <div className='token-card original'>
-                    <h3>Original Token (Subject)</h3>
-                  {result.original?.content && (
-                    <div className='token-display'>
-                      {result.original.content.payload && (
-                        <div className='token-claims'>
-                          <div className='claim'>
-                            <span className='claim-label'>Subject (sub):</span>
-                            <span className='claim-value'>{result.original.content.payload.sub}</span>
-                          </div>
-                          <div className='claim'>
-                            <span className='claim-label'>Audience (aud):</span>
-                            <span className='claim-value'>{Array.isArray(result.original.content.payload.aud) ? result.original.content.payload.aud.join(', ') : result.original.content.payload.aud}</span>
-                          </div>
-                          <div className='claim'>
-                            <span className='claim-label'>Scopes:</span>
-                            <span className='claim-value'>{result.original.content.payload.scope}</span>
-                          </div>
-                          <div className='claim'>
-                            <span className='claim-label'>Expires:</span>
-                            <span className='claim-value'>{result.original.content.expires_at}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+            {result?.request && (
+              <>
+                <div className='tet-section-label'>Exchange Request</div>
+                <pre className='tet-json'>
+                  <JsonHighlight value={result.request} />
+                </pre>
+              </>
+            )}
 
-                <div className='token-card exchanged'>
-                  <h3>Exchanged Token (Result)</h3>
-                  {result.exchanged?.content && (
-                    <div className='token-display'>
-                      {result.exchanged.content.payload && (
-                        <div className='token-claims'>
-                          <div className='claim'>
-                            <span className='claim-label'>Subject (sub):</span>
-                            <span className='claim-value'>{result.exchanged.content.payload.sub}</span>
-                          </div>
-                          <div className='claim'>
-                            <span className='claim-label'>Audience (aud):</span>
-                            <span className='claim-value'>{Array.isArray(result.exchanged.content.payload.aud) ? result.exchanged.content.payload.aud.join(', ') : result.exchanged.content.payload.aud}</span>
-                          </div>
-                          <div className='claim'>
-                            <span className='claim-label'>Scopes:</span>
-                            <span className='claim-value'>{result.exchanged.content.payload.scope}</span>
-                          </div>
-                          {result.exchanged.content.payload.act && (
-                            <div className='claim'>
-                              <span className='claim-label'>Actor (act):</span>
-                              <span className='claim-value'>{JSON.stringify(result.exchanged.content.payload.act)}</span>
-                            </div>
-                          )}
-                          <div className='claim'>
-                            <span className='claim-label'>Expires:</span>
-                            <span className='claim-value'>{result.exchanged.content.expires_at}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-              )}
-
-              {result.details && (
-                <div className='error-details-section' style={{ marginBottom: '1rem', padding: '1rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px' }}>
-                  <h3 style={{ color: '#dc2626', margin: '0 0 0.5rem' }}>PingOne Error Details</h3>
-                  <pre style={{ maxHeight: '200px', overflow: 'auto', fontSize: '0.85rem' }}>
-                    <JsonHighlight value={result.details} />
-                  </pre>
-                </div>
-              )}
-
-              {result.request && (
-                <div className='request-section'>
-                  <h3>Exchange Request</h3>
-                  <pre style={{ maxHeight: '200px', overflow: 'auto' }}>
-                    <JsonHighlight value={result.request} />
-                  </pre>
-                </div>
-              )}
-
-              <div className='raw-response-section'>
-                <h3>Full Response</h3>
-                <pre style={{ maxHeight: '300px', overflow: 'auto' }}>
+            {result && (
+              <>
+                <div className='tet-section-label'>Full Response</div>
+                <pre className='tet-json'>
                   <JsonHighlight value={result} />
                 </pre>
-              </div>
-            </div>
-          )}
+              </>
+            )}
+
+            {!result && !error && (
+              <div className='tet-empty'>Run an exchange to see the request and response here.</div>
+            )}
+          </div>
         </div>
       )}
     </div>
