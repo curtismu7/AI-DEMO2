@@ -4046,6 +4046,48 @@ export default function BankingAgent({
           setOtpContextLine(contextLine);
           pendingOtpActionRef.current = { actionId, form };
 
+          // CIBA: out-of-band backchannel approval. No device-picker modal --
+          // initiate, then poll until the user approves elsewhere (or, on this
+          // environment, the simulated fallback auto-approves after ~7s). See
+          // docs/superpowers/specs/2026-07-19-uc22-ciba-step-up-override-design.md.
+          if (normalized.step_up_method === "ciba") {
+            try {
+              const apiBase = process.env.REACT_APP_API_URL || "";
+              const initRes = await fetch(`${apiBase}/api/auth/ciba/initiate`, {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  binding_message: "Approve your banking transaction",
+                  acr_values: normalized.step_up_acr || "",
+                }),
+              });
+              if (!initRes.ok)
+                throw new Error(`CIBA initiation failed: ${initRes.status}`);
+              const { auth_req_id, interval } = await initRes.json();
+              addMessage(
+                "assistant",
+                " Waiting for CIBA approval — approve out-of-band on your device, then this will continue automatically…",
+                `ciba-step-${Date.now()}`,
+              );
+              toast.dismiss(toastId);
+              agentFlowDiagram.completeMfaChallenge(null); // Pending
+              setLoading(false);
+              pollCibaStepUp(auth_req_id, (interval || 5) * 1000, actionId, form);
+            } catch (err) {
+              console.error("[BankingAgent] CIBA initiation failed:", err);
+              addMessage(
+                "assistant",
+                "❌ Could not start CIBA approval. Please try again.",
+                `ciba-error-${Date.now()}`,
+              );
+              toast.dismiss(toastId);
+              agentFlowDiagram.completeMfaChallenge(false);
+              setLoading(false);
+            }
+            return;
+          }
+
           // Check for P1MFA mode
           if (normalized.step_up_method === "p1mfa") {
             try {
@@ -7011,6 +7053,47 @@ export default function BankingAgent({
       agentFlowDiagram.completeMfaChallenge(true);
       runAction(actionId, form, { isRefire: true });
     }
+  };
+
+  /**
+   * CIBA step-up: poll /api/auth/ciba/poll/:authReqId until approved, denied,
+   * or expired, then resume the original action -- mirrors handleP1MfaComplete's
+   * runAction(actionId, form, { isRefire: true }) resume shape. Matches the
+   * poll contract in routes/ciba.js: 200 body { status: 'pending' | 'approved' }
+   * while waiting; 403/404/410 are terminal (denied/unknown/expired).
+   */
+  const pollCibaStepUp = (authReqId, intervalMs, actionId, form) => {
+    const apiBase = process.env.REACT_APP_API_URL || "";
+    const poll = async () => {
+      let res;
+      try {
+        res = await fetch(`${apiBase}/api/auth/ciba/poll/${authReqId}`, {
+          credentials: "include",
+        });
+      } catch (_) {
+        setTimeout(poll, intervalMs);
+        return;
+      }
+      if (res.status === 403 || res.status === 404 || res.status === 410) {
+        const data = await res.json().catch(() => ({}));
+        addMessage(
+          "assistant",
+          `❌ ${data.message || "CIBA approval was denied or expired. Please try again."}`,
+          `ciba-denied-${Date.now()}`,
+        );
+        agentFlowDiagram.completeMfaChallenge(false);
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (data.status === "approved") {
+        agentFlowDiagram.completeMfaChallenge(true);
+        runAction(actionId, form, { isRefire: true });
+        return;
+      }
+      // still pending
+      setTimeout(poll, intervalMs);
+    };
+    setTimeout(poll, intervalMs);
   };
 
   const handleP1MfaError = (errorMsg) => {
