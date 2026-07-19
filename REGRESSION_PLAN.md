@@ -101,6 +101,34 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-19 — Demo check page still unreadable after opacity fix — real cause was a dead dark-mode CSS block
+
+**Files changed:** `demo_api_ui/src/pages/CheckPage.css` only (supersedes,
+does not replace, the opacity fix logged just below — both were real bugs).
+
+**What was broken:** removing the `opacity: 0.6-0.8` dimming (previous
+entry) wasn't enough — user reported the page was still unreadable after a
+hard refresh. Root cause: the file had a `@media (prefers-color-scheme: dark)`
+block plus `:root[data-theme="dark"]` / `[data-theme="light"]` blocks, "so
+the page follows the app's theme toggle" — but no theme toggle exists anywhere in
+this app (confirmed: nothing sets `data-theme` on `documentElement`). On a
+browser/OS with dark mode on, the media query fired and flipped `--text` to
+`#e7eaf2` (near-white), while the page's actual background stayed light
+(from the app's global `body` rule + a `.card` class name collision with
+`index.css` — neither theme-aware) → near-white text on a light background.
+
+**What was fixed:** deleted the dark-mode media query and both unreachable
+`data-theme` attribute blocks; kept only the light `:root` token block,
+matching how the rest of the app already renders (fixed light theme).
+
+**Do not break:** no JS change; no other page uses `CheckPage.css`. If a
+real theme toggle is ever added app-wide, dark tokens should come back
+wired to whatever mechanism sets `data-theme`, not a bare media query.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0, confirmed); live
+Vite bundle checked to contain zero `@media (prefers-color-scheme` /
+`:root[data-theme` occurrences post-fix.
+
 ### 2026-07-19 — Demo check page AGENT GATEWAY / USE CASES cards red — missing local env var, not a PingOne gap
 
 **Files changed:** `demo_api_server/.env` (gitignored, local runtime config only — no
