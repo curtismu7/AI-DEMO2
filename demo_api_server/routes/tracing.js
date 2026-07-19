@@ -325,11 +325,19 @@ const { project } = require('../services/traceProjector');
 const TRACE_ID_RE = /^[0-9a-f]{16,32}$/i;
 const INGEST_RETRY_DELAYS_MS = [500, 1000, 1500];
 
-/** Fetch a trace, retrying 404s to absorb Jaeger ingest lag (2–5s typical). */
+/** Fetch a trace, retrying 404s and empty responses to absorb Jaeger ingest lag (2–5s typical). */
 async function fetchTraceWithRetry(base, id, delays) {
   for (let attempt = 0; attempt <= delays.length; attempt++) {
     try {
       const resp = await axios.get(`${base}/api/traces/${id}`, { timeout: 10000 });
+      // Jaeger returns 200 with empty data array for not-found traces, not 404.
+      if (!Array.isArray(resp.data?.data) || resp.data.data.length === 0) {
+        if (attempt < delays.length) {
+          await new Promise((r) => setTimeout(r, delays[attempt]));
+          continue;
+        }
+        return { ok: false, status: 404 };
+      }
       return { ok: true, data: resp.data };
     } catch (err) {
       if (err.response?.status === 404 && attempt < delays.length) {
@@ -377,6 +385,10 @@ router.get('/traces/:id/raw', async (req, res) => {
   }
   try {
     const resp = await axios.get(`${base}/api/traces/${id}`, { timeout: 10000 });
+    // Jaeger returns 200 with empty data array for not-found traces, not 404.
+    if (!Array.isArray(resp.data?.data) || resp.data.data.length === 0) {
+      return res.status(404).json({ error: 'trace_not_found', message: 'Trace not found.' });
+    }
     return res.json(resp.data);
   } catch (err) {
     if (err.response?.status === 404) {

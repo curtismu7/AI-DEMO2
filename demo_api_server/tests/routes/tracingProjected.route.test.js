@@ -28,7 +28,10 @@ const TRACE = {
   }],
 };
 const JAEGER_OK = { status: 200, data: { data: [TRACE] } };
+const JAEGER_EMPTY = { status: 200, data: { data: [] } };
 const SERVICES_OK = { status: 200, data: { data: ['agent-service'] } };
+const SERVICES_FAIL = new Error('ECONNREFUSED'); SERVICES_FAIL.code = 'ECONNREFUSED';
+const QUERY_ERROR = new Error('Internal Server Error'); QUERY_ERROR.response = { status: 500, statusText: 'Internal Server Error' };
 
 /** First axios.get call resolves service probe; later calls follow `responses` in order. */
 function mockJaegerSequence(responses) {
@@ -37,6 +40,14 @@ function mockJaegerSequence(responses) {
     if (String(url).includes('/api/services')) return Promise.resolve(SERVICES_OK);
     const r = responses[Math.min(i++, responses.length - 1)];
     return r instanceof Error ? Promise.reject(r) : Promise.resolve(r);
+  });
+}
+
+/** Mock Jaeger probe to fail for all candidates. */
+function mockJaegerProbeFailure() {
+  axios.get.mockImplementation((url) => {
+    if (String(url).includes('/api/services')) return Promise.reject(SERVICES_FAIL);
+    return Promise.reject(SERVICES_FAIL);
   });
 }
 
@@ -72,6 +83,34 @@ describe('GET /traces/:id/projected', () => {
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('invalid_trace_id');
   });
+
+  test('retries 200-empty then succeeds on 200-full', async () => {
+    mockJaegerSequence([JAEGER_EMPTY, JAEGER_OK]);
+    const res = await request(makeApp()).get(`/api/health/tracing/traces/${TRACE.traceID}/projected?retryDelaysMs=0`);
+    expect(res.status).toBe(200);
+    expect(res.body.spans.length).toBeGreaterThan(0);
+  });
+
+  test('404 after only 200-empty responses', async () => {
+    mockJaegerSequence([JAEGER_EMPTY, JAEGER_EMPTY, JAEGER_EMPTY, JAEGER_EMPTY]);
+    const res = await request(makeApp()).get(`/api/health/tracing/traces/${TRACE.traceID}/projected?retryDelaysMs=0`);
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('trace_not_found');
+  });
+
+  test('503 when Jaeger is unreachable (probe fails)', async () => {
+    mockJaegerProbeFailure();
+    const res = await request(makeApp()).get(`/api/health/tracing/traces/${TRACE.traceID}/projected`);
+    expect(res.status).toBe(503);
+    expect(res.body.error).toBe('jaeger_unreachable');
+  });
+
+  test('502 on non-404 query error (no retry)', async () => {
+    mockJaegerSequence([QUERY_ERROR]);
+    const res = await request(makeApp()).get(`/api/health/tracing/traces/${TRACE.traceID}/projected?retryDelaysMs=0`);
+    expect(res.status).toBe(502);
+    expect(res.body.error).toBe('jaeger_query_failed');
+  });
 });
 
 describe('GET /traces/:id/raw', () => {
@@ -87,5 +126,26 @@ describe('GET /traces/:id/raw', () => {
     mockJaegerSequence([notFound, JAEGER_OK]);   // second response must never be reached
     const res = await request(makeApp()).get(`/api/health/tracing/traces/${TRACE.traceID}/raw`);
     expect(res.status).toBe(404);
+  });
+
+  test('404 on 200-empty response (no retry)', async () => {
+    mockJaegerSequence([JAEGER_EMPTY, JAEGER_OK]);   // second response must never be reached
+    const res = await request(makeApp()).get(`/api/health/tracing/traces/${TRACE.traceID}/raw`);
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('trace_not_found');
+  });
+
+  test('503 when Jaeger is unreachable (probe fails)', async () => {
+    mockJaegerProbeFailure();
+    const res = await request(makeApp()).get(`/api/health/tracing/traces/${TRACE.traceID}/raw`);
+    expect(res.status).toBe(503);
+    expect(res.body.error).toBe('jaeger_unreachable');
+  });
+
+  test('502 on non-404 query error', async () => {
+    mockJaegerSequence([QUERY_ERROR]);
+    const res = await request(makeApp()).get(`/api/health/tracing/traces/${TRACE.traceID}/raw`);
+    expect(res.status).toBe(502);
+    expect(res.body.error).toBe('jaeger_query_failed');
   });
 });
