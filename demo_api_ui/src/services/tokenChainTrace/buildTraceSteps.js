@@ -106,7 +106,7 @@ export function buildTraceSteps(trace) {
 
   // 3. agent — evidence: request_accepted phase, LLM activity, or heuristic routing
   const agentSeen = isHeuristic || hasPhase(phases, "request_accepted") || !!llmDetail;
-  steps.push(makeStep("agent", agentSeen ? "done" : "pending", isHeuristic ? {
+  steps.push(makeStep("agent", agentSeen ? "done" : traceComplete ? "notinpath" : "pending", isHeuristic ? {
     kv: [
       ["routing", "Heuristic intent match"],
       routingDetail?.action ? ["matched action", String(routingDetail.action)] : null,
@@ -129,7 +129,7 @@ export function buildTraceSteps(trace) {
     llmStep.lane = "HEURISTICS";
     steps.push(llmStep);
   } else {
-    steps.push(makeStep("llm", llmDetail ? "done" : "pending", llmDetail ? {
+    steps.push(makeStep("llm", llmDetail ? "done" : traceComplete ? "notinpath" : "pending", llmDetail ? {
       request: { title: "LLM request (actual)",
         text: `model: ${llmDetail.model || "?"}\n${asJson(llmDetail.request || {})}` },
       response: { title: "LLM response — tool call", text: asJson(llmDetail.toolCalls || []) },
@@ -141,7 +141,7 @@ export function buildTraceSteps(trace) {
 
   // 5. agent-token
   const agentTok = findEvent(tokenEvents, "agent-actor-token", "two-ex-agent-actor");
-  steps.push(makeStep("agent-token", agentTok ? "done" : "pending", agentTok ? {
+  steps.push(makeStep("agent-token", agentTok ? "done" : traceComplete ? "notinpath" : "pending", agentTok ? {
     kv: Object.entries(agentTok.claims || {}).slice(0, 6).map(([k, v]) => [k, asJson(v)]),
     response: claimsBlock("Agent actor token claims (full)", agentTok.claims),
     inspectToken: "agent",
@@ -150,8 +150,10 @@ export function buildTraceSteps(trace) {
 
   // 6. exchange — "exchanged-token" (1-exchange) or "two-ex-final-token"
   // (2-exchange: the final delegated MCP token with the nested act chain).
-  const exTok = findEvent(tokenEvents, "exchanged-token", "two-ex-final-token");
-  const exFailed = findEvent(tokenEvents, "exchange-failed");
+  // Attack sims (attackSimulatorService) emit their own exchange vocabulary:
+  // "sim-exchange-ok" carries the deliberately-deficient delegated token.
+  const exTok = findEvent(tokenEvents, "exchanged-token", "two-ex-final-token", "sim-exchange-ok");
+  const exFailed = findEvent(tokenEvents, "exchange-failed", "sim-exchange-error");
   const exDone = exTok && exTok.status !== "waiting";
   const ex1Tok = findEvent(tokenEvents, "two-ex-exchange1");
   const beforeScopes = splitScopes((userTok && userTok.claims && userTok.claims.scope) || []);
@@ -216,6 +218,10 @@ export function buildTraceSteps(trace) {
   const azStatus = azIsPermit ? "done"
     : azIsDeny || azUnavailable || (azDenied && !azIsChallenge) ? "error"
     : azIsChallenge || azBegun || azEval ? "active"
+    // Gateway-level denies (UC5/UC11/UC12 sims) block BEFORE Authorize is
+    // consulted — once the trace completes with no evaluation, it was never
+    // in this run's path.
+    : traceComplete ? "notinpath"
     : "pending";
   const authorizeFailed = azStatus === "error";
   const azRequestPayload = azEval && azEval.request
@@ -288,7 +294,14 @@ export function buildTraceSteps(trace) {
   const gwInbound = findEvent(tokenEvents, "evt-inbound");
   const gwScope = findEvent(tokenEvents, "evt-scope");
   const gwDeniedPhase = findPhase(phases, "gateway_policy_denied");
-  const gwDenied = !!gwDeniedPhase;
+  // Attack sims emit "sim-gateway-deny" instead of a phase. RAR denies
+  // (rar_amount_exceeded / rar_unexpected_deny) already feed the
+  // intent-binding step above and must not double-report here.
+  const simGwDeny = (tokenEvents || []).find(
+    (e) => e && e.id === "sim-gateway-deny"
+      && e.error !== "rar_amount_exceeded" && e.error !== "rar_unexpected_deny",
+  );
+  const gwDenied = !!gwDeniedPhase || !!simGwDeny;
   const gwSeen = !!(gwAz || gwIntro || gwInbound || gwScope);
   const gwSkipEvidence = [gwIntroRaw, gwMtls].filter((e) => e && e.status === "skipped");
   steps.push(makeStep("gateway",
@@ -297,7 +310,9 @@ export function buildTraceSteps(trace) {
       decision: gwDenied
         ? { outcome: "DENY",
             // serverEvents rows use "—" as the empty-detail placeholder
-            label: `DENY — ${(gwDeniedPhase.detail && gwDeniedPhase.detail !== "—" ? gwDeniedPhase.detail : gwDeniedPhase.label) || "gateway policy"}` }
+            label: `DENY — ${(gwDeniedPhase
+              ? (gwDeniedPhase.detail && gwDeniedPhase.detail !== "—" ? gwDeniedPhase.detail : gwDeniedPhase.label)
+              : (simGwDeny.label || simGwDeny.explanation)) || "gateway policy"}` }
         : undefined,
       kv: [
         gwIntro ? ["introspection", gwIntro.status === "active" ? "✓ active" : String(gwIntro.status)] : null,
@@ -305,6 +320,7 @@ export function buildTraceSteps(trace) {
         gwAz && gwAz.statements ? ["statements", asJson(gwAz.statements)] : null,
         gwInbound ? ["inbound", gwInbound.label || "user bearer received"] : null,
         gwScope ? ["scope gate", gwScope.label || "scope checked before swap"] : null,
+        simGwDeny ? ["attack sim", simGwDeny.explanation || simGwDeny.label] : null,
       ].filter(Boolean),
       request: (() => {
         if (!gwAz) return undefined;
@@ -374,7 +390,7 @@ export function buildTraceSteps(trace) {
     } : {}));
   const apiMeta = apiMetaEarly;
   const apiKeyCall = apiMeta.credentialPath === "api_key" || apiKeyPath;
-  steps.push(makeStep("api", authorizeFailed ? "notinpath" : (mcpDone && mcpResult) || apiKeyCall ? "done" : "pending",
+  steps.push(makeStep("api", authorizeFailed ? "notinpath" : (mcpDone && mcpResult) || apiKeyCall ? "done" : traceComplete ? "notinpath" : "pending",
     mcpResult && (mcpResult.result || apiKeyCall) ? {
       narrative: apiKeyCall
         ? "Backend call after credential swap — X-API-Key + X-User-Sub (no OAuth bearer on the wire)."
@@ -390,7 +406,7 @@ export function buildTraceSteps(trace) {
   // 11. reply — heuristics compose from the tool result (no LLM); chip paths
   // often have mcpResult but no llmReply, so either evidence marks the step done.
   const replyDone = Boolean(llmReply) || (isHeuristic && mcpDone);
-  const replyStep = makeStep("reply", replyDone ? "done" : "pending",
+  const replyStep = makeStep("reply", replyDone ? "done" : traceComplete ? "notinpath" : "pending",
     llmReply ? {
       response: { title: "Streamed reply", text: String(llmReply) },
     } : isHeuristic && mcpDone ? {

@@ -101,6 +101,39 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-18 — Attack-sim denies (UC5/UC11/UC12) rendered nowhere in the trace rail — the run looked like it died at the chatbot
+
+**Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`,
+`demo_api_ui/src/services/tokenChainTrace/tokenChainTraceStore.js`
+(`ingestTokenEvents`), `demo_api_ui/src/components/AIAgent.js` (attack-sim
+trigger branch only).
+
+**What was broken:** The sims DO reach the gateway and get denied there
+(PingGateway 403 `insufficient_scope` for `gateway:mcp:invoke`, verified in BFF
+logs), but the TokenChainTraceRail ignored every `sim-*` token event except the
+two RAR error codes, and the attack-sim branch in `AIAgent.js` never called
+`completeTrace`. Result: after "Demo step 10: UC5" the rail showed sign-in +
+prompt done and everything downstream stuck "pending" — the failure appeared to
+happen at the chatbot instead of at the gateway. `ingestTokenEvents` also
+replaced the whole event array, wiping the carried `user-token` so even the
+sign-in step regressed.
+
+**What was fixed:** `sim-exchange-ok`/`sim-exchange-error` now count as exchange
+evidence; a non-RAR `sim-gateway-deny` marks the gateway step `error` with the
+DENY label (RAR codes still feed intent-binding only); the sim branch completes
+the trace; evidence-free steps (agent, llm, agent-token, authorize, reply, api)
+resolve `notinpath` once the trace completes, matching the existing
+gateway/stepup pattern; `ingestTokenEvents` carries session events forward.
+
+**Do not break:** RAR sim denies must keep feeding the intent-binding step, not
+the gateway step. `SESSION_EVENT_IDS` carry-over in both `beginTrace` and
+`ingestTokenEvents`. Steps must stay "pending" (never "notinpath") while
+`outcome` is null.
+
+**Verify:** vitest `src/services/tokenChainTrace/__tests__/` (50 pass; includes
+"attack sim (UC5 gateway scope deny)" block) + `ProofOfEnforcementContext` /
+`AIAgent.chips` suites (82 pass); `npm run build` exit 0.
+
 ### 2026-07-18 — authz hardening round 2/3 + cloud import file (three review passes)
 
 **Files changed (round 2/3, on top of the round-1 split work below):**
@@ -314,6 +347,7 @@ and arming it would deny every call. Keep the HTTP and WS actor checks in sync.
 baseline of 53 failed / 852 passed; the 5 failing suites are pre-existing);
 `npx tsc --noEmit` (clean). Targeted: `npx jest tests/authz-last-hop.test.ts
 tests/no-dead-security-middleware.test.ts` (29 passed).
+
 ### 2026-07-18 — A2A delegation part 2: three more stacked causes behind get_portfolio_summary mcp_error
 
 **Files changed:** `docker-compose.yml` (mcp-gateway `MCP_GW_RESOURCE_URI` tri-list),
