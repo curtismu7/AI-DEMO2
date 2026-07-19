@@ -159,12 +159,26 @@ async function _decodeAndVerify(token: string): Promise<DecodedGatewayToken> {
         'invalid_token',
       );
     }
+    // F5 — omission is not permission. "No JWKS configured" previously fell straight
+    // through to jwt.decode, so a gateway that was merely UNDER-CONFIGURED accepted
+    // forged tokens with zero signature verification and no operator signal. Refuse
+    // unless the degraded mode is asked for BY NAME; the flag is reported in the
+    // /health `authz.failOpen` array (contract C3) so the bypass is never silent.
+    if (process.env.MCP_GW_ALLOW_UNVERIFIED_TOKENS !== 'true') {
+      throw new TokenValidationError(
+        'PINGONE_JWKS_ENDPOINT not configured — refusing to validate without signature ' +
+        'verification. Set PINGONE_JWKS_ENDPOINT, or set MCP_GW_ALLOW_UNVERIFIED_TOKENS=true ' +
+        'to explicitly accept unverified tokens (dev only).',
+        'invalid_token',
+      );
+    }
     // Degraded (dev) mode: no JWKS endpoint configured — skip signature verification.
     if (!_noJwksWarned) {
       _noJwksWarned = true;
       console.warn(
-        '[GW] WARN: PINGONE_JWKS_ENDPOINT is not set — JWT signature verification is disabled. ' +
-        'Set PINGONE_JWKS_ENDPOINT to enable fail-closed signature checking.',
+        '[GW] WARN: PINGONE_JWKS_ENDPOINT is not set and MCP_GW_ALLOW_UNVERIFIED_TOKENS=true — ' +
+        'JWT signature verification is disabled. Set PINGONE_JWKS_ENDPOINT to enable ' +
+        'fail-closed signature checking.',
       );
     }
     const decoded = jwt.decode(token) as DecodedGatewayToken;
@@ -176,17 +190,28 @@ async function _decodeAndVerify(token: string): Promise<DecodedGatewayToken> {
   const kid = _getKidFromToken(token);
   let keys = await _fetchJwks(jwksEndpoint);
 
-  // Select key by kid when present; fall back to the first key.
+  // Select key by kid when present. A kid-less token may only be verified when the
+  // JWKS is unambiguous (exactly one key) — falling back to ks[0] across a multi-key
+  // set let an attacker strip the `kid` header and have the token tried against
+  // whichever key happens to sort first, defeating key rotation. Fail closed instead.
   const selectKey = (ks: JwkKey[]): JwkKey | undefined =>
-    kid ? ks.find((k) => k.kid === kid) : ks[0];
+    kid ? ks.find((k) => k.kid === kid) : (ks.length === 1 ? ks[0] : undefined);
   let matchedKey = selectKey(keys);
 
   // Key not in cache — refresh once (key rotation).
   if (!matchedKey) {
-    matchedKey = selectKey(await _fetchJwks(jwksEndpoint, true));
+    keys = await _fetchJwks(jwksEndpoint, true);
+    matchedKey = selectKey(keys);
   }
 
   if (!matchedKey) {
+    if (!kid && keys.length > 1) {
+      throw new TokenValidationError(
+        `Token has no kid header and the JWKS exposes ${keys.length} keys — ` +
+        'cannot select a verification key unambiguously',
+        'invalid_token',
+      );
+    }
     throw new TokenValidationError(
       `No matching JWKS key found${kid ? ` for kid=${kid}` : ''}`,
       'invalid_token',
@@ -229,6 +254,29 @@ export async function validateInboundToken(
   // Expiry check
   if (decoded.exp && decoded.exp < Math.floor(Date.now() / 1000)) {
     throw new TokenValidationError('Token expired', 'expired_token');
+  }
+
+  // F7 — parity with the IG JWKS filter (jwks-token-validation.groovy:156-181), which
+  // enforces nbf and iss. Without these, a token the PingGateway path rejects is
+  // accepted by the Node path: the same credential gets two different verdicts
+  // depending only on which gateway the BFF happened to route through.
+  const nowSec = Math.floor(Date.now() / 1000);
+  const CLOCK_SKEW_SEC = 30; // same tolerance the groovy filter applies
+
+  // not-before: only enforced when the claim is present (matches the groovy).
+  if (typeof decoded.nbf === 'number' && nowSec < decoded.nbf - CLOCK_SKEW_SEC) {
+    throw new TokenValidationError('Token not yet valid (nbf)', 'token_not_yet_valid');
+  }
+
+  // issuer: enforced only when the gateway has been told who the issuer is. An
+  // unset PINGONE_ISSUER_URI cannot be turned into a check — but when it IS set,
+  // a missing iss is a mismatch, not a pass (fail closed).
+  const expectedIss = (process.env.PINGONE_ISSUER_URI || '').trim();
+  if (expectedIss && decoded.iss !== expectedIss) {
+    throw new TokenValidationError(
+      `Issuer mismatch: got ${decoded.iss ?? '(none)'}, expected ${expectedIss}`,
+      'invalid_iss',
+    );
   }
 
   // Audience check — FAIL CLOSED per RFC 6749.

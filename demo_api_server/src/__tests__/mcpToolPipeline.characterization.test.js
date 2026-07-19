@@ -52,6 +52,21 @@ function makeDeps(over = {}) {
   };
 }
 
+// The exchange-failure LOCAL FALLBACK bypasses the gateway, the MCP server, and
+// therefore every authorization check (docs/authorization-decision-split.md F5).
+// The path still exists but is now opt-in via
+// ff_local_fallback_on_exchange_failure (default OFF), so the tests that
+// characterize it enable it explicitly. Driven through the env alias, not a
+// module mock: the pipeline lazily requires configStore and setup.js calls
+// jest.resetModules() after every test, so a mocked instance would not be the
+// one the pipeline resolves. Default-OFF behaviour and the C2 degraded marker
+// are covered in mcpToolPipeline.authzBypass.test.js.
+const LOCAL_FALLBACK_ENV = 'FF_LOCAL_FALLBACK_ON_EXCHANGE_FAILURE';
+function enableLocalFallback() {
+  process.env[LOCAL_FALLBACK_ENV] = 'true';
+}
+afterEach(() => { delete process.env[LOCAL_FALLBACK_ENV]; });
+
 function makeCtx(over = {}) {
   return {
     tool: 'get_my_accounts',
@@ -99,6 +114,7 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
   });
 
   test('exchange-scope-error (httpStatus 400) + session user → local fallback result, flags set', async () => {
+    enableLocalFallback();
     const err = Object.assign(new Error('At least one scope must be granted'), { httpStatus: 400 });
     const deps = makeDeps({
       resolveMcpAccessTokenWithEvents: jest.fn(async () => { throw err; }),
@@ -113,6 +129,7 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
   });
 
   test('pingoneError 401 IS an exchange-scope error (local fallback), session-guard 401 is NOT', async () => {
+    enableLocalFallback();
     const pingoneErr = Object.assign(new Error('Unsupported authentication method'), { httpStatus: 401, pingoneError: 'invalid_client' });
     const depsP = makeDeps({ resolveMcpAccessTokenWithEvents: jest.fn(async () => { throw pingoneErr; }) });
     const outP = await runMcpToolPipeline(makeCtx({ deps: depsP }));
@@ -534,6 +551,7 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
 // outcome, three wire shapes. Phase 170: ALL transfers require consent.
 describe('runMcpToolPipeline — HITL/step-up surfaces as 428 on every path (REGRESSION_PLAN §1)', () => {
   test('local-fallback result with error:hitl_required → kind:block httpStatus:428', async () => {
+    enableLocalFallback();
     const scopeErr = Object.assign(new Error('At least one scope must be granted'), { httpStatus: 400 });
     const deps = makeDeps({
       resolveMcpAccessTokenWithEvents: jest.fn(async () => { throw scopeErr; }),
@@ -553,6 +571,7 @@ describe('runMcpToolPipeline — HITL/step-up surfaces as 428 on every path (REG
   });
 
   test('local-fallback result with error:step_up_required → 428 mcp_step_up_required', async () => {
+    enableLocalFallback();
     const scopeErr = Object.assign(new Error('scope'), { httpStatus: 400 });
     const deps = makeDeps({
       resolveMcpAccessTokenWithEvents: jest.fn(async () => { throw scopeErr; }),
@@ -583,6 +602,7 @@ describe('runMcpToolPipeline — HITL/step-up surfaces as 428 on every path (REG
   });
 
   test('NON-HITL local fallback still returns kind:result httpStatus:200 (no false-positive)', async () => {
+    enableLocalFallback();
     const scopeErr = Object.assign(new Error('scope'), { httpStatus: 400 });
     const deps = makeDeps({
       resolveMcpAccessTokenWithEvents: jest.fn(async () => { throw scopeErr; }),

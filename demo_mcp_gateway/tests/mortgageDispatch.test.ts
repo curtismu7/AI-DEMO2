@@ -35,6 +35,11 @@ const CONFIG = {
   pingAuthorizeEndpoint: '',
   pingAuthorizeWorkerId: '',
   p1azEnabled: false,
+  // F1: the local scope engine is now a named opt-in rather than the implicit
+  // default. This suite's subject is HTTP/WS parity OF that engine, so it has to
+  // ask for the degraded mode explicitly; without it both transports fail closed
+  // (which is the new correct behaviour, covered in authzPolicySource.test.ts).
+  allowLocalScopeFallback: true,
   gatewayResourceUri: 'https://gateway.example.com',
 } as unknown as GatewayConfig;
 

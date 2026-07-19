@@ -75,11 +75,21 @@ export type AuthorizationResult =
  * @param bearerToken  The raw inbound bearer token (already aud/exp-validated)
  * @param introspectionClient  Reusable RFC 7662 client (callers can keep one instance)
  * @param config  Gateway config (used for the D-05 upstream-aud blacklist)
+ * @param toolName  Tool name from the JSON-RPC body, when the caller knows it.
+ * @param decisionContext  'McpToolCall' for a tool invocation.
+ *
+ * toolName + decisionContext are REQUIRED for the UC16 require-act branch to be
+ * reachable: GatewayTokenPolicy only applies it for a named, agent-mediated tool
+ * in the McpToolCall context. Callers that omit them (the WebSocket handler,
+ * which authenticates before any tool is named) get identity checks only — the
+ * WS transport applies UC16 later in guardToolCall, where the tool IS known.
  */
 export async function runMcpAuthorizationPipeline(
   bearerToken: string,
   introspectionClient: GatewayIntrospectionClient,
   config: GatewayConfig,
+  toolName?: string,
+  decisionContext?: string,
 ): Promise<AuthorizationResult> {
   const audit: AuditTrail = { introspection: null, policy: null };
 
@@ -109,7 +119,7 @@ export async function runMcpAuthorizationPipeline(
       throw new GatewayTokenPolicyError('Empty or missing token payload', 'invalid_token');
     }
     decoded = raw;
-    GatewayTokenPolicy.validate(decoded, config);
+    GatewayTokenPolicy.validate(decoded, config, toolName, decisionContext);
   } catch (err) {
     if (err instanceof GatewayTokenPolicyError) {
       audit.policy = { passed: false, error: err.message };

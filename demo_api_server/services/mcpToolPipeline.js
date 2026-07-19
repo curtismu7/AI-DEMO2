@@ -205,10 +205,25 @@ async function runMcpToolPipeline(ctx) {
             err.httpStatus === 400 ||
             err.code === 'token_exchange_failed' ||
             (err.httpStatus === 401 && Boolean(err.pingoneError));
+        // F5: this fallback runs the tool through the LOCAL handler, bypassing
+        // the gateway AND the MCP server — and therefore every authorization
+        // check on that path. It is a demo convenience, not a safe default, so
+        // it is now opt-in and OFF by default. When enabled, the response is
+        // marked degraded (contract C2) so the caller can see the call was not
+        // authorized by any policy engine.
+        const localFallbackOnExchangeFailure =
+            require('./configStore').getEffective('ff_local_fallback_on_exchange_failure') === 'true';
         logger.debug(_CAT,
-            `[MCP Fallback] tool=${tool} httpStatus=${err.httpStatus ?? '(none)'} errCode=${err.code ?? '(none)'} pingoneError=${err.pingoneError ?? '(none)'} sessionUserId=${sessionUser?.id ?? '(missing)'} isExchangeScopeError=${isExchangeScopeError}`
+            `[MCP Fallback] tool=${tool} httpStatus=${err.httpStatus ?? '(none)'} errCode=${err.code ?? '(none)'} pingoneError=${err.pingoneError ?? '(none)'} sessionUserId=${sessionUser?.id ?? '(missing)'} isExchangeScopeError=${isExchangeScopeError} localFallbackEnabled=${localFallbackOnExchangeFailure}`
         );
-        if (sessionUser ?.id && isExchangeScopeError) {
+        const localFallbackApplies = Boolean(sessionUser ?.id) && isExchangeScopeError;
+        if (localFallbackApplies && !localFallbackOnExchangeFailure) {
+            logger.warn(_CAT,
+                `[MCP Fallback] ${tool} — exchange failed and the ungated local fallback is DISABLED ` +
+                '(ff_local_fallback_on_exchange_failure=false); surfacing the error instead of running unauthorized.'
+            );
+        }
+        if (localFallbackApplies && localFallbackOnExchangeFailure) {
             const fallbackEvents = err.tokenEvents && err.tokenEvents.length ? err.tokenEvents : [];
             deps.publishTokenEventsToSse(flowTraceId, fallbackEvents);
             const effectiveUserId = sessionUser.oauthId || sessionUser.id;
@@ -230,6 +245,10 @@ async function runMcpToolPipeline(ctx) {
                 return localResultOutcome(result, fallbackEvents, {
                     _localFallback: true,
                     _exchangeFailed: true,
+                    // Contract C2 — this result was produced without the
+                    // gateway/MCP-server authorization path.
+                    _degraded: true,
+                    policy_source: 'local-fallback',
                 });
             } catch (localErr) {
                 logger.error(_CAT, `[MCP Local] ${tool} — callToolLocal threw after exchange failure: ${localErr.message}`, { stack: localErr.stack });
@@ -311,6 +330,18 @@ async function runMcpToolPipeline(ctx) {
     // to avoid redundant denials from a policy that doesn't cover specialist tools.
     if (ctx.skipBffAuthorize) {
         deps.emit({ phase: 'authorize_gate_skipped', reason: 'a2a_supplied_token' });
+        // Contract C4 — omission is not permission. The SSE phase alone left the
+        // RESPONSE BODY byte-identical to a run where the gate PERMITted, so a
+        // caller reading the response could not tell the two apart. The other
+        // two skip paths already set this; this was the last gap.
+        mcpAuthorizeEvaluationThisRequest = {
+            ran: false,
+            skipped: true,
+            skipReason: 'a2a_supplied_token',
+            decisionContext: 'McpFirstTool',
+            ...(ctx.useCaseId ? { useCaseId: ctx.useCaseId } : {}),
+            ...(ctx.vertical ? { vertical: ctx.vertical } : {}),
+        };
     } else {
     try {
         deps.emit({
@@ -524,13 +555,27 @@ async function runMcpToolPipeline(ctx) {
                 { tag: 'authorize/gate-permitted', metadata: { tool, useCaseId: ctx.useCaseId, vertical: ctx.vertical } });
         }
         if (!mcpAuthz.ran) {
+            // Contract C4 — omission is not permission. A gate that did not run
+            // must be visible to the caller and the UI, never silently
+            // indistinguishable from a PERMIT. Logged at WARN (not info): an
+            // unauthorized tool call is not routine.
+            const skipReason = mcpAuthz.skipReason || mcpAuthz.reason || 'unknown';
             deps.emit({
                 phase: 'authorize_gate_skipped',
-                reason: mcpAuthz.reason,
+                reason: skipReason,
             });
-            deps.appEventLog('authorize', 'info',
-                `Authorize gate skipped — ${mcpAuthz.reason || 'unknown'}`,
-                { tag: 'authorize/gate-skipped', metadata: { reason: mcpAuthz.reason, useCaseId: ctx.useCaseId, vertical: ctx.vertical } });
+            deps.appEventLog('authorize', 'warn',
+                `Authorize gate did NOT run — ${skipReason} (tool=${tool} is unauthorized)`,
+                { tag: 'authorize/gate-skipped', metadata: { reason: skipReason, useCaseId: ctx.useCaseId, vertical: ctx.vertical } });
+            mcpAuthorizeEvaluationThisRequest = {
+                ran: false,
+                skipped: true,
+                skipReason,
+                decisionContext: 'McpFirstTool',
+                ...(mcpAuthz.authorizeFallback ? { authorizeFallback: mcpAuthz.authorizeFallback } : {}),
+                ...(ctx.useCaseId ? { useCaseId: ctx.useCaseId } : {}),
+                ...(ctx.vertical ? { vertical: ctx.vertical } : {}),
+            };
         }
     } catch (mcpAuthzErr) {
         deps.emit({

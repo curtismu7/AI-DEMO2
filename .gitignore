@@ -35,6 +35,12 @@ snapshots/*
 # both are source. Other large ad-hoc exports under snapshots/ stay ignored.
 !snapshots/gen-authorize-snapshot.js
 !snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json
+# Track the snapshot regression tests too — otherwise `snapshots/*` hides them and
+# `test:snapshots` runs zero files (exit 0) on a clean CI checkout, i.e. the
+# drift/cloud-delta protection silently never runs. scripts/test-snapshots.sh
+# fails loudly if the glob ever matches nothing again.
+!snapshots/authorizeSnapshotDrift.test.js
+!snapshots/authorizeSnapshotCloudDelta.test.js
 certs/
 package-lock.json
 **/package-lock.json

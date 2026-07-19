@@ -157,6 +157,14 @@ describe('mcpToolPipeline SSE request payload — regression', () => {
   // ── (B) Exchange-failed local fallback ──────────────────────────────────────
 
   test('(B) exchange-failed fallback: publishMcpResultToSse receives requestJson', async () => {
+    // The exchange-failure local fallback bypasses the gateway, the MCP server
+    // and every authorization check, so it is now opt-in via
+    // ff_local_fallback_on_exchange_failure (default OFF) — see
+    // docs/authorization-decision-split.md F5. This case characterizes the SSE
+    // payload OF that path, so it enables the flag. Driven through the env alias
+    // because the pipeline lazily requires configStore and setup.js resets the
+    // module registry between tests.
+    process.env.FF_LOCAL_FALLBACK_ON_EXCHANGE_FAILURE = 'true';
     const exchangeErr = Object.assign(new Error('token_exchange_failed'), {
       code: 'token_exchange_failed',
       httpStatus: 400,
@@ -181,6 +189,7 @@ describe('mcpToolPipeline SSE request payload — regression', () => {
     const [, payload] = deps.publishMcpResultToSse.mock.calls[0];
     expect(payload.tool).toBe('get_balance');
     expect(payload.requestJson).toEqual(wireReq('get_balance', params));
+    delete process.env.FF_LOCAL_FALLBACK_ON_EXCHANGE_FAILURE;
   });
 
   // ── (C) Remote-unreachable fallback ─────────────────────────────────────────

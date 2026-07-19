@@ -54,17 +54,23 @@ describe('TokenIntrospector — JWKS outage fails closed (H2)', () => {
   });
   afterEach(() => { process.env = { ...ORIG }; jest.clearAllMocks(); });
 
-  const verify = (tok: string) => (ti as any).verifyTokenSignature(tok) as Promise<void>;
+  // verifyTokenSignature now REPORTS its outcome: true = signature verified,
+  // false = accepted WITHOUT verification (fail-open opt-in), throws = rejected.
+  // Callers use that boolean to decide whether the token's claims may drive an
+  // authorization decision, so the resolved value is asserted, not just resolve-vs-reject.
+  const verify = (tok: string) => (ti as any).verifyTokenSignature(tok) as Promise<boolean>;
 
   it('outage + no opt-in → fail closed (rejects)', async () => {
     jwtVerify.mockRejectedValue(OUTAGE_ERR); // primary + retry both fail
     await expect(verify(makeJwt({ sub: 'a' }))).rejects.toBeInstanceOf(AuthenticationError);
   });
 
-  it('outage + ALLOW_JWKS_FAILOPEN=true → accepts (resolves)', async () => {
+  it('outage + ALLOW_JWKS_FAILOPEN=true → accepts, reporting unverified (false)', async () => {
     process.env.ALLOW_JWKS_FAILOPEN = 'true';
     jwtVerify.mockRejectedValue(OUTAGE_ERR);
-    await expect(verify(makeJwt({ sub: 'a' }))).resolves.toBeUndefined();
+    // Accepted for authentication, but false tells the caller the claims were
+    // NOT proven authentic — so the actor allow-list / D-05 must not trust them.
+    await expect(verify(makeJwt({ sub: 'a' }))).resolves.toBe(false);
   });
 
   it('outage + STRICT_AUTH=true → fail closed even with opt-in set', async () => {
@@ -81,16 +87,16 @@ describe('TokenIntrospector — JWKS outage fails closed (H2)', () => {
   });
 
   it('last-known-good: after a success, an outage verifies against the cached keyset', async () => {
-    // 1st verify succeeds → caches last-known-good
+    // 1st verify succeeds → caches last-known-good, reports verified (true)
     jwtVerify.mockResolvedValueOnce(undefined);
-    await expect(verify(makeJwt({ sub: 'ok' }))).resolves.toBeUndefined();
+    await expect(verify(makeJwt({ sub: 'ok' }))).resolves.toBe(true);
 
     // 2nd verify: primary + retry hit the outage, but last-known-good verifies
     jwtVerify
       .mockRejectedValueOnce(OUTAGE_ERR)  // primary
       .mockRejectedValueOnce(OUTAGE_ERR)  // retry (fresh resolver)
       .mockResolvedValueOnce(undefined);  // last-known-good keyset
-    await expect(verify(makeJwt({ sub: 'ok2' }))).resolves.toBeUndefined();
+    await expect(verify(makeJwt({ sub: 'ok2' }))).resolves.toBe(true);
   });
 
   it('last-known-good present but token is forged → fail closed', async () => {

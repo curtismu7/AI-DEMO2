@@ -30,9 +30,20 @@ export interface GatewayConfig {
   // evaluate() fails over to this base if the primary endpoint errors/5xx.
   pingAuthorizeMockBase?: string;
   // Feature flag — when false, P1AZ is never called regardless of endpoint config.
-  // Set MCP_GW_P1AZ_ENABLED=true to activate live P1AZ policy decisions.
-  // Defaults to false so credentials can be configured without activating the feature.
+  // Defaults to TRUE (contract D2): the PDP is the authority, and an operator must
+  // opt OUT by name (MCP_GW_P1AZ_ENABLED=false) rather than silently inherit a
+  // gateway-local shadow PDP because a flag was never set.
   p1azEnabled: boolean;
+  /**
+   * F1 — when P1AZ is inactive, may the gateway fall back to its OWN scope engine
+   * (toolScopes.evaluateScopeDecisionLocally) instead of failing closed?
+   *
+   * Default FALSE. This is a *degraded* mode, not a second policy engine: every
+   * decision it produces is labelled policySource:'local-fallback' + degraded:true
+   * (contract C2) so a locally-manufactured PERMIT can never be mistaken for a
+   * PDP PERMIT. Set MCP_GW_ALLOW_LOCAL_SCOPE_FALLBACK=true for offline dev.
+   */
+  allowLocalScopeFallback: boolean;
   // Optional HITL service URL — when set, INDETERMINATE decisions trigger a challenge
   hitlServiceUrl: string;
   // Optional RFC 7662 introspection endpoint
@@ -161,6 +172,34 @@ export function isP1AZActive(config: GatewayConfig): boolean {
   return config.p1azEnabled && !!config.pingAuthorizeEndpoint && !!config.pingAuthorizeWorkerId;
 }
 
+/**
+ * True when the configured decision endpoint is the REAL PDP rather than the mock.
+ *
+ * The mock is DECLARED by `PINGAUTHORIZE_MOCK_BASE`: a deployment that talks to
+ * the mock directly sets it equal to `PINGAUTHORIZE_ENDPOINT`; one that keeps the
+ * mock only as a failover target sets it to a different URL; a real-cloud-only
+ * deployment leaves it unset.
+ *
+ * Both the C3 `/health` block (authzPosture) and the C2 decision-path `engine`
+ * labelling (PingOneAuthorizeClient, pingAuthorizeGuard) derive real-vs-mock from
+ * THIS one predicate. They previously each carried their own copy of
+ * `!!mockBase && mockBase !== endpoint`, which (a) reported `p1az-mock` for a
+ * real-cloud-only endpoint — the mock wasn't configured at all — and (b) let the
+ * two copies drift so health and decisions could disagree. One home, one answer.
+ *
+ * Distinct from "can we fail over": failover needs a DIFFERENT mock base to dial
+ * (`!!mockBase && mockBase !== endpoint`); this asks which authority the primary
+ * endpoint IS. They diverge exactly in the real-cloud-only case, where there is a
+ * real PDP but nothing to fail over to.
+ *
+ * Compares two configured values only — never tests an endpoint against a known
+ * host, so no host literal appears here.
+ */
+export function usingRealPdpEndpoint(config: GatewayConfig): boolean {
+  return !!config.pingAuthorizeEndpoint
+    && config.pingAuthorizeEndpoint !== config.pingAuthorizeMockBase;
+}
+
 function required(name: string, stub = 'dev-bypass-placeholder'): string {
   const v = process.env[name];
   if (!v) {
@@ -224,7 +263,9 @@ export function loadConfig(): GatewayConfig {
     pingAuthorizeEndpoint: optional('PINGAUTHORIZE_ENDPOINT', ''),
     pingAuthorizeWorkerId: optional('PINGAUTHORIZE_WORKER_ID', ''),
     pingAuthorizeMockBase: optional('PINGAUTHORIZE_MOCK_BASE', '') || undefined,
-    p1azEnabled: process.env.MCP_GW_P1AZ_ENABLED === 'true',
+    // Contract D2: default ON. Only the literal string 'false' disables the PDP.
+    p1azEnabled: process.env.MCP_GW_P1AZ_ENABLED !== 'false',
+    allowLocalScopeFallback: process.env.MCP_GW_ALLOW_LOCAL_SCOPE_FALLBACK === 'true',
     hitlServiceUrl: optional('HITL_SERVICE_URL', ''),
     introspectionEndpoint: optional('GW_INTROSPECTION_ENDPOINT',
       optional('PINGONE_INTROSPECTION_ENDPOINT', '')),

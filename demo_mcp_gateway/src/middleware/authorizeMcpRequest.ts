@@ -30,13 +30,13 @@
  */
 
 import type { IncomingMessage, ServerResponse } from 'http';
-import { PingOneAuthorizeClient } from '../auth/PingOneAuthorizeClient';
+import { PingOneAuthorizeClient, policySourceForEngine } from '../auth/PingOneAuthorizeClient';
 import { GatewayIntrospectionClient } from '../auth/GatewayIntrospectionClient';
 import { runMcpAuthorizationPipeline } from '../auth/authorizeMcpRequestCore';
 import type { McpRequestMiddleware } from '../server/GatewayServer';
 import { McpTokenExchangeClient } from '../auth/McpTokenExchangeClient';
 import type { GatewayConfig } from '../config';
-import { checkInternalSecret } from '../config';
+import { checkInternalSecret, isP1AZActive, usingRealPdpEndpoint } from '../config';
 import { getScopesForGatewayTool, getChallengeTypeForTool } from '../auth/toolScopes';
 import { teachLog } from '../teachLogger';
 import { routeTool } from '../router';
@@ -51,7 +51,8 @@ import { recordGatewayAudit, auditOutcomeFromHttp, httpScopeAlertDetails } from 
 import { verifyDpopProof } from '../dpopVerify';
 import { verifyWebBotAuth } from '../webBotAuthVerify';
 import { enforceRarSubset, rarDetailsFromEnvelope, type RarDetail, type RarToolArgs } from '../rarEnforce';
-import type { TratClaims } from '../auth/PingOneAuthorizeClient';
+import type { TratClaims, PolicySource } from '../auth/PingOneAuthorizeClient';
+import { noteBindingHeaderSeen } from '../authzPosture';
 import { SlidingWindowLimiter, _resetLimiterForTest as _resetRateLimiterForTest } from '../rateLimit';
 
 // ---------------------------------------------------------------------------
@@ -77,6 +78,13 @@ interface GwAuditTrail {
     policyVersion?: string;
     traceId?: string;
     engine?: string;
+    // C2 — provenance. A PERMIT is forwarded upstream, so the response BODY is
+    // the backend's; this trail (emitted as X-Gw-Audit-Trail and to teachLog) is
+    // the gateway's only channel for WHO decided. Without these two fields a
+    // degraded local-fallback PERMIT was indistinguishable from a PDP PERMIT in
+    // the audit record — the one direction C2 exists to make impossible.
+    policySource?: PolicySource;
+    degraded?: boolean;
     attributes?: Record<string, string>;
   } | null;
   mtls: { enabled: boolean; subject?: string } | null;
@@ -105,6 +113,10 @@ export interface AuthorizeMcpRequestDeps {
       policyVersion?: string;
       traceId?: string;
       engine?: 'real' | 'mock' | 'mock-failover';
+      // Contract C2 — which authority decided, and whether it was a degraded
+      // (gateway-local) decision rather than a PDP one.
+      policySource?: PolicySource;
+      degraded?: boolean;
       sentParameters?: Record<string, string>;
     }>;
   exchange?: (subjectToken: string, toolName?: string) => Promise<{ token: string; targetAud: string; cached: boolean }>;
@@ -330,7 +342,18 @@ export function buildAuthorizeMcpRequest(
       // Production path: transport-agnostic pipeline (introspection + policy)
       // HTTP-specific rendering (writeHead, WWW-Authenticate, JSON body shape)
       // stays here; the core only returns a tagged decision.
-      const pipelineResult = await runMcpAuthorizationPipeline(bearerToken, introspectionClient, config);
+      // UC16 needs the tool name at policy time. Peek at the JSON-RPC envelope
+      // here (it is re-parsed below for the main flow) so the require-act branch
+      // in GatewayTokenPolicy is reachable on HTTP — without these two arguments
+      // the check silently never fired.
+      const preParsed = parseJsonRpcBody(body);
+      const pipelineResult = await runMcpAuthorizationPipeline(
+        bearerToken,
+        introspectionClient,
+        config,
+        preParsed.params?.name,
+        preParsed.method === 'tools/call' ? 'McpToolCall' : undefined,
+      );
       auditTrail.introspection = pipelineResult.audit.introspection;
       auditTrail.policy = pipelineResult.audit.policy;
       // Capture introspection result for passing to P1AZ when introspectionProvider='p1az'.
@@ -392,6 +415,10 @@ export function buildAuthorizeMcpRequest(
       }
 
       decoded = pipelineResult.decoded;
+      // C3: an act claim is delegation evidence. If it is present while
+      // REQUIRE_ACT_FOR_AGENT_TOOLS is off, /health reports that as a live
+      // bypass rather than an untested optional control.
+      if (decoded?.act) noteBindingHeaderSeen('act');
     }
 
     // ── Step 2: Parse JSON-RPC to get method, tool name, and transaction args ──────
@@ -493,6 +520,10 @@ export function buildAuthorizeMcpRequest(
 
     // ── Step 2b: Intent token validation (parity with WS path in index.ts) ───
     const xIntentToken = _req?.headers?.['x-intent-token'] as string | undefined;
+    // C3: record that intent evidence is being presented, so /health can report
+    // "intent token received but INTENT_TOKEN_REQUIRED is off" as a live bypass
+    // rather than as an unexercised optional control.
+    if (xIntentToken) noteBindingHeaderSeen('intent');
     const intentRequired = config.intentTokenRequired === true;
     const intentValidation = xIntentToken || intentRequired
       ? validateIntentToken(xIntentToken, toolName ?? '')
@@ -547,11 +578,13 @@ export function buildAuthorizeMcpRequest(
     // is useless without the private key. Fail-closed only when REQUIRE_DPOP_PROOF=true;
     // otherwise observe + log + bridge so the demo runs with the flag on but enforcement off.
     const _dpopProof = _hdr('dpop');
+    if (_dpopProof) noteBindingHeaderSeen('dpop');
     let _cnfJkt: string | undefined;
     let _rarDetails: RarDetail[] | undefined;
     let _tratClaims: TratClaims | null = null;
     try {
       const xt = _hdr('x-trat-context');
+      if (xt) noteBindingHeaderSeen('rar');
       // Unsigned X-TraT-Context is demo-only; gate like MCP TratClaimsExtractor.
       if (xt && process.env.ALLOW_UNSIGNED_TRAT_CONTEXT === 'true') {
         const _env = JSON.parse(xt) as {
@@ -703,7 +736,23 @@ export function buildAuthorizeMcpRequest(
         );
       }
     } catch {
-      authzDecision = { decision: 'DENY' as const, reason: 'Authorization service unavailable' };
+      // C2: a DENY the gateway manufactured because the evaluation never
+      // completed still has an author. Label it with the authority that WAS
+      // meant to decide — matching PingOneAuthorizeClient's own unreachable-PDP
+      // DENY — and fall back to 'local-fallback' + degraded when no PDP is
+      // configured at all, because then the gateway really did decide alone.
+      authzDecision = isP1AZActive(config)
+        ? {
+            decision: 'DENY' as const,
+            reason: 'Authorization service unavailable',
+            policySource: policySourceForEngine(usingRealPdpEndpoint(config) ? 'real' : 'mock'),
+          }
+        : {
+            decision: 'DENY' as const,
+            reason: 'Authorization service unavailable',
+            policySource: 'local-fallback' as const,
+            degraded: true,
+          };
     }
     auditTrail.authorize = {
       decision: authzDecision.decision,
@@ -712,6 +761,9 @@ export function buildAuthorizeMcpRequest(
       policyVersion: authzDecision.policyVersion,
       traceId: authzDecision.traceId,
       engine: authzDecision.engine,
+      // C2 — recorded for EVERY outcome, PERMIT included.
+      policySource: authzDecision.policySource,
+      degraded: authzDecision.degraded,
       attributes: authzDecision.sentParameters,
     };
 
@@ -735,6 +787,11 @@ export function buildAuthorizeMcpRequest(
     if (authzDecision.decision !== 'PERMIT') {
       setAuditHeader(res);
       teachLog.info('gateway audit trail', { gw_audit_trail: auditTrail });
+      // F8 — `required_scopes` is derived from the LOCAL scope topology, so it
+      // only describes the decision when the local scope engine IS what decided.
+      // Both non-PERMIT branches below render it, so the gate is computed once
+      // here rather than only on the insufficient_scope branch.
+      const deniedLocally = authzDecision.policySource === 'local-fallback';
       res.writeHead(403, {
         'Content-Type': 'application/json',
         'WWW-Authenticate': `Bearer realm="PingOne", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource"`,
@@ -784,17 +841,31 @@ export function buildAuthorizeMcpRequest(
           challenge_type: challengeType,
           expiresAt,
           instructions: 'Approve at dashboard, then retry with _hitl_challenge_id in arguments',
-          required_scopes: getScopesForGatewayTool(toolName ?? ''),
+          // C2 — an obligation is a decision; it carries provenance like any other.
+          policy_source: authzDecision.policySource,
+          ...(authzDecision.degraded ? { degraded: true } : {}),
+          // F8, same reasoning as the denial branch below: what a PDP-issued HITL
+          // hold needs is a human, not more scopes. Listing scopes here told the
+          // operator to re-authenticate for permissions that were never missing.
+          ...(deniedLocally ? { required_scopes: getScopesForGatewayTool(toolName ?? '') } : {}),
           login_required: false,
         }));
         return;
       }
 
+      // F8 — `required_scopes` is a hint derived from the LOCAL scope topology.
+      // It only describes the decision when the local scope engine IS what
+      // denied. Attaching it to a P1AZ denial for an unrelated reason (tier
+      // ceiling, group membership, actor chain) tells the operator to fix scopes
+      // that were never the problem — and can directly contradict the PDP.
       res.end(JSON.stringify({
         error: 'insufficient_scope',
         message: authzDecision.reason ?? 'Request denied by policy',
         decision: authzDecision.decision,
-        required_scopes: getScopesForGatewayTool(toolName ?? ''),
+        // C2 — provenance travels with every decision the caller can see.
+        policy_source: authzDecision.policySource,
+        ...(authzDecision.degraded ? { degraded: true } : {}),
+        ...(deniedLocally ? { required_scopes: getScopesForGatewayTool(toolName ?? '') } : {}),
         login_required: false,
       }));
       return;

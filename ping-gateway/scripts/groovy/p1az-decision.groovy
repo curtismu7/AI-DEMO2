@@ -249,18 +249,24 @@ def mayActSub = nativeMayActSub ?: hdrMayActSub
 def scope     = tokenInfo['scope'] ?: ''
 def tokenScopes = scope.tokenize(' ').findAll { it }.join(' ')
 // TokenAudActual: the ACTUAL aud carried by the inbound token (from introspection),
-// mirroring the Node gateway (decoded.aud). TokenAudience above is the logical gateway
-// URI; keeping TokenAudActual = gatewayResourceUri made the two ALWAYS equal, so any
-// policy rule comparing them to detect an audience mismatch / confused-deputy token
-// could never fire on the PingGateway path. Fall back to the gateway URI only when
-// introspection did not surface an aud.
+// mirroring the Node gateway (decoded.aud). It is the only audience signal that carries
+// information — McpResourceUri below is the gateway's own EXPECTED identity.
+//
+// C1 preamble: absent values are OMITTED, never fabricated. This previously fell back to
+// gatewayResourceUri when introspection surfaced no aud, which defeated TWO rules at once:
+// mock Rule 0b reads TokenAudActual FIRST (demo_authz_server/routes/decision.js:265), so a
+// no-aud token PASSED the audience check on the fabricated value; and because TokenAudience
+// is correctly omitted below, Rule 0c — guarded on BOTH keys — was skipped too. Net effect:
+// a token carrying no aud at all cleared every audience rule on the default path. Omitting
+// makes Rule 0b fall through to TokenAudience (also absent) and DENY.
 def rawTokenAud = tokenInfo['aud']
 def joinedAud = (rawTokenAud instanceof List
     ? rawTokenAud.collect { it as String }.join(' ')
     : (rawTokenAud ?: '')) as String
-// Fall back to the gateway URI when introspection surfaced no aud (null, or an
-// empty aud array) so TokenAudActual is never blank.
-def tokenAudActual = joinedAud ?: gatewayResourceUri
+// Space-joined FULL aud list, not just the first entry: mock Rule 0b-2's D-05 anti-bypass
+// splits this on whitespace, so a multi-aud confused-deputy token [gateway, upstream] is
+// still caught. Blank when introspection surfaced no aud — the key is then omitted.
+def tokenAudActual = joinedAud
 def tokenExp  = tokenInfo['exp'] != null ? String.valueOf(tokenInfo['exp']) : ''
 def tokenIat  = tokenInfo['iat'] != null ? String.valueOf(tokenInfo['iat']) : ''
 def tokenNbf  = tokenInfo['nbf'] != null ? String.valueOf(tokenInfo['nbf']) : ''
@@ -315,18 +321,179 @@ try {
 
 // Map the MCP method to the policy DecisionContext. tools/list must be McpToolsList
 // (not the catch-all McpRequest) so the cloud policy applies the discovery rules the
-// BFF/Node gateway also use. NOTE: this path does not yet send CandidateTools, so the
-// policy's per-tool DeniedTools advice cannot be computed here — list-level allow/deny
-// applies, but greying individual tools is owned by the Node gateway / BFF paths.
+// BFF/Node gateway also use.
 def decisionContext = (mcpMethod == 'tools/call') ? 'McpToolCall'
     : (mcpMethod == 'tools/list') ? 'McpToolsList'
     : 'McpRequest'
-def vertical = request.headers.getFirst('X-Vertical') ?: ''
+// Vertical: the BFF stamps X-Active-Vertical (mcpGatewayClient.js); the original
+// X-Vertical spelling is honored as a fallback for any older caller. Reading only
+// X-Vertical made Vertical always '' on the live path (confirmed in the IG decision
+// log), so the PDP's per-vertical tools/list advice could never be computed.
+def vertical = request.headers.getFirst('X-Active-Vertical')
+    ?: (request.headers.getFirst('X-Vertical') ?: '')
 
-// ── Build the parameters payload (parity with buildAuthorizeParameters) ─
+// CandidateTools (tools/list only): the per-tool list the PDP needs to return
+// DeniedTools advice — this is what drives chip greying. IG decides BEFORE proxying,
+// so it cannot know the backend's tool list itself; it forwards a list supplied by the
+// trusted BFF caller. Untrusted callers cannot inject one (same gate as the delegation
+// headers above). Omitted when absent — an empty list is not "no tools permitted".
+def candidateTools = ''
+if (trustedCaller && decisionContext == 'McpToolsList') {
+    def rawCandidates = request.headers.getFirst('X-Candidate-Tools') ?: ''
+    if (rawCandidates) {
+        try {
+            def parsedCandidates = new JsonSlurper().parseText(rawCandidates)
+            if (parsedCandidates instanceof List) candidateTools = JsonOutput.toJson(parsedCandidates)
+        } catch (Exception e) {
+            logger.warn('[P1AZ] X-Candidate-Tools is not a JSON array — ignored: ' + e.message)
+        }
+    }
+}
+
+// ── Intent Token verification (F4) ────────────────────────────────────────────
+// The BFF mints an HMAC-SHA256 Intent Token at prompt-receipt time (server.js:1930)
+// and sends it as X-Intent-Token (mcpGatewayClient.js:136). Nothing on this path
+// verified it, so the intent binding was decorative. Mirrors the Node gateway's
+// validateIntentToken (demo_mcp_gateway/src/intentTokenValidator.ts:51-103): HMAC
+// over "<header>.<body>", exp, then permitted_tools membership.
+//
+// C1 rule 3: a caller that CANNOT verify a binding claim must OMIT it, never send
+// false — omission means "unknown", false means "verified absent". So when no shared
+// secret is configured both keys stay out of the parameter set.
+def intentSecret   = System.getenv('INTENT_TOKEN_SECRET') ?: (System.getenv('SESSION_SECRET') ?: '')
+def intentTokenRaw = request.headers.getFirst('X-Intent-Token') ?: ''
+def intentValid    = null   // null => not evaluated => omitted from parameters
+def intentMatches  = null
+def intentError    = ''
+if (!intentSecret) {
+    logger.info('[P1AZ] INTENT_TOKEN_SECRET not configured — intent binding NOT verified ' +
+        '(IntentTokenValid/IntentMatchesTool omitted per C1 rule 3)')
+} else if (!intentTokenRaw) {
+    intentValid = false; intentMatches = false; intentError = 'no_intent_token'
+} else {
+    def parts = intentTokenRaw.split('\\.')
+    if (parts.length != 3) {
+        intentValid = false; intentMatches = false; intentError = 'malformed'
+    } else {
+        try {
+            def mac = javax.crypto.Mac.getInstance('HmacSHA256')
+            mac.init(new javax.crypto.spec.SecretKeySpec(intentSecret.getBytes('UTF-8'), 'HmacSHA256'))
+            // Node signs with digest('base64url') — unpadded base64url. Match exactly.
+            def expectedSig = Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(mac.doFinal((parts[0] + '.' + parts[1]).getBytes('UTF-8')))
+            if (!java.security.MessageDigest.isEqual(
+                    expectedSig.getBytes('UTF-8'), parts[2].getBytes('UTF-8'))) {
+                intentValid = false; intentMatches = false; intentError = 'invalid_signature'
+            } else {
+                def intentClaims = new JsonSlurper().parseText(
+                    new String(Base64.getUrlDecoder().decode(parts[1]), 'UTF-8'))
+                def nowSec = (long) (System.currentTimeMillis() / 1000L)
+                if (((intentClaims?.exp ?: 0L) as long) < nowSec) {
+                    intentValid = false; intentMatches = false; intentError = 'expired'
+                } else {
+                    intentValid = true
+                    def permitted = intentClaims?.permitted_tools
+                    intentMatches = (permitted instanceof List) && permitted.contains(toolName)
+                }
+            }
+        } catch (Exception e) {
+            intentValid = false; intentMatches = false; intentError = 'malformed_payload'
+            logger.warn('[P1AZ] Intent token verification failed: ' + e.message)
+        }
+    }
+}
+// Hard deny ONLY when explicitly required — parity with the Node gateway, whose
+// INTENT_TOKEN_REQUIRED defaults false (intentTokenValidator is advisory otherwise).
+// Default off keeps the running demo unchanged; the PDP still receives the evidence.
+if (System.getenv('INTENT_TOKEN_REQUIRED') == 'true'
+        && (intentValid != true || (toolName && intentMatches != true))) {
+    logger.warn('[P1AZ] INTENT_TOKEN_REQUIRED — denying: valid=' + intentValid +
+        ' matchesTool=' + intentMatches + ' error=' + intentError + ' tool=' + toolName)
+    def intentDenied = new Response(Status.FORBIDDEN)
+    intentDenied.headers.put('Content-Type', 'application/json')
+    intentDenied.entity.setString(JsonOutput.toJson([
+        error      : 'access_denied',
+        decision   : 'DENY',
+        reason     : 'intent_token_required: ' + (intentError ?: 'tool not in permitted_tools'),
+        tool       : toolName,
+        mcp_method : mcpMethod,
+    ]))
+    return Promises.newResultPromise(intentDenied)
+}
+
+// ── X-TraT-Context (F4) ───────────────────────────────────────────────────────
+// Built by the BFF (agentMcpTokenService.js:2380-2409) and sent at
+// mcpGatewayClient.js:133-135; no consumer existed here, so RAR / purpose /
+// DPoP-binding facts never reached the PDP on the default path.
+//
+// The envelope is UNSIGNED, so it is honored only when ALLOW_UNSIGNED_TRAT_CONTEXT=true
+// — the same trust rule the Node gateway (authorizeMcpRequest.ts:553) and the MCP
+// server (TratClaimsExtractor.ts:45) apply. Without that opt-in a direct caller could
+// forge purp/azd/cnf into the decision, so the envelope is NOT verified evidence and
+// its keys are omitted.
+def allowUnsignedTrat = System.getenv('ALLOW_UNSIGNED_TRAT_CONTEXT') == 'true'
+def tratContextRaw    = request.headers.getFirst('X-TraT-Context') ?: ''
+def tratPurp          = ''
+def rarAuthzDetails   = ''
+// cnf.jkt from the introspected token is VERIFIED evidence and is always usable;
+// the envelope copy is only a fallback for the simulated-TraT demo mode.
+def cnfJkt = (tokenInfo['cnf'] instanceof Map ? (tokenInfo['cnf'].jkt ?: '') : '') as String
+if (tratContextRaw && !allowUnsignedTrat) {
+    logger.info('[P1AZ] X-TraT-Context present but ALLOW_UNSIGNED_TRAT_CONTEXT!=true — ' +
+        'ignored (unsigned envelope is not verified evidence)')
+} else if (tratContextRaw) {
+    try {
+        def tratEnvelope = new JsonSlurper().parseText(tratContextRaw)
+        if (tratEnvelope instanceof Map) {
+            tratPurp = (tratEnvelope.purp ?: '') as String
+            if (!cnfJkt && tratEnvelope.cnf instanceof Map && tratEnvelope.cnf.jkt) {
+                cnfJkt = tratEnvelope.cnf.jkt as String
+            }
+            def azd = tratEnvelope.azd
+            if (azd instanceof Map && azd.authorization_details instanceof List
+                    && !((List) azd.authorization_details).isEmpty()) {
+                rarAuthzDetails = JsonOutput.toJson(azd.authorization_details)
+            }
+        }
+    } catch (Exception e) {
+        logger.warn('[P1AZ] X-TraT-Context parse failed — ignored: ' + e.message)
+    }
+}
+
+// ── Build the parameters payload (contract C1) ────────────────────────────────
 // UserId + McpResourceUri are required by the cloud P1AZ MCP Delegation policy
 // (HasValidUserId checks UserId; HasValidMcpAudience checks TokenAudience == McpResourceUri).
 // The BFF's McpFirstTool call sends them; the gateway's McpToolCall must too.
+//
+// C1 rule 1: TokenAudience is the token's REAL aud and must never be hardcoded to the
+// expected URI. Setting BOTH keys to gatewayResourceUri made HasValidMcpAudience (cloud)
+// and Rule 0c (mock) equal by construction — a tautology that could never deny a
+// confused-deputy token. Verified live: the real aud is PG_GATEWAY_RESOURCE_ID
+// (https://api.ping.demo:3036/mcp) while PG_GATEWAY_RESOURCE_URI is the short name
+// (mcpgateway.ping.demo), so comparing the real aud against the short name alone would
+// have DENIED every request.
+//
+// The gateway answers to BOTH identities — jwks-token-validation.groovy:173-177 accepts
+// either — so McpResourceUri is the STATIC set of both, mirroring the Node gateway, which
+// sends its comma-separated MCP_GW_RESOURCE_URI verbatim (PingOneAuthorizeClient.ts:148).
+//
+// It must NOT be derived from the token under test. Resolving it to "whichever accepted
+// identity the token happened to target" made the PEP pre-compute the PDP's answer: the
+// EXPECTED value became a function of the OBSERVED value, which is the same tautology C1
+// rule 1 exists to prevent, just one level of indirection deeper. The PDP compares the two
+// as SETS (demo_authz_server/routes/decision.js:313-318), so a legitimate token whose aud
+// is either identity still intersects and PERMITs, while a foreign aud intersects nothing
+// and DENIES — the discrimination is the PDP's to make, not the gateway's.
+def gatewayResourceId = System.getenv('PG_GATEWAY_RESOURCE_ID') ?: ''
+def audEntries = (rawTokenAud instanceof List
+    ? rawTokenAud.collect { it as String }
+    : (rawTokenAud ? [rawTokenAud as String] : [])).findAll { it }
+def acceptedAuds   = [gatewayResourceUri, gatewayResourceId].findAll { it }
+// C1: array => first entry.
+def tokenAudience  = audEntries ? audEntries[0] : ''
+// Static — a function of configuration only, never of the token being judged.
+def mcpResourceUri = acceptedAuds.join(',')
+
 def parameters = [
     DecisionContext  : decisionContext,
     McpMethod        : mcpMethod,
@@ -337,18 +504,44 @@ def parameters = [
     ActChainDepth    : actDepth,
     MayActSub        : mayActSub,
     TokenScopes      : tokenScopes,
-    TokenAudience    : gatewayResourceUri,
-    TokenAudActual   : tokenAudActual,
-    McpResourceUri   : gatewayResourceUri,
+    McpResourceUri   : mcpResourceUri,
     TokenExp         : tokenExp,
     TokenIat         : tokenIat,
     TokenNbf         : tokenNbf,
     TokenIss         : tokenIss,
+    // C1 rule 2: Amount and TransactionAmount always move together. The cloud Trust
+    // Framework only defines `Amount`, so sending TransactionAmount alone meant the
+    // gateway's amount was silently dropped and the MCP branch had no amount ceiling.
+    Amount           : transactionAmount,
     TransactionAmount: transactionAmount,
     TransactionType  : transactionType,
     ToAccountId      : toAccountId,
     Vertical         : vertical,
+    // Timestamp is a cloud Trust Framework attribute neither gateway was sending.
+    // ISO-8601, matching the BFF (pingOneAuthorizeService.js:434 new Date().toISOString()).
+    Timestamp        : java.time.Instant.now().toString(),
 ]
+// Absent values are omitted, never fabricated (C1 preamble). Both audience keys are
+// omitted together when introspection surfaced no aud — mock Rule 0b reads TokenAudActual
+// first and TokenAudience second, so leaving EITHER populated with a fabricated value
+// silently satisfies the audience check for a token that has no audience at all.
+if (tokenAudActual)  parameters.TokenAudActual = tokenAudActual
+if (tokenAudience)   parameters.TokenAudience = tokenAudience
+// Acr: without it, RequiresMcpStepUp reduces to a pure tool-name test — NOT
+// (Acr == Multi_Factor) is always true when Acr defaults to 'none', so a completed
+// MFA could never discharge step-up on a gateway-originated call.
+def acr = (tokenInfo['acr'] ?: '') as String
+if (acr)             parameters.Acr = acr
+if (candidateTools)  parameters.CandidateTools = candidateTools
+// Binding evidence — omitted when the transport did not verify it (C1).
+if (intentValid != null) {
+    parameters.IntentTokenValid  = String.valueOf(intentValid)
+    parameters.IntentMatchesTool = String.valueOf(intentMatches)
+    if (intentError) parameters.IntentTokenError = intentError
+}
+if (rarAuthzDetails) parameters.RarAuthorizationDetails = rarAuthzDetails
+if (tratPurp)        parameters.TratPurp = tratPurp
+if (cnfJkt)          parameters.Cnf = cnfJkt
 def requestBody = JsonOutput.toJson([parameters: parameters])
 // Mock backend speaks the demo_authz_server policy path. REAL backend is the PingOne
 // Authorize Decision Endpoints API: POST .../v1/environments/{envId}/decisionEndpoints/{id}.
