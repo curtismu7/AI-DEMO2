@@ -433,7 +433,6 @@ export default function AdminSideNav({ user }) {
           highlight: true,
           introGate: true,
         },
-        { label: "Agent Chat", path: "/agent", icon: "chat" },
         { label: "Copilot", path: "/copilot", icon: "ai" },
         {
           label: "PingOne Agent Builder",
