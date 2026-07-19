@@ -35,6 +35,7 @@ jest.mock('../../services/cibaService', () => ({
 jest.mock('../../services/cibaSimulatedService', () => ({
   initiateSimulated: jest.fn(),
   isSimulatedApproved: jest.fn(),
+  SIMULATED_APPROVE_DELAY_MS: 7000,
 }));
 
 jest.mock('../../services/tokenChainService', () => ({
@@ -871,6 +872,78 @@ describe('POST /api/auth/ciba/cancel/:authReqId', () => {
       .set('x-test-user', USER_HDR);
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// POST /api/auth/ciba/approve-now/:authReqId — demo "skip the wait" convenience
+// ═══════════════════════════════════════════════════════════════════════════════
+
+describe('POST /api/auth/ciba/approve-now/:authReqId', () => {
+  it('returns 401 without authentication', async () => {
+    const res = await request(
+      buildApp({ cibaRequests: { [MOCK_AUTH_REQ_ID]: { simulated: true } } }),
+    ).post(`/api/auth/ciba/approve-now/${MOCK_AUTH_REQ_ID}`);
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 404 for a non-existent request', async () => {
+    const res = await request(buildApp({}))
+      .post('/api/auth/ciba/approve-now/no-such-id')
+      .set('x-test-user', USER_HDR);
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('unknown_request');
+  });
+
+  it('returns 404 for a real (non-simulated) pending request — only the fallback engine can be force-approved', async () => {
+    const res = await request(
+      buildApp({
+        cibaRequests: {
+          [MOCK_AUTH_REQ_ID]: {
+            initiatedAt: Date.now(),
+            expiresAt: Date.now() + 300_000,
+            simulated: false,
+          },
+        },
+      }),
+    )
+      .post(`/api/auth/ciba/approve-now/${MOCK_AUTH_REQ_ID}`)
+      .set('x-test-user', USER_HDR);
+    expect(res.status).toBe(404);
+  });
+
+  it('makes an immediate poll return approved for a simulated pending request, instead of waiting out the timer', async () => {
+    cibaService.isEnabled.mockReturnValue(true);
+    cibaSimulatedService.initiateSimulated.mockClear();
+    cibaSimulatedService.initiateSimulated.mockReturnValue({
+      auth_req_id: 'sim-approve-now', expires_in: 300, interval: 5,
+    });
+    cibaService.initiateBackchannelAuth.mockRejectedValue(new Error('ECONNREFUSED'));
+    // Real timing semantics, driven by the (mocked) delay constant — proves
+    // approve-now's rewritten initiatedAt is what flips this, not a stub.
+    cibaSimulatedService.isSimulatedApproved.mockImplementation(
+      (pending) => Date.now() - pending.initiatedAt >= cibaSimulatedService.SIMULATED_APPROVE_DELAY_MS,
+    );
+
+    const agent = request.agent(buildApp());
+    await agent.set('x-test-user', USER_HDR).post('/api/auth/ciba/initiate').send({});
+
+    // Without approve-now, an immediate poll is still pending (delay not elapsed).
+    const beforePoll = await agent
+      .set('x-test-user', USER_HDR)
+      .get('/api/auth/ciba/poll/sim-approve-now');
+    expect(beforePoll.body.status).toBe('pending');
+
+    const approveRes = await agent
+      .set('x-test-user', USER_HDR)
+      .post('/api/auth/ciba/approve-now/sim-approve-now');
+    expect(approveRes.status).toBe(200);
+    expect(approveRes.body.ok).toBe(true);
+
+    const afterPoll = await agent
+      .set('x-test-user', USER_HDR)
+      .get('/api/auth/ciba/poll/sim-approve-now');
+    expect(afterPoll.body.status).toBe('approved');
   });
 });
 
