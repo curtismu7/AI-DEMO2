@@ -32,6 +32,7 @@ import Fido2Challenge from "./Fido2Challenge";
 import TokenChainTraceRail from "./TokenChainTraceRail";
 import { useSessionToken } from '../context/SessionTokenContext';
 import ConfirmModal from "./ConfirmModal";
+import DraggableModal from "./DraggableModal";
 import TransactionConsentModal from "./TransactionConsentModal";
 import EmbeddedAgentDock from "./EmbeddedAgentDock";
 import WebMcpPanel from "./WebMcpPanel";
@@ -2931,167 +2932,114 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
 
       {/* Email OTP Step-Up Modal */}
       {otpModalOpen && (
-        <div
-          className="otp-step-up-overlay"
-          onClick={() => {
+        <DraggableModal
+          isOpen={otpModalOpen}
+          onClose={() => {
             setOtpModalOpen(false);
             setOtpCode("");
             setOtpError("");
             window.dispatchEvent(new CustomEvent("cibaStepUpCancelled"));
           }}
-        >
-          <div
-            className="otp-step-up-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="otp-step-up-modal__header">
-              <h3 className="otp-step-up-modal__title">Verify Your Identity</h3>
+          title="Verify Your Identity"
+          storageKey="ud-otp-modal"
+          defaultWidth={420}
+          defaultHeight={420}
+          zIndex={100080}
+          backdropClose
+          footer={
+            <>
               <button
-                className="otp-step-up-modal__close"
-                onClick={() => {
-                  setOtpModalOpen(false);
-                  setOtpCode("");
-                  setOtpError("");
-                  window.dispatchEvent(new CustomEvent("cibaStepUpCancelled"));
-                }}
-                aria-label="Close"
+                type="button"
+                className="otp-step-up-modal__btn-primary"
+                disabled={otpCode.length !== 6 || otpSubmitting}
+                onClick={handleVerifyOtp}
               >
-                ✕
+                {otpSubmitting ? "Verifying…" : "Verify"}
               </button>
-            </div>
-            <div className="otp-step-up-modal__body">
-              <p className="otp-step-up-modal__lead">
-                A 6-digit verification code was sent to{" "}
-                <strong>{otpEmail}</strong>. Enter it below to authorise your
-                transaction.
-              </p>
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={6}
-                value={otpCode}
-                onChange={(e) => {
-                  setOtpCode(e.target.value.replace(/\D/g, ""));
-                  setOtpError("");
-                }}
-                onKeyDown={(e) => {
-                  if (
-                    e.key === "Enter" &&
-                    otpCode.length === 6 &&
-                    !otpSubmitting
-                  )
-                    handleVerifyOtp();
-                }}
-                placeholder="000000"
-                autoFocus
-                className={`otp-step-up-modal__input${otpError ? " otp-step-up-modal__input--error" : ""}`}
-              />
-              {otpError && (
-                <p className="otp-step-up-modal__error">{otpError}</p>
-              )}
-              {mfaChallengeExpired && (
-                <div style={{ marginTop: "0.75rem" }}>
-                  <p className="otp-step-up-modal__error">
-                    MFA session expired.
-                  </p>
-                  <button
-                    type="button"
-                    className="otp-step-up-modal__btn-ghost"
-                    style={{ marginTop: "0.5rem" }}
-                    onClick={() => {
-                      setMfaChallengeExpired(false);
-                      setOtpModalOpen(false);
-                      handleInitiateOtpRef.current &&
-                        handleInitiateOtpRef.current();
-                    }}
-                  >
-                    Try Again
-                  </button>
-                </div>
-              )}
-              <p className="otp-step-up-modal__hint">
-                Code expires in 5 minutes.
-              </p>
-              <div className="otp-step-up-modal__actions">
-                <button
-                  type="button"
-                  className="otp-step-up-modal__btn-primary"
-                  disabled={otpCode.length !== 6 || otpSubmitting}
-                  onClick={handleVerifyOtp}
-                >
-                  {otpSubmitting ? "Verifying…" : "Verify"}
-                </button>
+              <button
+                type="button"
+                className="otp-step-up-modal__btn-ghost"
+                onClick={() => handleInitiateOtp()}
+              >
+                Resend code
+              </button>
+            </>
+          }
+        >
+          <div className="dm-scroll">
+            <p className="otp-step-up-modal__lead">
+              A 6-digit verification code was sent to{" "}
+              <strong>{otpEmail}</strong>. Enter it below to authorise your
+              transaction.
+            </p>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              value={otpCode}
+              onChange={(e) => {
+                setOtpCode(e.target.value.replace(/\D/g, ""));
+                setOtpError("");
+              }}
+              onKeyDown={(e) => {
+                if (
+                  e.key === "Enter" &&
+                  otpCode.length === 6 &&
+                  !otpSubmitting
+                )
+                  handleVerifyOtp();
+              }}
+              placeholder="000000"
+              autoFocus
+              className={`otp-step-up-modal__input${otpError ? " otp-step-up-modal__input--error" : ""}`}
+            />
+            {otpError && (
+              <p className="otp-step-up-modal__error">{otpError}</p>
+            )}
+            {mfaChallengeExpired && (
+              <div style={{ marginTop: "0.75rem" }}>
+                <p className="otp-step-up-modal__error">
+                  MFA session expired.
+                </p>
                 <button
                   type="button"
                   className="otp-step-up-modal__btn-ghost"
-                  onClick={() => handleInitiateOtp()}
+                  style={{ marginTop: "0.5rem" }}
+                  onClick={() => {
+                    setMfaChallengeExpired(false);
+                    setOtpModalOpen(false);
+                    handleInitiateOtpRef.current &&
+                      handleInitiateOtpRef.current();
+                  }}
                 >
-                  Resend code
+                  Try Again
                 </button>
               </div>
-            </div>
+            )}
+            <p className="otp-step-up-modal__hint">
+              Code expires in 5 minutes.
+            </p>
           </div>
-        </div>
+        </DraggableModal>
       )}
 
       {/* TOTP Step-Up Modal */}
       {totpModalOpen && (
-        <div
-          className="otp-step-up-overlay"
-          onClick={() => setTotpModalOpen(false)}
-        >
-          <div
-            className="otp-step-up-modal otp-step-up-modal--totp"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="otp-step-up-modal__header">
-              <h3 className="otp-step-up-modal__title">Verify Your Identity</h3>
-              <button
-                className="otp-step-up-modal__close"
-                onClick={() => {
-                  setTotpModalOpen(false);
-                  window.dispatchEvent(new CustomEvent("cibaStepUpCancelled"));
-                }}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="otp-step-up-modal__body">
-              <p className="otp-step-up-modal__lead">
-                Enter the 6-digit code from your{" "}
-                <strong>authenticator app</strong>.
-              </p>
-              <input
-                className={`otp-step-up-modal__input${totpError ? " otp-step-up-modal__input--error" : ""}`}
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                placeholder="000000"
-                autoFocus
-                value={totpCode}
-                onChange={(e) => {
-                  setTotpCode(e.target.value.replace(/\D/g, ""));
-                  setTotpError(null);
-                }}
-                onKeyDown={(e) => {
-                  if (
-                    e.key === "Enter" &&
-                    totpCode.length === 6 &&
-                    !totpSubmitting
-                  )
-                    handleTotpSubmit();
-                }}
-              />
-              {totpError && (
-                <p className="otp-step-up-modal__error">{totpError}</p>
-              )}
-              <p className="otp-step-up-modal__hint">
-                Open your authenticator app and enter the current 6-digit code.
-              </p>
-            </div>
-            <div className="otp-step-up-modal__actions">
+        <DraggableModal
+          isOpen={totpModalOpen}
+          onClose={() => {
+            setTotpModalOpen(false);
+            window.dispatchEvent(new CustomEvent("cibaStepUpCancelled"));
+          }}
+          title="Verify Your Identity"
+          storageKey="ud-totp-modal"
+          defaultWidth={420}
+          defaultHeight={380}
+          zIndex={100080}
+          backdropClose
+          footer={
+            <>
               <button
                 className="otp-step-up-modal__btn-ghost"
                 onClick={() => setTotpModalOpen(false)}
@@ -3105,96 +3053,109 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
               >
                 {totpSubmitting ? "Verifying…" : "Verify"}
               </button>
-            </div>
+            </>
+          }
+        >
+          <div className="dm-scroll otp-step-up-modal--totp">
+            <p className="otp-step-up-modal__lead">
+              Enter the 6-digit code from your{" "}
+              <strong>authenticator app</strong>.
+            </p>
+            <input
+              className={`otp-step-up-modal__input${totpError ? " otp-step-up-modal__input--error" : ""}`}
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              placeholder="000000"
+              autoFocus
+              value={totpCode}
+              onChange={(e) => {
+                setTotpCode(e.target.value.replace(/\D/g, ""));
+                setTotpError(null);
+              }}
+              onKeyDown={(e) => {
+                if (
+                  e.key === "Enter" &&
+                  totpCode.length === 6 &&
+                  !totpSubmitting
+                )
+                  handleTotpSubmit();
+              }}
+            />
+            {totpError && (
+              <p className="otp-step-up-modal__error">{totpError}</p>
+            )}
+            <p className="otp-step-up-modal__hint">
+              Open your authenticator app and enter the current 6-digit code.
+            </p>
           </div>
-        </div>
+        </DraggableModal>
       )}
 
       {/* Device Picker — shown when multiple MFA devices are enrolled */}
       {devicePickerOpen && (
-        <div
-          className="otp-step-up-overlay"
-          onClick={() => setDevicePickerOpen(false)}
+        <DraggableModal
+          isOpen={devicePickerOpen}
+          onClose={() => setDevicePickerOpen(false)}
+          title="Choose Verification Method"
+          storageKey="ud-device-picker-modal"
+          defaultWidth={420}
+          defaultHeight={420}
+          zIndex={100080}
+          backdropClose
+          footer={null}
         >
-          <div
-            className="otp-step-up-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="otp-step-up-modal__header">
-              <h3 className="otp-step-up-modal__title">
-                Choose Verification Method
-              </h3>
-              <button
-                className="otp-step-up-modal__close"
-                onClick={() => setDevicePickerOpen(false)}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="otp-step-up-modal__body">
-              <p className="otp-step-up-modal__lead">
-                Select how you want to verify your identity:
-              </p>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "8px",
-                  marginTop: "8px",
-                }}
-              >
-                {devicePickerDevices.map((device) => (
-                  <button
-                    key={device.id}
-                    className="otp-step-up-modal__btn-ghost"
-                    style={{ textAlign: "left" }}
-                    onClick={() => handleDevicePick(device)}
-                  >
-                    {device.type === "EMAIL"
-                      ? "Email code"
-                      : device.type === "SMS"
-                        ? "SMS code"
-                        : device.type === "TOTP"
-                          ? "Authenticator app"
-                          : device.type === "MOBILE"
-                            ? "Push notification"
-                            : "Passkey / FIDO2"}
-                    {device.nickname ? ` (${device.nickname})` : ""}
-                  </button>
-                ))}
-              </div>
+          <div className="dm-scroll">
+            <p className="otp-step-up-modal__lead">
+              Select how you want to verify your identity:
+            </p>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+                marginTop: "8px",
+              }}
+            >
+              {devicePickerDevices.map((device) => (
+                <button
+                  key={device.id}
+                  className="otp-step-up-modal__btn-ghost"
+                  style={{ textAlign: "left" }}
+                  onClick={() => handleDevicePick(device)}
+                >
+                  {device.type === "EMAIL"
+                    ? "Email code"
+                    : device.type === "SMS"
+                      ? "SMS code"
+                      : device.type === "TOTP"
+                        ? "Authenticator app"
+                        : device.type === "MOBILE"
+                          ? "Push notification"
+                          : "Passkey / FIDO2"}
+                  {device.nickname ? ` (${device.nickname})` : ""}
+                </button>
+              ))}
             </div>
           </div>
-        </div>
+        </DraggableModal>
       )}
 
       {/* Push Notification Waiting Panel */}
       {pushModalOpen && (
-        <div className="otp-step-up-overlay">
-          <div className="otp-step-up-modal otp-step-up-modal--push">
-            <div className="otp-step-up-modal__header">
-              <h3 className="otp-step-up-modal__title">Check Your Device</h3>
-            </div>
-            <div
-              className="otp-step-up-modal__body"
-              style={{ textAlign: "center", padding: "1rem 0" }}
-            >
-              <div className="push-waiting-spinner" />
-              <p
-                className="otp-step-up-modal__lead"
-                style={{ marginTop: "1rem" }}
-              >
-                A push notification was sent to your registered device.
-                <br />
-                <strong>Tap Approve</strong> in the PingOne app to continue.
-              </p>
-              <p className="otp-step-up-modal__hint">Waiting for approval…</p>
-            </div>
-            <div
-              className="otp-step-up-modal__actions"
-              style={{ justifyContent: "center" }}
-            >
+        <DraggableModal
+          isOpen={pushModalOpen}
+          onClose={() => {
+            setPushPolling(false);
+            setPushModalOpen(false);
+          }}
+          title="Check Your Device"
+          storageKey="ud-push-modal"
+          defaultWidth={420}
+          defaultHeight={320}
+          zIndex={100080}
+          footer={
+            <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
               <button
                 className="otp-step-up-modal__btn-ghost"
                 onClick={() => {
@@ -3205,8 +3166,24 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
                 Cancel
               </button>
             </div>
+          }
+        >
+          <div
+            className="dm-scroll"
+            style={{ textAlign: "center", padding: "1rem 0" }}
+          >
+            <div className="push-waiting-spinner" />
+            <p
+              className="otp-step-up-modal__lead"
+              style={{ marginTop: "1rem" }}
+            >
+              A push notification was sent to your registered device.
+              <br />
+              <strong>Tap Approve</strong> in the PingOne app to continue.
+            </p>
+            <p className="otp-step-up-modal__hint">Waiting for approval…</p>
           </div>
-        </div>
+        </DraggableModal>
       )}
 
       {/* FIDO2 Passkey Step-Up */}
@@ -3296,63 +3273,54 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
 
       {/* MFA Device Enrollment — shown when no devices enrolled */}
       {enrollModalOpen && (
-        <div
-          className="otp-step-up-overlay"
-          onClick={() => {
+        <DraggableModal
+          isOpen={enrollModalOpen}
+          onClose={() => {
             if (!enrolling) setEnrollModalOpen(false);
           }}
+          title="Set Up MFA"
+          storageKey="ud-enroll-modal"
+          defaultWidth={420}
+          defaultHeight={420}
+          zIndex={100080}
+          backdropClose
+          footer={null}
         >
-          <div
-            className="otp-step-up-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="otp-step-up-modal__header">
-              <h3 className="otp-step-up-modal__title">Set Up MFA</h3>
+          <div className="dm-scroll">
+            <p className="otp-step-up-modal__lead">
+              No MFA devices are enrolled on your account. Set one up to
+              continue.
+            </p>
+            {enrollError && (
+              <p className="otp-step-up-modal__error">{enrollError}</p>
+            )}
+            <div
+              className="otp-step-up-modal__actions"
+              style={{ flexDirection: "column", gap: "0.75rem" }}
+            >
               <button
-                className="otp-step-up-modal__close"
-                onClick={() => setEnrollModalOpen(false)}
-                aria-label="Close"
+                type="button"
+                className="otp-step-up-modal__btn-primary"
                 disabled={enrolling}
+                onClick={handleEnrollEmail}
               >
-                ✕
+                {enrolling ? "Setting up…" : "Set up Email OTP"}
+              </button>
+              <button
+                type="button"
+                className="otp-step-up-modal__btn-ghost"
+                disabled={enrolling}
+                onClick={handleEnrollFido2}
+              >
+                {enrolling ? "Setting up…" : "Register a Passkey"}
               </button>
             </div>
-            <div className="otp-step-up-modal__body">
-              <p className="otp-step-up-modal__lead">
-                No MFA devices are enrolled on your account. Set one up to
-                continue.
-              </p>
-              {enrollError && (
-                <p className="otp-step-up-modal__error">{enrollError}</p>
-              )}
-              <div
-                className="otp-step-up-modal__actions"
-                style={{ flexDirection: "column", gap: "0.75rem" }}
-              >
-                <button
-                  type="button"
-                  className="otp-step-up-modal__btn-primary"
-                  disabled={enrolling}
-                  onClick={handleEnrollEmail}
-                >
-                  {enrolling ? "Setting up…" : "Set up Email OTP"}
-                </button>
-                <button
-                  type="button"
-                  className="otp-step-up-modal__btn-ghost"
-                  disabled={enrolling}
-                  onClick={handleEnrollFido2}
-                >
-                  {enrolling ? "Setting up…" : "Register a Passkey"}
-                </button>
-              </div>
-              <p className="otp-step-up-modal__hint">
-                Email OTP is easiest for demos. Passkeys require a compatible
-                device.
-              </p>
-            </div>
+            <p className="otp-step-up-modal__hint">
+              Email OTP is easiest for demos. Passkeys require a compatible
+              device.
+            </p>
           </div>
-        </div>
+        </DraggableModal>
       )}
 
       {/* User Session Token Modal */}
