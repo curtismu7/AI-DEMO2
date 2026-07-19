@@ -101,6 +101,35 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-19 — Demo check page AGENT GATEWAY / USE CASES cards red — missing local env var, not a PingOne gap
+
+**Files changed:** `demo_api_server/.env` (gitignored, local runtime config only — no
+tracked file changed). Container `ai-demo-api-server` recreated to load it.
+
+**What was broken:** `gateway.real_path` (Agent Gateway card) and
+`usecase.permit_accounts` (Use Cases card) both failed exercising the real
+PingGateway path — `token-exchange: ... At least one scope must be granted`
+and `gateway_policy_denied`. Read-only PingOne audit (worker creds,
+`verify-scope-configuration.js` + `--manifest-diff`) proved live PingOne is
+fully correct — resource `Demo PingGateway MCP` already has `gateway:mcp:invoke`
+granted. Root cause: `demo_api_server/.env` had no
+`PINGONE_RESOURCE_PINGGATEWAY_URI` line, so `configStore.getEffective()`
+returned `''` and the BFF requested a token-exchange audience of empty
+string — PingOne correctly refused. This exact var/fix was already documented
+in `[[project-pinggateway-half-built]]` (2026-07-10, PR #277) but was absent
+from this checkout's `.env`.
+
+**What was fixed:** added `PINGONE_RESOURCE_PINGGATEWAY_URI=https://api.ping.demo:3036/mcp`
+to `.env`, `docker compose up -d demo-api-server` (recreate — `node --watch`
+does not reload env vars). No PingOne config was changed.
+
+**Do not break:** did not touch any PingOne resource/scope/grant, any code
+path, or any other `.env` value.
+
+**Verify:** inside the container, `configStore.getEffective('pingone_resource_pinggateway_uri')`
+now returns `"https://api.ping.demo:3036/mcp"` (was `""`). Re-run "Run demo
+check" on `/check` signed in — AGENT GATEWAY / USE CASES expected to go green.
+
 ### 2026-07-19 — Demo check page (`/check`) text unreadable — muted opacity on every label
 
 **Files changed:** `demo_api_ui/src/pages/CheckPage.css` only.
