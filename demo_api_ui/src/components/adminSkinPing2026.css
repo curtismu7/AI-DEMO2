@@ -144,6 +144,14 @@ body.admin-skin-p1 .admin-side-nav__item--child {
   color: #4b4c55;
 }
 
+/* Agent Onboarding Flow trio (Diagrams group) — white row background
+   regardless of hover/active state, overriding the gray submenu bg. */
+body.admin-skin-p1 .admin-side-nav__item--onboarding-white,
+body.admin-skin-p1 .admin-side-nav__item--onboarding-white:hover,
+body.admin-skin-p1 .admin-side-nav__item--onboarding-white.admin-side-nav__item--active {
+  background: #ffffff !important;
+}
+
 /* Group dividers */
 body.admin-skin-p1 .admin-side-nav__divider {
   background: #e4e5e9;
