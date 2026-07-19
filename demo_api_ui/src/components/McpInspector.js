@@ -222,6 +222,8 @@ const McpInspector = ({ user, onLogout }) => {
   const [lastInvoke, setLastInvoke] = useState(null);
   const [lastTiming, setLastTiming] = useState(null);
   const [needsLogin, setNeedsLogin] = useState(false);
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [stepUpMethod, setStepUpMethod] = useState('');
   const [busy, setBusy] = useState(false);
   const [outputTab, setOutputTab] = useState('response');
   const [mcpHistory, setMcpHistory] = useState(getCalls);
@@ -244,6 +246,8 @@ const McpInspector = ({ user, onLogout }) => {
             ? { local: false }
             : null,
       );
+      setMfaRequired(!!data.mfa_required);
+      setStepUpMethod(data.step_up_method || '');
       setSelectedTool(null);
       setLastInvoke(null);
       setLastTiming(null);
@@ -254,6 +258,7 @@ const McpInspector = ({ user, onLogout }) => {
       setTools(STATIC_LOCAL_TOOLS);
       setToolsFrames(null);
       setToolsSourceInfo({ local: true, reason: 'bff_unreachable' });
+      setMfaRequired(false);
     } finally {
       setLoadingTools(false);
     }
@@ -407,6 +412,13 @@ const McpInspector = ({ user, onLogout }) => {
             <strong>Showing static / local catalog.</strong>{' '}
             {toolsSourceInfo.reason ? `(${toolsSourceInfo.reason}) ` : ''}
             Start the stack and sign in so the BFF can reach the banking MCP server, then refresh.
+          </div>
+        )}
+        {mfaRequired && (
+          <div style={{ background: '#eff6ff', color: '#1e40af', padding: '8px 20px', fontSize: 12 }}>
+            <strong>Step-up verification required.</strong>{' '}
+            This session needs MFA step-up{stepUpMethod ? ` (${stepUpMethod})` : ''} before tools/list can run.
+            Complete step-up verification, then refresh.
           </div>
         )}
         {needsLogin && (

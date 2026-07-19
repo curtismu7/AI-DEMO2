@@ -101,6 +101,34 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-18 — MCP Inspector page showed zero tools with no explanation when step-up wasn't verified
+
+**Files changed:** `demo_api_ui/src/components/McpInspector.js` (added
+`mfaRequired`/`stepUpMethod` state + banner; no server-side change).
+
+**What was broken:** `GET /api/mcp/inspector/tools`
+(`demo_api_server/routes/mcpInspector.js:161-171`) already had a step-up MFA
+gate that returns HTTP 200 `{ tools: [], mfa_required: true, step_up_method }`
+when `runtimeSettings.get('stepUpEnabled')` is on and the session isn't
+step-up-verified. The page's `refreshTools()` did `setTools(data.tools || [])`
+and never read `data.mfa_required`, so the gate fired silently — the page just
+rendered "No tools loaded." with no indication an MFA gate, not a broken MCP
+connection, caused it. Confirmed live: `runtimeSettings.get('stepUpEnabled')`
+is `true` in the running container.
+
+**What was fixed:** `McpInspector.js` now reads `data.mfa_required` /
+`data.step_up_method` from the `/tools` response and renders an info banner
+("Step-up verification required...") using the same inline-banner pattern as
+the existing `needsLogin` block, instead of leaving the tool list blank with
+no explanation.
+
+**Do not break:** this is UI-only — the server-side step-up gate in
+`mcpInspector.js` (`stepUpEnabled` / `req.session.stepUpVerified`) is
+untouched and must keep returning `tools: []` + `mfa_required: true` rather
+than silently falling back to the local catalog; that would defeat the gate.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0).
+
 ### 2026-07-18 — Attack-sim denies (UC5/UC11/UC12) rendered nowhere in the trace rail — the run looked like it died at the chatbot
 
 **Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`,
