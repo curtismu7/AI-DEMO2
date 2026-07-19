@@ -172,6 +172,19 @@ const FLAG_REGISTRY = [
     type:         'boolean',
     defaultValue: true,
   },
+  {
+    id:           'ff_transaction_ledger',
+    name:         'Transaction Chain of Custody',
+    category:     'Observability',
+    description:
+      'Record every hop of an agent turn — UI request, token exchange, gateway authorization, ' +
+      'authz decision, HITL consent, MCP tool call, response — into a durable per-transaction ledger, ' +
+      'then check identity invariants over it and corroborate it against independently written audit sinks. ' +
+      'Viewable at Telemetry → Transaction Trace.',
+    impact:       'ON = services emit hops and the Transaction Trace page shows the chain of custody with a PASS/FAIL verdict. OFF = no hops are recorded and the page reports the feature is disabled.',
+    type:         'boolean',
+    defaultValue: true,
+  },
 
   // ── MCP Server ─────────────────────────────────────────────────────────────
   {

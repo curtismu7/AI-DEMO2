@@ -102,3 +102,13 @@ describe('ff_tracing flag registration', () => {
     }
   });
 });
+
+describe('ff_transaction_ledger flag registration', () => {
+  test('exists in registry as a boolean defaulting to true', () => {
+    const f = flagById('ff_transaction_ledger');
+    expect(f).toBeDefined();
+    expect(f.type).toBe('boolean');
+    expect(f.defaultValue).toBe(true);
+    expect(f.category).toBe('Observability');
+  });
+});

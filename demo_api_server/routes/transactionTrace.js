@@ -16,6 +16,16 @@ const { traceIdFromCorrelation } = require('../utils/traceIdFromCorrelation');
 const { assemble } = require('../services/transactionAssembler');
 const { evaluate } = require('../services/transactionInvariants');
 const { reconcile } = require('../services/transactionReconciler');
+const configStore = require('../services/configStore');
+
+// OFF means the ledger is not being written, so serving a partial chain would
+// misrepresent it as complete. Report the feature state instead.
+router.use((req, res, next) => {
+  if (configStore.getEffective('ff_transaction_ledger') === 'false') {
+    return res.status(403).json({ error: 'feature_disabled' });
+  }
+  next();
+});
 
 // Ownership: any logged-in user sees only transactions attributed to their own
 // principal; admins see everything. A record whose principal is unknown (no

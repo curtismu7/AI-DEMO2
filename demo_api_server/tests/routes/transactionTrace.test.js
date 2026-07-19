@@ -8,11 +8,13 @@ jest.mock('../../services/transactionAssembler', () => ({ assemble: jest.fn() })
 jest.mock('../../services/transactionReconciler', () => ({
   reconcile: jest.fn(() => ({ status: 'MATCH', diffs: [], sources: {} })),
 }));
+jest.mock('../../services/configStore', () => ({ getEffective: jest.fn(() => 'true') }));
 
 const express = require('express');
 const request = require('supertest');
 const ledger = require('../../services/lmdb/transactionLedger.lmdb');
 const { assemble } = require('../../services/transactionAssembler');
+const configStore = require('../../services/configStore');
 const router = require('../../routes/transactionTrace');
 
 // Defaults to an admin identity so pre-existing tests that aren't about
@@ -239,5 +241,24 @@ describe('ownership enforcement — GET /api/transaction-trace (list)', () => {
     ledger.listRecords.mockReturnValue(RECORDS.filter((r) => r.principal === 'user-1'));
     await request(app({ id: 'user-1', role: 'customer' })).get('/api/transaction-trace?limit=2');
     expect(ledger.listRecords).toHaveBeenCalledWith({ limit: 2, principal: 'user-1' });
+  });
+});
+
+describe('ff_transaction_ledger flag gate', () => {
+  beforeEach(() => { jest.clearAllMocks(); configStore.getEffective.mockReturnValue('true'); });
+
+  test('403 feature_disabled on the list route when the flag is off', async () => {
+    configStore.getEffective.mockReturnValue('false');
+    const res = await request(app()).get('/api/transaction-trace');
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'feature_disabled' });
+    configStore.getEffective.mockReturnValue('true');
+  });
+
+  test('403 feature_disabled on the detail route when the flag is off', async () => {
+    configStore.getEffective.mockReturnValue('false');
+    const res = await request(app()).get('/api/transaction-trace/c1');
+    expect(res.status).toBe(403);
+    configStore.getEffective.mockReturnValue('true');
   });
 });

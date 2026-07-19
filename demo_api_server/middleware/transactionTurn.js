@@ -8,8 +8,11 @@
  * static asset fetches.
  */
 const { emitHop } = require('../services/transactionHop');
+const configStore = require('../services/configStore');
 
 function transactionTurnMiddleware(req, res, next) {
+  if (configStore.getEffective('ff_transaction_ledger') === 'false') return next();
+
   const startedAt = Date.now();
 
   emitHop({

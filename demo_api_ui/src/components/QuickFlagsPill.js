@@ -28,6 +28,7 @@ const QUICK_FLAGS = [
   { id: 'ff_helix_lmstudio_fallback',   group: 'Agent',           control: 'toggle',    label: 'Helix → LM Studio Fallback' },
   { id: 'ff_knowledge_grounding',             group: 'Agent',           control: 'toggle',    label: '📚 Knowledge Grounding' },
   { id: 'ff_tracing',                   group: 'Observability',   control: 'toggle',    label: 'Tracing (OTel → Jaeger)' },
+  { id: 'ff_transaction_ledger',        group: 'Observability',   control: 'toggle',    label: 'Transaction Chain of Custody' },
 ];
 const GROUPS = ['Token & Gateway', 'AuthN / AuthZ', 'Agent', 'Observability'];
 const PILL_FLAG = 'ff_mcp_gateway_jwks';

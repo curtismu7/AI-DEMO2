@@ -274,6 +274,7 @@ const FIELD_DEFS = {
   ff_authorize_group_policy:   { public: true, default: 'false' },
   ff_hitl_enabled:             { public: true, default: 'true'  }, // require human approval for agent-initiated high-value transactions
   ff_tracing:                  { public: true, default: 'true'  }, // OTel→Jaeger tracing; reconciled by run-docker.sh demo-sync
+  ff_transaction_ledger:       { public: true, default: 'true'  }, // per-transaction chain of custody + identity invariants
   // Helix → LM Studio failover: when Helix returns a quota-exhausted reply, retry the turn on a local LM Studio model
   ff_helix_lmstudio_fallback:  { public: true, default: 'true'  },
   ff_knowledge_grounding:            { public: true, default: 'false' }, // knowledge grounding — inject deterministic assertions into agent system prompt with [Kn] citations
