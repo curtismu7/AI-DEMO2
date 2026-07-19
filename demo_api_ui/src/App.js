@@ -365,9 +365,16 @@ function AppWithAuth() {
    *  for guests and leave them with no way to start the demo. */
   const onMiddlePlacementInDashboard =
     agentPlacement === "middle" && (onUserDashboardRoute || onLiveWorkbenchRoute);
-  /** Single <AIAgent> portals into the bottom dock host element when present; falls back to document.body otherwise. */
+  /** Single <AIAgent> portals into the bottom dock host element when present; falls back to document.body otherwise.
+   *  onLiveWorkbenchRoute always mounts the agent here regardless of agentPlacement: this route's entire purpose
+   *  requires the real agent to be present (narrow, inline), and unlike UserDashboard it renders no dock fallback
+   *  of its own — without this, a "bottom"/"none" placement would leave banking-agent-prefill dispatches with
+   *  zero listeners. */
   const shouldMountSingleAgent =
-    showFloatingAgent || hasEmbeddedDockLayout || onMiddlePlacementInDashboard;
+    showFloatingAgent ||
+    hasEmbeddedDockLayout ||
+    onMiddlePlacementInDashboard ||
+    onLiveWorkbenchRoute;
 
   // When the single agent is portaled into the bottom dock host it must wear
   // the dock's inline chrome (no floating frame/drag), exactly as the old
@@ -385,6 +392,10 @@ function AppWithAuth() {
     // Middle column owns the agent surface — render inline so the floating
     // dock chrome doesn't appear inside the column. Same pattern as the
     // clinical-split branch above.
+    singleAgentSurfaceProps = { mode: "inline", splitColumnChrome: true };
+  } else if (onLiveWorkbenchRoute) {
+    // This route's own narrow host always wants the agent, regardless of the
+    // user's dashboard-wide placement preference (same reasoning as clinicalSplit).
     singleAgentSurfaceProps = { mode: "inline", splitColumnChrome: true };
   }
 
