@@ -55,7 +55,7 @@ function IdentitySection({ payload }) {
               {k}:
             </span>
             <span className="token-card__claim-val">
-              {typeof payload[k] === 'object' ? JSON.stringify(payload[k]) : String(payload[k])}
+              {typeof payload[k] === 'object' && payload[k] !== null ? <JsonHighlight value={payload[k]} /> : String(payload[k])}
             </span>
           </React.Fragment>
         ))}

@@ -5,7 +5,7 @@ import { useTokenChainOptional } from "../context/TokenChainContext";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { useDraggablePanel } from "../hooks/useDraggablePanel";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
-import JsonHighlight from "./shared/JsonHighlight";
+import JsonHighlight, { tokenize, formatJson } from "./shared/JsonHighlight";
 import "./TokenChainDisplay.css";
 import {
   deriveTokenCategory,
@@ -253,9 +253,6 @@ function ClaimsPanel({ claims, alg }) {
   };
 
   const fmtVal = (key, val) => {
-    if (typeof val === "object") {
-      return JSON.stringify(val, null, 2);
-    }
     if (key === "exp" || key === "iat" || key === "nbf") {
       const d = new Date(val * 1000);
       return `${val}  (${d.toLocaleTimeString()})`;
@@ -281,7 +278,9 @@ function ClaimsPanel({ claims, alg }) {
             {k === "act" && v && typeof v === "object" && v.sub && (
               <span className="tcd-claim-agent-id"> Agent ID: {v.sub}</span>
             )}
-            <pre className="tcd-claim-val">{fmtVal(k, v)}</pre>
+            <pre className="tcd-claim-val">
+              {typeof v === "object" && v !== null ? <JsonHighlight value={v} /> : fmtVal(k, v)}
+            </pre>
           </div>
         ))}
       {delegatedTo.length > 0 && (
@@ -2023,6 +2022,25 @@ function CollapsibleEdu({ title, event, Component }) {
 
 // ─── Floating inspector panel (portal, draggable, resizable, collapsible) ────
 
+function escapeHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Renders a value as colour-coded JSON markup for the pop-out window below,
+// which is a standalone `document.write`'d document (no React tree) — reuses
+// JsonHighlight's tokenizer so the palette (incl. red critical fields) matches
+// the in-app viewer exactly, see .jh-* rules in the popup's <style> block.
+function jsonToHtml(value) {
+  const text = formatJson(value);
+  if (text === null) return "";
+  return tokenize(text)
+    .map((t) => {
+      const cls = t.critical ? `jh-${t.type} jh-critical` : `jh-${t.type}`;
+      return `<span class="${cls}">${escapeHtml(t.text)}</span>`;
+    })
+    .join("");
+}
+
 /**
  * Opens the token event in a standalone browser window.
  * The user can move that window to any physical screen.
@@ -2030,9 +2048,7 @@ function CollapsibleEdu({ title, event, Component }) {
 function openInNewWindow(event) {
   const _cat = deriveTokenCategory(event.label, event.id, event.tokenType);
   const dotColor = getTokenColor(_cat) || "#6b7280";
-  const fullJwtJson = event.jwtFullDecode
-    ? JSON.stringify(event.jwtFullDecode, null, 2)
-    : "";
+  const fullJwtJson = event.jwtFullDecode ? jsonToHtml(event.jwtFullDecode) : "";
 
   const claimsHtml = event.claims
     ? Object.entries(event.claims)
@@ -2046,9 +2062,9 @@ function openInNewWindow(event) {
             }[k] || "";
           const bg = highlight ? `background:${highlight}22;` : "";
           const valStr =
-            typeof v === "object" ? JSON.stringify(v, null, 2) : String(v);
+            typeof v === "object" ? jsonToHtml(v) : escapeHtml(String(v));
           return `<div class="claim" style="${bg}">
-          <span class="key">${k}</span>
+          <span class="key">${escapeHtml(k)}</span>
           <span class="sep">:</span>
           <span class="val">${valStr}</span>
         </div>`;
@@ -2058,7 +2074,7 @@ function openInNewWindow(event) {
 
   const exchangeHtml = event.exchangeRequest
     ? `<div class="section-title">Exchange request (RFC 8693)</div>
-       <pre class="pre">${JSON.stringify(event.exchangeRequest, null, 2)}</pre>`
+       <pre class="pre">${jsonToHtml(event.exchangeRequest)}</pre>`
     : "";
 
   const pillHtml = [
@@ -2094,6 +2110,12 @@ function openInNewWindow(event) {
     .sep{color:#94a3b8}
     .val{color:#1e293b;font-family:inherit;word-break:break-word;flex:1;white-space:pre-wrap}
     .pre{background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:12px;font-size:.76rem;color:#065f46;white-space:pre-wrap;word-break:break-all;font-family:inherit;max-height:700px;overflow:auto;line-height:1.5}
+    .jh-key{color:#0550ae}
+    .jh-string{color:#15803d}
+    .jh-number{color:#b45309}
+    .jh-keyword{color:#8250df;font-weight:600}
+    .jh-punct{color:#57606a}
+    .jh-critical{color:#dc2626;font-weight:600}
     .pill{font-size:.75rem;font-weight:600;padding:5px 12px;border-radius:8px;width:fit-content}
     .pill-may{background:rgba(37,99,235,.08);color:#1e40af;border:1px solid rgba(37,99,235,.25)}
     .pill-act{background:rgba(20,184,166,.08);color:#0f766e;border:1px solid rgba(20,184,166,.25)}

@@ -25,6 +25,7 @@ import ScopeChangesCallout from './ScopeChangesCallout';
 import StepDetailsSection from './StepDetailsSection';
 import ClaimDetailsModal from './ClaimDetailsModal';
 import TokenChainTraceRail from './TokenChainTraceRail';
+import JsonHighlight from './shared/JsonHighlight';
 import { STEP_DETAILS } from '../data/stepDetails';
 import '../styles/TokenChainRedesign.css';
 import './UnifiedTokenFlowInspector.css';
@@ -81,7 +82,7 @@ function ScopesBadges({ scope, tokenLabel }) {
 
 function ClaimRow({ label, value, glossary }) {
   if (value === undefined || value === null) return null;
-  const displayValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
+  const isObject = typeof value === 'object';
   return (
     <div className="utfi-claim-row">
       <span
@@ -91,7 +92,7 @@ function ClaimRow({ label, value, glossary }) {
       >
         {label}
       </span>
-      <span className="utfi-claim-value">{displayValue}</span>
+      <span className="utfi-claim-value">{isObject ? <JsonHighlight value={value} /> : String(value)}</span>
     </div>
   );
 }
@@ -719,7 +720,7 @@ function OAuthInspectorSection({ selectedToken, onOpenClaimsModal }) {
             <ClaimRow label="Client ID" value={payload.client_id} glossary={CLAIM_GLOSSARY.client_id} />
             {payload.may_act && (
               <>
-                <ClaimRow label="may_act" value={typeof payload.may_act === 'object' ? JSON.stringify(payload.may_act) : payload.may_act} glossary={CLAIM_GLOSSARY.may_act} />
+                <ClaimRow label="may_act" value={payload.may_act} glossary={CLAIM_GLOSSARY.may_act} />
                 <div className="utfi-rfc-inline-hint utfi-rfc-inline-hint--good">✅ RFC 8693 §4.2 — may_act present. The BFF (client_id above) is pre-authorized to call Token Exchange on this user&apos;s behalf and obtain a delegated MCP token.</div>
               </>
             )}
@@ -730,7 +731,7 @@ function OAuthInspectorSection({ selectedToken, onOpenClaimsModal }) {
               <>
                 <div className="utfi-act-chain">
                   <span className="utfi-act-chain-label" title={CLAIM_GLOSSARY.act}>Actor chain (act) — RFC 8693 §4.1</span>
-                  <code className="utfi-act-chain-value">{typeof payload.act === 'object' ? JSON.stringify(payload.act, null, 2) : payload.act}</code>
+                  <code className="utfi-act-chain-value">{typeof payload.act === 'object' ? <JsonHighlight value={payload.act} /> : payload.act}</code>
                   <div className="utfi-rfc-inline-hint utfi-rfc-inline-hint--good">✅ act claim present — BFF identity is cryptographically bound in this token. MCP server can verify the delegation chain without trusting the caller.</div>
                 </div>
               </>
@@ -817,7 +818,7 @@ function OAuthInspectorSection({ selectedToken, onOpenClaimsModal }) {
                             {evt.decoded.payload.act && (
                               <div className="utfi-event-row">
                                 <span className="utfi-event-label">Actor (act):</span>
-                                <code className="utfi-event-value">{JSON.stringify(evt.decoded.payload.act)}</code>
+                                <code className="utfi-event-value"><JsonHighlight value={evt.decoded.payload.act} /></code>
                               </div>
                             )}
                             {evt.decoded.payload.may_act && (
