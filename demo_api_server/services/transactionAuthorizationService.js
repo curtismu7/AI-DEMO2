@@ -29,12 +29,19 @@ const simulatedAuthorizeService = require('./simulatedAuthorizeService');
 const { logEvent, EVENT_CATEGORIES } = require('./appEventService');
 const { buildChallengeHeader } = require('./rfc9470');
 
+// UC22's catalog useCaseId (config/useCases.js) — running it should always
+// demonstrate CIBA, regardless of this environment's configured default
+// step-up method. See docs/superpowers/specs/2026-07-19-uc22-ciba-step-up-override-design.md.
+const CIBA_DEMO_USE_CASE_ID = 'ciba-out-of-band-approval';
+
 /**
  * Build 428/403 bodies shared between engines (Feature Flags + Config labels).
  */
-function buildStepUpBody({ useSimulated, policyId, runtimeSettings }) {
+function buildStepUpBody({ useSimulated, policyId, runtimeSettings, useCaseId }) {
   const STEP_UP_ACR = runtimeSettings.get('stepUpAcrValue');
-  const stepUpMethod = configStore.getEffective('step_up_method') || runtimeSettings.get('stepUpMethod') || 'ciba';
+  const stepUpMethod = useCaseId === CIBA_DEMO_USE_CASE_ID
+    ? 'ciba'
+    : (configStore.getEffective('step_up_method') || runtimeSettings.get('stepUpMethod') || 'ciba');
   return {
     error: 'step_up_required',
     hitl: { type: 'step_up' },
@@ -58,8 +65,8 @@ function buildStepUpBody({ useSimulated, policyId, runtimeSettings }) {
  * The JSON body is kept in BOTH modes (step_up_url / step_up_method are demo
  * conveniences); in RFC mode the header is the normative signal clients parse.
  */
-function buildStepUpBlock({ useSimulated, policyId, runtimeSettings, extra = {} }) {
-  const body = { ...buildStepUpBody({ useSimulated, policyId, runtimeSettings }), ...extra };
+function buildStepUpBlock({ useSimulated, policyId, runtimeSettings, useCaseId, extra = {} }) {
+  const body = { ...buildStepUpBody({ useSimulated, policyId, runtimeSettings, useCaseId }), ...extra };
   if (configStore.getEffective('ff_rfc9470_challenge') === 'false') {
     return { status: 428, body };
   }
@@ -216,6 +223,7 @@ async function evaluateTransactionPolicy({
             useSimulated: true,
             policyId: AUTHORIZE_POLICY_ID,
             runtimeSettings,
+            useCaseId,
           }),
         };
       }
@@ -289,6 +297,7 @@ async function evaluateTransactionPolicy({
           useSimulated: false,
           policyId: AUTHORIZE_POLICY_ID,
           runtimeSettings,
+          useCaseId,
         }),
       };
     }
@@ -420,6 +429,7 @@ async function evaluateTransactionPolicy({
             useSimulated: true,
             policyId: AUTHORIZE_POLICY_ID,
             runtimeSettings,
+            useCaseId,
             extra: { authorizeFallback },
           }),
         };
@@ -522,4 +532,5 @@ function getAuthorizationStatusSummary() {
 module.exports = {
   evaluateTransactionPolicy,
   getAuthorizationStatusSummary,
+  buildStepUpBody,
 };
