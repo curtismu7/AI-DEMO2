@@ -459,6 +459,27 @@ function _denyFromPipeline(sim, useCaseId, tokenChainEvents, outcome, canonicalC
 }
 
 /**
+ * True when a pipeline `kind:'result'` Outcome still encodes a cross-owner
+ * denial (MCP isError text or local `{ error: 'Access denied…' }`). Ownership
+ * may be enforced at the banking API even when Authorize never saw
+ * ResourceOwnerId — do not treat that as unexpected_permit.
+ * @param {object} outcome
+ * @returns {boolean}
+ */
+function _isCrossOwnerDeniedResult(outcome) {
+  const result = outcome && outcome.body && outcome.body.result;
+  if (!result || typeof result !== 'object') return false;
+  const haystack = [
+    result.error,
+    result.message,
+    result.isError ? JSON.stringify(result.content || '') : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  return /access denied|not your account|resource_owner|only check your own/i.test(haystack);
+}
+
+/**
  * Run an attack simulation against the real gateway with a real-deficient token.
  *
  * @param {string} sim - The attack sim id ('insufficient-scope' or 'wrong-aud')
@@ -984,6 +1005,34 @@ async function _runCrossOwnerAccount(subjectToken, useCaseId, tokenChainEvents, 
   }
 
   if (outcome.kind === 'result') {
+    // Defense in depth: even if Authorize was inert (ResourceOwnerId missing),
+    // the banking API / MCP layer may still return an ownership error as an
+    // MCP isError / local { error } result. Treat that as the expected DENY —
+    // never as unexpected_permit — so the showcase does not claim enforcement
+    // is off when the data plane correctly blocked the read.
+    if (_isCrossOwnerDeniedResult(outcome)) {
+      if (Array.isArray(outcome.tokenEvents)) tokenChainEvents.push(...outcome.tokenEvents);
+      tokenChainEvents.push(buildTokenEvent(
+        'sim-cross-owner-denied',
+        'Cross-owner balance read denied',
+        'deny',
+        null,
+        'Ownership check blocked get_account_balance for a foreign account_id '
+        + '(tool/API layer). Prefer Authorize ResourceOwnerId DENY when the BFF '
+        + 'gate populates ResourceOwnerId for this tool.',
+      ));
+      stampUseCaseId(tokenChainEvents, useCaseId);
+      const authorize = _authorizeFromPipelineOutcome(outcome, useCaseId);
+      return {
+        sim,
+        useCaseId,
+        status: 403,
+        errorCode: 'resource_owner_mismatch',
+        reason: 'requested resource belongs to a different user (resource-owner binding)',
+        tokenChainEvents,
+        ...(authorize ? { authorize } : {}),
+      };
+    }
     if (Array.isArray(outcome.tokenEvents)) tokenChainEvents.push(...outcome.tokenEvents);
     tokenChainEvents.push(buildTokenEvent(
       'sim-gateway-unexpected-permit',

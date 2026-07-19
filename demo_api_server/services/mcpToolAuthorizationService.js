@@ -184,17 +184,39 @@ const WRITE_TOOL_TYPE_MAP = {
 };
 
 /**
- * Tools that carry a target resource identifier in their params. Returns the userId
- * who owns that resource, or null if the account cannot be found / tool does not apply.
- * Used to populate ResourceOwnerId in the authorization call so the policy can enforce
- * ownership (the Meta-chatbot attack prevention pattern).
+ * Account-scoped tools whose params name a target account. Used to populate
+ * ResourceOwnerId so PingOne Authorize / the mock can DENY cross-owner access
+ * (NNP-3, UC10 Meta-chatbot pattern). get_account_balance must be here: UC10's
+ * attack sim calls it with a foreign account_id — limiting this to
+ * update_contact_email left ResourceOwnerId unset, Authorize inert, and the
+ * sim reporting unexpected_permit even when the banking API correctly 403'd.
+ */
+const RESOURCE_OWNER_TOOLS = new Set([
+  'update_contact_email',
+  'get_account_balance',
+]);
+
+/**
+ * Tools that carry a target resource identifier in their params. Returns the
+ * owner id in the SAME space as subjectId / userSub (PingOne oauthId preferred,
+ * else the store user id), or null if the account cannot be found / tool does
+ * not apply.
  */
 function resolveResourceOwnerId(tool, toolParams) {
-  if (tool === 'update_contact_email' && toolParams && toolParams.account_id) {
-    const account = dataStore.getAccountById(toolParams.account_id);
-    return account ? account.userId : null;
-  }
-  return null;
+  if (!RESOURCE_OWNER_TOOLS.has(tool) || !toolParams) return null;
+  const accountId =
+    toolParams.account_id ||
+    toolParams.accountId ||
+    null;
+  if (!accountId) return null;
+  const account = dataStore.getAccountById(accountId);
+  if (!account) return null;
+  const owner = dataStore.getUserById(account.userId);
+  // Match evaluateMcpFirstToolGate's subjectId preference (oauthId / PingOne
+  // sub). Comparing store-internal ids to oauth UUIDs made the rule fire on
+  // every own-account call for bootstrap users linked to PingOne.
+  if (owner) return owner.oauthId || owner.id;
+  return account.userId;
 }
 
 /**
@@ -1001,4 +1023,8 @@ module.exports = {
   // Exported so tests can assert the gate contract: a vertical's amount action that
   // is absent here routes fine but is NEVER amount-gated (silent authorize).
   WRITE_TOOL_TYPE_MAP,
+  // Exported so UC10 / NNP-3 coverage can assert which tools populate ResourceOwnerId
+  // and that the returned id is in the subjectId (oauthId) space.
+  resolveResourceOwnerId,
+  RESOURCE_OWNER_TOOLS,
 };

@@ -101,6 +101,38 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-19 — UC10 cross-owner sim reported unexpected_permit: ResourceOwnerId never set for get_account_balance
+
+**Files changed:** `demo_api_server/services/mcpToolAuthorizationService.js`
+(`resolveResourceOwnerId` now covers `get_account_balance` and returns owner
+`oauthId || id` so the id matches subjectId / userSub),
+`demo_api_server/services/attackSimulatorService.js` (treat MCP/API ownership
+errors inside `kind:'result'` as DENY, not unexpected_permit),
+`demo_api_server/src/__tests__/resolveResourceOwnerId.test.js` (new),
+`demo_api_server/src/__tests__/attackSimulator.authorizeEvidence.test.js`.
+
+**What was broken:** After routing UC10 through the full pipeline (#623), the
+sim still could not produce an Authorize `resource_owner_mismatch` DENY —
+`resolveResourceOwnerId` only handled `update_contact_email`, so
+`get_account_balance` with foreign `account_id: '3'` left ResourceOwnerId
+unset and the NNP-3 / P1AZ ResourceOwnerMismatch rule inert. The banking API
+still 403'd, but the pipeline returned `kind:'result'` and the sim reported
+`unexpected_permit` / "resource-ownership enforcement may not be active."
+
+**What was fixed:** Populate ResourceOwnerId for `get_account_balance` (and map
+store owners into the oauthId subject space so own-account calls still PERMIT).
+Defense-in-depth: if Authorize is still inert but the tool/API returns an
+ownership error, UC10 records DENY instead of unexpected_permit.
+
+**Do not break:** Actor allow-list / D-05 last-hop checks; HITL/step-up 428
+shapes; UC13 rogue-actor `_testActClientId` injection; gateway-perimeter sims
+that stay off the pipeline path; legitimate own-account `get_account_balance`
+must keep PERMIT when ResourceOwnerId equals subjectId.
+
+**Verify:** `cd demo_api_server && npx jest src/__tests__/resolveResourceOwnerId.test.js
+src/__tests__/attackSimulator.authorizeEvidence.test.js
+--testPathIgnorePatterns="/node_modules/" --forceExit` → 14/14 pass.
+
 ### 2026-07-18 — MCP Inspector page showed zero tools with no explanation when step-up wasn't verified
 
 **Files changed:** `demo_api_ui/src/components/McpInspector.js` (added
