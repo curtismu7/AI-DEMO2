@@ -35,7 +35,12 @@ router.put('/', (req, res) => {
     return res.status(400).json({ error: 'hiddenLabels must be an array' });
   }
   const prefs = navConfigStore.setUserPrefs(req.user.id, hiddenLabels, activeConfigId || null);
-  res.json({ ...prefs, flagOn: isFlagOn() });
+  const flagOn = isFlagOn();
+  res.json({
+    hiddenLabels: flagOn ? prefs.hiddenLabels : [],
+    activeConfigId: prefs.activeConfigId,
+    flagOn,
+  });
 });
 
 module.exports = router;

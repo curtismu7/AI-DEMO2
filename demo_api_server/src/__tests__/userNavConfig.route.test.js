@@ -45,6 +45,7 @@ describe('GET /api/user/nav-config', () => {
 
 describe('PUT /api/user/nav-config', () => {
   test('saves hiddenLabels + activeConfigId and round-trips', async () => {
+    await configStore.setRaw({ ff_sidebar_customization: 'true' });
     const app = makeApp('user-roundtrip');
     const res = await request(app)
       .put('/api/user/nav-config')
@@ -52,6 +53,7 @@ describe('PUT /api/user/nav-config', () => {
     expect(res.status).toBe(200);
     expect(res.body.hiddenLabels).toEqual(['Themes', 'Monitoring']);
     expect(res.body.activeConfigId).toBe('cfg_abc');
+    await configStore.setRaw({ ff_sidebar_customization: 'false' });
   });
 
   test('rejects a non-array hiddenLabels with 400', async () => {
@@ -62,10 +64,13 @@ describe('PUT /api/user/nav-config', () => {
   });
 
   test("does not leak one user's prefs to another", async () => {
+    await configStore.setRaw({ ff_sidebar_customization: 'true' });
     const appA = makeApp('user-a');
     const appB = makeApp('user-b');
-    await request(appA).put('/api/user/nav-config').send({ hiddenLabels: ['Themes'], activeConfigId: null });
+    const resPutA = await request(appA).put('/api/user/nav-config').send({ hiddenLabels: ['Themes'], activeConfigId: null });
     const resB = await request(appB).get('/api/user/nav-config');
+    expect(resB.body.hiddenLabels).not.toEqual(resPutA.body.hiddenLabels);
     expect(resB.body.hiddenLabels).toEqual([]);
+    await configStore.setRaw({ ff_sidebar_customization: 'false' });
   });
 });
