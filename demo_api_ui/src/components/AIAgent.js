@@ -6194,11 +6194,16 @@ export default function BankingAgent({
             tokenChain.setTokenEvents("agent", data.tokenChainEvents);
           }
         }
+        // Sims never stream pipeline phases, so nothing else completes the
+        // trace — without this the rail shows the run stuck at the chatbot
+        // instead of the gateway DENY.
+        try { tokenChainTraceStore.completeTrace(!isDeny); } catch (_) {}
       } catch (err) {
         addMessage(
           "assistant",
           `${stepLabel}\nAttack simulation failed: ${formatAxiosError(err, err.message || "failed")}`,
         );
+        try { tokenChainTraceStore.completeTrace(false); } catch (_) {}
       } finally {
         setNlLoading(false);
       }
