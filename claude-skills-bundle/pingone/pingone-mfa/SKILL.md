@@ -20,6 +20,23 @@ argument-hint: 'Describe the MFA device operation (e.g. enroll SMS device, list 
 > `PINGONE_RESOURCE_DEVICE_AUTH_URI` from `process.env` first, then falls back
 > to `configStore.getEffective(...)`.
 
+> **Known gap — CIBA `/as/bc-authorize` is unrouted on this demo's PingOne env
+> (2026-07-19).** `STEP_UP_METHOD` defaults to `p1mfa` in `.env`, not `ciba`,
+> because P1MFA (this skill) is the mechanism actually entitled and working on
+> environment `01d89b06-66d5-430e-9f28-65636843788b`. Live evidence: `/as/token`
+> and `/as/par` with deliberately bad input both return a normal PingOne JSON
+> error body (`{"error":"invalid_client",...}` with a `correlation-id` header —
+> real backend processing). `/as/bc-authorize` with the same Basic-auth pattern
+> instead returns a raw AWS API Gateway `IncompleteSignatureException` (403, no
+> `correlation-id`, served straight off CloudFront) — the request never reaches
+> a PingOne backend at all. That only happens when a path has no integration
+> deployed behind the edge for this environment; it is not fixable by changing
+> the request's auth scheme or headers. If a future task needs real out-of-band
+> approval on this tenant, use P1MFA `deviceAuthentications` (§3 below,
+> `mfaService.js`) — proven live — rather than re-attempting CIBA, unless Ping
+> has since provisioned CIBA on this environment. See `ciba/SKILL.md` "Common
+> pitfalls" for the matching note.
+
 ---
 
 ## When to Use
