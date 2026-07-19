@@ -111,6 +111,16 @@ describe('Feature Flags Route', () => {
       expect(flag.category).toBe('UI / Dashboard');
       expect(flag.name).toBe('Customer UI — New Ping2026 Skin');
     });
+
+    it('registers ff_sidebar_customization with default false', async () => {
+      const res = await request(app).get('/api/admin/feature-flags');
+      const flag = res.body.flags.find(f => f.id === 'ff_sidebar_customization');
+      expect(flag).toBeDefined();
+      expect(flag.type).toBe('boolean');
+      expect(flag.defaultValue).toBe(false);
+      expect(flag.value).toBe(false);
+      expect(flag.category).toBe('UI / Dashboard');
+    });
   });
 
   describe('PATCH /api/admin/feature-flags', () => {
