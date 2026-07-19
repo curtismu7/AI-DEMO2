@@ -6,6 +6,7 @@ import React, {
   useCallback,
   useRef,
 } from "react";
+import { createPortal } from "react-dom";
 import bffAxios from "../services/bffAxios";
 import { notifyError, notifyWarning, notifySuccess } from "../utils/appToast";
 import { setAgentBlockedByConsentDecline } from "../services/agentAccessConsent";
@@ -72,6 +73,23 @@ function accountSummaryLine(account: Account): string {
   return `${type} - ${num}`;
 }
 
+/**
+ * Renders `children` into the pop-out window's root element via a portal, so
+ * the SAME React state/handlers keep driving the UI once it's in a separate
+ * browser window. Mirrors DraggableModal.jsx's PopOutPortal.
+ */
+function PopOutPortal({
+  win,
+  children,
+}: {
+  win: Window;
+  children: React.ReactNode;
+}) {
+  const [container] = useState(() => win.document.getElementById("drp-popout-root"));
+  if (!container) return null;
+  return createPortal(children, container);
+}
+
 const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
   open,
   challengeId,
@@ -126,6 +144,9 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
   // hides the device list so the modal doesn't look frozen during the
   // browser's native passkey prompt.
   const [assertionPending, setAssertionPending] = useState(false);
+  // Pop-out: content renders in a separate browser window via createPortal,
+  // mirroring DraggableModal.jsx's handlePopOut/PopOutPortal pattern.
+  const [popoutWin, setPopoutWin] = useState<Window | null>(null);
 
   useEffect(() => {
     if (!open) {
@@ -286,6 +307,72 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
     { w: 500, h: 600 },
     { storageKey: "transaction-consent-modal" },
   ) as any;
+
+  const modalTitle = otpStep
+    ? "Enter verification code"
+    : mfaStep
+      ? "Select verification method"
+      : contactStep
+        ? "Where should we send the code?"
+        : "Approve high-value transaction";
+
+  const isPoppedOut = Boolean(popoutWin && !popoutWin.closed);
+
+  const handlePopOut = useCallback(() => {
+    if (popoutWin && !popoutWin.closed) {
+      popoutWin.focus();
+      return;
+    }
+    const w = size.w + 40;
+    const h = size.h + 60;
+    const left = window.screenX + pos.x;
+    const top = window.screenY + pos.y;
+    const win = window.open(
+      "",
+      `tx-consent-${Date.now()}`,
+      `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`,
+    );
+    if (!win) return;
+
+    const styleLinks = Array.from(
+      document.querySelectorAll('link[rel="stylesheet"]'),
+    )
+      .map((el) => `<link rel="stylesheet" href="${(el as HTMLLinkElement).href}">`)
+      .join("\n");
+    const inlineStyles = Array.from(document.querySelectorAll("style"))
+      .map((el) => `<style>${el.textContent}</style>`)
+      .join("\n");
+
+    win.document.write(`<!DOCTYPE html><html><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>${modalTitle}</title>
+${styleLinks}
+${inlineStyles}
+<style>
+html,body{margin:0;padding:0;height:100%;background:#fff}
+#drp-popout-root{display:flex;flex-direction:column;height:100%;overflow:hidden}
+</style>
+</head><body><div id="drp-popout-root"></div></body></html>`);
+    win.document.close();
+    win.addEventListener("beforeunload", () => setPopoutWin(null));
+    setPopoutWin(win);
+  }, [popoutWin, size, pos, modalTitle]);
+
+  // Close the pop-out window if this component unmounts while it's open.
+  useEffect(
+    () => () => {
+      if (popoutWin && !popoutWin.closed) popoutWin.close();
+    },
+    [popoutWin],
+  );
+
+  // Close any pop-out window if the modal itself is dismissed from outside
+  // (parent flips `open` to false) — otherwise it's left orphaned since the
+  // early `if (!open...) return null` below stops rendering the portal.
+  useEffect(() => {
+    if (!open && popoutWin && !popoutWin.closed) popoutWin.close();
+  }, [open, popoutWin]);
 
   const handleConfirm = async () => {
     if (!agreed || submitting || !snapshot || !challengeId || !user?.id) return;
@@ -631,106 +718,7 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
 
   if (!open || !challengeId) return null;
 
-  return (
-    <div
-      className="transaction-consent-popup-overlay"
-      role="presentation"
-      onClick={handleBackdropPointer}
-    >
-      <div
-        className="drp-panel transaction-consent-popup"
-        style={{
-          position: "fixed",
-          left: `${pos.x}px`,
-          top: `${pos.y}px`,
-          width: `${size.w}px`,
-          height: "auto",
-        }}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="transaction-consent-popup-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          className="drp-header"
-          onMouseDown={handleDragStart}
-          style={{
-            padding: "1rem",
-            cursor: "move",
-            borderBottom: "1px solid #e2e8f0",
-            background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
-            color: "#1f2937",
-            borderRadius: "0.5rem 0.5rem 0 0",
-          }}
-        >
-          <h2
-            id="transaction-consent-popup-title"
-            className="transaction-consent-popup__title"
-            style={{ margin: 0, color: "#1f2937" }}
-          >
-            {otpStep
-              ? "Enter verification code"
-              : mfaStep
-                ? "Select verification method"
-                : contactStep
-                  ? "Where should we send the code?"
-                  : "Approve high-value transaction"}
-          </h2>
-        </div>
-
-        <div className="drp-resize-handles">
-          <div
-            className="drp-resize-handle drp-resize-handle--nw"
-            onMouseDown={createResizeHandler("nw")}
-            aria-hidden
-            title="Resize from top-left"
-          />
-          <div
-            className="drp-resize-handle drp-resize-handle--ne"
-            onMouseDown={createResizeHandler("ne")}
-            aria-hidden
-            title="Resize from top-right"
-          />
-          <div
-            className="drp-resize-handle drp-resize-handle--sw"
-            onMouseDown={createResizeHandler("sw")}
-            aria-hidden
-            title="Resize from bottom-left"
-          />
-          <div
-            className="drp-resize-handle drp-resize-handle--se"
-            onMouseDown={createResizeHandler("se")}
-            aria-hidden
-            title="Resize from bottom-right"
-          />
-
-          <div
-            className="drp-resize-handle drp-resize-handle--n"
-            onMouseDown={createResizeHandler("n")}
-            aria-hidden
-            title="Resize from top"
-          />
-          <div
-            className="drp-resize-handle drp-resize-handle--s"
-            onMouseDown={createResizeHandler("s")}
-            aria-hidden
-            title="Resize from bottom"
-          />
-          <div
-            className="drp-resize-handle drp-resize-handle--e"
-            onMouseDown={createResizeHandler("e")}
-            aria-hidden
-            title="Resize from right"
-          />
-          <div
-            className="drp-resize-handle drp-resize-handle--w"
-            onMouseDown={createResizeHandler("w")}
-            aria-hidden
-            title="Resize from left"
-          />
-        </div>
-
-        {assertionPending ? (
+  const stepContent = assertionPending ? (
           <div className="tx-otp-panel">
             <p className="tx-otp-panel__lead">
               Waiting for your passkey — follow the prompt from your browser or
@@ -1105,10 +1093,9 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
               </div>
             )}
           </>
-        )}
-      </div>
+        );
 
-      {denialOpen && (
+  const denialOverlay = denialOpen ? (
         <div
           className="transaction-consent-modal-overlay"
           role="presentation"
@@ -1153,7 +1140,184 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
             </div>
           </div>
         </div>
-      )}
+      ) : null;
+
+  if (isPoppedOut && popoutWin) {
+    return createPortal(
+      <>
+        <PopOutPortal win={popoutWin}>
+          <div className="drp-popout-layout">
+            <div
+              className="drp-header drp-header--static"
+              style={{
+                padding: "1rem",
+                borderBottom: "1px solid #e2e8f0",
+                background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
+                color: "#1f2937",
+              }}
+            >
+              <h2
+                id="transaction-consent-popup-title"
+                className="transaction-consent-popup__title"
+                style={{ margin: 0, color: "#1f2937" }}
+              >
+                {modalTitle}
+              </h2>
+              <div className="drp-header__controls">
+                <button
+                  type="button"
+                  className="drp-header__btn"
+                  onClick={onClose}
+                  title="Close"
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div className="drp-popout-body">{stepContent}</div>
+          </div>
+          {denialOverlay}
+        </PopOutPortal>
+        <div className="drp-popout-placeholder">
+          <span>🪟 {modalTitle} — open in separate window</span>
+          <button
+            type="button"
+            className="drp-popout-placeholder__btn"
+            onClick={() => popoutWin.focus()}
+          >
+            Focus
+          </button>
+          <button
+            type="button"
+            className="drp-popout-placeholder__btn"
+            onClick={() => popoutWin.close()}
+          >
+            Close
+          </button>
+        </div>
+      </>,
+      document.body,
+    );
+  }
+
+  return (
+    <div
+      className="transaction-consent-popup-overlay"
+      role="presentation"
+      onClick={handleBackdropPointer}
+    >
+      <div
+        className="drp-panel transaction-consent-popup"
+        style={{
+          position: "fixed",
+          left: `${pos.x}px`,
+          top: `${pos.y}px`,
+          width: `${size.w}px`,
+          height: "auto",
+        }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="transaction-consent-popup-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          className="drp-header"
+          onMouseDown={handleDragStart}
+          style={{
+            padding: "1rem",
+            cursor: "move",
+            borderBottom: "1px solid #e2e8f0",
+            background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
+            color: "#1f2937",
+            borderRadius: "0.5rem 0.5rem 0 0",
+          }}
+        >
+          <h2
+            id="transaction-consent-popup-title"
+            className="transaction-consent-popup__title"
+            style={{ margin: 0, color: "#1f2937" }}
+          >
+            {modalTitle}
+          </h2>
+          <div className="drp-header__controls">
+            <button
+              type="button"
+              className="drp-header__btn"
+              onClick={handlePopOut}
+              title="Pop out to new window"
+              aria-label="Pop out to new window"
+            >
+              🪟
+            </button>
+            <button
+              type="button"
+              className="drp-header__btn"
+              onClick={onClose}
+              title="Close"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <div className="drp-resize-handles">
+          <div
+            className="drp-resize-handle drp-resize-handle--nw"
+            onMouseDown={createResizeHandler("nw")}
+            aria-hidden
+            title="Resize from top-left"
+          />
+          <div
+            className="drp-resize-handle drp-resize-handle--ne"
+            onMouseDown={createResizeHandler("ne")}
+            aria-hidden
+            title="Resize from top-right"
+          />
+          <div
+            className="drp-resize-handle drp-resize-handle--sw"
+            onMouseDown={createResizeHandler("sw")}
+            aria-hidden
+            title="Resize from bottom-left"
+          />
+          <div
+            className="drp-resize-handle drp-resize-handle--se"
+            onMouseDown={createResizeHandler("se")}
+            aria-hidden
+            title="Resize from bottom-right"
+          />
+
+          <div
+            className="drp-resize-handle drp-resize-handle--n"
+            onMouseDown={createResizeHandler("n")}
+            aria-hidden
+            title="Resize from top"
+          />
+          <div
+            className="drp-resize-handle drp-resize-handle--s"
+            onMouseDown={createResizeHandler("s")}
+            aria-hidden
+            title="Resize from bottom"
+          />
+          <div
+            className="drp-resize-handle drp-resize-handle--e"
+            onMouseDown={createResizeHandler("e")}
+            aria-hidden
+            title="Resize from right"
+          />
+          <div
+            className="drp-resize-handle drp-resize-handle--w"
+            onMouseDown={createResizeHandler("w")}
+            aria-hidden
+            title="Resize from left"
+          />
+        </div>
+
+        {stepContent}
+      </div>
+
+      {denialOverlay}
 
       <div className="drp-resize-handles">
         <div
