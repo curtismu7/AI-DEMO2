@@ -1148,6 +1148,46 @@ describe('resolveMcpAccessTokenWithEvents — 2-exchange delegation (ff_two_exch
     // 1-exchange was taken — token is defined
     expect(token).toBeDefined();
   });
+
+  // ── F4 — audMatches was computed and then discarded ───────────────────────
+  // A final token whose aud does not carry the requested audience was minted,
+  // logged with "❌ mismatch", and then SENT — failing downstream at the
+  // gateway instead of at the mint. It is now enforced where it is computed.
+  describe('final-token audience is enforced, not just reported', () => {
+    it('throws instead of returning a token minted for the wrong audience', async () => {
+      const wrongAudJwt = makeJwt({
+        sub: USER_SUB,
+        aud: 'https://attacker.example/mcp', // not TWO_EX_MCP_RESOURCE
+        scope: 'read',
+        act: { sub: MCP_EXCHANGER_CLIENT, act: { sub: AI_AGENT_CLIENT } },
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      });
+      mockPerformTokenExchangeAs.mockReset();
+      mockPerformTokenExchangeAs
+        .mockResolvedValueOnce(agentExchangedJwt)
+        .mockResolvedValueOnce(wrongAudJwt);
+
+      // The mismatch is raised inside the Exchange #2 try, so it surfaces as the
+      // path's standard delegation_chain_broken error (the specific cause —
+      // expected vs actual aud — is carried on the two-ex-final-token event and
+      // the exchange audit log). What matters here is that NO token comes back.
+      let err;
+      try {
+        await resolveMcpAccessTokenWithEvents(makeReq2ex(sampleJwtUserAccessToken), 'get_my_accounts');
+      } catch (e) { err = e; }
+
+      expect(err).toBeDefined();
+      expect(err.error || err.code).toBe('delegation_chain_broken');
+      expect(err.exchangeContext).toMatchObject({ exchangeStep: '2-exchange' });
+    });
+
+    it('still returns the token when the audience matches', async () => {
+      const { token } = await resolveMcpAccessTokenWithEvents(
+        makeReq2ex(sampleJwtUserAccessToken), 'get_my_accounts',
+      );
+      expect(token).toBe(finalMcpJwt);
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

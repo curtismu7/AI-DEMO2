@@ -24,6 +24,7 @@ import { MCPMessageHandler, MessageHandlerContext } from './MCPMessageHandler';
 import { isSupportedProtocolVersion, MCP_LATEST_PROTOCOL_VERSION } from './protocolVersions';
 import { BankingSessionManager } from '../storage/BankingSessionManager';
 import { BankingAuthenticationManager } from '../auth/BankingAuthenticationManager';
+import { AgentTokenInfo } from '../interfaces/auth';
 import { BankingToolRegistry } from '../tools/BankingToolRegistry';
 import pkg from '../../package.json';
 import { AuditLogger } from '../utils/AuditLogger';
@@ -31,6 +32,8 @@ import { Logger, createDefaultLoggerConfig } from '../utils/Logger';
 import { correlationFromMessage } from './correlationFromMessage';
 import { runWithCorrelation } from '../utils/correlationContext';
 import { extractTratClaims } from '../auth/TratClaimsExtractor';
+import { verifyActorChain, parseAllowedActors } from '../auth/actorChain';
+import { enforceUpstreamContract, resolveUpstreamAudiences } from '../auth/lastHopAuthorization';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -72,6 +75,16 @@ export interface HttpMCPTransportConfig {
    * restrict for production.
    */
   allowedOrigins: string[];
+}
+
+/**
+ * Result of authenticating a bearer token: the raw token plus what validation
+ * actually established about it. `tokenInfo.verifiedClaims` is the only
+ * trustworthy claim source — it is undefined when the signature was not verified.
+ */
+interface AuthenticatedBearer {
+  token: string;
+  tokenInfo: AgentTokenInfo;
 }
 
 /** In-memory HTTP session (maps MCP-Session-Id → banking session). */
@@ -116,55 +129,6 @@ export class HttpMCPTransport {
   // -------------------------------------------------------------------------
   // Static helpers — exported for testability (D-05, gateway mode)
   // -------------------------------------------------------------------------
-
-  /**
-   * Enforce the gateway-first next-hop token contract at the upstream MCP
-   * server boundary (D-05).
-   *
-   * Rules:
-   *  1. If gatewayAudience is configured: the token's aud MUST NOT include the
-   *     gateway URI — a gateway-aud token cannot bypass the gateway's policy
-   *     evaluation and RFC 8693 exchange.
-   *  2. If upstreamAudience is configured: the token's aud MUST include the
-   *     upstream MCP server URI.
-   *
-   * When neither constraint is configured, the check is a no-op (dev mode).
-   */
-  static enforceUpstreamContract(
-    claims: Record<string, unknown>,
-    options: { upstreamAudience?: string; gatewayAudience?: string },
-  ): { valid: boolean; errors: string[] } {
-    const errors: string[] = [];
-
-    const aud = claims?.aud;
-    if (!aud) {
-      errors.push('Missing aud claim — cannot enforce upstream contract');
-      return { valid: false, errors };
-    }
-
-    const audValues: string[] = Array.isArray(aud)
-      ? aud.map(String)
-      : [String(aud)];
-
-    // Rule 1: D-05 anti-bypass — reject gateway-audience tokens at the upstream
-    if (options.gatewayAudience && audValues.includes(options.gatewayAudience)) {
-      errors.push(
-        `D-05 violation: gateway-audience token cannot be used at upstream ` +
-        `(aud includes "${options.gatewayAudience}"). ` +
-        `The gateway must perform RFC 8693 exchange before forwarding.`,
-      );
-    }
-
-    // Rule 2: upstream audience must match
-    if (options.upstreamAudience && !audValues.includes(options.upstreamAudience)) {
-      errors.push(
-        `Upstream aud mismatch: expected "${options.upstreamAudience}", ` +
-        `got [${audValues.join(', ')}]`,
-      );
-    }
-
-    return { valid: errors.length === 0, errors };
-  }
 
   /**
    * Build RFC 9728 metadata hints that signal this server is a protected
@@ -214,9 +178,9 @@ export class HttpMCPTransport {
     // Internal audit endpoint (proxied by BFF /api/mcp/audit — admin-gated at BFF level).
     // Bearer + admin:read required: audit data contains PII and security-sensitive events.
     if (pathname === '/audit' && req.method === 'GET') {
-      const bearerToken = await this.authenticateBearer(req, res);
-      if (!bearerToken) return;
-      const hasAdmin = await this.authManager.validateTokenScopes(bearerToken, ['admin:read']);
+      const authed = await this.authenticateBearer(req, res);
+      if (!authed) return;
+      const hasAdmin = await this.authManager.validateTokenScopes(authed.token, ['admin:read']);
       if (!hasAdmin) {
         this.sendInsufficientScope(res, ['admin:read']);
         return;
@@ -228,9 +192,9 @@ export class HttpMCPTransport {
     // Demo reset: clear in-memory audit log (BFF reset-demo route calls this).
     // Bearer + admin:write required — wiping the audit trail is privileged.
     if (pathname === '/audit' && req.method === 'DELETE') {
-      const bearerToken = await this.authenticateBearer(req, res);
-      if (!bearerToken) return;
-      const hasAdmin = await this.authManager.validateTokenScopes(bearerToken, ['admin:write']);
+      const authed = await this.authenticateBearer(req, res);
+      if (!authed) return;
+      const hasAdmin = await this.authManager.validateTokenScopes(authed.token, ['admin:write']);
       if (!hasAdmin) {
         this.sendInsufficientScope(res, ['admin:write']);
         return;
@@ -439,8 +403,9 @@ export class HttpMCPTransport {
     // 2. Bearer token — required on EVERY request, including notifications.
     // (Auth runs before notification routing so an unauthenticated notification
     // can never reach the message handler.)
-    const bearerToken = await this.authenticateBearer(req, res);
-    if (!bearerToken) return;
+    const authed = await this.authenticateBearer(req, res);
+    if (!authed) return;
+    const { token: bearerToken, tokenInfo } = authed;
 
     // 3. Notifications — route and return 202 (no response body per spec §2.1)
     if (isNotification) {
@@ -451,34 +416,67 @@ export class HttpMCPTransport {
       return;
     }
 
-    // 3a. TraT claim extraction — when MCP_TRAT_MODE_ENABLED is set, extract and log TraT context
+    // 3a. TraT claim extraction — when MCP_TRAT_MODE_ENABLED is set, extract the
+    // TraT context and BIND it to the request. A transaction token names the tool
+    // it was issued for (reqctx.tool); replaying it against a different tool would
+    // make the binding decorative, so a mismatch is refused here.
     const tratMode = process.env.MCP_TRAT_MODE_ENABLED === 'true';
     if (tratMode) {
       const xTratContext = req.headers['x-trat-context'] as string | undefined;
       const tratClaims = extractTratClaims(bearerToken, xTratContext, true);
       if (tratClaims) {
         console.log(`[HttpMCPTransport][TraT] Claims extracted — tool=${tratClaims.reqctx.tool} purp=${tratClaims.purp} sim=${tratClaims.trat_sim ?? false}`);
+        if (message.method === 'tools/call') {
+          const calledTool = (message.params as { name?: string } | undefined)?.name;
+          const boundTool = tratClaims.reqctx.tool;
+          if (calledTool && boundTool && calledTool !== boundTool) {
+            console.warn(`[HttpMCPTransport][TraT] Binding violation — token bound to "${boundTool}", call is "${calledTool}"`);
+            this.sendHttpError(
+              res,
+              403,
+              `TraT binding violation: transaction context is bound to tool "${boundTool}", not "${calledTool}"`,
+            );
+            return;
+          }
+        }
       } else {
         console.warn('[HttpMCPTransport][TraT] MCP_TRAT_MODE_ENABLED but no TraT claims found');
       }
     }
 
-    // 3b. Gateway mode: enforce next-hop upstream contract (D-05, Phase 243)
-    if (process.env.MCP_GATEWAY_MODE === 'true') {
-      const claims = this.decodeTokenPayload(bearerToken);
-      const upstreamAudience =
-        process.env.MCP_UPSTREAM_RESOURCE_URI ||
-        process.env.MCP_AUDIENCE ||
-        process.env.PINGONE_RESOURCE_MCP_URI;
-      const gatewayAudience = process.env.MCP_GW_RESOURCE_URI;
-      const contractCheck = HttpMCPTransport.enforceUpstreamContract(claims, {
-        upstreamAudience,
-        gatewayAudience,
-      });
-      if (!contractCheck.valid) {
-        this.sendUnauthorized(res, `Gateway next-hop contract violation: ${contractCheck.errors[0]}`);
-        return;
-      }
+    // 3b. Next-hop token contract — D-05 anti-bypass + RFC 8693 delegation chain.
+    //
+    // D-05 runs UNCONDITIONALLY (was: gated on MCP_GATEWAY_MODE, which is set in no
+    // deployment — docker-compose.yml and .env.example never define it — so the
+    // anti-bypass check was dead everywhere). enforceUpstreamContract is already
+    // self-disarming when neither audience is configured, so the flag added no
+    // safety, only an off switch nobody knew was on.
+    // Claims come from validateAgentToken and exist ONLY when the signature was
+    // verified. Both checks below are authorization decisions read out of the
+    // token's own claims, so an unverified token must not supply them: it is
+    // attacker-authored and can assert any aud or actor it likes.
+    const claims = tokenInfo.verifiedClaims ?? {};
+    const contractCheck = enforceUpstreamContract(claims, resolveUpstreamAudiences());
+    if (!contractCheck.valid) {
+      this.sendUnauthorized(res, `Gateway next-hop contract violation: ${contractCheck.errors[0]}`);
+      return;
+    }
+
+    // F10 — verify the delegation chain the gateway proved and then dropped.
+    // Armed by MCP_ALLOWED_ACTORS; fail-closed once armed (a token with no act
+    // claim, or no verified signature over it, has no provable actor). C4: an
+    // unarmed gate logs an explicit skip marker so it is never indistinguishable
+    // from a PERMIT.
+    const actorCheck = verifyActorChain(claims, {
+      allowedActors: parseAllowedActors(process.env.MCP_ALLOWED_ACTORS),
+      signatureVerified: tokenInfo.signatureVerified === true,
+    });
+    if (!actorCheck.ran) {
+      console.warn(`[HttpMCPTransport][F10] actor chain gate skipped — ran=false skipReason="${actorCheck.skipReason}"`);
+    } else if (!actorCheck.valid) {
+      console.warn(`[HttpMCPTransport][F10] actor chain denied — ${actorCheck.errors[0]}`);
+      this.sendUnauthorized(res, `Delegation chain rejected: ${actorCheck.errors[0]}`);
+      return;
     }
 
     // 4. MCP-Protocol-Version header — required on non-initialize requests, and
@@ -589,8 +587,8 @@ export class HttpMCPTransport {
   private async handleDelete(req: IncomingMessage, res: ServerResponse): Promise<void> {
     // A bearer token is required to terminate a session — the session id alone is
     // not a credential (it travels in a header and could be observed/replayed).
-    const bearerToken = await this.authenticateBearer(req, res);
-    if (!bearerToken) return;
+    const authed = await this.authenticateBearer(req, res);
+    if (!authed) return;
 
     const mcpSessionId = req.headers[MCP_SESSION_HEADER] as string | undefined;
     if (mcpSessionId && this.sessions.has(mcpSessionId)) {
@@ -610,8 +608,8 @@ export class HttpMCPTransport {
   private async handleSse(req: IncomingMessage, res: ServerResponse): Promise<void> {
     // A bearer token is required to open the server→client stream — the session
     // id alone is not a credential.
-    const bearerToken = await this.authenticateBearer(req, res);
-    if (!bearerToken) return;
+    const authed = await this.authenticateBearer(req, res);
+    if (!authed) return;
 
     // SSE requires a valid, existing session — the client must have completed
     // initialize via POST before opening the SSE channel.
@@ -714,14 +712,18 @@ export class HttpMCPTransport {
    * WWW-Authenticate) and returns null so the caller can simply `return`.
    * Shared by POST/GET/DELETE /mcp so every method enforces the same auth.
    */
-  private async authenticateBearer(req: IncomingMessage, res: ServerResponse): Promise<string | null> {
+  private async authenticateBearer(req: IncomingMessage, res: ServerResponse): Promise<AuthenticatedBearer | null> {
     const bearer = this.extractBearer(req);
     if (!bearer) {
       this.sendUnauthorized(res, 'Bearer token required');
       return null;
     }
+    // The returned info carries whether the signature was actually verified and,
+    // if so, the claims it covers. Callers that authorize on a claim use those —
+    // never a re-decode of the raw token, which proves nothing.
+    let tokenInfo: AgentTokenInfo;
     try {
-      await this.authManager.validateAgentToken(bearer);
+      tokenInfo = await this.authManager.validateAgentToken(bearer);
     } catch {
       this.sendUnauthorized(res, 'Invalid or expired token');
       return null;
@@ -733,17 +735,24 @@ export class HttpMCPTransport {
     // is set, so the demo can run with the flag on but enforcement observe-only.
     if (process.env.REQUIRE_DPOP_PROOF === 'true') {
       const verified = (req.headers['x-dpop-verified'] as string | undefined) === 'true';
-      // When GW_MCP_BRIDGE_SECRET is configured, the verified flag is only trusted if it
-      // arrives with the matching gateway secret — preventing a direct caller (e.g. a
-      // stolen bearer hitting an exposed MCP port) from spoofing X-DPoP-Verified.
+      // X-DPoP-Verified is an assertion made by the gateway, so it is only worth as
+      // much as proof that the gateway is the one making it. GW_MCP_BRIDGE_SECRET is
+      // that proof and is now REQUIRED (was: `!bridgeSecret ||` — an unset secret
+      // trusted the header from any caller, so anyone able to reach the MCP port could
+      // send X-DPoP-Verified: true and satisfy the gate with no DPoP proof at all).
       const bridgeSecret = process.env.GW_MCP_BRIDGE_SECRET;
-      const secretOk = !bridgeSecret || (req.headers['x-gw-bridge-secret'] as string | undefined) === bridgeSecret;
+      if (!bridgeSecret) {
+        console.error('[HttpMCPTransport][DPoP] REQUIRE_DPOP_PROOF=true but GW_MCP_BRIDGE_SECRET is unset — X-DPoP-Verified cannot be authenticated, refusing.');
+        this.sendUnauthorized(res, 'DPoP bridge not configured (GW_MCP_BRIDGE_SECRET required to trust X-DPoP-Verified)');
+        return null;
+      }
+      const secretOk = (req.headers['x-gw-bridge-secret'] as string | undefined) === bridgeSecret;
       if (!verified || !secretOk) {
         this.sendUnauthorized(res, 'DPoP proof required (sender-constrained token)');
         return null;
       }
     }
-    return bearer;
+    return { token: bearer, tokenInfo };
   }
 
   /**
@@ -790,23 +799,6 @@ export class HttpMCPTransport {
   private async sweepExpiredSessions(): Promise<void> {
     for (const [id, session] of this.sessions) {
       if (this.isSessionExpired(session)) await this.deleteSession(id);
-    }
-  }
-
-  /**
-   * Decode the payload of a JWT without signature verification.
-   * The signature was already verified by authManager.validateAgentToken.
-   * Used for gateway-mode claims inspection (D-05, Phase 243).
-   */
-  private decodeTokenPayload(token: string): Record<string, unknown> {
-    try {
-      const parts = token.split('.');
-      if (parts.length !== 3) return {};
-      const padded = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-      const json = Buffer.from(padded, 'base64').toString('utf8');
-      return JSON.parse(json) as Record<string, unknown>;
-    } catch {
-      return {};
     }
   }
 

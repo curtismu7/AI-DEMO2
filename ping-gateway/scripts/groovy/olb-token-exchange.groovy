@@ -83,7 +83,28 @@ if (!subjectToken) {
 // mcp-server-audience (mcpserver.ping.demo) token and signals it via
 // X-BFF-Exchanged. In that mode the IG must NOT exchange again — forward the
 // delegated token as-is. Absent header => gateway-brokered (default): exchange below.
-def bffExchanged = (request.headers.getFirst('X-BFF-Exchanged') ?: '').equalsIgnoreCase('true')
+//
+// TRUSTED-CALLER GATE: this header suppresses Exchange #3, so an ungated version let
+// ANY caller reaching the IG host port (3036) forward its inbound gateway-audience
+// token straight to the MCP server instead of a properly re-scoped one. Its sibling
+// headers (X-Authz-Simulated / X-Act-Client-Id) are already secret-gated in
+// p1az-decision.groovy:71-77 — apply the same BFF_INTERNAL_SECRET check here.
+// The real BFF always sends x-internal-gateway-secret alongside this header
+// (mcpGatewayClient.js:209 and :225 are in the same block), so bff-brokered mode is
+// unaffected; an untrusted caller falls through to the normal gateway-brokered exchange.
+def teInternalSecret  = System.getenv('BFF_INTERNAL_SECRET') ?: ''
+def tePresentedSecret = request.headers.getFirst('x-internal-gateway-secret') ?: ''
+def teTrustedCaller   = false
+if (teInternalSecret && tePresentedSecret) {
+    teTrustedCaller = java.security.MessageDigest.isEqual(
+        teInternalSecret.getBytes('UTF-8'), tePresentedSecret.getBytes('UTF-8'))
+}
+def bffExchangedHeader = (request.headers.getFirst('X-BFF-Exchanged') ?: '').equalsIgnoreCase('true')
+if (bffExchangedHeader && !teTrustedCaller) {
+    logger.warn('[OlbExchange] X-BFF-Exchanged presented without a valid ' +
+        'x-internal-gateway-secret — ignoring and performing Exchange #3')
+}
+def bffExchanged = bffExchangedHeader && teTrustedCaller
 def issuedToken
 if (bffExchanged) {
     logger.info('[OlbExchange] X-BFF-Exchanged=true — skipping Exchange #3; forwarding BFF-delegated token')

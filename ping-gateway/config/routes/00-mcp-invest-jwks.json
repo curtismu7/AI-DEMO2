@@ -38,6 +38,15 @@
           }
         },
         {
+          "comment": "Tool-argument validation must run on EVERY route, not just the introspection ones — a token accepted here otherwise reaches the backend with unvalidated arguments that the same token could not send via 02-mcp-invest. Mounted after McpValidationFilter (body buffered) and before P1AZDecision, matching 02-mcp-invest.json.",
+          "name": "McpRequestValidation",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "mcp-request-validation.groovy"
+          }
+        },
+        {
           "name": "Uc18RateLimit",
           "type": "ScriptableFilter",
           "config": {

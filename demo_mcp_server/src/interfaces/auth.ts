@@ -22,6 +22,16 @@ export interface AgentTokenInfo {
   transactionId?: string;
   /** Transaction scope/intent from Transaction Tokens (txn_scope claim). */
   transactionScope?: string;
+  /** True only when the JWT signature was cryptographically verified against JWKS.
+   *  False means the token was accepted on the gateway's prior authorization
+   *  (no JWKS configured, or a documented fail-open) — its claims are NOT proof
+   *  of anything and must not drive an authorization decision. */
+  signatureVerified?: boolean;
+  /** Claims of the presented token, populated ONLY when signatureVerified is true.
+   *  Undefined is the signal that no trustworthy claim source exists, so callers
+   *  that authorize on claims (actor allow-list, D-05 audience contract) fail
+   *  closed instead of falling back to an unverified base64 decode. */
+  verifiedClaims?: Record<string, unknown>;
 }
 
 export interface UserTokens {

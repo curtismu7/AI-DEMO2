@@ -447,6 +447,14 @@ async function main() {
     PG_OLB_BACKEND_URL:             'http://mcp-server:8080',
     PG_INVEST_BACKEND_URL:          'http://mcp-invest:8081',
     BFF_INTERNAL_SECRET:            fb('BFF_INTERNAL_SECRET') || 'dev-shared-secret-change-me',
+    // Intent Token verification in scripts/groovy/p1az-decision.groovy resolves
+    // `INTENT_TOKEN_SECRET ?: SESSION_SECRET`. Neither was emitted here, so the
+    // filter found no key and silently omitted its decision keys
+    // (IntentTokenValid / IntentMatchesTool) — the verification shipped as dead
+    // code on the running stack. Mirror the BFF's own resolution order
+    // (services/intentTokenService.js) so both sides derive the SAME key
+    // whichever one is actually configured.
+    INTENT_TOKEN_SECRET:            fb('INTENT_TOKEN_SECRET') || fb('SESSION_SECRET'),
     BFF_VAULT_KEY_URL:              'https://api.ping.demo:3001/internal/vault/service-key',
     PG_MORTGAGE_BACKEND_URL:        'http://mortgage-service:8082',
     // PingGateway Groovy P1AZ filter — mirrors BFF PingOne Authorize (real backend).
