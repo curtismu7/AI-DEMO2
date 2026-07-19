@@ -440,14 +440,33 @@ const McpInspector = ({ user, onLogout }) => {
             <div className="p1mcp-tree-header">
               <span>Tools ({tools.length})</span>
             </div>
-            <div className="p1mcp-tree-search">
+            <div className="p1mcp-tree-search" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <input
                 type="search"
                 placeholder="Filter tools..."
                 value={toolSearch}
                 onChange={(e) => setToolSearch(e.target.value)}
                 spellCheck={false}
+                style={{ flex: 1 }}
               />
+              <span
+                title="Type to filter the tool list by name or description. Matching is case-insensitive and updates as you type."
+                style={{
+                  cursor: 'help',
+                  fontSize: 12,
+                  width: 16,
+                  height: 16,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '50%',
+                  border: '1px solid currentColor',
+                  opacity: 0.6,
+                  flexShrink: 0,
+                }}
+              >
+                i
+              </span>
             </div>
             <div className="p1mcp-tree-body">
               {groupedTools.map((group) => (
