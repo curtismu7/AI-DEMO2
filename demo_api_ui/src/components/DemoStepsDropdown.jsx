@@ -11,6 +11,8 @@ import {
 } from '../config/demoUseCaseSteps';
 import apiClient from '../services/apiClient';
 import UseCaseExplainModal from './UseCaseExplainModal';
+import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
+import { a2aEventsForExplain } from './demoStepsA2a';
 import {
   clearCompletedUseCases,
   isUseCaseCompleted,
@@ -292,6 +294,7 @@ export default function DemoStepsDropdown({
       <UseCaseExplainModal
         uc={explainUc}
         open={Boolean(explainUc)}
+        a2aTokenEvents={a2aEventsForExplain(explainUc, tokenChainTraceStore)}
         onClose={() => setExplainUc(null)}
       />
     </>

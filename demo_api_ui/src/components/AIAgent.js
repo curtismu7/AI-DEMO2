@@ -79,6 +79,8 @@ import QuickLoginModal from "./QuickLoginModal";
 import DemoAuthzFallbackModal from "./DemoAuthzFallbackModal";
 import TransactionConsentModal from "./TransactionConsentModal";
 import ElicitationDialog from "./ElicitationDialog";
+import UseCaseExplainModal from "./UseCaseExplainModal";
+import { shouldAutoOpenA2a } from "./a2aAutoOpen";
 import useElicitation from "../hooks/useElicitation";
 import "./AIAgent.css";
 import { postAppEvent } from "../services/appEventClient";
@@ -908,6 +910,8 @@ export default function BankingAgent({
 
   /** Pending HITL intent — shows AgentConsentModal (transaction mode) before OTP. */
   const [hitlPendingIntent, setHitlPendingIntent] = useState(null);
+  const [a2aExplainUc, setA2aExplainUc] = useState(null);
+  const [a2aExplainEvents, setA2aExplainEvents] = useState([]);
 
   /** Challenge ID issued after the user clicks Authorize in AgentConsentModal. */
   const [hitlChallengeId, setHitlChallengeId] = useState(null);
@@ -6650,6 +6654,19 @@ export default function BankingAgent({
             const replyText = response.reply || AGENT_UNAVAILABLE_MESSAGE;
             const replyWithAgentBadge = `[CUSTOMER AGENT]\n${replyText}`;
             addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
+            // A2A teaching popup: auto-open after a successful A2A delegation,
+            // mirroring how RAR auto-explains. The response's own token events
+            // feed the modal's live values.
+            if (shouldAutoOpenA2a(response)) {
+              setA2aExplainUc({
+                id: 'A2A',
+                a2a: true,
+                title: 'Agent-to-Agent delegation',
+                whatLong: response.reply,
+                pingOneSolution: 'PingOne mints a nested RFC 8693 act chain; Authorize decides PERMIT/DENY over the chain.',
+              });
+              setA2aExplainEvents(Array.isArray(response.tokenEvents) ? response.tokenEvents : []);
+            }
             if (response.tokenEvents?.length) {
               appendTokenEvents(response.tokenEvents);
               if (tokenChain) {
@@ -9034,6 +9051,14 @@ export default function BankingAgent({
                 deliveryError={otpDeliveryError}
               />
             )}
+
+            {/* A2A teaching popup: auto-opens after a successful A2A delegation step */}
+            <UseCaseExplainModal
+              uc={a2aExplainUc}
+              open={Boolean(a2aExplainUc)}
+              a2aTokenEvents={a2aExplainEvents}
+              onClose={() => { setA2aExplainUc(null); setA2aExplainEvents([]); }}
+            />
 
             {/* AG-UI Step 7 — HITL interrupt consent modal */}
             <GatewayConsentModal
