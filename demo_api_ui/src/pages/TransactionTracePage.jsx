@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import "./TransactionTracePage.css";
 
 const REFRESH_MS = 15000;
+const LIST_LIMIT = 50;
 const TOKEN_CHAIN_HREF = "/monitoring/token-chain";
 const JAEGER_TRACE_HREF = "/jaeger/trace/";
 
@@ -65,7 +66,10 @@ function Decision({ decision }) {
 function HopCard({ hop, violations, severed }) {
   return (
     <>
-      <li className={`ttrace-hop${severed ? " ttrace-hop--severed" : ""}`}>
+      <li
+        className={`ttrace-hop${severed ? " ttrace-hop--severed" : ""}`}
+        data-testid={`hop-${hop.seq}`}
+      >
         <span className="ttrace-node">{hop.seq}</span>
         <div className="ttrace-hop-body">
           <div className="ttrace-hop-head">
@@ -76,7 +80,14 @@ function HopCard({ hop, violations, severed }) {
             </span>
             {hop.op ? <span className="ttrace-op">{hop.op}</span> : null}
             {Number.isFinite(hop.durationMs) ? <span className="ttrace-ms">{hop.durationMs}ms</span> : null}
-            {hop.source === "derived" ? <span className="ttrace-derived">derived</span> : null}
+            {hop.source === "derived" ? (
+              <span
+                className="ttrace-derived"
+                title="Reconstructed at read time from the token chain — not a first-hand record"
+              >
+                derived
+              </span>
+            ) : null}
           </div>
           <Identity identity={hop.identity} />
           <Decision decision={hop.decision} />
@@ -146,13 +157,14 @@ export default function TransactionTracePage() {
   const [transactions, setTransactions] = useState([]);
   const [expanded, setExpanded] = useState(null);
   const [detail, setDetail] = useState(null);
+  const [detailError, setDetailError] = useState(null);
   const [disabled, setDisabled] = useState(false);
   const [error, setError] = useState(null);
   const [loaded, setLoaded] = useState(false);
 
   const loadList = useCallback(async () => {
     try {
-      const res = await fetch("/api/transaction-trace?limit=50", { credentials: "include" });
+      const res = await fetch(`/api/transaction-trace?limit=${LIST_LIMIT}`, { credentials: "include" });
       if (res.status === 403) {
         setDisabled(true);
         setLoaded(true);
@@ -176,14 +188,8 @@ export default function TransactionTracePage() {
     return () => clearInterval(t);
   }, [loadList]);
 
-  const toggle = useCallback(async (correlationId) => {
-    if (expanded === correlationId) {
-      setExpanded(null);
-      setDetail(null);
-      return;
-    }
-    setExpanded(correlationId);
-    setDetail(null);
+  const loadDetail = useCallback(async (correlationId) => {
+    setDetailError(null);
     try {
       const res = await fetch(`/api/transaction-trace/${encodeURIComponent(correlationId)}`, {
         credentials: "include",
@@ -191,9 +197,21 @@ export default function TransactionTracePage() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setDetail(await res.json());
     } catch (err) {
-      setError(err.message);
+      setDetailError({ correlationId, message: err.message });
     }
-  }, [expanded]);
+  }, []);
+
+  const toggle = useCallback((correlationId) => {
+    if (expanded === correlationId) {
+      setExpanded(null);
+      setDetail(null);
+      setDetailError(null);
+      return;
+    }
+    setExpanded(correlationId);
+    setDetail(null);
+    loadDetail(correlationId);
+  }, [expanded, loadDetail]);
 
   return (
     <div className="ttrace-page">
@@ -232,7 +250,22 @@ export default function TransactionTracePage() {
               <span className="ttrace-cid">{t.correlationId}</span>
               <span className="ttrace-count">{t.hopCount} hops</span>
             </button>
-            {expanded === t.correlationId && detail ? <TraceDetail detail={detail} /> : null}
+            {expanded === t.correlationId ? (
+              detail ? (
+                <TraceDetail detail={detail} />
+              ) : detailError && detailError.correlationId === t.correlationId ? (
+                <div className="ttrace-detail-error" data-testid="detail-error">
+                  <p>⚠️ Trace could not be loaded.</p>
+                  <button
+                    type="button"
+                    className="ttrace-retry-btn"
+                    onClick={() => loadDetail(t.correlationId)}
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : null
+            ) : null}
           </li>
         ))}
       </ul>

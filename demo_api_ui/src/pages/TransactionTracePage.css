@@ -94,6 +94,22 @@
 .ttrace-links a { color: #1d4ed8; font-weight: 600; text-decoration: none; }
 .ttrace-links a:hover { text-decoration: underline; }
 
+.ttrace-detail-error { color: #b91c1c; font-size: 13px; }
+.ttrace-detail-error p { margin: 0 0 8px; }
+
+.ttrace-retry-btn {
+  background: #fff;
+  border: 1px solid #b91c1c;
+  color: #b91c1c;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ttrace-retry-btn:hover { background: #fef2f2; }
+
 /*
  * Chain-of-custody spine: hops are numbered nodes strung along a continuous
  * 2px rule. Each <li> (hop or violation band) contributes one segment of
