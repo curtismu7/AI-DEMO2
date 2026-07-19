@@ -212,6 +212,47 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
     });
   }
 
+  if (pending.simulated) {
+    if (!cibaSimulatedService.isSimulatedApproved(pending)) {
+      return res.json({ status: 'pending' });
+    }
+
+    delete req.session.cibaRequests[authReqId];
+    req.session.stepUpVerified = Date.now() + STEP_UP_TTL_MS;
+
+    // Mirror the real path's token-chain tracking below so the "CIBA
+    // Step-Up" tab and floating token-chain panel show an identical event —
+    // never distinguishable from a real approval in the UI.
+    // `engine: 'simulated'` is stashed in additionalData for our own
+    // debugging only; CibaStepUpFlowPanel.jsx never renders additionalData.
+    // No fake access token is ever stored in req.session.oauthTokens — the
+    // step-up gate in routes/transactions.js only reads stepUpVerified.
+    try {
+      const jwt = require('jsonwebtoken');
+      const subject = req.user?.sub || req.user?.id;
+      if (subject) {
+        const fakeAccessToken = jwt.sign({ sub: subject }, 'ciba-simulated-local-only');
+        trackTokenEvent({
+          eventType: 'auth',
+          token: fakeAccessToken,
+          userId: subject,
+          description: 'CIBA backchannel step-up approved (out-of-band)',
+          additionalData: { grantedVia: 'ciba', scope: pending.scope, engine: 'simulated' },
+        }).catch((err) => console.error('[CIBA] token-chain track failed (simulated):', err.message));
+      }
+    } catch (trackErr) {
+      console.warn('[CIBA] could not build token-chain event for simulated approval:', trackErr.message);
+    }
+
+    return req.session.save((saveErr) => {
+      if (saveErr) console.error('[CIBA] session save error on simulated approval:', saveErr);
+      res.json({
+        status: 'approved',
+        scope:  pending.scope,
+      });
+    });
+  }
+
   try {
     const tokens = await cibaService.pollForTokens(authReqId);
 
