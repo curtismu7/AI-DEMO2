@@ -133,7 +133,6 @@ import MonitoringRoutes, {
   SequenceDiagramRoute,
 } from "./routes/MonitoringRoutes";
 import PublicRoutes, {
-  AuthzTestPageRoute,
   CodeExplorerPageRoute,
   CodeSearchPageRoute,
   ConfigurePage,
@@ -452,7 +451,7 @@ function AppWithAuth() {
                 />
                 <Route
                   path="/authz-test"
-                  element={<AuthzTestPageRoute user={user} logout={logout} />}
+                  element={<Navigate to="/pingone-authorize?tab=guided" replace />}
                 />
                 <Route
                   path="/intent-binding-learning"
