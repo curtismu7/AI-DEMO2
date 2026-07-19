@@ -102,3 +102,16 @@ export function isMonitoringRoute(pathname) {
   ];
   return MONITORING_PREFIXES.some(prefix => p === prefix || p.startsWith(prefix + '/'));
 }
+
+/**
+ * The live use-case workbench (/use-cases/live) — drawer + real Token Chain
+ * rail driven by the single real agent squeezed into a narrow "middle" column,
+ * same placement mechanism UserDashboard uses for its own middle column.
+ * @param {string} [pathname]
+ * @returns {boolean}
+ */
+export function isLiveWorkbenchRoute(pathname) {
+  if (pathname == null || typeof pathname !== 'string') return false;
+  const p = pathname.replace(/\/$/, '') || '/';
+  return p === '/use-cases/live';
+}

@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./AppShell";
 import IntentBindingLearningPage from "../pages/IntentBindingLearningPage";
+import LiveUseCaseWorkbenchPage from "../pages/LiveUseCaseWorkbenchPage";
 import AIAgent from "../components/AIAgent";
 import CodeExplorerPage from "../components/CodeExplorerPage";
 import GraphifyPage from "../components/GraphifyPage";
@@ -189,6 +190,14 @@ export function UseCasesPageRoute({ user, logout }) {
     <AppShell user={user} logout={logout}>
       {/* A5.2 — slim launch drawer on /agent screen — deferred to A5.2 */}
       <UseCaseLauncherPage />
+    </AppShell>
+  );
+}
+
+export function LiveUseCaseWorkbenchPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <LiveUseCaseWorkbenchPage />
     </AppShell>
   );
 }

@@ -1,0 +1,140 @@
+import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
+import { vi } from 'vitest';
+import LiveUseCaseWorkbenchPage from '../pages/LiveUseCaseWorkbenchPage';
+
+vi.mock('../services/apiClient', () => ({
+  default: { get: vi.fn(), post: vi.fn() },
+}));
+vi.mock('../vertical/useVertical', () => ({
+  useVertical: () => ({ activeId: 'banking' }),
+}));
+vi.mock('../components/VerticalSwitcher', () => ({
+  default: function VerticalSwitcherStub() { return null; },
+}));
+const mockSetSurfaceHostEl = vi.fn();
+vi.mock('../context/AgentUiModeContext', () => ({
+  useAgentUiMode: () => ({ placement: 'middle', setSurfaceHostEl: mockSetSurfaceHostEl }),
+}));
+// TokenChainTraceRail (already rendered by the page since Task 4) also calls
+// getState/subscribe/reset on this store, so the mock must stub those too or
+// the rail crashes on mount for every test in this file, not just the new one.
+const mockStore = vi.hoisted(() => ({
+  beginTrace: vi.fn(),
+  ingestTokenEvents: vi.fn(),
+  completeTrace: vi.fn(),
+  getState: vi.fn(() => ({ trace: { tokenEvents: [], phases: [] }, steps: [] })),
+  subscribe: vi.fn(() => () => {}),
+  reset: vi.fn(),
+}));
+vi.mock('../services/tokenChainTrace/tokenChainTraceStore', () => ({
+  tokenChainTraceStore: mockStore,
+}));
+
+import apiClient from '../services/apiClient';
+
+const MOCK_USE_CASES = [
+  { id: 'UC1', useCaseId: 'delegated-access-with-proof', track: 'foundations',
+    title: 'Delegated access with proof', trigger: { type: 'chip', text: 'show my balance' },
+    expectedOutcome: 'PERMIT', maturity: 'works' },
+  { id: 'UC6', useCaseId: 'authz-denied', track: 'controls',
+    title: 'Authz denied', trigger: { type: 'chip', text: 'transfer $2500 from checking to savings' },
+    expectedOutcome: 'DENY', maturity: 'works' },
+];
+
+function renderPage() {
+  return render(
+    <MemoryRouter>
+      <LiveUseCaseWorkbenchPage />
+    </MemoryRouter>
+  );
+}
+
+describe('LiveUseCaseWorkbenchPage', () => {
+  beforeEach(() => {
+    apiClient.get.mockReset();
+    apiClient.get.mockResolvedValue({ data: { useCases: MOCK_USE_CASES } });
+  });
+
+  it('fetches the real catalog for the active vertical and renders tracks + rows', async () => {
+    renderPage();
+    await waitFor(() => {
+      expect(screen.getByText(/Delegated access with proof/)).toBeInTheDocument();
+    });
+    expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases', { params: { vertical: 'banking' } });
+    expect(screen.getByText(/Authz denied/)).toBeInTheDocument();
+    expect(screen.getByText('PERMIT')).toBeInTheDocument();
+    expect(screen.getByText('DENY')).toBeInTheDocument();
+  });
+
+  it('filters rows via the search box', async () => {
+    renderPage();
+    await waitFor(() => screen.getByText(/Delegated access with proof/));
+    const search = screen.getByPlaceholderText(/Filter use cases/i);
+    await userEvent.type(search, 'authz');
+    await waitFor(() => {
+      expect(screen.queryByText(/Delegated access with proof/)).not.toBeInTheDocument();
+    });
+    expect(screen.getByText(/Authz denied/)).toBeInTheDocument();
+  });
+
+  it('registers a narrow agent host on mount so the real single agent portals in', async () => {
+    renderPage();
+    await waitFor(() => screen.getByText(/Delegated access with proof/));
+    expect(mockSetSurfaceHostEl).toHaveBeenCalled();
+    // The host-registration effect (mirroring UserDashboard.js) fires more than once
+    // during mount — an initial call with the pre-ref-attach null, a functional
+    // cleanup-updater call, then the call carrying the actual attached DOM node.
+    // Find the call that actually carries the element rather than assuming index 0.
+    const registeredEl = mockSetSurfaceHostEl.mock.calls
+      .map((call) => call[0])
+      .find((arg) => arg instanceof HTMLElement);
+    expect(registeredEl).toBeInstanceOf(HTMLElement);
+  });
+
+  it('running a chip use case posts, switches vertical, and fires the real agent via banking-agent-prefill', async () => {
+    apiClient.post.mockImplementation((url) => {
+      if (url === '/api/use-cases/demo/run') {
+        return Promise.resolve({ data: { useCaseId: 'delegated-access-with-proof', triggerText: 'show my balance', type: 'chip', vertical: 'banking' } });
+      }
+      if (url === '/api/verticals/active') return Promise.resolve({ data: {} });
+      return Promise.reject(new Error(`unexpected POST ${url}`));
+    });
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+    renderPage();
+    await waitFor(() => screen.getByText(/Delegated access with proof/));
+    screen.getByText(/Delegated access with proof/).closest('button').click();
+
+    await waitFor(() => {
+      expect(apiClient.post).toHaveBeenCalledWith('/api/use-cases/demo/run', { useCaseId: 'delegated-access-with-proof', vertical: 'banking' });
+    });
+    expect(apiClient.post).toHaveBeenCalledWith('/api/verticals/active', { id: 'banking' });
+    await waitFor(() => {
+      const fired = dispatchSpy.mock.calls.some(([e]) => e.type === 'banking-agent-prefill' && e.detail?.message === 'show my balance' && e.detail?.autoSend === true);
+      expect(fired).toBe(true);
+    });
+  });
+
+  it('running an attack use case posts the sim and ingests real tokenChainEvents into the shared store', async () => {
+    const ATTACK_UC = { id: 'UC5', useCaseId: 'insufficient-scope', track: 'attacks',
+      title: 'Wrong / insufficient scope', trigger: { type: 'attack', sim: 'insufficient-scope' },
+      expectedOutcome: 'DENY_403', maturity: 'works' };
+    apiClient.get.mockResolvedValue({ data: { useCases: [ATTACK_UC] } });
+    apiClient.post.mockResolvedValue({
+      data: { sim: 'insufficient-scope', useCaseId: 'insufficient-scope', status: 403, tokenChainEvents: [{ id: 'sim-gateway-deny', status: 'failed' }] },
+    });
+
+    renderPage();
+    await waitFor(() => screen.getByText(/Wrong \/ insufficient scope/));
+    screen.getByText(/Wrong \/ insufficient scope/).closest('button').click();
+
+    await waitFor(() => {
+      expect(apiClient.post).toHaveBeenCalledWith('/api/demo/attack-sim/run', { sim: 'insufficient-scope' });
+    });
+    expect(mockStore.beginTrace).toHaveBeenCalled();
+    expect(mockStore.ingestTokenEvents).toHaveBeenCalledWith([{ id: 'sim-gateway-deny', status: 'failed' }]);
+    expect(mockStore.completeTrace).toHaveBeenCalledWith(false);
+  });
+});

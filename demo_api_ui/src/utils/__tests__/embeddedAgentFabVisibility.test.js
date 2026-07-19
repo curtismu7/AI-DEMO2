@@ -4,6 +4,7 @@ import {
   isEmbeddedAgentDockRoute,
   isDashboardQuickNavRoute,
   shouldShowGlobalFloatingBankingAgentFab,
+  isLiveWorkbenchRoute,
 } from '../embeddedAgentFabVisibility';
 
 const customer = { role: 'customer', id: '1' };
@@ -144,5 +145,20 @@ describe('shouldShowGlobalFloatingBankingAgentFab', () => {
         pathname: '/dashboard',
       }),
     ).toBe(false);
+  });
+});
+
+describe('isLiveWorkbenchRoute', () => {
+  it('is true only for /use-cases/live', () => {
+    expect(isLiveWorkbenchRoute('/use-cases/live')).toBe(true);
+    expect(isLiveWorkbenchRoute('/use-cases/live/')).toBe(true);
+  });
+
+  it('is false for the catalog page, dashboard, and unrelated routes', () => {
+    expect(isLiveWorkbenchRoute('/use-cases')).toBe(false);
+    expect(isLiveWorkbenchRoute('/dashboard')).toBe(false);
+    expect(isLiveWorkbenchRoute('/')).toBe(false);
+    expect(isLiveWorkbenchRoute(null)).toBe(false);
+    expect(isLiveWorkbenchRoute(undefined)).toBe(false);
   });
 });
