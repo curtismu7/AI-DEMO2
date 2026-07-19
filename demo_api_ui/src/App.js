@@ -139,6 +139,7 @@ import PublicRoutes, {
   CopilotPageRoute,
   GraphifyPageRoute,
   IntentBindingLearningPageRoute,
+  LiveUseCaseWorkbenchPageRoute,
   MFATestPageRoute,
   OASDemoPageRoute,
   OAuthAcademyPageRoute,
@@ -599,6 +600,16 @@ function AppWithAuth() {
                   element={
                     loading ? null : user && appFlags.showUseCaseLauncher ? (
                       <UseCasesPageRoute user={user} logout={logout} />
+                    ) : (
+                      <Navigate to="/" replace />
+                    )
+                  }
+                />
+                <Route
+                  path="/use-cases/live"
+                  element={
+                    loading ? null : user && appFlags.showUseCaseLauncher ? (
+                      <LiveUseCaseWorkbenchPageRoute user={user} logout={logout} />
                     ) : (
                       <Navigate to="/" replace />
                     )

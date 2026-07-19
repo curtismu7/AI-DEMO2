@@ -1,0 +1,117 @@
+// demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js
+//
+// /use-cases/live — A5.2: catalog drawer + real Token Chain, driven by the
+// app's single real <AIAgent> squeezed into a narrow column (see App.js
+// onLiveWorkbenchRoute / onMiddlePlacementInDashboard, wired in Task 3).
+import { useEffect, useMemo, useState } from 'react';
+import apiClient from '../services/apiClient';
+import { useVertical } from '../vertical/useVertical';
+import VerticalSwitcher from '../components/VerticalSwitcher';
+import './LiveUseCaseWorkbenchPage.css';
+
+const TRACK_ORDER = ['foundations', 'controls', 'hitl', 'attacks'];
+const TRACK_LABELS = {
+  foundations: 'Foundations — delegation lifecycle',
+  controls: 'Controls — policy governs the agent',
+  hitl: 'Human-in-the-Loop — approval & step-up',
+  attacks: 'Attacks — blocked by PingOne',
+};
+
+function triggerLabel(trigger) {
+  if (!trigger) return '';
+  return trigger.type === 'chip' ? `"${trigger.text}"` : `attack sim: ${trigger.sim}`;
+}
+
+function matchesQuery(uc, query) {
+  if (!query) return true;
+  const q = query.toLowerCase();
+  return `${uc.title} ${uc.id} ${triggerLabel(uc.trigger)}`.toLowerCase().includes(q);
+}
+
+export default function LiveUseCaseWorkbenchPage() {
+  const { activeId: vertical } = useVertical();
+  const [useCases, setUseCases] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [query, setQuery] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    apiClient.get('/api/use-cases', { params: { vertical } })
+      .then(({ data }) => {
+        if (cancelled) return;
+        setUseCases(data.useCases || []);
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err.message || 'Failed to load use cases');
+        setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [vertical]);
+
+  const grouped = useMemo(
+    () => TRACK_ORDER.map((track) => ({
+      track,
+      items: useCases.filter((uc) => uc.track === track && matchesQuery(uc, query)),
+    })).filter((g) => g.items.length > 0),
+    [useCases, query],
+  );
+
+  return (
+    <div className="luw">
+      <div className="luw-topbar">
+        <p className="luw-topbar__title">Use Cases</p>
+        <span className="luw-topbar__crumb">/ Live Workbench</span>
+        <div className="luw-topbar__vertical"><VerticalSwitcher /></div>
+      </div>
+
+      <div className="luw-body">
+        <nav className="luw-drawer" aria-label="Use case launcher">
+          <div className="luw-drawer__search">
+            <input
+              type="text"
+              placeholder="Filter use cases…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+          <div className="luw-drawer__scroll">
+            {loading && <p className="luw-drawer__empty">Loading…</p>}
+            {error && <p className="luw-drawer__empty">{error}</p>}
+            {!loading && !error && grouped.length === 0 && (
+              <p className="luw-drawer__empty">No use cases match “{query}”.</p>
+            )}
+            {!loading && !error && grouped.map(({ track, items }) => (
+              <details key={track} className={`luw-track luw-track--${track}`} open>
+                <summary>
+                  {TRACK_LABELS[track]}
+                  <span className="luw-track__count">{items.length}</span>
+                </summary>
+                {items.map((uc) => (
+                  <div key={uc.id} className="luw-row">
+                    <span className="luw-row__main">
+                      <span className="luw-row__title">{uc.id} — {uc.title}</span>
+                      <span className="luw-row__trigger">{triggerLabel(uc.trigger)}</span>
+                    </span>
+                    <span className={`luw-pill luw-pill--${(uc.expectedOutcome || '').toLowerCase()}`}>
+                      {uc.expectedOutcome}
+                    </span>
+                  </div>
+                ))}
+              </details>
+            ))}
+          </div>
+        </nav>
+
+        <section className="luw-main" aria-label="Live run">
+          <div id="luw-agent-host" className="luw-agent-host" />
+        </section>
+      </div>
+    </div>
+  );
+}

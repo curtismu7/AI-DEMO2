@@ -1,0 +1,55 @@
+/* ── Live Use-Case Workbench (A5.2) ─────────────────────────────────────── */
+.luw { display: grid; grid-template-rows: auto 1fr; height: calc(100vh - 0px); }
+
+.luw-topbar {
+  display: flex; align-items: center; gap: 0.9rem;
+  padding: 0.65rem 1.1rem; border-bottom: 1px solid var(--brand-medium-gray, #e2e8f0);
+  background: #fff;
+}
+.luw-topbar__title { font-size: 0.95rem; font-weight: 700; margin: 0; }
+.luw-topbar__crumb { font-size: 0.8rem; color: #64748b; }
+.luw-topbar__vertical { margin-left: auto; }
+
+.luw-body { display: grid; grid-template-columns: 336px 1fr; min-height: 0; }
+
+.luw-drawer {
+  border-right: 1px solid #e2e8f0; background: var(--brand-light-gray, #f8fafc);
+  display: flex; flex-direction: column; min-height: 0;
+}
+.luw-drawer__search { padding: 0.75rem 0.85rem 0.6rem; border-bottom: 1px solid #e2e8f0; }
+.luw-drawer__search input {
+  width: 100%; padding: 0.45rem 0.6rem; border: 1px solid #cbd5e1; border-radius: 7px;
+  background: #fff; font-size: 0.82rem;
+}
+.luw-drawer__scroll { overflow-y: auto; padding: 0.4rem 0.5rem 1rem; flex: 1; min-height: 0; }
+.luw-drawer__empty { padding: 1.2rem 0.75rem; color: #94a3b8; font-size: 0.8rem; font-style: italic; }
+
+.luw-track { margin-bottom: 0.35rem; }
+.luw-track > summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; gap: 0.45rem;
+  padding: 0.5rem 0.55rem; font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: #64748b; border-radius: 6px;
+}
+.luw-track > summary::-webkit-details-marker { display: none; }
+.luw-track > summary:hover { background: #fff; }
+.luw-track__count { margin-left: auto; font-weight: 600; color: #94a3b8; }
+
+.luw-row {
+  display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.6rem 0.5rem 0.55rem;
+  border-left: 3px solid transparent; border-radius: 0 7px 7px 0;
+}
+.luw-row:hover { background: #fff; }
+.luw-row__main { min-width: 0; flex: 1; display: flex; flex-direction: column; }
+.luw-row__title { font-size: 0.82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.luw-row__trigger {
+  font-family: ui-monospace, Menlo, monospace; font-size: 0.68rem; color: #64748b;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.luw-pill { flex-shrink: 0; font-size: 0.68rem; font-weight: 700; padding: 0.12rem 0.4rem; border-radius: 5px; }
+.luw-pill--permit { background: #dcfce7; color: #166534; }
+.luw-pill--deny, .luw-pill--deny_401, .luw-pill--deny_403 { background: #fee2e2; color: #991b1b; }
+.luw-pill--step_up { background: #fef3c7; color: #92400e; }
+.luw-pill--hitl_required { background: #ede9fe; color: #5b21b6; }
+
+.luw-main { min-height: 0; overflow-y: auto; padding: 1.25rem; }
+.luw-agent-host { max-width: 220px; }
