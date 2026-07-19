@@ -69,4 +69,22 @@ describe("DemoConfigPage", () => {
     await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
     expect(screen.getByRole("alert")).toHaveTextContent("boom");
   });
+
+  it("applies a config with empty flagSnapshot without calling PATCH", async () => {
+    mockFetch();
+    render(<DemoConfigPage />);
+    await waitFor(() => expect(screen.getByText("Full mode")).toBeInTheDocument());
+
+    const applyButtons = screen.getAllByRole("button", { name: "Apply" });
+    fireEvent.click(applyButtons[0]);
+
+    await waitFor(() => expect(screen.getByText(/Applied.*Full mode/)).toBeInTheDocument());
+
+    const calls = global.fetch.mock.calls;
+    const patchCalls = calls.filter((call) => call[1]?.method === "PATCH" && String(call[0]).includes("/api/admin/feature-flags"));
+    expect(patchCalls).toHaveLength(0);
+
+    const putCalls = calls.filter((call) => call[1]?.method === "PUT" && String(call[0]).includes("/api/user/nav-config"));
+    expect(putCalls.length).toBeGreaterThan(0);
+  });
 });

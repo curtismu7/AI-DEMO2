@@ -106,14 +106,17 @@ export default function DemoConfigPage() {
     setBusy(true);
     setError(null);
     try {
-      const patchRes = await fetch("/api/admin/feature-flags", {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ updates: config.flagSnapshot || {} }),
-      });
-      const patchData = await patchRes.json();
-      if (!patchRes.ok) throw new Error(patchData.error || `HTTP ${patchRes.status}`);
+      const flagSnapshot = config.flagSnapshot || {};
+      if (Object.keys(flagSnapshot).length > 0) {
+        const patchRes = await fetch("/api/admin/feature-flags", {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ updates: flagSnapshot }),
+        });
+        const patchData = await patchRes.json();
+        if (!patchRes.ok) throw new Error(patchData.error || `HTTP ${patchRes.status}`);
+      }
 
       const putRes = await fetch("/api/user/nav-config", {
         method: "PUT",
