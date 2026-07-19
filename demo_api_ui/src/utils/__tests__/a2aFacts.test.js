@@ -22,6 +22,10 @@ describe('isA2aUseCase', () => {
     expect(isA2aUseCase({ id: 'UC7' })).toBe(false);
     expect(isA2aUseCase(null)).toBe(false);
   });
+
+  it('is true for an explicit a2a-flagged object (used by the auto-open synthetic uc)', () => {
+    expect(isA2aUseCase({ id: 'A2A', a2a: true })).toBe(true);
+  });
 });
 
 describe('extractA2aFacts', () => {

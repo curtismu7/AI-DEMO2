@@ -6659,8 +6659,9 @@ export default function BankingAgent({
             // feed the modal's live values.
             if (shouldAutoOpenA2a(response)) {
               setA2aExplainUc({
-                id: 'UC2',
-                title: 'A2A delegation',
+                id: 'A2A',
+                a2a: true,
+                title: 'Agent-to-Agent delegation',
                 whatLong: response.reply,
                 pingOneSolution: 'PingOne mints a nested RFC 8693 act chain; Authorize decides PERMIT/DENY over the chain.',
               });

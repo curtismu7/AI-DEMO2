@@ -2,7 +2,7 @@
 
 /** A2A demo use cases (the only ones that render the A2A teaching section). */
 export function isA2aUseCase(uc) {
-  return !!uc && (uc.id === 'UC2' || uc.id === 'UC2.5');
+  return !!uc && (uc.id === 'UC2' || uc.id === 'UC2.5' || uc.a2a === true);
 }
 
 function byId(events, id) {
