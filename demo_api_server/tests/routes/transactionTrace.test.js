@@ -16,6 +16,7 @@ const ledger = require('../../services/lmdb/transactionLedger.lmdb');
 const { assemble } = require('../../services/transactionAssembler');
 const configStore = require('../../services/configStore');
 const router = require('../../routes/transactionTrace');
+const { resolveActingIdentity } = require('../../middleware/transactionTurn');
 
 // Defaults to an admin identity so pre-existing tests that aren't about
 // ownership (list/limit/degrade/traceId behaviour) keep exercising exactly
@@ -241,6 +242,48 @@ describe('ownership enforcement — GET /api/transaction-trace (list)', () => {
     ledger.listRecords.mockReturnValue(RECORDS.filter((r) => r.principal === 'user-1'));
     await request(app({ id: 'user-1', role: 'customer' })).get('/api/transaction-trace?limit=2');
     expect(ledger.listRecords).toHaveBeenCalledWith({ limit: 2, principal: 'user-1' });
+  });
+});
+
+describe('write/read identity agreement', () => {
+  beforeEach(() => { jest.clearAllMocks(); });
+
+  test('a principal resolved from a session-shaped write request is visible to a matching non-admin reader, and not to a different non-admin', async () => {
+    // Simulates the write side: /api/demo-agent has no authenticateToken
+    // ahead of transactionTurnMiddleware, so the principal it stamps comes
+    // from req.session.user — the real BFF session shape ({id, username,
+    // email, firstName, lastName, role}, no `sub`). Calling the exact same
+    // resolveActingIdentity() the write side uses (rather than hand-writing
+    // 'user-1' here) is what proves write/read agreement instead of just
+    // two independently-chosen strings that happen to match.
+    const writeSideRequest = {
+      session: {
+        user: {
+          id: '5',
+          username: 'demoUser',
+          email: 'demoUser@api.ping.demo',
+          firstName: 'Demo',
+          lastName: 'User',
+          role: 'customer',
+        },
+      },
+    };
+    const storedPrincipal = resolveActingIdentity(writeSideRequest);
+    expect(storedPrincipal).toBe('5');
+
+    ledger.getRecord.mockReturnValue({ correlationId: 'c1', principal: storedPrincipal });
+    assemble.mockResolvedValue({ correlationId: 'c1', startedAt: 'A', endedAt: 'B', hops: [] });
+
+    // Read side: authenticateToken populates req.user, not req.session.user.
+    // Same identity ('5') must see the record.
+    const own = await request(app({ id: '5', role: 'customer' })).get('/api/transaction-trace/c1');
+    expect(own.status).toBe(200);
+    expect(own.body.correlationId).toBe('c1');
+
+    // A different non-admin must not — and gets 404, not 403.
+    const other = await request(app({ id: 'someone-else', role: 'customer' })).get('/api/transaction-trace/c1');
+    expect(other.status).toBe(404);
+    expect(other.body).toEqual({ error: 'not_found' });
   });
 });
 

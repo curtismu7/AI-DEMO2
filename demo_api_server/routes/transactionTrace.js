@@ -17,6 +17,7 @@ const { assemble } = require('../services/transactionAssembler');
 const { evaluate } = require('../services/transactionInvariants');
 const { reconcile } = require('../services/transactionReconciler');
 const configStore = require('../services/configStore');
+const { resolveActingIdentity } = require('../middleware/transactionTurn');
 
 // OFF means the ledger is not being written, so serving a partial chain would
 // misrepresent it as complete. Report the feature state instead.
@@ -30,8 +31,12 @@ router.use((req, res, next) => {
 // Ownership: any logged-in user sees only transactions attributed to their own
 // principal; admins see everything. A record whose principal is unknown (no
 // hop ever carried an identity.sub) cannot be attributed, so it is admin-only.
+// Uses the same resolveActingIdentity() the write side (transactionTurn.js)
+// used to stamp the principal in the first place — comparing values derived
+// two different ways is how a read/write identity mismatch (CVE-shaped: users
+// seeing nothing, or worse, seeing each other's transactions) creeps back in.
 function _isOwnRecord(req, principal) {
-  return Boolean(principal) && principal === req.user?.id;
+  return Boolean(principal) && principal === resolveActingIdentity(req);
 }
 
 router.get('/', (req, res) => {
