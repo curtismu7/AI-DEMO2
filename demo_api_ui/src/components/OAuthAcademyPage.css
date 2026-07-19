@@ -96,6 +96,63 @@
   border-top-right-radius: var(--v2-r-sm, 4px);
 }
 
+/* MarkdownContent block styles (bold/list/heading/table rendering of teaching answers). */
+.oauth-academy-page .message-bubble .md-para {
+  margin: 0 0 0.55em;
+}
+.oauth-academy-page .message-bubble .md-para:last-child {
+  margin-bottom: 0;
+}
+.oauth-academy-page .message-bubble .md-list {
+  margin: 0 0 0.55em;
+  padding-left: 1.4em;
+}
+.oauth-academy-page .message-bubble .md-list:last-child {
+  margin-bottom: 0;
+}
+.oauth-academy-page .message-bubble .md-list-item {
+  margin-bottom: 0.2em;
+}
+.oauth-academy-page .message-bubble .md-h1,
+.oauth-academy-page .message-bubble .md-h2,
+.oauth-academy-page .message-bubble .md-h3 {
+  margin: 0.4em 0 0.3em;
+  font-weight: 600;
+}
+.oauth-academy-page .message-bubble .md-h1 {
+  font-size: 1.1em;
+}
+.oauth-academy-page .message-bubble .md-h2 {
+  font-size: 1.05em;
+}
+.oauth-academy-page .message-bubble .md-h3 {
+  font-size: 1em;
+}
+.oauth-academy-page .message-bubble .md-hr {
+  border: none;
+  border-top: 1px solid var(--v2-line-1, #e4e4e0);
+  margin: 0.5em 0;
+}
+.oauth-academy-page .message-bubble .md-table {
+  border-collapse: collapse;
+  margin: 0.4em 0 0.65em;
+  font-size: 0.85em;
+  width: 100%;
+}
+.oauth-academy-page .message-bubble .md-table:last-child {
+  margin-bottom: 0;
+}
+.oauth-academy-page .message-bubble .md-table th,
+.oauth-academy-page .message-bubble .md-table td {
+  border: 1px solid var(--v2-line-1, #e4e4e0);
+  padding: 0.35em 0.6em;
+  text-align: left;
+}
+.oauth-academy-page .message-bubble .md-table th {
+  background: var(--v2-surface-3, #ebebea);
+  font-weight: 600;
+}
+
 /* Real code snippets from the app, embedded in teaching answers. */
 .oauth-academy-page .message-bubble .msg-code {
   margin: 0.5rem 0;

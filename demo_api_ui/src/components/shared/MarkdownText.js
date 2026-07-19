@@ -66,6 +66,17 @@ export function InlineMd({ text }) {
  * @param {string}  [className]   wrapper className
  * @param {boolean} [isEvent]     apply event variant styling
  */
+const TABLE_SEP_CELL_RE = /^:?-{1,}:?$/;
+
+function splitTableRow(line) {
+  return line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+}
+
+function isTableSeparatorLine(line) {
+  const cells = splitTableRow(line);
+  return cells.length > 0 && cells.every(c => TABLE_SEP_CELL_RE.test(c));
+}
+
 export function MarkdownContent({ text, className = '', isEvent = false }) {
   if (!text) return null;
 
@@ -79,6 +90,28 @@ export function MarkdownContent({ text, className = '', isEvent = false }) {
     <div className={baseClass}>
       {blocks.map((block, bi) => {
         const lines = block.split('\n');
+
+        // GFM pipe table: header row + "|---|---|" separator row.
+        if (lines.length >= 2 && lines[0].includes('|') && isTableSeparatorLine(lines[1])) {
+          const header = splitTableRow(lines[0]);
+          const rows = lines.slice(2).filter(l => l.trim()).map(splitTableRow);
+          return (
+            <table key={bi} className="md-table">
+              <thead>
+                <tr>
+                  {header.map((h, hi) => <th key={hi}><InlineMd text={h} /></th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, ri) => (
+                  <tr key={ri}>
+                    {row.map((cell, ci) => <td key={ci}><InlineMd text={cell} /></td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          );
+        }
 
         // Detect list block: all non-empty lines start with "- " or "N. "
         const isBulletList = lines.every(l => !l.trim() || /^[-*]\s/.test(l.trim()));
