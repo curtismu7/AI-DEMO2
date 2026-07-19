@@ -124,8 +124,10 @@ describe('traceProjector.project', () => {
 
   // Live-fixture integration: structural, anchored to what Task 1 captured.
   // trace-agent-run.json — single service (agent-service), 54 spans: 6
-  // reasoning-step-N spans + 6 tool-execution spans (tool outcomes are
-  // errors — fetch failed — so this does not assert status:'ok' on tool cards).
+  // reasoning-step-N spans + 5 tool-execution spans. Tool-call cards always
+  // resolve status 'ok' (projectToolCalls never reads an error tag), so this
+  // loop only asserts status is one of 'ok'/'error' generically rather than
+  // pinning each card's exact value.
   test('live fixture: projects at least agent reasoning and one tool call', () => {
     const out = project(liveFixture);
     expect(out.traceId).toMatch(/^[0-9a-f]+$/i);
