@@ -14,6 +14,7 @@ const { logEvent: logAppEvent, EVENT_CATEGORIES } = require('../services/appEven
 const posthog = require('../services/posthog');
 const { BANKING_SCOPES } = require('../config/scopes');
 const { roundToCents } = require('../utils/money');
+const { getCanonicalPublicOrigin } = require('../services/oauthRedirectUris');
 
 /**
  * Re-hydrate a user's accounts from the Redis snapshot on cold-start.
@@ -270,8 +271,15 @@ router.post(
       // as `otpCode`; the device-picker UI sends `otp`. Accept either, or a valid
       // code is dropped as missing_credential before PingOne is ever called.
       const { deviceId, otp, otpCode, fido2Assertion } = req.body || {};
-      const host = req.get('host') || null;
-      const origin = host ? `${req.protocol}://${host}` : `https://demo-api-server:3001`;
+      // PingOne's Check Assertion API rejects a FIDO2 assertion whose `origin`
+      // doesn't match clientDataJSON's embedded origin ("Incorrect origin").
+      // req.get('host') is the wrong source: demo_api_ui/nginx.conf hardcodes
+      // the Host header it forwards to the BFF to api.ping.demo:4000
+      // regardless of the browser's real origin, so this was silently rejecting
+      // every FIDO2 assertion submitted from any other origin (e.g.
+      // local.ping-devops.com, where passkeys actually work). Same resolution
+      // OAuth redirect_uri already uses, which is why that path never hit this.
+      const origin = getCanonicalPublicOrigin(req);
       result = await txConsent.verifyMfa(req, challengeId, { deviceId, otp: otp || otpCode, fido2Assertion }, origin);
     } else {
       const { otpCode } = req.body || {};
