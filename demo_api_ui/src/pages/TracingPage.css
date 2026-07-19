@@ -494,3 +494,164 @@
   color: #94a3b8;
 }
 
+/* ── Projected steps timeline (ProjectedTimeline) ──────────────────────────────── */
+.tracing-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tracing-step-card {
+  padding: 14px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tracing-step-card:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+.tracing-step-card--error {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.tracing-step-card--error:hover {
+  border-color: #f87171;
+  background: #fee2e2;
+}
+
+.tracing-step-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.tracing-step-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.tracing-step-icon--brain {
+  background: #bfdbfe;
+  color: #1e40af;
+}
+
+.tracing-step-icon--key {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.tracing-step-icon--shield {
+  background: #fed7aa;
+  color: #92400e;
+}
+
+.tracing-step-icon--bolt {
+  background: #fecaca;
+  color: #991b1b;
+}
+
+.tracing-step-icon--database {
+  background: #d1d5db;
+  color: #374151;
+}
+
+.tracing-step-icon--bell {
+  background: #fae8ff;
+  color: #831843;
+}
+
+.tracing-step-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #111827;
+}
+
+.tracing-step-dur {
+  margin-left: auto;
+  font-size: 12px;
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
+}
+
+.tracing-step-bar {
+  position: relative;
+  height: 8px;
+  background: rgba(127, 127, 127, 0.12);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.tracing-step-bar-fill {
+  position: absolute;
+  top: 0;
+  height: 8px;
+  border-radius: 2px;
+  background: #3b82f6;
+  min-width: 2px;
+}
+
+.tracing-step-facets {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 16px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.tracing-step-facet {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tracing-step-facet dt {
+  font-weight: 600;
+  color: #374151;
+}
+
+.tracing-step-facet dd {
+  margin: 0;
+  color: #4b5563;
+}
+
+.tracing-step-details {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.tracing-step-source {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.tracing-step-details pre {
+  margin: 0;
+  padding: 10px 12px;
+  background: #f3f4f6;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #374151;
+  overflow-x: auto;
+  line-height: 1.4;
+}
+
