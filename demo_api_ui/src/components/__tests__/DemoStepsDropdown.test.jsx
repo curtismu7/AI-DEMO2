@@ -116,6 +116,29 @@ describe('DemoStepsDropdown', () => {
     expect(sessionStorage.getItem('bx_uc_completed')).toBeNull();
   });
 
+  it('counts completed primary steps in the header and resets on Clear progress', async () => {
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument());
+
+    const total = screen.getByTestId('demo-steps-progress').textContent.match(/of (\d+) done/)[1];
+    expect(screen.getByTestId('demo-steps-progress')).toHaveTextContent(`0 of ${total} done`);
+
+    // Mark one completed the way onSelect does, then click another step to
+    // force the tick-driven re-render (same path the checkmarks use).
+    sessionStorage.setItem('bx_uc_completed', JSON.stringify(['UC1']));
+    fireEvent.click(screen.getByTestId(`demo-step-${DEMO_USE_CASE_IDS[1]}`));
+    expect(await screen.findByTestId('demo-steps-progress')).toHaveTextContent(`1 of ${total} done`);
+
+    fireEvent.click(screen.getByTestId('demo-steps-clear'));
+    expect(screen.getByTestId('demo-steps-progress')).toHaveTextContent(`0 of ${total} done`);
+  });
+
   it('opens the explain modal from the per-step icon without running the step', async () => {
     const onSelect = vi.fn();
     const onOpenChange = vi.fn();

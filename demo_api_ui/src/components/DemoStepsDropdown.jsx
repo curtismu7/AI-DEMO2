@@ -188,6 +188,14 @@ export default function DemoStepsDropdown({
 
   void tick;
 
+  // Counted over the primary steps only — that is the "scripted walkthrough"
+  // the header names; the advanced group is opt-in extra material. Recomputed
+  // each render, and `tick` is bumped by select/clear, so it refreshes on the
+  // same path as the per-row checkmarks.
+  const completedCount = primarySteps.filter(({ uc }) =>
+    isUseCaseCompleted(uc.id),
+  ).length;
+
   return (
     <>
       <button
@@ -213,16 +221,32 @@ export default function DemoStepsDropdown({
           data-testid="demo-steps-popout"
         >
           <div className="ba-demo-steps-popout__header">
-            <span>Demo steps — scripted walkthrough</span>
-            <button
-              type="button"
-              className="ba-demo-steps-popout__clear"
-              onClick={handleClearProgress}
-              title="Clear checkmarks for a fresh demo pass"
-              data-testid="demo-steps-clear"
-            >
-              Clear progress
-            </button>
+            <span className="ba-demo-steps-popout__header-title">
+              Demo steps — scripted walkthrough
+            </span>
+            <span className="ba-demo-steps-popout__header-actions">
+              {primarySteps.length > 0 && (
+                <span
+                  className={`ba-demo-steps-popout__progress${
+                    completedCount === primarySteps.length
+                      ? ' ba-demo-steps-popout__progress--all'
+                      : ''
+                  }`}
+                  data-testid="demo-steps-progress"
+                >
+                  {completedCount} of {primarySteps.length} done
+                </span>
+              )}
+              <button
+                type="button"
+                className="ba-demo-steps-popout__clear"
+                onClick={handleClearProgress}
+                title="Clear checkmarks for a fresh demo pass"
+                data-testid="demo-steps-clear"
+              >
+                Clear progress
+              </button>
+            </span>
           </div>
           {loading && (
             <p className="ba-demo-steps-popout__status">Loading…</p>

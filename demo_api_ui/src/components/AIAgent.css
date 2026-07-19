@@ -4776,13 +4776,43 @@ body > .banking-agent-float-root .banking-agent-panel {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 12px 14px 8px;
+  padding: 10px 12px 8px;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: var(--ba-text-secondary, #64748b);
+  /* §0: dialogs use solid high-contrast text, never muted gray. */
+  color: var(--ba-text, #0f172a);
   border-bottom: 1px solid var(--ba-border, #e2e8f0);
+}
+
+/* Title must not wrap onto a second line and shove the actions down; it wins
+   the space and the actions keep their intrinsic width. */
+.ba-demo-steps-popout__header-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ba-demo-steps-popout__header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.ba-demo-steps-popout__progress {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  color: var(--ba-text, #0f172a);
+}
+
+.ba-demo-steps-popout__progress--all {
+  color: #15803d;
 }
 
 .ba-demo-steps-popout__clear {
@@ -4819,14 +4849,17 @@ body > .banking-agent-float-root .banking-agent-panel {
   padding: 6px 0;
 }
 
+/* Single-line rows: step number, id and title share one line so six steps read
+   as a scannable list instead of a twelve-line block. The title truncates
+   rather than wrapping — wrapping is what made every row two lines tall. */
 .ba-demo-steps-popout__item {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 6px 8px;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   text-align: left;
-  padding: 10px 14px;
+  padding: 7px 4px 7px 12px;
   border: none;
   background: transparent;
   color: var(--ba-text, #0f172a);
@@ -4844,6 +4877,8 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-demo-steps-popout__step {
+  flex: 0 0 auto;
+  min-width: 1.1rem;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.03em;
@@ -4852,9 +4887,12 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-demo-steps-popout__id {
+  flex: 0 0 auto;
+  min-width: 2.6rem;
   font-size: 11px;
   font-weight: 700;
-  color: var(--ba-text-secondary, #64748b);
+  /* §0: solid text, not muted gray. */
+  color: var(--ba-text, #0f172a);
 }
 
 .ba-demo-steps-popout__check {
@@ -4896,7 +4934,11 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-demo-steps-popout__title {
-  flex: 1 1 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: 600;
 }
 
@@ -4910,7 +4952,6 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-demo-steps-popout__row .ba-demo-steps-popout__item {
   flex: 1 1 auto;
   min-width: 0;
-  padding-right: 4px;
 }
 
 /* The item no longer spans the row, so its done/hover tints must extend across
@@ -4932,7 +4973,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   justify-content: center;
   width: 22px;
   height: 22px;
-  margin: 0 14px 0 6px;
+  margin: 0 10px 0 2px;
   border-radius: 999px;
   border: 1.5px solid var(--ba-text-secondary, #64748b);
   background: transparent;
