@@ -526,9 +526,19 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     }
 
     if (status >= 400) {
+        // Surface the gateway/MCP server's own reason (e.g. "missing required
+        // parameter account_id") instead of a bare status code — same defensive
+        // shape-sniffing as the 403 and JSON-RPC-error branches above.
+        const body4xx = response.data || {};
+        const rpcErr4xx = body4xx.error;
+        const gatewayMessage =
+            (typeof rpcErr4xx === 'object' && rpcErr4xx?.message)
+            || body4xx.message
+            || (typeof rpcErr4xx === 'string' ? rpcErr4xx : null)
+            || '';
         throw Object.assign(
-            new Error(`Gateway returned HTTP ${status}`),
-            { code: 'gateway_client_error', httpStatus: status },
+            new Error(gatewayMessage || `Gateway returned HTTP ${status}`),
+            { code: 'gateway_client_error', httpStatus: status, gatewayMessage },
         );
     }
 
