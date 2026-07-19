@@ -198,7 +198,26 @@ export default function AdminSideNav({ user }) {
   const [collapsed, setCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_WIDTH);
   const [navFilter, setNavFilter] = useState("");
+  const [hiddenNavLabels, setHiddenNavLabels] = useState([]);
   const isResizing = useRef(false);
+
+  // Per-user sidebar customization (Demo Config page). Returns [] when
+  // ff_sidebar_customization is OFF or the request fails — full nav either way.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    fetch("/api/user/nav-config", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) setHiddenNavLabels(data.hiddenLabels || []);
+      })
+      .catch(() => {
+        if (!cancelled) setHiddenNavLabels([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   // Sync --sidebar-width CSS var on App so main content margin stays correct
   useEffect(() => {
@@ -400,6 +419,7 @@ export default function AdminSideNav({ user }) {
     { label: "Dashboard", path: "/dashboard", icon: "≡" },
     { label: "Themes", path: "/themes", icon: "cfg" },
     { label: "Use Cases", path: "/use-cases", icon: "demo" },
+    { label: "Demo Config", path: "/demo-config", icon: "cfg" },
     {
       label: "Agent Demo Guide",
       icon: "doc",
@@ -816,7 +836,11 @@ export default function AdminSideNav({ user }) {
 
   // Filter by role. adminOnly items are NOT hidden — they render with an
   // "admin" badge and non-admin clicks prompt an admin re-login instead.
-  const navItems = allNavItems.filter((item) => !item.customerOnly || !isAdmin);
+  // Then filter by the user's Demo Config hidden-item selection — "Demo
+  // Config" itself is never hideable (would lock the user out of undoing it).
+  const navItems = allNavItems
+    .filter((item) => !item.customerOnly || !isAdmin)
+    .filter((item) => item.label === "Demo Config" || !hiddenNavLabels.includes(item.label));
 
   // Live filter: match by label across top-level items and their children. A
   // group is kept if its own label matches (all children shown) or if any child

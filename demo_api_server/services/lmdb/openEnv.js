@@ -22,6 +22,7 @@ function openEnv() {
   });
   // Initialize named DBs upfront to reserve them in the environment
   getDb('conversations');
+  getDb('navConfigs');
   return _env;
 }
 

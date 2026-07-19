@@ -51,6 +51,7 @@ import DemoServerCheckModal from "./components/DemoServerCheckModal";
 import { resolveEmbeddedFocus } from "./components/demoAgentSafety";
 import EmbeddedAgentDock from "./components/EmbeddedAgentDock";
 import EducationPanelsHost from "./components/education/EducationPanelsHost";
+import DemoConfigPage from "./components/DemoConfigPage";
 import FeatureFlagsPage from "./components/FeatureFlagsPage";
 import Footer from "./components/Footer";
 import FloatingTokenChainPanel from "./components/FloatingTokenChainPanel";
@@ -910,6 +911,16 @@ function AppWithAuth() {
                                 <RequireAdminLogin user={user}>
                                   <AuditPage user={user} />
                                 </RequireAdminLogin>
+                              }
+                            />
+                            <Route
+                              path="/demo-config"
+                              element={
+                                user ? (
+                                  <DemoConfigPage />
+                                ) : (
+                                  <Navigate to="/" replace />
+                                )
                               }
                             />
                             <Route
