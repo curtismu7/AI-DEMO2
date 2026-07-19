@@ -2,11 +2,16 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import TelemetryPage from "../TelemetryPage";
+import { getMyAccounts } from "../../services/demoAgentService";
 
 vi.mock("../../components/TraceGraphCore", () => ({
   default: ({ rawUrl, refreshKey }) => (
     <div data-testid="graph-core" data-refresh-key={refreshKey}>{rawUrl}</div>
   ),
+}));
+
+vi.mock("../../services/demoAgentService", () => ({
+  getMyAccounts: vi.fn(),
 }));
 
 const TRACES = {
@@ -109,5 +114,31 @@ describe("TelemetryPage", () => {
     await waitFor(() =>
       expect(screen.getByTestId("graph-core")).toHaveAttribute("data-refresh-key", "2"),
     );
+  });
+
+  it("Generate demo traffic calls getMyAccounts and bumps the graph refresh key on success", async () => {
+    stubFetch();
+    getMyAccounts.mockResolvedValueOnce({ result: { accounts: [] }, tokenEvents: [] });
+    render(<TelemetryPage />);
+    await waitFor(() => expect(screen.getByTestId("graph-core")).toHaveAttribute("data-refresh-key", "0"));
+
+    await userEvent.click(screen.getByRole("button", { name: "Generate demo traffic" }));
+
+    expect(getMyAccounts).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(screen.getByTestId("graph-core")).toHaveAttribute("data-refresh-key", "1"),
+    );
+  });
+
+  it("Generate demo traffic shows an error message and does not bump refresh key on failure", async () => {
+    stubFetch();
+    getMyAccounts.mockRejectedValueOnce(new Error("HTTP 401"));
+    render(<TelemetryPage />);
+    await waitFor(() => expect(screen.getByTestId("graph-core")).toHaveAttribute("data-refresh-key", "0"));
+
+    await userEvent.click(screen.getByRole("button", { name: "Generate demo traffic" }));
+
+    await waitFor(() => expect(screen.getByText("HTTP 401")).toBeInTheDocument());
+    expect(screen.getByTestId("graph-core")).toHaveAttribute("data-refresh-key", "0");
   });
 });
