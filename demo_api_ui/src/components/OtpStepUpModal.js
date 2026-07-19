@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import DraggableModal from './DraggableModal';
 import { registerPasskey } from '../utils/passkeyCeremony';
+import { normalizePhoneE164, describePasskeyRegistrationError } from '../utils/mfaEnrollment';
 
 /**
  * Find an email OTP device from a PingOne MFA device list.
@@ -38,22 +39,6 @@ function maskPhone(deviceOrPhone) {
   const digits = String(raw).replace(/\D/g, '');
   if (digits.length >= 4) return `***-***-${digits.slice(-4)}`;
   return raw ? String(raw) : '';
-}
-
-/**
- * Normalize user-entered phone to E.164 (default US +1 for 10-digit numbers).
- * @param {string} raw
- * @returns {string}
- */
-function normalizePhoneE164(raw) {
-  const trimmed = String(raw || '').trim();
-  if (!trimmed) return '';
-  const digits = trimmed.replace(/\D/g, '');
-  if (!digits) return '';
-  if (trimmed.startsWith('+')) return `+${digits}`;
-  if (digits.length === 10) return `+1${digits}`;
-  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
-  return `+${digits}`;
 }
 
 /**
@@ -605,25 +590,7 @@ export default function OtpStepUpModal({
       // terse — prefer the name so the user/operator can act. Surface in BOTH
       // the p1mfa step AND the stub `error` slot so the button never just
       // silently reverts ("no silent fails").
-      const detail = err?.name && err.name !== 'Error'
-        ? `${err.name}: ${err.message || ''}`.trim()
-        : (err?.message || String(err));
-      // The rp.id failure is a config issue, not a user error — tell the admin
-      // exactly how to fix it (PingOne's FIDO2 Relying Party ID must match this
-      // host). Two different remedies: on a public domain the api-server's boot
-      // bootstrap can set it, but PingOne's Management API rejects a rp.id whose
-      // TLD isn't public ("must be a valid domain name with a valid TLD"), so on
-      // hosts like api.ping.demo no restart will ever fix it.
-      const isRpId = /rp\.?id|relying party|registrable domain/i.test(detail);
-      const host = (typeof window !== 'undefined' && window.location?.hostname) || 'this site';
-      const tld = host.includes('.') ? host.split('.').pop().toLowerCase() : '';
-      const hostRejectedByPingOne =
-        !tld || ['demo', 'local', 'localhost', 'test', 'invalid', 'internal'].includes(tld);
-      const msg = isRpId
-        ? (hostRejectedByPingOne
-          ? `Passkeys can't be used on "${host}". PingOne's FIDO2 policy "Relying Party ID" must match this host, but PingOne rejects a Relying Party ID whose TLD isn't public — so "${host}" cannot be set and restarting the API server will not fix it. Demo passkeys on the public-domain deployment, or step up with email/SMS on this host. (${detail})`
-          : `Passkey isn't set up for this domain yet. PingOne's FIDO2 policy "Relying Party ID" must be "${host}". An admin can fix it in PingOne (MFA → FIDO Policy → Relying Party ID → Other → ${host}), or restart the API server to auto-configure it. (${detail})`)
-        : `Passkey registration failed — ${detail}`;
+      const msg = describePasskeyRegistrationError(err);
       setP1Step('error');
       setP1Error(msg);
       setError(msg);

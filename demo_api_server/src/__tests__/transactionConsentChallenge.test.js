@@ -685,3 +685,93 @@ describe('confirmOnetimeContact', () => {
     expect(result.json.error).toBe('contact_not_needed');
   });
 });
+
+// ── selectMfaDevice: FIDO2 status/options passthrough ────────────────────────
+// Regression coverage: selectMfaDevice used to discard mfaService.selectDevice's
+// response down to { ok, otpExpiresAt }, so a FIDO2 device could never be
+// distinguished from an OTP one — the client had no way to know it needed to
+// run a WebAuthn ceremony instead of showing a code field.
+
+describe('selectMfaDevice', () => {
+  const CHALLENGE_ID = 'select-device-test';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('FIDO2 device — passes status and publicKeyCredentialRequestOptions through', async () => {
+    const options = { challenge: 'abc123', rpId: 'ping-devops.com' };
+    mfaService.selectDevice.mockResolvedValue({
+      status: 'ASSERTION_REQUIRED',
+      publicKeyCredentialRequestOptions: options,
+    });
+    const req = makeReqWithMfaChallenge(CHALLENGE_ID, {
+      challenge: { devices: [{ id: 'fido-dev-1', type: 'FIDO2' }] },
+    });
+    const result = await txConsent.selectMfaDevice(req, CHALLENGE_ID, 'fido-dev-1');
+    expect(result.ok).toBe(true);
+    expect(result.status).toBe('ASSERTION_REQUIRED');
+    expect(result.publicKeyCredentialRequestOptions).toEqual(options);
+  });
+
+  test('OTP device — status passed through, no publicKeyCredentialRequestOptions', async () => {
+    mfaService.selectDevice.mockResolvedValue({ status: 'OTP_REQUIRED' });
+    const req = makeReqWithMfaChallenge(CHALLENGE_ID);
+    const result = await txConsent.selectMfaDevice(req, CHALLENGE_ID, 'dev-1');
+    expect(result.ok).toBe(true);
+    expect(result.status).toBe('OTP_REQUIRED');
+    expect(result.publicKeyCredentialRequestOptions).toBeNull();
+  });
+});
+
+// ── reinitMfaDevices ──────────────────────────────────────────────────────────
+// Lets a device enrolled while the picker is open (typically a first passkey)
+// become selectable without cancelling the transfer: confirmChallenge() only
+// captures the device list once and cannot be re-run (409 on a second call).
+
+describe('reinitMfaDevices', () => {
+  const CHALLENGE_ID = 'reinit-test';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('refreshes daId and devices on a challenge awaiting device verification', async () => {
+    mfaService.initiateDeviceAuth.mockResolvedValue({
+      id: 'da-fresh-002',
+      _embedded: { devices: [{ id: 'dev-1', type: 'EMAIL' }, { id: 'fido-new', type: 'FIDO2' }] },
+    });
+    const req = makeReqWithMfaChallenge(CHALLENGE_ID);
+    const result = await txConsent.reinitMfaDevices(req, CHALLENGE_ID);
+    expect(result.ok).toBe(true);
+    expect(result.devices).toHaveLength(2);
+    expect(result.devices.some((d) => d.type === 'FIDO2')).toBe(true);
+    const ch = req.session.txConsentChallenges[CHALLENGE_ID];
+    expect(ch.daId).toBe('da-fresh-002');
+    expect(ch.otpAttempts).toBe(0);
+  });
+
+  test('rejects a challenge that is not on the device-picker path', async () => {
+    const req = makeReqWithMfaChallenge(CHALLENGE_ID, { challenge: { mfaPath: false } });
+    const result = await txConsent.reinitMfaDevices(req, CHALLENGE_ID);
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe(409);
+    expect(result.json.error).toBe('challenge_not_mfa_pending');
+    expect(mfaService.initiateDeviceAuth).not.toHaveBeenCalled();
+  });
+
+  test('rejects an already-confirmed challenge (cannot be used to revive one past the gate)', async () => {
+    const req = makeReqWithMfaChallenge(CHALLENGE_ID, { challenge: { status: 'confirmed' } });
+    const result = await txConsent.reinitMfaDevices(req, CHALLENGE_ID);
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe(409);
+    expect(mfaService.initiateDeviceAuth).not.toHaveBeenCalled();
+  });
+
+  test('unknown challenge returns 404', async () => {
+    const req = makeReq();
+    const result = await txConsent.reinitMfaDevices(req, 'nonexistent');
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe(404);
+  });
+});
