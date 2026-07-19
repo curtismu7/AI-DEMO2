@@ -36,7 +36,9 @@
 
 .luw-row {
   display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.6rem 0.5rem 0.55rem;
-  border-left: 3px solid transparent; border-radius: 0 7px 7px 0;
+  border: none; border-left: 3px solid transparent; border-radius: 0 7px 7px 0;
+  background: none; font: inherit; text-align: left; width: 100%; cursor: pointer;
+  -webkit-appearance: none; appearance: none;
 }
 .luw-row:hover { background: #fff; }
 .luw-row__main { min-width: 0; flex: 1; display: flex; flex-direction: column; }
