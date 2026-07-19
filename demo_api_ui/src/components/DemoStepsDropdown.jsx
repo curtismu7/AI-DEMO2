@@ -101,7 +101,10 @@ export default function DemoStepsDropdown({
       const popout = popoutRef.current;
       if (!trigger || !popout) return;
       const rect = trigger.getBoundingClientRect();
-      const popoutWidth = 360;
+      // Measured, not hardcoded: the width lives in CSS
+      // (.ba-actions-popout.ba-demo-steps-popout) and a duplicated constant
+      // here would silently mis-anchor the popout whenever that changes.
+      const popoutWidth = popout.offsetWidth || 360;
       let left = rect.right - popoutWidth;
       if (left < 8) left = 8;
       if (left + popoutWidth > window.innerWidth - 8) {

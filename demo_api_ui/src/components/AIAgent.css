@@ -4771,6 +4771,14 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 /* Demo steps popout — same script as /use-cases Demo section */
+/* Wider than the shared .ba-actions-popout (360px) so the header fits on one
+   line and step titles are not clipped after a few words. Two classes beat the
+   shared single-class rule regardless of source order; the Actions menu keeps
+   its own width. Kept in sync with the measured width used for positioning. */
+.ba-actions-popout.ba-demo-steps-popout {
+  width: 440px;
+}
+
 .ba-demo-steps-popout__header {
   display: flex;
   align-items: center;
