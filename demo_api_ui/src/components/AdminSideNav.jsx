@@ -419,6 +419,7 @@ export default function AdminSideNav({ user }) {
     { label: "Dashboard", path: "/dashboard", icon: "≡" },
     { label: "Themes", path: "/themes", icon: "cfg" },
     { label: "Use Cases", path: "/use-cases", icon: "demo" },
+    { label: "Use Cases (Live)", path: "/use-cases/live", icon: "demo" },
     { label: "Demo Config", path: "/demo-config", icon: "cfg" },
     {
       label: "Agent Demo Guide",

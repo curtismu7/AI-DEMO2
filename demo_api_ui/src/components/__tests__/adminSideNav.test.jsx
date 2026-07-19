@@ -104,6 +104,12 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(screen.getByText("Demo Config")).toBeInTheDocument();
   });
 
+  it("shows a Use Cases (Live) link right under Use Cases, linking to /use-cases/live", () => {
+    renderNav();
+    const liveLink = screen.getByText("Use Cases (Live)").closest("a");
+    expect(liveLink).toHaveAttribute("href", "/use-cases/live");
+  });
+
   it("hides a nav item the user marked hidden via Demo Config, once loaded", async () => {
     vi.stubGlobal(
       "fetch",
