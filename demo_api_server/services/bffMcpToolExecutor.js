@@ -236,6 +236,40 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
 }
 
 /**
+ * Run a tool call through the FULL production pipeline (RFC 8693 exchange,
+ * BFF-preflight PingOne Authorize gate, real Agent Gateway call — with its own
+ * downstream PingOne Authorize — HITL, SSE/audit) and return the RAW pipeline
+ * Outcome (`{kind, httpStatus, body, tokenEvents}`), not the string-unwrapped
+ * shape `executeBffTool` returns for LLM tool messages.
+ *
+ * Used by the Security Showcase attack sims (UC10/UC13) so a sim exercises the
+ * SAME code path a real chip/agent call does — full flow, not a hand-rolled
+ * direct token-exchange + gateway call. `req` must be the real, authenticated
+ * Express request (the attack-sim route already has one); callers may stamp a
+ * demo-only override onto `req.body` (e.g. `_testActClientId`, read at
+ * mcpToolPipeline.js's gateway-call site) before invoking this.
+ * @param {{tool: string, params?: object, req: object, useCaseId?: string, vertical?: string}} args
+ * @returns {Promise<object>} pipeline Outcome
+ */
+async function runPipelineForSim({ tool, params, req, useCaseId, vertical }) {
+  if (!_pipelineDeps) {
+    throw Object.assign(new Error('Full MCP pipeline is not wired (pipeline deps unset)'), { code: 'pipeline_unavailable' });
+  }
+  const { flowTraceId, deps: callDeps } = bindTraceEmit(req, tool);
+  const ctx = {
+    tool,
+    params: params || {},
+    flowTraceId,
+    startTime: Date.now(),
+    req,
+    deps: callDeps,
+    useCaseId,
+    vertical,
+  };
+  return runMcpToolPipeline(ctx);
+}
+
+/**
  * Execute a tool with a PRE-MINTED bearer token (A2A specialist path). Skips the
  * user→agent RFC 8693 exchange in the pipeline (the chained-exchange token was
  * minted upstream by a2aDelegationService) and runs the rest of the pipeline —
@@ -287,4 +321,4 @@ async function executeBffToolWithToken({ name, args, req = null, tokenEvents = [
   return JSON.stringify({ error: outcome.body?.error || 'mcp_error', message: outcome.body?.message });
 }
 
-module.exports = { executeBffTool, executeBffToolWithToken, callMcpToolAsAgent, setPipelineDeps, unwrapMcpResultEnvelope };
+module.exports = { executeBffTool, executeBffToolWithToken, callMcpToolAsAgent, setPipelineDeps, unwrapMcpResultEnvelope, runPipelineForSim };
