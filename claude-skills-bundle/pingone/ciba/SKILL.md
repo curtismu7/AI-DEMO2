@@ -499,6 +499,18 @@ configStore.getEffective('step_up_method')   // takes precedence
 - ⚠️ PingOne's `bc-authorize` endpoint requires the CIBA grant type to be
   explicitly enabled on the application in the PingOne console. Missing this
   is the most common reason for `400 invalid_grant` on initiation.
+- ⚠️ **A `403` with a raw AWS API Gateway body (`x-amzn-errortype:
+  IncompleteSignatureException`, no `correlation-id` header) is a different
+  problem than the grant-type toggle above** — it means `/as/bc-authorize`
+  itself has no backend integration deployed for this environment (CIBA not
+  provisioned at the platform level), and no request-side change fixes it.
+  Confirmed 2026-07-19 on env `01d89b06-66d5-430e-9f28-65636843788b`: `/as/token`
+  and `/as/par` with bad input both return normal PingOne JSON errors with a
+  `correlation-id` (real backend); `/as/bc-authorize` with the identical
+  Basic-auth pattern returns the bare CloudFront/API-Gateway error instead. On
+  this demo's env, `STEP_UP_METHOD=p1mfa` is the proven working out-of-band
+  mechanism — see `pingone-mfa/SKILL.md`'s "Known gap" callout before spending
+  more time on CIBA here.
 - ⚠️ Ping delivery mode requires a shared session store (Redis/Upstash) so
   that `POST /api/auth/ciba/notify` can find the correct session on any
   server instance. Poll mode has no such requirement.
