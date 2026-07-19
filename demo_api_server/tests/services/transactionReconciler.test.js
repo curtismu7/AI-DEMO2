@@ -136,4 +136,65 @@ describe('transactionReconciler', () => {
     expect(out.status).toBe('MISMATCH');
     expect(out.diffs).toContainEqual(expect.objectContaining({ side: 'witness_only', op: 'get_balance' }));
   });
+
+  test('SOURCE_UNAVAILABLE (not MISMATCH) when the gateway witness has rows but none carry a correlationId at all', () => {
+    auditStore.query.mockReturnValue([
+      { operation: 'get_balance', outcome: 'success', userId: 'u1', agentId: 'a1' },
+      { operation: 'create_transfer', outcome: 'success', userId: 'u2', agentId: 'a2' },
+    ]);
+    const out = reconcile(rec([
+      { service: 'mcp-gateway', phase: 'gateway.authorize', op: 'get_balance', decision: { outcome: 'permit' } },
+    ]));
+    expect(out.sources.mcpAuditStore.status).toBe('SOURCE_UNAVAILABLE');
+    expect(out.sources.mcpAuditStore.reason).toBe('no_correlation_ids');
+    expect(out.sources.mcpAuditStore.diffs).toEqual([]);
+    expect(out.diffs).toEqual([]);
+    expect(out.status).not.toBe('MISMATCH');
+  });
+
+  test('still MISMATCH when some gateway rows carry a correlationId but none match this transaction — the fix must not blunt real detection', () => {
+    auditStore.query.mockReturnValue([
+      { correlationId: 'other', operation: 'get_balance', outcome: 'success' },
+      { operation: 'create_transfer', outcome: 'success' },
+    ]);
+    const out = reconcile(rec([
+      { service: 'mcp-gateway', phase: 'gateway.authorize', op: 'get_balance', decision: { outcome: 'permit' } },
+    ]));
+    expect(out.sources.mcpAuditStore.status).toBe('MISMATCH');
+    expect(out.status).toBe('MISMATCH');
+    expect(out.diffs).toContainEqual(expect.objectContaining({
+      source: 'mcpAuditStore', side: 'ledger_only', op: 'get_balance',
+    }));
+  });
+
+  test('SOURCE_UNAVAILABLE (not MISMATCH) when the traffic log has lines but none carry a correlationId at all', () => {
+    trafficLogger.getMcpTrafficLog.mockReturnValue([
+      { type: 'rpc_response', method: 'tools/call', tool: 'get_balance', ok: true },
+    ]);
+    const out = reconcile(rec([
+      { service: 'mcp-server', phase: 'mcp.tool', op: 'create_withdrawal' },
+    ]));
+    expect(out.sources.mcpTrafficLog.status).toBe('SOURCE_UNAVAILABLE');
+    expect(out.sources.mcpTrafficLog.reason).toBe('no_correlation_ids');
+    expect(out.sources.mcpTrafficLog.diffs).toEqual([]);
+    expect(out.diffs).toEqual([]);
+    expect(out.status).not.toBe('MISMATCH');
+  });
+
+  test('overall SOURCE_UNAVAILABLE when both witnesses have rows but neither carries a correlationId', () => {
+    auditStore.query.mockReturnValue([
+      { operation: 'get_balance', outcome: 'success' },
+    ]);
+    trafficLogger.getMcpTrafficLog.mockReturnValue([
+      { type: 'rpc_response', method: 'tools/call', tool: 'get_balance', ok: true },
+    ]);
+    const out = reconcile(rec([
+      { service: 'mcp-gateway', phase: 'gateway.authorize', op: 'get_balance', decision: { outcome: 'permit' } },
+      { service: 'mcp-server', phase: 'mcp.tool', op: 'get_balance' },
+    ]));
+    expect(out.status).toBe('SOURCE_UNAVAILABLE');
+    expect(out.diffs).toEqual([]);
+    expect(out.sources.mcpAuditStore.status).toBe('SOURCE_UNAVAILABLE');
+    expect(out.sources.mcpTrafficLog.status).toBe('SOURCE_UNAVAILABLE');
+  });
 });

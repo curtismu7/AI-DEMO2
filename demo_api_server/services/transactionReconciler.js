@@ -58,6 +58,16 @@ function _diffOps(source, ledgerOps, witnessOps) {
 //     || null, ... })` — correlationId must stay in that whitelist, or every
 //     row lands with no correlationId and this witness silently degenerates
 //     back to a permanent no-op (the bug this file was fixed for).
+//
+// Environment finding: the MCP gateway only ships audit rows at all when
+// BFF_INTERNAL_ID_TOKEN_URL is set — demo_mcp_gateway/src/gatewayAudit.ts
+// derives the audit-ingest URL from that variable via bffAuditUrl(), which
+// returns null (and short-circuits the POST) when it's unset. In the local
+// Docker stack that variable is unset, so the gateway ships nothing, and any
+// rows that do show up in mcpAuditStore come from other writers that never
+// stamp a correlationId. That makes this witness effectively unavailable in
+// local dev — a reader seeing a permanent SOURCE_UNAVAILABLE here should not
+// read it as a bug; it is this env gap, not tampering.
 function _reconcileGatewayAudit(record) {
   let rows;
   try {
@@ -71,6 +81,17 @@ function _reconcileGatewayAudit(record) {
   // a fresh restart, not evidence of tampering.
   if (!Array.isArray(rows) || rows.length === 0) {
     return { status: 'SOURCE_UNAVAILABLE', diffs: [], reason: 'store_empty' };
+  }
+  // Rows exist, but the join key may still be missing on every one of them
+  // (see the environment finding above). Distinguish two very different
+  // states before comparing anything:
+  //   - SOME rows carry a correlationId, just not this transaction's — that
+  //     is a real discrepancy; fall through to the mismatch determination.
+  //   - NO row carries a correlationId at all — the witness is structurally
+  //     incapable of corroborating (or contradicting) this or any other
+  //     transaction. Report SOURCE_UNAVAILABLE, not MISMATCH.
+  if (!rows.some((r) => r.correlationId)) {
+    return { status: 'SOURCE_UNAVAILABLE', diffs: [], reason: 'no_correlation_ids' };
   }
 
   const ledgerOps = record.hops
@@ -114,6 +135,14 @@ function _reconcileTrafficLog(record) {
   }
   if (!Array.isArray(lines) || lines.length === 0) {
     return { status: 'SOURCE_UNAVAILABLE', diffs: [], reason: 'buffer_empty' };
+  }
+  // Same join-key guard as the gateway-audit witness above: rows existing is
+  // not the same as rows being usable. If SOME lines carry a correlationId
+  // (just not this transaction's), that is still a real discrepancy and must
+  // fall through to MISMATCH. Only when NO line carries one at all is the
+  // witness unable to corroborate anything, which is SOURCE_UNAVAILABLE.
+  if (!lines.some((l) => l.correlationId)) {
+    return { status: 'SOURCE_UNAVAILABLE', diffs: [], reason: 'no_correlation_ids' };
   }
 
   const ledgerOps = record.hops
