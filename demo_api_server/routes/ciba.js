@@ -27,6 +27,7 @@
 const express = require('express');
 const router  = express.Router();
 const cibaService = require('../services/cibaService');
+const cibaSimulatedService = require('../services/cibaSimulatedService');
 const { authenticateToken } = require('../middleware/auth');
 const configStore = require('../services/configStore');
 const { PINGONE_OIDC_DEFAULT_SCOPES_SPACE } = require('../config/scopes');
@@ -115,14 +116,40 @@ router.post('/initiate', authenticateToken, async (req, res) => {
     binding_message = binding_message.replace(/[\x00-\x1f\x7f]/g, '');
   }
 
+  let result;
+  let simulated = false;
   try {
-    const result = await cibaService.initiateBackchannelAuth(
+    result = await cibaService.initiateBackchannelAuth(
       loginHint,
       binding_message,
       scope || PINGONE_OIDC_DEFAULT_SCOPES_SPACE,
       acr_values,
     );
+  } catch (realErr) {
+    // Failover: PingOne's /as/bc-authorize can be unreachable OR entirely
+    // unrouted at the platform level (see the "Known gap" note in the ciba
+    // skill doc) — either way, fall back to the in-process simulated engine
+    // by default so the demo stays usable. Set ciba_failover_mode=deny to
+    // restore the old fail-loud behavior.
+    const failoverMode = configStore.getEffective('ciba_failover_mode') || 'fallback_simulated';
+    if (failoverMode !== 'fallback_simulated') {
+      console.error('[CIBA] initiate failed:', realErr.response?.data || realErr.message);
+      const pingError = realErr.response?.data;
+      return res.status(502).json({
+        error:   pingError?.error || 'ciba_initiation_failed',
+        message: pingError?.error_description || realErr.message,
+      });
+    }
+    result = cibaSimulatedService.initiateSimulated(
+      loginHint,
+      binding_message,
+      scope || PINGONE_OIDC_DEFAULT_SCOPES_SPACE,
+      acr_values,
+    );
+    simulated = true;
+  }
 
+  try {
     // Track in session so poll endpoint can verify ownership
     req.session.cibaRequests = req.session.cibaRequests || {};
 
@@ -140,6 +167,7 @@ router.post('/initiate', authenticateToken, async (req, res) => {
       scope: scope || PINGONE_OIDC_DEFAULT_SCOPES_SPACE,
       acr_values: acr_values || '',
       binding_message: binding_message || '',
+      simulated,
     };
 
     res.json({
@@ -181,6 +209,47 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
     return res.status(410).json({
       error:  'request_expired',
       message: 'The CIBA authentication request has expired. Please try again.',
+    });
+  }
+
+  if (pending.simulated) {
+    if (!cibaSimulatedService.isSimulatedApproved(pending)) {
+      return res.json({ status: 'pending' });
+    }
+
+    delete req.session.cibaRequests[authReqId];
+    req.session.stepUpVerified = Date.now() + STEP_UP_TTL_MS;
+
+    // Mirror the real path's token-chain tracking below so the "CIBA
+    // Step-Up" tab and floating token-chain panel show an identical event —
+    // never distinguishable from a real approval in the UI.
+    // `engine: 'simulated'` is stashed in additionalData for our own
+    // debugging only; CibaStepUpFlowPanel.jsx never renders additionalData.
+    // No fake access token is ever stored in req.session.oauthTokens — the
+    // step-up gate in routes/transactions.js only reads stepUpVerified.
+    try {
+      const jwt = require('jsonwebtoken');
+      const subject = req.user?.sub || req.user?.id;
+      if (subject) {
+        const fakeAccessToken = jwt.sign({ sub: subject, scope: pending.scope }, 'ciba-simulated-local-only');
+        trackTokenEvent({
+          eventType: 'auth',
+          token: fakeAccessToken,
+          userId: subject,
+          description: 'CIBA backchannel step-up approved (out-of-band)',
+          additionalData: { grantedVia: 'ciba', scope: pending.scope, engine: 'simulated' },
+        }).catch((err) => console.error('[CIBA] token-chain track failed (simulated):', err.message));
+      }
+    } catch (trackErr) {
+      console.warn('[CIBA] could not build token-chain event for simulated approval:', trackErr.message);
+    }
+
+    return req.session.save((saveErr) => {
+      if (saveErr) console.error('[CIBA] session save error on simulated approval:', saveErr);
+      res.json({
+        status: 'approved',
+        scope:  pending.scope,
+      });
     });
   }
 

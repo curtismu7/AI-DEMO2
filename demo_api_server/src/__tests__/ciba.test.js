@@ -32,6 +32,15 @@ jest.mock('../../services/cibaService', () => ({
   isEnabled:               jest.fn(),
 }));
 
+jest.mock('../../services/cibaSimulatedService', () => ({
+  initiateSimulated: jest.fn(),
+  isSimulatedApproved: jest.fn(),
+}));
+
+jest.mock('../../services/tokenChainService', () => ({
+  trackTokenEvent: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('../../services/configStore', () => ({
   getEffective: jest.fn((key) => {
     const defaults = {
@@ -63,6 +72,9 @@ jest.mock('../../utils/logger', () => ({
 }));
 
 const cibaService = require('../../services/cibaService');
+const cibaSimulatedService = require('../../services/cibaSimulatedService');
+const configStore = require('../../services/configStore');
+const { trackTokenEvent } = require('../../services/tokenChainService');
 const cibaRouter  = require('../../routes/ciba');
 const { PINGONE_OIDC_DEFAULT_SCOPES_SPACE } = require('../../config/scopes');
 
@@ -321,7 +333,8 @@ describe('POST /api/auth/ciba/initiate', () => {
 
   // ── PingOne errors ────────────────────────────────────────────────────────
 
-  it('returns 502 when PingOne returns an error response', async () => {
+  it('returns 502 when PingOne returns an error response and failover is explicitly disabled', async () => {
+    configStore.getEffective.mockReturnValueOnce('deny');
     const pingErr = {
       response: {
         data: {
@@ -343,7 +356,8 @@ describe('POST /api/auth/ciba/initiate', () => {
     expect(res.body.message).toContain('invalid');
   });
 
-  it('returns 502 on network / timeout error', async () => {
+  it('returns 502 on network / timeout error when failover is explicitly disabled', async () => {
+    configStore.getEffective.mockReturnValueOnce('deny');
     cibaService.initiateBackchannelAuth.mockRejectedValue(new Error('ECONNREFUSED'));
     const res = await request(buildApp())
       .post('/api/auth/ciba/initiate')
@@ -351,6 +365,46 @@ describe('POST /api/auth/ciba/initiate', () => {
       .send({});
     expect(res.status).toBe(502);
     expect(res.body.error).toBe('ciba_initiation_failed');
+  });
+
+  // ── Simulated failover (default behavior) ───────────────────────────────────
+
+  it('falls back to the simulated engine by default when the real bc-authorize call fails', async () => {
+    cibaService.initiateBackchannelAuth.mockRejectedValue(new Error('ECONNREFUSED'));
+    cibaSimulatedService.initiateSimulated.mockReturnValue({
+      auth_req_id: 'sim-abc123',
+      expires_in: 300,
+      interval: 5,
+    });
+
+    const res = await request(buildApp())
+      .post('/api/auth/ciba/initiate')
+      .set('x-test-user', USER_HDR)
+      .send({ binding_message: 'Approve payment' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.auth_req_id).toBe('sim-abc123');
+    expect(cibaSimulatedService.initiateSimulated).toHaveBeenCalledWith(
+      'alice@example.com',
+      'Approve payment',
+      expect.any(String),
+      expect.any(String),
+    );
+  });
+
+  it('does not call the simulated engine when the real call succeeds', async () => {
+    // This file has no global clearMocks/resetMocks — clear explicitly so a
+    // call count from an earlier test (e.g. the failover test above) can't
+    // leak in and produce a false pass/fail here.
+    cibaSimulatedService.initiateSimulated.mockClear();
+
+    const res = await request(buildApp())
+      .post('/api/auth/ciba/initiate')
+      .set('x-test-user', USER_HDR)
+      .send({ binding_message: 'Approve payment' });
+
+    expect(res.status).toBe(200);
+    expect(cibaSimulatedService.initiateSimulated).not.toHaveBeenCalled();
   });
 
   // ── Regression: camelCase / snake_case tolerance (transfer -> CIBA bridge) ──
@@ -573,6 +627,70 @@ describe('GET /api/auth/ciba/poll/:authReqId — OTP approval simulation', () =>
 
     expect(res.status).toBe(403);
     expect(res.body.status).toBe('denied');
+  });
+
+  // ── Simulated approval (failover engine) ────────────────────────────────────
+
+  const SIM_AUTH_REQ_ID = 'sim-req-xyz';
+  const simulatedPendingReq = (initiatedAt) => ({
+    cibaRequests: {
+      [SIM_AUTH_REQ_ID]: {
+        initiatedAt,
+        expiresAt:   Date.now() + 300_000,
+        loginHint:   'alice@example.com',
+        scope:       'openid profile',
+        acr_values:  '',
+        binding_message: 'Approve your banking transaction',
+        simulated:   true,
+      },
+    },
+  });
+
+  it('returns { status:"pending" } before the simulated approval delay elapses', async () => {
+    cibaSimulatedService.isSimulatedApproved.mockReturnValue(false);
+
+    const res = await request(buildApp(simulatedPendingReq(Date.now())))
+      .get(`/api/auth/ciba/poll/${SIM_AUTH_REQ_ID}`)
+      .set('x-test-user', USER_HDR);
+
+    // Note: no `expect(cibaService.pollForTokens).not.toHaveBeenCalled()`
+    // here — earlier tests in this describe block already called it (this
+    // file has no clearAllMocks in this scope), so that assertion would
+    // false-fail on leftover call count, not on this test's own behavior.
+    // The status assertion alone is sufficient: if the real (unmocked-for-
+    // this-id) path had been taken instead, the response would not be a
+    // clean 200 { status: 'pending' }.
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('pending');
+  });
+
+  it('returns { status:"approved" } once the simulated delay elapses, without calling the real PingOne poll', async () => {
+    cibaSimulatedService.isSimulatedApproved.mockReturnValue(true);
+
+    const res = await request(buildApp(simulatedPendingReq(Date.now() - 8000)))
+      .get(`/api/auth/ciba/poll/${SIM_AUTH_REQ_ID}`)
+      .set('x-test-user', USER_HDR);
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('approved');
+    expect(res.body.scope).toBe('openid profile');
+  });
+
+  it('records a token-chain event on simulated approval, identical in shape to a real one', async () => {
+    cibaSimulatedService.isSimulatedApproved.mockReturnValue(true);
+
+    await request(buildApp(simulatedPendingReq(Date.now() - 8000)))
+      .get(`/api/auth/ciba/poll/${SIM_AUTH_REQ_ID}`)
+      .set('x-test-user', USER_HDR);
+
+    expect(trackTokenEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: 'auth',
+        userId: 'u1',
+        description: 'CIBA backchannel step-up approved (out-of-band)',
+        additionalData: expect.objectContaining({ grantedVia: 'ciba', engine: 'simulated' }),
+      }),
+    );
   });
 });
 

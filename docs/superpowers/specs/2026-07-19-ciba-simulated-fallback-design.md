@@ -173,8 +173,11 @@ Browser                    BFF (routes/ciba.js)              cibaSimulatedServic
 ## Error handling
 
 - Failures in `initiateSimulated`/`isSimulatedApproved` themselves (there are
-  none expected — no I/O) are not specially handled; any thrown error
-  propagates through the existing route-level try/catch to the standard 502.
+  none expected — no I/O, and `crypto.randomUUID()` / `Date.now()` don't
+  throw) are not specially handled. `initiateSimulated` is called from
+  inside the `catch (realErr)` block, not the outer session-write try/catch
+  — a throw there would surface as an unhandled rejection, not a clean 502.
+  Acceptable given nothing in that call path can realistically throw.
 - Input validation (`binding_message` length/control-char stripping,
   `missing_login_hint`) happens **before** the real-vs-simulated branch, so
   it's identical in both paths — a bad request never silently succeeds via
