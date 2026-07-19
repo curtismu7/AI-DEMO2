@@ -92,10 +92,10 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(adminQuick).toBeTruthy();
   });
 
-  it("shows the Demo check nav item for a non-admin user (no admin gate)", () => {
+  it("shows the Health Check nav item for a non-admin user (no admin gate)", () => {
     renderNavAsUser(customerUser);
-    fireEvent.click(screen.getByRole("button", { name: /^Monitoring/ }));
-    expect(screen.getByText("Demo check")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Telemetry/ }));
+    expect(screen.getByText("Health Check")).toBeInTheDocument();
   });
 
   it("shows the Demo Config link for a non-admin user (no admin gate)", () => {
