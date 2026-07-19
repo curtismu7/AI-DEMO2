@@ -10,6 +10,7 @@ import VerticalSwitcher from '../components/VerticalSwitcher';
 import { useAgentUiMode } from '../context/AgentUiModeContext';
 import TokenChainTraceRail from '../components/TokenChainTraceRail';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
+import { buildSimRailEvents } from '../services/tokenChainTrace/simTraceAdapter';
 import './LiveUseCaseWorkbenchPage.css';
 
 const RUNNABLE_SIMS = [
@@ -94,8 +95,17 @@ export default function LiveUseCaseWorkbenchPage() {
     apiClient.post('/api/demo/attack-sim/run', { sim: uc.trigger.sim })
       .then(({ data }) => {
         setRunState(null);
-        tokenChainTraceStore.ingestTokenEvents(data.tokenChainEvents || []);
-        tokenChainTraceStore.completeTrace(data.status < 400);
+        const isDeny = typeof data?.status !== 'number' || data.status >= 400;
+        // Same rail-feed wiring as AIAgent's own attack-sim handler (AIAgent.js) —
+        // buildSimRailEvents remaps sim-* ids onto the full-pipeline steps
+        // buildTraceSteps recognizes, and ingestAuthorize surfaces the real
+        // PingOne Authorize DENY detail. Without both, the rail only shows a
+        // bare pending/done dot with no request/response JSON.
+        if (data?.tokenChainEvents?.length) {
+          buildSimRailEvents(data).forEach((ev) => tokenChainTraceStore.ingestTokenEvent(ev));
+          if (data.authorize) tokenChainTraceStore.ingestAuthorize(data.authorize);
+        }
+        tokenChainTraceStore.completeTrace(!isDeny);
       })
       .catch((err) => {
         tokenChainTraceStore.completeTrace(false);

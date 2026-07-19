@@ -53,7 +53,7 @@ function deepParse(value, depth = 0) {
   return value;
 }
 
-function formatJson(value, deep) {
+export function formatJson(value, deep) {
   if (value === null || value === undefined) return null;
   try {
     const normalized = deep ? deepParse(value) : parseJsonString(value);
@@ -72,7 +72,7 @@ function extractFieldName(keyText) {
   return m ? m[1] : null;
 }
 
-function tokenize(text) {
+export function tokenize(text) {
   const tokens = [];
   let last = 0;
   let lastKeyWasCritical = false;
