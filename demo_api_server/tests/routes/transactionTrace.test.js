@@ -5,6 +5,9 @@ jest.mock('../../services/lmdb/transactionLedger.lmdb', () => ({
   listRecords: jest.fn(),
 }));
 jest.mock('../../services/transactionAssembler', () => ({ assemble: jest.fn() }));
+jest.mock('../../services/transactionReconciler', () => ({
+  reconcile: jest.fn(() => ({ status: 'MATCH', diffs: [], sources: {} })),
+}));
 
 const express = require('express');
 const request = require('supertest');
@@ -114,6 +117,12 @@ describe('GET /api/transaction-trace', () => {
     const res = await request(app()).get('/api/transaction-trace/c1');
     expect(res.body.verdict.status).toBe('FAIL');
     expect(res.body.verdict.violations.map((v) => v.id)).toContain('INV-6');
+  });
+
+  test('attaches reconciliation to the detail payload', async () => {
+    assemble.mockResolvedValue({ correlationId: 'c1', startedAt: 'A', endedAt: 'B', hops: [] });
+    const res = await request(app()).get('/api/transaction-trace/c1');
+    expect(res.body.reconciliation.status).toBe('MATCH');
   });
 });
 
