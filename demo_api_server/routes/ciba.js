@@ -317,6 +317,34 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// POST /api/auth/ciba/approve-now/:authReqId
+//
+// Demo convenience: lets the presenter skip the fallback engine's timed
+// auto-approve instead of waiting it out. Only valid for a pending.simulated
+// request — real CIBA must be approved on its real out-of-band channel, so
+// this route is a no-op (404) for a real pending request; the next /poll
+// call resolves it exactly as a timed auto-approve would.
+// ---------------------------------------------------------------------------
+
+router.post('/approve-now/:authReqId', authenticateToken, (req, res) => {
+  const { authReqId } = req.params;
+  const pending = req.session.cibaRequests?.[authReqId];
+
+  if (!pending || !pending.simulated) {
+    return res.status(404).json({
+      error: 'unknown_request',
+      message: 'No pending request with that ID eligible for immediate approval.',
+    });
+  }
+
+  pending.initiatedAt = Date.now() - cibaSimulatedService.SIMULATED_APPROVE_DELAY_MS;
+  req.session.save((saveErr) => {
+    if (saveErr) console.error('[CIBA] session save error on approve-now:', saveErr);
+    res.json({ ok: true });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // POST /api/auth/ciba/cancel/:authReqId
 // ---------------------------------------------------------------------------
 

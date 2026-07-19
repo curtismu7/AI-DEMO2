@@ -384,6 +384,10 @@ export default function BankingAgent({
   const [helixDegraded, setHelixDegraded] = useState(false);
   // Message id currently running the pre-warm-and-retry action (Task: prewarm-retry-timeout).
   const [prewarming, setPrewarming] = useState(null);
+  // auth_req_id currently running the CIBA "Approve now" action (disables the
+  // button while the request is in flight; at most one CIBA request pending
+  // per session, so a single value suffices).
+  const [cibaApproving, setCibaApproving] = useState(null);
   const prewarmGuardRef = useRef(null);
   if (!prewarmGuardRef.current) prewarmGuardRef.current = makeReentrancyGuard();
   const [modelAdvisory, setModelAdvisory] = useState(null);
@@ -4067,8 +4071,9 @@ export default function BankingAgent({
               const { auth_req_id, interval } = await initRes.json();
               addMessage(
                 "assistant",
-                " Waiting for CIBA approval — approve out-of-band on your device, then this will continue automatically…",
+                " Waiting for CIBA approval — this normally completes on a separate device. Click Approve to continue now, or it will continue automatically in a few seconds.",
                 `ciba-step-${Date.now()}`,
+                { showCibaApproveAction: true, cibaAuthReqId: auth_req_id },
               );
               toast.dismiss(toastId);
               agentFlowDiagram.completeMfaChallenge(null); // Pending
@@ -6905,6 +6910,28 @@ export default function BankingAgent({
   };
 
   /**
+   * Demo convenience: skip the CIBA fallback engine's timed auto-approve.
+   * The in-flight poll loop (pollCibaStepUp / pollCibaThenResumeNl) picks up
+   * the approval on its next tick -- this only tells the backend to consider
+   * the request already due.
+   */
+  const approveCibaNow = async (authReqId) => {
+    if (!authReqId) return;
+    setCibaApproving(authReqId);
+    try {
+      const apiBase = process.env.REACT_APP_API_URL || "";
+      const res = await fetch(`${apiBase}/api/auth/ciba/approve-now/${authReqId}`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`approve-now failed: ${res.status}`);
+    } catch (err) {
+      console.error("[BankingAgent] CIBA approve-now failed:", err);
+      setCibaApproving(null);
+    }
+  };
+
+  /**
    * CIBA step-up: poll /api/auth/ciba/poll/:authReqId until approved, denied,
    * or expired, then resume the original action -- mirrors handleP1MfaComplete's
    * runAction(actionId, form, { isRefire: true }) resume shape. Matches the
@@ -6931,11 +6958,13 @@ export default function BankingAgent({
           `ciba-denied-${Date.now()}`,
         );
         agentFlowDiagram.completeMfaChallenge(false);
+        setCibaApproving(null);
         return;
       }
       const data = await res.json().catch(() => ({}));
       if (data.status === "approved") {
         agentFlowDiagram.completeMfaChallenge(true);
+        setCibaApproving(null);
         runAction(actionId, form, { isRefire: true });
         return;
       }
@@ -6989,8 +7018,9 @@ export default function BankingAgent({
         const { auth_req_id, interval } = await initRes.json();
         addMessage(
           "assistant",
-          " Waiting for CIBA approval — approve out-of-band on your device, then this will continue automatically…",
+          " Waiting for CIBA approval — this normally completes on a separate device. Click Approve to continue now, or it will continue automatically in a few seconds.",
           `ciba-step-${Date.now()}`,
+          { showCibaApproveAction: true, cibaAuthReqId: auth_req_id },
         );
         agentFlowDiagram.completeMfaChallenge(null);
         pollCibaThenResumeNl(auth_req_id, (interval || 5) * 1000, text, useCaseId);
@@ -7168,11 +7198,13 @@ export default function BankingAgent({
           `ciba-denied-${Date.now()}`,
         );
         agentFlowDiagram.completeMfaChallenge(false);
+        setCibaApproving(null);
         return;
       }
       const data = await res.json().catch(() => ({}));
       if (data.status === "approved") {
         agentFlowDiagram.completeMfaChallenge(true);
+        setCibaApproving(null);
         setNlLoading(true);
         try {
           const response = await sendAgentMessage(text, null, {
@@ -9746,6 +9778,26 @@ export default function BankingAgent({
                                 onClick={() => handlePrewarmRetry(msg.id, msg.retryFn)}
                               >
                                 {isWarming ? "Warming up… (up to ~1 min)" : "Pre-warm the model & retry"}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    if (msg.role === "assistant" && msg.showCibaApproveAction) {
+                      const isApproving = cibaApproving === msg.cibaAuthReqId;
+                      return (
+                        <div key={msg.id} className="banking-agent-msg assistant">
+                          <div className="banking-agent-msg-bubble banking-agent-msg-bubble--session-fix">
+                            <MessageContent text={msg.content} terminology={terminology} />
+                            <div className="ba-session-fix-actions">
+                              <button
+                                type="button"
+                                className="ba-session-fix-btn"
+                                disabled={isApproving}
+                                onClick={() => approveCibaNow(msg.cibaAuthReqId)}
+                              >
+                                {isApproving ? "Approving…" : "Approve"}
                               </button>
                             </div>
                           </div>
