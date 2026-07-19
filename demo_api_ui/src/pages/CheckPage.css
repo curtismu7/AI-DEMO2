@@ -1,8 +1,12 @@
 /* demo_api_ui/src/pages/CheckPage.css */
 /* Ported from the Pre-Demo Check layout mocks (design tokens + component
    styles, including the shell chrome: page wrap, verdict bar, tabs, actions,
-   buttons). Keeps both light + dark token sets so the page follows the app's
-   theme toggle. */
+   buttons). Fixed light theme, matching the rest of the app (no theme
+   toggle exists here) — a prefers-color-scheme/data-theme dark variant used
+   to live here but nothing ever set it, so on an OS in dark mode --text
+   flipped to a near-white value while the page background stayed light
+   (from the app's global body rule + a .card class collision with
+   index.css), making all page text unreadable. */
 
 :root {
   --bg: #f6f8fc;
@@ -25,38 +29,6 @@
   --sans: ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --radius: 12px;
   --shadow: 0 1px 2px rgba(20,28,50,.05), 0 6px 20px rgba(20,28,50,.06);
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0e121b; --surface: #161c29; --surface-2: #1d2434;
-    --border: #29314a; --border-strong: #3a4460;
-    --text: #e7eaf2; --text-muted: #98a1b8; --text-faint: #6f7891;
-    --accent: #7f97ff; --accent-soft: #22293d;
-    --pass: #3ccd8f; --pass-bg: #133226; --pass-line: #235f45;
-    --warn: #e2ab52; --warn-bg: #33270f; --warn-line: #6d5320;
-    --fail: #f27a92; --fail-bg: #35171f; --fail-line: #6f3040;
-    --idle: #8b93a9; --idle-bg: #212838; --idle-line: #39415a;
-  }
-}
-:root[data-theme="dark"] {
-    --bg: #0e121b; --surface: #161c29; --surface-2: #1d2434;
-    --border: #29314a; --border-strong: #3a4460;
-    --text: #e7eaf2; --text-muted: #98a1b8; --text-faint: #6f7891;
-    --accent: #7f97ff; --accent-soft: #22293d;
-    --pass: #3ccd8f; --pass-bg: #133226; --pass-line: #235f45;
-    --warn: #e2ab52; --warn-bg: #33270f; --warn-line: #6d5320;
-    --fail: #f27a92; --fail-bg: #35171f; --fail-line: #6f3040;
-    --idle: #8b93a9; --idle-bg: #212838; --idle-line: #39415a;
-}
-:root[data-theme="light"] {
-  --bg: #f6f8fc; --surface: #ffffff; --surface-2: #eef1f8;
-  --border: #dce1ee; --border-strong: #c4cbde;
-  --text: #171e2e; --text-muted: #59617a; --text-faint: #868ea6;
-  --accent: #3550c8; --accent-soft: #e5e9fb;
-  --pass: #178a56; --pass-bg: #e2f4ea; --pass-line: #9dd8ba;
-  --warn: #a76a12; --warn-bg: #fbefd7; --warn-line: #e8c581;
-  --fail: #c5364f; --fail-bg: #fbe2e7; --fail-line: #ecaab6;
-  --idle: #7a8199; --idle-bg: #e9ecf4; --idle-line: #c9cfdd;
 }
 
 .chk-light { width: 11px; height: 11px; border-radius: 999px; flex: none; box-shadow: 0 0 0 3px var(--_ring, transparent); }
