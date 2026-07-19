@@ -231,7 +231,7 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
       const jwt = require('jsonwebtoken');
       const subject = req.user?.sub || req.user?.id;
       if (subject) {
-        const fakeAccessToken = jwt.sign({ sub: subject }, 'ciba-simulated-local-only');
+        const fakeAccessToken = jwt.sign({ sub: subject, scope: pending.scope }, 'ciba-simulated-local-only');
         trackTokenEvent({
           eventType: 'auth',
           token: fakeAccessToken,
