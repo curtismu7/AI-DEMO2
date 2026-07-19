@@ -956,6 +956,15 @@ body > .banking-agent-float-root .banking-agent-panel {
     border-color 0.15s;
   flex-shrink: 0;
 }
+/* Text-label variant of .ba-icon-btn (fixed 28x28 assumes a single glyph) —
+   auto-widens for a short word instead of clipping it. */
+.ba-graph-link-btn {
+  width: auto;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .ba-icon-btn:hover {
   background: var(--ba-accent-h);
   color: #fff;
@@ -4058,12 +4067,14 @@ body > .banking-agent-float-root .banking-agent-panel {
   letter-spacing: 0.08em !important;
 }
 
-.App--marketing-page .embedded-dock-collapse-btn {
+.App--marketing-page .embedded-dock-collapse-btn,
+.App--marketing-page .embedded-dock-graph-link-btn {
   color: #666666 !important;
   border-color: #cccccc !important;
 }
 
-.App--marketing-page .embedded-dock-collapse-btn:hover {
+.App--marketing-page .embedded-dock-collapse-btn:hover,
+.App--marketing-page .embedded-dock-graph-link-btn:hover {
   background: #dddddd !important;
   color: var(--brand-dark-gray) !important;
 }

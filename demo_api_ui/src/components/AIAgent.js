@@ -7579,6 +7579,18 @@ export default function BankingAgent({
                     {isExpanded ? "⊟" : "⊞"}
                   </button>
                 )}
+                {/* System graph link — float mode only */}
+                {!isInline && (
+                  <button
+                    type="button"
+                    className="ba-icon-btn ba-graph-link-btn"
+                    onClick={() => navigate("/telemetry")}
+                    aria-label="View system graph"
+                    title="View system graph"
+                  >
+                    Graph
+                  </button>
+                )}
                 {/* Split-column sign-out — inline split-column mode only (unchanged, D-02 untouched) */}
                 {splitChrome && isLoggedIn && (
                   <button

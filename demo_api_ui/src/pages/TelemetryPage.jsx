@@ -1,5 +1,6 @@
 // demo_api_ui/src/pages/TelemetryPage.jsx
 import React, { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./TelemetryPage.css";
 import TraceGraphCore from "../components/TraceGraphCore";
 import { getMyAccounts } from "../services/demoAgentService";
@@ -28,6 +29,7 @@ async function fetchJson(url) {
  * D3 graph core /tracing's Graph tab uses.
  */
 export default function TelemetryPage() {
+  const navigate = useNavigate();
   const [mode, setMode] = useState("overview");
   const [lookback, setLookback] = useState("1h");
   const [traces, setTraces] = useState([]);
@@ -88,6 +90,9 @@ export default function TelemetryPage() {
     <div className="telemetry-page">
       <header className="telemetry-header">
         <div>
+          <button type="button" className="telemetry-back-btn" onClick={() => navigate(-1)}>
+            ← Back
+          </button>
           <h1>Telemetry</h1>
           <p className="telemetry-subtitle">
             The whole system at a glance — every service, every dependency, aggregated across
