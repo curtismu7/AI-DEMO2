@@ -3,10 +3,12 @@
 // /use-cases/live — A5.2: catalog drawer + real Token Chain, driven by the
 // app's single real <AIAgent> squeezed into a narrow column (see App.js
 // onLiveWorkbenchRoute / onMiddlePlacementInDashboard, wired in Task 3).
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import apiClient from '../services/apiClient';
 import { useVertical } from '../vertical/useVertical';
 import VerticalSwitcher from '../components/VerticalSwitcher';
+import { useAgentUiMode } from '../context/AgentUiModeContext';
+import TokenChainTraceRail from '../components/TokenChainTraceRail';
 import './LiveUseCaseWorkbenchPage.css';
 
 const TRACK_ORDER = ['foundations', 'controls', 'hitl', 'attacks'];
@@ -34,6 +36,15 @@ export default function LiveUseCaseWorkbenchPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [query, setQuery] = useState('');
+
+  const { setSurfaceHostEl } = useAgentUiMode();
+  const [agentHostEl, setAgentHostEl] = useState(null);
+  const agentHostRef = useCallback((node) => setAgentHostEl(node), []);
+
+  useEffect(() => {
+    setSurfaceHostEl(agentHostEl);
+    return () => setSurfaceHostEl((cur) => (cur === agentHostEl ? null : cur));
+  }, [agentHostEl, setSurfaceHostEl]);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,7 +120,12 @@ export default function LiveUseCaseWorkbenchPage() {
         </nav>
 
         <section className="luw-main" aria-label="Live run">
-          <div id="luw-agent-host" className="luw-agent-host" />
+          <div className="luw-run-layout">
+            <div id="luw-agent-host" className="luw-agent-host" ref={agentHostRef} />
+            <div className="luw-rail-host">
+              <TokenChainTraceRail />
+            </div>
+          </div>
         </section>
       </div>
     </div>

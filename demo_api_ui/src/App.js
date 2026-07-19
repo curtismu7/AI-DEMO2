@@ -160,6 +160,7 @@ import { monitorApiHealth } from "./services/bankingRestartNotificationService";
 import {
   isBankingAgentDashboardRoute,
   isEmbeddedAgentDockRoute,
+  isLiveWorkbenchRoute,
   isMonitoringRoute,
   isPublicMarketingAgentPath,
 } from "./utils/embeddedAgentFabVisibility";
@@ -317,6 +318,10 @@ function AppWithAuth() {
   // / now renders LandingPage for non-admin logged-in users; UserDashboard lives at /dashboard.
   const onUserDashboardRoute = Boolean(user) && pathname === "/dashboard";
 
+  // Live Use-Case Workbench (/use-cases/live) — same middle-column agent
+  // placement mechanism as UserDashboard, extended to a second route.
+  const onLiveWorkbenchRoute = Boolean(user) && isLiveWorkbenchRoute(pathname);
+
   // Landing home (/): show floating agent even when signed out.
   // Suppress float on signed-in / only when UserDashboard owns middle placement.
   const marketingAgentSurface = isPublicMarketingAgentPath(pathname) && !user;
@@ -359,7 +364,7 @@ function AppWithAuth() {
    *  Restricting to signed-in users would silently strip the inline agent
    *  for guests and leave them with no way to start the demo. */
   const onMiddlePlacementInDashboard =
-    agentPlacement === "middle" && onUserDashboardRoute;
+    agentPlacement === "middle" && (onUserDashboardRoute || onLiveWorkbenchRoute);
   /** Single <AIAgent> portals into the bottom dock host element when present; falls back to document.body otherwise. */
   const shouldMountSingleAgent =
     showFloatingAgent || hasEmbeddedDockLayout || onMiddlePlacementInDashboard;
@@ -1298,6 +1303,7 @@ function AppWithAuth() {
               Guest landing (/) always uses float agent — no bottom dock. */}
               {!loading &&
                 !onUserDashboardRoute &&
+                !onLiveWorkbenchRoute &&
                 !(!user && isPublicMarketingAgentPath(pathname)) && (
                   <ErrorBoundary>
                     <EmbeddedAgentDock

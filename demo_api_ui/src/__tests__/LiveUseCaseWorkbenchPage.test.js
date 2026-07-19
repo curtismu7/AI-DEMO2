@@ -13,6 +13,10 @@ vi.mock('../vertical/useVertical', () => ({
 vi.mock('../components/VerticalSwitcher', () => ({
   default: function VerticalSwitcherStub() { return null; },
 }));
+const mockSetSurfaceHostEl = vi.fn();
+vi.mock('../context/AgentUiModeContext', () => ({
+  useAgentUiMode: () => ({ placement: 'middle', setSurfaceHostEl: mockSetSurfaceHostEl }),
+}));
 
 import apiClient from '../services/apiClient';
 
@@ -59,5 +63,19 @@ describe('LiveUseCaseWorkbenchPage', () => {
       expect(screen.queryByText(/Delegated access with proof/)).not.toBeInTheDocument();
     });
     expect(screen.getByText(/Authz denied/)).toBeInTheDocument();
+  });
+
+  it('registers a narrow agent host on mount so the real single agent portals in', async () => {
+    renderPage();
+    await waitFor(() => screen.getByText(/Delegated access with proof/));
+    expect(mockSetSurfaceHostEl).toHaveBeenCalled();
+    // The host-registration effect (mirroring UserDashboard.js) fires more than once
+    // during mount — an initial call with the pre-ref-attach null, a functional
+    // cleanup-updater call, then the call carrying the actual attached DOM node.
+    // Find the call that actually carries the element rather than assuming index 0.
+    const registeredEl = mockSetSurfaceHostEl.mock.calls
+      .map((call) => call[0])
+      .find((arg) => arg instanceof HTMLElement);
+    expect(registeredEl).toBeInstanceOf(HTMLElement);
   });
 });
