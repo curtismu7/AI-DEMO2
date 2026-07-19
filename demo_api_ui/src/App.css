@@ -189,6 +189,32 @@
   display: none;
 }
 
+.embedded-agent-dock__toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.embedded-dock-graph-link-btn {
+  background: transparent;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 5px;
+  color: #999999;
+  font-size: 12px;
+  line-height: 1;
+  padding: 3px 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.embedded-dock-graph-link-btn:hover {
+  background: var(--brand-medium-gray);
+  color: var(--brand-dark-gray);
+}
+
 /* Collapse / expand toggle */
 .embedded-dock-collapse-btn {
   background: transparent;
