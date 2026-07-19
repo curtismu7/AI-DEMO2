@@ -6,6 +6,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { TOKEN_CLAIMS } from '../constants/tokenClaims';
+import JsonHighlight from './shared/JsonHighlight';
 import '../styles/TokenChainRedesign.css';
 
 /**
@@ -24,7 +25,8 @@ function buildClaimRows(tokenType, liveClaims) {
   const descriptionByKey = new Map(staticClaims.map((c) => [c.key, c.description]));
   const claims = Object.entries(liveClaims).map(([key, value]) => ({
     key,
-    value: value && typeof value === "object" ? JSON.stringify(value) : String(value),
+    value: value && typeof value === "object" ? value : String(value),
+    isObject: Boolean(value && typeof value === "object"),
     description: descriptionByKey.get(key) || "Live value from this run.",
   }));
   return { claims, isLive: true };
@@ -77,7 +79,9 @@ function ClaimDetailsModal({ isOpen, tokenType, liveClaims, onClose }) {
             {claims.map((claim, index) => (
               <div key={index} className="utfi-claim-item">
                 <div className="utfi-claim-key">{claim.key}</div>
-                <div className="utfi-claim-value">{claim.value}</div>
+                <div className="utfi-claim-value">
+                  {claim.isObject ? <JsonHighlight value={claim.value} /> : claim.value}
+                </div>
                 <div className="utfi-claim-description">{claim.description}</div>
               </div>
             ))}
