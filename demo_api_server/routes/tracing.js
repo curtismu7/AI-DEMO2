@@ -398,4 +398,43 @@ router.get('/traces/:id/raw', async (req, res) => {
   }
 });
 
+/**
+ * GET /overview/raw?lookback= — raw multi-trace Jaeger payload for the whole
+ * system (all instrumented services' recent traces, deduped by traceID). The
+ * client-side model (buildGraph/buildCollapsedGraph) aggregates this the same
+ * way it aggregates a single trace — this endpoint reuses the /graph route's
+ * overview-gathering exactly, just skips server-side aggregation so Overview
+ * and Detailed share one rendering path.
+ * Fail-soft: Jaeger unreachable, ff_tracing=false, or the gather throwing all
+ * return 200 { data: [] } — never 5xx.
+ */
+router.get('/overview/raw', async (req, res) => {
+  if (String(configStore.getEffective('ff_tracing')).trim() === 'false') {
+    return res.json({ data: [] });
+  }
+  const base = await resolveJaegerBase();
+  if (!base) return res.json({ data: [] });
+
+  const lookback = String(req.query.lookback || '1h').trim();
+  try {
+    const svcResp = await axios.get(`${base}/api/services`, { timeout: 5000 });
+    const services = (Array.isArray(svcResp.data?.data) ? svcResp.data.data : []).filter((s) => s && s !== 'jaeger-all-in-one');
+    const perService = await Promise.all(
+      services.map((service) =>
+        axios
+          .get(`${base}/api/traces`, { timeout: 10000, params: { service, limit: 10, lookback } })
+          .then((r) => (Array.isArray(r.data?.data) ? r.data.data : []))
+          .catch(() => []),
+      ),
+    );
+    const byId = new Map();
+    for (const t of perService.flat()) {
+      if (t?.traceID && !byId.has(t.traceID)) byId.set(t.traceID, t);
+    }
+    return res.json({ data: [...byId.values()] });
+  } catch {
+    return res.json({ data: [] });
+  }
+});
+
 module.exports = router;
