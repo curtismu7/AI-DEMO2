@@ -2,6 +2,15 @@
 
 const store = require('../../services/lmdb/navConfigStore.lmdb');
 
+const KNOWN_NAV_LABELS = [
+  "Home", "Dashboard", "Themes", "Use Cases", "Agent Demo Guide",
+  "Family Delegation", "AI Agents", "PingOne MCP", "Banking MCP & Gateways",
+  "PingOne Demo Apps", "Delegation & Consent", "Authorize", "OAuth & Identity",
+  "Industry Verticals", "Users & Accounts", "AI Attack Demos", "Monitoring",
+  "Telemetry", "Diagrams", "Agent Studio (Preview)", "Learn & Present",
+  "Developer Tools", "System Tools", "Integration Tests",
+];
+
 describe('navConfigStore.lmdb', () => {
   test('listConfigs seeds and returns the 3 built-in configs', () => {
     const configs = store.listConfigs();
@@ -60,5 +69,13 @@ describe('navConfigStore.lmdb', () => {
 
     const fetched = store.getUserPrefs('user-42');
     expect(fetched).toEqual(saved);
+  });
+
+  test('every BUILTIN_CONFIGS hiddenLabels entry is a real, known nav label', () => {
+    for (const cfg of store.BUILTIN_CONFIGS) {
+      for (const label of cfg.hiddenLabels) {
+        expect(KNOWN_NAV_LABELS).toContain(label);
+      }
+    }
   });
 });

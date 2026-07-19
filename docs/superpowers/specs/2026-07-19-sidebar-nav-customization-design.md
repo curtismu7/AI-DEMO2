@@ -85,17 +85,19 @@ sub-DB `navConfigs`, one row per config:
 }
 ```
 
-Seeded on first boot with 3 builtins (`isBuiltin: true`, undeletable):
+Seeded on first boot with 3 builtins (`isBuiltin: true`, undeletable).
+Built-ins are flag-neutral by design — applying one only changes nav
+visibility, never touches global feature flags; only custom user-saved
+configs carry a flag snapshot:
 
 - **Full mode** — `navItems` = every path in `allNavItems` (nothing
-  hidden), `flagSnapshot` = each flag's `FLAG_REGISTRY` `defaultValue`
-  (i.e. applying Full mode resets flags to registry defaults, not
-  "whatever happens to be set right now").
+  hidden), `flagSnapshot` = `{}`.
 - **Demo mode** — starter subset (exact items TBD by the user after first
   use — ships with a reasonable default of top-level items per section,
-  freely editable/overwritable via "Save current selection" once live).
+  freely editable/overwritable via "Save current selection" once live),
+  `flagSnapshot` = `{}`.
 - **Learning** — starter subset oriented at walkthrough/education nav
-  items (same caveat — editable after first use).
+  items (same caveat — editable after first use), `flagSnapshot` = `{}`.
 
 New routes, `demo_api_server/routes/navConfigs.js`:
 

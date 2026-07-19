@@ -25,6 +25,7 @@ vi.mock("../ControlPlaneIntroModal", () => ({ default: () => null }));
 vi.mock("../KillSwitchConfirmModal", () => ({ default: () => null }));
 
 import AdminSideNav from "../AdminSideNav";
+import { NAV_ITEM_CATALOG } from "../../config/navItemsCatalog";
 
 const adminUser = { id: "4", username: "admin", role: "admin" };
 const customerUser = { id: "1", username: "customer", role: "customer" };
@@ -120,5 +121,12 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(await screen.findByText("Monitoring")).toBeInTheDocument();
     expect(screen.queryByText("Themes")).toBeNull();
     vi.unstubAllGlobals();
+  });
+
+  it("NAV_ITEM_CATALOG stays in sync with AdminSideNav's real top-level labels", () => {
+    renderNavAsUser(customerUser);
+    NAV_ITEM_CATALOG.forEach((label) => {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    });
   });
 });
