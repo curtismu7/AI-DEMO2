@@ -6593,158 +6593,7 @@ export default function BankingAgent({
           onTokenEvent: (ev) => tokenChain?.appendTokenEvent("agent", ev),
         });
         if (!cancelled && !signal.aborted) {
-          // Dispatch backend events to EventStream
-          if (response.events && Array.isArray(response.events)) {
-            const requestId = `req-${Date.now()}`;
-            response.events.forEach(event => {
-              addEvent({
-                ...event,
-                requestId: requestId || event.requestId,
-                timestamp: event.timestamp || new Date().toISOString(),
-              });
-            });
-          }
-          ingestActivity(response, text);
-          if (maybeHandleCustomerLogin(response, response.source)) return;
-          // HITL consent / step-up / authorization deny: these are valid gated responses, not errors.
-          // Show the agent reply (which explains the gate) and surface token events.
-          if (
-            response.error === "hitl_required" ||
-            response.error === "mcp_hitl_required" ||
-            response.error === "step_up_required" ||
-            response.error === "mcp_step_up_required" ||
-            response.error === "authorization_denied" ||
-            response.error === "mcp_authorization_denied"
-          ) {
-            // HITL/step-up blocks: show the pending-approval notice, not the raw
-            // error_description (same reasoning as the kind:'vertical' handler —
-            // the raw text reads as a canned refusal next to the approval modal).
-            // A hard DENY still echoes the reply, which explains the denial.
-            const isApprovalGate = [
-              "hitl_required",
-              "mcp_hitl_required",
-              "step_up_required",
-              "mcp_step_up_required",
-            ].includes(response.error);
-            const replyText = isApprovalGate
-              ? "This action needs your approval before it can run — check the approval prompt."
-              : (response.reply || "This action requires additional authorization.");
-            const replyWithAgentBadge = `[CUSTOMER AGENT]\n${replyText}`;
-            addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
-            if (response.tokenEvents?.length) {
-              appendTokenEvents(response.tokenEvents);
-              if (tokenChain) {
-                tokenChain.setTokenEvents("agent", response.tokenEvents);
-              }
-              const agentTokenMsg = buildTokenEventMsg(response.tokenEvents);
-              if (agentTokenMsg) {
-                addMessage("token-event", agentTokenMsg, null);
-              }
-            }
-            // Trigger the approval modal. Two shapes, both required here:
-            //   - banking transfers/deposits/withdrawals carry transactionAmount
-            //     → monetary consent intent (unchanged).
-            //   - vertical plugin tools (extend_rental, pay_bill, checkout, …)
-            //     carry NO amount → the isVerticalConsent shape, same as the
-            //     kind:'vertical' handler. Step-up (mcp_step_up_required) must
-            //     open it too; without this, Demo Steps UC7/UC8 printed the gate
-            //     text and never prompted the user.
-            if (isApprovalGate) {
-              if (response.transactionAmount != null) {
-                const intentPayload = {
-                  type: response.transactionType || "transfer",
-                  fromAccountId: response.fromAccountId || response.from_account_id,
-                  toAccountId: response.toAccountId || response.to_account_id,
-                  amount: response.transactionAmount,
-                  description: `Agent ${response.transactionType || "transfer"}`,
-                };
-                setHitlPendingIntent({
-                  actionId: response.transactionType || "transfer",
-                  form: {},
-                  intentPayload,
-                  threshold: response.hitl_threshold_usd ?? APP_CONFIG.THRESHOLDS.HITL_DEFAULT,
-                  hitlChallengeId: response.hitlChallengeId || response.challengeId || null,
-                });
-              } else {
-                const actionLabel = (response.action || "").replace(/_/g, " ");
-                const isStepUp =
-                  response.error === "step_up_required" ||
-                  response.error === "mcp_step_up_required" ||
-                  !!response.requiresStepUp ||
-                  !!response.step_up_required;
-                setHitlPendingIntent({
-                  isVerticalConsent: true,
-                  verticalMessage: text,
-                  // Retry opts must NOT carry the aborted-by-now signal.
-                  verticalOpts: { vertical: effectiveVerticalId, useCaseId, forceHeuristic: !!useCaseId },
-                  hitlChallengeId: response.hitlChallengeId || response.challengeId || null,
-                  tool: response.action || null,
-                  intentPayload: {
-                    type: isStepUp ? "Identity Verification Required" : "Action Confirmation",
-                    description: actionLabel.charAt(0).toUpperCase() + actionLabel.slice(1),
-                    amount: 0,
-                  },
-                });
-              }
-            }
-          } else if (response.error || !response.success) {
-            reportNlFailure({ code: response.error || "unknown", message: response.reply || response.message || response.error });
-            // Dispatch error event to EventStream
-            addEvent({
-              type: 'error',
-              message: response.error || 'Request failed',
-              plainEnglish: response.error || 'An error occurred',
-              technicalDetails: {
-                details: response.error || 'Unknown error',
-                response: response,
-              },
-              severity: 'error',
-              requestId: `req-${Date.now()}`,
-              timestamp: new Date().toISOString(),
-            });
-          } else {
-            const replyText = response.reply || AGENT_UNAVAILABLE_MESSAGE;
-            const replyWithAgentBadge = `[CUSTOMER AGENT]\n${replyText}`;
-            addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
-            // A2A teaching popup: auto-open after a successful A2A delegation,
-            // mirroring how RAR auto-explains. The response's own token events
-            // feed the modal's live values.
-            if (shouldAutoOpenA2a(response)) {
-              setA2aExplainUc({
-                id: 'A2A',
-                a2a: true,
-                title: 'Agent-to-Agent delegation',
-                whatLong: response.reply,
-                pingOneSolution: 'PingOne mints a nested RFC 8693 act chain; Authorize decides PERMIT/DENY over the chain.',
-              });
-              setA2aExplainEvents(Array.isArray(response.tokenEvents) ? response.tokenEvents : []);
-            }
-            if (response.tokenEvents?.length) {
-              appendTokenEvents(response.tokenEvents);
-              if (tokenChain) {
-                tokenChain.setTokenEvents("agent", response.tokenEvents);
-              }
-              const agentTokenMsg = buildTokenEventMsg(response.tokenEvents);
-              if (agentTokenMsg) {
-                addMessage("token-event", agentTokenMsg, null);
-              }
-            }
-            if (response.inputTokens || response.outputTokens) {
-              const inc = {
-                input: response.inputTokens ?? 0,
-                output: response.outputTokens ?? 0,
-              };
-              setSessionTokens((prev) => ({
-                input: prev.input + inc.input,
-                output: prev.output + inc.output,
-              }));
-              setLifetimeTokens((prev) => {
-                const next = { input: prev.input + inc.input, output: prev.output + inc.output };
-                try { localStorage.setItem('ba_tokens_lifetime', JSON.stringify(next)); } catch (_) {}
-                return next;
-              });
-            }
-          }
+          await handleNlResumeResponse(response, text, useCaseId);
         }
       } catch (e) {
         if (isAbortError(e)) return;
@@ -7088,6 +6937,255 @@ export default function BankingAgent({
       if (data.status === "approved") {
         agentFlowDiagram.completeMfaChallenge(true);
         runAction(actionId, form, { isRefire: true });
+        return;
+      }
+      // still pending
+      setTimeout(poll, intervalMs);
+    };
+    setTimeout(poll, intervalMs);
+  };
+
+  /**
+   * Shared response handler for the launcher/marketing NL-resume flow
+   * (nlResumeAfterAuth effect below). Extracted so the CIBA out-of-band
+   * retry (pollCibaThenResumeNl) can re-run the exact same HITL/error/success
+   * handling after approval, instead of duplicating it.
+   */
+  const handleNlResumeResponse = async (response, text, useCaseId) => {
+    // Dispatch backend events to EventStream
+    if (response.events && Array.isArray(response.events)) {
+      const requestId = `req-${Date.now()}`;
+      response.events.forEach(event => {
+        addEvent({
+          ...event,
+          requestId: requestId || event.requestId,
+          timestamp: event.timestamp || new Date().toISOString(),
+        });
+      });
+    }
+    ingestActivity(response, text);
+    if (maybeHandleCustomerLogin(response, response.source)) return;
+    // CIBA: out-of-band backchannel approval, forced for the UC22 demo
+    // use-case regardless of what the policy engine would otherwise show
+    // (consent modal / device picker). No HITL/step-up modal here -- initiate,
+    // then poll until approved (or, on this environment, the simulated
+    // fallback auto-approves after ~7s), then resume the same NL request.
+    if (
+      response.step_up_method === "ciba" &&
+      (response.error === "step_up_required" || response.error === "mcp_step_up_required")
+    ) {
+      try {
+        const apiBase = process.env.REACT_APP_API_URL || "";
+        const initRes = await fetch(`${apiBase}/api/auth/ciba/initiate`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            binding_message: "Approve your banking transaction",
+            acr_values: response.step_up_acr || "",
+          }),
+        });
+        if (!initRes.ok) throw new Error(`CIBA initiation failed: ${initRes.status}`);
+        const { auth_req_id, interval } = await initRes.json();
+        addMessage(
+          "assistant",
+          " Waiting for CIBA approval — approve out-of-band on your device, then this will continue automatically…",
+          `ciba-step-${Date.now()}`,
+        );
+        agentFlowDiagram.completeMfaChallenge(null);
+        pollCibaThenResumeNl(auth_req_id, (interval || 5) * 1000, text, useCaseId);
+      } catch (err) {
+        console.error("[BankingAgent] CIBA initiation failed:", err);
+        addMessage("assistant", "❌ Could not start CIBA approval. Please try again.", `ciba-error-${Date.now()}`);
+        agentFlowDiagram.completeMfaChallenge(false);
+      }
+      return;
+    }
+    // HITL consent / step-up / authorization deny: these are valid gated responses, not errors.
+    // Show the agent reply (which explains the gate) and surface token events.
+    if (
+      response.error === "hitl_required" ||
+      response.error === "mcp_hitl_required" ||
+      response.error === "step_up_required" ||
+      response.error === "mcp_step_up_required" ||
+      response.error === "authorization_denied" ||
+      response.error === "mcp_authorization_denied"
+    ) {
+      // HITL/step-up blocks: show the pending-approval notice, not the raw
+      // error_description (same reasoning as the kind:'vertical' handler —
+      // the raw text reads as a canned refusal next to the approval modal).
+      // A hard DENY still echoes the reply, which explains the denial.
+      const isApprovalGate = [
+        "hitl_required",
+        "mcp_hitl_required",
+        "step_up_required",
+        "mcp_step_up_required",
+      ].includes(response.error);
+      const replyText = isApprovalGate
+        ? "This action needs your approval before it can run — check the approval prompt."
+        : (response.reply || "This action requires additional authorization.");
+      const replyWithAgentBadge = `[CUSTOMER AGENT]\n${replyText}`;
+      addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
+      if (response.tokenEvents?.length) {
+        appendTokenEvents(response.tokenEvents);
+        if (tokenChain) {
+          tokenChain.setTokenEvents("agent", response.tokenEvents);
+        }
+        const agentTokenMsg = buildTokenEventMsg(response.tokenEvents);
+        if (agentTokenMsg) {
+          addMessage("token-event", agentTokenMsg, null);
+        }
+      }
+      // Trigger the approval modal. Two shapes, both required here:
+      //   - banking transfers/deposits/withdrawals carry transactionAmount
+      //     → monetary consent intent (unchanged).
+      //   - vertical plugin tools (extend_rental, pay_bill, checkout, …)
+      //     carry NO amount → the isVerticalConsent shape, same as the
+      //     kind:'vertical' handler. Step-up (mcp_step_up_required) must
+      //     open it too; without this, Demo Steps UC7/UC8 printed the gate
+      //     text and never prompted the user.
+      if (isApprovalGate) {
+        if (response.transactionAmount != null) {
+          const intentPayload = {
+            type: response.transactionType || "transfer",
+            fromAccountId: response.fromAccountId || response.from_account_id,
+            toAccountId: response.toAccountId || response.to_account_id,
+            amount: response.transactionAmount,
+            description: `Agent ${response.transactionType || "transfer"}`,
+          };
+          setHitlPendingIntent({
+            actionId: response.transactionType || "transfer",
+            form: {},
+            intentPayload,
+            threshold: response.hitl_threshold_usd ?? APP_CONFIG.THRESHOLDS.HITL_DEFAULT,
+            hitlChallengeId: response.hitlChallengeId || response.challengeId || null,
+          });
+        } else {
+          const actionLabel = (response.action || "").replace(/_/g, " ");
+          const isStepUp =
+            response.error === "step_up_required" ||
+            response.error === "mcp_step_up_required" ||
+            !!response.requiresStepUp ||
+            !!response.step_up_required;
+          setHitlPendingIntent({
+            isVerticalConsent: true,
+            verticalMessage: text,
+            // Retry opts must NOT carry the aborted-by-now signal.
+            verticalOpts: { vertical: effectiveVerticalId, useCaseId, forceHeuristic: !!useCaseId },
+            hitlChallengeId: response.hitlChallengeId || response.challengeId || null,
+            tool: response.action || null,
+            intentPayload: {
+              type: isStepUp ? "Identity Verification Required" : "Action Confirmation",
+              description: actionLabel.charAt(0).toUpperCase() + actionLabel.slice(1),
+              amount: 0,
+            },
+          });
+        }
+      }
+    } else if (response.error || !response.success) {
+      reportNlFailure({ code: response.error || "unknown", message: response.reply || response.message || response.error });
+      // Dispatch error event to EventStream
+      addEvent({
+        type: 'error',
+        message: response.error || 'Request failed',
+        plainEnglish: response.error || 'An error occurred',
+        technicalDetails: {
+          details: response.error || 'Unknown error',
+          response: response,
+        },
+        severity: 'error',
+        requestId: `req-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+      });
+    } else {
+      const replyText = response.reply || AGENT_UNAVAILABLE_MESSAGE;
+      const replyWithAgentBadge = `[CUSTOMER AGENT]\n${replyText}`;
+      addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
+      // A2A teaching popup: auto-open after a successful A2A delegation,
+      // mirroring how RAR auto-explains. The response's own token events
+      // feed the modal's live values.
+      if (shouldAutoOpenA2a(response)) {
+        setA2aExplainUc({
+          id: 'A2A',
+          a2a: true,
+          title: 'Agent-to-Agent delegation',
+          whatLong: response.reply,
+          pingOneSolution: 'PingOne mints a nested RFC 8693 act chain; Authorize decides PERMIT/DENY over the chain.',
+        });
+        setA2aExplainEvents(Array.isArray(response.tokenEvents) ? response.tokenEvents : []);
+      }
+      if (response.tokenEvents?.length) {
+        appendTokenEvents(response.tokenEvents);
+        if (tokenChain) {
+          tokenChain.setTokenEvents("agent", response.tokenEvents);
+        }
+        const agentTokenMsg = buildTokenEventMsg(response.tokenEvents);
+        if (agentTokenMsg) {
+          addMessage("token-event", agentTokenMsg, null);
+        }
+      }
+      if (response.inputTokens || response.outputTokens) {
+        const inc = {
+          input: response.inputTokens ?? 0,
+          output: response.outputTokens ?? 0,
+        };
+        setSessionTokens((prev) => ({
+          input: prev.input + inc.input,
+          output: prev.output + inc.output,
+        }));
+        setLifetimeTokens((prev) => {
+          const next = { input: prev.input + inc.input, output: prev.output + inc.output };
+          try { localStorage.setItem('ba_tokens_lifetime', JSON.stringify(next)); } catch (_) {}
+          return next;
+        });
+      }
+    }
+  };
+
+  /**
+   * CIBA out-of-band retry for the NL-resume flow (nlResumeAfterAuth effect):
+   * poll until approved/denied/expired, then resend the same NL prompt --
+   * mirrors pollCibaStepUp's runAction(actionId, form, { isRefire: true })
+   * resume shape, but there is no actionId/form here, only the original text.
+   */
+  const pollCibaThenResumeNl = (authReqId, intervalMs, text, useCaseId) => {
+    const apiBase = process.env.REACT_APP_API_URL || "";
+    const poll = async () => {
+      let res;
+      try {
+        res = await fetch(`${apiBase}/api/auth/ciba/poll/${authReqId}`, {
+          credentials: "include",
+        });
+      } catch (_) {
+        setTimeout(poll, intervalMs);
+        return;
+      }
+      if (res.status === 403 || res.status === 404 || res.status === 410) {
+        const data = await res.json().catch(() => ({}));
+        addMessage(
+          "assistant",
+          `❌ ${data.message || "CIBA approval was denied or expired. Please try again."}`,
+          `ciba-denied-${Date.now()}`,
+        );
+        agentFlowDiagram.completeMfaChallenge(false);
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (data.status === "approved") {
+        agentFlowDiagram.completeMfaChallenge(true);
+        setNlLoading(true);
+        try {
+          const response = await sendAgentMessage(text, null, {
+            vertical: effectiveVerticalId,
+            useCaseId,
+            forceHeuristic: !!useCaseId,
+          });
+          await handleNlResumeResponse(response, text, useCaseId);
+        } catch (e) {
+          if (!isAbortError(e)) reportNlFailure(e);
+        } finally {
+          setNlLoading(false);
+        }
         return;
       }
       // still pending
