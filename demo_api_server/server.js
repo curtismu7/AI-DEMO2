@@ -982,6 +982,8 @@ const { makeFeatureFlagsAuthGate } = require('./middleware/featureFlagsAuthGate'
 app.use('/api/admin/feature-flags', makeFeatureFlagsAuthGate(authenticateToken), featureFlagsRoutes);
 app.use('/api/admin/scope-audit', authenticateToken, require('./routes/scopeAudit'));
 app.use('/api/admin/token-compliance', authenticateToken, require('./routes/tokenCompliance'));
+app.use('/api/nav-configs', authenticateToken, require('./routes/navConfigs'));
+app.use('/api/user/nav-config', authenticateToken, require('./routes/userNavConfig'));
 app.use('/api/admin/lighthouse', authenticateToken, require('./routes/lighthouseRoute'));
 
 // Knowledge Assertions API — citation resolution for the chat UI + admin reload.
