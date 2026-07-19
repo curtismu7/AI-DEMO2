@@ -269,7 +269,7 @@ Request body (all optional except when login_hint is needed and not in session):
 `login_hint` is resolved in order:
 1. `req.body.login_hint`
 2. `req.user?.email`
-3. `req.session?.oauthUser?.email`
+3. `req.session?.user?.email`
 
 `binding_message` is validated: must be a string, max 256 chars; control
 characters are stripped to prevent log injection.
