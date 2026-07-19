@@ -8,8 +8,9 @@
  * aggregation, and cluster collapse are kept. Cluster grouping now comes from
  * SERVICE_CLUSTERS below instead of the deleted per-agent config.
  *
- * Consumes the raw Jaeger response `{ data: [trace] }` (as returned by
- * `/traces/:id/raw`) and produces:
+ * Consumes the raw Jaeger response `{ data: [trace, ...] }` — one trace (as
+ * returned by `/traces/:id/raw`) or many (as returned by `/overview/raw`,
+ * merged into a single graph) — and produces:
  *   buildGraph(jaegerResponse, opts)          → { nodes, edges, totalDurationMs, traceId, isCollapsed: false }
  *   buildCollapsedGraph(jaegerResponse, opts)  → same shape, isCollapsed: true
  */
@@ -112,27 +113,17 @@ function _spanSummary(span, tags, traceData, traceMinStart) {
 }
 
 /**
- * Build nodes and edges from the raw Jaeger response.
- * Returns { nodes, edges, totalDurationMs, traceId, isCollapsed: false }.
+ * Merge one trace's spans into the shared nodeMap/edgeMap accumulators.
+ * Called once per trace in the response; nodeMap/edgeMap persist across
+ * calls so a node or edge shared by two traces sums its counts rather than
+ * being overwritten. This is the exact per-trace body buildGraph always ran —
+ * only the accumulator lifetime changed (was function-local, now shared
+ * across N calls).
  */
-function buildGraph(jaegerResponse, opts = {}) {
-  const traceData = jaegerResponse?.data?.[0];
-  if (!traceData) return { nodes: [], edges: [], totalDurationMs: 0, traceId: '', isCollapsed: false };
-
+function _accumulateTrace(traceData, nodeMap, edgeMap, globalMinStart) {
   const spans = traceData.spans || [];
   const spanIndex = {};
   for (const s of spans) spanIndex[s.spanID] = s;
-
-  let traceMinStart = Infinity;
-  let traceMaxEnd = -Infinity;
-  for (const s of spans) {
-    if (s.startTime < traceMinStart) traceMinStart = s.startTime;
-    const end = s.startTime + s.duration;
-    if (end > traceMaxEnd) traceMaxEnd = end;
-  }
-  if (!Number.isFinite(traceMinStart)) traceMinStart = 0;
-
-  const nodeMap = {};
 
   for (const span of spans) {
     const raw = _serviceName(traceData, span);
@@ -164,32 +155,13 @@ function buildGraph(jaegerResponse, opts = {}) {
     if (status === 'error') node._hasError = true;
     else node._hasOk = true;
 
-    node.spans.push(_spanSummary(span, tags, traceData, traceMinStart));
+    node.spans.push(_spanSummary(span, tags, traceData, globalMinStart));
   }
-
-  for (const node of Object.values(nodeMap)) {
-    node.rawServices = [...node.rawServices].sort();
-    node.spans.sort((a, b) => a.startTimeOffsetMs - b.startTimeOffsetMs);
-    if (node._hasError && node._hasOk) node.status = 'mixed';
-    else if (node._hasError) node.status = 'error';
-    else node.status = 'ok';
-    delete node._hasOk;
-    delete node._hasError;
-  }
-
-  // Build edges from span parent-child relationships. Edges use raw service
-  // names as source/target IDs (matching nodeMap keys).
-  const edgeMap = {};
 
   for (const span of spans) {
     const childRaw = _serviceName(traceData, span);
     const tags = _tagsToObject(span.tags);
 
-    // External OAuth AS dependency: a client span calling an uninstrumented AS
-    // (PingOne) never crosses a service boundary in the trace. Model it as an
-    // external node + oauth edge so the demo's RFC 8693 token exchange is
-    // visible. This is the only edge derived off a client span rather than a
-    // cross-service reference.
     const asHost = _oauthEndpointHost(tags);
     if (asHost && tags['span.kind'] === 'client') {
       if (!nodeMap[asHost]) {
@@ -231,14 +203,10 @@ function buildGraph(jaegerResponse, opts = {}) {
         const k = String(oauthStatusCode);
         oauthEdge.outcomes[k] = (oauthEdge.outcomes[k] || 0) + 1;
       }
-      oauthEdge.spans.push(_spanSummary(span, tags, traceData, traceMinStart));
+      oauthEdge.spans.push(_spanSummary(span, tags, traceData, globalMinStart));
       continue;
     }
 
-    // Skip FastMCP application-layer spans — they propagate trace context via
-    // the JSON-RPC envelope, not HTTP headers, so their server spans are
-    // parented at the MCP client, bypassing the gateway. The HTTP transport
-    // layer creates the correct gateway→MCP edge.
     if (tags['otel.scope.name'] === 'fastmcp') continue;
 
     const parentRef = (span.references || []).find(r => r.refType === 'CHILD_OF');
@@ -258,8 +226,6 @@ function buildGraph(jaegerResponse, opts = {}) {
         targetLabel: _labelFor(childRaw),
         role: meta.role,
         protocol: meta.protocol,
-        // meta.kind (e.g. 'oauth'/'authz') drives dash rendering; undefined for
-        // plain HTTP edges → solid line.
         exchangeKind: meta.kind,
         callCount: 0,
         totalDurationMs: 0,
@@ -278,7 +244,46 @@ function buildGraph(jaegerResponse, opts = {}) {
       edge.outcomes[key] = (edge.outcomes[key] || 0) + 1;
     }
 
-    edge.spans.push(_spanSummary(span, tags, traceData, traceMinStart));
+    edge.spans.push(_spanSummary(span, tags, traceData, globalMinStart));
+  }
+}
+
+/**
+ * Build nodes and edges from the raw Jaeger response — one trace or many.
+ * Returns { nodes, edges, totalDurationMs, traceId, isCollapsed: false }.
+ * traceId is set only when the response carries exactly one trace.
+ */
+function buildGraph(jaegerResponse, opts = {}) {
+  const traces = (Array.isArray(jaegerResponse?.data) ? jaegerResponse.data : []).filter(Boolean);
+  if (traces.length === 0) {
+    return { nodes: [], edges: [], totalDurationMs: 0, traceId: '', isCollapsed: false };
+  }
+
+  let globalMinStart = Infinity;
+  let globalMaxEnd = -Infinity;
+  for (const traceData of traces) {
+    for (const s of traceData.spans || []) {
+      if (s.startTime < globalMinStart) globalMinStart = s.startTime;
+      const end = s.startTime + s.duration;
+      if (end > globalMaxEnd) globalMaxEnd = end;
+    }
+  }
+  if (!Number.isFinite(globalMinStart)) globalMinStart = 0;
+
+  const nodeMap = {};
+  const edgeMap = {};
+  for (const traceData of traces) {
+    _accumulateTrace(traceData, nodeMap, edgeMap, globalMinStart);
+  }
+
+  for (const node of Object.values(nodeMap)) {
+    node.rawServices = [...node.rawServices].sort();
+    node.spans.sort((a, b) => a.startTimeOffsetMs - b.startTimeOffsetMs);
+    if (node._hasError && node._hasOk) node.status = 'mixed';
+    else if (node._hasError) node.status = 'error';
+    else node.status = 'ok';
+    delete node._hasOk;
+    delete node._hasError;
   }
 
   for (const edge of Object.values(edgeMap)) {
@@ -288,7 +293,9 @@ function buildGraph(jaegerResponse, opts = {}) {
     edge.spans.sort((a, b) => a.startTimeOffsetMs - b.startTimeOffsetMs);
   }
 
-  const totalDurationMs = spans.length > 0 ? Math.round((traceMaxEnd - traceMinStart) / 1000) : 0;
+  const totalDurationMs = (Number.isFinite(globalMaxEnd) && globalMaxEnd > globalMinStart)
+    ? Math.round((globalMaxEnd - globalMinStart) / 1000)
+    : 0;
   const nodes = Object.values(nodeMap);
   const nodeIds = new Set(nodes.map(n => n.id));
   const edges = Object.values(edgeMap).filter(
@@ -299,7 +306,7 @@ function buildGraph(jaegerResponse, opts = {}) {
     nodes,
     edges,
     totalDurationMs,
-    traceId: traceData.traceID || '',
+    traceId: traces.length === 1 ? (traces[0].traceID || '') : '',
     isCollapsed: false,
   };
 }
@@ -310,8 +317,8 @@ function buildGraph(jaegerResponse, opts = {}) {
  * edges are dropped; inter-cluster edges are re-mapped and aggregated.
  */
 function buildCollapsedGraph(jaegerResponse, opts = {}) {
-  const traceData = jaegerResponse?.data?.[0];
-  if (!traceData) return { nodes: [], edges: [], totalDurationMs: 0, traceId: '', isCollapsed: true };
+  const traces = (Array.isArray(jaegerResponse?.data) ? jaegerResponse.data : []).filter(Boolean);
+  if (traces.length === 0) return { nodes: [], edges: [], totalDurationMs: 0, traceId: '', isCollapsed: true };
 
   const full = buildGraph(jaegerResponse, opts);
   const { nodes: fullNodes, edges: fullEdges, totalDurationMs, traceId } = full;

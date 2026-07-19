@@ -138,3 +138,109 @@ describe("traceGraph model", () => {
     expect(mergedEdge.callCount).toBe(serverEdge.callCount + investEdge.callCount);
   });
 });
+
+// Two-trace merge fixtures: a shared source->target edge across two synthetic
+// traces must sum callCount, not overwrite it (first-write-wins would silently
+// drop trace 2's calls). Distinguishable, non-symmetric counts (2 + 3 = 5) rule
+// out a coincidental pass.
+function makeTwoTraceOverview() {
+  const mkTrace = (traceID, childCallCount, startBase) => {
+    const mkRef = (spanID) => [{ refType: "CHILD_OF", traceID, spanID }];
+    const spans = [
+      {
+        traceID, spanID: `${traceID}-root`, operationName: "GET /mcp",
+        references: [], startTime: startBase, duration: 5000, tags: [], logs: [], processID: "p1",
+      },
+      ...Array.from({ length: childCallCount }, (_, i) => ({
+        traceID, spanID: `${traceID}-c${i}`, operationName: `banking-call-${i + 1}`,
+        references: mkRef(`${traceID}-root`), startTime: startBase + 1000 + i * 100,
+        duration: 200, tags: [], logs: [], processID: "p2",
+      })),
+    ];
+    return {
+      traceID, spans,
+      processes: { p1: { serviceName: "mcp-gateway" }, p2: { serviceName: "mcp-server" } },
+    };
+  };
+  return {
+    data: [
+      mkTrace("overviewtraceA00000000000000001", 2, 1_000_000),
+      mkTrace("overviewtraceB00000000000000002", 3, 2_000_000),
+    ],
+  };
+}
+
+describe("traceGraph model — multi-trace overview", () => {
+  test("merges N traces into one graph: shared edge sums callCount across traces", () => {
+    const overview = makeTwoTraceOverview();
+    const g = buildGraph(overview, {});
+    expect(g.nodes.map((n) => n.id).sort()).toEqual(["mcp-gateway", "mcp-server"]);
+    expect(g.edges).toHaveLength(1);
+    const edge = g.edges[0];
+    expect(edge.source).toBe("mcp-gateway");
+    expect(edge.target).toBe("mcp-server");
+    expect(edge.callCount).toBe(5); // 2 (trace A) + 3 (trace B)
+    expect(edge.avgDurationMs).toBe(Math.round(edge.totalDurationMs / 5));
+  });
+
+  test("node callCount sums across traces too", () => {
+    const overview = makeTwoTraceOverview();
+    const g = buildGraph(overview, {});
+    const gateway = g.nodes.find((n) => n.id === "mcp-gateway");
+    // 1 root span per trace (2 traces) = 2 calls on mcp-gateway
+    expect(gateway.callCount).toBe(2);
+    const server = g.nodes.find((n) => n.id === "mcp-server");
+    expect(server.callCount).toBe(5); // 2 + 3 child spans
+  });
+
+  test("traceId is empty for a multi-trace overview, set for a single trace", () => {
+    const overview = makeTwoTraceOverview();
+    expect(buildGraph(overview, {}).traceId).toBe("");
+    const single = { data: [overview.data[0]] };
+    expect(buildGraph(single, {}).traceId).toBe("overviewtraceA00000000000000001");
+  });
+
+  test("totalDurationMs spans the full window across all contributing traces", () => {
+    const overview = makeTwoTraceOverview();
+    const g = buildGraph(overview, {});
+    // trace A starts at 1_000_000us, trace B's last child ends at
+    // 2_000_000 + 1000 + 200*100 + 200 = 2_021_200us -> window ~1021.2ms
+    expect(g.totalDurationMs).toBeGreaterThan(1000);
+  });
+
+  test("empty data array yields the same empty-graph shape as today's no-trace case", () => {
+    const g = buildGraph({ data: [] }, {});
+    expect(g).toEqual({ nodes: [], edges: [], totalDurationMs: 0, traceId: "", isCollapsed: false });
+  });
+
+  test("buildCollapsedGraph collapses a multi-trace overview the same way it collapses one trace", () => {
+    const overview = makeTwoTraceOverview();
+    const full = buildGraph(overview, {});
+    const collapsed = buildCollapsedGraph(overview, {});
+    expect(collapsed.isCollapsed).toBe(true);
+    expect(collapsed.nodes.map((n) => n.id).sort()).toEqual(["Gateway", "MCP Servers"]);
+    expect(collapsed.edges).toHaveLength(1);
+    expect(collapsed.edges[0].callCount).toBe(5);
+  });
+
+  // The synthetic fixtures above prove the merge algebra; this proves it against
+  // real captured Jaeger shapes — the two already-committed single-trace
+  // fixtures combined into one payload, structurally identical to what
+  // /overview/raw actually returns (many real traces, one response).
+  test("a real multi-trace overview (both committed fixtures combined) yields nodes from every service in both traces", () => {
+    const overview = { data: [agentFixture.data[0], chipFixture.data[0]] };
+    const g = buildGraph(overview, {});
+    const nodeIds = new Set(g.nodes.map((n) => n.id));
+    const agentServices = new Set(
+      Object.values(agentFixture.data[0].processes).map((p) => p.serviceName),
+    );
+    const chipServices = new Set(
+      Object.values(chipFixture.data[0].processes).map((p) => p.serviceName),
+    );
+    // agent-service (from trace-agent-run.json) plus demo-api-server,
+    // mcp-gateway, mcp-server, authz-server (from trace-chip-run.json).
+    for (const svc of [...agentServices, ...chipServices]) {
+      expect(nodeIds.has(svc)).toBe(true);
+    }
+  });
+});

@@ -1,234 +1,263 @@
 /* demo_api_ui/src/pages/TelemetryPage.css */
+
 .telemetry-page {
-  padding: 16px 24px;
+  padding: 20px;
+  background: #f9fafb;
+  min-height: 100vh;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.telemetry-header {
   display: flex;
-  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
   gap: 16px;
-  height: 100%;
+  margin-bottom: 12px;
 }
 
-.telemetry-header h1 {
-  font-size: 24px;
-  color: #2c3e50;
-  margin: 0;
-}
+.telemetry-header h1 { margin: 0; font-size: 24px; font-weight: 700; color: #111827; }
 
-.telemetry-header p {
-  color: #7f8c8d;
-  font-size: 13px;
-  margin: 4px 0 0;
-}
+.telemetry-subtitle { margin: 4px 0 0 0; font-size: 14px; color: #4b5563; max-width: 52rem; }
 
-.telemetry-body {
-  display: flex;
-  gap: 16px;
-  flex: 1;
-  min-height: 0;
-}
+.telemetry-header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 
-.telemetry-controls {
-  width: 280px;
-  flex-shrink: 0;
-  background: #fff;
-  border: 1px solid #e3e6e8;
-  border-radius: 8px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  overflow-y: auto;
-}
-
-.telemetry-control-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.telemetry-control-group select,
-.telemetry-control-group input[type="text"] {
-  padding: 8px;
-  border: 1px solid #bdc3c7;
-  border-radius: 4px;
-  font-size: 13px;
-}
-
-.telemetry-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: #2c3e50;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.telemetry-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: #2c3e50;
-}
-
-.telemetry-button-row {
-  display: flex;
-  gap: 8px;
-}
+.telemetry-meta { font-size: 13px; color: #6b7280; white-space: nowrap; }
 
 .telemetry-btn {
-  flex: 1;
-  padding: 9px 12px;
-  border: none;
-  border-radius: 4px;
+  padding: 6px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111827;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
 }
+.telemetry-btn:hover { background: #f3f4f6; }
 
-.telemetry-btn--primary { background: #3498db; color: #fff; }
-.telemetry-btn--primary:hover { background: #2980b9; }
-.telemetry-btn--secondary { background: #ecf0f1; color: #2c3e50; }
-.telemetry-btn--secondary:hover { background: #d5dbdd; }
-.telemetry-btn--danger { background: #e74c3c; color: #fff; }
-.telemetry-btn--danger:hover { background: #c0392b; }
-
-.telemetry-stats {
-  background: #f4f6f7;
-  border-radius: 4px;
-  padding: 12px;
-  font-size: 12px;
-  color: #2c3e50;
+.telemetry-mode-tabs {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  width: fit-content;
+  background: #ffffff;
+  margin-bottom: 16px;
 }
 
-.telemetry-stats > div {
-  display: flex;
-  justify-content: space-between;
-}
-
-.telemetry-stat-error { color: #e74c3c; }
-
-.telemetry-trace-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 220px;
-  overflow-y: auto;
-}
-
-.telemetry-trace-item {
-  width: 100%;
-  text-align: left;
-  background: #f8f9fa;
+.telemetry-mode-tab {
+  padding: 7px 16px;
   border: none;
-  border-left: 3px solid #3498db;
-  border-radius: 2px;
-  padding: 8px;
-  font-size: 11px;
+  border-radius: 7px;
+  background: transparent;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
+}
+.telemetry-mode-tab:hover { color: #374151; }
+.telemetry-mode-tab--active { background: #1d4ed8; color: #fff; }
+
+.telemetry-filters { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 16px; }
+
+.telemetry-filter {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-}
-
-.telemetry-trace-item:hover { background: #ecf0f1; }
-.telemetry-trace-item--selected { border-left-color: #e74c3c; background: #fdf3f2; }
-.telemetry-trace-empty { font-size: 11px; color: #95a5a6; }
-
-.telemetry-updated {
-  font-size: 11px;
-  color: #95a5a6;
-  margin-top: auto;
-}
-
-.telemetry-canvas {
-  flex: 1;
-  min-width: 0;
-  background: #fff;
-  border: 1px solid #e3e6e8;
-  border-radius: 8px;
-  position: relative;
-  overflow: hidden;
-}
-
-.telemetry-svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-  touch-action: none;
-}
-
-.telemetry-node { cursor: grab; }
-.telemetry-node:active { cursor: grabbing; }
-
-.telemetry-node-label {
+  gap: 4px;
   font-size: 12px;
   font-weight: 600;
-  fill: #2c3e50;
-  pointer-events: none;
+  color: #374151;
+}
+.telemetry-filter select {
+  min-width: 200px;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
 }
 
-.telemetry-node-latency {
-  font-size: 10px;
-  fill: #95a5a6;
-  pointer-events: none;
+.telemetry-trace-picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 16px;
+}
+.telemetry-trace-picker select {
+  min-width: 340px;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 400;
+  color: #111827;
 }
 
-.telemetry-node-latency--error { fill: #e74c3c; }
+.tracing-detail { padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; }
+.tracing-detail--msg { color: #6b7280; font-size: 13px; }
+.tracing-detail--error { color: #b91c1c; }
 
-.telemetry-edge-label {
-  font-size: 10px;
-  fill: #566573;
-  /* White halo: labels render in the topmost layer and stay readable over
-     colored ribbons and card edges. */
-  paint-order: stroke;
-  stroke: #fff;
-  stroke-width: 4px;
-  stroke-linejoin: round;
-}
-
-.telemetry-empty {
-  position: absolute;
-  inset: 0;
+/* ── Trace service graph (TraceGraphCore + D3 renderer) — copied verbatim
+   from TracingPage.css; each page's CSS is self-contained (no cross-page
+   imports), so both pages carry their own copy of these rules. ───────────── */
+.tracing-graph {
+  position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  color: #7f8c8d;
-  font-size: 14px;
-  text-align: center;
-  padding: 24px;
+  gap: 10px;
 }
 
-.telemetry-legend {
-  position: absolute;
-  bottom: 12px;
-  left: 16px;
+.tracing-graph-controls {
   display: flex;
-  gap: 14px;
   align-items: center;
-  font-size: 11px;
-  color: #2c3e50;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 4px;
-  padding: 6px 10px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  gap: 16px;
 }
 
-.telemetry-legend-dot {
-  display: inline-block;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  vertical-align: -1px;
-  margin-right: 4px;
+.tracing-graph-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
 }
 
-.telemetry-legend-dot--ok { background: #fff; border: 2px solid #b7bec4; }
-.telemetry-legend-dot--error { background: #fff; border: 2px solid #e74c3c; }
-.telemetry-legend-hint { color: #95a5a6; }
+.tracing-graph-canvas {
+  position: relative;
+  width: 100%;
+  height: 460px;
+  min-height: 220px;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  background: #0b1220;
+  overflow: auto;
+  resize: vertical;
+}
+
+.tracing-graph-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+
+.tracing-graph-node-group,
+.tracing-graph-edge-group {
+  cursor: pointer;
+}
+
+.tracing-graph-node-label {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  pointer-events: none;
+}
+
+.tracing-graph-edge-label {
+  pointer-events: none;
+}
+
+.tracing-graph-edge-label text {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.tracing-graph-dimmed {
+  opacity: 0.18;
+  transition: opacity 0.15s ease;
+}
+
+.tracing-graph-tooltip {
+  position: fixed;
+  z-index: 50;
+  max-width: 280px;
+  padding: 8px 10px;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.tracing-graph-tooltip strong { color: #f1f5f9; font-weight: 600; }
+.tracing-graph-tooltip-muted { color: #94a3b8; }
+.tracing-graph-tooltip-hr { border: none; border-top: 1px solid #334155; margin: 5px 0; }
+.tracing-graph-hidden { display: none; }
+
+.tracing-graph-zoom { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; }
+.tracing-graph-zoom-btn {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: #1e293b;
+  color: #e2e8f0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+.tracing-graph-zoom-btn:hover { background: #334155; }
+
+.tracing-graph-panel {
+  position: absolute;
+  top: 46px;
+  right: 12px;
+  width: 320px;
+  max-height: 480px;
+  overflow-y: auto;
+  padding: 14px 16px;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #e2e8f0;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.tracing-graph-panel h3 { margin: 10px 0 8px 0; font-size: 15px; font-weight: 600; color: #f1f5f9; }
+
+.tracing-graph-panel-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0 0 12px 0;
+  font-size: 12px;
+}
+.tracing-graph-panel-facts dt { color: #94a3b8; font-weight: 600; }
+.tracing-graph-panel-facts dd { margin: 0; color: #e2e8f0; font-variant-numeric: tabular-nums; }
+
+.tracing-graph-panel-spans {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid #1e293b;
+  padding-top: 10px;
+}
+.tracing-graph-panel-spans .tracing-span-row { grid-template-columns: 1fr auto; color: #cbd5e1; }
+.tracing-graph-panel-spans .tracing-span-dur { color: #94a3b8; }
+
+.tracing-btn {
+  padding: 6px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tracing-btn--secondary { background: #f9fafb; }
+
+.tracing-span-row { display: grid; grid-template-columns: 260px 1fr 72px; align-items: center; gap: 8px; font-size: 12px; }
+.tracing-span-op { text-overflow: ellipsis; overflow: hidden; }
+.tracing-span-dur { text-align: right; color: #6b7280; font-variant-numeric: tabular-nums; }
