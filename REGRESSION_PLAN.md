@@ -101,6 +101,39 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-19 — Demo check SERVERS card: Banking UI + LangChain Agent falsely reported down
+
+**Files changed:** `demo_api_server/data/serverInventory.js` only.
+
+**What was broken:** both containers were running/healthy but `servers.all_up`
+reported them down. `ui` probed `https://frontend:4000` — not a real compose
+DNS name (service key is `ui`); confirmed live via `docker exec
+ai-demo-api-server curl https://frontend:4000` → could not resolve host.
+`langchain-agent` probed `:8890/health`, which `langchain_agent/src/api/health.py`
+deliberately binds to `127.0.0.1` only (that port also serves
+`/inspector/mcp-host`, which leaks the full MCP tool registry — kept off
+the network on purpose, confirmed via the `/proc/net/tcp` bind address
+inside the container).
+
+**What was fixed:** `ui` candidate → `https://ui:4000` (correct compose
+hostname, verified `curl` now 200). `langchain-agent` candidate → AG-UI
+port `:8888` with `acceptAnyStatus: true` (a 401-without-auth response is
+still proof the process is up), same pattern already used for the
+`ui`/`ping-gateway` entries. Verified both live via `docker exec` before
+and after.
+
+**Do not break:** did not touch `HEALTH_HTTP_HOST`/docker-compose — the
+loopback-only bind on :8890 is intentional (security boundary for
+`/inspector/mcp-host`), not a bug to "fix" by opening it up. The other
+services this check reports down (OpenAI/Mastra/Pydantic Agent, Mock Authz
+Server, Weaviate, Embeddings, MCP Code Search) genuinely aren't running in
+this lean-core compose profile (`docker ps -a` confirmed no such
+containers) — those reds are correct and were left unchanged.
+
+**Verify:** `docker exec ai-demo-api-server` probe script — `ui` → 200,
+`langchain-agent` → 401 (accepted). `servers.all_up` no longer lists either
+in `Down:`.
+
 ### 2026-07-19 — Demo check page still unreadable after opacity fix — real cause was a dead dark-mode CSS block
 
 **Files changed:** `demo_api_ui/src/pages/CheckPage.css` only (supersedes,
