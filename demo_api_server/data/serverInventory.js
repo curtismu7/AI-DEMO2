@@ -85,18 +85,24 @@ const SERVER_INVENTORY = [
   {
     key: 'openai-agent', name: 'OpenAI Agent', container: 'ai-demo-openai-agent',
     hostPort: 8891, internalPort: 8891, lang: 'Python (uvicorn)', category: 'agents', sourceDir: 'openai_agent', probe: true,
+    // docker-compose.yml profiles:["agents"] — off by default in lean-core.
+    optional: true,
     candidates: candidates('http://openai-agent:8891', 'http://localhost:8891'),
     purpose: 'OpenAI-SDK agent runtime variant.',
   },
   {
     key: 'mastra-agent', name: 'Mastra Agent', container: 'ai-demo-mastra-agent',
     hostPort: 8892, internalPort: 8892, lang: 'Node/TS (Mastra)', category: 'agents', sourceDir: 'mastra_agent', probe: true,
+    // docker-compose.yml profiles:["agents"] — off by default in lean-core.
+    optional: true,
     candidates: candidates('http://mastra-agent:8892', 'http://localhost:8892'),
     purpose: 'Mastra agent runtime variant.',
   },
   {
     key: 'pydantic-agent', name: 'Pydantic Agent', container: 'ai-demo-pydantic-agent',
     hostPort: 8893, internalPort: 8893, lang: 'Python (uvicorn)', category: 'agents', sourceDir: 'pydantic_agent', probe: true,
+    // docker-compose.yml profiles:["agents"] — off by default in lean-core.
+    optional: true,
     candidates: candidates('http://pydantic-agent:8893', 'http://localhost:8893'),
     purpose: 'Pydantic-AI agent runtime variant.',
   },
@@ -109,6 +115,8 @@ const SERVER_INVENTORY = [
   {
     key: 'authz-server', name: 'Mock Authz Server', container: 'ai-demo-authz-server',
     hostPort: 9001, internalPort: 9001, lang: 'Node', category: 'authz', sourceDir: 'demo_authz_server', probe: true,
+    // docker-compose.yml profiles:["demo-auth"] — off by default in lean-core.
+    optional: true,
     candidates: candidates('http://authz-server:9001', 'http://localhost:9001'),
     purpose: 'Mock PingOne Authorization — token introspection + policy decisions.',
   },
@@ -122,18 +130,24 @@ const SERVER_INVENTORY = [
     key: 'weaviate', name: 'Weaviate', container: 'ai-demo-weaviate',
     hostPort: null, internalPort: 8080, lang: 'Go (vector DB)', category: 'ai-infra', sourceDir: null, probe: true,
     healthPath: '/v1/meta',
+    // docker-compose.yml profiles:["rag"] — off by default in lean-core.
+    optional: true,
     candidates: candidates(env('WEAVIATE_URL'), 'http://weaviate:8080'),
     purpose: 'Vector DB backing RAG code search. Internal only — no host port.',
   },
   {
     key: 'embeddings', name: 'Embeddings (llama.cpp)', container: 'ai-demo-embeddings',
     hostPort: 8084, internalPort: 8080, lang: 'llama.cpp server', category: 'ai-infra', sourceDir: null, probe: true,
+    // docker-compose.yml profiles:["rag"] — off by default in lean-core.
+    optional: true,
     candidates: candidates(env('EMBEDDINGS_URL'), 'http://embeddings:8080', 'http://localhost:8084'),
     purpose: 'OpenAI-compatible /v1/embeddings (nomic-embed-text GGUF); warms up to 180s.',
   },
   {
     key: 'mcp-code-search', name: 'MCP Code Search', container: 'ai-demo-mcp-code-search',
     hostPort: 8095, internalPort: 8095, lang: 'Node', category: 'ai-infra', sourceDir: 'demo_mcp_code_search', probe: true,
+    // docker-compose.yml profiles:["rag"] — off by default in lean-core.
+    optional: true,
     candidates: candidates(env('MCP_CODE_SEARCH_URL'), 'http://demo-mcp-code-search:8095', 'http://localhost:8095'),
     purpose: 'RAG code-search MCP service over weaviate + embeddings.',
   },
