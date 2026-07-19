@@ -98,6 +98,7 @@ export default function LiveUseCaseWorkbenchPage() {
         tokenChainTraceStore.completeTrace(data.status < 400);
       })
       .catch((err) => {
+        tokenChainTraceStore.completeTrace(false);
         setRunState({ id: uc.id, state: 'error', msg: err.message || 'Attack simulation failed' });
       });
   }, []);
