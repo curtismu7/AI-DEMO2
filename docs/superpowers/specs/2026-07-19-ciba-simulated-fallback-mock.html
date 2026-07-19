@@ -1,0 +1,538 @@
+<title>CIBA Simulated Fallback — Storyboard</title>
+<style>
+  :root {
+    --canvas: #eef1f6;
+    --canvas-line: #d7dce6;
+    --ink: #1a2233;
+    --ink-soft: #4b5563;
+    --ink-faint: #8790a3;
+    --panel: #ffffff;
+    --panel-border: #e2e6ed;
+    --header-dark: #0f172a;
+    --navy: #1d4ed8;
+    --navy-dark: #1e40af;
+    --amber: #b45309;
+    --amber-bg: #fef3e2;
+    --green: #16a34a;
+    --green-bg: #eafbef;
+    --internal: #6d28d9;
+    --internal-bg: #f5f1fd;
+    --internal-border: #ded1f7;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --radius: 10px;
+  }
+  :root[data-theme="dark"] {
+    --canvas: #10141d;
+    --canvas-line: #232b3a;
+    --ink: #e7ebf3;
+    --ink-soft: #b6bfd0;
+    --ink-faint: #7a8296;
+    --panel: #171e2b;
+    --panel-border: #2a3244;
+    --header-dark: #060a12;
+    --navy: #5b8def;
+    --navy-dark: #7ea6f4;
+    --amber: #e2a13c;
+    --amber-bg: #2c220f;
+    --green: #4ade80;
+    --green-bg: #10261a;
+    --internal: #b399f0;
+    --internal-bg: #211a33;
+    --internal-border: #382a58;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --canvas: #10141d;
+      --canvas-line: #232b3a;
+      --ink: #e7ebf3;
+      --ink-soft: #b6bfd0;
+      --ink-faint: #7a8296;
+      --panel: #171e2b;
+      --panel-border: #2a3244;
+      --header-dark: #060a12;
+      --navy: #5b8def;
+      --navy-dark: #7ea6f4;
+      --amber: #e2a13c;
+      --amber-bg: #2c220f;
+      --green: #4ade80;
+      --green-bg: #10261a;
+      --internal: #b399f0;
+      --internal-bg: #211a33;
+      --internal-border: #382a58;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--canvas);
+    background-image:
+      linear-gradient(var(--canvas-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--canvas-line) 1px, transparent 1px);
+    background-size: 28px 28px;
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 48px 32px 96px;
+  }
+
+  header.page {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--internal);
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(28px, 3.4vw, 38px);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .dek {
+    max-width: 62ch;
+    color: var(--ink-soft);
+    font-size: 15.5px;
+    line-height: 1.6;
+    margin: 0;
+  }
+  .dek code { font-family: var(--mono); font-size: 0.92em; }
+
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 22px;
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--panel-border);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--ink-faint);
+  }
+  .meta-row b { color: var(--ink-soft); font-weight: 600; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin: 30px 0 40px;
+    padding: 14px 18px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    font-size: 13px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 8px; color: var(--ink-soft); }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+  .swatch.user { background: var(--navy); }
+  .swatch.internal { background: var(--internal); }
+
+  .filmstrip {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    align-items: stretch;
+  }
+  @media (max-width: 980px) {
+    .filmstrip { grid-template-columns: 1fr; }
+    .arrow { transform: rotate(90deg); }
+  }
+
+  .frame {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+  }
+  .frame-index {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .frame-index .t {
+    color: var(--ink-soft);
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  /* ---- product mockup shell (matches CIBAPanel/toast tokens) ---- */
+  .mock {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    min-height: 258px;
+    display: flex;
+    flex-direction: column;
+    font-family: var(--sans);
+  }
+  .mock-head {
+    background: var(--header-dark);
+    color: #fff;
+    padding: 12px 14px 10px;
+    flex: none;
+  }
+  .mock-title { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .mock-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.14);
+  }
+  .mock-sub { font-size: 10.5px; color: rgba(255,255,255,0.6); margin-top: 3px; }
+  .mock-body {
+    padding: 14px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 12px;
+  }
+  .field-label { font-size: 10.5px; color: var(--ink-faint); }
+  .field {
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 11.5px;
+    color: var(--ink-faint);
+    background: color-mix(in srgb, var(--panel) 92%, var(--ink-faint) 8%);
+  }
+  .btn {
+    align-self: flex-start;
+    background: var(--navy);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+  }
+  .btn.ghost {
+    background: transparent;
+    border: 1px solid var(--panel-border);
+    color: var(--ink-soft);
+  }
+  .status-line { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; }
+  .status-line.pending { color: var(--amber); }
+  .status-line.approved { color: var(--green); }
+  .timer { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink-faint); font-size: 11px; }
+  .poll-log {
+    margin-top: 2px;
+    border-top: 1px dashed var(--panel-border);
+    padding-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .poll-line { font-family: var(--mono); font-size: 10.5px; color: var(--ink-faint); }
+  .poll-line.new { color: var(--ink-soft); }
+  .notice {
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .notice.pending-notice { background: var(--amber-bg); color: var(--amber); }
+  .notice.approved-notice { background: var(--green-bg); color: var(--green); }
+  .toast {
+    margin-top: auto;
+    background: var(--header-dark);
+    color: #fff;
+    border-radius: 6px;
+    padding: 9px 10px;
+    font-size: 11px;
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .toast .row { display: flex; gap: 6px; }
+  .toast .btn { padding: 5px 10px; font-size: 10.5px; }
+  .toast.success { background: var(--green-bg); color: var(--green); }
+  .toast.success b { color: inherit; }
+
+  .arrow {
+    display: none;
+  }
+  @media (min-width: 981px) {
+    .connector {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--canvas-line);
+      font-size: 20px;
+    }
+  }
+
+  /* ---- internal annotation card ---- */
+  .annotation {
+    margin-top: 10px;
+    border: 1px dashed var(--internal-border);
+    background: var(--internal-bg);
+    border-radius: 8px;
+    padding: 10px 11px;
+    flex: 1;
+  }
+  .annotation .tag {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--internal);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: block;
+  }
+  .annotation p {
+    margin: 0;
+    font-size: 11.5px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+  }
+  .annotation code {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    background: color-mix(in srgb, var(--internal-bg) 40%, var(--panel) 60%);
+    border: 1px solid var(--internal-border);
+    border-radius: 4px;
+    padding: 0px 4px;
+    color: var(--internal);
+    white-space: nowrap;
+  }
+
+  .grid-row {
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    gap: 14px;
+    align-items: start;
+    margin-top: 6px;
+  }
+  .grid-row .frame { grid-column: span 2; }
+  .grid-row .connector { grid-column: span 1; margin-top: 90px; }
+  @media (max-width: 980px) {
+    .grid-row { grid-template-columns: 1fr; }
+    .grid-row .frame { grid-column: auto; }
+    .grid-row .connector { display: none; }
+  }
+
+  footer.page {
+    margin-top: 56px;
+    padding-top: 18px;
+    border-top: 1px solid var(--panel-border);
+    font-size: 12.5px;
+    color: var(--ink-faint);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  footer.page code { font-family: var(--mono); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .frame { transition: transform 0.15s ease; }
+    .frame:hover { transform: translateY(-2px); }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="page">
+    <span class="eyebrow">Reference storyboard — not shipped UI</span>
+    <h1>CIBA Simulated Fallback</h1>
+    <p class="dek">
+      Five states of <code>CIBAPanel.js</code>'s "Try It" tab and the transfer
+      step-up bridge, when PingOne's <code>/as/bc-authorize</code> fails and
+      <code>ciba_failover_mode=fallback_simulated</code> takes over. The panel
+      on top of each frame is what the user actually sees — <b>pixel-identical
+      to today</b>. The card underneath is what's true internally at that
+      moment and does not render anywhere in the app.
+    </p>
+    <div class="meta-row">
+      <span><b>Spec</b> 2026-07-19-ciba-simulated-fallback-design.md</span>
+      <span><b>Env</b> 01d89b06-66d5-430e-9f28-65636843788b</span>
+      <span><b>Scope</b> demo_api_server only — zero UI diff</span>
+    </div>
+  </header>
+
+  <div class="legend">
+    <div class="legend-item"><span class="swatch user"></span> What the user sees (unchanged from today)</div>
+    <div class="legend-item"><span class="swatch internal"></span> What's happening internally (new this design)</div>
+  </div>
+
+  <div class="grid-row">
+
+    <!-- FRAME 1 — IDLE -->
+    <div class="frame">
+      <div class="frame-index"><span class="t">01</span> Idle</div>
+      <div class="mock">
+        <div class="mock-head">
+          <div class="mock-title">Backchannel Authentication <span class="mock-badge">Enabled</span></div>
+          <div class="mock-sub">Try It</div>
+        </div>
+        <div class="mock-body">
+          <div>
+            <div class="field-label">User email (login_hint)</div>
+            <div class="field">demoUser@api.ping.demo</div>
+          </div>
+          <div>
+            <div class="field-label">Binding message</div>
+            <div class="field">Approve your banking transaction</div>
+          </div>
+          <button class="btn">Start CIBA request</button>
+        </div>
+      </div>
+      <div class="annotation">
+        <span class="tag">Internal — nothing yet</span>
+        <p>No request in flight. <code>req.session.cibaRequests</code> is empty for this user.</p>
+      </div>
+    </div>
+
+    <div class="connector">→</div>
+
+    <!-- FRAME 2 — INITIATING (fallback happens here, invisibly) -->
+    <div class="frame">
+      <div class="frame-index"><span class="t">02</span> Initiating</div>
+      <div class="mock">
+        <div class="mock-head">
+          <div class="mock-title">Backchannel Authentication <span class="mock-badge">Enabled</span></div>
+          <div class="mock-sub">Try It</div>
+        </div>
+        <div class="mock-body">
+          <div class="status-line pending">⏳ Initiating…</div>
+          <div class="poll-log">
+            <div class="poll-line new">04:31:02 — initiating CIBA request…</div>
+          </div>
+        </div>
+      </div>
+      <div class="annotation">
+        <span class="tag">Internal — the failover fires here</span>
+        <p>
+          <code>cibaService.initiateBackchannelAuth()</code> rejects — real
+          <code>/as/bc-authorize</code> is unrouted on this env. Route catches it,
+          reads <code>ciba_failover_mode</code> (default
+          <code>fallback_simulated</code>), calls
+          <code>cibaSimulatedService.initiateSimulated()</code> instead. Browser
+          gets a normal 200 either way — never sees the failed attempt.
+        </p>
+      </div>
+    </div>
+
+    <div class="connector">→</div>
+
+    <!-- FRAME 3 — PENDING -->
+    <div class="frame">
+      <div class="frame-index"><span class="t">03</span> Pending</div>
+      <div class="mock">
+        <div class="mock-head">
+          <div class="mock-title">Backchannel Authentication <span class="mock-badge">Enabled</span></div>
+          <div class="mock-sub">Try It</div>
+        </div>
+        <div class="mock-body">
+          <div class="status-line pending">⏳ Waiting for approval <span class="timer">— expires in 287s</span></div>
+          <div class="notice pending-notice">Complete approval where PingOne sent it — email inbox or device push.</div>
+          <div class="poll-log">
+            <div class="poll-line">04:31:07 — poll → pending</div>
+            <div class="poll-line new">04:31:12 — poll → pending</div>
+          </div>
+        </div>
+      </div>
+      <div class="annotation">
+        <span class="tag">Internal — polling the fake clock</span>
+        <p>
+          <code>GET /poll/:authReqId</code> every 5s. Session record has
+          <code>simulated: true</code>. <code>isSimulatedApproved()</code> checks
+          <code>Date.now() - initiatedAt &gt;= 7000</code> → still <code>false</code>
+          → <code>{ status: 'pending' }</code>.
+        </p>
+      </div>
+    </div>
+
+    <div class="connector">→</div>
+
+    <!-- FRAME 4 — APPROVED -->
+    <div class="frame">
+      <div class="frame-index"><span class="t">04</span> Approved</div>
+      <div class="mock">
+        <div class="mock-head">
+          <div class="mock-title">Backchannel Authentication <span class="mock-badge">Enabled</span></div>
+          <div class="mock-sub">Try It</div>
+        </div>
+        <div class="mock-body">
+          <div class="status-line approved">✅ Approved</div>
+          <div class="notice approved-notice">User approved! Tokens stored server-side in the BFF session.</div>
+          <div class="poll-log">
+            <div class="poll-line new">04:31:17 — poll → approved</div>
+          </div>
+        </div>
+      </div>
+      <div class="annotation">
+        <span class="tag">Internal — the key simplification</span>
+        <p>
+          ~7s elapsed → <code>isSimulatedApproved()</code> → <code>true</code>.
+          Sets <code>req.session.stepUpVerified = now + 5min</code> — the
+          <b>same</b> field the real path sets. Does <b>not</b> touch
+          <code>req.session.oauthTokens</code>. No fake token is ever minted.
+        </p>
+      </div>
+    </div>
+
+    <div class="connector">→</div>
+
+    <!-- FRAME 5 — TRANSFER RETRIED -->
+    <div class="frame">
+      <div class="frame-index"><span class="t">05</span> Transfer retried</div>
+      <div class="mock">
+        <div class="mock-head">
+          <div class="mock-title">Super Banking <span class="mock-badge">Customer</span></div>
+          <div class="mock-sub">Transfer — Checking → Savings</div>
+        </div>
+        <div class="mock-body">
+          <div class="toast success">
+            <b>✅ Identity verified</b>
+            <span>Please retry your transaction.</span>
+          </div>
+          <div class="field-label" style="margin-top:2px;">Transfer $500.00 →</div>
+          <div class="notice approved-notice">Transfer complete.</div>
+        </div>
+      </div>
+      <div class="annotation">
+        <span class="tag">Internal — the gate never re-checks the token</span>
+        <p>
+          <code>routes/transactions.js:576-582</code> reads
+          <code>req.session.stepUpVerified</code> (fresh, single-use) →
+          <code>effectiveAcr = 'Multi_Factor'</code> → gate passes using the
+          user's <b>original, untouched</b> access token. PingOne never
+          validates anything fake.
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+  <footer class="page">
+    <span>Static reference only — <code>demo_api_ui</code> is unchanged by this design.</span>
+    <span>routes/ciba.js · cibaSimulatedService.js (new) · transactions.js (read-only reference)</span>
+  </footer>
+
+</div>
