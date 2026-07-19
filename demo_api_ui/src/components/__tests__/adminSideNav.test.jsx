@@ -97,4 +97,28 @@ describe("AdminSideNav — best-of-breed pass", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Monitoring/ }));
     expect(screen.getByText("Demo check")).toBeInTheDocument();
   });
+
+  it("shows the Demo Config link for a non-admin user (no admin gate)", () => {
+    renderNavAsUser(customerUser);
+    expect(screen.getByText("Demo Config")).toBeInTheDocument();
+  });
+
+  it("hides a nav item the user marked hidden via Demo Config, once loaded", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url) => {
+        if (String(url).includes("/api/user/nav-config")) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ hiddenLabels: ["Themes"], activeConfigId: null, flagOn: true }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      }),
+    );
+    renderNav();
+    expect(await screen.findByText("Monitoring")).toBeInTheDocument();
+    expect(screen.queryByText("Themes")).toBeNull();
+    vi.unstubAllGlobals();
+  });
 });
