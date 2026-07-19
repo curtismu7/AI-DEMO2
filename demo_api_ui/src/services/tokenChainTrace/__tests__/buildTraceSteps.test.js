@@ -444,3 +444,51 @@ describe("buildTraceSteps — intent-binding step", () => {
     expect(byId["intent-binding"].status).toBe("error");
   });
 });
+
+describe("buildTraceSteps — attack sim (UC5 gateway scope deny)", () => {
+  const SIM_TRACE = {
+    ...EMPTY_TRACE,
+    prompt: { message: "Demo step 10: UC5 — Wrong / insufficient scope" },
+    outcome: "error",
+    tokenEvents: [
+      { id: "user-token", status: "active", claims: { sub: "user-123", scope: "read write" } },
+      { id: "sim-exchange-ok", label: "Exchanged Token (read-only)", status: "active",
+        claims: { sub: "user-123", scope: "read", aud: "https://api.ping.demo:3036/mcp" } },
+      { id: "sim-gateway-deny", label: "Gateway DENY (insufficient_scope)", status: "error",
+        error: "insufficient_scope", httpStatus: 403,
+        explanation: "Gateway rejected the call with 403 insufficient_scope: create_transfer requires write" },
+    ],
+  };
+
+  test("sim-exchange-ok fills the exchange step; the deny lands on the gateway step", () => {
+    const steps = buildTraceSteps(SIM_TRACE);
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+    expect(byId.exchange.status).toBe("done");
+    expect(byId.exchange.detail.scopeDiff).toEqual({ before: ["read", "write"], after: ["read"] });
+    expect(byId.gateway.status).toBe("error");
+    expect(byId.gateway.detail.decision.outcome).toBe("DENY");
+    expect(byId.gateway.detail.decision.label).toContain("insufficient_scope");
+    expect(byId.mcp.status).toBe("error");
+  });
+
+  test("steps the sim never touches resolve notinpath, not pending", () => {
+    const steps = buildTraceSteps(SIM_TRACE);
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+    for (const id of ["agent", "llm", "agent-token", "authorize", "reply", "api"]) {
+      expect(byId[id].status).toBe("notinpath");
+    }
+  });
+
+  test("RAR denies keep feeding intent-binding only — the gateway step is untouched", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [
+        { id: "sim-gateway-deny", status: "error", error: "rar_amount_exceeded" },
+      ],
+    });
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+    expect(byId["intent-binding"].status).toBe("error");
+    expect(byId.gateway.status).not.toBe("error");
+  });
+});

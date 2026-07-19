@@ -11,6 +11,11 @@ const EMPTY_TRACE = () => ({
   phases: [], tokenEvents: [], mcpResult: null, authorize: null, outcome: null,
 });
 
+// Session-scoped evidence (the sign-in token) outlives any single tool call —
+// beginTrace carries it forward and ingestTokenEvents must not wipe it when a
+// per-call event array (e.g. an attack sim's) arrives without it.
+const SESSION_EVENT_IDS = ["user-token", "session-token-introspection", "user-token-introspection"];
+
 let trace = EMPTY_TRACE();
 const listeners = new Set();
 
@@ -37,7 +42,6 @@ export const tokenChainTraceStore = {
     // Strip useCaseId from the carry-over: stampUseCaseId tags user-token on the
     // first demo run, and firstUseCaseId would otherwise keep scoring every later
     // run against that sticky slug (e.g. always "A2A delegation — Incomplete").
-    const SESSION_EVENT_IDS = ["user-token", "session-token-introspection", "user-token-introspection"];
     const sessionEvents = trace.tokenEvents
       .filter((e) => e && SESSION_EVENT_IDS.includes(e.id))
       .map((e) => {
@@ -69,7 +73,11 @@ export const tokenChainTraceStore = {
   ingestTokenEvents(events) {
     if (!Array.isArray(events) || !events.length) return;
     ensureTrace();
-    trace.tokenEvents = events.slice();
+    const incoming = new Set(events.map((e) => e && e.id));
+    const carried = trace.tokenEvents.filter(
+      (e) => e && SESSION_EVENT_IDS.includes(e.id) && !incoming.has(e.id),
+    );
+    trace.tokenEvents = [...carried, ...events];
     emit();
   },
   ingestTokenEvent(event) {

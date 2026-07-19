@@ -223,6 +223,22 @@ router.post(
   },
 );
 
+// Refresh the device list for a challenge already awaiting device verification.
+// Lets a user who enrols a device from the picker (typically a first passkey)
+// use it immediately: /confirm captured the list once and cannot be re-run.
+router.post(
+  '/consent-challenge/:challengeId/mfa-reinit',
+  authenticateToken,
+  async (req, res) => {
+    const result = await txConsent.reinitMfaDevices(req, req.params.challengeId);
+    if (!result.ok) return res.status(result.status).json(result.json);
+    req.session.save((saveErr) => {
+      if (saveErr) console.error('[ConsentChallenge] session save error (mfa-reinit):', saveErr);
+      return res.status(200).json({ challengeId: result.challengeId, devices: result.devices });
+    });
+  },
+);
+
 router.post(
   '/consent-challenge/:challengeId/confirm-contact',
   authenticateToken,
@@ -314,7 +330,14 @@ router.post(
     if (!result.ok) return res.status(result.status).json(result.json);
     req.session.save((saveErr) => {
       if (saveErr) console.error('[ConsentChallenge] session save error (select-device):', saveErr);
-      return res.status(200).json({ otpSent: true, otpExpiresAt: result.otpExpiresAt });
+      return res.status(200).json({
+        otpSent: true,
+        otpExpiresAt: result.otpExpiresAt,
+        status: result.status,
+        ...(result.publicKeyCredentialRequestOptions
+          ? { publicKeyCredentialRequestOptions: result.publicKeyCredentialRequestOptions }
+          : {}),
+      });
     });
   },
 );

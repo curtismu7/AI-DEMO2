@@ -6202,14 +6202,18 @@ export default function BankingAgent({
           try {
             buildSimRailEvents(data).forEach((ev) => tokenChainTraceStore.ingestTokenEvent(ev));
             if (data.authorize) tokenChainTraceStore.ingestAuthorize(data.authorize);
-            tokenChainTraceStore.completeTrace(typeof status === "number" && status < 400);
           } catch (_) { /* display-only — never break the sim reply */ }
         }
+        // Sims never stream pipeline phases, so nothing else completes the
+        // trace — without this the rail shows the run stuck at the chatbot
+        // instead of the gateway DENY.
+        try { tokenChainTraceStore.completeTrace(!isDeny); } catch (_) {}
       } catch (err) {
         addMessage(
           "assistant",
           `${stepLabel}\nAttack simulation failed: ${formatAxiosError(err, err.message || "failed")}`,
         );
+        try { tokenChainTraceStore.completeTrace(false); } catch (_) {}
       } finally {
         setNlLoading(false);
       }

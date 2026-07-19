@@ -699,9 +699,19 @@ async function selectMfaDevice(req, challengeId, deviceId) {
   }
   const userAccessToken = req.session?.oauthTokens?.accessToken;
   try {
-    await mfaService.selectDevice(ch.daId, deviceId, userAccessToken);
+    const selected = await mfaService.selectDevice(ch.daId, deviceId, userAccessToken);
     ch.otpExpiresAt = Date.now() + OTP_TTL_MS;
-    return { ok: true, otpExpiresAt: ch.otpExpiresAt };
+    // FIDO2 devices don't get a typed code — PingOne answers ASSERTION_REQUIRED
+    // with a WebAuthn challenge instead, which the client must run through
+    // navigator.credentials.get() and submit as fido2Assertion to /verify-otp.
+    // Passing status/options through (previously discarded) is what lets the
+    // client tell the two cases apart instead of always showing a code field.
+    return {
+      ok: true,
+      otpExpiresAt: ch.otpExpiresAt,
+      status: selected?.status || null,
+      publicKeyCredentialRequestOptions: selected?.publicKeyCredentialRequestOptions || null,
+    };
   } catch (err) {
     console.warn(`[ConsentChallenge] selectDevice failed: ${err.message}`);
     return { ok: false, status: err.status || 502, json: { error: err.code || 'mfa_select_failed', message: err.message } };
@@ -853,6 +863,59 @@ function getChallengePath(req, challengeId) {
   return 'otp';
 }
 
+/**
+ * Re-run PingOne device authentication for a challenge already on the
+ * device-picker path, refreshing its daId and device list.
+ *
+ * confirmChallenge() captures the device list once and then moves the challenge
+ * to 'otp_pending', so it answers 409 if called again. That means a device the
+ * user enrols *while the picker is open* (e.g. registering a passkey because
+ * they have none) can never appear — the stored daId predates it. This gives
+ * the UI a way to pick it up without cancelling and restarting the transfer.
+ *
+ * Deliberately narrow: it only refreshes daId/devices on a challenge that is
+ * already mfaPath + otp_pending. It cannot start MFA, change the amount, or
+ * revive a consumed challenge, so it adds no new way past the consent gate.
+ *
+ * @param {import('express').Request} req
+ * @param {string} challengeId
+ * @returns {Promise<{ok: boolean, status?: number, json?: object, challengeId?: string, devices?: Array}>}
+ */
+async function reinitMfaDevices(req, challengeId) {
+  if (!req.user?.id) {
+    return { ok: false, status: 401, json: { error: 'not_authenticated', message: 'Sign in to continue.' } };
+  }
+  const st = store(req.session);
+  pruneExpired(st);
+  const ch = st[challengeId];
+  if (!ch || ch.userId !== req.user.id) {
+    return { ok: false, status: 404, json: { error: 'challenge_not_found', message: 'Unknown or expired consent challenge.' } };
+  }
+  if (!ch.mfaPath || ch.status !== 'otp_pending') {
+    return { ok: false, status: 409, json: { error: 'challenge_not_mfa_pending', message: 'This challenge is not awaiting device verification.' } };
+  }
+  if (ch.expiresAt < Date.now()) {
+    delete st[challengeId];
+    return { ok: false, status: 410, json: { error: 'challenge_expired', message: 'Consent challenge expired. Start again from the dashboard.' } };
+  }
+
+  let initiated;
+  try {
+    initiated = await mfaService.initiateDeviceAuth(req.user.id, req.session?.oauthTokens?.accessToken);
+  } catch (err) {
+    console.warn(`[ConsentChallenge] reinit initiateDeviceAuth failed: ${err.message}`);
+    return _mfaInitFailureResult(err, req.session?.oauthTokens?.expiresAt);
+  }
+
+  ch.daId    = initiated.id;
+  ch.devices = initiated._embedded?.devices || [];
+  // A fresh challenge means the previous attempts no longer apply.
+  ch.otpAttempts = 0;
+
+  console.log(`[ConsentChallenge] MFA devices refreshed challenge=${challengeId.slice(0, 8)}… daId=${ch.daId} devices=${ch.devices.length}`);
+  return { ok: true, challengeId, devices: ch.devices };
+}
+
 module.exports = {
   get HIGH_VALUE_CONSENT_USD() { return getConfirmThreshold(); },
   CHALLENGE_TTL_MS,
@@ -864,6 +927,7 @@ module.exports = {
   createChallenge,
   getChallenge,
   confirmChallenge,
+  reinitMfaDevices,
   confirmOnetimeContact,
   verifyOtp,
   verifyMfa,
