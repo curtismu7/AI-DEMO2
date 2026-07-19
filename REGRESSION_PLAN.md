@@ -101,6 +101,106 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-18 — UC10/UC13 attack sims still "direct": bypassed the real BFF pipeline (agent-token/BFF-preflight-Authorize), only the gateway's own downstream call was real
+
+**Files changed:** `demo_api_server/services/bffMcpToolExecutor.js` (new export
+`runPipelineForSim` — thin wrapper around `runMcpToolPipeline` using the same
+production `_pipelineDeps` every chip/agent call uses), `demo_api_server/services/attackSimulatorService.js`
+(`_runRogueActor`/`_runCrossOwnerAccount` rewritten to call it instead of a
+hand-rolled `_exchangeGatewayToken` + `callToolViaGateway`; new
+`_denyFromPipeline`/`_authorizeFromPipelineOutcome`/`_normalizeAuthorizeDecision`
+helpers; `PIPELINE_ROUTED_SIMS` set gates the redundant manual `user-token` push).
+
+**What was broken:** the previous fix (below) surfaced the gateway's real Authorize
+decision, but UC13/UC10 still called `callToolViaGateway` directly after their OWN
+minimal exchange — skipping the agent-token step, the BFF-preflight
+`evaluateMcpFirstToolGate` Authorize gate, and the compliance-audit/HITL machinery
+every real tool call goes through. Only the gateway's own downstream PingOne
+Authorize call was genuine; everything upstream of it was a shortcut. User
+correctly called this "direct, not full flow."
+
+**What was fixed:** UC13 (rogue-actor) and UC10 (cross-owner-account) now run
+through `runPipelineForSim` → `runMcpToolPipeline` with the REAL, authenticated
+Express `req` — the exact same entry point `executeBffTool` uses for a real
+chip/agent call. The rogue actor is injected via `req.body._testActClientId`
+(a pre-existing production affordance `mcpToolPipeline.js` already read at its
+gateway-call site — not a new sim-only hook), restored in a `finally` so it never
+leaks past the call. `_authorizeFromPipelineOutcome` prefers the BFF-preflight's
+structured `body.mcpAuthorizeEvaluation` (present on permit AND deny/step-up/HITL
+branches) and falls back to the `gw-authorize` token event the pipeline already
+builds from the gateway's real audit trail when the preflight permits and the
+gateway itself denies — whichever real stage actually decided.
+
+**Do not break:** the OTHER 7 sims (insufficient-scope, wrong-aud, rate-limit-burst,
+replayed-token, rar-exceeded, tampered-intent-token, impersonation-no-act) stay on
+the direct exchange+gateway path deliberately — they are gateway-PERIMETER probes
+(checked before Authorize by the real architecture) or need a deficiency
+(forced narrow scope, raw un-exchanged token, tampered signature) the pipeline's
+own exchange helper has no override hook for; adding one would touch
+`resolveMcpAccessTokenWithEvents`, which every real call depends on — out of
+scope here, flagged in the module header instead of silently expanded.
+`_denyFromGateway`/`_authorizeFromGatewayError` are unchanged and still used by
+those 7. `PIPELINE_ROUTED_SIMS` is the single source of truth for which sims get
+the (now redundant) manual `user-token` skipped.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/attackSimulator.authorizeEvidence.test.js
+src/__tests__/bffMcpToolExecutor.runPipelineForSim.test.js src/__tests__/attackSimulator.test.js
+src/__tests__/attackSimulator.wrongAudFields.test.js src/__tests__/securityShowcase.test.js
+tests/attackSimExchangerParity.test.js tests/use-cases-maturity.test.js tests/pingAiTestLab.route.test.js
+src/__tests__/bffMcpToolExecutor.regression.test.js src/__tests__/oauth-teaching-demonstrate.test.js
+src/__tests__/bffMcpEnvelopeUnwrap.regression.test.js src/__tests__/dispatchVerticalIntent.localBypass.test.js
+src/__tests__/a2aExecution.test.js src/__tests__/verticalIntentDispatch.test.js
+src/__tests__/mcpToolPipeline.authzBypass.test.js src/__tests__/bffMcpToolExecutorUseCaseId.test.js
+tests/agentToolUseCaseId.test.js tests/checks/usecaseCheck.test.js
+tests/services/heuristicBankingWr07.regression.test.js tests/services/heuristicBankingWr07.integration.test.js
+tests/services/bankingHitlNormalize.regression.test.js --testPathIgnorePatterns="/node_modules/"`
+(358 passed, 2 pending [live-API-gated, skip without creds], 0 failed); `cd demo_api_ui && npm run build` (exit 0).
+
+### 2026-07-18 — Authorize-reaching attack sims (UC10/UC13/UC14/UC16) looked fake: only the chatbot step lit, generic deny reason, "Incomplete" verdict
+
+**Files changed:** `demo_api_server/services/attackSimulatorService.js`
+(`_denyFromGateway` surfaces the real Authorize decision; `runAttackSim` emits a
+`user-token` sign-in step), `demo_api_ui/src/services/tokenChainTrace/simTraceAdapter.js`
+(new — maps sim event ids onto the rail's vocabulary),
+`demo_api_ui/src/components/AIAgent.js` (attack-sim handler feeds the trace-rail store).
+
+**What was broken:** the attack-sim handler reset the `TokenChainTraceRail`
+(`beginTrace`) then routed the sim's real token events ONLY to the API Traffic
+panel (`appendTokenEvents`) and the legacy `tokenChain` context — never to
+`tokenChainTraceStore`, which drives the rail. So the pipeline showed only the
+Chatbot step. Separately, `_denyFromGateway` discarded `err.gwAuditTrail` — the
+gateway's `X-Gw-Audit-Trail` header carrying the REAL PingOne Authorize decision
+(DENY + decisionId + reason + statements) — and reported the gateway's generic
+403 body ("Gateway policy denied the tool call"), identical for every sim. And
+because the sim never set `trace.authorize`, `computeVerdict`'s
+`'authorize-decision'` evidence check (satisfied by `!!trace.authorize`) failed,
+so UC10/UC13/UC14/UC16 rendered "Incomplete" on a correct, real DENY.
+
+**What was fixed:** `_denyFromGateway` now extracts `err.gwAuditTrail.authorize`
+into a decision object returned on the result (`result.authorize`) and derives a
+control-specific reason (engine reason > per-code description > generic). The
+handler feeds the rail via `ingestTokenEvent` (through `buildSimRailEvents`,
+which maps `sim-exchange-ok` → `exchanged-token`), `ingestAuthorize(data.authorize)`,
+and `completeTrace(status < 400)`. Result: Sign-in ✓ → Token exchange ✓ →
+PingOne Authorize ✗ DENY (real decisionId + specific reason) light up, and the
+verdict flips to "denied-as-expected".
+
+**Do not break:** the surfacing is gated on `err.gwAuditTrail.authorize` EXISTING
+— gateway-perimeter denials (UC5/UC11/UC12: aud/scope checked before Authorize)
+carry no `authorize` node, so `result.authorize` stays unset and their
+`sim-exchange-ok`/`sim-gateway-deny` evidence contracts are unaffected. The
+backend still emits the original `sim-*` events (API Traffic panel + product-badge
+map depend on them); `simTraceAdapter` reshapes only the copy fed to the rail.
+`computeVerdict`'s short-circuit is unchanged.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/attackSimulator.authorizeEvidence.test.js
+src/__tests__/attackSimulator.test.js src/__tests__/attackSimulator.wrongAudFields.test.js
+tests/attackSimExchangerParity.test.js tests/use-cases-maturity.test.js
+--testPathIgnorePatterns="/node_modules/"` (green); `cd demo_api_ui && CI=true node_modules/.bin/vitest run
+src/services/tokenChainTrace src/context/__tests__/ProofOfEnforcementContext.test.js
+src/utils/pingProducts.test.js src/components/__tests__/AIAgent.confusedDeputy.test.js
+src/components/__tests__/AIAgent.chips.test.js` (green); `cd demo_api_ui && npm run build` (exit 0).
+
 ### 2026-07-18 — authz hardening round 2/3 + cloud import file (three review passes)
 
 **Files changed (round 2/3, on top of the round-1 split work below):**

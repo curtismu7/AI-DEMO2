@@ -27,6 +27,7 @@ import {
 } from "../services/agentAccessConsent";
 import { agentFlowDiagram } from "../services/agentFlowDiagramService";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
+import { buildSimRailEvents } from "../services/tokenChainTrace/simTraceAdapter";
 import { appendTokenEvents } from "../services/apiTrafficStore";
 import { fetchNlStatus } from "../services/demoAgentNlService";
 import {
@@ -6193,6 +6194,16 @@ export default function BankingAgent({
           if (tokenChain) {
             tokenChain.setTokenEvents("agent", data.tokenChainEvents);
           }
+          // Feed the full-pipeline Token Chain rail with the sim's REAL evidence
+          // so the Sign-in, Token exchange, and PingOne Authorize DENY appear as
+          // lit steps — not just the chatbot prompt. Without this the rail (fed
+          // only by tokenChainTraceStore) showed a single step and the Proof
+          // verdict rendered "Incomplete" even on a correct, real DENY.
+          try {
+            buildSimRailEvents(data).forEach((ev) => tokenChainTraceStore.ingestTokenEvent(ev));
+            if (data.authorize) tokenChainTraceStore.ingestAuthorize(data.authorize);
+            tokenChainTraceStore.completeTrace(typeof status === "number" && status < 400);
+          } catch (_) { /* display-only — never break the sim reply */ }
         }
       } catch (err) {
         addMessage(
