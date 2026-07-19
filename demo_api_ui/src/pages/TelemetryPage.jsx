@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import "./TelemetryPage.css";
 import TraceGraphCore from "../components/TraceGraphCore";
+import { getMyAccounts } from "../services/demoAgentService";
 
 const REFRESH_MS = 5000;
 const DEFAULT_SERVICE = "demo-api-server";
@@ -34,6 +35,8 @@ export default function TelemetryPage() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [tracesError, setTracesError] = useState(null);
   const [overviewRefreshKey, setOverviewRefreshKey] = useState(0);
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState(null);
 
   const loadTraces = useCallback(async () => {
     try {
@@ -65,6 +68,19 @@ export default function TelemetryPage() {
     return () => clearInterval(id);
   }, [mode, refreshAll]);
 
+  const generateTraffic = useCallback(async () => {
+    setGenerating(true);
+    setGenerateError(null);
+    try {
+      await getMyAccounts();
+      refreshAll();
+    } catch (err) {
+      setGenerateError(err.message || "Failed to generate traffic");
+    } finally {
+      setGenerating(false);
+    }
+  }, [refreshAll]);
+
   const overviewUrl = `/api/health/tracing/overview/raw?lookback=${encodeURIComponent(lookback)}`;
   const detailedUrl = selectedTraceId ? `/api/health/tracing/traces/${selectedTraceId}/raw` : null;
 
@@ -79,9 +95,13 @@ export default function TelemetryPage() {
           </p>
         </div>
         <div className="telemetry-header-actions">
+          {generateError && <span className="telemetry-error-inline">{generateError}</span>}
           {lastUpdated && (
             <span className="telemetry-meta">Updated {lastUpdated.toLocaleTimeString()}</span>
           )}
+          <button type="button" className="telemetry-btn" onClick={generateTraffic} disabled={generating}>
+            {generating ? "Generating…" : "Generate demo traffic"}
+          </button>
           <button type="button" className="telemetry-btn" onClick={refreshAll}>Refresh</button>
         </div>
       </header>

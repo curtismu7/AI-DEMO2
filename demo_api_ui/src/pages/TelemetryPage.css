@@ -35,6 +35,9 @@
   cursor: pointer;
 }
 .telemetry-btn:hover { background: #f3f4f6; }
+.telemetry-btn:disabled { opacity: 0.6; cursor: default; }
+
+.telemetry-error-inline { font-size: 13px; color: #b91c1c; white-space: nowrap; }
 
 .telemetry-mode-tabs {
   display: flex;
