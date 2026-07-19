@@ -506,6 +506,79 @@ describe('mcpToolAuthorizationService', () => {
       expect(r.block.body.step_up_method).toBe('ciba');
     });
 
+    // CIBA (and the stub OTP flow) only set req.session.stepUpVerified on
+    // completion -- unlike a real P1MFA re-auth, they never re-mint the
+    // access token's ACR. Without this check, the retried tool call presents
+    // the SAME token to PingOne and gets step-up-required again forever
+    // (an infinite CIBA-approval loop, caught live: UC22's chat kept
+    // re-initiating CIBA every ~11s instead of completing after approval).
+    it('PERMITs a retried call when session.stepUpVerified is fresh, even though PingOne still reports stepUpRequired', async () => {
+      configStore.get.mockImplementation((k) => {
+        if (k === 'ff_authorize_mcp_first_tool') return 'true';
+        if (k === 'ff_authorize_fail_open') return 'false';
+        if (k === 'authorize_mcp_decision_endpoint_id') return 'mcp-endpoint-uuid';
+        if (k === 'PINGONE_RESOURCE_MCP_SERVER_URI') return 'https://mcp';
+        return null;
+      });
+      configStore.getEffective = jest.fn((k) => (k === 'step_up_method' ? 'p1mfa' : null));
+      simulatedAuthorizeService.isSimulatedModeEnabled.mockReturnValue(false);
+      pingOneAuthorizeService.isMcpDelegationDecisionReady.mockReturnValue(true);
+      pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({
+        decision: 'INDETERMINATE',
+        stepUpRequired: true,
+        path: 'decision-endpoint',
+        decisionId: 'p1-retry',
+        raw: {},
+      });
+
+      const req = {
+        session: { user: { role: 'user' }, stepUpVerified: Date.now() + 60_000 },
+        body: { useCaseId: 'ciba-out-of-band-approval' },
+      };
+      const r = await evaluateMcpFirstToolGate({
+        req,
+        tool: 'create_transfer',
+        agentToken: jwtWithPayload({ sub: 'sub-99', aud: 'https://mcp' }),
+        userSub: 'sub-99',
+      });
+
+      expect(r.ran).toBe(true);
+      expect(r.permit).toBe(true);
+      expect(r.block).toBeUndefined();
+      // Single-use: consumed so a later, unrelated call re-evaluates fresh.
+      expect(req.session.stepUpVerified).toBe(0);
+    });
+
+    it('still demands step-up when session.stepUpVerified is stale/expired', async () => {
+      configStore.get.mockImplementation((k) => {
+        if (k === 'ff_authorize_mcp_first_tool') return 'true';
+        if (k === 'ff_authorize_fail_open') return 'false';
+        if (k === 'authorize_mcp_decision_endpoint_id') return 'mcp-endpoint-uuid';
+        if (k === 'PINGONE_RESOURCE_MCP_SERVER_URI') return 'https://mcp';
+        return null;
+      });
+      configStore.getEffective = jest.fn((k) => (k === 'step_up_method' ? 'p1mfa' : null));
+      simulatedAuthorizeService.isSimulatedModeEnabled.mockReturnValue(false);
+      pingOneAuthorizeService.isMcpDelegationDecisionReady.mockReturnValue(true);
+      pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({
+        decision: 'INDETERMINATE',
+        stepUpRequired: true,
+        path: 'decision-endpoint',
+        decisionId: 'p1-stale',
+        raw: {},
+      });
+
+      const r = await evaluateMcpFirstToolGate({
+        req: { session: { user: { role: 'user' }, stepUpVerified: Date.now() - 1000 } },
+        tool: 'create_transfer',
+        agentToken: jwtWithPayload({ sub: 'sub-99', aud: 'https://mcp' }),
+        userSub: 'sub-99',
+      });
+
+      expect(r.block.status).toBe(428);
+      expect(r.block.body.error).toBe('mcp_step_up_required');
+    });
+
     it('returns 428 HITL block when PingOne live requires human approval', async () => {
       configStore.get.mockImplementation((k) => {
         if (k === 'ff_authorize_mcp_first_tool') return 'true';

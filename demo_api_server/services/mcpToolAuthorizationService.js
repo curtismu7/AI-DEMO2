@@ -486,6 +486,20 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
   let inRequiredGroup = null;
   const verticalId = activeVerticalId;
   const useCaseId = resolveActiveUseCaseId(req);
+
+  // Session-level step-up already satisfied this cycle (CIBA / stub OTP
+  // completion) -- mirrors mcpLocalTools.js's consumption of the same flag.
+  // Unlike a real P1MFA re-auth, CIBA/OTP completion never re-mints the
+  // access token's ACR, so without this the presented token looks unchanged
+  // and this gate would re-demand step-up forever on the immediate retry.
+  // Single-use: consumed here so it cannot silently PERMIT a later,
+  // unrelated tool call. Suppresses only the step-up escalation below --
+  // DENY and HITL checks (which run first in every branch) are unaffected.
+  const stepUpAlreadyVerified = req.session?.stepUpVerified > Date.now();
+  if (stepUpAlreadyVerified) {
+    req.session.stepUpVerified = 0;
+  }
+
   if (groupPolicy.isEnabled(configStore) || shouldApplyEntitlementTierDemo(useCaseId)) {
     userGroups = await groupPolicy.groupsForUser(
       req.session?.user?.username,
@@ -657,7 +671,7 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
       };
     }
 
-    if (r.stepUpRequired) {
+    if (r.stepUpRequired && !stepUpAlreadyVerified) {
       return {
         ran: true,
         block: {
@@ -735,7 +749,7 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     if (runSimulated) {
       const r = await simulatedAuthorizeService.evaluateMcpFirstTool(simParams);
 
-      if (r.stepUpRequired) {
+      if (r.stepUpRequired && !stepUpAlreadyVerified) {
         return {
           ran: true,
           block: {
@@ -917,7 +931,7 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
       console.warn(`[MCP Authorize] PingOne error — falling back to simulated engine: ${err.message}`);
       try {
         const r = await simulatedAuthorizeService.evaluateMcpFirstTool(simParams);
-        if (r.stepUpRequired) {
+        if (r.stepUpRequired && !stepUpAlreadyVerified) {
           return { ran: true, block: { status: 428, body: {
             error: 'mcp_step_up_required',
             error_description: 'PingOne Authorize was unreachable — simulated fallback requires step-up before MCP tools.',
