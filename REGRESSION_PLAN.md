@@ -101,6 +101,38 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-19 — Demo check SERVERS card red on a stock lean-core checkout (profile-gated services)
+
+**Files changed:** `demo_api_server/data/serverInventory.js`,
+`demo_api_server/services/checks/serversCheck.js`.
+
+**What was broken:** even after the UI/LangChain Agent probe fixes (entry
+below), `servers.all_up` still returned `status: 'fail'` on a default
+`./run-docker.sh` checkout because 7 services aren't started: OpenAI Agent,
+Mastra Agent, Pydantic Agent, Mock Authz Server, Weaviate, Embeddings, MCP
+Code Search. Verified via `docker-compose.yml` these are ALL gated behind
+Compose `profiles:` (`agents` / `demo-auth` / `rag`) that are off by default
+in lean-core — their absence is expected, not a broken deploy. User
+confirmed intent: keep lean-core as-is, don't gate overall readiness on
+optional profiles (asked via clarifying question — the alternative was
+starting all profiles, which was declined).
+
+**What was fixed:** added `optional: true` to those 7 `SERVER_INVENTORY`
+entries (each commented with its compose profile). `serversCheck.js` now
+splits `down` into `requiredDown`/`optionalDown`; `status` is `'fail'` only
+if a required service is down, `'warn'` if only optional ones are, `'pass'`
+otherwise. Detail text reports both groups separately.
+
+**Do not break:** required-service semantics unchanged — any core/mcp/authz
+service actually going down still fails the check exactly as before
+(`tests/checks/serversCheck.test.js` down-service scenario untouched, still
+passes since that test's fixture services aren't marked optional).
+
+**Verify:** `CI=true npx jest --testPathPattern="serverInventory.test.js|checks/serversCheck.test.js"`
+— 2 suites / 6 tests pass. Live: `docker exec ai-demo-api-server node -e
+"require('/app/services/checks/serversCheck').run().then(r=>console.log(r.status))"`
+→ `warn` (was `fail`) on this lean-core checkout.
+
 ### 2026-07-19 — Demo check SERVERS card: Banking UI + LangChain Agent falsely reported down
 
 **Files changed:** `demo_api_server/data/serverInventory.js` only.
