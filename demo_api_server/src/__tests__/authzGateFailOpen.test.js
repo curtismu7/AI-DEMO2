@@ -198,4 +198,58 @@ describe('MCP first-tool gate — fail-open hardening', () => {
     const keysRead = configStore.getEffective.mock.calls.map((c) => c[0]);
     expect(keysRead).not.toContain('ff_two_exchange_delegation');
   });
+
+  // ── No invented endpoints (REGRESSION_PLAN §3 — no hardcoded hosts/ports) ──
+  // Each branch ended in `|| 'https://api.ping.demo:<port>/mcp'`. That literal
+  // contradicted the function's own JSDoc ("or '' when nothing is configured")
+  // and is the same defect class as a fabricated audience: an unconfigured
+  // deployment silently got a made-up expected resource, so the audience guard
+  // compared real tokens against an endpoint nobody configured.
+  describe('expected MCP resource URI resolution', () => {
+    const HOST_LITERAL = /https?:\/\/[^'"]+/;
+
+    beforeEach(() => {
+      configStore.get.mockReturnValue(null);
+      configStore.getEffective.mockReturnValue(null);
+      delete process.env.MCP_GATEWAY_HTTP_URL;
+      delete process.env.PINGONE_RESOURCE_PINGGATEWAY_URI;
+    });
+
+    it('returns empty when nothing is configured, rather than inventing a host', () => {
+      expect(resolveExpectedMcpResourceUri()).toBe('');
+    });
+
+    it('returns empty on the Node-gateway branch too', () => {
+      process.env.MCP_GATEWAY_HTTP_URL = 'http://gw.internal';
+      expect(resolveExpectedMcpResourceUri()).toBe('');
+    });
+
+    it('returns empty on the PingGateway branch too', () => {
+      configStore.getEffective.mockImplementation((k) =>
+        k === 'ff_mcp_gateway_pinggateway' ? 'true' : null,
+      );
+      expect(resolveExpectedMcpResourceUri()).toBe('');
+    });
+
+    it('still returns the configured value when one exists', () => {
+      configStore.getEffective.mockImplementation((k) =>
+        k === 'pingone_resource_two_exchange_uri' ? 'https://configured.example/mcp' : null,
+      );
+      expect(resolveExpectedMcpResourceUri()).toBe('https://configured.example/mcp');
+    });
+
+    it('has no URL literal left in the source', () => {
+      const src = require('fs').readFileSync(
+        require('path').join(__dirname, '..', '..', 'services', 'mcpToolAuthorizationService.js'),
+        'utf8',
+      );
+      const body = src.slice(
+        src.indexOf('function resolveExpectedMcpResourceUri'),
+      );
+      const fnBody = body.slice(0, body.indexOf('\n}\n') + 3);
+      // Strip comments — the explanatory prose may legitimately name a URI.
+      const code = fnBody.replace(/\/\/.*$/gm, '');
+      expect(code).not.toMatch(HOST_LITERAL);
+    });
+  });
 });

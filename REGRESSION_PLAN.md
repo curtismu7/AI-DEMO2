@@ -84,6 +84,115 @@ configured host.
 
 Reverse-chronological, newest first.
 
+### 2026-07-18 — authz hardening round 2/3 + cloud import file (three review passes)
+
+**Files changed (round 2/3, on top of the round-1 split work below):**
+`demo_mcp_server/src/auth/{lastHopAuthorization.ts (new),actorChain.ts,TokenIntrospector.ts}`,
+`demo_mcp_server/src/server/{HttpMCPTransport,MCPMessageHandler,BankingMCPServer}.ts`;
+`demo_mcp_gateway/src/{config.ts,authzPosture.ts,auth/PingOneAuthorizeClient.ts,pingAuthorizeGuard.ts,middleware/authorizeMcpRequest.ts,index.ts}`;
+`demo_api_server/{routes/verticalManifest.js,services/{pingOneAuthorizeService,mcpToolAuthorizationService,mcpToolPipeline}.js,scripts/refresh-service-envs.js}`;
+`demo_authz_server/routes/{decision,import-snapshot}.js`;
+`snapshots/{gen-authorize-snapshot.js,Super_Banking_Transaction_Authorization_P1AZ.snapshot.json}`;
+`ping-gateway/scripts/groovy/p1az-decision.groovy`, `docker-compose.yml`, `.gitignore`,
+`package.json`, `scripts/test-snapshots.sh (new)`, plus new/updated tests across all five services.
+
+**What was broken (found by two audits of the round-1 fixes, confirmed by a 3rd pass):**
+Round 1 shipped several fixes that were inert, tautological, or forgeable.
+(1) CRITICAL — the F10 actor allow-list trusted an unsigned base64 JWT decode, so an
+`alg:none` token naming a whitelisted actor passed. (2) A session could be established via
+`initialize` params, skipping the actor + D-05 check; D-05 ran only on HTTP, not the WS
+connect path that is the primary transport. (3) `verticalManifest.js` re-introduced the
+audience tautology (`TokenAudience = McpResourceUri = expected`). (4) Degraded PERMITs shipped
+with no `policy_source`; the health block and decision path derived real-vs-mock differently
+and could disagree. (5) Commit 1e8619d09 widened the *cloud* `IsMcpFirstToolRequest` but left
+the mock denying `McpRequest` — opposite verdicts for the same context. (6) The snapshot-drift
+and cloud-delta tests were gitignored, so `test:snapshots` ran zero files (exit 0) in CI.
+
+**What was fixed:** actor claims now read only from a signature-verified source
+(`TokenIntrospector` `verifiedClaims`/`signatureVerified`), `verifyActorChain` fails closed
+by default, and all three session entry points run one shared `authorizeLastHop` (actor +
+D-05) — verified by reverting the guard and watching `forged-token-actor-chain.test.ts` go RED.
+Provenance on every decision incl. PERMIT via one `usingRealPdpEndpoint` predicate. Mock gained
+a lifecycle PERMIT (Rule 2.9) so `McpRequest` agrees with cloud; routing vs applicability context
+sets kept separate (a blind copy would be inert). Audience tautology removed on every caller
+(omit-not-fabricate). Snapshot tests tracked + `scripts/test-snapshots.sh` fails loudly on an
+empty glob.
+
+**Cloud P1AZ import file (`snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json`,
+73→98 objects):** `HasValidMcpAudience` rewritten from `TokenAudience == McpResourceUri` string
+equality (which post-fix would DENY ALL MCP TRAFFIC) to an OR-of-equals over the two gateway
+identities read from `scope-topology.json`; plus six inert-by-default fine-grained deny rules
+(D-05, resource-owner, RAR-amount, intent-invalid, intent-mismatch, admin-role-on-write).
+`routes/import-snapshot.js` now 409-blocks the broken audience shapes. Temporal and per-tool-scope
+are deliberately NOT modelled (not faithfully expressible in the P1AZ DSL) — PEP + mock only.
+
+**Do not break:** actor claims must never again be read from an unverified decode — only from
+`verifiedClaims`. Keep the actor + D-05 check on ALL session entry points incl. WS connect and
+`initialize`-params. `HasValidMcpAudience` must stay an OR-of-equals derived from SoT, never
+attribute-to-attribute equality (the import parity check 409-blocks a regression). Two operator
+decisions recorded: `ALLOW_UNSIGNED_TRAT_CONTEXT` stays default `true` (demo evidence flow;
+labelled in `/health failOpen`) and the admin-session-on-write-tool DENY stays (mirrors
+`requireNotAdmin`). The gateway/authz suites run NON-BLOCKING in CI by default (`SUITE_BLOCKING=0`)
+because of pre-existing stale-stub failures — a suite that cannot RUN still fails the gate.
+
+**Verify:** `demo_mcp_gateway` 362 passed; `demo_mcp_server` 886 passed; `demo_authz_server`
+181 passed (4 `user_lookup_failed` need live PingOne creds — identical on origin/main);
+`snapshots` 20/20 via `npm run test:snapshots`; `node snapshots/gen-authorize-snapshot.js --check`
+clean; the regenerated snapshot drives the 409 parity checker to `valid:true`, a foreign-audience
+variant to 409. Failing sets byte-identical to their pre-change baselines. **Import step
+(manual, live env):** export the current policy first as rollback, then import the regenerated
+snapshot — there is no scripted import.
+
+### 2026-07-18 — the decision-split regression protection never ran (test-wiring gap)
+
+**Files changed:** `scripts/test-service-suite.sh` (new),
+`scripts/run-all-tests.sh`, `scripts/ci-local.sh`, `.github/workflows/ci.yml`,
+`package.json`, `snapshots/gen-authorize-snapshot.js`,
+`snapshots/authorizeSnapshotDrift.test.js` (new),
+`snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json`,
+`demo_api_ui/src/pages/SnapshotImport.jsx`,
+`demo_api_ui/src/__tests__/SnapshotImport.test.jsx` (new),
+`demo_api_ui/src/pages/SnapshotImport.tsx` (deleted).
+
+**What was broken:** the strongest tests the two entries below added ran nowhere.
+`demo_authz_server` was in no runner and no CI job; `demo_mcp_gateway` appeared in
+CI only to `npm install` its deps so `topology:verify` could run an unrelated
+drift check. ~90 cases (incl. `decision.contract`, `importSnapshot.parity`, five
+gateway suites) executed only if a human `cd`'d into the directory. Separately,
+commit `1e8619d09` widened `IsMcpFirstToolRequest` in the generator but (a) added
+no test and (b) never committed the regenerated snapshot, so `--check` was red on
+a clean tree. And the UI page that renders the 409 conflict report had a stale
+`.tsx` twin still carrying `if (!res.ok) throw` (drops the report), plus a
+hardcoded `http://localhost:9001` (§3 violation, and mixed-content-blocked anyway).
+
+**What was fixed:** `scripts/test-service-suite.sh` runs both services and is
+wired into `run-all-tests.sh`, `ci-local.sh` (pre-push), and a new `ci.yml` job.
+authz uses `node --test *.test.js tests/*.test.js` — **both** globs, because
+`node --test` does not recurse on Node 20 and the second glob is where the UC16 /
+tier suites live. gateway uses `CI=true … --maxWorkers=2`. Pre-existing failures
+report but do not block (`SUITE_BLOCKING=1` flips that; it is the intended end
+state); a suite that cannot **run** always blocks — the counts print every run,
+no stale name-allowlist. The generator now guards `main()` behind `require.main`
+and exports `reconcile`/constants; the snapshot was regenerated (73 objects, one
+changed); `authorizeSnapshotDrift.test.js` asserts the condition lists exactly
+`MCP_DECISION_CONTEXTS`, is idempotent, and touches one object. Stale `.tsx`
+deleted; `.jsx` reads `REACT_APP_AUTHZ_BASE || ''` (same-origin default); a
+vitest suite proves the 409 report renders and the request carries no host.
+
+**Do not break:** authz must keep **both** `node --test` globs — dropping
+`tests/*.test.js` silently skips ~68 cases with a green result. The generator's
+`if (require.main === module) main()` guard is load-bearing: `decision.mockCloudParity.test.js`
+(authz) `require()`s the module, and without the guard the import would re-run
+`main()` and rewrite the committed snapshot as a side effect. Keep the suite gate
+non-blocking until the documented pre-existing failures are fixed, then set
+`SUITE_BLOCKING=1` — do not silence failures by narrowing what the suites check.
+
+**Verify:** `npm run test:authz-server` → "181 passed, 4 failed" and RAN (not
+skipped); `npm run test:mcp-gateway` → "passed / failed" with a real Jest summary;
+`npm run test:snapshots` → 4/4; `cd demo_api_ui && npm run build` exit 0. The four
+new snapshot tests and the four UI tests each fail under a one-line mutation of the
+invariant they guard.
+
 ### 2026-07-18 — Agent Gateway / P1AZ decision split: the real policy was inert (WS-A/B/C/D)
 
 **Files changed:** `demo_mcp_gateway/src/{config.ts,authzPosture.ts (new),auth/*,middleware/authorizeMcpRequest.ts,pingAuthorizeGuard.ts,server/GatewayServer.ts}`,

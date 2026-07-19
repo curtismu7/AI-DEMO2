@@ -134,9 +134,34 @@ const DEFAULT_DENY_CODE = 'mcp-authorization-denied';
 // C2 — decision provenance. Every response this module returns is labelled.
 const POLICY_SOURCE = 'p1az-mock';
 
-// Contexts that represent a single MCP tool invocation. The gateways send
-// 'McpToolCall'; the BFF sends 'McpFirstTool'. Rules gated on only the former
-// were skipped for every BFF-originated call (docs §5.5).
+// ── DecisionContext: two sets, deliberately different sizes ──────────────────
+//
+// ROUTING. Every context that identifies a request as MCP. Must stay identical
+// to MCP_DECISION_CONTEXTS in snapshots/gen-authorize-snapshot.js, which is what
+// the cloud condition `IsMcpFirstToolRequest` (cond 0008) expands to. The cloud
+// uses it to pick WHICH POLICY evaluates the request: in-set goes to the MCP
+// Delegation policy, out-of-set goes to the Transaction policy.
+//
+// Deliberately a DUPLICATE of the generator's list rather than an import: the
+// authz-server image does not ship snapshots/ (see Dockerfile — it copies only
+// *.js, routes/ and scope-topology.json), so requiring the generator here would
+// crash the container at startup. decision.mockCloudParity.test.js pins the two
+// copies together so the duplication cannot drift.
+const MCP_DECISION_CONTEXTS = new Set(['McpFirstTool', 'McpToolCall', 'McpToolsList', 'McpRequest']);
+
+// APPLICABILITY. The subset that represents a single MCP TOOL INVOCATION. The
+// gateways send 'McpToolCall'; the BFF sends 'McpFirstTool'. Rules gated on only
+// the former were skipped for every BFF-originated call (docs §5.5).
+//
+// This is intentionally NOT widened to match the routing set above, because the
+// cloud constant answers a different question. `McpToolsList` returns early at
+// Rule 1 and never reaches a tool-scoped rule at all; `McpRequest` is session
+// lifecycle (initialize / ping / notifications) and carries no ToolName and no
+// amount. A require-act rule (2.5) or an entitlement-tier ceiling (3d) has
+// nothing to evaluate on either — copying the four-entry routing list here would
+// add two contexts on which both rules are unconditionally inert, and would
+// misstate the rules' scope for the next reader. Rule applicability is per-rule;
+// policy routing is per-request.
 const MCP_TOOL_CALL_CONTEXTS = new Set(['McpToolCall', 'McpFirstTool']);
 
 // Scopes that authorize the gateway hop itself rather than a specific tool. A
@@ -533,6 +558,59 @@ module.exports = async function decisionHandler(req, res) {
     }
   }
 
+  // ── Rule 2.9: MCP session lifecycle — no tool to evaluate ─────────────────
+  // Both gateways send DecisionContext='McpRequest' for every non-tools/call
+  // method (PingOneAuthorizeClient.ts:127, p1az-decision.groovy:321) —
+  // initialize, ping, notifications/*. Those carry no ToolName.
+  //
+  // Since 1e8619d09 the cloud routes McpRequest to the MCP Delegation policy,
+  // whose deny rules are all tool-name or identity keyed and whose catch-all is
+  // `Permit Valid Tool Invocation` — so the cloud PERMITs a lifecycle call whose
+  // identity, actor and token claims check out. The mock had no routing notion,
+  // so the same request fell into Rule 3 below and was denied `unknown_tool: no
+  // policy defined for tool ""`. Same DecisionContext, opposite verdict — the
+  // exact mock/cloud drift this constant pair exists to prevent.
+  //
+  // Everything above this line (identity 0a/0a2, audience 0b/0b-2/0c, temporal
+  // 0c-0f, A2A 1c, actor 2, require-act 2.5) has already run and passed. Every
+  // rule BELOW it is tool-scoped. So there is nothing left to decide.
+  //
+  // Deliberately narrow: it requires BOTH a non-tool-call MCP context AND an
+  // absent ToolName. A tool call that forgot its tool name is still a DENY, and
+  // an McpRequest that DOES name a tool runs the full chain.
+  const isMcpContext = MCP_DECISION_CONTEXTS.has(DecisionContext);
+  if (isMcpContext && !MCP_TOOL_CALL_CONTEXTS.has(DecisionContext) && !asStr(ToolName).trim()) {
+    log(`[AuthzServer/decision] PERMIT — MCP session lifecycle (ctx=${DecisionContext} method=${params.McpMethod || '(none)'}), no tool to evaluate`);
+    return permit(res, `mcp session lifecycle permitted (${DecisionContext})`);
+  }
+
+  // ── Rule 2.95: UserRole — admin may not drive customer write tools ────────
+  // The BFF used to skip the ENTIRE authorization gate for admin sessions
+  // (F5, mcpToolAuthorizationService.js). That skip was removed and the role is
+  // now forwarded as UserRole (pingOneAuthorizeService.js:570) so the POLICY
+  // decides what admin means — but nothing consumed the key, which left the
+  // parameter decorative and the invariant enforced nowhere on the agent path.
+  //
+  // The invariant is not new: middleware/auth.js:1049 (requireNotAdmin) already
+  // 403s an admin token on every customer banking surface, and REGRESSION_PLAN
+  // §1 protects it. This states the same rule at the PDP. Note the direction —
+  // admin is a RESTRICTION here, never a bypass; re-adding a permit-for-admin
+  // branch would reinstate F5.
+  //
+  // Scoped to write tools: an admin observing customer state is the supported
+  // support-desk path, mutating it through the customer's agent is not.
+  // Inert when UserRole is absent, empty, or any non-admin value.
+  const isWriteToolForRole = ruleStore.isWriteTool(ToolName);
+  if (asStr(params.UserRole).trim().toLowerCase() === 'admin' && isWriteToolForRole) {
+    warn(`[AuthzServer/decision] DENY — admin_role_not_permitted: tool "${ToolName}" is a customer write tool`);
+    return deny(
+      res,
+      `admin_role_not_permitted: tool "${ToolName}" mutates customer banking state and is not available to an admin role. ` +
+      `Switch to a customer session (parity with requireNotAdmin).`,
+      'mcp-admin-role-not-permitted',
+    );
+  }
+
   // ── Rule 3: scope check ───────────────────────────────────────────────────
   // Unknown tool names (requiredScopes === null) are denied — there is no policy
   // for an unrecognised tool, so the safe default is DENY.
@@ -808,6 +886,11 @@ module.exports = async function decisionHandler(req, res) {
  * Copied verbatim from simulatedAuthorizeService.js:acrLooksStrong so the
  * mock and live engine share identical ACR bypass semantics (IMP-1 parity).
  */
+// Exposed for the mock/cloud drift guard in decision.mockCloudParity.test.js.
+// The module's export is the handler itself, so the constants hang off it.
+module.exports.MCP_DECISION_CONTEXTS = MCP_DECISION_CONTEXTS;
+module.exports.MCP_TOOL_CALL_CONTEXTS = MCP_TOOL_CALL_CONTEXTS;
+
 function acrLooksStrong(acr) {
   if (acr == null || acr === '') return false;
   const s = String(acr).toLowerCase();

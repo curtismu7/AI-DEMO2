@@ -21,7 +21,7 @@ import {
   TratClaims,
 } from './auth/PingOneAuthorizeClient';
 import { getScopesForGatewayTool, evaluateScopeDecisionLocally } from './auth/toolScopes';
-import { GatewayConfig, isP1AZActive } from './config';
+import { GatewayConfig, isP1AZActive, usingRealPdpEndpoint } from './config';
 import { getCorrelationId } from './correlationContext';
 import { enforceRarSubset, rarDetailsFromEnvelope, type RarToolArgs } from './rarEnforce';
 import { DecodedGatewayToken } from './tokenValidator';
@@ -175,8 +175,9 @@ export async function guardToolsList(
     // 'mock-failover'. Discovery-path resilience is owned by the BFF's degraded
     // fallback (agentToolsResolver retry + local catalog), not by this signal.
     // Hoisted above the decision branch so a DENY carries provenance too (C2).
-    const mockBase = config.pingAuthorizeMockBase;
-    const engine: AuthzDecision['engine'] = (mockBase && mockBase !== config.pingAuthorizeEndpoint) ? 'real' : 'mock';
+    // Same real-vs-mock predicate as the /health block (usingRealPdpEndpoint), so
+    // discovery provenance cannot disagree with the posture report.
+    const engine: AuthzDecision['engine'] = usingRealPdpEndpoint(config) ? 'real' : 'mock';
     const policySource = policySourceForEngine(engine);
 
     const decision: string = response.data?.decision || 'DENY';
@@ -203,9 +204,7 @@ export async function guardToolsList(
     return {
       permitted: false,
       reason: 'Authorization check unavailable',
-      policySource: policySourceForEngine(
-        config.pingAuthorizeMockBase && config.pingAuthorizeMockBase !== config.pingAuthorizeEndpoint ? 'real' : 'mock',
-      ),
+      policySource: policySourceForEngine(usingRealPdpEndpoint(config) ? 'real' : 'mock'),
     };
   }
 }
@@ -338,7 +337,10 @@ export async function guardToolCall(
     const canFailover = !!mockBase && mockBase !== config.pingAuthorizeEndpoint;
     // Track which authority actually answered so every return below can be
     // labelled (C2) — a failover DENY and a real-PDP DENY are not the same fact.
-    let engine: AuthzDecision['engine'] = canFailover ? 'real' : 'mock';
+    // Same real-vs-mock predicate as /health and the HTTP client; `canFailover`
+    // is the separate "is there a mock to dial" question (they split in the
+    // real-cloud-only case). Reassigned to 'mock-failover' below if we do fail over.
+    let engine: AuthzDecision['engine'] = usingRealPdpEndpoint(config) ? 'real' : 'mock';
 
     let response;
     try {
@@ -387,9 +389,7 @@ export async function guardToolCall(
     return {
       permitted: false,
       reason: 'Authorization check unavailable',
-      policySource: policySourceForEngine(
-        config.pingAuthorizeMockBase && config.pingAuthorizeMockBase !== config.pingAuthorizeEndpoint ? 'real' : 'mock',
-      ),
+      policySource: policySourceForEngine(usingRealPdpEndpoint(config) ? 'real' : 'mock'),
     };
   }
 }

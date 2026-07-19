@@ -14,7 +14,7 @@
  * armed. This is the signal F5/F6 were missing.
  */
 
-import { isP1AZActive, type GatewayConfig } from './config';
+import { isP1AZActive, usingRealPdpEndpoint, type GatewayConfig } from './config';
 import { policySourceForEngine, type PolicySource } from './auth/PingOneAuthorizeClient';
 
 /**
@@ -67,8 +67,7 @@ function unverifiedTokensAccepted(): boolean {
 
 export function buildAuthzHealth(config: GatewayConfig): AuthzHealth {
   const p1azActive = isP1AZActive(config);
-  const usingRealEndpoint = !!config.pingAuthorizeMockBase
-    && config.pingAuthorizeMockBase !== config.pingAuthorizeEndpoint;
+  const usingRealEndpoint = usingRealPdpEndpoint(config);
 
   const enforcing = {
     dpop: process.env.REQUIRE_DPOP_PROOF === 'true',
@@ -90,6 +89,16 @@ export function buildAuthzHealth(config: GatewayConfig): AuthzHealth {
   if (!p1azActive && config.allowLocalScopeFallback) {
     failOpen.push('MCP_GW_ALLOW_LOCAL_SCOPE_FALLBACK');
   }
+  // A check configured out of existence is the quietest bypass there is: the
+  // code runs, the tests pass, and it returns "valid" for every input.
+  // validateActClaim() short-circuits to {valid:true} when the allow-list is
+  // empty (toolScopes.ts), so an unset actor client id means ANY act.sub is
+  // accepted — the delegation actor is not checked at all.
+  if (!config.authorizedActorClientId) failOpen.push('PINGONE_TOKEN_EXCHANGER_CLIENT_ID');
+  // The gateway accepts purp / reqctx / azd from an unsigned, caller-supplied
+  // header and feeds them to the PDP and to RAR subset enforcement. Those checks
+  // still run — against evidence the caller wrote for itself.
+  if (process.env.ALLOW_UNSIGNED_TRAT_CONTEXT === 'true') failOpen.push('ALLOW_UNSIGNED_TRAT_CONTEXT');
 
   // Evidence-conditional bypasses: the control is off AND the corresponding
   // evidence is being presented, so the gateway is actively discarding proof

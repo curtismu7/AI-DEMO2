@@ -17,7 +17,7 @@
  */
 
 import axios from 'axios';
-import { type GatewayConfig, isP1AZActive } from '../config';
+import { type GatewayConfig, isP1AZActive, usingRealPdpEndpoint } from '../config';
 import type { IntentValidationResult } from '../intentTokenValidator';
 import type { DecodedGatewayToken } from '../tokenValidator';
 import { evaluateScopeDecisionLocally, validateActClaim } from './toolScopes'; // evaluateScopeDecisionLocally kept for tests that import it directly
@@ -29,9 +29,16 @@ export type AuthzDecisionOutcome = 'PERMIT' | 'DENY' | 'INDETERMINATE';
  *   'p1az'           real PingOne Authorize
  *   'p1az-mock'      the mock PDP (either configured directly, or reached via failover)
  *   'local-fallback' the gateway's OWN scope engine — degraded, never authoritative
- *   'simulated'      replayed//synthetic decision (tester surfaces)
+ *
+ * The contract's fourth value, 'simulated' (replayed/synthetic decisions on
+ * tester surfaces), is deliberately absent: no path in this service replays or
+ * synthesises a decision, so declaring it here advertised a provenance the
+ * gateway cannot produce. Runtime tuple, not a bare type alias, so the set the
+ * gateway claims to speak is assertable rather than a compile-time-only promise.
  */
-export type PolicySource = 'p1az' | 'p1az-mock' | 'local-fallback' | 'simulated';
+export const POLICY_SOURCES = ['p1az', 'p1az-mock', 'local-fallback'] as const;
+
+export type PolicySource = typeof POLICY_SOURCES[number];
 
 /**
  * Map the transport-level `engine` label onto the contract's policy source.
@@ -358,8 +365,13 @@ export class PingOneAuthorizeClient {
 
     const primary = this.config.pingAuthorizeEndpoint;
     const mockBase = this.config.pingAuthorizeMockBase;
+    // Two distinct questions that used to share one predicate. `canFailover` asks
+    // whether there is a DIFFERENT mock base to dial on error; `primaryEngine`
+    // (the provenance label) asks which authority the primary endpoint IS. They
+    // diverge in the real-cloud-only case — a real PDP with nothing to fail over
+    // to — where failover is impossible but the engine is unambiguously 'real'.
     const canFailover = !!mockBase && mockBase !== primary;
-    const primaryEngine: AuthzDecision['engine'] = canFailover ? 'real' : 'mock';
+    const primaryEngine: AuthzDecision['engine'] = usingRealPdpEndpoint(this.config) ? 'real' : 'mock';
 
     try {
       const response = await postDecision(primary);
@@ -371,7 +383,17 @@ export class PingOneAuthorizeClient {
           : typeof errBody?.error === 'string' ? errBody.error
           : `PingOne Authorize returned HTTP ${response.status}`;
         console.error(`[PingOneAuthorizeClient] P1AZ ${response.status}: ${reason} (endpoint: ${primary})`);
-        return { decision: 'DENY', reason: `authorize_config_error: ${reason}`, engine: primaryEngine, sentParameters: params };
+        // C2: the PDP was reached and rejected the request — that is still a
+        // decision with an author. The WS sibling (pingAuthorizeGuard.guardToolCall)
+        // has always labelled this path; without it here the same failure was
+        // attributable on one transport and anonymous on the other.
+        return {
+          decision: 'DENY',
+          reason: `authorize_config_error: ${reason}`,
+          engine: primaryEngine,
+          policySource: policySourceForEngine(primaryEngine),
+          sentParameters: params,
+        };
       }
       // 5xx (axios won't throw now): trigger failover
       if (response.status >= 500) {

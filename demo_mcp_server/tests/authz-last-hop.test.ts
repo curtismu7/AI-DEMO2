@@ -4,24 +4,31 @@
  *
  * The gateway verifies the delegation chain, the DPoP proof and the TraT
  * transaction context, then forwards to this server. Historically every one of
- * those facts was discarded here. These tests pin the four enforcement points
- * that close that gap, plus the D-05 gating change:
+ * those facts was discarded here. This suite pins the checks that close the gap:
  *
  *   F10  — act (delegation chain) verified against an actor allow-list
  *   D-05 — upstream-audience contract runs unconditionally, not behind a flag
  *   DPoP — X-DPoP-Verified is only trusted when the bridge secret proves the hop
  *   TraT — the transaction context is bound to the tool actually being called
+ *
+ * WHAT THIS FILE DOES NOT COVER, BY DESIGN: forged/unsigned tokens, and the WS
+ * transports. Those need real signature verification, so they live in
+ * forged-token-actor-chain.test.ts against the real TokenIntrospector. Here the
+ * auth manager is a double that reports a VERIFIED token — which is the point:
+ * it holds signature verification constant so each test isolates the one check
+ * it names. A double that returned bare `{}` (as this file used to) would make
+ * every case fail for the same uninteresting reason and prove nothing about D-05,
+ * DPoP or TraT.
  */
 
 import { EventEmitter } from 'events';
 import { IncomingMessage, ServerResponse } from 'http';
 import { HttpMCPTransport, HttpMCPTransportConfig } from '../src/server/HttpMCPTransport';
-import { BankingMCPServer } from '../src/server/BankingMCPServer';
 import { MCPMessageHandler } from '../src/server/MCPMessageHandler';
 import { BankingSessionManager, BankingSession } from '../src/storage/BankingSessionManager';
 import { BankingAuthenticationManager } from '../src/auth/BankingAuthenticationManager';
 import { BankingToolProvider } from '../src/tools/BankingToolProvider';
-import { PingOneConfig } from '../src/interfaces/auth';
+import { PingOneConfig, AgentTokenInfo } from '../src/interfaces/auth';
 import { verifyActorChain, parseAllowedActors } from '../src/auth/actorChain';
 
 jest.mock('../src/server/MCPMessageHandler');
@@ -37,11 +44,9 @@ const UPSTREAM_AUD = 'mcpserver.ping.demo';
 const GATEWAY_AUD = 'mcpgateway.ping.demo';
 const GATEWAY_CLIENT_ID = 'gateway-client-id-1';
 
-/** Build an unsigned JWT — the transport only base64-decodes the payload. */
 function makeJwt(payload: Record<string, unknown>): string {
-  const b64 = (o: unknown) =>
-    Buffer.from(JSON.stringify(o)).toString('base64url');
-  return `${b64({ alg: 'none', typ: 'JWT' })}.${b64(payload)}.sig`;
+  const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  return `${b64({ alg: 'RS256', typ: 'JWT' })}.${b64(payload)}.sig`;
 }
 
 /** A token shaped the way Exchange #3 is expected to mint it (WS-A). */
@@ -53,6 +58,28 @@ function delegatedToken(overrides: Record<string, unknown> = {}): string {
     act: { sub: GATEWAY_CLIENT_ID, client_id: GATEWAY_CLIENT_ID },
     ...overrides,
   });
+}
+
+/**
+ * Stand-in for TokenIntrospector.validateAgentToken on the happy authentication
+ * path: signature verified, claims surfaced. Modelling "verified" explicitly is
+ * what lets the tests below attribute a 401 to the check under test rather than
+ * to a missing signature.
+ */
+function verifiedTokenInfo(token: string): AgentTokenInfo {
+  const parts = token.split('.');
+  const claims = parts.length === 3
+    ? (JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8')) as Record<string, unknown>)
+    : {};
+  return {
+    tokenHash: 'hash',
+    clientId: 'client',
+    scopes: [],
+    expiresAt: new Date(Date.now() + 300_000),
+    isValid: true,
+    signatureVerified: true,
+    verifiedClaims: claims,
+  };
 }
 
 function makeRequest(options: {
@@ -114,11 +141,12 @@ function makeResponse(): MockResponse {
 
 describe('F10 — verifyActorChain', () => {
   const allowedActors = [GATEWAY_CLIENT_ID, 'other-gateway'];
+  const verified = { allowedActors, signatureVerified: true };
 
   it('permits a token whose act.client_id is in the allow-list', () => {
     const result = verifyActorChain(
       { sub: 'user-1', act: { sub: GATEWAY_CLIENT_ID, client_id: GATEWAY_CLIENT_ID } },
-      { allowedActors },
+      verified,
     );
     expect(result.ran).toBe(true);
     expect(result.valid).toBe(true);
@@ -127,10 +155,7 @@ describe('F10 — verifyActorChain', () => {
   });
 
   it('falls back to act.sub when act.client_id is absent', () => {
-    const result = verifyActorChain(
-      { sub: 'user-1', act: { sub: GATEWAY_CLIENT_ID } },
-      { allowedActors },
-    );
+    const result = verifyActorChain({ sub: 'user-1', act: { sub: GATEWAY_CLIENT_ID } }, verified);
     expect(result.valid).toBe(true);
     expect(result.actor).toBe(GATEWAY_CLIENT_ID);
   });
@@ -138,41 +163,55 @@ describe('F10 — verifyActorChain', () => {
   it('FAILS CLOSED when the token carries no act claim at all', () => {
     // This is the state of the world until WS-A adds actor_token to Exchange #3.
     // A token with no delegation chain must not be treated as "no restriction".
-    const result = verifyActorChain(
-      { sub: 'user-1', aud: UPSTREAM_AUD },
-      { allowedActors },
-    );
+    const result = verifyActorChain({ sub: 'user-1', aud: UPSTREAM_AUD }, verified);
     expect(result.ran).toBe(true);
     expect(result.valid).toBe(false);
     expect(result.errors[0]).toMatch(/act/i);
   });
 
   it('denies an actor that is not in the allow-list', () => {
-    const result = verifyActorChain(
-      { sub: 'user-1', act: { client_id: 'attacker-client' } },
-      { allowedActors },
-    );
+    const result = verifyActorChain({ sub: 'user-1', act: { client_id: 'attacker-client' } }, verified);
     expect(result.valid).toBe(false);
     expect(result.errors[0]).toMatch(/attacker-client/);
   });
 
   it('denies an act claim that carries no usable actor identifier', () => {
-    const result = verifyActorChain({ sub: 'user-1', act: {} }, { allowedActors });
+    const result = verifyActorChain({ sub: 'user-1', act: {} }, verified);
     expect(result.valid).toBe(false);
   });
 
   it('denies a non-object act claim (RFC 8693 §4.1 requires a JSON object)', () => {
+    const result = verifyActorChain({ sub: 'user-1', act: 'gateway-client-id-1' }, verified);
+    expect(result.valid).toBe(false);
+  });
+
+  // -------------------------------------------------------------------------
+  // The forgery guard. `act` is an authorization input, so it is worth exactly
+  // as much as the signature over it.
+  // -------------------------------------------------------------------------
+
+  it('DENIES an allow-listed actor when the signature was not verified', () => {
     const result = verifyActorChain(
-      { sub: 'user-1', act: 'gateway-client-id-1' },
-      { allowedActors },
+      { sub: 'user-1', act: { client_id: GATEWAY_CLIENT_ID } },
+      { allowedActors, signatureVerified: false },
     );
+    expect(result.ran).toBe(true);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toMatch(/signature was not verified/i);
+  });
+
+  it('DENIES by default when the caller omits signatureVerified', () => {
+    // Fail-closed default: a call site that forgets the flag must not inherit
+    // "trusted". This is the property that makes the API hard to misuse.
+    const result = verifyActorChain({ sub: 'user-1', act: { client_id: GATEWAY_CLIENT_ID } }, { allowedActors });
     expect(result.valid).toBe(false);
   });
 
   it('C4: reports an explicit skip marker when no allow-list is configured', () => {
     // "Omission is not permission" — an unarmed gate must be inspectable,
-    // never indistinguishable from a PERMIT.
-    const result = verifyActorChain({ sub: 'user-1' }, { allowedActors: [] });
+    // never indistinguishable from a PERMIT. Checked before the signature rule
+    // so an unarmed deployment is not broken by unverifiable tokens.
+    const result = verifyActorChain({ sub: 'user-1' }, { allowedActors: [], signatureVerified: false });
     expect(result.ran).toBe(false);
     expect(result.valid).toBe(true);
     expect(result.skipReason).toBeTruthy();
@@ -224,7 +263,8 @@ describe('HttpMCPTransport — last-hop enforcement call sites', () => {
     const mockToolProvider = {} as jest.Mocked<BankingToolProvider>;
     mockHandler = new MCPMessageHandler(mockAuthManager, mockSessionManager, mockToolProvider) as jest.Mocked<MCPMessageHandler>;
 
-    mockAuthManager.validateAgentToken = jest.fn().mockResolvedValue({} as any);
+    // Signature verification held constant at "verified" — see file header.
+    mockAuthManager.validateAgentToken = jest.fn(async (token: string) => verifiedTokenInfo(token));
     mockSessionManager.createSession = jest.fn().mockResolvedValue(mockSession);
     mockSessionManager.getSession = jest.fn().mockResolvedValue(mockSession);
     mockSessionManager.removeSession = jest.fn().mockResolvedValue(undefined);
@@ -253,7 +293,7 @@ describe('HttpMCPTransport — last-hop enforcement call sites', () => {
   }
 
   // -------------------------------------------------------------------------
-  // Finding 2 — D-05 must not be gated on MCP_GATEWAY_MODE
+  // D-05 must not be gated on MCP_GATEWAY_MODE
   // -------------------------------------------------------------------------
 
   describe('D-05 upstream contract runs unconditionally', () => {
@@ -275,10 +315,32 @@ describe('HttpMCPTransport — last-hop enforcement call sites', () => {
 
       expect(mock.statusCode).toBe(401);
       expect(mock.body).toMatch(/D-05/);
+      // The bypass must be stopped BEFORE a session exists, not merely reported.
+      expect(mockSessionManager.createSession).not.toHaveBeenCalled();
     });
 
-    it('still accepts a correctly exchanged upstream-audience token', async () => {
-      delete process.env.MCP_GATEWAY_MODE;
+    it('rejects a token whose aud is a third party, not the upstream', async () => {
+      // Rule 2 of the contract, distinct from the gateway-aud case above: an
+      // otherwise well-formed token minted for some other resource server.
+      process.env.MCP_UPSTREAM_RESOURCE_URI = UPSTREAM_AUD;
+      process.env.MCP_GW_RESOURCE_URI = GATEWAY_AUD;
+
+      const mock = makeResponse();
+      await transport.handleRequest(
+        initializePost(delegatedToken({ aud: 'someone-elses-api.ping.demo' })),
+        mock.res,
+        '/mcp',
+      );
+
+      expect(mock.statusCode).toBe(401);
+      expect(mock.body).toMatch(/aud mismatch/i);
+      expect(mockSessionManager.createSession).not.toHaveBeenCalled();
+    });
+
+    it('accepts a correctly exchanged upstream-audience token AND establishes a session', async () => {
+      // Guards the other direction: the anti-bypass rule must not deny the very
+      // token shape Exchange #3 is supposed to produce. Asserting the session was
+      // created makes this more than "no 401 was sent".
       process.env.MCP_UPSTREAM_RESOURCE_URI = UPSTREAM_AUD;
       process.env.MCP_GW_RESOURCE_URI = GATEWAY_AUD;
 
@@ -286,52 +348,40 @@ describe('HttpMCPTransport — last-hop enforcement call sites', () => {
       await transport.handleRequest(initializePost(delegatedToken()), mock.res, '/mcp');
 
       expect(mock.statusCode).toBe(200);
-    });
-
-    it('is a no-op when no audiences are configured (dev / unconfigured)', async () => {
-      delete process.env.MCP_GATEWAY_MODE;
-      delete process.env.MCP_UPSTREAM_RESOURCE_URI;
-      delete process.env.MCP_AUDIENCE;
-      delete process.env.PINGONE_RESOURCE_MCP_URI;
-      delete process.env.MCP_GW_RESOURCE_URI;
-
-      const mock = makeResponse();
-      await transport.handleRequest(initializePost(makeJwt({ sub: 'a', aud: 'whatever' })), mock.res, '/mcp');
-
-      expect(mock.statusCode).toBe(200);
+      expect(mockSessionManager.createSession).toHaveBeenCalledTimes(1);
+      expect(mock.headers['mcp-session-id']).toBeTruthy();
     });
 
     it('does not reject an aud-less token when nothing is configured to enforce', async () => {
       // Removing the MCP_GATEWAY_MODE gate must not convert "unconfigured" into
       // "deny everything": with no upstream/gateway audience set there is no
-      // contract to enforce, so a token with no aud is not a contract violation.
-      // (Audience presence is separately mandatory in TokenIntrospector whenever
-      // MCP_SERVER_RESOURCE_URI is configured — that is where aud is required.)
-      delete process.env.MCP_GATEWAY_MODE;
-      delete process.env.MCP_UPSTREAM_RESOURCE_URI;
-      delete process.env.MCP_AUDIENCE;
-      delete process.env.PINGONE_RESOURCE_MCP_URI;
-      delete process.env.MCP_GW_RESOURCE_URI;
+      // contract to enforce. (Audience presence is separately mandatory in
+      // TokenIntrospector whenever MCP_SERVER_RESOURCE_URI is configured.)
+      for (const k of ['MCP_GATEWAY_MODE', 'MCP_UPSTREAM_RESOURCE_URI', 'MCP_AUDIENCE', 'PINGONE_RESOURCE_MCP_URI', 'MCP_GW_RESOURCE_URI']) {
+        delete process.env[k];
+      }
 
       const mock = makeResponse();
-      await transport.handleRequest(initializePost('opaque-non-jwt-token'), mock.res, '/mcp');
+      await transport.handleRequest(initializePost(makeJwt({ sub: 'a' })), mock.res, '/mcp');
 
       expect(mock.statusCode).toBe(200);
+      expect(mockSessionManager.createSession).toHaveBeenCalledTimes(1);
     });
 
-    it('still rejects an aud-less token once an upstream audience IS configured', async () => {
-      delete process.env.MCP_GATEWAY_MODE;
+    it('rejects an aud-less token once an upstream audience IS configured', async () => {
       process.env.MCP_UPSTREAM_RESOURCE_URI = UPSTREAM_AUD;
 
       const mock = makeResponse();
-      await transport.handleRequest(initializePost('opaque-non-jwt-token'), mock.res, '/mcp');
+      await transport.handleRequest(initializePost(makeJwt({ sub: 'a' })), mock.res, '/mcp');
 
       expect(mock.statusCode).toBe(401);
+      expect(mockSessionManager.createSession).not.toHaveBeenCalled();
     });
   });
 
   // -------------------------------------------------------------------------
-  // Finding 1 (F10) — act enforced at the transport
+  // F10 at the HTTP transport. Forged-token cases live in
+  // forged-token-actor-chain.test.ts, which drives real signature verification.
   // -------------------------------------------------------------------------
 
   describe('F10 — delegation chain enforced at the MCP server', () => {
@@ -347,6 +397,7 @@ describe('HttpMCPTransport — last-hop enforcement call sites', () => {
 
       expect(mock.statusCode).toBe(401);
       expect(mock.body).toMatch(/delegation|act/i);
+      expect(mockSessionManager.createSession).not.toHaveBeenCalled();
     });
 
     it('rejects a token whose actor is not in the allow-list', async () => {
@@ -360,15 +411,18 @@ describe('HttpMCPTransport — last-hop enforcement call sites', () => {
       );
 
       expect(mock.statusCode).toBe(401);
+      expect(mock.body).toMatch(/rogue-agent/);
+      expect(mockSessionManager.createSession).not.toHaveBeenCalled();
     });
 
-    it('accepts a token whose actor is in the allow-list', async () => {
+    it('accepts a token whose actor is in the allow-list AND establishes a session', async () => {
       process.env.MCP_ALLOWED_ACTORS = `${GATEWAY_CLIENT_ID}, another-gateway`;
 
       const mock = makeResponse();
       await transport.handleRequest(initializePost(delegatedToken()), mock.res, '/mcp');
 
       expect(mock.statusCode).toBe(200);
+      expect(mockSessionManager.createSession).toHaveBeenCalledTimes(1);
     });
 
     it('does not enforce when MCP_ALLOWED_ACTORS is unset (pre-WS-A default)', async () => {
@@ -386,7 +440,7 @@ describe('HttpMCPTransport — last-hop enforcement call sites', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Finding 4 — X-DPoP-Verified must be bridge-authenticated
+  // X-DPoP-Verified must be bridge-authenticated
   // -------------------------------------------------------------------------
 
   describe('X-DPoP-Verified trusted-header hardening', () => {
@@ -409,6 +463,7 @@ describe('HttpMCPTransport — last-hop enforcement call sites', () => {
 
       expect(mock.statusCode).toBe(401);
       expect(mock.body).toMatch(/DPoP/i);
+      expect(mockSessionManager.createSession).not.toHaveBeenCalled();
     });
 
     it('rejects X-DPoP-Verified carrying a wrong bridge secret', async () => {
@@ -425,6 +480,7 @@ describe('HttpMCPTransport — last-hop enforcement call sites', () => {
       );
 
       expect(mock.statusCode).toBe(401);
+      expect(mockSessionManager.createSession).not.toHaveBeenCalled();
     });
 
     it('accepts X-DPoP-Verified with the matching bridge secret', async () => {
@@ -441,6 +497,7 @@ describe('HttpMCPTransport — last-hop enforcement call sites', () => {
       );
 
       expect(mock.statusCode).toBe(200);
+      expect(mockSessionManager.createSession).toHaveBeenCalledTimes(1);
     });
 
     it('rejects when the gateway did not verify DPoP even with a valid bridge secret', async () => {
@@ -454,11 +511,12 @@ describe('HttpMCPTransport — last-hop enforcement call sites', () => {
       );
 
       expect(mock.statusCode).toBe(401);
+      expect(mockSessionManager.createSession).not.toHaveBeenCalled();
     });
   });
 
   // -------------------------------------------------------------------------
-  // Finding 5 — TraT bound to the tool being invoked
+  // TraT bound to the tool being invoked
   // -------------------------------------------------------------------------
 
   describe('TraT transaction context is bound to the called tool', () => {
@@ -503,107 +561,25 @@ describe('HttpMCPTransport — last-hop enforcement call sites', () => {
         mock.res,
         '/mcp',
       );
-      return mock;
+      return { mock, handler: mockHandler };
     }
 
     it('rejects a tools/call whose tool differs from the TraT reqctx.tool', async () => {
       // A transaction token issued for `get_balance` must not authorize
       // `create_transfer` — otherwise the transaction binding is decorative.
-      const mock = await callTool('create_transfer', 'get_balance');
+      const { mock, handler } = await callTool('create_transfer', 'get_balance');
 
       expect(mock.statusCode).toBe(403);
       expect(mock.body).toMatch(/trat/i);
+      // The call must be stopped before dispatch, not merely flagged afterwards.
+      expect(handler.handleMessage).not.toHaveBeenCalled();
     });
 
     it('permits a tools/call that matches the TraT reqctx.tool', async () => {
-      const mock = await callTool('get_balance', 'get_balance');
+      const { mock, handler } = await callTool('get_balance', 'get_balance');
+
       expect(mock.statusCode).toBe(200);
+      expect(handler.handleMessage).toHaveBeenCalledTimes(1);
     });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// F10 on the WebSocket transport — the LangChain agent connects over
-// ws://mcp-server:8080 (docker-compose.yml), so an actor check that only covers
-// HTTP is bypassable by switching transport.
-// ---------------------------------------------------------------------------
-
-describe('F10 — delegation chain enforced on the WebSocket connect path', () => {
-  const envSnapshot = { ...process.env };
-  let server: BankingMCPServer;
-  let mockAuthManager: jest.Mocked<BankingAuthenticationManager>;
-
-  function makeWs() {
-    return { close: jest.fn(), on: jest.fn(), readyState: 1, send: jest.fn() } as any;
-  }
-
-  beforeEach(() => {
-    const pingOneConfig: PingOneConfig = {
-      baseUrl: 'https://auth.example.com',
-      clientId: 'client',
-      clientSecret: 'secret',
-      tokenIntrospectionEndpoint: 'https://auth.example.com/introspect',
-      authorizationEndpoint: 'https://auth.example.com/authorize',
-      tokenEndpoint: 'https://auth.example.com/token',
-    };
-    mockAuthManager = new BankingAuthenticationManager(pingOneConfig) as jest.Mocked<BankingAuthenticationManager>;
-    mockAuthManager.validateAgentToken = jest.fn().mockResolvedValue({} as any);
-    const mockSessionManager = new BankingSessionManager('p', 'k') as jest.Mocked<BankingSessionManager>;
-    const mockToolProvider = {} as jest.Mocked<BankingToolProvider>;
-
-    server = new BankingMCPServer(
-      { host: 'localhost', port: 0, maxConnections: 10, sessionTimeout: 3600, enableLogging: false },
-      mockAuthManager,
-      mockSessionManager,
-      mockToolProvider,
-    );
-  });
-
-  afterEach(() => {
-    process.env = { ...envSnapshot };
-  });
-
-  it('closes a WS connection whose token has no act claim when armed', async () => {
-    process.env.MCP_ALLOWED_ACTORS = GATEWAY_CLIENT_ID;
-    const ws = makeWs();
-
-    await server.handleConnection(ws, {
-      headers: { authorization: `Bearer ${makeJwt({ sub: 'user-1', aud: UPSTREAM_AUD })}` },
-    });
-
-    expect(ws.close).toHaveBeenCalledWith(1008, expect.stringMatching(/delegation/i));
-  });
-
-  it('closes a WS connection whose actor is not in the allow-list', async () => {
-    process.env.MCP_ALLOWED_ACTORS = GATEWAY_CLIENT_ID;
-    const ws = makeWs();
-
-    await server.handleConnection(ws, {
-      headers: { authorization: `Bearer ${delegatedToken({ act: { client_id: 'rogue' } })}` },
-    });
-
-    expect(ws.close).toHaveBeenCalledWith(1008, expect.any(String));
-  });
-
-  it('admits a WS connection whose actor is in the allow-list', async () => {
-    process.env.MCP_ALLOWED_ACTORS = GATEWAY_CLIENT_ID;
-    const ws = makeWs();
-
-    await server.handleConnection(ws, {
-      headers: { authorization: `Bearer ${delegatedToken()}` },
-    });
-
-    expect(ws.close).not.toHaveBeenCalled();
-  });
-
-  it('does not enforce when MCP_ALLOWED_ACTORS is unset (pre-WS-A default)', async () => {
-    delete process.env.MCP_ALLOWED_ACTORS;
-    const ws = makeWs();
-
-    await server.handleConnection(ws, {
-      headers: { authorization: `Bearer ${makeJwt({ sub: 'user-1', aud: UPSTREAM_AUD })}` },
-    });
-
-    expect(ws.close).not.toHaveBeenCalled();
   });
 });

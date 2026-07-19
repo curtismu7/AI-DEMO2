@@ -148,6 +148,16 @@ run "use-cases:check"   use-cases:check
 echo "job: API server tests (Jest)"
 run_api_tests
 
+# demo_authz_server / demo_mcp_gateway used to reach no runner at all: the gateway
+# appeared in ci.yml only to `npm install` its deps so topology:verify could run an
+# unrelated drift check, and the authz server appeared nowhere. Their suites now
+# run here and in ci.yml. Both report pre-existing failures without blocking (see
+# scripts/test-service-suite.sh); a suite that cannot RUN still fails the gate.
+echo "job: Authz decision-point suites"
+run "test:authz-server"  test:authz-server
+run "test:mcp-gateway"   test:mcp-gateway
+run "test:snapshots"     test:snapshots
+
 if [ -n "$FAILED" ]; then
   echo
   echo "LOCAL CI FAILED:$FAILED"

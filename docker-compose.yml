@@ -412,6 +412,13 @@ services:
       MCP_GW_INVEST_WS_URL: "ws://mcp-invest:8081"
       MCP_GW_PASSTHROUGH_TO_MCP_SERVER: "false"
       PINGAUTHORIZE_ENDPOINT: "http://authz-server:9001"
+      # Declare the mock explicitly. Decision provenance (contract C2) and the
+      # /health posture block both derive "is this a real PDP?" by comparing the
+      # endpoint against this value. With it unset, a deployment pointed at the
+      # mock reports policySource 'p1az' — i.e. the audit trail claims cloud
+      # PingOne Authorize decided when the mock did. Must equal PINGAUTHORIZE_ENDPOINT
+      # whenever that endpoint IS the mock.
+      PINGAUTHORIZE_MOCK_BASE: "http://authz-server:9001"
       PINGAUTHORIZE_WORKER_ID: "mcp-gateway"
       MCP_GW_P1AZ_ENABLED: "true"
       GW_INTROSPECTION_ENDPOINT: "http://authz-server:9001/as/introspect"
@@ -822,6 +829,29 @@ services:
       # BFF_INTERNAL_SECRET comes from env_file (ping-gateway/.env, written by
       # refresh-service-envs.js) so it matches the BFF's real value — do NOT set
       # it here (environment: would override env_file with a wrong/default value).
+      #
+      # INTENT_TOKEN_SECRET: SAME RULE, and the reason intent verification was dead
+      # on this path. p1az-decision.groovy reads INTENT_TOKEN_SECRET (falling back to
+      # SESSION_SECRET); with neither present the verifier short-circuits and omits
+      # IntentTokenValid / IntentMatchesTool, so ~190 lines of correct HMAC checking
+      # never ran. It arrives via env_file from refresh-service-envs.js, which must
+      # write the BFF's EFFECTIVE signing key (intentTokenService.js:8 signs with
+      # INTENT_TOKEN_SECRET || SESSION_SECRET — writing only the former leaves the
+      # gateway verifying with a different key than the BFF signed with, which is a
+      # silent invalid_signature on every request). Do NOT pin it here: a
+      # `${INTENT_TOKEN_SECRET:-}` default would resolve to empty on a host without
+      # the var and override env_file, re-killing the verifier.
+      #
+      # TraT parity (Path A / Path B must agree). mcp-server and mcp-gateway both
+      # default this true; ping-gateway set it nowhere, so it was effectively false
+      # here and the SAME request had its RAR / purp / cnf evidence forwarded to the
+      # PDP through the Node gateway and silently dropped through PingGateway — while
+      # PingGateway is the DEFAULT path (ff_mcp_gateway_pinggateway). Chose `true` to
+      # match the other two rather than flipping them to false: the BFF's TraT context
+      # is simulated for the demo, so false would strip RAR/purp/cnf from the decision
+      # everywhere and leave the F4 finding unfixed on both paths. Same variable name
+      # across all three services, so one host-level override moves them together.
+      ALLOW_UNSIGNED_TRAT_CONTEXT: ${ALLOW_UNSIGNED_TRAT_CONTEXT:-true}
       # Fallback truststore (see entrypoint comment above): -cacerts isn't writable
       # by the fixed non-root image user, so the mkcert root is imported into a
       # copy of cacerts under /var/gateway instead, and the JVM is pointed at it.

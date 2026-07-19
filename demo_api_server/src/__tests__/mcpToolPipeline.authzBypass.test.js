@@ -164,4 +164,33 @@ describe('a skipped gate is visible in the response (C4)', () => {
     expect(outcome.body.mcpAuthorizeEvaluation).toMatchObject({ decision: 'PERMIT' });
     expect(outcome.body.mcpAuthorizeEvaluation.skipped).toBeUndefined();
   });
+
+  // The A2A specialist path (bffMcpToolExecutor sets ctx.skipBffAuthorize) was
+  // the last C4 gap: it emitted an SSE phase and fell through WITHOUT setting
+  // mcpAuthorizeEvaluationThisRequest, so the response body was identical to a
+  // run where the gate PERMITted. The other two skips already set it.
+  it('the A2A supplied-token skip is visible in the response, not just on SSE', async () => {
+    const deps = makeDeps();
+    const outcome = await runMcpToolPipeline(makeCtx({ deps, skipBffAuthorize: true }));
+
+    expect(deps.evaluateMcpFirstToolGate).not.toHaveBeenCalled();
+    expect(outcome.kind).toBe('result');
+    expect(outcome.body.mcpAuthorizeEvaluation).toMatchObject({
+      ran: false,
+      skipped: true,
+      skipReason: 'a2a_supplied_token',
+      decisionContext: 'McpFirstTool',
+    });
+    // Must NOT look like a decision was made.
+    expect(outcome.body.mcpAuthorizeEvaluation.decision).toBeUndefined();
+  });
+
+  it('the A2A skip is distinguishable from a real PERMIT on the same tool', async () => {
+    const permitted = await runMcpToolPipeline(makeCtx({ deps: makeDeps() }));
+    const skipped = await runMcpToolPipeline(makeCtx({ deps: makeDeps(), skipBffAuthorize: true }));
+
+    expect(permitted.body.mcpAuthorizeEvaluation).not.toEqual(
+      skipped.body.mcpAuthorizeEvaluation,
+    );
+  });
 });

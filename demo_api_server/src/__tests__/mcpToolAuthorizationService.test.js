@@ -195,6 +195,12 @@ describe('mcpToolAuthorizationService', () => {
 
       expect(r.ran).toBe(true);
       expect(r.permit).toBe(true);
+      // simParams must carry the SAME role the live PingOne path gets. When it
+      // did not, the two engines evaluated different inputs for one call —
+      // which is finding F3, the disagreement this workstream exists to close.
+      expect(simulatedAuthorizeService.evaluateMcpFirstTool).toHaveBeenCalledWith(
+        expect.objectContaining({ userRole: 'user' }),
+      );
       expect(simulatedAuthorizeService.evaluateMcpFirstTool).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: 'user-sub',

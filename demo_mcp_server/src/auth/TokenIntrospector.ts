@@ -123,7 +123,11 @@ export class TokenIntrospector {
     // before trusting ANY claim below. Previously this boundary decoded the token
     // unsigned, so a self-crafted JWT with the right claims passed auth, scope
     // filtering, and the aud check. Fail-closed when JWKS is configured.
-    await this.verifyTokenSignature(token);
+    //
+    // The RESULT is reported to callers (signatureVerified / verifiedClaims below):
+    // "accepted" and "proven authentic" are different facts, and code that
+    // authorizes on a claim needs the second one.
+    const signatureVerified = await this.verifyTokenSignature(token);
 
     const now = Math.floor(Date.now() / 1000);
     const rawAud = decoded.aud;
@@ -258,6 +262,10 @@ export class TokenIntrospector {
       expiresAt: tokenInfo.exp ? new Date(tokenInfo.exp * 1000) : new Date(Date.now() + 3600000),
       isValid: true,
       actorClientId,
+      signatureVerified,
+      // Only surfaced when the signature checked out — an unverified decode must
+      // not be reachable through this field.
+      verifiedClaims: signatureVerified ? decoded : undefined,
     };
 
     // Detect dual-mode token type (RFC 8693 vs Transaction Tokens)
@@ -302,8 +310,13 @@ export class TokenIntrospector {
    * (already fatal outside development via ConfigManager) downgrades a failure to
    * a warning. When no JWKS endpoint is configured there is nothing to verify
    * against, so the decode-only path is preserved with a prominent warning.
+   *
+   * @returns true when the signature was cryptographically verified; false when
+   *          the token was accepted WITHOUT verification (no JWKS configured, the
+   *          SKIP escape hatch, or the ALLOW_JWKS_FAILOPEN outage path). Throws
+   *          when verification ran and failed.
    */
-  private async verifyTokenSignature(token: string): Promise<void> {
+  private async verifyTokenSignature(token: string): Promise<boolean> {
     const skip = process.env.SKIP_TOKEN_SIGNATURE_VALIDATION === 'true';
     const jwks = await this.getJwksKeySet();
     if (!jwks) {
@@ -315,19 +328,19 @@ export class TokenIntrospector {
         throw new AuthenticationError('Agent token signature cannot be verified (JWKS not configured)', AuthErrorCodes.INVALID_AGENT_TOKEN);
       }
       teachLog.warn('JWKS not configured (set PINGONE_JWKS_URI / PINGONE_ISSUER / PINGONE_BASE_URL) — agent token signature NOT verified');
-      return;
+      return false;
     }
     const { jwtVerify } = await getJose();
     try {
       await jwtVerify(token, jwks);
       this.lastKnownGoodJwks = jwks;
       teachLog.info('agent token signature verified (JWKS)');
-      return;
+      return true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (skip) {
         teachLog.warn(`agent token signature verification FAILED but SKIP_TOKEN_SIGNATURE_VALIDATION=true — accepting: ${msg}`);
-        return;
+        return false;
       }
       // A real signature mismatch (or wrong-key / malformed token) fails closed.
       if (!isJwksUnavailableError(err)) {
@@ -348,7 +361,7 @@ export class TokenIntrospector {
           await jwtVerify(token, fresh);
           this.lastKnownGoodJwks = fresh;
           teachLog.info('agent token signature verified (JWKS, after retry)');
-          return;
+          return true;
         }
       } catch (retryErr) {
         const rmsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
@@ -365,7 +378,7 @@ export class TokenIntrospector {
         try {
           await jwtVerify(token, this.lastKnownGoodJwks);
           teachLog.warn(`JWKS endpoint unavailable (${msg}) — verified against last-known-good keyset instead`);
-          return;
+          return true;
         } catch (lkgErr) {
           if (!isJwksUnavailableError(lkgErr)) {
             const lmsg = lkgErr instanceof Error ? lkgErr.message : String(lkgErr);
@@ -386,6 +399,7 @@ export class TokenIntrospector {
         throw new AuthenticationError('Agent token signature verification unavailable (JWKS unreachable)', AuthErrorCodes.INVALID_AGENT_TOKEN);
       }
       teachLog.warn(`JWKS endpoint unavailable (${msg}) and ALLOW_JWKS_FAILOPEN=true — agent token signature NOT verified; accepting on gateway authorization. Fix PINGONE_JWKS_URI to restore signature checks.`);
+      return false;
     }
   }
 

@@ -74,29 +74,60 @@ describe('F8 — required_scopes only when the local scope engine decided', () =
     expect(body().required_scopes).toEqual(expect.arrayContaining(['transfer']));
   });
 
-  it('surfaces the decision provenance on the denial body (C2)', async () => {
-    const { body } = await denyWith({
-      decision: 'DENY', reason: 'nope', policySource: 'p1az',
-    });
-    expect(body().policy_source).toBe('p1az');
-  });
-
-  it('marks a degraded denial so it is not mistaken for a PDP verdict', async () => {
-    const { body } = await denyWith({
-      decision: 'DENY',
-      reason: 'local-fallback: insufficient_scope: missing transfer',
-      policySource: 'local-fallback',
-      degraded: true,
-    });
-    expect(body().policy_source).toBe('local-fallback');
-    expect(body().degraded).toBe(true);
-  });
-
-  it('a p1az-mock deny is labelled as such and still omits required_scopes', async () => {
+  it('a p1az-mock deny still omits required_scopes', async () => {
     const { body } = await denyWith({
       decision: 'DENY', reason: 'mcp-not-in-required-group', policySource: 'p1az-mock',
     });
-    expect(body().policy_source).toBe('p1az-mock');
     expect(body()).not.toHaveProperty('required_scopes');
+  });
+});
+
+/**
+ * Writing `policySource: 'p1az'` into a stub and then asserting
+ * `policy_source === 'p1az'` proves one thing: the middleware copies a field
+ * under a new name. It cannot fail for any reason that matters. What has to
+ * hold is that the rendering DISCRIMINATES — that two different authorities
+ * produce two visibly different bodies, and that the middleware never supplies
+ * a provenance the decision did not carry.
+ *
+ * (The complementary proof — that the gateway PRODUCES the right provenance
+ * rather than echoing an injected one — is in
+ * authorizeMcpRequest.productionPath.test.ts, which runs the real client.)
+ */
+describe('C2 — the denial body discriminates between authorities', () => {
+  it('a PDP deny and a gateway-local deny are not interchangeable on the wire', async () => {
+    const pdp = (await denyWith({
+      decision: 'DENY', reason: 'mcp-tier-amount-exceeded', policySource: 'p1az',
+    })).body();
+    const local = (await denyWith({
+      decision: 'DENY', reason: 'local-fallback: insufficient_scope: missing transfer',
+      policySource: 'local-fallback', degraded: true,
+    })).body();
+
+    // Three independent signals separate them; a reader of either body can tell
+    // which authority spoke without consulting anything else.
+    expect(pdp.policy_source).not.toBe(local.policy_source);
+    expect(pdp.degraded).toBeUndefined();
+    expect(local.degraded).toBe(true);
+    expect(pdp).not.toHaveProperty('required_scopes');
+    expect(local).toHaveProperty('required_scopes');
+  });
+
+  it('never invents a provenance the decision did not carry', async () => {
+    // A decision path that forgets to label itself must surface as unlabelled,
+    // not be silently defaulted to the most reassuring value.
+    const { body } = await denyWith({ decision: 'DENY', reason: 'unlabelled' });
+    expect(body().policy_source).toBeUndefined();
+    expect(body()).not.toHaveProperty('required_scopes');
+  });
+
+  it('degraded is only claimed when the decision claimed it', async () => {
+    // A local-fallback decision that (wrongly) omitted degraded must not have it
+    // manufactured from the policySource — the two fields are set by the engine.
+    const { body } = await denyWith({
+      decision: 'DENY', reason: 'local-fallback: insufficient_scope', policySource: 'local-fallback',
+    });
+    expect(body()).not.toHaveProperty('degraded');
+    expect(body().policy_source).toBe('local-fallback');
   });
 });

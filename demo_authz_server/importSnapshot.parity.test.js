@@ -170,6 +170,190 @@ test('a single-parent statement with shared:false is NOT flagged (no false posit
   assert.strictEqual(res.body.valid, true);
 });
 
+// ── F9 item 3 — a MISSING condition is drift too ─────────────────────────────
+//
+// The tool-DROP case above was caught. The tool-drop is also the LESS likely
+// real-world drift: `if (consentCond)` / `if (stepUpCond)` meant a snapshot that
+// DELETED the condition outright, or RENAMED it, skipped the comparison entirely
+// and scored zero conflicts, valid:true, HTTP 200 — a strictly worse un-gating
+// than dropping three tools, reported as a clean import.
+//
+// Both editing paths that produce a real snapshot make this easy to hit: the
+// PingOne Authorize UI deletes a condition when its last comparison is removed,
+// and gen-authorize-snapshot.js addresses conditions by stable ID while
+// import-snapshot.js looks them up by NAME, so an ID-preserving rename is
+// invisible to the generator and fatal to the check.
+
+/** Remove a whole condition object from the snapshot (the delete case). */
+function deleteCondition(snapshot, conditionName) {
+  const i = snapshot.findIndex((o) => o.type === 'CONDITION' && o.name === conditionName);
+  assert.ok(i >= 0, `fixture precondition: condition ${conditionName} exists`);
+  snapshot.splice(i, 1);
+  return snapshot;
+}
+
+/** Rename a condition in place, keeping its id (the rename case). */
+function renameCondition(snapshot, from, to) {
+  const cond = snapshot.find((o) => o.type === 'CONDITION' && o.name === from);
+  assert.ok(cond, `fixture precondition: condition ${from} exists`);
+  cond.name = to;
+  return snapshot;
+}
+
+test('DELETING RequiresHitlConsent outright is BLOCKED (was: zero conflicts, valid:true, HTTP 200)', async () => {
+  const res = await validate(deleteCondition(loadSnapshot(), 'RequiresHitlConsent'));
+  assert.strictEqual(res.statusCode, 409, 'a deleted consent condition un-gates every consent tool and must block');
+  assert.strictEqual(res.body.valid, false);
+  const conflict = res.body.conflicts.find((c) => c.type === 'consent_condition_missing');
+  assert.ok(conflict, `expected consent_condition_missing, got ${JSON.stringify(res.body.conflicts)}`);
+  // The report must name what the SoT still expects to be gated, so the operator
+  // can see the blast radius rather than just "something is missing".
+  assert.ok(Array.isArray(conflict.sot) && conflict.sot.length > 0);
+  for (const tool of DROPPED_BY_FIXED) {
+    assert.ok(conflict.sot.includes(tool), `SoT consent list should name ${tool}`);
+  }
+});
+
+test('DELETING RequiresMcpStepUp outright is BLOCKED', async () => {
+  const res = await validate(deleteCondition(loadSnapshot(), 'RequiresMcpStepUp'));
+  assert.strictEqual(res.statusCode, 409);
+  const conflict = res.body.conflicts.find((c) => c.type === 'step_up_condition_missing');
+  assert.ok(conflict, `expected step_up_condition_missing, got ${JSON.stringify(res.body.conflicts)}`);
+  assert.ok(Array.isArray(conflict.sot) && conflict.sot.length > 0);
+});
+
+test('RENAMING RequiresHitlConsent is BLOCKED — the lookup is by name, so a rename reads as a delete', async () => {
+  const res = await validate(renameCondition(loadSnapshot(), 'RequiresHitlConsent', 'RequiresHitlConsentV2'));
+  assert.strictEqual(res.statusCode, 409, 'an id-preserving rename must not silently disable the check');
+  assert.ok(res.body.conflicts.some((c) => c.type === 'consent_condition_missing'));
+});
+
+test('RENAMING RequiresMcpStepUp is BLOCKED', async () => {
+  const res = await validate(renameCondition(loadSnapshot(), 'RequiresMcpStepUp', 'RequiresMcpStepUpV2'));
+  assert.strictEqual(res.statusCode, 409);
+  assert.ok(res.body.conflicts.some((c) => c.type === 'step_up_condition_missing'));
+});
+
+test('deleting BOTH conditions reports BOTH conflicts, not just the first', async () => {
+  let snapshot = deleteCondition(loadSnapshot(), 'RequiresHitlConsent');
+  snapshot = deleteCondition(snapshot, 'RequiresMcpStepUp');
+  const res = await validate(snapshot);
+  assert.strictEqual(res.statusCode, 409);
+  assert.ok(res.body.conflicts.some((c) => c.type === 'consent_condition_missing'));
+  assert.ok(res.body.conflicts.some((c) => c.type === 'step_up_condition_missing'));
+});
+
+test('a missing condition is NOT flagged when the SoT expects no tools of that kind (no false positives)', async () => {
+  // The check must key off what the SoT actually declares. If scope-topology.json
+  // gated nothing with challengeType=consent, a snapshot without the condition
+  // would be correct, not drift. Simulated by validating a snapshot that has
+  // neither the condition nor any rule referencing it, against an empty SoT
+  // expectation — asserted here via the inverse: with a NON-empty SoT the
+  // conflict fires (above), so the guard is the SoT lookup, not a bare presence
+  // test. This case pins that the conflict carries the SoT list it compared to.
+  const res = await validate(deleteCondition(loadSnapshot(), 'RequiresHitlConsent'));
+  const conflict = res.body.conflicts.find((c) => c.type === 'consent_condition_missing');
+  assert.ok(conflict.sot.length > 0, 'conflict must be justified by a non-empty SoT expectation');
+});
+
+// ── Round 3 — HasValidMcpAudience set parity (the import blocker) ────────────
+//
+// The pre-round-3 condition was `TokenAudience Equals McpResourceUri` —
+// attribute-to-attribute string equality. Post-C1 every caller sends the
+// token's real single aud as TokenAudience and a comma-joined accepted set as
+// McpResourceUri, so that equality is never true and importing DENIES ALL MCP
+// TRAFFIC. The checker used to validate only consent/step-up tool lists and
+// statement sharing, so it would wave the broken equality through (200/valid).
+
+function audienceCondition(snapshot) {
+  const cond = snapshot.find((o) => o.type === 'CONDITION' && o.name === 'HasValidMcpAudience');
+  assert.ok(cond, 'fixture precondition: HasValidMcpAudience exists');
+  return cond;
+}
+
+test('the OLD attribute-to-attribute audience equality is BLOCKED (was: passed untouched)', async () => {
+  const snapshot = loadSnapshot();
+  audienceCondition(snapshot).condition = { and: { conditions: [{
+    comparison: {
+      left: { attribute: { id: '12345678-0009-4321-abcd-000000000009' } },
+      op: 'Equals',
+      right: { attribute: { id: '12345678-0012-4321-abcd-000000000012' } },
+    },
+  }] } };
+  const res = await validate(snapshot);
+  assert.strictEqual(res.statusCode, 409, 'importing the broken equality denies all MCP traffic — must block');
+  const conflict = res.body.conflicts.find((c) => c.type === 'mcp_audience_attribute_equality');
+  assert.ok(conflict, `expected mcp_audience_attribute_equality, got ${JSON.stringify(res.body.conflicts)}`);
+});
+
+test('a FOREIGN audience constant is BLOCKED with the snapshot/SoT sets reported', async () => {
+  const snapshot = loadSnapshot();
+  const cond = audienceCondition(snapshot);
+  // Replace one accepted identity with a foreign audience.
+  cond.condition.or.conditions[0].comparison.right.constant.value = 'evil.example.com';
+  const res = await validate(snapshot);
+  assert.strictEqual(res.statusCode, 409);
+  const conflict = res.body.conflicts.find((c) => c.type === 'mcp_audience_mismatch');
+  assert.ok(conflict, `expected mcp_audience_mismatch, got ${JSON.stringify(res.body.conflicts)}`);
+  assert.ok(conflict.snapshot.includes('evil.example.com'));
+  assert.ok(conflict.sot.includes('mcpgateway.ping.demo'));
+  assert.ok(conflict.sot.includes('https://api.ping.demo:3036/mcp'));
+});
+
+test('a DROPPED accepted audience is BLOCKED — a partial set denies one gateway wholesale', async () => {
+  const snapshot = loadSnapshot();
+  const cond = audienceCondition(snapshot);
+  cond.condition.or.conditions = cond.condition.or.conditions.filter(
+    (c) => c.comparison.right.constant.value !== 'https://api.ping.demo:3036/mcp',
+  );
+  const res = await validate(snapshot);
+  assert.strictEqual(res.statusCode, 409);
+  assert.ok(res.body.conflicts.some((c) => c.type === 'mcp_audience_mismatch'));
+});
+
+test('a MISSING (deleted or renamed) HasValidMcpAudience is BLOCKED', async () => {
+  const res = await validate(deleteCondition(loadSnapshot(), 'HasValidMcpAudience'));
+  assert.strictEqual(res.statusCode, 409);
+  assert.ok(res.body.conflicts.some((c) => c.type === 'mcp_audience_condition_missing'));
+
+  const res2 = await validate(renameCondition(loadSnapshot(), 'HasValidMcpAudience', 'HasValidMcpAudienceV2'));
+  assert.strictEqual(res2.statusCode, 409);
+  assert.ok(res2.body.conflicts.some((c) => c.type === 'mcp_audience_condition_missing'));
+});
+
+// ── Round 3 — the fine-grained deny statement codes must exist ───────────────
+
+const ROUND3_STATEMENT_CODES = [
+  'mcp-bypass-attempt',
+  'mcp-resource-owner-mismatch',
+  'mcp-rar-amount-exceeded',
+  'mcp-intent-invalid',
+  'mcp-intent-mismatch',
+  'mcp-admin-role-not-permitted',
+];
+
+test('every round-3 deny statement code is present in the tracked snapshot', async () => {
+  const snapshot = loadSnapshot();
+  for (const code of ROUND3_STATEMENT_CODES) {
+    assert.ok(
+      snapshot.some((o) => o.type === 'Statement' && o.code === code),
+      `tracked snapshot must define statement code ${code}`,
+    );
+  }
+});
+
+test('a snapshot MISSING a round-3 statement code is BLOCKED', async () => {
+  for (const code of ROUND3_STATEMENT_CODES) {
+    const snapshot = loadSnapshot().filter((o) => !(o.type === 'Statement' && o.code === code));
+    const res = await validate(snapshot);
+    assert.strictEqual(res.statusCode, 409, `dropping ${code} must block the import`);
+    const conflict = res.body.conflicts.find(
+      (c) => c.type === 'statement_code_missing' && c.code === code,
+    );
+    assert.ok(conflict, `expected statement_code_missing for ${code}, got ${JSON.stringify(res.body.conflicts)}`);
+  }
+});
+
 // ── Malformed input still handled ───────────────────────────────────────────
 
 test('malformed JSON still returns 400, not a crash', async () => {

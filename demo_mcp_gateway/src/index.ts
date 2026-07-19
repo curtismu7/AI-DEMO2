@@ -507,6 +507,11 @@ async function handleMessage(
     // Surface which authorization backend produced the per-tool decision so the
     // BFF/UI can show real vs. mock mode without polling a separate endpoint.
     if (authz.engine) meta.authzEngine = authz.engine;
+    // C2 — a permitted tools/list is a decision, and when P1AZ is off it is a
+    // decision the GATEWAY made about itself. Without provenance the degraded
+    // discovery result looked identical to a PDP-approved one.
+    if (authz.policySource) meta.policySource = authz.policySource;
+    if (authz.degraded) meta.degraded = true;
     // HI-04: when any backend rejected, mark the response so the caller can
     // render a partial-results warning. Gateway-owned tools are always present.
     if (failedBackends.length > 0) {
@@ -892,6 +897,10 @@ async function handleMessage(
         backendTransport: 'websocket',
         tokenExchangeCached: exchangeCached,
         tokenEvents: gwTokenEvents,
+        // C2 — same reason as tools/list: a permitted tool call must say which
+        // authority permitted it, or a degraded local PERMIT reads as a PDP one.
+        ...(authz.policySource ? { policySource: authz.policySource } : {}),
+        ...(authz.degraded ? { degraded: true } : {}),
       };
     }
 

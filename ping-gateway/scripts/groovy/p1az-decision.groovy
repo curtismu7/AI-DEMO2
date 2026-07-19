@@ -249,18 +249,24 @@ def mayActSub = nativeMayActSub ?: hdrMayActSub
 def scope     = tokenInfo['scope'] ?: ''
 def tokenScopes = scope.tokenize(' ').findAll { it }.join(' ')
 // TokenAudActual: the ACTUAL aud carried by the inbound token (from introspection),
-// mirroring the Node gateway (decoded.aud). TokenAudience above is the logical gateway
-// URI; keeping TokenAudActual = gatewayResourceUri made the two ALWAYS equal, so any
-// policy rule comparing them to detect an audience mismatch / confused-deputy token
-// could never fire on the PingGateway path. Fall back to the gateway URI only when
-// introspection did not surface an aud.
+// mirroring the Node gateway (decoded.aud). It is the only audience signal that carries
+// information — McpResourceUri below is the gateway's own EXPECTED identity.
+//
+// C1 preamble: absent values are OMITTED, never fabricated. This previously fell back to
+// gatewayResourceUri when introspection surfaced no aud, which defeated TWO rules at once:
+// mock Rule 0b reads TokenAudActual FIRST (demo_authz_server/routes/decision.js:265), so a
+// no-aud token PASSED the audience check on the fabricated value; and because TokenAudience
+// is correctly omitted below, Rule 0c — guarded on BOTH keys — was skipped too. Net effect:
+// a token carrying no aud at all cleared every audience rule on the default path. Omitting
+// makes Rule 0b fall through to TokenAudience (also absent) and DENY.
 def rawTokenAud = tokenInfo['aud']
 def joinedAud = (rawTokenAud instanceof List
     ? rawTokenAud.collect { it as String }.join(' ')
     : (rawTokenAud ?: '')) as String
-// Fall back to the gateway URI when introspection surfaced no aud (null, or an
-// empty aud array) so TokenAudActual is never blank.
-def tokenAudActual = joinedAud ?: gatewayResourceUri
+// Space-joined FULL aud list, not just the first entry: mock Rule 0b-2's D-05 anti-bypass
+// splits this on whitespace, so a multi-aud confused-deputy token [gateway, upstream] is
+// still caught. Blank when introspection surfaced no aud — the key is then omitted.
+def tokenAudActual = joinedAud
 def tokenExp  = tokenInfo['exp'] != null ? String.valueOf(tokenInfo['exp']) : ''
 def tokenIat  = tokenInfo['iat'] != null ? String.valueOf(tokenInfo['iat']) : ''
 def tokenNbf  = tokenInfo['nbf'] != null ? String.valueOf(tokenInfo['nbf']) : ''
@@ -467,10 +473,17 @@ if (tratContextRaw && !allowUnsignedTrat) {
 // (mcpgateway.ping.demo), so comparing the real aud against the short name alone would
 // have DENIED every request.
 //
-// The gateway answers to BOTH identities — jwks-token-validation.groovy:176-178 already
-// accepts either — so McpResourceUri resolves to whichever accepted identity the token
-// actually targeted. A token minted for anything else leaves McpResourceUri at the
-// canonical URI, so TokenAudience != McpResourceUri and the rule now genuinely DENIES.
+// The gateway answers to BOTH identities — jwks-token-validation.groovy:173-177 accepts
+// either — so McpResourceUri is the STATIC set of both, mirroring the Node gateway, which
+// sends its comma-separated MCP_GW_RESOURCE_URI verbatim (PingOneAuthorizeClient.ts:148).
+//
+// It must NOT be derived from the token under test. Resolving it to "whichever accepted
+// identity the token happened to target" made the PEP pre-compute the PDP's answer: the
+// EXPECTED value became a function of the OBSERVED value, which is the same tautology C1
+// rule 1 exists to prevent, just one level of indirection deeper. The PDP compares the two
+// as SETS (demo_authz_server/routes/decision.js:313-318), so a legitimate token whose aud
+// is either identity still intersects and PERMITs, while a foreign aud intersects nothing
+// and DENIES — the discrimination is the PDP's to make, not the gateway's.
 def gatewayResourceId = System.getenv('PG_GATEWAY_RESOURCE_ID') ?: ''
 def audEntries = (rawTokenAud instanceof List
     ? rawTokenAud.collect { it as String }
@@ -478,7 +491,8 @@ def audEntries = (rawTokenAud instanceof List
 def acceptedAuds   = [gatewayResourceUri, gatewayResourceId].findAll { it }
 // C1: array => first entry.
 def tokenAudience  = audEntries ? audEntries[0] : ''
-def mcpResourceUri = acceptedAuds.contains(tokenAudience) ? tokenAudience : gatewayResourceUri
+// Static — a function of configuration only, never of the token being judged.
+def mcpResourceUri = acceptedAuds.join(',')
 
 def parameters = [
     DecisionContext  : decisionContext,
@@ -490,7 +504,6 @@ def parameters = [
     ActChainDepth    : actDepth,
     MayActSub        : mayActSub,
     TokenScopes      : tokenScopes,
-    TokenAudActual   : tokenAudActual,
     McpResourceUri   : mcpResourceUri,
     TokenExp         : tokenExp,
     TokenIat         : tokenIat,
@@ -508,7 +521,11 @@ def parameters = [
     // ISO-8601, matching the BFF (pingOneAuthorizeService.js:434 new Date().toISOString()).
     Timestamp        : java.time.Instant.now().toString(),
 ]
-// Absent values are omitted, never fabricated (C1 preamble).
+// Absent values are omitted, never fabricated (C1 preamble). Both audience keys are
+// omitted together when introspection surfaced no aud — mock Rule 0b reads TokenAudActual
+// first and TokenAudience second, so leaving EITHER populated with a fabricated value
+// silently satisfies the audience check for a token that has no audience at all.
+if (tokenAudActual)  parameters.TokenAudActual = tokenAudActual
 if (tokenAudience)   parameters.TokenAudience = tokenAudience
 // Acr: without it, RequiresMcpStepUp reduces to a pure tool-name test — NOT
 // (Acr == Multi_Factor) is always true when Acr defaults to 'none', so a completed

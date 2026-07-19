@@ -19,18 +19,25 @@ import {
 } from '../src/authzPosture';
 import type { GatewayConfig } from '../src/config';
 
+// Fixture endpoints only — production code never reads a literal endpoint.
+const PDP_REAL = 'https://pdp.test/authz';
+const PDP_MOCK = 'http://pdp-mock.test:9001';
+
 function cfg(over: Partial<GatewayConfig> = {}): GatewayConfig {
   return {
     devBypass: false,
     hitlServiceUrl: 'http://hitl:9002',
     p1azEnabled: true,
-    pingAuthorizeEndpoint: 'https://real.example/authz',
+    pingAuthorizeEndpoint: PDP_REAL,
     pingAuthorizeWorkerId: 'gw',
-    pingAuthorizeMockBase: 'http://authz-server:9001',
+    pingAuthorizeMockBase: PDP_MOCK,
     allowLocalScopeFallback: false,
     requireActForAgentTools: true,
     intentTokenRequired: true,
     requireRarIntent: true,
+    // The actor allow-list is only armed when a client id is configured; a fully
+    // armed gateway therefore has one.
+    authorizedActorClientId: 'the-exchanger',
     wbaMode: 'monitor',
     ...over,
   } as GatewayConfig;
@@ -42,6 +49,7 @@ beforeEach(() => {
   process.env.PINGONE_JWKS_ENDPOINT = 'https://auth.example/jwks';
   delete process.env.STRICT_AUTH;
   delete process.env.MCP_GW_ALLOW_UNVERIFIED_TOKENS;
+  delete process.env.ALLOW_UNSIGNED_TRAT_CONTEXT;
   process.env.REQUIRE_DPOP_PROOF = 'true';
 });
 afterAll(() => { process.env = OLD; });
@@ -55,15 +63,81 @@ describe('C3 — the authz health block', () => {
     expect(buildAuthzHealth(cfg({ p1azEnabled: false })).policySource).toBe('local-fallback');
   });
 
-  test('reports each enforcement gate', () => {
-    const h = buildAuthzHealth(cfg());
-    expect(h.enforcing).toEqual({
-      dpop: true, intent: true, rar: true, act: true, webBotAuth: 'monitor',
+  /**
+   * Asserting `enforcing` deep-equals the flags the test just wrote into the
+   * config proves only that buildAuthzHealth copies fields. What matters is the
+   * two ways `enforcing` can lie: reading a gate from the wrong SOURCE, and
+   * treating a merely-truthy value as "armed". A health block that reports a
+   * gate as on when it is off is worse than no health block.
+   */
+  test('reports every gate this contract names', () => {
+    expect(Object.keys(buildAuthzHealth(cfg()).enforcing).sort())
+      .toEqual(['act', 'dpop', 'intent', 'rar', 'webBotAuth']);
+  });
+
+  test('dpop is read from the env var that actually gates it, not from config', () => {
+    // REQUIRE_DPOP_PROOF is an env var; the others are config fields. A refactor
+    // that "tidied" dpop into config would report a gate nothing enforces.
+    process.env.REQUIRE_DPOP_PROOF = 'false';
+    expect(buildAuthzHealth(cfg({ requireActForAgentTools: true })).enforcing.dpop).toBe(false);
+    process.env.REQUIRE_DPOP_PROOF = 'true';
+    expect(buildAuthzHealth(cfg()).enforcing.dpop).toBe(true);
+  });
+
+  test('a truthy-but-not-true flag is NOT reported as armed', () => {
+    // Env plumbing hands strings around; `if (x)` on the string 'false' is true.
+    // Each gate must be a strict === true test or the block over-reports.
+    const sloppy = cfg({
+      intentTokenRequired: 'false' as unknown as boolean,
+      requireRarIntent: 1 as unknown as boolean,
+      requireActForAgentTools: 'true' as unknown as boolean,
     });
+    const h = buildAuthzHealth(sloppy);
+    expect(h.enforcing.intent).toBe(false);
+    expect(h.enforcing.rar).toBe(false);
+    expect(h.enforcing.act).toBe(false);
+  });
+
+  test('a gate reported OFF while its evidence arrives is named in failOpen', () => {
+    // Ties `enforcing` to `failOpen` so the two cannot drift apart: whatever
+    // `enforcing` says is off must show up as a bypass once evidence is seen.
+    process.env.REQUIRE_DPOP_PROOF = 'false';
+    const config = cfg({ intentTokenRequired: false, requireRarIntent: false, requireActForAgentTools: false });
+    (['dpop', 'intent', 'rar', 'act'] as const).forEach(noteBindingHeaderSeen);
+    const h = buildAuthzHealth(config);
+    expect(h.enforcing).toMatchObject({ dpop: false, intent: false, rar: false, act: false });
+    expect(h.failOpen).toEqual(expect.arrayContaining([
+      'REQUIRE_DPOP_PROOF', 'INTENT_TOKEN_REQUIRED', 'REQUIRE_RAR_INTENT', 'REQUIRE_ACT_FOR_AGENT_TOOLS',
+    ]));
   });
 
   test('a fully-armed gateway reports an EMPTY failOpen array', () => {
     expect(buildAuthzHealth(cfg()).failOpen).toEqual([]);
+  });
+});
+
+/**
+ * The derivation bug that mattered most: `usingRealEndpoint` required a mock
+ * base to be configured at all, so the ONE deployment shape where P1AZ is
+ * genuinely real — a cloud endpoint with no mock to fail over to — reported
+ * itself as running on the mock. The signal was wrong exactly when it counted.
+ *
+ * The mock is DECLARED by PINGAUTHORIZE_MOCK_BASE: a deployment that talks to
+ * the mock directly sets it equal to the endpoint; one that keeps the mock as a
+ * failover target sets it to a different URL.
+ */
+describe('C3 — policySource reflects which PDP is actually configured', () => {
+  test('a real endpoint with NO mock base configured reports p1az', () => {
+    expect(buildAuthzHealth(cfg({ pingAuthorizeMockBase: undefined })).policySource).toBe('p1az');
+  });
+
+  test('an endpoint that IS the declared mock reports p1az-mock', () => {
+    const h = buildAuthzHealth(cfg({ pingAuthorizeEndpoint: PDP_MOCK, pingAuthorizeMockBase: PDP_MOCK }));
+    expect(h.policySource).toBe('p1az-mock');
+  });
+
+  test('a real endpoint with the mock as failover target still reports p1az', () => {
+    expect(buildAuthzHealth(cfg()).policySource).toBe('p1az');
   });
 });
 
@@ -92,6 +166,35 @@ describe('C3 — failOpen names every active bypass', () => {
   test('the local scope fallback is itself a bypass when enabled', () => {
     const h = buildAuthzHealth(cfg({ p1azEnabled: false, allowLocalScopeFallback: true }));
     expect(h.failOpen).toContain('MCP_GW_ALLOW_LOCAL_SCOPE_FALLBACK');
+  });
+
+  /**
+   * A check that is configured out of existence is the quietest bypass of all:
+   * the code is present, the tests pass, and it returns "valid" for every input.
+   * validateActClaim() short-circuits to {valid:true} when the allow-list is
+   * empty, so an unset actor client id means ANY act.sub is accepted.
+   */
+  test('an unset actor allow-list — validateActClaim accepts every actor', () => {
+    const h = buildAuthzHealth(cfg({ authorizedActorClientId: '' }));
+    expect(h.failOpen).toContain('PINGONE_TOKEN_EXCHANGER_CLIENT_ID');
+  });
+
+  test('a configured actor allow-list is not a bypass', () => {
+    expect(buildAuthzHealth(cfg()).failOpen).not.toContain('PINGONE_TOKEN_EXCHANGER_CLIENT_ID');
+  });
+
+  /**
+   * With ALLOW_UNSIGNED_TRAT_CONTEXT the gateway accepts purp/reqctx/azd from an
+   * unsigned caller-supplied header and feeds them to the PDP and to RAR subset
+   * enforcement. The RAR check still runs — against evidence the caller wrote.
+   */
+  test('ALLOW_UNSIGNED_TRAT_CONTEXT — binding evidence is caller-supplied', () => {
+    process.env.ALLOW_UNSIGNED_TRAT_CONTEXT = 'true';
+    expect(buildAuthzHealth(cfg()).failOpen).toContain('ALLOW_UNSIGNED_TRAT_CONTEXT');
+  });
+
+  test('unsigned TraT context off is not listed', () => {
+    expect(buildAuthzHealth(cfg()).failOpen).not.toContain('ALLOW_UNSIGNED_TRAT_CONTEXT');
   });
 });
 

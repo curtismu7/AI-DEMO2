@@ -173,24 +173,56 @@ router.post('/check-chip', requireAdmin, express.json(), async (req, res) => {
     });
   }
 
-  // Extract scopes from the current user's session token
+  // Extract scopes and the ACTUAL audience from the current user's session token.
   const userToken = req.session?.oauthTokens?.accessToken;
   let tokenScopes = '';
+  let tokenAud = null;
   if (userToken) {
     try {
       const claims = JSON.parse(Buffer.from(userToken.split('.')[1], 'base64url').toString());
       tokenScopes = claims.scope || '';
+      // C1: TokenAudience is the token's real `aud` (array ⇒ first entry).
+      const aud = Array.isArray(claims.aud) ? claims.aud[0] : claims.aud;
+      tokenAud = aud ? String(aud) : null;
     } catch { /* ignore */ }
   }
 
-  // The decision call carried NO audience, so the authorization server's first
-  // rule (aud must include the expected gateway resource) DENIED `invalid_aud`
-  // before the ChipAuthorization rule could ever run — the rule was unreachable
-  // by construction. Send the same expected resource URI the live MCP gate uses
-  // (single source of truth, so the two can't drift). TokenAudience must equal
-  // McpResourceUri or the next rule denies too.
+  // This call used to send NO audience at all, so mock Rule 0b DENYed
+  // `invalid_aud` before ChipAuthorization could run. The first fix for that
+  // set TokenAudience, TokenAudActual AND McpResourceUri to the expected URI —
+  // which re-introduced the tautology contract C1 rule 1 forbids: Rule 0b then
+  // passed on a fabricated value, Rule 0b-2 (D-05 anti-bypass) could never flag
+  // because the "actual" aud was synthetic, and Rule 0c compared a value to
+  // itself. The audience sent is now the one on the presented token.
+  //
+  // C1 preamble — absent values are omitted, never fabricated. With no readable
+  // aud there is nothing honest to send: a DENY produced by the missing input
+  // would be reported to the UI as a policy decision. C4 — say that no decision
+  // was evaluated instead of manufacturing one.
+  if (!tokenAud) {
+    return res.json({
+      decision: 'INDETERMINATE',
+      degraded: true,
+      policy_source: 'no-token-audience',
+      reason: 'No access token audience on this session — chip authorization cannot be evaluated without the token actual aud',
+    });
+  }
+
+  // The EXPECTED gateway resource URI (C1 defines McpResourceUri that way),
+  // read from the same source the live MCP gate uses so the two cannot drift.
+  // Returns '' when nothing is configured — it no longer invents a host
+  // (REGRESSION_PLAN §3). With no expected resource there is nothing to compare
+  // the token audience against, so no meaningful decision exists to render.
   const expectedResourceUri =
     require('../services/mcpToolAuthorizationService').resolveExpectedMcpResourceUri();
+  if (!expectedResourceUri) {
+    return res.json({
+      decision: 'INDETERMINATE',
+      degraded: true,
+      policy_source: 'unconfigured',
+      reason: 'No expected MCP resource URI configured — chip authorization cannot be evaluated',
+    });
+  }
 
   try {
     const axios = require('axios');
@@ -203,8 +235,12 @@ router.post('/check-chip', requireAdmin, express.json(), async (req, res) => {
           Vertical: vertical,
           TokenScopes: tokenScopes,
           ClientId: req.user?.sub || '',
-          TokenAudience: expectedResourceUri,
-          TokenAudActual: expectedResourceUri,
+          // The token's REAL aud (C1 rule 1) — never the expected URI.
+          TokenAudience: tokenAud,
+          // C1: same value, retained for mock back-compat.
+          TokenAudActual: tokenAud,
+          // The EXPECTED resource, independent of the above, so mock Rule 0c is
+          // a real comparison rather than a value against itself.
           McpResourceUri: expectedResourceUri,
         },
       },

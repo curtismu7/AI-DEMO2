@@ -325,6 +325,18 @@ async function runMcpToolPipeline(ctx) {
     // to avoid redundant denials from a policy that doesn't cover specialist tools.
     if (ctx.skipBffAuthorize) {
         deps.emit({ phase: 'authorize_gate_skipped', reason: 'a2a_supplied_token' });
+        // Contract C4 — omission is not permission. The SSE phase alone left the
+        // RESPONSE BODY byte-identical to a run where the gate PERMITted, so a
+        // caller reading the response could not tell the two apart. The other
+        // two skip paths already set this; this was the last gap.
+        mcpAuthorizeEvaluationThisRequest = {
+            ran: false,
+            skipped: true,
+            skipReason: 'a2a_supplied_token',
+            decisionContext: 'McpFirstTool',
+            ...(ctx.useCaseId ? { useCaseId: ctx.useCaseId } : {}),
+            ...(ctx.vertical ? { vertical: ctx.vertical } : {}),
+        };
     } else {
     try {
         deps.emit({

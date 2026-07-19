@@ -264,6 +264,62 @@ describe('evaluateMcpToolDelegation — decision parameters', () => {
       const body = JSON.parse(fetchSpy.mock.calls[1][1].body).parameters;
       expect(body.UserRole).toBe('admin');
     });
+
+    // UserRole is a plain input, not an admin flag — a non-admin caller sends
+    // its own role so the policy sees the same key for every caller. Without
+    // this case the only coverage is the admin value, which reads as a bypass
+    // switch rather than an attribute.
+    test('forwards UserRole for a non-admin caller', async () => {
+      mockWorkerThenDecision({ id: 'd1', decision: 'PERMIT', obligations: [] });
+      await svc.evaluateMcpToolDelegation({
+        userId: 'u1', toolName: 'get_my_accounts',
+        tokenAudience: 'mcp.aud', mcpResourceUri: 'mcp.aud',
+        userRole: 'customer',
+      });
+      const body = JSON.parse(fetchSpy.mock.calls[1][1].body).parameters;
+      expect(body.UserRole).toBe('customer');
+    });
+
+    // Production uses a conditional spread for UserRole. C1 rule 3: an unknown
+    // role is OMITTED, never sent as '' — otherwise a session with no role is
+    // indistinguishable from one whose role is the empty string.
+    test('omits UserRole when the session carries no role', async () => {
+      mockWorkerThenDecision({ id: 'd1', decision: 'PERMIT', obligations: [] });
+      await svc.evaluateMcpToolDelegation({
+        userId: 'u1', toolName: 'get_my_accounts',
+        tokenAudience: 'mcp.aud', mcpResourceUri: 'mcp.aud',
+      });
+      const body = JSON.parse(fetchSpy.mock.calls[1][1].body).parameters;
+      expect(body).not.toHaveProperty('UserRole');
+    });
+
+    // C1 preamble: "Absent values are omitted, never fabricated." Sending ''
+    // fails closed at the PDP, but '' is a value — it claims the token was
+    // read and had an empty audience. Omission is the honest encoding of
+    // "the caller could not read an aud".
+    test('omits TokenAudience/TokenAudActual when the aud is unknown', async () => {
+      mockWorkerThenDecision({ id: 'd1', decision: 'PERMIT', obligations: [] });
+      await svc.evaluateMcpToolDelegation({
+        userId: 'u1', toolName: 'get_my_accounts',
+        mcpResourceUri: 'mcp.aud',
+      });
+      const body = JSON.parse(fetchSpy.mock.calls[1][1].body).parameters;
+      expect(body).not.toHaveProperty('TokenAudience');
+      expect(body).not.toHaveProperty('TokenAudActual');
+    });
+
+    // resolveExpectedMcpResourceUri() now returns '' when nothing is configured
+    // (it no longer invents a host), so this key is reachably empty. Same C1
+    // rule: omit rather than send ''.
+    test('omits McpResourceUri when no expected resource is configured', async () => {
+      mockWorkerThenDecision({ id: 'd1', decision: 'PERMIT', obligations: [] });
+      await svc.evaluateMcpToolDelegation({
+        userId: 'u1', toolName: 'get_my_accounts',
+        tokenAudience: 'mcp.aud', mcpResourceUri: '',
+      });
+      const body = JSON.parse(fetchSpy.mock.calls[1][1].body).parameters;
+      expect(body).not.toHaveProperty('McpResourceUri');
+    });
   });
 
   // ── F8 — silent contract drift on statement codes ─────────────────────────

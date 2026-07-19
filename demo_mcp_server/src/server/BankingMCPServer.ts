@@ -18,7 +18,7 @@ import { BankingToolProvider } from '../tools/BankingToolProvider';
 import { MCPMessageHandler, MessageHandlerContext } from './MCPMessageHandler';
 import { HttpMCPTransport } from './HttpMCPTransport';
 import { correlationFromMessage } from './correlationFromMessage';
-import { verifyActorChain, parseAllowedActors, decodeJwtClaims } from '../auth/actorChain';
+import { authorizeLastHop } from '../auth/lastHopAuthorization';
 import { runWithCorrelation } from '../utils/correlationContext';
 import { createMtlsVerifier } from '../auth/mtlsMiddleware';
 
@@ -273,34 +273,24 @@ export class BankingMCPServer extends EventEmitter {
 
       // Zero-trust: extract + validate agent token from Authorization header at connect
       // (parity with HttpMCPTransport.authenticateBearer — do not trust an unvalidated bearer).
+      //
+      // authorizeLastHop runs the SAME checks the HTTP transport runs — D-05
+      // upstream contract and the F10 actor allow-list — against claims that were
+      // signature-verified. Previously this path ran only the actor check, and
+      // D-05 was HTTP-only, so a gateway-audience token was accepted here even
+      // though ws:// is the transport docker-compose.yml actually points at.
       const authHeader = (request?.headers?.authorization || request?.headers?.Authorization) as string | undefined;
       if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
         const bearerToken = authHeader.slice(7).trim();
         if (bearerToken) {
-          try {
-            await this.authManager.validateAgentToken(bearerToken);
-
-            // F10 — verify the RFC 8693 delegation chain, same gate as the HTTP
-            // transport. Without this the actor allow-list is bypassable simply by
-            // connecting over WebSocket instead of POSTing to /mcp.
-            const actorCheck = verifyActorChain(decodeJwtClaims(bearerToken), {
-              allowedActors: parseAllowedActors(process.env.MCP_ALLOWED_ACTORS),
-            });
-            if (!actorCheck.ran) {
-              console.warn(`[BankingMCPServer][F10] actor chain gate skipped — ran=false skipReason="${actorCheck.skipReason}"`);
-            } else if (!actorCheck.valid) {
-              console.warn(`[BankingMCPServer][F10] Rejecting connection ${connectionId}: ${actorCheck.errors[0]}`);
-              ws.close(1008, 'Delegation chain rejected');
-              return;
-            }
-
-            connectionInfo.agentToken = bearerToken;
-            console.log(`[BankingMCPServer] Agent token validated via Authorization header for connection ${connectionId}`);
-          } catch (error) {
-            console.warn(`[BankingMCPServer] Rejecting WebSocket connection ${connectionId}: invalid bearer`, error);
-            ws.close(1008, 'Invalid or expired agent token');
+          const decision = await authorizeLastHop(this.authManager, bearerToken);
+          if (!decision.ok) {
+            console.warn(`[BankingMCPServer] Rejecting connection ${connectionId}: ${decision.reason}`);
+            ws.close(1008, 'Agent token rejected');
             return;
           }
+          connectionInfo.agentToken = bearerToken;
+          console.log(`[BankingMCPServer] Agent token validated via Authorization header for connection ${connectionId}`);
         }
       }
 

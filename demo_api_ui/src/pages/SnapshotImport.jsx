@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
 import './SnapshotImport.css';
 
-const AUTHZ_BASE = 'http://localhost:9001';
+// Same pattern as the sibling admin pages (AuthorizeConfigPage, McpGatewayConfig):
+// env-configured base, empty default so requests stay same-origin and resolve
+// through the dev/prod proxy. It must not be a hardcoded host — REGRESSION_PLAN §3
+// makes api.ping.demo canonical and forbids baked-in hosts/ports, and the previous
+// literal ('http://localhost:9001') could not work anyway: this UI is served over
+// HTTPS, so a plain-http request to it is blocked as mixed content.
+const AUTHZ_BASE = process.env.REACT_APP_AUTHZ_BASE || '';
 
 function ConflictDiff({ conflict }) {
   if (conflict.type === 'consent_tool_mismatch' || conflict.type === 'step_up_tool_mismatch') {

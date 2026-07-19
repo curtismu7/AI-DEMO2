@@ -20,7 +20,13 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const GATEWAY_AUD = 'mcpgateway.ping.demo';
+// The two identities the gateway answers to, and the comma-joined form k8s
+// produces for MCP_GW_RESOURCE_URI. Hoisted so a URI appears exactly once —
+// these are repeated across most assertions below.
+const GATEWAY_AUD = 'mcpgateway.ping.demo';                 // PG_GATEWAY_RESOURCE_URI (short name)
+const GATEWAY_ID  = 'https://api.ping.demo:3036/mcp';       // PG_GATEWAY_RESOURCE_ID (uri)
+const BOTH_AUDS   = `${GATEWAY_AUD},${GATEWAY_ID}`;
+const FOREIGN_AUD = 'https://evil.example/mcp';
 
 let OVERLAY;
 let decisionHandler;
@@ -101,7 +107,7 @@ test('DENY — same payload but aud does not include the gateway resource uri', 
 });
 
 test('PERMIT — PingGateway aud accepted when MCP_GW_RESOURCE_URI lists both audiences', async () => {
-  process.env.MCP_GW_RESOURCE_URI = 'mcpgateway.ping.demo,https://api.ping.demo:3036/mcp';
+  process.env.MCP_GW_RESOURCE_URI = BOTH_AUDS;
   delete process.env.MCP_GATEWAY_RESOURCE_URI;
   fresh();
   const res = makeRes();
@@ -112,9 +118,9 @@ test('PERMIT — PingGateway aud accepted when MCP_GW_RESOURCE_URI lists both au
         parameters: groovyParams({
           ToolName: 'get_my_accounts',
           TokenScopes: 'gateway:mcp:invoke',
-          TokenAudActual: 'https://api.ping.demo:3036/mcp',
-          TokenAudience: 'mcpgateway.ping.demo,https://api.ping.demo:3036/mcp',
-          McpResourceUri: 'mcpgateway.ping.demo,https://api.ping.demo:3036/mcp',
+          TokenAudActual: GATEWAY_ID,
+          TokenAudience: BOTH_AUDS,
+          McpResourceUri: BOTH_AUDS,
         }),
       },
     },
@@ -124,7 +130,7 @@ test('PERMIT — PingGateway aud accepted when MCP_GW_RESOURCE_URI lists both au
 });
 
 test('PERMIT — user_profile_card (Path B) with PingGateway aud', async () => {
-  process.env.MCP_GW_RESOURCE_URI = 'mcpgateway.ping.demo,https://api.ping.demo:3036/mcp';
+  process.env.MCP_GW_RESOURCE_URI = BOTH_AUDS;
   delete process.env.MCP_GATEWAY_RESOURCE_URI;
   fresh();
   const res = makeRes();
@@ -135,9 +141,9 @@ test('PERMIT — user_profile_card (Path B) with PingGateway aud', async () => {
         parameters: groovyParams({
           ToolName: 'user_profile_card',
           TokenScopes: 'gateway:mcp:invoke',
-          TokenAudActual: 'https://api.ping.demo:3036/mcp',
-          TokenAudience: 'mcpgateway.ping.demo,https://api.ping.demo:3036/mcp',
-          McpResourceUri: 'mcpgateway.ping.demo,https://api.ping.demo:3036/mcp',
+          TokenAudActual: GATEWAY_ID,
+          TokenAudience: BOTH_AUDS,
+          McpResourceUri: BOTH_AUDS,
         }),
       },
     },
@@ -198,25 +204,37 @@ test('mock consumes every one of the 18 Groovy keys (no key triggers a parse err
 // ─────────────────────────────────────────────────────────────────────────────
 // C1 parameter set (planning/authz-fix-contract.md)
 //
-// p1az-decision.groovy previously set TokenAudience AND McpResourceUri to the same
-// PG_GATEWAY_RESOURCE_URI, so Rule 0c (and the cloud's HasValidMcpAudience) compared
-// a value to itself and could never deny. It now sends the token's REAL aud as
-// TokenAudience and resolves McpResourceUri to whichever gateway identity that aud
-// targeted — PG_GATEWAY_RESOURCE_URI (short name) or PG_GATEWAY_RESOURCE_ID (uri).
-// It also adds Amount, Acr, Timestamp, CandidateTools and the binding-evidence keys.
+// SCOPE — read before adding to this block.
+//
+// The C1 change that mattered most lives in the CALLER, not here:
+// p1az-decision.groovy used to set TokenAudience AND McpResourceUri to the same
+// PG_GATEWAY_RESOURCE_URI, so Rule 0c compared a value to itself and could never
+// deny. **That tautology was never in the mock, and this file cannot observe it.**
+// The mock only ever sees the two values it is handed; whether the caller derived
+// them from one variable or two is invisible from here. Any test in this file
+// claiming to prove "the tautology is gone" is proving nothing — an earlier
+// revision of this block did exactly that, and all six of its cases passed
+// unchanged against decision.js from eb26b9c6d^.
+//
+// **The groovy caller is therefore UNTESTED from this file.** Covering it needs a
+// test that executes p1az-decision.groovy (ping-gateway/, workstream B) — not a
+// mock-side assertion. Do not add one here and do not re-add assertions over
+// literals this file's own helper wrote (`p.Amount === p.TransactionAmount` on a
+// two-line-old literal, `!('IntentTokenValid' in p)` on a helper that never sets
+// it) — those restate the fixture, not the behaviour.
+//
+// What IS mock-observable, and what the cases below pin, is the behaviour
+// eb26b9c6d changed inside routes/decision.js. Each case is fix-sensitive:
+// reverting decision.js to eb26b9c6d^ turns it RED.
 // ─────────────────────────────────────────────────────────────────────────────
-
-const GATEWAY_ID = 'https://api.ping.demo:3036/mcp';
 
 // The payload the UPDATED Groovy filter emits. Mirrors the live values verified in
 // the ping-gateway container: PG_GATEWAY_RESOURCE_URI=mcpgateway.ping.demo,
 // PG_GATEWAY_RESOURCE_ID=https://api.ping.demo:3036/mcp, and a token whose real
 // aud is the resource ID.
 function c1Params(extra = {}) {
-  const base = groovyParams();
-  delete base.ClientId;
   return {
-    ...base,
+    ...groovyParams(),
     ClientId: 'user-1',
     UserId: 'user-1',
     TokenAudience: GATEWAY_ID,   // REAL aud, no longer the expected URI
@@ -232,12 +250,12 @@ function c1Params(extra = {}) {
 beforeEach(() => {
   // Both gateway identities are accepted audiences, matching
   // jwks-token-validation.groovy (aud == PG_GATEWAY_RESOURCE_URI || PG_GATEWAY_RESOURCE_ID).
-  process.env.MCP_GW_RESOURCE_URI = `${GATEWAY_AUD},${GATEWAY_ID}`;
+  process.env.MCP_GW_RESOURCE_URI = BOTH_AUDS;
+  delete process.env.MCP_GATEWAY_RESOURCE_URI;
+  fresh();
 });
 
 test('C1 — PERMIT: real aud in TokenAudience still permits (no live regression)', async () => {
-  delete process.env.MCP_GATEWAY_RESOURCE_URI;
-  fresh();
   const res = makeRes();
   await decisionHandler(
     { params: { workerId: 'p' }, body: { parameters: c1Params({ TokenScopes: 'gateway:mcp:invoke' }) } },
@@ -246,57 +264,11 @@ test('C1 — PERMIT: real aud in TokenAudience still permits (no live regression
   assert.strictEqual(res.body.decision, 'PERMIT', `reason: ${res.body && res.body.reason}`);
 });
 
-test('C1 — DENY: a FOREIGN aud now trips the audience rule (tautology is gone)', async () => {
-  // Before the fix this was unreachable: TokenAudience was hardcoded to the expected
-  // URI, so TokenAudience === McpResourceUri held for EVERY token, including one
-  // minted for a different MCP server (confused deputy).
-  delete process.env.MCP_GATEWAY_RESOURCE_URI;
-  fresh();
-  const res = makeRes();
-  await decisionHandler(
-    {
-      params: { workerId: 'p' },
-      body: {
-        parameters: c1Params({
-          TokenAudience: 'https://evil.example/mcp',
-          McpResourceUri: GATEWAY_AUD, // unresolved => falls back to the canonical URI
-        }),
-      },
-    },
-    res,
-  );
-  assert.strictEqual(res.body.decision, 'DENY');
-  assert.match(res.body.reason, /invalid_aud/);
-});
-
-test('C1 rule 2 — Amount and TransactionAmount carry the same value', async () => {
-  const p = c1Params({ Amount: '10', TransactionAmount: '10' });
-  assert.strictEqual(p.Amount, p.TransactionAmount);
-  // The mock reads TransactionAmount; the cloud Trust Framework only defines Amount.
-  // Sending one without the other silently drops the amount on that side.
-  delete process.env.MCP_GATEWAY_RESOURCE_URI;
-  fresh();
-  const res = makeRes();
-  await decisionHandler({ params: { workerId: 'p' }, body: { parameters: p } }, res);
-  assert.strictEqual(res.body.decision, 'PERMIT', `reason: ${res.body && res.body.reason}`);
-});
-
-test('C1 rule 3 — omitted binding evidence is treated as unknown, not as a violation', async () => {
-  // The gateway omits IntentTokenValid/IntentMatchesTool when INTENT_TOKEN_SECRET is
-  // unset (verified in-container: intentValid stays null => keys omitted). Omission
-  // must NOT deny — only a verified-absent 'false' may.
-  delete process.env.MCP_GATEWAY_RESOURCE_URI;
-  fresh();
-  const p = c1Params({ TokenScopes: 'gateway:mcp:invoke' });
-  assert.ok(!('IntentTokenValid' in p), 'binding evidence must be absent, not false');
-  const res = makeRes();
-  await decisionHandler({ params: { workerId: 'p' }, body: { parameters: p } }, res);
-  assert.strictEqual(res.body.decision, 'PERMIT', `reason: ${res.body && res.body.reason}`);
-});
-
-test('C1 — verified intent evidence (valid + tool permitted) is accepted', async () => {
-  delete process.env.MCP_GATEWAY_RESOURCE_URI;
-  fresh();
+test('C1 Rule 0c — a single real aud PERMITs against a comma-joined McpResourceUri (set compare, not string equality)', async () => {
+  // FIX-SENSITIVE. Rule 0c used to be `TokenAudience !== McpResourceUri`. Once the
+  // caller began sending the token's ONE real aud while McpResourceUri still lists
+  // every accepted audience (k8s comma-joins them), string equality DENYed the
+  // normal production flow. Pre-fix decision.js returns DENY invalid_aud here.
   const res = makeRes();
   await decisionHandler(
     {
@@ -304,8 +276,8 @@ test('C1 — verified intent evidence (valid + tool permitted) is accepted', asy
       body: {
         parameters: c1Params({
           TokenScopes: 'gateway:mcp:invoke',
-          IntentTokenValid: 'true',
-          IntentMatchesTool: 'true',
+          TokenAudience: GATEWAY_ID,   // the one aud the token really carries
+          McpResourceUri: BOTH_AUDS,   // every identity the gateway accepts
         }),
       },
     },
@@ -314,9 +286,101 @@ test('C1 — verified intent evidence (valid + tool permitted) is accepted', asy
   assert.strictEqual(res.body.decision, 'PERMIT', `reason: ${res.body && res.body.reason}`);
 });
 
+test('C1 Rule 0c — a foreign aud still DENYs when it intersects nothing', async () => {
+  // Companion to the case above: widening to a set compare must not make Rule 0c
+  // permissive. This one passes both pre- and post-fix (Rule 0b catches it first)
+  // and is kept as a guard on the widening, NOT as proof the tautology is gone.
+  const res = makeRes();
+  await decisionHandler(
+    {
+      params: { workerId: 'p' },
+      body: { parameters: c1Params({ TokenAudience: FOREIGN_AUD, McpResourceUri: BOTH_AUDS }) },
+    },
+    res,
+  );
+  assert.strictEqual(res.body.decision, 'DENY');
+  assert.match(res.body.reason, /invalid_aud/);
+});
+
+test('C1 Rule 2.5 — McpFirstTool (the BFF context) now enforces require-act', async () => {
+  // FIX-SENSITIVE. Rule 2.5 was gated on `DecisionContext === 'McpToolCall'`, so
+  // every BFF-originated call skipped the UC16 impersonation block (docs §5.5).
+  // Pre-fix decision.js PERMITs this; post-fix it DENYs missing_act.
+  const res = makeRes();
+  await decisionHandler(
+    {
+      params: { workerId: 'p' },
+      body: {
+        parameters: c1Params({
+          DecisionContext: 'McpFirstTool',
+          ToolName: 'create_transfer',   // requiresAgentMediation in the SoT
+          ActClientId: '',               // no act claim => impersonation
+          TokenScopes: 'gateway:mcp:invoke',
+        }),
+      },
+    },
+    res,
+  );
+  assert.strictEqual(res.body.decision, 'DENY');
+  assert.match(res.body.reason, /missing_act/);
+});
+
+test('C1 Rule 3 — a token carrying a real per-tool scope is enforced against it (F11)', async () => {
+  // FIX-SENSITIVE. Rule 3 used to disable itself for ANY token holding the
+  // gateway-hop scope, so per-tool scope was enforced nowhere. The bypass now
+  // survives only when the token has no per-tool scope to check. Here the token
+  // supplies a real topology scope ('read') but not the one the write tool needs,
+  // so the check must run. Pre-fix decision.js PERMITs this.
+  const res = makeRes();
+  await decisionHandler(
+    {
+      params: { workerId: 'p' },
+      body: {
+        parameters: c1Params({
+          ToolName: 'create_transfer',
+          TokenScopes: 'gateway:mcp:invoke read',
+        }),
+      },
+    },
+    res,
+  );
+  assert.strictEqual(res.body.decision, 'DENY');
+  assert.match(res.body.reason, /insufficient_scope/);
+});
+
+test('C1 Rule 3 — gateway-hop scope ALONE still bypasses the per-tool check', async () => {
+  // The other half of F11: a caller that genuinely cannot express per-tool scopes
+  // must keep working, or the default topology denies every tool call.
+  const res = makeRes();
+  await decisionHandler(
+    { params: { workerId: 'p' }, body: { parameters: c1Params({ ToolName: 'create_transfer', TokenScopes: 'gateway:mcp:invoke' }) } },
+    res,
+  );
+  assert.strictEqual(res.body.decision, 'PERMIT', `reason: ${res.body && res.body.reason}`);
+});
+
+test('C1 C2 — every decision carries a cloud statement code and a policy_source', async () => {
+  // FIX-SENSITIVE. The mock returned only `reason`; consumers merged six response
+  // shapes to cover mock-vs-cloud (F9). Pre-fix decision.js emits neither field.
+  const permitRes = makeRes();
+  await decisionHandler(
+    { params: { workerId: 'p' }, body: { parameters: c1Params({ TokenScopes: 'gateway:mcp:invoke' }) } },
+    permitRes,
+  );
+  assert.deepStrictEqual(permitRes.body.statements, [{ code: 'mcp-tool-authorized' }]);
+  assert.strictEqual(permitRes.body.policy_source, 'p1az-mock');
+
+  const denyRes = makeRes();
+  await decisionHandler(
+    { params: { workerId: 'p' }, body: { parameters: c1Params({ TokenAudActual: FOREIGN_AUD }) } },
+    denyRes,
+  );
+  assert.strictEqual(denyRes.body.decision, 'DENY');
+  assert.deepStrictEqual(denyRes.body.statements, [{ code: 'mcp-invalid-audience' }]);
+  assert.strictEqual(denyRes.body.policy_source, 'p1az-mock');
+});
+
 test('C1 — the full updated key set never triggers a parse error', async () => {
-  delete process.env.MCP_GATEWAY_RESOURCE_URI;
-  fresh();
   const res = makeRes();
   await assert.doesNotReject(
     decisionHandler(

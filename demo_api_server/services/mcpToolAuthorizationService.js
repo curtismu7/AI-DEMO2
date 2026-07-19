@@ -66,13 +66,25 @@ function resolveExpectedMcpResourceUri() {
   // When routing through PingGateway (IG), the final token audience is the
   // PingGateway resource URI (https://api.ping.demo:3036/mcp), not the Node
   // gateway audience (mcpgateway.ping.demo).
+  // Every branch used to end in a literal `|| 'https://api.ping.demo:<port>/mcp'`.
+  // That contradicted this function's own contract (see @returns) and is the same
+  // defect class as a fabricated audience: an unconfigured deployment silently
+  // received a made-up expected resource, so the audience guard compared real
+  // tokens against an endpoint nobody had configured — and REGRESSION_PLAN §3
+  // forbids hardcoded hosts/ports outright. Resolution is config/env only; when
+  // nothing is configured the caller gets '' and must decide honestly what to do
+  // (omit the key, or report that no decision could be evaluated).
   if (usePingGateway) {
-    return configStore.getEffective('pingone_resource_pinggateway_uri') || process.env.PINGONE_RESOURCE_PINGGATEWAY_URI || 'https://api.ping.demo:3036/mcp';
+    return configStore.getEffective('pingone_resource_pinggateway_uri')
+      || process.env.PINGONE_RESOURCE_PINGGATEWAY_URI
+      || '';
   }
   if (useGateway) {
-    return configStore.getEffective('pingone_resource_mcp_gateway_uri') || 'https://api.ping.demo:3000/mcp';
+    return configStore.getEffective('pingone_resource_mcp_gateway_uri') || '';
   }
-  return configStore.getEffective('pingone_resource_two_exchange_uri') || configStore.getEffective('mcp_resource_uri') || 'https://api.ping.demo:3000/mcp';
+  return configStore.getEffective('pingone_resource_two_exchange_uri')
+    || configStore.getEffective('mcp_resource_uri')
+    || '';
 }
 
 /**
@@ -404,6 +416,11 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     rarPermittedPayees,
     toAccountId,
     useCaseId,
+    // F5 — role as a policy INPUT. The live PingOne path already receives this;
+    // omitting it here made the two engines evaluate DIFFERENT inputs for the
+    // same call, which is finding F3 (the two evaluations can legitimately
+    // disagree) reproduced inside the failover path. Consumed by WS-D.
+    userRole,
   };
 
   // Live PingOne selected but no MCP decision endpoint is configured. Honor the

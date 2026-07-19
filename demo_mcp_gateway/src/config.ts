@@ -172,6 +172,34 @@ export function isP1AZActive(config: GatewayConfig): boolean {
   return config.p1azEnabled && !!config.pingAuthorizeEndpoint && !!config.pingAuthorizeWorkerId;
 }
 
+/**
+ * True when the configured decision endpoint is the REAL PDP rather than the mock.
+ *
+ * The mock is DECLARED by `PINGAUTHORIZE_MOCK_BASE`: a deployment that talks to
+ * the mock directly sets it equal to `PINGAUTHORIZE_ENDPOINT`; one that keeps the
+ * mock only as a failover target sets it to a different URL; a real-cloud-only
+ * deployment leaves it unset.
+ *
+ * Both the C3 `/health` block (authzPosture) and the C2 decision-path `engine`
+ * labelling (PingOneAuthorizeClient, pingAuthorizeGuard) derive real-vs-mock from
+ * THIS one predicate. They previously each carried their own copy of
+ * `!!mockBase && mockBase !== endpoint`, which (a) reported `p1az-mock` for a
+ * real-cloud-only endpoint — the mock wasn't configured at all — and (b) let the
+ * two copies drift so health and decisions could disagree. One home, one answer.
+ *
+ * Distinct from "can we fail over": failover needs a DIFFERENT mock base to dial
+ * (`!!mockBase && mockBase !== endpoint`); this asks which authority the primary
+ * endpoint IS. They diverge exactly in the real-cloud-only case, where there is a
+ * real PDP but nothing to fail over to.
+ *
+ * Compares two configured values only — never tests an endpoint against a known
+ * host, so no host literal appears here.
+ */
+export function usingRealPdpEndpoint(config: GatewayConfig): boolean {
+  return !!config.pingAuthorizeEndpoint
+    && config.pingAuthorizeEndpoint !== config.pingAuthorizeMockBase;
+}
+
 function required(name: string, stub = 'dev-bypass-placeholder'): string {
   const v = process.env[name];
   if (!v) {

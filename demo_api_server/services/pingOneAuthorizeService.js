@@ -551,15 +551,26 @@ async function evaluateMcpToolDelegation({
     McpMethod: 'tools/call',
     UserId: userId,
     ToolName: toolName || '',
-    TokenAudience: tokenAudience != null ? String(tokenAudience) : '',
-    // C1: same value, retained for mock back-compat. The BFF reads the REAL aud
-    // off the presented token, so actual and reported audience are identical
-    // here (C1 rule 1 — never hardcode this to the expected URI).
-    TokenAudActual: tokenAudience != null ? String(tokenAudience) : '',
+    // C1 preamble — absent values are OMITTED, never fabricated. '' is a value:
+    // it claims the token was read and its audience was empty. Omission is the
+    // honest encoding of "this caller could not read an aud". Both encodings
+    // fail closed at the PDP (mock Rule 0b denies invalid_aud either way).
+    ...(tokenAudience != null
+      ? {
+        TokenAudience: String(tokenAudience),
+        // C1: same value, retained for mock back-compat. The BFF reads the REAL
+        // aud off the presented token, so actual and reported audience are
+        // identical here (C1 rule 1 — never hardcode this to the expected URI).
+        TokenAudActual: String(tokenAudience),
+      }
+      : {}),
     ActClientId: actClientId || '',          // from act.client_id || act.sub
     NestedActClientId: nestedActClientId || '', // from act.act.client_id || act.act.sub
     ActChainDepth: actChainDepth,
-    McpResourceUri: mcpResourceUri || '',    // expected MCP resource URI from config
+    // Expected MCP resource URI from config. Reachably empty since
+    // resolveExpectedMcpResourceUri() stopped inventing a host, so the same C1
+    // rule applies: omit rather than send ''.
+    ...(mcpResourceUri ? { McpResourceUri: mcpResourceUri } : {}),
     ...(clientId ? { ClientId: clientId } : {}),
     ...(mayActSub ? { MayActSub: mayActSub } : {}),
     ...(tokenScopes ? { TokenScopes: tokenScopes } : {}),
@@ -1201,6 +1212,16 @@ const KNOWN_STATEMENT_CODES = new Set([
   'mcp-tier-amount-exceeded',
   'mcp-tier-tool-not-allowed',
   'mcp-user-not-in-group',
+  // Round-3 cloud-delta deny codes (new rules in the imported MCP Delegation
+  // policy — see snapshots/gen-authorize-snapshot.js). Listed so a real cloud
+  // decision carrying them does not trip the F8 "unrecognised statement code"
+  // warning; they classify to the top-level decision, not an obligation.
+  'mcp-bypass-attempt',
+  'mcp-resource-owner-mismatch',
+  'mcp-rar-amount-exceeded',
+  'mcp-intent-invalid',
+  'mcp-intent-mismatch',
+  'mcp-admin-role-not-permitted',
 ]);
 
 /**
