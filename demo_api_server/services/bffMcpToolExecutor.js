@@ -192,6 +192,19 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
 
   const outcome = await runMcpToolPipeline(ctx);
 
+  // Surface the PingOne Authorize evaluation to the caller. On the agent path the
+  // tool result flows back as a plain string (the LLM tool message), so the
+  // evaluation would otherwise be lost — the agent route reads it off req and
+  // merges it into the response envelope so the Proof trace's authorize-decision
+  // step matches on the SUCCESS path too (not only on block/deny). Best-effort;
+  // never present on a mockReq (chip/direct path already carries it on the body).
+  const _authEval = outcome.mcpAuthorizeEvaluation
+    || (outcome.body && outcome.body.mcpAuthorizeEvaluation)
+    || null;
+  if (_authEval && req && typeof req === 'object') {
+    req._mcpAuthorizeEvaluation = _authEval;
+  }
+
   // Merge any token events the pipeline produced into the caller's tokenEvents array.
   // stampUseCaseId never overwrites an existing tag.
   if (Array.isArray(outcome.tokenEvents)) {

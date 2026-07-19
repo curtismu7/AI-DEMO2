@@ -367,7 +367,7 @@ async function main() {
   console.log(`       npm run data:import -- ~/${archiveName}`);
   console.log('');
   console.log('  4. Generate TLS certs (machine-bound — not in archive):');
-  console.log('       cd ../certs && mkcert api.ping.demo localhost 127.0.0.1 && cd ..');
+  console.log('       cd ../certs && mkcert -cert-file api.ping.demo+2.pem -key-file api.ping.demo+2-key.pem api.ping.demo local.ping-devops.com demo-api-server localhost 127.0.0.1 && cd ..');
   console.log('');
   console.log('  5. Start the server:');
   console.log('       ./run-demo.sh');

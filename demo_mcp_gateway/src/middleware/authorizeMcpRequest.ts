@@ -119,7 +119,7 @@ export interface AuthorizeMcpRequestDeps {
       degraded?: boolean;
       sentParameters?: Record<string, string>;
     }>;
-  exchange?: (subjectToken: string) => Promise<{ token: string; targetAud: string; cached: boolean }>;
+  exchange?: (subjectToken: string, toolName?: string) => Promise<{ token: string; targetAud: string; cached: boolean }>;
 }
 
 function parseJsonRpcBody(body: Buffer): JsonRpcBody {
@@ -157,7 +157,10 @@ export function buildAuthorizeMcpRequest(
   const introspectionClient = new GatewayIntrospectionClient(config);
   const authorizeClient = new PingOneAuthorizeClient(config);
   const exchangeClient = new McpTokenExchangeClient(config);
-  const doExchange = deps?.exchange ?? ((t: string) => exchangeClient.exchangeForBackend(t, 'olb'));
+  // Exchange per tool: invest tools need the mcp-invest audience — a hardcoded
+  // 'olb' exchange minted an mcpserver-audience token that the invest backend
+  // (and mcp-server, which does not serve invest tools) both reject.
+  const doExchange = deps?.exchange ?? ((t: string, tool?: string) => exchangeClient.exchange(t, tool));
 
   return async (
     bearerToken: string,
@@ -943,7 +946,7 @@ export function buildAuthorizeMcpRequest(
     teachLog.info('gateway audit trail', { gw_audit_trail: auditTrail });
     let upstreamToken: string;
     try {
-      const ex = await doExchange(bearerToken);
+      const ex = await doExchange(bearerToken, toolName);
       upstreamToken = ex.token;
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);

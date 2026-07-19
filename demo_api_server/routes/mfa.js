@@ -43,13 +43,16 @@ const mfaInitLimiter = rateLimit({
 // origin the app is served from, or the browser rejects passkey registration
 // ("'rp.id' cannot be used with the current origin"). PingOne defaults it to
 // its own domain. Resolve the rp.id from the public app origin.
+// Honours the FIDO2_RP_ID / pingone_fido2_rp_id override, which is what lets a
+// single PingOne environment serve passkeys to several origins at once (see
+// mfaService.resolveRelyingPartyId).
 function resolveFido2RpId() {
   const url =
     configStore.getEffective('PUBLIC_APP_URL') ||
     configStore.getEffective('REACT_APP_CLIENT_URL') ||
     process.env.PUBLIC_APP_URL ||
     'https://demo-api-server:3001';
-  try { return new URL(url).hostname; } catch { return 'demo-api-server'; }
+  return mfaService.resolveRelyingPartyId(url) || 'demo-api-server';
 }
 
 const STEP_UP_TTL_MS = 5 * 60 * 1000; // 5 min step-up validity
@@ -337,9 +340,14 @@ router.get('/devices', authenticateToken, async (req, res) => {
           ? local[0] + '*'.repeat(local.length - 2) + local[local.length - 1]
           : local[0] + '*';
         maskedContact = vis + '@' + domain;
-      } else if ((type === 'SMS' || type === 'PHONE' || type === 'MOBILE_PHONE') && d.phone?.number) {
-        const digits = d.phone.number.replace(/\D/g, '');
-        maskedContact = digits.length >= 4 ? '***-***-' + digits.slice(-4) : d.phone.number;
+      } else if (type === 'SMS' || type === 'PHONE' || type === 'MOBILE_PHONE') {
+        // PingOne returns an SMS device's number as a bare E.164 string
+        // ("phone": "+19725551234"); accept the { number } shape too.
+        const number = d.phone?.number || (typeof d.phone === 'string' ? d.phone : null);
+        if (number) {
+          const digits = number.replace(/\D/g, '');
+          maskedContact = digits.length >= 4 ? '***-***-' + digits.slice(-4) : number;
+        }
       } else if (type === 'TOTP') {
         maskedContact = d.nickname || d.applicationName || 'Authenticator app';
       } else if (type === 'FIDO2') {

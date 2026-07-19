@@ -4,9 +4,9 @@
   "ucId": "UC1",
   "trigger": "show my permits",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-17T15:13:10.141Z",
+  "capturedAt": "2026-07-18T13:58:48.953Z",
   "seedHash": "883b08745d6e1401",
-  "reply": "❌ Gateway upstream error (HTTP 500)",
+  "reply": "Here are your permits.",
   "agentPath": null,
-  "tokenEventCount": 14
+  "tokenEventCount": 18
 }

@@ -214,22 +214,56 @@ test('3d: ResourceOwnerId attribute + ResourceOwnerMismatch condition + deny rul
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 3e — RAR amount ceiling (mock Rule 3c, amount half)
+// 3e — RAR amount ceiling (RFC 9396 / NNP-1, landed on main via #611/#612/#615)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test('3e: RarMaxAmount attribute + ExceedsRarAmountCeiling condition + deny rule', () => {
+test('3e: RarMaxAmount NUMBER attribute + RarAmountExceeded condition + deny rule', () => {
   const snap = reconciled();
-  assertAttr(snap, ATTR.RarMaxAmount, 'RarMaxAmount', 'STRING', '');
+  // NUMBER with defaultValue 0 (not a '' sentinel): an ABSENT grant must
+  // resolve to 0 so the RarMaxAmount>0 guard is false — an unresolved NUMBER
+  // makes the whole MCP decision INDETERMINATE (#612).
+  assertAttr(snap, ATTR.RarMaxAmount, 'RarMaxAmount', 'NUMBER', 0);
 
-  const cond = findById(snap, COND.ExceedsRarAmountCeiling);
+  const cond = findById(snap, COND.RarAmountExceeded);
   assert.ok(cond && cond.objectType === 'ConditionDefinition');
   assert.deepStrictEqual(cond.condition, { and: { conditions: [
-    { comparison: { left: { attribute: { id: ATTR.RarMaxAmount } }, op: 'NotEquals', right: { constant: { value: '' } } } },
+    { comparison: { left: { attribute: { id: ATTR.RarMaxAmount } }, op: 'GreaterThan', right: { constant: { value: '0' } } } },
     { comparison: { left: { attribute: { id: ATTR.Amount } }, op: 'GreaterThan', right: { attribute: { id: ATTR.RarMaxAmount } } } },
-  ] } }, 'RAR ceiling present AND Amount above it');
+  ] } }, 'a grant is present (RarMaxAmount > 0) AND Amount exceeds it');
 
-  assertDenyRule(snap, RULE.mcpDenyRarAmount, COND.ExceedsRarAmountCeiling,
-    STMT.rarAmountExceeded, 'mcp-rar-amount-exceeded');
+  // The RAR rule pre-dates the round-3 denyRule helper: it carries ONLY its
+  // specific statement (no shared mcp-authorization-denied) and mirrors the
+  // "Deny Large Transactions" shape. It must NOT be reshaped to the helper.
+  const rule = findById(snap, RULE.rarAmountExceeded);
+  assert.ok(rule && rule.type === 'Rule', 'RAR deny rule must exist');
+  assert.strictEqual(rule.effectSettings.type, 'conditionalDenyElsePermit');
+  assert.deepStrictEqual(rule.effectSettings.condition,
+    { and: { conditions: [{ reference: { id: COND.RarAmountExceeded } }] } });
+  assert.deepStrictEqual(rule.statements, [STMT.rarAmountExceeded]);
+
+  const stmt = findById(snap, STMT.rarAmountExceeded);
+  assert.ok(stmt && stmt.type === 'Statement');
+  assert.strictEqual(stmt.code, 'rar_amount_exceeded');
+  assert.strictEqual(stmt.appliesTo, 'DENY');
+  assert.strictEqual(stmt.shared, false);
+
+  // #615 bumped the four RAR object versions (id …-0020, version …-0021) so
+  // the defaultValue-0 fix re-imports — pinned so a helper "cleanup" reverting
+  // them to the id-digit pattern (which would make the live import SKIP the
+  // fix) fails here instead of in production.
+  assert.strictEqual(findById(snap, ATTR.RarMaxAmount).version, 'aaaaaaaa-0021-4321-abcd-000000000021');
+  assert.strictEqual(cond.version, 'bbbbbbbb-0021-4321-abcd-000000000021');
+  assert.strictEqual(stmt.version, 'cccccccc-0021-4321-abcd-000000000021');
+  assert.strictEqual(rule.version, 'dddddddd-0021-4321-abcd-000000000021');
+
+  // Membership: MCP Delegation policy, before the catch-all permit, and not
+  // in the Transaction policy.
+  const mcpPolicy = findById(snap, '56789012-0002-4321-abcd-000000000002');
+  const txPolicy = findById(snap, '56789012-0001-4321-abcd-000000000001');
+  const childIds = mcpPolicy.children.map((c) => c.id);
+  assert.ok(childIds.includes(RULE.rarAmountExceeded), 'RAR rule must be a child of the MCP policy');
+  assert.ok(childIds.indexOf(RULE.rarAmountExceeded) < childIds.indexOf(RULE.mcpPermitValid));
+  assert.ok(!txPolicy.children.some((c) => c.id === RULE.rarAmountExceeded));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -331,11 +365,11 @@ test('structure: the committed snapshot carries all 25 new objects (98 total) an
   const newIds = [
     ATTR.TokenAudActual, ATTR.ResourceOwnerId, ATTR.RarMaxAmount,
     ATTR.IntentTokenValid, ATTR.IntentMatchesTool, ATTR.IntentTokenError, ATTR.UserRole,
-    COND.TokenAudTargetsUpstream, COND.ResourceOwnerMismatch, COND.ExceedsRarAmountCeiling,
+    COND.TokenAudTargetsUpstream, COND.ResourceOwnerMismatch, COND.RarAmountExceeded,
     COND.IntentTokenTampered, COND.IntentToolMismatch, COND.AdminRoleOnWriteTool,
     STMT.bypassAttempt, STMT.resourceOwnerMismatch, STMT.rarAmountExceeded,
     STMT.intentInvalid, STMT.intentMismatch, STMT.adminRole,
-    RULE.mcpDenyUpstreamAud, RULE.mcpDenyResourceOwner, RULE.mcpDenyRarAmount,
+    RULE.mcpDenyUpstreamAud, RULE.mcpDenyResourceOwner, RULE.rarAmountExceeded,
     RULE.mcpDenyIntentInvalid, RULE.mcpDenyIntentMismatch, RULE.mcpDenyAdminRole,
   ];
   assert.strictEqual(new Set(newIds).size, 25, 'the 25 new ids must be distinct');
@@ -345,8 +379,10 @@ test('structure: the committed snapshot carries all 25 new objects (98 total) an
 test('structure: all six deny rules run before the MCP catch-all permit, in order', () => {
   const mcpPolicy = findById(reconciled(), '56789012-0002-4321-abcd-000000000002');
   const childIds = mcpPolicy.children.map((c) => c.id);
+  // The RAR deny landed first (on main, #611) so it sits ahead of the five
+  // round-3 denies added after it.
   const denies = [
-    RULE.mcpDenyUpstreamAud, RULE.mcpDenyResourceOwner, RULE.mcpDenyRarAmount,
+    RULE.rarAmountExceeded, RULE.mcpDenyUpstreamAud, RULE.mcpDenyResourceOwner,
     RULE.mcpDenyIntentInvalid, RULE.mcpDenyIntentMismatch, RULE.mcpDenyAdminRole,
   ];
   const permitIdx = childIds.indexOf(RULE.mcpPermitValid);

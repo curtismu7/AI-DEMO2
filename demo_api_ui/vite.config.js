@@ -131,7 +131,10 @@ export default defineConfig(({ mode }) => {
       // HTTP) works after the CRA→Vite migration. Default stays 4000 + HTTPS
       // (mkcert cert present) for `npm start` and the Docker dev mount.
       port: process.env.PORT ? Number(process.env.PORT) : 4000,
-      allowedHosts: ['api.ping.demo'],
+      // local.ping-devops.com is the passkey-capable local origin: WebAuthn needs
+      // rp.id to be the host or a registrable parent of it, and PingOne rejects a
+      // rp.id whose TLD isn't public — so `api.ping.demo` can never carry passkeys.
+      allowedHosts: ['local.ping-devops.com', 'api.ping.demo'],
       ...(process.env.HTTPS !== 'false' && mkcert && {
         https: {
           key: readFileSync(mkcert.key),

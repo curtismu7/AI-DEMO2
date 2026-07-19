@@ -329,9 +329,9 @@ setup_certs() {
   fi
 
   info "Generating TLS certs for api.ping.demo..."
-  ( cd "$certs_dir" && mkcert api.ping.demo localhost 127.0.0.1 ) \
+  ( cd "$certs_dir" && mkcert -cert-file api.ping.demo+2.pem -key-file api.ping.demo+2-key.pem api.ping.demo local.ping-devops.com demo-api-server localhost 127.0.0.1 ) \
     && ok "TLS certs generated in certs/." \
-    || warn "mkcert cert generation failed — run 'cd ${certs_dir} && mkcert api.ping.demo localhost 127.0.0.1' manually."
+    || warn "mkcert cert generation failed — run 'cd ${certs_dir} && mkcert -cert-file api.ping.demo+2.pem -key-file api.ping.demo+2-key.pem api.ping.demo local.ping-devops.com demo-api-server localhost 127.0.0.1' manually."
 }
 
 ask_yes_no() {

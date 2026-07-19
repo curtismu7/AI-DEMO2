@@ -4,9 +4,9 @@
   "ucId": "UC1",
   "trigger": "show my portfolios",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-17T15:13:23.906Z",
+  "capturedAt": "2026-07-18T13:59:14.578Z",
   "seedHash": null,
-  "reply": "❌ Gateway upstream error (HTTP 500)",
+  "reply": "Here are your portfolios.",
   "agentPath": null,
-  "tokenEventCount": 14
+  "tokenEventCount": 18
 }

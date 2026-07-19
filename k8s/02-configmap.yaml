@@ -168,7 +168,7 @@ data:
   default.conf: |
     server {
         listen 3000 ssl;
-        server_name api.ping.demo;
+        server_name local.ping-devops.com api.ping.demo;
 
         ssl_certificate     /etc/nginx/certs/tls.crt;
         ssl_certificate_key /etc/nginx/certs/tls.key;

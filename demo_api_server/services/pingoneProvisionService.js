@@ -105,7 +105,8 @@ const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'Baseball123!';
 // dev, Docker Compose, the SE DevOps cluster, and any custom PUBLIC_APP_URL.
 // Paths are appended per-app below.
 const KNOWN_REDIRECT_ORIGINS = [
-  'https://api.ping.demo:4000',           // local dev (run-demo.sh / docker-compose)
+  'https://local.ping-devops.com:4000',   // local dev — passkey-capable (see FIDO2_RP_ID)
+  'https://api.ping.demo:4000',           // local dev (legacy; run-demo.sh / docker-compose)
   'https://ai-demo.ping-devops.com'       // SE DevOps cluster (Ping AWS / k8s)
 ];
 

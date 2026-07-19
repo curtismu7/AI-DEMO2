@@ -15,8 +15,11 @@
  *   - HasValidMcpAudience  (cond 0007): TokenAudience IN {SoT gateway resource URIs} (set semantics —
  *     the old attribute-to-attribute TokenAudience==McpResourceUri equality denied ALL MCP traffic post-C1)
  *   - Fine-grained deny rules mirroring demo_authz_server/routes/decision.js:
- *     D-05 anti-bypass (Rule 0b-2), resource owner (3.5a), RAR amount (3c amount half),
- *     intent tamper/mismatch (4a/4b), admin-role write restriction (2.95)
+ *     D-05 anti-bypass (Rule 0b-2), resource owner (3.5a), intent tamper/mismatch
+ *     (4a/4b), admin-role write restriction (2.95)
+ *   - RAR (RFC 9396) amount-cap deny (step 9, landed via #611/#612/#615):
+ *     RarMaxAmount NUMBER attr + RarAmountExceeded -> rar_amount_exceeded DENY,
+ *     mirroring simulatedAuthorizeService NNP-1 / mock Rule 3c (amount half)
  * plus the rules that reference them and their membership in the two policies.
  * Everything else in the snapshot is left untouched. Re-running is idempotent.
  *
@@ -53,10 +56,15 @@ const ATTR = {
   TokenAudience: '12345678-0009-4321-abcd-000000000009',
   // New request-resolved attributes (cloud delta). Defaults are the inert
   // sentinels — a request that omits the key changes no decision.
+  //
+  // Id-suffix -0021 is RETIRED in every id class: ver() derives the version
+  // suffix from the id suffix, and #615 parked the RAR quartet's VERSIONS at
+  // suffix -0021 (ids stay -0020) — an object at id -0021 would collide with
+  // those version UUIDs, and the snapshot keeps version UUIDs unique file-wide.
   TokenAudActual: '12345678-0018-4321-abcd-000000000018',
   ResourceOwnerId: '12345678-0019-4321-abcd-000000000019',
-  RarMaxAmount: '12345678-0020-4321-abcd-000000000020',
-  IntentTokenValid: '12345678-0021-4321-abcd-000000000021',
+  RarMaxAmount: '12345678-0020-4321-abcd-000000000020',     // RFC 9396 granted amount ceiling (NUMBER, defaultValue 0 — see step 9)
+  IntentTokenValid: '12345678-0025-4321-abcd-000000000025', // NOT -0021 (retired, see above)
   IntentMatchesTool: '12345678-0022-4321-abcd-000000000022',
   IntentTokenError: '12345678-0023-4321-abcd-000000000023',
   UserRole: '12345678-0024-4321-abcd-000000000024',
@@ -85,13 +93,15 @@ const COND = {
   RequiresMcpStepUp: '23456789-0013-4321-abcd-000000000013',
   IsConsentTransaction: '23456789-0014-4321-abcd-000000000014',
   IsMcpFirstToolRequest: '23456789-0008-4321-abcd-000000000008',
-  // New fine-grained deny conditions (cloud delta).
-  TokenAudTargetsUpstream: '23456789-0020-4321-abcd-000000000020',
-  ResourceOwnerMismatch: '23456789-0021-4321-abcd-000000000021',
-  ExceedsRarAmountCeiling: '23456789-0022-4321-abcd-000000000022',
+  RarAmountExceeded: '23456789-0020-4321-abcd-000000000020', // RAR grant present AND Amount > RarMaxAmount (landed via #611)
+  // New fine-grained deny conditions (cloud delta). -0020 is taken by
+  // RarAmountExceeded above; -0021 is retired (its ver() version suffix
+  // collides with #615's bumped RAR condition version — see the ATTR map note).
+  ResourceOwnerMismatch: '23456789-0022-4321-abcd-000000000022', // NOT -0021 (retired)
   IntentTokenTampered: '23456789-0023-4321-abcd-000000000023',
   IntentToolMismatch: '23456789-0024-4321-abcd-000000000024',
   AdminRoleOnWriteTool: '23456789-0025-4321-abcd-000000000025',
+  TokenAudTargetsUpstream: '23456789-0026-4321-abcd-000000000026',
 };
 const STMT = {
   stepUp: '34567890-0003-4321-abcd-000000000003',           // step-up-required (reused)
@@ -99,27 +109,34 @@ const STMT = {
   hitl: '34567890-0009-4321-abcd-000000000009',             // HITL (reused)
   txConsent: '34567890-0011-4321-abcd-000000000011',        // new transaction consent
   // New fine-grained deny statements (cloud delta). One rule each -> shared:false.
+  // -0017 is retired (the mcp-rar-amount-exceeded statement, superseded by
+  // rar_amount_exceeded at -0020 which landed via #611); -0021 is retired
+  // (its ver() version suffix collides with #615's bumped RAR statement
+  // version — see the ATTR map note).
   bypassAttempt: '34567890-0015-4321-abcd-000000000015',
   resourceOwnerMismatch: '34567890-0016-4321-abcd-000000000016',
-  rarAmountExceeded: '34567890-0017-4321-abcd-000000000017',
   intentInvalid: '34567890-0018-4321-abcd-000000000018',
   intentMismatch: '34567890-0019-4321-abcd-000000000019',
-  adminRole: '34567890-0020-4321-abcd-000000000020',
+  rarAmountExceeded: '34567890-0020-4321-abcd-000000000020', // rar_amount_exceeded (DENY)
+  adminRole: '34567890-0022-4321-abcd-000000000022',         // NOT -0021 (retired)
 };
 const RULE = {
   mcpHitl: '45678901-0008-4321-abcd-000000000008',          // existing (generalized)
   mcpStepUp: '45678901-0010-4321-abcd-000000000010',        // new
   txConsent: '45678901-0011-4321-abcd-000000000011',        // new
+  rarAmountExceeded: '45678901-0020-4321-abcd-000000000020', // new: RAR amount-cap DENY
   mcpPermitValid: '45678901-0007-4321-abcd-000000000007',
   txPermitStandard: '45678901-0003-4321-abcd-000000000003',
   mcpDenyAudience: '45678901-0004-4321-abcd-000000000004',  // existing — condition 0007 changes, the rule does NOT
   // New fine-grained deny rules (cloud delta), all in the MCP Delegation policy.
+  // -0017 is retired (mcpDenyRarAmount, superseded by rarAmountExceeded above);
+  // -0020 is taken by rarAmountExceeded; -0021 is retired (its ver() version
+  // suffix collides with #615's bumped RAR rule version — see the ATTR map note).
   mcpDenyUpstreamAud: '45678901-0015-4321-abcd-000000000015',
   mcpDenyResourceOwner: '45678901-0016-4321-abcd-000000000016',
-  mcpDenyRarAmount: '45678901-0017-4321-abcd-000000000017',
   mcpDenyIntentInvalid: '45678901-0018-4321-abcd-000000000018',
   mcpDenyIntentMismatch: '45678901-0019-4321-abcd-000000000019',
-  mcpDenyAdminRole: '45678901-0020-4321-abcd-000000000020',
+  mcpDenyAdminRole: '45678901-0022-4321-abcd-000000000022',  // NOT -0021 (retired)
 };
 const POLICY = { transaction: '56789012-0001-4321-abcd-000000000001', mcp: '56789012-0002-4321-abcd-000000000002' };
 const CONFIRM_USD = '250';
@@ -426,26 +443,9 @@ function reconcile(snap, { consent, stepUp, writeTools, acceptedGatewayAudiences
     'DENY when ResourceOwnerId is present and differs from UserId (ResourceOwnerMismatch). Mirrors mock Rule 3.5a; inert when the caller cannot name an owner.',
     COND.ResourceOwnerMismatch, STMT.resourceOwnerMismatch), beforeFirstPolicyIdx);
 
-  // 8c) RAR amount ceiling (mock Rule 3c, amount half): the BFF resolves the
-  // attested authorization_details ceiling to RarMaxAmount; Amount above it is
-  // denied. The payee half of Rule 3c needs array membership — PEP/mock only.
-  upsert(requestAttr(ATTR.RarMaxAmount, 'RarMaxAmount', 'STRING', '',
-    "The attested RAR (authorization_details) amount ceiling, resolved by the BFF from the governing detail's `amount`. " +
-    "'' (default) means no RAR grant applies and keeps the rule inert. Numeric string — the DSL coerces for GreaterThan " +
-    'exactly as it does for the constant thresholds (e.g. IsLargeTransaction).'), afterLastAttrIdx);
-  upsert(conditionDef(COND.ExceedsRarAmountCeiling, 'ExceedsRarAmountCeiling',
-    'A RAR ceiling is present (RarMaxAmount != \'\') AND Amount exceeds it — the transaction exceeds the attested ' +
-    'authorization_details grant (mock Rule 3c, amount half). Attribute-to-attribute GreaterThan.',
-    { and: { conditions: [
-      { comparison: { left: { attribute: { id: ATTR.RarMaxAmount } }, op: 'NotEquals', right: { constant: { value: '' } } } },
-      { comparison: { left: { attribute: { id: ATTR.Amount } }, op: 'GreaterThan', right: { attribute: { id: ATTR.RarMaxAmount } } } },
-    ] } }), beforeSepIdx);
-  upsert(denyStatement(STMT.rarAmountExceeded, 'MCP Denied — RAR Amount Exceeded', 'mcp-rar-amount-exceeded',
-    'NNP-1/UC14 (rar_amount_exceeded): the transaction amount exceeds the RAR-granted ceiling. Mirrors mock Rule 3c (amount half).',
-    `{"denied": true, "reason": "rar_amount_exceeded", "message": "Transaction of $\{{${ATTR.Amount}}} exceeds the RAR-granted ceiling $\{{${ATTR.RarMaxAmount}}}.", "amount": "{{${ATTR.Amount}}}", "rarMaxAmount": "{{${ATTR.RarMaxAmount}}}"}`), beforeFirstPolicyIdx);
-  upsert(denyRule(RULE.mcpDenyRarAmount, 'MCP Deny — RAR Amount Exceeded',
-    'DENY when a RAR grant caps the amount and Amount exceeds it (ExceedsRarAmountCeiling). Mirrors mock Rule 3c amount enforcement; inert without a RAR grant.',
-    COND.ExceedsRarAmountCeiling, STMT.rarAmountExceeded), beforeFirstPolicyIdx);
+  // 8c) RAR amount ceiling — handled in step 9 (landed on main via #611/#612/#615
+  // as RarAmountExceeded -> rar_amount_exceeded). The payee half of mock Rule 3c
+  // needs array membership — PEP/mock only.
 
   // 8d) Intent-token binding (mock Rules 4a/4b). A PRESENT-and-TAMPERED intent
   // token fails closed; a benign 'expired' failure and an absent token ('') are
@@ -506,11 +506,90 @@ function reconcile(snap, { consent, stepUp, writeTools, acceptedGatewayAudiences
     COND.AdminRoleOnWriteTool, STMT.adminRole), beforeFirstPolicyIdx);
 
   for (const ruleId of [
-    RULE.mcpDenyUpstreamAud, RULE.mcpDenyResourceOwner, RULE.mcpDenyRarAmount,
+    RULE.mcpDenyUpstreamAud, RULE.mcpDenyResourceOwner,
     RULE.mcpDenyIntentInvalid, RULE.mcpDenyIntentMismatch, RULE.mcpDenyAdminRole,
   ]) {
     addChild(POLICY.mcp, ruleId, RULE.mcpPermitValid);
   }
+  // 9) RAR (RFC 9396) amount-cap enforcement — mirrors the simulated engine's
+  // NNP-1 rar_amount_exceeded so PingOne Authorize (not just the gateway) denies
+  // a tool call whose Amount exceeds the granted RarMaxAmount. The BFF/gateway
+  // send RarMaxAmount (the azd.authorization_details[0].amount ceiling) on
+  // delegated calls that carry a RAR grant; it is absent otherwise, so the guard
+  // below keeps every non-RAR call unaffected.
+  //
+  // These four objects landed on main via #611/#612/#615 and are ALREADY
+  // IMPORTED into the live environment. Keep them byte-exact — #615 bumped
+  // their versions (id …-0020, version …-0021) so the defaultValue-0 fix
+  // re-imports; do NOT reshape them through the round-3 helpers above (ver()
+  // would silently revert the bumped versions and the live import would skip
+  // the objects again).
+  const rarUpsert = (obj, sameType) => {
+    const i = snap.findIndex((o) => o.id === obj.id && (sameType ? o.objectType === obj.objectType : o.type === obj.type));
+    if (i >= 0) snap[i] = obj;
+    else snap.splice(snap.findIndex((o) => o.type === 'SnapshotPackageFile$PackageSeparator'), 0, obj);
+  };
+
+  // 9a) RarMaxAmount request attribute (NUMBER) — same resolver shape as Amount.
+  rarUpsert({
+    objectType: 'AttributeDefinition', id: ATTR.RarMaxAmount,
+    version: 'aaaaaaaa-0021-4321-abcd-000000000021', type: 'ATTRIBUTE',
+    name: 'RarMaxAmount', fullName: 'RarMaxAmount',
+    description: 'RFC 9396 RAR granted amount ceiling (azd.authorization_details[0].amount). ' +
+      'Sent by the Super Banking BFF/gateway on delegated tool calls that carry a RAR grant; absent otherwise. ' +
+      'defaultValue 0 (like HitlApproved=false) so an ABSENT grant resolves to 0 instead of leaving the ' +
+      'comparison unresolved — an unresolved NUMBER makes the rule (and the whole MCP decision) INDETERMINATE.',
+    parentId: null, numberOfChildren: null, valueProcessor: null,
+    valueType: 'NUMBER',
+    resolvers: [{ attributeResolverType: 'request', condition: { empty: {} }, valueProcessor: null, name: null }],
+    // MUST be 0, not null: absent RarMaxAmount → 0 → the "RarMaxAmount > 0" guard
+    // is false → the deny rule does not fire → ordinary (non-RAR) calls PERMIT.
+    defaultValue: 0, repetitionSource: null, valueSchema: null,
+  }, true);
+
+  // 9b) RarAmountExceeded condition: a grant is present (RarMaxAmount > 0) AND the
+  // requested Amount exceeds it. When no grant is attached (RarMaxAmount absent/0)
+  // the guard is false, so ordinary calls never trip this.
+  rarUpsert({
+    objectType: 'ConditionDefinition', id: COND.RarAmountExceeded,
+    version: 'bbbbbbbb-0021-4321-abcd-000000000021', type: 'CONDITION',
+    name: 'RarAmountExceeded', fullName: 'RarAmountExceeded',
+    description: 'RarMaxAmount > 0 (a RAR grant is present) AND Amount > RarMaxAmount. ' +
+      'Absent grant → false → non-RAR calls unaffected. Mirrors simulatedAuthorizeService NNP-1.',
+    parentId: null, numberOfChildren: null,
+    condition: { and: { conditions: [
+      { comparison: { left: { attribute: { id: ATTR.RarMaxAmount } }, op: 'GreaterThan', right: { constant: { value: '0' } } } },
+      { comparison: { left: { attribute: { id: ATTR.Amount } }, op: 'GreaterThan', right: { attribute: { id: ATTR.RarMaxAmount } } } },
+    ] } },
+  }, true);
+
+  // 9c) rar_amount_exceeded DENY statement (code matches the simulated deny_reason).
+  rarUpsert({
+    id: STMT.rarAmountExceeded, version: 'cccccccc-0021-4321-abcd-000000000021', type: 'Statement',
+    name: 'RAR Amount Exceeded', shared: false,
+    description: 'Returned when the requested amount exceeds the RFC 9396 RAR granted ceiling. ' +
+      'code rar_amount_exceeded surfaces as the deny_reason in the BFF/Token Chain.',
+    code: 'rar_amount_exceeded', appliesTo: 'DENY', appliesIf: 'PATH_MATCHES',
+    payload: `RAR amount enforcement: requested $\{{${ATTR.Amount}}} exceeds the granted ceiling of $\{{${ATTR.RarMaxAmount}}} ` +
+      `(RFC 9396 authorization_details). The agent cannot exceed the attested limit even with a valid token.`,
+    obligatory: false, attributes: [], services: [],
+  });
+
+  // 9d) RAR deny rule — conditionalDenyElsePermit, same shape as "Deny Large
+  // Transactions". DenyOverrides makes this win when it fires.
+  rarUpsert({
+    id: RULE.rarAmountExceeded, version: 'dddddddd-0021-4321-abcd-000000000021', type: 'Rule', targets: [],
+    name: 'Deny RAR Amount Overage',
+    description: 'DENY when Amount exceeds the RFC 9396 RAR granted ceiling (RarMaxAmount). ' +
+      'No RAR grant → condition false → permit contribution only. PingOne-side twin of the gateway requireRarIntent check.',
+    shared: false, disabled: false, statements: [STMT.rarAmountExceeded],
+    effectSettings: { type: 'conditionalDenyElsePermit', condition: { and: { conditions: [{ reference: { id: COND.RarAmountExceeded } }] } } },
+    condition: { and: { conditions: [{ reference: { id: COND.RarAmountExceeded } }] } },
+  });
+
+  // 9e) Membership: MCP first-tool policy (before the catch-all permit). DenyOverrides
+  // means placement is not strictly required, but keep it ahead of mcpPermitValid for clarity.
+  addChild(POLICY.mcp, RULE.rarAmountExceeded, RULE.mcpPermitValid);
 
   return snap;
 }

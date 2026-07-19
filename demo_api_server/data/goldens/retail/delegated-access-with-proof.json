@@ -4,9 +4,9 @@
   "ucId": "UC1",
   "trigger": "list my orders",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-17T15:13:05.070Z",
+  "capturedAt": "2026-07-18T13:58:45.011Z",
   "seedHash": "6a8345537e56d245",
-  "reply": "❌ Gateway upstream error (HTTP 500)",
+  "reply": "Here are your Activity (6 total).",
   "agentPath": null,
-  "tokenEventCount": 14
+  "tokenEventCount": 18
 }

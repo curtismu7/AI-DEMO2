@@ -197,6 +197,35 @@ const FRONTIER_MODES = ["claude"];
 const AGENT_UNAVAILABLE_MESSAGE =
   "The assistant didn't return a response — the agent service may be unavailable. Check that the agent runtime is running.";
 
+// One plain sentence per BFF failure class, keyed by the code the BFF returns.
+// The agent transcript must never show a raw backend error string, so
+// reportNlFailure resolves through here and falls back to NL_FAILURE_FALLBACK
+// for any code not listed rather than echoing err.message.
+const NL_FAILURE_MESSAGES = {
+  gateway_policy_denied:
+    "That step was declined by the gateway's authorization policy — no changes were made.",
+  mcp_authorization_denied:
+    "That step was declined by the authorization policy — no changes were made.",
+  mcp_authorize_unavailable:
+    "The authorization service isn't reachable right now, so the step was declined. Try again in a moment.",
+  policy_not_found: "Policy not found, please contact administrator.",
+  mcp_scope_denied:
+    "This demo step isn't permitted by the agent's granted scopes.",
+  missing_exchange_scopes:
+    "This demo step isn't permitted by the agent's granted scopes.",
+  rate_limited: "Too many requests just now — wait a moment and try again.",
+  gateway_misconfigured:
+    "The gateway isn't configured for this step yet. Check the gateway settings.",
+  gateway_upstream_error:
+    "The service behind the gateway didn't respond. Try again in a moment.",
+  server_unavailable:
+    "The server isn't available right now. Try again in a moment.",
+  connection_timeout:
+    "The server took too long to respond — it may still be starting up. Try again in a moment.",
+};
+const NL_FAILURE_FALLBACK =
+  "That step couldn't be completed. Try again, or pick another demo step.";
+
 // Security Showcase dispatch tables (static — defined once at module scope).
 // showcase keys whose live harness is an existing runAction case.
 const SHOWCASE_RUN_ACTION = {
@@ -1077,7 +1106,10 @@ export default function BankingAgent({
           // memo is in the read window; result must be `assistant` (not
           // token-event) so it stays visible when RFC info is off.
           const readParams = inj.readTool === "get_my_transactions" ? { limit: 100 } : {};
-          const readResp = await callMcpTool(inj.readTool, readParams, { vertical: "banking" });
+          const readResp = await callMcpTool(inj.readTool, readParams, {
+            vertical: "banking",
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent(inj.readTool, ev),
+          });
           const surfaced = JSON.stringify(readResp?.result ?? "").includes("[SYSTEM:");
           addMessage(
             "assistant",
@@ -2598,7 +2630,11 @@ export default function BankingAgent({
           });
           let mortgageResp;
           try {
-            mortgageResp = await callMcpTool("show_mortgage", {}, { useCaseId, vertical });
+            mortgageResp = await callMcpTool("show_mortgage", {}, {
+              useCaseId,
+              vertical,
+              onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+            });
           } catch (e) {
             console.error(
               "[BankingAgent] mortgage_demo dispatch failed:",
@@ -2666,7 +2702,11 @@ export default function BankingAgent({
           });
           let investResp;
           try {
-            investResp = await callMcpTool("show_investment", {}, { useCaseId, vertical });
+            investResp = await callMcpTool("show_investment", {}, {
+              useCaseId,
+              vertical,
+              onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+            });
           } catch (e) {
             console.error(
               "[BankingAgent] invest_demo dispatch failed:",
@@ -2758,7 +2798,11 @@ export default function BankingAgent({
           });
           let featureResp;
           try {
-            featureResp = await callMcpTool(featureTool, {}, { useCaseId, vertical });
+            featureResp = await callMcpTool(featureTool, {}, {
+              useCaseId,
+              vertical,
+              onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+            });
           } catch (e) {
             console.error("[BankingAgent] vertical_feature_demo dispatch failed:", e?.message);
             toast.dismiss(toastId);
@@ -2830,7 +2874,11 @@ export default function BankingAgent({
           response = await callMcpTool(
             "get_account_nickname",
             form.accountId ? { account_id: form.accountId } : {},
-            { useCaseId, vertical },
+            {
+              useCaseId,
+              vertical,
+              onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+            },
           );
           break;
         case "deposit":
@@ -3037,7 +3085,11 @@ export default function BankingAgent({
           let scopeTestRes;
           try {
             // admin_get_all_users requires admin scope not in customer token
-            scopeTestRes = await callMcpTool("admin_get_all_users", {}, { useCaseId, vertical });
+            scopeTestRes = await callMcpTool("admin_get_all_users", {}, {
+              useCaseId,
+              vertical,
+              onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+            });
           } catch (scopeErr) {
             scopeTestRes = {
               error: scopeErr.code || scopeErr.message,
@@ -3674,46 +3726,74 @@ export default function BankingAgent({
           toast.update(toastId, { render: "Reasoning…" });
           response = await callMcpTool("sequential_think", {
             query: "What can I help you with today?",
-          }, { useCaseId, vertical });
+          }, {
+            useCaseId,
+            vertical,
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+          });
           break;
         case "ai_helix_demo":
           toast.update(toastId, { render: "Reasoning…" });
           response = await callMcpTool("sequential_think", {
             query: "What are best practices for account security?",
-          }, { useCaseId, vertical });
+          }, {
+            useCaseId,
+            vertical,
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+          });
           break;
         case "ai_explain":
           toast.update(toastId, { render: "Reasoning…" });
           response = await callMcpTool("sequential_think", {
             query:
               "Explain how OAuth 2.0 and RFC 8693 token exchange work in this demo",
-          }, { useCaseId, vertical });
+          }, {
+            useCaseId,
+            vertical,
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+          });
           break;
         case "ai_helix_explain":
           toast.update(toastId, { render: "Reasoning…" });
           response = await callMcpTool("sequential_think", {
             query: "Explain the difference between OAuth and SAML",
-          }, { useCaseId, vertical });
+          }, {
+            useCaseId,
+            vertical,
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+          });
           break;
         case "ai_analyze":
           toast.update(toastId, { render: "Reasoning…" });
           response = await callMcpTool("sequential_think", {
             query: "Summarize how the MCP tool flow works in this demo",
-          }, { useCaseId, vertical });
+          }, {
+            useCaseId,
+            vertical,
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+          });
           break;
         case "ai_advice":
           toast.update(toastId, { render: "Reasoning…" });
           response = await callMcpTool("sequential_think", {
             query:
               "What are some good tips for managing checking and savings accounts?",
-          }, { useCaseId, vertical });
+          }, {
+            useCaseId,
+            vertical,
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+          });
           break;
         case "ai_helix_advice":
           toast.update(toastId, { render: "Reasoning…" });
           response = await callMcpTool("sequential_think", {
             query:
               "Give me 5 tips for reducing transaction fees and managing money better",
-          }, { useCaseId, vertical });
+          }, {
+            useCaseId,
+            vertical,
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+          });
           break;
         case "api_key_demo": {
           // Phase 266/267 Path A: exercise the gateway API-key credential swap.
@@ -3790,7 +3870,11 @@ export default function BankingAgent({
               actionId === "unusual_patterns"
                 ? "Check my recent transactions for unusual patterns"
                 : "Could my savings cover a big upcoming expense?",
-          }, { useCaseId, vertical });
+          }, {
+            useCaseId,
+            vertical,
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+          });
           break;
         }
         default: {
@@ -3799,7 +3883,11 @@ export default function BankingAgent({
             toast.update(toastId, { render: "Reasoning…" });
             response = await callMcpTool("sequential_think", {
               query: customChip.prompt,
-            }, { useCaseId, vertical });
+            }, {
+              useCaseId,
+              vertical,
+              onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+            });
             break;
           }
           throw new Error(`Unknown action: ${actionId}`);
@@ -5653,7 +5741,10 @@ export default function BankingAgent({
           ? `${result.action.replace(/_/g, ' ')} ${Object.values(result.params).join(' ')}`
           : (nlUserText || result.action);
         const verticalOpts = { forceHeuristic: true, vertical: verticalId, consentGiven: !!result.consentGiven, ...(useCaseId ? { useCaseId } : {}) };
-        const response = await sendAgentMessage(agentMessage, null, verticalOpts);
+        const response = await sendAgentMessage(agentMessage, null, {
+          ...verticalOpts,
+          onTokenEvent: (ev) => tokenChain?.appendTokenEvent(result.action || "agent", ev),
+        });
         // Admin token on the customer agent → action card (login as customer / cancel).
         if (maybeHandleCustomerLogin(response, _source)) return;
         // A tokenless session must surface as "sign in again" + redirect — not as
@@ -5686,9 +5777,18 @@ export default function BankingAgent({
             "step_up_required",
             "mcp_step_up_required",
           ].includes(response.error);
+          // A failed tool call arrives as success:false + the backend's own prose
+          // (e.g. "❌ Gateway policy denied the tool call"). Never echo that into
+          // the transcript — resolve it to a plain sentence instead. needsParams
+          // is excluded: it is also success:false but its reply is the useful
+          // "I need: Order ID" clarification, not a backend error string.
+          const failureSentence =
+            !isHitlBlock && response.success === false && !response.needsParams
+              ? NL_FAILURE_MESSAGES[response.error] || NL_FAILURE_FALLBACK
+              : null;
           const replyWithAgentBadge = isHitlBlock
             ? "[CUSTOMER AGENT - LangGraph]\nThis action needs your approval before it can run — check the approval prompt."
-            : `[CUSTOMER AGENT - LangGraph]\n${response.reply}`;
+            : `[CUSTOMER AGENT - LangGraph]\n${failureSentence || response.reply}`;
           addMessage("assistant", replyWithAgentBadge, null, { source: _source, ...verticalResultExtra(response), paramHint });
           // Teaching directive: open the requested education panel (P2/P3). Mirrors the
           // kind:'education' path; fires only for a resolvable panel id.
@@ -5782,7 +5882,7 @@ export default function BankingAgent({
           e?.name === "TimeoutError" ||
           /timed out|aborted/i.test(String(e?.message || ""));
         if (timedOut) {
-          notifyError("⏱️ That took too long — the request timed out.", { autoClose: agentToastMs.errShort });
+          notifyError("⚠️ That took too long — the request timed out.", { autoClose: agentToastMs.errShort });
           addMessage(
             "assistant",
             `That took too long to answer, so I stopped waiting — this was **${result.action.replace(/_/g, " ")}**, ` +
@@ -5859,7 +5959,7 @@ export default function BankingAgent({
       err?.name === "TimeoutError" ||
       (typeof err?.message === "string" && err.message.includes("timed out"));
     if (isTimeout) {
-      notifyError("⏱️ The model took too long to respond — request timed out.", {
+      notifyError("⚠️ The model took too long to respond — request timed out.", {
         autoClose: agentToastMs.errShort,
       });
       // Only llama.cpp timeouts get the pre-warm retry action — there's no
@@ -5923,14 +6023,19 @@ export default function BankingAgent({
       );
       return;
     }
-    const errorMessage =
-      err.message ||
-      err.error ||
-      "An unexpected error occurred. Please try again.";
-    notifyError(`❌ Could not parse request: ${errorMessage}`, {
+    // A demo step must never render a raw backend error string. Map the BFF
+    // failure code to a plain sentence; anything unrecognised (including a
+    // missing code) falls back to the generic one rather than echoing
+    // err.message, which is how "Could not parse: ❌ Gateway policy denied the
+    // tool call" reached the transcript.
+    const friendly =
+      NL_FAILURE_MESSAGES[err?.code] ||
+      NL_FAILURE_MESSAGES[err?.error] ||
+      NL_FAILURE_FALLBACK;
+    notifyError(`❌ ${friendly}`, {
       autoClose: agentToastMs.errShort,
     });
-    addMessage("assistant", `Could not parse: ${errorMessage}`);
+    addMessage("assistant", friendly);
   }
 
   /** Click handler for the "Pre-warm the model & retry" action (Task: prewarm-retry-timeout). */
@@ -6376,7 +6481,13 @@ export default function BankingAgent({
         // llama.cpp default) routes it to the LLM instead, which handles it
         // conversationally and never reaches the real tool/step-up pipeline.
         // Same reasoning as the kind:'vertical' forceHeuristic re-dispatch above.
-        const response = await sendAgentMessage(text, null, { signal, vertical: effectiveVerticalId, useCaseId, forceHeuristic: !!useCaseId });
+        const response = await sendAgentMessage(text, null, {
+          signal,
+          vertical: effectiveVerticalId,
+          useCaseId,
+          forceHeuristic: !!useCaseId,
+          onTokenEvent: (ev) => tokenChain?.appendTokenEvent("agent", ev),
+        });
         if (!cancelled && !signal.aborted) {
           // Dispatch backend events to EventStream
           if (response.events && Array.isArray(response.events)) {
@@ -7327,7 +7438,9 @@ export default function BankingAgent({
                           (async () => {
                             const tool = denyTool || "show_health_record";
                             try {
-                              const r = await callMcpTool(tool, {});
+                              const r = await callMcpTool(tool, {}, {
+                                onTokenEvent: (ev) => tokenChain?.appendTokenEvent(tool, ev),
+                              });
                               const denied =
                                 r?.status === 403 ||
                                 isAgentToolErrorResult(normalizeAgentToolResult(r?.result));
@@ -7564,7 +7677,11 @@ export default function BankingAgent({
                               addMessage("assistant", "Could not resolve an MCP tool for this request — try rephrasing.", null);
                               return;
                             }
-                            const mcpResp = await callMcpTool(resolvedTool, resolvedParams, { useCaseId: chipUseCaseId, vertical: effectiveVerticalId });
+                            const mcpResp = await callMcpTool(resolvedTool, resolvedParams, {
+                              useCaseId: chipUseCaseId,
+                              vertical: effectiveVerticalId,
+                              onTokenEvent: (ev) => tokenChain?.appendTokenEvent(resolvedTool, ev),
+                            });
                             if (tokenChain && Array.isArray(mcpResp?.tokenEvents)) {
                               tokenChain.setTokenEvents(resolvedTool, mcpResp.tokenEvents);
                             }
@@ -8219,6 +8336,7 @@ export default function BankingAgent({
                         const response = await sendAgentMessage(
                           originalMessage,
                           pendingId,
+                          { onTokenEvent: (ev) => tokenChain?.appendTokenEvent("agent", ev) },
                         );
                         addMessage(
                           "assistant",

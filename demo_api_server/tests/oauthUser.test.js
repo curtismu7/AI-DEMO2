@@ -34,6 +34,19 @@ jest.mock('../services/appEventService', () => ({
   logEvent: jest.fn(),
 }));
 
+jest.mock('../services/mfaService', () => ({
+  getPingOneUserContact: jest.fn(),
+  listMfaDevices: jest.fn(),
+  initiateOneTimeOtp: jest.fn(),
+}));
+// Must be mocked: the maskedContact fallback in /initiate-otp calls this
+// whenever PingOne's response carries no device, and an unmocked call reaches
+// the real network — which surfaces as an intermittent `read ECONNRESET`.
+jest.mock('../services/pingOneUserLookupService', () => ({
+  fetchPingOneUserById: jest.fn().mockResolvedValue({ user: null }),
+}));
+const mfaService = require('../services/mfaService');
+
 const app = express();
 app.use(
   session({
@@ -173,6 +186,128 @@ describe('sanitizeStepUpReturnTo', () => {
   test('defaults when return_to is missing', () => {
     expect(sanitizeStepUpReturnTo(undefined)).toBe(`${origin}/dashboard`);
     expect(sanitizeStepUpReturnTo('')).toBe(`${origin}/dashboard`);
+  });
+});
+
+// The PingOne user *profile* email is provisioned synthetically from the app
+// host (demoUser@api.ping.demo) and is undeliverable, so OTP delivery must
+// target the address on the user's registered MFA device instead.
+describe('initiate-otp delivery target', () => {
+  const PROFILE_EMAIL = 'demoUser@api.ping.demo';
+  const ENROLLED_EMAIL = 'real.person@example.com';
+
+  // Separate app: initiate-otp requires an authenticated user session.
+  const authedApp = express();
+  authedApp.use(session({ secret: 'test-secret', resave: false, saveUninitialized: true }));
+  authedApp.use(express.json());
+  authedApp.use((req, _res, next) => {
+    req.session.user = { oauthId: 'user-uuid', email: PROFILE_EMAIL };
+    req.session.oauthTokens = { accessToken: 'token' };
+    req.session.oauthType = 'user';
+    next();
+  });
+  authedApp.use('/api/auth/oauth/user', router);
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mfaService.getPingOneUserContact.mockResolvedValue({
+      email: PROFILE_EMAIL,
+      mobilePhone: null,
+    });
+    mfaService.initiateOneTimeOtp.mockResolvedValue({ id: 'da-1', _embedded: { devices: [] } });
+  });
+
+  test('sends to the enrolled EMAIL device, not the synthetic profile email', async () => {
+    mfaService.listMfaDevices.mockResolvedValue({
+      devices: [{ id: 'd1', type: 'EMAIL', status: 'ACTIVE', email: ENROLLED_EMAIL }],
+    });
+
+    await request(authedApp).post('/api/auth/oauth/user/initiate-otp').send({}).expect(200);
+
+    expect(mfaService.initiateOneTimeOtp).toHaveBeenCalledWith('user-uuid', 'EMAIL', ENROLLED_EMAIL);
+  });
+
+  test('sends to the enrolled SMS device phone (PingOne stores it as a string)', async () => {
+    mfaService.listMfaDevices.mockResolvedValue({
+      devices: [{ id: 'd2', type: 'SMS', status: 'ACTIVE', phone: '+19725550123' }],
+    });
+
+    await request(authedApp)
+      .post('/api/auth/oauth/user/initiate-otp')
+      .send({ method: 'sms' })
+      .expect(200);
+
+    expect(mfaService.initiateOneTimeOtp).toHaveBeenCalledWith('user-uuid', 'SMS', '+19725550123');
+  });
+
+  test('falls back to the profile email when no EMAIL device is enrolled', async () => {
+    mfaService.listMfaDevices.mockResolvedValue({ devices: [] });
+
+    await request(authedApp).post('/api/auth/oauth/user/initiate-otp').send({}).expect(200);
+
+    expect(mfaService.initiateOneTimeOtp).toHaveBeenCalledWith('user-uuid', 'EMAIL', PROFILE_EMAIL);
+  });
+
+  test('falls back to the profile email when the device lookup fails', async () => {
+    mfaService.listMfaDevices.mockRejectedValue(new Error('PingOne unavailable'));
+
+    await request(authedApp).post('/api/auth/oauth/user/initiate-otp').send({}).expect(200);
+
+    expect(mfaService.initiateOneTimeOtp).toHaveBeenCalledWith('user-uuid', 'EMAIL', PROFILE_EMAIL);
+  });
+
+  test('masks the address PingOne echoes back instead of returning it raw', async () => {
+    mfaService.listMfaDevices.mockResolvedValue({
+      devices: [{ id: 'd1', type: 'EMAIL', status: 'ACTIVE', email: ENROLLED_EMAIL }],
+    });
+    mfaService.initiateOneTimeOtp.mockResolvedValue({
+      id: 'da-1',
+      _embedded: { devices: [{ email: ENROLLED_EMAIL }] },
+    });
+
+    const res = await request(authedApp)
+      .post('/api/auth/oauth/user/initiate-otp')
+      .send({})
+      .expect(200);
+
+    expect(res.body.maskedContact).toBe('r*********n@example.com');
+    expect(res.body.maskedContact).not.toBe(ENROLLED_EMAIL);
+  });
+
+  test('never returns a raw address in the response body', async () => {
+    mfaService.listMfaDevices.mockResolvedValue({
+      devices: [{ id: 'd1', type: 'EMAIL', status: 'ACTIVE', email: ENROLLED_EMAIL }],
+    });
+    mfaService.initiateOneTimeOtp.mockResolvedValue({
+      id: 'da-1',
+      _embedded: { devices: [{ email: ENROLLED_EMAIL }] },
+    });
+
+    const res = await request(authedApp)
+      .post('/api/auth/oauth/user/initiate-otp')
+      .send({})
+      .expect(200);
+
+    expect(res.body.email).toBeUndefined();
+    expect(JSON.stringify(res.body)).not.toContain(PROFILE_EMAIL);
+    expect(JSON.stringify(res.body)).not.toContain(ENROLLED_EMAIL);
+  });
+
+  test('masks an echoed SMS number to its last four digits', async () => {
+    mfaService.listMfaDevices.mockResolvedValue({
+      devices: [{ id: 'd2', type: 'SMS', status: 'ACTIVE', phone: '+19725550123' }],
+    });
+    mfaService.initiateOneTimeOtp.mockResolvedValue({
+      id: 'da-2',
+      _embedded: { devices: [{ phone: '+19725550123' }] },
+    });
+
+    const res = await request(authedApp)
+      .post('/api/auth/oauth/user/initiate-otp')
+      .send({ method: 'sms' })
+      .expect(200);
+
+    expect(res.body.maskedContact).toBe('***-***-0123');
   });
 });
 

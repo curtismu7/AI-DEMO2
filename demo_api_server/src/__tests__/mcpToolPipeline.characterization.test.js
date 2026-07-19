@@ -199,6 +199,7 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     expect(outcome.body.error).toBe('mcp_authorization_denied');
     expect(outcome.body.mcpAuthorizeEvaluation).toEqual({
       decision: 'DENY',
+      outcome: 'DENY',
       engine: null,
       decisionContext: { x: 1 },
       decisionId: 'd1',
@@ -363,6 +364,96 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     expect(outcome.body.mcpAuthorizeEvaluation).toEqual({ decision: 'PERMIT', decisionId: 'dz' });
   });
 
+  // Task 7 (docs/superpowers/sdd — token-chain dynamic steps plan): the
+  // BFF-simulated authorize decision (ff_authorize_simulated=true, engine
+  // 'simulated') must produce a gw-authorize Token Chain event with the SAME
+  // id/status contract as the real-gateway path (gwAuditTrail.authorize,
+  // tested above) — so TokenChainDisplay renders identically regardless of
+  // which backend actually decided.
+  test('permit path (simulated engine) → tokenEvents carries a gw-authorize card, same id/status contract as the real gateway path', async () => {
+    const deps = makeDeps();
+    deps.evaluateMcpFirstToolGate = jest.fn(async () => ({
+      ran: true,
+      permit: true,
+      evaluation: { engine: 'simulated', decision: 'PERMIT', decisionId: 'sim-1', path: 'simulated' },
+    }));
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    const gwAz = outcome.body.tokenEvents.find((e) => e.id === 'gw-authorize');
+    expect(gwAz).toBeDefined();
+    expect(['permit', 'deny', 'indeterminate']).toContain(gwAz.status);
+    expect(gwAz.status).toBe('permit');
+  });
+
+  // Task-reviewer follow-up (Important #1): the DENY/step-up/HITL branch
+  // (mcpAuthz.block, simulated engine) must ALSO push a gw-authorize
+  // tokenEvent, mirroring the PERMIT branch above — same id/status contract,
+  // computed from the same DENY/INDETERMINATE decision value the block body
+  // already carries in mcpAuthorizeEvaluation.decision.
+  test('gate block (simulated engine) DENY → tokenEvents carries a gw-authorize card with status deny', async () => {
+    const deps = makeDeps();
+    deps.evaluateMcpFirstToolGate = jest.fn(async () => ({
+      ran: true,
+      block: {
+        status: 403,
+        body: { error: 'mcp_authorization_denied', decisionId: 'd1', decisionContext: { x: 1 }, authorize_engine: 'simulated' },
+      },
+    }));
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    const gwAz = outcome.body.tokenEvents.find((e) => e.id === 'gw-authorize');
+    expect(gwAz).toBeDefined();
+    expect(gwAz.status).toBe('deny');
+    // Sanity: outcome.body.mcpAuthorizeEvaluation.decision is the same source
+    // value ('DENY') the new tokenEvent's status is derived from — proves the
+    // fix reuses the existing computed decision rather than duplicating logic.
+    expect(outcome.body.mcpAuthorizeEvaluation.decision).toBe('DENY');
+  });
+
+  // Task-reviewer follow-up (Important #2): when useGateway is true AND the
+  // simulated engine ran a PERMIT, the real-gateway audit-trail push
+  // (gwAuditTrail.authorize, below) and the simulated-path push must not BOTH
+  // fire for the same call — exactly one gw-authorize event, not two.
+  test('useGateway=true AND simulated engine PERMIT AND gwAuditTrail.authorize populated → only ONE gw-authorize event (no double-push)', async () => {
+    const deps = makeDeps();
+    deps.config = { ...deps.config, useGateway: true, gatewayHttpUrl: 'http://gw' };
+    deps.evaluateMcpFirstToolGate = jest.fn(async () => ({
+      ran: true,
+      permit: true,
+      evaluation: { engine: 'simulated', decision: 'PERMIT', decisionId: 'sim-2', path: 'simulated' },
+    }));
+    deps.callToolViaGateway = jest.fn(async () => ({
+      result: { content: [{ text: 'gw-ok' }] },
+      gwAuditTrail: { authorize: { decision: 'PERMIT', tool: 'get_my_accounts' } },
+    }));
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    const gwAzEvents = outcome.body.tokenEvents.filter((e) => e.id === 'gw-authorize');
+    expect(gwAzEvents.length).toBe(1);
+  });
+
+  // Final whole-branch review follow-up: the DENY/block branch is NOT
+  // symmetric with the PERMIT branch above — it returns early (before any
+  // gateway call), so when useGateway=true there is no later
+  // gwAuditTrail.authorize push that could ever supply the card. The
+  // !useGateway guard on the block branch's push was copied from the PERMIT
+  // branch for the wrong reason: there is no double-push risk here because
+  // the gateway is never reached on a block. This must produce exactly one
+  // gw-authorize card with status 'deny', even with useGateway=true.
+  test('useGateway=true AND simulated engine DENY (gate block) → tokenEvents still carries a gw-authorize card (block branch never reaches the gateway)', async () => {
+    const deps = makeDeps();
+    deps.config = { ...deps.config, useGateway: true, gatewayHttpUrl: 'http://gw' };
+    deps.evaluateMcpFirstToolGate = jest.fn(async () => ({
+      ran: true,
+      block: {
+        status: 403,
+        body: { error: 'mcp_authorization_denied', decisionId: 'd2', decisionContext: { x: 1 }, authorize_engine: 'simulated' },
+      },
+    }));
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    const gwAzEvents = outcome.body.tokenEvents.filter((e) => e.id === 'gw-authorize');
+    expect(gwAzEvents.length).toBe(1);
+    expect(gwAzEvents[0].status).toBe('deny');
+    expect(deps.callToolViaGateway).not.toHaveBeenCalled();
+  });
+
   test('HTTP/2 transport → result Outcome carries stream:true marker', async () => {
     const deps = makeDeps();
     deps.config = { ...deps.config, useHttp2: true, mcpUrl: 'http://localhost:8080' };
@@ -441,6 +532,14 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
       gatewayErrorCode: 'aud_invalid', message: 'audience mismatch',
     });
     expect(deps.callToolLocal).not.toHaveBeenCalled(); // policy denial does NOT fall back to local
+  });
+
+  test('session-token-introspection step is present for every successful tool call', async () => {
+    const deps = makeDeps();
+    deps.mcpCallTool = jest.fn(async () => ({ content: [{ text: 'remote-ok' }] }));
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    expect(outcome.kind).toBe('result');
+    expect(outcome.body.tokenEvents.some((e) => e.id === 'session-token-introspection')).toBe(true);
   });
 });
 

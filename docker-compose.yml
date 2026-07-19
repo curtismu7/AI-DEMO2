@@ -411,6 +411,12 @@ services:
       MCP_GW_OLB_WS_URL: "ws://mcp-server:8080"
       MCP_GW_INVEST_WS_URL: "ws://mcp-invest:8081"
       MCP_GW_PASSTHROUGH_TO_MCP_SERVER: "false"
+      # Accepted token audiences (comma list, tokenValidator.ts): Node-gateway +
+      # PingGateway + the A2A specialists' dedicated Exchange #2 audience. This
+      # list was wired onto demo-api-server/authz-server but never onto the
+      # gateway itself, whose env_file pinned the single Node audience — so every
+      # A2A specialist call 401'd at the gateway with "Audience mismatch".
+      MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo"
       PINGAUTHORIZE_ENDPOINT: "http://authz-server:9001"
       # Declare the mock explicitly. Decision provenance (contract C2) and the
       # /health posture block both derive "is this a real PDP?" by comparing the
@@ -508,7 +514,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
       OTEL_SERVICE_NAME: "hitl-service"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
-      HITL_ALLOWED_ORIGINS: "http://api-server:3001,http://localhost:4000,https://api.ping.demo:3001"
+      HITL_ALLOWED_ORIGINS: "http://api-server:3001,http://localhost:4000,https://local.ping-devops.com:4000,https://api.ping.demo:4000,https://api.ping.demo:3001"
     env_file:
       - path: ./demo_hitl_service/.env
         required: false

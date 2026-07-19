@@ -74,9 +74,26 @@ minimal diff.
 | `8889` | LangChain Agent (chat WS) | `ws://localhost:8889` |
 | `8890` | LangChain Agent (health) | `http://localhost:8890` |
 
-`api.ping.demo` is the canonical local host (HTTPS via `mkcert`). Code must not
-hardcode `localhost:3001` / `localhost:4000` in OAuth callbacks — read the
-configured host.
+**`local.ping-devops.com` is the canonical local BROWSER origin** (HTTPS via
+`mkcert`); `api.ping.demo` remains valid and is still the docker-compose network
+alias used for intra-network TLS. Both are SANs on the same
+`certs/api.ping.demo+2.pem` — that filename is a fixed constant, not derived
+from the host or SAN count, because ~10 files hardcode it.
+
+Why two: passkeys only work on `local.ping-devops.com`. WebAuthn requires the
+FIDO2 `rp.id` to be the origin's host or a registrable parent of it, and PingOne
+rejects any `rp.id` whose TLD isn't public (`CONSTRAINT_VIOLATION … "must be a
+valid domain name with a valid TLD"`). So `api.ping.demo` can never be a
+relying-party id, while `rp.id=ping-devops.com` covers both
+`local.ping-devops.com` and `ai-demo.ping-devops.com` from one PingOne
+environment. Set via `FIDO2_RP_ID`.
+
+Code must not hardcode `localhost:3001` / `localhost:4000` in OAuth callbacks —
+read the configured host. A new browser origin must be added to ALL of:
+`CORS_ORIGIN` (comma-separated), `vite.config.js` `allowedHosts`, `nginx.conf`
+`server_name`, the mkcert SAN lists in `scripts/ensure-dev-certs.sh` and
+`run.sh`, and both `KNOWN_REDIRECT_ORIGINS` arrays
+(`services/knownRedirectOrigins.js`, `services/pingoneProvisionService.js`).
 
 ---
 
@@ -297,6 +314,292 @@ and arming it would deny every call. Keep the HTTP and WS actor checks in sync.
 baseline of 53 failed / 852 passed; the 5 failing suites are pre-existing);
 `npx tsc --noEmit` (clean). Targeted: `npx jest tests/authz-last-hop.test.ts
 tests/no-dead-security-middleware.test.ts` (29 passed).
+### 2026-07-18 — A2A delegation part 2: three more stacked causes behind get_portfolio_summary mcp_error
+
+**Files changed:** `docker-compose.yml` (mcp-gateway `MCP_GW_RESOURCE_URI` tri-list),
+`demo_authz_server/routes/introspect.js` (+`introspect.clientcreds.test.js`),
+`demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts` (per-tool exchange),
+`demo_mcp_gateway/src/server/GatewayServer.ts` (HTTP-ingress invest WS routing),
+`demo_mcp_gateway/tests/authorizeMcpRequest-exchange.test.ts` (contract update),
+new `demo_api_ui/tests/e2e/a2a-steps-check.real.spec.js`.
+
+**What was broken:** after the #610 routing pin, the A2A specialist call still
+failed at three successive hops. (1) The Node gateway's own container env had a
+single-value `MCP_GW_RESOURCE_URI` — the tri-list comment lived on
+demo-api-server/authz-server but was never wired onto the gateway service, so
+the dedicated A2A audience 401'd ("Audience mismatch"). (2) With upstream
+(real PingOne) introspection, the authz-server introspected every token with
+the default exchanger credentials; RFC 7662 only affirms a client's OWN
+tokens, so the specialist-minted A2A token always came back `active:false`
+("Token is revoked or no longer active"). (3) The gateway's HTTP ingress
+exchanged every tool for the OLB audience and forwarded to mcp-server — which
+does not serve invest tools — so `get_portfolio_summary` died with
+mcp-server's "Invalid or expired token" (its act-chain validator rejects
+depth-2 chains, and the tool doesn't exist there anyway). Invest tools only
+routed correctly on the WS ingress.
+
+**What was fixed:** compose now sets the tri-list on the mcp-gateway service
+itself (environment: beats the env_file single value); the authz introspect
+route selects introspection credentials by the token's `client_id` claim
+(matching `*CLIENT_ID`/`*CLIENT_SECRET` env pair, fallback to configured
+default); the HTTP-ingress middleware exchanges per tool
+(`exchangeClient.exchange(token, toolName)`), and `forwardToUpstream` proxies
+invest-routed tools over WS to mcp-invest exactly like the WS ingress.
+
+**Do not break:** non-invest HTTP-ingress traffic still exchanges to OLB and
+forwards to mcp-server unchanged; default-client tokens still introspect with
+the configured credentials; mcp-gateway and authz-server have NO src mounts —
+these fixes require an image rebuild to take effect (a `restart` serves the
+old code). The offline use-case trigger audit reports UC2/UC2.5 as unmatched
+when run cold — that is the un-awaited configStore default (`ff_a2a_delegation`
+off), not a routing regression.
+
+**Verify:** `cd demo_mcp_gateway && npx tsc --noEmit && npx jest
+tests/authorizeMcpRequest-exchange.test.ts` (3 pass); `cd demo_authz_server &&
+node --test introspect.clientcreds.test.js` (3 pass); live:
+`npx playwright test tests/e2e/a2a-steps-check.real.spec.js
+--config=playwright.real.config.js` from demo_api_ui → reply "Delegation
+complete — Investment Advisor retrieved get portfolio summary on your behalf
+(act-chain depth 2)".
+
+### 2026-07-18 — A2A delegation (UC2/UC2.5, demo steps 7–8) 401'd on the PingGateway path
+
+**Files changed:** `demo_api_server/services/mcpGatewayClient.js` (A2A-audience
+pin in `callToolViaGateway`), new
+`demo_api_server/src/__tests__/mcpGatewayClient.a2aPin.test.js`.
+
+**What was broken:** with `ff_mcp_gateway_pinggateway=true`, "hand off to a
+specialist" minted the nested-act token audienced to the dedicated A2A gateway
+resource (`a2a_gateway_audience` = `mcpgateway-a2a.ping.demo`) — an audience
+only the Node Demo Agent Gateway accepts (comma-list `MCP_GW_RESOURCE_URI`) —
+then executed the specialist's tool through the flag's chokepoint, which
+resolved PingGateway. IG introspects aud against its own resource URI
+(`https://api.ping.demo:3036/mcp`) and its McpProtectionFilter requires scope
+`gateway:mcp:invoke`, so the call always failed (401 wrong_audience; the A2A
+token's `invest:read` would 403 regardless). UC2 rendered "That step couldn't
+be completed"; UC2.5 rendered "❌ Delegated to Investment Advisor, but
+get_portfolio_summary failed: mcp_error".
+
+**What was fixed:** `callToolViaGateway` now pins a bearer whose `aud` includes
+the resolved A2A gateway audience to the Node gateway
+(`MCP_DEMO_GATEWAY_URL`/`mcp_demo_gateway_url` — NOT `MCP_GATEWAY_HTTP_URL`,
+which is baked per-container and can point at IG, #375). Same Node-only routing
+as the dual-token/bankingdata tools and the #603 RAR-sim pin.
+
+**Do not break:** normal-audience tokens must keep routing per
+`ff_mcp_gateway_pinggateway`; the pin fires only when the base resolved to
+PingGateway AND the token carries the dedicated A2A audience. The 401
+aud-mismatch classification and `resolveExpectedMcpResourceUri()` are
+untouched. Do not "fix" the aud mismatch by widening PingGateway's accepted
+audiences or the BFF resource URI — the fix hint the 401 handler prints is
+wrong for this case (the A2A audience is deliberate, not drift).
+
+**Verify:** `npx jest src/__tests__/mcpGatewayClient.a2aPin.test.js
+src/__tests__/mcpGatewayClient.reauth.test.js tests/mcpGatewayResolver.test.js
+src/__tests__/intentBindingDemo.test.js src/__tests__/a2aDelegationService.test.js
+--testPathIgnorePatterns="/node_modules/"` (42 pass). Live: Demo steps 7 (UC2)
+and 8 (UC2.5) with the PG flag on — reply is "Delegation complete — Investment
+Advisor retrieved…" and the Node gateway logs the PERMIT.
+
+### 2026-07-18 — Step-up OTP mailed to an undeliverable synthetic address; passkey rp.id error told admins to do the impossible
+
+**Files changed:** `demo_api_server/routes/oauthUser.js` (new
+`resolveEnrolledContact` + `maskContact`, delivery-target selection in
+`POST /initiate-otp`), `demo_api_server/routes/mfa.js` (`GET /devices` phone
+masking), `demo_api_server/tests/oauthUser.test.js`,
+`demo_api_server/tests/mfaDevices.route.test.js` (new),
+`demo_api_ui/src/components/OtpStepUpModal.js` (rp.id error copy only).
+
+**What was broken:** two separate defects behind one symptom ("verify your
+identity" step-up not working).
+
+1. `/initiate-otp` took its delivery target from the PingOne user *profile*
+   email (`getPingOneUserContact().email`). Provisioning synthesizes that field
+   as `demoUser@${demoEmailDomain(publicAppUrl)}` — for local dev,
+   `demoUser@api.ping.demo`, a well-formed but undeliverable address. The code
+   was really sent there, so step-up only ever completed via the `123123`
+   bypass. Meanwhile demoUser had a genuine registered EMAIL MFA device
+   (`cmuir@pingidentity.com`) that the one-time-OTP path ignored, because it
+   passes an explicit `to` instead of selecting an enrolled device.
+2. The passkey rp.id failure told the operator to fix the Relying Party ID in
+   PingOne "or restart the API server to auto-configure it". On `api.ping.demo`
+   that is impossible: the boot bootstrap does run, but PingOne's Management API
+   rejects the value — `CONSTRAINT_VIOLATION target=relyingPartyId "must be a
+   valid domain name with a valid TLD"` — so the policies stay pinned to
+   `ai-demo.ping-devops.com` and the browser refuses with "'rp.id' cannot be
+   used with the current origin". No number of restarts fixes it.
+3. Two contact-display defects from the same root confusion about PingOne's
+   device shape. `GET /api/auth/mfa/devices` read `d.phone?.number`, but PingOne
+   returns a bare E.164 string, so every SMS device came back with
+   `maskedContact: null` — and since that route strips the raw `phone` field,
+   the modal had no fallback and rendered "your phone". Separately,
+   `pingMaskedContact` in `/initiate-otp` returned PingOne's echoed address
+   verbatim despite its name, so the full address reached the client.
+
+**What was fixed:** (1) `resolveEnrolledContact(userId, method)` lists ACTIVE
+MFA devices and returns the enrolled `email` (or `phone`) for the requested
+channel; `to` prefers it and falls back to the profile field only when nothing
+is enrolled or the lookup throws. (2) The rp.id message now branches on whether
+the host's TLD is one PingOne will accept, and on `.demo`/`.local`/`localhost`/
+`.test`/`.invalid`/`.internal`/no-TLD hosts states plainly that the host cannot
+be set and to demo passkeys on the public-domain deployment instead. (3) The
+`/devices` SMS branch accepts both the bare-string and `{ number }` phone
+shapes, and a new `maskContact()` masks the echoed address so `maskedContact`
+is always actually masked. `/initiate-otp` no longer returns a raw `email`
+field at all — nothing consumed it and it carried the synthetic address.
+
+**Do not break:** PingOne returns an SMS device's number as a bare
+string (`"phone": "+19725231586"`), NOT `{ number }` — `resolveEnrolledContact`
+and the `/devices` masking both read `phone?.number || phone` and must keep
+both shapes. The profile fallback must stay: users with no enrolled device
+still need step-up. Do not "simplify" the rp.id branch back to one message —
+the two cases have opposite remedies, and the public-domain branch's restart
+advice is correct. `GET /devices` must keep stripping the raw `phone`/`email`
+off the response; only `maskedContact` goes to the client.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0);
+`CI=true npx jest oauthUser mfaDevices mfaTest hitlPingOneMfa --testPathIgnorePatterns="/node_modules/"`
+(70 passed). Mutation-checked: reverting the enrolled-device preference fails 2
+`initiate-otp delivery target` tests, reverting either masking fix fails 1 more
+each.
+
+### 2026-07-18 — Per-step explain icon on the Demo Steps dropdown (feature)
+
+**Files changed:** `demo_api_ui/src/components/DemoStepsDropdown.jsx`,
+`demo_api_ui/src/components/AIAgent.css` (additive block after
+`.ba-demo-steps-popout__title`), `demo_api_ui/src/components/__tests__/DemoStepsDropdown.test.jsx`.
+
+**What was missing:** Demo Steps rows rendered only `uc.id` + `uc.title`, so a
+presenter had no way to read what a step actually demonstrates without leaving
+the agent for `/use-cases`. The long-form copy already existed — `whatLong`,
+`businessValue`, `productRoles` are returned whole by `GET /api/use-cases` and
+`DemoStepsDropdown` already held the full `uc` object in state — and
+`UseCaseExplainModal` already rendered exactly those fields. Neither was wired
+to the dropdown.
+
+**What was added:** each `<li>` becomes `ba-demo-steps-popout__row` (flex) with
+a new `ba-demo-steps-popout__explain` button as a **sibling** of the existing
+run-step button — not nested, since a `<button>` inside a `<button>` is invalid
+HTML and swallows the row click target. The icon is a CSS circle with
+`::before { content: 'i' }` (no emoji, per §0). Clicking it sets `explainUc`
+and opens the existing `UseCaseExplainModal`; no new fetch, no new field, no
+change to `onSelect`. The modal renders OUTSIDE the `{open && ...}` popout block
+so it survives the dropdown's outside-pointerdown close.
+
+**Do not break:** the icon must never call `onSelect` — explain and run are
+separate targets (covered by the new test's `expect(onSelect).not.toHaveBeenCalled()`).
+The explain testid is `demo-explain-<id>`, deliberately NOT `demo-step-explain-<id>`:
+the existing order assertion does `getAllByTestId(/^demo-step-/)` and a shared
+prefix silently doubles its match count (6 → 12). Keep new row-level testids off
+the `demo-step-` prefix. CSS is additive only — `__item`, `__item--done`,
+`__check`, `__title` rules are untouched, so completion checkmarks and the done
+row tint keep working. Because the item button no longer spans the row, the
+done and hover tints are re-applied at row level via
+`.ba-demo-steps-popout__row:has(…)` — drop those and the row shows an untinted
+seam under the icon. Hover is declared after done so it still wins on a
+completed row.
+
+**Verify:** vitest `DemoStepsDropdown` (incl. the new explain-icon case) +
+`UseCaseExplainModal` — 12 passed; UI build gate `npm run build` exit 0.
+### 2026-07-18 — Demo steps showed raw backend error prose; demo-sync stopped authz-server while the BFF still required it
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`
+(`NL_FAILURE_MESSAGES` and `NL_FAILURE_FALLBACK`, `reportNlFailure`,
+vertical-branch reply render),
+`demo_api_server/services/verticalMcpExecution.js` (carry `errorCode`),
+`demo_api_server/services/demoAgentLangGraphService.js` (put the code on the
+response envelope), `run-docker.sh` (`_read_demo_stack_flags` awaits
+`ensureInitialized()`), test in
+`demo_api_ui/src/components/__tests__/AIAgent.chips.test.js`.
+
+**What was broken:** (1) Sporting-goods Demo Step 1 ("My gear") rendered
+`Could not parse: ❌ Gateway policy denied the tool call`. The tool-failure path
+kept only `err.message` and dropped the code (`verticalMcpExecution.js`), so the
+response envelope carried no `error`; the UI had no branch for it and echoed the
+backend's own prose as a parse failure. The vertical branch separately rendered
+`response.reply` verbatim, leaking the same string a second way. (2) The
+underlying DENY: `configStore` initialises **asynchronously**, but
+`_read_demo_stack_flags` called `getEffective()` in a fresh `node -e` without
+awaiting `ensureInitialized()`, so it read env/registry defaults. With
+`ff_authorize_simulated` persisted ON, demo-sync read `simulated=0`, stopped
+`authz-server`, and PingGateway then failed closed on every tool call
+(`[P1AZ] httpPost failed … authz-server` → `DECISION: DENY`).
+
+**What was fixed:** the machine code now survives to the client, and both UI
+render paths resolve it through `NL_FAILURE_MESSAGES` to one plain sentence per
+failure class, falling back to `NL_FAILURE_FALLBACK` for unknown codes instead
+of echoing `err.message`/`response.reply`. `_read_demo_stack_flags` awaits
+`ensureInitialized()` so demo-sync sees the value the BFF actually enforces.
+
+**Do not break:** the agent transcript must never render a raw backend error
+string — new failure codes get a `NL_FAILURE_MESSAGES` entry, and anything
+unmapped must fall through to `NL_FAILURE_FALLBACK`. HITL/step-up codes
+(`hitl_required`, `mcp_hitl_required`, `step_up_required`,
+`mcp_step_up_required`) are gated responses, not failures, and must keep their
+existing approval-prompt text. `needsParams` is likewise `success:false` but its
+reply is the useful "I need: Order ID" clarification — it must stay exempt from
+the failure-sentence mapping. Any fresh-process `configStore` read must await
+`ensureInitialized()` or it silently reports defaults.
+
+**Verify:** vitest `AIAgent.chips` 64 pass (includes the three "agent failure
+envelopes render a plain sentence, not the raw error" tests); `npm run build`
+exits 0; jest `demoAgentLangGraphService.{modes,tokens,heuristicVerticalTokenGuard}`
+9 pass; `bash -n run-docker.sh`. Live proof of the read defect: with
+`ff_authorize_simulated` persisted ON, an un-awaited one-shot read reports
+`sim=0` while the awaited read reports `sim=1`. Live proof of the message fix:
+authz-server down + simulated ON, Demo Step 1 (sporting-goods "my gear") renders
+"That step couldn't be completed…" while the gateway logs
+`DECISION: DENY | tool=list_gear` and the BFF logs the old raw string.
+
+**Also fixed here:** three stale `AIAgent.chips` tests that selected the Actions
+popout via `document.querySelector(".ba-actions-trigger[aria-haspopup='dialog']")`
+— `DemoStepsDropdown.jsx` renders the same class/attribute earlier in the header,
+so they opened the Demo steps popout instead. They now query by accessible name;
+the admin-chips test awaits the async manifest load (`findByText`). Test-only
+change; no component behaviour altered.
+### 2026-07-18 — Gateway-denied attack sims (UC5/UC11/UC12) always rendered "Incomplete"
+
+**Files changed:** `demo_api_server/config/useCases.js` (UC5/UC11/UC12
+`evidence.tokenChain`), `demo_api_ui/src/utils/pingProducts.js` (sim step ids),
+`demo_api_server/services/mcpToolAuthorizationService.js`
+(`resolveExpectedMcpResourceSetting`), `demo_api_server/services/mcpGatewayClient.js`
+(401 aud-mismatch message), `demo_api_server/services/attackSimulatorService.js`
+(`simulatedAttack` opt on the two wrong-aud sims).
+
+**What was broken:** UC5/UC11/UC12 declared `evidence.tokenChain:
+['user-token','authorize-decision']`, but all three sims are blocked at the
+gateway (aud binding / scope check) BEFORE PingOne Authorize is consulted, so
+`trace.authorize` is never set. `ingestTokenEvents` also *replaces* the event
+array, wiping any earlier `user-token`. `computeVerdict` short-circuits on
+`missingSteps.length > 0` before `expectedOutcome` is ever compared, so a
+correct 401 DENY still rendered "Incomplete" on every run. Separately, the
+401 handler hardcoded `Fix: set MCP_SERVER_RESOURCE_URI=<expectedAud>` — wrong
+on the PingGateway path (that audience comes from
+`pingone_resource_pinggateway_uri`), so following the advice would have broken
+a correct config; and it framed the sims' *deliberate* wrong audience as
+configuration drift.
+
+**What was fixed:** the three evidence contracts now declare the events the
+sims actually emit (`sim-exchange-ok` / `sim-replay-start` + `sim-gateway-deny`);
+those ids were added to the product-badge map (idp + gw — Authorize genuinely
+is not involved). The remediation text now names the setting that drives the
+audience in the *active* mode, and an attack sim passes `simulatedAttack: true`
+so the mismatch is reported as the expected block, not as drift.
+
+**Do not break:** `resolveExpectedMcpResourceUri()` must keep returning exactly
+what it returned before (the mode branches were extracted to `_resolveResourceMode()`
+with no behavior change); `computeVerdict`'s short-circuit on missing evidence
+is unchanged — only the catalog's declared evidence moved. A use case whose sim
+DOES reach Authorize (UC10/UC13/UC14/UC16) must keep `authorize-decision`.
+
+**Verify:** `npx jest demo_api_server/src/__tests__/attackSimulator.test.js
+demo_api_server/src/__tests__/mcpGatewayClient.reauth.test.js
+demo_api_server/tests/use-cases-maturity.test.js
+demo_api_server/src/__tests__/attackSimulator.wrongAudFields.test.js
+--testPathIgnorePatterns="/node_modules/"` (26 passed); `cd demo_api_ui &&
+npx vitest run src/context/__tests__/ProofOfEnforcementContext.test.js
+src/utils/pingProducts.test.js` (33 passed); `cd demo_api_ui && npm run build`
+(exit 0).
 
 ### 2026-07-18 — Demo Steps HITL/step-up gates printed the denial text and never opened the approval modal
 

@@ -13,6 +13,9 @@ jest.mock('../../services/configStore', () => ({
 }));
 jest.mock('../../services/mcpToolAuthorizationService', () => ({
   resolveExpectedMcpResourceUri: jest.fn(() => process.env.MCP_GW_RESOURCE_URI || null),
+  resolveExpectedMcpResourceSetting: jest.fn(() => ({
+    mode: 'gateway', settingKey: 'pingone_resource_mcp_gateway_uri', envVar: null,
+  })),
 }));
 
 const axios = require('axios');
@@ -55,7 +58,26 @@ test('classifies an aud-mismatch 401 as GATEWAY_AUDIENCE_MISMATCH with an action
     const p = callToolViaGateway('https://api.ping.demo:3005', badAudToken, 'get_my_accounts', {}, {});
     await expect(p).rejects.toMatchObject({ code: 'GATEWAY_AUDIENCE_MISMATCH', login_required: false, httpStatus: 401 });
     await expect(p).rejects.toThrow(/Wrong audience/i);
-    await expect(p).rejects.toThrow(/MCP_SERVER_RESOURCE_URI/);
+    // The remediation must name the setting that drives the audience in the ACTIVE
+    // mode. Hardcoding MCP_SERVER_RESOURCE_URI told operators on the PingGateway
+    // path to overwrite a correct config with the pinggateway resource URI.
+    await expect(p).rejects.toThrow(/pingone_resource_mcp_gateway_uri/);
+  } finally {
+    if (prev === undefined) delete process.env.MCP_GW_RESOURCE_URI;
+    else process.env.MCP_GW_RESOURCE_URI = prev;
+  }
+});
+
+test('an attack sim aud mismatch is reported as expected, not as configuration drift', async () => {
+  const prev = process.env.MCP_GW_RESOURCE_URI;
+  process.env.MCP_GW_RESOURCE_URI = 'mcpgateway.ping.demo';
+  try {
+    axios.post = jest.fn().mockResolvedValue({ status: 401, headers: {}, data: { error: 'invalid_token', message: 'Invalid or expired token' } });
+    const badAudToken = jwtWithAud('enduser.ping.demo'); // replayed session token
+    const p = callToolViaGateway('https://api.ping.demo:3005', badAudToken, 'get_my_accounts', {}, { simulatedAttack: true });
+    await expect(p).rejects.toMatchObject({ code: 'GATEWAY_AUDIENCE_MISMATCH', login_required: false, httpStatus: 401 });
+    await expect(p).rejects.toThrow(/rejected the token as expected/i);
+    await expect(p).rejects.toThrow(/No configuration change is needed/i);
   } finally {
     if (prev === undefined) delete process.env.MCP_GW_RESOURCE_URI;
     else process.env.MCP_GW_RESOURCE_URI = prev;

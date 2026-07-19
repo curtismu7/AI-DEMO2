@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, act, waitFor } from '@testing-library/react';
-import { ProofOfEnforcementProvider, useProofOfEnforcement } from '../ProofOfEnforcementContext';
+import { ProofOfEnforcementProvider, useProofOfEnforcement, computeVerdict } from '../ProofOfEnforcementContext';
 import { tokenChainTraceStore } from '../../services/tokenChainTrace/tokenChainTraceStore';
 
 const CATALOG = [
@@ -214,4 +214,80 @@ test('session-only sticky useCaseId yields no verdict until call-scoped evidence
     ]);
   });
   await waitFor(() => expect(getByTestId('verdict').textContent).toBe('none'));
+});
+
+// Regression: gateway-level attack sims (aud/scope denies) are blocked BEFORE
+// PingOne Authorize runs, so they never produce an 'authorize-decision'. UC5/UC11/UC12
+// used to declare it as required evidence, which made computeVerdict short-circuit to
+// 'incomplete' on every run — even though the attack was correctly blocked with a 401.
+// Event ids below are the ones attackSimulatorService.js actually emits.
+describe('gateway-denied attack sims reach a verdict', () => {
+  const UC12 = {
+    useCaseId: 'token-theft-replay',
+    title: 'Token theft / replay defense',
+    expectedOutcome: 'DENY_401',
+    evidence: { tokenChain: ['sim-replay-start', 'sim-gateway-deny'], activity: ['token', 'gateway'] },
+  };
+
+  const replayTrace = {
+    tokenEvents: [{ id: 'sim-replay-start' }, { id: 'sim-gateway-deny' }],
+    authorize: null,
+    mcpResult: null,
+  };
+
+  test('UC12 replay sim is denied-as-expected, not incomplete', () => {
+    const v = computeVerdict(replayTrace, UC12);
+    expect(v.missingSteps).toEqual([]);
+    expect(v.state).toBe('denied-as-expected');
+  });
+
+  test('the old contract is what made it incomplete', () => {
+    const v = computeVerdict(replayTrace, {
+      ...UC12,
+      evidence: { tokenChain: ['user-token', 'authorize-decision'], activity: ['token', 'gateway'] },
+    });
+    expect(v.state).toBe('incomplete');
+    expect(v.missingSteps).toEqual(['user-token', 'authorize-decision']);
+  });
+});
+
+// Regression: a deny-like expectation used to be satisfied by ANY non-PERMIT
+// decision. mcpToolPipeline collapses step-up and HITL to 'INDETERMINATE', so a
+// use case advertising a hard DENY rendered "Verified (denied as expected)" when
+// the engine had actually returned PERMIT + a HITL approval obligation.
+// trace.authorize.outcome now names the block kind; the verdict must honour it.
+describe('deny-like verdicts discriminate block kind', () => {
+  const entry = (expectedOutcome) => ({
+    useCaseId: 'authz-denied', title: 'Authz denied', expectedOutcome,
+    evidence: { tokenChain: ['authorize-decision'], activity: ['authorize'] },
+  });
+  const trace = (outcome) => ({
+    tokenEvents: [], mcpResult: null,
+    authorize: { decision: 'INDETERMINATE', outcome },
+  });
+
+  test('DENY expected but a HITL gate fired is a mismatch', () => {
+    expect(computeVerdict(trace('HITL_REQUIRED'), entry('DENY')).state).toBe('mismatch');
+  });
+
+  test('DENY expected and DENY fired is denied-as-expected', () => {
+    expect(computeVerdict(trace('DENY'), entry('DENY')).state).toBe('denied-as-expected');
+  });
+
+  test('HITL_REQUIRED expected and HITL fired stays green', () => {
+    expect(computeVerdict(trace('HITL_REQUIRED'), entry('HITL_REQUIRED')).state).toBe('denied-as-expected');
+  });
+
+  test('STEP_UP expected and step-up fired stays green', () => {
+    expect(computeVerdict(trace('STEP_UP'), entry('STEP_UP')).state).toBe('denied-as-expected');
+  });
+
+  test('STEP_UP expected but DENY fired is a mismatch', () => {
+    expect(computeVerdict(trace('DENY'), entry('STEP_UP')).state).toBe('mismatch');
+  });
+
+  test('no outcome reported falls back to the PERMIT/non-PERMIT check', () => {
+    const t = { tokenEvents: [], mcpResult: null, authorize: { decision: 'DENY' } };
+    expect(computeVerdict(t, entry('DENY')).state).toBe('denied-as-expected');
+  });
 });

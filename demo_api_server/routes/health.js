@@ -596,7 +596,7 @@ router.get('/packages', (_req, res) => {
       node_modules: 'cd demo_api_server && npm install',
       tar: 'cd demo_api_server && npm install',
       lmdb_ok: 'cd demo_api_server && npm install',
-      tls_certs: 'mkdir -p certs && cd certs && mkcert api.ping.demo localhost 127.0.0.1',
+      tls_certs: 'mkdir -p certs && cd certs && mkcert -cert-file api.ping.demo+2.pem -key-file api.ping.demo+2-key.pem api.ping.demo local.ping-devops.com demo-api-server localhost 127.0.0.1',
       mkcert: 'brew install mkcert && mkcert -install',
     },
   });

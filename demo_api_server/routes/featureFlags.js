@@ -351,6 +351,21 @@ const FLAG_REGISTRY = [
     defaultValue: false,
   },
   {
+    id:           'ff_rar_gateway_enforcement',
+    name:         'RAR — Gateway-local enforcement',
+    category:     'Token Exchange',
+    description:
+      'Controls WHERE the RFC 9396 RAR amount cap is enforced. OFF (default): PingOne Authorize is the sole ' +
+      'enforcement point — its `RarMaxAmount` rule (Amount > RarMaxAmount → DENY) denies an over-cap tool call, ' +
+      'the same way the simulated engine does. ON: additionally arm the Demo Agent Gateway’s local ' +
+      '`requireRarIntent` check (rarEnforce.ts), so the gateway blocks the call itself before Authorize. ' +
+      'Requires the PingOne Authorize snapshot with the RarMaxAmount rule imported for the OFF path to enforce.',
+    impact:
+      'OFF (default) = PingOne Authorize enforces RAR. ON = gateway also enforces locally (belt-and-suspenders).',
+    type:         'boolean',
+    defaultValue: false,
+  },
+  {
     id:           'ff_inject_scopes',
     name:         'Inject Banking Scopes (Demo Mode)',
     category:     'OAuth Scopes',

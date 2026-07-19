@@ -1218,10 +1218,12 @@ const KNOWN_STATEMENT_CODES = new Set([
   // warning; they classify to the top-level decision, not an obligation.
   'mcp-bypass-attempt',
   'mcp-resource-owner-mismatch',
-  'mcp-rar-amount-exceeded',
   'mcp-intent-invalid',
   'mcp-intent-mismatch',
   'mcp-admin-role-not-permitted',
+  // RAR amount-cap deny (#611/#615) — the RFC 9396 rule's statement code
+  // matches the simulated engine's deny_reason, not the mcp-* convention.
+  'rar_amount_exceeded',
 ]);
 
 /**

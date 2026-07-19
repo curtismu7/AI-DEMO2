@@ -321,7 +321,10 @@ async function main() {
   // Requires: PINGONE_BASE_URL, PINGONE_CLIENT_REGISTRATION_ENDPOINT,
   // PINGONE_TOKEN_ENDPOINT, PINGONE_AUTHORIZATION_ENDPOINT, PINGONE_REDIRECT_URI,
   // and OAuth credentials (PINGONE_USER_CLIENT_ID/SECRET or AGENT_CLIENT_ID/SECRET).
-  const clientUrl = process.env.CLIENT_URL || 'http://localhost:4000';
+  const clientUrl = process.env.CLIENT_URL
+    || process.env.REACT_APP_CLIENT_URL
+    || process.env.PUBLIC_APP_URL
+    || 'http://localhost:4000';
   writeEnvFile(path.join(ROOT, 'langchain_agent', '.env'), {
     ...shared,
     ENVIRONMENT:                           'development',

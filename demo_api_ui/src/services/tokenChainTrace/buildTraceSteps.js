@@ -217,6 +217,7 @@ export function buildTraceSteps(trace) {
     : azIsDeny || azUnavailable || (azDenied && !azIsChallenge) ? "error"
     : azIsChallenge || azBegun || azEval ? "active"
     : "pending";
+  const authorizeFailed = azStatus === "error";
   const azRequestPayload = azEval && azEval.request
     ? ((azEval.request.body && azEval.request.body.parameters)
         || azEval.request.parameters
@@ -291,7 +292,7 @@ export function buildTraceSteps(trace) {
   const gwSeen = !!(gwAz || gwIntro || gwInbound || gwScope);
   const gwSkipEvidence = [gwIntroRaw, gwMtls].filter((e) => e && e.status === "skipped");
   steps.push(makeStep("gateway",
-    gwDenied ? "error" : gwSeen ? "done" : traceComplete ? "notinpath" : "pending",
+    authorizeFailed ? "notinpath" : gwDenied ? "error" : gwSeen ? "done" : traceComplete ? "notinpath" : "pending",
     (gwSeen || gwDenied) ? {
       decision: gwDenied
         ? { outcome: "DENY",
@@ -345,7 +346,7 @@ export function buildTraceSteps(trace) {
     tokenEvents.some((e) => e && e.credentialPath === "api_key");
   const apiKeySwapDone = apiKeyPath && (evtSwap || evtBackend || apiMetaEarly.credentialPath === "api_key");
   steps.push(makeStep("api-key-swap",
-    apiKeySwapDone ? "done" : traceComplete ? "notinpath" : "pending",
+    authorizeFailed ? "notinpath" : apiKeySwapDone ? "done" : traceComplete ? "notinpath" : "pending",
     apiKeyPath ? {
       kv: [
         evtSwap ? ["swap", evtSwap.label || "OAuth bearer → service API key"] : null,
@@ -366,14 +367,14 @@ export function buildTraceSteps(trace) {
   const mcpDone = hasPhase(phases, "mcp_remote_done") || !!(mcpResult && mcpResult.result);
   const mcpBegun = hasPhase(phases, "mcp_remote_begin");
   steps.push(makeStep("mcp",
-    mcpDone ? "done" : gwDenied ? "error" : mcpBegun ? "active" : "pending",
+    authorizeFailed ? "notinpath" : mcpDone ? "done" : gwDenied ? "error" : mcpBegun ? "active" : "pending",
     mcpResult ? {
       request: { title: "JSON-RPC call (actual)", text: asJson(mcpResult.requestJson || { name: mcpResult.tool }) },
       kv: mcpResult.durationMs != null ? [["duration", `${mcpResult.durationMs} ms`]] : [],
     } : {}));
   const apiMeta = apiMetaEarly;
   const apiKeyCall = apiMeta.credentialPath === "api_key" || apiKeyPath;
-  steps.push(makeStep("api", (mcpDone && mcpResult) || apiKeyCall ? "done" : "pending",
+  steps.push(makeStep("api", authorizeFailed ? "notinpath" : (mcpDone && mcpResult) || apiKeyCall ? "done" : "pending",
     mcpResult && (mcpResult.result || apiKeyCall) ? {
       narrative: apiKeyCall
         ? "Backend call after credential swap — X-API-Key + X-User-Sub (no OAuth bearer on the wire)."

@@ -294,7 +294,10 @@ app.use(cors({
     // Fallback to false (block all cross-origin) rather than reflecting any Origin.
     // The React CRA dev proxy makes requests same-origin in development, so this
     // fallback only affects calls from a different origin without the env var set.
-    origin: process.env.CORS_ORIGIN || 'https://api.ping.demo',
+    // Comma-separated values are supported so a deployment can serve more than one
+    // browser origin (e.g. the passkey-capable local.ping-devops.com alongside the
+    // legacy api.ping.demo) without reflecting arbitrary Origins.
+    origin: (process.env.CORS_ORIGIN || 'https://api.ping.demo').split(',').map(o => o.trim()).filter(Boolean),
     credentials: true,
     // RFC 9470: let cross-origin clients read the step-up challenge header
     exposedHeaders: ['WWW-Authenticate']
@@ -2267,8 +2270,10 @@ async function runBackgroundStartupTasks() {
                 configStore.getEffective('REACT_APP_CLIENT_URL') ||
                 process.env.PUBLIC_APP_URL ||
                 'https://api.ping.demo:4000';
-            let rpId = 'api.ping.demo';
-            try { rpId = new URL(url).hostname; } catch (_) { /* keep default */ }
+            // Honours FIDO2_RP_ID / pingone_fido2_rp_id — required when several
+            // origins share one PingOne environment, since rp.id must then be
+            // their common parent domain rather than any one host.
+            const rpId = mfaService.resolveRelyingPartyId(url) || 'api.ping.demo';
             const r = await mfaService.ensureFido2RelyingParty(rpId);
             console.log(`[fido2-rp] bootstrap rpId=${rpId} policies=${r.count} changed=${r.changed}` +
                 (r.policies?.some(p => p.error) ? ` (errors: ${JSON.stringify(r.policies.filter(p => p.error).map(p => p.error))})` : ''));

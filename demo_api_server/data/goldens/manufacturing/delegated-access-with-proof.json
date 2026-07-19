@@ -4,9 +4,9 @@
   "ucId": "UC1",
   "trigger": "show my work orders",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-17T15:13:21.341Z",
+  "capturedAt": "2026-07-18T13:59:08.909Z",
   "seedHash": "dcba7c79003a5241",
-  "reply": "❌ Gateway upstream error (HTTP 500)",
+  "reply": "Here are your work orders.",
   "agentPath": null,
-  "tokenEventCount": 14
+  "tokenEventCount": 18
 }

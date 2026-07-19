@@ -144,19 +144,41 @@ function _useCaseIdForSim(sim) {
 }
 
 /**
+ * Resolve the Demo Agent Gateway (Node) URL directly, ignoring
+ * ff_mcp_gateway_pinggateway. RFC 9396 RAR subset enforcement (rarEnforce.ts)
+ * and the runtime flag-arming admin API exist ONLY on the Node gateway —
+ * PingGateway (IG) forwards straight to mcp-server with neither — so the
+ * RAR sims must reach the Node gateway no matter which gateway the rest of
+ * the stack routes through. mcp_demo_gateway_url is the dedicated key for
+ * this (MCP_GATEWAY_HTTP_URL is baked per-container and may point at IG).
+ * @returns {string|null}
+ */
+function _demoGatewayUrl() {
+  const url = process.env.MCP_DEMO_GATEWAY_URL
+    || configStore.getEffective('mcp_demo_gateway_url')
+    || '';
+  return url ? url.replace(/\/$/, '') : null;
+}
+
+/**
  * Push runtime gateway flags for UC14/15/16 demo arming (Demo Agent Gateway only).
  * @param {Record<string, boolean>} flags
+ * @param {string} [gatewayUrl] - Explicit Demo Agent Gateway URL. When given,
+ *   the flags are pushed there even with ff_mcp_gateway_pinggateway on —
+ *   callers that pin their tool calls to the Node gateway need real arming,
+ *   not the silent PG-path no-op below.
  * @returns {Promise<{ ok: boolean, error?: string }>}
  */
-async function _pushGatewayFlags(flags) {
-  if (configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true') {
-    return { ok: true };
-  }
-  let gatewayUrl;
-  try {
-    gatewayUrl = getMcpGatewayHttpUrl();
-  } catch (err) {
-    return { ok: false, error: err.message };
+async function _pushGatewayFlags(flags, gatewayUrl) {
+  if (!gatewayUrl) {
+    if (configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true') {
+      return { ok: true };
+    }
+    try {
+      gatewayUrl = getMcpGatewayHttpUrl();
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
   }
   const { pushGatewayAdminConfig } = require('../routes/mcpGatewayConfig');
   return pushGatewayAdminConfig(gatewayUrl, flags);
@@ -520,7 +542,9 @@ async function _runWrongAud(subjectToken, useCaseId, tokenChainEvents) {
       null,
       exchangedToken,
       'get_accounts',
-      {}
+      {},
+      // The wrong audience is deliberate — suppress the "configuration drift" remediation.
+      { simulatedAttack: true }
     );
     // Unexpected permit
     tokenChainEvents.push(buildTokenEvent(
@@ -779,7 +803,9 @@ async function _runReplayedToken(subjectToken, useCaseId, tokenChainEvents) {
   ));
 
   try {
-    await callToolViaGateway(null, subjectToken, 'get_my_accounts', {});
+    // The replayed token's audience is deliberately wrong — suppress the
+    // "configuration drift" remediation text.
+    await callToolViaGateway(null, subjectToken, 'get_my_accounts', {}, { simulatedAttack: true });
     tokenChainEvents.push(buildTokenEvent(
       'sim-gateway-unexpected-permit',
       'Gateway PERMIT (unexpected)',
@@ -852,6 +878,7 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
   const sim = 'rar-exceeded';
   const grantedAmount = 100;
   const finalAttackAmount = Number.isFinite(attackAmount) && attackAmount > 0 ? attackAmount : 500;
+  const demoGatewayUrl = _demoGatewayUrl();
 
   try {
     await configStore.setRaw({ ff_rar: 'true' });
@@ -859,7 +886,12 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
     return { sim, useCaseId, status: 500, errorCode: 'config_store_failed', reason: err.message, tokenChainEvents };
   }
 
-  const pushResult = await _pushGatewayFlags({ requireRarIntent: true });
+  // RAR is enforced by PingOne Authorize by default (RarMaxAmount rule). Only arm
+  // the gateway's local requireRarIntent check when ff_rar_gateway_enforcement is ON.
+  const armGateway = configStore.getEffective('ff_rar_gateway_enforcement') === 'true';
+  const pushResult = armGateway
+    ? await _pushGatewayFlags({ requireRarIntent: true }, demoGatewayUrl)
+    : { ok: true };
   if (!pushResult.ok) {
     tokenChainEvents.push(buildTokenEvent(
       'sim-rar-arm-failed',
@@ -868,13 +900,21 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
       null,
       pushResult.error || 'Could not arm requireRarIntent on gateway',
     ));
-  } else {
+  } else if (armGateway) {
     tokenChainEvents.push(buildTokenEvent(
       'sim-rar-armed',
       'Gateway RAR enforcement armed (UC14)',
       'active',
       null,
-      'requireRarIntent enabled on Demo Agent Gateway for this burst.',
+      'requireRarIntent enabled on Demo Agent Gateway for this burst (ff_rar_gateway_enforcement ON).',
+    ));
+  } else {
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-rar-armed',
+      'RAR enforced by PingOne Authorize',
+      'active',
+      null,
+      'ff_rar_gateway_enforcement OFF — the RarMaxAmount rule in PingOne Authorize denies over-cap calls; gateway-local check not armed.',
     ));
   }
 
@@ -911,10 +951,15 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
 
   try {
     await callToolViaGateway(
-      null,
+      demoGatewayUrl,
       exchanged.token,
       'create_transfer',
-      { amount: finalAttackAmount, to_account_id: 'sim-acc-001' },
+      // from_account_id: required by the gateway's spec-§2 arg schema
+      // (mcp-tool-schemas.json) — without it the call 400s before RAR
+      // enforcement ever runs. The RAR subset check only constrains
+      // amount + payee (to_account_id), so the extra field cannot mask
+      // the overage this sim exists to demonstrate.
+      { amount: finalAttackAmount, from_account_id: 'sim-acc-002', to_account_id: 'sim-acc-001' },
       { tratContextHeader },
     );
     tokenChainEvents.push(buildTokenEvent(
@@ -948,6 +993,7 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
   const sim = 'rar-permit';
   const grantedAmount = 100;
   const amount = Number.isFinite(requestedAmount) && requestedAmount > 0 ? requestedAmount : grantedAmount;
+  const demoGatewayUrl = _demoGatewayUrl();
 
   try {
     await configStore.setRaw({ ff_rar: 'true' });
@@ -955,7 +1001,12 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
     return { sim, useCaseId, status: 500, errorCode: 'config_store_failed', reason: err.message, tokenChainEvents };
   }
 
-  const pushResult = await _pushGatewayFlags({ requireRarIntent: true });
+  // RAR is enforced by PingOne Authorize by default (RarMaxAmount rule). Only arm
+  // the gateway's local requireRarIntent check when ff_rar_gateway_enforcement is ON.
+  const armGateway = configStore.getEffective('ff_rar_gateway_enforcement') === 'true';
+  const pushResult = armGateway
+    ? await _pushGatewayFlags({ requireRarIntent: true }, demoGatewayUrl)
+    : { ok: true };
   if (!pushResult.ok) {
     tokenChainEvents.push(buildTokenEvent(
       'sim-rar-arm-failed',
@@ -964,13 +1015,21 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
       null,
       pushResult.error || 'Could not arm requireRarIntent on gateway',
     ));
-  } else {
+  } else if (armGateway) {
     tokenChainEvents.push(buildTokenEvent(
       'sim-rar-armed',
       'Gateway RAR enforcement armed (Intent Binding demo)',
       'active',
       null,
-      'requireRarIntent enabled on Demo Agent Gateway for this call.',
+      'requireRarIntent enabled on Demo Agent Gateway for this call (ff_rar_gateway_enforcement ON).',
+    ));
+  } else {
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-rar-armed',
+      'RAR enforced by PingOne Authorize',
+      'active',
+      null,
+      'ff_rar_gateway_enforcement OFF — the RarMaxAmount rule in PingOne Authorize denies over-cap calls; gateway-local check not armed.',
     ));
   }
 
@@ -980,17 +1039,52 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
   if (!exchanged.ok) return exchanged.result;
 
   const userSub = req?.session?.user?.sub || req?.user?.sub || '';
+  const actorClientId = configStore.getEffective('pingone_ai_agent_actor_client_id') || '';
+  const adminClientId = configStore.getEffective('admin_client_id') || '';
+
+  // Real accounts: on PERMIT the gateway forwards to the real banking backend,
+  // which executes the transfer — fake sim ids come back "From account not
+  // found". They must be the accounts of the user THE TOKEN resolves to, not
+  // the BFF session's store user: the banking API maps the exchanged token via
+  // its own claim fallback chain, and a session-store id came back "Access
+  // denied. You can only transfer from your own accounts." So discover them the
+  // way the agent does — get_my_accounts through the gateway with the same
+  // exchanged token. Its own read-scoped RAR grant keeps the call valid when
+  // requireRarIntent is already armed (sticky from a previous run).
+  // The drift path keeps its fake ids on purpose: it is DENIED before the backend.
+  let fromAccountId = 'sim-acc-002';
+  let toAccountId = 'sim-acc-001';
+  try {
+    const readRar = buildRarAuthorizationDetails('get_my_accounts', {}, userSub);
+    const readCtx = buildTratContext(req, 'get_my_accounts', userSub, actorClientId, adminClientId, { rarDetails: readRar });
+    const accountsResult = await callToolViaGateway(
+      demoGatewayUrl, exchanged.token, 'get_my_accounts', {},
+      { tratContextHeader: JSON.stringify({ ...readCtx, trat_sim: true }) },
+    );
+    // callToolViaGateway resolves to { result, gwAuditTrail } — the JSON-RPC
+    // result value lives one level down.
+    const accountsRpc = accountsResult?.result ?? accountsResult;
+    let data = accountsRpc?.structuredContent;
+    if (!data?.accounts) {
+      try { data = JSON.parse(accountsRpc?.content?.[0]?.text || 'null'); } catch { data = null; }
+    }
+    const accounts = Array.isArray(data?.accounts) ? data.accounts : [];
+    if (accounts[0]?.id) fromAccountId = String(accounts[0].id);
+    if (accounts[1]?.id) toAccountId = String(accounts[1].id);
+  } catch (acctErr) {
+    console.warn('[_runRarPermit] get_my_accounts via gateway failed (non-fatal, using sim ids):', acctErr.message);
+  }
   const rarDetails = buildRarAuthorizationDetails(
     'create_transfer',
-    { amount: grantedAmount, to_account_id: 'sim-acc-001' },
+    { amount: grantedAmount, to_account_id: toAccountId },
     userSub,
   );
   const tratCtx = buildTratContext(
     req,
     'create_transfer',
     userSub,
-    configStore.getEffective('pingone_ai_agent_actor_client_id') || '',
-    configStore.getEffective('admin_client_id') || '',
+    actorClientId,
+    adminClientId,
     { rarDetails },
   );
   const tratContextHeader = JSON.stringify({ ...tratCtx, trat_sim: true });
@@ -1016,7 +1110,7 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
     const challenge = await hitlClient.createChallenge({
       tool: 'create_transfer',
       userId: userSub2,
-      context: { amount, to_account_id: 'sim-acc-001', demo: 'rar-permit' },
+      context: { amount, to_account_id: toAccountId, demo: 'rar-permit' },
     });
     if (challenge?.challengeId) {
       await hitlClient.respondToChallenge(challenge.challengeId, 'approved');
@@ -1026,18 +1120,37 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
     console.warn('[_runRarPermit] HITL pre-approval failed (non-fatal):', hitlErr.message);
   }
 
+  let transferResult;
   try {
-    await callToolViaGateway(
-      null,
+    transferResult = await callToolViaGateway(
+      demoGatewayUrl,
       exchanged.token,
       'create_transfer',
-      { amount, to_account_id: 'sim-acc-001', ...(hitlChallengeId ? { _hitl_challenge_id: hitlChallengeId } : {}) },
+      // from_account_id: required by the gateway's spec-§2 arg schema — see
+      // the matching note on the rar-exceeded call above.
+      { amount, from_account_id: fromAccountId, to_account_id: toAccountId, ...(hitlChallengeId ? { _hitl_challenge_id: hitlChallengeId } : {}) },
       { tratContextHeader },
     );
   } catch (err) {
     return _denyFromGateway(
       sim, useCaseId, tokenChainEvents, err, 403, 'rar_unexpected_deny',
       'Gateway DENY (unexpected — requested amount was within the granted cap)',
+    );
+  }
+
+  // A backend tool failure arrives as a 200 JSON-RPC result with isError:true —
+  // callToolViaGateway does NOT throw for it. Without this guard the demo
+  // rendered PERMIT while the transfer never actually executed (e.g. "From
+  // account not found" during debugging). Gateway PERMIT + failed execution is
+  // a broken demo state — surface it, don't celebrate it.
+  const transferRpc = transferResult?.result ?? transferResult;
+  if (transferRpc?.isError) {
+    const errText = transferRpc?.content?.[0]?.text || 'backend tool error';
+    return _denyFromGateway(
+      sim, useCaseId, tokenChainEvents,
+      Object.assign(new Error(errText), { code: 'backend_execution_failed', httpStatus: 502 }),
+      502, 'backend_execution_failed',
+      'Backend execution failed (gateway PERMIT, tool error)',
     );
   }
 

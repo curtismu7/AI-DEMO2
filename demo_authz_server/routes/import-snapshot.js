@@ -216,10 +216,12 @@ module.exports = async function importSnapshot(req, res) {
     const REQUIRED_STATEMENT_CODES = [
       'mcp-bypass-attempt',
       'mcp-resource-owner-mismatch',
-      'mcp-rar-amount-exceeded',
       'mcp-intent-invalid',
       'mcp-intent-mismatch',
       'mcp-admin-role-not-permitted',
+      // RAR amount-cap deny (#611/#615) — code matches the simulated engine's
+      // deny_reason (rar_amount_exceeded), not the mcp-* convention.
+      'rar_amount_exceeded',
     ];
     for (const code of REQUIRED_STATEMENT_CODES) {
       if (!statements.some((s) => s.code === code)) {

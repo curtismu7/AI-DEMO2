@@ -10,6 +10,7 @@ import {
   DEMO_PRIMARY_USE_CASE_IDS,
 } from '../config/demoUseCaseSteps';
 import apiClient from '../services/apiClient';
+import UseCaseExplainModal from './UseCaseExplainModal';
 import {
   clearCompletedUseCases,
   isUseCaseCompleted,
@@ -38,6 +39,7 @@ export default function DemoStepsDropdown({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [tick, setTick] = useState(0);
+  const [explainUc, setExplainUc] = useState(null);
 
   const loadSteps = useCallback(() => {
     setLoading(true);
@@ -99,7 +101,10 @@ export default function DemoStepsDropdown({
       const popout = popoutRef.current;
       if (!trigger || !popout) return;
       const rect = trigger.getBoundingClientRect();
-      const popoutWidth = 360;
+      // Measured, not hardcoded: the width lives in CSS
+      // (.ba-actions-popout.ba-demo-steps-popout) and a duplicated constant
+      // here would silently mis-anchor the popout whenever that changes.
+      const popoutWidth = popout.offsetWidth || 360;
       let left = rect.right - popoutWidth;
       if (left < 8) left = 8;
       if (left + popoutWidth > window.innerWidth - 8) {
@@ -130,6 +135,16 @@ export default function DemoStepsDropdown({
     setTick((n) => n + 1);
   }
 
+  /**
+   * Open the explanation for a step. The popout must close first: it is
+   * z-index 100061 (`.ba-actions-popout`) and DraggableModal defaults to 9999,
+   * so leaving it open renders the modal behind the dropdown.
+   */
+  function handleExplain(uc) {
+    onOpenChange(false);
+    setExplainUc(uc);
+  }
+
   /** Reset demo check-offs for a fresh presenter pass. */
   function handleClearProgress() {
     clearCompletedUseCases();
@@ -144,7 +159,7 @@ export default function DemoStepsDropdown({
     const completed = isUseCaseCompleted(uc.id);
     void tick;
     return (
-      <li key={uc.id}>
+      <li key={uc.id} className="ba-demo-steps-popout__row">
         <button
           type="button"
           className={`ba-demo-steps-popout__item${completed ? ' ba-demo-steps-popout__item--done' : ''}`}
@@ -162,11 +177,27 @@ export default function DemoStepsDropdown({
           )}
           <span className="ba-demo-steps-popout__title">{uc.title}</span>
         </button>
+        <button
+          type="button"
+          className="ba-demo-steps-popout__explain"
+          onClick={() => handleExplain(uc)}
+          title="Explain this step"
+          aria-label={`Explain step ${stepNumber}: ${uc.id} — ${uc.title}`}
+          data-testid={`demo-explain-${uc.id}`}
+        />
       </li>
     );
   }
 
   void tick;
+
+  // Counted over the primary steps only — that is the "scripted walkthrough"
+  // the header names; the advanced group is opt-in extra material. Recomputed
+  // each render, and `tick` is bumped by select/clear, so it refreshes on the
+  // same path as the per-row checkmarks.
+  const completedCount = primarySteps.filter(({ uc }) =>
+    isUseCaseCompleted(uc.id),
+  ).length;
 
   return (
     <>
@@ -193,16 +224,32 @@ export default function DemoStepsDropdown({
           data-testid="demo-steps-popout"
         >
           <div className="ba-demo-steps-popout__header">
-            <span>Demo steps — scripted walkthrough</span>
-            <button
-              type="button"
-              className="ba-demo-steps-popout__clear"
-              onClick={handleClearProgress}
-              title="Clear checkmarks for a fresh demo pass"
-              data-testid="demo-steps-clear"
-            >
-              Clear progress
-            </button>
+            <span className="ba-demo-steps-popout__header-title">
+              Demo steps — scripted walkthrough
+            </span>
+            <span className="ba-demo-steps-popout__header-actions">
+              {primarySteps.length > 0 && (
+                <span
+                  className={`ba-demo-steps-popout__progress${
+                    completedCount === primarySteps.length
+                      ? ' ba-demo-steps-popout__progress--all'
+                      : ''
+                  }`}
+                  data-testid="demo-steps-progress"
+                >
+                  {completedCount} of {primarySteps.length} done
+                </span>
+              )}
+              <button
+                type="button"
+                className="ba-demo-steps-popout__clear"
+                onClick={handleClearProgress}
+                title="Clear checkmarks for a fresh demo pass"
+                data-testid="demo-steps-clear"
+              >
+                Clear progress
+              </button>
+            </span>
           </div>
           {loading && (
             <p className="ba-demo-steps-popout__status">Loading…</p>
@@ -240,6 +287,13 @@ export default function DemoStepsDropdown({
           )}
         </div>
       )}
+      {/* Rendered outside the popout so the explanation survives the
+          outside-pointerdown close. */}
+      <UseCaseExplainModal
+        uc={explainUc}
+        open={Boolean(explainUc)}
+        onClose={() => setExplainUc(null)}
+      />
     </>
   );
 }

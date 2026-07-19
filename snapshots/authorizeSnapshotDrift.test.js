@@ -94,10 +94,10 @@ test('regeneration is idempotent — reconciling the committed snapshot is a no-
 test('widening touches exactly one object — 98 in, 98 out, none added or removed', () => {
   const committed = readSnapshot();
   const objectCount = committed.length;
-  // 73 pre-cloud-delta objects + 25 added by the fine-grained deny steps
-  // (7 attributes, 6 conditions, 6 statements, 6 rules) — pinned so an
-  // accidental add/remove in the reconciler shows up as a count change here
-  // and in authorizeSnapshotCloudDelta.test.js.
+  // 73 pre-cloud-delta objects + 25 added: 21 by the fine-grained deny steps
+  // and 4 by the RAR amount-cap step (7 attributes, 6 conditions, 6 statements,
+  // 6 rules in total) — pinned so an accidental add/remove in the reconciler
+  // shows up as a count change here and in authorizeSnapshotCloudDelta.test.js.
   assert.strictEqual(objectCount, 98, 'snapshot object count drifted — see authorizeSnapshotCloudDelta.test.js');
 
   // Rebuild the pre-1e8619d09 state: the condition matched only the first two

@@ -568,12 +568,22 @@ describe('End-to-End OAuth Integration Tests', () => {
 
   describe('Cross-Origin and Security', () => {
     it('should handle CORS properly for OAuth endpoints', async () => {
+      // Derive the Origin from the same source the app configures cors() with,
+      // rather than hardcoding one. This test previously sent a port-less
+      // 'https://api.ping.demo', which only matched because the fallback origin
+      // was itself port-less and so could never equal a real browser Origin
+      // (always host:port). It therefore passed for the wrong reason and broke
+      // as soon as CORS_ORIGIN was set to the real origins.
+      const allowedOrigin = (process.env.CORS_ORIGIN || 'https://api.ping.demo')
+        .split(',')[0]
+        .trim();
+
       const response = await agent
         .options('/api/auth/oauth/user/status')
-        .set('Origin', 'https://api.ping.demo')
+        .set('Origin', allowedOrigin)
         .expect(204);
 
-      expect(response.headers['access-control-allow-origin']).toBeDefined();
+      expect(response.headers['access-control-allow-origin']).toBe(allowedOrigin);
     });
 
     it('should set secure session cookies in production', () => {

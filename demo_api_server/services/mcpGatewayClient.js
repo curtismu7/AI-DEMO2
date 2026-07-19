@@ -97,6 +97,29 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         const nodeUrl = (process.env.MCP_GATEWAY_HTTP_URL || configStore.getEffective('mcp_gateway_http_url') || '').replace(/\/$/, '');
         if (nodeUrl) base = nodeUrl;
     }
+    // A2A nested-act tokens are audienced to the DEDICATED A2A gateway resource
+    // (a2a_gateway_audience / A2A_GATEWAY_AUDIENCE), which only the Node Demo
+    // Agent Gateway accepts (comma-list MCP_GW_RESOURCE_URI). PingGateway (IG)
+    // introspects against its own resource URI and its McpProtectionFilter also
+    // requires scope gateway:mcp:invoke, so an A2A specialist call routed there
+    // always fails (401 wrong aud / 403 insufficient_scope). Pin A2A-audienced
+    // bearers to the Node gateway, same Node-only routing as Path B/C above and
+    // the RAR sims (#603). mcp_demo_gateway_url, not MCP_GATEWAY_HTTP_URL — the
+    // latter is baked per-container and may point at IG (#375).
+    if (pgUrl && base === pgUrl) {
+        const a2aAud = process.env.A2A_GATEWAY_AUDIENCE
+            || configStore.getEffective('a2a_gateway_audience') || '';
+        if (a2aAud) {
+            const claims = decodeJwt(bearerToken)?.claims;
+            const audList = Array.isArray(claims?.aud) ? claims.aud.map(String)
+                : (claims?.aud != null ? [String(claims.aud)] : []);
+            if (audList.includes(a2aAud)) {
+                const nodeUrl = (process.env.MCP_DEMO_GATEWAY_URL
+                    || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
+                if (nodeUrl) base = nodeUrl;
+            }
+        }
+    }
     const isIgBase = !!pgUrl && base === pgUrl;
     const url  = isIgBase && APIKEY_TOOLS.has(tool) ? `${base}/mcp/apikey` : `${base}/mcp`;
 
@@ -308,11 +331,34 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             cause = 'wrong_audience';
             code = 'GATEWAY_AUDIENCE_MISMATCH';
             needsLogin = false;
-            message =
-                `Wrong audience: the access token's aud is [${tokenAud.join(', ')}] but the gateway requires ` +
-                `"${expectedAud}". This is a configuration drift, not an expired token — signing in again will ` +
-                `NOT fix it. Fix: set MCP_SERVER_RESOURCE_URI="${expectedAud}" in the BFF config ` +
-                `(demo_api_server/.env or the /config admin page) to match scope-topology.json, then restart.`;
+            if (opts.simulatedAttack) {
+                // An attack sim presents a deliberately wrong-audience token — the
+                // mismatch IS the expected result. Framing it as config drift sends
+                // the operator off to "fix" a config that is already correct.
+                message =
+                    `Audience binding rejected the token as expected: aud is [${tokenAud.join(', ')}] but the ` +
+                    `gateway requires "${expectedAud}". No configuration change is needed — this is the ` +
+                    `simulated attack being blocked.`;
+            } else {
+                // Name the setting that actually drives the expected audience in the
+                // ACTIVE mode. Hardcoding MCP_SERVER_RESOURCE_URI was wrong on the
+                // PingGateway path, where the audience comes from the pinggateway
+                // resource URI instead.
+                const svc = require('./mcpToolAuthorizationService');
+                const setting = typeof svc.resolveExpectedMcpResourceSetting === 'function'
+                    ? svc.resolveExpectedMcpResourceSetting()
+                    : null;
+                const fixHint = setting
+                    ? `Fix: set ${setting.envVar || setting.settingKey}="${expectedAud}" in the BFF config ` +
+                      `(${setting.envVar ? 'demo_api_server/.env or ' : ''}the /config admin page, ` +
+                      `${setting.mode} mode) to match scope-topology.json, then restart.`
+                    : `Fix: point the BFF's MCP resource URI for the active gateway mode at "${expectedAud}" ` +
+                      `to match scope-topology.json, then restart.`;
+                message =
+                    `Wrong audience: the access token's aud is [${tokenAud.join(', ')}] but the gateway requires ` +
+                    `"${expectedAud}". This is a configuration drift, not an expired token — signing in again will ` +
+                    `NOT fix it. ${fixHint}`;
+            }
         } else if (expired) {
             cause = 'expired';
             code = 'TOKEN_INACTIVE';

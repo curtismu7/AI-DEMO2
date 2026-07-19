@@ -326,10 +326,11 @@ test('a MISSING (deleted or renamed) HasValidMcpAudience is BLOCKED', async () =
 const ROUND3_STATEMENT_CODES = [
   'mcp-bypass-attempt',
   'mcp-resource-owner-mismatch',
-  'mcp-rar-amount-exceeded',
   'mcp-intent-invalid',
   'mcp-intent-mismatch',
   'mcp-admin-role-not-permitted',
+  // RAR amount-cap deny (#611/#615) — code matches the simulated deny_reason.
+  'rar_amount_exceeded',
 ];
 
 test('every round-3 deny statement code is present in the tracked snapshot', async () => {

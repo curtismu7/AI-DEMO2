@@ -71,7 +71,7 @@ module.exports = defineConfig({
         ...devices['Desktop Chrome'],
         ignoreHTTPSErrors: true,
         launchOptions: {
-          args: ['--host-resolver-rules=MAP api.ping.demo 127.0.0.1'],
+          args: ['--host-resolver-rules=MAP api.ping.demo 127.0.0.1, MAP local.ping-devops.com 127.0.0.1'],
         },
       },
     },

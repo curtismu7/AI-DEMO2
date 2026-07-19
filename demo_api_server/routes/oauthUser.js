@@ -1015,6 +1015,55 @@ router.get('/consent-url', (req, res) => {
 });
 
 /**
+ * Mask a delivery address for display: emails keep the first and last character
+ * of the local part, phone numbers keep the last four digits. Returns null for
+ * anything unrecognizable so callers never leak a raw value by accident.
+ *
+ * @param {string|{number?: string}|null} value
+ * @returns {string|null}
+ */
+function maskContact(value) {
+  const raw = typeof value === 'string' ? value : (value?.number || '');
+  if (!raw) return null;
+  if (raw.includes('@')) {
+    const [local, domain] = raw.split('@');
+    if (!local || !domain) return null;
+    const visible = local.length > 2
+      ? local[0] + '*'.repeat(local.length - 2) + local[local.length - 1]
+      : local[0] + '*';
+    return visible + '@' + domain;
+  }
+  const digits = raw.replace(/\D/g, '');
+  return digits.length >= 4 ? '***-***-' + digits.slice(-4) : null;
+}
+
+/**
+ * Contact address from the user's first ACTIVE MFA device of the requested
+ * channel. PingOne stores the address on the device itself (`email`, or `phone`
+ * as an E.164 string), which is the address the user enrolled — unlike the user
+ * profile's email, which this demo provisions synthetically. Returns null when
+ * nothing is enrolled so the caller can fall back.
+ *
+ * @param {string} userId - PingOne user UUID
+ * @param {'email'|'sms'} method
+ * @returns {Promise<string|null>}
+ */
+async function resolveEnrolledContact(userId, method) {
+  try {
+    const { devices } = await mfaService.listMfaDevices(userId);
+    const wanted = method === 'sms' ? ['SMS', 'VOICE'] : ['EMAIL'];
+    const device = (devices || []).find((d) => wanted.includes(String(d.type || '').toUpperCase()));
+    if (!device) return null;
+    return method === 'sms'
+      ? (device.phone?.number || device.phone || null)
+      : (device.email || null);
+  } catch (err) {
+    console.warn('[OTP] enrolled-device contact lookup failed, falling back to profile:', err.message);
+    return null;
+  }
+}
+
+/**
  * POST /api/auth/oauth/user/initiate-otp
  *
  * Email OTP step-up: generate a 6-digit code, store it in the session with a
@@ -1059,7 +1108,13 @@ router.post('/initiate-otp', async (req, res) => {
     try {
       const contact = await mfaService.getPingOneUserContact(pingoneUserId);
       const deliveryType = method === 'sms' ? 'SMS' : 'EMAIL';
-      const to = method === 'sms' ? contact.mobilePhone : contact.email;
+      // Prefer the address on the user's registered MFA device — that is what the
+      // user actually enrolled and can receive at. The PingOne user *profile*
+      // email is provisioned synthetically from the app host
+      // (demoUser@api.ping.demo, see pingoneProvisionService.demoEmailDomain) and
+      // is not deliverable, so it is only a last-resort fallback.
+      const enrolled = await resolveEnrolledContact(pingoneUserId, method);
+      const to = enrolled || (method === 'sms' ? contact.mobilePhone : contact.email);
       if (!to) {
         throw new Error(
           method === 'sms'
@@ -1071,7 +1126,9 @@ router.post('/initiate-otp', async (req, res) => {
       // Persist the PingOne transaction id so verify can check the real code.
       req.session.pendingStepUpOtp.daId = result.id || null;
       const dev = result?._embedded?.devices?.[0];
-      pingMaskedContact = dev ? (dev.email || dev.phone || null) : null;
+      // PingOne echoes the delivery address in full; mask it before it leaves the
+      // BFF so this field matches its name and the other two branches below.
+      pingMaskedContact = dev ? maskContact(dev.email || dev.phone || null) : null;
       delivered = !!result.id;
     } catch (sendErr) {
       deliveryError =
@@ -1126,7 +1183,9 @@ router.post('/initiate-otp', async (req, res) => {
       deliveryError,
       method,
       expiresIn: 300,
-      email: user.email || '',
+      // No raw address here — the PingOne user profile email is provisioned
+      // synthetically (demoUser@<app host>) and is not the delivery target
+      // anyway. maskedContact is the only address the client needs.
       maskedContact,
       // devCode: only included in non-production so demos can complete step-up
       // without email/SMS delivery being configured.
