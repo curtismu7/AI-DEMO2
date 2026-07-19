@@ -182,3 +182,78 @@ describe('step_up_method is passed through to the 428 body', () => {
     expect(res.block.body.step_up_method).toBe('p1mfa');
   });
 });
+
+// UC22's live trigger is a $600 transfer. On this environment the policy
+// engine (simulated or real) independently decides consentRequired: true,
+// stepUpRequired: false for that amount/type -- its own rules, unrelated to
+// the step_up_method override. Skipping the consent check alone would let
+// the transaction fall through to a silent PERMIT with no CIBA step-up at
+// all. UC22 must force entry into the step-up block unconditionally,
+// regardless of what the policy engine decided, so CIBA is the only gate a
+// presenter sees. See docs/superpowers/specs/2026-07-19-uc22-ciba-step-up-override-design.md.
+describe('UC22 demo override — forces step-up (not consent, not silent permit)', () => {
+  beforeEach(() => {
+    configStore.getEffective.mockImplementation((key) =>
+      key === 'ff_rfc9470_challenge' ? 'false' : null
+    );
+  });
+
+  it('forces the step-up block even when the policy engine says consentRequired, not stepUpRequired', async () => {
+    simulatedAuthorizeService.evaluateTransaction.mockResolvedValue({
+      decision: 'INDETERMINATE',
+      stepUpRequired: false,
+      consentRequired: true,
+      path: 'sim',
+      decisionId: 'd1',
+      raw: {},
+    });
+
+    const res = await evaluateTransactionPolicy({
+      ...evaluateOpts,
+      useCaseId: 'ciba-out-of-band-approval',
+    });
+
+    expect(res.block.status).toBe(428);
+    expect(res.block.body.error).toBe('step_up_required');
+    expect(res.block.body.step_up_method).toBe('ciba');
+  });
+
+  it('forces the step-up block even when the policy engine would otherwise permit', async () => {
+    simulatedAuthorizeService.evaluateTransaction.mockResolvedValue({
+      decision: 'PERMIT',
+      stepUpRequired: false,
+      consentRequired: false,
+      path: 'sim',
+      decisionId: 'd1',
+      raw: {},
+    });
+
+    const res = await evaluateTransactionPolicy({
+      ...evaluateOpts,
+      useCaseId: 'ciba-out-of-band-approval',
+    });
+
+    expect(res.block.status).toBe(428);
+    expect(res.block.body.error).toBe('step_up_required');
+    expect(res.block.body.step_up_method).toBe('ciba');
+  });
+
+  it('does not affect any other (or absent) useCaseId — consentRequired still returns the consent block', async () => {
+    simulatedAuthorizeService.evaluateTransaction.mockResolvedValue({
+      decision: 'INDETERMINATE',
+      stepUpRequired: false,
+      consentRequired: true,
+      path: 'sim',
+      decisionId: 'd1',
+      raw: {},
+    });
+
+    const res = await evaluateTransactionPolicy({
+      ...evaluateOpts,
+      useCaseId: 'delegated-access-with-proof',
+    });
+
+    expect(res.block.status).toBe(428);
+    expect(res.block.body.error).toBe('hitl_required');
+  });
+});

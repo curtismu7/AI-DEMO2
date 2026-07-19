@@ -213,6 +213,22 @@ async function evaluateTransactionPolicy({
         `Authorize simulated — ${type} $${amount} — decision=${r.decision} consent=${r.consentRequired} stepUp=${r.stepUpRequired}`,
         { tag: 'authorize/simulated-result', metadata: { type, amount, userId, decision: r.decision, consentRequired: r.consentRequired, stepUpRequired: r.stepUpRequired, ...(useCaseId ? { useCaseId } : {}) } });
 
+      // UC22's demo slug always shows CIBA — force entry into the step-up
+      // block regardless of what the policy engine decided (consent-only or
+      // even a silent permit), so the presenter never sees the HITL
+      // device-select/OTP modal for this specific demo transfer.
+      if (useCaseId === CIBA_DEMO_USE_CASE_ID) {
+        return {
+          ran: true,
+          block: buildStepUpBlock({
+            useSimulated: true,
+            policyId: AUTHORIZE_POLICY_ID,
+            runtimeSettings,
+            useCaseId,
+          }),
+        };
+      }
+
       // Check stepUpRequired before consentRequired: step-up is the stronger gate
       // and must not be bypassed by the ff_hitl_enabled=false consent-skip path.
       // A $600 transfer satisfies both thresholds; step-up takes priority.
@@ -284,6 +300,20 @@ async function evaluateTransactionPolicy({
             authorize_policy_id: AUTHORIZE_DECISION_ENDPOINT_ID || AUTHORIZE_POLICY_ID,
           },
         },
+      };
+    }
+
+    // UC22's demo slug always shows CIBA — see the matching check in the
+    // simulated branch above.
+    if (useCaseId === CIBA_DEMO_USE_CASE_ID) {
+      return {
+        ran: true,
+        block: buildStepUpBlock({
+          useSimulated: false,
+          policyId: AUTHORIZE_POLICY_ID,
+          runtimeSettings,
+          useCaseId,
+        }),
       };
     }
 
@@ -422,6 +452,19 @@ async function evaluateTransactionPolicy({
         `[Authorize] Fell back to simulated engine — ${type} $${amount} — decision=${fallback.decision}`,
         { tag: 'authorize/fallback-simulated', metadata: { type, amount, userId, decision: fallback.decision, ...(useCaseId ? { useCaseId } : {}) } });
 
+      // UC22's demo slug always shows CIBA — see the matching check above.
+      if (useCaseId === CIBA_DEMO_USE_CASE_ID) {
+        return {
+          ran: true,
+          block: buildStepUpBlock({
+            useSimulated: true,
+            policyId: AUTHORIZE_POLICY_ID,
+            runtimeSettings,
+            useCaseId,
+            extra: { authorizeFallback },
+          }),
+        };
+      }
       if (fallback.stepUpRequired) {
         return {
           ran: true,
