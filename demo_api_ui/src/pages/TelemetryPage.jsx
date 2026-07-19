@@ -87,6 +87,24 @@ export default function TelemetryPage() {
     loadTraces();
   }, [loadGraph, loadTraces, view, selectedTraceId]);
 
+  const enableTracing = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/feature-flags', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates: { ff_tracing: true } }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      refresh();
+    } catch (err) {
+      setError(err.message);
+    }
+  }, [refresh]);
+
   useEffect(() => {
     refresh();
   }, [refresh]);
@@ -282,8 +300,10 @@ export default function TelemetryPage() {
             <div className="telemetry-empty">
               <p>Tracing is off or Jaeger is unreachable.</p>
               <p>
-                Enable the <a href="/feature-flags">Tracing - OpenTelemetry feature flag</a> and
-                start Jaeger, then interact with the app.
+                <button onClick={enableTracing} style={{ cursor: 'pointer', padding: '0.5rem 1rem', fontSize: '1rem' }}>
+                  Enable Tracing
+                </button>
+                {' '}and start Jaeger, then interact with the app.
               </p>
             </div>
           )}
