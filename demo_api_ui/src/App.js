@@ -133,7 +133,6 @@ import MonitoringRoutes, {
   SequenceDiagramRoute,
 } from "./routes/MonitoringRoutes";
 import PublicRoutes, {
-  AgentPageRoute,
   AuthzTestPageRoute,
   CodeExplorerPageRoute,
   CodeSearchPageRoute,
@@ -738,10 +737,6 @@ function AppWithAuth() {
                 {/* /login is not a real route — redirect to home so stale links or misdirected post-logout URIs land cleanly */}
                 <Route path="/login" element={<Navigate to="/" replace />} />
                 <Route path="/logout" element={<LogoutPage />} />
-                <Route
-                  path="/agent"
-                  element={<AgentPageRoute user={user} logout={logout} />}
-                />
                 <Route
                   path="/copilot"
                   element={<CopilotPageRoute user={user} logout={logout} />}
