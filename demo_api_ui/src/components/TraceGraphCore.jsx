@@ -9,7 +9,7 @@ import { renderTraceGraph } from "../services/traceGraphRender";
  * generalized model. Shared by /tracing's Graph tab (TraceGraphView, one
  * trace) and /telemetry (TelemetryPage, one trace or the whole system).
  */
-export default function TraceGraphCore({ rawUrl }) {
+export default function TraceGraphCore({ rawUrl, refreshKey }) {
   const hostRef = useRef(null);
   const [raw, setRaw] = useState(null);
   const [error, setError] = useState(null);
@@ -33,7 +33,7 @@ export default function TraceGraphCore({ rawUrl }) {
       }
     })();
     return () => { live = false; };
-  }, [rawUrl]);
+  }, [rawUrl, refreshKey]);
 
   useEffect(() => {
     if (!raw || !hostRef.current) return undefined;

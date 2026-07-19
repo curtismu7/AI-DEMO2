@@ -8,8 +8,9 @@
  * aggregation, and cluster collapse are kept. Cluster grouping now comes from
  * SERVICE_CLUSTERS below instead of the deleted per-agent config.
  *
- * Consumes the raw Jaeger response `{ data: [trace] }` (as returned by
- * `/traces/:id/raw`) and produces:
+ * Consumes the raw Jaeger response `{ data: [trace, ...] }` — one trace (as
+ * returned by `/traces/:id/raw`) or many (as returned by `/overview/raw`,
+ * merged into a single graph) — and produces:
  *   buildGraph(jaegerResponse, opts)          → { nodes, edges, totalDurationMs, traceId, isCollapsed: false }
  *   buildCollapsedGraph(jaegerResponse, opts)  → same shape, isCollapsed: true
  */

@@ -4,7 +4,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import TelemetryPage from "../TelemetryPage";
 
 vi.mock("../../components/TraceGraphCore", () => ({
-  default: ({ rawUrl }) => <div data-testid="graph-core">{rawUrl}</div>,
+  default: ({ rawUrl, refreshKey }) => (
+    <div data-testid="graph-core" data-refresh-key={refreshKey}>{rawUrl}</div>
+  ),
 }));
 
 const TRACES = {
@@ -88,5 +90,24 @@ describe("TelemetryPage", () => {
     });
     expect(global.fetch.mock.calls.length).toBe(callsAfterSwitch); // no more polling once in Detailed
     vi.useRealTimers();
+  });
+
+  it("Overview's graph refreshKey bumps on the 5s auto-refresh and on manual Refresh", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    stubFetch();
+    render(<TelemetryPage />);
+    await waitFor(() => expect(screen.getByTestId("graph-core")).toBeInTheDocument());
+    expect(screen.getByTestId("graph-core")).toHaveAttribute("data-refresh-key", "0");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(screen.getByTestId("graph-core")).toHaveAttribute("data-refresh-key", "1");
+
+    vi.useRealTimers();
+    await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    await waitFor(() =>
+      expect(screen.getByTestId("graph-core")).toHaveAttribute("data-refresh-key", "2"),
+    );
   });
 });

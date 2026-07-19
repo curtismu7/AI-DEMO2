@@ -222,4 +222,25 @@ describe("traceGraph model — multi-trace overview", () => {
     expect(collapsed.edges).toHaveLength(1);
     expect(collapsed.edges[0].callCount).toBe(5);
   });
+
+  // The synthetic fixtures above prove the merge algebra; this proves it against
+  // real captured Jaeger shapes — the two already-committed single-trace
+  // fixtures combined into one payload, structurally identical to what
+  // /overview/raw actually returns (many real traces, one response).
+  test("a real multi-trace overview (both committed fixtures combined) yields nodes from every service in both traces", () => {
+    const overview = { data: [agentFixture.data[0], chipFixture.data[0]] };
+    const g = buildGraph(overview, {});
+    const nodeIds = new Set(g.nodes.map((n) => n.id));
+    const agentServices = new Set(
+      Object.values(agentFixture.data[0].processes).map((p) => p.serviceName),
+    );
+    const chipServices = new Set(
+      Object.values(chipFixture.data[0].processes).map((p) => p.serviceName),
+    );
+    // agent-service (from trace-agent-run.json) plus demo-api-server,
+    // mcp-gateway, mcp-server, authz-server (from trace-chip-run.json).
+    for (const svc of [...agentServices, ...chipServices]) {
+      expect(nodeIds.has(svc)).toBe(true);
+    }
+  });
 });

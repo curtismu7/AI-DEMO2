@@ -33,6 +33,7 @@ export default function TelemetryPage() {
   const [selectedTraceId, setSelectedTraceId] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [tracesError, setTracesError] = useState(null);
+  const [overviewRefreshKey, setOverviewRefreshKey] = useState(0);
 
   const loadTraces = useCallback(async () => {
     try {
@@ -47,6 +48,11 @@ export default function TelemetryPage() {
     }
   }, [lookback]);
 
+  const refreshAll = useCallback(() => {
+    loadTraces();
+    setOverviewRefreshKey((k) => k + 1);
+  }, [loadTraces]);
+
   useEffect(() => {
     loadTraces();
   }, [loadTraces]);
@@ -54,10 +60,10 @@ export default function TelemetryPage() {
   useEffect(() => {
     if (mode !== "overview") return undefined;
     const id = setInterval(() => {
-      if (!document.hidden) loadTraces();
+      if (!document.hidden) refreshAll();
     }, REFRESH_MS);
     return () => clearInterval(id);
-  }, [mode, loadTraces]);
+  }, [mode, refreshAll]);
 
   const overviewUrl = `/api/health/tracing/overview/raw?lookback=${encodeURIComponent(lookback)}`;
   const detailedUrl = selectedTraceId ? `/api/health/tracing/traces/${selectedTraceId}/raw` : null;
@@ -76,7 +82,7 @@ export default function TelemetryPage() {
           {lastUpdated && (
             <span className="telemetry-meta">Updated {lastUpdated.toLocaleTimeString()}</span>
           )}
-          <button type="button" className="telemetry-btn" onClick={loadTraces}>Refresh</button>
+          <button type="button" className="telemetry-btn" onClick={refreshAll}>Refresh</button>
         </div>
       </header>
 
@@ -113,7 +119,7 @@ export default function TelemetryPage() {
               </select>
             </label>
           </div>
-          <TraceGraphCore rawUrl={overviewUrl} />
+          <TraceGraphCore rawUrl={overviewUrl} refreshKey={overviewRefreshKey} />
         </>
       )}
 
