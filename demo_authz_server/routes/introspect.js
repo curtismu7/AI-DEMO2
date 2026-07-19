@@ -43,14 +43,35 @@ function otherMethod(method) {
   return method === 'post' ? 'basic' : 'post';
 }
 
-function buildIntrospectionRequest(token, method) {
+// RFC 7662: PingOne only affirms tokens issued to the authenticating client.
+// The chained A2A exchange mints its final token under the SPECIALIST's client
+// (a2aDelegationService exchange #2), so introspecting it with the default
+// credentials always returns active:false. Select the credentials that own the
+// token: decode its client_id (unverified — PingOne itself is the verifier
+// here) and find the env entry whose *CLIENT_ID value matches and has a
+// sibling *CLIENT_SECRET (the A2A specialist creds arrive via env_file).
+function resolveIntrospectionCreds(token) {
+  const decoded = jwt.decode(token);
+  const clientId = decoded && (decoded.client_id || decoded.azp);
+  if (clientId && clientId !== UPSTREAM_CLIENT_ID) {
+    for (const [key, value] of Object.entries(process.env)) {
+      if (!key.endsWith('CLIENT_ID') || value !== clientId) continue;
+      const secret = process.env[key.replace(/CLIENT_ID$/, 'CLIENT_SECRET')];
+      if (secret) return { id: clientId, secret };
+    }
+  }
+  return { id: UPSTREAM_CLIENT_ID, secret: UPSTREAM_CLIENT_SECRET };
+}
+
+function buildIntrospectionRequest(token, method, creds) {
+  const { id, secret } = creds || resolveIntrospectionCreds(token);
   const params = new URLSearchParams({ token, token_type_hint: 'access_token' });
   const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
   if (method === 'post') {
-    params.set('client_id', UPSTREAM_CLIENT_ID);
-    params.set('client_secret', UPSTREAM_CLIENT_SECRET);
+    params.set('client_id', id);
+    params.set('client_secret', secret);
   } else {
-    headers.Authorization = `Basic ${Buffer.from(`${UPSTREAM_CLIENT_ID}:${UPSTREAM_CLIENT_SECRET}`).toString('base64')}`;
+    headers.Authorization = `Basic ${Buffer.from(`${id}:${secret}`).toString('base64')}`;
   }
   return { params, headers };
 }

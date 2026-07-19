@@ -101,6 +101,54 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-18 — A2A delegation part 2: three more stacked causes behind get_portfolio_summary mcp_error
+
+**Files changed:** `docker-compose.yml` (mcp-gateway `MCP_GW_RESOURCE_URI` tri-list),
+`demo_authz_server/routes/introspect.js` (+`introspect.clientcreds.test.js`),
+`demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts` (per-tool exchange),
+`demo_mcp_gateway/src/server/GatewayServer.ts` (HTTP-ingress invest WS routing),
+`demo_mcp_gateway/tests/authorizeMcpRequest-exchange.test.ts` (contract update),
+new `demo_api_ui/tests/e2e/a2a-steps-check.real.spec.js`.
+
+**What was broken:** after the #610 routing pin, the A2A specialist call still
+failed at three successive hops. (1) The Node gateway's own container env had a
+single-value `MCP_GW_RESOURCE_URI` — the tri-list comment lived on
+demo-api-server/authz-server but was never wired onto the gateway service, so
+the dedicated A2A audience 401'd ("Audience mismatch"). (2) With upstream
+(real PingOne) introspection, the authz-server introspected every token with
+the default exchanger credentials; RFC 7662 only affirms a client's OWN
+tokens, so the specialist-minted A2A token always came back `active:false`
+("Token is revoked or no longer active"). (3) The gateway's HTTP ingress
+exchanged every tool for the OLB audience and forwarded to mcp-server — which
+does not serve invest tools — so `get_portfolio_summary` died with
+mcp-server's "Invalid or expired token" (its act-chain validator rejects
+depth-2 chains, and the tool doesn't exist there anyway). Invest tools only
+routed correctly on the WS ingress.
+
+**What was fixed:** compose now sets the tri-list on the mcp-gateway service
+itself (environment: beats the env_file single value); the authz introspect
+route selects introspection credentials by the token's `client_id` claim
+(matching `*CLIENT_ID`/`*CLIENT_SECRET` env pair, fallback to configured
+default); the HTTP-ingress middleware exchanges per tool
+(`exchangeClient.exchange(token, toolName)`), and `forwardToUpstream` proxies
+invest-routed tools over WS to mcp-invest exactly like the WS ingress.
+
+**Do not break:** non-invest HTTP-ingress traffic still exchanges to OLB and
+forwards to mcp-server unchanged; default-client tokens still introspect with
+the configured credentials; mcp-gateway and authz-server have NO src mounts —
+these fixes require an image rebuild to take effect (a `restart` serves the
+old code). The offline use-case trigger audit reports UC2/UC2.5 as unmatched
+when run cold — that is the un-awaited configStore default (`ff_a2a_delegation`
+off), not a routing regression.
+
+**Verify:** `cd demo_mcp_gateway && npx tsc --noEmit && npx jest
+tests/authorizeMcpRequest-exchange.test.ts` (3 pass); `cd demo_authz_server &&
+node --test introspect.clientcreds.test.js` (3 pass); live:
+`npx playwright test tests/e2e/a2a-steps-check.real.spec.js
+--config=playwright.real.config.js` from demo_api_ui → reply "Delegation
+complete — Investment Advisor retrieved get portfolio summary on your behalf
+(act-chain depth 2)".
+
 ### 2026-07-18 — A2A delegation (UC2/UC2.5, demo steps 7–8) 401'd on the PingGateway path
 
 **Files changed:** `demo_api_server/services/mcpGatewayClient.js` (A2A-audience
