@@ -1095,7 +1095,6 @@ class ConfigStore {
       debug_oauth:                      ['DEBUG_OAUTH'],
       ciba_enabled:           ['CIBA_ENABLED'],
       step_up_method:         ['STEP_UP_METHOD'],
-      hitl_consent_mfa_mode:  ['HITL_CONSENT_MFA_MODE'],
       step_up_amount_threshold: ['STEP_UP_AMOUNT_THRESHOLD'],
       confirm_threshold_usd:    ['CONFIRM_THRESHOLD_USD', 'STEP_UP_AMOUNT_THRESHOLD'],
       mfa_threshold_usd:        ['MFA_THRESHOLD_USD'],
