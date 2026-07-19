@@ -11,26 +11,33 @@ const { emitHop } = require('../services/transactionHop');
 const configStore = require('../services/configStore');
 
 /**
- * Resolves the acting principal's identity from whichever request shape is
- * actually populated, checked in order:
+ * Resolves the acting principal's identity.
  *
- *  1. `req.user?.id` / `req.user?.sub` — set by `authenticateToken`
- *     (middleware/auth.js), present on authenticated routes such as the
- *     transaction-trace read side. `id` and `sub` are both the PingOne
- *     `sub` claim (see auth.js: `req.user = { id: decoded.sub, sub:
- *     decoded.sub, ... }`), so either suffices.
- *  2. `req.session?.user?.id` — the BFF session-user shape stored at
- *     login (`{id, username, email, firstName, lastName, role}`, see
- *     routes/auth.js `req.session.user = user`). It has NO `sub` field.
- *     This is the only identity available on `/api/demo-agent`, which has
- *     no `authenticateToken` ahead of this middleware.
+ * ORDER MATTERS, and the session comes FIRST. These are two different
+ * identity spaces, and picking the wrong one per-route silently breaks
+ * ownership:
+ *
+ *  1. `req.session?.user?.id` — the BFF session-user shape stored at login
+ *     (`{id, username, email, firstName, lastName, role}` — note it has NO
+ *     `sub`). This is an app-internal id such as `"5"`.
+ *  2. `req.user?.id` / `req.user?.sub` — set by `authenticateToken`
+ *     (middleware/auth.js sets `{ id: decoded.sub, sub: decoded.sub, ... }`),
+ *     so both are the PingOne `sub` claim — a UUID, NOT the same value as (1).
+ *
+ * The write path (`/api/demo-agent`) has no `authenticateToken`, so only the
+ * session is available there. The read path (`/api/transaction-trace`) has
+ * both. Preferring `req.user` would therefore store the session id on write
+ * and compare a PingOne UUID on read — they never match, every record looks
+ * like someone else's, and the feature goes invisible to every non-admin.
+ * That was a real, live defect; the session is checked first because it is
+ * the one source present on BOTH paths.
  *
  * Returns `null` (never `undefined`, never the string `"undefined"`) when
  * neither source carries an identity, so an unresolved principal can never
  * be mistaken for an attributable one.
  */
 function resolveActingIdentity(req) {
-  const id = req.user?.id ?? req.user?.sub ?? req.session?.user?.id ?? null;
+  const id = req.session?.user?.id ?? req.user?.id ?? req.user?.sub ?? null;
   return id == null ? null : String(id);
 }
 

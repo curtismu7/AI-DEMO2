@@ -49,7 +49,12 @@ router.get('/', (req, res) => {
     // none) of their own transactions while their records sit just outside
     // the pre-filter page, with nothing signalling the truncation.
     const listOpts = { limit: Number.isFinite(parsed) ? parsed : undefined };
-    if (!isAdmin) listOpts.principal = req.user?.id;
+    // MUST go through resolveActingIdentity, exactly like the detail route's
+    // _isOwnRecord — reading req.user?.id directly here compares the PingOne
+    // `sub` (a UUID) against records whose principal was stored from the
+    // session id (e.g. "5"), so a non-admin's own transactions never match
+    // and the list comes back empty. That was a real, live defect.
+    if (!isAdmin) listOpts.principal = resolveActingIdentity(req);
     const transactions = ledger.listRecords(listOpts);
     return res.json({ transactions });
   } catch (err) {

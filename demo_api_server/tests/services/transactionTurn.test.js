@@ -36,12 +36,19 @@ describe('resolveActingIdentity', () => {
     expect(resolveActingIdentity(req)).toBe('abc-123');
   });
 
-  test('prefers req.user over req.session.user when both are present', () => {
+  // Regression guard for a real, live defect. The write path (/api/demo-agent)
+  // has no authenticateToken, so only the session is available there; the read
+  // path has both. req.user.id is the PingOne `sub` (a UUID) while
+  // session.user.id is an app-internal id like "5" — two different identity
+  // spaces. Preferring req.user stored the session id on write and compared a
+  // UUID on read, so nothing ever matched and the feature was invisible to
+  // every non-admin. The session wins because it is present on BOTH paths.
+  test('prefers req.session.user over req.user so write and read resolve the SAME identity', () => {
     const req = {
-      user: { id: 'from-req-user' },
+      user: { id: 'pingone-sub-uuid' },
       session: { user: { id: 'from-session' } },
     };
-    expect(resolveActingIdentity(req)).toBe('from-req-user');
+    expect(resolveActingIdentity(req)).toBe('from-session');
   });
 
   test('returns null (not undefined, not the string "undefined") when neither source carries an identity', () => {
