@@ -7,6 +7,7 @@ import { useTokenChainOptional } from "../context/TokenChainContext";
 import { sendAgentMessage } from "../services/demoAgentService";
 import AgentConsentModal from "./AgentConsentModal";
 import TokenChainTraceRail from "./TokenChainTraceRail";
+import { MarkdownContent } from "./shared/MarkdownText";
 
 // OAuth Academy is its own page (modeled on Code Explorer) but its agent IS the
 // real `oauth-teaching` vertical: every message is pinned to that vertical via the
@@ -47,18 +48,18 @@ const STARTER_CHIPS = [
 
 // Assistant answers may embed a real code snippet between ``` fences (the
 // oauth-teaching explain_concept tool appends app implementation examples).
-// Render fenced segments as <pre> blocks; plain segments keep their newlines
-// via the bubble's existing white-space: pre-wrap.
+// Render fenced segments as <pre> blocks; plain segments go through the same
+// markdown renderer the banking agent chat uses (bold, headings, lists, tables).
 const renderBubbleContent = (content) => {
   const text = String(content);
-  if (!text.includes("```")) return text;
+  if (!text.includes("```")) return <MarkdownContent text={text} />;
   return text.split("```").map((part, i) =>
     i % 2 === 1 ? (
       <pre className="msg-code" key={i}>
         {part.replace(/^\n/, "")}
       </pre>
     ) : (
-      part
+      <MarkdownContent key={i} text={part} />
     )
   );
 };
