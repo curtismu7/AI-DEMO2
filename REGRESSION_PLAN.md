@@ -101,6 +101,28 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-19 — Demo check page (`/check`) text unreadable — muted opacity on every label
+
+**Files changed:** `demo_api_ui/src/pages/CheckPage.css` only.
+
+**What was broken:** card titles, tab labels, step labels, row/rail detail
+text all rendered `var(--text)` at `opacity: 0.6-0.8`, washing out contrast
+against the light-theme background and making the whole page hard to read —
+violates the `§0` no-muted-text rule.
+
+**What was fixed:** removed the opacity dimming; primary text now renders
+`var(--text)` at full strength, secondary/hint text (`.card-foot .hint`,
+`.group-head .count`, `.chk-row .chev`, `.rail-item .n`) uses the
+`--text-muted` token instead of arbitrary opacity so hierarchy is preserved
+without going low-contrast.
+
+**Do not break:** no layout/JS change — only text color/opacity
+declarations in this one CSS file.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0, confirmed); live
+Vite-served bundle at `https://api.ping.demo:4000/src/pages/CheckPage.css`
+checked to contain zero `opacity: 0.6/0.7/0.8` declarations post-fix.
+
 ### 2026-07-18 — MCP Inspector page showed zero tools with no explanation when step-up wasn't verified
 
 **Files changed:** `demo_api_ui/src/components/McpInspector.js` (added
