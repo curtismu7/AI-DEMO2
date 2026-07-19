@@ -329,8 +329,17 @@ git commit -m "feat(a2a): A2A teaching section in UseCaseExplainModal (static pr
 - Test: `demo_api_ui/src/components/__tests__/AIAgent.a2aExplain.test.js`
 
 **Interfaces:**
-- Consumes: `isA2aUseCase`, `extractA2aFacts` from `../utils/a2aFacts`; `UseCaseExplainModal`.
-- Produces: a module-scope helper `shouldAutoOpenA2a(uc, response)` exported for test.
+- Consumes: nothing from `a2aFacts` (the auto-open signal is the response itself).
+- Produces: a module-scope helper `shouldAutoOpenA2a(response)` exported for test.
+
+**Design note (resolves a pre-flight inconsistency):** the auto-open predicate is
+**response-only** — it does NOT take `uc`. Only an A2A delegation ever emits an
+`a2a-exchange2` token event, so that event (plus the success reply and the
+absence of `a2a-exchange-failed`) is a sufficient and unambiguous signal. This
+matters because in the resume handler the in-scope `useCaseId` is the BFF slug,
+not the catalog `uc.id`, so a `uc`-based check could not run there. Keeping the
+helper response-only lets the inline render block **call** the helper instead of
+re-inlining a different predicate (no duplication, no uc/id mismatch).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -349,18 +358,21 @@ const failResponse = {
 };
 
 describe('shouldAutoOpenA2a', () => {
-  it('opens for an A2A use case on a successful delegation', () => {
-    expect(shouldAutoOpenA2a({ id: 'UC2' }, okResponse)).toBe(true);
-    expect(shouldAutoOpenA2a({ id: 'UC2.5' }, okResponse)).toBe(true);
+  it('opens on a successful A2A delegation (reply + a2a-exchange2, no failure)', () => {
+    expect(shouldAutoOpenA2a(okResponse)).toBe(true);
   });
   it('does not open on a failed delegation', () => {
-    expect(shouldAutoOpenA2a({ id: 'UC2' }, failResponse)).toBe(false);
+    expect(shouldAutoOpenA2a(failResponse)).toBe(false);
   });
-  it('does not open for a non-A2A use case', () => {
-    expect(shouldAutoOpenA2a({ id: 'UC7' }, okResponse)).toBe(false);
+  it('does not open for a non-A2A response (no a2a-exchange2 event)', () => {
+    expect(shouldAutoOpenA2a({ reply: 'Here are your accounts', tokenEvents: [{ id: 'mcp-tool-invoked' }] })).toBe(false);
   });
-  it('does not open when there is no a2a-exchange2 event', () => {
-    expect(shouldAutoOpenA2a({ id: 'UC2' }, { reply: 'Delegation complete', tokenEvents: [] })).toBe(false);
+  it('does not open when the reply is not a completion', () => {
+    expect(shouldAutoOpenA2a({ reply: 'Working on it', tokenEvents: [{ id: 'a2a-exchange2' }] })).toBe(false);
+  });
+  it('does not throw on a null/empty response', () => {
+    expect(shouldAutoOpenA2a(null)).toBe(false);
+    expect(shouldAutoOpenA2a({})).toBe(false);
   });
 });
 ```
@@ -372,20 +384,21 @@ Expected: FAIL — cannot resolve `../a2aAutoOpen`.
 
 - [ ] **Step 3: Write minimal implementation**
 
-3a. Create the pure helper (kept in its own module so it is importable without rendering `AIAgent`):
+3a. Create the pure helper (kept in its own module so it is importable without rendering `AIAgent`). Response-only — see the Design note above:
 
 ```javascript
 // demo_api_ui/src/components/a2aAutoOpen.js
 'use strict';
-import { isA2aUseCase } from '../utils/a2aFacts';
 
 /**
- * True when a completed demo step is an A2A use case whose delegation actually
- * succeeded — reply says "Delegation complete", an a2a-exchange2 event exists,
- * and no a2a-exchange-failed event is present.
+ * True when an agent response is a successful A2A delegation: the reply says
+ * "Delegation complete", an a2a-exchange2 token event exists, and no
+ * a2a-exchange-failed event is present. Only A2A delegations emit
+ * a2a-exchange2, so this response signal alone is sufficient — no use-case id
+ * needed. Never throws on a null/partial response.
  */
-export function shouldAutoOpenA2a(uc, response) {
-  if (!isA2aUseCase(uc) || !response) return false;
+export function shouldAutoOpenA2a(response) {
+  if (!response) return false;
   const events = Array.isArray(response.tokenEvents) ? response.tokenEvents : [];
   const hasExchange2 = events.some((e) => e && e.id === 'a2a-exchange2');
   const failed = events.some((e) => e && e.id === 'a2a-exchange-failed');
@@ -394,11 +407,10 @@ export function shouldAutoOpenA2a(uc, response) {
 }
 ```
 
-3b. In `AIAgent.js`, add the imports (with the other component/util imports near the top):
+3b. In `AIAgent.js`, add the import (with the other component imports near the top):
 
 ```javascript
 import { shouldAutoOpenA2a } from "./a2aAutoOpen";
-import { isA2aUseCase } from "../utils/a2aFacts";
 ```
 
 (`UseCaseExplainModal` is already imported via `DemoStepsDropdown`; add a direct import if not present: `import UseCaseExplainModal from "./UseCaseExplainModal";`)
@@ -410,31 +422,22 @@ import { isA2aUseCase } from "../utils/a2aFacts";
   const [a2aExplainEvents, setA2aExplainEvents] = useState([]);
 ```
 
-3d. In the `nlResumeAfterAuth` success branch (the final `else` after the approval-gate and error branches, ~line 6602), immediately after the reply `addMessage(...)` for the success case, add the block below. It uses the **response** as the signal (reply text + `a2a-exchange2` event), so no catalog `uc.id` needs to be threaded through — `useCaseId` in this scope is the BFF slug, not `uc.id`, and is not used here. It builds a minimal `uc` object for the modal from the response.
+3d. In the `nlResumeAfterAuth` success branch (the final `else` after the approval-gate and error branches, ~line 6602), immediately after the reply `addMessage(...)` for the success case, add the block below. It **calls** `shouldAutoOpenA2a(response)` — no re-inlined predicate, no `uc.id` needed. It builds a minimal `uc` object for the modal from the response.
 
 ```javascript
             // A2A teaching popup: auto-open after a successful A2A delegation,
-            // mirroring how RAR auto-explains. The response is the signal, and
-            // its own token events feed the modal's live values. Predicate must
-            // match shouldAutoOpenA2a (a2aAutoOpen.js).
-            {
-              const a2aEvents = Array.isArray(response.tokenEvents) ? response.tokenEvents : [];
-              const hasExchange2 = a2aEvents.some((e) => e && e.id === 'a2a-exchange2');
-              const failed = a2aEvents.some((e) => e && e.id === 'a2a-exchange-failed');
-              const replyOk = /Delegation complete/i.test(String(response.reply || ''));
-              if (hasExchange2 && !failed && replyOk) {
-                setA2aExplainUc({
-                  id: 'UC2',
-                  title: 'A2A delegation',
-                  whatLong: response.reply,
-                  pingOneSolution: 'PingOne mints a nested RFC 8693 act chain; Authorize decides PERMIT/DENY over the chain.',
-                });
-                setA2aExplainEvents(a2aEvents);
-              }
+            // mirroring how RAR auto-explains. The response's own token events
+            // feed the modal's live values.
+            if (shouldAutoOpenA2a(response)) {
+              setA2aExplainUc({
+                id: 'UC2',
+                title: 'A2A delegation',
+                whatLong: response.reply,
+                pingOneSolution: 'PingOne mints a nested RFC 8693 act chain; Authorize decides PERMIT/DENY over the chain.',
+              });
+              setA2aExplainEvents(Array.isArray(response.tokenEvents) ? response.tokenEvents : []);
             }
 ```
-
-> The `shouldAutoOpenA2a` helper (unit-tested in Step 1) encodes the identical predicate — `reply matches /Delegation complete/i && has a2a-exchange2 && no a2a-exchange-failed`. Keep the two in sync.
 
 3e. Render the modal near the other agent modals (~line 8960, alongside the OTP modal block):
 
