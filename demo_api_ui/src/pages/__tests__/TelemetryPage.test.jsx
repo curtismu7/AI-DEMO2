@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import TelemetryPage from "../TelemetryPage";
@@ -76,12 +76,16 @@ describe("TelemetryPage", () => {
     stubFetch();
     render(<TelemetryPage />);
     const initialCalls = global.fetch.mock.calls.length;
-    await vi.advanceTimersByTimeAsync(5000);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
     expect(global.fetch.mock.calls.length).toBeGreaterThan(initialCalls);
 
     await userEvent.click(screen.getByRole("tab", { name: "Detailed" }));
     const callsAfterSwitch = global.fetch.mock.calls.length;
-    await vi.advanceTimersByTimeAsync(10000);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10000);
+    });
     expect(global.fetch.mock.calls.length).toBe(callsAfterSwitch); // no more polling once in Detailed
     vi.useRealTimers();
   });
