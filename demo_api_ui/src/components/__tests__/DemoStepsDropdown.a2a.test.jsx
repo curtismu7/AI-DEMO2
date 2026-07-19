@@ -20,4 +20,13 @@ describe('a2aEventsForExplain', () => {
     const store = { getState: () => ({}) };
     expect(a2aEventsForExplain({ id: 'UC2' }, store)).toEqual([]);
   });
+  it('returns a2a-* events from the real store shape ({ trace: { tokenEvents } })', () => {
+    const store = { getState: () => ({ trace: { tokenEvents: [
+      { id: 'user-token' },
+      { id: 'a2a-exchange2', specialist: 'Investment Advisor' },
+    ] } }) };
+    const out = a2aEventsForExplain({ id: 'UC2' }, store);
+    expect(out.some((e) => e.id === 'a2a-exchange2')).toBe(true);
+    expect(out.some((e) => e.id === 'user-token')).toBe(false);
+  });
 });
