@@ -320,4 +320,70 @@ router.get('/graph', async (req, res) => {
   }
 });
 
+const { project } = require('../services/traceProjector');
+
+const TRACE_ID_RE = /^[0-9a-f]{16,32}$/i;
+const INGEST_RETRY_DELAYS_MS = [500, 1000, 1500];
+
+/** Fetch a trace, retrying 404s to absorb Jaeger ingest lag (2–5s typical). */
+async function fetchTraceWithRetry(base, id, delays) {
+  for (let attempt = 0; attempt <= delays.length; attempt++) {
+    try {
+      const resp = await axios.get(`${base}/api/traces/${id}`, { timeout: 10000 });
+      return { ok: true, data: resp.data };
+    } catch (err) {
+      if (err.response?.status === 404 && attempt < delays.length) {
+        await new Promise((r) => setTimeout(r, delays[attempt]));
+        continue;
+      }
+      if (err.response?.status === 404) return { ok: false, status: 404 };
+      return { ok: false, status: 502, message: err.message };
+    }
+  }
+  return { ok: false, status: 404 };
+}
+
+/** GET /traces/:id/projected — curated business-step projection (Steps tab). */
+router.get('/traces/:id/projected', async (req, res) => {
+  const id = String(req.params.id || '');
+  if (!TRACE_ID_RE.test(id)) {
+    return res.status(400).json({ error: 'invalid_trace_id', message: 'Trace id must be 16-32 hex characters.' });
+  }
+  const base = await resolveJaegerBase();
+  if (!base) {
+    return res.status(503).json({ error: 'jaeger_unreachable', message: 'Jaeger query API is not reachable.' });
+  }
+  // retryDelaysMs=0 collapses the retry waits (tests); production callers omit it.
+  const delays = req.query.retryDelaysMs === '0'
+    ? INGEST_RETRY_DELAYS_MS.map(() => 0)
+    : INGEST_RETRY_DELAYS_MS;
+  const result = await fetchTraceWithRetry(base, id, delays);
+  if (!result.ok) {
+    if (result.status === 404) return res.status(404).json({ error: 'trace_not_found', message: 'Trace not found.' });
+    return res.status(502).json({ error: 'jaeger_query_failed', message: result.message || 'Jaeger trace query failed' });
+  }
+  return res.json(project(result.data));
+});
+
+/** GET /traces/:id/raw — unmodified Jaeger trace payload (Graph tab). */
+router.get('/traces/:id/raw', async (req, res) => {
+  const id = String(req.params.id || '');
+  if (!TRACE_ID_RE.test(id)) {
+    return res.status(400).json({ error: 'invalid_trace_id', message: 'Trace id must be 16-32 hex characters.' });
+  }
+  const base = await resolveJaegerBase();
+  if (!base) {
+    return res.status(503).json({ error: 'jaeger_unreachable', message: 'Jaeger query API is not reachable.' });
+  }
+  try {
+    const resp = await axios.get(`${base}/api/traces/${id}`, { timeout: 10000 });
+    return res.json(resp.data);
+  } catch (err) {
+    if (err.response?.status === 404) {
+      return res.status(404).json({ error: 'trace_not_found', message: 'Trace not found.' });
+    }
+    return res.status(502).json({ error: 'jaeger_query_failed', message: err.message || 'Jaeger trace query failed' });
+  }
+});
+
 module.exports = router;
