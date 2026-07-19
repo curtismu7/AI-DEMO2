@@ -23,6 +23,8 @@ vi.mock('../context/AgentUiModeContext', () => ({
 const mockStore = vi.hoisted(() => ({
   beginTrace: vi.fn(),
   ingestTokenEvents: vi.fn(),
+  ingestTokenEvent: vi.fn(),
+  ingestAuthorize: vi.fn(),
   completeTrace: vi.fn(),
   getState: vi.fn(() => ({ trace: { tokenEvents: [], phases: [] }, steps: [] })),
   subscribe: vi.fn(() => () => {}),
@@ -117,13 +119,21 @@ describe('LiveUseCaseWorkbenchPage', () => {
     });
   });
 
-  it('running an attack use case posts the sim and ingests real tokenChainEvents into the shared store', async () => {
+  it('running an attack use case posts the sim, remaps its events onto the rail\'s pipeline ids, and surfaces the real Authorize decision', async () => {
     const ATTACK_UC = { id: 'UC5', useCaseId: 'insufficient-scope', track: 'attacks',
       title: 'Wrong / insufficient scope', trigger: { type: 'attack', sim: 'insufficient-scope' },
       expectedOutcome: 'DENY_403', maturity: 'works' };
     apiClient.get.mockResolvedValue({ data: { useCases: [ATTACK_UC] } });
     apiClient.post.mockResolvedValue({
-      data: { sim: 'insufficient-scope', useCaseId: 'insufficient-scope', status: 403, tokenChainEvents: [{ id: 'sim-gateway-deny', status: 'failed' }] },
+      data: {
+        sim: 'insufficient-scope', useCaseId: 'insufficient-scope', status: 403,
+        tokenChainEvents: [
+          { id: 'user-token', status: 'active', claims: { sub: 'user-1' } },
+          { id: 'sim-exchange-ok', status: 'active', claims: { sub: 'user-1', aud: 'gw' } },
+          { id: 'sim-gateway-deny', status: 'error', error: 'insufficient_scope', httpStatus: 403 },
+        ],
+        authorize: { engine: 'PingOne Authorize', decision: 'DENY', outcome: 'DENY', decisionId: 'dec-1' },
+      },
     });
 
     renderPage();
@@ -134,7 +144,23 @@ describe('LiveUseCaseWorkbenchPage', () => {
       expect(apiClient.post).toHaveBeenCalledWith('/api/demo/attack-sim/run', { sim: 'insufficient-scope' });
     });
     expect(mockStore.beginTrace).toHaveBeenCalled();
-    expect(mockStore.ingestTokenEvents).toHaveBeenCalledWith([{ id: 'sim-gateway-deny', status: 'failed' }]);
+    // sim-exchange-ok is the one id simTraceAdapter remaps to the rail's
+    // recognized "exchanged-token" step — this is what makes the exchange
+    // step's real request/response JSON appear instead of a bare dot.
+    expect(mockStore.ingestTokenEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'exchanged-token', claims: { sub: 'user-1', aud: 'gw' } }),
+    );
+    // user-token and sim-gateway-deny have no rail-recognized remap, so they
+    // pass through unchanged (buildSimRailEvents only rewrites known ids).
+    expect(mockStore.ingestTokenEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'user-token' }),
+    );
+    expect(mockStore.ingestTokenEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'sim-gateway-deny' }),
+    );
+    expect(mockStore.ingestAuthorize).toHaveBeenCalledWith(
+      expect.objectContaining({ decision: 'DENY', outcome: 'DENY' }),
+    );
     expect(mockStore.completeTrace).toHaveBeenCalledWith(false);
   });
 });
