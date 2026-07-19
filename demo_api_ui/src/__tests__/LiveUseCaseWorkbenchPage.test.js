@@ -78,4 +78,28 @@ describe('LiveUseCaseWorkbenchPage', () => {
       .find((arg) => arg instanceof HTMLElement);
     expect(registeredEl).toBeInstanceOf(HTMLElement);
   });
+
+  it('running a chip use case posts, switches vertical, and fires the real agent via banking-agent-prefill', async () => {
+    apiClient.post.mockImplementation((url) => {
+      if (url === '/api/use-cases/demo/run') {
+        return Promise.resolve({ data: { useCaseId: 'delegated-access-with-proof', triggerText: 'show my balance', type: 'chip', vertical: 'banking' } });
+      }
+      if (url === '/api/verticals/active') return Promise.resolve({ data: {} });
+      return Promise.reject(new Error(`unexpected POST ${url}`));
+    });
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+    renderPage();
+    await waitFor(() => screen.getByText(/Delegated access with proof/));
+    screen.getByText(/Delegated access with proof/).closest('button').click();
+
+    await waitFor(() => {
+      expect(apiClient.post).toHaveBeenCalledWith('/api/use-cases/demo/run', { useCaseId: 'delegated-access-with-proof', vertical: 'banking' });
+    });
+    expect(apiClient.post).toHaveBeenCalledWith('/api/verticals/active', { id: 'banking' });
+    await waitFor(() => {
+      const fired = dispatchSpy.mock.calls.some(([e]) => e.type === 'banking-agent-prefill' && e.detail?.message === 'show my balance' && e.detail?.autoSend === true);
+      expect(fired).toBe(true);
+    });
+  });
 });

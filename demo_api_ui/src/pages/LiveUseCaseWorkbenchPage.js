@@ -36,6 +36,7 @@ export default function LiveUseCaseWorkbenchPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [query, setQuery] = useState('');
+  const [runState, setRunState] = useState(null); // { id, state: 'running'|'error', msg? }
 
   const { setSurfaceHostEl } = useAgentUiMode();
   const [agentHostEl, setAgentHostEl] = useState(null);
@@ -62,6 +63,22 @@ export default function LiveUseCaseWorkbenchPage() {
         setLoading(false);
       });
     return () => { cancelled = true; };
+  }, [vertical]);
+
+  const handleRunChip = useCallback((uc) => {
+    const useCaseId = uc.useCaseId;
+    setRunState({ id: uc.id, state: 'running' });
+    apiClient.post('/api/use-cases/demo/run', { useCaseId, vertical })
+      .then(({ data }) => apiClient.post('/api/verticals/active', { id: vertical }).then(() => data))
+      .then((data) => {
+        setRunState(null);
+        window.dispatchEvent(new CustomEvent('banking-agent-prefill', {
+          detail: { message: data.triggerText, autoSend: true },
+        }));
+      })
+      .catch((err) => {
+        setRunState({ id: uc.id, state: 'error', msg: err.message || 'Failed to launch scenario' });
+      });
   }, [vertical]);
 
   const grouped = useMemo(
@@ -91,6 +108,9 @@ export default function LiveUseCaseWorkbenchPage() {
               autoComplete="off"
             />
           </div>
+          {runState?.state === 'error' && (
+            <p className="luw-drawer__empty">{runState.msg}</p>
+          )}
           <div className="luw-drawer__scroll">
             {loading && <p className="luw-drawer__empty">Loading…</p>}
             {error && <p className="luw-drawer__empty">{error}</p>}
@@ -104,7 +124,13 @@ export default function LiveUseCaseWorkbenchPage() {
                   <span className="luw-track__count">{items.length}</span>
                 </summary>
                 {items.map((uc) => (
-                  <div key={uc.id} className="luw-row">
+                  <button
+                    key={uc.id}
+                    type="button"
+                    className="luw-row"
+                    disabled={uc.trigger?.type !== 'chip' || runState?.state === 'running'}
+                    onClick={() => handleRunChip(uc)}
+                  >
                     <span className="luw-row__main">
                       <span className="luw-row__title">{uc.id} — {uc.title}</span>
                       <span className="luw-row__trigger">{triggerLabel(uc.trigger)}</span>
@@ -112,7 +138,7 @@ export default function LiveUseCaseWorkbenchPage() {
                     <span className={`luw-pill luw-pill--${(uc.expectedOutcome || '').toLowerCase()}`}>
                       {uc.expectedOutcome}
                     </span>
-                  </div>
+                  </button>
                 ))}
               </details>
             ))}
