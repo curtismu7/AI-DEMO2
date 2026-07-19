@@ -233,6 +233,11 @@ function resolveAmountForPolicy(tool, toolParams, verticalId, userId) {
   }
 }
 
+// UC22's demo slug always drives CIBA step-up, regardless of the global
+// step_up_method override — mirrors transactionAuthorizationService's
+// CIBA_DEMO_USE_CASE_ID so the two gates cannot disagree.
+const CIBA_DEMO_USE_CASE_ID = 'ciba-out-of-band-approval';
+
 /**
  * Which step-up method the client should drive, echoed on every 428 step-up body.
  *
@@ -242,9 +247,11 @@ function resolveAmountForPolicy(tool, toolParams, verticalId, userId) {
  * chosen. Same resolution order as transactionAuthorizationService so the agent
  * and direct transaction paths cannot disagree.
  *
+ * @param {string|null} [useCaseId] - resolveActiveUseCaseId(req) result, if known
  * @returns {string} 'p1mfa' | 'email' | 'ciba'
  */
-function resolveStepUpMethod() {
+function resolveStepUpMethod(useCaseId) {
+  if (useCaseId === CIBA_DEMO_USE_CASE_ID) return 'ciba';
   return (
     configStore.getEffective('step_up_method') ||
     runtimeSettings.get('stepUpMethod') ||
@@ -665,7 +672,7 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
             // Drives the agent step-up modal: only 'p1mfa' makes it show the
             // device picker (SMS / email / passkey). Omitting the field left it
             // undefined, so every agent step-up fell back to stub OTP-only.
-            step_up_method: resolveStepUpMethod(),
+            step_up_method: resolveStepUpMethod(useCaseId),
             ...autoDisabled,
           },
         },
@@ -743,7 +750,7 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
               // Drives the agent step-up modal: only 'p1mfa' makes it show the
               // device picker (SMS / email / passkey). Omitting the field left it
               // undefined, so every agent step-up fell back to stub OTP-only.
-              step_up_method: resolveStepUpMethod(),
+              step_up_method: resolveStepUpMethod(useCaseId),
             },
           },
         };
@@ -920,7 +927,7 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
             // Drives the agent step-up modal: only 'p1mfa' makes it show the
             // device picker (SMS / email / passkey). Omitting the field left it
             // undefined, so every agent step-up fell back to stub OTP-only.
-            step_up_method: resolveStepUpMethod(),
+            step_up_method: resolveStepUpMethod(useCaseId),
             authorizeFallback,
           } } };
         }

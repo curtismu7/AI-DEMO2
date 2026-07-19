@@ -469,6 +469,43 @@ describe('mcpToolAuthorizationService', () => {
       expect(r.block.body.step_up_method).toBe('p1mfa');
     });
 
+    // UC22's demo slug (req.body.useCaseId) must force step_up_method: 'ciba'
+    // even when the global step_up_method config says 'p1mfa' -- this gate is
+    // the one the live banking-agent chat path actually calls (mcpToolPipeline.js),
+    // so without this override UC22 showed the P1MFA device picker instead of
+    // the CIBA out-of-band flow, though transactionAuthorizationService (a
+    // different, unrelated gate) already had its own CIBA override.
+    it('overrides step_up_method to ciba for the UC22 demo use-case, ignoring the global config', async () => {
+      configStore.get.mockImplementation((k) => {
+        if (k === 'ff_authorize_mcp_first_tool') return 'true';
+        if (k === 'ff_authorize_fail_open') return 'false';
+        if (k === 'authorize_mcp_decision_endpoint_id') return 'mcp-endpoint-uuid';
+        if (k === 'PINGONE_RESOURCE_MCP_SERVER_URI') return 'https://mcp';
+        return null;
+      });
+      configStore.getEffective = jest.fn((k) => (k === 'step_up_method' ? 'p1mfa' : null));
+      simulatedAuthorizeService.isSimulatedModeEnabled.mockReturnValue(false);
+      pingOneAuthorizeService.isMcpDelegationDecisionReady.mockReturnValue(true);
+      pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({
+        decision: 'INDETERMINATE',
+        stepUpRequired: true,
+        path: 'decision-endpoint',
+        decisionId: 'p1-ciba-stepup',
+        raw: {},
+      });
+
+      const r = await evaluateMcpFirstToolGate({
+        req: { session: { user: { role: 'user' } }, body: { useCaseId: 'ciba-out-of-band-approval' } },
+        tool: 'create_transfer',
+        agentToken: jwtWithPayload({ sub: 'sub-99', aud: 'https://mcp' }),
+        userSub: 'sub-99',
+      });
+
+      expect(r.block.status).toBe(428);
+      expect(r.block.body.error).toBe('mcp_step_up_required');
+      expect(r.block.body.step_up_method).toBe('ciba');
+    });
+
     it('returns 428 HITL block when PingOne live requires human approval', async () => {
       configStore.get.mockImplementation((k) => {
         if (k === 'ff_authorize_mcp_first_tool') return 'true';
