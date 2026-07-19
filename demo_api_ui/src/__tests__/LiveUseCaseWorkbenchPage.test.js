@@ -17,6 +17,20 @@ const mockSetSurfaceHostEl = vi.fn();
 vi.mock('../context/AgentUiModeContext', () => ({
   useAgentUiMode: () => ({ placement: 'middle', setSurfaceHostEl: mockSetSurfaceHostEl }),
 }));
+// TokenChainTraceRail (already rendered by the page since Task 4) also calls
+// getState/subscribe/reset on this store, so the mock must stub those too or
+// the rail crashes on mount for every test in this file, not just the new one.
+const mockStore = vi.hoisted(() => ({
+  beginTrace: vi.fn(),
+  ingestTokenEvents: vi.fn(),
+  completeTrace: vi.fn(),
+  getState: vi.fn(() => ({ trace: { tokenEvents: [], phases: [] }, steps: [] })),
+  subscribe: vi.fn(() => () => {}),
+  reset: vi.fn(),
+}));
+vi.mock('../services/tokenChainTrace/tokenChainTraceStore', () => ({
+  tokenChainTraceStore: mockStore,
+}));
 
 import apiClient from '../services/apiClient';
 
@@ -101,5 +115,26 @@ describe('LiveUseCaseWorkbenchPage', () => {
       const fired = dispatchSpy.mock.calls.some(([e]) => e.type === 'banking-agent-prefill' && e.detail?.message === 'show my balance' && e.detail?.autoSend === true);
       expect(fired).toBe(true);
     });
+  });
+
+  it('running an attack use case posts the sim and ingests real tokenChainEvents into the shared store', async () => {
+    const ATTACK_UC = { id: 'UC5', useCaseId: 'insufficient-scope', track: 'attacks',
+      title: 'Wrong / insufficient scope', trigger: { type: 'attack', sim: 'insufficient-scope' },
+      expectedOutcome: 'DENY_403', maturity: 'works' };
+    apiClient.get.mockResolvedValue({ data: { useCases: [ATTACK_UC] } });
+    apiClient.post.mockResolvedValue({
+      data: { sim: 'insufficient-scope', useCaseId: 'insufficient-scope', status: 403, tokenChainEvents: [{ id: 'sim-gateway-deny', status: 'failed' }] },
+    });
+
+    renderPage();
+    await waitFor(() => screen.getByText(/Wrong \/ insufficient scope/));
+    screen.getByText(/Wrong \/ insufficient scope/).closest('button').click();
+
+    await waitFor(() => {
+      expect(apiClient.post).toHaveBeenCalledWith('/api/demo/attack-sim/run', { sim: 'insufficient-scope' });
+    });
+    expect(mockStore.beginTrace).toHaveBeenCalled();
+    expect(mockStore.ingestTokenEvents).toHaveBeenCalledWith([{ id: 'sim-gateway-deny', status: 'failed' }]);
+    expect(mockStore.completeTrace).toHaveBeenCalledWith(false);
   });
 });

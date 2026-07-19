@@ -9,7 +9,14 @@ import { useVertical } from '../vertical/useVertical';
 import VerticalSwitcher from '../components/VerticalSwitcher';
 import { useAgentUiMode } from '../context/AgentUiModeContext';
 import TokenChainTraceRail from '../components/TokenChainTraceRail';
+import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import './LiveUseCaseWorkbenchPage.css';
+
+const RUNNABLE_SIMS = [
+  'insufficient-scope', 'wrong-aud', 'cross-owner-account', 'replayed-token',
+  'rogue-actor', 'rar-exceeded', 'tampered-intent-token', 'impersonation-no-act',
+  'rate-limit-burst',
+];
 
 const TRACK_ORDER = ['foundations', 'controls', 'hitl', 'attacks'];
 const TRACK_LABELS = {
@@ -81,6 +88,20 @@ export default function LiveUseCaseWorkbenchPage() {
       });
   }, [vertical]);
 
+  const handleRunAttack = useCallback((uc) => {
+    setRunState({ id: uc.id, state: 'running' });
+    tokenChainTraceStore.beginTrace({ prompt: `attack sim: ${uc.trigger.sim}` });
+    apiClient.post('/api/demo/attack-sim/run', { sim: uc.trigger.sim })
+      .then(({ data }) => {
+        setRunState(null);
+        tokenChainTraceStore.ingestTokenEvents(data.tokenChainEvents || []);
+        tokenChainTraceStore.completeTrace(data.status < 400);
+      })
+      .catch((err) => {
+        setRunState({ id: uc.id, state: 'error', msg: err.message || 'Attack simulation failed' });
+      });
+  }, []);
+
   const grouped = useMemo(
     () => TRACK_ORDER.map((track) => ({
       track,
@@ -123,23 +144,28 @@ export default function LiveUseCaseWorkbenchPage() {
                   {TRACK_LABELS[track]}
                   <span className="luw-track__count">{items.length}</span>
                 </summary>
-                {items.map((uc) => (
-                  <button
-                    key={uc.id}
-                    type="button"
-                    className="luw-row"
-                    disabled={uc.trigger?.type !== 'chip' || runState?.state === 'running'}
-                    onClick={() => handleRunChip(uc)}
-                  >
-                    <span className="luw-row__main">
-                      <span className="luw-row__title">{uc.id} — {uc.title}</span>
-                      <span className="luw-row__trigger">{triggerLabel(uc.trigger)}</span>
-                    </span>
-                    <span className={`luw-pill luw-pill--${(uc.expectedOutcome || '').toLowerCase()}`}>
-                      {uc.expectedOutcome}
-                    </span>
-                  </button>
-                ))}
+                {items.map((uc) => {
+                  const isChip = uc.trigger?.type === 'chip';
+                  const isRunnableAttack = uc.trigger?.type === 'attack' && RUNNABLE_SIMS.includes(uc.trigger.sim);
+                  const disabled = (!isChip && !isRunnableAttack) || runState?.state === 'running';
+                  return (
+                    <button
+                      key={uc.id}
+                      type="button"
+                      className="luw-row"
+                      disabled={disabled}
+                      onClick={() => (isChip ? handleRunChip(uc) : handleRunAttack(uc))}
+                    >
+                      <span className="luw-row__main">
+                        <span className="luw-row__title">{uc.id} — {uc.title}</span>
+                        <span className="luw-row__trigger">{triggerLabel(uc.trigger)}</span>
+                      </span>
+                      <span className={`luw-pill luw-pill--${(uc.expectedOutcome || '').toLowerCase()}`}>
+                        {uc.expectedOutcome}
+                      </span>
+                    </button>
+                  );
+                })}
               </details>
             ))}
           </div>
