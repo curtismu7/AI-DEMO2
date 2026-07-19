@@ -24,7 +24,7 @@ const SERVER_INVENTORY = [
     key: 'ui', name: 'Banking UI', container: 'ai-demo-ui',
     hostPort: 4000, internalPort: 4000, lang: 'React/Vite + nginx', category: 'core', sourceDir: 'demo_api_ui', probe: true,
     healthPath: '/', acceptAnyStatus: true,
-    candidates: candidates('https://frontend:4000', 'https://localhost:4000'),
+    candidates: candidates('https://ui:4000', 'https://localhost:4000'),
     purpose: 'The demo web app, served over HTTPS.',
   },
   {
@@ -73,8 +73,14 @@ const SERVER_INVENTORY = [
   {
     key: 'langchain-agent', name: 'LangChain Agent', container: 'ai-demo-langchain-agent',
     hostPort: 8888, internalPort: 8888, lang: 'Python (uvicorn)', category: 'agents', sourceDir: 'langchain_agent', probe: true,
-    candidates: candidates('http://langchain-agent:8890', 'http://localhost:8890'),
-    purpose: 'LangChain agent runtime — 8888 AG-UI SSE, 8889 WS chat, 8890 health.',
+    // Port 8890 is the health/inspector server — deliberately bound to
+    // 127.0.0.1 only (api/health.py) since /inspector/mcp-host leaks the
+    // full MCP tool registry, so it's unreachable from other containers by
+    // design. Probe the AG-UI HTTP port instead (401 without auth is still
+    // proof the process is up and serving).
+    healthPath: '/', acceptAnyStatus: true,
+    candidates: candidates('http://langchain-agent:8888', 'http://localhost:8888'),
+    purpose: 'LangChain agent runtime — 8888 AG-UI SSE, 8889 WS chat, 8890 health (loopback-only).',
   },
   {
     key: 'openai-agent', name: 'OpenAI Agent', container: 'ai-demo-openai-agent',
