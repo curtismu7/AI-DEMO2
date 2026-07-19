@@ -547,6 +547,11 @@ export default function AdminSideNav({ user }) {
       children: [
         { label: "PingOne Authorize", path: "/pingone-authorize", icon: "pol" },
         {
+          label: "Policy Decision Trace",
+          path: "/pingone-authorize",
+          icon: "flw",
+        },
+        {
           label: "Scope Audit",
           path: "/scope-audit",
           icon: "find",
