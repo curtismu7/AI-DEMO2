@@ -483,6 +483,50 @@ export default function BankingAgent({
   const [p1mfaDaId, setP1mfaDaId] = useState(null);
   const [p1mfaDevices, setP1mfaDevices] = useState([]);
   const [consentBlocked, setConsentBlocked] = useState(false);
+
+  /**
+   * Open the step-up modal, preferring the real PingOne device picker.
+   *
+   * OtpStepUpModal only renders its SMS / email / passkey chooser in p1mfa
+   * mode, and that needs a live { daId, devices } challenge. Several step-up
+   * entry points used to call setShowOtpModal(true) directly, so they could
+   * only ever show the stub OTP field and a passkey was unreachable — most
+   * visibly the post-HITL-consent path, which is the one a presenter hits.
+   * Centralised so a new entry point cannot silently regress to OTP-only.
+   *
+   * Falls back to the stub modal if the challenge fails: a step-up the user
+   * cannot complete at all would be worse than an OTP field.
+   *
+   * @param {string} [contextLine] headline shown above the code input
+   */
+  const openStepUpModal = useCallback(async (contextLine) => {
+    if (contextLine) setOtpContextLine(contextLine);
+    try {
+      const apiBase = process.env.REACT_APP_API_URL || "";
+      const resp = await fetch(`${apiBase}/api/auth/mfa/challenge`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (resp.ok) {
+        const { daId, devices } = await resp.json();
+        setP1mfaDaId(daId);
+        setP1mfaDevices(devices || []);
+        setP1mfaMode(true);
+        // Keep the OTP modal (which hosts the picker), not the legacy FIDO one.
+        setStepUpMethod("otp");
+      } else {
+        setP1mfaMode(false);
+      }
+    } catch (err) {
+      console.warn(
+        "[step-up] P1MFA challenge failed, falling back to stub OTP modal:",
+        err?.message || err,
+      );
+      setP1mfaMode(false);
+    }
+    setShowOtpModal(true);
+  }, []);
   /** MCP auth mode from oauth status — consumer vs enterprise-managed. */
   const [mcpAuthMode, setMcpAuthMode] = useState("consumer");
   const [txErrorModal, setTxErrorModal] = useState(null); // { title, message } or null
@@ -2054,9 +2098,8 @@ export default function BankingAgent({
       }).finally(() => setNlLoading(false));
     };
 
-    setOtpContextLine("Verify your identity to approve this agent action");
-    setShowOtpModal(true);
-  }, [aguiHitlPending, aguiRun, aguiState.messages, submitConsent, activeLlmProvider, agentProviderMode]);
+    openStepUpModal("Verify your identity to approve this agent action");
+  }, [aguiHitlPending, aguiRun, aguiState.messages, submitConsent, activeLlmProvider, agentProviderMode, openStepUpModal]);
 
   const handleAguiHitlDismiss = useCallback(async () => {
     const interrupt = aguiHitlPending;
@@ -8048,8 +8091,7 @@ export default function BankingAgent({
                       }
                     };
 
-                    setOtpContextLine(`Verify your identity to approve: ${toolLabel}`);
-                    setShowOtpModal(true);
+                    openStepUpModal(`Verify your identity to approve: ${toolLabel}`);
                     return;
                   }
 
@@ -8111,10 +8153,9 @@ export default function BankingAgent({
                     };
 
                     const actionLabel = intentPayload?.description || "this action";
-                    setOtpContextLine(
+                    openStepUpModal(
                       `Verify your identity to ${actionLabel.charAt(0).toLowerCase() + actionLabel.slice(1)}`,
                     );
-                    setShowOtpModal(true);
                     return;
                   }
 
@@ -8231,10 +8272,9 @@ export default function BankingAgent({
                             setNlLoading(false);
                           }
                         };
-                        setOtpContextLine(
+                        openStepUpModal(
                           "Sensitive account details require identity verification (RFC 9470)",
                         );
-                        setShowOtpModal(true);
                         toast.update(sensToastId, {
                           render: "\uD83D\uDD10 MFA required",
                           type: "warning",
