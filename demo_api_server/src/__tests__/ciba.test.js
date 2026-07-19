@@ -215,6 +215,26 @@ describe('POST /api/auth/ciba/initiate', () => {
     expect(res.body.error).toBe('missing_login_hint');
   });
 
+  it('falls back to req.session.user.email when the access token carries no email claim (real BFF session shape)', async () => {
+    // Reproduces a live bug: PingOne access tokens for the customer app have no
+    // `email` claim, so req.user.email is undefined on every real request. The
+    // only place the demo's session middleware stores the user's email is
+    // req.session.user.email (see routes/oauth.js, routes/oauthUser.js) — not
+    // req.session.oauthUser, which nothing in the codebase ever sets.
+    const res = await request(buildApp({ user: { email: 'carol@example.com' } }))
+      .post('/api/auth/ciba/initiate')
+      .set('x-test-user', NO_EMAIL)
+      .send({ binding_message: 'Approve payment' });
+
+    expect(res.status).toBe(200);
+    expect(cibaService.initiateBackchannelAuth).toHaveBeenCalledWith(
+      'carol@example.com',
+      'Approve payment',
+      expect.any(String),
+      expect.any(String),
+    );
+  });
+
   // ── binding_message validation ────────────────────────────────────────────
 
   it('returns 400 when binding_message exceeds 256 characters', async () => {

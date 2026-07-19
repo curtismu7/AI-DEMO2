@@ -90,7 +90,7 @@ router.post('/initiate', authenticateToken, async (req, res) => {
 
   const loginHint = field('login_hint', 'loginHint')
     || req.user?.email
-    || req.session?.oauthUser?.email;
+    || req.session?.user?.email;
 
   if (!loginHint) {
     return res.status(400).json({
