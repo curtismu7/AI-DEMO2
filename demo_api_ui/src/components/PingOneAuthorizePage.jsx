@@ -429,6 +429,7 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
       title="PingOne Authorize"
       statusOn={!!endpointId}
       statusText={endpointId ? undefined : 'Select a decision endpoint above'}
+      fullHeight={false}
       left={
           <>
             <div className="inspector-shell-tree-header">

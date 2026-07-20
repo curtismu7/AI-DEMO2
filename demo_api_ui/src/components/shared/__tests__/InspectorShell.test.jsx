@@ -33,6 +33,18 @@ describe('InspectorShell', () => {
     expect(container.querySelector('.inspector-shell-topbar__right')).toBeNull();
   });
 
+  it('applies the embedded grid modifier only when fullHeight is false', () => {
+    const { container, rerender } = render(<InspectorShell title="X" />);
+    expect(container.querySelector('.inspector-shell-grid')).not.toHaveClass(
+      'inspector-shell-grid--embedded',
+    );
+
+    rerender(<InspectorShell title="X" fullHeight={false} />);
+    expect(container.querySelector('.inspector-shell-grid')).toHaveClass(
+      'inspector-shell-grid--embedded',
+    );
+  });
+
   it('renders left/middle/right slot content in the correct grid columns', () => {
     const { container } = render(
       <InspectorShell

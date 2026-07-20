@@ -47,6 +47,13 @@
   height: calc(100vh - 45px);
   overflow: hidden;
 }
+/* fullHeight={false}: the shell is one section inside a taller scrolling
+   page (siblings above/below), not the whole route — a 100vh-tall grid
+   there would blow out the page height. Columns still scroll internally
+   via their own overflow-y:auto. */
+.inspector-shell-grid--embedded {
+  height: 640px;
+}
 
 /* Column 1: left (tool tree / call list / preset list) */
 .inspector-shell-col-left {
