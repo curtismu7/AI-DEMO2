@@ -46,8 +46,15 @@ async function processAdminMessage({ message, userId, sessionId, tokenEvents = [
 
     const { resolveLlmProvider } = require('./llmProviderResolver');
     const { runReasonLoop, withTruncationNotice } = require('./agentReasoningClient');
+    // The admin dashboard's demoed LLM is llama.cpp (Heuristics is the other
+    // demoed mode) — explicitly requested here rather than left to
+    // resolveLlmProvider's own default (Helix), which isn't reliably
+    // configured across environments. This is a real explicit selection via
+    // the resolver's normal `requested === 'llamacpp'` pass-through, not an
+    // inlined default (that would violate the resolver's own "no other
+    // module may inline a provider default" rule).
     const { provider: llmProvider, model: llmModel } = resolveLlmProvider(
-      { ...langchainConfig, provider: undefined }
+      { ...langchainConfig, provider: 'llamacpp' }
     );
 
     let toolSchemas;
@@ -215,7 +222,7 @@ async function processAdminMessage({ message, userId, sessionId, tokenEvents = [
     if (!displayModel) {
       try {
         const { resolveLlmProvider } = require('./llmProviderResolver');
-        const resolved = resolveLlmProvider({ ...langchainConfig, provider: undefined });
+        const resolved = resolveLlmProvider({ ...langchainConfig, provider: 'llamacpp' });
         displayModel = resolved.model;
       } catch {
         displayModel = 'Claude 3.5 Sonnet';
