@@ -24,6 +24,10 @@ vi.mock('../../components/KillSwitchConfirmModal', () => ({
       </button>
     ) : null,
 }));
+const mockSetSurfaceHostEl = vi.fn();
+vi.mock('../../context/AgentUiModeContext', () => ({
+  useAgentUiMode: () => ({ setSurfaceHostEl: mockSetSurfaceHostEl }),
+}));
 
 import { callMcpTool } from '../../services/demoAgentService';
 import { getAgents } from '../../services/controlPlaneApi';
@@ -35,6 +39,7 @@ import { fireEvent, waitFor } from '@testing-library/react';
 // resolution here; Slot 4's own beforeEach overrides this per-test.
 beforeEach(() => {
   getAgents.mockResolvedValue({ live: { id: 'demo-agent' }, demo: [] });
+  mockSetSurfaceHostEl.mockClear();
 });
 
 describe('AgentLifecyclePage', () => {
@@ -51,6 +56,17 @@ describe('AgentLifecyclePage', () => {
       'src',
       '/media/contractor-lcm-ai-agent.mp4',
     );
+  });
+
+  it('registers the agent surface host and renders the persistent rail on load', () => {
+    render(<AgentLifecyclePage />);
+    expect(screen.getByTestId('trace-rail')).toBeInTheDocument();
+    expect(mockSetSurfaceHostEl).toHaveBeenCalled();
+    const registeredEl = mockSetSurfaceHostEl.mock.calls
+      .map(([el]) => el)
+      .find((el) => el);
+    expect(registeredEl).toBeInstanceOf(HTMLElement);
+    expect(registeredEl).toHaveClass('alp-agent-host');
   });
 });
 

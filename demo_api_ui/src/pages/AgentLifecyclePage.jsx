@@ -5,6 +5,7 @@ import TokenChainTraceRail from '../components/TokenChainTraceRail';
 import { getAgents } from '../services/controlPlaneApi';
 import apiClient from '../services/apiClient';
 import KillSwitchConfirmModal from '../components/KillSwitchConfirmModal';
+import { useAgentUiMode } from '../context/AgentUiModeContext';
 
 function RegistrationSlot() {
   return (
@@ -59,7 +60,6 @@ function ScopedCallSlot() {
         <pre className="alp-result">{JSON.stringify(orders, null, 2)}</pre>
       )}
       {status === 'error' && <p className="alp-error">{error}</p>}
-      <TokenChainTraceRail />
     </section>
   );
 }
@@ -233,6 +233,17 @@ function RevokeSlot() {
 }
 
 export default function AgentLifecyclePage() {
+  const { setSurfaceHostEl } = useAgentUiMode();
+  const [agentHostEl, setAgentHostEl] = React.useState(null);
+  const agentHostRef = React.useCallback((node) => setAgentHostEl(node), []);
+
+  React.useEffect(() => {
+    if (agentHostEl) {
+      setSurfaceHostEl(agentHostEl);
+      return () => setSurfaceHostEl((cur) => (cur === agentHostEl ? null : cur));
+    }
+  }, [agentHostEl, setSurfaceHostEl]);
+
   return (
     <div className="alp-wrap">
       <h1 className="alp-title">Agent Lifecycle</h1>
@@ -240,10 +251,20 @@ export default function AgentLifecyclePage() {
         Register, call, step up, and revoke — one AI agent's full access
         lifecycle end to end.
       </p>
-      <RegistrationSlot />
-      <ScopedCallSlot />
-      <StepUpSlot />
-      <RevokeSlot />
+      <div className="alp-body">
+        <div className="alp-slots">
+          <RegistrationSlot />
+          <ScopedCallSlot />
+          <StepUpSlot />
+          <RevokeSlot />
+        </div>
+        <div className="alp-run-layout">
+          <div className="alp-agent-host" ref={agentHostRef} />
+          <div className="alp-rail-host">
+            <TokenChainTraceRail />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
