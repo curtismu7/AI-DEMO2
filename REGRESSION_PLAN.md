@@ -101,31 +101,58 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
-### 2026-07-20 — Default LLM provider changed from Helix to llama.cpp
+### 2026-07-20 — PingOne Admin dashboard's LLM defaults to llama.cpp, not Helix
 
 **Files changed:**
-- `demo_api_server/services/llmProviderResolver.js` — the "no explicit
-  provider" fallback in `resolveLlmProvider()` returns `llamacpp` instead
-  of `helix`.
-- `demo_api_server/tests/llmProviderResolver.regression.test.js` — updated
-  the two default-fallback assertions to match.
+- `demo_api_server/services/adminAgentService.js` — both `resolveLlmProvider`
+  call sites now explicitly request `provider: 'llamacpp'` instead of
+  forcing `provider: undefined` (which fell through to whatever
+  `resolveLlmProvider`'s own default happened to be).
+- `demo_api_server/tests/adminAgentService.llmProvider.test.js` (new) —
+  asserts `runReasonLoop` is always called with `provider: 'llamacpp'`,
+  regardless of the session's `langchainConfig`.
 
-**What was broken:** Helix was the default LLM for 5 management-plane
-agents (admin, ops-assistant, a2a-orchestrator, compliance, support — all
-call `resolveLlmProvider` with no explicit provider or `provider: undefined`),
-but Helix isn't reliably configured across environments (discovered while
-fixing the PingOne Admin agent — see the entries above). The two modes
-actually demoed are llama.cpp and Heuristics.
+**What was broken:** Helix wasn't reliably configured across environments
+(discovered while fixing the PingOne Admin agent — see the entries below),
+so the admin dashboard's agent returned `reasoning_unavailable` /
+Helix-platform errors instead of a real reply. The two modes actually
+demoed on the admin dashboard are llama.cpp and Heuristics — Helix should
+not be the silent default there.
 
-**What was fixed:** `resolveLlmProvider`'s own fallback — the single
-canonical place a default may live, per its own doc comment ("No other
-module may inline a provider default") — now returns `llamacpp`. No
-caller changed; this is the one intended place to change the default.
+**A broader fix was tried and reverted:** changing `resolveLlmProvider`'s
+own "no explicit provider" fallback (the single canonical default location
+per its own doc comment) from `helix` to `llamacpp` globally. This broke
+`demo_api_server/services/geminiNlIntent.js`'s "LLM-only mode" — an
+unrelated banking NL-router subsystem that hardcodes `provider === 'helix'`
+as its literal signal for "a real LLM is configured," with no llama.cpp
+equivalent. 4 tests in `src/__tests__/geminiNlIntent.llmOnly.test.js`
+failed for real (confirmed on a clean retry, not flaky) because the
+global default change silently degraded that subsystem's "LLM-only mode"
+to a heuristic fallback. Reverted `llmProviderResolver.js` and
+`llmProviderResolver.regression.test.js` back to their original
+Helix-default state — confirmed byte-identical to pre-change via
+`git diff` against the prior commit.
 
-**Do not break:** explicit provider selection (including explicit
-`helix`) is completely unaffected — only the "nothing configured, unknown
-provider" fallback path changed. Every `if (requested === ...)` branch
-above the fallback is untouched.
+**What was fixed instead:** `adminAgentService.js` explicitly requests
+`llamacpp` via the resolver's normal `requested === 'llamacpp'`
+pass-through — the same explicit-selection mechanism every other caller
+in the codebase already uses, not a new inlined default. Only the admin
+dashboard's LLM changed.
+
+**Do not break:** `resolveLlmProvider`'s own default (Helix) and every
+other caller (banking, ops-assistant, a2a-orchestrator, compliance,
+support, geminiNlIntent, etc.) are completely unaffected — verified via
+`git diff` against the pre-change commit for `llmProviderResolver.js`
+itself, and via the full `geminiNlIntent.llmOnly` + related suites (30
+tests) passing.
+
+**Verify:** `demo_api_server` jest
+`adminAgentService.llmProvider,adminAgentService.tokenChainStep,llmProviderResolver.regression,llmProviderResolver.lmstudio.regression,llmProviderResolver.bedrock,geminiNlIntent.llmOnly`
+(30 pass). Live: PingOne Admin agent's demo steps now request `llamacpp`
+end-to-end (confirmed via temporary debug logging against the live worker
+token flow, then removed) — a separate llama-server "failed to parse
+grammar" error surfaced for the admin agent's dynamically-fetched
+PingOne tool schemas, tracked as its own follow-up, not fixed here.
 
 **Verify:** `demo_api_server` jest `llmProviderResolver.{regression,lmstudio.regression,bedrock}`
 (16 pass, including the 2 updated default-fallback cases); full
