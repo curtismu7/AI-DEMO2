@@ -1,0 +1,85 @@
+.agct-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.agct-intro {
+  color: #4b5563;
+  max-width: 68ch;
+}
+
+.agct-group {
+  margin-top: 32px;
+}
+
+.agct-group__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.agct-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.agct-card__title {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+
+.agct-card__oneliner {
+  font-size: 0.85rem;
+  color: #4b5563;
+}
+
+.agct-pill {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  margin: 6px 0;
+}
+
+.agct-pill--pinggateway {
+  background: #e7f6ee;
+  color: #1c8a56;
+}
+
+.agct-pill--node-only {
+  background: #fbeae7;
+  color: #c24a3d;
+}
+
+.agct-pill__fallback {
+  opacity: 0.75;
+  font-weight: 400;
+}
+
+.agct-card__fallback-note {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.agct-card__evidence {
+  font-size: 0.75rem;
+  margin: 8px 0;
+}
+
+.agct-card__evidence code {
+  background: #f3f4f6;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.agct-card__try {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #2e5fe8;
+  text-decoration: none;
+}
