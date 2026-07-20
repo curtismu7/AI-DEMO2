@@ -1,6 +1,8 @@
 # PingOne Admin Demo Steps Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+>
+> **Post-merge status (2026-07-19):** All 4 tasks shipped and are live-verified for what they cover — the 400 is fixed, the popout renders 4 real steps with a working "0 of 4 done" tracker, and the banking vertical (and all 9 pre-existing verticals) is unaffected. **However**, clicking a step does NOT reach the admin agent yet: live testing found that the demo-step click path (`AIAgent.js`'s `nlResumeAfterAuth` effect → `/api/agent/invoke`) unconditionally calls the customer/banking agent backend regardless of vertical, so it dead-ends in a "log in as a customer" guard card instead of the admin agent's tool-backed reply. This is a **pre-existing routing defect in unchanged code** (`demo_api_ui/src/components/AIAgent.js`, `demo_api_server/services/demoAgentService.js`) — none of this branch's 4 files participate in endpoint selection — and it also affects free-text typed into the admin agent's chat box, not just demo steps. Shipped anyway as the incremental "fix the 400 + render real steps" slice; routing the admin vertical's messages to `POST /api/admin-agent/message` is tracked as a separate follow-up (touches protected agent-routing code, needs its own scoping).
 
 **Goal:** Fix `GET /api/use-cases?vertical=pingone-admin` 400ing, and give the PingOne Admin AI Agent's "Demo steps" button a real 4-step scripted walkthrough.
 
