@@ -39,6 +39,12 @@ export const ACTION_GROUPS = {
       rfcs: [],
     },
     {
+      id: "jwt_decode_demo",
+      label: "Decode My JWT Token",
+      desc: "Decode this session's own bearer token (header, claims, expiry)",
+      rfcs: ["7519"],
+    },
+    {
       id: "logout",
       label: "Sign Out",
       desc: "Sign out of your account",

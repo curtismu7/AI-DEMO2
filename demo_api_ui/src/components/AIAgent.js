@@ -2670,6 +2670,14 @@ export default function BankingAgent({
           response = await getMyAccounts({ useCaseId, vertical });
           response = { ...response, result: enforceVerticalAccountTypes(response.result, terminology) };
           break;
+        case "jwt_decode_demo":
+          toast.update(toastId, { render: " Calling jwt_decode_full…" });
+          response = await callMcpTool("jwt_decode_full", {}, {
+            useCaseId,
+            vertical,
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+          });
+          break;
         case "mortgage_demo": {
           // Phase 267 Path A — api_key disposition, end-to-end:
           //   1. Call gateway MCP tool 'show_mortgage' (apikey disposition)
