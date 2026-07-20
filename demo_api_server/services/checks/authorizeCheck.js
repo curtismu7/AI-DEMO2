@@ -3,7 +3,7 @@ const p1az = require('../../services/pingOneAuthorizeService');
 const configStore = require('../../services/configStore');
 const { register } = require('./registry');
 
-const SMALL = { amount: 2500,  type: 'transfer' };   // expect PERMIT
+const SMALL = { amount: 500,   type: 'transfer' };   // expect PERMIT (live policy denies anything >= $2,000)
 const LARGE = { amount: 75000, type: 'transfer' };   // expect DENY / step-up
 const TEST_USER = 'check-preflight-user';
 
@@ -35,8 +35,13 @@ const realDecision = {
     } catch (err) {
       return { status: 'fail', detail: err.message };
     }
-    if (decisions.some((d) => !d || !d.decision || !d.decisionId)) {
-      return { status: 'fail', detail: 'PingOne returned no decision id', meta: { decisions } };
+    // decisionId isn't required — PingOne's decisionEndpoints evaluate
+    // response doesn't always include one (only correlationId), and every
+    // other consumer in this codebase already treats decisionId as optional
+    // (`|| null`). A live decision effect is the only thing this check
+    // needs to prove the real PingOne Authorize path is working.
+    if (decisions.some((d) => !d || !d.decision)) {
+      return { status: 'fail', detail: 'PingOne returned no decision', meta: { decisions } };
     }
     const discriminates = decisions[0].decision !== decisions[1].decision;
     const note = flags.ff_authorize_simulated ? ' (simulated active for demo; real path verified)' : '';
