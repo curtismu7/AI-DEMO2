@@ -33,5 +33,12 @@ export const DEMO_USE_CASE_IDS = [
   ...DEMO_ADVANCED_USE_CASE_IDS,
 ];
 
+/**
+ * PingOne Admin vertical's demo-steps ids. Served by a separate backend
+ * list (demo_api_server/config/admin/demoSteps.js), not the 22-use-case
+ * banking catalog — see docs/superpowers/specs/2026-07-19-pingone-admin-demo-steps-design.md.
+ */
+export const ADMIN_PRIMARY_USE_CASE_IDS = ['ADMIN1', 'ADMIN2', 'ADMIN3', 'ADMIN4'];
+
 /** Section heading used on /use-cases for this script. */
 export const DEMO_USE_CASE_LABEL = 'Demo — a scripted walkthrough';

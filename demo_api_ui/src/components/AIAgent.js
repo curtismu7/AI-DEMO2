@@ -6577,7 +6577,9 @@ export default function BankingAgent({
     const useCaseId = pendingUcIdRef.current ?? undefined;
     pendingUcIdRef.current = null;
     let cancelled = false;
+    let timerFired = false;
     const timer = setTimeout(async () => {
+      timerFired = true;
       if (cancelled) return;
       const signal = beginAbortableSend();
       addMessage("user", text, null, { isPrompt: !!useCaseId });
@@ -6630,6 +6632,15 @@ export default function BankingAgent({
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      // Timer never got to run — nothing was sent, so `text` never actually
+      // became pending. Release it here too, not just in the timer's own
+      // finally: otherwise it stays wedged in pendingNlResumeRef forever, and
+      // a later click with the same trigger text is silently swallowed by
+      // the guard above (React also bails out of a same-value setState, so
+      // this effect wouldn't even re-run to try again).
+      if (!timerFired) {
+        pendingNlResumeRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- trigger when nlResumeAfterAuth changes
   }, [nlResumeAfterAuth, isLoggedIn, effectiveVerticalId]);

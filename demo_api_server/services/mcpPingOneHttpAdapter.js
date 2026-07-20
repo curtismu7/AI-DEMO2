@@ -184,4 +184,4 @@ function _resetToolsCache() {
     _toolsCache = null;
 }
 
-module.exports = { listTools, getCachedToolNames, callTool, getWorkerTokenDecoded, _resetToolsCache };
+module.exports = { listTools, getCachedToolNames, callTool, getWorkerTokenDecoded, getMcpUrl: _mcpUrl, _resetToolsCache };

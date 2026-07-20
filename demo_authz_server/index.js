@@ -58,16 +58,7 @@ app.post('/rules/reset', wrap(rulesResetHandler));
 // Snapshot import/export for authz-server parity validation
 const upload = multer({ storage: multer.memoryStorage() });
 app.post('/admin/import-snapshot', upload.single('snapshot'), wrap(require('./routes/import-snapshot')));
-const fs = require('fs');
-const CURRENT_SNAPSHOT_PATH = path.join(__dirname, '../snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json');
-app.get('/admin/current-snapshot', function(_req, res) {
-  if (!fs.existsSync(CURRENT_SNAPSHOT_PATH)) {
-    return res.status(404).json({ error: 'snapshot_not_found' });
-  }
-  res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Content-Disposition', 'attachment; filename="Super_Banking_Transaction_Authorization_P1AZ.snapshot.json"');
-  res.sendFile(CURRENT_SNAPSHOT_PATH);
-});
+app.get('/admin/current-snapshot', wrap(require('./routes/generate-snapshot')));
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'pingone-authz-server-mock', port: PORT });

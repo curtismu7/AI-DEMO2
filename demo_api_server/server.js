@@ -135,6 +135,7 @@ const {
     router: featureFlagsRoutes
 } = require('./routes/featureFlags');
 const mcpInspectorRoutes = require('./routes/mcpInspector');
+const mcpPingOneAdminAuthRoutes = require('./routes/mcpPingOneAdminAuth');
 const mcpTrafficRoutes = require('./routes/mcpTraffic');
 const mcpToolScopesRouter = require('./routes/mcpToolScopes');
 const mcpGatewayConfigRouter = require('./routes/mcpGatewayConfig');
@@ -1099,6 +1100,7 @@ app.use('/api/setup', setupRoutes);
 // unauthenticated visitors; tools/call and context check auth inside each handler.
 app.use('/api/mcp', mcpToolScopesRouter);
 app.use('/api/mcp/inspector', mcpInspectorRoutes);
+app.use('/api/mcp/inspector/pingone-admin', mcpPingOneAdminAuthRoutes);
 // Privilege MCP Client — relay for the chat-first Privilege Gateway MCP client page
 app.use('/api/privilege-mcp', require('./routes/privilegeMcpClient'));
 // MCP Gateway Config — status + generated PingGateway mcp.json (open to any authenticated session)

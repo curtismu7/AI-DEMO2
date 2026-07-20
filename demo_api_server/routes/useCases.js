@@ -10,6 +10,7 @@
 const express = require('express');
 const router = express.Router();
 const { listUseCases, resolveUseCase, VERTICALS } = require('../config/useCases');
+const { ADMIN_DEMO_STEPS } = require('../config/admin/demoSteps');
 const { authenticateToken } = require('../middleware/auth');
 
 function pickVertical(req, res) {
@@ -23,6 +24,10 @@ function pickVertical(req, res) {
 
 // GET /api/use-cases  → list
 router.get('/', (req, res) => {
+  if (req.query.vertical === 'pingone-admin') {
+    res.set({ 'Cache-Control': 'private, max-age=60' });
+    return res.json({ vertical: 'pingone-admin', useCases: ADMIN_DEMO_STEPS });
+  }
   const vertical = pickVertical(req, res);
   if (!vertical) return;
   res.set({ 'Cache-Control': 'private, max-age=60' });

@@ -32,18 +32,27 @@ async function probe(entry) {
 async function run() {
   const services = await Promise.all(
     SERVER_INVENTORY.map(async (e) => {
-      const meta = { key: e.key, name: e.name };
+      const meta = { key: e.key, name: e.name, optional: !!e.optional };
       if (e.probe === 'self') return { ...meta, up: true };
       if (e.probe !== true) return { ...meta, up: null };
       return { ...meta, ...(await probe(e)) };
     })
   );
   const down = services.filter((s) => s.up === false);
+  // Optional services are gated behind a Compose profile (agents/demo-auth/rag)
+  // that's off by default in lean-core — their absence is expected, not a
+  // readiness blocker. Only a required service being down fails the check.
+  const requiredDown = down.filter((s) => !s.optional);
+  const optionalDown = down.filter((s) => s.optional);
   const upCount = services.filter((s) => s.up === true).length;
   const probed = services.filter((s) => s.up !== null).length;
+  const status = requiredDown.length ? 'fail' : optionalDown.length ? 'warn' : 'pass';
+  const parts = [];
+  if (requiredDown.length) parts.push(`Down: ${requiredDown.map((s) => s.name).join(', ')}`);
+  if (optionalDown.length) parts.push(`Not started (optional): ${optionalDown.map((s) => s.name).join(', ')}`);
   return {
-    status: down.length ? 'fail' : 'pass',
-    detail: down.length ? `Down: ${down.map((s) => s.name).join(', ')}` : `${upCount}/${probed} up`,
+    status,
+    detail: parts.length ? parts.join(' — ') : `${upCount}/${probed} up`,
     meta: { services },
   };
 }

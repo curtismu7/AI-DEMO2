@@ -102,14 +102,20 @@ export default function SnapshotImport() {
       </div>
 
       <div className="download-section">
-        <span className="download-label">Current correct snapshot (SoT-generated):</span>
+        <span className="download-label">Regenerated live from scope-topology.json:</span>
         <a
           className="download-btn"
           href={`${AUTHZ_BASE}/admin/current-snapshot`}
           download="Super_Banking_Transaction_Authorization_P1AZ.snapshot.json"
         >
-          Download for P1AZ import
+          Generate & download import file
         </a>
+      </div>
+
+      <div className="apply-note">
+        <strong>Applying to PingOne:</strong> PingOne Authorize does not accept policy changes
+        via API (the condition-write endpoint rejects the DSL this policy needs). Import the
+        downloaded file manually: PingOne Authorize console → Snapshots → Import.
       </div>
 
       {error && <div className="error">{error}</div>}
