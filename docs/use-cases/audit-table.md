@@ -32,7 +32,7 @@
 | UC-TOOL2 | [Code Explorer](./code-explorer.md) | tools | ✅ works |  |  |
 | UC-LEARN1 | [OAuth Academy](./oauth-academy.md) | learn | ✅ works |  |  |
 | UC-LEARN2 | [PingOne MCP Inspector](./pingone-mcp-inspector.md) | learn | ✅ works |  |  |
-| UC-LEARN3 | [Demo MCP Inspector](./demo-mcp-inspector.md) | learn | ✅ works |  |  |
+| UC-LEARN3 | [Generic MCP Inspector](./demo-mcp-inspector.md) | learn | ✅ works |  |  |
 | UC-LEARN4 | [MCP Tools](./mcp-tools.md) | learn | ✅ works |  |  |
 | UC-LEARN5 | [Learning Hub](./learning-hub.md) | learn | ✅ works |  |  |
 | UC-LEARN6 | [Token Flow (Interactive)](./token-flow.md) | learn | ✅ works |  |  |

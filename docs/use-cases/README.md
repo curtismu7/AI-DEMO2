@@ -61,7 +61,7 @@ See also: [Audit Table](./audit-table.md)
 - [**UC14b** — RAR intent verified (PERMIT)](./rar-intent-verified.md) 🚩
 - [**UC-LEARN1** — OAuth Academy](./oauth-academy.md) ✅
 - [**UC-LEARN2** — PingOne MCP Inspector](./pingone-mcp-inspector.md) ✅
-- [**UC-LEARN3** — Demo MCP Inspector](./demo-mcp-inspector.md) ✅
+- [**UC-LEARN3** — Generic MCP Inspector](./demo-mcp-inspector.md) ✅
 - [**UC-LEARN4** — MCP Tools](./mcp-tools.md) ✅
 - [**UC-LEARN5** — Learning Hub](./learning-hub.md) ✅
 - [**UC-LEARN6** — Token Flow (Interactive)](./token-flow.md) ✅

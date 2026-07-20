@@ -6,6 +6,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ADMIN_PRIMARY_USE_CASE_IDS,
   DEMO_ADVANCED_USE_CASE_IDS,
   DEMO_PRIMARY_USE_CASE_IDS,
 } from '../config/demoUseCaseSteps';
@@ -46,6 +47,9 @@ export default function DemoStepsDropdown({
   const loadSteps = useCallback(() => {
     setLoading(true);
     setError(null);
+    const isAdmin = vertical === 'pingone-admin';
+    const primaryIds = isAdmin ? ADMIN_PRIMARY_USE_CASE_IDS : DEMO_PRIMARY_USE_CASE_IDS;
+    const advancedIds = isAdmin ? [] : DEMO_ADVANCED_USE_CASE_IDS;
     apiClient
       .get('/api/use-cases', { params: { vertical }, _silent: true })
       .then(({ data }) => {
@@ -57,8 +61,8 @@ export default function DemoStepsDropdown({
               return uc ? { uc, stepNumber: offset + index + 1 } : null;
             })
             .filter(Boolean);
-        setPrimarySteps(mapIds(DEMO_PRIMARY_USE_CASE_IDS, 0));
-        setAdvancedSteps(mapIds(DEMO_ADVANCED_USE_CASE_IDS, DEMO_PRIMARY_USE_CASE_IDS.length));
+        setPrimarySteps(mapIds(primaryIds, 0));
+        setAdvancedSteps(mapIds(advancedIds, primaryIds.length));
       })
       .catch((err) => {
         // The backend 400s with unknown_vertical for verticals that have no

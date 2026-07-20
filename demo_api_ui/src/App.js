@@ -30,7 +30,6 @@ import PrivilegesGatewayPreviewPage from "./components/agentStudioPreview/Privil
 import PlatformGapsPage from "./components/agentStudioPreview/PlatformGapsPage";
 import AgentFlowDiagramPanel from "./components/AgentFlowDiagramPanel";
 import { AgenticTrustEducation } from "./components/AgenticTrustEducation";
-import AgentGatewayTester from "./components/AgentGatewayTester";
 import OwaspLearnerPage from "./components/OwaspLearnerPage";
 import UngovernedAgentPage from "./components/UngovernedAgentPage";
 import AIAgent from "./components/AIAgent";
@@ -68,6 +67,8 @@ import MortgagePathPage from "./components/MortgagePathPage";
 import OAuthDebugLogViewer from "./components/OAuthDebugLogViewer";
 import OAuthTokenDisplayPage from "./components/OAuthTokenDisplayPage";
 import PingOneAuthorizePage from "./components/PingOneAuthorizePage";
+import PolicyDecisionTracePage from "./components/PolicyDecisionTracePage";
+import McpGatewayConfig from "./components/McpGatewayConfig";
 import PingOneMcpInspector from "./components/PingOneMcpInspector";
 import PostmanCollectionsPage from "./components/PostmanCollectionsPage";
 import Profile from "./components/Profile";
@@ -971,6 +972,10 @@ function AppWithAuth() {
                               element={<PingOneAuthorizePage />}
                             />
                             <Route
+                              path="/policy-decision-trace"
+                              element={<PolicyDecisionTracePage />}
+                            />
+                            <Route
                               path="/mcp-gateway"
                               element={
                                 <Navigate to="/configure?tab=mcp-gateway" replace />
@@ -1035,8 +1040,14 @@ function AppWithAuth() {
                               }
                             />
                             <Route
+                              path="/pinggateway-inspector"
+                              element={<McpGatewayConfig />}
+                            />
+                            <Route
                               path="/pinggateway-test"
-                              element={<AgentGatewayTester />}
+                              element={
+                                <Navigate to="/pinggateway-inspector?subtab=tester" replace />
+                              }
                             />
                             <Route
                               path="/token-security"

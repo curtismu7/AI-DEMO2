@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import DemoStepsDropdown from '../DemoStepsDropdown';
 import apiClient from '../../services/apiClient';
-import { DEMO_USE_CASE_IDS } from '../../config/demoUseCaseSteps';
+import { DEMO_USE_CASE_IDS, ADMIN_PRIMARY_USE_CASE_IDS } from '../../config/demoUseCaseSteps';
 
 vi.mock('../../services/apiClient', () => ({
   default: {
@@ -178,5 +178,52 @@ describe('DemoStepsDropdown', () => {
     );
     expect(await screen.findByText('No demo steps for this vertical.')).toBeInTheDocument();
     expect(screen.queryByText(/Failed to load demo steps/)).not.toBeInTheDocument();
+  });
+});
+
+describe('DemoStepsDropdown — pingone-admin vertical', () => {
+  const ADMIN_CATALOG = ADMIN_PRIMARY_USE_CASE_IDS.map((id) => ({
+    id,
+    title: `Admin title for ${id}`,
+    trigger: { type: 'chip', text: `admin prompt for ${id}` },
+  }));
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sessionStorage.clear();
+    apiClient.get.mockResolvedValue({ data: { useCases: ADMIN_CATALOG } });
+  });
+
+  it('lists only the 4 admin steps with no advanced group', async () => {
+    render(
+      <DemoStepsDropdown
+        vertical="pingone-admin"
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-steps-popout')).toBeInTheDocument());
+
+    const items = screen.getAllByTestId(/^demo-step-/);
+    expect(items.map((el) => el.getAttribute('data-testid'))).toEqual(
+      ADMIN_PRIMARY_USE_CASE_IDS.map((id) => `demo-step-${id}`),
+    );
+    expect(screen.queryByTestId('demo-steps-advanced-toggle')).not.toBeInTheDocument();
+  });
+
+  it('requests the pingone-admin vertical from the API', async () => {
+    render(
+      <DemoStepsDropdown
+        vertical="pingone-admin"
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    await waitFor(() => expect(apiClient.get).toHaveBeenCalledWith(
+      '/api/use-cases',
+      { params: { vertical: 'pingone-admin' }, _silent: true },
+    ));
   });
 });
