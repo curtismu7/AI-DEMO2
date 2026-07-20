@@ -6,6 +6,7 @@ import apiClient from '../services/apiClient';
 import { notifyError } from '../utils/appToast';
 import { formatAxiosError } from '../utils/formatAxiosError';
 import JsonHighlight from './shared/JsonHighlight';
+import CapabilityCallout from './CapabilityCallout';
 import './PingOneMcpInspector.css';
 
 const GATEWAY_FLAG = 'ff_mcp_gateway_pinggateway';
@@ -327,6 +328,7 @@ export default function AgentGatewayTester() {
 
   return (
     <div className="p1mcp-page">
+      <CapabilityCallout capabilityId="mcp-validation" />
       {/* Top bar */}
       <div className="p1mcp-topbar">
         <span className={`p1mcp-topbar__dot ${active ? '' : 'p1mcp-topbar__dot--off'}`} />
