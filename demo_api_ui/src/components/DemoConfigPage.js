@@ -67,6 +67,7 @@ export default function DemoConfigPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       setToast("Selection saved");
+      window.dispatchEvent(new CustomEvent("nav-config-changed"));
     } catch (err) {
       setError(`Failed to save: ${err.message}`);
     } finally {
@@ -130,6 +131,7 @@ export default function DemoConfigPage() {
       setHiddenLabels(config.hiddenLabels || []);
       setActiveConfigId(config.id);
       setToast(`Applied "${config.name}"`);
+      window.dispatchEvent(new CustomEvent("nav-config-changed"));
     } catch (err) {
       setError(`Failed to apply "${config.name}": ${err.message}`);
     } finally {
