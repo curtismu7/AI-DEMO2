@@ -75,7 +75,7 @@
       ]
     },
     "chips10": [
-      { "id": "gv-jwt", "label": "Decode my token", "message": "decode my jwt token", "mode": "both", "tool": "jwt_decode_full" },
+      { "id": "gv-jwt", "label": "Decode my token", "message": "decode my jwt token", "mode": "both", "tool": "jwt_decode_full", "useCaseId": "delegated-access-with-proof" },
       { "id": "gv1", "label": "My permits", "message": "show my permits", "mode": "both", "tool": "view_permits", "useCaseId": "delegated-access-with-proof" },
       { "id": "gv2", "label": "Fees owed", "message": "what fees do I owe", "mode": "both", "tool": "view_fees", "useCaseId": "delegated-access-with-proof" },
       { "id": "gv4", "label": "Pay a fee", "message": "pay a permit fee", "mode": "both", "elicitationTrigger": true, "tool": "pay_fee", "useCaseId": "delegated-access-with-proof" },

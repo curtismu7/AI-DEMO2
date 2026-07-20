@@ -118,7 +118,7 @@
       ]
     },
     "chips10": [
-      { "id": "sg-jwt", "label": "Decode my token", "message": "decode my jwt token", "mode": "both", "tool": "jwt_decode_full" },
+      { "id": "sg-jwt", "label": "Decode my token", "message": "decode my jwt token", "mode": "both", "tool": "jwt_decode_full", "useCaseId": "delegated-access-with-proof" },
       { "id": "sg1", "label": "My gear", "message": "my gear", "mode": "both", "tool": "list_gear", "useCaseId": "delegated-access-with-proof" },
       { "id": "sg2", "label": "My rentals", "message": "my rentals", "mode": "both", "tool": "list_rentals", "useCaseId": "delegated-access-with-proof" },
       { "id": "sg3", "label": "🔐 Extend my rental", "message": "extend my rental", "mode": "both", "hitlTrigger": true, "challenge": "consent", "tool": "extend_rental", "useCaseId": "hitl-consent" },

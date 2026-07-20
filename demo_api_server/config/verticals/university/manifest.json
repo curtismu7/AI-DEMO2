@@ -75,7 +75,7 @@
       ]
     },
     "chips10": [
-      { "id": "un-jwt", "label": "Decode my token", "message": "decode my jwt token", "mode": "both", "tool": "jwt_decode_full" },
+      { "id": "un-jwt", "label": "Decode my token", "message": "decode my jwt token", "mode": "both", "tool": "jwt_decode_full", "useCaseId": "delegated-access-with-proof" },
       { "id": "un1", "label": "My courses", "message": "show my enrolled courses", "mode": "both", "tool": "view_courses", "useCaseId": "delegated-access-with-proof" },
       { "id": "un2", "label": "Credit standing", "message": "what is my credit standing", "mode": "both", "tool": "view_standing", "useCaseId": "delegated-access-with-proof" },
       { "id": "un4", "label": "Register a course", "message": "register for a course", "mode": "both", "tool": "register_course", "useCaseId": "delegated-access-with-proof" },
