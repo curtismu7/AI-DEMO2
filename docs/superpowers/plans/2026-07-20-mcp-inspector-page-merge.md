@@ -125,7 +125,7 @@ test('selecting a Banking MCP tool populates the middle form, calling Execute po
   render(<McpInspectorPage />);
   fireEvent.click(await screen.findByText('get_account_balance'));
   fireEvent.change(screen.getByRole('textbox'), { target: { value: 'acc_1' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Execute' }));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
   await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith(
     '/api/mcp/inspector/invoke',
     { tool: 'get_account_balance', params: { account_id: 'acc_1' } },
@@ -680,7 +680,7 @@ test('calling a PingOne MCP tool posts to /api/mcp/inspector/pingone-invoke', as
   fireEvent.click(screen.getByRole('button', { name: 'PingOne MCP' }));
   fireEvent.click(await screen.findByText('users.read'));
   fireEvent.change(screen.getByRole('textbox'), { target: { value: 'user-1' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Execute' }));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
   await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith(
     '/api/mcp/inspector/pingone-invoke',
     { tool: 'users.read', params: { user_id: 'user-1' } },
