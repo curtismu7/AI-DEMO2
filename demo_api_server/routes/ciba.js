@@ -104,6 +104,13 @@ router.post('/initiate', authenticateToken, async (req, res) => {
   const acr_values = field('acr_values', 'acrValues') || '';
   let binding_message = field('binding_message', 'bindingMessage');
 
+  // Optional transaction-display context (UC22's separate-device approval
+  // page). Purely additive — no validation beyond type coercion, since
+  // these only ever populate a display string, never a policy decision.
+  const amount = req.body.amount != null ? Number(req.body.amount) : null;
+  const fromAccountLabel = field('from_account_label', 'fromAccountLabel') || null;
+  const toAccountLabel = field('to_account_label', 'toAccountLabel') || null;
+
   // Validate binding_message length and content (prevents log injection / oversized payloads)
   if (binding_message !== undefined) {
     if (typeof binding_message !== 'string') {
@@ -168,6 +175,9 @@ router.post('/initiate', authenticateToken, async (req, res) => {
       acr_values: acr_values || '',
       binding_message: binding_message || '',
       simulated,
+      amount,
+      fromAccountLabel,
+      toAccountLabel,
     };
 
     res.json({
@@ -185,6 +195,42 @@ router.post('/initiate', authenticateToken, async (req, res) => {
       message: pingError?.error_description || err.message,
     });
   }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/auth/ciba/request/:authReqId
+//
+// Display details for the separate-device approval page. Session-gated,
+// same ownership model as /poll — this page only ever opens in a new tab
+// on the SAME browser (shared session cookie), never a different device.
+// ---------------------------------------------------------------------------
+
+router.get('/request/:authReqId', authenticateToken, (req, res) => {
+  if (!_cibaEnabled(res)) return;
+
+  const { authReqId } = req.params;
+  const pending = req.session.cibaRequests?.[authReqId];
+
+  if (!pending) {
+    return res.status(404).json({
+      error: 'unknown_request',
+      message: 'No pending CIBA request with that ID in this session.',
+    });
+  }
+
+  if (Date.now() > pending.expiresAt) {
+    return res.status(410).json({
+      error: 'request_expired',
+      message: 'The CIBA authentication request has expired. Please try again.',
+    });
+  }
+
+  res.json({
+    binding_message: pending.binding_message || '',
+    amount: pending.amount ?? null,
+    from_account_label: pending.fromAccountLabel ?? null,
+    to_account_label: pending.toAccountLabel ?? null,
+  });
 });
 
 // ---------------------------------------------------------------------------
