@@ -101,6 +101,36 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-20 — Default LLM provider changed from Helix to llama.cpp
+
+**Files changed:**
+- `demo_api_server/services/llmProviderResolver.js` — the "no explicit
+  provider" fallback in `resolveLlmProvider()` returns `llamacpp` instead
+  of `helix`.
+- `demo_api_server/tests/llmProviderResolver.regression.test.js` — updated
+  the two default-fallback assertions to match.
+
+**What was broken:** Helix was the default LLM for 5 management-plane
+agents (admin, ops-assistant, a2a-orchestrator, compliance, support — all
+call `resolveLlmProvider` with no explicit provider or `provider: undefined`),
+but Helix isn't reliably configured across environments (discovered while
+fixing the PingOne Admin agent — see the entries above). The two modes
+actually demoed are llama.cpp and Heuristics.
+
+**What was fixed:** `resolveLlmProvider`'s own fallback — the single
+canonical place a default may live, per its own doc comment ("No other
+module may inline a provider default") — now returns `llamacpp`. No
+caller changed; this is the one intended place to change the default.
+
+**Do not break:** explicit provider selection (including explicit
+`helix`) is completely unaffected — only the "nothing configured, unknown
+provider" fallback path changed. Every `if (requested === ...)` branch
+above the fallback is untouched.
+
+**Verify:** `demo_api_server` jest `llmProviderResolver.{regression,lmstudio.regression,bedrock}`
+(16 pass, including the 2 updated default-fallback cases); full
+`npm run test:api-server` local CI gate.
+
 ### 2026-07-20 — Non-admin session selecting PingOne Admin got a blank generic failure
 
 **Files changed:**
