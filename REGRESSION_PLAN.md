@@ -101,6 +101,50 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-20 — UC22 CIBA demo transfer never completed — re-forced another CIBA prompt forever after approval
+
+**Files changed:** `demo_api_server/routes/transactions.js` (the `evaluateTransactionPolicy`
+call, ~line 599), `demo_api_server/src/__tests__/step-up-gate.test.js` (2 new tests).
+
+**What was broken:** UC22's `useCaseId` (`ciba-out-of-band-approval`) makes
+`transactionAuthorizationService.evaluateTransactionPolicy` force the CIBA
+step-up block unconditionally (see `CIBA_DEMO_USE_CASE_ID`, by design —
+regardless of `acr`, so the presenter never sees a consent/permit instead of
+CIBA). AIAgent.js's post-approval retry (`pollCibaStepUp` /
+`pollCibaThenResumeNl`) re-sends the same `useCaseId` on the retry, and this
+route forwarded it unconditionally too — so the retry got re-forced into
+*another* CIBA prompt instead of completing, even though
+`req.session.stepUpVerified` was fresh and already being consumed into
+`effectiveAcr = 'Multi_Factor'` two lines above. Net effect: CIBA approval
+never "returned a response to the user" — it looped, and whatever broke the
+loop client-side surfaced as a confusing "MFA request was cancelled" +
+"Incomplete" verdict (missing `authorize-decision` token-chain evidence,
+since the transaction never permitted).
+
+**What was fixed:** `useCaseId` is now dropped (`''`) on the specific request
+that just consumed a fresh `req.session.stepUpVerified`
+(`sessionStepUpFresh`) before calling `evaluateTransactionPolicy`. The
+CIBA-forcing check itself is untouched (still unconditional on `acr`, by
+design) — the retry simply no longer carries the useCaseId that triggers it,
+so it falls through to the policy engine's normal acr-aware decision and
+permits.
+
+**Do not break:** the UC22 override must stay unconditional on `acr` — do not
+add an `acrLooksStrong`-style guard inside
+`transactionAuthorizationService.js` itself (tried first; it broke because
+several other test files mock `simulatedAuthorizeService` without that
+export, and reaching through a mocked module for a plain string check is
+fragile — silently threw and got swallowed into a generic 503 in three call
+sites at once). Keep the loop-breaking logic in `routes/transactions.js`
+right next to where `sessionStepUpFresh` is already computed.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/step-up-gate.test.js
+src/__tests__/transactionAuthorizationService.test.js
+tests/services/transactionAuthorizationService.rfc9470.test.js
+--testPathIgnorePatterns="/node_modules/"` (41/41 pass). Live: run UC22 from
+`/use-cases`, approve the CIBA prompt, confirm the transfer completes on the
+first retry instead of prompting again.
+
 ### 2026-07-19 — Demo Config page (`/demo-config`) applied a sidebar selection but the side nav never refreshed
 
 **Files changed:**
