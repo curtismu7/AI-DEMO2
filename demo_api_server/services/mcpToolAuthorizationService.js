@@ -500,6 +500,17 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     req.session.stepUpVerified = 0;
   }
 
+  // Session-level HITL already satisfied this cycle via CIBA out-of-band
+  // approval (set by routes/ciba.js alongside stepUpVerified). CIBA approval
+  // is itself a human-in-the-loop event, so it discharges the HITL gate too —
+  // otherwise a checkout/transfer that trips both step-up AND HITL (e.g. UC22)
+  // clears step-up on retry but 428s forever on the untouched HITL statement.
+  // Single-use, same pattern as stepUpAlreadyVerified above.
+  const hitlAlreadyVerified = req.session?.hitlVerified > Date.now();
+  if (hitlAlreadyVerified) {
+    req.session.hitlVerified = 0;
+  }
+
   if (groupPolicy.isEnabled(configStore) || shouldApplyEntitlementTierDemo(useCaseId)) {
     userGroups = await groupPolicy.groupsForUser(
       req.session?.user?.username,
@@ -711,7 +722,7 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
       };
     }
 
-    if (r.hitlRequired) {
+    if (r.hitlRequired && !hitlAlreadyVerified) {
       return {
         ran: true,
         block: {
@@ -787,7 +798,7 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
         };
       }
 
-      if (r.hitlRequired) {
+      if (r.hitlRequired && !hitlAlreadyVerified) {
         return {
           ran: true,
           block: {
@@ -945,7 +956,7 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
             authorizeFallback,
           } } };
         }
-        if (r.hitlRequired) {
+        if (r.hitlRequired && !hitlAlreadyVerified) {
           return { ran: true, block: { status: 428, body: {
             error: 'mcp_hitl_required',
             error_description: 'PingOne Authorize was unreachable — simulated fallback requires human approval before MCP tools.',

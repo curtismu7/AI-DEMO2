@@ -167,6 +167,65 @@ Live click-through: PingOne Admin demo step reply now shows `[ADMIN AGENT -
 LangGraph - ...]`, banking vertical still shows `[CUSTOMER AGENT]`
 unchanged.
 
+### 2026-07-20 — Agent Lifecycle step-up checkout (UC22 CIBA) 428-looped forever after approval; kill-switch had no recovery path
+
+**Files changed:**
+- `demo_api_ui/src/pages/AgentLifecyclePage.jsx` — `StepUpSlot`'s checkout call
+  now goes through `callMcpTool` (same as `ScopedCallSlot`) instead of a bare
+  `fetch`, so it shows up in the Token Chain rail; waiting-approval copy no
+  longer implies a push confirmation screen that doesn't exist.
+- `demo_api_server/routes/ciba.js` — both CIBA-approved branches (simulated
+  and real) now also set `req.session.hitlVerified`, mirroring the existing
+  `stepUpVerified` flag.
+- `demo_api_server/services/mcpToolAuthorizationService.js` — new
+  `hitlAlreadyVerified` (single-use, same pattern as `stepUpAlreadyVerified`)
+  gates all three `mcp_hitl_required` 428 branches (live, simulated,
+  fallback_simulated).
+- `demo_api_server/services/killSwitchService.js` — new
+  `enableAgentApplicationsAtPingOne()`, the inverse of
+  `disableAgentApplicationsAtPingOne()`.
+- `demo_api_server/routes/admin.js` — new
+  `POST /api/admin/agent/:agentId/re-enable` route.
+- `demo_api_ui/src/components/ControlPlaneRoster.jsx` (+ `.css`) — "Re-enable"
+  button on the live agent row when revoked.
+
+**What was broken:** checking out $600 headphones (or UC22's "extend my rental
+$600") correctly 428'd for step-up, CIBA approved (this env runs the
+simulated CIBA fallback — no real PingOne bc-authorize provisioning yet, see
+`docs/superpowers/plans/2026-07-20-ciba-real-platform-provisioning.md`,
+`stepUpVerified` cleared it — but the SAME decision endpoint call also always
+carries a `HITL Approval Required` statement with `obligatory:false`, and
+`classifyObligations` ignores `obligatory` entirely (by design — confirmed via
+live payload diff that a genuine $300 consent-required transfer carries the
+identical `obligatory:false`, so filtering on it would have silently disabled
+real HITL/consent enforcement too). `hitlRequired` had no "already verified"
+counterpart the way `stepUpRequired` did, so it 428'd on every retry forever.
+Separately, `AgentLifecyclePage`'s step 4 kill-switch button — a real,
+one-way PingOne application disable — had no UI-reachable undo, so testing it
+broke the whole demo (every agent tool call) until an admin manually
+re-enabled the app in PingOne.
+
+**What was fixed:** CIBA approval now sets `hitlVerified` alongside
+`stepUpVerified` (CIBA out-of-band approval IS a human-in-the-loop event) and
+the gate consumes it the same single-use way. The kill switch gets a real
+inverse action, surfaced on the AI Control Plane roster (not the killed page
+itself — that session is destroyed by the kill-switch route).
+
+**Do not break:** `classifyObligations` (`services/authorizeObligations.js`)
+is untouched — do not filter on `obligatory` there; live evidence shows it is
+not a reliable advisory-vs-binding signal in this PingOne policy. The
+existing HITL-receipt-challenge path (`hitlChallengeId`/`hitlApproved`) is
+unaffected — `hitlAlreadyVerified` is an additional, independent way to clear
+the gate, not a replacement.
+
+**Verify:** `demo_api_server` jest —
+`mcpToolAuthorizationService,ciba,cibaService,cibaSimulatedService,step-up-gate,killSwitchService`
+(156 tests, all green); `demo_api_ui` vitest `AgentLifecyclePage`,
+`ControlPlaneRoster` green; `cd demo_api_ui && npm run build` exits 0. Live:
+confirmed the original 428-loop via Docker log capture of two real
+`BFF→P1AZ` decision-endpoint round trips; re-enable button not yet
+click-verified live (server routes + unit tests only).
+
 ### 2026-07-20 — PingOne Admin AI Agent messages misrouted to the customer/banking agent
 
 **Files changed:**

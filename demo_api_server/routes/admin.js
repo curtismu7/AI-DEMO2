@@ -911,6 +911,32 @@ router.post(
 );
 
 /**
+ * POST /api/admin/agent/:agentId/re-enable
+ * Inverse of the kill switch: re-enables the PingOne agent application(s)
+ * disabled by killAgent, so the demo can continue without manual PingOne
+ * console access. Gated the same way as kill-switch (authenticateToken) since
+ * killing an agent destroys the calling session — whoever signs back in
+ * (customer or admin) can revive it, matching this control plane's existing
+ * "any logged-in user" model (see ControlPlaneRoster.jsx).
+ */
+router.post(
+  '/agent/:agentId/re-enable',
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const applications = await killSwitchService.enableAgentApplicationsAtPingOne();
+      return res.status(200).json({ ok: true, applications });
+    } catch (error) {
+      console.error('[admin] Re-enable agent error:', error.message);
+      return res.status(500).json({
+        error: 're_enable_failed',
+        message: `Failed to re-enable agent: ${error.message}`,
+      });
+    }
+  }
+);
+
+/**
  * GET /api/admin/agent/:agentId/status
  * Get current agent status (running or revoked)
  */
