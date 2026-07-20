@@ -7,10 +7,12 @@ import "@testing-library/jest-dom";
 import AuditPage from "../AuditPage";
 
 const mockNavigate = jest.fn();
+let searchParamsValue = "";
+
 vi.mock("react-router-dom", () => ({
   __esModule: true,
   useNavigate: () => mockNavigate,
-  useSearchParams: () => [new URLSearchParams("")],
+  useSearchParams: () => [new URLSearchParams(searchParamsValue)],
 }));
 
 // Render + flush the on-mount fetch so its state update settles inside act()
@@ -23,10 +25,24 @@ async function renderSettled(props) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  searchParamsValue = "";
   // Floating window mode fetches the audit feed + summary on mount.
   global.fetch = jest.fn(() =>
     Promise.resolve({ ok: true, json: () => Promise.resolve([]) }),
   );
+});
+
+describe("AuditPage — agentId query-param seeding", () => {
+  it("seeds the agent filter and includes it in the initial fetch", async () => {
+    searchParamsValue = "agentId=demo-agent";
+
+    await renderSettled({ onClose: jest.fn() });
+
+    const calledWithAgentId = global.fetch.mock.calls.some(
+      ([url]) => typeof url === "string" && url.includes("agentId=demo-agent"),
+    );
+    expect(calledWithAgentId).toBe(true);
+  });
 });
 
 describe("AuditPage floating window — title-bar interaction", () => {
