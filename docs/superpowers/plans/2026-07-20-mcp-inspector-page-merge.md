@@ -1054,8 +1054,6 @@ const truncateUrl = (url, maxLen = 28) => {
 Then add a `useApiCallsSource` function, directly after `usePingOneSource`'s closing `}`. Its left-column rows deliberately do **not** use `InspectorListItem` (unlike the Banking MCP and PingOne MCP sources above) — a captured API call's row shows an HTTP method badge + truncated URL + status/duration, which doesn't fit `InspectorListItem`'s `dot`/`badges`/`label` shape (no dot color concept applies to an HTTP call, and the method badge is a different visual element than a write/sensitive tool badge). This matches the original design spec's own approved mock, which used a distinct "flat" row type for this source rather than forcing it through the shared tool-tree row component:
 
 ```js
-
-```js
 function useApiCallsSource() {
   const [calls, setCalls] = useState([]);
   const [stats, setStats] = useState(null);
