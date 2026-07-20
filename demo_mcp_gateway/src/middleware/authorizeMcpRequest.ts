@@ -202,6 +202,33 @@ export function buildAuthorizeMcpRequest(
         const _rlResult = getRateLimiter(config).check(_rlKey);
         if (!_rlResult.allowed) {
           teachLog.warn(`[GW] UC18 rate_limited key=${_rlKey} retryAfterMs=${_rlResult.retryAfterMs}`);
+          // Minimal, self-contained audit record — the durable audit-hook wrapper
+          // below hasn't been installed yet at this point in the pipeline, so a
+          // 429 here would otherwise leave no trace in X-Gw-Audit-Trail or
+          // /internal/mcp-audit (confirmed by reading the pipeline in full).
+          try {
+            res.setHeader('X-Gw-Audit-Trail', JSON.stringify({
+              introspection: null,
+              policy: null,
+              authorize: null,
+              mtls: null,
+              rateLimit: { limited: true, retryAfterMs: _rlResult.retryAfterMs },
+            }));
+          } catch {
+            // headers already sent — ignore
+          }
+          recordGatewayAudit(
+            {
+              operation: _rlTool,
+              outcome: 'failure',
+              userId: _rlSub,
+              agentId: _rlSub,
+              vertical: routeTool(_rlTool),
+              duration: 0,
+              details: { httpStatus: 429, rate_limited: true, retryAfterMs: _rlResult.retryAfterMs },
+            },
+            config,
+          );
           res.writeHead(429, {
             'Content-Type': 'application/json',
             'Retry-After': String(Math.ceil(_rlResult.retryAfterMs / 1000)),
