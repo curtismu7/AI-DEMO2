@@ -1351,13 +1351,19 @@ to:
 
 (the `path` doesn't change — the route it points to now renders `McpInspectorPage` instead of `PingOneMcpInspector`, per Step 2 — only the nav label changes, since this entry now leads to the merged page, not a PingOne-only one).
 
-Update `AUTO_EXPAND_SECTIONS` (`AdminSideNav.jsx:148-149`) so the two retired paths (`/mcp-inspector`) don't linger in a group's auto-expand list once that entry no longer exists there — change:
+Update `AUTO_EXPAND_SECTIONS` (`AdminSideNav.jsx:149`) so the retired `/mcp-inspector` path doesn't linger in a group's auto-expand list once its nav entry no longer exists there. This plan's earlier scoping mis-quoted this line — re-verify the live file before editing. `/mcp-inspector` currently lives in the `"banking-mcp"` entry (not `"banking-mcp-gateways"`, a separate, unrelated entry with its own path list). Change:
 
 ```js
-  { id: "banking-mcp-gateways", paths: ["/pinggateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security"] },
+  { id: "banking-mcp", paths: ["/webmcp", "/mcp-inspector", "/ping-ai-test-lab"] },
 ```
 
-Confirm this exact line no longer lists `/mcp-inspector` (per the survey, it doesn't — this line already only has the four paths shown; if `/mcp-inspector` is present when you check, remove it as part of this step). No change needed for the `pingone-mcp` entry's `paths` array — `/pingone-mcp-inspector` stays exactly as it is (same route, same nav group).
+to:
+
+```js
+  { id: "banking-mcp", paths: ["/webmcp", "/ping-ai-test-lab"] },
+```
+
+Only remove `/mcp-inspector` from this line. Do not touch the `"banking-mcp-gateways"` entry (a different, pre-existing entry unrelated to this task) or the `"pingone-mcp"` entry's `paths` array — `/pingone-mcp-inspector` stays exactly as it is (same route, same nav group).
 
 - [ ] **Step 5: Run the full affected test suite**
 
