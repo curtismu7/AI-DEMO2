@@ -101,6 +101,44 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-20 — PingOne Admin AI Agent messages misrouted to the customer/banking agent
+
+**Files changed:**
+- `demo_api_ui/src/services/demoAgentService.js` — `sendAgentMessage` branches
+  to a new `sendToAdminAgent` helper when `vertical === 'pingone-admin'`,
+  posting to `/api/admin-agent/message` instead of `/api/agent/invoke`.
+
+**What was broken:** every `sendAgentMessage()` call site (demo-step clicks,
+free-typed chat, heuristic-resolved vertical re-dispatch) sent
+`pingone-admin`-vertical messages to `/api/agent/invoke`, which always calls
+the customer/banking agent (`processAgentMessage` in
+`demoAgentLangGraphService.js`). That service's admin-token guard
+(`customerTokenGuard.js`'s `isVerticalExemptFromAdminTokenGuard`, exempting
+only `{admin, oauth-teaching}`) correctly refused with `requiresCustomerLogin`
+for an admin token — but the request was going to the wrong backend
+regardless. The real admin backend (`adminAgentService.js`, live PingOne
+Management API tools) was only reachable via a narrow
+`PINGONE_ADMIN_CHIP_IDS.has(chipId)` gate in `AIAgent.js` that demo steps and
+typed chat never passed through.
+
+**What was fixed:** `sendAgentMessage` now checks `vertical` first and routes
+`pingone-admin` messages to `/api/admin-agent/message` directly, normalizing
+the response into the same return shape every caller already expects.
+
+**Do not break:** the `PINGONE_ADMIN_CHIP_IDS`-gated inline block in
+`AIAgent.js` still exists unchanged and still works for its pre-wired chips —
+this fix doesn't consolidate into it. Non-admin verticals (banking,
+healthcare, retail, …) must keep hitting `/api/agent/invoke` exactly as
+before; `customerTokenGuard.js`'s exempt list and `agentInvokeRoute.js` are
+untouched.
+
+**Verify:** `demo_api_ui` vitest `demoAgentService.adminRouting` (5 pass,
+including the non-admin-vertical-unchanged regression case) +
+`demoAgentService.{tokenEventCallback,hitlRetry,timeoutSync,legacyTrace}`
+still green; `cd demo_api_ui && npm run build` exits 0. Live click-through:
+each of the 4 PingOne Admin demo steps gets a real tool-backed reply, typed
+chat in the admin agent works, banking vertical chat/chips unaffected.
+
 ### 2026-07-19 — Demo Config page (`/demo-config`) applied a sidebar selection but the side nav never refreshed
 
 **Files changed:**
