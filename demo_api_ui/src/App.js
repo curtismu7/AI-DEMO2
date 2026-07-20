@@ -45,6 +45,7 @@ import ComplianceModalPopout from "./components/ComplianceModalPopout";
 import Dashboard from "./components/Dashboard";
 import DelegatedAccessPage from "./components/DelegatedAccessPage";
 import DelegationPage from "./components/DelegationPage";
+import AgentLifecyclePage from "./pages/AgentLifecyclePage";
 import DemoGuidePopout from "./components/DemoGuidePopout";
 import DemoServerCheckModal from "./components/DemoServerCheckModal";
 import { resolveEmbeddedFocus } from "./components/demoAgentSafety";
@@ -1267,6 +1268,16 @@ function AppWithAuth() {
                                     user={user}
                                     onLogout={logout}
                                   />
+                                ) : (
+                                  <Navigate to="/" replace />
+                                )
+                              }
+                            />
+                            <Route
+                              path="/agent-lifecycle"
+                              element={
+                                user ? (
+                                  <AgentLifecyclePage />
                                 ) : (
                                   <Navigate to="/" replace />
                                 )

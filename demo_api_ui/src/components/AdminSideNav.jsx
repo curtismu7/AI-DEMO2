@@ -444,6 +444,12 @@ export default function AdminSideNav({ user }) {
       customerOnly: true,
     },
     {
+      label: "Agent Lifecycle",
+      path: "/agent-lifecycle",
+      icon: "agt",
+      customerOnly: true,
+    },
+    {
       label: "AI Agents",
       icon: "agt",
       children: [
