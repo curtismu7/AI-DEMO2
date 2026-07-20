@@ -101,6 +101,223 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-19 — Agent Gateway / Use Cases still red after the env-var fix — admin OAuth client had no PingOne grant
+
+**Files changed:** none (live PingOne config only — no code, no `.env`).
+
+**What was broken:** after the `PINGONE_RESOURCE_PINGGATEWAY_URI` fix
+(entry further below) the SAME error persisted (`token-exchange: ...At
+least one scope must be granted`). Traced which client performs this
+exchange — `gatewayCheck.js` and `agentMcpTokenService.js`'s no-actor-token
+branch both call the plain `oauthService.performTokenExchange`, which uses
+the **admin** OAuth client (`8a711944…`, "Demo AI App - Admin Login",
+`WEB_APP` type). Checked that client's live PingOne grants (worker creds,
+read-only): it had grants on Demo MCP Server / Demo API / openid but
+**zero grant on "Demo PingGateway MCP" (resource `6635cfb8`)** — whose only
+scope is `gateway:mcp:invoke`. Every other MCP resource already grants the
+admin client; this one never got it (matches the "durable provisioning
+still deliberately absent" gap noted in `[[project-pinggateway-half-built]]`).
+
+**What was fixed (user-confirmed live write):** `POST
+/applications/8a711944.../grants` with
+`{resource:{id:"6635cfb8..."}, scopes:[{id:"4b2917d1..." /* gateway:mcp:invoke */}]}`
+→ HTTP 201. Re-fetched the client's grants afterward — resource `6635cfb8`
+now present. Confirmed the app type is `WEB_APP` (grants API works),
+not `WORKER` (which PingOne restricts to `openid`-only grants) before
+writing.
+
+**Do not break:** additive-only — one new application grant, no existing
+grant/resource/scope/code touched.
+
+**Verify:** live PingOne grant list for `8a711944` includes `6635cfb8 ->
+[gateway:mcp:invoke]`. Full end-to-end proof needs a real signed-in
+browser run (a genuine user token, not something replicable with worker
+creds) — re-run "Run demo check" signed in.
+
+### 2026-07-19 — Demo check PINGONE AUTHORIZE card red — check required a field PingOne doesn't return
+
+**Files changed:** `demo_api_server/services/checks/authorizeCheck.js` only.
+
+**What was broken:** `authorize.realDecision` required every P1AZ decision
+response to carry a truthy `decisionId` or it hard-failed. Replicated the
+exact live call the check makes (worker token + `POST
+/decisionEndpoints/{id}` with the real `authorize_decision_endpoint_id`,
+`84d45731-4c43-4ab1-ab6a-0350e9dfe8e1`) — the live response never includes
+`id`/`decisionId`, only `correlationId`. Confirmed via
+`grep -rn '\.decisionId\b'` that every OTHER consumer in this codebase
+(attackSimulatorService, mcpToolAuthorizationService,
+transactionAuthorizationService, agentPreflightService, …) already treats
+`decisionId` as optional (`|| null`) — this check alone hard-required it,
+so it failed unconditionally regardless of the real decision. Confirmed
+this is a genuinely different bug from the Agent Gateway/Use Cases fix
+above (user pushed back on assuming same cause — correctly; this check
+uses a completely different PingOne API, `pingOneAuthorizeService.js`, not
+the PingGateway MCP token-exchange path).
+
+Secondary finding, same investigation: the `SMALL` test amount ($2,500,
+comment says "expect PERMIT") is above the live policy's $2,000 PERMIT
+threshold, so it was also getting DENY'd — verified live that $500 gets
+PERMIT.
+
+**What was fixed:** guard now only requires `d.decision` (the actual
+PERMIT/DENY/INDETERMINATE effect), not `d.decisionId`. `SMALL` amount
+500 → 500 (restores the PERMIT-vs-DENY discrimination the check was
+designed to prove).
+
+**Do not break:** did not touch `pingOneAuthorizeService.js`'s shared
+`_postDecisionEndpoint`/`decisionId` extraction — that's consumed by the
+real transfer/HITL/attack-sim paths; out of scope for a check-only fix.
+
+**Verify:** `CI=true npx jest --testPathPattern="checks/authorizeCheck.test.js"`
+— 6/6 pass. Live: replicated the fixed guard against the real decision
+endpoint response for both test amounts — old guard fails both (missing
+decisionId), fixed guard passes and PERMIT/DENY discriminate →
+`status: 'pass'`.
+
+### 2026-07-19 — Demo check SERVERS card red on a stock lean-core checkout (profile-gated services)
+
+**Files changed:** `demo_api_server/data/serverInventory.js`,
+`demo_api_server/services/checks/serversCheck.js`.
+
+**What was broken:** even after the UI/LangChain Agent probe fixes (entry
+below), `servers.all_up` still returned `status: 'fail'` on a default
+`./run-docker.sh` checkout because 7 services aren't started: OpenAI Agent,
+Mastra Agent, Pydantic Agent, Mock Authz Server, Weaviate, Embeddings, MCP
+Code Search. Verified via `docker-compose.yml` these are ALL gated behind
+Compose `profiles:` (`agents` / `demo-auth` / `rag`) that are off by default
+in lean-core — their absence is expected, not a broken deploy. User
+confirmed intent: keep lean-core as-is, don't gate overall readiness on
+optional profiles (asked via clarifying question — the alternative was
+starting all profiles, which was declined).
+
+**What was fixed:** added `optional: true` to those 7 `SERVER_INVENTORY`
+entries (each commented with its compose profile). `serversCheck.js` now
+splits `down` into `requiredDown`/`optionalDown`; `status` is `'fail'` only
+if a required service is down, `'warn'` if only optional ones are, `'pass'`
+otherwise. Detail text reports both groups separately.
+
+**Do not break:** required-service semantics unchanged — any core/mcp/authz
+service actually going down still fails the check exactly as before
+(`tests/checks/serversCheck.test.js` down-service scenario untouched, still
+passes since that test's fixture services aren't marked optional).
+
+**Verify:** `CI=true npx jest --testPathPattern="serverInventory.test.js|checks/serversCheck.test.js"`
+— 2 suites / 6 tests pass. Live: `docker exec ai-demo-api-server node -e
+"require('/app/services/checks/serversCheck').run().then(r=>console.log(r.status))"`
+→ `warn` (was `fail`) on this lean-core checkout.
+
+### 2026-07-19 — Demo check SERVERS card: Banking UI + LangChain Agent falsely reported down
+
+**Files changed:** `demo_api_server/data/serverInventory.js` only.
+
+**What was broken:** both containers were running/healthy but `servers.all_up`
+reported them down. `ui` probed `https://frontend:4000` — not a real compose
+DNS name (service key is `ui`); confirmed live via `docker exec
+ai-demo-api-server curl https://frontend:4000` → could not resolve host.
+`langchain-agent` probed `:8890/health`, which `langchain_agent/src/api/health.py`
+deliberately binds to `127.0.0.1` only (that port also serves
+`/inspector/mcp-host`, which leaks the full MCP tool registry — kept off
+the network on purpose, confirmed via the `/proc/net/tcp` bind address
+inside the container).
+
+**What was fixed:** `ui` candidate → `https://ui:4000` (correct compose
+hostname, verified `curl` now 200). `langchain-agent` candidate → AG-UI
+port `:8888` with `acceptAnyStatus: true` (a 401-without-auth response is
+still proof the process is up), same pattern already used for the
+`ui`/`ping-gateway` entries. Verified both live via `docker exec` before
+and after.
+
+**Do not break:** did not touch `HEALTH_HTTP_HOST`/docker-compose — the
+loopback-only bind on :8890 is intentional (security boundary for
+`/inspector/mcp-host`), not a bug to "fix" by opening it up. The other
+services this check reports down (OpenAI/Mastra/Pydantic Agent, Mock Authz
+Server, Weaviate, Embeddings, MCP Code Search) genuinely aren't running in
+this lean-core compose profile (`docker ps -a` confirmed no such
+containers) — those reds are correct and were left unchanged.
+
+**Verify:** `docker exec ai-demo-api-server` probe script — `ui` → 200,
+`langchain-agent` → 401 (accepted). `servers.all_up` no longer lists either
+in `Down:`.
+
+### 2026-07-19 — Demo check page still unreadable after opacity fix — real cause was a dead dark-mode CSS block
+
+**Files changed:** `demo_api_ui/src/pages/CheckPage.css` only (supersedes,
+does not replace, the opacity fix logged just below — both were real bugs).
+
+**What was broken:** removing the `opacity: 0.6-0.8` dimming (previous
+entry) wasn't enough — user reported the page was still unreadable after a
+hard refresh. Root cause: the file had a `@media (prefers-color-scheme: dark)`
+block plus `:root[data-theme="dark"]` / `[data-theme="light"]` blocks, "so
+the page follows the app's theme toggle" — but no theme toggle exists anywhere in
+this app (confirmed: nothing sets `data-theme` on `documentElement`). On a
+browser/OS with dark mode on, the media query fired and flipped `--text` to
+`#e7eaf2` (near-white), while the page's actual background stayed light
+(from the app's global `body` rule + a `.card` class name collision with
+`index.css` — neither theme-aware) → near-white text on a light background.
+
+**What was fixed:** deleted the dark-mode media query and both unreachable
+`data-theme` attribute blocks; kept only the light `:root` token block,
+matching how the rest of the app already renders (fixed light theme).
+
+**Do not break:** no JS change; no other page uses `CheckPage.css`. If a
+real theme toggle is ever added app-wide, dark tokens should come back
+wired to whatever mechanism sets `data-theme`, not a bare media query.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0, confirmed); live
+Vite bundle checked to contain zero `@media (prefers-color-scheme` /
+`:root[data-theme` occurrences post-fix.
+
+### 2026-07-19 — Demo check page AGENT GATEWAY / USE CASES cards red — missing local env var, not a PingOne gap
+
+**Files changed:** `demo_api_server/.env` (gitignored, local runtime config only — no
+tracked file changed). Container `ai-demo-api-server` recreated to load it.
+
+**What was broken:** `gateway.real_path` (Agent Gateway card) and
+`usecase.permit_accounts` (Use Cases card) both failed exercising the real
+PingGateway path — `token-exchange: ... At least one scope must be granted`
+and `gateway_policy_denied`. Read-only PingOne audit (worker creds,
+`verify-scope-configuration.js` + `--manifest-diff`) proved live PingOne is
+fully correct — resource `Demo PingGateway MCP` already has `gateway:mcp:invoke`
+granted. Root cause: `demo_api_server/.env` had no
+`PINGONE_RESOURCE_PINGGATEWAY_URI` line, so `configStore.getEffective()`
+returned `''` and the BFF requested a token-exchange audience of empty
+string — PingOne correctly refused. This exact var/fix was already documented
+in `[[project-pinggateway-half-built]]` (2026-07-10, PR #277) but was absent
+from this checkout's `.env`.
+
+**What was fixed:** added `PINGONE_RESOURCE_PINGGATEWAY_URI=https://api.ping.demo:3036/mcp`
+to `.env`, `docker compose up -d demo-api-server` (recreate — `node --watch`
+does not reload env vars). No PingOne config was changed.
+
+**Do not break:** did not touch any PingOne resource/scope/grant, any code
+path, or any other `.env` value.
+
+**Verify:** inside the container, `configStore.getEffective('pingone_resource_pinggateway_uri')`
+now returns `"https://api.ping.demo:3036/mcp"` (was `""`). Re-run "Run demo
+check" on `/check` signed in — AGENT GATEWAY / USE CASES expected to go green.
+
+### 2026-07-19 — Demo check page (`/check`) text unreadable — muted opacity on every label
+
+**Files changed:** `demo_api_ui/src/pages/CheckPage.css` only.
+
+**What was broken:** card titles, tab labels, step labels, row/rail detail
+text all rendered `var(--text)` at `opacity: 0.6-0.8`, washing out contrast
+against the light-theme background and making the whole page hard to read —
+violates the `§0` no-muted-text rule.
+
+**What was fixed:** removed the opacity dimming; primary text now renders
+`var(--text)` at full strength, secondary/hint text (`.card-foot .hint`,
+`.group-head .count`, `.chk-row .chev`, `.rail-item .n`) uses the
+`--text-muted` token instead of arbitrary opacity so hierarchy is preserved
+without going low-contrast.
+
+**Do not break:** no layout/JS change — only text color/opacity
+declarations in this one CSS file.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0, confirmed); live
+Vite-served bundle at `https://api.ping.demo:4000/src/pages/CheckPage.css`
+checked to contain zero `opacity: 0.6/0.7/0.8` declarations post-fix.
+
 ### 2026-07-18 — MCP Inspector page showed zero tools with no explanation when step-up wasn't verified
 
 **Files changed:** `demo_api_ui/src/components/McpInspector.js` (added
