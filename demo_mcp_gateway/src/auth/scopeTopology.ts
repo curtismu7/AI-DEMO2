@@ -48,9 +48,9 @@ interface ManifestWithResources { resources: Record<string, ResourceEntry>; }
 const BACKEND_RESOURCE_NAME: Record<'olb' | 'invest' | 'jwtverifier', string> = {
   olb: 'Super Banking MCP Server',
   invest: 'Super Banking MCP Invest',
-  // No PingOne resource server provisioned for this yet — resourceScopesForBackend()
-  // safely falls through to [] (no scopes requested) until scope-topology.json
-  // grows a matching entry. See docs/superpowers/plans (jwt-verifier follow-up).
+  // scope-topology.json now declares this resource (jwt:verify scope). The live
+  // PingOne resource server self-provisions via twoExchangeReconciler.js on the
+  // next demo_api_server boot — same mechanism as MCP Invest.
   jwtverifier: 'Super Banking MCP JWT Verifier',
 };
 
