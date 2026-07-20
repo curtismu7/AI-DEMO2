@@ -137,8 +137,10 @@ test('renders the policy tree in the left column with the rule count', async () 
 });
 
 test('shows a loading message in the left column while policies load', () => {
-  renderPanel({ policiesState: basePolicies({ policies: [], loading: true }) });
-  expect(screen.getByText(/loading/i)).toBeInTheDocument();
+  const { container } = renderPanel({ policiesState: basePolicies({ policies: [], loading: true }) });
+  // Scoped: the topbar-style header also says "loading…" (a different element) — query the tree body specifically.
+  const treeBody = container.querySelector('.inspector-shell-tree-body');
+  expect(within(treeBody).getByText('Loading policies…')).toBeInTheDocument();
 });
 
 test('shows an error message in the left column when policies fail to load', () => {
@@ -160,10 +162,13 @@ test('clicking a rule\'s Trigger button calls onTestRule with that rule\'s trigg
 });
 
 test('switches preset tabs in the middle column', () => {
+  // The Amount/Tool name <label>s aren't htmlFor-linked to their <input>s
+  // (pre-existing markup) — assert on placeholder/label text instead of
+  // getByLabelText, which requires that association.
   renderPanel();
-  expect(screen.getByLabelText(/^Amount/)).toBeInTheDocument();
+  expect(screen.getByPlaceholderText('e.g. 5000')).toBeInTheDocument();
   fireEvent.click(screen.getByText('MCP First Tool'));
-  expect(screen.getByLabelText(/Tool name/)).toBeInTheDocument();
+  expect(screen.getByText('Tool name')).toBeInTheDocument();
 });
 
 test('output tabs show empty-state text before any evaluation has run', () => {
@@ -185,7 +190,10 @@ test('clicking Evaluate posts to /api/authorize/evaluate-endpoint and shows the 
     '/api/authorize/evaluate-endpoint',
     expect.objectContaining({ endpointId: 'ep-1' }),
   ));
-  expect(await screen.findByText('PERMIT')).toBeInTheDocument();
+  // Regex, not exact string: the decision renders as 3 text-node children
+  // ("✅", " ", "PERMIT") inside one <span>, so an exact 'PERMIT' match never
+  // matches the concatenated node text.
+  expect(await screen.findByText(/PERMIT/)).toBeInTheDocument();
 });
 
 test('the Response and Request output tabs show the last call\'s trace after an evaluation', async () => {
@@ -194,7 +202,7 @@ test('the Response and Request output tabs show the last call\'s trace after an 
   });
   renderPanel();
   fireEvent.click(screen.getByRole('button', { name: /Evaluate \(live\)/ }));
-  await screen.findByText('PERMIT');
+  await screen.findByText(/PERMIT/);
 
   fireEvent.click(screen.getByRole('button', { name: 'Response' }));
   expect(screen.getByText(/PERMIT/)).toBeInTheDocument();
@@ -209,7 +217,7 @@ test('the "Open policy decision trace" button navigates to /policy-decision-trac
   });
   renderPanel();
   fireEvent.click(screen.getByRole('button', { name: /Evaluate \(live\)/ }));
-  await screen.findByText('PERMIT');
+  await screen.findByText(/PERMIT/);
 
   fireEvent.click(screen.getByRole('button', { name: 'Open policy decision trace' }));
   expect(mockNavigate).toHaveBeenCalledWith(
