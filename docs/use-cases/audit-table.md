@@ -28,6 +28,7 @@
 | UC13 | [Confused-deputy actor injection](./confused-deputy-actor-injection.md) | attacks | ✅ works | 🛡️ T13 |  |
 | UC17 | [JIT / ephemeral credentials](./jit-ephemeral-credentials.md) | controls | ✅ works | 🛡️ T3, T9 |  |
 | UC18 | [Rate-limit / resource-overload defense](./rate-limit-defense.md) | attacks | ✅ works | 🛡️ T4 |  |
+| UC29 | [OAuth introspection outage — fail closed](./oauth-fail-closed.md) | attacks | ✅ works | 🛡️ T2 |  |
 | UC-TOOL1 | [RAG code search](./code-search.md) | tools | ✅ works |  |  |
 | UC-TOOL2 | [Code Explorer](./code-explorer.md) | tools | ✅ works |  |  |
 | UC-LEARN1 | [OAuth Academy](./oauth-academy.md) | learn | ✅ works |  |  |
@@ -67,8 +68,8 @@
 
 | Status | Count |
 |---|---|
-| ✅ Works | 34 |
+| ✅ Works | 35 |
 | 🚩 Flag-gated | 7 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 2 |
-| **Total** | **43** |
+| **Total** | **44** |
