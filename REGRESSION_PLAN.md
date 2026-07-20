@@ -101,6 +101,46 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-19 — Demo check PINGONE AUTHORIZE card red — check required a field PingOne doesn't return
+
+**Files changed:** `demo_api_server/services/checks/authorizeCheck.js` only.
+
+**What was broken:** `authorize.realDecision` required every P1AZ decision
+response to carry a truthy `decisionId` or it hard-failed. Replicated the
+exact live call the check makes (worker token + `POST
+/decisionEndpoints/{id}` with the real `authorize_decision_endpoint_id`,
+`84d45731-4c43-4ab1-ab6a-0350e9dfe8e1`) — the live response never includes
+`id`/`decisionId`, only `correlationId`. Confirmed via
+`grep -rn '\.decisionId\b'` that every OTHER consumer in this codebase
+(attackSimulatorService, mcpToolAuthorizationService,
+transactionAuthorizationService, agentPreflightService, …) already treats
+`decisionId` as optional (`|| null`) — this check alone hard-required it,
+so it failed unconditionally regardless of the real decision. Confirmed
+this is a genuinely different bug from the Agent Gateway/Use Cases fix
+above (user pushed back on assuming same cause — correctly; this check
+uses a completely different PingOne API, `pingOneAuthorizeService.js`, not
+the PingGateway MCP token-exchange path).
+
+Secondary finding, same investigation: the `SMALL` test amount ($2,500,
+comment says "expect PERMIT") is above the live policy's $2,000 PERMIT
+threshold, so it was also getting DENY'd — verified live that $500 gets
+PERMIT.
+
+**What was fixed:** guard now only requires `d.decision` (the actual
+PERMIT/DENY/INDETERMINATE effect), not `d.decisionId`. `SMALL` amount
+500 → 500 (restores the PERMIT-vs-DENY discrimination the check was
+designed to prove).
+
+**Do not break:** did not touch `pingOneAuthorizeService.js`'s shared
+`_postDecisionEndpoint`/`decisionId` extraction — that's consumed by the
+real transfer/HITL/attack-sim paths; out of scope for a check-only fix.
+
+**Verify:** `CI=true npx jest --testPathPattern="checks/authorizeCheck.test.js"`
+— 6/6 pass. Live: replicated the fixed guard against the real decision
+endpoint response for both test amounts — old guard fails both (missing
+decisionId), fixed guard passes and PERMIT/DENY discriminate →
+`status: 'pass'`.
+
 ### 2026-07-19 — Demo check SERVERS card red on a stock lean-core checkout (profile-gated services)
 
 **Files changed:** `demo_api_server/data/serverInventory.js`,
