@@ -115,3 +115,16 @@ export function isLiveWorkbenchRoute(pathname) {
   const p = pathname.replace(/\/$/, '') || '/';
   return p === '/use-cases/live';
 }
+
+/**
+ * The Agent Lifecycle showcase (/agent-lifecycle) — four demo slots driven
+ * by the single real agent + live Token Chain rail in a persistent right
+ * column, same placement mechanism the live use-case workbench uses.
+ * @param {string} [pathname]
+ * @returns {boolean}
+ */
+export function isAgentLifecycleRoute(pathname) {
+  if (pathname == null || typeof pathname !== 'string') return false;
+  const p = pathname.replace(/\/$/, '') || '/';
+  return p === '/agent-lifecycle';
+}
