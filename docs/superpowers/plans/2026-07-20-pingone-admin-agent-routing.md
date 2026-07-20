@@ -1,6 +1,28 @@
 # PingOne Admin Agent Routing Fix Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+>
+> **Post-implementation status (2026-07-20):** Task 3 live verification confirms
+> the routing fix works exactly as designed — clicking an admin demo step now
+> correctly reaches `POST /api/admin-agent/message` (confirmed via network
+> inspection and worker-token minting in the response), no longer the
+> `requiresCustomerLogin` "log in as a customer" card. Banking vertical
+> chat/chips confirmed unaffected (proper LLM reply, guard still enforced
+> correctly for admin tokens on `/api/agent/invoke`).
+>
+> **However**, the end-to-end demo step still doesn't produce a real
+> tool-backed reply — it now fails one layer deeper, with
+> `{"error":"reasoning_unavailable","reply":"PingOne Admin reasoning is
+> temporarily unavailable.","metadata":{"provider":"helix"}}`. Root cause:
+> `demo_api_server/services/adminAgentService.js` calls
+> `resolveLlmProvider({ ...langchainConfig, provider: undefined })` in two
+> places (~line 49 and ~line 218) — explicitly discarding whatever LLM
+> provider the session/client actually has configured and always falling
+> through to `llmProviderResolver.js`'s default (Helix), which this local
+> environment doesn't have configured (shown as "Helix — not configured",
+> disabled, in the Agent mode selector). This is pre-existing code, untouched
+> by this branch's single-file fix — a separate, deeper bug than the routing
+> issue this plan fixed. Tracked as a follow-up, not fixed here.
 
 **Goal:** Make every `sendAgentMessage()` call for `vertical === 'pingone-admin'` reach the real admin backend (`POST /api/admin-agent/message`) instead of misrouting to the customer/banking agent.
 
