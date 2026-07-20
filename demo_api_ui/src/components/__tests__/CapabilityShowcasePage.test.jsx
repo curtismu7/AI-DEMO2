@@ -36,7 +36,7 @@ describe('CapabilityShowcasePage', () => {
     expect(within(groupB).getByText('Capability Two')).toBeInTheDocument();
   });
 
-  it('renders each card\'s one-liner and evidence citation', () => {
+  it('renders each card’s one-liner and evidence citation', () => {
     render(<CapabilityShowcasePage title="Test Product" intro="Test intro copy." ledger={LEDGER} groups={GROUPS} />);
     expect(screen.getByText('Does thing one.')).toBeInTheDocument();
     expect(screen.getByText('file.js:1')).toBeInTheDocument();
