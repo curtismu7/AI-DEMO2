@@ -7140,7 +7140,7 @@ export default function BankingAgent({
       });
     } else {
       const replyText = response.reply || AGENT_UNAVAILABLE_MESSAGE;
-      const replyWithAgentBadge = `[CUSTOMER AGENT]\n${replyText}`;
+      const replyWithAgentBadge = `${response.agentHeader || "[CUSTOMER AGENT]"}\n${replyText}`;
       addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
       // A2A teaching popup: auto-open after a successful A2A delegation,
       // mirroring how RAR auto-explains. The response's own token events
