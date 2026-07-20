@@ -16,6 +16,7 @@ import { useDraggablePanel } from '../hooks/useDraggablePanel';
 import { agentFlowDiagram } from '../services/agentFlowDiagramService';
 import { useExchangeMode } from '../context/ExchangeModeContext';
 import { useTokenChainOptional } from '../context/TokenChainContext';
+import { useGatewayLiveConfig } from '../hooks/useGatewayLiveConfig';
 import TokenExchangeFlowDiagram from './TokenExchangeFlowDiagram';
 import TokenFlowDiagram from './TokenFlowDiagram';
 import { SecurityGuaranteeBanner } from './SecurityGuaranteeBanner';
@@ -100,6 +101,29 @@ function ClaimRow({ label, value, glossary }) {
 function hasAnyField(data) {
   if (!data) return false;
   return Object.values(data).some((v) => v !== undefined && v !== null);
+}
+
+// Tools routed to the Investments MCP backend — mirrors the static tool→route
+// table in GatewayRoutingDiagram.jsx ("Online Banking" vs "Investments"
+// WebSocket routes). Any tool not in this set is treated as OLB, the
+// majority-case route.
+const UTFI_INVEST_TOOLS = new Set(['get_portfolio_summary', 'get_investment_balance']);
+
+// A token-chain event's audience claim can show up under different field
+// names depending on which producer built it (session-preview stub events
+// carry `claims.aud`; live token-chain rows carry a flat `audience`; a few
+// call sites also pass through `decoded.payload.aud` / `tokenAud` / `aud`).
+// Check them in order so whichever shape the current event has, the real
+// value surfaces instead of silently rendering nothing.
+function getEventAudience(event) {
+  if (!event) return undefined;
+  const aud =
+    event.claims?.aud ??
+    event.decoded?.payload?.aud ??
+    event.audience ??
+    event.tokenAud ??
+    event.aud;
+  return Array.isArray(aud) ? aud.join(', ') : aud;
 }
 
 function statusBadge(status) {
@@ -888,7 +912,22 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
   const [showLegendModal, setShowLegendModal] = useState(false);
   const [showClaimsModal, setShowClaimsModal] = useState(false);
   const [selectedTokenType, setSelectedTokenType] = useState(null);
-  const [activeTab, setActiveTab] = useState('flow'); // 'flow' or 'chain'
+  const [activeTab, setActiveTab] = useState('flow'); // 'flow', 'chain', or 'transform'
+
+  // Token Transform tab data — gateway-audience-in vs backend-audience-out.
+  const tokenChainCtx = useTokenChainOptional();
+  const { data: gatewayLiveConfig } = useGatewayLiveConfig();
+  const gwConfig = gatewayLiveConfig?.config || null;
+  const lastTokenEvent = tokenChainCtx?.events?.length
+    ? tokenChainCtx.events[tokenChainCtx.events.length - 1]
+    : null;
+  const lastInboundAud =
+    getEventAudience(lastTokenEvent) || 'No token exchanged yet — run an agent action to populate this.';
+  const routesToInvest = UTFI_INVEST_TOOLS.has(snap.toolName);
+  const lastRoutedBackendUri = gwConfig
+    ? (routesToInvest ? gwConfig.mcpInvestResourceUri : gwConfig.mcpOlbResourceUri) ||
+      'Not configured — push a gateway config first'
+    : 'Gateway config not loaded — see Agent Gateway Configuration';
 
   const { pos, size, handleDragStart } = useDraggablePanel(
     () => ({
@@ -1013,6 +1052,15 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
         >
           Token Chain
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'transform'}
+          className={`utfi-tab${activeTab === 'transform' ? ' utfi-tab--active' : ''}`}
+          onClick={() => setActiveTab('transform')}
+        >
+          Token Transform
+        </button>
       </div>
 
       {activeTab === 'flow' ? (
@@ -1025,9 +1073,20 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
             <OAuthInspectorSection selectedToken={selectedToken} onOpenClaimsModal={openClaimsModal} />
           </div>
         </div>
-      ) : (
+      ) : activeTab === 'chain' ? (
         <div className="utfi-chain-view">
           <TokenChainTraceRail />
+        </div>
+      ) : (
+        <div className="utfi-transform-view">
+          <p className="utfi-rfc-inline-hint">
+            What the gateway accepts on the way in vs. the audience it exchanges for on the way out to the
+            routed backend (RFC 8693 · RFC 8707). {gwConfig && !snap.toolName && (
+              <>No tool call yet this session — defaulting to the Online Banking backend (majority-case route).</>
+            )}
+          </p>
+          <ClaimRow label="gateway-audience-in (aud)" value={lastInboundAud} glossary={CLAIM_GLOSSARY.aud} />
+          <ClaimRow label="backend-audience-out" value={lastRoutedBackendUri} glossary={CLAIM_GLOSSARY.aud} />
         </div>
       )}
 

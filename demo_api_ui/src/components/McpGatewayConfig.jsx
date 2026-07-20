@@ -10,6 +10,7 @@ import McpInspector from "./McpInspector";
 import McpTrafficPage from "./McpTrafficPage";
 import TokenSecurityTester from "./TokenSecurityTester";
 import { useMcpFieldState } from "../hooks/useMcpFieldState";
+import { useGatewayLiveConfig } from "../hooks/useGatewayLiveConfig";
 import { MCP_FIELD_KEYS } from "../constants/mcpFieldKeys";
 import { McpFieldProvider } from "../context/McpFieldContext";
 
@@ -74,9 +75,7 @@ function EnvVarTable({ vars, title }) {
 
 function McpGatewayConfigInner() {
 	const [searchParams] = useSearchParams();
-	const [data, setData] = useState(null);
-	const [error, setError] = useState(null);
-	const [loading, setLoading] = useState(true);
+	const { data, loading, error, refetch: fetchConfig } = useGatewayLiveConfig();
 	const initialSubtab = searchParams.get("subtab");
 	const [activeTab, setActiveTab] = useState(() =>
 		initialSubtab && MGC_TABS.includes(initialSubtab) ? initialSubtab : "mock",
@@ -99,23 +98,6 @@ function McpGatewayConfigInner() {
 	const { setValue: setGatewayUrl }          = useMcpFieldState(MCP_FIELD_KEYS.GATEWAY_URL);
 	const { setValue: setMcpScope }            = useMcpFieldState(MCP_FIELD_KEYS.MCP_SCOPE);
 
-	const fetchConfig = useCallback(async () => {
-		setLoading(true);
-		setError(null);
-		try {
-			const res = await fetch(`${API_BASE}/api/admin/mcp-gateway/config`, {
-				credentials: "include",
-			});
-			if (!res.ok) throw new Error(`HTTP ${res.status}`);
-			setData(await res.json());
-		} catch (e) {
-			setError(e.message);
-		} finally {
-			setLoading(false);
-		}
-	}, []);
-
-	useEffect(() => { fetchConfig(); }, [fetchConfig]);
 	const [pushForm, setPushForm] = useState({});
 	const [pushResult, setPushResult] = useState(null);
 	const [pushing, setPushing] = useState(false);
