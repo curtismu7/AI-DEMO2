@@ -410,6 +410,8 @@ services:
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
       MCP_GW_OLB_WS_URL: "ws://mcp-server:8080"
       MCP_GW_INVEST_WS_URL: "ws://mcp-invest:8081"
+      MCP_GW_JWTVERIFIER_HTTP_URL: "http://mcp-jwt-verifier:8083"
+      MCP_JWTVERIFIER_RESOURCE_URI: "mcp-jwt-verifier.ping.demo"
       MCP_GW_PASSTHROUGH_TO_MCP_SERVER: "false"
       # Accepted token audiences (comma list, tokenValidator.ts): Node-gateway +
       # PingGateway + the A2A specialists' dedicated Exchange #2 audience. This
@@ -454,6 +456,9 @@ services:
       mcp-invest:
         condition: service_started
         required: false   # core service — routes invest when up
+      mcp-jwt-verifier:
+        condition: service_started
+        required: false   # routes jwt_* diagnostic tools when up
       authz-server:
         condition: service_started
         required: false   # demo-auth profile — co-starts with mcp-gateway via demo-sync
@@ -556,6 +561,37 @@ services:
       - ai-demo
     depends_on:
       - demo-api-server
+    restart: unless-stopped
+
+  # ── MCP JWT Verifier (Python / FastMCP — JWT/JWKS diagnostic tools) ─────────
+  # profile demo-auth — only useful behind the Node mcp-gateway (co-starts with it).
+  mcp-jwt-verifier:
+    profiles: ["demo-auth"]
+    build:
+      context: ./demo_mcp_jwt_verifier
+      dockerfile: Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
+    container_name: ai-demo-mcp-jwt-verifier
+    ports:
+      - "8083:8083"
+    environment:
+      MCP_JWT_VERIFIER_HOST: "0.0.0.0"
+      MCP_JWT_VERIFIER_PORT: "8083"
+      # RFC 8707 audience — must match demo_mcp_gateway's MCP_JWTVERIFIER_RESOURCE_URI
+      # so the gateway's RFC 8693 re-exchange mints tokens this server accepts.
+      MCP_JWTVERIFIER_RESOURCE_URI: "mcp-jwt-verifier.ping.demo"
+    env_file:
+      - path: ./demo_mcp_jwt_verifier/.env
+        required: false   # copy demo_mcp_jwt_verifier/.env.example for PINGONE_JWKS_URI / PINGONE_ISSUER
+    networks:
+      - ai-demo
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8083/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     restart: unless-stopped
 
   # ── Mortgage Service (plain JS) ───────────────────────────────────────────────
