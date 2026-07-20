@@ -119,6 +119,7 @@ describe('AgentLifecyclePage — Slot 2 scoped MCP call', () => {
 
 describe('AgentLifecyclePage — Slot 3 step-up on purchase', () => {
   beforeEach(() => {
+    callMcpTool.mockReset();
     vi.useFakeTimers({ shouldAdvanceTime: true });
   });
   afterEach(() => {
@@ -127,28 +128,26 @@ describe('AgentLifecyclePage — Slot 3 step-up on purchase', () => {
   });
 
   it('walks checkout -> CIBA pending -> approved -> retried checkout', async () => {
+    // First call (checkout attempt): step-up required. Second call (post-approval
+    // retry): success. Routed through callMcpTool, same as ScopedCallSlot.
+    callMcpTool
+      .mockImplementationOnce(() =>
+        Promise.reject(
+          Object.assign(new Error('MCP error: 428'), {
+            statusCode: 428,
+            code: 'mcp_step_up_required',
+          }),
+        ),
+      )
+      .mockImplementationOnce(() =>
+        Promise.resolve({
+          result: { content: [{ type: 'text', text: '{}' }] },
+          tokenEvents: [],
+        }),
+      );
+
     let pollCount = 0;
-    global.fetch = vi.fn((url, opts) => {
-      if (url === '/api/mcp/tool') {
-        const body = JSON.parse(opts.body);
-        if (body.tool !== 'checkout') return Promise.reject(new Error('unexpected tool'));
-        // First call: step-up required. Second call (post-approval retry): success.
-        if (pollCount === 0) {
-          return Promise.resolve({
-            status: 428,
-            ok: false,
-            json: () => Promise.resolve({
-              error: 'mcp_step_up_required',
-              step_up_method: 'ciba',
-            }),
-          });
-        }
-        return Promise.resolve({
-          status: 200,
-          ok: true,
-          json: () => Promise.resolve({ result: { content: [{ type: 'text', text: '{}' }] } }),
-        });
-      }
+    global.fetch = vi.fn((url) => {
       if (url === '/api/auth/ciba/initiate') {
         return Promise.resolve({
           ok: true,
@@ -171,7 +170,7 @@ describe('AgentLifecyclePage — Slot 3 step-up on purchase', () => {
     fireEvent.click(screen.getByText('Checkout $600 headphones'));
 
     await waitFor(() =>
-      expect(screen.getByText(/Waiting for push approval/)).toBeInTheDocument(),
+      expect(screen.getByText(/Waiting for approval/)).toBeInTheDocument(),
     );
 
     await vi.advanceTimersByTimeAsync(1000); // first poll: pending
@@ -180,10 +179,15 @@ describe('AgentLifecyclePage — Slot 3 step-up on purchase', () => {
     await waitFor(() =>
       expect(screen.getByText('Checkout completed.')).toBeInTheDocument(),
     );
+    expect(callMcpTool).toHaveBeenCalledWith(
+      'checkout',
+      { product: 'Headphones', amount: 600 },
+      { useCaseId: 'ciba-out-of-band-approval', vertical: 'retail' },
+    );
   });
 
   it('surfaces an error instead of hanging when checkout rejects', async () => {
-    global.fetch = vi.fn(() => Promise.reject(new Error('network down')));
+    callMcpTool.mockRejectedValue(new Error('network down'));
 
     render(<AgentLifecyclePage />);
     fireEvent.click(screen.getByText('Checkout $600 headphones'));
