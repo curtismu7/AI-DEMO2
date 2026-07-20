@@ -225,6 +225,8 @@ const NL_FAILURE_MESSAGES = {
     "The server isn't available right now. Try again in a moment.",
   connection_timeout:
     "The server took too long to respond — it may still be starting up. Try again in a moment.",
+  insufficient_scope:
+    "This needs an admin session — click \"Switch to admin\" in the top navigation, then try again.",
 };
 const NL_FAILURE_FALLBACK =
   "That step couldn't be completed. Try again, or pick another demo step.";
