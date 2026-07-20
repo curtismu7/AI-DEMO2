@@ -382,7 +382,7 @@ function UseCaseCard({ uc, stepNumber, completed, onRun, onRunAttack, onExplain,
   const flagGated = flagId != null && !flagIsOn;
 
   return (
-    <div className={`uc-card${uc.advanced ? ' uc-card--advanced' : ''}${completed ? ' uc-card--completed' : ''}`}>
+    <div id={uc.id} className={`uc-card${uc.advanced ? ' uc-card--advanced' : ''}${completed ? ' uc-card--completed' : ''}`}>
       <div className="uc-card__header">
         <span className="uc-card__id">{uc.id}</span>
         {completed && (
