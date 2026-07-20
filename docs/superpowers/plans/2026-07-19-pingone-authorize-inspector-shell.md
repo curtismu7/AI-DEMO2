@@ -632,14 +632,35 @@ The `id="evaluate-card"` attribute is dropped along with it: `handleTestRule` (d
 
 Two edits to `demo_api_ui/src/components/__tests__/PingOneAuthorizePage.test.jsx`:
 
-First, at the **top** of the file, alongside the existing imports and mocks (add the new import next to the `EvaluatePanel` import, and the new `vi.mock` call right after the existing `vi.mock('../../services/bffAxios', ...)` block):
+First, at the **top** of the file: change the import to bring in the default export alongside the named one, and **merge** `useSearchParams` into Task 1's existing `vi.mock('react-router-dom', ...)` call rather than adding a second one — vitest does not merge multiple mock factories registered for the same module path; only the last-registered factory survives, so a second `vi.mock('react-router-dom', ...)` call would silently break Task 1's `useNavigate` mock instead of adding to it.
+
+Change:
+
+```jsx
+import { EvaluatePanel } from '../PingOneAuthorizePage';
+```
+
+to:
 
 ```jsx
 import PingOneAuthorizePage, { EvaluatePanel } from '../PingOneAuthorizePage';
-// (replaces the Task 1 line `import { EvaluatePanel } from '../PingOneAuthorizePage';` —
-// same module, now importing both the default and the named export in one statement)
+```
 
+And change Task 1's existing mock block from:
+
+```jsx
+const mockNavigate = vi.fn();
 vi.mock('react-router-dom', () => ({
+  useNavigate: () => mockNavigate,
+}));
+```
+
+to:
+
+```jsx
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => mockNavigate,
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }));
 ```
