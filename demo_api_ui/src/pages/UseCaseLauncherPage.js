@@ -33,6 +33,7 @@ import {
   DEMO_USE_CASE_IDS,
   DEMO_USE_CASE_LABEL,
 } from '../config/demoUseCaseSteps';
+import { allRelatedUCIds } from '../config/capabilityLedgers/pingOneAuthorizeCapabilities';
 
 const TRACK_ORDER = ['foundations', 'demo', 'attacks', 'hitl', 'controls', 'learn', 'tools'];
 const TRACK_LABELS = {
@@ -47,6 +48,7 @@ const TRACK_LABELS = {
 
 const HAPPY_PATH_LABEL = 'Happy Paths — successful outcomes across every track';
 const DEMO_LABEL = DEMO_USE_CASE_LABEL;
+const PINGONE_AUTHORIZE_LABEL = 'PingOne Authorize — contextual runtime decisions, cited against the running code';
 
 // Attack sims wired to POST /api/demo/attack-sim/run (A6.1 + A6.2).
 const RUNNABLE_SIMS = [
@@ -869,6 +871,10 @@ export default function UseCaseLauncherPage() {
   const happyPathIds = new Set(happyPathAll.map((uc) => uc.id));
   const happyPath = happyPathAll.filter((uc) => matchesQuery(uc, query));
 
+  const authorizeIds = new Set(allRelatedUCIds());
+  const authorizeAll = useCases.filter((uc) => authorizeIds.has(uc.id));
+  const authorizeVisible = authorizeAll.filter((uc) => matchesQuery(uc, query));
+
   const grouped = TRACK_ORDER.map((track) => ({
     track,
     items: useCases
@@ -890,6 +896,7 @@ export default function UseCaseLauncherPage() {
   const hasAnyResults =
     demoVisible.length > 0 ||
     happyPath.length > 0 ||
+    authorizeVisible.length > 0 ||
     grouped.some(({ track, items }) => getDisplayItems(track, items).length > 0);
 
   if (loading) {
@@ -986,6 +993,31 @@ export default function UseCaseLauncherPage() {
           <h2 className="uc-track__heading">{HAPPY_PATH_LABEL}</h2>
           <div className="uc-track__grid">
             {happyPath.map((uc) => (
+              <UseCaseCard
+                key={uc.id}
+                uc={uc}
+                completed={completedIds.has(uc.id)}
+                onRun={handleRun}
+                onRunAttack={handleRunAttack}
+                onExplain={setExplainUc}
+                onOpen={handleOpen}
+                attackState={attackStates[uc.id]}
+                chipRunning={chipRun?.id === uc.id && chipRun.state === 'running'}
+                chipRunError={chipRun?.id === uc.id && chipRun.state === 'error' ? chipRun.msg : null}
+                flagMap={flagMap}
+                flagsLoading={flagsLoading}
+                setFlag={setFlag}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {authorizeVisible.length > 0 && (
+        <section className="uc-track uc-track--pingone-authorize">
+          <h2 className="uc-track__heading">{PINGONE_AUTHORIZE_LABEL}</h2>
+          <div className="uc-track__grid">
+            {authorizeVisible.map((uc) => (
               <UseCaseCard
                 key={uc.id}
                 uc={uc}
