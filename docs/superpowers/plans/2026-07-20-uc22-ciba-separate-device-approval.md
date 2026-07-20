@@ -854,8 +854,8 @@ In `demo_api_ui/src/components/AIAgent.js`, replace the CIBA branch
                 normalized.fromAccountId || normalized.from_account_id;
               const toAccountId =
                 normalized.toAccountId || normalized.to_account_id;
-              const fromLabel = liveAccounts?.find((a) => a.id === fromAccountId)?.type;
-              const toLabel = liveAccounts?.find((a) => a.id === toAccountId)?.type;
+              const fromLabel = liveAccounts?.find((a) => a.id === fromAccountId)?.name;
+              const toLabel = liveAccounts?.find((a) => a.id === toAccountId)?.name;
               const initRes = await fetch(`${apiBase}/api/auth/ciba/initiate`, {
                 method: "POST",
                 credentials: "include",
@@ -955,8 +955,8 @@ In `demo_api_ui/src/components/AIAgent.js`, replace the CIBA branch
         const apiBase = process.env.REACT_APP_API_URL || "";
         const fromAccountId = response.fromAccountId || response.from_account_id;
         const toAccountId = response.toAccountId || response.to_account_id;
-        const fromLabel = liveAccounts?.find((a) => a.id === fromAccountId)?.type;
-        const toLabel = liveAccounts?.find((a) => a.id === toAccountId)?.type;
+        const fromLabel = liveAccounts?.find((a) => a.id === fromAccountId)?.name;
+        const toLabel = liveAccounts?.find((a) => a.id === toAccountId)?.name;
         const initRes = await fetch(`${apiBase}/api/auth/ciba/initiate`, {
           method: "POST",
           credentials: "include",
