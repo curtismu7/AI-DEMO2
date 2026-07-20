@@ -74,6 +74,22 @@ const MOCK_USE_CASES = [
     advanced: false,
   },
   {
+    id: 'UC6',
+    useCaseId: 'authz-denied',
+    track: 'controls',
+    title: 'Authz denied',
+    buyerStory: 'Buyer story for UC6.',
+    pingOneSolution: 'PingOne denies.',
+    trigger: { type: 'chip', text: 'transfer $75000' },
+    expectedOutcome: 'DENY',
+    evidence: {},
+    codeRefs: [],
+    maturity: 'works',
+    owasp: { threats: ['T3'], sections: ['§6'] },
+    whatToSay: 'The policy denied it.',
+    advanced: false,
+  },
+  {
     id: 'UC2',
     useCaseId: 'a2a-delegation',
     track: 'foundations',
@@ -390,11 +406,11 @@ describe('UseCaseLauncherPage', () => {
 
   it('non-runnable attack UC keeps disabled coming-in-A6.2 button', async () => {
     // UC11 has sim: 'expired-token' which is NOT in RUNNABLE_SIMS. UC11 is also
-    // a Demo-script id, so with useCases: [MOCK_USE_CASES[2]] alone its card
+    // a Demo-script id, so with useCases: [MOCK_USE_CASES[3]] alone its card
     // renders twice on the page (Attacks section + Demo section, no dedup) —
     // scope the button query to the Attacks section.
     apiClient.get.mockResolvedValue({
-      data: { vertical: 'banking', useCases: [MOCK_USE_CASES[2]] },
+      data: { vertical: 'banking', useCases: [MOCK_USE_CASES[3]] },
     });
     renderPage();
     await waitFor(() => expect(screen.getAllByText('Bad client to agent gateway').length).toBeGreaterThan(0));
@@ -492,11 +508,12 @@ describe('UseCaseLauncherPage', () => {
     expect(happyPathIdx).toBeGreaterThan(demoIdx);
     expect(foundationsIdx).toBeGreaterThan(happyPathIdx);
 
-    // UC1 (expectedOutcome: 'PERMIT') is also Demo script step 1 — it renders
-    // once in Demo and once in Happy Path (no cross-section dedup between the
-    // two), and is still excluded from Foundations (dedup is only between
-    // Happy Path and track sections, unaffected by Demo membership).
-    expect(screen.getAllByText('Delegated access with proof')).toHaveLength(2);
+    // UC1 (expectedOutcome: 'PERMIT') is also Demo script step 1 and a
+    // PingOne Authorize strip member — it renders once in each of Demo,
+    // Happy Path, and PingOne Authorize (no cross-section dedup between
+    // strips), and is still excluded from Foundations (dedup is only
+    // between Happy Path and track sections, unaffected by strip membership).
+    expect(screen.getAllByText('Delegated access with proof')).toHaveLength(3);
 
     // UC2's outcome is 'PERMIT with act-chain depth', not an exact 'PERMIT' match,
     // so it stays in its original Foundations section, not Happy Path.
@@ -514,12 +531,21 @@ describe('UseCaseLauncherPage', () => {
     expect(screen.queryByText(/Happy Paths — successful outcomes/i)).not.toBeInTheDocument();
   });
 
+  // ── PingOne Authorize grouping ──────────────────────────────────────────
+  it('renders a PingOne Authorize section containing UC1 and UC6', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText(/PingOne Authorize/i)).toBeInTheDocument());
+    const section = screen.getByText(/PingOne Authorize/i).closest('section');
+    expect(within(section).getAllByText('Delegated access with proof').length).toBeGreaterThan(0); // UC1
+    expect(within(section).getAllByText('Authz denied').length).toBeGreaterThan(0); // UC6
+  });
+
   // ── Demo section ─────────────────────────────────────────────────────────
   it('renders a Demo section first, above Happy Path, with cards in script order regardless of input order', async () => {
     // Deliberately out of DEMO_USE_CASE_IDS order (UC11 first) to prove the
     // section renders by script order, not by input array order.
     apiClient.get.mockResolvedValue({
-      data: { vertical: 'banking', useCases: [MOCK_USE_CASES[2], MOCK_USE_CASES[0], MOCK_USE_CASES[1]] },
+      data: { vertical: 'banking', useCases: [MOCK_USE_CASES[3], MOCK_USE_CASES[0], MOCK_USE_CASES[2]] },
     });
     renderPage();
     await waitFor(() => expect(screen.getByText(/Demo — a scripted walkthrough/i)).toBeInTheDocument());
@@ -539,18 +565,19 @@ describe('UseCaseLauncherPage', () => {
     renderPage();
     await waitFor(() => expect(screen.getByText(/Demo — a scripted walkthrough/i)).toBeInTheDocument());
     const demoSection = screen.getByRole('heading', { level: 2, name: /Demo — a scripted walkthrough/i }).closest('section');
-    // UC1, UC2, UC11 are DEMO_USE_CASE_IDS[0], [1], [9] → Step 1, Step 2, Step 10.
+    // UC1, UC2, UC11 are DEMO_USE_CASE_IDS[0], [6], [12] → Step 1, Step 7, Step 13.
     expect(within(demoSection).getByText('Step 1')).toBeInTheDocument();
-    expect(within(demoSection).getByText('Step 2')).toBeInTheDocument();
-    expect(within(demoSection).getByText('Step 10')).toBeInTheDocument();
+    expect(within(demoSection).getByText('Step 7')).toBeInTheDocument();
+    expect(within(demoSection).getByText('Step 13')).toBeInTheDocument();
   });
 
   it('a use case in both Demo and Happy Path renders once per section, not deduped', async () => {
     renderPage();
     await waitFor(() => expect(screen.getByText(/Demo — a scripted walkthrough/i)).toBeInTheDocument());
-    // UC1 qualifies for both Demo (script step 1) and Happy Path (PERMIT) — no
-    // cross-section dedup, so it renders twice total.
-    expect(screen.getAllByText('Delegated access with proof')).toHaveLength(2);
+    // UC1 qualifies for Demo (script step 1), Happy Path (PERMIT), and the
+    // PingOne Authorize strip — no cross-section dedup, so it renders three
+    // times total.
+    expect(screen.getAllByText('Delegated access with proof')).toHaveLength(3);
   });
 
   it('a flag-gated Demo step shows the gate UI', async () => {
@@ -654,11 +681,11 @@ describe('UseCaseLauncherPage', () => {
     fireEvent.change(search, { target: { value: 'a2a-delegation' } });
 
     // Only UC2 (useCaseId 'a2a-delegation') matches — Demo narrows to just its
-    // Step 2 card; UC1's Step 1 and UC11's Step 10 cards disappear from Demo.
+    // Step 7 card; UC1's Step 1 and UC11's Step 13 cards disappear from Demo.
     const demoSection = screen.getByRole('heading', { level: 2, name: /Demo — a scripted walkthrough/i }).closest('section');
-    expect(within(demoSection).getByText('Step 2')).toBeInTheDocument();
+    expect(within(demoSection).getByText('Step 7')).toBeInTheDocument();
     expect(within(demoSection).queryByText('Step 1')).not.toBeInTheDocument();
-    expect(within(demoSection).queryByText('Step 10')).not.toBeInTheDocument();
+    expect(within(demoSection).queryByText('Step 13')).not.toBeInTheDocument();
   });
 
   it('hides the Progressive Trust Demo strip while searching, restores it when cleared', async () => {
