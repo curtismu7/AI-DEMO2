@@ -150,7 +150,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "banking-mcp-gateways", paths: ["/pinggateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security"] },
   { id: "pingone-demo-apps", paths: ["/self-service", "/pingone-test", "/mfa-test", "/token-exchange-tester", "/oauth-academy", "/oas-demo", "/privilege-demo", "/sdk-login"] },
   { id: "delegation-consent", paths: ["/delegation", "/delegated-access", "/transaction-consent", "/actor-token-education"] },
-  { id: "authorize", paths: ["/pingone-authorize", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
+  { id: "authorize", paths: ["/pingone-authorize", "/pingone-authorize-capabilities", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
   { id: "users-accounts", paths: ["/users", "/accounts", "/transactions"] },
   { id: "industry-verticals", paths: ["/admin/banking", "/admin/healthcare", "/admin/retail", "/admin/sporting-goods", "/admin/workforce", "/admin/verticals", "/path/mortgage"] },
   { id: "monitoring", paths: ["/audit", "/monitoring", "/reports", "/error-audit"] },
@@ -568,6 +568,7 @@ export default function AdminSideNav({ user }) {
       icon: "pol",
       children: [
         { label: "PingOne Authorize", path: "/pingone-authorize", icon: "pol" },
+        { label: "Authorize Capabilities", path: "/pingone-authorize-capabilities", icon: "pol" },
         {
           label: "Policy Decision Trace",
           path: "/policy-decision-trace",
