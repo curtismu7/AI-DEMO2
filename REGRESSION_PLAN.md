@@ -101,6 +101,39 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-19 — Agent Gateway / Use Cases still red after the env-var fix — admin OAuth client had no PingOne grant
+
+**Files changed:** none (live PingOne config only — no code, no `.env`).
+
+**What was broken:** after the `PINGONE_RESOURCE_PINGGATEWAY_URI` fix
+(entry further below) the SAME error persisted (`token-exchange: ...At
+least one scope must be granted`). Traced which client performs this
+exchange — `gatewayCheck.js` and `agentMcpTokenService.js`'s no-actor-token
+branch both call the plain `oauthService.performTokenExchange`, which uses
+the **admin** OAuth client (`8a711944…`, "Demo AI App - Admin Login",
+`WEB_APP` type). Checked that client's live PingOne grants (worker creds,
+read-only): it had grants on Demo MCP Server / Demo API / openid but
+**zero grant on "Demo PingGateway MCP" (resource `6635cfb8`)** — whose only
+scope is `gateway:mcp:invoke`. Every other MCP resource already grants the
+admin client; this one never got it (matches the "durable provisioning
+still deliberately absent" gap noted in `[[project-pinggateway-half-built]]`).
+
+**What was fixed (user-confirmed live write):** `POST
+/applications/8a711944.../grants` with
+`{resource:{id:"6635cfb8..."}, scopes:[{id:"4b2917d1..." /* gateway:mcp:invoke */}]}`
+→ HTTP 201. Re-fetched the client's grants afterward — resource `6635cfb8`
+now present. Confirmed the app type is `WEB_APP` (grants API works),
+not `WORKER` (which PingOne restricts to `openid`-only grants) before
+writing.
+
+**Do not break:** additive-only — one new application grant, no existing
+grant/resource/scope/code touched.
+
+**Verify:** live PingOne grant list for `8a711944` includes `6635cfb8 ->
+[gateway:mcp:invoke]`. Full end-to-end proof needs a real signed-in
+browser run (a genuine user token, not something replicable with worker
+creds) — re-run "Run demo check" signed in.
+
 ### 2026-07-19 — Demo check PINGONE AUTHORIZE card red — check required a field PingOne doesn't return
 
 **Files changed:** `demo_api_server/services/checks/authorizeCheck.js` only.
