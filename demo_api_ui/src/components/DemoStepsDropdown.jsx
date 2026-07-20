@@ -61,7 +61,12 @@ export default function DemoStepsDropdown({
         setAdvancedSteps(mapIds(DEMO_ADVANCED_USE_CASE_IDS, DEMO_PRIMARY_USE_CASE_IDS.length));
       })
       .catch((err) => {
-        setError(err.message || 'Failed to load demo steps');
+        // The backend 400s with unknown_vertical for verticals that have no
+        // use-case catalog (e.g. the PingOne Admin console) — that is an
+        // expected empty state for this dropdown, not a failure to report.
+        if (err?.response?.data?.error !== 'unknown_vertical') {
+          setError(err.message || 'Failed to load demo steps');
+        }
         setPrimarySteps([]);
         setAdvancedSteps([]);
       })

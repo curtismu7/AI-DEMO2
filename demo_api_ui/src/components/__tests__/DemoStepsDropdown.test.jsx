@@ -160,4 +160,23 @@ describe('DemoStepsDropdown', () => {
     // so leaving it open renders the explanation behind the dropdown.
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
+
+  it('treats a backend 400 unknown_vertical as "no demo steps", not an error', async () => {
+    // /api/use-cases 400s for verticals with no use-case catalog (e.g. the
+    // PingOne Admin console vertical) — that is an expected empty state for
+    // this dropdown, not a failure to surface to the user.
+    apiClient.get.mockRejectedValue({
+      response: { status: 400, data: { error: 'unknown_vertical', vertical: 'pingone-admin' } },
+    });
+    render(
+      <DemoStepsDropdown
+        vertical="pingone-admin"
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    expect(await screen.findByText('No demo steps for this vertical.')).toBeInTheDocument();
+    expect(screen.queryByText(/Failed to load demo steps/)).not.toBeInTheDocument();
+  });
 });
