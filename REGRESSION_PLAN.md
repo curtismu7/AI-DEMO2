@@ -101,6 +101,39 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-20 — Admin agent demo-step replies labeled `[CUSTOMER AGENT]`
+
+**Files changed:**
+- `demo_api_ui/src/services/demoAgentService.js` — `sendToAdminAgent` now
+  passes through the backend's `agentHeader` field.
+- `demo_api_ui/src/components/AIAgent.js` (`handleNlResumeResponse`'s
+  success branch) — labels the reply with `response.agentHeader` when
+  present, falling back to the existing literal `[CUSTOMER AGENT]` string
+  otherwise.
+
+**What was broken:** `handleNlResumeResponse` (the function every demo-step
+click funnels through, for every vertical) hardcoded the `[CUSTOMER AGENT]`
+prefix on every successful reply, never reading any dynamic field. Harmless
+until the PingOne Admin routing fix (previous entry) started reaching the
+real admin backend — its replies then displayed the wrong agent label even
+though the backend and routing were correct.
+
+**What was fixed:** `sendToAdminAgent` passes through `agentHeader` from
+`/api/admin-agent/message`'s response (e.g. `🤖 [ADMIN AGENT - LangGraph -
+Claude 3.5 Sonnet]`), and the display label now prefers it when present.
+
+**Do not break:** every other vertical's response envelope never sets
+`agentHeader`, so `response.agentHeader || "[CUSTOMER AGENT]"` preserves the
+exact current label for banking/healthcare/etc. — verified this is the only
+line changed in `handleNlResumeResponse`; the HITL/step-up/CIBA/token-
+accounting logic above and below it is untouched.
+
+**Verify:** `demo_api_ui` vitest `demoAgentService.adminRouting` (6 pass,
+including the new `agentHeader` passthrough case); `npm run build` exits 0.
+Live click-through: PingOne Admin demo step reply now shows `[ADMIN AGENT -
+LangGraph - ...]`, banking vertical still shows `[CUSTOMER AGENT]`
+unchanged.
+
 ### 2026-07-20 — PingOne Admin AI Agent messages misrouted to the customer/banking agent
 
 **Files changed:**
