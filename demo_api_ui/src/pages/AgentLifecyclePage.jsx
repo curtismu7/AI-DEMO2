@@ -87,53 +87,63 @@ function StepUpSlot() {
 
   const pollCiba = React.useCallback((authReqId, intervalMs) => {
     timerRef.current = setTimeout(async () => {
-      const res = await fetch(`/api/auth/ciba/poll/${authReqId}`, { credentials: 'include' });
-      if (res.status === 403 || res.status === 404 || res.status === 410) {
-        setPhase('error');
-        setMessage('CIBA approval was denied or expired.');
-        return;
-      }
-      const data = await res.json().catch(() => ({}));
-      if (data.status === 'approved') {
-        setMessage('Approved — retrying checkout…');
-        const retry = await postCheckout();
-        if (retry.ok) {
-          setPhase('approved');
-          setMessage('Checkout completed.');
-        } else {
+      try {
+        const res = await fetch(`/api/auth/ciba/poll/${authReqId}`, { credentials: 'include' });
+        if (res.status === 403 || res.status === 404 || res.status === 410) {
           setPhase('error');
-          setMessage(retry.body.message || `Retry failed: HTTP ${retry.status}`);
+          setMessage('CIBA approval was denied or expired.');
+          return;
         }
-        return;
+        const data = await res.json().catch(() => ({}));
+        if (data.status === 'approved') {
+          setMessage('Approved — retrying checkout…');
+          const retry = await postCheckout();
+          if (retry.ok) {
+            setPhase('approved');
+            setMessage('Checkout completed.');
+          } else {
+            setPhase('error');
+            setMessage(retry.body.message || `Retry failed: HTTP ${retry.status}`);
+          }
+          return;
+        }
+        pollCiba(authReqId, intervalMs);
+      } catch (err) {
+        setPhase('error');
+        setMessage(err.message || 'CIBA polling failed');
       }
-      pollCiba(authReqId, intervalMs);
     }, intervalMs);
   }, [postCheckout]);
 
   const runCheckout = React.useCallback(async () => {
     setPhase('checking-out');
     setMessage('');
-    const { status, ok, body } = await postCheckout();
-    if (status === 428 && body.error === 'mcp_step_up_required' && body.step_up_method === 'ciba') {
-      const initRes = await fetch('/api/auth/ciba/initiate', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ binding_message: 'Approve your $600 headphones purchase' }),
-      });
-      const { auth_req_id, interval } = await initRes.json();
-      setPhase('waiting-approval');
-      setMessage(`Waiting for push approval (auth_req_id: ${auth_req_id})…`);
-      pollCiba(auth_req_id, (interval || 5) * 1000);
-      return;
-    }
-    if (!ok) {
+    try {
+      const { status, ok, body } = await postCheckout();
+      if (status === 428 && body.error === 'mcp_step_up_required' && body.step_up_method === 'ciba') {
+        const initRes = await fetch('/api/auth/ciba/initiate', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ binding_message: 'Approve your $600 headphones purchase' }),
+        });
+        const { auth_req_id, interval } = await initRes.json();
+        setPhase('waiting-approval');
+        setMessage(`Waiting for push approval (auth_req_id: ${auth_req_id})…`);
+        pollCiba(auth_req_id, (interval || 5) * 1000);
+        return;
+      }
+      if (!ok) {
+        setPhase('error');
+        setMessage(body.message || body.error_description || `HTTP ${status}`);
+        return;
+      }
+      setPhase('approved');
+      setMessage('Checkout completed.');
+    } catch (err) {
       setPhase('error');
-      setMessage(body.message || body.error_description || `HTTP ${status}`);
-      return;
+      setMessage(err.message || 'Checkout failed');
     }
-    setPhase('approved');
-    setMessage('Checkout completed.');
   }, [postCheckout, pollCiba]);
 
   React.useEffect(() => () => clearTimeout(timerRef.current), []);

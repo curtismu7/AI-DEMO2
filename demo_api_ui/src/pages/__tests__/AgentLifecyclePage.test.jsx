@@ -103,6 +103,7 @@ describe('AgentLifecyclePage — Slot 3 step-up on purchase', () => {
   });
   afterEach(() => {
     vi.useRealTimers();
+    delete global.fetch;
   });
 
   it('walks checkout -> CIBA pending -> approved -> retried checkout', async () => {
@@ -159,6 +160,18 @@ describe('AgentLifecyclePage — Slot 3 step-up on purchase', () => {
     await waitFor(() =>
       expect(screen.getByText('Checkout completed.')).toBeInTheDocument(),
     );
+  });
+
+  it('surfaces an error instead of hanging when checkout rejects', async () => {
+    global.fetch = vi.fn(() => Promise.reject(new Error('network down')));
+
+    render(<AgentLifecyclePage />);
+    fireEvent.click(screen.getByText('Checkout $600 headphones'));
+
+    await waitFor(() =>
+      expect(screen.getByText('network down')).toBeInTheDocument(),
+    );
+    expect(screen.getByText('Checkout $600 headphones')).toBeEnabled();
   });
 });
 
