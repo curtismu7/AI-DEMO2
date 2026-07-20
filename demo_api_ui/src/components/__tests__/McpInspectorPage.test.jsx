@@ -104,3 +104,31 @@ test('calling a PingOne MCP tool posts to /api/mcp/inspector/pingone-invoke', as
     { tool: 'users.read', params: { user_id: 'user-1' } },
   ));
 });
+
+const CAPTURED_CALL = {
+  id: 'c1', method: 'GET', url: '/api/accounts/acc_1', success: true,
+  response: { status: 200, body: { balance: 100 } }, request: { headers: {} }, durationMs: 38,
+};
+
+function mockFetchForApiCalls() {
+  global.fetch = vi.fn((url, opts) => {
+    if (opts?.method === 'DELETE') return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ calls: [CAPTURED_CALL], stats: { total: 1, success: 1, errors: 0 } }) });
+  });
+}
+
+test('switching to the API Calls source shows captured calls', async () => {
+  mockFetchForApiCalls();
+  render(<McpInspectorPage />);
+  fireEvent.click(screen.getByRole('button', { name: 'API Calls' }));
+  expect(await screen.findByText('/api/accounts/acc_1')).toBeInTheDocument();
+});
+
+test('selecting a captured call shows its response body in read-only fields', async () => {
+  mockFetchForApiCalls();
+  render(<McpInspectorPage />);
+  fireEvent.click(screen.getByRole('button', { name: 'API Calls' }));
+  fireEvent.click(await screen.findByText('/api/accounts/acc_1'));
+  expect(screen.getByDisplayValue('200')).toBeInTheDocument();
+  expect(screen.getByText(/balance/)).toBeInTheDocument();
+});

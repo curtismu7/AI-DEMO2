@@ -8,7 +8,7 @@
 // into shared logic. The three original files are untouched by this page
 // — McpInspector.js and ApiExplorerPanel.js are still separately embedded
 // in McpGatewayConfig.jsx and DevToolsDashboard.jsx respectively.
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import apiClient from '../services/apiClient';
 import { notifyError } from '../utils/appToast';
 import { formatAxiosError } from '../utils/formatAxiosError';
@@ -126,6 +126,16 @@ const pingoneToolDot = (name) => {
   const lower = name.toLowerCase();
   if (lower.startsWith('create') || lower.startsWith('update') || lower.startsWith('delete') || lower.startsWith('manage')) return 'write';
   return 'default';
+};
+
+const POLL_MS = 30000;
+
+const apiMethodBadgeClass = (m) => `aep-method-badge aep-method-badge--${(m || 'GET').toUpperCase()}`;
+
+const truncateUrl = (url, maxLen = 28) => {
+  if (!url) return '';
+  if (url.length <= maxLen) return url;
+  return url.slice(0, maxLen) + '…';
 };
 
 const BANKING_STATIC_TOOLS = [
@@ -707,11 +717,142 @@ function usePingOneSource() {
   };
 }
 
+function useApiCallsSource() {
+  const [calls, setCalls] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [live, setLive] = useState(true);
+  const [error, setError] = useState(null);
+  const [outputTab, setOutputTab] = useState('response');
+  const [search, setSearch] = useState('');
+  const liveRef = useRef(live);
+  liveRef.current = live;
+
+  const fetchCalls = useCallback(async () => {
+    if (!liveRef.current) return;
+    try {
+      const res = await fetch('/api/api-calls?limit=100', { credentials: 'include' });
+      if (!res.ok) { setError(`HTTP ${res.status}`); return; }
+      const data = await res.json();
+      setCalls(data.calls || []);
+      setStats(data.stats || null);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCalls();
+    const id = setInterval(fetchCalls, POLL_MS);
+    return () => clearInterval(id);
+  }, [fetchCalls]);
+
+  const handleClear = () => {
+    fetch('/api/api-calls', { method: 'DELETE', credentials: 'include' })
+      .then(() => { setCalls([]); setSelected(null); setStats(null); });
+  };
+
+  const reversed = [...calls].reverse();
+  const filteredCalls = search.trim()
+    ? reversed.filter((c) => (c.url || '').toLowerCase().includes(search.trim().toLowerCase()) || (c.method || '').toLowerCase().includes(search.trim().toLowerCase()))
+    : reversed;
+
+  const selectedCall = selected;
+  const status = selectedCall?.response?.status;
+  const duration = selectedCall?.durationMs ?? selectedCall?.duration;
+
+  return {
+    statusOn: live,
+    statusText: `${calls.length} calls ${live ? '- Live' : '- Paused'}`,
+    actions: (
+      <>
+        <button className={`inspector-shell-topbar__btn${live ? ' inspector-shell-topbar__btn--active' : ''}`} onClick={() => setLive((v) => !v)}>{live ? 'Pause' : 'Live'}</button>
+        <button className="inspector-shell-topbar__btn" onClick={handleClear}>Clear</button>
+      </>
+    ),
+    left: (
+      <>
+        <div className="inspector-shell-tree-header">
+          <span>Calls ({calls.length})</span>
+          {stats && <span style={{ fontSize: 9, color: '#64748b' }}>{stats.success ?? stats.successful}ok / {stats.errors ?? stats.failed}err</span>}
+        </div>
+        <div className="inspector-shell-tree-search">
+          <input type="search" placeholder="Filter calls..." value={search} onChange={(e) => setSearch(e.target.value)} spellCheck={false} />
+        </div>
+        <div className="inspector-shell-tree-body">
+          {filteredCalls.length === 0 ? (
+            <div style={{ padding: '20px 16px', color: '#64748b', fontSize: 13 }}>
+              {calls.length === 0 ? 'No API calls yet. Use the AI agent or test pages to generate calls.' : `No calls match "${search}".`}
+            </div>
+          ) : filteredCalls.map((call) => (
+            <button
+              type="button"
+              key={call.id}
+              className={`inspector-shell-tree-item${selected?.id === call.id ? ' inspector-shell-tree-item--active' : ''}`}
+              onClick={() => { setSelected((prev) => (prev?.id === call.id ? null : call)); setOutputTab('response'); }}
+            >
+              <span className={`inspector-shell-tree-item__dot${!call.success ? ' inspector-shell-tree-item__dot--sensitive' : ''}`} />
+              <span className={apiMethodBadgeClass(call.method)}>{(call.method || 'GET').toUpperCase()}</span>
+              <span style={{ fontSize: 11, color: '#475569' }}>{truncateUrl(call.url)}</span>
+              {(call.durationMs ?? call.duration) != null && <span style={{ marginLeft: 'auto', fontSize: 9, color: '#64748b' }}>{call.durationMs ?? call.duration}ms</span>}
+            </button>
+          ))}
+        </div>
+      </>
+    ),
+    middle: selectedCall ? (
+      <>
+        <div className="inspector-shell-form-header">
+          <div className="inspector-shell-form-header__name">{(selectedCall.method || 'GET').toUpperCase()} Request</div>
+          <div className="inspector-shell-form-header__desc">Inspect the selected API call details</div>
+        </div>
+        <div className="inspector-shell-form-body">
+          <div className="inspector-shell-field"><label>URL</label><input type="text" value={selectedCall.url || ''} readOnly /></div>
+          <div className="inspector-shell-field"><label>Method</label><input type="text" value={(selectedCall.method || 'GET').toUpperCase()} readOnly /></div>
+          <div className="inspector-shell-field"><label>Status Code</label><input type="text" value={status != null ? String(status) : 'N/A'} readOnly /></div>
+          <div className="inspector-shell-field"><label>Duration</label><input type="text" value={duration != null ? `${duration}ms` : 'N/A'} readOnly /></div>
+        </div>
+      </>
+    ) : (
+      <div className="inspector-shell-form-empty">Select an API call from the list to inspect its details.</div>
+    ),
+    right: (
+      <>
+        <InspectorTabs
+          tabs={[{ key: 'response', label: 'Response Body' }, { key: 'request', label: 'Request Body' }, { key: 'headers', label: 'Headers' }]}
+          activeKey={outputTab}
+          onChange={setOutputTab}
+        />
+        {selectedCall ? (
+          <>
+            <div className="inspector-shell-output-body">
+              <pre className="inspector-shell-output-code">
+                {outputTab === 'response' && (selectedCall.response?.body ? <JsonHighlight value={selectedCall.response.body} /> : <span style={{ color: '#64748b', fontStyle: 'italic' }}>No response body captured</span>)}
+                {outputTab === 'request' && (selectedCall.request?.body ? <JsonHighlight value={selectedCall.request.body} /> : <span style={{ color: '#64748b', fontStyle: 'italic' }}>No request body</span>)}
+                {outputTab === 'headers' && (selectedCall.request?.headers && Object.keys(selectedCall.request.headers).length > 0 ? <JsonHighlight value={selectedCall.request.headers} /> : <span style={{ color: '#64748b', fontStyle: 'italic' }}>No headers captured</span>)}
+              </pre>
+            </div>
+            <div className="inspector-shell-output-footer">
+              <span><strong>Status:</strong> {status != null ? status : 'N/A'}</span>
+              <span><strong>Duration:</strong> {duration != null ? `${duration}ms` : 'N/A'}</span>
+              <span><strong>Transport:</strong> HTTP</span>
+            </div>
+          </>
+        ) : (
+          <div className="inspector-shell-output-empty">Select an API call to view its response, request body, and headers.</div>
+        )}
+      </>
+    ),
+  };
+}
+
 export default function McpInspectorPage() {
   const [activeSource, setActiveSource] = useState('banking');
   const banking = useBankingSource();
   const pingone = usePingOneSource();
-  const current = activeSource === 'pingone' ? pingone : banking; // Task 3 adds the 'api' branch.
+  const api = useApiCallsSource();
+  const current = activeSource === 'pingone' ? pingone : activeSource === 'api' ? api : banking;
 
   return (
     <InspectorShell
