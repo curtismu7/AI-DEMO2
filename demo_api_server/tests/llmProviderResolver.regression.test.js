@@ -2,15 +2,13 @@
 /**
  * Regression: one canonical provider resolver.
  * Rule (ARCHITECTURE-TRUTHS T-3): Heuristic runs upstream (not here).
- * When consulted: explicit choice honored; else llama.cpp (the default
- * catch-all — the two modes actually demoed are llama.cpp and Heuristics;
- * Helix and the rest are opt-in, not the default).
+ * When consulted: explicit choice honored; else Helix (the default catch-all).
  */
 const { resolveLlmProvider } = require('../services/llmProviderResolver');
 
 describe('resolveLlmProvider', () => {
-  test('defaults to llamacpp when no provider set', () => {
-    expect(resolveLlmProvider({})).toEqual({ provider: 'llamacpp', model: undefined });
+  test('defaults to helix when no provider set', () => {
+    expect(resolveLlmProvider({})).toEqual({ provider: 'helix', model: undefined });
   });
 
   test('honors explicit helix', () => {
@@ -18,9 +16,9 @@ describe('resolveLlmProvider', () => {
       .toEqual({ provider: 'helix', model: 'gpt-4o-mini' });
   });
 
-  test('unknown provider falls back to llamacpp', () => {
+  test('unknown provider falls back to helix', () => {
     expect(resolveLlmProvider({ provider: 'gpt5' }))
-      .toEqual({ provider: 'llamacpp', model: undefined });
+      .toEqual({ provider: 'helix', model: undefined });
   });
 
   test('honors explicit openai (pass-through; :3006 enforces creds)', () => {
