@@ -394,6 +394,47 @@ describe('Step-Up MFA Gate — POST /api/transactions', () => {
     });
   });
 
+  // ── UC22's useCaseId forces CIBA unconditionally (transactionAuthorizationService's
+  // CIBA_DEMO_USE_CASE_ID check does not look at acr) — so a retry that still carried
+  // useCaseId would be re-forced into another CIBA prompt forever, even right after
+  // the user approved one and the response should have gone straight back to them.
+  // routes/transactions.js breaks the loop by not re-sending useCaseId once this
+  // exact request already consumed a fresh session-level step-up. ──
+  describe('UC22 useCaseId — dropped once this request already consumed a fresh step-up', () => {
+    it('does not forward useCaseId to the policy engine on the post-approval retry', async () => {
+      runtimeSettings.update({
+        stepUpEnabled: true,
+        stepUpAmountThreshold: 250,
+        stepUpAcrValue: 'Multi_factor',
+      }, 'test');
+
+      await request(app)
+        .post('/api/transactions')
+        .set('x-test-user', customerUser({ acr: null }))
+        .set('x-test-step-up-verified', String(Date.now() + 5 * 60 * 1000))
+        .send({ ...highValueWithdrawal(500), useCaseId: 'ciba-out-of-band-approval' });
+
+      const calls = transactionAuthorizationServiceMock.evaluateTransactionPolicy.mock.calls;
+      expect(calls[calls.length - 1][0].useCaseId).toBe('');
+    });
+
+    it('still forwards useCaseId when there is no fresh session-level step-up', async () => {
+      runtimeSettings.update({
+        stepUpEnabled: true,
+        stepUpAmountThreshold: 250,
+        stepUpAcrValue: 'Multi_factor',
+      }, 'test');
+
+      await request(app)
+        .post('/api/transactions')
+        .set('x-test-user', customerUser({ acr: null }))
+        .send({ ...highValueWithdrawal(500), useCaseId: 'ciba-out-of-band-approval' });
+
+      const calls = transactionAuthorizationServiceMock.evaluateTransactionPolicy.mock.calls;
+      expect(calls[calls.length - 1][0].useCaseId).toBe('ciba-out-of-band-approval');
+    });
+  });
+
   // ── Admin bypass ──────────────────────────────────────────────────────────────
   describe('when the user is an admin', () => {
     it('should bypass the step-up gate regardless of amount', async () => {

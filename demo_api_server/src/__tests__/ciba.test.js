@@ -305,6 +305,21 @@ describe('POST /api/auth/ciba/initiate', () => {
     expect(res.body.login_hint_display).not.toBe('alice@example.com');
   });
 
+  it('accepts optional amount/account-label fields and stores them on the pending request', async () => {
+    const res = await request(buildApp())
+      .post('/api/auth/ciba/initiate')
+      .set('x-test-user', USER_HDR)
+      .send({
+        binding_message: 'Approve $600 transfer',
+        amount: 600,
+        from_account_label: 'Checking',
+        to_account_label: 'Savings',
+      });
+    expect(res.status).toBe(200);
+    // Fields aren't echoed on /initiate's own response — verified via
+    // GET /request/:authReqId in the next describe block.
+  });
+
   it('sends correct scope and acr_values to PingOne', async () => {
     await request(buildApp())
       .post('/api/auth/ciba/initiate')
@@ -471,6 +486,91 @@ describe('POST /api/auth/ciba/initiate', () => {
       const callArgs = cibaService.initiateBackchannelAuth.mock.calls[0];
       expect(callArgs[1]).not.toMatch(/[\x00-\x1f]/);
     });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// GET /api/auth/ciba/request/:authReqId
+// ═══════════════════════════════════════════════════════════════════════════════
+
+describe('GET /api/auth/ciba/request/:authReqId', () => {
+  const pendingWithDetails = {
+    cibaRequests: {
+      [MOCK_AUTH_REQ_ID]: {
+        initiatedAt: Date.now(),
+        expiresAt:   Date.now() + 300_000,
+        loginHint:   'alice@example.com',
+        scope:       'openid profile email',
+        acr_values:  '',
+        binding_message: 'Approve your banking transaction',
+        amount: 600,
+        fromAccountLabel: 'Checking',
+        toAccountLabel: 'Savings',
+      },
+    },
+  };
+
+  it('returns 401 without authentication', async () => {
+    const res = await request(buildApp(pendingWithDetails))
+      .get(`/api/auth/ciba/request/${MOCK_AUTH_REQ_ID}`);
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 404 for an unknown auth_req_id', async () => {
+    const res = await request(buildApp({ cibaRequests: {} }))
+      .get('/api/auth/ciba/request/no-such-id')
+      .set('x-test-user', USER_HDR);
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('unknown_request');
+  });
+
+  it('returns 410 for an expired request', async () => {
+    const expiredSession = {
+      cibaRequests: {
+        [MOCK_AUTH_REQ_ID]: {
+          initiatedAt: Date.now() - 400_000,
+          expiresAt:   Date.now() - 100_000,
+          binding_message: 'Approve transfer',
+        },
+      },
+    };
+    const res = await request(buildApp(expiredSession))
+      .get(`/api/auth/ciba/request/${MOCK_AUTH_REQ_ID}`)
+      .set('x-test-user', USER_HDR);
+    expect(res.status).toBe(410);
+    expect(res.body.error).toBe('request_expired');
+  });
+
+  it('returns binding_message, amount, and account labels for a pending request', async () => {
+    const res = await request(buildApp(pendingWithDetails))
+      .get(`/api/auth/ciba/request/${MOCK_AUTH_REQ_ID}`)
+      .set('x-test-user', USER_HDR);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      binding_message: 'Approve your banking transaction',
+      amount: 600,
+      from_account_label: 'Checking',
+      to_account_label: 'Savings',
+    });
+  });
+
+  it('returns null amount/account labels when the request has none (non-UC22 CIBA)', async () => {
+    const bare = {
+      cibaRequests: {
+        [MOCK_AUTH_REQ_ID]: {
+          initiatedAt: Date.now(),
+          expiresAt:   Date.now() + 300_000,
+          binding_message: 'Approve sign-in',
+        },
+      },
+    };
+    const res = await request(buildApp(bare))
+      .get(`/api/auth/ciba/request/${MOCK_AUTH_REQ_ID}`)
+      .set('x-test-user', USER_HDR);
+    expect(res.status).toBe(200);
+    expect(res.body.amount).toBeNull();
+    expect(res.body.from_account_label).toBeNull();
+    expect(res.body.to_account_label).toBeNull();
   });
 });
 
@@ -944,6 +1044,73 @@ describe('POST /api/auth/ciba/approve-now/:authReqId', () => {
       .set('x-test-user', USER_HDR)
       .get('/api/auth/ciba/poll/sim-approve-now');
     expect(afterPoll.body.status).toBe('approved');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// POST /api/auth/ciba/deny/:authReqId
+// ═══════════════════════════════════════════════════════════════════════════════
+
+describe('POST /api/auth/ciba/deny/:authReqId', () => {
+  it('returns 401 without authentication', async () => {
+    const res = await request(
+      buildApp({ cibaRequests: { [MOCK_AUTH_REQ_ID]: { simulated: true } } }),
+    ).post(`/api/auth/ciba/deny/${MOCK_AUTH_REQ_ID}`);
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 404 for a non-existent request', async () => {
+    const res = await request(buildApp({}))
+      .post('/api/auth/ciba/deny/no-such-id')
+      .set('x-test-user', USER_HDR);
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('unknown_request');
+  });
+
+  it('marks a pending request denied, and the next /poll call returns 403 denied', async () => {
+    cibaService.isEnabled.mockReturnValue(true);
+    cibaSimulatedService.initiateSimulated.mockClear();
+    cibaSimulatedService.initiateSimulated.mockReturnValue({
+      auth_req_id: 'sim-deny-me', expires_in: 300, interval: 5,
+    });
+    cibaService.initiateBackchannelAuth.mockRejectedValue(new Error('ECONNREFUSED'));
+    cibaSimulatedService.isSimulatedApproved.mockReturnValue(false);
+
+    const agent = request.agent(buildApp());
+    await agent.set('x-test-user', USER_HDR).post('/api/auth/ciba/initiate').send({});
+
+    const denyRes = await agent
+      .set('x-test-user', USER_HDR)
+      .post('/api/auth/ciba/deny/sim-deny-me');
+    expect(denyRes.status).toBe(200);
+    expect(denyRes.body.ok).toBe(true);
+
+    const pollRes = await agent
+      .set('x-test-user', USER_HDR)
+      .get('/api/auth/ciba/poll/sim-deny-me');
+    expect(pollRes.status).toBe(403);
+    expect(pollRes.body.status).toBe('denied');
+    expect(pollRes.body.error).toBe('access_denied');
+  });
+
+  it('a second poll after denial 404s (request deleted, same as approval)', async () => {
+    cibaService.isEnabled.mockReturnValue(true);
+    cibaSimulatedService.initiateSimulated.mockClear();
+    cibaSimulatedService.initiateSimulated.mockReturnValue({
+      auth_req_id: 'sim-deny-twice', expires_in: 300, interval: 5,
+    });
+    cibaService.initiateBackchannelAuth.mockRejectedValue(new Error('ECONNREFUSED'));
+    cibaSimulatedService.isSimulatedApproved.mockReturnValue(false);
+
+    const agent = request.agent(buildApp());
+    await agent.set('x-test-user', USER_HDR).post('/api/auth/ciba/initiate').send({});
+    await agent.set('x-test-user', USER_HDR).post('/api/auth/ciba/deny/sim-deny-twice');
+    await agent.set('x-test-user', USER_HDR).get('/api/auth/ciba/poll/sim-deny-twice');
+
+    const secondPoll = await agent
+      .set('x-test-user', USER_HDR)
+      .get('/api/auth/ciba/poll/sim-deny-twice');
+    expect(secondPoll.status).toBe(404);
   });
 });
 
