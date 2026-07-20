@@ -508,12 +508,184 @@ git commit -m "feat(agent-lifecycle): move Agent + Token Chain rail to a persist
 
 ---
 
+### Task 2: Mount the singleton `<AIAgent>` on `/agent-lifecycle`
+
+**Discovered during Task 1's Step 7 live-verify:** `.alp-agent-host` renders
+correctly and `setSurfaceHostEl` is called correctly (Task 1 works exactly
+as specced), but the right column stays empty (`0` children) because
+`App.js`'s `shouldMountSingleAgent` gate never mounts the singleton
+`<AIAgent>` at all on this route — it has an explicit clause for
+`/use-cases/live` (`onLiveWorkbenchRoute`) but nothing for
+`/agent-lifecycle`. Registering a portal host is necessary but not
+sufficient; something must also decide to mount the agent in the first
+place. This task adds that missing clause, mirroring the existing
+`onLiveWorkbenchRoute` pattern exactly.
+
+**Files:**
+- Modify: `demo_api_ui/src/utils/embeddedAgentFabVisibility.js` — add
+  `isAgentLifecycleRoute(pathname)`, mirroring `isLiveWorkbenchRoute`.
+- Modify: `demo_api_ui/src/App.js` — import it, derive
+  `onAgentLifecycleRoute`, wire into `shouldMountSingleAgent` and the
+  `singleAgentSurfaceProps` branch.
+- Test: `demo_api_ui/src/utils/__tests__/embeddedAgentFabVisibility.test.js`
+  — add a describe block for `isAgentLifecycleRoute` mirroring the existing
+  `isLiveWorkbenchRoute` block.
+
+**Interfaces:**
+- Consumes: nothing new — `pathname` (string) is already threaded through
+  `App.js`'s `AppWithAuth` component (see existing `onLiveWorkbenchRoute`
+  usage at `App.js:326`).
+- Produces: `isAgentLifecycleRoute(pathname): boolean`, exported from
+  `embeddedAgentFabVisibility.js` alongside `isLiveWorkbenchRoute`.
+
+- [ ] **Step 1: Write the failing test**
+
+In `demo_api_ui/src/utils/__tests__/embeddedAgentFabVisibility.test.js`,
+add `isAgentLifecycleRoute` to the existing import block (alongside
+`isLiveWorkbenchRoute` at line 7), and add this describe block right after
+the existing `describe('isLiveWorkbenchRoute', ...)` block (after its
+closing `});`):
+
+```jsx
+describe('isAgentLifecycleRoute', () => {
+  it('is true only for /agent-lifecycle', () => {
+    expect(isAgentLifecycleRoute('/agent-lifecycle')).toBe(true);
+    expect(isAgentLifecycleRoute('/agent-lifecycle/')).toBe(true);
+  });
+
+  it('is false for unrelated routes', () => {
+    expect(isAgentLifecycleRoute('/use-cases/live')).toBe(false);
+    expect(isAgentLifecycleRoute('/dashboard')).toBe(false);
+    expect(isAgentLifecycleRoute('/')).toBe(false);
+    expect(isAgentLifecycleRoute(null)).toBe(false);
+    expect(isAgentLifecycleRoute(undefined)).toBe(false);
+  });
+});
+```
+
+- [ ] **Step 2: Run the test to verify it fails**
+
+```bash
+cd demo_api_ui && npx vitest run src/utils/__tests__/embeddedAgentFabVisibility.test.js
+```
+
+Expected: FAILS with `isAgentLifecycleRoute is not a function` (or
+`undefined`) — every other test in the file still PASSES unchanged.
+
+- [ ] **Step 3: Implement — add the route-check helper**
+
+In `demo_api_ui/src/utils/embeddedAgentFabVisibility.js`, add this function
+right after the existing `isLiveWorkbenchRoute` function (same file, same
+export style — `export function`):
+
+```jsx
+/**
+ * The Agent Lifecycle showcase (/agent-lifecycle) — four demo slots driven
+ * by the single real agent + live Token Chain rail in a persistent right
+ * column, same placement mechanism the live use-case workbench uses.
+ * @param {string} [pathname]
+ * @returns {boolean}
+ */
+export function isAgentLifecycleRoute(pathname) {
+  if (pathname == null || typeof pathname !== 'string') return false;
+  const p = pathname.replace(/\/$/, '') || '/';
+  return p === '/agent-lifecycle';
+}
+```
+
+- [ ] **Step 4: Run the test to verify it passes**
+
+```bash
+cd demo_api_ui && npx vitest run src/utils/__tests__/embeddedAgentFabVisibility.test.js
+```
+
+Expected: all tests PASS (pre-existing plus the two new ones).
+
+- [ ] **Step 5: Wire the route into `App.js`**
+
+In `demo_api_ui/src/App.js`:
+
+1. In the import block that currently includes `isLiveWorkbenchRoute` (line
+   166), add `isAgentLifecycleRoute` right after it:
+
+```jsx
+  isLiveWorkbenchRoute,
+  isAgentLifecycleRoute,
+```
+
+2. Right after the existing `onLiveWorkbenchRoute` declaration (line 326:
+   `const onLiveWorkbenchRoute = Boolean(user) && isLiveWorkbenchRoute(pathname);`),
+   add:
+
+```jsx
+  const onAgentLifecycleRoute = Boolean(user) && isAgentLifecycleRoute(pathname);
+```
+
+3. In the `shouldMountSingleAgent` calculation, change:
+
+```jsx
+  const shouldMountSingleAgent =
+    showFloatingAgent ||
+    hasEmbeddedDockLayout ||
+    onMiddlePlacementInDashboard ||
+    onLiveWorkbenchRoute;
+```
+
+to:
+
+```jsx
+  const shouldMountSingleAgent =
+    showFloatingAgent ||
+    hasEmbeddedDockLayout ||
+    onMiddlePlacementInDashboard ||
+    onLiveWorkbenchRoute ||
+    onAgentLifecycleRoute;
+```
+
+4. In the `singleAgentSurfaceProps` branch, change:
+
+```jsx
+  } else if (onLiveWorkbenchRoute) {
+    // This route's own narrow host always wants the agent, regardless of the
+    // user's dashboard-wide placement preference (same reasoning as clinicalSplit).
+    singleAgentSurfaceProps = { mode: "inline", splitColumnChrome: true };
+  }
+```
+
+to:
+
+```jsx
+  } else if (onLiveWorkbenchRoute || onAgentLifecycleRoute) {
+    // Both routes' own narrow/right-column host always want the agent,
+    // regardless of the user's dashboard-wide placement preference (same
+    // reasoning as clinicalSplit).
+    singleAgentSurfaceProps = { mode: "inline", splitColumnChrome: true };
+  }
+```
+
+- [ ] **Step 6: Live-verify**
+
+Reload `/agent-lifecycle` in the running worktree dev server (or the main
+stack once merged) and confirm `.alp-agent-host` now has a mounted
+`<AIAgent>` inside it (non-zero children), rendered inline (no floating
+frame/drag chrome), matching how it looks on `/use-cases/live`.
+
+- [ ] **Step 7: Commit**
+
+```bash
+cd demo_api_ui && git add src/App.js src/utils/embeddedAgentFabVisibility.js src/utils/__tests__/embeddedAgentFabVisibility.test.js
+git commit -m "fix(agent-lifecycle): mount the singleton AIAgent on /agent-lifecycle"
+```
+
+---
+
 ## Verification Checklist (maps to spec Revision 2)
 
 - [x] Slot 2's 502 root-caused and fixed live (PingOne app re-enabled) —
   already done during design, no code task needed.
-- [ ] Left column: four slots, unchanged logic (Task 1, Steps 3-4).
+- [x] Left column: four slots, unchanged logic (Task 1, Steps 3-4).
 - [ ] Right column: persistent real `<AIAgent>` + `<TokenChainTraceRail/>`,
-  visible across all slots (Task 1, Steps 4-5, verified Step 7).
-- [ ] Inline rail removed from slot 2 (Task 1, Step 3).
-- [ ] No backend changes (confirmed — plan touches only 3 frontend files).
+  visible across all slots (Task 1 registers the host; Task 2 makes the
+  agent actually mount into it — verify both together, live).
+- [x] Inline rail removed from slot 2 (Task 1, Step 3).
+- [x] No backend changes (confirmed — both tasks touch only frontend files).
