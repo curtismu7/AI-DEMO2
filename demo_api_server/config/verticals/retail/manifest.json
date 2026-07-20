@@ -100,6 +100,7 @@
       }
     ],
     "chips10": [
+      { "id": "rt-jwt", "label": "Decode my token", "message": "decode my jwt token", "mode": "both", "tool": "jwt_decode_full" },
       { "id": "rt1", "label": "List my orders", "message": "list my orders", "mode": "both", "tool": "list_orders", "useCaseId": "delegated-access-with-proof" },
       { "id": "rt2", "label": "Where's my order?", "message": "order status", "mode": "both", "tool": "order_status", "useCaseId": "delegated-access-with-proof" },
       { "id": "rt3", "label": "My reward points", "message": "my reward points", "mode": "both", "tool": "rewards_balance", "useCaseId": "delegated-access-with-proof" },

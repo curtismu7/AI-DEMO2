@@ -113,6 +113,7 @@
       }
     ],
     "chips10": [
+      { "id": "bk-jwt", "label": "Decode my token", "message": "decode my jwt token", "mode": "both", "tool": "jwt_decode_full" },
       { "id": "bk-flow", "label": "Check balance", "message": "what is my balance", "mode": "both", "tool": "get_account_balance", "useCaseId": "delegated-access-with-proof" },
       { "id": "bk-consent", "label": "👤 Transfer $300", "message": "transfer $300 from checking to savings", "mode": "both", "hitlTrigger": true, "challenge": "consent", "tool": "create_transfer", "useCaseId": "hitl-consent" },
       { "id": "bk-mfa", "label": "🔑 Transfer $600", "message": "transfer $600 from checking to savings", "mode": "both", "hitlTrigger": true, "challenge": "step_up", "tool": "create_transfer", "useCaseId": "step-up-required" },

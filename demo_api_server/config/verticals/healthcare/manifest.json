@@ -119,6 +119,7 @@
       ]
     },
     "chips10": [
+      { "id": "hc-jwt", "label": "Decode my token", "message": "decode my jwt token", "mode": "both", "tool": "jwt_decode_full" },
       { "id": "hc1", "label": "My records", "message": "my records", "mode": "both", "tool": "view_records", "useCaseId": "delegated-access-with-proof" },
       { "id": "hc2", "label": "Check coverage", "message": "check my coverage", "mode": "both", "tool": "view_coverage", "useCaseId": "delegated-access-with-proof" },
       { "id": "hc3", "label": "My appointments", "message": "my appointments", "mode": "both", "tool": "list_appointments", "useCaseId": "delegated-access-with-proof" },
