@@ -56,9 +56,10 @@ describe('navConfigStore.lmdb', () => {
     expect(result).toEqual({ ok: false, reason: 'not_found' });
   });
 
-  test('getUserPrefs defaults to empty hiddenLabels for a first-time user', () => {
+  test('getUserPrefs defaults to Use Cases hidden for a first-time user', () => {
     const prefs = store.getUserPrefs('user-never-seen-before');
-    expect(prefs).toEqual({ hiddenLabels: [], activeConfigId: null, updatedAt: null });
+    expect(prefs).toEqual({ hiddenLabels: ['Use Cases'], activeConfigId: null, updatedAt: null });
+    expect(prefs.hiddenLabels).toEqual(store.DEFAULT_HIDDEN_LABELS);
   });
 
   test('setUserPrefs then getUserPrefs round-trips', () => {

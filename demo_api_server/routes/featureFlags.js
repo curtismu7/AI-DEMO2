@@ -674,11 +674,12 @@ const FLAG_REGISTRY = [
     category:     'UI / Dashboard',
     description:
       'When **ON** (default), the sidebar hides items the current user has unchecked on the Demo Config page ' +
-      '(`/demo-config`). When **OFF**, the full sidebar always shows regardless of any saved ' +
-      'per-user selection — the selection is preserved server-side either way, so re-enabling restores it.',
+      '(`/demo-config`) — new/unconfigured users start with "Use Cases" hidden. When **OFF**, the full sidebar ' +
+      'always shows regardless of any saved per-user selection — the selection is preserved server-side either ' +
+      'way, so re-enabling restores it.',
     impact:
-      'ON (default) = each user sees only their own saved subset of top-level nav items. ' +
-      'OFF = full sidebar for everyone, no change.',
+      'ON (default) = each user sees only their own saved subset of top-level nav items; new users start with ' +
+      '"Use Cases" hidden. OFF = full sidebar for everyone.',
     type:         'boolean',
     defaultValue: true,
   },
