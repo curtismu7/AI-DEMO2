@@ -238,10 +238,8 @@ export default function AgentLifecyclePage() {
   const agentHostRef = React.useCallback((node) => setAgentHostEl(node), []);
 
   React.useEffect(() => {
-    if (agentHostEl) {
-      setSurfaceHostEl(agentHostEl);
-      return () => setSurfaceHostEl((cur) => (cur === agentHostEl ? null : cur));
-    }
+    setSurfaceHostEl(agentHostEl);
+    return () => setSurfaceHostEl((cur) => (cur === agentHostEl ? null : cur));
   }, [agentHostEl, setSurfaceHostEl]);
 
   return (

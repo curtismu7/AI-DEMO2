@@ -62,9 +62,13 @@ describe('AgentLifecyclePage', () => {
     render(<AgentLifecyclePage />);
     expect(screen.getByTestId('trace-rail')).toBeInTheDocument();
     expect(mockSetSurfaceHostEl).toHaveBeenCalled();
+    // The host-registration effect fires more than once during mount — an
+    // initial call with the pre-ref-attach null, a functional cleanup-updater
+    // call, then the call carrying the actual attached DOM node. Find the call
+    // that actually carries the element rather than assuming index 0.
     const registeredEl = mockSetSurfaceHostEl.mock.calls
       .map(([el]) => el)
-      .find((el) => el);
+      .find((el) => el instanceof HTMLElement);
     expect(registeredEl).toBeInstanceOf(HTMLElement);
     expect(registeredEl).toHaveClass('alp-agent-host');
   });
