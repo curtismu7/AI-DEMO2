@@ -203,21 +203,20 @@ export default function AdminSideNav({ user }) {
 
   // Per-user sidebar customization (Demo Config page). Returns [] when
   // ff_sidebar_customization is OFF or the request fails — full nav either way.
-  useEffect(() => {
+  const loadNavConfig = useCallback(() => {
     if (!user) return;
-    let cancelled = false;
     fetch("/api/user/nav-config", { credentials: "include" })
       .then((res) => res.json())
-      .then((data) => {
-        if (!cancelled) setHiddenNavLabels(data.hiddenLabels || []);
-      })
-      .catch(() => {
-        if (!cancelled) setHiddenNavLabels([]);
-      });
-    return () => {
-      cancelled = true;
-    };
+      .then((data) => setHiddenNavLabels(data.hiddenLabels || []))
+      .catch(() => setHiddenNavLabels([]));
   }, [user]);
+  // Refetch on 'nav-config-changed' (Demo Config save/apply) so the sidebar
+  // updates without a full page reload; also callable via the refresh button.
+  useEffect(() => {
+    loadNavConfig();
+    window.addEventListener("nav-config-changed", loadNavConfig);
+    return () => window.removeEventListener("nav-config-changed", loadNavConfig);
+  }, [loadNavConfig]);
 
   // Sync --sidebar-width CSS var on App so main content margin stays correct
   useEffect(() => {
@@ -1294,6 +1293,14 @@ export default function AdminSideNav({ user }) {
           >
             {collapsed ? "S" : "Setup"}
           </Link>
+          <button
+            type="button"
+            className="admin-side-nav__quick-link"
+            title="Refresh sidebar (pick up Demo Config changes)"
+            onClick={loadNavConfig}
+          >
+            {collapsed ? "R" : "Refresh"}
+          </button>
         </div>
 
         {/* Filter — live-filters nav items by label (hidden when collapsed) */}
