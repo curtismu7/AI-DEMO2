@@ -477,7 +477,6 @@ export default function AdminSideNav({ user }) {
           path: "/ungoverned-agent",
           icon: "dbg",
         },
-        { label: "Agent Servers", path: "/servers", icon: "clk" },
       ],
     },
     {

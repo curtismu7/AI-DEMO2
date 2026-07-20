@@ -112,7 +112,7 @@ export default function ServersPage() {
     <div className="servers-page">
       <div className="servers-header">
         <div>
-          <h1>Servers</h1>
+          <h1>Server Status</h1>
           <p className="servers-subtitle">
             Live inventory of every demo service — probed by the BFF, refreshed every 15s.
           </p>
