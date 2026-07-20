@@ -7023,8 +7023,15 @@ export default function BankingAgent({
       response.step_up_method === "ciba" &&
       (response.error === "step_up_required" || response.error === "mcp_step_up_required")
     ) {
+      // Same pre-open-then-navigate pattern as runAction's CIBA branch — see
+      // that comment for why this reduces (not eliminates) popup blocking.
+      const cibaTab = window.open("", "_blank");
       try {
         const apiBase = process.env.REACT_APP_API_URL || "";
+        const fromAccountId = response.fromAccountId || response.from_account_id;
+        const toAccountId = response.toAccountId || response.to_account_id;
+        const fromLabel = liveAccounts?.find((a) => a.id === fromAccountId)?.name;
+        const toLabel = liveAccounts?.find((a) => a.id === toAccountId)?.name;
         const initRes = await fetch(`${apiBase}/api/auth/ciba/initiate`, {
           method: "POST",
           credentials: "include",
@@ -7032,10 +7039,16 @@ export default function BankingAgent({
           body: JSON.stringify({
             binding_message: "Approve your banking transaction",
             acr_values: response.step_up_acr || "",
+            amount: response.transactionAmount ?? undefined,
+            from_account_label: fromLabel,
+            to_account_label: toLabel,
           }),
         });
         if (!initRes.ok) throw new Error(`CIBA initiation failed: ${initRes.status}`);
         const { auth_req_id, interval } = await initRes.json();
+        if (cibaTab) {
+          cibaTab.location.href = `/ciba-approve?authReqId=${encodeURIComponent(auth_req_id)}`;
+        }
         addMessage(
           "assistant",
           " Waiting for CIBA approval — this normally completes on a separate device. Click Approve to continue now, or it will continue automatically in a few seconds.",
@@ -7046,6 +7059,7 @@ export default function BankingAgent({
         pollCibaThenResumeNl(auth_req_id, (interval || 5) * 1000, text, useCaseId);
       } catch (err) {
         console.error("[BankingAgent] CIBA initiation failed:", err);
+        if (cibaTab) cibaTab.close();
         addMessage("assistant", "❌ Could not start CIBA approval. Please try again.", `ciba-error-${Date.now()}`);
         agentFlowDiagram.completeMfaChallenge(false);
       }
