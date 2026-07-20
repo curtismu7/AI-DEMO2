@@ -715,8 +715,11 @@ describe('PingOneAuthorizePage (full page wiring)', () => {
     // pendingTest's preset is 'transaction' and its Amount is 50000 (ONE_POLICY's trigger case) —
     // confirms the parent's handleTestRule -> pendingTest -> EvaluatePanel's pendingTest-effect
     // chain still runs end-to-end through the new prop wiring.
+    // getByPlaceholderText, not getByLabelText: the Amount label/input aren't
+    // htmlFor-linked (pre-existing markup, same reason Task 1's "switches
+    // preset tabs" test uses this same query instead).
     await waitFor(() => {
-      expect(screen.getByLabelText(/^Amount/)).toHaveValue(50000);
+      expect(screen.getByPlaceholderText('e.g. 5000')).toHaveValue(50000);
     });
   });
 });
