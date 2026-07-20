@@ -25,6 +25,7 @@ export const DEMO_ADVANCED_USE_CASE_IDS = [
   'UC13',  // Confused deputy
   'UC11',  // Bad client gateway
   'UC20',  // Audit trail
+  'UC18',  // Rate-limit / throttle burst
 ];
 
 /** Flat list for callers that only need order (primary then advanced). */
