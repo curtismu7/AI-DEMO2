@@ -4055,8 +4055,21 @@ export default function BankingAgent({
           // environment, the simulated fallback auto-approves after ~7s). See
           // docs/superpowers/specs/2026-07-19-uc22-ciba-step-up-override-design.md.
           if (normalized.step_up_method === "ciba") {
+            // Open a blank tab now, before the initiate fetch, so the browser
+            // still counts it as close enough to the user's original gesture
+            // to avoid a popup block — then navigate it once we have the real
+            // URL. If it's blocked anyway (cibaTab is null), the inline
+            // "Waiting for CIBA approval" bubble below is a complete fallback
+            // on its own; see the design doc's Error handling section.
+            const cibaTab = window.open("", "_blank");
             try {
               const apiBase = process.env.REACT_APP_API_URL || "";
+              const fromAccountId =
+                normalized.fromAccountId || normalized.from_account_id;
+              const toAccountId =
+                normalized.toAccountId || normalized.to_account_id;
+              const fromLabel = liveAccounts?.find((a) => a.id === fromAccountId)?.type;
+              const toLabel = liveAccounts?.find((a) => a.id === toAccountId)?.type;
               const initRes = await fetch(`${apiBase}/api/auth/ciba/initiate`, {
                 method: "POST",
                 credentials: "include",
@@ -4064,11 +4077,17 @@ export default function BankingAgent({
                 body: JSON.stringify({
                   binding_message: "Approve your banking transaction",
                   acr_values: normalized.step_up_acr || "",
+                  amount: normalized.transaction_amount ?? undefined,
+                  from_account_label: fromLabel,
+                  to_account_label: toLabel,
                 }),
               });
               if (!initRes.ok)
                 throw new Error(`CIBA initiation failed: ${initRes.status}`);
               const { auth_req_id, interval } = await initRes.json();
+              if (cibaTab) {
+                cibaTab.location.href = `/ciba-approve?authReqId=${encodeURIComponent(auth_req_id)}`;
+              }
               addMessage(
                 "assistant",
                 " Waiting for CIBA approval — this normally completes on a separate device. Click Approve to continue now, or it will continue automatically in a few seconds.",
@@ -4081,6 +4100,7 @@ export default function BankingAgent({
               pollCibaStepUp(auth_req_id, (interval || 5) * 1000, actionId, form);
             } catch (err) {
               console.error("[BankingAgent] CIBA initiation failed:", err);
+              if (cibaTab) cibaTab.close();
               addMessage(
                 "assistant",
                 "❌ Could not start CIBA approval. Please try again.",
