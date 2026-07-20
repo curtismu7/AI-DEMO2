@@ -143,6 +143,50 @@ initial state from an `agentId` query-string param (mirrors the existing
 without requiring the user to manually re-select it. No server-side change —
 `GET /api/mcp/audit` already accepts `agentId` as a query param.
 
+## Revision 2 (2026-07-20, post-launch)
+
+Two follow-ups after the page shipped (PR #650/#651) and was live-verified.
+
+### Finding: slot 2 502'd — not a code bug
+
+Live testing (logged in as `demoUser`, clicked "Call list_orders as agent")
+returned `502` / `actor_token_invalid` ("The actor token is invalid or
+expired."). Root cause: PingOne app **"Demo AI App - AI Agent Actor"**
+(`71e878ea-2d79-4760-b570-66f00cbeffe7`, env `01d89b06`) was `enabled: false`
+— `killSwitchService.disableAgentApplicationsAtPingOne()` disabled it during
+earlier slot-4 (Revoke) testing; per that function's own doc comment "the
+agent stays disabled until an admin re-enables it in PingOne," and nothing
+had. Re-enabled via PingOne MCP (`updateApplication enabled:true`); slot 2
+now returns `200` with a full 12-step green pipeline. `demo_api_ui`'s
+`callMcpTool('list_orders', ...)` call itself was already correct exactly
+per the original spec — no application code changes needed for this part.
+Documented here so a future "revoke leaves the demo broken" report knows
+the fix is re-enabling that PingOne app, not touching this page's code.
+
+### Layout: persistent Agent + Token Chain rail on the right
+
+Original layout (single column, `<TokenChainTraceRail/>` embedded only
+inside slot 2) doesn't let the user watch the agent/rail live across all
+four steps. Restructure `AgentLifecyclePage.jsx` to match the existing
+`/use-cases/live` (`LiveUseCaseWorkbenchPage.js`) two-column pattern:
+
+- **Left column:** the same four slots, unchanged internal logic.
+- **Right column (persistent across all slots):** the real singleton
+  `<AIAgent>` widget, hosted via the existing `useAgentUiMode()` /
+  `setSurfaceHostEl()` mechanism (`AgentUiModeProvider` already wraps the
+  whole app in `App.js`, so this page can call the hook exactly as
+  `LiveUseCaseWorkbenchPage.js` does — no provider changes needed), stacked
+  with `<TokenChainTraceRail/>` below/beside it. Same flex layout as
+  `.luw-run-layout`/`.luw-agent-host`/`.luw-rail-host` in
+  `LiveUseCaseWorkbenchPage.css`, ported into `AgentLifecyclePage.css` under
+  `alp-`-prefixed class names to match this page's existing naming.
+- Remove the inline `<TokenChainTraceRail/>` currently duplicated inside
+  `ScopedCallSlot` (slot 2) — one persistent rail on the right replaces it.
+
+No backend changes. No new dependencies — reuses `AIAgent`,
+`TokenChainTraceRail`, and `useAgentUiMode` exactly as `LiveUseCaseWorkbenchPage.js`
+already does.
+
 ## Testing / verification plan
 
 - Unit (Vitest, `demo_api_ui`): `AuditPage.js`'s query-param seeding; new
