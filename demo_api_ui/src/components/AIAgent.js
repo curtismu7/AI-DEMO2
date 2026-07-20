@@ -4068,8 +4068,8 @@ export default function BankingAgent({
                 normalized.fromAccountId || normalized.from_account_id;
               const toAccountId =
                 normalized.toAccountId || normalized.to_account_id;
-              const fromLabel = liveAccounts?.find((a) => a.id === fromAccountId)?.type;
-              const toLabel = liveAccounts?.find((a) => a.id === toAccountId)?.type;
+              const fromLabel = liveAccounts?.find((a) => a.id === fromAccountId)?.name;
+              const toLabel = liveAccounts?.find((a) => a.id === toAccountId)?.name;
               const initRes = await fetch(`${apiBase}/api/auth/ciba/initiate`, {
                 method: "POST",
                 credentials: "include",
