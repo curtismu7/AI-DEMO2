@@ -515,7 +515,7 @@ export default function AdminSideNav({ user }) {
           path: "/pinggateway-inspector",
           icon: "rte",
         },
-        { label: "Capability Tour", path: "/agent-gateway-capabilities", icon: "gtw" },
+        { label: "Capability Tour", path: "/agent-gateway-capabilities", icon: "shld" },
       ],
     },
     {
