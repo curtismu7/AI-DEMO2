@@ -68,6 +68,7 @@ import MortgagePathPage from "./components/MortgagePathPage";
 import OAuthDebugLogViewer from "./components/OAuthDebugLogViewer";
 import OAuthTokenDisplayPage from "./components/OAuthTokenDisplayPage";
 import PingOneAuthorizePage from "./components/PingOneAuthorizePage";
+import PolicyDecisionTracePage from "./components/PolicyDecisionTracePage";
 import PingOneMcpInspector from "./components/PingOneMcpInspector";
 import PostmanCollectionsPage from "./components/PostmanCollectionsPage";
 import Profile from "./components/Profile";
@@ -969,6 +970,10 @@ function AppWithAuth() {
                             <Route
                               path="/pingone-authorize"
                               element={<PingOneAuthorizePage />}
+                            />
+                            <Route
+                              path="/policy-decision-trace"
+                              element={<PolicyDecisionTracePage />}
                             />
                             <Route
                               path="/mcp-gateway"

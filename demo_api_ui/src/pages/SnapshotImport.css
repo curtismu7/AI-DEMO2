@@ -53,6 +53,17 @@
   margin-bottom: 20px;
 }
 
+.apply-note {
+  padding: 10px 14px;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 4px;
+  color: #3730a3;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
 .result {
   padding: 16px;
   border-radius: 4px;
