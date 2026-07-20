@@ -1550,6 +1550,7 @@ const mcpToolAuthorizationService = require('./services/mcpToolAuthorizationServ
 const {
     mcpCallTool,
     getSessionAccessToken,
+    getSessionBearerForMcp,
     getMcpServerUrl
 } = require('./services/mcpWebSocketClient');
 const {
@@ -1831,7 +1832,11 @@ app.post('/api/mcp/tool', express.json(), requireSession, async (req, res, next)
     const gatewayUrl = _gwEnabled ? mcpGatewayClient.getMcpGatewayHttpUrl() : null;
     const _resolvedUseCaseId = resolveChipUseCaseId(useCaseId, tool, params, req.body?.vertical);
     const ctx = {
-      tool, params, flowTraceId, startTime, req,
+      tool,
+      params: (tool === 'jwt_decode_full' && !(params && params.token))
+        ? { ...(params || {}), token: getSessionBearerForMcp(req) }
+        : params,
+      flowTraceId, startTime, req,
       useCaseId: _resolvedUseCaseId, vertical: req.body?.vertical,
       deps: {
         resolveMcpAccessTokenWithEvents,
