@@ -84,33 +84,60 @@ the ledger, rendering a small link-out chip. Added, purely additively, to:
 `UnifiedTokenFlowInspector.jsx`, `AgentGatewayLogPanel.jsx`,
 `ScopeAuditPage.js`. No existing logic in these files changes.
 
-### Two new UC steps + one tab-only addition
+### Addendum (found during plan research) — UC29 collapsed, UC30 redesigned
 
-Next free ids in `useCases.js` are UC29–UC30 (UC1–UC28 are taken). Only two
-of the three gaps need a catalog entry — a UC id means "has its own chip
-trigger and belongs in the walkthrough script"; token transform doesn't need
-one, since it rides on UC1's existing call.
+Two corrections against the paragraph originally here, both discovered by
+reading the actual current source rather than inferring from the earlier
+audit's partial excerpts:
 
-- **UC29 — Throttle burst.** UI-only: the chip fires the same existing tool
-  call N times in quick succession client-side. No backend change —
-  `rateLimit.ts` / `uc18-rate-limit.groovy` already 429 with `Retry-After`.
-  Viewer watches `AgentGatewayLogPanel` flip to `429 rate_limited`.
-- **UC30 — OAuth fail-closed.** The one real backend change: a new
-  admin-armable sim flag, following the existing arming pattern in
-  [`demo_api_server/routes/adminConfig.js`](../../../demo_api_server/routes/adminConfig.js)
-  (same family as `SIMULATED_AUTHORIZE_DENY_AMOUNT`,
-  `SIMULATED_MCP_DENY_TOOLS`), that forces `GatewayIntrospectionClient` into a
-  simulated-down state. The chip fires a normal call; viewer sees the
-  fail-closed 401/503 with audit reason `introspection_unavailable`. Defaults
-  off; resets the same way other sim flags reset after arming.
-- **Token transform — no UC id.** No new trigger, no catalog entry — reuses
-  UC1's existing call. Adds a "Token Transform" tab to
-  `UnifiedTokenFlowInspector` showing the gateway-audience-in vs.
-  backend-audience-out claim diff for the most recent call. The ledger's
-  "Try it" link for this capability points at UC1's trigger plus a query
-  param that opens the new tab directly.
+1. **"Throttle burst" already exists as UC18** (`useCaseId: 'rate-limit-defense'`,
+   `useCases.js:825-844`), wired to a real, live sim
+   (`attackSimulatorService.js` `_runRateLimitBurst`) that pushes real
+   rate-limit config to the gateway, fires 5 real calls through it, and
+   catches the real 429 — it's just missing from `DEMO_ADVANCED_USE_CASE_IDS`.
+   No new UC, no new client-side burst mechanism. The gap is a one-line
+   addition.
+2. **A real, separate gap**: a rate-limited call today produces no trace in
+   any shared panel — not `X-Gw-Audit-Trail`, not `/internal/mcp-audit` —
+   because the audit-hook installation in `authorizeMcpRequest.ts` runs
+   *after* the rate-limit check's early `return` (confirmed by reading the
+   full pipeline, `authorizeMcpRequest.ts:182-272`). UC18's sim works around
+   this today by building its own token-chain events client-side inside
+   `attackSimulatorService.js`, bypassing the shared audit path entirely.
+   Fixing this at the source (recording a minimal audit event directly in the
+   rate-limit branch) makes *any* rate-limited call visible in
+   `AgentGatewayLogPanel`, not just the ones that go through this one sim.
+3. **UC29 — OAuth fail-closed, redesigned (renumbered from UC30 — UC29 no
+   longer needs its own id once UC18 absorbed "throttle burst").** The
+   original plan (a new cross-container polling mechanism so the gateway
+   could learn about a BFF-side sim flag without a restart) is unnecessary.
+   The gateway already has a live, in-place-mutable config object and a
+   proven push path: `POST /admin/config`
+   (`demo_mcp_gateway/src/adminConfig.ts`, `ADMIN_CONFIG_ALLOWED_KEYS`)
+   already lets the BFF flip `rateLimitEnabled` live for UC18 with zero
+   restart. Adding one more allowed key (`introspectionSimDown`) and one
+   check at the top of `GatewayIntrospectionClient.introspect()` reuses that
+   exact proven mechanism instead of building a new one. The sim
+   (`_runIntrospectionDown` in `attackSimulatorService.js`, mirroring
+   `_runRateLimitBurst`) arms the flag, fires one call, captures the 503, and
+   **disarms it immediately after** — unlike rate-limiting, leaving this
+   armed would block every subsequent call on the container, so auto-disarm
+   is not optional.
+4. **Token transform needs zero backend changes.** The "before" claim is the
+   inbound token's `aud` (already decoded and shown elsewhere in the token
+   chain); the "after" value is the backend resource URI for whichever tool
+   was routed, and that's already exposed today by the existing `GET
+   /admin/config` response (`mcpOlbResourceUri` / `mcpInvestResourceUri` /
+   `gatewayResourceUri` in `adminConfig.ts`'s `safeView()`) — the same data
+   `GatewayRoutingDiagram.jsx` already fetches. The new tab is pure
+   composition of two already-available data sources.
 
-UC29 and UC30 both join `DEMO_ADVANCED_USE_CASE_IDS` in
+Net effect: one true new UC (UC29, OAuth fail-closed), one real gateway
+audit-visibility fix (small, isolated, in the rate-limit branch only), one
+small-but-genuine gateway change reusing an existing live-config mechanism
+(not a new one), and zero backend changes for token transform.
+
+UC18 (surfaced) and UC29 (new) both join `DEMO_ADVANCED_USE_CASE_IDS` in
 `demoUseCaseSteps.js` (not primary — they're gateway-mechanics deep-dives,
 same tier as UC20 "Audit trail").
 
