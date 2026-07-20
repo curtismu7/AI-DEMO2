@@ -234,6 +234,13 @@ documented (in code comments on `transactionAuthorizationService.js`, not
   resumes working automatically (failover only triggers on failure) — no
   cleanup needed, but the simulated code becomes dead weight worth removing
   in a follow-up.
+  **2026-07-20:** this scenario now has a plan —
+  `docs/superpowers/plans/2026-07-20-ciba-real-platform-provisioning.md`
+  provisions a dedicated CIBA-only PingOne app + DaVinci flow (console/DaVinci
+  steps, not yet executed) and points `cibaService.js` at it via
+  `PINGONE_CIBA_CLIENT_ID`/`PINGONE_CIBA_CLIENT_SECRET`. This fallback stays
+  as-is either way — the plan keeps it deliberately, as a resilience safety
+  net, not dead weight to remove.
 - `crypto.randomUUID()` needs Node ≥14.17 with the `crypto` global — already
   used elsewhere in this codebase (`cibaService.js`'s
   `_generateNotificationToken` uses `crypto.randomBytes`), so no new

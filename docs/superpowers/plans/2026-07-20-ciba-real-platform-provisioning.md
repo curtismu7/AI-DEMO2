@@ -147,7 +147,7 @@
 - Consumes: nothing new from other tasks — this only changes which two strings `_credentials()` reads before building the Basic-auth header. `initiateBackchannelAuth`, `pollForTokens`, `waitForApproval`, `isEnabled` keep their exact existing signatures; `routes/ciba.js` and `cibaEnhanced.js` are untouched.
 - Produces: `PINGONE_CIBA_CLIENT_ID` / `PINGONE_CIBA_CLIENT_SECRET` env vars, read only inside `cibaService.js`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
   Add to `demo_api_server/src/__tests__/cibaService.test.js`, inside `describe('cibaService.initiateBackchannelAuth()', ...)` (after the existing "POSTs to the CIBA endpoint with Basic auth credentials" test, ~line 112):
 
@@ -183,12 +183,12 @@
   });
   ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
   Run: `cd demo_api_server && npx jest src/__tests__/cibaService.test.js -t "PINGONE_CIBA_CLIENT_ID" --testPathIgnorePatterns=/.claude/worktrees/`
   Expected: both new tests FAIL — the first because `_credentials()` doesn't read the env vars yet (Basic header still encodes `test-client-id:test-client-secret`), the second passes trivially today but is included to lock the fallback behavior before the change.
 
-- [ ] **Step 3: Implement the minimal change**
+- [x] **Step 3: Implement the minimal change**
 
   In `demo_api_server/services/cibaService.js`, replace:
   ```js
@@ -228,23 +228,23 @@
 
   In `demo_api_server/.env` (not committed), set both to the values captured in Task 3 Step 5.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
   Run: `cd demo_api_server && npx jest src/__tests__/cibaService.test.js`
   Expected: all tests PASS, including the two new ones.
 
-- [ ] **Step 5: Run the full CIBA-adjacent suite**
+- [x] **Step 5: Run the full CIBA-adjacent suite**
 
   Run: `cd demo_api_server && CI=true npx jest src/__tests__/cibaService.test.js src/__tests__/ciba.test.js src/__tests__/cibaSimulatedService.test.js src/__tests__/step-up-gate.test.js --maxWorkers=2`
   Expected: all PASS, no regressions — `ciba.test.js` mocks `cibaService` entirely so it's unaffected by the credential-source change.
 
-- [ ] **Step 6: Update the stale "Known gap" doc**
+- [x] **Step 6: Update the stale "Known gap" doc**
 
   In `claudSkills/pingone/ciba/SKILL.md`, replace the `⚠️` bullet describing the confirmed-2026-07-19 `bc-authorize` AWS API-Gateway failure (the one referencing env `01d89b06-66d5-430e-9f28-65636843788b`) with a note that a dedicated CIBA application + DaVinci flow were provisioned per `docs/superpowers/plans/2026-07-20-ciba-real-platform-provisioning.md`, and that `cibaService.js` now reads `PINGONE_CIBA_CLIENT_ID`/`PINGONE_CIBA_CLIENT_SECRET` for the bc-authorize/token Basic-auth calls (falling back to the admin app if unset).
 
   In `docs/superpowers/specs/2026-07-19-ciba-simulated-fallback-design.md`, under "Open risks", add a line noting this plan resolved the "if PingOne ever does provision CIBA" scenario, with the date and a pointer to this plan file.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
   ```bash
   git add demo_api_server/services/cibaService.js demo_api_server/.env.example \
