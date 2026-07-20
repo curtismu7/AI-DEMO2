@@ -72,6 +72,21 @@ describe('sendAgentMessage — pingone-admin vertical routing', () => {
     expect(result.agentHeader).toBe('🤖 [ADMIN AGENT - LangGraph - Claude 3.5 Sonnet]');
   });
 
+  it('passes through error so admin-agent failures resolve a specific NL_FAILURE_MESSAGES entry', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        reply: 'Insufficient scope',
+        success: false,
+        tokenEvents: [],
+        error: 'insufficient_scope',
+      }),
+    });
+    const result = await sendAgentMessage('list applications', null, { vertical: 'pingone-admin' });
+    expect(result.error).toBe('insufficient_scope');
+  });
+
   it('does not open the SSE flow-trace connection for the admin path', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,

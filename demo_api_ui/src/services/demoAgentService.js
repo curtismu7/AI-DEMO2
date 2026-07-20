@@ -1048,6 +1048,7 @@ async function sendToAdminAgent(message, { signal, onTokenEvent } = {}) {
     requiresConsent: false,
     agentConfigured: data.agentConfigured,
     agentHeader: data.agentHeader,
+    error: data.error,
     inputTokens: data.inputTokens,
     outputTokens: data.outputTokens,
     tokenEvents: data.tokenEvents || [],

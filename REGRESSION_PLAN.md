@@ -101,6 +101,35 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-20 — Admin-agent scope failures showed the generic NL fallback instead of an actionable message
+
+**Files changed:**
+- `demo_api_ui/src/services/demoAgentService.js` — `sendToAdminAgent` now also
+  passes through the backend's `error` field.
+- `demo_api_ui/src/components/AIAgent.js` — `NL_FAILURE_MESSAGES` gained an
+  `insufficient_scope` entry.
+
+**What was broken:** when a customer session hit the admin agent and the
+backend replied with `error: 'insufficient_scope'`, `sendToAdminAgent`
+dropped the `error` field from its return value, so `reportNlFailure`'s
+`NL_FAILURE_MESSAGES[err?.error]` lookup always missed and fell back to the
+generic `NL_FAILURE_FALLBACK` ("That step couldn't be completed...") instead
+of telling the user to switch to an admin session.
+
+**What was fixed:** pass `error: data.error` through in `sendToAdminAgent`'s
+return object (same pattern as the `agentHeader` passthrough directly above
+it), and add the specific `insufficient_scope` message to
+`NL_FAILURE_MESSAGES`.
+
+**Do not break:** only one new key added to `NL_FAILURE_MESSAGES` and one new
+field added to `sendToAdminAgent`'s return object — every other key/field is
+untouched, so existing failure-message lookups for other error codes are
+unaffected.
+
+**Verify:** `cd demo_api_ui && npx vitest run
+src/services/__tests__/demoAgentService.adminRouting.test.js` (7 pass,
+including the new error-passthrough case); `npm run build` (exit 0).
+
 ### 2026-07-20 — Admin agent demo-step replies labeled `[CUSTOMER AGENT]`
 
 **Files changed:**
