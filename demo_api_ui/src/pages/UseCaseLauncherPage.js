@@ -33,6 +33,7 @@ import {
   DEMO_USE_CASE_IDS,
   DEMO_USE_CASE_LABEL,
 } from '../config/demoUseCaseSteps';
+import { allRelatedUCIds } from '../config/agentGatewayCapabilities';
 
 const TRACK_ORDER = ['foundations', 'demo', 'attacks', 'hitl', 'controls', 'learn', 'tools'];
 const TRACK_LABELS = {
@@ -47,6 +48,7 @@ const TRACK_LABELS = {
 
 const HAPPY_PATH_LABEL = 'Happy Paths — successful outcomes across every track';
 const DEMO_LABEL = DEMO_USE_CASE_LABEL;
+const AGENT_GATEWAY_LABEL = 'Agent Gateway — validate, throttle, transform, and enforce, cited against the running code';
 
 // Attack sims wired to POST /api/demo/attack-sim/run (A6.1 + A6.2).
 const RUNNABLE_SIMS = [
@@ -883,6 +885,10 @@ export default function UseCaseLauncherPage() {
     .filter(Boolean);
   const demoVisible = demoAll.filter((uc) => matchesQuery(uc, query));
 
+  const agentGatewayIds = new Set(allRelatedUCIds());
+  const agentGatewayAll = useCases.filter((uc) => agentGatewayIds.has(uc.id));
+  const agentGatewayVisible = agentGatewayAll.filter((uc) => matchesQuery(uc, query));
+
   const isSearching = query.trim().length > 0;
   // getDisplayItems mirrors the demo-track STRIP_IDS exclusion applied at
   // render time, so this reflects what actually becomes visible, not just
@@ -890,6 +896,7 @@ export default function UseCaseLauncherPage() {
   const hasAnyResults =
     demoVisible.length > 0 ||
     happyPath.length > 0 ||
+    agentGatewayVisible.length > 0 ||
     grouped.some(({ track, items }) => getDisplayItems(track, items).length > 0);
 
   if (loading) {
@@ -953,6 +960,31 @@ export default function UseCaseLauncherPage() {
 
       {isSearching && !hasAnyResults && (
         <p className="uc-launcher__empty">No use cases match &quot;{query.trim()}&quot;.</p>
+      )}
+
+      {agentGatewayVisible.length > 0 && (
+        <section className="uc-track uc-track--agent-gateway">
+          <h2 className="uc-track__heading">{AGENT_GATEWAY_LABEL}</h2>
+          <div className="uc-track__grid">
+            {agentGatewayVisible.map((uc) => (
+              <UseCaseCard
+                key={uc.id}
+                uc={uc}
+                completed={completedIds.has(uc.id)}
+                onRun={handleRun}
+                onRunAttack={handleRunAttack}
+                onExplain={setExplainUc}
+                onOpen={handleOpen}
+                attackState={attackStates[uc.id]}
+                chipRunning={chipRun?.id === uc.id && chipRun.state === 'running'}
+                chipRunError={chipRun?.id === uc.id && chipRun.state === 'error' ? chipRun.msg : null}
+                flagMap={flagMap}
+                flagsLoading={flagsLoading}
+                setFlag={setFlag}
+              />
+            ))}
+          </div>
+        </section>
       )}
 
       {demoVisible.length > 0 && (

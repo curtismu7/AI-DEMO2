@@ -482,27 +482,45 @@ describe('UseCaseLauncherPage', () => {
     renderPage();
     await waitFor(() => expect(screen.getByText(/Happy Paths — successful outcomes/i)).toBeInTheDocument());
 
-    // The Demo section (Task 2) now renders first, above Happy Path — check
-    // relative order rather than assuming Happy Path is the first heading.
+    // Agent Gateway (Task 11) now renders first, then Demo (Task 2), then
+    // Happy Path — check relative order rather than assuming Happy Path is
+    // the first heading.
     const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    const agentGatewayIdx = headings.findIndex((h) => /Agent Gateway/i.test(h));
     const demoIdx = headings.findIndex((h) => /Demo — a scripted walkthrough/i.test(h));
     const happyPathIdx = headings.findIndex((h) => /Happy Paths — successful outcomes/i.test(h));
     const foundationsIdx = headings.findIndex((h) => /^Foundations/i.test(h));
-    expect(demoIdx).toBe(0);
+    expect(agentGatewayIdx).toBe(0);
+    expect(demoIdx).toBeGreaterThan(agentGatewayIdx);
     expect(happyPathIdx).toBeGreaterThan(demoIdx);
     expect(foundationsIdx).toBeGreaterThan(happyPathIdx);
 
-    // UC1 (expectedOutcome: 'PERMIT') is also Demo script step 1 — it renders
-    // once in Demo and once in Happy Path (no cross-section dedup between the
-    // two), and is still excluded from Foundations (dedup is only between
-    // Happy Path and track sections, unaffected by Demo membership).
-    expect(screen.getAllByText('Delegated access with proof')).toHaveLength(2);
+    // UC1 (expectedOutcome: 'PERMIT') is also Demo script step 1 and a member
+    // of allRelatedUCIds() — it renders once each in Demo, Happy Path, and
+    // Agent Gateway (no cross-section dedup between strips), and is still
+    // excluded from Foundations (dedup is only between Happy Path and track
+    // sections, unaffected by Demo/Agent Gateway membership).
+    expect(screen.getAllByText('Delegated access with proof')).toHaveLength(3);
 
     // UC2's outcome is 'PERMIT with act-chain depth', not an exact 'PERMIT' match,
     // so it stays in its original Foundations section, not Happy Path.
     const foundationsHeading = screen.getByRole('heading', { level: 2, name: /^Foundations/i });
     const foundationsSection = foundationsHeading.closest('section');
     expect(within(foundationsSection).getByText('A2A delegation')).toBeInTheDocument();
+  });
+
+  it('renders an Agent Gateway section containing UC1 and UC11', async () => {
+    renderPage();
+    // Use the h2 section heading, not a bare text match — UC11's own title
+    // ("Bad client to agent gateway") also matches /Agent Gateway/i and
+    // renders in multiple sections (Demo + Attacks), which makes
+    // screen.getByText(/Agent Gateway/i) ambiguous.
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 2, name: /Agent Gateway/i })).toBeInTheDocument()
+    );
+    const section = screen.getByRole('heading', { level: 2, name: /Agent Gateway/i }).closest('section');
+    expect(within(section).getAllByText('Delegated access with proof').length).toBeGreaterThan(0); // UC1
+    expect(within(section).getAllByText('Bad client to agent gateway').length).toBeGreaterThan(0); // UC11
   });
 
   it('does not render a Happy Path section when no use case has a PERMIT outcome', async () => {
@@ -515,7 +533,7 @@ describe('UseCaseLauncherPage', () => {
   });
 
   // ── Demo section ─────────────────────────────────────────────────────────
-  it('renders a Demo section first, above Happy Path, with cards in script order regardless of input order', async () => {
+  it('renders a Demo section above Happy Path, with cards in script order regardless of input order', async () => {
     // Deliberately out of DEMO_USE_CASE_IDS order (UC11 first) to prove the
     // section renders by script order, not by input array order.
     apiClient.get.mockResolvedValue({
@@ -524,10 +542,13 @@ describe('UseCaseLauncherPage', () => {
     renderPage();
     await waitFor(() => expect(screen.getByText(/Demo — a scripted walkthrough/i)).toBeInTheDocument());
 
+    // Agent Gateway (Task 11) renders first, ahead of Demo.
     const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    const agentGatewayIdx = headings.findIndex((h) => /Agent Gateway/i.test(h));
     const demoIdx = headings.findIndex((h) => /Demo — a scripted walkthrough/i.test(h));
     const happyPathIdx = headings.findIndex((h) => /Happy Paths — successful outcomes/i.test(h));
-    expect(demoIdx).toBe(0);
+    expect(agentGatewayIdx).toBe(0);
+    expect(demoIdx).toBeGreaterThan(agentGatewayIdx);
     expect(happyPathIdx).toBeGreaterThan(demoIdx);
 
     const demoSection = screen.getByRole('heading', { level: 2, name: /Demo — a scripted walkthrough/i }).closest('section');
@@ -548,9 +569,10 @@ describe('UseCaseLauncherPage', () => {
   it('a use case in both Demo and Happy Path renders once per section, not deduped', async () => {
     renderPage();
     await waitFor(() => expect(screen.getByText(/Demo — a scripted walkthrough/i)).toBeInTheDocument());
-    // UC1 qualifies for both Demo (script step 1) and Happy Path (PERMIT) — no
-    // cross-section dedup, so it renders twice total.
-    expect(screen.getAllByText('Delegated access with proof')).toHaveLength(2);
+    // UC1 qualifies for Demo (script step 1), Happy Path (PERMIT), and Agent
+    // Gateway (allRelatedUCIds() member) — no cross-section dedup, so it
+    // renders three times total.
+    expect(screen.getAllByText('Delegated access with proof')).toHaveLength(3);
   });
 
   it('a flag-gated Demo step shows the gate UI', async () => {
