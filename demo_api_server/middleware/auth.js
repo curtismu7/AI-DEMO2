@@ -588,6 +588,14 @@ const validatePingOneCoreToken = async (token, requestContext = {}) => {
       if (PINGGATEWAY_RESOURCE_URI && !gwAuds.includes(PINGGATEWAY_RESOURCE_URI)) {
         gwAuds.push(PINGGATEWAY_RESOURCE_URI);
       }
+      // MCP server resource URI (mcpserver.ping.demo) — Exchange #3 (PingGateway ->
+      // MCP server) narrows the gateway-audience token to this audience per RFC 8693;
+      // the MCP server's callback to this route forwards that same bearer, so it must
+      // be accepted here on the same trust basis as the gateway audiences above
+      // (sub-scoped, only obtainable via RFC 8693 exchange).
+      if (MCP_RESOURCE_URI && !gwAuds.includes(MCP_RESOURCE_URI)) {
+        gwAuds.push(MCP_RESOURCE_URI);
+      }
       const hasMatch = tokenAuds.includes(BFF_RESOURCE_URI) ||
         (isMcpCallback && tokenAuds.some((a) => gwAuds.includes(a)));
       if (!hasMatch) {
