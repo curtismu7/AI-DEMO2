@@ -28,6 +28,33 @@ const { buildSsePayload } = require('../services/sseCorrelation');
 const { requireSession } = require('../middleware/auth');
 
 /**
+ * Admin session gate for Generic MCP Inspector profile management + non-default
+ * profile dispatch. This router is mounted WITHOUT authenticateToken (so
+ * banking tools/list can fall back to the local catalog for anonymous
+ * visitors) — therefore middleware/auth.requireAdmin (which reads req.user)
+ * cannot be used here. Mirror the /api/mcp/audit session.user.role check.
+ *
+ * Critical: stdio profiles spawn profile.command on the BFF host. Any
+ * signed-in customer creating/invoking one is remote code execution; even
+ * http/websocket profiles are SSRF. Keep both behind admin session.
+ */
+function requireAdminSession(req, res, next) {
+  if (!req.session?.user) {
+    return res.status(401).json({
+      error: 'unauthenticated',
+      message: 'A valid session is required. Please sign in.',
+    });
+  }
+  if (req.session.user.role !== 'admin') {
+    return res.status(403).json({
+      error: 'admin_required',
+      message: 'Admin session required to manage or invoke non-default MCP server profiles.',
+    });
+  }
+  return next();
+}
+
+/**
  * Discovery phase publisher. Emits a {type, phase, label, technical, status}
  * event to the SSE hub when the trace has been claimed by this session;
  * no-op otherwise so tests and non-SSE callers behave exactly as before, and
@@ -162,9 +189,10 @@ router.get('/profiles', (req, res) => {
 });
 
 // POST /api/mcp/inspector/profiles — add a server profile (websocket/http need
-// a url, stdio needs a local command). Any signed-in user may add one; the
-// default banking profile is seeded separately and cannot be created here.
-router.post('/profiles', requireSession, express.json(), (req, res) => {
+// a url, stdio needs a local command). Admin-only: stdio profiles spawn the
+// configured command on the BFF host. Default banking profile is seeded
+// separately and cannot be created here.
+router.post('/profiles', requireAdminSession, express.json(), (req, res) => {
   try {
     const profile = mcpProfileStore.createProfile(req.body || {});
     res.status(201).json({ profile });
@@ -175,7 +203,7 @@ router.post('/profiles', requireSession, express.json(), (req, res) => {
 
 // DELETE /api/mcp/inspector/profiles/:id — remove a saved profile; the default
 // banking profile is protected (mcpProfileStore throws default_profile_protected).
-router.delete('/profiles/:id', requireSession, (req, res) => {
+router.delete('/profiles/:id', requireAdminSession, (req, res) => {
   try {
     mcpProfileStore.deleteProfile(req.params.id);
     res.status(204).end();
@@ -358,10 +386,11 @@ router.get('/tools', async (req, res) => {
 
   // Non-default profile: dispatch to its transport (mcpTransports/*) instead
   // of the banking-server discovery flow below. Omitted/default profile id
-  // falls through to the existing behavior unchanged.
+  // falls through to the existing behavior unchanged. Admin-gated: stdio
+  // spawn / http SSRF must not be reachable anonymously or as a customer.
   const requestedProfileId = typeof req.query.profile === 'string' ? req.query.profile.trim() : '';
   if (requestedProfileId && requestedProfileId !== mcpProfileStore.DEFAULT_PROFILE_ID) {
-    return handleProfileTools(req, res, requestedProfileId);
+    return requireAdminSession(req, res, () => handleProfileTools(req, res, requestedProfileId));
   }
 
   const effectiveUserId = req.session?.user?.id || req.user?.id || null;
@@ -569,9 +598,12 @@ router.post('/invoke', express.json(), async (req, res) => {
   }
 
   // Non-default profile: dispatch to its transport, bypassing the banking-
-  // server token exchange / local-handler path below entirely.
+  // server token exchange / local-handler path below entirely. Admin-gated
+  // (same reason as GET /tools?profile=): closes unauthenticated stdio RCE.
   if (requestedProfileId && requestedProfileId !== mcpProfileStore.DEFAULT_PROFILE_ID) {
-    return handleProfileInvoke(req, res, requestedProfileId, tool, params);
+    return requireAdminSession(req, res, () =>
+      handleProfileInvoke(req, res, requestedProfileId, tool, params)
+    );
   }
 
   const effectiveUserId = req.session?.user?.id || req.user?.id || null;

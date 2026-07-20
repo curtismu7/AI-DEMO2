@@ -2,7 +2,8 @@
  * @file mcpPingOneAdminAuth.test.js
  * @description Authorization Code + PKCE login for the built-in "PingOne MCP"
  * Generic MCP Inspector profile. PingOneProvisionService and axios are mocked;
- * requireAdmin is the REAL middleware (gated on req.user.role === 'admin').
+ * requireAdminSession is the REAL middleware (gated on session.user.role === 'admin'
+ * because this router is mounted without authenticateToken).
  */
 'use strict';
 
@@ -24,12 +25,16 @@ jest.mock('../../services/pingoneProvisionService', () => ({
 const mockAxiosPost = jest.fn();
 jest.mock('axios', () => ({ post: (...args) => mockAxiosPost(...args) }));
 
-function buildApp({ authed = true } = {}) {
+function buildApp({ authed = true, role = 'admin' } = {}) {
   const app = express();
   const sharedSession = { save: (cb) => cb && cb() };
   app.use((req, res, next) => {
     req.session = sharedSession;
-    if (authed) req.user = { id: 'admin-1', role: 'admin', username: 'demoAdmin' };
+    // This router is mounted without authenticateToken in production, so the
+    // gate reads session.user.role — mirror that here (not req.user).
+    if (authed) {
+      req.session.user = { id: 'admin-1', role, username: 'demoAdmin' };
+    }
     next();
   });
   const routes = require('../../routes/mcpPingOneAdminAuth');
@@ -80,10 +85,18 @@ describe('mcpPingOneAdminAuth', () => {
   });
 
   describe('GET /login', () => {
-    it('401s when not signed in as admin (requireAdmin)', async () => {
+    it('401s when not signed in (requireAdminSession)', async () => {
       const { app } = buildApp({ authed: false });
       const res = await request(app).get('/login');
       expect(res.status).toBe(401);
+      expect(res.body.error).toBe('unauthenticated');
+    });
+
+    it('403s when signed in as a non-admin customer', async () => {
+      const { app } = buildApp({ authed: true, role: 'user' });
+      const res = await request(app).get('/login');
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe('admin_required');
     });
 
     it('finds-or-creates the PingOne MCP Server app, registers our callback, and redirects to /authorize with PKCE', async () => {

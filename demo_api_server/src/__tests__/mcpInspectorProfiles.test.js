@@ -44,12 +44,18 @@ jest.mock('../../services/mcpPingOneHttpAdapter', () => ({
 }));
 
 // Test-only session shim ahead of the router: sets req.session.user when the
-// request carries x-test-authed, leaving requireSession's real 401 behavior
-// intact for the unauthenticated case. x-test-pingone-token (JSON) seeds
+// request carries x-test-authed. Default role is admin (profile CRUD +
+// non-default dispatch are admin-gated). Pass x-test-role: user to exercise
+// the customer 403 path. x-test-pingone-token (JSON) seeds
 // req.session.pingoneMcpAdminToken for the built-in PingOne profile's dispatch.
 function testSession(req, res, next) {
   req.session = req.session || {};
-  if (req.headers['x-test-authed']) req.session.user = { id: 'profile-test-user' };
+  if (req.headers['x-test-authed']) {
+    req.session.user = {
+      id: 'profile-test-user',
+      role: req.headers['x-test-role'] || 'admin',
+    };
+  }
   if (req.headers['x-test-pingone-token']) {
     req.session.pingoneMcpAdminToken = JSON.parse(req.headers['x-test-pingone-token']);
   }
@@ -92,6 +98,22 @@ describe('Generic MCP Inspector — profiles', () => {
         .post('/api/mcp/inspector/profiles')
         .send({ label: 'Brave Search', transport: 'http', url: 'https://example.test/mcp' });
       expect(res.status).toBe(401);
+    });
+
+    it('403s for a signed-in customer (stdio would be RCE on the BFF host)', async () => {
+      const res = await request(app)
+        .post('/api/mcp/inspector/profiles')
+        .set('x-test-authed', '1')
+        .set('x-test-role', 'user')
+        .send({
+          label: 'evil',
+          transport: 'stdio',
+          command: 'node',
+          args: ['-e', "require('fs').writeFileSync('/tmp/pwned','x')"],
+        });
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe('admin_required');
+      expect(mockStdioListTools).not.toHaveBeenCalled();
     });
 
     it('creates an http profile and never echoes the secret back', async () => {
@@ -149,6 +171,30 @@ describe('Generic MCP Inspector — profiles', () => {
   });
 
   describe('GET /api/mcp/inspector/tools?profile=<id> (non-default dispatch)', () => {
+    it('401s for anonymous callers (closes unauthenticated stdio spawn)', async () => {
+      const created = await request(app)
+        .post('/api/mcp/inspector/profiles')
+        .set('x-test-authed', '1')
+        .send({ label: 'stdio', transport: 'stdio', command: 'npx', args: ['-y', 'noop'] });
+      const res = await request(app).get(`/api/mcp/inspector/tools?profile=${created.body.profile.id}`);
+      expect(res.status).toBe(401);
+      expect(mockStdioListTools).not.toHaveBeenCalled();
+    });
+
+    it('403s for a signed-in customer', async () => {
+      const created = await request(app)
+        .post('/api/mcp/inspector/profiles')
+        .set('x-test-authed', '1')
+        .send({ label: 'http', transport: 'http', url: 'https://example.test/mcp' });
+      const res = await request(app)
+        .get(`/api/mcp/inspector/tools?profile=${created.body.profile.id}`)
+        .set('x-test-authed', '1')
+        .set('x-test-role', 'user');
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe('admin_required');
+      expect(mockHttpListTools).not.toHaveBeenCalled();
+    });
+
     it('dispatches to the http transport and returns its tools', async () => {
       const created = await request(app)
         .post('/api/mcp/inspector/profiles')
@@ -158,7 +204,9 @@ describe('Generic MCP Inspector — profiles', () => {
 
       mockHttpListTools.mockResolvedValue({ tools: [{ name: 'brave_web_search', description: 'Web search' }] });
 
-      const res = await request(app).get(`/api/mcp/inspector/tools?profile=${profileId}`);
+      const res = await request(app)
+        .get(`/api/mcp/inspector/tools?profile=${profileId}`)
+        .set('x-test-authed', '1');
       expect(res.status).toBe(200);
       expect(res.body._source).toBe('profile');
       expect(res.body.tools).toEqual([{ name: 'brave_web_search', description: 'Web search' }]);
@@ -176,7 +224,9 @@ describe('Generic MCP Inspector — profiles', () => {
 
       mockHttpListTools.mockRejectedValue(new Error('connect ECONNREFUSED'));
 
-      const res = await request(app).get(`/api/mcp/inspector/tools?profile=${profileId}`);
+      const res = await request(app)
+        .get(`/api/mcp/inspector/tools?profile=${profileId}`)
+        .set('x-test-authed', '1');
       expect(res.status).toBe(200);
       expect(res.body._source).toBe('profile_error');
       expect(res.body.error).toBe(true);
@@ -193,7 +243,9 @@ describe('Generic MCP Inspector — profiles', () => {
 
       mockStdioListTools.mockResolvedValue({ tools: [{ name: 'brave_web_search' }] });
 
-      const res = await request(app).get(`/api/mcp/inspector/tools?profile=${profileId}`);
+      const res = await request(app)
+        .get(`/api/mcp/inspector/tools?profile=${profileId}`)
+        .set('x-test-authed', '1');
       expect(res.status).toBe(200);
       expect(res.body._source).toBe('profile');
       expect(mockStdioListTools).toHaveBeenCalledWith(expect.objectContaining({ command: 'npx' }));
@@ -211,19 +263,35 @@ describe('Generic MCP Inspector — profiles', () => {
         frames: { request: {}, response: {} },
       });
 
-      const res = await request(app).get(`/api/mcp/inspector/tools?profile=${profileId}`);
+      const res = await request(app)
+        .get(`/api/mcp/inspector/tools?profile=${profileId}`)
+        .set('x-test-authed', '1');
       expect(res.status).toBe(200);
       expect(res.body.tools).toEqual([{ name: 'ws_tool' }]);
       expect(mockListToolsWithFrames).toHaveBeenCalledWith(null, null, undefined, { serverUrl: 'ws://example.test:9000' });
     });
 
     it('404s for an unknown profile id', async () => {
-      const res = await request(app).get('/api/mcp/inspector/tools?profile=does-not-exist');
+      const res = await request(app)
+        .get('/api/mcp/inspector/tools?profile=does-not-exist')
+        .set('x-test-authed', '1');
       expect(res.status).toBe(404);
     });
   });
 
   describe('POST /api/mcp/inspector/invoke with body.profile (non-default dispatch)', () => {
+    it('401s without a session even when a profile id is known (closes unauthenticated RCE)', async () => {
+      const created = await request(app)
+        .post('/api/mcp/inspector/profiles')
+        .set('x-test-authed', '1')
+        .send({ label: 'stdio', transport: 'stdio', command: 'npx', args: ['-y', 'noop'] });
+      const res = await request(app)
+        .post('/api/mcp/inspector/invoke')
+        .send({ tool: 'anything', params: {}, profile: created.body.profile.id });
+      expect(res.status).toBe(401);
+      expect(mockStdioCallTool).not.toHaveBeenCalled();
+    });
+
     it('dispatches tools/call to the http transport', async () => {
       const created = await request(app)
         .post('/api/mcp/inspector/profiles')
@@ -235,6 +303,7 @@ describe('Generic MCP Inspector — profiles', () => {
 
       const res = await request(app)
         .post('/api/mcp/inspector/invoke')
+        .set('x-test-authed', '1')
         .send({ tool: 'brave_web_search', params: { query: 'ping identity' }, profile: profileId });
 
       expect(res.status).toBe(200);
@@ -257,6 +326,7 @@ describe('Generic MCP Inspector — profiles', () => {
 
       const res = await request(app)
         .post('/api/mcp/inspector/invoke')
+        .set('x-test-authed', '1')
         .send({ tool: 'brave_web_search', params: {}, profile: profileId });
 
       expect(res.status).toBe(502);
@@ -281,7 +351,9 @@ describe('Generic MCP Inspector — profiles', () => {
     });
 
     it('signals pingone_admin_login_required when no session token is present (GET /tools)', async () => {
-      const res = await request(app).get(`/api/mcp/inspector/tools?profile=${PINGONE_PROFILE_ID}`);
+      const res = await request(app)
+        .get(`/api/mcp/inspector/tools?profile=${PINGONE_PROFILE_ID}`)
+        .set('x-test-authed', '1');
       expect(res.status).toBe(200);
       expect(res.body.pingone_admin_login_required).toBe(true);
       expect(res.body.loginUrl).toBe('/api/mcp/inspector/pingone-admin/login');
@@ -293,6 +365,7 @@ describe('Generic MCP Inspector — profiles', () => {
       const expired = JSON.stringify({ accessToken: 'stale', expiresAt: Date.now() - 1000 });
       const res = await request(app)
         .get(`/api/mcp/inspector/tools?profile=${PINGONE_PROFILE_ID}`)
+        .set('x-test-authed', '1')
         .set('x-test-pingone-token', expired);
       expect(res.body.pingone_admin_login_required).toBe(true);
     });
@@ -303,6 +376,7 @@ describe('Generic MCP Inspector — profiles', () => {
 
       const res = await request(app)
         .get(`/api/mcp/inspector/tools?profile=${PINGONE_PROFILE_ID}`)
+        .set('x-test-authed', '1')
         .set('x-test-pingone-token', token);
 
       expect(res.status).toBe(200);
@@ -315,9 +389,10 @@ describe('Generic MCP Inspector — profiles', () => {
       });
     });
 
-    it('POST /invoke 401s with pingone_admin_login_required when not signed in', async () => {
+    it('POST /invoke 401s with pingone_admin_login_required when admin has no PingOne token', async () => {
       const res = await request(app)
         .post('/api/mcp/inspector/invoke')
+        .set('x-test-authed', '1')
         .send({ tool: 'read_users', params: {}, profile: PINGONE_PROFILE_ID });
       expect(res.status).toBe(401);
       expect(res.body.error).toBe('pingone_admin_login_required');

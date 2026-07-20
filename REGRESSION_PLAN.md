@@ -101,6 +101,29 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-20 — Generic MCP Inspector (#646): stdio profile RCE + PingOne admin login always 401
+
+**Files changed:**
+- `demo_api_server/routes/mcpInspector.js` — `requireAdminSession` (session.user.role)
+  on POST/DELETE `/profiles` and on non-default `?profile=` / `body.profile` tools +
+  invoke dispatch (was: any signed-in user could create; invoke had no auth at all).
+- `demo_api_server/routes/mcpPingOneAdminAuth.js` — same session.user.role gate instead
+  of middleware `requireAdmin` (req.user), which is unset on this mount.
+- Tests: `mcpInspectorProfiles.test.js`, `mcpPingOneAdminAuth.test.js`.
+
+**What was broken:** #646 let any session POST a `transport:"stdio"` profile
+(`command`/`args`/`env`), then GET `/tools?profile=` or POST `/invoke` with that
+id spawned the command on the BFF host — and `/invoke` with a profile id skipped
+auth entirely (profile UUIDs are listed on unauthenticated GET `/profiles`).
+Separately, PingOne admin login used `requireAdmin` → always 401 in the browser
+because `/api/mcp/inspector` is not behind `authenticateToken`.
+
+**Do not break:** default banking profile path (no `profile` / `default-banking`)
+still allows anonymous local-catalog fallback; MFA gate on default tools/list
+unchanged; secrets still never echoed from `listProfiles`/`createProfile`.
+
+**Verify:** `cd demo_api_server && npx jest src/__tests__/mcpInspectorProfiles.test.js src/__tests__/mcpPingOneAdminAuth.test.js`
+
 ### 2026-07-19 — Demo Config page (`/demo-config`) applied a sidebar selection but the side nav never refreshed
 
 **Files changed:**
