@@ -500,7 +500,7 @@ export default function AdminSideNav({ user }) {
       icon: "rte",
       children: [
         {
-          label: "Demo MCP Inspector",
+          label: "Generic MCP Inspector",
           path: "/mcp-inspector",
           icon: "dbg",
         },

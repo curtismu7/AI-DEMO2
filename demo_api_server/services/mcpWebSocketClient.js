@@ -492,10 +492,10 @@ function mcpCallTool(toolName, toolParams, agentToken, userSub, correlationId) {
 // behavior as the plain calls; additionally return the exact follow-up
 // JSON-RPC frames. On rejection the captured frames ride on err.frames (the
 // response frame is present when the failure was a JSON-RPC error).
-async function mcpListToolsWithFrames(agentToken, userSub, correlationId) {
+async function mcpListToolsWithFrames(agentToken, userSub, correlationId, opts) {
   const frames = {};
   try {
-    const result = await mcpRpc(agentToken, 'tools/list', {}, userSub, correlationId, frames);
+    const result = await mcpRpc(agentToken, 'tools/list', {}, userSub, correlationId, frames, opts);
     return { result, frames };
   } catch (err) {
     err.frames = frames;
@@ -503,13 +503,13 @@ async function mcpListToolsWithFrames(agentToken, userSub, correlationId) {
   }
 }
 
-async function mcpCallToolWithFrames(toolName, toolParams, agentToken, userSub, correlationId) {
+async function mcpCallToolWithFrames(toolName, toolParams, agentToken, userSub, correlationId, opts) {
   const frames = {};
   try {
     const result = await mcpRpc(agentToken, 'tools/call', {
       name: toolName,
       arguments: toolParams || {},
-    }, userSub, correlationId, frames);
+    }, userSub, correlationId, frames, opts);
     return { result, frames };
   } catch (err) {
     err.frames = frames;

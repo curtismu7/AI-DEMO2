@@ -17,6 +17,10 @@ const {
   mcpCallToolWithFrames,
 } = require('../services/mcpWebSocketClient');
 const { callToolLocal, listLocalInspectorTools } = require('../services/mcpLocalTools');
+const mcpProfileStore = require('../services/mcpProfileStore');
+const mcpHttpTransport = require('../services/mcpTransports/http');
+const mcpStdioTransport = require('../services/mcpTransports/stdio');
+const mcpPingOneHttpAdapter = require('../services/mcpPingOneHttpAdapter');
 const runtimeSettings = require('../config/runtimeSettings');
 const archEmit = require('../services/archEventEmitter');
 const mcpFlowSseHub = require('../services/mcpFlowSseHub');
@@ -144,6 +148,188 @@ router.get('/context', async (req, res) => {
   }
 });
 
+// GET /api/mcp/inspector/profiles — saved MCP server profiles for the Generic
+// MCP Inspector's server picker (secrets never included; see mcpProfileStore).
+router.get('/profiles', (req, res) => {
+  try {
+    res.json({
+      profiles: mcpProfileStore.listProfiles(),
+      defaultProfileId: mcpProfileStore.DEFAULT_PROFILE_ID,
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'profiles_list_failed', message: err.message });
+  }
+});
+
+// POST /api/mcp/inspector/profiles — add a server profile (websocket/http need
+// a url, stdio needs a local command). Any signed-in user may add one; the
+// default banking profile is seeded separately and cannot be created here.
+router.post('/profiles', requireSession, express.json(), (req, res) => {
+  try {
+    const profile = mcpProfileStore.createProfile(req.body || {});
+    res.status(201).json({ profile });
+  } catch (err) {
+    res.status(400).json({ error: 'profile_create_failed', message: err.message });
+  }
+});
+
+// DELETE /api/mcp/inspector/profiles/:id — remove a saved profile; the default
+// banking profile is protected (mcpProfileStore throws default_profile_protected).
+router.delete('/profiles/:id', requireSession, (req, res) => {
+  try {
+    mcpProfileStore.deleteProfile(req.params.id);
+    res.status(204).end();
+  } catch (err) {
+    const status = err.code === 'default_profile_protected' ? 400 : 404;
+    res.status(status).json({ error: err.code || 'profile_delete_failed', message: err.message });
+  }
+});
+
+/**
+ * Dispatch tools/list to a non-default profile's transport. Unlike the default
+ * banking profile, there is no local-catalog fallback here — a fabricated tool
+ * list would defeat the point of inspecting a real external server, so
+ * failures are returned as data (_source: 'profile_error') for the UI to show.
+ */
+/** Session bearer for the built-in PingOne profile — null when not signed in or expired. */
+function pingoneAdminBearer(req) {
+  const tok = req.session?.pingoneMcpAdminToken;
+  if (!tok || !tok.accessToken || !(tok.expiresAt > Date.now())) return null;
+  return tok.accessToken;
+}
+
+/** Wraps the session's PingOne admin token as a one-off profile so it can ride the http transport as-is. */
+function pingoneVirtualProfile(bearer) {
+  return { url: mcpPingOneHttpAdapter.getMcpUrl(), authHeader: 'Authorization', authValue: `Bearer ${bearer}` };
+}
+
+function requirePingoneAdminLogin() {
+  const err = new Error('Sign in as PingOne admin to use this profile.');
+  err.code = 'pingone_admin_login_required';
+  return err;
+}
+
+async function listToolsForProfile(profile, req) {
+  if (profile.transport === 'websocket') {
+    const { result, frames } = await mcpListToolsWithFrames(null, null, undefined, { serverUrl: profile.url });
+    return { tools: result.tools || [], frames };
+  }
+  if (profile.transport === 'http') {
+    const { tools } = await mcpHttpTransport.listTools(profile);
+    return { tools };
+  }
+  if (profile.transport === 'stdio') {
+    const { tools } = await mcpStdioTransport.listTools(profile);
+    return { tools };
+  }
+  if (profile.transport === 'pingone') {
+    const bearer = pingoneAdminBearer(req);
+    if (!bearer) throw requirePingoneAdminLogin();
+    const { tools } = await mcpHttpTransport.listTools(pingoneVirtualProfile(bearer));
+    return { tools };
+  }
+  throw new Error(`Unknown transport: ${profile.transport}`);
+}
+
+/** Same non-default-profile dispatch for tools/call. */
+async function callToolForProfile(profile, tool, params, req) {
+  if (profile.transport === 'websocket') {
+    const { result, frames } = await mcpCallToolWithFrames(tool, params, null, null, undefined, { serverUrl: profile.url });
+    return { result, frames };
+  }
+  if (profile.transport === 'http') {
+    const result = await mcpHttpTransport.callTool(profile, tool, params);
+    return { result };
+  }
+  if (profile.transport === 'stdio') {
+    const result = await mcpStdioTransport.callTool(profile, tool, params);
+    return { result };
+  }
+  if (profile.transport === 'pingone') {
+    const bearer = pingoneAdminBearer(req);
+    if (!bearer) throw requirePingoneAdminLogin();
+    const result = await mcpHttpTransport.callTool(pingoneVirtualProfile(bearer), tool, params);
+    return { result };
+  }
+  throw new Error(`Unknown transport: ${profile.transport}`);
+}
+
+async function handleProfileTools(req, res, profileId) {
+  const profile = mcpProfileStore.getProfile(profileId);
+  if (!profile) {
+    return res.status(404).json({ error: 'profile_not_found', message: `No MCP server profile "${profileId}"` });
+  }
+  const started = Date.now();
+  try {
+    const { tools, frames } = await listToolsForProfile(profile, req);
+    return res.json({
+      timingsMs: { roundTrip: Date.now() - started },
+      tools,
+      frames: frames || null,
+      _source: 'profile',
+      _profileId: profile.id,
+      _profileLabel: profile.label,
+    });
+  } catch (err) {
+    if (err.code === 'pingone_admin_login_required') {
+      return res.json({
+        tools: [],
+        pingone_admin_login_required: true,
+        loginUrl: '/api/mcp/inspector/pingone-admin/login',
+        _source: 'pingone_admin_login_required',
+        _profileId: profile.id,
+        _profileLabel: profile.label,
+      });
+    }
+    console.error(`[MCP Inspector] profile "${profileId}" tools/list failed:`, err.message);
+    return res.json({
+      tools: [],
+      error: true,
+      reason: err.message,
+      _source: 'profile_error',
+      _profileId: profile.id,
+      _profileLabel: profile.label,
+    });
+  }
+}
+
+async function handleProfileInvoke(req, res, profileId, tool, params) {
+  const profile = mcpProfileStore.getProfile(profileId);
+  if (!profile) {
+    return res.status(404).json({ error: 'profile_not_found', message: `No MCP server profile "${profileId}"` });
+  }
+  const started = Date.now();
+  try {
+    const { result, frames } = await callToolForProfile(profile, tool, params || {}, req);
+    return res.json({
+      result,
+      frames: frames || null,
+      inspector: {
+        tool,
+        durationMs: Date.now() - started,
+        phases: [`${profile.transport} transport`, 'tools/call'],
+        tokenExchangeApplied: false,
+      },
+      _profileId: profile.id,
+    });
+  } catch (err) {
+    if (err.code === 'pingone_admin_login_required') {
+      return res.status(401).json({
+        error: 'pingone_admin_login_required',
+        message: err.message,
+        loginUrl: '/api/mcp/inspector/pingone-admin/login',
+        _profileId: profile.id,
+      });
+    }
+    console.error(`[MCP Inspector] profile "${profileId}" invoke ${tool} failed:`, err.message);
+    return res.status(502).json({
+      error: 'mcp_profile_invoke_failed',
+      message: err.message,
+      _profileId: profile.id,
+    });
+  }
+}
+
 // GET /api/mcp/inspector/tools/events?trace=<uuid> — SSE stream of discovery
 // phases (introspect → exchange → ws-connect → tools/list). Client opens this
 // BEFORE calling GET /tools?trace=<same-uuid>, mirroring the tool-call pattern.
@@ -169,6 +355,15 @@ router.get('/tools', async (req, res) => {
       _source: 'mfa_gate',
     });
   }
+
+  // Non-default profile: dispatch to its transport (mcpTransports/*) instead
+  // of the banking-server discovery flow below. Omitted/default profile id
+  // falls through to the existing behavior unchanged.
+  const requestedProfileId = typeof req.query.profile === 'string' ? req.query.profile.trim() : '';
+  if (requestedProfileId && requestedProfileId !== mcpProfileStore.DEFAULT_PROFILE_ID) {
+    return handleProfileTools(req, res, requestedProfileId);
+  }
+
   const effectiveUserId = req.session?.user?.id || req.user?.id || null;
 
   // Optional trace id for streaming discovery phases via SSE. The trace must
@@ -368,9 +563,15 @@ router.get('/tools', async (req, res) => {
 
 // POST /api/mcp/inspector/invoke — tools/call with inspector metadata (demo); local handler when no MCP bearer or MCP down
 router.post('/invoke', express.json(), async (req, res) => {
-  const { tool, params } = req.body || {};
+  const { tool, params, profile: requestedProfileId } = req.body || {};
   if (!tool || typeof tool !== 'string') {
     return res.status(400).json({ error: 'tool name is required' });
+  }
+
+  // Non-default profile: dispatch to its transport, bypassing the banking-
+  // server token exchange / local-handler path below entirely.
+  if (requestedProfileId && requestedProfileId !== mcpProfileStore.DEFAULT_PROFILE_ID) {
+    return handleProfileInvoke(req, res, requestedProfileId, tool, params);
   }
 
   const effectiveUserId = req.session?.user?.id || req.user?.id || null;
