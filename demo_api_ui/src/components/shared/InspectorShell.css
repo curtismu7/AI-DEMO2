@@ -75,6 +75,30 @@
   align-items: center;
   justify-content: space-between;
 }
+/* Source switcher — page-owned row above a source's own left-column
+   content, for pages (like McpInspectorPage) that switch between several
+   independent data sources inside one shell instance. Not part of
+   InspectorShell.jsx itself — pages compose it into their own `left` slot. */
+.source-switcher {
+  display: flex;
+  gap: 4px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #cbd5e1;
+}
+.src-pill {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  padding: 4px 10px;
+  cursor: pointer;
+  flex: 1;
+}
+.src-pill:hover { border-color: #94a3b8; }
+.src-pill--active { background: rgba(37, 99, 235, 0.06); border-color: #2563eb; color: #2563eb; }
 .inspector-shell-tree-search {
   padding: 8px 12px;
   border-bottom: 1px solid #cbd5e1;
