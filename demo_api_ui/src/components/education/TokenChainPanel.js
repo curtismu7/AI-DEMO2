@@ -2,6 +2,7 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useTokenChainOptional } from '../../context/TokenChainContext';
 import { useProofOfEnforcement } from '../../context/ProofOfEnforcementContext';
+import JsonHighlight from '../shared/JsonHighlight';
 import './TokenChainPanel.css';
 
 /**
@@ -256,7 +257,7 @@ export default function TokenChainPanel() {
                   {expanded && (
                     <div className="token-chain-detail">
                       <p style={{ margin: 0 }}>{step.summary}</p>
-                      <pre>{step.payloadPreview}</pre>
+                      <pre><JsonHighlight value={step.payloadPreview} /></pre>
                       <p className="token-chain-hint">
                         Click the row again to collapse. Live access tokens are not stored in the
                         browser in this app.

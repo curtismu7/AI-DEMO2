@@ -21,7 +21,9 @@ import { GatewayConfig } from './config';
 
 // W1 fix: KEEP existing 'olb' and 'invest' targets unchanged.
 // ADD new sibling targets for Phase 266.
-export type BackendTarget = 'olb' | 'invest' | 'apikey' | 'dualtoken' | 'bankingdata';
+// 'jwtverifier' is a sibling HTTP-forward target (like 'olb'), not a WebSocket
+// backend like 'invest' — see backendWsUrl()/backendHttpMcpUrl() below.
+export type BackendTarget = 'olb' | 'invest' | 'apikey' | 'dualtoken' | 'bankingdata' | 'jwtverifier';
 
 const OLB_TOOLS = new Set([
   'get_my_accounts',
@@ -40,6 +42,16 @@ const INVEST_TOOLS = new Set([
   'get_investment_accounts',
   'get_investment_transactions',
   'get_portfolio_summary',
+]);
+
+// demo_mcp_jwt_verifier (Python/FastMCP) — JWT/JWKS diagnostic tools, ported
+// from jwt-verifier-mcp-server/src/actions/*.ts. Tool names must match exactly.
+const JWT_VERIFIER_TOOLS = new Set([
+  'jwt_decode_full',
+  'jwt_verify_signature',
+  'jwt_validate_claims',
+  'jwt_fetch_jwks',
+  'jwt_inspect_key',
 ]);
 
 // Path A: api_key disposition.
@@ -76,26 +88,37 @@ const BANKING_DATA_ROUTE_FOR_TOOL: Record<string, 'accounts' | 'transactions'> =
 };
 
 export function routeTool(toolName: string): BackendTarget {
-  if (INVEST_TOOLS.has(toolName))      return 'invest';
-  if (APIKEY_TOOLS.has(toolName))      return 'apikey';
-  if (DUALTOKEN_TOOLS.has(toolName))   return 'dualtoken';
-  if (BANKINGDATA_TOOLS.has(toolName)) return 'bankingdata';
+  if (INVEST_TOOLS.has(toolName))        return 'invest';
+  if (JWT_VERIFIER_TOOLS.has(toolName))  return 'jwtverifier';
+  if (APIKEY_TOOLS.has(toolName))        return 'apikey';
+  if (DUALTOKEN_TOOLS.has(toolName))     return 'dualtoken';
+  if (BANKINGDATA_TOOLS.has(toolName))   return 'bankingdata';
   // Default — existing OLB tools (get_my_accounts, etc.) and unknown tools → OLB WebSocket
   return 'olb';
 }
 
-// H4: Return empty string for Phase 266 targets — they do NOT use WebSocket.
-// Without this guard, 'apikey'/'dualtoken'/'bankingdata' would silently fall
-// through to mcpOlbWsUrl (wrong backend).
+// H4: Return empty string for Phase 266 targets and 'jwtverifier' — none of
+// them use WebSocket. Without this guard, they would silently fall through
+// to mcpOlbWsUrl (wrong backend).
 export function backendWsUrl(target: BackendTarget, config: GatewayConfig): string {
-  if (target === 'apikey' || target === 'dualtoken' || target === 'bankingdata') return '';
+  if (target === 'apikey' || target === 'dualtoken' || target === 'bankingdata' || target === 'jwtverifier') return '';
   return target === 'invest' ? config.mcpInvestWsUrl : config.mcpOlbWsUrl;
 }
 
+// Resolve the concrete HTTP MCP base URL for a target that forwards via
+// GatewayServer.forwardToUpstream() (Streamable HTTP), i.e. everything except
+// 'invest' (WebSocket) and the Gateway-terminating/REST targets. Today that's
+// just 'jwtverifier' — 'olb' keeps using GatewayServer's own upstreamMcpUrl.
+export function backendHttpMcpUrl(target: BackendTarget, config: GatewayConfig): string {
+  if (target === 'jwtverifier') return config.mcpJwtVerifierHttpUrl;
+  return '';
+}
+
 // H4: Return empty string for Phase 266 targets — they use bankingResourceServerResourceUri,
-// not mcpOlbResourceUri / mcpInvestResourceUri.
+// not mcpOlbResourceUri / mcpInvestResourceUri / mcpJwtVerifierResourceUri.
 export function backendResourceUri(target: BackendTarget, config: GatewayConfig): string {
   if (target === 'apikey' || target === 'dualtoken' || target === 'bankingdata') return '';
+  if (target === 'jwtverifier') return config.mcpJwtVerifierResourceUri;
   return target === 'invest' ? config.mcpInvestResourceUri : config.mcpOlbResourceUri;
 }
 

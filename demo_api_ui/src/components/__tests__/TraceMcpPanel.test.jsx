@@ -36,11 +36,13 @@ test("renders the FULL request, response and raw payload from mcpResult", () => 
       requestJson: { name: "get_balance", arguments: { account: "chk-001" } },
       resultJson: { balance: 1234, currency: "USD" } },
   };
-  render(<TraceMcpPanel steps={STEPS} trace={trace} onInspect={() => {}} />);
+  const { container } = render(<TraceMcpPanel steps={STEPS} trace={trace} onInspect={() => {}} />);
   expect(screen.getAllByText(/get_balance/).length).toBeGreaterThan(0);
   expect(screen.getByText(/42 ms/)).toBeInTheDocument();
   expect(screen.getAllByText(/chk-001/).length).toBeGreaterThan(0);
-  expect(screen.getAllByText(/"currency": "USD"/).length).toBeGreaterThan(0);
+  // JsonHighlight splits "currency": "USD" across key/punct/string spans — assert on
+  // concatenated text content instead of a single text node.
+  expect(container.textContent).toMatch(/"currency":\s*"USD"/);
   expect(screen.getByText(/^Request$/)).toBeInTheDocument();
   expect(screen.getByText(/^Response$/)).toBeInTheDocument();
   expect(screen.getByText(/Raw payload/)).toBeInTheDocument();

@@ -23,6 +23,10 @@ export interface GatewayConfig {
   // Backend resource URIs (used as `audience` in the re-exchange)
   mcpOlbResourceUri: string;
   mcpInvestResourceUri: string;
+  // demo_mcp_jwt_verifier (Python/FastMCP) — HTTP (Streamable HTTP) backend,
+  // forwarded via GatewayServer.forwardToUpstream() like 'olb', not WebSocket.
+  mcpJwtVerifierHttpUrl: string;
+  mcpJwtVerifierResourceUri: string;
   // Optional PingAuthorize endpoint for tools/list guard
   pingAuthorizeEndpoint: string;
   pingAuthorizeWorkerId: string;
@@ -260,6 +264,8 @@ export function loadConfig(): GatewayConfig {
       optional('MCP_RESOURCE_URI', 'mcpserver.ping.demo')),
     mcpInvestResourceUri: optional('MCP_INVEST_RESOURCE_URI',
       optional('MCP_INVEST_AUDIENCE', 'mcp-invest.ping.demo')),
+    mcpJwtVerifierHttpUrl: optional('MCP_GW_JWTVERIFIER_HTTP_URL', 'http://localhost:8083'),
+    mcpJwtVerifierResourceUri: optional('MCP_JWTVERIFIER_RESOURCE_URI', 'mcp-jwt-verifier.ping.demo'),
     pingAuthorizeEndpoint: optional('PINGAUTHORIZE_ENDPOINT', ''),
     pingAuthorizeWorkerId: optional('PINGAUTHORIZE_WORKER_ID', ''),
     pingAuthorizeMockBase: optional('PINGAUTHORIZE_MOCK_BASE', '') || undefined,
