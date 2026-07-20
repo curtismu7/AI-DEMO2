@@ -19,6 +19,7 @@ import InspectorShell from './shared/InspectorShell';
 import InspectorTabs from './shared/InspectorTabs';
 import InspectorListItem from './shared/InspectorListItem';
 import './shared/InspectorShell.css';
+import './ApiExplorerPanel.css';
 
 const SOURCES = [
   { key: 'banking', label: 'Banking MCP' },
@@ -767,6 +768,7 @@ function useApiCallsSource() {
     statusText: `${calls.length} calls ${live ? '- Live' : '- Paused'}`,
     actions: (
       <>
+        {error && <span className="aep-topbar-error">{error}</span>}
         <button className={`inspector-shell-topbar__btn${live ? ' inspector-shell-topbar__btn--active' : ''}`} onClick={() => setLive((v) => !v)}>{live ? 'Pause' : 'Live'}</button>
         <button className="inspector-shell-topbar__btn" onClick={handleClear}>Clear</button>
       </>
@@ -795,10 +797,25 @@ function useApiCallsSource() {
               <span className={`inspector-shell-tree-item__dot${!call.success ? ' inspector-shell-tree-item__dot--sensitive' : ''}`} />
               <span className={apiMethodBadgeClass(call.method)}>{(call.method || 'GET').toUpperCase()}</span>
               <span style={{ fontSize: 11, color: '#475569' }}>{truncateUrl(call.url)}</span>
+              {call.response?.status != null && (
+                <span className={`aep-tree-status ${call.response.status >= 200 && call.response.status < 300 ? 'aep-tree-status--ok' : 'aep-tree-status--err'}`}>
+                  {call.response.status}
+                </span>
+              )}
               {(call.durationMs ?? call.duration) != null && <span style={{ marginLeft: 'auto', fontSize: 9, color: '#64748b' }}>{call.durationMs ?? call.duration}ms</span>}
             </button>
           ))}
         </div>
+        {stats && (
+          <div className="aep-tree-footer">
+            <div className="aep-tree-footer__stat">Total: <strong>{stats.total}</strong></div>
+            <div className="aep-tree-footer__stat">Success: <strong className="aep-tree-footer__ok">{stats.success ?? stats.successful}</strong></div>
+            <div className="aep-tree-footer__stat">Errors: <strong className="aep-tree-footer__err">{stats.errors ?? stats.failed}</strong></div>
+            {(stats.avgDurationMs ?? stats.averageDuration) != null && (
+              <div className="aep-tree-footer__stat">Avg: <strong>{Math.round(stats.avgDurationMs ?? stats.averageDuration)}ms</strong></div>
+            )}
+          </div>
+        )}
       </>
     ),
     middle: selectedCall ? (
@@ -812,6 +829,18 @@ function useApiCallsSource() {
           <div className="inspector-shell-field"><label>Method</label><input type="text" value={(selectedCall.method || 'GET').toUpperCase()} readOnly /></div>
           <div className="inspector-shell-field"><label>Status Code</label><input type="text" value={status != null ? String(status) : 'N/A'} readOnly /></div>
           <div className="inspector-shell-field"><label>Duration</label><input type="text" value={duration != null ? `${duration}ms` : 'N/A'} readOnly /></div>
+          {selectedCall.request?.body && (
+            <div className="inspector-shell-field">
+              <label>Request Body</label>
+              <textarea
+                rows={6}
+                readOnly
+                value={typeof selectedCall.request.body === 'string'
+                  ? selectedCall.request.body
+                  : JSON.stringify(selectedCall.request.body, null, 2)}
+              />
+            </div>
+          )}
         </div>
       </>
     ) : (
