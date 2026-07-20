@@ -108,6 +108,16 @@ export class GatewayIntrospectionClient {
   }
 
   async introspect(token: string): Promise<IntrospectionResult> {
+    // Demo-only sim hook: an admin-armed flag (POST /admin/config
+    // {introspectionSimDown:true}) forces the same fail-closed shape as a
+    // real introspection-endpoint outage, without touching real enforcement.
+    // Must be disarmed immediately by the caller — this has no TTL.
+    if (this.config.introspectionSimDown) {
+      const msg = 'Simulated introspection outage (demo arm)';
+      console.warn(`[GatewayIntrospection] ${msg}`);
+      return { active: false, error: msg };
+    }
+
     // Introspection endpoint is required — if not configured, fail closed
     if (!this.config.introspectionEndpoint) {
       const msg = 'GW_INTROSPECTION_ENDPOINT not configured (required for token validation)';

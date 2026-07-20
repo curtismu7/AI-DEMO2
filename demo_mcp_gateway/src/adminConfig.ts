@@ -42,6 +42,7 @@ export const ADMIN_CONFIG_ALLOWED_KEYS: Array<keyof GatewayConfig> = [
   'rateLimitEnabled',
   'rateLimitMaxRequests',
   'rateLimitWindowMs',
+  'introspectionSimDown',
 ];
 
 export interface AdminConfigResult {
@@ -69,6 +70,7 @@ function safeView(config: GatewayConfig): Record<string, unknown> {
     rateLimitEnabled:      config.rateLimitEnabled,
     rateLimitMaxRequests:  config.rateLimitMaxRequests,
     rateLimitWindowMs:     config.rateLimitWindowMs,
+    introspectionSimDown:  config.introspectionSimDown,
     mcpServerPassthrough:  config.mcpServerPassthrough,
     // Phase 266/267 HTTP backend routes — non-secret addresses + logical
     // audiences only (the X-API-Key for the apikey path is NEVER exposed).
@@ -95,7 +97,7 @@ export function applyAdminConfigUpdate(
 ): AdminConfigResult {
   const hasDevBypass = Object.prototype.hasOwnProperty.call(updates, 'devBypass');
   const hasRateLimitEnabled = Object.prototype.hasOwnProperty.call(updates, 'rateLimitEnabled');
-  const boolKeys = ['requireActForAgentTools', 'intentTokenRequired', 'requireRarIntent'] as const;
+  const boolKeys = ['requireActForAgentTools', 'intentTokenRequired', 'requireRarIntent', 'introspectionSimDown'] as const;
 
   // A — strict-boolean validation (all environments). Reject the whole
   // request on any non-boolean devBypass BEFORE the prod check / assignment.
@@ -174,7 +176,7 @@ export function applyAdminConfigUpdate(
       } else if (key === 'rateLimitEnabled') {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (config as any).rateLimitEnabled = updates.rateLimitEnabled === true;
-      } else if (key === 'requireActForAgentTools' || key === 'intentTokenRequired' || key === 'requireRarIntent') {
+      } else if (key === 'requireActForAgentTools' || key === 'intentTokenRequired' || key === 'requireRarIntent' || key === 'introspectionSimDown') {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (config as any)[key] = updates[key] === true;
       } else {

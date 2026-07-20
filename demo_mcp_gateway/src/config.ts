@@ -128,6 +128,7 @@ export interface GatewayConfig {
   rateLimitMaxRequests: number;
   /** Sliding window duration in ms. Default 60000. */
   rateLimitWindowMs: number;
+  introspectionSimDown: boolean;
 }
 
 const DEV_BYPASS = process.env.MCP_GW_DEV_BYPASS === 'true';
@@ -303,6 +304,7 @@ export function loadConfig(): GatewayConfig {
     wbaMode: (['off', 'monitor', 'enforce'] as const).find((m) => m === process.env.MCP_GW_WBA_MODE) ?? 'monitor',
     rateLimitMaxRequests: parseInt(process.env.GATEWAY_RATE_LIMIT_MAX_REQUESTS ?? '20', 10) || 20,
     rateLimitWindowMs: parseInt(process.env.GATEWAY_RATE_LIMIT_WINDOW_MS ?? '60000', 10) || 60000,
+    introspectionSimDown: process.env.GATEWAY_SIM_INTROSPECTION_DOWN === 'true',
   };
 }
 
