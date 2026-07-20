@@ -109,6 +109,25 @@ const groupBankingTools = (toolList) => {
   }));
 };
 
+const isDavinciTool = (name) => name.includes('Davinci') || name.includes('davinci');
+
+const pingoneGroupKey = (name) => {
+  if (isDavinciTool(name)) return 'DaVinci';
+  if (name.includes('Environment')) return 'Environments';
+  if (name.includes('Application')) return 'Applications';
+  if (name.includes('User')) return 'Users';
+  if (name.includes('Population')) return 'Populations';
+  return 'Other';
+};
+
+const PINGONE_GROUP_ORDER = ['Environments', 'Users', 'Applications', 'Populations', 'DaVinci', 'Other'];
+
+const pingoneToolDot = (name) => {
+  const lower = name.toLowerCase();
+  if (lower.startsWith('create') || lower.startsWith('update') || lower.startsWith('delete') || lower.startsWith('manage')) return 'write';
+  return 'default';
+};
+
 const BANKING_STATIC_TOOLS = [
   {
     name: 'get_my_accounts',
@@ -468,10 +487,231 @@ function useBankingSource() {
   };
 }
 
+function usePingOneSource() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [toggling, setToggling] = useState(false);
+  const [toolSearch, setToolSearch] = useState('');
+  const [selectedTool, setSelectedTool] = useState(null);
+  const [paramValues, setParamValues] = useState({});
+  const [calling, setCalling] = useState(false);
+  const [lastCall, setLastCall] = useState(null);
+  const [formError, setFormError] = useState(null);
+  const [outputTab, setOutputTab] = useState('response');
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await apiClient.get('/api/mcp/inspector/pingone-tools');
+      setData(res.data);
+    } catch (e) {
+      notifyError(formatAxiosError(e, 'Failed to query the PingOne MCP server'));
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const enabled = data?.enabled;
+  const tools = data?.tools || [];
+
+  const groupedTools = useMemo(() => {
+    const searchQ = toolSearch.trim().toLowerCase();
+    const filtered = searchQ
+      ? tools.filter((t) => t.name.toLowerCase().includes(searchQ) || (t.description || '').toLowerCase().includes(searchQ))
+      : tools;
+    const groups = {};
+    for (const t of filtered) {
+      const g = pingoneGroupKey(t.name);
+      if (!groups[g]) groups[g] = [];
+      groups[g].push(t);
+    }
+    return PINGONE_GROUP_ORDER.filter((g) => groups[g]?.length).map((g) => ({ label: g, tools: groups[g] }));
+  }, [tools, toolSearch]);
+
+  const toggleLiveQuery = useCallback(async () => {
+    setToggling(true);
+    try {
+      await apiClient.patch('/api/admin/feature-flags', { updates: { mcp_inspector_pingone_live: !enabled } });
+      await refresh();
+    } catch (e) {
+      notifyError(formatAxiosError(e, 'Failed to toggle live querying'));
+    } finally {
+      setToggling(false);
+    }
+  }, [enabled, refresh]);
+
+  const selectTool = (tool) => {
+    setSelectedTool(tool);
+    const defaults = data?.paramDefaults || {};
+    const props = tool.inputSchema?.properties || {};
+    const seeded = {};
+    for (const key of Object.keys(props)) { if (defaults[key]) seeded[key] = defaults[key]; }
+    setParamValues(seeded);
+    setFormError(null);
+    setLastCall(null);
+    setOutputTab('response');
+  };
+
+  const callTool = useCallback(async () => {
+    if (!selectedTool) return;
+    const props = selectedTool.inputSchema?.properties || {};
+    const required = selectedTool.inputSchema?.required || [];
+    const missing = required.filter((k) => !(paramValues[k] ?? '').trim());
+    if (missing.length > 0) {
+      setFormError(`Required: ${missing.join(', ')}`);
+      return;
+    }
+    setFormError(null);
+    const params = {};
+    for (const [key, schema] of Object.entries(props)) {
+      const coerced = coerceParam(paramValues[key] ?? '', schema?.type);
+      if (coerced !== undefined) params[key] = coerced;
+    }
+    setCalling(true);
+    try {
+      const res = await apiClient.post('/api/mcp/inspector/pingone-invoke', { tool: selectedTool.name, params });
+      setLastCall(res.data);
+      setOutputTab('response');
+    } catch (e) {
+      notifyError(formatAxiosError(e, 'tools/call failed'));
+      setLastCall(null);
+    } finally {
+      setCalling(false);
+    }
+  }, [selectedTool, paramValues]);
+
+  const clearForm = () => { setParamValues({}); setFormError(null); setLastCall(null); };
+
+  const schemaProps = selectedTool?.inputSchema?.properties || {};
+  const requiredParams = new Set(selectedTool?.inputSchema?.required || []);
+
+  return {
+    statusOn: !!enabled,
+    statusText: enabled ? `Connected — ${tools.length} tools` : 'Disconnected',
+    actions: (
+      <>
+        <button className="inspector-shell-topbar__btn" onClick={refresh} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</button>
+        <button
+          className={`inspector-shell-topbar__btn${enabled ? ' inspector-shell-topbar__btn--active' : ''}`}
+          onClick={toggleLiveQuery}
+          disabled={toggling}
+        >
+          {toggling ? 'Switching…' : enabled ? 'Live: ON' : 'Live: OFF'}
+        </button>
+      </>
+    ),
+    left: (
+      <>
+        <div className="inspector-shell-tree-header"><span>Tools ({tools.length})</span></div>
+        <div className="inspector-shell-tree-search">
+          <input
+            type="search"
+            placeholder="Filter tools…"
+            value={toolSearch}
+            onChange={(e) => setToolSearch(e.target.value)}
+            spellCheck={false}
+          />
+        </div>
+        <div className="inspector-shell-tree-body">
+          {groupedTools.map((group) => (
+            <div key={group.label}>
+              <div className="inspector-shell-tree-group__label">{group.label} ({group.tools.length})</div>
+              {group.tools.map((t) => (
+                <InspectorListItem
+                  key={t.name}
+                  label={t.name}
+                  active={selectedTool?.name === t.name}
+                  dot={pingoneToolDot(t.name)}
+                  badges={pingoneToolDot(t.name) === 'write' ? ['write'] : []}
+                  onClick={() => selectTool(t)}
+                />
+              ))}
+            </div>
+          ))}
+          {groupedTools.length === 0 && (
+            <div style={{ padding: '20px 16px', color: '#64748b', fontSize: 13 }}>
+              {tools.length === 0 ? 'No tools loaded.' : `No tools match "${toolSearch}".`}
+            </div>
+          )}
+        </div>
+      </>
+    ),
+    middle: selectedTool ? (
+      <>
+        <div className="inspector-shell-form-header">
+          <div className="inspector-shell-form-header__name">{selectedTool.name}</div>
+          {selectedTool.description && <div className="inspector-shell-form-header__desc">{selectedTool.description}</div>}
+        </div>
+        <div className="inspector-shell-form-actions inspector-shell-form-actions--top">
+          <button className="inspector-shell-btn-call" onClick={callTool} disabled={calling || !enabled}>{calling ? 'Calling…' : 'Execute'}</button>
+          <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
+        </div>
+        <div className="inspector-shell-form-body">
+          {Object.entries(schemaProps).map(([key, schema]) => (
+            <div className="inspector-shell-field" key={key}>
+              <label>
+                {key}{requiredParams.has(key) && <span className="req"> *</span>}
+                <span className="type">{schema?.type || ''}</span>
+              </label>
+              <input
+                type="text"
+                placeholder={schema?.description || schema?.type || 'value'}
+                value={paramValues[key] ?? ''}
+                onChange={(e) => setParamValues((prev) => ({ ...prev, [key]: e.target.value }))}
+              />
+            </div>
+          ))}
+          {Object.keys(schemaProps).length === 0 && (
+            <div style={{ color: '#64748b', fontSize: 13 }}>No parameters required.</div>
+          )}
+        </div>
+        <div className="inspector-shell-form-actions">
+          <button className="inspector-shell-btn-call" onClick={callTool} disabled={calling || !enabled}>{calling ? 'Calling…' : 'Execute'}</button>
+          <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
+          {formError && <span className="inspector-shell-form-error">{formError}</span>}
+        </div>
+      </>
+    ) : (
+      <div className="inspector-shell-form-empty">Select a tool from the tree to inspect and invoke it.</div>
+    ),
+    right: (
+      <>
+        <InspectorTabs
+          tabs={[{ key: 'response', label: 'Response' }, { key: 'request', label: 'Request' }]}
+          activeKey={outputTab}
+          onChange={setOutputTab}
+        />
+        {lastCall ? (
+          <>
+            <div className="inspector-shell-output-body">
+              <pre className="inspector-shell-output-code">
+                <JsonHighlight value={outputTab === 'response' ? lastCall.response : lastCall.request} deep />
+              </pre>
+            </div>
+            <div className="inspector-shell-output-footer">
+              <span><strong>Status:</strong> {lastCall.error ? 'Error' : '200 OK'}</span>
+              <span><strong>Duration:</strong> {lastCall.timingsMs?.roundTrip ?? '?'}ms</span>
+              <span><strong>Transport:</strong> HTTP/SSE</span>
+            </div>
+          </>
+        ) : (
+          <div className="inspector-shell-output-empty">
+            {selectedTool ? 'Click Execute to call the tool and see the response here.' : 'Select a tool and execute it to see results.'}
+          </div>
+        )}
+      </>
+    ),
+  };
+}
+
 export default function McpInspectorPage() {
   const [activeSource, setActiveSource] = useState('banking');
   const banking = useBankingSource();
-  const current = banking; // Steps in Tasks 2-3 add pingone/api and select based on activeSource.
+  const pingone = usePingOneSource();
+  const current = activeSource === 'pingone' ? pingone : banking; // Task 3 adds the 'api' branch.
 
   return (
     <InspectorShell

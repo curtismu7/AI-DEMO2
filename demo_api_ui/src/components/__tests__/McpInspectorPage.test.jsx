@@ -71,3 +71,36 @@ test('does not render a profile picker or "+ Add server" control (dropped for th
   expect(screen.queryByText('+ Add server')).toBeNull();
   expect(screen.queryByTitle('MCP server to inspect')).toBeNull();
 });
+
+const PINGONE_TOOL = { name: 'users.read', description: 'Fetch one PingOne user by id.', inputSchema: { type: 'object', properties: { user_id: { type: 'string' } }, required: ['user_id'] } };
+
+function mockPingOneEndpoints() {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp/inspector/pingone-tools') {
+      return Promise.resolve({ data: { enabled: true, tools: [PINGONE_TOOL], paramDefaults: {} } });
+    }
+    return Promise.resolve({ data: {} });
+  });
+}
+
+test('switching to the PingOne MCP source shows its tools and topbar status', async () => {
+  mockPingOneEndpoints();
+  render(<McpInspectorPage />);
+  fireEvent.click(screen.getByRole('button', { name: 'PingOne MCP' }));
+  expect(await screen.findByText('users.read')).toBeInTheDocument();
+  expect(screen.getByText(/Connected — 1 tools/)).toBeInTheDocument();
+});
+
+test('calling a PingOne MCP tool posts to /api/mcp/inspector/pingone-invoke', async () => {
+  mockPingOneEndpoints();
+  apiClient.post.mockResolvedValueOnce({ data: { response: { id: '5e8e' }, request: {}, timingsMs: { roundTrip: 12 } } });
+  render(<McpInspectorPage />);
+  fireEvent.click(screen.getByRole('button', { name: 'PingOne MCP' }));
+  fireEvent.click(await screen.findByText('users.read'));
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'user-1' } });
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith(
+    '/api/mcp/inspector/pingone-invoke',
+    { tool: 'users.read', params: { user_id: 'user-1' } },
+  ));
+});
