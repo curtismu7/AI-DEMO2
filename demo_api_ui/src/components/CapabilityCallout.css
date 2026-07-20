@@ -1,0 +1,25 @@
+.capability-callout {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #c7d2fe;
+  background: #eef2ff;
+  color: #3730a3;
+  text-decoration: none;
+  margin-bottom: 12px;
+}
+
+.capability-callout:hover {
+  background: #e0e7ff;
+}
+
+.capability-callout__label {
+  opacity: 0.75;
+}
+
+.capability-callout__title {
+  font-weight: 600;
+}
