@@ -1,0 +1,10 @@
+.cap-showcase { padding: 24px; max-width: 1100px; margin: 0 auto; }
+.cap-showcase__header { margin-bottom: 24px; }
+.cap-showcase__intro { color: var(--text-muted, #666); }
+.cap-showcase__group { margin-bottom: 32px; }
+.cap-showcase__group-heading { font-size: 1.1rem; margin-bottom: 12px; }
+.cap-showcase__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.cap-card { border: 1px solid var(--border, #ddd); border-radius: 8px; padding: 16px; }
+.cap-card__title { margin: 0 0 8px; font-size: 1rem; }
+.cap-card__one-liner { margin: 0 0 12px; font-size: 0.9rem; }
+.cap-card__evidence { display: block; font-size: 0.75rem; word-break: break-word; color: var(--text-muted, #666); }
