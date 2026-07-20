@@ -7,6 +7,8 @@ import MockAuthzRulesPage from './MockAuthzRulesPage';
 import ScopeAuditPage from './ScopeAuditPage';
 import ScopeReferencePage from './ScopeReferencePage';
 import SnapshotImport from '../pages/SnapshotImport';
+import InspectorShell from './shared/InspectorShell';
+import InspectorTabs from './shared/InspectorTabs';
 import { explainAuthorizeResult, displayDecision as explainDisplayDecision } from '../utils/authorizeResultExplain';
 import './McpInspector.css';
 import './PingOneMcpInspector.css';
@@ -211,6 +213,11 @@ function endpointLabel(ep) {
   return `${ep.name || '(unnamed)'} — ${ep.id}`;
 }
 
+/** Recursively counts RULE nodes in a policy tree (used by the left-column header count). */
+function ruleCount(nodes) {
+  return nodes.reduce((n, p) => n + (p.kind === 'RULE' ? 1 : 0) + ruleCount(p.children || []), 0);
+}
+
 function DecisionRow({ d, idx }) {
   // PingOne recent-decision items nest the verdict under decisionResponse and
   // stamp the time as requestedAt. The request parameters (Amount/Type/Acr) are
@@ -233,8 +240,10 @@ function DecisionRow({ d, idx }) {
 // Evaluate panel — preset-driven parameter builders, all routed through the
 // generic /api/authorize/evaluate-endpoint against the selected endpoint.
 // ---------------------------------------------------------------------------
-function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearPendingTest, onEvaluated }) {
+export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTest, onClearPendingTest, onEvaluated, onTestRule }) {
   const navigate = useNavigate();
+  const { policies, loading: policiesLoading, error: policiesError, note: policiesNote } = policiesState;
+  const [outputTab, setOutputTab] = useState('decision');
   const [preset, setPreset] = useState(autoPreset);
   const [result, setResult] = useState(null);
   const [running, setRunning] = useState(false);
@@ -271,7 +280,6 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearP
   useEffect(() => {
     setPreset(autoPreset);
     setResult(null);
-    setTraceOpen(false);
     setErr(null);
     setLastTrace(null);
     setLastParameters(null);
@@ -285,7 +293,6 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearP
     if (!pendingTest) return;
     setPreset(pendingTest.preset);
     setResult(null);
-    setTraceOpen(false);
     setErr(null);
     const p = pendingTest.parameters;
     if (pendingTest.preset === 'transaction') {
@@ -360,7 +367,7 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearP
   };
 
   const run = async () => {
-    setRunning(true); setResult(null); setTraceOpen(false); setErr(null); setLastTrace(null); setLastParameters(null);
+    setRunning(true); setResult(null); setErr(null); setLastTrace(null); setLastParameters(null); setOutputTab('decision');
     const parameters = buildParameters();
     const started = Date.now();
     try {
@@ -418,201 +425,247 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearP
   const presetLabel = { transaction: 'Transaction', mcp: 'MCP First Tool', custom: 'Custom' }[preset];
 
   return (
-    <div>
-      {pendingTest && (
-        <div style={S.pendingLabel}>Testing: {pendingTest.ruleName} — {pendingTest.case}</div>
-      )}
-      <div style={S.tabs}>
-        <span style={S.tab(preset === 'transaction')} onClick={() => { setPreset('transaction'); onClearPendingTest?.(); }}>Transaction</span>
-        <span style={S.tab(preset === 'mcp')} onClick={() => { setPreset('mcp'); onClearPendingTest?.(); }}>MCP First Tool</span>
-        <span style={S.tab(preset === 'custom')} onClick={() => { setPreset('custom'); onClearPendingTest?.(); }}>Custom parameters</span>
-        <span style={S.presetPill}>preset: {presetLabel}</span>
-      </div>
-
-      {TAB_HELP[preset] && (
-        <div style={S.tabHelp}>
-          <span style={S.tabHelpTitle}>{TAB_HELP[preset].title}:</span>
-          {TAB_HELP[preset].body}
-        </div>
-      )}
-
-      {preset === 'transaction' && (
-        <div style={S.formRow}>
-          <div style={S.fieldGroup}><label style={S.fld}>Amount (USD)</label>
-            <input style={S.input} type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="e.g. 5000" /></div>
-          <div style={S.fieldGroup}><label style={S.fld}>Transaction type</label>
-            <select style={S.select} value={txType} onChange={e => setTxType(e.target.value)}>
-              {TX_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-            </select></div>
-          <div style={S.fieldGroup}><label style={S.fld}>ACR (auth context)</label>
-            <select style={S.select} value={acr} onChange={e => setAcr(e.target.value)}>
-              <option value="">(none)</option><option value="MFA">MFA</option><option value="Single">Single</option>
-            </select></div>
-          <div style={S.fieldGroup}><label style={S.fld}>User ID</label>
-            <input style={S.input} type="text" value={userId} onChange={e => setUserId(e.target.value)} /></div>
-        </div>
-      )}
-
-      {preset === 'mcp' && (
-        <>
-          <div style={S.formRow}>
-            <div style={S.fieldGroup}><label style={S.fld}>Tool name</label>
-              <input style={S.input} type="text" value={toolName} onChange={e => setToolName(e.target.value)} /></div>
-            <div style={S.fieldGroup}><label style={S.fld}>Token audience</label>
-              <input style={S.input} type="text" value={tokenAudience} onChange={e => setTokenAudience(e.target.value)} /></div>
-            <div style={S.fieldGroup}><label style={S.fld}>Act client id</label>
-              <input style={S.input} type="text" value={actClientId} onChange={e => setActClientId(e.target.value)} placeholder="act.client_id" /></div>
-            <div style={S.fieldGroup}><label style={S.fld}>User ID</label>
-              <input style={S.input} type="text" value={userId} onChange={e => setUserId(e.target.value)} /></div>
-          </div>
-          <div style={{ ...S.formRow, gridTemplateColumns: '1fr 2fr 1fr', marginTop: '12px' }}>
-            <div style={S.fieldGroup}><label style={S.fld}>HitlApproved</label>
-              <select style={S.select} value={hitlApproved ? 'true' : 'false'} onChange={e => setHitlApproved(e.target.value === 'true')}>
-                <option value="false">false</option><option value="true">true</option>
-              </select></div>
-            <div style={S.fieldGroup}><label style={S.fld}>MCP resource URI</label>
-              <input style={S.input} type="text" value={mcpResourceUri} onChange={e => setMcpResourceUri(e.target.value)} /></div>
-            <div />
-          </div>
-        </>
-      )}
-
-      {preset === 'custom' && (
-        <table style={S.table}>
-          <thead><tr>
-            <th style={{ ...S.th, width: '42%' }}>Parameter (Trust Framework attribute)</th>
-            <th style={S.th}>Value</th>
-            <th style={{ ...S.th, width: '44px' }}></th>
-          </tr></thead>
-          <tbody>
-            {customRows.map((r, i) => (
-              <tr key={i}>
-                <td style={S.td}><input style={S.input} type="text" value={r.key} placeholder="add attribute…" onChange={e => setRow(i, 'key', e.target.value)} /></td>
-                <td style={S.td}><input style={S.input} type="text" value={r.value} placeholder="value…" onChange={e => setRow(i, 'value', e.target.value)} /></td>
-                <td style={S.td}>
-                  {(r.key || r.value) ? (
-                    <button style={{ ...S.iconBtn, marginTop: 0, color: '#dc2626' }} onClick={() => removeRow(i)}>remove</button>
-                  ) : null}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      <div style={S.formFoot}>
-        <button style={S.evalBtn} onClick={run} disabled={running || !endpointId}>{running ? 'Evaluating…' : 'Evaluate (live)'}</button>
-      </div>
-
-      {err && <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '10px' }}>❌ {err}</div>}
-
-      {result && (
-        <div style={{ ...S.resultBox(decision), marginTop: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-            <span style={S.resultDecision(decision)}>{DECISION_ICON[decision] || '?'} {decision}</span>
-            <span style={{ fontSize: '12px', color: '#6b7280' }}>engine: {result.engine}</span>
-          </div>
-          <div style={S.resultSub}>
-            {result.decisionId ? `Decision ID ${result.decisionId} · ` : ''}path: {result.path || '—'}
-          </div>
-          {explanation?.policyName && (
-            <div style={S.policyUsed}>
-              <div style={S.policyUsedLabel}>Policy evaluated</div>
-              <div style={S.policyUsedName}>{explanation.policyName}</div>
-              {explanation.policyDescription && (
-                <div style={S.policyUsedDesc}>{explanation.policyDescription}</div>
-              )}
-              {explanation.ruleName && (
-                <>
-                  <div style={S.policyUsedLabel}>Rule that applied</div>
-                  <div style={S.ruleUsedName}>{explanation.ruleName}</div>
-                  {explanation.ruleDescription && (
-                    <div style={S.policyUsedDesc}>{explanation.ruleDescription}</div>
+    <InspectorShell
+      title="PingOne Authorize"
+      statusOn={!!endpointId}
+      statusText={endpointId ? undefined : 'Select a decision endpoint above'}
+      left={
+          <>
+            <div className="inspector-shell-tree-header">
+              <span>Authorization Policies</span>
+              <span>{policiesLoading ? 'loading…' : `${ruleCount(policies)} rule${ruleCount(policies) !== 1 ? 's' : ''}`}</span>
+            </div>
+            <div className="inspector-shell-tree-body">
+              {policiesLoading ? (
+                <div style={{ padding: '20px 16px', color: '#64748b', fontSize: '13px' }}>Loading policies…</div>
+              ) : policiesError ? (
+                <div style={{ padding: '20px 16px', color: '#b45309', fontSize: '13px' }}>⚠️ {policiesError}</div>
+              ) : policies.length === 0 ? (
+                <div style={{ padding: '20px 16px', color: '#64748b', fontSize: '13px' }}>
+                  {policiesNote || 'No authorization policies found in this environment.'}
+                </div>
+              ) : (
+                <div style={{ padding: '8px 12px' }}>
+                  {policiesNote && (
+                    <div style={{ marginBottom: '10px', fontSize: '12px', color: '#64748b' }}>{policiesNote}</div>
                   )}
+                  <div style={S.polTree}>
+                    {policies.map((p) => (
+                      <PolicyNode key={p.id} node={p} onTestRule={onTestRule} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        }
+        middle={
+          <>
+            <div className="inspector-shell-form-header">
+              <div className="inspector-shell-form-header__name">Evaluate</div>
+              <div className="inspector-shell-form-header__desc">Send a real decision request to the selected endpoint.</div>
+            </div>
+            <div className="inspector-shell-form-body">
+              {pendingTest && (
+                <div style={S.pendingLabel}>Testing: {pendingTest.ruleName} — {pendingTest.case}</div>
+              )}
+              <div style={S.tabs}>
+                <span style={S.tab(preset === 'transaction')} onClick={() => { setPreset('transaction'); onClearPendingTest?.(); }}>Transaction</span>
+                <span style={S.tab(preset === 'mcp')} onClick={() => { setPreset('mcp'); onClearPendingTest?.(); }}>MCP First Tool</span>
+                <span style={S.tab(preset === 'custom')} onClick={() => { setPreset('custom'); onClearPendingTest?.(); }}>Custom parameters</span>
+                <span style={S.presetPill}>preset: {presetLabel}</span>
+              </div>
+
+              {TAB_HELP[preset] && (
+                <div style={S.tabHelp}>
+                  <span style={S.tabHelpTitle}>{TAB_HELP[preset].title}:</span>
+                  {TAB_HELP[preset].body}
+                </div>
+              )}
+
+              {preset === 'transaction' && (
+                <div style={S.formRow}>
+                  <div style={S.fieldGroup}><label style={S.fld}>Amount (USD)</label>
+                    <input style={S.input} type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="e.g. 5000" /></div>
+                  <div style={S.fieldGroup}><label style={S.fld}>Transaction type</label>
+                    <select style={S.select} value={txType} onChange={e => setTxType(e.target.value)}>
+                      {TX_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select></div>
+                  <div style={S.fieldGroup}><label style={S.fld}>ACR (auth context)</label>
+                    <select style={S.select} value={acr} onChange={e => setAcr(e.target.value)}>
+                      <option value="">(none)</option><option value="MFA">MFA</option><option value="Single">Single</option>
+                    </select></div>
+                  <div style={S.fieldGroup}><label style={S.fld}>User ID</label>
+                    <input style={S.input} type="text" value={userId} onChange={e => setUserId(e.target.value)} /></div>
+                </div>
+              )}
+
+              {preset === 'mcp' && (
+                <>
+                  <div style={S.formRow}>
+                    <div style={S.fieldGroup}><label style={S.fld}>Tool name</label>
+                      <input style={S.input} type="text" value={toolName} onChange={e => setToolName(e.target.value)} /></div>
+                    <div style={S.fieldGroup}><label style={S.fld}>Token audience</label>
+                      <input style={S.input} type="text" value={tokenAudience} onChange={e => setTokenAudience(e.target.value)} /></div>
+                    <div style={S.fieldGroup}><label style={S.fld}>Act client id</label>
+                      <input style={S.input} type="text" value={actClientId} onChange={e => setActClientId(e.target.value)} placeholder="act.client_id" /></div>
+                    <div style={S.fieldGroup}><label style={S.fld}>User ID</label>
+                      <input style={S.input} type="text" value={userId} onChange={e => setUserId(e.target.value)} /></div>
+                  </div>
+                  <div style={{ ...S.formRow, gridTemplateColumns: '1fr 2fr 1fr', marginTop: '12px' }}>
+                    <div style={S.fieldGroup}><label style={S.fld}>HitlApproved</label>
+                      <select style={S.select} value={hitlApproved ? 'true' : 'false'} onChange={e => setHitlApproved(e.target.value === 'true')}>
+                        <option value="false">false</option><option value="true">true</option>
+                      </select></div>
+                    <div style={S.fieldGroup}><label style={S.fld}>MCP resource URI</label>
+                      <input style={S.input} type="text" value={mcpResourceUri} onChange={e => setMcpResourceUri(e.target.value)} /></div>
+                    <div />
+                  </div>
                 </>
               )}
-              {explanation.combiningAlgorithm && (
-                <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                  Combining algorithm: {explanation.combiningAlgorithm.replace(/([A-Z])/g, ' $1').trim()}
-                </div>
+
+              {preset === 'custom' && (
+                <table style={S.table}>
+                  <thead><tr>
+                    <th style={{ ...S.th, width: '42%' }}>Parameter (Trust Framework attribute)</th>
+                    <th style={S.th}>Value</th>
+                    <th style={{ ...S.th, width: '44px' }}></th>
+                  </tr></thead>
+                  <tbody>
+                    {customRows.map((r, i) => (
+                      <tr key={i}>
+                        <td style={S.td}><input style={S.input} type="text" value={r.key} placeholder="add attribute…" onChange={e => setRow(i, 'key', e.target.value)} /></td>
+                        <td style={S.td}><input style={S.input} type="text" value={r.value} placeholder="value…" onChange={e => setRow(i, 'value', e.target.value)} /></td>
+                        <td style={S.td}>
+                          {(r.key || r.value) ? (
+                            <button style={{ ...S.iconBtn, marginTop: 0, color: '#dc2626' }} onClick={() => removeRow(i)}>remove</button>
+                          ) : null}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               )}
             </div>
-          )}
-          <div style={S.oblig}>
-            <div>Step-up: <b>{result.stepUpRequired ? 'yes' : 'no'}</b></div>
-            <div>Consent / HITL: <b>{(result.consentRequired || result.hitlRequired) ? 'yes' : 'no'}</b></div>
-          </div>
-          {explanation && (
-            <div style={S.explainBox}>
-              <div style={S.explainHeadline}>{explanation.headline}</div>
-              {explanation.ruleLikely && !explanation.ruleName && (
-                <div style={S.explainRule}>
-                  Likely rule: <strong>{explanation.ruleLikely}</strong>
-                </div>
+            <div className="inspector-shell-form-actions">
+              <button style={S.evalBtn} onClick={run} disabled={running || !endpointId}>{running ? 'Evaluating…' : 'Evaluate (live)'}</button>
+              {err && <span style={{ color: '#dc2626', fontSize: '12px', marginLeft: '8px' }}>❌ {err}</span>}
+            </div>
+          </>
+        }
+        right={
+          <>
+            <InspectorTabs
+              tabs={[
+                { key: 'decision', label: 'Decision' },
+                { key: 'response', label: 'Response' },
+                { key: 'request', label: 'Request' },
+              ]}
+              activeKey={outputTab}
+              onChange={setOutputTab}
+            />
+            <div className="inspector-shell-output-body">
+              {outputTab === 'decision' && (
+                result ? (
+                  <div style={S.resultBox(decision)}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                      <span style={S.resultDecision(decision)}>{DECISION_ICON[decision] || '?'} {decision}</span>
+                      <span style={{ fontSize: '12px', color: '#6b7280' }}>engine: {result.engine}</span>
+                    </div>
+                    <div style={S.resultSub}>
+                      {result.decisionId ? `Decision ID ${result.decisionId} · ` : ''}path: {result.path || '—'}
+                    </div>
+                    {explanation?.policyName && (
+                      <div style={S.policyUsed}>
+                        <div style={S.policyUsedLabel}>Policy evaluated</div>
+                        <div style={S.policyUsedName}>{explanation.policyName}</div>
+                        {explanation.policyDescription && (
+                          <div style={S.policyUsedDesc}>{explanation.policyDescription}</div>
+                        )}
+                        {explanation.ruleName && (
+                          <>
+                            <div style={S.policyUsedLabel}>Rule that applied</div>
+                            <div style={S.ruleUsedName}>{explanation.ruleName}</div>
+                            {explanation.ruleDescription && (
+                              <div style={S.policyUsedDesc}>{explanation.ruleDescription}</div>
+                            )}
+                          </>
+                        )}
+                        {explanation.combiningAlgorithm && (
+                          <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                            Combining algorithm: {explanation.combiningAlgorithm.replace(/([A-Z])/g, ' $1').trim()}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div style={S.oblig}>
+                      <div>Step-up: <b>{result.stepUpRequired ? 'yes' : 'no'}</b></div>
+                      <div>Consent / HITL: <b>{(result.consentRequired || result.hitlRequired) ? 'yes' : 'no'}</b></div>
+                    </div>
+                    {explanation && (
+                      <div style={S.explainBox}>
+                        <div style={S.explainHeadline}>{explanation.headline}</div>
+                        {explanation.ruleLikely && !explanation.ruleName && (
+                          <div style={S.explainRule}>
+                            Likely rule: <strong>{explanation.ruleLikely}</strong>
+                          </div>
+                        )}
+                        {explanation.reasons.length > 0 && (
+                          <ul style={S.explainList}>
+                            {explanation.reasons.map((line) => <li key={line}>{line}</li>)}
+                          </ul>
+                        )}
+                        {explanation.thresholds?.length > 0 && preset === 'transaction' && (
+                          <div style={{ fontSize: '11px', color: '#64748b' }}>
+                            Policy thresholds: {explanation.thresholds.join(' · ')}
+                          </div>
+                        )}
+                        {explanation.apiSummary && (
+                          <div style={S.explainApi}>
+                            API: {explanation.apiSummary}
+                            {result.decisionId ? ` · decisionId ${result.decisionId}` : ''}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      style={S.reopenTrace}
+                      onClick={() => navigate('/policy-decision-trace', { state: { policies, result } })}
+                    >
+                      Open policy decision trace
+                    </button>
+                  </div>
+                ) : (
+                  <div className="inspector-shell-output-empty">Run an evaluation to see the decision.</div>
+                )
               )}
-              {explanation.reasons.length > 0 && (
-                <ul style={S.explainList}>
-                  {explanation.reasons.map((line) => <li key={line}>{line}</li>)}
-                </ul>
+              {outputTab === 'response' && (
+                lastTrace ? (
+                  lastTrace.response ? (
+                    <pre className="mcp-inspector__code jh-dark">
+                      <JsonHighlight value={lastTrace.response} deep />
+                    </pre>
+                  ) : (
+                    <p className="mcp-inspector__muted">No response body returned.</p>
+                  )
+                ) : (
+                  <div className="inspector-shell-output-empty">Run an evaluation to see the response.</div>
+                )
               )}
-              {explanation.thresholds?.length > 0 && preset === 'transaction' && (
-                <div style={{ fontSize: '11px', color: '#64748b' }}>
-                  Policy thresholds: {explanation.thresholds.join(' · ')}
-                </div>
-              )}
-              {explanation.apiSummary && (
-                <div style={S.explainApi}>
-                  API: {explanation.apiSummary}
-                  {result.decisionId ? ` · decisionId ${result.decisionId}` : ''}
-                </div>
+              {outputTab === 'request' && (
+                lastTrace ? (
+                  <pre className="mcp-inspector__code jh-dark">
+                    <JsonHighlight value={lastTrace.request} deep />
+                  </pre>
+                ) : (
+                  <div className="inspector-shell-output-empty">Run an evaluation to see the request.</div>
+                )
               )}
             </div>
-          )}
-          <button
-            type="button"
-            style={S.reopenTrace}
-            onClick={() => navigate('/policy-decision-trace', { state: { policies, result } })}
-          >
-            Open policy decision trace
-          </button>
-        </div>
-      )}
-
-      {lastTrace && (
-        <>
-          <div className={`p1mcp-call-status ${lastTrace.error ? 'p1mcp-call-status--error' : ''}`} style={{ marginTop: '12px' }}>
-            {lastTrace.error
-              ? 'PingOne Authorize call failed'
-              : `Live API call completed in ${lastTrace.timingsMs ?? '?'} ms — request and response below`}
-          </div>
-          <Section
-            title="PingOne API request"
-            hint="Trust Framework parameters sent to the decision endpoint"
-            status="ok"
-            defaultOpen
-          >
-            <pre className="mcp-inspector__code jh-dark">
-              <JsonHighlight value={lastTrace.request} deep />
-            </pre>
-          </Section>
-          <Section
-            title="PingOne API response"
-            hint={`decision: ${result ? (explainDisplayDecision(result) || result.decision) : '—'}`}
-            status={lastTrace.error ? 'error' : 'ok'}
-            defaultOpen
-          >
-            {lastTrace.response ? (
-              <pre className="mcp-inspector__code jh-dark">
-                <JsonHighlight value={lastTrace.response} deep />
-              </pre>
-            ) : (
-              <p className="mcp-inspector__muted">No response body returned.</p>
-            )}
-          </Section>
-        </>
-      )}
-
-    </div>
+          </>
+        }
+      />
   );
 }
 

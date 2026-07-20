@@ -1,0 +1,166 @@
+// demo_api_ui/src/components/__tests__/PingOneAuthorizePage.test.jsx
+import React from 'react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import bffAxios from '../../services/bffAxios';
+import { EvaluatePanel } from '../PingOneAuthorizePage';
+
+vi.mock('../../services/bffAxios', () => ({
+  __esModule: true,
+  default: {
+    get: jest.fn(),
+    post: jest.fn(),
+  },
+}));
+
+// EvaluatePanel calls useNavigate() unconditionally (the "Open policy decision
+// trace" button navigates to /policy-decision-trace) — mock it so render()
+// doesn't throw "useNavigate() may be used only in the context of a <Router>".
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => mockNavigate,
+}));
+
+const ONE_POLICY = [
+  {
+    id: 'ps-1',
+    kind: 'POLICY_SET',
+    name: 'Banking Authorization',
+    enabled: true,
+    children: [
+      {
+        id: 'p-1',
+        kind: 'POLICY',
+        name: 'Transaction Authorization',
+        enabled: true,
+        children: [
+          {
+            id: 'r-1',
+            kind: 'RULE',
+            name: 'Deny threshold',
+            enabled: true,
+            effect: 'DENY',
+            testCases: {
+              trigger: { preset: 'transaction', parameters: { Amount: 50000, TransactionType: 'transfer' } },
+              avoid: { preset: 'transaction', parameters: { Amount: 10, TransactionType: 'transfer' } },
+            },
+          },
+        ],
+      },
+    ],
+  },
+];
+
+function basePolicies(overrides = {}) {
+  return { policies: ONE_POLICY, loading: false, error: null, note: null, ...overrides };
+}
+
+function renderPanel(props = {}) {
+  return render(
+    <EvaluatePanel
+      endpointId="ep-1"
+      autoPreset="transaction"
+      policiesState={basePolicies()}
+      pendingTest={null}
+      onClearPendingTest={() => {}}
+      onEvaluated={() => {}}
+      onTestRule={() => {}}
+      {...props}
+    />,
+  );
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  // EvaluatePanel fetches MCP-console defaults once on mount regardless of preset.
+  bffAxios.get.mockResolvedValue({ data: {} });
+});
+
+test('renders the policy tree in the left column with the rule count', async () => {
+  renderPanel();
+  expect(await screen.findByText('Deny threshold')).toBeInTheDocument();
+  expect(screen.getByText('Transaction Authorization')).toBeInTheDocument();
+  expect(screen.getByText(/1 rule/)).toBeInTheDocument();
+});
+
+test('shows a loading message in the left column while policies load', () => {
+  const { container } = renderPanel({ policiesState: basePolicies({ policies: [], loading: true }) });
+  const treeBody = container.querySelector('.inspector-shell-tree-body');
+  expect(within(treeBody).getByText('Loading policies…')).toBeInTheDocument();
+});
+
+test('shows an error message in the left column when policies fail to load', () => {
+  renderPanel({ policiesState: basePolicies({ policies: [], loading: false, error: 'worker not configured' }) });
+  expect(screen.getByText(/worker not configured/)).toBeInTheDocument();
+});
+
+test('clicking a rule\'s Trigger button calls onTestRule with that rule\'s trigger test case', async () => {
+  const onTestRule = vi.fn();
+  renderPanel({ onTestRule });
+  const trigger = await screen.findByRole('button', { name: 'Trigger →' });
+  fireEvent.click(trigger);
+  expect(onTestRule).toHaveBeenCalledWith({
+    ruleName: 'Deny threshold',
+    case: 'trigger',
+    preset: 'transaction',
+    parameters: { Amount: 50000, TransactionType: 'transfer' },
+  });
+});
+
+test('switches preset tabs in the middle column', () => {
+  renderPanel();
+  expect(screen.getByPlaceholderText('e.g. 5000')).toBeInTheDocument();
+  fireEvent.click(screen.getByText('MCP First Tool'));
+  expect(screen.getByText('Tool name')).toBeInTheDocument();
+});
+
+test('output tabs show empty-state text before any evaluation has run', () => {
+  renderPanel();
+  expect(screen.getByText(/Run an evaluation to see the decision/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Response' }));
+  expect(screen.getByText(/Run an evaluation to see the response/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Request' }));
+  expect(screen.getByText(/Run an evaluation to see the request/)).toBeInTheDocument();
+});
+
+test('clicking Evaluate posts to /api/authorize/evaluate-endpoint and shows the decision', async () => {
+  bffAxios.post.mockResolvedValueOnce({
+    data: { decision: 'PERMIT', engine: 'simulated', decisionId: 'dec-1', path: '/decide' },
+  });
+  renderPanel();
+  fireEvent.click(screen.getByRole('button', { name: /Evaluate \(live\)/ }));
+  await waitFor(() => expect(bffAxios.post).toHaveBeenCalledWith(
+    '/api/authorize/evaluate-endpoint',
+    expect.objectContaining({ endpointId: 'ep-1' }),
+  ));
+  expect(await screen.findByText(/PERMIT/)).toBeInTheDocument();
+});
+
+test('the Response and Request output tabs show the last call\'s trace after an evaluation', async () => {
+  bffAxios.post.mockResolvedValueOnce({
+    data: { decision: 'PERMIT', engine: 'simulated', decisionId: 'dec-1', path: '/decide', pingoneResponse: { decision: 'PERMIT' } },
+  });
+  renderPanel();
+  fireEvent.click(screen.getByRole('button', { name: /Evaluate \(live\)/ }));
+  await screen.findByText(/PERMIT/);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Response' }));
+  expect(screen.getByText(/PERMIT/)).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Request' }));
+  expect(screen.getByText(/ep-1|endpointId/)).toBeInTheDocument();
+});
+
+test('the "Open policy decision trace" button navigates to /policy-decision-trace with the policies and result', async () => {
+  bffAxios.post.mockResolvedValueOnce({
+    data: { decision: 'PERMIT', engine: 'simulated', decisionId: 'dec-1', path: '/decide' },
+  });
+  renderPanel();
+  fireEvent.click(screen.getByRole('button', { name: /Evaluate \(live\)/ }));
+  await screen.findByText(/PERMIT/);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Open policy decision trace' }));
+  expect(mockNavigate).toHaveBeenCalledWith(
+    '/policy-decision-trace',
+    expect.objectContaining({ state: expect.objectContaining({ policies: ONE_POLICY }) }),
+  );
+});
