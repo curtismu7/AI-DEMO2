@@ -101,6 +101,30 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-19 — Demo Config page (`/demo-config`) applied a sidebar selection but the side nav never refreshed
+
+**Files changed:**
+- `demo_api_ui/src/components/DemoConfigPage.js` — `saveSelection` and
+  `applyConfig` now dispatch `window.dispatchEvent(new CustomEvent("nav-config-changed"))`
+  after a successful `PUT /api/user/nav-config`.
+- `demo_api_ui/src/components/AdminSideNav.jsx` — the hidden-nav-labels fetch
+  is extracted into `loadNavConfig` (was inline in a mount-only `useEffect`),
+  called on mount, on the new `nav-config-changed` event, and from a new
+  "Refresh" button in the quick-links row (same pattern already used for
+  `vertical-list-changed` / the vertical picker).
+
+**What was broken:** `AdminSideNav` fetched `/api/user/nav-config` only once,
+on `[user]` change (mount/login). `DemoConfigPage`'s Save/Apply actions PUT
+the new hidden-labels selection to the server but had no way to tell the
+already-mounted sidebar to reload it, so the side nav kept showing the old
+item set until a full page reload (login/logout).
+
+**Do not break:** don't touch `AdminSideNav`'s expansion-state-by-key
+persistence (role-scoped `sessionStorage`, gated on `loadedSectionsKeyRef`) —
+unrelated state, untouched by this fix.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/components/__tests__/adminSideNav.test.jsx src/__tests__/DemoConfigPage.test.js` (16 pass); `npm run build` (exit 0).
+
 ### 2026-07-19 — Agent Gateway / Use Cases still red after the env-var fix — admin OAuth client had no PingOne grant
 
 **Files changed:** none (live PingOne config only — no code, no `.env`).
