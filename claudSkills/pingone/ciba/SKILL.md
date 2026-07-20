@@ -511,6 +511,15 @@ configStore.getEffective('step_up_method')   // takes precedence
   this demo's env, `STEP_UP_METHOD=p1mfa` is the proven working out-of-band
   mechanism — see `pingone-mfa/SKILL.md`'s "Known gap" callout before spending
   more time on CIBA here.
+  **Provisioning plan:** `docs/superpowers/plans/2026-07-20-ciba-real-platform-provisioning.md`
+  provisions a dedicated CIBA-only application + DaVinci CIBA flow (this env
+  had zero DaVinci flow with an `AUTHENTICATION+CIBA` trigger and no app with
+  the CIBA grant type — confirmed via `mcp__pingone__listDavinciFlows` /
+  `getApplication` on 2026-07-20). `cibaService.js`'s `_credentials()` now
+  reads `PINGONE_CIBA_CLIENT_ID`/`PINGONE_CIBA_CLIENT_SECRET` for the
+  bc-authorize/token Basic-auth calls, falling back to the admin app's
+  credentials when unset — so this pitfall stays live until someone actually
+  runs the plan's console/DaVinci steps and sets those two env vars.
 - ⚠️ Ping delivery mode requires a shared session store (Redis/Upstash) so
   that `POST /api/auth/ciba/notify` can find the correct session on any
   server instance. Poll mode has no such requirement.

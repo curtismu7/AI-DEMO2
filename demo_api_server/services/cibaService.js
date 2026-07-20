@@ -36,10 +36,14 @@ const { decodeJwt } = require('../utils/tokenUtils');
 // ---------------------------------------------------------------------------
 
 function _credentials() {
-  const clientId     = oauthConfig.clientId;
-  const clientSecret = oauthConfig.clientSecret;
+  // Dedicated CIBA-only PingOne application (see docs/superpowers/plans/2026-07-20-ciba-real-platform-provisioning.md).
+  // Falls back to the admin login app's credentials so environments that
+  // haven't provisioned a dedicated CIBA app keep today's behavior
+  // (which fails over to cibaSimulatedService.js — see routes/ciba.js).
+  const clientId     = process.env.PINGONE_CIBA_CLIENT_ID     || oauthConfig.clientId;
+  const clientSecret  = process.env.PINGONE_CIBA_CLIENT_SECRET || oauthConfig.clientSecret;
   if (!clientId || !clientSecret) {
-    throw new Error('Admin client credentials are not configured');
+    throw new Error('CIBA client credentials are not configured');
   }
   return Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 }
