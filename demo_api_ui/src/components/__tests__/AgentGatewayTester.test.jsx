@@ -38,7 +38,7 @@ test('renders the topbar title and status text once the gateway loads', async ()
 test('toggles between Tools and Config sub-tabs in the left column', async () => {
   render(<AgentGatewayTester />);
   await screen.findByText('Demo Agent Gateway | Authz: simulated');
-  expect(screen.getByText('Demo Presets')).not.toBeVisible();
+  expect(screen.queryByText('Demo Presets')).toBeNull();
   // "Config" is only reachable once the tools list has rendered at least once.
   fireEvent.click(screen.getByText('Config'));
   expect(screen.getByText('Demo Presets')).toBeInTheDocument();
@@ -79,7 +79,7 @@ test('clicking Execute posts to /api/mcp-gateway/test with the tool name and par
   apiClient.post.mockResolvedValueOnce({ data: { ok: true, result: { accounts: [] }, durationMs: 42 } });
   render(<AgentGatewayTester />);
   fireEvent.click(await screen.findByText('get_my_accounts'));
-  fireEvent.click(screen.getByRole('button', { name: 'Execute' }));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
   await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith(
     '/api/mcp-gateway/test',
     { tool: 'get_my_accounts', args: {} },
