@@ -225,6 +225,8 @@ const NL_FAILURE_MESSAGES = {
     "The server isn't available right now. Try again in a moment.",
   connection_timeout:
     "The server took too long to respond — it may still be starting up. Try again in a moment.",
+  insufficient_scope:
+    "This needs an admin session — click \"Switch to admin\" in the top navigation, then try again.",
 };
 const NL_FAILURE_FALLBACK =
   "That step couldn't be completed. Try again, or pick another demo step.";
@@ -4055,8 +4057,21 @@ export default function BankingAgent({
           // environment, the simulated fallback auto-approves after ~7s). See
           // docs/superpowers/specs/2026-07-19-uc22-ciba-step-up-override-design.md.
           if (normalized.step_up_method === "ciba") {
+            // Open a blank tab now, before the initiate fetch, so the browser
+            // still counts it as close enough to the user's original gesture
+            // to avoid a popup block — then navigate it once we have the real
+            // URL. If it's blocked anyway (cibaTab is null), the inline
+            // "Waiting for CIBA approval" bubble below is a complete fallback
+            // on its own; see the design doc's Error handling section.
+            const cibaTab = window.open("", "_blank");
             try {
               const apiBase = process.env.REACT_APP_API_URL || "";
+              const fromAccountId =
+                normalized.fromAccountId || normalized.from_account_id;
+              const toAccountId =
+                normalized.toAccountId || normalized.to_account_id;
+              const fromLabel = liveAccounts?.find((a) => a.id === fromAccountId)?.name;
+              const toLabel = liveAccounts?.find((a) => a.id === toAccountId)?.name;
               const initRes = await fetch(`${apiBase}/api/auth/ciba/initiate`, {
                 method: "POST",
                 credentials: "include",
@@ -4064,11 +4079,17 @@ export default function BankingAgent({
                 body: JSON.stringify({
                   binding_message: "Approve your banking transaction",
                   acr_values: normalized.step_up_acr || "",
+                  amount: normalized.transaction_amount ?? undefined,
+                  from_account_label: fromLabel,
+                  to_account_label: toLabel,
                 }),
               });
               if (!initRes.ok)
                 throw new Error(`CIBA initiation failed: ${initRes.status}`);
               const { auth_req_id, interval } = await initRes.json();
+              if (cibaTab) {
+                cibaTab.location.href = `/ciba-approve?authReqId=${encodeURIComponent(auth_req_id)}`;
+              }
               addMessage(
                 "assistant",
                 " Waiting for CIBA approval — this normally completes on a separate device. Click Approve to continue now, or it will continue automatically in a few seconds.",
@@ -4081,6 +4102,7 @@ export default function BankingAgent({
               pollCibaStepUp(auth_req_id, (interval || 5) * 1000, actionId, form);
             } catch (err) {
               console.error("[BankingAgent] CIBA initiation failed:", err);
+              if (cibaTab) cibaTab.close();
               addMessage(
                 "assistant",
                 "❌ Could not start CIBA approval. Please try again.",
@@ -6577,7 +6599,9 @@ export default function BankingAgent({
     const useCaseId = pendingUcIdRef.current ?? undefined;
     pendingUcIdRef.current = null;
     let cancelled = false;
+    let timerFired = false;
     const timer = setTimeout(async () => {
+      timerFired = true;
       if (cancelled) return;
       const signal = beginAbortableSend();
       addMessage("user", text, null, { isPrompt: !!useCaseId });
@@ -6630,6 +6654,15 @@ export default function BankingAgent({
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      // Timer never got to run — nothing was sent, so `text` never actually
+      // became pending. Release it here too, not just in the timer's own
+      // finally: otherwise it stays wedged in pendingNlResumeRef forever, and
+      // a later click with the same trigger text is silently swallowed by
+      // the guard above (React also bails out of a same-value setState, so
+      // this effect wouldn't even re-run to try again).
+      if (!timerFired) {
+        pendingNlResumeRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- trigger when nlResumeAfterAuth changes
   }, [nlResumeAfterAuth, isLoggedIn, effectiveVerticalId]);
@@ -7003,8 +7036,15 @@ export default function BankingAgent({
       response.step_up_method === "ciba" &&
       (response.error === "step_up_required" || response.error === "mcp_step_up_required")
     ) {
+      // Same pre-open-then-navigate pattern as runAction's CIBA branch — see
+      // that comment for why this reduces (not eliminates) popup blocking.
+      const cibaTab = window.open("", "_blank");
       try {
         const apiBase = process.env.REACT_APP_API_URL || "";
+        const fromAccountId = response.fromAccountId || response.from_account_id;
+        const toAccountId = response.toAccountId || response.to_account_id;
+        const fromLabel = liveAccounts?.find((a) => a.id === fromAccountId)?.name;
+        const toLabel = liveAccounts?.find((a) => a.id === toAccountId)?.name;
         const initRes = await fetch(`${apiBase}/api/auth/ciba/initiate`, {
           method: "POST",
           credentials: "include",
@@ -7012,10 +7052,16 @@ export default function BankingAgent({
           body: JSON.stringify({
             binding_message: "Approve your banking transaction",
             acr_values: response.step_up_acr || "",
+            amount: response.transactionAmount ?? undefined,
+            from_account_label: fromLabel,
+            to_account_label: toLabel,
           }),
         });
         if (!initRes.ok) throw new Error(`CIBA initiation failed: ${initRes.status}`);
         const { auth_req_id, interval } = await initRes.json();
+        if (cibaTab) {
+          cibaTab.location.href = `/ciba-approve?authReqId=${encodeURIComponent(auth_req_id)}`;
+        }
         addMessage(
           "assistant",
           " Waiting for CIBA approval — this normally completes on a separate device. Click Approve to continue now, or it will continue automatically in a few seconds.",
@@ -7026,6 +7072,7 @@ export default function BankingAgent({
         pollCibaThenResumeNl(auth_req_id, (interval || 5) * 1000, text, useCaseId);
       } catch (err) {
         console.error("[BankingAgent] CIBA initiation failed:", err);
+        if (cibaTab) cibaTab.close();
         addMessage("assistant", "❌ Could not start CIBA approval. Please try again.", `ciba-error-${Date.now()}`);
         agentFlowDiagram.completeMfaChallenge(false);
       }
@@ -7129,7 +7176,7 @@ export default function BankingAgent({
       });
     } else {
       const replyText = response.reply || AGENT_UNAVAILABLE_MESSAGE;
-      const replyWithAgentBadge = `[CUSTOMER AGENT]\n${replyText}`;
+      const replyWithAgentBadge = `${response.agentHeader || "[CUSTOMER AGENT]"}\n${replyText}`;
       addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
       // A2A teaching popup: auto-open after a successful A2A delegation,
       // mirroring how RAR auto-explains. The response's own token events

@@ -101,6 +101,195 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-20 — Non-admin session selecting PingOne Admin got a blank generic failure
+
+**Files changed:**
+- `demo_api_ui/src/services/demoAgentService.js` — `sendToAdminAgent` now
+  passes through the response `error` code.
+- `demo_api_ui/src/components/AIAgent.js` (`NL_FAILURE_MESSAGES`) — new
+  `insufficient_scope` entry.
+
+**What was broken:** the "PingOne Admin" vertical is selectable from
+customer-scoped pages (e.g. `/dashboard`'s vertical picker), not just the
+admin console. A customer-scoped session picking it and sending a message
+correctly gets a 403 `insufficient_scope` from `requireAdmin` (the
+admin-only route's middleware) — but `sendToAdminAgent` dropped the
+response's `error` field, so `reportNlFailure`'s `NL_FAILURE_MESSAGES[err.code]`
+lookup never matched anything and fell to the generic
+`"That step couldn't be completed. Try again, or pick another demo step."`,
+with no indication the fix is simply switching to an admin session.
+
+**What was fixed:** `sendToAdminAgent` passes through `data.error`, and
+`NL_FAILURE_MESSAGES` gained an `insufficient_scope` entry pointing at the
+existing "Switch to admin" top-nav button — reuses the same
+code-to-message lookup already used for `mcp_scope_denied` etc., no new UI
+component.
+
+**Do not break:** this only adds one map entry and one passthrough field —
+no other `NL_FAILURE_MESSAGES` codes or `sendToAdminAgent` fields changed.
+
+**Verify:** `demo_api_ui` vitest `demoAgentService.adminRouting` (7 pass,
+including the new `insufficient_scope` passthrough case); `npm run build`
+exits 0. Live: a customer-scoped session on `/dashboard` selecting PingOne
+Admin and sending a message now sees "This needs an admin session — click
+'Switch to admin'..." instead of the blank generic fallback.
+
+### 2026-07-20 — Admin agent demo-step replies labeled `[CUSTOMER AGENT]`
+
+**Files changed:**
+- `demo_api_ui/src/services/demoAgentService.js` — `sendToAdminAgent` now
+  passes through the backend's `agentHeader` field.
+- `demo_api_ui/src/components/AIAgent.js` (`handleNlResumeResponse`'s
+  success branch) — labels the reply with `response.agentHeader` when
+  present, falling back to the existing literal `[CUSTOMER AGENT]` string
+  otherwise.
+
+**What was broken:** `handleNlResumeResponse` (the function every demo-step
+click funnels through, for every vertical) hardcoded the `[CUSTOMER AGENT]`
+prefix on every successful reply, never reading any dynamic field. Harmless
+until the PingOne Admin routing fix (previous entry) started reaching the
+real admin backend — its replies then displayed the wrong agent label even
+though the backend and routing were correct.
+
+**What was fixed:** `sendToAdminAgent` passes through `agentHeader` from
+`/api/admin-agent/message`'s response (e.g. `🤖 [ADMIN AGENT - LangGraph -
+Claude 3.5 Sonnet]`), and the display label now prefers it when present.
+
+**Do not break:** every other vertical's response envelope never sets
+`agentHeader`, so `response.agentHeader || "[CUSTOMER AGENT]"` preserves the
+exact current label for banking/healthcare/etc. — verified this is the only
+line changed in `handleNlResumeResponse`; the HITL/step-up/CIBA/token-
+accounting logic above and below it is untouched.
+
+**Verify:** `demo_api_ui` vitest `demoAgentService.adminRouting` (6 pass,
+including the new `agentHeader` passthrough case); `npm run build` exits 0.
+Live click-through: PingOne Admin demo step reply now shows `[ADMIN AGENT -
+LangGraph - ...]`, banking vertical still shows `[CUSTOMER AGENT]`
+unchanged.
+
+### 2026-07-20 — PingOne Admin AI Agent messages misrouted to the customer/banking agent
+
+**Files changed:**
+- `demo_api_ui/src/services/demoAgentService.js` — `sendAgentMessage` branches
+  to a new `sendToAdminAgent` helper when `vertical === 'pingone-admin'`,
+  posting to `/api/admin-agent/message` instead of `/api/agent/invoke`.
+
+**What was broken:** every `sendAgentMessage()` call site (demo-step clicks,
+free-typed chat, heuristic-resolved vertical re-dispatch) sent
+`pingone-admin`-vertical messages to `/api/agent/invoke`, which always calls
+the customer/banking agent (`processAgentMessage` in
+`demoAgentLangGraphService.js`). That service's admin-token guard
+(`customerTokenGuard.js`'s `isVerticalExemptFromAdminTokenGuard`, exempting
+only `{admin, oauth-teaching}`) correctly refused with `requiresCustomerLogin`
+for an admin token — but the request was going to the wrong backend
+regardless. The real admin backend (`adminAgentService.js`, live PingOne
+Management API tools) was only reachable via a narrow
+`PINGONE_ADMIN_CHIP_IDS.has(chipId)` gate in `AIAgent.js` that demo steps and
+typed chat never passed through.
+
+**What was fixed:** `sendAgentMessage` now checks `vertical` first and routes
+`pingone-admin` messages to `/api/admin-agent/message` directly, normalizing
+the response into the same return shape every caller already expects.
+
+**Do not break:** the `PINGONE_ADMIN_CHIP_IDS`-gated inline block in
+`AIAgent.js` still exists unchanged and still works for its pre-wired chips —
+this fix doesn't consolidate into it. Non-admin verticals (banking,
+healthcare, retail, …) must keep hitting `/api/agent/invoke` exactly as
+before; `customerTokenGuard.js`'s exempt list and `agentInvokeRoute.js` are
+untouched.
+
+**Verify:** `demo_api_ui` vitest `demoAgentService.adminRouting` (5 pass,
+including the non-admin-vertical-unchanged regression case) +
+`demoAgentService.{tokenEventCallback,hitlRetry,timeoutSync,legacyTrace}`
+still green; `cd demo_api_ui && npm run build` exits 0. Live click-through:
+each of the 4 PingOne Admin demo steps gets a real tool-backed reply, typed
+chat in the admin agent works, banking vertical chat/chips unaffected.
+
+### 2026-07-20 — Banking Demo Steps: Step 3 (UC7 step-up) went permanently silent after an interrupted first run
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js` (the NL-resume
+replay effect, ~line 6567 — same effect touched by the 2026-07-18 entry
+below, different bug).
+
+**What was broken:** `handleDemoStepSelect` fires this effect by calling
+`setNlResumeAfterAuth(trigger.text)`. The effect sets
+`pendingNlResumeRef.current = text` synchronously, then delays 250ms before
+actually sending; the ref is only reset back to `null` inside the `finally`
+of that delayed callback. If the effect's cleanup ran before the 250ms timer
+fired (deps change, remount) — nothing was ever sent, but the ref stayed
+wedged at `text` forever. `setNlResumeAfterAuth(trigger.text)` with the same
+string is a React no-op (`Object.is` bails), so the effect would never
+re-fire, and the guard at the top of the effect also blocked on the stale
+ref match. Net effect: click "Demo step 3" once, get an interrupted run, and
+every subsequent click prints "Running Demo step 3…" and then does nothing —
+no request, no error, stale Token Chain state left over from the poisoned
+run. Each vertical's amount-gated chip uses different wording
+(`amountTriggerByVertical` in `useCases.js`), so only the vertical whose text
+got stuck was affected — banking uses the base entry's text
+("transfer $600 from checking to savings"), so this reproduced as
+"works on other verticals, not banking."
+
+**What was fixed:** track whether the 250ms timer actually fired
+(`timerFired`). In the effect's cleanup, if it never fired, also reset
+`pendingNlResumeRef.current = null` — releasing the guard so a later click
+with the same trigger text can retry. The in-flight-send path (timer already
+fired) is untouched: its own `finally` still skips resetting state on
+supersede, per the 2026-07-18 entry's "do not clobber a newer
+`nlResumeAfterAuth`" rule.
+
+**Do not break:** the monetary/consent branch inside this same effect
+(banking `create_transfer` payload shape, `verticalOpts` must not carry
+`signal`) — untouched by this fix, which only edits the cleanup function.
+
+**Verify:** `cd demo_api_ui && CI=true npx jest src/__tests__/BankingAgent
+src/components/__tests__/AIAgent.chips.test.js
+--testPathIgnorePatterns="/node_modules/"` (79 pass); `npm run build`
+(exit 0).
+
+### 2026-07-20 — UC22 CIBA demo transfer never completed — re-forced another CIBA prompt forever after approval
+
+**Files changed:** `demo_api_server/routes/transactions.js` (the `evaluateTransactionPolicy`
+call, ~line 599), `demo_api_server/src/__tests__/step-up-gate.test.js` (2 new tests).
+
+**What was broken:** UC22's `useCaseId` (`ciba-out-of-band-approval`) makes
+`transactionAuthorizationService.evaluateTransactionPolicy` force the CIBA
+step-up block unconditionally (see `CIBA_DEMO_USE_CASE_ID`, by design —
+regardless of `acr`, so the presenter never sees a consent/permit instead of
+CIBA). AIAgent.js's post-approval retry (`pollCibaStepUp` /
+`pollCibaThenResumeNl`) re-sends the same `useCaseId` on the retry, and this
+route forwarded it unconditionally too — so the retry got re-forced into
+*another* CIBA prompt instead of completing, even though
+`req.session.stepUpVerified` was fresh and already being consumed into
+`effectiveAcr = 'Multi_Factor'` two lines above. Net effect: CIBA approval
+never "returned a response to the user" — it looped, and whatever broke the
+loop client-side surfaced as a confusing "MFA request was cancelled" +
+"Incomplete" verdict (missing `authorize-decision` token-chain evidence,
+since the transaction never permitted).
+
+**What was fixed:** `useCaseId` is now dropped (`''`) on the specific request
+that just consumed a fresh `req.session.stepUpVerified`
+(`sessionStepUpFresh`) before calling `evaluateTransactionPolicy`. The
+CIBA-forcing check itself is untouched (still unconditional on `acr`, by
+design) — the retry simply no longer carries the useCaseId that triggers it,
+so it falls through to the policy engine's normal acr-aware decision and
+permits.
+
+**Do not break:** the UC22 override must stay unconditional on `acr` — do not
+add an `acrLooksStrong`-style guard inside
+`transactionAuthorizationService.js` itself (tried first; it broke because
+several other test files mock `simulatedAuthorizeService` without that
+export, and reaching through a mocked module for a plain string check is
+fragile — silently threw and got swallowed into a generic 503 in three call
+sites at once). Keep the loop-breaking logic in `routes/transactions.js`
+right next to where `sessionStepUpFresh` is already computed.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/step-up-gate.test.js
+src/__tests__/transactionAuthorizationService.test.js
+tests/services/transactionAuthorizationService.rfc9470.test.js
+--testPathIgnorePatterns="/node_modules/"` (41/41 pass). Live: run UC22 from
+`/use-cases`, approve the CIBA prompt, confirm the transfer completes on the
+first retry instead of prompting again.
+
 ### 2026-07-19 — Demo Config page (`/demo-config`) applied a sidebar selection but the side nav never refreshed
 
 **Files changed:**

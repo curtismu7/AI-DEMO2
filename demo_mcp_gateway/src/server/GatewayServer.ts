@@ -36,7 +36,7 @@ import { GatewayConfig, isInternalSecretUsable } from '../config';
 import { adminConfigSafeView, applyAdminConfigUpdate, ADMIN_CONFIG_ALLOWED_KEYS } from '../adminConfig';
 import { extractBearerToken, validateInboundToken, TokenValidationError } from '../tokenValidator';
 import { extractCorrelationId } from '../correlationId';
-import { routeTool, backendWsUrl } from '../router';
+import { routeTool, backendWsUrl, backendHttpMcpUrl } from '../router';
 import { proxyJsonRpc } from '../proxy';
 import { selfBaseUrl } from '../selfBaseUrl';
 import { appendEnterpriseWwwAuthHint, buildEnterpriseExtensionBlock, isEnterpriseManagedMcpAuthEnabled } from '../enterpriseMcpAuth';
@@ -576,7 +576,6 @@ export class GatewayServer {
     upstreamToken: string,
     body: Buffer,
   ): Promise<void> {
-    const upstreamUrl = `${this.upstreamMcpUrl}/mcp`;
     const timeoutMs = parseInt(process.env.GW_UPSTREAM_TIMEOUT_MS || '30000', 10);
 
     // Parse body to determine if we need the initialize handshake
@@ -604,6 +603,14 @@ export class GatewayServer {
       }
       return;
     }
+
+    // demo_mcp_jwt_verifier (FastMCP/Python) is a second HTTP-forward target —
+    // same Streamable HTTP handshake/forward path as 'olb' below, just pointed
+    // at a different upstream base.
+    const upstreamBase = rpcToolName && routeTool(rpcToolName) === 'jwtverifier'
+      ? backendHttpMcpUrl('jwtverifier', this.config)
+      : this.upstreamMcpUrl;
+    const upstreamUrl = `${upstreamBase}/mcp`;
 
     const isInitialize = jsonRpc.method === 'initialize';
     const isNotification = !isInitialize && jsonRpc.id === undefined;

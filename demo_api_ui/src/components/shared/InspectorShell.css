@@ -1,0 +1,306 @@
+/* InspectorShell.css — shared topbar + 3-column layout for tool/list-detail
+   inspector pages. Renamed from the page-owned p1mcp-* classnames this
+   replaces (previously duplicated in PingOneMcpInspector.css and hand-copied
+   by McpInspector.js, ApiExplorerPanel.js, AgentGatewayTester.jsx). */
+
+/* Page wrapper */
+.inspector-shell-page {
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #f8fafc;
+}
+
+/* Top bar */
+.inspector-shell-topbar {
+  background: #f1f5f9;
+  border-bottom: 1px solid #cbd5e1;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.inspector-shell-topbar h1 { font-size: 16px; font-weight: 600; color: #1e293b; margin: 0; }
+.inspector-shell-topbar__dot { width: 8px; height: 8px; border-radius: 50%; background: #16a34a; flex-shrink: 0; }
+.inspector-shell-topbar__dot--off { background: #dc2626; }
+.inspector-shell-topbar__status { font-size: 12px; color: #64748b; }
+.inspector-shell-topbar__right { margin-left: auto; display: flex; gap: 8px; }
+.inspector-shell-topbar__btn {
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 4px;
+  border: 1px solid #94a3b8;
+  background: #f8fafc;
+  color: #334155;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.inspector-shell-topbar__btn:hover { background: #e2e8f0; }
+.inspector-shell-topbar__btn--active { background: #2563eb; border-color: #2563eb; color: #fff; }
+.inspector-shell-topbar__btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Three-column grid */
+.inspector-shell-grid {
+  display: grid;
+  grid-template-columns: 240px 380px 1fr;
+  height: calc(100vh - 45px);
+  overflow: hidden;
+}
+/* fullHeight={false}: the shell is one section inside a taller scrolling
+   page (siblings above/below), not the whole route — a 100vh-tall grid
+   there would blow out the page height. Columns still scroll internally
+   via their own overflow-y:auto. */
+.inspector-shell-grid--embedded {
+  height: 640px;
+}
+
+/* Column 1: left (tool tree / call list / preset list) */
+.inspector-shell-col-left {
+  background: #f1f5f9;
+  border-right: 1px solid #cbd5e1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.inspector-shell-tree-header {
+  padding: 12px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  border-bottom: 1px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.inspector-shell-tree-search {
+  padding: 8px 12px;
+  border-bottom: 1px solid #cbd5e1;
+}
+.inspector-shell-tree-search input {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 12px;
+  background: #ffffff;
+  border: 1px solid #94a3b8;
+  border-radius: 4px;
+  color: #1e293b;
+}
+.inspector-shell-tree-search input:focus { outline: none; border-color: #3b82f6; }
+.inspector-shell-tree-search input::placeholder { color: #94a3b8; }
+.inspector-shell-tree-body { flex: 1; overflow-y: auto; padding: 4px 0; }
+
+/* Tree groups */
+.inspector-shell-tree-group__label {
+  padding: 8px 16px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.inspector-shell-tree-item {
+  padding: 5px 16px 5px 24px;
+  font-size: 13px;
+  font-family: 'SF Mono', SFMono-Regular, monospace;
+  color: #334155;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.08s;
+  border: 1px solid transparent;
+  border-radius: 0;
+  background: none;
+  text-align: left;
+}
+.inspector-shell-tree-item:hover { background: #e2e8f0; }
+.inspector-shell-tree-item--active {
+  background: #2563eb;
+  color: #fff;
+  border-radius: 4px;
+  margin: 1px 8px;
+  padding-left: 16px;
+}
+.inspector-shell-tree-item__dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; background: #16a34a; }
+.inspector-shell-tree-item__dot--write { background: #d97706; }
+.inspector-shell-tree-item__dot--sensitive { background: #dc2626; }
+.inspector-shell-tree-item__badge {
+  margin-left: auto;
+  font-size: 9px;
+  font-weight: 700;
+  font-family: -apple-system, sans-serif;
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.03em;
+}
+.inspector-shell-tree-item__badge--write { background: #fef3c7; color: #92400e; }
+.inspector-shell-tree-item__badge--sensitive { background: #fee2e2; color: #991b1b; }
+
+/* Column 2: middle (param form / detail fields) */
+.inspector-shell-col-middle {
+  background: #f8fafc;
+  border-right: 1px solid #cbd5e1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.inspector-shell-form-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #cbd5e1;
+}
+.inspector-shell-form-header__name {
+  font-family: 'SF Mono', monospace;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+}
+.inspector-shell-form-header__desc {
+  font-size: 13px;
+  color: #475569;
+  margin-top: 6px;
+  line-height: 1.5;
+}
+.inspector-shell-form-body { padding: 16px 20px; flex: 1; overflow-y: auto; }
+.inspector-shell-form-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #64748b;
+  font-size: 14px;
+  text-align: center;
+  padding: 40px 20px;
+}
+
+/* Form fields */
+.inspector-shell-field { margin-bottom: 14px; }
+.inspector-shell-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 4px;
+  font-family: 'SF Mono', monospace;
+}
+.inspector-shell-field label .req { color: #dc2626; }
+.inspector-shell-field label .type { font-weight: 400; color: #64748b; margin-left: 6px; }
+.inspector-shell-field input, .inspector-shell-field textarea {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: 'SF Mono', monospace;
+  background: #ffffff;
+  border: 1px solid #94a3b8;
+  border-radius: 4px;
+  color: #1e293b;
+  resize: vertical;
+}
+.inspector-shell-field input:focus, .inspector-shell-field textarea:focus { outline: none; border-color: #3b82f6; }
+.inspector-shell-field input::placeholder, .inspector-shell-field textarea::placeholder { color: #94a3b8; }
+
+/* Form actions */
+.inspector-shell-form-actions {
+  padding: 12px 20px;
+  border-top: 1px solid #cbd5e1;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.inspector-shell-form-actions--top {
+  border-top: none;
+  border-bottom: 1px solid #cbd5e1;
+}
+.inspector-shell-btn-call {
+  padding: 9px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.inspector-shell-btn-call:hover { background: #1d4ed8; }
+.inspector-shell-btn-call:disabled { opacity: 0.5; cursor: not-allowed; }
+.inspector-shell-btn-clear {
+  padding: 9px 14px;
+  font-size: 13px;
+  background: transparent;
+  color: #475569;
+  border: 1px solid #94a3b8;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.inspector-shell-btn-clear:hover { background: #e2e8f0; }
+.inspector-shell-form-error { font-size: 12px; color: #dc2626; margin-left: 8px; }
+
+/* Column 3: right (tabbed output) */
+.inspector-shell-col-right {
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.inspector-shell-output-tabs {
+  display: flex;
+  border-bottom: 1px solid #cbd5e1;
+  padding: 0;
+}
+.inspector-shell-output-tab {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.1s;
+}
+.inspector-shell-output-tab:hover { color: #334155; }
+.inspector-shell-output-tab--active { color: #1e293b; border-bottom-color: #2563eb; }
+
+.inspector-shell-output-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+.inspector-shell-output-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #64748b;
+  font-size: 14px;
+  text-align: center;
+  padding: 40px 20px;
+}
+.inspector-shell-output-code {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #1e293b;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  background: #f1f5f9;
+  padding: 12px 16px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.inspector-shell-output-footer {
+  padding: 8px 20px;
+  border-top: 1px solid #cbd5e1;
+  font-size: 11px;
+  color: #64748b;
+  display: flex;
+  gap: 20px;
+  flex-shrink: 0;
+}
+.inspector-shell-output-footer strong { color: #334155; }

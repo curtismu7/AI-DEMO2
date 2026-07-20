@@ -1017,7 +1017,49 @@ export function ingestLegacyRunTrace(data, { forceHeuristic = false } = {}) {
   } catch { /* display-only */ }
 }
 
+/**
+ * Routes a pingone-admin-vertical message to the dedicated admin agent
+ * backend (live PingOne Management API tools via adminAgentService.js) —
+ * the customer/banking /api/agent/invoke path can't serve this vertical,
+ * it always bounces with requiresCustomerLogin for an admin token.
+ */
+async function sendToAdminAgent(message, { signal, onTokenEvent } = {}) {
+  const res = await fetch("/api/admin-agent/message", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message,
+      customer: adminCustomerContext.get(),
+    }),
+    signal: signal || AbortSignal.timeout(30000),
+  });
+  const data = await res
+    .json()
+    .catch(() => ({ reply: "Admin agent request failed.", success: false }));
+  if (Array.isArray(data.tokenEvents)) {
+    for (const ev of data.tokenEvents) {
+      onTokenEvent?.(ev);
+    }
+  }
+  return {
+    reply: data.reply,
+    success: data.success,
+    requiresConsent: false,
+    agentConfigured: data.agentConfigured,
+    agentHeader: data.agentHeader,
+    error: data.error,
+    inputTokens: data.inputTokens,
+    outputTokens: data.outputTokens,
+    tokenEvents: data.tokenEvents || [],
+    _status: res.status,
+  };
+}
+
 export async function sendAgentMessage(message, consentId = null, { signal, forceHeuristic = false, vertical = null, consentGiven = false, hitlChallengeId = null, useCaseId = null, onTokenEvent } = {}) {
+  if (vertical === 'pingone-admin') {
+    return sendToAdminAgent(message, { signal, onTokenEvent });
+  }
   const body = { prompt: message };
   if (consentId) body.consentId = consentId;
   if (useCaseId) body.useCaseId = useCaseId;

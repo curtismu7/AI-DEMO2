@@ -25,6 +25,7 @@
 | `ai:agent:read` | medium | Super Banking API | Agent invocation permission |
 | `mcp:invoke` | medium | Super Banking MCP Server | Invoke MCP tools via the gateway (RFC 8693 exchange) |
 | `code:search` | low | Super Banking MCP Server | Search and read the indexed source code (read-only) |
+| `jwt:verify` | low | Super Banking MCP JWT Verifier | Invoke JWT/JWKS diagnostic tools (decode, verify signature, validate claims, fetch JWKS, inspect key) |
 | `agent:invoke` | medium | Super Banking Agent Gateway | Invoke the Agent Gateway (Two-Exchange Step 1 audience) |
 | `ai_agent` | medium | Super Banking API | AI agent identity |
 | `admin:read` | medium | Super Banking API | Read access to administrative data |
@@ -66,6 +67,12 @@ Audience: `mcp-invest.ping.demo`
 Native scopes: `mcp:invoke`
 
 Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `invest:read`, `read`
+
+### Super Banking MCP JWT Verifier
+
+Audience: `mcp-jwt-verifier.ping.demo`
+
+Native scopes: `jwt:verify`
 
 ### Super Banking MCP Gateway
 

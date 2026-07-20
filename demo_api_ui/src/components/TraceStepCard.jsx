@@ -1,8 +1,20 @@
 // One pipeline step — a native <details> card. Dumb renderer over the neutral
 // step.detail shape produced by buildTraceSteps; knows nothing about sources.
 import React from "react";
+import { tokenize } from "./shared/JsonHighlight";
+import "./shared/JsonHighlight.css";
 
 const STATUS_ICON = { pending: "·", active: "…", done: "✓", error: "✗", notinpath: "–" };
+
+// d.request.text / d.response.text are pre-formatted display strings (often a
+// narrative prefix line + embedded JSON, not pure JSON) — tokenize() colors
+// the JSON portions and leaves the rest as plain text, so it's safe to run
+// over the whole string as-is rather than re-parsing it as a JSON value.
+function HighlightedText({ text }) {
+  return tokenize(text).map((t, i) => (
+    <span key={i} className={t.critical ? `jh-${t.type} jh-critical` : `jh-${t.type}`}>{t.text}</span>
+  ));
+}
 
 export default function TraceStepCard({ step, onInspect, defaultOpen = false }) {
   const d = step.detail || {};
@@ -22,13 +34,13 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false }) 
         {d.request && (
           <>
             <h4>{d.request.title}</h4>
-            <pre className="tctr-code">{d.request.text}</pre>
+            <pre className="tctr-code"><HighlightedText text={d.request.text} /></pre>
           </>
         )}
         {d.response && (
           <>
             <h4>{d.response.title}</h4>
-            <pre className="tctr-code">{d.response.text}</pre>
+            <pre className="tctr-code"><HighlightedText text={d.response.text} /></pre>
           </>
         )}
         {d.decision && (

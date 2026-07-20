@@ -74,6 +74,22 @@ const MOCK_USE_CASES = [
     advanced: false,
   },
   {
+    id: 'UC6',
+    useCaseId: 'authz-denied',
+    track: 'controls',
+    title: 'Authz denied',
+    buyerStory: 'Buyer story for UC6.',
+    pingOneSolution: 'PingOne denies.',
+    trigger: { type: 'chip', text: 'transfer $75000' },
+    expectedOutcome: 'DENY',
+    evidence: {},
+    codeRefs: [],
+    maturity: 'works',
+    owasp: { threats: ['T3'], sections: ['§6'] },
+    whatToSay: 'The policy denied it.',
+    advanced: false,
+  },
+  {
     id: 'UC2',
     useCaseId: 'a2a-delegation',
     track: 'foundations',
@@ -390,11 +406,11 @@ describe('UseCaseLauncherPage', () => {
 
   it('non-runnable attack UC keeps disabled coming-in-A6.2 button', async () => {
     // UC11 has sim: 'expired-token' which is NOT in RUNNABLE_SIMS. UC11 is also
-    // a Demo-script id, so with useCases: [MOCK_USE_CASES[2]] alone its card
+    // a Demo-script id, so with useCases: [MOCK_USE_CASES[3]] alone its card
     // renders twice on the page (Attacks section + Demo section, no dedup) —
     // scope the button query to the Attacks section.
     apiClient.get.mockResolvedValue({
-      data: { vertical: 'banking', useCases: [MOCK_USE_CASES[2]] },
+      data: { vertical: 'banking', useCases: [MOCK_USE_CASES[3]] },
     });
     renderPage();
     await waitFor(() => expect(screen.getAllByText('Bad client to agent gateway').length).toBeGreaterThan(0));
@@ -495,12 +511,13 @@ describe('UseCaseLauncherPage', () => {
     expect(happyPathIdx).toBeGreaterThan(demoIdx);
     expect(foundationsIdx).toBeGreaterThan(happyPathIdx);
 
-    // UC1 (expectedOutcome: 'PERMIT') is also Demo script step 1 and a member
-    // of allRelatedUCIds() — it renders once each in Demo, Happy Path, and
-    // Agent Gateway (no cross-section dedup between strips), and is still
-    // excluded from Foundations (dedup is only between Happy Path and track
-    // sections, unaffected by Demo/Agent Gateway membership).
-    expect(screen.getAllByText('Delegated access with proof')).toHaveLength(3);
+    // UC1 (expectedOutcome: 'PERMIT') is Demo script step 1 and a member of
+    // both the Agent Gateway and PingOne Authorize strips — it renders once
+    // each in Demo, Happy Path, Agent Gateway, and PingOne Authorize (no
+    // cross-section dedup between strips), and is still excluded from
+    // Foundations (dedup is only between Happy Path and track sections,
+    // unaffected by strip membership).
+    expect(screen.getAllByText('Delegated access with proof')).toHaveLength(4);
 
     // UC2's outcome is 'PERMIT with act-chain depth', not an exact 'PERMIT' match,
     // so it stays in its original Foundations section, not Happy Path.
@@ -532,12 +549,21 @@ describe('UseCaseLauncherPage', () => {
     expect(screen.queryByText(/Happy Paths — successful outcomes/i)).not.toBeInTheDocument();
   });
 
+  // ── PingOne Authorize grouping ──────────────────────────────────────────
+  it('renders a PingOne Authorize section containing UC1 and UC6', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText(/PingOne Authorize/i)).toBeInTheDocument());
+    const section = screen.getByText(/PingOne Authorize/i).closest('section');
+    expect(within(section).getAllByText('Delegated access with proof').length).toBeGreaterThan(0); // UC1
+    expect(within(section).getAllByText('Authz denied').length).toBeGreaterThan(0); // UC6
+  });
+
   // ── Demo section ─────────────────────────────────────────────────────────
   it('renders a Demo section above Happy Path, with cards in script order regardless of input order', async () => {
     // Deliberately out of DEMO_USE_CASE_IDS order (UC11 first) to prove the
     // section renders by script order, not by input array order.
     apiClient.get.mockResolvedValue({
-      data: { vertical: 'banking', useCases: [MOCK_USE_CASES[2], MOCK_USE_CASES[0], MOCK_USE_CASES[1]] },
+      data: { vertical: 'banking', useCases: [MOCK_USE_CASES[3], MOCK_USE_CASES[0], MOCK_USE_CASES[2]] },
     });
     renderPage();
     await waitFor(() => expect(screen.getByText(/Demo — a scripted walkthrough/i)).toBeInTheDocument());
@@ -569,10 +595,10 @@ describe('UseCaseLauncherPage', () => {
   it('a use case in both Demo and Happy Path renders once per section, not deduped', async () => {
     renderPage();
     await waitFor(() => expect(screen.getByText(/Demo — a scripted walkthrough/i)).toBeInTheDocument());
-    // UC1 qualifies for Demo (script step 1), Happy Path (PERMIT), and Agent
-    // Gateway (allRelatedUCIds() member) — no cross-section dedup, so it
-    // renders three times total.
-    expect(screen.getAllByText('Delegated access with proof')).toHaveLength(3);
+    // UC1 qualifies for Demo (script step 1), Happy Path (PERMIT), the Agent
+    // Gateway strip, and the PingOne Authorize strip — no cross-section
+    // dedup, so it renders four times total.
+    expect(screen.getAllByText('Delegated access with proof')).toHaveLength(4);
   });
 
   it('a flag-gated Demo step shows the gate UI', async () => {

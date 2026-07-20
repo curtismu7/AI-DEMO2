@@ -1,6 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./AppShell";
-import AgentGatewayCapabilitiesTour from "../pages/AgentGatewayCapabilitiesTour";
 import IntentBindingLearningPage from "../pages/IntentBindingLearningPage";
 import LiveUseCaseWorkbenchPage from "../pages/LiveUseCaseWorkbenchPage";
 import AIAgent from "../components/AIAgent";
@@ -27,6 +26,7 @@ import UseCaseLauncherPage from "../pages/UseCaseLauncherPage";
 import TokenExchangeTesterPage from "../pages/TokenExchangeTesterPage";
 import SdkLoginPage from "../pages/SdkLoginPage";
 import SdkLoginCallback from "../pages/SdkLoginCallback";
+import CibaApprovalPage from "../pages/CibaApprovalPage";
 import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
 import PrivilegeMcpClientPage from "../pages/PrivilegeMcpClientPage";
 
@@ -100,14 +100,6 @@ export function IntentBindingLearningPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <IntentBindingLearningPage />
-    </AppShell>
-  );
-}
-
-export function AgentGatewayCapabilitiesTourRoute({ user, logout }) {
-  return (
-    <AppShell user={user} logout={logout}>
-      <AgentGatewayCapabilitiesTour />
     </AppShell>
   );
 }
@@ -229,6 +221,10 @@ export function SdkLoginPageRoute() {
 // OIDC redirect callback (bare — no shell, it exchanges the code and redirects).
 export function SdkLoginCallbackRoute() {
   return <SdkLoginCallback />;
+}
+
+export function CibaApprovalPageRoute() {
+  return <CibaApprovalPage />;
 }
 
 export { LogoutPage, ComplianceModalPopout, DemoGuidePopout };

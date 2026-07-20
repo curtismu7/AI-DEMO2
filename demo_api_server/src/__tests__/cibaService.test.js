@@ -116,6 +116,34 @@ describe('cibaService.initiateBackchannelAuth()', () => {
     );
   });
 
+  it('uses PINGONE_CIBA_CLIENT_ID/SECRET for Basic auth when set, instead of the admin app', async () => {
+    const origId = process.env.PINGONE_CIBA_CLIENT_ID;
+    const origSecret = process.env.PINGONE_CIBA_CLIENT_SECRET;
+    process.env.PINGONE_CIBA_CLIENT_ID = 'ciba-app-client-id';
+    process.env.PINGONE_CIBA_CLIENT_SECRET = 'ciba-app-client-secret';
+
+    try {
+      await cibaService.initiateBackchannelAuth('user@example.com', 'msg');
+
+      const expectedBasic = Buffer.from('ciba-app-client-id:ciba-app-client-secret').toString('base64');
+      const [, , opts] = axios.post.mock.calls[0];
+      expect(opts.headers.Authorization).toBe(`Basic ${expectedBasic}`);
+    } finally {
+      if (origId === undefined) delete process.env.PINGONE_CIBA_CLIENT_ID; else process.env.PINGONE_CIBA_CLIENT_ID = origId;
+      if (origSecret === undefined) delete process.env.PINGONE_CIBA_CLIENT_SECRET; else process.env.PINGONE_CIBA_CLIENT_SECRET = origSecret;
+    }
+  });
+
+  it('falls back to the admin app credentials when PINGONE_CIBA_CLIENT_ID is unset', async () => {
+    delete process.env.PINGONE_CIBA_CLIENT_ID;
+    delete process.env.PINGONE_CIBA_CLIENT_SECRET;
+
+    await cibaService.initiateBackchannelAuth('user@example.com', 'msg');
+
+    const [, , opts] = axios.post.mock.calls[0];
+    expect(opts.headers.Authorization).toBe(`Basic ${EXPECTED_BASIC}`);
+  });
+
   it('sends login_hint, scope, and binding_message in the request body', async () => {
     await cibaService.initiateBackchannelAuth('user@example.com', 'Approve payment', 'openid profile', '');
 

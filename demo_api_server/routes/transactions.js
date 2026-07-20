@@ -596,6 +596,13 @@ router.post('/', authenticateToken, async (req, res) => {
       }
     }
 
+    // UC22's useCaseId forces the CIBA step-up block unconditionally (see
+    // transactionAuthorizationService's CIBA_DEMO_USE_CASE_ID check) — it does
+    // not look at acr, so a retry that still carries the same useCaseId would
+    // be re-forced into another CIBA prompt forever, even right after the user
+    // approved one. Drop it once this exact request already consumed a fresh
+    // session-level step-up: that retry has already proven CIBA, so let the
+    // gate fall through to the policy engine's normal (acr-aware) decision.
     const authz = await transactionAuthorizationService.evaluateTransactionPolicy({
       runtimeSettings,
       userRole: req.user.role,
@@ -603,7 +610,7 @@ router.post('/', authenticateToken, async (req, res) => {
       amount: parseFloat(amount),
       type,
       acr: effectiveAcr,
-      useCaseId: req.body?.useCaseId || '',
+      useCaseId: sessionStepUpFresh ? '' : (req.body?.useCaseId || ''),
     });
 
     if (authz.ran) {

@@ -104,6 +104,13 @@ router.post('/initiate', authenticateToken, async (req, res) => {
   const acr_values = field('acr_values', 'acrValues') || '';
   let binding_message = field('binding_message', 'bindingMessage');
 
+  // Optional transaction-display context (UC22's separate-device approval
+  // page). Purely additive — no validation beyond type coercion, since
+  // these only ever populate a display string, never a policy decision.
+  const amount = req.body.amount != null ? Number(req.body.amount) : null;
+  const fromAccountLabel = field('from_account_label', 'fromAccountLabel') || null;
+  const toAccountLabel = field('to_account_label', 'toAccountLabel') || null;
+
   // Validate binding_message length and content (prevents log injection / oversized payloads)
   if (binding_message !== undefined) {
     if (typeof binding_message !== 'string') {
@@ -168,6 +175,9 @@ router.post('/initiate', authenticateToken, async (req, res) => {
       acr_values: acr_values || '',
       binding_message: binding_message || '',
       simulated,
+      amount,
+      fromAccountLabel,
+      toAccountLabel,
     };
 
     res.json({
@@ -185,6 +195,42 @@ router.post('/initiate', authenticateToken, async (req, res) => {
       message: pingError?.error_description || err.message,
     });
   }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/auth/ciba/request/:authReqId
+//
+// Display details for the separate-device approval page. Session-gated,
+// same ownership model as /poll — this page only ever opens in a new tab
+// on the SAME browser (shared session cookie), never a different device.
+// ---------------------------------------------------------------------------
+
+router.get('/request/:authReqId', authenticateToken, (req, res) => {
+  if (!_cibaEnabled(res)) return;
+
+  const { authReqId } = req.params;
+  const pending = req.session.cibaRequests?.[authReqId];
+
+  if (!pending) {
+    return res.status(404).json({
+      error: 'unknown_request',
+      message: 'No pending CIBA request with that ID in this session.',
+    });
+  }
+
+  if (Date.now() > pending.expiresAt) {
+    return res.status(410).json({
+      error: 'request_expired',
+      message: 'The CIBA authentication request has expired. Please try again.',
+    });
+  }
+
+  res.json({
+    binding_message: pending.binding_message || '',
+    amount: pending.amount ?? null,
+    from_account_label: pending.fromAccountLabel ?? null,
+    to_account_label: pending.toAccountLabel ?? null,
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -213,6 +259,15 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
   }
 
   if (pending.simulated) {
+    if (pending.deniedByUser) {
+      delete req.session.cibaRequests[authReqId];
+      return res.status(403).json({
+        status: 'denied',
+        error: 'access_denied',
+        message: 'The user denied the authentication request.',
+      });
+    }
+
     if (!cibaSimulatedService.isSimulatedApproved(pending)) {
       return res.json({ status: 'pending' });
     }
@@ -340,6 +395,33 @@ router.post('/approve-now/:authReqId', authenticateToken, (req, res) => {
   pending.initiatedAt = Date.now() - cibaSimulatedService.SIMULATED_APPROVE_DELAY_MS;
   req.session.save((saveErr) => {
     if (saveErr) console.error('[CIBA] session save error on approve-now:', saveErr);
+    res.json({ ok: true });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/auth/ciba/deny/:authReqId
+//
+// Explicit user denial from the separate-device approval page — distinct
+// from /cancel (give up waiting) or expiry (timed out). Same simulated-only
+// constraint as /approve-now: a real bc-authorize request can only be
+// denied on its actual out-of-band channel, not through this route.
+// ---------------------------------------------------------------------------
+
+router.post('/deny/:authReqId', authenticateToken, (req, res) => {
+  const { authReqId } = req.params;
+  const pending = req.session.cibaRequests?.[authReqId];
+
+  if (!pending || !pending.simulated) {
+    return res.status(404).json({
+      error: 'unknown_request',
+      message: 'No pending request with that ID eligible for denial.',
+    });
+  }
+
+  pending.deniedByUser = true;
+  req.session.save((saveErr) => {
+    if (saveErr) console.error('[CIBA] session save error on deny:', saveErr);
     res.json({ ok: true });
   });
 });

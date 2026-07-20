@@ -105,7 +105,8 @@ export class McpTokenExchangeClient {
    */
   async exchange(subjectToken: string, toolName?: string): Promise<ExchangeResult> {
     const target = toolName ? routeTool(toolName) : 'olb';
-    const backend: 'olb' | 'invest' = target === 'invest' ? 'invest' : 'olb';
+    const backend: 'olb' | 'invest' | 'jwtverifier' =
+      target === 'invest' || target === 'jwtverifier' ? target : 'olb';
     return this.exchangeForBackend(subjectToken, backend);
   }
 
@@ -113,7 +114,7 @@ export class McpTokenExchangeClient {
    * Exchange for an explicit backend — used by tools/list proxying and by
    * `exchange()` after tool→backend routing.
    */
-  async exchangeForBackend(subjectToken: string, backend: 'olb' | 'invest'): Promise<ExchangeResult> {
+  async exchangeForBackend(subjectToken: string, backend: 'olb' | 'invest' | 'jwtverifier'): Promise<ExchangeResult> {
     const targetAud = backendResourceUri(backend, this.config);
 
     const key = cacheKey(subjectToken, targetAud);

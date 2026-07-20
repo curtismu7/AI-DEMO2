@@ -1,13 +1,13 @@
 // AgentGatewayTester.jsx
-// Dark IDE three-column layout (Mock B) - sends MCP tool calls through the
+// InspectorShell three-column layout - sends MCP tool calls through the
 // active gateway and shows response, authorize decision, audit trail.
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import apiClient from '../services/apiClient';
 import { notifyError } from '../utils/appToast';
 import { formatAxiosError } from '../utils/formatAxiosError';
 import JsonHighlight from './shared/JsonHighlight';
-import CapabilityCallout from './CapabilityCallout';
-import './PingOneMcpInspector.css';
+import InspectorShell from './shared/InspectorShell';
+import InspectorTabs from './shared/InspectorTabs';
 
 const GATEWAY_FLAG = 'ff_mcp_gateway_pinggateway';
 const AUTHZ_FLAG = 'ff_authorize_simulated';
@@ -99,8 +99,8 @@ const groupKey = (name) => {
 
 const toolDotClass = (name) => {
   const lower = name.toLowerCase();
-  if (lower.includes('sensitive')) return 'p1mcp-tree-item__dot--sensitive';
-  if (lower.startsWith('create') || lower.includes('transfer')) return 'p1mcp-tree-item__dot--write';
+  if (lower.includes('sensitive')) return 'inspector-shell-tree-item__dot--sensitive';
+  if (lower.startsWith('create') || lower.includes('transfer')) return 'inspector-shell-tree-item__dot--write';
   return '';
 };
 
@@ -327,55 +327,47 @@ export default function AgentGatewayTester() {
   };
 
   return (
-    <div className="p1mcp-page">
-      <CapabilityCallout capabilityId="mcp-validation" />
-      {/* Top bar */}
-      <div className="p1mcp-topbar">
-        <span className={`p1mcp-topbar__dot ${active ? '' : 'p1mcp-topbar__dot--off'}`} />
-        <h1>Agent Gateway Tester</h1>
-        <span className="p1mcp-topbar__status">
-          {active
-            ? `${active.name} | Authz: ${active.authzBackend}`
-            : 'Loading...'}
-        </span>
-        <div className="p1mcp-topbar__right">
+    <InspectorShell
+      title="Agent Gateway Tester"
+      statusOn={!!active}
+      statusText={active ? `${active.name} | Authz: ${active.authzBackend}` : 'Loading...'}
+      fullHeight={false}
+      actions={
+        <>
           <button
-            className="p1mcp-topbar__btn"
+            className="inspector-shell-topbar__btn"
             onClick={() => { fetchActive(); fetchTools(); fetchRules(); fetchRateStatus(); }}
           >
             Refresh
           </button>
           <button
-            className="p1mcp-topbar__btn"
+            className="inspector-shell-topbar__btn"
             disabled={toggling === GATEWAY_FLAG || !active}
             onClick={() => toggleFlag(GATEWAY_FLAG, usePing)}
           >
             {toggling === GATEWAY_FLAG ? 'Switching...' : `Switch to ${usePing ? 'Demo' : 'PingOne'} GW`}
           </button>
           <button
-            className="p1mcp-topbar__btn"
+            className="inspector-shell-topbar__btn"
             disabled={toggling === AUTHZ_FLAG || !active}
             onClick={() => toggleFlag(AUTHZ_FLAG, simulated)}
           >
             {toggling === AUTHZ_FLAG ? 'Switching...' : `Authz: ${simulated ? 'simulated' : 'real'}`}
           </button>
-        </div>
-      </div>
-
-      {/* Three-column grid */}
-      <div className="p1mcp-grid">
-        {/* Column 1: Tree */}
-        <div className="p1mcp-col-tree">
-          <div className="p1mcp-tree-header">
+        </>
+      }
+      left={
+        <>
+          <div className="inspector-shell-tree-header">
             <span>
               <button
-                className={`p1mcp-topbar__btn ${treeSection === 'tools' ? 'p1mcp-topbar__btn--active' : ''}`}
+                className={`inspector-shell-topbar__btn ${treeSection === 'tools' ? 'inspector-shell-topbar__btn--active' : ''}`}
                 style={{ fontSize: 10, padding: '2px 8px' }}
                 onClick={() => setTreeSection('tools')}
               >Tools</button>
               {' '}
               <button
-                className={`p1mcp-topbar__btn ${treeSection === 'config' ? 'p1mcp-topbar__btn--active' : ''}`}
+                className={`inspector-shell-topbar__btn ${treeSection === 'config' ? 'inspector-shell-topbar__btn--active' : ''}`}
                 style={{ fontSize: 10, padding: '2px 8px' }}
                 onClick={() => setTreeSection('config')}
               >Config</button>
@@ -383,7 +375,7 @@ export default function AgentGatewayTester() {
           </div>
           {treeSection === 'tools' && (
             <>
-              <div className="p1mcp-tree-search">
+              <div className="inspector-shell-tree-search">
                 <input
                   type="search"
                   placeholder="Filter tools..."
@@ -392,23 +384,23 @@ export default function AgentGatewayTester() {
                   spellCheck={false}
                 />
               </div>
-              <div className="p1mcp-tree-body">
+              <div className="inspector-shell-tree-body">
                 {groupedTools.map(group => (
-                  <div className="p1mcp-tree-group" key={group.label}>
-                    <div className="p1mcp-tree-group__label">{group.label} ({group.tools.length})</div>
+                  <div className="inspector-shell-tree-group" key={group.label}>
+                    <div className="inspector-shell-tree-group__label">{group.label} ({group.tools.length})</div>
                     {group.tools.map(t => (
                       <div
                         key={t.name}
-                        className={`p1mcp-tree-item ${selectedTool?.name === t.name ? 'p1mcp-tree-item--active' : ''}`}
+                        className={`inspector-shell-tree-item ${selectedTool?.name === t.name ? 'inspector-shell-tree-item--active' : ''}`}
                         onClick={() => selectTool(t)}
                       >
-                        <span className={`p1mcp-tree-item__dot ${toolDotClass(t.name)}`} />
+                        <span className={`inspector-shell-tree-item__dot ${toolDotClass(t.name)}`} />
                         <span>{t.name}</span>
                         {toolDotClass(t.name).includes('write') && (
-                          <span className="p1mcp-tree-item__badge p1mcp-tree-item__badge--write">W</span>
+                          <span className="inspector-shell-tree-item__badge inspector-shell-tree-item__badge--write">W</span>
                         )}
                         {toolDotClass(t.name).includes('sensitive') && (
-                          <span className="p1mcp-tree-item__badge p1mcp-tree-item__badge--sensitive">S</span>
+                          <span className="inspector-shell-tree-item__badge inspector-shell-tree-item__badge--sensitive">S</span>
                         )}
                       </div>
                     ))}
@@ -426,167 +418,161 @@ export default function AgentGatewayTester() {
             </>
           )}
           {treeSection === 'config' && (
-            <div className="p1mcp-tree-body">
-              <div className="p1mcp-tree-group">
-                <div className="p1mcp-tree-group__label">Gateway</div>
-                <div className="p1mcp-tree-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4, cursor: 'default' }}>
+            <div className="inspector-shell-tree-body">
+              <div className="inspector-shell-tree-group">
+                <div className="inspector-shell-tree-group__label">Gateway</div>
+                <div className="inspector-shell-tree-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4, cursor: 'default' }}>
                   <span style={{ fontSize: 11, color: '#475569' }}>Active: {active?.name || '...'}</span>
                   {active?.url && <code style={{ fontSize: 10, color: '#64748b' }}>{active.url}</code>}
                 </div>
               </div>
-              <div className="p1mcp-tree-group">
-                <div className="p1mcp-tree-group__label">Rate Limiting (UC18)</div>
+              <div className="inspector-shell-tree-group">
+                <div className="inspector-shell-tree-group__label">Rate Limiting (UC18)</div>
                 {rateStatus && (
                   <>
-                    <div className="p1mcp-tree-item" style={{ cursor: 'default', fontSize: 11 }}>
-                      <span className="p1mcp-tree-item__dot" style={{ background: rateStatus.aligned ? '#22c55e' : '#ef4444' }} />
+                    <div className="inspector-shell-tree-item" style={{ cursor: 'default', fontSize: 11 }}>
+                      <span className="inspector-shell-tree-item__dot" style={{ background: rateStatus.aligned ? '#22c55e' : '#ef4444' }} />
                       <span>Layer: {rateStatus.rateLimitLayer || 'off'}</span>
                     </div>
-                    <div className="p1mcp-tree-item" style={{ cursor: 'default', fontSize: 11 }}>
-                      <span className="p1mcp-tree-item__dot" style={{ background: rateStatus.bffFlag ? '#22c55e' : '#64748b' }} />
+                    <div className="inspector-shell-tree-item" style={{ cursor: 'default', fontSize: 11 }}>
+                      <span className="inspector-shell-tree-item__dot" style={{ background: rateStatus.bffFlag ? '#22c55e' : '#64748b' }} />
                       <span>BFF flag: {rateStatus.bffFlag ? 'ON' : 'OFF'}</span>
                     </div>
-                    <div className="p1mcp-tree-item" style={{ cursor: 'default', fontSize: 11 }}>
-                      <span className="p1mcp-tree-item__dot" style={{ background: rateStatus.aligned ? '#22c55e' : '#f59e0b' }} />
+                    <div className="inspector-shell-tree-item" style={{ cursor: 'default', fontSize: 11 }}>
+                      <span className="inspector-shell-tree-item__dot" style={{ background: rateStatus.aligned ? '#22c55e' : '#f59e0b' }} />
                       <span>Aligned: {rateStatus.aligned ? 'YES' : 'NO'}</span>
                     </div>
                   </>
                 )}
                 <div
-                  className="p1mcp-tree-item"
+                  className="inspector-shell-tree-item"
                   onClick={toggleUc18Demo}
                   style={{ color: uc18Busy ? '#475569' : '#3b82f6', fontSize: 11 }}
                 >
-                  <span className="p1mcp-tree-item__dot" style={{ background: '#3b82f6' }} />
+                  <span className="inspector-shell-tree-item__dot" style={{ background: '#3b82f6' }} />
                   <span>{uc18Busy ? 'Updating...' : (rateStatus?.aligned ? 'Disable UC18' : 'Enable UC18')}</span>
                 </div>
                 <div
-                  className="p1mcp-tree-item"
+                  className="inspector-shell-tree-item"
                   onClick={() => !bursting && selectedTool && rateStatus?.aligned && runBurst()}
                   style={{ color: (!selectedTool || !rateStatus?.aligned || bursting) ? '#475569' : '#3b82f6', fontSize: 11 }}
                 >
-                  <span className="p1mcp-tree-item__dot" style={{ background: '#f59e0b' }} />
+                  <span className="inspector-shell-tree-item__dot" style={{ background: '#f59e0b' }} />
                   <span>{bursting ? 'Running...' : 'Burst test (5 calls)'}</span>
                 </div>
               </div>
-              <div className="p1mcp-tree-group">
-                <div className="p1mcp-tree-group__label">Demo Presets</div>
+              <div className="inspector-shell-tree-group">
+                <div className="inspector-shell-tree-group__label">Demo Presets</div>
                 {PRESETS.map(p => (
                   <div
                     key={p.id}
-                    className="p1mcp-tree-item"
+                    className="inspector-shell-tree-item"
                     onClick={() => !presetBusy && runPreset(p.id)}
                     style={{ color: presetBusy ? '#475569' : '#3b82f6', fontSize: 11 }}
                   >
-                    <span className="p1mcp-tree-item__dot" style={{ background: '#8b5cf6' }} />
+                    <span className="inspector-shell-tree-item__dot" style={{ background: '#8b5cf6' }} />
                     <span>{presetBusy === p.id ? 'Applying...' : p.label}</span>
                   </div>
                 ))}
               </div>
-              <div className="p1mcp-tree-group">
-                <div className="p1mcp-tree-group__label">RFC 9728 Metadata</div>
+              <div className="inspector-shell-tree-group">
+                <div className="inspector-shell-tree-group__label">RFC 9728 Metadata</div>
                 <div
-                  className="p1mcp-tree-item"
+                  className="inspector-shell-tree-item"
                   onClick={() => !metadataLoading && fetchMetadata()}
                   style={{ color: metadataLoading ? '#475569' : '#3b82f6', fontSize: 11 }}
                 >
-                  <span className="p1mcp-tree-item__dot" style={{ background: '#06b6d4' }} />
+                  <span className="inspector-shell-tree-item__dot" style={{ background: '#06b6d4' }} />
                   <span>{metadataLoading ? 'Fetching...' : 'Fetch live metadata'}</span>
                 </div>
                 {metadata && Object.entries(metadata).map(([key, data]) => (
-                  <div key={key} className="p1mcp-tree-item" style={{ cursor: 'default', fontSize: 10 }}>
-                    <span className="p1mcp-tree-item__dot" style={{ background: data?._status === 'ok' ? '#22c55e' : '#ef4444' }} />
+                  <div key={key} className="inspector-shell-tree-item" style={{ cursor: 'default', fontSize: 10 }}>
+                    <span className="inspector-shell-tree-item__dot" style={{ background: data?._status === 'ok' ? '#22c55e' : '#ef4444' }} />
                     <span>{key}: {data?._status || 'unknown'}</span>
                   </div>
                 ))}
               </div>
             </div>
           )}
-        </div>
-
-        {/* Column 2: Form */}
-        <div className="p1mcp-col-form">
-          {selectedTool ? (
-            <>
-              <div className="p1mcp-form-header">
-                <div className="p1mcp-form-header__name">{selectedTool.name}</div>
-                {selectedTool.description && (
-                  <div className="p1mcp-form-header__desc">{selectedTool.description}</div>
-                )}
-              </div>
-              <div className="p1mcp-form-actions p1mcp-form-actions--top">
-                <button className="p1mcp-btn-call" onClick={send} disabled={sending}>
-                  {sending ? 'Sending...' : 'Execute'}
-                </button>
-                <button className="p1mcp-btn-clear" onClick={clearForm}>Clear</button>
-              </div>
-              <div className="p1mcp-form-body">
-                <div className="p1mcp-field">
-                  <label>
-                    Arguments (JSON)
-                    <span className="type">object</span>
-                  </label>
-                  <textarea
-                    value={argsText}
-                    onChange={e => setArgsText(e.target.value)}
-                    placeholder='{}'
-                    spellCheck={false}
-                    rows={6}
-                    style={{ fontFamily: "'SF Mono', monospace" }}
-                  />
-                </div>
-                {active && (
-                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 8, lineHeight: 1.6 }}>
-                    <div>Gateway: <strong style={{ color: '#334155' }}>{active.name}</strong></div>
-                    <div>Authorize: <strong style={{ color: '#334155' }}>{active.authzBackend}</strong></div>
-                    {active.url && <div>URL: <code style={{ fontSize: 10 }}>{active.url}</code></div>}
-                  </div>
-                )}
-              </div>
-              <div className="p1mcp-form-actions">
-                <button className="p1mcp-btn-call" onClick={send} disabled={sending}>
-                  {sending ? 'Sending...' : 'Execute'}
-                </button>
-                <button className="p1mcp-btn-clear" onClick={clearForm}>Clear</button>
-                {rateStatus?.aligned && (
-                  <button
-                    className="p1mcp-btn-clear"
-                    onClick={runBurst}
-                    disabled={bursting}
-                    style={{ marginLeft: 'auto' }}
-                  >
-                    {bursting ? 'Burst...' : 'Burst x5'}
-                  </button>
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="p1mcp-form-empty">
-              Select a tool from the tree to send through the Agent Gateway.
+        </>
+      }
+      middle={
+        selectedTool ? (
+          <>
+            <div className="inspector-shell-form-header">
+              <div className="inspector-shell-form-header__name">{selectedTool.name}</div>
+              {selectedTool.description && (
+                <div className="inspector-shell-form-header__desc">{selectedTool.description}</div>
+              )}
             </div>
-          )}
-        </div>
-
-        {/* Column 3: Output */}
-        <div className="p1mcp-col-output">
-          <div className="p1mcp-output-tabs">
-            {['result', 'audit', 'authorize', 'mcpAudit'].map(tab => (
-              <button
-                key={tab}
-                className={`p1mcp-output-tab ${outputTab === tab ? 'p1mcp-output-tab--active' : ''}`}
-                onClick={() => setOutputTab(tab)}
-              >
-                {tab === 'result' && 'Result'}
-                {tab === 'audit' && 'Audit Trail'}
-                {tab === 'authorize' && 'Authorize Decision'}
-                {tab === 'mcpAudit' && 'McpAudit (5W1H)'}
+            <div className="inspector-shell-form-actions inspector-shell-form-actions--top">
+              <button className="inspector-shell-btn-call" onClick={send} disabled={sending}>
+                {sending ? 'Sending...' : 'Execute'}
               </button>
-            ))}
+              <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
+            </div>
+            <div className="inspector-shell-form-body">
+              <div className="inspector-shell-field">
+                <label>
+                  Arguments (JSON)
+                  <span className="type">object</span>
+                </label>
+                <textarea
+                  value={argsText}
+                  onChange={e => setArgsText(e.target.value)}
+                  placeholder='{}'
+                  spellCheck={false}
+                  rows={6}
+                  style={{ fontFamily: "'SF Mono', monospace" }}
+                />
+              </div>
+              {active && (
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: 8, lineHeight: 1.6 }}>
+                  <div>Gateway: <strong style={{ color: '#334155' }}>{active.name}</strong></div>
+                  <div>Authorize: <strong style={{ color: '#334155' }}>{active.authzBackend}</strong></div>
+                  {active.url && <div>URL: <code style={{ fontSize: 10 }}>{active.url}</code></div>}
+                </div>
+              )}
+            </div>
+            <div className="inspector-shell-form-actions">
+              <button className="inspector-shell-btn-call" onClick={send} disabled={sending}>
+                {sending ? 'Sending...' : 'Execute'}
+              </button>
+              <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
+              {rateStatus?.aligned && (
+                <button
+                  className="inspector-shell-btn-clear"
+                  onClick={runBurst}
+                  disabled={bursting}
+                  style={{ marginLeft: 'auto' }}
+                >
+                  {bursting ? 'Burst...' : 'Burst x5'}
+                </button>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="inspector-shell-form-empty">
+            Select a tool from the tree to send through the Agent Gateway.
           </div>
+        )
+      }
+      right={
+        <>
+          <InspectorTabs
+            tabs={[
+              { key: 'result', label: 'Result' },
+              { key: 'audit', label: 'Audit Trail' },
+              { key: 'authorize', label: 'Authorize Decision' },
+              { key: 'mcpAudit', label: 'McpAudit (5W1H)' },
+            ]}
+            activeKey={outputTab}
+            onChange={setOutputTab}
+          />
           {resp ? (
             <>
-              <div className="p1mcp-output-body">
-                <pre className="p1mcp-output-code">
+              <div className="inspector-shell-output-body">
+                <pre className="inspector-shell-output-code">
                   {outputTab === 'result' && <JsonHighlight value={resultValue} />}
                   {outputTab === 'audit' && (
                     <JsonHighlight value={resp.gwAuditTrail || { note: 'No audit trail on this response.' }} />
@@ -734,7 +720,7 @@ export default function AgentGatewayTester() {
                   )}
                 </pre>
               </div>
-              <div className="p1mcp-output-footer">
+              <div className="inspector-shell-output-footer">
                 <span>
                   <strong>Status:</strong>{' '}
                   {resp.clientError
@@ -752,24 +738,24 @@ export default function AgentGatewayTester() {
             </>
           ) : burstResp ? (
             <>
-              <div className="p1mcp-output-body">
-                <pre className="p1mcp-output-code">
+              <div className="inspector-shell-output-body">
+                <pre className="inspector-shell-output-code">
                   <JsonHighlight value={burstResp} />
                 </pre>
               </div>
-              <div className="p1mcp-output-footer">
+              <div className="inspector-shell-output-footer">
                 <span><strong>Burst test:</strong> {burstResp.summary || `${(burstResp.results || []).length} calls`}</span>
               </div>
             </>
           ) : (
-            <div className="p1mcp-output-empty">
+            <div className="inspector-shell-output-empty">
               {selectedTool
                 ? 'Click Execute to send through the gateway and see results here.'
                 : 'Select a tool, then execute it to see results.'}
             </div>
           )}
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    />
   );
 }

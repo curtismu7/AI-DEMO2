@@ -10,6 +10,7 @@ import McpInspector from "./McpInspector";
 import McpTrafficPage from "./McpTrafficPage";
 import TokenSecurityTester from "./TokenSecurityTester";
 import CapabilityCallout from "./CapabilityCallout";
+import { AGENT_GATEWAY_CAPABILITIES } from "../config/capabilityLedgers/agentGatewayCapabilities";
 import { useMcpFieldState } from "../hooks/useMcpFieldState";
 import { useGatewayLiveConfig } from "../hooks/useGatewayLiveConfig";
 import { MCP_FIELD_KEYS } from "../constants/mcpFieldKeys";
@@ -223,7 +224,10 @@ function McpGatewayConfigInner() {
 
 	return (
 		<div className="mgc-root">
-			<CapabilityCallout capabilityId="audit-logging" />
+			<CapabilityCallout
+				capability={AGENT_GATEWAY_CAPABILITIES.find((c) => c.id === "audit-logging")}
+				to="/agent-gateway-capabilities"
+			/>
 			<div className="mgc-header">
 				<div>
 					<h2 className="mgc-title">Agent Gateway Configuration</h2>

@@ -14,6 +14,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import apiClient from '../services/apiClient';
 import CapabilityCallout from './CapabilityCallout';
+import { AGENT_GATEWAY_CAPABILITIES } from '../config/capabilityLedgers/agentGatewayCapabilities';
 
 const TAIL_OPTIONS = [100, 200, 500, 1000];
 const REFRESH_MS = 4000;
@@ -90,7 +91,10 @@ export default function AgentGatewayLogPanel() {
 
   return (
     <div className="mgc-section">
-      <CapabilityCallout capabilityId="rate-limiting" />
+      <CapabilityCallout
+        capability={AGENT_GATEWAY_CAPABILITIES.find((c) => c.id === 'rate-limiting')}
+        to="/agent-gateway-capabilities"
+      />
       <h4>Real Agent Gateway logs</h4>
       <p className="mgc-field-hint">
         Live view of the PingGateway (IG) container: recent authorize decisions and the

@@ -45,6 +45,7 @@ import ComplianceModalPopout from "./components/ComplianceModalPopout";
 import Dashboard from "./components/Dashboard";
 import DelegatedAccessPage from "./components/DelegatedAccessPage";
 import DelegationPage from "./components/DelegationPage";
+import AgentLifecyclePage from "./pages/AgentLifecyclePage";
 import DemoGuidePopout from "./components/DemoGuidePopout";
 import DemoServerCheckModal from "./components/DemoServerCheckModal";
 import { resolveEmbeddedFocus } from "./components/demoAgentSafety";
@@ -67,6 +68,8 @@ import MortgagePathPage from "./components/MortgagePathPage";
 import OAuthDebugLogViewer from "./components/OAuthDebugLogViewer";
 import OAuthTokenDisplayPage from "./components/OAuthTokenDisplayPage";
 import PingOneAuthorizePage from "./components/PingOneAuthorizePage";
+import PingOneAuthorizeCapabilitiesPage from "./pages/PingOneAuthorizeCapabilitiesPage";
+import AgentGatewayCapabilitiesPage from "./pages/AgentGatewayCapabilitiesPage";
 import PolicyDecisionTracePage from "./components/PolicyDecisionTracePage";
 import McpGatewayConfig from "./components/McpGatewayConfig";
 import PingOneMcpInspector from "./components/PingOneMcpInspector";
@@ -135,7 +138,7 @@ import MonitoringRoutes, {
   SequenceDiagramRoute,
 } from "./routes/MonitoringRoutes";
 import PublicRoutes, {
-  AgentGatewayCapabilitiesTourRoute,
+  CibaApprovalPageRoute,
   CodeExplorerPageRoute,
   CodeSearchPageRoute,
   ConfigurePage,
@@ -164,6 +167,7 @@ import {
   isBankingAgentDashboardRoute,
   isEmbeddedAgentDockRoute,
   isLiveWorkbenchRoute,
+  isAgentLifecycleRoute,
   isMonitoringRoute,
   isPublicMarketingAgentPath,
 } from "./utils/embeddedAgentFabVisibility";
@@ -325,6 +329,8 @@ function AppWithAuth() {
   // placement mechanism as UserDashboard, extended to a second route.
   const onLiveWorkbenchRoute = Boolean(user) && isLiveWorkbenchRoute(pathname);
 
+  const onAgentLifecycleRoute = Boolean(user) && isAgentLifecycleRoute(pathname);
+
   // Landing home (/): show floating agent even when signed out.
   // Suppress float on signed-in / only when UserDashboard owns middle placement.
   const marketingAgentSurface = isPublicMarketingAgentPath(pathname) && !user;
@@ -377,7 +383,8 @@ function AppWithAuth() {
     showFloatingAgent ||
     hasEmbeddedDockLayout ||
     onMiddlePlacementInDashboard ||
-    onLiveWorkbenchRoute;
+    onLiveWorkbenchRoute ||
+    onAgentLifecycleRoute;
 
   // When the single agent is portaled into the bottom dock host it must wear
   // the dock's inline chrome (no floating frame/drag), exactly as the old
@@ -396,9 +403,10 @@ function AppWithAuth() {
     // dock chrome doesn't appear inside the column. Same pattern as the
     // clinical-split branch above.
     singleAgentSurfaceProps = { mode: "inline", splitColumnChrome: true };
-  } else if (onLiveWorkbenchRoute) {
-    // This route's own narrow host always wants the agent, regardless of the
-    // user's dashboard-wide placement preference (same reasoning as clinicalSplit).
+  } else if (onLiveWorkbenchRoute || onAgentLifecycleRoute) {
+    // Both routes' own narrow/right-column host always want the agent,
+    // regardless of the user's dashboard-wide placement preference (same
+    // reasoning as clinicalSplit).
     singleAgentSurfaceProps = { mode: "inline", splitColumnChrome: true };
   }
 
@@ -481,9 +489,7 @@ function AppWithAuth() {
                 />
                 <Route
                   path="/agent-gateway-capabilities"
-                  element={
-                    <AgentGatewayCapabilitiesTourRoute user={user} logout={logout} />
-                  }
+                  element={<AgentGatewayCapabilitiesPage />}
                 />
                 <Route
                   path="/token-exchange-tester"
@@ -496,6 +502,7 @@ function AppWithAuth() {
                   element={<SdkLoginPageRoute />}
                 />
                 <Route path="/sdk-login/callback" element={<SdkLoginCallbackRoute />} />
+                <Route path="/ciba-approve" element={<CibaApprovalPageRoute />} />
                 <Route
                   path="/code-explorer"
                   element={
@@ -979,6 +986,10 @@ function AppWithAuth() {
                               element={<PingOneAuthorizePage />}
                             />
                             <Route
+                              path="/pingone-authorize-capabilities"
+                              element={<PingOneAuthorizeCapabilitiesPage />}
+                            />
+                            <Route
                               path="/policy-decision-trace"
                               element={<PolicyDecisionTracePage />}
                             />
@@ -1274,6 +1285,16 @@ function AppWithAuth() {
                                     user={user}
                                     onLogout={logout}
                                   />
+                                ) : (
+                                  <Navigate to="/" replace />
+                                )
+                              }
+                            />
+                            <Route
+                              path="/agent-lifecycle"
+                              element={
+                                user ? (
+                                  <AgentLifecyclePage />
                                 ) : (
                                   <Navigate to="/" replace />
                                 )

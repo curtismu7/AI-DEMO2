@@ -3,6 +3,7 @@ import { notifySuccess, notifyError } from '../utils/appToast';
 import '../styles/appShellPages.css';
 import './ScopeAuditPage.css';
 import CapabilityCallout from './CapabilityCallout';
+import { AGENT_GATEWAY_CAPABILITIES } from '../config/capabilityLedgers/agentGatewayCapabilities';
 
 /**
  * ScopeAuditPage — PingOne resource & scope verification UI.
@@ -154,7 +155,10 @@ export default function ScopeAuditPage() {
       <p className="scope-audit-page__subtitle">
         Environment: <code>{envInfo.environment}</code> · Region: <code>{envInfo.region}</code>
       </p>
-      <CapabilityCallout capabilityId="policy-enforcement" />
+      <CapabilityCallout
+        capability={AGENT_GATEWAY_CAPABILITIES.find((c) => c.id === 'policy-enforcement')}
+        to="/agent-gateway-capabilities"
+      />
 
       {/* Summary bar */}
       <div className="scope-audit-page__summary">
