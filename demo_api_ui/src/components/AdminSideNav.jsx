@@ -417,6 +417,12 @@ export default function AdminSideNav({ user }) {
   const allNavItems = [
     { label: "Home", path: "/", icon: "~" },
     { label: "Dashboard", path: "/dashboard", icon: "≡" },
+    {
+      label: "Agent Lifecycle",
+      path: "/agent-lifecycle",
+      icon: "agt",
+      customerOnly: true,
+    },
     { label: "Themes", path: "/themes", icon: "cfg" },
     { label: "Use Cases", path: "/use-cases", icon: "demo" },
     { label: "Use Cases (Live)", path: "/use-cases/live", icon: "demo" },
@@ -441,12 +447,6 @@ export default function AdminSideNav({ user }) {
       label: "Family Delegation",
       path: "/delegation",
       icon: "usr",
-      customerOnly: true,
-    },
-    {
-      label: "Agent Lifecycle",
-      path: "/agent-lifecycle",
-      icon: "agt",
       customerOnly: true,
     },
     {
