@@ -61,6 +61,98 @@ function ScopedCallSlot() {
   );
 }
 
+function StepUpSlot() {
+  const [phase, setPhase] = React.useState('idle'); // idle | checking-out | waiting-approval | approved | error
+  const [message, setMessage] = React.useState('');
+  const timerRef = React.useRef(null);
+
+  const postCheckout = React.useCallback(async () => {
+    const res = await fetch('/api/mcp/tool', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tool: 'checkout',
+        params: { product: 'Headphones', amount: 600 },
+        useCaseId: 'ciba-out-of-band-approval',
+        vertical: 'retail',
+      }),
+    });
+    const body = await res.json().catch(() => ({}));
+    return { status: res.status, ok: res.ok, body };
+  }, []);
+
+  const pollCiba = React.useCallback((authReqId, intervalMs) => {
+    timerRef.current = setTimeout(async () => {
+      const res = await fetch(`/api/auth/ciba/poll/${authReqId}`, { credentials: 'include' });
+      if (res.status === 403 || res.status === 404 || res.status === 410) {
+        setPhase('error');
+        setMessage('CIBA approval was denied or expired.');
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (data.status === 'approved') {
+        setMessage('Approved — retrying checkout…');
+        const retry = await postCheckout();
+        if (retry.ok) {
+          setPhase('approved');
+          setMessage('Checkout completed.');
+        } else {
+          setPhase('error');
+          setMessage(retry.body.message || `Retry failed: HTTP ${retry.status}`);
+        }
+        return;
+      }
+      pollCiba(authReqId, intervalMs);
+    }, intervalMs);
+  }, [postCheckout]);
+
+  const runCheckout = React.useCallback(async () => {
+    setPhase('checking-out');
+    setMessage('');
+    const { status, ok, body } = await postCheckout();
+    if (status === 428 && body.error === 'mcp_step_up_required' && body.step_up_method === 'ciba') {
+      const initRes = await fetch('/api/auth/ciba/initiate', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ binding_message: 'Approve your $600 headphones purchase' }),
+      });
+      const { auth_req_id, interval } = await initRes.json();
+      setPhase('waiting-approval');
+      setMessage(`Waiting for push approval (auth_req_id: ${auth_req_id})…`);
+      pollCiba(auth_req_id, (interval || 5) * 1000);
+      return;
+    }
+    if (!ok) {
+      setPhase('error');
+      setMessage(body.message || body.error_description || `HTTP ${status}`);
+      return;
+    }
+    setPhase('approved');
+    setMessage('Checkout completed.');
+  }, [postCheckout, pollCiba]);
+
+  React.useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const busy = phase === 'checking-out' || phase === 'waiting-approval';
+
+  return (
+    <section className="alp-slot">
+      <h2 className="alp-slot__title">3. Step-up approval on a sensitive purchase</h2>
+      <p className="alp-slot__desc">
+        Checks out $600 of headphones with the same agent-scoped path — above
+        the retail step-up threshold, so PingOne Authorize requires a CIBA
+        push approval before the purchase completes.
+      </p>
+      <button className="alp-btn" type="button" onClick={runCheckout} disabled={busy}>
+        {busy ? 'Processing…' : 'Checkout $600 headphones'}
+      </button>
+      {message && <p className="alp-slot__status">{message}</p>}
+    </section>
+  );
+}
+
 export default function AgentLifecyclePage() {
   return (
     <div className="alp-wrap">
@@ -71,6 +163,7 @@ export default function AgentLifecyclePage() {
       </p>
       <RegistrationSlot />
       <ScopedCallSlot />
+      <StepUpSlot />
     </div>
   );
 }

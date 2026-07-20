@@ -73,3 +73,68 @@ describe('AgentLifecyclePage — Slot 2 scoped MCP call', () => {
     await waitFor(() => expect(screen.getByText('boom')).toBeInTheDocument());
   });
 });
+
+describe('AgentLifecyclePage — Slot 3 step-up on purchase', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('walks checkout -> CIBA pending -> approved -> retried checkout', async () => {
+    let pollCount = 0;
+    global.fetch = vi.fn((url, opts) => {
+      if (url === '/api/mcp/tool') {
+        const body = JSON.parse(opts.body);
+        if (body.tool !== 'checkout') return Promise.reject(new Error('unexpected tool'));
+        // First call: step-up required. Second call (post-approval retry): success.
+        if (pollCount === 0) {
+          return Promise.resolve({
+            status: 428,
+            ok: false,
+            json: () => Promise.resolve({
+              error: 'mcp_step_up_required',
+              step_up_method: 'ciba',
+            }),
+          });
+        }
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json: () => Promise.resolve({ result: { content: [{ type: 'text', text: '{}' }] } }),
+        });
+      }
+      if (url === '/api/auth/ciba/initiate') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ auth_req_id: 'req-1', interval: 1 }),
+        });
+      }
+      if (url === '/api/auth/ciba/poll/req-1') {
+        pollCount += 1;
+        return Promise.resolve({
+          status: 200,
+          json: () => Promise.resolve(
+            pollCount < 2 ? { status: 'pending' } : { status: 'approved' },
+          ),
+        });
+      }
+      return Promise.reject(new Error(`unhandled fetch: ${url}`));
+    });
+
+    render(<AgentLifecyclePage />);
+    fireEvent.click(screen.getByText('Checkout $600 headphones'));
+
+    await waitFor(() =>
+      expect(screen.getByText(/Waiting for push approval/)).toBeInTheDocument(),
+    );
+
+    await vi.advanceTimersByTimeAsync(1000); // first poll: pending
+    await vi.advanceTimersByTimeAsync(1000); // second poll: approved -> retry
+
+    await waitFor(() =>
+      expect(screen.getByText('Checkout completed.')).toBeInTheDocument(),
+    );
+  });
+});
