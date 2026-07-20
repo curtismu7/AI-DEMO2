@@ -4,9 +4,9 @@
 
 **Goal:** Convert the "Evaluate" section of `demo_api_ui/src/components/PingOneAuthorizePage.jsx` — today a single vertical stack (a separate "Authorization Policies" card, then a separate "Evaluate" card with an inline preset-form-then-result blob) — onto the shared `InspectorShell` from the prior plan: policy tree on the left, preset form in the middle, tabbed Decision/Response/Request output on the right.
 
-**Architecture:** `EvaluatePanel` (today: a form-then-inline-result component nested inside its own "Evaluate" card, with a sibling `PoliciesCard` component rendering a separate "Authorization Policies" card above it) becomes the sole owner of an `<InspectorShell>` instance. It gains two new props — `policiesState` (replacing the current `policies` array prop, so it can render loading/error states) and `onTestRule` (today only passed to the sibling `PoliciesCard`) — and absorbs the policy-tree rendering into its `left` slot, using the existing `PolicyNode` recursive component completely unchanged. The preset tabs + form + Evaluate button move into `middle`. The result box, response JSON, and request JSON — previously three separately-visible blocks — become three tabs (`Decision` / `Response` / `Request`) in `right`, via a new `outputTab` state. **Correction to the design spec:** the spec (`docs/superpowers/specs/2026-07-19-inspector-shell-template-design.md`) called this "the simplest swap" of the three page conversions; deep-reading the full 1008-line file during this plan's research found the opposite — it is a single vertical stack of cards today, not close to a 3-column shape, making it the most invasive of the three. The FloatingPanel-based "policy decision trace" overlay (`traceOpen` state, the "Open policy decision trace" button, `<FloatingPanel><PolicyDecisionTree .../></FloatingPanel>`) is kept **exactly as-is** — this was confirmed with the human during design (option: keep, not replace with a tab) — and is rendered as a sibling to `<InspectorShell>`, not nested inside a tab, so it stays open across output-tab switches exactly as it does today across the (currently tab-less) page.
+**Architecture:** `EvaluatePanel` (today: a form-then-inline-result component nested inside its own "Evaluate" card, with a sibling `PoliciesCard` component rendering a separate "Authorization Policies" card above it) becomes the sole owner of an `<InspectorShell>` instance. It gains two new props — `policiesState` (replacing the current `policies` array prop, so it can render loading/error states) and `onTestRule` (today only passed to the sibling `PoliciesCard`) — and absorbs the policy-tree rendering into its `left` slot, using the existing `PolicyNode` recursive component completely unchanged. The preset tabs + form + Evaluate button move into `middle`. The result box, response JSON, and request JSON — previously three separately-visible blocks — become three tabs (`Decision` / `Response` / `Request`) in `right`, via a new `outputTab` state. **Correction to the design spec:** the spec (`docs/superpowers/specs/2026-07-19-inspector-shell-template-design.md`) called this "the simplest swap" of the three page conversions; deep-reading the full 1008-line file during this plan's research found the opposite — it is a single vertical stack of cards today, not close to a 3-column shape, making it the most invasive of the three. **Second correction, found mid-execution:** an earlier draft of this plan (and the human decision behind it) assumed the "Open policy decision trace" button opened a `FloatingPanel`/`PolicyDecisionTree` overlay gated by `traceOpen` state — true when the plan was first drafted, but a concurrent, unrelated commit (`8cf7db3ed`, already on `origin/main` by the time this plan's worktree branched) replaced that entirely with a plain `navigate('/policy-decision-trace', { state: { policies, result } })` call to a dedicated route, before this plan's implementation began. This plan now keeps *that* (the currently-real behavior) unchanged, dropping `FloatingPanel`/`PolicyDecisionTree`/`traceOpen` from its own scope entirely — confirmed with the human once the drift was discovered. That commit also left three orphaned `setTraceOpen(...)` calls behind (a live `ReferenceError` — `setTraceOpen` is not defined — that fires on every "Evaluate (live)" click); Task 1 fixes those three lines as a small, in-scope, pre-existing-bug fix since they sit inside code this task already edits.
 
-Everything **outside** the Evaluate section — the console/guided outer tab bar, header, error banner, `notConfigured`/`metaStrip` block, the "Decision Endpoint" picker card, "Recent Decisions" card, and "Run History" card — is untouched. `PoliciesCard` (the standalone "Authorization Policies" card component) is deleted once its content lives inside `EvaluatePanel`'s left column; its one piece of reusable logic (`ruleCount`, a recursive rule counter) moves to module level so both the deleted card and the new left column could have used it (only the new column does, post-deletion).
+Everything **outside** the Evaluate section — the outer tab bar (console / guided / mock authz rules / scopes & resources / snapshot import), header, error banner, `notConfigured`/`metaStrip` block, the "Decision Endpoint" picker card, "Recent Decisions" card, and "Run History" card — is untouched. `PoliciesCard` (the standalone "Authorization Policies" card component) is deleted once its content lives inside `EvaluatePanel`'s left column; its one piece of reusable logic (`ruleCount`, a recursive rule counter) moves to module level so both the deleted card and the new left column could have used it (only the new column does, post-deletion).
 
 **Tech Stack:** React 18, Vitest + `@testing-library/react` + `@testing-library/jest-dom`, `vi.mock('../services/bffAxios', ...)` per this repo's established pattern (see `demo_api_ui/src/components/__tests__/AccessIdTokenPathPage.test.jsx`).
 
@@ -14,11 +14,11 @@ Everything **outside** the Evaluate section — the console/guided outer tab bar
 
 - **Worktree required.** All work happens in `/Users/cmuir/Development/AI-DEMO2/.claude/worktrees/pingone-authorize-inspector-shell`, branch `worktree-pingone-authorize-inspector-shell`. Confirm with `git branch --show-current` before each commit.
 - **Protected UI area.** `demo_api_ui` is covered by `REGRESSION_PLAN.md` §1. Invoke `regression-guard` before Task 1's first edit. State what will not break: `PingOneAuthorizePage.jsx` is reached only via the `/pingone-authorize` route (unchanged in this plan) and is not imported by any other page except being embedded via `AuthzTestPage` reference in the other direction (this file imports `AuthzTestPage`, nothing imports `PingOneAuthorizePage` except its own route) — so the blast radius is this one route.
-- **Emoji allowlist** (`REGRESSION_PLAN.md` §0): only `⚠️ ✅ ❌ 🔐 ✕ ✓ 👤 🔑 🪟 📚` permitted. The existing file already uses `❌`, `⚠️`, `✅`, `🪟` (all allowlisted) — preserve them exactly where they appear in moved code; do not introduce any other emoji.
+- **Emoji allowlist** (`REGRESSION_PLAN.md` §0): only `⚠️ ✅ ❌ 🔐 ✕ ✓ 👤 🔑 🪟 📚` permitted. The existing file already uses `❌` and `⚠️` (both allowlisted) — preserve them exactly where they appear in moved code; do not introduce any other emoji. (An earlier draft of this plan also expected `🪟` on the trace-open button; that prefix no longer exists in the current file — see Step 8's note.)
 - **Stage explicitly.** `git add <exact files>`, never `git add -A`.
 - **Depends on the prior plan.** `InspectorShell`, `InspectorListItem`, `InspectorTabs` (`demo_api_ui/src/components/shared/InspectorShell.jsx` / `.css`, `InspectorListItem.jsx`, `InspectorTabs.jsx`) must already exist on `main` before this plan starts — they do (merged commit `70266b628`). This plan uses `InspectorShell` and `InspectorTabs`; it does **not** use `InspectorListItem` (the policy tree reuses the existing `PolicyNode` component instead — `PolicyNode` renders a nested Policy Set → Policy → Rule tree with two actions per rule, which doesn't fit `InspectorListItem`'s one-row-one-click-one-badge-set shape).
 - **UI build gate.** `npm run build` inside `demo_api_ui/` must succeed before this plan is done (final step of Task 2).
-- **No behavior change outside the Evaluate section.** The endpoint picker, Recent Decisions, Run History, header, and console/guided tabs keep their exact current JSX, props, and behavior — only the two lines that render `<PoliciesCard>` and the "Evaluate" card wrapper change, per Task 2.
+- **No behavior change outside the Evaluate section.** The endpoint picker, Recent Decisions, Run History, header, and outer tab bar (console / guided / mock authz rules / scopes & resources / snapshot import) keep their exact current JSX, props, and behavior — only the two lines that render `<PoliciesCard>` and the "Evaluate" card wrapper change, per Task 2.
 
 ---
 
@@ -36,7 +36,7 @@ Only one existing file is modified — no new files.
 ### Task 1: Restructure `EvaluatePanel` onto `InspectorShell`
 
 **Files:**
-- Modify: `demo_api_ui/src/components/PingOneAuthorizePage.jsx` (the `EvaluatePanel` function, lines 239–653 in the current file, plus one new module-level helper near the top)
+- Modify: `demo_api_ui/src/components/PingOneAuthorizePage.jsx` (the `EvaluatePanel` function — find it by its `function EvaluatePanel({ endpointId, autoPreset, ...` signature, not by line number, since earlier upstream commits have shifted it since this plan was first drafted; plus one new module-level helper near the top)
 - Create: `demo_api_ui/src/components/__tests__/PingOneAuthorizePage.test.jsx`
 
 **Interfaces:**
@@ -64,6 +64,14 @@ vi.mock('../../services/bffAxios', () => ({
     get: jest.fn(),
     post: jest.fn(),
   },
+}));
+
+// EvaluatePanel calls useNavigate() unconditionally (the "Open policy decision
+// trace" button navigates to /policy-decision-trace) — mock it so render()
+// doesn't throw "useNavigate() may be used only in the context of a <Router>".
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => mockNavigate,
 }));
 
 const ONE_POLICY = [
@@ -194,6 +202,21 @@ test('the Response and Request output tabs show the last call\'s trace after an 
   fireEvent.click(screen.getByRole('button', { name: 'Request' }));
   expect(screen.getByText(/ep-1|endpointId/)).toBeInTheDocument();
 });
+
+test('the "Open policy decision trace" button navigates to /policy-decision-trace with the policies and result', async () => {
+  bffAxios.post.mockResolvedValueOnce({
+    data: { decision: 'PERMIT', engine: 'simulated', decisionId: 'dec-1', path: '/decide' },
+  });
+  renderPanel();
+  fireEvent.click(screen.getByRole('button', { name: /Evaluate \(live\)/ }));
+  await screen.findByText('PERMIT');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Open policy decision trace' }));
+  expect(mockNavigate).toHaveBeenCalledWith(
+    '/policy-decision-trace',
+    expect.objectContaining({ state: expect.objectContaining({ policies: ONE_POLICY }) }),
+  );
+});
 ```
 
 - [ ] **Step 3: Run the tests to verify they fail**
@@ -234,7 +257,7 @@ Change the function signature (currently `function EvaluatePanel({ endpointId, a
 export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTest, onClearPendingTest, onEvaluated, onTestRule }) {
 ```
 
-Immediately inside the function body, before the existing `const [preset, setPreset] = useState(autoPreset);` line, add:
+The function's current first line, `const navigate = useNavigate();`, stays exactly as-is — it's not part of this step. Immediately **after** that line (i.e. still before the existing `const [preset, setPreset] = useState(autoPreset);` line), add:
 
 ```js
   const { policies, loading: policiesLoading, error: policiesError, note: policiesNote } = policiesState;
@@ -243,12 +266,38 @@ Immediately inside the function body, before the existing `const [preset, setPre
 
 Every other `useState`/`useEffect`/`useCallback`/`useMemo` declaration in `EvaluatePanel` stays exactly as it is today — this step only adds these two lines and changes the signature. The `explanation` useMemo already reads `policies` as a plain identifier (`explainAuthorizeResult({ parameters: lastParameters, result, preset, policies })`) — leave that line untouched; it now resolves to the destructured local `const policies` instead of the old prop, with no other change needed.
 
-- [ ] **Step 7: Reset the output tab to "decision" when a new evaluation runs**
+- [ ] **Step 7: Fix 3 calls to `setTraceOpen` — a function that no longer exists**
 
-In the existing `run` function, the first line is `setRunning(true); setResult(null); setTraceOpen(false); setErr(null); setLastTrace(null); setLastParameters(null);`. Add `setOutputTab('decision');` to that same line, so a fresh evaluation always surfaces its decision immediately:
+The current file has three calls to `setTraceOpen(...)`, a leftover from a policy-decision-trace redesign (commit `8cf7db3ed`) that removed the `useState` declaration for `traceOpen` but missed these three call sites. This is a live bug: `setTraceOpen` is not defined anywhere in the file, so each of these throws `ReferenceError: setTraceOpen is not defined` when it runs — including the one inside `run()`, meaning **every click of "Evaluate (live)" currently crashes**. Fixing this is in scope because all three lines sit inside code this task already touches.
+
+In the first `useEffect` (the one that resets state when `endpointId`/`autoPreset` changes), delete the `setTraceOpen(false);` line:
 
 ```js
-    setRunning(true); setResult(null); setTraceOpen(false); setErr(null); setLastTrace(null); setLastParameters(null); setOutputTab('decision');
+  useEffect(() => {
+    setPreset(autoPreset);
+    setResult(null);
+    setErr(null);
+    setLastTrace(null);
+    setLastParameters(null);
+    onClearPendingTest?.();
+  }, [endpointId, autoPreset, onClearPendingTest]);
+```
+
+In the second `useEffect` (the one that applies a `pendingTest`), delete the `setTraceOpen(false);` line:
+
+```js
+  useEffect(() => {
+    if (!pendingTest) return;
+    setPreset(pendingTest.preset);
+    setResult(null);
+    setErr(null);
+    const p = pendingTest.parameters;
+```
+
+In `run()`, replace the first line — `setRunning(true); setResult(null); setTraceOpen(false); setErr(null); setLastTrace(null); setLastParameters(null);` — removing `setTraceOpen(false);` and adding `setOutputTab('decision');` so a fresh evaluation always surfaces its decision immediately:
+
+```js
+    setRunning(true); setResult(null); setErr(null); setLastTrace(null); setLastParameters(null); setOutputTab('decision');
 ```
 
 - [ ] **Step 8: Replace `EvaluatePanel`'s return statement**
@@ -257,12 +306,11 @@ Replace the entire `return (...)` block (from `return (` through the matching cl
 
 ```jsx
   return (
-    <>
-      <InspectorShell
-        title="PingOne Authorize"
-        statusOn={!!endpointId}
-        statusText={endpointId ? undefined : 'Select a decision endpoint above'}
-        left={
+    <InspectorShell
+      title="PingOne Authorize"
+      statusOn={!!endpointId}
+      statusText={endpointId ? undefined : 'Select a decision endpoint above'}
+      left={
           <>
             <div className="inspector-shell-tree-header">
               <span>Authorization Policies</span>
@@ -463,11 +511,10 @@ Replace the entire `return (...)` block (from `return (` through the matching cl
                     )}
                     <button
                       type="button"
-                      style={traceOpen ? S.reopenTraceOpen : S.reopenTrace}
-                      onClick={() => setTraceOpen((open) => !open)}
-                      aria-expanded={traceOpen}
+                      style={S.reopenTrace}
+                      onClick={() => navigate('/policy-decision-trace', { state: { policies, result } })}
                     >
-                      {traceOpen ? 'Close floating policy decision trace' : '🪟 Open policy decision trace'}
+                      Open policy decision trace
                     </button>
                   </div>
                 ) : (
@@ -500,36 +547,11 @@ Replace the entire `return (...)` block (from `return (` through the matching cl
           </>
         }
       />
-      {result && traceOpen && (
-        <FloatingPanel
-          title="Policy decision trace"
-          defaultWidth={Math.min(780, window.innerWidth - 48)}
-          defaultHeight={Math.min(560, window.innerHeight - 100)}
-          defaultX={Math.max(24, Math.floor((window.innerWidth - Math.min(780, window.innerWidth - 48)) / 2))}
-          defaultY={Math.max(48, Math.floor((window.innerHeight - Math.min(560, window.innerHeight - 100)) / 5))}
-          minWidth={360}
-          minHeight={280}
-          onClose={() => setTraceOpen(false)}
-          className="p1dt-floating-panel"
-        >
-          {Array.isArray(policies) && policies.length > 0 && (
-            <PolicyDecisionTree policies={policies} result={result} floating />
-          )}
-          {(!Array.isArray(policies) || policies.length === 0) && (
-            <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
-              <p style={{ marginBottom: '12px', fontWeight: 600, color: '#0f172a' }}>No policy tree available</p>
-              <p>The decision trace requires the authorization policy tree from PingOne. Either the policies have not loaded yet or the worker credentials are not configured.</p>
-              <p style={{ marginTop: '12px', fontSize: '12px' }}>The raw API request and response are shown inline below the Evaluate result.</p>
-            </div>
-          )}
-        </FloatingPanel>
-      )}
-    </>
   );
 }
 ```
 
-Note what stayed byte-for-byte identical inside this new return: the entire preset-tab bar, `TAB_HELP` block, all three preset forms, the entire result-box content (decision badge through the "Open policy decision trace" button), and the entire `FloatingPanel`/`PolicyDecisionTree` block — only their *container* changed (from one linear `<div>` stack to `InspectorShell`'s `left`/`middle`/`right` slots plus a sibling `FloatingPanel`). The only genuinely new lines are: the left-column tree wrapper, the `InspectorTabs` bar, the three `outputTab === '...'` conditionals, and the empty-state messages.
+Note what stayed byte-for-byte identical inside this new return: the entire preset-tab bar, `TAB_HELP` block, all three preset forms, the entire result-box content (decision badge through the "Open policy decision trace" button, which itself is unchanged from the file's current `navigate(...)`-based version — no `FloatingPanel`/`PolicyDecisionTree`/`traceOpen` involved, those were already removed from this file by an earlier, unrelated commit). Only the *container* changed (from one linear `<div>` stack to `InspectorShell`'s `left`/`middle`/`right` slots). The only genuinely new lines are: the left-column tree wrapper, the `InspectorTabs` bar, the three `outputTab === '...'` conditionals, and their empty-state messages. No fragment wrapper (`<>...</>`) is needed around `<InspectorShell>` — there is no sibling element anymore, unlike an earlier draft of this plan that assumed the (already-removed) `FloatingPanel` still needed one.
 
 - [ ] **Step 9: Run the tests to verify they pass**
 
@@ -553,7 +575,7 @@ git commit -m "feat(pingone-authorize): rebuild EvaluatePanel on InspectorShell"
 ### Task 2: Wire the main page to the new `EvaluatePanel`, delete `PoliciesCard`
 
 **Files:**
-- Modify: `demo_api_ui/src/components/PingOneAuthorizePage.jsx` (delete `PoliciesCard`, lines 686–725 in the current file; update the two lines in the main component's return that render `<PoliciesCard>` and the old "Evaluate" card wrapper)
+- Modify: `demo_api_ui/src/components/PingOneAuthorizePage.jsx` (delete `PoliciesCard`, the function immediately after `PolicyNode` — find it by its signature `function PoliciesCard({ state, onTestRule }) {`, not by line number, since Task 1's edits shift every line after it; update the two lines in the main component's return that render `<PoliciesCard>` and the old "Evaluate" card wrapper)
 - Modify: `demo_api_ui/src/components/__tests__/PingOneAuthorizePage.test.jsx` (add tests for the full page)
 
 **Interfaces:**
@@ -696,7 +718,7 @@ git commit -m "feat(pingone-authorize): delete PoliciesCard, wire EvaluatePanel'
 
 ## What this plan does not do
 
-- Does not touch the console/guided outer tab bar, header, error banner, `notConfigured`/`metaStrip` block, "Decision Endpoint" picker card, "Recent Decisions" card, or "Run History" card — all unchanged.
+- Does not touch the outer tab bar (console / guided / mock authz rules / scopes & resources / snapshot import), header, error banner, `notConfigured`/`metaStrip` block, "Decision Endpoint" picker card, "Recent Decisions" card, or "Run History" card — all unchanged.
 - Does not change routing or `AdminSideNav.jsx` — `/pingone-authorize` and its existing "Authorize" group nav entry are untouched (per the design spec, this page's route/nav position doesn't move).
 - Does not remove the `id="evaluate-card")` scroll-target reference inside `handleTestRule` (only the element it targets) — see Task 2 Step 2's note.
 - Does not touch `AgentGatewayTester.jsx` or the `McpInspector`/`PingOneMcpInspector`/`ApiExplorerPanel` merge — those are the next two plans per the design spec's migration order.
