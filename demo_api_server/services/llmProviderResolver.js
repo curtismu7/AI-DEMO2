@@ -6,7 +6,9 @@
  * deterministic floor. This resolver is consulted only when the heuristic
  * did not answer.
  *
- * Rule: explicit langchainConfig.provider is honored; otherwise Helix.
+ * Rule: explicit langchainConfig.provider is honored; otherwise llama.cpp
+ * (the two modes actually demoed are llama.cpp and Heuristics; Helix and
+ * the rest are opt-in, not the default).
  *
  * 'openai' and 'anthropic' are returned when explicitly selected
  * (pass-through). banking_agent_service (:3006) validates LLM_PROVIDER
@@ -61,8 +63,8 @@ function resolveLlmProvider(langchainConfig = {}) {
 
   if (requested === 'helix') return { provider: 'helix', model };
 
-  // No explicit provider, or an unknown one → Helix (the default LLM).
-  return { provider: 'helix', model };
+  // No explicit provider, or an unknown one → llama.cpp (the default LLM).
+  return { provider: 'llamacpp', model };
 }
 
 module.exports = { resolveLlmProvider };
