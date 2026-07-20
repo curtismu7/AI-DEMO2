@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import bffAxios from '../services/bffAxios';
-import PolicyDecisionTree from './PolicyDecisionTree';
-import FloatingPanel from './FloatingPanel';
 import JsonHighlight from './shared/JsonHighlight';
 import AuthzTestPage from './AuthzTestPage';
+import MockAuthzRulesPage from './MockAuthzRulesPage';
+import ScopeAuditPage from './ScopeAuditPage';
+import ScopeReferencePage from './ScopeReferencePage';
+import SnapshotImport from '../pages/SnapshotImport';
 import { explainAuthorizeResult, displayDecision as explainDisplayDecision } from '../utils/authorizeResultExplain';
 import './McpInspector.css';
 import './PingOneMcpInspector.css';
@@ -110,11 +112,6 @@ const S = {
   reopenTrace: {
     marginTop: '12px', padding: '9px 14px', background: '#1e3a5f', border: 'none',
     borderRadius: '7px', fontSize: '12px', fontWeight: 700, color: '#fff', cursor: 'pointer',
-    display: 'inline-flex', alignItems: 'center', gap: '8px',
-  },
-  reopenTraceOpen: {
-    marginTop: '12px', padding: '9px 14px', background: '#eef2ff', border: '1px solid #c7d2fe',
-    borderRadius: '7px', fontSize: '12px', fontWeight: 700, color: '#3730a3', cursor: 'pointer',
     display: 'inline-flex', alignItems: 'center', gap: '8px',
   },
 
@@ -237,9 +234,9 @@ function DecisionRow({ d, idx }) {
 // generic /api/authorize/evaluate-endpoint against the selected endpoint.
 // ---------------------------------------------------------------------------
 function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearPendingTest, onEvaluated }) {
+  const navigate = useNavigate();
   const [preset, setPreset] = useState(autoPreset);
   const [result, setResult] = useState(null);
-  const [traceOpen, setTraceOpen] = useState(false);
   const [running, setRunning] = useState(false);
   const [err, setErr] = useState(null);
   const [lastTrace, setLastTrace] = useState(null);
@@ -573,11 +570,10 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearP
           )}
           <button
             type="button"
-            style={traceOpen ? S.reopenTraceOpen : S.reopenTrace}
-            onClick={() => setTraceOpen((open) => !open)}
-            aria-expanded={traceOpen}
+            style={S.reopenTrace}
+            onClick={() => navigate('/policy-decision-trace', { state: { policies, result } })}
           >
-            {traceOpen ? 'Close floating policy decision trace' : '🪟 Open policy decision trace'}
+            Open policy decision trace
           </button>
         </div>
       )}
@@ -616,38 +612,6 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearP
         </>
       )}
 
-      {result && traceOpen && (
-        <FloatingPanel
-          title="Policy decision trace"
-          defaultWidth={Math.min(780, window.innerWidth - 48)}
-          defaultHeight={Math.min(560, window.innerHeight - 100)}
-          defaultX={Math.max(24, Math.floor((window.innerWidth - Math.min(780, window.innerWidth - 48)) / 2))}
-          defaultY={Math.max(48, Math.floor((window.innerHeight - Math.min(560, window.innerHeight - 100)) / 5))}
-          minWidth={360}
-          minHeight={280}
-          onClose={() => setTraceOpen(false)}
-          className="p1dt-floating-panel"
-        >
-          {/* Only mount the tree once policies exist. It calls useState AFTER its
-              own `policies.length === 0` early-return, so rendering it empty and
-              then letting the fetch resolve would take it from 0 hooks to 1 hook
-              on the same mount — React throws "Rendered more hooks than during
-              the previous render" and the panel blanks. Gating here also keeps
-              its auto-collapse correct: the useState initializer runs once, so it
-              must first run with real policies, not with []. */}
-          {Array.isArray(policies) && policies.length > 0 && (
-            <PolicyDecisionTree policies={policies} result={result} floating />
-          )}
-          {/* Fallback when there is no tree to show (no policies loaded) */}
-          {(!Array.isArray(policies) || policies.length === 0) && (
-            <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
-              <p style={{ marginBottom: '12px', fontWeight: 600, color: '#0f172a' }}>No policy tree available</p>
-              <p>The decision trace requires the authorization policy tree from PingOne. Either the policies have not loaded yet or the worker credentials are not configured.</p>
-              <p style={{ marginTop: '12px', fontSize: '12px' }}>The raw API request and response are shown inline below the Evaluate result.</p>
-            </div>
-          )}
-        </FloatingPanel>
-      )}
     </div>
   );
 }
@@ -729,14 +693,16 @@ function PoliciesCard({ state, onTestRule }) {
 // ---------------------------------------------------------------------------
 export default function PingOneAuthorizePage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get('tab') === 'guided' ? 'guided' : 'console';
+  const TABS = ['console', 'guided', 'snapshot', 'mockRules', 'scopes'];
+  const tab = TABS.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'console';
   const setTab = useCallback((next) => {
     setSearchParams((prev) => {
       const p = new URLSearchParams(prev);
-      if (next === 'guided') p.set('tab', 'guided'); else p.delete('tab');
+      if (next === 'console') p.delete('tab'); else p.set('tab', next);
       return p;
     }, { replace: true });
   }, [setSearchParams]);
+  const [scopesSubTab, setScopesSubTab] = useState('audit');
 
   // Client-side ring buffer of this session's ad-hoc Evaluate calls (Console tab).
   const [runHistory, setRunHistory] = useState([]);
@@ -840,9 +806,26 @@ export default function PingOneAuthorizePage() {
       <div style={S.tabs}>
         <span style={S.tab(tab === 'console')} onClick={() => setTab('console')}>Live / Simulated Console</span>
         <span style={S.tab(tab === 'guided')} onClick={() => setTab('guided')}>Guided Scenarios &amp; Learn</span>
+        <span style={S.tab(tab === 'mockRules')} onClick={() => setTab('mockRules')}>Mock Authz Rules</span>
+        <span style={S.tab(tab === 'scopes')} onClick={() => setTab('scopes')}>Scopes &amp; Resources</span>
+        <span style={S.tab(tab === 'snapshot')} onClick={() => setTab('snapshot')}>Snapshot Import</span>
       </div>
 
       {tab === 'guided' && <AuthzTestPage />}
+
+      {tab === 'mockRules' && <MockAuthzRulesPage />}
+
+      {tab === 'snapshot' && <SnapshotImport />}
+
+      {tab === 'scopes' && (
+        <div>
+          <div style={S.tabs}>
+            <span style={S.tab(scopesSubTab === 'audit')} onClick={() => setScopesSubTab('audit')}>Scope Audit</span>
+            <span style={S.tab(scopesSubTab === 'reference')} onClick={() => setScopesSubTab('reference')}>Scope Reference</span>
+          </div>
+          {scopesSubTab === 'audit' ? <ScopeAuditPage /> : <ScopeReferencePage />}
+        </div>
+      )}
 
       {tab === 'console' && (loading ? (
         <div style={{ padding: '40px', color: '#64748b', fontSize: '14px' }}>Loading PingOne Authorize configuration…</div>

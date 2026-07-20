@@ -246,6 +246,7 @@ const ADMIN_ROUTES = [
   '/pingone-test',
   '/mfa-test',
   '/pingone-authorize',
+  '/policy-decision-trace',
   { path: '/authz-test', allowRedirectTo: ['/pingone-authorize', '/admin', '/login'] },
   '/mcp-tools',
   '/mcp-traffic',
