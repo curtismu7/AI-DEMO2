@@ -116,7 +116,7 @@ export default function AuditPage({ onClose } = {}) {
   const [error, setError] = useState(null);
   const [filterEventType, setFilterEventType] = useState('');
   const [filterOutcome, setFilterOutcome] = useState('');
-  const [filterAgentId, setFilterAgentId] = useState('');
+  const [filterAgentId, setFilterAgentId] = useState(() => searchParams.get('agentId') || '');
   const [filterOperation, setFilterOperation] = useState('');
   const [expandedEventId, setExpandedEventId] = useState(null);
   // Scenario 5 — Events feed vs. formal Compliance Report.

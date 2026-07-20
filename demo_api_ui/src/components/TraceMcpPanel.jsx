@@ -5,7 +5,8 @@
 import React from "react";
 import TraceStepCard from "./TraceStepCard";
 import TraceTokenSummary from "./TraceTokenSummary";
-import { MCP_STEP_IDS, asJson } from "../services/tokenChainTrace/buildTraceSteps";
+import JsonHighlight from "./shared/JsonHighlight";
+import { MCP_STEP_IDS } from "../services/tokenChainTrace/buildTraceSteps";
 
 export default function TraceMcpPanel({ steps, trace, onInspect }) {
   const mcpSteps = MCP_STEP_IDS
@@ -45,11 +46,11 @@ export default function TraceMcpPanel({ steps, trace, onInspect }) {
             ))}
           </div>
           <h4>Request</h4>
-          <pre className="tctr-code">{asJson(mcp.requestJson || { name: toolName })}</pre>
+          <pre className="tctr-code"><JsonHighlight value={mcp.requestJson || { name: toolName }} /></pre>
           <h4>Response</h4>
-          <pre className="tctr-code">{response != null ? asJson(response) : "(no response body)"}</pre>
+          <pre className="tctr-code">{response != null ? <JsonHighlight value={response} /> : "(no response body)"}</pre>
           <h4>Raw payload</h4>
-          <pre className="tctr-code">{asJson(mcp)}</pre>
+          <pre className="tctr-code"><JsonHighlight value={mcp} /></pre>
         </div>
       ) : (
         <div className="tctr-mcp-empty">No MCP tool call yet.</div>
