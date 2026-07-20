@@ -105,7 +105,7 @@ _optional_group_services() {
     rag)       echo "weaviate embeddings demo-mcp-code-search llamaindex-agent" ;;
     agents)    echo "openai-agent mastra-agent pydantic-agent" ;;
     tracing)   echo "jaeger" ;;
-    demo-auth) echo "authz-server mcp-gateway" ;;
+    demo-auth) echo "authz-server mcp-gateway mcp-jwt-verifier" ;;
     all)
       local g svc out=""
       for g in "${OPTIONAL_GROUP_NAMES[@]}"; do
@@ -496,6 +496,7 @@ SERVICES=(
   "agent-service|Agent Service         |3016|http://localhost:3016"
   "hitl-service|HITL Service          |3009|http://localhost:3009"
   "mcp-invest|MCP Invest            |8081|http://localhost:8081"
+  "mcp-jwt-verifier|MCP JWT Verifier     |8083|http://localhost:8083"
   "mortgage-service|Mortgage Service     |8082|http://localhost:8082"
   "openai-agent|OpenAI Agent          |8891|http://localhost:8891"
   "mastra-agent|Mastra Agent          |8892|http://localhost:8892"
