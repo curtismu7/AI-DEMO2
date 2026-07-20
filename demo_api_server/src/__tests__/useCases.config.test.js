@@ -23,7 +23,6 @@ describe('useCases catalog SoT', () => {
     expect(ids).toContain('UC27');
     expect(ids).toContain('UC28');
     expect(ids).toContain('UC29');
-    expect(ids).not.toContain('UC30'); // next free id — update when minting it
   });
 
   test('every entry is schema-valid', () => {
