@@ -2,7 +2,9 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import bffAxios from '../../services/bffAxios';
-import { EvaluatePanel } from '../PingOneAuthorizePage';
+import PingOneAuthorizePage, { EvaluatePanel } from '../PingOneAuthorizePage';
+// (replaces the Task 1 line `import { EvaluatePanel } from '../PingOneAuthorizePage';` —
+// same module, now importing both the default and the named export in one statement)
 
 vi.mock('../../services/bffAxios', () => ({
   __esModule: true,
@@ -18,6 +20,7 @@ vi.mock('../../services/bffAxios', () => ({
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
+  useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }));
 
 const ONE_POLICY = [
@@ -163,4 +166,57 @@ test('the "Open policy decision trace" button navigates to /policy-decision-trac
     '/policy-decision-trace',
     expect.objectContaining({ state: expect.objectContaining({ policies: ONE_POLICY }) }),
   );
+});
+
+const LIVE_POLICY_RESPONSE = {
+  endpoints: [{ id: 'ep-1', name: 'Transaction Auth', recordRecentRequests: false }],
+  transactionEndpointId: 'ep-1',
+  mcpEndpointId: null,
+  workerConfigured: true,
+  environmentId: 'env-123',
+  region: 'com',
+  activeEngine: 'simulated',
+};
+
+function mockPageEndpoints() {
+  bffAxios.get.mockImplementation((url) => {
+    if (url === '/api/authorize/pingone-policies') {
+      return Promise.resolve({ data: { policies: ONE_POLICY, note: null } });
+    }
+    if (url === '/api/authorize/pingone-live-policy') {
+      return Promise.resolve({ data: LIVE_POLICY_RESPONSE });
+    }
+    if (url.startsWith('/api/authorize/recent-decisions')) {
+      return Promise.resolve({ data: { decisions: [] } });
+    }
+    if (url === '/api/authorize/mcp-console-defaults') {
+      return Promise.resolve({ data: {} });
+    }
+    return Promise.resolve({ data: {} });
+  });
+}
+
+describe('PingOneAuthorizePage (full page wiring)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockPageEndpoints();
+  });
+
+  test('renders exactly one "Authorization Policies" tree region, not a separate card plus a shell copy', async () => {
+    render(<PingOneAuthorizePage />);
+    const matches = await screen.findAllByText('Authorization Policies');
+    expect(matches).toHaveLength(1);
+  });
+
+  test('clicking Trigger on a rule (now inside the shell) round-trips through the parent\'s pendingTest state into the middle form', async () => {
+    render(<PingOneAuthorizePage />);
+    const trigger = await screen.findByRole('button', { name: 'Trigger →' });
+    fireEvent.click(trigger);
+    // pendingTest's preset is 'transaction' and its Amount is 50000 (ONE_POLICY's trigger case) —
+    // confirms the parent's handleTestRule -> pendingTest -> EvaluatePanel's pendingTest-effect
+    // chain still runs end-to-end through the new prop wiring.
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('e.g. 5000')).toHaveValue(50000);
+    });
+  });
 });

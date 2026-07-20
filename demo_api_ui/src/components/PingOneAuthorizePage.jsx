@@ -700,47 +700,6 @@ function PolicyNode({ node, onTestRule }) {
   );
 }
 
-// Read-only listing of the live PingOne Authorize policy tree. This is what the
-// decision endpoints actually enforce — distinct from the endpoints themselves.
-// The tree is fetched once at the page level and passed in via `state` so the
-// Evaluate panel's decision-trace diagram can reuse it without a second fetch.
-function PoliciesCard({ state, onTestRule }) {
-  const ruleCount = (nodes) => nodes.reduce((n, p) => n + (p.kind === 'RULE' ? 1 : 0) + ruleCount(p.children || []), 0);
-
-  return (
-    <div style={S.card}>
-      <div style={S.cardHead}>
-        <span style={S.cardTitle}>Authorization Policies</span>
-        <span style={S.cardHint}>
-          {state.loading ? 'loading…' : `${state.policies.length} policy set${state.policies.length !== 1 ? 's' : ''} · ${ruleCount(state.policies)} rules`}
-        </span>
-      </div>
-      <div style={S.cardBody}>
-        <p style={{ ...S.subtitle, marginBottom: '12px' }}>
-          The live policy tree from PingOne Authorize. Each decision endpoint above evaluates a published version of this tree —
-          a decision endpoint is the HTTP entry point, while these policies and rules are the logic it runs.
-        </p>
-        {state.loading ? (
-          <div style={S.empty}>Loading policies…</div>
-        ) : state.error ? (
-          <div style={{ ...S.empty, color: '#b45309', borderColor: '#fde68a', background: '#fffbeb' }}>⚠️ {state.error}</div>
-        ) : state.policies.length === 0 ? (
-          <div style={S.empty}>{state.note || 'No authorization policies found in this environment.'}</div>
-        ) : (
-          <>
-            {/* A note alongside a tree means the tree came from a fallback
-                source (e.g. the repo snapshot) — show it above, don't hide the tree. */}
-            {state.note ? <div style={{ ...S.empty, marginBottom: '10px' }}>{state.note}</div> : null}
-            <div style={S.polTree}>
-              {state.policies.map((p) => <PolicyNode key={p.id} node={p} onTestRule={onTestRule} />)}
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
@@ -770,8 +729,8 @@ export default function PingOneAuthorizePage() {
   const [recent, setRecent] = useState({ decisions: [], error: null, loading: false });
   const [enabling, setEnabling] = useState(false);
   const [pendingTest, setPendingTest] = useState(null);
-  // Live policy tree — fetched once and shared by the read-only PoliciesCard and
-  // the Evaluate panel's decision-trace diagram (avoids a duplicate fetch).
+  // Live policy tree — fetched once and passed into EvaluatePanel, which renders
+  // it in the left-column tree and reuses it for the decision-trace diagram.
   const [policiesState, setPoliciesState] = useState({ policies: [], loading: true, error: null, note: null });
 
   useEffect(() => {
@@ -964,18 +923,10 @@ export default function PingOneAuthorizePage() {
         </div>
       </div>
 
-      {/* Authorization policies (read-only tree) */}
-      <PoliciesCard state={policiesState} onTestRule={handleTestRule} />
-
-      {/* Evaluate */}
-      <div style={S.card} id="evaluate-card">
-        <div style={S.cardHead}><span style={S.cardTitle}>Evaluate</span></div>
-        <div style={S.cardBody}>
-          {selectedId
-            ? <EvaluatePanel endpointId={selectedId} autoPreset={autoPreset} policies={policiesState.policies} pendingTest={pendingTest} onClearPendingTest={clearPendingTest} onEvaluated={pushRunHistory} />
-            : <div style={S.empty}>Select a decision endpoint to evaluate.</div>}
-        </div>
-      </div>
+      {/* Evaluate — policy tree, form, and result all live inside one InspectorShell */}
+      {selectedId
+        ? <EvaluatePanel endpointId={selectedId} autoPreset={autoPreset} policiesState={policiesState} pendingTest={pendingTest} onClearPendingTest={clearPendingTest} onEvaluated={pushRunHistory} onTestRule={handleTestRule} />
+        : <div style={S.card}><div style={S.cardBody}><div style={S.empty}>Select a decision endpoint to evaluate.</div></div></div>}
 
       {/* Recent decisions */}
       <div style={S.card}>
