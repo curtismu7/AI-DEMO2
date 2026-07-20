@@ -160,7 +160,7 @@ export default function DemoConfigPage() {
   const visibleCount = NAV_ITEM_CATALOG.length - hiddenLabels.length;
 
   return (
-    <div className="app-page">
+    <div className="app-page dc-page">
       <div className="app-page-header">
         <div className="app-page-header__left">
           <h1 className="app-page-title">Demo Config</h1>
