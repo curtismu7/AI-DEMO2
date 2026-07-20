@@ -13,6 +13,7 @@ export default function InspectorShell({
   statusOn = true,
   statusText,
   actions,
+  fullHeight = true,
   left,
   middle,
   right,
@@ -31,7 +32,13 @@ export default function InspectorShell({
         {statusText && <span className="inspector-shell-topbar__status">{statusText}</span>}
         {actions && <div className="inspector-shell-topbar__right">{actions}</div>}
       </div>
-      <div className="inspector-shell-grid">
+      <div
+        className={
+          fullHeight
+            ? 'inspector-shell-grid'
+            : 'inspector-shell-grid inspector-shell-grid--embedded'
+        }
+      >
         <div className="inspector-shell-col-left">{left}</div>
         <div className="inspector-shell-col-middle">{middle}</div>
         <div className="inspector-shell-col-right">{right}</div>
