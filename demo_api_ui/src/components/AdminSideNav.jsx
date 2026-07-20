@@ -427,11 +427,6 @@ export default function AdminSideNav({ user }) {
     { label: "Use Cases", path: "/use-cases", icon: "demo" },
     { label: "Use Cases (Live)", path: "/use-cases/live", icon: "demo" },
     { label: "Demo Config", path: "/demo-config", icon: "cfg" },
-    {
-      label: "Agent Demo Guide",
-      icon: "doc",
-      action: () => navigate("/agent", { state: { openDemoGuide: true } }),
-    },
     // Latest report — shown when agent run completes
     ...(latestRunId
       ? [
