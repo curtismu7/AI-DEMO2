@@ -101,6 +101,69 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-20 — PingOne Admin agent's tool schemas broke llama.cpp's grammar compiler
+
+**Files changed:**
+- `demo_api_server/config/admin/tools.js` — `buildAdminToolSchemas`/
+  `executeAdminTool` now use the small `list_pingone_tools`/
+  `call_pingone_tool` wrapper from
+  `demo_api_server/config/verticals/pingone-admin/tools.js` instead of the
+  live PingOne MCP server's raw tool catalog.
+- `demo_api_server/config/admin/systemPrompt.js` — rewritten from a stale
+  generic "banking admin" prompt (accounts/balances/customers — concepts
+  that don't exist in PingOne) to PingOne-specific tool-discovery guidance
+  (call `list_pingone_tools` first, then `call_pingone_tool`).
+- `demo_api_server/tests/adminTools.schemaSize.test.js` (new) — asserts
+  `buildAdminToolSchemas()` returns the 4-tool wrapper set, stays well
+  under context budget, and `executeAdminTool` dispatches correctly.
+- `demo_api_server/tests/adminSystemPrompt.test.js` — updated the base-prompt
+  assertion from `/administrative assistant/i` to `/PingOne Admin
+  Assistant/i` to match the rewritten prompt; customer-context assertions
+  unchanged.
+
+**What was broken:** once the admin agent's LLM provider was correctly
+routed to llama.cpp (see the entry below), llama-server itself returned
+`400 Failed to initialize samplers: failed to parse grammar`. Root cause:
+`buildAdminToolSchemas()` fetched the live PingOne MCP server's full tool
+catalog — 76 tools, ~160,009 bytes of JSON schema (`createApplication` and
+`updateApplication` alone are ~40KB combined) — and sent it directly to
+the LLM on every call. That blows past llama.cpp's 8192-token context
+window and its GBNF grammar compiler chokes on schemas of that size and
+complexity.
+
+**What was fixed:** reused the already-built, already-tested 4-tool
+wrapper (`list_pingone_tools`, `call_pingone_tool`, plus two demo stubs)
+from `config/verticals/pingone-admin/tools.js` — the same module the
+separate `/api/agent/run` AG-UI admin path already uses successfully. The
+wrapper indirects through `list_pingone_tools`/`call_pingone_tool` instead
+of exposing all 76 raw tools, collapsing the schema payload from ~160KB to
+under 5KB while preserving full PingOne functionality (the LLM discovers
+and calls tools by name through the wrapper, not by seeing every schema
+upfront). No new logic was written for PingOne access itself — only
+`config/admin/tools.js`'s two functions were rewired to call into the
+existing wrapper.
+
+**Do not break:** `adminAgentService.js`'s `executeTool` callback still
+gets a JSON string back from `executeAdminTool`, and still does
+`JSON.parse(result)` to check for a `.error` field for Token Chain step
+failure marking — `executeAdminTool` preserves that contract (`JSON.stringify(result)`
+on success, `JSON.stringify({error, message})` on failure). The other
+`/api/agent/run` AG-UI path's own use of
+`config/verticals/pingone-admin/tools.js` is untouched (only consumed, not
+modified) — its own test suites (`adminChipDeadends.test.js`,
+`tests/oas/pingone-admin.test.js`, `tests/oas/verticalDispatch.oas.test.js`)
+were re-run and stay green.
+
+**Verify:** `demo_api_server` jest —
+`adminTools.schemaSize.test.js` (6/6), `adminSystemPrompt.test.js` (3/3),
+`adminAgentService.llmProvider.test.js` (2/2),
+`adminAgentService.tokenChainStep.test.js` (2/2),
+`adminChipDeadends.test.js` + `oas/pingone-admin.test.js` +
+`oas/verticalDispatch.oas.test.js` (27/27). Full `demo_api_server` suite
+run clean except two confirmed pre-existing flakes unrelated to this
+change (`rfc9728-integration.test.js`, `resourceServerTesterCC.route.test.js`
+— both pass 100% in isolation).
+
 ### 2026-07-20 — PingOne Admin dashboard's LLM defaults to llama.cpp, not Helix
 
 **Files changed:**
