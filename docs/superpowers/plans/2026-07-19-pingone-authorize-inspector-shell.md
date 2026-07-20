@@ -198,7 +198,11 @@ test('clicking Evaluate posts to /api/authorize/evaluate-endpoint and shows the 
 
 test('the Response and Request output tabs show the last call\'s trace after an evaluation', async () => {
   bffAxios.post.mockResolvedValueOnce({
-    data: { decision: 'PERMIT', engine: 'simulated', decisionId: 'dec-1', path: '/decide' },
+    // pingoneResponse is required here (not in the other two tests) — it's
+    // what authorizeResponsePayload() reads into lastTrace.response, which
+    // this test's Response-tab assertion checks. Without it lastTrace.response
+    // is null and the tab renders its empty state instead.
+    data: { decision: 'PERMIT', engine: 'simulated', decisionId: 'dec-1', path: '/decide', pingoneResponse: { decision: 'PERMIT' } },
   });
   renderPanel();
   fireEvent.click(screen.getByRole('button', { name: /Evaluate \(live\)/ }));
