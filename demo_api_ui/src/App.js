@@ -1033,7 +1033,7 @@ function AppWithAuth() {
                             />
                             <Route
                               path="/mcp-inspector"
-                              element={<Navigate to="/pingone-mcp-inspector" replace />}
+                              element={<Navigate to="/pingone-mcp-inspector?source=banking" replace />}
                             />
                             <Route
                               path="/pingone-mcp-inspector"

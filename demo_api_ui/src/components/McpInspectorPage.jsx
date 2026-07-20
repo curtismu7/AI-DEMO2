@@ -9,6 +9,7 @@
 // — McpInspector.js and ApiExplorerPanel.js are still separately embedded
 // in McpGatewayConfig.jsx and DevToolsDashboard.jsx respectively.
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import { notifyError } from '../utils/appToast';
 import { formatAxiosError } from '../utils/formatAxiosError';
@@ -877,7 +878,10 @@ function useApiCallsSource() {
 }
 
 export default function McpInspectorPage() {
-  const [activeSource, setActiveSource] = useState('banking');
+  const [searchParams] = useSearchParams();
+  const requestedSource = searchParams.get('source');
+  const initialSource = SOURCES.some((s) => s.key === requestedSource) ? requestedSource : 'pingone';
+  const [activeSource, setActiveSource] = useState(initialSource);
   const banking = useBankingSource();
   const pingone = usePingOneSource();
   const api = useApiCallsSource();

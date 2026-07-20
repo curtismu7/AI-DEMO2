@@ -1,6 +1,7 @@
 // demo_api_ui/src/components/__tests__/McpInspectorPage.test.jsx
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import apiClient from '../../services/apiClient';
 import McpInspectorPage from '../McpInspectorPage';
 
@@ -11,6 +12,14 @@ vi.mock('../../services/apiClient', () => ({
     patch: vi.fn(),
   },
 }));
+
+function renderPage(initialPath = '/pingone-mcp-inspector') {
+  return render(
+    <MemoryRouter initialEntries={[initialPath]}>
+      <McpInspectorPage />
+    </MemoryRouter>,
+  );
+}
 
 const BANKING_TOOL = {
   name: 'get_account_balance',
@@ -33,14 +42,16 @@ beforeEach(() => {
   mockBankingEndpoints();
 });
 
-test('defaults to the Banking MCP source and renders its topbar title', async () => {
-  render(<McpInspectorPage />);
+test('defaults to the PingOne MCP source when no ?source= param is present, and renders the topbar title', async () => {
+  mockPingOneEndpoints();
+  renderPage();
   expect(screen.getByRole('heading', { name: 'MCP Inspector' })).toBeInTheDocument();
-  expect(await screen.findByText('get_account_balance')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'PingOne MCP' })).toHaveClass('src-pill--active');
+  expect(await screen.findByText('users.read')).toBeInTheDocument();
 });
 
-test('the source switcher shows all three sources with Banking MCP active by default', () => {
-  render(<McpInspectorPage />);
+test('an explicit ?source=banking param selects the Banking MCP source', () => {
+  renderPage('/pingone-mcp-inspector?source=banking');
   expect(screen.getByRole('button', { name: 'Banking MCP' })).toHaveClass('src-pill--active');
   expect(screen.getByRole('button', { name: 'PingOne MCP' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'API Calls' })).toBeInTheDocument();
@@ -54,7 +65,7 @@ test('selecting a Banking MCP tool populates the middle form, calling Execute po
     return Promise.resolve({ data: {} });
   });
   apiClient.post.mockResolvedValueOnce({ data: { balance: 4820.15 } });
-  render(<McpInspectorPage />);
+  renderPage('/pingone-mcp-inspector?source=banking');
   fireEvent.click(await screen.findByText('get_account_balance'));
   fireEvent.change(screen.getByRole('textbox'), { target: { value: 'acc_1' } });
   fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
@@ -66,7 +77,7 @@ test('selecting a Banking MCP tool populates the middle form, calling Execute po
 });
 
 test('does not render a profile picker or "+ Add server" control (dropped for the Banking MCP source)', async () => {
-  render(<McpInspectorPage />);
+  renderPage('/pingone-mcp-inspector?source=banking');
   await screen.findByText('get_account_balance');
   expect(screen.queryByText('+ Add server')).toBeNull();
   expect(screen.queryByTitle('MCP server to inspect')).toBeNull();
@@ -85,7 +96,7 @@ function mockPingOneEndpoints() {
 
 test('switching to the PingOne MCP source shows its tools and topbar status', async () => {
   mockPingOneEndpoints();
-  render(<McpInspectorPage />);
+  renderPage();
   fireEvent.click(screen.getByRole('button', { name: 'PingOne MCP' }));
   expect(await screen.findByText('users.read')).toBeInTheDocument();
   expect(screen.getByText(/Connected — 1 tools/)).toBeInTheDocument();
@@ -94,7 +105,7 @@ test('switching to the PingOne MCP source shows its tools and topbar status', as
 test('calling a PingOne MCP tool posts to /api/mcp/inspector/pingone-invoke', async () => {
   mockPingOneEndpoints();
   apiClient.post.mockResolvedValueOnce({ data: { response: { id: '5e8e' }, request: {}, timingsMs: { roundTrip: 12 } } });
-  render(<McpInspectorPage />);
+  renderPage();
   fireEvent.click(screen.getByRole('button', { name: 'PingOne MCP' }));
   fireEvent.click(await screen.findByText('users.read'));
   fireEvent.change(screen.getByRole('textbox'), { target: { value: 'user-1' } });
@@ -119,14 +130,14 @@ function mockFetchForApiCalls() {
 
 test('switching to the API Calls source shows captured calls', async () => {
   mockFetchForApiCalls();
-  render(<McpInspectorPage />);
+  renderPage();
   fireEvent.click(screen.getByRole('button', { name: 'API Calls' }));
   expect(await screen.findByText('/api/accounts/acc_1')).toBeInTheDocument();
 });
 
 test('selecting a captured call shows its response body in read-only fields', async () => {
   mockFetchForApiCalls();
-  render(<McpInspectorPage />);
+  renderPage();
   fireEvent.click(screen.getByRole('button', { name: 'API Calls' }));
   fireEvent.click(await screen.findByText('/api/accounts/acc_1'));
   expect(screen.getByDisplayValue('200')).toBeInTheDocument();

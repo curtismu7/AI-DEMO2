@@ -24,7 +24,7 @@ export default function MonitoringRoutes({ user, logout, AgentFlowPage }) {
             (this one) ever rendered them in practice. */}
         <Route path="token-chain" element={<TokenChainDisplay />} />
         <Route path="mcp-traffic" element={<McpTrafficPage />} />
-        <Route path="api-explorer" element={<Navigate to="/pingone-mcp-inspector" replace />} />
+        <Route path="api-explorer" element={<Navigate to="/pingone-mcp-inspector?source=api" replace />} />
         <Route path="agent-flow" element={
           user && AgentFlowPage
             ? <AgentFlowPage />
