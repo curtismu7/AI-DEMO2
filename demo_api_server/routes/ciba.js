@@ -259,6 +259,15 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
   }
 
   if (pending.simulated) {
+    if (pending.deniedByUser) {
+      delete req.session.cibaRequests[authReqId];
+      return res.status(403).json({
+        status: 'denied',
+        error: 'access_denied',
+        message: 'The user denied the authentication request.',
+      });
+    }
+
     if (!cibaSimulatedService.isSimulatedApproved(pending)) {
       return res.json({ status: 'pending' });
     }
@@ -386,6 +395,33 @@ router.post('/approve-now/:authReqId', authenticateToken, (req, res) => {
   pending.initiatedAt = Date.now() - cibaSimulatedService.SIMULATED_APPROVE_DELAY_MS;
   req.session.save((saveErr) => {
     if (saveErr) console.error('[CIBA] session save error on approve-now:', saveErr);
+    res.json({ ok: true });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/auth/ciba/deny/:authReqId
+//
+// Explicit user denial from the separate-device approval page — distinct
+// from /cancel (give up waiting) or expiry (timed out). Same simulated-only
+// constraint as /approve-now: a real bc-authorize request can only be
+// denied on its actual out-of-band channel, not through this route.
+// ---------------------------------------------------------------------------
+
+router.post('/deny/:authReqId', authenticateToken, (req, res) => {
+  const { authReqId } = req.params;
+  const pending = req.session.cibaRequests?.[authReqId];
+
+  if (!pending || !pending.simulated) {
+    return res.status(404).json({
+      error: 'unknown_request',
+      message: 'No pending request with that ID eligible for denial.',
+    });
+  }
+
+  pending.deniedByUser = true;
+  req.session.save((saveErr) => {
+    if (saveErr) console.error('[CIBA] session save error on deny:', saveErr);
     res.json({ ok: true });
   });
 });
