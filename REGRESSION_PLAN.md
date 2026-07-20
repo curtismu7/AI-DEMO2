@@ -101,6 +101,47 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-20 — Banking Demo Steps: Step 3 (UC7 step-up) went permanently silent after an interrupted first run
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js` (the NL-resume
+replay effect, ~line 6567 — same effect touched by the 2026-07-18 entry
+below, different bug).
+
+**What was broken:** `handleDemoStepSelect` fires this effect by calling
+`setNlResumeAfterAuth(trigger.text)`. The effect sets
+`pendingNlResumeRef.current = text` synchronously, then delays 250ms before
+actually sending; the ref is only reset back to `null` inside the `finally`
+of that delayed callback. If the effect's cleanup ran before the 250ms timer
+fired (deps change, remount) — nothing was ever sent, but the ref stayed
+wedged at `text` forever. `setNlResumeAfterAuth(trigger.text)` with the same
+string is a React no-op (`Object.is` bails), so the effect would never
+re-fire, and the guard at the top of the effect also blocked on the stale
+ref match. Net effect: click "Demo step 3" once, get an interrupted run, and
+every subsequent click prints "Running Demo step 3…" and then does nothing —
+no request, no error, stale Token Chain state left over from the poisoned
+run. Each vertical's amount-gated chip uses different wording
+(`amountTriggerByVertical` in `useCases.js`), so only the vertical whose text
+got stuck was affected — banking uses the base entry's text
+("transfer $600 from checking to savings"), so this reproduced as
+"works on other verticals, not banking."
+
+**What was fixed:** track whether the 250ms timer actually fired
+(`timerFired`). In the effect's cleanup, if it never fired, also reset
+`pendingNlResumeRef.current = null` — releasing the guard so a later click
+with the same trigger text can retry. The in-flight-send path (timer already
+fired) is untouched: its own `finally` still skips resetting state on
+supersede, per the 2026-07-18 entry's "do not clobber a newer
+`nlResumeAfterAuth`" rule.
+
+**Do not break:** the monetary/consent branch inside this same effect
+(banking `create_transfer` payload shape, `verticalOpts` must not carry
+`signal`) — untouched by this fix, which only edits the cleanup function.
+
+**Verify:** `cd demo_api_ui && CI=true npx jest src/__tests__/BankingAgent
+src/components/__tests__/AIAgent.chips.test.js
+--testPathIgnorePatterns="/node_modules/"` (79 pass); `npm run build`
+(exit 0).
+
 ### 2026-07-19 — Demo Config page (`/demo-config`) applied a sidebar selection but the side nav never refreshed
 
 **Files changed:**
