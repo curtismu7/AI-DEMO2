@@ -31,7 +31,7 @@ const BUILTIN_CONFIGS = [
     name: 'Demo mode',
     isBuiltin: true,
     hiddenLabels: [
-      'Themes', 'Agent Demo Guide', 'PingOne MCP', 'Banking MCP & Gateways',
+      'Themes', 'Agent Demo Guide', 'PingOne MCP', 'MCP & Gateways',
       'PingOne Demo Apps', 'Delegation & Consent', 'OAuth & Identity',
       'Users & Accounts', 'AI Attack Demos', 'Monitoring', 'Telemetry',
       'Diagrams', 'Agent Studio (Preview)', 'Developer Tools', 'System Tools',
@@ -45,7 +45,7 @@ const BUILTIN_CONFIGS = [
     isBuiltin: true,
     hiddenLabels: [
       'Themes', 'Agent Demo Guide', 'Family Delegation', 'AI Agents',
-      'PingOne MCP', 'Banking MCP & Gateways', 'Delegation & Consent',
+      'PingOne MCP', 'MCP & Gateways', 'Delegation & Consent',
       'Industry Verticals', 'Users & Accounts', 'AI Attack Demos',
       'Monitoring', 'Telemetry', 'Agent Studio (Preview)', 'Developer Tools',
       'System Tools', 'Integration Tests',

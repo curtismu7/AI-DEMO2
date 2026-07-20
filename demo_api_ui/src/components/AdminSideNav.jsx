@@ -502,7 +502,7 @@ export default function AdminSideNav({ user }) {
       ],
     },
     {
-      label: "Banking MCP & Gateways",
+      label: "MCP & Gateways",
       icon: "rte",
       children: [
         {
