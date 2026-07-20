@@ -8,7 +8,7 @@
 // into shared logic. The three original files are untouched by this page
 // — McpInspector.js and ApiExplorerPanel.js are still separately embedded
 // in McpGatewayConfig.jsx and DevToolsDashboard.jsx respectively.
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import apiClient from '../services/apiClient';
 import { notifyError } from '../utils/appToast';
 import { formatAxiosError } from '../utils/formatAxiosError';
@@ -127,6 +127,75 @@ const BANKING_STATIC_TOOLS = [
     description: 'Retrieve transaction history for the authenticated user.',
     inputSchema: { type: 'object', properties: {}, required: [] },
     requiredScopes: ['transactions:read'],
+  },
+  {
+    name: 'get_sensitive_account_details',
+    description: 'Retrieve full account number and routing number (requires sensitive:read + consent).',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+    requiredScopes: ['sensitive:read'],
+  },
+  {
+    name: 'create_deposit',
+    description: 'Deposit funds into an account. Amounts over $500 require HITL consent.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        to_account_id: { type: 'string' },
+        amount: { type: 'number' },
+        description: { type: 'string' },
+      },
+      required: ['to_account_id', 'amount'],
+    },
+    requiredScopes: ['transactions:write'],
+  },
+  {
+    name: 'create_withdrawal',
+    description: 'Withdraw funds from an account. Amounts over $500 require HITL consent.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        from_account_id: { type: 'string' },
+        amount: { type: 'number' },
+        description: { type: 'string' },
+      },
+      required: ['from_account_id', 'amount'],
+    },
+    requiredScopes: ['transactions:write'],
+  },
+  {
+    name: 'create_transfer',
+    description: 'Transfer money between accounts. Amounts over $500 require HITL consent.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        from_account_id: { type: 'string' },
+        to_account_id: { type: 'string' },
+        amount: { type: 'number' },
+        description: { type: 'string' },
+      },
+      required: ['from_account_id', 'to_account_id', 'amount'],
+    },
+    requiredScopes: ['transactions:write'],
+  },
+  {
+    name: 'query_user_by_email',
+    description: 'Check if a user exists by email address (public, no auth required).',
+    inputSchema: {
+      type: 'object',
+      properties: { email: { type: 'string' } },
+      required: ['email'],
+    },
+    requiredScopes: [],
+  },
+  {
+    name: 'sequential_think',
+    description: 'Reason step-by-step through a complex banking question or decision.',
+    inputSchema: {
+      type: 'object',
+      properties: { query: { type: 'string' }, context: { type: 'string' } },
+      required: ['query'],
+    },
+    requiredScopes: [],
   },
 ];
 
@@ -317,43 +386,55 @@ function useBankingSource() {
         )}
       </>
     ),
-    middle: selectedTool ? (
+    middle: (
       <>
-        <div className="inspector-shell-form-header">
-          <div className="inspector-shell-form-header__name">{selectedTool.name}</div>
-          {selectedTool.description && <div className="inspector-shell-form-header__desc">{selectedTool.description}</div>}
-        </div>
-        <div className="inspector-shell-form-actions inspector-shell-form-actions--top">
-          <button className="inspector-shell-btn-call" onClick={handleInvoke} disabled={busy}>{busy ? 'Calling...' : 'Execute'}</button>
-          <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
-        </div>
-        <div className="inspector-shell-form-body">
-          {Object.entries(schemaProps).map(([key, schema]) => (
-            <div className="inspector-shell-field" key={key}>
-              <label>
-                {key}{requiredParams.has(key) && <span className="req"> *</span>}
-                <span className="type">{schema?.type || ''}</span>
-              </label>
-              <input
-                type="text"
-                placeholder={schema?.description || schema?.type || 'value'}
-                value={paramValues[key] ?? ''}
-                onChange={(e) => setParamValues((prev) => ({ ...prev, [key]: e.target.value }))}
-              />
+        {needsLogin && (
+          <div style={{ background: '#fef2f2', color: '#991b1b', padding: '8px 20px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <strong>Sign in required.</strong> This tools/call needs a valid BFF session.
+            <button className="inspector-shell-topbar__btn inspector-shell-topbar__btn--active" onClick={navigateToCustomerOAuthLogin}>
+              Log in
+            </button>
+          </div>
+        )}
+        {selectedTool ? (
+          <>
+            <div className="inspector-shell-form-header">
+              <div className="inspector-shell-form-header__name">{selectedTool.name}</div>
+              {selectedTool.description && <div className="inspector-shell-form-header__desc">{selectedTool.description}</div>}
             </div>
-          ))}
-          {Object.keys(schemaProps).length === 0 && (
-            <div style={{ color: '#64748b', fontSize: 13 }}>No parameters required.</div>
-          )}
-        </div>
-        <div className="inspector-shell-form-actions">
-          <button className="inspector-shell-btn-call" onClick={handleInvoke} disabled={busy}>{busy ? 'Calling...' : 'Execute'}</button>
-          <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
-          {formError && <span className="inspector-shell-form-error">{formError}</span>}
-        </div>
+            <div className="inspector-shell-form-actions inspector-shell-form-actions--top">
+              <button className="inspector-shell-btn-call" onClick={handleInvoke} disabled={busy}>{busy ? 'Calling...' : 'Execute'}</button>
+              <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
+            </div>
+            <div className="inspector-shell-form-body">
+              {Object.entries(schemaProps).map(([key, schema]) => (
+                <div className="inspector-shell-field" key={key}>
+                  <label>
+                    {key}{requiredParams.has(key) && <span className="req"> *</span>}
+                    <span className="type">{schema?.type || ''}</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={schema?.description || schema?.type || 'value'}
+                    value={paramValues[key] ?? ''}
+                    onChange={(e) => setParamValues((prev) => ({ ...prev, [key]: e.target.value }))}
+                  />
+                </div>
+              ))}
+              {Object.keys(schemaProps).length === 0 && (
+                <div style={{ color: '#64748b', fontSize: 13 }}>No parameters required.</div>
+              )}
+            </div>
+            <div className="inspector-shell-form-actions">
+              <button className="inspector-shell-btn-call" onClick={handleInvoke} disabled={busy}>{busy ? 'Calling...' : 'Execute'}</button>
+              <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
+              {formError && <span className="inspector-shell-form-error">{formError}</span>}
+            </div>
+          </>
+        ) : (
+          <div className="inspector-shell-form-empty">Select a tool from the tree to inspect and invoke it.</div>
+        )}
       </>
-    ) : (
-      <div className="inspector-shell-form-empty">Select a tool from the tree to inspect and invoke it.</div>
     ),
     right: (
       <>
