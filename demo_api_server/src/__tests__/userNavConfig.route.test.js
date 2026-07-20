@@ -17,10 +17,10 @@ function makeApp(userId = 'test-user') {
 }
 
 describe('GET /api/user/nav-config', () => {
-  test('defaults to empty hiddenLabels for a first-time user', async () => {
+  test('defaults to Use Cases hidden for a first-time user', async () => {
     const res = await request(makeApp('first-time-user')).get('/api/user/nav-config');
     expect(res.status).toBe(200);
-    expect(res.body.hiddenLabels).toEqual([]);
+    expect(res.body.hiddenLabels).toEqual(['Use Cases']);
     expect(res.body.activeConfigId).toBeNull();
   });
 
@@ -72,7 +72,7 @@ describe('PUT /api/user/nav-config', () => {
     const resPutA = await request(appA).put('/api/user/nav-config').send({ hiddenLabels: ['Themes'], activeConfigId: null });
     const resB = await request(appB).get('/api/user/nav-config');
     expect(resB.body.hiddenLabels).not.toEqual(resPutA.body.hiddenLabels);
-    expect(resB.body.hiddenLabels).toEqual([]);
+    expect(resB.body.hiddenLabels).toEqual(['Use Cases']);
     await configStore.setRaw({ ff_sidebar_customization: 'false' });
   });
 });
