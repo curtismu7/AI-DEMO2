@@ -1,15 +1,25 @@
 'use strict';
 
 /**
- * A2A Orchestrator Service — uses CrewAI for multi-agent delegation decisions.
+ * A2A Orchestrator Service — LLM-backed multi-stage delegation decisions.
  *
- * The orchestrator crew analyzes delegation requests across three dimensions:
- * 1. Decision Maker: Should this task be delegated at all?
- * 2. Specialist Coordinator: Which specialist should handle it?
- * 3. Authorization Reviewer: Can the authorization server approve this delegation?
+ * Three sequential LLM calls (local llama.cpp proxy, same forced-JSON pattern
+ * geminiNlIntent.js uses) mirror the roles in config/a2a/roles.js:
+ * 1. Decision Maker: should this task be delegated at all?
+ * 2. Specialist Coordinator: which of the vertical's specialist tools fits the request?
+ * 3. Authorization Reviewer: does this look approvable ahead of PingOne Authorize?
  *
- * Once the crew approves, execution is handed off to a2aDelegationService
- * which handles the actual RFC 8693 token exchange.
+ * config/a2aSpecialists.js maps each vertical to exactly ONE specialist, so the
+ * real per-request ambiguity is not "which agent" but "which tool" that specialist
+ * should be constrained to (delegateToSpecialist's opts.tool). Stage 2 is skipped
+ * when the specialist only exposes one tool (true for 7 of the 8 configured verticals).
+ *
+ * Any stage failure (proxy unreachable, invalid/unparseable JSON, schema mismatch)
+ * aborts the whole LLM pipeline and falls back to the keyword heuristic below —
+ * no partial LLM/heuristic mixing.
+ *
+ * Once approved, execution is handed off to a2aDelegationService, which performs
+ * the actual RFC 8693 token exchange — untouched by this file.
  */
 
 const {
@@ -26,106 +36,193 @@ const {
 const appEventService = require('./appEventService');
 const { specialistForVertical } = require('../config/a2aSpecialists');
 const { delegateToSpecialist } = require('./a2aDelegationService');
+const { callLlamaCpp } = require('./llamacppLlmService');
+const { repairAndParseJson } = require('./llmResponseContract');
+
+const DECISION_SCHEMA = {
+  type: 'object',
+  required: ['shouldDelegate', 'reason', 'sensitivity'],
+  properties: {
+    shouldDelegate: { type: 'boolean' },
+    reason: { type: 'string' },
+    sensitivity: { type: 'string', enum: ['low', 'medium', 'high'] },
+  },
+};
+
+function coordinatorSchema(tools) {
+  return {
+    type: 'object',
+    required: ['tool', 'reasoning'],
+    properties: {
+      tool: { type: 'string', enum: tools },
+      reasoning: { type: 'string' },
+    },
+  };
+}
+
+const AUTHORIZATION_SCHEMA = {
+  type: 'object',
+  required: ['approved', 'blockers'],
+  properties: {
+    approved: { type: 'boolean' },
+    blockers: { type: 'array', items: { type: 'string' } },
+  },
+};
+
+/** Flatten a CrewAI-style role object into a system prompt string. */
+function rolePrompt(role) {
+  return `${role.role}\n\nGoal: ${role.goal}\n\nBackstory: ${role.backstory}`;
+}
+
+/** Call the local LLM proxy with a forced JSON schema and parse+validate the reply. */
+async function callStage(role, task, schema, validate) {
+  const raw = await callLlamaCpp(
+    [
+      { role: 'system', content: rolePrompt(role) },
+      { role: 'user', content: task.description },
+    ],
+    { jsonSchema: schema },
+  );
+  const parsed = repairAndParseJson(raw);
+  if (!parsed || !validate(parsed)) {
+    throw new Error(`LLM stage "${role.role}" returned an invalid reply: ${JSON.stringify(parsed)}`);
+  }
+  return parsed;
+}
 
 /**
- * Orchestrate an A2A delegation request through the crew and execute delegation.
- * Returns: { shouldDelegate, specialist, scopes, authorized, token, tokenEvents, claims, error? }
- *
- * Note: CrewAI requires Python. For Node.js environments without Python,
- * this service provides a fallback decision path that mimics the crew logic.
+ * LLM-backed orchestration: decision -> specialist coordination (tool pick,
+ * skipped when there's only one tool) -> authorization review. Throws on any
+ * stage failure — orchestrateDelegation falls back to heuristicOrchestration.
  */
-async function orchestrateDelegation({ req, message, vertical, userId, availableSpecialists = [] }) {
-  // Get actual model from proxy configuration
-  let llmModel = 'Claude 3.5 Sonnet';
-  try {
-    const { resolveLlmProvider } = require('./llmProviderResolver');
-    const resolved = resolveLlmProvider({});
-    if (resolved.model) llmModel = resolved.model;
-  } catch {
-    // Use default if resolution fails
+async function llmOrchestration({ message, vertical }) {
+  const decision = await callStage(
+    DECISION_MAKER_ROLE,
+    buildDecisionTask(DECISION_MAKER_ROLE, message),
+    DECISION_SCHEMA,
+    (p) => typeof p.shouldDelegate === 'boolean',
+  );
+
+  if (!decision.shouldDelegate) {
+    return {
+      shouldDelegate: false,
+      reason: decision.reason || 'Message does not indicate need for specialist delegation',
+      specialist: null,
+      tool: null,
+      scopes: [],
+      authorized: false,
+      sensitivity: decision.sensitivity || 'low',
+    };
   }
 
+  const specialist = specialistForVertical(vertical);
+  if (!specialist) {
+    return {
+      shouldDelegate: true,
+      reason: 'Delegation indicated but no specialist configured for this vertical',
+      specialist: null,
+      tool: null,
+      scopes: [],
+      authorized: false,
+      sensitivity: decision.sensitivity || 'low',
+    };
+  }
+
+  let tool;
+  if (specialist.tools.length === 1) {
+    tool = specialist.tools[0];
+  } else {
+    const coordinatorTask = buildCoordinatorTask(SPECIALIST_COORDINATOR_ROLE, vertical, specialist.tools, message);
+    const coordinator = await callStage(
+      SPECIALIST_COORDINATOR_ROLE,
+      coordinatorTask,
+      coordinatorSchema(specialist.tools),
+      (p) => specialist.tools.includes(p.tool),
+    );
+    tool = coordinator.tool;
+  }
+
+  const authTask = buildAuthorizationTask(AUTHORIZATION_REVIEWER_ROLE, specialist.specialistName, tool);
+  const authorization = await callStage(
+    AUTHORIZATION_REVIEWER_ROLE,
+    authTask,
+    AUTHORIZATION_SCHEMA,
+    (p) => typeof p.approved === 'boolean',
+  );
+
+  return {
+    shouldDelegate: true,
+    reason: `Delegation approved to ${specialist.specialistName}`,
+    specialist: vertical,
+    tool,
+    scopes: [],
+    authorized: authorization.approved === true,
+    sensitivity: decision.sensitivity || 'low',
+  };
+}
+
+/**
+ * Orchestrate an A2A delegation request: LLM-backed decision (falling back to
+ * a keyword heuristic on any LLM failure) then execute delegation.
+ * Returns: { shouldDelegate, specialist, scopes, authorized, token, tokenEvents, claims, agentHeader, metadata, error? }
+ */
+async function orchestrateDelegation({ req, message, vertical, userId, availableSpecialists = [] }) {
+  appEventService.logEvent('a2a', 'info', 'A2A orchestration starting', {
+    tag: 'a2a/orchestrate',
+    metadata: { vertical, userId },
+  });
+
+  let orchestrationResult;
+  let usedLlm = false;
   try {
-    appEventService.logEvent('a2a', 'info', 'A2A orchestration starting', {
-      tag: 'a2a/orchestrate',
-      metadata: { vertical, userId },
+    orchestrationResult = await llmOrchestration({ message, vertical });
+    usedLlm = true;
+    appEventService.logEvent('a2a', 'info', 'A2A orchestration via LLM', {
+      tag: 'a2a/llm_complete',
+      metadata: orchestrationResult,
     });
+  } catch (err) {
+    appEventService.logEvent('a2a', 'warn', 'A2A LLM orchestration failed — falling back to heuristics', {
+      tag: 'a2a/llm_failed',
+      metadata: { error: err.message },
+    });
+    orchestrationResult = await heuristicOrchestration({ message, vertical, availableSpecialists });
+    appEventService.logEvent('a2a', 'info', 'A2A orchestration via heuristics', {
+      tag: 'a2a/heuristic_fallback',
+      metadata: orchestrationResult,
+    });
+  }
 
-    // Attempt to use CrewAI if available (requires Python and crewai package)
-    const crewResult = await attemptCrewAiOrchestration({
-      message,
-      vertical,
-      availableSpecialists,
-    }).catch(() => null);
+  const agentHeader = usedLlm
+    ? '🤖 [A2A ORCHESTRATOR - LLM (llama.cpp)]'
+    : '🤖 [A2A ORCHESTRATOR - Heuristic Fallback]';
+  const metadata = {
+    framework: usedLlm ? 'llama.cpp' : 'heuristic',
+    agentType: 'orchestrator',
+  };
 
-    let orchestrationResult;
-    if (crewResult) {
-      appEventService.logEvent('a2a', 'info', 'CrewAI orchestration complete', {
-        tag: 'a2a/crew_complete',
-        metadata: crewResult,
-      });
-      orchestrationResult = crewResult;
-    } else {
-      // Fallback: Heuristic-based orchestration (no Python needed)
-      orchestrationResult = await heuristicOrchestration({
-        message,
-        vertical,
-        availableSpecialists,
-      });
-
-      appEventService.logEvent('a2a', 'info', 'A2A orchestration via heuristics', {
-        tag: 'a2a/heuristic_fallback',
-        metadata: orchestrationResult,
-      });
-    }
-
-    // If orchestration did not approve, return decision without delegation
+  try {
     if (!orchestrationResult.shouldDelegate || !orchestrationResult.authorized) {
       appEventService.logEvent('a2a', 'info', 'A2A delegation not approved', {
         tag: 'a2a/delegation_denied',
         metadata: { reason: orchestrationResult.reason },
       });
-      return {
-        ...orchestrationResult,
-        token: null,
-        tokenEvents: [],
-        claims: null,
-        agentHeader: '🤖 [A2A ORCHESTRATOR - CrewAI - Claude 3.5 Sonnet]',
-        metadata: {
-          framework: 'CrewAI',
-          model: 'Claude 3.5 Sonnet',
-          agentType: 'orchestrator'
-        }
-      };
+      return { ...orchestrationResult, token: null, tokenEvents: [], claims: null, agentHeader, metadata };
     }
 
-    // Delegation approved — execute the chained RFC 8693 exchange
     const specialist = specialistForVertical(orchestrationResult.specialist);
     if (!specialist) {
-      const err = `No specialist configured for vertical "${orchestrationResult.specialist}"`;
+      const errMsg = `No specialist configured for vertical "${orchestrationResult.specialist}"`;
       appEventService.logEvent('a2a', 'error', 'A2A specialist not found', {
         tag: 'a2a/specialist_not_found',
         metadata: { vertical: orchestrationResult.specialist },
       });
-      return {
-        ...orchestrationResult,
-        token: null,
-        tokenEvents: [],
-        claims: null,
-        error: err,
-        agentHeader: '🤖 [A2A ORCHESTRATOR - CrewAI - Claude 3.5 Sonnet]',
-        metadata: {
-          framework: 'CrewAI',
-          model: 'Claude 3.5 Sonnet',
-          agentType: 'orchestrator'
-        }
-      };
+      return { ...orchestrationResult, token: null, tokenEvents: [], claims: null, error: errMsg, agentHeader, metadata };
     }
 
     const delegationResult = await delegateToSpecialist(req, {
       vertical: orchestrationResult.specialist,
-      specialist: specialist.id,
-      scopes: orchestrationResult.scopes,
+      tool: orchestrationResult.tool,
       subtask: message,
     });
 
@@ -134,16 +231,7 @@ async function orchestrateDelegation({ req, message, vertical, userId, available
         tag: 'a2a/delegation_failed',
         metadata: { error: delegationResult.error },
       });
-      return {
-        ...orchestrationResult,
-        ...delegationResult,
-        agentHeader: '🤖 [A2A ORCHESTRATOR - CrewAI - Claude 3.5 Sonnet]',
-        metadata: {
-          framework: 'CrewAI',
-          model: 'Claude 3.5 Sonnet',
-          agentType: 'orchestrator'
-        }
-      };
+      return { ...orchestrationResult, ...delegationResult, agentHeader, metadata };
     }
 
     appEventService.logEvent('a2a', 'info', 'A2A delegation successful', {
@@ -158,13 +246,11 @@ async function orchestrateDelegation({ req, message, vertical, userId, available
     return {
       ...orchestrationResult,
       ...delegationResult,
-      agentHeader: `🤖 [A2A ORCHESTRATOR - CrewAI - ${llmModel}]`,
+      agentHeader,
       metadata: {
-        framework: 'CrewAI',
-        model: llmModel,
-        agentType: 'orchestrator',
-        features: ['multi-agent delegation', 'RFC 8693 token exchange', 'heuristic fallback']
-      }
+        ...metadata,
+        features: ['LLM-backed delegation decision', 'RFC 8693 token exchange', 'heuristic fallback'],
+      },
     };
   } catch (err) {
     console.error('[a2aOrchestratorService] Orchestration error:', err.message);
@@ -182,61 +268,19 @@ async function orchestrateDelegation({ req, message, vertical, userId, available
       tokenEvents: [],
       claims: null,
       error: err.message,
-      agentHeader: `🤖 [A2A ORCHESTRATOR - CrewAI - ${llmModel}]`,
-      metadata: {
-        framework: 'CrewAI',
-        model: llmModel,
-        agentType: 'orchestrator'
-      }
+      agentHeader,
+      metadata,
     };
   }
 }
 
 /**
- * Attempt to use CrewAI for orchestration.
- * CrewAI is optional — if the npm package is not installed or fails to load,
- * this silently falls back to heuristics. This avoids requiring Python or
- * additional dependencies just to run the demo.
- *
- * If CrewAI becomes available (e.g., via npm install crewai), this will:
- * 1. Instantiate agents with the roles defined in config/a2a/roles.js
- * 2. Build tasks from config/a2a/tasks.js
- * 3. Execute the crew
- * 4. Parse the crew output into a structured decision
- */
-async function attemptCrewAiOrchestration({ message, vertical, availableSpecialists }) {
-  // Check if crewai npm package is available
-  try {
-    require('crewai');
-  } catch {
-    // CrewAI not installed — this is expected. Throw to fall back to heuristics.
-    throw new Error('CrewAI npm package not installed or not available');
-  }
-
-  // CrewAI is available — attempt to instantiate and run the crew
-  // For now, we stub this. When crewai npm becomes available and the config
-  // files are populated, this will instantiate Decision Maker, Specialist
-  // Coordinator, and Authorization Reviewer agents and run them.
-  //
-  // Example (when ready):
-  //   const decisionMaker = new crewai.Agent(DECISION_MAKER_ROLE);
-  //   const coordinator = new crewai.Agent(SPECIALIST_COORDINATOR_ROLE);
-  //   const reviewer = new crewai.Agent(AUTHORIZATION_REVIEWER_ROLE);
-  //   const crew = new crewai.Crew({ agents: [...], tasks: [...] });
-  //   const result = await crew.kickoff({ inputs: { message, vertical, ... } });
-  //   return parseCrewResult(result);
-
-  throw new Error('CrewAI integration stubbed (ready for npm package)');
-}
-
-/**
- * Heuristic-based A2A orchestration — no external dependencies.
- * Analyzes the message to decide on delegation without LLM reasoning.
+ * Heuristic-based A2A orchestration — no external dependencies. Used only when
+ * the LLM pipeline above fails or is unreachable.
  */
 async function heuristicOrchestration({ message, vertical, availableSpecialists }) {
   const lowerMessage = message.toLowerCase();
 
-  // Decision Maker heuristics: Should delegate?
   const delegationPhrases = [
     /\b(delegate|hand\s*(off|over)|escalate)\b/,
     /\b(specialist|advisor|expert)\b/,
@@ -256,7 +300,6 @@ async function heuristicOrchestration({ message, vertical, availableSpecialists 
     };
   }
 
-  // Specialist Coordinator heuristics: Which specialist?
   const specialist = selectSpecialist({ message: lowerMessage, vertical, availableSpecialists });
 
   if (!specialist) {
@@ -269,30 +312,25 @@ async function heuristicOrchestration({ message, vertical, availableSpecialists 
     };
   }
 
-  // Authorization Reviewer heuristics: Can we approve?
   const scopes = deriveMinimalScopes(specialist, lowerMessage);
 
   return {
     shouldDelegate: true,
-    reason: `Delegation approved to ${specialist.name}`,
-    specialist: specialist.id,
+    reason: `Delegation approved to ${specialist.specialistName || specialist.name || specialist.id}`,
+    specialist: vertical,
     scopes,
     authorized: true,
     sensitivity,
   };
 }
 
-/**
- * Select the best specialist for the message using heuristics.
- */
+/** Select the best specialist for the message using heuristics. */
 function selectSpecialist({ message, vertical, availableSpecialists }) {
-  // If vertical has a configured specialist, use it
   const configuredSpecialist = specialistForVertical(vertical);
   if (configuredSpecialist) {
     return configuredSpecialist;
   }
 
-  // Otherwise, search availableSpecialists for keyword match
   const investmentKeywords = ['invest', 'portfolio', 'stock', 'fund', 'trading'];
   const hrKeywords = ['hr', 'payroll', 'benefits', 'employee', 'compensation'];
   const riskKeywords = ['fraud', 'risk', 'compliance', 'audit', 'security'];
@@ -307,23 +345,17 @@ function selectSpecialist({ message, vertical, availableSpecialists }) {
     return availableSpecialists.find((s) => s.id === 'risk-advisor') || null;
   }
 
-  // Default: return first available
   return availableSpecialists[0] || null;
 }
 
-/**
- * Derive minimal scopes needed for the specialist based on the message.
- * Uses heuristics to grant only what's necessary.
- */
+/** Derive minimal scopes needed for the specialist based on the message. */
 function deriveMinimalScopes(specialist, message) {
   if (!specialist.scopes || specialist.scopes.length === 0) {
-    return ['read']; // Minimal default
+    return ['read'];
   }
 
-  // Start with the specialist's scopes
   const scopes = new Set(specialist.scopes);
 
-  // Remove write scopes if message indicates read-only
   if (message.includes('view') || message.includes('check') || message.includes('show')) {
     scopes.delete('write');
     scopes.delete('delete');
