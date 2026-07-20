@@ -2,6 +2,9 @@ import React from 'react';
 import './AgentLifecyclePage.css';
 import { callMcpTool } from '../services/demoAgentService';
 import TokenChainTraceRail from '../components/TokenChainTraceRail';
+import { getAgents } from '../services/controlPlaneApi';
+import apiClient from '../services/apiClient';
+import KillSwitchConfirmModal from '../components/KillSwitchConfirmModal';
 
 function RegistrationSlot() {
   return (
@@ -153,6 +156,72 @@ function StepUpSlot() {
   );
 }
 
+function RevokeSlot() {
+  const [agentId, setAgentId] = React.useState(null);
+  const [showModal, setShowModal] = React.useState(false);
+  const [revoked, setRevoked] = React.useState(false);
+  const [retryResult, setRetryResult] = React.useState('');
+
+  React.useEffect(() => {
+    getAgents()
+      .then((data) => setAgentId(data?.live?.id || 'demo-agent'))
+      .catch(() => setAgentId('demo-agent'));
+  }, []);
+
+  const confirmRevoke = React.useCallback(async (id, reason) => {
+    try {
+      await apiClient.post(`/api/admin/agent/${id}/kill-switch`, { reason });
+    } catch (_) {
+      // A 401 here is expected once the session dies mid-request — the
+      // retry below is the real proof, not this call's own success.
+    }
+    setShowModal(false);
+    setRevoked(true);
+    try {
+      const { result } = await callMcpTool('list_orders', {}, { vertical: 'retail' });
+      setRetryResult(`Unexpected: call still succeeded (${JSON.stringify(result)})`);
+    } catch (err) {
+      setRetryResult(`Confirmed revoked — retry failed: ${err.message}`);
+    }
+  }, []);
+
+  return (
+    <section className="alp-slot">
+      <h2 className="alp-slot__title">4. Self-service revoke</h2>
+      <p className="alp-slot__desc">
+        Revokes this agent's access via the same kill-switch the AI Control
+        Plane page uses. This ends your own session — real kill-switch
+        semantics, not a simulation.
+      </p>
+      <button
+        className="alp-btn"
+        type="button"
+        onClick={() => setShowModal(true)}
+        disabled={!agentId || revoked}
+      >
+        {revoked ? 'Revoked' : 'Revoke agent access'}
+      </button>
+      <KillSwitchConfirmModal
+        isOpen={showModal}
+        agentId={agentId}
+        onConfirm={confirmRevoke}
+        onCancel={() => setShowModal(false)}
+      />
+      {retryResult && <p className="alp-slot__status">{retryResult}</p>}
+      {revoked && (
+        <a
+          className="alp-audit-link"
+          href={`/audit?agentId=${agentId}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          View audit trail →
+        </a>
+      )}
+    </section>
+  );
+}
+
 export default function AgentLifecyclePage() {
   return (
     <div className="alp-wrap">
@@ -164,6 +233,7 @@ export default function AgentLifecyclePage() {
       <RegistrationSlot />
       <ScopedCallSlot />
       <StepUpSlot />
+      <RevokeSlot />
     </div>
   );
 }

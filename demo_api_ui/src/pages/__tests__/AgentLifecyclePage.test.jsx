@@ -10,9 +10,32 @@ vi.mock('../../services/demoAgentService', () => ({
 vi.mock('../../components/TokenChainTraceRail', () => ({
   default: () => <div data-testid="trace-rail" />,
 }));
+vi.mock('../../services/controlPlaneApi', () => ({
+  getAgents: vi.fn(),
+}));
+vi.mock('../../services/apiClient', () => ({
+  default: { post: vi.fn() },
+}));
+vi.mock('../../components/KillSwitchConfirmModal', () => ({
+  default: ({ isOpen, agentId, onConfirm }) =>
+    isOpen ? (
+      <button onClick={() => onConfirm(agentId, 'test reason')}>
+        ConfirmRevoke
+      </button>
+    ) : null,
+}));
 
 import { callMcpTool } from '../../services/demoAgentService';
+import { getAgents } from '../../services/controlPlaneApi';
+import apiClient from '../../services/apiClient';
 import { fireEvent, waitFor } from '@testing-library/react';
+
+// RevokeSlot mounts alongside every other slot and calls getAgents() on
+// mount, so every test in this file renders it — give it a safe default
+// resolution here; Slot 4's own beforeEach overrides this per-test.
+beforeEach(() => {
+  getAgents.mockResolvedValue({ live: { id: 'demo-agent' }, demo: [] });
+});
 
 describe('AgentLifecyclePage', () => {
   it('renders the title and the registration video slot', () => {
@@ -135,6 +158,37 @@ describe('AgentLifecyclePage — Slot 3 step-up on purchase', () => {
 
     await waitFor(() =>
       expect(screen.getByText('Checkout completed.')).toBeInTheDocument(),
+    );
+  });
+});
+
+describe('AgentLifecyclePage — Slot 4 self-service revoke', () => {
+  beforeEach(() => {
+    getAgents.mockReset().mockResolvedValue({ live: { id: 'demo-agent' }, demo: [] });
+    apiClient.post.mockReset().mockResolvedValue({ data: {} });
+    callMcpTool.mockReset();
+  });
+
+  it('revokes via the kill-switch endpoint and proves the retry fails', async () => {
+    callMcpTool.mockRejectedValue(new Error('token revoked'));
+    render(<AgentLifecyclePage />);
+
+    await waitFor(() => expect(screen.getByText('Revoke agent access')).toBeEnabled());
+    fireEvent.click(screen.getByText('Revoke agent access'));
+    fireEvent.click(screen.getByText('ConfirmRevoke'));
+
+    await waitFor(() =>
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/api/admin/agent/demo-agent/kill-switch',
+        { reason: 'test reason' },
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.getByText(/Confirmed revoked — retry failed: token revoked/)).toBeInTheDocument(),
+    );
+    expect(screen.getByText('View audit trail →')).toHaveAttribute(
+      'href',
+      '/audit?agentId=demo-agent',
     );
   });
 });
