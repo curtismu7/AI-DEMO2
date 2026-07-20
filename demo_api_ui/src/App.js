@@ -135,6 +135,7 @@ import MonitoringRoutes, {
   SequenceDiagramRoute,
 } from "./routes/MonitoringRoutes";
 import PublicRoutes, {
+  CibaApprovalPageRoute,
   CodeExplorerPageRoute,
   CodeSearchPageRoute,
   ConfigurePage,
@@ -489,6 +490,7 @@ function AppWithAuth() {
                   element={<SdkLoginPageRoute />}
                 />
                 <Route path="/sdk-login/callback" element={<SdkLoginCallbackRoute />} />
+                <Route path="/ciba-approve" element={<CibaApprovalPageRoute />} />
                 <Route
                   path="/code-explorer"
                   element={

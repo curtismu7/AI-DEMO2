@@ -26,6 +26,7 @@ import UseCaseLauncherPage from "../pages/UseCaseLauncherPage";
 import TokenExchangeTesterPage from "../pages/TokenExchangeTesterPage";
 import SdkLoginPage from "../pages/SdkLoginPage";
 import SdkLoginCallback from "../pages/SdkLoginCallback";
+import CibaApprovalPage from "../pages/CibaApprovalPage";
 import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
 import PrivilegeMcpClientPage from "../pages/PrivilegeMcpClientPage";
 
@@ -220,6 +221,10 @@ export function SdkLoginPageRoute() {
 // OIDC redirect callback (bare — no shell, it exchanges the code and redirects).
 export function SdkLoginCallbackRoute() {
   return <SdkLoginCallback />;
+}
+
+export function CibaApprovalPageRoute() {
+  return <CibaApprovalPage />;
 }
 
 export { LogoutPage, ComplianceModalPopout, DemoGuidePopout };
