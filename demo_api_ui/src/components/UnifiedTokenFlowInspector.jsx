@@ -103,11 +103,35 @@ function hasAnyField(data) {
   return Object.values(data).some((v) => v !== undefined && v !== null);
 }
 
-// Tools routed to the Investments MCP backend — mirrors the static tool→route
-// table in GatewayRoutingDiagram.jsx ("Online Banking" vs "Investments"
-// WebSocket routes). Any tool not in this set is treated as OLB, the
-// majority-case route.
+// Tool -> gateway route category, mirroring the five routes documented in
+// GatewayRoutingDiagram.jsx (itself sourced from demo_mcp_gateway/src/router.ts,
+// the real routing source of truth). Only two of the five categories are a
+// real RFC 8693 audience exchange to a WebSocket backend (OLB, Investments);
+// the other three use a different credential/audience shape entirely — see
+// getUtfiRouteCategory below. Any tool not listed here (including "no tool
+// called yet") falls through to OLB, the majority-case route — this matches
+// router.ts's own default ("existing OLB tools ... and unknown tools -> OLB").
 const UTFI_INVEST_TOOLS = new Set(['get_portfolio_summary', 'get_investment_balance']);
+const UTFI_API_KEY_TOOLS = new Set(['show_mortgage', 'show_health_record', 'show_permit']);
+const UTFI_BANKING_RESOURCE_TOOLS = new Set([
+  'user_profile_card', // "Dual-token" route
+  'demo_show_accounts', // "Banking-data" route
+  'demo_show_transactions', // "Banking-data" route
+]);
+
+const UTFI_NO_EXCHANGE_NOTE =
+  'No RFC 8693 exchange — this tool uses an API-key credential (X-API-Key), not a bearer-token audience swap.';
+
+// Categorizes a tool name into one of the four backend-audience-out shapes
+// used by the Token Transform tab. Returns null when no tool has been
+// called yet this session (caller renders the default-to-OLB caveat).
+function getUtfiRouteCategory(toolName) {
+  if (!toolName) return null;
+  if (UTFI_INVEST_TOOLS.has(toolName)) return 'invest';
+  if (UTFI_API_KEY_TOOLS.has(toolName)) return 'api_key';
+  if (UTFI_BANKING_RESOURCE_TOOLS.has(toolName)) return 'banking_resource';
+  return 'olb';
+}
 
 // A token-chain event's audience claim can show up under different field
 // names depending on which producer built it (session-preview stub events
@@ -923,11 +947,17 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
     : null;
   const lastInboundAud =
     getEventAudience(lastTokenEvent) || 'No token exchanged yet — run an agent action to populate this.';
-  const routesToInvest = UTFI_INVEST_TOOLS.has(snap.toolName);
-  const lastRoutedBackendUri = gwConfig
-    ? (routesToInvest ? gwConfig.mcpInvestResourceUri : gwConfig.mcpOlbResourceUri) ||
-      'Not configured — push a gateway config first'
-    : 'Gateway config not loaded — see Agent Gateway Configuration';
+  const utfiRouteCategory = getUtfiRouteCategory(snap.toolName);
+  const lastRoutedBackendUri =
+    utfiRouteCategory === 'api_key'
+      ? UTFI_NO_EXCHANGE_NOTE
+      : gwConfig
+        ? (utfiRouteCategory === 'invest'
+            ? gwConfig.mcpInvestResourceUri
+            : utfiRouteCategory === 'banking_resource'
+              ? gwConfig.bankingResourceServerResourceUri
+              : gwConfig.mcpOlbResourceUri) || 'Not configured — push a gateway config first'
+        : 'Gateway config not loaded — see Agent Gateway Configuration';
 
   const { pos, size, handleDragStart } = useDraggablePanel(
     () => ({
