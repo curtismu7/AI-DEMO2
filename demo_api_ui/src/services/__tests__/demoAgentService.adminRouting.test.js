@@ -72,6 +72,20 @@ describe('sendAgentMessage — pingone-admin vertical routing', () => {
     expect(result.agentHeader).toBe('🤖 [ADMIN AGENT - LangGraph - Claude 3.5 Sonnet]');
   });
 
+  it('passes through error so a 403 insufficient_scope response is distinguishable', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      json: async () => ({
+        error: 'insufficient_scope',
+        error_description: 'Admin access required. User must have admin role or admin scope.',
+      }),
+    });
+    const result = await sendAgentMessage('list applications', null, { vertical: 'pingone-admin' });
+    expect(result.error).toBe('insufficient_scope');
+    expect(result._status).toBe(403);
+  });
+
   it('does not open the SSE flow-trace connection for the admin path', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
