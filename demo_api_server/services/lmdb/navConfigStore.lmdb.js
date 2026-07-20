@@ -95,9 +95,14 @@ function deleteConfig(id) {
   return { ok: true };
 }
 
+// New/unconfigured users start with "Use Cases" hidden (the catalog page is
+// superseded by "Use Cases (Live)" as the primary entry point) — they can
+// re-enable it themselves from Demo Config.
+const DEFAULT_HIDDEN_LABELS = ['Use Cases'];
+
 function getUserPrefs(userId) {
   const v = _db().get(`userPrefs:${userId}`);
-  return v || { hiddenLabels: [], activeConfigId: null, updatedAt: null };
+  return v || { hiddenLabels: DEFAULT_HIDDEN_LABELS, activeConfigId: null, updatedAt: null };
 }
 
 function setUserPrefs(userId, hiddenLabels, activeConfigId) {
@@ -109,5 +114,5 @@ function setUserPrefs(userId, hiddenLabels, activeConfigId) {
 module.exports = {
   listConfigs, getConfig, createConfig, deleteConfig,
   getUserPrefs, setUserPrefs,
-  seedBuiltins, BUILTIN_CONFIGS, DB_NAME,
+  seedBuiltins, BUILTIN_CONFIGS, DEFAULT_HIDDEN_LABELS, DB_NAME,
 };
