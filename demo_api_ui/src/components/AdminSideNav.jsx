@@ -146,7 +146,7 @@ const EXPANDED_SECTIONS_KEY_BASE = "adminSideNav.expandedSections";
 const AUTO_EXPAND_SECTIONS = [
   { id: "ai-agents", paths: ["/ai-control-plane", "/agent", "/copilot", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
   { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client"] },
-  { id: "banking-mcp", paths: ["/webmcp", "/mcp-inspector", "/ping-ai-test-lab"] },
+  { id: "banking-mcp", paths: ["/webmcp", "/ping-ai-test-lab"] },
   { id: "banking-mcp-gateways", paths: ["/pinggateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security"] },
   { id: "pingone-demo-apps", paths: ["/self-service", "/pingone-test", "/mfa-test", "/token-exchange-tester", "/oauth-academy", "/oas-demo", "/privilege-demo", "/sdk-login"] },
   { id: "delegation-consent", paths: ["/delegation", "/delegated-access", "/transaction-consent", "/actor-token-education"] },
@@ -486,7 +486,7 @@ export default function AdminSideNav({ user }) {
       highlight: true,
       children: [
         {
-          label: "PingOne MCP Inspector",
+          label: "MCP Inspector",
           path: "/pingone-mcp-inspector",
           icon: "dbg",
         },
@@ -505,11 +505,6 @@ export default function AdminSideNav({ user }) {
       label: "Banking MCP & Gateways",
       icon: "rte",
       children: [
-        {
-          label: "Generic MCP Inspector",
-          path: "/mcp-inspector",
-          icon: "dbg",
-        },
         {
           label: "Ping AI Test Lab",
           path: "/ping-ai-test-lab",
@@ -715,11 +710,6 @@ export default function AdminSideNav({ user }) {
           label: "Activity Log",
           path: "/monitoring/activity-log",
           icon: "log",
-        },
-        {
-          label: "API Explorer",
-          path: "/monitoring/api-explorer",
-          icon: "api",
         },
         { label: "Run Reports", path: "/reports", icon: "rpt" },
         {

@@ -2,7 +2,6 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./AppShell";
 import ActivityLogPage from "../components/ActivityLogPage";
 import ActivityLogs from "../components/ActivityLogs";
-import ApiExplorerPanel from "../components/ApiExplorerPanel";
 import ApiTrafficPage from "../components/ApiTrafficPage";
 import DevToolsDashboard from "../components/DevToolsDashboard";
 import LogViewerPage from "../components/LogViewerPage";
@@ -25,7 +24,7 @@ export default function MonitoringRoutes({ user, logout, AgentFlowPage }) {
             (this one) ever rendered them in practice. */}
         <Route path="token-chain" element={<TokenChainDisplay />} />
         <Route path="mcp-traffic" element={<McpTrafficPage />} />
-        <Route path="api-explorer" element={<ApiExplorerPanel />} />
+        <Route path="api-explorer" element={<Navigate to="/pingone-mcp-inspector" replace />} />
         <Route path="agent-flow" element={
           user && AgentFlowPage
             ? <AgentFlowPage />
