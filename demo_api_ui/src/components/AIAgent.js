@@ -8161,7 +8161,8 @@ export default function BankingAgent({
                             if (tokenChain && Array.isArray(data?.tokenEvents)) {
                               tokenChain.setTokenEvents("a2a-orchestrator", data.tokenEvents);
                             }
-                            const reply = `[A2A ORCHESTRATOR - CrewAI]\n${data?.reply || "A2A orchestrator: no response."}`;
+                            const header = data?.delegationDecision?.agentHeader || '🤖 [A2A ORCHESTRATOR]';
+                            const reply = `${header}\n${data?.reply || "A2A orchestrator: no response."}`;
                             addMessage("assistant", reply, null);
                           } catch (err) {
                             reportNlFailure(err);

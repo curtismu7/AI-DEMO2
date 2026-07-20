@@ -83,6 +83,8 @@ svg.cp-links line.dead{stroke:#dc2626;opacity:.22;stroke-dasharray:4 7}
    standalone red STOP AGENT button) — bold red, opens the reason-logging modal. */
 .cp-stop--live{background:#dc2626;border-color:#dc2626;color:#fff;font-weight:800;letter-spacing:.5px;padding:5px 18px}
 .cp-stop--live:hover{background:#b91c1c;border-color:#b91c1c}
+.cp-stop--revive{background:#16a34a;border-color:#16a34a;color:#fff;font-weight:800;letter-spacing:.5px;padding:5px 18px;margin-left:8px}
+.cp-stop--revive:hover{background:#15803d;border-color:#15803d}
 .cp-pulse .rdot{animation:cppulse .6s infinite}
 @keyframes cppulse{0%,100%{transform:scale(1)}50%{transform:scale(1.5)}}
 .cp-actions{display:flex;gap:10px;margin-top:14px;align-items:center;position:relative;z-index:2}

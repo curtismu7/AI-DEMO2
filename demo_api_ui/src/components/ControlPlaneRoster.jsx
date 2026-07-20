@@ -127,6 +127,19 @@ export default function ControlPlaneRoster() {
     setShowLiveModal(false);
   };
 
+  // Inverse of confirmLiveKill: re-enables the PingOne agent application(s)
+  // the kill switch disabled, so testing the red button doesn't require
+  // manual PingOne console access to recover.
+  const confirmLiveRevive = async (agentId) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await apiClient.post(`/api/admin/agent/${agentId}/re-enable`);
+      setLive((l) => (l ? { ...l, status: "active" } : l));
+    } catch (_) { /* surfaced via the normal apiClient error toast */ }
+    setBusy(false);
+  };
+
   const allRows = [];
   if (live) allRows.push({ ...live, isLive: true });
   demo.forEach((d) => allRows.push({ ...d, isLive: false }));
@@ -223,6 +236,13 @@ export default function ControlPlaneRoster() {
                 disabled={revoked || busy}
                 onClick={() => (a.isLive ? setShowLiveModal(true) : onStopAgent(a))}
               >{a.isLive ? "STOP" : "stop"}</button>
+              {a.isLive && revoked && (
+                <button
+                  className="cp-stop cp-stop--revive"
+                  disabled={busy}
+                  onClick={() => confirmLiveRevive(a.id)}
+                >Re-enable</button>
+              )}
             </div>
           );
         })}
