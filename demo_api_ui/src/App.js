@@ -61,7 +61,7 @@ import LearningHub from "./components/LearningHub";
 import LlmConfigPage from "./components/LlmConfigPage";
 import LogoutPage from "./components/LogoutPage";
 import LogViewer from "./components/LogViewer";
-import McpInspector from "./components/McpInspector";
+import McpInspectorPage from "./components/McpInspectorPage";
 import MissingCredentialsModal from "./components/MissingCredentialsModal";
 import MockAuthzRulesPage from "./components/MockAuthzRulesPage";
 import MortgagePathPage from "./components/MortgagePathPage";
@@ -72,7 +72,6 @@ import PingOneAuthorizeCapabilitiesPage from "./pages/PingOneAuthorizeCapabiliti
 import AgentGatewayCapabilitiesPage from "./pages/AgentGatewayCapabilitiesPage";
 import PolicyDecisionTracePage from "./components/PolicyDecisionTracePage";
 import McpGatewayConfig from "./components/McpGatewayConfig";
-import PingOneMcpInspector from "./components/PingOneMcpInspector";
 import PostmanCollectionsPage from "./components/PostmanCollectionsPage";
 import Profile from "./components/Profile";
 import ResourceServerPage from "./components/ResourceServerPage";
@@ -1029,18 +1028,11 @@ function AppWithAuth() {
                             />
                             <Route
                               path="/mcp-inspector"
-                              element={
-                                <McpInspector user={user} onLogout={logout} />
-                              }
+                              element={<Navigate to="/pingone-mcp-inspector?source=banking" replace />}
                             />
                             <Route
                               path="/pingone-mcp-inspector"
-                              element={
-                                <PingOneMcpInspector
-                                  user={user}
-                                  onLogout={logout}
-                                />
-                              }
+                              element={<McpInspectorPage />}
                             />
                             <Route
                               path="/pinggateway-inspector"
