@@ -101,6 +101,39 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-20 — Non-admin session selecting PingOne Admin got a blank generic failure
+
+**Files changed:**
+- `demo_api_ui/src/services/demoAgentService.js` — `sendToAdminAgent` now
+  passes through the response `error` code.
+- `demo_api_ui/src/components/AIAgent.js` (`NL_FAILURE_MESSAGES`) — new
+  `insufficient_scope` entry.
+
+**What was broken:** the "PingOne Admin" vertical is selectable from
+customer-scoped pages (e.g. `/dashboard`'s vertical picker), not just the
+admin console. A customer-scoped session picking it and sending a message
+correctly gets a 403 `insufficient_scope` from `requireAdmin` (the
+admin-only route's middleware) — but `sendToAdminAgent` dropped the
+response's `error` field, so `reportNlFailure`'s `NL_FAILURE_MESSAGES[err.code]`
+lookup never matched anything and fell to the generic
+`"That step couldn't be completed. Try again, or pick another demo step."`,
+with no indication the fix is simply switching to an admin session.
+
+**What was fixed:** `sendToAdminAgent` passes through `data.error`, and
+`NL_FAILURE_MESSAGES` gained an `insufficient_scope` entry pointing at the
+existing "Switch to admin" top-nav button — reuses the same
+code-to-message lookup already used for `mcp_scope_denied` etc., no new UI
+component.
+
+**Do not break:** this only adds one map entry and one passthrough field —
+no other `NL_FAILURE_MESSAGES` codes or `sendToAdminAgent` fields changed.
+
+**Verify:** `demo_api_ui` vitest `demoAgentService.adminRouting` (7 pass,
+including the new `insufficient_scope` passthrough case); `npm run build`
+exits 0. Live: a customer-scoped session on `/dashboard` selecting PingOne
+Admin and sending a message now sees "This needs an admin session — click
+'Switch to admin'..." instead of the blank generic fallback.
+
 ### 2026-07-20 — Admin agent demo-step replies labeled `[CUSTOMER AGENT]`
 
 **Files changed:**
