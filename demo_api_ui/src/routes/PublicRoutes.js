@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./AppShell";
+import AgentGatewayCapabilitiesTour from "../pages/AgentGatewayCapabilitiesTour";
 import IntentBindingLearningPage from "../pages/IntentBindingLearningPage";
 import LiveUseCaseWorkbenchPage from "../pages/LiveUseCaseWorkbenchPage";
 import AIAgent from "../components/AIAgent";
@@ -99,6 +100,14 @@ export function IntentBindingLearningPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <IntentBindingLearningPage />
+    </AppShell>
+  );
+}
+
+export function AgentGatewayCapabilitiesTourRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <AgentGatewayCapabilitiesTour />
     </AppShell>
   );
 }

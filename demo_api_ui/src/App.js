@@ -135,6 +135,7 @@ import MonitoringRoutes, {
   SequenceDiagramRoute,
 } from "./routes/MonitoringRoutes";
 import PublicRoutes, {
+  AgentGatewayCapabilitiesTourRoute,
   CodeExplorerPageRoute,
   CodeSearchPageRoute,
   ConfigurePage,
@@ -476,6 +477,12 @@ function AppWithAuth() {
                   path="/intent-binding-learning"
                   element={
                     <IntentBindingLearningPageRoute user={user} logout={logout} />
+                  }
+                />
+                <Route
+                  path="/agent-gateway-capabilities"
+                  element={
+                    <AgentGatewayCapabilitiesTourRoute user={user} logout={logout} />
                   }
                 />
                 <Route

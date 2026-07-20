@@ -147,7 +147,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "ai-agents", paths: ["/ai-control-plane", "/agent", "/copilot", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
   { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client"] },
   { id: "banking-mcp", paths: ["/webmcp", "/mcp-inspector", "/ping-ai-test-lab"] },
-  { id: "banking-mcp-gateways", paths: ["/pinggateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security"] },
+  { id: "banking-mcp-gateways", paths: ["/pinggateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security", "/agent-gateway-capabilities"] },
   { id: "pingone-demo-apps", paths: ["/self-service", "/pingone-test", "/mfa-test", "/token-exchange-tester", "/oauth-academy", "/oas-demo", "/privilege-demo", "/sdk-login"] },
   { id: "delegation-consent", paths: ["/delegation", "/delegated-access", "/transaction-consent", "/actor-token-education"] },
   { id: "authorize", paths: ["/pingone-authorize", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
@@ -515,6 +515,7 @@ export default function AdminSideNav({ user }) {
           path: "/pinggateway-inspector",
           icon: "rte",
         },
+        { label: "Capability Tour", path: "/agent-gateway-capabilities", icon: "gtw" },
       ],
     },
     {
