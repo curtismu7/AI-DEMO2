@@ -26,6 +26,7 @@ const VALID_SIMS = [
   'tampered-intent-token',
   'impersonation-no-act',
   'rate-limit-burst',
+  'introspection-down',
 ];
 
 router.post('/run', authenticateToken, async (req, res) => {

@@ -26,6 +26,7 @@ export const DEMO_ADVANCED_USE_CASE_IDS = [
   'UC11',  // Bad client gateway
   'UC20',  // Audit trail
   'UC18',  // Rate-limit / throttle burst
+  'UC29',  // OAuth fail-closed
 ];
 
 /** Flat list for callers that only need order (primary then advanced). */

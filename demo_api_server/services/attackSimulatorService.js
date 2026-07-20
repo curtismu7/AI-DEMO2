@@ -58,6 +58,7 @@ const SIM_USE_CASE_IDS = {
   'tampered-intent-token': 'intent-token-tampering',
   'impersonation-no-act': 'impersonation-blocked',
   'rate-limit-burst': 'rate-limit-defense',
+  'introspection-down': 'oauth-fail-closed',
 };
 
 /** Confused-deputy showcase rogue actor (parity with AIAgent.js + decision.confused-deputy.test.js). */
@@ -517,6 +518,10 @@ async function runAttackSim(sim, req, attackAmount) {
     return _runRateLimitBurst(subjectToken, useCaseId, tokenChainEvents);
   }
 
+  if (sim === 'introspection-down') {
+    return _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents);
+  }
+
   if (sim === 'cross-owner-account') {
     return _runCrossOwnerAccount(subjectToken, useCaseId, tokenChainEvents, req);
   }
@@ -947,6 +952,95 @@ async function _runRateLimitBurst(subjectToken, useCaseId, tokenChainEvents) {
     reason: 'Burst completed without a 429 — rate limiting may not be active on the gateway',
     tokenChainEvents,
   };
+}
+
+/**
+ * introspection-down sim (UC29):
+ *   Arm GatewayIntrospectionClient into a simulated-down state via the
+ *   existing live POST /admin/config push (same mechanism UC18 uses for
+ *   rateLimitEnabled), fire one real call, capture the fail-closed 503,
+ *   then immediately disarm — unlike rate-limiting, leaving this armed
+ *   would block every subsequent call on the gateway container.
+ */
+async function _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents) {
+  const sim = 'introspection-down';
+  const gatewayAud = _gatewayAud();
+
+  if (!gatewayAud) {
+    return {
+      sim, useCaseId,
+      status: 503,
+      errorCode: 'gateway_not_configured',
+      reason: 'pingone_resource_mcp_gateway_uri is not configured',
+      tokenChainEvents,
+    };
+  }
+
+  let gatewayUrl;
+  try {
+    gatewayUrl = getMcpGatewayHttpUrl();
+  } catch (err) {
+    return {
+      sim, useCaseId,
+      status: 503,
+      errorCode: 'gateway_not_configured',
+      reason: err.message,
+      tokenChainEvents,
+    };
+  }
+
+  const { pushGatewayAdminConfig } = require('../routes/mcpGatewayConfig');
+  const armResult = await pushGatewayAdminConfig(gatewayUrl, { introspectionSimDown: true });
+  if (!armResult.ok) {
+    return {
+      sim, useCaseId,
+      status: 502,
+      errorCode: 'gateway_push_failed',
+      reason: armResult.error || 'Could not arm the introspection-down sim on the gateway',
+      tokenChainEvents,
+    };
+  }
+
+  tokenChainEvents.push(buildTokenEvent(
+    'sim-introspection-armed',
+    'Introspection outage armed (UC29)',
+    'active',
+    null,
+    'Pushed introspectionSimDown:true to the gateway — the next call fails RFC 7662 introspection closed.',
+  ));
+
+  let exchangedToken;
+  let result;
+  try {
+    exchangedToken = await _exchangeSimToken(subjectToken, gatewayAud, ['read']);
+    await callToolViaGateway(null, exchangedToken, 'get_my_accounts', {});
+    // No throw means the gateway did NOT fail closed as expected.
+    result = {
+      sim, useCaseId,
+      status: 200,
+      errorCode: 'unexpected_permit',
+      reason: 'Call succeeded despite the armed introspection-down sim — sim may not have taken effect.',
+      tokenChainEvents,
+    };
+  } catch (err) {
+    const { errorCode, httpStatus, reason } = _parseGatewayError(err, 503);
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-introspection-failclosed',
+      'Call FAILED CLOSED (503)',
+      'error',
+      null,
+      reason,
+      { error: errorCode, httpStatus },
+    ));
+    result = { sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents };
+  } finally {
+    // Always disarm, even if the call above threw for an unrelated reason —
+    // an armed sim left on would silently break every later demo step.
+    await pushGatewayAdminConfig(gatewayUrl, { introspectionSimDown: false });
+  }
+
+  stampUseCaseId(tokenChainEvents, useCaseId);
+  return result;
 }
 
 /**

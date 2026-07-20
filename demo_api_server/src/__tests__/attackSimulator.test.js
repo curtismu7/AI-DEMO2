@@ -68,6 +68,7 @@ describe('AttackSimulator — structural (no creds needed)', () => {
     'tampered-intent-token': 'intent-token-tampering',
     'impersonation-no-act': 'impersonation-blocked',
     'rate-limit-burst': 'rate-limit-defense',
+    'introspection-down': 'oauth-fail-closed',
   };
 
   test.each(Object.entries(A62_SIM_USE_CASE_IDS))(
