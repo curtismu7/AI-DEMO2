@@ -6,13 +6,16 @@ import GatewayRoutingDiagram from "./GatewayRoutingDiagram";
 import AgentGatewayConfigEditor from "./AgentGatewayConfigEditor";
 import AgentGatewayLogPanel from "./AgentGatewayLogPanel";
 import AgentGatewayTester from "./AgentGatewayTester";
+import McpInspector from "./McpInspector";
+import McpTrafficPage from "./McpTrafficPage";
+import TokenSecurityTester from "./TokenSecurityTester";
 import { useMcpFieldState } from "../hooks/useMcpFieldState";
 import { MCP_FIELD_KEYS } from "../constants/mcpFieldKeys";
 import { McpFieldProvider } from "../context/McpFieldContext";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "";
 
-const MGC_TABS = ["mock", "real", "env", "docs", "json", "tester", "logs"];
+const MGC_TABS = ["mock", "real", "env", "docs", "json", "tester", "logs", "toolcalls", "traffic", "tokensecurity"];
 
 function StatusBadge({ running, devBypass, enabled }) {
 	if (!enabled) return <span className="mgc-badge mgc-badge--off">Disabled</span>;
@@ -294,6 +297,24 @@ function McpGatewayConfigInner() {
 					onClick={() => setActiveTab("logs")}
 				>
 					Gateway Logs
+				</button>
+				<button
+					className={`mgc-tab ${activeTab === "toolcalls" ? "mgc-tab--active" : ""}`}
+					onClick={() => setActiveTab("toolcalls")}
+				>
+					Tool Calls
+				</button>
+				<button
+					className={`mgc-tab ${activeTab === "traffic" ? "mgc-tab--active" : ""}`}
+					onClick={() => setActiveTab("traffic")}
+				>
+					Traffic
+				</button>
+				<button
+					className={`mgc-tab ${activeTab === "tokensecurity" ? "mgc-tab--active" : ""}`}
+					onClick={() => setActiveTab("tokensecurity")}
+				>
+					Token Security
 				</button>
 			</div>
 
@@ -711,6 +732,21 @@ MCP_INVEST_RESOURCE_URI=https://mcp-invest.ping.demo
 			{activeTab === "logs" && (
 				<div className="mgc-panel">
 					<AgentGatewayLogPanel />
+				</div>
+			)}
+			{activeTab === "toolcalls" && (
+				<div className="mgc-panel">
+					<McpInspector />
+				</div>
+			)}
+			{activeTab === "traffic" && (
+				<div className="mgc-panel">
+					<McpTrafficPage />
+				</div>
+			)}
+			{activeTab === "tokensecurity" && (
+				<div className="mgc-panel">
+					<TokenSecurityTester />
 				</div>
 			)}
 		</div>

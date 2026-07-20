@@ -267,6 +267,8 @@ const ADMIN_ROUTES = [
   '/langchain',
   '/llm-config',
   '/mcp-gateway',
+  '/pinggateway-inspector',
+  { path: '/pinggateway-test', allowRedirectTo: ['/pinggateway-inspector'] },
   '/mcp-inspector',
   '/resource-server',
   '/resource-server-cc',
