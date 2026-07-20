@@ -8,6 +8,8 @@ import StepperView from './check/StepperView';
 import ChecklistView from './check/ChecklistView';
 import RailDetailView from './check/RailDetailView';
 
+// Mirrors demo_api_server/config/useCases.js VERTICALS — keep in sync.
+const VERTICALS = ['banking', 'healthcare', 'retail', 'government', 'university', 'workforce', 'sporting-goods', 'manufacturing', 'investment'];
 const VIEWS = { cards: CardsView, stepper: StepperView, checklist: ChecklistView, rail: RailDetailView };
 const VIEW_LABELS = { cards: 'Cards', stepper: 'Stepper', checklist: 'Checklist', rail: 'Rail + Detail' };
 const VERDICT_TEXT = { ready: 'Ready for demo', ready_with_warnings: 'Ready — with warnings', not_ready: 'Not ready' };
@@ -44,11 +46,9 @@ export default function CheckPage() {
       </div>
 
       <div className="check-actions">
-        <label>Vertical
-          <select value={vertical} disabled={running} onChange={(e) => setVertical(e.target.value)}>
-            <option value="banking">banking</option>
-            <option value="healthcare">healthcare</option>
-            <option value="workforce">workforce</option>
+        <label className="chk-select-label">Vertical
+          <select className="chk-select" value={vertical} disabled={running} onChange={(e) => setVertical(e.target.value)}>
+            {VERTICALS.map((v) => <option key={v} value={v}>{v}</option>)}
           </select>
         </label>
         <button className="chk-btn chk-btn-ghost" disabled={running} onClick={async () => setResult(await runChipTest({ vertical }))}>Run real chip test</button>
