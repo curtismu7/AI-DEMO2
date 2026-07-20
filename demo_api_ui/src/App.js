@@ -119,7 +119,6 @@ import { useServerHealthCheck } from "./hooks/useServerHealthCheck";
 import AdminThemesPage from "./pages/AdminThemesPage";
 import AiControlPlanePage from "./pages/AiControlPlanePage";
 import CheckPage from "./pages/CheckPage";
-import ServersPage from "./pages/ServersPage";
 import TracingPage from "./pages/TracingPage";
 import TelemetryPage from "./pages/TelemetryPage";
 import LangChainPage from "./pages/LangChainPage";
@@ -564,22 +563,8 @@ function AppWithAuth() {
                     )
                   }
                 />
-                {/* Servers — live server inventory; any logged-in user (not admin-only) */}
-                <Route
-                  path="/servers"
-                  element={
-                    loading ? null : user ? (
-                      <>
-                        <TopNav user={user} onLogout={logout} />
-                        <main className="main-content">
-                          <ServersPage />
-                        </main>
-                      </>
-                    ) : (
-                      <Navigate to="/" replace />
-                    )
-                  }
-                />
+                {/* Legacy Servers URL — inventory is now a section on /check */}
+                <Route path="/servers" element={<Navigate to="/check" replace />} />
                 {/* Check — server/health checks; any logged-in user (not admin-only) */}
                 <Route
                   path="/check"
