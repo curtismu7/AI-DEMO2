@@ -107,7 +107,6 @@
   border: 1px solid transparent;
   border-radius: 0;
   background: none;
-  width: 100%;
   text-align: left;
 }
 .inspector-shell-tree-item:hover { background: #e2e8f0; }
