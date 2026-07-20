@@ -57,6 +57,21 @@ describe('sendAgentMessage — pingone-admin vertical routing', () => {
     expect(result).toMatchObject({ reply: 'admin reply', success: true, requiresConsent: false, _status: 200 });
   });
 
+  it('passes through agentHeader so the UI can label the reply correctly', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        reply: 'admin reply',
+        success: true,
+        tokenEvents: [],
+        agentHeader: '🤖 [ADMIN AGENT - LangGraph - Claude 3.5 Sonnet]',
+      }),
+    });
+    const result = await sendAgentMessage('list applications', null, { vertical: 'pingone-admin' });
+    expect(result.agentHeader).toBe('🤖 [ADMIN AGENT - LangGraph - Claude 3.5 Sonnet]');
+  });
+
   it('does not open the SSE flow-trace connection for the admin path', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
