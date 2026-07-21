@@ -82,6 +82,51 @@ def ensure_query_index(root: Optional[Path] = None) -> bool:
     return False
 
 
+def build_query_index_sync(root: Optional[Path] = None) -> bool:
+    """Run the indexer once into CODEGRAPH_DB_PATH when the query DB is empty.
+
+    Used at agent startup so Code Explorer works without a manual Refresh when
+    the image baked an empty placeholder DB. Returns True when the query DB is
+    usable afterwards.
+    """
+    import subprocess
+    import sys
+
+    if ensure_query_index(root):
+        return True
+    src_root = root or repo_src_root()
+    script = resolve_indexer_script(src_root)
+    if script is None:
+        logger.warning("CodeGraph auto-build skipped — indexer script not found")
+        return False
+    dest = query_db_path()
+    try:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        proc = subprocess.run(
+            [sys.executable, str(script), "--out", str(dest)],
+            cwd=str(src_root),
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=180,
+        )
+    except Exception as exc:
+        logger.error("CodeGraph auto-build failed to launch: %s", exc)
+        return False
+    if proc.returncode != 0:
+        logger.error(
+            "CodeGraph auto-build exited %s:\n%s",
+            proc.returncode,
+            (proc.stdout or "")[-2000:],
+        )
+        return False
+    if ensure_query_index(src_root) or db_is_ready(dest):
+        logger.info("CodeGraph auto-build OK → %s", dest)
+        return True
+    logger.error("CodeGraph auto-build finished but query DB still empty at %s", dest)
+    return False
+
+
 def resolve_indexer_script(root: Optional[Path] = None) -> Optional[Path]:
     """Prefer the baked indexer (understands --out), then CODEGRAPH_INDEXER, then staged."""
     env = os.getenv("CODEGRAPH_INDEXER", "").strip()
