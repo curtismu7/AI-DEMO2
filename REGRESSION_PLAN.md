@@ -101,6 +101,66 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-21 — Shared rsFilter introspection has been failing closed for every real token, on every route that uses it (invest, weather, and their JWKS variants) — only discovered because weather-mcp was the first route ever live-tested with a genuine bearer token
+
+**Files changed:**
+- `ping-gateway/config/config.json` — the global `IntrospectionClientAuth` heap object
+  (part of `IntrospectionProviderHandler`, used by the shared `rsFilter` heap object) changed
+  from `ClientSecretBasicAuthenticationFilter` (HTTP Basic client auth) to a `ScriptableFilter`
+  that injects `client_id`/`client_secret` as URL-encoded body parameters
+  (`client_secret_post`), mirroring the pattern `01-mcp-olb.json`'s route-local
+  `IntrospectionClientAuth` already used successfully.
+
+**What was broken:** the PingOne client configured for gateway-side introspection
+(`INTROSPECT_CLIENT_ID` / `GW_INTROSPECTION_CLIENT_ID`, the "Token Exchanger" app) is not
+registered to support `client_secret_basic` at PingOne — only `client_secret_post`. Confirmed
+directly: introspecting via HTTP Basic auth (curl's `-u` flag) returns `invalid_client:
+Unsupported authentication method`; the identical call authenticating via `client_id`/
+`client_secret` as body params instead returns a real `active:true` introspection result.
+The GLOBAL `rsFilter` heap's
+`IntrospectionClientAuth` used `ClientSecretBasicAuthenticationFilter` — Basic auth — so
+`RsFilterTokenResolver`'s introspection call to PingOne has been failing with `invalid_client`
+on every single call, and `OAuth2ResourceServerFilter` reports that as a generic `401
+invalid_token` to the caller (indistinguishable from an actually-invalid token, and not
+logged to stdout at INFO level — silent). Every route that references the bare `"rsFilter"`
+heap object by name (`02-mcp-invest.json`, `00-mcp-invest-jwks.json`,
+`00-mcp-weather.json`) has been rejecting every real, valid, correctly-scoped bearer token
+since introspection was wired up — this is not new, and not specific to weather-mcp. It was
+never caught before because no route using bare `rsFilter` had ever been exercised with a
+real PingOne token in this dev environment: `01-mcp-olb.json` (the OLB/banking route) has its
+OWN separate, route-local `IntrospectionClientAuth` that already used the working
+body-param pattern (someone had already hit and fixed this exact issue there, but the fix was
+never propagated to the shared heap object other routes rely on), so OLB traffic was
+unaffected and nobody noticed invest/weather were broken.
+
+**What was fixed:** replaced the global `IntrospectionClientAuth`'s
+`ClientSecretBasicAuthenticationFilter` with the same Groovy body-param injection
+`01-mcp-olb.json` already uses (verbatim pattern, different heap location). This is a
+same-file-family copy of an already-proven-correct implementation, not a new mechanism.
+
+**Do not break:** `01-mcp-olb.json`'s own local `IntrospectionClientAuth` (a separate heap
+object, untouched by this change) must keep working exactly as before — this fix only
+changes the GLOBAL heap object referenced by `rsFilter`-using routes, not OLB's route-scoped
+copy. `INTROSPECT_CLIENT_SECRET` must stay available as a plain env var (already was, via
+`SystemAndEnvSecretStore`/env — the new Groovy reads it via `System.getenv()` directly,
+the same as `01-mcp-olb.json`'s script already does).
+
+**Verify:** minted a real PingOne token directly (`client_credentials` +
+`urn:ietf:params:oauth:grant-type:token-exchange` against the Token Exchanger app,
+`aud=https://api.ping.demo:3036/mcp`, `scope=gateway:mcp:invoke`); also captured a genuine
+BFF-issued, user-delegated token live via a temporary logging passthrough proxy inserted
+between the BFF and `ping-gateway` (removed immediately after, `MCP_PINGGATEWAY_URL` reverted,
+zero residual changes). Before the fix: both tokens got `401 invalid_token` on `/mcp/invest`
+and `/mcp/weather` identically, while the same token was accepted on `/mcp` (OLB, separate
+introspection path). After the fix: `bash ping-gateway/scripts/validate-config.sh` (PASS);
+direct curl to `/mcp/weather` with the real delegated token — a non-Texas city
+(`New York, NY`) correctly returns `403` from `tx-weather-scope.groovy` (proving introspection
+now succeeds, scope check passes, and the request reaches the Texas-scope Groovy for a real
+decision, not a generic auth rejection). A Texas city (`Austin, TX`) still returns `502` past
+this fix — a separate, not-yet-root-caused backend-connectivity issue between `ping-gateway`
+and the `mcp-weather` bridge container, logged for follow-up; not caused by and not blocking
+this fix (the 403 path proves the auth fix works end-to-end on its own).
+
 ### 2026-07-21 — OLB JWKS-variant route also shadowed /mcp/weather (missed sibling of the earlier fix)
 
 **Files changed:**

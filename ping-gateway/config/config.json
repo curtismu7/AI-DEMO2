@@ -14,11 +14,10 @@
         "filters": [
           {
             "name": "IntrospectionClientAuth",
-            "type": "ClientSecretBasicAuthenticationFilter",
+            "type": "ScriptableFilter",
             "config": {
-              "clientId": "${empty env['INTROSPECT_CLIENT_ID'] ? 'NOT_CONFIGURED' : env['INTROSPECT_CLIENT_ID']}",
-              "clientSecretId": "introspect.client.secret",
-              "secretsProvider": "SecretsStore"
+              "type": "application/x-groovy",
+              "source": "import java.net.URLEncoder\ndef body = request.entity.string ?: ''\ndef cid = System.getenv('INTROSPECT_CLIENT_ID') ?: ''\ndef cs  = System.getenv('INTROSPECT_CLIENT_SECRET') ?: ''\nif (cid) { request.entity.setString(body + '&client_id=' + URLEncoder.encode(cid, 'UTF-8') + '&client_secret=' + URLEncoder.encode(cs, 'UTF-8')) }\nreturn next.handle(context, request)"
             }
           }
         ],
