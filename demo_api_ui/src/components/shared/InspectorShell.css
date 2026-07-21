@@ -336,3 +336,29 @@
   flex-shrink: 0;
 }
 .inspector-shell-output-footer strong { color: #334155; }
+
+/* Replay bar — persistent status/nav strip between topbar and grid */
+.inspector-shell-replay-bar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 9px 20px;
+  background: #f8fafc;
+  border-bottom: 1px solid #cbd5e1;
+  font-size: 12px;
+  color: #475569;
+}
+.inspector-shell-replay-bar__item strong { color: #1e293b; }
+.inspector-shell-replay-bar__item--warn strong { color: #991b1b; }
+.inspector-shell-replay-bar__controls { margin-left: auto; display: flex; gap: 6px; }
+.inspector-shell-replay-bar__btn {
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  border: 1px solid #94a3b8;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+}
+.inspector-shell-replay-bar__btn:hover { background: #e2e8f0; }
+.inspector-shell-replay-bar__btn:disabled { opacity: 0.5; cursor: not-allowed; }
