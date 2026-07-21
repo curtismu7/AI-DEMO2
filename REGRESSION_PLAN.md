@@ -101,6 +101,49 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-21 — Banking MCP Inspector "timeout of 10000ms exceeded" — WS client never handled a clean server-side close
+
+**Files changed:** `demo_api_server/services/mcpWebSocketClient.js` (added a
+`ws.on('close', ...)` handler in `mcpRpc()`'s connect Promise), new
+`demo_api_server/src/__tests__/mcpWebSocketClient.closeHandling.test.js`.
+
+**What was broken:** the Banking tab of `/pingone-mcp-inspector` showed
+"timeout of 10000ms exceeded" toasts and only partially loaded tools.
+`banking_mcp_server`'s `BankingMCPServer.handleConnection` rejects a
+connection whose token audience doesn't match the server's resource URI via
+`ws.close(1008, 'Agent token rejected')` — a clean WebSocket close, not a
+protocol error. `mcpWebSocketClient.js`'s `mcpRpc()` only registered
+`ws.on('error', ...)`, `'open'`, and `'message'` handlers — no `'close'` — so
+that clean close was invisible to the pending RPC promise, which sat until
+its own hardcoded 15000ms `setTimeout` finally fired and rejected with the
+generic "MCP call timed out" (confirmed live: `GET /api/mcp/inspector/tools`
+consistently took ~15.6-16s server-side before falling back to the local
+catalog). The frontend's `apiClient.js` has a flat 10000ms axios timeout —
+shorter than that 15s+ backend cycle — so the browser aborted first and the
+user never even saw the (already-degraded) fallback response.
+
+**What was fixed:** added a `ws.on('close', (code, reasonBuf) => ...)`
+handler that clears the timeout and rejects immediately with the real close
+code + reason (e.g. "MCP connection closed before response (code 1008:
+Agent token rejected)") instead of waiting out the 15s timer for a rejection
+that already happened. This turns a ~15-16s hang into a near-instant, more
+informative failure — the frontend's 10s timeout is no longer in the picture
+because the backend now responds well under it.
+
+**Do not break:** this only adds a `close` listener; the existing
+`error`/`open`/`message` handling, the 15s `setTimeout` fallback (for a
+connection that never opens or never closes), and the WR-06 slot-release
+`.finally(safeRelease)` are untouched. The underlying audience mismatch that
+causes `BankingMCPServer` to reject the connection in the first place is a
+separate, live-environment config concern — not addressed here — this fix
+only makes that rejection surface promptly and accurately instead of hanging.
+
+**Verify:** `cd demo_api_server && npx jest
+src/__tests__/mcpWebSocketClient.closeHandling.test.js
+src/__tests__/mcp-inspector.test.js --testPathIgnorePatterns="/node_modules/"`
+— 13/13 pass. Confirmed the new test hangs (proving it exercises the bug)
+when run against the pre-fix file.
+
 ### 2026-07-21 — Board batch3: lifecycle HITL false-complete, /check UI probe, token-validation docs link
 
 **Files changed:** `AgentLifecyclePage.jsx` (+ test) — treat `callMcpTool`
