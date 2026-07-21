@@ -1,10 +1,11 @@
 .alp-wrap {
-  max-width: 1400px;
-  margin: 0 auto;
   padding: 48px 24px 80px;
   background: #fff;
   color: #1a1a1a;
   font-family: Helvetica, Arial, sans-serif;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 .alp-title {
   font-size: 32px;
@@ -18,10 +19,10 @@
   margin-bottom: 40px;
   font-size: 15px;
 }
-.alp-body { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap; }
-.alp-slots { flex: 1 1 480px; min-width: 320px; max-width: 640px; }
+.alp-body { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: nowrap; flex: 1; min-height: 0; }
+.alp-slots { flex: 1 1 auto; min-width: 0; }
 .alp-run-layout {
-  flex: 1 1 380px;
+  flex: 0 1 520px;
   min-width: 320px;
   display: flex;
   flex-direction: column;
