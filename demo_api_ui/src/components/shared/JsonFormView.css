@@ -1,0 +1,82 @@
+/* demo_api_ui/src/components/shared/JsonFormView.css */
+.jfv-root {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  font-size: 0.85rem;
+}
+.jfv-section-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 0.5rem;
+}
+.jfv-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.jfv-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.jfv-label {
+  flex: 0 0 220px;
+  color: #475569;
+  font-weight: 600;
+}
+.jfv-value {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-width: 0;
+  word-break: break-word;
+  color: #0f172a;
+}
+.jfv-value-text {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 0.82rem;
+}
+.jfv-empty {
+  color: #94a3b8;
+  font-style: italic;
+}
+.jfv-empty-state {
+  color: #94a3b8;
+  font-style: italic;
+  padding: 1rem 0;
+}
+.jfv-subgroup {
+  margin-left: 1rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid #e2e8f0;
+  margin-top: 0.35rem;
+}
+.jfv-subgroup-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 0.25rem;
+}
+.jfv-expand,
+.jfv-copy {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.jfv-expand:hover,
+.jfv-copy:hover {
+  background: #f1f5f9;
+}

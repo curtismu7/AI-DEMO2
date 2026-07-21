@@ -38,7 +38,7 @@ function parseJsonString(value) {
 // shaped { text: "<escaped JSON string>" }, which renders as one long unwrapped
 // line; this expands them. Opt-in via the `deep` prop — most viewers want to
 // show the payload as-is, so the default leaves nested strings untouched.
-function deepParse(value, depth = 0) {
+export function deepParse(value, depth = 0) {
   if (depth > 6) return value;
   if (typeof value === "string") {
     const parsed = parseJsonString(value);
