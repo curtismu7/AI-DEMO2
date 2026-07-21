@@ -481,7 +481,7 @@ fetch(MCP_SERVER_URL, {
             is valid for.
           </p>
           <pre className="edu-code">{`PingOne → Applications → Resources → Add Resource
-  Name: Banking MCP Server
+  Name: AIDemo MCP Server
   Audience (Resource URI): https://mcp.yourdomain.com
   Scopes: read, write
 

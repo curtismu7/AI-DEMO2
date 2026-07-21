@@ -50,14 +50,14 @@ test('defaults to the PingOne MCP source when no ?source= param is present, and 
   expect(await screen.findByText('users.read')).toBeInTheDocument();
 });
 
-test('an explicit ?source=banking param selects the Banking MCP source', () => {
+test('an explicit ?source=banking param selects the AIDemo MCP source', () => {
   renderPage('/pingone-mcp-inspector?source=banking');
-  expect(screen.getByRole('button', { name: 'Banking MCP' })).toHaveClass('src-pill--active');
+  expect(screen.getByRole('button', { name: 'AIDemo MCP' })).toHaveClass('src-pill--active');
   expect(screen.getByRole('button', { name: 'PingOne MCP' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'API Calls' })).toBeInTheDocument();
 });
 
-test('selecting a Banking MCP tool populates the middle form, calling Execute posts to /api/mcp/inspector/invoke without a profile field', async () => {
+test('selecting an AIDemo MCP tool populates the middle form, calling Execute posts to /api/mcp/inspector/invoke without a profile field', async () => {
   apiClient.get.mockImplementation((url) => {
     if (url === '/api/mcp/inspector/tools') {
       return Promise.resolve({ data: { tools: [BANKING_TOOL], _source: 'mcp_server' } });
@@ -76,7 +76,7 @@ test('selecting a Banking MCP tool populates the middle form, calling Execute po
   expect(await screen.findByText(/4820.15/)).toBeInTheDocument();
 });
 
-test('does not render a profile picker or "+ Add server" control (dropped for the Banking MCP source)', async () => {
+test('does not render a profile picker or "+ Add server" control (dropped for the AIDemo MCP source)', async () => {
   renderPage('/pingone-mcp-inspector?source=banking');
   await screen.findByText('get_account_balance');
   expect(screen.queryByText('+ Add server')).toBeNull();
@@ -157,7 +157,7 @@ function mockCustomServerEndpoints() {
       return Promise.resolve({
         data: {
           profiles: [
-            { id: 'default', label: 'Banking MCP', isDefault: true },
+            { id: 'default', label: 'AIDemo MCP', isDefault: true },
             { id: 'brave', label: 'Brave Search', isDefault: false },
           ],
           defaultProfileId: 'default',
@@ -175,7 +175,7 @@ test('the Custom Server source loads saved profiles into the picker', async () =
   mockCustomServerEndpoints();
   renderPage('/pingone-mcp-inspector?source=custom');
   expect(await screen.findByRole('option', { name: 'Brave Search' })).toBeInTheDocument();
-  expect(screen.getByRole('option', { name: 'Banking MCP (default)' })).toBeInTheDocument();
+  expect(screen.getByRole('option', { name: 'AIDemo MCP (default)' })).toBeInTheDocument();
 });
 
 test('selecting a non-default profile requeries tools with a ?profile= param', async () => {
@@ -208,7 +208,7 @@ test('Custom Server source (default profile) shows a step-up banner when /tools 
   apiClient.get.mockImplementation((url) => {
     if (url === '/api/mcp/inspector/profiles') {
       return Promise.resolve({
-        data: { profiles: [{ id: 'default', label: 'Banking MCP', isDefault: true }], defaultProfileId: 'default' },
+        data: { profiles: [{ id: 'default', label: 'AIDemo MCP', isDefault: true }], defaultProfileId: 'default' },
       });
     }
     if (url.startsWith('/api/mcp/inspector/tools')) {

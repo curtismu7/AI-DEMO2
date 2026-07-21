@@ -27,7 +27,7 @@ export function useServerHealthCheck() {
             port: 3001,
           },
           {
-            name: "Banking MCP Server",
+            name: "AIDemo MCP Server",
             key: "mcp_server",
             up: false,
             startCmd: "cd demo_mcp_server && npm run dev",
