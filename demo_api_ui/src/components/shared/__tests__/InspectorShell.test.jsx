@@ -1,9 +1,13 @@
 // demo_api_ui/src/components/shared/__tests__/InspectorShell.test.jsx
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import InspectorShell from '../InspectorShell';
 
 describe('InspectorShell', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
   it('renders the title and status text', () => {
     render(
       <InspectorShell title="MCP Inspector" statusText="Connected · banking-mcp" />
@@ -79,5 +83,69 @@ describe('InspectorShell', () => {
   it('renders no extra element when banner is not provided', () => {
     const { container } = render(<InspectorShell title="X" />);
     expect(container.querySelector('.inspector-shell-page').children).toHaveLength(2);
+  });
+
+  it('defaults the grid to 240px/380px columns plus two resize-handle tracks', () => {
+    const { container } = render(<InspectorShell title="X" />);
+    expect(container.querySelector('.inspector-shell-grid').style.gridTemplateColumns).toBe(
+      '240px 6px 380px 6px 1fr',
+    );
+    expect(container.querySelectorAll('.inspector-shell-resize-handle')).toHaveLength(2);
+  });
+
+  it('dragging the left resize handle updates the left column width', () => {
+    const { container } = render(<InspectorShell title="X" />);
+    const [leftHandle] = container.querySelectorAll('.inspector-shell-resize-handle');
+    const grid = container.querySelector('.inspector-shell-grid');
+
+    fireEvent.mouseDown(leftHandle, { clientX: 240 });
+    fireEvent.mouseMove(document, { clientX: 300 });
+    fireEvent.mouseUp(document);
+
+    expect(grid.style.gridTemplateColumns).toBe('300px 6px 380px 6px 1fr');
+  });
+
+  it('dragging the middle resize handle updates the middle column width', () => {
+    const { container } = render(<InspectorShell title="X" />);
+    const middleHandle = container.querySelectorAll('.inspector-shell-resize-handle')[1];
+    const grid = container.querySelector('.inspector-shell-grid');
+
+    fireEvent.mouseDown(middleHandle, { clientX: 620 });
+    fireEvent.mouseMove(document, { clientX: 570 });
+    fireEvent.mouseUp(document);
+
+    expect(grid.style.gridTemplateColumns).toBe('240px 6px 330px 6px 1fr');
+  });
+
+  it('clamps a drag past the minimum width', () => {
+    const { container } = render(<InspectorShell title="X" />);
+    const [leftHandle] = container.querySelectorAll('.inspector-shell-resize-handle');
+    const grid = container.querySelector('.inspector-shell-grid');
+
+    fireEvent.mouseDown(leftHandle, { clientX: 240 });
+    fireEvent.mouseMove(document, { clientX: -1000 });
+    fireEvent.mouseUp(document);
+
+    expect(grid.style.gridTemplateColumns).toBe('160px 6px 380px 6px 1fr');
+  });
+
+  it('persists widths to localStorage after a drag ends, and restores them on next mount', () => {
+    const { container, unmount } = render(<InspectorShell title="X" />);
+    const [leftHandle] = container.querySelectorAll('.inspector-shell-resize-handle');
+
+    fireEvent.mouseDown(leftHandle, { clientX: 240 });
+    fireEvent.mouseMove(document, { clientX: 320 });
+    fireEvent.mouseUp(document);
+
+    expect(JSON.parse(window.localStorage.getItem('inspector-shell-panel-widths'))).toEqual({
+      left: 320,
+      middle: 380,
+    });
+
+    unmount();
+    const { container: container2 } = render(<InspectorShell title="X" />);
+    expect(container2.querySelector('.inspector-shell-grid').style.gridTemplateColumns).toBe(
+      '320px 6px 380px 6px 1fr',
+    );
   });
 });

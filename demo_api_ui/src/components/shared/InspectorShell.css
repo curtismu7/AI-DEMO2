@@ -43,9 +43,17 @@
 /* Three-column grid */
 .inspector-shell-grid {
   display: grid;
-  grid-template-columns: 240px 380px 1fr;
+  grid-template-columns: 240px 6px 380px 6px 1fr;
   height: calc(100vh - 45px);
   overflow: hidden;
+}
+.inspector-shell-resize-handle {
+  cursor: col-resize;
+  background: transparent;
+}
+.inspector-shell-resize-handle:hover,
+.inspector-shell-resize-handle:active {
+  background: #94a3b8;
 }
 /* fullHeight={false}: the shell is one section inside a taller scrolling
    page (siblings above/below), not the whole route — a 100vh-tall grid
