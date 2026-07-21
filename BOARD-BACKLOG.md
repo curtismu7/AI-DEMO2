@@ -4,26 +4,21 @@ Raw feedback from the board for ai-demo.ping-devops.com, triaged into work items
 
 ## Bugs
 
-### B1. `/pinggateway-test.html` returns 404
-- URL: https://ai-demo.ping-devops.com/pinggateway-test.html
+### B1. `/pinggateway-test.html` returns 404 — FIXED
+- Served from `demo_api_ui/public/pinggateway-test.html`; nginx uses `try_files` (no BFF proxy dependency).
 
-### B2. Authorization policies list fails with 403
-- Error: `ACCESS_FAILED` → `INSUFFICIENT_PERMISSIONS` ("You do not have permissions or are not licensed to make this request.")
-- Example error id: `ad182dad-62cd-45e7-8999-13dd7d0ce94c`
-- Likely a worker-app role/license issue on the PingOne side, or wrong token being used for the Authorize API.
+### B2. Authorization policies list fails with 403 — FIXED
+- `/api/authorize/pingone-policies` serves the repo P1AZ snapshot first (worker tokens always 403 on the live policy-editor API).
 
-### B3. `/pingcli` page — every command returns INVALID_ARGUMENT
-- Error: "Authentication is not configured for this profile." Suggestion from CLI: run `pingcli <product> auth login`.
-- Server-side pingcli profile needs auth configured (or the proxy needs to inject/refresh it).
-- Also: **Run buttons at the bottom of the page do nothing.**
-- Also: check the currently installed pingcli version on the page and show the upgrade command.
+### B3. `/pingcli` page — every command returns INVALID_ARGUMENT — FIXED
+- Live commands use `pingone api <uri>`; `--config` resolved at call time; auth bootstrap fails closed if worker creds are missing.
 
-### B4. AI Attach Demos — run buttons do nothing
-- None of the run buttons on the AI Attach Demos trigger anything.
+### B4. AI Attack Demos — run buttons do nothing — FIXED
+- Showcase fallback navigates to `/dashboard` with pending-attack replay; Intent Bypass uses the same handoff; catalog tabs use router state.
 
 ### B5. Code chat — "CodeGraph index not available" — FIXED
 - Cause: agent image shipped a zero-byte `/app/codegraph.db` (`touch` placeholder) because `setup:fresh` never baked `langchain_agent/codegraph.db` for the Dockerfile COPY. Refresh wrote to `repo-src/.codegraph` (staged indexer without `--out`) while queries read `/app/codegraph.db`.
-- Fix: bake DB in setup/run/se-update; bake current `scripts/build-codegraph.py` to `/app/indexer`; `ensure_index` promotes legacy → query path on startup + every query + Refresh; Refresh fails closed if query DB still empty.
+- Fix: bake DB in setup/run/se-update; bake current `scripts/build-codegraph.py` to `/app/indexer`; `ensure_index` promotes legacy → query path on startup + every query + Refresh; startup auto-builds when still empty (`build_query_index_sync`); Refresh fails closed if query DB still empty.
 - Verify: rebuild/redeploy agent, ask "How does the MCP gateway work?" on `/code-explorer` — expect SSE answer, not 503. Pod restart must keep working without a manual copy.
 
 ### B6. `/code-search` — button CSS broken
