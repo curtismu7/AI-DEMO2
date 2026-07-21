@@ -17,14 +17,23 @@ def TX_LAT_MAX = 36.5
 def TX_LON_MIN = -106.6
 def TX_LON_MAX = -93.5
 
-// 20 largest Texas cities by population — matched as a case-insensitive
-// substring of city_name (so "Austin, TX" and "austin" both match).
+// 20 largest Texas cities by population — matched exactly (case-insensitive,
+// trimmed) against a bare city_name with no state qualifier (so "austin"
+// matches but "Plano, IL" does not, since it carries an explicit non-TX state).
 def TX_CITIES = [
     'houston', 'san antonio', 'dallas', 'austin', 'fort worth', 'el paso',
     'arlington', 'corpus christi', 'plano', 'laredo', 'lubbock', 'irving',
     'garland', 'frisco', 'mckinney', 'amarillo', 'grand prairie',
     'brownsville', 'killeen', 'mcallen',
 ] as Set
+
+def toNum = { v ->
+    if (v instanceof Number) return v.doubleValue()
+    if (v instanceof String) {
+        try { return Double.parseDouble(v.trim()) } catch (Exception ignored) { return null }
+    }
+    return null
+}
 
 def denied = { Object id, String message ->
     def resp = new Response(Status.FORBIDDEN)
@@ -55,11 +64,12 @@ if (!(args instanceof Map)) {
     return next.handle(context, request)
 }
 
-def lat = args.latitude
-def lon = args.longitude
-if (lat instanceof Number && lon instanceof Number) {
-    double latVal = lat.doubleValue()
-    double lonVal = lon.doubleValue()
+if (args.containsKey('latitude') || args.containsKey('longitude')) {
+    def latVal = toNum(args.latitude)
+    def lonVal = toNum(args.longitude)
+    if (latVal == null || lonVal == null) {
+        return denied(id, 'Agent Gateway: weather scope restricted to Texas (demo policy) — invalid or incomplete coordinates')
+    }
     if (latVal < TX_LAT_MIN || latVal > TX_LAT_MAX || lonVal < TX_LON_MIN || lonVal > TX_LON_MAX) {
         return denied(id, 'Agent Gateway: weather scope restricted to Texas (demo policy) — coordinates outside Texas')
     }
@@ -68,16 +78,28 @@ if (lat instanceof Number && lon instanceof Number) {
 
 def city = args.city_name
 if (city instanceof String) {
-    def normalized = city.toLowerCase()
-    def isTx = normalized.endsWith(', tx') || normalized.endsWith(', texas') ||
-        TX_CITIES.any { normalized.contains(it) }
+    // Split on the FIRST comma: "Corpus Christi, TX" -> cityPart="corpus christi",
+    // statePart="tx". Exact match on both parts — no substring containment — so
+    // "Plano, IL" (statePart="il") or "Houston Street, New York, NY" (statePart=
+    // "new york, ny") are correctly denied instead of matching on a contained
+    // city name. A bare name with NO qualifier ("Austin") falls back to an exact
+    // allowlist match on the whole trimmed string.
+    def normalized = city.toLowerCase().trim()
+    def commaIdx = normalized.indexOf(',')
+    def isTx
+    if (commaIdx >= 0) {
+        def statePart = normalized.substring(commaIdx + 1).trim()
+        isTx = (statePart == 'tx' || statePart == 'texas')
+    } else {
+        isTx = TX_CITIES.contains(normalized)
+    }
     if (!isTx) {
         return denied(id, 'Agent Gateway: weather scope restricted to Texas (demo policy) — city not recognized as Texas')
     }
     return next.handle(context, request)
 }
 
-if (args.location_name instanceof String) {
+if (args.containsKey('location_name')) {
     return denied(id, 'Agent Gateway: weather scope restricted to Texas (demo policy) — saved locations cannot be verified')
 }
 
