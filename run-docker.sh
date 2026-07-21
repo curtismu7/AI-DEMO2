@@ -947,11 +947,12 @@ _read_demo_stack_flags() {
   fi
 }
 
-# Start/stop demo-auth profile containers to match admin Quick Flag toggles.
-# Real default: PingGateway (IG) + cloud PingOne Authorize — no demo containers.
-# Demo path: authz-server when Simulated Authorize is ON; mcp-gateway when Demo GW is selected.
-# RAR (RFC 9396) is enforced on the real path (PingGateway + P1AZ / BFF live gate) —
-# do NOT keep mock servers running "for RAR".
+# Keep demo-auth profile containers up and route per admin Quick Flag toggles.
+# The containers themselves are ALWAYS kept running: the RAR / intent-binding
+# demo is pinned to the Node Demo Agent Gateway (the only component with
+# RFC 9396 RAR enforcement — PR #603), and that gateway's introspection +
+# decision endpoints live on authz-server. Quick Flags now only decide which
+# gateway mcp-proxy and the BFF ROUTE tool calls through (PingGateway vs demo).
 cmd_demo_sync() {
   echo ""
   echo -e "${CYAN}${BOLD}   [DOCKER]  Demo stack sync (Quick Flags → containers)${RESET}"
@@ -973,18 +974,8 @@ cmd_demo_sync() {
   [[ "${sim}" == "1" ]] && need_authz=1
   [[ "${pgw}" == "0" ]] && { need_demo_gw=1; need_authz=1; }
 
-  if [[ ${need_authz} -eq 1 || ${need_demo_gw} -eq 1 ]]; then
-    local up_svcs="authz-server"
-    [[ ${need_demo_gw} -eq 1 ]] && up_svcs+=" mcp-gateway"
-    ok "Demo flags active (simulated=${sim}, pingGateway=${pgw}) — starting: ${up_svcs}"
-    docker compose "${COMPOSE_FILES[@]}" --profile demo-auth up -d ${up_svcs}
-    if [[ ${need_authz} -eq 1 && ${need_demo_gw} -eq 0 ]]; then
-      docker compose "${COMPOSE_FILES[@]}" --profile demo-auth stop mcp-gateway 2>/dev/null || true
-    fi
-  else
-    ok "Real stack (P1AZ + PingGateway) — stopping demo authz-server and mcp-gateway"
-    docker compose "${COMPOSE_FILES[@]}" --profile demo-auth stop authz-server mcp-gateway 2>/dev/null || true
-  fi
+  ok "Ensuring demo-auth containers are up (RAR demo needs the Demo Agent Gateway; routing: simulated=${sim}, pingGateway=${pgw})"
+  docker compose "${COMPOSE_FILES[@]}" --profile demo-auth up -d authz-server mcp-gateway
 
   # mcp-proxy is core — point it at the active gateway (PingGateway by default).
   local proxy_gw_url="http://ping-gateway:8080"
@@ -1000,25 +991,20 @@ cmd_demo_sync() {
   # Tracing (ff_tracing): OFF stops Jaeger and recreates the instrumented
   # services with an empty OTLP endpoint so otel-instrument.js no-ops. ON is the
   # compose default — ensure Jaeger is up.
-  # Base = the 5 un-gated instrumented services. The demo-auth-gated services
-  # (authz-server, mcp-gateway) are appended ONLY when this sync is keeping them
-  # up — naming a profile-gated service on `up` would auto-activate its profile
-  # and resurrect it on the lean stack. When they're down, their next
-  # flag-driven start picks up the current OTEL endpoint anyway.
-  local otel_services="demo-api-server mcp-server agent-service hitl-service mcp-invest"
-  [[ ${need_authz} -eq 1 ]] && otel_services+=" authz-server"
-  [[ ${need_demo_gw} -eq 1 ]] && otel_services+=" mcp-gateway"
+  # The demo-auth-gated services are always up now (see the sync above), so
+  # they are always part of the instrumented set.
+  local otel_services="demo-api-server mcp-server agent-service hitl-service mcp-invest authz-server mcp-gateway"
   if [[ "${trc}" == "0" ]]; then
     ok "Tracing OFF — stopping Jaeger and recreating instrumented services without OTLP export"
     docker compose "${COMPOSE_FILES[@]}" stop jaeger 2>/dev/null || true
     OTEL_EXPORTER_OTLP_ENDPOINT="" \
-      docker compose "${COMPOSE_FILES[@]}" up -d --force-recreate --no-deps ${otel_services} >/dev/null 2>&1 || true
+      docker compose "${COMPOSE_FILES[@]}" --profile demo-auth up -d --force-recreate --no-deps ${otel_services} >/dev/null 2>&1 || true
   else
     ok "Tracing ON — ensuring Jaeger is up and instrumented services export spans"
     # No --force-recreate: with OTEL_EXPORTER_OTLP_ENDPOINT unset here, compose
     # resolves the default endpoint and recreates only services whose endpoint
     # drifted (e.g. left empty by a prior OFF) — no churn in the steady state.
-    docker compose "${COMPOSE_FILES[@]}" up -d --no-deps jaeger ${otel_services} >/dev/null 2>&1 || true
+    docker compose "${COMPOSE_FILES[@]}" --profile demo-auth up -d --no-deps jaeger ${otel_services} >/dev/null 2>&1 || true
   fi
   echo ""
 }
