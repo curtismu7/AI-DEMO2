@@ -26,10 +26,36 @@ function RegistrationSlot() {
   );
 }
 
+function OrdersFormView({ orders }) {
+  if (!Array.isArray(orders) || orders.length === 0) {
+    return <p className="alp-form-empty">No orders to display</p>;
+  }
+
+  return (
+    <div className="alp-form-container">
+      {orders.map((order, idx) => (
+        <div key={idx} className="alp-form-card">
+          <div className="alp-form-grid">
+            {Object.entries(order).map(([key, value]) => (
+              <div key={key} className="alp-form-field">
+                <label className="alp-form-label">{key}</label>
+                <div className="alp-form-value">
+                  {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ScopedCallSlot() {
   const [status, setStatus] = React.useState('idle'); // idle | loading | done | error
   const [orders, setOrders] = React.useState(null);
   const [error, setError] = React.useState(null);
+  const [viewMode, setViewMode] = React.useState('form'); // form | raw
 
   const run = React.useCallback(async () => {
     setStatus('loading');
@@ -57,7 +83,29 @@ function ScopedCallSlot() {
         {status === 'loading' ? 'Calling…' : 'Call list_orders as agent'}
       </button>
       {status === 'done' && (
-        <pre className="alp-result">{JSON.stringify(orders, null, 2)}</pre>
+        <>
+          <div className="alp-view-toggle">
+            <button
+              type="button"
+              className={`alp-view-btn ${viewMode === 'form' ? 'alp-view-btn--active' : ''}`}
+              onClick={() => setViewMode('form')}
+            >
+              Pretty Form
+            </button>
+            <button
+              type="button"
+              className={`alp-view-btn ${viewMode === 'raw' ? 'alp-view-btn--active' : ''}`}
+              onClick={() => setViewMode('raw')}
+            >
+              Raw JSON
+            </button>
+          </div>
+          {viewMode === 'form' ? (
+            <OrdersFormView orders={orders} />
+          ) : (
+            <pre className="alp-result">{JSON.stringify(orders, null, 2)}</pre>
+          )}
+        </>
       )}
       {status === 'error' && <p className="alp-error">{error}</p>}
     </section>
