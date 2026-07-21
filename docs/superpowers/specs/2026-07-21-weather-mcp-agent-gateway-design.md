@@ -131,6 +131,36 @@ there is no Node `demo_mcp_gateway` equivalent — this capability is PingGatewa
 explicitly (the same convention the existing `metadata-controls` entry uses for its Node-only
 case, inverted).
 
+### 6. Live on/off flag — `ff_weather_mcp_showcase`
+
+Added mid-implementation (human decision, after the Task 1-6 pieces above were already
+built): the capability must start enabled by default and be toggleable off via a real,
+live feature flag, matching this repo's `ff_*` naming convention.
+
+Because `ping-gateway` (a separate Java process) has no shared storage with the BFF's
+`configStore`, and `refresh-service-envs.js`'s existing `.env`-sync mechanism only reflects
+values written to `demo_api_server/.env` as flat text — never a live `configStore`/Quick
+Flags UI toggle — a genuinely live toggle requires `ping-gateway` to ask the BFF, per
+request. Three components:
+
+- `demo_api_server/routes/featureFlags.js`: new `FLAG_REGISTRY` entry, `defaultValue: true`,
+  same category as `ff_mcp_gateway_pinggateway`.
+- `demo_api_server/routes/weatherMcpFlag.js` (new): `GET
+  /internal/feature-flags/weather-mcp-showcase` → `{ enabled }`, gated by the same
+  `x-internal-gateway-secret` / `BFF_INTERNAL_SECRET` constant-time check every sibling
+  `/internal/*` route already uses (e.g. `agentIdToken.js`).
+- `tx-weather-scope.groovy`: calls that endpoint synchronously (Java `HttpURLConnection`,
+  matching the existing blocking-HTTP idiom in `p1az-decision.groovy` — IG's own
+  `http.send(...)` deadlocks the Vert.x event loop, `HttpURLConnection` does not) before the
+  Texas-scope logic, on every `/mcp/weather` request. **Fails OPEN** (treats the capability as
+  enabled) on any error, timeout, or missing config — this is a demo on/off toggle, not a
+  security control, and the actually security-relevant Texas-scope check is unaffected and
+  remains fail-closed.
+
+Cost, disclosed and accepted: every `/mcp/weather` request now pays one additional blocking
+HTTP round-trip to the BFF, and a new failure mode exists (BFF unreachable) — mitigated by
+failing open rather than denying the whole capability on a BFF hiccup.
+
 ## Data flow (happy path)
 
 1. Client sends `tools/call get_current_conditions` with `city_name: "Austin, TX"` (or
@@ -170,9 +200,14 @@ case, inverted).
 
 ## Success criteria
 
-- `/mcp/weather` route live and reachable through `ping-gateway`.
+- `/mcp/weather` route live and reachable through `ping-gateway` — and NOT silently shadowed
+  by `01-mcp-olb.json`'s catch-all (PingGateway selects among matching routes by the route's
+  `"name"` field alphabetically, not by filename — verify via a `WWW-Authenticate` header
+  comparison against `/mcp`, not just a matching status code).
 - A Texas-scoped request (city name or coordinates) returns real weather data (200).
 - A non-Texas request is denied by the new Groovy filter (403), not by upstream weather-mcp.
+- `ff_weather_mcp_showcase` toggled off denies all `/mcp/weather` traffic (403), live, with no
+  `ping-gateway` recreate; toggled back on, it resumes immediately.
 - `validate-config.sh` passes clean.
 - Both new `e2e-pinggateway.sh` cases pass.
 - Capability card renders on the Agent Gateway tour page with correct evidence references.

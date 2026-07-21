@@ -633,7 +633,7 @@ git commit -m "feat(mcp-weather): add ping-gateway route + fix OLB catch-all sha
 - Consumes: the buffered request body `McpValidationFilter` (already in the chain) produces.
 - Produces: a `TxWeatherScope` filter step that denies out-of-Texas `tools/call` requests
   with HTTP 403 before they reach `ReverseProxyHandler`. Task 6's e2e legs assert on this
-  behavior. Task 9 (added later in this plan) edits this SAME file to prepend a live
+  behavior. Task 8 (added later in this plan) edits this SAME file to prepend a live
   feature-flag check ahead of the Texas-scope logic below — this task's job is the Texas
   scoping only, with no flag awareness.
 
@@ -893,22 +893,301 @@ git commit -m "test(mcp-weather): add e2e legs for /mcp/weather auth + TX-scope"
 
 ---
 
-### Task 7: Add the Agent Gateway capability-ledger entry
+### Task 7: BFF-side feature flag + internal endpoint for the weather showcase
+
+**Files:**
+- Modify: `demo_api_server/routes/featureFlags.js` (new `FLAG_REGISTRY` entry)
+- Create: `demo_api_server/routes/weatherMcpFlag.js`
+- Modify: `demo_api_server/server.js` (register the new route)
+
+**Interfaces:**
+- Consumes: `configStore.getEffective('ff_weather_mcp_showcase')` — the same singleton and
+  method `featureFlags.js`'s own `resolveFlag()` already uses; `BFF_INTERNAL_SECRET` (already
+  read elsewhere in this file's sibling `/internal/*` routes).
+- Produces: `GET /internal/feature-flags/weather-mcp-showcase` → `{ enabled: true|false }`,
+  gated by the `x-internal-gateway-secret` header matching `BFF_INTERNAL_SECRET` (constant-time
+  comparison, matching `agentIdToken.js`'s pattern). Task 8 (gateway-side) calls this endpoint
+  per-request so a Quick Flags UI toggle takes effect live, with no `ping-gateway` recreate.
+
+This is a real, live-toggleable flag — unlike `PG_OLB_BACKEND_URL`-style static env vars, a
+change here is visible on the very next `/mcp/weather` request. Default is enabled (`true`),
+matching "starts by default, flag turns it off."
+
+- [ ] **Step 1: Add the `FLAG_REGISTRY` entry**
+
+In `demo_api_server/routes/featureFlags.js`, add a new object to the `FLAG_REGISTRY` array
+immediately after the existing `ff_mcp_gateway_pinggateway` entry (same `'MCP / Agent'`
+category):
+
+```javascript
+  {
+    id:           'ff_weather_mcp_showcase',
+    name:         'Weather MCP Showcase (Agent Gateway)',
+    category:     'MCP / Agent',
+    description:
+      'Controls whether the Agent Gateway (PingGateway/IG) weather-mcp showcase route ' +
+      '(`/mcp/weather`) is enabled. This is a standalone gateway capability demo — a ' +
+      'third-party MCP server fronted and scoped to Texas-only by the gateway — with no ' +
+      'banking chat/agent wiring. `tx-weather-scope.groovy` calls this flag live on every ' +
+      '`/mcp/weather` request via `GET /internal/feature-flags/weather-mcp-showcase`, so ' +
+      'toggling it here takes effect immediately, with no gateway restart.',
+    impact:
+      'ON (default) = /mcp/weather is reachable (subject to the Texas-only scope policy). ' +
+      'OFF = every /mcp/weather request is denied with HTTP 403, regardless of location.',
+    type:         'boolean',
+    defaultValue: true,
+  },
+```
+
+- [ ] **Step 2: Create the internal endpoint**
+
+```javascript
+'use strict';
+/**
+ * /internal/feature-flags/weather-mcp-showcase — gateway-only endpoint
+ *
+ * Lets ping-gateway's tx-weather-scope.groovy check the live value of
+ * ff_weather_mcp_showcase on every /mcp/weather request, so a Quick Flags UI
+ * toggle takes effect immediately with no gateway restart. Same
+ * x-internal-gateway-secret gate as this directory's other /internal/* routes.
+ *
+ * Status codes:
+ *   200  { enabled: true|false }  — success
+ *   403  forbidden                — missing or wrong x-internal-gateway-secret
+ */
+const express = require('express');
+const crypto = require('crypto');
+const router = express.Router();
+const configStore = require('../services/configStore');
+
+const DEFAULT_INTERNAL_SECRET = 'dev-shared-secret-change-me';
+const INTERNAL_SECRET = process.env.BFF_INTERNAL_SECRET || DEFAULT_INTERNAL_SECRET;
+const INTERNAL_SECRET_BUF = Buffer.from(INTERNAL_SECRET);
+
+router.get('/feature-flags/weather-mcp-showcase', (req, res) => {
+  const presented = req.headers['x-internal-gateway-secret'];
+  const presentedBuf = typeof presented === 'string' ? Buffer.from(presented) : null;
+  if (
+    !presentedBuf ||
+    presentedBuf.length !== INTERNAL_SECRET_BUF.length ||
+    !crypto.timingSafeEqual(presentedBuf, INTERNAL_SECRET_BUF)
+  ) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+
+  const raw = configStore.getEffective('ff_weather_mcp_showcase');
+  const enabled = (raw === null || raw === undefined) ? true : (raw === true || raw === 'true');
+  return res.json({ enabled });
+});
+
+module.exports = router;
+```
+
+- [ ] **Step 3: Register the route**
+
+In `demo_api_server/server.js`, add one line immediately after the existing
+`app.use('/internal', require('./routes/vaultServiceKey'));`:
+
+```javascript
+app.use('/internal', require('./routes/weatherMcpFlag'));
+```
+
+- [ ] **Step 4: Verify locally**
+
+Start (or use the already-running) `demo_api_server`, then:
+
+```bash
+# Wrong/missing secret — expect 403
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3001/internal/feature-flags/weather-mcp-showcase
+
+# Correct secret (read it from demo_api_server/.env — BFF_INTERNAL_SECRET=...) — expect 200 + {"enabled":true}
+SECRET=$(grep '^BFF_INTERNAL_SECRET=' demo_api_server/.env | cut -d= -f2-)
+curl -s -H "x-internal-gateway-secret: $SECRET" http://localhost:3001/internal/feature-flags/weather-mcp-showcase
+```
+Expected: first call `403`; second call `200` with body `{"enabled":true}` (the registry
+default, since no one has toggled it yet).
+
+Also confirm the flag is visible where the UI reads flags from:
+```bash
+curl -s http://localhost:3001/api/admin/feature-flags | grep -o '"id":"ff_weather_mcp_showcase"[^}]*}'
+```
+Expected: an entry with `"defaultValue":true` and `"value":true`.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add demo_api_server/routes/featureFlags.js demo_api_server/routes/weatherMcpFlag.js demo_api_server/server.js
+git commit -m "feat(mcp-weather): add ff_weather_mcp_showcase flag + internal endpoint"
+```
+
+---
+
+### Task 8: Gateway-side live flag check
+
+**Files:**
+- Modify: `ping-gateway/scripts/groovy/tx-weather-scope.groovy` (prepend the live check)
+- Modify: `docker-compose.yml` (add `BFF_WEATHER_FLAG_URL` to `ping-gateway`'s `environment:`)
+
+**Interfaces:**
+- Consumes: `GET /internal/feature-flags/weather-mcp-showcase` (Task 7), the existing
+  `BFF_INTERNAL_SECRET` env var (already present in the `ping-gateway` container via
+  `env_file`, written by `refresh-service-envs.js` — no change needed to make it available),
+  and the new `BFF_WEATHER_FLAG_URL` env var.
+- Produces: every `/mcp/weather` request now pays one blocking HTTP round-trip to the BFF
+  before the Texas-scope logic runs. Fails OPEN (treats the capability as enabled) if the
+  call errors, times out, or `BFF_WEATHER_FLAG_URL` is unset — this is a demo-showcase
+  on/off toggle, not a security control (the actually security-relevant Texas-scope check
+  stays fail-closed, unchanged by this task).
+
+- [ ] **Step 1: Add `BFF_WEATHER_FLAG_URL` to `docker-compose.yml`**
+
+In the `ping-gateway` service's `environment:` block, next to the existing
+`BFF_VAULT_KEY_URL` line, in the same literal-URL style:
+
+```yaml
+      BFF_VAULT_KEY_URL: "https://api.ping.demo:3001/internal/vault/service-key"
+      BFF_WEATHER_FLAG_URL: "https://api.ping.demo:3001/internal/feature-flags/weather-mcp-showcase"
+```
+
+- [ ] **Step 2: Edit `tx-weather-scope.groovy` — prepend the live flag check**
+
+Read the current file first. Add the imports/closures below immediately after the existing
+`import` lines (before the `TX_LAT_MIN` constant), and replace the existing `def id = ...`
+line (currently found just after the `tools/call`-only gate) — this hoists id-extraction
+earlier so the flag-check has an `id` to echo on denial, matching every other `denied(id, ...)`
+call in this file:
+
+```groovy
+def internalSecret = System.getenv('BFF_INTERNAL_SECRET') ?: ''
+def flagUrl         = System.getenv('BFF_WEATHER_FLAG_URL') ?: ''
+
+// Live on/off check against the BFF's ff_weather_mcp_showcase flag. Fails OPEN
+// (enabled) on any error — this is a demo toggle, not a security control; the
+// Texas-scope check below remains fail-closed regardless of this result.
+def weatherShowcaseEnabled = {
+    if (!flagUrl) return true
+    try {
+        def conn = new URL(flagUrl).openConnection() as java.net.HttpURLConnection
+        conn.requestMethod = 'GET'
+        conn.connectTimeout = 2000
+        conn.readTimeout = 3000
+        if (internalSecret) conn.setRequestProperty('x-internal-gateway-secret', internalSecret)
+        def code = conn.responseCode
+        if (code != 200) {
+            logger.warn('[TxWeatherScope] flag check HTTP ' + code + ' — failing open (enabled)')
+            return true
+        }
+        def respBody = conn.inputStream?.text ?: '{}'
+        def parsed = new JsonSlurper().parseText(respBody)
+        return parsed.enabled != false
+    } catch (Exception e) {
+        logger.warn('[TxWeatherScope] flag check failed: ' + e.message + ' — failing open (enabled)')
+        return true
+    }
+}
+```
+
+Then change the body-parsing section from:
+
+```groovy
+if (!(body instanceof Map) || body.method != 'tools/call') {
+    return next.handle(context, request)
+}
+
+def id = body.containsKey('id') ? body.id : null
+def params = body.params
+```
+
+to:
+
+```groovy
+def id = (body instanceof Map && body.containsKey('id')) ? body.id : null
+
+if (!weatherShowcaseEnabled()) {
+    return denied(id, 'Agent Gateway: weather capability disabled (ff_weather_mcp_showcase is off)')
+}
+
+if (!(body instanceof Map) || body.method != 'tools/call') {
+    return next.handle(context, request)
+}
+
+def params = body.params
+```
+
+Leave everything else in the file (the Texas bounding-box/city logic, the `denied` closure)
+unchanged.
+
+- [ ] **Step 3: Validate, recreate, and verify**
+
+```bash
+bash ping-gateway/scripts/validate-config.sh
+COMPOSE_PROJECT_NAME=ai-demo docker compose up -d ping-gateway
+```
+Expected: passes; container healthy.
+
+Confirm unauthenticated access still 401s first (the flag check runs after `rsFilter`, so
+auth is checked before the flag ever matters):
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3036/mcp/weather -X POST \
+  -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":"1","method":"tools/list"}'
+```
+Expected: `401`.
+
+If `BANKING_TEST_TOKEN` is available, prove the LIVE toggle end-to-end (no gateway recreate
+between these two calls):
+```bash
+TOKEN="<paste a token with gateway:mcp:invoke scope>"
+SECRET=$(grep '^BFF_INTERNAL_SECRET=' demo_api_server/.env | cut -d= -f2-)
+
+# Flip the flag off
+curl -s -X PATCH http://localhost:3001/api/admin/feature-flags \
+  -H 'Content-Type: application/json' -d '{"ff_weather_mcp_showcase": false}'
+
+# Expect 403 now, with no ping-gateway recreate in between
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3036/mcp/weather -X POST \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -H 'MCP-Protocol-Version: 2025-11-25' \
+  -d '{"jsonrpc":"2.0","id":"1","method":"tools/call","params":{"name":"get_current_conditions","arguments":{"city_name":"Austin, TX"}}}'
+
+# Flip it back on
+curl -s -X PATCH http://localhost:3001/api/admin/feature-flags \
+  -H 'Content-Type: application/json' -d '{"ff_weather_mcp_showcase": true}'
+
+# Expect 200 again, immediately, no recreate
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3036/mcp/weather -X POST \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -H 'MCP-Protocol-Version: 2025-11-25' \
+  -d '{"jsonrpc":"2.0","id":"2","method":"tools/call","params":{"name":"get_current_conditions","arguments":{"city_name":"Austin, TX"}}}'
+```
+Expected: `403`, then `200` — proving the toggle is genuinely live. If no token is available,
+skip this block (same `LIVE_E2E_BLOCKED`-style limitation as Task 5/6) but still confirm the
+401 check above.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add ping-gateway/scripts/groovy/tx-weather-scope.groovy docker-compose.yml
+git commit -m "feat(mcp-weather): wire live ff_weather_mcp_showcase check into gateway route"
+```
+
+---
+
+### Task 9: Add the Agent Gateway capability-ledger entry
 
 **Files:**
 - Modify: `demo_api_ui/src/config/capabilityLedgers/agentGatewayCapabilities.js`
 
 **Interfaces:**
 - Consumes: nothing from earlier tasks at runtime — this is a static UI data entry. It cites
-  file:line evidence from Task 5's Groovy file and Task 4/5's route file, so do this task
-  last (line numbers must match the final committed files).
+  file:line evidence from the Groovy file, which Task 8 also edits — do this task last (after
+  Task 8, not before) so the line-count evidence matches the final committed file.
 
 - [ ] **Step 1: Get the exact line count of the Groovy filter (for the evidence string)**
 
 Run: `wc -l ping-gateway/scripts/groovy/tx-weather-scope.groovy`
 Note the number `N` printed — use `1-N` as the line range in the evidence string below. Do
-not guess or reuse a number from this plan; the file may have been adjusted since Task 5 was
-written, so this must be the actual current count.
+not guess or reuse a number from this plan; the file has been edited by both Task 5 and Task
+8, so this must be the actual current count.
 
 - [ ] **Step 2: Add the new capability entry**
 
@@ -921,8 +1200,8 @@ the `AGENT_GATEWAY_CAPABILITIES` array, after the `mcp-validation` entry (same
     id: 'weather-tx-scope',
     group: 'validate-audit',
     title: 'Scope a third-party MCP server',
-    oneLiner: 'Fronts a third-party weather MCP server and denies any tool call outside Texas, entirely at the gateway — the demo policy the backend never sees.',
-    evidence: { code: 'PingGateway only — no Node mcp-gateway equivalent: ping-gateway/scripts/groovy/tx-weather-scope.groovy:1-N · ping-gateway/config/routes/00-mcp-weather.json' },
+    oneLiner: 'Fronts a third-party weather MCP server and denies any tool call outside Texas, entirely at the gateway — the demo policy the backend never sees. Live-toggleable via ff_weather_mcp_showcase.',
+    evidence: { code: 'PingGateway only — no Node mcp-gateway equivalent: ping-gateway/scripts/groovy/tx-weather-scope.groovy:1-N · ping-gateway/config/routes/00-mcp-weather.json · demo_api_server/routes/weatherMcpFlag.js' },
     relatedUCIds: [],
   },
 ```
@@ -941,16 +1220,17 @@ git commit -m "feat(mcp-weather): add Agent Gateway capability-ledger entry"
 
 ---
 
-### Task 8: Full-stack verification pass
+### Task 10: Full-stack verification pass
 
 **Files:** none (verification only)
 
-**Interfaces:** none — this task confirms Tasks 1–7 work together.
+**Interfaces:** none — this task confirms Tasks 1–9 work together.
 
 - [ ] **Step 1: Bring up the full affected slice**
 
-Run: `COMPOSE_PROJECT_NAME=ai-demo docker compose up -d --build mcp-weather ping-gateway`
-Expected: both containers healthy.
+Run: `COMPOSE_PROJECT_NAME=ai-demo docker compose up -d --build mcp-weather ping-gateway demo-api-server`
+Expected: all three containers healthy (`demo-api-server` — the BFF — is included this time
+because Task 7/8 added a live gateway→BFF dependency that wasn't there before).
 
 - [ ] **Step 2: Re-run config validation and the e2e script**
 
@@ -969,15 +1249,26 @@ Run: `BANKING_TEST_TOKEN=<tok> bash ping-gateway/scripts/e2e-pinggateway.sh`
 Expected: `RESULT: PASS`, Legs A/B/C/D/E all `PASS` (Leg C is the pre-existing banking leg;
 confirm this change didn't regress it).
 
-- [ ] **Step 4: Confirm success criteria from the spec**
+- [ ] **Step 4: Re-verify the live flag toggle end-to-end**
+
+If `BANKING_TEST_TOKEN` is available, repeat Task 8 Step 3's PATCH-then-curl sequence once
+more here as a final cross-task check (flip `ff_weather_mcp_showcase` off, confirm `403` on
+`/mcp/weather`, flip it back on, confirm `200` again) — this is the one behavior that spans
+Tasks 7, 8, AND the full running stack together, so it's worth re-proving after everything is
+up rather than trusting Task 8's isolated result alone.
+
+- [ ] **Step 5: Confirm success criteria from the spec**
 
 Check off each, from `docs/superpowers/specs/2026-07-21-weather-mcp-agent-gateway-design.md`:
-- [ ] `/mcp/weather` route live and reachable through `ping-gateway`
+- [ ] `/mcp/weather` route live and reachable through `ping-gateway` (and NOT shadowed by
+  `01-mcp-olb.json` — confirm via the `WWW-Authenticate` header check from Task 4 Step 5)
 - [ ] A Texas-scoped request returns real weather data (200)
 - [ ] A non-Texas request is denied by the Groovy filter (403), not by upstream weather-mcp
+- [ ] `ff_weather_mcp_showcase` toggled off denies all `/mcp/weather` traffic live, with no
+  gateway recreate; toggled back on, it resumes immediately
 - [ ] `validate-config.sh` passes clean
 - [ ] Both new `e2e-pinggateway.sh` legs pass (or are honestly `LIVE_E2E_BLOCKED`, not silently skipped)
 - [ ] Capability card renders (verify by loading the Agent Gateway tour page in a browser)
 
-- [ ] **Step 5: No commit for this task** — it's verification only. If any check fails, return
+- [ ] **Step 6: No commit for this task** — it's verification only. If any check fails, return
   to the relevant task, fix, and re-run this task's checks before considering the plan done.
