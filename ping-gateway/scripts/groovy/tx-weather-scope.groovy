@@ -11,6 +11,34 @@ import org.forgerock.http.protocol.Response
 import org.forgerock.http.protocol.Status
 import org.forgerock.util.promise.Promises
 
+def internalSecret = System.getenv('BFF_INTERNAL_SECRET') ?: ''
+def flagUrl         = System.getenv('BFF_WEATHER_FLAG_URL') ?: ''
+
+// Live on/off check against the BFF's ff_weather_mcp_showcase flag. Fails OPEN
+// (enabled) on any error — this is a demo toggle, not a security control; the
+// Texas-scope check below remains fail-closed regardless of this result.
+def weatherShowcaseEnabled = {
+    if (!flagUrl) return true
+    try {
+        def conn = new URL(flagUrl).openConnection() as java.net.HttpURLConnection
+        conn.requestMethod = 'GET'
+        conn.connectTimeout = 2000
+        conn.readTimeout = 3000
+        if (internalSecret) conn.setRequestProperty('x-internal-gateway-secret', internalSecret)
+        def code = conn.responseCode
+        if (code != 200) {
+            logger.warn('[TxWeatherScope] flag check HTTP ' + code + ' — failing open (enabled)')
+            return true
+        }
+        def respBody = conn.inputStream?.text ?: '{}'
+        def parsed = new JsonSlurper().parseText(respBody)
+        return parsed.enabled != false
+    } catch (Exception e) {
+        logger.warn('[TxWeatherScope] flag check failed: ' + e.message + ' — failing open (enabled)')
+        return true
+    }
+}
+
 // Texas bounding box (approximate, generous — covers the whole state).
 def TX_LAT_MIN = 25.8
 def TX_LAT_MAX = 36.5
@@ -53,11 +81,16 @@ try {
     body = null
 }
 
+def id = (body instanceof Map && body.containsKey('id')) ? body.id : null
+
+if (!weatherShowcaseEnabled()) {
+    return denied(id, 'Agent Gateway: weather capability disabled (ff_weather_mcp_showcase is off)')
+}
+
 if (!(body instanceof Map) || body.method != 'tools/call') {
     return next.handle(context, request)
 }
 
-def id = body.containsKey('id') ? body.id : null
 def params = body.params
 def args = (params instanceof Map) ? params.arguments : null
 if (!(args instanceof Map)) {
