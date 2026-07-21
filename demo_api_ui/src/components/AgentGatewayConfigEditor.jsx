@@ -3,6 +3,7 @@ import Monaco from '@monaco-editor/react';
 import apiClient from '../services/apiClient';
 import { notifyError, notifySuccess, notifyWarning } from '../utils/appToast';
 import { formatAxiosError } from '../utils/formatAxiosError';
+import JsonFormView from './shared/JsonFormView';
 import './AgentGatewayConfigEditor.css';
 
 const API = '/api/admin/agent-gateway';
@@ -28,6 +29,7 @@ export default function AgentGatewayConfigEditor() {
   const [reload, setReload] = useState(null);      // save response .reload
   const [restarting, setRestarting] = useState(false);
   const [loadingFile, setLoadingFile] = useState(false);
+  const [viewMode, setViewMode] = useState('editor'); // 'editor' | 'form'
 
   const editorRef = useRef(null);
   const monacoRef = useRef(null);
@@ -35,6 +37,14 @@ export default function AgentGatewayConfigEditor() {
 
   const dirty = editorValue !== baseline;
   const hasErrors = errors.some((e) => e.level === 'error');
+
+  let formValue = null;
+  let formParseError = null;
+  try {
+    formValue = editorValue ? JSON.parse(editorValue) : null;
+  } catch (e) {
+    formParseError = e.message;
+  }
 
   // --- load file list -------------------------------------------------------
   useEffect(() => {
@@ -228,6 +238,20 @@ export default function AgentGatewayConfigEditor() {
           <div className="agc-toolbar">
             <span className="agc-current">{meta?.label || '—'}</span>
             <span className="agc-spacer" />
+            <button
+              type="button"
+              className={`agc-btn${viewMode === 'editor' ? ' agc-btn--active' : ''}`}
+              onClick={() => setViewMode('editor')}
+            >
+              Editor
+            </button>
+            <button
+              type="button"
+              className={`agc-btn${viewMode === 'form' ? ' agc-btn--active' : ''}`}
+              onClick={() => setViewMode('form')}
+            >
+              Form
+            </button>
             {validating && <span className="agc-muted">validating…</span>}
             {dirty && <span className="agc-dirty">● unsaved</span>}
             <button type="button" className="agc-btn" onClick={handleRevert} disabled={!dirty || saving}>
@@ -243,21 +267,33 @@ export default function AgentGatewayConfigEditor() {
             </button>
           </div>
 
-          <div className="agc-editor">
-            <Monaco
-              language="json"
-              value={editorValue}
-              onChange={onEditorChange}
-              onMount={handleEditorMount}
-              options={{
-                minimap: { enabled: false },
-                formatOnPaste: true,
-                fontSize: 13,
-                scrollBeyondLastLine: false,
-                automaticLayout: true,
-              }}
-            />
-          </div>
+          {viewMode === 'editor' ? (
+            <div className="agc-editor">
+              <Monaco
+                language="json"
+                value={editorValue}
+                onChange={onEditorChange}
+                onMount={handleEditorMount}
+                options={{
+                  minimap: { enabled: false },
+                  formatOnPaste: true,
+                  fontSize: 13,
+                  scrollBeyondLastLine: false,
+                  automaticLayout: true,
+                }}
+              />
+            </div>
+          ) : (
+            <div className="agc-editor agc-editor--form">
+              {formParseError ? (
+                <div className="agc-form-parse-error">
+                  Fix JSON in Editor view first: {formParseError}
+                </div>
+              ) : (
+                <JsonFormView value={formValue} emptyMessage="No file loaded." />
+              )}
+            </div>
+          )}
 
           {/* Validation panel */}
           {errors.length > 0 && (
