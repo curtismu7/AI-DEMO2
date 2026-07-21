@@ -52,7 +52,7 @@ test('defaults to the PingOne MCP source when no ?source= param is present, and 
 
 test('an explicit ?source=banking param selects the Banking MCP source', () => {
   renderPage('/pingone-mcp-inspector?source=banking');
-  expect(screen.getByRole('button', { name: 'Banking MCP' })).toHaveClass('src-pill--active');
+  expect(screen.getByRole('button', { name: 'AI Demo MCP' })).toHaveClass('src-pill--active');
   expect(screen.getByRole('button', { name: 'PingOne MCP' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'API Calls' })).toBeInTheDocument();
 });

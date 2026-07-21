@@ -23,7 +23,7 @@ import './shared/InspectorShell.css';
 import './ApiExplorerPanel.css';
 
 const SOURCES = [
-  { key: 'banking', label: 'Banking MCP' },
+  { key: 'banking', label: 'AI Demo MCP' },
   { key: 'pingone', label: 'PingOne MCP' },
   { key: 'api', label: 'API Calls' },
 ];
