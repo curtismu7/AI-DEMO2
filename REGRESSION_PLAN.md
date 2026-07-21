@@ -101,6 +101,48 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-21 — `/pingone-mcp-inspector` (Banking tab) showed zero tools with no explanation, again
+
+**Files changed:** `demo_api_ui/src/components/McpInspectorPage.jsx` (added
+`mfaRequired`/`stepUpMethod` state + banner to `useBankingSource()`; no
+server-side change).
+
+**What was broken:** the 2026-07-18 fix below (`mfa_required` handling) lived
+only in `McpInspector.js`. That file was later superseded when three
+standalone inspector pages were consolidated into `McpInspectorPage.jsx`
+(single `InspectorShell` with a source switcher) — the consolidation copied
+`refreshTools()`'s `tools`/`toolsSourceInfo` handling but not the
+`mfa_required`/`step_up_method` handling, so the same silent-gate regression
+came back under the new component. Confirmed live: `mcp_inspector_pingone_live`
+flag is ON (not the cause); `stepUpEnabled` is `true` in the running
+container; a real request to `/api/mcp/inspector/tools` from an
+un-step-up-verified session returned HTTP 200 `{ tools: [], mfa_required:
+true, step_up_method: 'email', _source: 'mfa_gate' }` (~107 bytes) and the
+Banking tab rendered "No tools loaded." with zero indication why.
+
+**What was fixed:** `useBankingSource()` in `McpInspectorPage.jsx` now reads
+`data.mfa_required`/`data.step_up_method` from the `/tools` response and
+renders the same inline info banner ("Step-up verification required...") that
+`McpInspector.js` already used, placed in `middle` just above the existing
+`needsLogin` banner. Verbatim port of the 2026-07-18 fix onto the new file —
+no other file touched.
+
+**Do not break:** this is UI-only — the server-side step-up gate in
+`mcpInspector.js` (`stepUpEnabled` / `req.session.stepUpVerified`) is
+untouched and must keep returning `tools: []` + `mfa_required: true` rather
+than silently falling back to the local catalog; that would defeat the gate.
+If `McpInspector.js` / `PingOneMcpInspector.js` are ever deleted as dead code,
+double-check this banner (and the `mfa_required` read it depends on) survives
+in whatever file replaces them — that's exactly how this regressed once
+already.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0, confirmed). Live
+full-session E2E (real OAuth sign-in + step-up) not re-run here; the
+`mfa_required` payload shape was confirmed live via `docker logs
+ai-demo-api-server` against the real, currently-signed-in session, and the
+added code is a direct copy of the already-shipped, already-verified
+2026-07-18 banner pattern.
+
 ### 2026-07-20 — PingOne Admin agent's tool schemas broke llama.cpp's grammar compiler
 
 **Files changed:**

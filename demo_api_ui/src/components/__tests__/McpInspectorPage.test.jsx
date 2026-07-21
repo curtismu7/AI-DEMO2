@@ -83,6 +83,18 @@ test('does not render a profile picker or "+ Add server" control (dropped for th
   expect(screen.queryByTitle('MCP server to inspect')).toBeNull();
 });
 
+test('Banking MCP source shows a step-up banner (not a blank tool list) when /tools returns mfa_required', async () => {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp/inspector/tools') {
+      return Promise.resolve({ data: { tools: [], mfa_required: true, step_up_method: 'email', _source: 'mfa_gate' } });
+    }
+    return Promise.resolve({ data: {} });
+  });
+  renderPage('/pingone-mcp-inspector?source=banking');
+  expect(await screen.findByText('Step-up verification required.')).toBeInTheDocument();
+  expect(screen.getByText(/MFA step-up \(email\)/)).toBeInTheDocument();
+});
+
 const PINGONE_TOOL = { name: 'users.read', description: 'Fetch one PingOne user by id.', inputSchema: { type: 'object', properties: { user_id: { type: 'string' } }, required: ['user_id'] } };
 
 function mockPingOneEndpoints() {
