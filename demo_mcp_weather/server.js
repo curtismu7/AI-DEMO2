@@ -9,6 +9,7 @@
 const http = require('node:http');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { randomUUID } = require('node:crypto');
 
 const PORT = parseInt(process.env.PORT || '8896', 10);
 const CHILD_ENTRY = path.join(__dirname, 'node_modules', '@dangahagan', 'weather-mcp', 'dist', 'index.js');
@@ -82,18 +83,20 @@ function handleChildLine(line) {
   if (!waiter) return; // stray notification or no in-flight HTTP request waiting on this id
   clearTimeout(waiter.timer);
   pending.delete(msg.id);
+  msg.id = waiter.callerId;
   waiter.resolve(msg);
 }
 
 function callChild(message, timeoutMs = 15000) {
   return new Promise((resolve, reject) => {
     if (!child) startChild();
+    const internalId = randomUUID();
     const timer = setTimeout(() => {
-      pending.delete(message.id);
+      pending.delete(internalId);
       reject(new Error('weather-mcp child timeout'));
     }, timeoutMs);
-    pending.set(message.id, { resolve, reject, timer });
-    child.stdin.write(JSON.stringify(message) + '\n');
+    pending.set(internalId, { resolve, reject, timer, callerId: message.id });
+    child.stdin.write(JSON.stringify({ ...message, id: internalId }) + '\n');
   });
 }
 
