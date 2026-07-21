@@ -5,19 +5,18 @@ import { EDU } from "../components/education/educationIds";
 import "./IntentBindingLearningPage.css";
 
 /**
- * New standalone Intent Binding learning page. This plan implements only the
- * RAR (RFC 9396) section; AP2, OAuth Transaction Tokens draft, and RFC 8693
- * Token Exchange sections are added by later plans. Layout matches the
- * user-approved "B+C combined" mockup: static pipeline header, then a
- * permanent PERMIT | DRIFT split so both outcomes are visible at once.
+ * Intent Binding learning page demonstrating PAR (Pushed Authorization Request).
+ * Shows how authorization details are pre-submitted to PingOne via PAR endpoint,
+ * then referenced during token exchange via request_uri. Layout: static pipeline
+ * header, then permanent PERMIT | DRIFT split for side-by-side outcome comparison.
  */
-const GRANT = { type: "banking_transaction", tool: "create_transfer", amount: 100, payee: "acme-utilities" };
+const PAR_PAYLOAD = { type: "banking_transaction", tool: "create_transfer", amount: 100, payee: "acme-utilities" };
 
 const PIPELINE_STEPS = [
   { num: 1, title: "Declare intent", detail: "Customer authorizes: pay Acme Utilities, up to $100." },
-  { num: 2, title: "Build RAR grant", detail: "authorization_details attached to the agent's token via RFC 9396." },
-  { num: 3, title: "Agent requests transfer", detail: "MCP gateway receives the actual create_transfer call." },
-  { num: 4, title: "Gateway + P1AZ check", detail: "Requested amount compared against the grant's cap." },
+  { num: 2, title: "Push to PAR endpoint", detail: "Authorization details pre-submitted to PingOne via RFC 9126." },
+  { num: 3, title: "Receive request_uri", detail: "PingOne returns a reference URI for this authorization context." },
+  { num: 4, title: "Token exchange with request_uri", detail: "Agent uses request_uri in token exchange; P1AZ validates the amount." },
 ];
 
 function useColumnRun(action, defaultAmount) {
@@ -111,9 +110,9 @@ export default function IntentBindingLearningPage() {
         <div className="ib-eyebrow">Learning · Intent Binding</div>
         <h1>Watch an agent's intent get checked, step by step</h1>
         <p>
-          Every transfer an agent makes runs this pipeline. The same RFC 9396 Rich Authorization
-          Request grant is compared below against two requests — one within the agent's declared
-          authority, one past it.
+          Every transfer an agent makes runs this pipeline. The same authorization payload is pushed
+          to PingOne via PAR (RFC 9126), then referenced below in two requests — one within the
+          agent's declared authority, one past it.
         </p>
       </header>
 
@@ -128,16 +127,61 @@ export default function IntentBindingLearningPage() {
       </ol>
 
       <div className="ib-grant-card">
-        <strong>Grant on the agent&apos;s token (RFC 9396 authorization_details):</strong>
-        <pre className="ib-grant-json">{JSON.stringify(GRANT, null, 2)}</pre>
+        <strong>Authorization payload pushed to PAR endpoint (RFC 9126):</strong>
+        <pre className="ib-grant-json">{JSON.stringify(PAR_PAYLOAD, null, 2)}</pre>
       </div>
 
-      <div id="rar" className="ib-split">
+      <div id="rar">
+        <div className="ib-flow-diagram">
+          <strong>PAR flow through the system:</strong>
+          <svg viewBox="0 0 1000 200" className="ib-flow-svg">
+            <rect x="10" y="40" width="110" height="60" rx="4" fill="#e3f2fd" stroke="#1976d2" strokeWidth="2" />
+            <text x="65" y="75" textAnchor="middle" fontSize="14" fontWeight="500">User Declares</text>
+            <text x="65" y="92" textAnchor="middle" fontSize="12">Intent: $100</text>
+
+            <path d="M 120 70 L 150 70" stroke="#666" strokeWidth="2" markerEnd="url(#arrowhead)" />
+
+            <rect x="150" y="40" width="130" height="60" rx="4" fill="#f3e5f5" stroke="#7b1fa2" strokeWidth="2" />
+            <text x="215" y="60" textAnchor="middle" fontSize="12" fontWeight="500">Push to PAR</text>
+            <text x="215" y="77" textAnchor="middle" fontSize="11">Endpoint</text>
+            <text x="215" y="92" textAnchor="middle" fontSize="10" fill="#666">(auth payload)</text>
+
+            <path d="M 280 70 L 310 70" stroke="#666" strokeWidth="2" markerEnd="url(#arrowhead)" />
+
+            <rect x="310" y="40" width="130" height="60" rx="4" fill="#fce4ec" stroke="#c2185b" strokeWidth="2" />
+            <text x="375" y="60" textAnchor="middle" fontSize="12" fontWeight="500">Receive</text>
+            <text x="375" y="77" textAnchor="middle" fontSize="11">request_uri</text>
+            <text x="375" y="92" textAnchor="middle" fontSize="10" fill="#666">(reference ID)</text>
+
+            <path d="M 440 70 L 470 70" stroke="#666" strokeWidth="2" markerEnd="url(#arrowhead)" />
+
+            <rect x="470" y="40" width="140" height="60" rx="4" fill="#e8f5e9" stroke="#388e3c" strokeWidth="2" />
+            <text x="540" y="60" textAnchor="middle" fontSize="12" fontWeight="500">Token Exchange</text>
+            <text x="540" y="77" textAnchor="middle" fontSize="11">with request_uri</text>
+            <text x="540" y="92" textAnchor="middle" fontSize="10" fill="#666">(via MCP Gateway)</text>
+
+            <path d="M 610 70 L 640 70" stroke="#666" strokeWidth="2" markerEnd="url(#arrowhead)" />
+
+            <rect x="640" y="30" width="160" height="80" rx="4" fill="#fff3e0" stroke="#f57c00" strokeWidth="2" />
+            <text x="720" y="50" textAnchor="middle" fontSize="12" fontWeight="500">PingOne Authorize</text>
+            <text x="720" y="67" textAnchor="middle" fontSize="11">Resolves request_uri,</text>
+            <text x="720" y="84" textAnchor="middle" fontSize="11">validates amount cap</text>
+            <text x="720" y="101" textAnchor="middle" fontSize="10" fill="#f57c00" fontWeight="500">→ PERMIT/DENY</text>
+
+            <defs>
+              <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                <polygon points="0 0, 10 3, 0 6" fill="#666" />
+              </marker>
+            </defs>
+          </svg>
+        </div>
+
+        <div className="ib-split">
         <IntentBindingColumn
           kind="permit"
           title="Within the grant"
           outcomeLabel="Permit"
-          rationale={`$${permitCol.amount} is within the $${GRANT.amount} cap. Steps 3-4 complete and the gateway confirms the request matches the declared intent.`}
+          rationale={`$${permitCol.amount} is within the $${PAR_PAYLOAD.amount} cap. Steps 3-4 complete and the gateway confirms the request matches the declared intent.`}
           col={permitCol}
           live={live}
         />
@@ -145,10 +189,11 @@ export default function IntentBindingLearningPage() {
           kind="drift"
           title="Drifts past the grant"
           outcomeLabel="Deny"
-          rationale={`$${driftCol.amount} exceeds the $${GRANT.amount} cap. Step 4 stops the chain — the transfer never reaches the account.`}
+          rationale={`$${driftCol.amount} exceeds the $${PAR_PAYLOAD.amount} cap. Step 4 stops the chain — the transfer never reaches the account.`}
           col={driftCol}
           live={live}
         />
+        </div>
       </div>
 
       <div className="ib-live-toggle">
@@ -159,9 +204,9 @@ export default function IntentBindingLearningPage() {
       </div>
 
       <p className="ib-edu-link">
-        For deeper RFC background, see the{" "}
+        For deeper PAR background, see the{" "}
         <button type="button" className="ib-link-btn" onClick={() => edu && edu.open(EDU.RAR, "what")}>
-          RAR education panel
+          PAR education panel
         </button>.
       </p>
 
