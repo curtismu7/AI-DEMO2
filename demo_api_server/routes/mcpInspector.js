@@ -21,7 +21,6 @@ const mcpProfileStore = require('../services/mcpProfileStore');
 const mcpHttpTransport = require('../services/mcpTransports/http');
 const mcpStdioTransport = require('../services/mcpTransports/stdio');
 const mcpPingOneHttpAdapter = require('../services/mcpPingOneHttpAdapter');
-const runtimeSettings = require('../config/runtimeSettings');
 const archEmit = require('../services/archEventEmitter');
 const mcpFlowSseHub = require('../services/mcpFlowSseHub');
 const { buildSsePayload } = require('../services/sseCorrelation');
@@ -344,18 +343,12 @@ router.get('/tools/events', requireSession, (req, res) => {
 });
 
 // GET /api/mcp/inspector/tools — live tools/list from MCP server, or local catalog when no MCP bearer / MCP down
+//
+// No step-up MFA gate here: this route only lists tool names/schemas for the
+// Inspector UI, it never executes anything. The actual money-movement step-up
+// gate (runtimeSettings.stepUpEnabled) still applies at transaction time in
+// mcpLocalTools.js / routes/transactions.js — unchanged by this route.
 router.get('/tools', async (req, res) => {
-  // MFA gate: require step-up verification before listing tools (feature 52-06).
-  if (runtimeSettings.get('stepUpEnabled') && !(req.session?.stepUpVerified > Date.now())) {
-    return res.json({
-      tools: [],
-      mfa_required: true,
-      step_up_method: runtimeSettings.get('stepUpMethod') || 'email',
-      step_up_acr: runtimeSettings.get('stepUpAcrValue') || 'Multi_Factor',
-      _source: 'mfa_gate',
-    });
-  }
-
   // Non-default profile: dispatch to its transport (mcpTransports/*) instead
   // of the banking-server discovery flow below. Omitted/default profile id
   // falls through to the existing behavior unchanged.

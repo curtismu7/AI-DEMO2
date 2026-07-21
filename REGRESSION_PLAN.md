@@ -140,6 +140,35 @@ owner oauthId equals subjectId.
 **Verify:** `cd demo_api_server && npx jest src/__tests__/resolveResourceOwnerId.test.js
 src/__tests__/attackSimulator.authorizeEvidence.test.js --forceExit`
 
+### 2026-07-21 — Removed the step-up MFA gate from Banking MCP Inspector tool listing (supersedes the two entries below)
+
+**Files changed:** `demo_api_server/routes/mcpInspector.js` (dropped the
+`stepUpEnabled` gate block on `GET /tools`, removed the now-unused
+`runtimeSettings` import), `demo_api_server/src/__tests__/mcp-inspector.test.js`
+(removed the `MFA gate` describe block).
+
+**What changed:** `GET /api/mcp/inspector/tools` — the Banking tab's tool
+discovery endpoint — no longer returns `{ tools: [], mfa_required: true, ... }`
+when the session isn't step-up verified. It now always attempts the real
+`tools/list` (or falls back to the local catalog), same as the PingOne MCP and
+API Calls tabs already did. Reported live: user opened `/pingone-mcp-inspector`
+→ Banking MCP and got "Step-up verification required" with zero tools, and
+confirmed banking tool *listing* should never require auth/MFA — this route
+only returns tool names/schemas, it never executes anything.
+
+**Do not break:** this is scoped to the Inspector's read-only discovery route
+only. `runtimeSettings.stepUpEnabled` still gates real money movement —
+`mcpLocalTools.js` (`checkLocalStepUp`) and `routes/transactions.js` (428
+enforcement on transfer/withdrawal) are untouched and must keep requiring
+step-up there. The two entries below (2026-07-21 banner port, 2026-07-18
+original fix) previously told future agents to preserve this gate on the
+Inspector route specifically — that instruction is now superseded; do not
+re-add an MFA gate to `GET /api/mcp/inspector/tools`.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/mcp-inspector.test.js`
+(exit 0).
+
+
 ### 2026-07-21 — `/pingone-mcp-inspector` (Banking tab) showed zero tools with no explanation, again
 
 **Files changed:** `demo_api_ui/src/components/McpInspectorPage.jsx` (added
