@@ -1018,13 +1018,13 @@ async function runMcpToolPipeline(ctx) {
                 ));
             }
 
-            // HTTP 428 Precondition Required: step-up auth needed (INDETERMINATE decision)
+            // HTTP 428 Precondition Required: HITL consent needed (INDETERMINATE decision)
             if (err.gatewayErrorCode === 'hitl_required') {
-                deps.emit({ phase: 'gateway_step_up_required' });
+                deps.emit({ phase: 'gateway_hitl_required' });
                 return { kind: 'block', httpStatus: 428, tokenEvents, body: {
-                    error: 'step_up_required',
+                    error: 'hitl_required',
                     tool,
-                    message: 'Transaction requires additional authentication (step-up MFA)',
+                    message: 'Transaction requires human approval (HITL consent)',
                     tokenEvents,
                 } };
             }
