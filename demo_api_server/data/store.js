@@ -265,7 +265,7 @@ class DataStore {
     // map key always matches user.id — a generated key plus a spread-in userData.id
     // left the record unreachable via getUserById/updateUser.
     const id = userData.id || uuidv4();
-    const user = { ...userData, id, createdAt: new Date(), isActive: true };
+    const user = { ...userData, id, createdAt: new Date(), isActive: true, hideSuccessScreen: false };
     this.users.set(id, user);
     await this.persistAllData();
     return user;
@@ -296,6 +296,7 @@ class DataStore {
       password: seed.password != null ? seed.password : null,
       oauthProvider: seed.oauthProvider || null,
       oauthId: seed.oauthId || null,
+      hideSuccessScreen: false,
       createdAt: new Date(),
     };
     this.users.set(id, user);
