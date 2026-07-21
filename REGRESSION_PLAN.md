@@ -101,6 +101,34 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-21 — /mcp/weather route silently shadowed by 01-mcp-olb.json's catch-all
+
+**Files changed:**
+- `ping-gateway/config/routes/01-mcp-olb.json` — condition regex now excludes `/weather`
+  alongside the existing `/invest` exclusion (`^/mcp(?!/invest|/weather)`).
+
+**What was broken:** PingGateway selects among matching routes by the route's `"name"`
+field, sorted alphabetically — not by filename. `00-mcp-weather.json` (name
+`mcp-weather-primary`) was added expecting its `00-` filename prefix to win priority over
+`01-mcp-olb.json` (name `mcp-olb-primary`), matching how `00-mcp-apikey.json` (name
+`mcp-apikey-primary`) already escapes the same catch-all. That precedent is coincidental —
+`"apikey"` alphabetically precedes `"olb"`, `"weather"` does not — so `01-mcp-olb.json`'s
+catch-all silently swallowed all `/mcp/weather` traffic, proxying it to the OLB/banking
+backend instead of the weather backend. A 401 on an unauthenticated request looked identical
+either way, masking the bug until response headers were compared directly.
+
+**What was fixed:** added `|/weather` to `01-mcp-olb.json`'s condition regex, mirroring the
+existing `|/invest` exclusion — the same structurally-guaranteed mechanism (not
+alphabetical-name luck) that already protects the invest route.
+
+**Do not break:** `01-mcp-olb.json`'s condition must keep matching `/mcp` and any other
+`/mcp/*` path that isn't `/invest` or `/weather` — do not narrow it further without checking
+what else relies on the OLB catch-all.
+
+**Verify:** `bash ping-gateway/scripts/validate-config.sh` (PASS); `bash
+ping-gateway/scripts/e2e-pinggateway.sh` (OLB legs unchanged); `WWW-Authenticate` header on
+`/mcp/weather` no longer matches `/mcp`'s.
+
 ### 2026-07-20 — PingOne Admin agent's tool schemas broke llama.cpp's grammar compiler
 
 **Files changed:**
