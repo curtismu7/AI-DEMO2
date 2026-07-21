@@ -484,13 +484,6 @@ export default function AdminSideNav({ user }) {
           path: "/pingone-mcp-inspector",
           icon: "dbg",
         },
-        {
-          label: "PingOne MCP Tools",
-          action: () => {
-            window.location.href = "/pingone-mcp-tools.html";
-          },
-          icon: "tool",
-        },
         { label: "PingOne MCP Setup", path: "/pingone-setup", icon: "cfg" },
         { label: "Privilege MCP Client", path: "/privilege-mcp-client", icon: "shld" },
       ],
