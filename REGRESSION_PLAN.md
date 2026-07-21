@@ -101,6 +101,69 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-21 — `/mcp/weather` 502'd for in-scope Texas cities (and `/mcp/invest`'s reverse-proxy stage carried the identical latent defect): `baseURI` silently ignored, `UriPathRewriteFilter` mappings silently no-op'd
+
+**Files changed:**
+- `ping-gateway/config/routes/00-mcp-weather.json` — `ReverseProxyHandler`'s `baseURI` moved
+  from nested inside `config` to a sibling of `type` (on the `Chain`'s inner `handler` object);
+  `StripWeatherPrefix`'s `mappings` changed from regex form (`"^/mcp/weather(.*)$": "/mcp$1"`)
+  to literal-prefix form (`"/mcp/weather": "/mcp"`).
+- `ping-gateway/config/routes/02-mcp-invest.json` — identical fix to `StripInvestPrefix`'s
+  mapping and `ReverseProxyHandler`'s `baseURI` placement (same bug, same shape, copy-pasted
+  into this route originally; not yet user-visible because invest's separate, pre-existing
+  `token_exchange_failed` issue fails earlier in the chain and had never let a request reach
+  this stage).
+
+**What was broken (two independent, stacked bugs, found by decompiling the actual IG jars —
+`/opt/gateway/lib/openig-core-*.jar` inside the running container — since neither is
+documented as a "gotcha" anywhere):**
+
+1. **`baseURI` in the wrong place.** In this IG version, `baseURI` is a generic decorator
+   (`org.forgerock.openig.decoration.baseuri.BaseUriDecorator`) that IG's heap system only
+   recognizes as a **sibling key of `type`** on a heap object — e.g.
+   `{"type": "ReverseProxyHandler", "baseURI": "...", "config": {...}}`. Both routes instead
+   nested it *inside* `config` (`{"type": "ReverseProxyHandler", "config": {"baseURI": "..."}}`).
+   Decompiling `ReverseProxyHandlerHeaplet.class` confirms it never reads a `"baseURI"` key at
+   all — the class's entire config surface is `soTimeout`/`connectionTimeout`/`maxConnections`/
+   `tls`/`vertx`/`proxyOptions`/`websocket`. With `baseURI` nested, it was a pure no-op: for
+   weather, `ReverseProxyHandler` fell back to blindly forwarding using the *inbound* request's
+   own host and port (confirmed by overriding the inbound `Host` header's port from `3036` to
+   `9999` and watching the connect-refused error's target port change identically) — landing on
+   whatever container the gateway's own `/etc/hosts` `api.ping.demo` entry happened to
+   currently resolve to (a stale, coincidental IP-reuse artifact, not a real routing decision),
+   on the *client's* port, which nothing listens on there. Hence `502`/`Connection refused`.
+2. **`UriPathRewriteFilter`'s `mappings` is a literal-prefix replace, not regex.** Decompiling
+   `UriPathRewriteFilter$PathMapping.class` shows `rewritePath(path)` is
+   `toPath + path.substring(fromPath.length())`, matched via `path.startsWith(fromPath)` — there
+   is no regex engine involved anywhere in this filter. Both routes' mappings used regex syntax
+   with a capture group (`"^/mcp/weather(.*)$": "/mcp$1"`), which no request path ever literally
+   starts with, so `findLongestMapping` always returned empty and the filter silently forwarded
+   the request unmodified. This bug was invisible until bug #1 was fixed: once `baseURI`
+   correctly reached the real backend, the un-stripped `/mcp/weather` path 404'd against
+   mcp-weather's Express app (only `/mcp` is registered) — the exact same generic
+   `{"error":"Not found"}` reproduced by curling mcp-weather directly at `/` or any unregistered
+   path, confirming the match.
+
+**What was fixed:** `baseURI` promoted to a sibling of `type` on the `ReverseProxyHandler` heap
+object in both routes; both `UriPathRewriteFilter` mappings changed from regex form to literal
+prefix-and-replacement form matching how `PathMapping` actually implements rewriting.
+
+**Do not break:** `01-mcp-olb.json` has the identical `baseURI`-nested-in-`config` shape and
+was deliberately left unchanged — real OLB traffic currently appears unaffected by this defect
+class (untested/unexplained why; flagged for separate follow-up, not touched here per
+minimal-diff scope). Don't assume fixing `baseURI` placement elsewhere is automatically safe
+without the same live-token verification done here.
+
+**Verify:** live end-to-end with a real, freshly-minted, introspection-passing bearer token
+(same style as the rsFilter fix below) against the actually-running `ping-gateway` container:
+`Austin` (Texas, in-scope) now returns `200` with the request correctly reaching mcp-weather's
+tool-execution layer (blocked only by mcp-weather's own unrelated `ENABLED_TOOLS` config —
+confirmed identical to curling mcp-weather directly, not a gateway defect); `New York`
+(non-Texas) returns the correct `403` Texas-scope denial from `tx-weather-scope.groovy`. No
+`BadGatewayFilter`/`Connection refused` in gateway logs for either call. `02-mcp-invest.json`
+verified to hot-reload cleanly with the same fix (its own separate `token_exchange_failed` issue
+still blocks full end-to-end verification of its reverse-proxy stage — out of scope here).
+
 ### 2026-07-21 — Shared rsFilter introspection has been failing closed for every real token, on every route that uses it (invest, weather, and their JWKS variants) — only discovered because weather-mcp was the first route ever live-tested with a genuine bearer token
 
 **Files changed:**
@@ -156,10 +219,9 @@ introspection path). After the fix: `bash ping-gateway/scripts/validate-config.s
 direct curl to `/mcp/weather` with the real delegated token — a non-Texas city
 (`New York, NY`) correctly returns `403` from `tx-weather-scope.groovy` (proving introspection
 now succeeds, scope check passes, and the request reaches the Texas-scope Groovy for a real
-decision, not a generic auth rejection). A Texas city (`Austin, TX`) still returns `502` past
-this fix — a separate, not-yet-root-caused backend-connectivity issue between `ping-gateway`
-and the `mcp-weather` bridge container, logged for follow-up; not caused by and not blocking
-this fix (the 403 path proves the auth fix works end-to-end on its own).
+decision, not a generic auth rejection). A Texas city (`Austin, TX`) still returned `502` past
+this fix — a separate issue, unrelated to introspection (the 403 path above proves this fix
+works end-to-end on its own); root-caused and fixed in the entry directly above this one.
 
 ### 2026-07-21 — OLB JWKS-variant route also shadowed /mcp/weather (missed sibling of the earlier fix)
 

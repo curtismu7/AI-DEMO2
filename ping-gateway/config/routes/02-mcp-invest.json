@@ -17,7 +17,7 @@
           "type": "UriPathRewriteFilter",
           "config": {
             "mappings": {
-              "^/mcp/invest(.*)$": "/mcp$1"
+              "/mcp/invest": "/mcp"
             }
           }
         },
@@ -81,9 +81,8 @@
       ],
       "handler": {
         "type": "ReverseProxyHandler",
-        "config": {
-          "baseURI": "${env['PG_INVEST_BACKEND_URL']}"
-        }
+        "baseURI": "${env['PG_INVEST_BACKEND_URL']}",
+        "config": {}
       }
     }
   }
