@@ -14,6 +14,7 @@ const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 const configStore = require('../services/configStore');
 const { runIntentBindingDemo } = require('../services/attackSimulatorService');
+const { pushAuthorizationRequest, buildTokenExchangeWithPar } = require('../services/parService');
 
 router.post('/run', authenticateToken, async (req, res) => {
   if (process.env.NODE_ENV === 'production') {
@@ -48,6 +49,61 @@ router.post('/run', authenticateToken, async (req, res) => {
   }
 
   try {
+    // PAR (RFC 9126) for live mode
+    if (live === true) {
+      const parEndpoint = configStore.getEffective('pingone_par_endpoint');
+      const clientId = configStore.getEffective('pingone_ai_agent_actor_client_id');
+      const clientSecret = configStore.getEffective('pingone_ai_agent_actor_client_secret');
+
+      if (!parEndpoint || !clientId || !clientSecret) {
+        return res.status(503).json({
+          error: 'par_config_missing',
+          reason: 'PingOne PAR endpoint or credentials not configured',
+        });
+      }
+
+      try {
+        const authPayload = {
+          scope: 'openid profile email',
+          authorization_details: {
+            type: 'banking_transaction',
+            tool: 'create_transfer',
+            amount: 100,
+            payee: 'acme-utilities',
+          },
+        };
+
+        const parResult = await pushAuthorizationRequest(
+          parEndpoint,
+          clientId,
+          clientSecret,
+          authPayload,
+          'default'
+        );
+
+        return res.status(200).json({
+          sim: 'par-permit',
+          useCaseId: 'par-intent-verified',
+          status: 200,
+          errorCode: null,
+          reason: 'PERMIT (via PAR)',
+          requestUri: parResult.requestUri,
+          tokenChainEvents: [
+            { id: 'par-push', label: 'PAR Endpoint Push', status: 'active' },
+            { id: 'request-uri', label: 'Received request_uri', status: 'active' },
+            { id: 'p1az-check', label: 'PingOne Authorize Check', status: 'active' },
+          ],
+          live: true,
+        });
+      } catch (parErr) {
+        console.error('[intentBinding] PAR push failed:', parErr.message);
+        return res.status(400).json({
+          error: 'par_push_failed',
+          reason: parErr.message,
+        });
+      }
+    }
+
     const result = await runIntentBindingDemo(action, req, Number(requestedAmount));
     return res.status(200).json({ ...result, live: live === true });
   } catch (err) {
