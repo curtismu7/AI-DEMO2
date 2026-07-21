@@ -14,7 +14,7 @@
           "name": "StripWeatherPrefix",
           "type": "UriPathRewriteFilter",
           "config": {
-            "mappings": { "^/mcp/weather(.*)$": "/mcp$1" }
+            "mappings": { "/mcp/weather": "/mcp" }
           }
         },
         "rsFilter",
@@ -31,7 +31,8 @@
       ],
       "handler": {
         "type": "ReverseProxyHandler",
-        "config": { "baseURI": "${env['PG_WEATHER_BACKEND_URL']}" }
+        "baseURI": "${env['PG_WEATHER_BACKEND_URL']}",
+        "config": {}
       }
     }
   }
