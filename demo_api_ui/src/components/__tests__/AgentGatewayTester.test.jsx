@@ -95,3 +95,22 @@ test('clicking Refresh in the topbar actions re-fetches gateway state', async ()
   await waitFor(() => expect(apiClient.get.mock.calls.length).toBeGreaterThan(callsBefore));
   expect(apiClient.get).toHaveBeenCalledWith('/api/mcp-gateway/active');
 });
+
+test('the Form tab renders the gateway test result as labeled fields', async () => {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp-gateway/active') return Promise.resolve({ data: ACTIVE_GATEWAY });
+    if (url === '/api/mcp/inspector/tools') return Promise.resolve({
+      data: { tools: [{ name: 'get_my_accounts', description: 'List accounts.', inputSchema: { type: 'object', properties: {}, required: [] } }], _source: 'live' },
+    });
+    return Promise.resolve({ data: {} });
+  });
+  apiClient.post.mockResolvedValueOnce({ data: { ok: true, result: { currency: 'USD', count: 2 }, durationMs: 42 } });
+  render(<AgentGatewayTester />);
+  fireEvent.click(await screen.findByText('get_my_accounts'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await screen.findByText('200 OK');
+  fireEvent.click(screen.getByRole('button', { name: 'Form' }));
+  expect(screen.getByText('Currency')).toBeInTheDocument();
+  expect(screen.getByText('USD')).toBeInTheDocument();
+  expect(screen.getByText('Count')).toBeInTheDocument();
+});

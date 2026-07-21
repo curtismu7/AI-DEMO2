@@ -16,6 +16,7 @@ import { formatAxiosError } from '../utils/formatAxiosError';
 import { getCalls, subscribe as subscribeMcpCalls, appendMcpCall } from '../services/mcpCallStore';
 import { navigateToCustomerOAuthLogin } from '../utils/authUi';
 import JsonHighlight from './shared/JsonHighlight';
+import JsonFormView from './shared/JsonFormView';
 import InspectorShell from './shared/InspectorShell';
 import InspectorTabs from './shared/InspectorTabs';
 import InspectorListItem from './shared/InspectorListItem';
@@ -347,7 +348,7 @@ function useBankingSource() {
 
   const outputContent = useMemo(() => {
     if (!lastInvoke && !lastTiming) return null;
-    if (outputTab === 'response') return lastInvoke ?? null;
+    if (outputTab === 'response' || outputTab === 'form') return lastInvoke ?? null;
     if (outputTab === 'request') {
       return { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: selectedTool?.name, arguments: paramValues } };
     }
@@ -475,6 +476,7 @@ function useBankingSource() {
             { key: 'response', label: 'Response' },
             { key: 'request', label: 'Request' },
             { key: 'history', label: `History (${mcpHistory.length})` },
+            { key: 'form', label: 'Form' },
           ]}
           activeKey={outputTab}
           onChange={setOutputTab}
@@ -482,7 +484,9 @@ function useBankingSource() {
         {outputContent ? (
           <>
             <div className="inspector-shell-output-body">
-              <pre className="inspector-shell-output-code"><JsonHighlight value={outputContent} deep /></pre>
+              <pre className="inspector-shell-output-code">
+                {outputTab === 'form' ? <JsonFormView value={outputContent} /> : <JsonHighlight value={outputContent} deep />}
+              </pre>
             </div>
             <div className="inspector-shell-output-footer">
               <span><strong>Status:</strong> {lastTiming?.error ? 'Error' : lastTiming ? '200 OK' : '-'}</span>
@@ -693,7 +697,7 @@ function usePingOneSource() {
     right: (
       <>
         <InspectorTabs
-          tabs={[{ key: 'response', label: 'Response' }, { key: 'request', label: 'Request' }]}
+          tabs={[{ key: 'response', label: 'Response' }, { key: 'request', label: 'Request' }, { key: 'form', label: 'Form' }]}
           activeKey={outputTab}
           onChange={setOutputTab}
         />
@@ -701,7 +705,11 @@ function usePingOneSource() {
           <>
             <div className="inspector-shell-output-body">
               <pre className="inspector-shell-output-code">
-                <JsonHighlight value={outputTab === 'response' ? lastCall.response : lastCall.request} deep />
+                {outputTab === 'form' ? (
+                  <JsonFormView value={lastCall.response} />
+                ) : (
+                  <JsonHighlight value={outputTab === 'response' ? lastCall.response : lastCall.request} deep />
+                )}
               </pre>
             </div>
             <div className="inspector-shell-output-footer">
@@ -851,7 +859,12 @@ function useApiCallsSource() {
     right: (
       <>
         <InspectorTabs
-          tabs={[{ key: 'response', label: 'Response Body' }, { key: 'request', label: 'Request Body' }, { key: 'headers', label: 'Headers' }]}
+          tabs={[
+            { key: 'response', label: 'Response Body' },
+            { key: 'request', label: 'Request Body' },
+            { key: 'headers', label: 'Headers' },
+            { key: 'form', label: 'Form' },
+          ]}
           activeKey={outputTab}
           onChange={setOutputTab}
         />
@@ -862,6 +875,7 @@ function useApiCallsSource() {
                 {outputTab === 'response' && (selectedCall.response?.body ? <JsonHighlight value={selectedCall.response.body} /> : <span style={{ color: '#64748b', fontStyle: 'italic' }}>No response body captured</span>)}
                 {outputTab === 'request' && (selectedCall.request?.body ? <JsonHighlight value={selectedCall.request.body} /> : <span style={{ color: '#64748b', fontStyle: 'italic' }}>No request body</span>)}
                 {outputTab === 'headers' && (selectedCall.request?.headers && Object.keys(selectedCall.request.headers).length > 0 ? <JsonHighlight value={selectedCall.request.headers} /> : <span style={{ color: '#64748b', fontStyle: 'italic' }}>No headers captured</span>)}
+                {outputTab === 'form' && (selectedCall.response?.body ? <JsonFormView value={selectedCall.response.body} /> : <span style={{ color: '#64748b', fontStyle: 'italic' }}>No response body captured</span>)}
               </pre>
             </div>
             <div className="inspector-shell-output-footer">
@@ -1117,7 +1131,7 @@ function useCustomServerSource() {
 
   const outputContent = useMemo(() => {
     if (!lastInvoke && !lastTiming) return null;
-    if (outputTab === 'response') {
+    if (outputTab === 'response' || outputTab === 'form') {
       if (lastInvoke?.frames?.response) return lastInvoke.frames.response;
       if (lastInvoke) return lastInvoke;
       return null;
@@ -1363,6 +1377,7 @@ function useCustomServerSource() {
             { key: 'response', label: 'Response' },
             { key: 'request', label: 'Request JSON-RPC' },
             { key: 'history', label: `History (${mcpHistory.length})` },
+            { key: 'form', label: 'Form' },
           ]}
           activeKey={outputTab}
           onChange={setOutputTab}
@@ -1370,7 +1385,9 @@ function useCustomServerSource() {
         {outputContent ? (
           <>
             <div className="inspector-shell-output-body">
-              <pre className="inspector-shell-output-code"><JsonHighlight value={outputContent} deep /></pre>
+              <pre className="inspector-shell-output-code">
+                {outputTab === 'form' ? <JsonFormView value={outputContent} /> : <JsonHighlight value={outputContent} deep />}
+              </pre>
             </div>
             <div className="inspector-shell-output-footer">
               <span><strong>Status:</strong> {lastTiming?.error ? 'Error' : lastTiming ? '200 OK' : '-'}</span>

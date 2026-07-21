@@ -220,3 +220,66 @@ test('Custom Server source (default profile) shows a step-up banner when /tools 
   expect(await screen.findByText('Step-up verification required.')).toBeInTheDocument();
   expect(screen.getByText(/MFA step-up \(email\)/)).toBeInTheDocument();
 });
+
+test('the Form tab renders the Banking MCP response as labeled fields', async () => {
+  apiClient.post.mockResolvedValueOnce({ data: { currency: 'USD', available: 4820.15 } });
+  renderPage('/pingone-mcp-inspector?source=banking');
+  fireEvent.click(await screen.findByRole('button', { name: 'get_account_balance' }));
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'acc_1' } });
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await screen.findByText(/4820.15/);
+  fireEvent.click(screen.getByRole('button', { name: 'Form' }));
+  expect(screen.getByText('Currency')).toBeInTheDocument();
+  expect(screen.getByText('USD')).toBeInTheDocument();
+  expect(screen.getByText('Available')).toBeInTheDocument();
+});
+
+test('the Form tab renders the PingOne MCP response as labeled fields', async () => {
+  mockPingOneEndpoints();
+  apiClient.post.mockResolvedValueOnce({
+    data: { response: { handle: 'jdoe', enabled: true }, request: {}, timingsMs: { roundTrip: 12 } },
+  });
+  renderPage();
+  fireEvent.click(screen.getByRole('button', { name: 'PingOne MCP' }));
+  fireEvent.click(await screen.findByText('users.read'));
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'user-1' } });
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await waitFor(() => expect(apiClient.post).toHaveBeenCalled());
+  fireEvent.click(screen.getByRole('button', { name: 'Form' }));
+  expect(screen.getByText('Handle')).toBeInTheDocument();
+  expect(screen.getByText('jdoe')).toBeInTheDocument();
+  expect(screen.getByText('Enabled')).toBeInTheDocument();
+});
+
+test('the Form tab renders a captured API call response body as labeled fields', async () => {
+  const formCall = {
+    id: 'c2', method: 'GET', url: '/api/accounts/acc_2', success: true,
+    response: { status: 200, body: { notes: 'checking account', pending: false } },
+    request: { headers: {} }, durationMs: 21,
+  };
+  global.fetch = vi.fn((url, opts) => {
+    if (opts?.method === 'DELETE') return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ calls: [formCall], stats: { total: 1, success: 1, errors: 0 } }) });
+  });
+  renderPage();
+  fireEvent.click(screen.getByRole('button', { name: 'API Calls' }));
+  fireEvent.click(await screen.findByText('/api/accounts/acc_2'));
+  fireEvent.click(screen.getByRole('button', { name: 'Form' }));
+  expect(screen.getByText('Notes')).toBeInTheDocument();
+  expect(screen.getByText('checking account')).toBeInTheDocument();
+  expect(screen.getByText('Pending')).toBeInTheDocument();
+});
+
+test('the Form tab renders the Custom Server response as labeled fields', async () => {
+  mockCustomServerEndpoints();
+  apiClient.post.mockResolvedValueOnce({ data: { query: 'weather today', results: 3 } });
+  renderPage('/pingone-mcp-inspector?source=custom');
+  fireEvent.click(await screen.findByText('brave_web_search'));
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'weather today' } });
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await waitFor(() => expect(apiClient.post).toHaveBeenCalled());
+  fireEvent.click(screen.getByRole('button', { name: 'Form' }));
+  expect(screen.getByText('Query')).toBeInTheDocument();
+  expect(screen.getByText('weather today')).toBeInTheDocument();
+  expect(screen.getByText('Results')).toBeInTheDocument();
+});
