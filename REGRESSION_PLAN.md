@@ -101,6 +101,45 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-21 — RAR on real path: P1AZ PDP + PingGateway PEP (no mock pin)
+
+**Files changed:** `ping-gateway/scripts/groovy/p1az-decision.groovy` (forward
+`RarMaxAmount` / `RarPermittedPayees` from TraT; honor TraT for trusted BFF),
+`attackSimulatorService.js` (UC14 / intent-binding use active gateway, not
+Demo Agent Gateway pin), `run-docker.sh` (lean demo-sync — stop mocks when
+real flags; keep otel flag-read harden), `check-groovy-params.sh`.
+
+**What was broken:** RAR demos were pinned to Node mcp-gateway + kept
+demo-auth containers up "for RAR," even though cloud snapshot already has
+`RarAmountExceeded` / `RarMaxAmount` and PingGateway already forwarded
+`RarAuthorizationDetails` without the NUMBER attr the Trust Framework needs.
+
+**What was fixed:** Practical rule — PingOne Authorize decides; PingGateway
+extracts TraT and forwards attrs (incl. `RarMaxAmount`); sims call
+`callToolViaGateway(null, …)`; demo-sync stops mock servers on real stack.
+
+**Do not break:** BFF live `evaluateMcpFirstTool` already sends `RarMaxAmount`;
+unsigned TraT still needs `ALLOW_UNSIGNED_TRAT_CONTEXT` or trusted BFF secret;
+Node `rarEnforce.ts` remains for Demo GW path only.
+
+**Verify:** `ping-gateway/scripts/check-groovy-params.sh` → PASS; UC10/RAR unit
+tests as before.
+
+### 2026-07-21 — Board batch: UC10 ResourceOwnerId, code-search buttons, TopNav search
+
+**Files changed:** `mcpToolAuthorizationService.js` + `attackSimulatorService.js`
+(+ tests) — ResourceOwnerId for `get_account_balance` / treat MCP ownership
+errors as DENY; `CodeSearchPage.css` / `CodebaseUploader.css` — scope
+button rules under `.code-search-page`; `TopNav.js` — search icon → `/code-search`.
+(`run-docker.sh` flag-read harden only — RAR/demo-sync lean behavior is the
+entry above.)
+
+**Do not break:** own-account `get_account_balance` must still PERMIT when
+owner oauthId equals subjectId.
+
+**Verify:** `cd demo_api_server && npx jest src/__tests__/resolveResourceOwnerId.test.js
+src/__tests__/attackSimulator.authorizeEvidence.test.js --forceExit`
+
 ### 2026-07-21 — Removed the step-up MFA gate from Banking MCP Inspector tool listing (supersedes the two entries below)
 
 **Files changed:** `demo_api_server/routes/mcpInspector.js` (dropped the
@@ -128,6 +167,7 @@ re-add an MFA gate to `GET /api/mcp/inspector/tools`.
 
 **Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/mcp-inspector.test.js`
 (exit 0).
+
 
 ### 2026-07-21 — `/pingone-mcp-inspector` (Banking tab) showed zero tools with no explanation, again
 

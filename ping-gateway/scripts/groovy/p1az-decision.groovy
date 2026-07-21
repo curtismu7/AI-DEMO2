@@ -422,26 +422,28 @@ if (System.getenv('INTENT_TOKEN_REQUIRED') == 'true'
 }
 
 // ── X-TraT-Context (F4) ───────────────────────────────────────────────────────
-// Built by the BFF (agentMcpTokenService.js:2380-2409) and sent at
-// mcpGatewayClient.js:133-135; no consumer existed here, so RAR / purpose /
-// DPoP-binding facts never reached the PDP on the default path.
+// Built by the BFF (agentMcpTokenService) and sent via mcpGatewayClient.
+// Practical rule: PingGateway is the PEP — extract RAR grant attrs and forward
+// them to PingOne Authorize (PDP). Do NOT locally DENY on RAR subset here;
+// cloud policy RarAmountExceeded (RarMaxAmount) owns the decision.
 //
-// The envelope is UNSIGNED, so it is honored only when ALLOW_UNSIGNED_TRAT_CONTEXT=true
-// — the same trust rule the Node gateway (authorizeMcpRequest.ts:553) and the MCP
-// server (TratClaimsExtractor.ts:45) apply. Without that opt-in a direct caller could
-// forge purp/azd/cnf into the decision, so the envelope is NOT verified evidence and
-// its keys are omitted.
+// Trust: honor the envelope when the BFF is a trustedCaller (internal secret)
+// OR when ALLOW_UNSIGNED_TRAT_CONTEXT=true (demo TraT sim). Untrusted + flag
+// off → omit (unsigned forgery must not reach the PDP).
 def allowUnsignedTrat = System.getenv('ALLOW_UNSIGNED_TRAT_CONTEXT') == 'true'
 def tratContextRaw    = request.headers.getFirst('X-TraT-Context') ?: ''
 def tratPurp          = ''
 def rarAuthzDetails   = ''
+def rarMaxAmount      = ''
+def rarPermittedPayees = ''
 // cnf.jkt from the introspected token is VERIFIED evidence and is always usable;
 // the envelope copy is only a fallback for the simulated-TraT demo mode.
 def cnfJkt = (tokenInfo['cnf'] instanceof Map ? (tokenInfo['cnf'].jkt ?: '') : '') as String
-if (tratContextRaw && !allowUnsignedTrat) {
-    logger.info('[P1AZ] X-TraT-Context present but ALLOW_UNSIGNED_TRAT_CONTEXT!=true — ' +
-        'ignored (unsigned envelope is not verified evidence)')
-} else if (tratContextRaw) {
+def honorTrat = tratContextRaw && (trustedCaller || allowUnsignedTrat)
+if (tratContextRaw && !honorTrat) {
+    logger.info('[P1AZ] X-TraT-Context present but caller untrusted and ' +
+        'ALLOW_UNSIGNED_TRAT_CONTEXT!=true — ignored (unsigned envelope is not verified evidence)')
+} else if (honorTrat) {
     try {
         def tratEnvelope = new JsonSlurper().parseText(tratContextRaw)
         if (tratEnvelope instanceof Map) {
@@ -452,7 +454,18 @@ if (tratContextRaw && !allowUnsignedTrat) {
             def azd = tratEnvelope.azd
             if (azd instanceof Map && azd.authorization_details instanceof List
                     && !((List) azd.authorization_details).isEmpty()) {
-                rarAuthzDetails = JsonOutput.toJson(azd.authorization_details)
+                def details = (List) azd.authorization_details
+                rarAuthzDetails = JsonOutput.toJson(details)
+                // Scalar attrs for cloud Trust Framework (RarMaxAmount NUMBER + Amount).
+                def grant0 = details[0]
+                if (grant0 instanceof Map && grant0.amount != null) {
+                    rarMaxAmount = String.valueOf(grant0.amount)
+                }
+                if (grant0 instanceof Map && grant0.payee != null) {
+                    rarPermittedPayees = (grant0.payee instanceof List)
+                        ? grant0.payee.collect { String.valueOf(it) }.join(' ')
+                        : String.valueOf(grant0.payee)
+                }
             }
         }
     } catch (Exception e) {
@@ -540,6 +553,8 @@ if (intentValid != null) {
     if (intentError) parameters.IntentTokenError = intentError
 }
 if (rarAuthzDetails) parameters.RarAuthorizationDetails = rarAuthzDetails
+if (rarMaxAmount)    parameters.RarMaxAmount = rarMaxAmount
+if (rarPermittedPayees) parameters.RarPermittedPayees = rarPermittedPayees
 if (tratPurp)        parameters.TratPurp = tratPurp
 if (cnfJkt)          parameters.Cnf = cnfJkt
 def requestBody = JsonOutput.toJson([parameters: parameters])
