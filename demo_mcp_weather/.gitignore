@@ -1,1 +1,5 @@
 node_modules/
+# This package-lock.json IS tracked (unlike sibling MCP service dirs) — the
+# Dockerfile uses `npm ci` against it for a reproducible build. Root
+# .gitignore's **/package-lock.json would otherwise exclude it.
+!package-lock.json
