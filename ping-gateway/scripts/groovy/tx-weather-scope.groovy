@@ -67,7 +67,7 @@ if (!(args instanceof Map)) {
 if (args.containsKey('latitude') || args.containsKey('longitude')) {
     def latVal = toNum(args.latitude)
     def lonVal = toNum(args.longitude)
-    if (latVal == null || lonVal == null) {
+    if (latVal == null || lonVal == null || !Double.isFinite(latVal) || !Double.isFinite(lonVal)) {
         return denied(id, 'Agent Gateway: weather scope restricted to Texas (demo policy) — invalid or incomplete coordinates')
     }
     if (latVal < TX_LAT_MIN || latVal > TX_LAT_MAX || lonVal < TX_LON_MIN || lonVal > TX_LON_MAX) {
