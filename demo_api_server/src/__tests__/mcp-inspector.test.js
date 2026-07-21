@@ -329,8 +329,27 @@ describe('MCP Inspector routes', () => {
   });
 });
 
-// GET /api/mcp/inspector/tools no longer has a step-up MFA gate — it only
-// lists tool names/schemas (read-only discovery), it never executes anything.
-// The real money-movement step-up gate still applies at transaction time
-// (mcpLocalTools.js / routes/transactions.js), which is outside this file's
-// scope. See REGRESSION_PLAN.md §4 for the removed-gate history.
+describe('MCP Inspector — GET /api/mcp/inspector/tools is not step-up gated', () => {
+  // tools/list is read-only metadata (names + schemas, no execution, no account
+  // data). Step-up MFA only applies to actual transfer/withdrawal tool calls
+  // (see mcpLocalTools.js's checkLocalStepUp and its two call sites). This
+  // guards against re-adding a blanket gate on the listing route.
+  it('returns tools even when stepUpEnabled is true and there is no stepUpVerified session', async () => {
+    mockRtGet.mockImplementation((key) => {
+      if (key === 'stepUpEnabled') return true;
+      return undefined;
+    });
+    mockList.mockResolvedValueOnce({
+      tools: [{ name: 'get_my_accounts', description: 'List accounts' }],
+    });
+
+    const res = await request(app)
+      .get('/api/mcp/inspector/tools')
+      .set('Authorization', `Bearer ${bearerToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.mfa_required).toBeUndefined();
+    expect(Array.isArray(res.body.tools)).toBe(true);
+    expect(res.body.tools.length).toBeGreaterThan(0);
+  });
+});

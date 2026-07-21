@@ -140,6 +140,35 @@ owner oauthId equals subjectId.
 **Verify:** `cd demo_api_server && npx jest src/__tests__/resolveResourceOwnerId.test.js
 src/__tests__/attackSimulator.authorizeEvidence.test.js --forceExit`
 
+### 2026-07-21 — Cleaned up dead frontend code + an unrelated broken test left after the step-up gate removal below
+
+**Files changed:**
+- `demo_api_ui/src/components/McpInspectorPage.jsx` — removed the
+  `mfaRequired`/`stepUpMethod` state and banner (dead code: the backend gate
+  they displayed for was removed in the entry below via a separate,
+  independently-authored fix, but that fix didn't touch the frontend).
+- `demo_api_ui/src/components/__tests__/McpInspectorPage.test.jsx` — removed
+  the test that mocked `mfa_required:true` and asserted the banner.
+- `demo_api_server/tests/pingcli.route.test.js` — unrelated pre-existing
+  failure blocking the pre-push CI gate: `getPingcliConfigPath()`
+  (`routes/pingcli.js`) needs `PINGONE_ENVIRONMENT_ID`/
+  `PINGONE_WORKER_CLIENT_ID`/`PINGONE_WORKER_CLIENT_SECRET`, which
+  `src/__tests__/setup.js` deliberately never loads (tests must never touch
+  real secrets) — so `ensureAuthBootstrap()` short-circuited with "not
+  configured" before ever calling `execFile`, and "runs an env-scoped
+  resource command via pingone api" indexed into an empty
+  `execFile.mock.calls` array. Confirmed failing on `main` independent of
+  this change. Fixed by stubbing fake PingOne env vars in the test file.
+
+**Do not break:** same invariant as the entry below — `GET
+/api/mcp/inspector/tools` stays ungated; don't re-add `mfaRequired` state to
+`McpInspectorPage.jsx` unless the backend starts returning it again.
+
+**Verify:** `demo_api_ui`: `npx vitest run
+src/components/__tests__/McpInspectorPage.test.jsx` (8/8), `npm run build`
+(exit 0). `demo_api_server`: `npx jest tests/pingcli.route.test.js` (9/9, was
+1 failing).
+
 ### 2026-07-21 — Removed the step-up MFA gate from Banking MCP Inspector tool listing (supersedes the two entries below)
 
 **Files changed:** `demo_api_server/routes/mcpInspector.js` (dropped the
