@@ -34,9 +34,11 @@ export default function InspectorShell({
       </div>
       <div
         className={
-          fullHeight
-            ? 'inspector-shell-grid'
-            : 'inspector-shell-grid inspector-shell-grid--embedded'
+          fullHeight === 'fill'
+            ? 'inspector-shell-grid inspector-shell-grid--fill'
+            : fullHeight
+              ? 'inspector-shell-grid'
+              : 'inspector-shell-grid inspector-shell-grid--embedded'
         }
       >
         <div className="inspector-shell-col-left">{left}</div>

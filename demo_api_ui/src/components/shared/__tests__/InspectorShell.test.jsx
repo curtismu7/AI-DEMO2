@@ -45,6 +45,13 @@ describe('InspectorShell', () => {
     );
   });
 
+  it('applies the fill grid modifier when fullHeight="fill"', () => {
+    const { container } = render(<InspectorShell title="X" fullHeight="fill" />);
+    const grid = container.querySelector('.inspector-shell-grid');
+    expect(grid).toHaveClass('inspector-shell-grid--fill');
+    expect(grid).not.toHaveClass('inspector-shell-grid--embedded');
+  });
+
   it('renders left/middle/right slot content in the correct grid columns', () => {
     const { container } = render(
       <InspectorShell

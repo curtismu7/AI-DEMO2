@@ -54,6 +54,11 @@
 .inspector-shell-grid--embedded {
   height: 640px;
 }
+/* fullHeight='fill': the shell is embedded in a tab panel that already
+   constrains its own height. Use 100% instead of a fixed pixel height. */
+.inspector-shell-grid--fill {
+  height: 100%;
+}
 
 /* Column 1: left (tool tree / call list / preset list) */
 .inspector-shell-col-left {
