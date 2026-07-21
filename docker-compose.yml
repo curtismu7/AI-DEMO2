@@ -563,6 +563,25 @@ services:
       - demo-api-server
     restart: unless-stopped
 
+  # ── MCP Weather (third-party weather-mcp, stdio bridged to HTTP) ────────────
+  # Agent Gateway (IG) showcase: fronts github.com/weather-mcp/weather-mcp,
+  # scoped to Texas-only by ping-gateway/scripts/groovy/tx-weather-scope.groovy.
+  # Not wired into the banking AI agent — gateway-level capability only.
+  mcp-weather:
+    build:
+      context: ./demo_mcp_weather
+      dockerfile: Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
+    container_name: ai-demo-mcp-weather
+    ports:
+      - "8896:8896"
+    environment:
+      PORT: "8896"
+    networks:
+      - ai-demo
+    restart: unless-stopped
+
   # ── MCP JWT Verifier (Python / FastMCP — JWT/JWKS diagnostic tools) ─────────
   # profile demo-auth — only useful behind the Node mcp-gateway (co-starts with it).
   mcp-jwt-verifier:
@@ -860,6 +879,7 @@ services:
       # authz server by compose service DNS, not host.docker.internal.
       PG_OLB_BACKEND_URL: "http://mcp-server:8080"
       PG_INVEST_BACKEND_URL: "http://mcp-invest:8081"
+      PG_WEATHER_BACKEND_URL: "http://mcp-weather:8896"
       PG_INBOUND_SCOPE: "gateway:mcp:invoke"
       P1AZ_MOCK_BASE: "http://authz-server:9001"
       # P1AZ_WORKER_ID comes from ./ping-gateway/.env (real decision endpoint id).
@@ -908,6 +928,8 @@ services:
       mcp-server:
         condition: service_started
       mcp-invest:
+        condition: service_started
+      mcp-weather:
         condition: service_started
       mortgage-service:
         condition: service_started
