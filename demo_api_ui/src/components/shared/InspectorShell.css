@@ -162,6 +162,9 @@
 }
 .inspector-shell-tree-item__badge--write { background: #fef3c7; color: #92400e; }
 .inspector-shell-tree-item__badge--sensitive { background: #fee2e2; color: #991b1b; }
+.inspector-shell-tree-item__token-icon { font-size: 10px; line-height: 1; color: #2563eb; flex-shrink: 0; }
+.inspector-shell-tree-item__token-icon--write { color: #d97706; }
+.inspector-shell-tree-item__token-icon--sensitive { color: #dc2626; }
 
 /* Column 2: middle (param form / detail fields) */
 .inspector-shell-col-middle {
