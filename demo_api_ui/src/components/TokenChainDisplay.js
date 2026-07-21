@@ -1225,6 +1225,47 @@ function GwMtlsEduBox({ event }) {
   );
 }
 
+// ─── Gateway backend-routing educational box ─────────────────────────────────
+
+function GwRouteEduBox({ event }) {
+  if (event.id !== "gw-route") return null;
+  return (
+    <div className="tcd-edu-box tcd-edu-box--neutral">
+      <div className="tcd-edu-box-hd">
+        <span className="tcd-edu-icon">✅</span>
+        <strong>Gateway — Backend Routing</strong>
+      </div>
+      <div className="tcd-edu-body">
+        <p style={{ marginTop: 8 }}>
+          {event.description || `Routed to backend: ${event.target}`}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Gateway RFC 8693 backend-exchange educational box ───────────────────────
+
+function GwBackendExchangeEduBox({ event }) {
+  if (event.id !== "gw-backend-exchange") return null;
+  const exchanged = event.exchanged ?? event.status === "active";
+  return (
+    <div className={`tcd-edu-box ${exchanged ? "tcd-edu-box--ok" : "tcd-edu-box--deny"}`}>
+      <div className="tcd-edu-box-hd">
+        <span className="tcd-edu-icon">{exchanged ? "✅" : "❌"}</span>
+        <strong>Gateway — RFC 8693 Token Exchange</strong>
+      </div>
+      <div className="tcd-edu-body">
+        <p style={{ marginTop: 8 }}>
+          {event.description || (exchanged
+            ? `Token exchanged for audience: ${event.audience}`
+            : "Exchange failed — request not forwarded.")}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ─── Gateway RFC 7662 Introspection educational box ──────────────────────────
 
 function GwIntrospectionEduBox({ event }) {
@@ -1993,6 +2034,20 @@ function EventDetail({ event }) {
           Component={GwMtlsEduBox}
         />
       )}
+      {event.id === "gw-route" && (
+        <CollapsibleEdu
+          title="Gateway Backend Routing"
+          event={event}
+          Component={GwRouteEduBox}
+        />
+      )}
+      {event.id === "gw-backend-exchange" && (
+        <CollapsibleEdu
+          title="Gateway RFC 8693 Token Exchange"
+          event={event}
+          Component={GwBackendExchangeEduBox}
+        />
+      )}
       <McpToolBox event={event} />
       <GatewayRouteBox event={event} />
       <ResourceServerReplyBox event={event} />
@@ -2345,6 +2400,8 @@ const CLAIMS_STRIP_IDS = new Set([
   "gw-exchange",
   // TraT context + mTLS status badges (Phase 10)
   "gw-mtls",
+  "gw-route",
+  "gw-backend-exchange",
   "trat-context",
   // Tool invocation + result events
   "mcp-tool-invoked",

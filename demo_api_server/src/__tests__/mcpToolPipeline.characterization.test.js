@@ -278,6 +278,56 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     expect(ids).not.toContain('gw-exchange');
   });
 
+  test('remote success via gateway with gwAuditTrail.backend → gw-route + gw-backend-exchange token events', async () => {
+    const deps = makeDeps();
+    deps.config = { ...deps.config, useGateway: true, gatewayHttpUrl: 'http://gw' };
+    deps.callToolViaGateway = jest.fn(async () => ({
+      result: { content: [{ text: 'gw-ok' }] },
+      gwAuditTrail: {
+        introspection: { active: true, sub: 'u1' },
+        authorize: { decision: 'PERMIT' },
+        backend: { target: 'jwtverifier', audience: 'mcp-jwt-verifier.ping.demo', cached: false, exchanged: true },
+      },
+    }));
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    const ids = outcome.body.tokenEvents.map((e) => e.id);
+    expect(ids).toContain('gw-route');
+    expect(ids).toContain('gw-backend-exchange');
+    const routeCall = deps.buildTokenEvent.mock.calls.find((c) => c[0] === 'gw-route');
+    expect(routeCall[5]).toEqual({ target: 'jwtverifier' });
+    const exchangeCall = deps.buildTokenEvent.mock.calls.find((c) => c[0] === 'gw-backend-exchange');
+    expect(exchangeCall[2]).toBe('active');
+    expect(exchangeCall[5]).toEqual({ target: 'jwtverifier', audience: 'mcp-jwt-verifier.ping.demo', cached: false, exchanged: true, error: undefined });
+  });
+
+  test('remote failure via gateway with gwAuditTrail.backend.exchanged=false → gw-backend-exchange status=deny', async () => {
+    // A backend exchange failure is a THROWN error (mcpGatewayClient's
+    // status>=500 branch), not a normal { result, gwAuditTrail } return —
+    // mock the real failure shape (code/httpStatus/gwAuditTrail on a thrown
+    // Error), matching what callToolViaGateway actually produces in prod.
+    const deps = makeDeps();
+    deps.config = { ...deps.config, useGateway: true, gatewayHttpUrl: 'http://gw' };
+    deps.callToolViaGateway = jest.fn(async () => {
+      throw Object.assign(new Error('Gateway upstream error (HTTP 502)'), {
+        code: 'gateway_upstream_error',
+        httpStatus: 502,
+        gwAuditTrail: {
+          introspection: { active: true, sub: 'u1' },
+          authorize: { decision: 'PERMIT' },
+          backend: { target: 'jwtverifier', audience: null, exchanged: false, error: 'invalid_scope' },
+        },
+      });
+    });
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    expect(outcome.kind).toBe('error');
+    expect(outcome.httpStatus).toBe(502);
+    const ids = outcome.body.tokenEvents.map((e) => e.id);
+    expect(ids).toContain('gw-route');
+    expect(ids).toContain('gw-backend-exchange');
+    const exchangeCall = deps.buildTokenEvent.mock.calls.find((c) => c[0] === 'gw-backend-exchange');
+    expect(exchangeCall[2]).toBe('deny');
+  });
+
   test('remote success via gateway with mcpAudit → gw-mcp-audit token event (5W1H)', async () => {
     const deps = makeDeps();
     deps.config = { ...deps.config, useGateway: true, gatewayHttpUrl: 'http://gw' };
