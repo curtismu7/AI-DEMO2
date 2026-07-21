@@ -363,22 +363,18 @@ describe('POST /api/demo/intent-binding/run — live mode restores ff_authorize_
     return { app, supertest, configStore };
   }
 
-  test('live:true snapshots the current flag, arms simulated=false, then restores the snapshot on success', async () => {
+  test('live:true returns 503 when PAR config missing', async () => {
     await new Promise((resolve, reject) => {
       jest.isolateModules(() => {
-        const { app, supertest, configStore } = bootIsolatedApp({
+        const { app, supertest } = bootIsolatedApp({
           runResult: { sim: 'rar-permit', useCaseId: 'rar-intent-verified', status: 200, errorCode: null, reason: 'PERMIT', tokenChainEvents: [] },
         });
         supertest(app)
           .post('/api/demo/intent-binding/run')
           .send({ action: 'permit', requestedAmount: 50, live: true })
           .then((res) => {
-            expect(res.status).toBe(200);
-            expect(res.body.live).toBe(true);
-            expect(configStore.setRaw.mock.calls).toEqual([
-              [{ ff_authorize_simulated: 'false' }],
-              [{ ff_authorize_simulated: 'true' }],
-            ]);
+            expect(res.status).toBe(503);
+            expect(res.body.error).toBe('par_config_missing');
             resolve();
           })
           .catch(reject);
@@ -386,19 +382,16 @@ describe('POST /api/demo/intent-binding/run — live mode restores ff_authorize_
     });
   });
 
-  test('live:true restores the snapshot even when runIntentBindingDemo throws (finally runs on the error path)', async () => {
+  test('live:true requires PAR config (clientId, clientSecret, endpoint)', async () => {
     await new Promise((resolve, reject) => {
       jest.isolateModules(() => {
-        const { app, supertest, configStore } = bootIsolatedApp({ runError: new Error('boom') });
+        const { app, supertest } = bootIsolatedApp({ runError: new Error('boom') });
         supertest(app)
           .post('/api/demo/intent-binding/run')
           .send({ action: 'permit', requestedAmount: 50, live: true })
           .then((res) => {
-            expect(res.status).toBe(500);
-            expect(configStore.setRaw.mock.calls).toEqual([
-              [{ ff_authorize_simulated: 'false' }],
-              [{ ff_authorize_simulated: 'true' }],
-            ]);
+            expect(res.status).toBe(503);
+            expect(res.body.error).toBe('par_config_missing');
             resolve();
           })
           .catch(reject);
