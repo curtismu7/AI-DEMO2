@@ -521,7 +521,15 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         }
         throw Object.assign(
             new Error(`Gateway upstream error (HTTP ${status})`),
-            { code: 'gateway_upstream_error', httpStatus: status },
+            {
+                code: 'gateway_upstream_error',
+                httpStatus: status,
+                // Preserve the gateway's audit trail (e.g. backend.exchanged=false
+                // when the RFC 8693 exchange to the backend failed) so the token
+                // chain can show the denial instead of dropping it as an opaque
+                // 502 — same pattern as the 401/403 branches above.
+                gwAuditTrail: _parseGwAuditTrail(response),
+            },
         );
     }
 

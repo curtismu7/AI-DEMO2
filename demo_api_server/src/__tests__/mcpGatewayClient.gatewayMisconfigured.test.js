@@ -39,3 +39,24 @@ test('a genuine unrelated 503 (no gateway_misconfigured marker) keeps the existi
     code: 'gateway_upstream_error',
   });
 });
+
+test('a 502 backend-exchange failure attaches gwAuditTrail so the token chain can show the denial (mirrors the 401/403 branches)', async () => {
+  const gwAuditTrail = {
+    introspection: { active: true, sub: 'u1' },
+    authorize: { decision: 'PERMIT' },
+    backend: { target: 'jwtverifier', audience: null, exchanged: false, error: 'invalid_scope' },
+  };
+  axios.post = jest.fn().mockResolvedValue({
+    status: 502,
+    headers: { 'x-gw-audit-trail': JSON.stringify(gwAuditTrail) },
+    data: {},
+  });
+
+  await expect(
+    callToolViaGateway('https://api.ping.demo:3005', 'bearer-tok', 'get_my_accounts', {}, {})
+  ).rejects.toMatchObject({
+    code: 'gateway_upstream_error',
+    httpStatus: 502,
+    gwAuditTrail,
+  });
+});

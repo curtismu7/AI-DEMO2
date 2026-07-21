@@ -1092,6 +1092,28 @@ async function runMcpToolPipeline(ctx) {
                     }
                 ));
             }
+            if (trail.backend && !tokenEvents.some((e) => e && e.id === 'gw-route')) {
+                const backendRes = trail.backend;
+                tokenEvents.push(deps.buildTokenEvent(
+                    'gw-route',
+                    'Gateway — Backend Routing',
+                    'active',
+                    null,
+                    `Gateway routed "${tool}" to backend: ${backendRes.target}`,
+                    { target: backendRes.target }
+                ));
+                const exchangeDesc = backendRes.exchanged
+                    ? `RFC 8693 exchange: token scoped to audience ${backendRes.audience}${backendRes.cached ? ' (cache hit)' : ''}`
+                    : `RFC 8693 exchange failed: ${backendRes.error || 'unknown error'} — request not forwarded`;
+                tokenEvents.push(deps.buildTokenEvent(
+                    'gw-backend-exchange',
+                    'Gateway — RFC 8693 Token Exchange',
+                    backendRes.exchanged ? 'active' : 'deny',
+                    null,
+                    exchangeDesc,
+                    { target: backendRes.target, audience: backendRes.audience, cached: backendRes.cached, exchanged: backendRes.exchanged, error: backendRes.error }
+                ));
+            }
         }
 
         const isConnErr =
