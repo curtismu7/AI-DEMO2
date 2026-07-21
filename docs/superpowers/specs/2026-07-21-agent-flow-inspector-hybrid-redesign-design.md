@@ -165,9 +165,12 @@ Nodes come from two existing live sources, interleaved by insertion order
   `tool`). Any step id not in this map (future additions) falls into a 5th
   `OTHER` group rather than being dropped — keeps the mapping from silently
   losing new steps.
-- Token nodes render appended to the group of the step they followed
-  chronologically (by `timestamp` vs. step order), same visual placement the
-  mockup used.
+- **Token placement — corrected from the original mock.** `buildCompletedSteps()`
+  step objects carry no `timestamp`, only a fixed pipeline order, so true
+  chronological interleaving of steps and tokens isn't implementable. Token
+  nodes instead render in their own trailing group, `TOKENS MINTED`, sorted by
+  their real `timestamp` ascending — honest to what the data actually
+  supports, while still satisfying "the tree mixes steps and tokens."
 
 STEP_DETAILS (the static RFC walkthrough) is **not** tree data — its content
 moves to the right column's Glossary tab (see below).
