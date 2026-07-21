@@ -113,6 +113,9 @@ function buildRows(value, path, keyValues) {
               </div>
             );
           }
+          // Only scalar leaves are collected here — an array-valued key (e.g.
+          // `scopes`) can't be summarized as one row, even if its name matches;
+          // it still renders in full under All Fields via the branch above.
           if (isImportantKey(key)) {
             keyValues.push({
               path: fieldPath,

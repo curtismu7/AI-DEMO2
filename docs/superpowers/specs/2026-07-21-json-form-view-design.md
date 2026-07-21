@@ -57,7 +57,9 @@ New files in `demo_api_ui/src/components/shared/`:
   - **Objects** → each key becomes a labeled row (label = key, humanized: `camelCase`/
     `snake_case` → "Camel Case"). Nested objects render as an indented sub-group headed
     by the key.
-  - **Arrays of primitives** → rendered as a bulleted list under the key.
+  - **Arrays of primitives** → rendered as indexed "Item N" label/value rows
+    under the key (same indexing as arrays of objects, not a separate bulleted
+    style — this is what shipped, see `buildRows`'s array branch).
   - **Arrays of objects** → each entry renders as its own indexed sub-group ("Item 1",
     "Item 2", ...), each recursing the same way.
   - **Primitives** (string/number/boolean) → `label: value` row. Long strings

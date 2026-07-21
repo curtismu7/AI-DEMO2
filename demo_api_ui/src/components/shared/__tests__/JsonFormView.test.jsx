@@ -55,6 +55,8 @@ describe('JsonFormView', () => {
   it('shows the empty message when value is null, undefined, or an empty object', () => {
     const { rerender } = render(<JsonFormView value={null} />);
     expect(screen.getByText('No data.')).toBeInTheDocument();
+    rerender(<JsonFormView value={undefined} />);
+    expect(screen.getByText('No data.')).toBeInTheDocument();
     rerender(<JsonFormView value={{}} emptyMessage="Nothing here" />);
     expect(screen.getByText('Nothing here')).toBeInTheDocument();
   });
