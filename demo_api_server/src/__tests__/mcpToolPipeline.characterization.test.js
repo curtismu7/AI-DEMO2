@@ -364,11 +364,11 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     expect(deps.callToolLocal).not.toHaveBeenCalled();
   });
 
-  test('gateway_policy_denied hitl_required → block 428 step_up_required', async () => {
+  test('gateway_policy_denied hitl_required → block 428 hitl_required', async () => {
     const deps = makeDeps();
     deps.mcpCallTool = jest.fn(async () => { throw Object.assign(new Error('policy'), { code: 'gateway_policy_denied', gatewayErrorCode: 'hitl_required' }); });
     const outcome = await runMcpToolPipeline(makeCtx({ deps }));
-    expect(outcome).toMatchObject({ kind: 'block', httpStatus: 428, body: { error: 'step_up_required' } });
+    expect(outcome).toMatchObject({ kind: 'block', httpStatus: 428, body: { error: 'hitl_required' } });
   });
 
   test('connection error + session user → remote_fallback local result', async () => {
