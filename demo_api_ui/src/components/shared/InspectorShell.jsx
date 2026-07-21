@@ -14,6 +14,7 @@ export default function InspectorShell({
   statusText,
   actions,
   fullHeight = true,
+  banner,
   left,
   middle,
   right,
@@ -32,6 +33,7 @@ export default function InspectorShell({
         {statusText && <span className="inspector-shell-topbar__status">{statusText}</span>}
         {actions && <div className="inspector-shell-topbar__right">{actions}</div>}
       </div>
+      {banner}
       <div
         className={
           fullHeight

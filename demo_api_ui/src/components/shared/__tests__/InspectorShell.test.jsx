@@ -64,4 +64,20 @@ describe('InspectorShell', () => {
       container.querySelector('.inspector-shell-col-right')?.contains(screen.getByTestId('right-content')),
     ).toBe(true);
   });
+
+  it('renders banner content between the topbar and the grid when provided', () => {
+    const { container } = render(
+      <InspectorShell title="X" banner={<div data-testid="banner-content">banner</div>} />,
+    );
+    const topbar = container.querySelector('.inspector-shell-topbar');
+    const banner = screen.getByTestId('banner-content');
+    const grid = container.querySelector('.inspector-shell-grid');
+    expect(topbar.compareDocumentPosition(banner) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(banner.compareDocumentPosition(grid) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('renders no extra element when banner is not provided', () => {
+    const { container } = render(<InspectorShell title="X" />);
+    expect(container.querySelector('.inspector-shell-page').children).toHaveLength(2);
+  });
 });
