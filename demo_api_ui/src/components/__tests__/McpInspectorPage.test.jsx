@@ -215,3 +215,20 @@ test('"+ Add server" posts a new profile and selects it', async () => {
     { label: 'New Server', transport: 'http', url: 'ws://localhost:9999' },
   ));
 });
+
+test('Custom Server source (default profile) shows a step-up banner when /tools returns mfa_required', async () => {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp/inspector/profiles') {
+      return Promise.resolve({
+        data: { profiles: [{ id: 'default', label: 'Banking MCP', isDefault: true }], defaultProfileId: 'default' },
+      });
+    }
+    if (url.startsWith('/api/mcp/inspector/tools')) {
+      return Promise.resolve({ data: { tools: [], mfa_required: true, step_up_method: 'email', _source: 'mfa_gate' } });
+    }
+    return Promise.resolve({ data: {} });
+  });
+  renderPage('/pingone-mcp-inspector?source=custom');
+  expect(await screen.findByText('Step-up verification required.')).toBeInTheDocument();
+  expect(screen.getByText(/MFA step-up \(email\)/)).toBeInTheDocument();
+});
