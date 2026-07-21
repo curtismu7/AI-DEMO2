@@ -90,3 +90,76 @@
   text-transform: uppercase;
   text-decoration: underline;
 }
+.alp-view-toggle {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+.alp-view-btn {
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+.alp-view-btn:hover {
+  background: #e8e8e8;
+}
+.alp-view-btn--active {
+  background: #1a1a1a;
+  color: #fff;
+  border-color: #1a1a1a;
+}
+.alp-form-container {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.alp-form-empty {
+  background: #f7f6f4;
+  padding: 24px;
+  text-align: center;
+  color: #888;
+  font-size: 14px;
+  margin-top: 16px;
+}
+.alp-form-card {
+  background: #f7f6f4;
+  border: 1px solid #e0dbd3;
+  border-radius: 6px;
+  padding: 16px;
+}
+.alp-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+.alp-form-field {
+  display: flex;
+  flex-direction: column;
+}
+.alp-form-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #555;
+  margin-bottom: 6px;
+}
+.alp-form-value {
+  font-size: 14px;
+  color: #1a1a1a;
+  word-break: break-word;
+  padding: 8px;
+  background: #fff;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}
