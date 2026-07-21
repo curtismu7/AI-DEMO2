@@ -101,6 +101,37 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-21 — Agent Lifecycle Slot 3 falsely reported "Checkout completed" on HITL 428
+
+**Files changed:**
+- `demo_api_ui/src/pages/AgentLifecyclePage.jsx` — `StepUpSlot.postCheckout`
+  treats `callMcpTool`'s soft-success HITL payloads (`mcp_hitl_required` /
+  `hitl_required`) as HTTP 428 failures; CIBA initiation also starts for
+  those codes (same discharge path as step-up via session `hitlVerified`).
+- `demo_api_ui/src/pages/__tests__/AgentLifecyclePage.test.jsx` — regression
+  covering HITL soft-success → CIBA → retry, asserting no premature
+  "Checkout completed."
+
+**What was broken:** `#7a0c8967` routed Slot 3 checkout through `callMcpTool`
+(so it appears in the Token Chain rail). That helper deliberately **resolves**
+HITL 428 responses (instead of throwing) so the banking agent can open a
+consent modal. `postCheckout` treated any non-throw as success and showed
+"Checkout completed." — so a HITL-only gate (or a post-CIBA retry that still
+hit HITL) skipped CIBA and claimed the purchase finished when authorize
+still blocked it.
+
+**What was fixed:** detect the soft-success HITL error shape and map it back
+to `{ status: 428, ok: false }`; start CIBA for HITL 428s as well as
+`mcp_step_up_required` (CIBA approval already sets both session flags).
+
+**Do not break:** `demoAgentService.callMcpTool`'s HITL soft-success return
+(banking agent modal path) is unchanged. Slot 2 `list_orders` and Slot 4
+kill-switch paths untouched. Server `hitlVerified` / `stepUpVerified` gate
+logic untouched.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/pages/__tests__/AgentLifecyclePage.test.jsx`;
+`cd demo_api_ui && npm run build`.
+
 ### 2026-07-21 — `/pingone-mcp-inspector` (Banking tab) showed zero tools with no explanation, again
 
 **Files changed:** `demo_api_ui/src/components/McpInspectorPage.jsx` (added

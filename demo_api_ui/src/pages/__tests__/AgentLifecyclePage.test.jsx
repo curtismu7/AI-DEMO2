@@ -186,6 +186,67 @@ describe('AgentLifecyclePage — Slot 3 step-up on purchase', () => {
     );
   });
 
+  it('starts CIBA when callMcpTool soft-succeeds with mcp_hitl_required (no false checkout)', async () => {
+    // callMcpTool resolves HITL 428s so the banking agent can open a modal.
+    // StepUpSlot must not treat that as a completed purchase.
+    callMcpTool
+      .mockImplementationOnce(() =>
+        Promise.resolve({
+          result: {
+            error: 'mcp_hitl_required',
+            error_description: 'Human approval required',
+          },
+          tokenEvents: [],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        Promise.resolve({
+          result: { content: [{ type: 'text', text: '{}' }] },
+          tokenEvents: [],
+        }),
+      );
+
+    let pollCount = 0;
+    global.fetch = vi.fn((url) => {
+      if (url === '/api/auth/ciba/initiate') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ auth_req_id: 'req-hitl', interval: 1 }),
+        });
+      }
+      if (url === '/api/auth/ciba/poll/req-hitl') {
+        pollCount += 1;
+        return Promise.resolve({
+          status: 200,
+          json: () =>
+            Promise.resolve(
+              pollCount < 2 ? { status: 'pending' } : { status: 'approved' },
+            ),
+        });
+      }
+      return Promise.reject(new Error(`unhandled fetch: ${url}`));
+    });
+
+    render(<AgentLifecyclePage />);
+    fireEvent.click(screen.getByText('Checkout $600 headphones'));
+
+    await waitFor(() =>
+      expect(screen.getByText(/Waiting for approval/)).toBeInTheDocument(),
+    );
+    expect(screen.queryByText('Checkout completed.')).not.toBeInTheDocument();
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/auth/ciba/initiate',
+      expect.objectContaining({ method: 'POST' }),
+    );
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await waitFor(() =>
+      expect(screen.getByText('Checkout completed.')).toBeInTheDocument(),
+    );
+  });
+
   it('surfaces an error instead of hanging when checkout rejects', async () => {
     callMcpTool.mockRejectedValue(new Error('network down'));
 

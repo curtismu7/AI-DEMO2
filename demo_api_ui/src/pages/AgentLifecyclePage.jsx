@@ -72,6 +72,11 @@ function StepUpSlot() {
   // Routed through callMcpTool (same as ScopedCallSlot's list_orders call above)
   // so this checkout shows up in the Token Chain rail / right-side agent panel
   // instead of running invisibly via a bare fetch.
+  //
+  // callMcpTool deliberately resolves (does not throw) on HITL 428 so the
+  // banking agent can open a consent modal. This page has no modal — treat
+  // those soft-success payloads as failed checkout, or we falsely show
+  // "Checkout completed" when authorize still blocked the purchase.
   const postCheckout = React.useCallback(async () => {
     try {
       const { result } = await callMcpTool(
@@ -79,6 +84,18 @@ function StepUpSlot() {
         { product: 'Headphones', amount: 600 },
         { useCaseId: 'ciba-out-of-band-approval', vertical: 'retail' },
       );
+      const softGate =
+        result?.error === 'mcp_hitl_required' || result?.error === 'hitl_required';
+      if (softGate) {
+        return {
+          status: 428,
+          ok: false,
+          body: {
+            error: result.error,
+            message: result.error_description || result.message || result.error,
+          },
+        };
+      }
       return { status: 200, ok: true, body: { result } };
     } catch (err) {
       return {
@@ -123,7 +140,15 @@ function StepUpSlot() {
     setPhase('checking-out');
     setMessage('');
     const { status, ok, body } = await postCheckout();
-    if (status === 428 && body.error === 'mcp_step_up_required') {
+    // Step-up and HITL both clear via CIBA approval (session stepUpVerified +
+    // hitlVerified). Start CIBA for either 428 — otherwise a HITL-only gate
+    // would fall through to a false "Checkout completed".
+    const needsCiba =
+      status === 428 &&
+      (body.error === 'mcp_step_up_required' ||
+        body.error === 'mcp_hitl_required' ||
+        body.error === 'hitl_required');
+    if (needsCiba) {
       try {
         const initRes = await fetch('/api/auth/ciba/initiate', {
           method: 'POST',
