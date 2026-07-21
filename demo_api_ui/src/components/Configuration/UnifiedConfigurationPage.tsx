@@ -23,7 +23,6 @@ import LmStudioPanel from "../LmStudioPanel";
 import HelixPanel from "../HelixPanel";
 import AuthorizeConfigPage from "../AuthorizeConfigPage";
 import AuthorizeRulesPanel from "../AuthorizeRulesPanel";
-import McpGatewayConfig from "../McpGatewayConfig";
 import MigrationPanel from "../MigrationPanel";
 import CustomChipsTab from "../CustomChipsTab";
 import OAuthHealthDashboard from "../OAuthHealthDashboard";
@@ -191,25 +190,6 @@ const TabIcons = {
       <polyline points="12 6 12 12 16 14" />
     </svg>
   ),
-  mcpGateway: (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <circle cx="18" cy="5" r="3" />
-      <circle cx="6" cy="12" r="3" />
-      <circle cx="18" cy="19" r="3" />
-      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-    </svg>
-  ),
   migration: (
     <svg
       width="16"
@@ -351,16 +331,6 @@ const CONFIGURATION_TABS: Array<{
     requiresAuth: true,
     requiredRole: "admin",
     sections: ["authorize-rules"],
-  },
-  {
-    id: "mcp-gateway",
-    label: "Ping Agent Gateway",
-    icon: TabIcons.mcpGateway,
-    description:
-      "MCP gateway configuration — server connection, tool routing, and dev bypass settings",
-    requiresAuth: true,
-    requiredRole: "admin",
-    sections: ["mcp-gateway-config"],
   },
 ];
 
@@ -745,7 +715,6 @@ const SectionNavigation: FC<{
     "lmstudio-setup": "LM Studio Configuration",
     "helix-setup": "Helix Configuration",
     "custom-chips": "Custom Action Chips",
-    "mcp-gateway-config": "Ping Agent Gateway Config",
     migration: "Export / Import",
   };
 
@@ -2320,7 +2289,7 @@ const UnifiedConfigurationPage: FC<{
       }
       const params = new URLSearchParams(searchParams);
       params.set("tab", tabId);
-      if (tabId !== "mcp-gateway") params.delete("subtab");
+      params.delete("subtab");
       const qs = params.toString();
       navigate(qs ? `/configure?${qs}` : "/configure", { replace: true });
     },
@@ -3538,14 +3507,6 @@ const UnifiedConfigurationPage: FC<{
       );
     }
 
-    if (s === "mcp-gateway-config") {
-      return (
-        <div className="cfg-section cfg-section--full-width">
-          <McpGatewayConfig />
-        </div>
-      );
-    }
-
     if (s === "migration") {
       return (
         <div className="cfg-section cfg-section--full-width">
@@ -3630,7 +3591,6 @@ const UnifiedConfigurationPage: FC<{
             </div>
             {activeTab !== "feature-flags" &&
               activeTab !== "authorize" &&
-              activeTab !== "mcp-gateway" &&
               activeTab !== "migration" && (
                 <div className="cfg-section-save-bar">
                   <button
