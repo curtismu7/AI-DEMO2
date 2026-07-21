@@ -39,7 +39,7 @@ See also: [Audit Table](./audit-table.md)
 - [**UC11** — Bad client → agent gateway](./bad-client-gateway.md) ✅ 🛡️
 - [**UC12** — Token theft / replay defense](./token-theft-replay.md) 🚩 🛡️
 - [**UC13** — Confused-deputy actor injection](./confused-deputy-actor-injection.md) ✅ 🛡️
-- [**UC14** — RAR intent violation](./rar-intent-violation.md) 🚩 🛡️
+- [**UC14** — PAR intent violation (Pushed Auth Request)](./rar-intent-violation.md) 🚩 🛡️
 - [**UC15** — Intent-token tampering](./intent-token-tampering.md) 🏗️ 🛡️
 - [**UC16** — Impersonation blocked (OBO required)](./impersonation-blocked.md) 🏗️ 🛡️
 - [**UC18** — Rate-limit / resource-overload defense](./rate-limit-defense.md) ✅ 🛡️
@@ -59,7 +59,7 @@ See also: [Audit Table](./audit-table.md)
 
 ## Learn
 
-- [**UC14b** — RAR intent verified (PERMIT)](./rar-intent-verified.md) 🚩
+- [**UC14b** — PAR intent verified (PERMIT)](./rar-intent-verified.md) 🚩
 - [**UC-LEARN1** — OAuth Academy](./oauth-academy.md) ✅
 - [**UC-LEARN2** — PingOne MCP Inspector](./pingone-mcp-inspector.md) ✅
 - [**UC-LEARN3** — Generic MCP Inspector](./demo-mcp-inspector.md) ✅
