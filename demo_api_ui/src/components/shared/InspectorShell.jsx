@@ -101,9 +101,11 @@ export default function InspectorShell({
       {banner}
       <div
         className={
-          fullHeight
-            ? 'inspector-shell-grid'
-            : 'inspector-shell-grid inspector-shell-grid--embedded'
+          fullHeight === 'fill'
+            ? 'inspector-shell-grid inspector-shell-grid--fill'
+            : fullHeight
+              ? 'inspector-shell-grid'
+              : 'inspector-shell-grid inspector-shell-grid--embedded'
         }
         style={{ gridTemplateColumns: `${widths.left}px 6px ${widths.middle}px 6px 1fr` }}
       >

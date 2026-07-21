@@ -52,4 +52,35 @@ describe('InspectorListItem', () => {
     fireEvent.click(screen.getByRole('button'));
     expect(onClick).toHaveBeenCalledTimes(1);
   });
+
+  it('renders a round dot by default (kind="step")', () => {
+    const { container } = render(<InspectorListItem label="get_accounts" onClick={() => {}} />);
+    expect(container.querySelector('.inspector-shell-tree-item__dot')).toBeInTheDocument();
+    expect(container.querySelector('.inspector-shell-tree-item__token-icon')).toBeNull();
+  });
+
+  it('renders a token icon instead of a dot when kind="token"', () => {
+    const { container } = render(
+      <InspectorListItem label="Exchanged Access Token" kind="token" onClick={() => {}} />
+    );
+    expect(container.querySelector('.inspector-shell-tree-item__token-icon')).toBeInTheDocument();
+    expect(container.querySelector('.inspector-shell-tree-item__dot')).toBeNull();
+  });
+
+  it('colors the token icon using the dot prop, same palette as step dots', () => {
+    const { container } = render(
+      <InspectorListItem label="Denied step token" kind="token" dot="sensitive" onClick={() => {}} />
+    );
+    expect(
+      container.querySelector('.inspector-shell-tree-item__token-icon--sensitive')
+    ).toBeInTheDocument();
+  });
+
+  it('still fires onClick and applies the active class for both kinds', () => {
+    const onClick = vi.fn();
+    render(<InspectorListItem label="x" kind="token" active onClick={onClick} />);
+    fireEvent.click(screen.getByRole('button'));
+    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button')).toHaveClass('inspector-shell-tree-item--active');
+  });
 });
