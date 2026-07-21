@@ -274,6 +274,11 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
 
     delete req.session.cibaRequests[authReqId];
     req.session.stepUpVerified = Date.now() + STEP_UP_TTL_MS;
+    // CIBA out-of-band approval IS a human-in-the-loop event, so it discharges
+    // the separate HITL gate too (see mcpToolAuthorizationService.js's
+    // hitlAlreadyVerified) — otherwise a checkout/transfer that trips both
+    // step-up AND HITL clears step-up on retry but 428s forever on HITL.
+    req.session.hitlVerified = Date.now() + STEP_UP_TTL_MS;
 
     // Mirror the real path's token-chain tracking below so the "CIBA
     // Step-Up" tab and floating token-chain panel show an identical event —
@@ -324,6 +329,8 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
 
     delete req.session.cibaRequests[authReqId];
     req.session.stepUpVerified = Date.now() + STEP_UP_TTL_MS;
+    // See the matching comment in the simulated branch above.
+    req.session.hitlVerified = Date.now() + STEP_UP_TTL_MS;
 
     // Record the step-up in the token chain so the "CIBA Step-Up" tab and the
     // floating token-chain panel show the backchannel-granted token as a live

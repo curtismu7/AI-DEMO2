@@ -844,6 +844,28 @@ const RAW_USE_CASES = [
     },
     primaryTool: null,
   },
+  {
+    id: 'UC29',
+    useCaseId: 'oauth-fail-closed',
+    track: 'attacks',
+    title: 'OAuth introspection outage — fail closed',
+    buyerStory: "If the token-validation backend itself goes down, the gateway must reject every call — not silently let traffic through.",
+    pingOneSolution: 'RFC 7662 introspection is on the request path for every call; when it cannot be reached, the gateway fails closed rather than open.',
+    trigger: { type: 'attack', sim: 'introspection-down' },
+    expectedOutcome: 'DENY_503',
+    evidence: { tokenChain: ['user-token'], activity: ['gateway'] },
+    codeRefs: ['demo_mcp_gateway/src/auth/GatewayIntrospectionClient.ts', 'demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts'],
+    maturity: 'works',
+    owasp: { threats: ['T2'], sections: ['§3.2.1', '§8'] },
+    whatToSay: 'Kill the introspection path and the gateway stops every call cold — it never fails open.',
+    advanced: false,
+    whatLong: 'The gateway validates every inbound token against the authorization server via RFC 7662 introspection before anything else runs. This scenario simulates that introspection endpoint going unreachable and shows the gateway reject the call with a fail-closed 503, rather than letting it through.',
+    businessValue: 'Many systems degrade to "allow" when their auth backend is unreachable. This gateway is built to fail closed instead — an outage in token validation becomes a blocked request, not an open door.',
+    productRoles: {
+      gw: 'Introspects every token before evaluating policy; on introspection failure, rejects the call rather than forwarding it.',
+    },
+    primaryTool: null,
+  },
 
   // --- DEVELOPER TOOLS ---
   {

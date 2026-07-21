@@ -143,6 +143,48 @@ async function disableAgentApplicationsAtPingOne() {
 }
 
 /**
+ * Re-enable the agent identity apps disabled by disableAgentApplicationsAtPingOne().
+ * The inverse of the kill switch's application disable — restores agent
+ * functionality after a demo run without requiring manual PingOne console access.
+ * Targets the same AGENT_CLIENT_ID / PINGONE_AI_AGENT_CLIENT_ID apps.
+ *
+ * @returns {Promise<Array<{key: string, applicationId: string, enabled: boolean, reason?: string}>>}
+ */
+async function enableAgentApplicationsAtPingOne() {
+  const apps = [
+    { key: 'AGENT_CLIENT_ID', id: process.env.AGENT_CLIENT_ID || configStore.getEffective('AGENT_CLIENT_ID') },
+    { key: 'PINGONE_AI_AGENT_CLIENT_ID', id: process.env.PINGONE_AI_AGENT_CLIENT_ID || configStore.getEffective('PINGONE_AI_AGENT_CLIENT_ID') },
+  ].filter(a => a.id);
+
+  if (apps.length === 0) {
+    console.warn('[killSwitch] No agent application IDs configured — skipping app re-enable');
+    return [];
+  }
+
+  const results = [];
+  for (const app of apps) {
+    try {
+      pingOneUserService.initialize();
+      const current = await pingOneUserService.makeRequest('GET', `/applications/${app.id}`);
+      if (current.enabled === true) {
+        console.log(`[killSwitch] PingOne application ${app.id} (${app.key}) already enabled`);
+        results.push({ key: app.key, applicationId: app.id, enabled: true, reason: 'already_enabled' });
+        continue;
+      }
+      const body = { ...current, enabled: true };
+      for (const k of ['_links', '_embedded', 'environment', 'createdAt', 'updatedAt', 'secret']) delete body[k];
+      await pingOneUserService.makeRequest('PUT', `/applications/${app.id}`, body);
+      console.log(`[killSwitch] PingOne application ${app.id} (${app.key}) re-enabled`);
+      results.push({ key: app.key, applicationId: app.id, enabled: true });
+    } catch (err) {
+      console.error(`[killSwitch] Failed to re-enable PingOne application ${app.id} (${app.key}):`, err.message);
+      results.push({ key: app.key, applicationId: app.id, enabled: false, reason: err.message });
+    }
+  }
+  return results;
+}
+
+/**
  * Invalidate all agent sessions in Redis/session store
  * @param {string} agentId
  * @returns {Promise<{invalidated: number}>}
@@ -401,6 +443,7 @@ module.exports = {
   isAgentRevoked,
   revokeTokenAtPingOne,
   disableAgentApplicationsAtPingOne,
+  enableAgentApplicationsAtPingOne,
   invalidateSessionsInRedis,
   getAgentRefreshToken,
 };

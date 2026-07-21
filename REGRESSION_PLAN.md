@@ -101,6 +101,168 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-21 — `/pingone-mcp-inspector` (Banking tab) showed zero tools with no explanation, again
+
+**Files changed:** `demo_api_ui/src/components/McpInspectorPage.jsx` (added
+`mfaRequired`/`stepUpMethod` state + banner to `useBankingSource()`; no
+server-side change).
+
+**What was broken:** the 2026-07-18 fix below (`mfa_required` handling) lived
+only in `McpInspector.js`. That file was later superseded when three
+standalone inspector pages were consolidated into `McpInspectorPage.jsx`
+(single `InspectorShell` with a source switcher) — the consolidation copied
+`refreshTools()`'s `tools`/`toolsSourceInfo` handling but not the
+`mfa_required`/`step_up_method` handling, so the same silent-gate regression
+came back under the new component. Confirmed live: `mcp_inspector_pingone_live`
+flag is ON (not the cause); `stepUpEnabled` is `true` in the running
+container; a real request to `/api/mcp/inspector/tools` from an
+un-step-up-verified session returned HTTP 200 `{ tools: [], mfa_required:
+true, step_up_method: 'email', _source: 'mfa_gate' }` (~107 bytes) and the
+Banking tab rendered "No tools loaded." with zero indication why.
+
+**What was fixed:** `useBankingSource()` in `McpInspectorPage.jsx` now reads
+`data.mfa_required`/`data.step_up_method` from the `/tools` response and
+renders the same inline info banner ("Step-up verification required...") that
+`McpInspector.js` already used, placed in `middle` just above the existing
+`needsLogin` banner. Verbatim port of the 2026-07-18 fix onto the new file —
+no other file touched.
+
+**Do not break:** this is UI-only — the server-side step-up gate in
+`mcpInspector.js` (`stepUpEnabled` / `req.session.stepUpVerified`) is
+untouched and must keep returning `tools: []` + `mfa_required: true` rather
+than silently falling back to the local catalog; that would defeat the gate.
+If `McpInspector.js` / `PingOneMcpInspector.js` are ever deleted as dead code,
+double-check this banner (and the `mfa_required` read it depends on) survives
+in whatever file replaces them — that's exactly how this regressed once
+already.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0, confirmed). Live
+full-session E2E (real OAuth sign-in + step-up) not re-run here; the
+`mfa_required` payload shape was confirmed live via `docker logs
+ai-demo-api-server` against the real, currently-signed-in session, and the
+added code is a direct copy of the already-shipped, already-verified
+2026-07-18 banner pattern.
+
+### 2026-07-20 — PingOne Admin agent's tool schemas broke llama.cpp's grammar compiler
+
+**Files changed:**
+- `demo_api_server/config/admin/tools.js` — `buildAdminToolSchemas`/
+  `executeAdminTool` now use the small `list_pingone_tools`/
+  `call_pingone_tool` wrapper from
+  `demo_api_server/config/verticals/pingone-admin/tools.js` instead of the
+  live PingOne MCP server's raw tool catalog.
+- `demo_api_server/config/admin/systemPrompt.js` — rewritten from a stale
+  generic "banking admin" prompt (accounts/balances/customers — concepts
+  that don't exist in PingOne) to PingOne-specific tool-discovery guidance
+  (call `list_pingone_tools` first, then `call_pingone_tool`).
+- `demo_api_server/tests/adminTools.schemaSize.test.js` (new) — asserts
+  `buildAdminToolSchemas()` returns the 4-tool wrapper set, stays well
+  under context budget, and `executeAdminTool` dispatches correctly.
+- `demo_api_server/tests/adminSystemPrompt.test.js` — updated the base-prompt
+  assertion from `/administrative assistant/i` to `/PingOne Admin
+  Assistant/i` to match the rewritten prompt; customer-context assertions
+  unchanged.
+
+**What was broken:** once the admin agent's LLM provider was correctly
+routed to llama.cpp (see the entry below), llama-server itself returned
+`400 Failed to initialize samplers: failed to parse grammar`. Root cause:
+`buildAdminToolSchemas()` fetched the live PingOne MCP server's full tool
+catalog — 76 tools, ~160,009 bytes of JSON schema (`createApplication` and
+`updateApplication` alone are ~40KB combined) — and sent it directly to
+the LLM on every call. That blows past llama.cpp's 8192-token context
+window and its GBNF grammar compiler chokes on schemas of that size and
+complexity.
+
+**What was fixed:** reused the already-built, already-tested 4-tool
+wrapper (`list_pingone_tools`, `call_pingone_tool`, plus two demo stubs)
+from `config/verticals/pingone-admin/tools.js` — the same module the
+separate `/api/agent/run` AG-UI admin path already uses successfully. The
+wrapper indirects through `list_pingone_tools`/`call_pingone_tool` instead
+of exposing all 76 raw tools, collapsing the schema payload from ~160KB to
+under 5KB while preserving full PingOne functionality (the LLM discovers
+and calls tools by name through the wrapper, not by seeing every schema
+upfront). No new logic was written for PingOne access itself — only
+`config/admin/tools.js`'s two functions were rewired to call into the
+existing wrapper.
+
+**Do not break:** `adminAgentService.js`'s `executeTool` callback still
+gets a JSON string back from `executeAdminTool`, and still does
+`JSON.parse(result)` to check for a `.error` field for Token Chain step
+failure marking — `executeAdminTool` preserves that contract (`JSON.stringify(result)`
+on success, `JSON.stringify({error, message})` on failure). The other
+`/api/agent/run` AG-UI path's own use of
+`config/verticals/pingone-admin/tools.js` is untouched (only consumed, not
+modified) — its own test suites (`adminChipDeadends.test.js`,
+`tests/oas/pingone-admin.test.js`, `tests/oas/verticalDispatch.oas.test.js`)
+were re-run and stay green.
+
+**Verify:** `demo_api_server` jest —
+`adminTools.schemaSize.test.js` (6/6), `adminSystemPrompt.test.js` (3/3),
+`adminAgentService.llmProvider.test.js` (2/2),
+`adminAgentService.tokenChainStep.test.js` (2/2),
+`adminChipDeadends.test.js` + `oas/pingone-admin.test.js` +
+`oas/verticalDispatch.oas.test.js` (27/27). Full `demo_api_server` suite
+run clean except two confirmed pre-existing flakes unrelated to this
+change (`rfc9728-integration.test.js`, `resourceServerTesterCC.route.test.js`
+— both pass 100% in isolation).
+
+### 2026-07-20 — PingOne Admin dashboard's LLM defaults to llama.cpp, not Helix
+
+**Files changed:**
+- `demo_api_server/services/adminAgentService.js` — both `resolveLlmProvider`
+  call sites now explicitly request `provider: 'llamacpp'` instead of
+  forcing `provider: undefined` (which fell through to whatever
+  `resolveLlmProvider`'s own default happened to be).
+- `demo_api_server/tests/adminAgentService.llmProvider.test.js` (new) —
+  asserts `runReasonLoop` is always called with `provider: 'llamacpp'`,
+  regardless of the session's `langchainConfig`.
+
+**What was broken:** Helix wasn't reliably configured across environments
+(discovered while fixing the PingOne Admin agent — see the entries below),
+so the admin dashboard's agent returned `reasoning_unavailable` /
+Helix-platform errors instead of a real reply. The two modes actually
+demoed on the admin dashboard are llama.cpp and Heuristics — Helix should
+not be the silent default there.
+
+**A broader fix was tried and reverted:** changing `resolveLlmProvider`'s
+own "no explicit provider" fallback (the single canonical default location
+per its own doc comment) from `helix` to `llamacpp` globally. This broke
+`demo_api_server/services/geminiNlIntent.js`'s "LLM-only mode" — an
+unrelated banking NL-router subsystem that hardcodes `provider === 'helix'`
+as its literal signal for "a real LLM is configured," with no llama.cpp
+equivalent. 4 tests in `src/__tests__/geminiNlIntent.llmOnly.test.js`
+failed for real (confirmed on a clean retry, not flaky) because the
+global default change silently degraded that subsystem's "LLM-only mode"
+to a heuristic fallback. Reverted `llmProviderResolver.js` and
+`llmProviderResolver.regression.test.js` back to their original
+Helix-default state — confirmed byte-identical to pre-change via
+`git diff` against the prior commit.
+
+**What was fixed instead:** `adminAgentService.js` explicitly requests
+`llamacpp` via the resolver's normal `requested === 'llamacpp'`
+pass-through — the same explicit-selection mechanism every other caller
+in the codebase already uses, not a new inlined default. Only the admin
+dashboard's LLM changed.
+
+**Do not break:** `resolveLlmProvider`'s own default (Helix) and every
+other caller (banking, ops-assistant, a2a-orchestrator, compliance,
+support, geminiNlIntent, etc.) are completely unaffected — verified via
+`git diff` against the pre-change commit for `llmProviderResolver.js`
+itself, and via the full `geminiNlIntent.llmOnly` + related suites (30
+tests) passing.
+
+**Verify:** `demo_api_server` jest
+`adminAgentService.llmProvider,adminAgentService.tokenChainStep,llmProviderResolver.regression,llmProviderResolver.lmstudio.regression,llmProviderResolver.bedrock,geminiNlIntent.llmOnly`
+(30 pass). Live: PingOne Admin agent's demo steps now request `llamacpp`
+end-to-end (confirmed via temporary debug logging against the live worker
+token flow, then removed) — a separate llama-server "failed to parse
+grammar" error surfaced for the admin agent's dynamically-fetched
+PingOne tool schemas, tracked as its own follow-up, not fixed here.
+
+**Verify:** `demo_api_server` jest `llmProviderResolver.{regression,lmstudio.regression,bedrock}`
+(16 pass, including the 2 updated default-fallback cases); full
+`npm run test:api-server` local CI gate.
+
 ### 2026-07-20 — Non-admin session selecting PingOne Admin got a blank generic failure
 
 **Files changed:**
@@ -166,6 +328,65 @@ including the new `agentHeader` passthrough case); `npm run build` exits 0.
 Live click-through: PingOne Admin demo step reply now shows `[ADMIN AGENT -
 LangGraph - ...]`, banking vertical still shows `[CUSTOMER AGENT]`
 unchanged.
+
+### 2026-07-20 — Agent Lifecycle step-up checkout (UC22 CIBA) 428-looped forever after approval; kill-switch had no recovery path
+
+**Files changed:**
+- `demo_api_ui/src/pages/AgentLifecyclePage.jsx` — `StepUpSlot`'s checkout call
+  now goes through `callMcpTool` (same as `ScopedCallSlot`) instead of a bare
+  `fetch`, so it shows up in the Token Chain rail; waiting-approval copy no
+  longer implies a push confirmation screen that doesn't exist.
+- `demo_api_server/routes/ciba.js` — both CIBA-approved branches (simulated
+  and real) now also set `req.session.hitlVerified`, mirroring the existing
+  `stepUpVerified` flag.
+- `demo_api_server/services/mcpToolAuthorizationService.js` — new
+  `hitlAlreadyVerified` (single-use, same pattern as `stepUpAlreadyVerified`)
+  gates all three `mcp_hitl_required` 428 branches (live, simulated,
+  fallback_simulated).
+- `demo_api_server/services/killSwitchService.js` — new
+  `enableAgentApplicationsAtPingOne()`, the inverse of
+  `disableAgentApplicationsAtPingOne()`.
+- `demo_api_server/routes/admin.js` — new
+  `POST /api/admin/agent/:agentId/re-enable` route.
+- `demo_api_ui/src/components/ControlPlaneRoster.jsx` (+ `.css`) — "Re-enable"
+  button on the live agent row when revoked.
+
+**What was broken:** checking out $600 headphones (or UC22's "extend my rental
+$600") correctly 428'd for step-up, CIBA approved (this env runs the
+simulated CIBA fallback — no real PingOne bc-authorize provisioning yet, see
+`docs/superpowers/plans/2026-07-20-ciba-real-platform-provisioning.md`,
+`stepUpVerified` cleared it — but the SAME decision endpoint call also always
+carries a `HITL Approval Required` statement with `obligatory:false`, and
+`classifyObligations` ignores `obligatory` entirely (by design — confirmed via
+live payload diff that a genuine $300 consent-required transfer carries the
+identical `obligatory:false`, so filtering on it would have silently disabled
+real HITL/consent enforcement too). `hitlRequired` had no "already verified"
+counterpart the way `stepUpRequired` did, so it 428'd on every retry forever.
+Separately, `AgentLifecyclePage`'s step 4 kill-switch button — a real,
+one-way PingOne application disable — had no UI-reachable undo, so testing it
+broke the whole demo (every agent tool call) until an admin manually
+re-enabled the app in PingOne.
+
+**What was fixed:** CIBA approval now sets `hitlVerified` alongside
+`stepUpVerified` (CIBA out-of-band approval IS a human-in-the-loop event) and
+the gate consumes it the same single-use way. The kill switch gets a real
+inverse action, surfaced on the AI Control Plane roster (not the killed page
+itself — that session is destroyed by the kill-switch route).
+
+**Do not break:** `classifyObligations` (`services/authorizeObligations.js`)
+is untouched — do not filter on `obligatory` there; live evidence shows it is
+not a reliable advisory-vs-binding signal in this PingOne policy. The
+existing HITL-receipt-challenge path (`hitlChallengeId`/`hitlApproved`) is
+unaffected — `hitlAlreadyVerified` is an additional, independent way to clear
+the gate, not a replacement.
+
+**Verify:** `demo_api_server` jest —
+`mcpToolAuthorizationService,ciba,cibaService,cibaSimulatedService,step-up-gate,killSwitchService`
+(156 tests, all green); `demo_api_ui` vitest `AgentLifecyclePage`,
+`ControlPlaneRoster` green; `cd demo_api_ui && npm run build` exits 0. Live:
+confirmed the original 428-loop via Docker log capture of two real
+`BFF→P1AZ` decision-endpoint round trips; re-enable button not yet
+click-verified live (server routes + unit tests only).
 
 ### 2026-07-20 — PingOne Admin AI Agent messages misrouted to the customer/banking agent
 

@@ -16,6 +16,7 @@ import { useDraggablePanel } from '../hooks/useDraggablePanel';
 import { agentFlowDiagram } from '../services/agentFlowDiagramService';
 import { useExchangeMode } from '../context/ExchangeModeContext';
 import { useTokenChainOptional } from '../context/TokenChainContext';
+import { useGatewayLiveConfig } from '../hooks/useGatewayLiveConfig';
 import TokenExchangeFlowDiagram from './TokenExchangeFlowDiagram';
 import TokenFlowDiagram from './TokenFlowDiagram';
 import { SecurityGuaranteeBanner } from './SecurityGuaranteeBanner';
@@ -100,6 +101,53 @@ function ClaimRow({ label, value, glossary }) {
 function hasAnyField(data) {
   if (!data) return false;
   return Object.values(data).some((v) => v !== undefined && v !== null);
+}
+
+// Tool -> gateway route category, mirroring the five routes documented in
+// GatewayRoutingDiagram.jsx (itself sourced from demo_mcp_gateway/src/router.ts,
+// the real routing source of truth). Only two of the five categories are a
+// real RFC 8693 audience exchange to a WebSocket backend (OLB, Investments);
+// the other three use a different credential/audience shape entirely — see
+// getUtfiRouteCategory below. Any tool not listed here (including "no tool
+// called yet") falls through to OLB, the majority-case route — this matches
+// router.ts's own default ("existing OLB tools ... and unknown tools -> OLB").
+const UTFI_INVEST_TOOLS = new Set(['get_portfolio_summary', 'get_investment_balance']);
+const UTFI_API_KEY_TOOLS = new Set(['show_mortgage', 'show_health_record', 'show_permit']);
+const UTFI_BANKING_RESOURCE_TOOLS = new Set([
+  'user_profile_card', // "Dual-token" route
+  'demo_show_accounts', // "Banking-data" route
+  'demo_show_transactions', // "Banking-data" route
+]);
+
+const UTFI_NO_EXCHANGE_NOTE =
+  'No RFC 8693 exchange — this tool uses an API-key credential (X-API-Key), not a bearer-token audience swap.';
+
+// Categorizes a tool name into one of the four backend-audience-out shapes
+// used by the Token Transform tab. Returns null when no tool has been
+// called yet this session (caller renders the default-to-OLB caveat).
+function getUtfiRouteCategory(toolName) {
+  if (!toolName) return null;
+  if (UTFI_INVEST_TOOLS.has(toolName)) return 'invest';
+  if (UTFI_API_KEY_TOOLS.has(toolName)) return 'api_key';
+  if (UTFI_BANKING_RESOURCE_TOOLS.has(toolName)) return 'banking_resource';
+  return 'olb';
+}
+
+// A token-chain event's audience claim can show up under different field
+// names depending on which producer built it (session-preview stub events
+// carry `claims.aud`; live token-chain rows carry a flat `audience`; a few
+// call sites also pass through `decoded.payload.aud` / `tokenAud` / `aud`).
+// Check them in order so whichever shape the current event has, the real
+// value surfaces instead of silently rendering nothing.
+function getEventAudience(event) {
+  if (!event) return undefined;
+  const aud =
+    event.claims?.aud ??
+    event.decoded?.payload?.aud ??
+    event.audience ??
+    event.tokenAud ??
+    event.aud;
+  return Array.isArray(aud) ? aud.join(', ') : aud;
 }
 
 function statusBadge(status) {
@@ -888,7 +936,28 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
   const [showLegendModal, setShowLegendModal] = useState(false);
   const [showClaimsModal, setShowClaimsModal] = useState(false);
   const [selectedTokenType, setSelectedTokenType] = useState(null);
-  const [activeTab, setActiveTab] = useState('flow'); // 'flow' or 'chain'
+  const [activeTab, setActiveTab] = useState('flow'); // 'flow', 'chain', or 'transform'
+
+  // Token Transform tab data — gateway-audience-in vs backend-audience-out.
+  const tokenChainCtx = useTokenChainOptional();
+  const { data: gatewayLiveConfig } = useGatewayLiveConfig();
+  const gwConfig = gatewayLiveConfig?.config || null;
+  const lastTokenEvent = tokenChainCtx?.events?.length
+    ? tokenChainCtx.events[tokenChainCtx.events.length - 1]
+    : null;
+  const lastInboundAud =
+    getEventAudience(lastTokenEvent) || 'No token exchanged yet — run an agent action to populate this.';
+  const utfiRouteCategory = getUtfiRouteCategory(snap.toolName);
+  const lastRoutedBackendUri =
+    utfiRouteCategory === 'api_key'
+      ? UTFI_NO_EXCHANGE_NOTE
+      : gwConfig
+        ? (utfiRouteCategory === 'invest'
+            ? gwConfig.mcpInvestResourceUri
+            : utfiRouteCategory === 'banking_resource'
+              ? gwConfig.bankingResourceServerResourceUri
+              : gwConfig.mcpOlbResourceUri) || 'Not configured — push a gateway config first'
+        : 'Gateway config not loaded — see Agent Gateway Configuration';
 
   const { pos, size, handleDragStart } = useDraggablePanel(
     () => ({
@@ -1013,6 +1082,15 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
         >
           Token Chain
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'transform'}
+          className={`utfi-tab${activeTab === 'transform' ? ' utfi-tab--active' : ''}`}
+          onClick={() => setActiveTab('transform')}
+        >
+          Token Transform
+        </button>
       </div>
 
       {activeTab === 'flow' ? (
@@ -1025,9 +1103,20 @@ export default function UnifiedTokenFlowInspector({ floatingByDefault = false, s
             <OAuthInspectorSection selectedToken={selectedToken} onOpenClaimsModal={openClaimsModal} />
           </div>
         </div>
-      ) : (
+      ) : activeTab === 'chain' ? (
         <div className="utfi-chain-view">
           <TokenChainTraceRail />
+        </div>
+      ) : (
+        <div className="utfi-transform-view">
+          <p className="utfi-rfc-inline-hint">
+            What the gateway accepts on the way in vs. the audience it exchanges for on the way out to the
+            routed backend (RFC 8693 · RFC 8707). {gwConfig && !snap.toolName && (
+              <>No tool call yet this session — defaulting to the Online Banking backend (majority-case route).</>
+            )}
+          </p>
+          <ClaimRow label="gateway-audience-in (aud)" value={lastInboundAud} glossary={CLAIM_GLOSSARY.aud} />
+          <ClaimRow label="backend-audience-out" value={lastRoutedBackendUri} glossary={CLAIM_GLOSSARY.aud} />
         </div>
       )}
 

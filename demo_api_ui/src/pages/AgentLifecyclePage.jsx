@@ -69,20 +69,24 @@ function StepUpSlot() {
   const [message, setMessage] = React.useState('');
   const timerRef = React.useRef(null);
 
+  // Routed through callMcpTool (same as ScopedCallSlot's list_orders call above)
+  // so this checkout shows up in the Token Chain rail / right-side agent panel
+  // instead of running invisibly via a bare fetch.
   const postCheckout = React.useCallback(async () => {
-    const res = await fetch('/api/mcp/tool', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        tool: 'checkout',
-        params: { product: 'Headphones', amount: 600 },
-        useCaseId: 'ciba-out-of-band-approval',
-        vertical: 'retail',
-      }),
-    });
-    const body = await res.json().catch(() => ({}));
-    return { status: res.status, ok: res.ok, body };
+    try {
+      const { result } = await callMcpTool(
+        'checkout',
+        { product: 'Headphones', amount: 600 },
+        { useCaseId: 'ciba-out-of-band-approval', vertical: 'retail' },
+      );
+      return { status: 200, ok: true, body: { result } };
+    } catch (err) {
+      return {
+        status: err.statusCode || 500,
+        ok: false,
+        body: { error: err.code, message: err.message },
+      };
+    }
   }, []);
 
   const pollCiba = React.useCallback((authReqId, intervalMs) => {
@@ -118,9 +122,9 @@ function StepUpSlot() {
   const runCheckout = React.useCallback(async () => {
     setPhase('checking-out');
     setMessage('');
-    try {
-      const { status, ok, body } = await postCheckout();
-      if (status === 428 && body.error === 'mcp_step_up_required' && body.step_up_method === 'ciba') {
+    const { status, ok, body } = await postCheckout();
+    if (status === 428 && body.error === 'mcp_step_up_required') {
+      try {
         const initRes = await fetch('/api/auth/ciba/initiate', {
           method: 'POST',
           credentials: 'include',
@@ -129,21 +133,26 @@ function StepUpSlot() {
         });
         const { auth_req_id, interval } = await initRes.json();
         setPhase('waiting-approval');
-        setMessage(`Waiting for push approval (auth_req_id: ${auth_req_id})…`);
+        // This environment's CIBA runs against the simulated backchannel
+        // engine (no PingOne CIBA platform provisioning yet — see
+        // docs/superpowers/plans/2026-07-20-ciba-real-platform-provisioning.md),
+        // which auto-approves after a few seconds. There is no push/email
+        // action for the user to take today.
+        setMessage(`Waiting for approval (auth_req_id: ${auth_req_id})… this demo auto-approves in a few seconds — no action needed.`);
         pollCiba(auth_req_id, (interval || 5) * 1000);
-        return;
-      }
-      if (!ok) {
+      } catch (err) {
         setPhase('error');
-        setMessage(body.message || body.error_description || `HTTP ${status}`);
-        return;
+        setMessage(err.message || 'Failed to start CIBA approval');
       }
-      setPhase('approved');
-      setMessage('Checkout completed.');
-    } catch (err) {
-      setPhase('error');
-      setMessage(err.message || 'Checkout failed');
+      return;
     }
+    if (!ok) {
+      setPhase('error');
+      setMessage(body.message || `HTTP ${status}`);
+      return;
+    }
+    setPhase('approved');
+    setMessage('Checkout completed.');
   }, [postCheckout, pollCiba]);
 
   React.useEffect(() => () => clearTimeout(timerRef.current), []);
@@ -156,12 +165,17 @@ function StepUpSlot() {
       <p className="alp-slot__desc">
         Checks out $600 of headphones with the same agent-scoped path — above
         the retail step-up threshold, so PingOne Authorize requires a CIBA
-        push approval before the purchase completes.
+        step-up approval before the purchase completes.
       </p>
       <button className="alp-btn" type="button" onClick={runCheckout} disabled={busy}>
         {busy ? 'Processing…' : 'Checkout $600 headphones'}
       </button>
-      {message && <p className="alp-slot__status">{message}</p>}
+      {message && (
+        <p className="alp-slot__status">
+          {phase === 'waiting-approval' && <span className="alp-spinner" aria-hidden="true" />}
+          {message}
+        </p>
+      )}
     </section>
   );
 }

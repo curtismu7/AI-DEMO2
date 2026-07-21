@@ -13,7 +13,7 @@ export const NAV_ITEM_CATALOG = [
   "Family Delegation",
   "AI Agents",
   "PingOne MCP",
-  "Banking MCP & Gateways",
+  "MCP & Gateways",
   "PingOne Demo Apps",
   "Delegation & Consent",
   "Authorize",

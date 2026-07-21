@@ -147,10 +147,10 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "ai-agents", paths: ["/ai-control-plane", "/agent", "/copilot", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
   { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client"] },
   { id: "banking-mcp", paths: ["/webmcp", "/ping-ai-test-lab"] },
-  { id: "banking-mcp-gateways", paths: ["/pinggateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security"] },
+  { id: "banking-mcp-gateways", paths: ["/pinggateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security", "/agent-gateway-capabilities"] },
   { id: "pingone-demo-apps", paths: ["/self-service", "/pingone-test", "/mfa-test", "/token-exchange-tester", "/oauth-academy", "/oas-demo", "/privilege-demo", "/sdk-login"] },
   { id: "delegation-consent", paths: ["/delegation", "/delegated-access", "/transaction-consent", "/actor-token-education"] },
-  { id: "authorize", paths: ["/pingone-authorize", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
+  { id: "authorize", paths: ["/pingone-authorize", "/pingone-authorize-capabilities", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
   { id: "users-accounts", paths: ["/users", "/accounts", "/transactions"] },
   { id: "industry-verticals", paths: ["/admin/banking", "/admin/healthcare", "/admin/retail", "/admin/sporting-goods", "/admin/workforce", "/admin/verticals", "/path/mortgage"] },
   { id: "monitoring", paths: ["/audit", "/monitoring", "/reports", "/error-audit"] },
@@ -427,11 +427,6 @@ export default function AdminSideNav({ user }) {
     { label: "Use Cases", path: "/use-cases", icon: "demo" },
     { label: "Use Cases (Live)", path: "/use-cases/live", icon: "demo" },
     { label: "Demo Config", path: "/demo-config", icon: "cfg" },
-    {
-      label: "Agent Demo Guide",
-      icon: "doc",
-      action: () => navigate("/agent", { state: { openDemoGuide: true } }),
-    },
     // Latest report — shown when agent run completes
     ...(latestRunId
       ? [
@@ -477,7 +472,6 @@ export default function AdminSideNav({ user }) {
           path: "/ungoverned-agent",
           icon: "dbg",
         },
-        { label: "Agent Servers", path: "/servers", icon: "clk" },
       ],
     },
     {
@@ -502,7 +496,7 @@ export default function AdminSideNav({ user }) {
       ],
     },
     {
-      label: "Banking MCP & Gateways",
+      label: "MCP & Gateways",
       icon: "rte",
       children: [
         {
@@ -516,6 +510,7 @@ export default function AdminSideNav({ user }) {
           path: "/pinggateway-inspector",
           icon: "rte",
         },
+        { label: "Capability Tour", path: "/agent-gateway-capabilities", icon: "shld" },
       ],
     },
     {
@@ -563,6 +558,7 @@ export default function AdminSideNav({ user }) {
       icon: "pol",
       children: [
         { label: "PingOne Authorize", path: "/pingone-authorize", icon: "pol" },
+        { label: "Authorize Capabilities", path: "/pingone-authorize-capabilities", icon: "pol" },
         {
           label: "Policy Decision Trace",
           path: "/policy-decision-trace",

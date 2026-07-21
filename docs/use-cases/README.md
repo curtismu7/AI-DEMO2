@@ -43,6 +43,7 @@ See also: [Audit Table](./audit-table.md)
 - [**UC15** — Intent-token tampering](./intent-token-tampering.md) 🏗️ 🛡️
 - [**UC16** — Impersonation blocked (OBO required)](./impersonation-blocked.md) 🏗️ 🛡️
 - [**UC18** — Rate-limit / resource-overload defense](./rate-limit-defense.md) ✅ 🛡️
+- [**UC29** — OAuth introspection outage — fail closed](./oauth-fail-closed.md) ✅ 🛡️
 
 ## Hitl
 

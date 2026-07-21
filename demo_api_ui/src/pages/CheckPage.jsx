@@ -7,6 +7,7 @@ import CardsView from './check/CardsView';
 import StepperView from './check/StepperView';
 import ChecklistView from './check/ChecklistView';
 import RailDetailView from './check/RailDetailView';
+import ServersPage from './ServersPage';
 
 // Mirrors demo_api_server/config/useCases.js VERTICALS — keep in sync.
 const VERTICALS = ['banking', 'healthcare', 'retail', 'government', 'university', 'workforce', 'sporting-goods', 'manufacturing', 'investment'];
@@ -31,6 +32,7 @@ export default function CheckPage() {
           Sign in, then run before your talk.
         </p>
       </header>
+      <ServersPage />
       <div className={`verdict-bar verdict-${verdict || 'idle'}`}>
         <div className="verdict"><span className="dot" />
           <h2>{verdict ? VERDICT_TEXT[verdict] : 'Not run yet'}</h2></div>

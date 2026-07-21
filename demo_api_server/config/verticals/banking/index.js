@@ -337,7 +337,7 @@ module.exports = {
 
     // Placeholder actions (demos, etc.) return success with empty result
     // These are captured by the heuristic path and handled elsewhere
-    const placeholderActions = ['mcp_tools', 'mortgage_demo', 'branch_hours', 'biggest_purchase', 'spending_summary', 'unusual_patterns', 'afford_check', 'api_key_demo', 'dual_token_demo', 'logout', 'vertical_feature_demo', 'test_wrong_scope', 'test_wrong_audience', 'test_hitl_required', 'test_otp_required', 'test_full_compliance_flow', 'demo_intent_delegation', 'demo_nl_routing', 'transfer_600_test'];
+    const placeholderActions = ['mcp_tools', 'jwt_decode_demo', 'mortgage_demo', 'branch_hours', 'biggest_purchase', 'spending_summary', 'unusual_patterns', 'afford_check', 'api_key_demo', 'dual_token_demo', 'logout', 'vertical_feature_demo', 'test_wrong_scope', 'test_wrong_audience', 'test_hitl_required', 'test_otp_required', 'test_full_compliance_flow', 'demo_intent_delegation', 'demo_nl_routing', 'transfer_600_test'];
     if (placeholderActions.includes(name)) {
       return { result: { data: {} }, render: 'text' };
     }
