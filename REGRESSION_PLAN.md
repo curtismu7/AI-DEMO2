@@ -101,6 +101,52 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-21 — Banking MCP Inspector Execute failed with "MCP connection closed before response (code 1008: Agent token rejected)"
+
+**Files changed:** `demo_api_server/services/agentMcpTokenService.js` (new
+`opts.forceDirectMcpAudience` on `resolveMcpAccessTokenWithEvents`, threaded
+into `_performTwoExchangeDelegation`), `demo_api_server/routes/mcpInspector.js`
+(`sessionTokenForDiscovery` and the default-profile `/invoke` handler now pass
+`{ forceDirectMcpAudience: true }`), `demo_api_server/src/__tests__/agentMcpTokenService.test.js`
+(new `forceDirectMcpAudience opt` describe block).
+
+**What was broken:** discovered live right after the MFA-gate removal above
+unblocked reaching the Banking tab's Execute button for the first time.
+`demo_mcp_server` logs showed `Rejecting connection ...: Token audience does
+not match MCP server resource URI` — `token_aud: ["https://api.ping.demo:3036/mcp"]`
+(the PingGateway resource) vs `expected: ["mcpserver.ping.demo",
+"mcpgateway.ping.demo"]` (`MCP_SERVER_RESOURCE_URI` on the raw MCP server).
+Root cause: `routes/mcpInspector.js`'s Banking `/tools` and `/invoke` handlers
+always connect via `mcpWebSocketClient.js`'s `getMcpServerUrl()` — a direct
+WebSocket to the raw `demo_mcp_server` container, never through PingGateway —
+but `agentMcpTokenService.js`'s Exchange #2 minted a PingGateway-audience
+token (`gateway:mcp:invoke` scope) whenever `ff_mcp_gateway_pinggateway` was
+on (the default), with no awareness that this particular caller's transport
+bypasses the gateway. Never surfaced before because the step-up MFA gate
+(previous entry) blocked the Banking tab from ever reaching a real invoke.
+
+**What was fixed:** added an `opts.forceDirectMcpAudience` flag to
+`resolveMcpAccessTokenWithEvents` / `_performTwoExchangeDelegation`. When set,
+`routeViaPingGateway` is forced false, so Exchange #2 falls through to
+`twoExFinalAud` (the existing gateway-bypass-probe resolution via
+`_resolveFinalMcpAudience`) instead of the PingGateway HTTPS resource — a
+bare-hostname audience `demo_mcp_server`'s `MCP_SERVER_RESOURCE_URI` allowlist
+already accepts. The Banking Inspector's two `resolveMcpAccessTokenWithEvents`
+call sites now pass this flag; the real agent's gateway-routed calls are
+unaffected (opt defaults to unset/false).
+
+**Do not break:** `ff_mcp_gateway_pinggateway`'s PingGateway-audience routing
+must stay the DEFAULT for every other caller (the real banking agent).
+`forceDirectMcpAudience` is opt-in per call site — do not flip the default, and
+do not remove the flag from either Inspector call site without confirming
+whatever replaces `mcpWebSocketClient.js`'s direct-WS transport for the
+Banking tab.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/agentMcpTokenService.test.js src/__tests__/mcp-inspector.test.js src/__tests__/mcpGatewayClient.reauth.test.js src/__tests__/oauthService.test.js tests/verticalToolAudience.regression.test.js --testPathIgnorePatterns="/node_modules/"`
+(273 tests, 14 suites, exit 0, confirmed). Live re-verification against the
+running container not re-run in this pass — see the prior entry's live-log
+evidence for how to reproduce with `docker logs ai-demo-mcp-server`.
+
 ### 2026-07-21 — Banking MCP Inspector "timeout of 10000ms exceeded" — WS client never handled a clean server-side close
 
 **Files changed:** `demo_api_server/services/mcpWebSocketClient.js` (added a

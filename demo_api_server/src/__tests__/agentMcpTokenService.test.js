@@ -1056,6 +1056,46 @@ describe('resolveMcpAccessTokenWithEvents — 2-exchange delegation (ff_two_exch
     expect(ids).toContain('two-ex-final-token');
   });
 
+  // Regression: the Banking MCP Inspector's WS client always dials the raw
+  // MCP server directly (mcpWebSocketClient.js getMcpServerUrl()), never
+  // through PingGateway — but Exchange #2 minted a PingGateway-audience token
+  // whenever ff_mcp_gateway_pinggateway was on, regardless of caller. The
+  // direct MCP server rejected that token's aud (WS close 1008 "Agent token
+  // rejected"). forceDirectMcpAudience lets a caller opt out of the
+  // PingGateway override.
+  describe('forceDirectMcpAudience opt (direct-WS callers bypass PingGateway audience)', () => {
+    const pingGatewayAud = 'https://api.ping.demo:3036/mcp';
+
+    beforeEach(() => {
+      configStore.getEffective.mockImplementation((key) => {
+        if (key === 'pingone_resource_mcp_server_uri' || key === 'mcp_resource_uri') return TWO_EX_MCP_RESOURCE;
+        if (key === 'ff_two_exchange_delegation') return 'true';
+        if (key === 'ff_mcp_gateway_pinggateway') return 'true';
+        if (key === 'pingone_resource_pinggateway_uri') return pingGatewayAud;
+        return null;
+      });
+    });
+
+    it('without the opt, Exchange #2 requests the PingGateway audience', async () => {
+      // finalMcpJwt's fixture aud (TWO_EX_MCP_RESOURCE) won't match the
+      // requested pingGatewayAud, so the final-audience-enforcement check
+      // (below) rejects it — irrelevant here, we only assert what was
+      // requested, not whether the mocked fixture happened to match it.
+      await resolveMcpAccessTokenWithEvents(makeReq2ex(sampleJwtUserAccessToken), 'get_my_accounts').catch(() => {});
+      const exchange2Audience = mockPerformTokenExchangeAs.mock.calls[1][4];
+      expect(exchange2Audience).toEqual([pingGatewayAud]);
+    });
+
+    it('with the opt, Exchange #2 requests the direct mcp-server audience instead', async () => {
+      await resolveMcpAccessTokenWithEvents(
+        makeReq2ex(sampleJwtUserAccessToken), 'get_my_accounts', { forceDirectMcpAudience: true }
+      );
+      const exchange2Audience = mockPerformTokenExchangeAs.mock.calls[1][4];
+      expect(exchange2Audience).not.toEqual([pingGatewayAud]);
+      expect(exchange2Audience).toBe(TWO_EX_MCP_RESOURCE);
+    });
+  });
+
   it('preflight: missing AI_AGENT_CLIENT_ID → throws 503 with two-exchange-not-configured event', async () => {
     delete process.env.AI_AGENT_CLIENT_ID;
     // Override validateTwoExchangeConfig to throw (simulating missing credentials)

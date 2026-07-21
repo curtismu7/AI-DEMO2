@@ -58,9 +58,15 @@ function authRequired(res, message = MCP_SESSION_NEEDED_MSG) {
   });
 }
 
-/** Discovery uses same token resolution as tools/call (scope from a representative tool). */
+/**
+ * Discovery uses same token resolution as tools/call (scope from a representative tool).
+ * forceDirectMcpAudience: this route's WS client always dials the raw MCP
+ * server directly (see getMcpServerUrl() in mcpWebSocketClient.js), never
+ * through PingGateway, so the minted token must carry the direct mcp-server
+ * audience regardless of ff_mcp_gateway_pinggateway.
+ */
 async function sessionTokenForDiscovery(req) {
-  const { token, userSub } = await resolveMcpAccessTokenWithEvents(req, 'get_my_accounts');
+  const { token, userSub } = await resolveMcpAccessTokenWithEvents(req, 'get_my_accounts', { forceDirectMcpAudience: true });
   return { token, userSub };
 }
 
@@ -610,7 +616,9 @@ router.post('/invoke', express.json(), async (req, res) => {
     let userSub;
     let tokenEvents = [];
     try {
-      ({ token: agentToken, userSub, tokenEvents = [] } = await resolveMcpAccessTokenWithEvents(req, tool));
+      // forceDirectMcpAudience: this route's WS client dials the raw MCP server
+      // directly (see sessionTokenForDiscovery above), never through PingGateway.
+      ({ token: agentToken, userSub, tokenEvents = [] } = await resolveMcpAccessTokenWithEvents(req, tool, { forceDirectMcpAudience: true }));
     } catch (err) {
       const status = err.httpStatus || 502;
       return res.status(status).json({
