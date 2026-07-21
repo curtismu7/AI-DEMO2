@@ -2,7 +2,9 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import apiClient from "../services/apiClient";
 import { getAgents, stopAgent, resetRoster } from "../services/controlPlaneApi";
 import { useAppEventsSSE } from "../hooks/useAppEventsSSE";
+import { useAuth } from "../hooks/useAuth";
 import KillSwitchConfirmModal from "./KillSwitchConfirmModal";
+import ControlPlaneDemoGuideModal from "./ControlPlaneDemoGuideModal";
 import "./ControlPlaneRoster.css";
 
 const STAGGER_MS = 640;
@@ -14,6 +16,8 @@ const nowStamp = () => new Date().toLocaleTimeString();
 // (real PingOne revocation via the existing kill-switch endpoint); the other
 // rows are Ping-governed demo identities stopped via the control-plane API.
 export default function ControlPlaneRoster() {
+  const { user } = useAuth();
+  const [showGuide, setShowGuide] = useState(false);
   const [live, setLive] = useState(null);
   const [demo, setDemo] = useState([]);
   const [auditCount, setAuditCount] = useState(0);
@@ -163,6 +167,15 @@ export default function ControlPlaneRoster() {
           Ping &mdash; AI Control Plane
           <small>ONE PLACE TO GOVERN AI ACROSS EVERY PLATFORM</small>
         </div>
+        {user?.role === "admin" && (
+          <button
+            type="button"
+            className="cp-demo-guide-btn"
+            onClick={() => setShowGuide(true)}
+          >
+            📚 Demo Guide
+          </button>
+        )}
         <div className="cp-verbs">
           <div className="cp-verb">govern</div>
           <div className="cp-verb">authorize</div>
@@ -296,6 +309,13 @@ export default function ControlPlaneRoster() {
         onConfirm={confirmLiveKill}
         onCancel={() => setShowLiveModal(false)}
       />
+
+      {user?.role === "admin" && (
+        <ControlPlaneDemoGuideModal
+          isOpen={showGuide}
+          onClose={() => setShowGuide(false)}
+        />
+      )}
     </div>
   );
 }
