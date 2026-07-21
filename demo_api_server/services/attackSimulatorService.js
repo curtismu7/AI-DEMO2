@@ -1519,6 +1519,23 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
  * side); 'permit' is the new legitimate counterpart above.
  */
 async function runIntentBindingDemo(action, req, requestedAmount) {
+  const liveMode = configStore.getEffective('ff_authorize_simulated') === 'false';
+
+  // TODO: PAR (RFC 9126) implementation for live mode
+  // Currently: PingOne does not support RFC 9396 RAR, only PAR
+  // Live mode with PAR requires:
+  // 1. POST to /oauth2/par with auth payload
+  // 2. Receive request_uri
+  // 3. Use request_uri in token exchange
+  // For now: live mode returns not_implemented; simulator uses RAR
+
+  if (liveMode) {
+    return {
+      sim: null, useCaseId: null, status: 501, errorCode: 'par_not_implemented',
+      reason: 'PAR (RFC 9126) implementation pending. Use simulator mode (Live mode OFF).', tokenChainEvents: [],
+    };
+  }
+
   if (action === 'drift') {
     return runAttackSim('rar-exceeded', req, requestedAmount);
   }
