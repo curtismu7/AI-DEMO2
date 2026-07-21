@@ -1,6 +1,14 @@
 const request = require('supertest');
 const express = require('express');
 
+// getPingcliConfigPath() (routes/pingcli.js) needs these to resolve a
+// --config flag; setup.js deliberately never loads real PINGONE_* secrets
+// into tests. Without them, ensureAuthBootstrap() short-circuits with
+// "not configured" before ever calling execFile, for every cmd.auth command.
+process.env.PINGONE_ENVIRONMENT_ID = process.env.PINGONE_ENVIRONMENT_ID || 'test-env-id';
+process.env.PINGONE_WORKER_CLIENT_ID = process.env.PINGONE_WORKER_CLIENT_ID || 'test-client-id';
+process.env.PINGONE_WORKER_CLIENT_SECRET = process.env.PINGONE_WORKER_CLIENT_SECRET || 'test-client-secret';
+
 jest.mock('child_process', () => ({
   execFile: jest.fn((_bin, _args, _opts, cb) => {
     cb(null, '{"data":[]}', '');

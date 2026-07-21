@@ -184,16 +184,19 @@ describe('runIntentBindingDemo / runAttackSim — drift honors requestedAmount (
   });
 });
 
-// ── PG-path regression: RAR sims pin to the Demo Agent Gateway ───────────────
+// ── RAR on the real path: PingOne Authorize is the PDP ───────────────────────
 //
-// RFC 9396 RAR subset enforcement (rarEnforce.ts) and the flag-arming admin
-// API exist only on the Node Demo Agent Gateway — PingGateway (IG) forwards
-// straight to mcp-server with neither, and its McpProtectionFilter 403s the
-// Node-shaped sim token (insufficient_scope) before anything runs. So with
-// ff_mcp_gateway_pinggateway on, both intent-binding columns returned bogus
-// DENYs. These tests prove the RAR paths route to mcp_demo_gateway_url and
-// really push requireRarIntent there even when the PG flag is on.
-describe('RAR sims pin to the Demo Agent Gateway when ff_mcp_gateway_pinggateway is on', () => {
+// RAR sims call callToolViaGateway(null, ...) — they no longer pin to the
+// Demo Agent Gateway, they let it self-resolve whichever gateway is active
+// (PingGateway by default). PingGateway forwards TraT's RarAuthorizationDetails
+// (incl. RarMaxAmount) to PingOne Authorize, which is the sole RAR PDP on that
+// path. The Node Demo Agent Gateway's local requireRarIntent (rarEnforce.ts)
+// is an optional belt-and-suspenders PEP that only arms when PingGateway is
+// OFF (ff_mcp_gateway_pinggateway === 'false') AND ff_rar_gateway_enforcement
+// is ON — with PingGateway active, arming it would 403 the sim token before
+// Authorize ever sees the request (insufficient_scope on the Node-shaped
+// token), so _runRarExceeded deliberately skips it in that case.
+describe('RAR sims: PingOne Authorize enforces via the active gateway (self-resolved, not pinned)', () => {
   const DEMO_GW = 'http://demo-gw.example:3005';
   const MOCKED_PATHS = [
     '../../services/configStore',
@@ -229,11 +232,11 @@ describe('RAR sims pin to the Demo Agent Gateway when ff_mcp_gateway_pinggateway
   // jest.isolateModules window closes when its sync callback returns, so those
   // late requires would resolve OUTSIDE it and miss the mocks. Plain
   // resetModules + doMock keeps the registrations active for the whole test.
-  function mockPinnedDeps({ callToolImpl, gatewayEnforce = false }) {
+  function mockPinnedDeps({ callToolImpl, gatewayEnforce = false, pinggatewayOn = true }) {
     jest.resetModules();
     jest.doMock('../../services/configStore', () => ({
       getEffective: jest.fn((key) => {
-        if (key === 'ff_mcp_gateway_pinggateway') return 'true';
+        if (key === 'ff_mcp_gateway_pinggateway') return pinggatewayOn ? 'true' : 'false';
         if (key === 'mcp_demo_gateway_url') return DEMO_GW;
         if (key === 'pingone_resource_mcp_gateway_uri') return 'https://gateway.example/mcp';
         // Gateway-local RAR enforcement is opt-in; default OFF → PingOne Authorize enforces.
@@ -248,7 +251,10 @@ describe('RAR sims pin to the Demo Agent Gateway when ff_mcp_gateway_pinggateway
     }));
     jest.doMock('../../services/mcpGatewayClient', () => ({
       callToolViaGateway: jest.fn(callToolImpl),
-      getMcpGatewayHttpUrl: jest.fn(() => 'https://pinggateway.example'),
+      // Real getMcpGatewayHttpUrl() resolves mcp_demo_gateway_url when PingGateway
+      // is off — mirror that branch so _pushGatewayFlags's fallback (no explicit
+      // gatewayUrl passed) targets DEMO_GW in the pinggatewayOn:false scenario.
+      getMcpGatewayHttpUrl: jest.fn(() => (pinggatewayOn ? 'https://pinggateway.example' : DEMO_GW)),
     }));
     jest.doMock('../../routes/mcpGatewayConfig', () => ({
       pushGatewayAdminConfig: jest.fn().mockResolvedValue({ ok: true }),
@@ -268,14 +274,15 @@ describe('RAR sims pin to the Demo Agent Gateway when ff_mcp_gateway_pinggateway
     session: { oauthTokens: { accessToken: 'user-access-token' }, user: { sub: 'user-1' } },
   };
 
-  test('drift: tool call goes to mcp_demo_gateway_url; gateway NOT armed by default (PingOne Authorize enforces RAR)', async () => {
+  test('drift: tool call self-resolves the active gateway (null pin); gateway NOT armed by default (PingOne Authorize enforces RAR)', async () => {
     const denyErr = Object.assign(new Error('rar exceeded'), { code: 'rar_amount_exceeded', httpStatus: 403 });
     const { run, callToolViaGateway, pushGatewayAdminConfig } =
       mockPinnedDeps({ callToolImpl: jest.fn().mockRejectedValue(denyErr) });
 
     const result = await run('drift', req, 500);
     expect(callToolViaGateway).toHaveBeenCalledTimes(1);
-    expect(callToolViaGateway.mock.calls[0][0]).toBe(DEMO_GW);
+    // null → callToolViaGateway resolves whichever gateway is active itself.
+    expect(callToolViaGateway.mock.calls[0][0]).toBe(null);
     // Default OFF: the gateway's local requireRarIntent is not armed — the RAR cap
     // is enforced by PingOne Authorize's RarMaxAmount rule instead.
     expect(pushGatewayAdminConfig).not.toHaveBeenCalledWith(DEMO_GW, { requireRarIntent: true });
@@ -283,10 +290,13 @@ describe('RAR sims pin to the Demo Agent Gateway when ff_mcp_gateway_pinggateway
     expect(result.errorCode).toBe('rar_amount_exceeded');
   });
 
-  test('drift: with ff_rar_gateway_enforcement ON, the gateway IS armed (belt-and-suspenders)', async () => {
+  test('drift: with ff_rar_gateway_enforcement ON and PingGateway off, the Demo Agent Gateway IS armed (belt-and-suspenders)', async () => {
     const denyErr = Object.assign(new Error('rar exceeded'), { code: 'rar_amount_exceeded', httpStatus: 403 });
+    // armGateway requires !usePingGateway — local requireRarIntent arming only
+    // applies to the Demo Agent Gateway; when PingGateway is active, RAR
+    // enforcement is P1AZ's call alone (see _runRarExceeded).
     const { run, pushGatewayAdminConfig } =
-      mockPinnedDeps({ callToolImpl: jest.fn().mockRejectedValue(denyErr), gatewayEnforce: true });
+      mockPinnedDeps({ callToolImpl: jest.fn().mockRejectedValue(denyErr), gatewayEnforce: true, pinggatewayOn: false });
 
     const result = await run('drift', req, 500);
     expect(pushGatewayAdminConfig).toHaveBeenCalledWith(DEMO_GW, { requireRarIntent: true });
@@ -294,17 +304,17 @@ describe('RAR sims pin to the Demo Agent Gateway when ff_mcp_gateway_pinggateway
     expect(result.errorCode).toBe('rar_amount_exceeded');
   });
 
-  test('permit: account discovery + transfer both go to mcp_demo_gateway_url and a within-cap request PERMITs', async () => {
+  test('permit: account discovery + transfer both self-resolve the active gateway (null pin) and a within-cap request PERMITs', async () => {
     const { run, callToolViaGateway, pushGatewayAdminConfig } =
       mockPinnedDeps({ callToolImpl: jest.fn().mockResolvedValue({ ok: true }) });
 
     const result = await run('permit', req, 80);
     // First call discovers the token's own accounts, second is the transfer —
-    // both must hit the pinned Demo Agent Gateway.
+    // both let callToolViaGateway resolve the active gateway itself.
     expect(callToolViaGateway).toHaveBeenCalledTimes(2);
-    expect(callToolViaGateway.mock.calls[0][0]).toBe(DEMO_GW);
+    expect(callToolViaGateway.mock.calls[0][0]).toBe(null);
     expect(callToolViaGateway.mock.calls[0][2]).toBe('get_my_accounts');
-    expect(callToolViaGateway.mock.calls[1][0]).toBe(DEMO_GW);
+    expect(callToolViaGateway.mock.calls[1][0]).toBe(null);
     expect(callToolViaGateway.mock.calls[1][2]).toBe('create_transfer');
     // Default OFF: gateway not armed; PingOne Authorize is the RAR enforcement point.
     expect(pushGatewayAdminConfig).not.toHaveBeenCalledWith(DEMO_GW, { requireRarIntent: true });

@@ -241,8 +241,6 @@ function useBankingSource() {
   const [lastInvoke, setLastInvoke] = useState(null);
   const [lastTiming, setLastTiming] = useState(null);
   const [needsLogin, setNeedsLogin] = useState(false);
-  const [mfaRequired, setMfaRequired] = useState(false);
-  const [stepUpMethod, setStepUpMethod] = useState('');
   const [busy, setBusy] = useState(false);
   const [outputTab, setOutputTab] = useState('response');
   const [mcpHistory, setMcpHistory] = useState(getCalls);
@@ -264,8 +262,6 @@ function useBankingSource() {
             ? { local: false }
             : null,
       );
-      setMfaRequired(!!data.mfa_required);
-      setStepUpMethod(data.step_up_method || '');
       setSelectedTool(null);
       setLastInvoke(null);
       setLastTiming(null);
@@ -275,7 +271,6 @@ function useBankingSource() {
       notifyError(formatAxiosError(e, 'BFF unreachable - showing static tool catalog'));
       setTools(BANKING_STATIC_TOOLS);
       setToolsSourceInfo({ local: true, reason: 'bff_unreachable' });
-      setMfaRequired(false);
     } finally {
       setLoadingTools(false);
     }
@@ -424,13 +419,6 @@ function useBankingSource() {
     ),
     middle: (
       <>
-        {mfaRequired && (
-          <div style={{ background: '#eff6ff', color: '#1e40af', padding: '8px 20px', fontSize: 12 }}>
-            <strong>Step-up verification required.</strong>{' '}
-            This session needs MFA step-up{stepUpMethod ? ` (${stepUpMethod})` : ''} before tools/list can run.
-            Complete step-up verification, then refresh.
-          </div>
-        )}
         {needsLogin && (
           <div style={{ background: '#fef2f2', color: '#991b1b', padding: '8px 20px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
             <strong>Sign in required.</strong> This tools/call needs a valid BFF session.

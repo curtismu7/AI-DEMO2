@@ -343,12 +343,15 @@ router.get('/tools/events', requireSession, (req, res) => {
 });
 
 // GET /api/mcp/inspector/tools — live tools/list from MCP server, or local catalog when no MCP bearer / MCP down
-//
-// No step-up MFA gate here: this route only lists tool names/schemas for the
-// Inspector UI, it never executes anything. The actual money-movement step-up
-// gate (runtimeSettings.stepUpEnabled) still applies at transaction time in
-// mcpLocalTools.js / routes/transactions.js — unchanged by this route.
 router.get('/tools', async (req, res) => {
+  // tools/list is read-only metadata (names + schemas, no execution, no account
+  // data) — it does not need step-up MFA. The real agent only requires step-up
+  // for the specific write actions in runtimeSettings.stepUpTransactionTypes
+  // (transfer/withdrawal), enforced at invocation time in mcpLocalTools.js's
+  // checkLocalStepUp() and by the PingOne Authorize obligation on the live
+  // path — both untouched by this route and still gate those tool calls
+  // (including when invoked via this inspector's own POST /invoke).
+
   // Non-default profile: dispatch to its transport (mcpTransports/*) instead
   // of the banking-server discovery flow below. Omitted/default profile id
   // falls through to the existing behavior unchanged.
