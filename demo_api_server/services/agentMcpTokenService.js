@@ -1283,7 +1283,7 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   const ffTwoExchange = sessionExchangeMode !== 'single';
   if (ffTwoExchange) {
     return await _performTwoExchangeDelegation(
-      tokenEvents, userToken, finalScopes, userSub, toolTrigger, mcpResourceUri, req
+      tokenEvents, userToken, finalScopes, userSub, toolTrigger, mcpResourceUri, req, opts
     );
   }
   // ────────────────────────────────────────────────────────────────────
@@ -2021,7 +2021,7 @@ async function _resolveFinalMcpAudience(gatewayAud, mcpServerAud) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function _performTwoExchangeDelegation(
-  tokenEvents, userToken, effectiveToolScopes, userSub, toolTrigger, mcpResourceUri, req
+  tokenEvents, userToken, effectiveToolScopes, userSub, toolTrigger, mcpResourceUri, req, opts = {}
 ) {
   // ── RFC 8693 §2.1: Two-Exchange Delegation Configuration Validation
   let configResult;
@@ -2284,7 +2284,13 @@ async function _performTwoExchangeDelegation(
   // completes the exchange to the mcp-server audience itself and the IG skips its
   // exchange (signaled by X-BFF-Exchanged; see mcpGatewayClient). Only meaningful
   // when routing through PingGateway; unset/true preserves today's behavior exactly.
-  const routeViaPingGateway = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
+  //
+  // opts.forceDirectMcpAudience: callers whose transport always dials the raw
+  // MCP server directly (e.g. the Banking Inspector's WS client, which never
+  // routes through PingGateway regardless of this flag) set this to skip the
+  // gateway-audience override below and fall through to twoExFinalAud, which
+  // already resolves correctly for direct/bypass mode.
+  const routeViaPingGateway = !opts.forceDirectMcpAudience && configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
   const gatewayBrokeredExchange = configStore.getEffective('ff_gateway_brokered_exchange') !== 'false';
   const usePingGatewayForExchange = routeViaPingGateway && gatewayBrokeredExchange;
   const pingGatewayResourceAud = usePingGatewayForExchange
