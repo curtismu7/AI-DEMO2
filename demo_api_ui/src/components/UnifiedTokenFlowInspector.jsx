@@ -155,12 +155,6 @@ function getEventAudience(event) {
   return Array.isArray(aud) ? aud.join(', ') : aud;
 }
 
-function statusBadge(status) {
-  const labels = { pending: 'Waiting', active: 'In progress', done: 'Done', error: 'Issue' };
-  const cls = `utfi-badge utfi-badge--${status}`;
-  return <span className={cls}>{labels[status] || status}</span>;
-}
-
 // ============================================================================
 // LEFT/MIDDLE/RIGHT: FLOW & TOKENS TAB — hybrid tree via InspectorShell
 // ============================================================================
@@ -351,7 +345,7 @@ function FlowTokensPanel({ onOpenClaimsModal }) {
         )}
         {activeRightTab === 'raw' && (
           <pre className="inspector-shell-output-code">
-            {selectedNode ? JSON.stringify(selectedNode.data, null, 2) : 'Nothing selected yet.'}
+            {selectedNode ? <JsonHighlight value={selectedNode.data} /> : 'Nothing selected yet.'}
           </pre>
         )}
         {activeRightTab === 'glossary' && (
@@ -383,6 +377,21 @@ function FlowTokensPanel({ onOpenClaimsModal }) {
           }}
         >
           {utfiPathLabel}
+          {utfiCredentialPath === 'oauth_bearer' && (
+            <span style={{ fontWeight: 400, marginLeft: 6, color: '#334155' }}>
+              — RFC 8693 exchange, banking_resource_server /accounts /transactions
+            </span>
+          )}
+          {utfiCredentialPath === 'api_key' && (
+            <span style={{ fontWeight: 400, marginLeft: 6, color: '#334155' }}>
+              — X-API-Key swap, no backend call
+            </span>
+          )}
+          {utfiCredentialPath === 'dual_token' && (
+            <span style={{ fontWeight: 400, marginLeft: 6, color: '#334155' }}>
+              — user bearer validated + id_token decoded at banking_resource_server /identity
+            </span>
+          )}
         </div>
       )}
       <InspectorReplayBar

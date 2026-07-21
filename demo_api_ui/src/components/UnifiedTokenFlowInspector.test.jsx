@@ -72,6 +72,6 @@ describe('UnifiedTokenFlowInspector — Flow & Tokens tab (hybrid tree)', () => 
       expect(screen.getByText(/AUTHORIZATION/)).toBeInTheDocument();
     });
     expect(container.querySelector('.inspector-shell-tree-item__dot--sensitive')).toBeInTheDocument();
-    expect(screen.getByText('Denied').parentElement.querySelector('strong').textContent).not.toBe('0');
+    expect(screen.getByText('Denied').querySelector('strong').textContent).not.toBe('0');
   });
 });
