@@ -32,7 +32,8 @@ router.get('/feature-flags/weather-mcp-showcase', (req, res) => {
   }
 
   const raw = configStore.getEffective('ff_weather_mcp_showcase');
-  const enabled = (raw === null || raw === undefined) ? true : (raw === true || raw === 'true');
+  const isUnset = raw === null || raw === undefined || raw === '';
+  const enabled = isUnset ? true : (raw === true || raw === 'true');
   return res.json({ enabled });
 });
 
