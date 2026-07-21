@@ -6,10 +6,10 @@
 //   2. Raw container logs — the IG stdout (introspection, [P1AZ] REQUEST/RESPONSE/
 //      DECISION, token exchange), read by the BFF over the docker socket.
 //
-// Backend (admin-only): GET /api/admin/agent-gateway/decisions,
-//                       GET /api/admin/agent-gateway/logs?tail=&filter=
+// Backend (any signed-in user): GET /api/admin/agent-gateway/decisions,
+//                                GET /api/admin/agent-gateway/logs?tail=&filter=
 //
-// Admin-only surface; reuses McpGatewayConfig.css (mgc-*) for styling.
+// Reuses McpGatewayConfig.css (mgc-*) for styling.
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import apiClient from '../services/apiClient';
@@ -99,7 +99,7 @@ export default function AgentGatewayLogPanel() {
       <p className="mgc-field-hint">
         Live view of the PingGateway (IG) container: recent authorize decisions and the
         raw gateway log (introspection, <code>[P1AZ]</code> decision calls, token exchange).
-        Read by the BFF over the docker socket — admin only.
+        Read by the BFF over the docker socket.
       </p>
 
       {/* Recent decisions */}
