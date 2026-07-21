@@ -1,5 +1,5 @@
 // demo_api_ui/src/components/shared/InspectorShell.jsx
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import './InspectorShell.css';
 
 const WIDTHS_KEY = 'inspector-shell-panel-widths';
@@ -75,6 +75,14 @@ export default function InspectorShell({
     },
     [widths, onDragMove, onDragEnd],
   );
+
+  // If the component unmounts mid-drag (e.g. a route change while the mouse
+  // button is still held), remove the listeners added in onDragStart so they
+  // don't linger on `document` for the rest of the SPA session.
+  useEffect(() => () => {
+    document.removeEventListener('mousemove', onDragMove);
+    document.removeEventListener('mouseup', onDragEnd);
+  }, [onDragMove, onDragEnd]);
 
   return (
     <div className="inspector-shell-page">
