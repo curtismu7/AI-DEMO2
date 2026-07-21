@@ -6,6 +6,7 @@ import apiClient from '../services/apiClient';
 import { notifyError } from '../utils/appToast';
 import { formatAxiosError } from '../utils/formatAxiosError';
 import JsonHighlight from './shared/JsonHighlight';
+import JsonFormView from './shared/JsonFormView';
 import InspectorShell from './shared/InspectorShell';
 import InspectorTabs from './shared/InspectorTabs';
 
@@ -565,6 +566,7 @@ export default function AgentGatewayTester() {
               { key: 'audit', label: 'Audit Trail' },
               { key: 'authorize', label: 'Authorize Decision' },
               { key: 'mcpAudit', label: 'McpAudit (5W1H)' },
+              { key: 'form', label: 'Form' },
             ]}
             activeKey={outputTab}
             onChange={setOutputTab}
@@ -574,6 +576,7 @@ export default function AgentGatewayTester() {
               <div className="inspector-shell-output-body">
                 <pre className="inspector-shell-output-code">
                   {outputTab === 'result' && <JsonHighlight value={resultValue} />}
+                  {outputTab === 'form' && <JsonFormView value={resultValue} />}
                   {outputTab === 'audit' && (
                     <JsonHighlight value={resp.gwAuditTrail || { note: 'No audit trail on this response.' }} />
                   )}
