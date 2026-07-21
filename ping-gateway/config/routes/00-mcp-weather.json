@@ -1,0 +1,33 @@
+{
+  "name": "mcp-weather-primary",
+  "condition": "${find(request.uri.path, '^/mcp/weather')}",
+  "handler": {
+    "type": "Chain",
+    "config": {
+      "filters": [
+        {
+          "name": "McpAudit",
+          "type": "McpAuditFilter",
+          "config": { "auditService": "AuditService" }
+        },
+        {
+          "name": "StripWeatherPrefix",
+          "type": "UriPathRewriteFilter",
+          "config": {
+            "mappings": { "^/mcp/weather(.*)$": "/mcp$1" }
+          }
+        },
+        "rsFilter",
+        {
+          "name": "McpProtocol",
+          "type": "McpValidationFilter",
+          "config": { "acceptedOrigins": ".*", "metricsEnabled": true }
+        }
+      ],
+      "handler": {
+        "type": "ReverseProxyHandler",
+        "config": { "baseURI": "${env['PG_WEATHER_BACKEND_URL']}" }
+      }
+    }
+  }
+}
