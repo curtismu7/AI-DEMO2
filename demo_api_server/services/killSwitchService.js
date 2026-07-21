@@ -361,15 +361,21 @@ async function getAgentRefreshToken(agentId) {
 
 /**
  * Main kill switch function: revoke agent token and capture state
- * @param {string} agentId 
+ * @param {string} agentId
  * @param {string} reason - Reason for kill switch activation
- * @returns {Promise<{success: boolean, revoked_at: string, state_snapshot_id: string, time_to_revoke_ms: number}>}
+ * @param {string} [userId] - PingOne user id, for disableUserAtPingOne
+ * @param {{accessToken?: string, idToken?: string}} [oauthTokens]
+ * @param {'full'|'instance'} [scope] - 'instance' skips disableAgentApplicationsAtPingOne
+ *   so only THIS caller is stopped — other users of the same agent client keep working.
+ *   'full' (default) also disables the agent's PingOne application(s).
+ * @returns {Promise<{success: boolean, revoked_at: string, state_snapshot_id: string, time_to_revoke_ms: number, scope: string, steps: Array}>}
  */
-async function killAgent(agentId, reason = 'manual_red_button', userId = null, oauthTokens = null) {
+async function killAgent(agentId, reason = 'manual_red_button', userId = null, oauthTokens = null, scope = 'full') {
   const startTime = Date.now();
+  const steps = [];
 
   try {
-    console.log(`[killSwitch] Executing kill switch for agent ${agentId}. Reason: ${reason}`);
+    console.log(`[killSwitch] Executing kill switch for agent ${agentId}. Reason: ${reason}. Scope: ${scope}`);
     killAgent._userId = userId || null;
 
     // 1. Revoke access_token + id_token at PingOne (form-encoded, RFC 7009)
@@ -379,25 +385,83 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
     if (!revokeResult.revoked) {
       console.warn(`[killSwitch] Token revocation returned revoked=false — proceeding with session invalidation`);
     }
+    steps.push({
+      key: 'token_revocation',
+      label: 'Revoke OAuth tokens at PingOne',
+      detail: revokeResult.revoked
+        ? 'Access/ID token revoked (RFC 7009) — already-issued tokens are now invalid.'
+        : 'No valid access/ID token found on this session to revoke.',
+      ran: true,
+      skipped: false,
+    });
 
     // 2. Disable the user at PingOne (belt-and-suspenders — token is revoked but user could re-login)
     //    userId must be passed in for this to work; agentId alone is not enough.
+    let userDisableResult = null;
     if (killAgent._userId) {
-      await disableUserAtPingOne(killAgent._userId);
+      userDisableResult = await disableUserAtPingOne(killAgent._userId);
       killAgent._userId = null;
     }
+    steps.push({
+      key: 'user_disable',
+      label: 'Disable the PingOne user account',
+      detail: userDisableResult
+        ? (userDisableResult.disabled
+          ? 'User account disabled — cannot sign back in and mint a fresh token.'
+          : `Could not disable user account: ${userDisableResult.reason}`)
+        : 'No user id on this session — nothing to disable.',
+      ran: !!(userDisableResult && userDisableResult.disabled),
+      skipped: !userDisableResult,
+      skipReason: userDisableResult ? undefined : 'no_user_id',
+    });
 
     // 2.5 Disable the agent's PingOne applications — identity-layer kill.
     //     Stops NEW token issuance to the agent (revocation only covers
     //     already-issued tokens). Stays disabled until an admin re-enables.
-    const applicationsDisabled = await disableAgentApplicationsAtPingOne();
+    //     Scoped: this hits AGENT_CLIENT_ID/PINGONE_AI_AGENT_CLIENT_ID directly,
+    //     which is shared by every user of that agent identity — skip it for
+    //     scope='instance' so a single rogue caller doesn't take the client down
+    //     for everyone else.
+    let applicationsDisabled = [];
+    if (scope === 'instance') {
+      steps.push({
+        key: 'app_disable',
+        label: "Disable the agent's PingOne application",
+        detail: 'Skipped — instance-only scope. The agent client stays enabled so other users are unaffected.',
+        ran: false,
+        skipped: true,
+        skipReason: 'instance_scope',
+      });
+    } else {
+      applicationsDisabled = await disableAgentApplicationsAtPingOne();
+      const anyDisabled = applicationsDisabled.some((a) => a.disabled);
+      steps.push({
+        key: 'app_disable',
+        label: "Disable the agent's PingOne application",
+        detail: applicationsDisabled.length === 0
+          ? 'No agent application configured — nothing to disable.'
+          : (anyDisabled
+            ? 'Application disabled — blocks new tokens for ALL users of this agent client.'
+            : 'Failed to disable the agent application(s).'),
+        ran: applicationsDisabled.length > 0,
+        skipped: applicationsDisabled.length === 0,
+        skipReason: applicationsDisabled.length === 0 ? 'no_app_configured' : undefined,
+      });
+    }
 
     // 3. Capture state BEFORE invalidating sessions
     const stateSnapshot = await captureAgentState(agentId);
     const stateSnapshotId = crypto.randomBytes(8).toString('hex');
 
     // 3. Invalidate sessions in Redis
-    await invalidateSessionsInRedis(agentId);
+    const sessionResult = await invalidateSessionsInRedis(agentId);
+    steps.push({
+      key: 'session_invalidate',
+      label: "Invalidate this agent's local sessions",
+      detail: `${sessionResult.invalidated} session key(s) removed from the local session store.`,
+      ran: true,
+      skipped: false,
+    });
 
     // 4. Mark agent as revoked in session store
     try {
@@ -411,6 +475,13 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
 
     // 5. Record kill event in audit log
     await auditLogService.recordKillEvent(agentId, reason, stateSnapshot, timeToRevoke, stateSnapshotId);
+    steps.push({
+      key: 'audit_log',
+      label: 'Write immutable audit record',
+      detail: 'Kill event recorded with reason, timing, and the state snapshot for forensic review.',
+      ran: true,
+      skipped: false,
+    });
 
     const result = {
       success: true,
@@ -418,6 +489,8 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
       state_snapshot_id: stateSnapshotId,
       time_to_revoke_ms: timeToRevoke,
       applications_disabled: applicationsDisabled,
+      scope,
+      steps,
     };
 
     console.log(`[killSwitch] Kill switch completed for agent ${agentId} in ${timeToRevoke}ms`);
