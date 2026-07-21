@@ -165,6 +165,27 @@ describe('attack sims reaching PingOne Authorize run through the full pipeline',
     expect(result.authorize == null).toBe(true);
   });
 
+  test('cross-owner (UC10): MCP/API ownership error in kind:result is DENY, not unexpected_permit', async () => {
+    mockRunPipelineForSim.mockResolvedValue({
+      kind: 'result',
+      httpStatus: 200,
+      tokenEvents: [buildTokenEvent('user-token', 'User access token', 'active', null, 'issued')],
+      body: {
+        result: {
+          isError: true,
+          content: [{ type: 'text', text: 'Access denied — not your account' }],
+        },
+      },
+    });
+
+    const result = await runAttackSim('cross-owner-account', makeReq());
+
+    expect(result.status).toBe(403);
+    expect(result.errorCode).toBe('resource_owner_mismatch');
+    expect(result.tokenChainEvents.some((e) => e.id === 'sim-cross-owner-denied')).toBe(true);
+    expect(result.tokenChainEvents.some((e) => e.id === 'sim-gateway-unexpected-permit')).toBe(false);
+  });
+
   test('unexpected permit: pipeline result surfaces a warning, not a silent success', async () => {
     mockRunPipelineForSim.mockResolvedValue({
       kind: 'result', httpStatus: 200,

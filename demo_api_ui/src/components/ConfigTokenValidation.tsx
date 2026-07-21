@@ -349,15 +349,14 @@ PINGONE_WORKER_CLIENT_SECRET=your-worker-client-secret`}</pre>
 
       {/* Informational links */}
       <div className={styles.infoFooter}>
-        <span>📖 </span>
-        <button
-          type="button"
-          onClick={() => {}}
-          title="See docs/INTROSPECTION_VALIDATION_GUIDE.md for full documentation"
-          style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', textDecoration: 'underline' }}
+        <a
+          href="https://github.com/curtismu7/AI-DEMO2/blob/main/docs/INTROSPECTION_VALIDATION_GUIDE.md"
+          target="_blank"
+          rel="noreferrer"
+          title="Open Introspection vs JWT validation guide"
         >
           Introspection vs JWT validation guide
-        </button>
+        </a>
         {' · '}
         <a href="/api/health" target="_blank" rel="noreferrer">
           Full health status

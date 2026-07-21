@@ -282,6 +282,7 @@ Granted scopes: — (none; resource-server or worker app)
 | `get_my_transactions` | gateway | `read` | — |
 | `get_sensitive_account_details` | gateway | `read` `sensitive:read` | consent |
 | `sequential_think` | gateway | `read` | — |
+| `jwt_decode_full` | gateway | `read` | — |
 | `get_investment_balance` | gateway | `invest:read` | — |
 | `get_investment_accounts` | gateway | `invest:read` | — |
 | `get_investment_transactions` | gateway | `invest:read` | — |

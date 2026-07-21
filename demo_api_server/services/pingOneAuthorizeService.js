@@ -885,9 +885,11 @@ function getAuthorizationPoliciesFromSnapshot() {
   const fs = require('fs');
   const path = require('path');
   const candidates = [
+    // Docker image: COPY … /snapshots/… (see demo_api_server/Dockerfile)
+    '/snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json',
     // Native run: demo_api_server/services → repo root snapshots/
     path.join(__dirname, '..', '..', 'snapshots', 'Super_Banking_Transaction_Authorization_P1AZ.snapshot.json'),
-    // Docker image: COPY snapshots/ ./snapshots/ lands beside the app code
+    // Alternate Docker layout: snapshots beside the app code
     path.join(__dirname, '..', 'snapshots', 'Super_Banking_Transaction_Authorization_P1AZ.snapshot.json'),
   ];
   const file = candidates.find((p) => { try { return fs.existsSync(p); } catch (_) { return false; } });

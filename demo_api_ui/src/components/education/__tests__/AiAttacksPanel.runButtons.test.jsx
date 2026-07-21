@@ -6,7 +6,7 @@
  * already listens for (see AIAgent.js — 'banking-run-showcase' and
  * 'banking-agent-prefill'), and close the drawer so the agent is visible.
  * When no agent is mounted (window.__bankingAgentMounted unset), the button
- * must persist the pending run to sessionStorage and navigate to /admin.
+ * must persist the pending run to sessionStorage and navigate to /dashboard.
  */
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
@@ -145,7 +145,7 @@ describe('AiAttacksPanel — no-agent fallback (flag unset)', () => {
       screen.getByRole('button', { name: /run this attack in the live agent/i }),
     );
 
-  it('showcase tab persists the pending run and navigates to /admin', () => {
+  it('showcase tab persists the pending run and navigates to /dashboard', () => {
     const onClose = vi.fn();
     renderPanel({ onClose, initialTabId: 'scope-abuse' });
     clickRun();
@@ -154,14 +154,14 @@ describe('AiAttacksPanel — no-agent fallback (flag unset)', () => {
       type: 'showcase',
       payload: { showcase: 'atk_scope_escalation', label: 'Scope Abuse' },
     });
-    expect(assignMock).toHaveBeenCalledWith('/admin');
+    expect(assignMock).toHaveBeenCalledWith('/dashboard');
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('catalog tab ignores the agent-mounted flag — router state works from any route', async () => {
     // kind:'catalog' navigates with location.state, which the dashboard-mounting
-    // agent consumes (AIAgent.js:966) — no sessionStorage handoff, no /admin
-    // reload, regardless of window.__bankingAgentMounted.
+    // agent consumes (AIAgent.js) — no sessionStorage handoff, no full reload,
+    // regardless of window.__bankingAgentMounted.
     const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => ({ useCaseId: 'hitl-consent-bypass-attempt', triggerText: 'transfer $600 from checking to savings', type: 'chip' }),

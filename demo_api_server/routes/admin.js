@@ -856,7 +856,7 @@ router.post(
   async (req, res) => {
     try {
       const { agentId } = req.params;
-      const { reason = 'manual_red_button' } = req.body;
+      const { reason = 'manual_red_button', scope = 'full' } = req.body;
 
       // Validation
       if (!agentId || typeof agentId !== 'string' || agentId.trim().length === 0) {
@@ -873,6 +873,13 @@ router.post(
         });
       }
 
+      if (scope !== 'full' && scope !== 'instance') {
+        return res.status(400).json({
+          error: 'invalid_scope',
+          message: "scope must be 'full' or 'instance'",
+        });
+      }
+
       // Check if already revoked
       const isRevoked = await killSwitchService.isAgentRevoked(agentId);
       if (isRevoked) {
@@ -885,7 +892,7 @@ router.post(
       // Execute kill switch — pass userId and session tokens for revocation at PingOne
       const userId = req.session?.user?.oauthId || req.session?.user?.id || null;
       const oauthTokens = req.session?.oauthTokens || null;
-      const result = await killSwitchService.killAgent(agentId, reason, userId, oauthTokens);
+      const result = await killSwitchService.killAgent(agentId, reason, userId, oauthTokens, scope);
 
       // Destroy admin session — token is revoked, session is now invalid
       req.session.destroy(() => {});
@@ -897,6 +904,8 @@ router.post(
         revoked_at: result.revoked_at,
         state_snapshot_id: result.state_snapshot_id,
         time_to_revoke_ms: result.time_to_revoke_ms,
+        scope: result.scope,
+        steps: result.steps,
         message: `Agent stopped. Session revoked. Please sign in again.`,
       });
 

@@ -24,7 +24,15 @@ const SERVER_INVENTORY = [
     key: 'ui', name: 'Banking UI', container: 'ai-demo-ui',
     hostPort: 4000, internalPort: 4000, lang: 'React/Vite + nginx', category: 'core', sourceDir: 'demo_api_ui', probe: true,
     healthPath: '/', acceptAnyStatus: true,
-    candidates: candidates('https://ui:4000', 'https://localhost:4000'),
+    // Compose service is `ui`; k8s Service is `frontend` (10-frontend-deployment.yaml).
+    // Without `frontend`, /check from the in-cluster BFF reports Banking UI ECONNREFUSED
+    // while ingress is still serving that UI to the browser (REGRESSION 2026-07-16).
+    candidates: candidates(
+      env('UI_URL'),
+      'https://ui:4000',
+      'https://frontend:4000',
+      'https://localhost:4000',
+    ),
     purpose: 'The demo web app, served over HTTPS.',
   },
   {

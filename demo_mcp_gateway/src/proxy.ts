@@ -11,6 +11,7 @@
 
 import * as https from 'https';
 import WebSocket from 'ws';
+import axios from 'axios';
 import { getCorrelationId } from './correlationContext';
 
 export interface MtlsOptions {
@@ -149,4 +150,71 @@ export function proxyJsonRpc(
       clearTimeout(handshakeTimer);
     });
   });
+}
+
+const MCP_SESSION_HEADER = 'mcp-session-id';
+const MCP_PROTO_HEADER = 'mcp-protocol-version';
+
+/**
+ * JSON-RPC proxy: forward a single request to a backend MCP server over
+ * Streamable HTTP (MCP 2025-11-25 §Streamable HTTP), for backends that speak
+ * HTTP instead of WebSocket (e.g. demo_mcp_jwt_verifier / FastMCP). Mirrors
+ * proxyJsonRpc's WS handshake (initialize → notifications/initialized →
+ * method) so it's a drop-in HTTP sibling with the same request/response
+ * contract.
+ */
+export async function proxyJsonRpcHttp(
+  backendHttpUrl: string,
+  backendToken: string,
+  request: JsonRpcRequest,
+  xTratContext?: string,
+): Promise<JsonRpcResponse> {
+  const upstreamUrl = `${backendHttpUrl.replace(/\/$/, '')}/mcp`;
+  const baseHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json, text/event-stream',
+    Authorization: `Bearer ${backendToken}`,
+    [MCP_PROTO_HEADER]: MCP_PROTOCOL_VERSION,
+  };
+  if (xTratContext) baseHeaders['X-TraT-Context'] = xTratContext;
+
+  const _cid = getCorrelationId();
+  const initParams: Record<string, unknown> = {
+    protocolVersion: MCP_PROTOCOL_VERSION,
+    capabilities: {},
+    clientInfo: { name: 'banking-mcp-gateway', version: '1.0.0' },
+  };
+  if (_cid) initParams.correlationId = _cid;
+
+  const initResp = await axios.post(
+    upstreamUrl,
+    JSON.stringify({ jsonrpc: '2.0', id: 'gw-init', method: 'initialize', params: initParams }),
+    { headers: baseHeaders, timeout: HANDSHAKE_TIMEOUT_MS, validateStatus: () => true },
+  );
+
+  const headers = { ...baseHeaders };
+  const sessionId = initResp.headers[MCP_SESSION_HEADER] as string | undefined;
+  if (sessionId) {
+    headers[MCP_SESSION_HEADER] = sessionId;
+    await axios.post(
+      upstreamUrl,
+      JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} }),
+      { headers, timeout: HANDSHAKE_TIMEOUT_MS, validateStatus: () => true },
+    );
+  }
+
+  let outRequest: JsonRpcRequest = request;
+  if (_cid) {
+    const existingParams = (request.params as Record<string, unknown>) || {};
+    if (!existingParams.correlationId) {
+      outRequest = { ...request, params: { ...existingParams, correlationId: _cid } };
+    }
+  }
+
+  const response = await axios.post(upstreamUrl, JSON.stringify(outRequest), {
+    headers,
+    timeout: CALL_TIMEOUT_MS,
+    validateStatus: () => true,
+  });
+  return response.data as JsonRpcResponse;
 }

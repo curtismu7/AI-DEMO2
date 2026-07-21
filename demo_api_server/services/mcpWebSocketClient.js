@@ -273,6 +273,18 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
           reject(err);
         });
 
+        // Server-side policy rejections (e.g. BankingMCPServer.handleConnection's
+        // authorizeLastHop check) close the socket cleanly with a reason instead of
+        // emitting a WS-level error — ws surfaces that as 'close', not 'error'. Without
+        // this handler the promise sat out the full 15s timeout below and reported the
+        // generic "MCP call timed out" instead of the real rejection reason.
+        ws.on('close', (code, reasonBuf) => {
+          clearTimeout(timeout);
+          const reason = (reasonBuf && reasonBuf.toString()) || '';
+          const suffix = reason ? `: ${reason}` : '';
+          reject(new Error(`MCP connection closed before response (code ${code}${suffix})`));
+        });
+
         ws.on('open', () => {
           const initParams = {
             protocolVersion: getMcpProtocolVersion(),

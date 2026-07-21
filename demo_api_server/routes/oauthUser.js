@@ -714,11 +714,9 @@ router.get('/callback', async (req, res) => {
         }
 
         const ssoParam = silentSso ? '&sso_silent=1' : '';
-        if (postLoginReturnToPath) {
-          res.redirect(`${origin}${postLoginReturnToPath}?oauth=success${ssoParam}`);
-        } else {
-          res.redirect(`${origin}/dashboard?oauth=success${ssoParam}`);
-        }
+        const returnPath = postLoginReturnToPath || '/dashboard';
+        res.redirect(`${origin}/success?return_to=${encodeURIComponent(returnPath)}&oauth=success${ssoParam}`);
+
       });
       });
     });
@@ -1252,6 +1250,40 @@ router.post('/verify-otp', async (req, res) => {
     console.log(`[OTP] Step-up verified for user ${req.session.user?.id}`);
     res.json({ verified: true });
   });
+});
+
+/**
+ * Update user preference to hide/show the success screen on login
+ */
+router.post('/user/success-screen-preference', (req, res) => {
+  try {
+    if (!req.session?.user?.id) {
+      return res.status(401).json({ error: 'not_authenticated' });
+    }
+
+    const { hideSuccessScreen } = req.body;
+    if (typeof hideSuccessScreen !== 'boolean') {
+      return res.status(400).json({ error: 'invalid_hideSuccessScreen' });
+    }
+
+    const dataStore = require('../data/store');
+    dataStore.updateUser(req.session.user.id, { hideSuccessScreen }).then(() => {
+      req.session.user.hideSuccessScreen = hideSuccessScreen;
+      req.session.save((err) => {
+        if (err) {
+          console.error('[success-screen-preference] Session save error:', err);
+          return res.status(500).json({ error: 'session_error' });
+        }
+        res.json({ hideSuccessScreen, message: 'Preference updated' });
+      });
+    }).catch((err) => {
+      console.error('[success-screen-preference] Update error:', err);
+      res.status(500).json({ error: 'update_failed' });
+    });
+  } catch (error) {
+    console.error('[success-screen-preference] Error:', error);
+    res.status(500).json({ error: 'server_error' });
+  }
 });
 
 module.exports = router;

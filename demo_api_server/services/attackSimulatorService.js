@@ -282,29 +282,10 @@ function _useCaseIdForSim(sim) {
 }
 
 /**
- * Resolve the Demo Agent Gateway (Node) URL directly, ignoring
- * ff_mcp_gateway_pinggateway. RFC 9396 RAR subset enforcement (rarEnforce.ts)
- * and the runtime flag-arming admin API exist ONLY on the Node gateway —
- * PingGateway (IG) forwards straight to mcp-server with neither — so the
- * RAR sims must reach the Node gateway no matter which gateway the rest of
- * the stack routes through. mcp_demo_gateway_url is the dedicated key for
- * this (MCP_GATEWAY_HTTP_URL is baked per-container and may point at IG).
- * @returns {string|null}
- */
-function _demoGatewayUrl() {
-  const url = process.env.MCP_DEMO_GATEWAY_URL
-    || configStore.getEffective('mcp_demo_gateway_url')
-    || '';
-  return url ? url.replace(/\/$/, '') : null;
-}
-
-/**
- * Push runtime gateway flags for UC14/15/16 demo arming (Demo Agent Gateway only).
+ * Push runtime gateway flags (Demo Agent Gateway admin API only).
+ * No-op when PingGateway is the active path — P1AZ owns RAR there.
  * @param {Record<string, boolean>} flags
- * @param {string} [gatewayUrl] - Explicit Demo Agent Gateway URL. When given,
- *   the flags are pushed there even with ff_mcp_gateway_pinggateway on —
- *   callers that pin their tool calls to the Node gateway need real arming,
- *   not the silent PG-path no-op below.
+ * @param {string} [gatewayUrl]
  * @returns {Promise<{ ok: boolean, error?: string }>}
  */
 async function _pushGatewayFlags(flags, gatewayUrl) {
@@ -457,6 +438,27 @@ function _denyFromPipeline(sim, useCaseId, tokenChainEvents, outcome, canonicalC
 
   stampUseCaseId(tokenChainEvents, useCaseId);
   return { sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents, ...(authorize ? { authorize } : {}) };
+}
+
+/**
+ * True when a pipeline `kind:'result'` Outcome still encodes a cross-owner
+ * denial (MCP isError text or local `{ error: 'Access denied…' }`). Ownership
+ * may be enforced at the banking API even when Authorize never saw
+ * ResourceOwnerId — do not treat that as unexpected_permit.
+ * @param {object} outcome
+ * @returns {boolean}
+ */
+function _isCrossOwnerDeniedResult(outcome) {
+  const result = outcome && outcome.body && outcome.body.result;
+  if (!result || typeof result !== 'object') return false;
+  const haystack = [
+    result.error,
+    result.message,
+    result.isError ? JSON.stringify(result.content || '') : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  return /access denied|not your account|resource_owner|only check your own/i.test(haystack);
 }
 
 /**
@@ -1078,6 +1080,34 @@ async function _runCrossOwnerAccount(subjectToken, useCaseId, tokenChainEvents, 
   }
 
   if (outcome.kind === 'result') {
+    // Defense in depth: even if Authorize was inert (ResourceOwnerId missing),
+    // the banking API / MCP layer may still return an ownership error as an
+    // MCP isError / local { error } result. Treat that as the expected DENY —
+    // never as unexpected_permit — so the showcase does not claim enforcement
+    // is off when the data plane correctly blocked the read.
+    if (_isCrossOwnerDeniedResult(outcome)) {
+      if (Array.isArray(outcome.tokenEvents)) tokenChainEvents.push(...outcome.tokenEvents);
+      tokenChainEvents.push(buildTokenEvent(
+        'sim-cross-owner-denied',
+        'Cross-owner balance read denied',
+        'deny',
+        null,
+        'Ownership check blocked get_account_balance for a foreign account_id '
+        + '(tool/API layer). Prefer Authorize ResourceOwnerId DENY when the BFF '
+        + 'gate populates ResourceOwnerId for this tool.',
+      ));
+      stampUseCaseId(tokenChainEvents, useCaseId);
+      const authorize = _authorizeFromPipelineOutcome(outcome, useCaseId);
+      return {
+        sim,
+        useCaseId,
+        status: 403,
+        errorCode: 'resource_owner_mismatch',
+        reason: 'requested resource belongs to a different user (resource-owner binding)',
+        tokenChainEvents,
+        ...(authorize ? { authorize } : {}),
+      };
+    }
     if (Array.isArray(outcome.tokenEvents)) tokenChainEvents.push(...outcome.tokenEvents);
     tokenChainEvents.push(buildTokenEvent(
       'sim-gateway-unexpected-permit',
@@ -1202,7 +1232,6 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
   const sim = 'rar-exceeded';
   const grantedAmount = 100;
   const finalAttackAmount = Number.isFinite(attackAmount) && attackAmount > 0 ? attackAmount : 500;
-  const demoGatewayUrl = _demoGatewayUrl();
 
   try {
     await configStore.setRaw({ ff_rar: 'true' });
@@ -1210,11 +1239,13 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
     return { sim, useCaseId, status: 500, errorCode: 'config_store_failed', reason: err.message, tokenChainEvents };
   }
 
-  // RAR is enforced by PingOne Authorize by default (RarMaxAmount rule). Only arm
-  // the gateway's local requireRarIntent check when ff_rar_gateway_enforcement is ON.
-  const armGateway = configStore.getEffective('ff_rar_gateway_enforcement') === 'true';
+  // PDP: PingOne Authorize RarMaxAmount. Optional Node-gateway requireRarIntent
+  // only when Demo GW is active AND ff_rar_gateway_enforcement is ON.
+  const usePingGateway = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
+  const armGateway = !usePingGateway
+    && configStore.getEffective('ff_rar_gateway_enforcement') === 'true';
   const pushResult = armGateway
-    ? await _pushGatewayFlags({ requireRarIntent: true }, demoGatewayUrl)
+    ? await _pushGatewayFlags({ requireRarIntent: true })
     : { ok: true };
   if (!pushResult.ok) {
     tokenChainEvents.push(buildTokenEvent(
@@ -1224,21 +1255,17 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
       null,
       pushResult.error || 'Could not arm requireRarIntent on gateway',
     ));
-  } else if (armGateway) {
-    tokenChainEvents.push(buildTokenEvent(
-      'sim-rar-armed',
-      'Gateway RAR enforcement armed (UC14)',
-      'active',
-      null,
-      'requireRarIntent enabled on Demo Agent Gateway for this burst (ff_rar_gateway_enforcement ON).',
-    ));
   } else {
     tokenChainEvents.push(buildTokenEvent(
       'sim-rar-armed',
       'RAR enforced by PingOne Authorize',
       'active',
       null,
-      'ff_rar_gateway_enforcement OFF — the RarMaxAmount rule in PingOne Authorize denies over-cap calls; gateway-local check not armed.',
+      usePingGateway
+        ? 'PingGateway forwards TraT RarMaxAmount to PingOne Authorize (PDP); gateway does not locally DENY RAR.'
+        : (armGateway
+          ? 'Demo Agent Gateway requireRarIntent armed (extra PEP); PingOne Authorize remains the PDP.'
+          : 'RarMaxAmount rule in PingOne Authorize denies over-cap calls.'),
     ));
   }
 
@@ -1274,15 +1301,14 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
   ));
 
   try {
+    // null → active gateway (PingGateway by default). P1AZ decides via RarMaxAmount.
     await callToolViaGateway(
-      demoGatewayUrl,
+      null,
       exchanged.token,
       'create_transfer',
       // from_account_id: required by the gateway's spec-§2 arg schema
-      // (mcp-tool-schemas.json) — without it the call 400s before RAR
-      // enforcement ever runs. The RAR subset check only constrains
-      // amount + payee (to_account_id), so the extra field cannot mask
-      // the overage this sim exists to demonstrate.
+      // (mcp-tool-schemas.json) — without it the call 400s before Authorize
+      // sees the amount. RAR constraints are amount + payee only.
       { amount: finalAttackAmount, from_account_id: 'sim-acc-002', to_account_id: 'sim-acc-001' },
       { tratContextHeader },
     );
@@ -1302,7 +1328,7 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
   } catch (err) {
     return _denyFromGateway(
       sim, useCaseId, tokenChainEvents, err, 403, 'rar_amount_exceeded',
-      'Gateway DENY (rar_amount_exceeded)',
+      'Authorize DENY (rar_amount_exceeded)',
     );
   }
 }
@@ -1317,7 +1343,6 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
   const sim = 'rar-permit';
   const grantedAmount = 100;
   const amount = Number.isFinite(requestedAmount) && requestedAmount > 0 ? requestedAmount : grantedAmount;
-  const demoGatewayUrl = _demoGatewayUrl();
 
   try {
     await configStore.setRaw({ ff_rar: 'true' });
@@ -1325,11 +1350,12 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
     return { sim, useCaseId, status: 500, errorCode: 'config_store_failed', reason: err.message, tokenChainEvents };
   }
 
-  // RAR is enforced by PingOne Authorize by default (RarMaxAmount rule). Only arm
-  // the gateway's local requireRarIntent check when ff_rar_gateway_enforcement is ON.
-  const armGateway = configStore.getEffective('ff_rar_gateway_enforcement') === 'true';
+  // PDP: PingOne Authorize. Optional Node requireRarIntent only on Demo GW path.
+  const usePingGateway = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
+  const armGateway = !usePingGateway
+    && configStore.getEffective('ff_rar_gateway_enforcement') === 'true';
   const pushResult = armGateway
-    ? await _pushGatewayFlags({ requireRarIntent: true }, demoGatewayUrl)
+    ? await _pushGatewayFlags({ requireRarIntent: true })
     : { ok: true };
   if (!pushResult.ok) {
     tokenChainEvents.push(buildTokenEvent(
@@ -1339,21 +1365,17 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
       null,
       pushResult.error || 'Could not arm requireRarIntent on gateway',
     ));
-  } else if (armGateway) {
-    tokenChainEvents.push(buildTokenEvent(
-      'sim-rar-armed',
-      'Gateway RAR enforcement armed (Intent Binding demo)',
-      'active',
-      null,
-      'requireRarIntent enabled on Demo Agent Gateway for this call (ff_rar_gateway_enforcement ON).',
-    ));
   } else {
     tokenChainEvents.push(buildTokenEvent(
       'sim-rar-armed',
       'RAR enforced by PingOne Authorize',
       'active',
       null,
-      'ff_rar_gateway_enforcement OFF — the RarMaxAmount rule in PingOne Authorize denies over-cap calls; gateway-local check not armed.',
+      usePingGateway
+        ? 'PingGateway forwards TraT RarMaxAmount to PingOne Authorize (PDP); within-cap calls PERMIT.'
+        : (armGateway
+          ? 'Demo Agent Gateway requireRarIntent armed (extra PEP); PingOne Authorize remains the PDP.'
+          : 'RarMaxAmount rule in PingOne Authorize; within-cap calls PERMIT.'),
     ));
   }
 
@@ -1382,7 +1404,7 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
     const readRar = buildRarAuthorizationDetails('get_my_accounts', {}, userSub);
     const readCtx = buildTratContext(req, 'get_my_accounts', userSub, actorClientId, adminClientId, { rarDetails: readRar });
     const accountsResult = await callToolViaGateway(
-      demoGatewayUrl, exchanged.token, 'get_my_accounts', {},
+      null, exchanged.token, 'get_my_accounts', {},
       { tratContextHeader: JSON.stringify({ ...readCtx, trat_sim: true }) },
     );
     // callToolViaGateway resolves to { result, gwAuditTrail } — the JSON-RPC
@@ -1447,7 +1469,7 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
   let transferResult;
   try {
     transferResult = await callToolViaGateway(
-      demoGatewayUrl,
+      null,
       exchanged.token,
       'create_transfer',
       // from_account_id: required by the gateway's spec-§2 arg schema — see
@@ -1458,7 +1480,7 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
   } catch (err) {
     return _denyFromGateway(
       sim, useCaseId, tokenChainEvents, err, 403, 'rar_unexpected_deny',
-      'Gateway DENY (unexpected — requested amount was within the granted cap)',
+      'Authorize DENY (unexpected — requested amount was within the granted cap)',
     );
   }
 
@@ -1483,8 +1505,8 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
     'Intent Verified (RAR — RFC 9396)',
     'active',
     null,
-    `Gateway PERMIT: requested $${amount} is within the RAR authorization_details cap of $${grantedAmount}. ` +
-    'The MCP gateway and PingOne Authorize confirmed the transfer matches the declared intent.',
+    `PERMIT: requested $${amount} is within the RAR authorization_details cap of $${grantedAmount}. ` +
+    'PingGateway forwarded the grant; PingOne Authorize confirmed the transfer matches the declared intent.',
     { authorization_details: rarDetails, requestedAmount: amount, grantedAmount },
   ));
   stampUseCaseId(tokenChainEvents, useCaseId);

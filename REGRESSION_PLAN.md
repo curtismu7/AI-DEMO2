@@ -159,6 +159,299 @@ what else relies on the OLB catch-all.
 ping-gateway/scripts/e2e-pinggateway.sh` (OLB legs unchanged); `WWW-Authenticate` header on
 `/mcp/weather` no longer matches `/mcp`'s.
 
+### 2026-07-21 — Kill switch had no way to stop a single rogue agent instance without disabling the shared agent client for every other user
+
+**Files changed:**
+- `demo_api_server/services/killSwitchService.js` — `killAgent` takes a new
+  `scope` param (`'full'` default | `'instance'`). `scope==='instance'` skips
+  `disableAgentApplicationsAtPingOne()` (step 2.5). Also returns a `steps`
+  array (`token_revocation`, `user_disable`, `app_disable`,
+  `session_invalidate`, `audit_log`), each with `ran`/`skipped`/`detail`, so
+  callers can show what actually happened.
+- `demo_api_server/routes/admin.js` — `POST /agent/:agentId/kill-switch`
+  reads `scope` from the body (validated to `'full'`/`'instance'`), passes it
+  to `killAgent`, and includes `scope`/`steps` in the 401 response.
+- `demo_api_ui/src/components/KillSwitchConfirmModal.jsx` (+ `.css`) — added a
+  scope radio (`This instance only (recommended)` vs `This agent's entire
+  identity`), defaulting to instance-only. After confirm, the modal switches
+  to a result view listing every step with a Done/Skipped badge and detail
+  text instead of closing immediately.
+- `demo_api_ui/src/components/ControlPlaneRoster.jsx` — `confirmLiveKill` now
+  passes `scope` through and returns the kill result to the modal instead of
+  closing it itself (`onCancel`, still wired to the modal's Cancel/Done
+  button, is what closes it now).
+
+**What was broken:** `killAgent`'s step 2.5 (`disableAgentApplicationsAtPingOne`)
+unconditionally disabled the whole `AGENT_CLIENT_ID` /
+`PINGONE_AI_AGENT_CLIENT_ID` PingOne application on every kill. That stops new
+token issuance for **every** user of that agent identity, not just the caller
+who triggered the kill switch — no way to contain a single misbehaving agent
+instance without a demo-wide outage for everyone else on the same client.
+
+**What was fixed:** `scope: 'instance'` skips the app-level disable — token
+revocation (RFC 7009), the target user's account disable, and local session
+invalidation still run, which is enough to stop that one instance. `scope:
+'full'` (the existing default, used when a caller sends no scope — e.g.
+`AgentLifecyclePage.jsx`'s unrelated self-service revoke, untouched here)
+keeps the old whole-client-disable behavior for a genuinely compromised
+client. The response's `steps` array is the audit-friendly explanation of
+which of the five kill-switch actions ran vs. were skipped and why.
+
+**Do not break:** `AgentLifecyclePage.jsx`'s Slot 4 self-service revoke sends
+only `{ reason }` (no `scope`) and must keep hitting the same default
+(`'full'`) behavior — do not change its call shape. `disableAgentApplicationsAtPingOne`
+/ `enableAgentApplicationsAtPingOne` themselves are unchanged; only whether
+`killAgent` calls the disable function is now conditional.
+
+**Verify:** `demo_api_server` jest — `killSwitchService`, `agentRateLimit`
+(32 tests, all green, run from the worktree with
+`--testPathIgnorePatterns="/node_modules/"`). `demo_api_ui` vitest —
+`ControlPlaneRoster`, `AgentLifecyclePage` (10 tests, all green;
+`KillSwitchConfirmModal` is mocked in the roster test so its new scope
+UI isn't exercised there). `cd demo_api_ui && npm run build` exits 0. Not yet
+click-verified live against real PingOne.
+
+### 2026-07-21 — Banking MCP Inspector Execute failed with "MCP connection closed before response (code 1008: Agent token rejected)"
+
+**Files changed:** `demo_api_server/services/agentMcpTokenService.js` (new
+`opts.forceDirectMcpAudience` on `resolveMcpAccessTokenWithEvents`, threaded
+into `_performTwoExchangeDelegation`), `demo_api_server/routes/mcpInspector.js`
+(`sessionTokenForDiscovery` and the default-profile `/invoke` handler now pass
+`{ forceDirectMcpAudience: true }`), `demo_api_server/src/__tests__/agentMcpTokenService.test.js`
+(new `forceDirectMcpAudience opt` describe block).
+
+**What was broken:** discovered live right after the MFA-gate removal above
+unblocked reaching the Banking tab's Execute button for the first time.
+`demo_mcp_server` logs showed `Rejecting connection ...: Token audience does
+not match MCP server resource URI` — `token_aud: ["https://api.ping.demo:3036/mcp"]`
+(the PingGateway resource) vs `expected: ["mcpserver.ping.demo",
+"mcpgateway.ping.demo"]` (`MCP_SERVER_RESOURCE_URI` on the raw MCP server).
+Root cause: `routes/mcpInspector.js`'s Banking `/tools` and `/invoke` handlers
+always connect via `mcpWebSocketClient.js`'s `getMcpServerUrl()` — a direct
+WebSocket to the raw `demo_mcp_server` container, never through PingGateway —
+but `agentMcpTokenService.js`'s Exchange #2 minted a PingGateway-audience
+token (`gateway:mcp:invoke` scope) whenever `ff_mcp_gateway_pinggateway` was
+on (the default), with no awareness that this particular caller's transport
+bypasses the gateway. Never surfaced before because the step-up MFA gate
+(previous entry) blocked the Banking tab from ever reaching a real invoke.
+
+**What was fixed:** added an `opts.forceDirectMcpAudience` flag to
+`resolveMcpAccessTokenWithEvents` / `_performTwoExchangeDelegation`. When set,
+`routeViaPingGateway` is forced false, so Exchange #2 falls through to
+`twoExFinalAud` (the existing gateway-bypass-probe resolution via
+`_resolveFinalMcpAudience`) instead of the PingGateway HTTPS resource — a
+bare-hostname audience `demo_mcp_server`'s `MCP_SERVER_RESOURCE_URI` allowlist
+already accepts. The Banking Inspector's two `resolveMcpAccessTokenWithEvents`
+call sites now pass this flag; the real agent's gateway-routed calls are
+unaffected (opt defaults to unset/false).
+
+**Do not break:** `ff_mcp_gateway_pinggateway`'s PingGateway-audience routing
+must stay the DEFAULT for every other caller (the real banking agent).
+`forceDirectMcpAudience` is opt-in per call site — do not flip the default, and
+do not remove the flag from either Inspector call site without confirming
+whatever replaces `mcpWebSocketClient.js`'s direct-WS transport for the
+Banking tab.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/agentMcpTokenService.test.js src/__tests__/mcp-inspector.test.js src/__tests__/mcpGatewayClient.reauth.test.js src/__tests__/oauthService.test.js tests/verticalToolAudience.regression.test.js --testPathIgnorePatterns="/node_modules/"`
+(273 tests, 14 suites, exit 0, confirmed). Live re-verification against the
+running container not re-run in this pass — see the prior entry's live-log
+evidence for how to reproduce with `docker logs ai-demo-mcp-server`.
+
+### 2026-07-21 — Banking MCP Inspector "timeout of 10000ms exceeded" — WS client never handled a clean server-side close
+
+**Files changed:** `demo_api_server/services/mcpWebSocketClient.js` (added a
+`ws.on('close', ...)` handler in `mcpRpc()`'s connect Promise), new
+`demo_api_server/src/__tests__/mcpWebSocketClient.closeHandling.test.js`.
+
+**What was broken:** the Banking tab of `/pingone-mcp-inspector` showed
+"timeout of 10000ms exceeded" toasts and only partially loaded tools.
+`banking_mcp_server`'s `BankingMCPServer.handleConnection` rejects a
+connection whose token audience doesn't match the server's resource URI via
+`ws.close(1008, 'Agent token rejected')` — a clean WebSocket close, not a
+protocol error. `mcpWebSocketClient.js`'s `mcpRpc()` only registered
+`ws.on('error', ...)`, `'open'`, and `'message'` handlers — no `'close'` — so
+that clean close was invisible to the pending RPC promise, which sat until
+its own hardcoded 15000ms `setTimeout` finally fired and rejected with the
+generic "MCP call timed out" (confirmed live: `GET /api/mcp/inspector/tools`
+consistently took ~15.6-16s server-side before falling back to the local
+catalog). The frontend's `apiClient.js` has a flat 10000ms axios timeout —
+shorter than that 15s+ backend cycle — so the browser aborted first and the
+user never even saw the (already-degraded) fallback response.
+
+**What was fixed:** added a `ws.on('close', (code, reasonBuf) => ...)`
+handler that clears the timeout and rejects immediately with the real close
+code + reason (e.g. "MCP connection closed before response (code 1008:
+Agent token rejected)") instead of waiting out the 15s timer for a rejection
+that already happened. This turns a ~15-16s hang into a near-instant, more
+informative failure — the frontend's 10s timeout is no longer in the picture
+because the backend now responds well under it.
+
+**Do not break:** this only adds a `close` listener; the existing
+`error`/`open`/`message` handling, the 15s `setTimeout` fallback (for a
+connection that never opens or never closes), and the WR-06 slot-release
+`.finally(safeRelease)` are untouched. The underlying audience mismatch that
+causes `BankingMCPServer` to reject the connection in the first place is a
+separate, live-environment config concern — not addressed here — this fix
+only makes that rejection surface promptly and accurately instead of hanging.
+
+**Verify:** `cd demo_api_server && npx jest
+src/__tests__/mcpWebSocketClient.closeHandling.test.js
+src/__tests__/mcp-inspector.test.js --testPathIgnorePatterns="/node_modules/"`
+— 13/13 pass. Confirmed the new test hangs (proving it exercises the bug)
+when run against the pre-fix file.
+
+### 2026-07-21 — Board batch3: lifecycle HITL false-complete, /check UI probe, token-validation docs link
+
+**Files changed:** `AgentLifecyclePage.jsx` (+ test) — treat `callMcpTool`
+HITL soft-success (`mcp_hitl_required`) as 428, not checkout complete;
+`serverInventory.js` — probe `https://frontend:4000` (k8s Service name) so
+`/check` stops false-ECONNREFUSED on Banking UI; `ConfigTokenValidation.tsx`
+— real docs link, remove dead `onClick` and disallowed emoji.
+
+**Note:** Admin-agent `insufficient_scope` NL message (#659) is already on
+main — no further change in this batch.
+
+**Verify:** vitest `AgentLifecyclePage.test.jsx`; jest `serverInventory.test.js`.
+
+### 2026-07-21 — RAR on real path: P1AZ PDP + PingGateway PEP (no mock pin)
+
+**Files changed:** `ping-gateway/scripts/groovy/p1az-decision.groovy` (forward
+`RarMaxAmount` / `RarPermittedPayees` from TraT; honor TraT for trusted BFF),
+`attackSimulatorService.js` (UC14 / intent-binding use active gateway, not
+Demo Agent Gateway pin), `run-docker.sh` (lean demo-sync — stop mocks when
+real flags; keep otel flag-read harden), `check-groovy-params.sh`.
+
+**What was broken:** RAR demos were pinned to Node mcp-gateway + kept
+demo-auth containers up "for RAR," even though cloud snapshot already has
+`RarAmountExceeded` / `RarMaxAmount` and PingGateway already forwarded
+`RarAuthorizationDetails` without the NUMBER attr the Trust Framework needs.
+
+**What was fixed:** Practical rule — PingOne Authorize decides; PingGateway
+extracts TraT and forwards attrs (incl. `RarMaxAmount`); sims call
+`callToolViaGateway(null, …)`; demo-sync stops mock servers on real stack.
+
+**Do not break:** BFF live `evaluateMcpFirstTool` already sends `RarMaxAmount`;
+unsigned TraT still needs `ALLOW_UNSIGNED_TRAT_CONTEXT` or trusted BFF secret;
+Node `rarEnforce.ts` remains for Demo GW path only.
+
+**Verify:** `ping-gateway/scripts/check-groovy-params.sh` → PASS; UC10/RAR unit
+tests as before.
+
+### 2026-07-21 — Board batch: UC10 ResourceOwnerId, code-search buttons, TopNav search
+
+**Files changed:** `mcpToolAuthorizationService.js` + `attackSimulatorService.js`
+(+ tests) — ResourceOwnerId for `get_account_balance` / treat MCP ownership
+errors as DENY; `CodeSearchPage.css` / `CodebaseUploader.css` — scope
+button rules under `.code-search-page`; `TopNav.js` — search icon → `/code-search`.
+(`run-docker.sh` flag-read harden only — RAR/demo-sync lean behavior is the
+entry above.)
+
+**Do not break:** own-account `get_account_balance` must still PERMIT when
+owner oauthId equals subjectId.
+
+**Verify:** `cd demo_api_server && npx jest src/__tests__/resolveResourceOwnerId.test.js
+src/__tests__/attackSimulator.authorizeEvidence.test.js --forceExit`
+
+### 2026-07-21 — Cleaned up dead frontend code + an unrelated broken test left after the step-up gate removal below
+
+**Files changed:**
+- `demo_api_ui/src/components/McpInspectorPage.jsx` — removed the
+  `mfaRequired`/`stepUpMethod` state and banner (dead code: the backend gate
+  they displayed for was removed in the entry below via a separate,
+  independently-authored fix, but that fix didn't touch the frontend).
+- `demo_api_ui/src/components/__tests__/McpInspectorPage.test.jsx` — removed
+  the test that mocked `mfa_required:true` and asserted the banner.
+- `demo_api_server/tests/pingcli.route.test.js` — unrelated pre-existing
+  failure blocking the pre-push CI gate: `getPingcliConfigPath()`
+  (`routes/pingcli.js`) needs `PINGONE_ENVIRONMENT_ID`/
+  `PINGONE_WORKER_CLIENT_ID`/`PINGONE_WORKER_CLIENT_SECRET`, which
+  `src/__tests__/setup.js` deliberately never loads (tests must never touch
+  real secrets) — so `ensureAuthBootstrap()` short-circuited with "not
+  configured" before ever calling `execFile`, and "runs an env-scoped
+  resource command via pingone api" indexed into an empty
+  `execFile.mock.calls` array. Confirmed failing on `main` independent of
+  this change. Fixed by stubbing fake PingOne env vars in the test file.
+
+**Do not break:** same invariant as the entry below — `GET
+/api/mcp/inspector/tools` stays ungated; don't re-add `mfaRequired` state to
+`McpInspectorPage.jsx` unless the backend starts returning it again.
+
+**Verify:** `demo_api_ui`: `npx vitest run
+src/components/__tests__/McpInspectorPage.test.jsx` (8/8), `npm run build`
+(exit 0). `demo_api_server`: `npx jest tests/pingcli.route.test.js` (9/9, was
+1 failing).
+
+### 2026-07-21 — Removed the step-up MFA gate from Banking MCP Inspector tool listing (supersedes the two entries below)
+
+**Files changed:** `demo_api_server/routes/mcpInspector.js` (dropped the
+`stepUpEnabled` gate block on `GET /tools`, removed the now-unused
+`runtimeSettings` import), `demo_api_server/src/__tests__/mcp-inspector.test.js`
+(removed the `MFA gate` describe block).
+
+**What changed:** `GET /api/mcp/inspector/tools` — the Banking tab's tool
+discovery endpoint — no longer returns `{ tools: [], mfa_required: true, ... }`
+when the session isn't step-up verified. It now always attempts the real
+`tools/list` (or falls back to the local catalog), same as the PingOne MCP and
+API Calls tabs already did. Reported live: user opened `/pingone-mcp-inspector`
+→ Banking MCP and got "Step-up verification required" with zero tools, and
+confirmed banking tool *listing* should never require auth/MFA — this route
+only returns tool names/schemas, it never executes anything.
+
+**Do not break:** this is scoped to the Inspector's read-only discovery route
+only. `runtimeSettings.stepUpEnabled` still gates real money movement —
+`mcpLocalTools.js` (`checkLocalStepUp`) and `routes/transactions.js` (428
+enforcement on transfer/withdrawal) are untouched and must keep requiring
+step-up there. The two entries below (2026-07-21 banner port, 2026-07-18
+original fix) previously told future agents to preserve this gate on the
+Inspector route specifically — that instruction is now superseded; do not
+re-add an MFA gate to `GET /api/mcp/inspector/tools`.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/mcp-inspector.test.js`
+(exit 0).
+
+
+### 2026-07-21 — `/pingone-mcp-inspector` (Banking tab) showed zero tools with no explanation, again
+
+**Files changed:** `demo_api_ui/src/components/McpInspectorPage.jsx` (added
+`mfaRequired`/`stepUpMethod` state + banner to `useBankingSource()`; no
+server-side change).
+
+**What was broken:** the 2026-07-18 fix below (`mfa_required` handling) lived
+only in `McpInspector.js`. That file was later superseded when three
+standalone inspector pages were consolidated into `McpInspectorPage.jsx`
+(single `InspectorShell` with a source switcher) — the consolidation copied
+`refreshTools()`'s `tools`/`toolsSourceInfo` handling but not the
+`mfa_required`/`step_up_method` handling, so the same silent-gate regression
+came back under the new component. Confirmed live: `mcp_inspector_pingone_live`
+flag is ON (not the cause); `stepUpEnabled` is `true` in the running
+container; a real request to `/api/mcp/inspector/tools` from an
+un-step-up-verified session returned HTTP 200 `{ tools: [], mfa_required:
+true, step_up_method: 'email', _source: 'mfa_gate' }` (~107 bytes) and the
+Banking tab rendered "No tools loaded." with zero indication why.
+
+**What was fixed:** `useBankingSource()` in `McpInspectorPage.jsx` now reads
+`data.mfa_required`/`data.step_up_method` from the `/tools` response and
+renders the same inline info banner ("Step-up verification required...") that
+`McpInspector.js` already used, placed in `middle` just above the existing
+`needsLogin` banner. Verbatim port of the 2026-07-18 fix onto the new file —
+no other file touched.
+
+**Do not break:** this is UI-only — the server-side step-up gate in
+`mcpInspector.js` (`stepUpEnabled` / `req.session.stepUpVerified`) is
+untouched and must keep returning `tools: []` + `mfa_required: true` rather
+than silently falling back to the local catalog; that would defeat the gate.
+If `McpInspector.js` / `PingOneMcpInspector.js` are ever deleted as dead code,
+double-check this banner (and the `mfa_required` read it depends on) survives
+in whatever file replaces them — that's exactly how this regressed once
+already.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0, confirmed). Live
+full-session E2E (real OAuth sign-in + step-up) not re-run here; the
+`mfa_required` payload shape was confirmed live via `docker logs
+ai-demo-api-server` against the real, currently-signed-in session, and the
+added code is a direct copy of the already-shipped, already-verified
+2026-07-18 banner pattern.
+
 ### 2026-07-20 — PingOne Admin agent's tool schemas broke llama.cpp's grammar compiler
 
 **Files changed:**

@@ -70,6 +70,30 @@ default:
 const PINGCLI_CONFIG = getPingcliConfigPath();
 const configFlag = PINGCLI_CONFIG ? ['--config', PINGCLI_CONFIG] : [];
 
+/**
+ * Resolve (or refresh) the --config flag at call time. Module-load may run
+ * before dotenv / configStore populate PINGONE_* — baking a null configFlag
+ * into COMMANDS.args then made every live Run fail with
+ * "Authentication is not configured for this profile".
+ */
+function resolveConfigFlag() {
+  const cfg = getPingcliConfigPath();
+  return cfg ? ['--config', cfg] : [];
+}
+
+/** Strip a baked --config pair from args and re-inject a fresh one. */
+function resolveArgs(args) {
+  const without = [];
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--config') {
+      i += 1;
+      continue;
+    }
+    without.push(args[i]);
+  }
+  return [...resolveConfigFlag(), ...without];
+}
+
 // Lazy one-time auth bootstrap. `pingcli pingone auth login` with a
 // client_credentials config is fully non-interactive (verified locally:
 // "Successfully authenticated with client credentials") and persists a token
@@ -78,12 +102,19 @@ const configFlag = PINGCLI_CONFIG ? ['--config', PINGCLI_CONFIG] : [];
 // is reset on failure so a later request can retry.
 let authBootstrapPromise = null;
 function ensureAuthBootstrap() {
-  if (!PINGCLI_CONFIG) return Promise.resolve({ ok: true });
+  const cfgFlag = resolveConfigFlag();
+  if (cfgFlag.length === 0) {
+    return Promise.resolve({
+      ok: false,
+      error:
+        'PingOne worker credentials not configured. Set PINGONE_ENVIRONMENT_ID, PINGONE_WORKER_CLIENT_ID, and PINGONE_WORKER_CLIENT_SECRET.',
+    });
+  }
   if (!authBootstrapPromise) {
     authBootstrapPromise = new Promise((resolve) => {
       execFile(
         PINGCLI_BIN,
-        [...configFlag, 'pingone', 'auth', 'login'],
+        [...cfgFlag, 'pingone', 'auth', 'login'],
         { timeout: TIMEOUT_MS, env: pingcliEnv() },
         (err, stdout, stderr) => {
           if (err) {
@@ -196,7 +227,7 @@ router.post('/run', async (req, res) => {
     }
   }
 
-  execFile(PINGCLI_BIN, cmd.args, { timeout: TIMEOUT_MS, env: pingcliEnv() }, (err, stdout, stderr) => {
+  execFile(PINGCLI_BIN, resolveArgs(cmd.args), { timeout: TIMEOUT_MS, env: pingcliEnv() }, (err, stdout, stderr) => {
     let exitCode = typeof err?.code === 'number' ? err.code : (err ? 1 : 0);
     const raw = stdout || stderr || '';
     let output;
@@ -255,7 +286,7 @@ router.get('/stream', async (req, res) => {
     }
   }
 
-  const child = spawn(PINGCLI_BIN, cmd.args, { timeout: TIMEOUT_MS, env: pingcliEnv() });
+  const child = spawn(PINGCLI_BIN, resolveArgs(cmd.args), { timeout: TIMEOUT_MS, env: pingcliEnv() });
 
   child.stdout.on('data', (chunk) => send('chunk', { text: chunk.toString() }));
   child.stderr.on('data', (chunk) => send('chunk', { text: chunk.toString() }));

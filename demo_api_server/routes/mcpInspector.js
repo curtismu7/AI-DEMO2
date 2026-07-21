@@ -21,7 +21,6 @@ const mcpProfileStore = require('../services/mcpProfileStore');
 const mcpHttpTransport = require('../services/mcpTransports/http');
 const mcpStdioTransport = require('../services/mcpTransports/stdio');
 const mcpPingOneHttpAdapter = require('../services/mcpPingOneHttpAdapter');
-const runtimeSettings = require('../config/runtimeSettings');
 const archEmit = require('../services/archEventEmitter');
 const mcpFlowSseHub = require('../services/mcpFlowSseHub');
 const { buildSsePayload } = require('../services/sseCorrelation');
@@ -59,9 +58,15 @@ function authRequired(res, message = MCP_SESSION_NEEDED_MSG) {
   });
 }
 
-/** Discovery uses same token resolution as tools/call (scope from a representative tool). */
+/**
+ * Discovery uses same token resolution as tools/call (scope from a representative tool).
+ * forceDirectMcpAudience: this route's WS client always dials the raw MCP
+ * server directly (see getMcpServerUrl() in mcpWebSocketClient.js), never
+ * through PingGateway, so the minted token must carry the direct mcp-server
+ * audience regardless of ff_mcp_gateway_pinggateway.
+ */
 async function sessionTokenForDiscovery(req) {
-  const { token, userSub } = await resolveMcpAccessTokenWithEvents(req, 'get_my_accounts');
+  const { token, userSub } = await resolveMcpAccessTokenWithEvents(req, 'get_my_accounts', { forceDirectMcpAudience: true });
   return { token, userSub };
 }
 
@@ -345,16 +350,13 @@ router.get('/tools/events', requireSession, (req, res) => {
 
 // GET /api/mcp/inspector/tools — live tools/list from MCP server, or local catalog when no MCP bearer / MCP down
 router.get('/tools', async (req, res) => {
-  // MFA gate: require step-up verification before listing tools (feature 52-06).
-  if (runtimeSettings.get('stepUpEnabled') && !(req.session?.stepUpVerified > Date.now())) {
-    return res.json({
-      tools: [],
-      mfa_required: true,
-      step_up_method: runtimeSettings.get('stepUpMethod') || 'email',
-      step_up_acr: runtimeSettings.get('stepUpAcrValue') || 'Multi_Factor',
-      _source: 'mfa_gate',
-    });
-  }
+  // tools/list is read-only metadata (names + schemas, no execution, no account
+  // data) — it does not need step-up MFA. The real agent only requires step-up
+  // for the specific write actions in runtimeSettings.stepUpTransactionTypes
+  // (transfer/withdrawal), enforced at invocation time in mcpLocalTools.js's
+  // checkLocalStepUp() and by the PingOne Authorize obligation on the live
+  // path — both untouched by this route and still gate those tool calls
+  // (including when invoked via this inspector's own POST /invoke).
 
   // Non-default profile: dispatch to its transport (mcpTransports/*) instead
   // of the banking-server discovery flow below. Omitted/default profile id
@@ -614,7 +616,9 @@ router.post('/invoke', express.json(), async (req, res) => {
     let userSub;
     let tokenEvents = [];
     try {
-      ({ token: agentToken, userSub, tokenEvents = [] } = await resolveMcpAccessTokenWithEvents(req, tool));
+      // forceDirectMcpAudience: this route's WS client dials the raw MCP server
+      // directly (see sessionTokenForDiscovery above), never through PingGateway.
+      ({ token: agentToken, userSub, tokenEvents = [] } = await resolveMcpAccessTokenWithEvents(req, tool, { forceDirectMcpAudience: true }));
     } catch (err) {
       const status = err.httpStatus || 502;
       return res.status(status).json({

@@ -66,6 +66,8 @@
   font-size: 14px;
 }
 
+/* Higher specificity than global button resets (board B6 on /code-search). */
+.code-search-page .codebase-uploader button,
 .codebase-uploader button {
   padding: 10px 16px;
   background-color: #059669;
@@ -78,10 +80,12 @@
   transition: background-color 0.2s;
 }
 
+.code-search-page .codebase-uploader button:hover:not(:disabled),
 .codebase-uploader button:hover:not(:disabled) {
   background-color: #047857;
 }
 
+.code-search-page .codebase-uploader button:disabled,
 .codebase-uploader button:disabled {
   background-color: #d1d5db;
   cursor: not-allowed;

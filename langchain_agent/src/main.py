@@ -324,10 +324,14 @@ class LangChainMCPApplication:
 
         # Heal empty /app/codegraph.db from a prior Refresh that wrote the legacy
         # repo-src path — pod restarts must not re-expose the Code Explorer 503.
+        # If still empty, run a one-shot index build against REPO_SRC_ROOT so
+        # demos work without a manual Refresh click.
         try:
-            from codegraph.ensure_index import ensure_query_index
+            from codegraph.ensure_index import build_query_index_sync, ensure_query_index
             if ensure_query_index():
                 logger.info("[CodeGraph] query index ready at startup")
+            elif build_query_index_sync():
+                logger.info("[CodeGraph] query index built at startup")
             else:
                 logger.warning(
                     "[CodeGraph] query index missing at startup — Code Explorer "

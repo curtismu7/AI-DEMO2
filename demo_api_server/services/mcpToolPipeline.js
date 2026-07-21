@@ -120,7 +120,13 @@ async function runMcpToolPipeline(ctx) {
   let params = { ...ctx.params };
   // Full JSON-RPC envelope snapshot (pre-HITL-strip) — used as requestJson in
   // audit store and SSE payload so the MCP Results tab shows the actual wire request.
-  const requestJson = { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: tool, arguments: { ...ctx.params } } };
+  // The real bearer token (server.js-injected for e.g. jwt_decode_full) must never
+  // reach this display/audit snapshot — it is redacted here only; the actual
+  // downstream call further below uses `params` (derived from ctx.params), untouched.
+  const argumentsForDisplay = ctx.params && ctx.params.token
+    ? { ...ctx.params, token: '[redacted]' }
+    : ctx.params;
+  const requestJson = { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: tool, arguments: { ...argumentsForDisplay } } };
   const { config } = deps;
   // Hoisted above the authorize-gate block (below) so both the simulated-path
   // gw-authorize pushes (PERMIT and DENY branches) and the real-gateway call
@@ -824,6 +830,33 @@ async function runMcpToolPipeline(ctx) {
                 tokenEvents.push(gwMtlsEvent);
                 gwEvents.push(gwMtlsEvent);
             }
+            if (gwAuditTrail.backend) {
+                const backendRes = gwAuditTrail.backend;
+                const gwRouteEvent = deps.buildTokenEvent(
+                    'gw-route',
+                    'Gateway — Backend Routing',
+                    'active',
+                    null,
+                    `Gateway routed "${tool}" to backend: ${backendRes.target}`,
+                    { target: backendRes.target }
+                );
+                tokenEvents.push(gwRouteEvent);
+                gwEvents.push(gwRouteEvent);
+
+                const exchangeDesc = backendRes.exchanged
+                    ? `RFC 8693 exchange: token scoped to audience ${backendRes.audience}${backendRes.cached ? ' (cache hit)' : ''}`
+                    : `RFC 8693 exchange failed: ${backendRes.error || 'unknown error'} — request not forwarded`;
+                const gwBackendExchangeEvent = deps.buildTokenEvent(
+                    'gw-backend-exchange',
+                    'Gateway — RFC 8693 Token Exchange',
+                    backendRes.exchanged ? 'active' : 'deny',
+                    null,
+                    exchangeDesc,
+                    { target: backendRes.target, audience: backendRes.audience, cached: backendRes.cached, exchanged: backendRes.exchanged, error: backendRes.error }
+                );
+                tokenEvents.push(gwBackendExchangeEvent);
+                gwEvents.push(gwBackendExchangeEvent);
+            }
         }
         if (gwEvents.length > 0) {
             deps.publishTokenEventsToSse(flowTraceId, gwEvents);
@@ -1057,6 +1090,28 @@ async function runMcpToolPipeline(ctx) {
                         how: a.how,
                         eventName: a.eventName || 'PING-GATEWAY-MCP',
                     }
+                ));
+            }
+            if (trail.backend && !tokenEvents.some((e) => e && e.id === 'gw-route')) {
+                const backendRes = trail.backend;
+                tokenEvents.push(deps.buildTokenEvent(
+                    'gw-route',
+                    'Gateway — Backend Routing',
+                    'active',
+                    null,
+                    `Gateway routed "${tool}" to backend: ${backendRes.target}`,
+                    { target: backendRes.target }
+                ));
+                const exchangeDesc = backendRes.exchanged
+                    ? `RFC 8693 exchange: token scoped to audience ${backendRes.audience}${backendRes.cached ? ' (cache hit)' : ''}`
+                    : `RFC 8693 exchange failed: ${backendRes.error || 'unknown error'} — request not forwarded`;
+                tokenEvents.push(deps.buildTokenEvent(
+                    'gw-backend-exchange',
+                    'Gateway — RFC 8693 Token Exchange',
+                    backendRes.exchanged ? 'active' : 'deny',
+                    null,
+                    exchangeDesc,
+                    { target: backendRes.target, audience: backendRes.audience, cached: backendRes.cached, exchanged: backendRes.exchanged, error: backendRes.error }
                 ));
             }
         }

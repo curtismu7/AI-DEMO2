@@ -278,9 +278,15 @@ export default function TopNav({ user, onLogout }) {
               </div>
             )}
 
-            {/* Search */}
+            {/* Search → Code Search (RAG) page */}
             <div className="topnav-search">
-              <button className="topnav-search-btn" onClick={() => {}} aria-label="Search" type="button">
+              <button
+                className="topnav-search-btn"
+                onClick={() => navigate('/code-search')}
+                aria-label="Search code"
+                type="button"
+                title="Code Search"
+              >
                 <MdSearch size={20} />
               </button>
             </div>

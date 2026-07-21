@@ -1209,7 +1209,7 @@ export default function BankingAgent({
 
   // Presence flag + deferred replay for the AI Attacks drawer. On routes with no
   // mounted agent (most admin sub-pages) AiAttacksPanel sees the flag unset,
-  // persists the pending run to sessionStorage, and navigates to /admin — the
+  // persists the pending run to sessionStorage, and navigates to /dashboard — the
   // agent that mounts there replays it here. Defined after the runDrawerAttackRef
   // effect so the ref is populated before the replay timer is armed.
   useEffect(() => {
@@ -1231,6 +1231,15 @@ export default function BankingAgent({
         } else if (pending?.type === "prefill" && payload.message) {
           setIsOpen(true);
           setTimeout(() => runDrawerAttackRef.current?.({ message: payload.message }), 300);
+        } else if (pending?.type === "intent-bypass") {
+          setIsOpen(true);
+          setTimeout(() => {
+            window.dispatchEvent(
+              new CustomEvent("banking-attack-demo", {
+                detail: { type: "intent-bypass" },
+              }),
+            );
+          }, 300);
         }
       } catch (_) {
         // malformed pending action — drop it
@@ -2669,6 +2678,14 @@ export default function BankingAgent({
           toast.update(toastId, { render: " Calling get_my_accounts…" });
           response = await getMyAccounts({ useCaseId, vertical });
           response = { ...response, result: enforceVerticalAccountTypes(response.result, terminology) };
+          break;
+        case "jwt_decode_demo":
+          toast.update(toastId, { render: " Calling jwt_decode_full…" });
+          response = await callMcpTool("jwt_decode_full", {}, {
+            useCaseId,
+            vertical,
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent(actionId, ev),
+          });
           break;
         case "mortgage_demo": {
           // Phase 267 Path A — api_key disposition, end-to-end:

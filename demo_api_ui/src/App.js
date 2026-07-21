@@ -60,6 +60,7 @@ import LandingPage from "./components/LandingPage";
 import LearningHub from "./components/LearningHub";
 import LlmConfigPage from "./components/LlmConfigPage";
 import LogoutPage from "./components/LogoutPage";
+import SuccessScreen from "./components/SuccessScreen";
 import LogViewer from "./components/LogViewer";
 import McpInspectorPage from "./components/McpInspectorPage";
 import MissingCredentialsModal from "./components/MissingCredentialsModal";
@@ -501,6 +502,7 @@ function AppWithAuth() {
                 />
                 <Route path="/sdk-login/callback" element={<SdkLoginCallbackRoute />} />
                 <Route path="/ciba-approve" element={<CibaApprovalPageRoute />} />
+                <Route path="/success" element={<SuccessScreen user={user} />} />
                 <Route
                   path="/code-explorer"
                   element={

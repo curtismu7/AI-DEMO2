@@ -3,6 +3,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from codegraph.ensure_index import (
+    build_query_index_sync,
     db_is_ready,
     ensure_query_index,
     legacy_db_path,
@@ -80,3 +81,32 @@ class TestResolveIndexer:
         os.environ.pop("CODEGRAPH_INDEXER", None)
         with patch("codegraph.ensure_index._BAKED_INDEXER", tmp_path / "missing.py"):
             assert resolve_indexer_script(tmp_path) is None
+
+
+class TestBuildQueryIndexSync:
+    def test_noop_when_query_ready(self, tmp_path):
+        query = tmp_path / "codegraph.db"
+        query.write_bytes(b"ready")
+        with patch("codegraph.ensure_index.CODEGRAPH_DB_PATH", str(query)):
+            assert build_query_index_sync(tmp_path) is True
+
+    def test_runs_indexer_when_empty(self, tmp_path):
+        root = tmp_path / "repo"
+        root.mkdir()
+        scripts = root / "scripts"
+        scripts.mkdir()
+        (scripts / "build-codegraph.py").write_text("print('ok')\n")
+        query = tmp_path / "out" / "codegraph.db"
+
+        def fake_run(cmd, **kwargs):
+            out = Path(cmd[cmd.index("--out") + 1])
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_bytes(b"built-index")
+            return type("R", (), {"returncode": 0, "stdout": "Found 1 nodes\n", "stderr": ""})()
+
+        with patch("codegraph.ensure_index.CODEGRAPH_DB_PATH", str(query)), \
+             patch("codegraph.ensure_index._BAKED_INDEXER", tmp_path / "missing.py"), \
+             patch("codegraph.ensure_index.repo_src_root", return_value=root), \
+             patch("subprocess.run", side_effect=fake_run):
+            assert build_query_index_sync(root) is True
+            assert query.read_bytes() == b"built-index"

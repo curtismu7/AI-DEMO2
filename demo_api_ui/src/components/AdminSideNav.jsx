@@ -484,13 +484,6 @@ export default function AdminSideNav({ user }) {
           path: "/pingone-mcp-inspector",
           icon: "dbg",
         },
-        {
-          label: "PingOne MCP Tools",
-          action: () => {
-            window.location.href = "/pingone-mcp-tools.html";
-          },
-          icon: "tool",
-        },
         { label: "PingOne MCP Setup", path: "/pingone-setup", icon: "cfg" },
         { label: "Privilege MCP Client", path: "/privilege-mcp-client", icon: "shld" },
       ],
@@ -682,6 +675,23 @@ export default function AdminSideNav({ user }) {
                 detail: { type: "intent-bypass" },
               }),
             );
+            // Same no-agent fallback as AiAttacksPanel Run buttons — without
+            // this, Intent Bypass is a silent no-op on routes where the agent
+            // is not mounted.
+            if (!window.__bankingAgentMounted) {
+              try {
+                sessionStorage.setItem(
+                  "banking-agent-pending-attack",
+                  JSON.stringify({
+                    type: "intent-bypass",
+                    payload: { type: "intent-bypass" },
+                  }),
+                );
+              } catch (_) {
+                /* sessionStorage unavailable */
+              }
+              window.location.assign("/dashboard");
+            }
           },
         },
       ],

@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PingGateway Test</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #0066cc 0%, #004499 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+    .header h1 { font-size: 28px; margin-bottom: 8px; }
+    .header p { opacity: 0.9; }
+    .content {
+      padding: 30px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+    }
+    @media (max-width: 900px) {
+      .content { grid-template-columns: 1fr; }
+    }
+    .panel {
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 20px;
+    }
+    .panel h2 {
+      font-size: 16px;
+      margin-bottom: 15px;
+      color: #333;
+      border-bottom: 2px solid #0066cc;
+      padding-bottom: 10px;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 5px;
+      color: #666;
+    }
+    input, textarea, select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 12px;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+      font-family: 'Monaco', 'Menlo', monospace;
+    }
+    button {
+      background: #0066cc;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      margin-top: 10px;
+    }
+    button:hover { background: #0052a3; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+    .response {
+      background: #f9f9f9;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      padding: 15px;
+      margin-top: 15px;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    .response.success { border-left: 4px solid #4caf50; background: #f1f8f4; }
+    .response.error { border-left: 4px solid #f44336; background: #fef5f5; }
+    .response.loading { color: #999; }
+    .status {
+      font-size: 12px;
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 4px;
+      display: none;
+    }
+    .status.show { display: block; }
+    .status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .status.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #ddd;
+    }
+    .tab {
+      padding: 10px 15px;
+      cursor: pointer;
+      border: none;
+      background: none;
+      font-size: 14px;
+      color: #666;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+    }
+    .tab.active {
+      color: #0066cc;
+      border-bottom-color: #0066cc;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔐 PingGateway Test Console</h1>
+      <p>Test token introspection, authorization, and MCP calls</p>
+    </div>
+
+    <div class="content">
+      <div class="panel">
+        <div class="tabs">
+          <button class="tab active" data-tab="introspect">Introspect</button>
+          <button class="tab" data-tab="authorize">Authorize</button>
+          <button class="tab" data-tab="mcp">MCP Call</button>
+          <button class="tab" data-tab="config">Config</button>
+        </div>
+
+        <!-- Introspect Tab -->
+        <div id="introspect" class="tab-content active">
+          <h2>RFC 7662 Token Introspection</h2>
+          <div class="form-group">
+            <label>Token</label>
+            <textarea id="introspectToken" placeholder="Paste an access token here..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Expected Client ID (optional)</label>
+            <input type="text" id="introspectClientId" placeholder="e.g., d3f8fead-b81d-46f9-bba5-051e493cea0e">
+          </div>
+          <div class="form-group">
+            <label>Expected Audience (optional)</label>
+            <input type="text" id="introspectAud" placeholder="e.g., mcpgateway.ping.demo">
+          </div>
+          <button onclick="testIntrospect()">Test Introspection</button>
+          <div id="introspectStatus" class="status"></div>
+        </div>
+
+        <!-- Authorize Tab -->
+        <div id="authorize" class="tab-content">
+          <h2>PingOne Authorize Decision</h2>
+          <div class="form-group">
+            <label>Token</label>
+            <textarea id="authorizeToken" placeholder="Paste an access token here..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Resource ID</label>
+            <input type="text" id="authorizeResourceId" placeholder="e.g., f2669dd9-...">
+          </div>
+          <div class="form-group">
+            <label>Intent ID (optional)</label>
+            <input type="text" id="authorizeIntentId" placeholder="e.g., transfer_funds">
+          </div>
+          <button onclick="testAuthorize()">Test Authorization</button>
+          <div id="authorizeStatus" class="status"></div>
+        </div>
+
+        <!-- MCP Call Tab -->
+        <div id="mcp" class="tab-content">
+          <h2>MCP Tool Invocation</h2>
+          <div class="form-group">
+            <label>Token</label>
+            <textarea id="mcpToken" placeholder="Paste an access token here..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Tool Name</label>
+            <input type="text" id="mcpToolName" placeholder="e.g., transfer_funds">
+          </div>
+          <div class="form-group">
+            <label>Tool Input (JSON)</label>
+            <textarea id="mcpToolInput" placeholder='{"amount": 100, "toAccount": "123"}'></textarea>
+          </div>
+          <button onclick="testMcpCall()">Test MCP Call</button>
+          <div id="mcpStatus" class="status"></div>
+        </div>
+
+        <!-- Config Tab -->
+        <div id="config" class="tab-content">
+          <h2>Gateway Configuration</h2>
+          <p>Fetching configuration...</p>
+          <button onclick="loadConfig()">Load Configuration</button>
+          <div id="configStatus" class="status"></div>
+        </div>
+      </div>
+
+      <!-- Response Panel -->
+      <div class="panel">
+        <h2>Response</h2>
+        <div id="response" class="response loading">Ready for test. Select a test type and click the button.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tabName = btn.dataset.tab;
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+        document.getElementById(tabName).classList.add('active');
+        btn.classList.add('active');
+      });
+    });
+
+    const responseEl = document.getElementById('response');
+
+    function setResponse(data, isError = false) {
+      responseEl.textContent = JSON.stringify(data, null, 2);
+      responseEl.className = `response ${isError ? 'error' : 'success'}`;
+    }
+
+    function setStatus(msg, isError = false, tabId) {
+      const status = document.getElementById(`${tabId}Status`);
+      status.textContent = msg;
+      status.className = `status show ${isError ? 'error' : 'success'}`;
+    }
+
+    async function testIntrospect() {
+      const token = document.getElementById('introspectToken').value;
+      const clientId = document.getElementById('introspectClientId').value;
+      const aud = document.getElementById('introspectAud').value;
+
+      if (!token) {
+        setStatus('Token is required', true, 'introspect');
+        return;
+      }
+
+      setStatus('Testing...', false, 'introspect');
+      responseEl.textContent = 'Loading...';
+      responseEl.className = 'response loading';
+
+      try {
+        const res = await fetch('/api/admin/pinggateway/test/introspect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, expectedClientId: clientId, expectedAud: aud })
+        });
+        const data = await res.json();
+        setResponse(data, !data.success);
+        setStatus(data.success ? '✓ Token is active' : '✗ ' + data.message, !data.success, 'introspect');
+      } catch (err) {
+        setResponse({ error: err.message }, true);
+        setStatus('Error: ' + err.message, true, 'introspect');
+      }
+    }
+
+    async function testAuthorize() {
+      const token = document.getElementById('authorizeToken').value;
+      const resourceId = document.getElementById('authorizeResourceId').value;
+      const intentId = document.getElementById('authorizeIntentId').value;
+
+      if (!token || !resourceId) {
+        setStatus('Token and Resource ID are required', true, 'authorize');
+        return;
+      }
+
+      setStatus('Testing...', false, 'authorize');
+      responseEl.textContent = 'Loading...';
+      responseEl.className = 'response loading';
+
+      try {
+        const res = await fetch('/api/admin/pinggateway/test/authorize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, resourceId, ...(intentId ? { intentId } : {}) })
+        });
+        const data = await res.json();
+        setResponse(data, !data.success);
+        setStatus(data.success ? '✓ Authorization passed' : '✗ Authorization denied', !data.success, 'authorize');
+      } catch (err) {
+        setResponse({ error: err.message }, true);
+        setStatus('Error: ' + err.message, true, 'authorize');
+      }
+    }
+
+    async function testMcpCall() {
+      const token = document.getElementById('mcpToken').value;
+      const toolName = document.getElementById('mcpToolName').value;
+      const toolInputStr = document.getElementById('mcpToolInput').value;
+
+      if (!token || !toolName) {
+        setStatus('Token and Tool Name are required', true, 'mcp');
+        return;
+      }
+
+      let toolInput = {};
+      if (toolInputStr) {
+        try {
+          toolInput = JSON.parse(toolInputStr);
+        } catch (e) {
+          setStatus('Invalid JSON in Tool Input', true, 'mcp');
+          return;
+        }
+      }
+
+      setStatus('Testing...', false, 'mcp');
+      responseEl.textContent = 'Loading...';
+      responseEl.className = 'response loading';
+
+      try {
+        const res = await fetch('/api/admin/pinggateway/test/mcp-call', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, toolName, toolInput })
+        });
+        const data = await res.json();
+        setResponse(data, !data.success);
+        setStatus(data.success ? '✓ MCP call succeeded' : '✗ ' + data.error, !data.success, 'mcp');
+      } catch (err) {
+        setResponse({ error: err.message }, true);
+        setStatus('Error: ' + err.message, true, 'mcp');
+      }
+    }
+
+    async function loadConfig() {
+      setStatus('Loading...', false, 'config');
+      responseEl.textContent = 'Loading...';
+      responseEl.className = 'response loading';
+
+      try {
+        const res = await fetch('/api/admin/pinggateway/test/config');
+        const data = await res.json();
+        setResponse(data);
+        setStatus('✓ Configuration loaded', false, 'config');
+      } catch (err) {
+        setResponse({ error: err.message }, true);
+        setStatus('Error: ' + err.message, true, 'config');
+      }
+    }
+  </script>
+</body>
+</html>

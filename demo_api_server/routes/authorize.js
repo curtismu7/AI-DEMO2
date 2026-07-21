@@ -687,6 +687,22 @@ router.get('/pingone-live-policy', authenticateToken, async (_req, res) => {
 router.get('/pingone-policies', authenticateToken, async (_req, res) => {
   const environmentId = configStore.getEffective('pingone_environment_id') || null;
 
+  // Prefer the repo snapshot first. PingOne's policy-editor API rejects worker
+  // (client_credentials) tokens with 403 INSUFFICIENT_PERMISSIONS even when the
+  // worker holds admin roles — a live GET always fails for this app. Serving the
+  // import snapshot avoids a useless 403 round-trip and keeps the Policies card
+  // populated for demos.
+  const snapshotPolicies = getAuthorizationPoliciesFromSnapshot();
+  if (Array.isArray(snapshotPolicies) && snapshotPolicies.length > 0) {
+    return res.json({
+      ok: true,
+      policies: snapshotPolicies,
+      environmentId,
+      source: 'snapshot',
+      note: 'Rendered from the repo snapshot (snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json) — the file these policies are imported from. PingOne’s policy-editor API rejects worker tokens, so a live read is not possible; if the policies were edited in the console after import, this view may lag the live tree.',
+    });
+  }
+
   if (!isWorkerCredentialReady()) {
     return res.json({
       ok: true,
@@ -712,19 +728,6 @@ router.get('/pingone-policies', authenticateToken, async (_req, res) => {
     // guidance (same note channel as the missing-credentials branch) instead of
     // a raw upstream error dump.
     if (err.status === 403) {
-      // Fall back to the repo snapshot — the import source of truth for these
-      // policies (pingone/pingone-authorize-configure/SKILL.md). Same tree the
-      // console shows, rendered from the file that was imported.
-      const snapshotPolicies = getAuthorizationPoliciesFromSnapshot();
-      if (Array.isArray(snapshotPolicies) && snapshotPolicies.length > 0) {
-        return res.json({
-          ok: true,
-          policies: snapshotPolicies,
-          environmentId,
-          source: 'snapshot',
-          note: 'Rendered from the repo snapshot (snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json) — the file these policies are imported from. PingOne’s policy-editor API rejects worker tokens, so a live read is not possible; if the policies were edited in the console after import, this view may lag the live tree.',
-        });
-      }
       return res.json({
         ok: true,
         policies: [],

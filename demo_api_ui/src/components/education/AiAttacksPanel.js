@@ -75,8 +75,8 @@ export default function AiAttacksPanel({ isOpen, onClose, initialTabId }) {
       }
       // No agent instance mounted on this route (most admin sub-pages) — the
       // events above were dropped. Persist the pending run and navigate to
-      // /admin, where the mounting agent replays it (see AIAgent.js
-      // 'banking-agent-pending-attack' / window.__bankingAgentMounted).
+      // /dashboard, where the agent always mounts for signed-in users (see
+      // AIAgent.js 'banking-agent-pending-attack' / window.__bankingAgentMounted).
       if (!window.__bankingAgentMounted) {
         const pending = run.kind === 'showcase'
           ? { type: 'showcase', payload: { showcase: run.showcase, label: run.label } }
@@ -87,7 +87,7 @@ export default function AiAttacksPanel({ isOpen, onClose, initialTabId }) {
           // sessionStorage unavailable — navigation alone still lands on a working agent
         }
         if (onClose) onClose();
-        window.location.assign('/admin');
+        window.location.assign('/dashboard');
         return;
       }
       if (onClose) onClose();

@@ -27,7 +27,7 @@ function ensureBuiltInsSeeded() {
   if (!lmdb.getProfile(DEFAULT_PROFILE_ID)) {
     lmdb.saveProfile(DEFAULT_PROFILE_ID, {
       id: DEFAULT_PROFILE_ID,
-      label: 'Banking MCP (this app)',
+      label: 'AIDemo MCP (this app)',
       transport: 'websocket',
       isDefault: true,
       isBuiltIn: true,
