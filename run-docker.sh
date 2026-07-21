@@ -925,7 +925,11 @@ _read_demo_stack_flags() {
   # and reports simulated=0 while the running BFF is enforcing simulated=1 —
   # demo-sync then stops authz-server out from under the gateway and every tool
   # call fails closed with a policy DENY.
-  docker exec ai-demo-api-server node -e "
+  # The require() chain can log to stdout before the flags (e.g. otel's
+  # "[otel] tracing to ..." banner), so take the LAST line and validate its
+  # shape — anything else falls back to the real-stack default.
+  local out
+  out="$(docker exec ai-demo-api-server node -e "
     const cs = require('./services/configStore');
     (async () => {
       await cs.ensureInitialized();
@@ -933,14 +937,21 @@ _read_demo_stack_flags() {
       const sim = t(cs.getEffective('ff_authorize_simulated'));
       const pgw = t(cs.getEffective('ff_mcp_gateway_pinggateway'));
       const trc = (cs.getEffective('ff_tracing') === false || cs.getEffective('ff_tracing') === 'false') ? '0' : '1';
-      process.stdout.write(sim + ' ' + pgw + ' ' + trc);
+      process.stdout.write('\n' + sim + ' ' + pgw + ' ' + trc);
     })();
-  " 2>/dev/null || echo "0 1 1"
+  " 2>/dev/null | tail -n 1)"
+  if [[ "${out}" =~ ^[01]\ [01]\ [01]$ ]]; then
+    echo "${out}"
+  else
+    echo "0 1 1"
+  fi
 }
 
 # Start/stop demo-auth profile containers to match admin Quick Flag toggles.
 # Real default: PingGateway (IG) + cloud PingOne Authorize — no demo containers.
 # Demo path: authz-server when Simulated Authorize is ON; mcp-gateway when Demo GW is selected.
+# RAR (RFC 9396) is enforced on the real path (PingGateway + P1AZ / BFF live gate) —
+# do NOT keep mock servers running "for RAR".
 cmd_demo_sync() {
   echo ""
   echo -e "${CYAN}${BOLD}   [DOCKER]  Demo stack sync (Quick Flags → containers)${RESET}"

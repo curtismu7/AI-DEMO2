@@ -71,7 +71,9 @@
   cursor: not-allowed;
 }
 
-.search-button {
+/* Scoped under .code-search-page so global .btn / reset rules cannot
+   flatten Search into an unstyled browser button (board B6). */
+.code-search-page .search-button {
   padding: 10px 20px;
   background-color: #059669;
   color: white;
@@ -84,11 +86,11 @@
   transition: background-color 0.2s;
 }
 
-.search-button:hover:not(:disabled) {
+.code-search-page .search-button:hover:not(:disabled) {
   background-color: #047857;
 }
 
-.search-button:disabled {
+.code-search-page .search-button:disabled {
   background-color: #d1d5db;
   cursor: not-allowed;
 }
@@ -600,7 +602,7 @@
     flex-direction: column;
   }
 
-  .search-button {
+  .code-search-page .search-button {
     width: 100%;
   }
 
