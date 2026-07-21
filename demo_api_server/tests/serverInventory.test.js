@@ -30,4 +30,13 @@ describe('serverInventory', () => {
     expect(SERVER_INVENTORY.find((s) => s.key === 'ungoverned-agent').probe).toBe(false);
     expect(SERVER_INVENTORY.find((s) => s.key === 'api-server').probe).toBe('self');
   });
+
+  test('ui probe includes k8s frontend Service hostname (not only compose ui)', () => {
+    const ui = SERVER_INVENTORY.find((s) => s.key === 'ui');
+    expect(ui.candidates).toEqual(expect.arrayContaining([
+      'https://ui:4000',
+      'https://frontend:4000',
+      'https://localhost:4000',
+    ]));
+  });
 });

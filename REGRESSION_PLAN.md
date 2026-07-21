@@ -101,6 +101,19 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-21 — Board batch3: lifecycle HITL false-complete, /check UI probe, token-validation docs link
+
+**Files changed:** `AgentLifecyclePage.jsx` (+ test) — treat `callMcpTool`
+HITL soft-success (`mcp_hitl_required`) as 428, not checkout complete;
+`serverInventory.js` — probe `https://frontend:4000` (k8s Service name) so
+`/check` stops false-ECONNREFUSED on Banking UI; `ConfigTokenValidation.tsx`
+— real docs link, remove dead `onClick` and disallowed emoji.
+
+**Note:** Admin-agent `insufficient_scope` NL message (#659) is already on
+main — no further change in this batch.
+
+**Verify:** vitest `AgentLifecyclePage.test.jsx`; jest `serverInventory.test.js`.
+
 ### 2026-07-21 — RAR on real path: P1AZ PDP + PingGateway PEP (no mock pin)
 
 **Files changed:** `ping-gateway/scripts/groovy/p1az-decision.groovy` (forward
