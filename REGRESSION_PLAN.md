@@ -101,6 +101,58 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-21 — Kill switch had no way to stop a single rogue agent instance without disabling the shared agent client for every other user
+
+**Files changed:**
+- `demo_api_server/services/killSwitchService.js` — `killAgent` takes a new
+  `scope` param (`'full'` default | `'instance'`). `scope==='instance'` skips
+  `disableAgentApplicationsAtPingOne()` (step 2.5). Also returns a `steps`
+  array (`token_revocation`, `user_disable`, `app_disable`,
+  `session_invalidate`, `audit_log`), each with `ran`/`skipped`/`detail`, so
+  callers can show what actually happened.
+- `demo_api_server/routes/admin.js` — `POST /agent/:agentId/kill-switch`
+  reads `scope` from the body (validated to `'full'`/`'instance'`), passes it
+  to `killAgent`, and includes `scope`/`steps` in the 401 response.
+- `demo_api_ui/src/components/KillSwitchConfirmModal.jsx` (+ `.css`) — added a
+  scope radio (`This instance only (recommended)` vs `This agent's entire
+  identity`), defaulting to instance-only. After confirm, the modal switches
+  to a result view listing every step with a Done/Skipped badge and detail
+  text instead of closing immediately.
+- `demo_api_ui/src/components/ControlPlaneRoster.jsx` — `confirmLiveKill` now
+  passes `scope` through and returns the kill result to the modal instead of
+  closing it itself (`onCancel`, still wired to the modal's Cancel/Done
+  button, is what closes it now).
+
+**What was broken:** `killAgent`'s step 2.5 (`disableAgentApplicationsAtPingOne`)
+unconditionally disabled the whole `AGENT_CLIENT_ID` /
+`PINGONE_AI_AGENT_CLIENT_ID` PingOne application on every kill. That stops new
+token issuance for **every** user of that agent identity, not just the caller
+who triggered the kill switch — no way to contain a single misbehaving agent
+instance without a demo-wide outage for everyone else on the same client.
+
+**What was fixed:** `scope: 'instance'` skips the app-level disable — token
+revocation (RFC 7009), the target user's account disable, and local session
+invalidation still run, which is enough to stop that one instance. `scope:
+'full'` (the existing default, used when a caller sends no scope — e.g.
+`AgentLifecyclePage.jsx`'s unrelated self-service revoke, untouched here)
+keeps the old whole-client-disable behavior for a genuinely compromised
+client. The response's `steps` array is the audit-friendly explanation of
+which of the five kill-switch actions ran vs. were skipped and why.
+
+**Do not break:** `AgentLifecyclePage.jsx`'s Slot 4 self-service revoke sends
+only `{ reason }` (no `scope`) and must keep hitting the same default
+(`'full'`) behavior — do not change its call shape. `disableAgentApplicationsAtPingOne`
+/ `enableAgentApplicationsAtPingOne` themselves are unchanged; only whether
+`killAgent` calls the disable function is now conditional.
+
+**Verify:** `demo_api_server` jest — `killSwitchService`, `agentRateLimit`
+(32 tests, all green, run from the worktree with
+`--testPathIgnorePatterns="/node_modules/"`). `demo_api_ui` vitest —
+`ControlPlaneRoster`, `AgentLifecyclePage` (10 tests, all green;
+`KillSwitchConfirmModal` is mocked in the roster test so its new scope
+UI isn't exercised there). `cd demo_api_ui && npm run build` exits 0. Not yet
+click-verified live against real PingOne.
+
 ### 2026-07-21 — Banking MCP Inspector Execute failed with "MCP connection closed before response (code 1008: Agent token rejected)"
 
 **Files changed:** `demo_api_server/services/agentMcpTokenService.js` (new
