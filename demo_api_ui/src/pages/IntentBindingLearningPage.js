@@ -132,7 +132,51 @@ export default function IntentBindingLearningPage() {
         <pre className="ib-grant-json">{JSON.stringify(GRANT, null, 2)}</pre>
       </div>
 
-      <div id="rar" className="ib-split">
+      <div id="rar">
+        <div className="ib-flow-diagram">
+          <strong>RAR flow through the system:</strong>
+          <svg viewBox="0 0 900 200" className="ib-flow-svg">
+            <rect x="20" y="40" width="120" height="60" rx="4" fill="#e3f2fd" stroke="#1976d2" strokeWidth="2" />
+            <text x="80" y="75" textAnchor="middle" fontSize="14" fontWeight="500">User Declares</text>
+            <text x="80" y="92" textAnchor="middle" fontSize="12">Intent: $100</text>
+
+            <path d="M 140 70 L 170 70" stroke="#666" strokeWidth="2" markerEnd="url(#arrowhead)" />
+
+            <rect x="170" y="40" width="140" height="60" rx="4" fill="#f3e5f5" stroke="#7b1fa2" strokeWidth="2" />
+            <text x="240" y="63" textAnchor="middle" fontSize="12" fontWeight="500">RAR Grant Created</text>
+            <text x="240" y="80" textAnchor="middle" fontSize="11">authorization_details</text>
+            <text x="240" y="95" textAnchor="middle" fontSize="10" fill="#666">(amount: 100)</text>
+
+            <path d="M 310 70 L 340 70" stroke="#666" strokeWidth="2" markerEnd="url(#arrowhead)" />
+
+            <rect x="340" y="40" width="120" height="60" rx="4" fill="#fff3e0" stroke="#f57c00" strokeWidth="2" />
+            <text x="400" y="75" textAnchor="middle" fontSize="14" fontWeight="500">Agent Token</text>
+            <text x="400" y="92" textAnchor="middle" fontSize="11">+ RAR Grant</text>
+
+            <path d="M 460 70 L 490 70" stroke="#666" strokeWidth="2" markerEnd="url(#arrowhead)" />
+
+            <rect x="490" y="40" width="140" height="60" rx="4" fill="#e8f5e9" stroke="#388e3c" strokeWidth="2" />
+            <text x="560" y="63" textAnchor="middle" fontSize="12" fontWeight="500">Transfer Request</text>
+            <text x="560" y="80" textAnchor="middle" fontSize="11">create_transfer($80)</text>
+            <text x="560" y="95" textAnchor="middle" fontSize="10" fill="#666">(via MCP Gateway)</text>
+
+            <path d="M 630 70 L 660 70" stroke="#666" strokeWidth="2" markerEnd="url(#arrowhead)" />
+
+            <rect x="660" y="30" width="160" height="80" rx="4" fill="#fce4ec" stroke="#c2185b" strokeWidth="2" />
+            <text x="740" y="50" textAnchor="middle" fontSize="12" fontWeight="500">PingOne Authorize</text>
+            <text x="740" y="67" textAnchor="middle" fontSize="11">Compares requested</text>
+            <text x="740" y="84" textAnchor="middle" fontSize="11">amount vs. grant cap</text>
+            <text x="740" y="101" textAnchor="middle" fontSize="10" fill="#c2185b" fontWeight="500">→ PERMIT/DENY</text>
+
+            <defs>
+              <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                <polygon points="0 0, 10 3, 0 6" fill="#666" />
+              </marker>
+            </defs>
+          </svg>
+        </div>
+
+        <div className="ib-split">
         <IntentBindingColumn
           kind="permit"
           title="Within the grant"
@@ -149,6 +193,7 @@ export default function IntentBindingLearningPage() {
           col={driftCol}
           live={live}
         />
+        </div>
       </div>
 
       <div className="ib-live-toggle">
