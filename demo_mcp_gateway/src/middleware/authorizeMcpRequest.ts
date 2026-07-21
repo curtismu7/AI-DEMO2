@@ -88,6 +88,7 @@ interface GwAuditTrail {
     attributes?: Record<string, string>;
   } | null;
   mtls: { enabled: boolean; subject?: string } | null;
+  backend: { target: string; audience: string | null; cached?: boolean; exchanged: boolean; error?: string } | null;
 }
 
 /**
@@ -303,6 +304,7 @@ export function buildAuthorizeMcpRequest(
       policy: null,
       authorize: null,
       mtls: null,
+      backend: null,
     };
     // Store introspection result to pass to P1AZ when introspectionProvider is 'p1az'
     let introspectionResult: { active: boolean; sub?: string; exp?: number; scope?: string; aud?: string } | undefined;
@@ -959,12 +961,10 @@ export function buildAuthorizeMcpRequest(
     }
 
     // ── Step 4: RFC 8693 exchange, then forward (spec §4) ──────────────────────────
-    // The HTTP upstream is FIXED to the OLB server (GatewayServer.upstreamMcpUrl) —
-    // there is no per-tool routing on this transport, unlike the WS path (index.ts),
-    // which proxies to olb or invest per routeTool(toolName). So every Step-4
-    // exchange here targets the olb audience regardless of toolName; invest tools
-    // are not reachable over this HTTP path. Fail closed: on exchange failure
-    // nothing is forwarded.
+    // doExchange()/routeTool() route per-tool to the olb, invest, or jwtverifier
+    // audience (see demo_mcp_gateway/src/router.ts and PR #654/#674) — this HTTP
+    // transport reaches all three backends, not just olb. Fail closed: on
+    // exchange failure nothing is forwarded.
     // WR-03: outBody has `_hitl_challenge_id` stripped (or === body if absent).
     auditTrail.mtls = config.mtlsEnabled
       ? { enabled: true, subject: 'banking-mcp-gateway' }
@@ -975,11 +975,14 @@ export function buildAuthorizeMcpRequest(
     try {
       const ex = await doExchange(bearerToken, toolName);
       upstreamToken = ex.token;
+      auditTrail.backend = { target: routeTool(toolName || ''), audience: ex.targetAud, cached: ex.cached, exchanged: true };
+      setAuditHeader(res);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       const axiosData = (err as any)?.response?.data;
       const detail = axiosData?.error_description || axiosData?.error || errMsg;
       teachLog.error('[GW] HTTP token exchange failed', err instanceof Error ? err : undefined, { tool: toolName });
+      auditTrail.backend = { target: routeTool(toolName || ''), audience: null, exchanged: false, error: detail };
       sendRpcError(502, parsedBody.id, {
         code: -32500,
         message: `Token exchange failed: ${detail}`,
