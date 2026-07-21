@@ -901,6 +901,8 @@ function useCustomServerSource() {
   const [lastInvoke, setLastInvoke] = useState(null);
   const [lastTiming, setLastTiming] = useState(null);
   const [needsLogin, setNeedsLogin] = useState(false);
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [stepUpMethod, setStepUpMethod] = useState('');
   const [busy, setBusy] = useState(false);
   const [outputTab, setOutputTab] = useState('response');
   const [mcpHistory, setMcpHistory] = useState(getCalls);
@@ -978,12 +980,15 @@ function useCustomServerSource() {
       if (data.pingone_admin_login_required) {
         setPingoneAdminLoginUrl(data.loginUrl || '/api/mcp/inspector/pingone-admin/login');
       }
+      setMfaRequired(!!data.mfa_required);
+      setStepUpMethod(data.step_up_method || '');
       setSelectedTool(null);
       setLastInvoke(null);
       setLastTiming(null);
       setFormError(null);
       setNeedsLogin(false);
     } catch (e) {
+      setMfaRequired(false);
       if (isNonDefaultProfile) {
         setTools([]);
         setToolsSourceInfo(null);
@@ -1250,6 +1255,13 @@ function useCustomServerSource() {
         {profileError && (
           <div style={{ background: '#fef2f2', color: '#991b1b', padding: '8px 20px', fontSize: 12 }}>
             <strong>Could not reach this MCP server.</strong> {profileError}
+          </div>
+        )}
+        {mfaRequired && (
+          <div style={{ background: '#eff6ff', color: '#1e40af', padding: '8px 20px', fontSize: 12 }}>
+            <strong>Step-up verification required.</strong>{' '}
+            This session needs MFA step-up{stepUpMethod ? ` (${stepUpMethod})` : ''} before tools/list can run.
+            Complete step-up verification, then refresh.
           </div>
         )}
         {needsLogin && (
