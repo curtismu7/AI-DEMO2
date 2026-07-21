@@ -58,7 +58,12 @@ router.post('/run', authenticateToken, async (req, res) => {
       if (!parEndpoint || !clientId || !clientSecret) {
         return res.status(503).json({
           error: 'par_config_missing',
-          reason: 'PingOne PAR endpoint or credentials not configured',
+          reason: 'PingOne PAR (RFC 9126) is enabled by default. Configure: pingone_par_endpoint, pingone_ai_agent_actor_client_id, pingone_ai_agent_actor_client_secret',
+          tokenChainEvents: [{
+            id: 'par-config-missing',
+            label: 'PAR Configuration Missing',
+            status: 'error',
+          }],
         });
       }
 
