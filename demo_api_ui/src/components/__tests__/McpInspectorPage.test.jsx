@@ -50,14 +50,14 @@ test('defaults to the PingOne MCP source when no ?source= param is present, and 
   expect(await screen.findByText('users.read')).toBeInTheDocument();
 });
 
-test('an explicit ?source=banking param selects the AIDemo MCP source', () => {
+test('an explicit ?source=banking param selects the AI Demo MCP source', () => {
   renderPage('/pingone-mcp-inspector?source=banking');
-  expect(screen.getByRole('button', { name: 'AIDemo MCP' })).toHaveClass('src-pill--active');
+  expect(screen.getByRole('button', { name: 'AI Demo MCP' })).toHaveClass('src-pill--active');
   expect(screen.getByRole('button', { name: 'PingOne MCP' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'API Calls' })).toBeInTheDocument();
 });
 
-test('selecting an AIDemo MCP tool populates the middle form, calling Execute posts to /api/mcp/inspector/invoke without a profile field', async () => {
+test('selecting an AI Demo MCP tool populates the middle form, calling Execute posts to /api/mcp/inspector/invoke without a profile field', async () => {
   apiClient.get.mockImplementation((url) => {
     if (url === '/api/mcp/inspector/tools') {
       return Promise.resolve({ data: { tools: [BANKING_TOOL], _source: 'mcp_server' } });
@@ -76,7 +76,7 @@ test('selecting an AIDemo MCP tool populates the middle form, calling Execute po
   expect(await screen.findByText(/4820.15/)).toBeInTheDocument();
 });
 
-test('does not render a profile picker or "+ Add server" control (dropped for the AIDemo MCP source)', async () => {
+test('does not render a profile picker or "+ Add server" control (dropped for the AI Demo MCP source)', async () => {
   renderPage('/pingone-mcp-inspector?source=banking');
   await screen.findByText('get_account_balance');
   expect(screen.queryByText('+ Add server')).toBeNull();
