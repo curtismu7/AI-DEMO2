@@ -69,12 +69,19 @@ New route, condition `^/mcp/weather`. Chain: `McpAudit` → `StripWeatherPrefix`
 shared) → `TxWeatherScope` (new `ScriptableFilter`) → `ReverseProxyHandler` with
 `baseURI: ${env['PG_WEATHER_BACKEND_URL']}`.
 
-**Naming note:** the file is `00-mcp-weather.json`, not `03-...`. `01-mcp-olb.json`'s
-condition is a catch-all — `^/mcp(?!/invest)` — that would otherwise shadow `/mcp/weather`
-too, since routes are evaluated in filename-sort order and only `/invest` is excluded. The
-existing `00-mcp-apikey.json` solves the identical problem for `/mcp/apikey` the same way: a
-`00`-prefixed filename sorts before `01-mcp-olb.json` and wins first. No edit to
-`01-mcp-olb.json` (a protected file) is needed.
+**Naming/shadowing note:** the file is named `00-mcp-weather.json`, but the `00-` filename
+prefix is cosmetic only — live testing during implementation proved PingGateway selects among
+matching routes by the route's `"name"` field, sorted alphabetically, NOT by filename (an
+in-repo comment in `00-mcp-apikey-jwks.json` states this outright: "IG selects by name, not
+filename"). `01-mcp-olb.json`'s condition is a catch-all — `^/mcp(?!/invest)` — and its name
+`mcp-olb-primary` sorts alphabetically before `mcp-weather-primary`, so without an explicit
+exclusion OLB silently swallows `/mcp/weather` traffic (verified live: identical `401` headers
+to bare `/mcp`, real traffic would proxy to the OLB backend). The fix mirrors the existing
+`/invest` exclusion exactly: `01-mcp-olb.json`'s condition also excludes `/weather` —
+`^/mcp(?!/invest|/weather)` — a minimal, additive-only change to a protected file (it only
+shrinks OLB's match set; it cannot affect any existing OLB/banking traffic). `00-mcp-apikey.json`
+happens to escape OLB's catch-all today too, but only because `"apikey"` alphabetically
+precedes `"olb"` — coincidence, not a deliberate mechanism.
 
 No JWKS sibling route (`00-mcp-weather-jwks.json`) — not needed since this route doesn't do
 its own token exchange or introspection variant.

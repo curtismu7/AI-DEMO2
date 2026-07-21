@@ -443,12 +443,25 @@ git commit -m "feat(mcp-weather): add compose service + wire ping-gateway backen
 **Files:**
 - Create: `ping-gateway/config/routes/00-mcp-weather.json`
 - Modify: `ping-gateway/.env.example`
+- Modify: `ping-gateway/config/routes/01-mcp-olb.json` (protected file — one-token regex
+  exclusion only, see Step 4a; regression-guard invariant stated there)
+- Modify: `REGRESSION_PLAN.md` (append a `§4` bug-fix-log entry for the Step 4a fix)
 
 **Interfaces:**
 - Consumes: `PG_WEATHER_BACKEND_URL` (Task 3), the gateway's existing `rsFilter` heap object
   (defined in `ping-gateway/config/config.json`, unchanged).
 - Produces: `/mcp/weather` reachable through `ping-gateway` (port `3036`), still with no
   Texas scoping — Task 5 adds that filter into this same route file.
+
+**Regression-guard invariant (state before Step 4a):** PingGateway selects among matching
+routes by the route's `"name"` field, sorted alphabetically — NOT by filename (confirmed via
+an in-repo comment in `00-mcp-apikey-jwks.json`: "IG selects by name, not filename"). Without
+Step 4a, `01-mcp-olb.json`'s catch-all condition (`^/mcp(?!/invest)`, name `mcp-olb-primary`)
+alphabetically outranks `mcp-weather-primary` and silently swallows all `/mcp/weather`
+traffic — proxying it to the OLB/banking backend instead of the weather backend. Step 4a's
+fix — adding `|/weather` to that regex, mirroring the existing `|/invest` exclusion — will NOT
+change OLB's behavior for `/mcp`, `/mcp/olb`, or any existing banking/OLB traffic; it only
+removes one path OLB was never meant to own from its match set.
 
 - [ ] **Step 1: Create the route file**
 
@@ -520,11 +533,92 @@ curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3036/mcp/weather -X PO
 ```
 Expected: `401`
 
-- [ ] **Step 5: Commit**
+**This 401 alone does NOT prove the route is reachable** — `01-mcp-olb.json`'s catch-all
+condition also 401s on an unauthenticated request, so an identical response code can come
+from the wrong route. Step 5 below adds the fix and Step 6 re-verifies with a header
+comparison that distinguishes the two.
+
+- [ ] **Step 5: Fix the route-shadowing bug — exclude `/weather` in `01-mcp-olb.json`**
+
+Read `ping-gateway/config/routes/01-mcp-olb.json` first. Find its `"condition"` line:
+
+```json
+  "condition": "${find(request.uri.path, '^/mcp(?!/invest)')}",
+```
+
+Change ONLY the regex, adding a `/weather` exclusion alongside the existing `/invest` one —
+do not touch anything else in this file:
+
+```json
+  "condition": "${find(request.uri.path, '^/mcp(?!/invest|/weather)')}",
+```
+
+Validate and recreate:
+```bash
+bash ping-gateway/scripts/validate-config.sh
+COMPOSE_PROJECT_NAME=ai-demo docker compose up -d ping-gateway
+```
+Expected: validate-config.sh passes; container recreated and healthy.
+
+Verify OLB's own existing behavior is unchanged (the regression-guard proof this edit didn't
+break banking/OLB traffic) — run the existing e2e script's OLB legs:
+```bash
+bash ping-gateway/scripts/e2e-pinggateway.sh
+```
+Expected: Leg A/B behave exactly as they did before this change (same PASS/LIVE_E2E_BLOCKED
+outcomes) — this script predates this task and its OLB-path assertions must still hold.
+
+Now re-verify `/mcp/weather` is reaching the RIGHT route, not just returning the same status
+code as before. Compare the `WWW-Authenticate` response header between `/mcp` (OLB) and
+`/mcp/weather` (should now differ — OLB's uses `McpProtectionFilter`/`resource_metadata`; the
+weather route's bare `rsFilter` does not):
+```bash
+curl -sI http://localhost:3036/mcp -X POST -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":"1","method":"tools/list"}' | grep -i 'www-authenticate'
+curl -sI http://localhost:3036/mcp/weather -X POST -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":"1","method":"tools/list"}' | grep -i 'www-authenticate'
+```
+Expected: the two `WWW-Authenticate` header VALUES differ. If they are identical, the
+shadowing is NOT fixed — stop and re-check the regex edit before proceeding.
+
+Log this fix in `REGRESSION_PLAN.md`'s `§4 — Bug Fix Log` (reverse-chronological — insert as
+the newest entry, directly after the "Reverse-chronological, newest first." line):
+
+```markdown
+### 2026-07-21 — /mcp/weather route silently shadowed by 01-mcp-olb.json's catch-all
+
+**Files changed:**
+- `ping-gateway/config/routes/01-mcp-olb.json` — condition regex now excludes `/weather`
+  alongside the existing `/invest` exclusion (`^/mcp(?!/invest|/weather)`).
+
+**What was broken:** PingGateway selects among matching routes by the route's `"name"`
+field, sorted alphabetically — not by filename. `00-mcp-weather.json` (name
+`mcp-weather-primary`) was added expecting its `00-` filename prefix to win priority over
+`01-mcp-olb.json` (name `mcp-olb-primary`), matching how `00-mcp-apikey.json` (name
+`mcp-apikey-primary`) already escapes the same catch-all. That precedent is coincidental —
+`"apikey"` alphabetically precedes `"olb"`, `"weather"` does not — so `01-mcp-olb.json`'s
+catch-all silently swallowed all `/mcp/weather` traffic, proxying it to the OLB/banking
+backend instead of the weather backend. A 401 on an unauthenticated request looked identical
+either way, masking the bug until response headers were compared directly.
+
+**What was fixed:** added `|/weather` to `01-mcp-olb.json`'s condition regex, mirroring the
+existing `|/invest` exclusion — the same structurally-guaranteed mechanism (not
+alphabetical-name luck) that already protects the invest route.
+
+**Do not break:** `01-mcp-olb.json`'s condition must keep matching `/mcp` and any other
+`/mcp/*` path that isn't `/invest` or `/weather` — do not narrow it further without checking
+what else relies on the OLB catch-all.
+
+**Verify:** `bash ping-gateway/scripts/validate-config.sh` (PASS); `bash
+ping-gateway/scripts/e2e-pinggateway.sh` (OLB legs unchanged); `WWW-Authenticate` header on
+`/mcp/weather` no longer matches `/mcp`'s.
+```
+
+- [ ] **Step 6: Commit**
 
 ```bash
-git add ping-gateway/config/routes/00-mcp-weather.json ping-gateway/.env.example
-git commit -m "feat(mcp-weather): add ping-gateway route (passthrough, no TX scope yet)"
+git add ping-gateway/config/routes/00-mcp-weather.json ping-gateway/.env.example ping-gateway/config/routes/01-mcp-olb.json REGRESSION_PLAN.md
+git commit -m "feat(mcp-weather): add ping-gateway route + fix OLB catch-all shadowing /mcp/weather"
 ```
 
 ---
@@ -539,7 +633,9 @@ git commit -m "feat(mcp-weather): add ping-gateway route (passthrough, no TX sco
 - Consumes: the buffered request body `McpValidationFilter` (already in the chain) produces.
 - Produces: a `TxWeatherScope` filter step that denies out-of-Texas `tools/call` requests
   with HTTP 403 before they reach `ReverseProxyHandler`. Task 6's e2e legs assert on this
-  behavior.
+  behavior. Task 9 (added later in this plan) edits this SAME file to prepend a live
+  feature-flag check ahead of the Texas-scope logic below — this task's job is the Texas
+  scoping only, with no flag awareness.
 
 - [ ] **Step 1: Create the Groovy filter**
 
