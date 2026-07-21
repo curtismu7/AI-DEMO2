@@ -33,22 +33,25 @@ Client → ping-gateway :3036
     → McpValidationFilter (existing McpProtocol filter — unchanged)
     → TxWeatherScope (NEW Groovy ScriptableFilter)
     → ReverseProxyHandler
-  → weather-mcp-bridge (NEW container, HTTP :8896)
-    → spawns `npx -y @dangahagan/weather-mcp@latest` as a long-lived stdio child,
-      JSON-RPC passthrough over MCP Streamable HTTP (POST /mcp only, no SSE)
+  → mcp-weather (NEW container, HTTP :8896)
+    → spawns `@dangahagan/weather-mcp` (installed at build time, pinned version) as a
+      long-lived stdio child, JSON-RPC passthrough over MCP Streamable HTTP (POST /mcp
+      only, no SSE)
 ```
 
-`weather-mcp` ships stdio-only (`StdioServerTransport`, spawned via `npx`) — it has no HTTP
-transport. `ping-gateway`'s `ReverseProxyHandler` requires an HTTP backend, so a small bridge
-sidecar is required in front of it, following the same shape as `demo_mcp_server`'s
+`weather-mcp` ships stdio-only (`StdioServerTransport`) — it has no HTTP transport.
+`ping-gateway`'s `ReverseProxyHandler` requires an HTTP backend, so a small bridge sidecar is
+required in front of it, following the same shape as `demo_mcp_server`'s
 `HttpMCPTransport.ts` (`POST /mcp`, JSON-RPC 2.0, no SSE required for basic compliance).
 
 ## Components
 
-### 1. `weather_mcp_bridge/` (new, sibling to `demo_mcp_server/`)
+### 1. `demo_mcp_weather/` (new, sibling to `demo_mcp_server/` / `demo_mcp_proxy/`)
 
 - Node HTTP server exposing `POST /mcp` (MCP Streamable HTTP, JSON-RPC 2.0 passthrough).
-- Spawns and owns one long-lived stdio child process: `npx -y @dangahagan/weather-mcp@latest`.
+- Spawns and owns one long-lived stdio child process: `@dangahagan/weather-mcp`, installed
+  as a pinned dependency at Docker build time (not fetched via `npx` at runtime — avoids a
+  registry round-trip and version drift on every container restart).
 - Does **not** set `WEATHER_MCP_TOOLS=all` — leaving it unset means the child registers only
   its own default-6 preset (`get_weather_summary`, `get_forecast`, `get_current_conditions`,
   `get_alerts`, `search_location`, `check_service_status`). This solves the tool-scope
@@ -59,17 +62,24 @@ sidecar is required in front of it, following the same shape as `demo_mcp_server
   validated the caller's token via `rsFilter` before this point).
 - Dockerfile + package.json + server.js, matching `demo_mcp_proxy/`'s file layout.
 
-### 2. `ping-gateway/config/routes/03-mcp-weather.json` (new)
+### 2. `ping-gateway/config/routes/00-mcp-weather.json` (new)
 
 New route, condition `^/mcp/weather`. Chain: `McpAudit` → `StripWeatherPrefix`
 (`UriPathRewriteFilter`) → `rsFilter` (existing, shared) → `McpValidationFilter` (existing,
 shared) → `TxWeatherScope` (new `ScriptableFilter`) → `ReverseProxyHandler` with
 `baseURI: ${env['PG_WEATHER_BACKEND_URL']}`.
 
+**Naming note:** the file is `00-mcp-weather.json`, not `03-...`. `01-mcp-olb.json`'s
+condition is a catch-all — `^/mcp(?!/invest)` — that would otherwise shadow `/mcp/weather`
+too, since routes are evaluated in filename-sort order and only `/invest` is excluded. The
+existing `00-mcp-apikey.json` solves the identical problem for `/mcp/apikey` the same way: a
+`00`-prefixed filename sorts before `01-mcp-olb.json` and wins first. No edit to
+`01-mcp-olb.json` (a protected file) is needed.
+
 No JWKS sibling route (`00-mcp-weather-jwks.json`) — not needed since this route doesn't do
 its own token exchange or introspection variant.
 
-### 3. `ping-gateway/config/scripts/groovy/tx-weather-scope.groovy` (new)
+### 3. `ping-gateway/scripts/groovy/tx-weather-scope.groovy` (new)
 
 Runs after `McpValidationFilter` has buffered the body (matching the existing comment in
 `00-mcp-invest-jwks.json` about validation needing to run on every route reaching the
@@ -94,17 +104,25 @@ Logic:
 
 ### 4. Compose + env
 
-- New `weather-mcp-bridge` service (compose file(s) that already run `ping-gateway` and its
-  sibling MCP backends).
+- New `mcp-weather` service in the root `docker-compose.yml` (same file that already defines
+  `mcp-invest`, `mcp-server`, `mcp-proxy`, and `ping-gateway`), mirroring the `mcp-invest`
+  service block shape.
+- `ping-gateway` service block: add `PG_WEATHER_BACKEND_URL: "http://mcp-weather:8896"` to its
+  `environment:` (in-stack override, mirrors `PG_OLB_BACKEND_URL` / `PG_INVEST_BACKEND_URL`),
+  and add `mcp-weather: condition: service_started` to its `depends_on:`.
 - `ping-gateway/.env.example`: add `PG_WEATHER_BACKEND_URL=http://host.docker.internal:8896`
-  (matching the existing `PG_OLB_BACKEND_URL` / `PG_INVEST_BACKEND_URL` convention).
+  (matching the existing `PG_OLB_BACKEND_URL` / `PG_INVEST_BACKEND_URL` convention for the
+  standalone `ping-gateway/docker-compose.yml` / host-run flow).
 
 ### 5. `demo_api_ui/src/config/capabilityLedgers/agentGatewayCapabilities.js`
 
 New capability card: third-party MCP passthrough + geographic scoping. Evidence field points
-at `ping-gateway/config/scripts/groovy/tx-weather-scope.groovy` and
-`ping-gateway/config/routes/03-mcp-weather.json`, matching the existing evidence-string
-convention in this file (`file:line` references).
+at `ping-gateway/scripts/groovy/tx-weather-scope.groovy` and
+`ping-gateway/config/routes/00-mcp-weather.json`, matching the existing evidence-string
+convention in this file (`file:line` references). Unlike every other entry in this ledger,
+there is no Node `demo_mcp_gateway` equivalent — this capability is PingGateway-only, noted
+explicitly (the same convention the existing `metadata-controls` entry uses for its Node-only
+case, inverted).
 
 ## Data flow (happy path)
 
@@ -115,7 +133,7 @@ convention in this file (`file:line` references).
 3. `McpValidationFilter` validates MCP protocol shape, buffers body.
 4. `tx-weather-scope.groovy` parses the buffered body, sees `tools/call` + in-scope location
    → passes through unchanged.
-5. `ReverseProxyHandler` forwards to `weather-mcp-bridge`.
+5. `ReverseProxyHandler` forwards to the `mcp-weather` bridge service.
 6. Bridge forwards the JSON-RPC call to its stdio child, returns the child's response
    verbatim.
 
