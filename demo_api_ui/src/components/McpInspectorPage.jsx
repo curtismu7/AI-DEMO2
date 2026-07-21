@@ -1,5 +1,5 @@
 // demo_api_ui/src/components/McpInspectorPage.jsx
-// Consolidates McpInspector.js (Banking MCP), PingOneMcpInspector.js
+// Consolidates McpInspector.js (AIDemo MCP), PingOneMcpInspector.js
 // (PingOne MCP), and ApiExplorerPanel.js (API Calls) behind one
 // InspectorShell instance with a source switcher. Each source's logic is
 // a straight adaptation of its original file — see the design spec
@@ -23,14 +23,14 @@ import './shared/InspectorShell.css';
 import './ApiExplorerPanel.css';
 
 const SOURCES = [
-  { key: 'banking', label: 'Banking MCP' },
+  { key: 'banking', label: 'AIDemo MCP' },
   { key: 'pingone', label: 'PingOne MCP' },
   { key: 'api', label: 'API Calls' },
   { key: 'custom', label: 'Custom Server' },
 ];
 
 // ---------------------------------------------------------------------------
-// Banking MCP source — adapted from McpInspector.js's default-profile path.
+// AIDemo MCP source — adapted from McpInspector.js's default-profile path.
 // The profile picker / "+ Add server" / PingOne-admin-login additions from
 // that file are intentionally not carried over (see plan scope correction 1).
 // ---------------------------------------------------------------------------

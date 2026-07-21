@@ -20,7 +20,7 @@
 const DISPLAY_LABELS = {
   'demo-api-server': 'App Backend (BFF)',
   'mcp-gateway': 'MCP Gateway',
-  'mcp-server': 'Banking MCP Server',
+  'mcp-server': 'AIDemo MCP Server',
   'mcp-invest': 'Investment MCP Server',
   'agent-service': 'AI Agent',
   'hitl-service': 'HITL Service',
