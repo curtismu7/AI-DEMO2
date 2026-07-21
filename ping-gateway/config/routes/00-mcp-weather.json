@@ -22,6 +22,11 @@
           "name": "McpProtocol",
           "type": "McpValidationFilter",
           "config": { "acceptedOrigins": ".*", "metricsEnabled": true }
+        },
+        {
+          "name": "TxWeatherScope",
+          "type": "ScriptableFilter",
+          "config": { "type": "application/x-groovy", "file": "tx-weather-scope.groovy" }
         }
       ],
       "handler": {
