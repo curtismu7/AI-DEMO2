@@ -151,7 +151,7 @@ describe('mcpPingOneAdminAuth', () => {
       await loginThenGetSession(built);
       const res = await request(built.app).get('/callback?code=abc&state=WRONG');
       expect(res.status).toBe(302);
-      expect(res.headers.location).toMatch(/^\/mcp-inspector\?pingone_admin_error=invalid_state/);
+      expect(res.headers.location).toMatch(/^\/pingone-mcp-inspector\?source=custom&pingone_admin_error=invalid_state/);
     });
 
     it('redirects with pingone_admin_error when PingOne returns an OAuth error', async () => {
@@ -171,7 +171,7 @@ describe('mcpPingOneAdminAuth', () => {
       const res = await request(built.app).get(`/callback?code=abc123&state=${state}`);
 
       expect(res.status).toBe(302);
-      expect(res.headers.location).toBe('/mcp-inspector');
+      expect(res.headers.location).toBe('/pingone-mcp-inspector?source=custom');
       expect(mockAxiosPost).toHaveBeenCalledWith(
         'https://auth.pingone.com/env-123/as/token',
         expect.stringContaining('grant_type=authorization_code'),

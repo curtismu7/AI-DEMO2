@@ -145,7 +145,7 @@ router.get('/login', requireAdmin, async (req, res) => {
     });
   } catch (err) {
     console.error('[mcpPingOneAdminAuth] /login error:', err.message);
-    res.redirect(`/mcp-inspector?pingone_admin_error=${encodeURIComponent(err.message)}`);
+    res.redirect(`/pingone-mcp-inspector?source=custom&pingone_admin_error=${encodeURIComponent(err.message)}`);
   }
 });
 
@@ -156,7 +156,7 @@ router.get('/callback', async (req, res) => {
 
   const failAndRedirect = (message) => {
     delete req.session.pingoneMcpAdminOAuth;
-    res.redirect(`/mcp-inspector?pingone_admin_error=${encodeURIComponent(message)}`);
+    res.redirect(`/pingone-mcp-inspector?source=custom&pingone_admin_error=${encodeURIComponent(message)}`);
   };
 
   if (error) return failAndRedirect(errorDescription || error);
@@ -184,7 +184,7 @@ router.get('/callback', async (req, res) => {
     delete req.session.pingoneMcpAdminOAuth;
     req.session.save((err) => {
       if (err) console.error('[mcpPingOneAdminAuth] session save error (post-token):', err.message);
-      res.redirect('/mcp-inspector');
+      res.redirect('/pingone-mcp-inspector?source=custom');
     });
   } catch (err) {
     const detail = err.response?.data?.error_description || err.response?.data?.error || err.message;
