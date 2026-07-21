@@ -703,6 +703,23 @@ const FLAG_REGISTRY = [
     defaultValue: true,
   },
   {
+    id:           'ff_weather_mcp_showcase',
+    name:         'Weather MCP Showcase (Agent Gateway)',
+    category:     'MCP / Agent',
+    description:
+      'Controls whether the Agent Gateway (PingGateway/IG) weather-mcp showcase route ' +
+      '(`/mcp/weather`) is enabled. This is a standalone gateway capability demo — a ' +
+      'third-party MCP server fronted and scoped to Texas-only by the gateway — with no ' +
+      'banking chat/agent wiring. `tx-weather-scope.groovy` calls this flag live on every ' +
+      '`/mcp/weather` request via `GET /internal/feature-flags/weather-mcp-showcase`, so ' +
+      'toggling it here takes effect immediately, with no gateway restart.',
+    impact:
+      'ON (default) = /mcp/weather is reachable (subject to the Texas-only scope policy). ' +
+      'OFF = every /mcp/weather request is denied with HTTP 403, regardless of location.',
+    type:         'boolean',
+    defaultValue: true,
+  },
+  {
     id:           'ff_local_fallback_on_exchange_failure',
     name:         'Local Fallback on Exchange Failure',
     category:     'MCP / Agent',
