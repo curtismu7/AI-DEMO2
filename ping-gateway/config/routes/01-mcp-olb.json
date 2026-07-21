@@ -1,6 +1,6 @@
 {
   "name": "mcp-olb-primary",
-  "condition": "${find(request.uri.path, '^/mcp(?!/invest)')}",
+  "condition": "${find(request.uri.path, '^/mcp(?!/invest|/weather)')}",
   "heap": [
     {
       "name": "SecretsStore",

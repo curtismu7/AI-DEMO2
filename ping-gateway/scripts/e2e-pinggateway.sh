@@ -103,6 +103,55 @@ else
 fi
 echo ""
 
+# ── Leg D: PingGateway weather route inbound protection (no token -> 401) ────
+D_CODE="$(probe "$PG_URL/mcp/weather" -X POST -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":"1","method":"tools/list"}')"
+if [ -z "$D_CODE" ] || [ "$D_CODE" = "000" ]; then
+  echo "LIVE_E2E_BLOCKED: PingGateway not reachable at $PG_URL for the weather route."
+else
+  ran=$((ran+1))
+  if [ "$D_CODE" = "401" ]; then
+    echo "PASS  Leg D: unauthenticated POST /mcp/weather -> 401 (rsFilter enforcing)"
+  else
+    echo "FAIL  Leg D: unauthenticated POST /mcp/weather -> $D_CODE (expected 401)"
+    fail=1
+  fi
+fi
+echo ""
+
+# ── Leg E: Texas-scope Groovy filter (allow TX, deny non-TX) ──────────────────
+if [ -n "${BANKING_TEST_TOKEN:-}" ]; then
+  ran=$((ran+1))
+  TX_CODE="$(probe "$PG_URL/mcp/weather" -X POST \
+    -H "Authorization: Bearer $BANKING_TEST_TOKEN" \
+    -H 'Content-Type: application/json' -H 'MCP-Protocol-Version: 2025-11-25' \
+    -d '{"jsonrpc":"2.0","id":"1","method":"tools/call","params":{"name":"get_current_conditions","arguments":{"city_name":"Austin, TX"}}}')"
+  if [ "$TX_CODE" = "200" ]; then
+    echo "PASS  Leg E1: Texas tools/call through PingGateway -> 200"
+  else
+    echo "FAIL  Leg E1: Texas tools/call -> $TX_CODE (expected 200)"
+    fail=1
+  fi
+
+  NONTX_CODE="$(probe "$PG_URL/mcp/weather" -X POST \
+    -H "Authorization: Bearer $BANKING_TEST_TOKEN" \
+    -H 'Content-Type: application/json' -H 'MCP-Protocol-Version: 2025-11-25' \
+    -d '{"jsonrpc":"2.0","id":"2","method":"tools/call","params":{"name":"get_current_conditions","arguments":{"city_name":"New York, NY"}}}')"
+  if [ "$NONTX_CODE" = "403" ]; then
+    echo "PASS  Leg E2: non-Texas tools/call through PingGateway -> 403 (tx-weather-scope.groovy denying)"
+  else
+    echo "FAIL  Leg E2: non-Texas tools/call -> $NONTX_CODE (expected 403)"
+    fail=1
+  fi
+else
+  echo "LIVE_E2E_BLOCKED: no BANKING_TEST_TOKEN — the token-bearing weather-scope legs need"
+  echo "  a real bearer token with gateway:mcp:invoke scope (same token Leg C uses)."
+  echo "  Manual:  curl -i $PG_URL/mcp/weather -X POST -H 'Authorization: Bearer <tok>' \\"
+  echo "             -H 'Content-Type: application/json' -H 'MCP-Protocol-Version: 2025-11-25' \\"
+  echo "             -d '{\"jsonrpc\":\"2.0\",\"id\":\"1\",\"method\":\"tools/call\",\"params\":{\"name\":\"get_current_conditions\",\"arguments\":{\"city_name\":\"Austin, TX\"}}}'  (expect 200)"
+fi
+echo ""
+
 echo "== Summary: $ran live leg(s) ran, failures=$fail =="
 if [ "$fail" -ne 0 ]; then
   echo "RESULT: FAIL"

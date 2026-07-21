@@ -1,6 +1,6 @@
 {
   "name": "mcp-olb-jwks",
-  "condition": "${find(request.uri.path, '^/mcp(?!/invest)') and not empty request.headers['X-Token-Validation'] and request.headers['X-Token-Validation'][0] == 'jwks'}",
+  "condition": "${find(request.uri.path, '^/mcp(?!/invest|/weather)') and not empty request.headers['X-Token-Validation'] and request.headers['X-Token-Validation'][0] == 'jwks'}",
   "heap": [
     {
       "name": "SecretsStore",

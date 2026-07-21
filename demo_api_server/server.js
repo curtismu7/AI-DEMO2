@@ -1239,6 +1239,7 @@ app.use('/internal', require('./routes/mcpAuditIngest'));
 // Gateway-only vault-key bridge — IG fetches demo backend API keys (X-API-Key)
 // from here at request time. Secret-guarded + allow-listed; NOT browser-facing.
 app.use('/internal', require('./routes/vaultServiceKey'));
+app.use('/internal', require('./routes/weatherMcpFlag'));
 
 // Phase 266 R2 — Path A info marker (session-cookie auth; no Bearer needed from SPA)
 app.use('/api/path', require('./routes/pathInfo'));
