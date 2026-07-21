@@ -101,6 +101,36 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-21 — OLB JWKS-variant route also shadowed /mcp/weather (missed sibling of the earlier fix)
+
+**Files changed:**
+- `ping-gateway/config/routes/00-mcp-olb-jwks.json` — condition regex now excludes `/weather`
+  alongside the existing `/invest` exclusion (`^/mcp(?!/invest|/weather)`), mirroring the
+  same-day fix already applied to `01-mcp-olb.json`.
+
+**What was broken:** the earlier fix (same day, this file's sibling `01-mcp-olb.json`) only
+patched the PRIMARY OLB route. Its JWKS-variant sibling, `00-mcp-olb-jwks.json`, had the
+identical unfixed catch-all condition (`^/mcp(?!/invest)` plus a header check). A request to
+`/mcp/weather` carrying `X-Token-Validation: jwks` matched BOTH this route (name
+`mcp-olb-jwks`) and the weather route (name `mcp-weather-primary`); PingGateway's
+alphabetical-by-name route selection picked `mcp-olb-jwks` (`o` &lt; `w`), so that specific
+request shape still silently reached the OLB/banking backend instead of the weather route's
+Texas-scope filter — a final whole-branch code review caught this, no single task-level review
+saw it since each only inspected the file it was actively editing.
+
+**What was fixed:** added the same `|/weather` exclusion to this file's condition, achieving
+actual parity with how `/invest` is already excluded in BOTH OLB route variants (primary and
+JWKS), not just one.
+
+**Do not break:** both `01-mcp-olb.json` and `00-mcp-olb-jwks.json` must keep matching `/mcp`
+and any other `/mcp/*` path that isn't `/invest` or `/weather`. Do not narrow either further
+without checking what else relies on the OLB catch-all in either variant.
+
+**Verify:** `bash ping-gateway/scripts/validate-config.sh` (PASS); `bash
+ping-gateway/scripts/e2e-pinggateway.sh` (OLB legs unchanged); `WWW-Authenticate` header on
+`/mcp/weather` with `X-Token-Validation: jwks` set matches the weather route's bare-`Bearer`
+pattern, not OLB's `resource_metadata` pattern.
+
 ### 2026-07-21 — /mcp/weather route silently shadowed by 01-mcp-olb.json's catch-all
 
 **Files changed:**
