@@ -6,7 +6,6 @@ import GatewayRoutingDiagram from "./GatewayRoutingDiagram";
 import AgentGatewayConfigEditor from "./AgentGatewayConfigEditor";
 import AgentGatewayLogPanel from "./AgentGatewayLogPanel";
 import AgentGatewayTester from "./AgentGatewayTester";
-import McpInspector from "./McpInspector";
 import McpTrafficPage from "./McpTrafficPage";
 import TokenSecurityTester from "./TokenSecurityTester";
 import CapabilityCallout from "./CapabilityCallout";
@@ -18,7 +17,7 @@ import { McpFieldProvider } from "../context/McpFieldContext";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "";
 
-const MGC_TABS = ["mock", "real", "env", "docs", "json", "tester", "logs", "toolcalls", "traffic", "tokensecurity"];
+const MGC_TABS = ["mock", "real", "env", "docs", "json", "tester", "logs", "traffic", "tokensecurity"];
 
 function StatusBadge({ running, devBypass, enabled }) {
 	if (!enabled) return <span className="mgc-badge mgc-badge--off">Disabled</span>;
@@ -245,16 +244,16 @@ function McpGatewayConfigInner() {
 
 			<div className="mgc-tabs">
 				<button
-					className={`mgc-tab ${activeTab === "mock" ? "mgc-tab--active" : ""}`}
-					onClick={() => setActiveTab("mock")}
-				>
-					Demo Agent Gateway (Dev)
-				</button>
-				<button
-					className={`mgc-tab ${activeTab === "real" ? "mgc-tab--active" : ""}`}
+					className={`mgc-tab mgc-tab--highlight ${activeTab === "real" ? "mgc-tab--active" : ""}`}
 					onClick={() => setActiveTab("real")}
 				>
 					Real PingOne Agent Gateway (Prod)
+				</button>
+				<button
+					className={`mgc-tab ${activeTab === "tester" ? "mgc-tab--active" : ""}`}
+					onClick={() => setActiveTab("tester")}
+				>
+					Gateway Tester
 				</button>
 				<button
 					className={`mgc-tab ${activeTab === "env" ? "mgc-tab--active" : ""}`}
@@ -275,22 +274,10 @@ function McpGatewayConfigInner() {
 					JSON Config
 				</button>
 				<button
-					className={`mgc-tab ${activeTab === "tester" ? "mgc-tab--active" : ""}`}
-					onClick={() => setActiveTab("tester")}
-				>
-					Gateway Tester
-				</button>
-				<button
 					className={`mgc-tab ${activeTab === "logs" ? "mgc-tab--active" : ""}`}
 					onClick={() => setActiveTab("logs")}
 				>
 					Gateway Logs
-				</button>
-				<button
-					className={`mgc-tab ${activeTab === "toolcalls" ? "mgc-tab--active" : ""}`}
-					onClick={() => setActiveTab("toolcalls")}
-				>
-					Tool Calls
 				</button>
 				<button
 					className={`mgc-tab ${activeTab === "traffic" ? "mgc-tab--active" : ""}`}
@@ -303,6 +290,12 @@ function McpGatewayConfigInner() {
 					onClick={() => setActiveTab("tokensecurity")}
 				>
 					Token Security
+				</button>
+				<button
+					className={`mgc-tab ${activeTab === "mock" ? "mgc-tab--active" : ""}`}
+					onClick={() => setActiveTab("mock")}
+				>
+					Demo Agent Gateway (Dev)
 				</button>
 			</div>
 
@@ -720,11 +713,6 @@ MCP_INVEST_RESOURCE_URI=https://mcp-invest.ping.demo
 			{activeTab === "logs" && (
 				<div className="mgc-panel">
 					<AgentGatewayLogPanel />
-				</div>
-			)}
-			{activeTab === "toolcalls" && (
-				<div className="mgc-panel">
-					<McpInspector />
 				</div>
 			)}
 			{activeTab === "traffic" && (
