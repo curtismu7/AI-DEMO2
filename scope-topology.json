@@ -258,6 +258,10 @@
       "requiredScopes": ["read"],
       "surface": "gateway"
     },
+    "jwt_decode_full": {
+      "requiredScopes": ["read"],
+      "surface": "gateway"
+    },
     "get_investment_balance": {
       "requiredScopes": ["invest:read"],
       "surface": "gateway",

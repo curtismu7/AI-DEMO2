@@ -54,6 +54,14 @@ describe('nlIntentParser — banking intents', () => {
   it('routes "withdraw cash" → withdraw', () => {
     expect(bank('withdraw cash').banking.action).toBe('withdraw');
   });
+
+  it('routes "decode my jwt token" → jwt_decode_demo', () => {
+    expect(bank('decode my jwt token').banking.action).toBe('jwt_decode_demo');
+  });
+
+  it('routes "decode my token" → jwt_decode_demo', () => {
+    expect(bank('decode my token').banking.action).toBe('jwt_decode_demo');
+  });
 });
 
 // ── Education intents: CIBA ───────────────────────────────────────────────────

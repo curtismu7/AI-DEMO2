@@ -95,6 +95,7 @@
       }
     ],
     "chips10": [
+      { "id": "wf-jwt", "label": "Decode my token", "message": "decode my jwt token", "mode": "both", "tool": "jwt_decode_full", "useCaseId": "delegated-access-with-proof" },
       { "id": "wf1", "label": "My benefits", "message": "my benefits", "mode": "both", "tool": "view_benefits", "useCaseId": "delegated-access-with-proof" },
       { "id": "wf2", "label": "PTO balance", "message": "pto balance", "mode": "both", "tool": "pto_balance", "useCaseId": "delegated-access-with-proof" },
       { "id": "wf3", "label": "My expenses", "message": "my expenses", "mode": "both", "tool": "list_expenses", "useCaseId": "delegated-access-with-proof" },

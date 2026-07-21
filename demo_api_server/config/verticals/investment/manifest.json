@@ -49,6 +49,7 @@
       { "key": "feature", "label": "Portfolio Status" }
     ],
     "chips10": [
+      { "id": "inv-jwt", "label": "Decode my token", "message": "decode my jwt token", "mode": "both", "tool": "jwt_decode_full" },
       { "id": "inv-feature", "label": "Portfolio status", "message": "show portfolio status", "mode": "both", "tool": "show_investment" },
       { "id": "inv1", "label": "My portfolios", "message": "show my portfolios", "mode": "both", "tool": "view_portfolios" },
       { "id": "inv2", "label": "Trade history", "message": "show my trade history", "mode": "both", "tool": "view_trades" },

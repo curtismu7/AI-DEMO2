@@ -872,6 +872,12 @@ function parseHeuristic(
     return { kind: "banking", banking: { action: "mcp_tools" } };
   }
 
+  // JWT decode diagnostic chip — cross-vertical (not tied to any vertical's
+  // data), so this fast-path runs unconditionally like mcp_tools above.
+  if (/\bdecode\s+my\s+(jwt|token)\b/.test(t)) {
+    return { kind: "banking", banking: { action: "jwt_decode_demo" } };
+  }
+
   // Account nickname — cross-vertical banking MCP chip; must precede plugin heuristics
   // that match bare "account" (banking accounts list, admin customer accounts, etc.).
   if (matchesAccountNickname(t)) {
