@@ -166,4 +166,13 @@ describe('GET /api/auth/ciba/poll/:authReqId — manager-approval branch', () =>
     expect(res.body.status).toBe('pending');
     expect(delegationService.getApprovalStatus).not.toHaveBeenCalled();
   });
+
+  test('a getApprovalStatus failure returns pending instead of hanging or erroring', async () => {
+    const agent = await initiateWithDelegation();
+    delegationService.getApprovalStatus.mockRejectedValue(new Error('store unavailable'));
+
+    const res = await agent.set('x-test-user', EMPLOYEE_HDR).get(`/api/auth/ciba/poll/${AUTH_REQ_ID}`);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('pending');
+  });
 });

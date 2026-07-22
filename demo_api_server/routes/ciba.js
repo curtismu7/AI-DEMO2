@@ -294,9 +294,14 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
     let approvalStatus = 'approved';
     let approverUserId = null;
     if (pending.delegationId) {
-      const approval = await delegationService.getApprovalStatus(pending.delegationId);
-      approvalStatus = approval.status;
-      approverUserId = approval.approverUserId;
+      try {
+        const approval = await delegationService.getApprovalStatus(pending.delegationId);
+        approvalStatus = approval.status;
+        approverUserId = approval.approverUserId;
+      } catch (approvalErr) {
+        console.warn('[CIBA] manager-approval status lookup failed (treating as still pending):', approvalErr.message);
+        approvalStatus = 'pending';
+      }
     } else if (!cibaSimulatedService.isSimulatedApproved(pending)) {
       approvalStatus = 'pending';
     }
