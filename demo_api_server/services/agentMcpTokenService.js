@@ -2488,6 +2488,63 @@ async function resolveMcpAccessToken(req, tool) {
   return token;
 }
 
+/**
+ * Interactive Token Exchange Tester — run the production 2-exchange chain and
+ * return scrubbed step events (never raw JWTs). Used by POST /api/tokens/exchange-test
+ * when mode=double.
+ *
+ * @param {object} req - Express request (session / teach context)
+ * @param {string} userToken - Session subject access token
+ * @param {string[]} scopes - Tool / MCP scopes for Exchange #1/#2 narrowing
+ * @returns {Promise<{ success: true, tokenEvents: object[], subjectClaims: object|null, finalClaims: object|null, mcpResourceUri: string }>}
+ */
+async function runTwoExchangeInteractiveTest(req, userToken, scopes = ['read', 'write']) {
+  if (!userToken) {
+    const err = new Error('User access token required for 2-exchange test');
+    err.code = 'missing_user_token';
+    err.httpStatus = 401;
+    throw err;
+  }
+
+  const tokenEvents = [];
+  const decoded = decodeJwtClaims(userToken);
+  const userSub = decoded?.claims?.sub || 'unknown';
+  const mcpResourceUri =
+    configStore.getEffective('pingone_resource_mcp_gateway_uri') ||
+    configStore.getEffective('pingone_resource_mcp_server_uri') ||
+    process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI ||
+    process.env.PINGONE_RESOURCE_MCP_SERVER_URI ||
+    'mcpgateway.ping.demo';
+
+  const scopeList = Array.isArray(scopes) && scopes.length > 0 ? scopes : ['read', 'write'];
+
+  try {
+    const result = await _performTwoExchangeDelegation(
+      tokenEvents,
+      userToken,
+      scopeList,
+      userSub,
+      'token-exchange-tester',
+      mcpResourceUri,
+      req,
+      {}
+    );
+    const finalDecoded = result.token ? decodeJwtClaims(result.token) : null;
+    return {
+      success: true,
+      tokenEvents,
+      subjectClaims: sanitizeClaims(decoded?.claims),
+      finalClaims: sanitizeClaims(finalDecoded?.claims),
+      mcpResourceUri,
+    };
+  } catch (err) {
+    err.tokenEvents = tokenEvents;
+    err.subjectClaims = sanitizeClaims(decoded?.claims);
+    err.mcpResourceUri = mcpResourceUri;
+    throw err;
+  }
+}
+
 module.exports = {
   resolveMcpAccessToken,
   resolveMcpAccessTokenWithEvents,
@@ -2502,6 +2559,7 @@ module.exports = {
   MIN_USER_SCOPES_FOR_MCP,
   buildTratContext,
   buildRarAuthorizationDetails,
+  runTwoExchangeInteractiveTest,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

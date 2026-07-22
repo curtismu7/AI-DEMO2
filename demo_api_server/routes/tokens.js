@@ -445,22 +445,101 @@ router.post('/validate', async (req, res) => {
 /**
  * Perform RFC 8693 token exchange (interactive tester)
  * POST /api/tokens/exchange-test
- * Body: { audience, scopes (optional, array) }
+ * Body: { audience, scopes (optional, array), mode?: 'single'|'double' }
+ *
+ * mode=single (default): subject-only exchange into `audience`.
+ * mode=double: production 2-exchange chain (subject + agent actor → intermediate,
+ * then intermediate + MCP actor → MCP token). Returns `steps` from tokenEvents.
  */
 router.post('/exchange-test', async (req, res) => {
   try {
     const { audience, scopes } = req.body;
+    const mode = req.body.mode === 'double' ? 'double' : 'single';
     const sessionToken = getSessionAccessToken(req);
 
     if (!sessionToken) {
-      return res.status(401).json({ error: 'No session token available' });
+      return res.status(401).json({
+        error: 'No session token available',
+        code: 'login_required',
+        loginUrl: '/api/auth/oauth/user/login?return_to=/token-exchange-tester',
+      });
+    }
+
+    const exchangeScopes = scopes || ['read', 'write'];
+
+    if (mode === 'double') {
+      try {
+        const result = await agentMcpTokenService.runTwoExchangeInteractiveTest(
+          req,
+          sessionToken,
+          exchangeScopes
+        );
+        const steps = (result.tokenEvents || []).filter((e) =>
+          String(e.id || '').startsWith('two-ex-')
+        );
+        return res.json({
+          success: true,
+          mode: 'double',
+          steps,
+          original: {
+            content: await parseTokenContent(sessionToken),
+          },
+          exchanged: {
+            content: result.finalClaims
+              ? {
+                  type: 'JWT',
+                  payload: result.finalClaims,
+                  expires_at: result.finalClaims.exp
+                    ? new Date(result.finalClaims.exp * 1000).toISOString()
+                    : null,
+                }
+              : null,
+          },
+          request: {
+            mode: 'double',
+            audience: result.mcpResourceUri,
+            scopes: exchangeScopes,
+            grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
+            subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+            actor_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+          },
+        });
+      } catch (error) {
+        const steps = (error.tokenEvents || []).filter((e) =>
+          String(e.id || '').startsWith('two-ex-')
+        );
+        return res.status(error.httpStatus || 400).json({
+          success: false,
+          mode: 'double',
+          error: error.message,
+          code: error.code || null,
+          steps,
+          request: {
+            mode: 'double',
+            audience: error.mcpResourceUri || audience || null,
+            scopes: exchangeScopes,
+            grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
+            subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+            actor_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+          },
+          details: error.pingoneError
+            ? {
+                pingoneError: error.pingoneError,
+                pingoneErrorDescription: error.pingoneErrorDescription,
+                pingoneErrorDetail: error.pingoneErrorDetail,
+                httpStatus: error.httpStatus,
+              }
+            : null,
+          original: {
+            content: await parseTokenContent(sessionToken).catch(() => null),
+          },
+        });
+      }
     }
 
     if (!audience) {
       return res.status(400).json({ error: 'Audience is required' });
     }
-
-    const exchangeScopes = scopes || ['read', 'write'];
 
     try {
       const exchangedToken = await oauthService.performTokenExchange(
@@ -473,6 +552,7 @@ router.post('/exchange-test', async (req, res) => {
 
       res.json({
         success: true,
+        mode: 'single',
         original: {
           content: await parseTokenContent(sessionToken)
         },
@@ -480,6 +560,7 @@ router.post('/exchange-test', async (req, res) => {
           content: exchangedContent
         },
         request: {
+          mode: 'single',
           audience,
           scopes: exchangeScopes
         }
@@ -489,8 +570,10 @@ router.post('/exchange-test', async (req, res) => {
       // even when the exchange itself fails (PingOne error, misconfigured grant, etc.)
       res.status(400).json({
         success: false,
+        mode: 'single',
         error: error.message,
         request: {
+          mode: 'single',
           audience,
           scopes: exchangeScopes,
           grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
