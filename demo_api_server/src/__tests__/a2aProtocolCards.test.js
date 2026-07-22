@@ -78,3 +78,21 @@ describe('requireA2aPingOneBearer', () => {
     expect(req.a2aPingOne.clientId).toBe('agent-1');
   });
 });
+
+describe('pushAgentCardEvent', () => {
+  const { pushAgentCardEvent, buildSpecialistAgentCard } = require('../../services/a2aAgentCardService');
+  const { buildA2aEvent } = require('../../services/a2aDelegationService');
+
+  test('emits a2a-agent-card with skills and cardUrl', () => {
+    const cfg = { getEffective: () => 'https://api.ping.demo:3001' };
+    const card = buildSpecialistAgentCard('banking', cfg);
+    const events = [];
+    pushAgentCardEvent(buildA2aEvent, events, card, 'banking', cfg, 'in-process');
+    expect(events).toHaveLength(1);
+    expect(events[0].id).toBe('a2a-agent-card');
+    expect(events[0].agentName).toBe('Investment Advisor');
+    expect(events[0].cardUrl).toContain('/a2a/specialists/banking/.well-known/agent-card.json');
+    expect(events[0].skills.length).toBeGreaterThan(0);
+    expect(events[0].protocolBinding).toBe('JSONRPC');
+  });
+});

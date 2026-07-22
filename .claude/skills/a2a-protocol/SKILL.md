@@ -36,6 +36,7 @@ Two layers share the name "A2A". Do not collapse them.
 
 - Card: `GET /a2a/specialists/:vertical/.well-known/agent-card.json`
 - JSON-RPC: `POST /a2a/specialists/:vertical` (requires `Authorization: Bearer <PingOne access token>`, `A2A-Version: 1.0`)
+- Token Chain: UC2 emits `a2a-protocol-bearer` → `a2a-agent-card` → `a2a-protocol-message` after nested-act exchanges
 
 UC2 handoff defaults to **in-process** `@a2a-js/sdk` `sendMessage` (BFF is HTTPS; avoids loopback TLS issues) after minting the PingOne wire bearer. Set `A2A_PROTOCOL_HTTP=1` or pass `protocolBaseUrl` to force the HTTP client path.
 

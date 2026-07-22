@@ -105,9 +105,46 @@ function buildAllSpecialistAgentCards(cfg) {
   return out;
 }
 
+/**
+ * Token-chain row for a discovered Agent Card (teaching surface).
+ * Kept here (not a2aProtocolClient) so unit tests avoid loading @a2a-js/sdk.
+ * @param {Function} buildA2aEvent from a2aDelegationService
+ * @param {object[]} tokenEvents
+ * @param {object|null} card
+ * @param {string} vertical
+ * @param {object} [cfg]
+ * @param {'in-process'|'http'} mode
+ */
+function pushAgentCardEvent(buildA2aEvent, tokenEvents, card, vertical, cfg, mode) {
+  const cardUrl = `${specialistRpcUrl(vertical, cfg)}/.well-known/agent-card.json`;
+  const skills = (card?.skills || []).map((s) => s.id || s.name).filter(Boolean);
+  const iface = card?.supportedInterfaces?.[0] || null;
+  tokenEvents.push(
+    buildA2aEvent(
+      'a2a-agent-card',
+      `A2A Protocol — Agent Card · ${card?.name || vertical}`,
+      'discovered',
+      null,
+      'Specialist Agent Card (A2A discovery). Skills and PingOne Bearer security advertised before SendMessage.',
+      {
+        a2aRole: 'agent-card',
+        vertical,
+        agentName: card?.name || null,
+        cardUrl,
+        skills,
+        protocolVersion: iface?.protocolVersion || card?.version || '1.0',
+        protocolBinding: iface?.protocolBinding || 'JSONRPC',
+        securitySchemes: card?.securitySchemes ? Object.keys(card.securitySchemes) : [],
+        mode,
+      },
+    ),
+  );
+}
+
 module.exports = {
   publicApiBase,
   specialistRpcUrl,
   buildSpecialistAgentCard,
   buildAllSpecialistAgentCards,
+  pushAgentCardEvent,
 };
