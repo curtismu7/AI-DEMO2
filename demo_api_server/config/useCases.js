@@ -885,7 +885,7 @@ const RAW_USE_CASES = [
     whatLong: 'The agent calls a real, unmodified third-party weather MCP server through the Agent Gateway. A city in the gateway\'s currently-configured state (Texas by default) is in scope for this demo policy, so the gateway forwards the call and the backend responds normally — the third-party server itself has no concept of the restriction.',
     businessValue: 'Any third-party or unmanaged MCP server can be brought into a governed environment without modifying it — the gateway enforces the business boundary, not the tool.',
     productRoles: {
-      gw: 'Validates the token, then runs the Texas-scope policy before forwarding the call to the third-party server.',
+      gw: 'Validates the token, then runs the currently-configured state-scope policy (Texas by default) before forwarding the call to the third-party server.',
     },
     primaryTool: 'get_weather',
   },
@@ -907,7 +907,7 @@ const RAW_USE_CASES = [
     whatLong: 'The agent asks for weather in a city outside the demo policy\'s currently-configured state scope (Texas by default). The gateway denies the call before it is ever forwarded to the third-party weather MCP server — the backend never runs, and never sees the request.',
     businessValue: 'Scoping happens once, at the gateway, instead of being re-implemented (or forgotten) in every tool integration — a policy change takes effect for every agent immediately.',
     productRoles: {
-      gw: 'Runs the Texas-scope policy and returns DENY before the call is forwarded to the third-party server.',
+      gw: 'Runs the currently-configured state-scope policy (Texas by default) and returns DENY before the call is forwarded to the third-party server.',
     },
     primaryTool: 'get_weather',
   },

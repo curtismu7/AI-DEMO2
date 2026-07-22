@@ -122,6 +122,19 @@ Task 4).
 can watch the Capability Tour dropdown switch from Texas to Michigan mid-demo and see different
 cities get denied in real time, proving the policy is administrable, not baked into code.
 
+**What was broken (found live during verification):** The flag-check response validation used
+`if (STATES.containsKey(parsed.allowedState))` alone to decide whether to accept the value
+returned by the BFF. `'any'` deliberately has no `STATES` entry — it isn't a state to look up, it
+means "skip the scope check entirely" — so that single check silently rejected `'any'` and fell
+back to the function's default (`'texas'`). Live symptom: switching the admin dropdown to "Any"
+kept enforcing Texas-only; the gateway never actually opened up.
+
+**What was fixed:** Widened the guard to `parsed.allowedState == 'any' || STATES.containsKey(parsed.allowedState)`,
+explicitly accepting `'any'` alongside the `STATES.containsKey` check. **Landmine:** do not read
+`STATES.containsKey(...)` alone as sufficient validation for `allowedState` — `'any'` is a valid
+value with no `STATES` entry by design, and any future refactor of this guard must keep both
+checks or it will silently reintroduce this regression.
+
 **Do not break:** `ff_weather_mcp_showcase` (master enable/disable flag) must stay independent —
 when OFF, the gateway denies all weather calls ("capability disabled"), regardless of what state
 is configured. The state option only matters when showcase is ON. If any error or version-skew
