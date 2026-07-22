@@ -101,6 +101,48 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-21 — Weather MCP gateway scope now live-configurable (Texas/Michigan/Any), not hardcoded Texas-only
+
+**Files changed:**
+- `ping-gateway/scripts/groovy/tx-weather-scope.groovy` — added STATES map (Texas, Michigan) with
+  bounding boxes and city lists; modified weatherFlags() to read ff_weather_mcp_allowed_state
+  flag; city/bbox validation logic now respects the currently-configured state instead of
+  hardcoded Texas.
+- `demo_api_server/routes/featureFlags.js` — added ff_weather_mcp_allowed_state flag endpoint
+  with state options (texas/michigan/any).
+- `demo_api_server/routes/weatherMcpFlag.js` — extended response to include ff_weather_mcp_allowed_state
+  alongside ff_weather_mcp_showcase.
+
+**What changed:** The weather MCP scope policy changed from a hardcoded Texas-only restriction to
+a live, admin-configurable state selection. Default is Texas; operators can switch to Michigan or
+open to 'any' state instantly via the feature-flag PATCH endpoint (or via the UI dropdown in
+Task 4).
+
+**Why:** Makes the gateway's enforcement policy demonstrably changeable during a demo. Operators
+can watch the Capability Tour dropdown switch from Texas to Michigan mid-demo and see different
+cities get denied in real time, proving the policy is administrable, not baked into code.
+
+**Do not break:** `ff_weather_mcp_showcase` (master enable/disable flag) must stay independent —
+when OFF, the gateway denies all weather calls ("capability disabled"), regardless of what state
+is configured. The state option only matters when showcase is ON. If any error or version-skew
+occurs during flag retrieval, the gateway must default to the narrowest state ('texas'), never
+accidentally widen the policy.
+
+**Verify:** (live end-to-end, mirrors Task 2 Steps 2-5)
+1. Recreate `ping-gateway` from the worktree so Groovy changes are live.
+2. With default state (Texas): mint a bearer token (client_credentials + RFC 8693 exchange); test
+   `city_name: "Austin"` → 200 (reaches backend); `city_name: "Detroit"` → 403 ("restricted to
+   Texas"); `city_name: "Miami"` → 403 ("restricted to Texas").
+3. PATCH `ff_weather_mcp_allowed_state` to 'michigan': re-test the three cities — Detroit → 200,
+   Austin → 403 ("restricted to Michigan"), Miami → 403.
+4. PATCH `ff_weather_mcp_allowed_state` to 'any': re-test all three cities — all three → 200
+   (reaching backend); also confirm a `location_name` argument now passes (previously always
+   denied).
+5. With `ff_weather_mcp_allowed_state` still 'any', PATCH `ff_weather_mcp_showcase` to false:
+   test Austin → 403 ("weather capability disabled"), confirming the master flag still wins
+   regardless of the selected state. Reset both flags to defaults (`ff_weather_mcp_showcase:
+   true`, `ff_weather_mcp_allowed_state: "texas"`) when done.
+
 ### 2026-07-21 — `/mcp/weather` 502'd for in-scope Texas cities (and `/mcp/invest`'s reverse-proxy stage carried the identical latent defect): `baseURI` silently ignored, `UriPathRewriteFilter` mappings silently no-op'd
 
 **Files changed:**
