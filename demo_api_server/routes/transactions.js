@@ -267,36 +267,49 @@ router.post(
   '/consent-challenge/:challengeId/verify-otp',
   authenticateToken,
   async (req, res) => {
-    const challengeId = req.params.challengeId;
-    const path = txConsent.getChallengePath(req, challengeId);
-    let result;
-    if (path === 'mfa' || path === 'onetime') {
-      // The onetime path (PingOne email OTP, no device picker) UI sends the code
-      // as `otpCode`; the device-picker UI sends `otp`. Accept either, or a valid
-      // code is dropped as missing_credential before PingOne is ever called.
-      const { deviceId, otp, otpCode, fido2Assertion } = req.body || {};
-      // PingOne's Check Assertion API rejects a FIDO2 assertion whose `origin`
-      // doesn't match clientDataJSON's embedded origin ("Incorrect origin").
-      // req.get('host') is the wrong source: demo_api_ui/nginx.conf hardcodes
-      // the Host header it forwards to the BFF to api.ping.demo:4000
-      // regardless of the browser's real origin, so this was silently rejecting
-      // every FIDO2 assertion submitted from any other origin (e.g.
-      // local.ping-devops.com, where passkeys actually work). Same resolution
-      // OAuth redirect_uri already uses, which is why that path never hit this.
-      const origin = getCanonicalPublicOrigin(req);
-      result = await txConsent.verifyMfa(req, challengeId, { deviceId, otp: otp || otpCode, fido2Assertion }, origin);
-    } else {
-      const { otpCode } = req.body || {};
-      result = txConsent.verifyOtp(req, challengeId, otpCode);
-    }
-    if (!result.ok) return res.status(result.status).json(result.json);
-    req.session.save((saveErr) => {
-      if (saveErr) console.error('[ConsentChallenge] session save error (verify-otp):', saveErr);
-      return res.status(200).json({
-        challengeId: result.challengeId,
-        confirmExpiresAt: result.confirmExpiresAt,
+    try {
+      const challengeId = req.params.challengeId;
+      const path = txConsent.getChallengePath(req, challengeId);
+      let result;
+      if (path === 'mfa' || path === 'onetime') {
+        // The onetime path (PingOne email OTP, no device picker) UI sends the code
+        // as `otpCode`; the device-picker UI sends `otp`. Accept either, or a valid
+        // code is dropped as missing_credential before PingOne is ever called.
+        const { deviceId, otp, otpCode, fido2Assertion } = req.body || {};
+        // PingOne's Check Assertion API rejects a FIDO2 assertion whose `origin`
+        // doesn't match clientDataJSON's embedded origin ("Incorrect origin").
+        // req.get('host') is the wrong source: demo_api_ui/nginx.conf hardcodes
+        // the Host header it forwards to the BFF to api.ping.demo:4000
+        // regardless of the browser's real origin, so this was silently rejecting
+        // every FIDO2 assertion submitted from any other origin (e.g.
+        // local.ping-devops.com, where passkeys actually work). Same resolution
+        // OAuth redirect_uri already uses, which is why that path never hit this.
+        const origin = getCanonicalPublicOrigin(req);
+        result = await txConsent.verifyMfa(req, challengeId, { deviceId, otp: otp || otpCode, fido2Assertion }, origin);
+      } else {
+        const { otpCode } = req.body || {};
+        result = txConsent.verifyOtp(req, challengeId, otpCode);
+      }
+      if (!result.ok) return res.status(result.status).json(result.json);
+      req.session.save((saveErr) => {
+        if (saveErr) console.error('[ConsentChallenge] session save error (verify-otp):', saveErr);
+        return res.status(200).json({
+          challengeId: result.challengeId,
+          confirmExpiresAt: result.confirmExpiresAt,
+        });
       });
-    });
+    } catch (err) {
+      // Express 4 does not catch async throws — without this the client hangs on
+      // "Verifying…" forever (seen 2026-07-22 when getCanonicalPublicOrigin was
+      // imported but not exported).
+      console.error('[ConsentChallenge] verify-otp failed:', err);
+      if (!res.headersSent) {
+        return res.status(500).json({
+          error: 'verify_otp_failed',
+          message: err.message || 'Verification failed.',
+        });
+      }
+    }
   },
 );
 

@@ -116,6 +116,7 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
   const [otpError, setOtpError] = useState("");
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpExpiresAt, setOtpExpiresAt] = useState<string | null>(null);
+  const [otpResending, setOtpResending] = useState(false);
   const otpInputRef = useRef<HTMLInputElement>(null);
 
   const [mfaStep, setMfaStep] = useState(false);
@@ -162,6 +163,7 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
       setOtpError("");
       setOtpVerifying(false);
       setOtpExpiresAt(null);
+      setOtpResending(false);
       setMfaStep(false);
       setMfaDevices([]);
       setSelectedDeviceId(null);
@@ -695,6 +697,54 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
   };
 
   /**
+   * Re-dispatch the OTP to the selected Email/SMS device (or re-send one-time
+   * contact OTP). Same endpoints as the first send — PingOne issues a new code.
+   */
+  const handleResendOtp = async () => {
+    if (otpResending || otpVerifying || !challengeId) return;
+    setOtpResending(true);
+    setOtpError("");
+    try {
+      if (selectedDeviceId) {
+        const { data } = await bffAxios.post(
+          `/api/transactions/consent-challenge/${encodeURIComponent(challengeId)}/select-device`,
+          { deviceId: selectedDeviceId },
+        );
+        setOtpExpiresAt(data.otpExpiresAt || null);
+        setOtpSent(data.otpSent !== false);
+        setOtpCode("");
+        notifySuccess("A new verification code was sent.");
+      } else if (maskedContact || contactInput.trim()) {
+        const val = contactInput.trim() || maskedContact || "";
+        const isPhone = /^\+?\d[\d\s\-().]{6,}$/.test(val);
+        const body = isPhone ? { phone: val } : { email: val };
+        const { data } = await bffAxios.post(
+          `/api/transactions/consent-challenge/${encodeURIComponent(challengeId)}/confirm-contact`,
+          body,
+        );
+        setOtpExpiresAt(data.otpExpiresAt || null);
+        setOtpSent(data.otpSent || false);
+        setMaskedContact(data.maskedContact || maskedContact);
+        setOtpCode("");
+        notifySuccess("A new verification code was sent.");
+      } else {
+        notifyError("Select Email or SMS again to resend a code.");
+      }
+    } catch (e: any) {
+      const d = e.response?.data;
+      notifyError(
+        d?.message ||
+          d?.error_description ||
+          d?.error ||
+          e.message ||
+          "Could not resend the code.",
+      );
+    } finally {
+      setOtpResending(false);
+    }
+  };
+
+  /**
    * Run the WebAuthn assertion ceremony for a PingOne FIDO2 device-selection
    * challenge, then submit the result the same way a typed code is submitted.
    */
@@ -959,9 +1009,18 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
                 type="button"
                 className="transaction-consent-btn transaction-consent-btn--primary tx-otp-panel__verify-btn"
                 onClick={handleVerifyOtp}
-                disabled={otpCode.length !== 6 || otpVerifying}
+                disabled={otpCode.length !== 6 || otpVerifying || otpResending}
               >
                 {otpVerifying ? "Verifying…" : "Confirm"}
+              </button>
+              <button
+                type="button"
+                className="tx-otp-panel__resend-btn"
+                onClick={handleResendOtp}
+                disabled={otpVerifying || otpResending}
+                data-testid="tx-otp-resend"
+              >
+                {otpResending ? "Sending…" : "Resend code"}
               </button>
             </div>
 
@@ -985,7 +1044,7 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
               type="button"
               className="tx-otp-panel__back-btn"
               onClick={onClose}
-              disabled={otpVerifying}
+              disabled={otpVerifying || otpResending}
             >
               Cancel
             </button>
