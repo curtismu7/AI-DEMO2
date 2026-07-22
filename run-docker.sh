@@ -67,7 +67,7 @@ fi
 
 # Core banking demo — always started by default (~750MB Docker RSS).
 CORE_SERVICES=(
-  ui mcp-server mcp-invest mortgage-service mcp-proxy
+  ui mcp-server mcp-invest mcp-weather mortgage-service mcp-proxy
   ping-gateway langchain-agent agent-service hitl-service llm-proxy
   promptfoo-step-narration
 )
@@ -498,6 +498,7 @@ SERVICES=(
   "agent-service|Agent Service         |3016|http://localhost:3016"
   "hitl-service|HITL Service          |3009|http://localhost:3009"
   "mcp-invest|MCP Invest            |8081|http://localhost:8081"
+  "mcp-weather|MCP Weather           |8896|http://localhost:8896"
   "mcp-jwt-verifier|MCP JWT Verifier     |8083|http://localhost:8083"
   "mortgage-service|Mortgage Service     |8082|http://localhost:8082"
   "openai-agent|OpenAI Agent          |8891|http://localhost:8891"

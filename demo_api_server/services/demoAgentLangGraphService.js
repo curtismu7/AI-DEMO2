@@ -245,17 +245,28 @@ async function dispatchBankingAction(action, params, userId, ctx) {
 
     // weather-mcp showcase — real third-party MCP server fronted by the Agent
     // Gateway (Texas-only, ping-gateway/scripts/groovy/tx-weather-scope.groovy).
-    // Routes through the same token-exchange → gateway pipeline as the READ
-    // actions above; the tool's own MCP content-array shape (not a banking
-    // field) is read directly here rather than in parseToolResult.
+    // executeBffTool unwraps MCP {content:[{text}]} to the inner string. Weather
+    // returns markdown prose (not banking JSON), so do not force parseToolResult.
     if (action === 'weather') {
       const toolName = 'get_weather';
       const tokenEvents = [];
       const sessionId = req?.sessionID || '';
       const rawResult = await executeBffTool({ name: toolName, args: { city_name: params.city_name || '' }, userId, userToken, req, tokenEvents, sessionId });
+      if (typeof rawResult === 'string' && rawResult.trim()) {
+        const trimmed = rawResult.trim();
+        // unwrapMcpResultEnvelope wraps non-JSON isError text as {"error":"…"}.
+        if (trimmed[0] === '{' || trimmed[0] === '[') {
+          const { result: parsedErr } = parseToolResult(trimmed, { site: `banking_read:${toolName}` });
+          if (parsedErr?.error || parsedErr?.isError) {
+            const msg = parsedErr?.error_description || parsedErr?.content?.[0]?.text || parsedErr?.error || 'Could not get the weather.';
+            return { reply: `❌ ${msg}`, success: false, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
+          }
+        }
+        return { reply: rawResult, success: true, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
+      }
       const { result: parsed2 } = parseToolResult(rawResult, { site: `banking_read:${toolName}` });
       const text = parsed2?.content?.[0]?.text;
-      if (!text || parsed2?.isError) {
+      if (!text || parsed2?.isError || parsed2?.error) {
         return { reply: `❌ ${text || parsed2?.error_description || parsed2?.error || 'Could not get the weather.'}`, success: false, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
       }
       return { reply: text, success: true, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
