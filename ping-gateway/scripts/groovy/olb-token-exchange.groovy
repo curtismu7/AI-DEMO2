@@ -117,21 +117,29 @@ if (bffExchanged) {
 // ("May not request scopes for multiple resources"), so the issued token keeps
 // the subject aud (mcpgateway.ping.demo) and mcp-server rejects it. Mirror the
 // Node gateway's McpTokenExchangeClient (resource=, not audience=).
+//
+// Scope: only send when PG_OLB_SCOPE is non-empty AND single-resource. The
+// inbound subject carries gateway:mcp:invoke (PingGateway resource only).
+// Forcing scope=mcp:invoke is WRONG — that name is also on mcpgateway.ping.demo,
+// so PingOne may return 200 with the WRONG aud (gateway) even with resource=
+// set. Node omits scope when subject∩mcpserver is empty; do the same here.
 def params = [
     'grant_type'           : 'urn:ietf:params:oauth:grant-type:token-exchange',
     'subject_token'        : subjectToken,
     'subject_token_type'   : 'urn:ietf:params:oauth:token-type:access_token',
     'requested_token_type' : 'urn:ietf:params:oauth:token-type:access_token',
     'resource'             : olbAudience,
-    'scope'                : olbScope,
     'client_id'            : teClientId,
     'client_secret'        : teClientSecret,
 ]
+if (olbScope?.trim()) {
+    params['scope'] = olbScope.trim()
+}
 def formBody = params.collect { k, v ->
     java.net.URLEncoder.encode(k, 'UTF-8') + '=' + java.net.URLEncoder.encode(v as String, 'UTF-8')
 }.join('&')
 
-logger.info('[OlbExchange] REQUEST → ' + tokenEndpoint + ' resource=' + olbAudience + ' scope=' + olbScope)
+logger.info('[OlbExchange] REQUEST → ' + tokenEndpoint + ' resource=' + olbAudience + ' scope=' + (olbScope?.trim() ?: '(omit)'))
 def exchangeResp = httpPostForm(tokenEndpoint, formBody)
 logger.info('[OlbExchange] RESPONSE HTTP ' + exchangeResp.code)
 
