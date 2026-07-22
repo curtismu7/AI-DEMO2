@@ -432,6 +432,14 @@
 
 .afm-code--cursor { background: #1a1a1a; border-color: #2a2a2a; }
 .afm-code--inline { background: #1e1e1e; }
+.afm-code--claude { border-color: #c96442; }
+.afm-code--claude .afm-code-bar {
+  background: #1a1512;
+  border-bottom-color: #3d2a22;
+}
+.afm-code--claude .afm-code-bar strong { color: #e8a87c; }
+.afm-code--claude .afm-code-panel .ph { border-bottom-color: #3d2a22; }
+.afm-code--claude .prompt { color: #e8a87c; }
 
 .afm-code-bar {
   height: 32px;

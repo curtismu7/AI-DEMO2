@@ -34,22 +34,54 @@ export const MOCK_CATALOG = {
     ],
   },
   coding: {
-    label: "Coding (dev agent)",
+    label: "Coding — Claude Code / IDE agents",
     route: "/demo/coding-agent",
     variants: [
-      { id: "claude-code", name: "CLI agent", blurb: "Terminal-first coding agent chrome" },
-      { id: "cursor", name: "AI IDE", blurb: "Editor + composer panel (Cursor-shaped)" },
+      { id: "claude-code", name: "Claude Code", blurb: "Terminal + agent panel (Claude Code–shaped)" },
+      { id: "cursor", name: "AI IDE (Cursor-shaped)", blurb: "Editor + composer panel" },
       { id: "vscode-inline", name: "Inline assistant", blurb: "VS Code with inline ghost suggestion strip" },
     ],
   },
 };
 
 const DEFAULTS = {
-  vscode: "classic-dark",
-  chatgpt: "desktop-dark",
-  saas: "zendesk",
+  vscode: "light",
+  chatgpt: "desktop-light",
+  saas: "generic",
   coding: "claude-code",
 };
+
+/** Locked SE demo costumes (picker + live shells). */
+export const LOCKED_PICKS = [
+  {
+    category: "coding",
+    variant: "claude-code",
+    short: "Claude Code",
+    label: "Coding — Claude Code",
+    route: "/demo/coding-agent",
+  },
+  {
+    category: "vscode",
+    variant: "light",
+    short: "Light workbench",
+    label: "Platform-Native — Light workbench",
+    route: "/demo/vscode-copilot",
+  },
+  {
+    category: "chatgpt",
+    variant: "desktop-light",
+    short: "Desktop light",
+    label: "End-Point Native — Desktop light",
+    route: "/demo/chatgpt-desktop",
+  },
+  {
+    category: "saas",
+    variant: "generic",
+    short: "Vendor embed",
+    label: "SaaS-Embedded — Vendor embed",
+    route: "/demo/saas-embedded",
+  },
+];
 
 /**
  * @returns {Record<MockCategory, string>}

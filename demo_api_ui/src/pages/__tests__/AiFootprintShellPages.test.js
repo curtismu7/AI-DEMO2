@@ -20,14 +20,14 @@ describe("AI footprint mock gallery", () => {
       </MemoryRouter>,
     );
     expect(screen.getByTestId("footprint-mock-gallery")).toBeInTheDocument();
+    expect(screen.getByText(/Claude Code \/ IDE/)).toBeInTheDocument();
     expect(screen.getByText(/Platform-Native/)).toBeInTheDocument();
     expect(screen.getByText(/End-Point Native/)).toBeInTheDocument();
     expect(screen.getByText(/SaaS-Embedded/)).toBeInTheDocument();
-    expect(screen.getByText(/Coding/)).toBeInTheDocument();
+    expect(screen.getByTestId("afm-card-coding-claude-code")).toBeInTheDocument();
     expect(screen.getByTestId("afm-card-vscode-classic-dark")).toBeInTheDocument();
     expect(screen.getByTestId("afm-card-chatgpt-desktop-dark")).toBeInTheDocument();
     expect(screen.getByTestId("afm-card-saas-zendesk")).toBeInTheDocument();
-    expect(screen.getByTestId("afm-card-coding-claude-code")).toBeInTheDocument();
   });
 
   it("persists a variant selection", () => {
@@ -36,10 +36,11 @@ describe("AI footprint mock gallery", () => {
         <FootprintMockGalleryPage />
       </MemoryRouter>,
     );
-    const card = screen.getByTestId("afm-card-vscode-light");
+    // Default locked pick is light — select a different vscode variant.
+    const card = screen.getByTestId("afm-card-vscode-classic-dark");
     fireEvent.click(card.querySelector("button.primary"));
     expect(JSON.parse(localStorage.getItem("ai-footprint-mock-selection-v1")).vscode).toBe(
-      "light",
+      "classic-dark",
     );
   });
 });
@@ -58,5 +59,21 @@ describe("AI footprint live shell", () => {
     expect(screen.getByTestId("footprint-live-vscode")).toBeInTheDocument();
     expect(screen.getByText(/Simulated shell/)).toBeInTheDocument();
     expect(screen.getByText("Copilot Chat")).toBeInTheDocument();
+  });
+});
+
+describe("AI footprint locked picks page", () => {
+  it("renders the four locked costumes with a picker", async () => {
+    const { default: FootprintPicksPage } = await import("../FootprintPicksPage");
+    render(
+      <MemoryRouter>
+        <FootprintPicksPage />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId("footprint-picks-page")).toBeInTheDocument();
+    expect(screen.getAllByText("Claude Code").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Light workbench").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Desktop light").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Vendor embed").length).toBeGreaterThan(0);
   });
 });

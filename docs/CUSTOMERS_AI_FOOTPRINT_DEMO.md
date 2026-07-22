@@ -8,6 +8,8 @@ Map the Gartner / Ping slide **"Enable customers to inventory their AI footprint
 | Audience | SE deep-dive (~30 min) |
 | Deliverables | Live talk-track now + build plan to make all six boxes live |
 | Source slide | Personal Agents (Coding, End-Point Native, Agentic Customers) · Workload Agents (Platform-Native, Self-Managed Enterprise, SaaS-Embedded) |
+| Locked costume defaults | Coding: **Claude Code** · Platform-Native: **Light workbench** · End-Point: **Desktop light** · SaaS: **Vendor embed** |
+| SE entry | Side nav **AI Footprint** → `/demo/footprint-picks`; gallery → `/demo/footprint-mocks` |
 
 Companion docs:
 

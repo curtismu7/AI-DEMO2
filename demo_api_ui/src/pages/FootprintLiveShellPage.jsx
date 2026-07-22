@@ -36,7 +36,7 @@ export default function FootprintLiveShellPage({ category: categoryProp } = {}) 
         category={category}
         variant={variant}
         hostRef={hostRef}
-        onExit={() => navigate("/demo/footprint-mocks")}
+        onExit={() => navigate("/demo/footprint-picks")}
       />
     </div>
   );

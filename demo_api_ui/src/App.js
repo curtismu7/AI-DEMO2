@@ -48,6 +48,7 @@ import DelegationPage from "./components/DelegationPage";
 import AgentLifecyclePage from "./pages/AgentLifecyclePage";
 import FootprintMockGalleryPage from "./pages/FootprintMockGalleryPage";
 import FootprintLiveShellPage from "./pages/FootprintLiveShellPage";
+import FootprintPicksPage from "./pages/FootprintPicksPage";
 import DemoGuidePopout from "./components/DemoGuidePopout";
 import DemoServerCheckModal from "./components/DemoServerCheckModal";
 import { resolveEmbeddedFocus } from "./components/demoAgentSafety";
@@ -800,6 +801,16 @@ function AppWithAuth() {
                   path="/demo-guide-popout"
                   element={<DemoGuidePopout />}
                 />
+                {/* Costume mock gallery is public so SEs can pick chrome without a session.
+                    Live agent shells below still require login. */}
+                <Route
+                  path="/demo/footprint-mocks"
+                  element={<FootprintMockGalleryPage />}
+                />
+                <Route
+                  path="/demo/footprint-picks"
+                  element={<FootprintPicksPage />}
+                />
 
                 <Route
                   path="*"
@@ -1292,16 +1303,6 @@ function AppWithAuth() {
                               element={
                                 user ? (
                                   <AgentLifecyclePage />
-                                ) : (
-                                  <Navigate to="/" replace />
-                                )
-                              }
-                            />
-                            <Route
-                              path="/demo/footprint-mocks"
-                              element={
-                                user ? (
-                                  <FootprintMockGalleryPage />
                                 ) : (
                                   <Navigate to="/" replace />
                                 )

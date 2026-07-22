@@ -110,6 +110,18 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(liveLink).toHaveAttribute("href", "/use-cases/live");
   });
 
+  it("shows AI Footprint and Footprint Gallery demo links", () => {
+    renderNav();
+    expect(screen.getByText("AI Footprint").closest("a")).toHaveAttribute(
+      "href",
+      "/demo/footprint-picks",
+    );
+    expect(screen.getByText("Footprint Gallery").closest("a")).toHaveAttribute(
+      "href",
+      "/demo/footprint-mocks",
+    );
+  });
+
   it("hides a nav item the user marked hidden via Demo Config, once loaded", async () => {
     vi.stubGlobal(
       "fetch",

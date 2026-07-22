@@ -228,9 +228,9 @@ export function SaasChrome({ variant = "zendesk", hostRef, preview = false, onEx
 export function CodingChrome({ variant = "claude-code", hostRef, preview = false, onExit }) {
   if (variant === "claude-code") {
     return (
-      <div className="afm-code" data-variant={variant}>
+      <div className="afm-code afm-code--claude" data-variant={variant}>
         <div className="afm-code-bar">
-          <strong>coding-agent — terminal</strong>
+          <strong>Claude Code</strong>
           <SimulatedBadge />
           {onExit ? (
             <button type="button" className="afm-badge" onClick={onExit}>
@@ -240,16 +240,18 @@ export function CodingChrome({ variant = "claude-code", hostRef, preview = false
         </div>
         <div className="afm-code-body">
           <div className="afm-code-term">
-            <span className="prompt">$</span> agent &quot;find transfer scope checks&quot;{"\n"}
-            <span className="dim">→ searching MCP code_search …</span>
-            {"\n"}
-            <span className="dim">→ get_code oauth.ts</span>
+            <span className="prompt">curtis@demo</span>{" "}
+            <span className="dim">banking-demo %</span> claude{"\n"}
+            <span className="dim">Claude Code · simulated shell</span>
             {"\n\n"}
-            <span className="prompt">agent&gt;</span> ready for next instruction
+            <span className="prompt">&gt;</span> find transfer scope checks{"\n"}
+            <span className="dim">→ MCP code_search … get_code oauth.ts</span>
+            {"\n\n"}
+            <span className="prompt">&gt;</span> _
           </div>
           <aside className="afm-code-panel">
             <div className="ph">
-              <span>Agent</span>
+              <span>Claude</span>
               <span style={{ opacity: 0.6 }}>coding</span>
             </div>
             <div
