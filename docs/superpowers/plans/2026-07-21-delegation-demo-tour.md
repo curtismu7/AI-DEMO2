@@ -126,12 +126,12 @@ export const DELEGATION_TOUR_STEPS = [
     },
   },
   {
-    title: "Stage 4 — Workforce (grant, then approve)",
-    body: "The same primitive in the enterprise: switch to the Workforce vertical and a manager grants an employee standing scope — the Delegate Access page relabels automatically (Submit Requests, Approve Expenses). A high-value expense then gates on a separate manager approval — separation of duties.",
+    title: "Stage 4 — Workforce (grant now, approval next)",
+    body: "The same primitive in the enterprise: switch to the Workforce vertical and a manager grants an employee standing scope — the Delegate Access page relabels automatically (Submit Requests, Approve Expenses). Per-action manager approval of high-value expenses — separation of duties — is the next capability being built on top of this grant.",
     action: {
       label: "Open Delegate Access",
       route: "/delegation",
-      hint: "Switch the active vertical to Workforce, then grant a colleague. The per-action manager approval is the enterprise capstone (wired in the manager-as-approver work).",
+      hint: "Switch the active vertical to Workforce, then grant a colleague — that grant is live today. The per-action manager approval is the roadmap capstone (manager-as-approver work), not yet wired.",
     },
   },
 ];
@@ -405,9 +405,9 @@ Array literal (replace the six existing objects with these five):
             },
             {
               num: 5,
-              heading: 'Stage 4 — Workforce (grant, then approve)',
-              text: 'Switch the vertical to Workforce. A manager grants a colleague standing scope; a high-value expense then needs a separate manager approval.',
-              quote: 'Same primitive in your workforce: least privilege from the grant, separation of duties from the per-action approval. Same tokens, same proof — now for employees, not just families.',
+              heading: 'Stage 4 — Workforce (grant now, approval next)',
+              text: 'Switch the vertical to Workforce. A manager grants a colleague standing scope — that grant is live today. Per-action manager approval of a high-value expense is the capability being built next.',
+              quote: 'Same primitive in your workforce: least privilege from the grant we can show now. Separation of duties — a per-action manager approval — is the next thing we are wiring on top of it. Same tokens, same proof, now for employees.',
             },
           ].map(step => (
 ```
