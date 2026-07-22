@@ -476,6 +476,13 @@ const RAW_USE_CASES = [
       mfa:   "Delivers the CIBA challenge to the user's enrolled device (push notification / OTP).",
     },
     primaryTool: 'create_transfer',
+    // Explicit CIBA trigger — the durable, cross-vertical signal that instigates
+    // out-of-band approval, INDEPENDENT of amount (so it never collides with the
+    // amount-based MFA step-up). Authorize reads this declared method and routes
+    // the transaction through the SAME step-up path as MFA, differing only by
+    // step_up_method='ciba'. Declared once here; every vertical inherits it via
+    // the shared catalog + perVertical below.
+    stepUpMethod: 'ciba',
     perVertical: AMOUNT_PER_VERTICAL(600),
   },
 
@@ -1273,6 +1280,21 @@ function isValidUseCaseId(id) {
 }
 
 /**
+ * The declared step-up method for a use case (by useCaseId slug), or null.
+ * This is the explicit, amount-independent trigger for a specific step-up
+ * modality (e.g. 'ciba' on UC22): Authorize reads it to route the transaction
+ * through the shared step-up path — no amount threshold, no hardcoded id string.
+ * Declared once in the catalog, so every vertical inherits it.
+ * @param {string|undefined} slug useCaseId slug (resolveActiveUseCaseId result)
+ * @returns {string|null} e.g. 'ciba' | 'p1mfa' | 'email' | null
+ */
+function getUseCaseStepUpMethod(slug) {
+  if (!slug || typeof slug !== 'string') return null;
+  const uc = USE_CASES.find((u) => u.useCaseId === slug);
+  return (uc && typeof uc.stepUpMethod === 'string') ? uc.stepUpMethod : null;
+}
+
+/**
  * Organic reverse-map: given a resolved tool name + args, return the useCaseId
  * of the matching catalog entry, or undefined. The catalog `match` field is the SoT.
  * Per-vertical match routing is a future extension (catalog `match` is banking-only today).
@@ -1309,4 +1331,4 @@ function resolveChipUseCaseId(clientId, toolName, args, vertical) {
   return deriveUseCaseId(toolName, args, vertical);
 }
 
-module.exports = { USE_CASES, VERTICALS, getUseCase, resolveUseCase, listUseCases, deriveUseCaseId, isValidUseCaseId, resolveChipUseCaseId };
+module.exports = { USE_CASES, VERTICALS, getUseCase, resolveUseCase, listUseCases, deriveUseCaseId, isValidUseCaseId, getUseCaseStepUpMethod, resolveChipUseCaseId };
