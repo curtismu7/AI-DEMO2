@@ -138,6 +138,53 @@ function bankingAmountGateExpectations() {
   });
 }
 
+/**
+ * Assert invoke/attack responses carry Token Chain teaching detail — not just a
+ * bare error code. Live step verification should FAIL when the rail would be blank.
+ *
+ * @param {Array<object>|null|undefined} tokenEvents
+ * @param {{ requireFailureEvent?: boolean }} [opts]
+ * @returns {{ ok: boolean, reason: string|null }}
+ */
+function scoreTokenChainDetail(tokenEvents, { requireFailureEvent = false } = {}) {
+  if (!Array.isArray(tokenEvents) || tokenEvents.length === 0) {
+    return { ok: false, reason: 'empty_token_events' };
+  }
+  const hasDetail = tokenEvents.some(
+    (e) => e && (
+      (typeof e.explanation === 'string' && e.explanation.length > 0)
+      || e.exchangeRequest
+      || e.requestContext
+      || (e.claims && Object.keys(e.claims).length > 0)
+      || e.error
+      || e.pingoneError
+      || e.authorization_details
+      || e.decision
+    ),
+  );
+  if (!hasDetail) {
+    return { ok: false, reason: 'no_event_detail' };
+  }
+  if (requireFailureEvent) {
+    const fail = tokenEvents.find(
+      (e) => e && (
+        e.id === 'exchange-failed'
+        || e.id === 'sim-exchange-error'
+        || e.id === 'sim-gateway-deny'
+        || e.status === 'failed'
+        || e.status === 'error'
+      ),
+    );
+    if (!fail) {
+      return { ok: false, reason: 'missing_failure_event' };
+    }
+    if (!(fail.explanation || fail.pingoneError || fail.error || fail.label)) {
+      return { ok: false, reason: 'failure_without_detail' };
+    }
+  }
+  return { ok: true, reason: null };
+}
+
 module.exports = {
   OUTCOME_TO_GATE,
   amountFromChipText,
@@ -145,4 +192,5 @@ module.exports = {
   expectationFromUseCase,
   bankingWorksChipExpectations,
   bankingAmountGateExpectations,
+  scoreTokenChainDetail,
 };

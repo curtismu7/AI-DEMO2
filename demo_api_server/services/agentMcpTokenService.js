@@ -1803,8 +1803,10 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
     return { token: exchangedToken, tokenEvents, userSub, tratContextHeader };
 
   } catch (err) {
-    // Replace in-progress with failure
+    // Replace in-progress with failure — keep its exchangeRequest so TraceRail
+    // still shows the coloured request JSON on the failure step.
     const inProgressIdx = tokenEvents.findIndex(e => e.id === 'exchange-in-progress');
+    const inProgressEv = inProgressIdx !== -1 ? tokenEvents[inProgressIdx] : null;
     if (inProgressIdx !== -1) tokenEvents.splice(inProgressIdx, 1);
 
     // Build a human-readable summary from all available error detail
@@ -1830,6 +1832,7 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
         pingoneErrorDescription: err.pingoneErrorDescription,
         pingoneErrorDetail: err.pingoneErrorDetail,
         requestContext: err.requestContext,
+        exchangeRequest: inProgressEv?.exchangeRequest || err.requestContext || null,
         rfc: 'RFC 8693',
         trigger: toolTrigger,
       }
@@ -2317,9 +2320,13 @@ async function _performTwoExchangeDelegation(
   // gateway audience as a one-element ARRAY so it goes out as `resource=` and the
   // token actually carries aud=<PG_GATEWAY_RESOURCE_ID>. Verified live: requesting
   // resource=https://api.ping.demo:3036/mcp yields aud=[that] scope=gateway:mcp:invoke.
-  const finalAudiences = !usePingGatewayForExchange && mcpServerAudForFallback && mcpServerAudForFallback !== twoExFinalAud
-    ? [twoExFinalAud, mcpServerAudForFallback]
-    : (usePingGatewayForExchange ? [finalAudTarget] : finalAudTarget);
+  // Never pass two RFC 8707 resources in one exchange. PingOne returns
+  // invalid_scope ("May not request scopes for multiple resources") and the
+  // UI collapses that into the opaque demo-step failure sentence. When the
+  // PingGateway broker path is off, mint for a single final audience only.
+  const finalAudiences = usePingGatewayForExchange
+    ? [finalAudTarget]
+    : finalAudTarget;
   const finalAudDisplay = Array.isArray(finalAudiences) ? JSON.stringify(finalAudiences) : finalAudiences;
 
   tokenEvents.push(buildTokenEvent(

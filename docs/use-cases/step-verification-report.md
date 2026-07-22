@@ -4,34 +4,58 @@
 
 > Machine-written from `demo_api_server/data/step-verification/`. A row only
 > exists because a test run wrote it — this table cannot be hand-ticked.
+> Modes: `heuristic` = live invoke; `unit-*` = offline Jest (parse/gate/prereq only).
 > Regenerate: `npm run step-verification:gen` (from `demo_api_server/`).
 
 | Vertical | Use Case | Trigger | Mode | Status | Error Class | Checked At |
 |---|---|---|---|---|---|---|
-| banking | UC1 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.430Z |
-| banking | UC17 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.435Z |
-| banking | UC19 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.432Z |
-| banking | UC2 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.440Z |
-| banking | UC2.5 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.440Z |
-| banking | UC20 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.432Z |
-| banking | UC21 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.434Z |
-| banking | UC22 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.441Z |
-| banking | UC24 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.434Z |
-| banking | UC25 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.441Z |
-| banking | UC27 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.438Z |
-| banking | UC28 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.436Z |
-| banking | UC3 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.432Z |
-| banking | UC30 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.435Z |
-| banking | UC31 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.435Z |
-| banking | UC4 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.432Z |
-| banking | UC6 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.436Z |
+| banking | UC1 | chip | unit-parse | ✅ PASS |  | 2026-07-22T22:22:34.599Z |
+| banking | UC1 | chip | unit-prereq | ✅ PASS |  | 2026-07-22T22:22:34.655Z |
+| banking | UC14 | attack | heuristic | ✅ PASS |  | 2026-07-22T22:26:07.282Z |
+| banking | UC14b | link | heuristic | ❌ FAIL | server_error | 2026-07-22T22:26:17.756Z |
+| banking | UC17 | chip | unit-parse | ✅ PASS |  | 2026-07-22T22:22:34.635Z |
+| banking | UC17 | chip | unit-prereq | ✅ PASS |  | 2026-07-22T22:22:34.672Z |
+| banking | UC19 | chip | unit-parse | ✅ PASS |  | 2026-07-22T22:22:34.614Z |
+| banking | UC19 | chip | unit-prereq | ✅ PASS |  | 2026-07-22T22:22:34.664Z |
+| banking | UC2 | chip | unit-prereq | ✅ PASS |  | 2026-07-22T22:22:34.657Z |
+| banking | UC2.5 | chip | unit-prereq | ✅ PASS |  | 2026-07-22T22:22:34.657Z |
+| banking | UC20 | chip | unit-parse | ✅ PASS |  | 2026-07-22T22:22:34.618Z |
+| banking | UC20 | chip | unit-prereq | ✅ PASS |  | 2026-07-22T22:22:34.665Z |
+| banking | UC21 | chip | unit-parse | ✅ PASS |  | 2026-07-22T22:22:34.632Z |
+| banking | UC21 | chip | unit-prereq | ✅ PASS |  | 2026-07-22T22:22:34.669Z |
+| banking | UC22 | chip | unit-prereq | ✅ PASS |  | 2026-07-22T22:22:34.669Z |
+| banking | UC22 | chip | unit-ref | ✅ PASS |  | 2026-07-22T22:22:34.646Z |
+| banking | UC24 | chip | unit-parse | ✅ PASS |  | 2026-07-22T22:22:34.633Z |
+| banking | UC24 | chip | unit-prereq | ✅ PASS |  | 2026-07-22T22:22:34.670Z |
+| banking | UC25 | chip | unit-prereq | ✅ PASS |  | 2026-07-22T22:22:34.673Z |
+| banking | UC27 | chip | unit-parse | ✅ PASS |  | 2026-07-22T22:22:34.639Z |
+| banking | UC27 | chip | unit-prereq | ✅ PASS |  | 2026-07-22T22:22:34.674Z |
+| banking | UC27 | chip | unit-ref | ✅ PASS |  | 2026-07-22T22:22:34.647Z |
+| banking | UC28 | chip | unit-parse | ✅ PASS |  | 2026-07-22T22:22:34.640Z |
+| banking | UC28 | chip | unit-prereq | ✅ PASS |  | 2026-07-22T22:22:34.674Z |
+| banking | UC3 | chip | unit-parse | ✅ PASS |  | 2026-07-22T22:22:34.609Z |
+| banking | UC3 | chip | unit-prereq | ✅ PASS |  | 2026-07-22T22:22:34.663Z |
+| banking | UC30 | chip | unit-parse | ✅ PASS |  | 2026-07-22T22:22:34.637Z |
+| banking | UC30 | chip | unit-prereq | ✅ PASS |  | 2026-07-22T22:22:34.672Z |
+| banking | UC31 | chip | unit-parse | ✅ PASS |  | 2026-07-22T22:22:34.638Z |
+| banking | UC31 | chip | unit-prereq | ✅ PASS |  | 2026-07-22T22:22:34.673Z |
+| banking | UC4 | chip | unit-parse | ✅ PASS |  | 2026-07-22T22:22:34.620Z |
+| banking | UC4 | chip | unit-prereq | ✅ PASS |  | 2026-07-22T22:22:34.665Z |
+| banking | UC6 | chip | unit-gate | ✅ PASS |  | 2026-07-22T22:22:34.643Z |
+| banking | UC6 | chip | unit-parse | ✅ PASS |  | 2026-07-22T22:22:34.625Z |
+| banking | UC6 | chip | unit-prereq | ✅ PASS |  | 2026-07-22T22:22:34.667Z |
 | banking | UC6 | prompt | llamacpp | ✅ PASS |  | 2026-07-22T17:33:06.770Z |
-| banking | UC7 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.436Z |
+| banking | UC7 | chip | unit-gate | ✅ PASS |  | 2026-07-22T22:22:34.644Z |
+| banking | UC7 | chip | unit-parse | ✅ PASS |  | 2026-07-22T22:22:34.628Z |
+| banking | UC7 | chip | unit-prereq | ✅ PASS |  | 2026-07-22T22:22:34.668Z |
 | banking | UC7 | prompt | llamacpp | ✅ PASS |  | 2026-07-22T17:32:53.997Z |
-| banking | UC8 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.438Z |
+| banking | UC8 | chip | unit-gate | ✅ PASS |  | 2026-07-22T22:22:34.645Z |
+| banking | UC8 | chip | unit-parse | ✅ PASS |  | 2026-07-22T22:22:34.630Z |
+| banking | UC8 | chip | unit-prereq | ✅ PASS |  | 2026-07-22T22:22:34.668Z |
 | banking | UC8 | prompt | llamacpp | ✅ PASS |  | 2026-07-22T17:32:49.168Z |
-| banking | UC9 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.441Z |
+| banking | UC9 | chip | unit-prereq | ✅ PASS |  | 2026-07-22T22:22:34.669Z |
 
 ## Summary
 
-23/23 checks passing.
+44/45 checks passing (1 FAIL — not demo-ready).
+Live invoke/LLM rows: 4/5 passing.

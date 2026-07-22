@@ -308,37 +308,60 @@ export function buildTraceSteps(trace) {
   // (2-exchange: the final delegated MCP token with the nested act chain).
   // Attack sims (attackSimulatorService) emit their own exchange vocabulary:
   // "sim-exchange-ok" carries the deliberately-deficient delegated token.
+  // Failures arrive as "exchange-failed" / "sim-exchange-error", OR as a final
+  // token event with status "failed"/"error" (must not render as a blank done).
   const exTok = findEvent(tokenEvents, "exchanged-token", "two-ex-final-token", "sim-exchange-ok");
-  const exFailed = findEvent(tokenEvents, "exchange-failed", "sim-exchange-error");
-  const exDone = exTok && exTok.status !== "waiting";
+  const exFailedNamed = findEvent(tokenEvents, "exchange-failed", "sim-exchange-error");
+  const exTokIsFailed = !!(exTok && (exTok.status === "failed" || exTok.status === "error"));
+  const exFailed = exFailedNamed || (exTokIsFailed ? exTok : null);
+  const exDone = !!(exTok && !exFailed && exTok.status !== "waiting");
   const ex1Tok = findEvent(tokenEvents, "two-ex-exchange1");
   const beforeScopes = splitScopes((userTok && userTok.claims && userTok.claims.scope) || []);
   const afterScopes = splitScopes((exTok && exTok.claims && exTok.claims.scope) || []);
-  const exchangeWhy = exDone
-    ? (ex1Tok
-      ? `Two-exchange path: hop #1 issued an intermediate token`
-        + (ex1Tok.claims?.scope ? ` (scope “${ex1Tok.claims.scope}”)` : "")
-        + `; final hop issued the MCP token`
-        + (afterScopes.length ? ` with scope “${afterScopes.join(" ")}”` : "")
-        + (exTok.claims?.act ? "; nested act proves the delegation chain." : ".")
-      : (afterScopes.length
-        ? `This run issued a delegated token with scope “${afterScopes.join(" ")}”`
-          + (exTok.audActual != null ? ` and audience ${asJson(exTok.audActual)}` : "")
-          + (exTok.claims?.act ? "; the act claim proves the agent acts for this user." : ".")
-        : `This run completed token exchange (${exTok.exchangeMethod || "RFC 8693"}).`))
-    : exFailed
-      ? `Token exchange failed — without a delegated token the MCP hop cannot run.`
+  const exchangeReq = exTok?.exchangeRequest || exFailed?.exchangeRequest || exFailed?.requestContext || null;
+  const exchangeWhy = exFailed
+    ? (exFailed.explanation
+      || (exFailed.pingoneErrorDescription
+        ? `Token exchange failed — ${exFailed.pingoneError || "error"}: ${exFailed.pingoneErrorDescription}`
+        : null)
+      || (exFailed.error ? `Token exchange failed — ${exFailed.error}` : null)
+      || "Token exchange failed — without a delegated token the MCP hop cannot run.")
+    : exDone
+      ? (ex1Tok
+        ? `Two-exchange path: hop #1 issued an intermediate token`
+          + (ex1Tok.claims?.scope ? ` (scope “${ex1Tok.claims.scope}”)` : "")
+          + `; final hop issued the MCP token`
+          + (afterScopes.length ? ` with scope “${afterScopes.join(" ")}”` : "")
+          + (exTok.claims?.act ? "; nested act proves the delegation chain." : ".")
+        : (afterScopes.length
+          ? `This run issued a delegated token with scope “${afterScopes.join(" ")}”`
+            + (exTok.audActual != null ? ` and audience ${asJson(exTok.audActual)}` : "")
+            + (exTok.claims?.act ? "; the act claim proves the agent acts for this user." : ".")
+          : `This run completed token exchange (${exTok.exchangeMethod || "RFC 8693"}).`))
       : undefined;
   steps.push(makeStep("exchange",
     exFailed ? "error" : exDone ? "done" : (exTok || ex1Tok) ? "active" : "pending",
     exDone || exFailed ? {
       why: exchangeWhy,
-      request: exTok?.exchangeRequest
-        ? { title: ex1Tok ? "Exchange #2 request (final)" : "Exchange request (actual)", text: asJson(exTok.exchangeRequest) }
+      request: exchangeReq
+        ? { title: ex1Tok ? "Exchange #2 request (final)" : "Exchange request (actual)", text: asJson(exchangeReq) }
         : undefined,
-      response: exTok
-        ? { title: ex1Tok ? "Final delegated token claims (nested act)" : "Delegated token claims", text: asJson(exTok.claims || {}) }
-        : undefined,
+      response: exFailed
+        ? {
+          title: "Exchange error",
+          text: asJson({
+            error: exFailed.error || exFailed.pingoneError || null,
+            pingoneError: exFailed.pingoneError || null,
+            pingoneErrorDescription: exFailed.pingoneErrorDescription || null,
+            pingoneErrorDetail: exFailed.pingoneErrorDetail || null,
+            httpStatus: exFailed.httpStatus || null,
+            explanation: exFailed.explanation || null,
+            requestContext: exFailed.requestContext || null,
+          }),
+        }
+        : exTok
+          ? { title: ex1Tok ? "Final delegated token claims (nested act)" : "Delegated token claims", text: asJson(exTok.claims || {}) }
+          : undefined,
       altRequest: ex1Tok?.exchangeRequest
         ? { title: "Exchange #1 request (intermediate)", text: asJson(ex1Tok.exchangeRequest) }
         : undefined,
@@ -347,18 +370,28 @@ export function buildTraceSteps(trace) {
         : undefined,
       scopeDiff: exDone && (beforeScopes.length || afterScopes.length)
         ? { before: beforeScopes, after: afterScopes } : undefined,
-      kv: exTok ? [
-        ex1Tok ? ["mode", "2-exchange"] : ["mode", "1-exchange"],
-        exTok.claims && exTok.claims.act ? ["act chain", asJson(exTok.claims.act)] : null,
-        exTok.exchangeMethod ? ["exchange method", String(exTok.exchangeMethod)] : null,
-        exTok.audExpected != null
-          ? ["audience", `expected ${exTok.audExpected} · actual ${exTok.audActual}${exTok.audMatches === false ? " (MISMATCH)" : ""}`]
-          : null,
-        ex1Tok && ex1Tok.claims && ex1Tok.claims.scope
-          ? ["exchange #1 scope", String(ex1Tok.claims.scope)] : null,
-      ].filter(Boolean) : [],
-      inspectToken: exTok ? "mcp" : undefined,
-      tokenEvent: exTok || undefined,
+      kv: [
+        ...(exFailed ? [
+          exFailed.httpStatus != null ? ["http status", String(exFailed.httpStatus)] : null,
+          (exFailed.pingoneError || exFailed.error)
+            ? ["error", String(exFailed.pingoneError || exFailed.error)] : null,
+          exFailed.pingoneErrorDescription
+            ? ["description", String(exFailed.pingoneErrorDescription)] : null,
+          exFailed.rfc ? ["rfc", String(exFailed.rfc)] : ["rfc", "RFC 8693"],
+        ] : []),
+        ...(exTok && !exFailed ? [
+          ex1Tok ? ["mode", "2-exchange"] : ["mode", "1-exchange"],
+          exTok.claims && exTok.claims.act ? ["act chain", asJson(exTok.claims.act)] : null,
+          exTok.exchangeMethod ? ["exchange method", String(exTok.exchangeMethod)] : null,
+          exTok.audExpected != null
+            ? ["audience", `expected ${exTok.audExpected} · actual ${exTok.audActual}${exTok.audMatches === false ? " (MISMATCH)" : ""}`]
+            : null,
+          ex1Tok && ex1Tok.claims && ex1Tok.claims.scope
+            ? ["exchange #1 scope", String(ex1Tok.claims.scope)] : null,
+        ] : []),
+      ].filter(Boolean),
+      inspectToken: exDone && exTok ? "mcp" : undefined,
+      tokenEvent: exFailed || exTok || undefined,
     } : {}));
 
   // 6a. dpop — RFC 9449 sender-constrained binding
@@ -377,10 +410,13 @@ export function buildTraceSteps(trace) {
       tokenEvent: dpopEv,
     } : {}));
 
-  // 6b. rar — RFC 9396 authorization_details (attest before intent-binding check)
-  const rarEv = findEvent(tokenEvents, "rar-authorization");
+  // 6b. rar — RFC 9396 authorization_details (attest before intent-binding check).
+  // Prefer the grant event (has authorization_details); attack sims use sim-rar-*.
+  const rarEv = findEvent(tokenEvents, "rar-authorization", "sim-rar-grant")
+    || findEvent(tokenEvents, "sim-rar-armed");
   steps.push(makeStep("rar",
-    rarEv ? (rarEv.status === "failed" ? "error" : "done") : traceComplete ? "notinpath" : "pending",
+    rarEv ? (rarEv.status === "failed" || rarEv.status === "error" ? "error" : "done")
+      : traceComplete ? "notinpath" : "pending",
     rarEv ? {
       why: rarEv.explanation || "authorization_details bound this tool call to a specific intent.",
       kv: [["rfc", String(rarEv.rfc || "RFC 9396")]],

@@ -310,10 +310,28 @@ async function dispatchBankingAction(action, params, userId, ctx) {
         }
         return { reply: `Transferred **$${amount.toFixed(2)}** from ${fromAcct.accountType} to ${toAcct.accountType}.`, success: true, toolsCalled: ['create_transfer'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
       } catch (err) {
+        // Keep TOKEN_INACTIVE as a hard 401 for the route; every other throw must
+        // still return tokenEvents so TraceRail shows the exchange-failed step.
+        if (err && err.code === 'TOKEN_INACTIVE') throw err;
+        if (Array.isArray(err?.tokenEvents)) {
+          for (const ev of err.tokenEvents) {
+            if (ev && !tokenEvents.includes(ev)) tokenEvents.push(ev);
+          }
+        }
         // WR-07(a): non-Error throws have no .message — surface the real value.
         const detail = (err && err.message) ? err.message : String(err);
         console.warn('[dispatchBankingAction] Error executing transfer:', detail);
-        throw (err instanceof Error) ? err : new Error(`[dispatchBankingAction] transfer failed: ${detail}`);
+        return {
+          reply: `Transfer failed: ${detail}`,
+          success: false,
+          toolsCalled: ['create_transfer'],
+          tokensUsed: 0,
+          requiresConsent: false,
+          agentConfigured: true,
+          tokenEvents,
+          error: err?.pingoneError || err?.code || 'delegation_chain_broken',
+          message: detail,
+        };
       }
     }
 
@@ -355,10 +373,26 @@ async function dispatchBankingAction(action, params, userId, ctx) {
         }
         return { reply: `Deposited **$${amount.toFixed(2)}** into ${toAcct.accountType}.`, success: true, toolsCalled: ['create_deposit'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
       } catch (err) {
+        if (err && err.code === 'TOKEN_INACTIVE') throw err;
+        if (Array.isArray(err?.tokenEvents)) {
+          for (const ev of err.tokenEvents) {
+            if (ev && !tokenEvents.includes(ev)) tokenEvents.push(ev);
+          }
+        }
         // WR-07(a): non-Error throws have no .message — surface the real value.
         const detail = (err && err.message) ? err.message : String(err);
         console.warn('[dispatchBankingAction] Error executing deposit:', detail);
-        throw (err instanceof Error) ? err : new Error(`[dispatchBankingAction] deposit failed: ${detail}`);
+        return {
+          reply: `Deposit failed: ${detail}`,
+          success: false,
+          toolsCalled: ['create_deposit'],
+          tokensUsed: 0,
+          requiresConsent: false,
+          agentConfigured: true,
+          tokenEvents,
+          error: err?.pingoneError || err?.code || 'delegation_chain_broken',
+          message: detail,
+        };
       }
     }
 
@@ -400,10 +434,26 @@ async function dispatchBankingAction(action, params, userId, ctx) {
         }
         return { reply: `Withdrew **$${amount.toFixed(2)}** from ${fromAcct.accountType}.`, success: true, toolsCalled: ['create_withdrawal'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
       } catch (err) {
+        if (err && err.code === 'TOKEN_INACTIVE') throw err;
+        if (Array.isArray(err?.tokenEvents)) {
+          for (const ev of err.tokenEvents) {
+            if (ev && !tokenEvents.includes(ev)) tokenEvents.push(ev);
+          }
+        }
         // WR-07(a): non-Error throws have no .message — surface the real value.
         const detail = (err && err.message) ? err.message : String(err);
         console.warn('[dispatchBankingAction] Error executing withdraw:', detail);
-        throw (err instanceof Error) ? err : new Error(`[dispatchBankingAction] withdraw failed: ${detail}`);
+        return {
+          reply: `Withdrawal failed: ${detail}`,
+          success: false,
+          toolsCalled: ['create_withdrawal'],
+          tokensUsed: 0,
+          requiresConsent: false,
+          agentConfigured: true,
+          tokenEvents,
+          error: err?.pingoneError || err?.code || 'delegation_chain_broken',
+          message: detail,
+        };
       }
     }
 

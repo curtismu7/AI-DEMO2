@@ -7,6 +7,7 @@ const {
   expectationFromUseCase,
   bankingAmountGateExpectations,
   bankingWorksChipExpectations,
+  scoreTokenChainDetail,
 } = require('../services/stepVerificationExpectations');
 const { resolveUseCase } = require('../config/useCases.js');
 const { parseHeuristic, resolveVerticalCtx } = require('../services/nlIntentParser');
@@ -55,5 +56,17 @@ describe('stepVerificationExpectations', () => {
       expect(n.tool).toBe('create_transfer');
       expect(n.amount).toBe(exp.amount);
     }
+  });
+
+  test('scoreTokenChainDetail requires events with teaching detail', () => {
+    expect(scoreTokenChainDetail(null).ok).toBe(false);
+    expect(scoreTokenChainDetail([{ id: 'user-token' }]).ok).toBe(false);
+    expect(scoreTokenChainDetail([
+      { id: 'user-token', claims: { sub: 'u1' } },
+      { id: 'exchange-failed', status: 'failed', explanation: 'invalid_scope', pingoneError: 'invalid_scope' },
+    ], { requireFailureEvent: true }).ok).toBe(true);
+    expect(scoreTokenChainDetail([
+      { id: 'user-token', claims: { sub: 'u1' } },
+    ], { requireFailureEvent: true }).reason).toBe('missing_failure_event');
   });
 });
