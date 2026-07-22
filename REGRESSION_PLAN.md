@@ -101,6 +101,30 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-22 — 2-exchange TraceRail Exchange step lost coloured request JSON
+
+**Files changed:**
+
+- `demo_api_server/services/agentMcpTokenService.js` — when splicing
+  `two-ex-exchange1-in-progress` / `two-ex-exchange2-in-progress` on success or failure,
+  copy `exchangeRequest` onto the replacement success/failure event.
+- `demo_api_server/tests/exchangedTokenEventExchangeRequest.test.js` — asserts
+  `two-ex-final-token` can carry the teaching payload.
+- `demo_api_ui/src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js` — asserts
+  TraceRail Exchange step renders request JSON from `two-ex-final-token.exchangeRequest`.
+
+**What was broken:** 2-exchange attached `exchangeRequest` only to the in-progress cards,
+then spliced those out on completion. TraceRail's Exchange step reads
+`two-ex-final-token.exchangeRequest`, so live runs showed claims response but no coloured
+request JSON. 1-exchange already kept the payload on `exchanged-token`.
+
+**Do not break:** RFC 8693 minting, aud/act claims, or the in-progress event shapes — teaching
+metadata only; no raw token material in `exchangeRequest`.
+
+**Verify:** `cd demo_api_server && npm test -- --testPathPattern=exchangedTokenEventExchangeRequest --coverage=false`
+(2/2); `cd demo_api_ui && npm test -- --run src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`
+(36/36). Live: run a 2-exchange tool call, expand TraceRail Exchange — request JSON present.
+
 ### 2026-07-22 — Customer login's post-login modal never showed `phone` (and would break for any admin-only field): admin `/api/auth/oauth/status` had no `oauthType` gate, so it falsely reported `authenticated:true` for end-user sessions too
 
 **Files changed:**
