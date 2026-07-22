@@ -100,9 +100,12 @@ set for OLB — one gateway resource identity, shared across sub-paths.
 bare-vs-URL open item live per `.env.example:38-44` before calling any route
 done.
 
-**Explicitly not touched:** `mcp-olb-jwks`, `mcp-apikey-jwks`,
-`mcp-invest-jwks` — needs a separate design pass for a JWKS-capable
-`OAuth2ResourceServerFilter` equivalent first.
+**Explicitly not touched by the mechanical ProtectionFilter wrap:** `mcp-olb-jwks`,
+`mcp-apikey-jwks`, `mcp-invest-jwks` — those keep `jwks-token-validation.groovy`.
+**Option B (applied separately):** that Groovy now adds RFC 9728 `resource_metadata`
+on 401 `WWW-Authenticate` without introducing an `OAuth2ResourceServerFilter`.
+A JWKS-capable native RS filter remains a future design pass if full
+`McpProtectionFilter` wrap is required.
 
 ## Summary
 
