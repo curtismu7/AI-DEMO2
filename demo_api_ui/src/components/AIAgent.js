@@ -65,7 +65,7 @@ import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
 import DemoStepsDropdown from "./DemoStepsDropdown";
 import BankingChips, { PINGONE_ADMIN_CHIP_IDS } from "./BankingChips";
-import { markUseCaseCompleted } from "../utils/useCaseDemoProgress";
+import { markUseCaseCompleted, clearCompletedUseCases } from "../utils/useCaseDemoProgress";
 import apiClient from "../services/apiClient";
 import { formatAxiosError } from "../utils/formatAxiosError";
 import { adminCustomerContext } from "../services/adminCustomerContext";
@@ -7728,8 +7728,20 @@ export default function BankingAgent({
                 aria-modal="false"
                 ref={actionsPopoutRef}
               >
-                {/* Search */}
-                <input
+                <div className="ba-agent-popout-hdr">
+                  <div className="ba-agent-popout-hdr__top">
+                    <span className="ba-agent-popout-hdr__title">Actions</span>
+                    <button
+                      type="button"
+                      className="ba-agent-popout-hdr__clear"
+                      onClick={() => clearCompletedUseCases()}
+                      title="Clear checkmarks for a fresh demo pass"
+                      data-testid="actions-clear-progress"
+                    >
+                      Clear progress
+                    </button>
+                  </div>
+                  <input
                   className="ba-popout-search"
                   type="search"
                   placeholder="Search actions or type a question…"
@@ -7789,12 +7801,15 @@ export default function BankingAgent({
                   }}
                 />
                 {isLoggedIn && (
-                  <ScopePicker
-                    allowWrite={agentAllowWrite}
-                    disabled={agentToolsLoading}
-                    onChange={setAgentAllowWrite}
-                  />
+                  <div className="ba-agent-popout-hdr__tools">
+                    <ScopePicker
+                      allowWrite={agentAllowWrite}
+                      disabled={agentToolsLoading}
+                      onChange={setAgentAllowWrite}
+                    />
+                  </div>
                 )}
+                </div>
                 {isLoggedIn && degradedAuthz && (
                   <div className="ba-authz-degraded-badge" title="PingOne Authorize unreachable — using the demo authorize server">
                     Demo Authorize
