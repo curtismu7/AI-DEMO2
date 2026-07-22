@@ -142,9 +142,9 @@ Today’s PingGateway trail (`p1az-decision.groovy`) has introspection + authori
 
 | PR | Phases | Risk |
 |----|--------|------|
-| **1** | E1 + E3 + E4 (UI-only from existing events) | Low |
-| **2** | E2a UI from existing statements/mcpAudit | Low |
-| **3** | E2b `denyingFilter` / `filterChain` on Node + PingGateway + BFF event mapping | Medium (gateway) |
+| **1** | E1 + E3 + E4 (UI-only from existing events) | Low | ✅ on PR |
+| **2** | E2a UI from existing statements/mcpAudit | Low | ✅ on PR |
+| **3** | E2b `denyingFilter` / `filterChain` on Node + PingGateway + BFF event mapping | Medium (gateway) | ✅ on PR |
 
 Do not mix E2b with unrelated gateway refactors.
 

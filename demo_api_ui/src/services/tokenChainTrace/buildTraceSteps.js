@@ -636,6 +636,8 @@ export function buildTraceSteps(trace) {
     || gwFilterChainEv?.denyingFilter
     || gwMcpAudit?.denyingFilter
     || null;
+  const lastFilter = gwAz?.lastFilter || gwFilterChainEv?.lastFilter || null;
+  const filterHop = gwDenied ? denyingFilter : (lastFilter || denyingFilter);
   const filterChain = gwAz?.filterChain || gwFilterChainEv?.filterChain || null;
   const gwPolicy = gwAz?.policy || gwFilterChainEv?.policy || null;
   const gatewayWhy = (() => {
@@ -650,8 +652,8 @@ export function buildTraceSteps(trace) {
       return "The Agent Gateway blocked this call before it reached the MCP server." + ruleBit
         + (gwAz?.reason ? ` Reason: ${gwAz.reason}.` : "");
     }
-    if (denyingFilter) {
-      return `Passed filter chain; last hop ${denyingFilter} → forwarded`
+    if (filterHop) {
+      return `Passed filter chain; last hop ${filterHop} → forwarded`
         + (gwAz?.tool ? ` for tool “${gwAz.tool}”` : "")
         + ".";
     }
@@ -689,7 +691,7 @@ export function buildTraceSteps(trace) {
               : (simGwDeny.label || simGwDeny.explanation)) || "gateway policy"}` }
         : undefined,
       kv: [
-        denyingFilter ? ["filter / stage", String(denyingFilter)] : null,
+        denyingFilter || lastFilter ? ["filter / stage", String(filterHop || denyingFilter || lastFilter)] : null,
         gwAz ? ["authorize", `${gwAz.decision || "?"}${gwAz.url ? ` — ${gwAz.url}` : ""}`] : null,
         gwStatementCodes.length ? ["rule / statement", gwStatementCodes.join(", ")] : null,
         gwAz?.reason ? ["reason", String(gwAz.reason)] : null,

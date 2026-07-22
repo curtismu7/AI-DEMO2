@@ -784,7 +784,13 @@ async function runMcpToolPipeline(ctx) {
                     status,
                     null,
                     desc,
-                    buildGwAuthorizeEventExtra(authzRes)
+                    buildGwAuthorizeEventExtra({
+                        ...authzRes,
+                        denyingFilter: gwAuditTrail.denyingFilter || authzRes.denyingFilter,
+                        lastFilter: gwAuditTrail.lastFilter || authzRes.lastFilter,
+                        filterChain: gwAuditTrail.filterChain || authzRes.filterChain,
+                        policy: gwAuditTrail.policy || authzRes.policy,
+                    })
                 );
                 tokenEvents.push(gwAuthorizeEvent);
                 gwEvents.push(gwAuthorizeEvent);
@@ -986,6 +992,7 @@ async function runMcpToolPipeline(ctx) {
             // in the token chain instead of only as an error message.
             if (err.gwAuditTrail && err.gwAuditTrail.authorize) {
                 const authzRes = err.gwAuditTrail.authorize;
+                const trail = err.gwAuditTrail;
                 const decision = authzRes.decision;
                 const status = decision === 'PERMIT' ? 'permit' : (decision === 'INDETERMINATE' ? 'indeterminate' : 'deny');
                 tokenEvents.push(deps.buildTokenEvent(
@@ -994,7 +1001,13 @@ async function runMcpToolPipeline(ctx) {
                     status,
                     null,
                     `PingOne Authorize decision: ${decision}${authzRes.reason ? ' — ' + authzRes.reason : ''}`,
-                    buildGwAuthorizeEventExtra(authzRes)
+                    buildGwAuthorizeEventExtra({
+                        ...authzRes,
+                        denyingFilter: trail.denyingFilter || authzRes.denyingFilter,
+                        lastFilter: trail.lastFilter || authzRes.lastFilter,
+                        filterChain: trail.filterChain || authzRes.filterChain,
+                        policy: trail.policy || authzRes.policy,
+                    })
                 ));
             }
             if (err.gwAuditTrail && err.gwAuditTrail.mcpAudit) {
@@ -1099,7 +1112,13 @@ async function runMcpToolPipeline(ctx) {
                     decision === 'PERMIT' ? 'permit' : (decision === 'INDETERMINATE' ? 'indeterminate' : 'deny'),
                     null,
                     `PingOne Authorize decision: ${decision}${authzRes.reason ? ' — ' + authzRes.reason : ''}`,
-                    buildGwAuthorizeEventExtra(authzRes)
+                    buildGwAuthorizeEventExtra({
+                        ...authzRes,
+                        denyingFilter: trail.denyingFilter || authzRes.denyingFilter,
+                        lastFilter: trail.lastFilter || authzRes.lastFilter,
+                        filterChain: trail.filterChain || authzRes.filterChain,
+                        policy: trail.policy || authzRes.policy,
+                    })
                 ));
             }
             if (trail.mcpAudit && !tokenEvents.some((e) => e && e.id === 'gw-mcp-audit')) {

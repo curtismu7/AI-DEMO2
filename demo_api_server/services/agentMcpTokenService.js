@@ -348,6 +348,11 @@ function buildGwAuthorizeEventExtra(az) {
     authorizeResponse,
     authorizeRef: az.policyRef || az.ref || az.authorizeRef || null,
     decisionId: az.decisionId || null,
+    denyingFilter: az.denyingFilter || null,
+    lastFilter: az.lastFilter || null,
+    filterChain: az.filterChain || null,
+    policy: az.policy || null,
+    policySource: az.policySource || null,
   };
 }
 
