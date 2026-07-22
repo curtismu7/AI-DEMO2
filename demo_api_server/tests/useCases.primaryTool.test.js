@@ -49,6 +49,7 @@ const ACTION_TO_TOOL = {
   accounts: 'get_my_accounts',
   transactions: 'get_my_transactions',
   branch_hours: 'get_branch_hours',
+  weather: 'get_weather',
 };
 
 /** Every (vertical, useCase) chip entry with a real resolved primaryTool. */
@@ -72,6 +73,9 @@ describe('primaryTool existence — no dangling tool premises, any vertical', ()
     const surfaces = [
       read('demo_mcp_server/src/tools/BankingToolRegistry.ts'),
       read('demo_mcp_server/src/tools/handlers/verticalTools.generated.ts'),
+      // weather-mcp showcase: a real MCP tool, but hosted by a third-party MCP
+      // server (not demo_mcp_server) — registered here instead.
+      read('demo_api_server/utils/mcpToolRegistry.js'),
     ];
     const missing = [];
     for (const tool of new Set(chipEntries().map((e) => e.primaryTool))) {

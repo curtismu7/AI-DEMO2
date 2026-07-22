@@ -504,6 +504,7 @@ export default function AdminSideNav({ user }) {
           icon: "rte",
         },
         { label: "Capability Tour", path: "/agent-gateway-capabilities", icon: "shld" },
+        { label: "Weather MCP", path: "/use-cases", icon: "mcp" },
       ],
     },
     {

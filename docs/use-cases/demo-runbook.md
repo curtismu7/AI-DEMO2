@@ -22,6 +22,8 @@
 | UC8 | `transfer $300 from checking to savings` | `HITL_REQUIRED` | The agent paused and waited — the transfer only ran after you approved it. |
 | UC22 | `transfer $150 from checking to savings` | `PERMIT` | Note the amount — $150, below the MFA threshold. A person doing this in-browser would sail through. But an AGENT moving money is a sensitive, agent-context action, so approval is requested out-of-band on the user's phone. CIBA is triggered by the action and the actor, not the amount. |
 | UC24 | `What branches are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
+| UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
+| UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
 | UC28 | `Can you waive the fee on my checking account?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
 ## healthcare
@@ -34,6 +36,8 @@
 | UC8 | `pay my $300 bill` | `HITL_REQUIRED` | $300 bill payment requires human consent before it runs. |
 | UC22 | `pay my $150 bill` | `PERMIT` | Note the amount — $150, below the MFA threshold. A person doing this in-browser would sail through. But an AGENT moving money is a sensitive, agent-context action, so approval is requested out-of-band on the user's phone. CIBA is triggered by the action and the actor, not the amount. |
 | UC24 | `What clinics are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
+| UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
+| UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
 
 ## retail
 
@@ -45,6 +49,8 @@
 | UC8 | `checkout headphones for $300` | `HITL_REQUIRED` | $300 checkout requires human consent before it runs. |
 | UC22 | `checkout headphones for $150` | `PERMIT` | Note the amount — $150, below the MFA threshold. A person doing this in-browser would sail through. But an AGENT moving money is a sensitive, agent-context action, so approval is requested out-of-band on the user's phone. CIBA is triggered by the action and the actor, not the amount. |
 | UC24 | `What stores are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
+| UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
+| UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
 
 ## government
 
@@ -56,6 +62,8 @@
 | UC8 | `pay the $300 fee` | `HITL_REQUIRED` | $300 fee payment requires human consent before it runs. |
 | UC22 | `pay the $150 fee` | `PERMIT` | Note the amount — $150, below the MFA threshold. A person doing this in-browser would sail through. But an AGENT moving money is a sensitive, agent-context action, so approval is requested out-of-band on the user's phone. CIBA is triggered by the action and the actor, not the amount. |
 | UC24 | `What city offices are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
+| UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
+| UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
 
 ## university
 
@@ -67,6 +75,8 @@
 | UC8 | `pay $300 tuition` | `HITL_REQUIRED` | $300 tuition payment requires human consent before it runs. |
 | UC22 | `pay $150 tuition` | `PERMIT` | Note the amount — $150, below the MFA threshold. A person doing this in-browser would sail through. But an AGENT moving money is a sensitive, agent-context action, so approval is requested out-of-band on the user's phone. CIBA is triggered by the action and the actor, not the amount. |
 | UC24 | `What campus locations are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
+| UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
+| UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
 
 ## workforce
 
@@ -78,6 +88,8 @@
 | UC8 | `submit a $300 expense` | `HITL_REQUIRED` | $300 expense requires human consent before it runs. |
 | UC22 | `submit a $150 expense` | `PERMIT` | Note the amount — $150, below the MFA threshold. A person doing this in-browser would sail through. But an AGENT moving money is a sensitive, agent-context action, so approval is requested out-of-band on the user's phone. CIBA is triggered by the action and the actor, not the amount. |
 | UC24 | `What office locations are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
+| UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
+| UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
 
 ## sporting-goods
 
@@ -89,6 +101,8 @@
 | UC8 | `extend my rental $300` | `HITL_REQUIRED` | $300 rental extension requires human consent before it runs. |
 | UC22 | `extend my rental $150` | `PERMIT` | Note the amount — $150, below the MFA threshold. A person doing this in-browser would sail through. But an AGENT moving money is a sensitive, agent-context action, so approval is requested out-of-band on the user's phone. CIBA is triggered by the action and the actor, not the amount. |
 | UC24 | `What stores are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
+| UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
+| UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
 
 ## manufacturing
 
@@ -100,6 +114,8 @@
 | UC8 | `approve a $300 purchase order` | `HITL_REQUIRED` | $300 purchase-order approval requires human consent before it runs. |
 | UC22 | `approve a $150 purchase order` | `PERMIT` | Note the amount — $150, below the MFA threshold. A person doing this in-browser would sail through. But an AGENT moving money is a sensitive, agent-context action, so approval is requested out-of-band on the user's phone. CIBA is triggered by the action and the actor, not the amount. |
 | UC24 | `What plant locations are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
+| UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
+| UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
 
 ## investment
 
@@ -111,4 +127,6 @@
 | UC8 | `execute a large trade of $300` | `HITL_REQUIRED` | The agent paused and waited — the transfer only ran after you approved it. |
 | UC22 | `execute a large trade of $150` | `PERMIT` | Note the amount — $150, below the MFA threshold. A person doing this in-browser would sail through. But an AGENT moving money is a sensitive, agent-context action, so approval is requested out-of-band on the user's phone. CIBA is triggered by the action and the actor, not the amount. |
 | UC24 | `What branches are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
+| UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
+| UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
 

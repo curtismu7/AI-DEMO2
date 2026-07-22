@@ -541,6 +541,21 @@ function createMcpToolRegistry() {
     tool(
       async (input, config) => {
         const { agentToken, userId, tokenEvents = [] } = getAgentContext(config);
+        const result = await callMcpToolInternal('get_weather', input, agentToken, userId, tokenEvents);
+        return JSON.stringify(result);
+      },
+      {
+        name: 'get_weather',
+        description: 'Get current weather for a city. Call when the user asks about weather or conditions in a city — always attempt the call and let the result speak for itself, do not pre-judge whether a location is supported.',
+        schema: z.object({
+          city_name: z.string().min(1).describe('City name, e.g. "Austin" or "Austin, TX"'),
+        }),
+      }
+    ),
+
+    tool(
+      async (input, config) => {
+        const { agentToken, userId, tokenEvents = [] } = getAgentContext(config);
         const result = await callMcpToolInternal('create_transfer', input, agentToken, userId, tokenEvents);
         return JSON.stringify(result);
       },
