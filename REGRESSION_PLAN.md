@@ -101,6 +101,42 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-22 — Customer login's post-login modal never showed `phone` (and would break for any admin-only field): admin `/api/auth/oauth/status` had no `oauthType` gate, so it falsely reported `authenticated:true` for end-user sessions too
+
+**Files changed:**
+
+- `demo_api_server/routes/oauth.js` — `GET /status`'s `isAuthenticated` now also requires
+  `req.session.oauthType !== 'user'`.
+- `demo_api_server/src/__tests__/oauthStatus.regression.test.js` — added a case for a real
+  admin session (`oauthType` unset, as issued on a fresh same-instance admin login) staying
+  authenticated, and a case for an end-user session (`oauthType: 'user'`) no longer matching.
+
+**What was broken:** the frontend's `useAuth.js` (`checkOAuthSession`) queries admin status
+(`/api/auth/oauth/status`) first, then user status (`/api/auth/oauth/user/status`), and stops at
+the first `authenticated:true`. The admin endpoint's check was `req.session.user && hasOAuthToken
+&& tokenNotExpired` — no `oauthType` check at all — so it returned `authenticated:true` for
+*any* logged-in session, including end-user/customer logins. Its response shape only includes
+`id/username/email/firstName/lastName/role`, omitting fields like `phone` that only the user
+endpoint returns. Every customer login silently got the admin shape, so `LoginSuccessModal`
+showed name and email (present in both shapes) but never phone (admin-only-shaped response,
+present only in the user endpoint the app never reached).
+
+**Do not break:** admin sessions never set `req.session.oauthType = 'admin'` on the live session
+in the normal, same-instance login path — only the signed `_auth` cookie payload carries that
+value, restored onto `req.session.oauthType` by `restoreSessionFromCookie`
+(`services/authStateCookie.js`) solely when the live session itself is lost. A fix that gates on
+`oauthType === 'admin'` breaks real admin status checks in the common case; the correct gate is
+`oauthType !== 'user'`, matching the exclusion style already used elsewhere in this file (see
+`oauthUser.js`'s own `oauthType === 'user'` checks).
+
+**Verify:** `CI=true npx jest src/__tests__/oauthStatus.regression.test.js
+src/__tests__/oauthStatus.integration.test.js --testPathIgnorePatterns="/node_modules/"` — 26/26
+passing. Confirmed the new end-user-session test fails against the pre-fix code (`git stash` the
+one-line fix, rerun) and passes with it restored. Live-reproduced the original symptom via
+Playwright against the real PingOne-backed stack before diagnosing: fresh `demoUser` login's
+`/api/auth/oauth/status` returned `authenticated:true` with no `phone` field, while
+`/api/auth/oauth/user/status` on the same session returned the correct value.
+
 ### 2026-07-22 — Reset Demo now reverts the weather scope flags; added UC32 for the configurability itself
 
 **Files changed:**

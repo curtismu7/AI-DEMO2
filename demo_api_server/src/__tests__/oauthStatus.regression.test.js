@@ -117,6 +117,40 @@ describe('GET /api/auth/oauth/status (Admin OAuth)', () => {
     expect(res.body.tokenType).toBe('Bearer');
     expect(res.body.expiresAt).toEqual(expect.any(Number));
   });
+
+  test('Real admin session (oauthType unset, as issued on a fresh admin login): authenticated: true', async () => {
+    // Admin logins never set req.session.oauthType = 'admin' directly (only the
+    // signed _auth cookie payload carries that value, restored by
+    // restoreSessionFromCookie only when the live session is lost). A fresh,
+    // same-instance admin session legitimately has oauthType undefined.
+    await agent.post('/__set-session').send({
+      user: { id: 'u4', username: 'admin4', email: 'admin4@example.com', role: 'admin' },
+      oauthTokens: { accessToken: 'valid_tok', expiresAt: Date.now() + 9999999, tokenType: 'Bearer' },
+    });
+
+    const res = await agent.get('/api/auth/oauth/status');
+    expect(res.status).toBe(200);
+    expect(res.body.authenticated).toBe(true);
+  });
+
+  test('Customer/end-user session (oauthType=user) does not shadow this admin check: authenticated: false', async () => {
+    // Regression for a bug where this endpoint had no oauthType gate at all, so
+    // it reported authenticated:true for ANY session including end-user logins.
+    // useAuth.js's checkOAuthSession queries this admin endpoint FIRST and stops
+    // at the first authenticated:true — so a false positive here permanently
+    // shadowed /api/auth/oauth/user/status (which includes fields like `phone`
+    // that this admin shape omits) for every customer login.
+    await agent.post('/__set-session').send({
+      user: { id: 'u5', username: 'demoUser', email: 'demoUser@example.com', role: 'customer' },
+      oauthTokens: { accessToken: 'valid_tok', expiresAt: Date.now() + 9999999, tokenType: 'Bearer' },
+      oauthType: 'user',
+    });
+
+    const res = await agent.get('/api/auth/oauth/status');
+    expect(res.status).toBe(200);
+    expect(res.body.authenticated).toBe(false);
+    expect(res.body.user).toBe(null);
+  });
 });
 
 describe('GET /api/auth/oauth/user/status (User OAuth)', () => {
