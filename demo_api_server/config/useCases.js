@@ -476,13 +476,6 @@ const RAW_USE_CASES = [
       mfa:   "Delivers the CIBA challenge to the user's enrolled device (push notification / OTP).",
     },
     primaryTool: 'create_transfer',
-    // Explicit CIBA trigger — the durable, cross-vertical signal that instigates
-    // out-of-band approval, INDEPENDENT of amount (so it never collides with the
-    // amount-based MFA step-up). Authorize reads this declared method and routes
-    // the transaction through the SAME step-up path as MFA, differing only by
-    // step_up_method='ciba'. Declared once here; every vertical inherits it via
-    // the shared catalog + perVertical below.
-    stepUpMethod: 'ciba',
     perVertical: AMOUNT_PER_VERTICAL(600),
   },
 
@@ -715,9 +708,9 @@ const RAW_USE_CASES = [
     id: 'UC14',
     useCaseId: 'rar-intent-violation',
     track: 'attacks',
-    title: 'PAR intent violation (Pushed Auth Request)',
-    buyerStory: "An agent that exceeds the amount or payee granted via Pushed Authorization Request (RFC 9126) must be denied.",
-    pingOneSolution: 'PingOne Authorize evaluates the PAR-submitted authorization details; exceeding the granted amount or payee yields DENY.',
+    title: 'RAR intent violation',
+    buyerStory: "An agent that exceeds the amount or payee granted in its Rich Authorization Request must be denied.",
+    pingOneSolution: 'PingOne Authorize evaluates authorization_details; exceeding the granted amount or payee yields DENY.',
     trigger: { type: 'attack', sim: 'rar-exceeded' },
     expectedOutcome: 'DENY',
     evidence: { tokenChain: ['authorize-decision'], activity: ['authorize', 'mcp'] },
@@ -739,9 +732,9 @@ const RAW_USE_CASES = [
     id: 'UC14b',
     useCaseId: 'rar-intent-verified',
     track: 'learn',
-    title: 'PAR intent verified (PERMIT)',
-    buyerStory: 'A transfer that stays within its PAR (RFC 9126) request_uri authorization cap is verified and permitted — the legitimate counterpart to the PAR overage attack.',
-    pingOneSolution: 'RFC 9126 PAR authorization details bind the transfer to an amount cap; the MCP gateway and PingOne Authorize verify the requested transfer against it before permitting.',
+    title: 'RAR intent verified (PERMIT)',
+    buyerStory: 'A transfer that stays within its declared RFC 9396 authorization_details cap is verified and permitted — the legitimate counterpart to the RAR overage attack.',
+    pingOneSolution: 'RFC 9396 authorization_details bind the transfer to an amount cap; the MCP gateway and PingOne Authorize verify the requested transfer against it before permitting.',
     trigger: { type: 'link', path: '/intent-binding-learning#rar' },
     expectedOutcome: 'PERMIT',
     evidence: { tokenChain: ['sim-rar-armed', 'sim-rar-grant', 'intent-binding-verified'], activity: [] },
@@ -872,6 +865,51 @@ const RAW_USE_CASES = [
       gw: 'Introspects every token before evaluating policy; on introspection failure, rejects the call rather than forwarding it.',
     },
     primaryTool: null,
+  },
+  {
+    id: 'UC30',
+    useCaseId: 'weather-mcp-texas-permit',
+    track: 'controls',
+    title: 'Third-party MCP server, scoped at the gateway',
+    buyerStory: "A third-party tool the agent calls must be constrained to the business's actual footprint — even though the tool itself has no idea what that footprint is.",
+    pingOneSolution: 'The Agent Gateway fronts a third-party weather MCP server and enforces a Texas-only demo policy entirely at the edge — the backend never sees the restriction.',
+    trigger: { type: 'chip', text: "what's the weather in Austin, TX" },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'tool-dispatched'], activity: ['token', 'mcp'] },
+    codeRefs: ['ping-gateway/scripts/groovy/tx-weather-scope.groovy', 'ping-gateway/config/routes/00-mcp-weather.json'],
+    maturity: 'works',
+    owasp: { threats: ['T6'], sections: ['§4.2.2'] },
+    whatToSay: 'Austin is in Texas — the gateway lets the call through to the real weather server.',
+    advanced: false,
+    match: { tool: 'get_weather' },
+    whatLong: 'The agent calls a real, unmodified third-party weather MCP server through the Agent Gateway. A Texas city is in scope for this demo policy, so the gateway forwards the call and the backend responds normally — the third-party server itself has no concept of the restriction.',
+    businessValue: 'Any third-party or unmanaged MCP server can be brought into a governed environment without modifying it — the gateway enforces the business boundary, not the tool.',
+    productRoles: {
+      gw: 'Validates the token, then runs the Texas-scope policy before forwarding the call to the third-party server.',
+    },
+    primaryTool: 'get_weather',
+  },
+  {
+    id: 'UC31',
+    useCaseId: 'weather-mcp-texas-deny',
+    track: 'controls',
+    title: 'Third-party MCP server — out-of-scope call denied',
+    buyerStory: "When an agent's tool call falls outside the business's actual footprint, it must be stopped before the third-party tool ever runs — not after.",
+    pingOneSolution: 'The Agent Gateway denies the call before it reaches the third-party weather MCP server — the demo policy the backend never sees.',
+    trigger: { type: 'chip', text: "what's the weather in Miami" },
+    expectedOutcome: 'DENY',
+    evidence: { tokenChain: ['user-token', 'sim-gateway-deny'], activity: ['token', 'mcp'] },
+    codeRefs: ['ping-gateway/scripts/groovy/tx-weather-scope.groovy', 'ping-gateway/config/routes/00-mcp-weather.json'],
+    maturity: 'works',
+    owasp: { threats: ['T6'], sections: ['§4.2.2'] },
+    whatToSay: 'Miami is outside Texas — the gateway denies the call before the third-party server ever sees it.',
+    advanced: false,
+    whatLong: 'The agent asks for weather in a city outside the demo policy\'s Texas scope. The gateway denies the call before it is ever forwarded to the third-party weather MCP server — the backend never runs, and never sees the request.',
+    businessValue: 'Scoping happens once, at the gateway, instead of being re-implemented (or forgotten) in every tool integration — a policy change takes effect for every agent immediately.',
+    productRoles: {
+      gw: 'Runs the Texas-scope policy and returns DENY before the call is forwarded to the third-party server.',
+    },
+    primaryTool: 'get_weather',
   },
 
   // --- DEVELOPER TOOLS ---
@@ -1280,21 +1318,6 @@ function isValidUseCaseId(id) {
 }
 
 /**
- * The declared step-up method for a use case (by useCaseId slug), or null.
- * This is the explicit, amount-independent trigger for a specific step-up
- * modality (e.g. 'ciba' on UC22): Authorize reads it to route the transaction
- * through the shared step-up path — no amount threshold, no hardcoded id string.
- * Declared once in the catalog, so every vertical inherits it.
- * @param {string|undefined} slug useCaseId slug (resolveActiveUseCaseId result)
- * @returns {string|null} e.g. 'ciba' | 'p1mfa' | 'email' | null
- */
-function getUseCaseStepUpMethod(slug) {
-  if (!slug || typeof slug !== 'string') return null;
-  const uc = USE_CASES.find((u) => u.useCaseId === slug);
-  return (uc && typeof uc.stepUpMethod === 'string') ? uc.stepUpMethod : null;
-}
-
-/**
  * Organic reverse-map: given a resolved tool name + args, return the useCaseId
  * of the matching catalog entry, or undefined. The catalog `match` field is the SoT.
  * Per-vertical match routing is a future extension (catalog `match` is banking-only today).
@@ -1331,4 +1354,4 @@ function resolveChipUseCaseId(clientId, toolName, args, vertical) {
   return deriveUseCaseId(toolName, args, vertical);
 }
 
-module.exports = { USE_CASES, VERTICALS, getUseCase, resolveUseCase, listUseCases, deriveUseCaseId, isValidUseCaseId, getUseCaseStepUpMethod, resolveChipUseCaseId };
+module.exports = { USE_CASES, VERTICALS, getUseCase, resolveUseCase, listUseCases, deriveUseCaseId, isValidUseCaseId, resolveChipUseCaseId };
