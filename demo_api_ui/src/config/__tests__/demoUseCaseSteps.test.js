@@ -8,17 +8,24 @@ describe('demoUseCaseSteps', () => {
   it('keeps the presenter Demo script order', () => {
     expect(DEMO_USE_CASE_IDS).toEqual([
       'UC1',
-      'UC2',
-      'UC2.5',
       'UC8',
       'UC7',
+      'UC14b',
+      'UC12',
       'UC6',
-      'UC10',
+      'UC2',
+      'UC2.5',
+      'UC22',
       'UC5',
+      'UC10',
       'UC13',
       'UC11',
-      'UC12',
       'UC20',
+      'UC18',
+      'UC29',
+      'UC30',
+      'UC31',
+      'UC32',
     ]);
   });
 
