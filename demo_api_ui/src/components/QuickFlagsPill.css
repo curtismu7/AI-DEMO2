@@ -114,3 +114,36 @@
 .qfp-toggle--on .qfp-toggle-knob { left: 16px; }
 
 .qfp-lock { font-size: 12px; }
+
+.qfp-preset {
+  padding: 6px 0 8px;
+  border-bottom: 1px solid #eef1f7;
+  margin-bottom: 2px;
+}
+.qfp-preset-status {
+  padding: 4px 8px;
+  border-radius: 6px;
+  margin: 4px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.qfp-preset-status--ok { background: #e8f6ee; color: #1b6b3a; }
+.qfp-preset-status--warn { background: #fef6e7; color: #8a6116; }
+.qfp-preset-notice {
+  font-size: 12px;
+  margin-bottom: 6px;
+  color: #3c4763;
+}
+.qfp-preset-btn {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #1b62d6;
+  background: #1b62d6;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.qfp-preset-btn:hover:not(:disabled) { background: #1552b5; border-color: #1552b5; }
+.qfp-preset-btn:disabled { opacity: 0.55; cursor: not-allowed; }
