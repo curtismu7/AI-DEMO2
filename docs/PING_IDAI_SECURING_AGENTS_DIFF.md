@@ -30,7 +30,7 @@ We implement the same security story (NHI agent, `may_act`/`act`, token exchange
 | ID | Kind | Topic | Ping doc | Our app | Impact |
 |----|------|-------|----------|---------|--------|
 | D1 | Gap | Login-time Agent Consent (Agreement Prompt) | PingOne Agreement “Agent Consent” + authn policy Agent-Consent-Login with Agreement Prompt before delegated tokens. | Login-time agent consent gate removed. Consent is `may_act` user attribute + Authorize agent UI, plus per-tool HITL / CIBA / OTP. | Page-literal HITL-at-sign-on is missing; runtime HITL is stronger for high-risk tools but not the same control. |
-| D2 | Partial | PingOne AI Agents product registration | Register under Applications → AI Agents; CC + refresh + token exchange; agent + test scopes. | Demo AI Agent is a standard OIDC WEB_APP (`d21c5124`) with AC + CC + TE. Separate MCP Gateway actor (`3fc5ec99`) for hop 2. | Same OAuth capabilities; different admin UX / product packaging. |
+| D2 | Intentional | PingOne AI Agents product registration | Register under Applications → AI Agents; CC + refresh + token exchange; agent + test scopes. | Demo AI Agent is a standard OIDC WEB_APP (`d21c5124`) with AC + CC + TE. Documented as intentional (admin UX differs; OAuth capabilities match). Separate MCP Gateway actor (`3fc5ec99`) for hop 2. | No action required for security parity; see `PINGONE_APP_CONFIG.md` §5. |
 | D3 | Different | Who performs token exchange | Sample MCP agent process opens browser, then exchanges actor + subject tokens itself. | BFF is sole token custodian. Two-hop TE: BFF (user → mcpgateway) then PingGateway (→ mcpserver). LLM never holds user tokens. | Stricter custody than the tutorial sample; demos must use BFF/gateway path, not agent-local TE. |
 | D4 | Partial | `McpProtectionFilter` coverage vs tutorial route | Single `mcp.json` route: `OAuth2ResourceServerFilter` + `McpProtectionFilter` + `McpValidationFilter` + `McpAuditFilter`. | Audit + Validation on all 7 MCP routes. `McpProtectionFilter` only on `01-mcp-olb` (1 of 7). Invest/weather/apikey use bare RS filter; JWKS routes use custom script. | Primary OLB path matches doc; other routes miss RFC 9728 `resource_metadata` wrapping. Documented in #720 plan. |
 | D5 | Different | Resource / scope naming | Custom resources named `agent` + `test`; scopes `agent` / `test`; aud `https://ig.example.com:8443/mcp`. | `enduser` / `agentgateway` / `mcpgateway` / `mcpserver` audiences; `banking:*` and `gateway:mcp:invoke` scopes. | Same pattern (agent resource + backend resource + `may_act`→`act`); different names and multi-hop audiences. |
@@ -65,12 +65,12 @@ User in banking UI → BFF holds T1 → TE#1 (mcpgateway) → PingGateway (prote
 - **Impact:** Page-literal HITL-at-sign-on is missing; runtime HITL is stronger for high-risk tools but not the same control.
 - **Evidence:** REGRESSION archive (consent gate removed); HITL consent flows; `/delegation`
 
-### D2 · Partial — PingOne AI Agents product registration
+### D2 · Intentional — PingOne AI Agents product registration (documented)
 
 - **Ping:** Register under Applications → AI Agents; CC + refresh + token exchange; agent + test scopes.
 - **Ours:** Demo AI Agent is a standard OIDC WEB_APP (`d21c5124`) with AC + CC + TE. Separate MCP Gateway actor (`3fc5ec99`) for hop 2.
-- **Impact:** Same OAuth capabilities; different admin UX / product packaging.
-- **Evidence:** `docs/AUTHORIZATION_RULES.md` §1
+- **Decision:** Keep WEB_APP. Product UI packaging differs; OAuth grants needed for TE are equivalent. Documented in `docs/PINGONE_APP_CONFIG.md` §5.
+- **Evidence:** `AUTHORIZATION_RULES.md` §1; `PINGONE_APP_CONFIG.md` §5
 
 ### D3 · Different — Who performs token exchange
 
@@ -124,11 +124,11 @@ User in banking UI → BFF holds T1 → TE#1 (mcpgateway) → PingGateway (prote
 
 ## Recommended closes (if aiming for page parity)
 
-1. Wire `McpProtectionFilter` on apikey / invest / weather routes (mechanical; see #720 plan).
-2. Decide JWKS routes: native `OAuth2ResourceServerFilter` vs keep educational JWKS script.
+1. ~~Wire `McpProtectionFilter` on apikey / invest / weather~~ — done (#722).
+2. JWKS routes: RFC 9728 `resource_metadata` on 401s done (#723); native `McpProtectionFilter` wrap still optional.
 3. Optional: PingOne Agreement + Agent-Consent-Login on Demo AI Agent for tutorial-literal demos.
-4. Demo mode: document that `ff_inject_may_act` / simulated authorize / Demo Agent Gateway are off for IDAI-faithful runs.
-5. Optional: register agent via PingOne AI Agents UI (or document WEB_APP as intentional).
+4. ~~IDAI-faithful demo mode~~ — docs + Quick Flags preset (#724); see `IDAI_FAITHFUL_DEMO_MODE.md`.
+5. ~~Document WEB_APP as intentional vs AI Agents product UI~~ — done (`PINGONE_APP_CONFIG.md` §5). Re-register under AI Agents only if a demo needs that console on camera.
 
 ---
 
