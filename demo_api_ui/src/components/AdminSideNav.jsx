@@ -149,7 +149,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "banking-mcp", paths: ["/webmcp", "/ping-ai-test-lab"] },
   { id: "banking-mcp-gateways", paths: ["/pinggateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security", "/agent-gateway-capabilities"] },
   { id: "pingone-demo-apps", paths: ["/self-service", "/pingone-test", "/mfa-test", "/token-exchange-tester", "/oauth-academy", "/oas-demo", "/privilege-demo", "/sdk-login"] },
-  { id: "delegation-consent", paths: ["/delegation", "/delegated-access", "/transaction-consent", "/actor-token-education"] },
+  { id: "delegation-consent", paths: ["/transaction-consent", "/actor-token-education"] },
   { id: "authorize", paths: ["/pingone-authorize", "/pingone-authorize-capabilities", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
   { id: "users-accounts", paths: ["/users", "/accounts", "/transactions"] },
   { id: "industry-verticals", paths: ["/admin/banking", "/admin/healthcare", "/admin/retail", "/admin/sporting-goods", "/admin/workforce", "/admin/verticals", "/path/mortgage"] },
@@ -442,7 +442,6 @@ export default function AdminSideNav({ user }) {
       label: "Family Delegation",
       path: "/delegation",
       icon: "usr",
-      customerOnly: true,
     },
     {
       label: "AI Agents",
@@ -528,12 +527,6 @@ export default function AdminSideNav({ user }) {
       label: "Delegation & Consent",
       icon: "dlg",
       children: [
-        { label: "User Delegation", path: "/delegation", icon: "dlg" },
-        {
-          label: "Delegated Access",
-          path: "/delegated-access",
-          icon: "lnk",
-        },
         {
           label: "Transaction Consent",
           path: "/transaction-consent",

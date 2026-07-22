@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getAgentAuthStatus, setAgentAuthorization } from '../services/agentAuthorizationService';
 import { requestSilentReauth } from '../utils/authUi';
+import { useVertical } from '../vertical/useVertical';
 
 const VALID_SCOPES = [
   { key: 'view_accounts',     label: 'View Accounts',    description: 'See account list and details' },
@@ -187,7 +188,7 @@ function HowItWorksPanel() {
         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
         onClick={() => setOpen(o => !o)}
       >
-        <h2 style={{ ...S.sectionHeading, marginBottom: 0 }}>🔍 How It Works — Under the Hood</h2>
+        <h2 style={{ ...S.sectionHeading, marginBottom: 0 }}>How It Works — Under the Hood</h2>
         <span style={{ fontSize: 20, color: '#374151' }}>{open ? '▲' : '▼'}</span>
       </div>
       {open && (
@@ -563,6 +564,20 @@ export default function DelegationPage({ user }) {
   // Tab
   const [activeSection, setActiveSection] = useState('active');
 
+  // Vertical-driven labels — falls back to banking defaults for any missing field.
+  const { pageManifest } = useVertical();
+  const deleg = pageManifest?.delegation;
+  const scopes = VALID_SCOPES.map(s => ({
+    ...s,
+    label: deleg?.scopeLabels?.[s.key]?.label || s.label,
+    description: deleg?.scopeLabels?.[s.key]?.description || s.description,
+  }));
+  const pageTitle = deleg?.pageTitle || 'Family Delegation';
+  const pageDescription = deleg?.pageDescription
+    || 'Grant family members scoped access to your accounts — powered by RFC 8693 token exchange and PingOne';
+  const granteeLabel = deleg?.granteeLabel || 'family member';
+  const GranteeLabel = granteeLabel.charAt(0).toUpperCase() + granteeLabel.slice(1);
+
   const loadData = useCallback(async () => {
     try {
       const [delRes, histRes] = await Promise.all([
@@ -691,9 +706,9 @@ export default function DelegationPage({ user }) {
           <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>
             Account Management
           </p>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: '#fff', margin: 0 }}>👥 Family Delegation</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: '#fff', margin: 0 }}>{pageTitle}</h1>
           <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14, margin: '6px 0 0' }}>
-            Grant family members scoped access to your accounts — powered by RFC 8693 token exchange and PingOne
+            {pageDescription}
           </p>
         </div>
       </div>
@@ -711,13 +726,13 @@ export default function DelegationPage({ user }) {
         <div style={S.card}>
           <h2 style={S.sectionHeading}>Grant Account Access</h2>
           <p style={S.muted}>
-            Enter a family member's email to grant them scoped access to your accounts.
+            Enter a {granteeLabel}'s email to grant them scoped access to your accounts.
             They will receive an email notification and can log in immediately.
           </p>
 
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
-              Family member's email
+              {GranteeLabel}'s email
             </label>
             <input
               type="email"
@@ -735,7 +750,7 @@ export default function DelegationPage({ user }) {
                 (these become OAuth scopes on their token)
               </span>
             </p>
-            {VALID_SCOPES.map(scope => (
+            {scopes.map(scope => (
               <label key={scope.key} style={S.scopeRow}>
                 <input
                   type="checkbox"
@@ -818,7 +833,7 @@ export default function DelegationPage({ user }) {
                 ? (
                   <div style={{ padding: '16px 0', color: '#374151', fontSize: 13 }}>
                     <p style={{ margin: '0 0 8px' }}>No active delegates.</p>
-                    <p style={{ margin: 0 }}>Use the Grant Access form above to add a family member. They will appear here once access is granted.</p>
+                    <p style={{ margin: 0 }}>Use the Grant Access form above to add a {granteeLabel}. They will appear here once access is granted.</p>
                   </div>
                 )
                 : (
