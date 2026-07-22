@@ -13,10 +13,12 @@ const ROOT = path.resolve(__dirname, '..', 'data', 'step-verification');
  * @property {'chip'|'prompt'} triggerType
  * @property {'heuristic'|'llamacpp'|'helix'} mode
  * @property {'PASS'|'FAIL'} status
- * @property {string|null} errorClass one of 'server_error'|'parse_error'|'llm_error'|'wrong_response'|'wrong_gate'|null
+ * @property {string|null} errorClass one of 'server_error'|'parse_error'|'llm_error'|'wrong_response'|'wrong_gate'|'missing_prereq'|null
  * @property {string|null} primaryTool
  * @property {string} checkedAt ISO timestamp
  * @property {string} [verifiedBy] optional note pointing at the test file that proved this, when no new dispatch was run
+ * @property {string[]} [requiredFlags] feature flags the chip needs armed at runtime
+ * @property {string[]} [prereqErrors] human-readable missing-prereq details when status is FAIL
  */
 
 const REQUIRED_FIELDS = ['vertical', 'useCaseId', 'triggerType', 'mode', 'status', 'checkedAt'];

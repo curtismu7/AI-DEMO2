@@ -70,7 +70,6 @@ import OAuthDebugLogViewer from "./components/OAuthDebugLogViewer";
 import OAuthTokenDisplayPage from "./components/OAuthTokenDisplayPage";
 import PingOneAuthorizePage from "./components/PingOneAuthorizePage";
 import PingOneAuthorizeCapabilitiesPage from "./pages/PingOneAuthorizeCapabilitiesPage";
-import AgentGatewayCapabilitiesPage from "./pages/AgentGatewayCapabilitiesPage";
 import PolicyDecisionTracePage from "./components/PolicyDecisionTracePage";
 import McpGatewayConfig from "./components/McpGatewayConfig";
 import PostmanCollectionsPage from "./components/PostmanCollectionsPage";
@@ -506,7 +505,9 @@ function AppWithAuth() {
                 />
                 <Route
                   path="/agent-gateway-capabilities"
-                  element={<AgentGatewayCapabilitiesPage />}
+                  element={
+                    <Navigate to="/pinggateway-inspector?subtab=capabilities" replace />
+                  }
                 />
                 <Route
                   path="/token-exchange-tester"

@@ -1,10 +1,13 @@
 {
   "vertical": "banking",
-  "useCaseId": "UC1",
+  "useCaseId": "UC25",
   "triggerType": "chip",
   "mode": "heuristic",
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "get_account_balance",
-  "checkedAt": "2026-07-22T22:17:14.430Z"
+  "checkedAt": "2026-07-22T22:17:14.441Z",
+  "requiredFlags": [
+    "ff_enterprise_managed_mcp_auth"
+  ]
 }

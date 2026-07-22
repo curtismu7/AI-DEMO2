@@ -1,10 +1,13 @@
 {
   "vertical": "banking",
-  "useCaseId": "UC21",
+  "useCaseId": "UC9",
   "triggerType": "chip",
   "mode": "heuristic",
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "create_transfer",
-  "checkedAt": "2026-07-22T22:17:14.434Z"
+  "checkedAt": "2026-07-22T22:17:14.441Z",
+  "requiredFlags": [
+    "ff_authorize_group_policy"
+  ]
 }
