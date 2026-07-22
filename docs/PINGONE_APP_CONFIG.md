@@ -141,19 +141,55 @@ Falls back to `PINGONE_CLIENT_ID` / `PINGONE_CLIENT_SECRET` if management-specif
 
 ---
 
-## 5. AI Agent App (Optional — for 2-Exchange)
+## 5. Demo AI Agent (RFC 8693 actor) — intentional WEB_APP
+
+The live actor client for agent token exchange is **Demo AI Agent**
+(`d21c5124-8ac5-43d1-81f2-31a7ec649b96` — see [`AUTHORIZATION_RULES.md`](AUTHORIZATION_RULES.md) §1).
+
+| Setting | Value |
+|---------|-------|
+| **Type** | `WEB_APP` (OIDC application) |
+| **Grant Types** | `AUTHORIZATION_CODE`, `CLIENT_CREDENTIALS`, `TOKEN_EXCHANGE` |
+| **Token Endpoint Auth** | `CLIENT_SECRET_POST` |
+
+### Why not PingOne “AI Agents” product UI?
+
+Ping’s [Securing AI agents with PingOne](https://developer.pingidentity.com/identity-for-ai/use-cases/idai-securing-agents-pingone.html)
+tutorial registers the agent under **Applications → AI Agents**. Super Banking
+keeps a standard **OIDC WEB_APP** instead. That is **intentional**:
+
+- Same OAuth capabilities needed for the demo (client credentials actor token +
+  token exchange + optional auth code redirect).
+- Stable client ID/secret already wired through BFF TE, gateway actors, and docs.
+- Avoids migrating live TE chains to a new product-surface client.
+
+Admin UX differs (Applications list vs AI Agents console); security shape for
+delegation does not. Re-registering under AI Agents (product packaging only) is
+out of scope unless a demo explicitly needs that console on camera.
+
+Redirect placeholder (unused interactive login for most flows):
+
+```
+https://api.ping.demo:4000/api/auth/oauth/ai-agent-placeholder-callback
+```
+
+### Optional secondary worker (env-only)
+
+Some deployments still accept a separate worker-style agent client via env for
+narrow experiments:
 
 | Setting | Value |
 |---------|-------|
 | **Type** | `WORKER` |
 | **Grant Types** | `CLIENT_CREDENTIALS` |
 
-Used only for the 2-exchange delegation path where the AI Agent obtains its own token first.
-
 ```
 AGENT_OAUTH_CLIENT_ID=<agent-app-client-id>
 AGENT_OAUTH_CLIENT_SECRET=<agent-app-client-secret>
 ```
+
+Prefer Demo AI Agent (`d21c5124`) from [`AUTHORIZATION_RULES.md`](AUTHORIZATION_RULES.md)
+for the standard two-hop TE path.
 
 ---
 

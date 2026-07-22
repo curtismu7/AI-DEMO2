@@ -47,9 +47,11 @@ Same three toggles in Quick Flags or Admin → Feature Flags:
 - Does **not** restore `may_act` / login Agreement Prompt (out of scope for this demo).
 - Does **not** move token exchange into the agent process (BFF + gateway custody stays).
 - Does **not** rename audiences to the tutorial’s `agent` / `test` scopes.
+- Does **not** re-register Demo AI Agent under PingOne **AI Agents** product UI — `WEB_APP` is intentional (`PINGONE_APP_CONFIG.md` §5).
 
 ## Related
 
-- Gap report: `docs/PING_IDAI_SECURING_AGENTS_DIFF.md` (when merged)
+- Gap report: `docs/PING_IDAI_SECURING_AGENTS_DIFF.md`
 - MCP ProtectionFilter audit: `docs/superpowers/plans/2026-07-22-mcp-protection-filter-gap.md`
 - Feature flag registry: `demo_api_server/routes/featureFlags.js` (`ff_mcp_gateway_pinggateway`, `ff_authorize_simulated`, `ff_mcp_gateway_jwks`)
+- Agent client packaging: `docs/PINGONE_APP_CONFIG.md` §5
