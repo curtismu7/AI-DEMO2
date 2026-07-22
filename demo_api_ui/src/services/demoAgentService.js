@@ -1015,17 +1015,34 @@ export function ingestLegacyRunTrace(data, { forceHeuristic = false } = {}) {
       }
       tokenChainTraceStore.ingestTokenEvents(merged);
     }
-    // A successful tool dispatch satisfies the 'tool-dispatched' evidence step.
     // The agent envelope returns `reply` prose, not a structured `result`, so
-    // synthesize a minimal marker from toolsCalled when the run succeeded — else
-    // every agent-driven success (UC1) rendered Incomplete though the tool ran.
-    if (data.success !== false && !data.error &&
-        Array.isArray(data.toolsCalled) && data.toolsCalled.length) {
-      tokenChainTraceStore.ingestMcpResult({
-        tool: data.toolsCalled[0],
-        toolsCalled: data.toolsCalled,
-        status: "success",
-      });
+    // synthesize a minimal mcpResult from toolsCalled — success AND failure.
+    // Without the failure branch, UC30 (weather mcp_error) left TraceRail with
+    // outcome=error but no mcp step error (only successful exchange/DPoP whys).
+    if (Array.isArray(data.toolsCalled) && data.toolsCalled.length) {
+      const failedTool = data.success === false || Boolean(data.error);
+      if (failedTool) {
+        const errCode = data.error
+          || (typeof data.reply === "string" && /mcp_error/i.test(data.reply) ? "mcp_error" : null)
+          || "tool_failed";
+        tokenChainTraceStore.ingestMcpResult({
+          tool: data.toolsCalled[0],
+          toolsCalled: data.toolsCalled,
+          status: "error",
+          error: errCode,
+          denied: false,
+          result: {
+            error: errCode,
+            message: data.message || data.reply || errCode,
+          },
+        });
+      } else {
+        tokenChainTraceStore.ingestMcpResult({
+          tool: data.toolsCalled[0],
+          toolsCalled: data.toolsCalled,
+          status: "success",
+        });
+      }
     }
     if (typeof data.reply === "string" && data.reply) {
       tokenChainTraceStore.ingestLlmReply(data.reply);

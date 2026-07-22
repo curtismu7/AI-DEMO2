@@ -5731,6 +5731,33 @@ export default function BankingAgent({
         });
         return;
       }
+      if (action === "weather") {
+        // Heuristic parses "weather in <city>" → action weather, but runAction
+        // has no weather case (Unknown action: weather). Execute via /agent/invoke
+        // so the full gateway → get_weather pipeline + Token Chain run (same as
+        // the UC30 Demo Step chip).
+        const city = p.city_name || p.city || "";
+        const weatherPrompt = nlUserText
+          || (city ? `what's the weather in ${city}` : "what's the weather");
+        try {
+          const response = await sendAgentMessage(weatherPrompt, null, {
+            forceHeuristic: true,
+            vertical: effectiveVerticalId || "banking",
+            ...(useCaseId ? { useCaseId } : {}),
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent("weather", ev),
+          });
+          if (maybeHandleCustomerLogin(response, _source)) return;
+          await handleNlResumeResponse(response, weatherPrompt, useCaseId);
+        } catch (e) {
+          addMessage(
+            "assistant",
+            e?.message || "Could not get the weather.",
+            null,
+            { source: _source },
+          );
+        }
+        return;
+      }
       if (action === "request_fee_waiver") {
         // UC28 — tool set as the authorization boundary (Air Canada pattern).
         // The tool SUBMITS a request for human review; nothing can grant a
