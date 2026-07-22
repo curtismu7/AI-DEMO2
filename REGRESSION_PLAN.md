@@ -101,6 +101,82 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-22 — UC30 gateway PERMIT + real weather, chat still Incomplete: prose vs parseToolResult
+
+**Files changed:**
+
+- `demo_api_server/services/demoAgentLangGraphService.js` — weather heuristic treats
+  `executeBffTool` markdown string as success; only JSON-parse error/deny envelopes.
+- `demo_api_server/src/__tests__/weatherHeuristicProse.regression.test.js`
+
+**What was broken:** After gateway PERMIT and weather-mcp prose, `parseToolResult` JSON-failed
+the markdown → `tool_result_unparseable` → `success:false` → UI
+"That step couldn't be completed" / ProofStrip Incomplete (access-token).
+
+**What was fixed:** Accept unwrapped prose for `action === 'weather'`; keep deny JSON as failure.
+
+**Do not break:** Banking JSON tools still go through `parseToolResult`; UC31 Miami DENY.
+
+**Verify:** unit test above; live `POST /api/agent/invoke` with `forceHeuristic:true` and
+Austin prompt → `success:true`, `toolsCalled:['get_weather']`, reply contains Temperature.
+
+### 2026-07-22 — UC30 weather chat 401'd: McpProtectionFilter `/weather` resourceId rejected BFF gateway aud
+
+**Files changed:**
+
+- `ping-gateway/config/routes/00-mcp-weather.json` — restored shared heap `"rsFilter"` for
+  inbound auth (pre-#722 shape) instead of `McpProtectionFilter` with
+  `resourceId: ${PG_GATEWAY_RESOURCE_ID}/weather`.
+
+**What was broken:** PR #728 uniquified invest/weather/apikey `resourceId`s so well-known PRM
+paths don't collide (`AlreadyRegisteredException` on
+`/.well-known/oauth-protected-resource/mcp`). Weather then expected aud `…/mcp/weather`, but
+the BFF still mints `aud=https://api.ping.demo:3036/mcp` → gateway 401
+`Access Token resource ID does not match` → UC30 ProofStrip Incomplete. Sharing OLB's
+resourceId re-triggers the well-known collision and the weather route fails to load.
+
+**What was fixed:** Shared `rsFilter` accepts the existing gateway token without registering a
+second PRM endpoint. Texas scope (`tx-weather-scope.groovy`) is unchanged.
+
+**Do not break:** OLB `mcp-olb-primary` McpProtectionFilter + unique invest/apikey
+resourceIds; weather path still `/mcp/weather` via StripWeatherPrefix.
+
+**Verify:** recreate `ping-gateway`; logs show `mcp-weather-primary` loaded; UC30
+`what's the weather in Austin, TX` reaches TxWeatherScope (not 401 resource mismatch).
+
+
+### 2026-07-22 — UC30 PERMIT at gateway then Incomplete: weather-mcp rejects tool name `get_weather`
+
+**Files changed:**
+
+- `demo_mcp_weather/server.js` — rewrite `tools/call` name `get_weather` →
+  `get_current_conditions` before forwarding to `@dangahagan/weather-mcp`.
+
+**What was broken:** After auth + Texas-scope PERMIT, the third-party server's default
+`ENABLED_TOOLS` does not include `get_weather`, so every call returned
+`isError: Tool 'get_weather' is not enabled` → heuristic `success:false` → ProofStrip
+Incomplete. Design/e2e already used `get_current_conditions`.
+
+**Verify:** UC30 Austin chat returns weather prose with `success:true` / toolsCalled
+`get_weather` (agent-facing name unchanged).
+
+### 2026-07-22 — UC30 still Incomplete after 401 fix: norm() stripped comma so Texas scope DENY'd Austin
+
+**Files changed:**
+
+- `demo_api_server/services/nlIntentParser.js` — weather city capture uses the original
+  `message`, not `norm(message)` (which turns `Austin, TX` into `austin tx`).
+- `ping-gateway/scripts/groovy/tx-weather-scope.groovy` — also treat trailing
+  space+abbrev (`austin tx`) as in-state, same as `, tx`.
+
+**What was broken:** After the rsFilter restore, gateway auth passed but TxWeatherScope
+returned 403 `city not recognized as Texas` because the heuristic sent `city_name:
+"austin tx"` (no comma). Groovy's no-comma branch only allowlists bare city names
+(`austin`), not `austin tx`.
+
+**Verify:** `parseHeuristic("what's the weather in Austin, TX")` → `city_name: "Austin, TX"`;
+UC30 PERMITs at the gateway scope filter.
+
 ### 2026-07-22 — 2-exchange TraceRail Exchange step lost coloured request JSON
 
 **Files changed:**

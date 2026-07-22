@@ -144,6 +144,7 @@ if (args.containsKey('latitude') || args.containsKey('longitude')) {
 }
 
 def city = args.city_name
+logger.warn('[TxWeatherScope] DEBUG argsKeys=' + args.keySet() + ' city=' + String.valueOf(city) + ' cityClass=' + (city == null ? 'null' : city.getClass().getName()) + ' allowedState=' + flags.allowedState)
 if (city instanceof String) {
     // Split on the FIRST comma: "Corpus Christi, TX" -> cityPart="corpus christi",
     // statePart="tx". Exact match on both parts — no substring containment — so

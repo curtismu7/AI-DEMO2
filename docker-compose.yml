@@ -565,8 +565,8 @@ services:
 
   # ── MCP Weather (third-party weather-mcp, stdio bridged to HTTP) ────────────
   # Agent Gateway (IG) showcase: fronts github.com/weather-mcp/weather-mcp,
-  # scoped to Texas-only by ping-gateway/scripts/groovy/tx-weather-scope.groovy.
-  # Not wired into the banking AI agent — gateway-level capability only.
+  # scoped at the edge by ping-gateway/scripts/groovy/tx-weather-scope.groovy.
+  # Core service (no profile) — started by lean `./run-docker.sh` with mcp-invest.
   mcp-weather:
     build:
       context: ./demo_mcp_weather
