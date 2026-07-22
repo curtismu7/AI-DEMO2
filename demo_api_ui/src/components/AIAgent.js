@@ -7140,20 +7140,52 @@ export default function BankingAgent({
       //     text and never prompted the user.
       if (isApprovalGate) {
         if (response.transactionAmount != null) {
+          const fromAccountId = response.fromAccountId || response.from_account_id;
+          const toAccountId = response.toAccountId || response.to_account_id;
           const intentPayload = {
             type: response.transactionType || "transfer",
-            fromAccountId: response.fromAccountId || response.from_account_id,
-            toAccountId: response.toAccountId || response.to_account_id,
+            fromAccountId,
+            toAccountId,
             amount: response.transactionAmount,
             description: `Agent ${response.transactionType || "transfer"}`,
           };
-          setHitlPendingIntent({
-            actionId: response.transactionType || "transfer",
-            form: {},
-            intentPayload,
-            threshold: response.hitl_threshold_usd ?? APP_CONFIG.THRESHOLDS.HITL_DEFAULT,
-            hitlChallengeId: response.hitlChallengeId || response.challengeId || null,
-          });
+          // Create the server consent challenge directly and show ONE modal
+          // (TransactionConsentModal). Previously this set hitlPendingIntent to
+          // render AgentConsentModal FIRST, whose only job on accept was to POST
+          // this same challenge — a redundant consent-before-consent (the "2
+          // consent screens"). TransactionConsentModal already reviews the
+          // transaction, takes the agree tick, and drives consent-only vs MFA by
+          // amount. form is populated (not {}) so the post-consent re-fire has
+          // real account ids.
+          try {
+            const { data } = await bffAxios.post(
+              "/api/transactions/consent-challenge",
+              intentPayload,
+            );
+            const cid = data?.challengeId;
+            if (!cid) {
+              notifyError("Could not start consent — no challenge id from server.");
+            } else {
+              setHitlChallengeId({
+                challengeId: cid,
+                actionId: response.transactionType || "transfer",
+                snapshot: data.snapshot || null,
+                form: {
+                  fromId: fromAccountId,
+                  toId: toAccountId,
+                  amount: response.transactionAmount,
+                  note: intentPayload.description,
+                },
+              });
+            }
+          } catch (ex) {
+            notifyError(
+              ex.response?.data?.message ||
+                ex.response?.data?.error ||
+                ex.message ||
+                "Could not start consent flow.",
+            );
+          }
         } else {
           const actionLabel = (response.action || "").replace(/_/g, " ");
           const isStepUp =

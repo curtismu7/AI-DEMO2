@@ -310,17 +310,21 @@ function resolveStepUpMethod(useCaseId) {
  * @returns {Promise<object>} r, possibly upgraded to DENY or STEP_UP
  */
 async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr, useCaseId }) {
-  // Explicit CIBA trigger: a use case may DECLARE step-up method 'ciba' in the
-  // catalog (UC22). That routes the transaction through the SAME step-up path as
-  // MFA — forcing stepUpRequired makes mapLivePingOneResult emit
-  // mcp_step_up_required with step_up_method='ciba' (resolveStepUpMethod), and
-  // the UI's single step-up handler drives the out-of-band CIBA flow. It is
+  // Explicit step-up trigger: a use case may DECLARE its step-up method in the
+  // catalog — 'ciba' (UC22, out-of-band) or 'p1mfa' (UC7, device-list MFA).
+  // Forcing stepUpRequired makes mapLivePingOneResult emit mcp_step_up_required
+  // with that method (resolveStepUpMethod), so the transaction rides the SAME
+  // step-up path and the UI's single handler branches on step_up_method. This is
   // amount-independent (never collides with the amount-based MFA threshold) and
-  // cross-vertical (declared once, inherited by every vertical). DENY still wins:
-  // mapLivePingOneResult checks r.decision==='DENY' before step-up, and the
-  // transaction-policy DENY below is evaluated first.
-  const declaresCiba = getUseCaseStepUpMethod(useCaseId) === 'ciba';
-  if (!declaresCiba && (!transactionType || !Number.isFinite(amount) || amount <= 0 || !userId)) return r;
+  // cross-vertical (declared once, inherited by every vertical). It also fires
+  // the correct STEP_UP decision here even though the live P1AZ MCP policy only
+  // returns HITL for every amount — without it, the "Step-up required" demo
+  // (UC7) evaluated to HITL and the proof strip flagged an authorize mismatch.
+  // DENY still wins: mapLivePingOneResult checks r.decision==='DENY' before
+  // step-up, and the transaction-policy DENY below is evaluated first.
+  const declaredMethod = getUseCaseStepUpMethod(useCaseId);
+  const forceStepUp = !!declaredMethod;
+  if (!forceStepUp && (!transactionType || !Number.isFinite(amount) || amount <= 0 || !userId)) return r;
   if (r.decision === 'DENY' || r.policyNotFound || r.stepUpRequired) return r; // already at/above what we could add
   try {
     const t = await pingOneAuthorizeService.evaluateTransaction({
@@ -337,7 +341,7 @@ async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr
         transactionPolicyDenied: true,
       };
     }
-    if (declaresCiba || (t && t.stepUpRequired)) {
+    if (forceStepUp || (t && t.stepUpRequired)) {
       // Step-up outranks HITL. Setting stepUpRequired makes mapLivePingOneResult
       // take its step-up branch (checked before HITL) — a 428 mcp_step_up_required.
       return {
@@ -349,9 +353,9 @@ async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr
       };
     }
   } catch (err) {
-    // CIBA is gated by the declared useCaseId, not the amount — it must still
-    // route to step-up even if the amount-limit consult errors.
-    if (declaresCiba) {
+    // A declared step-up method is gated by the useCaseId, not the amount — it
+    // must still route to step-up even if the amount-limit consult errors.
+    if (forceStepUp) {
       return { ...r, stepUpRequired: true, transactionPolicyStepUp: true };
     }
     // Otherwise fail OPEN to the gate's decision: the gate already ran and is the
