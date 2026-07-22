@@ -14,7 +14,7 @@
 - **Ledger entries are machine-written only.** Never hand-edit a file under `demo_api_server/data/step-verification/` — every entry must come from a test run, or it reintroduces the stale-checkbox problem this design exists to avoid.
 - **Worktree Jest gotcha:** this work happens inside a git worktree under `.claude/worktrees/`. `demo_api_server/jest.config.js` has `testPathIgnorePatterns: ['/node_modules/', '/\\.claude/worktrees/', ...]` — any new test file's absolute path contains `.claude/worktrees/demo-step-verification-plan/...` and Jest will silently skip it under the default config. **Every Jest run in this plan must pass `--testPathIgnorePatterns='/node_modules/'` on the command line** to override the config array for that invocation (confirmed working pattern from the `verify-ai-demo2` skill), combined with a `--testPathPattern` or explicit file path so it doesn't sweep unrelated suites.
 - **Existing production code is not modified.** `agentPreflightService.js`, `nlIntentParser.js`, `useCases.js`, etc. are read-only inputs to this plan — every task adds new files or small additive script/package.json lines only.
-- **Ground truth is never a literal.** Any check against a dollar amount must read it from the live tool payload or `/api/accounts/my` at test-run time (`runtimeData.json` is a mutable runtime store, not a static fixture — confirmed by its `createdAt` timestamp moving on server restart).
+- **Ground truth is never a literal — for live-pipeline checks (Tasks 2 and 4).** Any check against a dollar amount in those two tasks must read it from the live tool payload or `/api/accounts/my` at test-run time (`runtimeData.json` is a mutable runtime store, not a static fixture — confirmed by its `createdAt` timestamp moving on server restart). **Carve-out for Task 5:** its promptfoo config is an intentionally isolated microbenchmark of LLM narration behavior, not a live-grounding check — its fixture dollar amounts are synthetic, fixed inputs by design, not a claim about live account state, so this rule does not apply to it.
 - **Not a CI gate.** `check-step-verification.js` and the new npm scripts are additive to `use-cases:check`/`use-cases:gen` but follow `check-goldens.js`'s existing precedent: missing/stale coverage warns, it does not fail the build. Only malformed/orphaned ledger entries fail.
 
 ---
@@ -156,10 +156,13 @@ git commit -m "feat(step-verification): add ledger read/write module"
 ### Task 2: Banking chip routing + amount-gate decision tests (checks 2 and 5, heuristic mode)
 
 **Files:**
+- Create: `demo_api_server/tests/helpers/actionToTool.js`
+- Modify: `demo_api_server/tests/useCases.primaryTool.test.js` (replace its local `ACTION_TO_TOOL` const with a require of the new helper — same values, one source of truth)
 - Create: `demo_api_server/tests/stepVerification.banking.test.js`
 
 **Interfaces:**
-- Consumes: `writeLedgerEntry` from Task 1 (`../services/stepVerificationLedger`).
+- Consumes: `writeLedgerEntry` from Task 1 (`../services/stepVerificationLedger`); `ACTION_TO_TOOL` from `./helpers/actionToTool.js` (this task's Step 1, below).
+- **Do not** `require()` a `*.test.js` file from another test file to share code — Jest's `describe`/`test` are bound to whichever test file is currently executing, not to the file that textually contains the call, so requiring one test file from another re-registers (and re-runs) its entire suite inside the requiring file. `ACTION_TO_TOOL` must live in a plain module outside the `*.test.js` naming pattern.
 - Consumes (existing, unmodified): `USE_CASES`, `resolveUseCase` from `../config/useCases.js`; `parseHeuristic(text, vertical, ctx, options)`, `resolveVerticalCtx(vertical)` from `../services/nlIntentParser`; `evaluate({req, tool, params, hitlChallengeId})` from `../services/agentPreflightService`, which internally calls `evaluateMcpFirstToolGate({req, tool, agentToken, userSub, userAcr, toolParams, hitlChallengeId})` from `../services/mcpToolAuthorizationService` — this task mocks that call.
 - Produces: one ledger file per banking `works`-maturity chip use case (routing) plus one per `{UC6, UC7, UC8}` (gate decision) plus reference entries for `{UC22, UC27}`.
 
@@ -169,7 +172,56 @@ git commit -m "feat(step-verification): add ledger read/write module"
 - `UC27`'s chip trigger text is byte-identical to `UC7`'s ("transfer $600 from checking to savings") but tests a different mechanism entirely — a forged `consentGiven`/fake `hitlChallengeId` bypass attempt, not a plain amount evaluation. That mechanism is already fully covered by `demo_api_server/tests/hitlBypass.regression.test.js` (referenced directly in UC27's own `codeRefs`). Re-testing it here with the simple amount-mock would silently misreport it (the mock has no concept of a bypass attempt). This task records UC27 as a **reference-only** ledger entry pointing at that existing suite instead of duplicating it.
 - `UC22` (CIBA) is `maturity: 'flag:ff_ciba'` — excluded from the `works`-only routing sweep, and its mechanism (amount-independent, out-of-band `bc-authorize` polling) is not modeled by the amount-mock either. Already covered by `demo_api_server/src/__tests__/{ciba,cibaService,cibaSimulatedService}.test.js`. Recorded the same way, by reference.
 
-- [ ] **Step 1: Write the test file**
+- [ ] **Step 1: Extract `ACTION_TO_TOOL` into a shared helper module**
+
+Create `demo_api_server/tests/helpers/actionToTool.js`:
+
+```js
+'use strict';
+
+/**
+ * Heuristic ACTION -> dispatched TOOL where they differ. Vertical plugin actions
+ * ARE their tool names (identity fallback). Shared by useCases.primaryTool.test.js
+ * and stepVerification.banking.test.js — one source of truth, not two copies.
+ */
+const ACTION_TO_TOOL = {
+  transfer: 'create_transfer',
+  transfer_600_test: 'create_transfer',
+  deposit: 'create_deposit',
+  withdraw: 'create_withdrawal',
+  balance: 'get_account_balance',
+  accounts: 'get_my_accounts',
+  transactions: 'get_my_transactions',
+  branch_hours: 'get_branch_hours',
+};
+
+module.exports = { ACTION_TO_TOOL };
+```
+
+In `demo_api_server/tests/useCases.primaryTool.test.js`, replace its local declaration:
+```js
+const ACTION_TO_TOOL = {
+  transfer: 'create_transfer',
+  transfer_600_test: 'create_transfer',
+  deposit: 'create_deposit',
+  withdraw: 'create_withdrawal',
+  balance: 'get_account_balance',
+  accounts: 'get_my_accounts',
+  transactions: 'get_my_transactions',
+  branch_hours: 'get_branch_hours',
+};
+```
+with:
+```js
+const { ACTION_TO_TOOL } = require('./helpers/actionToTool');
+```
+(same comment block above it can stay, or move into the new helper file — either is fine, no behavior change either way.)
+
+Run the existing suite to confirm this is a no-op refactor:
+`cd demo_api_server && npx jest tests/useCases.primaryTool.test.js --testPathIgnorePatterns='/node_modules/' --forceExit --verbose`
+Expected: identical pass/fail outcome to before this change (this repo has one pre-existing, unrelated failure here — `chip dollar amounts are canonical threshold tiers` — do not attempt to fix it, it is out of scope for this plan; confirm no *new* failures appeared and the routing `test.each` cases still pass).
+
+- [ ] **Step 2: Write the test file**
 
 ```js
 // demo_api_server/tests/stepVerification.banking.test.js
@@ -234,16 +286,7 @@ jest.mock('../services/mcpToolAuthorizationService', () => ({
 }));
 
 const { evaluate } = require('../services/agentPreflightService');
-
-const ACTION_TO_TOOL = {
-  transfer: 'create_transfer',
-  deposit: 'create_deposit',
-  withdraw: 'create_withdrawal',
-  balance: 'get_account_balance',
-  accounts: 'get_my_accounts',
-  transactions: 'get_my_transactions',
-  branch_hours: 'get_branch_hours',
-};
+const { ACTION_TO_TOOL } = require('./helpers/actionToTool');
 
 const fakeReq = () => ({
   session: { user: { role: 'user', acr: 'urn:acme:Bronze', email: 'test@example.com' } },
@@ -356,7 +399,7 @@ describe('step verification — reference-only banking use cases', () => {
 });
 ```
 
-- [ ] **Step 2: Run it once, confirm it's live (deliberately break one expected value)**
+- [ ] **Step 3: Run it once, confirm it's live (deliberately break one expected value)**
 
 Temporarily change the UC8 case's expected decision from `'HITL'` to `'STEP_UP'` in the `test.each` table.
 
@@ -365,21 +408,21 @@ Expected: FAIL — `UC8: $300 transfer resolves to decision STEP_UP` fails with 
 
 Revert the change back to `'HITL'`.
 
-- [ ] **Step 3: Run it again, confirm it passes**
+- [ ] **Step 4: Run it again, confirm it passes**
 
 Run: `cd demo_api_server && npx jest tests/stepVerification.banking.test.js --testPathIgnorePatterns='/node_modules/' --forceExit --verbose`
 Expected: all tests pass (exact count depends on how many `works`-maturity banking chips exist today — verify the count is `>= 15` given the audit table lists 20 `works` banking-track entries across foundations/controls/hitl/attacks, some of which are non-chip/no-primaryTool and correctly excluded by the filter).
 
-- [ ] **Step 4: Inspect the ledger output**
+- [ ] **Step 5: Inspect the ledger output**
 
 Run: `ls demo_api_server/data/step-verification/banking/`
 Expected: one `.json` file per case (e.g. `UC1.chip.heuristic.json`, `UC6.chip.heuristic.json`, `UC22.chip.heuristic.json`, ...), each with `status: "PASS"`.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add demo_api_server/tests/stepVerification.banking.test.js demo_api_server/data/step-verification/
-git commit -m "test(step-verification): add banking chip routing + gate-decision suite"
+git add demo_api_server/tests/helpers/actionToTool.js demo_api_server/tests/useCases.primaryTool.test.js demo_api_server/tests/stepVerification.banking.test.js demo_api_server/data/step-verification/
+git commit -m "refactor(tests): share ACTION_TO_TOOL; add banking chip routing + gate-decision suite"
 ```
 
 ---
