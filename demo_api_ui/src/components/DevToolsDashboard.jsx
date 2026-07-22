@@ -7,7 +7,7 @@
  */
 import React, { useState } from 'react';
 import FloatingPanel from './FloatingPanel';
-import TokenChainDisplay from './TokenChainDisplay';
+import TokenChainTraceRail from './TokenChainTraceRail';
 import UnifiedTokenFlowInspector from './UnifiedTokenFlowInspector';
 import McpTrafficPage from './McpTrafficPage';
 import ApiExplorerPanel from './ApiExplorerPanel';
@@ -109,7 +109,7 @@ export default function DevToolsDashboard({
       {/* Tab panels — all mounted to preserve polling/state */}
       <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }}>
         <div style={{ display: activeTab === 'chain' ? 'flex' : 'none', flexDirection: 'column', height: '100%', overflowY: 'auto' }}>
-          <TokenChainDisplay hideHeader />
+          <TokenChainTraceRail />
         </div>
         <div style={{ display: activeTab === 'inspector' ? 'flex' : 'none', flexDirection: 'column', height: '100%', overflow: 'auto' }}>
           <UnifiedTokenFlowInspector floatingByDefault={false} showToggle={false} />

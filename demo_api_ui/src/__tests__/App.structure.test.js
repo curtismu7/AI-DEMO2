@@ -142,14 +142,18 @@ describe("MonitoringRoutes.js — critical imports", () => {
     "utf8"
   );
 
-  test('imports TokenChainDisplay', () => {
-    expect(src).toContain('import TokenChainDisplay from "../components/TokenChainDisplay"');
+  test('imports TokenChainTraceRail', () => {
+    expect(src).toContain('import TokenChainTraceRail from "../components/TokenChainTraceRail"');
   });
 
-  test('imports ApiExplorerPanel', () => {
-    expect(src).toContain('import ApiExplorerPanel from "../components/ApiExplorerPanel"');
+  test('token-chain route mounts TokenChainTraceRail', () => {
+    expect(src).toMatch(/path=["']token-chain["'][\s\S]*TokenChainTraceRail/);
   });
 
+  test("api-explorer deep-links to PingOne MCP inspector", () => {
+    expect(src).toContain('path="api-explorer"');
+    expect(src).toContain("/pingone-mcp-inspector");
+  });
   test("no stale banking_api_ui paths", () => {
     expect(src).not.toContain("banking_api_ui");
   });

@@ -6,7 +6,7 @@
  *   WebMcpPanel   → smart param builders, SSE discovery phases, pipeline events, gate notices
  *   McpInspector  → session call history (mcpCallStore)
  *
- * Real-time token chain traffic lives in TokenChainDisplay — that is intentionally
+ * Real-time token chain traffic lives in TokenChainTraceRail — that is intentionally
  * separate and is NOT touched here.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
