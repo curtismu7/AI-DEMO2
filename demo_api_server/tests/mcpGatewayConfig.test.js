@@ -186,6 +186,34 @@ describe('GET /config — derived fields', () => {
         // configStore mock returns 'stored-client-id' for mcp_gw_client_id
         expect(res.body.config.pingOneResourceId).toBe('stored-client-id');
     });
+
+    test('envVars.required uses configStore / derived token endpoint — not BFF process.env only', async () => {
+        // Regression: Env tab showed false "NOT SET" because it only inspected
+        // this process's env, while gateway credentials live in configStore /
+        // demo_mcp_gateway/.env (and the token endpoint is derived from env id).
+        const configStore = require('../services/configStore');
+        configStore.getEffective.mockImplementation((key) => {
+            const values = {
+                pingone_environment_id: 'env-abc',
+                pingone_region: 'com',
+                mcp_scope: 'mcp:invoke',
+                mcp_gw_client_id: 'stored-client-id',
+                mcp_gw_client_secret: 'stored-secret',
+                mcp_gw_resource_uri: 'mcpgateway.ping.demo',
+                mcp_resource_uri: 'mcpserver.ping.demo',
+            };
+            return values[key] || null;
+        });
+
+        const app = buildApp();
+        const res = await supertest(app).get('/config');
+        expect(res.status).toBe(200);
+        expect(res.body.envVars.required.MCP_GW_CLIENT_ID).toBe('••••');
+        expect(res.body.envVars.required.MCP_GW_CLIENT_SECRET).toBe('••••');
+        expect(res.body.envVars.required.MCP_GW_RESOURCE_URI).toBe('••••');
+        expect(res.body.envVars.required.PINGONE_TOKEN_ENDPOINT).toBe('••••');
+        expect(res.body.envVars.required.MCP_OLB_RESOURCE_URI).toBe('••••');
+    });
 });
 
 // ── POST /config tests ───────────────────────────────────────────────────────
