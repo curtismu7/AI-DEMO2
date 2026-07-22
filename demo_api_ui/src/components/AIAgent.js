@@ -8375,45 +8375,40 @@ export default function BankingAgent({
                 const handleHitlConfirm = async () => {
                   const { actionId, intentPayload } = hitlPendingIntent;
 
-                  // MCP Authorize HITL flow — consent checkbox + OTP, then approve and retry
+                  // MCP Authorize HITL flow — consent IS the gate. Approve the
+                  // challenge and retry; the retry re-evaluates Authorize and, if the
+                  // amount also needs step-up (or CIBA), returns its OWN 428 that the
+                  // response handler turns into the device-list MFA / CIBA modal. Do
+                  // NOT pre-chain an OTP here: that made every consent-only transfer
+                  // (UC8 $300) and the CIBA demo (UC22) show a stray OTP field after
+                  // the consent modal. Let the policy decide what comes next.
                   if (hitlPendingIntent.isMcpHitl && hitlPendingIntent.taskId) {
                     const taskId = hitlPendingIntent.taskId;
                     const retryActionId = hitlPendingIntent.actionId;
                     const retryForm = hitlPendingIntent.form;
-                    const toolLabel = hitlPendingIntent.tool || "agent action";
                     setHitlPendingIntent(null);
 
-                    // Initiate OTP (non-fatal — modal still shows even if this fails)
                     try {
-                      await initiateStepUpOtp();
-                    } catch (_) { /* non-fatal */ }
-
-                    // Post-OTP callback: approve the HITL challenge, then retry the tool
-                    pendingStepUpCallbackRef.current = async () => {
-                      try {
-                        const approveResp = await fetch(
-                          `/api/mcp/decision/${taskId}/approve`,
-                          {
-                            method: "POST",
-                            credentials: "include",
-                            headers: { "Content-Type": "application/json" },
-                          },
-                        );
-                        if (!approveResp.ok) {
-                          const errBody = await approveResp.json().catch(() => ({}));
-                          throw new Error(errBody.message || `Approval failed: ${approveResp.status}`);
-                        }
-                        addMessage("assistant", "✅ Approved — retrying your request…", retryActionId);
-                        runAction(retryActionId, retryForm, {
-                          isRefire: true,
-                          hitlRetryChallengeId: taskId,
-                        });
-                      } catch (approveErr) {
-                        addMessage("error", `Failed to approve: ${approveErr.message}`, retryActionId);
+                      const approveResp = await fetch(
+                        `/api/mcp/decision/${taskId}/approve`,
+                        {
+                          method: "POST",
+                          credentials: "include",
+                          headers: { "Content-Type": "application/json" },
+                        },
+                      );
+                      if (!approveResp.ok) {
+                        const errBody = await approveResp.json().catch(() => ({}));
+                        throw new Error(errBody.message || `Approval failed: ${approveResp.status}`);
                       }
-                    };
-
-                    openStepUpModal(`Verify your identity to approve: ${toolLabel}`);
+                      addMessage("assistant", "✅ Approved — retrying your request…", retryActionId);
+                      runAction(retryActionId, retryForm, {
+                        isRefire: true,
+                        hitlRetryChallengeId: taskId,
+                      });
+                    } catch (approveErr) {
+                      addMessage("error", `Failed to approve: ${approveErr.message}`, retryActionId);
+                    }
                     return;
                   }
 
