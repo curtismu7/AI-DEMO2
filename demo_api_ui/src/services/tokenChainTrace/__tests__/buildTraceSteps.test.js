@@ -7,14 +7,14 @@ const EMPTY_TRACE = {
 };
 
 describe("buildTraceSteps — empty trace", () => {
-  test("returns the 12 happy-path steps (intent-binding omitted mid-flight), all pending", () => {
+  test("returns the 14 happy-path steps (intent-binding omitted mid-flight), all pending", () => {
     const steps = buildTraceSteps(EMPTY_TRACE);
     expect(steps.map((s) => s.id)).toEqual([
-      "signin", "prompt", "agent", "llm", "agent-token", "exchange",
-      "authorize", "gateway", "api-key-swap", "mcp", "api", "reply",
+      "signin", "prompt", "agent", "llm", "agent-token", "exchange", "jwks",
+      "authorize", "introspection", "gateway", "api-key-swap", "mcp", "api", "reply",
     ]);
     expect(steps.every((s) => s.status === "pending")).toBe(true);
-    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12]);
+    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12,13,14]);
   });
 });
 
@@ -415,7 +415,7 @@ describe("buildTraceSteps — not-in-path steps once the trace completes", () =>
     expect(complete.find((s) => s.id === "gateway").status).toBe("notinpath");
   });
 
-  test("gateway with only a skipped-status introspection event renders notinpath, not done", () => {
+  test("gateway with only a skipped-status introspection event leaves gateway notinpath; introspection carries the skip narrative", () => {
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,
       outcome: "ok",
@@ -423,8 +423,10 @@ describe("buildTraceSteps — not-in-path steps once the trace completes", () =>
         explanation: "Gateway introspection skipped (endpoint not configured)" }],
     });
     const gw = steps.find((s) => s.id === "gateway");
+    const intro = steps.find((s) => s.id === "introspection");
     expect(gw.status).toBe("notinpath");
-    expect(gw.detail.narrative).toContain("Gateway introspection skipped");
+    expect(intro.status).toBe("notinpath");
+    expect(intro.detail.narrative).toContain("Gateway introspection skipped");
   });
 
   test("real gateway evidence still marks the step done even after the trace completes", () => {
@@ -529,7 +531,7 @@ describe("buildTraceSteps — attack sim (UC5 gateway scope deny)", () => {
   test("steps the sim never touches resolve notinpath, not pending", () => {
     const steps = buildTraceSteps(SIM_TRACE);
     const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
-    for (const id of ["agent", "llm", "agent-token", "authorize", "reply", "api"]) {
+    for (const id of ["agent", "llm", "agent-token", "jwks", "authorize", "introspection", "reply", "api"]) {
       expect(byId[id].status).toBe("notinpath");
     }
   });
@@ -574,5 +576,82 @@ describe("buildRunStory — L0 strip", () => {
     expect(story.headline).toMatch(/PERMIT/);
     expect(story.outcome).toBe("ok");
     expect(story.bits.length).toBeGreaterThan(0);
+  });
+});
+
+describe("buildTraceSteps — PingOne gap fills (introspection / JWKS / signin / MCP deny)", () => {
+  test("signin surfaces login introspection request/response when user-token-introspection is present", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [
+        { id: "user-token", status: "active", claims: { sub: "u1", scope: "read" } },
+        {
+          id: "user-token-introspection", status: "active", rfc: "RFC 7662",
+          claims: { sub: "u1", active: true, scope: "read" },
+          introspectionResult: { active: true, sub: "u1", scope: "read", exp: 99 },
+        },
+      ],
+    });
+    const signin = steps.find((s) => s.id === "signin");
+    expect(signin.status).toBe("done");
+    expect(signin.detail.why).toMatch(/OIDC login completed/i);
+    expect(signin.detail.request.text).toContain("/as/introspect");
+    expect(signin.detail.response.text).toContain('"active": true');
+  });
+
+  test("introspection step takes gw-introspection evidence out of the gateway composite", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      tokenEvents: [
+        {
+          id: "gw-introspection", status: "valid", active: true, sub: "u1",
+          scope: "p1:banks:read", rawResponse: { active: true, sub: "u1", scope: "p1:banks:read" },
+        },
+        { id: "gw-authorize", status: "permit", decision: "PERMIT", tool: "get_balance" },
+      ],
+    });
+    const intro = steps.find((s) => s.id === "introspection");
+    const gw = steps.find((s) => s.id === "gateway");
+    expect(intro.status).toBe("done");
+    expect(intro.detail.response.text).toContain("p1:banks:read");
+    expect(intro.detail.why).toMatch(/RFC 7662/i);
+    expect(gw.status).toBe("done");
+    expect(JSON.stringify(gw.detail.kv || [])).not.toMatch(/introspection/i);
+  });
+
+  test("jwks step surfaces exchanged-token-verified evidence", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      tokenEvents: [{
+        id: "exchanged-token-verified", status: "active", verified: true,
+        fallbackMethod: "jwks", alg: "RS256", kid: "k1",
+        claims: { sub: "u1" },
+      }],
+    });
+    const jwks = steps.find((s) => s.id === "jwks");
+    expect(jwks.status).toBe("done");
+    expect(jwks.detail.why).toMatch(/Signature verified via JWKS/i);
+    expect(jwks.detail.response.text).toContain("RS256");
+  });
+
+  test("MCP deny path keeps attempted requestJson + error body", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      phases: [{ phase: "gateway_policy_denied", tool: "transfer_money", detail: "audience mismatch" }],
+      mcpResult: {
+        tool: "transfer_money",
+        denied: true,
+        requestJson: { jsonrpc: "2.0", method: "tools/call", params: { name: "transfer_money", arguments: { amount: 50 } } },
+        result: { error: "gateway_policy_denied", message: "audience mismatch", gatewayErrorCode: "invalid_audience" },
+      },
+    });
+    const mcp = steps.find((s) => s.id === "mcp");
+    expect(mcp.status).toBe("error");
+    expect(mcp.detail.request.text).toContain("transfer_money");
+    expect(mcp.detail.response.text).toContain("invalid_audience");
+    expect(mcp.detail.why).toMatch(/never ran/i);
   });
 });

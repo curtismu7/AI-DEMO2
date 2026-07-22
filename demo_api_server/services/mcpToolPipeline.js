@@ -1021,24 +1021,54 @@ async function runMcpToolPipeline(ctx) {
             // HTTP 428 Precondition Required: HITL consent needed (INDETERMINATE decision)
             if (err.gatewayErrorCode === 'hitl_required') {
                 deps.emit({ phase: 'gateway_hitl_required' });
-                return { kind: 'block', httpStatus: 428, tokenEvents, body: {
+                const hitlBody = {
                     error: 'hitl_required',
                     tool,
                     message: 'Transaction requires human approval (HITL consent)',
                     tokenEvents,
-                } };
+                    requestJson,
+                };
+                try {
+                    deps.publishMcpResultToSse(flowTraceId, {
+                        tool,
+                        result: { error: 'hitl_required', message: hitlBody.message },
+                        durationMs: Date.now() - startTime,
+                        isDelegated: !!mcpAccessToken,
+                        requestJson,
+                        denied: true,
+                    });
+                } catch (_) { /* SSE best-effort */ }
+                return { kind: 'block', httpStatus: 428, tokenEvents, body: hitlBody };
             }
 
-            return { kind: 'block', httpStatus: 403, tokenEvents, body: {
+            const denyBody = {
                 error: 'gateway_policy_denied',
                 tool,
                 gatewayErrorCode: err.gatewayErrorCode || err.code,
                 message: err.message,
                 tokenEvents,
+                requestJson,
                 ...(req.body?._testActClientId
                     ? { allowedActor: require('./configStore').getEffective('pingone_ai_agent_client_id') || null }
                     : {}),
-            } };
+            };
+            // Phase D teaching: deny paths still publish attempted JSON-RPC + error
+            // so TraceRail MCP step is not blank.
+            try {
+                deps.publishMcpResultToSse(flowTraceId, {
+                    tool,
+                    result: {
+                        error: denyBody.error,
+                        gatewayErrorCode: denyBody.gatewayErrorCode,
+                        message: denyBody.message,
+                    },
+                    durationMs: Date.now() - startTime,
+                    isDelegated: !!mcpAccessToken,
+                    requestJson,
+                    denied: true,
+                });
+            } catch (_) { /* SSE best-effort */ }
+            return { kind: 'block', httpStatus: 403, tokenEvents, body: denyBody };
         }
 
         // Any gateway error that carried an X-Gw-Audit-Trail (e.g. 401

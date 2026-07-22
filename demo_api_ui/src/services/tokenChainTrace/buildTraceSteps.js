@@ -3,8 +3,10 @@
 
 export const LANES = {
   signin: "PINGONE", prompt: "CHAT", agent: "AGENT", llm: "LLM",
-  "agent-token": "BFF", exchange: "BFF", authorize: "AUTHZ", stepup: "AUTHZ",
+  "agent-token": "BFF", exchange: "BFF", jwks: "PINGONE",
+  authorize: "AUTHZ", stepup: "AUTHZ",
   "intent-binding": "AUTHZ",
+  introspection: "PINGONE",
   gateway: "GATEWAY", "api-key-swap": "GATEWAY", mcp: "MCP", api: "API", reply: "LLM",
 };
 
@@ -12,7 +14,19 @@ export const LANES = {
 // LANES (exchange shares the BFF lane with agent-token), so declared explicitly
 // here alongside the rest of the step-model vocabulary — the MCP tab and the
 // rail's MCP-step badge both consume it, so a step-id rename stays a one-file fix.
-export const MCP_STEP_IDS = ["exchange", "gateway", "api-key-swap", "mcp", "api"];
+export const MCP_STEP_IDS = [
+  "exchange", "jwks", "introspection", "gateway", "api-key-swap", "mcp", "api",
+];
+
+/** Event ids that carry RFC 7515/7517 JWKS (or introspection-fallback) verify results. */
+export const JWKS_VERIFIED_IDS = [
+  "exchanged-token-verified",
+  "agent-actor-token-verified",
+  "two-ex-agent-actor-verified",
+  "two-ex-exchange1-verified",
+  "two-ex-mcp-actor-verified",
+  "two-ex-final-token-verified",
+];
 
 const TITLES = {
   signin: "Sign-in — User Token acquired",
@@ -21,9 +35,11 @@ const TITLES = {
   llm: "LLM — reasoning & tool choice",
   "agent-token": "Agent identity token",
   exchange: "Token exchange — delegation",
+  jwks: "JWKS — signature verification",
   authorize: "PingOne Authorize — policy decision",
   stepup: "Step-up required — HITL / MFA",
   "intent-binding": "Intent Binding Check",
+  introspection: "Token introspection — RFC 7662",
   gateway: "Agent Gateway — token validated",
   "api-key-swap": "API-key path — credential swap",
   mcp: "MCP server — tool executes",
@@ -42,10 +58,12 @@ const NARRATIVES = {
   llm: "The agent sends the conversation to the LLM. The model returns a tool call — it never sees or holds any OAuth token.",
   "agent-token": "BFF obtains a client-credentials token — the agent's own identity, separate from the user's.",
   exchange: "BFF exchanges subject (user) + actor (agent) for one delegated token: proof the agent acts FOR this user. Scope narrows to what the tool needs; audience binds to the gateway.",
+  jwks: "After tokens are issued, the BFF verifies JWT signatures against PingOne's published JWKS (/.well-known/jwks.json). Introspection is used only when JWKS is unavailable.",
   authorize: "Before any tool runs, the BFF asks PingOne Authorize whether THIS user + agent may perform THIS action.",
   stepup: "The policy demanded step-up: the human must approve (HITL/CIBA/MFA) before the tool call proceeds.",
   "intent-binding": "Verifies the requested transfer against the declared RFC 9396 authorization_details cap.",
-  gateway: "Ping Agent Gateway checks the delegated token before anything reaches the MCP server: introspection, audience binding, scope, delegation chain.",
+  introspection: "PingOne (or the gateway) answers whether the token is still active — revocation and expiry that JWKS alone cannot see. Covers BFF session checks and gateway RFC 7662 introspection.",
+  gateway: "Ping Agent Gateway checks the delegated token before anything reaches the MCP server: audience binding, scope, and the delegation chain (after introspection).",
   "api-key-swap": "Path A (api_key): the gateway drops the OAuth bearer and attaches a service API key (X-API-Key + X-User-Sub). The user's bearer never reaches the downstream service.",
   mcp: "Gateway forwards the JSON-RPC call; the MCP server re-validates the token, resolves the user from sub, and invokes the banking API with the delegated identity.",
   api: "The actual resource-server call made with the delegated bearer token.",
@@ -56,6 +74,8 @@ const NARRATIVES = {
 const STEP_RFCS = {
   signin: ["RFC 6749", "RFC 7636"],
   exchange: ["RFC 8693", "RFC 8707"],
+  jwks: ["RFC 7515", "RFC 7517"],
+  introspection: ["RFC 7662"],
 };
 
 export const asJson = (v) => { try { return JSON.stringify(v, null, 2); } catch { return String(v); } };
@@ -133,14 +153,48 @@ export function buildTraceSteps(trace) {
   const traceComplete = outcome === "ok" || outcome === "error";
   const steps = [];
 
-  // 1. signin — evidence: user-token / session-token-introspection events
-  const userTok = findEvent(tokenEvents, "user-token") ||
-    findEvent(tokenEvents, "session-token-introspection");
-  steps.push(makeStep("signin", userTok ? "done" : "pending", userTok ? {
-    kv: Object.entries(userTok.claims || {}).slice(0, 6).map(([k, v]) => [k, asJson(v)]),
-    response: claimsBlock("User token claims (full)", userTok.claims),
+  // 1. signin — OIDC user token + optional login-time PingOne introspection
+  const userTok = findEvent(tokenEvents, "user-token");
+  const loginIntro = findEvent(tokenEvents, "user-token-introspection");
+  const sessionIntroForSignin = !userTok && !loginIntro
+    ? findEvent(tokenEvents, "session-token-introspection")
+    : null;
+  const signinEv = userTok || loginIntro || sessionIntroForSignin;
+  const signinClaims = userTok?.claims
+    || loginIntro?.claims
+    || loginIntro?.introspectionResult
+    || sessionIntroForSignin?.claims
+    || null;
+  const signinIntroBody = loginIntro?.introspectionResult
+    || (loginIntro?.claims ? { active: loginIntro.status === "active" || loginIntro.status === "valid", ...loginIntro.claims } : null)
+    || sessionIntroForSignin?.introspectionResult
+    || null;
+  steps.push(makeStep("signin", signinEv ? "done" : "pending", signinEv ? {
+    why: loginIntro
+      ? (loginIntro.status === "failed" || loginIntro.status === "revoked"
+        ? "PingOne introspection reported the user token inactive at login."
+        : loginIntro.status === "skipped"
+          ? "Sign-in acquired a user token; login-time introspection was skipped."
+          : "OIDC login completed; PingOne confirmed the user token active (RFC 7662).")
+      : "OIDC Authorization Code + PKCE completed; the BFF holds the user access token.",
+    kv: [
+      ...(Object.entries(signinClaims || {}).slice(0, 6).map(([k, v]) => [k, asJson(v)])),
+      loginIntro ? ["login introspection", String(loginIntro.status)] : null,
+      loginIntro?.rfc ? ["rfc", loginIntro.rfc] : null,
+    ].filter(Boolean),
+    request: loginIntro ? {
+      title: "BFF → PingOne introspect (login)",
+      text: asJson({
+        endpoint: "POST /as/introspect",
+        token_type_hint: "access_token",
+        note: "Called once per login; result may be cached on the session.",
+      }),
+    } : undefined,
+    response: signinIntroBody
+      ? { title: "Introspection / user claims", text: asJson(signinIntroBody) }
+      : claimsBlock("User token claims (full)", signinClaims),
     inspectToken: "user",
-    tokenEvent: userTok,
+    tokenEvent: userTok || loginIntro || sessionIntroForSignin,
   } : {}));
 
   // 2. prompt
@@ -235,6 +289,55 @@ export function buildTraceSteps(trace) {
       ].filter(Boolean) : [],
       inspectToken: exTok ? "mcp" : undefined,
       tokenEvent: exTok || undefined,
+    } : {}));
+
+  // 6b. jwks — signature verification events emitted after agent/exchanged tokens
+  const jwksEvents = (tokenEvents || []).filter((e) => e && JWKS_VERIFIED_IDS.includes(e.id));
+  const jwksFailed = jwksEvents.some((e) => e.verified === false || e.status === "failed");
+  const jwksDone = jwksEvents.length > 0 && jwksEvents.every((e) => e.status !== "waiting");
+  const primaryJwks = jwksEvents.find((e) => e.id === "exchanged-token-verified" || e.id === "two-ex-final-token-verified")
+    || jwksEvents[0]
+    || null;
+  steps.push(makeStep("jwks",
+    jwksFailed ? "error" : jwksDone ? "done" : traceComplete ? "notinpath" : "pending",
+    jwksDone || jwksFailed ? {
+      why: primaryJwks?.fallbackMethod === "introspection"
+        ? "JWKS was unavailable — liveness confirmed via RFC 7662 introspection fallback."
+        : primaryJwks?.verified
+          ? `Signature verified via JWKS`
+            + (primaryJwks.alg ? ` (alg ${primaryJwks.alg}` : "")
+            + (primaryJwks.kid ? `${primaryJwks.alg ? ", " : " ("}kid ${primaryJwks.kid}` : "")
+            + (primaryJwks.alg || primaryJwks.kid ? ")" : "")
+            + "."
+          : "JWT signature verification failed — the token cannot be trusted.",
+      kv: jwksEvents.map((e) => [
+        e.id.replace(/-verified$/, ""),
+        e.verified
+          ? `✓ ${e.fallbackMethod || "jwks"}${e.alg ? ` · ${e.alg}` : ""}${e.kid ? ` · kid ${e.kid}` : ""}`
+          : `✗ ${e.error || e.warning || e.status || "failed"}`,
+      ]),
+      request: {
+        title: "JWKS lookup",
+        text: asJson({
+          method: "GET",
+          path: "/.well-known/jwks.json",
+          note: "Public keys cached by the BFF; matched by JWT kid header.",
+        }),
+      },
+      response: {
+        title: "Verification results",
+        text: asJson(jwksEvents.map((e) => ({
+          id: e.id,
+          verified: e.verified,
+          fallbackMethod: e.fallbackMethod,
+          alg: e.alg,
+          kid: e.kid,
+          warning: e.warning,
+          error: e.error,
+          claims: e.claims || undefined,
+        }))),
+      },
+      tokenEvent: primaryJwks,
     } : {}));
 
   // 7. authorize — prefer live ingestAuthorize evaluation; fall back to the
@@ -367,13 +470,75 @@ export function buildTraceSteps(trace) {
     }));
   }
 
-  // 8. gateway — gw-introspection/gw-mtls can arrive with status "skipped"
-  // (the BFF's own signal that this leg was never part of the run: mTLS off,
-  // introspection not enabled). That alone must not count as "seen" — only
-  // real activity does.
-  const gwAz = findEvent(tokenEvents, "gw-authorize");
+  // 8. introspection — BFF session + gateway RFC 7662 (first-class; not folded into gateway)
+  const sessionIntro = findEvent(tokenEvents, "session-token-introspection");
   const gwIntroRaw = findEvent(tokenEvents, "gw-introspection");
   const gwIntro = gwIntroRaw && gwIntroRaw.status !== "skipped" ? gwIntroRaw : null;
+  const introSkipOnly = !!(gwIntroRaw && gwIntroRaw.status === "skipped" && !sessionIntro && !gwIntro);
+  const introFailed = !!(
+    (sessionIntro && (sessionIntro.status === "failed" || sessionIntro.status === "revoked"))
+    || (gwIntro && (gwIntro.status === "revoked" || gwIntro.status === "failed" || gwIntro.active === false))
+  );
+  const introSeen = !!(sessionIntro || gwIntro);
+  const introStatus = introFailed ? "error"
+    : introSeen ? "done"
+    : introSkipOnly ? (traceComplete ? "notinpath" : "pending")
+    : traceComplete ? "notinpath"
+    : "pending";
+  const introResponseBody = gwIntro?.rawResponse
+    || sessionIntro?.introspectionResult
+    || (sessionIntro?.claims ? { ...sessionIntro.claims, status: sessionIntro.status } : null)
+    || (gwIntro ? {
+      active: gwIntro.active, sub: gwIntro.sub, scope: gwIntro.scope,
+      exp: gwIntro.exp, iss: gwIntro.iss, client_id: gwIntro.client_id,
+    } : null);
+  steps.push(makeStep("introspection", introStatus,
+    introSeen || introFailed ? {
+      why: gwIntro
+        ? (gwIntro.active === false || gwIntro.status === "revoked"
+          ? "Gateway introspection reported the delegated token inactive or revoked."
+          : `Gateway confirmed the delegated token active via RFC 7662`
+            + (gwIntro.sub ? ` (sub ${gwIntro.sub})` : "")
+            + ".")
+        : sessionIntro
+          ? (sessionIntro.status === "failed"
+            ? "BFF session-token introspection failed — PingOne returned active=false."
+            : sessionIntro.status === "degraded"
+              ? "Session introspection errored; the pipeline continued in degraded mode."
+              : sessionIntro.status === "skipped"
+                ? "Session introspection was skipped (endpoint not configured)."
+                : "BFF confirmed the session user token is still active at PingOne before the tool call.")
+          : undefined,
+      kv: [
+        sessionIntro ? ["BFF session", String(sessionIntro.status)] : null,
+        gwIntro ? ["gateway", gwIntro.status === "active" || gwIntro.status === "valid" || gwIntro.active
+          ? "✓ active" : String(gwIntro.status)] : null,
+        gwIntro?.scope ? ["scope", String(gwIntro.scope)] : null,
+        gwIntro?.sub ? ["sub", String(gwIntro.sub)] : null,
+        (sessionIntro?.rfc || gwIntro?.rfc) ? ["rfc", sessionIntro?.rfc || gwIntro?.rfc] : null,
+      ].filter(Boolean),
+      request: {
+        title: "Introspect request",
+        text: asJson({
+          endpoint: "POST /as/introspect",
+          token_type_hint: "access_token",
+          hops: [
+            sessionIntro ? "BFF → PingOne (session user token)" : null,
+            gwIntro ? "PingGateway → PingOne (delegated bearer)" : null,
+          ].filter(Boolean),
+        }),
+      },
+      response: introResponseBody
+        ? { title: "Introspection response (RFC 7662)", text: asJson(introResponseBody) }
+        : undefined,
+      tokenEvent: gwIntro || sessionIntro || null,
+    } : introSkipOnly ? {
+      narrative: gwIntroRaw.explanation
+        || "Gateway introspection was skipped (endpoint not configured) — not required on this run.",
+    } : {}));
+
+  // 9. gateway — audience / scope / authorize at the edge (introspection is its own step)
+  const gwAz = findEvent(tokenEvents, "gw-authorize");
   const gwMtls = findEvent(tokenEvents, "gw-mtls");
   const gwInbound = findEvent(tokenEvents, "evt-inbound");
   const gwScope = findEvent(tokenEvents, "evt-scope");
@@ -386,8 +551,8 @@ export function buildTraceSteps(trace) {
       && e.error !== "rar_amount_exceeded" && e.error !== "rar_unexpected_deny",
   );
   const gwDenied = !!gwDeniedPhase || !!simGwDeny;
-  const gwSeen = !!(gwAz || gwIntro || gwInbound || gwScope);
-  const gwSkipEvidence = [gwIntroRaw, gwMtls].filter((e) => e && e.status === "skipped");
+  const gwSeen = !!(gwAz || gwInbound || gwScope || (gwMtls && gwMtls.status !== "skipped"));
+  const gwSkipEvidence = [gwMtls].filter((e) => e && e.status === "skipped");
   steps.push(makeStep("gateway",
     authorizeFailed ? "notinpath" : gwDenied ? "error" : gwSeen ? "done" : traceComplete ? "notinpath" : "pending",
     (gwSeen || gwDenied) ? {
@@ -406,9 +571,9 @@ export function buildTraceSteps(trace) {
               : (simGwDeny.label || simGwDeny.explanation)) || "gateway policy"}` }
         : undefined,
       kv: [
-        gwIntro ? ["introspection", gwIntro.status === "active" ? "✓ active" : String(gwIntro.status)] : null,
         gwAz ? ["authorize", `${gwAz.decision || "?"}${gwAz.url ? ` — ${gwAz.url}` : ""}`] : null,
         gwAz && gwAz.statements ? ["statements", asJson(gwAz.statements)] : null,
+        gwMtls && gwMtls.status !== "skipped" ? ["mTLS", gwMtls.label || String(gwMtls.status)] : null,
         gwInbound ? ["inbound", gwInbound.label || "user bearer received"] : null,
         gwScope ? ["scope gate", gwScope.label || "scope checked before swap"] : null,
         simGwDeny ? ["attack sim", simGwDeny.explanation || simGwDeny.label] : null,
@@ -427,11 +592,7 @@ export function buildTraceSteps(trace) {
         };
       })(),
       response: (() => {
-        if (!gwAz) {
-          return gwIntro && gwIntro.rawResponse
-            ? { title: "Introspection response (RFC 7662)", text: asJson(gwIntro.rawResponse) }
-            : undefined;
-        }
+        if (!gwAz) return undefined;
         const body = gwAz.rawResponse || gwAz.authorizeResponse || null;
         return body
           ? { title: "Gateway authorize response", text: asJson(body) }
@@ -469,20 +630,48 @@ export function buildTraceSteps(trace) {
       narrative: "This run used the delegated OAuth bearer path — no API-key credential swap occurred.",
     } : {}));
 
-  // 9. mcp + 10. api — a gateway denial means the call never reached the MCP
+  // 10. mcp + 11. api — a gateway denial means the call never reached the MCP
   // server; surface that as an error instead of leaving the step stuck "active".
-  const mcpDone = hasPhase(phases, "mcp_remote_done") || !!(mcpResult && mcpResult.result);
+  // Phase D: deny paths still show attempted JSON-RPC + error body when present.
+  const mcpDone = hasPhase(phases, "mcp_remote_done") || !!(mcpResult && mcpResult.result && !mcpResult.denied);
   const mcpBegun = hasPhase(phases, "mcp_remote_begin");
+  const mcpDenyPayload = mcpResult && (mcpResult.denied || mcpResult.error || (mcpResult.result && mcpResult.result.error))
+    ? mcpResult
+    : null;
+  const mcpAttemptRequest = (mcpResult && mcpResult.requestJson)
+    || (mcpDenyPayload && mcpDenyPayload.requestJson)
+    || null;
+  const mcpErrorBody = mcpDenyPayload?.result
+    || (gwDenied ? {
+      error: "gateway_policy_denied",
+      message: gwDeniedPhase?.detail || simGwDeny?.explanation || "Gateway policy denied the tool call",
+      gatewayErrorCode: gwDeniedPhase?.gatewayErrorCode || simGwDeny?.error || null,
+      tool: gwDeniedPhase?.tool || mcpResult?.tool || null,
+    } : null);
   steps.push(makeStep("mcp",
-    authorizeFailed ? "notinpath" : mcpDone ? "done" : gwDenied ? "error" : mcpBegun ? "active" : "pending",
-    mcpResult ? {
+    authorizeFailed ? "notinpath" : mcpDone ? "done" : gwDenied || mcpDenyPayload?.denied ? "error" : mcpBegun ? "active" : "pending",
+    mcpResult && !gwDenied && !mcpResult.denied ? {
       why: `MCP executed “${mcpResult.tool || mcpResult.toolName || "tool"}”`
         + (mcpResult.durationMs != null ? ` in ${mcpResult.durationMs} ms` : "")
         + " under the delegated identity.",
       request: { title: "JSON-RPC call (actual)", text: asJson(mcpResult.requestJson || { name: mcpResult.tool }) },
       kv: mcpResult.durationMs != null ? [["duration", `${mcpResult.durationMs} ms`]] : [],
-    } : gwDenied ? {
+    } : gwDenied || mcpResult?.denied ? {
       why: "MCP never ran — the gateway denied the call upstream.",
+      request: mcpAttemptRequest
+        ? { title: "Attempted JSON-RPC call", text: asJson(mcpAttemptRequest) }
+        : (mcpResult?.tool || gwDeniedPhase?.tool)
+          ? { title: "Attempted tool", text: asJson({ name: mcpResult?.tool || gwDeniedPhase?.tool }) }
+          : undefined,
+      response: mcpErrorBody
+        ? { title: "Deny / error body", text: asJson(mcpErrorBody) }
+        : undefined,
+      kv: [
+        (mcpResult?.tool || gwDeniedPhase?.tool) ? ["tool", String(mcpResult?.tool || gwDeniedPhase?.tool)] : null,
+        (gwDeniedPhase?.gatewayErrorCode || mcpResult?.gatewayErrorCode)
+          ? ["gateway code", String(gwDeniedPhase?.gatewayErrorCode || mcpResult?.gatewayErrorCode)]
+          : null,
+      ].filter(Boolean),
     } : {}));
   const apiMeta = apiMetaEarly;
   const apiKeyCall = apiMeta.credentialPath === "api_key" || apiKeyPath;
