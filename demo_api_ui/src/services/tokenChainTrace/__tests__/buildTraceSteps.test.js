@@ -71,6 +71,35 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(ex.detail.rfcs).toContain("RFC 8693");
   });
 
+  // Regression: 2-exchange used to drop exchangeRequest when splicing the
+  // in-progress card — TraceRail then had claims response but no coloured request.
+  test("two-ex-final-token with exchangeRequest fills TraceRail request JSON", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [
+        { id: "user-token", status: "active", claims: { scope: "read write" } },
+        {
+          id: "two-ex-final-token",
+          status: "exchanged",
+          claims: { sub: "user-123", scope: "gateway:mcp:invoke", aud: "mcpgateway.ping.demo",
+            act: { sub: "agent-001" } },
+          exchangeRequest: {
+            exchanger: "mcp-exchanger-client",
+            audience: "mcpgateway.ping.demo",
+            scope: "gateway:mcp:invoke",
+          },
+        },
+      ],
+    });
+    const ex = steps.find((s) => s.id === "exchange");
+    expect(ex.status).toBe("done");
+    expect(ex.detail.request).toBeDefined();
+    expect(ex.detail.request.title).toBe("Exchange request (actual)");
+    expect(ex.detail.request.text).toContain("mcp-exchanger-client");
+    expect(ex.detail.request.text).toContain("gateway:mcp:invoke");
+    expect(ex.detail.response.text).toContain("user-123");
+  });
+
   test("authorize evaluation fills authorize step with decision + full request", () => {
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,
