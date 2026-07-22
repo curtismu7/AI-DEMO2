@@ -339,10 +339,13 @@ describe('confirmChallenge — PingOne MFA branch', () => {
       // guard as thresholdsToSimulatedAuthorize.regression.test.js.
       await configStoreFresh.resetConfig();
 
-      // Simulate what Task 2's route now does when an admin sets the threshold to 900.
+      // The consent-challenge step-up threshold now reads the SAME source of
+      // truth as the agent authorize path — mfa_threshold_usd (written by the
+      // thresholds API / admin settings) — so the two can never disagree on
+      // which amount needs MFA. Set it to 900 for this case.
       await configStoreFresh.setConfig({
         hitl_consent_mfa_mode: 'device_picker',
-        confirm_stepup_threshold_usd: '900',
+        mfa_threshold_usd: '900',
         confirm_threshold_usd: '250',
       });
 

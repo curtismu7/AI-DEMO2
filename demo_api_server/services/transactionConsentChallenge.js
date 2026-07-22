@@ -32,7 +32,16 @@ function getConfirmThreshold(verticalId) {
   return (v && !isNaN(n) && n > 0) ? n : scopeTopology.highValueConsentThresholdUsd();
 }
 function getStepUpThreshold() {
-  const v = configStore.getEffective('confirm_stepup_threshold_usd');
+  // Single source of truth with the AGENT authorize path: read mfa_threshold_usd
+  // — the admin-facing step-up amount the thresholds API writes and fans out to
+  // SIMULATED_AUTHORIZE_STEPUP_AMOUNT / step_up_amount_threshold. A separate
+  // confirm_stepup_threshold_usd let this drift from the agent's value, so a
+  // transfer the agent gated as step-up (>= mfa_threshold_usd) was treated here
+  // as consent-only — the consent modal showed no MFA. Fall back to the legacy
+  // key then topology; mfa_threshold_usd carries a 500 FIELD_DEFS default so the
+  // fallbacks are only reached if it is ever explicitly cleared.
+  const v = configStore.getEffective('mfa_threshold_usd')
+    || configStore.getEffective('confirm_stepup_threshold_usd');
   const n = Number(v);
   return (v && !isNaN(n) && n > 0) ? n : scopeTopology.stepUpThresholdUsd();
 }
