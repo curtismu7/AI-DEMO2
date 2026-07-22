@@ -2,11 +2,11 @@
   "vertical": "banking",
   "useCaseId": "UC2.5",
   "triggerType": "chip",
-  "mode": "heuristic",
+  "mode": "unit-prereq",
   "status": "PASS",
   "errorClass": null,
   "primaryTool": null,
-  "checkedAt": "2026-07-22T22:17:14.440Z",
+  "checkedAt": "2026-07-22T22:22:34.657Z",
   "requiredFlags": [
     "ff_a2a_delegation"
   ]

@@ -23,6 +23,26 @@ const A2A_USE_CASE_IDS = new Set([
 ]);
 
 /**
+ * Flags that must stay ON for any MCP tool chip. When both are off, Exchange #2
+ * requests scopes/audiences across multiple PingOne resources and fails with
+ * invalid_scope ("May not request scopes for multiple resources"), which the
+ * agent surfaces as the opaque "That step couldn't be completed" fallback.
+ */
+const MCP_GATEWAY_RUNTIME_FLAGS = [
+  'ff_mcp_gateway_pinggateway',
+  'ff_gateway_brokered_exchange',
+];
+
+/**
+ * Whether a catalog entry exercises the MCP token-exchange path.
+ * @param {object|null|undefined} uc
+ * @returns {boolean}
+ */
+function needsMcpGatewayRuntime(uc) {
+  return Boolean(uc && typeof uc.primaryTool === 'string' && uc.primaryTool.trim());
+}
+
+/**
  * Feature flags that must be ON before this use case can succeed at runtime.
  * @param {object|null|undefined} uc catalog entry (id / useCaseId / maturity / primaryTool)
  * @returns {string[]}
@@ -40,6 +60,9 @@ function requiredFlagsForUseCase(uc) {
     || uc.primaryTool === 'delegate_to_specialist'
   ) {
     flags.add('ff_a2a_delegation');
+  }
+  if (needsMcpGatewayRuntime(uc)) {
+    for (const f of MCP_GATEWAY_RUNTIME_FLAGS) flags.add(f);
   }
   return [...flags];
 }
@@ -103,10 +126,25 @@ function checkA2aCredentials(vertical, cfg) {
  * @param {{ getEffective: (k: string) => * }} cfg
  * @returns {{ ok: boolean, requiredFlags: string[], a2a: ReturnType<typeof checkA2aCredentials>|null, errors: string[] }}
  */
+/**
+ * Whether a configStore-like value means the flag is armed.
+ * @param {*} v
+ * @returns {boolean}
+ */
+function isFlagOn(v) {
+  return v === true || v === 'true' || v === 1 || v === '1';
+}
+
 function checkChipPrerequisites(uc, vertical, cfg) {
   const requiredFlags = requiredFlagsForUseCase(uc);
   const errors = [];
   let a2a = null;
+  for (const flag of requiredFlags) {
+    const v = cfg && typeof cfg.getEffective === 'function' ? cfg.getEffective(flag) : null;
+    if (!isFlagOn(v)) {
+      errors.push(`flag ${flag} is off`);
+    }
+  }
   if (needsA2aCredentials(uc)) {
     a2a = checkA2aCredentials(vertical, cfg);
     if (a2a.required && !a2a.ok) {
@@ -126,9 +164,12 @@ function checkChipPrerequisites(uc, vertical, cfg) {
 
 module.exports = {
   A2A_USE_CASE_IDS,
+  MCP_GATEWAY_RUNTIME_FLAGS,
+  needsMcpGatewayRuntime,
   requiredFlagsForUseCase,
   requiredFlagsForUseCaseId,
   needsA2aCredentials,
   checkA2aCredentials,
   checkChipPrerequisites,
+  isFlagOn,
 };

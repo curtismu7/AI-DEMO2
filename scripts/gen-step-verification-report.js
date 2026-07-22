@@ -37,6 +37,7 @@ function buildReport() {
     '',
     '> Machine-written from `demo_api_server/data/step-verification/`. A row only',
     '> exists because a test run wrote it — this table cannot be hand-ticked.',
+    '> Modes: `heuristic` = live invoke; `unit-*` = offline Jest (parse/gate/prereq only).',
     '> Regenerate: `npm run step-verification:gen` (from `demo_api_server/`).',
     '',
     '| Vertical | Use Case | Trigger | Mode | Status | Error Class | Checked At |',
@@ -53,7 +54,18 @@ function buildReport() {
 
   const total = rows.length;
   const passing = rows.filter((r) => r.status === 'PASS').length;
-  lines.push('## Summary', '', `${passing}/${total} checks passing.`, '');
+  const failing = rows.filter((r) => r.status === 'FAIL').length;
+  const live = rows.filter((r) => r.mode === 'heuristic' || r.mode === 'llamacpp');
+  const livePass = live.filter((r) => r.status === 'PASS').length;
+  lines.push(
+    '## Summary',
+    '',
+    `${passing}/${total} checks passing`
+      + (failing ? ` (${failing} FAIL — not demo-ready)` : '')
+      + `.`,
+    `Live invoke/LLM rows: ${livePass}/${live.length} passing.`,
+    '',
+  );
 
   return lines.join('\n');
 }

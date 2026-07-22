@@ -7,6 +7,8 @@
  * Rules (mirrors check-goldens.js):
  *   - ORPHAN (fail): a ledger entry's useCaseId no longer exists in the catalog.
  *   - MALFORMED (fail): missing required fields.
+ *   - FAIL STATUS (fail): any entry with status "FAIL" — the report must not be
+ *     green when a check recorded failure (unit-parse PASS must not hide this).
  *   - STALE (warn only): checkedAt older than MAX_AGE_DAYS.
  */
 const fs = require('fs');
@@ -49,6 +51,13 @@ function checkStepVerification() {
         if (entry.useCaseId && !ids.has(entry.useCaseId)) {
           failures.push(`[orphan] ${key}: useCaseId "${entry.useCaseId}" no longer in useCases.js — delete or fix`);
         }
+        if (entry.status === 'FAIL') {
+          failures.push(
+            `[fail] ${key}: status FAIL`
+            + (entry.errorClass ? ` errorClass=${entry.errorClass}` : '')
+            + ' — re-run the failing suite or fix the demo before claiming green',
+          );
+        }
         const days = (Date.now() - Date.parse(entry.checkedAt)) / 86400000;
         if (Number.isFinite(days)) {
           oldestDays = Math.max(oldestDays, Math.floor(days));
@@ -72,7 +81,7 @@ if (require.main === module) {
     for (const f of failures) console.error('  ' + f);
     process.exit(1);
   }
-  console.log('[check-step-verification] OK — no orphaned or malformed ledger entries.');
+  console.log('[check-step-verification] OK — no orphaned, malformed, or FAIL ledger entries.');
 }
 
 module.exports = { checkStepVerification, LEDGER_ROOT };

@@ -14,6 +14,18 @@ describe('buildSimRailEvents', () => {
     expect(out[0].claims).toEqual({ sub: 'u1', aud: 'gw' });
   });
 
+  it('remaps sim-exchange-error and sim-rar-grant onto rail ids', () => {
+    const out = buildSimRailEvents({
+      tokenChainEvents: [
+        { id: 'sim-exchange-error', status: 'error', error: 'invalid_scope' },
+        { id: 'sim-rar-grant', status: 'active', authorization_details: [{ amount: 100 }] },
+      ],
+    });
+    expect(out.map((e) => e.id)).toEqual(['exchange-failed', 'rar-authorization']);
+    expect(out[0].error).toBe('invalid_scope');
+    expect(out[1].authorization_details[0].amount).toBe(100);
+  });
+
   it('passes user-token and other events through unchanged', () => {
     const out = buildSimRailEvents({
       tokenChainEvents: [

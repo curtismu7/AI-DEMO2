@@ -231,6 +231,12 @@ const NL_FAILURE_MESSAGES = {
     "The server took too long to respond — it may still be starting up. Try again in a moment.",
   insufficient_scope:
     "This needs an admin session — click \"Switch to admin\" in the top navigation, then try again.",
+  // Token exchange #2 failed (often PingOne invalid_scope when gateway broker
+  // flags drifted off). Surface a fixable sentence — not the generic fallback.
+  delegation_chain_broken:
+    "Token exchange failed — turn on PingGateway routing and brokered exchange (Admin → Feature flags: ff_mcp_gateway_pinggateway and ff_gateway_brokered_exchange), then try again.",
+  invalid_scope:
+    "Token exchange requested scopes across multiple resources. Enable ff_mcp_gateway_pinggateway and ff_gateway_brokered_exchange, then retry.",
 };
 const NL_FAILURE_FALLBACK =
   "That step couldn't be completed. Try again, or pick another demo step.";
@@ -7223,6 +7229,19 @@ export default function BankingAgent({
       }
     } else if (response.error || !response.success) {
       reportNlFailure({ code: response.error || "unknown", message: response.reply || response.message || response.error });
+      // Failure path must still update Token Chain / TraceRail — that is where
+      // demo operators diagnose exchange/Authorize/gateway breaks. Success and
+      // HITL/DENY branches already append; skipping here left the rail blank.
+      if (response.tokenEvents?.length) {
+        appendTokenEvents(response.tokenEvents);
+        if (tokenChain) {
+          tokenChain.setTokenEvents("agent", response.tokenEvents);
+        }
+        const agentTokenMsg = buildTokenEventMsg(response.tokenEvents);
+        if (agentTokenMsg) {
+          addMessage("token-event", agentTokenMsg, null);
+        }
+      }
       // Dispatch error event to EventStream
       addEvent({
         type: 'error',

@@ -20,6 +20,7 @@ const { USE_CASES, resolveUseCase } = require('../../../demo_api_server/config/u
 const {
   bankingAmountGateExpectations,
   normalizeParsedIntent,
+  scoreTokenChainDetail,
 } = require('../../../demo_api_server/services/stepVerificationExpectations');
 
 /** First works-maturity banking chip whose primaryTool reads accounts/balance. */
@@ -88,17 +89,26 @@ async function dispatchNl(page, message, provider) {
   );
 }
 
-async function dispatchMessage(page, message) {
-  return page.evaluate(async (message) => {
-    const r = await fetch('/api/demo-agent/message', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ message, vertical: 'banking' }),
-    });
-    const body = await r.json().catch(() => ({}));
-    return { status: r.status, body };
-  }, message);
+/** Same path Demo Steps use: /api/agent/invoke with forceHeuristic. */
+async function dispatchInvoke(page, message, useCaseId) {
+  return page.evaluate(
+    async ({ message, useCaseId }) => {
+      const r = await fetch('/api/agent/invoke', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          prompt: message,
+          vertical: 'banking',
+          forceHeuristic: true,
+          ...(useCaseId ? { useCaseId } : {}),
+        }),
+      });
+      const body = await r.json().catch(() => ({}));
+      return { status: r.status, body };
+    },
+    { message, useCaseId },
+  );
 }
 
 async function callMcpTool(page, tool, params) {
@@ -117,11 +127,18 @@ async function callMcpTool(page, tool, params) {
   );
 }
 
-async function setHeuristicEnabled(api, enabled) {
+async function setDemoRuntimeFlags(api, { heuristic = true } = {}) {
   const res = await api.patch('/api/admin/feature-flags', {
-    data: { updates: { ff_heuristic_enabled: enabled } },
+    data: {
+      updates: {
+        ff_heuristic_enabled: heuristic,
+        // Without these, Exchange #2 hits PingOne invalid_scope and every chip fails.
+        ff_mcp_gateway_pinggateway: true,
+        ff_gateway_brokered_exchange: true,
+      },
+    },
   });
-  expect(res.ok(), `ff_heuristic_enabled=${enabled} (HTTP ${res.status()})`).toBe(true);
+  expect(res.ok(), `demo runtime flags (HTTP ${res.status()})`).toBe(true);
 }
 
 /**
@@ -147,22 +164,47 @@ function scoreAmountGate({ nlStatus, nlBody, msgStatus, msgBody, expectation }) 
     return { checkStatus: 'FAIL', errorClass: 'wrong_response', normalized };
   }
 
-  const wantError = GATE_TO_ERROR[expectation.gate];
   const gotError = msgBody?.error || null;
   const consent428 = msgStatus === 428 && (msgBody?.requiresConsent || gotError === 'hitl_required');
 
+  // Exchange / gateway breakage must never count as a gate PASS.
+  if (
+    gotError === 'delegation_chain_broken'
+    || gotError === 'invalid_scope'
+    || /Delegation chain validation failed/i.test(msgBody?.reply || '')
+  ) {
+    return { checkStatus: 'FAIL', errorClass: 'server_error', normalized };
+  }
+
+  // Token Chain teaching detail is part of the demo contract — blank rails FAIL.
+  // Only exchange/infra errors must carry an explicit failure event; HITL/STEP_UP/DENY
+  // gates still need claims/explanation on the success path through exchange.
+  const infraFail = [
+    'delegation_chain_broken',
+    'invalid_scope',
+    'Agent invocation failed',
+    'gateway_token_rejected',
+  ].includes(gotError);
+  const chainScore = scoreTokenChainDetail(msgBody?.tokenEvents, {
+    requireFailureEvent: infraFail,
+  });
+  if (!chainScore.ok) {
+    return { checkStatus: 'FAIL', errorClass: chainScore.reason || 'empty_token_events', normalized };
+  }
+
   if (expectation.gate === 'HITL') {
-    if (!(gotError === 'hitl_required' || consent428)) {
+    if (!(gotError === 'hitl_required' || gotError === 'mcp_hitl_required' || consent428)) {
       checkStatus = 'FAIL';
       errorClass = 'wrong_gate';
     }
   } else if (expectation.gate === 'STEP_UP') {
-    if (gotError !== 'step_up_required') {
+    if (!(gotError === 'step_up_required' || gotError === 'mcp_step_up_required')) {
       checkStatus = 'FAIL';
       errorClass = 'wrong_gate';
     }
   } else if (expectation.gate === 'DENY') {
-    if (!(gotError === 'authorization_denied' || /deny|denied|exceed/i.test(msgBody?.reply || msgBody?.message || ''))) {
+    if (!(gotError === 'authorization_denied' || gotError === 'mcp_authorization_denied'
+      || /deny|denied|exceed/i.test(msgBody?.reply || msgBody?.message || ''))) {
       checkStatus = 'FAIL';
       errorClass = 'wrong_gate';
     }
@@ -177,13 +219,14 @@ test.describe('Step verification — banking (real login, live stack)', () => {
   test.describe('chips (heuristic mode) — amount + gate', () => {
     test.beforeEach(async ({ page }) => {
       await loginAsCustomer(page);
-      await setHeuristicEnabled(page.request, true);
+      await setDemoRuntimeFlags(page.request, { heuristic: true });
     });
 
     for (const c of AMOUNT_CASES) {
       test(`${c.useCaseId} chip: $${c.amount} → ${c.gate}`, async ({ page }) => {
         const { status, body } = await dispatchNl(page, c.chipText, 'llamacpp');
-        const msg = await dispatchMessage(page, c.chipText);
+        const catalogUc = resolveUseCase(c.useCaseId, 'banking');
+        const msg = await dispatchInvoke(page, c.chipText, catalogUc?.useCaseId);
         const scored = scoreAmountGate({
           nlStatus: status,
           nlBody: body,
@@ -206,6 +249,10 @@ test.describe('Step verification — banking (real login, live stack)', () => {
         expect(status).toBe(200);
         expect(body.source).toBe('heuristic');
         expect(scored.normalized?.amount).toBe(c.amount);
+        expect(
+          scoreTokenChainDetail(msg.body?.tokenEvents).ok,
+          `token chain detail missing for ${c.useCaseId}: ${JSON.stringify(msg.body?.tokenEvents || []).slice(0, 200)}`,
+        ).toBe(true);
         expect(scored.checkStatus).toBe('PASS');
       });
     }
@@ -264,7 +311,7 @@ test.describe('Step verification — banking (real login, live stack)', () => {
       const ctx = await browser.newContext({ ignoreHTTPSErrors: true });
       const page = await ctx.newPage();
       await loginAsCustomer(page);
-      await setHeuristicEnabled(ctx.request, false);
+      await setDemoRuntimeFlags(ctx.request, { heuristic: false });
       await ctx.close();
     });
 
@@ -272,7 +319,7 @@ test.describe('Step verification — banking (real login, live stack)', () => {
       const ctx = await browser.newContext({ ignoreHTTPSErrors: true });
       const page = await ctx.newPage();
       await loginAsCustomer(page);
-      await setHeuristicEnabled(ctx.request, true);
+      await setDemoRuntimeFlags(ctx.request, { heuristic: true });
       await ctx.close();
     });
 

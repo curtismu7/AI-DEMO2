@@ -74,6 +74,78 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(ex.detail.rfcs).toContain("RFC 8693");
   });
 
+  // Regression: exchange-failed used to mark the step error but leave why/kv/response
+  // empty because detail only read exTok (success event).
+  test("exchange-failed fills TraceRail why + error response + request", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [
+        { id: "user-token", status: "active", claims: { scope: "read write" } },
+        {
+          id: "exchange-failed",
+          status: "failed",
+          explanation: "Exchange failed: May not request scopes for multiple resources — error: invalid_scope",
+          error: "May not request scopes for multiple resources",
+          pingoneError: "invalid_scope",
+          pingoneErrorDescription: "May not request scopes for multiple resources",
+          httpStatus: 400,
+          exchangeRequest: {
+            audience: "https://api.ping.demo:3036/mcp",
+            scope: "read write transfer",
+          },
+          rfc: "RFC 8693",
+        },
+      ],
+    });
+    const ex = steps.find((s) => s.id === "exchange");
+    expect(ex.status).toBe("error");
+    expect(ex.detail.why).toMatch(/invalid_scope|multiple resources/i);
+    expect(ex.detail.request.text).toContain("read write transfer");
+    expect(ex.detail.response.text).toContain("invalid_scope");
+    expect(ex.detail.kv.some(([k, v]) => k === "error" && String(v).includes("invalid_scope"))).toBe(true);
+  });
+
+  test("two-ex-final-token with status failed is error not blank done", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [
+        {
+          id: "two-ex-final-token",
+          status: "failed",
+          explanation: "Final hop rejected by PingOne",
+          error: "invalid_scope",
+          exchangeRequest: { scope: "gateway:mcp:invoke" },
+        },
+      ],
+    });
+    const ex = steps.find((s) => s.id === "exchange");
+    expect(ex.status).toBe("error");
+    expect(ex.detail.why).toMatch(/Final hop rejected|invalid_scope/i);
+    expect(ex.detail.response.text).toContain("invalid_scope");
+  });
+
+  test("sim-rar-grant lights rar teaching step with authorization_details", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [
+        {
+          id: "sim-rar-grant",
+          status: "active",
+          explanation: "Attested authorization_details cap the transfer at $100.",
+          authorization_details: [{ type: "banking_transaction", amount: 100 }],
+          rfc: "RFC 9396",
+        },
+      ],
+    });
+    const rar = steps.find((s) => s.id === "rar");
+    expect(rar.status).toBe("done");
+    expect(rar.detail.request.text).toContain("banking_transaction");
+    expect(rar.detail.why).toMatch(/\$100|authorization_details/i);
+  });
+
   // Regression: 2-exchange used to drop exchangeRequest when splicing the
   // in-progress card — TraceRail then had claims response but no coloured request.
   test("two-ex-final-token with exchangeRequest fills TraceRail request JSON", () => {

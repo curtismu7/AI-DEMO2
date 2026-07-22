@@ -231,8 +231,13 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
     return JSON.stringify({ error: outcome.body?.error || 'mcp_blocked', ...outcome.body });
   }
 
-  // kind === 'error'
-  return JSON.stringify({ error: outcome.body?.error || 'mcp_error', message: outcome.body?.message });
+  // kind === 'error' — keep body fields (pingone / exchange detail) so the agent
+  // reply and Token Chain can surface why the hop failed, not just a bare code.
+  return JSON.stringify({
+    error: outcome.body?.error || 'mcp_error',
+    message: outcome.body?.message || outcome.body?.error_description || null,
+    ...(outcome.body && typeof outcome.body === 'object' ? outcome.body : {}),
+  });
 }
 
 /**

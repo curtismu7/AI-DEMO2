@@ -117,11 +117,13 @@ describe('step verification — banking chip routing (check 2: parse/route + amo
       errorClass = 'wrong_response';
     }
 
+    // unit-parse — offline check 2 only. Must NOT use mode "heuristic" or it
+    // overwrites live invoke evidence and the report goes green while chips fail.
     writeLedgerEntry({
       vertical: 'banking',
       useCaseId: c.id,
       triggerType: 'chip',
-      mode: 'heuristic',
+      mode: 'unit-parse',
       status,
       errorClass,
       primaryTool: c.primaryTool,
@@ -157,7 +159,7 @@ describe('step verification — banking amount-gated decisions (check 5, catalog
         vertical: 'banking',
         useCaseId: id,
         triggerType: 'chip',
-        mode: 'heuristic',
+        mode: 'unit-gate',
         status,
         errorClass: status === 'FAIL' ? 'wrong_gate' : null,
         primaryTool: 'create_transfer',
@@ -191,7 +193,7 @@ describe('step verification — reference-only banking use cases', () => {
         vertical: 'banking',
         useCaseId: r.id,
         triggerType: 'chip',
-        mode: 'heuristic',
+        mode: 'unit-ref',
         status: 'PASS',
         errorClass: null,
         primaryTool: r.primaryTool,
@@ -221,20 +223,23 @@ describe('step verification — banking chip prerequisites (flags + A2A creds)',
   });
 
   test.each(cases.map((c) => [c.id, c]))(
-    '%s: required flags declared; A2A Agent 2 credentials loaded when needed',
+    '%s: required flags declared; A2A creds when needed (gateway flags assumed on offline)',
     (_id, uc) => {
       const requiredFlags = requiredFlagsForUseCase(uc);
-      const flagGated = String(uc.maturity).startsWith('flag:');
-      const a2a = needsA2aCredentials(uc);
+      expect(requiredFlags.length).toBeGreaterThan(0);
+      // Offline Jest does not share the docker LMDB flag store. Gateway flags are
+      // asserted live (e2e setDemoRuntimeFlags + ensureRequiredDemoFlags). Here we
+      // only prove catalog wiring + A2A credential readiness.
+      const cfg = {
+        getEffective: (k) => {
+          // Offline: assume every catalog-declared feature flag is armed so this
+          // suite proves wiring + A2A creds, not the live LMDB flag store.
+          if (typeof k === 'string' && k.startsWith('ff_')) return true;
+          return realConfigStore.getEffective(k);
+        },
+      };
 
-      // Every chip is scanned; flag-gated / A2A chips must declare flags.
-      if (flagGated || a2a) {
-        expect(requiredFlags.length).toBeGreaterThan(0);
-      } else {
-        return; // leave routing/gate ledger rows untouched
-      }
-
-      const prereq = checkChipPrerequisites(uc, 'banking', realConfigStore);
+      const prereq = checkChipPrerequisites(uc, 'banking', cfg);
       const status = prereq.ok ? 'PASS' : 'FAIL';
       const errorClass = prereq.ok ? null : 'missing_prereq';
 
@@ -242,7 +247,7 @@ describe('step verification — banking chip prerequisites (flags + A2A creds)',
         vertical: 'banking',
         useCaseId: uc.id,
         triggerType: 'chip',
-        mode: 'heuristic',
+        mode: 'unit-prereq',
         status,
         errorClass,
         primaryTool: uc.primaryTool || null,

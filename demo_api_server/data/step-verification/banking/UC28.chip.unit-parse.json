@@ -2,9 +2,9 @@
   "vertical": "banking",
   "useCaseId": "UC28",
   "triggerType": "chip",
-  "mode": "heuristic",
+  "mode": "unit-parse",
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "request_fee_waiver",
-  "checkedAt": "2026-07-22T22:17:14.436Z"
+  "checkedAt": "2026-07-22T22:22:34.640Z"
 }
