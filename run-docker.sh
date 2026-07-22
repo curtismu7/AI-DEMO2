@@ -20,6 +20,7 @@
 #   ./run-docker.sh logs [svc]            follow logs (all, or one service name)
 #   ./run-docker.sh status                show container health table
 #   ./run-docker.sh llamacpp restart      stop and restart host LLM backend (llama.cpp tiers or oMLX)
+#   ./run-docker.sh promptfoo             run Phi step-narration eval (core promptfoo sidecar)
 #   ./run-docker.sh help                  show this message
 #
 # Optional groups (for `optional start|stop`):
@@ -68,6 +69,7 @@ fi
 CORE_SERVICES=(
   ui mcp-server mcp-invest mortgage-service mcp-proxy
   ping-gateway langchain-agent agent-service hitl-service llm-proxy
+  promptfoo-step-narration
 )
 
 # Optional groups — start on demand via `./run-docker.sh optional start <group>`.
@@ -502,6 +504,7 @@ SERVICES=(
   "mastra-agent|Mastra Agent          |8892|http://localhost:8892"
   "pydantic-agent|Pydantic AI Agent    |8893|http://localhost:8893"
   "authz-server|Authz Server          |9001|http://localhost:9001"
+  "promptfoo-step-narration|promptfoo (eval)      |-|./run-docker.sh promptfoo"
 )
 
 # True if $1 is one of the compose service names in SERVICES.
@@ -1326,6 +1329,24 @@ cmd_llamacpp_restart() {
   echo ""
 }
 
+# Run Phi narration/hallucination eval in the always-on promptfoo core sidecar.
+cmd_promptfoo() {
+  echo ""
+  echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+  echo -e "${CYAN}${BOLD}   [PROMPTFOO]  Step narration eval (Phi → :8090)${RESET}"
+  echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+  echo ""
+  if ! curl -sf --max-time 3 http://127.0.0.1:8090/health >/dev/null 2>&1; then
+    err "nothing healthy on :8090 — start the stack (./run-docker.sh) and ensure Phi is loaded"
+    exit 1
+  fi
+  if ! docker compose "${COMPOSE_FILES[@]}" ps --status running --services 2>/dev/null | grep -qx 'promptfoo-step-narration'; then
+    docker compose "${COMPOSE_FILES[@]}" up -d --build promptfoo-step-narration
+  fi
+  docker compose "${COMPOSE_FILES[@]}" exec -T promptfoo-step-narration \
+    promptfoo eval -c promptfoo/step-narration.config.yaml --filter-providers phi-4-mini-instruct
+}
+
 cmd_help() {
   echo ""
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
@@ -1354,6 +1375,7 @@ cmd_help() {
   echo "    logs <service>        Tail a specific service directly"
   echo "    status                Show container health table"
   echo "    llamacpp restart      Stop and restart host LLM backend (llama.cpp tiers or oMLX)"
+  echo "    promptfoo             Run Phi step-narration eval (core promptfoo sidecar → :8090)"
   echo "    help                  Show this message"
   echo ""
   cmd_optional_help
@@ -1478,6 +1500,9 @@ case "${COMMAND}" in
       echo ""
       exit 1
     fi
+    ;;
+  promptfoo)
+    cmd_promptfoo
     ;;
   status)
     cmd_status

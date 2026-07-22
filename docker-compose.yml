@@ -1143,6 +1143,25 @@ services:
       - ai-demo
     restart: "no"
 
+  # ── promptfoo step narration (core — always on, idle until eval) ───────────
+  # Sidecar with promptfoo installed. Does not auto-run the eval on start.
+  #   ./run-docker.sh promptfoo
+  # Targets host :8090 (llm-proxy publish or host oMLX/mlx) via host.docker.internal.
+  promptfoo-step-narration:
+    build:
+      context: ./demo_api_server/promptfoo
+      dockerfile: Dockerfile
+    image: ai-demo-promptfoo:latest
+    container_name: ai-demo-promptfoo-step-narration
+    environment:
+      OPENAI_API_KEY: not-needed
+      OPENAI_API_BASE_URL: http://host.docker.internal:8090/v1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - ai-demo
+    restart: unless-stopped
+
 networks:
   ai-demo:
     driver: bridge
