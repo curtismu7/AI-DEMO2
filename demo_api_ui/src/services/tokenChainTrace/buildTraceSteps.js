@@ -176,10 +176,12 @@ export function buildRunStory(trace, steps) {
     headline = "Trace started — waiting for pipeline evidence.";
   }
 
-  const bits = list
-    .filter((s) => s && (s.status === "done" || s.status === "error") && s.detail?.why)
-    .slice(0, 3)
-    .map((s) => s.detail.why);
+  // Prefer the failing step's why first so the story doesn't look like a
+  // successful exchange when MCP failed after the token hops.
+  const withWhy = list.filter((s) => s && (s.status === "done" || s.status === "error") && s.detail?.why);
+  const errBits = withWhy.filter((s) => s.status === "error");
+  const okBits = withWhy.filter((s) => s.status === "done");
+  const bits = [...errBits, ...okBits].slice(0, 3).map((s) => s.detail.why);
 
   return { headline, outcome, bits };
 }
@@ -819,6 +821,8 @@ export function buildTraceSteps(trace) {
   const gwScope = findEvent(tokenEvents, "evt-scope");
   const gwMcpAudit = findEvent(tokenEvents, "gw-mcp-audit");
   const gwFilterChainEv = findEvent(tokenEvents, "gw-filter-chain");
+  const gwIntroEv = findEvent(tokenEvents, "gw-introspection");
+  const gwRouteEv = findEvent(tokenEvents, "gw-route");
   const gwDeniedPhase = findPhase(phases, "gateway_policy_denied");
   // Attack sims emit "sim-gateway-deny" instead of a phase. RAR denies
   // (rar_amount_exceeded / rar_unexpected_deny) already feed the
@@ -827,16 +831,32 @@ export function buildTraceSteps(trace) {
     (e) => e && e.id === "sim-gateway-deny"
       && e.error !== "rar_amount_exceeded" && e.error !== "rar_unexpected_deny",
   );
-  const gwDenied = !!gwDeniedPhase || !!simGwDeny;
-  const gwSeen = !!(gwAz || gwInbound || gwScope || gwMcpAudit);
+  const gwHowEarly = gwMcpAudit?.how || gwMcpAudit?.mcpAudit?.how || null;
+  const gwFilterDenied = !!(gwFilterChainEv && (
+    gwFilterChainEv.status === "deny"
+    || gwFilterChainEv.status === "failed"
+    || gwFilterChainEv.status === "error"
+  ));
+  const gwAuditBlocked = !!(gwMcpAudit && (
+    gwMcpAudit.status === "deny"
+    || gwHowEarly?.result === "blocked"
+    || gwHowEarly?.decision === "DENY"
+  ));
+  const gwDenied = !!gwDeniedPhase || !!simGwDeny || gwFilterDenied || gwAuditBlocked;
+  // Include filter-chain / route / active introspection — weather showcase often
+  // has no PingOne Authorize card, only TxWeatherScope + McpAuditFilter evidence.
+  // Skipped-only introspection must not light gateway (kept on the introspection step).
+  const gwIntroCounts = !!(gwIntroEv && gwIntroEv.status !== "skipped");
+  const gwSeen = !!(gwAz || gwInbound || gwScope || gwMcpAudit || gwFilterChainEv || gwIntroCounts || gwRouteEv);
   const gwSkipEvidence = [];
   const gwStatementCodes = Array.isArray(gwAz?.statements)
     ? gwAz.statements.map((s) => (s && (s.code || s.id || s.name || s.effect)) || null).filter(Boolean)
     : [];
-  const gwHow = gwMcpAudit?.how || gwMcpAudit?.mcpAudit?.how || null;
+  const gwHow = gwHowEarly;
   const denyingFilter = gwAz?.denyingFilter
     || gwFilterChainEv?.denyingFilter
     || gwMcpAudit?.denyingFilter
+    || gwMcpAudit?.where?.filter
     || null;
   const lastFilter = gwAz?.lastFilter || gwFilterChainEv?.lastFilter || null;
   const filterHop = gwDenied ? denyingFilter : (lastFilter || denyingFilter);
@@ -849,10 +869,11 @@ export function buildTraceSteps(trace) {
         return `Blocked by ${denyingFilter}`
           + (gwAz?.decision ? ` (${gwAz.decision})` : "")
           + ruleBit
-          + ".";
+          + (gwFilterChainEv?.explanation ? `: ${gwFilterChainEv.explanation}` : ".");
       }
       return "The Agent Gateway blocked this call before it reached the MCP server." + ruleBit
-        + (gwAz?.reason ? ` Reason: ${gwAz.reason}.` : "");
+        + (gwAz?.reason ? ` Reason: ${gwAz.reason}.` : "")
+        + (gwFilterChainEv?.explanation ? ` ${gwFilterChainEv.explanation}` : "");
     }
     if (filterHop) {
       return `Passed filter chain; last hop ${filterHop} → forwarded`
@@ -890,20 +911,24 @@ export function buildTraceSteps(trace) {
         ? { outcome: "DENY",
             label: `DENY — ${(gwDeniedPhase
               ? (gwDeniedPhase.detail && gwDeniedPhase.detail !== "—" ? gwDeniedPhase.detail : gwDeniedPhase.label)
-              : (simGwDeny.label || simGwDeny.explanation)) || "gateway policy"}` }
+              : (gwFilterChainEv?.explanation || simGwDeny?.label || simGwDeny?.explanation)) || "gateway policy"}` }
         : undefined,
       kv: [
         denyingFilter || lastFilter ? ["filter / stage", String(filterHop || denyingFilter || lastFilter)] : null,
+        gwFilterChainEv?.route ? ["route", String(gwFilterChainEv.route)] : null,
         gwAz ? ["authorize", `${gwAz.decision || "?"}${gwAz.url ? ` — ${gwAz.url}` : ""}`] : null,
         gwStatementCodes.length ? ["rule / statement", gwStatementCodes.join(", ")] : null,
         gwAz?.reason ? ["reason", String(gwAz.reason)] : null,
         (gwAz?.backend || gwAz?.policySource) ? ["backend", String(gwAz.backend || gwAz.policySource)] : null,
         gwHow ? ["McpAuditFilter how", `${gwHow.decision || "—"}${gwHow.result ? ` → ${gwHow.result}` : ""}`] : null,
-        (gwDeniedPhase?.gatewayErrorCode || simGwDeny?.error)
-          ? ["error code", String(gwDeniedPhase?.gatewayErrorCode || simGwDeny?.error)]
+        (gwDeniedPhase?.gatewayErrorCode || gwFilterChainEv?.gatewayErrorCode || simGwDeny?.error)
+          ? ["error code", String(gwDeniedPhase?.gatewayErrorCode || gwFilterChainEv?.gatewayErrorCode || simGwDeny?.error)]
           : null,
         gwPolicy != null ? ["policy", gwPolicy.passed === false ? "failed" : (gwPolicy.passed ? "passed" : asJson(gwPolicy))] : null,
-        filterChain ? ["filter chain hops", String(filterChain.length)] : null,
+        filterChain ? ["filter chain hops",
+          Array.isArray(filterChain) && filterChain.every((x) => typeof x === "string")
+            ? filterChain.join(" → ")
+            : String(filterChain.length)] : null,
         gwInbound ? ["inbound", gwInbound.label || "user bearer received"] : null,
         gwScope ? ["scope gate", gwScope.label || "scope checked before swap"] : null,
         simGwDeny ? ["attack sim", simGwDeny.explanation || simGwDeny.label] : null,
@@ -1006,25 +1031,48 @@ export function buildTraceSteps(trace) {
 
   // 10. mcp + 11. api — a gateway denial means the call never reached the MCP
   // server; surface that as an error instead of leaving the step stuck "active".
-  // Phase D: deny paths still show attempted JSON-RPC + error body when present.
-  const mcpDone = hasPhase(phases, "mcp_remote_done") || !!(mcpResult && mcpResult.result && !mcpResult.denied);
+  // Tool failures (mcp_error after a successful exchange) must also light error —
+  // not leave outcome=error with only successful exchange/DPoP whys in the story.
+  const mcpToolError = !!(mcpResult && (
+    mcpResult.status === "error"
+    || mcpResult.error
+    || (mcpResult.result && (mcpResult.result.error || mcpResult.result.isError))
+  ));
+  const mcpDone = !mcpToolError && !mcpResult?.denied && (
+    hasPhase(phases, "mcp_remote_done")
+    || !!(mcpResult && mcpResult.result)
+  );
   const mcpBegun = hasPhase(phases, "mcp_remote_begin");
-  const mcpDenyPayload = mcpResult && (mcpResult.denied || mcpResult.error || (mcpResult.result && mcpResult.result.error))
+  const mcpDenyPayload = mcpResult && (mcpResult.denied || mcpToolError)
     ? mcpResult
     : null;
+  const mcpFailed = !!(gwDenied || mcpResult?.denied || mcpToolError);
   const mcpAttemptRequest = (mcpResult && mcpResult.requestJson)
     || (mcpDenyPayload && mcpDenyPayload.requestJson)
     || null;
-  const mcpErrorBody = mcpDenyPayload?.result
+  const mcpErrorBody = (mcpDenyPayload && (mcpDenyPayload.result || {
+    error: mcpDenyPayload.error,
+    message: mcpDenyPayload.message || mcpDenyPayload.error,
+    tool: mcpDenyPayload.tool || mcpDenyPayload.toolName,
+  }))
     || (gwDenied ? {
       error: "gateway_policy_denied",
       message: gwDeniedPhase?.detail || simGwDeny?.explanation || "Gateway policy denied the tool call",
       gatewayErrorCode: gwDeniedPhase?.gatewayErrorCode || simGwDeny?.error || null,
       tool: gwDeniedPhase?.tool || mcpResult?.tool || null,
     } : null);
+  const mcpFailWhy = gwDenied || mcpResult?.denied
+    ? "MCP never ran — the gateway denied the call upstream."
+    : `MCP tool “${mcpResult?.tool || mcpResult?.toolName || "tool"}” failed`
+      + (mcpResult?.error || mcpResult?.result?.error
+        ? ` — ${mcpResult.error || mcpResult.result.error}`
+        : ".")
+      + (mcpResult?.result?.message && mcpResult.result.message !== (mcpResult.error || mcpResult.result.error)
+        ? `: ${mcpResult.result.message}`
+        : "");
   steps.push(makeStep("mcp",
-    authorizeFailed ? "notinpath" : mcpDone ? "done" : gwDenied || mcpDenyPayload?.denied ? "error" : mcpBegun ? "active" : "pending",
-    mcpResult && !gwDenied && !mcpResult.denied ? {
+    authorizeFailed ? "notinpath" : mcpDone ? "done" : mcpFailed ? "error" : mcpBegun ? "active" : "pending",
+    mcpDone && mcpResult && !mcpFailed ? {
       why: `MCP executed “${mcpResult.tool || mcpResult.toolName || "tool"}”`
         + (mcpResult.durationMs != null ? ` in ${mcpResult.durationMs} ms` : "")
         + " under the delegated identity.",
@@ -1038,18 +1086,21 @@ export function buildTraceSteps(trace) {
           ? ["gateway audit", "see Gateway step (McpAuditFilter 5W1H)"]
           : null,
       ].filter(Boolean),
-    } : gwDenied || mcpResult?.denied ? {
-      why: "MCP never ran — the gateway denied the call upstream.",
+    } : mcpFailed ? {
+      why: mcpFailWhy,
       request: mcpAttemptRequest
         ? { title: "Attempted JSON-RPC call", text: asJson(mcpAttemptRequest) }
-        : (mcpResult?.tool || gwDeniedPhase?.tool)
-          ? { title: "Attempted tool", text: asJson({ name: mcpResult?.tool || gwDeniedPhase?.tool }) }
+        : (mcpResult?.tool || mcpResult?.toolName || gwDeniedPhase?.tool)
+          ? { title: "Attempted tool", text: asJson({ name: mcpResult?.tool || mcpResult?.toolName || gwDeniedPhase?.tool }) }
           : undefined,
       response: mcpErrorBody
         ? { title: "Deny / error body", text: asJson(mcpErrorBody) }
         : undefined,
       kv: [
-        (mcpResult?.tool || gwDeniedPhase?.tool) ? ["tool", String(mcpResult?.tool || gwDeniedPhase?.tool)] : null,
+        (mcpResult?.tool || mcpResult?.toolName || gwDeniedPhase?.tool)
+          ? ["tool", String(mcpResult?.tool || mcpResult?.toolName || gwDeniedPhase?.tool)] : null,
+        (mcpResult?.error || mcpResult?.result?.error)
+          ? ["error", String(mcpResult.error || mcpResult.result.error)] : null,
         (gwDeniedPhase?.gatewayErrorCode || mcpResult?.gatewayErrorCode)
           ? ["gateway code", String(gwDeniedPhase?.gatewayErrorCode || mcpResult?.gatewayErrorCode)]
           : null,

@@ -863,6 +863,33 @@ async function runMcpToolPipeline(ctx) {
                 tokenEvents.push(gwBackendExchangeEvent);
                 gwEvents.push(gwBackendExchangeEvent);
             }
+            // Weather / ScriptableFilter permit: surface filter chain when present
+            // (often the only Agent Gateway teaching evidence on UC30 success).
+            if (gwAuditTrail.filterChain
+                && !tokenEvents.some((e) => e && e.id === 'gw-filter-chain')) {
+                const policyPassed = gwAuditTrail.policy?.passed !== false;
+                const gwFilterEvent = deps.buildTokenEvent(
+                    'gw-filter-chain',
+                    'PingGateway — filter chain',
+                    policyPassed ? 'active' : 'deny',
+                    null,
+                    policyPassed
+                        ? `Agent Gateway forwarded “${tool}” through ${gwAuditTrail.lastFilter || 'filter chain'} (state-scope policy passed).`
+                        : (gwAuditTrail.policy?.name
+                            ? `Agent Gateway blocked “${tool}” (${gwAuditTrail.policy.name}).`
+                            : `Agent Gateway blocked “${tool}”.`),
+                    {
+                        denyingFilter: policyPassed ? null : (gwAuditTrail.denyingFilter || gwAuditTrail.lastFilter || null),
+                        lastFilter: gwAuditTrail.lastFilter || null,
+                        filterChain: gwAuditTrail.filterChain,
+                        policy: gwAuditTrail.policy || null,
+                        tool,
+                        route: gwAuditTrail.policy?.route || null,
+                    }
+                );
+                tokenEvents.push(gwFilterEvent);
+                gwEvents.push(gwFilterEvent);
+            }
         }
         if (gwEvents.length > 0) {
             deps.publishTokenEventsToSse(flowTraceId, gwEvents);
@@ -1027,6 +1054,30 @@ async function runMcpToolPipeline(ctx) {
                         where: a.where,
                         how: a.how,
                         eventName: a.eventName || 'PING-GATEWAY-MCP',
+                        denyingFilter: err.gwAuditTrail.denyingFilter || a.where?.filter || null,
+                    }
+                ));
+            }
+            // Weather / ScriptableFilter denials: always emit gw-filter-chain so
+            // TraceRail's gateway step lights even when X-Gw-Audit-Trail was absent.
+            const denyTrail = err.gwAuditTrail || {};
+            if ((denyTrail.denyingFilter || err.gatewayErrorCode === 'weather_scope_denied'
+                || /weather scope|weather capability/i.test(err.gatewayMessage || err.message || ''))
+                && !tokenEvents.some((e) => e && e.id === 'gw-filter-chain')) {
+                tokenEvents.push(deps.buildTokenEvent(
+                    'gw-filter-chain',
+                    'PingGateway — filter chain',
+                    'deny',
+                    null,
+                    err.gatewayMessage || err.message || 'Gateway filter denied the call',
+                    {
+                        denyingFilter: denyTrail.denyingFilter || 'tx-weather-scope.groovy',
+                        lastFilter: denyTrail.lastFilter || denyTrail.denyingFilter || 'TxWeatherScope',
+                        filterChain: denyTrail.filterChain || null,
+                        policy: denyTrail.policy || null,
+                        tool,
+                        gatewayErrorCode: err.gatewayErrorCode || 'gateway_policy_denied',
+                        route: denyTrail.policy?.route || '/mcp/weather',
                     }
                 ));
             }

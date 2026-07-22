@@ -85,12 +85,21 @@ test("successful agent run ingests token events + a tool-dispatched marker", () 
   expect(trace.mcpResult).toMatchObject({ tool: "get_account_balance", status: "success" });
 });
 
-test("a failed agent run does NOT synthesize a tool-dispatched marker", () => {
+test("a failed agent run synthesizes an error mcpResult for TraceRail", () => {
   ingestLegacyRunTrace({
-    agentPath: "llm",
+    agentPath: "heuristic",
     success: false,
-    error: "mcp_authorization_denied",
-    toolsCalled: ["create_transfer"],
+    reply: "❌ mcp_error",
+    toolsCalled: ["get_weather"],
   });
-  expect(tokenChainTraceStore.getState().trace.mcpResult).toBeNull();
+  const { trace, steps } = tokenChainTraceStore.getState();
+  expect(trace.mcpResult).toMatchObject({
+    tool: "get_weather",
+    status: "error",
+    error: "mcp_error",
+  });
+  expect(trace.outcome).toBe("error");
+  const mcp = steps.find((s) => s.id === "mcp");
+  expect(mcp.status).toBe("error");
+  expect(mcp.detail.why).toMatch(/get_weather|mcp_error/i);
 });

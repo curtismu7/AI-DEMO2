@@ -729,6 +729,70 @@ describe("buildTraceSteps — PingOne gap fills (introspection / JWKS / signin /
     expect(mcp.detail.response.text).toContain("invalid_audience");
     expect(mcp.detail.why).toMatch(/never ran/i);
   });
+
+  test("weather TxWeatherScope deny lights gateway step with filter chain detail", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [
+        { id: "user-token", status: "active", claims: { sub: "u1" } },
+        { id: "two-ex-final-token", status: "exchanged", claims: { scope: "gateway:mcp:invoke" } },
+        {
+          id: "gw-filter-chain",
+          status: "deny",
+          explanation: "Agent Gateway: weather scope restricted to Texas (demo policy) — city not recognized as Texas",
+          denyingFilter: "tx-weather-scope.groovy",
+          lastFilter: "TxWeatherScope",
+          filterChain: ["McpAudit", "StripWeatherPrefix", "rsFilter", "McpProtocol", "TxWeatherScope"],
+          policy: { passed: false, name: "ff_weather_mcp_allowed_state", route: "/mcp/weather" },
+          gatewayErrorCode: "weather_scope_denied",
+          route: "/mcp/weather",
+        },
+        {
+          id: "gw-mcp-audit",
+          status: "deny",
+          how: { decision: "DENY", result: "blocked", backend: "weather-mcp" },
+          denyingFilter: "tx-weather-scope.groovy",
+        },
+      ],
+    });
+    const gw = steps.find((s) => s.id === "gateway");
+    expect(gw.status).toBe("error");
+    expect(gw.detail.why).toMatch(/tx-weather-scope|weather scope/i);
+    expect(gw.detail.kv.some(([k, v]) => k === "filter / stage" && String(v).includes("tx-weather-scope"))).toBe(true);
+    expect(gw.detail.kv.some(([k, v]) => k === "filter chain hops" && String(v).includes("TxWeatherScope"))).toBe(true);
+    expect(gw.detail.decision.outcome).toBe("DENY");
+  });
+
+  // UC30: exchange/DPoP succeed, third-party weather returns mcp_error — must
+  // not leave mcp pending while the run story only quotes successful hops.
+  test("mcp_error after successful exchange marks mcp step error with body", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [
+        { id: "user-token", status: "active", claims: { sub: "u1" } },
+        { id: "two-ex-final-token", status: "exchanged", claims: { scope: "gateway:mcp:invoke" },
+          exchangeRequest: { scope: "gateway:mcp:invoke" } },
+      ],
+      mcpResult: {
+        tool: "get_weather",
+        status: "error",
+        error: "mcp_error",
+        result: { error: "mcp_error", message: "❌ mcp_error" },
+      },
+    });
+    const mcp = steps.find((s) => s.id === "mcp");
+    const ex = steps.find((s) => s.id === "exchange");
+    expect(ex.status).toBe("done");
+    expect(mcp.status).toBe("error");
+    expect(mcp.detail.why).toMatch(/get_weather/);
+    expect(mcp.detail.why).toMatch(/mcp_error/);
+    expect(mcp.detail.response.text).toContain("mcp_error");
+    const story = buildRunStory({ ...EMPTY_TRACE, outcome: "error", prompt: { message: "weather" } }, steps);
+    expect(story.headline).toMatch(/MCP|mcp/i);
+    expect(story.bits[0]).toMatch(/get_weather|mcp_error/i);
+  });
 });
 
 describe("buildTraceSteps — E1 authorize statements + dual evidence", () => {
