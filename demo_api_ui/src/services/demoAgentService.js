@@ -570,6 +570,11 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
       ].includes(err.error)
         ? "session_not_hydrated"
         : err.error;
+      // Preserve step-up method fields on the thrown Error so runAction can
+      // branch CIBA vs MFA. Dropping step_up_method made every
+      // mcp_step_up_required (including UC22 CIBA) open the MFA modal; MFA
+      // sets session.stepUpVerified and the retry PERMITs without out-of-band
+      // approval — a CIBA bypass on the chip/runAction path.
       const e = Object.assign(
         new Error(err.message || `MCP error: ${response.status}`),
         {
@@ -580,6 +585,21 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
           taskId: err.taskId || null,
           tool: err.tool || null,
           requiresLogin: !!err.requiresLogin,
+          ...(err.step_up_method ? { step_up_method: err.step_up_method } : {}),
+          ...(err.step_up_acr ? { step_up_acr: err.step_up_acr } : {}),
+          ...(err.transaction_amount != null
+            ? { transaction_amount: err.transaction_amount }
+            : {}),
+          ...(err.fromAccountId || err.from_account_id
+            ? {
+                fromAccountId: err.fromAccountId || err.from_account_id,
+              }
+            : {}),
+          ...(err.toAccountId || err.to_account_id
+            ? {
+                toAccountId: err.toAccountId || err.to_account_id,
+              }
+            : {}),
         },
       );
       throw e;

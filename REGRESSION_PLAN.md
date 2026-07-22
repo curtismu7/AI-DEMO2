@@ -101,6 +101,36 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-22 — CIBA chip path opened MFA instead of out-of-band approval (bypass)
+
+**Files changed:**
+- `demo_api_ui/src/services/demoAgentService.js` — `callMcpTool` preserves
+  `step_up_method` / `step_up_acr` / account+amount fields on thrown 428
+  `mcp_step_up_required` errors (previously dropped).
+- `demo_api_ui/src/components/AIAgent.js` — `runAction` catch for
+  `mcp_step_up_required` branches on `step_up_method === 'ciba'` (same popup +
+  poll as the soft-success path); soft-success `else if` also matches
+  `mcp_step_up_required`.
+- `demo_api_ui/src/services/__tests__/callMcpTool.stepUpAuthorizeIngest.test.js`
+  — asserts `step_up_method: 'ciba'` survives the throw.
+
+**What was broken:** After #705/#707 forced UC22 onto `mcp_step_up_required` +
+`step_up_method:'ciba'`, the CIBA chip still went `dispatchNlResult` →
+`runAction` → `createTransfer` → `callMcpTool`. `callMcpTool` throws (does not
+soft-resolve) step-up 428s and stripped `step_up_method`, so the catch always
+opened the MFA modal. MFA and CIBA both set `session.stepUpVerified`, so
+completing MFA let the retry PERMIT without out-of-band approval.
+
+**What was fixed:** Preserve method fields on the thrown Error; open CIBA when
+`step_up_method === 'ciba'`. UC7 `p1mfa` / unspecified still use the MFA modal.
+
+**Do not break:** HITL soft-resolve (`mcp_hitl_required`); AgentLifecycle Slot 3
+throw-on-step-up path; Demo Steps CIBA via `handleNlResumeResponse`; OAuth /
+session / token exchange.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/services/__tests__/callMcpTool.stepUpAuthorizeIngest.test.js`
+(4 pass); `npm run build`.
+
 ### 2026-07-22 — Reset Demo now reverts the weather scope flags; added UC32 for the configurability itself
 
 **Files changed:**

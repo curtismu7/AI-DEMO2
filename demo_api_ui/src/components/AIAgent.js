@@ -4049,7 +4049,8 @@ export default function BankingAgent({
           });
         } else if (
           normalized.step_up_required === true ||
-          normalized.error === "step_up_required"
+          normalized.error === "step_up_required" ||
+          normalized.error === "mcp_step_up_required"
         ) {
           // Set context for modal
           let contextLine = "Identity verification required";
@@ -4750,31 +4751,94 @@ export default function BankingAgent({
           scopeUpgradeState: "error", // Phase 211: 4-state machine
         });
       } else if (err?.code === "mcp_step_up_required") {
+        // callMcpTool throws on mcp_step_up_required (HITL soft-resolves; step-up
+        // does not). Branch on step_up_method the same way the soft-success path
+        // above does — UC22 declares 'ciba' and must open out-of-band approval,
+        // not the MFA modal. MFA and CIBA both set session.stepUpVerified, so
+        // wrongly showing MFA lets a retry PERMIT without CIBA (bypass).
+        pendingOtpActionRef.current = { actionId, form };
+
+        if (err.step_up_method === "ciba") {
+          const cibaTab = window.open(
+            "",
+            "ciba-approve",
+            "popup=yes,width=440,height=720,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
+          );
+          try {
+            const apiBase = process.env.REACT_APP_API_URL || "";
+            const fromAccountId = err.fromAccountId || err.from_account_id;
+            const toAccountId = err.toAccountId || err.to_account_id;
+            const fromLabel = liveAccounts?.find((a) => a.id === fromAccountId)?.name;
+            const toLabel = liveAccounts?.find((a) => a.id === toAccountId)?.name;
+            const initRes = await fetch(`${apiBase}/api/auth/ciba/initiate`, {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                binding_message: "Approve your banking transaction",
+                acr_values: err.step_up_acr || "",
+                amount: err.transaction_amount ?? undefined,
+                from_account_label: fromLabel,
+                to_account_label: toLabel,
+              }),
+            });
+            if (!initRes.ok)
+              throw new Error(`CIBA initiation failed: ${initRes.status}`);
+            const { auth_req_id, interval } = await initRes.json();
+            if (cibaTab) {
+              cibaTab.location.href = `/ciba-approve?authReqId=${encodeURIComponent(auth_req_id)}`;
+            }
+            addMessage(
+              "assistant",
+              " Waiting for CIBA approval — this normally completes on a separate device. Click Approve to continue now, or it will continue automatically in a few seconds.",
+              `ciba-step-${Date.now()}`,
+              { showCibaApproveAction: true, cibaAuthReqId: auth_req_id },
+            );
+            toast.dismiss(toastId);
+            agentFlowDiagram.completeMfaChallenge(null);
+            setLoading(false);
+            pollCibaStepUp(auth_req_id, (interval || 5) * 1000, actionId, form);
+          } catch (cibaErr) {
+            console.error("[BankingAgent] CIBA initiation failed:", cibaErr);
+            if (cibaTab) cibaTab.close();
+            addMessage(
+              "assistant",
+              "❌ Could not start CIBA approval. Please try again.",
+              `ciba-error-${Date.now()}`,
+            );
+            toast.dismiss(toastId);
+            agentFlowDiagram.completeMfaChallenge(false);
+            setLoading(false);
+          }
+          return;
+        }
+
         // MCP Authorize gate: PingOne (or simulated) requires step-up MFA before tool access
         const contextLine =
           err.message ||
           "MCP tool access requires identity verification (PingOne Authorize policy)";
         setOtpContextLine(contextLine);
-        pendingOtpActionRef.current = { actionId, form };
-        // Attempt P1MFA challenge
-        try {
-          const apiBase = process.env.REACT_APP_API_URL || "";
-          const mfaResp = await fetch(`${apiBase}/api/auth/mfa/challenge`, {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-          });
-          if (mfaResp.ok) {
-            const { daId, devices } = await mfaResp.json();
-            setP1mfaDaId(daId);
-            setP1mfaDevices(devices || []);
-            setP1mfaMode(true);
+        // Attempt P1MFA challenge when method is p1mfa (or unspecified — prior default)
+        if (err.step_up_method === "p1mfa" || !err.step_up_method) {
+          try {
+            const apiBase = process.env.REACT_APP_API_URL || "";
+            const mfaResp = await fetch(`${apiBase}/api/auth/mfa/challenge`, {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+            });
+            if (mfaResp.ok) {
+              const { daId, devices } = await mfaResp.json();
+              setP1mfaDaId(daId);
+              setP1mfaDevices(devices || []);
+              setP1mfaMode(true);
+            }
+          } catch (mfaErr) {
+            console.warn(
+              "[MCP Authorize] P1MFA challenge failed, using basic OTP modal:",
+              mfaErr.message,
+            );
           }
-        } catch (mfaErr) {
-          console.warn(
-            "[MCP Authorize] P1MFA challenge failed, using basic OTP modal:",
-            mfaErr.message,
-          );
         }
         setShowOtpModal(true);
         addMessage(
