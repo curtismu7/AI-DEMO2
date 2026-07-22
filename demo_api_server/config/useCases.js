@@ -356,6 +356,13 @@ const RAW_USE_CASES = [
       mfa:   'Delivers the step-up challenge; the success receipt is presented back to the policy for re-evaluation.',
     },
     primaryTool: 'create_transfer',
+    // Declared step-up method: this demo IS the step-up case, so Authorize must
+    // return STEP_UP (device-list MFA) — not HITL. The live P1AZ MCP policy
+    // returns HITL for every amount, so without this declaration UC7 evaluated
+    // to HITL and the proof strip flagged an authorize-decision mismatch. Same
+    // mechanism as UC22's 'ciba', differing only by method. See
+    // mcpToolAuthorizationService._applyTransactionPolicy.
+    stepUpMethod: 'p1mfa',
     perVertical: AMOUNT_PER_VERTICAL(600, {
       healthcare: '$600 bill payment >= the step-up bar → MFA required first.',
       retail: '$600 checkout >= the step-up bar → MFA required first.',
