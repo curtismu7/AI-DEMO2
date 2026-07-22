@@ -1,49 +1,57 @@
 'use strict';
 
 const axios = require('axios');
+const crypto = require('crypto');
 
 /**
- * Pushed Authorization Request (RFC 9126) for PingOne
- * Handles pre-submission of authorization parameters and retrieval of request_uri
+ * Pushed Authorization Request (RFC 9126) for PingOne.
+ *
+ * Pre-submits authorization parameters to the /as/par endpoint and returns the
+ * request_uri. The AI Agent Actor client (see docs) is configured
+ * CLIENT_SECRET_POST + S256_REQUIRED + parRequirement OPTIONAL, so the push must
+ * send credentials in the body, a registered redirect_uri, and a PKCE
+ * code_challenge — HTTP basic or a missing challenge is rejected by PingOne.
  */
+
+function generatePkce() {
+  const verifier = crypto.randomBytes(32).toString('base64url');
+  const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
+  return { verifier, challenge };
+}
 
 async function pushAuthorizationRequest(parEndpoint, clientId, clientSecret, authPayload, signatureMode = 'default') {
   if (!parEndpoint || !clientId || !clientSecret) {
     throw new Error('PAR requires parEndpoint, clientId, and clientSecret');
   }
+  if (!authPayload.redirect_uri) {
+    throw new Error('PAR requires a registered redirect_uri');
+  }
+
+  const { verifier, challenge } = generatePkce();
 
   try {
     const parParams = {
       client_id: clientId,
+      client_secret: clientSecret,
       response_type: 'code',
       scope: authPayload.scope || 'openid profile email',
+      redirect_uri: authPayload.redirect_uri,
+      code_challenge: challenge,
+      code_challenge_method: 'S256',
     };
 
-    // Add authorization_details if provided (same as RAR but submitted to PAR)
+    // RFC 9396 authorization_details carried inside the pushed request (RAR over
+    // PAR). PingOne stores it against the request_uri; amount-cap enforcement is
+    // applied by the caller against the declared intent.
     if (authPayload.authorization_details) {
       parParams.authorization_details = JSON.stringify(authPayload.authorization_details);
-    }
-
-    // TODO: Support 3 PingOne signature modes
-    // - 'default': no signature required
-    // - 'require-signed': client must sign request with client_assertion_jwt
-    // - 'allow-unsigned': legacy, accept unsigned
-    if (signatureMode === 'require-signed') {
-      // Would need to generate client_assertion_jwt here
-      // For now: basic auth only
     }
 
     const response = await axios.post(
       parEndpoint,
       new URLSearchParams(parParams),
       {
-        auth: {
-          username: clientId,
-          password: clientSecret,
-        },
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         timeout: 5000,
       }
     );
@@ -55,7 +63,8 @@ async function pushAuthorizationRequest(parEndpoint, clientId, clientSecret, aut
 
     return {
       requestUri: request_uri,
-      expiresIn: expires_in || 600,
+      expiresIn: expires_in || 60,
+      codeVerifier: verifier,
       timestamp: Date.now(),
     };
   } catch (err) {
