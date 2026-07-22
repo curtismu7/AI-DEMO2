@@ -919,6 +919,21 @@ function parseHeuristic(
     };
   }
 
+  // weather-mcp showcase (cross-vertical) — real third-party MCP server fronted
+  // by the Agent Gateway, Texas-scoped at the edge (ping-gateway/scripts/groovy/
+  // tx-weather-scope.groovy). Runs before plugin heuristics like branch_hours
+  // above, since it isn't tied to any vertical's own data. Requires an actual
+  // "in <city>" clause — "the weather is nice today" (no location) is the
+  // idiomatic off-topic control phrase used across this suite's kind:'none'
+  // tests and must keep falling through, not be swallowed by a bare "weather".
+  const weatherCityMatch = t.match(/\bweather\b.*?\bin\s+(.+)$/i);
+  if (weatherCityMatch?.[1]) {
+    return {
+      kind: "banking",
+      banking: { action: "weather", params: { city_name: weatherCityMatch[1].trim() } },
+    };
+  }
+
   // Plugin-first: a vertical with a plugin matches its OWN heuristics/actions.
   // No banking fallback — a non-match returns kind:'none', never a banking action.
   if (verticalDispatch.hasPlugin(vertical)) {

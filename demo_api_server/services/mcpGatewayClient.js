@@ -71,6 +71,14 @@ const BANKINGDATA_TOOLS = new Set([
     'demo_show_transactions',
 ]);
 
+// weather-mcp showcase: PingGateway (IG) only — 00-mcp-weather.json fronts a
+// third-party weather MCP server, scoped to Texas by tx-weather-scope.groovy.
+// No Node mcp-gateway equivalent exists. Only applied when the gateway base
+// IS PingGateway (base === pgUrl below).
+const WEATHER_TOOLS = new Set([
+    'get_weather',
+]);
+
 /**
  * Call an MCP tool via the gateway HTTP endpoint.
  *
@@ -121,7 +129,9 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         }
     }
     const isIgBase = !!pgUrl && base === pgUrl;
-    const url  = isIgBase && APIKEY_TOOLS.has(tool) ? `${base}/mcp/apikey` : `${base}/mcp`;
+    const url  = isIgBase && APIKEY_TOOLS.has(tool) ? `${base}/mcp/apikey`
+               : isIgBase && WEATHER_TOOLS.has(tool) ? `${base}/mcp/weather`
+               : `${base}/mcp`;
 
     const body = {
         jsonrpc: '2.0',

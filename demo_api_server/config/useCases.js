@@ -476,6 +476,13 @@ const RAW_USE_CASES = [
       mfa:   "Delivers the CIBA challenge to the user's enrolled device (push notification / OTP).",
     },
     primaryTool: 'create_transfer',
+    // Explicit CIBA trigger — the durable, cross-vertical signal that instigates
+    // out-of-band approval, INDEPENDENT of amount (so it never collides with the
+    // amount-based MFA step-up). Authorize reads this declared method and routes
+    // the transaction through the SAME step-up path as MFA, differing only by
+    // step_up_method='ciba'. Declared once here; every vertical inherits it via
+    // the shared catalog + perVertical below.
+    stepUpMethod: 'ciba',
     perVertical: AMOUNT_PER_VERTICAL(600),
   },
 
@@ -708,9 +715,9 @@ const RAW_USE_CASES = [
     id: 'UC14',
     useCaseId: 'rar-intent-violation',
     track: 'attacks',
-    title: 'RAR intent violation',
-    buyerStory: "An agent that exceeds the amount or payee granted in its Rich Authorization Request must be denied.",
-    pingOneSolution: 'PingOne Authorize evaluates authorization_details; exceeding the granted amount or payee yields DENY.',
+    title: 'PAR intent violation (Pushed Auth Request)',
+    buyerStory: "An agent that exceeds the amount or payee granted via Pushed Authorization Request (RFC 9126) must be denied.",
+    pingOneSolution: 'PingOne Authorize evaluates the PAR-submitted authorization details; exceeding the granted amount or payee yields DENY.',
     trigger: { type: 'attack', sim: 'rar-exceeded' },
     expectedOutcome: 'DENY',
     evidence: { tokenChain: ['authorize-decision'], activity: ['authorize', 'mcp'] },
@@ -732,9 +739,9 @@ const RAW_USE_CASES = [
     id: 'UC14b',
     useCaseId: 'rar-intent-verified',
     track: 'learn',
-    title: 'RAR intent verified (PERMIT)',
-    buyerStory: 'A transfer that stays within its declared RFC 9396 authorization_details cap is verified and permitted — the legitimate counterpart to the RAR overage attack.',
-    pingOneSolution: 'RFC 9396 authorization_details bind the transfer to an amount cap; the MCP gateway and PingOne Authorize verify the requested transfer against it before permitting.',
+    title: 'PAR intent verified (PERMIT)',
+    buyerStory: 'A transfer that stays within its PAR (RFC 9126) request_uri authorization cap is verified and permitted — the legitimate counterpart to the PAR overage attack.',
+    pingOneSolution: 'RFC 9126 PAR authorization details bind the transfer to an amount cap; the MCP gateway and PingOne Authorize verify the requested transfer against it before permitting.',
     trigger: { type: 'link', path: '/intent-binding-learning#rar' },
     expectedOutcome: 'PERMIT',
     evidence: { tokenChain: ['sim-rar-armed', 'sim-rar-grant', 'intent-binding-verified'], activity: [] },
@@ -1273,6 +1280,21 @@ function isValidUseCaseId(id) {
 }
 
 /**
+ * The declared step-up method for a use case (by useCaseId slug), or null.
+ * This is the explicit, amount-independent trigger for a specific step-up
+ * modality (e.g. 'ciba' on UC22): Authorize reads it to route the transaction
+ * through the shared step-up path — no amount threshold, no hardcoded id string.
+ * Declared once in the catalog, so every vertical inherits it.
+ * @param {string|undefined} slug useCaseId slug (resolveActiveUseCaseId result)
+ * @returns {string|null} e.g. 'ciba' | 'p1mfa' | 'email' | null
+ */
+function getUseCaseStepUpMethod(slug) {
+  if (!slug || typeof slug !== 'string') return null;
+  const uc = USE_CASES.find((u) => u.useCaseId === slug);
+  return (uc && typeof uc.stepUpMethod === 'string') ? uc.stepUpMethod : null;
+}
+
+/**
  * Organic reverse-map: given a resolved tool name + args, return the useCaseId
  * of the matching catalog entry, or undefined. The catalog `match` field is the SoT.
  * Per-vertical match routing is a future extension (catalog `match` is banking-only today).
@@ -1309,4 +1331,4 @@ function resolveChipUseCaseId(clientId, toolName, args, vertical) {
   return deriveUseCaseId(toolName, args, vertical);
 }
 
-module.exports = { USE_CASES, VERTICALS, getUseCase, resolveUseCase, listUseCases, deriveUseCaseId, isValidUseCaseId, resolveChipUseCaseId };
+module.exports = { USE_CASES, VERTICALS, getUseCase, resolveUseCase, listUseCases, deriveUseCaseId, isValidUseCaseId, getUseCaseStepUpMethod, resolveChipUseCaseId };
