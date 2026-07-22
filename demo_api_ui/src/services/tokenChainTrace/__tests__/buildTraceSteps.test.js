@@ -7,14 +7,17 @@ const EMPTY_TRACE = {
 };
 
 describe("buildTraceSteps — empty trace", () => {
-  test("returns the 14 happy-path steps (intent-binding omitted mid-flight), all pending", () => {
+  test("returns the happy-path steps (intent-binding/stepup omitted mid-flight), all pending", () => {
     const steps = buildTraceSteps(EMPTY_TRACE);
     expect(steps.map((s) => s.id)).toEqual([
-      "signin", "prompt", "agent", "llm", "agent-token", "exchange", "jwks",
-      "authorize", "introspection", "gateway", "api-key-swap", "mcp", "api", "reply",
+      "signin", "refresh", "prompt", "agent", "llm", "agent-token", "exchange",
+      "dpop", "rar", "jwks", "authorize", "introspection", "mtls", "gateway",
+      "api-key-swap", "dual-token", "mcp", "api", "reply",
     ]);
     expect(steps.every((s) => s.status === "pending")).toBe(true);
-    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12,13,14]);
+    expect(steps.map((s) => s.num)).toEqual(
+      Array.from({ length: steps.length }, (_, i) => i + 1),
+    );
   });
 });
 
@@ -777,5 +780,162 @@ describe("buildTraceSteps — E2a gateway filter/rule teaching", () => {
     expect(gw.detail.kv.some(([k, v]) => k === "filter / stage" && v === "P1AZDecision")).toBe(true);
     expect(gw.detail.kv.some(([k]) => k === "rule / statement")).toBe(true);
     expect(gw.detail.altResponse.title).toMatch(/McpAuditFilter/i);
+  });
+});
+
+describe("buildTraceSteps — deep digs (refresh/dpop/rar/mtls/dual/UC/RS)", () => {
+  test("token-refresh lights refresh step", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [{ id: "token-refresh", status: "active", rfc: "RFC 6749 §6",
+        claims: { sub: "u1", scope: "openid" }, refreshedAt: "2026-07-22T12:00:00Z" }],
+    });
+    const refresh = steps.find((s) => s.id === "refresh");
+    expect(refresh.status).toBe("done");
+    expect(refresh.detail.why).toMatch(/silently refreshed/i);
+    expect(refresh.detail.rfcs).toContain("RFC 6749 §6");
+  });
+
+  test("dpop-binding and rar-authorization are first-class hops after exchange", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [
+        { id: "exchanged-token", status: "active", claims: { scope: "write", act: { sub: "a1" } } },
+        { id: "dpop-binding", status: "active", cnf: { jkt: "thumb-abc" }, rfc: "RFC 9449" },
+        { id: "rar-authorization", status: "active", authorization_details: [{ type: "transfer", amount: 100 }], rfc: "RFC 9396" },
+      ],
+    });
+    const ids = steps.map((s) => s.id);
+    expect(ids.indexOf("dpop")).toBeGreaterThan(ids.indexOf("exchange"));
+    expect(ids.indexOf("rar")).toBeGreaterThan(ids.indexOf("dpop"));
+    expect(steps.find((s) => s.id === "dpop").detail.kv.some(([k, v]) => k === "cnf.jkt" && v === "thumb-abc")).toBe(true);
+    expect(steps.find((s) => s.id === "rar").detail.request.text).toContain("transfer");
+  });
+
+  test("two-exchange shows hop #1 as altRequest/altResponse", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [
+        { id: "two-ex-exchange1", status: "active",
+          claims: { scope: "agent", act: { sub: "a1" } },
+          exchangeRequest: { grant_type: "urn:ietf:params:oauth:grant-type:token-exchange", scope: "agent" } },
+        { id: "two-ex-final-token", status: "active",
+          claims: { scope: "write", act: { sub: "a1", act: { sub: "upstream" } } },
+          exchangeRequest: { grant_type: "urn:ietf:params:oauth:grant-type:token-exchange", scope: "write" } },
+      ],
+    });
+    const ex = steps.find((s) => s.id === "exchange");
+    expect(ex.status).toBe("done");
+    expect(ex.detail.why).toMatch(/Two-exchange/i);
+    expect(ex.detail.altRequest.text).toContain("agent");
+    expect(ex.detail.altResponse.text).toContain("act");
+    expect(ex.detail.kv.some(([k, v]) => k === "mode" && v === "2-exchange")).toBe(true);
+  });
+
+  test("HITL phase enriches stepup with challenge why/kv", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      phases: [
+        { phase: "authorize_denied_hitl", label: "HITL required", challenge_type: "consent" },
+        { phase: "gateway_hitl_required", label: "Gateway HITL" },
+      ],
+      mcpResult: {
+        result: { error: "hitl_required", challengeId: "chal-9", hitl_threshold_usd: 250, hitl: { type: "consent" } },
+      },
+    });
+    const su = steps.find((s) => s.id === "stepup");
+    expect(su.status).toBe("active");
+    expect(su.detail.why).toMatch(/Human-in-the-loop/i);
+    expect(su.detail.kv.some(([k, v]) => k === "challenge id" && v === "chal-9")).toBe(true);
+    expect(su.detail.request.text).toContain("chal-9");
+  });
+
+  test("gw-mtls is its own step; dual_token path lights dual-token", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [
+        { id: "gw-mtls", status: "active", subject: "banking-mcp-gateway", mtlsEnabled: true,
+          label: "mTLS verified", explanation: "Gateway → MCP mTLS verified." },
+        { id: "evt-idtoken-fetch", credentialPath: "dual_token", status: "ok",
+          label: "id_token fetched from BFF" },
+        { id: "gw-passthrough", credentialPath: "dual_token", status: "ok",
+          label: "TX token forwarded unchanged" },
+      ],
+      mcpResult: { _meta: { credentialPath: "dual_token", backendRoute: "/api/resource-server/identity",
+        idTokenAttached: true, accessTokenAttached: true }, result: { ok: true } },
+    });
+    const mtls = steps.find((s) => s.id === "mtls");
+    const dual = steps.find((s) => s.id === "dual-token");
+    expect(mtls.status).toBe("done");
+    expect(mtls.detail.kv.some(([k]) => k === "cert subject")).toBe(true);
+    expect(dual.status).toBe("done");
+    expect(dual.detail.why).toMatch(/Dual-token/i);
+  });
+
+  test("api prefers _meta.resourceRequest over tool-arg teaching", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      mcpResult: {
+        tool: "show_invest",
+        requestJson: { params: { name: "show_invest" } },
+        result: { portfolio: 1 },
+        _meta: {
+          credentialPath: "api_key",
+          apiCall: "GET /invest",
+          resourceRequest: { method: "GET", path: "/invest", headers: { "X-API-Key": "••••0000" } },
+        },
+      },
+      tokenEvents: [
+        { id: "evt-swap", credentialPath: "api_key", status: "ok", label: "swap" },
+        { id: "evt-backend", credentialPath: "api_key", status: "ok", label: "outbound" },
+      ],
+    });
+    const api = steps.find((s) => s.id === "api");
+    expect(api.status).toBe("done");
+    expect(api.detail.request.title).toMatch(/HTTP/);
+    expect(api.detail.request.text).toContain("/invest");
+    expect(api.detail.why).toMatch(/Resource server HTTP/i);
+  });
+
+  test("useCaseId appends UC_WHY tip onto authorize why", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      authorize: {
+        decision: "DENY", engine: "real", decisionId: "d1",
+        request: { parameters: { ToolName: "x" } },
+        response: { decision: "DENY" },
+      },
+      phases: [{ phase: "authorize_denied" }],
+      tokenEvents: [{ id: "authorize-decision", useCaseId: "authz-denied", authorizeDecision: "DENY" }],
+      outcome: "error",
+    });
+    const az = steps.find((s) => s.id === "authorize");
+    expect(az.detail.why).toMatch(/\[authz-denied\]/);
+    expect(az.detail.why).toMatch(/Expect PingOne Authorize DENY/);
+  });
+
+  test("gateway shows full filterChain on success as altResponse", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [{
+        id: "gw-authorize", status: "permit", decision: "PERMIT",
+        lastFilter: "BackendExchange",
+        filterChain: [
+          { filter: "TokenIntrospection", result: "passed" },
+          { filter: "GatewayTokenPolicy", result: "passed" },
+          { filter: "P1AZDecision", result: "forwarded", decision: "PERMIT" },
+          { filter: "mTLS", result: "skipped" },
+          { filter: "BackendExchange", result: "forwarded" },
+        ],
+        parameters: { ToolName: "get_my_accounts" },
+        rawResponse: { decision: "PERMIT" },
+      }],
+    });
+    const gw = steps.find((s) => s.id === "gateway");
+    expect(gw.status).toBe("done");
+    expect(gw.detail.why).toMatch(/BackendExchange/);
+    expect(gw.detail.altResponse.title).toMatch(/Filter chain/i);
+    expect(gw.detail.altResponse.text).toContain("TokenIntrospection");
+    expect(gw.detail.kv.some(([k, v]) => k === "filter chain hops" && v === "5")).toBe(true);
   });
 });

@@ -116,14 +116,19 @@ describe('C2 — a PERMIT carries its provenance, not just a DENY', () => {
     expect(auditTrail().filterChain.some((s: any) => s.filter === 'P1AZDecision' && s.result === 'blocked')).toBe(true);
   });
 
-  it('stamps lastFilter=P1AZDecision on PERMIT forward', async () => {
+  it('stamps lastFilter=BackendExchange on PERMIT forward after exchange', async () => {
     const { auditTrail, forwarded } = await runWith(async () => ({
       decision: 'PERMIT',
       policySource: 'p1az',
     }));
     expect(forwarded).toHaveLength(1);
-    expect(auditTrail().lastFilter).toBe('P1AZDecision');
+    expect(auditTrail().lastFilter).toBe('BackendExchange');
     expect(auditTrail().denyingFilter).toBeUndefined();
+    expect(auditTrail().filterChain).toEqual(expect.arrayContaining([
+      expect.objectContaining({ filter: 'TokenIntrospection', result: 'passed' }),
+      expect.objectContaining({ filter: 'P1AZDecision', result: 'forwarded' }),
+      expect.objectContaining({ filter: 'BackendExchange', result: 'forwarded' }),
+    ]));
   });
 });
 

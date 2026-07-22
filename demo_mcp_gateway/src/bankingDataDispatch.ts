@@ -97,6 +97,12 @@ export async function buildBankingDataToolResult(
       _meta: {
         credentialPath: 'oauth_bearer',
         backendRoute: base ? url.replace(base, '') : url,
+        resourceRequest: {
+          method: 'GET',
+          url,
+          headers: { Authorization: 'Bearer [redacted]' },
+          note: 'Banking-data path — inbound TX bearer forwarded unchanged (no re-exchange).',
+        },
       },
     },
   };

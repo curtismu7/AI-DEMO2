@@ -702,8 +702,10 @@ def auditTrail = [
     ],
     mcpAudit: mcpAudit,
     filterChain: [
+        [filter: 'McpValidationFilter', result: 'passed'],
         [filter: 'McpAuditFilter', result: 'passed'],
         [filter: 'McpProtectionFilter', result: 'passed'],
+        [filter: 'TokenIntrospection', result: (introspectionData?.active == true ? 'passed' : (introspectionData != null ? 'blocked' : 'skipped'))],
         [filter: 'P1AZDecision', result: (outcome == 'PERMIT' ? 'forwarded' : 'blocked'), decision: outcome],
     ],
     denyingFilter: (outcome == 'PERMIT' ? null : 'P1AZDecision'),

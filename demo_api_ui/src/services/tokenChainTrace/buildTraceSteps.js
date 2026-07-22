@@ -2,20 +2,18 @@
 // TokenChainTraceRail. No I/O, no store access — unit-testable in isolation.
 
 export const LANES = {
-  signin: "PINGONE", prompt: "CHAT", agent: "AGENT", llm: "LLM",
-  "agent-token": "BFF", exchange: "BFF", jwks: "PINGONE",
+  signin: "PINGONE", refresh: "PINGONE", prompt: "CHAT", agent: "AGENT", llm: "LLM",
+  "agent-token": "BFF", exchange: "BFF", dpop: "PINGONE", rar: "AUTHZ", jwks: "PINGONE",
   authorize: "AUTHZ", stepup: "AUTHZ",
   "intent-binding": "AUTHZ",
-  introspection: "PINGONE",
-  gateway: "GATEWAY", "api-key-swap": "GATEWAY", mcp: "MCP", api: "API", reply: "LLM",
+  introspection: "PINGONE", mtls: "GATEWAY",
+  gateway: "GATEWAY", "api-key-swap": "GATEWAY", "dual-token": "GATEWAY",
+  mcp: "MCP", api: "API", reply: "LLM",
 };
 
-// The delegation-to-MCP portion of the pipeline, in order. Not derivable from
-// LANES (exchange shares the BFF lane with agent-token), so declared explicitly
-// here alongside the rest of the step-model vocabulary — the MCP tab and the
-// rail's MCP-step badge both consume it, so a step-id rename stays a one-file fix.
 export const MCP_STEP_IDS = [
-  "exchange", "jwks", "introspection", "gateway", "api-key-swap", "mcp", "api",
+  "exchange", "dpop", "rar", "jwks", "introspection", "mtls",
+  "gateway", "api-key-swap", "dual-token", "mcp", "api",
 ];
 
 /** Event ids that carry RFC 7515/7517 JWKS (or introspection-fallback) verify results. */
@@ -28,52 +26,78 @@ export const JWKS_VERIFIED_IDS = [
   "two-ex-final-token-verified",
 ];
 
+/** Per-use-case L1 why tips (keyed by stampUseCaseId / attack sim slug). */
+export const UC_WHY = {
+  "insufficient-scope": "Expect gateway DENY for missing delegated scopes.",
+  "confused-deputy-actor-injection": "Expect DENY — forged act / wrong actor must not pass.",
+  "authz-denied": "Expect PingOne Authorize DENY for this tool/user pairing.",
+  "step-up-required": "Expect INDETERMINATE / step-up before the tool proceeds.",
+  "hitl-consent": "Expect human consent (HITL) before the money movement.",
+  "ciba-out-of-band-approval": "Expect CIBA out-of-band approval before proceeding.",
+  "rar-intent-violation": "Expect DENY — requested amount exceeds RAR authorization_details.",
+  "rar-intent-verified": "Expect PERMIT — amount within attested RAR cap.",
+  "intent-token-tampering": "Expect DENY — tampered intent token signature.",
+  "token-theft-replay": "Expect DENY / fail — stolen bearer without DPoP key is useless.",
+  "bad-client-gateway": "Expect gateway reject for wrong audience / client.",
+  "overscoped-agent": "Teaching: agent token scopes are narrowed at exchange.",
+  "a2a-delegation": "Teaching: agent-to-agent nested act chain (two-exchange).",
+  "delegated-access-with-proof": "Happy-path teaching: full delegated MCP call with proof.",
+};
+
 const TITLES = {
   signin: "Sign-in — User Token acquired",
+  refresh: "Silent token refresh — RFC 6749 §6",
   prompt: "Chatbot — prompt sent",
   agent: "Agent service receives request",
   llm: "LLM — reasoning & tool choice",
   "agent-token": "Agent identity token",
   exchange: "Token exchange — delegation",
+  dpop: "DPoP — sender-constrained token",
+  rar: "RAR — rich authorization details",
   jwks: "JWKS — signature verification",
   authorize: "PingOne Authorize — policy decision",
   stepup: "Step-up required — HITL / MFA",
   "intent-binding": "Intent Binding Check",
   introspection: "Token introspection — RFC 7662",
+  mtls: "mTLS — gateway ↔ MCP",
   gateway: "Agent Gateway — token validated",
   "api-key-swap": "API-key path — credential swap",
+  "dual-token": "Dual-token path — access + ID token",
   mcp: "MCP server — tool executes",
   api: "Resource server — API call",
   reply: "LLM composes reply → chat",
 };
 
-// What each hop does — always shown when a step is expanded, even before its
-// live evidence arrives, so no step ever opens to a blank body. The live
-// request / response / claims are layered on top by buildTraceSteps whenever
-// the matching trace evidence exists.
 const NARRATIVES = {
   signin: "User authenticated via OIDC Authorization Code + PKCE. The BFF holds the User Token server-side — it never reaches the browser.",
+  refresh: "When the access token nears expiry, the BFF silently uses the refresh token (RFC 6749 §6) so the demo continues without a re-login. Tokens still never reach the browser.",
   prompt: "The browser sends only the message — no tokens; the session cookie identifies the user to the BFF.",
   agent: "BFF forwards to the agent. The agent loads conversation history and the gateway tool catalog (with required scopes), then prepares the LLM call.",
   llm: "The agent sends the conversation to the LLM. The model returns a tool call — it never sees or holds any OAuth token.",
   "agent-token": "BFF obtains a client-credentials token — the agent's own identity, separate from the user's.",
-  exchange: "BFF exchanges subject (user) + actor (agent) for one delegated token: proof the agent acts FOR this user. Scope narrows to what the tool needs; audience binds to the gateway.",
+  exchange: "BFF exchanges subject (user) + actor (agent) for one delegated token: proof the agent acts FOR this user. Scope narrows to what the tool needs; audience binds to the gateway. Two-exchange mode nests act claims across two hops.",
+  dpop: "RFC 9449: the delegated token is bound to a per-session key (cnf.jkt). Each hop carries a signed DPoP proof — a stolen bearer alone cannot call the API.",
+  rar: "RFC 9396: authorization_details bind the agent to THIS action (amount, payee, tool) — not a broad standing scope.",
   jwks: "After tokens are issued, the BFF verifies JWT signatures against PingOne's published JWKS (/.well-known/jwks.json). Introspection is used only when JWKS is unavailable.",
   authorize: "Before any tool runs, the BFF asks PingOne Authorize whether THIS user + agent may perform THIS action.",
   stepup: "The policy demanded step-up: the human must approve (HITL/CIBA/MFA) before the tool call proceeds.",
   "intent-binding": "Verifies the requested transfer against the declared RFC 9396 authorization_details cap.",
   introspection: "PingOne (or the gateway) answers whether the token is still active — revocation and expiry that JWKS alone cannot see. Covers BFF session checks and gateway RFC 7662 introspection.",
+  mtls: "Optional mutual TLS between the Agent Gateway and the MCP server — client certificate identity on the wire, independent of the OAuth bearer.",
   gateway: "Ping Agent Gateway checks the delegated token before anything reaches the MCP server: audience binding, scope, and the delegation chain (after introspection).",
   "api-key-swap": "Path A (api_key): the gateway drops the OAuth bearer and attaches a service API key (X-API-Key + X-User-Sub). The user's bearer never reaches the downstream service.",
+  "dual-token": "Path B (dual_token): gateway validates the access token and also presents/fetches an ID token segment for identity teaching (profile card / access+id path).",
   mcp: "Gateway forwards the JSON-RPC call; the MCP server re-validates the token, resolves the user from sub, and invokes the banking API with the delegated identity.",
   api: "The actual resource-server call made with the delegated bearer token.",
   reply: "The tool result goes back to the LLM, which writes the reply the user sees in the chat.",
 };
 
-// Static RFC references per hop — teaching content, shown regardless of evidence.
 const STEP_RFCS = {
   signin: ["RFC 6749", "RFC 7636"],
+  refresh: ["RFC 6749 §6"],
   exchange: ["RFC 8693", "RFC 8707"],
+  dpop: ["RFC 9449"],
+  rar: ["RFC 9396"],
   jwks: ["RFC 7515", "RFC 7517"],
   introspection: ["RFC 7662"],
 };
@@ -89,6 +113,23 @@ const hasPhase = (phases, name) => phases.some((p) => p && p.phase === name);
 const findPhase = (phases, name) => phases.find((p) => p && p.phase === name) || null;
 const claimsBlock = (title, claims) =>
   claims && Object.keys(claims).length ? { title, text: asJson(claims) } : undefined;
+
+/** First stamped use-case id on the run (attack sims / demo chips). */
+function firstUseCaseId(tokenEvents) {
+  const hit = (tokenEvents || []).find((e) => e && e.useCaseId);
+  return hit?.useCaseId || null;
+}
+
+/** Append UC-specific teaching tip onto detail.why when known. */
+function withUcWhy(detail, ucId) {
+  if (!detail || !ucId || !UC_WHY[ucId]) return detail;
+  const tip = UC_WHY[ucId];
+  const prefix = `[${ucId}] ${tip}`;
+  return {
+    ...detail,
+    why: detail.why ? `${detail.why} ${prefix}` : prefix,
+  };
+}
 
 function makeStep(id, status, detail) {
   const base = { narrative: NARRATIVES[id] };
@@ -197,6 +238,22 @@ export function buildTraceSteps(trace) {
     tokenEvent: userTok || loginIntro || sessionIntroForSignin,
   } : {}));
 
+  // 1b. refresh — silent RFC 6749 §6 access-token refresh (optional hop)
+  const refreshEv = findEvent(tokenEvents, "token-refresh");
+  steps.push(makeStep("refresh",
+    refreshEv ? "done" : traceComplete ? "notinpath" : "pending",
+    refreshEv ? {
+      why: "Access token was silently refreshed this request — session continued without re-login.",
+      kv: [
+        refreshEv.rfc ? ["rfc", String(refreshEv.rfc)] : ["rfc", "RFC 6749 §6"],
+        refreshEv.refreshedAt ? ["refreshed at", String(refreshEv.refreshedAt)] : null,
+      ].filter(Boolean),
+      response: claimsBlock("Refreshed access token claims", refreshEv.claims),
+      tokenEvent: refreshEv,
+    } : traceComplete ? {
+      narrative: "No silent refresh on this run — the existing access token was still valid.",
+    } : {}));
+
   // 2. prompt
   steps.push(makeStep("prompt", prompt ? "done" : "pending", prompt ? {
     request: { title: "Request (actual)",
@@ -258,11 +315,17 @@ export function buildTraceSteps(trace) {
   const beforeScopes = splitScopes((userTok && userTok.claims && userTok.claims.scope) || []);
   const afterScopes = splitScopes((exTok && exTok.claims && exTok.claims.scope) || []);
   const exchangeWhy = exDone
-    ? (afterScopes.length
-      ? `This run issued a delegated token with scope “${afterScopes.join(" ")}”`
-        + (exTok.audActual != null ? ` and audience ${asJson(exTok.audActual)}` : "")
-        + (exTok.claims?.act ? "; the act claim proves the agent acts for this user." : ".")
-      : `This run completed token exchange (${exTok.exchangeMethod || "RFC 8693"}).`)
+    ? (ex1Tok
+      ? `Two-exchange path: hop #1 issued an intermediate token`
+        + (ex1Tok.claims?.scope ? ` (scope “${ex1Tok.claims.scope}”)` : "")
+        + `; final hop issued the MCP token`
+        + (afterScopes.length ? ` with scope “${afterScopes.join(" ")}”` : "")
+        + (exTok.claims?.act ? "; nested act proves the delegation chain." : ".")
+      : (afterScopes.length
+        ? `This run issued a delegated token with scope “${afterScopes.join(" ")}”`
+          + (exTok.audActual != null ? ` and audience ${asJson(exTok.audActual)}` : "")
+          + (exTok.claims?.act ? "; the act claim proves the agent acts for this user." : ".")
+        : `This run completed token exchange (${exTok.exchangeMethod || "RFC 8693"}).`))
     : exFailed
       ? `Token exchange failed — without a delegated token the MCP hop cannot run.`
       : undefined;
@@ -271,14 +334,21 @@ export function buildTraceSteps(trace) {
     exDone || exFailed ? {
       why: exchangeWhy,
       request: exTok?.exchangeRequest
-        ? { title: "Exchange request (actual)", text: asJson(exTok.exchangeRequest) }
+        ? { title: ex1Tok ? "Exchange #2 request (final)" : "Exchange request (actual)", text: asJson(exTok.exchangeRequest) }
         : undefined,
       response: exTok
-        ? { title: "Delegated token claims", text: asJson(exTok.claims || {}) }
+        ? { title: ex1Tok ? "Final delegated token claims (nested act)" : "Delegated token claims", text: asJson(exTok.claims || {}) }
+        : undefined,
+      altRequest: ex1Tok?.exchangeRequest
+        ? { title: "Exchange #1 request (intermediate)", text: asJson(ex1Tok.exchangeRequest) }
+        : undefined,
+      altResponse: ex1Tok?.claims
+        ? { title: "Exchange #1 intermediate claims", text: asJson(ex1Tok.claims) }
         : undefined,
       scopeDiff: exDone && (beforeScopes.length || afterScopes.length)
         ? { before: beforeScopes, after: afterScopes } : undefined,
       kv: exTok ? [
+        ex1Tok ? ["mode", "2-exchange"] : ["mode", "1-exchange"],
         exTok.claims && exTok.claims.act ? ["act chain", asJson(exTok.claims.act)] : null,
         exTok.exchangeMethod ? ["exchange method", String(exTok.exchangeMethod)] : null,
         exTok.audExpected != null
@@ -291,7 +361,37 @@ export function buildTraceSteps(trace) {
       tokenEvent: exTok || undefined,
     } : {}));
 
-  // 6b. jwks — signature verification events emitted after agent/exchanged tokens
+  // 6a. dpop — RFC 9449 sender-constrained binding
+  const dpopEv = findEvent(tokenEvents, "dpop-binding");
+  steps.push(makeStep("dpop",
+    dpopEv ? (dpopEv.status === "failed" ? "error" : "done") : traceComplete ? "notinpath" : "pending",
+    dpopEv ? {
+      why: dpopEv.explanation || "Delegated token bound to session DPoP key (cnf.jkt).",
+      kv: [
+        dpopEv.cnf?.jkt || dpopEv.claims?.cnf?.jkt
+          ? ["cnf.jkt", String(dpopEv.cnf?.jkt || dpopEv.claims?.cnf?.jkt)]
+          : null,
+        dpopEv.rfc ? ["rfc", String(dpopEv.rfc)] : ["rfc", "RFC 9449"],
+      ].filter(Boolean),
+      response: { title: "DPoP binding", text: asJson({ cnf: dpopEv.cnf || dpopEv.claims?.cnf, rfc: dpopEv.rfc }) },
+      tokenEvent: dpopEv,
+    } : {}));
+
+  // 6b. rar — RFC 9396 authorization_details (attest before intent-binding check)
+  const rarEv = findEvent(tokenEvents, "rar-authorization");
+  steps.push(makeStep("rar",
+    rarEv ? (rarEv.status === "failed" ? "error" : "done") : traceComplete ? "notinpath" : "pending",
+    rarEv ? {
+      why: rarEv.explanation || "authorization_details bound this tool call to a specific intent.",
+      kv: [["rfc", String(rarEv.rfc || "RFC 9396")]],
+      request: {
+        title: "authorization_details (attested)",
+        text: asJson(rarEv.authorization_details || rarEv.claims?.authorization_details || rarEv),
+      },
+      tokenEvent: rarEv,
+    } : {}));
+
+  // 6c. jwks — signature verification events emitted after agent/exchanged tokens
   const jwksEvents = (tokenEvents || []).filter((e) => e && JWKS_VERIFIED_IDS.includes(e.id));
   const jwksFailed = jwksEvents.some((e) => e.verified === false || e.status === "failed");
   const jwksDone = jwksEvents.length > 0 && jwksEvents.every((e) => e.status !== "waiting");
@@ -506,17 +606,58 @@ export function buildTraceSteps(trace) {
       moreDetail: { href: "/pingone-authorize", label: "Show more detail" },
     } : {}));
 
-  // 7a. step-up (conditional) — omitted mid-flight so it doesn't sit "pending"
-  // for runs that will never need it; once the trace completes without a
-  // challenge, show it as notinpath rather than silently disappearing.
-  const stepUpStarted = hasPhase(phases, "mfa_challenge_initiated");
+  // 7a. step-up / HITL / CIBA (conditional) — omitted mid-flight so it doesn't
+  // sit "pending" for runs that will never need it; once the trace completes
+  // without a challenge, show it as notinpath rather than silently disappearing.
+  const hitlPhases = (phases || []).filter((p) => p && p.phase && (
+    String(p.phase).startsWith("mfa_challenge")
+    || p.phase === "authorize_denied_hitl"
+    || p.phase === "gateway_hitl_required"
+    || p.phase === "mcp_result_hitl_required"
+  ));
+  const stepUpStarted = hasPhase(phases, "mfa_challenge_initiated") || hitlPhases.length > 0;
   const stepUpDone = hasPhase(phases, "mfa_challenge_completed");
   const stepUpFailed = hasPhase(phases, "mfa_challenge_failed");
-  if (stepUpStarted || stepUpDone || stepUpFailed) {
+  const hitlBody = mcpResult?.result?.error === "hitl_required" || mcpResult?.result?.error === "step_up_required"
+    || mcpResult?.error === "hitl_required" || mcpResult?.error === "step_up_required"
+    || mcpResult?.result?.hitl
+    ? (mcpResult.result || mcpResult)
+    : null;
+  const challengeType = hitlBody?.challenge_type
+    || hitlBody?.hitl?.type
+    || hitlBody?.step_up_method
+    || findPhase(phases, "authorize_denied_hitl")?.challenge_type
+    || null;
+  if (stepUpStarted || stepUpDone || stepUpFailed || hitlBody) {
+    const stepupWhy = stepUpFailed
+      ? "Step-up / HITL challenge failed — the tool call did not resume."
+      : stepUpDone
+        ? "Human approved the step-up / HITL challenge; the tool call may resume with the challenge id."
+        : challengeType === "ciba" || challengeType === "step_up"
+          ? `Out-of-band / step-up required (${challengeType}) — waiting for human approval before the tool proceeds.`
+          : "Human-in-the-loop consent required — approve in the dashboard, then retry with `_hitl_challenge_id`.";
     steps.push(makeStep("stepup",
       stepUpFailed ? "error" : stepUpDone ? "done" : "active", {
-        kv: phases.filter((p) => p.phase && p.phase.startsWith("mfa_challenge"))
-          .map((p) => [p.phase, p.label || ""]),
+        why: stepupWhy,
+        kv: [
+          ...hitlPhases.map((p) => [p.phase, p.label || p.challenge_type || ""]),
+          challengeType ? ["challenge type", String(challengeType)] : null,
+          (hitlBody?.challengeId || hitlBody?.challenge_id)
+            ? ["challenge id", String(hitlBody.challengeId || hitlBody.challenge_id)]
+            : null,
+          hitlBody?.auth_req_id ? ["CIBA auth_req_id", String(hitlBody.auth_req_id)] : null,
+          hitlBody?.step_up_acr ? ["ACR", String(hitlBody.step_up_acr)] : null,
+          hitlBody?.step_up_method ? ["method", String(hitlBody.step_up_method)] : null,
+          hitlBody?.hitl_threshold_usd != null
+            ? ["HITL threshold", `$${hitlBody.hitl_threshold_usd}`]
+            : null,
+        ].filter(Boolean),
+        request: hitlBody
+          ? { title: "HITL / step-up challenge", text: asJson(hitlBody) }
+          : undefined,
+        response: stepUpDone
+          ? { title: "Challenge completed", text: asJson({ status: "approved", note: "Retry carries _hitl_challenge_id" }) }
+          : undefined,
       }));
   } else if (traceComplete) {
     steps.push(makeStep("stepup", "notinpath", {
@@ -609,9 +750,35 @@ export function buildTraceSteps(trace) {
         || "Gateway introspection was skipped (endpoint not configured) — not required on this run.",
     } : {}));
 
-  // 9. gateway — audience / scope / authorize at the edge (introspection is its own step)
-  const gwAz = findEvent(tokenEvents, "gw-authorize");
+  // 8c. mtls — first-class hop (out of gateway kv)
   const gwMtls = findEvent(tokenEvents, "gw-mtls");
+  steps.push(makeStep("mtls",
+    gwMtls && gwMtls.status !== "skipped"
+      ? (gwMtls.status === "failed" || gwMtls.status === "deny" ? "error" : "done")
+      : gwMtls && gwMtls.status === "skipped"
+        ? (traceComplete ? "notinpath" : "pending")
+        : traceComplete ? "notinpath" : "pending",
+    gwMtls && gwMtls.status !== "skipped" ? {
+      why: gwMtls.explanation
+        || `mTLS verified between gateway and MCP`
+          + (gwMtls.subject || gwMtls.mtlsSubject ? ` (subject ${gwMtls.subject || gwMtls.mtlsSubject})` : ".")
+          + (gwMtls.subject || gwMtls.mtlsSubject ? "." : ""),
+      kv: [
+        ["mTLS", gwMtls.label || String(gwMtls.status)],
+        (gwMtls.subject || gwMtls.mtlsSubject)
+          ? ["cert subject", String(gwMtls.subject || gwMtls.mtlsSubject)]
+          : null,
+        gwMtls.mtlsEnabled != null ? ["enabled", String(gwMtls.mtlsEnabled)] : null,
+      ].filter(Boolean),
+      response: { title: "mTLS evidence", text: asJson(gwMtls) },
+      tokenEvent: gwMtls,
+    } : gwMtls && gwMtls.status === "skipped" ? {
+      narrative: gwMtls.explanation
+        || "mTLS not enforced between gateway and MCP (MCP_MTLS_ENABLED=false).",
+    } : {}));
+
+  // 9. gateway — audience / scope / authorize at the edge (introspection + mTLS are own steps)
+  const gwAz = findEvent(tokenEvents, "gw-authorize");
   const gwInbound = findEvent(tokenEvents, "evt-inbound");
   const gwScope = findEvent(tokenEvents, "evt-scope");
   const gwMcpAudit = findEvent(tokenEvents, "gw-mcp-audit");
@@ -625,9 +792,8 @@ export function buildTraceSteps(trace) {
       && e.error !== "rar_amount_exceeded" && e.error !== "rar_unexpected_deny",
   );
   const gwDenied = !!gwDeniedPhase || !!simGwDeny;
-  const gwSeen = !!(gwAz || gwInbound || gwScope || gwMcpAudit
-    || (gwMtls && gwMtls.status !== "skipped"));
-  const gwSkipEvidence = [gwMtls].filter((e) => e && e.status === "skipped");
+  const gwSeen = !!(gwAz || gwInbound || gwScope || gwMcpAudit);
+  const gwSkipEvidence = [];
   const gwStatementCodes = Array.isArray(gwAz?.statements)
     ? gwAz.statements.map((s) => (s && (s.code || s.id || s.name || s.effect)) || null).filter(Boolean)
     : [];
@@ -701,7 +867,7 @@ export function buildTraceSteps(trace) {
           ? ["error code", String(gwDeniedPhase?.gatewayErrorCode || simGwDeny?.error)]
           : null,
         gwPolicy != null ? ["policy", gwPolicy.passed === false ? "failed" : (gwPolicy.passed ? "passed" : asJson(gwPolicy))] : null,
-        gwMtls && gwMtls.status !== "skipped" ? ["mTLS", gwMtls.label || String(gwMtls.status)] : null,
+        filterChain ? ["filter chain hops", String(filterChain.length)] : null,
         gwInbound ? ["inbound", gwInbound.label || "user bearer received"] : null,
         gwScope ? ["scope gate", gwScope.label || "scope checked before swap"] : null,
         simGwDeny ? ["attack sim", simGwDeny.explanation || simGwDeny.label] : null,
@@ -766,6 +932,42 @@ export function buildTraceSteps(trace) {
       narrative: "This run used the delegated OAuth bearer path — no API-key credential swap occurred.",
     } : {}));
 
+  // 8d. dual-token — Path B (access + id_token teaching)
+  const evtIdToken = findEvent(tokenEvents, "evt-idtoken-fetch");
+  const evtPassthrough = findEvent(tokenEvents, "gw-passthrough");
+  const dualPath =
+    apiMetaEarly.credentialPath === "dual_token"
+    || !!(evtIdToken || evtPassthrough)
+    || tokenEvents.some((e) => e && e.credentialPath === "dual_token");
+  const dualDone = dualPath && (
+    apiMetaEarly.credentialPath === "dual_token" || evtIdToken || evtPassthrough
+  );
+  steps.push(makeStep("dual-token",
+    authorizeFailed ? "notinpath" : dualDone ? "done" : traceComplete ? "notinpath" : "pending",
+    dualPath ? {
+      why: "Dual-token path: gateway forwarded the access bearer and attached the OIDC id_token for identity teaching.",
+      kv: [
+        evtIdToken ? ["id_token", evtIdToken.label || "fetched from BFF"] : null,
+        evtPassthrough ? ["passthrough", evtPassthrough.label || "TX bearer unchanged"] : null,
+        apiMetaEarly.backendRoute ? ["backend", String(apiMetaEarly.backendRoute)] : null,
+        apiMetaEarly.idTokenAttached != null ? ["id_token attached", String(apiMetaEarly.idTokenAttached)] : null,
+        apiMetaEarly.accessTokenAttached != null ? ["access attached", String(apiMetaEarly.accessTokenAttached)] : null,
+      ].filter(Boolean),
+      response: {
+        title: "Dual-token disposition",
+        text: asJson({
+          credentialPath: "dual_token",
+          events: [findEvent(tokenEvents, "evt-inbound"), evtIdToken, evtPassthrough].filter(Boolean),
+          meta: {
+            backendRoute: apiMetaEarly.backendRoute,
+            note: apiMetaEarly.note,
+          },
+        }),
+      },
+    } : !dualDone && traceComplete ? {
+      narrative: "This run did not use the dual-token (access + id_token) credential path.",
+    } : {}));
+
   // 10. mcp + 11. api — a gateway denial means the call never reached the MCP
   // server; surface that as an error instead of leaving the step stuck "active".
   // Phase D: deny paths still show attempted JSON-RPC + error body when present.
@@ -827,6 +1029,12 @@ export function buildTraceSteps(trace) {
       ? mcpResult.requestJson.params
       : null);
   const rsRequest = (() => {
+    if (apiMeta.resourceRequest) {
+      return {
+        title: "Resource server HTTP (actual)",
+        text: asJson(apiMeta.resourceRequest),
+      };
+    }
     if (apiKeyCall && apiMeta.apiCall) {
       return { title: "Resource server call (api-key path)", text: String(apiMeta.apiCall) };
     }
@@ -856,6 +1064,9 @@ export function buildTraceSteps(trace) {
           + (rsReply.durationMs != null ? ` in ${rsReply.durationMs} ms` : "")
           + (rsReply.routedVia ? ` via ${rsReply.routedVia}` : "")
           + "."
+        : apiMeta.resourceRequest
+          ? `Resource server HTTP ${apiMeta.resourceRequest.method || ""} ${apiMeta.resourceRequest.url || apiMeta.resourceRequest.path || ""}`.trim()
+            + " under the credential path for this run."
         : apiKeyCall
           ? "Backend call after credential swap — X-API-Key + X-User-Sub (no OAuth bearer on the wire)."
           : "Tool result returned from the MCP/resource path under the delegated identity.",
@@ -873,6 +1084,10 @@ export function buildTraceSteps(trace) {
         rsReply?.durationMs != null ? ["duration", `${rsReply.durationMs} ms`] : null,
         rsReply?.routedVia ? ["routed via", String(rsReply.routedVia)] : null,
         rsReply?.resultStatus ? ["result status", String(rsReply.resultStatus)] : null,
+        apiMeta.resourceRequest?.method ? ["HTTP method", String(apiMeta.resourceRequest.method)] : null,
+        apiMeta.resourceRequest?.url || apiMeta.resourceRequest?.path
+          ? ["URL", String(apiMeta.resourceRequest.url || apiMeta.resourceRequest.path)]
+          : null,
         apiKeyCall && apiMeta.apiCall ? ["api call", apiMeta.apiCall] : null,
         apiKeyCall && apiMeta.apiKeyMaskedLast4 ? ["service key", `••••${apiMeta.apiKeyMaskedLast4}`] : null,
         evtBackend ? ["backend", evtBackend.label] : null,
@@ -898,5 +1113,13 @@ export function buildTraceSteps(trace) {
   }
   steps.push(replyStep);
 
-  return steps.map((s, i) => ({ ...s, num: i + 1 }));
+  const ucId = firstUseCaseId(tokenEvents);
+  const UC_WHY_STEPS = new Set([
+    "authorize", "gateway", "exchange", "stepup", "intent-binding", "dpop", "rar", "mcp", "mtls", "dual-token",
+  ]);
+  return steps.map((s, i) => ({
+    ...s,
+    num: i + 1,
+    detail: UC_WHY_STEPS.has(s.id) ? withUcWhy(s.detail, ucId) : s.detail,
+  }));
 }

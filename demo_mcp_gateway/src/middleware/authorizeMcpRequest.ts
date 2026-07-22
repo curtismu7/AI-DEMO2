@@ -97,48 +97,57 @@ interface GwAuditTrail {
   lastFilter?: string;
 }
 
-/** Rebuild filterChain / denyingFilter / lastFilter from filled audit stages. */
+/** Rebuild filterChain / denyingFilter / lastFilter from filled audit stages.
+ * Always emits the full teaching chain (skipped when a stage did not run) so
+ * success paths show every hop, not only stages that happened to stamp data.
+ */
 function stampFilterTrail(
   trail: GwAuditTrail,
   opts?: { denyingFilter?: string; lastFilter?: string },
 ): void {
-  const chain: NonNullable<GwAuditTrail['filterChain']> = [];
-  if (trail.introspection) {
-    chain.push({
+  const chain: NonNullable<GwAuditTrail['filterChain']> = [
+    {
       filter: 'TokenIntrospection',
-      result: trail.introspection.active ? 'passed' : 'blocked',
-    });
-  }
-  if (trail.policy) {
-    chain.push({
+      result: trail.introspection
+        ? (trail.introspection.active ? 'passed' : 'blocked')
+        : 'skipped',
+    },
+    {
       filter: 'GatewayTokenPolicy',
-      result: trail.policy.passed ? 'passed' : 'blocked',
-    });
-  }
-  if (trail.authorize) {
-    chain.push({
+      result: trail.policy
+        ? (trail.policy.passed ? 'passed' : 'blocked')
+        : 'skipped',
+    },
+    {
       filter: 'P1AZDecision',
-      result: trail.authorize.decision === 'PERMIT' ? 'forwarded' : 'blocked',
-      decision: trail.authorize.decision,
-    });
-  }
-  if (trail.mtls) {
-    chain.push({
+      result: trail.authorize
+        ? (trail.authorize.decision === 'PERMIT' ? 'forwarded' : 'blocked')
+        : 'skipped',
+      ...(trail.authorize?.decision ? { decision: trail.authorize.decision } : {}),
+    },
+    {
       filter: 'mTLS',
-      result: trail.mtls.enabled ? 'passed' : 'skipped',
-    });
-  }
-  if (trail.backend) {
-    chain.push({
+      result: trail.mtls
+        ? (trail.mtls.enabled ? 'passed' : 'skipped')
+        : 'skipped',
+    },
+    {
       filter: 'BackendExchange',
-      result: trail.backend.exchanged ? 'forwarded' : (trail.backend.error ? 'blocked' : 'skipped'),
-    });
-  }
+      result: trail.backend
+        ? (trail.backend.exchanged ? 'forwarded' : (trail.backend.error ? 'blocked' : 'skipped'))
+        : 'skipped',
+    },
+  ];
   trail.filterChain = chain;
   if (opts?.denyingFilter) trail.denyingFilter = opts.denyingFilter;
-  if (opts?.lastFilter) trail.lastFilter = opts.lastFilter;
-  else if (!opts?.denyingFilter && trail.authorize?.decision === 'PERMIT') {
-    trail.lastFilter = 'P1AZDecision';
+  if (opts?.lastFilter) {
+    trail.lastFilter = opts.lastFilter;
+  } else if (!opts?.denyingFilter) {
+    if (trail.backend?.exchanged) trail.lastFilter = 'BackendExchange';
+    else if (trail.mtls?.enabled) trail.lastFilter = 'mTLS';
+    else if (trail.authorize?.decision === 'PERMIT') trail.lastFilter = 'P1AZDecision';
+    else if (trail.policy?.passed) trail.lastFilter = 'GatewayTokenPolicy';
+    else if (trail.introspection?.active) trail.lastFilter = 'TokenIntrospection';
   }
 }
 /**
