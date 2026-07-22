@@ -614,6 +614,8 @@ export function buildTraceSteps(trace) {
   const gwMtls = findEvent(tokenEvents, "gw-mtls");
   const gwInbound = findEvent(tokenEvents, "evt-inbound");
   const gwScope = findEvent(tokenEvents, "evt-scope");
+  const gwMcpAudit = findEvent(tokenEvents, "gw-mcp-audit");
+  const gwFilterChainEv = findEvent(tokenEvents, "gw-filter-chain");
   const gwDeniedPhase = findPhase(phases, "gateway_policy_denied");
   // Attack sims emit "sim-gateway-deny" instead of a phase. RAR denies
   // (rar_amount_exceeded / rar_unexpected_deny) already feed the
@@ -623,28 +625,80 @@ export function buildTraceSteps(trace) {
       && e.error !== "rar_amount_exceeded" && e.error !== "rar_unexpected_deny",
   );
   const gwDenied = !!gwDeniedPhase || !!simGwDeny;
-  const gwSeen = !!(gwAz || gwInbound || gwScope || (gwMtls && gwMtls.status !== "skipped"));
+  const gwSeen = !!(gwAz || gwInbound || gwScope || gwMcpAudit
+    || (gwMtls && gwMtls.status !== "skipped"));
   const gwSkipEvidence = [gwMtls].filter((e) => e && e.status === "skipped");
+  const gwStatementCodes = Array.isArray(gwAz?.statements)
+    ? gwAz.statements.map((s) => (s && (s.code || s.id || s.name || s.effect)) || null).filter(Boolean)
+    : [];
+  const gwHow = gwMcpAudit?.how || gwMcpAudit?.mcpAudit?.how || null;
+  const denyingFilter = gwAz?.denyingFilter
+    || gwFilterChainEv?.denyingFilter
+    || gwMcpAudit?.denyingFilter
+    || null;
+  const filterChain = gwAz?.filterChain || gwFilterChainEv?.filterChain || null;
+  const gwPolicy = gwAz?.policy || gwFilterChainEv?.policy || null;
+  const gatewayWhy = (() => {
+    if (gwDenied) {
+      const ruleBit = gwStatementCodes.length ? ` — rule/statement: ${gwStatementCodes.join(", ")}` : "";
+      if (denyingFilter) {
+        return `Blocked by ${denyingFilter}`
+          + (gwAz?.decision ? ` (${gwAz.decision})` : "")
+          + ruleBit
+          + ".";
+      }
+      return "The Agent Gateway blocked this call before it reached the MCP server." + ruleBit
+        + (gwAz?.reason ? ` Reason: ${gwAz.reason}.` : "");
+    }
+    if (denyingFilter) {
+      return `Passed filter chain; last hop ${denyingFilter} → forwarded`
+        + (gwAz?.tool ? ` for tool “${gwAz.tool}”` : "")
+        + ".";
+    }
+    if (gwHow && (gwHow.decision || gwHow.result)) {
+      return `McpAuditFilter: ${gwHow.decision || "—"}${gwHow.result ? ` → ${gwHow.result}` : ""}`
+        + (gwHow.backend ? ` (${gwHow.backend})` : "")
+        + ".";
+    }
+    if (gwAz) {
+      return `Gateway validated the delegated token`
+        + (gwAz.tool ? ` and authorized tool “${gwAz.tool}”` : "")
+        + (gwAz.decision ? ` (${gwAz.decision})` : "")
+        + (gwStatementCodes.length ? `; statements: ${gwStatementCodes.join(", ")}` : "")
+        + ".";
+    }
+    return "Gateway processed the inbound delegated bearer on this hop.";
+  })();
+  const mcpAuditBody = gwMcpAudit
+    ? (gwMcpAudit.mcpAudit || {
+      who: gwMcpAudit.who, what: gwMcpAudit.what, when: gwMcpAudit.when,
+      where: gwMcpAudit.where, how: gwMcpAudit.how, eventName: gwMcpAudit.eventName,
+    })
+    : null;
   steps.push(makeStep("gateway",
-    authorizeFailed ? "notinpath" : gwDenied ? "error" : gwSeen ? "done" : traceComplete ? "notinpath" : "pending",
+    // If the gateway itself denied, keep this step visible even when authorize
+    // also mirrors the same gw-authorize DENY (authorizeFailed would otherwise
+    // collapse gateway to notinpath).
+    authorizeFailed && !gwDenied ? "notinpath" : gwDenied ? "error" : gwSeen ? "done" : traceComplete ? "notinpath" : "pending",
     (gwSeen || gwDenied) ? {
-      why: gwDenied
-        ? "The Agent Gateway blocked this call before it reached the MCP server."
-        : (gwAz
-          ? `Gateway validated the delegated token`
-            + (gwAz.tool ? ` and authorized tool “${gwAz.tool}”` : "")
-            + (gwAz.decision ? ` (${gwAz.decision}).` : ".")
-          : "Gateway processed the inbound delegated bearer on this hop."),
+      why: gatewayWhy,
       decision: gwDenied
         ? { outcome: "DENY",
-            // serverEvents rows use "—" as the empty-detail placeholder
             label: `DENY — ${(gwDeniedPhase
               ? (gwDeniedPhase.detail && gwDeniedPhase.detail !== "—" ? gwDeniedPhase.detail : gwDeniedPhase.label)
               : (simGwDeny.label || simGwDeny.explanation)) || "gateway policy"}` }
         : undefined,
       kv: [
+        denyingFilter ? ["filter / stage", String(denyingFilter)] : null,
         gwAz ? ["authorize", `${gwAz.decision || "?"}${gwAz.url ? ` — ${gwAz.url}` : ""}`] : null,
-        gwAz && gwAz.statements ? ["statements", asJson(gwAz.statements)] : null,
+        gwStatementCodes.length ? ["rule / statement", gwStatementCodes.join(", ")] : null,
+        gwAz?.reason ? ["reason", String(gwAz.reason)] : null,
+        (gwAz?.backend || gwAz?.policySource) ? ["backend", String(gwAz.backend || gwAz.policySource)] : null,
+        gwHow ? ["McpAuditFilter how", `${gwHow.decision || "—"}${gwHow.result ? ` → ${gwHow.result}` : ""}`] : null,
+        (gwDeniedPhase?.gatewayErrorCode || simGwDeny?.error)
+          ? ["error code", String(gwDeniedPhase?.gatewayErrorCode || simGwDeny?.error)]
+          : null,
+        gwPolicy != null ? ["policy", gwPolicy.passed === false ? "failed" : (gwPolicy.passed ? "passed" : asJson(gwPolicy))] : null,
         gwMtls && gwMtls.status !== "skipped" ? ["mTLS", gwMtls.label || String(gwMtls.status)] : null,
         gwInbound ? ["inbound", gwInbound.label || "user bearer received"] : null,
         gwScope ? ["scope gate", gwScope.label || "scope checked before swap"] : null,
@@ -664,12 +718,20 @@ export function buildTraceSteps(trace) {
         };
       })(),
       response: (() => {
+        if (mcpAuditBody && !gwAz) {
+          return { title: "McpAuditFilter — who/what/when/where/how", text: asJson(mcpAuditBody) };
+        }
         if (!gwAz) return undefined;
         const body = gwAz.rawResponse || gwAz.authorizeResponse || null;
         return body
           ? { title: "Gateway authorize response", text: asJson(body) }
           : undefined;
       })(),
+      altResponse: mcpAuditBody && gwAz
+        ? { title: "McpAuditFilter — who/what/when/where/how", text: asJson(mcpAuditBody) }
+        : (filterChain
+          ? { title: "Filter chain", text: asJson(filterChain) }
+          : undefined),
       moreDetail: { href: "/pingone-authorize", label: "Show more detail" },
     } : !gwSeen && !gwDenied && gwSkipEvidence.length ? {
       narrative: gwSkipEvidence.map((e) => e.explanation).filter(Boolean).join(" ") ||

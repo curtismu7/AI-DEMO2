@@ -745,3 +745,37 @@ describe("buildTraceSteps — E4 resource-server step", () => {
     expect(api.detail.response.title).toMatch(/Resource/i);
   });
 });
+
+describe("buildTraceSteps — E2a gateway filter/rule teaching", () => {
+  test("gateway surfaces statements, reason, mcpAudit, and denyingFilter when present", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      phases: [{ phase: "gateway_policy_denied", detail: "policy deny", gatewayErrorCode: "access_denied" }],
+      tokenEvents: [
+        {
+          id: "gw-authorize", status: "deny", decision: "DENY",
+          denyingFilter: "P1AZDecision",
+          reason: "over limit",
+          backend: "real",
+          statements: [{ code: "mcp.amount.cap" }],
+          parameters: { ToolName: "transfer_money" },
+          rawResponse: { decision: "DENY" },
+        },
+        {
+          id: "gw-mcp-audit", status: "deny",
+          how: { decision: "DENY", result: "blocked", backend: "real" },
+          who: { userSub: "u1" }, what: { tool: "transfer_money", mcpMethod: "tools/call" },
+          mcpAudit: { how: { decision: "DENY", result: "blocked" }, who: { userSub: "u1" }, what: { tool: "transfer_money" } },
+        },
+      ],
+    });
+    const gw = steps.find((s) => s.id === "gateway");
+    expect(gw.status).toBe("error");
+    expect(gw.detail.why).toMatch(/P1AZDecision/);
+    expect(gw.detail.why).toMatch(/mcp\.amount\.cap/);
+    expect(gw.detail.kv.some(([k, v]) => k === "filter / stage" && v === "P1AZDecision")).toBe(true);
+    expect(gw.detail.kv.some(([k]) => k === "rule / statement")).toBe(true);
+    expect(gw.detail.altResponse.title).toMatch(/McpAuditFilter/i);
+  });
+});
