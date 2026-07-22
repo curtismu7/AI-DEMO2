@@ -74,20 +74,71 @@ export const TOUR_STEPS = [
   },
 ];
 
+export const DELEGATION_TOUR_STEPS = [
+  {
+    title: "Delegation Demo — Prove who's acting for me",
+    body: "A four-stage story: one person hands authority to progressively more autonomous actors — a spouse, an AI agent, that agent's specialist, and an employee under a manager. Every time, Ping proves who is acting and with exactly what authority, via RFC 8693 token exchange and the act claim.",
+    action: { label: "Open Family Delegation", route: "/delegation" },
+  },
+  {
+    title: "Stage 1 — Family (human to human)",
+    body: "Maya grants her spouse scoped access to her accounts — no shared password. The delegate logs in as themselves; their token carries an act claim proving they act on Maya's behalf, limited to the scopes she granted. One click revokes it.",
+    action: {
+      label: "Grant Account Access",
+      route: "/delegation",
+      hint: "In 'Grant Account Access', enter an email, check View Accounts + View Balances, click Grant Access — then show the Live Token Chain.",
+    },
+  },
+  {
+    title: "Stage 2 — User to AI agent",
+    body: "Maya authorizes the AI agent once (may_act). When it calls a banking tool, the BFF exchanges her token for a delegated agent token carrying act={agent}. The agent cannot exceed the granted scope, and high-value writes still stop for her consent.",
+    action: {
+      label: "Go to the agent",
+      route: "/dashboard",
+      hint: "Use the 'show my balance' chip (use-case delegated-access-with-proof), then a ~$300 transfer to trigger the HITL consent gate. Watch the Token Chain.",
+    },
+  },
+  {
+    title: "Stage 3 — Agent to agent (A2A)",
+    body: "The generalist agent hands off to a specialist sub-agent. Ping mints a nested-act token so the specialist inherits only what the handoff granted — the full chain Maya to agent to specialist is in the token, evaluated at each hop.",
+    action: {
+      label: "Go to the agent",
+      route: "/dashboard",
+      hint: "Requires ff_a2a_delegation ON. Use the 'hand off to a specialist' chip (use-case a2a-delegation) and read the nested act chain in the Token Chain.",
+    },
+  },
+  {
+    title: "Stage 4 — Workforce (grant, then approve)",
+    body: "The same primitive in the enterprise: switch to the Workforce vertical and a manager grants an employee standing scope — the Delegate Access page relabels automatically (Submit Requests, Approve Expenses). A high-value expense then gates on a separate manager approval — separation of duties.",
+    action: {
+      label: "Open Delegate Access",
+      route: "/delegation",
+      hint: "Switch the active vertical to Workforce, then grant a colleague. The per-action manager approval is the enterprise capstone (wired in the manager-as-approver work).",
+    },
+  },
+];
+
 const DemoTourContext = createContext(null);
 
+const TOURS = { general: TOUR_STEPS, delegation: DELEGATION_TOUR_STEPS };
+
 export function DemoTourProvider({ children }) {
+  const [activeKey, setActiveKey] = useState("general");
   const [step, setStep] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
 
-  const start = useCallback(() => {
+  const steps = TOURS[activeKey] || TOUR_STEPS;
+  const total = steps.length;
+
+  const start = useCallback((tourKey = "general") => {
+    setActiveKey(TOURS[tourKey] ? tourKey : "general");
     setStep(0);
     setIsOpen(true);
   }, []);
 
   const next = useCallback(() => {
-    setStep((s) => Math.min(s + 1, TOUR_STEPS.length - 1));
-  }, []);
+    setStep((s) => Math.min(s + 1, total - 1));
+  }, [total]);
 
   const prev = useCallback(() => {
     setStep((s) => Math.max(s - 1, 0));
@@ -98,21 +149,12 @@ export function DemoTourProvider({ children }) {
   }, []);
 
   const goTo = useCallback((n) => {
-    setStep(Math.max(0, Math.min(n, TOUR_STEPS.length - 1)));
-  }, []);
+    setStep(Math.max(0, Math.min(n, total - 1)));
+  }, [total]);
 
   const value = useMemo(
-    () => ({
-      step,
-      total: TOUR_STEPS.length,
-      isOpen,
-      start,
-      next,
-      prev,
-      close,
-      goTo,
-    }),
-    [step, isOpen, start, next, prev, close, goTo],
+    () => ({ step, total, steps, isOpen, start, next, prev, close, goTo }),
+    [step, total, steps, isOpen, start, next, prev, close, goTo],
   );
 
   return (
