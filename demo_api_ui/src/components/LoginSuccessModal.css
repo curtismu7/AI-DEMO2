@@ -1,0 +1,147 @@
+/* LoginSuccessModal — split-hero body inside DraggableModal.
+   Accent panel (left) + identity fields (right). Solid high-contrast text
+   only (no muted hint gray), per REGRESSION_PLAN §0. */
+
+.lsm-split {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 150px 1fr;
+}
+
+/* ── Left accent panel ─────────────────────────────────────────────────── */
+.lsm-left {
+  background: linear-gradient(165deg, #0e7c86, #0a5960);
+  color: #ffffff;
+  padding: 22px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lsm-mark {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.16);
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+}
+
+.lsm-hello {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 6px 0 0;
+}
+
+.lsm-via {
+  font-size: 12.5px;
+  margin: 0;
+  color: #eafafa;
+}
+
+.lsm-secure {
+  margin-top: auto;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #d6f5f5;
+}
+
+/* ── Right identity fields ─────────────────────────────────────────────── */
+.lsm-right {
+  padding: 22px 22px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.lsm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.lsm-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #475569; /* solid, ~7:1 on white — not muted hint text */
+}
+
+.lsm-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+  word-break: break-word;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lsm-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.lsm-tick {
+  color: #1b8f5a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* ── Footer controls ───────────────────────────────────────────────────── */
+.lsm-dontshow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-right: auto;
+  font-size: 12px;
+  color: #334155;
+  cursor: pointer;
+}
+
+.lsm-dontshow input {
+  accent-color: #0e7c86;
+}
+
+.lsm-continue {
+  padding: 8px 18px;
+  background: #0e7c86;
+  border: 1px solid #0e7c86;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+
+.lsm-continue:hover {
+  filter: brightness(1.07);
+}
+
+.lsm-continue:focus-visible {
+  outline: 2px solid #0e7c86;
+  outline-offset: 2px;
+}
+
+/* Narrow (small pop-out): stack the accent panel above the fields */
+@media (max-width: 360px) {
+  .lsm-split {
+    grid-template-columns: 1fr;
+  }
+  .lsm-left {
+    flex-direction: row;
+    align-items: center;
+  }
+  .lsm-secure {
+    display: none;
+  }
+}
