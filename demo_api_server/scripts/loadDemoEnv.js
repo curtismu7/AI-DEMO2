@@ -28,8 +28,12 @@ function resolveEnvCandidates() {
   raw.push(
     path.join(repoRoot, '.env'),
     path.join(apiRoot, '.env'),
+    // Sibling checkout name AI-DEMO2 (some worktree layouts)
     path.resolve(repoRoot, '../AI-DEMO2/demo_api_server/.env'),
     path.resolve(repoRoot, '../AI-DEMO2/.env'),
+    // Nested under main/.worktrees/<branch>/demo_api_server
+    path.resolve(repoRoot, '../../demo_api_server/.env'),
+    path.resolve(repoRoot, '../../.env'),
   );
 
   const seen = new Set();

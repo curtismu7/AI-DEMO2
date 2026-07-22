@@ -296,4 +296,74 @@ describe('PingOneProvisionService — regression suite', () => {
       expect(carriesValue).toBe(true);
     });
   });
+
+  // ──────────────────────────────────────────────────────────────────────
+  // T4: Agent Consent Agreement + Agent-Consent-Login (IDAI gap D1)
+  // ──────────────────────────────────────────────────────────────────────
+  describe('ensureAgentConsentLoginForApp', () => {
+    it('creates agreement, LOGIN+AGREEMENT policy, and assigns to the User app', async () => {
+      const calls = [];
+      svc.makeRequest = jest.fn((method, endpoint, body) => {
+        calls.push({ method, endpoint, body });
+        if (method === 'GET' && endpoint.startsWith('/agreements')) {
+          return Promise.resolve({ data: { _embedded: { agreements: [] } } });
+        }
+        if (method === 'POST' && endpoint === '/agreements') {
+          return Promise.resolve({ data: { id: 'agr-1', name: body.name, enabled: false } });
+        }
+        if (method === 'GET' && endpoint.startsWith('/languages')) {
+          return Promise.resolve({
+            data: { _embedded: { languages: [{ id: 'lang-en', locale: 'en', enabled: true }] } },
+          });
+        }
+        if (method === 'GET' && /\/agreements\/agr-1\/languages/.test(endpoint) && !/revisions/.test(endpoint)) {
+          return Promise.resolve({ data: { _embedded: { languages: [] } } });
+        }
+        if (method === 'POST' && endpoint === '/agreements/agr-1/languages') {
+          return Promise.resolve({ data: { id: 'agr-lang-1', locale: 'en', enabled: false, displayName: body.displayName } });
+        }
+        if (method === 'GET' && /revisions/.test(endpoint)) {
+          return Promise.resolve({ data: { _embedded: { revisions: [] } } });
+        }
+        if (method === 'POST' && /revisions/.test(endpoint)) {
+          return Promise.resolve({ data: { id: 'rev-1' } });
+        }
+        if (method === 'PUT' && /\/languages\/agr-lang-1$/.test(endpoint)) {
+          return Promise.resolve({ data: { id: 'agr-lang-1', enabled: true } });
+        }
+        if (method === 'PUT' && endpoint === '/agreements/agr-1') {
+          return Promise.resolve({ data: { id: 'agr-1', enabled: true } });
+        }
+        if (method === 'GET' && endpoint.startsWith('/signOnPolicies') && !/actions/.test(endpoint)) {
+          return Promise.resolve({ data: { _embedded: { signOnPolicies: [] } } });
+        }
+        if (method === 'POST' && endpoint === '/signOnPolicies') {
+          return Promise.resolve({ data: { id: 'sop-1', name: body.name } });
+        }
+        if (method === 'GET' && /\/signOnPolicies\/sop-1\/actions/.test(endpoint)) {
+          return Promise.resolve({ data: { _embedded: { signOnPolicyActions: [] } } });
+        }
+        if (method === 'POST' && /\/signOnPolicies\/sop-1\/actions/.test(endpoint)) {
+          return Promise.resolve({ data: { id: `act-${body.type}`, type: body.type } });
+        }
+        if (method === 'GET' && /signOnPolicyAssignments/.test(endpoint)) {
+          return Promise.resolve({ data: { _embedded: { signOnPolicyAssignments: [] } } });
+        }
+        if (method === 'POST' && /signOnPolicyAssignments/.test(endpoint)) {
+          return Promise.resolve({ data: { id: 'asgn-1' } });
+        }
+        return Promise.resolve({ data: {} });
+      });
+
+      const result = await svc.ensureAgentConsentLoginForApp('user-app-1');
+      expect(result.agreementId).toBe('agr-1');
+      expect(result.policyId).toBe('sop-1');
+      expect(result.assignmentCreated).toBe(true);
+
+      const types = calls.filter((c) => c.method === 'POST' && /\/actions$/.test(c.endpoint)).map((c) => c.body.type);
+      expect(types).toEqual(expect.arrayContaining(['LOGIN', 'AGREEMENT']));
+      const agrPost = calls.find((c) => c.method === 'POST' && c.endpoint.includes('/revisions'));
+      expect(agrPost.body.text).toMatch(/AI Banking Assistant/);
+    });
+  });
 });

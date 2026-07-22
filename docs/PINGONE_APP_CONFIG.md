@@ -90,6 +90,18 @@ Same as Admin app.
 
 Same as Admin app — include the `may_act` mapping.
 
+### Sign-on policy — Agent Consent (IDAI)
+
+Assigned by bootstrap / `node scripts/ensureAgentConsentAgreement.js`:
+
+| PingOne object | Name / notes |
+|----------------|--------------|
+| Agreement | `Agent Consent` — HTML from `demo_api_server/config/agentConsentAgreement.js` (mirrors AgentConsentModal “Allow AI Agent Access”) |
+| Sign-on policy | `Agent-Consent-Login` — LOGIN then AGREEMENT |
+| App assignment | Super Banking User App (AGREEMENT also appended to any other assigned SOPs) |
+
+Reconsent every **180** days. Does **not** replace HITL / transfer consent.
+
 ---
 
 ## 3. Worker App (Management API)

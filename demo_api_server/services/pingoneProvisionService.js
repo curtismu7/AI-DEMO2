@@ -12,6 +12,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const { getTokenEndpoint } = require('./oauthEndpointResolver');
 const scopeTopology = require('./scopeTopology');
+const agentConsentAgreement = require('../config/agentConsentAgreement');
 
 // Via the shared accessor (not a repo-root-relative require) so
 // SCOPE_TOPOLOGY_PATH is honored — see scopeTopology.js.
@@ -855,6 +856,226 @@ class PingOneProvisionService {
       // become "no rule" when absent from the policy.
     });
     return response.data.id;
+  }
+
+  /**
+   * Idempotently ensure PingOne Agreement "Agent Consent" with EN localization
+   * and an active HTML revision (text from config/agentConsentAgreement.js).
+   * @returns {Promise<string>} agreement id
+   */
+  async _ensureAgentConsentAgreement() {
+    const {
+      AGREEMENT_NAME,
+      AGREEMENT_DESCRIPTION,
+      RECONSENT_PERIOD_DAYS,
+      DISPLAY_NAME,
+      LOCALE,
+      AGREEMENT_HTML,
+    } = agentConsentAgreement;
+
+    const listRes = await this.makeRequest('GET', '/agreements?limit=100');
+    let agreement = (listRes.data._embedded?.agreements || []).find((a) => a.name === AGREEMENT_NAME);
+    if (!agreement) {
+      const created = await this.makeRequest('POST', '/agreements', {
+        name: AGREEMENT_NAME,
+        description: AGREEMENT_DESCRIPTION,
+        enabled: false,
+        reconsentPeriodDays: RECONSENT_PERIOD_DAYS,
+      });
+      agreement = created.data;
+    }
+
+    const langsRes = await this.makeRequest('GET', '/languages?limit=100');
+    const envLang = (langsRes.data._embedded?.languages || []).find(
+      (l) => l.locale === LOCALE || l.locale === 'en-US'
+    );
+    if (!envLang) {
+      throw new Error(`PingOne environment has no "${LOCALE}" language to localize Agent Consent`);
+    }
+    if (envLang.enabled === false) {
+      await this.makeRequest('PUT', `/languages/${envLang.id}`, {
+        ...envLang,
+        enabled: true,
+      });
+    }
+
+    const agrLangsRes = await this.makeRequest('GET', `/agreements/${agreement.id}/languages?limit=100`);
+    let agrLang = (agrLangsRes.data._embedded?.languages || []).find(
+      (l) => l.locale === LOCALE || l.locale === envLang.locale
+    );
+    if (!agrLang) {
+      const createdLang = await this.makeRequest('POST', `/agreements/${agreement.id}/languages`, {
+        displayName: DISPLAY_NAME,
+        enabled: false,
+        locale: envLang.locale || LOCALE,
+      });
+      agrLang = createdLang.data;
+    }
+
+    const revsRes = await this.makeRequest(
+      'GET',
+      `/agreements/${agreement.id}/languages/${agrLang.id}/revisions?limit=100`
+    );
+    const revisions = revsRes.data._embedded?.revisions || [];
+    // Any revision is enough for enable; PingOne requires one that can show to users.
+    if (revisions.length === 0) {
+      const effectiveAt = new Date().toISOString();
+      await this.makeRequest('POST', `/agreements/${agreement.id}/languages/${agrLang.id}/revisions`, {
+        contentType: 'text/html',
+        effectiveAt,
+        requireReconsent: true,
+        text: AGREEMENT_HTML,
+      });
+    }
+
+    if (agrLang.enabled !== true) {
+      await this.makeRequest('PUT', `/agreements/${agreement.id}/languages/${agrLang.id}`, {
+        displayName: agrLang.displayName || DISPLAY_NAME,
+        enabled: true,
+        locale: agrLang.locale || envLang.locale || LOCALE,
+      });
+    }
+
+    if (agreement.enabled !== true) {
+      await this.makeRequest('PUT', `/agreements/${agreement.id}`, {
+        name: AGREEMENT_NAME,
+        description: agreement.description || AGREEMENT_DESCRIPTION,
+        enabled: true,
+        reconsentPeriodDays: agreement.reconsentPeriodDays || RECONSENT_PERIOD_DAYS,
+      });
+    }
+
+    return agreement.id;
+  }
+
+  /**
+   * Ensure sign-on policy Agent-Consent-Login has LOGIN + AGREEMENT actions.
+   * @param {string} agreementId
+   * @returns {Promise<string>} policy id
+   */
+  async _ensureAgentConsentLoginPolicy(agreementId) {
+    const { POLICY_NAME, POLICY_DESCRIPTION } = agentConsentAgreement;
+
+    const listRes = await this.makeRequest('GET', '/signOnPolicies?limit=100');
+    let policy = (listRes.data._embedded?.signOnPolicies || []).find((p) => p.name === POLICY_NAME);
+    if (!policy) {
+      const created = await this.makeRequest('POST', '/signOnPolicies', {
+        name: POLICY_NAME,
+        description: POLICY_DESCRIPTION,
+      });
+      policy = created.data;
+    }
+
+    const actionsRes = await this.makeRequest('GET', `/signOnPolicies/${policy.id}/actions`);
+    const actions = actionsRes.data._embedded?.signOnPolicyActions || actionsRes.data._embedded?.actions || [];
+    const hasLogin = actions.some((a) => String(a.type || '').toUpperCase() === 'LOGIN');
+    const agreementAction = actions.find((a) => String(a.type || '').toUpperCase() === 'AGREEMENT');
+
+    if (!hasLogin) {
+      await this.makeRequest('POST', `/signOnPolicies/${policy.id}/actions`, {
+        type: 'LOGIN',
+        priority: 1,
+        recovery: { enabled: true },
+      });
+    }
+
+    if (!agreementAction) {
+      const maxPri = actions.reduce((m, a) => Math.max(m, Number(a.priority) || 0), hasLogin ? 1 : 0);
+      await this.makeRequest('POST', `/signOnPolicies/${policy.id}/actions`, {
+        type: 'AGREEMENT',
+        priority: Math.max(2, maxPri + 1),
+        agreement: { id: agreementId },
+        // IDAI sample: decline ends the flow; disableDeclineOption=false shows decline.
+        disableDeclineOption: false,
+      });
+    } else if (agreementAction.agreement?.id !== agreementId) {
+      await this.makeRequest('PUT', `/signOnPolicies/${policy.id}/actions/${agreementAction.id}`, {
+        type: 'AGREEMENT',
+        priority: agreementAction.priority || 2,
+        agreement: { id: agreementId },
+        disableDeclineOption: agreementAction.disableDeclineOption ?? false,
+      });
+    }
+
+    return policy.id;
+  }
+
+  /**
+   * Assign Agent-Consent-Login to an application if not already assigned.
+   * Does not remove existing MFA/other policy assignments.
+   * @param {string} applicationId
+   * @param {string} signOnPolicyId
+   */
+  async _ensureAppSignOnPolicyAssignment(applicationId, signOnPolicyId) {
+    const listRes = await this.makeRequest(
+      'GET',
+      `/applications/${applicationId}/signOnPolicyAssignments?limit=100`
+    );
+    const assignments =
+      listRes.data._embedded?.signOnPolicyAssignments ||
+      listRes.data._embedded?.policyAssignments ||
+      [];
+    if (assignments.some((a) => a.signOnPolicy?.id === signOnPolicyId)) {
+      return { created: false };
+    }
+    const used = new Set(assignments.map((a) => Number(a.priority)).filter(Number.isFinite));
+    let priority = 1;
+    while (used.has(priority)) priority += 1;
+    await this.makeRequest('POST', `/applications/${applicationId}/signOnPolicyAssignments`, {
+      priority,
+      signOnPolicy: { id: signOnPolicyId },
+    });
+    return { created: true, priority };
+  }
+
+  /**
+   * Full IDAI Agent Consent path: Agreement + Agent-Consent-Login + assign to User app.
+   * Also appends AGREEMENT to any other policies already assigned to the app so
+   * MFA/Single_Factor paths still prompt for Agent Consent (PingOne evaluates
+   * assigned policies by priority — Agreement must live on the winning policy).
+   * Keeps existing HITL / in-app consent; this is login-time ToS only.
+   * @param {string} userAppId
+   * @returns {Promise<{ agreementId: string, policyId: string, assignmentCreated: boolean }>}
+   */
+  async ensureAgentConsentLoginForApp(userAppId) {
+    if (!userAppId) throw new Error('userAppId is required');
+    const agreementId = await this._ensureAgentConsentAgreement();
+    const policyId = await this._ensureAgentConsentLoginPolicy(agreementId);
+    const { created } = await this._ensureAppSignOnPolicyAssignment(userAppId, policyId);
+
+    const listRes = await this.makeRequest(
+      'GET',
+      `/applications/${userAppId}/signOnPolicyAssignments?limit=100`
+    );
+    const assignments =
+      listRes.data._embedded?.signOnPolicyAssignments ||
+      listRes.data._embedded?.policyAssignments ||
+      [];
+    for (const a of assignments) {
+      const sid = a.signOnPolicy?.id;
+      if (!sid || sid === policyId) continue;
+      await this._ensureAgreementActionOnPolicy(sid, agreementId);
+    }
+
+    return { agreementId, policyId, assignmentCreated: created };
+  }
+
+  /**
+   * Append AGREEMENT action to an existing sign-on policy if missing.
+   * @param {string} signOnPolicyId
+   * @param {string} agreementId
+   */
+  async _ensureAgreementActionOnPolicy(signOnPolicyId, agreementId) {
+    const actionsRes = await this.makeRequest('GET', `/signOnPolicies/${signOnPolicyId}/actions`);
+    const actions = actionsRes.data._embedded?.signOnPolicyActions || actionsRes.data._embedded?.actions || [];
+    if (actions.some((a) => String(a.type || '').toUpperCase() === 'AGREEMENT')) return;
+    const maxPri = actions.reduce((m, a) => Math.max(m, Number(a.priority) || 0), 0);
+    await this.makeRequest('POST', `/signOnPolicies/${signOnPolicyId}/actions`, {
+      type: 'AGREEMENT',
+      priority: maxPri + 1,
+      agreement: { id: agreementId },
+      disableDeclineOption: false,
+    });
   }
 
   /**
@@ -1917,6 +2138,31 @@ class PingOneProvisionService {
       );
       
       pushGrantResultStep(steps, 'user-grants', 'User scope grants', userGrantResult);
+      onStep(steps[steps.length - 1]);
+
+      // Step 10.25: IDAI Agent Consent — PingOne Agreement + Agent-Consent-Login
+      // on the User app. Template text mirrors AgentConsentModal legacy copy.
+      // Does NOT replace HITL / transfer consent (Phase 170).
+      steps.push({
+        step: 'agent-consent',
+        icon: '👤',
+        message: 'Ensuring Agent Consent agreement + Agent-Consent-Login on User app...',
+      });
+      onStep(steps[steps.length - 1]);
+      try {
+        const consentResult = await this.ensureAgentConsentLoginForApp(userAppResult.application.id);
+        steps.push({
+          step: 'agent-consent',
+          icon: '✅',
+          message: `Agent Consent ready (agreement=${consentResult.agreementId.slice(0, 8)}…, policy=${consentResult.policyId.slice(0, 8)}…, assignment=${consentResult.assignmentCreated ? 'created' : 'exists'})`,
+        });
+      } catch (consentErr) {
+        steps.push({
+          step: 'agent-consent',
+          icon: '⚠️',
+          message: `Agent Consent step: ${consentErr.message}`,
+        });
+      }
       onStep(steps[steps.length - 1]);
 
       // Step 10.5: Ensure permissive demo password policy is bound to the
@@ -3434,5 +3680,7 @@ module.exports = {
   // singleton may have leftover state from a prior provision call. Each
   // wipeEnvironment call also re-initializes (calls getWorkerToken).
   wipeEnvironment: (config, onStep) => new PingOneProvisionService().wipeEnvironment(config, onStep),
-  checkResourceExists: (type, name) => provisionService.findResourceByName(type, name)
+  checkResourceExists: (type, name) => provisionService.findResourceByName(type, name),
+  ensureAgentConsentLoginForApp: (userAppId) =>
+    provisionService.ensureAgentConsentLoginForApp(userAppId),
 };

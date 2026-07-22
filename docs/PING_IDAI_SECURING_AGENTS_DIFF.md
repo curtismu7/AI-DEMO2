@@ -8,16 +8,18 @@ Focus is what diverges — not a full feature inventory.
 
 We implement the same security story (NHI agent, `may_act`/`act`, token exchange, PingGateway in front of MCP) but with a BFF-centric multi-hop design.
 
-**Largest literal gaps vs the page:**
+**Largest remaining gaps vs the page:**
 
-1. No PingOne Agreement Prompt at login
-2. Demo flags that can simulate delegation / authorize
+1. Demo flags that can simulate delegation / authorize (D6)
+
+**Closed:** Login-time Agent Consent Agreement Prompt (D1) — provision via bootstrap or `node scripts/ensureAgentConsentAgreement.js`.
 
 **Ahead of the doc:** PingOne Authorize on the gateway, and per-action HITL / CIBA / step-up.
 
 | Kind | Count |
 |------|------:|
-| Gaps vs doc | 2 |
+| Gaps vs doc | 1 |
+| Closed | 1 |
 | Different shape | 2 |
 | Intentional | 2 |
 | Ahead of doc | 2 |
@@ -28,7 +30,7 @@ We implement the same security story (NHI agent, `may_act`/`act`, token exchange
 
 | ID | Kind | Topic | Ping doc | Our app | Impact |
 |----|------|-------|----------|---------|--------|
-| D1 | Gap | Login-time Agent Consent (Agreement Prompt) | PingOne Agreement “Agent Consent” + authn policy Agent-Consent-Login with Agreement Prompt before delegated tokens. | Login-time agent consent gate removed. Consent is `may_act` user attribute + Authorize agent UI, plus per-tool HITL / CIBA / OTP. | Page-literal HITL-at-sign-on is missing; runtime HITL is stronger for high-risk tools but not the same control. |
+| D1 | Closed | Login-time Agent Consent (Agreement Prompt) | PingOne Agreement “Agent Consent” + authn policy Agent-Consent-Login with Agreement Prompt before delegated tokens. | Provisioned: Agreement HTML from `AgentConsentModal` legacy copy (`config/agentConsentAgreement.js`); policy `Agent-Consent-Login` (LOGIN + AGREEMENT) assigned to User app; AGREEMENT also appended to any other assigned SOPs. HITL / CIBA / OTP unchanged. | Login-time ToS now matches IDAI; runtime HITL remains for high-risk actions. |
 | D2 | Intentional | PingOne AI Agents product registration | Register under Applications → AI Agents; CC + refresh + token exchange; agent + test scopes. | Demo AI Agent is a standard OIDC WEB_APP (`d21c5124`) with AC + CC + TE. Documented as intentional (admin UX differs; OAuth capabilities match). Separate MCP Gateway actor (`3fc5ec99`) for hop 2. | No action required for security parity; see `PINGONE_APP_CONFIG.md` §5. |
 | D3 | Different | Who performs token exchange | Sample MCP agent process opens browser, then exchanges actor + subject tokens itself. | BFF is sole token custodian. Two-hop TE: BFF (user → mcpgateway) then PingGateway (→ mcpserver). LLM never holds user tokens. | Stricter custody than the tutorial sample; demos must use BFF/gateway path, not agent-local TE. |
 | D4 | Intentional | `McpProtectionFilter` / JWKS validation shape | Single `mcp.json` route: `OAuth2ResourceServerFilter` + `McpProtectionFilter` + `McpValidationFilter` + `McpAuditFilter`. | Audit + Validation on all 7. `McpProtectionFilter` on all 4 introspection routes (OLB, apikey, invest, weather — #722). JWKS variants keep educational `jwks-token-validation.groovy` (no native RS filter) but emit RFC 9728 `resource_metadata` on 401 (#723). | Introspection paths match tutorial filter chain; JWKS path is an intentional educational tradeoff (local verify, no revocation) with cosmetic RFC 9728 parity. Native JWKS `OAuth2ResourceServerFilter` wrap remains optional. |
@@ -57,12 +59,12 @@ User in banking UI → BFF holds T1 → TE#1 (mcpgateway) → PingGateway (prote
 
 ## Detail: gaps, partials, and different shapes
 
-### D1 · Gap — Login-time Agent Consent (Agreement Prompt)
+### D1 · Closed — Login-time Agent Consent (Agreement Prompt)
 
 - **Ping:** PingOne Agreement “Agent Consent” + authn policy Agent-Consent-Login with Agreement Prompt before delegated tokens.
-- **Ours:** Login-time agent consent gate removed. Consent is `may_act` user attribute + Authorize agent UI, plus per-tool HITL / CIBA / OTP.
-- **Impact:** Page-literal HITL-at-sign-on is missing; runtime HITL is stronger for high-risk tools but not the same control.
-- **Evidence:** REGRESSION archive (consent gate removed); HITL consent flows; `/delegation`
+- **Ours:** Agreement text from `demo_api_server/config/agentConsentAgreement.js` (mirrors `AgentConsentModal` “Allow AI Agent Access”). Provisioned in `pingoneProvisionService.ensureAgentConsentLoginForApp` (bootstrap step `agent-consent`) and `scripts/ensureAgentConsentAgreement.js`. HITL / CIBA / OTP remain for high-risk tools.
+- **Impact:** Login-time ToS matches IDAI; runtime human approval unchanged.
+- **Evidence:** `config/agentConsentAgreement.js`; `pingoneProvisionService.js`; regression T4
 
 ### D2 · Intentional — PingOne AI Agents product registration (documented)
 
