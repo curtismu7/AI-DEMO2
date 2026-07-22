@@ -36,9 +36,28 @@ describe('CapabilityShowcasePage', () => {
     expect(within(groupB).getByText('Capability Two')).toBeInTheDocument();
   });
 
-  it('renders each card’s one-liner and evidence citation', () => {
+  it("renders each card's one-liner and evidence citation", () => {
     render(<CapabilityShowcasePage title="Test Product" intro="Test intro copy." ledger={LEDGER} groups={GROUPS} />);
     expect(screen.getByText('Does thing one.')).toBeInTheDocument();
     expect(screen.getByText('file.js:1')).toBeInTheDocument();
+  });
+
+  it('calls renderCardExtra per card and renders its result, when provided', () => {
+    render(
+      <CapabilityShowcasePage
+        title="Test Product"
+        intro="Test intro copy."
+        ledger={LEDGER}
+        groups={GROUPS}
+        renderCardExtra={(cap) => cap.id === 'cap-2' ? <span data-testid="extra-cap-2">Extra</span> : null}
+      />
+    );
+    expect(screen.getByTestId('extra-cap-2')).toBeInTheDocument();
+    expect(screen.queryByTestId('extra-cap-1')).not.toBeInTheDocument();
+  });
+
+  it('renders normally with no renderCardExtra prop (existing consumers unaffected)', () => {
+    render(<CapabilityShowcasePage title="Test Product" intro="Test intro copy." ledger={LEDGER} groups={GROUPS} />);
+    expect(screen.getByTestId('cap-card-cap-1')).toBeInTheDocument();
   });
 });
