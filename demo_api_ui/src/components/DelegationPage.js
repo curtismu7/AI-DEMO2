@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getAgentAuthStatus, setAgentAuthorization } from '../services/agentAuthorizationService';
 import { requestSilentReauth } from '../utils/authUi';
+import { useVertical } from '../vertical/useVertical';
+import { useDemoTour } from '../context/DemoTourContext';
 
 const VALID_SCOPES = [
   { key: 'view_accounts',     label: 'View Accounts',    description: 'See account list and details' },
@@ -187,7 +189,7 @@ function HowItWorksPanel() {
         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
         onClick={() => setOpen(o => !o)}
       >
-        <h2 style={{ ...S.sectionHeading, marginBottom: 0 }}>🔍 How It Works — Under the Hood</h2>
+        <h2 style={{ ...S.sectionHeading, marginBottom: 0 }}>How It Works — Under the Hood</h2>
         <span style={{ fontSize: 20, color: '#374151' }}>{open ? '▲' : '▼'}</span>
       </div>
       {open && (
@@ -469,47 +471,41 @@ function DemoTalkTrackPanel() {
       {open && (
         <div style={{ marginTop: 16 }}>
           <p style={{ ...S.muted, marginBottom: 16 }}>
-            Use this script when showing the delegation page to prospects. The goal is to connect the
-            everyday concept of "adding someone to your bank account" to the technical reality of
-            OAuth scopes, token exchange, and PingOne's identity capabilities.
+            Use this script to run the four-stage delegation story — one primitive, four escalating
+            actors. Each stage ends on a "here's the proof" beat in the Live Token Chain, so you can
+            stop after any stage.
           </p>
 
           {[
             {
               num: 1,
-              heading: 'Set the scene',
-              text: 'Open the page and point at the "Grant Account Access" form.',
-              quote: '"This app lets customers delegate access to family members — maybe a spouse, a college student, or an accountant. This is a common real-world need."',
+              heading: 'Set the scene — one primitive, four actors',
+              text: 'Open this page. Frame the through-line before touching anything.',
+              quote: 'Maya hands authority to more and more autonomous actors — her spouse, an AI agent, that agent\'s specialist, then an employee under a manager. Every time, the question is the same: can we prove who is acting, and with what authority?',
             },
             {
               num: 2,
-              heading: 'Grant access live',
-              text: 'Type a family member email and check 2-3 scopes. Click "Grant Access".',
-              quote: '"When I click Grant, three things happen at once: PingOne checks if this user exists, creates them if not, stores the delegation with exactly the scopes I selected, and sends a branded email — all via PingOne APIs."',
+              heading: 'Stage 1 — Family (human to human)',
+              text: 'In "Grant Account Access", grant a family member View Accounts + View Balances. Show the Live Token Chain.',
+              quote: 'No shared password. The delegate logs in as themselves; their token carries an act claim proving they act on Maya\'s behalf, limited to exactly the scopes she granted. One click revokes it.',
             },
             {
               num: 3,
-              heading: 'Point at the "How It Works" section',
-              text: 'Expand the section and walk through the flow diagram left to right.',
-              quote: '"Under the hood this is OAuth 2.0 delegated authorization. The key innovation is what happens at login — instead of a plain access token, PingOne mints an RFC 8693 token with an act claim that proves: this token is for the delegate, acting on behalf of the delegator."',
+              heading: 'Stage 2 — User to AI agent',
+              text: 'Go to the agent. Ask "show my balance", then attempt a ~$300 transfer to trigger the consent gate.',
+              quote: 'Maya authorizes the agent once with may_act. Ping exchanges her token for a delegated one carrying act={agent}. It cannot exceed the granted scope, and high-value writes still stop for her consent.',
             },
             {
               num: 4,
-              heading: 'Show the token structure',
-              text: 'Point at the code block showing the act claim.',
-              quote: '"This is not custom code — it\'s a standard anyone can verify. The act.sub claim is cryptographically bound to the delegator\'s identity. A resource server or AI agent can read this claim and know exactly whose data it\'s touching and on whose behalf."',
+              heading: 'Stage 3 — Agent to agent (A2A)',
+              text: 'With ff_a2a_delegation on, use the "hand off to a specialist" chip. Read the nested act chain.',
+              quote: 'The specialist inherits only what the handoff granted. The full chain — Maya to agent to specialist — is in the token, and Authorize evaluates every link. No ambient authority, even between agents.',
             },
             {
               num: 5,
-              heading: 'Connect to the AI agent',
-              text: 'Navigate to the AI agent, ask it to "check account balance for delegate@example.com".',
-              quote: '"Now watch the Live Token Chain section — the agent performed an RFC 8693 token exchange, got a scoped token with the act claim, and called the banking MCP tool. The bank\'s API saw the exact scopes that were granted — nothing more."',
-            },
-            {
-              num: 6,
-              heading: 'Revoke and show the audit trail',
-              text: 'Click Revoke on the delegate you just added. Switch to the History tab.',
-              quote: '"I can revoke access at any time. The delegation history is a full audit trail — when it was granted, what scopes, when it was revoked. Regulators love this. Zero ambiguity."',
+              heading: 'Stage 4 — Workforce (grant now, approval next)',
+              text: 'Switch the vertical to Workforce. A manager grants a colleague standing scope — that grant is live today. Per-action manager approval of a high-value expense is the capability being built next.',
+              quote: 'Same primitive in your workforce: least privilege from the grant we can show now. Separation of duties — a per-action manager approval — is the next thing we are wiring on top of it. Same tokens, same proof, now for employees.',
             },
           ].map(step => (
             <div key={step.num} style={S.talkStep}>
@@ -562,6 +558,21 @@ export default function DelegationPage({ user }) {
 
   // Tab
   const [activeSection, setActiveSection] = useState('active');
+
+  // Vertical-driven labels — falls back to banking defaults for any missing field.
+  const { pageManifest } = useVertical();
+  const deleg = pageManifest?.delegation;
+  const scopes = VALID_SCOPES.map(s => ({
+    ...s,
+    label: deleg?.scopeLabels?.[s.key]?.label || s.label,
+    description: deleg?.scopeLabels?.[s.key]?.description || s.description,
+  }));
+  const pageTitle = deleg?.pageTitle || 'Family Delegation';
+  const pageDescription = deleg?.pageDescription
+    || 'Grant family members scoped access to your accounts — powered by RFC 8693 token exchange and PingOne';
+  const granteeLabel = deleg?.granteeLabel || 'family member';
+  const GranteeLabel = granteeLabel.charAt(0).toUpperCase() + granteeLabel.slice(1);
+  const tour = useDemoTour();
 
   const loadData = useCallback(async () => {
     try {
@@ -691,10 +702,21 @@ export default function DelegationPage({ user }) {
           <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>
             Account Management
           </p>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: '#fff', margin: 0 }}>👥 Family Delegation</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: '#fff', margin: 0 }}>{pageTitle}</h1>
           <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14, margin: '6px 0 0' }}>
-            Grant family members scoped access to your accounts — powered by RFC 8693 token exchange and PingOne
+            {pageDescription}
           </p>
+          <button
+            type="button"
+            onClick={() => tour.start('delegation')}
+            style={{
+              marginTop: 14, background: 'rgba(255,255,255,0.16)', color: '#fff',
+              border: '1px solid rgba(255,255,255,0.4)', borderRadius: 8,
+              padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            }}
+          >
+            Run guided delegation demo
+          </button>
         </div>
       </div>
 
@@ -711,13 +733,13 @@ export default function DelegationPage({ user }) {
         <div style={S.card}>
           <h2 style={S.sectionHeading}>Grant Account Access</h2>
           <p style={S.muted}>
-            Enter a family member's email to grant them scoped access to your accounts.
+            Enter a {granteeLabel}'s email to grant them scoped access to your accounts.
             They will receive an email notification and can log in immediately.
           </p>
 
           <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
-              Family member's email
+              {GranteeLabel}'s email
             </label>
             <input
               type="email"
@@ -735,7 +757,7 @@ export default function DelegationPage({ user }) {
                 (these become OAuth scopes on their token)
               </span>
             </p>
-            {VALID_SCOPES.map(scope => (
+            {scopes.map(scope => (
               <label key={scope.key} style={S.scopeRow}>
                 <input
                   type="checkbox"
@@ -818,7 +840,7 @@ export default function DelegationPage({ user }) {
                 ? (
                   <div style={{ padding: '16px 0', color: '#374151', fontSize: 13 }}>
                     <p style={{ margin: '0 0 8px' }}>No active delegates.</p>
-                    <p style={{ margin: 0 }}>Use the Grant Access form above to add a family member. They will appear here once access is granted.</p>
+                    <p style={{ margin: 0 }}>Use the Grant Access form above to add a {granteeLabel}. They will appear here once access is granted.</p>
                   </div>
                 )
                 : (

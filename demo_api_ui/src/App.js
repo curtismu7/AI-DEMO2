@@ -43,7 +43,6 @@ import ClientCredentialsResourcePage from "./components/ClientCredentialsResourc
 import ClientRegistrationPage from "./components/ClientRegistrationPage";
 import ComplianceModalPopout from "./components/ComplianceModalPopout";
 import Dashboard from "./components/Dashboard";
-import DelegatedAccessPage from "./components/DelegatedAccessPage";
 import DelegationPage from "./components/DelegationPage";
 import AgentLifecyclePage from "./pages/AgentLifecyclePage";
 import DemoGuidePopout from "./components/DemoGuidePopout";
@@ -1263,15 +1262,6 @@ function AppWithAuth() {
                             <Route
                               path="/transaction-consent"
                               element={<TransactionConsentPage user={user} />}
-                            />
-                            <Route
-                              path="/delegated-access"
-                              element={
-                                <DelegatedAccessPage
-                                  user={user}
-                                  onLogout={logout}
-                                />
-                              }
                             />
                             <Route
                               path="/delegation"
