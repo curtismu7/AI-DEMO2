@@ -18,7 +18,11 @@ const {
   createAuthenticatingFetchWithRetry,
 } = require('@a2a-js/sdk/client');
 const { buildA2aEvent } = require('./a2aDelegationService');
-const { specialistRpcUrl, buildSpecialistAgentCard } = require('./a2aAgentCardService');
+const {
+  specialistRpcUrl,
+  buildSpecialistAgentCard,
+  pushAgentCardEvent,
+} = require('./a2aAgentCardService');
 const { createSpecialistProtocolHandler } = require('./a2aProtocolServer');
 const { decodeJwt } = require('../utils/tokenUtils');
 
@@ -120,6 +124,7 @@ async function sendInProcess({ bearer, bearerClaims, vertical, subtask, tokenEve
   }
 
   const card = built.card || buildSpecialistAgentCard(vertical, cfg);
+  pushAgentCardEvent(buildA2aEvent, tokenEvents, card, vertical, cfg, 'in-process');
   const clientId = bearerClaims?.client_id || bearerClaims?.sub || 'a2a-client';
   const user = {
     get isAuthenticated() {
@@ -194,6 +199,7 @@ async function sendViaHttp({ bearer, vertical, subtask, tokenEvents, baseUrl }) 
 
   const client = await factory.createFromUrl(baseUrl);
   const card = await client.getAgentCard();
+  pushAgentCardEvent(buildA2aEvent, tokenEvents, card, vertical, null, 'http');
   const result = await client.sendMessage({
     message: {
       messageId: crypto.randomUUID(),
