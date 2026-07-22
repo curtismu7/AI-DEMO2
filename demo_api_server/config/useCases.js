@@ -464,33 +464,36 @@ const RAW_USE_CASES = [
     useCaseId: 'ciba-out-of-band-approval',
     track: 'hitl',
     title: 'CIBA out-of-band approval',
-    buyerStory: "A high-value action should be approvable on the user's separate device, not just in the same browser session.",
-    pingOneSolution: 'PingOne CIBA sends a backchannel auth request; the agent polls for the auth_req_id and proceeds only after the user approves on their device.',
-    trigger: { type: 'chip', text: 'transfer $600 from checking to savings' },
+    buyerStory: "An AI agent has no browser to prompt for step-up. When it performs a sensitive action, approval must be requested out-of-band on the user's own device — driven by the action and the agent context, not by a dollar amount.",
+    pingOneSolution: 'Because an agent is acting (no browser redirect) on a sensitive money movement, PingOne Authorize returns a CIBA obligation. The backend calls bc-authorize and polls for the auth_req_id, proceeding only after the user approves out-of-band on their phone.',
+    trigger: { type: 'chip', text: 'transfer $150 from checking to savings' },
     expectedOutcome: 'PERMIT',
     evidence: { tokenChain: ['authorize-decision', 'ciba-poll', 'tool-dispatched'], activity: ['authorize', 'mcp', 'ciba'] },
     codeRefs: ['demo_api_server/services/cibaService.js', 'demo_api_server/routes/ciba.js'],
     maturity: 'flag:ff_ciba',
     owasp: { threats: ['T10'], sections: ['§3.1.5'] },
-    whatToSay: 'The approval came from the user\'s phone — a decoupled, out-of-band confirmation distinct from in-app step-up.',
+    whatToSay: "Note the amount — $150, below the MFA threshold. A person doing this in-browser would sail through. But an AGENT moving money is a sensitive, agent-context action, so approval is requested out-of-band on the user's phone. CIBA is triggered by the action and the actor, not the amount.",
     advanced: false,
-    whatLong: "A high-value action requires approval on the user's separate device — not in the same browser session. PingOne CIBA (Client-Initiated Backchannel Authentication) sends an out-of-band approval request; the agent polls for the result and proceeds only after the user approves on their phone.",
-    businessValue: 'Out-of-band approval is meaningfully stronger than in-session step-up — a compromised browser cannot self-approve. CIBA is natively supported by PingOne; no custom push notification infrastructure is needed.',
+    whatLong: "An AI agent performs a sensitive action — moving money on the user's behalf — with no browser in which to prompt for step-up. PingOne CIBA (Client-Initiated Backchannel Authentication) requests decoupled approval on the user's separate device. The trigger is the agent context plus the sensitivity of the action, NOT a dollar threshold: this demo uses a deliberately small $150 transfer to make that explicit — the same amount in-browser needs no step-up, yet the agent-initiated action still requires out-of-band approval. The agent polls for the result and proceeds only after the user approves on their phone.",
+    businessValue: "Out-of-band approval is meaningfully stronger than in-session step-up — a compromised browser (or a rogue agent) cannot self-approve. Basing the trigger on agent-context and action sensitivity, not amount, means an autonomous agent can never move money without a real human's decoupled confirmation. CIBA is natively supported by PingOne; no custom push infrastructure needed.",
     productRoles: {
       idp:   "Receives the CIBA auth_req_id request and delivers the approval challenge to the user's device.",
-      authz: 'Evaluates the CIBA approval receipt; returns PERMIT only after the user has approved out-of-band.',
+      authz: 'Returns the CIBA obligation for the sensitive, agent-initiated action; PERMITs only after the user approves out-of-band.',
       gw:    'Holds the tool call until the agent presents the CIBA approval receipt.',
       mfa:   "Delivers the CIBA challenge to the user's enrolled device (push notification / OTP).",
     },
     primaryTool: 'create_transfer',
     // Explicit CIBA trigger — the durable, cross-vertical signal that instigates
-    // out-of-band approval, INDEPENDENT of amount (so it never collides with the
-    // amount-based MFA step-up). Authorize reads this declared method and routes
-    // the transaction through the SAME step-up path as MFA, differing only by
-    // step_up_method='ciba'. Declared once here; every vertical inherits it via
-    // the shared catalog + perVertical below.
+    // out-of-band approval. It is AMOUNT-INDEPENDENT by design: CIBA models a
+    // policy decision ("this sensitive, agent-initiated action needs decoupled
+    // approval"), NOT a dollar gate — so it never collides with the amount-based
+    // MFA step-up. The trigger is the CIBA intent (this useCase / the agent
+    // context), which is why the demo amount is a small $150. Authorize reads
+    // this declared method and routes through the SAME step-up path as MFA,
+    // differing only by step_up_method='ciba'. Declared once; every vertical
+    // inherits it via the shared catalog + perVertical below.
     stepUpMethod: 'ciba',
-    perVertical: AMOUNT_PER_VERTICAL(600),
+    perVertical: AMOUNT_PER_VERTICAL(150),
   },
 
   // --- PROGRESSIVE TRUST DEMO (Ping MyHotels pattern on banking agents) ---
