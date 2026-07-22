@@ -1,0 +1,44 @@
+# demo_api_server/promptfoo/step-narration.config.yaml
+description: "Banking step narration — LLM grounding/hallucination check (Phase 1, banking)"
+
+providers:
+  - id: openai:chat:phi-4-mini-instruct
+    config:
+      apiBaseUrl: http://localhost:8090/v1
+      apiKey: not-needed
+  - id: openai:chat:gpt-oss-20b
+    config:
+      apiBaseUrl: http://localhost:8090/v1
+      apiKey: not-needed
+
+prompts:
+  - |
+    You are the banking demo's narration assistant. A tool call just returned
+    the following JSON result for the user's request. Reply with ONE short
+    sentence describing the result. Use ONLY the numbers present in the JSON
+    below — never estimate, round, or invent a different figure.
+
+    Tool result: {{tool_result}}
+
+tests:
+  - vars:
+      tool_result: '{"action":"get_account_balance","accountType":"CHECKING","balance":2857.48}'
+    assert:
+      - type: contains
+        value: "2857.48"
+      - type: llm-rubric
+        value: "The reply does not state any dollar figure other than 2857.48."
+  - vars:
+      tool_result: '{"action":"create_transfer","status":"HITL_REQUIRED","amount":300,"fromAccountType":"CHECKING","toAccountType":"SAVINGS"}'
+    assert:
+      - type: contains
+        value: "300"
+      - type: llm-rubric
+        value: "The reply says the transfer requires human approval/consent before it runs — it does not claim the transfer already completed."
+  - vars:
+      tool_result: '{"action":"create_transfer","status":"DENY","amount":2500,"reason":"exceeds_transfer_limit"}'
+    assert:
+      - type: contains
+        value: "2500"
+      - type: llm-rubric
+        value: "The reply clearly states the transfer was denied/blocked — it does not claim the transfer succeeded."
