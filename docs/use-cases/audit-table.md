@@ -31,6 +31,7 @@
 | UC29 | [OAuth introspection outage — fail closed](./oauth-fail-closed.md) | attacks | ✅ works | 🛡️ T2 |  |
 | UC30 | [Third-party MCP server, scoped at the gateway](./weather-mcp-texas-permit.md) | controls | ✅ works | 🛡️ T6 |  |
 | UC31 | [Third-party MCP server — out-of-scope call denied](./weather-mcp-texas-deny.md) | controls | ✅ works | 🛡️ T6 |  |
+| UC32 | [Live-reconfigure the gateway's scope policy](./weather-mcp-live-reconfigure.md) | controls | ✅ works | 🛡️ T6 |  |
 | UC-TOOL1 | [RAG code search](./code-search.md) | tools | ✅ works |  |  |
 | UC-TOOL2 | [Code Explorer](./code-explorer.md) | tools | ✅ works |  |  |
 | UC-LEARN1 | [OAuth Academy](./oauth-academy.md) | learn | ✅ works |  |  |
@@ -70,8 +71,8 @@
 
 | Status | Count |
 |---|---|
-| ✅ Works | 37 |
+| ✅ Works | 38 |
 | 🚩 Flag-gated | 7 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 2 |
-| **Total** | **46** |
+| **Total** | **47** |

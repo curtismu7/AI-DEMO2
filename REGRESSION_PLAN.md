@@ -101,6 +101,40 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-22 — Reset Demo now reverts the weather scope flags; added UC32 for the configurability itself
+
+**Files changed:**
+- `demo_api_server/routes/admin.js` — `POST /api/admin/reset-demo` now also resets
+  `ff_weather_mcp_showcase` and `ff_weather_mcp_allowed_state` to their `FLAG_REGISTRY`
+  `defaultValue` (`true` / `'texas'`), alongside its existing event/token-chain/audit clears.
+- `demo_api_server/config/useCases.js` — new `UC32` ("Live-reconfigure the gateway's scope
+  policy"), `link`-type trigger to `/agent-gateway-capabilities` (no chip/sim — this UC's whole
+  point is the admin dropdown itself, not one fixed outcome).
+- `demo_api_ui/src/config/capabilityLedgers/agentGatewayCapabilities.js` — `weather-tx-scope`'s
+  `relatedUCIds` gains `UC32`.
+- `demo_api_server/src/__tests__/useCases.config.test.js`,
+  `demo_api_server/src/__tests__/useCases.route.test.js` — catalog count 46→47.
+- `docs/use-cases/*` regenerated (`npm run use-cases:gen`) for the new UC32.
+
+**Why:** Before this, `ff_weather_mcp_allowed_state` was set by Task 4's dropdown but never
+reset by anything — a presenter who left a demo on "Michigan" or "Any" would silently start the
+NEXT demo run in that same state, with no visible warning. UC30/UC31 each demo one fixed
+outcome; neither demonstrates that the scope is a live, admin-owned value rather than
+per-use-case app logic — UC32 closes that gap.
+
+**Do not break:** `POST /api/admin/reset-demo`'s flag reset is scoped to exactly
+`['ff_weather_mcp_showcase', 'ff_weather_mcp_allowed_state']` (`RESET_DEMO_FLAG_IDS` in
+admin.js) — this is NOT a general "reset every flag to default" feature; do not widen it without
+a separate explicit decision, since resetting arbitrary flags on every demo reset could surprise
+an operator relying on some OTHER flag's value persisting across a reset.
+
+**Verify:** live, via the running gateway/BFF (no unit test — `admin.js`'s full dependency tree
+made an isolated route test disproportionate to this two-line change; mirrors this repo's own
+established practice of live-verifying `tx-weather-scope.groovy` changes):
+1. `PATCH ff_weather_mcp_allowed_state` to `'michigan'` via the real admin endpoint.
+2. `POST /api/admin/reset-demo` — confirmed `{ok:true}`.
+3. `GET /api/admin/feature-flags` — confirmed `ff_weather_mcp_allowed_state` back to `'texas'`.
+
 ### 2026-07-21 — Weather MCP gateway scope now live-configurable (Texas/Michigan/Any), not hardcoded Texas-only
 
 **Files changed:**

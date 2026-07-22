@@ -911,6 +911,32 @@ const RAW_USE_CASES = [
     },
     primaryTool: 'get_weather',
   },
+  {
+    id: 'UC32',
+    useCaseId: 'weather-mcp-live-reconfigure',
+    track: 'controls',
+    title: 'Live-reconfigure the gateway\'s scope policy',
+    buyerStory: "A demo of a policy control isn't credible if the policy is actually hardcoded in the app. The business needs to change the rule itself — live, without a code change or a restart — and see the SAME request's outcome flip.",
+    pingOneSolution: 'An admin-editable Allowed State control, right on the gateway capability card, changes ff_weather_mcp_allowed_state live; the Agent Gateway reads it on the very next request, no restart.',
+    trigger: { type: 'link', path: '/agent-gateway-capabilities', label: 'Open Capability Tour' },
+    expectedOutcome: 'POLICY_RECONFIGURED',
+    evidence: { tokenChain: [], activity: [] },
+    codeRefs: [
+      'demo_api_server/routes/featureFlags.js',
+      'demo_api_ui/src/components/WeatherStateControl.jsx',
+      'ping-gateway/scripts/groovy/tx-weather-scope.groovy',
+    ],
+    maturity: 'works',
+    owasp: { threats: ['T6'], sections: ['§4.2.2'] },
+    whatToSay: 'Watch: the same "weather in Miami" query — denied under Texas, permitted the moment I switch this dropdown to Any.',
+    advanced: false,
+    whatLong: 'UC30/UC31 each show one fixed outcome (Texas permits Austin, denies Miami). This use case is the proof that the scope itself is a live, admin-owned policy value — not app logic: switch the Allowed State dropdown on the Capability Tour card to Michigan, Any, or back to Texas, and the exact same weather chat query changes its outcome immediately, with no gateway restart.',
+    businessValue: 'A policy that can only be changed by redeploying code isn\'t really externalized governance — it just moved the hardcoding one layer down. Making the scope itself admin-editable, live, is what makes the "the gateway decides, not the app" story provable in front of a customer.',
+    productRoles: {
+      gw: 'Reads the currently-configured state on every request via the same flag-check call that already gates ff_weather_mcp_showcase — no new round-trip.',
+    },
+    primaryTool: null,
+  },
 
   // --- DEVELOPER TOOLS ---
   {
