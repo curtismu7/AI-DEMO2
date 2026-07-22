@@ -498,7 +498,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - Consumes: `findActiveByDelegate(userId)`, `requestApproval(delegationId, {...})`, `getApprovalStatus(delegationId)` from Task 1.
 - Produces: no new HTTP surface — same `/initiate` and `/poll/:authReqId` endpoints, one new internal branch each. The session's `cibaRequests[authReqId]` record gains a `delegationId` field (present only when a manager-approval flow applies).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `demo_api_server/src/__tests__/ciba.managerApproval.test.js` (a focused sibling to the existing `ciba.test.js`, which already covers every other branch of this router — kept separate so that already-large file doesn't grow further):
 
@@ -668,12 +668,12 @@ describe('GET /api/auth/ciba/poll/:authReqId — manager-approval branch', () =>
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cd demo_api_server && npx jest src/__tests__/ciba.managerApproval.test.js --testPathIgnorePatterns="/node_modules/,/\\.kilo/worktrees/,/tests/real/"`
 Expected: FAIL — `delegationService.findActiveByDelegate`/`requestApproval`/`getApprovalStatus` are never called because `routes/ciba.js` doesn't require or call them yet.
 
-- [ ] **Step 3: Implement in `routes/ciba.js`**
+- [x] **Step 3: Implement in `routes/ciba.js`**
 
 Add the import near the top, alongside the other service requires:
 
@@ -776,17 +776,17 @@ Then, still inside the same `if (pending.simulated)` block, update the `trackTok
         }).catch((err) => console.error('[CIBA] token-chain track failed (simulated):', err.message));
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cd demo_api_server && npx jest src/__tests__/ciba.managerApproval.test.js --testPathIgnorePatterns="/node_modules/,/\\.kilo/worktrees/,/tests/real/"`
 Expected: PASS (7 tests).
 
-- [ ] **Step 5: Run the existing full ciba.test.js suite (regression guard — must be unaffected)**
+- [x] **Step 5: Run the existing full ciba.test.js suite (regression guard — must be unaffected)**
 
 Run: `cd demo_api_server && npx jest src/__tests__/ciba.test.js --testPathIgnorePatterns="/node_modules/,/\\.kilo/worktrees/,/tests/real/"`
 Expected: PASS (all pre-existing tests, unchanged) — this is the proof that banking's `bk-ciba` and every other existing CIBA path is untouched.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add demo_api_server/routes/ciba.js demo_api_server/src/__tests__/ciba.managerApproval.test.js
