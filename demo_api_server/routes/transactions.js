@@ -210,6 +210,10 @@ router.post(
         responseBody = { challengeId: result.challengeId, mfaRequired: true, devices: result.devices };
       } else if (result.needsContact) {
         responseBody = { challengeId: result.challengeId, needsContact: true };
+      } else if (result.consentOnly) {
+        // Consent-only tier: challenge already 'confirmed' server-side, no OTP/MFA.
+        // Pass the flag through so the modal skips the OTP step and executes.
+        responseBody = { challengeId: result.challengeId, consentOnly: true, confirmExpiresAt: result.confirmExpiresAt };
       } else {
         responseBody = {
           challengeId: result.challengeId,

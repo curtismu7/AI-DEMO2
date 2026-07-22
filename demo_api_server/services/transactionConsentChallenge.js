@@ -346,6 +346,22 @@ async function confirmChallenge(req, challengeId, opts = {}) {
   const mfaMode = configStore.getEffective('hitl_consent_mfa_mode') || 'onetime';
   const userAccessToken = req.session?.oauthTokens?.accessToken;
 
+  // Consent-only tier: at/above the consent threshold but BELOW the step-up
+  // threshold. Authorize returns a plain HITL (consent) obligation for these —
+  // human approval, NOT identity re-proof. The agent must not invent an OTP/MFA
+  // step here (that made every $250–$500 transfer show a stray OTP field after
+  // the consent modal). The consent tick IS the gate: promote straight to
+  // 'confirmed' — the same terminal state a verified OTP reaches — so
+  // verifyAndConsumeChallenge lets the transaction execute. Step-up amounts
+  // (>= step-up threshold) fall through to the MFA/OTP branches below.
+  if (ch.snapshot.amount < getStepUpThreshold()) {
+    ch.status          = 'confirmed';
+    ch.confirmedAt      = now;
+    ch.confirmExpiresAt = now + CONFIRMED_TTL_MS;
+    console.log(`[ConsentChallenge] consent-only (amount ${ch.snapshot.amount} < step-up ${getStepUpThreshold()}) — confirmed without OTP/MFA challenge=${challengeId.slice(0, 8)}… user=${req.user.id}`);
+    return { ok: true, challengeId, consentOnly: true, confirmExpiresAt: ch.confirmExpiresAt };
+  }
+
   if (mfaMode === 'device_picker' && ch.snapshot.amount >= getStepUpThreshold()) {
     let daId, devices;
     try {
