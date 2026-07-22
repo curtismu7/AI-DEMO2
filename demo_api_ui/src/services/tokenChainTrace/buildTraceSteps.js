@@ -406,15 +406,61 @@ export function buildTraceSteps(trace) {
         || azEval.request.body
         || azEval.request)
     : null;
+  const azStatements = (() => {
+    const fromEval = azEval?.response?.statements
+      || azEval?.response?.details?.statements
+      || azEval?.statements
+      || null;
+    const fromGw = gwAzForAuthorize?.statements
+      || gwAzForAuthorize?.rawResponse?.statements
+      || gwAzForAuthorize?.authorizeResponse?.statements
+      || null;
+    return fromEval || fromGw || null;
+  })();
+  const azStatementCodes = Array.isArray(azStatements)
+    ? azStatements.map((s) => (s && (s.code || s.id || s.name || s.effect)) || null).filter(Boolean)
+    : [];
+  const azReason = azEval?.response?.reason
+    || azEval?.reason
+    || gwAzForAuthorize?.reason
+    || null;
+  const azAdvice = azEval?.response?.advice
+    || azEval?.response?.obligations
+    || azEval?.advice
+    || null;
+  const azRef = azEval?.authorizeRef
+    || azEval?.path
+    || gwAzForAuthorize?.authorizeRef
+    || null;
+  const bffHasAzEvidence = Boolean(
+    authorize || azEvent,
+  );
+  const gwHasAzEvidence = Boolean(
+    gwAzForAuthorize && (gwAzForAuthorize.authorizeRequest || gwAzForAuthorize.parameters
+      || gwAzForAuthorize.rawResponse || gwAzForAuthorize.authorizeResponse),
+  );
+  const statementWhySuffix = (azIsDeny || azIsChallenge) && azStatementCodes.length
+    ? ` Rule/statement: ${azStatementCodes.join(", ")}.`
+    : "";
   const authorizeWhy = azEval
     ? (azIsChallenge
       ? `Authorize returned ${azEval.decision || "INDETERMINATE"} — the human must approve before the tool proceeds.`
+        + statementWhySuffix
       : azIsDeny
         ? `Authorize denied this action (${azEval.engine || "policy"}) — the tool call is blocked.`
+          + statementWhySuffix
         : `Authorize returned ${azEval.decision || "PERMIT"}`
           + (azEval.decisionContext ? ` for ${azEval.decisionContext}` : "")
-          + (azEval.source === "gw-authorize" ? " at the Agent Gateway hop." : " before the tool ran."))
+          + (azEval.source === "gw-authorize" ? " at the Agent Gateway hop." : " before the tool ran.")
+          + (bffHasAzEvidence && gwHasAzEvidence ? " Gateway Authorize evidence is also present for this run." : ""))
     : undefined;
+  const azResponseBody = azEval?.response
+    ? {
+      ...((typeof azEval.response === "object" && azEval.response) || { value: azEval.response }),
+      ...(azStatements && !(azEval.response && azEval.response.statements) ? { statements: azStatements } : {}),
+      ...(azReason && !(azEval.response && azEval.response.reason) ? { reason: azReason } : {}),
+    }
+    : (azStatements || azReason ? { statements: azStatements, reason: azReason } : null);
   steps.push(makeStep("authorize", azStatus,
     azEval ? {
       why: authorizeWhy,
@@ -422,14 +468,40 @@ export function buildTraceSteps(trace) {
         ? { title: "Decision request (actual)",
             text: `${(azEval.request && azEval.request.method) || "POST"} ${(azEval.request && azEval.request.url) || ""}\n${asJson(azRequestPayload || azEval.request)}` }
         : undefined,
-      response: azEval.response
-        ? { title: "Decision response (raw)", text: asJson(azEval.response) } : undefined,
+      response: azResponseBody
+        ? { title: "Decision response (raw)", text: asJson(azResponseBody) } : undefined,
+      // Dual hop: BFF primary above; gateway copy when both present (TraceStepCard L2).
+      altRequest: bffHasAzEvidence && gwHasAzEvidence
+        ? {
+          title: "Gateway Authorize (same run)",
+          text: `${gwAzForAuthorize.url ? `POST ${gwAzForAuthorize.url}\n` : ""}${asJson(
+            gwAzForAuthorize.parameters
+              || gwAzForAuthorize.authorizeRequest?.parameters
+              || gwAzForAuthorize.authorizeRequest
+              || null,
+          )}`,
+        }
+        : undefined,
+      altResponse: bffHasAzEvidence && gwHasAzEvidence
+        ? {
+          title: "Gateway Authorize response (same run)",
+          text: asJson(gwAzForAuthorize.rawResponse || gwAzForAuthorize.authorizeResponse || {
+            decision: gwAzForAuthorize.decision,
+            statements: gwAzForAuthorize.statements,
+          }),
+        }
+        : undefined,
       decision: { outcome: azEval.decision || "INDETERMINATE",
         label: `${azEval.decision || "INDETERMINATE"} — ${azEval.engine || "?"}${azEval.decisionContext ? ` (${azEval.decisionContext})` : ""}` },
       kv: [
         ["engine", String(azEval.engine || "")],
         ["decision id", String(azEval.decisionId || "")],
         azEval.source === "gw-authorize" ? ["evidence", "from gw-authorize (gateway hop)"] : null,
+        bffHasAzEvidence && gwHasAzEvidence ? ["gateway authorize", "also present"] : null,
+        azStatementCodes.length ? ["statements", azStatementCodes.join(", ")] : null,
+        azReason ? ["reason", String(azReason)] : null,
+        azAdvice ? ["advice", asJson(azAdvice)] : null,
+        azRef ? ["policy path", String(azRef)] : null,
       ].filter((row) => row && row[1]),
       moreDetail: { href: "/pingone-authorize", label: "Show more detail" },
     } : {}));

@@ -655,3 +655,48 @@ describe("buildTraceSteps — PingOne gap fills (introspection / JWKS / signin /
     expect(mcp.detail.why).toMatch(/never ran/i);
   });
 });
+
+describe("buildTraceSteps — E1 authorize statements + dual evidence", () => {
+  test("authorize surfaces statement codes from gw-authorize on DENY", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [{
+        id: "gw-authorize", status: "deny", decision: "DENY",
+        statements: [{ code: "mcp.transfer.deny", effect: "deny" }],
+        reason: "amount over limit",
+        parameters: { ToolName: "transfer_money" },
+        rawResponse: { decision: "DENY", statements: [{ code: "mcp.transfer.deny" }] },
+      }],
+    });
+    const az = steps.find((s) => s.id === "authorize");
+    expect(az.status).toBe("error");
+    expect(az.detail.why).toMatch(/mcp\.transfer\.deny/);
+    expect(az.detail.kv.some(([k, v]) => k === "statements" && String(v).includes("mcp.transfer.deny"))).toBe(true);
+    expect(az.detail.response.text).toContain("mcp.transfer.deny");
+  });
+
+  test("BFF + gw-authorize both present keeps BFF request and alt gateway evidence", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      authorize: {
+        engine: "pingone", decision: "PERMIT", decisionId: "bff-1",
+        request: { method: "POST", url: "https://bff/authorize", parameters: { ToolName: "get_balance" } },
+        response: { decision: "PERMIT" },
+      },
+      tokenEvents: [{
+        id: "gw-authorize", status: "permit", decision: "PERMIT",
+        url: "https://gw/p1az", parameters: { ToolName: "get_balance", Via: "gateway" },
+        rawResponse: { decision: "PERMIT", id: "gw-dec" },
+      }],
+    });
+    const az = steps.find((s) => s.id === "authorize");
+    expect(az.detail.request.text).toContain("https://bff/authorize");
+    expect(az.detail.altRequest.title).toMatch(/Gateway Authorize/i);
+    expect(az.detail.altRequest.text).toContain("Via");
+    expect(az.detail.altResponse.text).toContain("gw-dec");
+    expect(az.detail.why).toMatch(/Gateway Authorize evidence is also present/i);
+    expect(az.detail.kv.some(([k]) => k === "gateway authorize")).toBe(true);
+  });
+});
