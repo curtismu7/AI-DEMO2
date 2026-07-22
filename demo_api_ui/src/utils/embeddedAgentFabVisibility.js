@@ -128,3 +128,21 @@ export function isAgentLifecycleRoute(pathname) {
   const p = pathname.replace(/\/$/, '') || '/';
   return p === '/agent-lifecycle';
 }
+
+/**
+ * AI footprint costume shells — VS Code Copilot lookalike and ChatGPT desktop
+ * lookalike. Each page registers a surfaceHostEl; App.js mounts the single
+ * BankingAgent into that host (same pattern as /use-cases/live).
+ * @param {string} [pathname]
+ * @returns {boolean}
+ */
+export function isAiFootprintShellRoute(pathname) {
+  if (pathname == null || typeof pathname !== 'string') return false;
+  const p = pathname.replace(/\/$/, '') || '/';
+  return (
+    p === '/demo/vscode-copilot' ||
+    p === '/demo/chatgpt-desktop' ||
+    p === '/demo/saas-embedded' ||
+    p === '/demo/coding-agent'
+  );
+}

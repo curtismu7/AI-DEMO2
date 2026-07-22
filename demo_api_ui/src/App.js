@@ -46,6 +46,8 @@ import ComplianceModalPopout from "./components/ComplianceModalPopout";
 import Dashboard from "./components/Dashboard";
 import DelegationPage from "./components/DelegationPage";
 import AgentLifecyclePage from "./pages/AgentLifecyclePage";
+import FootprintMockGalleryPage from "./pages/FootprintMockGalleryPage";
+import FootprintLiveShellPage from "./pages/FootprintLiveShellPage";
 import DemoGuidePopout from "./components/DemoGuidePopout";
 import DemoServerCheckModal from "./components/DemoServerCheckModal";
 import { resolveEmbeddedFocus } from "./components/demoAgentSafety";
@@ -167,6 +169,7 @@ import {
   isEmbeddedAgentDockRoute,
   isLiveWorkbenchRoute,
   isAgentLifecycleRoute,
+  isAiFootprintShellRoute,
   isMonitoringRoute,
   isPublicMarketingAgentPath,
 } from "./utils/embeddedAgentFabVisibility";
@@ -348,6 +351,8 @@ function AppWithAuth() {
 
   const onAgentLifecycleRoute = Boolean(user) && isAgentLifecycleRoute(pathname);
 
+  const onAiFootprintShellRoute = Boolean(user) && isAiFootprintShellRoute(pathname);
+
   // Landing home (/): show floating agent even when signed out.
   // Suppress float on signed-in / only when UserDashboard owns middle placement.
   const marketingAgentSurface = isPublicMarketingAgentPath(pathname) && !user;
@@ -401,7 +406,8 @@ function AppWithAuth() {
     hasEmbeddedDockLayout ||
     onMiddlePlacementInDashboard ||
     onLiveWorkbenchRoute ||
-    onAgentLifecycleRoute;
+    onAgentLifecycleRoute ||
+    onAiFootprintShellRoute;
 
   // When the single agent is portaled into the bottom dock host it must wear
   // the dock's inline chrome (no floating frame/drag), exactly as the old
@@ -420,10 +426,10 @@ function AppWithAuth() {
     // dock chrome doesn't appear inside the column. Same pattern as the
     // clinical-split branch above.
     singleAgentSurfaceProps = { mode: "inline", splitColumnChrome: true };
-  } else if (onLiveWorkbenchRoute || onAgentLifecycleRoute) {
+  } else if (onLiveWorkbenchRoute || onAgentLifecycleRoute || onAiFootprintShellRoute) {
     // Both routes' own narrow/right-column host always want the agent,
     // regardless of the user's dashboard-wide placement preference (same
-    // reasoning as clinicalSplit).
+    // reasoning as clinicalSplit). Footprint shells (VS Code / ChatGPT) too.
     singleAgentSurfaceProps = { mode: "inline", splitColumnChrome: true };
   }
 
@@ -1292,6 +1298,56 @@ function AppWithAuth() {
                               }
                             />
                             <Route
+                              path="/demo/footprint-mocks"
+                              element={
+                                user ? (
+                                  <FootprintMockGalleryPage />
+                                ) : (
+                                  <Navigate to="/" replace />
+                                )
+                              }
+                            />
+                            <Route
+                              path="/demo/vscode-copilot"
+                              element={
+                                user ? (
+                                  <FootprintLiveShellPage category="vscode" />
+                                ) : (
+                                  <Navigate to="/" replace />
+                                )
+                              }
+                            />
+                            <Route
+                              path="/demo/chatgpt-desktop"
+                              element={
+                                user ? (
+                                  <FootprintLiveShellPage category="chatgpt" />
+                                ) : (
+                                  <Navigate to="/" replace />
+                                )
+                              }
+                            />
+                            <Route
+                              path="/demo/saas-embedded"
+                              element={
+                                user ? (
+                                  <FootprintLiveShellPage category="saas" />
+                                ) : (
+                                  <Navigate to="/" replace />
+                                )
+                              }
+                            />
+                            <Route
+                              path="/demo/coding-agent"
+                              element={
+                                user ? (
+                                  <FootprintLiveShellPage category="coding" />
+                                ) : (
+                                  <Navigate to="/" replace />
+                                )
+                              }
+                            />
+                            <Route
                               path="/profile"
                               element={<Profile user={user} />}
                             />
@@ -1356,6 +1412,7 @@ function AppWithAuth() {
               {!loading &&
                 !onUserDashboardRoute &&
                 !onLiveWorkbenchRoute &&
+                !onAiFootprintShellRoute &&
                 !(!user && isPublicMarketingAgentPath(pathname)) && (
                   <ErrorBoundary>
                     <EmbeddedAgentDock

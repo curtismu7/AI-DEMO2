@@ -6,6 +6,7 @@ import {
   shouldShowGlobalFloatingBankingAgentFab,
   isLiveWorkbenchRoute,
   isAgentLifecycleRoute,
+  isAiFootprintShellRoute,
 } from '../embeddedAgentFabVisibility';
 
 const customer = { role: 'customer', id: '1' };
@@ -176,5 +177,22 @@ describe('isAgentLifecycleRoute', () => {
     expect(isAgentLifecycleRoute('/')).toBe(false);
     expect(isAgentLifecycleRoute(null)).toBe(false);
     expect(isAgentLifecycleRoute(undefined)).toBe(false);
+  });
+});
+
+describe('isAiFootprintShellRoute', () => {
+  it('is true for VS Code Copilot and ChatGPT desktop shells', () => {
+    expect(isAiFootprintShellRoute('/demo/vscode-copilot')).toBe(true);
+    expect(isAiFootprintShellRoute('/demo/chatgpt-desktop')).toBe(true);
+    expect(isAiFootprintShellRoute('/demo/saas-embedded')).toBe(true);
+    expect(isAiFootprintShellRoute('/demo/coding-agent')).toBe(true);
+    expect(isAiFootprintShellRoute('/demo/vscode-copilot/')).toBe(true);
+  });
+
+  it('is false for unrelated routes', () => {
+    expect(isAiFootprintShellRoute('/copilot')).toBe(false);
+    expect(isAiFootprintShellRoute('/demo/footprint-mocks')).toBe(false);
+    expect(isAiFootprintShellRoute('/dashboard')).toBe(false);
+    expect(isAiFootprintShellRoute(null)).toBe(false);
   });
 });

@@ -6,6 +6,10 @@ Live walkthrough scenarios for the **Super Banking AI Agent** demo, mapped to th
 application stack: PingOne OAuth, MCP tools, RFC 8693 token exchange, HITL consent
 gates, step-up MFA, and prompt injection defences.
 
+For the Gartner/Ping **Personal vs Workload AI footprint** framing (six agent
+placements, ~30 min SE runbook + build backlog), see
+[CUSTOMERS_AI_FOOTPRINT_DEMO.md](../CUSTOMERS_AI_FOOTPRINT_DEMO.md).
+
 Each scenario shows **what to click, what to watch**, and which compliance steps
 activate. Reference [AgentDemoGuide.jsx](../../demo_api_ui/src/components/AgentDemoGuide.jsx)
 for the in-app compliance step tracker.
