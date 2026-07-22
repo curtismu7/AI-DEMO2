@@ -320,7 +320,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - Consumes: `resolveApproval(delegationId, managerUserId, decision)` from Task 1.
 - Produces: `POST /api/delegation/:id/approve`, `POST /api/delegation/:id/deny` — both return `resolveApproval`'s result as JSON, `404` on `{ ok: false }`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `demo_api_server/tests/delegationApproval.route.test.js`:
 
@@ -422,12 +422,12 @@ describe('POST /api/delegation/:id/deny', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cd demo_api_server && npx jest tests/delegationApproval.route.test.js --testPathIgnorePatterns="/node_modules/,/\\.kilo/worktrees/,/tests/real/"`
 Expected: FAIL with 404s — the routes don't exist yet (Express falls through to no matching route).
 
-- [ ] **Step 3: Implement in `routes/delegation.js`**
+- [x] **Step 3: Implement in `routes/delegation.js`**
 
 Add `resolveApproval` to the destructured import at the top of `demo_api_server/routes/delegation.js`:
 
@@ -467,17 +467,17 @@ router.post('/:id/deny', async (req, res) => {
 });
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cd demo_api_server && npx jest tests/delegationApproval.route.test.js --testPathIgnorePatterns="/node_modules/,/\\.kilo/worktrees/,/tests/real/"`
 Expected: PASS (4 tests).
 
-- [ ] **Step 5: Run Task 1's suite too (regression guard)**
+- [x] **Step 5: Run Task 1's suite too (regression guard)**
 
 Run: `cd demo_api_server && npx jest tests/delegationApproval.test.js tests/delegationApproval.route.test.js tests/delegationGrantedToMe.regression.test.js --testPathIgnorePatterns="/node_modules/,/\\.kilo/worktrees/,/tests/real/"`
 Expected: PASS (all).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add demo_api_server/routes/delegation.js demo_api_server/tests/delegationApproval.route.test.js
