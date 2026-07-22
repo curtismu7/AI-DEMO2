@@ -11,8 +11,7 @@ We implement the same security story (NHI agent, `may_act`/`act`, token exchange
 **Largest literal gaps vs the page:**
 
 1. No PingOne Agreement Prompt at login
-2. `McpProtectionFilter` only on the OLB primary route (1 of 7)
-3. Demo flags that can simulate delegation / authorize
+2. Demo flags that can simulate delegation / authorize
 
 **Ahead of the doc:** PingOne Authorize on the gateway, and per-action HITL / CIBA / step-up.
 
@@ -20,7 +19,7 @@ We implement the same security story (NHI agent, `may_act`/`act`, token exchange
 |------|------:|
 | Gaps vs doc | 2 |
 | Different shape | 2 |
-| Partial match | 2 |
+| Intentional | 2 |
 | Ahead of doc | 2 |
 
 ---
@@ -32,7 +31,7 @@ We implement the same security story (NHI agent, `may_act`/`act`, token exchange
 | D1 | Gap | Login-time Agent Consent (Agreement Prompt) | PingOne Agreement “Agent Consent” + authn policy Agent-Consent-Login with Agreement Prompt before delegated tokens. | Login-time agent consent gate removed. Consent is `may_act` user attribute + Authorize agent UI, plus per-tool HITL / CIBA / OTP. | Page-literal HITL-at-sign-on is missing; runtime HITL is stronger for high-risk tools but not the same control. |
 | D2 | Intentional | PingOne AI Agents product registration | Register under Applications → AI Agents; CC + refresh + token exchange; agent + test scopes. | Demo AI Agent is a standard OIDC WEB_APP (`d21c5124`) with AC + CC + TE. Documented as intentional (admin UX differs; OAuth capabilities match). Separate MCP Gateway actor (`3fc5ec99`) for hop 2. | No action required for security parity; see `PINGONE_APP_CONFIG.md` §5. |
 | D3 | Different | Who performs token exchange | Sample MCP agent process opens browser, then exchanges actor + subject tokens itself. | BFF is sole token custodian. Two-hop TE: BFF (user → mcpgateway) then PingGateway (→ mcpserver). LLM never holds user tokens. | Stricter custody than the tutorial sample; demos must use BFF/gateway path, not agent-local TE. |
-| D4 | Partial | `McpProtectionFilter` coverage vs tutorial route | Single `mcp.json` route: `OAuth2ResourceServerFilter` + `McpProtectionFilter` + `McpValidationFilter` + `McpAuditFilter`. | Audit + Validation on all 7 MCP routes. `McpProtectionFilter` only on `01-mcp-olb` (1 of 7). Invest/weather/apikey use bare RS filter; JWKS routes use custom script. | Primary OLB path matches doc; other routes miss RFC 9728 `resource_metadata` wrapping. Documented in #720 plan. |
+| D4 | Intentional | `McpProtectionFilter` / JWKS validation shape | Single `mcp.json` route: `OAuth2ResourceServerFilter` + `McpProtectionFilter` + `McpValidationFilter` + `McpAuditFilter`. | Audit + Validation on all 7. `McpProtectionFilter` on all 4 introspection routes (OLB, apikey, invest, weather — #722). JWKS variants keep educational `jwks-token-validation.groovy` (no native RS filter) but emit RFC 9728 `resource_metadata` on 401 (#723). | Introspection paths match tutorial filter chain; JWKS path is an intentional educational tradeoff (local verify, no revocation) with cosmetic RFC 9728 parity. Native JWKS `OAuth2ResourceServerFilter` wrap remains optional. |
 | D5 | Different | Resource / scope naming | Custom resources named `agent` + `test`; scopes `agent` / `test`; aud `https://ig.example.com:8443/mcp`. | `enduser` / `agentgateway` / `mcpgateway` / `mcpserver` audiences; `banking:*` and `gateway:mcp:invoke` scopes. | Same pattern (agent resource + backend resource + `may_act`→`act`); different names and multi-hop audiences. |
 | D6 | Gap | Demo weakeners vs tutorial purity | Cloud PingOne + PingGateway only; no inject/simulate shortcuts. | `ff_inject_may_act`, `ff_authorize_simulated`, Demo Agent Gateway can bypass or fake pieces of the IDAI path. | Lean/real flags (PingGateway + live P1AZ) are required for doc-faithful demos. |
 | D7 | Exceeds | Fine-grained authz (doc “What’s next”) | Suggests adding PingOne Authorize with contextual signals after the basic TE+IG path. | Already on gateway: `p1az-decision.groovy`, RAR attrs, intent-token binding, live policy console, optional group deny. | Ahead of the tutorial; not a deficit. |
@@ -79,12 +78,12 @@ User in banking UI → BFF holds T1 → TE#1 (mcpgateway) → PingGateway (prote
 - **Impact:** Stricter custody than the tutorial sample; demos must use BFF/gateway path, not agent-local TE.
 - **Evidence:** `AUTHORIZATION_RULES.md` §6; `rfc8693TokenExchangeService.js`; `olb-token-exchange.groovy`
 
-### D4 · Partial — McpProtectionFilter coverage
+### D4 · Intentional — McpProtectionFilter + JWKS educational path
 
 - **Ping:** Single `mcp.json` route with full MCP filter chain.
-- **Ours:** `McpAuditFilter` + `McpValidationFilter` on all 7 MCP routes; `McpProtectionFilter` only on `01-mcp-olb`.
-- **Impact:** Primary OLB path matches doc; other routes miss RFC 9728 wrapping.
-- **Evidence:** `docs/superpowers/plans/2026-07-22-mcp-protection-filter-gap.md`; `01-mcp-olb.json`
+- **Ours:** `McpAuditFilter` + `McpValidationFilter` on all 7 MCP routes; `McpProtectionFilter` on all 4 introspection routes (OLB / apikey / invest / weather). JWKS variants keep `jwks-token-validation.groovy` (dual RS256/HS256, no revocation) and add RFC 9728 `resource_metadata` on 401 without wrapping native `OAuth2ResourceServerFilter`.
+- **Decision:** Keep the educational JWKS script. Replacing it with a JWKS-capable native RS filter would unlock a full `McpProtectionFilter` wrap but loses the dual-alg teaching path and adds design work — leave optional.
+- **Evidence:** #720 plan; #722; #723; `01-mcp-olb.json`; `jwks-token-validation.groovy`
 
 ### D5 · Different — Resource / scope naming
 
@@ -125,7 +124,7 @@ User in banking UI → BFF holds T1 → TE#1 (mcpgateway) → PingGateway (prote
 ## Recommended closes (if aiming for page parity)
 
 1. ~~Wire `McpProtectionFilter` on apikey / invest / weather~~ — done (#722).
-2. JWKS routes: RFC 9728 `resource_metadata` on 401s done (#723); native `McpProtectionFilter` wrap still optional.
+2. ~~JWKS routes: keep educational script; add RFC 9728 `resource_metadata` on 401s~~ — done (#723). Native `OAuth2ResourceServerFilter` + `McpProtectionFilter` wrap remains optional (not required for parity).
 3. Optional: PingOne Agreement + Agent-Consent-Login on Demo AI Agent for tutorial-literal demos.
 4. ~~IDAI-faithful demo mode~~ — docs + Quick Flags preset (#724); see `IDAI_FAITHFUL_DEMO_MODE.md`.
 5. ~~Document WEB_APP as intentional vs AI Agents product UI~~ — done (`PINGONE_APP_CONFIG.md` §5). Re-register under AI Agents only if a demo needs that console on camera.
