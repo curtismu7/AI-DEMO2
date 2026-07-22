@@ -11,8 +11,12 @@
 
 /* ── Left accent panel ─────────────────────────────────────────────────── */
 .lsm-left {
-  background: linear-gradient(165deg, #0e7c86, #0a5960);
-  color: #ffffff;
+  background: linear-gradient(
+    165deg,
+    var(--brand-dashboard-header-start, #0e7c86),
+    var(--brand-dashboard-header-end, #0a5960)
+  );
+  color: var(--brand-dashboard-header-text, #ffffff);
   padding: 22px 18px;
   display: flex;
   flex-direction: column;
@@ -40,7 +44,8 @@
 .lsm-via {
   font-size: 12.5px;
   margin: 0;
-  color: #eafafa;
+  color: var(--brand-dashboard-header-text, #ffffff);
+  opacity: 0.88;
 }
 
 .lsm-secure {
@@ -49,7 +54,8 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   font-weight: 700;
-  color: #d6f5f5;
+  color: var(--brand-dashboard-header-text, #ffffff);
+  opacity: 0.82;
 }
 
 /* ── Right identity fields ─────────────────────────────────────────────── */
@@ -91,7 +97,7 @@
 }
 
 .lsm-tick {
-  color: #1b8f5a;
+  color: var(--brand-success, #1b8f5a);
   font-size: 13px;
   font-weight: 700;
 }
@@ -108,13 +114,13 @@
 }
 
 .lsm-dontshow input {
-  accent-color: #0e7c86;
+  accent-color: var(--theme-accent, #0e7c86);
 }
 
 .lsm-continue {
   padding: 8px 18px;
-  background: #0e7c86;
-  border: 1px solid #0e7c86;
+  background: var(--theme-accent, #0e7c86);
+  border: 1px solid var(--theme-accent, #0e7c86);
   border-radius: 8px;
   color: #ffffff;
   font-size: 14px;
@@ -128,7 +134,7 @@
 }
 
 .lsm-continue:focus-visible {
-  outline: 2px solid #0e7c86;
+  outline: 2px solid var(--theme-accent, #0e7c86);
   outline-offset: 2px;
 }
 
