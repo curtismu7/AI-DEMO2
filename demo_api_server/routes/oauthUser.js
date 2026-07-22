@@ -578,6 +578,17 @@ router.get('/callback', async (req, res) => {
     // Determine client type from the original OAuth token
     const clientType = determineClientType(tokenData.access_token);
     const authedUser = user;
+    // Best-effort: pull the user's mobile phone from PingOne so the post-login
+    // success modal can show it. Non-fatal — login proceeds if the lookup fails.
+    try {
+      const pingoneUserId = authedUser?.oauthId || authedUser?.id;
+      if (pingoneUserId) {
+        const { user: p1User } = await fetchPingOneUserById(pingoneUserId);
+        if (p1User?.mobilePhone) authedUser.phone = p1User.mobilePhone;
+      }
+    } catch (phoneErr) {
+      console.warn('[oauth/user/callback] phone lookup failed (non-fatal):', phoneErr.message);
+    }
     const origin = getFrontendOrigin();
     // Preserve step-up return destination across session regeneration
     const stepUpReturnTo = req.session.stepUpReturnTo || null;
@@ -715,7 +726,10 @@ router.get('/callback', async (req, res) => {
 
         const ssoParam = silentSso ? '&sso_silent=1' : '';
         const returnPath = postLoginReturnToPath || '/dashboard';
-        res.redirect(`${origin}/success?return_to=${encodeURIComponent(returnPath)}&oauth=success${ssoParam}`);
+        // Land directly on the app (was /success) carrying oauth=success so the
+        // dashboard-level LoginSuccessModal opens once. returnPath is sanitized.
+        const sep = returnPath.includes('?') ? '&' : '?';
+        res.redirect(`${origin}${returnPath}${sep}oauth=success${ssoParam}`);
 
       });
       });
@@ -846,7 +860,9 @@ router.get('/status', (req, res) => {
       email: req.session.user.email,
       firstName: req.session.user.firstName,
       lastName: req.session.user.lastName,
-      role: req.session.user.role
+      role: req.session.user.role,
+      phone: req.session.user.phone || null,
+      hideSuccessScreen: req.session.user.hideSuccessScreen || false
     } : null,
     oauthProvider: isAuthenticated ? req.session.user.oauthProvider : null,
     // accessToken intentionally omitted — token stays on the backend (Backend-for-Frontend (BFF) pattern)

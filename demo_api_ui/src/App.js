@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Navigate,
   Route,
@@ -60,7 +60,7 @@ import LandingPage from "./components/LandingPage";
 import LearningHub from "./components/LearningHub";
 import LlmConfigPage from "./components/LlmConfigPage";
 import LogoutPage from "./components/LogoutPage";
-import SuccessScreen from "./components/SuccessScreen";
+import LoginSuccessModal from "./components/LoginSuccessModal";
 import LogViewer from "./components/LogViewer";
 import McpInspectorPage from "./components/McpInspectorPage";
 import MissingCredentialsModal from "./components/MissingCredentialsModal";
@@ -276,6 +276,24 @@ function AppWithAuth() {
   const [logViewerOpen, setLogViewerOpen] = useState(false);
   const [credentialsModal, setCredentialsModal] = useState(null);
   const [showTokenChain, setShowTokenChain] = useState(false);
+
+  // Post-login success modal. `?oauth=success` is captured on the first render
+  // — before useOAuthUrlCleanup strips it — so the modal opens exactly once
+  // after a fresh PingOne login (not on every dashboard refresh).
+  const [freshLogin] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search || "").get("oauth") ===
+        "success",
+  );
+  const [loginSuccessOpen, setLoginSuccessOpen] = useState(false);
+  const loginModalShownRef = useRef(false);
+  useEffect(() => {
+    if (loginModalShownRef.current) return;
+    if (!freshLogin || !user || user.hideSuccessScreen) return;
+    loginModalShownRef.current = true;
+    setLoginSuccessOpen(true);
+  }, [freshLogin, user]);
 
   // Setup browser extension interference handling
   useEffect(() => {
@@ -502,7 +520,6 @@ function AppWithAuth() {
                 />
                 <Route path="/sdk-login/callback" element={<SdkLoginCallbackRoute />} />
                 <Route path="/ciba-approve" element={<CibaApprovalPageRoute />} />
-                <Route path="/success" element={<SuccessScreen user={user} />} />
                 <Route
                   path="/code-explorer"
                   element={
@@ -1378,6 +1395,19 @@ function AppWithAuth() {
                   setCredentialsModal(null);
                 }}
                 onCancel={() => setCredentialsModal(null)}
+              />
+              <LoginSuccessModal
+                user={user}
+                isOpen={loginSuccessOpen}
+                onClose={() => setLoginSuccessOpen(false)}
+                onDontShowAgain={() => {
+                  fetch("/api/auth/oauth/user/success-screen-preference", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({ hideSuccessScreen: true }),
+                  }).catch(() => {});
+                }}
               />
               <SpinnerHost />
             </div>
