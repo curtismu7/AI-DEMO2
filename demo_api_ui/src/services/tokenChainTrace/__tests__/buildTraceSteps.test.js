@@ -740,7 +740,8 @@ describe("buildTraceSteps — E4 resource-server step", () => {
     expect(api.status).toBe("done");
     expect(api.detail.why).toMatch(/get_balance/);
     expect(api.detail.kv.some(([k, v]) => k === "duration" && String(v).includes("17"))).toBe(true);
-    expect(api.detail.request.text).toContain("banking API");
+    expect(api.detail.request.title).toMatch(/banking API/i);
+    expect(api.detail.request.text).toContain("get_balance");
     expect(api.detail.response.title).toMatch(/Resource/i);
   });
 });
