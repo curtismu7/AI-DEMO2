@@ -158,7 +158,14 @@ if (city instanceof String) {
         def statePart = normalized.substring(commaIdx + 1).trim()
         isInState = state.abbrevs.contains(statePart)
     } else {
-        isInState = state.cities.contains(normalized)
+        // Also accept "austin tx" — nlIntentParser norm() historically replaced
+        // commas with spaces before the city was captured for the tool call.
+        def sp = normalized.lastIndexOf(' ')
+        if (sp > 0 && state.abbrevs.contains(normalized.substring(sp + 1).trim())) {
+            isInState = true
+        } else {
+            isInState = state.cities.contains(normalized)
+        }
     }
     if (!isInState) {
         return denied(id, "Agent Gateway: weather scope restricted to ${stateLabel} (demo policy) — city not recognized as ${stateLabel}")
