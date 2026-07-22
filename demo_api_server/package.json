@@ -88,6 +88,7 @@
     "lint": "biome lint ."
   },
   "dependencies": {
+    "@a2a-js/sdk": "^1.0.0",
     "@anthropic-ai/sdk": "^0.97.1",
     "@inquirer/password": "^5.0.13",
     "@langchain/core": "^1.1.44",

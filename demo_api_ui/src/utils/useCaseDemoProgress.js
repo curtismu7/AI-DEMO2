@@ -34,6 +34,18 @@ function writeCompletedIds(ids) {
   }
 }
 
+/** Same-tab signal so Demo Steps + Actions popouts refresh checkmarks. */
+export const BX_UC_PROGRESS_EVENT = 'bx-uc-progress';
+
+/** Notify open popouts that completed-id set changed. */
+function notifyProgressChanged() {
+  try {
+    window.dispatchEvent(new CustomEvent(BX_UC_PROGRESS_EVENT));
+  } catch {
+    // non-DOM / SSR
+  }
+}
+
 /**
  * Mark a use case (catalog id, e.g. "UC1") as completed this session.
  * @param {string} useCaseCatalogId
@@ -44,6 +56,7 @@ export function markUseCaseCompleted(useCaseCatalogId) {
   if (!useCaseCatalogId || typeof useCaseCatalogId !== 'string') return ids;
   ids.add(useCaseCatalogId);
   writeCompletedIds(ids);
+  notifyProgressChanged();
   return ids;
 }
 
@@ -54,6 +67,7 @@ export function clearCompletedUseCases() {
   } catch {
     // ignore
   }
+  notifyProgressChanged();
   return new Set();
 }
 

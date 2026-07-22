@@ -63,6 +63,9 @@ const STEP_MAP = {
   'a2a-exchange-failed':           'idp',
   'a2a-agent1-actor':              'idp',
   'a2a-agent2-actor':              'idp',
+  'a2a-protocol-bearer':           'idp',
+  'a2a-agent-card':                'idp',
+  'a2a-protocol-message':          'idp',
   'token-refresh':                 'idp',
   'sim-exchange-ok':               'idp', // attack-sim: PingOne minted the deficient token
   'sim-replay-start':              'idp', // attack-sim: the replayed user token

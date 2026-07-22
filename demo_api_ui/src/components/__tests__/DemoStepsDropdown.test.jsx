@@ -57,7 +57,9 @@ describe('DemoStepsDropdown', () => {
     expect(primaryItems.map((el) => el.getAttribute('data-testid'))).toEqual(
       DEMO_USE_CASE_IDS.slice(0, 6).map((id) => `demo-step-${id}`),
     );
-    expect(screen.getByTestId('demo-step-UC1')).toHaveTextContent(/Step 1/);
+    expect(
+      screen.getByTestId('demo-step-UC1').querySelector('.ba-demo-steps-popout__rail'),
+    ).toHaveAttribute('aria-label', 'Step 1');
 
     // Expand the advanced section to reveal remaining steps
     fireEvent.click(screen.getByTestId('demo-steps-advanced-toggle'));
@@ -67,7 +69,9 @@ describe('DemoStepsDropdown', () => {
       DEMO_USE_CASE_IDS.map((id) => `demo-step-${id}`),
     );
     // UC2 is the first advanced step (step 7)
-    expect(screen.getByTestId('demo-step-UC2')).toHaveTextContent(/Step 7/);
+    expect(
+      screen.getByTestId('demo-step-UC2').querySelector('.ba-demo-steps-popout__rail'),
+    ).toHaveAttribute('aria-label', 'Step 7');
   });
 
   it('calls onSelect with the catalog entry when a step is clicked', async () => {
