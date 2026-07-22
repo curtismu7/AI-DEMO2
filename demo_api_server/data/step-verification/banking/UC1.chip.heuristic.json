@@ -3,8 +3,8 @@
   "useCaseId": "UC1",
   "triggerType": "chip",
   "mode": "heuristic",
-  "status": "PASS",
-  "errorClass": null,
+  "status": "FAIL",
+  "errorClass": "server_error",
   "primaryTool": "get_account_balance",
-  "checkedAt": "2026-07-22T12:27:56.532Z"
+  "checkedAt": "2026-07-22T12:47:35.892Z"
 }
