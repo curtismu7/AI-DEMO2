@@ -2110,7 +2110,6 @@ function openInNewWindow(event) {
         .map(([k, v]) => {
           const highlight =
             {
-              may_act: "var(--brand-navy)",
               act: "#0f766e",
               scope: "#6d28d9",
               aud: "#166534",
@@ -2133,14 +2132,8 @@ function openInNewWindow(event) {
     : "";
 
   const pillHtml = [
-    event.mayActPresent === true
-      ? `<div class="pill pill-may">may_act ✅ present — ${event.mayActDetails}</div>`
-      : "",
-    event.mayActPresent === false
-      ? `<div class="pill pill-warn">may_act absent — exchange may be rejected by PingOne</div>`
-      : "",
     event.actPresent === true
-      ? `<div class="pill pill-act">act ✅ ${event.actDetails} — BFF is current actor</div>`
+      ? `<div class="pill pill-act">act ✅ ${event.actDetails || ""} — BFF is current actor</div>`
       : "",
   ].join("");
 
@@ -2497,8 +2490,6 @@ function ClaimsStrip({ event, hints }) {
   if (!cl) return null;
   const sub = fmtSub(cl.sub, hints);
   const act = fmtAct(cl.act, hints);
-  const mayAct =
-    cl.may_act && cl.may_act.client_id ? String(cl.may_act.client_id) : null;
   const aud = fmtAud(cl.aud);
   const injectedScopeNames =
     event.injectedScopeNames || cl.injected_scope_names || [];
@@ -2507,7 +2498,6 @@ function ClaimsStrip({ event, hints }) {
   const rows = [
     sub ? { key: "sub", val: sub, cls: "" } : null,
     act ? { key: "act", val: act, cls: "tcd-cs-act" } : null,
-    mayAct ? { key: "may_act", val: mayAct, cls: "tcd-cs-may" } : null,
     aud ? { key: "aud", val: aud, cls: "tcd-cs-aud" } : null,
     scope
       ? { key: "scope", val: scope, cls: "tcd-cs-scope", injectedScopeNames }
@@ -2992,7 +2982,6 @@ function EventRow({
     event.explanation ||
     event.exchangeRequest ||
     event.jwtFullDecode ||
-    event.mayActPresent !== undefined ||
     event.actPresent !== undefined ||
     event.authorizeRequest ||
     event.authorizeResponse ||
@@ -3021,14 +3010,6 @@ function EventRow({
     event.trigger === "high_risk"
       ? { text: "⚡ High-Risk Transaction", cls: "warn" }
       : null;
-  const mayActHint =
-    event.mayActPresent === true
-      ? event.mayActValid
-        ? { text: "✅ may_act valid", cls: "ok" }
-        : { text: "❌ may_act mismatch", cls: "error" }
-      : event.mayActPresent === false
-        ? { text: "⚠️ may_act absent", cls: "warn" }
-        : null;
   const actHint =
     event.actPresent === true
       ? { text: "✅ act claimed", cls: "ok" }
@@ -3330,7 +3311,6 @@ function EventRow({
             </div>
           )}
           {(triggerHint ||
-            mayActHint ||
             actHint ||
             audHint ||
             constraintHint ||
@@ -3364,13 +3344,6 @@ function EventRow({
                   className={`tcd-event-hint tcd-event-hint--${constraintHint.cls}`}
                 >
                   {constraintHint.text}
-                </span>
-              )}
-              {mayActHint && (
-                <span
-                  className={`tcd-event-hint tcd-event-hint--${mayActHint.cls}`}
-                >
-                  {mayActHint.text}
                 </span>
               )}
               {actHint && (
@@ -3659,7 +3632,7 @@ const PLACEHOLDER_EVENTS = [
     status: "waiting",
     claims: null,
     explanation:
-      "Issued by PingOne after Authorization Code + PKCE login. Stored securely in the Backend-for-Frontend (BFF) session (server-side, httpOnly cookie — never exposed to the browser). Contains may_act authorising the Backend-for-Frontend (BFF) to exchange it on the user's behalf.",
+      "Issued by PingOne after Authorization Code + PKCE login. Stored securely in the Backend-for-Frontend (BFF) session (server-side, httpOnly cookie — never exposed to the browser).",
     rfc: "RFC 7519 · RFC 9068",
   },
   {
@@ -3669,7 +3642,7 @@ const PLACEHOLDER_EVENTS = [
     status: "waiting",
     claims: null,
     explanation:
-      "Backend-for-Frontend (BFF) presents the user access token to PingOne as subject_token. PingOne validates may_act, narrows the scope to the tool's required scopes, and issues the MCP access token with an act claim identifying the Backend-for-Frontend (BFF) as the actor. The user access token NEVER leaves the Backend-for-Frontend (BFF).",
+      "Backend-for-Frontend (BFF) presents the user access token to PingOne as subject_token (with the agent client-credentials token as actor_token). PingOne narrows the scope to the tool's required scopes and issues the MCP access token with an act claim identifying the agent as the actor. The user access token NEVER leaves the Backend-for-Frontend (BFF).",
     rfc: "RFC 8693 · RFC 8707",
   },
   {

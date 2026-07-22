@@ -1,10 +1,13 @@
 // One pipeline step — a native <details> card. Dumb renderer over the neutral
 // step.detail shape produced by buildTraceSteps; knows nothing about sources.
 import React from "react";
-import { tokenize } from "./shared/JsonHighlight";
+import { tokenize, formatJson } from "./shared/JsonHighlight";
 import "./shared/JsonHighlight.css";
 
 const STATUS_ICON = { pending: "·", active: "…", done: "✓", error: "✗", notinpath: "–" };
+
+/** Combined request+response size above which we push the learner to pop-out. */
+export const EVIDENCE_POPOUT_CHARS = 1200;
 
 // d.request.text / d.response.text are pre-formatted display strings (often a
 // narrative prefix line + embedded JSON, not pure JSON) — tokenize() colors
@@ -16,9 +19,87 @@ function HighlightedText({ text }) {
   ));
 }
 
+function escapeHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function textToHtml(text) {
+  if (text == null || text === "") return "";
+  return tokenize(String(text))
+    .map((t) => {
+      const cls = t.critical ? `jh-${t.type} jh-critical` : `jh-${t.type}`;
+      return `<span class="${cls}">${escapeHtml(t.text)}</span>`;
+    })
+    .join("");
+}
+
+/** Opens a standalone teaching window for one TraceRail step (L3 overflow). */
+export function openStepTeachingWindow(step) {
+  const d = step?.detail || {};
+  const title = `${step?.num != null ? `${step.num}. ` : ""}${step?.title || "Step"}`;
+  const whyHtml = d.why ? `<p class="why"><strong>Why this run:</strong> ${escapeHtml(d.why)}</p>` : "";
+  const narrativeHtml = d.narrative
+    ? `<p class="narrative"><strong>What this hop does:</strong> ${escapeHtml(d.narrative)}</p>`
+    : "";
+  const decisionHtml = d.decision
+    ? `<div class="decision">Decision: ${escapeHtml(String(d.decision.outcome || ""))} — ${escapeHtml(String(d.decision.label || ""))}</div>`
+    : "";
+  const reqHtml = d.request
+    ? `<h2>${escapeHtml(d.request.title || "Request")}</h2><pre class="pre">${textToHtml(d.request.text)}</pre>`
+    : "";
+  const resHtml = d.response
+    ? `<h2>${escapeHtml(d.response.title || "Response")}</h2><pre class="pre">${textToHtml(d.response.text)}</pre>`
+    : "";
+  const kvHtml = Array.isArray(d.kv) && d.kv.length
+    ? `<h2>Proof</h2><table>${d.kv.map(([k, v]) =>
+      `<tr><th>${escapeHtml(k)}</th><td><pre class="inline">${textToHtml(typeof v === "string" ? v : formatJson(v) || String(v))}</pre></td></tr>`).join("")}</table>`
+    : "";
+
+  const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"/>
+<title>${escapeHtml(title)}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font:13px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1e293b;background:#fff;padding:18px}
+  h1{font-size:1.05rem;margin-bottom:8px}
+  h2{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:#475569;margin:14px 0 6px;border-bottom:1px solid #e5e7eb;padding-bottom:4px}
+  .narrative,.why{margin:0 0 8px;color:#334155}
+  .decision{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px 10px;margin:8px 0;font-weight:600}
+  .pre{background:#0f172a;color:#bae6fd;border-radius:8px;padding:12px;font:11px/1.5 ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-word;max-height:70vh;overflow:auto}
+  .inline{margin:0;white-space:pre-wrap;word-break:break-word;font:11px ui-monospace,Menlo,monospace}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{text-align:left;color:#64748b;width:120px;vertical-align:top;padding:4px 8px 4px 0}
+  td{padding:4px 0;vertical-align:top}
+  .jh-key{color:#79c0ff}.jh-string{color:#7ee787}.jh-number{color:#ffa657}
+  .jh-keyword{color:#d2a8ff;font-weight:600}.jh-punct{color:#8b949e}
+  .jh-critical{color:#ff6b6b;font-weight:600}
+</style></head>
+<body>
+  <h1>${escapeHtml(title)}</h1>
+  ${narrativeHtml}${whyHtml}${decisionHtml}${kvHtml}${reqHtml}${resHtml}
+</body></html>`;
+
+  const win = window.open(
+    "",
+    `tctr-step-${step?.id || "step"}-${Date.now()}`,
+    "width=920,height=860,resizable=yes,scrollbars=yes,toolbar=no,menubar=no,location=no,status=no",
+  );
+  if (!win) return;
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+}
+
+function evidenceSize(d) {
+  return (d?.request?.text?.length || 0) + (d?.response?.text?.length || 0);
+}
+
 export default function TraceStepCard({ step, onInspect, defaultOpen = false }) {
   const d = step.detail || {};
   const notInPath = step.status === "notinpath";
+  const hasEvidence = Boolean(d.request || d.response);
+  const largeEvidence = evidenceSize(d) > EVIDENCE_POPOUT_CHARS;
+
   return (
     <details className="tctr-step" data-status={step.status} open={defaultOpen}>
       <summary>
@@ -31,17 +112,10 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false }) 
       </summary>
       <div className="tctr-step-body">
         {d.narrative && <p className="tctr-narrative">{d.narrative}</p>}
-        {d.request && (
-          <>
-            <h4>{d.request.title}</h4>
-            <pre className="tctr-code"><HighlightedText text={d.request.text} /></pre>
-          </>
-        )}
-        {d.response && (
-          <>
-            <h4>{d.response.title}</h4>
-            <pre className="tctr-code"><HighlightedText text={d.response.text} /></pre>
-          </>
+        {d.why && (
+          <p className="tctr-why">
+            <span className="tctr-why-lbl">Why this run:</span> {d.why}
+          </p>
         )}
         {d.decision && (
           <div className={`tctr-decision tctr-decision--${String(d.decision.outcome || "").toLowerCase()}`}>
@@ -75,22 +149,57 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false }) 
         {Array.isArray(d.rfcs) && d.rfcs.map((r) => (
           <span key={r} className="tctr-rfc">{r}</span>
         ))}
-        {d.inspectToken && (
-          <button type="button" className="tctr-inspect"
-            onClick={() => onInspect(d.inspectToken)}>
-            → Inspect claims
-          </button>
+
+        {hasEvidence && (
+          <details className="tctr-evidence" open={false}>
+            <summary className="tctr-evidence-sum">
+              Show evidence (request / response)
+              {largeEvidence ? <span className="tctr-evidence-hint"> — large; prefer Pop out</span> : null}
+            </summary>
+            <div className="tctr-evidence-body">
+              {d.request && (
+                <>
+                  <h4>{d.request.title}</h4>
+                  <pre className="tctr-code"><HighlightedText text={d.request.text} /></pre>
+                </>
+              )}
+              {d.response && (
+                <>
+                  <h4>{d.response.title}</h4>
+                  <pre className="tctr-code"><HighlightedText text={d.response.text} /></pre>
+                </>
+              )}
+            </div>
+          </details>
         )}
-        {d.moreDetail && d.moreDetail.href && (
-          <a
-            className="tctr-inspect"
-            href={d.moreDetail.href}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            → {d.moreDetail.label || "Show more detail"}
-          </a>
-        )}
+
+        <div className="tctr-step-actions">
+          {(hasEvidence || d.why || d.narrative) && (
+            <button
+              type="button"
+              className={`tctr-inspect${largeEvidence ? " tctr-inspect--emphasize" : ""}`}
+              onClick={() => openStepTeachingWindow(step)}
+            >
+              → Pop out full detail
+            </button>
+          )}
+          {d.inspectToken && (
+            <button type="button" className="tctr-inspect"
+              onClick={() => onInspect(d.inspectToken)}>
+              → Inspect claims
+            </button>
+          )}
+          {d.moreDetail && d.moreDetail.href && (
+            <a
+              className="tctr-inspect"
+              href={d.moreDetail.href}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              → {d.moreDetail.label || "Show more detail"}
+            </a>
+          )}
+        </div>
       </div>
     </details>
   );

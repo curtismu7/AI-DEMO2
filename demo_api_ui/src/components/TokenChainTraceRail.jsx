@@ -3,7 +3,7 @@
 // Spec: docs/superpowers/specs/2026-07-02-token-chain-trace-rail-design.md
 import React, { useEffect, useState, useCallback } from "react";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
-import { MCP_STEP_IDS } from "../services/tokenChainTrace/buildTraceSteps";
+import { MCP_STEP_IDS, buildRunStory } from "../services/tokenChainTrace/buildTraceSteps";
 import { resolveInspectClaims } from "../services/tokenChainTrace/resolveInspectClaims";
 import { isFlagOn, shouldShowTrustTab } from "../utils/tokenChainTrust";
 import { useTokenChainOptional } from "../context/TokenChainContext";
@@ -96,6 +96,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
     (trace.phases && trace.phases.length) || trace.mcpResult || trace.authorize ||
     trace.llmDetail || trace.llmReply || trace.outcome || trace.routingMode,
   );
+  const runStory = buildRunStory(trace, snap.steps);
 
   // Drop Trust selection if the use case ends while that tab is open.
   useEffect(() => {
@@ -157,6 +158,21 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
 
       {tab === "chain" ? (
         <>
+          {runStory && (
+            <div
+              className={`tctr-story tctr-story--${runStory.outcome}`}
+              data-testid="tctr-run-story"
+            >
+              <div className="tctr-story-headline">{runStory.headline}</div>
+              {runStory.bits.length > 0 && (
+                <ul className="tctr-story-bits">
+                  {runStory.bits.map((b) => (
+                    <li key={b.slice(0, 48)}>{b}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
           <div className="tctr-sec-label">
             {trace.prompt ? `Pipeline — "${trace.prompt.message}"` : "Pipeline — awaiting agent action"}
           </div>

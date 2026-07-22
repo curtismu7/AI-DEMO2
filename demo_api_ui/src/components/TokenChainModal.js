@@ -13,7 +13,7 @@ import TokenChainTraceRail from './TokenChainTraceRail';
  *   Activity Log — live /api/app-events/stream event feed
  *
  * credentialPath: each token-chain event carries a credentialPath field added in Phase 266.
- * TokenChainDisplay handles per-segment colour/badge rendering automatically.
+ * TokenChainTraceRail handles per-segment colour/badge rendering automatically.
  * No props change needed here — the field rides through TokenChainContext events unchanged.
  */
 
