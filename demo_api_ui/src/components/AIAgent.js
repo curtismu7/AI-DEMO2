@@ -65,15 +65,11 @@ import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
 import DemoStepsDropdown from "./DemoStepsDropdown";
 import BankingChips, { PINGONE_ADMIN_CHIP_IDS } from "./BankingChips";
-<<<<<<< HEAD
-import { markUseCaseCompleted } from "../utils/useCaseDemoProgress";
+import { markUseCaseCompleted, clearCompletedUseCases } from "../utils/useCaseDemoProgress";
 import {
   requiredFlagsForUseCase,
   requiredFlagsForUseCaseId,
 } from "../utils/requiredDemoFlags";
-=======
-import { markUseCaseCompleted, clearCompletedUseCases } from "../utils/useCaseDemoProgress";
->>>>>>> origin/main
 import apiClient from "../services/apiClient";
 import { formatAxiosError } from "../utils/formatAxiosError";
 import { adminCustomerContext } from "../services/adminCustomerContext";
