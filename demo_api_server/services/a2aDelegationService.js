@@ -46,6 +46,8 @@ const {
   clientIdKey,
   clientSecretKey,
   intermediateAudienceKey,
+  intermediateResourceName,
+  A2A_GATEWAY_RESOURCE_NAME,
 } = require('../config/a2aSpecialists');
 
 // Heavy runtime deps (oauthService→axios, configStore→lmdb, mcpWebSocketClient→ws)
@@ -112,12 +114,41 @@ function buildA2aEvent(id, label, status, token, explanation, extra = {}) {
 }
 
 /**
- * Resolve A2A audiences/scopes/credentials for a given vertical's specialist.
- * @param {object} cfgArg      configStore (or injected fake)
- * @param {object} specialist  registry entry from a2aSpecialists (vertical-specific)
+ * Non-empty trimmed config value, or null.
+ * @param {unknown} v
+ * @returns {string|null}
  */
-function resolveA2aConfig(cfgArg, specialist) {
+function nonempty(v) {
+  if (v == null) return null;
+  const s = String(v).trim();
+  return s || null;
+}
+
+/**
+ * Resolve A2A audiences/scopes/credentials for a given vertical's specialist.
+ *
+ * Audience precedence (Exchange #1 intermediate):
+ *   1. config `a2a_intermediate_audience_<appKey>` (env / LMDB)
+ *   2. scope-topology.json per-specialist resource URI
+ *   3. legacy shared intermediate / agent-gateway — ONLY when topology has no
+ *      per-specialist resource (pre-37a-A2A deployments)
+ *
+ * Audience precedence (Exchange #2 specialist/gateway):
+ *   1. config `a2a_gateway_audience`
+ *   2. scope-topology.json "Super Banking A2A MCP Gateway"
+ *   3. legacy shared mcp gateway / mcp server URI
+ *
+ * When topology lists a dedicated A2A resource, we never fall back to the
+ * shared intermediate/gateway — that combination caused PingOne invalid_scope
+ * (agent:invoke:<appKey> is not on the shared a2a-intermediate resource).
+ *
+ * @param {object}        cfgArg       configStore (or injected fake)
+ * @param {object}        specialist   registry entry from a2aSpecialists
+ * @param {object}        [scopeTopo]  scopeTopology module (or injected fake)
+ */
+function resolveA2aConfig(cfgArg, specialist, scopeTopo) {
   const cfg = cfgArg || defaultConfigStore();
+  const topo = scopeTopo || defaultScopeTopology();
 
   // Agent 1 = the generalist (existing AI Agent app) — same across all verticals.
   const agent1ClientId = cfg.getEffective('pingone_ai_agent_client_id');
@@ -127,29 +158,31 @@ function resolveA2aConfig(cfgArg, specialist) {
   const agent2ClientId = cfg.getEffective(clientIdKey(specialist.appKey));
   const agent2Secret = cfg.getEffective(clientSecretKey(specialist.appKey));
 
-  // Exchange #1 result audience (intermediate) — THIS SPECIALIST'S OWN dedicated
-  // resource (RFC 8707; pingoneProvisionService.js Step 37a-A2A provisions one per
-  // appKey, each carrying its own may_act). Falls back to the legacy shared
-  // key/agent-gateway audience for deployments that haven't been re-provisioned yet.
-  const intermediateAud =
-    cfg.getEffective(intermediateAudienceKey(specialist.appKey)) ||
-    cfg.getEffective('a2a_intermediate_audience') ||
-    cfg.getEffective('pingone_resource_a2a_intermediate_uri') ||
-    cfg.getEffective('pingone_resource_agent_gateway_uri');
+  const topoIntermediateName = intermediateResourceName(specialist);
+  const topoIntermediateUri = topoIntermediateName && typeof topo.resourceUri === 'function'
+    ? nonempty(topo.resourceUri(topoIntermediateName))
+    : null;
+  const topoA2aGatewayUri = typeof topo.resourceUri === 'function'
+    ? nonempty(topo.resourceUri(A2A_GATEWAY_RESOURCE_NAME))
+    : null;
 
-  // Exchange #2 result audience — A2A's OWN MCP Gateway destination (RFC 8693
-  // §4.1 nested-act composer lives here, see pingoneProvisionService.js Step
-  // 37a-A2A), deliberately separate from the shared mcpgateway resource the
-  // non-A2A two-exchange flow targets. The real gateway/authz server accept
-  // this as an additional valid audience via a comma-separated
-  // MCP_GW_RESOURCE_URI (docker-compose.yml) — not a new resource server env
-  // var. Falls back to the shared audience for deployments not yet
-  // re-provisioned with the dedicated A2A gateway resource.
+  // Exchange #1 — prefer per-specialist config, then topology, then legacy shared.
+  // When topology has a per-specialist URI, the `||` chain never reaches shared
+  // a2a-intermediate / agent-gateway (those lack agent:invoke:<appKey>).
+  const intermediateAud =
+    nonempty(cfg.getEffective(intermediateAudienceKey(specialist.appKey))) ||
+    topoIntermediateUri ||
+    nonempty(cfg.getEffective('a2a_intermediate_audience')) ||
+    nonempty(cfg.getEffective('pingone_resource_a2a_intermediate_uri')) ||
+    nonempty(cfg.getEffective('pingone_resource_agent_gateway_uri'));
+
+  // Exchange #2 — prefer dedicated A2A gateway audience over shared mcpgateway.
   const specialistAud =
-    cfg.getEffective('a2a_gateway_audience') ||
-    cfg.getEffective('pingone_resource_mcp_gateway_uri') ||
-    cfg.getEffective('mcp_gw_resource_uri') ||
-    cfg.getEffective('pingone_resource_mcp_server_uri');
+    nonempty(cfg.getEffective('a2a_gateway_audience')) ||
+    topoA2aGatewayUri ||
+    nonempty(cfg.getEffective('pingone_resource_mcp_gateway_uri')) ||
+    nonempty(cfg.getEffective('mcp_gw_resource_uri')) ||
+    nonempty(cfg.getEffective('pingone_resource_mcp_server_uri'));
 
   // Scope name is unique per specialist ("agent:invoke:<appKey>"), NOT overridable
   // via a shared config key — PingOne enforces one scope-name per client across ALL
@@ -243,7 +276,7 @@ async function delegateToSpecialist(req, opts = {}) {
   // Scope is DERIVED from the SoT (scope-topology.json) — never re-declared here.
   const specialistScopes = deriveSpecialistScopes(specialist, scopeTopo);
 
-  const c = resolveA2aConfig(cfg, specialist);
+  const c = resolveA2aConfig(cfg, specialist, scopeTopo);
   if (!c.agent2ClientId || !c.agent2Secret) {
     return {
       ...base,
