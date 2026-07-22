@@ -115,8 +115,8 @@ router.post('/run', authenticateToken, async (req, res) => {
             : [
                 { id: 'par-push', label: 'PAR Endpoint Push', status: 'active' },
                 { id: 'request-uri', label: 'Received request_uri', status: 'active' },
-                { id: 'intent-check', label: `Intent cap $${amount} > $${INTENT_CAP}`, status: 'error' },
-                { id: 'transfer-blocked', label: 'Transfer blocked — intent exceeded', status: 'error' },
+                { id: 'intent-check', label: `Intent cap $${amount} > $${INTENT_CAP}`, status: 'exceeded' },
+                { id: 'transfer-blocked', label: 'Transfer blocked — intent exceeded', status: 'enforced' },
               ],
           live: true,
         });
