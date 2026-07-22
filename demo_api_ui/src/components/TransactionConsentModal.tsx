@@ -391,6 +391,14 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
         setMfaStep(true);
       } else if (data.needsContact) {
         setContactStep(true);
+      } else if (data.consentOnly) {
+        // Consent-only tier (amount below the step-up threshold): Authorize asked
+        // for human approval, NOT identity re-proof. The server already promoted
+        // the challenge to 'confirmed', so there is no OTP/MFA step — proceed
+        // straight to the transaction, same terminal action as a verified OTP.
+        setAgentBlockedByConsentDecline(false);
+        notifySuccess("Consent approved. Proceeding with transaction...");
+        onTransactionSuccess("Consent approved. Proceeding with transaction...");
       } else {
         setOtpExpiresAt(data.otpExpiresAt || null);
         setOtpSent(data.otpSent || false);
