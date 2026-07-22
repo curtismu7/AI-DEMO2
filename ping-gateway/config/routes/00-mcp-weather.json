@@ -17,7 +17,15 @@
             "mappings": { "/mcp/weather": "/mcp" }
           }
         },
-        "rsFilter",
+        {
+          "name": "McpGatewayProtection",
+          "type": "McpProtectionFilter",
+          "config": {
+            "resourceId": "${env['PG_GATEWAY_RESOURCE_ID']}",
+            "authorizationServerUri": "${env['PINGONE_ISSUER_URI']}",
+            "resourceServerFilter": "rsFilter"
+          }
+        },
         {
           "name": "McpProtocol",
           "type": "McpValidationFilter",
