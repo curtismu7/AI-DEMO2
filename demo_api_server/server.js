@@ -115,6 +115,7 @@ const adminAgentToolsRoutes = require('./routes/adminAgentTools');
 const adminAgentRoutes = require('./routes/adminAgentRoutes');
 const opsAgentRoutes = require('./routes/opsAgentRoutes');
 const a2aAgentRoutes = require('./routes/a2aAgentRoutes');
+const { createA2aProtocolRouter } = require('./services/a2aProtocolServer');
 const supportAgentRoutes = require('./routes/supportAgentRoutes');
 const complianceAgentRoutes = require('./routes/complianceAgentRoutes');
 const adminConfigRoutes = require('./routes/adminConfig');
@@ -1065,6 +1066,9 @@ app.use('/api/admin-agent', authenticateToken, requireAdmin, adminAgentRoutes);
 app.use('/api/ops-agent', authenticateToken, opsAgentRoutes);
 // A2A Orchestrator: delegation decision and specialist routing
 app.use('/api/a2a', authenticateToken, a2aAgentRoutes);
+// A2A Protocol wire surface (Agent Cards + JSON-RPC). PingOne Bearer only —
+// no session cookie. Gated inside the router by ff_a2a_delegation.
+app.use('/a2a/specialists', createA2aProtocolRouter());
 // Support Agent: customer support via Mastra framework
 app.use('/api/support-agent', authenticateToken, supportAgentRoutes);
 // Compliance Agent: transaction compliance checking via Pydantic AI

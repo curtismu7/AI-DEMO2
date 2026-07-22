@@ -350,6 +350,34 @@ async function delegateToSpecialist(req, opts = {}) {
       },
     ));
 
+    // Additive A2A *wire* hop (Agent Card + JSON-RPC) with a separate PingOne
+    // bearer — does not replace nested-act MCP. Soft-fail so identity path wins.
+    let protocolHandoff = null;
+    if (opts.skipProtocolHandoff !== true) {
+      try {
+        const { sendA2aProtocolHandoff } = deps.sendA2aProtocolHandoff
+          ? { sendA2aProtocolHandoff: deps.sendA2aProtocolHandoff }
+          : require('./a2aProtocolClient');
+        protocolHandoff = await sendA2aProtocolHandoff({
+          vertical,
+          subtask,
+          tokenEvents,
+          cfg,
+          deps: { oauthService: oauth },
+          baseUrl: opts.protocolBaseUrl,
+        });
+      } catch (protoErr) {
+        tokenEvents.push(buildA2aEvent(
+          'a2a-protocol-message',
+          'A2A Protocol — SendMessage failed',
+          'failed',
+          null,
+          `Wire hop threw (nested-act MCP path unchanged): ${protoErr.message}`,
+          { a2aRole: 'protocol-message', vertical, error: protoErr.message },
+        ));
+      }
+    }
+
     return {
       token: tInvest,
       tokenEvents,
@@ -362,6 +390,7 @@ async function delegateToSpecialist(req, opts = {}) {
       agent2: c.agent2ClientId,
       scopes: specialistScopes,
       actChainDepth,
+      protocolHandoff,
     };
   } catch (err) {
     tokenEvents.push(buildA2aEvent(

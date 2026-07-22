@@ -139,13 +139,78 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
           <ol>
             <li><strong>Ask for sensitive data</strong> — e.g. &ldquo;show the sensitive record&rdquo;. The generalist can&apos;t read it directly.</li>
             <li><strong>It delegates</strong> (<code>delegate_to_specialist</code>) — the BFF runs a chained RFC 8693 exchange minting a nested-<code>act</code> token.</li>
+            <li><strong>A2A Protocol handoff</strong> — Agent Card discovery + JSON-RPC <code>SendMessage</code> with a separate PingOne Bearer (Token Chain events <code>a2a-protocol-*</code>).</li>
             <li><strong>Authorize decides over the chain</strong> — the specialist&apos;s depth-2 chain is permitted; the generalist alone would be denied.</li>
-            <li><strong>Watch the Token Chain</strong> — you&apos;ll see all three identities (you, the specialist, the generalist) and the authorize decision.</li>
+            <li><strong>Watch the Token Chain</strong> — you&apos;ll see identities, the wire hop, and the authorize decision.</li>
           </ol>
           <div>
             <CrossLink panelId={EDU.TOKEN_CHAIN} tabId="banking-app">See the live Token Chain</CrossLink>
             <CrossLink panelId={EDU.PINGONE_AUTHORIZE} tabId="overview">How Authorize decides</CrossLink>
           </div>
+        </>
+      ),
+    },
+    {
+      id: 'protocol',
+      label: 'A2A Protocol',
+      content: (
+        <>
+          <h3 style={{ marginTop: 0 }}>Two layers named &ldquo;A2A&rdquo;</h3>
+          <p style={{ color: '#374151' }}>
+            This demo uses <strong>Agent-to-Agent</strong> in two complementary ways. They are not the same mechanism:
+          </p>
+          <ul>
+            <li>
+              <strong>Identity (PingOne)</strong> — chained RFC 8693 token exchange builds a nested{' '}
+              <code>act</code> claim. PingOne Authorize decides MCP/gateway access over that chain.
+            </li>
+            <li>
+              <strong>Wire protocol (Linux Foundation A2A)</strong> — the generalist discovers the specialist via an{' '}
+              <strong>Agent Card</strong> and sends an A2A <code>SendMessage</code> over JSON-RPC, authenticated with a{' '}
+              <strong>separate PingOne Bearer</strong> (not the nested-act MCP token). Pattern matches the official{' '}
+              <a
+                href="https://github.com/a2aproject/a2a-samples/tree/main/samples/java/agents/magic_8_ball_security"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Magic 8 Ball security sample
+              </a>
+              , with PingOne as the IdP instead of Keycloak.
+            </li>
+          </ul>
+          <Callout>
+            Wire hop and MCP hop are deliberate separates: protocol auth proves agent-to-agent transport;
+            nested <code>act</code> proves who may call banking tools for the user.
+          </Callout>
+          <h3>When it runs</h3>
+          <p style={{ color: '#374151' }}>
+            Only UC2 / UC2.5 with <code>ff_a2a_delegation</code> on. Ordinary agent chats do not hit A2A protocol endpoints.
+            Every vertical specialist exposes{' '}
+            <code>/a2a/specialists/&lt;vertical&gt;/.well-known/agent-card.json</code>.
+          </p>
+          <h3>Official docs &amp; samples</h3>
+          <ul>
+            <li>
+              <a href="https://a2a-protocol.org/dev/tutorials/" target="_blank" rel="noopener noreferrer">
+                A2A tutorials
+              </a>
+            </li>
+            <li>
+              <a href="https://a2a-protocol.org/v1.0.0/specification/" target="_blank" rel="noopener noreferrer">
+                A2A Protocol specification v1.0
+              </a>
+            </li>
+            <li>
+              <a href="https://github.com/a2aproject/a2a-samples" target="_blank" rel="noopener noreferrer">
+                a2aproject/a2a-samples
+              </a>
+            </li>
+            <li>
+              <a href="https://github.com/a2aproject/a2a-js" target="_blank" rel="noopener noreferrer">
+                @a2a-js/sdk (JavaScript)
+              </a>
+            </li>
+          </ul>
         </>
       ),
     },
@@ -156,7 +221,8 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
         <>
           <h3 style={{ marginTop: 0 }}>Go deeper</h3>
           <p style={{ color: '#374151' }}>
-            A2A is built from the same exchange primitive as single-agent delegation — just chained:
+            Identity A2A is built from the same exchange primitive as single-agent delegation — just chained.
+            Protocol A2A is the open Agent2Agent wire standard on top of that story:
           </p>
           <div>
             <CrossLink panelId={EDU.OBO} tabId="what">On-Behalf-Of — the single-agent case</CrossLink>
@@ -170,7 +236,11 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
             <a href="https://datatracker.ietf.org/doc/html/rfc8693" target="_blank" rel="noopener noreferrer">
               RFC 8693 — OAuth 2.0 Token Exchange
             </a>
-            . A2A simply runs the exchange twice, so the actor chain nests one level deeper per agent.
+            . Start with the{' '}
+            <a href="https://a2a-protocol.org/dev/tutorials/" target="_blank" rel="noopener noreferrer">
+              A2A Protocol tutorials
+            </a>{' '}
+            for Agent Cards, skills, and authenticated clients.
           </p>
         </>
       ),

@@ -77,6 +77,8 @@ describe('a2aDelegationService.delegateToSpecialist (chained RFC 8693)', () => {
     configStore: makeConfig(cfgOverrides),
     getSessionBearerForMcp: sessionBearer,
     scopeTopology: makeScopeTopology(),
+    // Unit tests cover RFC 8693 identity only; protocol wire hop is separate.
+    sendA2aProtocolHandoff: async ({ tokenEvents }) => ({ ok: true, tokenEvents }),
   });
 
   test('produces nested act:{agent2, act:{agent1}} bound to the user (banking)', async () => {
