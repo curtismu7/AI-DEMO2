@@ -5,14 +5,16 @@ description: "Banking step narration — LLM grounding/hallucination check (Phas
 # to Phi (fits laptops / Metal VRAM). On larger hosts run
 # `npm run promptfoo:step-narration:full` to grade gpt-oss-20b too — that tier
 # OOMs on typical 16–24GB Apple Silicon at default --n-gpu-layers 33 + 8k ctx.
+#
+# apiBaseUrl is intentionally omitted — promptfoo falls through to
+# OPENAI_API_BASE_URL / OPENAI_BASE_URL so the same config works on the host
+# (localhost:8090) and in Docker (llm-proxy:8090).
 providers:
   - id: openai:chat:phi-4-mini-instruct
     config:
-      apiBaseUrl: http://localhost:8090/v1
       apiKey: not-needed
   - id: openai:chat:gpt-oss-20b
     config:
-      apiBaseUrl: http://localhost:8090/v1
       apiKey: not-needed
 
 # llm-rubric must grade via the local proxy — default OpenAI cloud rejects apiKey: not-needed.
@@ -21,7 +23,6 @@ defaultTest:
     provider:
       id: openai:chat:phi-4-mini-instruct
       config:
-        apiBaseUrl: http://localhost:8090/v1
         apiKey: not-needed
 
 prompts:
