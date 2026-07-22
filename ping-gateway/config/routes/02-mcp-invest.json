@@ -25,7 +25,7 @@
           "name": "McpGatewayProtection",
           "type": "McpProtectionFilter",
           "config": {
-            "resourceId": "${env['PG_GATEWAY_RESOURCE_ID']}",
+            "resourceId": "${env['PG_GATEWAY_RESOURCE_ID']}/invest",
             "authorizationServerUri": "${env['PINGONE_ISSUER_URI']}",
             "resourceServerFilter": "rsFilter"
           }
