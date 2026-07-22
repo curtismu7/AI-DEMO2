@@ -21,6 +21,8 @@
 | UC7 | `transfer $600 from checking to savings` | `STEP_UP` | $600 >= $500 → MFA required, then it proceeds. |
 | UC8 | `transfer $300 from checking to savings` | `HITL_REQUIRED` | The agent paused and waited — the transfer only ran after you approved it. |
 | UC24 | `What branches are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
+| UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
+| UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
 | UC28 | `Can you waive the fee on my checking account?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
 ## healthcare
@@ -32,6 +34,8 @@
 | UC7 | `pay my $600 bill` | `STEP_UP` | $600 bill payment >= the step-up bar → MFA required first. |
 | UC8 | `pay my $300 bill` | `HITL_REQUIRED` | $300 bill payment requires human consent before it runs. |
 | UC24 | `What clinics are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
+| UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
+| UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
 
 ## retail
 
@@ -42,6 +46,8 @@
 | UC7 | `checkout headphones for $600` | `STEP_UP` | $600 checkout >= the step-up bar → MFA required first. |
 | UC8 | `checkout headphones for $300` | `HITL_REQUIRED` | $300 checkout requires human consent before it runs. |
 | UC24 | `What stores are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
+| UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
+| UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
 
 ## government
 
@@ -52,6 +58,8 @@
 | UC7 | `pay the $600 fee` | `STEP_UP` | $600 fee payment >= the step-up bar → MFA required first. |
 | UC8 | `pay the $300 fee` | `HITL_REQUIRED` | $300 fee payment requires human consent before it runs. |
 | UC24 | `What city offices are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
+| UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
+| UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
 
 ## university
 
@@ -62,6 +70,8 @@
 | UC7 | `pay $600 tuition` | `STEP_UP` | $600 tuition payment >= the step-up bar → MFA required first. |
 | UC8 | `pay $300 tuition` | `HITL_REQUIRED` | $300 tuition payment requires human consent before it runs. |
 | UC24 | `What campus locations are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
+| UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
+| UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
 
 ## workforce
 
@@ -72,6 +82,8 @@
 | UC7 | `submit a $600 expense` | `STEP_UP` | $600 expense >= the step-up bar → MFA required first. |
 | UC8 | `submit a $300 expense` | `HITL_REQUIRED` | $300 expense requires human consent before it runs. |
 | UC24 | `What office locations are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
+| UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
+| UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
 
 ## sporting-goods
 
@@ -82,6 +94,8 @@
 | UC7 | `extend my rental $600` | `STEP_UP` | $600 rental extension >= the step-up bar → MFA required first. |
 | UC8 | `extend my rental $300` | `HITL_REQUIRED` | $300 rental extension requires human consent before it runs. |
 | UC24 | `What stores are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
+| UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
+| UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
 
 ## manufacturing
 
@@ -92,6 +106,8 @@
 | UC7 | `approve a $600 purchase order` | `STEP_UP` | $600 purchase-order approval >= the step-up bar → MFA required first. |
 | UC8 | `approve a $300 purchase order` | `HITL_REQUIRED` | $300 purchase-order approval requires human consent before it runs. |
 | UC24 | `What plant locations are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
+| UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
+| UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
 
 ## investment
 
@@ -102,4 +118,6 @@
 | UC7 | `execute a large trade of $600` | `STEP_UP` | $600 >= $500 → MFA required, then it proceeds. |
 | UC8 | `execute a large trade of $300` | `HITL_REQUIRED` | The agent paused and waited — the transfer only ran after you approved it. |
 | UC24 | `What branches are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
+| UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
+| UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
 
