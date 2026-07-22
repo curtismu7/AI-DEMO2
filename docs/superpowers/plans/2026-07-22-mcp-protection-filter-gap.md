@@ -12,8 +12,9 @@ into only **1 of 7** — `01-mcp-olb.json` (`mcp-olb-primary`, filter name
 user redirected: don't implement the fix yet — just want this investigation
 written up as a doc, committed, and pushed, with a link back.
 
-**This plan's deliverable is the doc below, not the code fix.** The fix itself
-(§3) is documented for a future session, not applied now.
+**This plan's deliverable was originally the investigation doc.** The mechanical
+fix in §3 is now applied on `00-mcp-apikey.json`, `02-mcp-invest.json`, and
+`00-mcp-weather.json`. JWKS routes remain out of scope (§3).
 
 ## 1. Current filter status (verbatim findings)
 
@@ -21,11 +22,11 @@ written up as a doc, committed, and pushed, with a link back.
 |---|---|---|---|---|---|
 | `01-mcp-olb.json` | mcp-olb-primary | yes | **yes** (`McpGatewayProtection`) | yes | introspection via local `OlbResourceServerFilter` |
 | `00-mcp-olb-jwks.json` | mcp-olb-jwks | yes | no | yes | `jwks-token-validation.groovy` (custom script) |
-| `00-mcp-apikey.json` | mcp-apikey-primary | yes | no | yes | introspection via local `ApikeyResourceServerFilter` |
+| `00-mcp-apikey.json` | mcp-apikey-primary | yes | **yes** (`McpGatewayProtection` → `ApikeyResourceServerFilter`) | yes | introspection via local `ApikeyResourceServerFilter` |
 | `00-mcp-apikey-jwks.json` | mcp-apikey-jwks | yes | no | yes | `jwks-token-validation.groovy` |
-| `02-mcp-invest.json` | mcp-invest-secondary | yes | no | yes | introspection via global `rsFilter` (config.json) |
+| `02-mcp-invest.json` | mcp-invest-secondary | yes | **yes** (`McpGatewayProtection` → `rsFilter`) | yes | introspection via global `rsFilter` (config.json) |
 | `00-mcp-invest-jwks.json` | mcp-invest-jwks | yes | no | yes | `jwks-token-validation.groovy` |
-| `00-mcp-weather.json` | mcp-weather-primary | yes | no | yes | introspection via global `rsFilter` |
+| `00-mcp-weather.json` | mcp-weather-primary | yes | **yes** (`McpGatewayProtection` → `rsFilter`) | yes | introspection via global `rsFilter` |
 
 `McpAuditFilter` writes to `audit/mcp.audit.json` (topics `access`+`mcp`) via
 the shared `AuditService` heap object (`config/config.json:74`).
@@ -66,11 +67,12 @@ bare `aud` (`mcpgateway.ping.demo`) the Node gateway issues, or requires the
 full resource URL (`PG_GATEWAY_RESOURCE_ID`) as `aud`. Any new wiring inherits
 this same open question and must be live-verified per route, not assumed.
 
-## 3. Proposed fix (not applied — future work)
+## 3. Proposed fix (applied — mechanical routes)
 
 Wrap the 3 mechanical-gap routes' existing resource-server filter in
 `McpProtectionFilter`, mirroring `01-mcp-olb.json:94-102` exactly — insert
-right after `McpAudit`, before `McpProtocol`:
+in place of the bare RS filter entry (after path-strip when present, before
+`McpProtocol`):
 
 ```json
 {
@@ -108,5 +110,7 @@ done.
 
 - `McpAuditFilter`: deployed all 7 routes, working.
 - `McpValidationFilter`: deployed all 7 routes, working.
-- `McpProtectionFilter`: deployed 1 of 7 routes (OLB only); 3 routes fixable mechanically; 3 routes (JWKS variants) need design work for JWKS-capable equivalent.
-- README §1 documents the intended design; current state is partial.
+- `McpProtectionFilter`: deployed on OLB + apikey + invest + weather (4 of 7).
+  JWKS variants (3 routes) still need a design pass for a JWKS-capable
+  `OAuth2ResourceServerFilter` equivalent.
+- README §1 documents the intended design; introspection routes now match it.
