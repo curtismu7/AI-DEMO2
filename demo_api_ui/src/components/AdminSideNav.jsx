@@ -759,6 +759,7 @@ export default function AdminSideNav({ user }) {
         { label: "Agent Onboarding Flow", path: "/agent-onboarding-flow", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
         { label: "Agent Onboarding Flow (Subway)", path: "/agent-onboarding-flow-subway", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
         { label: "Agent Onboarding Flow (Mermaid)", path: "/agent-onboarding-flow-mermaid", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
+        { label: "MCP Gateway OAuth Flow", path: "/mcp-gateway-oauth-flow", icon: "log" },
       ],
     },
     {

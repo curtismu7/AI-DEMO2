@@ -23,6 +23,7 @@ import AgentGuardrailsPage from "./pages/AgentGuardrailsPage";
 import AgentOnboardingFlowDiagram from "./components/AgentOnboardingFlowDiagram";
 import AgentOnboardingSubwayPage from "./components/AgentOnboardingSubwayPage";
 import AgentOnboardingMermaidPage from "./components/AgentOnboardingMermaidPage";
+import McpGatewayOauthFlowPage from "./components/McpGatewayOauthFlowPage";
 import AgentStudioPreviewPage from "./components/agentStudioPreview/AgentStudioPreviewPage";
 import DiscoveryPreviewPage from "./components/agentStudioPreview/DiscoveryPreviewPage";
 import IgaForAiPage from "./components/agentStudioPreview/IgaForAiPage";
@@ -1140,6 +1141,10 @@ function AppWithAuth() {
                             <Route
                               path="/agent-onboarding-flow-mermaid"
                               element={<AgentOnboardingMermaidPage />}
+                            />
+                            <Route
+                              path="/mcp-gateway-oauth-flow"
+                              element={<McpGatewayOauthFlowPage />}
                             />
                             <Route
                               path="/agent-studio-preview"
