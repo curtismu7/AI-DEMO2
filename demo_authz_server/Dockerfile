@@ -19,6 +19,11 @@ COPY demo_authz_server/routes/ ./routes/
 # Required at runtime (require() at module load, not embedded).
 COPY scope-topology.json /repo/scope-topology.json
 
+# routes/generate-snapshot.js require()s the reconciler + the snapshot it
+# reads/writes at module load — missing this crash-loops the container.
+COPY snapshots/gen-authorize-snapshot.js /repo/snapshots/gen-authorize-snapshot.js
+COPY snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json /repo/snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json
+
 EXPOSE 9001
 
 # Server binds 127.0.0.1, so probe from inside the container (same netns).
