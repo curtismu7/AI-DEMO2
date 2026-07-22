@@ -755,17 +755,65 @@ export function buildTraceSteps(trace) {
     } : {}));
   const apiMeta = apiMetaEarly;
   const apiKeyCall = apiMeta.credentialPath === "api_key" || apiKeyPath;
-  steps.push(makeStep("api", authorizeFailed ? "notinpath" : (mcpDone && mcpResult) || apiKeyCall ? "done" : traceComplete ? "notinpath" : "pending",
-    mcpResult && (mcpResult.result || apiKeyCall) ? {
+  const rsReply = findEvent(tokenEvents, "resource-server-reply");
+  const rsDone = Boolean(rsReply) || (mcpDone && mcpResult) || apiKeyCall;
+  const mcpToolArgs = mcpResult?.requestJson?.params
+    || mcpResult?.requestJson?.arguments
+    || (mcpResult?.requestJson?.params?.arguments != null
+      ? mcpResult.requestJson.params
+      : null);
+  const rsRequest = (() => {
+    if (apiKeyCall && apiMeta.apiCall) {
+      return { title: "Resource server call (api-key path)", text: String(apiMeta.apiCall) };
+    }
+    if (evtBackend) {
+      return { title: "Backend outbound", text: asJson(evtBackend) };
+    }
+    if (mcpToolArgs || mcpResult?.tool || rsReply?.toolName) {
+      return {
+        title: "MCP → banking API (via tool)",
+        text: asJson({
+          tool: mcpResult?.tool || mcpResult?.toolName || rsReply?.toolName || null,
+          params: mcpResult?.requestJson?.params || mcpToolArgs || null,
+          note: "No raw HTTP method/URL on this path — tool args are the teaching request.",
+        }),
+      };
+    }
+    return undefined;
+  })();
+  const rsResponseBody = apiMeta.resourceResult != null
+    ? apiMeta.resourceResult
+    : (mcpResult && mcpResult.result != null ? mcpResult.result : null);
+  steps.push(makeStep("api",
+    authorizeFailed ? "notinpath" : rsDone ? "done" : traceComplete ? "notinpath" : "pending",
+    rsDone ? {
+      why: rsReply
+        ? `Resource server replied for “${rsReply.toolName || "tool"}”`
+          + (rsReply.durationMs != null ? ` in ${rsReply.durationMs} ms` : "")
+          + (rsReply.routedVia ? ` via ${rsReply.routedVia}` : "")
+          + "."
+        : apiKeyCall
+          ? "Backend call after credential swap — X-API-Key + X-User-Sub (no OAuth bearer on the wire)."
+          : "Tool result returned from the MCP/resource path under the delegated identity.",
       narrative: apiKeyCall
         ? "Backend call after credential swap — X-API-Key + X-User-Sub (no OAuth bearer on the wire)."
-        : "The actual resource-server call made with the delegated bearer token.",
-      response: mcpResult.result ? { title: "API result", text: asJson(mcpResult.result) } : undefined,
+        : "The resource-server hop behind the MCP tool (banking API or equivalent).",
+      request: rsRequest,
+      response: rsResponseBody != null
+        ? { title: "Resource / tool result", text: asJson(rsResponseBody) }
+        : rsReply?.resultSummary
+          ? { title: "Resource server summary", text: String(rsReply.resultSummary) }
+          : undefined,
       kv: [
+        rsReply?.toolName ? ["tool", String(rsReply.toolName)] : null,
+        rsReply?.durationMs != null ? ["duration", `${rsReply.durationMs} ms`] : null,
+        rsReply?.routedVia ? ["routed via", String(rsReply.routedVia)] : null,
+        rsReply?.resultStatus ? ["result status", String(rsReply.resultStatus)] : null,
         apiKeyCall && apiMeta.apiCall ? ["api call", apiMeta.apiCall] : null,
         apiKeyCall && apiMeta.apiKeyMaskedLast4 ? ["service key", `••••${apiMeta.apiKeyMaskedLast4}`] : null,
         evtBackend ? ["backend", evtBackend.label] : null,
       ].filter(Boolean),
+      tokenEvent: rsReply || undefined,
     } : {}));
 
   // 11. reply — heuristics compose from the tool result (no LLM); chip paths

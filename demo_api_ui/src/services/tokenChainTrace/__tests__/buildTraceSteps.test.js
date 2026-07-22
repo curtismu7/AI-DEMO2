@@ -719,3 +719,28 @@ describe("buildTraceSteps — E3 MCP success response", () => {
     expect(mcp.detail.response.text).toContain("balance");
   });
 });
+
+describe("buildTraceSteps — E4 resource-server step", () => {
+  test("resource-server-reply marks api done with tool/duration kv", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      tokenEvents: [{
+        id: "resource-server-reply", status: "success",
+        toolName: "get_balance", durationMs: 17, routedVia: "gateway",
+        resultSummary: "balance ok", resultStatus: "success",
+      }],
+      mcpResult: {
+        tool: "get_balance",
+        requestJson: { jsonrpc: "2.0", method: "tools/call", params: { name: "get_balance", arguments: { account: "a1" } } },
+        result: { balance: 100 },
+      },
+    });
+    const api = steps.find((s) => s.id === "api");
+    expect(api.status).toBe("done");
+    expect(api.detail.why).toMatch(/get_balance/);
+    expect(api.detail.kv.some(([k, v]) => k === "duration" && String(v).includes("17"))).toBe(true);
+    expect(api.detail.request.text).toContain("banking API");
+    expect(api.detail.response.title).toMatch(/Resource/i);
+  });
+});
