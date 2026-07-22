@@ -32,7 +32,7 @@
 - Produces: `requestApproval(delegationId, { authReqId, amount, tool, bindingMessage }) → Promise<{ ok: boolean, error?: string }>`; `resolveApproval(delegationId, managerUserId, decision) → Promise<{ ok: boolean, error?: string }>` where `decision` is `'approved'|'denied'`; `findActiveByDelegate(delegateUserId) → Promise<record|null>` (record has `id`, `delegator_user_id`, `scopes`, etc. — same shape `toRecord()` already produces); `getApprovalStatus(delegationId) → Promise<{ status: 'pending'|'approved'|'denied', approverUserId: string|null }>`.
 - Consumes: nothing new — uses the module's existing `_db()`/`toRecord()`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `demo_api_server/tests/delegationApproval.test.js`:
 
@@ -200,12 +200,12 @@ describe('resolveApproval', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cd demo_api_server && npx jest tests/delegationApproval.test.js --testPathIgnorePatterns="/node_modules/,/\\.kilo/worktrees/,/tests/real/"`
 Expected: FAIL — `requestApproval`, `resolveApproval`, `findActiveByDelegate`, `getApprovalStatus` are not exported yet (`TypeError: ... is not a function`).
 
-- [ ] **Step 3: Implement in `delegationService.js`**
+- [x] **Step 3: Implement in `delegationService.js`**
 
 Add these four functions after `revokeDelegation` (before the `listDelegations` section) in `demo_api_server/services/delegationService.js`:
 
@@ -293,12 +293,12 @@ module.exports = {
 
 Note: `toRecord()` already spreads `{ ...row, scopes: ... }`, so any `pendingApproval` field written onto a record is automatically included wherever `toRecord()` is called (e.g. `listDelegations`, used by `GET /api/delegation`) — no change needed there.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cd demo_api_server && npx jest tests/delegationApproval.test.js --testPathIgnorePatterns="/node_modules/,/\\.kilo/worktrees/,/tests/real/"`
 Expected: PASS (11 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/manager-approver
