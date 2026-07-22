@@ -15,19 +15,39 @@ const STEP_WITH_EVIDENCE = {
   },
 };
 
-test("renders why line and keeps evidence collapsed by default", () => {
-  const { container } = render(
+const STEP_NARRATIVE_ONLY = {
+  id: "prompt",
+  num: 2,
+  title: "Chatbot — prompt sent",
+  lane: "CHAT",
+  status: "pending",
+  detail: {
+    narrative: "The browser sends only the message — no tokens.",
+    rfcs: ["RFC 6749"],
+  },
+};
+
+test("shows JSON request/response inline and offers Pop out when evidence exists", () => {
+  render(
     <TraceStepCard step={STEP_WITH_EVIDENCE} onInspect={() => {}} defaultOpen />,
   );
   expect(screen.getByText(/Why this run:/)).toBeInTheDocument();
   expect(screen.getByText(/delegated token with scope/)).toBeInTheDocument();
-  const evidence = container.querySelector("details.tctr-evidence");
-  expect(evidence).toBeTruthy();
-  expect(evidence).not.toHaveAttribute("open");
+  expect(screen.getByText("Exchange request (actual)")).toBeInTheDocument();
+  expect(screen.getByText(/"audience"/)).toBeInTheDocument();
+  expect(screen.getByText("Delegated token claims")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /Pop out full detail/i })).toBeInTheDocument();
 });
 
-test("evidence summary mentions prefer Pop out when payload is large", () => {
+test("does not offer Pop out when only default narrative text is present", () => {
+  render(
+    <TraceStepCard step={STEP_NARRATIVE_ONLY} onInspect={() => {}} defaultOpen />,
+  );
+  expect(screen.getByText(/browser sends only the message/)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /Pop out full detail/i })).toBeNull();
+});
+
+test("large evidence hints to prefer Pop out without hiding the JSON", () => {
   const big = "x".repeat(700);
   const step = {
     ...STEP_WITH_EVIDENCE,
@@ -38,5 +58,7 @@ test("evidence summary mentions prefer Pop out when payload is large", () => {
     },
   };
   render(<TraceStepCard step={step} onInspect={() => {}} defaultOpen />);
-  expect(screen.getByText(/prefer Pop out/i)).toBeInTheDocument();
+  expect(screen.getByText(/use Pop out for a bigger view/i)).toBeInTheDocument();
+  expect(screen.getByText("Request")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /Pop out full detail/i })).toBeInTheDocument();
 });
