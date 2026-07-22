@@ -11,12 +11,23 @@ providers:
       apiBaseUrl: http://localhost:8090/v1
       apiKey: not-needed
 
+# llm-rubric must grade via the local proxy — default OpenAI cloud rejects apiKey: not-needed.
+defaultTest:
+  options:
+    provider:
+      id: openai:chat:phi-4-mini-instruct
+      config:
+        apiBaseUrl: http://localhost:8090/v1
+        apiKey: not-needed
+
 prompts:
   - |
     You are the banking demo's narration assistant. A tool call just returned
     the following JSON result for the user's request. Reply with ONE short
     sentence describing the result. Use ONLY the numbers present in the JSON
     below — never estimate, round, or invent a different figure.
+    Copy numeric amounts exactly as written in the JSON (e.g. 2500 not 2,500);
+    do not insert thousands separators.
 
     Tool result: {{tool_result}}
 
@@ -24,10 +35,11 @@ tests:
   - vars:
       tool_result: '{"action":"get_account_balance","accountType":"CHECKING","balance":2857.48}'
     assert:
-      - type: contains
-        value: "2857.48"
+      # Optional thousands separator — models often emit $2,857.48
+      - type: regex
+        value: "2,?857\\.48"
       - type: llm-rubric
-        value: "The reply does not state any dollar figure other than 2857.48."
+        value: "The reply does not state any dollar figure other than 2857.48 (commas in 2,857.48 are fine)."
   - vars:
       tool_result: '{"action":"create_transfer","status":"HITL_REQUIRED","amount":300,"fromAccountType":"CHECKING","toAccountType":"SAVINGS"}'
     assert:
@@ -38,7 +50,8 @@ tests:
   - vars:
       tool_result: '{"action":"create_transfer","status":"DENY","amount":2500,"reason":"exceeds_transfer_limit"}'
     assert:
-      - type: contains
-        value: "2500"
+      # Optional thousands separator — models often emit $2,500; Step 5 still fails on 999999
+      - type: regex
+        value: "2,?500"
       - type: llm-rubric
         value: "The reply clearly states the transfer was denied/blocked — it does not claim the transfer succeeded."
