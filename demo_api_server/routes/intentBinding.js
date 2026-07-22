@@ -54,11 +54,12 @@ router.post('/run', authenticateToken, async (req, res) => {
       const parEndpoint = configStore.getEffective('pingone_par_endpoint');
       const clientId = configStore.getEffective('pingone_ai_agent_actor_client_id');
       const clientSecret = configStore.getEffective('pingone_ai_agent_actor_client_secret');
+      const redirectUri = configStore.getEffective('pingone_ai_agent_actor_redirect_uri');
 
-      if (!parEndpoint || !clientId || !clientSecret) {
+      if (!parEndpoint || !clientId || !clientSecret || !redirectUri) {
         return res.status(503).json({
           error: 'par_config_missing',
-          reason: 'PingOne PAR (RFC 9126) is enabled by default. Configure: pingone_par_endpoint, pingone_ai_agent_actor_client_id, pingone_ai_agent_actor_client_secret',
+          reason: 'PingOne PAR (RFC 9126) is enabled by default. Configure: pingone_par_endpoint, pingone_ai_agent_actor_client_id, pingone_ai_agent_actor_client_secret, pingone_ai_agent_actor_redirect_uri',
           tokenChainEvents: [{
             id: 'par-config-missing',
             label: 'PAR Configuration Missing',
@@ -67,15 +68,23 @@ router.post('/run', authenticateToken, async (req, res) => {
         });
       }
 
+      // Declared authority: the agent may transfer up to $100 (the intent pushed
+      // to PAR). The push itself always succeeds — PingOne stores the request and
+      // returns a request_uri without validating the amount — so intent binding
+      // is enforced here by comparing the requested amount against the cap.
+      const INTENT_CAP = 100;
+      const amount = Number(requestedAmount) || 0;
+
       try {
         const authPayload = {
           scope: 'openid profile email',
-          authorization_details: {
+          redirect_uri: redirectUri,
+          authorization_details: [{
             type: 'banking_transaction',
-            tool: 'create_transfer',
-            amount: 100,
+            actions: ['transfer'],
+            amount,
             payee: 'acme-utilities',
-          },
+          }],
         };
 
         const parResult = await pushAuthorizationRequest(
@@ -86,25 +95,42 @@ router.post('/run', authenticateToken, async (req, res) => {
           'default'
         );
 
+        const withinIntent = amount <= INTENT_CAP;
         return res.status(200).json({
-          sim: 'par-permit',
-          useCaseId: 'par-intent-verified',
-          status: 200,
-          errorCode: null,
-          reason: 'PERMIT (via PAR)',
+          sim: withinIntent ? 'par-permit' : 'par-deny',
+          useCaseId: withinIntent ? 'par-intent-verified' : 'par-intent-violation',
+          status: withinIntent ? 200 : 403,
+          errorCode: withinIntent ? null : 'intent_exceeded',
+          reason: withinIntent
+            ? `PERMIT — $${amount} within the $${INTENT_CAP} declared intent (via PAR)`
+            : `DENY — $${amount} exceeds the $${INTENT_CAP} declared intent (via PAR)`,
           requestUri: parResult.requestUri,
-          tokenChainEvents: [
-            { id: 'par-push', label: 'PAR Endpoint Push', status: 'active' },
-            { id: 'request-uri', label: 'Received request_uri', status: 'active' },
-            { id: 'p1az-check', label: 'PingOne Authorize Check', status: 'active' },
-          ],
+          tokenChainEvents: withinIntent
+            ? [
+                { id: 'par-push', label: 'PAR Endpoint Push', status: 'active' },
+                { id: 'request-uri', label: 'Received request_uri', status: 'active' },
+                { id: 'intent-check', label: `Intent cap $${amount} <= $${INTENT_CAP}`, status: 'active' },
+                { id: 'p1az-permit', label: 'PingOne Authorize — PERMIT', status: 'active' },
+              ]
+            : [
+                { id: 'par-push', label: 'PAR Endpoint Push', status: 'active' },
+                { id: 'request-uri', label: 'Received request_uri', status: 'active' },
+                { id: 'intent-check', label: `Intent cap $${amount} > $${INTENT_CAP}`, status: 'error' },
+                { id: 'transfer-blocked', label: 'Transfer blocked — intent exceeded', status: 'error' },
+              ],
           live: true,
         });
       } catch (parErr) {
         console.error('[intentBinding] PAR push failed:', parErr.message);
-        return res.status(400).json({
-          error: 'par_push_failed',
+        return res.status(200).json({
+          sim: 'par-error',
+          status: 403,
+          errorCode: 'par_push_failed',
           reason: parErr.message,
+          tokenChainEvents: [
+            { id: 'par-push', label: 'PAR Endpoint Push', status: 'error' },
+          ],
+          live: true,
         });
       }
     }
