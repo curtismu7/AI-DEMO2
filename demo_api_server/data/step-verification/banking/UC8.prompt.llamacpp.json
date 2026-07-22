@@ -1,0 +1,10 @@
+{
+  "vertical": "banking",
+  "useCaseId": "UC8",
+  "triggerType": "prompt",
+  "mode": "llamacpp",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "create_transfer",
+  "checkedAt": "2026-07-22T12:43:17.025Z"
+}
