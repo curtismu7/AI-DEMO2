@@ -4080,7 +4080,11 @@ export default function BankingAgent({
             // URL. If it's blocked anyway (cibaTab is null), the inline
             // "Waiting for CIBA approval" bubble below is a complete fallback
             // on its own; see the design doc's Error handling section.
-            const cibaTab = window.open("", "_blank");
+            const cibaTab = window.open(
+              "",
+              "ciba-approve",
+              "popup=yes,width=440,height=720,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
+            );
             try {
               const apiBase = process.env.REACT_APP_API_URL || "";
               const fromAccountId =
@@ -7055,7 +7059,11 @@ export default function BankingAgent({
     ) {
       // Same pre-open-then-navigate pattern as runAction's CIBA branch — see
       // that comment for why this reduces (not eliminates) popup blocking.
-      const cibaTab = window.open("", "_blank");
+      const cibaTab = window.open(
+        "",
+        "ciba-approve",
+        "popup=yes,width=440,height=720,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
+      );
       try {
         const apiBase = process.env.REACT_APP_API_URL || "";
         const fromAccountId = response.fromAccountId || response.from_account_id;
