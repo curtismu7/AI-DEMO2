@@ -7,6 +7,10 @@
  * /api/accounts/my), 5 (right gate — via `source`).
  *
  * Prerequisites: stack running (./run.sh), E2E_CUSTOMER_USERNAME/PASSWORD set.
+ * Prefer E2E_BASE_URL=https://local.ping-devops.com:4000 when that host resolves
+ * (passkeys / session cookie). api.ping.demo:4000 works for many real specs.
+ * Always use playwright.real.config.js (no local Vite webServer).
+ *
  * Run:
  *   cd demo_api_ui
  *   E2E_BASE_URL=https://api.ping.demo:4000 npx playwright test \
@@ -100,97 +104,126 @@ async function dispatchNl(page, message, provider) {
   );
 }
 
+/** Patch a flag using the authenticated page/context request (not the bare `request` fixture). */
+async function setHeuristicEnabled(api, enabled) {
+  const res = await api.patch('/api/admin/feature-flags', {
+    data: { updates: { ff_heuristic_enabled: enabled } },
+  });
+  expect(res.ok(), `ff_heuristic_enabled=${enabled} (HTTP ${res.status()})`).toBe(true);
+}
+
 test.describe('Step verification — banking (real login, live stack)', () => {
   test.skip(!requireRealLoginEnv(), 'Skipped: set E2E_CUSTOMER_USERNAME and E2E_CUSTOMER_PASSWORD');
 
-  test.beforeEach(async ({ page }) => {
-    await loginAsCustomer(page);
-  });
+  test.describe('chips (heuristic mode)', () => {
+    test.beforeEach(async ({ page }) => {
+      // Chip tests require the heuristic short-circuit. A prior free-text run (or
+      // a crashed afterAll) can leave ff_heuristic_enabled=false globally.
+      // Must use page.request (cookie session) — the bare request fixture is unauthenticated
+      // and the gateway returns authentication_required without updating the flag.
+      await loginAsCustomer(page);
+      await setHeuristicEnabled(page.request, true);
+    });
 
-  for (const c of AMOUNT_CASES) {
-    test(`${c.useCaseId} chip (heuristic): "${c.chipText}"`, async ({ page }) => {
-      const { status, body } = await dispatchNl(page, c.chipText, 'llamacpp');
+    for (const c of AMOUNT_CASES) {
+      test(`${c.useCaseId} chip (heuristic): "${c.chipText}"`, async ({ page }) => {
+        const { status, body } = await dispatchNl(page, c.chipText, 'llamacpp');
+
+        let checkStatus = 'PASS';
+        let errorClass = null;
+        if (status !== 200) {
+          checkStatus = 'FAIL';
+          errorClass = 'server_error';
+        } else if (body.source !== 'heuristic') {
+          checkStatus = 'FAIL';
+          errorClass = 'parse_error';
+        }
+
+        writeLedgerEntry({
+          vertical: 'banking',
+          useCaseId: c.useCaseId,
+          triggerType: 'chip',
+          mode: 'heuristic',
+          status: checkStatus,
+          errorClass,
+          primaryTool: 'create_transfer',
+          checkedAt: new Date().toISOString(),
+        });
+
+        expect(status).toBe(200);
+        expect(body.source).toBe('heuristic');
+      });
+    }
+
+    test('accounts/balance chip: values match /api/accounts/my (check 4: right response)', async ({ page }) => {
+      const readChip = findBankingReadChip();
+      test.skip(!readChip, 'No works-maturity banking chip routes to an accounts/balance read tool');
+
+      const liveAccounts = await page.evaluate(async () => {
+        const r = await fetch('/api/accounts/my', { credentials: 'include' });
+        if (!r.ok) throw new Error(`accounts/my -> ${r.status}`);
+        const data = await r.json();
+        return data.accounts || [];
+      });
+      expect(liveAccounts.length).toBeGreaterThan(0);
+
+      // get_account_balance requires account_id; get_my_accounts takes {}.
+      const toolParams =
+        readChip.primaryTool === 'get_account_balance'
+          ? { account_id: liveAccounts[0].id }
+          : {};
+      const { status, body } = await callMcpTool(page, readChip.primaryTool, toolParams);
 
       let checkStatus = 'PASS';
       let errorClass = null;
+
       if (status !== 200) {
         checkStatus = 'FAIL';
         errorClass = 'server_error';
-      } else if (body.source !== 'heuristic') {
-        checkStatus = 'FAIL';
-        errorClass = 'parse_error';
+      } else {
+        const resultText = JSON.stringify(body.result ?? body ?? {});
+        const anyBalanceGrounded = liveAccounts.some((a) => resultText.includes(String(a.balance)));
+        if (!anyBalanceGrounded) {
+          checkStatus = 'FAIL';
+          errorClass = 'wrong_response';
+        }
       }
 
       writeLedgerEntry({
         vertical: 'banking',
-        useCaseId: c.useCaseId,
+        useCaseId: readChip.id,
         triggerType: 'chip',
         mode: 'heuristic',
         status: checkStatus,
         errorClass,
-        primaryTool: 'create_transfer',
+        primaryTool: readChip.primaryTool,
         checkedAt: new Date().toISOString(),
       });
 
       expect(status).toBe(200);
-      expect(body.source).toBe('heuristic');
+      expect(checkStatus).toBe('PASS');
     });
-  }
-
-  test('accounts/balance chip: values match /api/accounts/my (check 4: right response)', async ({ page }) => {
-    const readChip = findBankingReadChip();
-    test.skip(!readChip, 'No works-maturity banking chip routes to an accounts/balance read tool');
-
-    const liveAccounts = await page.evaluate(async () => {
-      const r = await fetch('/api/accounts/my', { credentials: 'include' });
-      if (!r.ok) throw new Error(`accounts/my -> ${r.status}`);
-      const data = await r.json();
-      return data.accounts || [];
-    });
-
-    const { status, body } = await callMcpTool(page, readChip.primaryTool, {});
-
-    let checkStatus = 'PASS';
-    let errorClass = null;
-
-    if (status !== 200) {
-      checkStatus = 'FAIL';
-      errorClass = 'server_error';
-    } else {
-      const resultText = JSON.stringify(body.result ?? {});
-      const anyBalanceGrounded = liveAccounts.some((a) => resultText.includes(String(a.balance)));
-      if (!anyBalanceGrounded) {
-        checkStatus = 'FAIL';
-        errorClass = 'wrong_response';
-      }
-    }
-
-    writeLedgerEntry({
-      vertical: 'banking',
-      useCaseId: readChip.id,
-      triggerType: 'chip',
-      mode: 'heuristic',
-      status: checkStatus,
-      errorClass,
-      primaryTool: readChip.primaryTool,
-      checkedAt: new Date().toISOString(),
-    });
-
-    expect(status).toBe(200);
-    expect(checkStatus).toBe('PASS');
   });
 
   test.describe('free-text prompts (LLM-only mode)', () => {
-    test.beforeAll(async ({ request, baseURL }) => {
-      await request.patch(`${baseURL}/api/admin/feature-flags`, {
-        data: { updates: { ff_heuristic_enabled: false } },
-      });
+    test.beforeAll(async ({ browser }) => {
+      const ctx = await browser.newContext({ ignoreHTTPSErrors: true });
+      const page = await ctx.newPage();
+      await loginAsCustomer(page);
+      await setHeuristicEnabled(ctx.request, false);
+      await ctx.close();
     });
 
-    test.afterAll(async ({ request, baseURL }) => {
-      await request.patch(`${baseURL}/api/admin/feature-flags`, {
-        data: { updates: { ff_heuristic_enabled: true } },
-      });
+    test.afterAll(async ({ browser }) => {
+      const ctx = await browser.newContext({ ignoreHTTPSErrors: true });
+      const page = await ctx.newPage();
+      await loginAsCustomer(page);
+      await setHeuristicEnabled(ctx.request, true);
+      await ctx.close();
+    });
+
+    test.beforeEach(async ({ page }) => {
+      await loginAsCustomer(page);
     });
 
     for (const c of AMOUNT_CASES) {

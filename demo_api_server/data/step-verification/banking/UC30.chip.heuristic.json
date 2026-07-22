@@ -1,10 +1,10 @@
 {
   "vertical": "banking",
-  "useCaseId": "UC28",
+  "useCaseId": "UC30",
   "triggerType": "chip",
   "mode": "heuristic",
   "status": "PASS",
   "errorClass": null,
-  "primaryTool": "request_fee_waiver",
-  "checkedAt": "2026-07-22T17:00:20.393Z"
+  "primaryTool": "get_weather",
+  "checkedAt": "2026-07-22T17:00:20.392Z"
 }
