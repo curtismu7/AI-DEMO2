@@ -42,6 +42,7 @@
     "preview": "vite preview",
     "test": "vitest --reporter=verbose",
     "test:unit": "vitest run",
+    "test:vite": "node scripts/vite-resolve-smoke.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ci": "CI=true playwright test",
     "test:e2e:ci:reuse": "CI=true PLAYWRIGHT_SKIP_WEBSERVER=1 playwright test",
