@@ -1,5 +1,5 @@
 /* demo_api_ui/src/components/AgentBuilderPage.css */
-.ab-page { max-width: 880px; margin: 0 auto; padding: 24px 16px 64px; }
+.ab-page { max-width: min(1400px, 100%); margin: 0 auto; padding: 24px 16px 64px; box-sizing: border-box; }
 .ab-page h1 { margin: 0 0 4px; }
 .ab-intro { color: #243b53; margin: 0 0 20px; }
 
