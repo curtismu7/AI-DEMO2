@@ -727,7 +727,15 @@ export function buildTraceSteps(trace) {
         + (mcpResult.durationMs != null ? ` in ${mcpResult.durationMs} ms` : "")
         + " under the delegated identity.",
       request: { title: "JSON-RPC call (actual)", text: asJson(mcpResult.requestJson || { name: mcpResult.tool }) },
-      kv: mcpResult.durationMs != null ? [["duration", `${mcpResult.durationMs} ms`]] : [],
+      response: mcpResult.result != null
+        ? { title: "MCP tool result", text: asJson(mcpResult.result) }
+        : undefined,
+      kv: [
+        mcpResult.durationMs != null ? ["duration", `${mcpResult.durationMs} ms`] : null,
+        findEvent(tokenEvents, "gw-mcp-audit")
+          ? ["gateway audit", "see Gateway step (McpAuditFilter 5W1H)"]
+          : null,
+      ].filter(Boolean),
     } : gwDenied || mcpResult?.denied ? {
       why: "MCP never ran — the gateway denied the call upstream.",
       request: mcpAttemptRequest

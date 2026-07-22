@@ -700,3 +700,22 @@ describe("buildTraceSteps — E1 authorize statements + dual evidence", () => {
     expect(az.detail.kv.some(([k]) => k === "gateway authorize")).toBe(true);
   });
 });
+
+describe("buildTraceSteps — E3 MCP success response", () => {
+  test("mcp done step includes JSON-RPC request and tool result response", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      mcpResult: {
+        tool: "get_balance",
+        durationMs: 42,
+        requestJson: { jsonrpc: "2.0", method: "tools/call", params: { name: "get_balance", arguments: {} } },
+        result: { content: [{ type: "text", text: "{\"balance\":100}" }] },
+      },
+    });
+    const mcp = steps.find((s) => s.id === "mcp");
+    expect(mcp.status).toBe("done");
+    expect(mcp.detail.request.text).toContain("get_balance");
+    expect(mcp.detail.response.text).toContain("balance");
+  });
+});
