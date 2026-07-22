@@ -116,7 +116,15 @@ export const tokenChainTraceStore = {
   ingestMcpResult(payload) {
     if (!payload) return;
     ensureTrace();
-    trace.mcpResult = payload;
+    // Normalize SSE shape (toolName/resultJson) to the rail's mcpResult model.
+    const next = {
+      ...payload,
+      tool: payload.tool || payload.toolName || null,
+      requestJson: payload.requestJson ?? null,
+      result: payload.result ?? payload.resultJson ?? null,
+      denied: Boolean(payload.denied),
+    };
+    trace.mcpResult = next;
     emit();
   },
   completeTrace(ok) { trace.outcome = ok ? "ok" : "error"; emit(); },

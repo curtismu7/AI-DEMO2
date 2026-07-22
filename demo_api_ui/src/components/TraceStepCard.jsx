@@ -50,6 +50,12 @@ export function openStepTeachingWindow(step) {
   const resHtml = d.response
     ? `<h2>${escapeHtml(d.response.title || "Response")}</h2><pre class="pre">${textToHtml(d.response.text)}</pre>`
     : "";
+  const altReqHtml = d.altRequest
+    ? `<h2>${escapeHtml(d.altRequest.title || "Alt request")}</h2><pre class="pre">${textToHtml(d.altRequest.text)}</pre>`
+    : "";
+  const altResHtml = d.altResponse
+    ? `<h2>${escapeHtml(d.altResponse.title || "Alt response")}</h2><pre class="pre">${textToHtml(d.altResponse.text)}</pre>`
+    : "";
   const kvHtml = Array.isArray(d.kv) && d.kv.length
     ? `<h2>Proof</h2><table>${d.kv.map(([k, v]) =>
       `<tr><th>${escapeHtml(k)}</th><td><pre class="inline">${textToHtml(typeof v === "string" ? v : formatJson(v) || String(v))}</pre></td></tr>`).join("")}</table>`
@@ -76,7 +82,7 @@ export function openStepTeachingWindow(step) {
 </style></head>
 <body>
   <h1>${escapeHtml(title)}</h1>
-  ${narrativeHtml}${whyHtml}${decisionHtml}${kvHtml}${reqHtml}${resHtml}
+  ${narrativeHtml}${whyHtml}${decisionHtml}${kvHtml}${reqHtml}${resHtml}${altReqHtml}${altResHtml}
 </body></html>`;
 
   const win = window.open(
@@ -91,13 +97,14 @@ export function openStepTeachingWindow(step) {
 }
 
 function evidenceSize(d) {
-  return (d?.request?.text?.length || 0) + (d?.response?.text?.length || 0);
+  return (d?.request?.text?.length || 0) + (d?.response?.text?.length || 0)
+    + (d?.altRequest?.text?.length || 0) + (d?.altResponse?.text?.length || 0);
 }
 
 export default function TraceStepCard({ step, onInspect, defaultOpen = false }) {
   const d = step.detail || {};
   const notInPath = step.status === "notinpath";
-  const hasEvidence = Boolean(d.request || d.response);
+  const hasEvidence = Boolean(d.request || d.response || d.altRequest || d.altResponse);
   const largeEvidence = evidenceSize(d) > EVIDENCE_POPOUT_CHARS;
 
   return (
@@ -167,6 +174,18 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false }) 
                 <>
                   <h4>{d.response.title}</h4>
                   <pre className="tctr-code"><HighlightedText text={d.response.text} /></pre>
+                </>
+              )}
+              {d.altRequest && (
+                <>
+                  <h4>{d.altRequest.title}</h4>
+                  <pre className="tctr-code"><HighlightedText text={d.altRequest.text} /></pre>
+                </>
+              )}
+              {d.altResponse && (
+                <>
+                  <h4>{d.altResponse.title}</h4>
+                  <pre className="tctr-code"><HighlightedText text={d.altResponse.text} /></pre>
                 </>
               )}
             </div>

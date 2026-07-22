@@ -538,6 +538,23 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
             tool: err.tool || tool,
           });
         } catch (_) { /* display-only */ }
+        // Phase D: teach the attempted MCP call even when the gateway blocks it.
+        try {
+          tokenChainTraceStore.ingestMcpResult({
+            tool: err.tool || tool,
+            denied: true,
+            gatewayErrorCode: err.gatewayErrorCode || err.code || "forbidden",
+            requestJson: err.requestJson || { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: err.tool || tool, arguments: params || {} } },
+            result: {
+              error: "gateway_policy_denied",
+              gatewayErrorCode: err.gatewayErrorCode || err.code,
+              message: err.message,
+            },
+          });
+          if (Array.isArray(allTokenEvents) && allTokenEvents.length) {
+            tokenChainTraceStore.ingestTokenEvents(allTokenEvents);
+          }
+        } catch (_) { /* display-only */ }
         throw Object.assign(
           new Error(err.message || "Gateway policy denied the tool call"),
           {
@@ -545,6 +562,7 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
             statusCode: 403,
             tool: err.tool || tool,
             gatewayErrorCode: err.gatewayErrorCode || "forbidden",
+            requestJson: err.requestJson || null,
             tokenEvents: allTokenEvents,
           },
         );
