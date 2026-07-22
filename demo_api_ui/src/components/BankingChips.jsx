@@ -55,7 +55,7 @@ const DEFAULT_CHIPS10 = [
   { id: 'bk1', label: 'My accounts', message: 'show my accounts', mode: 'both', tool: 'get_my_accounts', useCaseId: 'delegated-access-with-proof', group: 'advanced' },
   { id: 'bk3', label: 'Recent transactions', message: 'recent transactions', mode: 'both', tool: 'get_my_transactions', useCaseId: 'delegated-access-with-proof', group: 'advanced' },
   { id: 'bk-a2a', label: 'A2A sensitive details', message: 'show my sensitive account details', mode: 'both', challenge: 'consent', hitlTrigger: true, tool: 'get_sensitive_account_details', useCaseId: 'a2a-delegation', group: 'advanced' },
-  { id: 'bk-ciba', label: 'CIBA out-of-band', message: 'transfer $600 from checking to savings with CIBA approval', mode: 'both', challenge: 'both', hitlTrigger: true, tool: 'create_transfer', useCaseId: 'ciba-out-of-band-approval', group: 'advanced' },
+  { id: 'bk-ciba', label: 'CIBA out-of-band', message: 'transfer $150 from checking to savings with CIBA approval', mode: 'both', challenge: 'both', hitlTrigger: true, tool: 'create_transfer', useCaseId: 'ciba-out-of-band-approval', group: 'advanced' },
 ];
 
 // Minimal banking fallback for last-resort use only (when API call fails)
