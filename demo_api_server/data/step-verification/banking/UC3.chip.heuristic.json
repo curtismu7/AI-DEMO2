@@ -1,0 +1,10 @@
+{
+  "vertical": "banking",
+  "useCaseId": "UC3",
+  "triggerType": "chip",
+  "mode": "heuristic",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "get_account_balance",
+  "checkedAt": "2026-07-22T12:27:56.534Z"
+}
