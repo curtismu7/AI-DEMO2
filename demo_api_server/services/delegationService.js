@@ -255,6 +255,76 @@ async function revokeDelegation(id, delegatorUserId) {
 }
 
 // ---------------------------------------------------------------------------
+// findActiveByDelegate — the active delegation (if any) where this user is
+// the delegate AND holds create_transfer scope. This is what makes a CIBA
+// request into a manager-approval flow instead of self-approval.
+// ---------------------------------------------------------------------------
+
+async function findActiveByDelegate(delegateUserId) {
+  if (!delegateUserId) return null;
+  for (const { value } of _db().getRange()) {
+    if (
+      value.delegate_user_id === delegateUserId &&
+      value.status === 'active' &&
+      Array.isArray(value.scopes) &&
+      value.scopes.includes('create_transfer')
+    ) {
+      return toRecord(value);
+    }
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// requestApproval / resolveApproval / getApprovalStatus — the pendingApproval
+// sub-object lives on the delegation record itself (no new store). One
+// pending approval per delegation at a time — a new request overwrites a
+// prior pending or resolved one, matching CIBA's own one-at-a-time model.
+// ---------------------------------------------------------------------------
+
+async function requestApproval(delegationId, { authReqId, amount, tool, bindingMessage }) {
+  const rec = _db().get(delegationId);
+  if (!rec) return { ok: false, error: 'not_found' };
+  const pendingApproval = {
+    authReqId,
+    amount,
+    tool: tool || null,
+    bindingMessage: bindingMessage || '',
+    status: 'pending',
+    requestedAt: new Date().toISOString(),
+    resolvedAt: null,
+  };
+  _db().putSync(delegationId, { ...rec, pendingApproval });
+  return { ok: true };
+}
+
+async function resolveApproval(delegationId, managerUserId, decision) {
+  const rec = _db().get(delegationId);
+  if (
+    !rec ||
+    rec.delegator_user_id !== managerUserId ||
+    !rec.pendingApproval ||
+    rec.pendingApproval.status !== 'pending'
+  ) {
+    return { ok: false, error: 'not_found' };
+  }
+  const pendingApproval = { ...rec.pendingApproval, status: decision, resolvedAt: new Date().toISOString() };
+  _db().putSync(delegationId, { ...rec, pendingApproval });
+  logAppEvent('auth_lifecycle', 'info', `Delegation approval ${decision}: id=${delegationId}`,
+    { tag: `delegation/approval-${decision}`, metadata: { delegationId, managerUserId } }
+  );
+  return { ok: true };
+}
+
+async function getApprovalStatus(delegationId) {
+  const rec = _db().get(delegationId);
+  return {
+    status: rec?.pendingApproval?.status || 'pending',
+    approverUserId: rec?.delegator_user_id || null,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // listDelegations
 // ---------------------------------------------------------------------------
 
@@ -340,4 +410,8 @@ async function adminGrantDelegation({ delegatorEmail, delegateEmail, scopes }) {
   return grantDelegation({ delegatorUserId, delegatorEmail, delegateEmail, scopes });
 }
 
-module.exports = { grantDelegation, revokeDelegation, listDelegations, getDelegationHistory, getDelegationsGrantedToMe, listAllDelegations, adminRevokeDelegation, adminGrantDelegation };
+module.exports = {
+  grantDelegation, revokeDelegation, listDelegations, getDelegationHistory,
+  getDelegationsGrantedToMe, listAllDelegations, adminRevokeDelegation, adminGrantDelegation,
+  findActiveByDelegate, requestApproval, resolveApproval, getApprovalStatus,
+};
