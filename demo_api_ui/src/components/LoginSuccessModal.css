@@ -97,7 +97,7 @@
 }
 
 .lsm-tick {
-  color: var(--brand-success, #1b8f5a);
+  color: var(--theme-accent, #0e7c86);
   font-size: 13px;
   font-weight: 700;
 }
