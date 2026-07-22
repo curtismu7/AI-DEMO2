@@ -29,6 +29,9 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC9** — Group / entitlement check](./group-entitlement-check.md) 🚩 🛡️
 - [**UC21** — Entitlement-tiered capability](./entitlement-tiered-capability.md) ✅ 🛡️
 - [**UC17** — JIT / ephemeral credentials](./jit-ephemeral-credentials.md) ✅ 🛡️
+- [**UC30** — Third-party MCP server, scoped at the gateway](./weather-mcp-texas-permit.md) ✅ 🛡️
+- [**UC31** — Third-party MCP server — out-of-scope call denied](./weather-mcp-texas-deny.md) ✅ 🛡️
+- [**UC32** — Live-reconfigure the gateway's scope policy](./weather-mcp-live-reconfigure.md) ✅ 🛡️
 - [**UC25** — Enterprise-managed MCP access](./enterprise-managed-mcp-access.md) 🚩 🛡️
 - [**UC28** — Tool set as the authorization boundary (Air Canada pattern)](./unauthorized-commitment-fee-waiver.md) ✅ 🛡️
 

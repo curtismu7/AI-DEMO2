@@ -1,4 +1,4 @@
-import { buildTraceSteps } from "../buildTraceSteps";
+import { buildTraceSteps, buildRunStory } from "../buildTraceSteps";
 
 const EMPTY_TRACE = {
   startedAt: null, prompt: null, routingMode: null, routingDetail: null,
@@ -69,6 +69,61 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(ex.detail.request.text).toContain("token-exchange");
     expect(ex.detail.inspectToken).toBe("mcp");
     expect(ex.detail.rfcs).toContain("RFC 8693");
+  });
+
+  // Regression: 2-exchange used to drop exchangeRequest when splicing the
+  // in-progress card — TraceRail then had claims response but no coloured request.
+  test("two-ex-final-token with exchangeRequest fills TraceRail request JSON", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [
+        { id: "user-token", status: "active", claims: { scope: "read write" } },
+        {
+          id: "two-ex-final-token",
+          status: "exchanged",
+          claims: { sub: "user-123", scope: "gateway:mcp:invoke", aud: "mcpgateway.ping.demo",
+            act: { sub: "agent-001" } },
+          exchangeRequest: {
+            exchanger: "mcp-exchanger-client",
+            audience: "mcpgateway.ping.demo",
+            scope: "gateway:mcp:invoke",
+          },
+        },
+      ],
+    });
+    const ex = steps.find((s) => s.id === "exchange");
+    expect(ex.status).toBe("done");
+    expect(ex.detail.request).toBeDefined();
+    expect(ex.detail.request.title).toBe("Exchange request (actual)");
+    expect(ex.detail.request.text).toContain("mcp-exchanger-client");
+    expect(ex.detail.request.text).toContain("gateway:mcp:invoke");
+    expect(ex.detail.response.text).toContain("user-123");
+    expect(ex.detail.why).toMatch(/delegated token/i);
+  });
+
+  test("gw-authorize alone fills authorize step why + request (no BFF authorize-decision)", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      tokenEvents: [
+        {
+          id: "gw-authorize",
+          status: "permit",
+          decision: "PERMIT",
+          tool: "get_my_accounts",
+          url: "https://api.pingone.com/v1/.../decisionEndpoints/abc",
+          parameters: { ToolName: "get_my_accounts", UserId: "u1" },
+          rawResponse: { decision: "PERMIT", id: "dec_1" },
+          backend: "real",
+        },
+      ],
+    });
+    const az = steps.find((s) => s.id === "authorize");
+    expect(az.status).toBe("done");
+    expect(az.detail.why).toMatch(/PERMIT/);
+    expect(az.detail.request.text).toContain("get_my_accounts");
+    expect(az.detail.response.text).toContain("PERMIT");
+    expect(az.detail.decision.outcome).toBe("PERMIT");
   });
 
   test("authorize evaluation fills authorize step with decision + full request", () => {
@@ -490,5 +545,34 @@ describe("buildTraceSteps — attack sim (UC5 gateway scope deny)", () => {
     const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
     expect(byId["intent-binding"].status).toBe("error");
     expect(byId.gateway.status).not.toBe("error");
+  });
+});
+
+describe("buildRunStory — L0 strip", () => {
+  test("returns null when the trace is empty", () => {
+    expect(buildRunStory(EMPTY_TRACE, [])).toBeNull();
+  });
+
+  test("summarizes a successful run with authorize decision", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      prompt: { message: "show my balance" },
+      tokenEvents: [
+        {
+          id: "gw-authorize", status: "permit", decision: "PERMIT",
+          tool: "get_my_accounts", parameters: { ToolName: "get_my_accounts" },
+          rawResponse: { decision: "PERMIT" }, backend: "real",
+        },
+      ],
+    });
+    const story = buildRunStory({
+      ...EMPTY_TRACE, outcome: "ok", prompt: { message: "show my balance" },
+      tokenEvents: [{ id: "gw-authorize" }],
+    }, steps);
+    expect(story.headline).toMatch(/completed successfully/i);
+    expect(story.headline).toMatch(/PERMIT/);
+    expect(story.outcome).toBe("ok");
+    expect(story.bits.length).toBeGreaterThan(0);
   });
 });

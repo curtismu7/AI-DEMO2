@@ -11,8 +11,9 @@ import './CapabilityShowcasePage.css';
  * @param {string} props.intro
  * @param {Array<{id:string,group:string,title:string,oneLiner:string,evidence:{code:string}}>} props.ledger
  * @param {Array<{id:string,label:string}>} props.groups
+ * @param {function(cap)=} props.renderCardExtra - optional function called once per card, after evidence element
  */
-export default function CapabilityShowcasePage({ title, intro, ledger, groups }) {
+export default function CapabilityShowcasePage({ title, intro, ledger, groups, renderCardExtra }) {
   return (
     <div className="cap-showcase">
       <header className="cap-showcase__header">
@@ -30,6 +31,7 @@ export default function CapabilityShowcasePage({ title, intro, ledger, groups })
                   <h3 className="cap-card__title">{cap.title}</h3>
                   <p className="cap-card__one-liner">{cap.oneLiner}</p>
                   <code className="cap-card__evidence">{cap.evidence.code}</code>
+                  {renderCardExtra?.(cap)}
                 </article>
               ))}
           </div>

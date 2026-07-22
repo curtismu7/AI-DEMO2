@@ -116,6 +116,32 @@
   color: #64748b; margin: 10px 0 4px; font-weight: 700;
 }
 .tctr-narrative { margin: 0 0 4px; }
+.tctr-why {
+  margin: 0 0 8px; padding: 8px 10px; border-radius: 6px;
+  background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; font-size: 12px;
+}
+.tctr-why-lbl { font-weight: 700; margin-right: 4px; }
+.tctr-story {
+  margin: 0 12px 10px; padding: 10px 12px; border-radius: 8px;
+  border: 1px solid #e2e8f0; background: #f8fafc;
+}
+.tctr-story--ok { border-color: #86efac; background: #f0fdf4; }
+.tctr-story--error { border-color: #fca5a5; background: #fef2f2; }
+.tctr-story--active { border-color: #93c5fd; background: #eff6ff; }
+.tctr-story-headline { font-size: 12.5px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+.tctr-story-bits { margin: 6px 0 0 16px; padding: 0; color: #334155; font-size: 11.5px; }
+.tctr-story-bits li { margin: 2px 0; }
+.tctr-evidence {
+  margin: 8px 0 4px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff;
+}
+.tctr-evidence-sum {
+  list-style: none; cursor: pointer; padding: 6px 10px; font-size: 11px; font-weight: 700;
+  color: #334155;
+}
+.tctr-evidence-sum::-webkit-details-marker { display: none; }
+.tctr-evidence-hint { font-weight: 600; color: #b45309; }
+.tctr-evidence-body { padding: 0 10px 10px; }
+.tctr-step-actions { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 6px; }
 .tctr-code {
   background: #0f172a; color: #bae6fd; font-size: 10.5px; padding: 8px;
   border-radius: 6px; margin: 4px 0; overflow-x: auto; line-height: 1.5;
@@ -140,7 +166,9 @@
 .tctr-inspect {
   color: var(--brand-navy, #1d4ed8); font-weight: 600; font-size: 11px;
   cursor: pointer; background: none; border: none; padding: 4px 0 0;
+  text-decoration: none;
 }
+.tctr-inspect--emphasize { color: #b45309; font-weight: 700; }
 
 /* Accordions (Token Summary) */
 .tctr-acc { border-top: 1px solid #e8eef7; }

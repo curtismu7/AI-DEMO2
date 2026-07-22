@@ -2158,7 +2158,10 @@ async function _performTwoExchangeDelegation(
     );
     const agentExchangedDecoded = decodeJwtClaims(agentExchangedToken);
     const agentExchangedClaims = agentExchangedDecoded?.claims;
+    // Preserve exchangeRequest from the in-progress card before splice — TraceRail /
+    // TokenChain teaching JSON would otherwise vanish on success (1-exchange keeps it).
     const ex1Idx = tokenEvents.findIndex(e => e.id === 'two-ex-exchange1-in-progress');
+    const ex1ExchangeRequest = ex1Idx !== -1 ? (tokenEvents[ex1Idx].exchangeRequest || null) : null;
     if (ex1Idx !== -1) tokenEvents.splice(ex1Idx, 1);
     tokenEvents.push(buildTokenEvent(
       'two-ex-exchange1',
@@ -2171,12 +2174,14 @@ async function _performTwoExchangeDelegation(
       { rfc: 'RFC 8693', exchangeStep: '1-exchange',
         actPresent: !!agentExchangedClaims?.act,
         actExpectedHere: false,
-        actDetails: agentExchangedClaims?.act ? JSON.stringify(agentExchangedClaims.act) : null }
+        actDetails: agentExchangedClaims?.act ? JSON.stringify(agentExchangedClaims.act) : null,
+        ...(ex1ExchangeRequest ? { exchangeRequest: ex1ExchangeRequest } : {}) }
     ));
     // JWKS verify the agent exchanged token (result of Exchange #1)
     await pushJwksVerifyEvent(agentExchangedToken, tokenEvents, 'two-ex-exchange1-verified', 'Agent Exchanged Token (#1 result)');
   } catch (err) {
     const ex1Idx = tokenEvents.findIndex(e => e.id === 'two-ex-exchange1-in-progress');
+    const ex1ExchangeRequest = ex1Idx !== -1 ? (tokenEvents[ex1Idx].exchangeRequest || null) : null;
     if (ex1Idx !== -1) tokenEvents.splice(ex1Idx, 1);
     tokenEvents.push(buildTokenEvent(
       'two-ex-exchange1',
@@ -2185,7 +2190,8 @@ async function _performTwoExchangeDelegation(
       null,
       `Exchange #1 failed: ${err.message}.`,
       { error: err.message, httpStatus: err.httpStatus, pingoneError: err.pingoneError,
-        pingoneErrorDescription: err.pingoneErrorDescription, exchangeStep: '1-exchange' }
+        pingoneErrorDescription: err.pingoneErrorDescription, exchangeStep: '1-exchange',
+        ...(ex1ExchangeRequest ? { exchangeRequest: ex1ExchangeRequest } : {}) }
     ));
     const { errorCode: ex1Code, errorDetails: ex1Details } = mapErrorToStructuredResponse(err);
     void writeExchangeEvent({ type: 'exchange-failed', level: 'error',
@@ -2345,7 +2351,10 @@ async function _performTwoExchangeDelegation(
     );
     const finalDecoded = decodeJwtClaims(finalToken);
     const finalClaims  = finalDecoded?.claims;
+    // Preserve exchangeRequest across splice so TraceRail's exchange step keeps
+    // its coloured request JSON (buildTraceSteps reads two-ex-final-token only).
     const ex2Idx = tokenEvents.findIndex(e => e.id === 'two-ex-exchange2-in-progress');
+    const ex2ExchangeRequest = ex2Idx !== -1 ? (tokenEvents[ex2Idx].exchangeRequest || null) : null;
     if (ex2Idx !== -1) tokenEvents.splice(ex2Idx, 1);
     const mcpTokenAud = finalClaims?.aud;
     const audMatches  = mcpTokenAud === finalAudTarget || (Array.isArray(mcpTokenAud) && mcpTokenAud.includes(finalAudTarget));
@@ -2386,7 +2395,8 @@ async function _performTwoExchangeDelegation(
         nestedActPresent: nestedActOk,
         audienceNarrowed: finalAudTarget, audMatches,
         audExpected: finalAudTarget, audActual: mcpTokenAud,
-        scopeNarrowed: effectiveToolScopes.join(' ') }
+        scopeNarrowed: effectiveToolScopes.join(' '),
+        ...(ex2ExchangeRequest ? { exchangeRequest: ex2ExchangeRequest } : {}) }
     ));
     // JWKS verify the final MCP token (result of Exchange #2)
     await pushJwksVerifyEvent(finalToken, tokenEvents, 'two-ex-final-token-verified', 'Final MCP Token (#2 result)');
@@ -2440,6 +2450,7 @@ async function _performTwoExchangeDelegation(
 
   } catch (err) {
     const ex2Idx = tokenEvents.findIndex(e => e.id === 'two-ex-exchange2-in-progress');
+    const ex2ExchangeRequest = ex2Idx !== -1 ? (tokenEvents[ex2Idx].exchangeRequest || null) : null;
     if (ex2Idx !== -1) tokenEvents.splice(ex2Idx, 1);
     tokenEvents.push(buildTokenEvent(
       'two-ex-final-token',
@@ -2450,7 +2461,8 @@ async function _performTwoExchangeDelegation(
         'Check that act.sub on the Agent Exchanged Token matches AGENT_OAUTH_CLIENT_ID ' +
         'and that the act expression on Super Banking MCP Server resource server is correct.',
       { error: err.message, httpStatus: err.httpStatus, pingoneError: err.pingoneError,
-        pingoneErrorDescription: err.pingoneErrorDescription, exchangeStep: '2-exchange' }
+        pingoneErrorDescription: err.pingoneErrorDescription, exchangeStep: '2-exchange',
+        ...(ex2ExchangeRequest ? { exchangeRequest: ex2ExchangeRequest } : {}) }
     ));
     const { errorCode: ex2Code, errorDetails: ex2Details } = mapErrorToStructuredResponse(err);
     void writeExchangeEvent({ type: 'exchange-failed', level: 'error',

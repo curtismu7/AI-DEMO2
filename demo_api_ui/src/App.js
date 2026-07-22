@@ -23,6 +23,7 @@ import AgentGuardrailsPage from "./pages/AgentGuardrailsPage";
 import AgentOnboardingFlowDiagram from "./components/AgentOnboardingFlowDiagram";
 import AgentOnboardingSubwayPage from "./components/AgentOnboardingSubwayPage";
 import AgentOnboardingMermaidPage from "./components/AgentOnboardingMermaidPage";
+import McpGatewayOauthFlowPage from "./components/McpGatewayOauthFlowPage";
 import AgentStudioPreviewPage from "./components/agentStudioPreview/AgentStudioPreviewPage";
 import DiscoveryPreviewPage from "./components/agentStudioPreview/DiscoveryPreviewPage";
 import IgaForAiPage from "./components/agentStudioPreview/IgaForAiPage";
@@ -43,7 +44,6 @@ import ClientCredentialsResourcePage from "./components/ClientCredentialsResourc
 import ClientRegistrationPage from "./components/ClientRegistrationPage";
 import ComplianceModalPopout from "./components/ComplianceModalPopout";
 import Dashboard from "./components/Dashboard";
-import DelegatedAccessPage from "./components/DelegatedAccessPage";
 import DelegationPage from "./components/DelegationPage";
 import AgentLifecyclePage from "./pages/AgentLifecyclePage";
 import DemoGuidePopout from "./components/DemoGuidePopout";
@@ -1143,6 +1143,10 @@ function AppWithAuth() {
                               element={<AgentOnboardingMermaidPage />}
                             />
                             <Route
+                              path="/mcp-gateway-oauth-flow"
+                              element={<McpGatewayOauthFlowPage />}
+                            />
+                            <Route
                               path="/agent-studio-preview"
                               element={<AgentStudioPreviewPage />}
                             />
@@ -1263,15 +1267,6 @@ function AppWithAuth() {
                             <Route
                               path="/transaction-consent"
                               element={<TransactionConsentPage user={user} />}
-                            />
-                            <Route
-                              path="/delegated-access"
-                              element={
-                                <DelegatedAccessPage
-                                  user={user}
-                                  onLogout={logout}
-                                />
-                              }
                             />
                             <Route
                               path="/delegation"

@@ -1,11 +1,11 @@
 // banking_api_ui/src/components/tour/DemoTourModal.js
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useDemoTour, TOUR_STEPS } from '../../context/DemoTourContext';
+import { useDemoTour } from '../../context/DemoTourContext';
 import './DemoTourModal.css';
 
 export default function DemoTourModal() {
-  const { step, total, isOpen, next, prev, close } = useDemoTour();
+  const { step, total, steps, isOpen, next, prev, close } = useDemoTour();
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -18,7 +18,7 @@ export default function DemoTourModal() {
 
   if (!isOpen) return null;
 
-  const current = TOUR_STEPS[step];
+  const current = steps[step];
   const progressPct = ((step + 1) / total) * 100;
   const isLast = step === total - 1;
 

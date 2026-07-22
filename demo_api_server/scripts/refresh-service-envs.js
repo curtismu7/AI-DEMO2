@@ -434,16 +434,22 @@ async function main() {
                                       || 'https://api.ping.demo:3036/mcp',
     PG_GATEWAY_RESOURCE_URI:        mcpGatewayAud,
     PG_INBOUND_SCOPE:               'gateway:mcp:invoke',
-    TE_CLIENT_ID:                   creds.mcpExchangerClientId,
-    TE_CLIENT_SECRET:               creds.mcpExchangerSecret,
+    // Exchange #3 TE client MUST be the MCP Gateway app (grants on
+    // mcpserver.ping.demo), NOT the MCP Exchanger. The exchanger is for
+    // BFF hop #2 (aud=gateway); using it here yields wrong aud / D-05 or
+    // invalid_scope. Matches Node McpTokenExchangeClient's clientId.
+    TE_CLIENT_ID:                   creds.mcpGatewayClientId,
+    TE_CLIENT_SECRET:               creds.mcpGatewaySecret,
     PG_OLB_RESOURCE_URI:            mcpServerAud,
-    // Intersection of subject scopes ∩ mcpserver mirrored scopes. Must include
-    // `write` or every write tool (create_transfer/deposit/withdraw) 502s with
-    // "Insufficient scope" on the gateway-brokered path — the BFF-brokered
-    // equivalent mints "write mcp:invoke" for this same hop.
-    PG_OLB_SCOPE:                   'read write mcp:invoke',
+    // Mirrored scopes on Super Banking MCP Server ONLY. Do NOT include
+    // `mcp:invoke` — that name also lives on mcpgateway.ping.demo and
+    // triggers PingOne "May not request scopes for multiple resources"
+    // (or a 200 with the wrong aud). Must include `write` or write tools
+    // 502 with "Insufficient scope".
+    PG_OLB_SCOPE:                   'read write',
     PG_INVEST_RESOURCE_URI:         mcpInvestAud,
-    PG_INVEST_SCOPE:                'read mcp:invoke invest:read',
+    // Same single-resource rule: invest resource mirrored/native scopes only.
+    PG_INVEST_SCOPE:                'invest:read',
     PG_OLB_BACKEND_URL:             'http://mcp-server:8080',
     PG_INVEST_BACKEND_URL:          'http://mcp-invest:8081',
     BFF_INTERNAL_SECRET:            fb('BFF_INTERNAL_SECRET') || 'dev-shared-secret-change-me',

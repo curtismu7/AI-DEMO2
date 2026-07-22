@@ -101,6 +101,155 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-22 — 2-exchange TraceRail Exchange step lost coloured request JSON
+
+**Files changed:**
+
+- `demo_api_server/services/agentMcpTokenService.js` — when splicing
+  `two-ex-exchange1-in-progress` / `two-ex-exchange2-in-progress` on success or failure,
+  copy `exchangeRequest` onto the replacement success/failure event.
+- `demo_api_server/tests/exchangedTokenEventExchangeRequest.test.js` — asserts
+  `two-ex-final-token` can carry the teaching payload.
+- `demo_api_ui/src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js` — asserts
+  TraceRail Exchange step renders request JSON from `two-ex-final-token.exchangeRequest`.
+
+**What was broken:** 2-exchange attached `exchangeRequest` only to the in-progress cards,
+then spliced those out on completion. TraceRail's Exchange step reads
+`two-ex-final-token.exchangeRequest`, so live runs showed claims response but no coloured
+request JSON. 1-exchange already kept the payload on `exchanged-token`.
+
+**Do not break:** RFC 8693 minting, aud/act claims, or the in-progress event shapes — teaching
+metadata only; no raw token material in `exchangeRequest`.
+
+**Verify:** `cd demo_api_server && npm test -- --testPathPattern=exchangedTokenEventExchangeRequest --coverage=false`
+(2/2); `cd demo_api_ui && npm test -- --run src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`
+(36/36). Live: run a 2-exchange tool call, expand TraceRail Exchange — request JSON present.
+
+### 2026-07-22 — Customer login's post-login modal never showed `phone` (and would break for any admin-only field): admin `/api/auth/oauth/status` had no `oauthType` gate, so it falsely reported `authenticated:true` for end-user sessions too
+
+**Files changed:**
+
+- `demo_api_server/routes/oauth.js` — `GET /status`'s `isAuthenticated` now also requires
+  `req.session.oauthType !== 'user'`.
+- `demo_api_server/src/__tests__/oauthStatus.regression.test.js` — added a case for a real
+  admin session (`oauthType` unset, as issued on a fresh same-instance admin login) staying
+  authenticated, and a case for an end-user session (`oauthType: 'user'`) no longer matching.
+
+**What was broken:** the frontend's `useAuth.js` (`checkOAuthSession`) queries admin status
+(`/api/auth/oauth/status`) first, then user status (`/api/auth/oauth/user/status`), and stops at
+the first `authenticated:true`. The admin endpoint's check was `req.session.user && hasOAuthToken
+&& tokenNotExpired` — no `oauthType` check at all — so it returned `authenticated:true` for
+*any* logged-in session, including end-user/customer logins. Its response shape only includes
+`id/username/email/firstName/lastName/role`, omitting fields like `phone` that only the user
+endpoint returns. Every customer login silently got the admin shape, so `LoginSuccessModal`
+showed name and email (present in both shapes) but never phone (admin-only-shaped response,
+present only in the user endpoint the app never reached).
+
+**Do not break:** admin sessions never set `req.session.oauthType = 'admin'` on the live session
+in the normal, same-instance login path — only the signed `_auth` cookie payload carries that
+value, restored onto `req.session.oauthType` by `restoreSessionFromCookie`
+(`services/authStateCookie.js`) solely when the live session itself is lost. A fix that gates on
+`oauthType === 'admin'` breaks real admin status checks in the common case; the correct gate is
+`oauthType !== 'user'`, matching the exclusion style already used elsewhere in this file (see
+`oauthUser.js`'s own `oauthType === 'user'` checks).
+
+**Verify:** `CI=true npx jest src/__tests__/oauthStatus.regression.test.js
+src/__tests__/oauthStatus.integration.test.js --testPathIgnorePatterns="/node_modules/"` — 26/26
+passing. Confirmed the new end-user-session test fails against the pre-fix code (`git stash` the
+one-line fix, rerun) and passes with it restored. Live-reproduced the original symptom via
+Playwright against the real PingOne-backed stack before diagnosing: fresh `demoUser` login's
+`/api/auth/oauth/status` returned `authenticated:true` with no `phone` field, while
+`/api/auth/oauth/user/status` on the same session returned the correct value.
+
+### 2026-07-22 — Reset Demo now reverts the weather scope flags; added UC32 for the configurability itself
+
+**Files changed:**
+- `demo_api_server/routes/admin.js` — `POST /api/admin/reset-demo` now also resets
+  `ff_weather_mcp_showcase` and `ff_weather_mcp_allowed_state` to their `FLAG_REGISTRY`
+  `defaultValue` (`true` / `'texas'`), alongside its existing event/token-chain/audit clears.
+- `demo_api_server/config/useCases.js` — new `UC32` ("Live-reconfigure the gateway's scope
+  policy"), `link`-type trigger to `/agent-gateway-capabilities` (no chip/sim — this UC's whole
+  point is the admin dropdown itself, not one fixed outcome).
+- `demo_api_ui/src/config/capabilityLedgers/agentGatewayCapabilities.js` — `weather-tx-scope`'s
+  `relatedUCIds` gains `UC32`.
+- `demo_api_server/src/__tests__/useCases.config.test.js`,
+  `demo_api_server/src/__tests__/useCases.route.test.js` — catalog count 46→47.
+- `docs/use-cases/*` regenerated (`npm run use-cases:gen`) for the new UC32.
+
+**Why:** Before this, `ff_weather_mcp_allowed_state` was set by Task 4's dropdown but never
+reset by anything — a presenter who left a demo on "Michigan" or "Any" would silently start the
+NEXT demo run in that same state, with no visible warning. UC30/UC31 each demo one fixed
+outcome; neither demonstrates that the scope is a live, admin-owned value rather than
+per-use-case app logic — UC32 closes that gap.
+
+**Do not break:** `POST /api/admin/reset-demo`'s flag reset is scoped to exactly
+`['ff_weather_mcp_showcase', 'ff_weather_mcp_allowed_state']` (`RESET_DEMO_FLAG_IDS` in
+admin.js) — this is NOT a general "reset every flag to default" feature; do not widen it without
+a separate explicit decision, since resetting arbitrary flags on every demo reset could surprise
+an operator relying on some OTHER flag's value persisting across a reset.
+
+**Verify:** live, via the running gateway/BFF (no unit test — `admin.js`'s full dependency tree
+made an isolated route test disproportionate to this two-line change; mirrors this repo's own
+established practice of live-verifying `tx-weather-scope.groovy` changes):
+1. `PATCH ff_weather_mcp_allowed_state` to `'michigan'` via the real admin endpoint.
+2. `POST /api/admin/reset-demo` — confirmed `{ok:true}`.
+3. `GET /api/admin/feature-flags` — confirmed `ff_weather_mcp_allowed_state` back to `'texas'`.
+
+### 2026-07-21 — Weather MCP gateway scope now live-configurable (Texas/Michigan/Any), not hardcoded Texas-only
+
+**Files changed:**
+- `ping-gateway/scripts/groovy/tx-weather-scope.groovy` — added STATES map (Texas, Michigan) with
+  bounding boxes and city lists; modified weatherFlags() to read ff_weather_mcp_allowed_state
+  flag; city/bbox validation logic now respects the currently-configured state instead of
+  hardcoded Texas.
+- `demo_api_server/routes/featureFlags.js` — added ff_weather_mcp_allowed_state flag endpoint
+  with state options (texas/michigan/any).
+- `demo_api_server/routes/weatherMcpFlag.js` — extended response to include ff_weather_mcp_allowed_state
+  alongside ff_weather_mcp_showcase.
+
+**What changed:** The weather MCP scope policy changed from a hardcoded Texas-only restriction to
+a live, admin-configurable state selection. Default is Texas; operators can switch to Michigan or
+open to 'any' state instantly via the feature-flag PATCH endpoint (or via the UI dropdown in
+Task 4).
+
+**Why:** Makes the gateway's enforcement policy demonstrably changeable during a demo. Operators
+can watch the Capability Tour dropdown switch from Texas to Michigan mid-demo and see different
+cities get denied in real time, proving the policy is administrable, not baked into code.
+
+**What was broken (found live during verification):** The flag-check response validation used
+`if (STATES.containsKey(parsed.allowedState))` alone to decide whether to accept the value
+returned by the BFF. `'any'` deliberately has no `STATES` entry — it isn't a state to look up, it
+means "skip the scope check entirely" — so that single check silently rejected `'any'` and fell
+back to the function's default (`'texas'`). Live symptom: switching the admin dropdown to "Any"
+kept enforcing Texas-only; the gateway never actually opened up.
+
+**What was fixed:** Widened the guard to `parsed.allowedState == 'any' || STATES.containsKey(parsed.allowedState)`,
+explicitly accepting `'any'` alongside the `STATES.containsKey` check. **Landmine:** do not read
+`STATES.containsKey(...)` alone as sufficient validation for `allowedState` — `'any'` is a valid
+value with no `STATES` entry by design, and any future refactor of this guard must keep both
+checks or it will silently reintroduce this regression.
+
+**Do not break:** `ff_weather_mcp_showcase` (master enable/disable flag) must stay independent —
+when OFF, the gateway denies all weather calls ("capability disabled"), regardless of what state
+is configured. The state option only matters when showcase is ON. If any error or version-skew
+occurs during flag retrieval, the gateway must default to the narrowest state ('texas'), never
+accidentally widen the policy.
+
+**Verify:** (live end-to-end, mirrors Task 2 Steps 2-5)
+1. Recreate `ping-gateway` from the worktree so Groovy changes are live.
+2. With default state (Texas): mint a bearer token (client_credentials + RFC 8693 exchange); test
+   `city_name: "Austin"` → 200 (reaches backend); `city_name: "Detroit"` → 403 ("restricted to
+   Texas"); `city_name: "Miami"` → 403 ("restricted to Texas").
+3. PATCH `ff_weather_mcp_allowed_state` to 'michigan': re-test the three cities — Detroit → 200,
+   Austin → 403 ("restricted to Michigan"), Miami → 403.
+4. PATCH `ff_weather_mcp_allowed_state` to 'any': re-test all three cities — all three → 200
+   (reaching backend); also confirm a `location_name` argument now passes (previously always
+   denied).
+5. With `ff_weather_mcp_allowed_state` still 'any', PATCH `ff_weather_mcp_showcase` to false:
+   test Austin → 403 ("weather capability disabled"), confirming the master flag still wins
+   regardless of the selected state. Reset both flags to defaults (`ff_weather_mcp_showcase:
+   true`, `ff_weather_mcp_allowed_state: "texas"`) when done.
+
 ### 2026-07-21 — `/mcp/weather` 502'd for in-scope Texas cities (and `/mcp/invest`'s reverse-proxy stage carried the identical latent defect): `baseURI` silently ignored, `UriPathRewriteFilter` mappings silently no-op'd
 
 **Files changed:**

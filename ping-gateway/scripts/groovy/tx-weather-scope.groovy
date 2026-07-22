@@ -1,9 +1,12 @@
 // ping-gateway/scripts/groovy/tx-weather-scope.groovy
 //
 // Agent Gateway (IG) demo policy: the weather-mcp passthrough is scoped to
-// Texas only. Runs after McpValidationFilter has buffered the body. A
-// tools/call whose location argument cannot be verified as Texas is denied
-// here, not by the upstream weather-mcp server.
+// ONE configurable US state at a time (default: Texas), or left wide open
+// ("any"). Runs after McpValidationFilter has buffered the body. A
+// tools/call whose location argument cannot be verified against the
+// currently-selected state is denied here, not by the upstream weather-mcp
+// server. The selected state is admin-configurable live, via
+// ff_weather_mcp_allowed_state — see demo_api_server/routes/featureFlags.js.
 
 import groovy.json.JsonSlurper
 import groovy.json.JsonOutput
@@ -14,11 +17,43 @@ import org.forgerock.util.promise.Promises
 def internalSecret = System.getenv('BFF_INTERNAL_SECRET') ?: ''
 def flagUrl         = System.getenv('BFF_WEATHER_FLAG_URL') ?: ''
 
-// Live on/off check against the BFF's ff_weather_mcp_showcase flag. Fails OPEN
-// (enabled) on any error — this is a demo toggle, not a security control; the
-// Texas-scope check below remains fail-closed regardless of this result.
-def weatherShowcaseEnabled = {
-    if (!flagUrl) return true
+// Named-state scope data. Each state: an approximate, generous bounding box
+// and its ~20 largest cities (case-insensitive, trimmed, no substring
+// containment — see the city_name branch below).
+def STATES = [
+    texas: [
+        latMin: 25.8, latMax: 36.5, lonMin: -106.6, lonMax: -93.5,
+        abbrevs: ['tx', 'texas'] as Set,
+        cities: [
+            'houston', 'san antonio', 'dallas', 'austin', 'fort worth', 'el paso',
+            'arlington', 'corpus christi', 'plano', 'laredo', 'lubbock', 'irving',
+            'garland', 'frisco', 'mckinney', 'amarillo', 'grand prairie',
+            'brownsville', 'killeen', 'mcallen',
+        ] as Set,
+    ],
+    michigan: [
+        latMin: 41.7, latMax: 48.3, lonMin: -90.5, lonMax: -82.1,
+        abbrevs: ['mi', 'michigan'] as Set,
+        cities: [
+            'detroit', 'grand rapids', 'warren', 'sterling heights', 'ann arbor',
+            'lansing', 'dearborn', 'livonia', 'westland', 'troy',
+            'farmington hills', 'kalamazoo', 'wyoming', 'southfield', 'rochester hills',
+            'taylor', 'pontiac', 'novi', 'st. clair shores', 'royal oak',
+        ] as Set,
+    ],
+]
+def STATE_LABELS = [texas: 'Texas', michigan: 'Michigan']
+
+// Live flag check against the BFF: ff_weather_mcp_showcase (on/off) and
+// ff_weather_mcp_allowed_state (texas | michigan | any). Fails OPEN on
+// `enabled` (a demo toggle, not a security control) but defaults
+// `allowedState` to the NARROWEST state ('texas') on any error or
+// unrecognized value — an outage or a version-skewed value must never
+// accidentally widen the policy. The city/bbox scope check below remains
+// fail-closed regardless of this call's outcome.
+def weatherFlags = {
+    def result = [enabled: true, allowedState: 'texas']
+    if (!flagUrl) return result
     try {
         def conn = new URL(flagUrl).openConnection() as java.net.HttpURLConnection
         conn.requestMethod = 'GET'
@@ -27,33 +62,23 @@ def weatherShowcaseEnabled = {
         if (internalSecret) conn.setRequestProperty('x-internal-gateway-secret', internalSecret)
         def code = conn.responseCode
         if (code != 200) {
-            logger.warn('[TxWeatherScope] flag check HTTP ' + code + ' — failing open (enabled)')
-            return true
+            logger.warn('[TxWeatherScope] flag check HTTP ' + code + ' — failing open (enabled), defaulting to texas')
+            return result
         }
         def respBody = conn.inputStream?.text ?: '{}'
         def parsed = new JsonSlurper().parseText(respBody)
-        return parsed.enabled != false
+        result.enabled = parsed.enabled != false
+        // 'any' is a valid allowedState but deliberately has no STATES entry
+        // (no bbox/cities — it means "skip the scope check entirely").
+        if (parsed.allowedState == 'any' || STATES.containsKey(parsed.allowedState)) {
+            result.allowedState = parsed.allowedState
+        }
+        return result
     } catch (Exception e) {
-        logger.warn('[TxWeatherScope] flag check failed: ' + e.message + ' — failing open (enabled)')
-        return true
+        logger.warn('[TxWeatherScope] flag check failed: ' + e.message + ' — failing open (enabled), defaulting to texas')
+        return result
     }
 }
-
-// Texas bounding box (approximate, generous — covers the whole state).
-def TX_LAT_MIN = 25.8
-def TX_LAT_MAX = 36.5
-def TX_LON_MIN = -106.6
-def TX_LON_MAX = -93.5
-
-// 20 largest Texas cities by population — matched exactly (case-insensitive,
-// trimmed) against a bare city_name with no state qualifier (so "austin"
-// matches but "Plano, IL" does not, since it carries an explicit non-TX state).
-def TX_CITIES = [
-    'houston', 'san antonio', 'dallas', 'austin', 'fort worth', 'el paso',
-    'arlington', 'corpus christi', 'plano', 'laredo', 'lubbock', 'irving',
-    'garland', 'frisco', 'mckinney', 'amarillo', 'grand prairie',
-    'brownsville', 'killeen', 'mcallen',
-] as Set
 
 def toNum = { v ->
     if (v instanceof Number) return v.doubleValue()
@@ -83,7 +108,8 @@ try {
 
 def id = (body instanceof Map && body.containsKey('id')) ? body.id : null
 
-if (!weatherShowcaseEnabled()) {
+def flags = weatherFlags()
+if (!flags.enabled) {
     return denied(id, 'Agent Gateway: weather capability disabled (ff_weather_mcp_showcase is off)')
 }
 
@@ -97,14 +123,22 @@ if (!(args instanceof Map)) {
     return next.handle(context, request)
 }
 
+// Wide open — no restriction at all, every location argument shape passes.
+if (flags.allowedState == 'any') {
+    return next.handle(context, request)
+}
+
+def state = STATES[flags.allowedState]
+def stateLabel = STATE_LABELS[flags.allowedState]
+
 if (args.containsKey('latitude') || args.containsKey('longitude')) {
     def latVal = toNum(args.latitude)
     def lonVal = toNum(args.longitude)
     if (latVal == null || lonVal == null || !Double.isFinite(latVal) || !Double.isFinite(lonVal)) {
-        return denied(id, 'Agent Gateway: weather scope restricted to Texas (demo policy) — invalid or incomplete coordinates')
+        return denied(id, "Agent Gateway: weather scope restricted to ${stateLabel} (demo policy) — invalid or incomplete coordinates")
     }
-    if (latVal < TX_LAT_MIN || latVal > TX_LAT_MAX || lonVal < TX_LON_MIN || lonVal > TX_LON_MAX) {
-        return denied(id, 'Agent Gateway: weather scope restricted to Texas (demo policy) — coordinates outside Texas')
+    if (latVal < state.latMin || latVal > state.latMax || lonVal < state.lonMin || lonVal > state.lonMax) {
+        return denied(id, "Agent Gateway: weather scope restricted to ${stateLabel} (demo policy) — coordinates outside ${stateLabel}")
     }
     return next.handle(context, request)
 }
@@ -119,21 +153,21 @@ if (city instanceof String) {
     // allowlist match on the whole trimmed string.
     def normalized = city.toLowerCase().trim()
     def commaIdx = normalized.indexOf(',')
-    def isTx
+    def isInState
     if (commaIdx >= 0) {
         def statePart = normalized.substring(commaIdx + 1).trim()
-        isTx = (statePart == 'tx' || statePart == 'texas')
+        isInState = state.abbrevs.contains(statePart)
     } else {
-        isTx = TX_CITIES.contains(normalized)
+        isInState = state.cities.contains(normalized)
     }
-    if (!isTx) {
-        return denied(id, 'Agent Gateway: weather scope restricted to Texas (demo policy) — city not recognized as Texas')
+    if (!isInState) {
+        return denied(id, "Agent Gateway: weather scope restricted to ${stateLabel} (demo policy) — city not recognized as ${stateLabel}")
     }
     return next.handle(context, request)
 }
 
 if (args.containsKey('location_name')) {
-    return denied(id, 'Agent Gateway: weather scope restricted to Texas (demo policy) — saved locations cannot be verified')
+    return denied(id, "Agent Gateway: weather scope restricted to ${stateLabel} (demo policy) — saved locations cannot be verified")
 }
 
 // No location argument at all (e.g. check_service_status) — nothing to scope.

@@ -100,7 +100,11 @@ matched first) then validates the inbound token **locally** in
 `jwks-token-validation.groovy` — RS256 via `PINGONE_JWKS_URI`, mock HS256 via
 `AUTHZ_JWT_SECRET` — with `exp`/`nbf`, `iss`, `aud`, and scope checks, instead of
 introspecting. Success stamps `X-Token-Validation-Mode: jwks` on the response;
-failure returns 401 `{"error":"invalid_token","validation":"jwks","reason":...}`.
+failure returns 401 `{"error":"invalid_token","validation":"jwks","reason":...}` with a
+`WWW-Authenticate` Bearer challenge that includes RFC 9728 `resource_metadata`
+(derived from `PG_GATEWAY_RESOURCE_ID`) for cosmetic parity with
+`McpProtectionFilter` — the JWKS routes still do **not** wrap a native
+`OAuth2ResourceServerFilter`. Success stamps `X-Token-Validation-Mode: jwks` on the response.
 Any other header value (or none) falls through to the unchanged introspection
 route. Tradeoff (educational, by design): no revocation detection until expiry.
 The secondary `/mcp/invest` path has the same switch: `00-mcp-invest-jwks.json`

@@ -1060,10 +1060,18 @@ const appEventService = require('../services/appEventService');
 const { clearAllTokenChains } = require('../services/tokenChainService');
 const mcpToolAuditStore = require('../services/mcpToolAuditStore');
 const apiCallTracker = require('../services/apiCallTrackerService');
+const { FLAG_REGISTRY } = require('./featureFlags');
+
+// Feature flags reset to their FLAG_REGISTRY defaultValue on Reset Demo, so a
+// presenter's mid-demo change (e.g. weather Allowed State -> Michigan) doesn't
+// silently carry into the next run. Scoped to just these two — this is not a
+// general "reset every flag" feature, only the ones a live weather demo touches.
+const RESET_DEMO_FLAG_IDS = ['ff_weather_mcp_showcase', 'ff_weather_mcp_allowed_state'];
 
 /**
  * POST /api/admin/reset-demo — Clear all in-memory demo state for a fresh start.
  * Clears: app events, token chain, MCP audit, API call tracker, pending consents.
+ * Also resets RESET_DEMO_FLAG_IDS to their registry defaults.
  * Auth: authenticateToken only — any logged-in user can reset the demo.
  */
 router.post('/reset-demo', authenticateToken, async (req, res) => {
@@ -1072,6 +1080,16 @@ router.post('/reset-demo', authenticateToken, async (req, res) => {
     clearAllTokenChains();
     mcpToolAuditStore.clearToolCalls();
     apiCallTracker.clearApiCalls('default');
+
+    const flagDefaults = {};
+    for (const id of RESET_DEMO_FLAG_IDS) {
+      const flag = FLAG_REGISTRY.find((f) => f.id === id);
+      if (!flag) continue;
+      flagDefaults[id] = typeof flag.defaultValue === 'boolean' ? String(flag.defaultValue) : flag.defaultValue;
+    }
+    if (Object.keys(flagDefaults).length > 0) {
+      await configStore.setRaw(flagDefaults);
+    }
 
     // Clear MCP server's own in-memory audit log (fire-and-forget, non-fatal)
     try {

@@ -8,7 +8,7 @@
  * x-internal-gateway-secret gate as this directory's other /internal/* routes.
  *
  * Status codes:
- *   200  { enabled: true|false }  — success
+ *   200  { enabled: true|false, allowedState: 'texas'|'michigan'|'any' }  — success
  *   403  forbidden                — missing or wrong x-internal-gateway-secret
  */
 const express = require('express');
@@ -34,7 +34,11 @@ router.get('/feature-flags/weather-mcp-showcase', (req, res) => {
   const raw = configStore.getEffective('ff_weather_mcp_showcase');
   const isUnset = raw === null || raw === undefined || raw === '';
   const enabled = isUnset ? true : (raw === true || raw === 'true');
-  return res.json({ enabled });
+
+  const rawState = configStore.getEffective('ff_weather_mcp_allowed_state');
+  const allowedState = ['texas', 'michigan', 'any'].includes(rawState) ? rawState : 'texas';
+
+  return res.json({ enabled, allowedState });
 });
 
 module.exports = router;

@@ -63,6 +63,9 @@ describe('primaryTool existence — no dangling tool premises, any vertical', ()
     const surfaces = [
       read('demo_mcp_server/src/tools/BankingToolRegistry.ts'),
       read('demo_mcp_server/src/tools/handlers/verticalTools.generated.ts'),
+      // weather-mcp showcase: a real MCP tool, but hosted by a third-party MCP
+      // server (not demo_mcp_server) — registered here instead.
+      read('demo_api_server/utils/mcpToolRegistry.js'),
     ];
     const missing = [];
     for (const tool of new Set(chipEntries().map((e) => e.primaryTool))) {
@@ -92,7 +95,9 @@ describe('chip dollar amounts are canonical threshold tiers', () => {
   const CANONICAL_AMOUNTS = new Set([300, 600, 2500]);
   // Add an entry here ONLY when a use case's whole point is a non-tier amount,
   // with the reason: e.g. { 3000: 'UC99 demos the daily cumulative cap' }.
-  const AMOUNT_EXCEPTIONS = {};
+  const AMOUNT_EXCEPTIONS = {
+    150: 'UC22 CIBA demos the trigger is agent-context + action sensitivity, not amount — deliberately below the $300 tier',
+  };
 
   test('every $ amount in a chip trigger is a canonical tier or a justified exception', () => {
     const offenders = [];

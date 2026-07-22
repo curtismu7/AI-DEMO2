@@ -243,6 +243,24 @@ async function dispatchBankingAction(action, params, userId, ctx) {
       return { reply: `Recent ${_txNoun}:\n\n${lines.join('\n')}`, success: true, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents, transactions: recent };
     }
 
+    // weather-mcp showcase — real third-party MCP server fronted by the Agent
+    // Gateway (Texas-only, ping-gateway/scripts/groovy/tx-weather-scope.groovy).
+    // Routes through the same token-exchange → gateway pipeline as the READ
+    // actions above; the tool's own MCP content-array shape (not a banking
+    // field) is read directly here rather than in parseToolResult.
+    if (action === 'weather') {
+      const toolName = 'get_weather';
+      const tokenEvents = [];
+      const sessionId = req?.sessionID || '';
+      const rawResult = await executeBffTool({ name: toolName, args: { city_name: params.city_name || '' }, userId, userToken, req, tokenEvents, sessionId });
+      const { result: parsed2 } = parseToolResult(rawResult, { site: `banking_read:${toolName}` });
+      const text = parsed2?.content?.[0]?.text;
+      if (!text || parsed2?.isError) {
+        return { reply: `❌ ${text || parsed2?.error_description || parsed2?.error || 'Could not get the weather.'}`, success: false, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
+      }
+      return { reply: text, success: true, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
+    }
+
     if (action === 'transfer') {
       if (!params.fromId || !params.toId || !params.amount) {
         const missing = [];

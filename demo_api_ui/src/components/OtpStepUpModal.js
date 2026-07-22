@@ -245,6 +245,7 @@ export default function OtpStepUpModal({
   const [p1Step, setP1Step] = useState('pick-device');
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
   const [p1Error, setP1Error] = useState('');
+  const [otpResending, setOtpResending] = useState(false);
   const pollRef = useRef(null);
   // Keep a ref to the current daId so startPushPolling always polls the live value.
   const daIdRef = useRef(daId);
@@ -441,6 +442,28 @@ export default function OtpStepUpModal({
       console.error('[OtpStepUpModal] P1MFA OTP submit error:', err);
       setError('Verification failed. Please try again.');
     }
+  };
+
+  /** Re-select the same Email/SMS device so PingOne sends a fresh code. */
+  const handleResendOtp = async () => {
+    if (otpResending) return;
+    if (mode === 'p1mfa' && selectedDeviceId) {
+      const device = (devices || []).find((d) => d.id === selectedDeviceId);
+      if (!device) {
+        setError('Go back to Methods and choose Email or SMS again.');
+        return;
+      }
+      setOtpResending(true);
+      setError('');
+      try {
+        await handleSelectDevice(device);
+        setOtp('');
+      } finally {
+        setOtpResending(false);
+      }
+      return;
+    }
+    setError('Go back to Methods and choose Email or SMS again to resend.');
   };
 
   const startPushPolling = () => {
@@ -960,9 +983,20 @@ export default function OtpStepUpModal({
           </button>
         )}
         {p1Step === 'otp' && (
-          <button type="button" className="otp-step-up-modal__btn-primary" onClick={handleP1OtpSubmit}>
-            Verify
-          </button>
+          <>
+            <button type="button" className="otp-step-up-modal__btn-primary" onClick={handleP1OtpSubmit}>
+              Verify
+            </button>
+            <button
+              type="button"
+              className="otp-step-up-modal__btn-ghost"
+              onClick={handleResendOtp}
+              disabled={otpResending}
+              data-testid="otp-resend"
+            >
+              {otpResending ? 'Sending…' : 'Resend code'}
+            </button>
+          </>
         )}
         {p1Step === 'otp-stub' && (
           <button type="button" className="otp-step-up-modal__btn-primary" onClick={handleSubmit}>

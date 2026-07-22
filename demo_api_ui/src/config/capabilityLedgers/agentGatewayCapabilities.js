@@ -30,9 +30,9 @@ export const AGENT_GATEWAY_CAPABILITIES = [
     id: 'weather-tx-scope',
     group: 'validate-audit',
     title: 'Scope a third-party MCP server',
-    oneLiner: 'Fronts a third-party weather MCP server and denies any tool call outside Texas, entirely at the gateway — the demo policy the backend never sees. Live-toggleable via ff_weather_mcp_showcase.',
-    evidence: { code: 'PingGateway only — no Node mcp-gateway equivalent: ping-gateway/scripts/groovy/tx-weather-scope.groovy:1-140 · ping-gateway/config/routes/00-mcp-weather.json · demo_api_server/routes/weatherMcpFlag.js' },
-    relatedUCIds: [],
+    oneLiner: 'Fronts a third-party weather MCP server and denies any tool call outside the currently-allowed US state (Texas by default — configurable live, right on this card), entirely at the gateway — the demo policy the backend never sees. Live-toggleable via ff_weather_mcp_showcase / ff_weather_mcp_allowed_state.',
+    evidence: { code: 'PingGateway only — no Node mcp-gateway equivalent: ping-gateway/scripts/groovy/tx-weather-scope.groovy · ping-gateway/config/routes/00-mcp-weather.json · demo_api_server/routes/weatherMcpFlag.js · demo_api_server/routes/featureFlags.js' },
+    relatedUCIds: ['UC30', 'UC31', 'UC32'],
   },
   {
     id: 'audit-logging',

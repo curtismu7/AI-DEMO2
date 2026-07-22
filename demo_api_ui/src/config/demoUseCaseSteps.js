@@ -27,6 +27,9 @@ export const DEMO_ADVANCED_USE_CASE_IDS = [
   'UC20',  // Audit trail
   'UC18',  // Rate-limit / throttle burst
   'UC29',  // OAuth fail-closed
+  'UC30',  // Weather MCP — Texas permit
+  'UC31',  // Weather MCP — out-of-scope deny
+  'UC32',  // Weather MCP — live-reconfigure the gateway scope
 ];
 
 /** Flat list for callers that only need order (primary then advanced). */

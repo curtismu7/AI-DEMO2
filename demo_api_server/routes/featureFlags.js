@@ -720,6 +720,25 @@ const FLAG_REGISTRY = [
     defaultValue: true,
   },
   {
+    id:           'ff_weather_mcp_allowed_state',
+    name:         'Weather MCP — Allowed State',
+    category:     'MCP / Agent',
+    description:
+      'Which US state the Agent Gateway (PingGateway/IG) currently allows through the ' +
+      'weather-mcp showcase route (`/mcp/weather`). `tx-weather-scope.groovy` reads this ' +
+      'live on every request via `GET /internal/feature-flags/weather-mcp-showcase`, so ' +
+      'changing it here takes effect immediately, with no gateway restart — the SAME query ' +
+      '("what\'s the weather in Miami") can flip from denied to allowed live, during a demo.',
+    impact:
+      'texas (default) = only the 20 largest Texas cities / TX bounding box pass. ' +
+      'michigan = only the 20 largest Michigan cities / MI bounding box pass. ' +
+      'any = no geographic restriction — every city passes (subject to ff_weather_mcp_showcase ' +
+      'still being ON).',
+    type:         'enum',
+    options:      ['texas', 'michigan', 'any'],
+    defaultValue: 'texas',
+  },
+  {
     id:           'ff_local_fallback_on_exchange_failure',
     name:         'Local Fallback on Exchange Failure',
     category:     'MCP / Agent',
