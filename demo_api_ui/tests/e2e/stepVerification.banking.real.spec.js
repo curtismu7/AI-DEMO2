@@ -1,19 +1,15 @@
 // demo_api_ui/tests/e2e/stepVerification.banking.real.spec.js
 /**
  * @file stepVerification.banking.real.spec.js
- * Live-stack step verification for banking: chip dispatch (heuristic mode)
- * and free-text dispatch (LLM-only mode), writing PASS/FAIL ledger entries
- * for checks 1 (server error), 3 (LLM error), 4 (right response — values vs
- * /api/accounts/my), 5 (right gate — via `source`).
+ * Live-stack step verification for banking: chip + free-text, asserting the
+ * RIGHT amount and gate — not just HTTP 200 / source=heuristic.
  *
  * Prerequisites: stack running (./run.sh), E2E_CUSTOMER_USERNAME/PASSWORD set.
- * Prefer E2E_BASE_URL=https://local.ping-devops.com:4000 when that host resolves
- * (passkeys / session cookie). api.ping.demo:4000 works for many real specs.
- * Always use playwright.real.config.js (no local Vite webServer).
+ * Prefer E2E_BASE_URL=https://local.ping-devops.com:4000.
  *
  * Run:
  *   cd demo_api_ui
- *   E2E_BASE_URL=https://api.ping.demo:4000 npx playwright test \
+ *   E2E_BASE_URL=https://local.ping-devops.com:4000 npx playwright test \
  *     tests/e2e/stepVerification.banking.real.spec.js --config=playwright.real.config.js
  */
 const { test, expect } = require('@playwright/test');
@@ -21,6 +17,10 @@ const { execSync } = require('child_process');
 const { loginAsCustomer, requireRealLoginEnv } = require('./helpers/realLogin');
 const { writeLedgerEntry } = require('../../../demo_api_server/services/stepVerificationLedger');
 const { USE_CASES, resolveUseCase } = require('../../../demo_api_server/config/useCases.js');
+const {
+  bankingAmountGateExpectations,
+  normalizeParsedIntent,
+} = require('../../../demo_api_server/services/stepVerificationExpectations');
 
 /** First works-maturity banking chip whose primaryTool reads accounts/balance. */
 function findBankingReadChip() {
@@ -36,39 +36,24 @@ function findBankingReadChip() {
   return null;
 }
 
-async function callMcpTool(page, tool, params) {
-  return page.evaluate(
-    async ({ tool, params }) => {
-      const r = await fetch('/api/mcp/tool', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ tool, params }),
-      });
-      const body = await r.json().catch(() => ({}));
-      return { status: r.status, body };
-    },
-    { tool, params },
-  );
-}
+const GATE_TO_ERROR = {
+  HITL: 'hitl_required',
+  STEP_UP: 'step_up_required',
+  DENY: 'authorization_denied',
+};
 
-const AMOUNT_CASES = [
-  {
-    useCaseId: 'UC8',
-    chipText: 'transfer $300 from checking to savings',
-    freeText: 'please move three hundred dollars out of my checking into my savings',
-  },
-  {
-    useCaseId: 'UC7',
-    chipText: 'transfer $600 from checking to savings',
-    freeText: 'please move six hundred dollars out of my checking into my savings',
-  },
-  {
-    useCaseId: 'UC6',
-    chipText: 'transfer $2500 from checking to savings',
-    freeText: 'please move twenty-five hundred dollars out of my checking into my savings',
-  },
-];
+const FREE_TEXT_BY_ID = {
+  UC8: 'please move three hundred dollars out of my checking into my savings',
+  UC7: 'please move six hundred dollars out of my checking into my savings',
+  UC6: 'please move twenty-five hundred dollars out of my checking into my savings',
+};
+
+/** Catalog-driven UC6/7/8 (+ kin) with free-text twins where defined. */
+const AMOUNT_CASES = bankingAmountGateExpectations().map((e) => ({
+  ...e,
+  useCaseId: e.id,
+  freeText: FREE_TEXT_BY_ID[e.id] || null,
+}));
 
 const LLM_ERROR_SIGNATURES = [
   'unknown provider in reasonOnce',
@@ -76,7 +61,6 @@ const LLM_ERROR_SIGNATURES = [
   'ProviderClient httpx errored',
 ];
 
-/** Best-effort — some environments don't have docker access from the test runner. */
 function grepDockerLogsForLlmErrors(sinceSeconds) {
   try {
     const out = execSync(`docker logs --since ${sinceSeconds}s ai-demo-agent-service 2>&1 | tail -200`, {
@@ -104,7 +88,35 @@ async function dispatchNl(page, message, provider) {
   );
 }
 
-/** Patch a flag using the authenticated page/context request (not the bare `request` fixture). */
+async function dispatchMessage(page, message) {
+  return page.evaluate(async (message) => {
+    const r = await fetch('/api/demo-agent/message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ message, vertical: 'banking' }),
+    });
+    const body = await r.json().catch(() => ({}));
+    return { status: r.status, body };
+  }, message);
+}
+
+async function callMcpTool(page, tool, params) {
+  return page.evaluate(
+    async ({ tool, params }) => {
+      const r = await fetch('/api/mcp/tool', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ tool, params }),
+      });
+      const body = await r.json().catch(() => ({}));
+      return { status: r.status, body };
+    },
+    { tool, params },
+  );
+}
+
 async function setHeuristicEnabled(api, enabled) {
   const res = await api.patch('/api/admin/feature-flags', {
     data: { updates: { ff_heuristic_enabled: enabled } },
@@ -112,50 +124,93 @@ async function setHeuristicEnabled(api, enabled) {
   expect(res.ok(), `ff_heuristic_enabled=${enabled} (HTTP ${res.status()})`).toBe(true);
 }
 
+/**
+ * Score NL + message against catalog expectation (amount + gate error).
+ * @returns {{ checkStatus: string, errorClass: string|null, normalized: object|null }}
+ */
+function scoreAmountGate({ nlStatus, nlBody, msgStatus, msgBody, expectation }) {
+  let checkStatus = 'PASS';
+  let errorClass = null;
+
+  if (nlStatus !== 200) {
+    return { checkStatus: 'FAIL', errorClass: 'server_error', normalized: null };
+  }
+  if (nlBody.source !== 'heuristic') {
+    return { checkStatus: 'FAIL', errorClass: 'parse_error', normalized: null };
+  }
+
+  const normalized = normalizeParsedIntent(nlBody.result || nlBody);
+  if (!normalized || normalized.tool !== 'create_transfer') {
+    return { checkStatus: 'FAIL', errorClass: 'wrong_response', normalized };
+  }
+  if (normalized.amount !== expectation.amount) {
+    return { checkStatus: 'FAIL', errorClass: 'wrong_response', normalized };
+  }
+
+  const wantError = GATE_TO_ERROR[expectation.gate];
+  const gotError = msgBody?.error || null;
+  const consent428 = msgStatus === 428 && (msgBody?.requiresConsent || gotError === 'hitl_required');
+
+  if (expectation.gate === 'HITL') {
+    if (!(gotError === 'hitl_required' || consent428)) {
+      checkStatus = 'FAIL';
+      errorClass = 'wrong_gate';
+    }
+  } else if (expectation.gate === 'STEP_UP') {
+    if (gotError !== 'step_up_required') {
+      checkStatus = 'FAIL';
+      errorClass = 'wrong_gate';
+    }
+  } else if (expectation.gate === 'DENY') {
+    if (!(gotError === 'authorization_denied' || /deny|denied|exceed/i.test(msgBody?.reply || msgBody?.message || ''))) {
+      checkStatus = 'FAIL';
+      errorClass = 'wrong_gate';
+    }
+  }
+
+  return { checkStatus, errorClass, normalized };
+}
+
 test.describe('Step verification — banking (real login, live stack)', () => {
   test.skip(!requireRealLoginEnv(), 'Skipped: set E2E_CUSTOMER_USERNAME and E2E_CUSTOMER_PASSWORD');
 
-  test.describe('chips (heuristic mode)', () => {
+  test.describe('chips (heuristic mode) — amount + gate', () => {
     test.beforeEach(async ({ page }) => {
-      // Chip tests require the heuristic short-circuit. A prior free-text run (or
-      // a crashed afterAll) can leave ff_heuristic_enabled=false globally.
-      // Must use page.request (cookie session) — the bare request fixture is unauthenticated
-      // and the gateway returns authentication_required without updating the flag.
       await loginAsCustomer(page);
       await setHeuristicEnabled(page.request, true);
     });
 
     for (const c of AMOUNT_CASES) {
-      test(`${c.useCaseId} chip (heuristic): "${c.chipText}"`, async ({ page }) => {
+      test(`${c.useCaseId} chip: $${c.amount} → ${c.gate}`, async ({ page }) => {
         const { status, body } = await dispatchNl(page, c.chipText, 'llamacpp');
-
-        let checkStatus = 'PASS';
-        let errorClass = null;
-        if (status !== 200) {
-          checkStatus = 'FAIL';
-          errorClass = 'server_error';
-        } else if (body.source !== 'heuristic') {
-          checkStatus = 'FAIL';
-          errorClass = 'parse_error';
-        }
+        const msg = await dispatchMessage(page, c.chipText);
+        const scored = scoreAmountGate({
+          nlStatus: status,
+          nlBody: body,
+          msgStatus: msg.status,
+          msgBody: msg.body,
+          expectation: c,
+        });
 
         writeLedgerEntry({
           vertical: 'banking',
           useCaseId: c.useCaseId,
           triggerType: 'chip',
           mode: 'heuristic',
-          status: checkStatus,
-          errorClass,
+          status: scored.checkStatus,
+          errorClass: scored.errorClass,
           primaryTool: 'create_transfer',
           checkedAt: new Date().toISOString(),
         });
 
         expect(status).toBe(200);
         expect(body.source).toBe('heuristic');
+        expect(scored.normalized?.amount).toBe(c.amount);
+        expect(scored.checkStatus).toBe('PASS');
       });
     }
 
-    test('accounts/balance chip: values match /api/accounts/my (check 4: right response)', async ({ page }) => {
+    test('accounts/balance chip: values match /api/accounts/my (check 4)', async ({ page }) => {
       const readChip = findBankingReadChip();
       test.skip(!readChip, 'No works-maturity banking chip routes to an accounts/balance read tool');
 
@@ -167,7 +222,6 @@ test.describe('Step verification — banking (real login, live stack)', () => {
       });
       expect(liveAccounts.length).toBeGreaterThan(0);
 
-      // get_account_balance requires account_id; get_my_accounts takes {}.
       const toolParams =
         readChip.primaryTool === 'get_account_balance'
           ? { account_id: liveAccounts[0].id }
@@ -226,9 +280,9 @@ test.describe('Step verification — banking (real login, live stack)', () => {
       await loginAsCustomer(page);
     });
 
-    for (const c of AMOUNT_CASES) {
-      test(`${c.useCaseId} free-text (llamacpp): "${c.freeText}"`, async ({ page }) => {
-        const { status } = await dispatchNl(page, c.freeText, 'llamacpp');
+    for (const c of AMOUNT_CASES.filter((x) => x.freeText)) {
+      test(`${c.useCaseId} free-text (llamacpp): amount ${c.amount}`, async ({ page }) => {
+        const { status, body } = await dispatchNl(page, c.freeText, 'llamacpp');
 
         let checkStatus = 'PASS';
         let errorClass = null;
@@ -240,6 +294,13 @@ test.describe('Step verification — banking (real login, live stack)', () => {
           if (llmErrors && llmErrors.length) {
             checkStatus = 'FAIL';
             errorClass = 'llm_error';
+          } else {
+            const n = normalizeParsedIntent(body.result || body);
+            // LLM-only: if the model returned a structured intent, amount must match.
+            if (n?.amount != null && n.amount !== c.amount) {
+              checkStatus = 'FAIL';
+              errorClass = 'wrong_response';
+            }
           }
         }
 
@@ -255,6 +316,7 @@ test.describe('Step verification — banking (real login, live stack)', () => {
         });
 
         expect(status).toBe(200);
+        expect(checkStatus).toBe('PASS');
       });
     }
   });

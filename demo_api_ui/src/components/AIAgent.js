@@ -66,6 +66,10 @@ import AgentDemoGuide from "./AgentDemoGuide";
 import DemoStepsDropdown from "./DemoStepsDropdown";
 import BankingChips, { PINGONE_ADMIN_CHIP_IDS } from "./BankingChips";
 import { markUseCaseCompleted } from "../utils/useCaseDemoProgress";
+import {
+  requiredFlagsForUseCase,
+  requiredFlagsForUseCaseId,
+} from "../utils/requiredDemoFlags";
 import apiClient from "../services/apiClient";
 import { formatAxiosError } from "../utils/formatAxiosError";
 import { adminCustomerContext } from "../services/adminCustomerContext";
@@ -6193,6 +6197,26 @@ export default function BankingAgent({
   }
 
   /**
+   * Arm every feature flag a demo chip / use case needs so presenters are not
+   * blocked by a default-off flag (e.g. ff_a2a_delegation).
+   * @param {string[]} flagIds
+   * @param {string} [reason]
+   */
+  async function ensureRequiredDemoFlags(flagIds, reason = "demo step") {
+    const updates = {};
+    for (const id of flagIds || []) {
+      if (id) updates[id] = true;
+    }
+    if (!Object.keys(updates).length) return;
+    try {
+      await apiClient.patch("/api/admin/feature-flags", { updates });
+      console.log(`[ensureRequiredDemoFlags] Auto-enabled ${Object.keys(updates).join(", ")} for ${reason}`);
+    } catch (e) {
+      console.warn(`[ensureRequiredDemoFlags] Could not auto-enable flags for ${reason}:`, e.message);
+    }
+  }
+
+  /**
    * Run a Demo-section use case from the agent header (same catalog as /use-cases).
    * Chip triggers replay NL with useCaseId stamping; attacks hit the sim API;
    * link/edu open their destinations.
@@ -6209,26 +6233,7 @@ export default function BankingAgent({
     const stepLabel = `Demo step ${stepNumber}: ${uc.id} — ${uc.title}`;
     const trigger = uc.trigger || {};
 
-    // Auto-enable feature flags required by flag-gated demo steps.
-    // This ensures presenters don't need to manually toggle flags before running.
-    if (uc.maturity && typeof uc.maturity === "string" && uc.maturity.startsWith("flag:")) {
-      const flagName = uc.maturity.replace("flag:", "");
-      try {
-        await apiClient.patch("/api/admin/feature-flags", { updates: { [flagName]: true } });
-        console.log(`[handleDemoStepSelect] Auto-enabled ${flagName} for ${uc.id}`);
-      } catch (e) {
-        console.warn(`[handleDemoStepSelect] Could not auto-enable ${flagName}:`, e.message);
-      }
-    }
-    // UC2.5 (A2A orchestrator) needs ff_a2a_delegation but has maturity 'works'
-    if (uc.id === "UC2.5") {
-      try {
-        await apiClient.patch("/api/admin/feature-flags", { updates: { ff_a2a_delegation: true } });
-        console.log("[handleDemoStepSelect] Auto-enabled ff_a2a_delegation for UC2.5");
-      } catch (e) {
-        console.warn("[handleDemoStepSelect] Could not auto-enable ff_a2a_delegation:", e.message);
-      }
-    }
+    await ensureRequiredDemoFlags(requiredFlagsForUseCase(uc), uc.id);
 
     if (trigger.type === "chip" && trigger.text) {
       if (!(isLoggedIn || marketingGuestChatEnabled)) {
@@ -7816,7 +7821,7 @@ export default function BankingAgent({
                         `This action was denied by PingOne Authorize: "${chip.label}" — ${reason}. Switch the Agent scope to "Read + Write" to enable it.`,
                       );
                     }}
-                    onChipClick={({ message, label, requiresLlm, chipId, direct, showcase, caption, stepUpMethod, denyTool, useCaseId: chipUseCaseId }) => {
+                    onChipClick={async ({ message, label, requiresLlm, chipId, direct, showcase, caption, stepUpMethod, denyTool, useCaseId: chipUseCaseId }) => {
                       setShowDiscovery(false);
                       if (isAgentBlockedByConsentDecline()) {
                         addMessage(
@@ -7825,6 +7830,12 @@ export default function BankingAgent({
                         );
                         return;
                       }
+                      // Arm flag-gated / A2A chips before the NL or direct path runs
+                      // (demo-step dropdown already does this; BankingChips did not).
+                      await ensureRequiredDemoFlags(
+                        requiredFlagsForUseCaseId(chipUseCaseId),
+                        chipUseCaseId || chipId || "chip",
+                      );
                       addMessage("user", label || message);
                       setNlLoading(true);
 

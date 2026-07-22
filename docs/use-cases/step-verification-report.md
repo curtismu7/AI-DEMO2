@@ -8,26 +8,30 @@
 
 | Vertical | Use Case | Trigger | Mode | Status | Error Class | Checked At |
 |---|---|---|---|---|---|---|
-| banking | UC1 | chip | heuristic | ✅ PASS |  | 2026-07-22T17:00:20.384Z |
-| banking | UC17 | chip | heuristic | ✅ PASS |  | 2026-07-22T17:00:20.392Z |
-| banking | UC19 | chip | heuristic | ✅ PASS |  | 2026-07-22T17:00:20.387Z |
-| banking | UC20 | chip | heuristic | ✅ PASS |  | 2026-07-22T17:00:20.387Z |
-| banking | UC21 | chip | heuristic | ✅ PASS |  | 2026-07-22T17:00:20.391Z |
-| banking | UC22 | chip | heuristic | ✅ PASS |  | 2026-07-22T17:00:20.395Z |
-| banking | UC24 | chip | heuristic | ✅ PASS |  | 2026-07-22T17:00:20.391Z |
-| banking | UC27 | chip | heuristic | ✅ PASS |  | 2026-07-22T17:00:20.395Z |
-| banking | UC28 | chip | heuristic | ✅ PASS |  | 2026-07-22T17:00:20.393Z |
-| banking | UC3 | chip | heuristic | ✅ PASS |  | 2026-07-22T17:00:20.386Z |
-| banking | UC30 | chip | heuristic | ✅ PASS |  | 2026-07-22T17:00:20.392Z |
-| banking | UC31 | chip | heuristic | ✅ PASS |  | 2026-07-22T17:00:20.392Z |
-| banking | UC4 | chip | heuristic | ✅ PASS |  | 2026-07-22T17:00:20.387Z |
-| banking | UC6 | chip | heuristic | ✅ PASS |  | 2026-07-22T17:00:20.394Z |
-| banking | UC6 | prompt | llamacpp | ✅ PASS |  | 2026-07-22T12:44:27.680Z |
-| banking | UC7 | chip | heuristic | ✅ PASS |  | 2026-07-22T17:00:20.394Z |
-| banking | UC7 | prompt | llamacpp | ✅ PASS |  | 2026-07-22T12:43:52.218Z |
-| banking | UC8 | chip | heuristic | ✅ PASS |  | 2026-07-22T17:00:20.394Z |
-| banking | UC8 | prompt | llamacpp | ✅ PASS |  | 2026-07-22T12:43:17.025Z |
+| banking | UC1 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.430Z |
+| banking | UC17 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.435Z |
+| banking | UC19 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.432Z |
+| banking | UC2 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.440Z |
+| banking | UC2.5 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.440Z |
+| banking | UC20 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.432Z |
+| banking | UC21 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.434Z |
+| banking | UC22 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.441Z |
+| banking | UC24 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.434Z |
+| banking | UC25 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.441Z |
+| banking | UC27 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.438Z |
+| banking | UC28 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.436Z |
+| banking | UC3 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.432Z |
+| banking | UC30 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.435Z |
+| banking | UC31 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.435Z |
+| banking | UC4 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.432Z |
+| banking | UC6 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.436Z |
+| banking | UC6 | prompt | llamacpp | ✅ PASS |  | 2026-07-22T17:33:06.770Z |
+| banking | UC7 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.436Z |
+| banking | UC7 | prompt | llamacpp | ✅ PASS |  | 2026-07-22T17:32:53.997Z |
+| banking | UC8 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.438Z |
+| banking | UC8 | prompt | llamacpp | ✅ PASS |  | 2026-07-22T17:32:49.168Z |
+| banking | UC9 | chip | heuristic | ✅ PASS |  | 2026-07-22T22:17:14.441Z |
 
 ## Summary
 
-19/19 checks passing.
+23/23 checks passing.

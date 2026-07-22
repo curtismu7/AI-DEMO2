@@ -1,13 +1,13 @@
 {
   "vertical": "banking",
-  "useCaseId": "UC22",
+  "useCaseId": "UC2.5",
   "triggerType": "chip",
   "mode": "heuristic",
   "status": "PASS",
   "errorClass": null,
-  "primaryTool": "create_transfer",
-  "checkedAt": "2026-07-22T22:17:14.441Z",
+  "primaryTool": null,
+  "checkedAt": "2026-07-22T22:17:14.440Z",
   "requiredFlags": [
-    "ff_ciba"
+    "ff_a2a_delegation"
   ]
 }

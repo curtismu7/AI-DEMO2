@@ -19,12 +19,24 @@
 const { USE_CASES, resolveUseCase } = require('../config/useCases.js');
 const { parseHeuristic, resolveVerticalCtx } = require('../services/nlIntentParser');
 const { writeLedgerEntry } = require('../services/stepVerificationLedger');
+const {
+  bankingWorksChipExpectations,
+  bankingAmountGateExpectations,
+  normalizeParsedIntent,
+} = require('../services/stepVerificationExpectations');
+const {
+  requiredFlagsForUseCase,
+  checkChipPrerequisites,
+  needsA2aCredentials,
+} = require('../services/demoStepPrerequisites');
 
 const _cfg = { ff_authorize_fail_open: 'true' };
 jest.mock('../services/configStore', () => ({
   get: jest.fn((k) => _cfg[k] ?? null),
   getEffective: jest.fn((k) => _cfg[k] ?? null),
 }));
+// Real configStore for credential readiness (env/vault) — mocked store stays for gates.
+const realConfigStore = jest.requireActual('../services/configStore');
 
 jest.mock('../services/agentMcpTokenService', () => ({
   resolveMcpAccessTokenWithEvents: jest.fn(async () => ({
@@ -60,44 +72,50 @@ jest.mock('../services/mcpToolAuthorizationService', () => ({
 }));
 
 const { evaluate } = require('../services/agentPreflightService');
-const { ACTION_TO_TOOL } = require('./helpers/actionToTool');
 
 const fakeReq = () => ({
   session: { user: { role: 'user', acr: 'urn:acme:Bronze', email: 'test@example.com' } },
   correlationId: 'corr-step-verification-banking',
 });
 
-const A2A_UNROUTABLE = /specialist/i;
-
-/** Every works-maturity banking chip with a stored primaryTool. */
-function bankingWorksChipCases() {
+/**
+ * Every banking chip use case (works + flag-gated) — prerequisite coverage.
+ * Includes A2A chips the routing suite skips.
+ */
+function bankingChipPrerequisiteCases() {
   const out = [];
   for (const u of USE_CASES) {
     const uc = resolveUseCase(u.id, 'banking') || u;
-    if (uc.maturity !== 'works') continue;
+    const mat = uc.maturity || '';
+    if (mat !== 'works' && !String(mat).startsWith('flag:')) continue;
     const t = uc.trigger || {};
-    if (t.type !== 'chip' || !t.text || A2A_UNROUTABLE.test(t.text)) continue;
-    if (!uc.primaryTool) continue;
-    out.push({ id: uc.id, text: t.text, primaryTool: uc.primaryTool });
+    if (t.type !== 'chip' || !t.text) continue;
+    out.push(uc);
   }
   return out;
 }
 
-describe('step verification — banking chip routing (check 2: parse/route)', () => {
-  const cases = bankingWorksChipCases();
+describe('step verification — banking chip routing (check 2: parse/route + amount)', () => {
+  const cases = bankingWorksChipExpectations();
 
   test('at least one works-maturity banking chip is covered', () => {
     expect(cases.length).toBeGreaterThan(0);
   });
 
-  test.each(cases.map((c) => [c.id, c]))('%s: chip routes to its stored primaryTool', (_id, c) => {
+  test.each(cases.map((c) => [c.id, c]))('%s: chip routes to primaryTool with expected amount', (_id, c) => {
     const ctx = resolveVerticalCtx('banking');
-    const parsed = parseHeuristic(c.text, 'banking', ctx, {});
-    const action = parsed ? (parsed.banking?.action ?? parsed.action ?? null) : null;
-    const tool = ACTION_TO_TOOL[action] || action;
+    const parsed = parseHeuristic(c.chipText, 'banking', ctx, {});
+    const n = normalizeParsedIntent(parsed);
 
-    const status = tool === c.primaryTool ? 'PASS' : 'FAIL';
-    const errorClass = status === 'FAIL' ? (action ? 'wrong_response' : 'parse_error') : null;
+    let status = 'PASS';
+    let errorClass = null;
+    if (!n || n.tool !== c.primaryTool) {
+      status = 'FAIL';
+      errorClass = n?.action ? 'wrong_response' : 'parse_error';
+    } else if (c.amount != null && n.amount !== c.amount) {
+      status = 'FAIL';
+      errorClass = 'wrong_response';
+    }
 
     writeLedgerEntry({
       vertical: 'banking',
@@ -110,32 +128,45 @@ describe('step verification — banking chip routing (check 2: parse/route)', ()
       checkedAt: new Date().toISOString(),
     });
 
-    expect(tool).toBe(c.primaryTool);
+    expect(n?.tool).toBe(c.primaryTool);
+    if (c.amount != null) {
+      expect(n.amount).toBe(c.amount);
+    }
   });
 });
 
-describe('step verification — banking amount-gated decisions (check 5)', () => {
-  test.each([
-    ['UC6', 2500, 'DENY'],
-    ['UC7', 600, 'STEP_UP'],
-    ['UC8', 300, 'HITL'],
-  ])('%s: $%i transfer resolves to decision %s', async (id, amount, expectedDecision) => {
-    const result = await evaluate({ req: fakeReq(), tool: 'create_transfer', params: { amount } });
-    const status = result.decision === expectedDecision ? 'PASS' : 'FAIL';
+describe('step verification — banking amount-gated decisions (check 5, catalog-driven)', () => {
+  const gates = bankingAmountGateExpectations();
 
-    writeLedgerEntry({
-      vertical: 'banking',
-      useCaseId: id,
-      triggerType: 'chip',
-      mode: 'heuristic',
-      status,
-      errorClass: status === 'FAIL' ? 'wrong_gate' : null,
-      primaryTool: 'create_transfer',
-      checkedAt: new Date().toISOString(),
-    });
-
-    expect(result.decision).toBe(expectedDecision);
+  test('UC6/7/8-class gates are present in the catalog matrix', () => {
+    const ids = gates.map((g) => g.id);
+    expect(ids).toEqual(expect.arrayContaining(['UC6', 'UC7', 'UC8']));
   });
+
+  test.each(gates.map((g) => [g.id, g.amount, g.gate]))(
+    '%s: $%i → decision %s',
+    async (id, amount, gate) => {
+      const result = await evaluate({
+        req: fakeReq(),
+        tool: 'create_transfer',
+        params: { amount },
+      });
+      const status = result.decision === gate ? 'PASS' : 'FAIL';
+
+      writeLedgerEntry({
+        vertical: 'banking',
+        useCaseId: id,
+        triggerType: 'chip',
+        mode: 'heuristic',
+        status,
+        errorClass: status === 'FAIL' ? 'wrong_gate' : null,
+        primaryTool: 'create_transfer',
+        checkedAt: new Date().toISOString(),
+      });
+
+      expect(result.decision).toBe(gate);
+    },
+  );
 });
 
 describe('step verification — reference-only banking use cases', () => {
@@ -168,6 +199,59 @@ describe('step verification — reference-only banking use cases', () => {
         verifiedBy: r.verifiedBy,
       });
       expect(r.verifiedBy).toBeTruthy();
+    },
+  );
+});
+
+describe('step verification — banking chip prerequisites (flags + A2A creds)', () => {
+  const cases = bankingChipPrerequisiteCases();
+
+  // Jest setup isolates LMDB and does not load demo_api_server/.env — pull
+  // Agent 2 credentials from .env so this suite matches the running demo.
+  beforeAll(() => {
+    require('dotenv').config({
+      path: require('path').join(__dirname, '..', '.env'),
+      override: false,
+    });
+  });
+
+  test('covers flag-gated and A2A chip use cases', () => {
+    expect(cases.some((c) => String(c.maturity).startsWith('flag:'))).toBe(true);
+    expect(cases.some((c) => needsA2aCredentials(c))).toBe(true);
+  });
+
+  test.each(cases.map((c) => [c.id, c]))(
+    '%s: required flags declared; A2A Agent 2 credentials loaded when needed',
+    (_id, uc) => {
+      const requiredFlags = requiredFlagsForUseCase(uc);
+      const flagGated = String(uc.maturity).startsWith('flag:');
+      const a2a = needsA2aCredentials(uc);
+
+      // Every chip is scanned; flag-gated / A2A chips must declare flags.
+      if (flagGated || a2a) {
+        expect(requiredFlags.length).toBeGreaterThan(0);
+      } else {
+        return; // leave routing/gate ledger rows untouched
+      }
+
+      const prereq = checkChipPrerequisites(uc, 'banking', realConfigStore);
+      const status = prereq.ok ? 'PASS' : 'FAIL';
+      const errorClass = prereq.ok ? null : 'missing_prereq';
+
+      writeLedgerEntry({
+        vertical: 'banking',
+        useCaseId: uc.id,
+        triggerType: 'chip',
+        mode: 'heuristic',
+        status,
+        errorClass,
+        primaryTool: uc.primaryTool || null,
+        checkedAt: new Date().toISOString(),
+        requiredFlags,
+        prereqErrors: prereq.errors.length ? prereq.errors : undefined,
+      });
+
+      expect(prereq.ok).toBe(true);
     },
   );
 });
