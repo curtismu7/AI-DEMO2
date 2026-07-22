@@ -16,6 +16,7 @@ const {
   listAllDelegations,
   adminRevokeDelegation,
   adminGrantDelegation,
+  resolveApproval,
 } = require('../services/delegationService');
 const { requireAdmin } = require('../middleware/auth');
 const delegationStore = require('../services/lmdb/delegationStore.lmdb');
@@ -81,6 +82,24 @@ router.post('/', async (req, res) => {
 // DELETE /api/delegation/:id — revoke a delegation
 router.delete('/:id', async (req, res) => {
   const result = await revokeDelegation(req.params.id, req.user.id);
+  if (!result.ok) {
+    return res.status(404).json(result);
+  }
+  res.json(result);
+});
+
+// POST /api/delegation/:id/approve — manager approves a pending elevated action
+router.post('/:id/approve', async (req, res) => {
+  const result = await resolveApproval(req.params.id, req.user.id, 'approved');
+  if (!result.ok) {
+    return res.status(404).json(result);
+  }
+  res.json(result);
+});
+
+// POST /api/delegation/:id/deny — manager denies a pending elevated action
+router.post('/:id/deny', async (req, res) => {
+  const result = await resolveApproval(req.params.id, req.user.id, 'denied');
   if (!result.ok) {
     return res.status(404).json(result);
   }
