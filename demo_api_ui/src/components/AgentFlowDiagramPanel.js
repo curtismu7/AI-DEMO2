@@ -15,10 +15,11 @@ function statusBadge(status) {
   return <span className={cls}>{labels[status] || status}</span>;
 }
 
-// Token chain card with expandable API call detail
-function TokenEventCard({ event, resolvedIdentity }) {
-  const [open, setOpen] = React.useState(false);
-
+/**
+ * Token chain card — request/response teaching detail is always inline
+ * (same contract as TraceRail TraceStepCard; no click-to-reveal).
+ */
+export function TokenEventCard({ event, resolvedIdentity }) {
   function fmtSub(sub) {
     if (!sub) return null;
     const s = String(sub);
@@ -40,36 +41,26 @@ function TokenEventCard({ event, resolvedIdentity }) {
   const tokenTypeLabel = (event.tokenType || event.id || 'token').replace(/_/g, ' ').toUpperCase();
 
   return (
-    <div className={`afd-tc-card${open ? ' afd-tc-card--open' : ''}`}>
-      <button
-        type="button"
-        className="afd-tc-card-header"
-        onClick={() => hasDetail && setOpen(v => !v)}
-        aria-expanded={open}
-        disabled={!hasDetail}
-        title={hasDetail ? 'Click to see API call details' : ''}
-      >
+    <div className={`afd-tc-card${hasDetail ? ' afd-tc-card--open' : ''}`}>
+      <div className="afd-tc-card-header">
         <span className={`afd-tc-type afd-tc-type--${event.tokenType || 'default'}`}>{tokenTypeLabel}</span>
         <span className="afd-tc-label">{event.label || event.description || tokenTypeLabel}</span>
         <span className="afd-tc-time">{new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-        {hasDetail && <span className="afd-tc-chevron">{open ? '▲' : '▼'}</span>}
-      </button>
+      </div>
 
-      {/* Quick claims row always visible */}
       <div className="afd-tc-summary">
         {(event.tokenSub || event.claims?.sub) && (
           <span className="afd-tc-pill afd-tc-pill--sub">👤 {fmtSub(event.tokenSub || event.claims?.sub)}</span>
         )}
         {(event.tokenAct || event.claims?.act) && (
-          <span className="afd-tc-pill afd-tc-pill--act">⚙ {fmtAct(event.tokenAct || event.claims?.act)}</span>
+          <span className="afd-tc-pill afd-tc-pill--act">act {fmtAct(event.tokenAct || event.claims?.act)}</span>
         )}
         {event.status && (
           <span className={`afd-tc-pill afd-tc-pill--status afd-tc-pill--${event.status}`}>{event.status}</span>
         )}
       </div>
 
-      {/* Expanded API call detail */}
-      {open && hasDetail && (
+      {hasDetail && (
         <div className="afd-tc-detail">
           {event.explanation && (
             <p className="afd-tc-explanation">{event.explanation}</p>

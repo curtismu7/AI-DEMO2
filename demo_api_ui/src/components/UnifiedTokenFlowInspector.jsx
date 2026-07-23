@@ -823,6 +823,15 @@ function OAuthInspectorSection({ selectedToken, onOpenClaimsModal, activeTab }) 
                             <span className={`utfi-event-status utfi-event-status--${evt.status || 'info'}`}>{evt.label || evt.id || 'Event'}</span>
                           </div>
                           <div className="utfi-event-details">
+                            {(evt.explanation || evt.message) && (
+                              <div className="utfi-event-message">{evt.explanation || evt.message}</div>
+                            )}
+                            {evt.exchangeRequest && (
+                              <div className="utfi-event-json-block">
+                                <div className="utfi-event-label">Exchange request</div>
+                                <pre className="utfi-event-pre"><JsonHighlight value={evt.exchangeRequest} /></pre>
+                              </div>
+                            )}
                             {evt.decoded?.payload && (
                               <div className="utfi-event-claims">
                                 {evt.decoded.payload.scope && (
@@ -852,7 +861,17 @@ function OAuthInspectorSection({ selectedToken, onOpenClaimsModal, activeTab }) 
                                 )}
                               </div>
                             )}
-                            {evt.message && <div className="utfi-event-message">{evt.message}</div>}
+                            {!evt.decoded?.payload && evt.claims && (
+                              <div className="utfi-event-json-block">
+                                <div className="utfi-event-label">Token claims</div>
+                                <pre className="utfi-event-pre"><JsonHighlight value={evt.claims} /></pre>
+                              </div>
+                            )}
+                            {evt.error || evt.pingoneError ? (
+                              <div className="utfi-event-message utfi-event-message--error">
+                                {String(evt.pingoneError || evt.error)}
+                              </div>
+                            ) : null}
                           </div>
                         </div>
                       ))}

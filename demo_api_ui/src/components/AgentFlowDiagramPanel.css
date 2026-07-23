@@ -516,17 +516,8 @@
   padding: 6px 9px;
   background: none;
   border: none;
-  cursor: pointer;
   text-align: left;
   font-size: 0.73rem;
-}
-
-.afd-tc-card-header:disabled {
-  cursor: default;
-}
-
-.afd-tc-card-header:not(:disabled):hover {
-  background: rgba(37, 99, 235, 0.05);
 }
 
 .afd-tc-type {
