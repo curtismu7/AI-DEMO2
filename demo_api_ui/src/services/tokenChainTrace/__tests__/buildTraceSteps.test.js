@@ -623,6 +623,32 @@ describe("buildTraceSteps — attack sim (UC5 gateway scope deny)", () => {
     expect(byId["intent-binding"].status).toBe("error");
     expect(byId.gateway.status).not.toBe("error");
   });
+
+  test("invalid_aud deny shows token aud vs gateway expected aud", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [
+        {
+          id: "sim-gateway-deny",
+          label: "Gateway DENY (invalid_aud)",
+          status: "error",
+          error: "invalid_aud",
+          httpStatus: 401,
+          triedAudience: "https://api.ping.demo:3001",
+          allowedAudience: "https://api.ping.demo:3036/mcp",
+          explanation: "Gateway rejected the call with 401 invalid_aud",
+        },
+      ],
+    });
+    const gateway = steps.find((s) => s.id === "gateway");
+    expect(gateway.status).toBe("error");
+    const audKv = gateway.detail.kv.find((row) => row[0] === "audience");
+    expect(audKv).toBeTruthy();
+    expect(audKv[1]).toContain("https://api.ping.demo:3001");
+    expect(audKv[1]).toContain("https://api.ping.demo:3036/mcp");
+    expect(audKv[1]).toMatch(/MISMATCH/);
+  });
 });
 
 describe("buildRunStory — L0 strip", () => {
