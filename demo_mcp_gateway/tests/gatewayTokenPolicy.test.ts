@@ -272,4 +272,12 @@ describe('GatewayTokenPolicy — actor allow-list (ActClientId)', () => {
     const token = makeToken({ act: { sub: { toString: () => AUTHORIZED } } } as any);
     expect(() => GatewayTokenPolicy.validate(token, config)).not.toThrow();
   });
+
+  test('ACT-7: A2A nested act (depth 2) skips exchanger allow-list — specialist may act', () => {
+    const config = makeConfig({ authorizedActorClientId: AUTHORIZED });
+    const token = makeToken({
+      act: { sub: 'investment-specialist', act: { sub: 'generalist-agent' } },
+    } as any);
+    expect(() => GatewayTokenPolicy.validate(token, config)).not.toThrow();
+  });
 });

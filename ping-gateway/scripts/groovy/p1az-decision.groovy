@@ -284,6 +284,15 @@ def actChainDepth = { act ->
 }
 // Native act → real chain depth; header-bridge fallback represents a single actor (depth 1).
 def actDepth = nativeActSub ? String.valueOf(actChainDepth(actClaim)) : (actSub ? '1' : '0')
+// Upstream generalist in a nested RFC 8693 chain (act.act). Required by mock Rule 1c /
+// cloud HasValidA2aGeneralist — without it every A2A depth-2 call DENYs as
+// invalid_a2a_generalist with NestedActClientId="". Prefer client_id then sub
+// (parity with BFF nestedActIdFromClaim / Node nestedActClientId).
+def nestedAct = (actClaim instanceof Map) ? actClaim.act : null
+def nestedActClientId = ''
+if (nestedAct instanceof Map) {
+    nestedActClientId = ((nestedAct.client_id ?: nestedAct.sub ?: '') as String)
+}
 
 // ── Collect introspection data for audit trail ────────────────────────────────
 def introspectionData = [
@@ -515,6 +524,7 @@ def parameters = [
     UserId           : sub,
     ActClientId      : actSub,
     ActChainDepth    : actDepth,
+    NestedActClientId: nestedActClientId,
     MayActSub        : mayActSub,
     TokenScopes      : tokenScopes,
     McpResourceUri   : mcpResourceUri,

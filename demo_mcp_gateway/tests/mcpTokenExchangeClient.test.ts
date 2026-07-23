@@ -125,6 +125,33 @@ describe('McpTokenExchangeClient — F10 actor_token on Exchange #3', () => {
     expect(cc.get('grant_type')).toBe('client_credentials');
   });
 
+  it('mints the actor token with a single RFC 8707 resource= (first gateway URI)', async () => {
+    mockCcThenExchange();
+    const client = new McpTokenExchangeClient({
+      ...config,
+      gatewayResourceUri: 'mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo',
+    });
+    await client.exchange(subjectToken, 'get_my_accounts');
+    const cc = new URLSearchParams(String(mockedPost.mock.calls[0][1]));
+    expect(cc.get('resource')).toBe('mcpgateway.ping.demo');
+    expect(cc.get('scope')).toBe('gateway:mcp:invoke');
+  });
+
+  it('mints the actor token as the exchanger principal when introspection client is set', async () => {
+    mockCcThenExchange();
+    const client = new McpTokenExchangeClient({
+      ...config,
+      gatewayResourceUri: 'mcpgateway.ping.demo',
+      introspectionClientId: 'exchanger-client',
+      introspectionClientSecret: 'exchanger-secret',
+    });
+    await client.exchange(subjectToken, 'get_my_accounts');
+    const cc = new URLSearchParams(String(mockedPost.mock.calls[0][1]));
+    expect(cc.get('client_id')).toBe('exchanger-client');
+    expect(cc.get('client_secret')).toBe('exchanger-secret');
+    expect(cc.get('scope')).toBe('gateway:mcp:invoke');
+  });
+
   it('fails closed when the actor token cannot be minted', async () => {
     mockedPost.mockReset();
     McpTokenExchangeClient.clearCache();
