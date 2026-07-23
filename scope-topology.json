@@ -32,6 +32,7 @@
     "finaid:read": { "description": "Read sensitive student financial aid records (university vertical A2A specialist scope)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
     "supplier:read": { "description": "Read sensitive supplier contract records (manufacturing vertical A2A specialist scope)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
     "invest:read": { "description": "Read investment accounts, balances, and portfolio summaries (A2A specialist scope)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
+    "holdings:read": { "description": "Read sensitive investment holdings (investment vertical A2A specialist scope)", "riskLevel": "high", "resource": "Super Banking API", "category": "feature" },
     "ai:agent:read": { "description": "Agent invocation permission", "riskLevel": "medium", "resource": "Super Banking API", "category": "agent" },
     "mcp:invoke": { "description": "Invoke MCP tools via the gateway (RFC 8693 exchange)", "riskLevel": "medium", "resource": "Super Banking MCP Server", "category": "infra" },
     "code:search": { "description": "Search and read the indexed source code (read-only)", "riskLevel": "low", "resource": "Super Banking MCP Server", "category": "infra" },
@@ -52,12 +53,13 @@
     "agent:invoke:payroll": { "description": "Invoke the Payroll Specialist A2A intermediate (Exchange #1 actor)", "riskLevel": "medium", "resource": "Super Banking A2A Intermediate - Payroll Specialist", "category": "infra" },
     "agent:invoke:tax": { "description": "Invoke the Tax Records Specialist A2A intermediate (Exchange #1 actor)", "riskLevel": "medium", "resource": "Super Banking A2A Intermediate - Tax Records Specialist", "category": "infra" },
     "agent:invoke:finaid": { "description": "Invoke the Financial Aid Specialist A2A intermediate (Exchange #1 actor)", "riskLevel": "medium", "resource": "Super Banking A2A Intermediate - Financial Aid Specialist", "category": "infra" },
-    "agent:invoke:supplier": { "description": "Invoke the Supplier Contract Specialist A2A intermediate (Exchange #1 actor)", "riskLevel": "medium", "resource": "Super Banking A2A Intermediate - Supplier Contract Specialist", "category": "infra" }
+    "agent:invoke:supplier": { "description": "Invoke the Supplier Contract Specialist A2A intermediate (Exchange #1 actor)", "riskLevel": "medium", "resource": "Super Banking A2A Intermediate - Supplier Contract Specialist", "category": "infra" },
+    "agent:invoke:holdings": { "description": "Invoke the Holdings Specialist A2A intermediate (Exchange #1 actor)", "riskLevel": "medium", "resource": "Super Banking A2A Intermediate - Holdings Specialist", "category": "infra" }
   },
   "resources": {
     "Super Banking API": {
       "uri": "enduser.ping.demo",
-      "scopes": ["read", "write", "transfer", "accounts:read", "transactions:read", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "invest:read", "ai:agent:read", "ai_agent", "admin:read", "admin:write", "admin:delete", "users:read", "users:manage", "workorders:read", "sensitive:read"]
+      "scopes": ["read", "write", "transfer", "accounts:read", "transactions:read", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "invest:read", "holdings:read", "ai:agent:read", "ai_agent", "admin:read", "admin:write", "admin:delete", "users:read", "users:manage", "workorders:read", "sensitive:read"]
     },
     "Super Banking MCP Server": {
       "uri": "mcpserver.ping.demo",
@@ -119,9 +121,13 @@
       "uri": "a2a-intermediate-supplier.ping.demo",
       "scopes": ["agent:invoke:supplier"]
     },
+    "Super Banking A2A Intermediate - Holdings Specialist": {
+      "uri": "a2a-intermediate-holdings.ping.demo",
+      "scopes": ["agent:invoke:holdings"]
+    },
     "Super Banking A2A MCP Gateway": {
       "uri": "mcpgateway-a2a.ping.demo",
-      "scopes": ["read", "invest:read"]
+      "scopes": ["read", "invest:read", "holdings:read"]
     },
     "Super Banking PingGateway MCP": {
       "uri": "https://api.ping.demo:3036/mcp",
@@ -1200,6 +1206,13 @@
       "requiredScopes": ["read"],
       "surface": "gateway",
       "challengeType": "consent"
+    },
+    "sensitive_investment_holdings": {
+      "requiredScopes": ["read"],
+      "surface": "gateway",
+      "challengeType": "consent",
+      "a2aDelegated": true,
+      "requiresAgentMediation": true
     },
     "cash_out_store_credit": {
       "requiredScopes": ["write"],
