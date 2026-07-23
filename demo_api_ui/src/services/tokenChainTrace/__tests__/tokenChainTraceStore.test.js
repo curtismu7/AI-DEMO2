@@ -53,6 +53,19 @@ test("ingestAuthorize + ingestMcpResult reach the step model", () => {
   expect(byId.api.status).toBe("done");
 });
 
+test("ingestAuthorize keeps HITL_REQUIRED outcome across approve→retry PERMIT", () => {
+  tokenChainTraceStore.ingestAuthorize({
+    decision: "INDETERMINATE",
+    outcome: "HITL_REQUIRED",
+    engine: "pingone",
+  });
+  tokenChainTraceStore.ingestAuthorize({ decision: "PERMIT", engine: "pingone" });
+  const { authorize } = tokenChainTraceStore.getState().trace;
+  expect(authorize.decision).toBe("PERMIT");
+  expect(authorize.outcome).toBe("HITL_REQUIRED");
+  expect(authorize.priorGate).toBe("HITL_REQUIRED");
+});
+
 test("ingestRoutingMode after beginTrace marks llm/reply heuristic-ready", () => {
   tokenChainTraceStore.beginTrace({ prompt: "my accounts" });
   tokenChainTraceStore.ingestRoutingMode("heuristic", { action: "get_my_accounts" });

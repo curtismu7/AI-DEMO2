@@ -98,7 +98,24 @@ export const tokenChainTraceStore = {
   ingestAuthorize(evaluation) {
     if (!evaluation) return;
     ensureTrace();
-    trace.authorize = evaluation;
+    const prev = trace.authorize;
+    // HITL/step-up challenge then approve→retry PERMITs. Keep the block-kind
+    // outcome so ProofStrip still scores the gate that fired (UC7/UC8), instead
+    // of overwriting with a bare PERMIT and rendering "Mismatch".
+    const priorGate =
+      prev &&
+      (prev.outcome === "HITL_REQUIRED" || prev.outcome === "STEP_UP")
+        ? prev.outcome
+        : null;
+    if (
+      priorGate &&
+      evaluation.decision === "PERMIT" &&
+      !evaluation.outcome
+    ) {
+      trace.authorize = { ...evaluation, outcome: priorGate, priorGate };
+    } else {
+      trace.authorize = evaluation;
+    }
     emit();
   },
   ingestLlmDetail(value) {
