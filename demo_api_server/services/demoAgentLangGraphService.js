@@ -1327,12 +1327,15 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
       }
     }
     // ARCHITECTURE-TRUTHS T-3 (amended): heuristic ROUTING is mode-dependent.
-    // ff_heuristic_enabled is still honored when no explicit agent_mode is set
-    // (back-compat). agent_mode wins when present. Server-side transfer/HITL
-    // SAFETY enforcement is independent of this gate and is unchanged.
-    const heuristicEnabled = rawMode
-      ? _agentMode.heuristicRouting
-      : configStore.getEffective('ff_heuristic_enabled') !== 'false';
+    // Match geminiNlIntent: Heuristics brain always routes heuristically; LLM
+    // brains honor the Fallback / LLM-only toggle (ff_heuristic_enabled). Do NOT
+    // use AGENT_MODES.heuristicRouting alone for LLM brains — that flag is
+    // permanently false (no hybrid modes) and would ignore the UI toggle.
+    // Server-side transfer/HITL SAFETY enforcement is independent of this gate.
+    const flagHeuristic = configStore.getEffective('ff_heuristic_enabled') !== 'false';
+    const heuristicEnabled = !_agentMode
+      ? flagHeuristic
+      : (_agentMode.mode === 'heuristics' || (!!_agentMode.provider && flagHeuristic));
 
     // `forceHeuristic` (set by the SPA when a `both`-mode chip already resolved
     // to a vertical/banking intent at /nl) makes the heuristic vertical/banking
@@ -1343,9 +1346,13 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     // when the parsed heuristic actually matches; freeform prompts still fall
     // through to the LLM. Works for ALL verticals.
     const forceHeuristic = req?.body?.forceHeuristic === true;
+    // UC30 weather-mcp showcase: always take get_weather even in LLM-only mode.
+    // Plugin LLM tool lists (e.g. CivicPermit) omit get_weather, so freeform
+    // weather otherwise becomes a polite refusal instead of a gateway call.
+    const weatherShowcase = /\bweather\b.*?\bin\s+\S/i.test(String(message || ''));
     const hitlChallengeId = (typeof req?.body?.hitlChallengeId === 'string' && req.body.hitlChallengeId) || null;
 
-    if (heuristicEnabled || forceHeuristic) {
+    if (heuristicEnabled || forceHeuristic || weatherShowcase) {
       // Resolve the active vertical's context once so every heuristic-path
       // response (routing, reply headings, no-match catalog) speaks the
       // vertical's language. Absolute rule: heuristics must work for ALL
