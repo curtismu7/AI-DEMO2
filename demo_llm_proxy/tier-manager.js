@@ -39,15 +39,36 @@ const RECOVER_MS = parseInt(process.env.LLM_RESIDENT_RECOVER_MS || '20000', 10);
 // starting the manager. Empty ⇒ classic one-tier swap.
 const RESIDENT_CSV = process.env.LLM_PROXY_RESIDENT_TIERS || '';
 
+// When the proxy is hard-pinned and residency does not keep that pin loaded,
+// refuse ensure of any other port — otherwise opportunistic gpt-oss prewarm
+// unloads phi, then the pin immediately swaps phi back (observed thrash).
+const PIN_PORT = String(process.env.LLM_PROXY_PIN_TIER || '').trim();
+
 let queue = Promise.resolve();     // serializes swaps
 let inFlight = null;               // { port, promise } — coalesce duplicate asks
 
 function runEnsure(port) {
+  const portStr = String(port);
+  const residents = parseResidentPorts(RESIDENT_CSV);
+  if (
+    PIN_PORT
+    && VALID_PORTS.has(PIN_PORT)
+    && portStr !== PIN_PORT
+    && !residents.includes(PIN_PORT)
+  ) {
+    return Promise.resolve({
+      skipped: true,
+      reason: 'pinned',
+      pin: Number(PIN_PORT),
+      requested: Number(portStr),
+      output: `skipped ensure ${portStr}: LLM_PROXY_PIN_TIER=${PIN_PORT}`,
+    });
+  }
   const args = resolveEnsureArgs(port, RESIDENT_CSV);
   return new Promise((resolve, reject) => {
     execFile('bash', [SCRIPT, ...args], { timeout: ENSURE_TIMEOUT_MS }, (err, stdout, stderr) => {
-      if (err) reject(new Error(`${args[0]} ${port} failed: ${err.message}\n${stdout}\n${stderr}`));
-      else resolve(stdout);
+      if (err) reject(new Error(`${args[0]} ${portStr} failed: ${err.message}\n${stdout}\n${stderr}`));
+      else resolve({ skipped: false, output: stdout });
     });
   });
 }
@@ -101,10 +122,19 @@ const server = http.createServer((req, res) => {
     }
     console.log(`[tier-manager] ensure ${port} requested`);
     ensureTier(port)
-      .then((out) => {
-        console.log(`[tier-manager] ensure ${port} done`);
+      .then((result) => {
+        const skipped = Boolean(result && result.skipped);
+        const raw = typeof result === 'string' ? result : (result?.output || '');
+        console.log(`[tier-manager] ensure ${port} ${skipped ? 'skipped' : 'done'}`);
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: true, port, output: out.trim().split('\n').slice(-3) }));
+        res.end(JSON.stringify({
+          ok: true,
+          port,
+          skipped: skipped || undefined,
+          reason: skipped ? result.reason : undefined,
+          pin: skipped ? result.pin : undefined,
+          output: String(raw).trim().split('\n').slice(-3),
+        }));
       })
       .catch((err) => {
         console.error(`[tier-manager] ${err.message}`);
