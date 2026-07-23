@@ -154,6 +154,19 @@ describe("MonitoringRoutes.js — critical imports", () => {
     expect(src).toContain('path="api-explorer"');
     expect(src).toContain("/pingone-mcp-inspector");
   });
+
+  // Catch-all in App.js already wraps /agent-flow-inspector in TopNav +
+  // main-content; nesting AppShell re-applied the sidebar offset and left a
+  // gap on the right.
+  test("AgentFlowInspectorRoute does not wrap AppShell", () => {
+    const fn = src.match(
+      /export function AgentFlowInspectorRoute[\s\S]*?\n\}/
+    )?.[0];
+    expect(fn).toBeTruthy();
+    expect(fn).toContain("UnifiedTokenFlowInspector");
+    expect(fn).not.toContain("AppShell");
+  });
+
   test("no stale banking_api_ui paths", () => {
     expect(src).not.toContain("banking_api_ui");
   });

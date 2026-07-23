@@ -20,6 +20,9 @@
 
 .utfi-container.utfi-fixed {
   border: 1px solid #e5e7eb;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: calc(100vh - 8rem);
 }
 
 /* ============================================================================
