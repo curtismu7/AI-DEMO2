@@ -1227,8 +1227,10 @@ export function buildTraceSteps(trace) {
     !!(evtSwap || evtBackend) ||
     tokenEvents.some((e) => e && e.credentialPath === "api_key");
   const apiKeySwapDone = apiKeyPath && (evtSwap || evtBackend || apiMetaEarly.credentialPath === "api_key");
+  // Gateway deny (like Authorize DENY) stops before credential swap / MCP / API.
+  const blockedBeforeMcp = authorizeFailed || gwDenied;
   steps.push(makeStep("api-key-swap",
-    authorizeFailed ? "notinpath" : apiKeySwapDone ? "done" : traceComplete ? "notinpath" : "pending",
+    blockedBeforeMcp ? "notinpath" : apiKeySwapDone ? "done" : traceComplete ? "notinpath" : "pending",
     apiKeyPath ? {
       kv: [
         evtSwap ? ["swap", evtSwap.label || "OAuth bearer → service API key"] : null,
@@ -1240,8 +1242,10 @@ export function buildTraceSteps(trace) {
       response: evtSwap || evtBackend
         ? { title: "API-key path events", text: asJson([evtSwap, evtBackend].filter(Boolean)) }
         : undefined,
-    } : !apiKeySwapDone && traceComplete ? {
-      narrative: "This run used the delegated OAuth bearer path — no API-key credential swap occurred.",
+    } : !apiKeySwapDone && (traceComplete || blockedBeforeMcp) ? {
+      narrative: blockedBeforeMcp
+        ? "Credential swap never ran — the call was blocked before the MCP hop."
+        : "This run used the delegated OAuth bearer path — no API-key credential swap occurred.",
     } : {}));
 
   // 8d. dual-token — Path B (access + id_token teaching)
@@ -1255,7 +1259,7 @@ export function buildTraceSteps(trace) {
     apiMetaEarly.credentialPath === "dual_token" || evtIdToken || evtPassthrough
   );
   steps.push(makeStep("dual-token",
-    authorizeFailed ? "notinpath" : dualDone ? "done" : traceComplete ? "notinpath" : "pending",
+    blockedBeforeMcp ? "notinpath" : dualDone ? "done" : traceComplete ? "notinpath" : "pending",
     dualPath ? {
       why: "Dual-token path: gateway forwarded the access bearer and attached the OIDC id_token for identity teaching.",
       kv: [
@@ -1280,10 +1284,9 @@ export function buildTraceSteps(trace) {
       narrative: "This run did not use the dual-token (access + id_token) credential path.",
     } : {}));
 
-  // 10. mcp + 11. api — a gateway denial means the call never reached the MCP
-  // server; surface that as an error instead of leaving the step stuck "active".
-  // Tool failures (mcp_error after a successful exchange) must also light error —
-  // not leave outcome=error with only successful exchange/DPoP whys in the story.
+  // 10. mcp + 11. api — gateway/authorize denial means MCP was never in this run's
+  // path (notinpath), not a fake ✗ "tool executes" step. Tool failures after the
+  // hop began still light error.
   const mcpToolError = !!(mcpResult && (
     mcpResult.status === "error"
     || mcpResult.error
@@ -1297,7 +1300,7 @@ export function buildTraceSteps(trace) {
   const mcpDenyPayload = mcpResult && (mcpResult.denied || mcpToolError)
     ? mcpResult
     : null;
-  const mcpFailed = !!(gwDenied || mcpResult?.denied || mcpToolError);
+  const mcpFailed = !!(mcpResult?.denied || mcpToolError);
   const mcpAttemptRequest = (mcpResult && mcpResult.requestJson)
     || (mcpDenyPayload && mcpDenyPayload.requestJson)
     || null;
@@ -1305,14 +1308,8 @@ export function buildTraceSteps(trace) {
     error: mcpDenyPayload.error,
     message: mcpDenyPayload.message || mcpDenyPayload.error,
     tool: mcpDenyPayload.tool || mcpDenyPayload.toolName,
-  }))
-    || (gwDenied ? {
-      error: "gateway_policy_denied",
-      message: gwDeniedPhase?.detail || simGwDeny?.explanation || "Gateway policy denied the tool call",
-      gatewayErrorCode: gwDeniedPhase?.gatewayErrorCode || simGwDeny?.error || null,
-      tool: gwDeniedPhase?.tool || mcpResult?.tool || null,
-    } : null);
-  const mcpFailWhy = gwDenied || mcpResult?.denied
+  })) || null;
+  const mcpFailWhy = mcpResult?.denied
     ? "MCP never ran — the gateway denied the call upstream."
     : `MCP tool “${mcpResult?.tool || mcpResult?.toolName || "tool"}” failed`
       + (mcpResult?.error || mcpResult?.result?.error
@@ -1322,7 +1319,7 @@ export function buildTraceSteps(trace) {
         ? `: ${mcpResult.result.message}`
         : "");
   steps.push(makeStep("mcp",
-    authorizeFailed ? "notinpath" : mcpDone ? "done" : mcpFailed ? "error" : mcpBegun ? "active" : "pending",
+    blockedBeforeMcp ? "notinpath" : mcpDone ? "done" : mcpFailed ? "error" : mcpBegun ? "active" : "pending",
     mcpDone && mcpResult && !mcpFailed ? {
       why: `MCP executed “${mcpResult.tool || mcpResult.toolName || "tool"}”`
         + (mcpResult.durationMs != null ? ` in ${mcpResult.durationMs} ms` : "")
@@ -1337,6 +1334,10 @@ export function buildTraceSteps(trace) {
           ? ["gateway audit", "see Gateway step (McpAuditFilter 5W1H)"]
           : null,
       ].filter(Boolean),
+    } : blockedBeforeMcp ? {
+      narrative: gwDenied
+        ? "The Agent Gateway blocked the call before it reached the MCP server."
+        : "Authorize denied this action — the MCP hop never ran.",
     } : mcpFailed ? {
       why: mcpFailWhy,
       request: mcpAttemptRequest
@@ -1395,7 +1396,7 @@ export function buildTraceSteps(trace) {
     ? apiMeta.resourceResult
     : (mcpResult && mcpResult.result != null ? mcpResult.result : null);
   steps.push(makeStep("api",
-    authorizeFailed ? "notinpath" : rsDone ? "done" : traceComplete ? "notinpath" : "pending",
+    blockedBeforeMcp ? "notinpath" : rsDone ? "done" : traceComplete ? "notinpath" : "pending",
     rsDone ? {
       why: rsReply
         ? `Resource server replied for “${rsReply.toolName || "tool"}”`
@@ -1431,6 +1432,8 @@ export function buildTraceSteps(trace) {
         evtBackend ? ["backend", evtBackend.label] : null,
       ].filter(Boolean),
       tokenEvent: rsReply || undefined,
+    } : blockedBeforeMcp ? {
+      narrative: "The banking API was never called — blocked before the MCP hop.",
     } : {}));
 
   // 11. reply — heuristics compose from the tool result (no LLM); chip paths

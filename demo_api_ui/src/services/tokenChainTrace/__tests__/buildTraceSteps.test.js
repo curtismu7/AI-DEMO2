@@ -430,7 +430,7 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(byId["agent-token"].detail.response.text).toContain("ai-agent");
   });
 
-  test("gateway_policy_denied phase marks gateway error with denial detail and fails mcp step", () => {
+  test("gateway_policy_denied phase marks gateway error; MCP hop is notinpath", () => {
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,
       phases: [
@@ -443,7 +443,7 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(byId.gateway.status).toBe("error");
     expect(byId.gateway.detail.decision.outcome).toBe("DENY");
     expect(byId.gateway.detail.decision.label).toContain("access_denied");
-    expect(byId.mcp.status).toBe("error");
+    expect(byId.mcp.status).toBe("notinpath");
   });
 
   test("heuristic routing marks agent + llm done (bypass) and reply from llmReply", () => {
@@ -647,13 +647,13 @@ describe("buildTraceSteps — attack sim (UC5 gateway scope deny)", () => {
     expect(byId.gateway.detail.kv.find((r) => r[0] === "scope after (required)")?.[1]).toBe("write");
     expect(byId.gateway.detail.response?.title).toMatch(/Scope check/);
     expect(byId.gateway.detail.response?.text).toContain('"before"');
-    expect(byId.mcp.status).toBe("error");
+    expect(byId.mcp.status).toBe("notinpath");
   });
 
   test("steps the sim never touches resolve notinpath, not pending", () => {
     const steps = buildTraceSteps(SIM_TRACE);
     const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
-    for (const id of ["agent", "llm", "agent-token", "jwks", "authorize", "introspection", "reply", "api"]) {
+    for (const id of ["agent", "llm", "agent-token", "jwks", "authorize", "introspection", "api-key-swap", "mcp", "reply", "api"]) {
       expect(byId[id].status).toBe("notinpath");
     }
   });
@@ -892,7 +892,7 @@ describe("buildTraceSteps — PingOne gap fills (introspection / JWKS / signin /
     expect(jwks.detail.response.text).toContain("RS256");
   });
 
-  test("MCP deny path keeps attempted requestJson + error body", () => {
+  test("MCP deny path after gateway deny marks mcp notinpath (deny lives on gateway)", () => {
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,
       outcome: "error",
@@ -905,10 +905,10 @@ describe("buildTraceSteps — PingOne gap fills (introspection / JWKS / signin /
       },
     });
     const mcp = steps.find((s) => s.id === "mcp");
-    expect(mcp.status).toBe("error");
-    expect(mcp.detail.request.text).toContain("transfer_money");
-    expect(mcp.detail.response.text).toContain("invalid_audience");
-    expect(mcp.detail.why).toMatch(/never ran/i);
+    const gw = steps.find((s) => s.id === "gateway");
+    expect(gw.status).toBe("error");
+    expect(mcp.status).toBe("notinpath");
+    expect(mcp.detail.narrative).toMatch(/Agent Gateway blocked/i);
   });
 
   test("weather TxWeatherScope deny lights gateway step with filter chain detail", () => {
