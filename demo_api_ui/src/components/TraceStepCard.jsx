@@ -34,6 +34,24 @@ function textToHtml(text) {
     .join("");
 }
 
+function renderBeforeAfterBlock(beforeAfter) {
+  if (!beforeAfter?.before?.text && !beforeAfter?.after?.text) return "";
+  const beforeHtml = beforeAfter?.before?.text
+    ? `<div class="before-after-col"><h3>${escapeHtml(beforeAfter.before.title || "Before")}</h3><pre class="pre">${textToHtml(beforeAfter.before.text)}</pre></div>`
+    : "";
+  const afterHtml = beforeAfter?.after?.text
+    ? `<div class="before-after-col"><h3>${escapeHtml(beforeAfter.after.title || "After")}</h3><pre class="pre">${textToHtml(beforeAfter.after.text)}</pre></div>`
+    : "";
+  return `<div class="before-after">${beforeHtml}${afterHtml}</div>`;
+}
+
+function renderMoreDetailLinks(moreDetail) {
+  if (!moreDetail?.href && !moreDetail?.edu) return "";
+  const href = moreDetail.href || "#";
+  const label = moreDetail.label || (moreDetail.hrefLabel || "Show more detail");
+  return `<p class="more-detail"><a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a></p>`;
+}
+
 /** Opens a standalone teaching window for one TraceRail step (L3 overflow). */
 export function openStepTeachingWindow(step) {
   const d = step?.detail || {};
@@ -57,6 +75,8 @@ export function openStepTeachingWindow(step) {
   const altResHtml = d.altResponse
     ? `<h2>${escapeHtml(d.altResponse.title || "Alt response")}</h2><pre class="pre">${textToHtml(d.altResponse.text)}</pre>`
     : "";
+  const beforeAfterHtml = renderBeforeAfterBlock(d.beforeAfter);
+  const moreDetailHtml = renderMoreDetailLinks(d.moreDetail);
   const kvHtml = Array.isArray(d.kv) && d.kv.length
     ? `<h2>Proof</h2><table>${d.kv.map(([k, v]) =>
       `<tr><th>${escapeHtml(k)}</th><td><pre class="inline">${textToHtml(typeof v === "string" ? v : formatJson(v) || String(v))}</pre></td></tr>`).join("")}</table>`
@@ -74,6 +94,11 @@ export function openStepTeachingWindow(step) {
   .decision{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px 10px;margin:8px 0;font-weight:600}
   .pre{background:#0f172a;color:#bae6fd;border-radius:8px;padding:12px;font:11px/1.5 ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-word;max-height:70vh;overflow:auto}
   .inline{margin:0;white-space:pre-wrap;word-break:break-word;font:11px ui-monospace,Menlo,monospace}
+  .more-detail{margin:10px 0 0}
+  .more-detail a{color:#1d4ed8;font-weight:600;text-decoration:none}
+  .before-after{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:10px}
+  .before-after-col{display:flex;flex-direction:column;gap:6px}
+  .before-after-col h3{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:#475569}
   table{width:100%;border-collapse:collapse;font-size:12px}
   th{text-align:left;color:#64748b;width:120px;vertical-align:top;padding:4px 8px 4px 0}
   td{padding:4px 0;vertical-align:top}
@@ -83,7 +108,7 @@ export function openStepTeachingWindow(step) {
 </style></head>
 <body>
   <h1>${escapeHtml(title)}</h1>
-  ${narrativeHtml}${whyHtml}${decisionHtml}${kvHtml}${reqHtml}${resHtml}${altReqHtml}${altResHtml}
+  ${narrativeHtml}${whyHtml}${decisionHtml}${kvHtml}${reqHtml}${resHtml}${altReqHtml}${altResHtml}${beforeAfterHtml}${moreDetailHtml}
 </body></html>`;
 
   const win = window.open(
@@ -105,7 +130,7 @@ function evidenceSize(d) {
 /** True when the step has run-specific detail beyond the static narrative/RFCs. */
 export function hasPopoutWorthyDetail(d) {
   if (!d) return false;
-  if (d.request || d.response || d.altRequest || d.altResponse) return true;
+  if (d.request || d.response || d.altRequest || d.altResponse || d.beforeAfter) return true;
   if (d.why) return true;
   if (d.decision) return true;
   if (Array.isArray(d.kv) && d.kv.length > 0) return true;
@@ -117,7 +142,7 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false }) 
   const eduUi = useEducationUIOptional();
   const d = step.detail || {};
   const notInPath = step.status === "notinpath";
-  const hasEvidence = Boolean(d.request || d.response || d.altRequest || d.altResponse);
+  const hasEvidence = Boolean(d.request || d.response || d.altRequest || d.altResponse || d.beforeAfter);
   const largeEvidence = evidenceSize(d) > EVIDENCE_POPOUT_CHARS;
   const canPopOut = hasPopoutWorthyDetail(d);
   const more = d.moreDetail || null;
@@ -201,6 +226,18 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false }) 
                 <h4>{d.altResponse.title}</h4>
                 <pre className="tctr-code"><HighlightedText text={d.altResponse.text} /></pre>
               </>
+            )}
+            {d.beforeAfter && (
+              <div className="tctr-before-after">
+                <div className="tctr-before-after__column">
+                  <h4>{d.beforeAfter.before?.title || "Before"}</h4>
+                  <pre className="tctr-code"><HighlightedText text={d.beforeAfter.before?.text || "—"} /></pre>
+                </div>
+                <div className="tctr-before-after__column">
+                  <h4>{d.beforeAfter.after?.title || "After"}</h4>
+                  <pre className="tctr-code"><HighlightedText text={d.beforeAfter.after?.text || "—"} /></pre>
+                </div>
+              </div>
             )}
           </div>
         )}
