@@ -131,9 +131,7 @@ const A2A_TRIGGER_BY_VERTICAL = {
   workforce:         'show my payroll details',
   'sporting-goods':  'show my sensitive membership details',
   manufacturing:     'show my sensitive supplier contract',
-  // 'investment' has no A2A specialist (a2aSpecialists.js) — it uses the banking
-  // base trigger ('hand off to a specialist') which routes to the banking
-  // Investment Advisor specialist (appKey:'investment', vertical:'banking').
+  investment:        'show my sensitive holdings',
 };
 const A2A_PRIMARY_TOOL_BY_VERTICAL = {
   healthcare:        'sensitive_patient_records',
@@ -143,6 +141,7 @@ const A2A_PRIMARY_TOOL_BY_VERTICAL = {
   workforce:         'sensitive_payroll_details',
   'sporting-goods':  'sensitive_membership_details',
   manufacturing:     'sensitive_supplier_contract',
+  investment:        'sensitive_investment_holdings',
 };
 const A2A_PER_VERTICAL = chipOverrides(A2A_TRIGGER_BY_VERTICAL, withPrimaryTool(A2A_PRIMARY_TOOL_BY_VERTICAL));
 

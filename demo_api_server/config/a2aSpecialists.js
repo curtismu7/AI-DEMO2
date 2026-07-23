@@ -81,6 +81,13 @@ const A2A_SPECIALISTS = {
     tools: ['sensitive_supplier_contract'],
     subtaskHint: 'review the sensitive supplier contract terms',
   },
+  investment: {
+    appKey: 'holdings',
+    appName: 'Super Banking Holdings Specialist Agent',
+    specialistName: 'Holdings Specialist',
+    tools: ['sensitive_investment_holdings'],
+    subtaskHint: 'review the sensitive investment holdings',
+  },
 };
 
 /** All verticals that have an A2A specialist. */
