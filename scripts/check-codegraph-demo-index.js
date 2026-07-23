@@ -14,7 +14,11 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const ROOT = path.join(__dirname, '..');
+// CODEGRAPH_CHECK_ROOT lets negative tests point at a fixture tree; default is
+// the repo root next to this script (so `node scripts/...` works from anywhere).
+const ROOT = process.env.CODEGRAPH_CHECK_ROOT
+  ? path.resolve(process.env.CODEGRAPH_CHECK_ROOT)
+  : path.join(__dirname, '..');
 const fails = [];
 const fail = (msg) => fails.push(msg);
 
