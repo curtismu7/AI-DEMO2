@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAgentUiMode } from "../context/AgentUiModeContext";
 import { useEducationUI } from "../context/EducationUIContext";
+import apiClient from "../services/apiClient";
 import { persistAgentUi } from "../services/demoScenarioService";
 import { performLogout } from "../services/logout";
 import { navigateToCustomerOAuthLogin, requestSilentReauth } from "../utils/authUi";
@@ -504,7 +505,37 @@ export default function AdminSideNav({ user }) {
           icon: "rte",
         },
         { label: "Capability Tour", path: "/agent-gateway-capabilities", icon: "shld" },
-        { label: "Weather MCP", path: "/use-cases", icon: "mcp" },
+        {
+          label: "Weather MCP",
+          icon: "mcp",
+          // UC30 — Texas permit kickoff (same as Use Cases → Run).
+          action: () => {
+            const vertical = activeVerticalId || "banking";
+            apiClient
+              .post("/api/use-cases/demo/run", {
+                useCaseId: "weather-mcp-texas-permit",
+                vertical,
+              })
+              .then(({ data }) =>
+                apiClient
+                  .post("/api/verticals/active", { id: vertical })
+                  .then(() => data),
+              )
+              .then((data) => {
+                navigate("/dashboard", {
+                  state: {
+                    useCaseId: data.useCaseId,
+                    triggerText: data.triggerText,
+                    type: data.type,
+                    vertical,
+                  },
+                });
+              })
+              .catch((err) => {
+                console.error("Weather MCP nav: failed to run use case", err);
+              });
+          },
+        },
       ],
     },
     {

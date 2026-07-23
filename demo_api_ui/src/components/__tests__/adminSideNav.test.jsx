@@ -17,6 +17,19 @@ vi.mock("../../vertical/useVertical", () => ({
 }));
 vi.mock("../../services/demoScenarioService", () => ({ persistAgentUi: vi.fn() }));
 vi.mock("../../services/logout", () => ({ performLogout: vi.fn() }));
+vi.mock("../../services/apiClient", () => ({
+  default: {
+    post: vi.fn(() =>
+      Promise.resolve({
+        data: {
+          useCaseId: "weather-mcp-texas-permit",
+          triggerText: "what's the weather in Austin, TX",
+          type: "chip",
+        },
+      }),
+    ),
+  },
+}));
 vi.mock("../../utils/authUi", () => ({ requestSilentReauth: vi.fn() }));
 vi.mock("../../utils/dashboardLayout", () => ({ setDashboardLayout: vi.fn() }));
 vi.mock("../../utils/roleSwitch", () => ({ startRoleSwitch: vi.fn() }));
@@ -108,6 +121,17 @@ describe("AdminSideNav — best-of-breed pass", () => {
     renderNav();
     const liveLink = screen.getByText("Use Cases (Live)").closest("a");
     expect(liveLink).toHaveAttribute("href", "/use-cases/live");
+  });
+
+  it("Weather MCP runs UC30 (weather-mcp-texas-permit) via demo/run", async () => {
+    const apiClient = (await import("../../services/apiClient")).default;
+    renderNav();
+    fireEvent.click(screen.getByRole("button", { name: /^MCP & Gateways/ }));
+    fireEvent.click(screen.getByText("Weather MCP"));
+    expect(apiClient.post).toHaveBeenCalledWith("/api/use-cases/demo/run", {
+      useCaseId: "weather-mcp-texas-permit",
+      vertical: "banking",
+    });
   });
 
   it("hides a nav item the user marked hidden via Demo Config, once loaded", async () => {
