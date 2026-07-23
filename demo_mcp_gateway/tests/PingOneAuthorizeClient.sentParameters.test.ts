@@ -135,4 +135,31 @@ describe('buildAuthorizeParameters — C1 canonical parameter set', () => {
     expect(p.IntentTokenValid).toBe('true');
     expect(p.IntentMatchesTool).toBe('true');
   });
+
+  it('sends NestedActClientId from act.act (A2A generalist identity)', () => {
+    const p = buildAuthorizeParameters(
+      tok({ act: { sub: 'specialist', act: { sub: 'generalist-1' } } }),
+      'tools/call', GW, 'get_portfolio_summary',
+    );
+    expect(p.ActClientId).toBe('specialist');
+    expect(p.ActChainDepth).toBe('2');
+    expect(p.NestedActClientId).toBe('generalist-1');
+  });
+
+  it('prefers nested act.client_id over act.sub (PingOne claim shape)', () => {
+    const p = buildAuthorizeParameters(
+      tok({ act: { sub: 'specialist', act: { client_id: 'generalist-cid', sub: 'generalist-sub' } } }),
+      'tools/call', GW, 'get_portfolio_summary',
+    );
+    expect(p.NestedActClientId).toBe('generalist-cid');
+  });
+
+  it('sends empty NestedActClientId when there is no nested act', () => {
+    const p = buildAuthorizeParameters(
+      tok({ act: { sub: 'agent' } }),
+      'tools/call', GW, 'get_my_accounts',
+    );
+    expect(p.ActChainDepth).toBe('1');
+    expect(p.NestedActClientId).toBe('');
+  });
 });
