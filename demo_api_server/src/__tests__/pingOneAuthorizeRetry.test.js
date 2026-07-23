@@ -1,9 +1,10 @@
 /**
  * Scoped retry + 401-refresh (P1AZ hardening amendment §C).
  *
- * fetchRetryable retries ONCE on a transient failure (network/timeout or 5xx)
- * and NEVER on a 4xx. _postDecisionWithAuth additionally refreshes the worker
- * token once on a 401 (the cached token may have been rotated at P1AZ).
+ * fetchRetryable retries ONCE on a transient failure (network/timeout, 5xx, or
+ * 429 rate-limit) and NEVER on other 4xx. _postDecisionWithAuth additionally
+ * refreshes the worker token once on a 401 (the cached token may have been
+ * rotated at P1AZ).
  */
 jest.mock('../../services/configStore');
 
@@ -22,7 +23,13 @@ beforeEach(() => {
 });
 
 const ok = (body = {}) => ({ ok: true, status: 200, json: async () => body, text: async () => '' });
-const err = (status) => ({ ok: false, status, json: async () => ({}), text: async () => `e${status}` });
+const err = (status, headers = {}) => ({
+  ok: false,
+  status,
+  json: async () => ({}),
+  text: async () => `e${status}`,
+  headers: { get: (h) => headers[h] ?? headers[String(h).toLowerCase()] ?? null },
+});
 
 describe('fetchRetryable', () => {
   test('retries once on a network error, then succeeds', async () => {
@@ -43,7 +50,20 @@ describe('fetchRetryable', () => {
     expect(global.fetch).toHaveBeenCalledTimes(2);
   });
 
-  test('does NOT retry a 4xx', async () => {
+  test('retries once on a 429 after Retry-After backoff, then succeeds', async () => {
+    jest.useFakeTimers();
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce(err(429, { 'Retry-After': '0' }))
+      .mockResolvedValueOnce(ok({ decision: 'PERMIT' }));
+    const p = svc._fetchRetryable(DECISION_URL, {});
+    await jest.runAllTimersAsync();
+    const res = await p;
+    expect(res.status).toBe(200);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    jest.useRealTimers();
+  });
+
+  test('does NOT retry a non-429 4xx', async () => {
     global.fetch = jest.fn().mockResolvedValueOnce(err(404));
     const res = await svc._fetchRetryable(DECISION_URL, {});
     expect(res.status).toBe(404);

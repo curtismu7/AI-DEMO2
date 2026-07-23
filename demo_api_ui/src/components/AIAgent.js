@@ -7061,7 +7061,9 @@ export default function BankingAgent({
    */
   const pollCibaStepUp = (authReqId, intervalMs, actionId, form) => {
     const apiBase = process.env.REACT_APP_API_URL || "";
+    let settled = false;
     const poll = async () => {
+      if (settled) return;
       let res;
       try {
         res = await fetch(`${apiBase}/api/auth/ciba/poll/${authReqId}`, {
@@ -7071,7 +7073,10 @@ export default function BankingAgent({
         setTimeout(poll, intervalMs);
         return;
       }
-      if (res.status === 403 || res.status === 404 || res.status === 410) {
+      // 404 after another poller already approved is a soft miss — ignore once
+      // we have resumed. 403/410 remain hard terminal denies.
+      if (res.status === 404) {
+        if (settled) return;
         const data = await res.json().catch(() => ({}));
         addMessage(
           "assistant",
@@ -7080,10 +7085,25 @@ export default function BankingAgent({
         );
         agentFlowDiagram.completeMfaChallenge(false);
         setCibaApproving(null);
+        settled = true;
+        return;
+      }
+      if (res.status === 403 || res.status === 410) {
+        const data = await res.json().catch(() => ({}));
+        addMessage(
+          "assistant",
+          `❌ ${data.message || "CIBA approval was denied or expired. Please try again."}`,
+          `ciba-denied-${Date.now()}`,
+        );
+        agentFlowDiagram.completeMfaChallenge(false);
+        setCibaApproving(null);
+        settled = true;
         return;
       }
       const data = await res.json().catch(() => ({}));
       if (data.status === "approved") {
+        if (settled) return;
+        settled = true;
         agentFlowDiagram.completeMfaChallenge(true);
         setCibaApproving(null);
         runAction(actionId, form, { isRefire: true });
@@ -7369,7 +7389,9 @@ export default function BankingAgent({
    */
   const pollCibaThenResumeNl = (authReqId, intervalMs, text, useCaseId) => {
     const apiBase = process.env.REACT_APP_API_URL || "";
+    let settled = false;
     const poll = async () => {
+      if (settled) return;
       let res;
       try {
         res = await fetch(`${apiBase}/api/auth/ciba/poll/${authReqId}`, {
@@ -7379,7 +7401,8 @@ export default function BankingAgent({
         setTimeout(poll, intervalMs);
         return;
       }
-      if (res.status === 403 || res.status === 404 || res.status === 410) {
+      if (res.status === 404) {
+        if (settled) return;
         const data = await res.json().catch(() => ({}));
         addMessage(
           "assistant",
@@ -7388,10 +7411,25 @@ export default function BankingAgent({
         );
         agentFlowDiagram.completeMfaChallenge(false);
         setCibaApproving(null);
+        settled = true;
+        return;
+      }
+      if (res.status === 403 || res.status === 410) {
+        const data = await res.json().catch(() => ({}));
+        addMessage(
+          "assistant",
+          `❌ ${data.message || "CIBA approval was denied or expired. Please try again."}`,
+          `ciba-denied-${Date.now()}`,
+        );
+        agentFlowDiagram.completeMfaChallenge(false);
+        setCibaApproving(null);
+        settled = true;
         return;
       }
       const data = await res.json().catch(() => ({}));
       if (data.status === "approved") {
+        if (settled) return;
+        settled = true;
         agentFlowDiagram.completeMfaChallenge(true);
         setCibaApproving(null);
         setNlLoading(true);
