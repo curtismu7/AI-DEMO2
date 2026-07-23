@@ -7,6 +7,7 @@ const {
   detectTokenSummaryMode,
   scoreTokenSummaryCoverage,
   scoreTokenChainDetail,
+  scoreBankingVerticalPrereq,
 } = require('../../services/stepVerificationExpectations');
 
 describe('scoreTokenSummaryCoverage', () => {
@@ -50,5 +51,39 @@ describe('scoreTokenSummaryCoverage', () => {
   test('empty events fail', () => {
     expect(scoreTokenSummaryCoverage([]).ok).toBe(false);
     expect(scoreTokenChainDetail([]).ok).toBe(false);
+  });
+});
+
+describe('scoreBankingVerticalPrereq', () => {
+  test('passes for banking checking+savings', () => {
+    const scored = scoreBankingVerticalPrereq(
+      [{ accountType: 'checking' }, { accountType: 'savings' }],
+      'banking',
+    );
+    expect(scored.ok).toBe(true);
+    expect(scored.reason).toBeNull();
+    expect(scored.prereqErrors).toEqual([]);
+  });
+
+  test('healthcare leftovers fail as missing_prereq (not wrong_gate)', () => {
+    const scored = scoreBankingVerticalPrereq(
+      [{ accountType: 'Primary Care' }, { accountType: 'HSA' }],
+      'healthcare',
+    );
+    expect(scored.ok).toBe(false);
+    expect(scored.reason).toBe('missing_prereq');
+    expect(scored.prereqErrors.some((e) => /active_vertical=healthcare/.test(e))).toBe(true);
+    expect(scored.prereqErrors.some((e) => /missing checking/.test(e))).toBe(true);
+    expect(scored.prereqErrors.some((e) => /healthcare account types/.test(e))).toBe(true);
+  });
+
+  test('banking vertical with only healthcare accounts still fails', () => {
+    const scored = scoreBankingVerticalPrereq(
+      [{ accountType: 'Primary Care' }, { accountType: 'HSA' }],
+      'banking',
+    );
+    expect(scored.ok).toBe(false);
+    expect(scored.reason).toBe('missing_prereq');
+    expect(scored.activeVertical).toBe('banking');
   });
 });

@@ -139,6 +139,57 @@ function bankingAmountGateExpectations() {
 }
 
 /**
+ * Banking amount-gate chips need checking/savings. Healthcare leftovers
+ * (Primary Care / HSA) fail before DENY/STEP_UP/HITL and must ledger as
+ * missing_prereq — never as wrong_gate.
+ *
+ * @param {Array<{ accountType?: string, type?: string }>|null|undefined} accounts
+ * @param {string|null|undefined} activeVerticalId from GET /api/verticals/me
+ * @returns {{
+ *   ok: boolean,
+ *   reason: string|null,
+ *   activeVertical: string|null,
+ *   accountTypes: string[],
+ *   prereqErrors: string[],
+ * }}
+ */
+function scoreBankingVerticalPrereq(accounts, activeVerticalId) {
+  const types = (Array.isArray(accounts) ? accounts : [])
+    .map((a) => String(a?.accountType || a?.type || '').toLowerCase())
+    .filter(Boolean);
+  const activeVertical = activeVerticalId ? String(activeVerticalId) : null;
+  const prereqErrors = [];
+
+  if (activeVertical && activeVertical !== 'banking') {
+    prereqErrors.push(`active_vertical=${activeVertical} (want banking)`);
+  }
+  const hasChecking = types.some((t) => t === 'checking');
+  const hasSavings = types.some((t) => t === 'savings');
+  if (!hasChecking) prereqErrors.push('missing checking account');
+  if (!hasSavings) prereqErrors.push('missing savings account');
+  if (types.some((t) => t.includes('primary care') || t === 'hsa' || t.includes('hsa'))) {
+    prereqErrors.push(`healthcare account types present: ${types.join(', ')}`);
+  }
+
+  if (prereqErrors.length) {
+    return {
+      ok: false,
+      reason: 'missing_prereq',
+      activeVertical,
+      accountTypes: types,
+      prereqErrors,
+    };
+  }
+  return {
+    ok: true,
+    reason: null,
+    activeVertical: activeVertical || 'banking',
+    accountTypes: types,
+    prereqErrors: [],
+  };
+}
+
+/**
  * Assert invoke/attack responses carry Token Chain teaching detail — not just a
  * bare error code. Live step verification should FAIL when the rail would be blank.
  *
@@ -276,4 +327,5 @@ module.exports = {
   scoreTokenChainDetail,
   detectTokenSummaryMode,
   scoreTokenSummaryCoverage,
+  scoreBankingVerticalPrereq,
 };
