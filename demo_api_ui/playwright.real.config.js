@@ -78,4 +78,8 @@ module.exports = defineConfig({
   ],
 
   // No webServer — always target a running deployment
+
+  // After CareConnect/retail suites, put the process-global default back on banking
+  // (admin POST). End-user switches are session-only and no longer poison the default.
+  globalTeardown: require.resolve('./tests/e2e/helpers/restoreBankingVertical.js'),
 });

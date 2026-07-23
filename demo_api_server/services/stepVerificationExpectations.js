@@ -142,6 +142,58 @@ function bankingAmountGateExpectations() {
   });
 }
 
+
+/**
+ * Banking amount-gate chips need checking/savings. Healthcare leftovers
+ * (Primary Care / HSA) fail before DENY/STEP_UP/HITL and must ledger as
+ * missing_prereq — never as wrong_gate.
+ *
+ * @param {Array<{ accountType?: string, type?: string }>|null|undefined} accounts
+ * @param {string|null|undefined} activeVerticalId from GET /api/verticals/me
+ * @returns {{
+ *   ok: boolean,
+ *   reason: string|null,
+ *   activeVertical: string|null,
+ *   accountTypes: string[],
+ *   prereqErrors: string[],
+ * }}
+ */
+function scoreBankingVerticalPrereq(accounts, activeVerticalId) {
+  const types = (Array.isArray(accounts) ? accounts : [])
+    .map((a) => String(a?.accountType || a?.type || '').toLowerCase())
+    .filter(Boolean);
+  const activeVertical = activeVerticalId ? String(activeVerticalId) : null;
+  const prereqErrors = [];
+
+  if (activeVertical && activeVertical !== 'banking') {
+    prereqErrors.push(`active_vertical=${activeVertical} (want banking)`);
+  }
+  const hasChecking = types.some((t) => t === 'checking');
+  const hasSavings = types.some((t) => t === 'savings');
+  if (!hasChecking) prereqErrors.push('missing checking account');
+  if (!hasSavings) prereqErrors.push('missing savings account');
+  if (types.some((t) => t.includes('primary care') || t === 'hsa' || t.includes('hsa'))) {
+    prereqErrors.push(`healthcare account types present: ${types.join(', ')}`);
+  }
+
+  if (prereqErrors.length) {
+    return {
+      ok: false,
+      reason: 'missing_prereq',
+      activeVertical,
+      accountTypes: types,
+      prereqErrors,
+    };
+  }
+  return {
+    ok: true,
+    reason: null,
+    activeVertical: activeVertical || 'banking',
+    accountTypes: types,
+    prereqErrors: [],
+  };
+}
+
 /**
  * Assert invoke/attack responses carry Token Chain teaching detail — not just a
  * bare error code. Live step verification should FAIL when the rail would be blank.
@@ -258,9 +310,91 @@ function scoreAgentReply({ reply, style, expectedReply = null, liveAccounts = nu
   return { ok: false, reason: 'unknown_reply_style' };
 }
 
+
+/** Token Summary accordion ids — keep in sync with TraceTokenSummary TOKEN_META. */
+const TOKEN_SUMMARY_IDS_1EX = [
+  'user-token',
+  'agent-actor-token',
+  'exchanged-token',
+];
+const TOKEN_SUMMARY_IDS_2EX = [
+  'user-token',
+  'two-ex-agent-actor',
+  'two-ex-exchange1',
+  'two-ex-mcp-actor',
+  'two-ex-final-token',
+];
+
+/**
+ * Detect exchange vocabulary from events (any two-ex-* ⇒ 2-exchange mode).
+ * @param {Array<object>|null|undefined} tokenEvents
+ * @returns {'1ex'|'2ex'}
+ */
+function detectTokenSummaryMode(tokenEvents) {
+  const ids = (tokenEvents || []).map((e) => e && e.id).filter(Boolean);
+  return ids.some((id) => String(id).startsWith('two-ex-')) ? '2ex' : '1ex';
+}
+
+/**
+ * Whether an event id satisfies a required Token Summary slot.
+ * `exchanged-token-fallback` counts as the 1-ex delegated token.
+ * @param {Set<string>} present
+ * @param {string} requiredId
+ */
+function hasSummaryToken(present, requiredId) {
+  if (present.has(requiredId)) return true;
+  if (requiredId === 'exchanged-token' && present.has('exchanged-token-fallback')) return true;
+  return false;
+}
+
+/**
+ * Assert Token Summary would list every token for this run's exchange mode.
+ * Default demo path is 2-exchange; 1-exchange is the debug escape hatch.
+ *
+ * @param {Array<object>|null|undefined} tokenEvents
+ * @returns {{
+ *   ok: boolean,
+ *   reason: string|null,
+ *   mode: '1ex'|'2ex',
+ *   required: string[],
+ *   present: string[],
+ *   missing: string[],
+ * }}
+ */
+function scoreTokenSummaryCoverage(tokenEvents) {
+  if (!Array.isArray(tokenEvents) || tokenEvents.length === 0) {
+    return {
+      ok: false,
+      reason: 'empty_token_events',
+      mode: '1ex',
+      required: TOKEN_SUMMARY_IDS_1EX,
+      present: [],
+      missing: [...TOKEN_SUMMARY_IDS_1EX],
+    };
+  }
+  const presentSet = new Set(tokenEvents.map((e) => e && e.id).filter(Boolean));
+  const mode = detectTokenSummaryMode(tokenEvents);
+  const required = mode === '2ex' ? TOKEN_SUMMARY_IDS_2EX : TOKEN_SUMMARY_IDS_1EX;
+  const missing = required.filter((id) => !hasSummaryToken(presentSet, id));
+  const present = required.filter((id) => hasSummaryToken(presentSet, id));
+  if (missing.length) {
+    return {
+      ok: false,
+      reason: 'missing_summary_tokens',
+      mode,
+      required,
+      present,
+      missing,
+    };
+  }
+  return { ok: true, reason: null, mode, required, present, missing: [] };
+}
+
 module.exports = {
   OUTCOME_TO_GATE,
   GOLDENS_ROOT,
+  TOKEN_SUMMARY_IDS_1EX,
+  TOKEN_SUMMARY_IDS_2EX,
   amountFromChipText,
   normalizeParsedIntent,
   expectationFromUseCase,
@@ -269,4 +403,7 @@ module.exports = {
   scoreTokenChainDetail,
   loadGoldenByUcId,
   scoreAgentReply,
+  detectTokenSummaryMode,
+  scoreTokenSummaryCoverage,
+  scoreBankingVerticalPrereq,
 };
