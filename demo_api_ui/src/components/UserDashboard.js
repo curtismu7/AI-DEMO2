@@ -26,6 +26,12 @@ import {
   splitGridClass,
 } from "../utils/dashboardLayout";
 import { toastCustomerError } from "../utils/dashboardToast";
+import {
+  AGENT_COL_MAX_WIDTH,
+  AGENT_COL_MIN_WIDTH,
+  persistAgentColWidth,
+  readStoredAgentColWidth,
+} from "../utils/agentColumnLayout";
 import { extractRfc9470Challenge } from "../utils/wwwAuthenticate";
 import DashboardTokenRail from "./DashboardTokenRail";
 import ExchangeModeToggle from "./ExchangeModeToggle";
@@ -185,6 +191,11 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
     typeof window !== "undefined"
       ? readStoredMiddleHeight()
       : MIDDLE_DEFAULT_HEIGHT,
+  );
+  const [agentColWidth, setAgentColWidth] = useState(() =>
+    typeof window !== "undefined"
+      ? readStoredAgentColWidth()
+      : AGENT_COL_MIN_WIDTH,
   );
   const [dashboardLayout, setDashboardLayoutState] = useState(() =>
     getDashboardLayout(),
@@ -504,6 +515,12 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
     }
   }, [middleHeight, agentPlacement]);
 
+  /** Persist middle agent column width */
+  useEffect(() => {
+    if (agentPlacement !== "middle") return;
+    persistAgentColWidth(agentColWidth);
+  }, [agentColWidth, agentPlacement]);
+
   /** Cap middle height when viewport shrinks */
   useEffect(() => {
     if (agentPlacement !== "middle") return;
@@ -540,6 +557,35 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
       document.addEventListener("mouseup", onUp);
     },
     [middleHeight],
+  );
+
+  /** Drag right edge of agent column: move right = wider. */
+  const onAgentWidthResizeMouseDown = useCallback(
+    (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      const startX = e.clientX;
+      const startW = agentColWidth;
+      const onMove = (ev) => {
+        setAgentColWidth(
+          Math.min(
+            AGENT_COL_MAX_WIDTH,
+            Math.max(AGENT_COL_MIN_WIDTH, startW + (ev.clientX - startX)),
+          ),
+        );
+      };
+      const onUp = () => {
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      };
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    },
+    [agentColWidth],
   );
 
   /** Toggle expanded state for account profile details */
@@ -2658,6 +2704,13 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
             className="ud-agent-column"
             ref={agentColumnRef}
             aria-label="AI banking assistant"
+            style={{
+              width: agentColWidth,
+              minWidth: agentColWidth,
+              maxWidth: agentColWidth,
+              flexBasis: agentColWidth,
+            }}
+            data-testid="dashboard-agent-column"
             {...(!showBankingInMiddle && {
               id: "main-dashboard-content",
               tabIndex: -1,
@@ -2678,6 +2731,15 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
                 </div>
               )}
             </div>
+            {/* biome-ignore lint/a11y/noStaticElementInteractions: pointer-only drag; height handle remains keyboard-reachable. */}
+            <div
+              className="ud-agent-column__resize-handle"
+              onMouseDown={onAgentWidthResizeMouseDown}
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Drag to resize assistant width"
+              data-testid="dashboard-agent-column-resize"
+            />
             <button
               type="button"
               className="ud-middle-resize-handle"
