@@ -966,6 +966,23 @@ export function buildTraceSteps(trace) {
             : String(filterChain.length)] : null,
         gwInbound ? ["inbound", gwInbound.label || "user bearer received"] : null,
         gwScope ? ["scope gate", gwScope.label || "scope checked before swap"] : null,
+        // invalid_aud teaching: show both sides of the mismatch (token vs gateway).
+        (() => {
+          const tokenAud = simGwDeny?.triedAudience || simGwDeny?.tokenAud
+            || gwDeniedPhase?.triedAudience || gwDeniedPhase?.tokenAud
+            || null;
+          const expectedAud = simGwDeny?.allowedAudience || simGwDeny?.expectedAud
+            || gwDeniedPhase?.allowedAudience || gwDeniedPhase?.expectedAud
+            || null;
+          if (tokenAud == null && expectedAud == null) return null;
+          const actual = tokenAud != null
+            ? (Array.isArray(tokenAud) ? tokenAud.join(", ") : String(tokenAud))
+            : "(unknown)";
+          const expected = expectedAud != null
+            ? (Array.isArray(expectedAud) ? expectedAud.join(", ") : String(expectedAud))
+            : "(unknown)";
+          return ["audience", `token ${actual} · gateway expects ${expected} (MISMATCH)`];
+        })(),
         simGwDeny ? ["attack sim", simGwDeny.explanation || simGwDeny.label] : null,
       ].filter(Boolean),
       request: (() => {
