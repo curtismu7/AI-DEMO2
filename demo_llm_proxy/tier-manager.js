@@ -17,7 +17,8 @@
 const http = require('http');
 const { execFile } = require('child_process');
 const path = require('path');
-const { resolveEnsureArgs } = require('./ensureArgs');
+const { resolveEnsureArgs, parseResidentPorts } = require('./ensureArgs');
+const { recoverDeadResidents } = require('./residentRecover');
 
 const PORT = process.env.TIER_MANAGER_PORT || 8097;
 const SCRIPT = path.join(__dirname, 'start-local-models.sh');
@@ -32,6 +33,7 @@ try {
   VALID_PORTS = new Set(['8091', '8096']);
 }
 const ENSURE_TIMEOUT_MS = 180000; // cold load of the 11GB gpt-oss can be slow
+const RECOVER_MS = parseInt(process.env.LLM_RESIDENT_RECOVER_MS || '20000', 10);
 
 // Must match compose LLM_PROXY_RESIDENT_TIERS — run-docker.sh exports this when
 // starting the manager. Empty ⇒ classic one-tier swap.
@@ -58,6 +60,27 @@ function ensureTier(port) {
     .finally(() => { if (inFlight && inFlight.promise === promise) inFlight = null; }));
   inFlight = { port, promise };
   return promise;
+}
+
+/** Restart any resident tier that died (OOM / crash) without waiting for a swap. */
+function scheduleResidentRecovery() {
+  const ports = parseResidentPorts(RESIDENT_CSV);
+  if (!ports.length || !(RECOVER_MS > 0)) return;
+  setInterval(() => {
+    recoverDeadResidents({
+      residentCsv: RESIDENT_CSV,
+      ensureFn: ensureTier,
+      isBusy: () => !!inFlight,
+    })
+      .then((r) => {
+        if (r.recovered) {
+          console.log(`[tier-manager] recovered dead resident(s): ${r.dead.join(',')}`);
+        }
+      })
+      .catch((err) => {
+        console.error(`[tier-manager] resident recover failed: ${err.message}`);
+      });
+  }, RECOVER_MS).unref();
 }
 
 const server = http.createServer((req, res) => {
@@ -96,5 +119,10 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[tier-manager] listening on 0.0.0.0:${PORT} — swaps tiers via ${SCRIPT}`);
+  const residents = parseResidentPorts(RESIDENT_CSV);
+  console.log(
+    `[tier-manager] listening on 0.0.0.0:${PORT} — swaps via ${SCRIPT}`
+      + (residents.length ? `; residents ${residents.join(',')} (recover every ${RECOVER_MS}ms)` : ''),
+  );
+  scheduleResidentRecovery();
 });

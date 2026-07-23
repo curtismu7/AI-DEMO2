@@ -1093,14 +1093,10 @@ services:
       # Optional pin: LLM_PROXY_PIN_TIER=8096
       LLM_PROXY_IDLE_DECAY_MS: "${LLM_PROXY_IDLE_DECAY_MS:-0}"
       LLM_PROXY_PIN_TIER: "${LLM_PROXY_PIN_TIER:-}"
-      # Keep BOTH tiers loaded: the BFF pins phi-4-mini (:8091) and the agent
-      # pins gpt-oss-20b (:8096). In swap mode they evict each other, so the
-      # second surface used pays a 7-30s model swap — and when that swap outruns
-      # the caller, the BFF falls back to the heuristic catalog. Disabling decay
-      # (above) keeps a tier warm once loaded, but nothing pre-loads the agent's
-      # tier — residency does, so the FIRST request doesn't swap either.
-      # Costs ~14GB resident. Set empty to fall back to classic swap mode.
-      LLM_PROXY_RESIDENT_TIERS: "${LLM_PROXY_RESIDENT_TIERS:-8091,8096}"
+      # Keep BOTH tiers loaded on hosts with enough RAM (≥32GB via residencyPolicy).
+      # Costs ~14GB resident. Empty string = classic swap / pin-phi (24GB strategy).
+      # Use ${VAR-default} (not :-) so an explicit empty from run-docker.sh is honored.
+      LLM_PROXY_RESIDENT_TIERS: "${LLM_PROXY_RESIDENT_TIERS-8091,8096}"
     networks:
       - ai-demo
     # Access host llama-server instances via host.docker.internal

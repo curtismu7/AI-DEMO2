@@ -58,10 +58,44 @@ function main() {
   if (!/require\('\.\/ensureArgs'\)/.test(tierManager)) {
     errors.push('tier-manager.js must use ./ensureArgs (resolveEnsureArgs) for residency swaps');
   }
+  if (!/residentRecover|recoverDeadResidents/.test(tierManager)) {
+    errors.push('tier-manager.js must auto-recover dead resident tiers (residentRecover)');
+  }
 
   const ensureArgs = read('demo_llm_proxy/ensureArgs.js');
   if (!/function resolveEnsureArgs/.test(ensureArgs)) {
     errors.push('demo_llm_proxy/ensureArgs.js must export resolveEnsureArgs');
+  }
+
+  const residencyPolicy = read('demo_llm_proxy/residencyPolicy.js');
+  if (!/function resolveResidencyPolicy/.test(residencyPolicy)) {
+    errors.push('demo_llm_proxy/residencyPolicy.js must export resolveResidencyPolicy');
+  }
+  if (!/_apply_llm_residency_policy/.test(runDocker)) {
+    errors.push('run-docker.sh must call _apply_llm_residency_policy before starting tiers');
+  }
+  if (!/apply-residency-policy\.sh/.test(runDocker)) {
+    errors.push('run-docker.sh must source apply-residency-policy.sh');
+  }
+
+  const applySh = read('demo_llm_proxy/apply-residency-policy.sh');
+  if (!/apply_llm_residency_policy/.test(applySh)) {
+    errors.push('apply-residency-policy.sh must define apply_llm_residency_policy');
+  }
+
+  const supervise = read('demo_llm_proxy/supervise-swap.sh');
+  if (!/apply_llm_residency_policy/.test(supervise)) {
+    errors.push('supervise-swap.sh must call apply_llm_residency_policy each run');
+  }
+
+  const runSh = read('run.sh');
+  if (!/apply_llm_residency_policy/.test(runSh)) {
+    errors.push('run.sh must call apply_llm_residency_policy in the llama.cpp start path');
+  }
+
+  const launchd = read('demo_llm_proxy/install-launchd.sh');
+  if (!/residencyPolicy\.js/.test(launchd)) {
+    errors.push('install-launchd.sh must reference residencyPolicy.js (auto residency)');
   }
 
   if (errors.length) {

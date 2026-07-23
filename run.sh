@@ -415,29 +415,65 @@ preflight_checks() {
       || curl -sf --max-time 3 "http://127.0.0.1:${port}/v1/models" >/dev/null 2>&1
   }
 
-  # Start the local LLM proxy stack in SWAP MODE: the tier-manager daemon
-  # (:8097) + only the smallest tier, then the smart router on :8090 if nothing
-  # healthy is already serving it (e.g. the llm-proxy container in docker mode).
-  # The router asks the manager to swap up when a request needs a bigger model
-  # and decays back to the smallest tier when idle — one model loaded at a time.
+  # Start the local LLM proxy stack with automatic RAM residency policy
+  # (residencyPolicy.js): ≥32GB dual 8091+8096; <32GB pin :8091.
+  # The smart router on :8090 routes to host tiers; Docker uses host.docker.internal.
   _start_llm_proxy_stack() {
+    # shellcheck source=demo_llm_proxy/apply-residency-policy.sh
+    source "${BASEDIR}/demo_llm_proxy/apply-residency-policy.sh"
+    apply_llm_residency_policy "${BASEDIR}/demo_llm_proxy"
+    if [[ "${_LLM_RESIDENCY_MODE:-}" == "pin-phi" || "${_LLM_RESIDENCY_MODE:-}" == "pin" ]]; then
+      warn "${_LLM_RESIDENCY_REASON:-low-RAM pin}"
+    else
+      ok "${_LLM_RESIDENCY_REASON:-llm residency policy applied}"
+    fi
     # Keep-warm demo defaults: do not idle-decay the big tier after warmup.
     # Override with LLM_PROXY_IDLE_DECAY_MS=300000 to restore classic 5-min decay.
-    # Optional hard pin: LLM_PROXY_PIN_TIER=8096 (agent brain stays loaded).
     export LLM_PROXY_IDLE_DECAY_MS="${LLM_PROXY_IDLE_DECAY_MS:-0}"
-    if ! curl -sf --max-time 2 http://127.0.0.1:8097/health >/dev/null 2>&1; then
-      nohup node "${BASEDIR}/demo_llm_proxy/tier-manager.js" > /tmp/demo-tier-manager.log 2>&1 &
-      echo $! > /tmp/demo-tier-manager.pid
+
+    # Fresh tier-manager so RESIDENT_TIERS / LLAMA_ARG_HOST match this policy.
+    if [[ -f /tmp/demo-tier-manager.pid ]]; then
+      kill "$(cat /tmp/demo-tier-manager.pid)" 2>/dev/null || true
+      rm -f /tmp/demo-tier-manager.pid
     fi
-    bash "${BASEDIR}/demo_llm_proxy/start-local-models.sh" ensure-available || {
-      warn "no local GGUF tiers found — download from demo UI or: bash demo_llm_proxy/download-models.sh fetch (logs: /tmp/llama-models/)"
-      return 1
-    }
+    local _old_tm
+    _old_tm=$(lsof -nP -iTCP:8097 -sTCP:LISTEN 2>/dev/null | awk 'NR>1 {print $2}' | sort -u) || true
+    if [[ -n "${_old_tm:-}" ]]; then
+      kill ${_old_tm} 2>/dev/null || true
+      sleep 1
+    fi
+    LLM_PROXY_RESIDENT_TIERS="${LLM_PROXY_RESIDENT_TIERS}" \
+    LLAMA_ARG_HOST="${LLAMA_ARG_HOST}" \
+      nohup node "${BASEDIR}/demo_llm_proxy/tier-manager.js" > /tmp/demo-tier-manager.log 2>&1 &
+    echo $! > /tmp/demo-tier-manager.pid
+    local _i=0
+    while [[ $_i -lt 10 ]]; do
+      curl -sf --max-time 2 http://127.0.0.1:8097/health >/dev/null 2>&1 && break
+      sleep 1; (( _i++ )) || true
+    done
+
+    if [[ -n "${LLM_PROXY_RESIDENT_TIERS:-}" ]]; then
+      bash "${BASEDIR}/demo_llm_proxy/start-local-models.sh" ensure-set "${LLM_PROXY_RESIDENT_TIERS}" || {
+        warn "resident tiers failed — download from demo UI or: bash demo_llm_proxy/download-models.sh fetch (logs: /tmp/llama-models/)"
+        return 1
+      }
+    elif [[ -n "${LLM_PROXY_PIN_TIER:-}" ]]; then
+      bash "${BASEDIR}/demo_llm_proxy/start-local-models.sh" ensure "${LLM_PROXY_PIN_TIER}" || {
+        warn "pinned tier :${LLM_PROXY_PIN_TIER} failed — download GGUFs (logs: /tmp/llama-models/)"
+        return 1
+      }
+    else
+      bash "${BASEDIR}/demo_llm_proxy/start-local-models.sh" ensure-available || {
+        warn "no local GGUF tiers found — download from demo UI or: bash demo_llm_proxy/download-models.sh fetch (logs: /tmp/llama-models/)"
+        return 1
+      }
+    fi
     if ! _local_llm_ready 8090; then
       LLAMA_HOST=127.0.0.1 \
         LLM_PROXY_PORT=8090 \
         LLM_PROXY_IDLE_DECAY_MS="${LLM_PROXY_IDLE_DECAY_MS}" \
         LLM_PROXY_PIN_TIER="${LLM_PROXY_PIN_TIER:-}" \
+        LLM_PROXY_RESIDENT_TIERS="${LLM_PROXY_RESIDENT_TIERS:-}" \
         nohup node "${BASEDIR}/demo_llm_proxy/router.js" > /tmp/demo-llm-proxy.log 2>&1 &
       echo $! > /tmp/demo-llm-proxy.pid
     fi
