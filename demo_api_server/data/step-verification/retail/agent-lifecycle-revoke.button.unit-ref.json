@@ -1,0 +1,11 @@
+{
+  "vertical": "retail",
+  "useCaseId": "agent-lifecycle-revoke",
+  "triggerType": "button",
+  "mode": "unit-ref",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": null,
+  "checkedAt": "2026-07-23T01:41:23.202Z",
+  "verifiedBy": "demo_api_server/src/__tests__/killSwitchService.test.js + AgentLifecyclePage revoke (default scope instance) (#761)"
+}
