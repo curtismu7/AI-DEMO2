@@ -390,6 +390,149 @@ function scoreTokenSummaryCoverage(tokenEvents) {
   return { ok: true, reason: null, mode, required, present, missing: [] };
 }
 
+/**
+ * Score UC1-style Demo Step invoke (`/api/agent/invoke` + forceHeuristic).
+ * The ProofStrip needs user-token + token-exchange + authorize + tool dispatch.
+ * A bare `/api/mcp/tool` check can pass while Demo Steps still Incomplete when
+ * PingOne Authorize / gateway worker credentials are stale.
+ *
+ * @param {{ status?: number, body?: object }} invoke
+ * @param {{ evidenceTokenChain?: string[] }} [opts]
+ * @returns {{ ok: boolean, reason: string|null, matchedSteps: string[] }}
+ */
+function scoreDelegatedAccessInvoke(invoke, opts = {}) {
+  const status = invoke?.status;
+  const body = invoke?.body || {};
+  const evidence = opts.evidenceTokenChain || [
+    'user-token',
+    'token-exchange',
+    'authorize-decision',
+    'tool-dispatched',
+  ];
+
+  if (status !== 200) {
+    return { ok: false, reason: 'server_error', matchedSteps: [] };
+  }
+  if (body.success === false || body.error) {
+    const blob = `${body.error || ''} ${body.reply || ''} ${body.message || ''}`;
+    if (/mcp_authorize_unavailable|invalid_client|authorize_worker/i.test(blob)) {
+      return { ok: false, reason: 'authorize_unavailable', matchedSteps: [] };
+    }
+    if (/access_denied|authorization_denied|mcp_authorization_denied/i.test(blob)) {
+      return { ok: false, reason: 'authorize_denied', matchedSteps: [] };
+    }
+    return { ok: false, reason: 'invoke_failed', matchedSteps: [] };
+  }
+  if (!String(body.reply || '').trim()) {
+    return { ok: false, reason: 'empty_reply', matchedSteps: [] };
+  }
+
+  const tokenEvents = Array.isArray(body.tokenEvents) ? body.tokenEvents : [];
+  const seenIds = new Set(tokenEvents.map((e) => e && e.id).filter(Boolean));
+  const hasExchange = tokenEvents.some((e) => e && e.exchangeStep != null);
+  const hasAuthorize = !!(
+    body.authorize
+    || seenIds.has('gw-authorize')
+    || seenIds.has('authorize-decision')
+    || tokenEvents.some((e) => e && (e.decision === 'PERMIT' || e.id === 'gw-authorize'))
+  );
+  const hasTool = Array.isArray(body.toolsCalled) && body.toolsCalled.length > 0;
+
+  const matchedSteps = evidence.filter((step) => {
+    if (step === 'user-token') return seenIds.has('user-token');
+    if (step === 'token-exchange') return hasExchange;
+    if (step === 'authorize-decision') return hasAuthorize;
+    if (step === 'tool-dispatched') return hasTool;
+    return seenIds.has(step);
+  });
+  const missing = evidence.filter((s) => !matchedSteps.includes(s));
+  if (missing.length) {
+    return { ok: false, reason: `missing_evidence:${missing.join(',')}`, matchedSteps };
+  }
+
+  const chain = scoreTokenChainDetail(tokenEvents);
+  if (!chain.ok) {
+    return { ok: false, reason: chain.reason || 'empty_token_events', matchedSteps };
+  }
+
+  return { ok: true, reason: null, matchedSteps };
+}
+
+/**
+ * Score an attack-sim POST body (HTTP 200 envelope; teaching result in body.status /
+ * body.errorCode / body.tokenChainEvents).
+ *
+ * Distinguishes:
+ *   - teaching DENY (e.g. UC5 insufficient_scope + sim-gateway-deny) → PASS
+ *   - infra exchange failure (invalid subject_token / exchange_failed) → FAIL
+ *     with reason `exchange_failed` even when PingOne detail is present on the rail
+ *   - blank Token Chain → FAIL (`empty_token_events` / `failure_without_detail`)
+ *
+ * @param {{ status?: number, body?: object }} res — fetch result (route always HTTP 200)
+ * @param {{
+ *   expectedErrorCode?: string,
+ *   evidenceTokenChain?: string[],
+ * }} [opts]
+ * @returns {{ ok: boolean, reason: string|null, matchedSteps: string[] }}
+ */
+function scoreAttackSimDeny(res, opts = {}) {
+  const http = res?.status;
+  const body = res?.body || {};
+  const expectedErrorCode = opts.expectedErrorCode || 'insufficient_scope';
+  const evidence = opts.evidenceTokenChain || ['sim-exchange-ok', 'sim-gateway-deny'];
+
+  // Route always returns HTTP 200 with the teaching status in the JSON body.
+  if (http != null && http !== 200) {
+    return { ok: false, reason: 'server_error', matchedSteps: [] };
+  }
+  if (body.error === 'unknown_sim' || body.error === 'feature_disabled' || body.error === 'not_available_in_production') {
+    return { ok: false, reason: 'server_error', matchedSteps: [] };
+  }
+  if (body.errorCode === 'no_session_token') {
+    return { ok: false, reason: 'missing_prereq', matchedSteps: [] };
+  }
+
+  const events = Array.isArray(body.tokenChainEvents)
+    ? body.tokenChainEvents
+    : (Array.isArray(body.tokenEvents) ? body.tokenEvents : []);
+  const seenIds = new Set(events.map((e) => e && e.id).filter(Boolean));
+
+  // Infra: preparatory RFC 8693 exchange failed (stale AT, wrong subject_token).
+  // Never count this as the teaching DENY even if the rail now shows PingOne detail.
+  const exchangeFailed = seenIds.has('sim-exchange-error') || seenIds.has('exchange-failed')
+    || body.errorCode === 'exchange_failed'
+    || /not a valid access token.*subject_token/i.test(String(body.reason || ''));
+  if (exchangeFailed && !seenIds.has('sim-gateway-deny')) {
+    const chain = scoreTokenChainDetail(events, { requireFailureEvent: true });
+    return {
+      ok: false,
+      reason: chain.ok ? 'exchange_failed' : (chain.reason || 'exchange_failed'),
+      matchedSteps: evidence.filter((id) => seenIds.has(id)),
+    };
+  }
+
+  if (body.errorCode !== expectedErrorCode) {
+    return {
+      ok: false,
+      reason: body.errorCode === 'unexpected_permit' ? 'wrong_gate' : 'wrong_gate',
+      matchedSteps: evidence.filter((id) => seenIds.has(id)),
+    };
+  }
+
+  const matchedSteps = evidence.filter((id) => seenIds.has(id));
+  const missing = evidence.filter((id) => !matchedSteps.includes(id));
+  if (missing.length) {
+    return { ok: false, reason: `missing_evidence:${missing.join(',')}`, matchedSteps };
+  }
+
+  const chain = scoreTokenChainDetail(events, { requireFailureEvent: true });
+  if (!chain.ok) {
+    return { ok: false, reason: chain.reason || 'empty_token_events', matchedSteps };
+  }
+
+  return { ok: true, reason: null, matchedSteps };
+}
+
 module.exports = {
   OUTCOME_TO_GATE,
   GOLDENS_ROOT,
@@ -401,6 +544,8 @@ module.exports = {
   bankingWorksChipExpectations,
   bankingAmountGateExpectations,
   scoreTokenChainDetail,
+  scoreDelegatedAccessInvoke,
+  scoreAttackSimDeny,
   loadGoldenByUcId,
   scoreAgentReply,
   detectTokenSummaryMode,

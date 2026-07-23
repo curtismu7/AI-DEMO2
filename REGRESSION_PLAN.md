@@ -102,6 +102,39 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-23 — UC5 attack-sim died at token exchange (invalid subject_token) with a blank Token Chain; `/api/demo/attack-sim` skipped silent refresh
+
+**Files changed:**
+
+- `demo_api_server/server.js` — mount `refreshIfExpiring` on `/api/demo/attack-sim`
+  (was missing; `/api/demo-agent` and `/api/mcp` already had it).
+- `demo_api_server/services/attackSimulatorService.js` — enrich `sim-exchange-error`
+  with PingOne `requestContext` / `pingoneErrorDescription`; `stampUseCaseId` on
+  exchange-failure early returns.
+- `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js` — exchange failure
+  detail (may already be present from token-chain gap-fill; keep `exFailed` on
+  `tokenEvent` + PingOne extras).
+- `demo_api_server/services/stepVerificationExpectations.js` — `scoreAttackSimDeny`
+  (teaching DENY vs `exchange_failed` infra).
+- `demo_api_ui/tests/e2e/stepVerification.banking.real.spec.js` — UC5 live ledger row.
+- Tests: `buildTraceSteps.test.js`, `stepVerificationExpectations.uc5.test.js`.
+
+**What was broken:** Demo step 10 (UC5) ran attack-sim with a stale session AT.
+PingOne rejected `subject_token` → body `status: 502` / exchange_failed. The chat
+showed the error, but the Token Chain looked empty / incomplete. A 502 infra
+failure must not be scored as a successful scope DENY in the step-verification
+ledger.
+
+**Do not break:** Successful UC5 path still requires `sim-exchange-ok` →
+`sim-gateway-deny` with `errorCode: insufficient_scope`. Do not count
+`exchange_failed` / invalid `subject_token` as teaching DENY. Keep
+`refreshIfExpiring` on `/api/demo/attack-sim` whenever adding new attack routes.
+
+**Verify:** jest `stepVerificationExpectations.uc5.test.js` + `attackSimulator*`;
+vitest `buildTraceSteps` (incl. sim-exchange-error detail); live
+`stepVerification.banking.real.spec.js` UC5 writes
+`data/step-verification/banking/UC5.attack.heuristic.json`.
+
 ### 2026-07-23 — Resource-server dual-view merged without canaries; post-merge harden + standing rule
 
 **Files changed:**

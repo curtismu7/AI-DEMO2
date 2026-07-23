@@ -460,6 +460,10 @@ export function buildTraceSteps(trace) {
             ? ["error", String(exFailed.pingoneError || exFailed.error)] : null,
           exFailed.pingoneErrorDescription
             ? ["description", String(exFailed.pingoneErrorDescription)] : null,
+          exFailed.requestContext?.client_id
+            ? ["exchanger client", String(exFailed.requestContext.client_id)] : null,
+          exFailed.requestContext?.scope
+            ? ["requested scope", String(exFailed.requestContext.scope)] : null,
           exFailed.rfc ? ["rfc", String(exFailed.rfc)] : ["rfc", "RFC 8693"],
         ] : []),
         ...(exTok && !exFailed ? [

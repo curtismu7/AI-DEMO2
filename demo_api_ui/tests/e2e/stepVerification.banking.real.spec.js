@@ -22,6 +22,7 @@ const {
   loadGoldenByUcId,
   normalizeParsedIntent,
   scoreAgentReply,
+  scoreAttackSimDeny,
   scoreBankingVerticalPrereq,
   scoreTokenChainDetail,
   scoreTokenSummaryCoverage,
@@ -420,6 +421,50 @@ test.describe('Step verification — banking (real login, live stack)', () => {
 
       expect(status).toBe(200);
       expect(checkStatus).toBe('PASS');
+    });
+
+    test('UC5 Demo Step path: attack-sim insufficient-scope → gateway DENY', async ({ page }) => {
+      // Teaching contract: mint read-only token then DENY create_transfer.
+      // A stale session AT yields exchange_failed (502) — that must FAIL the
+      // ledger as infra, not look like a successful scope deny.
+      const catalogUc = resolveUseCase('UC5', 'banking');
+      const sim = catalogUc?.trigger?.sim || 'insufficient-scope';
+      const { status, body } = await page.evaluate(async (simId) => {
+        const r = await fetch('/api/demo/attack-sim/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ sim: simId }),
+        });
+        const json = await r.json().catch(() => ({}));
+        return { status: r.status, body: json };
+      }, sim);
+
+      const scored = scoreAttackSimDeny(
+        { status, body },
+        {
+          expectedErrorCode: 'insufficient_scope',
+          evidenceTokenChain: catalogUc?.evidence?.tokenChain || ['sim-exchange-ok', 'sim-gateway-deny'],
+        },
+      );
+
+      writeLedgerEntry({
+        vertical: 'banking',
+        useCaseId: 'UC5',
+        triggerType: 'attack',
+        mode: 'heuristic',
+        status: scored.ok ? 'PASS' : 'FAIL',
+        errorClass: scored.reason,
+        primaryTool: null,
+        checkedAt: new Date().toISOString(),
+      });
+
+      expect(status, `attack-sim HTTP ${status}: ${body.error || body.reason || ''}`).toBe(200);
+      expect(
+        scored.ok,
+        `UC5 teaching DENY failed (${scored.reason}): ${body.errorCode || ''} ${String(body.reason || '').slice(0, 180)}`,
+      ).toBe(true);
+      expect(body.errorCode).toBe('insufficient_scope');
     });
   });
 

@@ -10,10 +10,10 @@ const ROOT = path.resolve(__dirname, '..', 'data', 'step-verification');
  * @typedef {Object} LedgerEntry
  * @property {string} vertical
  * @property {string} useCaseId
- * @property {'chip'|'prompt'} triggerType
- * @property {'heuristic'|'llamacpp'|'helix'} mode
+ * @property {'chip'|'prompt'|'button'|'attack'|'link'} triggerType
+ * @property {'heuristic'|'llamacpp'|'helix'|'unit-parse'|'unit-gate'|'unit-prereq'|'unit-ref'} mode
  * @property {'PASS'|'FAIL'} status
- * @property {string|null} errorClass one of 'server_error'|'parse_error'|'llm_error'|'wrong_response'|'wrong_gate'|'missing_prereq'|null
+ * @property {string|null} errorClass one of 'server_error'|'parse_error'|'llm_error'|'wrong_response'|'wrong_gate'|'missing_prereq'|'exchange_failed'|'empty_token_events'|'failure_without_detail'|'no_event_detail'|null
  * @property {string|null} primaryTool
  * @property {string} checkedAt ISO timestamp
  * @property {string} [verifiedBy] optional note pointing at the test file that proved this, when no new dispatch was run
