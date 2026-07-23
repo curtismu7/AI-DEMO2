@@ -101,6 +101,32 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-22 — CareConnect UC8 HITL (and UC7 step-up) ProofStrip Mismatch after "success"
+
+**Files changed:** `demo_api_server/services/mcpToolAuthorizationService.js`
+(`_applyTransactionPolicy` promotes Transaction HITL/consent + local amount-band
+fallback), `demo_api_ui/src/services/tokenChainTrace/tokenChainTraceStore.js`
+(preserve `HITL_REQUIRED`/`STEP_UP` outcome across approve→retry PERMIT), tests.
+
+**What was broken:** CareConnect `pay my $300 bill` (UC8) and `$600` (UC7) ran
+straight to `POST /api/path/vertical-tool` 200 with no 428. Live MCP gate often
+PERMITs vertical writes; Transaction-policy consent was never promoted onto the
+gate, so ProofStrip saw PERMIT vs expected `HITL_REQUIRED` → Mismatch. After a
+real HITL approve→retry, ingestAuthorize also overwrote outcome with bare PERMIT.
+
+**What was fixed:** Promote `consentRequired`/`hitlRequired` from
+`evaluateTransaction`; local amount-band fallback (same thresholds as simulated
+AS) when Transaction attaches nothing; keep prior gate outcome on retry PERMIT
+so ProofStrip scores `denied-as-expected`.
+
+**Do not break:** DENY > STEP_UP > HITL precedence; never clear an existing
+`hitlRequired` on the gate; ProofStrip still mismatches when DENY expected but
+HITL fired (and vice versa).
+
+**Verify:** `CI=true npx jest tests/mcpToolAuthorization.transactionPolicyHitl.test.js --forceExit`;
+`npx vitest run …/tokenChainTraceStore.test.js …/ProofOfEnforcementContext.test.js`;
+`cd demo_api_ui && npm run build`.
+
 ### 2026-07-22 — OAuth Academy teach chips looked dead under agent_mode=llamacpp
 
 **Files changed:**
