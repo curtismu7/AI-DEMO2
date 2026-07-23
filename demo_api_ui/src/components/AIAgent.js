@@ -18,7 +18,7 @@ import SimpleStepperBar from './SimpleStepperBar';
 import ReasoningPanel from './ReasoningPanel';
 import ConversationSummaryPanel from './ConversationSummaryPanel';
 import ProofStrip from './ProofStrip';
-import { navigateToCustomerOAuthForceLogin, requestSilentReauth } from "../utils/authUi";
+import { navigateToCustomerOAuthForceLogin, requestSilentReauth, isAuthRequiredApiError, notifySessionExpiredIfNeeded, USER_SESSION_EXPIRED_MESSAGE } from "../utils/authUi";
 import { setAgentAuthorization } from "../services/agentAuthorizationService";
 import {
   AGENT_CONSENT_BLOCK_USER_MESSAGE,
@@ -5925,19 +5925,8 @@ export default function BankingAgent({
         // A tokenless session must surface as "sign in again" + redirect — not as
         // the reply text alone (the user can't tell a sign-in problem from an
         // agent outage; see 2026-06-12 expired-token incident).
-        // Also catch 401 from authenticateToken when _cookie_session has no
-        // _restoredFromCookie flag (returns { error: 'authentication_required' },
-        // no requiresLogin/need_auth field, success absent).
-        if (response?.requiresLogin || response?.error === "login_required" || response?.need_auth ||
-            response?._status === 401 || response?.error === "authentication_required" || response?.error === "session_expired") {
-          addMessage(
-            "assistant",
-            response.reply ||
-              "Your session is no longer signed in — please sign in again to continue.",
-            null,
-            { source: _source },
-          );
-          setTimeout(() => navigateToCustomerOAuthForceLogin(), 1500);
+        if (isAgentAuthFailure(response)) {
+          handleAgentAuthRequired(response, { redirect: true, source: _source });
           return;
         }
         ingestActivity(response, nlUserText || result.action);
@@ -6123,6 +6112,68 @@ export default function BankingAgent({
     return true;
   }
 
+  /**
+   * True when an agent/NL payload means the user must sign in again.
+   * Works for HTTP envelopes (`_status`) and stripped error objects (`code`/`error`).
+   */
+  function isAgentAuthFailure(payload) {
+    if (!payload || typeof payload !== "object") return false;
+    if (payload.need_auth || payload.requiresLogin) return true;
+    const status = payload._status ?? payload.statusCode ?? payload.status;
+    const body = {
+      error: payload.error || payload.code,
+      code: payload.code,
+      message: payload.message || payload.reply,
+      error_description: payload.error_description,
+      need_auth: payload.need_auth,
+      requiresLogin: payload.requiresLogin,
+      agentInitRequired: payload.agentInitRequired,
+    };
+    if (status === 401) return isAuthRequiredApiError(401, body);
+    // Resume path sometimes drops status but keeps "Session expired" / "Unauthorized"
+    return isAuthRequiredApiError(401, body);
+  }
+
+  /**
+   * Consistent agent UX for auth loss: chat copy + SessionReauthBanner.
+   * Optional redirect preserves existing dispatchNlResult behavior.
+   */
+  function handleAgentAuthRequired(payload, { redirect = false, source } = {}) {
+    if (cookieOnlyBffSession) {
+      if (!sessionFixBubbleShownRef.current) {
+        sessionFixBubbleShownRef.current = true;
+        addMessage("error", SESSION_NOT_HYDRATED_CHAT, null, {
+          showSessionFixActions: true,
+        });
+      }
+      return true;
+    }
+    const p = (location.pathname || "").replace(/\/$/, "") || "/";
+    if (isPublicMarketingAgentPath(p) && !isLoggedIn) {
+      addMessage("assistant", " Signing you in with PingOne…");
+      handleLoginAction("login_user");
+      return true;
+    }
+    notifySessionExpiredIfNeeded({
+      status: 401,
+      body: payload,
+      pathname: location.pathname,
+    });
+    const raw =
+      (typeof payload?.reply === "string" && payload.reply.trim()) ||
+      (typeof payload?.message === "string" && payload.message.trim()) ||
+      "";
+    const chatMsg =
+      raw && /sign in|log in|session/i.test(raw)
+        ? raw
+        : USER_SESSION_EXPIRED_MESSAGE;
+    addMessage("assistant", chatMsg, null, source ? { source } : undefined);
+    if (redirect) {
+      setTimeout(() => navigateToCustomerOAuthForceLogin(), 1500);
+    }
+    return true;
+  }
+
   /** NL API errors: 401 is session missing on server — not a parse failure. */
   function reportNlFailure(err, retry) {
     // AbortSignal.timeout() rejects with a TimeoutError (message "signal timed
@@ -6167,35 +6218,8 @@ export default function BankingAgent({
       }
       return;
     }
-    if (
-      err?.statusCode === 401 ||
-      err?._status === 401 ||
-      err?.code === "authentication_required" ||
-      err?.code === "login_required"
-    ) {
-      if (cookieOnlyBffSession) {
-        if (!sessionFixBubbleShownRef.current) {
-          sessionFixBubbleShownRef.current = true;
-          addMessage("error", SESSION_NOT_HYDRATED_CHAT, null, {
-            showSessionFixActions: true,
-          });
-        }
-        return;
-      }
-      const p401 = (location.pathname || "").replace(/\/$/, "") || "/";
-      if (isPublicMarketingAgentPath(p401) && !isLoggedIn) {
-        addMessage("assistant", " Signing you in with PingOne…");
-        handleLoginAction("login_user");
-        return;
-      }
-      notifyError(
-        "Sign in required — the server has no session for this request. Refresh the page and sign in again.",
-        { autoClose: agentToastMs.errShort },
-      );
-      addMessage(
-        "assistant",
-        "You need an active server session to use the agent. If you already signed in, refresh the page (session may have expired or cookies may not have reached the API).",
-      );
+    if (isAgentAuthFailure(err)) {
+      handleAgentAuthRequired(err, { redirect: false });
       return;
     }
     // A demo step must never render a raw backend error string. Map the BFF
@@ -7254,8 +7278,19 @@ export default function BankingAgent({
           });
         }
       }
+    } else if (isAgentAuthFailure(response)) {
+      // Overnight demo-step resume: must not drop _status/need_auth into reportNlFailure
+      handleAgentAuthRequired(response, { redirect: false });
     } else if (response.error || !response.success) {
-      reportNlFailure({ code: response.error || "unknown", message: response.reply || response.message || response.error });
+      reportNlFailure({
+        code: response.error || "unknown",
+        error: response.error,
+        message: response.reply || response.message || response.error,
+        _status: response._status,
+        statusCode: response._status,
+        need_auth: response.need_auth,
+        requiresLogin: response.requiresLogin,
+      });
       // Failure path must still update Token Chain / TraceRail — that is where
       // demo operators diagnose exchange/Authorize/gateway breaks. Success and
       // HITL/DENY branches already append; skipping here left the rail blank.
