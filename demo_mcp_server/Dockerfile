@@ -2,7 +2,7 @@
 # Multi-stage build for production optimization
 
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -26,7 +26,7 @@ RUN npm prune --production
 
 # Production stage
 ARG GIT_SHA=unknown
-FROM node:20-alpine AS production
+FROM node:22-alpine AS production
 ENV GIT_SHA=$GIT_SHA
 
 # Create app user for security

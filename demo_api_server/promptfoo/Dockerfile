@@ -1,7 +1,7 @@
 # Always-on promptfoo sidecar for banking step-narration eval.
 # Build context: demo_api_server/promptfoo/
 # Stays idle in core compose; run eval via: ./run-docker.sh promptfoo
-FROM node:20-alpine
+FROM node:22-alpine
 
 RUN npm install -g promptfoo@0.121.19 --no-audit --no-fund \
   && npm cache clean --force
