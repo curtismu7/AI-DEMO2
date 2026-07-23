@@ -28,4 +28,5 @@ exec "$PY" -m pytest \
   tests/test_build_codegraph.py \
   tests/test_ensure_index.py \
   tests/test_codegraph_metadata.py \
+  tests/test_retrieve.py \
   -q --tb=short "$@"
