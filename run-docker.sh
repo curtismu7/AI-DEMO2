@@ -373,19 +373,60 @@ _clear_8090_squatter() {
   fi
 }
 
-# Swap mode: only ONE tier is loaded at a time ("smallest that does the job").
-# The tier-manager daemon on :8097 performs swaps when the router (in the
-# llm-proxy container) asks for a bigger model; startup loads just the manager
-# and the smallest tier.
+# Swap / residency: the tier-manager daemon on :8097 starts host llama-server
+# processes when the llm-proxy container asks. Policy (residencyPolicy.js via
+# apply-residency-policy.sh) runs automatically:
+#   ≥32GB → dual 8091,8096 (phi + gpt-oss, no swap eviction)
+#   <32GB → refuse dual, pin :8091 (24GB Air strategy B)
+#   LLM_PROXY_FORCE_DUAL=1 overrides the refuse
+#   LLM_PROXY_RESIDENT_TIERS= (empty) → classic one-tier swap
+# Bind host tiers on 0.0.0.0 so Docker can reach them via host.docker.internal.
+# PingAWS/k8s: one-tier Deployments via tier-manager-k8 (not this host path).
 _TIER_MANAGER_PIDFILE="/tmp/demo-tier-manager.pid"
+_LLM_RESIDENT_TIERS=""
+_LLM_PIN_TIER="${LLM_PROXY_PIN_TIER:-}"
+_LLAMA_LISTEN_HOST="${LLAMA_ARG_HOST:-0.0.0.0}"
 _manager_up() { curl -sf --max-time 2 http://127.0.0.1:8097/health >/dev/null 2>&1; }
 
-_start_tier_manager() {
-  _manager_up && return 0
-  nohup node "$(dirname "$_TIERS_SCRIPT")/tier-manager.js" > /tmp/demo-tier-manager.log 2>&1 &
+# Apply RAM policy → _LLM_RESIDENT_TIERS / _LLM_PIN_TIER (also exported for compose).
+_apply_llm_residency_policy() {
+  # shellcheck source=demo_llm_proxy/apply-residency-policy.sh
+  source "$(dirname "$_TIERS_SCRIPT")/apply-residency-policy.sh"
+  apply_llm_residency_policy "$(dirname "$_TIERS_SCRIPT")"
+  _LLM_RESIDENT_TIERS="${LLM_PROXY_RESIDENT_TIERS:-}"
+  _LLM_PIN_TIER="${LLM_PROXY_PIN_TIER:-}"
+  _LLAMA_LISTEN_HOST="${LLAMA_ARG_HOST:-0.0.0.0}"
+  if [[ "${_LLM_RESIDENCY_MODE:-}" == "pin-phi" || "${_LLM_RESIDENCY_MODE:-}" == "pin" ]]; then
+    warn "${_LLM_RESIDENCY_REASON:-low-RAM pin}"
+  else
+    ok "${_LLM_RESIDENCY_REASON:-llm residency policy applied}"
+  fi
+}
+
+# Always (re)start so a stale manager without RESIDENT_TIERS cannot keep running.
+_restart_tier_manager() {
+  if [[ -f "$_TIER_MANAGER_PIDFILE" ]]; then
+    kill "$(cat "$_TIER_MANAGER_PIDFILE")" 2>/dev/null || true
+    rm -f "$_TIER_MANAGER_PIDFILE"
+  fi
+  # Clear a manager started outside this script (same port).
+  local old
+  old=$(lsof -nP -iTCP:8097 -sTCP:LISTEN 2>/dev/null | awk 'NR>1 {print $2}' | sort -u) || true
+  if [[ -n "$old" ]]; then
+    kill $old 2>/dev/null || true
+    sleep 1
+  fi
+  LLM_PROXY_RESIDENT_TIERS="${_LLM_RESIDENT_TIERS}" \
+  LLAMA_ARG_HOST="${_LLAMA_LISTEN_HOST}" \
+    nohup node "$(dirname "$_TIERS_SCRIPT")/tier-manager.js" > /tmp/demo-tier-manager.log 2>&1 &
   echo $! > "$_TIER_MANAGER_PIDFILE"
   local i=0; while [[ $i -lt 10 ]]; do _manager_up && return 0; sleep 1; (( i++ )) || true; done
   return 1
+}
+
+_start_tier_manager() {
+  _manager_up && return 0
+  _restart_tier_manager
 }
 
 start_llamacpp() {
@@ -435,9 +476,28 @@ start_llamacpp() {
   fi
   command -v llama-server >/dev/null 2>&1 || { warn "llama-server not installed — local LLM tiers disabled (brew install llama.cpp)"; return 0; }
   _clear_8090_squatter
-  _start_tier_manager || warn "tier-manager failed to start — model swapping disabled (log: /tmp/demo-tier-manager.log)"
-  # Load only the smallest tier; the router swaps up on demand and decays back.
-  if bash "$_TIERS_SCRIPT" ensure-available; then
+  _apply_llm_residency_policy
+  export LLAMA_ARG_HOST="${_LLAMA_LISTEN_HOST}"
+  export LLM_PROXY_RESIDENT_TIERS="${_LLM_RESIDENT_TIERS}"
+  export LLM_PROXY_PIN_TIER="${_LLM_PIN_TIER}"
+  # Fresh manager so RESIDENT_TIERS / LLAMA_ARG_HOST always match this start.
+  _restart_tier_manager || warn "tier-manager failed to start — model swapping disabled (log: /tmp/demo-tier-manager.log)"
+  # oMLX/mlx paths stop llm-proxy; bring it back when we fall through to llama.cpp.
+  # Compose picks up LLM_PROXY_* from the exported env above.
+  docker compose "${COMPOSE_FILES[@]}" up -d --no-deps llm-proxy 2>/dev/null || true
+  if [[ -n "${_LLM_RESIDENT_TIERS}" ]]; then
+    if bash "$_TIERS_SCRIPT" ensure-set "${_LLM_RESIDENT_TIERS}"; then
+      ok "tier-manager on :8097, resident tiers ${_LLM_RESIDENT_TIERS} (host ${_LLAMA_LISTEN_HOST}) — llm-proxy :8090"
+    else
+      warn "resident tiers failed — verify GGUFs: bash demo_llm_proxy/download-models.sh (logs: /tmp/llama-models/)"
+    fi
+  elif [[ -n "${_LLM_PIN_TIER}" ]]; then
+    if bash "$_TIERS_SCRIPT" ensure "${_LLM_PIN_TIER}"; then
+      ok "tier-manager on :8097, pinned :${_LLM_PIN_TIER} (host ${_LLAMA_LISTEN_HOST}) — llm-proxy :8090"
+    else
+      warn "pinned tier :${_LLM_PIN_TIER} failed — verify GGUFs: bash demo_llm_proxy/download-models.sh (logs: /tmp/llama-models/)"
+    fi
+  elif bash "$_TIERS_SCRIPT" ensure-available; then
     ok "tier-manager on :8097, smallest tier loaded (:8091) — llm-proxy container serves :8090 and swaps on demand"
   else
     warn "smallest tier failed to start — verify GGUFs: bash demo_llm_proxy/download-models.sh (logs: /tmp/llama-models/)"
