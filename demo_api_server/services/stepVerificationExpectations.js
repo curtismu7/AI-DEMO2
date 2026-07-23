@@ -7,7 +7,11 @@
  * parallel hand-maintained matrix.
  */
 
+const fs = require('fs');
+const path = require('path');
 const { USE_CASES, resolveUseCase } = require('../config/useCases.js');
+
+const GOLDENS_ROOT = path.resolve(__dirname, '..', 'data', 'goldens');
 
 /** Heuristic ACTION → MCP tool (keep in sync with tests/helpers/actionToTool.js). */
 const ACTION_TO_TOOL = {
@@ -185,12 +189,84 @@ function scoreTokenChainDetail(tokenEvents, { requireFailureEvent = false } = {}
   return { ok: true, reason: null };
 }
 
+/**
+ * Load a banking (or other vertical) golden by catalog UC id (`ucId` or useCaseId).
+ * @param {string} vertical
+ * @param {string} ucId
+ * @returns {object|null}
+ */
+function loadGoldenByUcId(vertical, ucId) {
+  if (!vertical || !ucId) return null;
+  const dir = path.join(GOLDENS_ROOT, vertical);
+  if (!fs.existsSync(dir)) return null;
+  for (const name of fs.readdirSync(dir)) {
+    if (!name.endsWith('.json')) continue;
+    try {
+      const g = JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8'));
+      if (g.ucId === ucId || g.useCaseId === ucId) return g;
+    } catch (_) {
+      /* skip malformed */
+    }
+  }
+  return null;
+}
+
+/**
+ * Hybrid agent-reply check (step-verification check 4 — narration contract):
+ * - `exact`: gate education strings must match the golden `reply` verbatim
+ * - `grounded`: read replies must contain at least one live account balance
+ *
+ * @param {{
+ *   reply: string|null|undefined,
+ *   style: 'exact'|'grounded',
+ *   expectedReply?: string|null,
+ *   liveAccounts?: Array<{ balance?: number|string }>,
+ * }} opts
+ * @returns {{ ok: boolean, reason: string|null }}
+ */
+function scoreAgentReply({ reply, style, expectedReply = null, liveAccounts = null } = {}) {
+  const text = typeof reply === 'string' ? reply : (reply == null ? '' : String(reply));
+  if (!text.trim()) {
+    return { ok: false, reason: 'empty_reply' };
+  }
+
+  if (style === 'exact') {
+    if (expectedReply == null || String(expectedReply).trim() === '') {
+      return { ok: false, reason: 'missing_expected_reply' };
+    }
+    if (text.trim() !== String(expectedReply).trim()) {
+      return { ok: false, reason: 'reply_mismatch' };
+    }
+    return { ok: true, reason: null };
+  }
+
+  if (style === 'grounded') {
+    const accounts = Array.isArray(liveAccounts) ? liveAccounts : [];
+    if (accounts.length === 0) {
+      return { ok: false, reason: 'no_live_accounts' };
+    }
+    const grounded = accounts.some((a) => {
+      if (a == null || a.balance == null || a.balance === '') return false;
+      return text.includes(String(a.balance));
+    });
+    if (!grounded) {
+      return { ok: false, reason: 'reply_ungrounded' };
+    }
+    return { ok: true, reason: null };
+  }
+
+  return { ok: false, reason: 'unknown_reply_style' };
+}
+
 module.exports = {
   OUTCOME_TO_GATE,
+  GOLDENS_ROOT,
   amountFromChipText,
   normalizeParsedIntent,
   expectationFromUseCase,
   bankingWorksChipExpectations,
   bankingAmountGateExpectations,
   scoreTokenChainDetail,
+  loadGoldenByUcId,
+  scoreAgentReply,
 };

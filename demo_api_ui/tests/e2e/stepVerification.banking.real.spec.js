@@ -21,6 +21,8 @@ const {
   bankingAmountGateExpectations,
   normalizeParsedIntent,
   scoreTokenChainDetail,
+  loadGoldenByUcId,
+  scoreAgentReply,
 } = require('../../../demo_api_server/services/stepVerificationExpectations');
 
 /** First works-maturity banking chip whose primaryTool reads accounts/balance. */
@@ -210,6 +212,21 @@ function scoreAmountGate({ nlStatus, nlBody, msgStatus, msgBody, expectation }) 
     }
   }
 
+  // Gate chips: agent reply must match golden education copy exactly.
+  if (checkStatus === 'PASS' && expectation.gate) {
+    const ucId = expectation.id || expectation.useCaseId;
+    const golden = loadGoldenByUcId('banking', ucId);
+    const replyScore = scoreAgentReply({
+      reply: msgBody?.reply || msgBody?.message || '',
+      style: 'exact',
+      expectedReply: golden?.reply,
+    });
+    if (!replyScore.ok) {
+      checkStatus = 'FAIL';
+      errorClass = 'wrong_response';
+    }
+  }
+
   return { checkStatus, errorClass, normalized };
 }
 
@@ -257,7 +274,7 @@ test.describe('Step verification — banking (real login, live stack)', () => {
       });
     }
 
-    test('accounts/balance chip: values match /api/accounts/my (check 4)', async ({ page }) => {
+    test('accounts/balance chip: tool + agent reply grounded in /api/accounts/my (check 4)', async ({ page }) => {
       const readChip = findBankingReadChip();
       test.skip(!readChip, 'No works-maturity banking chip routes to an accounts/balance read tool');
 
@@ -274,11 +291,12 @@ test.describe('Step verification — banking (real login, live stack)', () => {
           ? { account_id: liveAccounts[0].id }
           : {};
       const { status, body } = await callMcpTool(page, readChip.primaryTool, toolParams);
+      const msg = await dispatchInvoke(page, readChip.text, readChip.id);
 
       let checkStatus = 'PASS';
       let errorClass = null;
 
-      if (status !== 200) {
+      if (status !== 200 || msg.status >= 500) {
         checkStatus = 'FAIL';
         errorClass = 'server_error';
       } else {
@@ -287,6 +305,16 @@ test.describe('Step verification — banking (real login, live stack)', () => {
         if (!anyBalanceGrounded) {
           checkStatus = 'FAIL';
           errorClass = 'wrong_response';
+        } else {
+          const replyScore = scoreAgentReply({
+            reply: msg.body?.reply || msg.body?.message || '',
+            style: 'grounded',
+            liveAccounts,
+          });
+          if (!replyScore.ok) {
+            checkStatus = 'FAIL';
+            errorClass = 'wrong_response';
+          }
         }
       }
 
