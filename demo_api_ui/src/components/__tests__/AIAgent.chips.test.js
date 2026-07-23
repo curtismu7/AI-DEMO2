@@ -1132,6 +1132,30 @@ describe("agent failure envelopes render a plain sentence, not the raw error", (
     });
     expect(screen.queryByText(/ECONNRESET/i)).not.toBeInTheDocument();
   });
+
+  // Regression: "my gear" → list_gear → token exchange failed with
+  // delegation_chain_broken → UI showed "Could not parse: ❌ Delegation chain
+  // validation failed." instead of a friendly sentence.
+  it("maps delegation_chain_broken to a friendly sentence, not the raw error", async () => {
+    await mockAgentFailure({
+      success: false,
+      error: "delegation_chain_broken",
+      reply: "❌ Delegation chain validation failed.",
+    });
+    renderAgent({ user: customerUser, mode: "inline" });
+    const input = screen.getByPlaceholderText(/^Message |^Ask about/);
+    fireEvent.change(input, { target: { value: "my gear" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Token exchange failed/i),
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Could not parse/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Delegation chain validation failed/i),
+    ).not.toBeInTheDocument();
+  });
 });
 
 // ─── Chip useCaseId → dispatchNlResult → sendAgentMessage ────────────────────
