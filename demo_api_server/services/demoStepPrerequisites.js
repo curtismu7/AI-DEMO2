@@ -2,8 +2,9 @@
 'use strict';
 
 /**
- * Demo-step runtime prerequisites — flags a chip/use-case needs armed, and
- * (for A2A) whether Agent 2 PingOne credentials are loaded into config.
+ * Demo-step runtime prerequisites — flags a chip/use-case needs armed,
+ * (for A2A) whether Agent 2 PingOne credentials are loaded into config, and
+ * (for PAR / intent-binding) whether PingOne PAR (RFC 9126) client settings exist.
  *
  * Catalog SoT for flag-gated maturity (`flag:<id>`). Extra flags that are
  * required even when maturity is `works` (e.g. UC2.5 → ff_a2a_delegation)
@@ -21,6 +22,23 @@ const A2A_USE_CASE_IDS = new Set([
   'a2a-delegation',
   'a2a-orchestrator-learning',
 ]);
+
+/**
+ * Use-case slugs whose live path pushes to PingOne PAR (RFC 9126).
+ * Matches routes/intentBinding.js live-mode requirements.
+ */
+const PAR_USE_CASE_IDS = new Set([
+  'rar-intent-violation',
+  'rar-intent-verified',
+]);
+
+/** Config keys required for live PAR push (intent-binding learning page). */
+const PAR_CONFIG_KEYS = [
+  'pingone_par_endpoint',
+  'pingone_ai_agent_actor_client_id',
+  'pingone_ai_agent_actor_client_secret',
+  'pingone_ai_agent_actor_redirect_uri',
+];
 
 /**
  * Flags that must stay ON for any MCP tool chip. When both are off, Exchange #2
@@ -95,6 +113,40 @@ function needsA2aCredentials(uc) {
 }
 
 /**
+ * Whether this use case's live path requires PingOne PAR (RFC 9126) config.
+ * @param {object|null|undefined} uc
+ * @returns {boolean}
+ */
+function needsParConfig(uc) {
+  if (!uc) return false;
+  if (PAR_USE_CASE_IDS.has(uc.useCaseId)) return true;
+  const t = uc.trigger || {};
+  if (t.type === 'attack' && t.sim === 'rar-exceeded') return true;
+  if (t.type === 'link' && typeof t.path === 'string' && t.path.includes('intent-binding')) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Check PingOne PAR client settings are loaded (endpoint + actor app + redirect).
+ * @param {{ getEffective: (k: string) => * }} cfg configStore-like
+ * @returns {{ required: boolean, ok: boolean, missing: string[] }}
+ */
+function checkParConfig(cfg) {
+  const missing = [];
+  for (const key of PAR_CONFIG_KEYS) {
+    const v = cfg && typeof cfg.getEffective === 'function' ? cfg.getEffective(key) : null;
+    if (!v || !String(v).trim()) missing.push(key);
+  }
+  return {
+    required: true,
+    ok: missing.length === 0,
+    missing,
+  };
+}
+
+/**
  * Check Agent 2 client id/secret are loaded for the vertical's specialist.
  * @param {string} vertical
  * @param {{ getEffective: (k: string) => * }} cfg configStore-like
@@ -139,6 +191,7 @@ function checkChipPrerequisites(uc, vertical, cfg) {
   const requiredFlags = requiredFlagsForUseCase(uc);
   const errors = [];
   let a2a = null;
+  let par = null;
   for (const flag of requiredFlags) {
     const v = cfg && typeof cfg.getEffective === 'function' ? cfg.getEffective(flag) : null;
     if (!isFlagOn(v)) {
@@ -154,22 +207,33 @@ function checkChipPrerequisites(uc, vertical, cfg) {
       );
     }
   }
+  if (needsParConfig(uc)) {
+    par = checkParConfig(cfg);
+    if (par.required && !par.ok) {
+      errors.push(`PAR config missing (${par.missing.join(', ')})`);
+    }
+  }
   return {
     ok: errors.length === 0,
     requiredFlags,
     a2a,
+    par,
     errors,
   };
 }
 
 module.exports = {
   A2A_USE_CASE_IDS,
+  PAR_USE_CASE_IDS,
+  PAR_CONFIG_KEYS,
   MCP_GATEWAY_RUNTIME_FLAGS,
   needsMcpGatewayRuntime,
   requiredFlagsForUseCase,
   requiredFlagsForUseCaseId,
   needsA2aCredentials,
   checkA2aCredentials,
+  needsParConfig,
+  checkParConfig,
   checkChipPrerequisites,
   isFlagOn,
 };

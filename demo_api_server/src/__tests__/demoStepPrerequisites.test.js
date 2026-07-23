@@ -7,7 +7,10 @@ const {
   requiredFlagsForUseCaseId,
   needsA2aCredentials,
   checkA2aCredentials,
+  needsParConfig,
+  checkParConfig,
   checkChipPrerequisites,
+  PAR_CONFIG_KEYS,
 } = require('../../services/demoStepPrerequisites');
 
 describe('demoStepPrerequisites', () => {
@@ -91,5 +94,49 @@ describe('demoStepPrerequisites', () => {
       ]),
     );
     expect(needsA2aCredentials(uc)).toBe(false);
+  });
+
+  test('UC14 / UC14b require PingOne PAR (RFC 9126) config', () => {
+    const violation = resolveUseCase('UC14', 'banking');
+    const verified = resolveUseCase('UC14b', 'banking');
+    expect(needsParConfig(violation)).toBe(true);
+    expect(needsParConfig(verified)).toBe(true);
+    expect(PAR_CONFIG_KEYS).toEqual(
+      expect.arrayContaining([
+        'pingone_par_endpoint',
+        'pingone_ai_agent_actor_client_id',
+        'pingone_ai_agent_actor_client_secret',
+        'pingone_ai_agent_actor_redirect_uri',
+      ]),
+    );
+  });
+
+  test('checkParConfig fails when PAR endpoint or actor redirect is empty', () => {
+    const cfg = {
+      getEffective: (k) => (
+        k === 'pingone_ai_agent_actor_client_id' || k === 'pingone_ai_agent_actor_client_secret'
+          ? 'set'
+          : ''
+      ),
+    };
+    const r = checkParConfig(cfg);
+    expect(r.ok).toBe(false);
+    expect(r.missing).toEqual(
+      expect.arrayContaining([
+        'pingone_par_endpoint',
+        'pingone_ai_agent_actor_redirect_uri',
+      ]),
+    );
+  });
+
+  test('checkChipPrerequisites aggregates missing PAR config for UC14b', () => {
+    const uc = resolveUseCase('UC14b', 'banking');
+    const cfg = {
+      getEffective: (k) => (typeof k === 'string' && k.startsWith('ff_') ? true : null),
+    };
+    const r = checkChipPrerequisites(uc, 'banking', cfg);
+    expect(r.ok).toBe(false);
+    expect(r.errors.join(' ')).toMatch(/PAR config missing/);
+    expect(r.errors.join(' ')).toMatch(/pingone_par_endpoint/);
   });
 });

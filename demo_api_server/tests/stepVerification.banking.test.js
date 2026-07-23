@@ -28,6 +28,7 @@ const {
   requiredFlagsForUseCase,
   checkChipPrerequisites,
   needsA2aCredentials,
+  needsParConfig,
 } = require('../services/demoStepPrerequisites');
 
 const _cfg = { ff_authorize_fail_open: 'true' };
@@ -79,17 +80,22 @@ const fakeReq = () => ({
 });
 
 /**
- * Every banking chip use case (works + flag-gated) — prerequisite coverage.
- * Includes A2A chips the routing suite skips.
+ * Banking demo steps that need prerequisite coverage: every chip (works +
+ * flag-gated), plus PAR / intent-binding steps (link + attack) that are not
+ * chip-triggered but still require live PingOne PAR config.
  */
 function bankingChipPrerequisiteCases() {
   const out = [];
+  const seen = new Set();
   for (const u of USE_CASES) {
     const uc = resolveUseCase(u.id, 'banking') || u;
     const mat = uc.maturity || '';
     if (mat !== 'works' && !String(mat).startsWith('flag:')) continue;
     const t = uc.trigger || {};
-    if (t.type !== 'chip' || !t.text) continue;
+    const isChip = t.type === 'chip' && t.text;
+    if (!isChip && !needsParConfig(uc)) continue;
+    if (seen.has(uc.id)) continue;
+    seen.add(uc.id);
     out.push(uc);
   }
   return out;
@@ -205,11 +211,11 @@ describe('step verification — reference-only banking use cases', () => {
   );
 });
 
-describe('step verification — banking chip prerequisites (flags + A2A creds)', () => {
+describe('step verification — banking chip prerequisites (flags + A2A + PAR)', () => {
   const cases = bankingChipPrerequisiteCases();
 
   // Jest setup isolates LMDB and does not load demo_api_server/.env — pull
-  // Agent 2 credentials from .env so this suite matches the running demo.
+  // Agent 2 / PAR credentials from .env so this suite matches the running demo.
   beforeAll(() => {
     require('dotenv').config({
       path: require('path').join(__dirname, '..', '.env'),
@@ -217,23 +223,24 @@ describe('step verification — banking chip prerequisites (flags + A2A creds)',
     });
   });
 
-  test('covers flag-gated and A2A chip use cases', () => {
+  test('covers flag-gated, A2A, and PAR (intent-binding) use cases', () => {
     expect(cases.some((c) => String(c.maturity).startsWith('flag:'))).toBe(true);
     expect(cases.some((c) => needsA2aCredentials(c))).toBe(true);
+    expect(cases.some((c) => needsParConfig(c))).toBe(true);
   });
 
   test.each(cases.map((c) => [c.id, c]))(
-    '%s: required flags declared; A2A creds when needed (gateway flags assumed on offline)',
+    '%s: required flags declared; A2A/PAR creds when needed (gateway flags assumed on offline)',
     (_id, uc) => {
       const requiredFlags = requiredFlagsForUseCase(uc);
       expect(requiredFlags.length).toBeGreaterThan(0);
       // Offline Jest does not share the docker LMDB flag store. Gateway flags are
       // asserted live (e2e setDemoRuntimeFlags + ensureRequiredDemoFlags). Here we
-      // only prove catalog wiring + A2A credential readiness.
+      // only prove catalog wiring + A2A/PAR credential readiness.
       const cfg = {
         getEffective: (k) => {
           // Offline: assume every catalog-declared feature flag is armed so this
-          // suite proves wiring + A2A creds, not the live LMDB flag store.
+          // suite proves wiring + A2A/PAR creds, not the live LMDB flag store.
           if (typeof k === 'string' && k.startsWith('ff_')) return true;
           return realConfigStore.getEffective(k);
         },
@@ -242,11 +249,13 @@ describe('step verification — banking chip prerequisites (flags + A2A creds)',
       const prereq = checkChipPrerequisites(uc, 'banking', cfg);
       const status = prereq.ok ? 'PASS' : 'FAIL';
       const errorClass = prereq.ok ? null : 'missing_prereq';
+      const t = uc.trigger || {};
+      const triggerType = t.type === 'chip' ? 'chip' : (t.type || 'chip');
 
       writeLedgerEntry({
         vertical: 'banking',
         useCaseId: uc.id,
-        triggerType: 'chip',
+        triggerType,
         mode: 'unit-prereq',
         status,
         errorClass,
