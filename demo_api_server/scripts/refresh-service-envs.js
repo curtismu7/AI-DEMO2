@@ -250,6 +250,13 @@ async function main() {
     HITL_INTERNAL_SECRET:     fb('HITL_INTERNAL_SECRET'),
     PINGONE_AI_AGENT_ACTOR_CLIENT_ID:     creds.aiAgentClientId,
     PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET: creds.aiAgentSecret,
+    PINGONE_AI_AGENT_ACTOR_REDIRECT_URI: (() => {
+      const explicit = fb('PINGONE_AI_AGENT_ACTOR_REDIRECT_URI');
+      if (explicit) return explicit;
+      const base = String(fb('PUBLIC_APP_URL') || fb('PINGONE_PUBLIC_APP_URL') || '').replace(/\/+$/, '');
+      return base ? `${base}/api/auth/oauth/ai-agent-placeholder-callback` : '';
+    })(),
+    OAUTH_PAR_ENDPOINT: fb('OAUTH_PAR_ENDPOINT') || fb('PINGONE_PAR_ENDPOINT') || `${asBase}/par`,
     PINGONE_TOKEN_EXCHANGER_CLIENT_ID:    creds.mcpExchangerClientId,
     PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET: creds.mcpExchangerSecret,
     ff_admin_token_exchange:              fb('ff_admin_token_exchange') || 'true',

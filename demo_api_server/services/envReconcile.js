@@ -68,6 +68,7 @@ const ENV_SCOPED_KEYS = new Set([
   'pingone_introspection_endpoint', 'pingone_introspection_client_id', 'pingone_introspection_client_secret',
   'oauth_authorization_endpoint', 'oauth_token_endpoint', 'oauth_userinfo_endpoint',
   'oauth_jwks_uri', 'oauth_issuer', 'oauth_discovery_endpoint',
+  'oauth_par_endpoint', 'pingone_par_endpoint',
   // per-env identity data
   'admin_population_id', 'pingone_mfa_policy_id',
   // private_key_jwt credentials for BFF admin client (tied to the PingOne app's JWK config)
