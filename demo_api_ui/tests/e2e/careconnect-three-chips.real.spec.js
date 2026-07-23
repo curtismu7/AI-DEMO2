@@ -65,6 +65,8 @@ test.describe('CareConnect — three chips (real)', () => {
   });
 
   test.afterAll(async () => {
+    // Admin restore also resets the process-global default (end-user POST is session-only).
+    await activateVertical(adminApi, 'banking').catch(() => {});
     await activateVertical(customerApi, 'banking').catch(() => {});
     await customerCtx?.close().catch(() => {});
     await adminCtx?.close().catch(() => {});

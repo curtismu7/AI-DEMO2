@@ -1,0 +1,11 @@
+{
+  "vertical": "banking",
+  "useCaseId": "UC22",
+  "triggerType": "chip",
+  "mode": "unit-ref",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "create_transfer",
+  "checkedAt": "2026-07-22T22:22:34.646Z",
+  "verifiedBy": "demo_api_server/src/__tests__/ciba.test.js, cibaService.test.js, cibaSimulatedService.test.js"
+}

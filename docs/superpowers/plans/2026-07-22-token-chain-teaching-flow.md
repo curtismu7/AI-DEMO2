@@ -52,7 +52,7 @@ Every expanded step should read as:
 
 1. ✅ 2-exchange `exchangeRequest` preserved on success (#727).
 2. Authorize step: if BFF `authorize-decision` / `ingestAuthorize` missing but `gw-authorize` present, treat gateway authorize as the teaching evidence so L1/L2 are not blank.
-3. (Follow-up) MCP deny paths should still publish attempted `requestJson` + error body.
+3. ✅ MCP deny paths publish attempted `requestJson` + error body (SSE + HTTP body + TraceRail).
 
 ## Phases
 
@@ -61,7 +61,7 @@ Every expanded step should read as:
 | **A** | `detail.why` for key steps; authorize←gw-authorize fallback | Vitest asserts `why` + authorize request text from `gw-authorize` | ✅ |
 | **B** | TraceStepCard: collapse evidence; pop-out CTA | Unit test: evidence in `<details>`; pop-out button present when evidence exists | ✅ |
 | **C** | L0 `buildRunStory(trace, steps)` strip on rail | Vitest for story text; strip visible in TraceRail | ✅ |
-| **D** | (Follow-up) MCP evidence on deny; richer why copy per UC | Separate PR |
+| **D** | MCP evidence on deny; first-class introspection + JWKS steps; richer sign-in | Vitest for deny request/response; introspection/jwks/signin evidence | ✅ |
 
 ## Do not break
 

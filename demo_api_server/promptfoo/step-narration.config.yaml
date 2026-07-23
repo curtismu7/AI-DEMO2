@@ -1,0 +1,62 @@
+# demo_api_server/promptfoo/step-narration.config.yaml
+description: "Banking step narration — LLM grounding/hallucination check (Phase 1, banking)"
+
+# Both providers stay listed. Default `npm run promptfoo:step-narration` filters
+# to Phi (fits laptops / Metal VRAM). On larger hosts run
+# `npm run promptfoo:step-narration:full` to grade gpt-oss-20b too — that tier
+# OOMs on typical 16–24GB Apple Silicon at default --n-gpu-layers 33 + 8k ctx.
+#
+# apiBaseUrl is intentionally omitted — promptfoo falls through to
+# OPENAI_API_BASE_URL / OPENAI_BASE_URL so the same config works on the host
+# (localhost:8090) and in Docker (llm-proxy:8090).
+providers:
+  - id: openai:chat:phi-4-mini-instruct
+    config:
+      apiKey: not-needed
+  - id: openai:chat:gpt-oss-20b
+    config:
+      apiKey: not-needed
+
+# llm-rubric must grade via the local proxy — default OpenAI cloud rejects apiKey: not-needed.
+defaultTest:
+  options:
+    provider:
+      id: openai:chat:phi-4-mini-instruct
+      config:
+        apiKey: not-needed
+
+prompts:
+  - |
+    You are the banking demo's narration assistant. A tool call just returned
+    the following JSON result for the user's request. Reply with ONE short
+    sentence describing the result. Use ONLY the numbers present in the JSON
+    below — never estimate, round, or invent a different figure.
+    Copy numeric amounts exactly as written in the JSON (e.g. 2500 not 2,500);
+    do not insert thousands separators.
+
+    Tool result: {{tool_result}}
+
+tests:
+  - vars:
+      tool_result: '{"action":"get_account_balance","accountType":"CHECKING","balance":2857.48}'
+    assert:
+      # Optional thousands separator — models often emit $2,857.48
+      - type: regex
+        value: "2,?857\\.48"
+      - type: llm-rubric
+        value: "The reply does not state any dollar figure other than 2857.48 (commas in 2,857.48 are fine)."
+  - vars:
+      tool_result: '{"action":"create_transfer","status":"HITL_REQUIRED","amount":300,"fromAccountType":"CHECKING","toAccountType":"SAVINGS"}'
+    assert:
+      - type: contains
+        value: "300"
+      - type: llm-rubric
+        value: "The reply says the transfer requires human approval/consent before it runs — it does not claim the transfer already completed."
+  - vars:
+      tool_result: '{"action":"create_transfer","status":"DENY","amount":2500,"reason":"exceeds_transfer_limit"}'
+    assert:
+      # Optional thousands separator — models often emit $2,500; Step 5 still fails on 999999
+      - type: regex
+        value: "2,?500"
+      - type: llm-rubric
+        value: "The reply clearly states the transfer was denied/blocked — it does not claim the transfer succeeded."

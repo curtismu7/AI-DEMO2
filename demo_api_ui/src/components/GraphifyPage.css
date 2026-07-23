@@ -10,7 +10,7 @@
 }
 
 .graphify-page__body {
-  max-width: 920px;
+  max-width: min(1400px, 100%);
   width: 100%;
   margin: 0 auto;
   padding: 1.5rem 1.5rem 3rem;

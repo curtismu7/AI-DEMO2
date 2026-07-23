@@ -34,6 +34,10 @@ describe('productForStep', () => {
   it('returns null for empty string', () => {
     expect(productForStep('')).toBeNull();
   });
+  it('maps a2a-agent-card to idp', () => {
+    expect(productForStep('a2a-agent-card')).toBe(PING_PRODUCTS.idp);
+  });
+
   it('maps a2a-exchange1 to idp', () => {
     expect(productForStep('a2a-exchange1')).toBe(PING_PRODUCTS.idp);
   });

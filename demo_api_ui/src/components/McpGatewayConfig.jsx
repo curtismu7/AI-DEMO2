@@ -10,6 +10,7 @@ import McpTrafficPage from "./McpTrafficPage";
 import TokenSecurityTester from "./TokenSecurityTester";
 import CapabilityCallout from "./CapabilityCallout";
 import { AGENT_GATEWAY_CAPABILITIES } from "../config/capabilityLedgers/agentGatewayCapabilities";
+import AgentGatewayCapabilitiesPage from "../pages/AgentGatewayCapabilitiesPage";
 import { useMcpFieldState } from "../hooks/useMcpFieldState";
 import { useGatewayLiveConfig } from "../hooks/useGatewayLiveConfig";
 import { MCP_FIELD_KEYS } from "../constants/mcpFieldKeys";
@@ -17,7 +18,7 @@ import { McpFieldProvider } from "../context/McpFieldContext";
 
 const API_BASE = process.env.REACT_APP_API_BASE || "";
 
-const MGC_TABS = ["mock", "real", "env", "docs", "json", "tester", "logs", "traffic", "tokensecurity"];
+const MGC_TABS = ["mock", "real", "env", "docs", "json", "tester", "logs", "traffic", "tokensecurity", "capabilities"];
 
 function StatusBadge({ running, devBypass, enabled }) {
 	if (!enabled) return <span className="mgc-badge mgc-badge--off">Disabled</span>;
@@ -82,7 +83,7 @@ function McpGatewayConfigInner() {
 		initialSubtab && MGC_TABS.includes(initialSubtab) ? initialSubtab : "mock",
 	);
 
-	// Deep-link from AdminSideNav "Gateway Tester" → /configure?tab=mcp-gateway&subtab=tester
+	// Deep-link from AdminSideNav / ?subtab=tester → Agent Gateway Tester tab
 	useEffect(() => {
 		const subtab = searchParams.get("subtab");
 		if (subtab && MGC_TABS.includes(subtab)) {
@@ -225,7 +226,7 @@ function McpGatewayConfigInner() {
 		<div className="mgc-root">
 			<CapabilityCallout
 				capability={AGENT_GATEWAY_CAPABILITIES.find((c) => c.id === "audit-logging")}
-				to="/agent-gateway-capabilities"
+				to="/pinggateway-inspector?subtab=capabilities"
 			/>
 			<div className="mgc-header">
 				<div>
@@ -247,13 +248,13 @@ function McpGatewayConfigInner() {
 					className={`mgc-tab mgc-tab--highlight ${activeTab === "real" ? "mgc-tab--active" : ""}`}
 					onClick={() => setActiveTab("real")}
 				>
-					Real PingOne Agent Gateway (Prod)
+					Agent Gateway
 				</button>
 				<button
 					className={`mgc-tab ${activeTab === "tester" ? "mgc-tab--active" : ""}`}
 					onClick={() => setActiveTab("tester")}
 				>
-					Gateway Tester
+					Agent Gateway Tester
 				</button>
 				<button
 					className={`mgc-tab ${activeTab === "env" ? "mgc-tab--active" : ""}`}
@@ -283,13 +284,19 @@ function McpGatewayConfigInner() {
 					className={`mgc-tab ${activeTab === "traffic" ? "mgc-tab--active" : ""}`}
 					onClick={() => setActiveTab("traffic")}
 				>
-					Traffic
+					MCP Tool Tester
 				</button>
 				<button
 					className={`mgc-tab ${activeTab === "tokensecurity" ? "mgc-tab--active" : ""}`}
 					onClick={() => setActiveTab("tokensecurity")}
 				>
 					Token Security
+				</button>
+				<button
+					className={`mgc-tab ${activeTab === "capabilities" ? "mgc-tab--active" : ""}`}
+					onClick={() => setActiveTab("capabilities")}
+				>
+					Capability Tour
 				</button>
 				<button
 					className={`mgc-tab ${activeTab === "mock" ? "mgc-tab--active" : ""}`}
@@ -716,13 +723,19 @@ MCP_INVEST_RESOURCE_URI=https://mcp-invest.ping.demo
 				</div>
 			)}
 			{activeTab === "traffic" && (
-				<div className="mgc-panel">
-					<McpTrafficPage />
+				<div className="mgc-panel mgc-panel--traffic">
+					{/* Explicit height so McpTrafficPage's height:100% / flex:1 body does not collapse to 0 */}
+					<McpTrafficPage embedded />
 				</div>
 			)}
 			{activeTab === "tokensecurity" && (
 				<div className="mgc-panel">
 					<TokenSecurityTester />
+				</div>
+			)}
+			{activeTab === "capabilities" && (
+				<div className="mgc-panel">
+					<AgentGatewayCapabilitiesPage />
 				</div>
 			)}
 		</div>

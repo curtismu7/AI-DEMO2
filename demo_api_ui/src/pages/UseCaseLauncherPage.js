@@ -5,7 +5,7 @@
  * attack-type triggers: POST /api/demo/attack-sim/run when sim is in RUNNABLE_SIMS.
  * A6: runnable attack sims wired to POST /api/demo/attack-sim/run.
  * A5.2 (slim launch drawer on /agent) — NOT included here; deferred.
- * A5.3 — FF-aware run-gating + inline enable toggle.
+ * A5.3 — FF-aware notice + inline toggle; Run auto-enables required flags.
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -29,6 +29,7 @@ import {
   getCompletedUseCaseIds,
   markUseCaseCompleted,
 } from '../utils/useCaseDemoProgress';
+import { requiredFlagsForUseCase } from '../utils/requiredDemoFlags';
 import {
   DEMO_USE_CASE_IDS,
   DEMO_USE_CASE_LABEL,
@@ -440,9 +441,9 @@ function UseCaseCard({ uc, stepNumber, completed, onRun, onRunAttack, onExplain,
         {isChip && (
           <button
             type="button"
-            className={`uc-run-btn${flagGated || chipRunning ? ' uc-run-btn--disabled' : ''}`}
-            disabled={flagGated || chipRunning}
-            title={flagGated ? `Enable ${flagId} to run this scenario` : undefined}
+            className={`uc-run-btn${chipRunning ? ' uc-run-btn--disabled' : ''}`}
+            disabled={chipRunning}
+            title={flagGated ? `Will auto-enable ${flagId} on Run` : undefined}
             onClick={() => onRun(uc)}
           >
             {chipRunning ? 'Launching…' : completed ? 'Run again' : 'Run'}
@@ -612,9 +613,9 @@ function ProgressiveTrustDemoStrip({
                 </button>
                 <button
                   type="button"
-                  className={`uc-run-btn${flagGated || chipRunning ? ' uc-run-btn--disabled' : ''}`}
-                  disabled={flagGated || chipRunning}
-                  title={flagGated ? `Enable ${flagId} to run this act` : undefined}
+                  className={`uc-run-btn${chipRunning ? ' uc-run-btn--disabled' : ''}`}
+                  disabled={chipRunning}
+                  title={flagGated ? `Will auto-enable ${flagId} on Run` : undefined}
                   onClick={() => onRun(uc)}
                 >
                   {chipRunning ? 'Launching…' : completed ? 'Run act again' : 'Run act'}
@@ -736,9 +737,10 @@ export default function UseCaseLauncherPage() {
 
   const vertical = verticalId || 'banking';
 
-  // Pre-load gpt-oss while the presenter browses use cases (fire-and-forget).
+  // Pre-load the agent-brain tier while the presenter browses use cases
+  // (fire-and-forget). Honors LLM_PROXY_PIN_TIER when set.
   useEffect(() => {
-    opportunisticPrewarm('gpt-oss-20b');
+    opportunisticPrewarm();
   }, []);
 
   // Re-read progress when returning to this route (remount) or gaining focus after
@@ -787,7 +789,7 @@ export default function UseCaseLauncherPage() {
     return () => { cancelled = true; };
   }, [vertical]);
 
-  const handleRun = useCallback((uc) => {
+  const handleRun = useCallback(async (uc) => {
     if (uc.trigger?.type !== 'chip') return;
     // The backend resolves by the useCaseId slug only — uc.id (e.g. "UC1") is not accepted.
     const useCaseId = uc.useCaseId;
@@ -797,6 +799,16 @@ export default function UseCaseLauncherPage() {
       return;
     }
     setChipRun({ id: uc.id, state: 'running' });
+    // Auto-arm required flags so Run is not blocked when maturity is flag:* or A2A.
+    const flags = requiredFlagsForUseCase(uc);
+    if (flags.length) {
+      const updates = Object.fromEntries(flags.map((id) => [id, true]));
+      try {
+        await apiClient.patch('/api/admin/feature-flags', { updates });
+      } catch (e) {
+        console.warn('[handleRun] Could not auto-enable flags:', e.message);
+      }
+    }
     apiClient.post('/api/use-cases/demo/run', { useCaseId, vertical })
       .then(({ data }) => {
         // Switch to the target vertical so the dashboard loads with the correct context.

@@ -6,6 +6,38 @@
   padding: 24px;
 }
 
+.rsp-view-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.rsp-view-tab {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #94a3b8;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.rsp-view-tab:hover {
+  color: #e2e8f0;
+  border-color: #475569;
+}
+
+.rsp-view-tab--active {
+  background: #1e3a5f;
+  border-color: #3b82f6;
+  color: #f1f5f9;
+}
+
+.rsp-hero--inflow .rsp-hero-balance {
+  letter-spacing: 0.02em;
+}
+
 /* Loading */
 .rsp-loading {
   display: flex;

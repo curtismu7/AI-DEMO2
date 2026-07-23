@@ -365,12 +365,12 @@ async function getAgentRefreshToken(agentId) {
  * @param {string} reason - Reason for kill switch activation
  * @param {string} [userId] - PingOne user id, for disableUserAtPingOne
  * @param {{accessToken?: string, idToken?: string}} [oauthTokens]
- * @param {'full'|'instance'} [scope] - 'instance' skips disableAgentApplicationsAtPingOne
- *   so only THIS caller is stopped — other users of the same agent client keep working.
- *   'full' (default) also disables the agent's PingOne application(s).
+ * @param {'full'|'instance'} [scope] - 'instance' (default) skips disableAgentApplicationsAtPingOne
+ *   and disableUserAtPingOne so only THIS caller's tokens/session are stopped.
+ *   'full' also disables the agent's PingOne application(s) and the user account.
  * @returns {Promise<{success: boolean, revoked_at: string, state_snapshot_id: string, time_to_revoke_ms: number, scope: string, steps: Array}>}
  */
-async function killAgent(agentId, reason = 'manual_red_button', userId = null, oauthTokens = null, scope = 'full') {
+async function killAgent(agentId, reason = 'manual_red_button', userId = null, oauthTokens = null, scope = 'instance') {
   const startTime = Date.now();
   const steps = [];
 
@@ -395,25 +395,37 @@ async function killAgent(agentId, reason = 'manual_red_button', userId = null, o
       skipped: false,
     });
 
-    // 2. Disable the user at PingOne (belt-and-suspenders — token is revoked but user could re-login)
-    //    userId must be passed in for this to work; agentId alone is not enough.
+    // 2. Disable the user at PingOne — full scope only. Instance-only kills must
+    //    leave the human account enabled so the demo can sign back in.
     let userDisableResult = null;
-    if (killAgent._userId) {
-      userDisableResult = await disableUserAtPingOne(killAgent._userId);
+    if (scope === 'instance') {
       killAgent._userId = null;
+      steps.push({
+        key: 'user_disable',
+        label: 'Disable the PingOne user account',
+        detail: 'Skipped — instance-only scope. The human account stays enabled for re-login.',
+        ran: false,
+        skipped: true,
+        skipReason: 'instance_scope',
+      });
+    } else {
+      if (killAgent._userId) {
+        userDisableResult = await disableUserAtPingOne(killAgent._userId);
+        killAgent._userId = null;
+      }
+      steps.push({
+        key: 'user_disable',
+        label: 'Disable the PingOne user account',
+        detail: userDisableResult
+          ? (userDisableResult.disabled
+            ? 'User account disabled — cannot sign back in and mint a fresh token.'
+            : `Could not disable user account: ${userDisableResult.reason}`)
+          : 'No user id on this session — nothing to disable.',
+        ran: !!(userDisableResult && userDisableResult.disabled),
+        skipped: !userDisableResult,
+        skipReason: userDisableResult ? undefined : 'no_user_id',
+      });
     }
-    steps.push({
-      key: 'user_disable',
-      label: 'Disable the PingOne user account',
-      detail: userDisableResult
-        ? (userDisableResult.disabled
-          ? 'User account disabled — cannot sign back in and mint a fresh token.'
-          : `Could not disable user account: ${userDisableResult.reason}`)
-        : 'No user id on this session — nothing to disable.',
-      ran: !!(userDisableResult && userDisableResult.disabled),
-      skipped: !userDisableResult,
-      skipReason: userDisableResult ? undefined : 'no_user_id',
-    });
 
     // 2.5 Disable the agent's PingOne applications — identity-layer kill.
     //     Stops NEW token issuance to the agent (revocation only covers

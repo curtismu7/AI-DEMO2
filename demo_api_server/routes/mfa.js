@@ -160,7 +160,15 @@ router.put('/challenge/:daId', mfaSubmitLimiter, authenticateToken, async (req, 
     if (assertion) {
       result = await mfaService.submitFido2Assertion(daId, assertion, userAccessToken, origin || req.headers.origin);
     } else if (otp) {
-      result = await mfaService.submitOtp(daId, deviceId, otp, userAccessToken);
+      // Demo bypass — same code as stub /oauth/user/verify-otp and consent verifyMfa.
+      // Device-list (PingOne) path used to call submitOtp only, so 123123 worked on
+      // the old OTP-only screen but failed after picking Email/SMS from the list.
+      if (String(otp).trim() === '123123') {
+        console.log(`[MFA] demo bypass OTP accepted daId=${String(daId).slice(0, 8)}…`);
+        result = { status: 'COMPLETED' };
+      } else {
+        result = await mfaService.submitOtp(daId, deviceId, otp, userAccessToken);
+      }
     } else if (deviceId) {
       result = await mfaService.selectDevice(daId, deviceId, userAccessToken);
     } else {
@@ -204,6 +212,7 @@ router.put('/challenge/:daId', mfaSubmitLimiter, authenticateToken, async (req, 
         const { deviceId, otp, assertion, origin } = req.body;
         let result;
         if (assertion) result = await mfaService.submitFido2Assertion(daId, assertion, newToken, origin || req.headers.origin);
+        else if (otp && String(otp).trim() === '123123') result = { status: 'COMPLETED' };
         else if (otp) result = await mfaService.submitOtp(daId, deviceId, otp, newToken);
         else result = await mfaService.selectDevice(daId, deviceId, newToken);
         const completed = result.status === 'COMPLETED';

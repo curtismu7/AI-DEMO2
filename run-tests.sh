@@ -4,9 +4,10 @@
 # =============================================================================
 # Usage:
 #   ./run-tests.sh           # Run all tests (API unit + info about E2E)
-#   ./run-tests.sh unit      # Run only the core regression suite (fastest)
+#   ./run-tests.sh unit      # Core API regression + UI Vite resolve smoke (fastest)
 #   ./run-tests.sh api       # Run all 10 API test suites
 #   ./run-tests.sh e2e       # Run Playwright E2E UI tests (requires running servers)
+#   ./run-tests.sh vite      # UI Vite import-resolve smoke only
 #   ./run-tests.sh all       # Run everything
 #
 # Prerequisites:
@@ -57,6 +58,21 @@ run_api_tests() {
   ok "API tests completed"
 }
 
+# ── UI Vite resolve smoke ────────────────────────────────────────────────────
+
+run_ui_vite_smoke() {
+  banner "UI Vite resolve smoke"
+  cd "$ROOT/demo_api_ui"
+
+  if [[ ! -d node_modules ]]; then
+    warn "node_modules not found — running npm install first"
+    npm install --silent
+  fi
+
+  npm run test:vite
+  ok "UI Vite resolve smoke completed"
+}
+
 # ── Playwright E2E Tests ─────────────────────────────────────────────────────
 
 run_e2e_tests() {
@@ -105,6 +121,7 @@ echo ""
 case "$MODE" in
   unit)
     run_api_tests
+    run_ui_vite_smoke
     ;;
   api)
     run_api_tests
@@ -118,11 +135,15 @@ case "$MODE" in
     ;;
   all)
     run_api_tests
+    run_ui_vite_smoke
     run_e2e_tests
+    ;;
+  vite)
+    run_ui_vite_smoke
     ;;
   *)
     echo "Unknown mode: $MODE"
-    echo "Usage: $0 [unit|api|e2e|all]"
+    echo "Usage: $0 [unit|api|e2e|all|vite]"
     exit 1
     ;;
 esac

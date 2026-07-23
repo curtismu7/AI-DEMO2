@@ -113,6 +113,23 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
     return JSON.stringify({ ...ADMIN_TOKEN_ON_CUSTOMER });
   }
 
+  // Teaching/education tools (oauth-teaching explain_concept, show_flow_diagram, …)
+  // are pure-local: text + optional education-panel directive. They must not enter
+  // the MCP gateway (Unknown tool) or trigger RFC 8693. Same contract as
+  // dispatchVerticalIntent's isLocalTool bypass.
+  const localPlugin = verticalDispatch.findLocalToolPlugin(name);
+  if (localPlugin) {
+    try {
+      const local = await localPlugin.executeTool(name, args || {}, {
+        userId, userToken, req, tokenEvents, sessionId,
+      });
+      const payload = local?.result !== undefined ? local.result : local;
+      return typeof payload === 'string' ? payload : JSON.stringify(payload ?? {});
+    } catch (e) {
+      return JSON.stringify({ error: e.message || 'local teaching tool failed' });
+    }
+  }
+
   if (!_pipelineDeps) {
     // Test/isolated context — full pipeline not wired. Plugin (vertical) tools are
     // not in getBankingToolDefinitions(), so route them via the gateway directly.
@@ -231,8 +248,13 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
     return JSON.stringify({ error: outcome.body?.error || 'mcp_blocked', ...outcome.body });
   }
 
-  // kind === 'error'
-  return JSON.stringify({ error: outcome.body?.error || 'mcp_error', message: outcome.body?.message });
+  // kind === 'error' — keep body fields (pingone / exchange detail) so the agent
+  // reply and Token Chain can surface why the hop failed, not just a bare code.
+  return JSON.stringify({
+    error: outcome.body?.error || 'mcp_error',
+    message: outcome.body?.message || outcome.body?.error_description || null,
+    ...(outcome.body && typeof outcome.body === 'object' ? outcome.body : {}),
+  });
 }
 
 /**

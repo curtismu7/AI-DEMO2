@@ -271,7 +271,7 @@ describe("opportunisticPrewarm — keep-warm fire-and-forget", () => {
   });
 
   test("POSTs the prewarm endpoint and reports ok", async () => {
-    global.fetch = vi.fn().mockResolvedValue({ ok: true });
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
     await expect(opportunisticPrewarm("gpt-oss-20b")).resolves.toEqual({
       ok: true,
       model: "gpt-oss-20b",
@@ -285,8 +285,44 @@ describe("opportunisticPrewarm — keep-warm fire-and-forget", () => {
     );
   });
 
+  test("resolves proxy pin when model is omitted", async () => {
+    global.fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ pin: { name: "phi-4-mini-instruct", port: 8091 } }),
+      })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) });
+
+    await expect(opportunisticPrewarm()).resolves.toEqual({
+      ok: true,
+      model: "phi-4-mini-instruct",
+    });
+    expect(global.fetch).toHaveBeenNthCalledWith(1, "/api/langchain/llamacpp/tiers", expect.any(Object));
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      2,
+      "/api/langchain/llamacpp/prewarm",
+      expect.objectContaining({
+        body: JSON.stringify({ model: "phi-4-mini-instruct" }),
+      }),
+    );
+  });
+
+  test("surfaces skipped when BFF refuses a pin conflict", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, skipped: true, reason: "pinned" }),
+    });
+    await expect(opportunisticPrewarm("gpt-oss-20b")).resolves.toEqual({
+      ok: true,
+      skipped: true,
+      reason: "pinned",
+      model: "gpt-oss-20b",
+    });
+  });
+
   test("coalesces cooldown so a second call within 60s skips the network", async () => {
-    global.fetch = vi.fn().mockResolvedValue({ ok: true });
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
     await opportunisticPrewarm("gpt-oss-20b");
     const second = await opportunisticPrewarm("gpt-oss-20b");
     expect(second).toEqual({ skipped: true, reason: "cooldown", model: "gpt-oss-20b" });

@@ -144,6 +144,11 @@ export default function TelemetryPage() {
               </select>
             </label>
           </div>
+          {tracesError && (
+            <div className="tracing-detail tracing-detail--msg tracing-detail--error" role="alert">
+              {tracesError}
+            </div>
+          )}
           <TraceGraphCore rawUrl={overviewUrl} refreshKey={overviewRefreshKey} />
         </>
       )}

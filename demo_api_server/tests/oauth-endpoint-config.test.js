@@ -28,6 +28,8 @@ describe('OAuth Endpoint Configuration', () => {
     delete process.env.OAUTH_JWKS_URI;
     delete process.env.OAUTH_ISSUER;
     delete process.env.OAUTH_DISCOVERY_ENDPOINT;
+    delete process.env.OAUTH_PAR_ENDPOINT;
+    delete process.env.PINGONE_PAR_ENDPOINT;
   });
 
   afterEach(() => {
@@ -38,6 +40,8 @@ describe('OAuth Endpoint Configuration', () => {
     delete process.env.OAUTH_JWKS_URI;
     delete process.env.OAUTH_ISSUER;
     delete process.env.OAUTH_DISCOVERY_ENDPOINT;
+    delete process.env.OAUTH_PAR_ENDPOINT;
+    delete process.env.PINGONE_PAR_ENDPOINT;
     delete process.env.PINGONE_ENVIRONMENT_ID;
     delete process.env.PINGONE_REGION;
   });
@@ -53,6 +57,9 @@ describe('OAuth Endpoint Configuration', () => {
     );
     expect(resolver.getTokenEndpoint()).toBe(
       'https://auth.pingone.com/test-env-123/as/token'
+    );
+    expect(resolver.getParEndpoint()).toBe(
+      'https://auth.pingone.com/test-env-123/as/par'
     );
     expect(resolver.getUserInfoEndpoint()).toBe(
       'https://auth.pingone.com/test-env-123/as/userinfo'
@@ -97,6 +104,17 @@ describe('OAuth Endpoint Configuration', () => {
 
     expect(resolver.getTokenEndpoint()).toBe(
       'https://federate.example.com/as/token.oauth2'
+    );
+  });
+
+  // ── Test 4b: Custom PAR endpoint ─────────────────────────────────────────
+  test('should use custom PAR endpoint when OAUTH_PAR_ENDPOINT set', () => {
+    process.env.PINGONE_ENVIRONMENT_ID = 'test-env-123';
+    process.env.OAUTH_PAR_ENDPOINT = 'https://federate.example.com/as/par.oauth2';
+    resolver = require('../services/oauthEndpointResolver');
+
+    expect(resolver.getParEndpoint()).toBe(
+      'https://federate.example.com/as/par.oauth2'
     );
   });
 
