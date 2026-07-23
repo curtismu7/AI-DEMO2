@@ -1159,4 +1159,6 @@ module.exports = {
   // and that the returned id is in the subjectId (oauthId) space.
   resolveResourceOwnerId,
   RESOURCE_OWNER_TOOLS,
+  // Exported for direct unit testing of Transaction-policy precedence (UC6/7/8).
+  _applyTransactionPolicy,
 };

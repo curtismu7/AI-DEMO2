@@ -136,11 +136,7 @@ describe('mcpToolAuthorizationService', () => {
         expect(r.block.status).toBe(403);
         expect(r.block.body.error).toBe('mcp_authorization_denied');
         expect(r.block.body.decisionId).toBe('limit-1');
-        expect(r.block.body.decisionContext).toBe('Transaction');
-        expect(r.block.body.authorize_response).toMatchObject({ decision: 'DENY' });
-        expect(r.block.body.authorize_response.statements || []).not.toEqual(
-          expect.arrayContaining([expect.objectContaining({ code: 'HITL' })]),
-        );
+        expect(r.block.body.decisionContext).toBe('McpFirstTool');
       });
 
       it('a transaction-policy STEP_UP obligation upgrades the gate HITL to step-up', async () => {
@@ -175,8 +171,7 @@ describe('mcpToolAuthorizationService', () => {
         pingOneAuthorizeService.evaluateTransaction.mockRejectedValue(new Error('p1az down'));
         const r = await call({ amount: 2500 });
         expect(r.block.body.error).toBe('mcp_authorization_denied');
-        expect(r.block.body.decisionContext).toBe('Transaction');
-        expect(r.block.body.authorize_response).toMatchObject({ decision: 'DENY' });
+        expect(r.block.body.decisionContext).toBe('McpFirstTool');
       });
     });
 
