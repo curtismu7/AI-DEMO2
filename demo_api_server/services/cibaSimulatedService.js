@@ -16,7 +16,7 @@
 const crypto = require('crypto');
 const { logEvent: logAppEvent } = require('./appEventService');
 
-const SIMULATED_APPROVE_DELAY_MS = 7000;
+const SIMULATED_APPROVE_DELAY_MS = 60_000;
 const SIMULATED_EXPIRES_IN = 300;
 const SIMULATED_INTERVAL = 5;
 
