@@ -35,7 +35,7 @@ jest.mock('../../services/cibaService', () => ({
 jest.mock('../../services/cibaSimulatedService', () => ({
   initiateSimulated: jest.fn(),
   isSimulatedApproved: jest.fn(),
-  SIMULATED_APPROVE_DELAY_MS: 7000,
+  SIMULATED_APPROVE_DELAY_MS: 60_000,
 }));
 
 jest.mock('../../services/tokenChainService', () => ({
