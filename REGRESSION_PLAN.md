@@ -101,6 +101,36 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-22 — Token Summary only listed 1-exchange tokens (missed full 2-exchange run)
+
+**Files changed:**
+
+- `demo_api_ui/src/components/TraceTokenSummary.jsx` — TOKEN_META covers
+  `two-ex-agent-actor`, `two-ex-exchange1`, `two-ex-mcp-actor`, `two-ex-final-token`
+  (+ fallback exchanged id) so the end-of-rail accordion lists every token in the run.
+- `demo_api_ui/src/services/tokenChainTrace/resolveInspectClaims.js` — Inspect falls
+  back to 2-exchange event ids when 1-exchange ids are absent.
+- `demo_api_ui/src/components/__tests__/TraceTokenSummary.only.test.jsx` — asserts
+  2-exchange summary count/labels; MCP tab still filters to the final delegated token.
+- `demo_api_server/services/stepVerificationExpectations.js` —
+  `scoreTokenSummaryCoverage` requires the full 1-ex or 2-ex Token Summary id set.
+- `demo_api_ui/tests/e2e/stepVerification.banking.real.spec.js` — amount-gate chips
+  FAIL + ledger `tokenSummaryMode` / `tokenSummaryIds` / `tokenSummaryMissing` when
+  any summary token is absent.
+- `demo_api_server/src/__tests__/stepVerificationExpectations.test.js` — coverage unit tests.
+
+**What was broken:** Token Summary hard-coded only `user-token` / `agent-actor-token` /
+`exchanged-token`. On a 2-exchange demo run the accordion omitted the intermediate
+and final tokens even though they were in `trace.tokenEvents`. Step verification only
+checked “some event has detail,” so a blank Summary still ledged PASS.
+
+**Do not break:** TraceRail step ids / layout; MCP tab `only="mcp"` still shows only
+the delegated final token (not the full chain); auth / exchange minting untouched.
+
+**Verify:** `cd demo_api_ui && npm test -- --run src/components/__tests__/TraceTokenSummary.only.test.jsx`
+(4/4); `cd demo_api_server && npm test -- --testPathPattern=stepVerificationExpectations --coverage=false`;
+`npm run build` in `demo_api_ui` (0).
+
 ### 2026-07-22 — 2-exchange TraceRail Exchange step lost coloured request JSON
 
 **Files changed:**
