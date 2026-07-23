@@ -39,7 +39,7 @@ const Section = ({ title, hint, status, defaultOpen = true, children }) => (
 // ---------------------------------------------------------------------------
 
 const S = {
-  root: { padding: '28px 32px', maxWidth: '1000px', fontFamily: 'inherit' },
+  root: { padding: '28px 32px', width: '100%', maxWidth: 'none', boxSizing: 'border-box', fontFamily: 'inherit' },
   header: { marginBottom: '20px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' },
   title: { fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: '0 0 6px' },
   subtitle: { fontSize: '13px', color: '#64748b', margin: 0, lineHeight: 1.5 },
@@ -158,6 +158,17 @@ const S = {
   polDisabled: { fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '20px', background: '#f3f4f6', color: '#6b7280' },
   polTestActions: { display: 'flex', gap: '10px', marginTop: '6px' },
   polTestBtn: { background: 'none', border: 'none', padding: 0, fontSize: '11px', fontWeight: 600, color: '#1d4ed8', cursor: 'pointer', textDecoration: 'underline' },
+  polSearchWrap: { padding: '8px 12px 0' },
+  polSearch: {
+    padding: '7px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '12px',
+    fontFamily: 'inherit', background: '#fff', width: '100%', boxSizing: 'border-box',
+  },
+  polSearchMeta: { fontSize: '11px', color: '#94a3b8', marginTop: '6px' },
+  polNodeMatch: {
+    border: '1px solid #c7d2fe',
+    borderLeft: '3px solid #4f46e5',
+    borderRadius: '8px', padding: '10px 12px', background: '#eef2ff',
+  },
   pendingLabel: { fontSize: '11px', fontWeight: 700, color: '#3730a3', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: '6px', padding: '4px 10px', marginBottom: '10px', display: 'inline-block' },
 };
 
@@ -218,6 +229,33 @@ function ruleCount(nodes) {
   return nodes.reduce((n, p) => n + (p.kind === 'RULE' ? 1 : 0) + ruleCount(p.children || []), 0);
 }
 
+/** True when a policy node's name or description contains the query (case-insensitive). */
+export function policyNodeMatches(node, query) {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q || !node) return false;
+  const name = String(node.name || '').toLowerCase();
+  const desc = String(node.description || '').toLowerCase();
+  return name.includes(q) || desc.includes(q);
+}
+
+/**
+ * Prune the policy tree to nodes that match `query` (name/description) or have a
+ * matching descendant. Empty query returns the original tree. A matching node
+ * keeps its full subtree so nested rules stay usable (Trigger / Avoid). Ancestors
+ * of a deeper match are kept so the path to a hit stays visible.
+ */
+export function filterPolicyTree(nodes, query) {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) return nodes || [];
+  const walk = (node) => {
+    if (policyNodeMatches(node, q)) return node;
+    const kids = (node.children || []).map(walk).filter(Boolean);
+    if (kids.length === 0) return null;
+    return { ...node, children: kids };
+  };
+  return (nodes || []).map(walk).filter(Boolean);
+}
+
 function DecisionRow({ d, idx }) {
   // PingOne recent-decision items nest the verdict under decisionResponse and
   // stamp the time as requestedAt. The request parameters (Amount/Type/Acr) are
@@ -250,6 +288,13 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
   const [err, setErr] = useState(null);
   const [lastTrace, setLastTrace] = useState(null);
   const [lastParameters, setLastParameters] = useState(null);
+  const [policyQuery, setPolicyQuery] = useState('');
+
+  const filteredPolicies = useMemo(
+    () => filterPolicyTree(policies, policyQuery),
+    [policies, policyQuery],
+  );
+  const queryActive = Boolean(String(policyQuery || '').trim());
 
   // Transaction preset fields
   const [amount, setAmount] = useState('5000');
@@ -434,8 +479,27 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
           <>
             <div className="inspector-shell-tree-header">
               <span>Authorization Policies</span>
-              <span>{policiesLoading ? 'loading…' : `${ruleCount(policies)} rule${ruleCount(policies) !== 1 ? 's' : ''}`}</span>
+              <span>{policiesLoading ? 'loading…' : `${ruleCount(queryActive ? filteredPolicies : policies)} rule${ruleCount(queryActive ? filteredPolicies : policies) !== 1 ? 's' : ''}`}</span>
             </div>
+            {!policiesLoading && !policiesError && policies.length > 0 && (
+              <div style={S.polSearchWrap}>
+                <input
+                  type="search"
+                  style={S.polSearch}
+                  value={policyQuery}
+                  onChange={(e) => setPolicyQuery(e.target.value)}
+                  placeholder="Search policies (name or description)…"
+                  aria-label="Search authorization policies"
+                />
+                {queryActive && (
+                  <div style={S.polSearchMeta}>
+                    {filteredPolicies.length === 0
+                      ? 'No matching policies'
+                      : `Showing matches for “${String(policyQuery).trim()}”`}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="inspector-shell-tree-body">
               {policiesLoading ? (
                 <div style={{ padding: '20px 16px', color: '#64748b', fontSize: '13px' }}>Loading policies…</div>
@@ -445,14 +509,18 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
                 <div style={{ padding: '20px 16px', color: '#64748b', fontSize: '13px' }}>
                   {policiesNote || 'No authorization policies found in this environment.'}
                 </div>
+              ) : filteredPolicies.length === 0 ? (
+                <div style={{ padding: '20px 16px', color: '#64748b', fontSize: '13px' }}>
+                  No policies match “{String(policyQuery).trim()}”.
+                </div>
               ) : (
                 <div style={{ padding: '8px 12px' }}>
                   {policiesNote && (
                     <div style={{ marginBottom: '10px', fontSize: '12px', color: '#64748b' }}>{policiesNote}</div>
                   )}
                   <div style={S.polTree}>
-                    {policies.map((p) => (
-                      <PolicyNode key={p.id} node={p} onTestRule={onTestRule} />
+                    {filteredPolicies.map((p) => (
+                      <PolicyNode key={p.id} node={p} onTestRule={onTestRule} query={policyQuery} />
                     ))}
                   </div>
                 </div>
@@ -673,11 +741,12 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
 // ---------------------------------------------------------------------------
 // Authorization policy tree — one recursive node (Policy Set → Policy → Rule)
 // ---------------------------------------------------------------------------
-function PolicyNode({ node, onTestRule }) {
+function PolicyNode({ node, onTestRule, query }) {
   if (!node) return null;
   const kindLabel = { POLICY_SET: 'Policy Set', POLICY: 'Policy', RULE: 'Rule' }[node.kind] || node.kind;
+  const matched = policyNodeMatches(node, query);
   return (
-    <div style={S.polNode(node.kind)}>
+    <div style={matched ? S.polNodeMatch : S.polNode(node.kind)} data-policy-match={matched ? 'true' : undefined}>
       <div style={S.polHead}>
         <span style={S.polKind(node.kind)}>{kindLabel}</span>
         <span style={S.polName}>{node.name}</span>
@@ -694,7 +763,7 @@ function PolicyNode({ node, onTestRule }) {
       )}
       {node.children?.length > 0 && (
         <div style={S.polChildren}>
-          {node.children.map((c) => <PolicyNode key={c.id} node={c} onTestRule={onTestRule} />)}
+          {node.children.map((c) => <PolicyNode key={c.id} node={c} onTestRule={onTestRule} query={query} />)}
         </div>
       )}
     </div>

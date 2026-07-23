@@ -1,22 +1,29 @@
 #!/usr/bin/env python3
 """
-build-codegraph.py — index the AI-Demo repo into .codegraph/codegraph.db
+build-codegraph.py — index the AI-Demo repo into .codegraph/demo-codegraph.db
 
-Walks all .py and .js/.ts files in the repo and builds a SQLite database that
-the langchain_agent's CodeGraph tools query:
+Walks .py / .js/.ts/.jsx/.tsx under the resolved repo root and builds a SQLite
+database that the langchain_agent's Code Explorer tools query:
 
   nodes  — functions, classes, methods (id, kind, name, qualified_name,
             file_path, start_line, end_line, signature, docstring)
   edges  — call relationships between nodes (source, target, kind, line)
   nodes_fts — FTS5 virtual table over name + qualified_name + docstring + signature
 
+By default only demo_api_ui + demo_api_server are indexed (Code Explorer focus).
+Use --all to walk the full tree. The DB filename is demo-codegraph.db so it does
+not collide with the host CodeGraph product daemon at .codegraph/codegraph.db.
+
 Only stdlib is required (ast, sqlite3, pathlib, re). No pip installs needed.
 
 Usage (from repo root):
-  python3 scripts/build-codegraph.py           # indexes into .codegraph/codegraph.db
+  python3 scripts/build-codegraph.py           # UI + API → .codegraph/demo-codegraph.db
+  python3 scripts/build-codegraph.py --all     # whole repo (minus SKIP_DIRS)
   python3 scripts/build-codegraph.py --dry-run # print stats, don't write db
-  python3 scripts/build-codegraph.py --out /path/to/codegraph.db  # custom db path
+  python3 scripts/build-codegraph.py /path/to/root --out /path/to/db
   python3 scripts/build-codegraph.py --help
+
+Root resolution order: positional path → REPO_SRC_ROOT → directory of this script's repo.
 """
 
 import ast
@@ -28,10 +35,11 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Sequence
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DB_PATH   = REPO_ROOT / '.codegraph' / 'codegraph.db'
+# Separate from the host CodeGraph product DB (.codegraph/codegraph.db).
+DB_PATH   = REPO_ROOT / '.codegraph' / 'demo-codegraph.db'
 
 # Directories to skip entirely
 SKIP_DIRS = {
@@ -39,7 +47,11 @@ SKIP_DIRS = {
     '.codegraph', 'graphify-out', '.planning', 'dist', 'build', 'coverage',
     'certs', 'data', 'logs',
     'repo-src',  # repo-src = the staged source duplicate shipped into the agent image; never re-index or re-stage it.
+    'live-repo',  # docker bind-mount of the host repo under /app; never nest-index it.
 }
+
+# Code Explorer default scope — full-repo walks are large and noisy for demos.
+DEFAULT_INCLUDE_DIRS = ('demo_api_ui', 'demo_api_server')
 
 # File extensions to index
 PY_EXTS  = {'.py'}
@@ -199,7 +211,8 @@ def index_python_file(path: Path, rel: str) -> tuple[list[dict], list[dict]]:
 
 _JS_CLASS_RE   = re.compile(r'^(?:export\s+)?(?:abstract\s+)?class\s+(\w+)', re.MULTILINE)
 _JS_FUNC_RE    = re.compile(
-    r'^(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*\(([^)]*)\)', re.MULTILINE)
+    r'^(?:export\s+(?:default\s+)?)?(?:async\s+)?function\s+(\w+)\s*\(([^)]*)\)',
+    re.MULTILINE)
 _JS_ARROW_RE   = re.compile(
     r'^(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>', re.MULTILINE)
 _JS_METHOD_RE  = re.compile(
@@ -276,17 +289,36 @@ def index_js_file(path: Path, rel: str) -> tuple[list[dict], list[dict]]:
 
 # ── Walk repo ─────────────────────────────────────────────────────────────────
 
-def collect_files(root: Path) -> list[tuple[Path, str]]:
+def _walk_roots(root: Path, include_dirs: Optional[Sequence[str]]) -> list[Path]:
+    """Resolve which directories to walk under root.
+
+    When include_dirs is set and at least one exists, walk only those (paths in
+    the DB stay relative to root). If none exist (tiny test fixtures), fall back
+    to the full tree so unit tests keep working.
+    """
+    if not include_dirs:
+        return [root]
+    existing = [root / d for d in include_dirs if (root / d).is_dir()]
+    return existing or [root]
+
+
+def collect_files(
+    root: Path,
+    include_dirs: Optional[Sequence[str]] = None,
+) -> list[tuple[Path, str]]:
     results = []
-    for dirpath, dirnames, filenames in os.walk(root):
-        # Prune skip dirs in-place
-        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS and not d.startswith('.')]
-        for fname in filenames:
-            p = Path(dirpath) / fname
-            ext = p.suffix.lower()
-            if ext in PY_EXTS or ext in JS_EXTS:
-                rel = str(p.relative_to(root))
-                results.append((p, rel))
+    for walk_root in _walk_roots(root, include_dirs):
+        for dirpath, dirnames, filenames in os.walk(walk_root):
+            # Prune skip dirs in-place
+            dirnames[:] = [
+                d for d in dirnames if d not in SKIP_DIRS and not d.startswith('.')
+            ]
+            for fname in filenames:
+                p = Path(dirpath) / fname
+                ext = p.suffix.lower()
+                if ext in PY_EXTS or ext in JS_EXTS:
+                    rel = str(p.relative_to(root))
+                    results.append((p, rel))
     return results
 
 
@@ -303,9 +335,17 @@ def _repo_commit(root):
         return 'unknown'
 
 
+# Marker so Code Explorer can refuse the host CodeGraph product DB that shares
+# the `.codegraph/` bind mount. Keep in sync with codegraph/index_guard.py.
+BUILDER_ID = 'demo-build-codegraph'
+BUILDER_VERSION = '1'
+
+
 def write_metadata(conn, root):
     node_count = conn.execute('SELECT COUNT(*) FROM nodes').fetchone()[0]
     rows = {
+        'builder': BUILDER_ID,
+        'builder_version': BUILDER_VERSION,
         'built_at_commit': _repo_commit(root),
         'node_count': str(node_count),
         'built_at': datetime.now(timezone.utc).isoformat(),
@@ -321,10 +361,30 @@ def write_metadata(conn, root):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def build(dry_run: bool = False, out: Optional[Path] = None):
-    db_path = out if out is not None else DB_PATH
-    files = collect_files(REPO_ROOT)
-    print(f'  Indexing {len(files)} files from {REPO_ROOT}')
+def build(
+    dry_run: bool = False,
+    out: Optional[Path] = None,
+    root: Optional[Path] = None,
+    include_dirs: Optional[Sequence[str]] = DEFAULT_INCLUDE_DIRS,
+):
+    """Index source under root into out (default: demo-codegraph.db).
+
+    include_dirs defaults to UI + API Server. Pass None (or use --all) for the
+    full tree. file_path values are always relative to root so they resolve
+    under REPO_SRC_ROOT for grep/read_file.
+    """
+    src_root = Path(root) if root is not None else REPO_ROOT
+    # Prefer explicit --out, then module DB_PATH (tests monkeypatch this), then
+    # <root>/.codegraph/demo-codegraph.db when indexing a non-default root.
+    if out is not None:
+        db_path = Path(out)
+    elif root is not None and Path(root).resolve() != REPO_ROOT.resolve():
+        db_path = src_root / '.codegraph' / 'demo-codegraph.db'
+    else:
+        db_path = DB_PATH
+    files = collect_files(src_root, include_dirs=include_dirs)
+    scope = ','.join(include_dirs) if include_dirs else 'all'
+    print(f'  Indexing {len(files)} files from {src_root} (scope={scope})')
 
     all_nodes: list[dict] = []
     all_calls: list[dict] = []
@@ -388,7 +448,7 @@ def build(dry_run: bool = False, out: Optional[Path] = None):
                 )
                 edges_inserted += 1
         conn.commit()
-        write_metadata(conn, REPO_ROOT)
+        write_metadata(conn, src_root)
     finally:
         conn.close()
 
@@ -430,6 +490,12 @@ def main():
         sys.exit(0)
 
     dry_run = '--dry-run' in args
+    # Full-repo walks are opt-in only (--all or CODEGRAPH_INDEX_ALL=1). Docker
+    # compose must not set that env — default stays UI + API Server.
+    env_all = os.getenv('CODEGRAPH_INDEX_ALL', '').strip().lower() in (
+        '1', 'true', 'yes',
+    )
+    index_all = '--all' in args or env_all
 
     # Optional positional root: first arg that doesn't start with '-' and
     # is not the value token of a named flag (e.g. --stage-src <DIR>).
@@ -440,7 +506,12 @@ def main():
         _fi = args.index(flag) if flag in args else -1
         if _fi >= 0 and _fi + 1 < len(args):
             _flag_value_tokens.add(args[_fi + 1])
-    root = REPO_ROOT
+
+    # Prefer REPO_SRC_ROOT (docker live mount) over the script's parent repo so
+    # a baked copy at /app/indexer/build-codegraph.py still indexes /app/live-repo
+    # instead of nesting paths under /app/live-repo/... .
+    env_root = os.getenv('REPO_SRC_ROOT', '').strip()
+    root = Path(env_root).resolve() if env_root else REPO_ROOT
     for arg in args:
         if not arg.startswith('-') and arg not in _flag_value_tokens:
             root = Path(arg).resolve()
@@ -458,14 +529,17 @@ def main():
         print(f'  Staged {count} source files into {stage_dir}')
         sys.exit(0)
 
-    # --out <PATH> — override the output db path (default: REPO_ROOT/.codegraph/codegraph.db)
+    # --out <PATH> — override the output db path (default: <root>/.codegraph/demo-codegraph.db)
     out_path = None
     if '--out' in args:
         idx = args.index('--out')
         if idx + 1 < len(args):
             out_path = Path(args[idx + 1]).resolve()
 
-    build(dry_run=dry_run, out=out_path)
+    include = None if index_all else DEFAULT_INCLUDE_DIRS
+    if out_path is None and root.resolve() != REPO_ROOT.resolve():
+        out_path = root / '.codegraph' / 'demo-codegraph.db'
+    build(dry_run=dry_run, out=out_path, root=root, include_dirs=include)
 
 
 if __name__ == '__main__':

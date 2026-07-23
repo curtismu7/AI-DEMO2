@@ -247,6 +247,48 @@ describe('mcpToolPipeline SSE request payload — regression', () => {
       expect(payload.requestJson).toEqual(wireReq('get_order', params));
     }
   });
+
+  // ── (E) Gateway policy deny — still publish attempted request ───────────────
+
+  test('(E) gateway_policy_denied: publishMcpResultToSse receives requestJson + denied', async () => {
+    const denyErr = Object.assign(new Error('audience mismatch'), {
+      code: 'gateway_policy_denied',
+      gatewayErrorCode: 'invalid_audience',
+      httpStatus: 403,
+      gwAuditTrail: null,
+    });
+    const deps = makeDeps({
+      config: {
+        pingoneAdminEnabled: false,
+        pingoneAdminTools: new Set(),
+        gatewayHttpUrl: 'http://gateway:8080',
+        useGateway: true,
+        mcpUrl: 'ws://localhost:8080',
+        mcpServerUrlEnv: null,
+        useHttp2: false,
+        introspectionConfigured: false,
+      },
+      callToolViaGateway: jest.fn(async () => { throw denyErr; }),
+    });
+    const params = { amount: 50 };
+
+    const outcome = await runMcpToolPipeline({
+      tool: 'transfer_money',
+      params,
+      flowTraceId: 'trace-deny',
+      startTime: Date.now(),
+      req: makeReq(),
+      deps,
+    });
+
+    expect(outcome.kind).toBe('block');
+    expect(outcome.body.requestJson).toEqual(wireReq('transfer_money', params));
+    expect(deps.publishMcpResultToSse).toHaveBeenCalled();
+    const [, payload] = deps.publishMcpResultToSse.mock.calls.at(-1);
+    expect(payload.denied).toBe(true);
+    expect(payload.requestJson).toEqual(wireReq('transfer_money', params));
+    expect(payload.result.error).toBe('gateway_policy_denied');
+  });
 });
 
 // ─── Suite E: publishMcpResultToSse SSE wire test ───────────────────────────

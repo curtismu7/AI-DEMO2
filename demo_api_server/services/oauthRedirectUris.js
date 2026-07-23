@@ -173,6 +173,7 @@ const REFERENCE_REDIRECT_SETS = [
 ];
 
 module.exports = {
+  getCanonicalPublicOrigin,
   getAdminRedirectUri,
   getUserRedirectUri,
   getFrontendOrigin,

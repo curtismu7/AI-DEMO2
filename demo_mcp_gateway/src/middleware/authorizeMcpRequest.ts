@@ -89,8 +89,67 @@ interface GwAuditTrail {
   } | null;
   mtls: { enabled: boolean; subject?: string } | null;
   backend: { target: string; audience: string | null; cached?: boolean; exchanged: boolean; error?: string } | null;
+  /** Teaching: ordered gateway stages for Token Chain. */
+  filterChain?: Array<{ filter: string; result: string; decision?: string }>;
+  /** Teaching: which stage blocked the call (omit on success). */
+  denyingFilter?: string;
+  /** Teaching: last stage that completed on a forward path. */
+  lastFilter?: string;
 }
 
+/** Rebuild filterChain / denyingFilter / lastFilter from filled audit stages.
+ * Always emits the full teaching chain (skipped when a stage did not run) so
+ * success paths show every hop, not only stages that happened to stamp data.
+ */
+function stampFilterTrail(
+  trail: GwAuditTrail,
+  opts?: { denyingFilter?: string; lastFilter?: string },
+): void {
+  const chain: NonNullable<GwAuditTrail['filterChain']> = [
+    {
+      filter: 'TokenIntrospection',
+      result: trail.introspection
+        ? (trail.introspection.active ? 'passed' : 'blocked')
+        : 'skipped',
+    },
+    {
+      filter: 'GatewayTokenPolicy',
+      result: trail.policy
+        ? (trail.policy.passed ? 'passed' : 'blocked')
+        : 'skipped',
+    },
+    {
+      filter: 'P1AZDecision',
+      result: trail.authorize
+        ? (trail.authorize.decision === 'PERMIT' ? 'forwarded' : 'blocked')
+        : 'skipped',
+      ...(trail.authorize?.decision ? { decision: trail.authorize.decision } : {}),
+    },
+    {
+      filter: 'mTLS',
+      result: trail.mtls
+        ? (trail.mtls.enabled ? 'passed' : 'skipped')
+        : 'skipped',
+    },
+    {
+      filter: 'BackendExchange',
+      result: trail.backend
+        ? (trail.backend.exchanged ? 'forwarded' : (trail.backend.error ? 'blocked' : 'skipped'))
+        : 'skipped',
+    },
+  ];
+  trail.filterChain = chain;
+  if (opts?.denyingFilter) trail.denyingFilter = opts.denyingFilter;
+  if (opts?.lastFilter) {
+    trail.lastFilter = opts.lastFilter;
+  } else if (!opts?.denyingFilter) {
+    if (trail.backend?.exchanged) trail.lastFilter = 'BackendExchange';
+    else if (trail.mtls?.enabled) trail.lastFilter = 'mTLS';
+    else if (trail.authorize?.decision === 'PERMIT') trail.lastFilter = 'P1AZDecision';
+    else if (trail.policy?.passed) trail.lastFilter = 'GatewayTokenPolicy';
+    else if (trail.introspection?.active) trail.lastFilter = 'TokenIntrospection';
+  }
+}
 /**
  * Injectable dependencies for `buildAuthorizeMcpRequest`.
  * When provided (e.g. in tests), the production introspection + authorize
@@ -310,8 +369,9 @@ export function buildAuthorizeMcpRequest(
     let introspectionResult: { active: boolean; sub?: string; exp?: number; scope?: string; aud?: string } | undefined;
 
     // Helper: set the audit trail header on any response path
-    const setAuditHeader = (r: ServerResponse) => {
+    const setAuditHeader = (r: ServerResponse, filterOpts?: { denyingFilter?: string; lastFilter?: string }) => {
       try {
+        stampFilterTrail(auditTrail, filterOpts);
         r.setHeader('X-Gw-Audit-Trail', JSON.stringify(auditTrail));
       } catch {
         // headers already sent — ignore
@@ -332,7 +392,7 @@ export function buildAuthorizeMcpRequest(
         exp: introspResult.exp,
       };
       if (!introspResult.active) {
-        setAuditHeader(res);
+        setAuditHeader(res, { denyingFilter: 'TokenIntrospection' });
         // introspResult.error is only set when introspection itself failed
         // (transport error, or the client's own auth was rejected) — a
         // genuinely confirmed-inactive token never carries it. Don't tell
@@ -412,7 +472,7 @@ export function buildAuthorizeMcpRequest(
       }
 
       if (pipelineResult.kind === 'introspection_failed') {
-        setAuditHeader(res);
+        setAuditHeader(res, { denyingFilter: 'TokenIntrospection' });
         teachLog.info('gateway audit trail', { gw_audit_trail: auditTrail });
         res.writeHead(401, {
           'Content-Type': 'application/json',
@@ -428,7 +488,7 @@ export function buildAuthorizeMcpRequest(
       }
 
       if (pipelineResult.kind === 'policy_violation') {
-        setAuditHeader(res);
+        setAuditHeader(res, { denyingFilter: 'GatewayTokenPolicy' });
         teachLog.info('gateway audit trail', { gw_audit_trail: auditTrail });
         res.writeHead(401, {
           'Content-Type': 'application/json',
@@ -803,7 +863,7 @@ export function buildAuthorizeMcpRequest(
     // in the mock authz server's decision.js. Surface it distinctly instead
     // of a generic 403 policy denial.
     if (authzDecision.decision === 'DENY' && /^user_lookup_failed:/.test(authzDecision.reason || '')) {
-      setAuditHeader(res);
+      setAuditHeader(res, { denyingFilter: 'P1AZDecision' });
       teachLog.warn('gateway audit trail — user lookup unavailable', { gw_audit_trail: auditTrail });
       res.writeHead(503, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
@@ -814,7 +874,7 @@ export function buildAuthorizeMcpRequest(
     }
 
     if (authzDecision.decision !== 'PERMIT') {
-      setAuditHeader(res);
+      setAuditHeader(res, { denyingFilter: 'P1AZDecision' });
       teachLog.info('gateway audit trail', { gw_audit_trail: auditTrail });
       // F8 — `required_scopes` is derived from the LOCAL scope topology, so it
       // only describes the decision when the local scope engine IS what decided.

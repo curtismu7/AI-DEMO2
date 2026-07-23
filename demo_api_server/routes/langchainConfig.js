@@ -405,6 +405,18 @@ function tierManagerOrigin() {
   return `http://${new URL(llamacppOrigin()).hostname}:8097`;
 }
 
+/** Read proxy pin (LLM_PROXY_PIN_TIER). Returns null when unset/unreachable. */
+async function fetchProxyPin() {
+  try {
+    const r = await fetch(`${llamacppOrigin()}/status`, { signal: AbortSignal.timeout(3000) });
+    if (!r.ok) return null;
+    const data = await r.json();
+    return data.pin && data.pin.port ? data.pin : null;
+  } catch {
+    return null;
+  }
+}
+
 // GET /api/langchain/llamacpp/tiers — which tier is loaded / swapping
 router.get('/llamacpp/tiers', async (req, res) => {
   try {
@@ -419,6 +431,8 @@ router.get('/llamacpp/tiers', async (req, res) => {
 // POST /api/langchain/llamacpp/prewarm { model } — swap the requested tier in
 // now. With keep-warm defaults (LLM_PROXY_IDLE_DECAY_MS=0) the tier stays
 // loaded; classic 5-min decay is opt-in via LLM_PROXY_IDLE_DECAY_MS=300000.
+// When the proxy is hard-pinned to another tier (and residency is not keeping
+// both), skip — otherwise we unload the pin, load the request, then thrash back.
 router.post('/llamacpp/prewarm', async (req, res) => {
   const model = (req.body && req.body.model) || '';
   const port = LLAMACPP_TIER_PORTS[model];
@@ -426,9 +440,18 @@ router.post('/llamacpp/prewarm', async (req, res) => {
     return res.status(400).json({ error: `Unknown tier model: ${model}`, allowed: Object.keys(LLAMACPP_TIER_PORTS) });
   }
   try {
+    const pin = await fetchProxyPin();
+    if (pin && Number(pin.port) !== Number(port)) {
+      console.log(`[langchainConfig] prewarm skipped — pinned to ${pin.name} (:${pin.port}), requested ${model} (:${port})`);
+      return res.json({ ok: true, skipped: true, reason: 'pinned', model, port, pinned: pin });
+    }
     const r = await fetch(`${tierManagerOrigin()}/ensure?port=${port}`, { signal: AbortSignal.timeout(180000) });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) return res.status(502).json({ error: 'tier-manager swap failed', detail: data });
+    if (data.skipped) {
+      console.log(`[langchainConfig] prewarm skipped by tier-manager — ${data.reason || 'pinned'} (requested ${model})`);
+      return res.json({ ok: true, skipped: true, reason: data.reason || 'pinned', model, port, pinned: data.pin ? { port: data.pin } : undefined });
+    }
     // The swap happened behind the router's back — poke it to re-probe tier
     // health immediately, otherwise its cache routes to the unloaded tier for
     // up to 30s.

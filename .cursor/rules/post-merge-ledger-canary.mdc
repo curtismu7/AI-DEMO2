@@ -1,0 +1,51 @@
+---
+description: After every merge, lock a ledger/tester canary + the fix so the failure class cannot silently return.
+alwaysApply: true
+---
+
+# Post-merge: ledger tester + fix (required)
+
+**On every merge** (and before calling a feature PR “done”), do both:
+
+1. **Ledger / tester canary** — a test that fails if this class of bug returns
+   (route regression, UI dual-view/tab test, step-verification ledger entry, or
+   hygiene canary — whichever matches the surface).
+2. **The fix in the same landing** — Greptile P2s, missing session gates, happy-path-only
+   mint/resolve, and “no route/UI test” are not follow-ups to forget. Ship them in the
+   feature PR or an immediate harden PR on the same day.
+
+## Do not leave
+
+- Merged feature with failed CI (~seconds, empty steps) marked done without a green
+  follow-up once Actions can run, **and** without local canaries locked.
+- New surfaces (`/summary-inflow`, Login/In-flow tabs, mint paths) with only happy-path
+  coverage.
+
+## Dual-view resource server example (#780 / #781)
+
+Canaries (must stay tracked and green locally):
+
+- `demo_api_server/src/__tests__/resourceServer.summaryInflow.regression.test.js`
+- `demo_api_ui/src/components/__tests__/ResourceServerPage.dualView.test.jsx`
+- `resolveTokenAsync` edge cases in `resourceServerTester.test.js`
+- Hygiene locks in `scripts/check-fresh-clone-hygiene.js` (summary-inflow session gate,
+  `startsWith('banking:')`, mint subject-AT check)
+
+If any of those disappear or the source contracts regress, fix immediately — do not
+open a new feature until the canary is green again.
+
+## LLM pin/prewarm thrash example (#785)
+
+Symptom: dashboard/agent mount prewarmed `gpt-oss-20b` while `LLM_PROXY_PIN_TIER=8091`,
+unloaded phi → brief "llama not available" → pin swapped phi back.
+
+Canaries (must stay tracked and green):
+
+- `demo_api_server/tests/langchainConfig.prewarmPin.test.js`
+- `demo_api_server/tests/checks/tierManagerPinSkip.test.js`
+- Pin-aware cases in `demo_api_ui/src/__tests__/BankingAgent.safety.test.js`
+- Hygiene locks in `scripts/check-fresh-clone-hygiene.js` (`llm-prewarm-pin`) and
+  `scripts/check-llm-host-residency.js` (tier-manager + BFF skip contracts)
+
+Do not restore `opportunisticPrewarm("gpt-oss-20b")` on AIAgent / UseCaseLauncher
+mount while pin skip is the contract — call `opportunisticPrewarm()` so the pin wins.

@@ -40,6 +40,18 @@ function jaegerCandidates() {
   return [...new Set(raw.map((u) => u.replace(/\/$/, '')))];
 }
 
+/**
+ * True when /api/services looks like Jaeger's JSON query API.
+ * Fresh all-in-one often returns `{ data: null }` (no services yet) — that is
+ * still reachable. HTML shells (QUERY_BASE_PATH mismatch) must not pass.
+ * @param {unknown} body
+ */
+function isJaegerServicesPayload(body) {
+  if (body == null || typeof body !== 'object' || Array.isArray(body)) return false;
+  const data = body.data;
+  return data == null || Array.isArray(data);
+}
+
 /** Return the first reachable Jaeger query base, or null. */
 async function resolveJaegerBase() {
   for (const base of jaegerCandidates()) {
@@ -49,7 +61,7 @@ async function resolveJaegerBase() {
       // QUERY_BASE_PATH set, the root /api/services returns the UI's HTML shell
       // with a 200, which would otherwise be mistaken for a working query base
       // and silently yield empty services/traces.
-      if (resp.status === 200 && Array.isArray(resp.data?.data)) return base;
+      if (resp.status === 200 && isJaegerServicesPayload(resp.data)) return base;
     } catch {
       /* try next candidate */
     }

@@ -34,7 +34,7 @@
 .message-row {
   display: flex;
   gap: 0.75rem;
-  max-width: 780px;
+  max-width: min(1400px, 100%);
   width: 100%;
   margin: 0 auto;
   padding: 0 1.5rem;
@@ -129,7 +129,7 @@
 /* ── Input area ──────────────────────────────────────────────────────────── */
 .input-wrapper {
   padding: 0.75rem 1.5rem 0.5rem;
-  max-width: 780px;
+  max-width: min(1400px, 100%);
   width: 100%;
   margin: 0 auto;
   box-sizing: border-box;
@@ -238,7 +238,7 @@
   grid-template-columns: 1fr 1fr;
   gap: 0.5rem;
   padding: 0 1.5rem 1.25rem;
-  max-width: 780px;
+  max-width: min(1400px, 100%);
   width: 100%;
   margin: 0 auto;
   box-sizing: border-box;

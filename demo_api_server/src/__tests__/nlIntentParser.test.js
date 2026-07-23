@@ -375,6 +375,13 @@ describe('nlIntentParser — fallback', () => {
     expect(r.kind).toBe('none');
   });
 
+  it('preserves comma in weather city_name (Austin, TX)', () => {
+    const r = parseHeuristic("what's the weather in Austin, TX");
+    expect(r.kind).toBe('banking');
+    expect(r.banking?.action).toBe('weather');
+    expect(r.banking?.params?.city_name).toBe('Austin, TX');
+  });
+
   it('returns kind none for empty string', () => {
     const r = parseHeuristic('');
     expect(r.kind).toBe('none');

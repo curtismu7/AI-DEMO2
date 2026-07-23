@@ -20,6 +20,11 @@ STABLE=(
   tests/test_error_handling.py
   tests/test_encryption.py
   tests/test_logging.py
+  # Code Explorer index hardening (#772) — stdlib-only, no guardrails import.
+  tests/test_codegraph_index_guard.py
+  tests/test_build_codegraph.py
+  tests/test_ensure_index.py
+  tests/test_codegraph_metadata.py
 )
 
 if [ "$#" -eq 0 ]; then

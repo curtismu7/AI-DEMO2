@@ -3,11 +3,19 @@
 import React from "react";
 import { diffTokenClaims } from "../services/tokenChainTrace/diffTokenClaims";
 
-// Chain order + display metadata. exchanged-token's parent is user-token.
+// Chain order + display metadata. Covers 1-exchange and 2-exchange vocabularies
+// (buildTraceSteps / agentMcpTokenService emit different event ids per mode).
 const TOKEN_META = {
   "user-token": { name: "User Token", cls: "user", role: "subject_token", parent: null, inspect: "user" },
   "agent-actor-token": { name: "Agent Token", cls: "agent", role: "actor_token", parent: null, inspect: "agent" },
   "exchanged-token": { name: "Delegated Token", cls: "mcp", role: "act chain", parent: "user-token", inspect: "mcp" },
+  "exchanged-token-fallback": { name: "Delegated Token", cls: "mcp", role: "act chain", parent: "user-token", inspect: "mcp" },
+  "two-ex-agent-actor": { name: "Agent Actor Token", cls: "agent", role: "actor_token (#1)", parent: null, inspect: "agent" },
+  "two-ex-exchange1": { name: "Agent Exchanged Token", cls: "agent", role: "exchange #1", parent: "user-token", inspect: "agent" },
+  // Actor CC for exchange #2 — agent-colored; MCP tab (only="mcp") keeps the
+  // delegated final token only.
+  "two-ex-mcp-actor": { name: "MCP Actor Token", cls: "agent", role: "actor_token (#2)", parent: null, inspect: "agent" },
+  "two-ex-final-token": { name: "Final MCP Token", cls: "mcp", role: "act chain", parent: "two-ex-exchange1", inspect: "mcp" },
 };
 
 export default function TraceTokenSummary({ tokenEvents, onInspect, only }) {
