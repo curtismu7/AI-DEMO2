@@ -451,6 +451,8 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
       return res.status(401).json({
         error: 'token_inactive',
         message: 'Your session is no longer active. Please sign in again.',
+        need_auth: true,
+        requiresLogin: true,
         tokenEvents: errorTokenEvents,
       });
     }

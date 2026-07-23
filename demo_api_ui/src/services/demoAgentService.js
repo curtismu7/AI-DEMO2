@@ -19,6 +19,11 @@ import { addMilestone, updateMilestoneStatus } from "./milestonesStore";
 import { createLogger } from "./logger";
 import { anySignal } from "../components/demoAgentSafety";
 import { adminCustomerContext } from "./adminCustomerContext";
+import {
+  isAuthRequiredApiError,
+  normalizeAuthFailure,
+  notifySessionExpiredIfNeeded,
+} from "../utils/authUi";
 import llmTimeouts from "../../../llm-timeouts.json";
 
 const log = createLogger("callMcpTool");
@@ -354,10 +359,13 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
         .catch(() => ({}));
       // token_inactive / need_auth: token is dead at PingOne — refresh cannot help, signal re-auth immediately
       if (err401.need_auth || err401.error === "token_inactive") {
-        throw Object.assign(new Error(err401.message || "Session expired"), {
+        const normalized = normalizeAuthFailure(401, err401);
+        notifySessionExpiredIfNeeded({ status: 401, body: err401 });
+        throw Object.assign(new Error(normalized.message), {
           statusCode: 401,
           need_auth: true,
-          code: "TOKEN_INACTIVE",
+          requiresLogin: true,
+          code: normalized.code,
         });
       }
       const isStubToken = [
@@ -580,6 +588,20 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
             tokenEvents: allTokenEvents,
           }
         );
+      }
+      // Auth-required 401: normalize so the agent never shows raw "Unauthorized" / "HTTP 401"
+      if (isAuthRequiredApiError(response.status, err)) {
+        const normalized = normalizeAuthFailure(401, err);
+        notifySessionExpiredIfNeeded({ status: 401, body: err });
+        throw Object.assign(new Error(normalized.message), {
+          tokenEvents: allTokenEvents,
+          statusCode: 401,
+          code: normalized.code,
+          need_auth: true,
+          requiresLogin: true,
+          taskId: err.taskId || null,
+          tool: err.tool || null,
+        });
       }
       // Normalize stub-token error codes so BankingAgent shows the session-fix bubble
       const errCode = [
@@ -1171,7 +1193,8 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
 
     let res = await fetch("/api/agent/invoke", opts);
 
-    // 401: try session refresh once, then retry — skip for stub-token errors (refresh has no real token to use)
+    // 401: try session refresh once, then retry — skip for stub-token / dead-token
+    // errors (refresh cannot help) and for need_auth (PingOne already rejected).
     if (res.status === 401) {
       const err401 = await res
         .clone()
@@ -1182,7 +1205,11 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
         "session_restore_required",
         "oauth_session_required",
       ].includes(err401.error);
-      if (!isStubToken) {
+      const skipRefresh =
+        isStubToken ||
+        err401.need_auth ||
+        err401.error === "token_inactive";
+      if (!skipRefresh) {
         const refreshed = await refreshOAuthSession();
         if (refreshed.ok) {
           res = await fetch("/api/agent/invoke", { ...opts, body: JSON.stringify(body) });
@@ -1203,6 +1230,14 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
       ["session_restore_required", "oauth_session_required"].includes(data.error)
     ) {
       data.error = "session_not_hydrated";
+    }
+
+    // Overnight / expired session: never return raw "Unauthorized" or "HTTP 401"
+    if (isAuthRequiredApiError(res.status, data)) {
+      const normalized = normalizeAuthFailure(401, data);
+      notifySessionExpiredIfNeeded({ status: 401, body: data });
+      ingestLegacyRunTrace(normalized, { forceHeuristic });
+      return normalized;
     }
 
     // Dispatch event for latest report sidebar item
