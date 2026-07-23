@@ -14,10 +14,10 @@
  *  11. Non-runnable attack UC keeps the disabled "coming in A6.2" button.
  *  12. POST failure shows an error message.
  *   A5.3 additions:
- *   T6b. Gate notice + disabled Run for flag-gated UC when flag is OFF.
+ *   T6b. Gate notice + enabled Run (auto-enables flag) for flag-gated UC when flag is OFF.
  *   T6c. Non-flag UC still has an enabled Run button.
  *   T6d. Clicking the toggle PATCHes the flag and enables Run.
- *   T6e. Flag-gated Run stays disabled while flags are loading.
+ *   T6e. Flag-gated Run stays enabled while flags are loading (auto-enable on Run).
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -433,16 +433,18 @@ describe('UseCaseLauncherPage', () => {
     await waitFor(() => expect(screen.getByText(/network error/i)).toBeInTheDocument());
   });
 
-  // T6b — gate notice renders for flag-gated UC when flag is OFF
-  it('shows gate notice and disabled Run for flag-gated UC when flag is OFF', async () => {
+  // T6b — gate notice still shows; Run stays clickable and will auto-enable the flag
+  it('shows gate notice and enabled Run for flag-gated UC when flag is OFF', async () => {
     renderPage();
     // UC2 now renders in both the Demo section and Foundations (no cross-section
     // dedup) — assert presence, not a single occurrence.
     await waitFor(() => expect(screen.getAllByText('A2A delegation').length).toBeGreaterThan(0));
     expect(screen.getAllByText(/ff_a2a_delegation/).length).toBeGreaterThan(0);
     const buttons = screen.getAllByRole('button', { name: /^run$/i });
-    const disabledRunBtns = buttons.filter((b) => b.disabled && !b.title?.includes('A6'));
-    expect(disabledRunBtns.length).toBeGreaterThan(0);
+    const autoEnableRuns = buttons.filter(
+      (b) => !b.disabled && b.title?.includes('auto-enable'),
+    );
+    expect(autoEnableRuns.length).toBeGreaterThan(0);
   });
 
   // T6c — non-flag UC is unaffected
@@ -476,8 +478,8 @@ describe('UseCaseLauncherPage', () => {
     });
   });
 
-  // T6e — default-safe: flags loading → flag-gated Run stays disabled
-  it('flag-gated Run is disabled while flags are loading', async () => {
+  // T6e — flags loading no longer blocks Run; auto-enable happens on click
+  it('flag-gated Run stays enabled while flags are loading', async () => {
     apiClient.get.mockImplementation((url) => {
       if (url.includes('feature-flags')) {
         return new Promise(() => {}); // never resolves = loading
@@ -489,8 +491,24 @@ describe('UseCaseLauncherPage', () => {
     // dedup) — assert presence, not a single occurrence.
     await waitFor(() => expect(screen.getAllByText('A2A delegation').length).toBeGreaterThan(0));
     const allBtns = screen.getAllByRole('button', { name: /^run$/i });
-    const disabledFlagBtns = allBtns.filter((b) => b.disabled && !b.title?.includes('A6'));
-    expect(disabledFlagBtns.length).toBeGreaterThan(0);
+    const enabledRuns = allBtns.filter((b) => !b.disabled && !b.title?.includes('A6'));
+    expect(enabledRuns.length).toBeGreaterThan(0);
+  });
+
+  it('Run on flag-gated UC auto-PATCHes required flags before demo/run', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getAllByText('A2A delegation').length).toBeGreaterThan(0));
+    const runBtn = screen.getAllByRole('button', { name: /^run$/i }).find(
+      (b) => b.title?.includes('auto-enable'),
+    );
+    expect(runBtn).toBeDefined();
+    fireEvent.click(runBtn);
+    await waitFor(() => {
+      expect(apiClient.patch).toHaveBeenCalledWith(
+        '/api/admin/feature-flags',
+        { updates: { ff_a2a_delegation: true } },
+      );
+    });
   });
 
   // ── Happy Path grouping ─────────────────────────────────────────────────

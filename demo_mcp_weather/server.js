@@ -151,7 +151,22 @@ const server = http.createServer(async (req, res) => {
     }
 
     try {
-      const result = await callChild(rpc);
+      // Agent/BFF call get_weather; third-party weather-mcp's default ENABLED_TOOLS
+      // has get_current_conditions (not get_weather). Rewrite at the bridge so
+      // gateway-scoped PERMIT demos return real weather instead of isError.
+      let forward = rpc;
+      if (
+        rpc &&
+        rpc.method === 'tools/call' &&
+        rpc.params &&
+        rpc.params.name === 'get_weather'
+      ) {
+        forward = {
+          ...rpc,
+          params: { ...rpc.params, name: 'get_current_conditions' },
+        };
+      }
+      const result = await callChild(forward);
       return send(res, 200, result);
     } catch (e) {
       return send(res, 502, { jsonrpc: '2.0', id: rpc.id != null ? rpc.id : null, error: { code: -32000, message: e.message } });

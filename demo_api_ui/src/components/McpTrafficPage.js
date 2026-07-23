@@ -97,7 +97,11 @@ function extractAccountOptions(toolName, result) {
   return null;
 }
 
-export default function McpTrafficPage() {
+/**
+ * @param {{ embedded?: boolean }} [props]
+ * `embedded` — rendered inside PingGateway Inspector (definite-height host).
+ */
+export default function McpTrafficPage({ embedded = false } = {}) {
   const [tools, setTools] = useState([]);
   const [discoveryPhases, setDiscoveryPhases] = useState([]);
   const [loadingTools, setLoadingTools] = useState(false);
@@ -146,7 +150,15 @@ export default function McpTrafficPage() {
       .then((data) => {
         if (cancelled) return;
         setTools(data.tools || []);
-        setToolsError(null);
+        // Same MFA gate as /pingone-mcp-inspector — empty tools with no banner looks "blank".
+        if (data?.mfa_required) {
+          const method = data.step_up_method ? ` (${data.step_up_method})` : '';
+          setToolsError(
+            `Step-up verification required${method} before MCP tools can be listed. Complete step-up via the AI agent, then reopen this tab.`,
+          );
+        } else {
+          setToolsError(null);
+        }
       })
       .catch((err) => {
         if (cancelled || err?.name === 'AbortError') return;
@@ -252,13 +264,26 @@ export default function McpTrafficPage() {
   const interpretation = interpretResult(toolResult);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '400px', overflowY: 'auto' }}>
+    <div
+      data-testid="mcp-traffic-page"
+      data-embedded={embedded ? 'true' : undefined}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        // Standalone route has no definite parent height; embedded host supplies one.
+        minHeight: embedded ? 0 : '400px',
+        overflowY: 'auto',
+      }}
+    >
 
-      {/* Page header */}
-      <div style={{ padding: '16px 24px 12px', borderBottom: '1px solid var(--border-light,#e2e8f0)', flexShrink: 0 }}>
-        <h1 style={{ margin: '0 0 4px', fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary,#1e293b)' }}>
-          MCP Tool Tester
-        </h1>
+      {/* Page header — omit title when embedded (tab label is already "MCP Tool Tester") */}
+      <div style={{ padding: embedded ? '8px 24px 12px' : '16px 24px 12px', borderBottom: '1px solid var(--border-light,#e2e8f0)', flexShrink: 0 }}>
+        {!embedded && (
+          <h1 style={{ margin: '0 0 4px', fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary,#1e293b)' }}>
+            MCP Tool Tester
+          </h1>
+        )}
         <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted,#64748b)' }}>
           Discover and invoke MCP tools directly through the BFF pipeline — no agent required.
           Real-time token chain traffic lives in the Token Chain panel.
@@ -324,9 +349,16 @@ export default function McpTrafficPage() {
         </div>
       )}
 
+      {/* Idle empty — avoid a blank panel when discovery returns no tools */}
+      {!loadingTools && !toolsError && tools.length === 0 && (
+        <div style={{ padding: '24px', fontSize: '0.9rem', color: '#64748b' }}>
+          No MCP tools loaded. Confirm the MCP server is running, then refresh this tab.
+        </div>
+      )}
+
       {/* Two-panel main area — only shown once tools are loaded */}
       {tools.length > 0 && (
-        <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', flex: 1, minHeight: embedded ? 0 : 420, overflow: 'hidden' }}>
 
           {/* Left panel: tool list + history */}
           <div style={{

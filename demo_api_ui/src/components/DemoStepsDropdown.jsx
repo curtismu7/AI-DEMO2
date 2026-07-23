@@ -17,6 +17,7 @@ import { a2aEventsForExplain } from './demoStepsA2a';
 import {
   clearCompletedUseCases,
   isUseCaseCompleted,
+  BX_UC_PROGRESS_EVENT,
 } from '../utils/useCaseDemoProgress';
 
 /**
@@ -80,6 +81,12 @@ export default function DemoStepsDropdown({
   useEffect(() => {
     if (open) loadSteps();
   }, [open, loadSteps]);
+
+  useEffect(() => {
+    const onProgress = () => setTick((n) => n + 1);
+    window.addEventListener(BX_UC_PROGRESS_EVENT, onProgress);
+    return () => window.removeEventListener(BX_UC_PROGRESS_EVENT, onProgress);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -162,31 +169,68 @@ export default function DemoStepsDropdown({
     setTick((n) => n + 1);
   }
 
+  // Counted over the primary steps only — that is the "scripted walkthrough"
+  // the header names; the advanced group is opt-in extra material. Recomputed
+  // each render, and `tick` is bumped by select/clear, so it refreshes on the
+  // same path as the per-row checkmarks.
+  void tick;
+  const completedCount = primarySteps.filter(({ uc }) =>
+    isUseCaseCompleted(uc.id),
+  ).length;
+  const nextPrimaryId = primarySteps.find(({ uc }) => !isUseCaseCompleted(uc.id))?.uc
+    ?.id;
+  const progressPct =
+    primarySteps.length > 0
+      ? Math.round((completedCount / primarySteps.length) * 100)
+      : 0;
+
   /**
-   * Render one demo-step row.
+   * Render one demo-step row (timeline rail).
    * @param {{ uc: object, stepNumber: number }} row
+   * @param {{ markNext?: boolean }} [opts]
    */
-  function renderStep({ uc, stepNumber }) {
+  function renderStep({ uc, stepNumber }, { markNext = false } = {}) {
     const completed = isUseCaseCompleted(uc.id);
-    void tick;
+    const isNext = markNext && !completed && uc.id === nextPrimaryId;
+    const rowClass = [
+      'ba-demo-steps-popout__row',
+      completed ? 'ba-demo-steps-popout__row--done' : '',
+      isNext ? 'ba-demo-steps-popout__row--next' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+    const itemClass = [
+      'ba-demo-steps-popout__item',
+      completed ? 'ba-demo-steps-popout__item--done' : '',
+      isNext ? 'ba-demo-steps-popout__item--next' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+    const railClass = [
+      'ba-demo-steps-popout__rail',
+      completed ? 'ba-demo-steps-popout__check' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+
     return (
-      <li key={uc.id} className="ba-demo-steps-popout__row">
+      <li key={uc.id} className={rowClass}>
         <button
           type="button"
-          className={`ba-demo-steps-popout__item${completed ? ' ba-demo-steps-popout__item--done' : ''}`}
+          className={itemClass}
           onClick={() => handleSelect(uc, stepNumber)}
           data-testid={`demo-step-${uc.id}`}
         >
-          <span className="ba-demo-steps-popout__step">
-            Step {stepNumber}
+          <span
+            className={railClass}
+            aria-label={completed ? 'Completed' : `Step ${stepNumber}`}
+          >
+            {completed ? '✓' : stepNumber}
           </span>
-          <span className="ba-demo-steps-popout__id">{uc.id}</span>
-          {completed && (
-            <span className="ba-demo-steps-popout__check" aria-label="Completed">
-              ✓
-            </span>
-          )}
-          <span className="ba-demo-steps-popout__title">{uc.title}</span>
+          <span className="ba-demo-steps-popout__body">
+            <span className="ba-demo-steps-popout__id">{uc.id}</span>
+            <span className="ba-demo-steps-popout__title">{uc.title}</span>
+          </span>
         </button>
         <button
           type="button"
@@ -199,16 +243,6 @@ export default function DemoStepsDropdown({
       </li>
     );
   }
-
-  void tick;
-
-  // Counted over the primary steps only — that is the "scripted walkthrough"
-  // the header names; the advanced group is opt-in extra material. Recomputed
-  // each render, and `tick` is bumped by select/clear, so it refreshes on the
-  // same path as the per-row checkmarks.
-  const completedCount = primarySteps.filter(({ uc }) =>
-    isUseCaseCompleted(uc.id),
-  ).length;
 
   return (
     <>
@@ -235,10 +269,10 @@ export default function DemoStepsDropdown({
           data-testid="demo-steps-popout"
         >
           <div className="ba-demo-steps-popout__header">
-            <span className="ba-demo-steps-popout__header-title">
-              Demo steps — scripted walkthrough
-            </span>
-            <span className="ba-demo-steps-popout__header-actions">
+            <div className="ba-demo-steps-popout__header-top">
+              <span className="ba-demo-steps-popout__header-title">
+                Demo steps
+              </span>
               {primarySteps.length > 0 && (
                 <span
                   className={`ba-demo-steps-popout__progress${
@@ -251,6 +285,16 @@ export default function DemoStepsDropdown({
                   {completedCount} of {primarySteps.length} done
                 </span>
               )}
+            </div>
+            {primarySteps.length > 0 && (
+              <div
+                className="ba-demo-steps-popout__track"
+                aria-hidden="true"
+              >
+                <i style={{ width: `${progressPct}%` }} />
+              </div>
+            )}
+            <div className="ba-demo-steps-popout__header-actions">
               <button
                 type="button"
                 className="ba-demo-steps-popout__clear"
@@ -260,7 +304,7 @@ export default function DemoStepsDropdown({
               >
                 Clear progress
               </button>
-            </span>
+            </div>
           </div>
           {loading && (
             <p className="ba-demo-steps-popout__status">Loading…</p>
@@ -275,8 +319,8 @@ export default function DemoStepsDropdown({
               No demo steps for this vertical.
             </p>
           )}
-          <ul className="ba-demo-steps-popout__list">
-            {primarySteps.map(renderStep)}
+          <ul className="ba-demo-steps-popout__list ba-demo-steps-popout__list--rail">
+            {primarySteps.map((row) => renderStep(row, { markNext: true }))}
           </ul>
           {advancedSteps.length > 0 && (
             <div className="ba-demo-steps-popout__advanced">
@@ -290,8 +334,8 @@ export default function DemoStepsDropdown({
                 {advancedOpen ? '▾' : '▸'} More demos ({advancedSteps.length})
               </button>
               {advancedOpen && (
-                <ul className="ba-demo-steps-popout__list">
-                  {advancedSteps.map(renderStep)}
+                <ul className="ba-demo-steps-popout__list ba-demo-steps-popout__list--rail">
+                  {advancedSteps.map((row) => renderStep(row))}
                 </ul>
               )}
             </div>

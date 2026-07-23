@@ -144,6 +144,7 @@ if (args.containsKey('latitude') || args.containsKey('longitude')) {
 }
 
 def city = args.city_name
+logger.warn('[TxWeatherScope] DEBUG argsKeys=' + args.keySet() + ' city=' + String.valueOf(city) + ' cityClass=' + (city == null ? 'null' : city.getClass().getName()) + ' allowedState=' + flags.allowedState)
 if (city instanceof String) {
     // Split on the FIRST comma: "Corpus Christi, TX" -> cityPart="corpus christi",
     // statePart="tx". Exact match on both parts — no substring containment — so
@@ -158,7 +159,14 @@ if (city instanceof String) {
         def statePart = normalized.substring(commaIdx + 1).trim()
         isInState = state.abbrevs.contains(statePart)
     } else {
-        isInState = state.cities.contains(normalized)
+        // Also accept "austin tx" — nlIntentParser norm() historically replaced
+        // commas with spaces before the city was captured for the tool call.
+        def sp = normalized.lastIndexOf(' ')
+        if (sp > 0 && state.abbrevs.contains(normalized.substring(sp + 1).trim())) {
+            isInState = true
+        } else {
+            isInState = state.cities.contains(normalized)
+        }
     }
     if (!isInState) {
         return denied(id, "Agent Gateway: weather scope restricted to ${stateLabel} (demo policy) — city not recognized as ${stateLabel}")

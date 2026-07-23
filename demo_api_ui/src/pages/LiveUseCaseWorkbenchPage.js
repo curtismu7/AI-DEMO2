@@ -247,20 +247,21 @@ export default function LiveUseCaseWorkbenchPage() {
       >
         <p className="luw-card__title">{title}</p>
         <p className="luw-card__meta">{meta}</p>
-        {isSelected && canRun && (
+        {canRun && (
           <button
             type="button"
             className="luw-card__run"
             disabled={runState?.state === 'running'}
             onClick={(e) => {
               e.stopPropagation();
+              setSelectedId(uc.id);
               handleRunSelected(uc);
             }}
           >
             {isRunnableAttack ? 'Run sim →' : isDone ? 'Run again →' : 'Run in agent →'}
           </button>
         )}
-        {isSelected && !canRun && (
+        {!canRun && (
           <p className="luw-card__hint">Not runnable in live workbench</p>
         )}
       </div>

@@ -6,6 +6,7 @@ import {
   shouldShowGlobalFloatingBankingAgentFab,
   isLiveWorkbenchRoute,
   isAgentLifecycleRoute,
+  isPingOneAdminAgentRoute,
 } from '../embeddedAgentFabVisibility';
 
 const customer = { role: 'customer', id: '1' };
@@ -20,6 +21,16 @@ describe('isBankingAgentDashboardRoute', () => {
     expect(isBankingAgentDashboardRoute('/demo-data')).toBe(false);
     expect(isBankingAgentDashboardRoute('/mcp-inspector')).toBe(false);
     expect(isBankingAgentDashboardRoute('/config')).toBe(false);
+  });
+});
+
+describe('isPingOneAdminAgentRoute', () => {
+  it('matches only the /admin console (not vertical ops or customer dash)', () => {
+    expect(isPingOneAdminAgentRoute('/admin')).toBe(true);
+    expect(isPingOneAdminAgentRoute('/admin/')).toBe(true);
+    expect(isPingOneAdminAgentRoute('/admin/banking')).toBe(false);
+    expect(isPingOneAdminAgentRoute('/dashboard')).toBe(false);
+    expect(isPingOneAdminAgentRoute('/')).toBe(false);
   });
 });
 

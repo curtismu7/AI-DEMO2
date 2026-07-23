@@ -5,9 +5,9 @@ How to run Super Banking so it matches the security *shape* of Ping’s
 page: real PingGateway as PEP, live PingOne Authorize, introspection (not local JWKS).
 
 This is **operator guidance**, not a claim of page-literal parity. Known intentional
-differences (BFF-held tokens, multi-hop TE, HITL/CIBA instead of login Agreement Prompt)
-are listed in [`PING_IDAI_SECURING_AGENTS_DIFF.md`](./PING_IDAI_SECURING_AGENTS_DIFF.md)
-when that doc is on your branch (PR #721).
+differences (BFF-held tokens, multi-hop TE, WEB_APP vs AI Agents product UI) and closed
+items (login Agreement Prompt, faithful preset) are listed in
+[`PING_IDAI_SECURING_AGENTS_DIFF.md`](./PING_IDAI_SECURING_AGENTS_DIFF.md).
 
 ## Flag recipe
 
@@ -42,12 +42,19 @@ Same three toggles in Quick Flags or Admin → Feature Flags:
 - [ ] No `X-Token-Validation: jwks` / `X-Token-Validation-Mode: jwks` on the happy path.
 - [ ] Optional: no-token request to gateway returns `401` with `WWW-Authenticate` (introspect routes use `McpProtectionFilter`; JWKS educational routes add `resource_metadata` only).
 
+## Login Agreement (separate from this preset)
+
+Login-time **Agent Consent** + **Agent-Consent-Login** is provisioned on the User App
+(bootstrap step `agent-consent`, or
+`cd demo_api_server && node scripts/ensureAgentConsentAgreement.js`). That is
+independent of Quick Flags. Per-tool HITL / CIBA / OTP still apply for high-risk actions.
+
 ## What this mode does *not* change
 
-- Does **not** restore `may_act` / login Agreement Prompt (out of scope for this demo).
 - Does **not** move token exchange into the agent process (BFF + gateway custody stays).
 - Does **not** rename audiences to the tutorial’s `agent` / `test` scopes.
 - Does **not** re-register Demo AI Agent under PingOne **AI Agents** product UI — `WEB_APP` is intentional (`PINGONE_APP_CONFIG.md` §5).
+- Does **not** remove in-app HITL / CIBA / step-up (Agreement is login ToS only).
 
 ## Related
 

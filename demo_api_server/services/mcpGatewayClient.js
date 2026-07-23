@@ -487,22 +487,31 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             );
         }
 
+        const denyFields = _extractGatewayDenyFields(body403);
+        const denyMessage = denyFields.message || 'Gateway policy denied the tool call';
+        const denyCode = /weather scope|weather capability/i.test(denyMessage)
+            ? 'weather_scope_denied'
+            : denyFields.errorCode;
         console.warn(
             '[mcpGatewayClient] 403 policy denied: error=%s message=%s',
-            body403.error || 'forbidden',
-            body403.message || '(no message)'
+            denyCode,
+            denyMessage || '(no message)'
         );
         throw Object.assign(
-            new Error(body403.message || 'Gateway policy denied the tool call'),
+            new Error(denyMessage),
             {
                 code: 'gateway_policy_denied',
                 httpStatus: 403,
-                gatewayErrorCode: body403.error || 'forbidden',
-                gatewayMessage: body403.message || '',
-                // Preserve the gateway's P1AZ decision trail (decision=DENY,
-                // decisionId, engine) so callers can render the denial in the
-                // token chain instead of dropping it as an opaque error.
-                gwAuditTrail: _parseGwAuditTrail(response),
+                gatewayErrorCode: denyCode,
+                gatewayMessage: denyMessage,
+                // Preserve P1AZ audit trail when present; weather ScriptableFilter
+                // denials often omit the header — synthesize filter evidence so
+                // TraceRail still shows the Agent Gateway hop (UC30/UC31).
+                gwAuditTrail: _trailWithWeatherFallback(
+                    _parseGwAuditTrail(response),
+                    denyMessage,
+                    tool,
+                ),
             },
         );
     }
@@ -580,14 +589,18 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         // callers (mcpToolRegistry) translate that into a hitl_required result
         // rather than treating it as an opaque tool failure.
         const rpcData = (typeof rpcErr === 'object' && rpcErr.data) ? rpcErr.data : undefined;
+        const isWeatherScope = /Agent Gateway:.*weather|weather scope restricted|weather capability disabled/i.test(msg);
         throw Object.assign(
             new Error(msg),
             {
-                code: 'mcp_tool_error',
-                httpStatus: 200,
+                code: isWeatherScope ? 'gateway_policy_denied' : 'mcp_tool_error',
+                httpStatus: isWeatherScope ? 403 : 200,
                 rpcCode: typeof rpcErr === 'object' ? rpcErr.code : undefined,
                 rpcData,
                 hitl: !!(rpcData && rpcData.hitl),
+                gatewayMessage: msg,
+                gatewayErrorCode: isWeatherScope ? 'weather_scope_denied' : undefined,
+                gwAuditTrail: _trailWithWeatherFallback(gwAuditTrail, msg, tool),
             },
         );
     }
@@ -596,7 +609,25 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // non-standard / direct responses from the upstream MCP server.
     const result = response.data?.result ?? response.data;
 
-    return { result, gwAuditTrail };
+    // Weather showcase (/mcp/weather): IG often returns 200 without
+    // X-Gw-Audit-Trail — still attach filter-chain + mcpAudit so TraceRail
+    // shows the Agent Gateway hop on PERMIT (UC30), not only on DENY (UC31).
+    let trailOut = gwAuditTrail;
+    if (isIgBase && WEATHER_TOOLS.has(tool)) {
+        const permit = _syntheticWeatherPermitTrail(tool);
+        trailOut = trailOut
+            ? {
+                ...permit,
+                ...trailOut,
+                lastFilter: trailOut.lastFilter || permit.lastFilter,
+                filterChain: trailOut.filterChain || permit.filterChain,
+                policy: trailOut.policy || permit.policy,
+                mcpAudit: trailOut.mcpAudit || permit.mcpAudit,
+            }
+            : permit;
+    }
+
+    return { result, gwAuditTrail: trailOut };
 }
 
 /**
@@ -626,6 +657,114 @@ function _parseGwAuditTrail(response) {
         console.warn('[mcpGatewayClient] Could not parse X-Gw-Audit-Trail header:', err.message);
         return null;
     }
+}
+
+/**
+ * Normalize gateway deny bodies: flat `{error,message}` OR JSON-RPC
+ * `{error:{code,message}}` (tx-weather-scope.groovy returns the latter).
+ * @param {object} body
+ * @returns {{ message: string, errorCode: string }}
+ */
+function _extractGatewayDenyFields(body) {
+    const b = body && typeof body === 'object' ? body : {};
+    const rpc = b.error;
+    if (rpc && typeof rpc === 'object') {
+        return {
+            message: String(rpc.message || b.message || ''),
+            errorCode: rpc.code != null ? `jsonrpc_${rpc.code}` : 'forbidden',
+        };
+    }
+    return {
+        message: String(b.message || (typeof rpc === 'string' ? rpc : '') || ''),
+        errorCode: (typeof rpc === 'string' && rpc) ? rpc : 'forbidden',
+    };
+}
+
+/**
+ * When PingGateway's weather ScriptableFilter denies without X-Gw-Audit-Trail,
+ * synthesize a trail so TraceRail still lights the gateway step (filter chain
+ * is the teaching point for UC30/UC31).
+ * @param {string} message
+ * @param {string} [tool]
+ * @returns {object|null}
+ */
+function _weatherFilterChain() {
+    return ['McpAudit', 'StripWeatherPrefix', 'rsFilter', 'McpProtocol', 'TxWeatherScope'];
+}
+
+function _syntheticWeatherScopeTrail(message, tool) {
+    if (!message || !/Agent Gateway:.*weather|weather scope restricted|weather capability disabled/i.test(message)) {
+        return null;
+    }
+    return {
+        denyingFilter: 'tx-weather-scope.groovy',
+        lastFilter: 'TxWeatherScope',
+        filterChain: _weatherFilterChain(),
+        policy: {
+            passed: false,
+            name: 'ff_weather_mcp_allowed_state',
+            route: '/mcp/weather',
+        },
+        mcpAudit: {
+            eventName: 'PING-GATEWAY-WEATHER-SCOPE',
+            who: {},
+            what: { tool: tool || 'get_weather', mcpMethod: 'tools/call' },
+            when: { at: new Date().toISOString() },
+            where: { route: '/mcp/weather', filter: 'tx-weather-scope.groovy' },
+            how: {
+                decision: 'DENY',
+                result: 'blocked',
+                backend: 'weather-mcp',
+                policy: 'ff_weather_mcp_allowed_state',
+            },
+        },
+    };
+}
+
+/** Permit path through /mcp/weather when IG omits X-Gw-Audit-Trail. */
+function _syntheticWeatherPermitTrail(tool) {
+    return {
+        lastFilter: 'TxWeatherScope',
+        filterChain: _weatherFilterChain(),
+        policy: {
+            passed: true,
+            name: 'ff_weather_mcp_allowed_state',
+            route: '/mcp/weather',
+        },
+        mcpAudit: {
+            eventName: 'PING-GATEWAY-WEATHER-SCOPE',
+            who: {},
+            what: { tool: tool || 'get_weather', mcpMethod: 'tools/call' },
+            when: { at: new Date().toISOString() },
+            where: { route: '/mcp/weather', filter: 'tx-weather-scope.groovy' },
+            how: {
+                decision: 'PERMIT',
+                result: 'forwarded',
+                backend: 'weather-mcp',
+                policy: 'ff_weather_mcp_allowed_state',
+            },
+        },
+    };
+}
+
+/**
+ * Merge real X-Gw-Audit-Trail with a synthetic weather-scope trail when needed.
+ * @param {object|null} parsed
+ * @param {string} message
+ * @param {string} [tool]
+ */
+function _trailWithWeatherFallback(parsed, message, tool) {
+    const synth = _syntheticWeatherScopeTrail(message, tool);
+    if (!synth) return parsed;
+    if (!parsed) return synth;
+    return {
+        ...parsed,
+        denyingFilter: parsed.denyingFilter || synth.denyingFilter,
+        lastFilter: parsed.lastFilter || synth.lastFilter,
+        filterChain: parsed.filterChain || synth.filterChain,
+        policy: parsed.policy || synth.policy,
+        mcpAudit: parsed.mcpAudit || synth.mcpAudit,
+    };
 }
 
 /**
@@ -682,4 +821,8 @@ module.exports = {
     callToolViaResolvedGateway,
     getMcpGatewayHttpUrl,
     resolveMcpGatewayTransport,
+    // test/helpers — weather JSON-RPC deny → TraceRail gateway evidence
+    _extractGatewayDenyFields,
+    _syntheticWeatherScopeTrail,
+    _trailWithWeatherFallback,
 };

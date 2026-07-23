@@ -11,6 +11,10 @@
 const SIM_TO_RAIL_ID = {
   // The sim's real RFC 8693 delegated token → the rail's exchange step evidence.
   'sim-exchange-ok': 'exchanged-token',
+  // Failed exchange (wrong aud / invalid_scope sims) → exchange error step.
+  'sim-exchange-error': 'exchange-failed',
+  // RAR attest evidence → rar teaching step (intent-binding still uses sim-gateway-deny).
+  'sim-rar-grant': 'rar-authorization',
 };
 
 /**

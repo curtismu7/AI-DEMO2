@@ -20,6 +20,7 @@
 #   ./run-docker.sh logs [svc]            follow logs (all, or one service name)
 #   ./run-docker.sh status                show container health table
 #   ./run-docker.sh llamacpp restart      stop and restart host LLM backend (llama.cpp tiers or oMLX)
+#   ./run-docker.sh promptfoo             run Phi step-narration eval (core promptfoo sidecar)
 #   ./run-docker.sh help                  show this message
 #
 # Optional groups (for `optional start|stop`):
@@ -66,8 +67,9 @@ fi
 
 # Core banking demo — always started by default (~750MB Docker RSS).
 CORE_SERVICES=(
-  ui mcp-server mcp-invest mortgage-service mcp-proxy
+  ui mcp-server mcp-invest mcp-weather mortgage-service mcp-proxy
   ping-gateway langchain-agent agent-service hitl-service llm-proxy
+  promptfoo-step-narration
 )
 
 # Optional groups — start on demand via `./run-docker.sh optional start <group>`.
@@ -487,7 +489,7 @@ fi
 SERVICES=(
   "demo-api-server|BFF (Express)        |3001|https://api.ping.demo:3001"
   "jaeger|Jaeger (tracing UI)    |16686|http://localhost:16686"
-  "ui|UI (React / nginx)   |4000|https://api.ping.demo:4000"
+  "ui|UI (React / nginx)   |4000|https://local.ping-devops.com:4000"
   "mcp-server|MCP Server            |8080|http://localhost:8080"
   "mcp-gateway|MCP Gateway           |3005|http://localhost:3005"
   "mcp-proxy|MCP Proxy             |8895|http://localhost:8895"
@@ -496,12 +498,14 @@ SERVICES=(
   "agent-service|Agent Service         |3016|http://localhost:3016"
   "hitl-service|HITL Service          |3009|http://localhost:3009"
   "mcp-invest|MCP Invest            |8081|http://localhost:8081"
+  "mcp-weather|MCP Weather           |8896|http://localhost:8896"
   "mcp-jwt-verifier|MCP JWT Verifier     |8083|http://localhost:8083"
   "mortgage-service|Mortgage Service     |8082|http://localhost:8082"
   "openai-agent|OpenAI Agent          |8891|http://localhost:8891"
   "mastra-agent|Mastra Agent          |8892|http://localhost:8892"
   "pydantic-agent|Pydantic AI Agent    |8893|http://localhost:8893"
   "authz-server|Authz Server          |9001|http://localhost:9001"
+  "promptfoo-step-narration|promptfoo (eval)      |-|./run-docker.sh promptfoo"
 )
 
 # True if $1 is one of the compose service names in SERVICES.
@@ -1232,8 +1236,8 @@ cmd_start() {
   print_status_table
   echo ""
   echo -e "${GREEN}${BOLD}  ╭─ URLS ──────────────────────────────────────────────────────╮${RESET}"
-  echo -e "${GREEN}${BOLD}  │${RESET}  [WEB]    App            ${YELLOW}${BOLD}https://api.ping.demo:4000${RESET}"
-  echo -e "${GREEN}${BOLD}  │${RESET}  [CONFIG] Admin Config   ${YELLOW}${BOLD}https://api.ping.demo:4000/config${RESET}"
+  echo -e "${GREEN}${BOLD}  │${RESET}  [WEB]    App            ${YELLOW}${BOLD}https://local.ping-devops.com:4000${RESET}"
+  echo -e "${GREEN}${BOLD}  │${RESET}  [CONFIG] Admin Config   ${YELLOW}${BOLD}https://local.ping-devops.com:4000/config${RESET}"
   echo -e "${GREEN}${BOLD}  │${RESET}  [LOGIN]  Admin Login    ${YELLOW}${BOLD}https://api.ping.demo:3001/api/auth/oauth/login${RESET}"
   echo -e "${GREEN}${BOLD}  │${RESET}  [USER]   User Login     ${YELLOW}${BOLD}https://api.ping.demo:3001/api/auth/oauth/user/login${RESET}"
   echo -e "${GREEN}${BOLD}  │${RESET}  [TRACE]  Jaeger UI      ${YELLOW}${BOLD}http://localhost:16686${RESET}  ${DIM}(service: demo-api-server)${RESET}"
@@ -1294,8 +1298,8 @@ cmd_status() {
   print_status_table
   echo ""
   echo -e "${GREEN}${BOLD}  ╭─ URLS ──────────────────────────────────────────────────────╮${RESET}"
-  echo -e "${GREEN}${BOLD}  │${RESET}  [WEB]    App            ${YELLOW}${BOLD}https://api.ping.demo:4000${RESET}"
-  echo -e "${GREEN}${BOLD}  │${RESET}  [CONFIG] Admin Config   ${YELLOW}${BOLD}https://api.ping.demo:4000/config${RESET}"
+  echo -e "${GREEN}${BOLD}  │${RESET}  [WEB]    App            ${YELLOW}${BOLD}https://local.ping-devops.com:4000${RESET}"
+  echo -e "${GREEN}${BOLD}  │${RESET}  [CONFIG] Admin Config   ${YELLOW}${BOLD}https://local.ping-devops.com:4000/config${RESET}"
   echo -e "${GREEN}${BOLD}  │${RESET}  [LOGIN]  Admin Login    ${YELLOW}${BOLD}https://api.ping.demo:3001/api/auth/oauth/login${RESET}"
   echo -e "${GREEN}${BOLD}  │${RESET}  [TRACE]  Jaeger UI      ${YELLOW}${BOLD}http://localhost:16686${RESET}"
   echo -e "${GREEN}${BOLD}  ╰─────────────────────────────────────────────────────────────╯${RESET}"
@@ -1326,6 +1330,24 @@ cmd_llamacpp_restart() {
   echo ""
 }
 
+# Run Phi narration/hallucination eval in the always-on promptfoo core sidecar.
+cmd_promptfoo() {
+  echo ""
+  echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+  echo -e "${CYAN}${BOLD}   [PROMPTFOO]  Step narration eval (Phi → :8090)${RESET}"
+  echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+  echo ""
+  if ! curl -sf --max-time 3 http://127.0.0.1:8090/health >/dev/null 2>&1; then
+    err "nothing healthy on :8090 — start the stack (./run-docker.sh) and ensure Phi is loaded"
+    exit 1
+  fi
+  if ! docker compose "${COMPOSE_FILES[@]}" ps --status running --services 2>/dev/null | grep -qx 'promptfoo-step-narration'; then
+    docker compose "${COMPOSE_FILES[@]}" up -d --build promptfoo-step-narration
+  fi
+  docker compose "${COMPOSE_FILES[@]}" exec -T promptfoo-step-narration \
+    promptfoo eval -c promptfoo/step-narration.config.yaml --filter-providers phi-4-mini-instruct
+}
+
 cmd_help() {
   echo ""
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
@@ -1354,6 +1376,7 @@ cmd_help() {
   echo "    logs <service>        Tail a specific service directly"
   echo "    status                Show container health table"
   echo "    llamacpp restart      Stop and restart host LLM backend (llama.cpp tiers or oMLX)"
+  echo "    promptfoo             Run Phi step-narration eval (core promptfoo sidecar → :8090)"
   echo "    help                  Show this message"
   echo ""
   cmd_optional_help
@@ -1478,6 +1501,9 @@ case "${COMMAND}" in
       echo ""
       exit 1
     fi
+    ;;
+  promptfoo)
+    cmd_promptfoo
     ;;
   status)
     cmd_status

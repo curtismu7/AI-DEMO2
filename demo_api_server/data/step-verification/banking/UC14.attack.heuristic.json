@@ -1,0 +1,10 @@
+{
+  "vertical": "banking",
+  "useCaseId": "UC14",
+  "triggerType": "attack",
+  "mode": "heuristic",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": null,
+  "checkedAt": "2026-07-22T22:26:07.282Z"
+}

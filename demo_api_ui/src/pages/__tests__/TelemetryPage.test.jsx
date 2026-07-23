@@ -57,6 +57,22 @@ describe("TelemetryPage", () => {
     expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
   });
 
+  it("surfaces Jaeger unreachable on Overview (not only in Detailed picker)", async () => {
+    vi.stubGlobal("fetch", vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        json: () => Promise.resolve({
+          error: "jaeger_unreachable",
+          message: "Jaeger query API is not reachable.",
+        }),
+      })));
+    renderPage();
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("Jaeger query API is not reachable."),
+    );
+    expect(screen.getByTestId("graph-core")).toBeInTheDocument();
+  });
+
   it("changing the window filter updates the overview URL", async () => {
     stubFetch();
     renderPage();

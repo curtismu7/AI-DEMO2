@@ -53,6 +53,28 @@ function callbackUrl(req) {
   return `${origin}${CALLBACK_PATH}`;
 }
 
+/**
+ * All demo UI origins that may host the inspector OAuth return.
+ * PUBLIC_APP_URL alone is not enough: local .env often points at api.ping.demo:4000
+ * while passkey login uses local.ping-devops.com:4000 (see .env.example). Bootstrap
+ * must keep both registered or PingOne returns invalid_grant on code exchange.
+ */
+function inspectorCallbackUrls(req) {
+  const urls = new Set([callbackUrl(req)]);
+  const cors = String(process.env.CORS_ORIGIN || '').split(',').map((s) => s.trim()).filter(Boolean);
+  for (const origin of cors) {
+    try {
+      urls.add(`${new URL(origin).origin}${CALLBACK_PATH}`);
+    } catch {
+      /* ignore malformed CORS entries */
+    }
+  }
+  // Always include the passkey-capable local origin even when CORS_ORIGIN is empty.
+  urls.add(`https://local.ping-devops.com:4000${CALLBACK_PATH}`);
+  urls.add(`https://api.ping.demo:4000${CALLBACK_PATH}`);
+  return [...urls];
+}
+
 /** Same worker-credential resolution order as services/pingOneUserService.js. */
 function resolveWorkerConfig() {
   const region = process.env.PINGONE_REGION || configStore.getEffective('PINGONE_REGION') || 'com';
@@ -83,9 +105,12 @@ function resolveWorkerConfig() {
  * our callback URL is in its redirectUris alongside any existing ones
  * (additive — never removes a URI another tool registered, e.g. Claude Code's
  * loopback callback).
+ *
+ * Redirect allowlist is re-checked every call (createApplication is a cheap
+ * name lookup when the app exists) so a later bootstrap that replaced
+ * redirectUris with Cursor loopbacks cannot leave the inspector callback missing.
  */
 async function ensureApp(req) {
-  if (_appCache) return _appCache;
   const { region, environmentId, workerClientId, workerClientSecret } = resolveWorkerConfig();
   const provisioner = new PingOneProvisionService();
   await provisioner.initialize(environmentId, workerClientId, workerClientSecret, region);
@@ -98,12 +123,12 @@ async function ensureApp(req) {
     'none'
   );
   const app = created.application;
-  const cb = callbackUrl(req);
   const existingRedirects = Array.isArray(app.redirectUris) ? app.redirectUris : [];
   let clientId = app.clientId;
-  if (!existingRedirects.includes(cb)) {
+  const needed = inspectorCallbackUrls(req).filter((u) => !existingRedirects.includes(u));
+  if (needed.length) {
     const updated = await provisioner.updateApplication(app.id, {
-      redirectUris: [...existingRedirects, cb],
+      redirectUris: [...existingRedirects, ...needed],
     });
     clientId = updated.clientId || clientId;
   }
@@ -194,3 +219,5 @@ router.get('/callback', async (req, res) => {
 });
 
 module.exports = router;
+// Test-only exports (pure helpers — no live PingOne calls).
+module.exports._test = { CALLBACK_PATH, callbackUrl, inspectorCallbackUrls };

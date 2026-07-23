@@ -1,0 +1,10 @@
+{
+  "vertical": "banking",
+  "useCaseId": "UC14b",
+  "triggerType": "link",
+  "mode": "heuristic",
+  "status": "FAIL",
+  "errorClass": "server_error",
+  "primaryTool": "create_transfer",
+  "checkedAt": "2026-07-22T22:26:17.756Z"
+}

@@ -440,12 +440,18 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
       },
       flowId: flowTraceId,
     });
+    // Preserve any exchange/authorize evidence attached to the thrown error so
+    // the Token Chain still updates when the invoke path hard-fails.
+    const errorTokenEvents = Array.isArray(error.tokenEvents) && error.tokenEvents.length
+      ? error.tokenEvents
+      : (Array.isArray(req.tokenEvents) ? req.tokenEvents : []);
     // Dead/expired user token: surface as 401 so the SPA can trigger re-auth
     // instead of treating it as a generic server error.
     if (error.code === 'TOKEN_INACTIVE') {
       return res.status(401).json({
         error: 'token_inactive',
         message: 'Your session is no longer active. Please sign in again.',
+        tokenEvents: errorTokenEvents,
       });
     }
     // Downstream MCP/gateway rejected the agent's delegated token while the user's
@@ -456,9 +462,14 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
         error: 'gateway_token_rejected',
         message: error.message,
         needsLogin: false,
+        tokenEvents: errorTokenEvents,
       });
     }
-    res.status(500).json({ error: 'Agent invocation failed', message: error.message });
+    res.status(500).json({
+      error: 'Agent invocation failed',
+      message: error.message,
+      tokenEvents: errorTokenEvents,
+    });
   }
 });
 
