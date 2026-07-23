@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { HeroSection } from "./HeroSection";
 import { HERO_VARIANTS } from "../config/heroVariants";
 import "./OAuthAcademyPage.css";
-import { useEducationUIOptional } from "../context/EducationUIContext";
 import { useTokenChainOptional } from "../context/TokenChainContext";
 import { sendAgentMessage } from "../services/demoAgentService";
 import AgentConsentModal from "./AgentConsentModal";
@@ -72,7 +71,6 @@ const OAuthAcademyPage = () => {
   const abortRef = useRef(null);
   // Monotonic id for stable React keys — messages are append-only, never reordered.
   const nextIdRef = useRef(0);
-  const edu = useEducationUIOptional();
   const tokenChain = useTokenChainOptional();
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: scroll must re-run on every new message; the effect reads only the (stable) ref but depends on the messages render.
@@ -103,11 +101,10 @@ const OAuthAcademyPage = () => {
     });
   };
 
-  // Apply the shared side effects of an agent response (education panel + token chain).
+  // Token chain only — do not auto-open education drawers from Academy replies
+  // (explain_concept still returns education.panel, but opening it here covers
+  // the chat with banking-oriented panels like Least-Data / Sensitive Data).
   const applySideEffects = (data) => {
-    if (data?.education?.panel && edu) {
-      edu.open(data.education.panel, data.education.tab || null);
-    }
     if (
       Array.isArray(data?.tokenEvents) &&
       data.tokenEvents.length > 0 &&
