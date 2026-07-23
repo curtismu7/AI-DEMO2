@@ -1,7 +1,7 @@
 # Build context: repo root — the server reads the single-source-of-truth
 # scope-topology.json at runtime via __dirname/../scope-topology.json.
 ARG GIT_SHA=unknown
-FROM node:20-alpine
+FROM node:22-alpine
 ENV GIT_SHA=$GIT_SHA
 
 # Recreate the sibling layout so __dirname/../scope-topology.json resolves
