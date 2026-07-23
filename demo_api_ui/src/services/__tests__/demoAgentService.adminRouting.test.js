@@ -36,6 +36,7 @@ vi.mock('../adminCustomerContext', () => ({
 
 import { sendAgentMessage } from '../demoAgentService';
 import * as mcpFlowModule from '../mcpFlowSseClient';
+import { tokenChainTraceStore } from '../tokenChainTrace/tokenChainTraceStore';
 
 describe('sendAgentMessage — pingone-admin vertical routing', () => {
   beforeEach(() => {
@@ -111,6 +112,9 @@ describe('sendAgentMessage — pingone-admin vertical routing', () => {
     expect(onTokenEvent).toHaveBeenCalledTimes(2);
     expect(onTokenEvent).toHaveBeenNthCalledWith(1, { id: 'a' });
     expect(onTokenEvent).toHaveBeenNthCalledWith(2, { id: 'b' });
+    expect(tokenChainTraceStore.beginTrace).toHaveBeenCalledWith({ prompt: 'list applications' });
+    expect(tokenChainTraceStore.ingestTokenEvents).toHaveBeenCalledWith([{ id: 'a' }, { id: 'b' }]);
+    expect(tokenChainTraceStore.completeTrace).toHaveBeenCalledWith(true);
   });
 
   it('falls back to a generic failure reply on unparseable JSON', async () => {
