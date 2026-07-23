@@ -141,6 +141,12 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
       return res.status(400).json({ error: 'invalid_vertical', message: 'vertical must match [a-z][a-z0-9-]*' });
     }
     const vertical = parseVerticalParam(verticalRaw);
+    // SPA page context wins: pin this session so /accounts/my and heuristics
+    // match the page even if a prior CareConnect/retail switch left healthcare.
+    if (vertical && req.session && req.session.active_vertical !== vertical) {
+      req.session.active_vertical = vertical;
+      if (typeof req.session.save === 'function') req.session.save(() => {});
+    }
 
     const promptBlock = guardPromptInput(prompt);
     if (promptBlock) {

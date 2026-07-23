@@ -101,6 +101,33 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-22 — CareConnect left the stack "stuck" on healthcare (Primary Care / HSA)
+
+**Files changed:**
+
+- `demo_api_server/routes/verticalManifest.js` — end-user `POST /api/verticals/active`
+  updates **session only**; only admins (or `global:true` from admin) call `setActive`
+  / SSE-broadcast the process-global default.
+- `demo_api_server/routes/agentInvokeRoute.js` + `demoAgentNl.js` — explicit request
+  `vertical` pins `req.session.active_vertical` so banking pages re-align a session
+  left on healthcare/retail.
+- `demo_api_server/services/demoAgentLangGraphService.js` — banking transfer/deposit/
+  withdraw reseeds accounts when they don't match the banking vertical.
+- `demo_api_ui/playwright.real.config.js` + `tests/e2e/helpers/restoreBankingVertical.js`
+  — globalTeardown restores banking via admin session after `*.real.spec.js`.
+- `demo_api_server/tests/verticalManifest/route.write.test.js` — asserts end-user
+  switch does not move the global.
+
+**What was broken:** CareConnect (and other) e2e / UI switches called `setActive`,
+so the process-global became healthcare. New sessions pinned to that on first `/me`,
+and banking transfers saw Primary Care/HSA until someone switched back.
+
+**Do not break:** session isolation (`activeIdFor`); admin SideNav switch still moves
+the room default; Reset Demo clearing session pins; emoji allowlist.
+
+**Verify:** `cd demo_api_server && npx jest tests/verticalManifest/route.write.test.js
+tests/verticalSessionPin.route.test.js --coverage=false`.
+
 ### 2026-07-22 — Token Summary only listed 1-exchange tokens (missed full 2-exchange run)
 
 **Files changed:**

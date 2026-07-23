@@ -102,16 +102,37 @@ async function _callTransactionsApi(body, userToken) {
 }
 
 /**
+ * Reseed this user's accounts when they don't match the requested vertical
+ * (e.g. session left on healthcare → Primary Care/HSA while invoke says banking).
+ * @param {string} userId
+ * @param {string} verticalId
+ */
+async function ensureAccountsForVertical(userId, verticalId) {
+  if (!userId || !verticalId) return;
+  const accounts = dataStore.getAccountsByUserId(userId) || [];
+  const manifestEntry = verticalManifest.loader.get(verticalId);
+  const expectedPrimary = (manifestEntry?.manifest?.terminology?.accountTypes?.[0] || '').toLowerCase();
+  if (!expectedPrimary) return;
+  const primary = (accounts[0]?.accountType || '').toLowerCase();
+  if (accounts.length > 0 && primary === expectedPrimary) return;
+  await dataStore.reseedUserForVertical(userId, verticalId);
+}
+
+/**
  * Dispatch a banking action based on parsed intent.
  * Reusable by both executeHeuristicBanking and banking plugin executeTool.
  * @param {string} action - The banking action (accounts, balance, transactions, transfer, deposit, withdraw, sensitive_account_details)
  * @param {object} params - Action-specific parameters (fromId, toId, amount, etc.)
  * @param {string} userId - User ID for lookups
- * @param {object} ctx - Context object with { userToken, req, subjectToken, isAdmin, terminology }
+ * @param {object} ctx - Context object with { userToken, req, subjectToken, isAdmin, terminology, vertical }
  * @returns {Promise<{reply, success, toolsCalled, ...} | null>}
  */
 async function dispatchBankingAction(action, params, userId, ctx) {
   const { userToken, req, subjectToken, isAdmin, terminology: _term } = ctx;
+  const verticalId = ctx.vertical || 'banking';
+  if (action === 'transfer' || action === 'transfer_600_test' || action === 'deposit' || action === 'withdraw') {
+    await ensureAccountsForVertical(userId, verticalId);
+  }
 
   // Normalize test actions to their real counterparts so NL-path Demo Steps
   // don't fall through to the LLM/catalog. The chip UI has dedicated handlers
@@ -497,6 +518,7 @@ async function executeHeuristicBanking(parsed, userId, userToken, req = null, su
     subjectToken,
     isAdmin: req?.session?.user?.role === 'admin',
     terminology: (verticalCtx && verticalCtx.terminology) || null,
+    vertical: 'banking',
   };
 
   return dispatchBankingAction(action, params, userId, ctx);
@@ -843,8 +865,8 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
   // Local-tool bypass: teaching/education tools are pure-local computations (text +
   // an education-panel directive, or a token decode). They must NOT trigger an authz
   // decision or an RFC 8693 exchange, so run the plugin's executeTool directly and skip
-  // the pre-flight + MCP path below. Gated to tools a plugin explicitly marks local —
-  // no existing plugin implements isLocalTool, so this is inert for every current vertical.
+  // the pre-flight + MCP path below. Gated to tools a plugin explicitly marks local
+  // (oauth-teaching: explain_concept, show_flow_diagram, inspect_token, …).
   if (plugin && typeof plugin.isLocalTool === 'function' && plugin.isLocalTool(action)) {
     let local;
     try {
@@ -959,6 +981,7 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
       subjectToken: null,
       isAdmin,
       terminology: verticalCtx?.terminology || null,
+      vertical: 'banking',
     });
     if (bankingResult?.tokenEvents?.length) {
       tokenEvents.push(...bankingResult.tokenEvents);
@@ -986,6 +1009,7 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
       subjectToken: null,
       isAdmin,
       terminology: verticalCtx?.terminology || null,
+      vertical: 'banking',
     });
     if (bankingResult?.tokenEvents?.length) {
       tokenEvents.push(...bankingResult.tokenEvents);
