@@ -114,6 +114,37 @@ const withPrimaryTool = (toolByVertical, extraByVertical = {}) => {
 };
 
 const READ_PER_VERTICAL = chipOverrides(READ_TRIGGER_BY_VERTICAL, withPrimaryTool(READ_PRIMARY_TOOL_BY_VERTICAL));
+
+/**
+ * A2A-specific per-vertical triggers for UC2.
+ * Each entry maps to a tool marked a2aDelegated:true in scope-topology.json and
+ * registered in a2aSpecialists.js. Using READ_PER_VERTICAL here would route to
+ * the standard read tool (e.g. list_orders) which is NOT a2aDelegated — the A2A
+ * delegation code path would never fire and the token chain would show UC1-style
+ * single-exchange dispatch instead of the expected nested-act chain.
+ */
+const A2A_TRIGGER_BY_VERTICAL = {
+  healthcare:        'show my sensitive patient records',
+  retail:            'show my sensitive order history',
+  government:        'show my sensitive tax record',
+  university:        'show my student finance details',
+  workforce:         'show my payroll details',
+  'sporting-goods':  'show my sensitive membership details',
+  manufacturing:     'show my sensitive supplier contract',
+  investment:        'show my portfolio summary',
+};
+const A2A_PRIMARY_TOOL_BY_VERTICAL = {
+  healthcare:        'sensitive_patient_records',
+  retail:            'sensitive_order_history',
+  government:        'sensitive_tax_record',
+  university:        'sensitive_student_finance',
+  workforce:         'sensitive_payroll_details',
+  'sporting-goods':  'sensitive_membership_details',
+  manufacturing:     'sensitive_supplier_contract',
+  investment:        'get_portfolio_summary',
+};
+const A2A_PER_VERTICAL = chipOverrides(A2A_TRIGGER_BY_VERTICAL, withPrimaryTool(A2A_PRIMARY_TOOL_BY_VERTICAL));
+
 const AMOUNT_PER_VERTICAL = (amount, whatToSayByVertical = {}) =>
   chipOverrides(amountTriggerByVertical(amount), withPrimaryTool(AMOUNT_PRIMARY_TOOL_BY_VERTICAL, Object.fromEntries(
     Object.entries(whatToSayByVertical).map(([v, whatToSay]) => [v, { whatToSay }])
@@ -173,7 +204,7 @@ const RAW_USE_CASES = [
     },
     // Topology / Authorize teach against the specialist tool that hits the gateway.
     primaryTool: 'get_portfolio_summary',
-    perVertical: READ_PER_VERTICAL,
+    perVertical: A2A_PER_VERTICAL,
   },
   {
     id: 'UC2.5',
