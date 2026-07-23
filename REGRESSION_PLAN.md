@@ -101,6 +101,39 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-22 — `/admin` Demo Steps showed banking UCs and hit `requiresCustomerLogin`
+
+**Files changed:**
+
+- `demo_api_ui/src/App.js` — `forceVertical: "pingone-admin"` when
+  `isPingOneAdminAgentRoute(pathname)` (`/admin` only).
+- `demo_api_ui/src/utils/embeddedAgentFabVisibility.js` —
+  `isPingOneAdminAgentRoute`.
+- `demo_api_ui/src/services/demoAgentService.js` — `sendToAdminAgent` begins
+  TraceRail + ingests admin `tokenEvents`.
+- Tests: `embeddedAgentFabVisibility.test.js`, `App.structure.test.js`,
+  `demoAgentService.adminRouting.test.js`.
+
+**What was broken:** `/admin` agent used the active theme vertical (usually
+`banking`), so Demo Steps loaded the customer trust-ladder catalog. Running a
+step hit `customerTokenGuard` → “Log in as customer” instead of
+`/api/admin-agent` (ADMIN1–4 in `config/admin/demoSteps.js`).
+
+**What was fixed:** Force `pingone-admin` on `/admin` so Demo Steps / NL /
+chips share the admin vertical and admin-agent path.
+
+**Do not break:** Banking Demo Steps on `/` and `/dashboard`; vertical ops
+under `/admin/banking` etc. (not `isPingOneAdminAgentRoute`);
+`PINGONE_ADMIN_CHIP_IDS` chip path; non-admin `sendAgentMessage` →
+`/api/agent/invoke`.
+
+**Verify:** `cd demo_api_ui && npx vitest --run
+src/utils/__tests__/embeddedAgentFabVisibility.test.js
+src/__tests__/App.structure.test.js
+src/services/__tests__/demoAgentService.adminRouting.test.js
+src/components/__tests__/DemoStepsDropdown.test.jsx`. Live: post-deploy §3
+**Demo Steps** row (`docs/runbooks/regression/post-deploy.md`).
+
 ### 2026-07-22 — UC30 gateway PERMIT + real weather, chat still Incomplete: prose vs parseToolResult
 
 **Files changed:**
