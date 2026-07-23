@@ -3269,7 +3269,14 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               />
               {!user && (
                 <div className="ud-dashboard-inline-agent-login-prompt" role="status">
-                  Please sign in to use the Agent
+                  <span>Please sign in to use the Agent</span>
+                  <button
+                    type="button"
+                    className="ud-dashboard-inline-agent-login-btn"
+                    onClick={navigateToCustomerOAuthLogin}
+                  >
+                    Sign In
+                  </button>
                 </div>
               )}
             </div>
