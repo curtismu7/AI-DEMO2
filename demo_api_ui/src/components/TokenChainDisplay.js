@@ -1481,6 +1481,9 @@ function A2aDelegationEduBox({ event }) {
   const isExchange = event.id?.includes('exchange');
   const isExchange2 = event.id === 'a2a-exchange2';
   const isFailed = event.id === 'a2a-exchange-failed';
+  const isAgentCard = event.id === 'a2a-agent-card';
+  const isProtocolBearer = event.id === 'a2a-protocol-bearer';
+  const isProtocolMessage = event.id === 'a2a-protocol-message';
 
   if (isFailed) {
     return (
@@ -1494,6 +1497,86 @@ function A2aDelegationEduBox({ event }) {
           <p>The Agent-to-Agent delegation chain broke at this step.</p>
           {event.error && (
             <p className="tcd-edu-detail">Error: {event.error}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (isAgentCard) {
+    const skills = Array.isArray(event.skills) ? event.skills : [];
+    return (
+      <div className="tcd-edu-box tcd-edu-box--ok">
+        <div className="tcd-edu-box-hd">
+          <span className="tcd-edu-icon">✅</span>
+          <strong>A2A Agent Card</strong>
+          <RfcRef rfc="A2A Protocol · Agent Discovery" />
+        </div>
+        <div className="tcd-edu-body">
+          <p>
+            The generalist discovered the specialist via its Agent Card before sending an A2A message.
+            This is the Linux Foundation A2A wire layer — separate from the nested-<code>act</code> MCP token.
+          </p>
+          <ul className="tcd-edu-checklist">
+            {event.agentName && (
+              <li><span className="tcd-edu-check-lbl">Agent:</span><span>{event.agentName}</span></li>
+            )}
+            {event.protocolBinding && (
+              <li><span className="tcd-edu-check-lbl">Transport:</span><span>{event.protocolBinding} {event.protocolVersion || ''}</span></li>
+            )}
+            {skills.length > 0 && (
+              <li><span className="tcd-edu-check-lbl">Skills:</span><span>{skills.join(', ')}</span></li>
+            )}
+            {event.cardUrl && (
+              <li><span className="tcd-edu-check-lbl">Card URL:</span><span className="tcd-edu-detail">{event.cardUrl}</span></li>
+            )}
+            {Array.isArray(event.securitySchemes) && event.securitySchemes.length > 0 && (
+              <li><span className="tcd-edu-check-lbl">Security:</span><span>{event.securitySchemes.join(', ')}</span></li>
+            )}
+          </ul>
+        </div>
+      </div>
+    );
+  }
+
+  if (isProtocolBearer) {
+    return (
+      <div className="tcd-edu-box tcd-edu-box--neutral">
+        <div className="tcd-edu-box-hd">
+          <span className="tcd-edu-icon">🔑</span>
+          <strong>A2A Protocol — PingOne Wire Bearer</strong>
+          <RfcRef rfc="A2A · Bearer auth" />
+        </div>
+        <div className="tcd-edu-body">
+          <p>
+            Separate PingOne client_credentials token for the A2A hop (not the nested-act MCP token).
+            Matches the Magic 8 Ball security sample pattern with PingOne as IdP.
+          </p>
+          {event.clientId && (
+            <ul className="tcd-edu-checklist">
+              <li><span className="tcd-edu-check-lbl">client_id:</span><span>{event.clientId}</span></li>
+            </ul>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (isProtocolMessage) {
+    return (
+      <div className="tcd-edu-box tcd-edu-box--ok">
+        <div className="tcd-edu-box-hd">
+          <span className="tcd-edu-icon">✅</span>
+          <strong>A2A Protocol — SendMessage</strong>
+          <RfcRef rfc="A2A · JSON-RPC" />
+        </div>
+        <div className="tcd-edu-body">
+          <p>
+            JSON-RPC <code>SendMessage</code> to the specialist after Agent Card discovery.
+            {event.mode ? ` Mode: ${event.mode}.` : ''}
+          </p>
+          {event.replyText && (
+            <p className="tcd-edu-detail">{event.replyText}</p>
           )}
         </div>
       </div>
@@ -2404,6 +2487,10 @@ const CLAIMS_STRIP_IDS = new Set([
   "a2a-exchange1",
   "a2a-agent2-actor",
   "a2a-exchange2",
+  // A2A Protocol wire hop (Agent Card + PingOne Bearer + SendMessage)
+  "a2a-protocol-bearer",
+  "a2a-agent-card",
+  "a2a-protocol-message",
 ]);
 
 function fmtSub(sub, hints) {
@@ -2577,6 +2664,9 @@ const STEP_SUB_LABELS = {
   "a2a-agent2-actor": "A2A Agent 2 Actor",
   "a2a-exchange2": "A2A Exchange #2 (Nested Act)",
   "a2a-exchange-failed": "A2A Delegation Failed",
+  "a2a-protocol-bearer": "A2A Protocol Bearer",
+  "a2a-agent-card": "A2A Agent Card",
+  "a2a-protocol-message": "A2A Protocol SendMessage",
 };
 
 /** Check if this event is part of an A2A delegation chain. */

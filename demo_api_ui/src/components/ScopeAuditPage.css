@@ -2,9 +2,10 @@
  * PingOne Scope Audit page — aligned with FeatureFlagsPage / DemoDataPage 2026 */
 
 .scope-audit-page {
-  max-width: 1120px;
+  max-width: min(1400px, 100%);
   margin: 0 auto;
   padding: 1.5rem 2rem 3rem;
+  box-sizing: border-box;
 }
 
 .scope-audit-page h1 {

@@ -19,6 +19,11 @@ import { addMilestone, updateMilestoneStatus } from "./milestonesStore";
 import { createLogger } from "./logger";
 import { anySignal } from "../components/demoAgentSafety";
 import { adminCustomerContext } from "./adminCustomerContext";
+import {
+  isAuthRequiredApiError,
+  normalizeAuthFailure,
+  notifySessionExpiredIfNeeded,
+} from "../utils/authUi";
 import llmTimeouts from "../../../llm-timeouts.json";
 
 const log = createLogger("callMcpTool");
@@ -354,10 +359,13 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
         .catch(() => ({}));
       // token_inactive / need_auth: token is dead at PingOne — refresh cannot help, signal re-auth immediately
       if (err401.need_auth || err401.error === "token_inactive") {
-        throw Object.assign(new Error(err401.message || "Session expired"), {
+        const normalized = normalizeAuthFailure(401, err401);
+        notifySessionExpiredIfNeeded({ status: 401, body: err401 });
+        throw Object.assign(new Error(normalized.message), {
           statusCode: 401,
           need_auth: true,
-          code: "TOKEN_INACTIVE",
+          requiresLogin: true,
+          code: normalized.code,
         });
       }
       const isStubToken = [
@@ -538,6 +546,23 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
             tool: err.tool || tool,
           });
         } catch (_) { /* display-only */ }
+        // Phase D: teach the attempted MCP call even when the gateway blocks it.
+        try {
+          tokenChainTraceStore.ingestMcpResult({
+            tool: err.tool || tool,
+            denied: true,
+            gatewayErrorCode: err.gatewayErrorCode || err.code || "forbidden",
+            requestJson: err.requestJson || { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: err.tool || tool, arguments: params || {} } },
+            result: {
+              error: "gateway_policy_denied",
+              gatewayErrorCode: err.gatewayErrorCode || err.code,
+              message: err.message,
+            },
+          });
+          if (Array.isArray(allTokenEvents) && allTokenEvents.length) {
+            tokenChainTraceStore.ingestTokenEvents(allTokenEvents);
+          }
+        } catch (_) { /* display-only */ }
         throw Object.assign(
           new Error(err.message || "Gateway policy denied the tool call"),
           {
@@ -545,6 +570,7 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
             statusCode: 403,
             tool: err.tool || tool,
             gatewayErrorCode: err.gatewayErrorCode || "forbidden",
+            requestJson: err.requestJson || null,
             tokenEvents: allTokenEvents,
           },
         );
@@ -562,6 +588,20 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
             tokenEvents: allTokenEvents,
           }
         );
+      }
+      // Auth-required 401: normalize so the agent never shows raw "Unauthorized" / "HTTP 401"
+      if (isAuthRequiredApiError(response.status, err)) {
+        const normalized = normalizeAuthFailure(401, err);
+        notifySessionExpiredIfNeeded({ status: 401, body: err });
+        throw Object.assign(new Error(normalized.message), {
+          tokenEvents: allTokenEvents,
+          statusCode: 401,
+          code: normalized.code,
+          need_auth: true,
+          requiresLogin: true,
+          taskId: err.taskId || null,
+          tool: err.tool || null,
+        });
       }
       // Normalize stub-token error codes so BankingAgent shows the session-fix bubble
       const errCode = [
@@ -997,17 +1037,34 @@ export function ingestLegacyRunTrace(data, { forceHeuristic = false } = {}) {
       }
       tokenChainTraceStore.ingestTokenEvents(merged);
     }
-    // A successful tool dispatch satisfies the 'tool-dispatched' evidence step.
     // The agent envelope returns `reply` prose, not a structured `result`, so
-    // synthesize a minimal marker from toolsCalled when the run succeeded — else
-    // every agent-driven success (UC1) rendered Incomplete though the tool ran.
-    if (data.success !== false && !data.error &&
-        Array.isArray(data.toolsCalled) && data.toolsCalled.length) {
-      tokenChainTraceStore.ingestMcpResult({
-        tool: data.toolsCalled[0],
-        toolsCalled: data.toolsCalled,
-        status: "success",
-      });
+    // synthesize a minimal mcpResult from toolsCalled — success AND failure.
+    // Without the failure branch, UC30 (weather mcp_error) left TraceRail with
+    // outcome=error but no mcp step error (only successful exchange/DPoP whys).
+    if (Array.isArray(data.toolsCalled) && data.toolsCalled.length) {
+      const failedTool = data.success === false || Boolean(data.error);
+      if (failedTool) {
+        const errCode = data.error
+          || (typeof data.reply === "string" && /mcp_error/i.test(data.reply) ? "mcp_error" : null)
+          || "tool_failed";
+        tokenChainTraceStore.ingestMcpResult({
+          tool: data.toolsCalled[0],
+          toolsCalled: data.toolsCalled,
+          status: "error",
+          error: errCode,
+          denied: false,
+          result: {
+            error: errCode,
+            message: data.message || data.reply || errCode,
+          },
+        });
+      } else {
+        tokenChainTraceStore.ingestMcpResult({
+          tool: data.toolsCalled[0],
+          toolsCalled: data.toolsCalled,
+          status: "success",
+        });
+      }
     }
     if (typeof data.reply === "string" && data.reply) {
       tokenChainTraceStore.ingestLlmReply(data.reply);
@@ -1024,6 +1081,10 @@ export function ingestLegacyRunTrace(data, { forceHeuristic = false } = {}) {
  * it always bounces with requiresCustomerLogin for an admin token.
  */
 async function sendToAdminAgent(message, { signal, onTokenEvent } = {}) {
+  try {
+    tokenChainTraceStore.beginTrace({ prompt: message });
+    tokenChainTraceStore.ingestRoutingMode("llm", { action: "admin-agent" });
+  } catch { /* display-only */ }
   const res = await fetch("/api/admin-agent/message", {
     method: "POST",
     credentials: "include",
@@ -1037,11 +1098,14 @@ async function sendToAdminAgent(message, { signal, onTokenEvent } = {}) {
   const data = await res
     .json()
     .catch(() => ({ reply: "Admin agent request failed.", success: false }));
-  if (Array.isArray(data.tokenEvents)) {
-    for (const ev of data.tokenEvents) {
-      onTokenEvent?.(ev);
-    }
+  const tokenEvents = Array.isArray(data.tokenEvents) ? data.tokenEvents : [];
+  for (const ev of tokenEvents) {
+    onTokenEvent?.(ev);
   }
+  try {
+    if (tokenEvents.length) tokenChainTraceStore.ingestTokenEvents(tokenEvents);
+    tokenChainTraceStore.completeTrace(data.success !== false && !data.error);
+  } catch { /* display-only */ }
   return {
     reply: data.reply,
     success: data.success,
@@ -1051,7 +1115,7 @@ async function sendToAdminAgent(message, { signal, onTokenEvent } = {}) {
     error: data.error,
     inputTokens: data.inputTokens,
     outputTokens: data.outputTokens,
-    tokenEvents: data.tokenEvents || [],
+    tokenEvents,
     _status: res.status,
   };
 }
@@ -1129,7 +1193,8 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
 
     let res = await fetch("/api/agent/invoke", opts);
 
-    // 401: try session refresh once, then retry — skip for stub-token errors (refresh has no real token to use)
+    // 401: try session refresh once, then retry — skip for stub-token / dead-token
+    // errors (refresh cannot help) and for need_auth (PingOne already rejected).
     if (res.status === 401) {
       const err401 = await res
         .clone()
@@ -1140,7 +1205,11 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
         "session_restore_required",
         "oauth_session_required",
       ].includes(err401.error);
-      if (!isStubToken) {
+      const skipRefresh =
+        isStubToken ||
+        err401.need_auth ||
+        err401.error === "token_inactive";
+      if (!skipRefresh) {
         const refreshed = await refreshOAuthSession();
         if (refreshed.ok) {
           res = await fetch("/api/agent/invoke", { ...opts, body: JSON.stringify(body) });
@@ -1161,6 +1230,14 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
       ["session_restore_required", "oauth_session_required"].includes(data.error)
     ) {
       data.error = "session_not_hydrated";
+    }
+
+    // Overnight / expired session: never return raw "Unauthorized" or "HTTP 401"
+    if (isAuthRequiredApiError(res.status, data)) {
+      const normalized = normalizeAuthFailure(401, data);
+      notifySessionExpiredIfNeeded({ status: 401, body: data });
+      ingestLegacyRunTrace(normalized, { forceHeuristic });
+      return normalized;
     }
 
     // Dispatch event for latest report sidebar item

@@ -376,6 +376,8 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET:   { public: false, default: '' },
   // Must stay in sync with public_app_url + pingoneProvisionService redirect grant
   PINGONE_AI_AGENT_ACTOR_REDIRECT_URI:    { public: true,  default: '' },
+  // PAR (RFC 9126) — intent-binding live mode (routes/intentBinding.js)
+  pingone_par_endpoint:                   { public: true,  default: '' }, // https://auth.pingone.<region>/<envId>/as/par
   // No defaults for audience URIs — an unconfigured audience must fail explicitly,
   // not silently use a stale fallback value that produces a confusing token error.
   PINGONE_RESOURCE_AGENT_GATEWAY_URI:     { public: true,  default: '' }, // AI Agent actor client-credentials audience — matches Demo Agent Gateway resource aud in PingOne
@@ -1125,6 +1127,7 @@ class ConfigStore {
       // Direct aliases for the renamed env vars so getEffective(lowercased-new-name) works.
       pingone_ai_agent_actor_client_id:      ['PINGONE_AI_AGENT_ACTOR_CLIENT_ID', 'PINGONE_AI_AGENT_CLIENT_ID', 'AI_AGENT_CLIENT_ID'],
       pingone_ai_agent_actor_client_secret:  ['PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET', 'PINGONE_AI_AGENT_CLIENT_SECRET', 'AI_AGENT_CLIENT_SECRET'],
+      pingone_par_endpoint:                  ['PINGONE_PAR_ENDPOINT'],
       pingone_ai_agent_actor_redirect_uri:   ['PINGONE_AI_AGENT_ACTOR_REDIRECT_URI'],
       pingone_token_exchanger_client_id:     ['PINGONE_TOKEN_EXCHANGER_CLIENT_ID', 'PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID', 'PINGONE_MCP_EXCHANGER_CLIENT_ID', 'AGENT_OAUTH_CLIENT_ID'],
       pingone_token_exchanger_client_secret: ['PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET', 'PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_SECRET', 'PINGONE_MCP_EXCHANGER_CLIENT_SECRET', 'AGENT_OAUTH_CLIENT_SECRET'],

@@ -2,7 +2,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import bffAxios from '../../services/bffAxios';
-import PingOneAuthorizePage, { EvaluatePanel } from '../PingOneAuthorizePage';
+import PingOneAuthorizePage, { EvaluatePanel, filterPolicyTree, policyNodeMatches } from '../PingOneAuthorizePage';
 // (replaces the Task 1 line `import { EvaluatePanel } from '../PingOneAuthorizePage';` —
 // same module, now importing both the default and the named export in one statement)
 
@@ -49,6 +49,26 @@ const ONE_POLICY = [
           },
         ],
       },
+      {
+        id: 'p-mcp',
+        kind: 'POLICY',
+        name: 'MCP Delegation',
+        description: 'Gates agent tool calls when DecisionContext is McpFirstTool',
+        enabled: true,
+        children: [
+          {
+            id: 'r-mcp',
+            kind: 'RULE',
+            name: 'Require delegated actor',
+            enabled: true,
+            effect: 'DENY',
+            testCases: {
+              trigger: { preset: 'mcp', parameters: { ToolName: 'transfer', ActClientId: '' } },
+              avoid: { preset: 'mcp', parameters: { ToolName: 'transfer', ActClientId: 'agent-1' } },
+            },
+          },
+        ],
+      },
     ],
   },
 ];
@@ -82,7 +102,43 @@ test('renders the policy tree in the left column with the rule count', async () 
   renderPanel();
   expect(await screen.findByText('Deny threshold')).toBeInTheDocument();
   expect(screen.getByText('Transaction Authorization')).toBeInTheDocument();
-  expect(screen.getByText(/1 rule/)).toBeInTheDocument();
+  expect(screen.getByText(/2 rules/)).toBeInTheDocument();
+});
+
+test('policy search filters the tree by name or description and highlights matches', async () => {
+  renderPanel();
+  expect(await screen.findByText('Deny threshold')).toBeInTheDocument();
+  const search = screen.getByRole('searchbox', { name: /Search authorization policies/i });
+  fireEvent.change(search, { target: { value: 'McpFirstTool' } });
+  expect(screen.getByText('MCP Delegation')).toBeInTheDocument();
+  expect(screen.getByText('Require delegated actor')).toBeInTheDocument();
+  expect(screen.queryByText('Deny threshold')).not.toBeInTheDocument();
+  expect(screen.getByText(/Showing matches for/)).toBeInTheDocument();
+  expect(document.querySelector('[data-policy-match="true"]')).toBeTruthy();
+});
+
+test('policy search with no hits shows an empty message', async () => {
+  renderPanel();
+  await screen.findByText('Deny threshold');
+  fireEvent.change(screen.getByRole('searchbox', { name: /Search authorization policies/i }), {
+    target: { value: 'zz-no-such-policy' },
+  });
+  expect(screen.getByText(/No policies match/)).toBeInTheDocument();
+});
+
+describe('filterPolicyTree helpers', () => {
+  test('policyNodeMatches checks name and description case-insensitively', () => {
+    expect(policyNodeMatches({ name: 'MCP First Tool', description: 'DecisionContext McpFirstTool' }, 'mcpfirsttool')).toBe(true);
+    expect(policyNodeMatches({ name: 'Transaction', description: '' }, 'mcp')).toBe(false);
+  });
+
+  test('filterPolicyTree keeps ancestors of matches and drops unrelated branches', () => {
+    const filtered = filterPolicyTree(ONE_POLICY, 'McpFirstTool');
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].name).toBe('Banking Authorization');
+    expect(filtered[0].children).toHaveLength(1);
+    expect(filtered[0].children[0].name).toBe('MCP Delegation');
+  });
 });
 
 test('shows a loading message in the left column while policies load', () => {
@@ -99,8 +155,9 @@ test('shows an error message in the left column when policies fail to load', () 
 test('clicking a rule\'s Trigger button calls onTestRule with that rule\'s trigger test case', async () => {
   const onTestRule = vi.fn();
   renderPanel({ onTestRule });
-  const trigger = await screen.findByRole('button', { name: 'Trigger →' });
-  fireEvent.click(trigger);
+  await screen.findByText('Deny threshold');
+  // First Trigger belongs to Deny threshold (transaction branch listed before MCP).
+  fireEvent.click(screen.getAllByRole('button', { name: 'Trigger →' })[0]);
   expect(onTestRule).toHaveBeenCalledWith({
     ruleName: 'Deny threshold',
     case: 'trigger',
@@ -210,8 +267,8 @@ describe('PingOneAuthorizePage (full page wiring)', () => {
 
   test('clicking Trigger on a rule (now inside the shell) round-trips through the parent\'s pendingTest state into the middle form', async () => {
     render(<PingOneAuthorizePage />);
-    const trigger = await screen.findByRole('button', { name: 'Trigger →' });
-    fireEvent.click(trigger);
+    await screen.findByText('Deny threshold');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Trigger →' })[0]);
     // pendingTest's preset is 'transaction' and its Amount is 50000 (ONE_POLICY's trigger case) —
     // confirms the parent's handleTestRule -> pendingTest -> EvaluatePanel's pendingTest-effect
     // chain still runs end-to-end through the new prop wiring.

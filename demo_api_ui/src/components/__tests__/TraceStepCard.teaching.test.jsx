@@ -1,5 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import TraceStepCard from "../TraceStepCard";
+import { EducationUIProvider, useEducationUI } from "../../context/EducationUIContext";
 
 const STEP_WITH_EVIDENCE = {
   id: "exchange",
@@ -26,6 +27,11 @@ const STEP_NARRATIVE_ONLY = {
     rfcs: ["RFC 6749"],
   },
 };
+
+function EduProbe() {
+  const { panel, tab } = useEducationUI();
+  return <div data-testid="edu-probe">{panel || ""}:{tab || ""}</div>;
+}
 
 test("shows JSON request/response inline and offers Pop out when evidence exists", () => {
   render(
@@ -61,4 +67,22 @@ test("large evidence hints to prefer Pop out without hiding the JSON", () => {
   expect(screen.getByText(/use Pop out for a bigger view/i)).toBeInTheDocument();
   expect(screen.getByText("Request")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /Pop out full detail/i })).toBeInTheDocument();
+});
+
+test("Learn more opens the education drawer when moreDetail.edu is set", () => {
+  const step = {
+    ...STEP_WITH_EVIDENCE,
+    detail: {
+      ...STEP_WITH_EVIDENCE.detail,
+      moreDetail: { edu: "token-exchange", tab: "why", label: "Learn: Token Exchange (RFC 8693)" },
+    },
+  };
+  render(
+    <EducationUIProvider>
+      <EduProbe />
+      <TraceStepCard step={step} onInspect={() => {}} defaultOpen />
+    </EducationUIProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: /Learn: Token Exchange/i }));
+  expect(screen.getByTestId("edu-probe").textContent).toBe("token-exchange:why");
 });

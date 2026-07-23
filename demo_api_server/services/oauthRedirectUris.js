@@ -62,18 +62,33 @@ function getUserRedirectUri(req, opts) {
 }
 
 /**
+ * Strip trailing slashes / CR from an origin URL.
+ * @param {string} raw
+ * @returns {string}
+ */
+function normalizeOrigin(raw) {
+  return String(raw || '').trim().replace(/[\/\r\n]+$/, '');
+}
+
+/**
  * Frontend origin for redirects after login / config (no /api prefix).
- * Reads from configStore; falls back to env vars or hardcoded default.
+ *
+ * Prefer PUBLIC_APP_URL / public_app_url so post-login Location matches the
+ * OAuth redirect_uri host (passkey-capable local.ping-devops.com). Stale LMDB
+ * FRONTEND_URL must not win — that caused double PingOne login when callback
+ * cookies were set on one host and the SPA landed on another.
  */
 function getFrontendOrigin() {
-  const fromStore = configStore.getEffective('frontend_url');
-  if (fromStore) return (fromStore || '').trim().replace(/[\/\r\n]+$/, '');
+  const publicApp = normalizeOrigin(
+    configStore.getEffective('public_app_url') || process.env.PUBLIC_APP_URL || '',
+  );
+  if (publicApp) return publicApp;
 
-  const clientUrl = (process.env.REACT_APP_CLIENT_URL || '').trim();
+  const clientUrl = normalizeOrigin(process.env.REACT_APP_CLIENT_URL || '');
   if (clientUrl) return clientUrl;
 
-  const publicUrl = (process.env.PUBLIC_APP_URL || '').trim();
-  if (publicUrl) return publicUrl;
+  const fromStore = normalizeOrigin(configStore.getEffective('frontend_url') || '');
+  if (fromStore) return fromStore;
 
   return 'https://demo-api-server:3001';
 }
@@ -239,6 +254,7 @@ function listActorParRedirectCandidates(publicAppUrl) {
 }
 
 module.exports = {
+  getCanonicalPublicOrigin,
   getAdminRedirectUri,
   getUserRedirectUri,
   getFrontendOrigin,

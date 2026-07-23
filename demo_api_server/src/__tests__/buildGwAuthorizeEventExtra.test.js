@@ -27,4 +27,17 @@ describe('buildGwAuthorizeEventExtra', () => {
   it('returns empty object for null input', () => {
     expect(buildGwAuthorizeEventExtra(null)).toEqual({});
   });
+
+  it('forwards denyingFilter / filterChain / lastFilter for Token Chain teaching', () => {
+    const extra = buildGwAuthorizeEventExtra({
+      decision: 'DENY',
+      denyingFilter: 'P1AZDecision',
+      lastFilter: null,
+      filterChain: [{ filter: 'P1AZDecision', result: 'blocked', decision: 'DENY' }],
+      policy: { passed: true },
+    });
+    expect(extra.denyingFilter).toBe('P1AZDecision');
+    expect(extra.filterChain).toEqual([{ filter: 'P1AZDecision', result: 'blocked', decision: 'DENY' }]);
+    expect(extra.policy).toEqual({ passed: true });
+  });
 });

@@ -6,12 +6,16 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "scripts" / "build-codegraph.py"
-DB = REPO_ROOT / ".codegraph" / "codegraph.db"
+DB = REPO_ROOT / ".codegraph" / "demo-codegraph.db"
 
 
 def test_build_writes_project_metadata():
-    result = subprocess.run([sys.executable, str(SCRIPT)], capture_output=True, text=True)
-    assert result.returncode == 0, result.stderr
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--out", str(DB)],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr or result.stdout
     conn = sqlite3.connect(str(DB))
     try:
         rows = dict(conn.execute("SELECT key, value FROM project_metadata").fetchall())
@@ -21,6 +25,8 @@ def test_build_writes_project_metadata():
         ["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"],
         capture_output=True, text=True,
     ).stdout.strip()
+    assert rows.get("builder") == "demo-build-codegraph"
+    assert rows.get("builder_version") == "1"
     assert rows.get("built_at_commit") == head
     assert int(rows.get("node_count", "0")) > 0
     assert rows.get("built_at")

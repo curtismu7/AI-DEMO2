@@ -1415,7 +1415,7 @@ async function checkDockerK8s() {
 // ── CodeGraph index builder ───────────────────────────────────────────────────
 //
 // Runs scripts/build-codegraph.py (stdlib only — no pip install needed) to
-// index the repo into .codegraph/codegraph.db. The langchain_agent's
+// index the repo into .codegraph/demo-codegraph.db. The langchain_agent's
 // CodeGraph tools query this db; it degrades gracefully if the db is absent,
 // so failure here is warn-only.
 async function buildCodeGraph() {
@@ -1456,12 +1456,12 @@ async function buildCodeGraph() {
     return;
   }
 
-  ok('.codegraph/codegraph.db written');
+  ok('.codegraph/demo-codegraph.db written');
 
   // Bake a copy for the langchain_agent Dockerfile (COPY langchain_agent/codegraph.db*
   // → /app/codegraph.db). Without this, the image ships a zero-byte `touch`
   // placeholder and Code Explorer returns 503 "index not available".
-  const srcDb = path.join(REPO_ROOT, '.codegraph', 'codegraph.db');
+  const srcDb = path.join(REPO_ROOT, '.codegraph', 'demo-codegraph.db');
   const bakeDb = path.join(REPO_ROOT, 'langchain_agent', 'codegraph.db');
   try {
     fs.copyFileSync(srcDb, bakeDb);
@@ -1663,7 +1663,7 @@ async function main() {
       await configureHelix();
     }
     n++;
-    phase(n, total, 'Build CodeGraph index (.codegraph/codegraph.db)');
+    phase(n, total, 'Build CodeGraph index (.codegraph/demo-codegraph.db)');
     await buildCodeGraph();
     printDone({ ranBootstrap: false, fromTar: true });
     return;
@@ -1713,7 +1713,7 @@ async function main() {
 
   // Phase: build CodeGraph index
   n++;
-  phase(n, total, 'Build CodeGraph index (.codegraph/codegraph.db)');
+  phase(n, total, 'Build CodeGraph index (.codegraph/demo-codegraph.db)');
   await buildCodeGraph();
 
   printDone({ ranBootstrap: true, fromTar: !!tarArg });

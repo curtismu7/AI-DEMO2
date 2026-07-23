@@ -7,14 +7,17 @@ const EMPTY_TRACE = {
 };
 
 describe("buildTraceSteps — empty trace", () => {
-  test("returns the 12 happy-path steps (intent-binding omitted mid-flight), all pending", () => {
+  test("returns the happy-path steps (intent-binding/stepup omitted mid-flight), all pending", () => {
     const steps = buildTraceSteps(EMPTY_TRACE);
     expect(steps.map((s) => s.id)).toEqual([
-      "signin", "prompt", "agent", "llm", "agent-token", "exchange",
-      "authorize", "gateway", "api-key-swap", "mcp", "api", "reply",
+      "signin", "refresh", "prompt", "agent", "llm", "agent-token", "exchange",
+      "dpop", "rar", "jwks", "authorize", "introspection", "mtls", "gateway",
+      "api-key-swap", "dual-token", "mcp", "api", "reply",
     ]);
     expect(steps.every((s) => s.status === "pending")).toBe(true);
-    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12]);
+    expect(steps.map((s) => s.num)).toEqual(
+      Array.from({ length: steps.length }, (_, i) => i + 1),
+    );
   });
 });
 
@@ -69,6 +72,78 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(ex.detail.request.text).toContain("token-exchange");
     expect(ex.detail.inspectToken).toBe("mcp");
     expect(ex.detail.rfcs).toContain("RFC 8693");
+  });
+
+  // Regression: exchange-failed used to mark the step error but leave why/kv/response
+  // empty because detail only read exTok (success event).
+  test("exchange-failed fills TraceRail why + error response + request", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [
+        { id: "user-token", status: "active", claims: { scope: "read write" } },
+        {
+          id: "exchange-failed",
+          status: "failed",
+          explanation: "Exchange failed: May not request scopes for multiple resources — error: invalid_scope",
+          error: "May not request scopes for multiple resources",
+          pingoneError: "invalid_scope",
+          pingoneErrorDescription: "May not request scopes for multiple resources",
+          httpStatus: 400,
+          exchangeRequest: {
+            audience: "https://api.ping.demo:3036/mcp",
+            scope: "read write transfer",
+          },
+          rfc: "RFC 8693",
+        },
+      ],
+    });
+    const ex = steps.find((s) => s.id === "exchange");
+    expect(ex.status).toBe("error");
+    expect(ex.detail.why).toMatch(/invalid_scope|multiple resources/i);
+    expect(ex.detail.request.text).toContain("read write transfer");
+    expect(ex.detail.response.text).toContain("invalid_scope");
+    expect(ex.detail.kv.some(([k, v]) => k === "error" && String(v).includes("invalid_scope"))).toBe(true);
+  });
+
+  test("two-ex-final-token with status failed is error not blank done", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [
+        {
+          id: "two-ex-final-token",
+          status: "failed",
+          explanation: "Final hop rejected by PingOne",
+          error: "invalid_scope",
+          exchangeRequest: { scope: "gateway:mcp:invoke" },
+        },
+      ],
+    });
+    const ex = steps.find((s) => s.id === "exchange");
+    expect(ex.status).toBe("error");
+    expect(ex.detail.why).toMatch(/Final hop rejected|invalid_scope/i);
+    expect(ex.detail.response.text).toContain("invalid_scope");
+  });
+
+  test("sim-rar-grant lights rar teaching step with authorization_details", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [
+        {
+          id: "sim-rar-grant",
+          status: "active",
+          explanation: "Attested authorization_details cap the transfer at $100.",
+          authorization_details: [{ type: "banking_transaction", amount: 100 }],
+          rfc: "RFC 9396",
+        },
+      ],
+    });
+    const rar = steps.find((s) => s.id === "rar");
+    expect(rar.status).toBe("done");
+    expect(rar.detail.request.text).toContain("banking_transaction");
+    expect(rar.detail.why).toMatch(/\$100|authorization_details/i);
   });
 
   // Regression: 2-exchange used to drop exchangeRequest when splicing the
@@ -249,7 +324,7 @@ describe("buildTraceSteps — statuses from evidence", () => {
     const gw = steps.find((s) => s.id === "gateway");
     expect(gw.detail.request.text).toContain("get_my_accounts");
     expect(gw.detail.response.text).toContain("PERMIT");
-    expect(gw.detail.moreDetail.href).toBe("/pingone-authorize");
+    expect(gw.detail.moreDetail).toMatchObject({ edu: "agent-gateway", tab: "overview" });
   });
 
   test("authorize-decision token event fills authorize step when ingestAuthorize absent", () => {
@@ -267,7 +342,7 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(az.status).toBe("done");
     expect(az.detail.request.text).toContain("transfer_funds");
     expect(az.detail.response.text).toContain("PERMIT");
-    expect(az.detail.moreDetail.label).toBe("Show more detail");
+    expect(az.detail.moreDetail).toMatchObject({ href: "/pingone-authorize", label: "Open PingOne Authorize" });
   });
 
   test("mcpResult fills mcp and api steps; llmReply fills reply", () => {
@@ -415,7 +490,7 @@ describe("buildTraceSteps — not-in-path steps once the trace completes", () =>
     expect(complete.find((s) => s.id === "gateway").status).toBe("notinpath");
   });
 
-  test("gateway with only a skipped-status introspection event renders notinpath, not done", () => {
+  test("gateway with only a skipped-status introspection event leaves gateway notinpath; introspection carries the skip narrative", () => {
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,
       outcome: "ok",
@@ -423,8 +498,10 @@ describe("buildTraceSteps — not-in-path steps once the trace completes", () =>
         explanation: "Gateway introspection skipped (endpoint not configured)" }],
     });
     const gw = steps.find((s) => s.id === "gateway");
+    const intro = steps.find((s) => s.id === "introspection");
     expect(gw.status).toBe("notinpath");
-    expect(gw.detail.narrative).toContain("Gateway introspection skipped");
+    expect(intro.status).toBe("notinpath");
+    expect(intro.detail.narrative).toContain("Gateway introspection skipped");
   });
 
   test("real gateway evidence still marks the step done even after the trace completes", () => {
@@ -529,7 +606,7 @@ describe("buildTraceSteps — attack sim (UC5 gateway scope deny)", () => {
   test("steps the sim never touches resolve notinpath, not pending", () => {
     const steps = buildTraceSteps(SIM_TRACE);
     const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
-    for (const id of ["agent", "llm", "agent-token", "authorize", "reply", "api"]) {
+    for (const id of ["agent", "llm", "agent-token", "jwks", "authorize", "introspection", "reply", "api"]) {
       expect(byId[id].status).toBe("notinpath");
     }
   });
@@ -545,6 +622,32 @@ describe("buildTraceSteps — attack sim (UC5 gateway scope deny)", () => {
     const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
     expect(byId["intent-binding"].status).toBe("error");
     expect(byId.gateway.status).not.toBe("error");
+  });
+
+  test("invalid_aud deny shows token aud vs gateway expected aud", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [
+        {
+          id: "sim-gateway-deny",
+          label: "Gateway DENY (invalid_aud)",
+          status: "error",
+          error: "invalid_aud",
+          httpStatus: 401,
+          triedAudience: "https://api.ping.demo:3001",
+          allowedAudience: "https://api.ping.demo:3036/mcp",
+          explanation: "Gateway rejected the call with 401 invalid_aud",
+        },
+      ],
+    });
+    const gateway = steps.find((s) => s.id === "gateway");
+    expect(gateway.status).toBe("error");
+    const audKv = gateway.detail.kv.find((row) => row[0] === "audience");
+    expect(audKv).toBeTruthy();
+    expect(audKv[1]).toContain("https://api.ping.demo:3001");
+    expect(audKv[1]).toContain("https://api.ping.demo:3036/mcp");
+    expect(audKv[1]).toMatch(/MISMATCH/);
   });
 });
 
@@ -574,5 +677,427 @@ describe("buildRunStory — L0 strip", () => {
     expect(story.headline).toMatch(/PERMIT/);
     expect(story.outcome).toBe("ok");
     expect(story.bits.length).toBeGreaterThan(0);
+  });
+});
+
+describe("buildTraceSteps — PingOne gap fills (introspection / JWKS / signin / MCP deny)", () => {
+  test("signin surfaces login introspection request/response when user-token-introspection is present", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [
+        { id: "user-token", status: "active", claims: { sub: "u1", scope: "read" } },
+        {
+          id: "user-token-introspection", status: "active", rfc: "RFC 7662",
+          claims: { sub: "u1", active: true, scope: "read" },
+          introspectionResult: { active: true, sub: "u1", scope: "read", exp: 99 },
+        },
+      ],
+    });
+    const signin = steps.find((s) => s.id === "signin");
+    expect(signin.status).toBe("done");
+    expect(signin.detail.why).toMatch(/OIDC login completed/i);
+    expect(signin.detail.request.text).toContain("/as/introspect");
+    expect(signin.detail.response.text).toContain('"active": true');
+  });
+
+  test("introspection step takes gw-introspection evidence out of the gateway composite", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      tokenEvents: [
+        {
+          id: "gw-introspection", status: "valid", active: true, sub: "u1",
+          scope: "p1:banks:read", rawResponse: { active: true, sub: "u1", scope: "p1:banks:read" },
+        },
+        { id: "gw-authorize", status: "permit", decision: "PERMIT", tool: "get_balance" },
+      ],
+    });
+    const intro = steps.find((s) => s.id === "introspection");
+    const gw = steps.find((s) => s.id === "gateway");
+    expect(intro.status).toBe("done");
+    expect(intro.detail.response.text).toContain("p1:banks:read");
+    expect(intro.detail.why).toMatch(/RFC 7662/i);
+    expect(gw.status).toBe("done");
+    expect(JSON.stringify(gw.detail.kv || [])).not.toMatch(/introspection/i);
+  });
+
+  test("jwks step surfaces exchanged-token-verified evidence", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      tokenEvents: [{
+        id: "exchanged-token-verified", status: "active", verified: true,
+        fallbackMethod: "jwks", alg: "RS256", kid: "k1",
+        claims: { sub: "u1" },
+      }],
+    });
+    const jwks = steps.find((s) => s.id === "jwks");
+    expect(jwks.status).toBe("done");
+    expect(jwks.detail.why).toMatch(/Signature verified via JWKS/i);
+    expect(jwks.detail.response.text).toContain("RS256");
+  });
+
+  test("MCP deny path keeps attempted requestJson + error body", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      phases: [{ phase: "gateway_policy_denied", tool: "transfer_money", detail: "audience mismatch" }],
+      mcpResult: {
+        tool: "transfer_money",
+        denied: true,
+        requestJson: { jsonrpc: "2.0", method: "tools/call", params: { name: "transfer_money", arguments: { amount: 50 } } },
+        result: { error: "gateway_policy_denied", message: "audience mismatch", gatewayErrorCode: "invalid_audience" },
+      },
+    });
+    const mcp = steps.find((s) => s.id === "mcp");
+    expect(mcp.status).toBe("error");
+    expect(mcp.detail.request.text).toContain("transfer_money");
+    expect(mcp.detail.response.text).toContain("invalid_audience");
+    expect(mcp.detail.why).toMatch(/never ran/i);
+  });
+
+  test("weather TxWeatherScope deny lights gateway step with filter chain detail", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [
+        { id: "user-token", status: "active", claims: { sub: "u1" } },
+        { id: "two-ex-final-token", status: "exchanged", claims: { scope: "gateway:mcp:invoke" } },
+        {
+          id: "gw-filter-chain",
+          status: "deny",
+          explanation: "Agent Gateway: weather scope restricted to Texas (demo policy) — city not recognized as Texas",
+          denyingFilter: "tx-weather-scope.groovy",
+          lastFilter: "TxWeatherScope",
+          filterChain: ["McpAudit", "StripWeatherPrefix", "rsFilter", "McpProtocol", "TxWeatherScope"],
+          policy: { passed: false, name: "ff_weather_mcp_allowed_state", route: "/mcp/weather" },
+          gatewayErrorCode: "weather_scope_denied",
+          route: "/mcp/weather",
+        },
+        {
+          id: "gw-mcp-audit",
+          status: "deny",
+          how: { decision: "DENY", result: "blocked", backend: "weather-mcp" },
+          denyingFilter: "tx-weather-scope.groovy",
+        },
+      ],
+    });
+    const gw = steps.find((s) => s.id === "gateway");
+    expect(gw.status).toBe("error");
+    expect(gw.detail.why).toMatch(/tx-weather-scope|weather scope/i);
+    expect(gw.detail.kv.some(([k, v]) => k === "filter / stage" && String(v).includes("tx-weather-scope"))).toBe(true);
+    expect(gw.detail.kv.some(([k, v]) => k === "filter chain hops" && String(v).includes("TxWeatherScope"))).toBe(true);
+    expect(gw.detail.decision.outcome).toBe("DENY");
+  });
+
+  // UC30: exchange/DPoP succeed, third-party weather returns mcp_error — must
+  // not leave mcp pending while the run story only quotes successful hops.
+  test("mcp_error after successful exchange marks mcp step error with body", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [
+        { id: "user-token", status: "active", claims: { sub: "u1" } },
+        { id: "two-ex-final-token", status: "exchanged", claims: { scope: "gateway:mcp:invoke" },
+          exchangeRequest: { scope: "gateway:mcp:invoke" } },
+      ],
+      mcpResult: {
+        tool: "get_weather",
+        status: "error",
+        error: "mcp_error",
+        result: { error: "mcp_error", message: "❌ mcp_error" },
+      },
+    });
+    const mcp = steps.find((s) => s.id === "mcp");
+    const ex = steps.find((s) => s.id === "exchange");
+    expect(ex.status).toBe("done");
+    expect(mcp.status).toBe("error");
+    expect(mcp.detail.why).toMatch(/get_weather/);
+    expect(mcp.detail.why).toMatch(/mcp_error/);
+    expect(mcp.detail.response.text).toContain("mcp_error");
+    const story = buildRunStory({ ...EMPTY_TRACE, outcome: "error", prompt: { message: "weather" } }, steps);
+    expect(story.headline).toMatch(/MCP|mcp/i);
+    expect(story.bits[0]).toMatch(/get_weather|mcp_error/i);
+  });
+});
+
+describe("buildTraceSteps — E1 authorize statements + dual evidence", () => {
+  test("authorize surfaces statement codes from gw-authorize on DENY", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [{
+        id: "gw-authorize", status: "deny", decision: "DENY",
+        statements: [{ code: "mcp.transfer.deny", effect: "deny" }],
+        reason: "amount over limit",
+        parameters: { ToolName: "transfer_money" },
+        rawResponse: { decision: "DENY", statements: [{ code: "mcp.transfer.deny" }] },
+      }],
+    });
+    const az = steps.find((s) => s.id === "authorize");
+    expect(az.status).toBe("error");
+    expect(az.detail.why).toMatch(/mcp\.transfer\.deny/);
+    expect(az.detail.kv.some(([k, v]) => k === "statements" && String(v).includes("mcp.transfer.deny"))).toBe(true);
+    expect(az.detail.response.text).toContain("mcp.transfer.deny");
+  });
+
+  test("BFF + gw-authorize both present keeps BFF request and alt gateway evidence", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      authorize: {
+        engine: "pingone", decision: "PERMIT", decisionId: "bff-1",
+        request: { method: "POST", url: "https://bff/authorize", parameters: { ToolName: "get_balance" } },
+        response: { decision: "PERMIT" },
+      },
+      tokenEvents: [{
+        id: "gw-authorize", status: "permit", decision: "PERMIT",
+        url: "https://gw/p1az", parameters: { ToolName: "get_balance", Via: "gateway" },
+        rawResponse: { decision: "PERMIT", id: "gw-dec" },
+      }],
+    });
+    const az = steps.find((s) => s.id === "authorize");
+    expect(az.detail.request.text).toContain("https://bff/authorize");
+    expect(az.detail.altRequest.title).toMatch(/Gateway Authorize/i);
+    expect(az.detail.altRequest.text).toContain("Via");
+    expect(az.detail.altResponse.text).toContain("gw-dec");
+    expect(az.detail.why).toMatch(/Gateway Authorize evidence is also present/i);
+    expect(az.detail.kv.some(([k]) => k === "gateway authorize")).toBe(true);
+  });
+});
+
+describe("buildTraceSteps — E3 MCP success response", () => {
+  test("mcp done step includes JSON-RPC request and tool result response", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      mcpResult: {
+        tool: "get_balance",
+        durationMs: 42,
+        requestJson: { jsonrpc: "2.0", method: "tools/call", params: { name: "get_balance", arguments: {} } },
+        result: { content: [{ type: "text", text: "{\"balance\":100}" }] },
+      },
+    });
+    const mcp = steps.find((s) => s.id === "mcp");
+    expect(mcp.status).toBe("done");
+    expect(mcp.detail.request.text).toContain("get_balance");
+    expect(mcp.detail.response.text).toContain("balance");
+  });
+});
+
+describe("buildTraceSteps — E4 resource-server step", () => {
+  test("resource-server-reply marks api done with tool/duration kv", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      tokenEvents: [{
+        id: "resource-server-reply", status: "success",
+        toolName: "get_balance", durationMs: 17, routedVia: "gateway",
+        resultSummary: "balance ok", resultStatus: "success",
+      }],
+      mcpResult: {
+        tool: "get_balance",
+        requestJson: { jsonrpc: "2.0", method: "tools/call", params: { name: "get_balance", arguments: { account: "a1" } } },
+        result: { balance: 100 },
+      },
+    });
+    const api = steps.find((s) => s.id === "api");
+    expect(api.status).toBe("done");
+    expect(api.detail.why).toMatch(/get_balance/);
+    expect(api.detail.kv.some(([k, v]) => k === "duration" && String(v).includes("17"))).toBe(true);
+    expect(api.detail.request.title).toMatch(/banking API/i);
+    expect(api.detail.request.text).toContain("get_balance");
+    expect(api.detail.response.title).toMatch(/Resource/i);
+  });
+});
+
+describe("buildTraceSteps — E2a gateway filter/rule teaching", () => {
+  test("gateway surfaces statements, reason, mcpAudit, and denyingFilter when present", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      phases: [{ phase: "gateway_policy_denied", detail: "policy deny", gatewayErrorCode: "access_denied" }],
+      tokenEvents: [
+        {
+          id: "gw-authorize", status: "deny", decision: "DENY",
+          denyingFilter: "P1AZDecision",
+          reason: "over limit",
+          backend: "real",
+          statements: [{ code: "mcp.amount.cap" }],
+          parameters: { ToolName: "transfer_money" },
+          rawResponse: { decision: "DENY" },
+        },
+        {
+          id: "gw-mcp-audit", status: "deny",
+          how: { decision: "DENY", result: "blocked", backend: "real" },
+          who: { userSub: "u1" }, what: { tool: "transfer_money", mcpMethod: "tools/call" },
+          mcpAudit: { how: { decision: "DENY", result: "blocked" }, who: { userSub: "u1" }, what: { tool: "transfer_money" } },
+        },
+      ],
+    });
+    const gw = steps.find((s) => s.id === "gateway");
+    expect(gw.status).toBe("error");
+    expect(gw.detail.why).toMatch(/P1AZDecision/);
+    expect(gw.detail.why).toMatch(/mcp\.amount\.cap/);
+    expect(gw.detail.kv.some(([k, v]) => k === "filter / stage" && v === "P1AZDecision")).toBe(true);
+    expect(gw.detail.kv.some(([k]) => k === "rule / statement")).toBe(true);
+    expect(gw.detail.altResponse.title).toMatch(/McpAuditFilter/i);
+  });
+});
+
+describe("buildTraceSteps — deep digs (refresh/dpop/rar/mtls/dual/UC/RS)", () => {
+  test("token-refresh lights refresh step", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [{ id: "token-refresh", status: "active", rfc: "RFC 6749 §6",
+        claims: { sub: "u1", scope: "openid" }, refreshedAt: "2026-07-22T12:00:00Z" }],
+    });
+    const refresh = steps.find((s) => s.id === "refresh");
+    expect(refresh.status).toBe("done");
+    expect(refresh.detail.why).toMatch(/silently refreshed/i);
+    expect(refresh.detail.rfcs).toContain("RFC 6749 §6");
+  });
+
+  test("dpop-binding and rar-authorization are first-class hops after exchange", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [
+        { id: "exchanged-token", status: "active", claims: { scope: "write", act: { sub: "a1" } } },
+        { id: "dpop-binding", status: "active", cnf: { jkt: "thumb-abc" }, rfc: "RFC 9449" },
+        { id: "rar-authorization", status: "active", authorization_details: [{ type: "transfer", amount: 100 }], rfc: "RFC 9396" },
+      ],
+    });
+    const ids = steps.map((s) => s.id);
+    expect(ids.indexOf("dpop")).toBeGreaterThan(ids.indexOf("exchange"));
+    expect(ids.indexOf("rar")).toBeGreaterThan(ids.indexOf("dpop"));
+    expect(steps.find((s) => s.id === "dpop").detail.kv.some(([k, v]) => k === "cnf.jkt" && v === "thumb-abc")).toBe(true);
+    expect(steps.find((s) => s.id === "rar").detail.request.text).toContain("transfer");
+  });
+
+  test("two-exchange shows hop #1 as altRequest/altResponse", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [
+        { id: "two-ex-exchange1", status: "active",
+          claims: { scope: "agent", act: { sub: "a1" } },
+          exchangeRequest: { grant_type: "urn:ietf:params:oauth:grant-type:token-exchange", scope: "agent" } },
+        { id: "two-ex-final-token", status: "active",
+          claims: { scope: "write", act: { sub: "a1", act: { sub: "upstream" } } },
+          exchangeRequest: { grant_type: "urn:ietf:params:oauth:grant-type:token-exchange", scope: "write" } },
+      ],
+    });
+    const ex = steps.find((s) => s.id === "exchange");
+    expect(ex.status).toBe("done");
+    expect(ex.detail.why).toMatch(/Two-exchange/i);
+    expect(ex.detail.altRequest.text).toContain("agent");
+    expect(ex.detail.altResponse.text).toContain("act");
+    expect(ex.detail.kv.some(([k, v]) => k === "mode" && v === "2-exchange")).toBe(true);
+  });
+
+  test("HITL phase enriches stepup with challenge why/kv", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      phases: [
+        { phase: "authorize_denied_hitl", label: "HITL required", challenge_type: "consent" },
+        { phase: "gateway_hitl_required", label: "Gateway HITL" },
+      ],
+      mcpResult: {
+        result: { error: "hitl_required", challengeId: "chal-9", hitl_threshold_usd: 250, hitl: { type: "consent" } },
+      },
+    });
+    const su = steps.find((s) => s.id === "stepup");
+    expect(su.status).toBe("active");
+    expect(su.detail.why).toMatch(/Human-in-the-loop/i);
+    expect(su.detail.kv.some(([k, v]) => k === "challenge id" && v === "chal-9")).toBe(true);
+    expect(su.detail.request.text).toContain("chal-9");
+  });
+
+  test("gw-mtls is its own step; dual_token path lights dual-token", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [
+        { id: "gw-mtls", status: "active", subject: "banking-mcp-gateway", mtlsEnabled: true,
+          label: "mTLS verified", explanation: "Gateway → MCP mTLS verified." },
+        { id: "evt-idtoken-fetch", credentialPath: "dual_token", status: "ok",
+          label: "id_token fetched from BFF" },
+        { id: "gw-passthrough", credentialPath: "dual_token", status: "ok",
+          label: "TX token forwarded unchanged" },
+      ],
+      mcpResult: { _meta: { credentialPath: "dual_token", backendRoute: "/api/resource-server/identity",
+        idTokenAttached: true, accessTokenAttached: true }, result: { ok: true } },
+    });
+    const mtls = steps.find((s) => s.id === "mtls");
+    const dual = steps.find((s) => s.id === "dual-token");
+    expect(mtls.status).toBe("done");
+    expect(mtls.detail.kv.some(([k]) => k === "cert subject")).toBe(true);
+    expect(dual.status).toBe("done");
+    expect(dual.detail.why).toMatch(/Dual-token/i);
+  });
+
+  test("api prefers _meta.resourceRequest over tool-arg teaching", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      mcpResult: {
+        tool: "show_invest",
+        requestJson: { params: { name: "show_invest" } },
+        result: { portfolio: 1 },
+        _meta: {
+          credentialPath: "api_key",
+          apiCall: "GET /invest",
+          resourceRequest: { method: "GET", path: "/invest", headers: { "X-API-Key": "••••0000" } },
+        },
+      },
+      tokenEvents: [
+        { id: "evt-swap", credentialPath: "api_key", status: "ok", label: "swap" },
+        { id: "evt-backend", credentialPath: "api_key", status: "ok", label: "outbound" },
+      ],
+    });
+    const api = steps.find((s) => s.id === "api");
+    expect(api.status).toBe("done");
+    expect(api.detail.request.title).toMatch(/HTTP/);
+    expect(api.detail.request.text).toContain("/invest");
+    expect(api.detail.why).toMatch(/Resource server HTTP/i);
+  });
+
+  test("useCaseId appends UC_WHY tip onto authorize why", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      authorize: {
+        decision: "DENY", engine: "real", decisionId: "d1",
+        request: { parameters: { ToolName: "x" } },
+        response: { decision: "DENY" },
+      },
+      phases: [{ phase: "authorize_denied" }],
+      tokenEvents: [{ id: "authorize-decision", useCaseId: "authz-denied", authorizeDecision: "DENY" }],
+      outcome: "error",
+    });
+    const az = steps.find((s) => s.id === "authorize");
+    expect(az.detail.why).toMatch(/\[authz-denied\]/);
+    expect(az.detail.why).toMatch(/Expect PingOne Authorize DENY/);
+  });
+
+  test("gateway shows full filterChain on success as altResponse", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [{
+        id: "gw-authorize", status: "permit", decision: "PERMIT",
+        lastFilter: "BackendExchange",
+        filterChain: [
+          { filter: "TokenIntrospection", result: "passed" },
+          { filter: "GatewayTokenPolicy", result: "passed" },
+          { filter: "P1AZDecision", result: "forwarded", decision: "PERMIT" },
+          { filter: "mTLS", result: "skipped" },
+          { filter: "BackendExchange", result: "forwarded" },
+        ],
+        parameters: { ToolName: "get_my_accounts" },
+        rawResponse: { decision: "PERMIT" },
+      }],
+    });
+    const gw = steps.find((s) => s.id === "gateway");
+    expect(gw.status).toBe("done");
+    expect(gw.detail.why).toMatch(/BackendExchange/);
+    expect(gw.detail.altResponse.title).toMatch(/Filter chain/i);
+    expect(gw.detail.altResponse.text).toContain("TokenIntrospection");
+    expect(gw.detail.kv.some(([k, v]) => k === "filter chain hops" && v === "5")).toBe(true);
   });
 });

@@ -133,7 +133,10 @@ function StepUpSlot() {
         { useCaseId: 'ciba-out-of-band-approval', vertical: 'retail' },
       );
       const softGate =
-        result?.error === 'mcp_hitl_required' || result?.error === 'hitl_required';
+        result?.error === 'mcp_hitl_required' ||
+        result?.error === 'hitl_required' ||
+        result?.error === 'mcp_step_up_required' ||
+        result?.error === 'step_up_required';
       if (softGate) {
         return {
           status: 428,
@@ -144,12 +147,28 @@ function StepUpSlot() {
           },
         };
       }
+      // callMcpTool resolves (does not throw) for some soft failures — treat
+      // any remaining error payload as a failed checkout, not success.
+      if (result?.error) {
+        return {
+          status: 502,
+          ok: false,
+          body: {
+            error: result.error,
+            message: result.error_description || result.message || result.error,
+          },
+        };
+      }
       return { status: 200, ok: true, body: { result } };
     } catch (err) {
+      const code = err.code || err.error || err.data?.error;
       return {
         status: err.statusCode || 500,
         ok: false,
-        body: { error: err.code, message: err.message },
+        body: {
+          error: code,
+          message: err.message || code || `HTTP ${err.statusCode || 500}`,
+        },
       };
     }
   }, []);
@@ -258,6 +277,8 @@ function RevokeSlot() {
   const [showModal, setShowModal] = React.useState(false);
   const [revoked, setRevoked] = React.useState(false);
   const [retryResult, setRetryResult] = React.useState('');
+  const [reenableBusy, setReenableBusy] = React.useState(false);
+  const [lastScope, setLastScope] = React.useState('instance');
 
   React.useEffect(() => {
     getAgents()
@@ -265,9 +286,12 @@ function RevokeSlot() {
       .catch(() => setAgentId('demo-agent'));
   }, []);
 
-  const confirmRevoke = React.useCallback(async (id, reason) => {
+  // Must forward the modal's scope. Omitting it lets the API default to
+  // scope=full, which disables the PingOne agent apps for every user.
+  const confirmRevoke = React.useCallback(async (id, reason, scope = 'instance') => {
+    setLastScope(scope);
     try {
-      await apiClient.post(`/api/admin/agent/${id}/kill-switch`, { reason });
+      await apiClient.post(`/api/admin/agent/${id}/kill-switch`, { reason, scope });
     } catch (_) {
       // A 401 here is expected once the session dies mid-request — the
       // retry below is the real proof, not this call's own success.
@@ -276,11 +300,31 @@ function RevokeSlot() {
     setRevoked(true);
     try {
       const { result } = await callMcpTool('list_orders', {}, { vertical: 'retail' });
-      setRetryResult(`Unexpected: call still succeeded (${JSON.stringify(result)})`);
+      // callMcpTool often resolves (no throw) with an error payload when the
+      // session/token is gone — treat that as confirmed revoke, not success.
+      if (result?.error) {
+        setRetryResult(`Confirmed revoked — retry failed: ${result.error}`);
+      } else {
+        setRetryResult(`Unexpected: call still succeeded (${JSON.stringify(result)})`);
+      }
     } catch (err) {
       setRetryResult(`Confirmed revoked — retry failed: ${err.message}`);
     }
   }, []);
+
+  const reenableAgent = React.useCallback(async () => {
+    if (!agentId) return;
+    setReenableBusy(true);
+    try {
+      await apiClient.post(`/api/admin/agent/${agentId}/re-enable`, {});
+      setRetryResult('Agent applications re-enabled — sign in again to continue the demo.');
+      setRevoked(false);
+    } catch (err) {
+      setRetryResult(`Re-enable failed: ${err.message || 'request failed'}`);
+    } finally {
+      setReenableBusy(false);
+    }
+  }, [agentId]);
 
   return (
     <section className="alp-slot">
@@ -288,7 +332,8 @@ function RevokeSlot() {
       <p className="alp-slot__desc">
         Revokes this agent's access via the same kill-switch the AI Control
         Plane page uses. This ends your own session — real kill-switch
-        semantics, not a simulation.
+        semantics, not a simulation. Prefer &quot;This instance only&quot; so
+        the PingOne agent app stays enabled for the rest of the demo.
       </p>
       <button
         className="alp-btn"
@@ -306,14 +351,27 @@ function RevokeSlot() {
       />
       {retryResult && <p className="alp-slot__status">{retryResult}</p>}
       {revoked && (
-        <a
-          className="alp-audit-link"
-          href={`/audit?agentId=${agentId}`}
-          target="_blank"
-          rel="noreferrer"
-        >
-          View audit trail →
-        </a>
+        <>
+          <a
+            className="alp-audit-link"
+            href={`/audit?agentId=${agentId}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            View audit trail →
+          </a>
+          {lastScope === 'full' && (
+            <button
+              className="alp-btn"
+              type="button"
+              onClick={reenableAgent}
+              disabled={reenableBusy}
+              style={{ marginLeft: 12 }}
+            >
+              {reenableBusy ? 'Re-enabling…' : 'Re-enable agent apps'}
+            </button>
+          )}
+        </>
       )}
     </section>
   );
@@ -328,6 +386,12 @@ export default function AgentLifecyclePage() {
     setSurfaceHostEl(agentHostEl);
     return () => setSurfaceHostEl((cur) => (cur === agentHostEl ? null : cur));
   }, [agentHostEl, setSurfaceHostEl]);
+
+  // Retail tools (list_orders / checkout) — pin session vertical so Authorize
+  // and gateway headers match the slots below (not whatever vertical was last active).
+  React.useEffect(() => {
+    Promise.resolve(apiClient.post('/api/verticals/active', { id: 'retail' })).catch(() => {});
+  }, []);
 
   return (
     <div className="alp-wrap">

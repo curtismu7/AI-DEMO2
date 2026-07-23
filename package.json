@@ -3,12 +3,13 @@
   "version": "1.3.1",
   "private": true,
   "engines": {
-    "node": ">=20.19",
+    "node": ">=22",
     "npm": ">=9"
   },
   "scripts": {
     "topology:check": "node scripts/gen-service-topology.js check",
-    "hygiene:check": "node scripts/check-fresh-clone-hygiene.js && node scripts/check-codegraph-sse-nginx.js",
+    "hygiene:check": "node scripts/check-fresh-clone-hygiene.js && node scripts/check-codegraph-sse-nginx.js && node scripts/check-codegraph-demo-index.js && node --test scripts/check-codegraph-demo-index.test.js && node scripts/check-llm-host-residency.js",
+    "test:codegraph-index": "node --test scripts/check-codegraph-demo-index.test.js && bash langchain_agent/scripts/run-codegraph-index-tests.sh",
     "regression:paths": "node scripts/check-regression-plan-paths.js",
     "smoke:pingone-mcp": "node scripts/smoke-pingone-mcp.js",
     "patch:cursor-mcp": "node scripts/patch-cursor-mcp.js",

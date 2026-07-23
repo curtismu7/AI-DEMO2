@@ -5,10 +5,10 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import ScopePicker from "../ScopePicker";
 
 describe("ScopePicker", () => {
-  it("keeps the Read only / Read + Write labels", () => {
+  it("keeps the Read / Write toggle labels", () => {
     render(<ScopePicker allowWrite onChange={() => {}} />);
-    expect(screen.getByRole("option", { name: "Read + Write" })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Read only" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Read" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Write" })).toBeInTheDocument();
   });
 
   it("renders the explainer hint", () => {
@@ -16,10 +16,10 @@ describe("ScopePicker", () => {
     expect(screen.getByText(/greys out write actions via PingOne Authorize/i)).toBeInTheDocument();
   });
 
-  it("emits a boolean on change", () => {
+  it("emits a boolean on toggle", () => {
     const onChange = vi.fn();
     render(<ScopePicker allowWrite onChange={onChange} />);
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "ro" } });
+    fireEvent.click(screen.getByRole("button", { name: "Read" }));
     expect(onChange).toHaveBeenCalledWith(false);
   });
 });

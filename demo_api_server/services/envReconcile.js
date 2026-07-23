@@ -37,7 +37,7 @@ const ENV_SCOPED_KEYS = new Set([
   // ai agent / mcp exchanger / mcp gateway
   'pingone_ai_agent_client_id', 'pingone_ai_agent_client_secret',
   'pingone_ai_agent_actor_client_id', 'pingone_ai_agent_actor_client_secret',
-  'pingone_ai_agent_actor_redirect_uri',
+  'pingone_par_endpoint', 'pingone_ai_agent_actor_redirect_uri',
   'pingone_mcp_token_exchanger_client_id', 'pingone_mcp_token_exchanger_client_secret',
   'pingone_token_exchanger_client_id', 'pingone_token_exchanger_client_secret',
   'pingone_mcp_gateway_client_id', 'pingone_mcp_gateway_client_secret',

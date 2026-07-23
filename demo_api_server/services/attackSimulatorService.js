@@ -143,22 +143,35 @@ async function _exchangeSimToken(subjectToken, audience, scopes) {
 /**
  * Parse the gateway error from an error thrown by callToolViaGateway.
  *
- * callToolViaGateway throws errors with ONLY .code + .httpStatus + .message
- * (no .body / .wwwAuth / .response.data — those fields do not exist on the
- * thrown error object). Map the internal gateway codes to canonical sim codes:
+ * callToolViaGateway throws .code + .httpStatus + .message (no .body /
+ * .wwwAuth / .response.data). On GATEWAY_AUDIENCE_MISMATCH it also carries
+ * .tokenAud / .expectedAud — preserve those so the Token Chain can show both
+ * sides of the mismatch. Map internal gateway codes to canonical sim codes:
  *   'GATEWAY_AUDIENCE_MISMATCH' → 'invalid_aud'
  *   'mcp_tool_error' (httpStatus 200, scope deny from MCP server) → 'insufficient_scope'
  *   'gateway_policy_denied' (403 from gateway) → 'insufficient_scope'
  *
- * @param {object} err - Error thrown by callToolViaGateway (.code, .httpStatus, .message)
+ * @param {object} err - Error thrown by callToolViaGateway (.code, .httpStatus, .message,
+ *   and on GATEWAY_AUDIENCE_MISMATCH also .tokenAud / .expectedAud)
  * @param {number} fallbackStatus - HTTP status to use if not on the error
- * @returns {{ errorCode: string, httpStatus: number, reason: string }}
+ * @returns {{ errorCode: string, httpStatus: number, reason: string, triedAudience: string|null, allowedAudience: string|null }}
  */
+function _audString(v) {
+  if (v == null || v === '') return null;
+  if (Array.isArray(v)) {
+    const parts = v.map(String).filter(Boolean);
+    return parts.length ? parts.join(', ') : null;
+  }
+  return String(v);
+}
+
 function _parseGatewayError(err, fallbackStatus) {
   const httpStatus = err.httpStatus || fallbackStatus;
   const errorCode = err.code || 'gateway_error';
   const reason = err.message || `Gateway rejected the request (HTTP ${httpStatus})`;
-  return { errorCode, httpStatus, reason };
+  const triedAudience = _audString(err.triedAudience ?? err.tokenAud);
+  const allowedAudience = _audString(err.allowedAudience ?? err.expectedAud);
+  return { errorCode, httpStatus, reason, triedAudience, allowedAudience };
 }
 
 /**
@@ -323,17 +336,39 @@ async function _exchangeGatewayToken(subjectToken, scopes, useCaseId, tokenChain
     };
   }
 
+  // PingGateway brokered path: PingOne rejects product scopes (read/write/transfer)
+  // against the gateway resource with invalid_scope ("May not request scopes for
+  // multiple resources"). Mint only the coarse gateway invoke scope + HTTPS aud.
+  const usePingGateway = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
+  const gatewayBrokered = configStore.getEffective('ff_gateway_brokered_exchange') !== 'false';
+  const gatewayInvokeScope = configStore.getEffective('gateway_mcp_invoke_scope')
+    || configStore.getEffective('pinggateway_invoke_scope')
+    || 'gateway:mcp:invoke';
+  const pingGatewayResourceAud = process.env.PINGONE_RESOURCE_PINGGATEWAY_URI
+    || configStore.getEffective('pingone_resource_pinggateway_uri')
+    || null;
+  const exchangeAud = (usePingGateway && gatewayBrokered && pingGatewayResourceAud)
+    ? pingGatewayResourceAud
+    : gatewayAud;
+  // Array → performTokenExchangeAs emits RFC 8707 resource= (required for PG HTTPS aud).
+  const exchangeAudience = (usePingGateway && gatewayBrokered && pingGatewayResourceAud)
+    ? [pingGatewayResourceAud]
+    : exchangeAud;
+  const exchangeScopes = (usePingGateway && gatewayBrokered)
+    ? [gatewayInvokeScope]
+    : scopes;
+
   tokenChainEvents.push(buildTokenEvent(
     'sim-exchange-start',
     `Token Exchange (${label})`,
     'active',
     null,
-    `Exchanging user token to gateway audience ${gatewayAud} with scope "${scopes.join(' ')}".`,
+    `Exchanging user token to gateway audience ${Array.isArray(exchangeAudience) ? JSON.stringify(exchangeAudience) : exchangeAudience} with scope "${exchangeScopes.join(' ')}".`,
   ));
 
   let exchangedToken;
   try {
-    exchangedToken = await _exchangeSimToken(subjectToken, gatewayAud, scopes);
+    exchangedToken = await _exchangeSimToken(subjectToken, exchangeAudience, exchangeScopes);
   } catch (err) {
     const errorCode = err.pingoneError || 'exchange_failed';
     const reason = `Token exchange failed: ${err.message}`;
@@ -365,7 +400,12 @@ async function _exchangeGatewayToken(subjectToken, scopes, useCaseId, tokenChain
     'active',
     decoded,
     'PingOne minted a delegated gateway token for the attack scenario.',
-    { exchangeDetails: { audience: gatewayAud, scopes: scopes.join(' ') } },
+    {
+      exchangeDetails: {
+        audience: Array.isArray(exchangeAudience) ? exchangeAudience.join(' ') : exchangeAudience,
+        scopes: exchangeScopes.join(' '),
+      },
+    },
   ));
   return { ok: true, token: exchangedToken };
 }
@@ -374,7 +414,13 @@ async function _exchangeGatewayToken(subjectToken, scopes, useCaseId, tokenChain
  * Build a deny result from a gateway error with optional canonical error code.
  */
 function _denyFromGateway(sim, useCaseId, tokenChainEvents, err, fallbackStatus, canonicalCode, eventLabel) {
-  const { errorCode: rawCode, httpStatus: rawStatus, reason: rawReason } = _parseGatewayError(err, fallbackStatus);
+  const {
+    errorCode: rawCode,
+    httpStatus: rawStatus,
+    reason: rawReason,
+    triedAudience,
+    allowedAudience,
+  } = _parseGatewayError(err, fallbackStatus);
   const errorCode = canonicalCode || rawCode;
   const httpStatus = canonicalCode ? fallbackStatus : rawStatus;
 
@@ -393,16 +439,32 @@ function _denyFromGateway(sim, useCaseId, tokenChainEvents, err, fallbackStatus,
     ? `PingOne Authorize DENY — ${controlReason}`
     : rawReason;
 
+  // Keep both audience values on the deny event so the Token Chain gateway step
+  // can show why invalid_aud fired (token aud ≠ gateway resource).
+  const audExtra = {
+    ...(triedAudience ? { triedAudience } : {}),
+    ...(allowedAudience ? { allowedAudience } : {}),
+  };
+
   tokenChainEvents.push(buildTokenEvent(
     'sim-gateway-deny',
     eventLabel || `Gateway DENY (${errorCode})`,
     'error',
     null,
     `Gateway rejected the call with ${httpStatus} ${errorCode}: ${reason}`,
-    { error: errorCode, httpStatus, ...(authorize ? { authorizeDecisionId: authorize.decisionId } : {}) },
+    {
+      error: errorCode,
+      httpStatus,
+      ...audExtra,
+      ...(authorize ? { authorizeDecisionId: authorize.decisionId } : {}),
+    },
   ));
   stampUseCaseId(tokenChainEvents, useCaseId);
-  return { sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents, ...(authorize ? { authorize } : {}) };
+  return {
+    sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents,
+    ...audExtra,
+    ...(authorize ? { authorize } : {}),
+  };
 }
 
 /**
@@ -786,7 +848,12 @@ async function _runWrongAud(subjectToken, useCaseId, tokenChainEvents) {
       'error',
       null,
       `Gateway rejected the token with ${httpStatus} ${errorCode}: ${reason}`,
-      { error: errorCode, httpStatus }
+      {
+        error: errorCode,
+        httpStatus,
+        triedAudience: _audString(err.tokenAud) || wrongAud,
+        allowedAudience: _audString(err.expectedAud) || gatewayAud,
+      }
     ));
     stampUseCaseId(tokenChainEvents, useCaseId);
     return {
@@ -1163,7 +1230,12 @@ async function _runReplayedToken(subjectToken, useCaseId, tokenChainEvents) {
       tokenChainEvents,
     };
   } catch (err) {
-    return _denyFromGateway(sim, useCaseId, tokenChainEvents, err, 401, 'invalid_aud', 'Gateway DENY (invalid_aud)');
+    // Ensure Token Chain can show both auds even if a non-client throw omits them.
+    const enriched = Object.assign(err || {}, {
+      tokenAud: err?.tokenAud ?? decoded?.claims?.aud ?? null,
+      expectedAud: err?.expectedAud ?? gatewayAud ?? null,
+    });
+    return _denyFromGateway(sim, useCaseId, tokenChainEvents, enriched, 401, 'invalid_aud', 'Gateway DENY (invalid_aud)');
   }
 }
 

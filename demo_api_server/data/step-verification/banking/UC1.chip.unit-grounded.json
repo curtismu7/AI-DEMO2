@@ -1,0 +1,11 @@
+{
+  "vertical": "banking",
+  "useCaseId": "UC1",
+  "triggerType": "chip",
+  "mode": "unit-grounded",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "get_my_accounts",
+  "checkedAt": "2026-07-23T01:41:22.390Z",
+  "verifiedBy": "scoreAgentReply grounded vs live account balances (#762)"
+}

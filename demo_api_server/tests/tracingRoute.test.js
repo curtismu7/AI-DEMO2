@@ -41,6 +41,19 @@ describe('GET /api/health/tracing/status', () => {
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(false);
   });
+
+  test('returns ok:true when Jaeger has no services yet (data: null)', async () => {
+    // Fresh all-in-one returns { data: null } until the first span lands —
+    // that must still count as a reachable query base.
+    axios.get.mockResolvedValue({
+      status: 200,
+      data: { data: null, total: 0, limit: 0, offset: 0, errors: null },
+    });
+    const res = await request(buildApp()).get('/api/health/tracing/status');
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.jaegerQueryUrl).toBeTruthy();
+  });
 });
 
 describe('GET /api/health/tracing/traces', () => {

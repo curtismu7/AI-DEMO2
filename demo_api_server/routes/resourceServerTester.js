@@ -11,32 +11,29 @@ const { scrubRawJwts } = require('../services/jwtScrubber');
 
 const RESOLVE_ERRORS = {
   missing_token: 'Provide a token: pick a session token or paste a JWT.',
-  invalid_token_ref: 'Unknown token reference. Use "access" or "id", or paste a JWT.',
+  invalid_token_ref: 'Unknown token reference. Use "access", "id", or "mcp", or paste a JWT.',
   token_not_in_session: 'That token is not present in your session. Sign in again or paste a JWT.',
+  mcp_token_not_cached: 'No in-flow MCP token is cached. Run an agent tool first, or Execute again to mint via RFC 8693.',
+  mcp_token_mint_failed: 'Could not mint an in-flow MCP / gateway token. Sign in and retry, or paste a JWT.',
 };
 
-/** Resolve the token under test, sending a 400 if it cannot be resolved. */
-function getToken(req, res) {
+/** Resolve the token under test (async — may mint mcp TX), sending a 400 if it cannot. */
+async function getTokenResolved(req, res) {
   const { tokenRef, tokenRaw } = req.body || {};
-  const r = tester.resolveToken({ tokenRef, tokenRaw }, req.session);
+  const r = await tester.resolveTokenAsync({ tokenRef, tokenRaw }, req);
   if (r.error) {
     res.status(400).json({ error: r.error, message: RESOLVE_ERRORS[r.error] || 'Could not resolve token.' });
     return null;
   }
-  return r.token;
+  return r;
 }
 
 // POST /api/resource-server/test/reveal — show the raw token under test + decoded claims.
 // Deliberately NOT scrubbed with scrubRawJwts: surfacing the raw JWT and naming which token
 // it is (session access / ID / pasted) is the whole point of this teaching panel.
-router.post('/reveal', (req, res) => {
-  // Calls resolveToken directly rather than getToken() because reveal also needs r.source
-  // (getToken returns only the token) to label which token is under test.
-  const { tokenRef, tokenRaw } = req.body || {};
-  const r = tester.resolveToken({ tokenRef, tokenRaw }, req.session);
-  if (r.error) {
-    return res.status(400).json({ error: r.error, message: RESOLVE_ERRORS[r.error] || 'Could not resolve token.' });
-  }
+router.post('/reveal', async (req, res) => {
+  const r = await getTokenResolved(req, res);
+  if (!r) return;
   try {
     const result = tester.reveal(r.token, r.source);
     if (result.error) return res.status(400).json(result);
@@ -49,10 +46,11 @@ router.post('/reveal', (req, res) => {
 
 // POST /api/resource-server/test/validate — real RS validation (signature + claims).
 router.post('/validate', async (req, res) => {
-  const token = getToken(req, res);
-  if (!token) return;
+  const r = await getTokenResolved(req, res);
+  if (!r) return;
+  const profile = tester.normalizeProfile(req.body && req.body.profile);
   try {
-    const result = await tester.validate(token);
+    const result = await tester.validate(r.token, profile);
     if (result.error) return res.status(400).json(scrubRawJwts(result));
     return res.json(scrubRawJwts(result));
   } catch (err) {
@@ -62,11 +60,12 @@ router.post('/validate', async (req, res) => {
 });
 
 // POST /api/resource-server/test/decode — decode + policy check (no signature).
-router.post('/decode', (req, res) => {
-  const token = getToken(req, res);
-  if (!token) return;
+router.post('/decode', async (req, res) => {
+  const r = await getTokenResolved(req, res);
+  if (!r) return;
+  const profile = tester.normalizeProfile(req.body && req.body.profile);
   try {
-    const result = tester.decode(token);
+    const result = tester.decode(r.token, profile);
     if (result.error) return res.status(400).json(scrubRawJwts(result));
     return res.json(scrubRawJwts(result));
   } catch (err) {
@@ -77,11 +76,11 @@ router.post('/decode', (req, res) => {
 
 // POST /api/resource-server/test/probe — live request probe (real loopback HTTP call).
 router.post('/probe', async (req, res) => {
-  const token = getToken(req, res);
-  if (!token) return;
+  const r = await getTokenResolved(req, res);
+  if (!r) return;
   const { targetPath } = req.body || {};
   try {
-    const result = await tester.probe(token, targetPath);
+    const result = await tester.probe(r.token, targetPath);
     if (result.error === 'invalid_target') return res.status(400).json(scrubRawJwts(result));
     return res.json(scrubRawJwts(result));
   } catch (err) {

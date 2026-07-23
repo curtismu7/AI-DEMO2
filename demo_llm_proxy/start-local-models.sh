@@ -16,6 +16,9 @@ CTX_SIZE="${LLM_CTX_SIZE:-8192}"
 N_GPU_LAYERS="${LLM_N_GPU_LAYERS:-33}"
 N_PARALLEL="${LLM_N_PARALLEL:-1}"
 SLOT_SIM="${LLM_SLOT_PROMPT_SIMILARITY:-0.50}"
+# Docker/OrbStack reaches host tiers via host.docker.internal — bind all
+# interfaces (not 127.0.0.1). Override with LLAMA_ARG_HOST=127.0.0.1 for local-only.
+LLAMA_LISTEN_HOST="${LLAMA_ARG_HOST:-0.0.0.0}"
 mkdir -p "$LOG_DIR"
 
 resolve_model_path() {
@@ -72,6 +75,7 @@ start_model() {
   # flags (word-split on spaces; empty for most tiers).
   llama-server \
     -m "$model_path" \
+    --host "$LLAMA_LISTEN_HOST" \
     --port "$port" \
     --threads "$threads" \
     --n-gpu-layers "$N_GPU_LAYERS" \

@@ -897,6 +897,14 @@ async function handleMessage(
         credentialPath: 'oauth_bearer',
         backendTransport: 'websocket',
         tokenExchangeCached: exchangeCached,
+        resourceRequest: {
+          method: 'JSON-RPC',
+          transport: 'websocket',
+          url: wsUrl,
+          tool: toolName,
+          target,
+          note: 'Gateway exchanged to backend audience, then proxied JSON-RPC over WebSocket.',
+        },
         tokenEvents: gwTokenEvents,
         // C2 — same reason as tools/list: a permitted tool call must say which
         // authority permitted it, or a degraded local PERMIT reads as a PDP one.
