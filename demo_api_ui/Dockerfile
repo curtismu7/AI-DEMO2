@@ -5,9 +5,9 @@
 # Vite listens on 4000 (vite.config.js) and reads TLS certs from /certs.
 FROM node:22-alpine AS dev
 WORKDIR /app
-COPY package*.json ./
+COPY demo_api_ui/package*.json ./
 RUN npm install --legacy-peer-deps
-COPY vite.config.js index.html ./
+COPY demo_api_ui/vite.config.js demo_api_ui/index.html ./
 EXPOSE 4000
 CMD ["npm", "start"]
 
@@ -17,13 +17,17 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY demo_api_ui/package*.json ./
 
 # --legacy-peer-deps required: react-table@7 doesn't declare React 19 support
 RUN npm install --legacy-peer-deps
 
 # Copy source code
-COPY . .
+COPY demo_api_ui/ .
+
+# demoAgentService.js imports ../../../llm-timeouts.json which resolves to
+# /llm-timeouts.json (3 levels above /app/src/services/). Provide it at build time.
+COPY llm-timeouts.json /llm-timeouts.json
 
 # Build the app
 RUN npm run build
@@ -37,7 +41,7 @@ ENV GIT_SHA=$GIT_SHA
 COPY --from=builder /app/build /usr/share/nginx/html
 
 # Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Run as non-root (k8s securityContext runAsUser: 101): make the cache dir
 # writable so nginx can create its *_temp subdirs at startup, and move the pid
