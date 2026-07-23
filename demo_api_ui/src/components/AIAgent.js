@@ -280,11 +280,12 @@ export default function BankingAgent({
   const terminology = pageManifest?.terminology;
 
   // Keep the llama.cpp agent-brain tier loaded while this surface is mounted so
-  // the first chip/tool turn does not pay a cold swap.
+  // the first chip/tool turn does not pay a cold swap. Resolves proxy pin when
+  // set (avoids thrashing under LLM_PROXY_PIN_TIER).
   useEffect(() => {
     const provider = MODE_PROVIDER[agentProviderMode] ?? agentProviderMode;
     if (provider !== "llamacpp") return undefined;
-    opportunisticPrewarm("gpt-oss-20b");
+    opportunisticPrewarm();
     return undefined;
   }, [agentProviderMode]);
 

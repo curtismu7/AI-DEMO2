@@ -334,6 +334,13 @@ proxy.on('error', (err, req, res) => {
 // Serializable view of a tier for the /health and /status endpoints.
 const modelSummary = (t) => ({ name: t.name, port: t.port, size: t.size, healthy: t.healthy, load: t.load });
 
+/** Active LLM_PROXY_PIN_TIER summary for BFF/UI — null when unset. */
+function pinSummary() {
+  if (PIN_TIER_INDEX < 0) return null;
+  const t = TIERS[PIN_TIER_INDEX];
+  return { name: t.name, port: t.port };
+}
+
 // ── Main request handler ───────────────────────────────────────────────────
 const server = http.createServer((req, res) => {
   if (req.url === '/health' && req.method === 'GET') {
@@ -342,7 +349,12 @@ const server = http.createServer((req, res) => {
     // at least one backend can serve.
     const anyHealthy = TIERS.some((t) => t.healthy);
     res.writeHead(anyHealthy ? 200 : 503, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: anyHealthy ? 'healthy' : 'degraded', mode: 'swap', models: TIERS.map(modelSummary) }));
+    res.end(JSON.stringify({
+      status: anyHealthy ? 'healthy' : 'degraded',
+      mode: 'swap',
+      pin: pinSummary(),
+      models: TIERS.map(modelSummary),
+    }));
     return;
   }
 
@@ -353,7 +365,7 @@ const server = http.createServer((req, res) => {
     for (const t of TIERS) t.lastCheck = 0;
     checkHealth().then(() => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, models: TIERS.map(modelSummary) }));
+      res.end(JSON.stringify({ ok: true, pin: pinSummary(), models: TIERS.map(modelSummary) }));
     });
     return;
   }
@@ -363,6 +375,7 @@ const server = http.createServer((req, res) => {
     res.end(JSON.stringify({
       proxy: 'multi-model-llm-proxy',
       mode: 'swap',
+      pin: pinSummary(),
       swapping: swapInFlight ? TIERS[swapInFlight.cls].name : null,
       models: TIERS.map(modelSummary),
     }));
