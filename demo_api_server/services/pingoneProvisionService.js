@@ -3211,19 +3211,34 @@ class PingOneProvisionService {
       const pingOneMcpAppId = pingOneMcpServerAppResult.application?.id;
       if (pingOneMcpAppId) {
         try {
+          // Merge — never replace. A full replace wiped the Generic MCP Inspector
+          // callback (/api/mcp/inspector/pingone-admin/callback) and broke PingOne
+          // admin sign-in with invalid_grant (2026-07-22).
+          const existingMcpRedirects = Array.isArray(pingOneMcpServerAppResult.application?.redirectUris)
+            ? pingOneMcpServerAppResult.application.redirectUris
+            : [];
+          const publicOrigin = String(config.publicAppUrl || process.env.PUBLIC_APP_URL || '')
+            .trim()
+            .replace(/\/$/, '');
+          const inspectorCallbacks = [
+            // Loopback hosts — different MCP clients use localhost vs 127.0.0.1.
+            // 7464 = this repo's Claude Code callbackPort; 7474 = Ping's published
+            // Remote MCP onboarding default.
+            'http://localhost:7464/callback',
+            'http://127.0.0.1:7464/callback',
+            'http://localhost:7474/callback',
+            'http://127.0.0.1:7474/callback',
+            'cursor://anysphere.cursor-mcp/oauth/callback',
+            'https://www.cursor.com/agents/mcp/oauth/callback',
+            // Generic MCP Inspector (routes/mcpPingOneAdminAuth.js)
+            'https://local.ping-devops.com:4000/api/mcp/inspector/pingone-admin/callback',
+            'https://api.ping.demo:4000/api/mcp/inspector/pingone-admin/callback',
+          ];
+          if (publicOrigin) {
+            inspectorCallbacks.push(`${publicOrigin}/api/mcp/inspector/pingone-admin/callback`);
+          }
           const updatedMcpApp = await this.updateApplication(pingOneMcpAppId, {
-            // Register both loopback hosts — different MCP clients use localhost vs
-            // 127.0.0.1, and PingOne requires an exact redirect_uri match.
-            // 7464 = this repo's Claude Code callbackPort; 7474 = the port in
-            // Ping's published Remote MCP onboarding doc (some clients default to it).
-            redirectUris: [
-              'http://localhost:7464/callback',
-              'http://127.0.0.1:7464/callback',
-              'http://localhost:7474/callback',
-              'http://127.0.0.1:7474/callback',
-              'cursor://anysphere.cursor-mcp/oauth/callback',
-              'https://www.cursor.com/agents/mcp/oauth/callback',
-            ],
+            redirectUris: Array.from(new Set([...existingMcpRedirects, ...inspectorCallbacks])),
           });
           if (updatedMcpApp?.clientId) provisioned.pingOneMcpServerApp = updatedMcpApp;
         } catch (err) {
