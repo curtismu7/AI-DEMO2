@@ -1106,6 +1106,9 @@ services:
       # Costs ~14GB resident. Empty string = classic swap / pin-phi (24GB strategy).
       # Use ${VAR-default} (not :-) so an explicit empty from run-docker.sh is honored.
       LLM_PROXY_RESIDENT_TIERS: "${LLM_PROXY_RESIDENT_TIERS-8091,8096}"
+      # PostHog LLM Analytics ($ai_generation). Optional — proxy no-ops when unset.
+      POSTHOG_API_KEY: "${POSTHOG_API_KEY:-}"
+      POSTHOG_HOST: "${POSTHOG_HOST:-https://us.i.posthog.com}"
     networks:
       - ai-demo
     # Access host llama-server instances via host.docker.internal
