@@ -2,6 +2,11 @@
 
 const http = require('http');
 const httpProxy = require('http-proxy');
+const crypto = require('crypto');
+const {
+  captureGeneration,
+  modelFromRequest,
+} = require('./posthogAi');
 
 // ── Config ──────────────────────────────────────────────────────────────────
 // host.docker.internal lets the container reach llama-server processes running
@@ -309,6 +314,38 @@ function releaseTier(req) {
 
 proxy.on('proxyRes', (proxyRes, req) => {
   releaseTier(req);
+
+  // Tee response bytes for PostHog LLM Analytics ($ai_generation) without
+  // altering the client stream. Metadata only — no prompt/completion text.
+  if (!req._aiStartedAt) return;
+  const chunks = [];
+  let firstByteAt = null;
+  const onData = (chunk) => {
+    if (firstByteAt == null) firstByteAt = Date.now();
+    // Cap buffer so a runaway stream cannot OOM the proxy.
+    if (chunks.length < 512) chunks.push(chunk);
+  };
+  const onEnd = () => {
+    proxyRes.off('data', onData);
+    const latencySec = (Date.now() - req._aiStartedAt) / 1000;
+    const ttft = firstByteAt != null ? (firstByteAt - req._aiStartedAt) / 1000 : null;
+    captureGeneration({
+      distinctId: req.headers['x-posthog-distinct-id'] || 'llm-proxy',
+      traceId: req._aiTraceId,
+      requestModel: req._aiRequestModel,
+      responseBody: Buffer.concat(chunks),
+      latencySec,
+      timeToFirstTokenSec: ttft,
+      httpStatus: proxyRes.statusCode,
+      tierName: req.proxyTarget?.name || null,
+      streamHint: /text\/event-stream/i.test(String(proxyRes.headers['content-type'] || '')),
+    });
+  };
+  proxyRes.on('data', onData);
+  proxyRes.once('end', onEnd);
+  proxyRes.once('error', () => {
+    proxyRes.off('data', onData);
+  });
 });
 
 proxy.on('error', (err, req, res) => {
@@ -416,6 +453,9 @@ const server = http.createServer((req, res) => {
 
     req.proxyTarget = selectedTier; // for load tracking
     req.bodyBuffer = bodyBuffer;    // re-streamed in proxyReq (body was drained above)
+    req._aiStartedAt = Date.now();
+    req._aiTraceId = crypto.randomUUID();
+    req._aiRequestModel = modelFromRequest(bodyBuffer);
 
     console.log(
       `[proxy] ${req.method} ${req.url} → ${selectedTier.name} (class ${routedCls}${routedCls !== cls ? ` capped from ${cls}` : ''} via ${via}) | load=${selectedTier.load}`,

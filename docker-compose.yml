@@ -1101,6 +1101,9 @@ services:
       # tier — residency does, so the FIRST request doesn't swap either.
       # Costs ~14GB resident. Set empty to fall back to classic swap mode.
       LLM_PROXY_RESIDENT_TIERS: "${LLM_PROXY_RESIDENT_TIERS:-8091,8096}"
+      # PostHog LLM Analytics ($ai_generation). Optional — proxy no-ops when unset.
+      POSTHOG_API_KEY: "${POSTHOG_API_KEY:-}"
+      POSTHOG_HOST: "${POSTHOG_HOST:-https://us.i.posthog.com}"
     networks:
       - ai-demo
     # Access host llama-server instances via host.docker.internal
