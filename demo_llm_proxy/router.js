@@ -295,9 +295,24 @@ proxy.on('proxyReq', (proxyReq, req) => {
   // Re-stream the body we consumed for classification. Without this the upstream
   // request has no body (the stream was drained by req.on('data')), so llama-server
   // hangs / the socket closes and http-proxy emits ECONNRESET → "Bad Gateway".
-  if (req.bodyBuffer && req.bodyBuffer.length) {
-    proxyReq.setHeader('Content-Length', req.bodyBuffer.length);
-    proxyReq.write(req.bodyBuffer);
+  let body = req.bodyBuffer;
+  // Rewrite the `model` field to match the tier actually serving this request.
+  // The tier name is the model name llamacpp has loaded on that port. Without
+  // this, a request pinned to e.g. "gpt-oss-20b" forwarded to a port running
+  // "phi-4-mini-instruct" (local Docker where only one model is loaded) gets a
+  // 404 "model not found" from llamacpp even though the tier is healthy.
+  if (body && body.length && req.proxyTarget) {
+    try {
+      const parsed = JSON.parse(body.toString('utf8'));
+      if (parsed && typeof parsed.model === 'string' && parsed.model !== req.proxyTarget.name) {
+        parsed.model = req.proxyTarget.name;
+        body = Buffer.from(JSON.stringify(parsed));
+      }
+    } catch { /* non-JSON body — forward as-is */ }
+  }
+  if (body && body.length) {
+    proxyReq.setHeader('Content-Length', body.length);
+    proxyReq.write(body);
     proxyReq.end();
   }
 });
