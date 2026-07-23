@@ -61,6 +61,22 @@ describe('fetchRetryable', () => {
     expect(res.status).toBe(200);
     expect(global.fetch).toHaveBeenCalledTimes(2);
     jest.useRealTimers();
+
+    // UC22 resume after CIBA often hits P1AZ 429 — ledger the retry coverage.
+    const { writeLedgerEntry } = require('../../services/stepVerificationLedger');
+    writeLedgerEntry({
+      vertical: 'banking',
+      useCaseId: 'UC22',
+      triggerType: 'chip',
+      mode: 'unit-ref',
+      status: 'PASS',
+      errorClass: null,
+      primaryTool: 'create_transfer',
+      checkedAt: new Date().toISOString(),
+      verifiedBy:
+        'demo_api_server/src/__tests__/ciba.test.js (idempotent poll), ' +
+        'demo_api_server/src/__tests__/pingOneAuthorizeRetry.test.js (429 retry)',
+    });
   });
 
   test('does NOT retry a non-429 4xx', async () => {

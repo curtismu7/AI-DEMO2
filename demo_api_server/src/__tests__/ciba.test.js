@@ -792,6 +792,22 @@ describe('GET /api/auth/ciba/poll/:authReqId — OTP approval simulation', () =>
       .set('x-test-user', USER_HDR);
     expect(second.status).toBe(200);
     expect(second.body.status).toBe('approved');
+
+    // Living step-verification record for UC22 poll-race fix (PR #799).
+    const { writeLedgerEntry } = require('../../services/stepVerificationLedger');
+    writeLedgerEntry({
+      vertical: 'banking',
+      useCaseId: 'UC22',
+      triggerType: 'chip',
+      mode: 'unit-ref',
+      status: 'PASS',
+      errorClass: null,
+      primaryTool: 'create_transfer',
+      checkedAt: new Date().toISOString(),
+      verifiedBy:
+        'demo_api_server/src/__tests__/ciba.test.js (idempotent poll), ' +
+        'demo_api_server/src/__tests__/pingOneAuthorizeRetry.test.js (429 retry)',
+    });
   });
 
   it('records a token-chain event on simulated approval, identical in shape to a real one', async () => {
