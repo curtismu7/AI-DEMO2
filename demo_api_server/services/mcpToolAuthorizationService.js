@@ -283,6 +283,93 @@ function resolveStepUpMethod(useCaseId) {
 }
 
 /**
+ * Local amount-limit overlay when the live Transaction decision endpoint is
+ * unreachable (e.g. PingOne 429). Mirrors the simulated ladder so UC6–UC8 still
+ * fire when McpFirstTool alone returns PERMIT+HITL (live MCP policy has no amount limits).
+ *
+ * @param {object} r - gate result
+ * @param {{amount: number, acr?: string}} opts
+ * @returns {object} r, possibly upgraded
+ */
+function _localAmountLimitFallback(r, { amount, acr }) {
+  const denyAmount = simulatedAuthorizeService.getDenyAmountUsd();
+  const stepUpAmount = simulatedAuthorizeService.getStepUpAmountUsd();
+  const confirmAmount = simulatedAuthorizeService.getConfirmAmountUsd();
+  const acrStrong = typeof acr === 'string'
+    && /multi.?factor|mfa|aal2|Multi_Factor/i.test(acr);
+
+  if (amount > denyAmount) {
+    const denyRaw = {
+      ...(r.raw && typeof r.raw === 'object' ? r.raw : {}),
+      decision: 'DENY',
+      reason: `Local amount fallback DENY: $${amount} exceeds deny limit $${denyAmount} (Transaction endpoint unavailable).`,
+      engine: 'local-amount-fallback',
+      statements: [],
+    };
+    return _withTransactionDenyEvidence(r, {
+      decisionId: r.decisionId,
+      raw: denyRaw,
+      fallback: true,
+    });
+  }
+  if (amount >= stepUpAmount && !acrStrong) {
+    return {
+      ...r,
+      stepUpRequired: true,
+      transactionPolicyStepUp: true,
+      transactionPolicyFallback: true,
+    };
+  }
+  if (amount >= confirmAmount && !acrStrong) {
+    return {
+      ...r,
+      hitlRequired: true,
+      transactionPolicyHitl: true,
+      transactionPolicyFallback: true,
+    };
+  }
+  return r;
+}
+
+/**
+ * Upgrade a McpFirstTool PERMIT(+HITL) result to a Transaction-limit DENY and
+ * replace `_debug.response` so TraceRail does not keep showing the gate's PERMIT.
+ *
+ * @param {object} r
+ * @param {{decisionId?: string|null, raw: object, fallback?: boolean}} opts
+ * @returns {object}
+ */
+function _withTransactionDenyEvidence(r, { decisionId, raw, fallback = false }) {
+  return {
+    ...r,
+    decision: 'DENY',
+    hitlRequired: false,
+    stepUpRequired: false,
+    decisionId: decisionId || r.decisionId,
+    raw,
+    transactionPolicyDenied: true,
+    ...(fallback ? { transactionPolicyFallback: true } : {}),
+    // Keep the gate request; swap response to the limit DENY body (UC6 teaching).
+    _debug: {
+      ...(r._debug && typeof r._debug === 'object' ? r._debug : {}),
+      response: raw,
+    },
+  };
+}
+
+/**
+ * Authorize evidence body for a DENY block. Prefer Transaction-limit DENY raw
+ * over stale McpFirstTool `_debug.response` (PERMIT + HITL).
+ *
+ * @param {object} r
+ * @returns {object|null}
+ */
+function _authorizeDenyResponse(r) {
+  if (r.transactionPolicyDenied && r.raw) return r.raw;
+  return r._debug?.response || r.raw || null;
+}
+
+/**
  * Consult the Transaction decision endpoint for amount-bearing tool calls.
  *
  * The MCP first-tool gate answers "may this agent invoke this tool" — it does not
@@ -326,22 +413,25 @@ async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr
   const forceStepUp = !!declaredMethod;
   if (!forceStepUp && (!transactionType || !Number.isFinite(amount) || amount <= 0 || !userId)) return r;
   if (r.decision === 'DENY' || r.policyNotFound || r.stepUpRequired) return r; // already at/above what we could add
-  // Gate already demanded HITL — leave it (never clear a stronger/equal gate).
-  if (r.hitlRequired) return r;
+  // Do NOT early-return on gate hitlRequired: live McpFirstTool often PERMITs with
+  // HITL for every amount, and UC6/UC7 need the Transaction consult (or local
+  // amount band) to upgrade to DENY / step-up. Leaving hitlRequired when
+  // Transaction only PERMITs preserves the gate obligation below.
   try {
     const t = await pingOneAuthorizeService.evaluateTransaction({
       userId, amount, type: transactionType, acr,
     });
     if (t && t.decision === 'DENY') {
-      return {
-        ...r,
+      const denyRaw = t.raw || {
         decision: 'DENY',
-        // Surface the limit policy's own decision id/response so the Token Chain
-        // and the 403 body show the rule that actually denied, not the gate's.
-        decisionId: t.decisionId || r.decisionId,
-        raw: t.raw || r.raw,
-        transactionPolicyDenied: true,
+        reason: 'Transaction amount policy DENY',
+        decisionId: t.decisionId || null,
+        statements: [],
       };
+      return _withTransactionDenyEvidence(r, {
+        decisionId: t.decisionId || r.decisionId,
+        raw: denyRaw,
+      });
     }
     if (forceStepUp || (t && t.stepUpRequired)) {
       // Step-up outranks HITL. Setting stepUpRequired makes mapLivePingOneResult
@@ -349,6 +439,7 @@ async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr
       return {
         ...r,
         stepUpRequired: true,
+        hitlRequired: false,
         decisionId: t?.decisionId || r.decisionId,
         raw: t?.raw || r.raw,
         transactionPolicyStepUp: true,
@@ -370,32 +461,47 @@ async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr
     // A declared step-up method is gated by the useCaseId, not the amount — it
     // must still route to step-up even if the amount-limit consult errors.
     if (forceStepUp) {
-      return { ...r, stepUpRequired: true, transactionPolicyStepUp: true };
+      return { ...r, stepUpRequired: true, hitlRequired: false, transactionPolicyStepUp: true };
     }
-    // Otherwise fail OPEN to the gate's decision: the gate already ran and is the
-    // primary control. A transaction-policy outage must not block every priced call.
-    console.warn('[mcpAuthz] transaction policy consult failed — keeping gate decision:', err.message);
+    // Live MCP first-tool policy often PERMITs without amount obligations. The
+    // Transaction endpoint is what enforces $2500 DENY / $600 step-up / $300
+    // HITL. When it 429s or errors, failing open to the gate made UC6 show
+    // PERMIT+HITL while the Proof tip still expected DENY. Apply the amount
+    // ladder locally so demos stay correct under P1AZ pressure.
+    console.warn(
+      '[mcpAuthz] transaction policy consult failed — applying local amount fallback:',
+      err.message,
+    );
+    return _localAmountLimitFallback(r, { amount, acr });
   }
 
   // Local amount-band fallback when the Transaction consult attached no gate
   // (live P1AZ Transaction endpoint may PERMIT without HITL/step-up for agent
   // vertical writes). Same bands as simulatedAuthorizeService / Demo Controls.
+  // Also upgrades a bare gate HITL when amount exceeds the deny ceiling (UC6).
   if (!forceStepUp && Number.isFinite(amount) && amount > 0) {
     const denyAmount = simulatedAuthorizeService.getDenyAmountUsd();
     const stepUpAmount = simulatedAuthorizeService.getStepUpAmountUsd();
     const confirmAmount = simulatedAuthorizeService.getConfirmAmountUsd();
     if (amount > denyAmount) {
-      return {
-        ...r,
+      const denyRaw = {
+        ...(r.raw && typeof r.raw === 'object' ? r.raw : {}),
         decision: 'DENY',
-        transactionPolicyDenied: true,
-        localAmountBand: true,
+        reason: `Local amount-band DENY: $${amount} exceeds deny limit $${denyAmount}.`,
+        engine: 'local-amount-band',
+        statements: [],
       };
+      return _withTransactionDenyEvidence(r, {
+        decisionId: r.decisionId,
+        raw: denyRaw,
+        fallback: true,
+      });
     }
-    if (amount >= stepUpAmount) {
+    if (amount >= stepUpAmount && !r.stepUpRequired) {
       return {
         ...r,
         stepUpRequired: true,
+        hitlRequired: false,
         transactionPolicyStepUp: true,
         localAmountBand: true,
       };
@@ -757,14 +863,18 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
           status: 403,
           body: {
             error: 'mcp_authorization_denied',
-            error_description: 'PingOne Authorize denied MCP tool access for this session.',
+            error_description: r.transactionPolicyDenied
+              ? 'PingOne Authorize denied this amount under the Transaction limit policy.'
+              : 'PingOne Authorize denied MCP tool access for this session.',
             authorize_engine: 'pingone',
-            decisionContext: 'McpFirstTool',
+            // UC6: amount DENY comes from Transaction, not McpFirstTool — name it
+            // so TraceRail does not imply the gate's PERMIT+HITL was the deny.
+            decisionContext: r.transactionPolicyDenied ? 'Transaction' : 'McpFirstTool',
             decisionId: r.decisionId,
             deny_reason: r.raw?.reason || null,
             deny_parameters: r.raw?.parameters || null,
             authorize_request: r._debug?.request || null,
-            authorize_response: r._debug?.response || r.raw || null,
+            authorize_response: _authorizeDenyResponse(r),
             ...autoDisabled,
           },
         },
@@ -823,6 +933,9 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
             authorize_engine: 'pingone',
             decisionContext: 'McpFirstTool',
             decisionId: r.decisionId,
+            // Surface gate PERMIT+HITL so TraceRail shows challenge, not a hard DENY.
+            authorize_request: r._debug?.request || null,
+            authorize_response: r._debug?.response || r.raw || null,
             ...autoDisabled,
           },
         },
