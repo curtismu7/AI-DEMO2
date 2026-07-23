@@ -101,6 +101,32 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-22 — OAuth Academy teach chips looked dead under agent_mode=llamacpp
+
+**Files changed:**
+
+- `demo_api_server/services/verticalDispatch.js` — `findLocalToolPlugin(name)`.
+- `demo_api_server/services/bffMcpToolExecutor.js` — execute local teaching tools
+  in-process before MCP (fixes LLM `Unknown tool: explain_concept`).
+- `demo_api_ui/src/components/OAuthAcademyPage.jsx` — forceHeuristic for
+  what-is/explain starter chips; Abort/Timeout no longer leave an empty bubble;
+  do not auto-open education drawers from Academy replies.
+- `demo_api_server/src/__tests__/bffMcpToolExecutor.localTool.test.js` — regression.
+
+**What was broken:** With `agent_mode=llamacpp`, heuristic routing is off. Teach chips
+did not set `forceHeuristic`, so `/api/agent/invoke` waited ~40s on the LLM; the model
+called `explain_concept` through MCP and got `Unknown tool`. Typing indicator looked like
+no response. After the forceHeuristic fix, `education.panel` auto-opened banking-oriented
+drawers (e.g. Least-Data) over the Academy chat.
+
+**Do not break:** Non-local vertical/banking tools still use `runMcpToolPipeline` (RFC 8693,
+Authorize, HITL). `dispatchVerticalIntent` local bypass unchanged for heuristic path.
+Dashboard agent education auto-open unchanged.
+
+**Verify:** `cd demo_api_server && npx jest src/__tests__/bffMcpToolExecutor.localTool.test.js --coverage=false`;
+live `POST /api/agent/invoke` with `{prompt:'what is oauth', vertical:'oauth-teaching', forceHeuristic:true}`
+returns `toolsCalled:['explain_concept']` in under ~2s; `cd demo_api_ui && npm run build`.
+
 ### 2026-07-22 — `/admin` Demo Steps showed banking UCs and hit `requiresCustomerLogin`
 
 **Files changed:**
