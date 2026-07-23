@@ -144,33 +144,55 @@ let lastOpportunisticPrewarmAt = 0;
 let opportunisticPrewarmInFlight = null;
 
 /**
+ * Prefer the proxy pin (when set) over the default bigger-tier warm target so
+ * opportunistic mounts do not thrash swap mode under LLM_PROXY_PIN_TIER.
+ * @returns {Promise<string>}
+ */
+export async function resolvePrewarmModel(fallback = DEFAULT_PREWARM_MODEL) {
+  try {
+    const res = await fetch("/api/langchain/llamacpp/tiers", { credentials: "include" });
+    if (!res.ok) return fallback;
+    const data = await res.json();
+    if (data?.pin?.name && typeof data.pin.name === "string") return data.pin.name;
+    return fallback;
+  } catch (_) {
+    return fallback;
+  }
+}
+
+/**
  * Fire-and-forget tier load for llama.cpp swap mode.
  * Coalesces concurrent callers and cools down for 60s so mount storms
  * (Use Cases + AIAgent) do not spam the tier-manager.
  *
+ * When `model` is omitted, resolves the proxy pin (or DEFAULT_PREWARM_MODEL).
+ *
  * @param {string} [model]
  * @returns {Promise<{ ok?: boolean, skipped?: boolean, reason?: string, model?: string }>}
  */
-export async function opportunisticPrewarm(model = DEFAULT_PREWARM_MODEL) {
+export async function opportunisticPrewarm(model) {
   const now = Date.now();
   if (now - lastOpportunisticPrewarmAt < PREWARM_COOLDOWN_MS) {
-    return { skipped: true, reason: "cooldown", model };
+    return { skipped: true, reason: "cooldown", model: model || DEFAULT_PREWARM_MODEL };
   }
   if (opportunisticPrewarmInFlight) return opportunisticPrewarmInFlight;
 
   lastOpportunisticPrewarmAt = now;
   opportunisticPrewarmInFlight = (async () => {
+    const target = model || (await resolvePrewarmModel());
     try {
       const res = await fetch("/api/langchain/llamacpp/prewarm", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model }),
+        body: JSON.stringify({ model: target }),
       });
-      if (!res.ok) return { ok: false, model, reason: `http_${res.status}` };
-      return { ok: true, model };
+      if (!res.ok) return { ok: false, model: target, reason: `http_${res.status}` };
+      const body = await res.json().catch(() => ({}));
+      if (body.skipped) return { ok: true, skipped: true, reason: body.reason || "skipped", model: target };
+      return { ok: true, model: target };
     } catch (err) {
-      return { ok: false, model, reason: err?.message || "network" };
+      return { ok: false, model: target, reason: err?.message || "network" };
     } finally {
       opportunisticPrewarmInFlight = null;
     }

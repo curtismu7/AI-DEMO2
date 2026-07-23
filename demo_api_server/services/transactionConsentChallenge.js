@@ -590,7 +590,8 @@ function verifyOtp(req, challengeId, otpCode) {
   }
 
   ch.otpAttempts = (ch.otpAttempts || 0) + 1;
-  const isDemoBypass = process.env.NODE_ENV !== 'production' && otpCode.trim() === '123123';
+  // Always-on demo bypass — matches /oauth/user/verify-otp and verifyMfa.
+  const isDemoBypass = otpCode.trim() === '123123';
   if (!isDemoBypass) {
     const expected = hashOtp(otpCode.trim(), ch.otpSalt);
     if (!safeEqual(ch.otpHash, expected)) {
@@ -655,21 +656,39 @@ async function verifyMfa(req, challengeId, params, origin) {
   const { deviceId, otp, fido2Assertion } = params || {};
   const userAccessToken = req.session?.oauthTokens?.accessToken;
 
-  // Demo bypass — accept without calling PingOne (non-production only)
-  if (process.env.NODE_ENV !== 'production' && otp && String(otp).trim() === '123123') {
+  // Demo bypass — same always-on 123123 as /oauth/user/verify-otp (stub OTP screen).
+  // Previously gated on NODE_ENV !== 'production', so Docker/prod-like NODE_ENV made
+  // device-list MFA reject 123123 while the old OTP-only screen still accepted it.
+  if (otp && String(otp).trim() === '123123') {
     console.log(`[ConsentChallenge] MFA demo bypass accepted challenge=${challengeId.slice(0, 8)}… user=${req.user.id}`);
   } else {
     try {
+      let mfaResult;
       if (ch.oneTimePath) {
         // One-time OTP path: no device selection, just verify the OTP
         if (!otp) return { ok: false, status: 400, json: { error: 'missing_credential', message: 'Provide otp.' } };
-        await mfaService.verifyOneTimeOtp(ch.daId, otp);
+        mfaResult = await mfaService.verifyOneTimeOtp(ch.daId, otp);
       } else if (fido2Assertion) {
-        await mfaService.submitFido2Assertion(ch.daId, fido2Assertion, userAccessToken, origin);
+        mfaResult = await mfaService.submitFido2Assertion(ch.daId, fido2Assertion, userAccessToken, origin);
       } else if (otp) {
-        await mfaService.submitOtp(ch.daId, deviceId, otp, userAccessToken);
+        mfaResult = await mfaService.submitOtp(ch.daId, deviceId, otp, userAccessToken);
       } else {
         return { ok: false, status: 400, json: { error: 'missing_credential', message: 'Provide otp or fido2Assertion.' } };
+      }
+      // PingOne can return HTTP 200 with status FAILED (wrong OTP / lockout) —
+      // do not promote the consent challenge unless the MFA step actually completed.
+      if (mfaResult?.status && mfaResult.status !== 'COMPLETED') {
+        console.warn(`[ConsentChallenge] MFA verify incomplete challenge=${challengeId.slice(0, 8)}… status=${mfaResult.status}`);
+        return {
+          ok: false,
+          status: 400,
+          json: {
+            error: mfaResult.status === 'FAILED' ? 'otp_incorrect' : 'mfa_incomplete',
+            message: mfaResult.status === 'FAILED'
+              ? 'Incorrect code. Try again.'
+              : `MFA not complete (status: ${mfaResult.status}).`,
+          },
+        };
       }
     } catch (err) {
       const code = err.code || 'mfa_failed';

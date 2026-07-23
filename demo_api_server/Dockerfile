@@ -1,7 +1,7 @@
 # Banking API Server Dockerfile
 # Build context: repo root (required — BFF references scope-topology.json and docs/ from ../../)
 ARG GIT_SHA=unknown
-FROM node:20-alpine
+FROM node:22-alpine
 ENV GIT_SHA=$GIT_SHA
 
 # Create app directory

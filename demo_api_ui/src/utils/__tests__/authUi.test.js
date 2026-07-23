@@ -2,14 +2,21 @@
 import {
   errorMessageSuggestsLogin,
   isAuthenticatedAppSurface,
+  isAuthRequiredApiError,
   isSessionExpiredApiError,
+  normalizeAuthFailure,
   notifySessionExpiredIfNeeded,
   SESSION_REAUTH_EVENT,
+  USER_SESSION_EXPIRED_MESSAGE,
   navigateToCustomerOAuthLogin,
   navigateToAdminOAuthLogin,
+  _resetSessionExpiryNotifyForTests,
 } from '../authUi';
 
 describe('authUi', () => {
+  beforeEach(() => {
+    _resetSessionExpiryNotifyForTests();
+  });
   describe('errorMessageSuggestsLogin', () => {
     it('returns true for session / login prompts', () => {
       expect(errorMessageSuggestsLogin('Your session has expired. Please log in again.')).toBe(true);
@@ -48,12 +55,84 @@ describe('authUi', () => {
     });
   });
 
+  describe('isAuthRequiredApiError', () => {
+    it('matches overnight agent / BFF 401 shapes', () => {
+      expect(isAuthRequiredApiError(401, { error: 'Session expired' })).toBe(true);
+      expect(
+        isAuthRequiredApiError(401, {
+          error: 'Unauthorized',
+          message: 'Please log in to access the banking agent.',
+        }),
+      ).toBe(true);
+      expect(isAuthRequiredApiError(401, { error: 'login_required' })).toBe(true);
+      expect(isAuthRequiredApiError(401, { error: 'authentication_required' })).toBe(true);
+      expect(isAuthRequiredApiError(401, { need_auth: true, error: 'token_inactive' })).toBe(true);
+      expect(isAuthRequiredApiError(401, { error: 'oauth_session_required' })).toBe(true);
+      expect(isAuthRequiredApiError(401, { error: 'session_restore_required' })).toBe(true);
+      expect(
+        isAuthRequiredApiError(401, {
+          error: 'session_expired',
+          requiresLogin: true,
+        }),
+      ).toBe(true);
+    });
+
+    it('excludes delegation and step-up 401s', () => {
+      expect(
+        isAuthRequiredApiError(401, {
+          error: 'Unauthorized',
+          code: 'DELEGATION_REQUIRED',
+        }),
+      ).toBe(false);
+      expect(
+        isAuthRequiredApiError(401, {
+          error: 'DELEGATION_REQUIRED',
+          message: 'Delegation token required',
+        }),
+      ).toBe(false);
+      expect(
+        isAuthRequiredApiError(401, {
+          error: 'step_up_required',
+          error_description: 'MFA required',
+        }),
+      ).toBe(false);
+      expect(isAuthRequiredApiError(401, { error: 'admin_required' })).toBe(false);
+    });
+
+    it('ignores non-401 status', () => {
+      expect(isAuthRequiredApiError(403, { error: 'session_expired' })).toBe(false);
+      expect(isAuthRequiredApiError(200, { error: 'session_expired' })).toBe(false);
+    });
+  });
+
+  describe('normalizeAuthFailure', () => {
+    it('returns stable session_expired shape', () => {
+      const out = normalizeAuthFailure(401, {
+        error: 'Session expired',
+        message: 'Could not refresh session. Please log in again.',
+      });
+      expect(out.error).toBe('session_expired');
+      expect(out.need_auth).toBe(true);
+      expect(out.requiresLogin).toBe(true);
+      expect(out._status).toBe(401);
+      expect(out.message).toMatch(/log in again/i);
+    });
+
+    it('falls back to canonical message', () => {
+      const out = normalizeAuthFailure(401, {});
+      expect(out.message).toBe(USER_SESSION_EXPIRED_MESSAGE);
+    });
+  });
+
   describe('isAuthenticatedAppSurface', () => {
-    it('includes dashboard and admin but not public landing', () => {
+    it('includes dashboard, admin, and agent hosts; excludes public landing', () => {
       expect(isAuthenticatedAppSurface('/dashboard')).toBe(true);
       expect(isAuthenticatedAppSurface('/admin')).toBe(true);
+      expect(isAuthenticatedAppSurface('/use-cases/live')).toBe(true);
+      expect(isAuthenticatedAppSurface('/agent-lifecycle')).toBe(true);
       expect(isAuthenticatedAppSurface('/')).toBe(false);
       expect(isAuthenticatedAppSurface('/setup/foo')).toBe(false);
+      expect(isAuthenticatedAppSurface('/logout')).toBe(false);
     });
   });
 
@@ -76,6 +155,20 @@ describe('authUi', () => {
       expect(detail.invalidateSession).toBe(true);
       expect(detail.message).toMatch(/sign in/i);
 
+      window.removeEventListener(SESSION_REAUTH_EVENT, handler);
+    });
+
+    it('dispatches for human Session expired on agent host path', () => {
+      const handler = jest.fn();
+      window.addEventListener(SESSION_REAUTH_EVENT, handler);
+      window.history.pushState({}, '', '/use-cases/live');
+
+      notifySessionExpiredIfNeeded({
+        status: 401,
+        body: { error: 'Session expired', need_auth: true },
+      });
+
+      expect(handler).toHaveBeenCalled();
       window.removeEventListener(SESSION_REAUTH_EVENT, handler);
     });
 

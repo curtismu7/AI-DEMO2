@@ -1,6 +1,6 @@
 # Build context: repo root (scope-topology.json + mcp-tool-schemas.json needed
 # at compile time; sibling openapi files needed at runtime via ../../demo_mcp_*/openapi/).
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 # Place repo root at /repo so relative paths match local dev layout
 WORKDIR /repo
@@ -18,7 +18,7 @@ RUN npm run build
 
 # ── runtime ──────────────────────────────────────────────────────────────────
 ARG GIT_SHA=unknown
-FROM node:20-alpine
+FROM node:22-alpine
 ENV GIT_SHA=$GIT_SHA
 
 # Recreate the sibling layout so runtime path resolution works:

@@ -213,9 +213,38 @@ function isPluginToolName(name) {
   return false;
 }
 
+/**
+ * Find a vertical plugin that marks `name` as a pure-local tool (no MCP / authz /
+ * token exchange). Used by executeBffTool so the LLM reason loop can call
+ * teaching tools like oauth-teaching `explain_concept` without hitting the gateway.
+ * @param {string} name
+ * @returns {object|null} plugin with isLocalTool + executeTool, or null
+ */
+function findLocalToolPlugin(name) {
+  if (!name || typeof name !== 'string') return null;
+  // listAll() is empty until seeds are loaded (server boot calls init; tests may not).
+  if (typeof verticalManifest.init === 'function') verticalManifest.init();
+  const candidates = [];
+  for (const overlayId of PLUGIN_OVERLAY_IDS) {
+    candidates.push(resolvePlugin(overlayId));
+  }
+  for (const v of verticalManifest.listAll()) {
+    const id = v.id;
+    if (id === 'banking' || PLUGIN_OVERLAY_IDS.includes(id)) continue;
+    candidates.push(resolvePlugin(id));
+  }
+  for (const p of candidates) {
+    if (p && typeof p.isLocalTool === 'function' && p.isLocalTool(name) && typeof p.executeTool === 'function') {
+      return p;
+    }
+  }
+  return null;
+}
+
 module.exports = {
   resolvePlugin, hasPlugin,
   heuristicsFor, systemPromptFor, toolSchemasFor, executeToolFor, authzFor,
   isPluginToolName,
+  findLocalToolPlugin,
   PLUGIN_OVERLAY_IDS,
 };

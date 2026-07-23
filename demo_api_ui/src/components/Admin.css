@@ -1,10 +1,11 @@
 /* Admin Dashboard — B2B identity platform theme */
 
 .admin-container {
-  max-width: 1000px;
+  max-width: min(1400px, 100%);
   margin: 0 auto;
   padding: 20px;
   background: #fff;
+  box-sizing: border-box;
 }
 
 .admin-header {

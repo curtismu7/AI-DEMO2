@@ -67,6 +67,8 @@ function extractEndpoints(metadata) {
     userinfo_endpoint:      metadata.userinfo_endpoint      || null,
     jwks_uri:               metadata.jwks_uri               || null,
     issuer:                 metadata.issuer                 || null,
+    pushed_authorization_request_endpoint:
+      metadata.pushed_authorization_request_endpoint || null,
   };
 }
 
@@ -85,6 +87,7 @@ function persistDiscoveredEndpoints(endpoints) {
     'userinfo_endpoint': 'oauth_userinfo_endpoint',
     'jwks_uri': 'oauth_jwks_uri',
     'issuer': 'oauth_issuer',
+    'pushed_authorization_request_endpoint': 'oauth_par_endpoint',
   };
 
   let persisted = 0;

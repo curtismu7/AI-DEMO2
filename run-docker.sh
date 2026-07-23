@@ -4,7 +4,7 @@
 # Always stops any running containers before starting (clean slate).
 #
 # Usage:
-#   ./run-docker.sh                       start core services only (stop first) — lean ~750MB Docker
+#   ./run-docker.sh                       start core + Code Search (rag) — stop first
 #   ./run-docker.sh start full            start every compose service (~2.3GB Docker)
 #   ./run-docker.sh all                   same as `start full`
 #   ./run-docker.sh demo-sync             align demo-auth containers with admin FF toggles
@@ -13,17 +13,18 @@
 #   ./run-docker.sh optional status       show which optional groups are up
 #   ./run-docker.sh stop                  stop and remove containers (+ host model tiers)
 #   ./run-docker.sh stop <svc>...         stop only the named service(s)
-#   ./run-docker.sh restart               stop then start core (same as default)
+#   ./run-docker.sh restart               stop then start core + rag (same as default)
 #   ./run-docker.sh restart <svc>...      recreate only the named service(s) — picks up env/compose changes
-#   ./run-docker.sh build                 stop, rebuild all images, then start core
+#   ./run-docker.sh build                 stop, rebuild all images, then start core + rag
 #   ./run-docker.sh build <svc>...        rebuild + restart only the named service(s)
 #   ./run-docker.sh logs [svc]            follow logs (all, or one service name)
 #   ./run-docker.sh status                show container health table
 #   ./run-docker.sh llamacpp restart      stop and restart host LLM backend (llama.cpp tiers or oMLX)
+#   ./run-docker.sh promptfoo             run Phi step-narration eval (core promptfoo sidecar)
 #   ./run-docker.sh help                  show this message
 #
 # Optional groups (for `optional start|stop`):
-#   rag        Code Search — weaviate + embeddings + demo-mcp-code-search + llamaindex-agent
+#   rag        Code Search — started with core by default; `optional stop rag` to free RAM
 #   agents     Alternate agent frameworks — openai-agent, mastra-agent, pydantic-agent
 #   tracing    Jaeger OTLP backend
 #   demo-auth  Demo authz-server + demo mcp-gateway (auto via demo-sync)
@@ -64,14 +65,19 @@ if [[ "${PROD_MODE:-0}" != "1" && -f "${OVERRIDE_FILE}" ]]; then
   COMPOSE_FILES+=(-f "${OVERRIDE_FILE}")
 fi
 
-# Core banking demo — always started by default (~750MB Docker RSS).
+# Core banking demo — always started by default.
 CORE_SERVICES=(
-  ui mcp-server mcp-invest mortgage-service mcp-proxy
+  ui mcp-server mcp-invest mcp-weather mortgage-service mcp-proxy
   ping-gateway langchain-agent agent-service hitl-service llm-proxy
+  promptfoo-step-narration
 )
 
 # Optional groups — start on demand via `./run-docker.sh optional start <group>`.
 OPTIONAL_GROUP_NAMES=(rag agents tracing demo-auth)
+
+# Also brought up on every `start` / `restart` / `build` (core stack). Still
+# stoppable with `./run-docker.sh optional stop rag` without tearing down core.
+DEFAULT_OPTIONAL_GROUPS=(rag)
 
 # Compose profiles matching OPTIONAL_GROUP_NAMES (also used for `start full`).
 FULL_STACK_PROFILE_ARGS=(--profile rag --profile agents --profile tracing --profile demo-auth)
@@ -367,19 +373,60 @@ _clear_8090_squatter() {
   fi
 }
 
-# Swap mode: only ONE tier is loaded at a time ("smallest that does the job").
-# The tier-manager daemon on :8097 performs swaps when the router (in the
-# llm-proxy container) asks for a bigger model; startup loads just the manager
-# and the smallest tier.
+# Swap / residency: the tier-manager daemon on :8097 starts host llama-server
+# processes when the llm-proxy container asks. Policy (residencyPolicy.js via
+# apply-residency-policy.sh) runs automatically:
+#   ≥32GB → dual 8091,8096 (phi + gpt-oss, no swap eviction)
+#   <32GB → refuse dual, pin :8091 (24GB Air strategy B)
+#   LLM_PROXY_FORCE_DUAL=1 overrides the refuse
+#   LLM_PROXY_RESIDENT_TIERS= (empty) → classic one-tier swap
+# Bind host tiers on 0.0.0.0 so Docker can reach them via host.docker.internal.
+# PingAWS/k8s: one-tier Deployments via tier-manager-k8 (not this host path).
 _TIER_MANAGER_PIDFILE="/tmp/demo-tier-manager.pid"
+_LLM_RESIDENT_TIERS=""
+_LLM_PIN_TIER="${LLM_PROXY_PIN_TIER:-}"
+_LLAMA_LISTEN_HOST="${LLAMA_ARG_HOST:-0.0.0.0}"
 _manager_up() { curl -sf --max-time 2 http://127.0.0.1:8097/health >/dev/null 2>&1; }
 
-_start_tier_manager() {
-  _manager_up && return 0
-  nohup node "$(dirname "$_TIERS_SCRIPT")/tier-manager.js" > /tmp/demo-tier-manager.log 2>&1 &
+# Apply RAM policy → _LLM_RESIDENT_TIERS / _LLM_PIN_TIER (also exported for compose).
+_apply_llm_residency_policy() {
+  # shellcheck source=demo_llm_proxy/apply-residency-policy.sh
+  source "$(dirname "$_TIERS_SCRIPT")/apply-residency-policy.sh"
+  apply_llm_residency_policy "$(dirname "$_TIERS_SCRIPT")"
+  _LLM_RESIDENT_TIERS="${LLM_PROXY_RESIDENT_TIERS:-}"
+  _LLM_PIN_TIER="${LLM_PROXY_PIN_TIER:-}"
+  _LLAMA_LISTEN_HOST="${LLAMA_ARG_HOST:-0.0.0.0}"
+  if [[ "${_LLM_RESIDENCY_MODE:-}" == "pin-phi" || "${_LLM_RESIDENCY_MODE:-}" == "pin" ]]; then
+    warn "${_LLM_RESIDENCY_REASON:-low-RAM pin}"
+  else
+    ok "${_LLM_RESIDENCY_REASON:-llm residency policy applied}"
+  fi
+}
+
+# Always (re)start so a stale manager without RESIDENT_TIERS cannot keep running.
+_restart_tier_manager() {
+  if [[ -f "$_TIER_MANAGER_PIDFILE" ]]; then
+    kill "$(cat "$_TIER_MANAGER_PIDFILE")" 2>/dev/null || true
+    rm -f "$_TIER_MANAGER_PIDFILE"
+  fi
+  # Clear a manager started outside this script (same port).
+  local old
+  old=$(lsof -nP -iTCP:8097 -sTCP:LISTEN 2>/dev/null | awk 'NR>1 {print $2}' | sort -u) || true
+  if [[ -n "$old" ]]; then
+    kill $old 2>/dev/null || true
+    sleep 1
+  fi
+  LLM_PROXY_RESIDENT_TIERS="${_LLM_RESIDENT_TIERS}" \
+  LLAMA_ARG_HOST="${_LLAMA_LISTEN_HOST}" \
+    nohup node "$(dirname "$_TIERS_SCRIPT")/tier-manager.js" > /tmp/demo-tier-manager.log 2>&1 &
   echo $! > "$_TIER_MANAGER_PIDFILE"
   local i=0; while [[ $i -lt 10 ]]; do _manager_up && return 0; sleep 1; (( i++ )) || true; done
   return 1
+}
+
+_start_tier_manager() {
+  _manager_up && return 0
+  _restart_tier_manager
 }
 
 start_llamacpp() {
@@ -429,9 +476,28 @@ start_llamacpp() {
   fi
   command -v llama-server >/dev/null 2>&1 || { warn "llama-server not installed — local LLM tiers disabled (brew install llama.cpp)"; return 0; }
   _clear_8090_squatter
-  _start_tier_manager || warn "tier-manager failed to start — model swapping disabled (log: /tmp/demo-tier-manager.log)"
-  # Load only the smallest tier; the router swaps up on demand and decays back.
-  if bash "$_TIERS_SCRIPT" ensure-available; then
+  _apply_llm_residency_policy
+  export LLAMA_ARG_HOST="${_LLAMA_LISTEN_HOST}"
+  export LLM_PROXY_RESIDENT_TIERS="${_LLM_RESIDENT_TIERS}"
+  export LLM_PROXY_PIN_TIER="${_LLM_PIN_TIER}"
+  # Fresh manager so RESIDENT_TIERS / LLAMA_ARG_HOST always match this start.
+  _restart_tier_manager || warn "tier-manager failed to start — model swapping disabled (log: /tmp/demo-tier-manager.log)"
+  # oMLX/mlx paths stop llm-proxy; bring it back when we fall through to llama.cpp.
+  # Compose picks up LLM_PROXY_* from the exported env above.
+  docker compose "${COMPOSE_FILES[@]}" up -d --no-deps llm-proxy 2>/dev/null || true
+  if [[ -n "${_LLM_RESIDENT_TIERS}" ]]; then
+    if bash "$_TIERS_SCRIPT" ensure-set "${_LLM_RESIDENT_TIERS}"; then
+      ok "tier-manager on :8097, resident tiers ${_LLM_RESIDENT_TIERS} (host ${_LLAMA_LISTEN_HOST}) — llm-proxy :8090"
+    else
+      warn "resident tiers failed — verify GGUFs: bash demo_llm_proxy/download-models.sh (logs: /tmp/llama-models/)"
+    fi
+  elif [[ -n "${_LLM_PIN_TIER}" ]]; then
+    if bash "$_TIERS_SCRIPT" ensure "${_LLM_PIN_TIER}"; then
+      ok "tier-manager on :8097, pinned :${_LLM_PIN_TIER} (host ${_LLAMA_LISTEN_HOST}) — llm-proxy :8090"
+    else
+      warn "pinned tier :${_LLM_PIN_TIER} failed — verify GGUFs: bash demo_llm_proxy/download-models.sh (logs: /tmp/llama-models/)"
+    fi
+  elif bash "$_TIERS_SCRIPT" ensure-available; then
     ok "tier-manager on :8097, smallest tier loaded (:8091) — llm-proxy container serves :8090 and swaps on demand"
   else
     warn "smallest tier failed to start — verify GGUFs: bash demo_llm_proxy/download-models.sh (logs: /tmp/llama-models/)"
@@ -487,7 +553,7 @@ fi
 SERVICES=(
   "demo-api-server|BFF (Express)        |3001|https://api.ping.demo:3001"
   "jaeger|Jaeger (tracing UI)    |16686|http://localhost:16686"
-  "ui|UI (React / nginx)   |4000|https://api.ping.demo:4000"
+  "ui|UI (React / nginx)   |4000|https://local.ping-devops.com:4000"
   "mcp-server|MCP Server            |8080|http://localhost:8080"
   "mcp-gateway|MCP Gateway           |3005|http://localhost:3005"
   "mcp-proxy|MCP Proxy             |8895|http://localhost:8895"
@@ -496,12 +562,14 @@ SERVICES=(
   "agent-service|Agent Service         |3016|http://localhost:3016"
   "hitl-service|HITL Service          |3009|http://localhost:3009"
   "mcp-invest|MCP Invest            |8081|http://localhost:8081"
+  "mcp-weather|MCP Weather           |8896|http://localhost:8896"
   "mcp-jwt-verifier|MCP JWT Verifier     |8083|http://localhost:8083"
   "mortgage-service|Mortgage Service     |8082|http://localhost:8082"
   "openai-agent|OpenAI Agent          |8891|http://localhost:8891"
   "mastra-agent|Mastra Agent          |8892|http://localhost:8892"
   "pydantic-agent|Pydantic AI Agent    |8893|http://localhost:8893"
   "authz-server|Authz Server          |9001|http://localhost:9001"
+  "promptfoo-step-narration|promptfoo (eval)      |-|./run-docker.sh promptfoo"
 )
 
 # True if $1 is one of the compose service names in SERVICES.
@@ -1100,10 +1168,11 @@ cmd_optional_help() {
     echo "    ${g}  — $(_optional_group_desc "${g}")"
   done
   echo ""
+  echo "  Note: rag starts with core by default; use optional stop/start to toggle."
   echo "  Examples:"
+  echo "    ./run-docker.sh optional stop rag"
   echo "    ./run-docker.sh optional start rag"
   echo "    ./run-docker.sh optional start agents"
-  echo "    ./run-docker.sh optional stop rag"
   echo "    ./run-docker.sh optional status"
   echo ""
 }
@@ -1178,6 +1247,10 @@ cmd_start() {
   echo ""
 
   _CORE_UP=($(_effective_core_services))
+  # shellcheck disable=SC2206
+  _DEFAULT_PROFILES=($(_optional_profile_args "${DEFAULT_OPTIONAL_GROUPS[@]}"))
+  # shellcheck disable=SC2206
+  _DEFAULT_OPTIONAL_SVCS=($(_optional_resolve_groups "${DEFAULT_OPTIONAL_GROUPS[@]}"))
 
   # Clear any stale bare-metal listener (e.g. a leftover ./run.sh vite on :4000)
   # that would silently shadow a Docker container's published port.
@@ -1190,7 +1263,8 @@ cmd_start() {
     if [[ "${stack}" == "full" ]]; then
       docker compose "${COMPOSE_FILES[@]}" "${FULL_STACK_PROFILE_ARGS[@]}" up --build -d
     else
-      docker compose "${COMPOSE_FILES[@]}" up --build -d demo-api-server "${_CORE_UP[@]}"
+      docker compose "${COMPOSE_FILES[@]}" "${_DEFAULT_PROFILES[@]}" up --build -d \
+        demo-api-server "${_CORE_UP[@]}" "${_DEFAULT_OPTIONAL_SVCS[@]}"
     fi
   else
     ok "Ensuring demo-api-server is up to date..."
@@ -1204,14 +1278,15 @@ cmd_start() {
       docker compose "${COMPOSE_FILES[@]}" "${FULL_STACK_PROFILE_ARGS[@]}" up -d
     else
       if [[ "${_LLM_BACKEND}" == "omlx" ]]; then
-        ok "Starting core stack (${#_CORE_UP[@]} services + BFF, llm-proxy skipped — host oMLX on :8090) — real P1AZ + PingGateway; demo-auth profile off until FF flipped."
+        ok "Starting core + Code Search (${#_CORE_UP[@]} services + BFF + rag, llm-proxy skipped — host oMLX on :8090) — real P1AZ + PingGateway; demo-auth profile off until FF flipped."
       elif [[ "${_LLM_BACKEND}" == "mlx" ]]; then
-        ok "Starting core stack (${#_CORE_UP[@]} services + BFF, llm-proxy skipped — host mlx-lm on :8090) — real P1AZ + PingGateway; demo-auth profile off until FF flipped."
+        ok "Starting core + Code Search (${#_CORE_UP[@]} services + BFF + rag, llm-proxy skipped — host mlx-lm on :8090) — real P1AZ + PingGateway; demo-auth profile off until FF flipped."
       else
-        ok "Starting core stack (${#_CORE_UP[@]} services + BFF) — real P1AZ + PingGateway; demo-auth profile off until FF flipped."
+        ok "Starting core + Code Search (${#_CORE_UP[@]} services + BFF + rag) — real P1AZ + PingGateway; demo-auth profile off until FF flipped."
       fi
       ok "After toggling Quick Flags: ./run-docker.sh demo-sync"
-      docker compose "${COMPOSE_FILES[@]}" up -d "${_CORE_UP[@]}"
+      docker compose "${COMPOSE_FILES[@]}" "${_DEFAULT_PROFILES[@]}" up -d \
+        "${_CORE_UP[@]}" "${_DEFAULT_OPTIONAL_SVCS[@]}"
     fi
   fi
 
@@ -1232,8 +1307,8 @@ cmd_start() {
   print_status_table
   echo ""
   echo -e "${GREEN}${BOLD}  ╭─ URLS ──────────────────────────────────────────────────────╮${RESET}"
-  echo -e "${GREEN}${BOLD}  │${RESET}  [WEB]    App            ${YELLOW}${BOLD}https://api.ping.demo:4000${RESET}"
-  echo -e "${GREEN}${BOLD}  │${RESET}  [CONFIG] Admin Config   ${YELLOW}${BOLD}https://api.ping.demo:4000/config${RESET}"
+  echo -e "${GREEN}${BOLD}  │${RESET}  [WEB]    App            ${YELLOW}${BOLD}https://local.ping-devops.com:4000${RESET}"
+  echo -e "${GREEN}${BOLD}  │${RESET}  [CONFIG] Admin Config   ${YELLOW}${BOLD}https://local.ping-devops.com:4000/config${RESET}"
   echo -e "${GREEN}${BOLD}  │${RESET}  [LOGIN]  Admin Login    ${YELLOW}${BOLD}https://api.ping.demo:3001/api/auth/oauth/login${RESET}"
   echo -e "${GREEN}${BOLD}  │${RESET}  [USER]   User Login     ${YELLOW}${BOLD}https://api.ping.demo:3001/api/auth/oauth/user/login${RESET}"
   echo -e "${GREEN}${BOLD}  │${RESET}  [TRACE]  Jaeger UI      ${YELLOW}${BOLD}http://localhost:16686${RESET}  ${DIM}(service: demo-api-server)${RESET}"
@@ -1257,11 +1332,11 @@ cmd_start() {
   echo ""
   echo -e "${WHITE}${BOLD}  ╭─ AVAILABLE COMMANDS ────────────────────────────────────────╮${RESET}"
   echo -e "${WHITE}${BOLD}  │${RESET}"
-  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh${RESET}                   start core (default, lean)"
+  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh${RESET}                   start core + Code Search (rag)"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh start full${RESET}        start every compose service"
-  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh optional start rag${RESET}  start Code Search / RAG on demand"
+  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh optional stop rag${RESET}   stop Code Search / RAG (free RAM)"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh optional status${RESET}     show optional group state"
-  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh restart${RESET}           restart core stack"
+  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh restart${RESET}           restart core + rag"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh restart${RESET} <svc>     restart specific service(s)"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh build${RESET}             rebuild all images"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh build${RESET} <svc>       rebuild specific service(s)"
@@ -1294,8 +1369,8 @@ cmd_status() {
   print_status_table
   echo ""
   echo -e "${GREEN}${BOLD}  ╭─ URLS ──────────────────────────────────────────────────────╮${RESET}"
-  echo -e "${GREEN}${BOLD}  │${RESET}  [WEB]    App            ${YELLOW}${BOLD}https://api.ping.demo:4000${RESET}"
-  echo -e "${GREEN}${BOLD}  │${RESET}  [CONFIG] Admin Config   ${YELLOW}${BOLD}https://api.ping.demo:4000/config${RESET}"
+  echo -e "${GREEN}${BOLD}  │${RESET}  [WEB]    App            ${YELLOW}${BOLD}https://local.ping-devops.com:4000${RESET}"
+  echo -e "${GREEN}${BOLD}  │${RESET}  [CONFIG] Admin Config   ${YELLOW}${BOLD}https://local.ping-devops.com:4000/config${RESET}"
   echo -e "${GREEN}${BOLD}  │${RESET}  [LOGIN]  Admin Login    ${YELLOW}${BOLD}https://api.ping.demo:3001/api/auth/oauth/login${RESET}"
   echo -e "${GREEN}${BOLD}  │${RESET}  [TRACE]  Jaeger UI      ${YELLOW}${BOLD}http://localhost:16686${RESET}"
   echo -e "${GREEN}${BOLD}  ╰─────────────────────────────────────────────────────────────╯${RESET}"
@@ -1326,6 +1401,24 @@ cmd_llamacpp_restart() {
   echo ""
 }
 
+# Run Phi narration/hallucination eval in the always-on promptfoo core sidecar.
+cmd_promptfoo() {
+  echo ""
+  echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+  echo -e "${CYAN}${BOLD}   [PROMPTFOO]  Step narration eval (Phi → :8090)${RESET}"
+  echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+  echo ""
+  if ! curl -sf --max-time 3 http://127.0.0.1:8090/health >/dev/null 2>&1; then
+    err "nothing healthy on :8090 — start the stack (./run-docker.sh) and ensure Phi is loaded"
+    exit 1
+  fi
+  if ! docker compose "${COMPOSE_FILES[@]}" ps --status running --services 2>/dev/null | grep -qx 'promptfoo-step-narration'; then
+    docker compose "${COMPOSE_FILES[@]}" up -d --build promptfoo-step-narration
+  fi
+  docker compose "${COMPOSE_FILES[@]}" exec -T promptfoo-step-narration \
+    promptfoo eval -c promptfoo/step-narration.config.yaml --filter-providers phi-4-mini-instruct
+}
+
 cmd_help() {
   echo ""
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
@@ -1335,7 +1428,7 @@ cmd_help() {
   echo -e "${WHITE}${BOLD}  Usage:${RESET}  ./run-docker.sh [command] [options]"
   echo ""
   echo -e "${WHITE}${BOLD}  Commands:${RESET}"
-  echo "    (default)             Stop existing containers, then start core services (~750MB)"
+  echo "    (default)             Stop existing containers, then start core + Code Search (rag)"
   echo "    start full            Stop existing containers, then start every compose service"
   echo "    all                   Same as 'start full'"
   echo "    optional start <grp>  Start optional group(s) on a running stack (no teardown)"
@@ -1344,16 +1437,17 @@ cmd_help() {
   echo "    demo-sync             Start/stop demo-auth containers to match Quick Flag toggles"
   echo "    stop                  Stop and remove all containers (+ host model tiers)"
   echo "    stop <svc>...         Stop only the named service(s); others keep running"
-  echo "    restart               Same as default — stop then start core"
+  echo "    restart               Same as default — stop then start core + rag"
   echo "    restart <svc>...      Recreate only the named service(s); picks up env/compose"
   echo "                          changes (use 'build' for code changes); others untouched"
-  echo "    build                 Stop, rebuild all images, then start core"
+  echo "    build                 Stop, rebuild all images, then start core + rag"
   echo "    build full            Stop, rebuild all images, then start everything"
   echo "    build <svc>...        Rebuild + restart only the named service(s); others untouched"
   echo "    logs                  Interactive log picker (pick service by number)"
   echo "    logs <service>        Tail a specific service directly"
   echo "    status                Show container health table"
   echo "    llamacpp restart      Stop and restart host LLM backend (llama.cpp tiers or oMLX)"
+  echo "    promptfoo             Run Phi step-narration eval (core promptfoo sidecar → :8090)"
   echo "    help                  Show this message"
   echo ""
   cmd_optional_help
@@ -1381,12 +1475,12 @@ cmd_help() {
   echo "    4. ./run-docker.sh"
   echo ""
   echo -e "${WHITE}${BOLD}  Examples:${RESET}"
-  echo "    ./run-docker.sh                             # start core (lean default)"
+  echo "    ./run-docker.sh                             # start core + Code Search (rag)"
   echo "    ./run-docker.sh start full                  # start every compose service"
   echo "    ./run-docker.sh demo-sync                   # apply Quick Flag toggles to containers"
-  echo "    ./run-docker.sh optional start rag          # Code Search on demand"
+  echo "    ./run-docker.sh optional stop rag           # free Code Search RAM when unused"
+  echo "    ./run-docker.sh optional start rag          # re-enable Code Search"
   echo "    ./run-docker.sh optional start agents       # alt agent frameworks"
-  echo "    ./run-docker.sh optional stop rag           # free ~1.2GB when done"
   echo "    ./run-docker.sh optional status             # see what's running"
   echo "    DEMO_STACK=full ./run-docker.sh start       # env override for full stack"
   echo "    ./run-docker.sh build                       # rebuild core images"
@@ -1478,6 +1572,9 @@ case "${COMMAND}" in
       echo ""
       exit 1
     fi
+    ;;
+  promptfoo)
+    cmd_promptfoo
     ;;
   status)
     cmd_status

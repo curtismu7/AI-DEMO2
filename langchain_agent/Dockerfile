@@ -42,7 +42,9 @@ COPY --from=builder /root/.guardrailsrc /home/appuser/.guardrailsrc
 
 # Copy application code
 COPY langchain_agent/src/ ./src/
-# .codegraph/codegraph.db is built by `npm run setup:fresh` (scripts/build-codegraph.py).
+# .codegraph/demo-codegraph.db is built by setup:fresh / scripts/build-codegraph.py.
+# Image bake still uses /app/codegraph.db; compose overrides to demo-codegraph.db
+# on the live-repo mount so the host CodeGraph CLI (codegraph.db) cannot collide.
 # Copy it into the image; if it doesn't exist in the build context the COPY
 # below would fail, so we first touch a placeholder via the builder stage and
 # then let a host-side docker compose volume override it at runtime.

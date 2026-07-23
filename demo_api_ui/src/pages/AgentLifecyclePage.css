@@ -1,11 +1,11 @@
+/* Document-flow height (not 100vh): a viewport-tall wrap overflowed under
+   .footer (z-index 10) and .topnav, so slot buttons looked clickable but
+   pointer events hit the chrome instead. */
 .alp-wrap {
   padding: 48px 24px 80px;
   background: #fff;
   color: #1a1a1a;
   font-family: Helvetica, Arial, sans-serif;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
 }
 .alp-title {
   font-size: 32px;
@@ -19,7 +19,7 @@
   margin-bottom: 40px;
   font-size: 15px;
 }
-.alp-body { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: nowrap; flex: 1; min-height: 0; }
+.alp-body { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: nowrap; }
 .alp-slots { flex: 1 1 auto; min-width: 0; }
 .alp-run-layout {
   flex: 0 1 520px;

@@ -40,17 +40,7 @@ const A2A_UNROUTABLE = /specialist/i;
  * showcase alias: its AIAgent case calls createTransfer(DEMO_LARGE_TRANSFER) and
  * the HITL gate fires — it IS create_transfer.
  */
-const ACTION_TO_TOOL = {
-  transfer: 'create_transfer',
-  transfer_600_test: 'create_transfer',
-  deposit: 'create_deposit',
-  withdraw: 'create_withdrawal',
-  balance: 'get_account_balance',
-  accounts: 'get_my_accounts',
-  transactions: 'get_my_transactions',
-  branch_hours: 'get_branch_hours',
-  weather: 'get_weather',
-};
+const { ACTION_TO_TOOL } = require('./helpers/actionToTool');
 
 /** Every (vertical, useCase) chip entry with a real resolved primaryTool. */
 function chipEntries() {

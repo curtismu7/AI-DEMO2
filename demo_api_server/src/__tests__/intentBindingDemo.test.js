@@ -339,35 +339,103 @@ describe('RAR sims: PingOne Authorize enforces via the active gateway (self-reso
   });
 });
 
-// ── Finding 2 (live-mode flag leak) regression coverage ──────────────────────
+// ── Finding 2 (live-mode flag leak) + PAR config resolution ──────────────────
 describe('POST /api/demo/intent-binding/run — live mode restores ff_authorize_simulated (Finding 2)', () => {
-  function bootIsolatedApp({ runResult, runError }) {
+  function bootIsolatedApp({ runResult, runError, config = {}, parImpl }) {
+    const cfg = {
+      ff_use_cases_launcher: 'true',
+      ff_authorize_simulated: 'true',
+      ...config,
+    };
     jest.doMock('../../services/configStore', () => ({
-      getEffective: jest.fn((key) => {
-        if (key === 'ff_use_cases_launcher') return 'true';
-        if (key === 'ff_authorize_simulated') return 'true'; // pre-existing value to be restored
-        return '';
-      }),
+      getEffective: jest.fn((key) => (cfg[key] !== undefined ? cfg[key] : '')),
       setRaw: jest.fn().mockResolvedValue(undefined),
     }));
     jest.doMock('../../services/attackSimulatorService', () => ({
       runIntentBindingDemo: jest.fn(() => (runError ? Promise.reject(runError) : Promise.resolve(runResult))),
     }));
+    jest.doMock('../../services/parService', () => {
+      const isParRedirectUriMismatch = (msg) =>
+        /redirect uri mismatch/i.test(String((msg && msg.message) || msg || ''));
+      const pushAuthorizationRequest = jest.fn(
+        parImpl
+          || (() => Promise.resolve({
+            requestUri: 'urn:ietf:params:oauth:request_uri:test',
+            expiresIn: 60,
+          })),
+      );
+      const pushAuthorizationRequestWithRedirectFallback = jest.fn(
+        async (endpoint, clientId, clientSecret, payload, candidates) => {
+          let lastErr = null;
+          const tried = [];
+          for (const redirect_uri of candidates || []) {
+            tried.push(redirect_uri);
+            try {
+              const result = await pushAuthorizationRequest(
+                endpoint,
+                clientId,
+                clientSecret,
+                { ...payload, redirect_uri },
+              );
+              return {
+                ...result,
+                redirectUri: redirect_uri,
+                triedRedirects: tried,
+                usedFallback: tried.length > 1,
+              };
+            } catch (err) {
+              lastErr = err;
+              if (!isParRedirectUriMismatch(err)) throw err;
+            }
+          }
+          throw lastErr || new Error('PAR push failed: Redirect URI mismatch');
+        },
+      );
+      return {
+        pushAuthorizationRequest,
+        pushAuthorizationRequestWithRedirectFallback,
+        isParRedirectUriMismatch,
+      };
+    });
+    // Resolve PAR from env id the same way production does (configStore mock
+    // above returns '' for pingone_environment_id unless cfg supplies it).
+    jest.doMock('../../services/oauthEndpointResolver', () => ({
+      getParEndpoint: jest.fn(() => {
+        const envId = cfg.pingone_environment_id;
+        if (!envId) return '';
+        const region = cfg.pingone_region || 'com';
+        return `https://auth.pingone.${region}/${envId}/as/par`;
+      }),
+    }));
     const express = require('express');
     const supertest = require('supertest');
     const intentBindingRouter = require('../../routes/intentBinding');
     const configStore = require('../../services/configStore');
+    const {
+      pushAuthorizationRequest,
+      pushAuthorizationRequestWithRedirectFallback,
+    } = require('../../services/parService');
     const app = express();
     app.use(express.json());
     app.use('/api/demo/intent-binding', intentBindingRouter);
-    return { app, supertest, configStore };
+    return {
+      app,
+      supertest,
+      configStore,
+      pushAuthorizationRequest,
+      pushAuthorizationRequestWithRedirectFallback,
+    };
   }
 
-  test('live:true returns 503 when PAR config missing', async () => {
+  test('live:true returns 503 when actor credentials missing', async () => {
     await new Promise((resolve, reject) => {
       jest.isolateModules(() => {
         const { app, supertest } = bootIsolatedApp({
           runResult: { sim: 'rar-permit', useCaseId: 'rar-intent-verified', status: 200, errorCode: null, reason: 'PERMIT', tokenChainEvents: [] },
+          config: {
+            pingone_environment_id: 'env-1',
+            public_app_url: 'https://api.ping.demo:4000',
+          },
         });
         supertest(app)
           .post('/api/demo/intent-binding/run')
@@ -382,16 +450,135 @@ describe('POST /api/demo/intent-binding/run — live mode restores ff_authorize_
     });
   });
 
-  test('live:true requires PAR config (clientId, clientSecret, endpoint)', async () => {
+  test('live:true pushes PAR with derived endpoint and actor redirect', async () => {
     await new Promise((resolve, reject) => {
       jest.isolateModules(() => {
-        const { app, supertest } = bootIsolatedApp({ runError: new Error('boom') });
+        const { app, supertest, pushAuthorizationRequest } = bootIsolatedApp({
+          runResult: { sim: 'rar-permit', status: 200, tokenChainEvents: [] },
+          config: {
+            pingone_environment_id: 'env-1',
+            public_app_url: 'https://api.ping.demo:4000',
+            pingone_ai_agent_actor_client_id: 'actor-client',
+            pingone_ai_agent_actor_client_secret: 'actor-secret',
+          },
+        });
         supertest(app)
           .post('/api/demo/intent-binding/run')
-          .send({ action: 'permit', requestedAmount: 50, live: true })
+          .send({ action: 'permit', requestedAmount: 80, live: true })
           .then((res) => {
-            expect(res.status).toBe(503);
-            expect(res.body.error).toBe('par_config_missing');
+            expect(res.status).toBe(200);
+            expect(res.body.sim).toBe('par-permit');
+            expect(res.body.requestUri).toBe('urn:ietf:params:oauth:request_uri:test');
+            expect(pushAuthorizationRequest).toHaveBeenCalledWith(
+              'https://auth.pingone.com/env-1/as/par',
+              'actor-client',
+              'actor-secret',
+              expect.objectContaining({
+                redirect_uri: 'https://api.ping.demo:4000/api/auth/oauth/ai-agent-placeholder-callback',
+              }),
+            );
+            resolve();
+          })
+          .catch(reject);
+      });
+    });
+  });
+
+  test('live:true $80 permit uses local.ping-devops PUBLIC_APP_URL redirect', async () => {
+    await new Promise((resolve, reject) => {
+      jest.isolateModules(() => {
+        const { app, supertest, pushAuthorizationRequest } = bootIsolatedApp({
+          runResult: { sim: 'rar-permit', status: 200, tokenChainEvents: [] },
+          config: {
+            pingone_environment_id: 'env-1',
+            public_app_url: 'https://local.ping-devops.com:4000',
+            pingone_ai_agent_actor_client_id: 'actor-client',
+            pingone_ai_agent_actor_client_secret: 'actor-secret',
+          },
+        });
+        supertest(app)
+          .post('/api/demo/intent-binding/run')
+          .send({ action: 'permit', requestedAmount: 80, live: true })
+          .then((res) => {
+            expect(res.status).toBe(200);
+            expect(res.body.sim).toBe('par-permit');
+            expect(res.body.errorCode).toBeNull();
+            expect(pushAuthorizationRequest).toHaveBeenCalledWith(
+              expect.any(String),
+              'actor-client',
+              'actor-secret',
+              expect.objectContaining({
+                redirect_uri: 'https://local.ping-devops.com:4000/api/auth/oauth/ai-agent-placeholder-callback',
+                authorization_details: [expect.objectContaining({ amount: 80 })],
+              }),
+            );
+            resolve();
+          })
+          .catch(reject);
+      });
+    });
+  });
+
+  test('live:true falls back to api.ping.demo when local redirect mismatches', async () => {
+    await new Promise((resolve, reject) => {
+      jest.isolateModules(() => {
+        const localUri = 'https://local.ping-devops.com:4000/api/auth/oauth/ai-agent-placeholder-callback';
+        const apiUri = 'https://api.ping.demo:4000/api/auth/oauth/ai-agent-placeholder-callback';
+        const { app, supertest, pushAuthorizationRequest } = bootIsolatedApp({
+          runResult: { sim: 'rar-permit', status: 200, tokenChainEvents: [] },
+          config: {
+            pingone_environment_id: 'env-1',
+            public_app_url: 'https://local.ping-devops.com:4000',
+            pingone_ai_agent_actor_client_id: 'actor-client',
+            pingone_ai_agent_actor_client_secret: 'actor-secret',
+          },
+          parImpl: (_ep, _id, _sec, payload) => {
+            if (payload.redirect_uri === localUri) {
+              return Promise.reject(new Error('PAR push failed: Redirect URI mismatch'));
+            }
+            return Promise.resolve({
+              requestUri: 'urn:ietf:params:oauth:request_uri:fallback',
+              expiresIn: 60,
+            });
+          },
+        });
+        supertest(app)
+          .post('/api/demo/intent-binding/run')
+          .send({ action: 'permit', requestedAmount: 80, live: true })
+          .then((res) => {
+            expect(res.status).toBe(200);
+            expect(res.body.sim).toBe('par-permit');
+            expect(res.body.redirectUri).toBe(apiUri);
+            expect(res.body.tokenChainEvents.some((e) => e.id === 'par-redirect-fallback')).toBe(true);
+            expect(pushAuthorizationRequest).toHaveBeenCalledTimes(2);
+            resolve();
+          })
+          .catch(reject);
+      });
+    });
+  });
+
+  test('live:true classifies Redirect URI mismatch (par_redirect_uri_mismatch)', async () => {
+    await new Promise((resolve, reject) => {
+      jest.isolateModules(() => {
+        const { app, supertest } = bootIsolatedApp({
+          runResult: { sim: 'rar-permit', status: 200, tokenChainEvents: [] },
+          config: {
+            pingone_environment_id: 'env-1',
+            public_app_url: 'https://local.ping-devops.com:4000',
+            pingone_ai_agent_actor_client_id: 'actor-client',
+            pingone_ai_agent_actor_client_secret: 'actor-secret',
+          },
+          parImpl: () => Promise.reject(new Error('PAR push failed: Redirect URI mismatch')),
+        });
+        supertest(app)
+          .post('/api/demo/intent-binding/run')
+          .send({ action: 'permit', requestedAmount: 80, live: true })
+          .then((res) => {
+            expect(res.status).toBe(200);
+            expect(res.body.errorCode).toBe('par_redirect_uri_mismatch');
+            expect(res.body.tokenChainEvents[0]).toMatchObject({ id: 'par-push', status: 'error' });
+            expect(res.body.reason).toMatch(/local\.ping-devops\.com/);
             resolve();
           })
           .catch(reject);
