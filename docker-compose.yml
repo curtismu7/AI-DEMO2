@@ -35,8 +35,8 @@
 #   5. Use the search box to filter log lines
 #   6. Click the download icon to save logs to a file
 #
-# Optional compose profiles (lean default — core only; start on demand):
-#   rag        weaviate, embeddings, demo-mcp-code-search, llamaindex-agent
+# Optional compose profiles (run-docker.sh default = core + rag):
+#   rag        weaviate, embeddings, demo-mcp-code-search, llamaindex-agent (on by default)
 #   agents     openai-agent, mastra-agent, pydantic-agent
 #   tracing    jaeger
 #   demo-auth  demo authz-server + demo mcp-gateway (when FF selects demo path)

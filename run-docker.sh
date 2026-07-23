@@ -4,7 +4,7 @@
 # Always stops any running containers before starting (clean slate).
 #
 # Usage:
-#   ./run-docker.sh                       start core services only (stop first) — lean ~750MB Docker
+#   ./run-docker.sh                       start core + Code Search (rag) — stop first
 #   ./run-docker.sh start full            start every compose service (~2.3GB Docker)
 #   ./run-docker.sh all                   same as `start full`
 #   ./run-docker.sh demo-sync             align demo-auth containers with admin FF toggles
@@ -13,9 +13,9 @@
 #   ./run-docker.sh optional status       show which optional groups are up
 #   ./run-docker.sh stop                  stop and remove containers (+ host model tiers)
 #   ./run-docker.sh stop <svc>...         stop only the named service(s)
-#   ./run-docker.sh restart               stop then start core (same as default)
+#   ./run-docker.sh restart               stop then start core + rag (same as default)
 #   ./run-docker.sh restart <svc>...      recreate only the named service(s) — picks up env/compose changes
-#   ./run-docker.sh build                 stop, rebuild all images, then start core
+#   ./run-docker.sh build                 stop, rebuild all images, then start core + rag
 #   ./run-docker.sh build <svc>...        rebuild + restart only the named service(s)
 #   ./run-docker.sh logs [svc]            follow logs (all, or one service name)
 #   ./run-docker.sh status                show container health table
@@ -24,7 +24,7 @@
 #   ./run-docker.sh help                  show this message
 #
 # Optional groups (for `optional start|stop`):
-#   rag        Code Search — weaviate + embeddings + demo-mcp-code-search + llamaindex-agent
+#   rag        Code Search — started with core by default; `optional stop rag` to free RAM
 #   agents     Alternate agent frameworks — openai-agent, mastra-agent, pydantic-agent
 #   tracing    Jaeger OTLP backend
 #   demo-auth  Demo authz-server + demo mcp-gateway (auto via demo-sync)
@@ -65,7 +65,7 @@ if [[ "${PROD_MODE:-0}" != "1" && -f "${OVERRIDE_FILE}" ]]; then
   COMPOSE_FILES+=(-f "${OVERRIDE_FILE}")
 fi
 
-# Core banking demo — always started by default (~750MB Docker RSS).
+# Core banking demo — always started by default.
 CORE_SERVICES=(
   ui mcp-server mcp-invest mcp-weather mortgage-service mcp-proxy
   ping-gateway langchain-agent agent-service hitl-service llm-proxy
@@ -74,6 +74,10 @@ CORE_SERVICES=(
 
 # Optional groups — start on demand via `./run-docker.sh optional start <group>`.
 OPTIONAL_GROUP_NAMES=(rag agents tracing demo-auth)
+
+# Also brought up on every `start` / `restart` / `build` (core stack). Still
+# stoppable with `./run-docker.sh optional stop rag` without tearing down core.
+DEFAULT_OPTIONAL_GROUPS=(rag)
 
 # Compose profiles matching OPTIONAL_GROUP_NAMES (also used for `start full`).
 FULL_STACK_PROFILE_ARGS=(--profile rag --profile agents --profile tracing --profile demo-auth)
@@ -1104,10 +1108,11 @@ cmd_optional_help() {
     echo "    ${g}  — $(_optional_group_desc "${g}")"
   done
   echo ""
+  echo "  Note: rag starts with core by default; use optional stop/start to toggle."
   echo "  Examples:"
+  echo "    ./run-docker.sh optional stop rag"
   echo "    ./run-docker.sh optional start rag"
   echo "    ./run-docker.sh optional start agents"
-  echo "    ./run-docker.sh optional stop rag"
   echo "    ./run-docker.sh optional status"
   echo ""
 }
@@ -1182,6 +1187,10 @@ cmd_start() {
   echo ""
 
   _CORE_UP=($(_effective_core_services))
+  # shellcheck disable=SC2206
+  _DEFAULT_PROFILES=($(_optional_profile_args "${DEFAULT_OPTIONAL_GROUPS[@]}"))
+  # shellcheck disable=SC2206
+  _DEFAULT_OPTIONAL_SVCS=($(_optional_resolve_groups "${DEFAULT_OPTIONAL_GROUPS[@]}"))
 
   # Clear any stale bare-metal listener (e.g. a leftover ./run.sh vite on :4000)
   # that would silently shadow a Docker container's published port.
@@ -1194,7 +1203,8 @@ cmd_start() {
     if [[ "${stack}" == "full" ]]; then
       docker compose "${COMPOSE_FILES[@]}" "${FULL_STACK_PROFILE_ARGS[@]}" up --build -d
     else
-      docker compose "${COMPOSE_FILES[@]}" up --build -d demo-api-server "${_CORE_UP[@]}"
+      docker compose "${COMPOSE_FILES[@]}" "${_DEFAULT_PROFILES[@]}" up --build -d \
+        demo-api-server "${_CORE_UP[@]}" "${_DEFAULT_OPTIONAL_SVCS[@]}"
     fi
   else
     ok "Ensuring demo-api-server is up to date..."
@@ -1208,14 +1218,15 @@ cmd_start() {
       docker compose "${COMPOSE_FILES[@]}" "${FULL_STACK_PROFILE_ARGS[@]}" up -d
     else
       if [[ "${_LLM_BACKEND}" == "omlx" ]]; then
-        ok "Starting core stack (${#_CORE_UP[@]} services + BFF, llm-proxy skipped — host oMLX on :8090) — real P1AZ + PingGateway; demo-auth profile off until FF flipped."
+        ok "Starting core + Code Search (${#_CORE_UP[@]} services + BFF + rag, llm-proxy skipped — host oMLX on :8090) — real P1AZ + PingGateway; demo-auth profile off until FF flipped."
       elif [[ "${_LLM_BACKEND}" == "mlx" ]]; then
-        ok "Starting core stack (${#_CORE_UP[@]} services + BFF, llm-proxy skipped — host mlx-lm on :8090) — real P1AZ + PingGateway; demo-auth profile off until FF flipped."
+        ok "Starting core + Code Search (${#_CORE_UP[@]} services + BFF + rag, llm-proxy skipped — host mlx-lm on :8090) — real P1AZ + PingGateway; demo-auth profile off until FF flipped."
       else
-        ok "Starting core stack (${#_CORE_UP[@]} services + BFF) — real P1AZ + PingGateway; demo-auth profile off until FF flipped."
+        ok "Starting core + Code Search (${#_CORE_UP[@]} services + BFF + rag) — real P1AZ + PingGateway; demo-auth profile off until FF flipped."
       fi
       ok "After toggling Quick Flags: ./run-docker.sh demo-sync"
-      docker compose "${COMPOSE_FILES[@]}" up -d "${_CORE_UP[@]}"
+      docker compose "${COMPOSE_FILES[@]}" "${_DEFAULT_PROFILES[@]}" up -d \
+        "${_CORE_UP[@]}" "${_DEFAULT_OPTIONAL_SVCS[@]}"
     fi
   fi
 
@@ -1261,11 +1272,11 @@ cmd_start() {
   echo ""
   echo -e "${WHITE}${BOLD}  ╭─ AVAILABLE COMMANDS ────────────────────────────────────────╮${RESET}"
   echo -e "${WHITE}${BOLD}  │${RESET}"
-  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh${RESET}                   start core (default, lean)"
+  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh${RESET}                   start core + Code Search (rag)"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh start full${RESET}        start every compose service"
-  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh optional start rag${RESET}  start Code Search / RAG on demand"
+  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh optional stop rag${RESET}   stop Code Search / RAG (free RAM)"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh optional status${RESET}     show optional group state"
-  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh restart${RESET}           restart core stack"
+  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh restart${RESET}           restart core + rag"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh restart${RESET} <svc>     restart specific service(s)"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh build${RESET}             rebuild all images"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh build${RESET} <svc>       rebuild specific service(s)"
@@ -1357,7 +1368,7 @@ cmd_help() {
   echo -e "${WHITE}${BOLD}  Usage:${RESET}  ./run-docker.sh [command] [options]"
   echo ""
   echo -e "${WHITE}${BOLD}  Commands:${RESET}"
-  echo "    (default)             Stop existing containers, then start core services (~750MB)"
+  echo "    (default)             Stop existing containers, then start core + Code Search (rag)"
   echo "    start full            Stop existing containers, then start every compose service"
   echo "    all                   Same as 'start full'"
   echo "    optional start <grp>  Start optional group(s) on a running stack (no teardown)"
@@ -1366,10 +1377,10 @@ cmd_help() {
   echo "    demo-sync             Start/stop demo-auth containers to match Quick Flag toggles"
   echo "    stop                  Stop and remove all containers (+ host model tiers)"
   echo "    stop <svc>...         Stop only the named service(s); others keep running"
-  echo "    restart               Same as default — stop then start core"
+  echo "    restart               Same as default — stop then start core + rag"
   echo "    restart <svc>...      Recreate only the named service(s); picks up env/compose"
   echo "                          changes (use 'build' for code changes); others untouched"
-  echo "    build                 Stop, rebuild all images, then start core"
+  echo "    build                 Stop, rebuild all images, then start core + rag"
   echo "    build full            Stop, rebuild all images, then start everything"
   echo "    build <svc>...        Rebuild + restart only the named service(s); others untouched"
   echo "    logs                  Interactive log picker (pick service by number)"
@@ -1404,12 +1415,12 @@ cmd_help() {
   echo "    4. ./run-docker.sh"
   echo ""
   echo -e "${WHITE}${BOLD}  Examples:${RESET}"
-  echo "    ./run-docker.sh                             # start core (lean default)"
+  echo "    ./run-docker.sh                             # start core + Code Search (rag)"
   echo "    ./run-docker.sh start full                  # start every compose service"
   echo "    ./run-docker.sh demo-sync                   # apply Quick Flag toggles to containers"
-  echo "    ./run-docker.sh optional start rag          # Code Search on demand"
+  echo "    ./run-docker.sh optional stop rag           # free Code Search RAM when unused"
+  echo "    ./run-docker.sh optional start rag          # re-enable Code Search"
   echo "    ./run-docker.sh optional start agents       # alt agent frameworks"
-  echo "    ./run-docker.sh optional stop rag           # free ~1.2GB when done"
   echo "    ./run-docker.sh optional status             # see what's running"
   echo "    DEMO_STACK=full ./run-docker.sh start       # env override for full stack"
   echo "    ./run-docker.sh build                       # rebuild core images"
