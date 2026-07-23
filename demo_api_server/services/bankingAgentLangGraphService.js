@@ -637,14 +637,17 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
       }
     }
     // ARCHITECTURE-TRUTHS T-3 (amended): heuristic ROUTING is mode-dependent.
-    // ff_heuristic_enabled is still honored when no explicit agent_mode is set
-    // (back-compat). agent_mode wins when present. Server-side transfer/HITL
-    // SAFETY enforcement is independent of this gate and is unchanged.
-    const heuristicEnabled = rawMode
-      ? _agentMode.heuristicRouting
-      : configStore.getEffective('ff_heuristic_enabled') !== 'false';
+    // Match geminiNlIntent / demoAgentLangGraphService: Heuristics brain always
+    // routes heuristically; LLM brains honor ff_heuristic_enabled (Fallback /
+    // LLM-only). AGENT_MODES.heuristicRouting alone is false for every LLM brain.
+    const flagHeuristic = configStore.getEffective('ff_heuristic_enabled') !== 'false';
+    const heuristicEnabled = !_agentMode
+      ? flagHeuristic
+      : (_agentMode.mode === 'heuristics' || (!!_agentMode.provider && flagHeuristic));
+    // UC30 weather-mcp: always heuristic-dispatch get_weather (see demo agent).
+    const weatherShowcase = /\bweather\b.*?\bin\s+\S/i.test(String(message || ''));
 
-    if (heuristicEnabled) {
+    if (heuristicEnabled || weatherShowcase) {
       const heuristic = parseHeuristic(message);
       if (heuristic && heuristic.kind === 'banking') {
         const heuristicResult = await executeHeuristicBanking(heuristic, userId, userToken, req, subjectToken);

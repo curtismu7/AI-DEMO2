@@ -162,6 +162,21 @@ export async function buildDualTokenToolResult(
         accessTokenAttached: true,
         infoPageHint: '/path/dualtoken-info',
         backendRoute: '/api/resource-server/identity',
+        resourceRequest: {
+          method: 'POST',
+          url: url,
+          path: '/api/resource-server/identity',
+          headers: {
+            Authorization: 'Bearer [redacted]',
+            'Content-Type': 'application/json',
+          },
+          body: {
+            jsonrpc: '2.0',
+            method: 'identity.show',
+            params: { idToken: '[redacted]' },
+          },
+          note: 'Dual-token: access bearer in Authorization + id_token in JSON-RPC body.',
+        },
         note: 'Gateway forwarded bearer (Authorization header) + id_token (JSON-RPC params body) to banking_resource_server /identity.',
         tokenEvents: [
           {

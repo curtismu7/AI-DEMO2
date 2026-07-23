@@ -78,6 +78,11 @@ describe("App.js — critical JSX placements", () => {
     expect(appSrc).toContain("surfaceHostEl={surfaceHostEl}");
   });
 
+  test("/admin forces pingone-admin vertical (admin demo steps, not banking UCs)", () => {
+    expect(appSrc).toContain("isPingOneAdminAgentRoute");
+    expect(appSrc).toContain('forceVertical: "pingone-admin"');
+  });
+
   test("resolveEmbeddedFocus is passed as embeddedFocus prop", () => {
     expect(appSrc).toContain("embeddedFocus={resolveEmbeddedFocus(pathname)}");
   });
@@ -110,6 +115,15 @@ describe("App.js — critical JSX placements", () => {
     for (const fragment of wildcardForbidden) {
       expect(appSrc).not.toContain(fragment);
     }
+  });
+
+  // Guests under path="*" only get TopNav — inspector must stay top-level.
+  test("/pingone-mcp-inspector is a top-level McpInspectorPageRoute", () => {
+    expect(appSrc).toContain("McpInspectorPageRoute");
+    expect(appSrc).toMatch(
+      /path=["']\/pingone-mcp-inspector["'][\s\S]*?<McpInspectorPageRoute/,
+    );
+    expect(appSrc).not.toContain('element={<McpInspectorPage />}');
   });
 });
 

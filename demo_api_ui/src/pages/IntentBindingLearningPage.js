@@ -72,7 +72,9 @@ function IntentBindingColumn({ kind, title, outcomeLabel, rationale, col, live }
           {col.loading ? "Running…" : "Run"}
         </button>
       </div>
-      {col.error ? <div className="ib-status ib-status--error">{col.error}</div> : null}
+      {col.error ? (
+        <div className={`ib-status ib-status--${kind === "permit" ? "permit" : "deny"}`}>{col.error}</div>
+      ) : null}
       {col.result ? (
         <div className={`ib-status ib-status--${col.result.status === 200 ? "permit" : "deny"}`}>
           <strong>{col.result.status === 200 ? "PERMIT" : `DENY (${col.result.errorCode})`}</strong>

@@ -1,0 +1,11 @@
+{
+  "vertical": "healthcare",
+  "useCaseId": "UC8",
+  "triggerType": "chip",
+  "mode": "unit-ref",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "pay_bill",
+  "checkedAt": "2026-07-23T01:41:23.200Z",
+  "verifiedBy": "demo_api_ui/src/context/__tests__/ProofOfEnforcementContext.test.js + tokenChainTraceStore ingestAuthorize outcome preservation (#769)"
+}

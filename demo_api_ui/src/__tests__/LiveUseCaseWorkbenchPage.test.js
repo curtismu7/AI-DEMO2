@@ -53,12 +53,11 @@ function renderPage() {
   );
 }
 
-/** Select a card then click its Run button. */
+/** Click the Run button on a card (visible without selecting first). */
 async function runCardMatching(titleRe) {
   const title = await screen.findByText(titleRe);
   const card = title.closest('.luw-card');
   expect(card).toBeTruthy();
-  await userEvent.click(card);
   const runBtn = within(card).getByRole('button', { name: /run/i });
   await userEvent.click(runBtn);
 }
@@ -82,6 +81,13 @@ describe('LiveUseCaseWorkbenchPage', () => {
     expect(screen.getByLabelText('Banking glance')).toBeInTheDocument();
     expect(screen.getByText('Checking')).toBeInTheDocument();
     expect(screen.getByText('Policy')).toBeInTheDocument();
+  });
+
+  it('shows a Run button on every runnable card without requiring selection', async () => {
+    renderPage();
+    await waitFor(() => screen.getByText(/Delegated access with proof/));
+    const cards = screen.getAllByText(/Run in agent/i);
+    expect(cards.length).toBeGreaterThanOrEqual(2);
   });
 
   it('filters cards via the search box', async () => {

@@ -14,7 +14,7 @@ vi.mock('../../services/controlPlaneApi', () => ({
   getAgents: vi.fn(),
 }));
 vi.mock('../../services/apiClient', () => ({
-  default: { post: vi.fn() },
+  default: { post: vi.fn(() => Promise.resolve({ data: {} })) },
 }));
 vi.mock('../../components/KillSwitchConfirmModal', () => ({
   default: ({ isOpen, agentId, onConfirm }) =>
@@ -98,9 +98,9 @@ describe('AgentLifecyclePage — Slot 2 scoped MCP call', () => {
     });
     render(<AgentLifecyclePage />);
     fireEvent.click(screen.getByText('Call list_orders as agent'));
-    await waitFor(() =>
-      expect(screen.getByText(/"id": "o1"/)).toBeInTheDocument(),
-    );
+    // Default view is Pretty Form (not raw JSON).
+    await waitFor(() => expect(screen.getByText('o1')).toBeInTheDocument());
+    expect(screen.getByText('Pretty Form')).toHaveClass('alp-view-btn--active');
     expect(callMcpTool).toHaveBeenCalledWith(
       'list_orders',
       {},
@@ -278,7 +278,7 @@ describe('AgentLifecyclePage — Slot 4 self-service revoke', () => {
     await waitFor(() =>
       expect(apiClient.post).toHaveBeenCalledWith(
         '/api/admin/agent/demo-agent/kill-switch',
-        { reason: 'test reason' },
+        { reason: 'test reason', scope: 'instance' },
       ),
     );
     await waitFor(() =>
@@ -288,5 +288,24 @@ describe('AgentLifecyclePage — Slot 4 self-service revoke', () => {
       'href',
       '/audit?agentId=demo-agent',
     );
+  });
+
+  it('treats soft MCP error payloads as confirmed revoke (not unexpected success)', async () => {
+    callMcpTool.mockResolvedValue({
+      result: { error: 'Unknown tool "list_orders"' },
+      tokenEvents: [],
+    });
+    render(<AgentLifecyclePage />);
+
+    await waitFor(() => expect(screen.getByText('Revoke agent access')).toBeEnabled());
+    fireEvent.click(screen.getByText('Revoke agent access'));
+    fireEvent.click(screen.getByText('ConfirmRevoke'));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/Confirmed revoked — retry failed: Unknown tool/),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/Unexpected: call still succeeded/)).not.toBeInTheDocument();
   });
 });

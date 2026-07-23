@@ -56,6 +56,7 @@ services:
     image: jaegertracing/all-in-one:1.62.0
     container_name: ai-demo-jaeger
     mem_limit: 512m
+    restart: unless-stopped
     ports:
       - "16686:16686"   # Jaeger UI
       - "4317:4317"     # OTLP gRPC
@@ -573,8 +574,8 @@ services:
 
   # ── MCP Weather (third-party weather-mcp, stdio bridged to HTTP) ────────────
   # Agent Gateway (IG) showcase: fronts github.com/weather-mcp/weather-mcp,
-  # scoped to Texas-only by ping-gateway/scripts/groovy/tx-weather-scope.groovy.
-  # Not wired into the banking AI agent — gateway-level capability only.
+  # scoped at the edge by ping-gateway/scripts/groovy/tx-weather-scope.groovy.
+  # Core service (no profile) — started by lean `./run-docker.sh` with mcp-invest.
   mcp-weather:
     build:
       context: ./demo_mcp_weather
@@ -896,7 +897,7 @@ services:
       # so the real value works for both backends).
       PG_MORTGAGE_BACKEND_URL: "http://mortgage-service:8082"
       BFF_VAULT_KEY_URL: "https://api.ping.demo:3001/internal/vault/service-key"
-      BFF_WEATHER_FLAG_URL: "https://api.ping.demo:3001/internal/feature-flags/weather-mcp-showcase"
+      BFF_WEATHER_FLAG_URL: "http://api-server:3001/internal/feature-flags/weather-mcp-showcase"
       # BFF_INTERNAL_SECRET comes from env_file (ping-gateway/.env, written by
       # refresh-service-envs.js) so it matches the BFF's real value — do NOT set
       # it here (environment: would override env_file with a wrong/default value).
@@ -1150,6 +1151,25 @@ services:
     networks:
       - ai-demo
     restart: "no"
+
+  # ── promptfoo step narration (core — always on, idle until eval) ───────────
+  # Sidecar with promptfoo installed. Does not auto-run the eval on start.
+  #   ./run-docker.sh promptfoo
+  # Targets host :8090 (llm-proxy publish or host oMLX/mlx) via host.docker.internal.
+  promptfoo-step-narration:
+    build:
+      context: ./demo_api_server/promptfoo
+      dockerfile: Dockerfile
+    image: ai-demo-promptfoo:latest
+    container_name: ai-demo-promptfoo-step-narration
+    environment:
+      OPENAI_API_KEY: not-needed
+      OPENAI_API_BASE_URL: http://host.docker.internal:8090/v1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - ai-demo
+    restart: unless-stopped
 
 networks:
   ai-demo:

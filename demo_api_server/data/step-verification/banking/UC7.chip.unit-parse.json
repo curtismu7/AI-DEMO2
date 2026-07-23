@@ -1,0 +1,10 @@
+{
+  "vertical": "banking",
+  "useCaseId": "UC7",
+  "triggerType": "chip",
+  "mode": "unit-parse",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "create_transfer",
+  "checkedAt": "2026-07-22T22:22:34.628Z"
+}
