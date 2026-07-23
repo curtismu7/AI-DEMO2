@@ -109,7 +109,10 @@ def _hit_relevance(row: dict, terms: list[str]) -> int:
     # Prefer implementation packages over UI chrome / test fixtures.
     if path.startswith("demo_mcp_gateway/") and "/tests/" not in path:
         score += 6
-    if "mcpgatewayclient" in path or "authorizemcprequest" in name:
+    # BFF→gateway chokepoint — Code Explorer starter chip "How does the MCP gateway work?"
+    if "mcpgatewayclient" in path or name in ("calltoolviagateway", "calltoolviaresolvedgateway"):
+        score += 7
+    if "authorizemcprequest" in name:
         score += 5
     if "/services/" in path or "/src/" in path:
         score += 2

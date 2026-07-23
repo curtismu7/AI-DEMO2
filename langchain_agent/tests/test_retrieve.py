@@ -2,8 +2,7 @@
 from unittest.mock import patch
 
 from codegraph.db import _sanitize_fts
-from codegraph.db import _sanitize_fts
-from codegraph.retrieve import gather_context, _extra_terms
+from codegraph.retrieve import gather_context, _extra_terms, _hit_relevance
 
 
 def test_extra_terms_prefers_identifiers():
@@ -100,3 +99,57 @@ def test_gather_context_prefers_impl_over_tests():
     # Implementation excerpt should appear; test path should not be first file.
     assert "demo_mcp_gateway/src/authorizeMcpRequest.ts" in ctx
     assert ctx.index("authorizeMcpRequest.ts") < ctx.index("gateway-auth.test.ts")
+
+
+def test_hit_relevance_boosts_callToolViaGateway_chokepoint():
+    bff = {
+        "name": "callToolViaGateway",
+        "kind": "function",
+        "file_path": "demo_api_server/services/mcpGatewayClient.js",
+        "qualified_name": "callToolViaGateway",
+    }
+    ui = {
+        "name": "McpGatewayConfig",
+        "kind": "function",
+        "file_path": "demo_api_ui/src/components/McpGatewayConfig.jsx",
+        "qualified_name": "McpGatewayConfig",
+    }
+    terms = _extra_terms("How does callToolViaGateway reach PingGateway?")
+    assert _hit_relevance(bff, terms) > _hit_relevance(ui, terms)
+
+
+def test_gather_context_surfaces_callToolViaGateway_for_pinggateway_chip():
+    noise = [
+        {
+            "name": "McpGatewayConfig",
+            "kind": "function",
+            "file_path": "demo_api_ui/src/components/McpGatewayConfig.jsx",
+            "start_line": 1,
+            "end_line": 20,
+        }
+    ]
+    useful = [
+        {
+            "name": "callToolViaGateway",
+            "kind": "function",
+            "file_path": "demo_api_server/services/mcpGatewayClient.js",
+            "start_line": 96,
+            "end_line": 200,
+        }
+    ]
+
+    def fake_search(term: str):
+        t = term.lower()
+        if "calltool" in t or "gateway" in t or "mcp" in t:
+            return useful
+        return []
+
+    with patch("codegraph.retrieve.db.explore", return_value=noise), \
+         patch("codegraph.retrieve.db.search", side_effect=fake_search), \
+         patch(
+             "codegraph.retrieve._read_window",
+             return_value="96\tasync function callToolViaGateway() {}",
+         ):
+        ctx = gather_context("How does callToolViaGateway reach PingGateway?")
+    assert "callToolViaGateway" in ctx
+    assert "mcpGatewayClient.js" in ctx

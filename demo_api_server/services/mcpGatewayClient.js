@@ -19,6 +19,11 @@
  *
  * Other env vars:
  *   MCP_GATEWAY_TIMEOUT_MS — per-request timeout in ms (default: 30000)
+ *
+ * Network failures from axios are normalized to stable `.code` values so the
+ * agent / TraceRail / Code Explorer can explain them without scraping messages:
+ *   GATEWAY_TIMEOUT     — ECONNABORTED / timeout
+ *   GATEWAY_UNREACHABLE — ECONNREFUSED / ENOTFOUND / ENETUNREACH
  */
 
 const crypto = require('node:crypto');
@@ -78,6 +83,59 @@ const BANKINGDATA_TOOLS = new Set([
 const WEATHER_TOOLS = new Set([
     'get_weather',
 ]);
+
+/**
+ * Map axios transport failures to a stable Error with `.code` / `.httpStatus`.
+ * Leaves already-structured errors (with `.code`) untouched.
+ * @param {Error} axErr
+ * @param {number} timeoutMs
+ * @returns {Error}
+ */
+function _normalizeGatewayNetworkError(axErr, timeoutMs) {
+    if (!axErr || axErr.code === 'GATEWAY_TIMEOUT' || axErr.code === 'GATEWAY_UNREACHABLE') {
+        return axErr;
+    }
+    // Structured gateway HTTP errors already carry .code / .httpStatus.
+    if (axErr.code && axErr.httpStatus != null) {
+        return axErr;
+    }
+    const raw = String(axErr.code || '');
+    const msg = String(axErr.message || '');
+    const timedOut = raw === 'ECONNABORTED'
+        || /timeout/i.test(msg)
+        || /exceeded/i.test(msg);
+    if (timedOut) {
+        const err = new Error(
+            `MCP gateway timed out after ${timeoutMs}ms — check that the gateway is up and MCP_GATEWAY_TIMEOUT_MS is adequate`
+        );
+        err.code = 'GATEWAY_TIMEOUT';
+        err.httpStatus = 504;
+        err.cause = axErr;
+        return err;
+    }
+    if (raw === 'ECONNREFUSED' || raw === 'ENOTFOUND' || raw === 'ENETUNREACH' || raw === 'EHOSTUNREACH') {
+        const err = new Error(
+            `MCP gateway unreachable (${raw}) — verify mcp_demo_gateway_url / MCP_PINGGATEWAY_URL and that the gateway process is listening`
+        );
+        err.code = 'GATEWAY_UNREACHABLE';
+        err.httpStatus = 503;
+        err.cause = axErr;
+        return err;
+    }
+    return axErr;
+}
+
+/**
+ * Soft URL resolve for health / diagnostics — never throws.
+ * @returns {string|null}
+ */
+function tryGetMcpGatewayHttpUrl() {
+    try {
+        return getMcpGatewayHttpUrl();
+    } catch {
+        return null;
+    }
+}
 
 /**
  * Call an MCP tool via the gateway HTTP endpoint.
@@ -285,11 +343,12 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             httpsAgent: _httpsAgent,
         });
     } catch (axErr) {
+        const normalized = _normalizeGatewayNetworkError(axErr, timeoutMs);
         console.error(
             '[mcpGatewayClient] axios error: code=%s message=%s url=%s',
-            axErr.code, axErr.message, axErr.config?.url
+            normalized.code || axErr.code, normalized.message, axErr.config?.url
         );
-        throw axErr;
+        throw normalized;
     }
 
     const status = response.status;
@@ -820,9 +879,11 @@ module.exports = {
     callToolViaGateway,
     callToolViaResolvedGateway,
     getMcpGatewayHttpUrl,
+    tryGetMcpGatewayHttpUrl,
     resolveMcpGatewayTransport,
     // test/helpers — weather JSON-RPC deny → TraceRail gateway evidence
     _extractGatewayDenyFields,
+    _normalizeGatewayNetworkError,
     _syntheticWeatherScopeTrail,
     _trailWithWeatherFallback,
 };
