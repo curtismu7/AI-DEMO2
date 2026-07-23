@@ -1,0 +1,129 @@
+---
+# demo-mcpgw: standalone PingGateway MCP security gateway (Securing Digital
+# Assistants with PingOne and PingGateway PDF demo).
+# Config is sourced from demo_mcpgw/config/ via ConfigMaps (created by
+# create-secrets.sh). Secrets come from demo_mcpgw/.env via demo-mcpgw-secrets.
+# Exposed externally at https://ai-demo.ping-devops.com/mcp via se-ingress.yaml.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-mcpgw
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: demo-mcpgw
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: demo-mcpgw
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: demo-mcpgw
+    spec:
+      containers:
+      - name: demo-mcpgw
+        image: us-docker.pkg.dev/forgeops-public/images-base/ig:latest
+        imagePullPolicy: Always
+        # Clear any stale ig.pid left by an unclean shutdown before handing
+        # off to the stock launcher (otherwise IG refuses to start).
+        command:
+          - /bin/sh
+          - -c
+          - rm -f /var/gateway/tmp/ig.pid 2>/dev/null || true; exec /opt/gateway/bin/start.sh /var/gateway
+        ports:
+        - containerPort: 8080
+          name: http
+        envFrom:
+        - secretRef:
+            name: demo-mcpgw-secrets
+        env:
+        # In-cluster MCP server reachable via service DNS.
+        - name: MCP_SERVER_URL
+          value: "http://mcp-server:8080"
+        # Public HTTPS URL used as the McpProtectionFilter resourceId audience.
+        - name: GATEWAY_URL
+          value: "https://ai-demo.ping-devops.com"
+        volumeMounts:
+        # emptyDir gives IG a writable instance dir. ConfigMap mounts overlay
+        # subdirectories — emptyDir must be mounted first.
+        - name: gateway-instance
+          mountPath: /var/gateway
+        - name: demo-mcpgw-config
+          mountPath: /var/gateway/config/admin.json
+          subPath: admin.json
+          readOnly: true
+        - name: demo-mcpgw-routes
+          mountPath: /var/gateway/config/routes
+          readOnly: true
+        resources:
+          requests:
+            memory: "384Mi"
+            cpu: "100m"
+          limits:
+            memory: "768Mi"
+            cpu: "500m"
+        startupProbe:
+          tcpSocket:
+            port: 8080
+          failureThreshold: 30
+          periodSeconds: 2
+          timeoutSeconds: 2
+        livenessProbe:
+          tcpSocket:
+            port: 8080
+          periodSeconds: 60
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+      volumes:
+      - name: gateway-instance
+        emptyDir: {}
+      - name: demo-mcpgw-config
+        configMap:
+          name: demo-mcpgw-config
+      - name: demo-mcpgw-routes
+        configMap:
+          name: demo-mcpgw-routes
+
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-mcpgw
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: demo-mcpgw
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  # MCP sessions are stateful (Mcp-Session-Id). Pin each client to the same
+  # pod for the session lifetime.
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 3600
+  selector:
+    app: ai-demo
+    component: demo-mcpgw
