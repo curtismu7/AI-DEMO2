@@ -2,6 +2,7 @@
 // step.detail shape produced by buildTraceSteps; knows nothing about sources.
 import React from "react";
 import { tokenize, formatJson } from "./shared/JsonHighlight";
+import { useEducationUIOptional } from "../context/EducationUIContext";
 import "./shared/JsonHighlight.css";
 
 const STATUS_ICON = { pending: "·", active: "…", done: "✓", error: "✗", notinpath: "–" };
@@ -113,11 +114,14 @@ export function hasPopoutWorthyDetail(d) {
 }
 
 export default function TraceStepCard({ step, onInspect, defaultOpen = false }) {
+  const eduUi = useEducationUIOptional();
   const d = step.detail || {};
   const notInPath = step.status === "notinpath";
   const hasEvidence = Boolean(d.request || d.response || d.altRequest || d.altResponse);
   const largeEvidence = evidenceSize(d) > EVIDENCE_POPOUT_CHARS;
   const canPopOut = hasPopoutWorthyDetail(d);
+  const more = d.moreDetail || null;
+  const canOpenEdu = Boolean(more?.edu && eduUi?.open);
 
   return (
     <details className="tctr-step" data-status={step.status} open={defaultOpen}>
@@ -217,14 +221,23 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false }) 
               → Inspect claims
             </button>
           )}
-          {d.moreDetail && d.moreDetail.href && (
+          {canOpenEdu && (
+            <button
+              type="button"
+              className="tctr-inspect"
+              onClick={() => eduUi.open(more.edu, more.tab || null)}
+            >
+              → {more.label || "Learn more"}
+            </button>
+          )}
+          {more?.href && (
             <a
               className="tctr-inspect"
-              href={d.moreDetail.href}
+              href={more.href}
               target="_blank"
               rel="noopener noreferrer"
             >
-              → {d.moreDetail.label || "Show more detail"}
+              → {canOpenEdu ? (more.hrefLabel || "Open full page") : (more.label || "Show more detail")}
             </a>
           )}
         </div>
