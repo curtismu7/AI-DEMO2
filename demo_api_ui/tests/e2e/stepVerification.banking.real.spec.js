@@ -183,6 +183,11 @@ function scoreAmountGate({ nlStatus, nlBody, msgStatus, msgBody, expectation }) 
     return { checkStatus: 'FAIL', errorClass: 'server_error', normalized, tokenSummary };
   }
 
+  // Wrong vertical (e.g. healthcare accounts) fails before authorize gates fire.
+  if (/Could not find the specified accounts/i.test(msgBody?.reply || '')) {
+    return { checkStatus: 'FAIL', errorClass: 'missing_prereq', normalized, tokenSummary };
+  }
+
   // Token Chain teaching detail is part of the demo contract — blank rails FAIL.
   // Only exchange/infra errors must carry an explicit failure event; HITL/STEP_UP/DENY
   // gates still need claims/explanation on the success path through exchange.
@@ -242,6 +247,10 @@ test.describe('Step verification — banking (real login, live stack)', () => {
   test.describe('chips (heuristic mode) — amount + gate', () => {
     test.beforeEach(async ({ page }) => {
       await loginAsCustomer(page);
+      // Stack may be left on healthcare/retail from other suites — banking
+      // amount gates need checking/savings nicknames or they never reach DENY/STEP_UP/HITL.
+      const vert = await page.request.post('/api/verticals/active', { data: { id: 'banking' } });
+      expect(vert.status(), 'activate banking vertical').toBe(204);
       await setDemoRuntimeFlags(page.request, { heuristic: true });
     });
 
