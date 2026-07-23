@@ -235,6 +235,16 @@ function extractIntentAndConfidence(message) {
       confidence: 0.95,
     };
 
+  // Retail checkout — UC22 demo step ("checkout headphones for $150") and
+  // similar buy/purchase prompts. Without this, intent stays "unknown" →
+  // permitted_tools is read-only → PingGateway P1AZ DENYs checkout with
+  // intent_mismatch after CIBA approval (BFF gate already PERMITted).
+  const checkoutMatch =
+    /\b(check\s*out|checkout)\b/.test(t) ||
+    /\b(buy|purchase)\b.*\$?\d/.test(t);
+  if (checkoutMatch)
+    return { intent: "checkout", toolName: "checkout", confidence: 0.9 };
+
   // Balance/accounts: "show my X balance" or "check my X"
   const balanceMatch = /\b(balance|how much|what.*balance)\b/.test(t);
   if (balanceMatch)
