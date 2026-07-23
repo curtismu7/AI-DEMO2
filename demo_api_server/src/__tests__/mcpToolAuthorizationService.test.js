@@ -15,6 +15,9 @@ jest.mock('../../services/simulatedAuthorizeService', () => ({
   evaluateMcpFirstTool: jest.fn(),
   isSimulatedModeEnabled: jest.fn(),
   resolveAuthorizeMode: jest.fn(),
+  getDenyAmountUsd: jest.fn(() => 2000),
+  getStepUpAmountUsd: jest.fn(() => 500),
+  getConfirmAmountUsd: jest.fn(() => 250),
   buildAuthorizeFallbackSignal: jest.fn((failoverMode, err, path, extra = {}) => ({
     occurred: true, attemptedEngine: 'pingone', failoverMode,
     effectiveAction: failoverMode === 'deny' ? 'denied' : failoverMode === 'permit' ? 'permitted' : 'fell_back_to_simulated',
@@ -112,11 +115,32 @@ describe('mcpToolAuthorizationService', () => {
       it('a transaction-policy DENY overrides the gate PERMIT+HITL', async () => {
         pingOneAuthorizeService.evaluateTransaction.mockResolvedValue({
           decision: 'DENY', decisionId: 'limit-1',
+          raw: { decision: 'DENY', reason: 'amount over limit', statements: [] },
+        });
+        // Stale gate body must not leak into authorize_response (UC6 TraceRail).
+        pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({
+          decision: 'PERMIT', hitlRequired: true, decisionId: 'gate-1',
+          raw: {
+            decision: 'PERMIT',
+            statements: [{ code: 'HITL' }, { code: 'mcp-tool-authorized' }],
+          },
+          _debug: {
+            request: { method: 'POST', url: 'https://example/mcp' },
+            response: {
+              decision: 'PERMIT',
+              statements: [{ code: 'HITL' }, { code: 'mcp-tool-authorized' }],
+            },
+          },
         });
         const r = await call({ amount: 2500 });
         expect(r.block.status).toBe(403);
         expect(r.block.body.error).toBe('mcp_authorization_denied');
         expect(r.block.body.decisionId).toBe('limit-1');
+        expect(r.block.body.decisionContext).toBe('Transaction');
+        expect(r.block.body.authorize_response).toMatchObject({ decision: 'DENY' });
+        expect(r.block.body.authorize_response.statements || []).not.toEqual(
+          expect.arrayContaining([expect.objectContaining({ code: 'HITL' })]),
+        );
       });
 
       it('a transaction-policy STEP_UP obligation upgrades the gate HITL to step-up', async () => {
@@ -129,8 +153,10 @@ describe('mcpToolAuthorizationService', () => {
         expect(r.block.body.error).toBe('mcp_step_up_required');
       });
 
-      it('a transaction-policy PERMIT leaves the HITL gate intact', async () => {
-        const r = await call({ amount: 2500 });
+      it('a transaction-policy PERMIT leaves the HITL gate intact (sub-deny amount)', async () => {
+        // Use confirm-band amount so local amount-band DENY/step-up do not fire;
+        // Transaction PERMIT must not clear the gate's HITL.
+        const r = await call({ amount: 300 });
         expect(r.block.status).toBe(428);
         expect(r.block.body.error).toBe('mcp_hitl_required');
       });
@@ -145,10 +171,12 @@ describe('mcpToolAuthorizationService', () => {
         expect(pingOneAuthorizeService.evaluateTransaction).not.toHaveBeenCalled();
       });
 
-      it('fails open to the gate decision when the limit policy errors', async () => {
+      it('applies local amount DENY when the limit policy errors (UC6)', async () => {
         pingOneAuthorizeService.evaluateTransaction.mockRejectedValue(new Error('p1az down'));
         const r = await call({ amount: 2500 });
-        expect(r.block.body.error).toBe('mcp_hitl_required');
+        expect(r.block.body.error).toBe('mcp_authorization_denied');
+        expect(r.block.body.decisionContext).toBe('Transaction');
+        expect(r.block.body.authorize_response).toMatchObject({ decision: 'DENY' });
       });
     });
 

@@ -157,7 +157,7 @@ export default function ScopeAuditPage() {
       </p>
       <CapabilityCallout
         capability={AGENT_GATEWAY_CAPABILITIES.find((c) => c.id === 'policy-enforcement')}
-        to="/agent-gateway-capabilities"
+        to="/pinggateway-inspector?subtab=capabilities"
       />
 
       {/* Summary bar */}

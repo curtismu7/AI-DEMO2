@@ -1,0 +1,14 @@
+{
+  "vertical": "banking",
+  "useCaseId": "UC17",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "get_account_balance",
+  "checkedAt": "2026-07-22T22:22:34.672Z",
+  "requiredFlags": [
+    "ff_mcp_gateway_pinggateway",
+    "ff_gateway_brokered_exchange"
+  ]
+}

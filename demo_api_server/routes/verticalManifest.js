@@ -260,19 +260,27 @@ router.post('/check-chip', requireAdmin, express.json(), async (req, res) => {
 // Specific paths first, parameterized paths last (express routes top-to-bottom).
 
 // Switching the active vertical is open to any authenticated user (not admin-only).
-// Session-scoped: the choice is stored on THIS session (req.session.active_vertical)
-// so another session switching can't change it. The process-global is still set as
-// the default for sessions that never switched (back-compat + SSE hydration). The id
-// is validated against the loaded set; hidden verticals cannot be activated.
+// Session-scoped: the choice is ALWAYS stored on THIS session (req.session.active_vertical)
+// so another session switching can't change it. The process-global + SSE broadcast
+// (setActive) is admin-only (or body.global=true from an admin) — otherwise a
+// CareConnect / retail e2e (or casual end-user switch) left healthcare as the
+// first-load default for every new session and the room looked "stuck".
+// The id is validated against the loaded set; hidden verticals cannot be activated.
 router.post('/active', requireSession, (req, res) => {
-  const { id } = req.body || {};
+  const { id, global: wantGlobal } = req.body || {};
   if (!id) return res.status(400).json({ error: 'id required' });
   if (verticalManifest.HIDDEN_IDS.has(id)) return res.status(403).json({ error: 'cannot activate hidden vertical' });
   if (!verticalManifest.loader.get(id)) return res.status(404).json({ error: 'unknown id' });
   // Session preference (takes precedence in resolver.activeIdFor / scope / data seeding).
   req.session.active_vertical = id;
-  // Global default for new/never-switched sessions + SSE hydration (back-compat).
-  verticalManifest.resolver.setActive(id);
+  const isAdmin = req.user && req.user.role === 'admin';
+  // Only admins move the process-global default (and SSE-broadcast to everyone).
+  if (isAdmin || wantGlobal === true) {
+    if (wantGlobal === true && !isAdmin) {
+      return res.status(403).json({ error: 'admin only for global vertical switch' });
+    }
+    verticalManifest.resolver.setActive(id);
+  }
   req.session.save((err) => {
     if (err) return res.status(500).json({ error: 'session_save_failed' });
     res.status(204).end();

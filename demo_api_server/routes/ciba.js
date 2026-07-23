@@ -237,6 +237,17 @@ router.get('/request/:authReqId', authenticateToken, (req, res) => {
 // GET /api/auth/ciba/poll/:authReqId
 // ---------------------------------------------------------------------------
 
+/**
+ * Mark a session CIBA request as approved without deleting it.
+ * Concurrent pollers (agent loop + approve tab) used to race: the first
+ * successful poll deleted the entry and the second got 404 → false deny.
+ * Keep an approved sentinel until expiresAt so later polls stay idempotent.
+ */
+function _markCibaApproved(pending) {
+  pending.pollOutcome = 'approved';
+  pending.approvedAt = Date.now();
+}
+
 router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
   if (!_cibaEnabled(res)) return;
 
@@ -258,6 +269,11 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
     });
   }
 
+  // Idempotent: prior poll already applied step-up — do not 404 late pollers.
+  if (pending.pollOutcome === 'approved') {
+    return res.json({ status: 'approved', scope: pending.scope });
+  }
+
   if (pending.simulated) {
     if (pending.deniedByUser) {
       delete req.session.cibaRequests[authReqId];
@@ -272,7 +288,7 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
       return res.json({ status: 'pending' });
     }
 
-    delete req.session.cibaRequests[authReqId];
+    _markCibaApproved(pending);
     req.session.stepUpVerified = Date.now() + STEP_UP_TTL_MS;
     // CIBA out-of-band approval IS a human-in-the-loop event, so it discharges
     // the separate HITL gate too (see mcpToolAuthorizationService.js's
@@ -327,7 +343,7 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
       grantedVia:   'ciba',
     };
 
-    delete req.session.cibaRequests[authReqId];
+    _markCibaApproved(pending);
     req.session.stepUpVerified = Date.now() + STEP_UP_TTL_MS;
     // See the matching comment in the simulated branch above.
     req.session.hitlVerified = Date.now() + STEP_UP_TTL_MS;

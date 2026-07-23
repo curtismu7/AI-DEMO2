@@ -41,8 +41,10 @@ async function agentSessionMiddleware(req, res, next) {
     if (!req.session?.user) {
       console.log('[agentSessionMiddleware] ERROR: No session.user');
       return res.status(401).json({
-        error: 'Unauthorized',
-        message: 'Please log in to access the banking agent.',
+        error: 'session_expired',
+        message: 'Your sign-in session has expired. Sign in again to continue.',
+        need_auth: true,
+        requiresLogin: true,
       });
     }
     console.log('[agentSessionMiddleware] session.user present:', !!req.session.user);
@@ -57,6 +59,8 @@ async function agentSessionMiddleware(req, res, next) {
         error: 'oauth_session_required',
         message: 'The banking agent requires an active PingOne OAuth session. Please sign in via PingOne to use the agent.',
         hint: 'Use the "Sign in with PingOne" button — local account login does not provision agent tokens.',
+        need_auth: true,
+        requiresLogin: true,
       });
     }
     // Check if this is a cookie-restored stub (no real tokens available)
@@ -72,6 +76,8 @@ async function agentSessionMiddleware(req, res, next) {
         hint: req.session._restoredFromCookie 
           ? 'Session was restored from cookie but real OAuth tokens are missing. Sign in again to get fresh tokens.'
           : 'Session has stub token instead of real OAuth tokens. This may indicate a session save failure. Sign in again.',
+        need_auth: true,
+        requiresLogin: true,
       });
     }
     console.log('[agentSessionMiddleware] oauthTokens.accessToken present:', !!req.session.oauthTokens.accessToken);
@@ -87,8 +93,10 @@ async function agentSessionMiddleware(req, res, next) {
         console.error('[agentSessionMiddleware] ERROR: Refresh failed:', error.message);
         console.error('[agentSessionMiddleware] Refresh error stack:', error.stack);
         return res.status(401).json({
-          error: 'Session expired',
-          message: 'Could not refresh session. Please log in again.',
+          error: 'session_expired',
+          message: 'Your sign-in session has expired. Sign in again to continue.',
+          need_auth: true,
+          requiresLogin: true,
         });
       }
     }
@@ -107,10 +115,11 @@ async function agentSessionMiddleware(req, res, next) {
     if (!pingOneSub) {
       console.error('[agentSessionMiddleware] ERROR: session.user has no PingOne sub (oauthId/sub) — refusing to fall back to legacy id');
       return res.status(401).json({
-        error: 'Session expired',
+        error: 'session_expired',
         message: 'Your session is missing its identity. Please sign in again.',
         agentInitRequired: true,
         need_auth: true,
+        requiresLogin: true,
       });
     }
     console.log('[agentSessionMiddleware] Attaching agentContext...');

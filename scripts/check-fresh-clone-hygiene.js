@@ -190,6 +190,89 @@ for (const [file, label] of [['docker-compose.yml', 'docker'], ['k8s/02-configma
   }
 }
 
+// ── Resource-server dual-view canaries (#780/#781) ──
+// Login RS / In-flow RS shipped without route/UI tests or mint hardening; the
+// follow-up locked these so a merge cannot drop the session gate, badge fix, or
+// tester coverage again. If any check fails, restore the canary + fix immediately.
+{
+  const canaries = [
+    'demo_api_server/src/__tests__/resourceServer.summaryInflow.regression.test.js',
+    'demo_api_ui/src/components/__tests__/ResourceServerPage.dualView.test.jsx',
+  ];
+  for (const p of canaries) {
+    if (!isTracked(p) || !fs.existsSync(path.join(ROOT, p))) {
+      fail('rs-dual-view', `${p} missing — post-merge ledger/tester canary for Login/In-flow RS. Restore from #781.`);
+    }
+  }
+
+  const route = read('demo_api_server/routes/resourceServer.js');
+  if (!/summary-inflow[\s\S]*?_cookie_session/.test(route)) {
+    fail('rs-dual-view', 'demo_api_server/routes/resourceServer.js: /summary-inflow must session-gate like /summary (_cookie_session / missing AT → 401).');
+  }
+
+  const page = read('demo_api_ui/src/components/ResourceServerPage.jsx');
+  if (!page.includes("startsWith('banking:')")) {
+    fail('rs-dual-view', "demo_api_ui/src/components/ResourceServerPage.jsx: ScopesBadges must use startsWith('banking:') — startsWith('') highlights every scope.");
+  }
+  if (!page.includes("role=\"tablist\"") || !page.includes('Login RS') || !page.includes('In-flow RS')) {
+    fail('rs-dual-view', 'demo_api_ui/src/components/ResourceServerPage.jsx: Login RS / In-flow RS tablist is gone.');
+  }
+
+  const tester = read('demo_api_server/services/resourceServerTesterService.js');
+  if (!tester.includes('resolveTokenAsync') || !tester.includes("error: 'token_not_in_session'")) {
+    fail('rs-dual-view', 'demo_api_server/services/resourceServerTesterService.js: resolveTokenAsync must reject missing subject AT (token_not_in_session) before minting.');
+  }
+  const testerUnit = read('demo_api_server/src/__tests__/resourceServerTester.test.js');
+  if (!testerUnit.includes("describe('resolveTokenAsync'") || !testerUnit.includes('mcp_token_mint_failed')) {
+    fail('rs-dual-view', 'demo_api_server/src/__tests__/resourceServerTester.test.js: resolveTokenAsync edge-case suite missing — restore mint failure coverage.');
+  }
+}
+
+// ── LLM pin/prewarm thrash canaries (#785) ──
+// Opportunistic gpt-oss prewarm under LLM_PROXY_PIN_TIER unloaded phi, flashed
+// "llama not available", then thrashed back. Lock skip-on-pin + tester canaries.
+{
+  const canaries = [
+    'demo_api_server/tests/langchainConfig.prewarmPin.test.js',
+    'demo_api_server/tests/checks/tierManagerPinSkip.test.js',
+  ];
+  for (const p of canaries) {
+    if (!isTracked(p) || !fs.existsSync(path.join(ROOT, p))) {
+      fail('llm-prewarm-pin', `${p} missing — post-merge ledger/tester canary for pin/prewarm thrash (#785). Restore immediately.`);
+    }
+  }
+
+  const tierManager = read('demo_llm_proxy/tier-manager.js');
+  if (!/reason:\s*'pinned'/.test(tierManager) || !/LLM_PROXY_PIN_TIER/.test(tierManager)) {
+    fail('llm-prewarm-pin', 'demo_llm_proxy/tier-manager.js: must skip ensure of non-pin ports when LLM_PROXY_PIN_TIER is set and residency is empty.');
+  }
+
+  const langchain = read('demo_api_server/routes/langchainConfig.js');
+  if (!langchain.includes("reason: 'pinned'") || !langchain.includes('fetchProxyPin')) {
+    fail('llm-prewarm-pin', 'demo_api_server/routes/langchainConfig.js: /llamacpp/prewarm must skip when proxy pin conflicts (fetchProxyPin / reason: pinned).');
+  }
+
+  const safety = read('demo_api_ui/src/components/demoAgentSafety.js');
+  if (!safety.includes('resolvePrewarmModel') || !/opportunisticPrewarm\(model\)/.test(safety)) {
+    fail('llm-prewarm-pin', 'demo_api_ui/src/components/demoAgentSafety.js: opportunisticPrewarm must resolve proxy pin (resolvePrewarmModel) instead of always forcing gpt-oss.');
+  }
+
+  const agent = read('demo_api_ui/src/components/AIAgent.js');
+  if (/opportunisticPrewarm\(\s*['"]gpt-oss-20b['"]\s*\)/.test(agent)) {
+    fail('llm-prewarm-pin', 'demo_api_ui/src/components/AIAgent.js: must not hardcode opportunisticPrewarm("gpt-oss-20b") — call opportunisticPrewarm() so pin is honored.');
+  }
+
+  const launcher = read('demo_api_ui/src/pages/UseCaseLauncherPage.js');
+  if (/opportunisticPrewarm\(\s*['"]gpt-oss-20b['"]\s*\)/.test(launcher)) {
+    fail('llm-prewarm-pin', 'demo_api_ui/src/pages/UseCaseLauncherPage.js: must not hardcode opportunisticPrewarm("gpt-oss-20b") — call opportunisticPrewarm() so pin is honored.');
+  }
+
+  const safetyTest = read('demo_api_ui/src/__tests__/BankingAgent.safety.test.js');
+  if (!safetyTest.includes('resolves proxy pin when model is omitted') || !safetyTest.includes('surfaces skipped when BFF refuses a pin conflict')) {
+    fail('llm-prewarm-pin', 'demo_api_ui/src/__tests__/BankingAgent.safety.test.js: pin-aware opportunisticPrewarm cases missing — restore #785 coverage.');
+  }
+}
+
 // ── Report ──
 if (fails.length) {
   console.error('✗ fresh-clone hygiene FAILED:\n');
@@ -197,4 +280,4 @@ if (fails.length) {
   console.error(`\n${fails.length} violation(s). See NEW-MACHINE.md for the fresh-machine contract.`);
   process.exit(1);
 }
-console.log('✓ fresh-clone hygiene: all checks passed (home paths, .mcp.json, settings.json, agents, compose+k8s env/vars, session persistence)');
+console.log('✓ fresh-clone hygiene: all checks passed (home paths, .mcp.json, settings.json, agents, compose+k8s env/vars, session persistence, rs-dual-view, llm-prewarm-pin)');

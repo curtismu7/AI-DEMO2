@@ -62,7 +62,6 @@ import LlmConfigPage from "./components/LlmConfigPage";
 import LogoutPage from "./components/LogoutPage";
 import LoginSuccessModal from "./components/LoginSuccessModal";
 import LogViewer from "./components/LogViewer";
-import McpInspectorPage from "./components/McpInspectorPage";
 import MissingCredentialsModal from "./components/MissingCredentialsModal";
 import MockAuthzRulesPage from "./components/MockAuthzRulesPage";
 import MortgagePathPage from "./components/MortgagePathPage";
@@ -70,7 +69,6 @@ import OAuthDebugLogViewer from "./components/OAuthDebugLogViewer";
 import OAuthTokenDisplayPage from "./components/OAuthTokenDisplayPage";
 import PingOneAuthorizePage from "./components/PingOneAuthorizePage";
 import PingOneAuthorizeCapabilitiesPage from "./pages/PingOneAuthorizeCapabilitiesPage";
-import AgentGatewayCapabilitiesPage from "./pages/AgentGatewayCapabilitiesPage";
 import PolicyDecisionTracePage from "./components/PolicyDecisionTracePage";
 import McpGatewayConfig from "./components/McpGatewayConfig";
 import PostmanCollectionsPage from "./components/PostmanCollectionsPage";
@@ -158,6 +156,7 @@ import PublicRoutes, {
   SdkLoginPageRoute,
   SelfServicePageRoute,
   TokenExchangeTesterPageRoute,
+  McpInspectorPageRoute,
   UseCasesPageRoute,
 } from "./routes/PublicRoutes";
 import RequireAdminLogin from "./routes/RequireAdminLogin";
@@ -502,12 +501,28 @@ function AppWithAuth() {
                 />
                 <Route
                   path="/agent-gateway-capabilities"
-                  element={<AgentGatewayCapabilitiesPage />}
+                  element={
+                    <Navigate to="/pinggateway-inspector?subtab=capabilities" replace />
+                  }
                 />
                 <Route
                   path="/token-exchange-tester"
                   element={
                     <TokenExchangeTesterPageRoute user={user} logout={logout} />
+                  }
+                />
+                {/* MCP Inspector — top-level (not auth catch-all). Guests under
+                  path="*" only get TopNav; this page must remain reachable. */}
+                <Route
+                  path="/mcp-inspector"
+                  element={
+                    <Navigate to="/pingone-mcp-inspector?source=banking" replace />
+                  }
+                />
+                <Route
+                  path="/pingone-mcp-inspector"
+                  element={
+                    <McpInspectorPageRoute user={user} logout={logout} />
                   }
                 />
                 <Route
@@ -1040,14 +1055,6 @@ function AppWithAuth() {
                               element={
                                 <LogsRoute user={user} logout={logout} />
                               }
-                            />
-                            <Route
-                              path="/mcp-inspector"
-                              element={<Navigate to="/pingone-mcp-inspector?source=banking" replace />}
-                            />
-                            <Route
-                              path="/pingone-mcp-inspector"
-                              element={<McpInspectorPage />}
                             />
                             <Route
                               path="/pinggateway-inspector"

@@ -27,6 +27,7 @@ import {
 } from "../utils/dashboardLayout";
 import { toastCustomerError } from "../utils/dashboardToast";
 import { extractRfc9470Challenge } from "../utils/wwwAuthenticate";
+import DashboardTokenRail from "./DashboardTokenRail";
 import ExchangeModeToggle from "./ExchangeModeToggle";
 import Fido2Challenge from "./Fido2Challenge";
 import TokenChainTraceRail from "./TokenChainTraceRail";
@@ -2730,12 +2731,10 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
           {/* Token rail is the LAST child so the 2026 grid (UserDashboard.css
               "token rail on the RIGHT") places it in the narrow right track,
               with the agent taking the wide track. Mirrors UserDashboardPing2026. */}
-          <aside className="ud-token-rail" aria-label="Token chain">
-            <div className="section ud-token-rail__inner">
-              <ExchangeModeToggle hideTable />
-              <TokenChainTraceRail />
-            </div>
-          </aside>
+          <DashboardTokenRail>
+            <ExchangeModeToggle hideTable />
+            <TokenChainTraceRail />
+          </DashboardTokenRail>
         </div>
       ) : (
         // V2 bottom-dock layout: 2-col grid (main + rail) + fixed dock + under-the-hood panels
@@ -2772,13 +2771,6 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
           // fixed overlay from App.js
           <div className="ud-body-outer">
             <div className="dashboard-content ud-body ud-body--2026 ud-body--floating ud-body--float-mode">
-              <aside className="ud-token-rail" aria-label="Token chain">
-                <div className="section ud-token-rail__inner">
-                  <ExchangeModeToggle hideTable />
-                  <TokenChainTraceRail />
-                </div>
-              </aside>
-
               <main
                 className="ud-center"
                 id="main-dashboard-content"
@@ -2790,6 +2782,11 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
                   renderBankingMain()
                 )}
               </main>
+
+              <DashboardTokenRail>
+                <ExchangeModeToggle hideTable />
+                <TokenChainTraceRail />
+              </DashboardTokenRail>
 
               {/* Float mode: no reserve column — the FAB is a fixed overlay from App.js. */}
             </div>

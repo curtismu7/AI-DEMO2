@@ -102,16 +102,37 @@ async function _callTransactionsApi(body, userToken) {
 }
 
 /**
+ * Reseed this user's accounts when they don't match the requested vertical
+ * (e.g. session left on healthcare → Primary Care/HSA while invoke says banking).
+ * @param {string} userId
+ * @param {string} verticalId
+ */
+async function ensureAccountsForVertical(userId, verticalId) {
+  if (!userId || !verticalId) return;
+  const accounts = dataStore.getAccountsByUserId(userId) || [];
+  const manifestEntry = verticalManifest.loader.get(verticalId);
+  const expectedPrimary = (manifestEntry?.manifest?.terminology?.accountTypes?.[0] || '').toLowerCase();
+  if (!expectedPrimary) return;
+  const primary = (accounts[0]?.accountType || '').toLowerCase();
+  if (accounts.length > 0 && primary === expectedPrimary) return;
+  await dataStore.reseedUserForVertical(userId, verticalId);
+}
+
+/**
  * Dispatch a banking action based on parsed intent.
  * Reusable by both executeHeuristicBanking and banking plugin executeTool.
  * @param {string} action - The banking action (accounts, balance, transactions, transfer, deposit, withdraw, sensitive_account_details)
  * @param {object} params - Action-specific parameters (fromId, toId, amount, etc.)
  * @param {string} userId - User ID for lookups
- * @param {object} ctx - Context object with { userToken, req, subjectToken, isAdmin, terminology }
+ * @param {object} ctx - Context object with { userToken, req, subjectToken, isAdmin, terminology, vertical }
  * @returns {Promise<{reply, success, toolsCalled, ...} | null>}
  */
 async function dispatchBankingAction(action, params, userId, ctx) {
   const { userToken, req, subjectToken, isAdmin, terminology: _term } = ctx;
+  const verticalId = ctx.vertical || 'banking';
+  if (action === 'transfer' || action === 'transfer_600_test' || action === 'deposit' || action === 'withdraw') {
+    await ensureAccountsForVertical(userId, verticalId);
+  }
 
   // Normalize test actions to their real counterparts so NL-path Demo Steps
   // don't fall through to the LLM/catalog. The chip UI has dedicated handlers
@@ -245,17 +266,28 @@ async function dispatchBankingAction(action, params, userId, ctx) {
 
     // weather-mcp showcase — real third-party MCP server fronted by the Agent
     // Gateway (Texas-only, ping-gateway/scripts/groovy/tx-weather-scope.groovy).
-    // Routes through the same token-exchange → gateway pipeline as the READ
-    // actions above; the tool's own MCP content-array shape (not a banking
-    // field) is read directly here rather than in parseToolResult.
+    // executeBffTool unwraps MCP {content:[{text}]} to the inner string. Weather
+    // returns markdown prose (not banking JSON), so do not force parseToolResult.
     if (action === 'weather') {
       const toolName = 'get_weather';
       const tokenEvents = [];
       const sessionId = req?.sessionID || '';
       const rawResult = await executeBffTool({ name: toolName, args: { city_name: params.city_name || '' }, userId, userToken, req, tokenEvents, sessionId });
+      if (typeof rawResult === 'string' && rawResult.trim()) {
+        const trimmed = rawResult.trim();
+        // unwrapMcpResultEnvelope wraps non-JSON isError text as {"error":"…"}.
+        if (trimmed[0] === '{' || trimmed[0] === '[') {
+          const { result: parsedErr } = parseToolResult(trimmed, { site: `banking_read:${toolName}` });
+          if (parsedErr?.error || parsedErr?.isError) {
+            const msg = parsedErr?.error_description || parsedErr?.content?.[0]?.text || parsedErr?.error || 'Could not get the weather.';
+            return { reply: `❌ ${msg}`, success: false, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
+          }
+        }
+        return { reply: rawResult, success: true, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
+      }
       const { result: parsed2 } = parseToolResult(rawResult, { site: `banking_read:${toolName}` });
       const text = parsed2?.content?.[0]?.text;
-      if (!text || parsed2?.isError) {
+      if (!text || parsed2?.isError || parsed2?.error) {
         return { reply: `❌ ${text || parsed2?.error_description || parsed2?.error || 'Could not get the weather.'}`, success: false, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
       }
       return { reply: text, success: true, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
@@ -310,10 +342,28 @@ async function dispatchBankingAction(action, params, userId, ctx) {
         }
         return { reply: `Transferred **$${amount.toFixed(2)}** from ${fromAcct.accountType} to ${toAcct.accountType}.`, success: true, toolsCalled: ['create_transfer'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
       } catch (err) {
+        // Keep TOKEN_INACTIVE as a hard 401 for the route; every other throw must
+        // still return tokenEvents so TraceRail shows the exchange-failed step.
+        if (err && err.code === 'TOKEN_INACTIVE') throw err;
+        if (Array.isArray(err?.tokenEvents)) {
+          for (const ev of err.tokenEvents) {
+            if (ev && !tokenEvents.includes(ev)) tokenEvents.push(ev);
+          }
+        }
         // WR-07(a): non-Error throws have no .message — surface the real value.
         const detail = (err && err.message) ? err.message : String(err);
         console.warn('[dispatchBankingAction] Error executing transfer:', detail);
-        throw (err instanceof Error) ? err : new Error(`[dispatchBankingAction] transfer failed: ${detail}`);
+        return {
+          reply: `Transfer failed: ${detail}`,
+          success: false,
+          toolsCalled: ['create_transfer'],
+          tokensUsed: 0,
+          requiresConsent: false,
+          agentConfigured: true,
+          tokenEvents,
+          error: err?.pingoneError || err?.code || 'delegation_chain_broken',
+          message: detail,
+        };
       }
     }
 
@@ -355,10 +405,26 @@ async function dispatchBankingAction(action, params, userId, ctx) {
         }
         return { reply: `Deposited **$${amount.toFixed(2)}** into ${toAcct.accountType}.`, success: true, toolsCalled: ['create_deposit'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
       } catch (err) {
+        if (err && err.code === 'TOKEN_INACTIVE') throw err;
+        if (Array.isArray(err?.tokenEvents)) {
+          for (const ev of err.tokenEvents) {
+            if (ev && !tokenEvents.includes(ev)) tokenEvents.push(ev);
+          }
+        }
         // WR-07(a): non-Error throws have no .message — surface the real value.
         const detail = (err && err.message) ? err.message : String(err);
         console.warn('[dispatchBankingAction] Error executing deposit:', detail);
-        throw (err instanceof Error) ? err : new Error(`[dispatchBankingAction] deposit failed: ${detail}`);
+        return {
+          reply: `Deposit failed: ${detail}`,
+          success: false,
+          toolsCalled: ['create_deposit'],
+          tokensUsed: 0,
+          requiresConsent: false,
+          agentConfigured: true,
+          tokenEvents,
+          error: err?.pingoneError || err?.code || 'delegation_chain_broken',
+          message: detail,
+        };
       }
     }
 
@@ -400,10 +466,26 @@ async function dispatchBankingAction(action, params, userId, ctx) {
         }
         return { reply: `Withdrew **$${amount.toFixed(2)}** from ${fromAcct.accountType}.`, success: true, toolsCalled: ['create_withdrawal'], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
       } catch (err) {
+        if (err && err.code === 'TOKEN_INACTIVE') throw err;
+        if (Array.isArray(err?.tokenEvents)) {
+          for (const ev of err.tokenEvents) {
+            if (ev && !tokenEvents.includes(ev)) tokenEvents.push(ev);
+          }
+        }
         // WR-07(a): non-Error throws have no .message — surface the real value.
         const detail = (err && err.message) ? err.message : String(err);
         console.warn('[dispatchBankingAction] Error executing withdraw:', detail);
-        throw (err instanceof Error) ? err : new Error(`[dispatchBankingAction] withdraw failed: ${detail}`);
+        return {
+          reply: `Withdrawal failed: ${detail}`,
+          success: false,
+          toolsCalled: ['create_withdrawal'],
+          tokensUsed: 0,
+          requiresConsent: false,
+          agentConfigured: true,
+          tokenEvents,
+          error: err?.pingoneError || err?.code || 'delegation_chain_broken',
+          message: detail,
+        };
       }
     }
 
@@ -497,6 +579,7 @@ async function executeHeuristicBanking(parsed, userId, userToken, req = null, su
     subjectToken,
     isAdmin: req?.session?.user?.role === 'admin',
     terminology: (verticalCtx && verticalCtx.terminology) || null,
+    vertical: 'banking',
   };
 
   return dispatchBankingAction(action, params, userId, ctx);
@@ -959,6 +1042,7 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
       subjectToken: null,
       isAdmin,
       terminology: verticalCtx?.terminology || null,
+      vertical: 'banking',
     });
     if (bankingResult?.tokenEvents?.length) {
       tokenEvents.push(...bankingResult.tokenEvents);
@@ -986,6 +1070,7 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
       subjectToken: null,
       isAdmin,
       terminology: verticalCtx?.terminology || null,
+      vertical: 'banking',
     });
     if (bankingResult?.tokenEvents?.length) {
       tokenEvents.push(...bankingResult.tokenEvents);
@@ -1266,12 +1351,15 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
       }
     }
     // ARCHITECTURE-TRUTHS T-3 (amended): heuristic ROUTING is mode-dependent.
-    // ff_heuristic_enabled is still honored when no explicit agent_mode is set
-    // (back-compat). agent_mode wins when present. Server-side transfer/HITL
-    // SAFETY enforcement is independent of this gate and is unchanged.
-    const heuristicEnabled = rawMode
-      ? _agentMode.heuristicRouting
-      : configStore.getEffective('ff_heuristic_enabled') !== 'false';
+    // Match geminiNlIntent: Heuristics brain always routes heuristically; LLM
+    // brains honor the Fallback / LLM-only toggle (ff_heuristic_enabled). Do NOT
+    // use AGENT_MODES.heuristicRouting alone for LLM brains — that flag is
+    // permanently false (no hybrid modes) and would ignore the UI toggle.
+    // Server-side transfer/HITL SAFETY enforcement is independent of this gate.
+    const flagHeuristic = configStore.getEffective('ff_heuristic_enabled') !== 'false';
+    const heuristicEnabled = !_agentMode
+      ? flagHeuristic
+      : (_agentMode.mode === 'heuristics' || (!!_agentMode.provider && flagHeuristic));
 
     // `forceHeuristic` (set by the SPA when a `both`-mode chip already resolved
     // to a vertical/banking intent at /nl) makes the heuristic vertical/banking
@@ -1282,9 +1370,13 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     // when the parsed heuristic actually matches; freeform prompts still fall
     // through to the LLM. Works for ALL verticals.
     const forceHeuristic = req?.body?.forceHeuristic === true;
+    // UC30 weather-mcp showcase: always take get_weather even in LLM-only mode.
+    // Plugin LLM tool lists (e.g. CivicPermit) omit get_weather, so freeform
+    // weather otherwise becomes a polite refusal instead of a gateway call.
+    const weatherShowcase = /\bweather\b.*?\bin\s+\S/i.test(String(message || ''));
     const hitlChallengeId = (typeof req?.body?.hitlChallengeId === 'string' && req.body.hitlChallengeId) || null;
 
-    if (heuristicEnabled || forceHeuristic) {
+    if (heuristicEnabled || forceHeuristic || weatherShowcase) {
       // Resolve the active vertical's context once so every heuristic-path
       // response (routing, reply headings, no-match catalog) speaks the
       // vertical's language. Absolute rule: heuristics must work for ALL

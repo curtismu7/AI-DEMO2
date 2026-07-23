@@ -86,7 +86,7 @@ function indexDoc() {
     `> Generated from \`demo_api_server/config/useCases.js\`.`,
     `> Regenerate: \`npm run use-cases:docs:gen\` (from \`demo_api_server/\`).`,
     ``,
-    `See also: [Audit Table](./audit-table.md)`,
+    `See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-verification-report.md)`,
     ``,
   ];
 

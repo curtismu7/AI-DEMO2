@@ -60,8 +60,28 @@ function fetchT(url, opts = {}) {
 // client-side must not be re-fired into a duplicate). These calls also get a
 // tighter default timeout (5s vs fetchT's 15s) so a frozen P1AZ hands off to
 // failover fast; PINGONE_AUTHZ_TIMEOUT_MS still overrides. At most one retry,
-// on a transient failure only (network/timeout or 5xx); a 4xx is never retried.
+// on a transient failure only (network/timeout, 5xx, or 429 rate-limit).
+// Other 4xx are never retried. Cap Retry-After so a long server hint cannot
+// stall the demo gate for minutes.
 const AUTHZ_EVAL_TIMEOUT_MS = Number(process.env.PINGONE_AUTHZ_TIMEOUT_MS) || 5000;
+const AUTHZ_429_RETRY_CAP_MS = 5_000;
+const AUTHZ_429_DEFAULT_MS = 1_000;
+
+/** Resolve Retry-After (seconds or HTTP-date) to a capped delay in ms. */
+function _retryAfterMs(response) {
+  const raw = response.headers?.get?.('Retry-After');
+  if (!raw) return AUTHZ_429_DEFAULT_MS;
+  const asSeconds = Number(raw);
+  if (Number.isFinite(asSeconds) && asSeconds >= 0) {
+    return Math.min(asSeconds * 1000, AUTHZ_429_RETRY_CAP_MS);
+  }
+  const asDate = Date.parse(raw);
+  if (!Number.isNaN(asDate)) {
+    return Math.min(Math.max(0, asDate - Date.now()), AUTHZ_429_RETRY_CAP_MS);
+  }
+  return AUTHZ_429_DEFAULT_MS;
+}
+
 async function fetchRetryable(url, opts = {}) {
   const attempt = () =>
     globalThis.fetch(url, { ...opts, signal: opts.signal ?? AbortSignal.timeout(AUTHZ_EVAL_TIMEOUT_MS) });
@@ -76,7 +96,13 @@ async function fetchRetryable(url, opts = {}) {
     // transient server error — one retry
     return attempt();
   }
-  return response; // 2xx / 3xx / 4xx — never retried
+  if (response.status === 429) {
+    // Rate limit — brief backoff then one retry (CIBA resume often hits P1AZ
+    // immediately after step-up and gets 429 → mcp_authorize_unavailable).
+    await new Promise((r) => setTimeout(r, _retryAfterMs(response)));
+    return attempt();
+  }
+  return response; // 2xx / 3xx / other 4xx — never retried
 }
 
 /** Stable names — idempotent GET list + create if missing */

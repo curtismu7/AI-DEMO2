@@ -9,6 +9,7 @@ import './styles/controls.css';
 import App from './App';
 import { patchFetch } from './services/apiTrafficStore';
 import ErrorBoundary from './components/ErrorBoundary';
+import { initPosthog } from './posthogClient';
 
 // Redirect localhost → canonical host (api.ping.demo) so CORS + cookies work correctly
 if (
@@ -26,6 +27,7 @@ if (
 
 // Patch window.fetch before React renders so every /api/* call is captured
 patchFetch();
+initPosthog();
 
 // Server restart notification is automatically initialized via monitorApiHealth() in App.js
 // See: bankingRestartNotificationService.js for implementation details

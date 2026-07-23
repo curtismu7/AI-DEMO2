@@ -53,7 +53,7 @@ const openEnvMock = require('../../services/lmdb/openEnv');
 const { verticalManifest } = require('../../services/verticalManifest');
 const router = require('../../routes/verticalManifest');
 
-function makeApp({ user } = {}) {
+function makeApp({ user, session } = {}) {
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => {
@@ -61,7 +61,10 @@ function makeApp({ user } = {}) {
     // Minimal session stub: POST /active is session-scoped (writes
     // req.session.active_vertical, then req.session.save(cb)). The real
     // express-session middleware isn't mounted in this unit harness.
-    req.session = { save: (cb) => cb && cb() };
+    req.session = session || { save: (cb) => cb && cb() };
+    if (typeof req.session.save !== 'function') {
+      req.session.save = (cb) => cb && cb();
+    }
     next();
   });
   app.use('/api/verticals', router);
@@ -93,14 +96,26 @@ describe('POST /active', () => {
     expect(res.status).toBe(401);
   });
 
-  test('non-admin authenticated → 204', async () => {
-    const res = await request(makeApp({ user: { role: 'customer' } }))
+  test('non-admin authenticated → 204 session only (does not move global)', async () => {
+    verticalManifest.resolver.setActive('banking');
+    const session = { save: (cb) => cb && cb() };
+    const res = await request(makeApp({ user: { role: 'customer' }, session }))
       .post('/api/verticals/active').send({ id: 'healthcare' });
     expect(res.status).toBe(204);
-    expect(verticalManifest.resolver.activeId()).toBe('healthcare');
+    expect(session.active_vertical).toBe('healthcare');
+    // End-user CareConnect/retail switches must not leave the room stuck on healthcare.
+    expect(verticalManifest.resolver.activeId()).toBe('banking');
   });
 
-  test('admin → 204', async () => {
+  test('non-admin cannot force global=true', async () => {
+    verticalManifest.resolver.setActive('banking');
+    const res = await request(makeApp({ user: { role: 'customer' } }))
+      .post('/api/verticals/active').send({ id: 'healthcare', global: true });
+    expect(res.status).toBe(403);
+    expect(verticalManifest.resolver.activeId()).toBe('banking');
+  });
+
+  test('admin → 204 updates global default', async () => {
     const res = await request(makeApp({ user: { role: 'admin' } }))
       .post('/api/verticals/active').send({ id: 'healthcare' });
     expect(res.status).toBe(204);

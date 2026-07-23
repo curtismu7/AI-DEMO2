@@ -73,6 +73,69 @@ async function pushAuthorizationRequest(parEndpoint, clientId, clientSecret, aut
   }
 }
 
+/** @param {string|Error} errOrMsg */
+function isParRedirectUriMismatch(errOrMsg) {
+  const msg = typeof errOrMsg === 'string' ? errOrMsg : (errOrMsg && errOrMsg.message) || '';
+  return /redirect uri mismatch/i.test(String(msg));
+}
+
+/**
+ * Push PAR trying redirect_uri candidates in order. On PingOne "Redirect URI
+ * mismatch", try the next known demo host before failing — covers the common
+ * drift where PUBLIC_APP_URL is local.ping-devops.com but the Actor app was
+ * provisioned with only api.ping.demo (and vice versa).
+ *
+ * Non-mismatch errors fail immediately (invalid_client, network, etc.).
+ *
+ * @param {string} parEndpoint
+ * @param {string} clientId
+ * @param {string} clientSecret
+ * @param {object} authPayloadBase payload without redirect_uri (or with a preferred one ignored)
+ * @param {string[]} redirectCandidates ordered URIs to try
+ * @param {string} [signatureMode]
+ * @returns {Promise<object & { redirectUri: string, triedRedirects: string[], usedFallback: boolean }>}
+ */
+async function pushAuthorizationRequestWithRedirectFallback(
+  parEndpoint,
+  clientId,
+  clientSecret,
+  authPayloadBase,
+  redirectCandidates,
+  signatureMode = 'default',
+) {
+  const candidates = Array.from(new Set(
+    (redirectCandidates || []).map((u) => String(u || '').trim()).filter(Boolean),
+  ));
+  if (!candidates.length) {
+    throw new Error('PAR requires at least one redirect_uri candidate');
+  }
+
+  let lastErr = null;
+  const tried = [];
+  for (const redirect_uri of candidates) {
+    tried.push(redirect_uri);
+    try {
+      const result = await pushAuthorizationRequest(
+        parEndpoint,
+        clientId,
+        clientSecret,
+        { ...authPayloadBase, redirect_uri },
+        signatureMode,
+      );
+      return {
+        ...result,
+        redirectUri: redirect_uri,
+        triedRedirects: tried,
+        usedFallback: tried.length > 1,
+      };
+    } catch (err) {
+      lastErr = err;
+      if (!isParRedirectUriMismatch(err)) throw err;
+    }
+  }
+  throw lastErr || new Error('PAR push failed: Redirect URI mismatch');
+}
+
 /**
  * Build token exchange parameters using PAR request_uri
  * Replaces inline authorization_details with request_uri
@@ -88,5 +151,7 @@ function buildTokenExchangeWithPar(requestUri, subjectToken, grantType = 'urn:ie
 
 module.exports = {
   pushAuthorizationRequest,
+  pushAuthorizationRequestWithRedirectFallback,
+  isParRedirectUriMismatch,
   buildTokenExchangeWithPar,
 };

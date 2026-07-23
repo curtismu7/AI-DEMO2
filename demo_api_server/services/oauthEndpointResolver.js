@@ -41,6 +41,17 @@ function getTokenEndpoint() {
   return base ? `${base}/token` : '';
 }
 
+/** RFC 9126 PAR endpoint — same priority chain as getTokenEndpoint. */
+function getParEndpoint() {
+  const explicit = configStore.getEffective('oauth_par_endpoint')
+    || configStore.getEffective('pingone_par_endpoint');
+  if (explicit) return explicit;
+  const cached = _fromCache('pushed_authorization_request_endpoint');
+  if (cached) return cached;
+  const base = _pingOneBase();
+  return base ? `${base}/par` : '';
+}
+
 function getUserInfoEndpoint() {
   const explicit = configStore.getEffective('oauth_userinfo_endpoint');
   if (explicit) return explicit;
@@ -159,6 +170,7 @@ function _resetDiscoveryCache() {
 module.exports = {
   getAuthorizationEndpoint,
   getTokenEndpoint,
+  getParEndpoint,
   getUserInfoEndpoint,
   getJwksUri,
   getIssuer,

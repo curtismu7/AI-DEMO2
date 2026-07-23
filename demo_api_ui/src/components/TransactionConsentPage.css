@@ -551,6 +551,29 @@ body .transaction-consent-card__check input[type="checkbox"] {
   white-space: nowrap;
 }
 
+.tx-otp-panel__resend-btn {
+  width: 100%;
+  padding: 0.7rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  background: #fff;
+  color: #1f2937;
+  border: 1.5px solid #d1d5db;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.tx-otp-panel__resend-btn:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.tx-otp-panel__resend-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .tx-otp-panel__error {
   font-size: 0.82rem;
   color: #dc2626;

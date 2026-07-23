@@ -116,6 +116,15 @@ describe("App.js — critical JSX placements", () => {
       expect(appSrc).not.toContain(fragment);
     }
   });
+
+  // Guests under path="*" only get TopNav — inspector must stay top-level.
+  test("/pingone-mcp-inspector is a top-level McpInspectorPageRoute", () => {
+    expect(appSrc).toContain("McpInspectorPageRoute");
+    expect(appSrc).toMatch(
+      /path=["']\/pingone-mcp-inspector["'][\s\S]*?<McpInspectorPageRoute/,
+    );
+    expect(appSrc).not.toContain('element={<McpInspectorPage />}');
+  });
 });
 
 // ─── DashboardContent (highest priority — guards the 3d2cf092 regression) ────

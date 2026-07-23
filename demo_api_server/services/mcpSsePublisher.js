@@ -17,19 +17,22 @@ const { buildSsePayload } = require('./sseCorrelation');
  * @param {boolean} opts.isDelegated
  * @param {object}  [opts.requestJson]  original tool params (pre-HITL-strip snapshot)
  */
-function publishMcpResultToSse(flowTraceId, { tool, result, durationMs, isDelegated, requestJson }) {
+function publishMcpResultToSse(flowTraceId, { tool, result, durationMs, isDelegated, requestJson, denied }) {
   if (!flowTraceId) return;
-  const success = result && !result.isError;
+  const success = !denied && result && !result.isError && !result.error;
   const toolResultJson = result?.content
     ? result.content.slice(0, 10)          // cap size for SSE payload
-    : result != null ? { text: String(result).slice(0, 500) } : null;
+    : result != null ? result : null;
   mcpFlowSseHub.publish(flowTraceId, buildSsePayload('mcp-result', {
     toolName: tool,
+    tool,
     status: success ? 'success' : 'failure',
     duration: durationMs ?? 0,
     isDelegated: !!isDelegated,
+    denied: !!denied,
     resultSummary: success ? `${tool} completed` : `${tool} failed`,
     resultJson: toolResultJson,
+    result: toolResultJson,
     requestJson: requestJson ?? null,
     timestamp: new Date().toISOString(),
   }));
