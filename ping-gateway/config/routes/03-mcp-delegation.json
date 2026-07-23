@@ -1,0 +1,114 @@
+{
+  "name": "mcp-delegation",
+  "comment": "Phase 2: RFC 8693 delegation demo route. Validates inbound token against the 'test' resource (audience: test, scope: test) and enforces the act claim (delegation proof) before forwarding to the MCP server backend.",
+  "condition": "${find(request.uri.path, '^/mcp/delegation')}",
+  "heap": [
+    {
+      "name": "SecretsStore",
+      "type": "SystemAndEnvSecretStore",
+      "config": {
+        "format": "PLAIN"
+      }
+    },
+    {
+      "name": "DelegationIntrospectionProviderHandler",
+      "type": "Chain",
+      "config": {
+        "filters": [
+          {
+            "name": "DelegationIntrospectClientAuth",
+            "type": "ScriptableFilter",
+            "config": {
+              "type": "application/x-groovy",
+              "source": "import java.net.URLEncoder\ndef body = request.entity.string ?: ''\ndef cid = System.getenv('DELEGATION_INTROSPECT_CLIENT_ID') ?: ''\ndef cs  = System.getenv('DELEGATION_INTROSPECT_CLIENT_SECRET') ?: ''\nif (cid) { request.entity.setString(body + '&client_id=' + URLEncoder.encode(cid, 'UTF-8') + '&client_secret=' + URLEncoder.encode(cs, 'UTF-8')) }\nreturn next.handle(context, request)"
+            }
+          }
+        ],
+        "handler": {
+          "type": "ClientHandler"
+        }
+      }
+    },
+    {
+      "name": "DelegationTokenResolver",
+      "type": "TokenIntrospectionAccessTokenResolver",
+      "config": {
+        "endpoint": "${env['PINGONE_INTROSPECTION_ENDPOINT']}",
+        "providerHandler": "DelegationIntrospectionProviderHandler"
+      }
+    },
+    {
+      "name": "DelegationResourceServerFilter",
+      "type": "OAuth2ResourceServerFilter",
+      "config": {
+        "requireHttps": false,
+        "scopes": [
+          "${env['DELEGATION_RESOURCE_SCOPE']}"
+        ],
+        "accessTokenResolver": "DelegationTokenResolver"
+      }
+    }
+  ],
+  "handler": {
+    "type": "Chain",
+    "config": {
+      "filters": [
+        {
+          "name": "McpAudit",
+          "type": "McpAuditFilter",
+          "config": {
+            "auditService": "AuditService"
+          }
+        },
+        {
+          "name": "StripDelegationPrefix",
+          "type": "UriPathRewriteFilter",
+          "config": {
+            "mappings": {
+              "/mcp/delegation": "/mcp"
+            }
+          }
+        },
+        {
+          "name": "DelegationProtection",
+          "type": "McpProtectionFilter",
+          "config": {
+            "resourceId": "${env['DELEGATION_RESOURCE_AUDIENCE']}",
+            "authorizationServerUri": "${env['PINGONE_ISSUER_URI']}",
+            "resourceServerFilter": "DelegationResourceServerFilter"
+          }
+        },
+        {
+          "name": "McpProtocol",
+          "type": "McpValidationFilter",
+          "config": {
+            "acceptedOrigins": ".*",
+            "metricsEnabled": true
+          }
+        },
+        {
+          "name": "McpRequestValidation",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "mcp-request-validation.groovy"
+          }
+        },
+        {
+          "name": "DelegationActClaimValidation",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "delegation-validate.groovy"
+          }
+        }
+      ],
+      "handler": {
+        "type": "ReverseProxyHandler",
+        "config": {
+          "baseURI": "${env['PG_OLB_BACKEND_URL']}"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "name": "mcp",
+  "condition": "${find(request.uri.path, '^/mcp')}",
+  "heap": [
+    {
+      "name": "SystemAndEnvSecretStore-1",
+      "type": "SystemAndEnvSecretStore",
+      "config": {
+        "format": "PLAIN"
+      }
+    },
+    {
+      "name": "AuditService",
+      "type": "AuditService",
+      "config": {
+        "eventHandlers": [
+          {
+            "class": "org.forgerock.audit.handlers.json.JsonAuditEventHandler",
+            "config": {
+              "name": "json",
+              "logDirectory": "&{ig.instance.dir}/audit",
+              "topics": ["access", "mcp"]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "rsFilter",
+      "type": "OAuth2ResourceServerFilter",
+      "config": {
+        "requireHttps": false,
+        "scopes": ["test"],
+        "accessTokenResolver": {
+          "type": "TokenIntrospectionAccessTokenResolver",
+          "config": {
+            "endpoint": "https://auth.pingone.com/${env['PINGONE_ENV_ID']}/as/introspect",
+            "providerHandler": {
+              "type": "Chain",
+              "config": {
+                "filters": [
+                  {
+                    "type": "HttpBasicAuthenticationClientFilter",
+                    "config": {
+                      "username": "${env['RESOURCE_CLIENT_ID']}",
+                      "passwordSecretId": "resource.secret.id",
+                      "secretsProvider": "SystemAndEnvSecretStore-1"
+                    }
+                  }
+                ],
+                "handler": "ForgeRockClientHandler"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "handler": {
+    "type": "Chain",
+    "config": {
+      "filters": [
+        {
+          "type": "McpAuditFilter",
+          "config": {
+            "auditService": "AuditService"
+          }
+        },
+        {
+          "type": "UriPathRewriteFilter",
+          "config": {
+            "mappings": { "/mcp": "/" }
+          }
+        },
+        {
+          "type": "McpProtectionFilter",
+          "config": {
+            "resourceId": "${env['GATEWAY_URL']}/mcp",
+            "authorizationServerUri": "https://auth.pingone.com/${env['PINGONE_ENV_ID']}/as",
+            "resourceServerFilter": "rsFilter",
+            "supportedScopes": ["test"],
+            "resourceIdPointer": "/aud/0"
+          }
+        },
+        {
+          "type": "McpValidationFilter",
+          "config": {
+            "acceptedOrigins": ".*"
+          }
+        }
+      ],
+      "handler": {
+        "type": "ReverseProxyHandler",
+        "config": {
+          "baseURI": "${env['MCP_SERVER_URL']}",
+          "soTimeout": "20 seconds"
+        }
+      }
+    }
+  }
+}
