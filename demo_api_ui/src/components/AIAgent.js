@@ -85,7 +85,7 @@ import DemoAuthzFallbackModal from "./DemoAuthzFallbackModal";
 import TransactionConsentModal from "./TransactionConsentModal";
 import ElicitationDialog from "./ElicitationDialog";
 import UseCaseExplainModal from "./UseCaseExplainModal";
-import { shouldAutoOpenA2a } from "./a2aAutoOpen";
+import { shouldAutoOpenA2a, buildA2aExplainUc } from "./a2aAutoOpen";
 import useElicitation from "../hooks/useElicitation";
 import "./AIAgent.css";
 import { postAppEvent } from "../services/appEventClient";
@@ -5960,6 +5960,10 @@ export default function BankingAgent({
           if (response.education?.panel) {
             edu?.open(response.education.panel, response.education.tab || null);
           }
+          if (shouldAutoOpenA2a(response)) {
+            setA2aExplainUc(buildA2aExplainUc(response));
+            setA2aExplainEvents(Array.isArray(response.tokenEvents) ? response.tokenEvents : []);
+          }
           if (response.tokenEvents?.length) {
             appendTokenEvents(response.tokenEvents);
             if (tokenChain) {
@@ -7326,13 +7330,7 @@ export default function BankingAgent({
       // mirroring how RAR auto-explains. The response's own token events
       // feed the modal's live values.
       if (shouldAutoOpenA2a(response)) {
-        setA2aExplainUc({
-          id: 'A2A',
-          a2a: true,
-          title: 'Agent-to-Agent delegation',
-          whatLong: response.reply,
-          pingOneSolution: 'PingOne mints a nested RFC 8693 act chain; Authorize decides PERMIT/DENY over the chain.',
-        });
+        setA2aExplainUc(buildA2aExplainUc(response));
         setA2aExplainEvents(Array.isArray(response.tokenEvents) ? response.tokenEvents : []);
       }
       if (response.tokenEvents?.length) {

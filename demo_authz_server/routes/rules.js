@@ -105,6 +105,26 @@ module.exports = function rulesHandler(_req, res) {
           note: 'Set HitlApproved=true and HitlChallengeId=<id> after a verified HITL receipt to discharge this gate.',
         },
       },
+      {
+        id: 'a2a-delegation-required',
+        priority: 5,
+        name: 'A2A delegation required',
+        context: 'McpToolCall',
+        decision: 'DENY',
+        description:
+          'Tools flagged a2aDelegated in scope-topology (e.g. get_portfolio_summary) require ActChainDepth >= 2. A generalist acting alone is denied with a2a_delegation_required.',
+        config: {},
+      },
+      {
+        id: 'a2a-nested-generalist',
+        priority: 6,
+        name: 'Nested generalist identity',
+        context: 'McpToolCall',
+        decision: 'DENY',
+        description:
+          'At depth >= 2, NestedActClientId must equal the registered AI Agent client ID (generalist). Mismatch → invalid_a2a_generalist.',
+        config: {},
+      },
     ],
     editable: ruleStore.getEditableBlock(),
   });
