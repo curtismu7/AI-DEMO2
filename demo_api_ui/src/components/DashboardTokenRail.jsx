@@ -15,6 +15,17 @@ import {
 } from "../utils/tokenRailLayout";
 import "./DashboardTokenRail.css";
 
+/** Set --ud-token-rail-width on :root synchronously so the grid can read it
+ *  on the first paint (useEffect fires too late for grid-template-columns). */
+if (typeof window !== "undefined") {
+  const _w = readStoredTokenRailWidth();
+  const _collapsed = readStoredTokenRailCollapsed();
+  document.documentElement.style.setProperty(
+    "--ud-token-rail-width",
+    `${_collapsed ? TOKEN_RAIL_COLLAPSED_WIDTH : _w}px`,
+  );
+}
+
 /**
  * @param {{ children: React.ReactNode }} props
  */
@@ -31,7 +42,9 @@ export default function DashboardTokenRail({ children }) {
 
   useEffect(() => {
     persistTokenRailWidth(width);
-  }, [width]);
+    const w = collapsed ? TOKEN_RAIL_COLLAPSED_WIDTH : width;
+    document.documentElement.style.setProperty("--ud-token-rail-width", `${w}px`);
+  }, [width, collapsed]);
 
   useEffect(() => {
     persistTokenRailCollapsed(collapsed);
@@ -78,12 +91,6 @@ export default function DashboardTokenRail({ children }) {
     <aside
       className={`ud-token-rail${collapsed ? " ud-token-rail--collapsed" : ""}`}
       aria-label="Token chain"
-      style={{
-        width: effectiveWidth,
-        minWidth: effectiveWidth,
-        maxWidth: effectiveWidth,
-        flexBasis: effectiveWidth,
-      }}
       data-testid="dashboard-token-rail"
       data-collapsed={collapsed ? "true" : "false"}
     >

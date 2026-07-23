@@ -23,6 +23,16 @@ spec:
   - host: ai-demo.ping-devops.com
     http:
       paths:
+      # demo-mcpgw (PingGateway MCPGW image) must come before the / catch-all
+      # so nginx selects the longer prefix match. The IG route strips /mcp
+      # internally via UriPathRewriteFilter before proxying to mcp-server:8080.
+      - path: /mcp
+        pathType: Prefix
+        backend:
+          service:
+            name: demo-mcpgw
+            port:
+              number: 8080
       - path: /
         pathType: Prefix
         backend:

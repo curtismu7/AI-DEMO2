@@ -3,7 +3,7 @@
 
 export const AGENT_COL_WIDTH_KEY = "ud_agent_col_width_px";
 
-export const AGENT_COL_DEFAULT_WIDTH = 560;
+export const AGENT_COL_DEFAULT_WIDTH = 380;
 export const AGENT_COL_MIN_WIDTH = 320;
 export const AGENT_COL_MAX_WIDTH = 960;
 

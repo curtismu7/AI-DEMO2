@@ -3294,17 +3294,12 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           className={`dashboard-content ud-body ud-body--2026 ${splitGridClass(
             showBankingInMiddle,
           )}${middleAgentOpen ? "" : " ud-middle-collapsed"}`}
+          style={{ '--ud-agent-col-width': `${agentColWidth}px` }}
         >
           <section
             className="ud-agent-column"
             ref={agentColumnRef}
             aria-label="AI banking assistant"
-            style={{
-              width: agentColWidth,
-              minWidth: agentColWidth,
-              maxWidth: agentColWidth,
-              flexBasis: agentColWidth,
-            }}
             data-testid="dashboard-agent-column"
             {...(!showBankingInMiddle && {
               id: "main-dashboard-content",
