@@ -8,6 +8,8 @@ const {
   bankingAmountGateExpectations,
   bankingWorksChipExpectations,
   scoreTokenChainDetail,
+  loadGoldenByUcId,
+  scoreAgentReply,
 } = require('../services/stepVerificationExpectations');
 const { resolveUseCase } = require('../config/useCases.js');
 const { parseHeuristic, resolveVerticalCtx } = require('../services/nlIntentParser');
@@ -68,5 +70,36 @@ describe('stepVerificationExpectations', () => {
     expect(scoreTokenChainDetail([
       { id: 'user-token', claims: { sub: 'u1' } },
     ], { requireFailureEvent: true }).reason).toBe('missing_failure_event');
+  });
+
+  test('loadGoldenByUcId returns gate education replies for UC6/7/8', () => {
+    expect(loadGoldenByUcId('banking', 'UC8')?.reply).toMatch(/human approval/i);
+    expect(loadGoldenByUcId('banking', 'UC7')?.reply).toMatch(/step-up/i);
+    expect(loadGoldenByUcId('banking', 'UC6')?.reply).toMatch(/denied/i);
+  });
+
+  test('scoreAgentReply exact matches golden gate text; grounded needs live balances', () => {
+    const hitl = loadGoldenByUcId('banking', 'UC8');
+    expect(scoreAgentReply({
+      reply: hitl.reply,
+      style: 'exact',
+      expectedReply: hitl.reply,
+    }).ok).toBe(true);
+    expect(scoreAgentReply({
+      reply: 'wrong education copy',
+      style: 'exact',
+      expectedReply: hitl.reply,
+    }).reason).toBe('reply_mismatch');
+
+    expect(scoreAgentReply({
+      reply: 'Your balances:\nCHECKING — $3144.52 USD',
+      style: 'grounded',
+      liveAccounts: [{ balance: 3144.52 }],
+    }).ok).toBe(true);
+    expect(scoreAgentReply({
+      reply: 'Your balances look fine',
+      style: 'grounded',
+      liveAccounts: [{ balance: 3144.52 }],
+    }).reason).toBe('reply_ungrounded');
   });
 });
