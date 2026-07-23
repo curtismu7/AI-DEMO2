@@ -558,22 +558,42 @@ describe("buildTraceSteps — intent-binding step", () => {
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,
       tokenEvents: [
-        { id: "intent-binding-verified", label: "Intent Verified (RAR — RFC 9396)", status: "active" },
+        {
+          id: "intent-binding-verified",
+          label: "Intent Verified (RAR — RFC 9396)",
+          status: "active",
+          grantedAmount: 100,
+          requestedAmount: 50,
+        },
       ],
     });
     const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
     expect(byId["intent-binding"].status).toBe("done");
+    expect(byId["intent-binding"].detail.kv.find((r) => r[0] === "amount before (granted)")?.[1]).toBe("100");
+    expect(byId["intent-binding"].detail.kv.find((r) => r[0] === "amount after (requested)")?.[1]).toBe("50");
+    expect(byId["intent-binding"].detail.response?.text).toContain('"before"');
   });
 
   test("error when a gateway deny carries rar_unexpected_deny or rar_amount_exceeded", () => {
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,
       tokenEvents: [
-        { id: "sim-gateway-deny", label: "Gateway DENY (rar_amount_exceeded)", status: "error", error: "rar_amount_exceeded" },
+        {
+          id: "sim-gateway-deny",
+          label: "Gateway DENY (rar_amount_exceeded)",
+          status: "error",
+          error: "rar_amount_exceeded",
+          grantedAmount: 100,
+          requestedAmount: 500,
+        },
       ],
     });
     const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
     expect(byId["intent-binding"].status).toBe("error");
+    expect(byId["intent-binding"].detail.kv.find((r) => r[0] === "amount before (granted)")?.[1]).toBe("100");
+    expect(byId["intent-binding"].detail.kv.find((r) => r[0] === "amount after (requested)")?.[1]).toBe("500");
+    expect(byId["intent-binding"].detail.response?.title).toMatch(/before → after/);
+    expect(byId["intent-binding"].detail.response?.text).toContain('"mismatch": true');
   });
 });
 
@@ -588,6 +608,7 @@ describe("buildTraceSteps — attack sim (UC5 gateway scope deny)", () => {
         claims: { sub: "user-123", scope: "read", aud: "https://api.ping.demo:3036/mcp" } },
       { id: "sim-gateway-deny", label: "Gateway DENY (insufficient_scope)", status: "error",
         error: "insufficient_scope", httpStatus: 403,
+        presentedScopes: "read", requiredScopes: "write",
         explanation: "Gateway rejected the call with 403 insufficient_scope: create_transfer requires write" },
     ],
   };
@@ -600,6 +621,10 @@ describe("buildTraceSteps — attack sim (UC5 gateway scope deny)", () => {
     expect(byId.gateway.status).toBe("error");
     expect(byId.gateway.detail.decision.outcome).toBe("DENY");
     expect(byId.gateway.detail.decision.label).toContain("insufficient_scope");
+    expect(byId.gateway.detail.kv.find((r) => r[0] === "scope before")?.[1]).toBe("read");
+    expect(byId.gateway.detail.kv.find((r) => r[0] === "scope after (required)")?.[1]).toBe("write");
+    expect(byId.gateway.detail.response?.title).toMatch(/Scope check/);
+    expect(byId.gateway.detail.response?.text).toContain('"before"');
     expect(byId.mcp.status).toBe("error");
   });
 
@@ -624,7 +649,7 @@ describe("buildTraceSteps — attack sim (UC5 gateway scope deny)", () => {
     expect(byId.gateway.status).not.toBe("error");
   });
 
-  test("invalid_aud deny shows token aud vs gateway expected aud", () => {
+  test("invalid_aud deny shows aud before/after in kv and response", () => {
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,
       outcome: "error",
@@ -643,11 +668,79 @@ describe("buildTraceSteps — attack sim (UC5 gateway scope deny)", () => {
     });
     const gateway = steps.find((s) => s.id === "gateway");
     expect(gateway.status).toBe("error");
-    const audKv = gateway.detail.kv.find((row) => row[0] === "audience");
-    expect(audKv).toBeTruthy();
-    expect(audKv[1]).toContain("https://api.ping.demo:3001");
-    expect(audKv[1]).toContain("https://api.ping.demo:3036/mcp");
-    expect(audKv[1]).toMatch(/MISMATCH/);
+    const beforeKv = gateway.detail.kv.find((row) => row[0] === "aud before");
+    const afterKv = gateway.detail.kv.find((row) => row[0] === "aud after");
+    expect(beforeKv?.[1]).toBe("https://api.ping.demo:3001");
+    expect(afterKv?.[1]).toBe("https://api.ping.demo:3036/mcp");
+    expect(gateway.detail.response?.title).toMatch(/before → after/);
+    expect(gateway.detail.response?.text).toContain('"before"');
+    expect(gateway.detail.response?.text).toContain("https://api.ping.demo:3001");
+    expect(gateway.detail.response?.text).toContain('"after"');
+    expect(gateway.detail.response?.text).toContain("https://api.ping.demo:3036/mcp");
+    expect(gateway.detail.response?.text).toContain('"mismatch": true');
+  });
+
+  test("exchange aud mismatch shows aud before/after", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [
+        {
+          id: "exchanged-token",
+          status: "active",
+          claims: { sub: "u1", aud: "https://wrong.example", scope: "read" },
+          audActual: "https://wrong.example",
+          audExpected: "https://api.ping.demo:3036/mcp",
+          audMatches: false,
+        },
+      ],
+    });
+    const exchange = steps.find((s) => s.id === "exchange");
+    expect(exchange.status).toBe("done");
+    expect(exchange.detail.kv.find((r) => r[0] === "aud before")?.[1]).toBe("https://wrong.example");
+    expect(exchange.detail.kv.find((r) => r[0] === "aud after")?.[1]).toBe("https://api.ping.demo:3036/mcp");
+    expect(exchange.detail.response?.title).toMatch(/Audience binding/);
+    expect(exchange.detail.response?.text).toContain('"mismatch": true');
+  });
+
+  test("rogue act shows act before/after on authorize and gateway", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      authorize: {
+        decision: "DENY",
+        engine: "pingone",
+        decisionId: "d-1",
+        response: { decision: "DENY", reason: "invalid actor" },
+      },
+      tokenEvents: [
+        {
+          id: "sim-rogue-actor",
+          status: "active",
+          presentedAct: "rogue-agent-9f2a-not-allowlisted",
+          allowedAct: "authorized-actor-client",
+        },
+        {
+          id: "sim-gateway-deny",
+          status: "error",
+          error: "mcp_invalid_actor",
+          httpStatus: 403,
+          presentedAct: "rogue-agent-9f2a-not-allowlisted",
+          allowedAct: "authorized-actor-client",
+        },
+      ],
+    });
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+    expect(byId.authorize.status).toBe("error");
+    expect(byId.authorize.detail.kv.find((r) => r[0] === "act before")?.[1])
+      .toBe("rogue-agent-9f2a-not-allowlisted");
+    expect(byId.authorize.detail.kv.find((r) => r[0] === "act after")?.[1])
+      .toBe("authorized-actor-client");
+    expect(byId.gateway.status).toBe("error");
+    expect(byId.gateway.detail.kv.find((r) => r[0] === "act before")?.[1])
+      .toBe("rogue-agent-9f2a-not-allowlisted");
+    expect(byId.gateway.detail.response?.title).toMatch(/Act claim/);
+    expect(byId.gateway.detail.response?.text).toContain("rogue-agent-9f2a-not-allowlisted");
   });
 });
 

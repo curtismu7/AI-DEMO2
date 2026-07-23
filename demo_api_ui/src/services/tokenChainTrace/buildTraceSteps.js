@@ -141,6 +141,33 @@ function withEduLink(detail, stepId) {
 export const asJson = (v) => { try { return JSON.stringify(v, null, 2); } catch { return String(v); } };
 const splitScopes = (s) =>
   Array.isArray(s) ? s : typeof s === "string" ? s.split(" ").filter(Boolean) : [];
+const fmtClaim = (v) => {
+  if (v == null || v === "") return null;
+  if (Array.isArray(v)) {
+    const parts = v.map(String).filter(Boolean);
+    return parts.length ? parts.join(", ") : null;
+  }
+  return String(v);
+};
+/** Teaching payload for before → after claim/mismatch panels. */
+function beforeAfterBody(before, after, extra = {}) {
+  const scalar = (v) => {
+    if (v == null) return null;
+    if (typeof v === "object" && !Array.isArray(v)) {
+      const vals = Object.values(v).filter((x) => x != null && x !== "");
+      return vals.length ? String(vals[0]) : null;
+    }
+    return String(v);
+  };
+  const b = scalar(before);
+  const a = scalar(after);
+  return {
+    before,
+    after,
+    mismatch: b != null && a != null && b !== a,
+    ...extra,
+  };
+}
 // Accepts multiple ids: the BFF emits a different event vocabulary per exchange
 // mode — 1-exchange ("agent-actor-token", "exchanged-token") vs 2-exchange
 // ("two-ex-agent-actor", "two-ex-final-token"). Both must light up the rail.
@@ -357,6 +384,16 @@ export function buildTraceSteps(trace) {
   const beforeScopes = splitScopes((userTok && userTok.claims && userTok.claims.scope) || []);
   const afterScopes = splitScopes((exTok && exTok.claims && exTok.claims.scope) || []);
   const exchangeReq = exTok?.exchangeRequest || exFailed?.exchangeRequest || exFailed?.requestContext || null;
+  // audActual = what landed on the token; audExpected = resource URI the exchange targeted.
+  const exAudBefore = fmtClaim(exTok?.audActual ?? exFailed?.audActual ?? exFailed?.triedAudience);
+  const exAudAfter = fmtClaim(exTok?.audExpected ?? exFailed?.audExpected ?? exFailed?.allowedAudience);
+  const exAudMismatchBody = (exAudBefore != null || exAudAfter != null)
+    ? beforeAfterBody(
+      { aud: exAudBefore ?? "(unknown)" },
+      { aud: exAudAfter ?? "(unknown)" },
+      { error: exFailed ? (exFailed.error || exFailed.pingoneError || "exchange_failed") : null },
+    )
+    : null;
   const exchangeWhy = exFailed
     ? (exFailed.explanation
       || (exFailed.pingoneErrorDescription
@@ -386,8 +423,8 @@ export function buildTraceSteps(trace) {
         : undefined,
       response: exFailed
         ? {
-          title: "Exchange error",
-          text: asJson({
+          title: exAudMismatchBody ? "Audience binding — before → after" : "Exchange error",
+          text: asJson(exAudMismatchBody || {
             error: exFailed.error || exFailed.pingoneError || null,
             pingoneError: exFailed.pingoneError || null,
             pingoneErrorDescription: exFailed.pingoneErrorDescription || null,
@@ -398,14 +435,22 @@ export function buildTraceSteps(trace) {
           }),
         }
         : exTok
-          ? { title: ex1Tok ? "Final delegated token claims (nested act)" : "Delegated token claims", text: asJson(exTok.claims || {}) }
+          ? (exAudMismatchBody && exTok.audMatches === false
+            ? { title: "Audience binding — before → after", text: asJson(exAudMismatchBody) }
+            : { title: ex1Tok ? "Final delegated token claims (nested act)" : "Delegated token claims", text: asJson(exTok.claims || {}) })
           : undefined,
       altRequest: ex1Tok?.exchangeRequest
         ? { title: "Exchange #1 request (intermediate)", text: asJson(ex1Tok.exchangeRequest) }
         : undefined,
-      altResponse: ex1Tok?.claims
-        ? { title: "Exchange #1 intermediate claims", text: asJson(ex1Tok.claims) }
-        : undefined,
+      altResponse: (() => {
+        if (ex1Tok?.claims) {
+          return { title: "Exchange #1 intermediate claims", text: asJson(ex1Tok.claims) };
+        }
+        if (exTok && !exFailed && exAudMismatchBody && exTok.audMatches !== false) {
+          return { title: "Audience binding — before → after", text: asJson(exAudMismatchBody) };
+        }
+        return undefined;
+      })(),
       scopeDiff: exDone && (beforeScopes.length || afterScopes.length)
         ? { before: beforeScopes, after: afterScopes } : undefined,
       kv: [
@@ -421,12 +466,14 @@ export function buildTraceSteps(trace) {
           ex1Tok ? ["mode", "2-exchange"] : ["mode", "1-exchange"],
           exTok.claims && exTok.claims.act ? ["act chain", asJson(exTok.claims.act)] : null,
           exTok.exchangeMethod ? ["exchange method", String(exTok.exchangeMethod)] : null,
-          exTok.audExpected != null
-            ? ["audience", `expected ${exTok.audExpected} · actual ${exTok.audActual}${exTok.audMatches === false ? " (MISMATCH)" : ""}`]
-            : null,
           ex1Tok && ex1Tok.claims && ex1Tok.claims.scope
             ? ["exchange #1 scope", String(ex1Tok.claims.scope)] : null,
         ] : []),
+        exAudBefore != null ? ["aud before", exAudBefore] : null,
+        exAudAfter != null ? ["aud after", exAudAfter] : null,
+        exAudBefore != null && exAudAfter != null && exAudBefore !== exAudAfter
+          ? ["audience", "MISMATCH — token aud ≠ expected resource"]
+          : null,
       ].filter(Boolean),
       inspectToken: exDone && exTok ? "mcp" : undefined,
       tokenEvent: exFailed || exTok || undefined,
@@ -635,6 +682,16 @@ export function buildTraceSteps(trace) {
       ...(azReason && !(azEval.response && azEval.response.reason) ? { reason: azReason } : {}),
     }
     : (azStatements || azReason ? { statements: azStatements, reason: azReason } : null);
+  const rogueActEv = findEvent(tokenEvents, "sim-rogue-actor");
+  const actBefore = fmtClaim(rogueActEv?.presentedAct);
+  const actAfter = fmtClaim(rogueActEv?.allowedAct);
+  const actMismatchBody = (actBefore != null || actAfter != null)
+    ? beforeAfterBody(
+      { act: actBefore ?? "(unknown)" },
+      { act: actAfter ?? "(unknown)" },
+      { error: "mcp_invalid_actor" },
+    )
+    : null;
   steps.push(makeStep("authorize", azStatus,
     azEval ? {
       why: authorizeWhy,
@@ -656,15 +713,21 @@ export function buildTraceSteps(trace) {
           )}`,
         }
         : undefined,
-      altResponse: bffHasAzEvidence && gwHasAzEvidence
-        ? {
-          title: "Gateway Authorize response (same run)",
-          text: asJson(gwAzForAuthorize.rawResponse || gwAzForAuthorize.authorizeResponse || {
-            decision: gwAzForAuthorize.decision,
-            statements: gwAzForAuthorize.statements,
-          }),
+      altResponse: (() => {
+        if (bffHasAzEvidence && gwHasAzEvidence) {
+          return {
+            title: "Gateway Authorize response (same run)",
+            text: asJson(gwAzForAuthorize.rawResponse || gwAzForAuthorize.authorizeResponse || {
+              decision: gwAzForAuthorize.decision,
+              statements: gwAzForAuthorize.statements,
+            }),
+          };
         }
-        : undefined,
+        if (actMismatchBody && azIsDeny) {
+          return { title: "Act claim — before → after", text: asJson(actMismatchBody) };
+        }
+        return undefined;
+      })(),
       decision: { outcome: azEval.decision || "INDETERMINATE",
         label: `${azEval.decision || "INDETERMINATE"} — ${azEval.engine || "?"}${azEval.decisionContext ? ` (${azEval.decisionContext})` : ""}` },
       kv: [
@@ -676,6 +739,11 @@ export function buildTraceSteps(trace) {
         azReason ? ["reason", String(azReason)] : null,
         azAdvice ? ["advice", asJson(azAdvice)] : null,
         azRef ? ["policy path", String(azRef)] : null,
+        actBefore != null ? ["act before", actBefore] : null,
+        actAfter != null ? ["act after", actAfter] : null,
+        actBefore != null && actAfter != null && actBefore !== actAfter
+          ? ["act", "MISMATCH — presented actor ≠ allowlist"]
+          : null,
       ].filter((row) => row && row[1]),
     } : {}));
 
@@ -746,8 +814,48 @@ export function buildTraceSteps(trace) {
   const intentDeniedEvent = (tokenEvents || []).find(
     (e) => e.id === "sim-gateway-deny" && (e.error === "rar_amount_exceeded" || e.error === "rar_unexpected_deny"),
   );
+  const rarGrantEv = findEvent(tokenEvents, "sim-rar-grant", "rar-authorization");
+  const amountBefore = fmtClaim(
+    intentVerifiedEvent?.grantedAmount
+      ?? intentDeniedEvent?.grantedAmount
+      ?? rarGrantEv?.grantedAmount
+      ?? rarGrantEv?.authorization_details?.[0]?.actions?.[0]?.amount
+      ?? rarGrantEv?.authorization_details?.[0]?.amount
+      ?? null,
+  );
+  const amountAfter = fmtClaim(
+    intentVerifiedEvent?.requestedAmount
+      ?? intentDeniedEvent?.requestedAmount
+      ?? rarGrantEv?.requestedAmount
+      ?? null,
+  );
+  const amountMismatchBody = (amountBefore != null || amountAfter != null)
+    ? beforeAfterBody(
+      { amount: amountBefore != null ? Number(amountBefore) || amountBefore : "(unknown)" },
+      { amount: amountAfter != null ? Number(amountAfter) || amountAfter : "(unknown)" },
+      {
+        error: intentDeniedEvent?.error || null,
+        rfc: "RFC 9396",
+      },
+    )
+    : null;
   if (intentVerifiedEvent || intentDeniedEvent) {
     steps.push(makeStep("intent-binding", intentVerifiedEvent ? "done" : "error", {
+      why: intentVerifiedEvent
+        ? `Requested amount is within the attested RAR authorization_details cap.`
+        : `Requested amount exceeds the attested RAR authorization_details cap.`,
+      kv: [
+        amountBefore != null ? ["amount before (granted)", String(amountBefore)] : null,
+        amountAfter != null ? ["amount after (requested)", String(amountAfter)] : null,
+        amountBefore != null && amountAfter != null
+          && Number(amountAfter) > Number(amountBefore)
+          ? ["amount", "MISMATCH — requested exceeds granted cap"]
+          : null,
+        intentDeniedEvent?.error ? ["error", String(intentDeniedEvent.error)] : null,
+      ].filter(Boolean),
+      response: amountMismatchBody
+        ? { title: "RAR amount — before → after", text: asJson(amountMismatchBody) }
+        : undefined,
       tokenEvent: intentVerifiedEvent || intentDeniedEvent || null,
     }));
   } else if (traceComplete) {
@@ -935,6 +1043,74 @@ export function buildTraceSteps(trace) {
       where: gwMcpAudit.where, how: gwMcpAudit.how, eventName: gwMcpAudit.eventName,
     })
     : null;
+  // Teaching mismatches: aud (UC12), scopes (UC5), act (UC13).
+  const audBefore = fmtClaim(
+    simGwDeny?.triedAudience || simGwDeny?.tokenAud
+      || gwDeniedPhase?.triedAudience || gwDeniedPhase?.tokenAud
+      || null,
+  );
+  const audAfter = fmtClaim(
+    simGwDeny?.allowedAudience || simGwDeny?.expectedAud
+      || gwDeniedPhase?.allowedAudience || gwDeniedPhase?.expectedAud
+      || null,
+  );
+  const audMismatchBody = (audBefore != null || audAfter != null)
+    ? beforeAfterBody(
+      { aud: audBefore ?? "(unknown)" },
+      { aud: audAfter ?? "(unknown)" },
+      {
+        error: simGwDeny?.error || gwDeniedPhase?.gatewayErrorCode || "invalid_aud",
+        httpStatus: simGwDeny?.httpStatus || 401,
+      },
+    )
+    : null;
+  const scopeBefore = fmtClaim(
+    simGwDeny?.presentedScopes || gwDeniedPhase?.presentedScopes || null,
+  );
+  const scopeAfter = fmtClaim(
+    simGwDeny?.requiredScopes || gwDeniedPhase?.requiredScopes
+      || simGwDeny?.missingScopes || gwDeniedPhase?.missingScopes
+      || null,
+  );
+  const scopeMismatchBody = (scopeBefore != null || scopeAfter != null)
+    ? beforeAfterBody(
+      { scopes: scopeBefore ?? "(unknown)" },
+      { scopes: scopeAfter ?? "(unknown)" },
+      {
+        error: simGwDeny?.error || "insufficient_scope",
+        httpStatus: simGwDeny?.httpStatus || 403,
+      },
+    )
+    : null;
+  const gwActBefore = fmtClaim(
+    simGwDeny?.presentedAct || rogueActEv?.presentedAct || null,
+  );
+  const gwActAfter = fmtClaim(
+    simGwDeny?.allowedAct || rogueActEv?.allowedAct || null,
+  );
+  const gwActMismatchBody = (gwActBefore != null || gwActAfter != null)
+    ? beforeAfterBody(
+      { act: gwActBefore ?? "(unknown)" },
+      { act: gwActAfter ?? "(unknown)" },
+      {
+        error: simGwDeny?.error || "mcp_invalid_actor",
+        httpStatus: simGwDeny?.httpStatus || 403,
+      },
+    )
+    : null;
+  // Prefer the mismatch that matches the deny code; fall back to first available.
+  const gwTeachingBody = (() => {
+    const code = String(simGwDeny?.error || gwDeniedPhase?.gatewayErrorCode || "");
+    if (code === "invalid_aud" && audMismatchBody) return { title: "Audience binding — before → after", body: audMismatchBody };
+    if (code === "insufficient_scope" && scopeMismatchBody) return { title: "Scope check — before → after", body: scopeMismatchBody };
+    if ((code === "mcp_invalid_actor" || code === "unauthorized_actor") && gwActMismatchBody) {
+      return { title: "Act claim — before → after", body: gwActMismatchBody };
+    }
+    if (audMismatchBody) return { title: "Audience binding — before → after", body: audMismatchBody };
+    if (scopeMismatchBody) return { title: "Scope check — before → after", body: scopeMismatchBody };
+    if (gwActMismatchBody) return { title: "Act claim — before → after", body: gwActMismatchBody };
+    return null;
+  })();
   steps.push(makeStep("gateway",
     // If the gateway itself denied, keep this step visible even when authorize
     // also mirrors the same gw-authorize DENY (authorizeFailed would otherwise
@@ -966,23 +1142,21 @@ export function buildTraceSteps(trace) {
             : String(filterChain.length)] : null,
         gwInbound ? ["inbound", gwInbound.label || "user bearer received"] : null,
         gwScope ? ["scope gate", gwScope.label || "scope checked before swap"] : null,
-        // invalid_aud teaching: show both sides of the mismatch (token vs gateway).
-        (() => {
-          const tokenAud = simGwDeny?.triedAudience || simGwDeny?.tokenAud
-            || gwDeniedPhase?.triedAudience || gwDeniedPhase?.tokenAud
-            || null;
-          const expectedAud = simGwDeny?.allowedAudience || simGwDeny?.expectedAud
-            || gwDeniedPhase?.allowedAudience || gwDeniedPhase?.expectedAud
-            || null;
-          if (tokenAud == null && expectedAud == null) return null;
-          const actual = tokenAud != null
-            ? (Array.isArray(tokenAud) ? tokenAud.join(", ") : String(tokenAud))
-            : "(unknown)";
-          const expected = expectedAud != null
-            ? (Array.isArray(expectedAud) ? expectedAud.join(", ") : String(expectedAud))
-            : "(unknown)";
-          return ["audience", `token ${actual} · gateway expects ${expected} (MISMATCH)`];
-        })(),
+        audBefore != null ? ["aud before", audBefore] : null,
+        audAfter != null ? ["aud after", audAfter] : null,
+        audBefore != null && audAfter != null && audBefore !== audAfter
+          ? ["audience", "MISMATCH — token aud ≠ gateway resource"]
+          : null,
+        scopeBefore != null ? ["scope before", scopeBefore] : null,
+        scopeAfter != null ? ["scope after (required)", scopeAfter] : null,
+        scopeBefore != null && scopeAfter != null
+          ? ["scope", "MISMATCH — presented scopes lack required"]
+          : null,
+        gwActBefore != null ? ["act before", gwActBefore] : null,
+        gwActAfter != null ? ["act after", gwActAfter] : null,
+        gwActBefore != null && gwActAfter != null && gwActBefore !== gwActAfter
+          ? ["act", "MISMATCH — presented actor ≠ allowlist"]
+          : null,
         simGwDeny ? ["attack sim", simGwDeny.explanation || simGwDeny.label] : null,
       ].filter(Boolean),
       request: (() => {
@@ -999,6 +1173,10 @@ export function buildTraceSteps(trace) {
         };
       })(),
       response: (() => {
+        // Prefer teaching before/after on deny when there is no authorize card.
+        if (gwTeachingBody && !gwAz && !mcpAuditBody) {
+          return { title: gwTeachingBody.title, text: asJson(gwTeachingBody.body) };
+        }
         if (mcpAuditBody && !gwAz) {
           return { title: "McpAuditFilter — who/what/when/where/how", text: asJson(mcpAuditBody) };
         }
@@ -1008,11 +1186,18 @@ export function buildTraceSteps(trace) {
           ? { title: "Gateway authorize response", text: asJson(body) }
           : undefined;
       })(),
-      altResponse: mcpAuditBody && gwAz
-        ? { title: "McpAuditFilter — who/what/when/where/how", text: asJson(mcpAuditBody) }
-        : (filterChain
-          ? { title: "Filter chain", text: asJson(filterChain) }
-          : undefined),
+      altResponse: (() => {
+        if (mcpAuditBody && gwAz) {
+          return { title: "McpAuditFilter — who/what/when/where/how", text: asJson(mcpAuditBody) };
+        }
+        if (gwTeachingBody && (gwAz || mcpAuditBody)) {
+          return { title: gwTeachingBody.title, text: asJson(gwTeachingBody.body) };
+        }
+        if (filterChain) {
+          return { title: "Filter chain", text: asJson(filterChain) };
+        }
+        return undefined;
+      })(),
     } : !gwSeen && !gwDenied && gwSkipEvidence.length ? {
       narrative: gwSkipEvidence.map((e) => e.explanation).filter(Boolean).join(" ") ||
         "The Agent Gateway was not in this run's path.",

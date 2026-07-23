@@ -412,8 +412,11 @@ async function _exchangeGatewayToken(subjectToken, scopes, useCaseId, tokenChain
 
 /**
  * Build a deny result from a gateway error with optional canonical error code.
+ * @param {object} [teachingExtra] - optional before/after teaching fields
+ *   (e.g. grantedAmount/requestedAmount, presentedScopes/requiredScopes)
+ *   stamped onto the sim-gateway-deny event for Token Chain display.
  */
-function _denyFromGateway(sim, useCaseId, tokenChainEvents, err, fallbackStatus, canonicalCode, eventLabel) {
+function _denyFromGateway(sim, useCaseId, tokenChainEvents, err, fallbackStatus, canonicalCode, eventLabel, teachingExtra) {
   const {
     errorCode: rawCode,
     httpStatus: rawStatus,
@@ -445,6 +448,7 @@ function _denyFromGateway(sim, useCaseId, tokenChainEvents, err, fallbackStatus,
     ...(triedAudience ? { triedAudience } : {}),
     ...(allowedAudience ? { allowedAudience } : {}),
   };
+  const teach = (teachingExtra && typeof teachingExtra === 'object') ? teachingExtra : {};
 
   tokenChainEvents.push(buildTokenEvent(
     'sim-gateway-deny',
@@ -456,6 +460,7 @@ function _denyFromGateway(sim, useCaseId, tokenChainEvents, err, fallbackStatus,
       error: errorCode,
       httpStatus,
       ...audExtra,
+      ...teach,
       ...(authorize ? { authorizeDecisionId: authorize.decisionId } : {}),
     },
   ));
@@ -463,6 +468,7 @@ function _denyFromGateway(sim, useCaseId, tokenChainEvents, err, fallbackStatus,
   return {
     sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents,
     ...audExtra,
+    ...teach,
     ...(authorize ? { authorize } : {}),
   };
 }
@@ -719,16 +725,27 @@ async function _runInsufficientScope(subjectToken, useCaseId, tokenChainEvents) 
     const isScopeDeny = rawCode === 'mcp_tool_error' || rawCode === 'gateway_policy_denied';
     const errorCode = isScopeDeny ? 'insufficient_scope' : rawCode;
     const httpStatus = isScopeDeny ? 403 : rawStatus;
+    // Teaching: token carried only "read"; create_transfer requires "write".
+    const presentedScopes = _audString(decoded?.claims?.scope) || 'read';
+    const requiredScopes = 'write';
     tokenChainEvents.push(buildTokenEvent(
       'sim-gateway-deny',
       'Gateway DENY (insufficient_scope)',
       'error',
       null,
       `Gateway rejected the call with ${httpStatus} ${errorCode}: ${reason}`,
-      { error: errorCode, httpStatus }
+      {
+        error: errorCode,
+        httpStatus,
+        presentedScopes,
+        requiredScopes,
+      }
     ));
     stampUseCaseId(tokenChainEvents, useCaseId);
-    return { sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents };
+    return {
+      sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents,
+      presentedScopes, requiredScopes,
+    };
   }
 }
 
@@ -1250,6 +1267,9 @@ async function _runReplayedToken(subjectToken, useCaseId, tokenChainEvents) {
  */
 async function _runRogueActor(subjectToken, useCaseId, tokenChainEvents, req) {
   const sim = 'rogue-actor';
+  const allowedAct = configStore.getEffective('pingone_ai_agent_actor_client_id')
+    || configStore.getEffective('pingone_token_exchanger_client_id')
+    || '';
 
   tokenChainEvents.push(buildTokenEvent(
     'sim-rogue-actor',
@@ -1258,6 +1278,10 @@ async function _runRogueActor(subjectToken, useCaseId, tokenChainEvents, req) {
     null,
     `Overriding X-Act-Client-Id with rogue actor "${ROGUE_ACTOR_CLIENT_ID}" as the request flows through the ` +
     'full BFF pipeline (exchange → Authorize → gateway) — Authorize must DENY via HasValidActorChain.',
+    {
+      presentedAct: ROGUE_ACTOR_CLIENT_ID,
+      allowedAct: allowedAct || '(configured authorized actor)',
+    },
   ));
 
   const savedBody = req.body;
@@ -1289,7 +1313,12 @@ async function _runRogueActor(subjectToken, useCaseId, tokenChainEvents, req) {
     };
   }
 
-  return _denyFromPipeline(sim, useCaseId, tokenChainEvents, outcome, 'mcp_invalid_actor');
+  const denyResult = _denyFromPipeline(sim, useCaseId, tokenChainEvents, outcome, 'mcp_invalid_actor');
+  return {
+    ...denyResult,
+    presentedAct: ROGUE_ACTOR_CLIENT_ID,
+    allowedAct: allowedAct || '(configured authorized actor)',
+  };
 }
 
 /**
@@ -1369,7 +1398,11 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
     null,
     `Attested authorization_details cap the transfer at $${grantedAmount}. ` +
     `Attack attempts create_transfer for $${finalAttackAmount}.`,
-    { authorization_details: rarDetails },
+    {
+      authorization_details: rarDetails,
+      grantedAmount,
+      requestedAmount: finalAttackAmount,
+    },
   ));
 
   try {
@@ -1401,6 +1434,7 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
     return _denyFromGateway(
       sim, useCaseId, tokenChainEvents, err, 403, 'rar_amount_exceeded',
       'Authorize DENY (rar_amount_exceeded)',
+      { grantedAmount, requestedAmount: finalAttackAmount },
     );
   }
 }
