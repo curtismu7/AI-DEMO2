@@ -296,4 +296,96 @@ describe('PingOneProvisionService — regression suite', () => {
       expect(carriesValue).toBe(true);
     });
   });
+
+  // -----------------------------------------------------------------------
+  // T4 — Agent Consent Agreement + Agent-Consent-Login (IDAI D1)
+  // -----------------------------------------------------------------------
+  describe('T4 — Agent Consent Agreement + Agent-Consent-Login', () => {
+    it('creates agreement, enables language, policy with AGREEMENT action, assigns to app', async () => {
+      const { PingOneProvisionService } = require('../../services/pingoneProvisionService');
+      const svc = new PingOneProvisionService();
+
+      let agreementCreated = false;
+      let languageEnabled = false;
+      let policyCreated = false;
+      let assignmentCreated = false;
+      let agreementActionPosted = false;
+
+      svc.makeRequest = jest.fn(async (method, path, body) => {
+        if (method === 'GET' && path.startsWith('/agreements?')) {
+          return { data: { _embedded: { agreements: [] } } };
+        }
+        if (method === 'POST' && path === '/agreements') {
+          agreementCreated = true;
+          return { data: { id: 'agr-1', name: body.name, enabled: false } };
+        }
+        if (method === 'GET' && path.startsWith('/languages?')) {
+          return {
+            data: {
+              _embedded: {
+                languages: [{ id: 'env-lang-en', locale: 'en', enabled: true }],
+              },
+            },
+          };
+        }
+        if (method === 'GET' && path === '/agreements/agr-1/languages?limit=100') {
+          return {
+            data: {
+              _embedded: {
+                languages: [{ id: 'lang-en', locale: 'en', enabled: false, displayName: 'Agent Consent' }],
+              },
+            },
+          };
+        }
+        if (method === 'GET' && path.includes('/revisions')) {
+          return { data: { _embedded: { revisions: [{ id: 'rev-1' }] } } };
+        }
+        if (method === 'PUT' && path === '/agreements/agr-1/languages/lang-en') {
+          languageEnabled = true;
+          expect(body.enabled).toBe(true);
+          return { data: { id: 'lang-en', enabled: true } };
+        }
+        if (method === 'PUT' && path === '/agreements/agr-1') {
+          expect(body.enabled).toBe(true);
+          return { data: { id: 'agr-1', enabled: true } };
+        }
+        if (method === 'GET' && path.startsWith('/signOnPolicies?')) {
+          return { data: { _embedded: { signOnPolicies: [] } } };
+        }
+        if (method === 'POST' && path === '/signOnPolicies') {
+          policyCreated = true;
+          return { data: { id: 'pol-1', name: body.name } };
+        }
+        if (method === 'GET' && path === '/signOnPolicies/pol-1/actions') {
+          return { data: { _embedded: { signOnPolicyActions: [] } } };
+        }
+        if (method === 'POST' && path === '/signOnPolicies/pol-1/actions') {
+          if (body.type === 'AGREEMENT') {
+            agreementActionPosted = true;
+            expect(body.agreement.id).toBe('agr-1');
+          }
+          return { data: { id: 'act-1', type: body.type } };
+        }
+        if (method === 'GET' && path.includes('/signOnPolicyAssignments')) {
+          return { data: { _embedded: { signOnPolicyAssignments: [] } } };
+        }
+        if (method === 'POST' && path.includes('/signOnPolicyAssignments')) {
+          assignmentCreated = true;
+          expect(body.signOnPolicy.id).toBe('pol-1');
+          return { data: { id: 'asn-1' } };
+        }
+        return { data: {} };
+      });
+
+      const result = await svc.ensureAgentConsentLoginForApp('app-user-1');
+      expect(result.agreementId).toBe('agr-1');
+      expect(result.policyId).toBe('pol-1');
+      expect(result.assignmentCreated).toBe(true);
+      expect(agreementCreated).toBe(true);
+      expect(languageEnabled).toBe(true);
+      expect(policyCreated).toBe(true);
+      expect(agreementActionPosted).toBe(true);
+      expect(assignmentCreated).toBe(true);
+    });
+  });
 });

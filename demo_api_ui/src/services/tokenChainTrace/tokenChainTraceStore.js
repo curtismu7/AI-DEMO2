@@ -98,7 +98,24 @@ export const tokenChainTraceStore = {
   ingestAuthorize(evaluation) {
     if (!evaluation) return;
     ensureTrace();
-    trace.authorize = evaluation;
+    const prev = trace.authorize;
+    // HITL/step-up challenge then approve→retry PERMITs. Keep the block-kind
+    // outcome so ProofStrip still scores the gate that fired (UC7/UC8), instead
+    // of overwriting with a bare PERMIT and rendering "Mismatch".
+    const priorGate =
+      prev &&
+      (prev.outcome === "HITL_REQUIRED" || prev.outcome === "STEP_UP")
+        ? prev.outcome
+        : null;
+    if (
+      priorGate &&
+      evaluation.decision === "PERMIT" &&
+      !evaluation.outcome
+    ) {
+      trace.authorize = { ...evaluation, outcome: priorGate, priorGate };
+    } else {
+      trace.authorize = evaluation;
+    }
     emit();
   },
   ingestLlmDetail(value) {
@@ -116,7 +133,15 @@ export const tokenChainTraceStore = {
   ingestMcpResult(payload) {
     if (!payload) return;
     ensureTrace();
-    trace.mcpResult = payload;
+    // Normalize SSE shape (toolName/resultJson) to the rail's mcpResult model.
+    const next = {
+      ...payload,
+      tool: payload.tool || payload.toolName || null,
+      requestJson: payload.requestJson ?? null,
+      result: payload.result ?? payload.resultJson ?? null,
+      denied: Boolean(payload.denied),
+    };
+    trace.mcpResult = next;
     emit();
   },
   completeTrace(ok) { trace.outcome = ok ? "ok" : "error"; emit(); },

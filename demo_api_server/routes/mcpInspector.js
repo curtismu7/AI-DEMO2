@@ -465,29 +465,23 @@ router.get('/tools', async (req, res) => {
       // "Banking Agent is unavailable". err.pingoneError is only set when the response body
       // was parsed from PingOne's token endpoint, safely distinguishing exchange-policy
       // rejections from genuine session/auth-guard errors.
-      const isExchangeScopeError =
-        err.httpStatus === 400 ||
-        err.code === 'token_exchange_failed' ||
-        (err.httpStatus === 401 && Boolean(err.pingoneError));
-      if (isExchangeScopeError) {
-        console.warn('[MCP Inspector] token exchange failed (%s HTTP %s), using local catalog', err.code, err.httpStatus);
-        publishDiscoveryPhase(
-          traceId,
-          'token_resolve',
-          'Token exchange failed — using local catalog',
-          `RFC 8693 exchange returned HTTP ${err.httpStatus || err.code}`,
-          'warning'
-        );
-        return respondLocalCatalog(`exchange_failed_${err.httpStatus || err.code}`);
-      }
+      // Discovery is read-only metadata — any token-resolve failure (exchange
+      // scope policy, invalid_grant, delegation_chain_broken, …) falls back to
+      // the local catalog so the AI Demo / Custom tabs still list tools.
+      console.warn(
+        '[MCP Inspector] token resolve failed (%s HTTP %s): %s — using local catalog',
+        err.code,
+        err.httpStatus,
+        err.message
+      );
       publishDiscoveryPhase(
         traceId,
         'token_resolve',
-        'Token resolution failed',
-        err.message || 'unknown error',
-        'failed'
+        'Token resolution failed — using local catalog',
+        err.message || `code=${err.code || 'unknown'}`,
+        'warning'
       );
-      return res.status(502).json({ error: 'token_resolution_failed', message: err.message });
+      return respondLocalCatalog(`token_resolve_failed_${err.code || err.httpStatus || 'unknown'}`);
     }
     if (!agentToken) {
       return respondLocalCatalog('token_resolution_yielded_null');
@@ -620,6 +614,16 @@ router.post('/invoke', express.json(), async (req, res) => {
       // directly (see sessionTokenForDiscovery above), never through PingGateway.
       ({ token: agentToken, userSub, tokenEvents = [] } = await resolveMcpAccessTokenWithEvents(req, tool, { forceDirectMcpAudience: true }));
     } catch (err) {
+      // Mirror GET /tools: exchange/refresh failures (invalid_grant, scope policy)
+      // fall back to the in-process local handler so the AI Demo / Custom tabs
+      // stay usable instead of only surfacing PingOne's grant error.
+      if (effectiveUserId) {
+        console.warn(
+          '[MCP Inspector] invoke token resolve failed (%s) — local handler',
+          err.code || err.httpStatus || err.message
+        );
+        return await respondLocalInvoke();
+      }
       const status = err.httpStatus || 502;
       return res.status(status).json({
         error: err.code || 'token_resolution_failed',
@@ -721,7 +725,9 @@ router.get('/langchain-host', async (req, res) => {
 async function pingOneInspectorLiveFlag() {
   try {
     await configStore.ensureInitialized();
-    return configStore.get('mcp_inspector_pingone_live') === 'true';
+    // getEffective applies the catalog default ('true'); bare get() returns null
+    // when unset and left the PingOne tab permanently Disconnected (2026-07-22).
+    return configStore.getEffective('mcp_inspector_pingone_live') === 'true';
   } catch (_) {
     return false; // fall through to the disabled state
   }

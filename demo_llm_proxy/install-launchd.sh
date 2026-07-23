@@ -3,14 +3,12 @@
 # the agent's "llama.cpp only" mode never silently dies.
 #
 # Installs a per-user LaunchAgent that runs `supervise-swap.sh` at login
-# (RunAtLoad) and every 5 minutes (StartInterval). supervise-swap keeps the
-# tier-manager daemon (:8097) up and loads the RESIDENT tiers
-# (LLM_PROXY_RESIDENT_TIERS, default :8091 + :8096 ≈ 14GB) so neither the BFF
-# nor the agent ever pays a model swap.
+# (RunAtLoad) and every 5 minutes (StartInterval). supervise-swap applies
+# residencyPolicy.js automatically each run (≥32GB dual, <32GB pin :8091).
 #
-# On a memory-constrained machine, export LLM_PROXY_RESIDENT_TIERS="" before
-# installing: supervise-swap then falls back to SWAP MODE, keeping at most one
-# tier resident (~2-11GB) and letting the router swap up on demand and decay back.
+# Do NOT bake LLM_PROXY_RESIDENT_TIERS into the plist by default — the supervisor
+# re-reads RAM every interval. Optional overrides (FORCE_DUAL, explicit tiers,
+# PIN) are baked only when set in the install environment.
 #
 # macOS only. Usage:
 #   bash demo_llm_proxy/install-launchd.sh            # install + load now
@@ -19,12 +17,6 @@ set -euo pipefail
 
 LABEL="com.ai-demo.llama-models"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
-
-# Tiers kept loaded at all times. Both the BFF's phi-4-mini (:8091) and the
-# agent's gpt-oss-20b (:8096) stay resident (~14GB) so neither surface pays a
-# model swap. Export LLM_PROXY_RESIDENT_TIERS="" before installing to keep the
-# old one-tier-at-a-time swap behavior on a memory-constrained machine.
-RESIDENT_TIERS="${LLM_PROXY_RESIDENT_TIERS-8091,8096}"
 
 if [ "${1:-install}" = "uninstall" ]; then
   launchctl unload "$PLIST" 2>/dev/null || true
@@ -42,9 +34,16 @@ COMMON_DIR="$(git -C "$SCRIPT_DIR" rev-parse --path-format=absolute --git-common
   || (cd "$SCRIPT_DIR" && cd "$(git rev-parse --git-common-dir)" && pwd))"
 MAIN_ROOT="$(dirname "$COMMON_DIR")"
 SUPERVISE_SCRIPT="$MAIN_ROOT/demo_llm_proxy/supervise-swap.sh"
+POLICY_JS="$MAIN_ROOT/demo_llm_proxy/residencyPolicy.js"
 if [ ! -f "$SUPERVISE_SCRIPT" ]; then
   echo "ERROR: supervisor not found at $SUPERVISE_SCRIPT" >&2
   exit 1
+fi
+
+# Preview what this machine will do (same policy supervise applies).
+if [ -f "$POLICY_JS" ]; then
+  echo "Residency policy preview:"
+  node "$POLICY_JS" || true
 fi
 
 # launchd runs with a minimal PATH; the scripts call bare `llama-server`
@@ -52,6 +51,26 @@ fi
 LLAMA_BIN="$(command -v llama-server || echo /opt/homebrew/bin/llama-server)"
 NODE_BIN="$(command -v node || echo /opt/homebrew/bin/node)"
 PATH_ENV="$(dirname "$LLAMA_BIN"):$(dirname "$NODE_BIN"):/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+# Optional overrides only — omit RESIDENT so supervise auto-picks from RAM.
+ENV_EXTRA=""
+if [ -n "${LLM_PROXY_FORCE_DUAL:-}" ]; then
+  ENV_EXTRA="${ENV_EXTRA}
+    <key>LLM_PROXY_FORCE_DUAL</key><string>${LLM_PROXY_FORCE_DUAL}</string>"
+fi
+if [ -n "${LLM_PROXY_PIN_TIER:-}" ]; then
+  ENV_EXTRA="${ENV_EXTRA}
+    <key>LLM_PROXY_PIN_TIER</key><string>${LLM_PROXY_PIN_TIER}</string>"
+fi
+# Explicit RESIDENT (including empty) — only if the installer set the var.
+if [ "${LLM_PROXY_RESIDENT_TIERS+x}" = "x" ]; then
+  ENV_EXTRA="${ENV_EXTRA}
+    <key>LLM_PROXY_RESIDENT_TIERS</key><string>${LLM_PROXY_RESIDENT_TIERS}</string>"
+fi
+if [ -n "${LLAMA_ARG_HOST:-}" ]; then
+  ENV_EXTRA="${ENV_EXTRA}
+    <key>LLAMA_ARG_HOST</key><string>${LLAMA_ARG_HOST}</string>"
+fi
 
 mkdir -p "$HOME/Library/LaunchAgents" /tmp/llama-models
 
@@ -68,8 +87,7 @@ cat > "$PLIST" <<PLISTEOF
   </array>
   <key>EnvironmentVariables</key>
   <dict>
-    <key>PATH</key><string>$PATH_ENV</string>
-    <key>LLM_PROXY_RESIDENT_TIERS</key><string>$RESIDENT_TIERS</string>
+    <key>PATH</key><string>$PATH_ENV</string>$ENV_EXTRA
   </dict>
   <key>RunAtLoad</key><true/>
   <key>StartInterval</key><integer>300</integer>
@@ -87,6 +105,5 @@ echo "  supervisor: $SUPERVISE_SCRIPT"
 echo "  PATH:       $PATH_ENV"
 echo "  plist:      $PLIST"
 echo "  log:        /tmp/llama-models/launchd.log"
-echo "  SWAP MODE: tier-manager + smallest tier only (at most one model resident);"
-echo "  router swaps up on demand and decays back. Re-checks every 5 min."
+echo "  residency:  auto via residencyPolicy.js each run (≥32GB dual, <32GB pin :8091)"
 echo "  Uninstall:  bash demo_llm_proxy/install-launchd.sh uninstall"

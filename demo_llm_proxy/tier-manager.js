@@ -17,6 +17,8 @@
 const http = require('http');
 const { execFile } = require('child_process');
 const path = require('path');
+const { resolveEnsureArgs, parseResidentPorts } = require('./ensureArgs');
+const { recoverDeadResidents } = require('./residentRecover');
 
 const PORT = process.env.TIER_MANAGER_PORT || 8097;
 const SCRIPT = path.join(__dirname, 'start-local-models.sh');
@@ -31,16 +33,11 @@ try {
   VALID_PORTS = new Set(['8091', '8096']);
 }
 const ENSURE_TIMEOUT_MS = 180000; // cold load of the 11GB gpt-oss can be slow
+const RECOVER_MS = parseInt(process.env.LLM_RESIDENT_RECOVER_MS || '20000', 10);
 
-// Resident tiers must survive a swap. `ensure <port>` stops every OTHER tier, so
-// a router swap-up would evict a tier that residency had just loaded (observed:
-// ensure-set loaded 8091+8096, then a gpt-oss request drove `ensure 8096` and
-// killed phi 1s later). With residency configured we ensure the resident SET
-// plus the requested port instead, so a swap only ever adds.
-const RESIDENT_PORTS = (process.env.LLM_PROXY_RESIDENT_TIERS || '')
-  .split(',')
-  .map((p) => p.trim())
-  .filter((p) => /^\d+$/.test(p));
+// Must match compose LLM_PROXY_RESIDENT_TIERS — run-docker.sh exports this when
+// starting the manager. Empty ⇒ classic one-tier swap.
+const RESIDENT_CSV = process.env.LLM_PROXY_RESIDENT_TIERS || '';
 
 // When the proxy is hard-pinned and residency does not keep that pin loaded,
 // refuse ensure of any other port — otherwise opportunistic gpt-oss prewarm
@@ -52,11 +49,12 @@ let inFlight = null;               // { port, promise } — coalesce duplicate a
 
 function runEnsure(port) {
   const portStr = String(port);
+  const residents = parseResidentPorts(RESIDENT_CSV);
   if (
     PIN_PORT
     && VALID_PORTS.has(PIN_PORT)
     && portStr !== PIN_PORT
-    && !RESIDENT_PORTS.includes(PIN_PORT)
+    && !residents.includes(PIN_PORT)
   ) {
     return Promise.resolve({
       skipped: true,
@@ -66,12 +64,7 @@ function runEnsure(port) {
       output: `skipped ensure ${portStr}: LLM_PROXY_PIN_TIER=${PIN_PORT}`,
     });
   }
-  // With residency configured, keep the resident tiers loaded alongside the
-  // requested one (ensure-set = load these, stop the rest). Without it, classic
-  // `ensure` semantics: this port only, everything else stopped.
-  const args = RESIDENT_PORTS.length
-    ? ['ensure-set', [...new Set([...RESIDENT_PORTS, portStr])].join(',')]
-    : ['ensure', portStr];
+  const args = resolveEnsureArgs(port, RESIDENT_CSV);
   return new Promise((resolve, reject) => {
     execFile('bash', [SCRIPT, ...args], { timeout: ENSURE_TIMEOUT_MS }, (err, stdout, stderr) => {
       if (err) reject(new Error(`${args[0]} ${portStr} failed: ${err.message}\n${stdout}\n${stderr}`));
@@ -88,6 +81,27 @@ function ensureTier(port) {
     .finally(() => { if (inFlight && inFlight.promise === promise) inFlight = null; }));
   inFlight = { port, promise };
   return promise;
+}
+
+/** Restart any resident tier that died (OOM / crash) without waiting for a swap. */
+function scheduleResidentRecovery() {
+  const ports = parseResidentPorts(RESIDENT_CSV);
+  if (!ports.length || !(RECOVER_MS > 0)) return;
+  setInterval(() => {
+    recoverDeadResidents({
+      residentCsv: RESIDENT_CSV,
+      ensureFn: ensureTier,
+      isBusy: () => !!inFlight,
+    })
+      .then((r) => {
+        if (r.recovered) {
+          console.log(`[tier-manager] recovered dead resident(s): ${r.dead.join(',')}`);
+        }
+      })
+      .catch((err) => {
+        console.error(`[tier-manager] resident recover failed: ${err.message}`);
+      });
+  }, RECOVER_MS).unref();
 }
 
 const server = http.createServer((req, res) => {
@@ -135,5 +149,10 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[tier-manager] listening on 0.0.0.0:${PORT} — swaps tiers via ${SCRIPT}`);
+  const residents = parseResidentPorts(RESIDENT_CSV);
+  console.log(
+    `[tier-manager] listening on 0.0.0.0:${PORT} — swaps via ${SCRIPT}`
+      + (residents.length ? `; residents ${residents.join(',')} (recover every ${RECOVER_MS}ms)` : ''),
+  );
+  scheduleResidentRecovery();
 });

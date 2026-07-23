@@ -13,13 +13,25 @@ import { notifySessionExpiredIfNeeded, navigateToCustomerOAuthLogin } from '../u
 import './PingOneMcpInspector.css';
 import './ResourceServerTester.css';
 
-const PROBE_TARGETS = ['/api/resource-server/accounts', '/api/resource-server/transactions'];
+const DEFAULT_PROBE_TARGETS = ['/api/resource-server/accounts', '/api/resource-server/transactions'];
 
-// Default token sources for the user (OIDC) resource server page.
+// Default token sources for the user (OIDC) login resource server tab.
 const DEFAULT_SOURCES = [
   { value: 'access', label: 'My access token' },
   { value: 'id', label: 'My ID token' },
   { value: 'paste', label: 'Paste a JWT' },
+];
+
+export const INFLOW_SOURCES = [
+  { value: 'mcp', label: 'In-flow MCP / gateway TX' },
+  { value: 'access', label: 'My access token (login)' },
+  { value: 'paste', label: 'Paste a JWT' },
+];
+
+export const INFLOW_PROBE_TARGETS = [
+  '/api/resource-server/identity',
+  '/api/resource-server/accounts',
+  '/api/resource-server/transactions',
 ];
 
 // The four operations available as tree items.
@@ -81,6 +93,11 @@ function useRunner(endpoint) {
   return { loading, result, error, status, run };
 }
 
+/** Merge profile into every tester POST so validate/decode use the correct RS audience. */
+function withProfile(body, profile) {
+  return profile && profile !== 'login' ? { ...body, profile } : body;
+}
+
 const VERDICT_TEXT = { PERMIT: 'PERMIT', WOULD_PASS: 'WOULD PASS', WOULD_REJECT: 'WOULD REJECT' };
 
 function RuleList({ rules }) {
@@ -119,6 +136,8 @@ function ErrorLine({ error, status }) {
 export default function ResourceServerTester({
   endpointBase = '/api/resource-server/test',
   sources = DEFAULT_SOURCES,
+  probeTargets = DEFAULT_PROBE_TARGETS,
+  profile = 'login',
   intro = 'Submit a token and see how this resource server would treat it. Pick one by reference, or paste any JWT to test a failure case.',
 }) {
   // Token source state
@@ -130,7 +149,7 @@ export default function ResourceServerTester({
   const [outputTab, setOutputTab] = useState('result');
 
   // Probe target
-  const [probeTarget, setProbeTarget] = useState(PROBE_TARGETS[0]);
+  const [probeTarget, setProbeTarget] = useState(probeTargets[0]);
 
   // Runners for each operation type
   const revealRunner = useRunner(`${endpointBase}/reveal`);
@@ -162,9 +181,11 @@ export default function ResourceServerTester({
     if (!selectedOp) return;
     const runner = getRunner(selectedOp.id);
     if (!runner) return;
-    const body = selectedOp.id === 'probe' ? { ...payload, targetPath: probeTarget } : payload;
+    const body = selectedOp.id === 'probe'
+      ? withProfile({ ...payload, targetPath: probeTarget }, profile)
+      : withProfile(payload, profile);
     await runner.run(body);
-  }, [selectedOp, payload, probeTarget]);
+  }, [selectedOp, payload, probeTarget, profile]);
 
   const clearOutput = () => {
     // Reset all runners by re-creating the component state - we reset via deselect + reselect
@@ -393,7 +414,7 @@ export default function ResourceServerTester({
                       value={probeTarget}
                       onChange={(e) => setProbeTarget(e.target.value)}
                     >
-                      {PROBE_TARGETS.map((t) => (
+                      {probeTargets.map((t) => (
                         <option key={t} value={t}>{t}</option>
                       ))}
                     </select>

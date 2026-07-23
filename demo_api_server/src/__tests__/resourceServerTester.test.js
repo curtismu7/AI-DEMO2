@@ -10,7 +10,23 @@ const TARGET_AUD = 'https://banking.example/rs';
 
 // Mock the shared BFF-audience resolver so getTargetAudience() is deterministic and
 // independent of ambient env / configStore.
-jest.mock('../../config/resourceAudience', () => ({ getBffResourceAudience: () => 'https://banking.example/rs' }));
+jest.mock('../../config/resourceAudience', () => ({
+  getBffResourceAudience: () => 'https://banking.example/rs',
+  getInFlowResourceAudience: () => 'mcpgateway.ping.demo',
+}));
+
+jest.mock('../../services/agentTokenCache', () => ({
+  get: jest.fn(() => null),
+  set: jest.fn(),
+}));
+
+jest.mock('../../services/agentMcpTokenService', () => {
+  const actual = jest.requireActual('../../services/agentMcpTokenService');
+  return {
+    ...actual,
+    resolveMcpAccessTokenWithEvents: jest.fn(),
+  };
+});
 
 // Mock configStore so any transitive read is inert (the service no longer reads it directly).
 jest.mock('../../services/configStore', () => ({ getEffective: () => undefined }));
@@ -23,6 +39,8 @@ jest.mock('../../services/tokenIntrospectionService', () => ({ validateToken: je
 
 const jwksService = require('../../services/jwksService');
 const introspection = require('../../services/tokenIntrospectionService');
+const agentTokenCache = require('../../services/agentTokenCache');
+const agentMcpTokenService = require('../../services/agentMcpTokenService');
 const tester = require('../../services/resourceServerTesterService');
 
 const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
@@ -42,6 +60,9 @@ const baseClaims = () => ({
 beforeEach(() => {
   jwksService.getPublicKey.mockResolvedValue({ keyObject: publicKey, alg: 'RS256' });
   introspection.validateToken.mockReset();
+  agentTokenCache.get.mockReset().mockReturnValue(null);
+  agentTokenCache.set.mockReset();
+  agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockReset();
 });
 
 describe('validate', () => {
@@ -180,6 +201,137 @@ describe('resolveToken', () => {
 
   test('errors on an unknown token reference', () => {
     expect(tester.resolveToken({ tokenRef: 'bogus' }, { oauthTokens: {} }).error).toBe('invalid_token_ref');
+  });
+
+  test('resolves mcp from the newest non-expired agentTokens cache entry', () => {
+    const session = {
+      agentTokens: {
+        'banking::mcp:invoke': {
+          access_token: 'tok-old',
+          expires_at: Date.now() + 60_000,
+        },
+        'banking::mcp:invoke openid': {
+          access_token: 'tok-new',
+          expires_at: Date.now() + 120_000,
+        },
+      },
+    };
+    const r = tester.resolveToken({ tokenRef: 'mcp' }, session);
+    expect(r).toEqual({ token: 'tok-new', source: 'session:mcp' });
+  });
+
+  test('mcp without cache returns mcp_token_not_cached (mint path is async)', () => {
+    expect(tester.resolveToken({ tokenRef: 'mcp' }, {}).error).toBe('mcp_token_not_cached');
+  });
+});
+
+describe('resolveTokenAsync', () => {
+  const sessionReq = (session) => ({ session });
+
+  test('pasted token still wins without minting', async () => {
+    const r = await tester.resolveTokenAsync(
+      { tokenRaw: 'pasted.jwt.here', tokenRef: 'mcp' },
+      sessionReq({ oauthTokens: { accessToken: 'sess' } }),
+    );
+    expect(r).toEqual({ token: 'pasted.jwt.here', source: 'pasted' });
+    expect(agentMcpTokenService.resolveMcpAccessTokenWithEvents).not.toHaveBeenCalled();
+  });
+
+  test('uses newest agentTokens cache without minting', async () => {
+    const session = {
+      oauthTokens: { accessToken: 'sess' },
+      agentTokens: {
+        a: { access_token: 'cached-mcp', expires_at: Date.now() + 60_000 },
+      },
+    };
+    const r = await tester.resolveTokenAsync({ tokenRef: 'mcp' }, sessionReq(session));
+    expect(r).toEqual({ token: 'cached-mcp', source: 'session:mcp' });
+    expect(agentMcpTokenService.resolveMcpAccessTokenWithEvents).not.toHaveBeenCalled();
+  });
+
+  test('mints via RFC 8693 when cache empty and caches result', async () => {
+    agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue({
+      token: ' minted-tok ',
+      expires_in: 1800,
+    });
+    const session = { oauthTokens: { accessToken: 'sess-at' }, activeVertical: 'banking' };
+    const req = sessionReq(session);
+    const r = await tester.resolveTokenAsync({ tokenRef: 'mcp' }, req);
+    expect(r).toEqual({ token: 'minted-tok', source: 'session:mcp' });
+    expect(agentTokenCache.set).toHaveBeenCalledWith(
+      session,
+      'banking',
+      ['mcp:invoke', 'openid', 'profile'],
+      { access_token: 'minted-tok', expires_in: 1800 },
+    );
+  });
+
+  test('returns token_not_in_session when subject AT missing', async () => {
+    const r = await tester.resolveTokenAsync({ tokenRef: 'mcp' }, sessionReq({}));
+    expect(r.error).toBe('token_not_in_session');
+    expect(agentMcpTokenService.resolveMcpAccessTokenWithEvents).not.toHaveBeenCalled();
+  });
+
+  test('returns token_not_in_session when mint reports need_auth', async () => {
+    agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue({ need_auth: true });
+    const r = await tester.resolveTokenAsync(
+      { tokenRef: 'mcp' },
+      sessionReq({ oauthTokens: { accessToken: 'sess-at' } }),
+    );
+    expect(r.error).toBe('token_not_in_session');
+    expect(agentTokenCache.set).not.toHaveBeenCalled();
+  });
+
+  test('returns mcp_token_mint_failed when mint returns empty token', async () => {
+    agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue({ token: '   ' });
+    const r = await tester.resolveTokenAsync(
+      { tokenRef: 'mcp' },
+      sessionReq({ oauthTokens: { accessToken: 'sess-at' } }),
+    );
+    expect(r.error).toBe('mcp_token_mint_failed');
+  });
+
+  test('returns mcp_token_mint_failed when mint throws', async () => {
+    agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockRejectedValue(new Error('exchange down'));
+    const r = await tester.resolveTokenAsync(
+      { tokenRef: 'mcp' },
+      sessionReq({ oauthTokens: { accessToken: 'sess-at' } }),
+    );
+    expect(r.error).toBe('mcp_token_mint_failed');
+  });
+
+  test('prefers agentTokenCache.get after agentTokens miss', async () => {
+    agentTokenCache.get.mockReturnValue({ access_token: 'from-cache-svc' });
+    const r = await tester.resolveTokenAsync(
+      { tokenRef: 'mcp' },
+      sessionReq({ oauthTokens: { accessToken: 'sess-at' } }),
+    );
+    expect(r).toEqual({ token: 'from-cache-svc', source: 'session:mcp' });
+    expect(agentMcpTokenService.resolveMcpAccessTokenWithEvents).not.toHaveBeenCalled();
+  });
+});
+
+describe('inflow profile', () => {
+  test('PERMIT when aud and mcp:invoke match the gateway RS', async () => {
+    const claims = {
+      ...baseClaims(),
+      aud: 'mcpgateway.ping.demo',
+      scope: 'openid mcp:invoke',
+    };
+    const res = await tester.validate(sign(claims), 'inflow');
+    expect(res.decision).toBe('PERMIT');
+    expect(res.rules.find((r) => r.name === 'aud').pass).toBe(true);
+    expect(res.rules.find((r) => r.name === 'scope').pass).toBe(true);
+  });
+
+  test('REJECT login-audience token against inflow policy', async () => {
+    const res = await tester.validate(sign(baseClaims()), 'inflow');
+    expect(res.decision).toBe('REJECT');
+    expect(res.rules.find((r) => r.name === 'aud').pass).toBe(false);
+  });
+
+  test('PROBE_WHITELIST includes Path B identity', () => {
+    expect(tester.PROBE_WHITELIST).toContain('/api/resource-server/identity');
   });
 });
 

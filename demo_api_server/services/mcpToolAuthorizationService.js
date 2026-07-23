@@ -326,6 +326,8 @@ async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr
   const forceStepUp = !!declaredMethod;
   if (!forceStepUp && (!transactionType || !Number.isFinite(amount) || amount <= 0 || !userId)) return r;
   if (r.decision === 'DENY' || r.policyNotFound || r.stepUpRequired) return r; // already at/above what we could add
+  // Gate already demanded HITL — leave it (never clear a stronger/equal gate).
+  if (r.hitlRequired) return r;
   try {
     const t = await pingOneAuthorizeService.evaluateTransaction({
       userId, amount, type: transactionType, acr,
@@ -352,6 +354,18 @@ async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr
         transactionPolicyStepUp: true,
       };
     }
+    // Promote Transaction-policy HITL/consent onto the MCP gate. The gate itself
+    // often PERMITs vertical writes (pay_bill, checkout, …) with no obligation;
+    // without this, UC8 ($300) executed and ProofStrip showed authorize mismatch.
+    if (t && (t.consentRequired || t.hitlRequired)) {
+      return {
+        ...r,
+        hitlRequired: true,
+        decisionId: t.decisionId || r.decisionId,
+        raw: t.raw || r.raw,
+        transactionPolicyHitl: true,
+      };
+    }
   } catch (err) {
     // A declared step-up method is gated by the useCaseId, not the amount — it
     // must still route to step-up even if the amount-limit consult errors.
@@ -361,6 +375,39 @@ async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr
     // Otherwise fail OPEN to the gate's decision: the gate already ran and is the
     // primary control. A transaction-policy outage must not block every priced call.
     console.warn('[mcpAuthz] transaction policy consult failed — keeping gate decision:', err.message);
+  }
+
+  // Local amount-band fallback when the Transaction consult attached no gate
+  // (live P1AZ Transaction endpoint may PERMIT without HITL/step-up for agent
+  // vertical writes). Same bands as simulatedAuthorizeService / Demo Controls.
+  if (!forceStepUp && Number.isFinite(amount) && amount > 0) {
+    const denyAmount = simulatedAuthorizeService.getDenyAmountUsd();
+    const stepUpAmount = simulatedAuthorizeService.getStepUpAmountUsd();
+    const confirmAmount = simulatedAuthorizeService.getConfirmAmountUsd();
+    if (amount > denyAmount) {
+      return {
+        ...r,
+        decision: 'DENY',
+        transactionPolicyDenied: true,
+        localAmountBand: true,
+      };
+    }
+    if (amount >= stepUpAmount) {
+      return {
+        ...r,
+        stepUpRequired: true,
+        transactionPolicyStepUp: true,
+        localAmountBand: true,
+      };
+    }
+    if (amount >= confirmAmount) {
+      return {
+        ...r,
+        hitlRequired: true,
+        transactionPolicyHitl: true,
+        localAmountBand: true,
+      };
+    }
   }
   return r;
 }
@@ -1079,4 +1126,6 @@ module.exports = {
   // and that the returned id is in the subjectId (oauthId) space.
   resolveResourceOwnerId,
   RESOURCE_OWNER_TOOLS,
+  // Amount-band / Transaction-policy overlay for MCP write tools (UC6/7/8).
+  _applyTransactionPolicy,
 };

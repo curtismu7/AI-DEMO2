@@ -18,7 +18,7 @@ import SimpleStepperBar from './SimpleStepperBar';
 import ReasoningPanel from './ReasoningPanel';
 import ConversationSummaryPanel from './ConversationSummaryPanel';
 import ProofStrip from './ProofStrip';
-import { navigateToCustomerOAuthForceLogin, requestSilentReauth } from "../utils/authUi";
+import { navigateToCustomerOAuthForceLogin, requestSilentReauth, isAuthRequiredApiError, notifySessionExpiredIfNeeded, USER_SESSION_EXPIRED_MESSAGE } from "../utils/authUi";
 import { setAgentAuthorization } from "../services/agentAuthorizationService";
 import {
   AGENT_CONSENT_BLOCK_USER_MESSAGE,
@@ -65,7 +65,11 @@ import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
 import DemoStepsDropdown from "./DemoStepsDropdown";
 import BankingChips, { PINGONE_ADMIN_CHIP_IDS } from "./BankingChips";
-import { markUseCaseCompleted } from "../utils/useCaseDemoProgress";
+import { markUseCaseCompleted, clearCompletedUseCases } from "../utils/useCaseDemoProgress";
+import {
+  requiredFlagsForUseCase,
+  requiredFlagsForUseCaseId,
+} from "../utils/requiredDemoFlags";
 import apiClient from "../services/apiClient";
 import { formatAxiosError } from "../utils/formatAxiosError";
 import { adminCustomerContext } from "../services/adminCustomerContext";
@@ -227,6 +231,12 @@ const NL_FAILURE_MESSAGES = {
     "The server took too long to respond — it may still be starting up. Try again in a moment.",
   insufficient_scope:
     "This needs an admin session — click \"Switch to admin\" in the top navigation, then try again.",
+  // Token exchange #2 failed (often PingOne invalid_scope when gateway broker
+  // flags drifted off). Surface a fixable sentence — not the generic fallback.
+  delegation_chain_broken:
+    "Token exchange failed — turn on PingGateway routing and brokered exchange (Admin → Feature flags: ff_mcp_gateway_pinggateway and ff_gateway_brokered_exchange), then try again.",
+  invalid_scope:
+    "Token exchange requested scopes across multiple resources. Enable ff_mcp_gateway_pinggateway and ff_gateway_brokered_exchange, then retry.",
 };
 const NL_FAILURE_FALLBACK =
   "That step couldn't be completed. Try again, or pick another demo step.";
@@ -5722,6 +5732,33 @@ export default function BankingAgent({
         });
         return;
       }
+      if (action === "weather") {
+        // Heuristic parses "weather in <city>" → action weather, but runAction
+        // has no weather case (Unknown action: weather). Execute via /agent/invoke
+        // so the full gateway → get_weather pipeline + Token Chain run (same as
+        // the UC30 Demo Step chip).
+        const city = p.city_name || p.city || "";
+        const weatherPrompt = nlUserText
+          || (city ? `what's the weather in ${city}` : "what's the weather");
+        try {
+          const response = await sendAgentMessage(weatherPrompt, null, {
+            forceHeuristic: true,
+            vertical: effectiveVerticalId || "banking",
+            ...(useCaseId ? { useCaseId } : {}),
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent("weather", ev),
+          });
+          if (maybeHandleCustomerLogin(response, _source)) return;
+          await handleNlResumeResponse(response, weatherPrompt, useCaseId);
+        } catch (e) {
+          addMessage(
+            "assistant",
+            e?.message || "Could not get the weather.",
+            null,
+            { source: _source },
+          );
+        }
+        return;
+      }
       if (action === "request_fee_waiver") {
         // UC28 — tool set as the authorization boundary (Air Canada pattern).
         // The tool SUBMITS a request for human review; nothing can grant a
@@ -5889,19 +5926,8 @@ export default function BankingAgent({
         // A tokenless session must surface as "sign in again" + redirect — not as
         // the reply text alone (the user can't tell a sign-in problem from an
         // agent outage; see 2026-06-12 expired-token incident).
-        // Also catch 401 from authenticateToken when _cookie_session has no
-        // _restoredFromCookie flag (returns { error: 'authentication_required' },
-        // no requiresLogin/need_auth field, success absent).
-        if (response?.requiresLogin || response?.error === "login_required" || response?.need_auth ||
-            response?._status === 401 || response?.error === "authentication_required" || response?.error === "session_expired") {
-          addMessage(
-            "assistant",
-            response.reply ||
-              "Your session is no longer signed in — please sign in again to continue.",
-            null,
-            { source: _source },
-          );
-          setTimeout(() => navigateToCustomerOAuthForceLogin(), 1500);
+        if (isAgentAuthFailure(response)) {
+          handleAgentAuthRequired(response, { redirect: true, source: _source });
           return;
         }
         ingestActivity(response, nlUserText || result.action);
@@ -6087,6 +6113,68 @@ export default function BankingAgent({
     return true;
   }
 
+  /**
+   * True when an agent/NL payload means the user must sign in again.
+   * Works for HTTP envelopes (`_status`) and stripped error objects (`code`/`error`).
+   */
+  function isAgentAuthFailure(payload) {
+    if (!payload || typeof payload !== "object") return false;
+    if (payload.need_auth || payload.requiresLogin) return true;
+    const status = payload._status ?? payload.statusCode ?? payload.status;
+    const body = {
+      error: payload.error || payload.code,
+      code: payload.code,
+      message: payload.message || payload.reply,
+      error_description: payload.error_description,
+      need_auth: payload.need_auth,
+      requiresLogin: payload.requiresLogin,
+      agentInitRequired: payload.agentInitRequired,
+    };
+    if (status === 401) return isAuthRequiredApiError(401, body);
+    // Resume path sometimes drops status but keeps "Session expired" / "Unauthorized"
+    return isAuthRequiredApiError(401, body);
+  }
+
+  /**
+   * Consistent agent UX for auth loss: chat copy + SessionReauthBanner.
+   * Optional redirect preserves existing dispatchNlResult behavior.
+   */
+  function handleAgentAuthRequired(payload, { redirect = false, source } = {}) {
+    if (cookieOnlyBffSession) {
+      if (!sessionFixBubbleShownRef.current) {
+        sessionFixBubbleShownRef.current = true;
+        addMessage("error", SESSION_NOT_HYDRATED_CHAT, null, {
+          showSessionFixActions: true,
+        });
+      }
+      return true;
+    }
+    const p = (location.pathname || "").replace(/\/$/, "") || "/";
+    if (isPublicMarketingAgentPath(p) && !isLoggedIn) {
+      addMessage("assistant", " Signing you in with PingOne…");
+      handleLoginAction("login_user");
+      return true;
+    }
+    notifySessionExpiredIfNeeded({
+      status: 401,
+      body: payload,
+      pathname: location.pathname,
+    });
+    const raw =
+      (typeof payload?.reply === "string" && payload.reply.trim()) ||
+      (typeof payload?.message === "string" && payload.message.trim()) ||
+      "";
+    const chatMsg =
+      raw && /sign in|log in|session/i.test(raw)
+        ? raw
+        : USER_SESSION_EXPIRED_MESSAGE;
+    addMessage("assistant", chatMsg, null, source ? { source } : undefined);
+    if (redirect) {
+      setTimeout(() => navigateToCustomerOAuthForceLogin(), 1500);
+    }
+    return true;
+  }
+
   /** NL API errors: 401 is session missing on server — not a parse failure. */
   function reportNlFailure(err, retry) {
     // AbortSignal.timeout() rejects with a TimeoutError (message "signal timed
@@ -6131,35 +6219,8 @@ export default function BankingAgent({
       }
       return;
     }
-    if (
-      err?.statusCode === 401 ||
-      err?._status === 401 ||
-      err?.code === "authentication_required" ||
-      err?.code === "login_required"
-    ) {
-      if (cookieOnlyBffSession) {
-        if (!sessionFixBubbleShownRef.current) {
-          sessionFixBubbleShownRef.current = true;
-          addMessage("error", SESSION_NOT_HYDRATED_CHAT, null, {
-            showSessionFixActions: true,
-          });
-        }
-        return;
-      }
-      const p401 = (location.pathname || "").replace(/\/$/, "") || "/";
-      if (isPublicMarketingAgentPath(p401) && !isLoggedIn) {
-        addMessage("assistant", " Signing you in with PingOne…");
-        handleLoginAction("login_user");
-        return;
-      }
-      notifyError(
-        "Sign in required — the server has no session for this request. Refresh the page and sign in again.",
-        { autoClose: agentToastMs.errShort },
-      );
-      addMessage(
-        "assistant",
-        "You need an active server session to use the agent. If you already signed in, refresh the page (session may have expired or cookies may not have reached the API).",
-      );
+    if (isAgentAuthFailure(err)) {
+      handleAgentAuthRequired(err, { redirect: false });
       return;
     }
     // A demo step must never render a raw backend error string. Map the BFF
@@ -6194,6 +6255,26 @@ export default function BankingAgent({
   }
 
   /**
+   * Arm every feature flag a demo chip / use case needs so presenters are not
+   * blocked by a default-off flag (e.g. ff_a2a_delegation).
+   * @param {string[]} flagIds
+   * @param {string} [reason]
+   */
+  async function ensureRequiredDemoFlags(flagIds, reason = "demo step") {
+    const updates = {};
+    for (const id of flagIds || []) {
+      if (id) updates[id] = true;
+    }
+    if (!Object.keys(updates).length) return;
+    try {
+      await apiClient.patch("/api/admin/feature-flags", { updates });
+      console.log(`[ensureRequiredDemoFlags] Auto-enabled ${Object.keys(updates).join(", ")} for ${reason}`);
+    } catch (e) {
+      console.warn(`[ensureRequiredDemoFlags] Could not auto-enable flags for ${reason}:`, e.message);
+    }
+  }
+
+  /**
    * Run a Demo-section use case from the agent header (same catalog as /use-cases).
    * Chip triggers replay NL with useCaseId stamping; attacks hit the sim API;
    * link/edu open their destinations.
@@ -6210,26 +6291,7 @@ export default function BankingAgent({
     const stepLabel = `Demo step ${stepNumber}: ${uc.id} — ${uc.title}`;
     const trigger = uc.trigger || {};
 
-    // Auto-enable feature flags required by flag-gated demo steps.
-    // This ensures presenters don't need to manually toggle flags before running.
-    if (uc.maturity && typeof uc.maturity === "string" && uc.maturity.startsWith("flag:")) {
-      const flagName = uc.maturity.replace("flag:", "");
-      try {
-        await apiClient.patch("/api/admin/feature-flags", { updates: { [flagName]: true } });
-        console.log(`[handleDemoStepSelect] Auto-enabled ${flagName} for ${uc.id}`);
-      } catch (e) {
-        console.warn(`[handleDemoStepSelect] Could not auto-enable ${flagName}:`, e.message);
-      }
-    }
-    // UC2.5 (A2A orchestrator) needs ff_a2a_delegation but has maturity 'works'
-    if (uc.id === "UC2.5") {
-      try {
-        await apiClient.patch("/api/admin/feature-flags", { updates: { ff_a2a_delegation: true } });
-        console.log("[handleDemoStepSelect] Auto-enabled ff_a2a_delegation for UC2.5");
-      } catch (e) {
-        console.warn("[handleDemoStepSelect] Could not auto-enable ff_a2a_delegation:", e.message);
-      }
-    }
+    await ensureRequiredDemoFlags(requiredFlagsForUseCase(uc), uc.id);
 
     if (trigger.type === "chip" && trigger.text) {
       if (!(isLoggedIn || marketingGuestChatEnabled)) {
@@ -7217,8 +7279,32 @@ export default function BankingAgent({
           });
         }
       }
+    } else if (isAgentAuthFailure(response)) {
+      // Overnight demo-step resume: must not drop _status/need_auth into reportNlFailure
+      handleAgentAuthRequired(response, { redirect: false });
     } else if (response.error || !response.success) {
-      reportNlFailure({ code: response.error || "unknown", message: response.reply || response.message || response.error });
+      reportNlFailure({
+        code: response.error || "unknown",
+        error: response.error,
+        message: response.reply || response.message || response.error,
+        _status: response._status,
+        statusCode: response._status,
+        need_auth: response.need_auth,
+        requiresLogin: response.requiresLogin,
+      });
+      // Failure path must still update Token Chain / TraceRail — that is where
+      // demo operators diagnose exchange/Authorize/gateway breaks. Success and
+      // HITL/DENY branches already append; skipping here left the rail blank.
+      if (response.tokenEvents?.length) {
+        appendTokenEvents(response.tokenEvents);
+        if (tokenChain) {
+          tokenChain.setTokenEvents("agent", response.tokenEvents);
+        }
+        const agentTokenMsg = buildTokenEventMsg(response.tokenEvents);
+        if (agentTokenMsg) {
+          addMessage("token-event", agentTokenMsg, null);
+        }
+      }
       // Dispatch error event to EventStream
       addEvent({
         type: 'error',
@@ -7729,8 +7815,20 @@ export default function BankingAgent({
                 aria-modal="false"
                 ref={actionsPopoutRef}
               >
-                {/* Search */}
-                <input
+                <div className="ba-agent-popout-hdr">
+                  <div className="ba-agent-popout-hdr__top">
+                    <span className="ba-agent-popout-hdr__title">Actions</span>
+                    <button
+                      type="button"
+                      className="ba-agent-popout-hdr__clear"
+                      onClick={() => clearCompletedUseCases()}
+                      title="Clear checkmarks for a fresh demo pass"
+                      data-testid="actions-clear-progress"
+                    >
+                      Clear progress
+                    </button>
+                  </div>
+                  <input
                   className="ba-popout-search"
                   type="search"
                   placeholder="Search actions or type a question…"
@@ -7790,12 +7888,15 @@ export default function BankingAgent({
                   }}
                 />
                 {isLoggedIn && (
-                  <ScopePicker
-                    allowWrite={agentAllowWrite}
-                    disabled={agentToolsLoading}
-                    onChange={setAgentAllowWrite}
-                  />
+                  <div className="ba-agent-popout-hdr__tools">
+                    <ScopePicker
+                      allowWrite={agentAllowWrite}
+                      disabled={agentToolsLoading}
+                      onChange={setAgentAllowWrite}
+                    />
+                  </div>
                 )}
+                </div>
                 {isLoggedIn && degradedAuthz && (
                   <div className="ba-authz-degraded-badge" title="PingOne Authorize unreachable — using the demo authorize server">
                     Demo Authorize
@@ -7817,7 +7918,7 @@ export default function BankingAgent({
                         `This action was denied by PingOne Authorize: "${chip.label}" — ${reason}. Switch the Agent scope to "Read + Write" to enable it.`,
                       );
                     }}
-                    onChipClick={({ message, label, requiresLlm, chipId, direct, showcase, caption, stepUpMethod, denyTool, useCaseId: chipUseCaseId }) => {
+                    onChipClick={async ({ message, label, requiresLlm, chipId, direct, showcase, caption, stepUpMethod, denyTool, useCaseId: chipUseCaseId }) => {
                       setShowDiscovery(false);
                       if (isAgentBlockedByConsentDecline()) {
                         addMessage(
@@ -7826,6 +7927,12 @@ export default function BankingAgent({
                         );
                         return;
                       }
+                      // Arm flag-gated / A2A chips before the NL or direct path runs
+                      // (demo-step dropdown already does this; BankingChips did not).
+                      await ensureRequiredDemoFlags(
+                        requiredFlagsForUseCaseId(chipUseCaseId),
+                        chipUseCaseId || chipId || "chip",
+                      );
                       addMessage("user", label || message);
                       setNlLoading(true);
 

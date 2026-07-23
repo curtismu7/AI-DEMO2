@@ -5,6 +5,7 @@
 
 const configStore = require('../../services/configStore');
 const {
+  getCanonicalPublicOrigin,
   getAdminRedirectUri,
   getUserRedirectUri,
   getOAuthRedirectDebugInfo,
@@ -39,6 +40,12 @@ describe('oauthRedirectUris', () => {
     delete process.env.REACT_APP_CLIENT_URL;
     delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
     delete process.env.VERCEL;
+  });
+
+  // Regression: transactions.js verify-otp imports this; a missing export threw
+  // unhandledRejection and left the consent modal stuck on "Verifying…".
+  it('exports getCanonicalPublicOrigin as a function', () => {
+    expect(typeof getCanonicalPublicOrigin).toBe('function');
   });
 
   it('uses PUBLIC_APP_URL for admin and user callbacks on Vercel (ignores deployment host)', () => {

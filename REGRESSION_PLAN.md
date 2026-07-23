@@ -55,6 +55,7 @@ minimal diff.
 | OAuth redirect origin | `routes/oauth*.js` — no `localhost` hardcodes |
 | Clinical split dashboard (`ff_agent_clinical_split`) | `demo_api_ui/src/components/agent-clinical/` — `AgentClinicalHost.jsx` owns tab state + 1/2/3/4 keyboard; `TalkPane.jsx` hosts the inline agent (auto-open, `setClinicalSplit`) + `TokenAuditTimeline` (live `TokenChainContext` events); `InspectPane.jsx` wraps `ActivityLogPanel`; `TokensPane.jsx` embeds `UnifiedTokenFlowInspector`; `ConfigurePane.jsx` wraps `AuthorizeRulesPanel` + read-only runtime card. Legacy dashboard with the flag OFF must stay unchanged |
 | Code Explorer SSE | `demo_api_ui/nginx.conf`, `k8s/02-configmap.yaml` nginx-config, `k8s/aws/nginx-http-configmap.yaml`, `k8s/aws/se-ingress.yaml`, `demo_api_server/routes/codegraphProxy.js`, `langchain_agent/src/codegraph/agent.py` — `/api/codegraph/` must keep `proxy_buffering off` + 300s timeouts; agent must emit SSE keepalives while waiting on the LLM. Guarded by `scripts/check-codegraph-sse-nginx.js` + `k8s/smoke.sh` check 7 |
+| Code Explorer index DB | Demo index is **`.codegraph/demo-codegraph.db` only** — never `.codegraph/codegraph.db` (host CodeGraph product daemon). `CODEGRAPH_DB_PATH` / bake (`setup:fresh` / `run.sh` / `se-update-code.sh`) / Refresh must keep that split; `builder=demo-build-codegraph` marker required; FTS stopwords + retrieve blend required. Guarded by `npm run hygiene:check` + `npm run test:codegraph-index` (CI gates job), `scripts/check-codegraph-demo-index.js` (+ negatives), `langchain_agent/src/codegraph/index_guard.py`, + `tests/test_{codegraph_index_guard,build_codegraph,ensure_index,retrieve}.py` |
 
 ---
 
@@ -100,6 +101,267 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 
 Reverse-chronological, newest first.
+
+### 2026-07-23 — Resource-server dual-view merged without canaries; post-merge harden + standing rule
+
+**Files changed:**
+
+- `demo_api_server/routes/resourceServer.js` — `/summary-inflow` session gate parity with `/summary`
+- `demo_api_server/services/resourceServerTesterService.js` — `resolveTokenAsync` mint edge cases
+- `demo_api_server/src/__tests__/resourceServer.summaryInflow.regression.test.js`
+- `demo_api_server/src/__tests__/resourceServerTester.test.js` — `resolveTokenAsync` suite
+- `demo_api_ui/src/components/ResourceServerPage.jsx` — `startsWith('banking:')` scope badge
+- `demo_api_ui/src/components/__tests__/ResourceServerPage.dualView.test.jsx`
+- `scripts/check-fresh-clone-hygiene.js` — `rs-dual-view` canaries
+- `.cursor/rules/post-merge-ledger-canary.mdc` — **on every merge**: ledger/tester canary + fix
+
+**What was broken:** #780 landed Login RS / In-flow RS without route/UI tests, without
+mint hardening beyond happy path, and with Greptile P2s open; CI died in ~4s (Actions
+minutes exhausted) so the merge looked “done” without a green follow-up.
+
+**What was fixed:** Harden PR #781 + hygiene/rule so dropping the canaries or the
+session-gate / badge / mint contracts fails `npm run hygiene:check` immediately.
+
+**Standing rule (every merge):** ship a ledger/tester canary and the fix in the same
+landing (or same-day harden). Do not leave “no tests / happy-path only / Greptile P2”
+for later. See `.cursor/rules/post-merge-ledger-canary.mdc`.
+
+**Verify:**
+```bash
+node scripts/check-fresh-clone-hygiene.js
+cd demo_api_server && npx jest --testPathPattern='resourceServer.summaryInflow|resourceServerTester.test' --forceExit
+cd demo_api_ui && npx vitest --run src/components/__tests__/ResourceServerPage.dualView.test.jsx
+```
+
+### 2026-07-22 — CareConnect left the stack "stuck" on healthcare (Primary Care / HSA)
+
+**Files changed:**
+
+- `demo_api_server/routes/verticalManifest.js` — end-user `POST /api/verticals/active`
+  updates **session only**; only admins (or `global:true` from admin) call `setActive`
+  / SSE-broadcast the process-global default.
+- `demo_api_server/routes/agentInvokeRoute.js` + `demoAgentNl.js` — explicit request
+  `vertical` pins `req.session.active_vertical` so banking pages re-align a session
+  left on healthcare/retail.
+- `demo_api_server/services/demoAgentLangGraphService.js` — banking transfer/deposit/
+  withdraw reseeds accounts when they don't match the banking vertical.
+- `demo_api_ui/playwright.real.config.js` + `tests/e2e/helpers/restoreBankingVertical.js`
+  — globalTeardown restores banking via admin session after `*.real.spec.js`.
+- `demo_api_server/tests/verticalManifest/route.write.test.js` — asserts end-user
+  switch does not move the global.
+
+**What was broken:** CareConnect (and other) e2e / UI switches called `setActive`,
+so the process-global became healthcare. New sessions pinned to that on first `/me`,
+and banking transfers saw Primary Care/HSA until someone switched back.
+
+**Do not break:** session isolation (`activeIdFor`); admin SideNav switch still moves
+the room default; Reset Demo clearing session pins; emoji allowlist.
+
+**Verify:** `cd demo_api_server && npx jest tests/verticalManifest/route.write.test.js
+tests/verticalSessionPin.route.test.js --coverage=false`.
+
+### 2026-07-22 — Token Summary only listed 1-exchange tokens (missed full 2-exchange run)
+
+**Files changed:**
+
+- `demo_api_ui/src/components/TraceTokenSummary.jsx` — TOKEN_META covers
+  `two-ex-agent-actor`, `two-ex-exchange1`, `two-ex-mcp-actor`, `two-ex-final-token`
+  (+ fallback exchanged id) so the end-of-rail accordion lists every token in the run.
+- `demo_api_ui/src/services/tokenChainTrace/resolveInspectClaims.js` — Inspect falls
+  back to 2-exchange event ids when 1-exchange ids are absent.
+- `demo_api_ui/src/components/__tests__/TraceTokenSummary.only.test.jsx` — asserts
+  2-exchange summary count/labels; MCP tab still filters to the final delegated token.
+- `demo_api_server/services/stepVerificationExpectations.js` —
+  `scoreTokenSummaryCoverage` requires the full 1-ex or 2-ex Token Summary id set.
+- `demo_api_ui/tests/e2e/stepVerification.banking.real.spec.js` — amount-gate chips
+  FAIL + ledger `tokenSummaryMode` / `tokenSummaryIds` / `tokenSummaryMissing` when
+  any summary token is absent.
+- `demo_api_server/src/__tests__/stepVerificationExpectations.test.js` — coverage unit tests.
+
+**What was broken:** Token Summary hard-coded only `user-token` / `agent-actor-token` /
+`exchanged-token`. On a 2-exchange demo run the accordion omitted the intermediate
+and final tokens even though they were in `trace.tokenEvents`. Step verification only
+checked “some event has detail,” so a blank Summary still ledged PASS.
+
+**Do not break:** TraceRail step ids / layout; MCP tab `only="mcp"` still shows only
+the delegated final token (not the full chain); auth / exchange minting untouched.
+
+**Verify:** `cd demo_api_ui && npm test -- --run src/components/__tests__/TraceTokenSummary.only.test.jsx`
+(4/4); `cd demo_api_server && npm test -- --testPathPattern=stepVerificationExpectations --coverage=false`;
+`npm run build` in `demo_api_ui` (0).
+
+### 2026-07-22 — Code Explorer (`/code-search`) loaded no UI code (and intermittently `malformed database schema`)
+
+**Symptom:** Asking about UI symbols (e.g. `CodeExplorerPage`) returned “not in context”; queries sometimes failed with `malformed database schema (function)`.
+
+**Root cause:** (1) Baked indexer at `/app/indexer/build-codegraph.py` resolved `REPO_ROOT=/app`, nesting paths as `live-repo/demo_api_ui/...` while `REPO_SRC_ROOT=/app/live-repo` expected unprefixed paths. (2) Demo Refresh wrote the same `.codegraph/codegraph.db` as the host CodeGraph product daemon, which overwrote/corrupted the demo schema.
+
+**Fix:** Separate demo DB (`.codegraph/demo-codegraph.db`), pass root via `REPO_SRC_ROOT`, default index scope UI+API only, hardening checks (`builder=demo-build-codegraph` marker, refuse `live-repo/` paths, non-zero UI/API counts) on Refresh + startup. Do **not** “simplify” `CODEGRAPH_DB_PATH` back to `codegraph.db`.
+
+**Files:** `scripts/build-codegraph.py`, `langchain_agent/src/codegraph/{index_guard,ensure_index,db}.py`, `langchain_agent/src/api/codegraph_handler.py`, `docker-compose.yml`, `demo_api_ui/src/components/CodeExplorerPage.jsx`, `langchain_agent/tests/test_codegraph_index_guard.py`.
+
+### 2026-07-22 — CareConnect UC8 HITL (and UC7 step-up) ProofStrip Mismatch after "success"
+
+**Files changed:** `demo_api_server/services/mcpToolAuthorizationService.js`
+(`_applyTransactionPolicy` promotes Transaction HITL/consent + local amount-band
+fallback), `demo_api_ui/src/services/tokenChainTrace/tokenChainTraceStore.js`
+(preserve `HITL_REQUIRED`/`STEP_UP` outcome across approve→retry PERMIT), tests.
+
+**What was broken:** CareConnect `pay my $300 bill` (UC8) and `$600` (UC7) ran
+straight to `POST /api/path/vertical-tool` 200 with no 428. Live MCP gate often
+PERMITs vertical writes; Transaction-policy consent was never promoted onto the
+gate, so ProofStrip saw PERMIT vs expected `HITL_REQUIRED` → Mismatch. After a
+real HITL approve→retry, ingestAuthorize also overwrote outcome with bare PERMIT.
+
+**What was fixed:** Promote `consentRequired`/`hitlRequired` from
+`evaluateTransaction`; local amount-band fallback (same thresholds as simulated
+AS) when Transaction attaches nothing; keep prior gate outcome on retry PERMIT
+so ProofStrip scores `denied-as-expected`.
+
+**Do not break:** DENY > STEP_UP > HITL precedence; never clear an existing
+`hitlRequired` on the gate; ProofStrip still mismatches when DENY expected but
+HITL fired (and vice versa).
+
+**Verify:** `CI=true npx jest tests/mcpToolAuthorization.transactionPolicyHitl.test.js --forceExit`;
+`npx vitest run …/tokenChainTraceStore.test.js …/ProofOfEnforcementContext.test.js`;
+`cd demo_api_ui && npm run build`.
+
+### 2026-07-22 — OAuth Academy teach chips looked dead under agent_mode=llamacpp
+
+**Files changed:**
+
+- `demo_api_server/services/verticalDispatch.js` — `findLocalToolPlugin(name)`.
+- `demo_api_server/services/bffMcpToolExecutor.js` — execute local teaching tools
+  in-process before MCP (fixes LLM `Unknown tool: explain_concept`).
+- `demo_api_ui/src/components/OAuthAcademyPage.jsx` — forceHeuristic for
+  what-is/explain starter chips; Abort/Timeout no longer leave an empty bubble;
+  do not auto-open education drawers from Academy replies.
+- `demo_api_server/src/__tests__/bffMcpToolExecutor.localTool.test.js` — regression.
+
+**What was broken:** With `agent_mode=llamacpp`, heuristic routing is off. Teach chips
+did not set `forceHeuristic`, so `/api/agent/invoke` waited ~40s on the LLM; the model
+called `explain_concept` through MCP and got `Unknown tool`. Typing indicator looked like
+no response. After the forceHeuristic fix, `education.panel` auto-opened banking-oriented
+drawers (e.g. Least-Data) over the Academy chat.
+
+**Do not break:** Non-local vertical/banking tools still use `runMcpToolPipeline` (RFC 8693,
+Authorize, HITL). `dispatchVerticalIntent` local bypass unchanged for heuristic path.
+Dashboard agent education auto-open unchanged.
+
+**Verify:** `cd demo_api_server && npx jest src/__tests__/bffMcpToolExecutor.localTool.test.js --coverage=false`;
+live `POST /api/agent/invoke` with `{prompt:'what is oauth', vertical:'oauth-teaching', forceHeuristic:true}`
+returns `toolsCalled:['explain_concept']` in under ~2s; `cd demo_api_ui && npm run build`.
+
+### 2026-07-22 — `/admin` Demo Steps showed banking UCs and hit `requiresCustomerLogin`
+
+**Files changed:**
+
+- `demo_api_ui/src/App.js` — `forceVertical: "pingone-admin"` when
+  `isPingOneAdminAgentRoute(pathname)` (`/admin` only).
+- `demo_api_ui/src/utils/embeddedAgentFabVisibility.js` —
+  `isPingOneAdminAgentRoute`.
+- `demo_api_ui/src/services/demoAgentService.js` — `sendToAdminAgent` begins
+  TraceRail + ingests admin `tokenEvents`.
+- Tests: `embeddedAgentFabVisibility.test.js`, `App.structure.test.js`,
+  `demoAgentService.adminRouting.test.js`.
+
+**What was broken:** `/admin` agent used the active theme vertical (usually
+`banking`), so Demo Steps loaded the customer trust-ladder catalog. Running a
+step hit `customerTokenGuard` → “Log in as customer” instead of
+`/api/admin-agent` (ADMIN1–4 in `config/admin/demoSteps.js`).
+
+**What was fixed:** Force `pingone-admin` on `/admin` so Demo Steps / NL /
+chips share the admin vertical and admin-agent path.
+
+**Do not break:** Banking Demo Steps on `/` and `/dashboard`; vertical ops
+under `/admin/banking` etc. (not `isPingOneAdminAgentRoute`);
+`PINGONE_ADMIN_CHIP_IDS` chip path; non-admin `sendAgentMessage` →
+`/api/agent/invoke`.
+
+**Verify:** `cd demo_api_ui && npx vitest --run
+src/utils/__tests__/embeddedAgentFabVisibility.test.js
+src/__tests__/App.structure.test.js
+src/services/__tests__/demoAgentService.adminRouting.test.js
+src/components/__tests__/DemoStepsDropdown.test.jsx`. Live: post-deploy §3
+**Demo Steps** row (`docs/runbooks/regression/post-deploy.md`).
+
+### 2026-07-22 — UC30 gateway PERMIT + real weather, chat still Incomplete: prose vs parseToolResult
+
+**Files changed:**
+
+- `demo_api_server/services/demoAgentLangGraphService.js` — weather heuristic treats
+  `executeBffTool` markdown string as success; only JSON-parse error/deny envelopes.
+- `demo_api_server/src/__tests__/weatherHeuristicProse.regression.test.js`
+
+**What was broken:** After gateway PERMIT and weather-mcp prose, `parseToolResult` JSON-failed
+the markdown → `tool_result_unparseable` → `success:false` → UI
+"That step couldn't be completed" / ProofStrip Incomplete (access-token).
+
+**What was fixed:** Accept unwrapped prose for `action === 'weather'`; keep deny JSON as failure.
+
+**Do not break:** Banking JSON tools still go through `parseToolResult`; UC31 Miami DENY.
+
+**Verify:** unit test above; live `POST /api/agent/invoke` with `forceHeuristic:true` and
+Austin prompt → `success:true`, `toolsCalled:['get_weather']`, reply contains Temperature.
+
+### 2026-07-22 — UC30 weather chat 401'd: McpProtectionFilter `/weather` resourceId rejected BFF gateway aud
+
+**Files changed:**
+
+- `ping-gateway/config/routes/00-mcp-weather.json` — restored shared heap `"rsFilter"` for
+  inbound auth (pre-#722 shape) instead of `McpProtectionFilter` with
+  `resourceId: ${PG_GATEWAY_RESOURCE_ID}/weather`.
+
+**What was broken:** PR #728 uniquified invest/weather/apikey `resourceId`s so well-known PRM
+paths don't collide (`AlreadyRegisteredException` on
+`/.well-known/oauth-protected-resource/mcp`). Weather then expected aud `…/mcp/weather`, but
+the BFF still mints `aud=https://api.ping.demo:3036/mcp` → gateway 401
+`Access Token resource ID does not match` → UC30 ProofStrip Incomplete. Sharing OLB's
+resourceId re-triggers the well-known collision and the weather route fails to load.
+
+**What was fixed:** Shared `rsFilter` accepts the existing gateway token without registering a
+second PRM endpoint. Texas scope (`tx-weather-scope.groovy`) is unchanged.
+
+**Do not break:** OLB `mcp-olb-primary` McpProtectionFilter + unique invest/apikey
+resourceIds; weather path still `/mcp/weather` via StripWeatherPrefix.
+
+**Verify:** recreate `ping-gateway`; logs show `mcp-weather-primary` loaded; UC30
+`what's the weather in Austin, TX` reaches TxWeatherScope (not 401 resource mismatch).
+
+
+### 2026-07-22 — UC30 PERMIT at gateway then Incomplete: weather-mcp rejects tool name `get_weather`
+
+**Files changed:**
+
+- `demo_mcp_weather/server.js` — rewrite `tools/call` name `get_weather` →
+  `get_current_conditions` before forwarding to `@dangahagan/weather-mcp`.
+
+**What was broken:** After auth + Texas-scope PERMIT, the third-party server's default
+`ENABLED_TOOLS` does not include `get_weather`, so every call returned
+`isError: Tool 'get_weather' is not enabled` → heuristic `success:false` → ProofStrip
+Incomplete. Design/e2e already used `get_current_conditions`.
+
+**Verify:** UC30 Austin chat returns weather prose with `success:true` / toolsCalled
+`get_weather` (agent-facing name unchanged).
+
+### 2026-07-22 — UC30 still Incomplete after 401 fix: norm() stripped comma so Texas scope DENY'd Austin
+
+**Files changed:**
+
+- `demo_api_server/services/nlIntentParser.js` — weather city capture uses the original
+  `message`, not `norm(message)` (which turns `Austin, TX` into `austin tx`).
+- `ping-gateway/scripts/groovy/tx-weather-scope.groovy` — also treat trailing
+  space+abbrev (`austin tx`) as in-state, same as `, tx`.
+
+**What was broken:** After the rsFilter restore, gateway auth passed but TxWeatherScope
+returned 403 `city not recognized as Texas` because the heuristic sent `city_name:
+"austin tx"` (no comma). Groovy's no-comma branch only allowlists bare city names
+(`austin`), not `austin tx`.
+
+**Verify:** `parseHeuristic("what's the weather in Austin, TX")` → `city_name: "Austin, TX"`;
+UC30 PERMITs at the gateway scope filter.
+
+
 
 ### 2026-07-22 — 2-exchange TraceRail Exchange step lost coloured request JSON
 
@@ -3110,7 +3372,8 @@ exactly as before (dashboards); AIAgent changes must stay confined to the
 drawer-event listener effects (FAB/resize/dock/session untouched); the settings
 PUT must keep writing runtimeSettings for all other keys; delegation grant must
 still succeed when password-set fails; `build-codegraph.py` without `--out`
-must write to `.codegraph/codegraph.db` as before; the base
+must write to `.codegraph/demo-codegraph.db` (separate from the host
+CodeGraph CLI/MCP `codegraph.db`); the base
 `k8s/02-configmap.yaml` proxy block and the AWS override must stay in sync.
 
 **Verify:** `cd demo_api_ui && npm run build` (exit 0); `npx jest

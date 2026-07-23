@@ -1,0 +1,10 @@
+{
+  "vertical": "banking",
+  "useCaseId": "UC4",
+  "triggerType": "chip",
+  "mode": "unit-parse",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "get_account_balance",
+  "checkedAt": "2026-07-22T22:22:34.620Z"
+}
