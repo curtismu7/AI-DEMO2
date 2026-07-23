@@ -126,8 +126,8 @@
 /* Two-class selector beats ud-body--2026 single-class override */
 .ud-body.ud-body--dashboard-split3 {
   display: grid;
-  /* Token rail | Banking | Agent — give agent more space */
-  grid-template-columns: minmax(240px, 260px) 1fr minmax(360px, 420px);
+  /* Token rail | Banking | Agent — width driven by CSS vars set by drag-resize */
+  grid-template-columns: minmax(240px, 260px) var(--ud-agent-col-width, 380px) var(--ud-token-rail-width, 320px);
   grid-template-rows: 1fr;
   gap: 0;
   align-items: stretch;
@@ -148,7 +148,7 @@
    rendered container `ud-body ud-body--2026 ud-body--dashboard-split3`. */
 .ud-body.ud-body--2026.ud-body--dashboard-split3.ud-body--dashboard-split3--no-banking {
   width: 100%;
-  grid-template-columns: minmax(280px, 0.9fr) 2fr;
+  grid-template-columns: var(--ud-agent-col-width, 380px) var(--ud-token-rail-width, 320px);
 }
 
 /* In split3 page-mode the grid fills the flex remainder — height:0 lets flex control it */
@@ -186,7 +186,7 @@
 .ud-body.ud-body--2026.ud-body--dashboard-split3.ud-middle-collapsed {
   /* Open 3-col split3 template (UserDashboard.css line ~121), agent
      track now occupied by the float-reserve card (column display:none). */
-  grid-template-columns: minmax(240px, 260px) 1fr minmax(360px, 420px);
+  grid-template-columns: minmax(240px, 260px) var(--ud-agent-col-width, 380px) var(--ud-token-rail-width, 320px);
   grid-template-rows: 1fr;
   /* Undo the split3 viewport-flex lock so collapsed flows normally */
   height: auto;
@@ -208,7 +208,7 @@
    `--no-banking` values (UserDashboard.css line ~142) verbatim — the
    float-reserve card occupies the slot the agent track held. */
 .ud-body.ud-body--2026.ud-body--dashboard-split3.ud-body--dashboard-split3--no-banking.ud-middle-collapsed {
-  grid-template-columns: minmax(280px, 0.9fr) 2fr;
+  grid-template-columns: var(--ud-agent-col-width, 380px) var(--ud-token-rail-width, 320px);
 }
 
 /* Mirror the open split3 @media 1280px override (UserDashboard.css
