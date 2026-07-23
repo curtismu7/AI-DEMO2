@@ -745,6 +745,9 @@ export class HttpMCPTransport {
    * Extract and validate the bearer token. On failure, writes a 401 (with
    * WWW-Authenticate) and returns null so the caller can simply `return`.
    * Shared by POST/GET/DELETE /mcp so every method enforces the same auth.
+   * 
+   * Per 2026-07-28 SEP-2468 (RFC 9207), validates the 'iss' claim to prevent
+   * authorization server mix-up attacks.
    */
   private async authenticateBearer(req: IncomingMessage, res: ServerResponse): Promise<AuthenticatedBearer | null> {
     const bearer = this.extractBearer(req);
@@ -761,6 +764,20 @@ export class HttpMCPTransport {
     } catch {
       this.sendUnauthorized(res, 'Invalid or expired token');
       return null;
+    }
+    // RFC 9207 / SEP-2468: Validate 'iss' claim to prevent authorization server
+    // mix-up attacks. Only check if signature was verified (claims are untrustworthy otherwise).
+    if (tokenInfo.signatureVerified && tokenInfo.verifiedClaims) {
+      const issFromToken = (tokenInfo.verifiedClaims as any)?.iss;
+      const expectedIssuer = process.env.PINGONE_ISSUER || this.config.authServerUrl;
+      if (issFromToken && expectedIssuer && issFromToken !== expectedIssuer) {
+        console.warn(
+          `[HttpMCPTransport][RFC9207] Issuer mismatch: token iss="${issFromToken}" ` +
+          `does not match PINGONE_ISSUER="${expectedIssuer}" — rejecting token as potential mix-up attack`
+        );
+        this.sendUnauthorized(res, 'Invalid token issuer (RFC 9207 check failed)');
+        return null;
+      }
     }
     // DPoP (RFC 9449) — bridged enforcement. The gateway verifies the DPoP proof with
     // real crypto on the BFF→gateway hop and bridges the outcome via X-DPoP-Verified
