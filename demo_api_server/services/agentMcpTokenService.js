@@ -208,6 +208,16 @@ function countJwtScopes(claims) {
 }
 
 /**
+ * Return the first HTTP(S) URI from a comma-separated audience list.
+ * MCP_GW_RESOURCE_URI can contain both bare audiences and URI audiences.
+ */
+function firstHttpResourceUri(value) {
+  if (!value) return '';
+  const parts = String(value).split(',').map((s) => s.trim()).filter(Boolean);
+  return parts.find((p) => /^https?:\/\//i.test(p)) || '';
+}
+
+/**
  * Attach tokenEvents for the UI and throw with HTTP status + machine code.
  * @param {Array} tokenEvents
  * @param {string} code
@@ -2307,8 +2317,13 @@ async function _performTwoExchangeDelegation(
   const routeViaPingGateway = !opts.forceDirectMcpAudience && configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
   const gatewayBrokeredExchange = configStore.getEffective('ff_gateway_brokered_exchange') !== 'false';
   const usePingGatewayForExchange = routeViaPingGateway && gatewayBrokeredExchange;
+  const pingGatewayUriAud =
+    firstHttpResourceUri(process.env.PINGONE_RESOURCE_PINGGATEWAY_URI) ||
+    firstHttpResourceUri(configStore.getEffective('pingone_resource_pinggateway_uri')) ||
+    firstHttpResourceUri(process.env.MCP_GW_RESOURCE_URI) ||
+    firstHttpResourceUri(configStore.getEffective('mcp_gw_resource_uri'));
   const pingGatewayResourceAud = usePingGatewayForExchange
-    ? (process.env.PINGONE_RESOURCE_PINGGATEWAY_URI || configStore.getEffective('pingone_resource_pinggateway_uri') || twoExFinalAud)
+    ? (pingGatewayUriAud || twoExFinalAud)
     : null;
   const finalAudTarget = pingGatewayResourceAud || twoExFinalAud;
   // PingGateway requires the token aud to EXACTLY match its McpProtectionFilter
