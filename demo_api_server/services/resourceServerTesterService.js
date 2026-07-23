@@ -316,9 +316,15 @@ async function resolveTokenAsync(body, req) {
   const sync = resolveToken(body || {}, session);
   if (sync.error !== 'mcp_token_not_cached') return sync;
 
+  // Mint path needs a real user session (subject token for RFC 8693 exchange).
+  const subject = session && session.oauthTokens && session.oauthTokens.accessToken;
+  if (!session || !subject || subject === '_cookie_session') {
+    return { error: 'token_not_in_session' };
+  }
+
   const scopes = ['mcp:invoke', 'openid', 'profile'];
-  const vertical = (req.session && req.session.activeVertical) || 'banking';
-  let cached = agentTokenCache.get(session, vertical, scopes);
+  const vertical = session.activeVertical || 'banking';
+  const cached = agentTokenCache.get(session, vertical, scopes);
   if (cached && cached.access_token) {
     return { token: cached.access_token, source: 'session:mcp' };
   }
@@ -328,16 +334,18 @@ async function resolveTokenAsync(body, req) {
       'user_profile_card',
       { scopeOverride: scopes },
     );
-    if (!resolved || !resolved.token) {
-      return { error: resolved && resolved.need_auth ? 'token_not_in_session' : 'mcp_token_mint_failed' };
+    if (!resolved || typeof resolved.token !== 'string' || !resolved.token.trim()) {
+      if (resolved && resolved.need_auth) return { error: 'token_not_in_session' };
+      return { error: 'mcp_token_mint_failed' };
     }
+    const minted = resolved.token.trim();
     agentTokenCache.set(session, vertical, scopes, {
-      access_token: resolved.token,
-      expires_in: resolved.expires_in || 3600,
+      access_token: minted,
+      expires_in: Number(resolved.expires_in) > 0 ? Number(resolved.expires_in) : 3600,
     });
-    return { token: resolved.token, source: 'session:mcp' };
+    return { token: minted, source: 'session:mcp' };
   } catch (err) {
-    console.warn('[resource-server-tester] mcp mint failed:', err.message);
+    console.warn('[resource-server-tester] mcp mint failed:', err && err.message ? err.message : err);
     return { error: 'mcp_token_mint_failed' };
   }
 }
@@ -380,5 +388,4 @@ module.exports = {
   policyTargetFor,
   latestCachedMcpToken,
   PROBE_WHITELIST,
-  getInFlowResourceAudience,
 };

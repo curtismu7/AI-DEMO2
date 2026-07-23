@@ -102,6 +102,37 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-23 — Resource-server dual-view merged without canaries; post-merge harden + standing rule
+
+**Files changed:**
+
+- `demo_api_server/routes/resourceServer.js` — `/summary-inflow` session gate parity with `/summary`
+- `demo_api_server/services/resourceServerTesterService.js` — `resolveTokenAsync` mint edge cases
+- `demo_api_server/src/__tests__/resourceServer.summaryInflow.regression.test.js`
+- `demo_api_server/src/__tests__/resourceServerTester.test.js` — `resolveTokenAsync` suite
+- `demo_api_ui/src/components/ResourceServerPage.jsx` — `startsWith('banking:')` scope badge
+- `demo_api_ui/src/components/__tests__/ResourceServerPage.dualView.test.jsx`
+- `scripts/check-fresh-clone-hygiene.js` — `rs-dual-view` canaries
+- `.cursor/rules/post-merge-ledger-canary.mdc` — **on every merge**: ledger/tester canary + fix
+
+**What was broken:** #780 landed Login RS / In-flow RS without route/UI tests, without
+mint hardening beyond happy path, and with Greptile P2s open; CI died in ~4s (Actions
+minutes exhausted) so the merge looked “done” without a green follow-up.
+
+**What was fixed:** Harden PR #781 + hygiene/rule so dropping the canaries or the
+session-gate / badge / mint contracts fails `npm run hygiene:check` immediately.
+
+**Standing rule (every merge):** ship a ledger/tester canary and the fix in the same
+landing (or same-day harden). Do not leave “no tests / happy-path only / Greptile P2”
+for later. See `.cursor/rules/post-merge-ledger-canary.mdc`.
+
+**Verify:**
+```bash
+node scripts/check-fresh-clone-hygiene.js
+cd demo_api_server && npx jest --testPathPattern='resourceServer.summaryInflow|resourceServerTester.test' --forceExit
+cd demo_api_ui && npx vitest --run src/components/__tests__/ResourceServerPage.dualView.test.jsx
+```
+
 ### 2026-07-22 — CareConnect left the stack "stuck" on healthcare (Primary Care / HSA)
 
 **Files changed:**

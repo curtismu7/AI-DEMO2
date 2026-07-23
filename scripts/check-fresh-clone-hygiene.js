@@ -190,6 +190,44 @@ for (const [file, label] of [['docker-compose.yml', 'docker'], ['k8s/02-configma
   }
 }
 
+// ── Resource-server dual-view canaries (#780/#781) ──
+// Login RS / In-flow RS shipped without route/UI tests or mint hardening; the
+// follow-up locked these so a merge cannot drop the session gate, badge fix, or
+// tester coverage again. If any check fails, restore the canary + fix immediately.
+{
+  const canaries = [
+    'demo_api_server/src/__tests__/resourceServer.summaryInflow.regression.test.js',
+    'demo_api_ui/src/components/__tests__/ResourceServerPage.dualView.test.jsx',
+  ];
+  for (const p of canaries) {
+    if (!isTracked(p) || !fs.existsSync(path.join(ROOT, p))) {
+      fail('rs-dual-view', `${p} missing — post-merge ledger/tester canary for Login/In-flow RS. Restore from #781.`);
+    }
+  }
+
+  const route = read('demo_api_server/routes/resourceServer.js');
+  if (!/summary-inflow[\s\S]*?_cookie_session/.test(route)) {
+    fail('rs-dual-view', 'demo_api_server/routes/resourceServer.js: /summary-inflow must session-gate like /summary (_cookie_session / missing AT → 401).');
+  }
+
+  const page = read('demo_api_ui/src/components/ResourceServerPage.jsx');
+  if (!page.includes("startsWith('banking:')")) {
+    fail('rs-dual-view', "demo_api_ui/src/components/ResourceServerPage.jsx: ScopesBadges must use startsWith('banking:') — startsWith('') highlights every scope.");
+  }
+  if (!page.includes("role=\"tablist\"") || !page.includes('Login RS') || !page.includes('In-flow RS')) {
+    fail('rs-dual-view', 'demo_api_ui/src/components/ResourceServerPage.jsx: Login RS / In-flow RS tablist is gone.');
+  }
+
+  const tester = read('demo_api_server/services/resourceServerTesterService.js');
+  if (!tester.includes('resolveTokenAsync') || !tester.includes("error: 'token_not_in_session'")) {
+    fail('rs-dual-view', 'demo_api_server/services/resourceServerTesterService.js: resolveTokenAsync must reject missing subject AT (token_not_in_session) before minting.');
+  }
+  const testerUnit = read('demo_api_server/src/__tests__/resourceServerTester.test.js');
+  if (!testerUnit.includes("describe('resolveTokenAsync'") || !testerUnit.includes('mcp_token_mint_failed')) {
+    fail('rs-dual-view', 'demo_api_server/src/__tests__/resourceServerTester.test.js: resolveTokenAsync edge-case suite missing — restore mint failure coverage.');
+  }
+}
+
 // ── Report ──
 if (fails.length) {
   console.error('✗ fresh-clone hygiene FAILED:\n');
@@ -197,4 +235,4 @@ if (fails.length) {
   console.error(`\n${fails.length} violation(s). See NEW-MACHINE.md for the fresh-machine contract.`);
   process.exit(1);
 }
-console.log('✓ fresh-clone hygiene: all checks passed (home paths, .mcp.json, settings.json, agents, compose+k8s env/vars, session persistence)');
+console.log('✓ fresh-clone hygiene: all checks passed (home paths, .mcp.json, settings.json, agents, compose+k8s env/vars, session persistence, rs-dual-view)');

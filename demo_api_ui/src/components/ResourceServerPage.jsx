@@ -63,7 +63,7 @@ function ScopesBadges({ scopes, highlightBanking }) {
       {scopes.map((s) => (
         <span
           key={s}
-          className={`rsp-scope-badge ${highlightBanking && s.startsWith('') ? 'rsp-scope-banking' : ''}`}
+          className={`rsp-scope-badge ${highlightBanking && s.startsWith('banking:') ? 'rsp-scope-banking' : ''}`}
         >
           {s}
         </span>
