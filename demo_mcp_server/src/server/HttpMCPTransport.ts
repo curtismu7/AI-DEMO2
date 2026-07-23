@@ -22,7 +22,7 @@ import { IncomingMessage, ServerResponse } from 'http';
 import { randomUUID } from 'crypto';
 import { MCPMessage } from '../interfaces/mcp';
 import { MCPMessageHandler, MessageHandlerContext } from './MCPMessageHandler';
-import { isSupportedProtocolVersion, MCP_LATEST_PROTOCOL_VERSION } from './protocolVersions';
+import { isSupportedProtocolVersion, MCP_LATEST_PROTOCOL_VERSION, detectProtocolVersion } from './protocolVersions';
 import { BankingSessionManager } from '../storage/BankingSessionManager';
 import { BankingAuthenticationManager } from '../auth/BankingAuthenticationManager';
 import { AgentTokenInfo } from '../interfaces/auth';
@@ -543,15 +543,17 @@ export class HttpMCPTransport {
       const bankingSession = await this.sessionManager.createSession(bearerToken);
       mcpSessionId = randomUUID();
       const now = new Date();
+      // Detect protocol version for this session (defaults to latest supported if not specified)
+      const detectedVersion = detectProtocolVersion((req.headers[MCP_PROTO_HEADER] as string | undefined)?.trim());
       httpSession = {
         bankingSessionId: bankingSession.sessionId,
         agentToken: bearerToken,
-        protocolVersion: '2025-11-25',
+        protocolVersion: detectedVersion,
         createdAt: now,
         lastAccessedAt: now,
       };
       this.sessions.set(mcpSessionId, httpSession);
-      console.log(`[HttpMCPTransport] Created session ${mcpSessionId} → banking ${bankingSession.sessionId}`);
+      console.log(`[HttpMCPTransport] Created session ${mcpSessionId} → banking ${bankingSession.sessionId} (protocol: ${detectedVersion})`);
     } else {
       const incomingSessionId = req.headers[MCP_SESSION_HEADER] as string | undefined;
       const existing = incomingSessionId ? this.sessions.get(incomingSessionId) : undefined;
@@ -565,6 +567,8 @@ export class HttpMCPTransport {
       mcpSessionId = incomingSessionId;
       httpSession = existing;
       httpSession.lastAccessedAt = new Date();
+      // Log protocol version for non-initialize requests (for observability)
+      console.log(`[HttpMCPTransport] Request on session ${mcpSessionId} using protocol ${httpSession.protocolVersion}`);
     }
 
     // 6. Build MCPMessageHandler context, reusing the existing banking session
