@@ -7,6 +7,9 @@
  * indexer rooted at `/app`. Demo index must stay on demo-codegraph.db with a
  * builder marker, UI+API default scope, and a live-mounted indexer.
  *
+ * Bake paths (#775): setup:fresh / run.sh / se-update-code.sh must copy from
+ * demo-codegraph.db into langchain_agent/codegraph.db (image bake input).
+ *
  *   node scripts/check-codegraph-demo-index.js
  *   npm run hygiene:check
  */
@@ -24,6 +27,8 @@ const fail = (msg) => fails.push(msg);
 
 const BUILDER = 'demo-build-codegraph';
 const DEMO_DB = 'demo-codegraph.db';
+/** Bake scripts must copy FROM this path into langchain_agent/codegraph.db. */
+const BAKE_SRC = `.codegraph/${DEMO_DB}`;
 
 function read(rel) {
   const abs = path.join(ROOT, rel);
@@ -32,6 +37,25 @@ function read(rel) {
     return null;
   }
   return fs.readFileSync(abs, 'utf8');
+}
+
+/** Fail if bake script still copies from the host product DB name. */
+function requireDemoBakeSource(rel, text) {
+  if (!text) return;
+  if (!text.includes(BAKE_SRC) && !text.includes(`'${DEMO_DB}'`) && !text.includes(`"${DEMO_DB}"`)) {
+    fail(`${rel}: must bake from ${BAKE_SRC}`);
+  }
+  // Reject the pre-#775 pattern: cp/join from .codegraph/codegraph.db
+  if (
+    text.includes('.codegraph/codegraph.db') ||
+    /['"]\.codegraph['"]\s*,\s*['"]codegraph\.db['"]/.test(text) ||
+    /\.codegraph['"]\s*,\s*['"]codegraph\.db['"]/.test(text)
+  ) {
+    fail(
+      `${rel}: must not read .codegraph/codegraph.db for bake ` +
+        `(host CodeGraph product owns that file; use ${BAKE_SRC})`,
+    );
+  }
 }
 
 // Compose: demo DB path + live indexer; never CODEGRAPH_INDEX_ALL.
@@ -99,21 +123,53 @@ if (guard) {
 }
 
 const dbPy = read('langchain_agent/src/codegraph/db.py');
-if (dbPy && !dbPy.includes(DEMO_DB)) {
-  fail(`langchain_agent/src/codegraph/db.py: default CODEGRAPH_DB_PATH must use ${DEMO_DB}`);
+if (dbPy) {
+  if (!dbPy.includes(DEMO_DB)) {
+    fail(`langchain_agent/src/codegraph/db.py: default CODEGRAPH_DB_PATH must use ${DEMO_DB}`);
+  }
+  // #775 — NL filler must not flood FTS OR-queries.
+  if (!dbPy.includes('_FTS_STOPWORDS')) {
+    fail('langchain_agent/src/codegraph/db.py: missing _FTS_STOPWORDS (NL FTS hardening)');
+  }
 }
+
+const retrieve = read('langchain_agent/src/codegraph/retrieve.py');
+if (retrieve) {
+  if (!retrieve.includes('_hit_relevance') || !retrieve.includes('_extra_terms')) {
+    fail(
+      'langchain_agent/src/codegraph/retrieve.py: missing _hit_relevance / _extra_terms ' +
+        '(identifier blend + ranking)',
+    );
+  }
+}
+
+// Bake scripts: copy demo DB → langchain_agent/codegraph.db for image bake.
+requireDemoBakeSource('run.sh', read('run.sh'));
+requireDemoBakeSource('se-update-code.sh', read('se-update-code.sh'));
+requireDemoBakeSource(
+  'demo_api_server/scripts/setupFresh.js',
+  read('demo_api_server/scripts/setupFresh.js'),
+);
 
 const tests = read('langchain_agent/tests/test_codegraph_index_guard.py');
 if (!tests) {
   fail('langchain_agent/tests/test_codegraph_index_guard.py: missing smoke/guard tests');
 }
 
+const retrieveTests = read('langchain_agent/tests/test_retrieve.py');
+if (retrieveTests && !retrieveTests.includes('test_sanitize_fts_drops_stopwords')) {
+  fail(
+    'langchain_agent/tests/test_retrieve.py: missing test_sanitize_fts_drops_stopwords',
+  );
+}
+
 if (fails.length) {
   console.error('✗ Code Explorer demo-index hygiene FAILED:\n');
   for (const f of fails) console.error('  ' + f);
-  console.error('\nSee REGRESSION_PLAN.md — Code Explorer index DB (#772).');
+  console.error('\nSee REGRESSION_PLAN.md — Code Explorer index DB (#772 / #775).');
   process.exit(1);
 }
 console.log(
-  `✓ Code Explorer demo-index: ${DEMO_DB} + builder=${BUILDER} + UI/API scope + live indexer`,
+  `✓ Code Explorer demo-index: ${DEMO_DB} + builder=${BUILDER} + UI/API scope + ` +
+    'live indexer + bake paths + FTS/retrieve harden',
 );
