@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mock — OIDC Resource Server (Login / In-flow)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0b1220;
+    --bg-elev: #121a2b;
+    --bg-panel: #162033;
+    --line: #2a3a55;
+    --line-strong: #3d5275;
+    --text: #e8eef8;
+    --muted: #8fa3c1;
+    --login: #4f8cff;
+    --inflow: #2dd4bf;
+    --permit: #3ecf8e;
+    --reject: #f07178;
+    --warn: #e6b450;
+    --chip: #1c2740;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+    --sans: "IBM Plex Sans", system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: var(--sans);
+    color: var(--text);
+    background:
+      radial-gradient(1200px 600px at 10% -10%, rgba(79,140,255,0.12), transparent 55%),
+      radial-gradient(900px 500px at 90% 0%, rgba(45,212,191,0.10), transparent 50%),
+      linear-gradient(180deg, #0a101c 0%, var(--bg) 40%, #0d1524 100%);
+  }
+
+  .shell { max-width: 1280px; margin: 0 auto; padding: 28px 24px 64px; }
+
+  .top {
+    display: flex; justify-content: space-between; gap: 20px; align-items: flex-end;
+    margin-bottom: 18px; flex-wrap: wrap;
+  }
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 8px;
+  }
+  h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+  .sub { margin: 8px 0 0; color: var(--muted); max-width: 62ch; line-height: 1.45; font-size: 14px; }
+
+  .badge {
+    font-family: var(--mono); font-size: 11px; font-weight: 600;
+    padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--chip); letter-spacing: 0.06em;
+  }
+  .badge.login { color: var(--login); border-color: rgba(79,140,255,0.45); }
+  .badge.inflow { color: var(--inflow); border-color: rgba(45,212,191,0.45); }
+
+  .tabs {
+    display: inline-flex; gap: 6px; padding: 4px; border: 1px solid var(--line);
+    border-radius: 12px; background: rgba(18,26,43,0.9); margin: 18px 0 14px;
+  }
+  .tab {
+    border: 0; cursor: pointer; font: 600 13px var(--sans);
+    padding: 10px 16px; border-radius: 9px; color: var(--muted); background: transparent;
+  }
+  .tab[aria-selected="true"].login { background: rgba(79,140,255,0.18); color: #cfe0ff; }
+  .tab[aria-selected="true"].inflow { background: rgba(45,212,191,0.16); color: #c9fff5; }
+
+  .callout {
+    border: 1px solid var(--line); border-left: 3px solid var(--login);
+    background: var(--bg-elev); border-radius: 10px; padding: 14px 16px;
+    font-size: 13.5px; line-height: 1.5; color: #c7d4ea; margin-bottom: 18px;
+  }
+  .callout.inflow { border-left-color: var(--inflow); }
+  .callout code {
+    font-family: var(--mono); font-size: 12px; color: #f0f6ff;
+    background: #0e1728; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line);
+  }
+
+  .grid {
+    display: grid; grid-template-columns: 1.05fr 1.2fr; gap: 16px;
+  }
+  @media (max-width: 960px) { .grid { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--bg-panel); border: 1px solid var(--line); border-radius: 14px;
+    padding: 16px; min-height: 120px;
+  }
+  .panel h2 {
+    margin: 0 0 12px; font-size: 12px; font-family: var(--mono);
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 600;
+  }
+
+  .hero {
+    background: linear-gradient(145deg, #1a2740, #121c30);
+    border: 1px solid var(--line-strong); border-radius: 12px; padding: 18px; margin-bottom: 12px;
+  }
+  .hero .label { font-size: 11px; color: var(--muted); font-family: var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+  .hero .value { font-size: 30px; font-weight: 700; margin-top: 6px; letter-spacing: -0.03em; }
+  .hero .meta { margin-top: 6px; color: var(--muted); font-size: 13px; }
+
+  .acct {
+    display: grid; gap: 8px; margin-bottom: 12px;
+  }
+  .acct-card {
+    display: grid; grid-template-columns: 1fr auto; gap: 4px 12px;
+    padding: 12px; border-radius: 10px; border: 1px solid var(--line); background: #10192b;
+  }
+  .acct-type {
+    font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--login); background: rgba(79,140,255,0.12); padding: 2px 6px; border-radius: 4px; width: max-content;
+  }
+  .acct-num { color: var(--muted); font-family: var(--mono); font-size: 12px; text-align: right; }
+  .acct-bal { font-weight: 700; font-size: 18px; }
+  .acct-name { color: var(--muted); font-size: 13px; grid-column: 1 / -1; }
+
+  .txn { display: grid; gap: 6px; }
+  .txn-row {
+    display: flex; justify-content: space-between; gap: 12px;
+    padding: 8px 0; border-bottom: 1px solid rgba(42,58,85,0.7); font-size: 13px;
+  }
+  .txn-amt.pos { color: var(--permit); font-family: var(--mono); }
+  .txn-amt.neg { color: var(--reject); font-family: var(--mono); }
+
+  .kv { display: grid; gap: 8px; }
+  .row {
+    display: grid; grid-template-columns: 160px 1fr; gap: 10px; align-items: start;
+    padding: 8px 0; border-bottom: 1px solid rgba(42,58,85,0.55); font-size: 13px;
+  }
+  .k { color: var(--muted); font-family: var(--mono); font-size: 11px; padding-top: 2px; }
+  .v { word-break: break-word; font-family: var(--mono); font-size: 12.5px; }
+  .v.highlight {
+    background: rgba(45,212,191,0.1); border: 1px solid rgba(45,212,191,0.35);
+    border-radius: 6px; padding: 6px 8px;
+  }
+  .tag {
+    display: inline-block; margin-left: 6px; font-size: 10px; font-family: var(--mono);
+    padding: 2px 6px; border-radius: 999px; background: rgba(45,212,191,0.15); color: var(--inflow);
+  }
+  .scopes { display: flex; flex-wrap: wrap; gap: 6px; }
+  .scope {
+    font-family: var(--mono); font-size: 11px; padding: 3px 8px; border-radius: 999px;
+    background: #10192b; border: 1px solid var(--line); color: #d7e4f8;
+  }
+  .scope.hot { border-color: rgba(45,212,191,0.5); color: var(--inflow); }
+
+  .act-box {
+    margin-top: 12px; padding: 12px; border-radius: 10px;
+    border: 1px dashed rgba(45,212,191,0.45); background: rgba(45,212,191,0.06);
+  }
+  .act-box h3 { margin: 0 0 8px; font-size: 12px; color: var(--inflow); font-family: var(--mono); letter-spacing: 0.06em; text-transform: uppercase; }
+
+  .tester {
+    margin-top: 18px; border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+    background: #0e1626;
+  }
+  .tester-top {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 12px 14px; border-bottom: 1px solid var(--line); background: #121c2e;
+  }
+  .tester-top h2 { margin: 0; font-size: 14px; }
+  .tester-grid {
+    display: grid; grid-template-columns: 220px 1.1fr 1.2fr; min-height: 360px;
+  }
+  @media (max-width: 960px) { .tester-grid { grid-template-columns: 1fr; } }
+
+  .col { border-right: 1px solid var(--line); padding: 12px; }
+  .col:last-child { border-right: 0; }
+  .tree-label {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); margin: 10px 0 6px;
+  }
+  .tree-item {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px;
+    cursor: pointer; font-size: 13px; color: #c9d7ee;
+  }
+  .tree-item:hover { background: #182338; }
+  .tree-item.active { background: #1e304f; color: #fff; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #475569; }
+  .dot.write { background: var(--warn); }
+  .dot.sens { background: var(--reject); }
+  .dot.ok { background: var(--permit); }
+
+  .form-h { font-size: 15px; font-weight: 700; margin: 0 0 4px; }
+  .form-d { color: var(--muted); font-size: 12.5px; line-height: 1.45; margin: 0 0 14px; }
+  label { display: block; font-size: 11px; color: var(--muted); font-family: var(--mono); margin-bottom: 6px; }
+  input, select {
+    width: 100%; background: #0b1220; border: 1px solid var(--line-strong); color: var(--text);
+    border-radius: 8px; padding: 9px 10px; font-family: var(--mono); font-size: 12.5px; margin-bottom: 12px;
+  }
+  .actions { display: flex; gap: 8px; margin-top: 8px; }
+  .btn {
+    border: 0; border-radius: 8px; padding: 9px 14px; font-weight: 600; font-size: 13px; cursor: pointer;
+  }
+  .btn.primary { background: var(--login); color: #041019; }
+  .btn.primary.inflow { background: var(--inflow); }
+  .btn.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+
+  .verdict {
+    font-family: var(--mono); font-weight: 700; font-size: 18px; letter-spacing: 0.04em;
+    padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; display: inline-block;
+  }
+  .verdict.permit { background: rgba(62,207,142,0.12); color: var(--permit); border: 1px solid rgba(62,207,142,0.4); }
+  .verdict.reject { background: rgba(240,113,120,0.12); color: var(--reject); border: 1px solid rgba(240,113,120,0.4); }
+  .verdict.http { background: rgba(45,212,191,0.12); color: var(--inflow); border: 1px solid rgba(45,212,191,0.4); }
+
+  .rules { display: grid; gap: 6px; margin-bottom: 12px; }
+  .rule {
+    display: grid; grid-template-columns: 18px 90px 1fr; gap: 8px; align-items: start;
+    font-size: 12px; font-family: var(--mono); padding: 8px; border-radius: 8px; background: #10192b; border: 1px solid var(--line);
+  }
+  .rule .mark { font-weight: 700; }
+  .rule.pass .mark { color: var(--permit); }
+  .rule.fail .mark { color: var(--reject); }
+  .rule .name { color: #bcd0ef; }
+  .rule .detail { color: var(--muted); }
+
+  pre {
+    margin: 0; padding: 12px; border-radius: 8px; background: #0a101c; border: 1px solid var(--line);
+    font-family: var(--mono); font-size: 11.5px; line-height: 1.45; overflow: auto; color: #d5e2f5;
+    max-height: 220px;
+  }
+  .key { color: #8fb4ff; }
+  .str { color: #9fe8c5; }
+  .num { color: #f0c674; }
+
+  .foot {
+    margin-top: 16px; color: var(--muted); font-size: 12.5px; font-family: var(--mono);
+  }
+  .hidden { display: none !important; }
+
+  .pipeline {
+    display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; align-items: center;
+  }
+  .pip {
+    font-family: var(--mono); font-size: 11px; padding: 5px 8px; border-radius: 6px;
+    border: 1px solid var(--line); background: #10192b; color: #c7d6ee;
+  }
+  .pip.on { border-color: rgba(45,212,191,0.5); color: var(--inflow); }
+  .arrow { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+  <div class="shell">
+    <div class="top">
+      <div>
+        <p class="eyebrow">Integration Tests · banking_resource_server</p>
+        <h1>OIDC Resource Server</h1>
+        <p class="sub" id="subtitle">
+          Login hop — validates the session access token against <code>enduser.ping.demo</code>,
+          then serves banking summary data the SPA already trusts after OIDC login.
+        </p>
+      </div>
+      <span class="badge login" id="pathBadge">LOGIN OAUTH PATH</span>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Resource server view">
+      <button type="button" class="tab login" role="tab" aria-selected="true" data-view="login">Login RS</button>
+      <button type="button" class="tab inflow" role="tab" aria-selected="false" data-view="inflow">In-flow RS</button>
+    </div>
+
+    <div class="callout" id="callout">
+      <strong>What this RS does (login).</strong>
+      Authenticate bearer → check <code>aud</code> / <code>exp</code> / scopes →
+      return banking <code>/summary</code> (accounts + recent txs) and decoded session claims.
+      This is <em>not</em> the MCP exchange target.
+    </div>
+
+    <!-- LOGIN VIEW -->
+    <div id="view-login">
+      <div class="grid">
+        <div class="panel">
+          <h2>Protected banking data · GET /api/resource-server/summary</h2>
+          <div class="hero">
+            <div class="label">Total balance</div>
+            <div class="value">$24,850.42</div>
+            <div class="meta">2 accounts · subject curtis@example.com</div>
+          </div>
+          <div class="acct">
+            <div class="acct-card">
+              <span class="acct-type">checking</span>
+              <span class="acct-num">····4521</span>
+              <div class="acct-bal">$8,240.15</div>
+              <div class="acct-name">Everyday Checking</div>
+            </div>
+            <div class="acct-card">
+              <span class="acct-type">savings</span>
+              <span class="acct-num">····8890</span>
+              <div class="acct-bal">$16,610.27</div>
+              <div class="acct-name">High-Yield Savings</div>
+            </div>
+          </div>
+          <h2>Recent transactions</h2>
+          <div class="txn">
+            <div class="txn-row"><span>Payroll deposit</span><span class="txn-amt pos">+$3,200.00</span></div>
+            <div class="txn-row"><span>Transfer to savings</span><span class="txn-amt neg">-$500.00</span></div>
+            <div class="txn-row"><span>Coffee shop</span><span class="txn-amt neg">-$6.40</span></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Session access token · aud = enduser.ping.demo</h2>
+          <div class="kv">
+            <div class="row"><div class="k">sub</div><div class="v">a1b2c3d4-user</div></div>
+            <div class="row"><div class="k">aud</div><div class="v highlight">enduser.ping.demo <span class="tag">this RS</span></div></div>
+            <div class="row">
+              <div class="k">scope</div>
+              <div class="v"><div class="scopes">
+                <span class="scope">openid</span>
+                <span class="scope">profile</span>
+                <span class="scope hot">read</span>
+                <span class="scope">accounts:read</span>
+              </div></div>
+            </div>
+            <div class="row"><div class="k">exp</div><div class="v">2026-07-22T22:15:00Z · 42m remaining</div></div>
+            <div class="row"><div class="k">client_id</div><div class="v">Demo AI App - User Login</div></div>
+            <div class="row"><div class="k">may_act</div><div class="v">{"client_id":"Demo AI App - AI Agent Actor"}</div></div>
+          </div>
+          <div style="margin-top:14px">
+            <h2>RS info</h2>
+            <div class="kv">
+              <div class="row"><div class="k">name</div><div class="v">Banking API Resource Server (Login)</div></div>
+              <div class="row"><div class="k">enforces</div><div class="v">authenticateToken → BFF_RESOURCE_URI</div></div>
+              <div class="row"><div class="k">routes</div><div class="v">/summary · /accounts · /transactions · /identity (GET session)</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- IN-FLOW VIEW -->
+    <div id="view-inflow" class="hidden">
+      <div class="pipeline" aria-label="In-flow path">
+        <span class="pip">Agent tool</span><span class="arrow">→</span>
+        <span class="pip">RFC 8693 TX</span><span class="arrow">→</span>
+        <span class="pip on">aud = mcpgateway.ping.demo</span><span class="arrow">→</span>
+        <span class="pip on">POST /api/resource-server/identity</span><span class="arrow">→</span>
+        <span class="pip">claims only JSON</span>
+      </div>
+
+      <div class="grid">
+        <div class="panel">
+          <h2>What Path B returns · POST /identity</h2>
+          <div class="hero" style="border-color: rgba(45,212,191,0.45)">
+            <div class="label">credentialPath</div>
+            <div class="value" style="font-size:22px;color:var(--inflow)">dual_token</div>
+            <div class="meta">ACCESS + ID-TOKEN PATH · badge teal · no raw JWT in response</div>
+          </div>
+          <p style="color:var(--muted);font-size:13px;line-height:1.5;margin:0 0 12px">
+            Gateway forwards the TX bearer in <code>Authorization</code> and the OIDC
+            <code>id_token</code> in the JSON-RPC body. This RS verifies the bearer
+            (gateway aud accepted on <code>/identity</code>), matches <code>id_token.sub</code>
+            to the access token <code>sub</code>, and returns sanitized claims only.
+          </p>
+          <h2>Also probeable (same authenticateToken gate)</h2>
+          <div class="kv">
+            <div class="row"><div class="k">GET /accounts</div><div class="v">SQLite bankingDb accounts for sub</div></div>
+            <div class="row"><div class="k">GET /transactions</div><div class="v">Recent txs · ?limit=N</div></div>
+            <div class="row"><div class="k">does not</div><div class="v">Re-exchange tokens · invent new aud · leak raw JWTs</div></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>In-flow TX token · aud = mcpgateway.ping.demo</h2>
+          <div class="kv">
+            <div class="row"><div class="k">sub</div><div class="v">a1b2c3d4-user <span class="tag">preserved</span></div></div>
+            <div class="row"><div class="k">aud</div><div class="v highlight">mcpgateway.ping.demo <span class="tag">this RS (in-flow)</span></div></div>
+            <div class="row">
+              <div class="k">scope</div>
+              <div class="v"><div class="scopes">
+                <span class="scope hot">mcp:invoke</span>
+                <span class="scope">openid</span>
+                <span class="scope">profile</span>
+              </div></div>
+            </div>
+            <div class="row"><div class="k">exp</div><div class="v">2026-07-22T21:48:00Z · 12m remaining</div></div>
+          </div>
+          <div class="act-box">
+            <h3>RFC 8693 act (delegation proof)</h3>
+            <div class="kv">
+              <div class="row"><div class="k">act.sub</div><div class="v">Demo AI App - AI Agent Actor</div></div>
+              <div class="row"><div class="k">meaning</div><div class="v">Agent acting on behalf of the user — RS logs this on identity_call</div></div>
+            </div>
+          </div>
+          <div style="margin-top:14px">
+            <h2>id_token (decoded server-side)</h2>
+            <div class="kv">
+              <div class="row"><div class="k">sub</div><div class="v">a1b2c3d4-user</div></div>
+              <div class="row"><div class="k">email</div><div class="v">curtis@example.com</div></div>
+              <div class="row"><div class="k">source</div><div class="v">wire (gateway POST params.idToken)</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TESTER (shared chrome; content swaps) -->
+    <section class="tester" aria-label="Resource Server Tester">
+      <div class="tester-top">
+        <h2>Test this Resource Server</h2>
+        <span class="badge" id="testerTokenBadge">Token: My access token</span>
+      </div>
+      <div class="tester-grid">
+        <div class="col">
+          <div class="tree-label">Operations</div>
+          <div class="tree-item active" data-op="validate"><span class="dot write"></span> Real RS Validation</div>
+          <div class="tree-item" data-op="decode"><span class="dot"></span> Decode + Policy</div>
+          <div class="tree-item" data-op="probe"><span class="dot sens"></span> Live Request Probe</div>
+          <div class="tree-item" data-op="reveal"><span class="dot ok"></span> Show Token</div>
+
+          <div class="tree-label" id="sourceLabel">Token source</div>
+          <div id="sources-login">
+            <div class="tree-item active"><span class="dot ok"></span> My access token</div>
+            <div class="tree-item"><span class="dot"></span> My ID token</div>
+            <div class="tree-item"><span class="dot"></span> Paste a JWT</div>
+          </div>
+          <div id="sources-inflow" class="hidden">
+            <div class="tree-item active"><span class="dot ok"></span> In-flow MCP / gateway TX</div>
+            <div class="tree-item"><span class="dot"></span> My access token (login)</div>
+            <div class="tree-item"><span class="dot"></span> Paste a JWT</div>
+          </div>
+        </div>
+
+        <div class="col">
+          <p class="form-h" id="opTitle">Real RS Validation</p>
+          <p class="form-d" id="opDesc">
+            Verifies JWT signature against PingOne JWKS, then checks audience, expiry, and scope —
+            the same rules <code>authenticateToken</code> + policy would enforce.
+          </p>
+          <label>Token source</label>
+          <input id="tokenSourceInput" type="text" readonly value="My access token" />
+          <div id="probeFields" class="hidden">
+            <label>Target endpoint</label>
+            <select id="probeSelect">
+              <option>/api/resource-server/accounts</option>
+              <option>/api/resource-server/transactions</option>
+            </select>
+          </div>
+          <div class="actions">
+            <button type="button" class="btn primary" id="execBtn">Execute</button>
+            <button type="button" class="btn ghost">Clear</button>
+          </div>
+        </div>
+
+        <div class="col">
+          <div id="out-login">
+            <div class="verdict permit">PERMIT</div>
+            <div class="rules">
+              <div class="rule pass"><span class="mark">✓</span><span class="name">signature</span><span class="detail">verified against JWKS (kid=abc)</span></div>
+              <div class="rule pass"><span class="mark">✓</span><span class="name">exp</span><span class="detail">not expired (2520s left)</span></div>
+              <div class="rule pass"><span class="mark">✓</span><span class="name">aud</span><span class="detail">matches enduser.ping.demo</span></div>
+              <div class="rule pass"><span class="mark">✓</span><span class="name">scope</span><span class="detail">has 'read'</span></div>
+            </div>
+          </div>
+          <div id="out-inflow" class="hidden">
+            <div class="verdict http">HTTP 200 OK</div>
+            <p style="color:var(--muted);font-size:12px;margin:0 0 10px;font-family:var(--mono)">
+              Live probe → GET /api/resource-server/identity
+            </p>
+            <pre>{
+  <span class="key">"credentialPath"</span>: <span class="str">"dual_token"</span>,
+  <span class="key">"badge"</span>: <span class="str">"ACCESS + ID-TOKEN PATH"</span>,
+  <span class="key">"accessTokenClaims"</span>: {
+    <span class="key">"sub"</span>: <span class="str">"a1b2c3d4-user"</span>,
+    <span class="key">"aud"</span>: <span class="str">"mcpgateway.ping.demo"</span>,
+    <span class="key">"act"</span>: { <span class="key">"sub"</span>: <span class="str">"Demo AI App - AI Agent Actor"</span> }
+  },
+  <span class="key">"idTokenClaims"</span>: {
+    <span class="key">"email"</span>: <span class="str">"curtis@example.com"</span>
+  },
+  <span class="key">"message"</span>: <span class="str">"CLAIMS ONLY — no raw JWT crosses this boundary."</span>
+}</pre>
+            <div class="rules" style="margin-top:12px">
+              <div class="rule pass"><span class="mark">✓</span><span class="name">aud</span><span class="detail">gateway aud accepted on /identity</span></div>
+              <div class="rule pass"><span class="mark">✓</span><span class="name">scope</span><span class="detail">has mcp:invoke</span></div>
+              <div class="rule pass"><span class="mark">✓</span><span class="name">id.sub</span><span class="detail">matches access token sub</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <p class="foot" id="foot">
+      This view expects audience: <strong>enduser.ping.demo</strong> (login)
+    </p>
+  </div>
+
+<script>
+  const tabs = document.querySelectorAll('.tab');
+  const loginView = document.getElementById('view-login');
+  const inflowView = document.getElementById('view-inflow');
+  const callout = document.getElementById('callout');
+  const subtitle = document.getElementById('subtitle');
+  const pathBadge = document.getElementById('pathBadge');
+  const foot = document.getElementById('foot');
+  const outLogin = document.getElementById('out-login');
+  const outInflow = document.getElementById('out-inflow');
+  const sourcesLogin = document.getElementById('sources-login');
+  const sourcesInflow = document.getElementById('sources-inflow');
+  const tokenSourceInput = document.getElementById('tokenSourceInput');
+  const testerTokenBadge = document.getElementById('testerTokenBadge');
+  const execBtn = document.getElementById('execBtn');
+  const probeFields = document.getElementById('probeFields');
+  const probeSelect = document.getElementById('probeSelect');
+
+  const copy = {
+    login: {
+      badge: 'LOGIN OAUTH PATH',
+      badgeClass: 'badge login',
+      subtitle: 'Login hop — validates the session access token against enduser.ping.demo, then serves banking summary data the SPA already trusts after OIDC login.',
+      callout: '<strong>What this RS does (login).</strong> Authenticate bearer → check <code>aud</code> / <code>exp</code> / scopes → return banking <code>/summary</code> (accounts + recent txs) and decoded session claims. This is <em>not</em> the MCP exchange target.',
+      calloutClass: 'callout',
+      foot: 'This view expects audience: <strong>enduser.ping.demo</strong> (login)',
+      token: 'My access token',
+      btnClass: 'btn primary',
+      probes: ['/api/resource-server/accounts', '/api/resource-server/transactions'],
+    },
+    inflow: {
+      badge: 'IN-FLOW GATEWAY PATH',
+      badgeClass: 'badge inflow',
+      subtitle: 'Gateway TX hop — same /api/resource-server Path B the agent dual_token flow calls after RFC 8693 exchange.',
+      callout: '<strong>What this RS does (in-flow).</strong> Accept gateway-audience TX bearer on <code>/identity</code> · optionally bind wire <code>id_token</code> · return <code>credentialPath: dual_token</code> claims only. Can also probe <code>/accounts</code> and <code>/transactions</code> with the same bearer gate.',
+      calloutClass: 'callout inflow',
+      foot: 'This view expects audience: <strong>mcpgateway.ping.demo</strong> (gateway TX)',
+      token: 'In-flow MCP / gateway TX',
+      btnClass: 'btn primary inflow',
+      probes: ['/api/resource-server/identity', '/api/resource-server/accounts', '/api/resource-server/transactions'],
+    },
+  };
+
+  function setView(view) {
+    const c = copy[view];
+    const isInflow = view === 'inflow';
+    tabs.forEach((t) => t.setAttribute('aria-selected', t.dataset.view === view ? 'true' : 'false'));
+    loginView.classList.toggle('hidden', isInflow);
+    inflowView.classList.toggle('hidden', !isInflow);
+    outLogin.classList.toggle('hidden', isInflow);
+    outInflow.classList.toggle('hidden', !isInflow);
+    sourcesLogin.classList.toggle('hidden', isInflow);
+    sourcesInflow.classList.toggle('hidden', !isInflow);
+    pathBadge.className = c.badgeClass;
+    pathBadge.textContent = c.badge;
+    subtitle.textContent = c.subtitle;
+    callout.className = c.calloutClass;
+    callout.innerHTML = c.callout;
+    foot.innerHTML = c.foot;
+    tokenSourceInput.value = c.token;
+    testerTokenBadge.textContent = 'Token: ' + c.token;
+    execBtn.className = c.btnClass;
+    probeSelect.innerHTML = c.probes.map((p) => `<option>${p}</option>`).join('');
+  }
+
+  tabs.forEach((t) => t.addEventListener('click', () => setView(t.dataset.view)));
+
+  document.querySelectorAll('.tree-item[data-op]').forEach((item) => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.tree-item[data-op]').forEach((x) => x.classList.remove('active'));
+      item.classList.add('active');
+      const op = item.dataset.op;
+      const titles = {
+        validate: ['Real RS Validation', 'JWKS signature + aud / exp / scope policy → PERMIT or REJECT.'],
+        decode: ['Decode + Policy', 'Local decode only (no signature). WOULD_PASS / WOULD_REJECT against this view\'s audience.'],
+        probe: ['Live Request Probe', 'Loopback GET to a whitelisted RS path with this bearer — real authenticateToken outcome.'],
+        reveal: ['Show Token', 'Teaching exception: show the raw JWT under test and decoded claims.'],
+      };
+      document.getElementById('opTitle').textContent = titles[op][0];
+      document.getElementById('opDesc').textContent = titles[op][1];
+      probeFields.classList.toggle('hidden', op !== 'probe');
+    });
+  });
+</script>
+</body>
+</html>

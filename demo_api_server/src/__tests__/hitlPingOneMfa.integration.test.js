@@ -212,6 +212,36 @@ describe('PingOne MFA HITL — full flow (flag on)', () => {
     expect(ch.confirmExpiresAt).toBeDefined();
   });
 
+  test('Test 3c: real OTP that returns FAILED does not promote (otp_incorrect)', async () => {
+    mfaService.initiateDeviceAuth.mockResolvedValue({
+      id: 'da-integ-001',
+      status: 'DEVICE_SELECTION_REQUIRED',
+      _embedded: { devices: [{ id: 'dev-email-1', type: 'EMAIL', email: 'u@example.com' }] },
+    });
+    mfaService.selectDevice.mockResolvedValue({ id: 'da-integ-001', status: 'OTP_REQUIRED' });
+    mfaService.submitOtp.mockResolvedValue({ id: 'da-integ-001', status: 'FAILED' });
+
+    const req = makeReq();
+    const created = txConsent.createChallenge(req, {
+      type: 'withdrawal', amount: 600, fromAccountId: 'acc1', description: 'Test',
+    });
+    const { challengeId } = created;
+    await txConsent.confirmChallenge(req, challengeId);
+    await txConsent.selectMfaDevice(req, challengeId, 'dev-email-1');
+
+    const verified = await txConsent.verifyMfa(
+      req,
+      challengeId,
+      { deviceId: 'dev-email-1', otp: '000000' },
+      'https://demo-api-server:3001',
+    );
+
+    expect(verified.ok).toBe(false);
+    expect(verified.status).toBe(400);
+    expect(verified.json.error).toBe('otp_incorrect');
+    expect(req.session.txConsentChallenges[challengeId].status).toBe('otp_pending');
+  });
+
   // ── Test 3b: FIDO2 assertion path promotes to confirmed ───────────────────
 
   test('Test 3b: verifyMfa submits FIDO2 assertion to PingOne and promotes challenge to confirmed', async () => {

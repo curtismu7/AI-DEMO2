@@ -165,6 +165,15 @@ export async function buildApiKeyToolResult(
         credentialPath: 'api_key',
         apiKeyMaskedLast4: backendLast4,
         apiCall: `GET /${meta.routeSegment}`,
+        resourceRequest: {
+          method: 'GET',
+          path: `/${meta.routeSegment}`,
+          headers: {
+            'X-API-Key': `••••${backendLast4}`,
+            'X-User-Sub': '[redacted]',
+          },
+          note: `Service API key path — OAuth bearer was dropped before this hop.`,
+        },
         maskedApiKey: `xxxx${backendLast4}`,
         backend: meta.serviceLabel,
         infoPageHint: meta.infoPageHint,

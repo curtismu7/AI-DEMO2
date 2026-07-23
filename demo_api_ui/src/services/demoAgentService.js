@@ -538,6 +538,23 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
             tool: err.tool || tool,
           });
         } catch (_) { /* display-only */ }
+        // Phase D: teach the attempted MCP call even when the gateway blocks it.
+        try {
+          tokenChainTraceStore.ingestMcpResult({
+            tool: err.tool || tool,
+            denied: true,
+            gatewayErrorCode: err.gatewayErrorCode || err.code || "forbidden",
+            requestJson: err.requestJson || { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: err.tool || tool, arguments: params || {} } },
+            result: {
+              error: "gateway_policy_denied",
+              gatewayErrorCode: err.gatewayErrorCode || err.code,
+              message: err.message,
+            },
+          });
+          if (Array.isArray(allTokenEvents) && allTokenEvents.length) {
+            tokenChainTraceStore.ingestTokenEvents(allTokenEvents);
+          }
+        } catch (_) { /* display-only */ }
         throw Object.assign(
           new Error(err.message || "Gateway policy denied the tool call"),
           {
@@ -545,6 +562,7 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
             statusCode: 403,
             tool: err.tool || tool,
             gatewayErrorCode: err.gatewayErrorCode || "forbidden",
+            requestJson: err.requestJson || null,
             tokenEvents: allTokenEvents,
           },
         );
@@ -997,17 +1015,34 @@ export function ingestLegacyRunTrace(data, { forceHeuristic = false } = {}) {
       }
       tokenChainTraceStore.ingestTokenEvents(merged);
     }
-    // A successful tool dispatch satisfies the 'tool-dispatched' evidence step.
     // The agent envelope returns `reply` prose, not a structured `result`, so
-    // synthesize a minimal marker from toolsCalled when the run succeeded — else
-    // every agent-driven success (UC1) rendered Incomplete though the tool ran.
-    if (data.success !== false && !data.error &&
-        Array.isArray(data.toolsCalled) && data.toolsCalled.length) {
-      tokenChainTraceStore.ingestMcpResult({
-        tool: data.toolsCalled[0],
-        toolsCalled: data.toolsCalled,
-        status: "success",
-      });
+    // synthesize a minimal mcpResult from toolsCalled — success AND failure.
+    // Without the failure branch, UC30 (weather mcp_error) left TraceRail with
+    // outcome=error but no mcp step error (only successful exchange/DPoP whys).
+    if (Array.isArray(data.toolsCalled) && data.toolsCalled.length) {
+      const failedTool = data.success === false || Boolean(data.error);
+      if (failedTool) {
+        const errCode = data.error
+          || (typeof data.reply === "string" && /mcp_error/i.test(data.reply) ? "mcp_error" : null)
+          || "tool_failed";
+        tokenChainTraceStore.ingestMcpResult({
+          tool: data.toolsCalled[0],
+          toolsCalled: data.toolsCalled,
+          status: "error",
+          error: errCode,
+          denied: false,
+          result: {
+            error: errCode,
+            message: data.message || data.reply || errCode,
+          },
+        });
+      } else {
+        tokenChainTraceStore.ingestMcpResult({
+          tool: data.toolsCalled[0],
+          toolsCalled: data.toolsCalled,
+          status: "success",
+        });
+      }
     }
     if (typeof data.reply === "string" && data.reply) {
       tokenChainTraceStore.ingestLlmReply(data.reply);
@@ -1024,6 +1059,10 @@ export function ingestLegacyRunTrace(data, { forceHeuristic = false } = {}) {
  * it always bounces with requiresCustomerLogin for an admin token.
  */
 async function sendToAdminAgent(message, { signal, onTokenEvent } = {}) {
+  try {
+    tokenChainTraceStore.beginTrace({ prompt: message });
+    tokenChainTraceStore.ingestRoutingMode("llm", { action: "admin-agent" });
+  } catch { /* display-only */ }
   const res = await fetch("/api/admin-agent/message", {
     method: "POST",
     credentials: "include",
@@ -1037,11 +1076,14 @@ async function sendToAdminAgent(message, { signal, onTokenEvent } = {}) {
   const data = await res
     .json()
     .catch(() => ({ reply: "Admin agent request failed.", success: false }));
-  if (Array.isArray(data.tokenEvents)) {
-    for (const ev of data.tokenEvents) {
-      onTokenEvent?.(ev);
-    }
+  const tokenEvents = Array.isArray(data.tokenEvents) ? data.tokenEvents : [];
+  for (const ev of tokenEvents) {
+    onTokenEvent?.(ev);
   }
+  try {
+    if (tokenEvents.length) tokenChainTraceStore.ingestTokenEvents(tokenEvents);
+    tokenChainTraceStore.completeTrace(data.success !== false && !data.error);
+  } catch { /* display-only */ }
   return {
     reply: data.reply,
     success: data.success,
@@ -1051,7 +1093,7 @@ async function sendToAdminAgent(message, { signal, onTokenEvent } = {}) {
     error: data.error,
     inputTokens: data.inputTokens,
     outputTokens: data.outputTokens,
-    tokenEvents: data.tokenEvents || [],
+    tokenEvents,
     _status: res.status,
   };
 }

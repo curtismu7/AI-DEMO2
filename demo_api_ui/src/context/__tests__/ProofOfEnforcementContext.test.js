@@ -278,6 +278,16 @@ describe('deny-like verdicts discriminate block kind', () => {
     expect(computeVerdict(trace('HITL_REQUIRED'), entry('HITL_REQUIRED')).state).toBe('denied-as-expected');
   });
 
+  test('HITL_REQUIRED expected stays green after approve→retry PERMIT keeps outcome', () => {
+    // tokenChainTraceStore preserves outcome across the retry PERMIT ingest.
+    const t = {
+      tokenEvents: [],
+      mcpResult: { tool: 'pay_bill' },
+      authorize: { decision: 'PERMIT', outcome: 'HITL_REQUIRED', priorGate: 'HITL_REQUIRED' },
+    };
+    expect(computeVerdict(t, entry('HITL_REQUIRED')).state).toBe('denied-as-expected');
+  });
+
   test('STEP_UP expected and step-up fired stays green', () => {
     expect(computeVerdict(trace('STEP_UP'), entry('STEP_UP')).state).toBe('denied-as-expected');
   });

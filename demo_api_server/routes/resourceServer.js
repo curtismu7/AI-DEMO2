@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const dataStore = require('../data/store');
-const { getBffResourceAudience } = require('../config/resourceAudience');
+const { getBffResourceAudience, getInFlowResourceAudience } = require('../config/resourceAudience');
+const { latestCachedMcpToken } = require('../services/resourceServerTesterService');
+const agentMcpTokenService = require('../services/agentMcpTokenService');
 const { decodeJwtClaims, sanitizeClaims } = require('../services/agentMcpTokenService');
 
 /**
@@ -66,11 +68,12 @@ router.get('/summary', (req, res) => {
     };
 
     const resourceServerInfo = {
-      name: 'Banking API Resource Server',
+      name: 'Banking API Resource Server (Login)',
       type: 'OIDC',
-      description: 'User-delegated access via OIDC Authorization Code + PKCE',
+      description: 'User-delegated access via OIDC Authorization Code + PKCE — first-hop login audience',
       authMethod: 'Bearer token (access_token from PingOne)',
       targetAudience: resourceUri,
+      view: 'login',
     };
 
     res.json({
@@ -84,6 +87,53 @@ router.get('/summary', (req, res) => {
   } catch (error) {
     console.error('[resource-server] summary error:', error);
     res.status(500).json({ error: 'internal_error', message: 'Failed to build resource server summary.' });
+  }
+});
+
+/**
+ * GET /api/resource-server/summary-inflow — in-flow (gateway TX) RS teaching summary.
+ * Uses a cached agent MCP token when present; does not mint on GET.
+ */
+router.get('/summary-inflow', (req, res) => {
+  try {
+    const resourceUri = getInFlowResourceAudience();
+    const mcpToken = latestCachedMcpToken(req.session);
+    let accessTokenClaims = null;
+    let tokenMetadata = null;
+    if (mcpToken) {
+      const decoded = agentMcpTokenService.decodeJwtClaims(mcpToken);
+      const rawClaims = (decoded && decoded.claims) || {};
+      accessTokenClaims = rawClaims;
+      tokenMetadata = {
+        audience: rawClaims.aud || null,
+        scopes: typeof rawClaims.scope === 'string'
+          ? rawClaims.scope.split(' ').filter(Boolean)
+          : (Array.isArray(rawClaims.scope) ? rawClaims.scope : []),
+        expiresAt: rawClaims.exp ? new Date(rawClaims.exp * 1000).toISOString() : null,
+        issuedAt: rawClaims.iat ? new Date(rawClaims.iat * 1000).toISOString() : null,
+        issuer: rawClaims.iss || null,
+        actorClaim: rawClaims.act || null,
+      };
+    }
+
+    res.json({
+      hasMcpToken: !!mcpToken,
+      accessTokenClaims,
+      idTokenClaims: null,
+      tokenMetadata,
+      resourceServerInfo: {
+        name: 'In-flow Resource Server (Gateway Path B)',
+        type: 'OIDC + RFC 8693',
+        description: 'Same /api/resource-server hop the MCP gateway dual_token disposition calls (e.g. POST /identity) with the exchanged gateway-audience bearer',
+        authMethod: 'Bearer TX token (aud=MCP gateway) + optional id_token on POST /identity',
+        targetAudience: resourceUri,
+        probeHint: '/api/resource-server/identity',
+        view: 'inflow',
+      },
+    });
+  } catch (error) {
+    console.error('[resource-server] summary-inflow error:', error);
+    res.status(500).json({ error: 'internal_error', message: 'Failed to build in-flow resource server summary.' });
   }
 });
 

@@ -86,6 +86,13 @@ Same as Admin app.
 
 **Note:** Must include `banking:ai:agent` for agent delegation to work. See [PINGONE_RESOURCES_AND_SCOPES_MATRIX.md](PINGONE_RESOURCES_AND_SCOPES_MATRIX.md) for authoritative scope definitions.
 
+### Agent Consent (login Agreement Prompt)
+
+IDAI-aligned login ToS: PingOne Agreement **Agent Consent** + sign-on policy **Agent-Consent-Login**
+(LOGIN then AGREEMENT) assigned to this User App. Provisioned by bootstrap step `agent-consent`
+or `demo_api_server/scripts/ensureAgentConsentAgreement.js`. Does **not** replace in-app HITL /
+transfer consent / CIBA / OTP.
+
 ### Attribute Mappings
 
 Same as Admin app — include the `may_act` mapping.

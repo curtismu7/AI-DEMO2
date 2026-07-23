@@ -35,8 +35,8 @@
 #   5. Use the search box to filter log lines
 #   6. Click the download icon to save logs to a file
 #
-# Optional compose profiles (lean default — core only; start on demand):
-#   rag        weaviate, embeddings, demo-mcp-code-search, llamaindex-agent
+# Optional compose profiles (run-docker.sh default = core + rag):
+#   rag        weaviate, embeddings, demo-mcp-code-search, llamaindex-agent (on by default)
 #   agents     openai-agent, mastra-agent, pydantic-agent
 #   tracing    jaeger
 #   demo-auth  demo authz-server + demo mcp-gateway (when FF selects demo path)
@@ -56,6 +56,7 @@ services:
     image: jaegertracing/all-in-one:1.62.0
     container_name: ai-demo-jaeger
     mem_limit: 512m
+    restart: unless-stopped
     ports:
       - "16686:16686"   # Jaeger UI
       - "4317:4317"     # OTLP gRPC
@@ -358,7 +359,14 @@ services:
       # tree means grep/read_file always see current source and a re-index only
       # needs to rerun the indexer — no image rebuild, no repo-src re-stage.
       REPO_SRC_ROOT: "/app/live-repo"
-      CODEGRAPH_DB_PATH: "/app/live-repo/.codegraph/codegraph.db"
+      # Separate from the host CodeGraph product DB at .codegraph/codegraph.db
+      # (same bind mount) so Refresh cannot be overwritten by the IDE daemon.
+      CODEGRAPH_DB_PATH: "/app/live-repo/.codegraph/demo-codegraph.db"
+      # Prefer the live-mounted script over the baked /app/indexer copy so
+      # indexer fixes apply without rebuilding the langchain-agent image.
+      CODEGRAPH_INDEXER: "/app/live-repo/scripts/build-codegraph.py"
+      # Do NOT set CODEGRAPH_INDEX_ALL here — Refresh/startup must stay scoped to
+      # demo_api_ui + demo_api_server (full-repo walks are opt-in via --all only).
       # Trust the BFF's mkcert TLS cert on the internal tool callback (httpx
       # honors SSL_CERT_FILE). Combined bundle = system roots + mkcert root CA,
       # so external HTTPS (Anthropic/OpenAI/PingOne) keeps verifying. Generate:
@@ -370,9 +378,10 @@ services:
     volumes:
       # Live repo, read-only — source the agent greps/reads + the indexer scans.
       - ./:/app/live-repo:ro
-      # .codegraph overlaid read-write so the in-container re-index can rewrite
-      # codegraph.db (a directory mount, so the indexer's unlink+recreate is safe
-      # — a single-file bind mount would pin the old inode after rebuild).
+      # .codegraph overlaid read-write so Refresh can rewrite demo-codegraph.db
+      # (directory mount — unlink+recreate is safe; a single-file bind would pin
+      # the old inode). Host product CodeGraph may also use this dir for
+      # codegraph.db — demo must keep the demo-codegraph.db filename.
       - ./.codegraph:/app/live-repo/.codegraph
       # CA bundle for SSL_CERT_FILE above (gitignored; generated on the host).
       - ./certs/ca-bundle-with-mkcert.pem:/etc/ssl/certs/ca-bundle-with-mkcert.pem:ro
@@ -565,8 +574,8 @@ services:
 
   # ── MCP Weather (third-party weather-mcp, stdio bridged to HTTP) ────────────
   # Agent Gateway (IG) showcase: fronts github.com/weather-mcp/weather-mcp,
-  # scoped to Texas-only by ping-gateway/scripts/groovy/tx-weather-scope.groovy.
-  # Not wired into the banking AI agent — gateway-level capability only.
+  # scoped at the edge by ping-gateway/scripts/groovy/tx-weather-scope.groovy.
+  # Core service (no profile) — started by lean `./run-docker.sh` with mcp-invest.
   mcp-weather:
     build:
       context: ./demo_mcp_weather
@@ -888,7 +897,7 @@ services:
       # so the real value works for both backends).
       PG_MORTGAGE_BACKEND_URL: "http://mortgage-service:8082"
       BFF_VAULT_KEY_URL: "https://api.ping.demo:3001/internal/vault/service-key"
-      BFF_WEATHER_FLAG_URL: "https://api.ping.demo:3001/internal/feature-flags/weather-mcp-showcase"
+      BFF_WEATHER_FLAG_URL: "http://api-server:3001/internal/feature-flags/weather-mcp-showcase"
       # BFF_INTERNAL_SECRET comes from env_file (ping-gateway/.env, written by
       # refresh-service-envs.js) so it matches the BFF's real value — do NOT set
       # it here (environment: would override env_file with a wrong/default value).
@@ -1138,6 +1147,25 @@ services:
     networks:
       - ai-demo
     restart: "no"
+
+  # ── promptfoo step narration (core — always on, idle until eval) ───────────
+  # Sidecar with promptfoo installed. Does not auto-run the eval on start.
+  #   ./run-docker.sh promptfoo
+  # Targets host :8090 (llm-proxy publish or host oMLX/mlx) via host.docker.internal.
+  promptfoo-step-narration:
+    build:
+      context: ./demo_api_server/promptfoo
+      dockerfile: Dockerfile
+    image: ai-demo-promptfoo:latest
+    container_name: ai-demo-promptfoo-step-narration
+    environment:
+      OPENAI_API_KEY: not-needed
+      OPENAI_API_BASE_URL: http://host.docker.internal:8090/v1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - ai-demo
+    restart: unless-stopped
 
 networks:
   ai-demo:

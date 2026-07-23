@@ -65,7 +65,11 @@ import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
 import DemoStepsDropdown from "./DemoStepsDropdown";
 import BankingChips, { PINGONE_ADMIN_CHIP_IDS } from "./BankingChips";
-import { markUseCaseCompleted } from "../utils/useCaseDemoProgress";
+import { markUseCaseCompleted, clearCompletedUseCases } from "../utils/useCaseDemoProgress";
+import {
+  requiredFlagsForUseCase,
+  requiredFlagsForUseCaseId,
+} from "../utils/requiredDemoFlags";
 import apiClient from "../services/apiClient";
 import { formatAxiosError } from "../utils/formatAxiosError";
 import { adminCustomerContext } from "../services/adminCustomerContext";
@@ -227,6 +231,12 @@ const NL_FAILURE_MESSAGES = {
     "The server took too long to respond — it may still be starting up. Try again in a moment.",
   insufficient_scope:
     "This needs an admin session — click \"Switch to admin\" in the top navigation, then try again.",
+  // Token exchange #2 failed (often PingOne invalid_scope when gateway broker
+  // flags drifted off). Surface a fixable sentence — not the generic fallback.
+  delegation_chain_broken:
+    "Token exchange failed — turn on PingGateway routing and brokered exchange (Admin → Feature flags: ff_mcp_gateway_pinggateway and ff_gateway_brokered_exchange), then try again.",
+  invalid_scope:
+    "Token exchange requested scopes across multiple resources. Enable ff_mcp_gateway_pinggateway and ff_gateway_brokered_exchange, then retry.",
 };
 const NL_FAILURE_FALLBACK =
   "That step couldn't be completed. Try again, or pick another demo step.";
@@ -5721,6 +5731,33 @@ export default function BankingAgent({
         });
         return;
       }
+      if (action === "weather") {
+        // Heuristic parses "weather in <city>" → action weather, but runAction
+        // has no weather case (Unknown action: weather). Execute via /agent/invoke
+        // so the full gateway → get_weather pipeline + Token Chain run (same as
+        // the UC30 Demo Step chip).
+        const city = p.city_name || p.city || "";
+        const weatherPrompt = nlUserText
+          || (city ? `what's the weather in ${city}` : "what's the weather");
+        try {
+          const response = await sendAgentMessage(weatherPrompt, null, {
+            forceHeuristic: true,
+            vertical: effectiveVerticalId || "banking",
+            ...(useCaseId ? { useCaseId } : {}),
+            onTokenEvent: (ev) => tokenChain?.appendTokenEvent("weather", ev),
+          });
+          if (maybeHandleCustomerLogin(response, _source)) return;
+          await handleNlResumeResponse(response, weatherPrompt, useCaseId);
+        } catch (e) {
+          addMessage(
+            "assistant",
+            e?.message || "Could not get the weather.",
+            null,
+            { source: _source },
+          );
+        }
+        return;
+      }
       if (action === "request_fee_waiver") {
         // UC28 — tool set as the authorization boundary (Air Canada pattern).
         // The tool SUBMITS a request for human review; nothing can grant a
@@ -6193,6 +6230,26 @@ export default function BankingAgent({
   }
 
   /**
+   * Arm every feature flag a demo chip / use case needs so presenters are not
+   * blocked by a default-off flag (e.g. ff_a2a_delegation).
+   * @param {string[]} flagIds
+   * @param {string} [reason]
+   */
+  async function ensureRequiredDemoFlags(flagIds, reason = "demo step") {
+    const updates = {};
+    for (const id of flagIds || []) {
+      if (id) updates[id] = true;
+    }
+    if (!Object.keys(updates).length) return;
+    try {
+      await apiClient.patch("/api/admin/feature-flags", { updates });
+      console.log(`[ensureRequiredDemoFlags] Auto-enabled ${Object.keys(updates).join(", ")} for ${reason}`);
+    } catch (e) {
+      console.warn(`[ensureRequiredDemoFlags] Could not auto-enable flags for ${reason}:`, e.message);
+    }
+  }
+
+  /**
    * Run a Demo-section use case from the agent header (same catalog as /use-cases).
    * Chip triggers replay NL with useCaseId stamping; attacks hit the sim API;
    * link/edu open their destinations.
@@ -6209,26 +6266,7 @@ export default function BankingAgent({
     const stepLabel = `Demo step ${stepNumber}: ${uc.id} — ${uc.title}`;
     const trigger = uc.trigger || {};
 
-    // Auto-enable feature flags required by flag-gated demo steps.
-    // This ensures presenters don't need to manually toggle flags before running.
-    if (uc.maturity && typeof uc.maturity === "string" && uc.maturity.startsWith("flag:")) {
-      const flagName = uc.maturity.replace("flag:", "");
-      try {
-        await apiClient.patch("/api/admin/feature-flags", { updates: { [flagName]: true } });
-        console.log(`[handleDemoStepSelect] Auto-enabled ${flagName} for ${uc.id}`);
-      } catch (e) {
-        console.warn(`[handleDemoStepSelect] Could not auto-enable ${flagName}:`, e.message);
-      }
-    }
-    // UC2.5 (A2A orchestrator) needs ff_a2a_delegation but has maturity 'works'
-    if (uc.id === "UC2.5") {
-      try {
-        await apiClient.patch("/api/admin/feature-flags", { updates: { ff_a2a_delegation: true } });
-        console.log("[handleDemoStepSelect] Auto-enabled ff_a2a_delegation for UC2.5");
-      } catch (e) {
-        console.warn("[handleDemoStepSelect] Could not auto-enable ff_a2a_delegation:", e.message);
-      }
-    }
+    await ensureRequiredDemoFlags(requiredFlagsForUseCase(uc), uc.id);
 
     if (trigger.type === "chip" && trigger.text) {
       if (!(isLoggedIn || marketingGuestChatEnabled)) {
@@ -7218,6 +7256,19 @@ export default function BankingAgent({
       }
     } else if (response.error || !response.success) {
       reportNlFailure({ code: response.error || "unknown", message: response.reply || response.message || response.error });
+      // Failure path must still update Token Chain / TraceRail — that is where
+      // demo operators diagnose exchange/Authorize/gateway breaks. Success and
+      // HITL/DENY branches already append; skipping here left the rail blank.
+      if (response.tokenEvents?.length) {
+        appendTokenEvents(response.tokenEvents);
+        if (tokenChain) {
+          tokenChain.setTokenEvents("agent", response.tokenEvents);
+        }
+        const agentTokenMsg = buildTokenEventMsg(response.tokenEvents);
+        if (agentTokenMsg) {
+          addMessage("token-event", agentTokenMsg, null);
+        }
+      }
       // Dispatch error event to EventStream
       addEvent({
         type: 'error',
@@ -7728,8 +7779,20 @@ export default function BankingAgent({
                 aria-modal="false"
                 ref={actionsPopoutRef}
               >
-                {/* Search */}
-                <input
+                <div className="ba-agent-popout-hdr">
+                  <div className="ba-agent-popout-hdr__top">
+                    <span className="ba-agent-popout-hdr__title">Actions</span>
+                    <button
+                      type="button"
+                      className="ba-agent-popout-hdr__clear"
+                      onClick={() => clearCompletedUseCases()}
+                      title="Clear checkmarks for a fresh demo pass"
+                      data-testid="actions-clear-progress"
+                    >
+                      Clear progress
+                    </button>
+                  </div>
+                  <input
                   className="ba-popout-search"
                   type="search"
                   placeholder="Search actions or type a question…"
@@ -7789,12 +7852,15 @@ export default function BankingAgent({
                   }}
                 />
                 {isLoggedIn && (
-                  <ScopePicker
-                    allowWrite={agentAllowWrite}
-                    disabled={agentToolsLoading}
-                    onChange={setAgentAllowWrite}
-                  />
+                  <div className="ba-agent-popout-hdr__tools">
+                    <ScopePicker
+                      allowWrite={agentAllowWrite}
+                      disabled={agentToolsLoading}
+                      onChange={setAgentAllowWrite}
+                    />
+                  </div>
                 )}
+                </div>
                 {isLoggedIn && degradedAuthz && (
                   <div className="ba-authz-degraded-badge" title="PingOne Authorize unreachable — using the demo authorize server">
                     Demo Authorize
@@ -7816,7 +7882,7 @@ export default function BankingAgent({
                         `This action was denied by PingOne Authorize: "${chip.label}" — ${reason}. Switch the Agent scope to "Read + Write" to enable it.`,
                       );
                     }}
-                    onChipClick={({ message, label, requiresLlm, chipId, direct, showcase, caption, stepUpMethod, denyTool, useCaseId: chipUseCaseId }) => {
+                    onChipClick={async ({ message, label, requiresLlm, chipId, direct, showcase, caption, stepUpMethod, denyTool, useCaseId: chipUseCaseId }) => {
                       setShowDiscovery(false);
                       if (isAgentBlockedByConsentDecline()) {
                         addMessage(
@@ -7825,6 +7891,12 @@ export default function BankingAgent({
                         );
                         return;
                       }
+                      // Arm flag-gated / A2A chips before the NL or direct path runs
+                      // (demo-step dropdown already does this; BankingChips did not).
+                      await ensureRequiredDemoFlags(
+                        requiredFlagsForUseCaseId(chipUseCaseId),
+                        chipUseCaseId || chipId || "chip",
+                      );
                       addMessage("user", label || message);
                       setNlLoading(true);
 

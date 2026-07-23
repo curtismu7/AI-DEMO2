@@ -231,6 +231,8 @@ PID_AGENT_SVC=/tmp/demo-agent.pid
 LOG_AGENT_SVC=/tmp/demo-agent.log
 PID_INVEST=/tmp/demo-invest.pid
 LOG_INVEST=/tmp/demo-invest.log
+PID_WEATHER=/tmp/demo-weather.pid
+LOG_WEATHER=/tmp/demo-weather.log
 PID_JWTVERIFIER=/tmp/demo-mcp-jwt-verifier.pid
 LOG_JWTVERIFIER=/tmp/demo-mcp-jwt-verifier.log
 PID_MORTGAGE=/tmp/demo-mortgage.pid
@@ -255,7 +257,7 @@ fi
 # Defined once and referenced by both stop_listeners_on_demo_ports and
 # force_kill_listeners_on_demo_ports to avoid per-function drift.
 # LangChain ports: 8887 (FastAPI/CodeGraph), 8889 (chat WS), 8881 (health)
-DEMO_PORTS=(3001 4000 8080 8887 8889 8881 3005 3006 3009 8081 8082 8891 8892 8893 3036)
+DEMO_PORTS=(3001 4000 8080 8887 8889 8881 3005 3006 3009 8081 8082 8891 8892 8893 8896 3036)
 
 # Pre-create all log files so tail/log viewers work before services start.
 # We TRUNCATE here (not just touch) — services that get skipped or fail to relaunch
@@ -263,13 +265,13 @@ DEMO_PORTS=(3001 4000 8080 8887 8889 8881 3005 3006 3009 8081 8082 8891 8892 889
 # debugging the current startup. Only run on `start` to keep `status`/`tail` safe.
 if [[ "${1:-start}" == "start" || "${1:-start}" == "restart" || "${1:-start}" == "dev" || -z "${1:-}" ]]; then
   for _logf in "${LOG_API}" "${LOG_UI}" "${LOG_MCP}" "${LOG_AGENT}" "${LOG_MCP_TRAFFIC}" \
-               "${LOG_GW}" "${LOG_HITL}" "${LOG_AGENT_SVC}" "${LOG_INVEST}" "${LOG_JWTVERIFIER}" "${LOG_MORTGAGE}" "${LOG_AUTH}" \
+               "${LOG_GW}" "${LOG_HITL}" "${LOG_AGENT_SVC}" "${LOG_INVEST}" "${LOG_WEATHER}" "${LOG_JWTVERIFIER}" "${LOG_MORTGAGE}" "${LOG_AUTH}" \
                "${LOG_HELIX}" "${LOG_OASDK}" "${LOG_MASTRA}" "${LOG_PYDANTIC}" "${LOG_PG}"; do
     : > "${_logf}" 2>/dev/null || true
   done
 else
   touch "${LOG_API}" "${LOG_UI}" "${LOG_MCP}" "${LOG_AGENT}" "${LOG_MCP_TRAFFIC}" \
-        "${LOG_GW}" "${LOG_HITL}" "${LOG_AGENT_SVC}" "${LOG_INVEST}" "${LOG_JWTVERIFIER}" "${LOG_MORTGAGE}" "${LOG_AUTH}" \
+        "${LOG_GW}" "${LOG_HITL}" "${LOG_AGENT_SVC}" "${LOG_INVEST}" "${LOG_WEATHER}" "${LOG_JWTVERIFIER}" "${LOG_MORTGAGE}" "${LOG_AUTH}" \
         "${LOG_HELIX}" "${LOG_OASDK}" "${LOG_MASTRA}" "${LOG_PYDANTIC}" 2>/dev/null || true
 fi
 
@@ -620,7 +622,7 @@ _log_janitor_loop() {
   local keep_lines=5000
   local all_logs=(
     "${LOG_API}" "${LOG_MCP}" "${LOG_GW}" "${LOG_HITL}" "${LOG_AGENT_SVC}"
-    "${LOG_INVEST}" "${LOG_JWTVERIFIER}" "${LOG_MORTGAGE}" "${LOG_OASDK}" "${LOG_MASTRA}"
+    "${LOG_INVEST}" "${LOG_WEATHER}" "${LOG_JWTVERIFIER}" "${LOG_MORTGAGE}" "${LOG_OASDK}" "${LOG_MASTRA}"
     "${LOG_PYDANTIC}" "${LOG_AGENT}" "${LOG_AUTH}" "${LOG_HELIX}"
   )
   while true; do
@@ -641,8 +643,8 @@ _log_janitor_loop() {
 tail_demo_logs() {
   local pre="${1:-}"
   [[ "${pre}" == "ALL" || "${pre}" == "All" ]] && pre="all"
-  local names=("Demo API" "Demo UI" "MCP Server" "LangChain Agent" "MCP Traffic" "MCP Gateway" "HITL Service" "Agent Service" "MCP Invest" "MCP JWT Verifier" "Demo Mortgage" "Authorize Server" "Helix LLM" "OpenAI Agents SDK" "Mastra Agent" "Pydantic AI Agent")
-  local logs=("${LOG_API}" "${LOG_UI}" "${LOG_MCP}" "${LOG_AGENT}" "${LOG_MCP_TRAFFIC}" "${LOG_GW}" "${LOG_HITL}" "${LOG_AGENT_SVC}" "${LOG_INVEST}" "${LOG_JWTVERIFIER}" "${LOG_MORTGAGE}" "${LOG_AUTH}" "${LOG_HELIX}" "${LOG_OASDK}" "${LOG_MASTRA}" "${LOG_PYDANTIC}")
+  local names=("Demo API" "Demo UI" "MCP Server" "LangChain Agent" "MCP Traffic" "MCP Gateway" "HITL Service" "Agent Service" "MCP Invest" "MCP Weather" "MCP JWT Verifier" "Demo Mortgage" "Authorize Server" "Helix LLM" "OpenAI Agents SDK" "Mastra Agent" "Pydantic AI Agent")
+  local logs=("${LOG_API}" "${LOG_UI}" "${LOG_MCP}" "${LOG_AGENT}" "${LOG_MCP_TRAFFIC}" "${LOG_GW}" "${LOG_HITL}" "${LOG_AGENT_SVC}" "${LOG_INVEST}" "${LOG_WEATHER}" "${LOG_JWTVERIFIER}" "${LOG_MORTGAGE}" "${LOG_AUTH}" "${LOG_HELIX}" "${LOG_OASDK}" "${LOG_MASTRA}" "${LOG_PYDANTIC}")
   local count=${#names[@]}
   local all_opt=$((count + 1))
   local choice=""
@@ -854,6 +856,7 @@ print_status_table() {
   service_status_line "Authorization Server" 9001         "/health"        "http://localhost:9001 (internal)"
   service_status_line "MCP Gateway"          3005         "/health"        "http://localhost:3005 (internal)"
   service_status_line "MCP Invest Server"    8081         "/health"        "ws://localhost:8081 (internal)"
+  service_status_line "MCP Weather Server"   8896         "/health"        "http://localhost:8896 (internal)"
   service_status_line "MCP JWT Verifier"     8083         "/health"        "http://localhost:8083 (internal)"
   service_status_line "Mortgage Service"     8082         "/health"        "http://localhost:8082 (internal)"
   service_status_line "Agent Service"        3006         "/health"        "http://localhost:3006 (internal)"
@@ -889,7 +892,7 @@ print_status_table() {
 cmd_stop() {
   echo "[STOP] Stopping Demo services (run.sh)..."
   set +e
-  for pid_file in "$PID_API" "$PID_MCP" "$PID_AUTHZ" "$PID_GW" "$PID_HITL" "$PID_AGENT_SVC" "$PID_INVEST" "$PID_JWTVERIFIER" "$PID_MORTGAGE" "$PID_AGENT" "$PID_UI" "$PID_OASDK" "$PID_MASTRA" "$PID_PYDANTIC" "$PID_LOG_JANITOR"; do
+  for pid_file in "$PID_API" "$PID_MCP" "$PID_AUTHZ" "$PID_GW" "$PID_HITL" "$PID_AGENT_SVC" "$PID_INVEST" "$PID_WEATHER" "$PID_JWTVERIFIER" "$PID_MORTGAGE" "$PID_AGENT" "$PID_UI" "$PID_OASDK" "$PID_MASTRA" "$PID_PYDANTIC" "$PID_LOG_JANITOR"; do
     if [[ -f "$pid_file" ]]; then
       PID=$(cat "$pid_file" 2>/dev/null || true)
       rm -f "$pid_file"
@@ -905,7 +908,7 @@ cmd_stop() {
     docker compose -f "$BASEDIR/ping-gateway/docker-compose.yml" down --remove-orphans \
       >> "${LOG_PG}" 2>&1 || true
   fi
-  echo "   Sweeping ports (API :${API_PORT}, UI :${UI_PORT}, MCP :8080, AuthzServer :9001, GW :3005, Agent :3006, HITL :3009, Invest :8081, Mortgage :8082, LangChain :8887/8889/8881, OASDK :8891, Mastra :8892, Pydantic :8893, PingGateway :3036)…"
+  echo "   Sweeping ports (API :${API_PORT}, UI :${UI_PORT}, MCP :8080, AuthzServer :9001, GW :3005, Agent :3006, HITL :3009, Invest :8081, Weather :8896, Mortgage :8082, LangChain :8887/8889/8881, OASDK :8891, Mastra :8892, Pydantic :8893, PingGateway :3036)…"
   stop_listeners_on_demo_ports
   sleep 1
   force_kill_listeners_on_demo_ports
@@ -1008,6 +1011,7 @@ cmd_help() {
   echo "    ${LOG_HITL}"
   echo "    ${LOG_AGENT_SVC}"
   echo "    ${LOG_INVEST}"
+  echo "    ${LOG_WEATHER}"
   echo "    ${LOG_JWTVERIFIER}"
   echo "    ${LOG_MORTGAGE}"
   echo "    ${LOG_AUTH}"
@@ -1132,7 +1136,7 @@ done
 if [[ "$_any_running" == "true" ]]; then
   echo -e "${YELLOW}  [SPIN]  Stopping existing Demo services…${RESET}"
   set +e
-  for _pf in "$PID_API" "$PID_MCP" "$PID_AUTHZ" "$PID_GW" "$PID_HITL" "$PID_AGENT_SVC" "$PID_INVEST" "$PID_JWTVERIFIER" "$PID_AGENT" "$PID_UI" "$PID_OASDK" "$PID_MASTRA" "$PID_PYDANTIC" "$PID_LOG_JANITOR"; do
+  for _pf in "$PID_API" "$PID_MCP" "$PID_AUTHZ" "$PID_GW" "$PID_HITL" "$PID_AGENT_SVC" "$PID_INVEST" "$PID_WEATHER" "$PID_JWTVERIFIER" "$PID_AGENT" "$PID_UI" "$PID_OASDK" "$PID_MASTRA" "$PID_PYDANTIC" "$PID_LOG_JANITOR"; do
     if [[ -f "$_pf" ]]; then
       _pid=$(cat "$_pf" 2>/dev/null || true)
       rm -f "$_pf"
@@ -1152,9 +1156,9 @@ fi
 # (tsc) when dist/index.js is missing. SVC_INSTALL_FLAGS handles services that
 # need extra `npm install` flags. Loud failure on any error — silent skips here
 # are exactly how we got cryptic MODULE_NOT_FOUND in service logs.
-SVC_LIST=(demo_api_server demo_mcp_server demo_api_ui demo_mcp_gateway demo_hitl_service demo_agent_service demo_mcp_invest demo_mortgage_service mastra_agent demo_authz_server)
-SVC_BUILD=(""                "ts"               ""       "ts"                ""                   "ts"                  "ts"               ""                    "ts"          "")
-SVC_INSTALL_FLAGS=("--legacy-peer-deps" ""                 ""       ""                  ""                   ""                    ""                 ""                    ""            "")
+SVC_LIST=(demo_api_server demo_mcp_server demo_api_ui demo_mcp_gateway demo_hitl_service demo_agent_service demo_mcp_invest demo_mcp_weather demo_mortgage_service mastra_agent demo_authz_server)
+SVC_BUILD=(""                "ts"               ""       "ts"                ""                   "ts"                  "ts"               ""                 ""                    "ts"          "")
+SVC_INSTALL_FLAGS=("--legacy-peer-deps" ""                 ""       ""                  ""                   ""                    ""                 ""                 ""                    ""            "")
 
 # Decide whether a Node service needs `npm install`. Prints a short human reason
 # and returns 0 when install is needed; returns 1 (no output) when in sync.
@@ -1282,7 +1286,7 @@ done
 # gracefully on a missing/stale DB.
 if command -v python3 >/dev/null 2>&1; then
   if python3 "$BASEDIR/scripts/build-codegraph.py" >/dev/null 2>&1; then
-    cp -f "$BASEDIR/.codegraph/codegraph.db" "$BASEDIR/langchain_agent/codegraph.db" 2>/dev/null || true
+    cp -f "$BASEDIR/.codegraph/demo-codegraph.db" "$BASEDIR/langchain_agent/codegraph.db" 2>/dev/null || true
     python3 "$BASEDIR/scripts/build-codegraph.py" --stage-src "$BASEDIR/langchain_agent/repo-src" >/dev/null 2>&1 || true
     ok "CodeGraph index refreshed (Code Explorer)"
   else
@@ -1546,6 +1550,17 @@ if [[ -d "$BASEDIR/demo_mcp_invest" ]]; then
   echo $! > "$PID_INVEST"
 fi
 
+# ── MCP Weather Server on :8896 (Agent Gateway Texas-scope showcase) ────────
+if [[ -d "$BASEDIR/demo_mcp_weather" ]]; then
+  echo "[WEATHER] Starting MCP Weather Server on :8896..."
+  (
+    cd "$BASEDIR/demo_mcp_weather"
+    PORT=8896 \
+    npm start > "${LOG_WEATHER}" 2>&1
+  ) &
+  echo $! > "$PID_WEATHER"
+fi
+
 # ── MCP JWT Verifier (Python/FastMCP) on :8083 ───────────────────────────────
 if [[ -d "$BASEDIR/demo_mcp_jwt_verifier" ]]; then
   echo "[JWTVERIFIER] Starting MCP JWT Verifier on :8083..."
@@ -1703,6 +1718,7 @@ except: pass
 # Wait for Tier 3 services (UI and LangChain were launched above to run in parallel)
 wait_for_health 3006 "/health" 15 "Agent Service"     "${LOG_AGENT_SVC}" >/dev/null
 wait_for_health 8081 "/health" 15 "MCP Invest Server" "${LOG_INVEST}"    >/dev/null
+wait_for_health 8896 "/health" 15 "MCP Weather Server" "${LOG_WEATHER}"  >/dev/null
 wait_for_health 8083 "/health" 15 "MCP JWT Verifier"  "${LOG_JWTVERIFIER}" >/dev/null
 wait_for_health 8082 "/health" 10 "Demo Mortgage"     "${LOG_MORTGAGE}"  >/dev/null
 # UI: port-only (CRA has no /health endpoint); full 90s budget since UI launched before waits

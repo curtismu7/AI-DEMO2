@@ -141,6 +141,12 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
       return res.status(400).json({ error: 'invalid_vertical', message: 'vertical must match [a-z][a-z0-9-]*' });
     }
     const vertical = parseVerticalParam(verticalRaw);
+    // SPA page context wins: pin this session so /accounts/my and heuristics
+    // match the page even if a prior CareConnect/retail switch left healthcare.
+    if (vertical && req.session && req.session.active_vertical !== vertical) {
+      req.session.active_vertical = vertical;
+      if (typeof req.session.save === 'function') req.session.save(() => {});
+    }
 
     const promptBlock = guardPromptInput(prompt);
     if (promptBlock) {
@@ -434,12 +440,18 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
       },
       flowId: flowTraceId,
     });
+    // Preserve any exchange/authorize evidence attached to the thrown error so
+    // the Token Chain still updates when the invoke path hard-fails.
+    const errorTokenEvents = Array.isArray(error.tokenEvents) && error.tokenEvents.length
+      ? error.tokenEvents
+      : (Array.isArray(req.tokenEvents) ? req.tokenEvents : []);
     // Dead/expired user token: surface as 401 so the SPA can trigger re-auth
     // instead of treating it as a generic server error.
     if (error.code === 'TOKEN_INACTIVE') {
       return res.status(401).json({
         error: 'token_inactive',
         message: 'Your session is no longer active. Please sign in again.',
+        tokenEvents: errorTokenEvents,
       });
     }
     // Downstream MCP/gateway rejected the agent's delegated token while the user's
@@ -450,9 +462,14 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
         error: 'gateway_token_rejected',
         message: error.message,
         needsLogin: false,
+        tokenEvents: errorTokenEvents,
       });
     }
-    res.status(500).json({ error: 'Agent invocation failed', message: error.message });
+    res.status(500).json({
+      error: 'Agent invocation failed',
+      message: error.message,
+      tokenEvents: errorTokenEvents,
+    });
   }
 });
 

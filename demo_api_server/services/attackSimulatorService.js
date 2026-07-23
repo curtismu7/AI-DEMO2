@@ -323,17 +323,39 @@ async function _exchangeGatewayToken(subjectToken, scopes, useCaseId, tokenChain
     };
   }
 
+  // PingGateway brokered path: PingOne rejects product scopes (read/write/transfer)
+  // against the gateway resource with invalid_scope ("May not request scopes for
+  // multiple resources"). Mint only the coarse gateway invoke scope + HTTPS aud.
+  const usePingGateway = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
+  const gatewayBrokered = configStore.getEffective('ff_gateway_brokered_exchange') !== 'false';
+  const gatewayInvokeScope = configStore.getEffective('gateway_mcp_invoke_scope')
+    || configStore.getEffective('pinggateway_invoke_scope')
+    || 'gateway:mcp:invoke';
+  const pingGatewayResourceAud = process.env.PINGONE_RESOURCE_PINGGATEWAY_URI
+    || configStore.getEffective('pingone_resource_pinggateway_uri')
+    || null;
+  const exchangeAud = (usePingGateway && gatewayBrokered && pingGatewayResourceAud)
+    ? pingGatewayResourceAud
+    : gatewayAud;
+  // Array → performTokenExchangeAs emits RFC 8707 resource= (required for PG HTTPS aud).
+  const exchangeAudience = (usePingGateway && gatewayBrokered && pingGatewayResourceAud)
+    ? [pingGatewayResourceAud]
+    : exchangeAud;
+  const exchangeScopes = (usePingGateway && gatewayBrokered)
+    ? [gatewayInvokeScope]
+    : scopes;
+
   tokenChainEvents.push(buildTokenEvent(
     'sim-exchange-start',
     `Token Exchange (${label})`,
     'active',
     null,
-    `Exchanging user token to gateway audience ${gatewayAud} with scope "${scopes.join(' ')}".`,
+    `Exchanging user token to gateway audience ${Array.isArray(exchangeAudience) ? JSON.stringify(exchangeAudience) : exchangeAudience} with scope "${exchangeScopes.join(' ')}".`,
   ));
 
   let exchangedToken;
   try {
-    exchangedToken = await _exchangeSimToken(subjectToken, gatewayAud, scopes);
+    exchangedToken = await _exchangeSimToken(subjectToken, exchangeAudience, exchangeScopes);
   } catch (err) {
     const errorCode = err.pingoneError || 'exchange_failed';
     const reason = `Token exchange failed: ${err.message}`;
@@ -365,7 +387,12 @@ async function _exchangeGatewayToken(subjectToken, scopes, useCaseId, tokenChain
     'active',
     decoded,
     'PingOne minted a delegated gateway token for the attack scenario.',
-    { exchangeDetails: { audience: gatewayAud, scopes: scopes.join(' ') } },
+    {
+      exchangeDetails: {
+        audience: Array.isArray(exchangeAudience) ? exchangeAudience.join(' ') : exchangeAudience,
+        scopes: exchangeScopes.join(' '),
+      },
+    },
   ));
   return { ok: true, token: exchangedToken };
 }
