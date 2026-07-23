@@ -177,3 +177,29 @@ describe('configStore envFallbackMap — credential alias completeness', () => {
     });
   });
 });
+
+describe('configStore envFallbackMap — PAR + AI Agent Actor redirect', () => {
+  it("getEffective('pingone_ai_agent_actor_redirect_uri') resolves from env", () => {
+    process.env.PINGONE_AI_AGENT_ACTOR_REDIRECT_URI =
+      'https://api.ping.demo:4000/api/auth/oauth/ai-agent-placeholder-callback';
+    const cs = freshConfigStore();
+    expect(cs.getEffective('pingone_ai_agent_actor_redirect_uri')).toBe(
+      'https://api.ping.demo:4000/api/auth/oauth/ai-agent-placeholder-callback',
+    );
+  });
+
+  it("getEffective('oauth_par_endpoint') and pingone_par_endpoint stay aliased", () => {
+    process.env.OAUTH_PAR_ENDPOINT = 'https://auth.pingone.com/env/as/par';
+    const cs = freshConfigStore();
+    expect(cs.getEffective('oauth_par_endpoint')).toBe('https://auth.pingone.com/env/as/par');
+    expect(cs.getEffective('pingone_par_endpoint')).toBe('https://auth.pingone.com/env/as/par');
+  });
+
+  it('FIELD_DEFS includes actor redirect + oauth_par_endpoint', () => {
+    freshConfigStore();
+    const { FIELD_DEFS: defs } = require('../../services/configStore');
+    expect(defs.PINGONE_AI_AGENT_ACTOR_REDIRECT_URI).toBeDefined();
+    expect(defs.PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET).toBeDefined();
+    expect(defs.oauth_par_endpoint).toBeDefined();
+  });
+});

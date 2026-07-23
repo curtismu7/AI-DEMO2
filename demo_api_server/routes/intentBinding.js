@@ -14,7 +14,23 @@ const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 const configStore = require('../services/configStore');
 const { runIntentBindingDemo } = require('../services/attackSimulatorService');
-const { pushAuthorizationRequest, buildTokenExchangeWithPar } = require('../services/parService');
+const { pushAuthorizationRequestWithRedirectFallback, isParRedirectUriMismatch } = require('../services/parService');
+const { getParEndpoint } = require('../services/oauthEndpointResolver');
+const { listActorParRedirectCandidates } = require('../services/oauthRedirectUris');
+
+/** Classify PingOne PAR push failures for the learning-page token chain. */
+function classifyParPushError(message) {
+  const msg = String(message || '');
+  if (isParRedirectUriMismatch(msg)) {
+    return {
+      errorCode: 'par_redirect_uri_mismatch',
+      reason:
+        `${msg} — register every PUBLIC_APP_URL host on Demo AI App AI Agent Actor ` +
+        '(local.ping-devops.com + api.ping.demo + ai-demo.ping-devops.com). Re-run PingOne provision or Admin → Applications → AI Agent Actor → Redirect URIs.',
+    };
+  }
+  return { errorCode: 'par_push_failed', reason: msg };
+}
 
 router.post('/run', authenticateToken, async (req, res) => {
   if (process.env.NODE_ENV === 'production') {
@@ -49,17 +65,19 @@ router.post('/run', authenticateToken, async (req, res) => {
   }
 
   try {
-    // PAR (RFC 9126) for live mode
+    // PAR (RFC 9126) for live mode — Demo AI App AI Agent Actor (WEB), not the
+    // Worker "Agent Actor". Endpoint/redirect derive from existing auth base +
+    // public_app_url (same URI provision registers on the actor app).
     if (live === true) {
-      const parEndpoint = configStore.getEffective('pingone_par_endpoint');
+      const parEndpoint = getParEndpoint();
       const clientId = configStore.getEffective('pingone_ai_agent_actor_client_id');
       const clientSecret = configStore.getEffective('pingone_ai_agent_actor_client_secret');
-      const redirectUri = configStore.getEffective('pingone_ai_agent_actor_redirect_uri');
+      const redirectCandidates = listActorParRedirectCandidates();
 
-      if (!parEndpoint || !clientId || !clientSecret || !redirectUri) {
+      if (!parEndpoint || !clientId || !clientSecret || !redirectCandidates.length) {
         return res.status(503).json({
           error: 'par_config_missing',
-          reason: 'PingOne PAR (RFC 9126) is enabled by default. Configure: pingone_par_endpoint, pingone_ai_agent_actor_client_id, pingone_ai_agent_actor_client_secret, pingone_ai_agent_actor_redirect_uri',
+          reason: 'PingOne PAR (RFC 9126) needs AI Agent Actor credentials plus pingone_environment_id (and ideally public_app_url). Configure: pingone_ai_agent_actor_client_id, pingone_ai_agent_actor_client_secret',
           tokenChainEvents: [{
             id: 'par-config-missing',
             label: 'PAR Configuration Missing',
@@ -78,7 +96,6 @@ router.post('/run', authenticateToken, async (req, res) => {
       try {
         const authPayload = {
           scope: 'openid profile email',
-          redirect_uri: redirectUri,
           authorization_details: [{
             type: 'banking_transaction',
             actions: ['transfer'],
@@ -87,15 +104,30 @@ router.post('/run', authenticateToken, async (req, res) => {
           }],
         };
 
-        const parResult = await pushAuthorizationRequest(
+        // Prefer PUBLIC_APP_URL, then fall back across every known demo host so a
+        // stale Actor allowlist (only api.ping.demo while the SPA is on
+        // local.ping-devops.com) still completes the live demo.
+        const parResult = await pushAuthorizationRequestWithRedirectFallback(
           parEndpoint,
           clientId,
           clientSecret,
           authPayload,
-          'default'
+          redirectCandidates,
+          'default',
         );
 
         const withinIntent = amount <= INTENT_CAP;
+        const parPushEvents = [
+          { id: 'par-push', label: 'PAR Endpoint Push', status: 'active' },
+          { id: 'request-uri', label: 'Received request_uri', status: 'active' },
+        ];
+        if (parResult.usedFallback) {
+          parPushEvents.push({
+            id: 'par-redirect-fallback',
+            label: `Redirect URI fallback → ${parResult.redirectUri}`,
+            status: 'active',
+          });
+        }
         return res.status(200).json({
           sim: withinIntent ? 'par-permit' : 'par-deny',
           useCaseId: withinIntent ? 'par-intent-verified' : 'par-intent-violation',
@@ -105,16 +137,15 @@ router.post('/run', authenticateToken, async (req, res) => {
             ? `PERMIT — $${amount} within the $${INTENT_CAP} declared intent (via PAR)`
             : `DENY — $${amount} exceeds the $${INTENT_CAP} declared intent (via PAR)`,
           requestUri: parResult.requestUri,
+          redirectUri: parResult.redirectUri,
           tokenChainEvents: withinIntent
             ? [
-                { id: 'par-push', label: 'PAR Endpoint Push', status: 'active' },
-                { id: 'request-uri', label: 'Received request_uri', status: 'active' },
+                ...parPushEvents,
                 { id: 'intent-check', label: `Intent cap $${amount} <= $${INTENT_CAP}`, status: 'active' },
                 { id: 'p1az-permit', label: 'PingOne Authorize — PERMIT', status: 'active' },
               ]
             : [
-                { id: 'par-push', label: 'PAR Endpoint Push', status: 'active' },
-                { id: 'request-uri', label: 'Received request_uri', status: 'active' },
+                ...parPushEvents,
                 { id: 'intent-check', label: `Intent cap $${amount} > $${INTENT_CAP}`, status: 'exceeded' },
                 { id: 'transfer-blocked', label: 'Transfer blocked — intent exceeded', status: 'enforced' },
               ],
@@ -122,11 +153,12 @@ router.post('/run', authenticateToken, async (req, res) => {
         });
       } catch (parErr) {
         console.error('[intentBinding] PAR push failed:', parErr.message);
+        const classified = classifyParPushError(parErr.message);
         return res.status(200).json({
           sim: 'par-error',
           status: 403,
-          errorCode: 'par_push_failed',
-          reason: parErr.message,
+          errorCode: classified.errorCode,
+          reason: classified.reason,
           tokenChainEvents: [
             { id: 'par-push', label: 'PAR Endpoint Push', status: 'error' },
           ],

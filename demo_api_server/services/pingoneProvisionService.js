@@ -101,14 +101,10 @@ function topologyAppGrantedScopes(appName) {
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'Baseball123!';
 
 // Known redirect origins across all deployment targets.
-// Bootstrap registers ALL of these so the same PingOne tenant works in local
-// dev, Docker Compose, the SE DevOps cluster, and any custom PUBLIC_APP_URL.
-// Paths are appended per-app below.
-const KNOWN_REDIRECT_ORIGINS = [
-  'https://local.ping-devops.com:4000',   // local dev — passkey-capable (see FIDO2_RP_ID)
-  'https://api.ping.demo:4000',           // local dev (legacy; run-demo.sh / docker-compose)
-  'https://ai-demo.ping-devops.com'       // SE DevOps cluster (Ping AWS / k8s)
-];
+// SoT shared with oauthRedirectUris.KNOWN_PUBLIC_ORIGINS so Actor PAR redirects
+// cannot drift from admin/user OAuth allowlists.
+const { KNOWN_PUBLIC_ORIGINS } = require('./oauthRedirectUris');
+const KNOWN_REDIRECT_ORIGINS = KNOWN_PUBLIC_ORIGINS.slice();
 
 /**
  * Derive a well-formed email domain from the public app URL.
@@ -1513,6 +1509,7 @@ class PingOneProvisionService {
       '#              -> final MCP token (aud=mcpgateway.ping.demo).',
       `PINGONE_AI_AGENT_ACTOR_CLIENT_ID=${provisioned.aiAgentApp?.clientId || ''}`,
       `PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET=${provisioned.aiAgentApp?.clientSecret || '<set-in-pingone-console>'}`,
+      `PINGONE_AI_AGENT_ACTOR_REDIRECT_URI=${(config.publicAppUrl || '').replace(/\/+$/, '')}/api/auth/oauth/ai-agent-placeholder-callback`,
       `PINGONE_RESOURCE_AGENT_GATEWAY_URI=${provisioned.agentGwResourceServer?.audience?.[0] || 'agentgateway.ping.demo'}`,
       `PINGONE_RESOURCE_MCP_GATEWAY_URI=${provisioned.mcpGwResourceServer?.audience?.[0] || 'mcpgateway.ping.demo'}`,
       `# Two-Exchange Delegation audiences (Exchange #1 intermediate + Exchange #2 final)`,
@@ -2657,15 +2654,39 @@ class PingOneProvisionService {
 
       // Step 37: Configure AI Agent redirect URI + auth method.
       // WEB_APP needs redirectUris; the authorization_code flow is never used
-      // for this app — it only mints CC tokens for token-exchange.
-      if (!aiAgentAppResult.exists) {
+      // for this app — it only mints CC tokens for token-exchange / PAR.
+      // Register ALL known public hosts (same set as admin/user apps) so live
+      // intent-binding PAR does not fail with Redirect URI mismatch when
+      // PUBLIC_APP_URL is local.ping-devops.com but the app was provisioned
+      // under api.ping.demo (or vice versa).
+      {
+        const { listActorPlaceholderRedirectUris } = require('./oauthRedirectUris');
+        const actorRedirectUris = listActorPlaceholderRedirectUris(config.publicAppUrl);
         steps.push({ step: 'ai-agent-config', icon: '⚙️', message: 'Configuring AI Agent application...' });
         onStep(steps[steps.length - 1]);
-        await this.updateApplication(aiAgentAppResult.application.id, {
-          redirectUris: [`${config.publicAppUrl}/api/auth/oauth/ai-agent-placeholder-callback`],
-          tokenEndpointAuthMethod: 'client_secret_post',
-        });
-        steps.push({ step: 'ai-agent-config', icon: '✅', message: 'AI Agent application configured' });
+        if (!aiAgentAppResult.exists) {
+          await this.updateApplication(aiAgentAppResult.application.id, {
+            redirectUris: actorRedirectUris,
+            tokenEndpointAuthMethod: 'client_secret_post',
+          });
+          steps.push({ step: 'ai-agent-config', icon: '✅', message: 'AI Agent application configured' });
+        } else {
+          const currentUris = Array.isArray(aiAgentAppResult.application?.redirectUris)
+            ? aiAgentAppResult.application.redirectUris
+            : [];
+          const merged = Array.from(new Set(currentUris.concat(actorRedirectUris)));
+          const needsRedirectUpdate = merged.length !== currentUris.length
+            || actorRedirectUris.some((u) => !currentUris.includes(u));
+          if (needsRedirectUpdate) {
+            await this.updateApplication(aiAgentAppResult.application.id, {
+              redirectUris: merged,
+              tokenEndpointAuthMethod: 'client_secret_post',
+            });
+            steps.push({ step: 'ai-agent-config', icon: '✅', message: 'AI Agent actor redirect URIs reconciled' });
+          } else {
+            steps.push({ step: 'ai-agent-config', icon: '✅', message: 'AI Agent application already configured' });
+          }
+        }
         onStep(steps[steps.length - 1]);
       }
 
