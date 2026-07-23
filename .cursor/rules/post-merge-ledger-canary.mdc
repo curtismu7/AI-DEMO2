@@ -33,3 +33,19 @@ Canaries (must stay tracked and green locally):
 
 If any of those disappear or the source contracts regress, fix immediately — do not
 open a new feature until the canary is green again.
+
+## LLM pin/prewarm thrash example (#785)
+
+Symptom: dashboard/agent mount prewarmed `gpt-oss-20b` while `LLM_PROXY_PIN_TIER=8091`,
+unloaded phi → brief "llama not available" → pin swapped phi back.
+
+Canaries (must stay tracked and green):
+
+- `demo_api_server/tests/langchainConfig.prewarmPin.test.js`
+- `demo_api_server/tests/checks/tierManagerPinSkip.test.js`
+- Pin-aware cases in `demo_api_ui/src/__tests__/BankingAgent.safety.test.js`
+- Hygiene locks in `scripts/check-fresh-clone-hygiene.js` (`llm-prewarm-pin`) and
+  `scripts/check-llm-host-residency.js` (tier-manager + BFF skip contracts)
+
+Do not restore `opportunisticPrewarm("gpt-oss-20b")` on AIAgent / UseCaseLauncher
+mount while pin skip is the contract — call `opportunisticPrewarm()` so the pin wins.
