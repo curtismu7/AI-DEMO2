@@ -261,8 +261,8 @@ services:
   # ── UI (Vite build → nginx HTTPS) ──────────────────────────────────────────
   ui:
     build:
-      context: ./demo_api_ui
-      dockerfile: Dockerfile
+      context: .    # repo root — builder needs llm-timeouts.json (../../../ from /app/src/services)
+      dockerfile: demo_api_ui/Dockerfile
       args:
         GIT_SHA: ${GIT_SHA:-unknown}
     container_name: ai-demo-ui
