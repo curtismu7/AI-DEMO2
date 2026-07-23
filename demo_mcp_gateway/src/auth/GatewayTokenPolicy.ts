@@ -15,6 +15,7 @@ import type { DecodedGatewayToken } from '../tokenValidator';
 import type { GatewayConfig } from '../config';
 import { isAgentMediatedTool } from './scopeTopology';
 import { validateActClaim } from './toolScopes';
+import { actChainDepth } from './PingOneAuthorizeClient';
 
 export class GatewayTokenPolicyError extends Error {
   constructor(message: string, public readonly code: string) {
@@ -70,12 +71,19 @@ export class GatewayTokenPolicy {
       // the ActClientId parameter (mock Rule 2 / cloud "Deny — Invalid Actor
       // Chain"), so the PEP and the PDP agree on who may act.
       // No-ops when authorizedActorClientId is unset (dev / no-actor mode).
-      const actorCheck = validateActClaim(actSub, config.authorizedActorClientId ?? '');
-      if (!actorCheck.valid) {
-        throw new GatewayTokenPolicyError(
-          `Unauthorized delegation actor: ${actorCheck.reason}`,
-          'unauthorized_actor',
-        );
+      //
+      // A2A nested-act tokens (depth >= 2: act:{specialist, act:{generalist}}) are
+      // exempt — same as mock authz Rule 2 skipping a2aDelegated tools. Authorize
+      // validates NestedActClientId + depth; the exchanger-only allow-list would
+      // otherwise reject every specialist actor and kill UC2 / UC2.5.
+      if (actChainDepth(decoded.act) < 2) {
+        const actorCheck = validateActClaim(actSub, config.authorizedActorClientId ?? '');
+        if (!actorCheck.valid) {
+          throw new GatewayTokenPolicyError(
+            `Unauthorized delegation actor: ${actorCheck.reason}`,
+            'unauthorized_actor',
+          );
+        }
       }
     }
 

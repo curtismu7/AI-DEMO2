@@ -283,6 +283,57 @@ function resolveStepUpMethod(useCaseId) {
 }
 
 /**
+ * Local amount-limit overlay used when the live Transaction decision endpoint
+ * is unreachable (e.g. PingOne 429 REQUEST_LIMITED). Mirrors the MCP simulated
+ * amount ladder (deny / step-up / confirm) so UC6–UC8 still fire when the MCP
+ * first-tool gate alone returns bare PERMIT (live P1AZ MCP policy does not
+ * encode amount limits).
+ *
+ * @param {object} r - gate result
+ * @param {{amount: number, acr?: string}} opts
+ * @returns {object} r, possibly upgraded
+ */
+function _localAmountLimitFallback(r, { amount, acr }) {
+  const denyAmount = simulatedAuthorizeService.getDenyAmountUsd();
+  const stepUpAmount = simulatedAuthorizeService.getStepUpAmountUsd();
+  const confirmAmount = simulatedAuthorizeService.getConfirmAmountUsd();
+  const acrStrong = typeof acr === 'string'
+    && /multi.?factor|mfa|aal2|Multi_Factor/i.test(acr);
+
+  if (amount > denyAmount) {
+    return {
+      ...r,
+      decision: 'DENY',
+      transactionPolicyDenied: true,
+      transactionPolicyFallback: true,
+      raw: {
+        ...(r.raw || {}),
+        decision: 'DENY',
+        reason: `Local amount fallback DENY: $${amount} exceeds deny limit $${denyAmount} (Transaction endpoint unavailable).`,
+        engine: 'local-amount-fallback',
+      },
+    };
+  }
+  if (amount >= stepUpAmount && !acrStrong) {
+    return {
+      ...r,
+      stepUpRequired: true,
+      transactionPolicyStepUp: true,
+      transactionPolicyFallback: true,
+    };
+  }
+  if (amount >= confirmAmount && !acrStrong) {
+    return {
+      ...r,
+      hitlRequired: true,
+      transactionPolicyHitl: true,
+      transactionPolicyFallback: true,
+    };
+  }
+  return r;
+}
+
+/**
  * Consult the Transaction decision endpoint for amount-bearing tool calls.
  *
  * The MCP first-tool gate answers "may this agent invoke this tool" — it does not
@@ -358,9 +409,16 @@ async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr
     if (forceStepUp) {
       return { ...r, stepUpRequired: true, transactionPolicyStepUp: true };
     }
-    // Otherwise fail OPEN to the gate's decision: the gate already ran and is the
-    // primary control. A transaction-policy outage must not block every priced call.
-    console.warn('[mcpAuthz] transaction policy consult failed — keeping gate decision:', err.message);
+    // Live MCP first-tool policy often PERMITs without amount obligations. The
+    // Transaction endpoint is what enforces $2500 DENY / $600 step-up / $300
+    // HITL. When it 429s (REQUEST_LIMITED) or errors, failing open to the gate
+    // made UC6 pay the bill and Proof show "Authz denied — Mismatch". Apply
+    // the same amount ladder locally so demos stay correct under P1AZ pressure.
+    console.warn(
+      '[mcpAuthz] transaction policy consult failed — applying local amount fallback:',
+      err.message,
+    );
+    return _localAmountLimitFallback(r, { amount, acr });
   }
   return r;
 }

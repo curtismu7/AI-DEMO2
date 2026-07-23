@@ -784,7 +784,13 @@ async function runMcpToolPipeline(ctx) {
                     status,
                     null,
                     desc,
-                    buildGwAuthorizeEventExtra(authzRes)
+                    buildGwAuthorizeEventExtra({
+                        ...authzRes,
+                        denyingFilter: gwAuditTrail.denyingFilter || authzRes.denyingFilter,
+                        lastFilter: gwAuditTrail.lastFilter || authzRes.lastFilter,
+                        filterChain: gwAuditTrail.filterChain || authzRes.filterChain,
+                        policy: gwAuditTrail.policy || authzRes.policy,
+                    })
                 );
                 tokenEvents.push(gwAuthorizeEvent);
                 gwEvents.push(gwAuthorizeEvent);
@@ -856,6 +862,33 @@ async function runMcpToolPipeline(ctx) {
                 );
                 tokenEvents.push(gwBackendExchangeEvent);
                 gwEvents.push(gwBackendExchangeEvent);
+            }
+            // Weather / ScriptableFilter permit: surface filter chain when present
+            // (often the only Agent Gateway teaching evidence on UC30 success).
+            if (gwAuditTrail.filterChain
+                && !tokenEvents.some((e) => e && e.id === 'gw-filter-chain')) {
+                const policyPassed = gwAuditTrail.policy?.passed !== false;
+                const gwFilterEvent = deps.buildTokenEvent(
+                    'gw-filter-chain',
+                    'PingGateway — filter chain',
+                    policyPassed ? 'active' : 'deny',
+                    null,
+                    policyPassed
+                        ? `Agent Gateway forwarded “${tool}” through ${gwAuditTrail.lastFilter || 'filter chain'} (state-scope policy passed).`
+                        : (gwAuditTrail.policy?.name
+                            ? `Agent Gateway blocked “${tool}” (${gwAuditTrail.policy.name}).`
+                            : `Agent Gateway blocked “${tool}”.`),
+                    {
+                        denyingFilter: policyPassed ? null : (gwAuditTrail.denyingFilter || gwAuditTrail.lastFilter || null),
+                        lastFilter: gwAuditTrail.lastFilter || null,
+                        filterChain: gwAuditTrail.filterChain,
+                        policy: gwAuditTrail.policy || null,
+                        tool,
+                        route: gwAuditTrail.policy?.route || null,
+                    }
+                );
+                tokenEvents.push(gwFilterEvent);
+                gwEvents.push(gwFilterEvent);
             }
         }
         if (gwEvents.length > 0) {
@@ -986,6 +1019,7 @@ async function runMcpToolPipeline(ctx) {
             // in the token chain instead of only as an error message.
             if (err.gwAuditTrail && err.gwAuditTrail.authorize) {
                 const authzRes = err.gwAuditTrail.authorize;
+                const trail = err.gwAuditTrail;
                 const decision = authzRes.decision;
                 const status = decision === 'PERMIT' ? 'permit' : (decision === 'INDETERMINATE' ? 'indeterminate' : 'deny');
                 tokenEvents.push(deps.buildTokenEvent(
@@ -994,7 +1028,13 @@ async function runMcpToolPipeline(ctx) {
                     status,
                     null,
                     `PingOne Authorize decision: ${decision}${authzRes.reason ? ' — ' + authzRes.reason : ''}`,
-                    buildGwAuthorizeEventExtra(authzRes)
+                    buildGwAuthorizeEventExtra({
+                        ...authzRes,
+                        denyingFilter: trail.denyingFilter || authzRes.denyingFilter,
+                        lastFilter: trail.lastFilter || authzRes.lastFilter,
+                        filterChain: trail.filterChain || authzRes.filterChain,
+                        policy: trail.policy || authzRes.policy,
+                    })
                 ));
             }
             if (err.gwAuditTrail && err.gwAuditTrail.mcpAudit) {
@@ -1014,6 +1054,30 @@ async function runMcpToolPipeline(ctx) {
                         where: a.where,
                         how: a.how,
                         eventName: a.eventName || 'PING-GATEWAY-MCP',
+                        denyingFilter: err.gwAuditTrail.denyingFilter || a.where?.filter || null,
+                    }
+                ));
+            }
+            // Weather / ScriptableFilter denials: always emit gw-filter-chain so
+            // TraceRail's gateway step lights even when X-Gw-Audit-Trail was absent.
+            const denyTrail = err.gwAuditTrail || {};
+            if ((denyTrail.denyingFilter || err.gatewayErrorCode === 'weather_scope_denied'
+                || /weather scope|weather capability/i.test(err.gatewayMessage || err.message || ''))
+                && !tokenEvents.some((e) => e && e.id === 'gw-filter-chain')) {
+                tokenEvents.push(deps.buildTokenEvent(
+                    'gw-filter-chain',
+                    'PingGateway — filter chain',
+                    'deny',
+                    null,
+                    err.gatewayMessage || err.message || 'Gateway filter denied the call',
+                    {
+                        denyingFilter: denyTrail.denyingFilter || 'tx-weather-scope.groovy',
+                        lastFilter: denyTrail.lastFilter || denyTrail.denyingFilter || 'TxWeatherScope',
+                        filterChain: denyTrail.filterChain || null,
+                        policy: denyTrail.policy || null,
+                        tool,
+                        gatewayErrorCode: err.gatewayErrorCode || 'gateway_policy_denied',
+                        route: denyTrail.policy?.route || '/mcp/weather',
                     }
                 ));
             }
@@ -1021,24 +1085,54 @@ async function runMcpToolPipeline(ctx) {
             // HTTP 428 Precondition Required: HITL consent needed (INDETERMINATE decision)
             if (err.gatewayErrorCode === 'hitl_required') {
                 deps.emit({ phase: 'gateway_hitl_required' });
-                return { kind: 'block', httpStatus: 428, tokenEvents, body: {
+                const hitlBody = {
                     error: 'hitl_required',
                     tool,
                     message: 'Transaction requires human approval (HITL consent)',
                     tokenEvents,
-                } };
+                    requestJson,
+                };
+                try {
+                    deps.publishMcpResultToSse(flowTraceId, {
+                        tool,
+                        result: { error: 'hitl_required', message: hitlBody.message },
+                        durationMs: Date.now() - startTime,
+                        isDelegated: !!mcpAccessToken,
+                        requestJson,
+                        denied: true,
+                    });
+                } catch (_) { /* SSE best-effort */ }
+                return { kind: 'block', httpStatus: 428, tokenEvents, body: hitlBody };
             }
 
-            return { kind: 'block', httpStatus: 403, tokenEvents, body: {
+            const denyBody = {
                 error: 'gateway_policy_denied',
                 tool,
                 gatewayErrorCode: err.gatewayErrorCode || err.code,
                 message: err.message,
                 tokenEvents,
+                requestJson,
                 ...(req.body?._testActClientId
                     ? { allowedActor: require('./configStore').getEffective('pingone_ai_agent_client_id') || null }
                     : {}),
-            } };
+            };
+            // Phase D teaching: deny paths still publish attempted JSON-RPC + error
+            // so TraceRail MCP step is not blank.
+            try {
+                deps.publishMcpResultToSse(flowTraceId, {
+                    tool,
+                    result: {
+                        error: denyBody.error,
+                        gatewayErrorCode: denyBody.gatewayErrorCode,
+                        message: denyBody.message,
+                    },
+                    durationMs: Date.now() - startTime,
+                    isDelegated: !!mcpAccessToken,
+                    requestJson,
+                    denied: true,
+                });
+            } catch (_) { /* SSE best-effort */ }
+            return { kind: 'block', httpStatus: 403, tokenEvents, body: denyBody };
         }
 
         // Any gateway error that carried an X-Gw-Audit-Trail (e.g. 401
@@ -1069,7 +1163,13 @@ async function runMcpToolPipeline(ctx) {
                     decision === 'PERMIT' ? 'permit' : (decision === 'INDETERMINATE' ? 'indeterminate' : 'deny'),
                     null,
                     `PingOne Authorize decision: ${decision}${authzRes.reason ? ' — ' + authzRes.reason : ''}`,
-                    buildGwAuthorizeEventExtra(authzRes)
+                    buildGwAuthorizeEventExtra({
+                        ...authzRes,
+                        denyingFilter: trail.denyingFilter || authzRes.denyingFilter,
+                        lastFilter: trail.lastFilter || authzRes.lastFilter,
+                        filterChain: trail.filterChain || authzRes.filterChain,
+                        policy: trail.policy || authzRes.policy,
+                    })
                 ));
             }
             if (trail.mcpAudit && !tokenEvents.some((e) => e && e.id === 'gw-mcp-audit')) {

@@ -6,6 +6,10 @@ import { navigateToCustomerOAuthLogin } from "../utils/authUi";
 import SecurityShowcasePanel from "./SecurityShowcasePanel";
 import { chipPermState } from "../utils/chipPermissions";
 import FallbackBadge from "./FallbackBadge";
+import {
+  BX_UC_PROGRESS_EVENT,
+  isUseCaseCompleted,
+} from "../utils/useCaseDemoProgress";
 
 // Overlay manifest chip LABELS by key. id + message (routing keys) are never
 // changed — the chip→routing→MCP pipeline is invariant (skip-proof contract).
@@ -37,25 +41,46 @@ const PINGONE_ADMIN_CHIPS = [
 
 export const PINGONE_ADMIN_CHIP_IDS = new Set(PINGONE_ADMIN_CHIPS.map((c) => c.id));
 
+/** Map narrative useCaseId → Demo Steps catalog id (UC*). */
+const USE_CASE_TO_DEMO_STEP = {
+  'delegated-access-with-proof': 'UC1',
+  'hitl-consent': 'UC8',
+  'step-up-required': 'UC7',
+  'rar-intent-verified': 'UC14b',
+  'token-theft-replay': 'UC12',
+  'authz-denied': 'UC6',
+  'a2a-delegation': 'UC2',
+  'ciba-out-of-band-approval': 'UC22',
+};
+
+/** Resolve Demo Steps catalog id for a chip (explicit or via useCaseId). */
+function demoStepIdFor(chip) {
+  if (chip?.demoStepId) return chip.demoStepId;
+  if (chip?.useCaseId && USE_CASE_TO_DEMO_STEP[chip.useCaseId]) {
+    return USE_CASE_TO_DEMO_STEP[chip.useCaseId];
+  }
+  return null;
+}
+
 // Fallback chip set rendered when the vertical manifest can't supply chips10
 // (e.g. /api/verticals/me failed — auth blip, network error, cold start). The
 // chips→routing→MCP pipeline keys (id/message/tool) match the banking baseline
 // manifest, so they route correctly. Guarantees the agent always shows actions
 // instead of an empty dropdown. Overridden the moment a real manifest loads.
 const DEFAULT_CHIPS10 = [
-  { id: 'bk-flow', label: 'Check balance', message: 'what is my balance', mode: 'both', tool: 'get_account_balance', useCaseId: 'delegated-access-with-proof' },
-  { id: 'bk-consent', label: '👤 Transfer $300', message: 'transfer $300 from checking to savings', mode: 'both', hitlTrigger: true, challenge: 'consent', tool: 'create_transfer', useCaseId: 'hitl-consent' },
-  { id: 'bk-mfa', label: '🔑 Transfer $600', message: 'transfer $600 from checking to savings', mode: 'both', hitlTrigger: true, challenge: 'step_up', tool: 'create_transfer', useCaseId: 'step-up-required' },
-  { id: 'bk7', label: 'My mortgage', message: 'show my mortgage', mode: 'both', tool: 'show_mortgage', useCaseId: 'delegated-access-with-proof' },
-  { id: 'bk-intent', label: 'Intent-bound transfer', message: 'run an intent-bound transfer within my RAR grant', mode: 'both', tool: 'create_transfer', useCaseId: 'rar-intent-verified' },
-  { id: 'bk-dpop', label: 'DPoP / replay defense', message: 'fire a token with the wrong audience at the gateway', mode: 'direct', useCaseId: 'token-theft-replay' },
+  { id: 'bk-flow', label: 'Check balance', message: 'what is my balance', mode: 'both', tool: 'get_account_balance', useCaseId: 'delegated-access-with-proof', demoStepId: 'UC1' },
+  { id: 'bk-consent', label: '👤 Transfer $300', message: 'transfer $300 from checking to savings', mode: 'both', hitlTrigger: true, challenge: 'consent', tool: 'create_transfer', useCaseId: 'hitl-consent', demoStepId: 'UC8' },
+  { id: 'bk-mfa', label: '🔑 Transfer $600', message: 'transfer $600 from checking to savings', mode: 'both', hitlTrigger: true, challenge: 'step_up', tool: 'create_transfer', useCaseId: 'step-up-required', demoStepId: 'UC7' },
+  { id: 'bk7', label: 'My mortgage', message: 'show my mortgage', mode: 'both', tool: 'show_mortgage', useCaseId: 'delegated-access-with-proof', demoStepId: 'UC1' },
+  { id: 'bk-intent', label: 'Intent-bound transfer', message: 'run an intent-bound transfer within my RAR grant', mode: 'both', tool: 'create_transfer', useCaseId: 'rar-intent-verified', demoStepId: 'UC14b' },
+  { id: 'bk-dpop', label: 'DPoP / replay defense', message: 'fire a token with the wrong audience at the gateway', mode: 'direct', useCaseId: 'token-theft-replay', demoStepId: 'UC12' },
   { id: 'bk8', label: 'Biggest spending categories', message: 'What are my biggest categories', mode: 'llm' },
   { id: 'bk-direct', label: 'Direct MCP', message: 'get my accounts', mode: 'direct', tool: 'get_my_accounts' },
-  { id: 'bk-deny', label: 'Authz DENY', message: 'show my health record', mode: 'direct', denyTool: 'show_health_record', useCaseId: 'authz-denied' },
-  { id: 'bk1', label: 'My accounts', message: 'show my accounts', mode: 'both', tool: 'get_my_accounts', useCaseId: 'delegated-access-with-proof', group: 'advanced' },
-  { id: 'bk3', label: 'Recent transactions', message: 'recent transactions', mode: 'both', tool: 'get_my_transactions', useCaseId: 'delegated-access-with-proof', group: 'advanced' },
-  { id: 'bk-a2a', label: 'A2A sensitive details', message: 'show my sensitive account details', mode: 'both', challenge: 'consent', hitlTrigger: true, tool: 'get_sensitive_account_details', useCaseId: 'a2a-delegation', group: 'advanced' },
-  { id: 'bk-ciba', label: 'CIBA out-of-band', message: 'transfer $150 from checking to savings with CIBA approval', mode: 'both', challenge: 'both', hitlTrigger: true, tool: 'create_transfer', useCaseId: 'ciba-out-of-band-approval', group: 'advanced' },
+  { id: 'bk-deny', label: 'Authz DENY', message: 'show my health record', mode: 'direct', denyTool: 'show_health_record', useCaseId: 'authz-denied', demoStepId: 'UC6' },
+  { id: 'bk1', label: 'My accounts', message: 'show my accounts', mode: 'both', tool: 'get_my_accounts', useCaseId: 'delegated-access-with-proof', demoStepId: 'UC1', group: 'advanced' },
+  { id: 'bk3', label: 'Recent transactions', message: 'recent transactions', mode: 'both', tool: 'get_my_transactions', useCaseId: 'delegated-access-with-proof', demoStepId: 'UC1', group: 'advanced' },
+  { id: 'bk-a2a', label: 'A2A sensitive details', message: 'show my sensitive account details', mode: 'both', challenge: 'consent', hitlTrigger: true, tool: 'get_sensitive_account_details', useCaseId: 'a2a-delegation', demoStepId: 'UC2', group: 'advanced' },
+  { id: 'bk-ciba', label: 'CIBA out-of-band', message: 'transfer $150 from checking to savings with CIBA approval', mode: 'both', challenge: 'both', hitlTrigger: true, tool: 'create_transfer', useCaseId: 'ciba-out-of-band-approval', demoStepId: 'UC22', group: 'advanced' },
 ];
 
 // Minimal banking fallback for last-resort use only (when API call fails)
@@ -88,6 +113,14 @@ export default function BankingChips({
   const [fallbackVertical, setFallbackVertical] = useState('banking');
   /** More demos (CIBA, A2A, extras) — collapsed by default in the Actions dropdown. */
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  /** Bumps when Demo Steps progress changes (same-tab custom event). */
+  const [progressTick, setProgressTick] = useState(0);
+
+  useEffect(() => {
+    const onProgress = () => setProgressTick((n) => n + 1);
+    window.addEventListener(BX_UC_PROGRESS_EVENT, onProgress);
+    return () => window.removeEventListener(BX_UC_PROGRESS_EVENT, onProgress);
+  }, []);
 
   // No usable access token (same derived signal as the TopNav "No token —
   // please sign in" pill) distinguishes "not signed in" from a real authorize
@@ -199,12 +232,15 @@ export default function BankingChips({
       ? (perm.reason || 'not permitted by Authorize for the current scope')
       : null;
     const badge = hitlBadge(chip);
+    const stepId = demoStepIdFor(chip);
+    void progressTick;
+    const done = stepId ? isUseCaseCompleted(stepId) : false;
     return (
       <button
         type="button"
         key={chip.id}
         data-chip-id={chip.id}
-        className={`banking-chips-dropdown__button banking-chips-dropdown__button--${isDirect ? 'direct' : isLlm ? 'llm' : 'heuristic'}${perm.denied ? ' banking-chips-dropdown__button--denied' : ''}${perm.unverified ? ' banking-chips-dropdown__button--unverified' : ''}`}
+        className={`banking-chips-dropdown__button banking-chips-dropdown__button--${isDirect ? 'direct' : isLlm ? 'llm' : 'heuristic'}${perm.denied ? ' banking-chips-dropdown__button--denied' : ''}${perm.unverified ? ' banking-chips-dropdown__button--unverified' : ''}${done ? ' banking-chips-dropdown__button--done' : ''}`}
         onClick={() => {
           if (perm.denied) {
             if (onDeniedChip) onDeniedChip({ id: chip.id, label: chip.label, tool: chip.tool }, deniedReason);
@@ -216,10 +252,16 @@ export default function BankingChips({
           );
         }}
         aria-disabled={perm.denied || undefined}
+        aria-label={done ? `${chip.label}, completed` : undefined}
         disabled={isLoading || llmDisabled || perm.unverified}
         title={chipTitle(chip, { isDirect, llmDisabled, perm, deniedReason })}
       >
-        {chip.label}
+        {done && (
+          <span className="banking-chips-dropdown__check" aria-hidden="true">
+            ✓
+          </span>
+        )}
+        <span className="banking-chips-dropdown__chip-name">{chip.label}</span>
         {isDirect && (
           <span className="banking-chips-dropdown__mcp-badge">MCP</span>
         )}
@@ -250,6 +292,11 @@ export default function BankingChips({
 
   const primaryChips = chips10.filter((c) => !c.group || c.group === 'primary');
   const advancedChips = chips10.filter((c) => c.group === 'advanced');
+  void progressTick;
+  const primaryDoneCount = primaryChips.filter((c) => {
+    const id = demoStepIdFor(c);
+    return id && isUseCaseCompleted(id);
+  }).length;
 
   return (
     <div className="banking-chips-content">
@@ -304,10 +351,17 @@ export default function BankingChips({
           Testing + Attacks live in the Actions popout as separate collapsed groups. */}
       {chips10 && (
         <div className="banking-chips-dropdown__section">
-          <div className="banking-chips-dropdown__label">
-            {pageManifest?.identity?.displayName
-              ? `${pageManifest.identity.displayName} Actions`
-              : 'Suggestions'}
+          <div className="banking-chips-dropdown__sec-head">
+            <div className="banking-chips-dropdown__label">
+              {pageManifest?.identity?.displayName
+                ? `${pageManifest.identity.displayName} Actions`
+                : 'Suggestions'}
+            </div>
+            {primaryDoneCount > 0 && (
+              <span className="banking-chips-dropdown__done-count">
+                {primaryDoneCount} done
+              </span>
+            )}
           </div>
           {needsSignIn && (
             <button

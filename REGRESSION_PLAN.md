@@ -63,7 +63,7 @@ minimal diff.
 | Port | Service | Scheme |
 |---|---|---|
 | `3001` | Banking API Server (BFF) | `https://api.ping.demo:3001` |
-| `4000` | Banking UI (React) — public origin, OAuth callbacks land here | `https://api.ping.demo:4000` |
+| `4000` | Banking UI (React) — public origin, OAuth callbacks land here | `https://local.ping-devops.com:4000` |
 | `3005` | MCP Gateway | `https://api.ping.demo:3005` |
 | `3006` | Agent Service | `http://localhost:3006` |
 | `3009` | HITL Service | `http://localhost:3009` |
@@ -100,6 +100,25 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 
 Reverse-chronological, newest first.
+
+### 2026-07-22 — UC30 gateway PERMIT + real weather, chat still Incomplete: prose vs parseToolResult
+
+**Files changed:**
+
+- `demo_api_server/services/demoAgentLangGraphService.js` — weather heuristic treats
+  `executeBffTool` markdown string as success; only JSON-parse error/deny envelopes.
+- `demo_api_server/src/__tests__/weatherHeuristicProse.regression.test.js`
+
+**What was broken:** After gateway PERMIT and weather-mcp prose, `parseToolResult` JSON-failed
+the markdown → `tool_result_unparseable` → `success:false` → UI
+"That step couldn't be completed" / ProofStrip Incomplete (access-token).
+
+**What was fixed:** Accept unwrapped prose for `action === 'weather'`; keep deny JSON as failure.
+
+**Do not break:** Banking JSON tools still go through `parseToolResult`; UC31 Miami DENY.
+
+**Verify:** unit test above; live `POST /api/agent/invoke` with `forceHeuristic:true` and
+Austin prompt → `success:true`, `toolsCalled:['get_weather']`, reply contains Temperature.
 
 ### 2026-07-22 — 2-exchange TraceRail Exchange step lost coloured request JSON
 

@@ -736,9 +736,10 @@ export default function UseCaseLauncherPage() {
 
   const vertical = verticalId || 'banking';
 
-  // Pre-load gpt-oss while the presenter browses use cases (fire-and-forget).
+  // Pre-load the agent-brain tier while the presenter browses use cases
+  // (fire-and-forget). Honors LLM_PROXY_PIN_TIER when set.
   useEffect(() => {
-    opportunisticPrewarm('gpt-oss-20b');
+    opportunisticPrewarm();
   }, []);
 
   // Re-read progress when returning to this route (remount) or gaining focus after

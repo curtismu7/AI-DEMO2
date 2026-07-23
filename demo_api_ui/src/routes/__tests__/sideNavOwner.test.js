@@ -38,4 +38,9 @@ describe("side-nav ownership", () => {
       expect(both).toBe(false);
     }
   });
+
+  it("CIBA approve page has no side nav from App or Shell", () => {
+    expect(appRendersSideNav({ pathname: "/ciba-approve", user })).toBe(false);
+    expect(shellRendersSideNav({ pathname: "/ciba-approve", user })).toBe(false);
+  });
 });

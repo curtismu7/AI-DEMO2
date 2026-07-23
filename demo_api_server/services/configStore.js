@@ -1071,10 +1071,10 @@ class ConfigStore {
       // Read directly via process.env in services/hitlServiceClient.js; mapped here so
       // the env-coverage guard sees it resolve (same pattern as bff_internal_secret).
       hitl_internal_secret:   ['HITL_INTERNAL_SECRET'],
-      frontend_url:           ['REACT_APP_CLIENT_URL', 'FRONTEND_ADMIN_URL'],
-      frontend_admin_url:     ['FRONTEND_ADMIN_URL', 'REACT_APP_CLIENT_URL'],
-      react_app_client_url:   ['REACT_APP_CLIENT_URL', 'FRONTEND_ADMIN_URL'],
-      public_app_url:         ['PUBLIC_APP_URL'],
+      frontend_url:           ['PUBLIC_APP_URL', 'PINGONE_PUBLIC_APP_URL', 'REACT_APP_CLIENT_URL', 'FRONTEND_ADMIN_URL'],
+      frontend_admin_url:     ['FRONTEND_ADMIN_URL', 'REACT_APP_CLIENT_URL', 'PUBLIC_APP_URL'],
+      react_app_client_url:   ['REACT_APP_CLIENT_URL', 'PUBLIC_APP_URL', 'FRONTEND_ADMIN_URL'],
+      public_app_url:         ['PUBLIC_APP_URL', 'PINGONE_PUBLIC_APP_URL'],
       mcp_server_url:                   ['MCP_SERVER_URL'],
       // MCP_SERVER_RESOURCE_URI is the authoritative env var for the MCP server audience.
       // MCP_RESOURCE_URI is kept as a fallback AFTER MCP_SERVER_RESOURCE_URI so that

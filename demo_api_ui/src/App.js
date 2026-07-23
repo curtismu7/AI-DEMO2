@@ -15,7 +15,7 @@ import Accounts from "./components/Accounts";
 import { ActorTokenEducation } from "./components/ActorTokenEducation";
 import AdminErrorAuditLog from "./components/AdminErrorAuditLog";
 import AdminSideNav from "./components/AdminSideNav";
-import { appRendersSideNav } from "./routes/sideNavOwner";
+import { appRendersSideNav, isNoChromeRoute, normalizePath } from "./routes/sideNavOwner";
 import AdminTokenComplianceAudit from "./components/AdminTokenComplianceAudit";
 import AdminVaultPage from "./components/AdminVaultPage";
 import AgentBuilderPage from "./components/AgentBuilderPage";
@@ -169,6 +169,7 @@ import {
   isAgentLifecycleRoute,
   isMonitoringRoute,
   isPublicMarketingAgentPath,
+  isPingOneAdminAgentRoute,
 } from "./utils/embeddedAgentFabVisibility";
 import { VerticalEditorPage } from "./vertical/AdminEditor/VerticalEditorPage";
 import { VerticalProvider } from "./vertical/VerticalProvider";
@@ -249,16 +250,11 @@ function AppWithAuth() {
   const fullLocation = useLocation();
   const backgroundLocation = fullLocation.state?.backgroundLocation;
   const { pathname } = useLocation();
-  const pathNorm = pathname.replace(/\/$/, "") || "/";
+  const pathNorm = normalizePath(pathname);
   // Side-nav ownership (home + no-chrome routes opt out) lives in
   // routes/sideNavOwner.js so AppShell can't render a second one.
-  const isApiTrafficOnlyPage =
-    pathNorm === "/api-traffic" ||
-    pathNorm === "/logs" ||
-    pathNorm === "/agent" ||
-    // SDK centralized-login sandbox: standalone page, no app chrome/panels/footer.
-    pathNorm === "/sdk-login" ||
-    pathNorm === "/sdk-login/callback";
+  // Same list suppresses the floating agent FAB on bare popup pages.
+  const isApiTrafficOnlyPage = isNoChromeRoute(pathNorm);
   const {
     placement: agentPlacement,
     fab: agentFab,
@@ -1326,6 +1322,9 @@ function AppWithAuth() {
                     embeddedFocus={resolveEmbeddedFocus(pathname)}
                     distinctFloatingChrome
                     surfaceHostEl={surfaceHostEl}
+                    {...(isPingOneAdminAgentRoute(pathname)
+                      ? { forceVertical: "pingone-admin" }
+                      : {})}
                     {...singleAgentSurfaceProps}
                   />
                 </ErrorBoundary>

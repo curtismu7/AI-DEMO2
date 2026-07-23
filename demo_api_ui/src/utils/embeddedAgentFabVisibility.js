@@ -12,6 +12,18 @@ export function isBankingAgentDashboardRoute(pathname) {
 }
 
 /**
+ * /admin console agent — PingOne Admin vertical (ADMIN1–4 demo steps +
+ * /api/admin-agent), not the banking trust-ladder catalog.
+ * @param {string} [pathname]
+ * @returns {boolean}
+ */
+export function isPingOneAdminAgentRoute(pathname) {
+  if (pathname == null || typeof pathname !== 'string') return false;
+  const p = pathname.replace(/\/$/, '') || '/';
+  return p === '/admin';
+}
+
+/**
  * Routes where the embedded bottom-dock agent is mounted (dashboard homes + Application Configuration).
  * Floating FAB still uses {@link isBankingAgentDashboardRoute} only — not `/config`.
  * @param {string} [pathname]

@@ -1024,6 +1024,10 @@ export function ingestLegacyRunTrace(data, { forceHeuristic = false } = {}) {
  * it always bounces with requiresCustomerLogin for an admin token.
  */
 async function sendToAdminAgent(message, { signal, onTokenEvent } = {}) {
+  try {
+    tokenChainTraceStore.beginTrace({ prompt: message });
+    tokenChainTraceStore.ingestRoutingMode("llm", { action: "admin-agent" });
+  } catch { /* display-only */ }
   const res = await fetch("/api/admin-agent/message", {
     method: "POST",
     credentials: "include",
@@ -1037,11 +1041,14 @@ async function sendToAdminAgent(message, { signal, onTokenEvent } = {}) {
   const data = await res
     .json()
     .catch(() => ({ reply: "Admin agent request failed.", success: false }));
-  if (Array.isArray(data.tokenEvents)) {
-    for (const ev of data.tokenEvents) {
-      onTokenEvent?.(ev);
-    }
+  const tokenEvents = Array.isArray(data.tokenEvents) ? data.tokenEvents : [];
+  for (const ev of tokenEvents) {
+    onTokenEvent?.(ev);
   }
+  try {
+    if (tokenEvents.length) tokenChainTraceStore.ingestTokenEvents(tokenEvents);
+    tokenChainTraceStore.completeTrace(data.success !== false && !data.error);
+  } catch { /* display-only */ }
   return {
     reply: data.reply,
     success: data.success,
@@ -1051,7 +1058,7 @@ async function sendToAdminAgent(message, { signal, onTokenEvent } = {}) {
     error: data.error,
     inputTokens: data.inputTokens,
     outputTokens: data.outputTokens,
-    tokenEvents: data.tokenEvents || [],
+    tokenEvents,
     _status: res.status,
   };
 }

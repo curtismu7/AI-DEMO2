@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { HeroSection } from "./HeroSection";
 import { HERO_VARIANTS } from "../config/heroVariants";
 import "./OAuthAcademyPage.css";
-import { useEducationUIOptional } from "../context/EducationUIContext";
 import { useTokenChainOptional } from "../context/TokenChainContext";
 import { sendAgentMessage } from "../services/demoAgentService";
 import AgentConsentModal from "./AgentConsentModal";
@@ -17,15 +16,13 @@ import { MarkdownContent } from "./shared/MarkdownText";
 // having to switch their session-wide active vertical.
 const PINNED_VERTICAL = "oauth-teaching";
 
-// Action prompts ("demonstrate ...", "show the token chain", "inspect/decode token")
-// must run the vertical's deterministic tools (demonstrate_hitl, show_flow_diagram,
-// inspect_token, ...) rather than the OAuth-teacher LLM — which is instructed to avoid
-// banking terminology and so refuses / doesn't invoke the demonstrate tools. Sending
-// these with forceHeuristic dispatches the tool directly (same as the dashboard agent,
-// which always forces heuristic for vertical actions). Explain/"what is" prompts and
-// free-text stay on the LLM teacher for richer answers.
+// Starter-chip phrasing must hit the vertical's deterministic tools
+// (explain_concept, demonstrate_hitl, show_flow_diagram, inspect_token, …) rather
+// than the LLM reason loop. With agent_mode=llamacpp, heuristicRouting is off, so
+// without forceHeuristic teach chips wait ~40s and the LLM calls explain_concept
+// through MCP (Unknown tool). Free-text that does not match still uses the LLM.
 const FORCE_HEURISTIC_RE =
-  /\b(demonstrate|inspect|decode)\b|\bshow\b[\s\S]*\b(token chain|flow|diagram|exchange)\b/i;
+  /\b(what\s+is|explain|how\s+does|tell\s+me\s+about|demonstrate|inspect|decode)\b|\bshow\b[\s\S]*\b(token chain|flow|diagram|exchange)\b/i;
 
 // Mirrors config/verticals/oauth-teaching/manifest.json `dashboard.chips10`.
 // Hardcoded here exactly as Code Explorer hardcodes its starter chips; keep in
@@ -74,7 +71,6 @@ const OAuthAcademyPage = () => {
   const abortRef = useRef(null);
   // Monotonic id for stable React keys — messages are append-only, never reordered.
   const nextIdRef = useRef(0);
-  const edu = useEducationUIOptional();
   const tokenChain = useTokenChainOptional();
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: scroll must re-run on every new message; the effect reads only the (stable) ref but depends on the messages render.
@@ -105,11 +101,10 @@ const OAuthAcademyPage = () => {
     });
   };
 
-  // Apply the shared side effects of an agent response (education panel + token chain).
+  // Token chain only — do not auto-open education drawers from Academy replies
+  // (explain_concept still returns education.panel, but opening it here covers
+  // the chat with banking-oriented panels like Least-Data / Sensitive Data).
   const applySideEffects = (data) => {
-    if (data?.education?.panel && edu) {
-      edu.open(data.education.panel, data.education.tab || null);
-    }
     if (
       Array.isArray(data?.tokenEvents) &&
       data.tokenEvents.length > 0 &&
@@ -173,8 +168,14 @@ const OAuthAcademyPage = () => {
         });
       }
     } catch (err) {
-      if (err.name === "AbortError") {
-        setLastAssistant({ pending: false });
+      if (err.name === "AbortError" || err.name === "TimeoutError") {
+        setLastAssistant({
+          content:
+            err.name === "TimeoutError"
+              ? "Timed out waiting for the OAuth Academy agent. Try a starter chip, or ask again."
+              : "Stopped — ask again whenever you are ready.",
+          pending: false,
+        });
       } else {
         setLastAssistant({
           content:

@@ -21,6 +21,10 @@ from codegraph.ensure_index import (
     query_db_path,
     resolve_indexer_script,
 )
+from codegraph.index_guard import (
+    inspect_demo_index,
+    require_demo_db_path,
+)
 from codegraph.repo import repo_src_root
 
 logger = logging.getLogger(__name__)
@@ -37,17 +41,14 @@ _reindex_lock = asyncio.Lock()
 
 
 def _index_available() -> bool:
-    """True if the CodeGraph query DB exists and is non-empty.
+    """True if the Code Explorer query DB passes hardening checks.
 
-    Self-heals first: if a prior Refresh wrote to the legacy repo-src path,
-    promote it into CODEGRAPH_DB_PATH before deciding.
+    Self-heals first (demo-codegraph.db only — never the host product DB).
     """
-    ensure_query_index()
-    try:
-        db_file = query_db_path()
-        return db_file.is_file() and db_file.stat().st_size > 0
-    except OSError:
+    if require_demo_db_path(query_db_path()):
         return False
+    ensure_query_index()
+    return inspect_demo_index(query_db_path(), repo_root=repo_src_root()).get("ok", False)
 
 
 def _agent_cache_key() -> tuple:
@@ -125,10 +126,13 @@ async def codegraph_query(request: Request) -> Response:
 async def codegraph_reindex() -> Response:
     """Rebuild the symbol index from the live source tree.
 
-    Prefers the baked `/app/indexer/build-codegraph.py` (supports --out). After a
-    successful run, promotes any legacy write into CODEGRAPH_DB_PATH and refuses
-    success if the query path is still empty.
+    After a successful run, hardening checks must pass (builder marker, no
+    nested `live-repo/` paths, non-zero UI + API coverage) or the Refresh fails.
     """
+    path_err = require_demo_db_path(CODEGRAPH_DB_PATH)
+    if path_err:
+        return JSONResponse({"error": path_err}, status_code=500)
+
     root = repo_src_root()
     script = resolve_indexer_script(root)
     if script is None:
@@ -146,11 +150,17 @@ async def codegraph_reindex() -> Response:
     async with _reindex_lock:
         started = time.monotonic()
         try:
+            # Pass root explicitly — the baked /app/indexer copy resolves its
+            # default REPO_ROOT to /app, which would nest paths as live-repo/...
+            # and break read_file under REPO_SRC_ROOT=/app/live-repo.
+            env = {**os.environ, "REPO_SRC_ROOT": str(root)}
+            env.pop("CODEGRAPH_INDEX_ALL", None)  # Refresh stays UI+API scoped
             proc = await asyncio.create_subprocess_exec(
-                sys.executable, str(script), "--out", CODEGRAPH_DB_PATH,
+                sys.executable, str(script), str(root), "--out", CODEGRAPH_DB_PATH,
                 cwd=str(root),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
+                env=env,
             )
             stdout, _ = await proc.communicate()
         except Exception as exc:
@@ -167,15 +177,19 @@ async def codegraph_reindex() -> Response:
                 status_code=500,
             )
 
-        # Promote legacy path / verify query DB before declaring success.
-        if not ensure_query_index(root) and not _index_available():
+        info = inspect_demo_index(query_db_path(), repo_root=root)
+        if not info.get("ok"):
+            logger.error("CodeGraph reindex produced unusable index: %s", info.get("error"))
             return JSONResponse(
-                {"error": f"index still missing/empty at {CODEGRAPH_DB_PATH} after rebuild",
-                 "log": out[-2000:]},
+                {
+                    "error": info.get("error") or "index failed hardening checks",
+                    "log": out[-2000:],
+                },
                 status_code=500,
             )
 
-        nodes = files = None
+        nodes = info.get("nodes")
+        files = info.get("files")
         m = re.search(r"Found\s+(\d+)\s+nodes", out)
         if m:
             nodes = int(m.group(1))
@@ -188,8 +202,15 @@ async def codegraph_reindex() -> Response:
         _runner_cache_key = None
 
         logger.info(
-            "CodeGraph reindex OK in %sms (nodes=%s, indexer=%s)",
-            elapsed_ms, nodes, script,
+            "CodeGraph reindex OK in %sms (nodes=%s ui=%s api=%s indexer=%s)",
+            elapsed_ms, nodes, info.get("uiFiles"), info.get("apiFiles"), script,
         )
-        return JSONResponse({"ok": True, "nodes": nodes, "files": files,
-                             "durationMs": elapsed_ms})
+        return JSONResponse({
+            "ok": True,
+            "nodes": nodes,
+            "files": files,
+            "uiFiles": info.get("uiFiles"),
+            "apiFiles": info.get("apiFiles"),
+            "samplePath": info.get("samplePath"),
+            "durationMs": elapsed_ms,
+        })

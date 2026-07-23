@@ -118,6 +118,18 @@ export function actChainDepth(act: unknown): number {
   return depth;
 }
 
+/**
+ * Upstream actor in a nested RFC 8693 chain: act.act.client_id || act.act.sub.
+ * Matches BFF nestedActIdFromClaim — PingOne may stamp either field.
+ */
+export function nestedActClientId(act: unknown): string {
+  if (!act || typeof act !== 'object') return '';
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const inner = (act as any).act;
+  if (!inner || typeof inner !== 'object') return '';
+  return String(inner.client_id || inner.sub || '');
+}
+
 export function buildAuthorizeParameters(
   decoded: DecodedGatewayToken,
   method: string,
@@ -147,6 +159,9 @@ export function buildAuthorizeParameters(
     UserId: decoded.sub,
     ActClientId: decoded.act?.sub ?? '',
     ActChainDepth: String(actChainDepth(decoded.act)),
+    // A2A HasValidA2aGeneralist (mock Rule 1c / cloud) requires this; omitting it
+    // made every depth-2 specialist call DENY as invalid_a2a_generalist.
+    NestedActClientId: nestedActClientId(decoded.act),
     MayActSub: decoded.may_act?.sub ?? '',
     TokenScopes: tokenScopes.join(' '),
     // McpResourceUri is the EXPECTED audience — the gateway's own identity. It is

@@ -78,6 +78,11 @@ describe("App.js — critical JSX placements", () => {
     expect(appSrc).toContain("surfaceHostEl={surfaceHostEl}");
   });
 
+  test("/admin forces pingone-admin vertical (admin demo steps, not banking UCs)", () => {
+    expect(appSrc).toContain("isPingOneAdminAgentRoute");
+    expect(appSrc).toContain('forceVertical: "pingone-admin"');
+  });
+
   test("resolveEmbeddedFocus is passed as embeddedFocus prop", () => {
     expect(appSrc).toContain("embeddedFocus={resolveEmbeddedFocus(pathname)}");
   });

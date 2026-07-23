@@ -60,6 +60,9 @@ describe('_runWrongAud — triedAudience/allowedAudience fields', () => {
     expect(result.errorCode).toBe('invalid_aud');
     expect(result.triedAudience).toBe('https://mcp-server.example.com');
     expect(result.allowedAudience).toBe('https://mcp-gateway.example.com');
+    const deny = result.tokenChainEvents.find((e) => e.id === 'sim-gateway-deny');
+    expect(deny.triedAudience).toBe('https://mcp-server.example.com');
+    expect(deny.allowedAudience).toBe('https://mcp-gateway.example.com');
   });
 
   test('unexpected-permit path includes both real audience values', async () => {

@@ -926,11 +926,19 @@ function parseHeuristic(
   // "in <city>" clause — "the weather is nice today" (no location) is the
   // idiomatic off-topic control phrase used across this suite's kind:'none'
   // tests and must keep falling through, not be swallowed by a bare "weather".
-  const weatherCityMatch = t.match(/\bweather\b.*?\bin\s+(.+)$/i);
+  // Capture city from the ORIGINAL message: norm() replaces commas with spaces
+  // ("Austin, TX" → "austin tx"), which breaks tx-weather-scope.groovy's
+  // ", TX" / ", Texas" qualifier check and falsely DENYs in-scope cities.
+  const weatherCityMatch = String(message || "").match(
+    /\bweather\b.*?\bin\s+(.+)$/i,
+  );
   if (weatherCityMatch?.[1]) {
     return {
       kind: "banking",
-      banking: { action: "weather", params: { city_name: weatherCityMatch[1].trim() } },
+      banking: {
+        action: "weather",
+        params: { city_name: weatherCityMatch[1].trim() },
+      },
     };
   }
 

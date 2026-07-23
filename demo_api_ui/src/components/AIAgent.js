@@ -4071,7 +4071,7 @@ export default function BankingAgent({
 
           // CIBA: out-of-band backchannel approval. No device-picker modal --
           // initiate, then poll until the user approves elsewhere (or, on this
-          // environment, the simulated fallback auto-approves after ~7s). See
+          // environment, the simulated fallback auto-approves after ~60s). See
           // docs/superpowers/specs/2026-07-19-uc22-ciba-step-up-override-design.md.
           if (normalized.step_up_method === "ciba") {
             // Open a blank tab now, before the initiate fetch, so the browser
@@ -4113,7 +4113,7 @@ export default function BankingAgent({
               }
               addMessage(
                 "assistant",
-                " Waiting for CIBA approval — this normally completes on a separate device. Click Approve to continue now, or it will continue automatically in a few seconds.",
+                " Waiting for CIBA approval — this normally completes on a separate device. Click Approve to continue now, or it will continue automatically in about a minute.",
                 `ciba-step-${Date.now()}`,
                 { showCibaApproveAction: true, cibaAuthReqId: auth_req_id },
               );
@@ -7052,7 +7052,7 @@ export default function BankingAgent({
     // use-case regardless of what the policy engine would otherwise show
     // (consent modal / device picker). No HITL/step-up modal here -- initiate,
     // then poll until approved (or, on this environment, the simulated
-    // fallback auto-approves after ~7s), then resume the same NL request.
+    // fallback auto-approves after ~60s), then resume the same NL request.
     if (
       response.step_up_method === "ciba" &&
       (response.error === "step_up_required" || response.error === "mcp_step_up_required")
@@ -7089,7 +7089,7 @@ export default function BankingAgent({
         }
         addMessage(
           "assistant",
-          " Waiting for CIBA approval — this normally completes on a separate device. Click Approve to continue now, or it will continue automatically in a few seconds.",
+          " Waiting for CIBA approval — this normally completes on a separate device. Click Approve to continue now, or it will continue automatically in about a minute.",
           `ciba-step-${Date.now()}`,
           { showCibaApproveAction: true, cibaAuthReqId: auth_req_id },
         );

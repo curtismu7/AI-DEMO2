@@ -104,10 +104,15 @@ describe('UseCaseExplainModal', () => {
   });
 
   it('shows neutral empty state when primaryTool is null', async () => {
-    const UC2 = { ...UC7, primaryTool: null, id: 'UC2', title: 'A2A delegation' };
+    const UC2 = { ...UC7, primaryTool: null, id: 'UC2', title: 'A2A delegation', productRoles: null };
     render(<UseCaseExplainModal uc={UC2} open={true} onClose={() => {}} />);
     await waitFor(() => {
       expect(screen.getByText(/No gateway route data for this tool/i)).toBeInTheDocument();
     });
+  });
+
+  it('has a Done footer button', () => {
+    render(<UseCaseExplainModal uc={UC7} open={true} onClose={() => {}} />);
+    expect(screen.getByRole('button', { name: /^Done$/i })).toBeInTheDocument();
   });
 });

@@ -18,8 +18,8 @@
     "ping-gateway":     { "host": "ping-gateway",         "port": 8080, "scheme": "http" }
   },
   "public": {
-    "_comment": "Browser-facing base URL (NodePort/port-forward/ingress). Same in k8s and local — must match the Redirect URIs registered in PingOne. Derivation 'public' = scheme://host:port; 'public:/path' appends a path.",
-    "host": "api.ping.demo",
+    "_comment": "Browser-facing base URL (NodePort/port-forward/ingress). Canonical local origin is local.ping-devops.com (passkeys / WebAuthn rp.id) — NOT api.ping.demo, whose TLD is not a public suffix. Must match PingOne Redirect URIs. Derivation 'public' = scheme://host:port; 'public:/path' appends a path. api.ping.demo:4000 remains CORS-allowed as a legacy serve host.",
+    "host": "local.ping-devops.com",
     "port": 4000,
     "scheme": "https"
   },
@@ -40,7 +40,7 @@
     "REACT_APP_CLIENT_URL": "public",
     "FRONTEND_ADMIN_URL": "public:/admin",
     "FRONTEND_DASHBOARD_URL": "public:/dashboard",
-    "CORS_ORIGIN": "public",
+    "CORS_ORIGIN": "literal:https://local.ping-devops.com:4000,https://api.ping.demo:4000",
     "MCP_SERVER_URL": "ws:mcp-server",
     "MCP_OLB_WS_URL": "ws:mcp-server",
     "MCP_INVEST_WS_URL": "ws:mcp-invest",

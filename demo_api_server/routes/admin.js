@@ -856,7 +856,9 @@ router.post(
   async (req, res) => {
     try {
       const { agentId } = req.params;
-      const { reason = 'manual_red_button', scope = 'full' } = req.body;
+      // Default instance: omitting scope must NEVER disable PingOne agent apps
+      // (that used to brick the whole demo when a caller forgot to pass scope).
+      const { reason = 'manual_red_button', scope = 'instance' } = req.body;
 
       // Validation
       if (!agentId || typeof agentId !== 'string' || agentId.trim().length === 0) {

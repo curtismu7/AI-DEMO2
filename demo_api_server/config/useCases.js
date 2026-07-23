@@ -168,9 +168,11 @@ const RAW_USE_CASES = [
     businessValue: 'Multi-agent pipelines stay governed end-to-end. Each specialist inherits only the scope the handoff explicitly granted — least privilege across agent hops, with the full chain visible in the token.',
     productRoles: {
       idp:   'Mints a nested-act delegated token for the specialist, narrowing scope at each exchange hop.',
+      gw:    'Validates the nested act chain on the A2A gateway audience and routes the specialist tool call after PERMIT.',
       authz: 'Evaluates the full act chain at each hop; denies if any link is unauthorized.',
     },
-    primaryTool: 'delegate_to_specialist',
+    // Topology / Authorize teach against the specialist tool that hits the gateway.
+    primaryTool: 'get_portfolio_summary',
     perVertical: READ_PER_VERTICAL,
   },
   {
@@ -196,7 +198,7 @@ const RAW_USE_CASES = [
       authz: 'Evaluates the full act chain at each hop and narrows policy context for the specialist.',
       llm:   'Orchestrates multi-agent workflows — detects delegation cues, selects specialists, and drives coordinated sub-tasks.',
     },
-    primaryTool: null,
+    primaryTool: 'get_portfolio_summary',
   },
   {
     id: 'UC3',

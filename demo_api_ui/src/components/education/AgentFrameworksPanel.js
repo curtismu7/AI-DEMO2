@@ -1,5 +1,6 @@
-// banking_api_ui/src/components/education/AgentFrameworksPanel.js
-// Education panel — Agent Framework Comparison (LangChain, OpenAI Agents, Mastra, Pydantic AI)
+// demo_api_ui/src/components/education/AgentFrameworksPanel.js
+// Education panel — agent frameworks + inventory (LangChain, OpenAI, Mastra, Pydantic AI, LlamaIndex, compliance)
+// Brains: Heuristics / Gemini / llama.cpp (see AllAgentsInventory).
 import React, { useState } from "react";
 import EducationDrawer from "../shared/EducationDrawer";
 
@@ -83,46 +84,118 @@ function Bullet({ children }) {
   );
 }
 
+/** Inventory table — frameworks + demo LLM brains (kept at bottom of Overview). */
+function AllAgentsInventory() {
+  const frameworks = [
+    ["langchain_agent", "LangChain / LangGraph", "Python", "8888", "Default banking AG-UI runtime (`llm_framework=langchain`)"],
+    ["openai_agent", "OpenAI Agents SDK", "Python", "8891", "Lightweight AG-UI variant (`openai_agents`)"],
+    ["mastra_agent", "Mastra", "TypeScript", "8892", "TS AG-UI variant (`mastra`)"],
+    ["pydantic_agent", "Pydantic AI", "Python", "8893", "DI / type-safe AG-UI variant (`pydantic_ai`)"],
+    ["llamaindex_agent", "LlamaIndex", "Python", "8894", "RAG / codebase Q&A (`rag` Compose profile)"],
+    ["compliance_agent", "Compliance (Pydantic AI)", "Python", "3007", "Specialist AML / risk microservice — not the banking chat brain"],
+  ];
+  const brains = [
+    ["Heuristics", "Deterministic NL → tool path (no LLM required)"],
+    ["Google Gemini", "Fast cloud LLM for SE demos (`gemini` / provider `google`)"],
+    ["llama.cpp", "Local models via `demo_llm_proxy` :8090 (`llamacpp`)"],
+  ];
+  const th = { textAlign: "left", padding: "6px 8px", border: "1px solid #cbd5e1", background: "#e2e8f0" };
+  const td = { padding: "6px 8px", border: "1px solid #cbd5e1", fontSize: "0.75rem" };
+  return (
+    <>
+      <h4 style={{ marginTop: "1.6rem", marginBottom: 0.5 }}>All agents in this repo</h4>
+      <p style={{ fontSize: "0.85rem", marginBottom: 0.5 }}>
+        Framework packages under the repo root. Banking chat switches among the
+        first four via the <code>llm_framework</code> flag; LlamaIndex and
+        Compliance are separate services.
+      </p>
+      <div style={{ overflowX: "auto", marginBottom: "1rem" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.75rem" }}>
+          <thead>
+            <tr>
+              <th style={th}>Directory</th>
+              <th style={th}>Framework</th>
+              <th style={th}>Lang</th>
+              <th style={th}>Port</th>
+              <th style={th}>Role</th>
+            </tr>
+          </thead>
+          <tbody>
+            {frameworks.map((row, i) => (
+              <tr key={row[0]} style={{ background: i % 2 === 0 ? "#f8fafc" : "white" }}>
+                <td style={td}><code>{row[0]}</code></td>
+                <td style={td}>{row[1]}</td>
+                <td style={td}>{row[2]}</td>
+                <td style={td}>{row[3]}</td>
+                <td style={td}>{row[4]}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <h4 style={{ marginTop: "1rem", marginBottom: 0.5 }}>Demo LLM brains (agent mode picker)</h4>
+      <p style={{ fontSize: "0.85rem", marginBottom: 0.5 }}>
+        Orthogonal to framework: same agent package can run under different
+        brains. Primary demo set:
+      </p>
+      <ul style={{ marginBottom: 0.5 }}>
+        {brains.map(([name, blurb]) => (
+          <Bullet key={name}>
+            <strong>{name}</strong> — {blurb}
+          </Bullet>
+        ))}
+      </ul>
+      <p style={{ fontSize: "0.78rem", color: "#64748b", marginBottom: 0 }}>
+        Other picker modes (MLX, Anthropic, Helix, Groq) exist in{" "}
+        <code>agentModes.js</code> when configured; Heuristics / Gemini /
+        llama.cpp are the usual live-demo trio.
+      </p>
+    </>
+  );
+}
+
 function OverviewTab() {
   return (
     <>
       <p style={{ marginTop: 0 }}>
-        This demo includes <strong>four production-ready agent frameworks</strong>, all
-        serving the same banking assistant use case. They differ in language,
-        LLM SDK, and reasoning approach — but are functionally equivalent from
-        the UI perspective. The BFF (Express server) routes to whichever
-        framework is configured via the <code>llm_framework</code> flag.
+        This demo ships <strong>five agent framework packages</strong> for the
+        banking assistant AG-UI path (LangChain, OpenAI Agents, Mastra, Pydantic
+        AI, plus LlamaIndex for RAG) and a separate{" "}
+        <strong>compliance_agent</strong> microservice. The four{" "}
+        <code>llm_framework</code> enum values (
+        <code>langchain</code>, <code>openai_agents</code>, <code>mastra</code>,{" "}
+        <code>pydantic_ai</code>) select which AG-UI runtime the BFF calls for{" "}
+        <code>POST /api/agent/run</code>. Brain selection (Heuristics / Gemini /
+        llama.cpp) is independent via the agent mode picker.
       </p>
 
-      <h4 style={{ marginTop: "1.2rem", marginBottom: 0.5 }}>Why Four Frameworks?</h4>
+      <h4 style={{ marginTop: "1.2rem", marginBottom: 0.5 }}>Why multiple frameworks?</h4>
       <ul style={{ marginBottom: 0.5 }}>
         <Bullet>
-          <strong>Educational:</strong> Demonstrate the same agent workflow in
-          different paradigms — LangGraph agentic loops, SDK-based (OpenAI
-          Agents), declarative (Mastra), and dependency-injection-based
-          (Pydantic AI).
+          <strong>Educational:</strong> Same banking workflow in LangGraph
+          loops, OpenAI Agents SDK, Mastra (TS), Pydantic AI DI, and LlamaIndex
+          retrieval.
         </Bullet>
         <Bullet>
           <strong>Performance comparison:</strong> Measure token usage, latency,
           and reasoning quality across frameworks for the same user request.
         </Bullet>
         <Bullet>
-          <strong>Stack flexibility:</strong> Teams can pick the framework
-          matching their existing infrastructure (Python LangChain shop? Use
-          Langchain. TypeScript-first? Use Mastra.).
+          <strong>Stack flexibility:</strong> Pick the package that matches the
+          customer stack (Python LangChain shop vs TypeScript Mastra).
         </Bullet>
         <Bullet>
-          <strong>Behavioral verification:</strong> Ensure agent responses are
-          deterministic and framework-agnostic for the same user intent.
+          <strong>Behavioral verification:</strong> Ping controls (token
+          exchange, Authorize, HITL) stay the same regardless of framework.
         </Bullet>
       </ul>
 
       <h4 style={{ marginTop: "1.2rem", marginBottom: 0.5 }}>
-        Common Interface
+        Common AG-UI interface
       </h4>
       <p>
-        All four frameworks expose the same <code>/run</code> HTTP endpoint,
-        accepting this BFF payload:
+        LangChain, OpenAI Agents, Mastra, and Pydantic AI expose the same{" "}
+        <code>/run</code> HTTP endpoint, accepting this BFF payload:
       </p>
       <Code>
         {`{
@@ -141,12 +214,14 @@ function OverviewTab() {
       </Code>
 
       <p style={{ marginTop: 0.8 }}>
-        Each framework streams Server-Sent Events (SSE) back with the{" "}
+        Each AG-UI framework streams Server-Sent Events (SSE) with the{" "}
         <strong>AG-UI event protocol</strong>: <code>on_run_start</code>,{" "}
         <code>on_llm_start</code>, <code>on_llm_token</code>,{" "}
         <code>on_tool_start</code>, <code>on_tool_end</code>,{" "}
         <code>on_run_end</code>, etc. The React UI is framework-agnostic.
       </p>
+
+      <AllAgentsInventory />
     </>
   );
 }
@@ -437,10 +512,77 @@ async with agent.run_stream(
   );
 }
 
+function LlamaIndexTab() {
+  return (
+    <>
+      <FrameworkCard
+        name="LlamaIndex Agent"
+        language="Python 3.11+"
+        port="8894"
+        color="#f59e0b"
+      >
+        <p style={{ margin: "8px 0", fontSize: "0.85rem", color: "#64748b" }}>
+          <strong>RAG / codebase Q&amp;A.</strong> Retrieval over Weaviate +
+          embeddings (<code>rag</code> Compose profile). Not selected via{" "}
+          <code>llm_framework</code> — called for code-search style asks.
+        </p>
+      </FrameworkCard>
+      <ul>
+        <Bullet>
+          Directory: <code>llamaindex_agent/</code> — FastAPI{" "}
+          <code>/ask</code> + <code>/health</code> on port 8894.
+        </Bullet>
+        <Bullet>
+          Backed by Weaviate + the embeddings llama.cpp container when the{" "}
+          <code>rag</code> profile is up.
+        </Bullet>
+        <Bullet>
+          Complements the banking AG-UI agents; same Ping session story when
+          tools hit MCP through the BFF.
+        </Bullet>
+      </ul>
+    </>
+  );
+}
+
+function ComplianceTab() {
+  return (
+    <>
+      <FrameworkCard
+        name="Compliance Agent"
+        language="Python · Pydantic AI"
+        port="3007"
+        color="#dc2626"
+      >
+        <p style={{ margin: "8px 0", fontSize: "0.85rem", color: "#64748b" }}>
+          <strong>Specialist microservice.</strong> Transaction AML / risk
+          scoring — not a drop-in replacement for the banking chat agent.
+        </p>
+      </FrameworkCard>
+      <ul>
+        <Bullet>
+          Directory: <code>compliance_agent/</code> — FastAPI + Pydantic AI
+          structured <code>ComplianceCheck</code> outputs.
+        </Bullet>
+        <Bullet>
+          BFF bridge routes under <code>/api/compliance-agent/*</code> when the
+          service is running (<code>COMPLIANCE_PORT=3007</code>).
+        </Bullet>
+        <Bullet>
+          Demonstrates a second Pydantic AI deployment pattern: typed risk
+          assessment beside the AG-UI banking runtime on 8893.
+        </Bullet>
+      </ul>
+    </>
+  );
+}
+
 function ComparisonTab() {
   return (
     <>
-      <h4 style={{ marginTop: "1rem", marginBottom: 0.5 }}>Feature Matrix</h4>
+      <h4 style={{ marginTop: "1rem", marginBottom: 0.5 }}>
+        Feature matrix (banking AG-UI runtimes)
+      </h4>
 
       <div
         style={{
@@ -477,6 +619,7 @@ function ComparisonTab() {
           </thead>
           <tbody>
             {[
+              ["Directory", "langchain_agent", "openai_agent", "mastra_agent", "pydantic_agent"],
               ["Language", "Python", "Python", "TypeScript", "Python"],
               ["Port", "8888", "8891", "8892", "8893"],
               ["Conversation Memory", "✅ Built-in", "❌ BFF-managed", "❌ BFF-managed", "❌ BFF-managed"],
@@ -486,7 +629,7 @@ function ComparisonTab() {
               ["Minimal Implementation", "❌ ~300+ lines", "✅ ~140 lines", "✅ ~80 lines", "⚠️ ~100 lines"],
               ["Type Safety", "⚠️ Python hints", "⚠️ Python hints", "✅ TypeScript", "✅ Pydantic models"],
             ].map((row, i) => (
-              <tr key={i} style={{ background: i % 2 === 0 ? "#f8fafc" : "white" }}>
+              <tr key={row[0]} style={{ background: i % 2 === 0 ? "#f8fafc" : "white" }}>
                 <td style={{ padding: "6px 8px", border: "1px solid #cbd5e1", fontWeight: 500 }}>
                   {row[0]}
                 </td>
@@ -508,25 +651,31 @@ function ComparisonTab() {
         </table>
       </div>
 
+      <p style={{ fontSize: "0.85rem" }}>
+        Also in-repo: <code>llamaindex_agent</code> (:8894, RAG) and{" "}
+        <code>compliance_agent</code> (:3007, AML specialist). See Overview →{" "}
+        <strong>All agents in this repo</strong>.
+      </p>
+
       <h4 style={{ marginTop: "1rem", marginBottom: 0.5 }}>How to Switch Frameworks</h4>
       <p style={{ fontSize: "0.85rem", marginBottom: 0.5 }}>
-        All frameworks are <strong>live and running simultaneously</strong>. To
-        switch which one the BFF routes to:
+        AG-UI frameworks can run under the Compose <code>agents</code> profile.
+        To switch which one the BFF routes to:
       </p>
       <ol style={{ fontSize: "0.85rem", marginBottom: 0.5 }}>
         <li>Go to the <strong>/config</strong> page</li>
-        <li>Scroll to <strong>"Agent LLM Framework"</strong></li>
+        <li>Scroll to <strong>"Agent LLM Framework"</strong> (<code>llm_framework</code>)</li>
         <li>
           Select <code>langchain</code>, <code>openai_agents</code>,{" "}
           <code>mastra</code>, or <code>pydantic_ai</code>
         </li>
         <li>
-          Go to <strong>/dashboard</strong> and send a message — the BFF will
-          route to the selected framework
+          Pick a brain in the agent header — demo trio:{" "}
+          <strong>Heuristics</strong>, <strong>Gemini</strong>,{" "}
+          <strong>llama.cpp</strong>
         </li>
         <li>
-          The <strong>EmbeddedAgentDock header</strong> displays the active
-          framework name
+          Send a message on the dashboard — BFF routes to the selected framework
         </li>
       </ol>
 
@@ -543,8 +692,10 @@ curl https://api.ping.demo:3001/api/admin/feature-flags \\
   -H "Cookie: connect.sid=..." | jq '.flags[] | select(.id=="llm_framework")'
 
 # Or in /tmp logs:
-tail -f /tmp/demo-api.log | grep -i "framework\\|agent\\|8888\\|8891\\|8892\\|8893"`}
+tail -f /tmp/demo-api.log | grep -i "framework\\|agent\\|8888\\|8891\\|8892\\|8893\\|8894"`}
       </Code>
+
+      <AllAgentsInventory />
     </>
   );
 }
@@ -558,6 +709,8 @@ function AgentFrameworksPanel({ isOpen, onClose, initialTabId }) {
     { id: "openai", label: "OpenAI Agents", content: <OpenAIAgentsTab /> },
     { id: "mastra", label: "Mastra", content: <MastraTab /> },
     { id: "pydantic", label: "Pydantic AI", content: <PydanticAITab /> },
+    { id: "llamaindex", label: "LlamaIndex", content: <LlamaIndexTab /> },
+    { id: "compliance", label: "Compliance", content: <ComplianceTab /> },
     { id: "comparison", label: "Comparison", content: <ComparisonTab /> },
   ];
 
@@ -566,7 +719,7 @@ function AgentFrameworksPanel({ isOpen, onClose, initialTabId }) {
       isOpen={isOpen}
       onClose={onClose}
       title="Agent Frameworks"
-      description="Compare four production-ready agent frameworks (LangChain, OpenAI Agents, Mastra, Pydantic AI)"
+      description="Banking AG-UI frameworks (LangChain, OpenAI Agents, Mastra, Pydantic AI), LlamaIndex RAG, compliance specialist — plus Heuristics / Gemini / llama.cpp brains"
       tabs={tabConfig}
       activeTab={tab}
       onTabChange={setTab}

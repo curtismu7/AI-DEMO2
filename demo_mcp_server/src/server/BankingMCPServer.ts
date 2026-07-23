@@ -877,7 +877,7 @@ export class BankingMCPServer extends EventEmitter {
   try {
     // Notify the opener — use explicit origin to prevent cross-origin interception.
     // Falls back to "*" only if FRONTEND_ORIGIN env is not configured.
-    var targetOrigin = "${process.env.FRONTEND_ORIGIN || process.env.PUBLIC_APP_URL || 'https://api.ping.demo:4000'}";
+    var targetOrigin = "${process.env.FRONTEND_ORIGIN || process.env.PUBLIC_APP_URL || 'https://local.ping-devops.com:4000'}";
     window.opener && window.opener.postMessage(msg, targetOrigin);
   } catch (e) {}
   // Close the popup regardless

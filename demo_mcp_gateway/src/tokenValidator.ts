@@ -20,7 +20,7 @@ import * as crypto from 'node:crypto';
 
 export interface DecodedGatewayToken {
   sub: string;
-  act?: { sub: string; act?: { sub: string } };
+  act?: { sub?: string; client_id?: string; act?: { sub?: string; client_id?: string } };
   // may_act.sub: the actor the USER authorized. Not present on exchanged tokens; the
   // BFF bridges it via the X-May-Act-Sub header (see index.ts) for per-user may_act
   // enforcement in the authorization decision (ENFORCE_MAY_ACT).

@@ -843,8 +843,8 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
   // Local-tool bypass: teaching/education tools are pure-local computations (text +
   // an education-panel directive, or a token decode). They must NOT trigger an authz
   // decision or an RFC 8693 exchange, so run the plugin's executeTool directly and skip
-  // the pre-flight + MCP path below. Gated to tools a plugin explicitly marks local —
-  // no existing plugin implements isLocalTool, so this is inert for every current vertical.
+  // the pre-flight + MCP path below. Gated to tools a plugin explicitly marks local
+  // (oauth-teaching: explain_concept, show_flow_diagram, inspect_token, …).
   if (plugin && typeof plugin.isLocalTool === 'function' && plugin.isLocalTool(action)) {
     let local;
     try {
