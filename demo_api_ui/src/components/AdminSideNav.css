@@ -110,25 +110,24 @@
 
 /* Quick-access shortcut links at the top of the sidebar */
 .admin-side-nav__quick-links {
-  display: flex;
-  flex-direction: row;
-  gap: 8px;
-  padding: 8px 0 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 8px 0 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .admin-side-nav__quick-link {
-  flex: 1;
   min-width: 0;
   display: block;
-  padding: 9px 8px;
-  border-radius: 7px;
+  padding: 4px 2px;
+  border-radius: 6px;
   -webkit-appearance: none;
   appearance: none;
   font-family: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
   color: #1a2332 !important;
   background: #fff;
   text-decoration: none !important;
@@ -155,6 +154,11 @@
   transform: translateY(-1px);
 }
 
+/* Expanded: only three chips — Setup spans the second row. */
+.admin-side-nav__quick-link:nth-child(3):last-child {
+  grid-column: 1 / -1;
+}
+
 .admin-side-nav__quick-link--active {
   background: #3498db;
   color: #fff !important;
@@ -163,10 +167,45 @@
 }
 
 /* Nav search box — colors come from the --sidenav-filter-* variables
-   declared on .admin-side-nav above. */
+   declared on .admin-side-nav above. Refresh icon sits beside the field. */
+.admin-side-nav__filter-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0 6px;
+}
 .admin-side-nav__filter {
   position: relative;
-  padding: 8px 0 6px;
+  flex: 1;
+  min-width: 0;
+}
+.admin-side-nav__filter-refresh {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--sidenav-filter-border);
+  background: var(--sidenav-filter-bg);
+  color: var(--sidenav-filter-icon);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+.admin-side-nav__filter-refresh:hover {
+  background: var(--sidenav-filter-bg-hover);
+  border-color: var(--sidenav-filter-border-hover);
+  color: var(--sidenav-filter-fg);
+}
+.admin-side-nav__filter-refresh:focus-visible {
+  outline: none;
+  border-color: var(--sidenav-filter-border-focus);
+  box-shadow: 0 0 0 2px var(--sidenav-filter-focus-ring);
 }
 .admin-side-nav__filter-icon {
   position: absolute;

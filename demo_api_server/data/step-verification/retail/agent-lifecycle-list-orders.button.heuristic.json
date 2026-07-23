@@ -1,0 +1,10 @@
+{
+  "vertical": "retail",
+  "useCaseId": "agent-lifecycle-list-orders",
+  "triggerType": "button",
+  "mode": "heuristic",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "list_orders",
+  "checkedAt": "2026-07-23T00:35:57.196Z"
+}

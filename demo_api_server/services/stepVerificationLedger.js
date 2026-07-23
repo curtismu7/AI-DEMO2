@@ -19,11 +19,6 @@ const ROOT = path.resolve(__dirname, '..', 'data', 'step-verification');
  * @property {string} [verifiedBy] optional note pointing at the test file that proved this, when no new dispatch was run
  * @property {string[]} [requiredFlags] feature flags the chip needs armed at runtime
  * @property {string[]} [prereqErrors] human-readable missing-prereq details when status is FAIL
- * @property {string|null} [activeVertical] session/global vertical at check time
- * @property {string[]} [accountTypes] accountType values from /api/accounts/my
- * @property {'1ex'|'2ex'} [tokenSummaryMode] exchange vocabulary detected from tokenEvents
- * @property {string[]} [tokenSummaryIds] Token Summary ids present on the run
- * @property {string[]} [tokenSummaryMissing] required Token Summary ids that were absent
  */
 
 const REQUIRED_FIELDS = ['vertical', 'useCaseId', 'triggerType', 'mode', 'status', 'checkedAt'];

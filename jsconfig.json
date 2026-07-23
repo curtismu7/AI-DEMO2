@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "target": "ES2022",
+    "checkJs": false,
+    "allowJs": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "exclude": [
+    "node_modules",
+    "**/node_modules",
+    "dist",
+    "**/dist",
+    "build",
+    "**/build",
+    "coverage",
+    "**/coverage",
+    ".git",
+    ".worktrees",
+    "worktrees",
+    ".claude/worktrees",
+    "graphify-out",
+    ".venv",
+    "**/.venv",
+    "snapshots",
+    "test-results",
+    "**/test-results",
+    "logs",
+    "langchain_agent/repo-src",
+    "AI-Demo_Cloned",
+    ".playwright-mcp"
+  ]
+}

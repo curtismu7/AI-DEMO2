@@ -1,5 +1,11 @@
 /* ── Live Use-Case Workbench (A5.2 + Mock A chrome) ─────────────────────── */
-.luw { display: grid; grid-template-rows: auto 1fr; height: calc(100vh - 0px); }
+/* Subtract TopNav (~72px) so the stage is the remaining viewport, not 100vh under the shell */
+.luw {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: calc(100vh - var(--stack-fab-top-base, 72px));
+  min-height: 0;
+}
 
 .luw-topbar {
   display: flex; align-items: center; gap: 0.9rem;
@@ -10,7 +16,12 @@
 .luw-topbar__crumb { font-size: 0.8rem; color: #64748b; }
 .luw-topbar__vertical { margin-left: auto; }
 
-.luw-body { display: grid; grid-template-columns: 336px 1fr; min-height: 0; }
+.luw-body {
+  display: grid;
+  grid-template-columns: 336px 1fr;
+  min-height: 0;
+  height: 100%;
+}
 
 .luw-drawer {
   border-right: 1px solid #e2e8f0; background: var(--brand-light-gray, #f8fafc);
@@ -115,15 +126,67 @@
 }
 .luw-main__stage {
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
 }
 .luw-run-layout {
-  display: flex; gap: 1rem; align-items: flex-start;
-  max-width: 1400px; margin: 0 auto; flex-wrap: wrap;
+  display: flex;
+  gap: 1rem;
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  flex-wrap: nowrap;
 }
-.luw-agent-host { flex: 1 1 360px; max-width: 420px; min-width: 320px; overflow: visible; }
-.luw-rail-host { flex: 2 1 480px; min-width: 0; }
+/* Host must be a bounded flex column so portaled .ba-mode-inline (height:100%) fills it */
+.luw-agent-host {
+  flex: 1 1 420px;
+  min-width: 320px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.luw-rail-host {
+  flex: 1.25 1 480px;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
+/*
+ * Portaled BankingAgent uses .banking-agent-float-root { display: contents },
+ * which breaks height:100% for .ba-mode-inline. Same fix as .afm-host / .ac-chat-host.
+ */
+.luw-agent-host .banking-agent-float-root {
+  display: flex !important;
+  flex-direction: column;
+  flex: 1 1 0%;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+.luw-agent-host .banking-agent-panel.ba-mode-inline,
+.luw-agent-host .banking-agent-panel {
+  position: relative !important;
+  inset: auto !important;
+  flex: 1 1 0% !important;
+  align-self: stretch !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
 
 .luw-glance {
   display: grid;
@@ -152,4 +215,16 @@
   font-weight: 700;
   font-size: 1.05rem;
   font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 960px) {
+  .luw-run-layout {
+    flex-wrap: wrap;
+    overflow-y: auto;
+  }
+  .luw-agent-host,
+  .luw-rail-host {
+    flex: 1 1 100%;
+    min-height: 360px;
+  }
 }

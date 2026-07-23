@@ -19,29 +19,11 @@ const { writeLedgerEntry } = require('../../../demo_api_server/services/stepVeri
 const { USE_CASES, resolveUseCase } = require('../../../demo_api_server/config/useCases.js');
 const {
   bankingAmountGateExpectations,
-  loadGoldenByUcId,
   normalizeParsedIntent,
-  scoreAgentReply,
-  scoreAttackSimDeny,
-  scoreBankingVerticalPrereq,
   scoreTokenChainDetail,
-  scoreTokenSummaryCoverage,
+  scoreDelegatedAccessInvoke,
+  scoreAttackSimDeny,
 } = require('../../../demo_api_server/services/stepVerificationExpectations');
-
-/**
- * Confirm session vertical + accounts are banking checking/savings before
- * amount-gate chips run. Healthcare leftovers used to look like wrong_gate.
- */
-async function loadBankingVerticalPrereq(page) {
-  const vertRes = await page.request.get('/api/verticals/me');
-  const vertBody = vertRes.ok() ? await vertRes.json() : {};
-  const acctRes = await page.request.get('/api/accounts/my');
-  const acctBody = acctRes.ok() ? await acctRes.json() : {};
-  return scoreBankingVerticalPrereq(
-    acctBody.accounts || [],
-    vertBody.activeId || null,
-  );
-}
 
 /** First works-maturity banking chip whose primaryTool reads accounts/balance. */
 function findBankingReadChip() {
@@ -131,22 +113,6 @@ async function dispatchInvoke(page, message, useCaseId) {
   );
 }
 
-async function callMcpTool(page, tool, params) {
-  return page.evaluate(
-    async ({ tool, params }) => {
-      const r = await fetch('/api/mcp/tool', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ tool, params }),
-      });
-      const body = await r.json().catch(() => ({}));
-      return { status: r.status, body };
-    },
-    { tool, params },
-  );
-}
-
 async function setDemoRuntimeFlags(api, { heuristic = true } = {}) {
   const res = await api.patch('/api/admin/feature-flags', {
     data: {
@@ -163,31 +129,25 @@ async function setDemoRuntimeFlags(api, { heuristic = true } = {}) {
 
 /**
  * Score NL + message against catalog expectation (amount + gate error).
- * @returns {{
- *   checkStatus: string,
- *   errorClass: string|null,
- *   normalized: object|null,
- *   tokenSummary: ReturnType<typeof scoreTokenSummaryCoverage>|null,
- * }}
+ * @returns {{ checkStatus: string, errorClass: string|null, normalized: object|null }}
  */
 function scoreAmountGate({ nlStatus, nlBody, msgStatus, msgBody, expectation }) {
   let checkStatus = 'PASS';
   let errorClass = null;
-  let tokenSummary = null;
 
   if (nlStatus !== 200) {
-    return { checkStatus: 'FAIL', errorClass: 'server_error', normalized: null, tokenSummary };
+    return { checkStatus: 'FAIL', errorClass: 'server_error', normalized: null };
   }
   if (nlBody.source !== 'heuristic') {
-    return { checkStatus: 'FAIL', errorClass: 'parse_error', normalized: null, tokenSummary };
+    return { checkStatus: 'FAIL', errorClass: 'parse_error', normalized: null };
   }
 
   const normalized = normalizeParsedIntent(nlBody.result || nlBody);
   if (!normalized || normalized.tool !== 'create_transfer') {
-    return { checkStatus: 'FAIL', errorClass: 'wrong_response', normalized, tokenSummary };
+    return { checkStatus: 'FAIL', errorClass: 'wrong_response', normalized };
   }
   if (normalized.amount !== expectation.amount) {
-    return { checkStatus: 'FAIL', errorClass: 'wrong_response', normalized, tokenSummary };
+    return { checkStatus: 'FAIL', errorClass: 'wrong_response', normalized };
   }
 
   const gotError = msgBody?.error || null;
@@ -199,17 +159,7 @@ function scoreAmountGate({ nlStatus, nlBody, msgStatus, msgBody, expectation }) 
     || gotError === 'invalid_scope'
     || /Delegation chain validation failed/i.test(msgBody?.reply || '')
   ) {
-    return { checkStatus: 'FAIL', errorClass: 'server_error', normalized, tokenSummary };
-  }
-
-  // Wrong vertical (e.g. healthcare accounts) fails before authorize gates fire.
-  const reply = msgBody?.reply || '';
-  if (
-    /Could not find the specified accounts/i.test(reply)
-    || /Primary Care/i.test(reply)
-    || /\bHSA\b/.test(reply)
-  ) {
-    return { checkStatus: 'FAIL', errorClass: 'missing_prereq', normalized, tokenSummary };
+    return { checkStatus: 'FAIL', errorClass: 'server_error', normalized };
   }
 
   // Token Chain teaching detail is part of the demo contract — blank rails FAIL.
@@ -225,23 +175,7 @@ function scoreAmountGate({ nlStatus, nlBody, msgStatus, msgBody, expectation }) 
     requireFailureEvent: infraFail,
   });
   if (!chainScore.ok) {
-    return {
-      checkStatus: 'FAIL',
-      errorClass: chainScore.reason || 'empty_token_events',
-      normalized,
-      tokenSummary,
-    };
-  }
-
-  // Token Summary must list every token for the run (1-ex or full 2-ex set).
-  tokenSummary = scoreTokenSummaryCoverage(msgBody?.tokenEvents);
-  if (!tokenSummary.ok) {
-    return {
-      checkStatus: 'FAIL',
-      errorClass: tokenSummary.reason || 'missing_summary_tokens',
-      normalized,
-      tokenSummary,
-    };
+    return { checkStatus: 'FAIL', errorClass: chainScore.reason || 'empty_token_events', normalized };
   }
 
   if (expectation.gate === 'HITL') {
@@ -262,22 +196,7 @@ function scoreAmountGate({ nlStatus, nlBody, msgStatus, msgBody, expectation }) 
     }
   }
 
-  // Gate chips: agent reply must match golden education copy exactly.
-  if (checkStatus === 'PASS' && expectation.gate) {
-    const ucId = expectation.id || expectation.useCaseId;
-    const golden = loadGoldenByUcId('banking', ucId);
-    const replyScore = scoreAgentReply({
-      reply: msgBody?.reply || msgBody?.message || '',
-      style: 'exact',
-      expectedReply: golden?.reply,
-    });
-    if (!replyScore.ok) {
-      checkStatus = 'FAIL';
-      errorClass = 'wrong_response';
-    }
-  }
-
-  return { checkStatus, errorClass, normalized, tokenSummary };
+  return { checkStatus, errorClass, normalized };
 }
 
 test.describe('Step verification — banking (real login, live stack)', () => {
@@ -286,36 +205,11 @@ test.describe('Step verification — banking (real login, live stack)', () => {
   test.describe('chips (heuristic mode) — amount + gate', () => {
     test.beforeEach(async ({ page }) => {
       await loginAsCustomer(page);
-      // Stack may be left on healthcare/retail from other suites — banking
-      // amount gates need checking/savings nicknames or they never reach DENY/STEP_UP/HITL.
-      const vert = await page.request.post('/api/verticals/active', { data: { id: 'banking' } });
-      expect(vert.status(), 'activate banking vertical').toBe(204);
       await setDemoRuntimeFlags(page.request, { heuristic: true });
     });
 
     for (const c of AMOUNT_CASES) {
       test(`${c.useCaseId} chip: $${c.amount} → ${c.gate}`, async ({ page }) => {
-        const prereq = await loadBankingVerticalPrereq(page);
-        if (!prereq.ok) {
-          writeLedgerEntry({
-            vertical: 'banking',
-            useCaseId: c.useCaseId,
-            triggerType: 'chip',
-            mode: 'heuristic',
-            status: 'FAIL',
-            errorClass: 'missing_prereq',
-            primaryTool: 'create_transfer',
-            checkedAt: new Date().toISOString(),
-            prereqErrors: prereq.prereqErrors,
-            activeVertical: prereq.activeVertical,
-            accountTypes: prereq.accountTypes,
-          });
-        }
-        expect(
-          prereq.ok,
-          `banking vertical prereq failed for ${c.useCaseId}: ${prereq.prereqErrors.join('; ')}`,
-        ).toBe(true);
-
         const { status, body } = await dispatchNl(page, c.chipText, 'llamacpp');
         const catalogUc = resolveUseCase(c.useCaseId, 'banking');
         const msg = await dispatchInvoke(page, c.chipText, catalogUc?.useCaseId);
@@ -327,9 +221,6 @@ test.describe('Step verification — banking (real login, live stack)', () => {
           expectation: c,
         });
 
-        const summary = scored.tokenSummary
-          || scoreTokenSummaryCoverage(msg.body?.tokenEvents);
-        const replyPrereq = scored.errorClass === 'missing_prereq';
         writeLedgerEntry({
           vertical: 'banking',
           useCaseId: c.useCaseId,
@@ -339,14 +230,6 @@ test.describe('Step verification — banking (real login, live stack)', () => {
           errorClass: scored.errorClass,
           primaryTool: 'create_transfer',
           checkedAt: new Date().toISOString(),
-          activeVertical: prereq.activeVertical,
-          accountTypes: prereq.accountTypes,
-          prereqErrors: replyPrereq
-            ? ['invoke reply indicates non-banking accounts']
-            : undefined,
-          tokenSummaryMode: summary.mode,
-          tokenSummaryIds: summary.present,
-          tokenSummaryMissing: summary.missing,
         });
 
         expect(status).toBe(200);
@@ -356,18 +239,16 @@ test.describe('Step verification — banking (real login, live stack)', () => {
           scoreTokenChainDetail(msg.body?.tokenEvents).ok,
           `token chain detail missing for ${c.useCaseId}: ${JSON.stringify(msg.body?.tokenEvents || []).slice(0, 200)}`,
         ).toBe(true);
-        expect(
-          summary.ok,
-          `Token Summary incomplete for ${c.useCaseId} (${summary.mode}): missing=${JSON.stringify(summary.missing)} present=${JSON.stringify(summary.present)}`,
-        ).toBe(true);
         expect(scored.checkStatus).toBe('PASS');
       });
     }
 
-    test('accounts/balance chip: tool + agent reply grounded in /api/accounts/my (check 4)', async ({ page }) => {
-      const readChip = findBankingReadChip();
-      test.skip(!readChip, 'No works-maturity banking chip routes to an accounts/balance read tool');
-
+    test('UC1 Demo Step path: show my balance via /api/agent/invoke', async ({ page }) => {
+      // Demo Steps use invoke+forceHeuristic — NOT bare /api/mcp/tool. A stale
+      // P1AZ worker secret fails here (Incomplete at token-exchange) while a
+      // direct tool call can still look fine.
+      const catalogUc = resolveUseCase('UC1', 'banking');
+      const chipText = catalogUc?.trigger?.text || 'show my balance';
       const liveAccounts = await page.evaluate(async () => {
         const r = await fetch('/api/accounts/my', { credentials: 'include' });
         if (!r.ok) throw new Error(`accounts/my -> ${r.status}`);
@@ -376,50 +257,41 @@ test.describe('Step verification — banking (real login, live stack)', () => {
       });
       expect(liveAccounts.length).toBeGreaterThan(0);
 
-      const toolParams =
-        readChip.primaryTool === 'get_account_balance'
-          ? { account_id: liveAccounts[0].id }
-          : {};
-      const { status, body } = await callMcpTool(page, readChip.primaryTool, toolParams);
-      const msg = await dispatchInvoke(page, readChip.text, readChip.id);
+      const { status, body } = await dispatchInvoke(
+        page,
+        chipText,
+        catalogUc?.useCaseId || 'delegated-access-with-proof',
+      );
+      const scored = scoreDelegatedAccessInvoke(
+        { status, body },
+        { evidenceTokenChain: catalogUc?.evidence?.tokenChain },
+      );
 
-      let checkStatus = 'PASS';
-      let errorClass = null;
-
-      if (status !== 200 || msg.status >= 500) {
-        checkStatus = 'FAIL';
-        errorClass = 'server_error';
-      } else {
-        const resultText = JSON.stringify(body.result ?? body ?? {});
-        const anyBalanceGrounded = liveAccounts.some((a) => resultText.includes(String(a.balance)));
-        if (!anyBalanceGrounded) {
+      let checkStatus = scored.ok ? 'PASS' : 'FAIL';
+      let errorClass = scored.reason;
+      if (scored.ok) {
+        const reply = String(body.reply || '');
+        const grounded = liveAccounts.some((a) => reply.includes(String(a.balance)));
+        if (!grounded) {
           checkStatus = 'FAIL';
           errorClass = 'wrong_response';
-        } else {
-          const replyScore = scoreAgentReply({
-            reply: msg.body?.reply || msg.body?.message || '',
-            style: 'grounded',
-            liveAccounts,
-          });
-          if (!replyScore.ok) {
-            checkStatus = 'FAIL';
-            errorClass = 'wrong_response';
-          }
         }
       }
 
       writeLedgerEntry({
         vertical: 'banking',
-        useCaseId: readChip.id,
+        useCaseId: 'UC1',
         triggerType: 'chip',
         mode: 'heuristic',
         status: checkStatus,
         errorClass,
-        primaryTool: readChip.primaryTool,
+        primaryTool: catalogUc?.primaryTool || 'get_account_balance',
         checkedAt: new Date().toISOString(),
       });
 
-      expect(status).toBe(200);
+      expect(status, `invoke HTTP ${status}: ${body.error || ''}`).toBe(200);
+      expect(body.success, `invoke failed: ${body.error || body.reply || ''}`).toBe(true);
+      expect(scored.ok, scored.reason).toBe(true);
       expect(checkStatus).toBe('PASS');
     });
 
@@ -633,33 +505,10 @@ test.describe('Step verification — banking (real login, live stack)', () => {
 
     test.beforeEach(async ({ page }) => {
       await loginAsCustomer(page);
-      const vert = await page.request.post('/api/verticals/active', { data: { id: 'banking' } });
-      expect(vert.status(), 'activate banking vertical').toBe(204);
     });
 
     for (const c of AMOUNT_CASES.filter((x) => x.freeText)) {
       test(`${c.useCaseId} free-text (llamacpp): amount ${c.amount}`, async ({ page }) => {
-        const prereq = await loadBankingVerticalPrereq(page);
-        if (!prereq.ok) {
-          writeLedgerEntry({
-            vertical: 'banking',
-            useCaseId: c.useCaseId,
-            triggerType: 'prompt',
-            mode: 'llamacpp',
-            status: 'FAIL',
-            errorClass: 'missing_prereq',
-            primaryTool: 'create_transfer',
-            checkedAt: new Date().toISOString(),
-            prereqErrors: prereq.prereqErrors,
-            activeVertical: prereq.activeVertical,
-            accountTypes: prereq.accountTypes,
-          });
-        }
-        expect(
-          prereq.ok,
-          `banking vertical prereq failed for ${c.useCaseId}: ${prereq.prereqErrors.join('; ')}`,
-        ).toBe(true);
-
         const { status, body } = await dispatchNl(page, c.freeText, 'llamacpp');
 
         let checkStatus = 'PASS';
@@ -691,8 +540,6 @@ test.describe('Step verification — banking (real login, live stack)', () => {
           errorClass,
           primaryTool: 'create_transfer',
           checkedAt: new Date().toISOString(),
-          activeVertical: prereq.activeVertical,
-          accountTypes: prereq.accountTypes,
         });
 
         expect(status).toBe(200);

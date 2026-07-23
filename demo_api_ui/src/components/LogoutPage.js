@@ -79,14 +79,14 @@ export default function LogoutPage() {
         <div className="logout-footer">
           <button
             type="button"
-            className="logout-btn logout-btn--secondary"
+            className="logout-action logout-action--secondary"
             onClick={() => navigate('/')}
           >
             Go Home
           </button>
           <button
             type="button"
-            className="logout-btn logout-btn--primary"
+            className="logout-action logout-action--primary"
             onClick={() => navigateToCustomerOAuthForceLogin()}
           >
             Sign In Again

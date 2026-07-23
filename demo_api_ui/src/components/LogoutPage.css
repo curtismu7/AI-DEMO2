@@ -8,7 +8,11 @@
   justify-content: center;
   min-height: 100vh;
   padding: 24px 16px;
-  background: var(--modal-overlay-bg, rgba(10, 15, 30, 0.5));
+  /* Opaque — semi-transparent overlay reads as a white screen over the app chrome */
+  background: #0f172a;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
 }
 
 .logout-card {
@@ -167,7 +171,9 @@
   background: #fafafa;
 }
 
-.logout-btn {
+/* Prefixed .logout-action — do NOT use .logout-btn (UserDashboard owns that
+   class with white-on-transparent styles that wipe these buttons). */
+.logout-action {
   padding: 8px 18px;
   border-radius: 8px;
   font-size: 14px;
@@ -176,29 +182,29 @@
   transition: filter 0.15s, background 0.15s;
 }
 
-.logout-btn--primary {
+.logout-action--primary {
   background: var(--theme-accent, #0e7c86);
   border: 1px solid var(--theme-accent, #0e7c86);
   color: #ffffff;
 }
 
-.logout-btn--primary:hover {
+.logout-action--primary:hover {
   filter: brightness(1.07);
 }
 
-.logout-btn--primary:focus-visible {
+.logout-action--primary:focus-visible {
   outline: 2px solid var(--theme-accent, #0e7c86);
   outline-offset: 2px;
 }
 
-.logout-btn--secondary {
+.logout-action--secondary {
   background: #f3f4f6;
   border: 1px solid #d1d5db;
   color: #374151;
   font-weight: 500;
 }
 
-.logout-btn--secondary:hover {
+.logout-action--secondary:hover {
   background: #e5e7eb;
 }
 

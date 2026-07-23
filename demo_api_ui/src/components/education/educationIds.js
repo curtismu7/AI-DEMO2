@@ -74,7 +74,7 @@ export const EDU = {
   TRANSACTION_TOKENS: "transaction-tokens",
   /** DPoP — sender-constrained tokens (cnf.jkt + per-hop proof), RFC 9449 */
   DPOP: "dpop",
-  /** Agent Frameworks — LangChain, OpenAI Agents, Mastra, Pydantic AI comparison and how to switch */
+  /** Agent Frameworks — AG-UI packages + LlamaIndex + compliance inventory; Heuristics/Gemini/llama.cpp brains */
   AGENT_FRAMEWORKS: "agent-frameworks",
   /** Vertical Setup — Multi-tenancy: manifest-driven verticals, plugin architecture, admin controls */
   VERTICAL_SETUP: "vertical-setup",

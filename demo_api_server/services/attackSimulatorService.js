@@ -175,23 +175,6 @@ function _parseGatewayError(err, fallbackStatus) {
 }
 
 /**
- * Extras for sim-exchange-error so the Token Chain can show PingOne's reason
- * (and the exchanger request context) instead of a bare red step.
- * @param {object} err - rich Error from oauthService.performTokenExchange*
- * @returns {object}
- */
-function _exchangeFailureExtras(err) {
-  return {
-    error: err.pingoneError || 'exchange_failed',
-    pingoneError: err.pingoneError || null,
-    pingoneErrorDescription: err.pingoneErrorDescription || null,
-    pingoneErrorDetail: err.pingoneErrorDetail || null,
-    requestContext: err.requestContext || null,
-    httpStatus: err.httpStatus || null,
-  };
-}
-
-/**
  * Human-readable description of the control that fired, keyed by the sim's
  * canonical deny code. Used only when the real PingOne Authorize response
  * carries no `reason` string of its own — the mapping names the SAME control
@@ -353,39 +336,17 @@ async function _exchangeGatewayToken(subjectToken, scopes, useCaseId, tokenChain
     };
   }
 
-  // PingGateway brokered path: PingOne rejects product scopes (read/write/transfer)
-  // against the gateway resource with invalid_scope ("May not request scopes for
-  // multiple resources"). Mint only the coarse gateway invoke scope + HTTPS aud.
-  const usePingGateway = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
-  const gatewayBrokered = configStore.getEffective('ff_gateway_brokered_exchange') !== 'false';
-  const gatewayInvokeScope = configStore.getEffective('gateway_mcp_invoke_scope')
-    || configStore.getEffective('pinggateway_invoke_scope')
-    || 'gateway:mcp:invoke';
-  const pingGatewayResourceAud = process.env.PINGONE_RESOURCE_PINGGATEWAY_URI
-    || configStore.getEffective('pingone_resource_pinggateway_uri')
-    || null;
-  const exchangeAud = (usePingGateway && gatewayBrokered && pingGatewayResourceAud)
-    ? pingGatewayResourceAud
-    : gatewayAud;
-  // Array → performTokenExchangeAs emits RFC 8707 resource= (required for PG HTTPS aud).
-  const exchangeAudience = (usePingGateway && gatewayBrokered && pingGatewayResourceAud)
-    ? [pingGatewayResourceAud]
-    : exchangeAud;
-  const exchangeScopes = (usePingGateway && gatewayBrokered)
-    ? [gatewayInvokeScope]
-    : scopes;
-
   tokenChainEvents.push(buildTokenEvent(
     'sim-exchange-start',
     `Token Exchange (${label})`,
     'active',
     null,
-    `Exchanging user token to gateway audience ${Array.isArray(exchangeAudience) ? JSON.stringify(exchangeAudience) : exchangeAudience} with scope "${exchangeScopes.join(' ')}".`,
+    `Exchanging user token to gateway audience ${gatewayAud} with scope "${scopes.join(' ')}".`,
   ));
 
   let exchangedToken;
   try {
-    exchangedToken = await _exchangeSimToken(subjectToken, exchangeAudience, exchangeScopes);
+    exchangedToken = await _exchangeSimToken(subjectToken, gatewayAud, scopes);
   } catch (err) {
     const errorCode = err.pingoneError || 'exchange_failed';
     const reason = `Token exchange failed: ${err.message}`;
@@ -395,9 +356,8 @@ async function _exchangeGatewayToken(subjectToken, scopes, useCaseId, tokenChain
       'error',
       null,
       reason,
-      _exchangeFailureExtras(err),
+      { error: errorCode },
     ));
-    stampUseCaseId(tokenChainEvents, useCaseId);
     return {
       ok: false,
       result: {
@@ -418,23 +378,15 @@ async function _exchangeGatewayToken(subjectToken, scopes, useCaseId, tokenChain
     'active',
     decoded,
     'PingOne minted a delegated gateway token for the attack scenario.',
-    {
-      exchangeDetails: {
-        audience: Array.isArray(exchangeAudience) ? exchangeAudience.join(' ') : exchangeAudience,
-        scopes: exchangeScopes.join(' '),
-      },
-    },
+    { exchangeDetails: { audience: gatewayAud, scopes: scopes.join(' ') } },
   ));
   return { ok: true, token: exchangedToken };
 }
 
 /**
  * Build a deny result from a gateway error with optional canonical error code.
- * @param {object} [teachingExtra] - optional before/after teaching fields
- *   (e.g. grantedAmount/requestedAmount, presentedScopes/requiredScopes)
- *   stamped onto the sim-gateway-deny event for Token Chain display.
  */
-function _denyFromGateway(sim, useCaseId, tokenChainEvents, err, fallbackStatus, canonicalCode, eventLabel, teachingExtra) {
+function _denyFromGateway(sim, useCaseId, tokenChainEvents, err, fallbackStatus, canonicalCode, eventLabel) {
   const {
     errorCode: rawCode,
     httpStatus: rawStatus,
@@ -466,7 +418,6 @@ function _denyFromGateway(sim, useCaseId, tokenChainEvents, err, fallbackStatus,
     ...(triedAudience ? { triedAudience } : {}),
     ...(allowedAudience ? { allowedAudience } : {}),
   };
-  const teach = (teachingExtra && typeof teachingExtra === 'object') ? teachingExtra : {};
 
   tokenChainEvents.push(buildTokenEvent(
     'sim-gateway-deny',
@@ -478,7 +429,6 @@ function _denyFromGateway(sim, useCaseId, tokenChainEvents, err, fallbackStatus,
       error: errorCode,
       httpStatus,
       ...audExtra,
-      ...teach,
       ...(authorize ? { authorizeDecisionId: authorize.decisionId } : {}),
     },
   ));
@@ -486,7 +436,6 @@ function _denyFromGateway(sim, useCaseId, tokenChainEvents, err, fallbackStatus,
   return {
     sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents,
     ...audExtra,
-    ...teach,
     ...(authorize ? { authorize } : {}),
   };
 }
@@ -691,9 +640,8 @@ async function _runInsufficientScope(subjectToken, useCaseId, tokenChainEvents) 
       'error',
       null,
       reason,
-      _exchangeFailureExtras(err),
+      { error: errorCode }
     ));
-    stampUseCaseId(tokenChainEvents, useCaseId);
     return { sim, useCaseId, status: 502, errorCode, reason, tokenChainEvents };
   }
 
@@ -744,27 +692,16 @@ async function _runInsufficientScope(subjectToken, useCaseId, tokenChainEvents) 
     const isScopeDeny = rawCode === 'mcp_tool_error' || rawCode === 'gateway_policy_denied';
     const errorCode = isScopeDeny ? 'insufficient_scope' : rawCode;
     const httpStatus = isScopeDeny ? 403 : rawStatus;
-    // Teaching: token carried only "read"; create_transfer requires "write".
-    const presentedScopes = _audString(decoded?.claims?.scope) || 'read';
-    const requiredScopes = 'write';
     tokenChainEvents.push(buildTokenEvent(
       'sim-gateway-deny',
       'Gateway DENY (insufficient_scope)',
       'error',
       null,
       `Gateway rejected the call with ${httpStatus} ${errorCode}: ${reason}`,
-      {
-        error: errorCode,
-        httpStatus,
-        presentedScopes,
-        requiredScopes,
-      }
+      { error: errorCode, httpStatus }
     ));
     stampUseCaseId(tokenChainEvents, useCaseId);
-    return {
-      sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents,
-      presentedScopes, requiredScopes,
-    };
+    return { sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents };
   }
 }
 
@@ -825,9 +762,8 @@ async function _runWrongAud(subjectToken, useCaseId, tokenChainEvents) {
       'error',
       null,
       reason,
-      _exchangeFailureExtras(err),
+      { error: errorCode }
     ));
-    stampUseCaseId(tokenChainEvents, useCaseId);
     return {
       sim, useCaseId, status: 502, errorCode, reason, tokenChainEvents,
       triedAudience: wrongAud, allowedAudience: gatewayAud,
@@ -1287,9 +1223,6 @@ async function _runReplayedToken(subjectToken, useCaseId, tokenChainEvents) {
  */
 async function _runRogueActor(subjectToken, useCaseId, tokenChainEvents, req) {
   const sim = 'rogue-actor';
-  const allowedAct = configStore.getEffective('pingone_ai_agent_actor_client_id')
-    || configStore.getEffective('pingone_token_exchanger_client_id')
-    || '';
 
   tokenChainEvents.push(buildTokenEvent(
     'sim-rogue-actor',
@@ -1298,10 +1231,6 @@ async function _runRogueActor(subjectToken, useCaseId, tokenChainEvents, req) {
     null,
     `Overriding X-Act-Client-Id with rogue actor "${ROGUE_ACTOR_CLIENT_ID}" as the request flows through the ` +
     'full BFF pipeline (exchange → Authorize → gateway) — Authorize must DENY via HasValidActorChain.',
-    {
-      presentedAct: ROGUE_ACTOR_CLIENT_ID,
-      allowedAct: allowedAct || '(configured authorized actor)',
-    },
   ));
 
   const savedBody = req.body;
@@ -1333,12 +1262,7 @@ async function _runRogueActor(subjectToken, useCaseId, tokenChainEvents, req) {
     };
   }
 
-  const denyResult = _denyFromPipeline(sim, useCaseId, tokenChainEvents, outcome, 'mcp_invalid_actor');
-  return {
-    ...denyResult,
-    presentedAct: ROGUE_ACTOR_CLIENT_ID,
-    allowedAct: allowedAct || '(configured authorized actor)',
-  };
+  return _denyFromPipeline(sim, useCaseId, tokenChainEvents, outcome, 'mcp_invalid_actor');
 }
 
 /**
@@ -1418,11 +1342,7 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
     null,
     `Attested authorization_details cap the transfer at $${grantedAmount}. ` +
     `Attack attempts create_transfer for $${finalAttackAmount}.`,
-    {
-      authorization_details: rarDetails,
-      grantedAmount,
-      requestedAmount: finalAttackAmount,
-    },
+    { authorization_details: rarDetails },
   ));
 
   try {
@@ -1454,7 +1374,6 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
     return _denyFromGateway(
       sim, useCaseId, tokenChainEvents, err, 403, 'rar_amount_exceeded',
       'Authorize DENY (rar_amount_exceeded)',
-      { grantedAmount, requestedAmount: finalAttackAmount },
     );
   }
 }

@@ -263,7 +263,7 @@ async function postAdminConfig(config: Record<string, string>): Promise<void> {
   const https = require("https") as typeof import("https");
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { getEnv } = require("../shared/env") as typeof import("../shared/env");
-  const baseUrl = getEnv("PUBLIC_APP_URL") ?? "https://api.ping.demo:4000";
+  const baseUrl = getEnv("PUBLIC_APP_URL") ?? "https://local.ping-devops.com:4000";
   const agent = new https.Agent({ rejectUnauthorized: false });
   await axios.post(`${baseUrl}/api/admin/config`, config, {
     headers: { "Content-Type": "application/json" },
@@ -277,7 +277,7 @@ async function getAdminConfig(): Promise<Record<string, unknown>> {
   const https = require("https") as typeof import("https");
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { getEnv } = require("../shared/env") as typeof import("../shared/env");
-  const baseUrl = getEnv("PUBLIC_APP_URL") ?? "https://api.ping.demo:4000";
+  const baseUrl = getEnv("PUBLIC_APP_URL") ?? "https://local.ping-devops.com:4000";
   const agent = new https.Agent({ rejectUnauthorized: false });
   const res = await axios.get<Record<string, unknown>>(`${baseUrl}/api/admin/config`, {
     httpsAgent: agent,

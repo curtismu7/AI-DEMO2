@@ -4,7 +4,7 @@
 #
 # Port layout:
 #   Demo API Server  → https://api.ping.demo:3001
-#   Demo UI          → https://api.ping.demo:4000
+#   Demo UI          → https://local.ping-devops.com:4000
 #   Demo MCP Server  → localhost:8080
 #   LangChain Agent  → localhost:8887 (FastAPI/CodeGraph) + 8889 (chat WS) + 8881 (health/inspector)
 #

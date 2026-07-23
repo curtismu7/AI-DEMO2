@@ -64,7 +64,7 @@ minimal diff.
 | Port | Service | Scheme |
 |---|---|---|
 | `3001` | Banking API Server (BFF) | `https://api.ping.demo:3001` |
-| `4000` | Banking UI (React) — public origin, OAuth callbacks land here | `https://api.ping.demo:4000` |
+| `4000` | Banking UI (React) — public origin, OAuth callbacks land here | `https://local.ping-devops.com:4000` |
 | `3005` | MCP Gateway | `https://api.ping.demo:3005` |
 | `3006` | Agent Service | `http://localhost:3006` |
 | `3009` | HITL Service | `http://localhost:3009` |

@@ -28,12 +28,12 @@ data:
   #     gateway's apikey route, not this flag).
   # >>> BEGIN generated from service-topology.json
   # Regenerate: node scripts/gen-service-topology.js generate  —  do NOT hand-edit.
-  PUBLIC_APP_URL: "https://api.ping.demo:4000"
-  PINGONE_PUBLIC_APP_URL: "https://api.ping.demo:4000"
-  REACT_APP_CLIENT_URL: "https://api.ping.demo:4000"
-  FRONTEND_ADMIN_URL: "https://api.ping.demo:4000/admin"
-  FRONTEND_DASHBOARD_URL: "https://api.ping.demo:4000/dashboard"
-  CORS_ORIGIN: "https://api.ping.demo:4000"
+  PUBLIC_APP_URL: "https://local.ping-devops.com:4000"
+  PINGONE_PUBLIC_APP_URL: "https://local.ping-devops.com:4000"
+  REACT_APP_CLIENT_URL: "https://local.ping-devops.com:4000"
+  FRONTEND_ADMIN_URL: "https://local.ping-devops.com:4000/admin"
+  FRONTEND_DASHBOARD_URL: "https://local.ping-devops.com:4000/dashboard"
+  CORS_ORIGIN: "https://local.ping-devops.com:4000,https://api.ping.demo:4000"
   MCP_SERVER_URL: "ws://mcp-server:8080"
   MCP_OLB_WS_URL: "ws://mcp-server:8080"
   MCP_INVEST_WS_URL: "ws://mcp-invest:8081"
@@ -48,15 +48,6 @@ data:
   DEMO_API_BASE_URL: "https://demo-api-server:3001"
   BFF_INTERNAL_ID_TOKEN_URL: "https://demo-api-server:3001/internal/id-token"
   BANKING_RESOURCE_SERVER_BASE_URL: "https://demo-api-server:3001"
-  # In-cluster BFF hosts for the agents' tool callbacks. langchain-secrets
-  # ships the LOCAL values (http://api-server:3001) from langchain_agent/.env;
-  # the configmap is listed after it in envFrom, so these win in k8s. Without
-  # them every LLM-mode tool call dies with httpx ConnectError.
-  # NOTE: the BFF (routes/agentRun.js) treats BFF_INTERNAL_TOOL_URL as a BASE
-  # and appends /internal/agent-tool itself — a full path here 404s with a
-  # doubled path. The agents receive the final URL in the run payload.
-  BFF_BASE_URL: "https://demo-api-server:3001"
-  BFF_INTERNAL_TOOL_URL: "https://demo-api-server:3001"
   AGUI_HTTP_PORT: "8888"
   WEBSOCKET_PORT: "8889"
   HEALTH_HTTP_PORT: "8890"

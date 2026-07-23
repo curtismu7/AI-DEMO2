@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAgentUiMode } from "../context/AgentUiModeContext";
 import { useEducationUI } from "../context/EducationUIContext";
+import apiClient from "../services/apiClient";
 import { persistAgentUi } from "../services/demoScenarioService";
 import { performLogout } from "../services/logout";
 import { navigateToCustomerOAuthLogin, requestSilentReauth } from "../utils/authUi";
@@ -45,6 +46,7 @@ import {
   MdPlayArrow,
   MdPolicy,
   MdPublic,
+  MdRefresh,
   MdRoute,
   MdSearch,
   MdSecurity,
@@ -147,7 +149,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "ai-agents", paths: ["/ai-control-plane", "/agent", "/copilot", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
   { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client"] },
   { id: "banking-mcp", paths: ["/webmcp", "/ping-ai-test-lab"] },
-  { id: "banking-mcp-gateways", paths: ["/pinggateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security"] },
+  { id: "banking-mcp-gateways", paths: ["/pinggateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security", "/agent-gateway-capabilities"] },
   { id: "pingone-demo-apps", paths: ["/self-service", "/pingone-test", "/mfa-test", "/token-exchange-tester", "/oauth-academy", "/oas-demo", "/privilege-demo", "/sdk-login"] },
   { id: "delegation-consent", paths: ["/transaction-consent", "/actor-token-education"] },
   { id: "authorize", paths: ["/pingone-authorize", "/pingone-authorize-capabilities", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
@@ -502,7 +504,38 @@ export default function AdminSideNav({ user }) {
           path: "/pinggateway-inspector",
           icon: "rte",
         },
-        { label: "Weather MCP", path: "/use-cases", icon: "mcp" },
+        { label: "Capability Tour", path: "/agent-gateway-capabilities", icon: "shld" },
+        {
+          label: "Weather MCP",
+          icon: "mcp",
+          // UC30 — Texas permit kickoff (same as Use Cases → Run).
+          action: () => {
+            const vertical = activeVerticalId || "banking";
+            apiClient
+              .post("/api/use-cases/demo/run", {
+                useCaseId: "weather-mcp-texas-permit",
+                vertical,
+              })
+              .then(({ data }) =>
+                apiClient
+                  .post("/api/verticals/active", { id: vertical })
+                  .then(() => data),
+              )
+              .then((data) => {
+                navigate("/dashboard", {
+                  state: {
+                    useCaseId: data.useCaseId,
+                    triggerText: data.triggerText,
+                    type: data.type,
+                    vertical,
+                  },
+                });
+              })
+              .catch((err) => {
+                console.error("Weather MCP nav: failed to run use case", err);
+              });
+          },
+        },
       ],
     },
     {
@@ -1224,7 +1257,8 @@ export default function AdminSideNav({ user }) {
 
       {/* Navigation Menu */}
       <nav className="admin-side-nav__menu" aria-label="Primary navigation">
-        {/* Quick-access shortcuts */}
+        {/* Quick-access shortcuts — 2×2 when collapsed (incl. Refresh); 2×2 of
+            Cust/Admin/Setup when expanded (Refresh lives next to search). */}
         <div className="admin-side-nav__quick-links">
           <button
             type="button"
@@ -1250,7 +1284,7 @@ export default function AdminSideNav({ user }) {
                 );
             }}
           >
-            {collapsed ? "C" : "Customer"}
+            {collapsed ? "C" : "Cust"}
           </button>
           <button
             type="button"
@@ -1285,43 +1319,57 @@ export default function AdminSideNav({ user }) {
           >
             {collapsed ? "S" : "Setup"}
           </Link>
-          <button
-            type="button"
-            className="admin-side-nav__quick-link"
-            title="Refresh sidebar (pick up Demo Config changes)"
-            onClick={loadNavConfig}
-          >
-            {collapsed ? "R" : "Refresh"}
-          </button>
+          {collapsed && (
+            <button
+              type="button"
+              className="admin-side-nav__quick-link"
+              title="Refresh sidebar (pick up Demo Config changes)"
+              aria-label="Refresh sidebar"
+              onClick={loadNavConfig}
+            >
+              R
+            </button>
+          )}
         </div>
 
         {/* Filter — live-filters nav items by label (hidden when collapsed) */}
         {!collapsed && (
-          <div className="admin-side-nav__filter">
-            <MdSearch
-              className="admin-side-nav__filter-icon"
-              size={16}
-              aria-hidden="true"
-            />
-            <input
-              type="text"
-              className="admin-side-nav__filter-input"
-              placeholder="Search menu…"
-              value={navFilter}
-              onChange={(e) => setNavFilter(e.target.value)}
-              aria-label="Search navigation"
-            />
-            {navFilter && (
-              <button
-                type="button"
-                className="admin-side-nav__filter-clear"
-                onClick={() => setNavFilter("")}
-                aria-label="Clear filter"
-                title="Clear"
-              >
-                ✕
-              </button>
-            )}
+          <div className="admin-side-nav__filter-row">
+            <div className="admin-side-nav__filter">
+              <MdSearch
+                className="admin-side-nav__filter-icon"
+                size={16}
+                aria-hidden="true"
+              />
+              <input
+                type="text"
+                className="admin-side-nav__filter-input"
+                placeholder="Search menu…"
+                value={navFilter}
+                onChange={(e) => setNavFilter(e.target.value)}
+                aria-label="Search navigation"
+              />
+              {navFilter && (
+                <button
+                  type="button"
+                  className="admin-side-nav__filter-clear"
+                  onClick={() => setNavFilter("")}
+                  aria-label="Clear filter"
+                  title="Clear"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              className="admin-side-nav__filter-refresh"
+              title="Refresh sidebar (pick up Demo Config changes)"
+              aria-label="Refresh sidebar"
+              onClick={loadNavConfig}
+            >
+              <MdRefresh size={16} aria-hidden="true" />
+            </button>
           </div>
         )}
 
