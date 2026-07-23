@@ -44,4 +44,34 @@ describe('extractIntentAndConfidence — retail checkout (UC22 intent binding)',
     expect(r.intent).toBe('checkout');
     expect(r.toolName).toBe('checkout');
   });
+
+  it('maps "check out my cart" (manifest chip) to checkout', () => {
+    const r = extractIntentAndConfidence('check out my cart');
+    expect(r.intent).toBe('checkout');
+    expect(r.toolName).toBe('checkout');
+  });
+
+  // Negative cases — "check out" as natural English for "look at" must NOT
+  // become checkout intent; those prompts belong to banking read intents and
+  // the intent token must include the correct read tools, not ['checkout','list_orders'].
+  it('does NOT classify "check out my balance" as checkout', () => {
+    const r = extractIntentAndConfidence('check out my balance');
+    expect(r.intent).not.toBe('checkout');
+  });
+
+  it('does NOT classify "check out my transactions" as checkout', () => {
+    const r = extractIntentAndConfidence('check out my transactions');
+    expect(r.intent).not.toBe('checkout');
+  });
+
+  it('does NOT classify "check out my account" as checkout', () => {
+    const r = extractIntentAndConfidence('check out my account');
+    expect(r.intent).not.toBe('checkout');
+  });
+
+  it('does NOT classify "check out my recent activity" as checkout', () => {
+    const r = extractIntentAndConfidence('check out my recent activity');
+    expect(r.intent).not.toBe('checkout');
+  });
 });
+

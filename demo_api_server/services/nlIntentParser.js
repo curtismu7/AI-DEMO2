@@ -239,9 +239,16 @@ function extractIntentAndConfidence(message) {
   // similar buy/purchase prompts. Without this, intent stays "unknown" →
   // permitted_tools is read-only → PingGateway P1AZ DENYs checkout with
   // intent_mismatch after CIBA approval (BFF gate already PERMITted).
+  //
+  // "check out" (two words) is too broad — it's natural English for
+  // "look at my balance/account/transactions", which map to banking read
+  // intents. Only match the single-word "checkout" or "check out" when
+  // explicitly followed by a shopping noun (cart, basket, item, order).
+  // norm() strips "$", so \$? in the buy/purchase branch was a no-op — removed.
   const checkoutMatch =
-    /\b(check\s*out|checkout)\b/.test(t) ||
-    /\b(buy|purchase)\b.*\$?\d/.test(t);
+    /\bcheckout\b/.test(t) ||
+    /\bcheck\s+out\s+(?:my\s+)?(?:cart|basket|item|order)\b/.test(t) ||
+    /\b(buy|purchase)\b.*\d/.test(t);
   if (checkoutMatch)
     return { intent: "checkout", toolName: "checkout", confidence: 0.9 };
 
