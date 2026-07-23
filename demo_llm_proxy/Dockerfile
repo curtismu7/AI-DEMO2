@@ -5,7 +5,7 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install --production
 
-COPY router.js .
+COPY router.js posthogAi.js .
 
 EXPOSE 8090
 ENV LLM_PROXY_PORT=8090
