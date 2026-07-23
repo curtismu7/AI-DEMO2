@@ -306,6 +306,152 @@ test.describe('Step verification — banking (real login, live stack)', () => {
     });
   });
 
+  test.describe('agent-lifecycle page buttons (retail)', () => {
+    test.describe.configure({ mode: 'serial', timeout: 300_000 });
+
+    test.beforeEach(async ({ page }) => {
+      await loginAsCustomer(page);
+      await setDemoRuntimeFlags(page.request, { heuristic: true });
+      await page.request.post('/api/verticals/active', { data: { id: 'retail' } }).catch(() => {});
+    });
+
+    test.afterAll(async ({ browser }) => {
+      // Safety net: if a prior run used kill-switch scope=full, restore apps.
+      const ctx = await browser.newContext({ ignoreHTTPSErrors: true });
+      const page = await ctx.newPage();
+      try {
+        await loginAsCustomer(page);
+        await page.request.post('/api/admin/agent/demo-agent/re-enable', { data: {} });
+      } catch (_) {
+        /* non-fatal */
+      }
+      await ctx.close();
+    });
+
+    test('Call list_orders + Pretty/Raw toggles', async ({ page }) => {
+      await page.goto('/agent-lifecycle', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: 'Agent Lifecycle' })).toBeVisible();
+
+      await page.getByRole('button', { name: /Call list_orders as agent/i }).click();
+      await Promise.race([
+        page.locator('.alp-error').waitFor({ timeout: 90_000 }),
+        page.locator('.alp-form-container, .alp-result, .alp-form-empty').waitFor({ timeout: 90_000 }),
+      ]);
+      expect(await page.locator('.alp-error').count()).toBe(0);
+
+      await page.getByRole('button', { name: /Raw JSON/i }).click();
+      await expect(page.locator('pre.alp-result')).toBeVisible();
+      await page.getByRole('button', { name: /Pretty Form/i }).click();
+      await expect(page.locator('.alp-form-container, .alp-form-empty')).toBeVisible();
+
+      writeLedgerEntry({
+        vertical: 'retail',
+        useCaseId: 'agent-lifecycle-list-orders',
+        triggerType: 'button',
+        mode: 'heuristic',
+        status: 'PASS',
+        errorClass: null,
+        primaryTool: 'list_orders',
+        checkedAt: new Date().toISOString(),
+      });
+    });
+
+    test('Checkout $600 headphones reaches CIBA or completes', async ({ page }) => {
+      await page.goto('/agent-lifecycle', { waitUntil: 'domcontentloaded' });
+      await page.getByRole('button', { name: /Checkout \$600 headphones/i }).click();
+
+      const deadline = Date.now() + 150_000;
+      let statusText = '';
+      let cibaPathSeen = false;
+      while (Date.now() < deadline) {
+        statusText = (await page.locator('.alp-slot__status').allTextContents()).join(' || ');
+        if (/Waiting for approval|auth_req_id|CIBA approval was/i.test(statusText)) {
+          cibaPathSeen = true;
+        }
+        if (/Checkout completed/i.test(statusText)) break;
+        if (
+          /(denied|expired|Retry failed|HTTP \d|rate or quota|actor_token)/i.test(statusText)
+          && !/Waiting for approval/i.test(statusText)
+          && !/retrying checkout/i.test(statusText)
+        ) {
+          break;
+        }
+        if (/Waiting for approval/i.test(statusText)) {
+          // Let simulated CIBA auto-approve, then retry.
+          await page.waitForTimeout(2000);
+          continue;
+        }
+        await page.waitForTimeout(1500);
+      }
+
+      const completed = /Checkout completed/i.test(statusText);
+      // Button contract: either checkout finishes, or the CIBA step-up path
+      // was entered. Simulated CIBA can flake to denied/expired without the
+      // button itself being broken — that still counts as gate proven.
+      const empty = !String(statusText || '').trim();
+      const actorBroken = /actor_token_invalid/i.test(statusText);
+      const checkStatus = empty || actorBroken ? 'FAIL' : (completed || cibaPathSeen ? 'PASS' : 'FAIL');
+
+      writeLedgerEntry({
+        vertical: 'retail',
+        useCaseId: 'ciba-out-of-band-approval',
+        triggerType: 'button',
+        mode: 'heuristic',
+        status: checkStatus,
+        errorClass: empty ? 'empty_status' : actorBroken ? 'server_error' : null,
+        primaryTool: 'checkout',
+        checkedAt: new Date().toISOString(),
+      });
+
+      expect(empty, `checkout status empty — UI bug. got="${statusText}"`).toBe(false);
+      expect(actorBroken, `agent apps disabled? ${statusText}`).toBe(false);
+      expect(
+        completed || cibaPathSeen,
+        `expected CIBA path or checkout complete; got="${statusText.slice(0, 300)}"`,
+      ).toBe(true);
+    });
+
+    test('Revoke agent access uses instance scope and proves retry fails', async ({ page }) => {
+      await page.goto('/agent-lifecycle', { waitUntil: 'domcontentloaded' });
+      const revoke = page.getByRole('button', { name: /Revoke agent access/i });
+      await expect(revoke).toBeEnabled({ timeout: 30_000 });
+
+      // Guardrail: the POST body must carry scope=instance so a regression that
+      // omits scope cannot disable PingOne agent apps (API default is also instance).
+      const killReqPromise = page.waitForRequest(
+        (req) => req.method() === 'POST' && /\/api\/admin\/agent\/[^/]+\/kill-switch/.test(req.url()),
+      );
+
+      await revoke.click();
+      // Modal defaults to "This instance only" — confirm without switching to full.
+      await page.getByRole('button', { name: /Confirm Stop Agent/i }).click();
+
+      const killReq = await killReqPromise;
+      const killBody = killReq.postDataJSON() || {};
+      expect(killBody.scope, `kill-switch must send scope=instance, got ${JSON.stringify(killBody)}`).toBe('instance');
+      expect(killBody.scope).not.toBe('full');
+
+      await expect(page.getByText(/Confirmed revoked/i)).toBeVisible({ timeout: 60_000 });
+      await expect(page.getByRole('link', { name: /View audit trail/i })).toBeVisible();
+      // Instance scope must NOT surface the full-identity re-enable CTA.
+      await expect(page.getByRole('button', { name: /Re-enable agent apps/i })).toHaveCount(0);
+
+      writeLedgerEntry({
+        vertical: 'retail',
+        useCaseId: 'agent-lifecycle-revoke',
+        triggerType: 'button',
+        mode: 'heuristic',
+        status: 'PASS',
+        errorClass: null,
+        primaryTool: 'list_orders',
+        checkedAt: new Date().toISOString(),
+      });
+
+      // Belt-and-suspenders: keep apps healthy even if a future change regresses scope.
+      await page.request.post('/api/admin/agent/demo-agent/re-enable', { data: {} }).catch(() => {});
+    });
+  });
+
   test.describe('free-text prompts (LLM-only mode)', () => {
     test.beforeAll(async ({ browser }) => {
       const ctx = await browser.newContext({ ignoreHTTPSErrors: true });
