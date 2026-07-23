@@ -127,6 +127,11 @@ services:
       # Do NOT set AUTHORIZE_MODE here — an explicit authorize_mode wins over the
       # flag in resolveAuthorizeMode() and would make the flip a no-op.
       AUTHORIZE_FAILOVER_MODE: "deny"
+      # Mock Authorize PDP for teaching surfaces (/api/authorize/mock-authz-rules).
+      # Must be compose DNS — localhost:9001 is the BFF code default and is unreachable
+      # inside this container (left the A2A explain modal empty for Authorize rules).
+      PINGAUTHORIZE_ENDPOINT: "http://authz-server:9001"
+      PINGAUTHORIZE_MOCK_BASE: "http://authz-server:9001"
       # Default agent to the local llama.cpp reasoning engine (free, no external
       # key). NOTE: getEffective() reads env-FIRST, so this AGENT_MODE env var
       # OVERRIDES any persisted /config selection on every read — it is the

@@ -1,10 +1,12 @@
 // demo_api_ui/src/components/__tests__/AIAgent.a2aExplain.test.js
 import { describe, it, expect } from 'vitest';
-import { shouldAutoOpenA2a } from '../a2aAutoOpen';
+import { shouldAutoOpenA2a, buildA2aExplainUc } from '../a2aAutoOpen';
 
 const okResponse = {
   reply: 'Delegation complete — Investment Advisor retrieved get portfolio summary…',
-  tokenEvents: [{ id: 'a2a-exchange2' }],
+  tokenEvents: [
+    { id: 'a2a-exchange2', a2aTool: 'get_portfolio_summary', specialist: 'Investment Advisor' },
+  ],
 };
 const failResponse = {
   reply: '❌ Delegated to Investment Advisor, but get_portfolio_summary failed: mcp_error.',
@@ -27,5 +29,18 @@ describe('shouldAutoOpenA2a', () => {
   it('does not throw on a null/empty response', () => {
     expect(shouldAutoOpenA2a(null)).toBe(false);
     expect(shouldAutoOpenA2a({})).toBe(false);
+  });
+});
+
+describe('buildA2aExplainUc', () => {
+  it('includes productRoles, businessValue, and specialist primaryTool', () => {
+    const uc = buildA2aExplainUc(okResponse);
+    expect(uc.id).toBe('UC2');
+    expect(uc.productRoles.idp).toBeTruthy();
+    expect(uc.productRoles.gw).toBeTruthy();
+    expect(uc.productRoles.authz).toBeTruthy();
+    expect(uc.businessValue).toBeTruthy();
+    expect(uc.primaryTool).toBe('get_portfolio_summary');
+    expect(uc.whatLong).toMatch(/Delegation complete/);
   });
 });

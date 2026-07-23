@@ -325,7 +325,21 @@ async function delegateToSpecialist(req, opts = {}) {
       'exchanged',
       tAgent1,
       'PingOne mints a delegated token: subject stays the user, act:{sub:agent1} records that Agent 1 is acting on their behalf. No may_act — the chain is the source of truth; whether the delegation is allowed is decided by Authorize.',
-      { a2aRole: 'exchange1', actPresent: !!tAgent1Decoded?.claims?.act, a2aSubtask: subtask, vertical },
+      {
+        a2aRole: 'exchange1',
+        actPresent: !!tAgent1Decoded?.claims?.act,
+        a2aSubtask: subtask,
+        vertical,
+        exchangeRequest: {
+          grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
+          subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+          actor_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+          audience: c.intermediateAud,
+          scope: c.intermediateScope,
+          has_actor_token: true,
+          exchanger_client_id: c.agent1ClientId,
+        },
+      },
     ));
 
     // ── Exchange #2: Agent 1 token + Agent 2 (specialist) actor → nested act ─────
@@ -380,6 +394,15 @@ async function delegateToSpecialist(req, opts = {}) {
         scope: specialistScopes.join(' '),
         vertical,
         specialist: specialist.specialistName,
+        exchangeRequest: {
+          grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
+          subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+          actor_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+          audience: c.specialistAud,
+          scope: specialistScopes.join(' '),
+          has_actor_token: true,
+          exchanger_client_id: c.agent2ClientId,
+        },
       },
     ));
 
