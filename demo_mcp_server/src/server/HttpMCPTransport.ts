@@ -544,11 +544,11 @@ export class HttpMCPTransport {
       mcpSessionId = randomUUID();
       const now = new Date();
       // Detect protocol version for this session (defaults to latest supported if not specified)
-      const detectedVersion = detectProtocolVersion((req.headers[MCP_PROTO_HEADER] as string | undefined)?.trim());
+      const detectedVersion = detectProtocolVersion(req.headers);
       httpSession = {
         bankingSessionId: bankingSession.sessionId,
         agentToken: bearerToken,
-        protocolVersion: detectedVersion,
+        protocolVersion: detectedVersion ?? MCP_LATEST_PROTOCOL_VERSION,
         createdAt: now,
         lastAccessedAt: now,
       };
