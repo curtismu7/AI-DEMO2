@@ -88,7 +88,7 @@ export function openStepTeachingWindow(step) {
   const win = window.open(
     "",
     `tctr-step-${step?.id || "step"}-${Date.now()}`,
-    "width=920,height=860,resizable=yes,scrollbars=yes,toolbar=no,menubar=no,location=no,status=no",
+    "width=1100,height=920,resizable=yes,scrollbars=yes,toolbar=no,menubar=no,location=no,status=no",
   );
   if (!win) return;
   win.document.write(html);
@@ -101,11 +101,23 @@ function evidenceSize(d) {
     + (d?.altRequest?.text?.length || 0) + (d?.altResponse?.text?.length || 0);
 }
 
+/** True when the step has run-specific detail beyond the static narrative/RFCs. */
+export function hasPopoutWorthyDetail(d) {
+  if (!d) return false;
+  if (d.request || d.response || d.altRequest || d.altResponse) return true;
+  if (d.why) return true;
+  if (d.decision) return true;
+  if (Array.isArray(d.kv) && d.kv.length > 0) return true;
+  if (d.scopeDiff) return true;
+  return false;
+}
+
 export default function TraceStepCard({ step, onInspect, defaultOpen = false }) {
   const d = step.detail || {};
   const notInPath = step.status === "notinpath";
   const hasEvidence = Boolean(d.request || d.response || d.altRequest || d.altResponse);
   const largeEvidence = evidenceSize(d) > EVIDENCE_POPOUT_CHARS;
+  const canPopOut = hasPopoutWorthyDetail(d);
 
   return (
     <details className="tctr-step" data-status={step.status} open={defaultOpen}>
@@ -158,42 +170,39 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false }) 
         ))}
 
         {hasEvidence && (
-          <details className="tctr-evidence" open={false}>
-            <summary className="tctr-evidence-sum">
-              Show evidence (request / response)
-              {largeEvidence ? <span className="tctr-evidence-hint"> — large; prefer Pop out</span> : null}
-            </summary>
-            <div className="tctr-evidence-body">
-              {d.request && (
-                <>
-                  <h4>{d.request.title}</h4>
-                  <pre className="tctr-code"><HighlightedText text={d.request.text} /></pre>
-                </>
-              )}
-              {d.response && (
-                <>
-                  <h4>{d.response.title}</h4>
-                  <pre className="tctr-code"><HighlightedText text={d.response.text} /></pre>
-                </>
-              )}
-              {d.altRequest && (
-                <>
-                  <h4>{d.altRequest.title}</h4>
-                  <pre className="tctr-code"><HighlightedText text={d.altRequest.text} /></pre>
-                </>
-              )}
-              {d.altResponse && (
-                <>
-                  <h4>{d.altResponse.title}</h4>
-                  <pre className="tctr-code"><HighlightedText text={d.altResponse.text} /></pre>
-                </>
-              )}
-            </div>
-          </details>
+          <div className="tctr-evidence-inline">
+            {largeEvidence ? (
+              <p className="tctr-evidence-hint">Large payload — use Pop out for a bigger view.</p>
+            ) : null}
+            {d.request && (
+              <>
+                <h4>{d.request.title}</h4>
+                <pre className="tctr-code"><HighlightedText text={d.request.text} /></pre>
+              </>
+            )}
+            {d.response && (
+              <>
+                <h4>{d.response.title}</h4>
+                <pre className="tctr-code"><HighlightedText text={d.response.text} /></pre>
+              </>
+            )}
+            {d.altRequest && (
+              <>
+                <h4>{d.altRequest.title}</h4>
+                <pre className="tctr-code"><HighlightedText text={d.altRequest.text} /></pre>
+              </>
+            )}
+            {d.altResponse && (
+              <>
+                <h4>{d.altResponse.title}</h4>
+                <pre className="tctr-code"><HighlightedText text={d.altResponse.text} /></pre>
+              </>
+            )}
+          </div>
         )}
 
         <div className="tctr-step-actions">
-          {(hasEvidence || d.why || d.narrative) && (
+          {canPopOut && (
             <button
               type="button"
               className={`tctr-inspect${largeEvidence ? " tctr-inspect--emphasize" : ""}`}

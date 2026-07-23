@@ -131,16 +131,10 @@
 .tctr-story-headline { font-size: 12.5px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
 .tctr-story-bits { margin: 6px 0 0 16px; padding: 0; color: #334155; font-size: 11.5px; }
 .tctr-story-bits li { margin: 2px 0; }
-.tctr-evidence {
-  margin: 8px 0 4px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff;
+.tctr-evidence-inline { margin: 8px 0 4px; }
+.tctr-evidence-hint {
+  margin: 0 0 6px; font-size: 11px; font-weight: 600; color: #b45309;
 }
-.tctr-evidence-sum {
-  list-style: none; cursor: pointer; padding: 6px 10px; font-size: 11px; font-weight: 700;
-  color: #334155;
-}
-.tctr-evidence-sum::-webkit-details-marker { display: none; }
-.tctr-evidence-hint { font-weight: 600; color: #b45309; }
-.tctr-evidence-body { padding: 0 10px 10px; }
 .tctr-step-actions { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 6px; }
 .tctr-code {
   background: #0f172a; color: #bae6fd; font-size: 10.5px; padding: 8px;
