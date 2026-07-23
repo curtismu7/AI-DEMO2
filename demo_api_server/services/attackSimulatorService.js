@@ -162,6 +162,23 @@ function _parseGatewayError(err, fallbackStatus) {
 }
 
 /**
+ * Extras for sim-exchange-error so the Token Chain can show PingOne's reason
+ * (and the exchanger request context) instead of a bare red step.
+ * @param {object} err - rich Error from oauthService.performTokenExchange*
+ * @returns {object}
+ */
+function _exchangeFailureExtras(err) {
+  return {
+    error: err.pingoneError || 'exchange_failed',
+    pingoneError: err.pingoneError || null,
+    pingoneErrorDescription: err.pingoneErrorDescription || null,
+    pingoneErrorDetail: err.pingoneErrorDetail || null,
+    requestContext: err.requestContext || null,
+    httpStatus: err.httpStatus || null,
+  };
+}
+
+/**
  * Human-readable description of the control that fired, keyed by the sim's
  * canonical deny code. Used only when the real PingOne Authorize response
  * carries no `reason` string of its own — the mapping names the SAME control
@@ -343,8 +360,9 @@ async function _exchangeGatewayToken(subjectToken, scopes, useCaseId, tokenChain
       'error',
       null,
       reason,
-      { error: errorCode },
+      _exchangeFailureExtras(err),
     ));
+    stampUseCaseId(tokenChainEvents, useCaseId);
     return {
       ok: false,
       result: {
@@ -605,8 +623,9 @@ async function _runInsufficientScope(subjectToken, useCaseId, tokenChainEvents) 
       'error',
       null,
       reason,
-      { error: errorCode }
+      _exchangeFailureExtras(err),
     ));
+    stampUseCaseId(tokenChainEvents, useCaseId);
     return { sim, useCaseId, status: 502, errorCode, reason, tokenChainEvents };
   }
 
@@ -727,8 +746,9 @@ async function _runWrongAud(subjectToken, useCaseId, tokenChainEvents) {
       'error',
       null,
       reason,
-      { error: errorCode }
+      _exchangeFailureExtras(err),
     ));
+    stampUseCaseId(tokenChainEvents, useCaseId);
     return {
       sim, useCaseId, status: 502, errorCode, reason, tokenChainEvents,
       triedAudience: wrongAud, allowedAudience: gatewayAud,

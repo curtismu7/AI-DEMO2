@@ -546,6 +546,46 @@ describe("buildTraceSteps — attack sim (UC5 gateway scope deny)", () => {
     expect(byId["intent-binding"].status).toBe("error");
     expect(byId.gateway.status).not.toBe("error");
   });
+
+  test("sim-exchange-error surfaces PingOne detail on the exchange step", () => {
+    const explanation =
+      "Token exchange failed: Token exchange failed for f4dd707d-f78d-4417-ba56-dc8707d10a1f: " +
+      "Not a valid access token for request param 'subject_token'";
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      prompt: { message: "Demo step 10: UC5 — Wrong / insufficient scope" },
+      outcome: "error",
+      tokenEvents: [
+        { id: "user-token", status: "active", claims: { sub: "user-123", scope: "read write" } },
+        {
+          id: "sim-exchange-error",
+          label: "Token Exchange FAILED",
+          status: "error",
+          error: "invalid_request",
+          httpStatus: 400,
+          explanation,
+          pingoneErrorDescription: "Not a valid access token for request param 'subject_token'",
+          requestContext: {
+            audience: "https://api.ping.demo:3036/mcp",
+            scope: "read",
+            client_id: "f4dd707d-f78d-4417-ba56-dc8707d10a1f",
+          },
+        },
+      ],
+    });
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+    expect(byId.exchange.status).toBe("error");
+    expect(byId.exchange.detail.why).toContain("subject_token");
+    expect(byId.exchange.detail.tokenEvent.id).toBe("sim-exchange-error");
+    expect(byId.exchange.detail.response.title).toContain("PingOne");
+    expect(byId.exchange.detail.response.text).toContain("subject_token");
+    expect(byId.exchange.detail.kv).toEqual(expect.arrayContaining([
+      ["error", "invalid_request"],
+      ["exchanger client", "f4dd707d-f78d-4417-ba56-dc8707d10a1f"],
+      ["requested scope", "read"],
+    ]));
+    expect(byId.gateway.status).toBe("notinpath");
+  });
 });
 
 describe("buildRunStory — L0 strip", () => {

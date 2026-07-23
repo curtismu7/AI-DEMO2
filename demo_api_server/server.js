@@ -597,6 +597,7 @@ app.use(
         '/api/transactions',
         '/api/mcp',
         '/api/demo-agent',
+        '/api/demo/attack-sim',
         '/api/tokens',
         '/api/demo-scenario',
         '/api/auth/oauth',

@@ -210,7 +210,9 @@ export function buildTraceSteps(trace) {
         + (exTok.claims?.act ? "; the act claim proves the agent acts for this user." : ".")
       : `This run completed token exchange (${exTok.exchangeMethod || "RFC 8693"}).`)
     : exFailed
-      ? `Token exchange failed — without a delegated token the MCP hop cannot run.`
+      ? (exFailed.explanation
+          || exFailed.pingoneErrorDescription
+          || `Token exchange failed — without a delegated token the MCP hop cannot run.`)
       : undefined;
   steps.push(makeStep("exchange",
     exFailed ? "error" : exDone ? "done" : (exTok || ex1Tok) ? "active" : "pending",
@@ -218,10 +220,24 @@ export function buildTraceSteps(trace) {
       why: exchangeWhy,
       request: exTok?.exchangeRequest
         ? { title: "Exchange request (actual)", text: asJson(exTok.exchangeRequest) }
-        : undefined,
+        : exFailed?.requestContext
+          ? { title: "Exchange request (context)", text: asJson(exFailed.requestContext) }
+          : undefined,
       response: exTok
         ? { title: "Delegated token claims", text: asJson(exTok.claims || {}) }
-        : undefined,
+        : exFailed
+          ? {
+              title: "Token exchange error (PingOne)",
+              text: asJson({
+                error: exFailed.error || exFailed.pingoneError || null,
+                explanation: exFailed.explanation || null,
+                pingoneErrorDescription: exFailed.pingoneErrorDescription || null,
+                pingoneErrorDetail: exFailed.pingoneErrorDetail || null,
+                httpStatus: exFailed.httpStatus || null,
+                requestContext: exFailed.requestContext || null,
+              }),
+            }
+          : undefined,
       scopeDiff: exDone && (beforeScopes.length || afterScopes.length)
         ? { before: beforeScopes, after: afterScopes } : undefined,
       kv: exTok ? [
@@ -232,9 +248,18 @@ export function buildTraceSteps(trace) {
           : null,
         ex1Tok && ex1Tok.claims && ex1Tok.claims.scope
           ? ["exchange #1 scope", String(ex1Tok.claims.scope)] : null,
+      ].filter(Boolean) : exFailed ? [
+        ["error", String(exFailed.error || exFailed.pingoneError || "exchange_failed")],
+        exFailed.httpStatus != null ? ["HTTP", String(exFailed.httpStatus)] : null,
+        exFailed.requestContext?.client_id
+          ? ["exchanger client", String(exFailed.requestContext.client_id)] : null,
+        exFailed.requestContext?.audience
+          ? ["audience", String(exFailed.requestContext.audience)] : null,
+        exFailed.requestContext?.scope
+          ? ["requested scope", String(exFailed.requestContext.scope)] : null,
       ].filter(Boolean) : [],
       inspectToken: exTok ? "mcp" : undefined,
-      tokenEvent: exTok || undefined,
+      tokenEvent: exTok || exFailed || undefined,
     } : {}));
 
   // 7. authorize — prefer live ingestAuthorize evaluation; fall back to the
