@@ -1250,7 +1250,7 @@ done
 # gracefully on a missing/stale DB.
 if command -v python3 >/dev/null 2>&1; then
   if python3 "$BASEDIR/scripts/build-codegraph.py" >/dev/null 2>&1; then
-    cp -f "$BASEDIR/.codegraph/codegraph.db" "$BASEDIR/langchain_agent/codegraph.db" 2>/dev/null || true
+    cp -f "$BASEDIR/.codegraph/demo-codegraph.db" "$BASEDIR/langchain_agent/codegraph.db" 2>/dev/null || true
     python3 "$BASEDIR/scripts/build-codegraph.py" --stage-src "$BASEDIR/langchain_agent/repo-src" >/dev/null 2>&1 || true
     ok "CodeGraph index refreshed (Code Explorer)"
   else

@@ -3341,7 +3341,8 @@ exactly as before (dashboards); AIAgent changes must stay confined to the
 drawer-event listener effects (FAB/resize/dock/session untouched); the settings
 PUT must keep writing runtimeSettings for all other keys; delegation grant must
 still succeed when password-set fails; `build-codegraph.py` without `--out`
-must write to `.codegraph/codegraph.db` as before; the base
+must write to `.codegraph/demo-codegraph.db` (separate from the host
+CodeGraph CLI/MCP `codegraph.db`); the base
 `k8s/02-configmap.yaml` proxy block and the AWS override must stay in sync.
 
 **Verify:** `cd demo_api_ui && npm run build` (exit 0); `npx jest
