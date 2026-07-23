@@ -78,6 +78,14 @@ try {
     console.warn('[session-store] LMDB store init failed, falling back to memory store:', err.message);
 }
 
+// Compat: killSwitchService / auditLogService / agentRateLimit import
+// middleware/sessionConfig.store — keep that path wired to the same store.
+try {
+    require('./middleware/sessionConfig').setStore(sessionStore);
+} catch (sessionConfigErr) {
+    console.warn('[session-store] sessionConfig shim unavailable:', sessionConfigErr.message);
+}
+
 // Demo: force a fresh token after every restart. LMDB persists sessions (and the
 // stored access token) on disk, so without this a user keeps their pre-restart
 // token. Wiping sessions on boot makes the next request re-authenticate (silently
