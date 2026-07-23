@@ -153,8 +153,10 @@ describe('mcpToolAuthorizationService', () => {
         expect(r.block.body.error).toBe('mcp_step_up_required');
       });
 
-      it('a transaction-policy PERMIT leaves the HITL gate intact', async () => {
-        const r = await call({ amount: 2500 });
+      it('a transaction-policy PERMIT leaves the HITL gate intact (sub-deny amount)', async () => {
+        // Use confirm-band amount so local amount-band DENY/step-up do not fire;
+        // Transaction PERMIT must not clear the gate's HITL.
+        const r = await call({ amount: 300 });
         expect(r.block.status).toBe(428);
         expect(r.block.body.error).toBe('mcp_hitl_required');
       });

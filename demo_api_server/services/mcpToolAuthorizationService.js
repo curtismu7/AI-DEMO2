@@ -413,8 +413,10 @@ async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr
   const forceStepUp = !!declaredMethod;
   if (!forceStepUp && (!transactionType || !Number.isFinite(amount) || amount <= 0 || !userId)) return r;
   if (r.decision === 'DENY' || r.policyNotFound || r.stepUpRequired) return r; // already at/above what we could add
-  // Gate already demanded HITL — leave it (never clear a stronger/equal gate).
-  if (r.hitlRequired) return r;
+  // Do NOT early-return on gate hitlRequired: live McpFirstTool often PERMITs with
+  // HITL for every amount, and UC6/UC7 need the Transaction consult (or local
+  // amount band) to upgrade to DENY / step-up. Leaving hitlRequired when
+  // Transaction only PERMITs preserves the gate obligation below.
   try {
     const t = await pingOneAuthorizeService.evaluateTransaction({
       userId, amount, type: transactionType, acr,
@@ -437,6 +439,7 @@ async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr
       return {
         ...r,
         stepUpRequired: true,
+        hitlRequired: false,
         decisionId: t?.decisionId || r.decisionId,
         raw: t?.raw || r.raw,
         transactionPolicyStepUp: true,
@@ -458,7 +461,7 @@ async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr
     // A declared step-up method is gated by the useCaseId, not the amount — it
     // must still route to step-up even if the amount-limit consult errors.
     if (forceStepUp) {
-      return { ...r, stepUpRequired: true, transactionPolicyStepUp: true };
+      return { ...r, stepUpRequired: true, hitlRequired: false, transactionPolicyStepUp: true };
     }
     // Live MCP first-tool policy often PERMITs without amount obligations. The
     // Transaction endpoint is what enforces $2500 DENY / $600 step-up / $300
@@ -475,22 +478,30 @@ async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr
   // Local amount-band fallback when the Transaction consult attached no gate
   // (live P1AZ Transaction endpoint may PERMIT without HITL/step-up for agent
   // vertical writes). Same bands as simulatedAuthorizeService / Demo Controls.
+  // Also upgrades a bare gate HITL when amount exceeds the deny ceiling (UC6).
   if (!forceStepUp && Number.isFinite(amount) && amount > 0) {
     const denyAmount = simulatedAuthorizeService.getDenyAmountUsd();
     const stepUpAmount = simulatedAuthorizeService.getStepUpAmountUsd();
     const confirmAmount = simulatedAuthorizeService.getConfirmAmountUsd();
     if (amount > denyAmount) {
-      return {
-        ...r,
+      const denyRaw = {
+        ...(r.raw && typeof r.raw === 'object' ? r.raw : {}),
         decision: 'DENY',
-        transactionPolicyDenied: true,
-        localAmountBand: true,
+        reason: `Local amount-band DENY: $${amount} exceeds deny limit $${denyAmount}.`,
+        engine: 'local-amount-band',
+        statements: [],
       };
+      return _withTransactionDenyEvidence(r, {
+        decisionId: r.decisionId,
+        raw: denyRaw,
+        fallback: true,
+      });
     }
-    if (amount >= stepUpAmount) {
+    if (amount >= stepUpAmount && !r.stepUpRequired) {
       return {
         ...r,
         stepUpRequired: true,
+        hitlRequired: false,
         transactionPolicyStepUp: true,
         localAmountBand: true,
       };
