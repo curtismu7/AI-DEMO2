@@ -117,6 +117,18 @@
   gap: 24px;
 }
 
+/* MCP Tool Tester tab — give the embedded page a definite height so its
+   inner flex:1 / minHeight:0 two-panel layout does not collapse to blank. */
+.mgc-panel--traffic {
+  gap: 0;
+  height: calc(100vh - 220px);
+  min-height: 480px;
+}
+.mgc-panel--traffic > * {
+  flex: 1;
+  min-height: 0;
+}
+
 /* Info grid */
 .mgc-info-grid {
   display: grid;
