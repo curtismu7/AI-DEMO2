@@ -51,7 +51,7 @@ SKIP_DIRS = {
 }
 
 # Code Explorer default scope — full-repo walks are large and noisy for demos.
-DEFAULT_INCLUDE_DIRS = ('demo_api_ui', 'demo_api_server')
+DEFAULT_INCLUDE_DIRS = ('demo_api_ui', 'demo_api_server', 'demo_mcp_gateway', 'demo_mcp_server')
 
 # File extensions to index
 PY_EXTS  = {'.py'}
