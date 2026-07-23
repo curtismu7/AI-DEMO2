@@ -155,19 +155,25 @@ async function driveLogin(page, { loginInitUrl, username, password, expectedLand
 
   await usernameInput.fill(username);
 
-  // Some PingOne flows ask for username first, then present password on the next screen
+  // Some PingOne flows ask for username first, then present password on the next screen.
+  // Re-query the password field after that navigation — a pre-step locator goes stale.
   const passwordVisible = await passwordInput.isVisible().catch(() => false);
   if (!passwordVisible) {
-    // Submit username-only step
-    await page.locator('button[type="submit"]').first().click();
+    await page.locator('button[type="submit"], button:has-text("Next"), button:has-text("Sign On")').first().click();
     await page.waitForSelector('input[name="password"], input[id="password"], input[type="password"]', {
       timeout: LOGIN_TIMEOUT,
     });
   }
-  await passwordInput.fill(password);
+  const passwordField = page.locator('input[name="password"], input[id="password"], input[type="password"]').first();
+  await passwordField.fill(password);
 
-  // Submit the login form
-  await page.locator('button[type="submit"]').first().click();
+  // Submit the login form (PingOne hosted page uses "Sign On")
+  const signOn = page.getByRole('button', { name: /Sign On/i });
+  if (await signOn.count()) {
+    await signOn.first().click();
+  } else {
+    await page.locator('button[type="submit"]').first().click();
+  }
 
   // Wait for the app to redirect back and settle on the expected page.
   // Uses a loose URL match so /dashboard?oauth=success also counts.
