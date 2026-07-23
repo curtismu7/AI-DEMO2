@@ -56,6 +56,7 @@ services:
     image: jaegertracing/all-in-one:1.62.0
     container_name: ai-demo-jaeger
     mem_limit: 512m
+    restart: unless-stopped
     ports:
       - "16686:16686"   # Jaeger UI
       - "4317:4317"     # OTLP gRPC
