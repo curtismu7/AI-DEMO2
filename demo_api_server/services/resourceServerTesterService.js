@@ -22,24 +22,47 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const jwksService = require('./jwksService');
 const tokenIntrospectionService = require('./tokenIntrospectionService');
-const { getBffResourceAudience } = require('../config/resourceAudience');
+const { getBffResourceAudience, getInFlowResourceAudience } = require('../config/resourceAudience');
 // Required as a namespace and accessed at call time — destructuring at load time can
 // capture `undefined` due to a require cycle through agentMcpTokenService.
 const agentMcpTokenService = require('./agentMcpTokenService');
+const agentTokenCache = require('./agentTokenCache');
 
-// The minimal scope this resource server requires (matches the banking read path).
-const REQUIRED_SCOPE = 'read';
+// Login RS: banking read path. In-flow RS: gateway invoke (aliases accepted).
+const LOGIN_REQUIRED_SCOPE = 'read';
+const INFLOW_REQUIRED_SCOPES = ['mcp:invoke', 'gateway:mcp:invoke', 'banking:mcp:invoke'];
 
 // Loopback probe targets. A FIXED whitelist — never an arbitrary URL — so the probe
 // cannot be turned into an SSRF primitive.
 const PROBE_WHITELIST = [
   '/api/resource-server/accounts',
   '/api/resource-server/transactions',
+  '/api/resource-server/identity',
 ];
 
-// Which session token fields the tester may reference. Only tokens that reliably exist
-// in the user session — exchanged/external tokens are covered by the paste path.
+// Which session oauthTokens fields the tester may reference.
 const SESSION_TOKEN_REFS = { access: 'accessToken', id: 'idToken' };
+
+/** Normalize profile body values to 'login' | 'inflow'. */
+function normalizeProfile(profile) {
+  return profile === 'inflow' ? 'inflow' : 'login';
+}
+
+/** Policy target for the selected RS view. */
+function policyTargetFor(profile) {
+  if (normalizeProfile(profile) === 'inflow') {
+    return {
+      targetAud: getInFlowResourceAudience(),
+      requiredScopes: INFLOW_REQUIRED_SCOPES,
+      audEnvHint: 'MCP_GW_RESOURCE_URI / PINGONE_RESOURCE_MCP_GATEWAY_URI',
+    };
+  }
+  return {
+    targetAud: getBffResourceAudience(),
+    requiredScopes: [LOGIN_REQUIRED_SCOPE],
+    audEnvHint: 'PINGONE_RESOURCE_BFF_URI / ENDUSER_AUDIENCE',
+  };
+}
 
 /** Normalize a scope claim (space-delimited string or array) into an array. */
 function scopesOf(claims) {
@@ -62,10 +85,12 @@ function safeDecode(token) {
 /**
  * The non-signature policy rules a resource server enforces, shared by validate and
  * decode. Each rule is { name, pass, detail } so the UI can render a breakdown.
+ * @param {object} claims
+ * @param {'login'|'inflow'} [profile]
  */
-function policyRules(claims) {
+function policyRules(claims, profile = 'login') {
   const now = Math.floor(Date.now() / 1000);
-  const targetAud = getBffResourceAudience();
+  const { targetAud, requiredScopes, audEnvHint } = policyTargetFor(profile);
   const auds = claims.aud ? (Array.isArray(claims.aud) ? claims.aud : [claims.aud]) : [];
   const scopes = scopesOf(claims);
   const rules = [];
@@ -89,12 +114,20 @@ function policyRules(claims) {
     const ok = auds.includes(targetAud);
     rules.push({ name: 'aud', pass: ok, detail: ok ? `matches ${targetAud}` : `token aud=[${auds.join(', ') || 'none'}], RS expects ${targetAud}` });
   } else {
-    rules.push({ name: 'aud', pass: false, detail: 'RS target audience not configured (PINGONE_RESOURCE_BFF_URI / ENDUSER_AUDIENCE)' });
+    rules.push({ name: 'aud', pass: false, detail: `RS target audience not configured (${audEnvHint})` });
   }
 
-  // scope
-  const hasScope = scopes.includes(REQUIRED_SCOPE);
-  rules.push({ name: 'scope', pass: hasScope, detail: hasScope ? `has '${REQUIRED_SCOPE}'` : `missing '${REQUIRED_SCOPE}' (token scopes: ${scopes.join(' ') || 'none'})` });
+  // scope — any listed required scope is enough (gateway aliases)
+  const matched = requiredScopes.find((s) => scopes.includes(s));
+  const hasScope = !!matched;
+  const want = requiredScopes.join(' | ');
+  rules.push({
+    name: 'scope',
+    pass: hasScope,
+    detail: hasScope
+      ? `has '${matched}'`
+      : `missing one of [${want}] (token scopes: ${scopes.join(' ') || 'none'})`,
+  });
 
   return rules;
 }
@@ -128,7 +161,7 @@ async function introspectOpaque(token) {
   };
   const rules = [
     { name: 'introspection', pass: !!intro.valid, detail: intro.valid ? 'PingOne reports the token is active (RFC 7662)' : 'PingOne reports the token is inactive or unknown' },
-    ...policyRules(claims),
+    ...policyRules(claims, 'login'),
   ];
   const decision = rules.every((r) => r.pass) ? 'PERMIT' : 'REJECT';
   return { decision, rules, claims, method: 'introspection' };
@@ -139,8 +172,10 @@ async function introspectOpaque(token) {
  * PingOne JWKS first (isolated rule, so an expired-but-genuine token still shows
  * signature:pass), then evaluates the policy rules. For an opaque (non-JWT) token, falls
  * back to RFC 7662 introspection instead of the signature check.
+ * @param {string} token
+ * @param {'login'|'inflow'} [profile]
  */
-async function validate(token) {
+async function validate(token, profile = 'login') {
   const decoded = safeDecode(token);
   if (!decoded) return introspectOpaque(token);
   const claims = decoded.claims;
@@ -162,18 +197,22 @@ async function validate(token) {
     sigDetail = `signature invalid: ${err.message}`;
   }
 
-  const rules = [{ name: 'signature', pass: sigPass, detail: sigDetail }, ...policyRules(claims)];
+  const rules = [{ name: 'signature', pass: sigPass, detail: sigDetail }, ...policyRules(claims, profile)];
   const decision = rules.every((r) => r.pass) ? 'PERMIT' : 'REJECT';
   return { decision, rules, claims };
 }
 
-/** Mode 2: decode + policy check (purely local — no signature, no network). */
-function decode(token) {
+/**
+ * Mode 2: decode + policy check (purely local — no signature, no network).
+ * @param {string} token
+ * @param {'login'|'inflow'} [profile]
+ */
+function decode(token, profile = 'login') {
   const decoded = safeDecode(token);
   // Decode is local-only by design; an opaque token has nothing to decode here. Point the
   // user at Real RS validation (which introspects opaque tokens) or the live probe.
   if (!decoded) return { error: 'malformed_token', message: 'Token is not a decodable JWT — it may be an opaque/reference token. Use "Real RS validation" (it introspects opaque tokens via RFC 7662) or the live request probe.' };
-  const rules = policyRules(decoded.claims);
+  const rules = policyRules(decoded.claims, profile);
   const decision = rules.every((r) => r.pass) ? 'WOULD_PASS' : 'WOULD_REJECT';
   return { decision, rules, claims: decoded.claims };
 }
@@ -229,13 +268,32 @@ async function probe(token, targetPath) {
   }
 }
 
+/** Newest non-expired agentTokens cache entry (gateway TX), or null. */
+function latestCachedMcpToken(session) {
+  const map = session && session.agentTokens;
+  if (!map || typeof map !== 'object') return null;
+  let best = null;
+  for (const entry of Object.values(map)) {
+    if (!entry || !entry.access_token) continue;
+    if (Date.now() >= (entry.expires_at || 0)) continue;
+    if (!best || (entry.expires_at || 0) > (best.expires_at || 0)) best = entry;
+  }
+  return best ? best.access_token : null;
+}
+
 /**
  * Resolve the token under test. Prefers a pasted raw token; otherwise pulls the named
  * session token server-side. Returns { token, source } or { error }.
+ * Sync path — use resolveTokenAsync for tokenRef=mcp (may mint via RFC 8693).
  */
 function resolveToken({ tokenRef, tokenRaw }, session) {
   if (typeof tokenRaw === 'string' && tokenRaw.trim()) {
     return { token: tokenRaw.trim(), source: 'pasted' };
+  }
+  if (tokenRef === 'mcp') {
+    const cached = latestCachedMcpToken(session);
+    if (cached) return { token: cached, source: 'session:mcp' };
+    return { error: 'mcp_token_not_cached' };
   }
   if (tokenRef) {
     const field = SESSION_TOKEN_REFS[tokenRef];
@@ -247,11 +305,49 @@ function resolveToken({ tokenRef, tokenRaw }, session) {
   return { error: 'missing_token' };
 }
 
+/**
+ * Like resolveToken, but tokenRef=mcp mints a delegated gateway TX when the session
+ * cache is empty (same exchange the agent path uses).
+ * @param {{ tokenRef?: string, tokenRaw?: string }} body
+ * @param {object} req - Express req (session + agent context)
+ */
+async function resolveTokenAsync(body, req) {
+  const session = req && req.session;
+  const sync = resolveToken(body || {}, session);
+  if (sync.error !== 'mcp_token_not_cached') return sync;
+
+  const scopes = ['mcp:invoke', 'openid', 'profile'];
+  const vertical = (req.session && req.session.activeVertical) || 'banking';
+  let cached = agentTokenCache.get(session, vertical, scopes);
+  if (cached && cached.access_token) {
+    return { token: cached.access_token, source: 'session:mcp' };
+  }
+  try {
+    const resolved = await agentMcpTokenService.resolveMcpAccessTokenWithEvents(
+      req,
+      'user_profile_card',
+      { scopeOverride: scopes },
+    );
+    if (!resolved || !resolved.token) {
+      return { error: resolved && resolved.need_auth ? 'token_not_in_session' : 'mcp_token_mint_failed' };
+    }
+    agentTokenCache.set(session, vertical, scopes, {
+      access_token: resolved.token,
+      expires_in: resolved.expires_in || 3600,
+    });
+    return { token: resolved.token, source: 'session:mcp' };
+  } catch (err) {
+    console.warn('[resource-server-tester] mcp mint failed:', err.message);
+    return { error: 'mcp_token_mint_failed' };
+  }
+}
+
 // Human labels for the token currently under test, keyed by resolveToken's source value.
 const REVEAL_LABELS = {
   pasted: 'Pasted JWT',
   'session:access': 'Session access token',
   'session:id': 'Session ID token',
+  'session:mcp': 'In-flow MCP / gateway TX token',
   cc: 'Client Credentials token',
 };
 
@@ -273,4 +369,16 @@ function reveal(token, source) {
   };
 }
 
-module.exports = { validate, decode, probe, reveal, resolveToken, PROBE_WHITELIST };
+module.exports = {
+  validate,
+  decode,
+  probe,
+  reveal,
+  resolveToken,
+  resolveTokenAsync,
+  normalizeProfile,
+  policyTargetFor,
+  latestCachedMcpToken,
+  PROBE_WHITELIST,
+  getInFlowResourceAudience,
+};

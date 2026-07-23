@@ -1,17 +1,23 @@
 'use strict';
 /**
- * Single source of truth for the BFF banking resource server's audience.
+ * Audience helpers for the BFF banking resource server surfaces.
  *
- * This is the value authenticateToken enforces (middleware/auth.js BFF_RESOURCE_URI) and
- * the audience the user's login access token carries. It is DISTINCT from the MCP server's
- * audience (configStore `pingone_resource_mcp_server_uri`), which only the RFC 8693-exchanged
- * token carries — keeping them separate is the audience-restriction property the demo teaches.
+ * Login (OIDC) RS — authenticateToken enforces this for ordinary /api/* and the
+ * /resource-server "Login RS" tab. Distinct from the MCP gateway audience so the
+ * demo can teach audience restriction after RFC 8693 exchange.
  *
- * Resolution mirrors middleware/auth.js (env first, the actually-enforced value), with the
- * live configStore `enduser_audience` as a final fallback so an admin-set value is honored.
+ * In-flow RS — gateway / Path B audience the exchanged TX token carries; the
+ * dual_token disposition posts to /api/resource-server/identity with this aud.
  */
 const configStore = require('../services/configStore');
 
+/** First non-empty comma-separated segment (MCP_GW_RESOURCE_URI may list several). */
+function firstAudience(value) {
+  if (!value) return '';
+  return String(value).split(',').map((s) => s.trim()).filter(Boolean)[0] || '';
+}
+
+/** Audience the user's login access token carries (enduser / BFF RS). */
 function getBffResourceAudience() {
   return process.env.PINGONE_RESOURCE_BFF_URI ||
     process.env.ENDUSER_AUDIENCE ||
@@ -19,4 +25,15 @@ function getBffResourceAudience() {
     '';
 }
 
-module.exports = { getBffResourceAudience };
+/** Audience for the in-flow (gateway TX) resource-server hop. */
+function getInFlowResourceAudience() {
+  return firstAudience(
+    process.env.MCP_GW_RESOURCE_URI ||
+    process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI ||
+    configStore.getEffective('mcp_gw_resource_uri') ||
+    configStore.getEffective('pingone_resource_mcp_gateway_uri') ||
+    '',
+  );
+}
+
+module.exports = { getBffResourceAudience, getInFlowResourceAudience };
