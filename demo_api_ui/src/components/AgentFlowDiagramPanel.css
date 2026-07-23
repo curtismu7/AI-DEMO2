@@ -598,6 +598,18 @@
   background: #dbeafe;
   color: #1e40af;
 }
+.afd-tc-pill--aud {
+  background: #fef3c7;
+  color: #92400e;
+}
+.afd-tc-pill--scope {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+.afd-tc-pill--error {
+  background: #fee2e2;
+  color: #991b1b;
+}
 .afd-tc-pill--active {
   background: #d1fae5;
   color: #065f46;
@@ -625,6 +637,10 @@
   font-size: 0.72rem;
   color: #475569;
   line-height: 1.5;
+}
+
+.afd-tc-explanation--error {
+  color: #991b1b;
 }
 
 .afd-tc-section {

@@ -15,6 +15,17 @@ function statusBadge(status) {
   return <span className={cls}>{labels[status] || status}</span>;
 }
 
+/** One-line teaching tip per common token-chain event id. */
+const EVENT_HOP_WHY = {
+  'user-token': 'Subject token from PingOne login — identity of the human, held in the BFF session.',
+  'agent-actor-token': 'Actor token — the agent’s own client-credentials identity (separate from the user).',
+  'exchanged-token': 'RFC 8693 exchange result — delegated token proving the agent acts FOR this user.',
+  'two-ex-final-token': 'Second-hop delegated token — nested act chain for agent-to-agent (2-exchange).',
+  'exchange-failed': 'Token exchange failed — no delegated MCP token was issued for this call.',
+  'gw-authorize': 'Gateway authorize hop — policy decision at the Agent Gateway edge.',
+  'gw-introspection': 'RFC 7662 introspection — is the token still active / revoked?',
+};
+
 /**
  * Token chain card — request/response teaching detail is always inline
  * (same contract as TraceRail TraceStepCard; no click-to-reveal).
@@ -37,8 +48,19 @@ export function TokenEventCard({ event, resolvedIdentity }) {
     return known ? `${known} (${String(clientId).slice(0, 8)}…)` : String(clientId).slice(0, 14) + '…';
   }
 
-  const hasDetail = event.exchangeRequest || event.jwtFullDecode || event.claims || event.explanation;
+  const claims = event.jwtFullDecode?.claims || event.claims || null;
+  const aud = claims?.aud ?? event.aud ?? event.tokenAud ?? event.audience
+    ?? event.exchangeRequest?.audience ?? event.exchangeRequest?.resource ?? null;
+  const scopeAfter = claims?.scope ?? event.tokenScope ?? event.scope ?? event.exchangeRequest?.scope ?? null;
+  const scopeBefore = event.scopeBefore ?? event.subjectScope ?? null;
+  const err = event.pingoneError || event.error || (event.status === 'failed' || event.status === 'error' ? (event.label || 'failed') : null);
+  const hopWhy = event.explanation || EVENT_HOP_WHY[event.id] || null;
+  const hasDetail = event.exchangeRequest || event.jwtFullDecode || event.claims || hopWhy || err;
   const tokenTypeLabel = (event.tokenType || event.id || 'token').replace(/_/g, ' ').toUpperCase();
+  const audText = aud == null ? null : (Array.isArray(aud) ? aud.join(' ') : String(aud));
+  const scopeText = scopeBefore && scopeAfter && String(scopeBefore) !== String(scopeAfter)
+    ? `${scopeBefore} → ${scopeAfter}`
+    : (scopeAfter != null ? String(scopeAfter) : null);
 
   return (
     <div className={`afd-tc-card${hasDetail ? ' afd-tc-card--open' : ''}`}>
@@ -49,21 +71,33 @@ export function TokenEventCard({ event, resolvedIdentity }) {
       </div>
 
       <div className="afd-tc-summary">
-        {(event.tokenSub || event.claims?.sub) && (
-          <span className="afd-tc-pill afd-tc-pill--sub">👤 {fmtSub(event.tokenSub || event.claims?.sub)}</span>
+        {(event.tokenSub || claims?.sub) && (
+          <span className="afd-tc-pill afd-tc-pill--sub">👤 {fmtSub(event.tokenSub || claims?.sub)}</span>
         )}
-        {(event.tokenAct || event.claims?.act) && (
-          <span className="afd-tc-pill afd-tc-pill--act">act {fmtAct(event.tokenAct || event.claims?.act)}</span>
+        {(event.tokenAct || claims?.act) && (
+          <span className="afd-tc-pill afd-tc-pill--act">act {fmtAct(event.tokenAct || claims?.act)}</span>
+        )}
+        {audText && (
+          <span className="afd-tc-pill afd-tc-pill--aud" title="Audience / resource">aud {audText.length > 28 ? `${audText.slice(0, 26)}…` : audText}</span>
+        )}
+        {scopeText && (
+          <span className="afd-tc-pill afd-tc-pill--scope" title="Scope">scope {scopeText.length > 36 ? `${scopeText.slice(0, 34)}…` : scopeText}</span>
         )}
         {event.status && (
           <span className={`afd-tc-pill afd-tc-pill--status afd-tc-pill--${event.status}`}>{event.status}</span>
+        )}
+        {err && (
+          <span className="afd-tc-pill afd-tc-pill--error" title="Error">{String(err).slice(0, 48)}</span>
         )}
       </div>
 
       {hasDetail && (
         <div className="afd-tc-detail">
-          {event.explanation && (
-            <p className="afd-tc-explanation">{event.explanation}</p>
+          {hopWhy && (
+            <p className="afd-tc-explanation">{hopWhy}</p>
+          )}
+          {err && !event.explanation && (
+            <p className="afd-tc-explanation afd-tc-explanation--error">{String(err)}</p>
           )}
           {event.exchangeRequest && (
             <section className="afd-tc-section">
@@ -71,10 +105,10 @@ export function TokenEventCard({ event, resolvedIdentity }) {
               <pre className="afd-tc-pre">{JSON.stringify(event.exchangeRequest, null, 2)}</pre>
             </section>
           )}
-          {(event.claims || event.jwtFullDecode) && (
+          {(claims || event.jwtFullDecode) && (
             <section className="afd-tc-section">
               <h4 className="afd-tc-section-title">Token Claims (Response)</h4>
-              <pre className="afd-tc-pre">{JSON.stringify(event.jwtFullDecode?.claims || event.claims, null, 2)}</pre>
+              <pre className="afd-tc-pre">{JSON.stringify(claims || event.jwtFullDecode, null, 2)}</pre>
             </section>
           )}
           {event.jwtFullDecode?.header && (

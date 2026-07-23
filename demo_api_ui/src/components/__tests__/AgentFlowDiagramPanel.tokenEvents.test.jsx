@@ -21,6 +21,25 @@ test('shows exchange request and claims inline without requiring a click', () =>
   expect(screen.getByText('API Request')).toBeInTheDocument();
   expect(screen.getByText(/token-exchange/)).toBeInTheDocument();
   expect(screen.getByText('Token Claims (Response)')).toBeInTheDocument();
-  expect(screen.getByText(/gateway:mcp:invoke/)).toBeInTheDocument();
+  expect(screen.getAllByText(/gateway:mcp:invoke/).length).toBeGreaterThan(0);
+  expect(document.querySelector('.afd-tc-pill--aud')?.textContent).toMatch(/mcpgateway/);
+  expect(document.querySelector('.afd-tc-pill--scope')?.textContent).toMatch(/gateway:mcp:invoke/);
   expect(screen.queryByRole('button')).toBeNull();
+});
+
+test('surfaces error pill and hop narrative on exchange-failed', () => {
+  render(
+    <TokenEventCard
+      event={{
+        id: 'exchange-failed',
+        label: 'Exchange failed',
+        timestamp: '2026-07-22T12:00:00.000Z',
+        status: 'failed',
+        pingoneError: 'invalid_scope',
+      }}
+      resolvedIdentity={null}
+    />,
+  );
+  expect(document.querySelector('.afd-tc-pill--error')?.textContent).toMatch(/invalid_scope/);
+  expect(screen.getByText(/Token exchange failed/i)).toBeInTheDocument();
 });

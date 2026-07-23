@@ -102,6 +102,42 @@ const STEP_RFCS = {
   introspection: ["RFC 7662"],
 };
 
+/**
+ * Live TraceRail → education deep-link (drawer panel id + tab, or full page href).
+ * Panel ids match `EDU.*` string values in educationIds.js — keep this module UI-free.
+ */
+export const STEP_EDU = {
+  signin: { edu: "login-flow", tab: "what", label: "Learn: sign-in (OIDC + PKCE)" },
+  refresh: { edu: "token-exchange", tab: "why", label: "Learn: token lifecycle" },
+  prompt: { edu: "web-mcp", tab: "overview", label: "Learn: WebMCP / BFF" },
+  agent: { edu: "agent-frameworks", tab: "what", label: "Learn: agent frameworks" },
+  llm: { edu: "llm-landscape", tab: "overview", label: "Learn: LLM landscape" },
+  "agent-token": { edu: "may-act", tab: "what", label: "Learn: act / may_act" },
+  exchange: { edu: "token-exchange", tab: "why", label: "Learn: Token Exchange (RFC 8693)" },
+  dpop: { edu: "dpop", tab: "what", label: "Learn: DPoP (RFC 9449)" },
+  rar: { edu: "rar", tab: "what", label: "Learn: RAR (RFC 9396)" },
+  "intent-binding": { edu: "intent-delegation", tab: "what", label: "Learn: intent-bound delegation" },
+  jwks: { edu: "introspection", tab: "why", label: "Learn: token validation" },
+  introspection: { edu: "introspection", tab: "why", label: "Learn: introspection (RFC 7662)" },
+  authorize: { href: "/pingone-authorize", label: "Open PingOne Authorize" },
+  stepup: { edu: "step-up", tab: "what", label: "Learn: step-up authentication" },
+  mtls: { edu: "pinggateway-mcp", tab: "overview", label: "Learn: PingGateway + MCP" },
+  gateway: { edu: "agent-gateway", tab: "overview", label: "Learn: Agent Gateway" },
+  "api-key-swap": { edu: "agent-gateway", tab: "overview", label: "Learn: gateway credential paths" },
+  "dual-token": { edu: "token-flow", tab: "diagram", label: "Learn: end-to-end token flow" },
+  mcp: { edu: "mcp-protocol", tab: "what", label: "Learn: MCP protocol" },
+  api: { edu: "token-flow", tab: "diagram", label: "Learn: end-to-end token flow" },
+  reply: { edu: "mcp-protocol", tab: "what", label: "Learn: MCP protocol" },
+};
+
+/** Attach STEP_EDU moreDetail when the step has none yet. */
+function withEduLink(detail, stepId) {
+  const link = STEP_EDU[stepId];
+  if (!link) return detail;
+  if (detail?.moreDetail) return detail;
+  return { ...(detail || {}), moreDetail: { ...link } };
+}
+
 export const asJson = (v) => { try { return JSON.stringify(v, null, 2); } catch { return String(v); } };
 const splitScopes = (s) =>
   Array.isArray(s) ? s : typeof s === "string" ? s.split(" ").filter(Boolean) : [];
@@ -641,7 +677,6 @@ export function buildTraceSteps(trace) {
         azAdvice ? ["advice", asJson(azAdvice)] : null,
         azRef ? ["policy path", String(azRef)] : null,
       ].filter((row) => row && row[1]),
-      moreDetail: { href: "/pingone-authorize", label: "Show more detail" },
     } : {}));
 
   // 7a. step-up / HITL / CIBA (conditional) — omitted mid-flight so it doesn't
@@ -961,7 +996,6 @@ export function buildTraceSteps(trace) {
         : (filterChain
           ? { title: "Filter chain", text: asJson(filterChain) }
           : undefined),
-      moreDetail: { href: "/pingone-authorize", label: "Show more detail" },
     } : !gwSeen && !gwDenied && gwSkipEvidence.length ? {
       narrative: gwSkipEvidence.map((e) => e.explanation).filter(Boolean).join(" ") ||
         "The Agent Gateway was not in this run's path.",
@@ -1204,9 +1238,9 @@ export function buildTraceSteps(trace) {
   const UC_WHY_STEPS = new Set([
     "authorize", "gateway", "exchange", "stepup", "intent-binding", "dpop", "rar", "mcp", "mtls", "dual-token",
   ]);
-  return steps.map((s, i) => ({
-    ...s,
-    num: i + 1,
-    detail: UC_WHY_STEPS.has(s.id) ? withUcWhy(s.detail, ucId) : s.detail,
-  }));
+  return steps.map((s, i) => {
+    let detail = UC_WHY_STEPS.has(s.id) ? withUcWhy(s.detail, ucId) : s.detail;
+    detail = withEduLink(detail, s.id);
+    return { ...s, num: i + 1, detail };
+  });
 }

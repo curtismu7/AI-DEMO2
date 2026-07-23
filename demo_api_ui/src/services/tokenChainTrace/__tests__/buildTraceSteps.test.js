@@ -324,7 +324,7 @@ describe("buildTraceSteps — statuses from evidence", () => {
     const gw = steps.find((s) => s.id === "gateway");
     expect(gw.detail.request.text).toContain("get_my_accounts");
     expect(gw.detail.response.text).toContain("PERMIT");
-    expect(gw.detail.moreDetail.href).toBe("/pingone-authorize");
+    expect(gw.detail.moreDetail).toMatchObject({ edu: "agent-gateway", tab: "overview" });
   });
 
   test("authorize-decision token event fills authorize step when ingestAuthorize absent", () => {
@@ -342,7 +342,7 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(az.status).toBe("done");
     expect(az.detail.request.text).toContain("transfer_funds");
     expect(az.detail.response.text).toContain("PERMIT");
-    expect(az.detail.moreDetail.label).toBe("Show more detail");
+    expect(az.detail.moreDetail).toMatchObject({ href: "/pingone-authorize", label: "Open PingOne Authorize" });
   });
 
   test("mcpResult fills mcp and api steps; llmReply fills reply", () => {

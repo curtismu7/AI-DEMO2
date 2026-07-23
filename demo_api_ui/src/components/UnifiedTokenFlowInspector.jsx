@@ -862,10 +862,38 @@ function OAuthInspectorSection({ selectedToken, onOpenClaimsModal, activeTab }) 
                               </div>
                             )}
                             {!evt.decoded?.payload && evt.claims && (
-                              <div className="utfi-event-json-block">
-                                <div className="utfi-event-label">Token claims</div>
-                                <pre className="utfi-event-pre"><JsonHighlight value={evt.claims} /></pre>
-                              </div>
+                              <>
+                                <div className="utfi-event-claims">
+                                  {evt.claims.scope && (
+                                    <div className="utfi-event-row">
+                                      <span className="utfi-event-label">Scopes:</span>
+                                      <div className="utfi-scopes-inline">
+                                        {String(evt.claims.scope).split(' ').filter(Boolean).map((s) => (
+                                          <span key={s} className="utfi-scope-badge">{s}</span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {evt.claims.aud && (
+                                    <div className="utfi-event-row">
+                                      <span className="utfi-event-label">Audience (aud):</span>
+                                      <code className="utfi-event-value">
+                                        {Array.isArray(evt.claims.aud) ? evt.claims.aud.join(' ') : String(evt.claims.aud)}
+                                      </code>
+                                    </div>
+                                  )}
+                                  {evt.exchangeRequest?.audience && !evt.claims.aud && (
+                                    <div className="utfi-event-row">
+                                      <span className="utfi-event-label">Requested aud:</span>
+                                      <code className="utfi-event-value">{String(evt.exchangeRequest.audience)}</code>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="utfi-event-json-block">
+                                  <div className="utfi-event-label">Token claims</div>
+                                  <pre className="utfi-event-pre"><JsonHighlight value={evt.claims} /></pre>
+                                </div>
+                              </>
                             )}
                             {evt.error || evt.pingoneError ? (
                               <div className="utfi-event-message utfi-event-message--error">
