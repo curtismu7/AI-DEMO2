@@ -45,6 +45,7 @@ import {
   MdPlayArrow,
   MdPolicy,
   MdPublic,
+  MdRefresh,
   MdRoute,
   MdSearch,
   MdSecurity,
@@ -1225,7 +1226,8 @@ export default function AdminSideNav({ user }) {
 
       {/* Navigation Menu */}
       <nav className="admin-side-nav__menu" aria-label="Primary navigation">
-        {/* Quick-access shortcuts */}
+        {/* Quick-access shortcuts — 2×2 when collapsed (incl. Refresh); 2×2 of
+            Cust/Admin/Setup when expanded (Refresh lives next to search). */}
         <div className="admin-side-nav__quick-links">
           <button
             type="button"
@@ -1251,7 +1253,7 @@ export default function AdminSideNav({ user }) {
                 );
             }}
           >
-            {collapsed ? "C" : "Customer"}
+            {collapsed ? "C" : "Cust"}
           </button>
           <button
             type="button"
@@ -1286,43 +1288,57 @@ export default function AdminSideNav({ user }) {
           >
             {collapsed ? "S" : "Setup"}
           </Link>
-          <button
-            type="button"
-            className="admin-side-nav__quick-link"
-            title="Refresh sidebar (pick up Demo Config changes)"
-            onClick={loadNavConfig}
-          >
-            {collapsed ? "R" : "Refresh"}
-          </button>
+          {collapsed && (
+            <button
+              type="button"
+              className="admin-side-nav__quick-link"
+              title="Refresh sidebar (pick up Demo Config changes)"
+              aria-label="Refresh sidebar"
+              onClick={loadNavConfig}
+            >
+              R
+            </button>
+          )}
         </div>
 
         {/* Filter — live-filters nav items by label (hidden when collapsed) */}
         {!collapsed && (
-          <div className="admin-side-nav__filter">
-            <MdSearch
-              className="admin-side-nav__filter-icon"
-              size={16}
-              aria-hidden="true"
-            />
-            <input
-              type="text"
-              className="admin-side-nav__filter-input"
-              placeholder="Search menu…"
-              value={navFilter}
-              onChange={(e) => setNavFilter(e.target.value)}
-              aria-label="Search navigation"
-            />
-            {navFilter && (
-              <button
-                type="button"
-                className="admin-side-nav__filter-clear"
-                onClick={() => setNavFilter("")}
-                aria-label="Clear filter"
-                title="Clear"
-              >
-                ✕
-              </button>
-            )}
+          <div className="admin-side-nav__filter-row">
+            <div className="admin-side-nav__filter">
+              <MdSearch
+                className="admin-side-nav__filter-icon"
+                size={16}
+                aria-hidden="true"
+              />
+              <input
+                type="text"
+                className="admin-side-nav__filter-input"
+                placeholder="Search menu…"
+                value={navFilter}
+                onChange={(e) => setNavFilter(e.target.value)}
+                aria-label="Search navigation"
+              />
+              {navFilter && (
+                <button
+                  type="button"
+                  className="admin-side-nav__filter-clear"
+                  onClick={() => setNavFilter("")}
+                  aria-label="Clear filter"
+                  title="Clear"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              className="admin-side-nav__filter-refresh"
+              title="Refresh sidebar (pick up Demo Config changes)"
+              aria-label="Refresh sidebar"
+              onClick={loadNavConfig}
+            >
+              <MdRefresh size={16} aria-hidden="true" />
+            </button>
           </div>
         )}
 
