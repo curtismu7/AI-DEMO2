@@ -27,6 +27,7 @@ import {
 } from "../utils/dashboardLayout";
 import { toastCustomerError } from "../utils/dashboardToast";
 import { extractRfc9470Challenge } from "../utils/wwwAuthenticate";
+import DashboardTokenRail from "./DashboardTokenRail";
 import ExchangeModeToggle from "./ExchangeModeToggle";
 import Fido2Challenge from "./Fido2Challenge";
 import TokenChainTraceRail from "./TokenChainTraceRail";
@@ -3322,12 +3323,10 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             </aside>
           )}
 
-          <aside className="ud-token-rail" aria-label="Token chain">
-            <div className="section ud-token-rail__inner">
-              <ExchangeModeToggle hideTable />
-              <TokenChainTraceRail />
-            </div>
-          </aside>
+          <DashboardTokenRail>
+            <ExchangeModeToggle hideTable />
+            <TokenChainTraceRail />
+          </DashboardTokenRail>
         </div>
       ) : (
         // V2 bottom-dock layout: 2-col grid (main + rail) + fixed dock + under-the-hood panels
@@ -3376,12 +3375,10 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
                 )}
               </main>
 
-              <aside className="ud-token-rail" aria-label="Token chain">
-                <div className="section ud-token-rail__inner">
-                  <ExchangeModeToggle hideTable />
-                  <TokenChainTraceRail />
-                </div>
-              </aside>
+              <DashboardTokenRail>
+                <ExchangeModeToggle hideTable />
+                <TokenChainTraceRail />
+              </DashboardTokenRail>
 
               {/* Float mode: no reserve column — the FAB is a fixed overlay from App.js. */}
             </div>
