@@ -83,7 +83,7 @@ function McpGatewayConfigInner() {
 		initialSubtab && MGC_TABS.includes(initialSubtab) ? initialSubtab : "mock",
 	);
 
-	// Deep-link from AdminSideNav "Gateway Tester" → /configure?tab=mcp-gateway&subtab=tester
+	// Deep-link from AdminSideNav / ?subtab=tester → Agent Gateway Tester tab
 	useEffect(() => {
 		const subtab = searchParams.get("subtab");
 		if (subtab && MGC_TABS.includes(subtab)) {
@@ -248,13 +248,13 @@ function McpGatewayConfigInner() {
 					className={`mgc-tab mgc-tab--highlight ${activeTab === "real" ? "mgc-tab--active" : ""}`}
 					onClick={() => setActiveTab("real")}
 				>
-					Real PingOne Agent Gateway (Prod)
+					Agent Gateway
 				</button>
 				<button
 					className={`mgc-tab ${activeTab === "tester" ? "mgc-tab--active" : ""}`}
 					onClick={() => setActiveTab("tester")}
 				>
-					Gateway Tester
+					Agent Gateway Tester
 				</button>
 				<button
 					className={`mgc-tab ${activeTab === "env" ? "mgc-tab--active" : ""}`}
@@ -284,7 +284,7 @@ function McpGatewayConfigInner() {
 					className={`mgc-tab ${activeTab === "traffic" ? "mgc-tab--active" : ""}`}
 					onClick={() => setActiveTab("traffic")}
 				>
-					Traffic
+					MCP Tool Tester
 				</button>
 				<button
 					className={`mgc-tab ${activeTab === "tokensecurity" ? "mgc-tab--active" : ""}`}
@@ -723,8 +723,9 @@ MCP_INVEST_RESOURCE_URI=https://mcp-invest.ping.demo
 				</div>
 			)}
 			{activeTab === "traffic" && (
-				<div className="mgc-panel">
-					<McpTrafficPage />
+				<div className="mgc-panel mgc-panel--traffic">
+					{/* Explicit height so McpTrafficPage's height:100% / flex:1 body does not collapse to 0 */}
+					<McpTrafficPage embedded />
 				</div>
 			)}
 			{activeTab === "tokensecurity" && (
