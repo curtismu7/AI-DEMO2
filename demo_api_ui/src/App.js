@@ -168,6 +168,7 @@ import {
   isAgentLifecycleRoute,
   isMonitoringRoute,
   isPublicMarketingAgentPath,
+  isPingOneAdminAgentRoute,
 } from "./utils/embeddedAgentFabVisibility";
 import { VerticalEditorPage } from "./vertical/AdminEditor/VerticalEditorPage";
 import { VerticalProvider } from "./vertical/VerticalProvider";
@@ -1333,6 +1334,9 @@ function AppWithAuth() {
                     embeddedFocus={resolveEmbeddedFocus(pathname)}
                     distinctFloatingChrome
                     surfaceHostEl={surfaceHostEl}
+                    {...(isPingOneAdminAgentRoute(pathname)
+                      ? { forceVertical: "pingone-admin" }
+                      : {})}
                     {...singleAgentSurfaceProps}
                   />
                 </ErrorBoundary>
