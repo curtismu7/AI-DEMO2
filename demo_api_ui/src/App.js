@@ -70,7 +70,6 @@ import OAuthTokenDisplayPage from "./components/OAuthTokenDisplayPage";
 import PingOneAuthorizePage from "./components/PingOneAuthorizePage";
 import PingOneAuthorizeCapabilitiesPage from "./pages/PingOneAuthorizeCapabilitiesPage";
 import PolicyDecisionTracePage from "./components/PolicyDecisionTracePage";
-import McpGatewayConfig from "./components/McpGatewayConfig";
 import PostmanCollectionsPage from "./components/PostmanCollectionsPage";
 import Profile from "./components/Profile";
 import ResourceServerPage from "./components/ResourceServerPage";
@@ -157,6 +156,7 @@ import PublicRoutes, {
   SelfServicePageRoute,
   TokenExchangeTesterPageRoute,
   McpInspectorPageRoute,
+  McpGatewayConfigRoute,
   UseCasesPageRoute,
 } from "./routes/PublicRoutes";
 import RequireAdminLogin from "./routes/RequireAdminLogin";
@@ -523,6 +523,20 @@ function AppWithAuth() {
                   path="/pingone-mcp-inspector"
                   element={
                     <McpInspectorPageRoute user={user} logout={logout} />
+                  }
+                />
+                {/* Gateway Inspector — top-level (not auth catch-all). Guests under
+                  path="*" only get TopNav; this page must remain reachable. */}
+                <Route
+                  path="/pinggateway-test"
+                  element={
+                    <Navigate to="/pinggateway-inspector?subtab=tester" replace />
+                  }
+                />
+                <Route
+                  path="/pinggateway-inspector"
+                  element={
+                    <McpGatewayConfigRoute user={user} logout={logout} />
                   }
                 />
                 <Route
@@ -1054,16 +1068,6 @@ function AppWithAuth() {
                               path="/logs"
                               element={
                                 <LogsRoute user={user} logout={logout} />
-                              }
-                            />
-                            <Route
-                              path="/pinggateway-inspector"
-                              element={<McpGatewayConfig />}
-                            />
-                            <Route
-                              path="/pinggateway-test"
-                              element={
-                                <Navigate to="/pinggateway-inspector?subtab=tester" replace />
                               }
                             />
                             <Route

@@ -212,6 +212,10 @@ export function buildTraceSteps(trace) {
     : exFailed
       ? `Token exchange failed — without a delegated token the MCP hop cannot run.`
       : undefined;
+  const exchangeBeforeAfter = exDone && userTok && exTok ? {
+    before: { title: "Before exchange", text: asJson(userTok.claims || {}) },
+    after: { title: "After exchange", text: asJson(exTok.claims || {}) },
+  } : undefined;
   steps.push(makeStep("exchange",
     exFailed ? "error" : exDone ? "done" : (exTok || ex1Tok) ? "active" : "pending",
     exDone || exFailed ? {
@@ -222,6 +226,7 @@ export function buildTraceSteps(trace) {
       response: exTok
         ? { title: "Delegated token claims", text: asJson(exTok.claims || {}) }
         : undefined,
+      beforeAfter: exchangeBeforeAfter,
       scopeDiff: exDone && (beforeScopes.length || afterScopes.length)
         ? { before: beforeScopes, after: afterScopes } : undefined,
       kv: exTok ? [

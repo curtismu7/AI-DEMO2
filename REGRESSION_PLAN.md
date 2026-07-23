@@ -102,6 +102,28 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-23 — Demo Step 1 could fail with `delegation_chain_broken` when PingGateway URI setting was unset
+
+**Files changed:**
+
+- `demo_api_server/services/agentMcpTokenService.js`
+- `demo_api_server/src/__tests__/agentMcpTokenService.test.js`
+
+**What was broken:** In gateway-brokered mode, Exchange #2 needs a PingGateway
+RFC 8707 URI audience (`https://.../mcp`). If `pingone_resource_pinggateway_uri`
+was unset, the BFF fell back to non-URI audience values and the chain failed as
+`delegation_chain_broken` (UI toast: "Token exchange failed…").
+
+**What was fixed:** Exchange #2 now falls back safely by extracting the first
+HTTP(S) URI from `MCP_GW_RESOURCE_URI` (or `mcp_gw_resource_uri`) when the
+explicit PingGateway URI setting is missing. Added a regression test that pins
+this fallback path.
+
+**Do not break:** Keep `forceDirectMcpAudience` behavior unchanged for direct WS
+callers, and keep gateway-brokered mode requesting exactly one URI audience.
+
+**Verify:** `cd demo_api_server && npx jest src/__tests__/agentMcpTokenService.test.js --testPathIgnorePatterns="/node_modules/" --runInBand`
+
 ### 2026-07-23 — UC5 attack-sim died at token exchange (invalid subject_token) with a blank Token Chain; `/api/demo/attack-sim` skipped silent refresh
 
 **Files changed:**
