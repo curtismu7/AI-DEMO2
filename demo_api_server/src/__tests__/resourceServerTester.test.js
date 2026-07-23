@@ -10,7 +10,15 @@ const TARGET_AUD = 'https://banking.example/rs';
 
 // Mock the shared BFF-audience resolver so getTargetAudience() is deterministic and
 // independent of ambient env / configStore.
-jest.mock('../../config/resourceAudience', () => ({ getBffResourceAudience: () => 'https://banking.example/rs' }));
+jest.mock('../../config/resourceAudience', () => ({
+  getBffResourceAudience: () => 'https://banking.example/rs',
+  getInFlowResourceAudience: () => 'mcpgateway.ping.demo',
+}));
+
+jest.mock('../../services/agentTokenCache', () => ({
+  get: jest.fn(() => null),
+  set: jest.fn(),
+}));
 
 // Mock configStore so any transitive read is inert (the service no longer reads it directly).
 jest.mock('../../services/configStore', () => ({ getEffective: () => undefined }));
@@ -180,6 +188,51 @@ describe('resolveToken', () => {
 
   test('errors on an unknown token reference', () => {
     expect(tester.resolveToken({ tokenRef: 'bogus' }, { oauthTokens: {} }).error).toBe('invalid_token_ref');
+  });
+
+  test('resolves mcp from the newest non-expired agentTokens cache entry', () => {
+    const session = {
+      agentTokens: {
+        'banking::mcp:invoke': {
+          access_token: 'tok-old',
+          expires_at: Date.now() + 60_000,
+        },
+        'banking::mcp:invoke openid': {
+          access_token: 'tok-new',
+          expires_at: Date.now() + 120_000,
+        },
+      },
+    };
+    const r = tester.resolveToken({ tokenRef: 'mcp' }, session);
+    expect(r).toEqual({ token: 'tok-new', source: 'session:mcp' });
+  });
+
+  test('mcp without cache returns mcp_token_not_cached (mint path is async)', () => {
+    expect(tester.resolveToken({ tokenRef: 'mcp' }, {}).error).toBe('mcp_token_not_cached');
+  });
+});
+
+describe('inflow profile', () => {
+  test('PERMIT when aud and mcp:invoke match the gateway RS', async () => {
+    const claims = {
+      ...baseClaims(),
+      aud: 'mcpgateway.ping.demo',
+      scope: 'openid mcp:invoke',
+    };
+    const res = await tester.validate(sign(claims), 'inflow');
+    expect(res.decision).toBe('PERMIT');
+    expect(res.rules.find((r) => r.name === 'aud').pass).toBe(true);
+    expect(res.rules.find((r) => r.name === 'scope').pass).toBe(true);
+  });
+
+  test('REJECT login-audience token against inflow policy', async () => {
+    const res = await tester.validate(sign(baseClaims()), 'inflow');
+    expect(res.decision).toBe('REJECT');
+    expect(res.rules.find((r) => r.name === 'aud').pass).toBe(false);
+  });
+
+  test('PROBE_WHITELIST includes Path B identity', () => {
+    expect(tester.PROBE_WHITELIST).toContain('/api/resource-server/identity');
   });
 });
 
