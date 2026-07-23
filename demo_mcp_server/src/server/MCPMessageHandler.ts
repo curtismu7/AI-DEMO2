@@ -214,6 +214,9 @@ export class MCPMessageHandler {
 
   /**
    * Handle tools/list message
+   * 
+   * Per 2026-07-28 SEP-2549, includes ttlMs and cacheScope so clients know
+   * how long the list is fresh and whether it's safe to cache across users.
    */
   async handleListTools(message: ListToolsMessage, context: MessageHandlerContext): Promise<ListToolsResponse> {
     try {
@@ -246,7 +249,9 @@ export class MCPMessageHandler {
         id: message.id ?? 'unknown',
         result: {
           tools: mcpTools as unknown as ToolDefinition[],
-          nextCursor: message.params?.cursor ? undefined : undefined // No pagination for now
+          nextCursor: message.params?.cursor ? undefined : undefined, // No pagination for now
+          ttlMs: 3600000,               // Cache for 1 hour (3600 seconds = 3600000 ms)
+          cacheScope: 'shared',         // Tool list is the same for all users of this server
         }
       };
     } catch (error) {

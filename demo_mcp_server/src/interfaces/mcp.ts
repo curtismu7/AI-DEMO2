@@ -88,6 +88,8 @@ export interface ListToolsResponse extends MCPResponse {
   result: {
     tools: ToolDefinition[];
     nextCursor?: string;
+    ttlMs?: number;                    // Cache duration in milliseconds (2026-07-28 SEP-2549)
+    cacheScope?: 'shared' | 'user';    // Cache scope for multi-user environments
   };
 }
 

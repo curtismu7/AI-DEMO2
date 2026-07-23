@@ -1,10 +1,11 @@
 /**
- * HTTP Streamable MCP Transport (MCP spec 2025-11-25 — Phase D)
+ * HTTP Streamable MCP Transport (MCP spec 2025-11-25 & 2026-07-28 — Phase D & beyond)
  *
- * Adds two HTTP surfaces to the existing server, both reachable on the same
- * port that already serves WebSocket connections:
+ * Dual-stack support: routes requests to 2025-11-25 or 2026-07-28 handlers based on
+ * MCP-Protocol-Version header. Adds HTTP surfaces on the same port as WebSocket:
  *
  *   GET  /.well-known/oauth-protected-resource   — RFC 9728 metadata
+ *   GET  /.well-known/mcp-server                 — MCP discovery manifest
  *   POST /mcp                                    — Streamable HTTP MCP endpoint
  *   GET  /mcp                                    — 405 (SSE not required for basic spec compliance)
  *   DELETE /mcp                                  — client-initiated session termination
@@ -13,15 +14,15 @@
  *   HTTP_MCP_TRANSPORT_ENABLED=true   (env var, default true)
  *
  * Spec refs:
- *   https://modelcontextprotocol.io/specification/2025-11-25/basic/transports
- *   https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization
+ *   2025-11-25: https://modelcontextprotocol.io/specification/2025-11-25/basic/transports
+ *   2026-07-28: https://modelcontextprotocol.io/specification/draft/basic/transports
  */
 
 import { IncomingMessage, ServerResponse } from 'http';
 import { randomUUID } from 'crypto';
 import { MCPMessage } from '../interfaces/mcp';
 import { MCPMessageHandler, MessageHandlerContext } from './MCPMessageHandler';
-import { isSupportedProtocolVersion, MCP_LATEST_PROTOCOL_VERSION } from './protocolVersions';
+import { isSupportedProtocolVersion, MCP_LATEST_PROTOCOL_VERSION, detectProtocolVersion } from './protocolVersions';
 import { BankingSessionManager } from '../storage/BankingSessionManager';
 import { BankingAuthenticationManager } from '../auth/BankingAuthenticationManager';
 import { AgentTokenInfo } from '../interfaces/auth';
@@ -41,6 +42,8 @@ import { enforceUpstreamContract, resolveUpstreamAudiences } from '../auth/lastH
 
 const MCP_SESSION_HEADER = 'mcp-session-id';
 const MCP_PROTO_HEADER = 'mcp-protocol-version';
+const MCP_METHOD_HEADER = 'mcp-method';       // 2026-07-28: routing header (e.g., 'tools/call')
+const MCP_NAME_HEADER = 'mcp-name';           // 2026-07-28: routing header (e.g., tool name for tools/call)
 
 // HTTP session idle TTL. Sessions unused for longer are evicted (lazily on access,
 // and swept on each initialize) so the in-memory map can't grow unbounded.
@@ -397,6 +400,37 @@ export class HttpMCPTransport {
       return;
     }
 
+    // 1b. Routing headers validation (2026-07-28 SEP-2243).
+    // Clients may send Mcp-Method and Mcp-Name headers to enable stateless routing.
+    // If present, they MUST match the JSON-RPC body (method, params.name for tools/call).
+    // If absent, that's OK during 2025-11-25 compatibility period.
+    const mcpMethodHeader = (req.headers[MCP_METHOD_HEADER] as string | undefined)?.trim();
+    const mcpNameHeader = (req.headers[MCP_NAME_HEADER] as string | undefined)?.trim();
+    if (mcpMethodHeader || mcpNameHeader) {
+      // Validate header consistency with body
+      if (mcpMethodHeader && mcpMethodHeader !== message.method) {
+        this.sendJsonRpcError(
+          res,
+          (message as any)?.id ?? null,
+          -32600,
+          `Invalid Request: Mcp-Method header "${mcpMethodHeader}" does not match body method "${message.method}"`
+        );
+        return;
+      }
+      if (mcpNameHeader && message.method === 'tools/call') {
+        const toolName = (message.params as { name?: string } | undefined)?.name;
+        if (toolName && mcpNameHeader !== toolName) {
+          this.sendJsonRpcError(
+            res,
+            (message as any)?.id ?? null,
+            -32600,
+            `Invalid Request: Mcp-Name header "${mcpNameHeader}" does not match body params.name "${toolName}"`
+          );
+          return;
+        }
+      }
+    }
+
     const isNotification = message.id === undefined;
     const isInitialize = message.method === 'initialize';
 
@@ -509,15 +543,17 @@ export class HttpMCPTransport {
       const bankingSession = await this.sessionManager.createSession(bearerToken);
       mcpSessionId = randomUUID();
       const now = new Date();
+      // Detect protocol version for this session (defaults to latest supported if not specified)
+      const detectedVersion = detectProtocolVersion((req.headers[MCP_PROTO_HEADER] as string | undefined)?.trim());
       httpSession = {
         bankingSessionId: bankingSession.sessionId,
         agentToken: bearerToken,
-        protocolVersion: '2025-11-25',
+        protocolVersion: detectedVersion,
         createdAt: now,
         lastAccessedAt: now,
       };
       this.sessions.set(mcpSessionId, httpSession);
-      console.log(`[HttpMCPTransport] Created session ${mcpSessionId} → banking ${bankingSession.sessionId}`);
+      console.log(`[HttpMCPTransport] Created session ${mcpSessionId} → banking ${bankingSession.sessionId} (protocol: ${detectedVersion})`);
     } else {
       const incomingSessionId = req.headers[MCP_SESSION_HEADER] as string | undefined;
       const existing = incomingSessionId ? this.sessions.get(incomingSessionId) : undefined;
@@ -531,6 +567,8 @@ export class HttpMCPTransport {
       mcpSessionId = incomingSessionId;
       httpSession = existing;
       httpSession.lastAccessedAt = new Date();
+      // Log protocol version for non-initialize requests (for observability)
+      console.log(`[HttpMCPTransport] Request on session ${mcpSessionId} using protocol ${httpSession.protocolVersion}`);
     }
 
     // 6. Build MCPMessageHandler context, reusing the existing banking session
@@ -711,6 +749,9 @@ export class HttpMCPTransport {
    * Extract and validate the bearer token. On failure, writes a 401 (with
    * WWW-Authenticate) and returns null so the caller can simply `return`.
    * Shared by POST/GET/DELETE /mcp so every method enforces the same auth.
+   * 
+   * Per 2026-07-28 SEP-2468 (RFC 9207), validates the 'iss' claim to prevent
+   * authorization server mix-up attacks.
    */
   private async authenticateBearer(req: IncomingMessage, res: ServerResponse): Promise<AuthenticatedBearer | null> {
     const bearer = this.extractBearer(req);
@@ -727,6 +768,20 @@ export class HttpMCPTransport {
     } catch {
       this.sendUnauthorized(res, 'Invalid or expired token');
       return null;
+    }
+    // RFC 9207 / SEP-2468: Validate 'iss' claim to prevent authorization server
+    // mix-up attacks. Only check if signature was verified (claims are untrustworthy otherwise).
+    if (tokenInfo.signatureVerified && tokenInfo.verifiedClaims) {
+      const issFromToken = (tokenInfo.verifiedClaims as any)?.iss;
+      const expectedIssuer = process.env.PINGONE_ISSUER || this.config.authServerUrl;
+      if (issFromToken && expectedIssuer && issFromToken !== expectedIssuer) {
+        console.warn(
+          `[HttpMCPTransport][RFC9207] Issuer mismatch: token iss="${issFromToken}" ` +
+          `does not match PINGONE_ISSUER="${expectedIssuer}" — rejecting token as potential mix-up attack`
+        );
+        this.sendUnauthorized(res, 'Invalid token issuer (RFC 9207 check failed)');
+        return null;
+      }
     }
     // DPoP (RFC 9449) — bridged enforcement. The gateway verifies the DPoP proof with
     // real crypto on the BFF→gateway hop and bridges the outcome via X-DPoP-Verified
