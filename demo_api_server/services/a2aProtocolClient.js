@@ -162,6 +162,15 @@ async function sendInProcess({ bearer, bearerClaims, vertical, subtask, tokenEve
   );
 
   const replyText = extractText(result);
+  const protocolRequest = {
+    method: 'message/send',
+    mode: 'in-process',
+    message: {
+      role: 'user',
+      text: String(subtask),
+      metadata: { vertical, demoLayer: 'a2a-protocol-wire' },
+    },
+  };
   tokenEvents.push(
     buildA2aEvent(
       'a2a-protocol-message',
@@ -176,6 +185,8 @@ async function sendInProcess({ bearer, bearerClaims, vertical, subtask, tokenEve
         agentName: card?.name || null,
         replyText,
         mode: 'in-process',
+        protocolRequest,
+        protocolResponse: { replyText, ok: true },
       },
     ),
   );
@@ -221,6 +232,15 @@ async function sendViaHttp({ bearer, vertical, subtask, tokenEvents, baseUrl }) 
   });
 
   const replyText = extractText(result);
+  const protocolRequest = {
+    method: 'message/send',
+    mode: 'http',
+    message: {
+      role: 'user',
+      text: String(subtask),
+      metadata: { vertical, demoLayer: 'a2a-protocol-wire' },
+    },
+  };
   tokenEvents.push(
     buildA2aEvent(
       'a2a-protocol-message',
@@ -234,6 +254,8 @@ async function sendViaHttp({ bearer, vertical, subtask, tokenEvents, baseUrl }) 
         agentName: card?.name || null,
         replyText,
         mode: 'http',
+        protocolRequest,
+        protocolResponse: { replyText, ok: true },
       },
     ),
   );

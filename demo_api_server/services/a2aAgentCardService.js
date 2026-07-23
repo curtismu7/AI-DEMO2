@@ -136,6 +136,8 @@ function pushAgentCardEvent(buildA2aEvent, tokenEvents, card, vertical, cfg, mod
         protocolBinding: iface?.protocolBinding || 'JSONRPC',
         securitySchemes: card?.securitySchemes ? Object.keys(card.securitySchemes) : [],
         mode,
+        // Full card JSON for Token Chain inspector (Agent Card teaching surface).
+        agentCard: card || null,
       },
     ),
   );
