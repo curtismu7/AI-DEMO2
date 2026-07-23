@@ -98,13 +98,29 @@ function main() {
     errors.push('install-launchd.sh must reference residencyPolicy.js (auto residency)');
   }
 
+  // Pin/prewarm thrash (#785): ensure of a non-pin port must no-op when pinned
+  // and residency is empty — otherwise opportunistic gpt-oss prewarm kills phi.
+  if (!/reason:\s*'pinned'/.test(tierManager) || !/LLM_PROXY_PIN_TIER/.test(tierManager)) {
+    errors.push(
+      'tier-manager.js must skip ensure of non-pin ports when LLM_PROXY_PIN_TIER is set '
+        + 'and residency is empty (reason: pinned)',
+    );
+  }
+  const langchainPrewarm = read('demo_api_server/routes/langchainConfig.js');
+  if (!langchainPrewarm.includes('fetchProxyPin') || !langchainPrewarm.includes("reason: 'pinned'")) {
+    errors.push(
+      'langchainConfig.js /llamacpp/prewarm must skip when proxy pin conflicts '
+        + '(fetchProxyPin + reason: pinned)',
+    );
+  }
+
   if (errors.length) {
     for (const e of errors) console.error('[llm-host-residency] FAIL —', e);
     return 1;
   }
 
   console.log(
-    '[llm-host-residency] OK — host bind 0.0.0.0 + tier-manager residency wiring present',
+    '[llm-host-residency] OK — host bind 0.0.0.0 + tier-manager residency + pin/prewarm skip wiring present',
   );
   return 0;
 }
