@@ -1643,6 +1643,13 @@
   box-sizing: border-box;
 }
 
+/* Nested AppShell .main-content must not re-apply the sidebar offset — that
+   shrunk the content column and left empty space on the right. */
+.App:has(.admin-side-nav) .main-content .main-content {
+  margin-left: 0;
+  width: 100%;
+}
+
 /* When sidebar is collapsed */
 .App:has(.admin-side-nav--collapsed) .main-content,
 .App:has(.admin-side-nav--collapsed) .topnav,
@@ -1651,6 +1658,11 @@
   margin-left: var(--sidebar-collapsed-width);
   width: calc(100% - var(--sidebar-collapsed-width));
   box-sizing: border-box;
+}
+
+.App:has(.admin-side-nav--collapsed) .main-content .main-content {
+  margin-left: 0;
+  width: 100%;
 }
 
 /* Responsive: on small screens sidebar auto-collapses to icon-only */

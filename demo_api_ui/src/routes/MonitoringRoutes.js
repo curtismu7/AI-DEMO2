@@ -100,11 +100,12 @@ export function WebMcpRoute({ user, logout }) {
   );
 }
 
-export function AgentFlowInspectorRoute({ user, logout }) {
+export function AgentFlowInspectorRoute({ user }) {
   if (!user) return <Navigate to="/" replace />;
+  // Mounted under App.js catch-all which already supplies TopNav + main-content
+  // (+ side nav). Do not nest another shell — a second .main-content also got
+  // the sidebar width offset and left empty space on the right.
   return (
-    <AppShell user={user} logout={logout}>
-      <UnifiedTokenFlowInspector floatingByDefault={false} showToggle={true} />
-    </AppShell>
+    <UnifiedTokenFlowInspector floatingByDefault={false} showToggle={true} />
   );
 }
