@@ -66,6 +66,8 @@ describe("buildTraceSteps — statuses from evidence", () => {
     const ex = steps.find((s) => s.id === "exchange");
     expect(ex.status).toBe("done");
     expect(ex.detail.scopeDiff).toEqual({ before: ["read", "write"], after: ["write"] });
+    expect(ex.detail.beforeAfter.before.text).toContain("read write");
+    expect(ex.detail.beforeAfter.after.text).toContain("aud");
     expect(ex.detail.request.text).toContain("token-exchange");
     expect(ex.detail.inspectToken).toBe("mcp");
     expect(ex.detail.rfcs).toContain("RFC 8693");

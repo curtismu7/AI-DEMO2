@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import TraceStepCard from "../TraceStepCard";
+import { vi } from "vitest";
+import TraceStepCard, { openStepTeachingWindow } from "../TraceStepCard";
 import { EducationUIProvider, useEducationUI } from "../../context/EducationUIContext";
 
 const STEP_WITH_EVIDENCE = {
@@ -85,4 +86,33 @@ test("Learn more opens the education drawer when moreDetail.edu is set", () => {
   );
   fireEvent.click(screen.getByRole("button", { name: /Learn: Token Exchange/i }));
   expect(screen.getByTestId("edu-probe").textContent).toBe("token-exchange:why");
+});
+
+test("openStepTeachingWindow includes before/after evidence and more detail links", () => {
+  const write = vi.fn();
+  const close = vi.fn();
+  const focus = vi.fn();
+  const mockWindow = { document: { write, close }, focus };
+  const openSpy = vi.spyOn(window, "open").mockReturnValue(mockWindow);
+
+  const step = {
+    ...STEP_WITH_EVIDENCE,
+    detail: {
+      ...STEP_WITH_EVIDENCE.detail,
+      beforeAfter: {
+        before: { title: "Before exchange", text: '{"scope":"read write"}' },
+        after: { title: "After exchange", text: '{"scope":"write"}' },
+      },
+      moreDetail: { href: "https://example.com/more", label: "Show more detail" },
+    },
+  };
+
+  openStepTeachingWindow(step);
+
+  expect(openSpy).toHaveBeenCalled();
+  expect(write).toHaveBeenCalledWith(expect.stringContaining("Before exchange"));
+  expect(write).toHaveBeenCalledWith(expect.stringContaining("After exchange"));
+  expect(write).toHaveBeenCalledWith(expect.stringContaining("Show more detail"));
+
+  openSpy.mockRestore();
 });
