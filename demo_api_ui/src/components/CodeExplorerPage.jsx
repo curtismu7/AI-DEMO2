@@ -6,6 +6,7 @@ import './CodeExplorerPage.css';
 
 const STARTER_CHIPS = [
   'How does the MCP gateway work?',
+  'How does callToolViaGateway reach PingGateway?',
   'Trace the token chain flow',
   'What calls the authorize endpoint?',
   'How is delegation implemented?',
