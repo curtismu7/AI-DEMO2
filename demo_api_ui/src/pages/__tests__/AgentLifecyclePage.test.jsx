@@ -98,9 +98,9 @@ describe('AgentLifecyclePage — Slot 2 scoped MCP call', () => {
     });
     render(<AgentLifecyclePage />);
     fireEvent.click(screen.getByText('Call list_orders as agent'));
-    await waitFor(() =>
-      expect(screen.getByText(/"id": "o1"/)).toBeInTheDocument(),
-    );
+    // Default view is Pretty Form (not raw JSON).
+    await waitFor(() => expect(screen.getByText('o1')).toBeInTheDocument());
+    expect(screen.getByText('Pretty Form')).toHaveClass('alp-view-btn--active');
     expect(callMcpTool).toHaveBeenCalledWith(
       'list_orders',
       {},
