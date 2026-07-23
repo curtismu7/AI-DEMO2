@@ -197,6 +197,8 @@ const CodeExplorerPage = () => {
         return;
       }
       const parts = [];
+      if (data.uiFiles != null) parts.push(`${data.uiFiles} UI`);
+      if (data.apiFiles != null) parts.push(`${data.apiFiles} API`);
       if (data.files != null) parts.push(`${data.files} files`);
       if (data.nodes != null) parts.push(`${data.nodes} symbols`);
       const detail = parts.length ? ` (${parts.join(', ')})` : '';

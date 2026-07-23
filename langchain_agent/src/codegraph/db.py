@@ -13,7 +13,9 @@ from typing import Any
 
 _MODULE_DIR = Path(__file__).resolve().parent          # .../langchain_agent/src/codegraph
 _REPO_ROOT = _MODULE_DIR.parent.parent.parent          # .../AI-Demo
-_DEFAULT_DB = str(_REPO_ROOT / ".codegraph" / "codegraph.db")
+# demo-codegraph.db avoids colliding with the host CodeGraph product daemon
+# which owns .codegraph/codegraph.db on the same bind mount.
+_DEFAULT_DB = str(_REPO_ROOT / ".codegraph" / "demo-codegraph.db")
 
 CODEGRAPH_DB_PATH: str = os.getenv("CODEGRAPH_DB_PATH", _DEFAULT_DB)
 _CAP_EXPLORE = 10

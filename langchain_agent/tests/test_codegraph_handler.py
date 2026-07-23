@@ -123,6 +123,36 @@ class TestCodegraphQuery:
         assert msgs[2].content == "follow up"
 
 
+_FAKE_INDEXER_WRITE_DEMO_DB = r'''
+import sys, sqlite3
+from pathlib import Path
+print("  Indexing 5 files from X")
+print("  Found 12 nodes, 3 call sites")
+out = Path(sys.argv[sys.argv.index("--out") + 1])
+out.parent.mkdir(parents=True, exist_ok=True)
+conn = sqlite3.connect(out)
+conn.executescript("""
+CREATE TABLE nodes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  kind TEXT, name TEXT, qualified_name TEXT,
+  file_path TEXT, start_line INTEGER, end_line INTEGER,
+  signature TEXT, docstring TEXT
+);
+CREATE TABLE project_metadata (key TEXT PRIMARY KEY, value TEXT);
+""")
+for name, fp in (("App", "demo_api_ui/App.jsx"), ("ping", "demo_api_server/ping.js")):
+    conn.execute(
+        "INSERT INTO nodes (kind, name, qualified_name, file_path, start_line, end_line, signature, docstring) "
+        "VALUES ('function', ?, ?, ?, 1, 1, ?, NULL)",
+        (name, name, fp, f"function {name}()"),
+    )
+conn.execute("INSERT INTO project_metadata(key, value) VALUES ('builder', 'demo-build-codegraph')")
+conn.execute("INSERT INTO project_metadata(key, value) VALUES ('builder_version', '1')")
+conn.commit()
+conn.close()
+'''
+
+
 class TestCodegraphReindex:
     """POST /codegraph/reindex — live index refresh."""
 
@@ -131,9 +161,17 @@ class TestCodegraphReindex:
         scripts = root / "scripts"
         scripts.mkdir(parents=True, exist_ok=True)
         (scripts / "build-codegraph.py").write_text(body)
+        (root / "demo_api_ui").mkdir(exist_ok=True)
+        (root / "demo_api_server").mkdir(exist_ok=True)
 
     def test_missing_indexer_returns_503(self, tmp_path):
-        with patch("src.api.codegraph_handler.repo_src_root", return_value=tmp_path):
+        (tmp_path / "demo_api_ui").mkdir()
+        (tmp_path / "demo_api_server").mkdir()
+        with patch("src.api.codegraph_handler.repo_src_root", return_value=tmp_path), \
+             patch("src.api.codegraph_handler.CODEGRAPH_DB_PATH",
+                   str(tmp_path / "demo-codegraph.db")), \
+             patch("codegraph.ensure_index.CODEGRAPH_DB_PATH",
+                   str(tmp_path / "demo-codegraph.db")):
             response = client.post("/codegraph/reindex")
         assert response.status_code == 503
         assert "indexer not found" in response.json()["error"]
@@ -142,14 +180,47 @@ class TestCodegraphReindex:
         self._write_indexer(tmp_path, "print('noop')\n")
         busy = MagicMock()
         busy.locked.return_value = True
+        db = tmp_path / "demo-codegraph.db"
         with patch("src.api.codegraph_handler.repo_src_root", return_value=tmp_path), \
+             patch("src.api.codegraph_handler.CODEGRAPH_DB_PATH", str(db)), \
+             patch("codegraph.ensure_index.CODEGRAPH_DB_PATH", str(db)), \
              patch("src.api.codegraph_handler._reindex_lock", busy):
             response = client.post("/codegraph/reindex")
         assert response.status_code == 409
         busy.locked.assert_called_once()
 
     def test_success_parses_counts(self, tmp_path):
+        db = tmp_path / "demo-codegraph.db"
+        self._write_indexer(tmp_path, _FAKE_INDEXER_WRITE_DEMO_DB)
+        with patch("src.api.codegraph_handler.repo_src_root", return_value=tmp_path), \
+             patch("src.api.codegraph_handler.CODEGRAPH_DB_PATH", str(db)), \
+             patch("codegraph.ensure_index.CODEGRAPH_DB_PATH", str(db)), \
+             patch("codegraph.ensure_index._BAKED_INDEXER", tmp_path / "missing.py"):
+            response = client.post("/codegraph/reindex")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["ok"] is True
+        assert data["files"] == 5
+        assert data["nodes"] == 12
+        assert data["uiFiles"] == 1
+        assert data["apiFiles"] == 1
+        assert data["samplePath"]
+        assert isinstance(data["durationMs"], int)
+        assert db.is_file() and db.stat().st_size > 0
+
+    def test_refuse_product_db_path(self, tmp_path):
         db = tmp_path / "codegraph.db"
+        self._write_indexer(tmp_path, _FAKE_INDEXER_WRITE_DEMO_DB)
+        with patch("src.api.codegraph_handler.repo_src_root", return_value=tmp_path), \
+             patch("src.api.codegraph_handler.CODEGRAPH_DB_PATH", str(db)), \
+             patch("codegraph.ensure_index.CODEGRAPH_DB_PATH", str(db)), \
+             patch("codegraph.ensure_index._BAKED_INDEXER", tmp_path / "missing.py"):
+            response = client.post("/codegraph/reindex")
+        assert response.status_code == 500
+        assert "codegraph.db" in response.json()["error"]
+
+    def test_unusable_index_returns_500(self, tmp_path):
+        db = tmp_path / "demo-codegraph.db"
         self._write_indexer(
             tmp_path,
             "import sys\n"
@@ -165,60 +236,15 @@ class TestCodegraphReindex:
              patch("codegraph.ensure_index.CODEGRAPH_DB_PATH", str(db)), \
              patch("codegraph.ensure_index._BAKED_INDEXER", tmp_path / "missing.py"):
             response = client.post("/codegraph/reindex")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["ok"] is True
-        assert data["files"] == 5
-        assert data["nodes"] == 12
-        assert isinstance(data["durationMs"], int)
-        assert db.is_file() and db.stat().st_size > 0
-
-    def test_unparseable_output_yields_null_counts(self, tmp_path):
-        db = tmp_path / "codegraph.db"
-        self._write_indexer(
-            tmp_path,
-            "import sys\n"
-            "from pathlib import Path\n"
-            "print('done, nothing to parse here')\n"
-            "out = Path(sys.argv[sys.argv.index('--out') + 1])\n"
-            "out.write_bytes(b'x' * 64)\n",
-        )
-        with patch("src.api.codegraph_handler.repo_src_root", return_value=tmp_path), \
-             patch("src.api.codegraph_handler.CODEGRAPH_DB_PATH", str(db)), \
-             patch("codegraph.ensure_index.CODEGRAPH_DB_PATH", str(db)), \
-             patch("codegraph.ensure_index._BAKED_INDEXER", tmp_path / "missing.py"):
-            response = client.post("/codegraph/reindex")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["ok"] is True
-        assert data["files"] is None
-        assert data["nodes"] is None
-
-    def test_legacy_indexer_without_out_is_promoted(self, tmp_path):
-        query_db = tmp_path / "query" / "codegraph.db"
-        legacy = tmp_path / ".codegraph" / "codegraph.db"
-        self._write_indexer(
-            tmp_path,
-            "from pathlib import Path\n"
-            "print('  Indexing 2 files from X')\n"
-            "print('  Found 9 nodes, 1 call sites')\n"
-            "p = Path('.codegraph') / 'codegraph.db'\n"
-            "p.parent.mkdir(parents=True, exist_ok=True)\n"
-            "p.write_bytes(b'legacy-db' * 8)\n",
-        )
-        with patch("src.api.codegraph_handler.repo_src_root", return_value=tmp_path), \
-             patch("src.api.codegraph_handler.CODEGRAPH_DB_PATH", str(query_db)), \
-             patch("codegraph.ensure_index.CODEGRAPH_DB_PATH", str(query_db)), \
-             patch("codegraph.ensure_index._BAKED_INDEXER", tmp_path / "missing.py"):
-            response = client.post("/codegraph/reindex")
-        assert response.status_code == 200
-        assert response.json()["nodes"] == 9
-        assert query_db.is_file() and query_db.stat().st_size > 0
-        assert legacy.is_file()
+        assert response.status_code == 500
+        assert "error" in response.json()
 
     def test_indexer_failure_returns_500_with_log(self, tmp_path):
         self._write_indexer(tmp_path, "import sys\nprint('boom')\nsys.exit(1)\n")
-        with patch("src.api.codegraph_handler.repo_src_root", return_value=tmp_path):
+        db = tmp_path / "demo-codegraph.db"
+        with patch("src.api.codegraph_handler.repo_src_root", return_value=tmp_path), \
+             patch("src.api.codegraph_handler.CODEGRAPH_DB_PATH", str(db)), \
+             patch("codegraph.ensure_index.CODEGRAPH_DB_PATH", str(db)):
             response = client.post("/codegraph/reindex")
         assert response.status_code == 500
         body = response.json()
