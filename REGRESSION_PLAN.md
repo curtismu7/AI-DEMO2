@@ -55,6 +55,7 @@ minimal diff.
 | OAuth redirect origin | `routes/oauth*.js` — no `localhost` hardcodes |
 | Clinical split dashboard (`ff_agent_clinical_split`) | `demo_api_ui/src/components/agent-clinical/` — `AgentClinicalHost.jsx` owns tab state + 1/2/3/4 keyboard; `TalkPane.jsx` hosts the inline agent (auto-open, `setClinicalSplit`) + `TokenAuditTimeline` (live `TokenChainContext` events); `InspectPane.jsx` wraps `ActivityLogPanel`; `TokensPane.jsx` embeds `UnifiedTokenFlowInspector`; `ConfigurePane.jsx` wraps `AuthorizeRulesPanel` + read-only runtime card. Legacy dashboard with the flag OFF must stay unchanged |
 | Code Explorer SSE | `demo_api_ui/nginx.conf`, `k8s/02-configmap.yaml` nginx-config, `k8s/aws/nginx-http-configmap.yaml`, `k8s/aws/se-ingress.yaml`, `demo_api_server/routes/codegraphProxy.js`, `langchain_agent/src/codegraph/agent.py` — `/api/codegraph/` must keep `proxy_buffering off` + 300s timeouts; agent must emit SSE keepalives while waiting on the LLM. Guarded by `scripts/check-codegraph-sse-nginx.js` + `k8s/smoke.sh` check 7 |
+| Code Explorer index DB | Demo index is **`.codegraph/demo-codegraph.db` only** — never `.codegraph/codegraph.db` (host CodeGraph product daemon). `CODEGRAPH_DB_PATH` / bake / Refresh must keep that split; `builder=demo-build-codegraph` marker required. Guarded by `langchain_agent/src/codegraph/index_guard.py` + `tests/test_codegraph_index_guard.py` |
 
 ---
 
@@ -100,6 +101,16 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 
 Reverse-chronological, newest first.
+
+### 2026-07-22 — Code Explorer (`/code-search`) loaded no UI code (and intermittently `malformed database schema`)
+
+**Symptom:** Asking about UI symbols (e.g. `CodeExplorerPage`) returned “not in context”; queries sometimes failed with `malformed database schema (function)`.
+
+**Root cause:** (1) Baked indexer at `/app/indexer/build-codegraph.py` resolved `REPO_ROOT=/app`, nesting paths as `live-repo/demo_api_ui/...` while `REPO_SRC_ROOT=/app/live-repo` expected unprefixed paths. (2) Demo Refresh wrote the same `.codegraph/codegraph.db` as the host CodeGraph product daemon, which overwrote/corrupted the demo schema.
+
+**Fix:** Separate demo DB (`.codegraph/demo-codegraph.db`), pass root via `REPO_SRC_ROOT`, default index scope UI+API only, hardening checks (`builder=demo-build-codegraph` marker, refuse `live-repo/` paths, non-zero UI/API counts) on Refresh + startup. Do **not** “simplify” `CODEGRAPH_DB_PATH` back to `codegraph.db`.
+
+**Files:** `scripts/build-codegraph.py`, `langchain_agent/src/codegraph/{index_guard,ensure_index,db}.py`, `langchain_agent/src/api/codegraph_handler.py`, `docker-compose.yml`, `demo_api_ui/src/components/CodeExplorerPage.jsx`, `langchain_agent/tests/test_codegraph_index_guard.py`.
 
 ### 2026-07-22 — CareConnect UC8 HITL (and UC7 step-up) ProofStrip Mismatch after "success"
 
@@ -261,6 +272,7 @@ returned 403 `city not recognized as Texas` because the heuristic sent `city_nam
 
 **Verify:** `parseHeuristic("what's the weather in Austin, TX")` → `city_name: "Austin, TX"`;
 UC30 PERMITs at the gateway scope filter.
+
 
 ### 2026-07-22 — 2-exchange TraceRail Exchange step lost coloured request JSON
 

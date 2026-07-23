@@ -359,7 +359,14 @@ services:
       # tree means grep/read_file always see current source and a re-index only
       # needs to rerun the indexer — no image rebuild, no repo-src re-stage.
       REPO_SRC_ROOT: "/app/live-repo"
-      CODEGRAPH_DB_PATH: "/app/live-repo/.codegraph/codegraph.db"
+      # Separate from the host CodeGraph product DB at .codegraph/codegraph.db
+      # (same bind mount) so Refresh cannot be overwritten by the IDE daemon.
+      CODEGRAPH_DB_PATH: "/app/live-repo/.codegraph/demo-codegraph.db"
+      # Prefer the live-mounted script over the baked /app/indexer copy so
+      # indexer fixes apply without rebuilding the langchain-agent image.
+      CODEGRAPH_INDEXER: "/app/live-repo/scripts/build-codegraph.py"
+      # Do NOT set CODEGRAPH_INDEX_ALL here — Refresh/startup must stay scoped to
+      # demo_api_ui + demo_api_server (full-repo walks are opt-in via --all only).
       # Trust the BFF's mkcert TLS cert on the internal tool callback (httpx
       # honors SSL_CERT_FILE). Combined bundle = system roots + mkcert root CA,
       # so external HTTPS (Anthropic/OpenAI/PingOne) keeps verifying. Generate:
@@ -371,9 +378,10 @@ services:
     volumes:
       # Live repo, read-only — source the agent greps/reads + the indexer scans.
       - ./:/app/live-repo:ro
-      # .codegraph overlaid read-write so the in-container re-index can rewrite
-      # codegraph.db (a directory mount, so the indexer's unlink+recreate is safe
-      # — a single-file bind mount would pin the old inode after rebuild).
+      # .codegraph overlaid read-write so Refresh can rewrite demo-codegraph.db
+      # (directory mount — unlink+recreate is safe; a single-file bind would pin
+      # the old inode). Host product CodeGraph may also use this dir for
+      # codegraph.db — demo must keep the demo-codegraph.db filename.
       - ./.codegraph:/app/live-repo/.codegraph
       # CA bundle for SSL_CERT_FILE above (gitignored; generated on the host).
       - ./certs/ca-bundle-with-mkcert.pem:/etc/ssl/certs/ca-bundle-with-mkcert.pem:ro
