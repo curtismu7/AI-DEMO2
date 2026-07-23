@@ -3,7 +3,6 @@ const router = express.Router();
 const dataStore = require('../data/store');
 const { getBffResourceAudience, getInFlowResourceAudience } = require('../config/resourceAudience');
 const { latestCachedMcpToken } = require('../services/resourceServerTesterService');
-const agentMcpTokenService = require('../services/agentMcpTokenService');
 const { decodeJwtClaims, sanitizeClaims } = require('../services/agentMcpTokenService');
 
 /**
@@ -95,13 +94,18 @@ router.get('/summary', (req, res) => {
  * Uses a cached agent MCP token when present; does not mint on GET.
  */
 router.get('/summary-inflow', (req, res) => {
+  // Same session gate as /summary — cookie-session stub / missing AT must 401.
+  if (!req.session || !req.session.oauthTokens || !req.session.oauthTokens.accessToken || req.session.oauthTokens.accessToken === '_cookie_session') {
+    return res.status(401).json({ error: 'authentication_required', message: 'Please log in to access the OIDC Resource Server.' });
+  }
+
   try {
     const resourceUri = getInFlowResourceAudience();
     const mcpToken = latestCachedMcpToken(req.session);
     let accessTokenClaims = null;
     let tokenMetadata = null;
     if (mcpToken) {
-      const decoded = agentMcpTokenService.decodeJwtClaims(mcpToken);
+      const decoded = decodeJwtClaims(mcpToken);
       const rawClaims = (decoded && decoded.claims) || {};
       accessTokenClaims = rawClaims;
       tokenMetadata = {
