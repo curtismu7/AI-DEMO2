@@ -65,8 +65,11 @@ Reuse the existing generic plumbing, skip the heavy catalog:
 
 ## Testing
 
-- `curl .../api/use-cases?vertical=pingone-admin` returns 200 with 4 steps
-  (currently 400).
-- Manual: open PingOne Admin agent on `local.ping-devops.com:4000/admin`,
-  click "Demo steps", run all 4 — each sends its NL prompt and gets a real
-  tool-backed reply (not "unknown action").
+- `GET /api/use-cases?vertical=pingone-admin` returns 200 with 4 steps
+  (`ADMIN1`–`ADMIN4`).
+- `/admin` must pass `forceVertical="pingone-admin"` to the agent (see
+  `isPingOneAdminAgentRoute`) — otherwise Demo Steps load the banking catalog.
+- Manual / post-deploy (`docs/runbooks/regression/post-deploy.md` §3): open
+  `local.ping-devops.com:4000/admin` (or `api.ping.demo:4000/admin`), open
+  Demo Steps — only ADMIN1–4; run each — admin-agent reply, no
+  `requiresCustomerLogin` / “Log in as customer” card.
