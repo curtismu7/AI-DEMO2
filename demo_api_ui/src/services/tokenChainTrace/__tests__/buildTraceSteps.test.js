@@ -187,6 +187,28 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(az.detail.request.text).toContain("create_transfer");
   });
 
+  test("HITL_REQUIRED outcome paints challenge banner, not hard DENY", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      phases: [{ phase: "authorize_denied", status: 428 }],
+      authorize: {
+        decision: "INDETERMINATE",
+        outcome: "HITL_REQUIRED",
+        engine: "pingone",
+        decisionContext: "McpFirstTool",
+        response: {
+          decision: "PERMIT",
+          statements: [{ code: "HITL" }, { code: "mcp-tool-authorized" }],
+        },
+      },
+    });
+    const az = steps.find((s) => s.id === "authorize");
+    expect(az.status).toBe("active");
+    expect(az.detail.decision.outcome).toBe("HITL_REQUIRED");
+    expect(az.detail.decision.label).toMatch(/HITL_REQUIRED/);
+    expect(az.detail.why).toMatch(/human must approve/i);
+  });
+
   test("authorize_denied with detail 'HTTP 428' (legacy SSE row) is a challenge", () => {
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,

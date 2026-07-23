@@ -277,9 +277,17 @@ export function buildTraceSteps(trace) {
   const azDecision = azEval && azEval.decision != null
     ? String(azEval.decision).toUpperCase()
     : "";
-  const azIsPermit = azPermitted || azDecision === "PERMIT";
-  const azIsDeny = azDecision === "DENY";
-  // 428 block or INDETERMINATE evaluation = step-up / HITL challenge path.
+  // Prefer explicit outcome (HITL_REQUIRED / STEP_UP / DENY) over collapsed
+  // INDETERMINATE so TraceRail does not paint a HITL challenge as hard DENY.
+  const azOutcome = azEval && azEval.outcome != null
+    ? String(azEval.outcome).toUpperCase()
+    : "";
+  const azDisplay = (azOutcome === "HITL_REQUIRED" || azOutcome === "STEP_UP" || azOutcome === "DENY")
+    ? azOutcome
+    : azDecision;
+  const azIsPermit = azPermitted || azDisplay === "PERMIT";
+  const azIsDeny = azDisplay === "DENY";
+  // 428 block or INDETERMINATE / HITL / STEP_UP evaluation = challenge path.
   // status may arrive as a number on the phase, or only in detail ("HTTP 428")
   // from older SSE rows that did not preserve payload.status.
   let azDeniedHttp = azDeniedPhase ? Number(azDeniedPhase.status) || 0 : 0;
@@ -287,7 +295,10 @@ export function buildTraceSteps(trace) {
     const m = /HTTP\s+(\d+)/i.exec(azDeniedPhase.detail);
     if (m) azDeniedHttp = Number(m[1]) || 0;
   }
-  const azIsChallenge = azDecision === "INDETERMINATE" || azDeniedHttp === 428;
+  const azIsChallenge = azDisplay === "INDETERMINATE"
+    || azDisplay === "HITL_REQUIRED"
+    || azDisplay === "STEP_UP"
+    || azDeniedHttp === 428;
   const azStatus = azIsPermit ? "done"
     : azIsDeny || azUnavailable || (azDenied && !azIsChallenge) ? "error"
     : azIsChallenge || azBegun || azEval ? "active"
@@ -305,7 +316,7 @@ export function buildTraceSteps(trace) {
     : null;
   const authorizeWhy = azEval
     ? (azIsChallenge
-      ? `Authorize returned ${azEval.decision || "INDETERMINATE"} — the human must approve before the tool proceeds.`
+      ? `Authorize returned ${azDisplay || azEval.decision || "INDETERMINATE"} — the human must approve before the tool proceeds.`
       : azIsDeny
         ? `Authorize denied this action (${azEval.engine || "policy"}) — the tool call is blocked.`
         : `Authorize returned ${azEval.decision || "PERMIT"}`
@@ -321,8 +332,8 @@ export function buildTraceSteps(trace) {
         : undefined,
       response: azEval.response
         ? { title: "Decision response (raw)", text: asJson(azEval.response) } : undefined,
-      decision: { outcome: azEval.decision || "INDETERMINATE",
-        label: `${azEval.decision || "INDETERMINATE"} — ${azEval.engine || "?"}${azEval.decisionContext ? ` (${azEval.decisionContext})` : ""}` },
+      decision: { outcome: azDisplay || azEval.decision || "INDETERMINATE",
+        label: `${azDisplay || azEval.decision || "INDETERMINATE"} — ${azEval.engine || "?"}${azEval.decisionContext ? ` (${azEval.decisionContext})` : ""}` },
       kv: [
         ["engine", String(azEval.engine || "")],
         ["decision id", String(azEval.decisionId || "")],
