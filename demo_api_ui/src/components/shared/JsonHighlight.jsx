@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 import "./JsonHighlight.css";
 
 // Shared colour-coded JSON viewer.
@@ -102,15 +102,49 @@ export function tokenize(text) {
   return tokens;
 }
 
-export default function JsonHighlight({ value, deep = false }) {
-  const text = formatJson(value, deep);
-  if (text === null) return <span className="jh-empty">—</span>;
+function CopyButton({ text }) {
+  const [copied, setCopied] = useState(false);
+  const copy = useCallback(() => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    });
+  }, [text]);
   return (
-    <>
-      {tokenize(text).map((t, i) => {
+    <button type="button" className="jh-copy" onClick={copy}>
+      {copied ? "✅" : "Copy"}
+    </button>
+  );
+}
+
+// One JSON.stringify(..., null, 2) line, rendered with a vertical guide span
+// per indent level (2 spaces each) so deep nesting stays scannable.
+function Line({ line }) {
+  const spaces = line.match(/^ */)[0].length;
+  const depth = Math.floor(spaces / 2);
+  const rest = line.slice(spaces);
+  return (
+    <span className="jh-line">
+      {Array.from({ length: depth }, (_, d) => (
+        <span key={d} className="jh-guide" />
+      ))}
+      {tokenize(rest).map((t, i) => {
         const className = t.critical ? `jh-${t.type} jh-critical` : `jh-${t.type}`;
         return <span key={i} className={className}>{t.text}</span>;
       })}
-    </>
+    </span>
+  );
+}
+
+export default function JsonHighlight({ value, deep = false, copyable = false }) {
+  const text = formatJson(value, deep);
+  if (text === null) return <span className="jh-empty">—</span>;
+  return (
+    <span className="jh-root">
+      {copyable && <CopyButton text={text} />}
+      {text.split("\n").map((line, i) => (
+        <Line key={i} line={line} />
+      ))}
+    </span>
   );
 }
