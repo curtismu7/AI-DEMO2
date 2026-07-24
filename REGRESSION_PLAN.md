@@ -102,6 +102,53 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-24 — UC13 confused-deputy attack sim PERMITted instead of DENY
+
+**Files changed:**
+
+- `demo_api_server/services/mcpGatewayClient.js` — send a new `X-Demo-Force-Actor`
+  header alongside the existing rogue `X-Act-Client-Id` override.
+- `demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts` — honor
+  `x-demo-force-actor` (same internal-secret trust gate as the other bridged
+  headers) to prefer the bridged actor over an already-present native `act` claim.
+- `ping-gateway/scripts/groovy/p1az-decision.groovy` — same bypass for the IG
+  path (the default active route, `ff_mcp_gateway_pinggateway=true`).
+- `demo_api_server/config/useCases.js` — rewrote the UC13 catalog entry
+  (`pingOneSolution`/`whatLong`/`businessValue`/`whatToSay`/`codeRefs`) to teach
+  the native-claim-vs-header mechanism in the Explain modal.
+- `docs/use-cases/confused-deputy-actor-injection.md` — regenerated via
+  `npm run use-cases:docs:gen` (auto-generated from the catalog above).
+
+**What was broken:** The sim overrode the `X-Act-Client-Id` header to a rogue
+actor, but a 2026-06-19 rollout (the null-safe `act` resource-attribute SPEL,
+see `docs/ACT_CLAIM_VERIFICATION.md`) made PingOne stamp a **native** `act`
+claim on this hop. Both the Node gateway and PingGateway's Groovy filter prefer
+a native claim over any header — correct security behavior — so the rogue
+header was silently shadowed by the real actor's native claim on every run.
+PingOne Authorize saw the real actor and correctly PERMITted; the sim's
+injection technique was stale, not the enforcement.
+
+**What was fixed:** Added `X-Demo-Force-Actor`, a new internal-secret-gated
+header sent ONLY by the confused-deputy sim path, that tells the gateway/IG to
+prefer the bridged header over an already-present native claim for that one
+call. Real traffic never sets it — native-over-header precedence is unchanged
+for every normal call. Live-verified against the real PingOne Authorize
+decision endpoint: `ActClientId` now carries the rogue value and the response
+includes the `mcp-invalid-actor` DENY statement.
+
+**Do not break:** Don't weaken native-over-header precedence for real traffic —
+`X-Demo-Force-Actor` must stay gated behind the same `x-internal-gateway-secret`
+trust check as `X-Act-Client-Id`/`X-May-Act-Sub`, and only
+`attackSimulatorService`'s `rogue-actor` sim should ever set it.
+
+**Verify:** `cd demo_mcp_gateway && CI=true npx jest tests/gatewayTokenPolicy.test.ts tests/authorizeMcpRequest-exchange.test.ts tests/authorizeMcpRequest-denyProvenance.test.ts tests/authorizeMcpRequestCore.uc16.test.ts tests/authorizeMcpRequest-validation.test.ts tests/authorizeMcpRequest.productionPath.test.ts tests/authorizeMcpRequestCore.introspectionUnavailable.test.ts --testPathIgnorePatterns="/node_modules/"` (55 passed);
+`cd demo_api_server && CI=true npx jest src/__tests__/attackSimulator.authorizeEvidence.test.js src/__tests__/mcpToolPipeline.confusedDeputy.test.js src/__tests__/bffMcpToolExecutor.runPipelineForSim.test.js --testPathIgnorePatterns="/node_modules/"` (12 passed);
+`cd demo_authz_server && node --test decision.confused-deputy.test.js decision.mockCloudParity.test.js` (16 passed);
+`cd demo_api_server && npm run use-cases:docs:check` (48 docs current).
+Live re-verified against the running stack (scratch copy into main checkout's
+mount source, reverted after): real PingOne Authorize DECISION flipped from
+PERMIT to DENY for the same rogue-actor sim run.
+
 ### 2026-07-24 — ping-gateway's mcp-delegation route silently failed to build
 
 **Files changed:**

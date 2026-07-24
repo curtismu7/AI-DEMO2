@@ -637,8 +637,10 @@ export function buildAuthorizeMcpRequest(
     }
 
     // ── Step 2c: bridge actor identity from BFF headers (HTTP parity with the WS path) ──
-    // PingOne can't emit `act`/`may_act` on exchanged tokens (resource SpEL can't reference
-    // the actor token), so the BFF bridges them via trusted server-to-server headers. The WS
+    // On hops where PingOne can't emit a native `act`/`may_act` (resource SpEL has no actor
+    // token to reference), the BFF bridges them via trusted server-to-server headers. Where a
+    // native claim IS present (e.g. this resource's null-safe act SPEL, rolled out 2026-06-19 —
+    // see docs/ACT_CLAIM_VERIFICATION.md), it always wins; the header is a fallback only. The WS
     // path (index.ts) already applies these; mirror it here so the Authorize decision sees
     // ActClientId + MayActSub on the HTTP transport too — required for ENFORCE_MAY_ACT.
     const _hdr = (n: string): string | undefined => {
@@ -653,7 +655,13 @@ export function buildAuthorizeMcpRequest(
     const _wsSecretOk = checkInternalSecret(_hdr('x-internal-gateway-secret'), config.bffInternalSecret);
     const bffActClientId = _wsSecretOk ? _hdr('x-act-client-id') : undefined;
     const bffMayActSub = _wsSecretOk ? _hdr('x-may-act-sub') : undefined;
-    if (decoded && !decoded.act?.sub && bffActClientId) {
+    // Confused-deputy demo (UC13): X-Demo-Force-Actor, gated by the same trust check, tells
+    // us to prefer the bridged header even when a native `act` claim is already present —
+    // otherwise the rogue actor the sim injects is silently shadowed by the real native claim
+    // and PingOne Authorize sees the real actor instead. Real traffic never sets this header;
+    // native act still wins for every normal call. Demo-only escape hatch, not a security change.
+    const _forceDemoActor = _wsSecretOk && _hdr('x-demo-force-actor') === 'true';
+    if (decoded && (_forceDemoActor || !decoded.act?.sub) && bffActClientId) {
       decoded.act = { sub: bffActClientId };
     }
     if (decoded && !decoded.may_act?.sub && bffMayActSub) {
