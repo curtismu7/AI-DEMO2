@@ -1,0 +1,12 @@
+{
+  "name": "demo-mcp-brave",
+  "version": "1.0.0",
+  "description": "MCP-over-HTTP server for Brave News Search — Agent Gateway (IG) remote-third-party-MCP showcase",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
