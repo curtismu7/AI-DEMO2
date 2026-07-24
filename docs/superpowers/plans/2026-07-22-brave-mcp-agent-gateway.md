@@ -473,7 +473,7 @@ Add these two lines to the `ping-gateway` service's `environment:` block, immedi
 
 And immediately after the existing `BFF_WEATHER_FLAG_URL` line (around `docker-compose.yml:905`):
 ```yaml
-      BFF_BRAVE_FLAG_URL: "http://api-server:3001/internal/feature-flags/brave-mcp-showcase"
+      BFF_BRAVE_FLAG_URL: "https://api.ping.demo:3001/internal/feature-flags/brave-mcp-showcase"
 ```
 
 Add a `depends_on` entry for `mcp-brave` on the `ping-gateway` service, immediately after the existing `mcp-weather:` entry (around `docker-compose.yml:948`):

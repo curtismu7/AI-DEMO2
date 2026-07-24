@@ -926,7 +926,7 @@ services:
       PG_MORTGAGE_BACKEND_URL: "http://mortgage-service:8082"
       BFF_VAULT_KEY_URL: "https://api.ping.demo:3001/internal/vault/service-key"
       BFF_WEATHER_FLAG_URL: "http://api-server:3001/internal/feature-flags/weather-mcp-showcase"
-      BFF_BRAVE_FLAG_URL: "http://api-server:3001/internal/feature-flags/brave-mcp-showcase"
+      BFF_BRAVE_FLAG_URL: "https://api.ping.demo:3001/internal/feature-flags/brave-mcp-showcase"
       # BFF_INTERNAL_SECRET comes from env_file (ping-gateway/.env, written by
       # refresh-service-envs.js) so it matches the BFF's real value — do NOT set
       # it here (environment: would override env_file with a wrong/default value).
