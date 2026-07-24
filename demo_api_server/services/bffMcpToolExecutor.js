@@ -144,7 +144,16 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
     const { recordToolCall: recordMcpToolCall } = require('./mcpToolAuditStore');
     const tools = getBankingToolDefinitions();
     const tool = tools.find((t) => t.name === name);
-    if (!tool) return JSON.stringify({ error: `Unknown tool: ${name}` });
+    if (!tool) {
+      // Not a known LangChain tool schema either. This can still be a real
+      // MCP-server tool invoked directly rather than via LLM function-calling —
+      // e.g. oauth-teaching's demonstrate_token_exchange/demonstrate_scope_denial
+      // simulate a nested call to get_my_accounts/get_investment_balance, neither
+      // of which is a plugin action tool or a LangChain registry entry. The
+      // gateway is the source of truth for tool existence, so route there instead
+      // of guessing it doesn't exist.
+      return callMcpToolAsAgent({ name, args, userId, userToken, sessionId, tokenEvents });
+    }
 
     const mockReq = {
       session: { oauthTokens: { accessToken: userToken }, id: sessionId },
