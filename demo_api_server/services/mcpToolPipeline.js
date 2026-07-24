@@ -960,6 +960,41 @@ async function runMcpToolPipeline(ctx) {
             return localResultOutcome(contentHitl, tokenEvents, { _hitlFromResultContent: true });
         }
 
+        // A gateway-brokered call whose P1AZ check came back DENY does NOT throw
+        // (callToolViaGateway returns { result, gwAuditTrail } normally even on a
+        // gateway-side denial) — without this check the call fell through to the
+        // ordinary httpStatus 200 result below, handing the LLM a raw error
+        // envelope (e.g. {"message":"Unauthorized"}) to narrate instead of the
+        // request stopping with the same gateway_policy_denied / gateway_misconfigured
+        // Outcome the thrown-error path above already produces. A response with no
+        // correlationId and a bare "Unauthorized" rawResponse means PingGateway's own
+        // call to PingOne Authorize failed (its worker credentials), not a real
+        // policy verdict — that must read as "fix the gateway", not "you are denied"
+        // (same distinction the gateway_misconfigured catch-block handler makes).
+        if (useGateway && gwAuditTrail?.authorize?.decision === 'DENY') {
+            const authzRes = gwAuditTrail.authorize;
+            const isInfraFault = !authzRes.correlationId
+                && (/unauthorized/i.test(authzRes.rawResponse?.message || ''));
+            if (isInfraFault) {
+                logger.warn(_CAT, `[/api/mcp/tool] Gateway's own PingOne Authorize call failed for tool '${tool}' — infra fault, not a policy denial.`);
+                deps.emit({ phase: 'gateway_misconfigured' });
+                return { kind: 'block', httpStatus: 503, tokenEvents, body: {
+                    error: 'gateway_misconfigured',
+                    tool,
+                    message: 'The gateway could not reach PingOne Authorize to evaluate this request (its own credentials were rejected). Contact an administrator.',
+                    tokenEvents,
+                } };
+            }
+            logger.warn(_CAT, `[/api/mcp/tool] Gateway denied tool '${tool}' via PingOne Authorize.`);
+            deps.emit({ phase: 'gateway_policy_denied' });
+            return { kind: 'block', httpStatus: 403, tokenEvents, body: {
+                error: 'gateway_policy_denied',
+                tool,
+                message: authzRes.reason || 'PingOne Authorize declined this request.',
+                tokenEvents,
+            } };
+        }
+
         const out = {
             result,
             tokenEvents,
