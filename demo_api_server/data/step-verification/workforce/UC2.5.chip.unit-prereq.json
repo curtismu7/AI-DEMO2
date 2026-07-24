@@ -1,0 +1,18 @@
+{
+  "vertical": "workforce",
+  "useCaseId": "UC2.5",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "FAIL",
+  "errorClass": "missing_prereq",
+  "primaryTool": "get_portfolio_summary",
+  "checkedAt": "2026-07-24T01:59:32.727Z",
+  "requiredFlags": [
+    "ff_a2a_delegation",
+    "ff_mcp_gateway_pinggateway",
+    "ff_gateway_brokered_exchange"
+  ],
+  "prereqErrors": [
+    "Payroll Specialist credentials missing (pingone_payroll_agent_client_id / pingone_payroll_agent_client_secret)"
+  ]
+}

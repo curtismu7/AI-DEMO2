@@ -271,7 +271,6 @@ const FIELD_DEFS = {
   // `authorize_mode` UNSET so this flag drives the engine — an explicit
   // authorize_mode wins in resolveAuthorizeMode() and would ignore this flag.
   ff_authorize_simulated:      { public: true, default: 'false' },
-  ff_authorize_rules_panel:    { public: true, default: 'true'  },
   // Scenario 1 — group-membership deny. OFF by default (no behavior change);
   // SE enables it for the "user not in group" demo. When on, the authorize
   // engines DENY a restricted tool unless the user is in its required group.

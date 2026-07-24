@@ -1,0 +1,14 @@
+{
+  "vertical": "university",
+  "useCaseId": "UC21",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "pay_tuition_balance",
+  "checkedAt": "2026-07-24T01:59:32.257Z",
+  "requiredFlags": [
+    "ff_mcp_gateway_pinggateway",
+    "ff_gateway_brokered_exchange"
+  ]
+}

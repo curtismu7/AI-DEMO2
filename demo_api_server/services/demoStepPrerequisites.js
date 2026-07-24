@@ -34,6 +34,26 @@ const MCP_GATEWAY_RUNTIME_FLAGS = [
 ];
 
 /**
+ * Whether a use case exercises the PAR/RAR (Pushed Authorization Request) path.
+ * Catches non-chip triggers — attack sim `rar-exceeded` and the intent-binding
+ * learning link — that require live PingOne PAR config to run.
+ * @param {object|null|undefined} uc
+ * @returns {boolean}
+ */
+function needsParConfig(uc) {
+  if (!uc) return false;
+  const trigger = uc.trigger || {};
+  if (trigger.sim === 'rar-exceeded') return true;
+  if (typeof trigger.path === 'string' && trigger.path.includes('intent-binding')) return true;
+  if (Array.isArray(uc.evidence && uc.evidence.tokenChain)) {
+    return uc.evidence.tokenChain.some(
+      (t) => String(t).startsWith('sim-rar') || t === 'intent-binding-verified',
+    );
+  }
+  return false;
+}
+
+/**
  * Whether a catalog entry exercises the MCP token-exchange path.
  * @param {object|null|undefined} uc
  * @returns {boolean}
@@ -172,4 +192,5 @@ module.exports = {
   checkA2aCredentials,
   checkChipPrerequisites,
   isFlagOn,
+  needsParConfig,
 };

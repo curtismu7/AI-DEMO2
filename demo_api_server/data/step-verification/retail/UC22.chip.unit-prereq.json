@@ -1,0 +1,15 @@
+{
+  "vertical": "retail",
+  "useCaseId": "UC22",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "checkout",
+  "checkedAt": "2026-07-24T01:59:35.183Z",
+  "requiredFlags": [
+    "ff_ciba",
+    "ff_mcp_gateway_pinggateway",
+    "ff_gateway_brokered_exchange"
+  ]
+}

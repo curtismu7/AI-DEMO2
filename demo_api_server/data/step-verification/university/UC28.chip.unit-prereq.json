@@ -1,0 +1,14 @@
+{
+  "vertical": "university",
+  "useCaseId": "UC28",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "view_courses",
+  "checkedAt": "2026-07-24T01:59:32.260Z",
+  "requiredFlags": [
+    "ff_mcp_gateway_pinggateway",
+    "ff_gateway_brokered_exchange"
+  ]
+}

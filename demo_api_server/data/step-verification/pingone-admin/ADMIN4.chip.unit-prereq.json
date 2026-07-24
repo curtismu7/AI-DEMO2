@@ -1,0 +1,11 @@
+{
+  "vertical": "pingone-admin",
+  "useCaseId": "ADMIN4",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "call_pingone_tool",
+  "checkedAt": "2026-07-24T01:59:36.461Z",
+  "verifiedBy": "pingone-admin vertical has no flag/A2A/PAR prerequisites"
+}

@@ -10,7 +10,10 @@ const { tools, execute } = require('./tools');
 const HEURISTICS = [
   { re: /\blist\b.*\busers?\b|\bshow\s+users?\b|\bhow many\b.*\b(users?|identit)/i, action: 'call_pingone_tool', defaultParams: { name: 'listUsers' } },
   { re: /\bcreate\b.*\buser\b|\badd\b.*\buser\b/i,                                  action: 'call_pingone_tool', defaultParams: { name: 'createUser' } },
+  { re: /\b(look\s*up|find|get|search)\b.*\buser\b|\buser\b.*\b(look\s*up|detail|info|profile)/i, action: 'call_pingone_tool', defaultParams: { name: 'getUser' } },
   { re: /\blist\b.*\bapp|\bshow\b.*\bapp/i,                                          action: 'call_pingone_tool', defaultParams: { name: 'listApplications' } },
+  { re: /\blist\b.*\bpopulation|\bshow\b.*\bpopulation/i,                            action: 'call_pingone_tool', defaultParams: { name: 'listPopulations' } },
+  { re: /\breset\b.*\bpassword|\bpassword\b.*\breset/i,                              action: 'call_pingone_tool', defaultParams: { name: 'resetPassword' } },
   { re: /\b(get|show|view)\b.*\benvironment\b/i,                                     action: 'call_pingone_tool', defaultParams: { name: 'getEnvironment' } },
   { re: /\b(discover|explore|show|list|what|which)\b.*\b(tools?|apis?|operat|capabilit|can you do)/i, action: 'list_pingone_tools' },
 ];

@@ -1,0 +1,14 @@
+{
+  "vertical": "manufacturing",
+  "useCaseId": "UC20",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "view_work_orders",
+  "checkedAt": "2026-07-24T01:59:31.560Z",
+  "requiredFlags": [
+    "ff_mcp_gateway_pinggateway",
+    "ff_gateway_brokered_exchange"
+  ]
+}

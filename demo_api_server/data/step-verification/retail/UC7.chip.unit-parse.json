@@ -1,0 +1,10 @@
+{
+  "vertical": "retail",
+  "useCaseId": "UC7",
+  "triggerType": "chip",
+  "mode": "unit-parse",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "checkout",
+  "checkedAt": "2026-07-24T01:59:35.020Z"
+}
