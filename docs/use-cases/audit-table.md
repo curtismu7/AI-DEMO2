@@ -54,7 +54,7 @@
 |---|---|---|---|---|---|
 | UC2 | [A2A delegation](./a2a-delegation.md) | foundations | 🚩 flag-gated (ff_a2a_delegation) | 🛡️ T9, T13 |  |
 | UC9 | [Group / entitlement check](./group-entitlement-check.md) | controls | 🚩 flag-gated (ff_authorize_group_policy) | 🛡️ T3 |  |
-| UC22 | [CIBA out-of-band approval](./ciba-out-of-band-approval.md) | hitl | 🚩 flag-gated (ff_ciba) | 🛡️ T10 |  |
+| UC22 | [CIBA out-of-band approval](./ciba-out-of-band-approval.md) | hitl | 🚩 flag-gated (ciba_enabled) | 🛡️ T10 |  |
 | UC12 | [Token theft / replay defense](./token-theft-replay.md) | attacks | 🚩 flag-gated (ff_dpop) | 🛡️ T9 |  |
 | UC14 | [PAR intent violation (Pushed Auth Request)](./rar-intent-violation.md) | attacks | 🚩 flag-gated (ff_rar) | 🛡️ T6 |  |
 | UC14b | [PAR intent verified (PERMIT)](./rar-intent-verified.md) | learn | 🚩 flag-gated (ff_rar) |  |  |

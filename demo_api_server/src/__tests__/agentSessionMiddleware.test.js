@@ -87,7 +87,7 @@ describe('agentSessionMiddleware', () => {
 
     expect(next).not.toHaveBeenCalled();
     expect(res._status).toBe(401);
-    expect(res._json.error).toBe('Unauthorized');
+    expect(res._json.error).toBe('session_expired');
   });
 
   it('returns 401 when oauthTokens.accessToken is missing', async () => {
@@ -176,7 +176,7 @@ describe('agentSessionMiddleware', () => {
 
     expect(next).not.toHaveBeenCalled();
     expect(res._status).toBe(401);
-    expect(res._json.error).toBe('Session expired');
+    expect(res._json.error).toBe('session_expired');
   });
 
   it('recordTokenEvent appends to tokenEvents array', async () => {
