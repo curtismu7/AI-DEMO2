@@ -5175,6 +5175,8 @@ body > .banking-agent-float-root .banking-agent-panel {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 6px;
+  max-height: 310px;
+  overflow-y: auto;
 }
 
 /* Each grid cell: flex row so the "i" button sits flush against the card's right edge */
