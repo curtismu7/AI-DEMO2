@@ -102,6 +102,35 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-24 — ping-gateway's mcp-delegation route silently failed to build
+
+**Files changed:**
+
+- `demo_api_server/scripts/refresh-service-envs.js`
+- `demo_api_server/src/__tests__/refreshServiceEnvs.delegationRoute.test.js` (new)
+
+**What was broken:** `ping-gateway/config/routes/03-mcp-delegation.json`
+substitutes `DELEGATION_RESOURCE_AUDIENCE` / `DELEGATION_RESOURCE_SCOPE` into
+`DelegationProtection`'s `resourceId` and `DelegationResourceServerFilter`'s
+`scopes`, but the generator never emitted either — PingGateway rejected the
+route at boot with `JsonValueException: .../resourceId: Expecting a value`.
+Gateway still started fine on its other 15 routes, so this went unnoticed.
+
+**What was fixed:** Added both to the generator's `ping-gateway/.env` block.
+`DELEGATION_RESOURCE_AUDIENCE` must be an absolute URI (same shape as every
+other route's `PG_GATEWAY_RESOURCE_ID`) — a bare `"test"` string builds the
+JSON fine but then NPEs in `ResourceId.resourceId()` (`URI.getScheme()` is
+null without a scheme), so it's `https://test`, matching the route's own
+comment that this is a fixed test resource, not a real production audience.
+`DELEGATION_RESOURCE_SCOPE` is a plain scope string (`test`), not a URI.
+
+**Do not break:** Every other `writeEnvFile('ping-gateway', ...)` key is
+unchanged. This route is a Phase 2 demo/scaffold with no real backend traffic
+riding on it — do not wire `DELEGATION_RESOURCE_AUDIENCE`/`_SCOPE` to a real
+production resource without deliberately deciding to make this route live.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/refreshServiceEnvs.delegationRoute.test.js --testPathIgnorePatterns="/node_modules/"`, then `node scripts/refresh-service-envs.js && docker compose up -d --force-recreate --no-deps ping-gateway` and confirm `docker logs ai-demo-ping-gateway` shows `Loaded the route with id '03-mcp-delegation'` with no `ERROR`.
+
 ### 2026-07-24 — Token Chain evidence JSON unreadable; "Show more detail" renamed
 
 **Files changed:**

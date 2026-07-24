@@ -479,6 +479,19 @@ async function main() {
     P1AZ_WORKER_CLIENT_ID:          fb('PINGONE_AUTHORIZE_WORKER_CLIENT_ID') || fb('PINGONE_WORKER_CLIENT_ID'),
     P1AZ_WORKER_CLIENT_SECRET:    fb('PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET') || fb('PINGONE_WORKER_CLIENT_SECRET'),
     PINGONE_TOKEN_ENDPOINT:         `${asBase}/token`,
+    // ping-gateway/config/routes/03-mcp-delegation.json (Phase 2 RFC 8693
+    // delegation demo route) needs these two for DelegationProtection's
+    // resourceId and DelegationResourceServerFilter's scopes — without them
+    // the route fails to build at PingGateway boot: an unset resourceId is
+    // first a JsonValueException (empty string), and a bare non-URI string
+    // (e.g. "test") then NPEs in ResourceId.resourceId() (it calls
+    // URI.getScheme(), which is null without a scheme) — resourceId must be
+    // an absolute URI, same as every other route's PG_GATEWAY_RESOURCE_ID.
+    // The route's own comment documents this route against a fixed "test"
+    // resource/scope, not a real production audience — "test" alone just
+    // isn't a valid URI, so it needs a scheme.
+    DELEGATION_RESOURCE_AUDIENCE:   'https://test',
+    DELEGATION_RESOURCE_SCOPE:      'test',
   });
   console.log('[refresh-envs] Wrote ping-gateway/.env');
 
