@@ -3,8 +3,8 @@
  * Shared by UseCaseLauncherPage (/use-cases Demo section) and the agent
  * "Demo steps" dropdown so both lists stay identical.
  *
- * Primary = trust-ladder walkthrough (expanded).
- * Advanced = CIBA / A2A / attack deep-dives (collapsed "More demos").
+ * Primary = trust-ladder + A2A + CIBA walkthrough (expanded, 9 steps).
+ * Advanced = attack deep-dives (collapsed "More demos").
  * Attacks + Testing chips live in the Actions popout, not here.
  */
 export const DEMO_PRIMARY_USE_CASE_IDS = [
@@ -14,12 +14,12 @@ export const DEMO_PRIMARY_USE_CASE_IDS = [
   'UC14b', // Intent (RAR verified)
   'UC12',  // DPoP / replay defense
   'UC6',   // Authz DENY
-];
-
-export const DEMO_ADVANCED_USE_CASE_IDS = [
   'UC2',   // A2A delegation
   'UC2.5', // A2A orchestrator learning
   'UC22',  // CIBA out-of-band
+];
+
+export const DEMO_ADVANCED_USE_CASE_IDS = [
   'UC5',   // Insufficient scope
   'UC10',  // Cross-owner
   'UC13',  // Confused deputy
