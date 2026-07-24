@@ -669,7 +669,10 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
   // specialist's tool call actually succeeded. Report that separately so a tool-call
   // failure (e.g. a gateway DENY, a missing BFF route) surfaces instead of being
   // masked by an unconditional "Delegation complete" text.
-  const toolError = toolResult && typeof toolResult === 'object' && toolResult.error;
+  // Detect error by key presence, not truthiness — an empty-string error ("") is
+  // still a failure. Fall back to 'tool_error' so the UI has a displayable label.
+  const toolHasError = toolResult && typeof toolResult === 'object' && 'error' in toolResult;
+  const toolError = toolHasError ? (toolResult.error || 'tool_error') : null;
 
   return JSON.stringify({
     delegated: true,

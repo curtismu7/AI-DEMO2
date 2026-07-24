@@ -49,6 +49,9 @@ const AI_AGENT_AUDIENCE = process.env.AI_AGENT_AUDIENCE || null;
 const MCP_RESOURCE_URI  = process.env.PINGONE_RESOURCE_MCP_SERVER_URI || process.env.MCP_RESOURCE_URI || null;
 const BANKING_API_RESOURCE_URI = process.env.BANKING_API_RESOURCE_URI || null;
 const MCP_GATEWAY_RESOURCE_URI = process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI || null;
+// mcp-invest backend resource URI — tokens minted for this audience arrive on the
+// investment BFF callback route (A2A nested-act chain, gateway Exchange #3 target).
+const MCP_INVEST_AUDIENCE = process.env.MCP_INVEST_AUDIENCE || null;
 const AI_AGENT_SCOPE = process.env.AI_AGENT_SCOPE || 'ai_agent';
 const DEFAULT_USER_TYPE = process.env.DEFAULT_USER_TYPE || 'customer';
 
@@ -583,7 +586,10 @@ const validatePingOneCoreToken = async (token, requestContext = {}) => {
         // scope, and role enforcement on these routes still apply after this check.
         || (method === 'POST' && baseUrl === '/api/transactions' && path === '/')
         || (method === 'POST' && baseUrl === '/api/accounts' && /^\/[^/]+\/fee-waiver-request$/.test(path))
-        || (method === 'PATCH' && baseUrl === '/api/accounts' && /^\/[^/]+\/contact-email$/.test(path));
+        || (method === 'PATCH' && baseUrl === '/api/accounts' && /^\/[^/]+\/contact-email$/.test(path))
+        // A2A investment specialist callback: mcp-invest calls the BFF with a
+        // gateway-exchanged token (aud=mcp-invest.ping.demo) to fetch portfolio data.
+        || (baseUrl === '/api/investment' && /^\/accounts\/[^/]+\/portfolio/.test(path));
       const gwAuds = String(MCP_GW_RESOURCE_URI).split(',').map((s) => s.trim()).filter(Boolean);
       if (PINGGATEWAY_RESOURCE_URI && !gwAuds.includes(PINGGATEWAY_RESOURCE_URI)) {
         gwAuds.push(PINGGATEWAY_RESOURCE_URI);
@@ -595,6 +601,12 @@ const validatePingOneCoreToken = async (token, requestContext = {}) => {
       // (sub-scoped, only obtainable via RFC 8693 exchange).
       if (MCP_RESOURCE_URI && !gwAuds.includes(MCP_RESOURCE_URI)) {
         gwAuds.push(MCP_RESOURCE_URI);
+      }
+      // mcp-invest resource URI — Exchange #3 for A2A investment specialist path
+      // narrows the nested-act token to this audience; mcp-invest forwards the same
+      // bearer to the /api/investment callback route (same RFC 8693 trust basis).
+      if (MCP_INVEST_AUDIENCE && !gwAuds.includes(MCP_INVEST_AUDIENCE)) {
+        gwAuds.push(MCP_INVEST_AUDIENCE);
       }
       const hasMatch = tokenAuds.includes(BFF_RESOURCE_URI) ||
         (isMcpCallback && tokenAuds.some((a) => gwAuds.includes(a)));
