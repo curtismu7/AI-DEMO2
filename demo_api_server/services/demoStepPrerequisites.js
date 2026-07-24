@@ -54,6 +54,31 @@ function needsParConfig(uc) {
 }
 
 /**
+ * configStore keys that must all be set for PingOne PAR (RFC 9126) — the AI
+ * Agent Actor (WEB) app's PAR push + token exchange. Mirrors the live check
+ * in routes/intentBinding.js (parEndpoint / clientId / clientSecret / redirect).
+ */
+const PAR_CONFIG_KEYS = [
+  'pingone_par_endpoint',
+  'pingone_ai_agent_actor_client_id',
+  'pingone_ai_agent_actor_client_secret',
+  'pingone_ai_agent_actor_redirect_uri',
+];
+
+/**
+ * Check PingOne PAR (RFC 9126) config keys are present.
+ * @param {{ getEffective: (k: string) => * }} cfg configStore-like
+ * @returns {{ ok: boolean, missing: string[] }}
+ */
+function checkParConfig(cfg) {
+  const missing = PAR_CONFIG_KEYS.filter((k) => {
+    const v = cfg && typeof cfg.getEffective === 'function' ? cfg.getEffective(k) : null;
+    return !v;
+  });
+  return { ok: missing.length === 0, missing };
+}
+
+/**
  * Whether a catalog entry exercises the MCP token-exchange path.
  * @param {object|null|undefined} uc
  * @returns {boolean}
@@ -144,7 +169,7 @@ function checkA2aCredentials(vertical, cfg) {
  * @param {object} uc
  * @param {string} vertical
  * @param {{ getEffective: (k: string) => * }} cfg
- * @returns {{ ok: boolean, requiredFlags: string[], a2a: ReturnType<typeof checkA2aCredentials>|null, errors: string[] }}
+ * @returns {{ ok: boolean, requiredFlags: string[], a2a: ReturnType<typeof checkA2aCredentials>|null, par: ReturnType<typeof checkParConfig>|null, errors: string[] }}
  */
 /**
  * Whether a configStore-like value means the flag is armed.
@@ -159,6 +184,7 @@ function checkChipPrerequisites(uc, vertical, cfg) {
   const requiredFlags = requiredFlagsForUseCase(uc);
   const errors = [];
   let a2a = null;
+  let par = null;
   for (const flag of requiredFlags) {
     const v = cfg && typeof cfg.getEffective === 'function' ? cfg.getEffective(flag) : null;
     if (!isFlagOn(v)) {
@@ -174,10 +200,17 @@ function checkChipPrerequisites(uc, vertical, cfg) {
       );
     }
   }
+  if (needsParConfig(uc)) {
+    par = checkParConfig(cfg);
+    if (!par.ok) {
+      errors.push(`PAR config missing: ${par.missing.join(', ')}`);
+    }
+  }
   return {
     ok: errors.length === 0,
     requiredFlags,
     a2a,
+    par,
     errors,
   };
 }
@@ -193,4 +226,6 @@ module.exports = {
   checkChipPrerequisites,
   isFlagOn,
   needsParConfig,
+  checkParConfig,
+  PAR_CONFIG_KEYS,
 };
