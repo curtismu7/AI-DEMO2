@@ -496,7 +496,7 @@ export function buildTraceSteps(trace) {
   const mcpDone = hasPhase(phases, "mcp_remote_done") || !!(mcpResult && mcpResult.result);
   const mcpBegun = hasPhase(phases, "mcp_remote_begin");
   steps.push(makeStep("mcp",
-    authorizeFailed ? "notinpath" : mcpDone ? "done" : gwDenied ? "error" : mcpBegun ? "active" : "pending",
+    authorizeFailed ? "notinpath" : mcpDone ? "done" : gwDenied ? "error" : mcpBegun ? "active" : traceComplete ? "notinpath" : "pending",
     mcpResult ? {
       why: `MCP executed “${mcpResult.tool || mcpResult.toolName || "tool"}”`
         + (mcpResult.durationMs != null ? ` in ${mcpResult.durationMs} ms` : "")
