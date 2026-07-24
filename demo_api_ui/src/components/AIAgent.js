@@ -4098,7 +4098,7 @@ export default function BankingAgent({
             const cibaTab = window.open(
               "",
               "ciba-approve",
-              "popup=yes,width=440,height=720,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
+              "popup=yes,width=400,height=380,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
             );
             try {
               const apiBase = process.env.REACT_APP_API_URL || "";
@@ -7153,7 +7153,7 @@ export default function BankingAgent({
       const cibaTab = window.open(
         "",
         "ciba-approve",
-        "popup=yes,width=440,height=720,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
+        "popup=yes,width=400,height=380,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
       );
       try {
         const apiBase = process.env.REACT_APP_API_URL || "";
