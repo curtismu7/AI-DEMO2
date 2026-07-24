@@ -131,6 +131,42 @@ text is unchanged — only the literal "Show more detail" string was renamed.
 
 **Verify:** `cd demo_api_ui && npx vitest run src/components/__tests__/TraceStepCard.teaching.test.jsx src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js && npm run build`
 
+### 2026-07-24 — Gateway-side P1AZ DENY on the non-throwing success path returned httpStatus 200 instead of stopping
+
+**Files changed:**
+
+- `demo_api_server/services/mcpToolPipeline.js`
+- `demo_api_server/src/__tests__/mcpToolPipeline.gatewayDenyOnSuccess.test.js` (new)
+
+**What was broken:** `callToolViaGateway` returns `{ result, gwAuditTrail }`
+normally even when PingGateway's own P1AZ check denies the call — it only
+throws on connection/HTTP-level failures. The pipeline's success branch built
+DENY evidence (`gw-authorize`/`gw-filter-chain` token events) for the trace
+panel but then unconditionally returned `kind:'result', httpStatus:200`
+anyway, handing the LLM a raw error envelope (e.g. `{"message":"Unauthorized"}`)
+to narrate instead of stopping. The existing `gateway_policy_denied` /
+`gateway_misconfigured` block handling in the `catch` block never fired,
+because this path never threw. User-visible symptom: the agent reply looked
+like it might have worked while the token-chain proof step showed
+"Incomplete."
+
+**What was fixed:** When `gwAuditTrail.authorize.decision === 'DENY'` on the
+gateway success path, stop and return the same `kind:'block'` Outcome shape
+the thrown-error path already produces. Distinguishes a genuine PingOne
+Authorize verdict (has a `correlationId`) → `gateway_policy_denied` (403, the
+policy's stated reason) from PingGateway's own upstream call to PingOne
+failing before a real decision was ever made (no `correlationId`, bare
+`"Unauthorized"` `rawResponse`) → `gateway_misconfigured` (503, "contact an
+administrator") — same distinction the thrown-error handler already makes,
+now applied to the non-throwing DENY shape too.
+
+**Do not break:** A `PERMIT` decision (or no `gwAuditTrail.authorize` at all)
+must keep returning the normal `kind:'result', httpStatus:200` path unchanged
+— confirmed by the existing `mcpToolPipeline.characterization.test.js` suite
+staying green (zero behavior change for every other exit path).
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/mcpToolPipeline.gatewayDenyOnSuccess.test.js src/__tests__/mcpToolPipeline.characterization.test.js --testPathIgnorePatterns="/node_modules/"`
+
 ### 2026-07-23 — Consent modal was too tall and needed the screenshot's tighter layout
 
 **Files changed:**
