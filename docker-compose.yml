@@ -596,6 +596,28 @@ services:
       - ai-demo
     restart: unless-stopped
 
+  # ── MCP Brave (remote third-party API, real outbound calls) ─────────────
+  # Agent Gateway (IG) showcase: fronts a hand-written MCP server that calls
+  # the real Brave Search News API, scoped at the edge by
+  # ping-gateway/scripts/groovy/tx-brave-scope.groovy (invest:read scope +
+  # crypto-term blocklist).
+  mcp-brave:
+    build:
+      context: ./demo_mcp_brave
+      dockerfile: Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
+    container_name: ai-demo-mcp-brave
+    ports:
+      - "8897:8897"
+    env_file:
+      - ./demo_mcp_brave/.env
+    environment:
+      PORT: "8897"
+    networks:
+      - ai-demo
+    restart: unless-stopped
+
   # ── MCP JWT Verifier (Python / FastMCP — JWT/JWKS diagnostic tools) ─────────
   # profile demo-auth — only useful behind the Node mcp-gateway (co-starts with it).
   mcp-jwt-verifier:
@@ -894,6 +916,7 @@ services:
       PG_OLB_BACKEND_URL: "http://mcp-server:8080"
       PG_INVEST_BACKEND_URL: "http://mcp-invest:8081"
       PG_WEATHER_BACKEND_URL: "http://mcp-weather:8896"
+      PG_BRAVE_BACKEND_URL: "http://mcp-brave:8897"
       PG_INBOUND_SCOPE: "gateway:mcp:invoke"
       P1AZ_MOCK_BASE: "http://authz-server:9001"
       # P1AZ_WORKER_ID comes from ./ping-gateway/.env (real decision endpoint id).
@@ -903,6 +926,7 @@ services:
       PG_MORTGAGE_BACKEND_URL: "http://mortgage-service:8082"
       BFF_VAULT_KEY_URL: "https://api.ping.demo:3001/internal/vault/service-key"
       BFF_WEATHER_FLAG_URL: "http://api-server:3001/internal/feature-flags/weather-mcp-showcase"
+      BFF_BRAVE_FLAG_URL: "http://api-server:3001/internal/feature-flags/brave-mcp-showcase"
       # BFF_INTERNAL_SECRET comes from env_file (ping-gateway/.env, written by
       # refresh-service-envs.js) so it matches the BFF's real value — do NOT set
       # it here (environment: would override env_file with a wrong/default value).
@@ -945,6 +969,8 @@ services:
       mcp-invest:
         condition: service_started
       mcp-weather:
+        condition: service_started
+      mcp-brave:
         condition: service_started
       mortgage-service:
         condition: service_started
