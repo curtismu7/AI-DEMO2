@@ -76,6 +76,12 @@
   line-height: 1.25;
   color: #0f172a;
 }
+.acm-card__subtitle {
+  font-size: 0.85rem;
+  color: #475569;
+  line-height: 1.4;
+  margin-top: 2px;
+}
 
 /* Key/value detail rows */
 .acm-kv {

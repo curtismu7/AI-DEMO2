@@ -212,13 +212,13 @@
 }
 
 /* Mirror the open split3 @media 1280px override (UserDashboard.css
-   line ~331): 3-col → 1fr 1fr 1fr; no-banking → 1fr 1fr. */
+   line ~331): 3-col → minmax(0,1fr) x3; no-banking → minmax(0,1fr) x2. */
 @media (max-width: 1280px) {
   .ud-body.ud-body--2026.ud-body--dashboard-split3.ud-middle-collapsed {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
   }
   .ud-body.ud-body--2026.ud-body--dashboard-split3.ud-body--dashboard-split3--no-banking.ud-middle-collapsed {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 
@@ -407,11 +407,11 @@
 
 @media (max-width: 1280px) {
   .ud-body.ud-body--dashboard-split3 {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
   }
 
   .ud-body.ud-body--2026.ud-body--dashboard-split3.ud-body--dashboard-split3--no-banking {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 
@@ -2593,10 +2593,14 @@
   overflow: visible;
 }
 
-/* Split-3 overrides ud-body--2026: all 3 columns equal, flex-fills the viewport */
+/* Split-3 overrides ud-body--2026: all 3 columns equal, flex-fills the viewport.
+   minmax(0,1fr) — not plain 1fr — so grid columns are hard-capped at their track
+   size and never grow to fit overflowing token-chain step cards. Without the
+   explicit min:0, a wide step card pushed the token-rail column wider and squished
+   the agent column. */
 .ud-body.ud-body--2026.ud-body--dashboard-split3 {
   height: 0; /* flex:1 1 0% on the parent rule grows this to fill; 0 prevents content-overflow */
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
   grid-template-rows: 1fr;
   overflow: hidden;
   align-items: stretch;
