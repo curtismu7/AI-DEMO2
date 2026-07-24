@@ -4782,12 +4782,13 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 /* Demo steps popout — same script as /use-cases Demo section */
-/* Wider than the shared .ba-actions-popout (360px) so step titles are not
-   clipped after a few words. Two classes beat the shared single-class rule
-   regardless of source order; the Actions menu keeps its own width. Kept in
-   sync with the measured width used for positioning. */
+/* Wider than the shared .ba-actions-popout (360px) so the 5-column
+   grid has enough room (~130px per card). Two classes beat the shared
+   single-class rule regardless of source order; the Actions menu keeps
+   its own width. Kept in sync with the measured width used for
+   positioning. */
 .ba-actions-popout.ba-demo-steps-popout {
-  width: 440px;
+  width: 760px;
 }
 
 /* Shared agent popout header — slate grey (Demo Steps + Actions).
