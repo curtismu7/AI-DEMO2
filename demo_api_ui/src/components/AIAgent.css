@@ -5166,13 +5166,13 @@ body > .banking-agent-float-root .banking-agent-panel {
   outline: none;
 }
 
-/* Demo steps: 2-column box grid — same visual language as Actions chips */
+/* Demo steps: 5-column box grid — same visual language as Actions chips */
 .ba-demo-steps-popout__grid {
   list-style: none;
   margin: 0;
   padding: 8px 12px;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
 }
 

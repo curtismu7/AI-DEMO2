@@ -3,8 +3,8 @@
  * Shared by UseCaseLauncherPage (/use-cases Demo section) and the agent
  * "Demo steps" dropdown so both lists stay identical.
  *
- * Primary = trust-ladder + A2A + CIBA walkthrough (expanded, 9 steps).
- * Advanced = attack deep-dives (collapsed "More demos").
+ * Primary = all 19 steps shown in the 5×4 visible grid.
+ * Advanced = empty (nothing hidden).
  * Attacks + Testing chips live in the Actions popout, not here.
  */
 export const DEMO_PRIMARY_USE_CASE_IDS = [
@@ -17,9 +17,6 @@ export const DEMO_PRIMARY_USE_CASE_IDS = [
   'UC2',   // A2A delegation
   'UC2.5', // A2A orchestrator learning
   'UC22',  // CIBA out-of-band
-];
-
-export const DEMO_ADVANCED_USE_CASE_IDS = [
   'UC5',   // Insufficient scope
   'UC10',  // Cross-owner
   'UC13',  // Confused deputy
@@ -31,6 +28,8 @@ export const DEMO_ADVANCED_USE_CASE_IDS = [
   'UC31',  // Weather MCP — out-of-scope deny
   'UC32',  // Weather MCP — live-reconfigure the gateway scope
 ];
+
+export const DEMO_ADVANCED_USE_CASE_IDS = [];
 
 /** Flat list for callers that only need order (primary then advanced). */
 export const DEMO_USE_CASE_IDS = [
