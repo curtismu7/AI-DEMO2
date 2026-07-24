@@ -70,12 +70,12 @@ describe('demoUseCaseSteps', () => {
     }
   });
 
-  it('primary list has 9 steps (trust-ladder + A2A + CIBA walkthrough)', () => {
-    expect(DEMO_PRIMARY_USE_CASE_IDS).toHaveLength(9);
+  it('primary list has 19 steps (all use cases visible)', () => {
+    expect(DEMO_PRIMARY_USE_CASE_IDS).toHaveLength(19);
   });
 
-  it('advanced list has 10 steps (deep-dives)', () => {
-    expect(DEMO_ADVANCED_USE_CASE_IDS).toHaveLength(10);
+  it('advanced list is empty (nothing hidden)', () => {
+    expect(DEMO_ADVANCED_USE_CASE_IDS).toHaveLength(0);
   });
 
   it('UC1 is always the first primary step', () => {
