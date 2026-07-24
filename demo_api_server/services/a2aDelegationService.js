@@ -247,7 +247,7 @@ async function delegateToSpecialist(req, opts = {}) {
   const base = { token: null, tokenEvents, claims: null, userSub: null, vertical };
 
   if (!isA2aEnabled(cfg)) {
-    return { ...base, error: 'A2A delegation is disabled (ff_a2a_delegation=false)' };
+    return { ...base, error: 'a2a_delegation_disabled' };
   }
 
   const specialist = specialistForVertical(vertical);

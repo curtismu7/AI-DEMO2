@@ -503,7 +503,7 @@ const RAW_USE_CASES = [
     expectedOutcome: 'PERMIT',
     evidence: { tokenChain: ['authorize-decision', 'ciba-poll', 'tool-dispatched'], activity: ['authorize', 'mcp', 'ciba'] },
     codeRefs: ['demo_api_server/services/cibaService.js', 'demo_api_server/routes/ciba.js'],
-    maturity: 'flag:ff_ciba',
+    maturity: 'flag:ciba_enabled',
     owasp: { threats: ['T10'], sections: ['§3.1.5'] },
     whatToSay: "Note the amount — $150, below the MFA threshold. A person doing this in-browser would sail through. But an AGENT moving money is a sensitive, agent-context action, so approval is requested out-of-band on the user's phone. CIBA is triggered by the action and the actor, not the amount.",
     advanced: false,

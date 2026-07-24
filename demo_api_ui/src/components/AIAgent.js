@@ -237,6 +237,8 @@ const NL_FAILURE_MESSAGES = {
     "Token exchange failed — turn on PingGateway routing and brokered exchange (Admin → Feature flags: ff_mcp_gateway_pinggateway and ff_gateway_brokered_exchange), then try again.",
   invalid_scope:
     "Token exchange requested scopes across multiple resources. Enable ff_mcp_gateway_pinggateway and ff_gateway_brokered_exchange, then retry.",
+  a2a_delegation_disabled:
+    "A2A delegation isn't enabled — turning it on automatically. Try the step again in a moment.",
 };
 const NL_FAILURE_FALLBACK =
   "That step couldn't be completed. Try again, or pick another demo step.";
