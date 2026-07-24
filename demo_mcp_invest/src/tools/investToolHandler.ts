@@ -6,15 +6,22 @@
  */
 
 import axios from 'axios';
+import https from 'node:https';
 
 // BANKING_API_BASE_URL is used in native mode (.env.example); Docker Compose sets
 // DEMO_API_BASE_URL instead — fall through to it before the localhost default.
 const BANKING_API_BASE = process.env.BANKING_API_BASE_URL || process.env.DEMO_API_BASE_URL || 'http://localhost:3001';
+// Dev/staging uses a self-signed mkcert cert (api.ping.demo) that is trusted on the
+// host but not inside Docker containers. Disable TLS verification for the internal hop.
+const devHttpsAgent = BANKING_API_BASE.startsWith('https')
+  ? new https.Agent({ rejectUnauthorized: false })
+  : undefined;
 
 async function callBff(path: string, token: string): Promise<unknown> {
   const response = await axios.get(`${BANKING_API_BASE}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
     timeout: 15_000,
+    ...(devHttpsAgent && { httpsAgent: devHttpsAgent }),
   });
   return response.data;
 }
