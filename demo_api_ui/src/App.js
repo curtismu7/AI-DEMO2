@@ -642,15 +642,13 @@ function AppWithAuth() {
                 <Route
                   path="/telemetry"
                   element={
-                    loading ? null : user ? (
+                    loading ? null : (
                       <>
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
                           <TelemetryPage />
                         </main>
                       </>
-                    ) : (
-                      <Navigate to="/" replace />
                     )
                   }
                 />
