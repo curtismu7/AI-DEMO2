@@ -31,6 +31,7 @@
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
 | UC1 | `check my coverage` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
+| UC2 | `show my sensitive patient records` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
 | UC6 | `pay my $2500 bill` | `DENY` | $2500 bill payment exceeds the policy ceiling — Authorize returns DENY. |
 | UC7 | `pay my $600 bill` | `STEP_UP` | $600 bill payment >= the step-up bar → MFA required first. |
 | UC8 | `pay my $300 bill` | `HITL_REQUIRED` | $300 bill payment requires human consent before it runs. |
@@ -44,6 +45,7 @@
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
 | UC1 | `list my orders` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
+| UC2 | `show my sensitive order history` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
 | UC6 | `checkout headphones for $2500` | `DENY` | $2500 checkout exceeds the policy ceiling — Authorize returns DENY. |
 | UC7 | `checkout headphones for $600` | `STEP_UP` | $600 checkout >= the step-up bar → MFA required first. |
 | UC8 | `checkout headphones for $300` | `HITL_REQUIRED` | $300 checkout requires human consent before it runs. |
@@ -57,6 +59,7 @@
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
 | UC1 | `show my permits` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
+| UC2 | `show my sensitive tax record` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
 | UC6 | `pay the $2500 fee` | `DENY` | $2500 fee payment exceeds the policy ceiling — Authorize returns DENY. |
 | UC7 | `pay the $600 fee` | `STEP_UP` | $600 fee payment >= the step-up bar → MFA required first. |
 | UC8 | `pay the $300 fee` | `HITL_REQUIRED` | $300 fee payment requires human consent before it runs. |
@@ -70,6 +73,7 @@
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
 | UC1 | `show my enrolled courses` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
+| UC2 | `show my student finance details` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
 | UC6 | `pay $2500 tuition` | `DENY` | $2500 tuition payment exceeds the policy ceiling — Authorize returns DENY. |
 | UC7 | `pay $600 tuition` | `STEP_UP` | $600 tuition payment >= the step-up bar → MFA required first. |
 | UC8 | `pay $300 tuition` | `HITL_REQUIRED` | $300 tuition payment requires human consent before it runs. |
@@ -83,6 +87,7 @@
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
 | UC1 | `my benefits` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
+| UC2 | `show my payroll details` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
 | UC6 | `submit a $2500 expense` | `DENY` | $2500 expense exceeds the policy ceiling — Authorize returns DENY. |
 | UC7 | `submit a $600 expense` | `STEP_UP` | $600 expense >= the step-up bar → MFA required first. |
 | UC8 | `submit a $300 expense` | `HITL_REQUIRED` | $300 expense requires human consent before it runs. |
@@ -96,6 +101,7 @@
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
 | UC1 | `my gear` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
+| UC2 | `show my sensitive membership details` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
 | UC6 | `extend my rental $2500` | `DENY` | $2500 rental extension exceeds the policy ceiling — Authorize returns DENY. |
 | UC7 | `extend my rental $600` | `STEP_UP` | $600 rental extension >= the step-up bar → MFA required first. |
 | UC8 | `extend my rental $300` | `HITL_REQUIRED` | $300 rental extension requires human consent before it runs. |
@@ -109,6 +115,7 @@
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
 | UC1 | `show my work orders` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
+| UC2 | `show my sensitive supplier contract` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
 | UC6 | `approve a $2500 purchase order` | `DENY` | $2500 purchase-order approval exceeds the policy ceiling — Authorize returns DENY. |
 | UC7 | `approve a $600 purchase order` | `STEP_UP` | $600 purchase-order approval >= the step-up bar → MFA required first. |
 | UC8 | `approve a $300 purchase order` | `HITL_REQUIRED` | $300 purchase-order approval requires human consent before it runs. |
@@ -122,6 +129,7 @@
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
 | UC1 | `show my portfolios` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
+| UC2 | `show my sensitive holdings` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
 | UC6 | `execute a large trade of $2500` | `DENY` | $2500 exceeds the policy ceiling — Authorize returns DENY before the transfer runs. |
 | UC7 | `execute a large trade of $600` | `STEP_UP` | $600 >= $500 → MFA required, then it proceeds. |
 | UC8 | `execute a large trade of $300` | `HITL_REQUIRED` | The agent paused and waited — the transfer only ran after you approved it. |

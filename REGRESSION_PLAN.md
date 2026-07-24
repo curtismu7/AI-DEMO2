@@ -55,7 +55,7 @@ minimal diff.
 | OAuth redirect origin | `routes/oauth*.js` — no `localhost` hardcodes |
 | Clinical split dashboard (`ff_agent_clinical_split`) | `demo_api_ui/src/components/agent-clinical/` — `AgentClinicalHost.jsx` owns tab state + 1/2/3/4 keyboard; `TalkPane.jsx` hosts the inline agent (auto-open, `setClinicalSplit`) + `TokenAuditTimeline` (live `TokenChainContext` events); `InspectPane.jsx` wraps `ActivityLogPanel`; `TokensPane.jsx` embeds `UnifiedTokenFlowInspector`; `ConfigurePane.jsx` wraps `AuthorizeRulesPanel` + read-only runtime card. Legacy dashboard with the flag OFF must stay unchanged |
 | Code Explorer SSE | `demo_api_ui/nginx.conf`, `k8s/02-configmap.yaml` nginx-config, `k8s/aws/nginx-http-configmap.yaml`, `k8s/aws/se-ingress.yaml`, `demo_api_server/routes/codegraphProxy.js`, `langchain_agent/src/codegraph/agent.py` — `/api/codegraph/` must keep `proxy_buffering off` + 300s timeouts; agent must emit SSE keepalives while waiting on the LLM. Guarded by `scripts/check-codegraph-sse-nginx.js` + `k8s/smoke.sh` check 7 |
-| Code Explorer index DB | Demo index is **`.codegraph/demo-codegraph.db` only** — never `.codegraph/codegraph.db` (host CodeGraph product daemon). `CODEGRAPH_DB_PATH` / bake (`setup:fresh` / `run.sh` / `se-update-code.sh`) / Refresh must keep that split; `builder=demo-build-codegraph` marker required; FTS stopwords + retrieve blend required. Guarded by `npm run hygiene:check` + `npm run test:codegraph-index` (CI gates job), `scripts/check-codegraph-demo-index.js` (+ negatives), `langchain_agent/src/codegraph/index_guard.py`, + `tests/test_{codegraph_index_guard,build_codegraph,ensure_index,retrieve}.py` |
+| Code Explorer index DB | Demo index is **`.codegraph/demo-codegraph.db` only** — never `.codegraph/codegraph.db` (host CodeGraph product daemon). `CODEGRAPH_DB_PATH` / bake (`setup:fresh` / `run.sh` / `se-update-code.sh`) / Refresh must keep that split; `builder=demo-build-codegraph` marker required; FTS stopwords + retrieve blend required. Guarded by `npm run hygiene:check` + `npm run test:codegraph-index` (CI gates job), `scripts/check-codegraph-demo-index.js` (+ negatives), `langchain_agent/src/codegraph/index_guard.py`, + `langchain_agent/tests/test_codegraph_index_guard.py`, `langchain_agent/tests/test_build_codegraph.py`, `langchain_agent/tests/test_ensure_index.py`, `langchain_agent/tests/test_retrieve.py` |
 
 ---
 
@@ -130,6 +130,58 @@ riding on it — do not wire `DELEGATION_RESOURCE_AUDIENCE`/`_SCOPE` to a real
 production resource without deliberately deciding to make this route live.
 
 **Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/refreshServiceEnvs.delegationRoute.test.js --testPathIgnorePatterns="/node_modules/"`, then `node scripts/refresh-service-envs.js && docker compose up -d --force-recreate --no-deps ping-gateway` and confirm `docker logs ai-demo-ping-gateway` shows `Loaded the route with id '03-mcp-delegation'` with no `ERROR`.
+
+### 2026-07-24 — Three pre-existing local-CI gate failures: stale §1 row, generated-doc drift, stale test assertions
+
+**Files changed:**
+
+- `REGRESSION_PLAN.md` (this row + the §1 fix below)
+- `docs/use-cases/audit-table.md`, `docs/use-cases/ciba-out-of-band-approval.md`,
+  `docs/use-cases/demo-runbook.md`, `docs/use-cases/step-verification-report.md`
+  (regenerated)
+- `demo_api_server/src/__tests__/agentSessionMiddleware.test.js`
+
+**What was broken:**
+
+1. `regression:paths` — the §1 Code Explorer index DB row referenced
+   `` `tests/test_{codegraph_index_guard,build_codegraph,ensure_index,retrieve}.py` ``.
+   `check-regression-plan-paths.js` does no brace expansion, so that single
+   backtick token could never match a real file regardless of path — the real
+   files live at `langchain_agent/tests/test_*.py`.
+2. `use-cases:check` — `docs/use-cases/audit-table.md`, `ciba-out-of-band-approval.md`
+   (a flag rename, `ff_ciba` → `ciba_enabled`, never regenerated into the doc),
+   and `demo-runbook.md` had all drifted from source. The command chains
+   `audit:check && docs:check && ... && step-verification check` with `&&`, so
+   only the first failure ever surfaced — fixing it exposed the next one, and
+   so on.
+3. `test:api-server` — `agentSessionMiddleware.test.js` asserted the stale
+   error strings `'Unauthorized'` / `'Session expired'` on two 401 paths; the
+   middleware itself consistently returns `error: 'session_expired'` on both
+   (and on every other 401 path in the file) — this codebase's established
+   snake_case error-code convention. The test was wrong, not the code.
+
+**What was fixed:** Split the brace-token into 4 real file references with
+the correct `langchain_agent/tests/` prefix. Ran `npm run use-cases:gen`
+(from `demo_api_server/`) to regenerate the drifted docs. Updated the two
+stale assertions to `'session_expired'`.
+
+**Do not break:**
+- `check-step-verification` (the last link in `use-cases:check`) still
+  fails — real `missing_prereq`/`server_error` ledger entries across several
+  verticals, plus ~20 orphaned ledger files for use case IDs no longer in
+  `useCases.js` (`ADMIN1-4`, `agent-lifecycle-list-orders`,
+  `agent-lifecycle-revoke`, `ciba-out-of-band-approval` under `retail`). Real
+  product/test-data decision (restore the use cases vs. delete the stale
+  ledger files), intentionally left for a separate pass.
+- `test:api-server` has 8 more pre-existing failing tests, unrelated to this
+  fix, spanning several subsystems (write-tool error handling, HITL/step-up
+  transaction policy, oauth-teaching plugin registration, PAR config
+  prerequisites, intent-binding route validation) — only fully visible once
+  `demo_api_server`'s `node_modules` had `@a2a-js/sdk` installed (previously
+  missing entirely, which silently truncated `npm test`'s output before these
+  ever ran). Also left for a separate pass.
+
+**Verify:** `cd demo_api_server && node ../scripts/check-regression-plan-paths.js && npm run use-cases:audit:check && npm run use-cases:docs:check && node ../scripts/gen-demo-runbook.js check && CI=true npx jest src/__tests__/agentSessionMiddleware.test.js --testPathIgnorePatterns="/node_modules/"`
 
 ### 2026-07-24 — Token Chain evidence JSON unreadable; "Show more detail" renamed
 
