@@ -632,29 +632,39 @@ app.use('/internal', require('./routes/braveMcpFlag'));
 
 - [ ] **Step 4: Test the flag endpoint directly**
 
+**Port 3001 is almost certainly already bound** by the live `ai-demo-api-server` container (check first: `lsof -i :3001`) — this repo's shared demo stack runs continuously and, like `ping-gateway`, mounts from the main checkout, not any worktree, so your new route in this worktree isn't live on it. Do not try to start `server.js` (the full app, with all its other service dependencies) on the same port — it will fail with `EADDRINUSE`, and even on a free port `server.js` pulls in far more than this one route.
+
+Instead, test the new router in isolation, in its own tiny Express app, on a free port:
+
 ```bash
 cd demo_api_server
 node -e "
-const http = require('http');
-const app = require('./server.js');
+const express = require('express');
+const app = express();
+app.use('/internal', require('./routes/braveMcpFlag'));
+app.listen(3098, () => console.log('test server on :3098'));
 " &
-sleep 2
-curl -s http://localhost:3001/internal/feature-flags/brave-mcp-showcase
+sleep 1
+curl -s http://localhost:3098/internal/feature-flags/brave-mcp-showcase
 ```
 Expected: `{"error":"forbidden"}` (no secret header sent)
 
 ```bash
-curl -s http://localhost:3001/internal/feature-flags/brave-mcp-showcase -H "x-internal-gateway-secret: $BFF_INTERNAL_SECRET"
+curl -s http://localhost:3098/internal/feature-flags/brave-mcp-showcase -H "x-internal-gateway-secret: $BFF_INTERNAL_SECRET"
 ```
-Expected: `{"enabled":true}`
+Expected: `{"enabled":true}` (uses the default `dev-shared-secret-change-me` unless `BFF_INTERNAL_SECRET` is set in your shell — check `demo_api_server/.env`'s real value and export it first if you want to test against the real secret rather than the default)
 
-(If the server is already running via `docker compose` as part of Task 2's testing, curl the running instance directly instead of starting a second one — do not run two instances on the same port.)
+Stop the background test server: `kill %1`
 
-- [ ] **Step 5: Confirm the flag toggles at the endpoint level**
+This isolated test proves the route handler and `configStore.getEffective('ff_brave_mcp_showcase')` read work correctly — it does not prove `demo_api_server/server.js`'s new `app.use('/internal', ...)` mount line is wired correctly in the full app, since the full app isn't running from this worktree. That integration is implicitly proven in Task 4, when the full live stack (including this file, once deployed) serves a real UI-driven request that reaches `tx-brave-scope.groovy`'s flag check.
 
-Toggle `ff_brave_mcp_showcase` OFF via whatever admin UI/API this repo uses for feature flags (same mechanism as toggling `ff_weather_mcp_showcase`), then re-run Step 4's curl against `/internal/feature-flags/brave-mcp-showcase` — expect `{"enabled":false}`. Toggle back ON, confirm `{"enabled":true}` again.
+- [ ] **Step 5: Confirm the OFF-state logic directly**
 
-(End-to-end proof that a disabled flag actually makes `tx-brave-scope.groovy` deny a `/mcp/brave` call requires a real bearer token to get past `rsFilter` first — deferred to Task 4, same as the client-identity and content-blocklist proof, per Task 2's design note.)
+`configStore` has no public write method exposed to a standalone script — flag writes normally happen through the live stack's admin API (`PATCH /api/admin/feature-flags`), which would write to the MAIN checkout's LMDB file, not this worktree's own `data/persistent/lmdb` — an isolated test script here can't observe a toggle made that way (same worktree-vs-live-stack data split as everywhere else in this plan). Instead, prove the OFF-state branch of `braveMcpFlag.js`'s logic directly, by temporarily editing the route handler's read to a hardcoded value rather than going through `configStore`:
+
+Temporarily change `const raw = configStore.getEffective('ff_brave_mcp_showcase');` to `const raw = 'false';` in `demo_api_server/routes/braveMcpFlag.js`, re-run Step 4's isolated-server curl (with the correct secret header) — expect `{"enabled":false}`. Revert the change, re-run, confirm `{"enabled":true}` again (the default/unset path, already proven in Step 4).
+
+(Full end-to-end proof — a live-toggled flag actually making `tx-brave-scope.groovy` deny a real `/mcp/brave` call — requires both a real bearer token past `rsFilter` AND the live stack's actual data directory. Both are deferred to Task 4, same as the client-identity and content-blocklist proof, per Task 2's design note.)
 
 - [ ] **Step 6: Commit**
 
