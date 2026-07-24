@@ -185,52 +185,41 @@ export default function DemoStepsDropdown({
       : 0;
 
   /**
-   * Render one demo-step row (timeline rail).
+   * Render one demo-step card (box style matching Actions grid).
    * @param {{ uc: object, stepNumber: number }} row
    * @param {{ markNext?: boolean }} [opts]
    */
   function renderStep({ uc, stepNumber }, { markNext = false } = {}) {
     const completed = isUseCaseCompleted(uc.id);
     const isNext = markNext && !completed && uc.id === nextPrimaryId;
-    const rowClass = [
-      'ba-demo-steps-popout__row',
-      completed ? 'ba-demo-steps-popout__row--done' : '',
-      isNext ? 'ba-demo-steps-popout__row--next' : '',
-    ]
-      .filter(Boolean)
-      .join(' ');
-    const itemClass = [
-      'ba-demo-steps-popout__item',
-      completed ? 'ba-demo-steps-popout__item--done' : '',
-      isNext ? 'ba-demo-steps-popout__item--next' : '',
-    ]
-      .filter(Boolean)
-      .join(' ');
-    const railClass = [
-      'ba-demo-steps-popout__rail',
-      completed ? 'ba-demo-steps-popout__check' : '',
+    const btnClass = [
+      'banking-chips-dropdown__button',
+      completed
+        ? 'banking-chips-dropdown__button--done'
+        : 'banking-chips-dropdown__button--heuristic',
+      isNext ? 'ba-demo-steps-popout__card--next' : '',
     ]
       .filter(Boolean)
       .join(' ');
 
     return (
-      <li key={uc.id} className={rowClass}>
+      <li key={uc.id} className="ba-demo-steps-popout__card-item">
         <button
           type="button"
-          className={itemClass}
+          className={btnClass}
           onClick={() => handleSelect(uc, stepNumber)}
           data-testid={`demo-step-${uc.id}`}
         >
-          <span
-            className={railClass}
-            aria-label={completed ? 'Completed' : `Step ${stepNumber}`}
-          >
-            {completed ? '✓' : stepNumber}
-          </span>
-          <span className="ba-demo-steps-popout__body">
-            <span className="ba-demo-steps-popout__id">{uc.id}</span>
-            <span className="ba-demo-steps-popout__title">{uc.title}</span>
-          </span>
+          {completed && (
+            <span
+              className="banking-chips-dropdown__check"
+              aria-label="Completed"
+            >
+              ✓
+            </span>
+          )}
+          <span className="ba-demo-steps-popout__id">{uc.id}</span>
+          <span className="banking-chips-dropdown__chip-name">{uc.title}</span>
         </button>
         <button
           type="button"
@@ -319,7 +308,7 @@ export default function DemoStepsDropdown({
               No demo steps for this vertical.
             </p>
           )}
-          <ul className="ba-demo-steps-popout__list ba-demo-steps-popout__list--rail">
+          <ul className="ba-demo-steps-popout__grid">
             {primarySteps.map((row) => renderStep(row, { markNext: true }))}
           </ul>
           {advancedSteps.length > 0 && (
@@ -334,7 +323,7 @@ export default function DemoStepsDropdown({
                 {advancedOpen ? '▾' : '▸'} More demos ({advancedSteps.length})
               </button>
               {advancedOpen && (
-                <ul className="ba-demo-steps-popout__list ba-demo-steps-popout__list--rail">
+                <ul className="ba-demo-steps-popout__grid">
                   {advancedSteps.map((row) => renderStep(row))}
                 </ul>
               )}
