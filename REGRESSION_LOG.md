@@ -5,6 +5,30 @@ Update this file whenever a bug is fixed: add the bug, cause, fix, and test refe
 
 ---
 
+## 2026-07-23 — Consent modal was too tall and needed the screenshot's tighter layout
+
+**Symptom**: The consent modal rendered too tall relative to the reference screenshot, with oversized vertical padding and spacing that made the dialog feel stretched.
+
+**Root cause**: The shared draggable modal shell reused the older tall default sizing, and the persisted modal size state kept the previous dimensions in place so the compact layout never surfaced immediately.
+
+**Fix**: Tightened the consent dialog's default dimensions and internal spacing in `demo_api_ui/src/components/AgentConsentModal.js` and `demo_api_ui/src/components/AgentConsentModal.css`, and updated the modal storage key so the compact layout is applied on the next open.
+
+**Tests**: `cd demo_api_ui && npm run build`
+
+---
+
+## 2026-07-23 — Demo Step 1 could fail with `delegation_chain_broken` when the PingGateway URI setting was unset
+
+**Symptom**: In gateway-brokered mode, Demo Step 1 could fail during the second token exchange with `delegation_chain_broken` and the UI toast "Token exchange failed…" when the PingGateway URI setting was missing.
+
+**Root cause**: Exchange #2 needed an RFC 8707 URI audience (`https://.../mcp`), but the fallback path could use a non-URI audience value from the configured audience list when `pingone_resource_pinggateway_uri` was unset, so the gateway-brokered exchange failed.
+
+**Fix**: `demo_api_server/services/agentMcpTokenService.js` now extracts the first HTTP(S) URI from the available audience values when the explicit PingGateway URI is missing, preserving the required URI-form audience for Exchange #2. Added regression coverage in `demo_api_server/src/__tests__/agentMcpTokenService.test.js` to lock in that fallback behavior.
+
+**Tests**: `cd demo_api_server && npx jest src/__tests__/agentMcpTokenService.test.js --runInBand`
+
+---
+
 ## 2026-07-11 — Agent reported "Transferred $X" success on an unparseable tool result; vertical chips rendered `{}`
 
 **Symptom**: When a tool call's raw result body was malformed, blank, or garbage (not valid JSON, or JSON with no recognizable shape), the agent still replied with a success message such as "Transferred $X" as if the transfer had gone through, and vertical action chips rendered an empty `{}` instead of an error or the expected card.
