@@ -2086,8 +2086,8 @@ function EventDetail({ event, chainEvents }) {
             🔓 Full Decoded Token (JSON)
           </summary>
           <div className="tcd-collapsible-body">
-            <pre className="tcd-jwt-dump">
-              <JsonHighlight value={event.jwtFullDecode} />
+            <pre className="tcd-jwt-dump jh-dark">
+              <JsonHighlight value={event.jwtFullDecode} copyable />
             </pre>
           </div>
         </details>

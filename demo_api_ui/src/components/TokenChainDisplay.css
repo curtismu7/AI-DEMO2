@@ -1148,6 +1148,15 @@ pre.tcd-jwt-dump {
   color: inherit;
 }
 
+/* Full Decoded Token collapsible — self-contained dark surface so JSON text
+   stays readable regardless of the panel it's nested in (color: inherit
+   above was pulling in a dark ancestor color on dark surfaces). */
+pre.tcd-jwt-dump.jh-dark {
+  background: #0f172a;
+  color: #c9d1d9;
+  border-radius: 6px;
+}
+
 .tcd-exchange-req pre.tcd-jwt-dump {
   max-height: min(840px, 110vh);
 }
