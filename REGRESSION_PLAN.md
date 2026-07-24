@@ -102,6 +102,25 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-23 — Consent modal was too tall and needed the screenshot's tighter layout
+
+**Files changed:**
+
+- `demo_api_ui/src/components/AgentConsentModal.js`
+- `demo_api_ui/src/components/AgentConsentModal.css`
+
+**What was broken:** The consent modal rendered too tall for the reference layout, with
+too much vertical padding and wrapping that made the dialog feel stretched.
+
+**What was fixed:** Reduced the modal's default height, made the panel slightly wider,
+and tightened the badge/body/card/assurance/checkbox spacing so the content fits in a
+shorter, more compact dialog.
+
+**Do not break:** Keep the consent wording, approval flow, and HITL/transaction behavior
+unchanged. Preserve the high-contrast modal styling and the existing footer actions.
+
+**Verify:** `cd demo_api_ui && npm run build`
+
 ### 2026-07-23 — Demo Step 1 could fail with `delegation_chain_broken` when PingGateway URI setting was unset
 
 **Files changed:**
