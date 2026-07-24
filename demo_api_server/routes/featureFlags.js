@@ -726,14 +726,13 @@ const FLAG_REGISTRY = [
     description:
       'Controls whether the Agent Gateway (PingGateway/IG) Brave Search MCP showcase route ' +
       '(`/mcp/brave`) is enabled. A standalone gateway capability demo — a remote third-party ' +
-      'API (Brave News Search) fronted by the gateway, gated by a client_id allowlist check ' +
-      '(one PingOne app permitted, no new provisioning) plus a crypto-term content blocklist. ' +
-      '`tx-brave-scope.groovy` calls this flag live on every `/mcp/brave` request via ' +
-      '`GET /internal/feature-flags/brave-mcp-showcase`, so toggling it here takes effect ' +
+      'API (Brave News Search) fronted by the gateway, gated by a crypto-term content ' +
+      'blocklist. `tx-brave-scope.groovy` calls this flag live on every `/mcp/brave` request ' +
+      'via `GET /internal/feature-flags/brave-mcp-showcase`, so toggling it here takes effect ' +
       'immediately, with no gateway restart.',
     impact:
-      'ON (default) = /mcp/brave is reachable (subject to the client_id allowlist + blocklist ' +
-      'policy). OFF = every /mcp/brave request is denied with HTTP 403.',
+      'ON (default) = /mcp/brave is reachable (subject to the content blocklist policy). ' +
+      'OFF = every /mcp/brave request is denied with HTTP 403.',
     type:         'boolean',
     defaultValue: true,
   },

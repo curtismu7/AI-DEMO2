@@ -279,32 +279,35 @@ git commit -m "feat(brave-mcp): add standalone MCP-over-HTTP server for Brave Ne
 - Consumes (existing, unmodified): the global `"rsFilter"` (`OAuth2ResourceServerFilter`, `ping-gateway/config/config.json:35-45`) for the coarse gateway-scope admission check (same `PG_INBOUND_SCOPE`/`gateway:mcp:invoke` every other `/mcp/*` route already requires) — reused by bare-string reference exactly like `00-mcp-weather.json` does, no new IG heap/resolver needed.
 - Produces: route `^/mcp/brave`, reachable at `https://<ping-gateway-host>/mcp/brave` once `docker compose up` includes the new `mcp-brave` service.
 
-**Design note (revised twice — read before implementing):** research first proved `contexts['oauth2'].accessToken.getInfo()['scope']` is a real, working accessor to the already-introspected token's scope claim (confirmed in `p1az-decision.groovy`), populated by the SAME `OAuth2ResourceServerFilter` type as the bare `"rsFilter"` weather already reuses — no new IG heap/introspection-provider/token-resolver block is needed. But this plan's FIRST attempt at Task 2 discovered live, against real PingOne, that no `client_credentials`-obtainable token in this environment can carry BOTH the gateway's entry scope (`gateway:mcp:invoke`, aliased to `mcp:invoke` per `scope-topology.json:17`) and `invest:read` on the same token — confirmed structurally in `scope-topology.json:78-81,154-158,160-163`: only apps using `token_exchange` grant type ever carry `mcp:invoke`, and `invest:read` belongs to a different app entirely. Reading `invest:read` off the caller's own token is therefore never satisfiable by any script-mintable token, only by a real interactive user login (RFC 8693 token exchange) — which is out of scope for a curl-testable Groovy filter.
+**Design note (revised three times — this is the final, shipped mechanism, read before implementing):** research first proved `contexts['oauth2'].accessToken.getInfo()['scope']` is a real, working accessor (confirmed in `p1az-decision.groovy`), and a first attempt gated on `invest:read` scope membership. Live testing against real PingOne found no `client_credentials`-obtainable token in this environment can carry BOTH the gateway's entry scope (`gateway:mcp:invoke`, aliased to `mcp:invoke` per `scope-topology.json:17`) and `invest:read` on the same token (confirmed structurally: only apps using `token_exchange` grant type ever carry `mcp:invoke` — `scope-topology.json:78-81,154-158,160-163`). A second attempt switched to gating on `client_id` (the "Investment Advisor Agent" app) instead of scope. Task 4's static trace of `demo_api_server/services/mcpGatewayClient.js`'s `callToolViaGateway` → `agentMcpTokenService.js`'s two-exchange delegation then found this is ALSO unworkable, for a deeper, structural reason than either prior attempt hit: **every realistic path that produces an `rsFilter`-passing token in this environment mints it via the two-exchange chain, whose final token's top-level `client_id` is ALWAYS the MCP Token Exchanger app** (`f4dd707d-f78d-4417-ba56-dc8707d10a1f`), regardless of which user is logged in or which specialist agent is notionally "acting" — that per-specialist identity lives in a nested `act.sub` claim (per the P1AZ policy snapshot `snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json`'s `HasValidActorChain` documentation: "Normal MCP path: act.sub = MCP Exchanger. A2A path: act.sub = one of 5 specialist agents"), and only varies via the A2A chat delegation path — explicitly out of scope for this plan (no chat/agent wiring). Combined with the earlier finding that no `client_credentials` token can reach `rsFilter` at all, there is no live path in this environment, ever, that presents a caller identity other than the fixed Token Exchanger — making any per-caller identity check's DENY branch permanently unreachable by any real caller, not just hard to script.
 
-**Revised mechanism: gate on client identity instead of scope.** `contexts['oauth2'].accessToken.getInfo()` exposes the FULL introspection response, not just `scope` — including `client_id` (confirmed real: `p1az-decision.groovy:304,677` already reads `tokenInfo['client_id']`). This still delivers "some callers permitted, others denied" with no PingOne changes, but checks WHICH APP minted the token rather than WHAT SCOPE it carries — sidestepping the scope-combination problem entirely, since `client_id` is present on any successfully-introspected token regardless of its scope. Allowed client_id: `0bba2bb8-896b-42ae-bb56-503d3c75f82e` (the "Super Banking Investment Advisor Agent" app's real, non-secret PingOne client ID, read from `demo_api_server/.env`'s `PINGONE_A2A_INVESTMENT_AGENT_CLIENT_ID` — client IDs are public identifiers, not secrets, safe to commit).
-
-**Testing implication:** even with this fix, NO app in this PingOne environment can mint a `client_credentials` token that passes the pre-existing `rsFilter` gate at all (confirmed empirically: both named specialist-agent pairs get `invalid_scope` requesting `gateway:mcp:invoke` — matches `scope-topology.json`'s `"Super Banking MCP Gateway"` entry having `grantedScopes: []` despite listing `client_credentials` as a supported grant type). The only path to a `gateway:mcp:invoke`-scoped token is a real interactive login. This task's live testing is therefore re-scoped to what a curl-only environment can actually prove (route loads, unauthenticated request 401s, weather unaffected) plus careful code review of the branching logic — **full PERMIT / scope-DENY / content-DENY proof is deferred to Task 4**, which drives a real logged-in browser session and is the only realistic place this route gets end-to-end proof anyway.
+**Final mechanism: drop the identity check entirely, keep only the content blocklist + live flag check.** Both are fully demonstrable through `AgentGatewayTester.jsx` with real allow/deny contrast (a clean query permits, a blocklisted term denies; the flag on permits, off denies) — no PingOne provisioning, no unreachable code paths. A per-caller identity check is left for a future plan that's allowed to drive the real A2A delegation path.
 
 - [ ] **Step 1: Write `ping-gateway/scripts/groovy/tx-brave-scope.groovy`**
 
 ```groovy
 // ping-gateway/scripts/groovy/tx-brave-scope.groovy
 //
-// Agent Gateway (IG) demo policy for /mcp/brave: TWO independent checks must
-// both pass before a tools/call reaches the real Brave Search API.
-//   1. Client identity: the caller's introspected token's client_id must be
-//      an ALLOWED app (an EXISTING PingOne app reused as a stand-in signal —
-//      no new PingOne provisioning). Allowed: "Super Banking Investment
-//      Advisor Agent" (client_id 0bba2bb8-896b-42ae-bb56-503d3c75f82e).
-//      NOTE: this checks WHICH APP minted the token, not WHAT SCOPE it
-//      carries — deliberately, because no client_credentials-obtainable
-//      token in this PingOne environment can carry both the gateway's entry
-//      scope (gateway:mcp:invoke) and invest:read on the same token (see the
-//      implementation plan's Task 2 design note for the live-tested proof).
-//      client_id is a public identifier, not a secret — safe to hardcode.
-//   2. Content blocklist: the tools/call query argument must not contain a
-//      blocked term (bank policy demo: no crypto-related searches via the
-//      agent gateway).
+// Agent Gateway (IG) demo policy for /mcp/brave: the tools/call query
+// argument must not contain a blocked term (bank policy demo: no
+// crypto-related searches via the agent gateway) before reaching the real
+// Brave Search API.
+//
+// NOTE ON SCOPE: an earlier revision of this filter also checked the
+// caller's token client_id (either scope-membership, then client-identity)
+// as a second, per-caller allow/deny signal. Both were removed after live
+// testing on the real PingOne environment proved neither is demonstrable
+// here: no client_credentials-obtainable token can pass the gateway's base
+// rsFilter admission gate at all (confirmed for every app in
+// scope-topology.json — only the two-exchange delegation chain ever mints
+// an rsFilter-passing token), and that chain's token always carries the
+// SAME top-level client_id (the MCP Token Exchanger) regardless of which
+// user or specialist agent is acting — the per-specialist identity lives in
+// a nested act.sub claim that only varies via the A2A chat delegation path,
+// out of scope for this plan (see the implementation plan's Task 2/Task 4
+// design notes for the full live-tested proof). A per-caller identity check
+// is left for a future plan that's allowed to drive that path.
+//
 // Also checks a live feature flag (ff_brave_mcp_showcase) the same way
 // tx-weather-scope.groovy checks ff_weather_mcp_showcase.
 
@@ -317,12 +320,11 @@ import org.forgerock.util.promise.Promises
 def internalSecret = System.getenv('BFF_INTERNAL_SECRET') ?: ''
 def flagUrl         = System.getenv('BFF_BRAVE_FLAG_URL') ?: ''
 
-def ALLOWED_CLIENT_IDS = ['0bba2bb8-896b-42ae-bb56-503d3c75f82e'] as Set // Investment Advisor Agent
 def BLOCKED_TERMS = ['bitcoin', 'cryptocurrency', 'crypto'] as Set
 
 // Live flag check against the BFF: ff_brave_mcp_showcase (on/off). Fails OPEN
 // (a demo toggle, not a security control) — same posture as tx-weather-scope's
-// weatherFlags() closure. The scope/content checks below remain fail-closed
+// weatherFlags() closure. The content check below remains fail-closed
 // regardless of this call's outcome.
 def braveFlags = {
     def result = [enabled: true]
@@ -377,26 +379,7 @@ if (!(body instanceof Map) || body.method != 'tools/call') {
     return next.handle(context, request)
 }
 
-// ── Check 1: client identity ─────────────────────────────────────────────
-def tokenInfo = [:]
-try {
-    def oauth2Ctx = contexts['oauth2']
-    if (oauth2Ctx != null) {
-        def accessToken = oauth2Ctx.accessToken
-        if (accessToken != null) {
-            def info = accessToken.getInfo()
-            tokenInfo = (info instanceof Map ? info : [:]) ?: [:]
-        }
-    }
-} catch (Exception e) {
-    logger.warn('[TxBraveScope] failed to read contexts[oauth2]: ' + e.message)
-}
-def callerClientId = tokenInfo['client_id'] ?: ''
-if (!ALLOWED_CLIENT_IDS.contains(callerClientId)) {
-    return denied(id, "Agent Gateway: Brave search is not enabled for this caller (client_id not on the allowed list)")
-}
-
-// ── Check 2: content blocklist ────────────────────────────────────────────
+// ── Content blocklist ─────────────────────────────────────────────────────
 def params = body.params
 def args = (params instanceof Map) ? params.arguments : null
 def query = (args instanceof Map) ? args.query : null
@@ -463,8 +446,8 @@ Add this new service block immediately after the existing `mcp-weather:` service
   # ── MCP Brave (remote third-party API, real outbound calls) ─────────────
   # Agent Gateway (IG) showcase: fronts a hand-written MCP server that calls
   # the real Brave Search News API, scoped at the edge by
-  # ping-gateway/scripts/groovy/tx-brave-scope.groovy (client_id allowlist +
-  # crypto-term blocklist).
+  # ping-gateway/scripts/groovy/tx-brave-scope.groovy (crypto-term content
+  # blocklist + a live feature-flag check).
   mcp-brave:
     build:
       context: ./demo_mcp_brave
@@ -501,7 +484,7 @@ Add a `depends_on` entry for `mcp-brave` on the `ping-gateway` service, immediat
 
 - [ ] **Step 4: Bring the stack up and run the tests a curl-only environment can actually prove**
 
-Full PERMIT / client-identity-DENY / content-DENY proof needs a real interactive login (RFC 8693 token exchange) — no `client_credentials`-obtainable token in this PingOne environment can pass the pre-existing `rsFilter` gate at all (see the Design note above). That full proof is Task 4's job, which drives a real logged-in browser session. This step proves what's actually script-testable: the route deploys correctly and rejects unauthenticated/malformed requests exactly like every other `/mcp/*` route already does.
+Full PERMIT / content-DENY / flag-disabled-DENY proof needs a real interactive login (RFC 8693 token exchange) — no `client_credentials`-obtainable token in this PingOne environment can pass the pre-existing `rsFilter` gate at all (see the Design note above). That full proof is Task 4's job, which drives a real logged-in browser session. This step proves what's actually script-testable: the route deploys correctly and rejects unauthenticated/malformed requests exactly like every other `/mcp/*` route already does.
 
 **Worktree note:** if the live stack is already running from the main checkout (a known pattern in this repo — check `docker inspect ai-demo-ping-gateway --format '{{json .Mounts}}'`), `docker compose up` from this worktree's directory will fail on unrelated missing `.env` files elsewhere in the monolithic compose file (Compose validates the whole file even with a service filter). Build and run `mcp-brave` directly from this worktree (`docker build`/`docker run`, joined to the existing `ai-demo_ai-demo` network), and point `ping-gateway`'s config/groovy bind mounts at this worktree's paths by capturing the running container's env/mounts (`docker inspect`) and recreating it — do not edit files in the main checkout to make this work.
 
@@ -610,14 +593,13 @@ Add this object to the existing flags array, immediately after the `ff_weather_m
     description:
       'Controls whether the Agent Gateway (PingGateway/IG) Brave Search MCP showcase route ' +
       '(`/mcp/brave`) is enabled. A standalone gateway capability demo — a remote third-party ' +
-      'API (Brave News Search) fronted by the gateway, gated by a client_id allowlist check ' +
-      '(one PingOne app permitted, no new provisioning) plus a crypto-term content blocklist. ' +
-      '`tx-brave-scope.groovy` calls this flag live on every `/mcp/brave` request via ' +
-      '`GET /internal/feature-flags/brave-mcp-showcase`, so toggling it here takes effect ' +
+      'API (Brave News Search) fronted by the gateway, gated by a crypto-term content ' +
+      'blocklist. `tx-brave-scope.groovy` calls this flag live on every `/mcp/brave` request ' +
+      'via `GET /internal/feature-flags/brave-mcp-showcase`, so toggling it here takes effect ' +
       'immediately, with no gateway restart.',
     impact:
-      'ON (default) = /mcp/brave is reachable (subject to the client_id allowlist + blocklist ' +
-      'policy). OFF = every /mcp/brave request is denied with HTTP 403.',
+      'ON (default) = /mcp/brave is reachable (subject to the content blocklist policy). ' +
+      'OFF = every /mcp/brave request is denied with HTTP 403.',
     type:         'boolean',
     defaultValue: true,
   },
@@ -692,7 +674,7 @@ Find the existing `WEATHER_TOOLS` declaration (a `Set` containing `'get_weather'
 ```js
 // brave-mcp showcase: PingGateway (IG) only — 00-mcp-brave.json fronts a
 // hand-written MCP server that calls the real Brave Search News API, gated
-// by tx-brave-scope.groovy (client_id allowlist + crypto-term blocklist). No
+// by tx-brave-scope.groovy (crypto-term content blocklist). No
 // Node mcp-gateway equivalent exists. Only applied when the gateway base IS
 // PingGateway (base === pgUrl below) — same conditional weather uses.
 const BRAVE_TOOLS = new Set([
@@ -734,28 +716,18 @@ Optionally add a new group to `TOOL_GROUPS` (purely cosmetic — anything not li
   Search: ['brave_news_search'],
 ```
 
-- [ ] **Step 3: Test from the UI — this is where Task 2's full live proof happens**
+- [ ] **Step 3: Test from the UI — full live proof (content + flag only)**
 
-This step owns the full live PERMIT / client-identity-DENY / content-DENY / flag-disabled-DENY proof that Task 2 couldn't complete (no `client_credentials` token can pass `rsFilter`; a real logged-in browser session is the only way to reach `/mcp/brave` with a token that does).
+This step owns the full live PERMIT / content-DENY / flag-disabled-DENY proof that Task 2 couldn't complete (no `client_credentials` token can pass `rsFilter`; a real logged-in browser session is the only way to reach `/mcp/brave` with a token that does). There is no client-identity dimension to test — a prior attempt at this exact step traced `mcpGatewayClient.js`'s `callToolViaGateway` → `agentMcpTokenService.js`'s two-exchange delegation and found, decisively, that every token this UI ever presents to the gateway carries the SAME top-level `client_id` (the MCP Token Exchanger app) no matter who's logged in — so `tx-brave-scope.groovy`'s identity check was removed entirely (see Task 2's Step 1 design note). Only the content blocklist and the live flag remain as gated checks.
 
-**First, verify the client-identity assumption empirically — do not assume it holds.** Task 2's `tx-brave-scope.groovy` checks the token's top-level `client_id` claim. This repo's real architecture mints the gateway-bound token via a two-exchange delegation chain (see `docs/TWO_EXCHANGE_DELEGATION_GUIDE.md`), where the ORIGINATING agent's identity may live in a nested `act`/`may_act` claim rather than the final token's top-level `client_id` (compare how `p1az-decision.groovy:238-239,289-294` specifically parses `tokenInfo['act']`/`tokenInfo['may_act']` rather than trusting top-level `client_id` alone for its own authorization decision). Before running the test matrix below: add a temporary `logger.warn('[TxBraveScope] DEBUG client_id=' + callerClientId + ' fullTokenInfo=' + tokenInfo)` line right after the `tokenInfo` read in `tx-brave-scope.groovy`, restart `ping-gateway`, make ONE real call through the UI as a logged-in user, and read the gateway's logs to see what `client_id` (and, if useful, `act`) actually looks like on a real UI-originated token.
-
-- If the top-level `client_id` genuinely reflects the acting specialist agent (varies per delegation target) — remove the debug line, proceed with the plan as written.
-- If `client_id` is always the same fixed value (e.g. a token-exchanger service identity) regardless of which agent is acting — STOP and report NEEDS_CONTEXT with what you found (the actual claim shape that DOES vary, e.g. `act.client_id` or `act.sub`). Do not silently rewrite `tx-brave-scope.groovy` to check a different claim without confirming — this is exactly the kind of assumption that already needed two corrections in Task 2; a third guess should be confirmed, not silently patched.
-
-Once the check is confirmed correct (or fixed per controller guidance), run the full matrix:
-
-1. Start the stack (`docker compose up`, including the Task 2/3 changes) — or use Task 2's worktree-pointed `docker run` recipe if the shared stack is on the main checkout.
-2. Sign in and drive whatever this demo's existing flow is for acting as the Investment Advisor Agent specifically (the A2A delegation UI — check this repo's existing delegation tour/panel for how to select a specific specialist agent, rather than assuming a generic "sign in" produces the right identity).
-3. Navigate to `/pinggateway-inspector?subtab=tester`, select `brave_news_search`, fill `{"query": "machine learning", "count": 3}`, execute.
+1. Deploy the live stack with Tasks 1–3's changes. Reuse Task 2's worktree-pointed `docker build`/`docker run` recipe (its report has the full, working steps) for `mcp-brave` and `ping-gateway`. You also need `demo_api_server`'s worktree code live (Task 3's flag route, this task's `mcpGatewayClient.js` change, and `AgentGatewayTester.jsx`) — apply the same pattern: capture the running `ai-demo-api-server` container's env/mounts via `docker inspect`, recreate it pointed at this worktree's `demo_api_server` and `demo_api_ui` paths instead. Revert all three afterward, same as Task 2 did.
+2. Sign in as a real demo user (standard login flow), navigate to `/pinggateway-inspector?subtab=tester`, select `brave_news_search` (renders under the "Search" tool group), fill `{"query": "machine learning", "count": 3}`, execute.
    **PERMIT case**: response tab shows real Brave results, auth-decision tab shows PERMIT, audit-trail tab shows the call.
-4. Repeat as a different specialist agent (e.g. Records Specialist) with the same clean query.
-   **Client-identity DENY case**: response/auth-decision tabs show the DENY with the "not on the allowed list" message.
-5. As the Investment Advisor Agent again, repeat with a query containing `bitcoin`.
+3. Repeat with a query containing `bitcoin`.
    **Content DENY case**: response/auth-decision tabs show the DENY with the blocked-term message.
-6. Toggle `ff_brave_mcp_showcase` OFF (same admin mechanism as `ff_weather_mcp_showcase`), repeat the PERMIT case's clean query as the Investment Advisor Agent.
+4. Toggle `ff_brave_mcp_showcase` OFF (same admin mechanism as `ff_weather_mcp_showcase`), repeat the PERMIT case's clean query.
    **Flag-disabled DENY case**: response/auth-decision tabs show the DENY with the "capability disabled" message. Toggle back ON, confirm PERMIT passes again.
-7. **Prove the checks are independently live**: temporarily change `ALLOWED_CLIENT_IDS` in `tx-brave-scope.groovy` to an empty set, restart `ping-gateway`, re-run the PERMIT case — expect it to now DENY (proves the client-identity check is actually evaluated, not bypassed). Revert, restart, re-confirm PERMIT passes again. Temporarily remove `'bitcoin'` from `BLOCKED_TERMS`, restart, re-run the content DENY case — expect it to now pass through. Revert, restart, re-confirm content DENY denies again.
+5. **Prove the content check is independently live**: temporarily remove `'bitcoin'` from `BLOCKED_TERMS` in `tx-brave-scope.groovy`, restart `ping-gateway`, re-run the content DENY case — expect it to now pass through (200, real results). Revert, restart, re-confirm content DENY denies again.
 
 - [ ] **Step 4: Commit**
 

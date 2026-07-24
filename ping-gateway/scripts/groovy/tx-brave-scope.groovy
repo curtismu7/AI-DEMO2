@@ -1,20 +1,25 @@
 // ping-gateway/scripts/groovy/tx-brave-scope.groovy
 //
-// Agent Gateway (IG) demo policy for /mcp/brave: TWO independent checks must
-// both pass before a tools/call reaches the real Brave Search API.
-//   1. Client identity: the caller's introspected token's client_id must be
-//      an ALLOWED app (an EXISTING PingOne app reused as a stand-in signal —
-//      no new PingOne provisioning). Allowed: "Super Banking Investment
-//      Advisor Agent" (client_id 0bba2bb8-896b-42ae-bb56-503d3c75f82e).
-//      NOTE: this checks WHICH APP minted the token, not WHAT SCOPE it
-//      carries — deliberately, because no client_credentials-obtainable
-//      token in this PingOne environment can carry both the gateway's entry
-//      scope (gateway:mcp:invoke) and invest:read on the same token (see the
-//      implementation plan's Task 2 design note for the live-tested proof).
-//      client_id is a public identifier, not a secret — safe to hardcode.
-//   2. Content blocklist: the tools/call query argument must not contain a
-//      blocked term (bank policy demo: no crypto-related searches via the
-//      agent gateway).
+// Agent Gateway (IG) demo policy for /mcp/brave: the tools/call query
+// argument must not contain a blocked term (bank policy demo: no
+// crypto-related searches via the agent gateway) before reaching the real
+// Brave Search API.
+//
+// NOTE ON SCOPE: an earlier revision of this filter also checked the
+// caller's token client_id (either scope-membership, then client-identity)
+// as a second, per-caller allow/deny signal. Both were removed after live
+// testing on the real PingOne environment proved neither is demonstrable
+// here: no client_credentials-obtainable token can pass the gateway's base
+// rsFilter admission gate at all (confirmed for every app in
+// scope-topology.json — only the two-exchange delegation chain ever mints
+// an rsFilter-passing token), and that chain's token always carries the
+// SAME top-level client_id (the MCP Token Exchanger) regardless of which
+// user or specialist agent is acting — the per-specialist identity lives in
+// a nested act.sub claim that only varies via the A2A chat delegation path,
+// out of scope for this plan (see the implementation plan's Task 2/Task 4
+// design notes for the full live-tested proof). A per-caller identity check
+// is left for a future plan that's allowed to drive that path.
+//
 // Also checks a live feature flag (ff_brave_mcp_showcase) the same way
 // tx-weather-scope.groovy checks ff_weather_mcp_showcase.
 
@@ -27,12 +32,11 @@ import org.forgerock.util.promise.Promises
 def internalSecret = System.getenv('BFF_INTERNAL_SECRET') ?: ''
 def flagUrl         = System.getenv('BFF_BRAVE_FLAG_URL') ?: ''
 
-def ALLOWED_CLIENT_IDS = ['0bba2bb8-896b-42ae-bb56-503d3c75f82e'] as Set // Investment Advisor Agent
 def BLOCKED_TERMS = ['bitcoin', 'cryptocurrency', 'crypto'] as Set
 
 // Live flag check against the BFF: ff_brave_mcp_showcase (on/off). Fails OPEN
 // (a demo toggle, not a security control) — same posture as tx-weather-scope's
-// weatherFlags() closure. The scope/content checks below remain fail-closed
+// weatherFlags() closure. The content check below remains fail-closed
 // regardless of this call's outcome.
 def braveFlags = {
     def result = [enabled: true]
@@ -87,26 +91,7 @@ if (!(body instanceof Map) || body.method != 'tools/call') {
     return next.handle(context, request)
 }
 
-// ── Check 1: client identity ─────────────────────────────────────────────
-def tokenInfo = [:]
-try {
-    def oauth2Ctx = contexts['oauth2']
-    if (oauth2Ctx != null) {
-        def accessToken = oauth2Ctx.accessToken
-        if (accessToken != null) {
-            def info = accessToken.getInfo()
-            tokenInfo = (info instanceof Map ? info : [:]) ?: [:]
-        }
-    }
-} catch (Exception e) {
-    logger.warn('[TxBraveScope] failed to read contexts[oauth2]: ' + e.message)
-}
-def callerClientId = tokenInfo['client_id'] ?: ''
-if (!ALLOWED_CLIENT_IDS.contains(callerClientId)) {
-    return denied(id, "Agent Gateway: Brave search is not enabled for this caller (client_id not on the allowed list)")
-}
-
-// ── Check 2: content blocklist ────────────────────────────────────────────
+// ── Content blocklist ─────────────────────────────────────────────────────
 def params = body.params
 def args = (params instanceof Map) ? params.arguments : null
 def query = (args instanceof Map) ? args.query : null
