@@ -5166,6 +5166,43 @@ body > .banking-agent-float-root .banking-agent-panel {
   outline: none;
 }
 
+/* Demo steps: 2-column box grid — same visual language as Actions chips */
+.ba-demo-steps-popout__grid {
+  list-style: none;
+  margin: 0;
+  padding: 8px 12px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+/* Each grid cell is a positioning context for the explain "i" overlay */
+.ba-demo-steps-popout__card-item {
+  position: relative;
+}
+
+/* Card button fills its grid cell */
+.ba-demo-steps-popout__card-item .banking-chips-dropdown__button {
+  width: 100%;
+  box-sizing: border-box;
+  /* Extra bottom padding so title text does not overlap the explain button */
+  padding-bottom: 28px;
+}
+
+/* Explain "i" button: overlaid at bottom-right of the card */
+.ba-demo-steps-popout__card-item .ba-demo-steps-popout__explain {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  margin: 0;
+}
+
+/* "Next" highlight ring — marks the upcoming unfinished step */
+.ba-demo-steps-popout__card--next {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px #dbeafe !important;
+}
+
 /* Popout overlay — anchored to .ba-header (position:relative), opens below header */
 .ba-actions-popout {
   position: fixed;
