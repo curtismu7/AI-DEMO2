@@ -2515,7 +2515,9 @@ export default function BankingAgent({
   function verticalResultExtra(response) {
     const vr = response?.verticalResult;
     if (!vr) return {};
-    const descriptor = pageManifest?.render?.[vr.render] || null;
+    // Use server-embedded descriptor first (A2A results from another vertical carry it
+    // because the active pageManifest belongs to the host vertical, not the specialist).
+    const descriptor = vr.descriptor || pageManifest?.render?.[vr.render] || null;
     if (agentResultsPanelEnabled) {
       setResultPanel({
         type: "vertical",
