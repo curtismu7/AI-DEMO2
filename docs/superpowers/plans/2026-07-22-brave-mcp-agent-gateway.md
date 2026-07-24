@@ -463,7 +463,7 @@ Add this new service block immediately after the existing `mcp-weather:` service
   # ── MCP Brave (remote third-party API, real outbound calls) ─────────────
   # Agent Gateway (IG) showcase: fronts a hand-written MCP server that calls
   # the real Brave Search News API, scoped at the edge by
-  # ping-gateway/scripts/groovy/tx-brave-scope.groovy (invest:read scope +
+  # ping-gateway/scripts/groovy/tx-brave-scope.groovy (client_id allowlist +
   # crypto-term blocklist).
   mcp-brave:
     build:
@@ -610,12 +610,13 @@ Add this object to the existing flags array, immediately after the `ff_weather_m
     description:
       'Controls whether the Agent Gateway (PingGateway/IG) Brave Search MCP showcase route ' +
       '(`/mcp/brave`) is enabled. A standalone gateway capability demo — a remote third-party ' +
-      'API (Brave News Search) fronted by the gateway, gated by an invest:read scope check ' +
-      'plus a crypto-term content blocklist. `tx-brave-scope.groovy` calls this flag live on ' +
-      'every `/mcp/brave` request via `GET /internal/feature-flags/brave-mcp-showcase`, so ' +
-      'toggling it here takes effect immediately, with no gateway restart.',
+      'API (Brave News Search) fronted by the gateway, gated by a client_id allowlist check ' +
+      '(one PingOne app permitted, no new provisioning) plus a crypto-term content blocklist. ' +
+      '`tx-brave-scope.groovy` calls this flag live on every `/mcp/brave` request via ' +
+      '`GET /internal/feature-flags/brave-mcp-showcase`, so toggling it here takes effect ' +
+      'immediately, with no gateway restart.',
     impact:
-      'ON (default) = /mcp/brave is reachable (subject to the invest:read scope + blocklist ' +
+      'ON (default) = /mcp/brave is reachable (subject to the client_id allowlist + blocklist ' +
       'policy). OFF = every /mcp/brave request is denied with HTTP 403.',
     type:         'boolean',
     defaultValue: true,
@@ -681,7 +682,7 @@ Find the existing `WEATHER_TOOLS` declaration (a `Set` containing `'get_weather'
 ```js
 // brave-mcp showcase: PingGateway (IG) only — 00-mcp-brave.json fronts a
 // hand-written MCP server that calls the real Brave Search News API, gated
-// by tx-brave-scope.groovy (invest:read scope + crypto-term blocklist). No
+// by tx-brave-scope.groovy (client_id allowlist + crypto-term blocklist). No
 // Node mcp-gateway equivalent exists. Only applied when the gateway base IS
 // PingGateway (base === pgUrl below) — same conditional weather uses.
 const BRAVE_TOOLS = new Set([

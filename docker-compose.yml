@@ -599,7 +599,7 @@ services:
   # ── MCP Brave (remote third-party API, real outbound calls) ─────────────
   # Agent Gateway (IG) showcase: fronts a hand-written MCP server that calls
   # the real Brave Search News API, scoped at the edge by
-  # ping-gateway/scripts/groovy/tx-brave-scope.groovy (invest:read scope +
+  # ping-gateway/scripts/groovy/tx-brave-scope.groovy (client_id allowlist +
   # crypto-term blocklist).
   mcp-brave:
     build:
