@@ -333,7 +333,7 @@ export function buildTraceSteps(trace) {
         ["decision id", String(azEval.decisionId || "")],
         azEval.source === "gw-authorize" ? ["evidence", "from gw-authorize (gateway hop)"] : null,
       ].filter((row) => row && row[1]),
-      moreDetail: { href: "/pingone-authorize", label: "Show more detail" },
+      moreDetail: { href: "/pingone-authorize", label: "More Education" },
     } : {}));
 
   // 7a. step-up (conditional) — omitted mid-flight so it doesn't sit "pending"
@@ -459,7 +459,7 @@ export function buildTraceSteps(trace) {
           ? { title: "Gateway authorize response", text: asJson(body) }
           : undefined;
       })(),
-      moreDetail: { href: "/pingone-authorize", label: "Show more detail" },
+      moreDetail: { href: "/pingone-authorize", label: "More Education" },
     } : !gwSeen && !gwDenied && gwSkipEvidence.length ? {
       narrative: gwSkipEvidence.map((e) => e.explanation).filter(Boolean).join(" ") ||
         "The Agent Gateway was not in this run's path.",

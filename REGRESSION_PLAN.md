@@ -102,6 +102,35 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-24 — Token Chain evidence JSON unreadable; "Show more detail" renamed
+
+**Files changed:**
+
+- `demo_api_ui/src/components/TraceStepCard.jsx`
+- `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`
+- `demo_api_ui/src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`
+
+**What was broken:** The Token Chain panel's inline request/response JSON
+(`.tctr-code` blocks) rendered with `JsonHighlight.css`'s LIGHT-background
+palette (dark blue/green/amber text) against the block's own dark
+`#0f172a` background — very low contrast, hard to read. The standalone
+teaching pop-out window (`openStepTeachingWindow`) already had this right
+(it hardcodes the dark-palette hex values inline); only the live inline
+card view was missing the `jh-dark` class that switches `JsonHighlight.css`
+to its bright palette.
+
+**What was fixed:** Added `jh-dark` alongside `tctr-code` on all 6 `<pre>`
+evidence blocks in `TraceStepCard.jsx`. Also renamed the "Show more detail"
+link label (shown when the education panel isn't available) to
+"More Education", in both the `buildTraceSteps.js` source values and the
+`TraceStepCard.jsx` fallback defaults.
+
+**Do not break:** The standalone pop-out window's own inline dark-palette
+styles are untouched (already correct). `canOpenEdu`'s "Learn more" fallback
+text is unchanged — only the literal "Show more detail" string was renamed.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/components/__tests__/TraceStepCard.teaching.test.jsx src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js && npm run build`
+
 ### 2026-07-23 — Consent modal was too tall and needed the screenshot's tighter layout
 
 **Files changed:**
