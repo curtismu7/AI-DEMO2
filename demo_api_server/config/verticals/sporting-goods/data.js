@@ -17,7 +17,7 @@ function createSportingGoodsStore() {
   }
   function extendRental(userId, { rentalId }) {
     const data = get(userId);
-    const rental = data.rentals.find((r) => r.id === rentalId);
+    const rental = data.rentals.find((r) => String(r.id) === String(rentalId));
     if (!rental) return null;
     rental.status = 'Extended';
     return rental;
