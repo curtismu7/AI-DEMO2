@@ -269,7 +269,7 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(az.status).toBe("done");
     expect(az.detail.request.text).toContain("transfer_funds");
     expect(az.detail.response.text).toContain("PERMIT");
-    expect(az.detail.moreDetail.label).toBe("Show more detail");
+    expect(az.detail.moreDetail.label).toBe("More Education");
   });
 
   test("mcpResult fills mcp and api steps; llmReply fills reply", () => {

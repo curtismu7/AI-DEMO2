@@ -48,7 +48,7 @@ function renderBeforeAfterBlock(beforeAfter) {
 function renderMoreDetailLinks(moreDetail) {
   if (!moreDetail?.href && !moreDetail?.edu) return "";
   const href = moreDetail.href || "#";
-  const label = moreDetail.label || (moreDetail.hrefLabel || "Show more detail");
+  const label = moreDetail.label || (moreDetail.hrefLabel || "More Education");
   return `<p class="more-detail"><a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a></p>`;
 }
 
@@ -206,36 +206,36 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false }) 
             {d.request && (
               <>
                 <h4>{d.request.title}</h4>
-                <pre className="tctr-code"><HighlightedText text={d.request.text} /></pre>
+                <pre className="tctr-code jh-dark"><HighlightedText text={d.request.text} /></pre>
               </>
             )}
             {d.response && (
               <>
                 <h4>{d.response.title}</h4>
-                <pre className="tctr-code"><HighlightedText text={d.response.text} /></pre>
+                <pre className="tctr-code jh-dark"><HighlightedText text={d.response.text} /></pre>
               </>
             )}
             {d.altRequest && (
               <>
                 <h4>{d.altRequest.title}</h4>
-                <pre className="tctr-code"><HighlightedText text={d.altRequest.text} /></pre>
+                <pre className="tctr-code jh-dark"><HighlightedText text={d.altRequest.text} /></pre>
               </>
             )}
             {d.altResponse && (
               <>
                 <h4>{d.altResponse.title}</h4>
-                <pre className="tctr-code"><HighlightedText text={d.altResponse.text} /></pre>
+                <pre className="tctr-code jh-dark"><HighlightedText text={d.altResponse.text} /></pre>
               </>
             )}
             {d.beforeAfter && (
               <div className="tctr-before-after">
                 <div className="tctr-before-after__column">
                   <h4>{d.beforeAfter.before?.title || "Before"}</h4>
-                  <pre className="tctr-code"><HighlightedText text={d.beforeAfter.before?.text || "—"} /></pre>
+                  <pre className="tctr-code jh-dark"><HighlightedText text={d.beforeAfter.before?.text || "—"} /></pre>
                 </div>
                 <div className="tctr-before-after__column">
                   <h4>{d.beforeAfter.after?.title || "After"}</h4>
-                  <pre className="tctr-code"><HighlightedText text={d.beforeAfter.after?.text || "—"} /></pre>
+                  <pre className="tctr-code jh-dark"><HighlightedText text={d.beforeAfter.after?.text || "—"} /></pre>
                 </div>
               </div>
             )}
@@ -274,7 +274,7 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false }) 
               target="_blank"
               rel="noopener noreferrer"
             >
-              → {canOpenEdu ? (more.hrefLabel || "Open full page") : (more.label || "Show more detail")}
+              → {canOpenEdu ? (more.hrefLabel || "Open full page") : (more.label || "More Education")}
             </a>
           )}
         </div>
