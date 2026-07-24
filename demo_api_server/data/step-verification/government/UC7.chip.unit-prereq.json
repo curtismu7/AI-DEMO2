@@ -1,0 +1,14 @@
+{
+  "vertical": "government",
+  "useCaseId": "UC7",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "pay_fee",
+  "checkedAt": "2026-07-24T01:59:32.363Z",
+  "requiredFlags": [
+    "ff_mcp_gateway_pinggateway",
+    "ff_gateway_brokered_exchange"
+  ]
+}

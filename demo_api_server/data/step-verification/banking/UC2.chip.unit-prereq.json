@@ -5,8 +5,8 @@
   "mode": "unit-prereq",
   "status": "PASS",
   "errorClass": null,
-  "primaryTool": "delegate_to_specialist",
-  "checkedAt": "2026-07-22T22:22:34.657Z",
+  "primaryTool": "get_portfolio_summary",
+  "checkedAt": "2026-07-24T01:59:28.177Z",
   "requiredFlags": [
     "ff_a2a_delegation",
     "ff_mcp_gateway_pinggateway",

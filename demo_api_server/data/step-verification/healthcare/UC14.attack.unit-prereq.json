@@ -1,0 +1,13 @@
+{
+  "vertical": "healthcare",
+  "useCaseId": "UC14",
+  "triggerType": "attack",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": null,
+  "checkedAt": "2026-07-24T01:59:31.367Z",
+  "requiredFlags": [
+    "ff_rar"
+  ]
+}

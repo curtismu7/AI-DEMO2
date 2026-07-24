@@ -185,6 +185,196 @@ describe('DemoStepsDropdown', () => {
   });
 });
 
+describe('DemoStepsDropdown — vertical switching', () => {
+  const RETAIL_CATALOG = ['UC1', 'UC6', 'UC7'].map((id) => ({
+    id,
+    title: `Retail ${id}`,
+    whatLong: `Retail explanation for ${id}`,
+    trigger: { type: 'chip', text: `retail prompt ${id}` },
+  }));
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sessionStorage.clear();
+    apiClient.get.mockResolvedValue({ data: { useCases: CATALOG } });
+  });
+
+  it('re-fetches when the vertical prop changes', async () => {
+    const { rerender } = render(
+      <DemoStepsDropdown
+        vertical="banking"
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    await waitFor(() => expect(apiClient.get).toHaveBeenCalledTimes(1));
+    expect(apiClient.get).toHaveBeenCalledWith(
+      '/api/use-cases',
+      expect.objectContaining({ params: { vertical: 'banking' } }),
+    );
+
+    apiClient.get.mockResolvedValue({ data: { useCases: RETAIL_CATALOG } });
+    rerender(
+      <DemoStepsDropdown
+        vertical="retail"
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(apiClient.get).toHaveBeenCalledTimes(2));
+    expect(apiClient.get).toHaveBeenLastCalledWith(
+      '/api/use-cases',
+      expect.objectContaining({ params: { vertical: 'retail' } }),
+    );
+  });
+
+  it('renders the new vertical steps after a switch', async () => {
+    const { rerender } = render(
+      <DemoStepsDropdown
+        vertical="banking"
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument());
+
+    apiClient.get.mockResolvedValue({ data: { useCases: RETAIL_CATALOG } });
+    rerender(
+      <DemoStepsDropdown
+        vertical="retail"
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+
+    // After vertical switch, steps re-render from the new catalog
+    await waitFor(() =>
+      expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument(),
+    );
+    // Advanced steps (UC2 onwards) from original banking catalog are gone
+    expect(screen.queryByTestId('demo-steps-advanced-toggle')).not.toBeInTheDocument();
+  });
+});
+
+describe('DemoStepsDropdown — loading and error states', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sessionStorage.clear();
+  });
+
+  it('shows a loading indicator while the API call is in-flight', async () => {
+    // Never-resolving promise keeps the component in loading state
+    apiClient.get.mockReturnValue(new Promise(() => {}));
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('demo-steps-popout')).toBeInTheDocument(),
+    );
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
+    // No steps while loading
+    expect(screen.queryAllByTestId(/^demo-step-/)).toHaveLength(0);
+  });
+
+  it('shows the error message for non-400 network failures', async () => {
+    apiClient.get.mockRejectedValue({ message: 'Network Error' });
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    expect(await screen.findByText('Network Error')).toBeInTheDocument();
+    // Must NOT show the "unknown_vertical" empty-state copy
+    expect(
+      screen.queryByText('No demo steps for this vertical.'),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe('DemoStepsDropdown — step rail numbering', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sessionStorage.clear();
+    apiClient.get.mockResolvedValue({ data: { useCases: CATALOG } });
+  });
+
+  it('numbers the full list 1–19 across primary and advanced', async () => {
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument(),
+    );
+
+    // Primary: step 1 (UC1) through step 6 (UC6)
+    expect(
+      screen.getByTestId('demo-step-UC1').querySelector('.ba-demo-steps-popout__rail'),
+    ).toHaveAttribute('aria-label', 'Step 1');
+    expect(
+      screen.getByTestId('demo-step-UC6').querySelector('.ba-demo-steps-popout__rail'),
+    ).toHaveAttribute('aria-label', 'Step 6');
+
+    // Expand advanced to reveal steps 7–19
+    fireEvent.click(screen.getByTestId('demo-steps-advanced-toggle'));
+
+    // First advanced step UC2 = step 7
+    expect(
+      screen.getByTestId('demo-step-UC2').querySelector('.ba-demo-steps-popout__rail'),
+    ).toHaveAttribute('aria-label', 'Step 7');
+
+    // Last step UC32 = step 19
+    expect(
+      screen.getByTestId('demo-step-UC32').querySelector('.ba-demo-steps-popout__rail'),
+    ).toHaveAttribute('aria-label', 'Step 19');
+  });
+});
+
+describe('DemoStepsDropdown — explain modal content', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sessionStorage.clear();
+    apiClient.get.mockResolvedValue({ data: { useCases: CATALOG } });
+  });
+
+  it('shows the whatLong for the specific step that was explained', async () => {
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('demo-explain-UC7')).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByTestId('demo-explain-UC7'));
+
+    expect(
+      await screen.findByText('Long explanation for UC7'),
+    ).toBeInTheDocument();
+    // Sibling steps' explanations must NOT bleed through
+    expect(
+      screen.queryByText('Long explanation for UC1'),
+    ).not.toBeInTheDocument();
+  });
+});
+
 describe('DemoStepsDropdown — pingone-admin vertical', () => {
   const ADMIN_CATALOG = ADMIN_PRIMARY_USE_CASE_IDS.map((id) => ({
     id,

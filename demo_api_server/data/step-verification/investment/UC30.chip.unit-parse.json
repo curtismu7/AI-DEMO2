@@ -1,0 +1,10 @@
+{
+  "vertical": "investment",
+  "useCaseId": "UC30",
+  "triggerType": "chip",
+  "mode": "unit-parse",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "get_weather",
+  "checkedAt": "2026-07-24T01:59:31.983Z"
+}

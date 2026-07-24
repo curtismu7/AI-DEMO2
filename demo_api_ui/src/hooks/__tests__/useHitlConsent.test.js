@@ -32,4 +32,56 @@ describe('useHitlConsent', () => {
       expect.objectContaining({ method: 'POST' })
     );
   });
+
+  test('submitConsent sends approved=false for deny path', async () => {
+    global.fetch.mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
+    const hitlPending = { runId: 'r2', tool: 'create_transfer' };
+    const { result } = renderHook(() => useHitlConsent({ hitlPending, runId: 'r2' }));
+
+    await act(async () => {
+      await result.current.submitConsent(false);
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/agent/consent/r2',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ approved: false }),
+      })
+    );
+  });
+
+  test('submitConsent falls back to hitlPending.runId when prop runId is null', async () => {
+    global.fetch.mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
+    const hitlPending = { runId: 'r3', tool: 'create_transfer' };
+    // Pass runId=null — must still POST using hitlPending.runId
+    const { result } = renderHook(() => useHitlConsent({ hitlPending, runId: null }));
+
+    await act(async () => {
+      await result.current.submitConsent(true);
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/agent/consent/r3',
+      expect.anything()
+    );
+  });
+
+  test('submitConsent is a no-op when both runId and hitlPending.runId are absent', async () => {
+    global.fetch.mockResolvedValue({ ok: true });
+    const { result } = renderHook(() =>
+      useHitlConsent({ hitlPending: { tool: 'x' /* no runId */ }, runId: null })
+    );
+
+    await act(async () => {
+      await result.current.submitConsent(true);
+    });
+
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test('consentData is null when hitlPending is null', () => {
+    const { result } = renderHook(() => useHitlConsent({ hitlPending: null, runId: null }));
+    expect(result.current.consentData).toBeNull();
+  });
 });

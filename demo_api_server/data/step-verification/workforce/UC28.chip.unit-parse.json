@@ -1,0 +1,10 @@
+{
+  "vertical": "workforce",
+  "useCaseId": "UC28",
+  "triggerType": "chip",
+  "mode": "unit-parse",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "view_benefits",
+  "checkedAt": "2026-07-24T01:59:32.723Z"
+}

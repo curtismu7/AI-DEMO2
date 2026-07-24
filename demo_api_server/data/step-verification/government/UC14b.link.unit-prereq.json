@@ -1,0 +1,15 @@
+{
+  "vertical": "government",
+  "useCaseId": "UC14b",
+  "triggerType": "link",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "create_transfer",
+  "checkedAt": "2026-07-24T01:59:32.368Z",
+  "requiredFlags": [
+    "ff_rar",
+    "ff_mcp_gateway_pinggateway",
+    "ff_gateway_brokered_exchange"
+  ]
+}

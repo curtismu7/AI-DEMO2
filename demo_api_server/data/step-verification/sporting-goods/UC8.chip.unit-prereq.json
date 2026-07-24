@@ -1,0 +1,14 @@
+{
+  "vertical": "sporting-goods",
+  "useCaseId": "UC8",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "extend_rental",
+  "checkedAt": "2026-07-24T01:59:31.692Z",
+  "requiredFlags": [
+    "ff_mcp_gateway_pinggateway",
+    "ff_gateway_brokered_exchange"
+  ]
+}

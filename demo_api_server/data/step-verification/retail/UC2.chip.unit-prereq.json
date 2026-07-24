@@ -1,0 +1,18 @@
+{
+  "vertical": "retail",
+  "useCaseId": "UC2",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "FAIL",
+  "errorClass": "missing_prereq",
+  "primaryTool": "sensitive_order_history",
+  "checkedAt": "2026-07-24T01:59:35.178Z",
+  "requiredFlags": [
+    "ff_a2a_delegation",
+    "ff_mcp_gateway_pinggateway",
+    "ff_gateway_brokered_exchange"
+  ],
+  "prereqErrors": [
+    "Purchase History Specialist credentials missing (pingone_purchase_agent_client_id / pingone_purchase_agent_client_secret)"
+  ]
+}
