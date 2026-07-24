@@ -669,7 +669,10 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
   // specialist's tool call actually succeeded. Report that separately so a tool-call
   // failure (e.g. a gateway DENY, a missing BFF route) surfaces instead of being
   // masked by an unconditional "Delegation complete" text.
-  const toolError = toolResult && typeof toolResult === 'object' && toolResult.error;
+  // Detect error by key presence, not truthiness — an empty-string error ("") is
+  // still a failure. Fall back to 'tool_error' so the UI has a displayable label.
+  const toolHasError = toolResult && typeof toolResult === 'object' && 'error' in toolResult;
+  const toolError = toolHasError ? (toolResult.error || 'tool_error') : null;
 
   return JSON.stringify({
     delegated: true,
@@ -695,6 +698,18 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
 // a verticalResult card when the tool has a wired render (A2A_TOOL_RENDER).
 function buildA2aReplyEnvelope(a2aResult, tokenEvents) {
   const toolOk = a2aResult.delegated && a2aResult.tool && !a2aResult.toolError;
+  // Resolve the render descriptor from the SPECIALIST vertical's manifest (e.g.
+  // investment) — not from the active (banking) vertical's manifest. The UI's
+  // verticalResultExtra reads pageManifest which is always the active vertical,
+  // so portfolio_summary (an investment-only key) would resolve to null there.
+  // Embedding the descriptor in the response lets the UI use it directly.
+  let renderDescriptor = null;
+  if (toolOk && a2aResult.render && a2aResult.vertical) {
+    try {
+      const entry = verticalManifest.loader.get(a2aResult.vertical);
+      renderDescriptor = entry?.manifest?.render?.[a2aResult.render] || null;
+    } catch (_) { /* best-effort — missing descriptor just hides the card */ }
+  }
   let reply;
   if (toolOk) {
     reply = `Delegation complete — ${a2aResult.specialist} retrieved ${a2aResult.tool.replace(/_/g, ' ')} on your behalf (act-chain depth ${a2aResult.actChainDepth}).`;
@@ -712,7 +727,7 @@ function buildA2aReplyEnvelope(a2aResult, tokenEvents) {
     agentConfigured: true,
     tokenEvents,
     ...(toolOk && a2aResult.render
-      ? { verticalResult: { action: a2aResult.tool, render: a2aResult.render, data: a2aResult.result } }
+      ? { verticalResult: { action: a2aResult.tool, render: a2aResult.render, data: a2aResult.result, descriptor: renderDescriptor } }
       : {}),
   };
 }

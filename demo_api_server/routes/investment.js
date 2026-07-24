@@ -12,7 +12,8 @@ const verticalDispatch = require('../services/verticalDispatch');
  * so the A2A path reflects the same portfolio state the chat/heuristic path
  * already shows via view_portfolios/view_portfolio_value — no new data model.
  */
-router.get('/accounts/:accountId/portfolio', authenticateToken, requireScopes(['read']), (req, res) => {
+// Accept 'read' (regular session tokens) OR 'invest:read' (A2A nested-act tokens from mcp-invest).
+router.get('/accounts/:accountId/portfolio', authenticateToken, requireScopes(['read', 'invest:read']), (req, res) => {
   const plugin = verticalDispatch.resolvePlugin('investment');
   const store = plugin.getDataStore();
   const data = store.get(req.user.id);

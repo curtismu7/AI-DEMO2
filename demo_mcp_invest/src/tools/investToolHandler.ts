@@ -7,7 +7,9 @@
 
 import axios from 'axios';
 
-const BANKING_API_BASE = process.env.BANKING_API_BASE_URL || 'http://localhost:3001';
+// BANKING_API_BASE_URL is used in native mode (.env.example); Docker Compose sets
+// DEMO_API_BASE_URL instead — fall through to it before the localhost default.
+const BANKING_API_BASE = process.env.BANKING_API_BASE_URL || process.env.DEMO_API_BASE_URL || 'http://localhost:3001';
 
 async function callBff(path: string, token: string): Promise<unknown> {
   const response = await axios.get(`${BANKING_API_BASE}${path}`, {
