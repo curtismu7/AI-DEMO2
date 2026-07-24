@@ -5179,6 +5179,19 @@ body > .banking-agent-float-root .banking-agent-panel {
   overflow-y: auto;
 }
 
+/* When inside FloatingPanel, the grid fills the panel and scrolls freely */
+.ba-demo-steps-float .fp-content {
+  overflow-y: auto;
+}
+.ba-demo-steps-float .ba-demo-steps-popout__grid {
+  max-height: none;
+  overflow-y: visible;
+  flex: 1;
+}
+.ba-demo-steps-float .ba-demo-steps-popout__header {
+  flex-shrink: 0;
+}
+
 /* Each grid cell: flex row so the "i" button sits flush against the card's right edge */
 .ba-demo-steps-popout__card-item {
   display: flex;

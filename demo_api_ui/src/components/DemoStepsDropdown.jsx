@@ -5,6 +5,7 @@
  * Testing + Attacks are separate collapsed groups on the Actions popout.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import FloatingPanel from './FloatingPanel';
 import {
   ADMIN_PRIMARY_USE_CASE_IDS,
   DEMO_ADVANCED_USE_CASE_IDS,
@@ -36,7 +37,7 @@ export default function DemoStepsDropdown({
   onSelect,
 }) {
   const triggerRef = useRef(null);
-  const popoutRef = useRef(null);
+  const panelPosRef = useRef({ x: 0, y: 0 });
   const [primarySteps, setPrimarySteps] = useState([]);
   const [advancedSteps, setAdvancedSteps] = useState([]);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -97,52 +98,16 @@ export default function DemoStepsDropdown({
     return () => document.removeEventListener('keydown', onKey);
   }, [open, onOpenChange]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (e) => {
-      if (
-        popoutRef.current?.contains(e.target) ||
-        triggerRef.current?.contains(e.target)
-      ) {
-        return;
-      }
-      onOpenChange(false);
-    };
-    document.addEventListener('pointerdown', onPointerDown);
-    return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [open, onOpenChange]);
-
-  useEffect(() => {
-    if (!open || !popoutRef.current || !triggerRef.current) return;
-    const reposition = () => {
-      const trigger = triggerRef.current;
-      const popout = popoutRef.current;
-      if (!trigger || !popout) return;
-      const rect = trigger.getBoundingClientRect();
-      // Measured, not hardcoded: the width lives in CSS
-      // (.ba-actions-popout.ba-demo-steps-popout) and a duplicated constant
-      // here would silently mis-anchor the popout whenever that changes.
-      const popoutWidth = popout.offsetWidth || 360;
-      let left = rect.right - popoutWidth;
-      if (left < 8) left = 8;
-      if (left + popoutWidth > window.innerWidth - 8) {
-        left = window.innerWidth - 8 - popoutWidth;
-      }
-      popout.style.left = `${left}px`;
-      popout.style.top = `${rect.bottom + 4}px`;
-    };
-    reposition();
-    window.addEventListener('resize', reposition);
-    window.addEventListener('scroll', reposition, true);
-    return () => {
-      window.removeEventListener('resize', reposition);
-      window.removeEventListener('scroll', reposition, true);
-    };
-  }, [open, primarySteps.length, advancedOpen]);
-
-  /** Toggle the popout open/closed. */
+  /** Toggle the panel open/closed; capture trigger position for initial placement. */
   function handleToggle() {
     if (disabled) return;
+    if (!open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const panelWidth = 760;
+      let x = rect.right - panelWidth;
+      if (x < 8) x = 8;
+      panelPosRef.current = { x, y: rect.bottom + 6 };
+    }
     onOpenChange(!open);
   }
 
@@ -249,19 +214,19 @@ export default function DemoStepsDropdown({
         Demo steps {open ? '▴' : '▾'}
       </button>
       {open && (
-        <div
-          ref={popoutRef}
-          className="ba-actions-popout ba-demo-steps-popout"
-          role="dialog"
-          aria-label="Demo steps"
-          aria-modal="false"
-          data-testid="demo-steps-popout"
+        <FloatingPanel
+          title="Demo Steps"
+          defaultX={panelPosRef.current.x}
+          defaultY={panelPosRef.current.y}
+          defaultWidth={760}
+          defaultHeight={420}
+          minWidth={420}
+          minHeight={250}
+          onClose={() => onOpenChange(false)}
+          className="ba-demo-steps-float"
         >
           <div className="ba-demo-steps-popout__header">
             <div className="ba-demo-steps-popout__header-top">
-              <span className="ba-demo-steps-popout__header-title">
-                Demo steps
-              </span>
               {primarySteps.length > 0 && (
                 <span
                   className={`ba-demo-steps-popout__progress${
@@ -329,7 +294,7 @@ export default function DemoStepsDropdown({
               )}
             </div>
           )}
-        </div>
+        </FloatingPanel>
       )}
       {/* Rendered outside the popout so the explanation survives the
           outside-pointerdown close. */}
