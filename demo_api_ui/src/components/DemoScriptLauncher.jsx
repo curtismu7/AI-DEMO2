@@ -125,6 +125,7 @@ export default function DemoScriptLauncher({ user }) {
         minWidth={360}
         minHeight={320}
         closeOnPopout
+        noBackdrop
         footer={footer}
       >
         <div className="dm-scroll dsl-body" style={{ fontSize: `${fontPx}px` }}>
