@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import DraggableModal from "./DraggableModal";
 import { DEMO_SCRIPT } from "./demoScript";
 import "./DemoScriptLauncher.css";
@@ -26,10 +26,18 @@ function readSavedFontPx() {
 // pop-out opens the script in a separate window for a second monitor; the
 // beats are a passive scroll. Text size is presenter-adjustable (A-/A+),
 // persisted, and applied via the body font-size so it scales in the pop-out.
-export default function DemoScriptLauncher() {
+export default function DemoScriptLauncher({ user }) {
   const [open, setOpen] = useState(false);
   const [fontPx, setFontPx] = useState(readSavedFontPx);
   const s = DEMO_SCRIPT;
+
+  // The sidebar "Demo Script" nav item (AdminSideNav) toggles the modal via a
+  // window CustomEvent, since this launcher owns the modal state globally.
+  useEffect(() => {
+    const toggle = () => setOpen((o) => !o);
+    window.addEventListener("demo-script-toggle", toggle);
+    return () => window.removeEventListener("demo-script-toggle", toggle);
+  }, []);
 
   const changeFont = (delta) => {
     setFontPx((px) => {
@@ -94,14 +102,18 @@ export default function DemoScriptLauncher() {
 
   return (
     <>
-      <button
-        type="button"
-        className="demo-script-launch"
-        onClick={() => setOpen(true)}
-        title="Open the live demo script (teleprompter) - pop out to a second screen"
-      >
-        Demo Script
-      </button>
+      {/* Floating launcher only on the unauthenticated landing; logged-in
+          users open it from the "Demo Script" sidebar item instead. */}
+      {!user && (
+        <button
+          type="button"
+          className="demo-script-launch"
+          onClick={() => setOpen((o) => !o)}
+          title="Toggle the live demo script (teleprompter) - pop out to a second screen"
+        >
+          Demo Script
+        </button>
+      )}
 
       <DraggableModal
         isOpen={open}
