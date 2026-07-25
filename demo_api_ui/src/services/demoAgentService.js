@@ -1047,14 +1047,22 @@ export function ingestLegacyRunTrace(data, { forceHeuristic = false } = {}) {
         const errCode = data.error
           || (typeof data.reply === "string" && /mcp_error/i.test(data.reply) ? "mcp_error" : null)
           || "tool_failed";
+        // A gateway policy denial carries a specific code (e.g. weather_scope_denied)
+        // and a human reason — surface those instead of the generic errCode, mark it
+        // a deny (not a crash), and honour the BFF's `expected` flag so the rail can
+        // frame an expectedOutcome:'DENY' use case as the control working.
+        const isGatewayDeny = Boolean(data.gatewayErrorCode) || data.error === "gateway_policy_denied";
+        const specificCode = data.gatewayErrorCode || errCode;
         tokenChainTraceStore.ingestMcpResult({
           tool: data.toolsCalled[0],
           toolsCalled: data.toolsCalled,
           status: "error",
-          error: errCode,
-          denied: false,
+          error: specificCode,
+          denied: isGatewayDeny,
+          expected: Boolean(data.expected),
           result: {
-            error: errCode,
+            error: specificCode,
+            ...(data.gatewayErrorCode ? { gatewayErrorCode: data.gatewayErrorCode } : {}),
             message: data.message || data.reply || errCode,
           },
         });
