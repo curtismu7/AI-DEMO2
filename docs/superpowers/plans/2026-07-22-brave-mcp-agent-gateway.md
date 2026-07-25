@@ -2,20 +2,20 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a `brave_news_search` MCP tool backed by a new standalone Node service that calls Brave's real News Search API, front it with `ping-gateway` exactly like the existing Weather MCP precedent, gate it with both a scope-membership check and a query-content blocklist in one Groovy filter, and make it callable/visible from `AgentGatewayTester.jsx`.
+**Goal:** Add a `brave_news_search` MCP tool backed by a new standalone Node service that calls Brave's real News Search API, front it with `ping-gateway` exactly like the existing Weather MCP precedent, gate it with a query-content blocklist and a live feature flag in one Groovy filter (a scope-membership check was attempted twice and proven unworkable in this PingOne environment, then removed — see the Task 2 design note below for the full history), and make it callable/visible from `AgentGatewayTester.jsx`.
 
-**Architecture:** `demo_mcp_brave/server.js` (new, hand-written MCP-over-HTTP server, no child-process bridge) → `ping-gateway` route `/mcp/brave` (new: audit → strip-prefix → the existing global `rsFilter` → MCP validation → new `tx-brave-scope.groovy` combining scope-membership + blocklist checks → reverse-proxy) → real outbound call to `https://api.search.brave.com/res/v1/news/search`. `AgentGatewayTester.jsx` gets the tool added via a code change in `mcpGatewayClient.js` (tool-name → sub-path routing is a hardcoded `Set` lookup there, same pattern already used for weather).
+**Architecture:** `demo_mcp_brave/server.js` (new, hand-written MCP-over-HTTP server, no child-process bridge) → `ping-gateway` route `/mcp/brave` (new: audit → strip-prefix → the existing global `rsFilter` → MCP validation → new `tx-brave-scope.groovy` doing a query-content blocklist check → reverse-proxy) → real outbound call to `https://api.search.brave.com/res/v1/news/search`. `AgentGatewayTester.jsx` gets the tool added via a code change in `mcpGatewayClient.js` (tool-name → sub-path routing is a hardcoded `Set` lookup there, same pattern already used for weather).
 
 **Tech Stack:** Node 22 (`demo_mcp_brave`, no new npm dependency — built-in `fetch`), ping-gateway (PingGateway/IG config JSON + Groovy `ScriptableFilter`), Docker Compose, React (`demo_api_ui`).
 
 ## Global Constraints
 
 - **Remote-only.** Every call to `demo_mcp_brave` makes a real, live outbound HTTPS request to Brave's API. No mock/local mode.
-- **No new PingOne provisioning.** The scope-based rule reuses the existing `invest:read` scope (confirmed via `scope-topology.json`: granted to exactly 2 of 15 apps — `"Super Banking User App"` and `"Super Banking Investment Advisor Agent"` — and absent from every other app, including all other specialist agents, the Admin App, MCP Server/Gateway/Exchanger, plain AI Agent, and Worker). No new PingOne resource, scope, or Authorize policy is created.
+- **No new PingOne provisioning.** No new PingOne resource, scope, or Authorize policy is created. Gating at the gateway is a query-content blocklist plus a live feature flag only — no scope or client-identity check of any kind ships (see the Task 2 design note below for the full history of why).
 - **No child-process bridge.** Unlike `demo_mcp_weather` (which wraps a stdio-only third-party npm package), `demo_mcp_brave` is hand-written and speaks HTTP/MCP directly — there is no third-party Brave MCP package to wrap.
 - **Secret handling.** `BRAVE_SEARCH_API_KEY` lives only in `demo_mcp_brave/.env` (gitignored via the repo's blanket `.env` rule). Never in a committed file, never in `docker-compose.yml`'s `environment:` block, never logged.
 - **Existing files touched, not rewritten.** `demo_api_server/routes/featureFlags.js`, `demo_api_server/server.js`, `demo_api_server/services/mcpGatewayClient.js`, `demo_api_ui/src/components/AgentGatewayTester.jsx`, and `docker-compose.yml` all get small, additive edits (new lines/blocks) — no existing line is rewritten or removed except where explicitly shown.
-- **Verified real mechanism, not the design doc's original guess.** The approved design doc suggested a Groovy-only scope check; research proved the correct real accessor is `contexts['oauth2'].accessToken.getInfo()['scope']` (confirmed working in `p1az-decision.groovy`), reachable because the route reuses the same global `"rsFilter"` (`OAuth2ResourceServerFilter`) weather already uses — no new IG heap/resolver/introspection-provider block is needed. This plan implements the verified mechanism.
+- **Mechanism revised during implementation, not the design doc's original guess.** The approved design doc suggested a Groovy-only scope check. Research first confirmed a real, working scope accessor (`contexts['oauth2'].accessToken.getInfo()['scope']`, per `p1az-decision.groovy`), but live testing against real PingOne then proved no per-caller identity check — scope-based or client-id-based — is reachable by any real caller in this environment, so that check was removed entirely. The route still reuses the same global `"rsFilter"` (`OAuth2ResourceServerFilter`) weather already uses (no new IG heap/resolver/introspection-provider block is needed); the shipped gating is a content blocklist plus a live feature flag only. See Task 2's design note below for the full history.
 
 ---
 
@@ -62,6 +62,7 @@
 
 const http = require('node:http');
 const https = require('node:https');
+const zlib = require('node:zlib');
 
 const PORT = parseInt(process.env.PORT || '8897', 10);
 const BRAVE_API_KEY = process.env.BRAVE_SEARCH_API_KEY || '';
@@ -117,15 +118,25 @@ function braveNewsSearch(query, count) {
       timeout: 10000,
     };
     const req = https.request(options, (res) => {
+      if (res.statusCode !== 200) {
+        let data = '';
+        res.on('data', (c) => { data += c; });
+        res.on('end', () => {
+          reject(new Error(`Brave API responded ${res.statusCode}: ${data.slice(0, 300)}`));
+        });
+        return;
+      }
+      let stream = res;
+      if (res.headers['content-encoding'] === 'gzip') {
+        stream = res.pipe(zlib.createGunzip());
+      }
       let data = '';
-      res.on('data', (c) => { data += c; });
-      res.on('end', () => {
-        if (res.statusCode !== 200) {
-          return reject(new Error(`Brave API responded ${res.statusCode}: ${data.slice(0, 300)}`));
-        }
+      stream.on('data', (c) => { data += c; });
+      stream.on('end', () => {
         try { resolve(JSON.parse(data)); }
         catch (e) { reject(new Error(`Brave API returned invalid JSON: ${e.message}`)); }
       });
+      stream.on('error', reject);
     });
     req.on('timeout', () => req.destroy(new Error('Brave API request timed out')));
     req.on('error', reject);
@@ -458,7 +469,8 @@ Add this new service block immediately after the existing `mcp-weather:` service
     ports:
       - "8897:8897"
     env_file:
-      - ./demo_mcp_brave/.env
+      - path: ./demo_mcp_brave/.env
+        required: false
     environment:
       PORT: "8897"
     networks:

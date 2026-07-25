@@ -611,7 +611,8 @@ services:
     ports:
       - "8897:8897"
     env_file:
-      - ./demo_mcp_brave/.env
+      - path: ./demo_mcp_brave/.env
+        required: false
     environment:
       PORT: "8897"
     networks:
