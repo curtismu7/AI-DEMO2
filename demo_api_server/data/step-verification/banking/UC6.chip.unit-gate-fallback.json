@@ -6,6 +6,6 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "create_transfer",
-  "checkedAt": "2026-07-25T15:48:32.779Z",
+  "checkedAt": "2026-07-25T18:45:35.092Z",
   "verifiedBy": "Transaction 429 → catch fall-through → localAmountBand (#769)"
 }

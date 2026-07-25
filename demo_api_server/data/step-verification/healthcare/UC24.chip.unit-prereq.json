@@ -6,7 +6,7 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "get_branch_hours",
-  "checkedAt": "2026-07-25T15:48:17.308Z",
+  "checkedAt": "2026-07-25T18:45:35.642Z",
   "requiredFlags": [
     "ff_mcp_gateway_pinggateway",
     "ff_gateway_brokered_exchange"

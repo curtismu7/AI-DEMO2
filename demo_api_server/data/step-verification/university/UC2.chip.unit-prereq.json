@@ -6,7 +6,7 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "sensitive_student_finance",
-  "checkedAt": "2026-07-25T15:48:16.185Z",
+  "checkedAt": "2026-07-25T18:45:35.632Z",
   "requiredFlags": [
     "ff_a2a_delegation",
     "ff_mcp_gateway_pinggateway",

@@ -6,6 +6,6 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "create_transfer",
-  "checkedAt": "2026-07-25T15:48:32.774Z",
+  "checkedAt": "2026-07-25T18:45:35.082Z",
   "verifiedBy": "mcpToolAuthorizationService._applyTransactionPolicy localAmountBand (#769)"
 }
