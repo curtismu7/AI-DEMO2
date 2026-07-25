@@ -55,7 +55,9 @@ Add to the `COMMANDS` map:
 agent_skills_list:    { label: 'pingcli agent-skills list -O json',
                         args: [...configFlag, 'agent-skills', 'list', '-O', 'json'],
                         runnable: true },   // no auth: catalog is local, no token needed
-agent_skills_install: { /* see open decision */ },
+agent_skills_install: { label: 'pingcli agent-skills install pingcli-usage',
+                        args: [...configFlag, 'agent-skills', 'install', 'pingcli-usage'],
+                        runnable: true, sandboxInstall: true },  // temp --output-dir injected server-side
 ```
 
 - `list` needs **no** `auth` bootstrap — the skills catalog is bundled/local,
@@ -84,34 +86,32 @@ Add one entry to the `CATEGORIES` array (line ~237):
 `labelForCommandKey`, section collapse/persist, Copy, and Run/stream wiring all
 work off `CATEGORIES` + `/commands` automatically — no other frontend change.
 
-## Open decision — `install` behavior
+## Decision (resolved 2026-07-25) — `install` = live sandboxed run
 
 `pingcli agent-skills install <name>` **copies files** into
-`<output-dir>/<skill-name>` (default `.claude/skills` in CWD). Running it
-server-side installs into the container, which is not the presenter's IDE.
-Two options:
+`<output-dir>/<skill-name>` (default `.claude/skills` in CWD). The card runs
+it **live into a throwaway temp dir** so the copy is demonstrably real and
+non-destructive:
 
-- **(Recommended) Live sandboxed run.** Card runs
-  `agent-skills install pingcli-usage --output-dir <tmp>` into a throwaway
-  temp dir so the copy is demonstrably real and non-destructive; the card
-  *label* shows the clean canonical command
-  (`pingcli agent-skills install pingcli-usage`) for the presenter to run on
-  their own machine. Matches the route's existing "label ≠ internal args"
-  convention (it already hides `--config`). Slightly more backend code
-  (`resolveArgs` must inject the temp `--output-dir`, or add a dedicated arg).
-- **Copy-only.** Mark `agent_skills_install` `runnable:false`; the route's
-  existing `copy_only_command` path returns the command to copy. Least code,
-  reuses the pattern used today for non-runnable commands. Less live "wow".
-
-Default to the recommended option unless the user prefers copy-only.
+- Backend marks the command `sandboxInstall: true`. Before exec, the route
+  injects `--output-dir <tmp>` (e.g. a fresh dir under `PINGCLI_HOME`) into the
+  args — never a real `.claude/skills`. Injection happens in `resolveArgs` (or a
+  small dedicated helper) so the streamed/`run` paths both get it.
+- The card **label** shows the clean canonical command
+  (`pingcli agent-skills install pingcli-usage`) — the `--output-dir` is
+  server-internal, matching the route's existing "label ≠ internal args"
+  convention (it already hides `--config`). Copy therefore yields the command a
+  presenter runs on their own machine (installs into their real `.claude/skills`).
+- No `auth` needed (local catalog).
 
 ## Success criteria
 
 - `/pingcli` shows a new **"AI Agent Skills"** section with two cards.
 - Clicking **List Agent Skills** streams real JSON listing `pingcli-usage`
   (exit 0) into the terminal pane — verified in the running stack, not just unit.
-- **Install** behaves per the chosen option (live copy into temp dir, or
-  copy-to-clipboard) with no error and no write to any real `.claude/skills`.
+- **Install** runs live, copying `pingcli-usage` into a temp `--output-dir`
+  (exit 0), with no write to any real `.claude/skills`; card label/Copy still
+  yields the clean canonical `pingcli agent-skills install pingcli-usage`.
 - No regression to existing pingcli cards (all still run live).
 - UI build gate passes; emoji allowlist respected (no new emoji needed).
 
