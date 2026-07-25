@@ -1297,14 +1297,17 @@ class PingOneProvisionService {
 
       const match = existingGrants.find(g => g.resource?.id === resourceId);
 
-      // Cross-resource name filter: PingOne rejects POSTing a new grant whose
-      // scope names collide with names already granted on a different resource
-      // ("Multiple scopes with the same name cannot be added to the same grant").
-      // This only applies to a fresh POST — when merging into an existing grant
-      // (match exists) we're doing a PUT/PATCH on that grant, and PingOne allows
-      // same-named scopes across different resources in that case.
+      // Cross-resource name filter: PingOne rejects a grant whose scope names
+      // collide with names already granted on a different resource
+      // ("Multiple scopes with the same name cannot be added to the same
+      // grant"). Applies whether this is a fresh POST or a PUT merge into an
+      // existing grant — a prior version of this code exempted merges on the
+      // assumption PingOne allows the collision there; a live 2026-07-25
+      // bootstrap run proved that wrong (the AI Agent/Admin/MCP Exchanger
+      // grants failed on exactly this PUT path), so the filter now applies
+      // unconditionally.
       const idToName = new Map(resourceScopes.map(s => [s.id, s.name]));
-      if (!match) {
+      {
         const filteredIds = desiredIds.filter(id => {
           const name = idToName.get(id);
           return name && !allOtherNames.has(name);
@@ -1313,8 +1316,8 @@ class PingOneProvisionService {
         desiredIds.length = 0;
         desiredIds.push(...filteredIds);
 
-        // If all desired names were already granted via other resources and there
-        // is no existing grant to merge into, there is nothing to POST.
+        // If all desired names were already granted via other resources,
+        // there is nothing left to POST or merge.
         if (desiredIds.length === 0 && droppedAsCrossResource > 0) {
           return {
             success: true,
