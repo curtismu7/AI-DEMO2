@@ -149,6 +149,52 @@ Live re-verified against the running stack (scratch copy into main checkout's
 mount source, reverted after): real PingOne Authorize DECISION flipped from
 PERMIT to DENY for the same rogue-actor sim run.
 
+### 2026-07-24 — Every A2A specialist delegation silently denied (3 stacked causes)
+
+**Files changed:**
+
+- `demo_api_server/scripts/refresh-service-envs.js`
+- `demo_api_server/src/__tests__/refreshServiceEnvs.authzWorkerCreds.test.js` (new)
+
+**What was broken:** UC2/UC2.5 (A2A specialist delegation — "hand off to a
+specialist") failed end-to-end. Live-diagnosed via a real browser session
+(login + `/api/agent/invoke`), three independent causes stacked:
+
+1. `demo_mcp_gateway`'s running Docker image was built 2026-07-21, two days
+   before commit `701efe988` ("restore NestedAct, PEP depth skip, and
+   exchanger actor mint") landed on 2026-07-23. The depth-2 nested-act
+   exemption that fix added was never live — every specialist call hit the
+   single-actor allow-list check and failed `unauthorized_actor`, even
+   though the token itself was correctly nested (verified `actChainDepth: 2`
+   both client- and gateway-side once the image was rebuilt).
+2. Fixing #1 exposed `user_lookup_failed: unable to verify user status` —
+   `demo_authz_server`'s `pingOneUserLookup.js` needs
+   `PINGONE_WORKER_CLIENT_ID`/`PINGONE_WORKER_CLIENT_SECRET` to call the
+   PingOne Management API for its Rule 0a2 user-existence check, but
+   `refresh-service-envs.js`'s `demo_authz_server` block never emitted
+   either — every decision request threw "not configured", which the mock
+   engine turns into a fail-closed DENY.
+3. Fixing #1 and #2 gets the full chain to PERMIT
+   (`P1AZDecision: forwarded`, `BackendExchange: forwarded` to the real
+   `mcp-invest` backend) — `get_portfolio_summary` itself then returns an
+   empty-error envelope (`{"error":""}`). This is a separate, narrower,
+   tool-specific data issue (not an auth/infra bug) and is NOT fixed by this
+   entry — noted here so it isn't mistaken for a regression of #1/#2.
+
+**What was fixed:** Rebuilt the `demo_mcp_gateway` Docker image (no source
+change needed — the fix already existed, just never shipped to the running
+container). Added `PINGONE_WORKER_CLIENT_ID`/`_SECRET` to the generator's
+`demo_authz_server` block.
+
+**Do not break:** This is the SAME service (`demo_mcp_gateway`) as the
+"ping-gateway's mcp-delegation route" entry above — do not confuse the two;
+`ping-gateway` is the separate Java/OpenIG gateway. Any future
+`demo_mcp_gateway` source fix needs an image rebuild to take effect locally
+(`docker compose build mcp-gateway && docker compose up -d --force-recreate
+--no-deps mcp-gateway`) — a plain restart reuses the stale image.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/refreshServiceEnvs.authzWorkerCreds.test.js --testPathIgnorePatterns="/node_modules/"`, then live: log in, POST `{"prompt":"hand off to a specialist","vertical":"banking","forceHeuristic":true}` to `/api/agent/invoke`, confirm the gateway audit trail shows `"policy":{"passed":true}` and `"authorize":{"decision":"PERMIT"}` (the remaining `get_portfolio_summary` empty-error issue is tracked separately, not by this check).
+
 ### 2026-07-24 — ping-gateway's mcp-delegation route silently failed to build
 
 **Files changed:**

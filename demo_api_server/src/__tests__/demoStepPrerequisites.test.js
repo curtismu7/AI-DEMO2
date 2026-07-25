@@ -26,11 +26,23 @@ describe('demoStepPrerequisites', () => {
     expect(needsA2aCredentials(uc)).toBe(true);
   });
 
-  test('UC2.5 (maturity works, no primaryTool) still requires ff_a2a_delegation', () => {
+  test('UC2.5 (maturity works) still requires ff_a2a_delegation regardless of primaryTool', () => {
+    // PR #830 (83d8e0231c) gave UC2.5 a primaryTool ('get_portfolio_summary')
+    // so the A2A explain modal has real Ping products/Authorize/Gateway copy
+    // to show — an intentional feature completion, not a regression. That
+    // also means it now needs the MCP gateway runtime flags, but the thing
+    // actually under test — ff_a2a_delegation is required regardless of
+    // primaryTool — still holds.
     const uc = resolveUseCase('UC2.5', 'banking');
     expect(uc.maturity).toBe('works');
-    expect(uc.primaryTool).toBeFalsy();
-    expect(requiredFlagsForUseCase(uc)).toEqual(['ff_a2a_delegation']);
+    expect(uc.primaryTool).toBe('get_portfolio_summary');
+    expect(requiredFlagsForUseCase(uc)).toEqual(
+      expect.arrayContaining([
+        'ff_a2a_delegation',
+        'ff_mcp_gateway_pinggateway',
+        'ff_gateway_brokered_exchange',
+      ]),
+    );
   });
 
   test('requiredFlagsForUseCaseId resolves A2A slug without full catalog match extras', () => {
@@ -85,10 +97,14 @@ describe('demoStepPrerequisites', () => {
   });
 
   test('non-A2A flag-gated chip requires maturity flag plus MCP gateway flags', () => {
+    // UC22's maturity flag is 'ciba_enabled', not 'ff_ciba' — PR #832 aligned
+    // useCases.js to the actual registered configStore key (featureFlags.js,
+    // configStore.js, cibaService.js all read/write 'ciba_enabled'; 'ff_ciba'
+    // was never a real flag and caused PATCH 400s).
     const uc = resolveUseCase('UC22', 'banking');
     expect(requiredFlagsForUseCase(uc)).toEqual(
       expect.arrayContaining([
-        'ff_ciba',
+        'ciba_enabled',
         'ff_mcp_gateway_pinggateway',
         'ff_gateway_brokered_exchange',
       ]),
