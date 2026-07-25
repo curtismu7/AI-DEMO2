@@ -33,10 +33,9 @@ const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 const NON_MCP_PRIMARY_TOOLS = new Set(['delegate_to_specialist']);
 /** A2A handoff chips are intentionally not heuristic-routable — the known baseline. */
 const A2A_UNROUTABLE = /specialist/i;
-/** UC33/UC34/UC35 are feature-demo or free-form LLM chips with no single deterministic tool —
- *  the only sanctioned exceptions besides A2A "specialist" handoffs. UC33 routes to mortgage_demo
- *  (a feature-demo action, not an MCP tool); UC34/UC35 are free-form LLM analysis. */
-const FEATURE_DEMO_UNROUTABLE = new Set(['UC33', 'UC34', 'UC35']);
+/** UC34/UC35 are free-form LLM analysis chips with no single deterministic tool — the
+ *  only other sanctioned exception besides A2A "specialist" handoffs. */
+const LLM_ANALYSIS_UNROUTABLE = new Set(['UC34', 'UC35']);
 
 /**
  * Heuristic ACTION -> dispatched TOOL where they differ. Vertical plugin actions
@@ -54,7 +53,7 @@ function chipEntries() {
       const uc = resolveUseCase(u.id, vertical) || u;
       const t = uc.trigger || {};
       if (t.type !== 'chip' || !t.text) continue;
-      if (A2A_UNROUTABLE.test(t.text) || FEATURE_DEMO_UNROUTABLE.has(u.id)) continue;
+      if (A2A_UNROUTABLE.test(t.text) || LLM_ANALYSIS_UNROUTABLE.has(u.id)) continue;
       if (!uc.primaryTool || NON_MCP_PRIMARY_TOOLS.has(uc.primaryTool)) continue;
       out.push({ vertical, id: u.id, text: t.text, primaryTool: uc.primaryTool });
     }
@@ -141,7 +140,7 @@ describe('every vertical chip routes to its OWN stored primaryTool', () => {
       for (const u of USE_CASES) {
         const uc = resolveUseCase(u.id, vertical) || u;
         const t = uc.trigger || {};
-        if (t.type !== 'chip' || !t.text || A2A_UNROUTABLE.test(t.text) || FEATURE_DEMO_UNROUTABLE.has(u.id)) continue;
+        if (t.type !== 'chip' || !t.text || A2A_UNROUTABLE.test(t.text) || LLM_ANALYSIS_UNROUTABLE.has(u.id)) continue;
         if (!uc.primaryTool) naked.push(`${vertical} ${u.id} "${t.text}"`);
       }
     }
