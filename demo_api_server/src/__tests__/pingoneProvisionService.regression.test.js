@@ -512,4 +512,55 @@ describe('PingOneProvisionService — regression suite', () => {
       expect(putCall).toBeUndefined();
     });
   });
+
+  // -----------------------------------------------------------------------
+  // T7 — writeEnvFile must not silently drop keys it doesn't manage.
+  //
+  // Live incident (2026-07-25): a bootstrap rerun regenerated .env from
+  // generateEnvContent's fixed template, which wiped 24 unrelated keys —
+  // PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID (that session's live CIBA fix),
+  // PINGONE_PAR_ENDPOINT, VAULT_PASSWORD, HELIX_*, LLM provider API keys —
+  // because none of them are part of the template. Fix: carry forward any
+  // existing key the template doesn't write, instead of discarding it.
+  // -----------------------------------------------------------------------
+  describe('T7 — writeEnvFile carries forward unmanaged keys', () => {
+    it('preserves an existing key generateEnvContent does not know about, and does not duplicate one it does', async () => {
+      const fs = require('fs');
+      const dotenv = require('dotenv');
+      const configStore = require('../../services/configStore');
+
+      const existingText = [
+        'PINGONE_ADMIN_CLIENT_ID=stale-admin-id',
+        'PINGONE_PAR_ENDPOINT=https://auth.pingone.com/env-1/as/par',
+        'VAULT_PASSWORD=supersecret',
+      ].join('\n');
+
+      let written = null;
+      jest.spyOn(fs, 'readFileSync').mockReturnValue(existingText);
+      jest.spyOn(fs.promises, 'readFile').mockResolvedValue(existingText);
+      jest.spyOn(fs.promises, 'writeFile').mockImplementation((_path, content) => {
+        written = content;
+        return Promise.resolve();
+      });
+      jest.spyOn(dotenv, 'config').mockImplementation(() => {});
+      jest.spyOn(configStore, 'ensureInitialized').mockResolvedValue(undefined);
+      jest.spyOn(configStore, '_seedFromEnv').mockImplementation(() => {});
+
+      const provisioned = {
+        adminApp: { clientId: 'fresh-admin-id', clientSecret: 'fresh-admin-secret' },
+        userApp: { clientId: 'user-id', clientSecret: 'user-secret' },
+        resourceServer: { audience: ['enduser.ping.demo'] },
+        demoUser: { password: 'Baseball123!' },
+        demoAdmin: { password: 'Baseball123!' },
+      };
+      const config = { envId: 'env-1', region: 'com', publicAppUrl: 'https://example.com' };
+
+      await svc.writeEnvFile(config, provisioned);
+
+      expect(written).toContain('PINGONE_ADMIN_CLIENT_ID=fresh-admin-id');
+      expect(written).not.toContain('stale-admin-id');
+      expect(written).toContain('PINGONE_PAR_ENDPOINT=https://auth.pingone.com/env-1/as/par');
+      expect(written).toContain('VAULT_PASSWORD=supersecret');
+    });
+  });
 });

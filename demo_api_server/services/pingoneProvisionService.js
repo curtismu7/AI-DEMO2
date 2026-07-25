@@ -72,6 +72,21 @@ function resolvePingEmail(existingEnvText = '') {
   return '';
 }
 
+/**
+ * Parse `KEY=value` lines out of raw .env text into a Map<key, raw line>.
+ * Comments and blank lines are skipped. Used by writeEnvFile to carry
+ * forward keys generateEnvContent doesn't know about, instead of losing
+ * them on every bootstrap rerun.
+ */
+function parseEnvLines(text) {
+  const map = new Map();
+  for (const line of String(text || '').split('\n')) {
+    const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=/);
+    if (m) map.set(m[1], line);
+  }
+  return map;
+}
+
 // scope-topology.json (v2) is the SINGLE SOURCE OF TRUTH for which scopes
 // exist on each PingOne resource server and which scopes each app is granted.
 // These helpers convert topology scope-name lists into the {name,description}
@@ -1551,7 +1566,26 @@ class PingOneProvisionService {
     })();
     preserved.BFF_INTERNAL_SECRET = existingBff || require('crypto').randomBytes(32).toString('hex');
 
-    const envContent = this.generateEnvContent(config, provisioned, preserved);
+    let envContent = this.generateEnvContent(config, provisioned, preserved);
+
+    // generateEnvContent only knows a fixed set of PingOne-provisioned keys —
+    // anything else (API keys, PAR endpoint, vault password, deployment URLs,
+    // a manually-set decision-endpoint id, ...) would otherwise be silently
+    // dropped on every rerun. Carry forward any existing key it didn't write.
+    // Root cause of the 2026-07-25 incident: a bootstrap rerun wiped 24
+    // unrelated keys this way, including that session's live-provisioned
+    // PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID.
+    const existingKeys = parseEnvLines(existingText);
+    const writtenKeys = parseEnvLines(envContent);
+    const carriedForward = [];
+    for (const [key, line] of existingKeys) {
+      if (!writtenKeys.has(key)) carriedForward.push(line);
+    }
+    if (carriedForward.length > 0) {
+      envContent += '\n# --- carried forward from the previous .env (not managed by bootstrap) ---\n'
+        + carriedForward.join('\n') + '\n';
+    }
+
     await fs.writeFile(envPath, envContent, 'utf8');
 
     // Mirror the newly-written .env into SQLite so the database is immediately
