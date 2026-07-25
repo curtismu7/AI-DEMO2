@@ -112,12 +112,31 @@
 .luw-track { margin: 0.5rem 0 0.35rem; }
 .luw-track > summary {
   list-style: none; cursor: pointer; display: flex; align-items: center; gap: 0.45rem;
-  padding: 0.5rem 0.35rem; font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.06em; color: #64748b; border-radius: 6px;
+  padding: 0.55rem 0.4rem; font-size: 0.86rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.05em; color: #334155; border-radius: 6px;
 }
 .luw-track > summary::-webkit-details-marker { display: none; }
 .luw-track > summary:hover { background: #fff; }
 .luw-track__count { margin-left: auto; font-weight: 600; color: #94a3b8; }
+
+/* 15-Min Security Demo: bordered box marks exactly which tiles the 15-minute
+   script runs, so the presenter sees the demo scope at a glance. */
+.luw-track--security {
+  border: 2px solid #0f766e;
+  border-radius: 10px;
+  background: #f0fdfa;
+  padding: 0.15rem 0.55rem 0.5rem;
+  margin: 0.5rem 0 0.85rem;
+}
+.luw-track--security > summary { color: #0f766e; }
+.luw-track--security > summary:hover { background: #ccfbf1; }
+.luw-track--security .luw-track__count { color: #0f766e; }
+
+/* Color-code each group title so the tracks read apart at a glance. */
+.luw-track--foundations > summary { color: #1d4ed8; }
+.luw-track--controls > summary    { color: #b45309; }
+.luw-track--hitl > summary        { color: #7c3aed; }
+.luw-track--attacks > summary     { color: #b91c1c; }
 
 /* Main: agent + token chain + glance */
 .luw-main {

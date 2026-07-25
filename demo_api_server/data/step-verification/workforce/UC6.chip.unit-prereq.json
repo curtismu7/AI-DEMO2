@@ -6,7 +6,7 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "submit_expense",
-  "checkedAt": "2026-07-25T15:48:12.627Z",
+  "checkedAt": "2026-07-25T20:23:03.388Z",
   "requiredFlags": [
     "ff_mcp_gateway_pinggateway",
     "ff_gateway_brokered_exchange"

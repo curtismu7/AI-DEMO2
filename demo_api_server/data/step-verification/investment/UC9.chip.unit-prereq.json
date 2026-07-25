@@ -6,7 +6,7 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "large_trade",
-  "checkedAt": "2026-07-25T15:48:13.518Z",
+  "checkedAt": "2026-07-25T20:23:04.891Z",
   "requiredFlags": [
     "ff_authorize_group_policy",
     "ff_mcp_gateway_pinggateway",
