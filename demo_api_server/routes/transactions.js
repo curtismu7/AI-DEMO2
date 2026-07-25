@@ -598,6 +598,17 @@ router.post('/', authenticateToken, async (req, res) => {
       req.session.stepUpVerified = 0;
     }
 
+    // CIBA out-of-band approval (routes/ciba.js) is itself a human-in-the-loop
+    // event, so it must also discharge the consent gate below — otherwise a
+    // CIBA-approved retry still has no consentChallengeId and 428s forever on
+    // r.consentRequired, even though sessionStepUpFresh already cleared the
+    // step-up gate. Single-use, same pattern as stepUpVerified above.
+    let sessionHitlFresh = false;
+    if (req.session?.hitlVerified > Date.now()) {
+      sessionHitlFresh = true;
+      req.session.hitlVerified = 0;
+    }
+
     // RFC 9470 §5 freshness: when stepUpMaxAge > 0, a strong ACR from a stale
     // authentication event is NOT sufficient — downgrade it so the gate fires
     // and the challenge sends the user back through a fresh ceremony.
@@ -628,6 +639,7 @@ router.post('/', authenticateToken, async (req, res) => {
       type,
       acr: effectiveAcr,
       useCaseId: sessionStepUpFresh ? '' : (req.body?.useCaseId || ''),
+      hitlAlreadyVerified: sessionHitlFresh,
     });
 
     if (authz.ran) {
