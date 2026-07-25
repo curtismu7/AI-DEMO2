@@ -79,6 +79,15 @@ const WEATHER_TOOLS = new Set([
     'get_weather',
 ]);
 
+// brave-mcp showcase: PingGateway (IG) only — 00-mcp-brave.json fronts a
+// hand-written MCP server that calls the real Brave Search News API, gated
+// by tx-brave-scope.groovy (crypto-term content blocklist). No
+// Node mcp-gateway equivalent exists. Only applied when the gateway base IS
+// PingGateway (base === pgUrl below) — same conditional weather uses.
+const BRAVE_TOOLS = new Set([
+    'brave_news_search',
+]);
+
 /**
  * Call an MCP tool via the gateway HTTP endpoint.
  *
@@ -131,6 +140,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     const isIgBase = !!pgUrl && base === pgUrl;
     const url  = isIgBase && APIKEY_TOOLS.has(tool) ? `${base}/mcp/apikey`
                : isIgBase && WEATHER_TOOLS.has(tool) ? `${base}/mcp/weather`
+               : isIgBase && BRAVE_TOOLS.has(tool) ? `${base}/mcp/brave`
                : `${base}/mcp`;
 
     const body = {
