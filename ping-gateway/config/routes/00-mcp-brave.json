@@ -1,0 +1,39 @@
+{
+  "name": "mcp-brave-primary",
+  "condition": "${find(request.uri.path, '^/mcp/brave')}",
+  "handler": {
+    "type": "Chain",
+    "config": {
+      "filters": [
+        {
+          "name": "McpAudit",
+          "type": "McpAuditFilter",
+          "config": { "auditService": "AuditService" }
+        },
+        {
+          "name": "StripBravePrefix",
+          "type": "UriPathRewriteFilter",
+          "config": {
+            "mappings": { "/mcp/brave": "/mcp" }
+          }
+        },
+        "rsFilter",
+        {
+          "name": "McpProtocol",
+          "type": "McpValidationFilter",
+          "config": { "acceptedOrigins": ".*", "metricsEnabled": true }
+        },
+        {
+          "name": "TxBraveScope",
+          "type": "ScriptableFilter",
+          "config": { "type": "application/x-groovy", "file": "tx-brave-scope.groovy" }
+        }
+      ],
+      "handler": {
+        "type": "ReverseProxyHandler",
+        "baseURI": "${env['PG_BRAVE_BACKEND_URL']}",
+        "config": {}
+      }
+    }
+  }
+}

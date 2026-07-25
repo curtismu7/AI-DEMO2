@@ -4,6 +4,7 @@ Message processor for coordinating between chat interface and agent.
 import asyncio
 import logging
 import os
+import json
 from typing import Dict, Any, Optional, Tuple
 from datetime import datetime, timezone, timedelta
 import uuid
@@ -23,6 +24,58 @@ from config.settings import get_config
 
 
 logger = logging.getLogger(__name__)
+
+
+# Authorization / gateway policy-denial error codes the BFF surfaces in a denied
+# tool result — the full set across every deny use case (gateway policy, scope,
+# audience, exchange-scope, transaction, cross-owner), not just weather. Kept in
+# sync with the deny bodies emitted by mcpToolPipeline / mcpGatewayClient /
+# attackSimulatorService. Deliberately EXCLUDES non-denials the user should retry
+# rather than see as "denied": authorization_pending (CIBA), mcp_authorize_error/
+# _internal/_unavailable, authorization_service_unavailable.
+_POLICY_DENY_CODES = (
+    "gateway_policy_denied",
+    "weather_scope_denied",
+    "mcp_authorization_denied",
+    "mcp_scope_denied",
+    "gateway_auth_failed",
+    "access_denied",
+    "insufficient_scope",
+    "invalid_scope",
+    "missing_exchange_scopes",
+    "transaction_denied",
+)
+
+
+def _extract_policy_denial(tool_calls) -> Optional[str]:
+    """Return a human-readable reason if any tool result this turn was an
+    authorization / gateway policy denial, else None. The BFF returns the denied
+    tool result as a JSON string carrying an ``error`` code plus a descriptive
+    ``message`` (see bff_tool_adapter._arun)."""
+    for rec in tool_calls or []:
+        result = str(getattr(rec, "result", "") or "")
+        if not any(code in result for code in _POLICY_DENY_CODES):
+            continue
+        try:
+            data = json.loads(result)
+            if isinstance(data, dict):
+                msg = data.get("message") or data.get("error_description") or data.get("error")
+                if isinstance(msg, str) and msg.strip():
+                    return msg.strip()
+        except (ValueError, TypeError):
+            pass
+        return "The request was denied by an authorization policy."
+    return None
+
+
+def _reply_surfaces_denial(reply: str) -> bool:
+    """Heuristic: did the model's reply already explain the denial? Prevents
+    doubling the deterministic notice when the system-prompt rule worked. A
+    greeting or subject-change contains none of these terms."""
+    r = (reply or "").lower()
+    if not r.strip():
+        return False
+    return any(kw in r for kw in ("den", "block", "not allow", "scope", "policy", "restrict", "out of"))
 
 
 class _SessionWorker:
@@ -1104,6 +1157,11 @@ class MessageProcessor:
                         await emitter.on_llm_new_token(final_text)
                         await emitter.on_llm_end()
                         any_visible_output = True
+                        # Capture the single-shot reply too so the policy-denial
+                        # fallback below can tell whether the model already
+                        # explained the denial (the streaming path accumulates it
+                        # via on_chat_model_stream; this non-streaming path did not).
+                        turn_reply_text += final_text
                 if output and (usage := getattr(output, "usage_metadata", None)):
                     # usage_metadata is a TypedDict (plain dict at runtime), so
                     # attribute access always yields the default 0 — read keys.
@@ -1174,6 +1232,22 @@ class MessageProcessor:
         # 4. Close the LLM message if it was still open at stream end.
         if llm_streaming:
             await emitter.on_llm_end()
+
+        # Deterministic policy-denial fallback: if a tool was blocked by an
+        # authorization / gateway policy but the model's reply never surfaced it
+        # (e.g. the banking persona greeted or changed the subject), state the
+        # denial plainly as its own message — parity with the in-process
+        # heuristic path's "❌ <reason>" so the user always sees WHY it was
+        # blocked, regardless of what the LLM chose to say. Rule 21 in the system
+        # prompt steers the normal case; this guarantees the tail case.
+        _denial = _extract_policy_denial(turn_tool_calls)
+        if _denial and not _reply_surfaces_denial(turn_reply_text):
+            _notice = f"❌ {_denial}"
+            await emitter.on_llm_start()
+            await emitter.on_llm_new_token(_notice)
+            await emitter.on_llm_end()
+            turn_reply_text += ("\n" if turn_reply_text else "") + _notice
+            any_visible_output = True
 
         if not any_visible_output:
             logger.warning(

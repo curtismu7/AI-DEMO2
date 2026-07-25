@@ -992,7 +992,12 @@
       "source": "olb",
       "inputSchema": {
         "type": "object",
-        "properties": {},
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "description": "Optional account ID (UUID) from get_my_accounts. Omit to return every account's sensitive details."
+          }
+        },
         "required": [],
         "additionalProperties": false
       }

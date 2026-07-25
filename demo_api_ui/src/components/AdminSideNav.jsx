@@ -230,6 +230,20 @@ export default function AdminSideNav({ user }) {
     }
   }, [sidebarWidth, collapsed]);
 
+  // Auto-collapse to the icon rail on narrow viewports. App.css drops the
+  // content offset to the collapsed width at <=768px assuming this collapse
+  // happens; without it the still-310px nav overlaps the content by ~230px.
+  // Only collapse — never force-expand — so a manual toggle stays respected.
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const apply = () => {
+      if (mq.matches) setCollapsed(true);
+    };
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
   const startResize = useCallback(
     (e) => {
       if (collapsed) return;

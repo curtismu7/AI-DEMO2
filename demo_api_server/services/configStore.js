@@ -1179,6 +1179,7 @@ class ConfigStore {
       a2a_intermediate_audience_tax:          ['A2A_INTERMEDIATE_AUDIENCE_TAX'],
       a2a_intermediate_audience_finaid:       ['A2A_INTERMEDIATE_AUDIENCE_FINAID'],
       a2a_intermediate_audience_supplier:     ['A2A_INTERMEDIATE_AUDIENCE_SUPPLIER'],
+      a2a_intermediate_audience_holdings:     ['A2A_INTERMEDIATE_AUDIENCE_HOLDINGS'],
       // A2A specialists' Exchange #2 (final) destination — separate from
       // pingone_resource_mcp_gateway_uri so its nested-act composer SPEL never
       // touches the non-A2A two-exchange flow (see pingoneProvisionService.js

@@ -272,6 +272,13 @@ async function dispatchBankingAction(action, params, userId, ctx) {
       const toolName = 'get_weather';
       const tokenEvents = [];
       const sessionId = req?.sessionID || '';
+      // When this run is a catalog use case whose expected outcome is DENY (e.g.
+      // UC31 weather-mcp-texas-deny), tag the deny envelope so the token chain
+      // frames the gateway block as the control working — not a tool crash.
+      const _ucId = req?.body?.useCaseId;
+      const _expectedDeny = !!_ucId && require('../config/useCases').USE_CASES.some(
+        (u) => (u.id === _ucId || u.useCaseId === _ucId) && u.expectedOutcome === 'DENY',
+      );
       const rawResult = await executeBffTool({ name: toolName, args: { city_name: params.city_name || '' }, userId, userToken, req, tokenEvents, sessionId });
       if (typeof rawResult === 'string' && rawResult.trim()) {
         const trimmed = rawResult.trim();
@@ -279,8 +286,18 @@ async function dispatchBankingAction(action, params, userId, ctx) {
         if (trimmed[0] === '{' || trimmed[0] === '[') {
           const { result: parsedErr } = parseToolResult(trimmed, { site: `banking_read:${toolName}` });
           if (parsedErr?.error || parsedErr?.isError) {
-            const msg = parsedErr?.error_description || parsedErr?.content?.[0]?.text || parsedErr?.error || 'Could not get the weather.';
-            return { reply: `❌ ${msg}`, success: false, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
+            // Prefer the human-readable gateway reason (e.g. "weather scope restricted
+            // to Texas — city not recognized") over the bare code, and carry the
+            // specific gatewayErrorCode + message so the UI surfaces the real reason
+            // instead of degrading to a generic tool_failed.
+            const msg = parsedErr?.message || parsedErr?.error_description || parsedErr?.content?.[0]?.text || parsedErr?.error || 'Could not get the weather.';
+            return {
+              reply: `❌ ${msg}`, success: false, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents,
+              ...(parsedErr?.error ? { error: parsedErr.error } : {}),
+              ...(parsedErr?.gatewayErrorCode ? { gatewayErrorCode: parsedErr.gatewayErrorCode } : {}),
+              ...(parsedErr?.message ? { message: parsedErr.message } : {}),
+              ...(_expectedDeny ? { expected: true } : {}),
+            };
           }
         }
         return { reply: rawResult, success: true, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
@@ -288,7 +305,14 @@ async function dispatchBankingAction(action, params, userId, ctx) {
       const { result: parsed2 } = parseToolResult(rawResult, { site: `banking_read:${toolName}` });
       const text = parsed2?.content?.[0]?.text;
       if (!text || parsed2?.isError || parsed2?.error) {
-        return { reply: `❌ ${text || parsed2?.error_description || parsed2?.error || 'Could not get the weather.'}`, success: false, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
+        const _msg2 = text || parsed2?.message || parsed2?.error_description || parsed2?.error || 'Could not get the weather.';
+        return {
+          reply: `❌ ${_msg2}`, success: false, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents,
+          ...(parsed2?.error ? { error: parsed2.error } : {}),
+          ...(parsed2?.gatewayErrorCode ? { gatewayErrorCode: parsed2.gatewayErrorCode } : {}),
+          ...(parsed2?.message ? { message: parsed2.message } : {}),
+          ...(_expectedDeny ? { expected: true } : {}),
+        };
       }
       return { reply: text, success: true, toolsCalled: [toolName], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents };
     }

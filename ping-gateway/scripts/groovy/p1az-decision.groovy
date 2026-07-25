@@ -76,7 +76,8 @@ if (internalSecret && presentedSecret) {
         internalSecret.getBytes('UTF-8'), presentedSecret.getBytes('UTF-8'))
 }
 if (!trustedCaller && (request.headers.getFirst('X-Authz-Simulated') != null
-        || request.headers.getFirst('X-Act-Client-Id') != null)) {
+        || request.headers.getFirst('X-Act-Client-Id') != null
+        || request.headers.getFirst('X-Demo-Force-Actor') != null)) {
     logger.warn('[P1AZ] Untrusted caller presented delegation headers without a valid ' +
         'x-internal-gateway-secret — forcing real backend + dropping bridged actor')
 }
@@ -215,6 +216,10 @@ def sub       = tokenInfo['sub'] ?: ''
 // by design — e.g. two-exchange Exchange #2, whose actor is the MCP Exchanger (not the
 // AI Agent), so the resource `act` SpEL returns null. See docs/ACT_CLAIM_VERIFICATION.md.
 // The headers are trusted because they are set server-to-server (BFF → gateway, loopback).
+// NOTE: the mcpgateway resource's null-safe act SPEL (rolled out 2026-06-19) stamps a
+// native claim on this hop whenever an actor token performed the exchange — regardless
+// of whether that actor matched may_act.sub — so native act is present far more often
+// than the "Exchange #2 has no actor" assumption above suggests.
 // PingOne emits act/may_act as a JSON *string* (not a nested object) when the claim is
 // stamped via a resource attribute — SpEL cannot construct nested objects. Parse the
 // string form so the .sub / chain-depth access works for both shapes (a native object
@@ -241,10 +246,16 @@ def nativeActSub    = actClaim?.sub ?: ''
 def nativeMayActSub = mayActClaim?.sub ?: ''
 // Bridged actor headers are honored ONLY for a trusted internal caller (see the
 // trusted-caller gate above); an untrusted direct caller can't inject an actor to
-// satisfy HasValidActorChain. Native `act`/`may_act` from the token still apply.
+// satisfy HasValidActorChain. Native `act`/`may_act` from the token still apply —
+// EXCEPT for the confused-deputy demo (UC13), which sets X-Demo-Force-Actor (same
+// trust gate) to force the bridged/rogue value over an already-present native claim,
+// so the sim's injected actor actually reaches HasValidActorChain instead of being
+// silently shadowed. Real traffic never sets this header; native act still wins for
+// every normal call. Demo-only escape hatch, not a security change.
 def hdrActClientId  = trustedCaller ? (request.headers.getFirst('X-Act-Client-Id') ?: '') : ''
 def hdrMayActSub    = trustedCaller ? (request.headers.getFirst('X-May-Act-Sub') ?: '') : ''
-def actSub    = nativeActSub ?: hdrActClientId
+def forceDemoActor  = trustedCaller && (request.headers.getFirst('X-Demo-Force-Actor') == 'true')
+def actSub    = forceDemoActor ? hdrActClientId : (nativeActSub ?: hdrActClientId)
 def mayActSub = nativeMayActSub ?: hdrMayActSub
 def scope     = tokenInfo['scope'] ?: ''
 def tokenScopes = scope.tokenize(' ').findAll { it }.join(' ')

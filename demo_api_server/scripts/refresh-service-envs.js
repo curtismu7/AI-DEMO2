@@ -407,6 +407,15 @@ async function main() {
     PINGONE_INTROSPECTION_ENDPOINT:  `${asBase}/introspect`,
     GW_INTROSPECTION_CLIENT_ID:      creds.mcpExchangerClientId,
     GW_INTROSPECTION_CLIENT_SECRET:  creds.mcpExchangerSecret,
+    // pingOneUserLookup.js's Management API user-existence check (Rule 0a2 —
+    // every decision, including A2A nested-act tool discovery) needs its own
+    // worker credentials. Without them it throws "not configured", which the
+    // mock authz server surfaces as a DENY (user_lookup_failed) — an infra
+    // fault masquerading as a policy denial, and it silently killed every A2A
+    // specialist call (UC2 / UC2.5) since the mock engine denies by default
+    // on lookup failure.
+    PINGONE_WORKER_CLIENT_ID:        fb('PINGONE_WORKER_CLIENT_ID'),
+    PINGONE_WORKER_CLIENT_SECRET:    fb('PINGONE_WORKER_CLIENT_SECRET'),
   });
   console.log('[refresh-envs] Wrote demo_authz_server/.env');
 
