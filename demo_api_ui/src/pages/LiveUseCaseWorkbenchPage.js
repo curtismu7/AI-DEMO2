@@ -336,7 +336,7 @@ export default function LiveUseCaseWorkbenchPage() {
             )}
 
             {!loading && !error && securityDemo.length > 0 && (
-              <details className="luw-track luw-track--more" open>
+              <details className="luw-track luw-track--security" open>
                 <summary>
                   15-Min Security Demo
                   <span className="luw-track__count">{securityDemo.length}</span>
