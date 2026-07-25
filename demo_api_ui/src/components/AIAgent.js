@@ -1409,7 +1409,7 @@ export default function BankingAgent({
       if (prev.length > 0 && !isSoleGreeting) return prev;
       return [
         {
-          id: Date.now().toString(),
+          id: `${Date.now()}-w`,
           role: "assistant",
           content: welcomeMessage(
             user,
@@ -1751,7 +1751,7 @@ export default function BankingAgent({
         const isOnlyGuestMsg = prev.length === 1 && prev[0]?.id?.endsWith("-guest");
         if (prev.length === 0 || isOnlyGuestMsg) {
           return [{
-            id: Date.now().toString(),
+            id: `${Date.now()}-w`,
             role: "assistant",
             content: welcomeMessage(
               user || sessionUserRef.current,
@@ -2502,10 +2502,19 @@ export default function BankingAgent({
         "⚠️ The agent produced no reply for this turn. That is a bug in the demo " +
         "(not your request) — please try again, and report what you asked if it repeats.";
     }
-    setMessages((prev) => [
-      ...prev,
-      { id, role, content: contentString ?? "", tool, ...rest },
-    ]);
+    setMessages((prev) => {
+      // First real interaction clears the intro greeting bubble(s) so the
+      // conversation starts clean. The only messages carrying a -w/-vsw/-guest
+      // id suffix are the greeting seeds (see the welcome effects above).
+      const base =
+        role === "user"
+          ? prev.filter((m) => !/-(?:w|vsw|guest)$/.test(m.id || ""))
+          : prev;
+      return [
+        ...base,
+        { id, role, content: contentString ?? "", tool, ...rest },
+      ];
+    });
   }
 
   // Route an agent response's verticalResult to its renderer and return the
