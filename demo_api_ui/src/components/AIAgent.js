@@ -7853,6 +7853,23 @@ export default function BankingAgent({
                     Actions {showDiscovery ? "▴" : "▾"}
                   </button>
                 )}
+                {/* Session controls — moved inline from the old Actions popout (Option A1) */}
+                {isLoggedIn && (
+                  <ScopePicker
+                    allowWrite={agentAllowWrite}
+                    disabled={agentToolsLoading}
+                    onChange={setAgentAllowWrite}
+                  />
+                )}
+                <button
+                  type="button"
+                  className="ba-actions-trigger ba-header-toggle-label"
+                  onClick={() => clearCompletedUseCases()}
+                  title="Clear checkmarks for a fresh demo pass"
+                  data-testid="header-clear-progress"
+                >
+                  Clear progress
+                </button>
                 {/* Expand/restore — float mode only (unchanged) */}
                 {!isInline && (
                   <button
