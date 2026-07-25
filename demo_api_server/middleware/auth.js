@@ -573,7 +573,8 @@ const validatePingOneCoreToken = async (token, requestContext = {}) => {
       // only obtainable via RFC 8693 exchange of a valid user token.
       // /identity is Path B (dual_token): Node gateway forwards the TX gateway
       // bearer + id_token to banking_resource_server. Accept gateway audiences.
-      const isMcpCallback = path === '/vertical-tool' || path === '/api/path/vertical-tool'
+      // Banking / Path-B MCP callbacks — gateway + MCP-server audiences only.
+      const isMcpBankingCallback = path === '/vertical-tool' || path === '/api/path/vertical-tool'
         || path === '/identity' || path === '/api/resource-server/identity'
         || path === '/my'                              // GET /api/accounts/my, GET /api/transactions/my
         || /^\/[^/]+(\/balance)?$/.test(path)          // GET /api/accounts/:id, GET /api/accounts/:id/balance
@@ -586,10 +587,15 @@ const validatePingOneCoreToken = async (token, requestContext = {}) => {
         // scope, and role enforcement on these routes still apply after this check.
         || (method === 'POST' && baseUrl === '/api/transactions' && path === '/')
         || (method === 'POST' && baseUrl === '/api/accounts' && /^\/[^/]+\/fee-waiver-request$/.test(path))
-        || (method === 'PATCH' && baseUrl === '/api/accounts' && /^\/[^/]+\/contact-email$/.test(path))
-        // A2A investment specialist callback: mcp-invest calls the BFF with a
-        // gateway-exchanged token (aud=mcp-invest.ping.demo) to fetch portfolio data.
-        || (baseUrl === '/api/investment' && /^\/accounts\/[^/]+\/portfolio/.test(path));
+        || (method === 'PATCH' && baseUrl === '/api/accounts' && /^\/[^/]+\/contact-email$/.test(path));
+      // A2A investment specialist callback only — must NOT be folded into the
+      // shared banking callback / gwAuds set. Doing so (#819) let invest:read
+      // tokens (aud=mcp-invest.ping.demo) satisfy audience checks on POST
+      // /api/transactions and other write callbacks; those routes then skipped
+      // the banking write-scope gate (scopes are invest:read, not read/write)
+      // and executed transfers.
+      const isInvestPortfolioCallback =
+        baseUrl === '/api/investment' && /^\/accounts\/[^/]+\/portfolio/.test(path);
       const gwAuds = String(MCP_GW_RESOURCE_URI).split(',').map((s) => s.trim()).filter(Boolean);
       if (PINGGATEWAY_RESOURCE_URI && !gwAuds.includes(PINGGATEWAY_RESOURCE_URI)) {
         gwAuds.push(PINGGATEWAY_RESOURCE_URI);
@@ -602,14 +608,9 @@ const validatePingOneCoreToken = async (token, requestContext = {}) => {
       if (MCP_RESOURCE_URI && !gwAuds.includes(MCP_RESOURCE_URI)) {
         gwAuds.push(MCP_RESOURCE_URI);
       }
-      // mcp-invest resource URI — Exchange #3 for A2A investment specialist path
-      // narrows the nested-act token to this audience; mcp-invest forwards the same
-      // bearer to the /api/investment callback route (same RFC 8693 trust basis).
-      if (MCP_INVEST_AUDIENCE && !gwAuds.includes(MCP_INVEST_AUDIENCE)) {
-        gwAuds.push(MCP_INVEST_AUDIENCE);
-      }
       const hasMatch = tokenAuds.includes(BFF_RESOURCE_URI) ||
-        (isMcpCallback && tokenAuds.some((a) => gwAuds.includes(a)));
+        (isMcpBankingCallback && tokenAuds.some((a) => gwAuds.includes(a))) ||
+        (isInvestPortfolioCallback && MCP_INVEST_AUDIENCE && tokenAuds.includes(MCP_INVEST_AUDIENCE));
       if (!hasMatch) {
         logger.warn(LOG_CATEGORIES.OAUTH_VALIDATION, 'Token audience mismatch — rejecting', {
           method, path,

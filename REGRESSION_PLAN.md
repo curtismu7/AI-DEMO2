@@ -38,7 +38,7 @@ minimal diff.
 | CRA proxy setup | `demo_api_ui/src/setupProxy.js`, `demo_api_ui/.env` |
 | Session persistence | `server.js`, `routes/oauth.js` (`req.session.save()`) |
 | Session store callback discipline | `services/lmdb/sessionStore.js` — must call `cb(err)` on every store op |
-| Token audience check | `middleware/auth.js` — never hardcode `aud` defaults |
+| Token audience check | `middleware/auth.js` — never hardcode `aud` defaults; `MCP_INVEST_AUDIENCE` only on investment portfolio callback (not shared `gwAuds`) |
 | Status endpoint token expiry | `routes/oauthUser.js`, `routes/oauth.js` — check `expiresAt` |
 | REAUTH_KEY re-auth guard | `UserDashboard.js` — clear key only on success |
 | Agent form account IDs | `AIAgent.js` `liveAccounts` state |
@@ -101,6 +101,33 @@ read the configured host. A new browser origin must be added to ALL of:
 ## §4 — Bug Fix Log
 
 Reverse-chronological, newest first.
+
+### 2026-07-25 — MCP_INVEST_AUDIENCE accepted on banking write callbacks (#819 over-broad)
+
+**Files changed:**
+
+- `demo_api_server/middleware/auth.js`
+- `demo_api_server/tests/mcpInvestAudience.regression.test.js`
+
+**What was broken:** #819 added `MCP_INVEST_AUDIENCE` to the shared `gwAuds`
+list used by every `isMcpCallback` route so A2A `get_portfolio_summary` could
+call `GET /api/investment/.../portfolio`. That also made
+`aud=mcp-invest.ping.demo` satisfy audience checks on
+`POST /api/transactions` (and other banking MCP callbacks). Invest tokens
+carry `invest:read` only — the transactions write-scope gate skips when
+scopes are neither `read` nor `write` — so a portfolio-read token could
+create transfers for the token's `sub`.
+
+**What was fixed:** Accept `MCP_INVEST_AUDIENCE` only on the investment
+portfolio callback. Banking MCP callbacks keep the prior gateway/MCP-server
+audience set unchanged.
+
+**Do not break:** A2A UC2 portfolio path still accepts `mcp-invest.ping.demo`
+on `GET /api/investment/accounts/:id/portfolio`. Gateway audience on
+`POST /api/transactions` / fee-waiver / contact-email unchanged.
+
+**Verify:** `npx jest tests/mcpInvestAudience.regression.test.js
+--testPathIgnorePatterns="/node_modules/"` (from a worktree) — all pass.
 
 ### 2026-07-25 — A2A investment delegation: last 2 of 5 stacked causes (fully working end to end now)
 
