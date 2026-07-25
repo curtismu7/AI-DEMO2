@@ -107,7 +107,9 @@ Reverse-chronological, newest first.
 **Files changed:** `demo_api_server/services/demoAgentLangGraphService.js`
 (in-process `weather` handler), `demo_api_ui/src/services/demoAgentService.js`
 (`ingestLegacyRunTrace`), `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`
-(api-step narrative + `buildRunStory`), `demo_api_ui/src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`.
+(api-step narrative + `buildRunStory`), `demo_api_ui/src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`,
+`demo_api_server/config/useCases.js` (UC31 `evidence.tokenChain`),
+`demo_api_ui/src/context/__tests__/ProofOfEnforcementContext.test.js`.
 
 **What was broken:** UC31 (`weather-mcp-texas-deny`, chip "what's the weather in
 Miami", `expectedOutcome: 'DENY'`) is run via the in-process `/api/agent/invoke`
@@ -131,6 +133,14 @@ through. (3) `buildTraceSteps` frames an expected deny (`mcpResult.denied &&
 mcpResult.expected`): the api card narrative reads "Expected DENY — the control
 working as designed" and `buildRunStory` returns `outcome: "ok"` with an
 "Expected DENY — the control worked" headline instead of "stopped with an error".
+(4) The prominent **ProofStrip verdict** showed "Incomplete ⚠️" because UC31's
+catalog `evidence.tokenChain` listed `sim-gateway-deny` — an event only the
+attack-sim path emits, never the chip/agent path — so `computeVerdict` always
+found a missing step. Changed UC31's `evidence.tokenChain` to `['user-token',
+'tool-dispatched']` (matching its permit twin UC30); `tool-dispatched` is
+satisfied by `trace.mcpResult`, so the verdict flips to the existing
+`denied-as-expected` state → ProofStrip renders "Verified (denied as expected)"
+with ✅. No verdict-engine code change — `computeVerdict` already supported it.
 
 **Do not break:** The deny *mechanism* is unchanged — this only surfaces the reason
 and reframes an already-denied call. `expected` is gated on the catalog's
