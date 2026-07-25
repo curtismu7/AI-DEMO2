@@ -6,6 +6,6 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "get_my_accounts",
-  "checkedAt": "2026-07-24T01:59:50.341Z",
+  "checkedAt": "2026-07-25T15:48:49.207Z",
   "verifiedBy": "scoreAgentReply grounded vs live account balances (#762)"
 }

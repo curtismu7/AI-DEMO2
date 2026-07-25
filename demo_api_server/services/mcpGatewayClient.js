@@ -289,7 +289,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             '[mcpGatewayClient] axios error: code=%s message=%s url=%s',
             axErr.code, axErr.message, axErr.config?.url
         );
-        throw axErr;
+        throw _normalizeGatewayNetworkError(axErr, timeoutMs) || axErr;
     }
 
     const status = response.status;
@@ -784,6 +784,42 @@ async function callToolViaResolvedGateway(gatewayUrl, bearerToken, tool, params 
     );
 }
 
+/**
+ * Same resolution as getMcpGatewayHttpUrl(), but returns null instead of
+ * throwing when no gateway URL is configured — for callers that want to
+ * check availability without a try/catch.
+ */
+function tryGetMcpGatewayHttpUrl() {
+    try {
+        return getMcpGatewayHttpUrl();
+    } catch (_) {
+        return null;
+    }
+}
+
+/**
+ * Normalize a network-level axios error (request never got an HTTP response —
+ * timeout or connection refused) into the same {code, httpStatus, message}
+ * shape callers already get for HTTP-status errors (401/403/5xx) elsewhere in
+ * this file. Returns null for anything else so the caller falls back to the
+ * raw axios error.
+ */
+function _normalizeGatewayNetworkError(axErr, timeoutMs) {
+    if (axErr && axErr.code === 'ECONNABORTED') {
+        const err = new Error(`MCP gateway request timed out after ${timeoutMs}ms`);
+        err.code = 'GATEWAY_TIMEOUT';
+        err.httpStatus = 504;
+        return err;
+    }
+    if (axErr && axErr.code === 'ECONNREFUSED') {
+        const err = new Error('MCP gateway is unreachable (connection refused)');
+        err.code = 'GATEWAY_UNREACHABLE';
+        err.httpStatus = 503;
+        return err;
+    }
+    return null;
+}
+
 function getMcpGatewayHttpUrl() {
     // ff_mcp_gateway_pinggateway: a runtime user choice (via /config) to route MCP
     // traffic through PingGateway (IG) instead of the Node gateway. When ON and a
@@ -820,6 +856,8 @@ module.exports = {
     callToolViaGateway,
     callToolViaResolvedGateway,
     getMcpGatewayHttpUrl,
+    tryGetMcpGatewayHttpUrl,
+    _normalizeGatewayNetworkError,
     resolveMcpGatewayTransport,
     // test/helpers — weather JSON-RPC deny → TraceRail gateway evidence
     _extractGatewayDenyFields,

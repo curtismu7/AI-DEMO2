@@ -49,12 +49,20 @@ const ENV_SCOPED_KEYS = new Set([
   'pingone_a2a_purchase_agent_client_id', 'pingone_a2a_purchase_agent_client_secret',
   'pingone_a2a_membership_agent_client_id', 'pingone_a2a_membership_agent_client_secret',
   'pingone_a2a_payroll_agent_client_id', 'pingone_a2a_payroll_agent_client_secret',
+  'pingone_a2a_tax_agent_client_id', 'pingone_a2a_tax_agent_client_secret',
+  'pingone_a2a_finaid_agent_client_id', 'pingone_a2a_finaid_agent_client_secret',
+  'pingone_a2a_supplier_agent_client_id', 'pingone_a2a_supplier_agent_client_secret',
+  'pingone_a2a_holdings_agent_client_id', 'pingone_a2a_holdings_agent_client_secret',
   // a2a specialist aliases (without pingone_a2a_ prefix, used in brief)
   'pingone_investment_agent_client_id', 'pingone_investment_agent_client_secret',
   'pingone_records_agent_client_id', 'pingone_records_agent_client_secret',
   'pingone_purchase_agent_client_id', 'pingone_purchase_agent_client_secret',
   'pingone_membership_agent_client_id', 'pingone_membership_agent_client_secret',
   'pingone_payroll_agent_client_id', 'pingone_payroll_agent_client_secret',
+  'pingone_tax_agent_client_id', 'pingone_tax_agent_client_secret',
+  'pingone_finaid_agent_client_id', 'pingone_finaid_agent_client_secret',
+  'pingone_supplier_agent_client_id', 'pingone_supplier_agent_client_secret',
+  'pingone_holdings_agent_client_id', 'pingone_holdings_agent_client_secret',
   // copilot (copilot_agent_client_id/secret — copilot Studio auth to PingOne, env-specific)
   'copilot_agent_client_id', 'copilot_agent_client_secret',
   // resource/audience URIs (env-scoped resource servers)
