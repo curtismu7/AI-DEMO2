@@ -102,6 +102,49 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-25 — A2A investment delegation: last 2 of 5 stacked causes (fully working end to end now)
+
+**Files changed:**
+
+- `demo_api_server/.env.example`
+
+**What was broken:** Continuing from the "Every A2A specialist delegation
+silently denied" entry below (image rebuilds + authz-server creds), fixing
+those two got the gateway chain to a full PERMIT, but the live UI test still
+failed with two more stacked causes, live-diagnosed via temporary debug
+logging in the running containers (reverted after diagnosis):
+
+1. `demo_mcp_invest`'s running Docker image predated commit `64dbb43b7`
+   ("disable TLS cert verification for internal BFF calls") by two days —
+   same "stale image" class of bug as `demo_mcp_gateway`. The compiled
+   `investToolHandler.js` only read `BANKING_API_BASE_URL` (unset) with a
+   `http://localhost:3001` fallback — never the correct
+   `DEMO_API_BASE_URL=https://demo-api-server:3001` — so `get_portfolio_summary`
+   tried to call the BFF on `localhost` *inside the mcp-invest container*
+   (ECONNREFUSED, surfaced as an empty-message `AggregateError`, which is why
+   the earlier symptom was a blank `{"error":""}` instead of a real message).
+2. Fixing #1 reached the real BFF and got a real `401`: `middleware/auth.js`
+   already has the exact accommodation for this ("A2A investment specialist
+   callback: mcp-invest calls the BFF with a gateway-exchanged token
+   (aud=mcp-invest.ping.demo)") gated on `MCP_INVEST_AUDIENCE` — but that env
+   var was never set in `demo_api_server/.env`, so the accommodation never
+   activated and the audience check rejected the token mcp-invest legitimately
+   received from Exchange #3.
+
+**What was fixed:** Rebuilt the `demo_mcp_invest` image (no source change
+needed, same as `demo_mcp_gateway`). Added
+`MCP_INVEST_AUDIENCE=mcp-invest.ping.demo` (documented here in
+`.env.example`; also added directly to the local `demo_api_server/.env`,
+which is gitignored).
+
+**Verify:** Live-verified via a real logged-in browser session: POST
+`{"prompt":"hand off to a specialist","vertical":"banking","forceHeuristic":true}`
+to `/api/agent/invoke` now returns `"Delegation complete — Investment Advisor
+retrieved get portfolio summary on your behalf (act-chain depth 2)."` —
+confirmed on two consecutive calls. If `MCP_INVEST_AUDIENCE` or either image
+goes stale again, the symptom returns as `mcp_error` / `tool_error` on this
+same prompt, not this specific message.
+
 ### 2026-07-24 — UC13 confused-deputy attack sim PERMITted instead of DENY
 
 **Files changed:**

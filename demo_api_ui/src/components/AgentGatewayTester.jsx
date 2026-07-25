@@ -62,6 +62,18 @@ const FALLBACK_TOOLS = [
       required: ['from_account_id', 'to_account_id', 'amount'],
     },
   },
+  {
+    name: 'brave_news_search',
+    description: 'Search recent news via the Brave Search API (Agent Gateway remote MCP showcase).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search query' },
+        count: { type: 'number', description: 'Number of results (default 10, max 50)' },
+      },
+      required: ['query'],
+    },
+  },
 ];
 
 const ARG_PLACEHOLDER_BY_TYPE = {
@@ -89,6 +101,7 @@ const TOOL_GROUPS = {
   Accounts: ['get_my_accounts', 'get_account_balance', 'get_sensitive_account_details'],
   Transactions: ['get_my_transactions'],
   Transfers: ['create_transfer'],
+  Search: ['brave_news_search'],
 };
 
 const groupKey = (name) => {
@@ -309,7 +322,7 @@ export default function AgentGatewayTester() {
       if (!groups[g]) groups[g] = [];
       groups[g].push(t);
     }
-    const order = ['Accounts', 'Transactions', 'Transfers', 'Other'];
+    const order = ['Accounts', 'Transactions', 'Transfers', 'Search', 'Other'];
     return order.filter(g => groups[g]?.length).map(g => ({ label: g, tools: groups[g] }));
   }, [tools, toolSearch]);
 
