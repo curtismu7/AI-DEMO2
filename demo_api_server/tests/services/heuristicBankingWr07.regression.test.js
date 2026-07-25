@@ -59,10 +59,17 @@ describe('WR-07 — heuristic write error handling + description sanitization (r
   test('(a) a non-Error throw from the write tool call is surfaced and not swallowed', async () => {
     mockExecuteBffTool.mockImplementation(() => { throw 'string-failure-not-an-error'; });
 
-    await expect(
-      dispatchBankingAction('transfer', { fromId: 'checking', toId: 'savings', amount: 100 }, 'user-1', ctx())
-    ).rejects.toThrow('string-failure-not-an-error');
-
+    // The agent write path catches tool-call throws (to keep tokenEvents for the
+    // TraceRail exchange-failed step) but MUST surface the real thrown value: a
+    // non-Error string has no .message, so it must be stringified — never lost as
+    // "undefined". This still guards the original WR-07(a) bug (if the code
+    // regressed to err.message, out.message would be undefined and fail).
+    const out = await dispatchBankingAction(
+      'transfer', { fromId: 'checking', toId: 'savings', amount: 100 }, 'user-1', ctx(),
+    );
+    expect(out.success).toBe(false);
+    expect(out.message).toBe('string-failure-not-an-error');
+    expect(out.reply).toContain('string-failure-not-an-error');
     expect(mockExecuteBffTool).toHaveBeenCalledTimes(1);
   });
 

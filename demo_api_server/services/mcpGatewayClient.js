@@ -289,7 +289,10 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             '[mcpGatewayClient] axios error: code=%s message=%s url=%s',
             axErr.code, axErr.message, axErr.config?.url
         );
-        throw axErr;
+        // Normalize transport failures (timeout / connection refused) into stable
+        // GATEWAY_* codes + HTTP statuses so callers get a consistent shape instead
+        // of a raw axios ECONNABORTED/ECONNREFUSED.
+        throw _normalizeGatewayNetworkError(axErr, timeoutMs);
     }
 
     const status = response.status;
@@ -816,8 +819,42 @@ function getMcpGatewayHttpUrl() {
     return url.replace(/\/$/, '');
 }
 
+// Non-throwing variant: null when no gateway URL is configured, the normalized
+// URL otherwise. For callers that want to probe configuration without a
+// try/catch around getMcpGatewayHttpUrl().
+function tryGetMcpGatewayHttpUrl() {
+    try {
+        return getMcpGatewayHttpUrl();
+    } catch (_) {
+        return null;
+    }
+}
+
+// Map a raw axios transport error to a stable gateway error with a code +
+// httpStatus the API layer can surface. Non-transport errors pass through.
+function _normalizeGatewayNetworkError(axErr, timeoutMs) {
+    const code = axErr?.code;
+    if (code === 'ECONNABORTED' || code === 'ETIMEDOUT') {
+        const e = new Error(`MCP gateway request timed out after ${timeoutMs}ms`);
+        e.code = 'GATEWAY_TIMEOUT';
+        e.httpStatus = 504;
+        e.cause = axErr;
+        return e;
+    }
+    if (code === 'ECONNREFUSED' || code === 'ENOTFOUND' || code === 'EHOSTUNREACH') {
+        const e = new Error(`MCP gateway unreachable (${code})`);
+        e.code = 'GATEWAY_UNREACHABLE';
+        e.httpStatus = 503;
+        e.cause = axErr;
+        return e;
+    }
+    return axErr;
+}
+
 module.exports = {
     callToolViaGateway,
+    tryGetMcpGatewayHttpUrl,
+    _normalizeGatewayNetworkError,
     callToolViaResolvedGateway,
     getMcpGatewayHttpUrl,
     resolveMcpGatewayTransport,

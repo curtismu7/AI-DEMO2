@@ -71,7 +71,9 @@ describe('_applyTransactionPolicy — HITL/step-up for MCP write tools', () => {
       useCaseId: 'hitl-consent',
     });
     expect(out.hitlRequired).toBe(true);
-    expect(out.localAmountBand).toBe(true);
+    // The local amount-ladder fallback tags its results transactionPolicyFallback
+    // (the localAmountBand field was renamed in f049a603d).
+    expect(out.transactionPolicyFallback).toBe(true);
   });
 
   test('local amount-band fallback: $600 → STEP_UP', async () => {
@@ -88,7 +90,7 @@ describe('_applyTransactionPolicy — HITL/step-up for MCP write tools', () => {
       acr: 'Password',
     });
     expect(out.stepUpRequired).toBe(true);
-    expect(out.localAmountBand).toBe(true);
+    expect(out.transactionPolicyFallback).toBe(true);
   });
 
   test('step-up outranks consent from Transaction', async () => {
@@ -113,6 +115,9 @@ describe('_applyTransactionPolicy — HITL/step-up for MCP write tools', () => {
       { amount: 50, transactionType: 'transfer', userId: 'user-1', acr: 'Password' },
     );
     expect(out.hitlRequired).toBe(true);
-    expect(pingOneAuthorizeService.evaluateTransaction).not.toHaveBeenCalled();
+    // f049a603d: the Transaction policy is consulted even when the gate already
+    // returns HITL (so a hard limit-DENY can still upgrade it) — it must never
+    // CLEAR the gate's HITL, which the assertion above guards.
+    expect(pingOneAuthorizeService.evaluateTransaction).toHaveBeenCalled();
   });
 });

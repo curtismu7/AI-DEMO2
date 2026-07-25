@@ -54,6 +54,31 @@ function needsParConfig(uc) {
 }
 
 /**
+ * Runtime config keys the PAR/RAR (RFC 9126) path needs before it can run
+ * against live PingOne. Mirrors the A2A credential keys — checked by
+ * checkParConfig below and surfaced by checkChipPrerequisites.
+ */
+const PAR_CONFIG_KEYS = [
+  'pingone_par_endpoint',
+  'pingone_ai_agent_actor_client_id',
+  'pingone_ai_agent_actor_client_secret',
+  'pingone_ai_agent_actor_redirect_uri',
+];
+
+/**
+ * Check every PAR/RAR config key is set (non-empty) in the given config store.
+ * @param {{ getEffective: (k: string) => * }} cfg configStore-like
+ * @returns {{ required: boolean, ok: boolean, missing: string[] }}
+ */
+function checkParConfig(cfg) {
+  const missing = PAR_CONFIG_KEYS.filter((k) => {
+    const v = cfg && typeof cfg.getEffective === 'function' ? cfg.getEffective(k) : null;
+    return v === null || v === undefined || String(v).trim() === '';
+  });
+  return { required: true, ok: missing.length === 0, missing };
+}
+
+/**
  * Whether a catalog entry exercises the MCP token-exchange path.
  * @param {object|null|undefined} uc
  * @returns {boolean}
@@ -193,4 +218,6 @@ module.exports = {
   checkChipPrerequisites,
   isFlagOn,
   needsParConfig,
+  checkParConfig,
+  PAR_CONFIG_KEYS,
 };
