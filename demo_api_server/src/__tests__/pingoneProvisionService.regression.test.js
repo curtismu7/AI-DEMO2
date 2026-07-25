@@ -451,5 +451,65 @@ describe('PingOneProvisionService — regression suite', () => {
       ]));
       expect(body.scopes).toHaveLength(2);
     });
+
+    // -------------------------------------------------------------------
+    // T6 — the cross-resource name filter must apply to merges too, not
+    // just fresh grants.
+    //
+    // Live symptom (2026-07-25, second bootstrap run after T5 shipped):
+    // the SAME "Multiple scopes with the same name" error still hit the AI
+    // Agent/Admin/MCP Exchanger grants — this time as a PUT into an
+    // EXISTING grant requesting a name already granted via a DIFFERENT
+    // resource on the same app. The old code only ran the cross-resource
+    // filter when there was no existing grant to merge into.
+    // -------------------------------------------------------------------
+    it('drops a scope name already granted via a different resource, even when merging', async () => {
+      svc.makeRequest = jest.fn(async (method, path) => {
+        if (method === 'GET' && path === '/applications/app-1') {
+          return { data: { id: 'app-1', type: 'WEB_APP' } };
+        }
+        if (method === 'GET' && path === '/resources/resource-gw/scopes') {
+          return {
+            data: {
+              _embedded: {
+                scopes: [
+                  { id: 'gw-read', name: 'read' },
+                  { id: 'gw-invoke', name: 'agent:invoke' },
+                ],
+              },
+            },
+          };
+        }
+        if (method === 'GET' && path === '/resources/resource-api/scopes') {
+          return {
+            data: { _embedded: { scopes: [{ id: 'api-read', name: 'read' }] } },
+          };
+        }
+        if (method === 'GET' && path === '/applications/app-1/grants') {
+          return {
+            data: {
+              _embedded: {
+                grants: [
+                  // Existing grant on the target resource (gw) — merge path.
+                  { id: 'grant-gw', resource: { id: 'resource-gw' }, scopes: [{ id: 'gw-invoke' }] },
+                  // 'read' is already granted via a DIFFERENT resource.
+                  { id: 'grant-api', resource: { id: 'resource-api' }, scopes: [{ id: 'api-read' }] },
+                ],
+              },
+            },
+          };
+        }
+        return { data: {} };
+      });
+
+      const result = await svc.grantScopesToApplication('app-1', 'resource-gw', ['read', 'agent:invoke']);
+
+      expect(result.success).toBe(true);
+      // 'read' collides with the api-resource grant — dropped. 'agent:invoke'
+      // is already present on this grant — nothing new to add.
+      expect(result.action).toBe('unchanged');
+      const putCall = svc.makeRequest.mock.calls.find(([method]) => method === 'PUT');
+      expect(putCall).toBeUndefined();
+    });
   });
 });
