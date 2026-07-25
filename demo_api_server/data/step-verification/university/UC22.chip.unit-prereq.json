@@ -6,7 +6,7 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "pay_tuition_balance",
-  "checkedAt": "2026-07-25T15:48:16.266Z",
+  "checkedAt": "2026-07-25T20:23:05.145Z",
   "requiredFlags": [
     "ciba_enabled",
     "ff_mcp_gateway_pinggateway",

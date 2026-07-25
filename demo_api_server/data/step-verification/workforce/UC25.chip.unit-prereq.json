@@ -6,7 +6,7 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "view_benefits",
-  "checkedAt": "2026-07-25T15:48:12.647Z",
+  "checkedAt": "2026-07-25T20:23:03.406Z",
   "requiredFlags": [
     "ff_enterprise_managed_mcp_auth",
     "ff_mcp_gateway_pinggateway",
