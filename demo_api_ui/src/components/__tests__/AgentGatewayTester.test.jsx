@@ -140,3 +140,42 @@ test('running get_my_accounts captures the account id and autofills it into get_
   fireEvent.click(screen.getByText('get_account_balance'));
   expect(screen.getByRole('textbox')).toHaveValue(JSON.stringify({ account_id: 'acct-123' }, null, 2));
 });
+
+test('the captured-values dropdown patches a different account id into the arguments JSON', async () => {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp-gateway/active') return Promise.resolve({ data: ACTIVE_GATEWAY });
+    if (url === '/api/mcp/inspector/tools') return Promise.resolve({
+      data: {
+        tools: [
+          { name: 'get_my_accounts', description: 'List accounts.', inputSchema: { type: 'object', properties: {}, required: [] } },
+          { name: 'get_account_balance', description: 'Get balance.', inputSchema: { type: 'object', properties: { account_id: { type: 'string' } }, required: ['account_id'] } },
+        ],
+        _source: 'live',
+      },
+    });
+    return Promise.resolve({ data: {} });
+  });
+  apiClient.post.mockResolvedValueOnce({
+    data: {
+      ok: true,
+      result: {
+        success: true,
+        accounts: [
+          { id: 'acct-checking', accountType: 'checking', accountNumber: '****1111' },
+          { id: 'acct-savings', accountType: 'savings', accountNumber: '****2222' },
+        ],
+      },
+      durationMs: 10,
+    },
+  });
+  render(<AgentGatewayTester />);
+  fireEvent.click(await screen.findByText('get_my_accounts'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await screen.findByText('200 OK');
+
+  fireEvent.click(screen.getByText('get_account_balance'));
+  expect(screen.getByRole('textbox')).toHaveValue(JSON.stringify({ account_id: 'acct-checking' }, null, 2));
+
+  fireEvent.change(screen.getByLabelText('Insert captured value'), { target: { value: 'acct-savings' } });
+  expect(screen.getByRole('textbox')).toHaveValue(JSON.stringify({ account_id: 'acct-savings' }, null, 2));
+});

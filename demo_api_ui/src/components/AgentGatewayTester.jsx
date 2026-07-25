@@ -549,6 +549,34 @@ export default function AgentGatewayTester() {
                   Arguments (JSON)
                   <span className="type">object</span>
                 </label>
+                {capturedValues.length > 0 && (
+                  <select
+                    aria-label="Insert captured value"
+                    value=""
+                    style={{ marginBottom: 6, fontSize: 11 }}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (!val) return;
+                      try {
+                        const parsed = argsText.trim() ? JSON.parse(argsText) : {};
+                        const key =
+                          Object.keys(parsed).find((k) => ACCOUNT_ID_PATTERN.test(k)) ||
+                          (selectedTool?.inputSchema?.required || []).find((k) => ACCOUNT_ID_PATTERN.test(k));
+                        if (key) {
+                          parsed[key] = val;
+                          setArgsText(JSON.stringify(parsed, null, 2));
+                        }
+                      } catch {
+                        // Invalid JSON in the box — leave it for the user to fix.
+                      }
+                    }}
+                  >
+                    <option value="">Insert captured value…</option>
+                    {capturedValues.map((c) => (
+                      <option key={c.value} value={c.value}>{c.label}</option>
+                    ))}
+                  </select>
+                )}
                 <textarea
                   value={argsText}
                   onChange={e => setArgsText(e.target.value)}
