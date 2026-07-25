@@ -64,19 +64,25 @@ export class JwtClaimVerifier {
     }
 
     // MCP server resource URI — tokens arriving here must be issued for this service.
-    // Reads PINGONE_RESOURCE_MCP_SERVER_URI (set by bootstrapPingOne) or the legacy
-    // MCP_RESOURCE_URI alias. When configured the check is mandatory and fail-hard:
-    // a mismatched or absent aud on a sensitive-tool token is an authentication error,
-    // not just a warning, because it could indicate token replay from another service.
+    // Reads PINGONE_RESOURCE_MCP_SERVER_URI (set by bootstrapPingOne), MCP_SERVER_RESOURCE_URI
+    // (docker-compose.yml's own name for this — see its comment there: RFC 8693 rollout,
+    // comma-separated, "mcpserver.ping.demo,mcpgateway.ping.demo"), or the legacy
+    // MCP_RESOURCE_URI alias, in that order. When configured the check is mandatory and
+    // fail-hard: a mismatched or absent aud on a sensitive-tool token is an authentication
+    // error, not just a warning, because it could indicate token replay from another service.
     //
-    // The env value is a comma-separated list (docker-compose.yml sets MCP_RESOURCE_URI
-    // to "mcpserver.ping.demo,mcpgateway.ping.demo" — this server's own resource id plus
-    // the gateway's, since both appear as aud on tokens that reach here depending on hop).
-    // Without splitting it, the whole comma-joined string was compared against each single
-    // aud value and never matched, so every sensitive banking write (create_transfer,
-    // create_withdrawal, create_deposit) failed with a false "aud mismatch" — see UC22.
+    // docker-compose.yml's environment: block only sets MCP_SERVER_RESOURCE_URI for this
+    // service, not MCP_RESOURCE_URI — so MCP_RESOURCE_URI comes solely from
+    // demo_mcp_server/.env, which still pins it to the old single value
+    // ("mcpgateway.ping.demo"). Without checking MCP_SERVER_RESOURCE_URI first this fell
+    // through to that stale single value — which never matches this server's real aud
+    // (mcpserver.ping.demo) — and every
+    // sensitive banking write (create_transfer, create_withdrawal, create_deposit) failed
+    // with a false "aud mismatch" AuthenticationError before the transfer logic ever ran.
+    // See UC22. The value can also be a comma-separated list, so split it either way.
     const expectedAudRaw =
       process.env.PINGONE_RESOURCE_MCP_SERVER_URI ||
+      process.env.MCP_SERVER_RESOURCE_URI ||
       process.env.MCP_RESOURCE_URI ||
       process.env.BANKING_API_RESOURCE_URI || // legacy alias kept for backwards compat
       null;
