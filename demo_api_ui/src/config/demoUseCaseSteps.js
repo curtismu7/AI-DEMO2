@@ -31,6 +31,22 @@ export const DEMO_PRIMARY_USE_CASE_IDS = [
 
 export const DEMO_ADVANCED_USE_CASE_IDS = [];
 
+/**
+ * 15-Min Security demo script — the exact tiles that script runs, in order,
+ * gathered into one workbench group so the presenter doesn't hunt across
+ * tracks. Deliberately duplicates ids already in DEMO_PRIMARY (UC24 is the only
+ * one not there). Consumed only by LiveUseCaseWorkbenchPage.
+ */
+export const SECURITY_DEMO_USE_CASE_IDS = [
+  'UC1',   // show my balance → PERMIT (act claim)
+  'UC24',  // branches near me → public PERMIT (no exchange)
+  'UC6',   // transfer $2500 → DENY
+  'UC8',   // transfer $300 → HITL
+  'UC31',  // weather Miami → gateway DENY
+  'UC12',  // DPoP / replay attack sim → DENY_401
+  'UC5',   // insufficient scope attack sim → DENY_403
+];
+
 /** Flat list for callers that only need order (primary then advanced). */
 export const DEMO_USE_CASE_IDS = [
   ...DEMO_PRIMARY_USE_CASE_IDS,
