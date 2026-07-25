@@ -413,15 +413,17 @@ describe("Action chips — disabled when consent blocked", () => {
 
 describe("Discovery popout — '⊞ All actions' button (inline, non-popout fallback)", () => {
   // This is the SEPARATE `!useActionsPopout` left-column fallback (isInline &&
-  // !distinctFloatingChrome) — unaffected by the Actions dropdown removal above;
-  // it renders its own "⊞ All actions" trigger, unrelated to the deleted header
-  // popout. Only reachable via a bare mode="inline" mount (no production route
-  // uses it without distinctFloatingChrome — see App.js's single AIAgent mount).
-  it("inline mode: 'All actions' button is rendered", () => {
+  // !distinctFloatingChrome) — unaffected by the main Actions dropdown removal
+  // above, but its own "⊞ All actions" trigger opened the same now-deleted
+  // popout, so it was removed too (a task-review finding, not part of the
+  // original brief) rather than left as a silently-broken no-op click. Only
+  // reachable via a bare mode="inline" mount (no production route uses it
+  // without distinctFloatingChrome — see App.js's single AIAgent mount).
+  it("inline mode: 'All actions' button is no longer rendered (its popout was deleted)", () => {
     renderAgent({ user: customerUser, mode: "inline" });
     expect(
-      screen.getByRole("button", { name: /All actions/i }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: /All actions/i }),
+    ).not.toBeInTheDocument();
   });
 });
 

@@ -66,10 +66,7 @@ import AgentDemoGuide from "./AgentDemoGuide";
 import DemoStepsDropdown from "./DemoStepsDropdown";
 import AdminToolsDropdown from "./AdminToolsDropdown";
 import { markUseCaseCompleted, clearCompletedUseCases } from "../utils/useCaseDemoProgress";
-import {
-  requiredFlagsForUseCase,
-  requiredFlagsForUseCaseId,
-} from "../utils/requiredDemoFlags";
+import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
 import apiClient from "../services/apiClient";
 import { formatAxiosError } from "../utils/formatAxiosError";
 import { adminCustomerContext } from "../services/adminCustomerContext";
@@ -9271,20 +9268,16 @@ export default function BankingAgent({
 
                     <div className="ba-left-divider" />
 
-                    {/* "All actions" discovery popout trigger */}
-                    <button
-                      ref={discoveryTriggerRef}
-                      type="button"
-                      className={
-                        "ba-all-actions-btn" + (showDiscovery ? " active" : "")
-                      }
-                      onClick={() => setShowDiscovery((v) => !v)}
-                      disabled={consentBlocked}
-                      aria-expanded={showDiscovery}
-                      aria-haspopup="dialog"
-                    >
-                      ⊞ All actions
-                    </button>
+                    {/* "All actions" discovery popout trigger — removed (Task 7,
+                        Actions dropdown removal): it opened the ba-actions-popout,
+                        which no longer exists anywhere in this file. Leaving the
+                        button would make it a silent no-op click. showDiscovery /
+                        discoveryTriggerRef / actionsPopoutRef stay declared —
+                        they're still referenced by this component's popout-lifecycle
+                        effects (Escape/click-outside/scroll/reposition, all now
+                        harmless no-ops since actionsPopoutRef.current is always
+                        null) — removing those is a separate, out-of-scope cleanup
+                        of this whole `!useActionsPopout` fallback branch. */}
                   </>
                 ) : (
                   <>
