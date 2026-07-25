@@ -179,3 +179,59 @@ test('the captured-values dropdown patches a different account id into the argum
   fireEvent.change(screen.getByLabelText('Insert captured value'), { target: { value: 'acct-savings' } });
   expect(screen.getByRole('textbox')).toHaveValue(JSON.stringify({ account_id: 'acct-savings' }, null, 2));
 });
+
+test('Run chain executes the three tools in order, carrying the account id forward', async () => {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp-gateway/active') return Promise.resolve({ data: ACTIVE_GATEWAY });
+    if (url === '/api/mcp/inspector/tools') return Promise.resolve({
+      data: {
+        tools: [
+          { name: 'get_my_accounts', description: 'List accounts.', inputSchema: { type: 'object', properties: {}, required: [] } },
+          { name: 'get_account_balance', description: 'Get balance.', inputSchema: { type: 'object', properties: { account_id: { type: 'string' } }, required: ['account_id'] } },
+          { name: 'get_sensitive_account_details', description: 'Sensitive details.', inputSchema: { type: 'object', properties: { account_id: { type: 'string' } }, required: [] } },
+        ],
+        _source: 'live',
+      },
+    });
+    return Promise.resolve({ data: {} });
+  });
+  apiClient.post
+    .mockResolvedValueOnce({ data: { ok: true, result: { success: true, accounts: [{ id: 'acct-1', accountType: 'checking' }] }, durationMs: 5 } })
+    .mockResolvedValueOnce({ data: { ok: true, result: { success: true, accountId: 'acct-1', balance: 500 }, durationMs: 6 } })
+    .mockResolvedValueOnce({ data: { ok: true, result: { success: true, accounts: [{ id: 'acct-1', routingNumber: '021000021' }] }, durationMs: 7 } });
+
+  render(<AgentGatewayTester />);
+  await screen.findByText('Demo Agent Gateway | Authz: simulated');
+  fireEvent.click(screen.getByText('Config'));
+  fireEvent.click(screen.getByText(/Run chain/));
+
+  await waitFor(() => expect(apiClient.post).toHaveBeenCalledTimes(3));
+  expect(apiClient.post).toHaveBeenNthCalledWith(1, '/api/mcp-gateway/test', { tool: 'get_my_accounts', args: {} });
+  expect(apiClient.post).toHaveBeenNthCalledWith(2, '/api/mcp-gateway/test', { tool: 'get_account_balance', args: { account_id: 'acct-1' } });
+  expect(apiClient.post).toHaveBeenNthCalledWith(3, '/api/mcp-gateway/test', { tool: 'get_sensitive_account_details', args: { account_id: 'acct-1' } });
+});
+
+test('order badges mark the chained tools 1, 2, 3 in the tool tree', async () => {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp-gateway/active') return Promise.resolve({ data: ACTIVE_GATEWAY });
+    if (url === '/api/mcp/inspector/tools') return Promise.resolve({
+      data: {
+        tools: [
+          { name: 'get_my_accounts', description: '', inputSchema: { type: 'object', properties: {}, required: [] } },
+          { name: 'get_account_balance', description: '', inputSchema: { type: 'object', properties: { account_id: { type: 'string' } }, required: ['account_id'] } },
+          { name: 'get_sensitive_account_details', description: '', inputSchema: { type: 'object', properties: {}, required: [] } },
+        ],
+        _source: 'live',
+      },
+    });
+    return Promise.resolve({ data: {} });
+  });
+  render(<AgentGatewayTester />);
+  await screen.findByText('get_my_accounts');
+  const row1 = screen.getByText('get_my_accounts').closest('.inspector-shell-tree-item');
+  const row2 = screen.getByText('get_account_balance').closest('.inspector-shell-tree-item');
+  const row3 = screen.getByText('get_sensitive_account_details').closest('.inspector-shell-tree-item');
+  expect(row1).toHaveTextContent('1');
+  expect(row2).toHaveTextContent('2');
+  expect(row3).toHaveTextContent('3');
+});

@@ -113,6 +113,13 @@ const buildArgsTemplate = (tool, capturedValues = []) => {
   return JSON.stringify(template, null, 2);
 };
 
+const CHAIN_STEPS = ['get_my_accounts', 'get_account_balance', 'get_sensitive_account_details'];
+
+const chainOrder = (name) => {
+  const idx = CHAIN_STEPS.indexOf(name);
+  return idx === -1 ? null : idx + 1;
+};
+
 const TOOL_GROUPS = {
   Accounts: ['get_my_accounts', 'get_account_balance', 'get_sensitive_account_details'],
   Transactions: ['get_my_transactions'],
@@ -145,6 +152,8 @@ export default function AgentGatewayTester() {
   const [selectedTool, setSelectedTool] = useState(null);
   const [argsText, setArgsText] = useState('{}');
   const [capturedValues, setCapturedValues] = useState([]);
+  const [chainRunning, setChainRunning] = useState(false);
+  const [chainResults, setChainResults] = useState([]);
   const [sending, setSending] = useState(false);
   const [resp, setResp] = useState(null);
   const [rules, setRules] = useState(null);
@@ -320,6 +329,57 @@ export default function AgentGatewayTester() {
     }
   }, [selectedTool, argsText]);
 
+  const runChain = useCallback(async () => {
+    setChainRunning(true);
+    setChainResults([]);
+    setOutputTab('chain');
+    let liveCaptured = capturedValues;
+    const results = [];
+    for (const toolName of CHAIN_STEPS) {
+      const tool = tools.find((t) => t.name === toolName);
+      if (!tool) {
+        results.push({ tool: toolName, ok: false, skipped: true, data: { clientError: 'Tool not available.' } });
+        setChainResults([...results]);
+        continue;
+      }
+      const stepArgsText = buildArgsTemplate(tool, liveCaptured);
+      let args;
+      try {
+        args = stepArgsText.trim() ? JSON.parse(stepArgsText) : {};
+      } catch {
+        results.push({ tool: toolName, ok: false, data: { clientError: 'Arguments must be valid JSON.' } });
+        setChainResults([...results]);
+        break;
+      }
+      // buildArgsTemplate only prefills required properties; account_id-like
+      // *optional* filters (e.g. get_sensitive_account_details) still need the
+      // chain to carry the id forward, so fill any unset schema property here.
+      const latestId = liveCaptured[0]?.value;
+      if (latestId) {
+        for (const key of Object.keys(tool.inputSchema?.properties || {})) {
+          if (ACCOUNT_ID_PATTERN.test(key) && !(key in args)) args[key] = latestId;
+        }
+      }
+      try {
+        const { data } = await apiClient.post('/api/mcp-gateway/test', { tool: toolName, args });
+        const ok = !data.clientError && data.ok !== false;
+        results.push({ tool: toolName, ok, data });
+        setChainResults([...results]);
+        const fresh = extractCapturedValues(data?.result ?? data?.rpcData);
+        if (fresh.length) {
+          liveCaptured = mergeCapturedValues(liveCaptured, fresh);
+          setCapturedValues(liveCaptured);
+        }
+        if (!ok) break;
+      } catch (e) {
+        results.push({ tool: toolName, ok: false, data: { clientError: formatAxiosError(e, 'Request failed') } });
+        setChainResults([...results]);
+        break;
+      }
+    }
+    setChainRunning(false);
+  }, [tools, capturedValues]);
+
   const usePing = active?.usePingGateway;
   const simulated = active?.simulated;
   const az = resp?.gwAuditTrail?.authorize || null;
@@ -428,6 +488,9 @@ export default function AgentGatewayTester() {
                       >
                         <span className={`inspector-shell-tree-item__dot ${toolDotClass(t.name)}`} />
                         <span>{t.name}</span>
+                        {chainOrder(t.name) && (
+                          <span className="inspector-shell-tree-item__badge inspector-shell-tree-item__badge--order">{chainOrder(t.name)}</span>
+                        )}
                         {toolDotClass(t.name).includes('write') && (
                           <span className="inspector-shell-tree-item__badge inspector-shell-tree-item__badge--write">W</span>
                         )}
@@ -491,6 +554,17 @@ export default function AgentGatewayTester() {
                 >
                   <span className="inspector-shell-tree-item__dot" style={{ background: '#f59e0b' }} />
                   <span>{bursting ? 'Running...' : 'Burst test (5 calls)'}</span>
+                </div>
+              </div>
+              <div className="inspector-shell-tree-group">
+                <div className="inspector-shell-tree-group__label">Sequential Chain</div>
+                <div
+                  className="inspector-shell-tree-item"
+                  onClick={() => !chainRunning && runChain()}
+                  style={{ color: chainRunning ? '#475569' : '#3b82f6', fontSize: 11 }}
+                >
+                  <span className="inspector-shell-tree-item__dot" style={{ background: '#6366f1' }} />
+                  <span>{chainRunning ? 'Running chain…' : 'Run chain (accounts → balance → sensitive)'}</span>
                 </div>
               </div>
               <div className="inspector-shell-tree-group">
@@ -626,11 +700,35 @@ export default function AgentGatewayTester() {
               { key: 'authorize', label: 'Authorize Decision' },
               { key: 'mcpAudit', label: 'McpAudit (5W1H)' },
               { key: 'form', label: 'Form' },
+              { key: 'chain', label: 'Chain' },
             ]}
             activeKey={outputTab}
             onChange={setOutputTab}
           />
-          {resp ? (
+          {outputTab === 'chain' ? (
+            <div className="inspector-shell-output-body">
+              <pre className="inspector-shell-output-code">
+                {chainResults.length === 0 ? (
+                  <div style={{ padding: 16, color: '#64748b', fontSize: 12 }}>
+                    {chainRunning ? 'Running chain…' : 'Click "Run chain" (Config tab) to execute get_my_accounts → get_account_balance → get_sensitive_account_details in order.'}
+                  </div>
+                ) : (
+                  chainResults.map((step, i) => (
+                    <div
+                      key={`${step.tool}-${i}`}
+                      onClick={() => { if (!step.skipped) { setResp(step.data); setOutputTab('result'); } }}
+                      style={{ padding: '8px 12px', borderBottom: '1px solid #e2e8f0', cursor: step.skipped ? 'default' : 'pointer', display: 'flex', justifyContent: 'space-between', fontSize: 12 }}
+                    >
+                      <span>{i + 1}. {step.tool}</span>
+                      <span style={{ color: step.ok ? '#16a34a' : '#dc2626' }}>
+                        {step.skipped ? 'skipped' : step.ok ? `OK (${step.data.durationMs ?? '?'}ms)` : 'error'}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </pre>
+            </div>
+          ) : resp ? (
             <>
               <div className="inspector-shell-output-body">
                 <pre className="inspector-shell-output-code">
