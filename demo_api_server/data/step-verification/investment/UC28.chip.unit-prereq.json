@@ -6,7 +6,7 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "view_portfolios",
-  "checkedAt": "2026-07-25T15:48:13.530Z",
+  "checkedAt": "2026-07-25T20:23:04.894Z",
   "requiredFlags": [
     "ff_mcp_gateway_pinggateway",
     "ff_gateway_brokered_exchange"

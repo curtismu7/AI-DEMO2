@@ -6,6 +6,6 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": null,
-  "checkedAt": "2026-07-25T15:48:30.423Z",
+  "checkedAt": "2026-07-25T20:23:05.294Z",
   "verifiedBy": "demo_api_server/src/__tests__/killSwitchService.test.js + AgentLifecyclePage revoke (default scope instance) (#761)"
 }

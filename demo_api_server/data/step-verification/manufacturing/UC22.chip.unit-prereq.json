@@ -6,7 +6,7 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "approve_purchase_order",
-  "checkedAt": "2026-07-25T15:48:17.705Z",
+  "checkedAt": "2026-07-25T20:23:02.619Z",
   "requiredFlags": [
     "ciba_enabled",
     "ff_mcp_gateway_pinggateway",
