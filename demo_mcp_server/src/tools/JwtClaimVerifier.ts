@@ -68,32 +68,42 @@ export class JwtClaimVerifier {
     // MCP_RESOURCE_URI alias. When configured the check is mandatory and fail-hard:
     // a mismatched or absent aud on a sensitive-tool token is an authentication error,
     // not just a warning, because it could indicate token replay from another service.
-    const expectedAud =
+    //
+    // The env value is a comma-separated list (docker-compose.yml sets MCP_RESOURCE_URI
+    // to "mcpserver.ping.demo,mcpgateway.ping.demo" — this server's own resource id plus
+    // the gateway's, since both appear as aud on tokens that reach here depending on hop).
+    // Without splitting it, the whole comma-joined string was compared against each single
+    // aud value and never matched, so every sensitive banking write (create_transfer,
+    // create_withdrawal, create_deposit) failed with a false "aud mismatch" — see UC22.
+    const expectedAudRaw =
       process.env.PINGONE_RESOURCE_MCP_SERVER_URI ||
       process.env.MCP_RESOURCE_URI ||
       process.env.BANKING_API_RESOURCE_URI || // legacy alias kept for backwards compat
       null;
+    const expectedAudList = expectedAudRaw
+      ? expectedAudRaw.split(',').map((s) => s.trim()).filter(Boolean)
+      : [];
 
-    if (expectedAud) {
+    if (expectedAudRaw) {
       const audArray: string[] = aud
         ? (Array.isArray(aud) ? (aud as string[]) : [aud as string])
         : [];
 
       if (audArray.length === 0) {
         throw new AuthenticationError(
-          `Token for sensitive tool '${toolName}' is missing the aud claim (expected '${expectedAud}')`,
+          `Token for sensitive tool '${toolName}' is missing the aud claim (expected one of '${expectedAudList.join(', ')}')`,
           AuthErrorCodes.INVALID_TOKEN
         );
       }
 
-      if (!audArray.includes(expectedAud)) {
+      if (!audArray.some((a) => expectedAudList.includes(a))) {
         throw new AuthenticationError(
-          `Token aud [${audArray.join(', ')}] does not match MCP server audience '${expectedAud}' for '${toolName}'`,
+          `Token aud [${audArray.join(', ')}] does not match MCP server audience (expected one of '${expectedAudList.join(', ')}') for '${toolName}'`,
           AuthErrorCodes.INVALID_TOKEN
         );
       }
 
-      this.logger.debug(`[BankingToolProvider] Audience check passed for '${toolName}': aud includes '${expectedAud}'`);
+      this.logger.debug(`[BankingToolProvider] Audience check passed for '${toolName}': aud includes one of '${expectedAudList.join(', ')}'`);
     }
 
     // ── JWKS Cryptographic Signature Verification (RFC 7515) ──────────────────
@@ -105,7 +115,7 @@ export class JwtClaimVerifier {
       try {
         const { jwtVerify } = await getJose();
         const verifyOpts: Parameters<typeof jwtVerify>[2] = {};
-        if (expectedAud) verifyOpts.audience = expectedAud;
+        if (expectedAudList.length > 0) verifyOpts.audience = expectedAudList;
         if (iss) verifyOpts.issuer = iss;
         await jwtVerify(token, jwks, verifyOpts);
         this.logger.info(`[BankingToolProvider] JWKS sig ✅ verified for sensitive tool '${toolName}'`);
