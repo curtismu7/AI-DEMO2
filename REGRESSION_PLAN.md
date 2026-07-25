@@ -153,6 +153,16 @@ so the AG-UI POST body carries the slug; the server already forwards a
 client-supplied slug (`agentRun.js` → `agentTool.js` → `bffMcpToolExecutor.js`
 `resolveChipUseCaseId`). `deriveUseCaseId` left unchanged (it can't tell Miami
 from Austin — that's outcome, not tool/args).
+(6) On the external LLM (AG-UI) path the banking-persona agent replied with a
+greeting instead of explaining the out-of-scope weather deny. Two-part fix in
+`langchain_agent`: (a) system-prompt rule 21 (`src/agent/langchain_mcp_agent.py`)
+tells the agent to state a policy denial + reason and not greet/deflect; (b) a
+deterministic fallback (`src/api/message_processor.py`) — if a tool result was a
+policy denial (`gateway_policy_denied`/`weather_scope_denied`/…) and the model's
+reply never surfaced it, emit `❌ <reason>` as its own message (parity with the
+in-process path). Also captures the non-streaming (`on_chat_model_end`) reply
+into `turn_reply_text` so the "did the model explain it" check works for
+poll-based providers. 5 new tests in `tests/test_message_processor.py`.
 
 **Do not break:** The deny *mechanism* is unchanged — this only surfaces the reason
 and reframes an already-denied call. `expected` is gated on the catalog's
