@@ -21,7 +21,10 @@ const MAX_AGE_DAYS = Number(process.env.STEP_VERIFICATION_MAX_AGE_DAYS || 30);
 
 function catalogUseCaseIds() {
   const { USE_CASES } = require(path.join(ROOT, 'demo_api_server', 'config', 'useCases.js'));
-  return new Set(USE_CASES.map((u) => u.id));
+  const { ADMIN_DEMO_STEPS } = require(path.join(ROOT, 'demo_api_server', 'config', 'admin', 'demoSteps.js'));
+  const ids = new Set(USE_CASES.map((u) => u.id));
+  for (const step of ADMIN_DEMO_STEPS) ids.add(step.id);
+  return ids;
 }
 
 function checkStepVerification() {

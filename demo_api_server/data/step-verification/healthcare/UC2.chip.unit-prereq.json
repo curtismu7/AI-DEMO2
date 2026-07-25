@@ -3,16 +3,13 @@
   "useCaseId": "UC2",
   "triggerType": "chip",
   "mode": "unit-prereq",
-  "status": "FAIL",
-  "errorClass": "missing_prereq",
+  "status": "PASS",
+  "errorClass": null,
   "primaryTool": "sensitive_patient_records",
-  "checkedAt": "2026-07-24T01:59:31.365Z",
+  "checkedAt": "2026-07-25T03:06:18.222Z",
   "requiredFlags": [
     "ff_a2a_delegation",
     "ff_mcp_gateway_pinggateway",
     "ff_gateway_brokered_exchange"
-  ],
-  "prereqErrors": [
-    "Records Specialist credentials missing (pingone_records_agent_client_id / pingone_records_agent_client_secret)"
   ]
 }
