@@ -34,14 +34,20 @@ export const DEMO_ADVANCED_USE_CASE_IDS = [];
 /**
  * 15-Min Security demo script — the exact tiles that script runs, in order,
  * gathered into one workbench group so the presenter doesn't hunt across
- * tracks. Deliberately duplicates ids already in DEMO_PRIMARY (UC24 is the only
- * one not there). Consumed only by LiveUseCaseWorkbenchPage.
+ * tracks. This list IS the teleprompter script order (demoScript.js) 1:1, so
+ * step N here == beat N there. Mostly duplicates ids in DEMO_PRIMARY; UC24 and
+ * UC14 are the two not there. Consumed only by LiveUseCaseWorkbenchPage.
+ * Flag-gated tiles (UC2, UC14/UC14b) auto-arm their flag on run — see the
+ * maturity→flag arming in routes/useCases.js and attackSimulatorService.js.
  */
 export const SECURITY_DEMO_USE_CASE_IDS = [
   'UC1',   // show my balance → PERMIT (act claim)
+  'UC2',   // hand off to a specialist → PERMIT (nested-act A2A chain), ff_a2a_delegation
   'UC24',  // branches near me → public PERMIT (no exchange)
   'UC6',   // transfer $2500 → DENY
   'UC8',   // transfer $300 → HITL
+  'UC14b', // PAR within cap → PERMIT (intent-binding page), ff_rar
+  'UC14',  // PAR over cap → DENY (rar-exceeded attack sim), ff_rar
   'UC31',  // weather Miami → gateway DENY
   'UC12',  // DPoP / replay attack sim → DENY_401
   'UC5',   // insufficient scope attack sim → DENY_403

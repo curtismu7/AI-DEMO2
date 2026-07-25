@@ -4,6 +4,7 @@
 // catalog drawer + real Token Chain, single <AIAgent> in the host column
 // (see App.js onLiveWorkbenchRoute).
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import { useVertical } from '../vertical/useVertical';
 import VerticalSwitcher from '../components/VerticalSwitcher';
@@ -76,6 +77,7 @@ function policyLabel(outcome) {
  */
 export default function LiveUseCaseWorkbenchPage() {
   const { activeId: vertical } = useVertical();
+  const navigate = useNavigate();
   const [useCases, setUseCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -167,7 +169,25 @@ export default function LiveUseCaseWorkbenchPage() {
       });
   }, []);
 
-  /** Run the selected card (chip or attack). */
+  // Link-type steps (e.g. UC14b PAR verified) open a learning page. POST
+  // demo/run first so the backend arms the step's feature flag (ff_rar), then
+  // SPA-navigate so the teleprompter overlay and the session cookie survive.
+  const handleOpenLink = useCallback((uc) => {
+    setSelectedId(uc.id);
+    const path = uc.trigger?.path || '';
+    apiClient.post('/api/use-cases/demo/run', { useCaseId: uc.useCaseId, vertical })
+      .catch(() => {})
+      .finally(() => {
+        const hashIdx = path.indexOf('#');
+        if (hashIdx >= 0) {
+          navigate({ pathname: path.slice(0, hashIdx), hash: path.slice(hashIdx) });
+        } else if (path) {
+          navigate(path);
+        }
+      });
+  }, [vertical, navigate]);
+
+  /** Run the selected card (chip, attack, or link). */
   const handleRunSelected = useCallback((uc) => {
     if (uc.trigger?.type === 'chip') {
       handleRunChip(uc);
@@ -175,8 +195,12 @@ export default function LiveUseCaseWorkbenchPage() {
     }
     if (uc.trigger?.type === 'attack' && RUNNABLE_SIMS.includes(uc.trigger.sim)) {
       handleRunAttack(uc);
+      return;
     }
-  }, [handleRunChip, handleRunAttack]);
+    if (uc.trigger?.type === 'link' && uc.trigger.path) {
+      handleOpenLink(uc);
+    }
+  }, [handleRunChip, handleRunAttack, handleOpenLink]);
 
   const primaryDemo = useMemo(
     () => DEMO_PRIMARY_USE_CASE_IDS
@@ -222,7 +246,8 @@ export default function LiveUseCaseWorkbenchPage() {
   function renderCard(uc, stepNumber) {
     const isChip = uc.trigger?.type === 'chip';
     const isRunnableAttack = uc.trigger?.type === 'attack' && RUNNABLE_SIMS.includes(uc.trigger.sim);
-    const canRun = isChip || isRunnableAttack;
+    const isLink = uc.trigger?.type === 'link' && !!uc.trigger.path;
+    const canRun = isChip || isRunnableAttack || isLink;
     const isSelected = selectedId === uc.id;
     const isRunning = runState?.id === uc.id && runState.state === 'running';
     const isDone = runState?.id === uc.id && runState.state === 'done';
@@ -267,7 +292,7 @@ export default function LiveUseCaseWorkbenchPage() {
               handleRunSelected(uc);
             }}
           >
-            {isRunnableAttack ? 'Run sim →' : isDone ? 'Run again →' : 'Run in agent →'}
+            {isRunnableAttack ? 'Run sim →' : isLink ? 'Open page →' : isDone ? 'Run again →' : 'Run in agent →'}
           </button>
         )}
         {!canRun && (
@@ -316,7 +341,7 @@ export default function LiveUseCaseWorkbenchPage() {
                   15-Min Security Demo
                   <span className="luw-track__count">{securityDemo.length}</span>
                 </summary>
-                {securityDemo.map((uc) => renderCard(uc))}
+                {securityDemo.map((uc, i) => renderCard(uc, i + 1))}
               </details>
             )}
 
