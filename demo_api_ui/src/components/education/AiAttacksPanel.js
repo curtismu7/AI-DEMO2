@@ -31,6 +31,13 @@ const RUN_BY_TAB = {
   // non-canonical amount and drifted independently of the catalog.)
   'hitl-bypass': { kind: 'catalog', useCaseId: 'hitl-consent-bypass-attempt', label: 'HITL Bypass' },
   'unauthorized-commitments': { kind: 'catalog', useCaseId: 'unauthorized-commitment-fee-waiver', label: 'Unauthorized Commitments' },
+  // Ported from the old Actions dropdown's Security Showcase panel (BankingChips
+  // → SecurityShowcasePanel) when that dropdown was removed — these 3 had no
+  // other reachable surface. Same 'showcase' dispatch mechanism as the three
+  // above; the live harness lives in AIAgent.js's runDrawerAttackRef.
+  'authz-deny': { kind: 'showcase', showcase: 'authz_deny', label: 'Authz Deny' },
+  'confused-deputy': { kind: 'showcase', showcase: 'atk_confused_deputy', label: 'Confused Deputy' },
+  'hitl-replay': { kind: 'showcase', showcase: 'atk_hitl_replay', label: 'HITL Replay' },
 };
 
 export default function AiAttacksPanel({ isOpen, onClose, initialTabId }) {
@@ -544,6 +551,142 @@ return tools.filter(tool =>
             The agent receives a tools/list that does not include <code>freeze_account</code> and
             responds that it does not have access to that action.
           </p>
+        </>
+      ),
+    },
+    {
+      id: 'authz-deny',
+      label: 'Cross-Vertical Deny',
+      content: (
+        <>
+          <h3 style={{ marginTop: 0 }}>The attack: reaching a tool outside the agent&apos;s vertical</h3>
+          <p style={{ color: '#374151' }}>
+            This demo is scoped to banking, but the underlying MCP server also exposes tools that
+            belong to other verticals (healthcare&apos;s <code>show_health_record</code>, for
+            example). An agent that discovers or is told to call a tool outside its own vertical —
+            whether by a careless prompt, a misconfigured integration, or a prompt-injected
+            instruction — must not be able to reach it just because the tool exists on the same
+            MCP server.
+          </p>
+          <div style={{ background: 'rgba(239,68,68,0.07)', borderLeft: '3px solid #ef4444', padding: '8px 12px', borderRadius: 4, marginBottom: '1rem' }}>
+            <strong>Why this matters:</strong> a single MCP server commonly hosts tools for many
+            product lines. Without a boundary check, any agent with a valid token could reach any
+            tool the server knows about — not just the ones for the product it was actually
+            deployed for.
+          </div>
+
+          <h3>What stops it</h3>
+          <div style={{ background: 'rgba(34,197,94,0.07)', borderLeft: '3px solid #16a34a', padding: '8px 12px', borderRadius: 4, marginBottom: '1rem' }}>
+            <strong>PingOne Authorize&apos;s <code>AllowedVertical</code> policy binds the request to
+            its active vertical.</strong> A tool declared under a different vertical is hard-denied —
+            the agent can only reach tools the active context permits, regardless of how the
+            request was framed or what the agent &ldquo;decided&rdquo; to do.
+          </div>
+
+          <h3>Try it</h3>
+          <RunAttackButton tabId="authz-deny" />
+          <p style={{ color: '#374151' }}>
+            Fires a direct call to <code>show_health_record</code> (a healthcare-only tool) while
+            pinned to the banking vertical. PingOne Authorize returns a DENY — the agent never sees
+            a result.
+          </p>
+
+          <div style={{ marginTop: '1.25rem' }}>
+            <CrossLink panelId={EDU.PINGONE_AUTHORIZE}>PingOne Authorize — the policy engine</CrossLink>
+          </div>
+        </>
+      ),
+    },
+    {
+      id: 'confused-deputy',
+      label: 'Confused Deputy',
+      content: (
+        <>
+          <h3 style={{ marginTop: 0 }}>The attack: forging the delegation chain&apos;s actor</h3>
+          <p style={{ color: '#374151' }}>
+            A <strong>confused deputy</strong> attack tricks a more-privileged component into
+            acting on an attacker&apos;s behalf. Here, a rogue client tries to make an agent tool
+            call while claiming to be a <em>different</em>, already-authorized actor than it
+            really is — attempting to borrow that actor&apos;s standing in the delegation chain
+            without ever having performed a real token exchange as that actor.
+          </p>
+          <div style={{ background: 'rgba(239,68,68,0.07)', borderLeft: '3px solid #ef4444', padding: '8px 12px', borderRadius: 4, marginBottom: '1rem' }}>
+            <strong>Why a header alone isn&apos;t enough:</strong> if actor identity could be set
+            by an ordinary request header, any caller could claim to be any agent — delegation
+            would mean nothing.
+          </div>
+
+          <h3>What stops it</h3>
+          <div style={{ background: 'rgba(34,197,94,0.07)', borderLeft: '3px solid #16a34a', padding: '8px 12px', borderRadius: 4, marginBottom: '1rem' }}>
+            <strong>PingOne stamps a native, cryptographically-issued <code>act</code> claim</strong>{' '}
+            on the exchanged token whenever the actor actually performed the RFC 8693 exchange. The
+            gateway and Authorize always prefer that native claim over anything a caller could put
+            in a header. <code>HasValidActorChain</code> then denies any actor that isn&apos;t the
+            one the delegation is actually bound to — a rogue actor can&apos;t win by spoofing a
+            header; it would have to perform a real exchange as an unauthorized client, which
+            Authorize&apos;s actor check then denies.
+          </div>
+          <p style={{ color: '#374151' }}>
+            The <code>/use-cases</code> catalog&apos;s <strong>UC13</strong> demonstrates the same
+            defense via a scripted sim; this tab runs the <strong>live</strong> version — a real
+            fetch carrying a rogue, non-allowlisted actor id.
+          </p>
+
+          <h3>Try it</h3>
+          <RunAttackButton tabId="confused-deputy" />
+          <p style={{ color: '#374151' }}>
+            Fires a real <code>get_my_accounts</code> call with a rogue <code>_testActClientId</code>{' '}
+            header. The response shows both the actor that was tried and the actor PingOne
+            actually allows, confirming the native claim — not the header — decided the outcome.
+          </p>
+
+          <div style={{ marginTop: '1.25rem' }}>
+            <CrossLink panelId={EDU.MAY_ACT}>Identity chaining (may_act)</CrossLink>
+            <CrossLink panelId={EDU.RFC_8693}>RFC 8693 Token Exchange</CrossLink>
+            <CrossLink panelId={EDU.PINGONE_AUTHORIZE}>PingOne Authorize — the policy engine</CrossLink>
+          </div>
+        </>
+      ),
+    },
+    {
+      id: 'hitl-replay',
+      label: 'HITL Replay',
+      content: (
+        <>
+          <h3 style={{ marginTop: 0 }}>The attack: reusing an approved consent receipt on a different tool</h3>
+          <p style={{ color: '#374151' }}>
+            A human approves a HITL consent challenge for one action — say, a transfer between two
+            of the user&apos;s own accounts. The attack tries to reuse that <em>same</em> approved
+            receipt to authorize a <strong>different</strong> tool call (a withdrawal) without
+            asking the human again — betting that an approval is an approval, regardless of what
+            it gets applied to next.
+          </p>
+          <div style={{ background: 'rgba(239,68,68,0.07)', borderLeft: '3px solid #ef4444', padding: '8px 12px', borderRadius: 4, marginBottom: '1rem' }}>
+            <strong>Why this would be dangerous if it worked:</strong> a single human approval
+            could be stretched to cover any number of unrelated, unreviewed actions — the human
+            approved one thing but the system would honor many.
+          </div>
+
+          <h3>What stops it</h3>
+          <div style={{ background: 'rgba(34,197,94,0.07)', borderLeft: '3px solid #16a34a', padding: '8px 12px', borderRadius: 4, marginBottom: '1rem' }}>
+            <strong>The gateway binds every consent receipt to the exact tool it approved.</strong>{' '}
+            Presenting a <code>create_transfer</code> receipt against <code>create_withdrawal</code>{' '}
+            doesn&apos;t silently succeed — it is re-challenged, exactly as if no approval existed
+            at all.
+          </div>
+
+          <h3>Try it</h3>
+          <RunAttackButton tabId="hitl-replay" />
+          <p style={{ color: '#374151' }}>
+            Approves a consent receipt for a $300 transfer, then replays that same receipt against
+            a $300 withdrawal. The withdrawal is blocked and re-challenged — the receipt never
+            transfers over to the second tool.
+          </p>
+
+          <div style={{ marginTop: '1.25rem' }}>
+            <CrossLink panelId={EDU.HUMAN_IN_LOOP}>Human-in-the-Loop — how HITL works</CrossLink>
+            <CrossLink panelId={EDU.PINGONE_AUTHORIZE}>PingOne Authorize — the policy engine</CrossLink>
+          </div>
         </>
       ),
     },
