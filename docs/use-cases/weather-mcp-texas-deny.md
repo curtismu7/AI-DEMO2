@@ -25,7 +25,7 @@ The Agent Gateway denies the call before it reaches the third-party weather MCP 
 
 ## Evidence
 
-**Token chain steps:** user-token → sim-gateway-deny  
+**Token chain steps:** user-token → tool-dispatched  
 **Activity categories:** token, mcp
 
 ## Code References

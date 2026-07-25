@@ -1090,7 +1090,7 @@ export default function BankingAgent({
       if (e.detail?.autoSend) {
         setIsOpen(true); // no-op for inline (effectiveIsOpen is already true)
         // Defer so the panel mounts and runDrawerAttackRef points at the live closure.
-        const tid = setTimeout(() => runDrawerAttackRef.current?.({ message: msg }), 80);
+        const tid = setTimeout(() => runDrawerAttackRef.current?.({ message: msg, useCaseId: e.detail?.useCaseId }), 80);
         timerIds.push(tid);
         return;
       }
@@ -1151,8 +1151,8 @@ export default function BankingAgent({
   //                    agent's read tool, mirroring the in-chat showcase chip).
   useEffect(() => {
     runDrawerAttackRef.current = (detail = {}) => {
-      const { message, showcase, label } = detail;
-      if (message) { sendAsNl(message); return; }
+      const { message, showcase, label, useCaseId } = detail;
+      if (message) { sendAsNl(message, useCaseId); return; }
       if (!showcase) return;
       if (SHOWCASE_RUN_ACTION[showcase]) { runAction(SHOWCASE_RUN_ACTION[showcase]); return; }
       const inj = SHOWCASE_INJECTION[showcase];
@@ -5201,7 +5201,7 @@ export default function BankingAgent({
     } catch (_) {}
   }
 
-  function sendAsNlInner(text) {
+  function sendAsNlInner(text, useCaseId) {
     // A typed message is a new turn: start a fresh token-chain trace with the
     // user's actual prompt so the trace rail shows "Pipeline — <prompt>" and
     // the prompt step lights up (demoAgentService's chip path only begins a
@@ -5241,6 +5241,10 @@ export default function BankingAgent({
         messages: [...priorHistory, { role: 'user', content: text }],
         provider: activeLlmProvider,
         mode: agentProviderMode,
+        // Carry the explicitly-clicked use case (e.g. UC31 weather-mcp-texas-deny)
+        // so the server stamps token events with the right slug instead of falling
+        // back to deriveUseCaseId, which returns the first get_weather match (UC30).
+        useCaseId,
       }).finally(() => {
         setNlLoading(false);
         nlSendGuardRef.current.release();
@@ -5362,10 +5366,10 @@ export default function BankingAgent({
   }
 
   // Sends text through the full NL pipeline (same path as typing in the chat box).
-  function sendAsNl(text) {
+  function sendAsNl(text, useCaseId) {
     if (!nlSendGuardRef.current.tryAcquire()) return;
     try {
-      sendAsNlInner(text);
+      sendAsNlInner(text, useCaseId);
     } catch (e) {
       // Synchronous failure before any async release path ran — free the
       // guard so the send box doesn't stay locked. (Parity with

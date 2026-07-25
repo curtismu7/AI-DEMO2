@@ -954,7 +954,7 @@ const RAW_USE_CASES = [
     pingOneSolution: 'The Agent Gateway denies the call before it reaches the third-party weather MCP server, based on the currently-configured state scope (Texas by default) — the demo policy the backend never sees.',
     trigger: { type: 'chip', text: "what's the weather in Miami" },
     expectedOutcome: 'DENY',
-    evidence: { tokenChain: ['user-token', 'sim-gateway-deny'], activity: ['token', 'mcp'] },
+    evidence: { tokenChain: ['user-token', 'tool-dispatched'], activity: ['token', 'mcp'] },
     codeRefs: ['ping-gateway/scripts/groovy/tx-weather-scope.groovy', 'ping-gateway/config/routes/00-mcp-weather.json'],
     maturity: 'works',
     owasp: { threats: ['T6'], sections: ['§4.2.2'] },
