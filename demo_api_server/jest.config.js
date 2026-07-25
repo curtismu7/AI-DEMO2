@@ -50,6 +50,14 @@ module.exports = {
     '/\\.kilo/worktrees/',
     '/tests/real/',
   ],
+  // ESM-only deps that babel-jest MUST transpile so Jest's CJS runtime can load
+  // suites importing server.js. jose ships ESM-only and is pulled in transitively
+  // by the A2A/MCP SDKs (services/a2aProtocolServer.js et al.), which server.js
+  // loads at boot; the default '/node_modules/' ignore skips them and the raw
+  // `export {...}` syntax throws at load. Whitelist the ESM packages here.
+  transformIgnorePatterns: [
+    '/node_modules/(?!(?:jose|@a2a-js|@modelcontextprotocol)/)',
+  ],
   reporters: [
     'default',
     '<rootDir>/src/__tests__/setup/markdownReporter.js',

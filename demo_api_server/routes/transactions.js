@@ -8,6 +8,8 @@ const transactionAuthorizationService = require('../services/transactionAuthoriz
 const configStore = require('../services/configStore');
 const { sendTransactionConfirmation } = require('../services/emailService');
 const txConsent = require('../services/transactionConsentChallenge');
+const cibaTransactionReceipt = require('../services/cibaTransactionReceipt');
+const hitlCredit = require('../services/hitlCredit');
 const demoScenarioStore = require('../services/demoScenarioStore');
 const { resolveAccountId } = require('../utils/accountUtils');
 const { logEvent: logAppEvent, EVENT_CATEGORIES } = require('../services/appEventService');
@@ -598,6 +600,26 @@ router.post('/', authenticateToken, async (req, res) => {
       req.session.stepUpVerified = 0;
     }
 
+    // CIBA out-of-band approval (routes/ciba.js) is itself a human-in-the-loop
+    // event, so it must also discharge the consent gate below — otherwise a
+    // CIBA-approved retry still has no consentChallengeId and 428s forever on
+    // r.consentRequired, even though sessionStepUpFresh already cleared the
+    // step-up gate. Single-use, same pattern as stepUpVerified above.
+    let sessionHitlFresh = false;
+    if (hitlCredit.isFresh(req.session, { amount: hitlAmount })) {
+      // Amount-bound + consume-on-use (services/hitlCredit.js): a live CIBA
+      // credit for this amount applies, but do NOT spend it yet — consume it
+      // below only if it actually discharged the consent gate, so an unrelated
+      // call never burns it out from under a pending retry.
+      sessionHitlFresh = true;
+    } else if (hasBearerAuth) {
+      // Bearer-token calls (demo_mcp_server's BankingAPIClient, the real MCP/
+      // agent path) carry no session cookie, so the check above never fires
+      // even right after a CIBA approval — see mcpToolAuthorizationService.js's
+      // matching cibaTransactionReceipt.record() call and cibaTransactionReceipt.js.
+      sessionHitlFresh = cibaTransactionReceipt.consume(req.user.id, `create_${type}`, hitlAmount);
+    }
+
     // RFC 9470 §5 freshness: when stepUpMaxAge > 0, a strong ACR from a stale
     // authentication event is NOT sufficient — downgrade it so the gate fires
     // and the challenge sends the user back through a fresh ceremony.
@@ -627,8 +649,17 @@ router.post('/', authenticateToken, async (req, res) => {
       amount: parseFloat(amount),
       type,
       acr: effectiveAcr,
-      useCaseId: sessionStepUpFresh ? '' : (req.body?.useCaseId || ''),
+      useCaseId: (sessionStepUpFresh || sessionHitlFresh) ? '' : (req.body?.useCaseId || ''),
+      hitlAlreadyVerified: sessionHitlFresh,
     });
+
+    // Consume-on-use: spend the single-use CIBA credit only now that the policy
+    // engine confirmed it actually discharged the consent gate. An unrelated
+    // request never reaches here with hitlConsentDischarged set, so it cannot
+    // burn the credit (fixes the cross-consumer starvation with the MCP gate).
+    if (authz.hitlConsentDischarged) {
+      hitlCredit.consume(req.session);
+    }
 
     if (authz.ran) {
       if (authz.block) {

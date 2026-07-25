@@ -15,6 +15,8 @@ const simulatedAuthorizeService = require('./simulatedAuthorizeService');
 const { decodeJwtClaims } = require('./agentMcpTokenService');
 const { buildActorBridgeHeaders } = require('./mcpActorBridge');
 const hitlServiceClient = require('./hitlServiceClient');
+const cibaTransactionReceipt = require('./cibaTransactionReceipt');
+const hitlCredit = require('./hitlCredit');
 const dataStore = require('../data/store');
 const groupPolicy = require('./groupPolicy');
 const {
@@ -627,9 +629,21 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
   // otherwise a checkout/transfer that trips both step-up AND HITL (e.g. UC22)
   // clears step-up on retry but 428s forever on the untouched HITL statement.
   // Single-use, same pattern as stepUpAlreadyVerified above.
-  const hitlAlreadyVerified = req.session?.hitlVerified > Date.now();
+  const hitlAlreadyVerified = hitlCredit.isFresh(req.session);
   if (hitlAlreadyVerified) {
-    req.session.hitlVerified = 0;
+    // Consume-on-use (services/hitlCredit.js): the credit is spent below at the
+    // HITL-gate site it actually suppresses, NOT here — so an unrelated tool
+    // call no longer burns it out from under a pending transaction retry.
+    // This gate only covers the BFF's own pre-check (POST /api/mcp/tool). The
+    // real write for banking transaction tools still lands on POST
+    // /api/transactions via demo_mcp_server's BankingAPIClient, which calls
+    // back in over a bearer token only (no session cookie) — so that route's
+    // OWN session-based hitlVerified check can never see this approval.
+    // Stash a short-lived receipt keyed by (userId, tool, amount) so it can
+    // look the approval up without a session. See cibaTransactionReceipt.js.
+    if (transactionType && toolAmount != null) {
+      cibaTransactionReceipt.record(policyUserId, tool, toolAmount);
+    }
   }
 
   if (groupPolicy.isEnabled(configStore) || shouldApplyEntitlementTierDemo(useCaseId)) {
@@ -843,7 +857,10 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
       };
     }
 
-    if (r.hitlRequired && !hitlAlreadyVerified) {
+    if (r.hitlRequired && hitlAlreadyVerified) {
+      // Consume-on-use: the credit discharged this HITL gate, so spend it now.
+      hitlCredit.consume(req.session);
+    } else if (r.hitlRequired) {
       return {
         ran: true,
         block: {
@@ -949,7 +966,10 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
         };
       }
 
-      if (r.hitlRequired && !hitlAlreadyVerified) {
+      if (r.hitlRequired && hitlAlreadyVerified) {
+        // Consume-on-use: the credit discharged this HITL gate, so spend it now.
+        hitlCredit.consume(req.session);
+      } else if (r.hitlRequired) {
         return {
           ran: true,
           block: {
@@ -1078,7 +1098,10 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
             authorizeFallback,
           } } };
         }
-        if (r.hitlRequired && !hitlAlreadyVerified) {
+        if (r.hitlRequired && hitlAlreadyVerified) {
+          // Consume-on-use: the credit discharged this HITL gate, so spend it now.
+          hitlCredit.consume(req.session);
+        } else if (r.hitlRequired) {
           return { ran: true, block: { status: 428, body: {
             error: 'mcp_hitl_required',
             error_description: 'PingOne Authorize was unreachable — simulated fallback requires human approval before MCP tools.',

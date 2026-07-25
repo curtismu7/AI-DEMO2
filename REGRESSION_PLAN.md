@@ -102,6 +102,40 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-25 — CIBA HITL-consent credit was session-global, unbound, and eager-consumed (code-review fixes)
+
+**Files changed:** `demo_api_server/services/hitlCredit.js` (new), `routes/ciba.js`,
+`routes/transactions.js`, `services/transactionAuthorizationService.js`,
+`services/mcpToolAuthorizationService.js`, `scripts/refresh-service-envs.js`,
+`src/__tests__/hitlCredit.test.js` (new).
+
+**What was broken:** The CIBA out-of-band approval credit (`req.session.hitlVerified`)
+that discharges the HITL consent 428 was (1) not bound to the approved amount — a
+small CIBA approval discharged consent for any larger unrelated transfer within the
+5-min TTL; (2) eager-consumed (zeroed on read) by two uncoordinated consumers
+(`routes/transactions.js` and `services/mcpToolAuthorizationService.js`), so an
+unrelated tool call burned the credit out from under a pending browser retry
+(double CIBA round-trip); (3) `useCaseId` was cleared only on step-up-fresh, not
+hitl-fresh, risking a re-forced CIBA loop.
+
+**What was fixed:** New `hitlCredit.js` owns an amount-bound, consume-on-use credit.
+`ciba.js` records `hitlApprovedAmount` at both approval set-sites. Consumers now call
+`hitlCredit.isFresh(session, { amount })` (bound) and consume ONLY when a gate was
+actually discharged: `transactionAuthorizationService` returns `hitlConsentDischarged`
+and `transactions.js` consumes on that signal; the MCP engine consumes at the exact
+HITL-gate site it suppresses instead of eager-zeroing at read. `useCaseId` now also
+drops on hitl-fresh. (`refresh-service-envs.js` `DELEGATION_RESOURCE_AUDIENCE` gained
+an `fb()` override hatch — unrelated review nit.)
+
+**Do not break:** DENY > STEP_UP > HITL precedence is unchanged — `hitlAlreadyVerified`
+only skips the consent 428, never a step-up or amount DENY. The bearer/agent path still
+uses `cibaTransactionReceipt` (amount+action bound); this change only touches the
+session-cookie path. `isFresh()` must never consume; only `consume()` spends the credit.
+
+**Verify:** `CI=true npx jest src/__tests__/hitlCredit.test.js` (9/9, incl.
+amount>approved → not fresh); plus `mcpToolAuthorizationService`,
+`transactionAuthorizationService`, `transferHitlIntegration`, `ciba` suites (108 pass).
+
 ### 2026-07-23 — Consent modal was too tall and needed the screenshot's tighter layout
 
 **Files changed:**
