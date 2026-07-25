@@ -141,6 +141,18 @@ found a missing step. Changed UC31's `evidence.tokenChain` to `['user-token',
 satisfied by `trace.mcpResult`, so the verdict flips to the existing
 `denied-as-expected` state → ProofStrip renders "Verified (denied as expected)"
 with ✅. No verdict-engine code change — `computeVerdict` already supported it.
+(5) On the `/use-cases/live` external AG-UI path the verdict resolved to the wrong
+weather use case (UC30 "Verified" permit instead of UC31 "denied as expected"):
+the clicked `useCaseId` was dropped in the browser (the `banking-agent-prefill`
+handler ignored `e.detail.useCaseId`, and `sendAsNl`→`sendAsNlInner`→`aguiRun`→
+`useAgentRun.run` had no `useCaseId` slot), so the server fell back to
+`deriveUseCaseId('get_weather')` which returns the FIRST `get_weather` catalog
+match — UC30. Threaded `useCaseId` end-to-end (optional param) through
+`demo_api_ui/src/components/AIAgent.js` and `demo_api_ui/src/hooks/useAgentRun.js`
+so the AG-UI POST body carries the slug; the server already forwards a
+client-supplied slug (`agentRun.js` → `agentTool.js` → `bffMcpToolExecutor.js`
+`resolveChipUseCaseId`). `deriveUseCaseId` left unchanged (it can't tell Miami
+from Austin — that's outcome, not tool/args).
 
 **Do not break:** The deny *mechanism* is unchanged — this only surfaces the reason
 and reframes an already-denied call. `expected` is gated on the catalog's
