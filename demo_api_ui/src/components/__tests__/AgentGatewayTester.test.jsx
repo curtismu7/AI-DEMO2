@@ -235,3 +235,49 @@ test('order badges mark the chained tools 1, 2, 3 in the tool tree', async () =>
   expect(row2).toHaveTextContent('2');
   expect(row3).toHaveTextContent('3');
 });
+
+test('Run chain shows step 3 as error when result has ok:false (consent-required gate)', async () => {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp-gateway/active') return Promise.resolve({ data: ACTIVE_GATEWAY });
+    if (url === '/api/mcp/inspector/tools') return Promise.resolve({
+      data: {
+        tools: [
+          { name: 'get_my_accounts', description: 'List accounts.', inputSchema: { type: 'object', properties: {}, required: [] } },
+          { name: 'get_account_balance', description: 'Get balance.', inputSchema: { type: 'object', properties: { account_id: { type: 'string' } }, required: ['account_id'] } },
+          { name: 'get_sensitive_account_details', description: 'Sensitive details.', inputSchema: { type: 'object', properties: { account_id: { type: 'string' } }, required: [] } },
+        ],
+        _source: 'live',
+      },
+    });
+    return Promise.resolve({ data: {} });
+  });
+  apiClient.post
+    .mockResolvedValueOnce({ data: { ok: true, result: { success: true, accounts: [{ id: 'acct-1', accountType: 'checking' }] }, durationMs: 5 } })
+    .mockResolvedValueOnce({ data: { ok: true, result: { success: true, accountId: 'acct-1', balance: 500 }, durationMs: 6 } })
+    .mockResolvedValueOnce({ data: { ok: true, result: { ok: false, consent_required: true, reason: 'sensitive_data_access' }, durationMs: 7 } });
+
+  render(<AgentGatewayTester />);
+  await screen.findByText('Demo Agent Gateway | Authz: simulated');
+  fireEvent.click(screen.getByText('Config'));
+  fireEvent.click(screen.getByText(/Run chain/));
+
+  await waitFor(() => expect(apiClient.post).toHaveBeenCalledTimes(3));
+  expect(apiClient.post).toHaveBeenNthCalledWith(1, '/api/mcp-gateway/test', { tool: 'get_my_accounts', args: {} });
+  expect(apiClient.post).toHaveBeenNthCalledWith(2, '/api/mcp-gateway/test', { tool: 'get_account_balance', args: { account_id: 'acct-1' } });
+  expect(apiClient.post).toHaveBeenNthCalledWith(3, '/api/mcp-gateway/test', { tool: 'get_sensitive_account_details', args: { account_id: 'acct-1' } });
+
+  // The Chain tab should automatically show after run completes.
+  // Verify that steps 1 and 2 show as OK, but step 3 shows as error because result.ok is false.
+  await screen.findByText('1. get_my_accounts');
+  expect(screen.getByText('2. get_account_balance')).toBeInTheDocument();
+  expect(screen.getByText('3. get_sensitive_account_details')).toBeInTheDocument();
+
+  // Find the step 3 row and verify it shows "error", not "OK"
+  const step3Element = screen.getByText('3. get_sensitive_account_details').parentElement;
+  expect(step3Element).toHaveTextContent('error');
+  // Verify steps 1 and 2 show OK
+  const step1Element = screen.getByText('1. get_my_accounts').parentElement;
+  expect(step1Element).toHaveTextContent('OK');
+  const step2Element = screen.getByText('2. get_account_balance').parentElement;
+  expect(step2Element).toHaveTextContent('OK');
+});

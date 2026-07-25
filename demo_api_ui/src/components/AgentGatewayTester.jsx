@@ -362,7 +362,7 @@ export default function AgentGatewayTester() {
       }
       try {
         const { data } = await apiClient.post('/api/mcp-gateway/test', { tool: toolName, args });
-        const ok = !data.clientError && data.ok !== false;
+        const ok = !data.clientError && data.ok !== false && data.result?.ok !== false;
         results.push({ tool: toolName, ok, data });
         setChainResults([...results]);
         const fresh = extractCapturedValues(data?.result ?? data?.rpcData);
