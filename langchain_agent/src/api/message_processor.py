@@ -27,14 +27,23 @@ logger = logging.getLogger(__name__)
 
 
 # Authorization / gateway policy-denial error codes the BFF surfaces in a denied
-# tool result. Kept in sync with the deny bodies emitted by the BFF's
-# mcpToolPipeline / demoAgentLangGraphService weather handler.
+# tool result — the full set across every deny use case (gateway policy, scope,
+# audience, exchange-scope, transaction, cross-owner), not just weather. Kept in
+# sync with the deny bodies emitted by mcpToolPipeline / mcpGatewayClient /
+# attackSimulatorService. Deliberately EXCLUDES non-denials the user should retry
+# rather than see as "denied": authorization_pending (CIBA), mcp_authorize_error/
+# _internal/_unavailable, authorization_service_unavailable.
 _POLICY_DENY_CODES = (
     "gateway_policy_denied",
     "weather_scope_denied",
     "mcp_authorization_denied",
     "mcp_scope_denied",
     "gateway_auth_failed",
+    "access_denied",
+    "insufficient_scope",
+    "invalid_scope",
+    "missing_exchange_scopes",
+    "transaction_denied",
 )
 
 

@@ -587,6 +587,21 @@ def test_extract_policy_denial_none_for_ok_or_empty():
     assert _extract_policy_denial(None) is None
 
 
+def test_extract_policy_denial_covers_all_deny_use_cases_not_just_weather():
+    # Genuine policy denials across every deny use case (scope, audience,
+    # exchange-scope, transaction, cross-owner) are caught, not just weather.
+    for code in ("access_denied", "insufficient_scope", "invalid_scope",
+                 "missing_exchange_scopes", "transaction_denied"):
+        rec = _Rec('{"error":"%s","message":"blocked by policy"}' % code)
+        assert _extract_policy_denial([rec]) == "blocked by policy", code
+    # But retryable non-denials (service errors / CIBA pending) must NOT be
+    # treated as a denial — the user should try again, not see "denied".
+    for code in ("authorization_pending", "mcp_authorize_unavailable",
+                 "authorization_service_unavailable", "mcp_authorize_internal"):
+        rec = _Rec('{"error":"%s","message":"try again"}' % code)
+        assert _extract_policy_denial([rec]) is None, code
+
+
 def test_reply_surfaces_denial_true_when_explained_false_for_greeting():
     assert _reply_surfaces_denial("The request was denied — outside the allowed scope.") is True
     assert _reply_surfaces_denial("Hello! How can I assist you with your banking today?") is False
