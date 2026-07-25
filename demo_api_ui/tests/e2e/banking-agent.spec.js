@@ -34,9 +34,8 @@
 
 const { test, expect } = require('@playwright/test');
 
-// NOTE: this hook is duplicated inside each test.describe below.
-// Do NOT hoist it back to the top level — a global beforeEach in this file
-// interferes with chip-themes.spec.js when workers run files concurrently.
+// NOTE: this hook is duplicated inside each test.describe block below
+// to ensure each describe group has a fresh localStorage state before tests run.
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 

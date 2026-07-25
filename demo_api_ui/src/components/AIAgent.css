@@ -5192,6 +5192,11 @@ body > .banking-agent-float-root .banking-agent-panel {
   flex-shrink: 0;
 }
 
+/* Admin Tools: 2-column grid override for compact 420px panel */
+.ba-admin-tools-float .ba-demo-steps-popout__grid {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 /* .banking-chips-dropdown__button base + variants — ported from the deleted
    BankingChips.css (Task 7, Actions dropdown removal). DemoStepsDropdown.jsx
    and AdminToolsDropdown.jsx both render this class family, but neither file
