@@ -94,6 +94,14 @@ function resolveArgs(args) {
   return [...resolveConfigFlag(), ...without];
 }
 
+// Install writes files to <output-dir>/<skill-name>. Point it at a throwaway
+// temp dir so the demo never mutates a real .claude/skills. Fresh dir per run.
+function withSandboxDir(cmd, args) {
+  if (!cmd.sandboxInstall) return args;
+  const dir = fs.mkdtempSync(path.join(PINGCLI_HOME, 'agent-skills-'));
+  return [...args, '--output-dir', dir];
+}
+
 // Lazy one-time auth bootstrap. `pingcli pingone auth login` with a
 // client_credentials config is fully non-interactive (verified locally:
 // "Successfully authenticated with client credentials") and persists a token
@@ -165,6 +173,13 @@ const COMMANDS = {
   pingone_envs_list:         { label: 'pingcli pingone environments list -O json',                                   args: [...configFlag, 'pingone', 'environments', 'list', '-O', 'json'],                   runnable: true, auth: true },
   config_list_keys:          { label: 'pingcli config list-keys',                                                    args: [...configFlag, 'config', 'list-keys'],                                            runnable: true },
   version:                   { label: 'pingcli --version',                                                           args: ['--version'],                                                                     runnable: true },
+
+  agent_skills_list:    { label: 'pingcli agent-skills list -O json',
+                          args: ['agent-skills', 'list', '-O', 'json'],
+                          runnable: true },
+  agent_skills_install: { label: 'pingcli agent-skills install pingcli-usage',
+                          args: ['agent-skills', 'install', 'pingcli-usage'],
+                          runnable: true, sandboxInstall: true },
 };
 
 /**
@@ -227,7 +242,7 @@ router.post('/run', async (req, res) => {
     }
   }
 
-  execFile(PINGCLI_BIN, resolveArgs(cmd.args), { timeout: TIMEOUT_MS, env: pingcliEnv() }, (err, stdout, stderr) => {
+  execFile(PINGCLI_BIN, withSandboxDir(cmd, resolveArgs(cmd.args)), { timeout: TIMEOUT_MS, env: pingcliEnv() }, (err, stdout, stderr) => {
     let exitCode = typeof err?.code === 'number' ? err.code : (err ? 1 : 0);
     const raw = stdout || stderr || '';
     let output;
@@ -286,7 +301,7 @@ router.get('/stream', async (req, res) => {
     }
   }
 
-  const child = spawn(PINGCLI_BIN, resolveArgs(cmd.args), { timeout: TIMEOUT_MS, env: pingcliEnv() });
+  const child = spawn(PINGCLI_BIN, withSandboxDir(cmd, resolveArgs(cmd.args)), { timeout: TIMEOUT_MS, env: pingcliEnv() });
 
   child.stdout.on('data', (chunk) => send('chunk', { text: chunk.toString() }));
   child.stderr.on('data', (chunk) => send('chunk', { text: chunk.toString() }));
