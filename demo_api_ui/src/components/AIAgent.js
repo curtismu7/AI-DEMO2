@@ -6403,6 +6403,7 @@ export default function BankingAgent({
     if (!message) return;
     addMessage("user", tool.title);
     if (tool.adminAgent) {
+      prepNlCompliance(message);
       setNlLoading(true);
       try {
         const res = await fetch("/api/admin-agent/message", {
