@@ -6,7 +6,7 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "large_trade",
-  "checkedAt": "2026-07-25T03:09:45.308Z",
+  "checkedAt": "2026-07-25T15:48:13.521Z",
   "requiredFlags": [
     "ciba_enabled",
     "ff_mcp_gateway_pinggateway",

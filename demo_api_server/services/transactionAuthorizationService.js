@@ -113,6 +113,8 @@ function buildDenyBody({ useSimulated, policyId }) {
  * @param {number} opts.amount
  * @param {string} opts.type
  * @param {string} [opts.acr]
+ * @param {boolean} [opts.hitlAlreadyVerified] - CIBA out-of-band approval already
+ *   discharged the consent gate this request (see routes/ciba.js); skip r.consentRequired.
  * @returns {Promise<
  *   | { ran: false, reason: string }
  *   | { ran: true, permit: true, evaluation: object }
@@ -129,6 +131,7 @@ async function evaluateTransactionPolicy({
   type,
   acr,
   useCaseId,
+  hitlAlreadyVerified = false,
 }) {
   // Authorization is ALWAYS ENABLED for security — no ff to disable it.
   // Either use simulated Authorize (education) or live PingOne (when configured).
@@ -244,7 +247,7 @@ async function evaluateTransactionPolicy({
         };
       }
 
-      if (r.consentRequired) {
+      if (r.consentRequired && !hitlAlreadyVerified) {
         logEvent(EVENT_CATEGORIES.HITL, 'info',
           `HITL consent required — ${type} $${amount}`,
           { tag: 'hitl/consent-required-authz', metadata: { type, amount, userId, ...(useCaseId ? { useCaseId } : {}) } });
@@ -332,7 +335,7 @@ async function evaluateTransactionPolicy({
       };
     }
 
-    if (r.consentRequired) {
+    if (r.consentRequired && !hitlAlreadyVerified) {
       return { ran: true, block: { status: 428, body: buildConsentBody() } };
     }
 
@@ -477,7 +480,7 @@ async function evaluateTransactionPolicy({
           }),
         };
       }
-      if (fallback.consentRequired) {
+      if (fallback.consentRequired && !hitlAlreadyVerified) {
         return { ran: true, block: { status: 428, body: { ...buildConsentBody(), authorizeFallback } } };
       }
       if (fallback.decision === 'DENY') {

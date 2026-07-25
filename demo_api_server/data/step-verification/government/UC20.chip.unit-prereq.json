@@ -6,7 +6,7 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "view_permits",
-  "checkedAt": "2026-07-25T03:09:45.305Z",
+  "checkedAt": "2026-07-25T15:48:20.004Z",
   "requiredFlags": [
     "ff_mcp_gateway_pinggateway",
     "ff_gateway_brokered_exchange"

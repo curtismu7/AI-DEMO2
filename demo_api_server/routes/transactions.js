@@ -8,6 +8,7 @@ const transactionAuthorizationService = require('../services/transactionAuthoriz
 const configStore = require('../services/configStore');
 const { sendTransactionConfirmation } = require('../services/emailService');
 const txConsent = require('../services/transactionConsentChallenge');
+const cibaTransactionReceipt = require('../services/cibaTransactionReceipt');
 const demoScenarioStore = require('../services/demoScenarioStore');
 const { resolveAccountId } = require('../utils/accountUtils');
 const { logEvent: logAppEvent, EVENT_CATEGORIES } = require('../services/appEventService');
@@ -598,6 +599,23 @@ router.post('/', authenticateToken, async (req, res) => {
       req.session.stepUpVerified = 0;
     }
 
+    // CIBA out-of-band approval (routes/ciba.js) is itself a human-in-the-loop
+    // event, so it must also discharge the consent gate below — otherwise a
+    // CIBA-approved retry still has no consentChallengeId and 428s forever on
+    // r.consentRequired, even though sessionStepUpFresh already cleared the
+    // step-up gate. Single-use, same pattern as stepUpVerified above.
+    let sessionHitlFresh = false;
+    if (req.session?.hitlVerified > Date.now()) {
+      sessionHitlFresh = true;
+      req.session.hitlVerified = 0;
+    } else if (hasBearerAuth) {
+      // Bearer-token calls (demo_mcp_server's BankingAPIClient, the real MCP/
+      // agent path) carry no session cookie, so the check above never fires
+      // even right after a CIBA approval — see mcpToolAuthorizationService.js's
+      // matching cibaTransactionReceipt.record() call and cibaTransactionReceipt.js.
+      sessionHitlFresh = cibaTransactionReceipt.consume(req.user.id, `create_${type}`, hitlAmount);
+    }
+
     // RFC 9470 §5 freshness: when stepUpMaxAge > 0, a strong ACR from a stale
     // authentication event is NOT sufficient — downgrade it so the gate fires
     // and the challenge sends the user back through a fresh ceremony.
@@ -628,6 +646,7 @@ router.post('/', authenticateToken, async (req, res) => {
       type,
       acr: effectiveAcr,
       useCaseId: sessionStepUpFresh ? '' : (req.body?.useCaseId || ''),
+      hitlAlreadyVerified: sessionHitlFresh,
     });
 
     if (authz.ran) {

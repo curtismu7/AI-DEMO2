@@ -6,7 +6,7 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "sensitive_payroll_details",
-  "checkedAt": "2026-07-25T03:06:18.418Z",
+  "checkedAt": "2026-07-25T15:48:12.581Z",
   "requiredFlags": [
     "ff_a2a_delegation",
     "ff_mcp_gateway_pinggateway",

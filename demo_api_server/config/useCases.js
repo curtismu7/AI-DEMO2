@@ -127,8 +127,8 @@ const A2A_TRIGGER_BY_VERTICAL = {
   healthcare:        'show my sensitive patient records',
   retail:            'show my sensitive order history',
   government:        'show my sensitive tax record',
-  university:        'show my student finance details',
-  workforce:         'show my payroll details',
+  university:        'access my sensitive student finance',
+  workforce:         'show my sensitive payroll details',
   'sporting-goods':  'show my sensitive membership details',
   manufacturing:     'show my sensitive supplier contract',
   investment:        'show my sensitive holdings',
@@ -141,7 +141,7 @@ const A2A_PRIMARY_TOOL_BY_VERTICAL = {
   workforce:         'sensitive_payroll_details',
   'sporting-goods':  'sensitive_membership_details',
   manufacturing:     'sensitive_supplier_contract',
-  investment:        'sensitive_investment_holdings',
+  investment:        'sensitive_holdings',
 };
 const A2A_PER_VERTICAL = chipOverrides(A2A_TRIGGER_BY_VERTICAL, withPrimaryTool(A2A_PRIMARY_TOOL_BY_VERTICAL));
 

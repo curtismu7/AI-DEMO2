@@ -73,7 +73,7 @@
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
 | UC1 | `show my enrolled courses` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
-| UC2 | `show my student finance details` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
+| UC2 | `access my sensitive student finance` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
 | UC6 | `pay $2500 tuition` | `DENY` | $2500 tuition payment exceeds the policy ceiling — Authorize returns DENY. |
 | UC7 | `pay $600 tuition` | `STEP_UP` | $600 tuition payment >= the step-up bar → MFA required first. |
 | UC8 | `pay $300 tuition` | `HITL_REQUIRED` | $300 tuition payment requires human consent before it runs. |
@@ -87,7 +87,7 @@
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
 | UC1 | `my benefits` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
-| UC2 | `show my payroll details` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
+| UC2 | `show my sensitive payroll details` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
 | UC6 | `submit a $2500 expense` | `DENY` | $2500 expense exceeds the policy ceiling — Authorize returns DENY. |
 | UC7 | `submit a $600 expense` | `STEP_UP` | $600 expense >= the step-up bar → MFA required first. |
 | UC8 | `submit a $300 expense` | `HITL_REQUIRED` | $300 expense requires human consent before it runs. |
