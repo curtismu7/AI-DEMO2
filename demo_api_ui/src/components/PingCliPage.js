@@ -267,6 +267,15 @@ const CATEGORIES = [
       { key: 'version',           label: 'Version',           desc: 'pingcli --version' },
     ],
   },
+  {
+    title: 'AI Agent Skills',
+    commands: [
+      { key: 'agent_skills_list',    label: 'List Agent Skills',
+        desc: 'pingcli agent-skills list -O json' },
+      { key: 'agent_skills_install', label: 'Install Agent Skill',
+        desc: 'pingcli agent-skills install pingcli-usage' },
+    ],
+  },
 ];
 
 function copyToClipboard(text) {
