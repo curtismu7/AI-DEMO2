@@ -17,6 +17,8 @@ const RUNNABLE = new Set([
   'pingone_envs_list',
   'config_list_keys',
   'version',
+  'agent_skills_list',
+  'agent_skills_install',
 ]);
 
 // Client-side cap on how long a streamed run may take before it is aborted.

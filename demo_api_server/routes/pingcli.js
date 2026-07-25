@@ -96,10 +96,18 @@ function resolveArgs(args) {
 
 // Install writes files to <output-dir>/<skill-name>. Point it at a throwaway
 // temp dir so the demo never mutates a real .claude/skills. Fresh dir per run.
+// Returns the dir alongside args so the caller can remove it once the child
+// process completes (mkdtempSync leaks into OS tmp otherwise).
 function withSandboxDir(cmd, args) {
-  if (!cmd.sandboxInstall) return args;
+  if (!cmd.sandboxInstall) return { args, sandboxDir: null };
   const dir = fs.mkdtempSync(path.join(PINGCLI_HOME, 'agent-skills-'));
-  return [...args, '--output-dir', dir];
+  return { args: [...args, '--output-dir', dir], sandboxDir: dir };
+}
+
+// Best-effort cleanup; never let a removal failure affect the response.
+function cleanupSandboxDir(dir) {
+  if (!dir) return;
+  fs.rm(dir, { recursive: true, force: true }, () => {});
 }
 
 // Lazy one-time auth bootstrap. `pingcli pingone auth login` with a
@@ -242,7 +250,9 @@ router.post('/run', async (req, res) => {
     }
   }
 
-  execFile(PINGCLI_BIN, withSandboxDir(cmd, resolveArgs(cmd.args)), { timeout: TIMEOUT_MS, env: pingcliEnv() }, (err, stdout, stderr) => {
+  const { args: execArgs, sandboxDir } = withSandboxDir(cmd, resolveArgs(cmd.args));
+  execFile(PINGCLI_BIN, execArgs, { timeout: TIMEOUT_MS, env: pingcliEnv() }, (err, stdout, stderr) => {
+    cleanupSandboxDir(sandboxDir);
     let exitCode = typeof err?.code === 'number' ? err.code : (err ? 1 : 0);
     const raw = stdout || stderr || '';
     let output;
@@ -301,17 +311,20 @@ router.get('/stream', async (req, res) => {
     }
   }
 
-  const child = spawn(PINGCLI_BIN, withSandboxDir(cmd, resolveArgs(cmd.args)), { timeout: TIMEOUT_MS, env: pingcliEnv() });
+  const { args: execArgs, sandboxDir } = withSandboxDir(cmd, resolveArgs(cmd.args));
+  const child = spawn(PINGCLI_BIN, execArgs, { timeout: TIMEOUT_MS, env: pingcliEnv() });
 
   child.stdout.on('data', (chunk) => send('chunk', { text: chunk.toString() }));
   child.stderr.on('data', (chunk) => send('chunk', { text: chunk.toString() }));
 
   child.on('close', (code) => {
+    cleanupSandboxDir(sandboxDir);
     send('done', { exitCode: code ?? 0 });
     res.end();
   });
 
   child.on('error', (err) => {
+    cleanupSandboxDir(sandboxDir);
     send('done', { exitCode: 1, error: err.message });
     res.end();
   });
