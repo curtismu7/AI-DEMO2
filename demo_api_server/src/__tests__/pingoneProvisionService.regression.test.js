@@ -388,4 +388,68 @@ describe('PingOneProvisionService — regression suite', () => {
       expect(assignmentCreated).toBe(true);
     });
   });
+
+  // -----------------------------------------------------------------------
+  // T5 — grantScopesToApplication: merge into an existing grant must dedup
+  // by scope NAME, not just id.
+  //
+  // Live symptom (2026-07-25 bootstrap run): PUT /applications/{id}/grants/{id}
+  // failed with INVALID_DATA "Multiple scopes with the same name cannot be
+  // added to the same grant". Root cause: the resource had two scope ids
+  // both named 'read' (e.g. one recreated after the other), the existing
+  // grant referenced the older id, and the merge unioned it with the newly
+  // resolved id for the same name — submitting two ids for one name.
+  // -----------------------------------------------------------------------
+  describe('T5 — grantScopesToApplication: existing-grant merge dedups by name', () => {
+    it('drops a stale same-named scope id from the existing grant instead of submitting both', async () => {
+      svc.makeRequest = jest.fn(async (method, path) => {
+        if (method === 'GET' && path === '/applications/app-1') {
+          return { data: { id: 'app-1', type: 'WEB_APP' } };
+        }
+        if (method === 'GET' && path === '/resources/resource-1/scopes') {
+          return {
+            data: {
+              _embedded: {
+                scopes: [
+                  { id: 'scope-read-v1', name: 'read' },
+                  { id: 'scope-read-v2', name: 'read' },
+                  { id: 'scope-write', name: 'write' },
+                ],
+              },
+            },
+          };
+        }
+        if (method === 'GET' && path === '/applications/app-1/grants') {
+          return {
+            data: {
+              _embedded: {
+                grants: [
+                  {
+                    id: 'grant-1',
+                    resource: { id: 'resource-1' },
+                    scopes: [{ id: 'scope-read-v1' }, { id: 'scope-write' }],
+                  },
+                ],
+              },
+            },
+          };
+        }
+        return { data: {} };
+      });
+
+      const result = await svc.grantScopesToApplication('app-1', 'resource-1', ['read', 'write']);
+
+      expect(result.success).toBe(true);
+      const putCall = svc.makeRequest.mock.calls.find(([method]) => method === 'PUT');
+      expect(putCall).toBeTruthy();
+      const [, , body] = putCall;
+      // Exactly one scope id per name — the stale 'read' id (scope-read-v1)
+      // must be dropped, not unioned alongside the fresh one (scope-read-v2).
+      expect(body.scopes).toEqual(expect.arrayContaining([
+        { id: 'scope-read-v2' },
+        { id: 'scope-write' },
+      ]));
+      expect(body.scopes).toHaveLength(2);
+    });
+  });
 });

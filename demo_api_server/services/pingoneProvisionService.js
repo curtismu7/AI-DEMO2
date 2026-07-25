@@ -1332,7 +1332,21 @@ class PingOneProvisionService {
         if (toAdd.length === 0) {
           return { success: true, action: 'unchanged', granted: existingIds.size, missingScopes: missing };
         }
-        const merged = [...existingIds, ...toAdd].map(id => ({ id }));
+        // Dedup by NAME, not just id, before PUTting. An existing grant can
+        // reference a scope id that no longer matches 1:1 with the resource's
+        // current scopes (e.g. a scope deleted and recreated with a new id,
+        // same name) — the union would then carry two different ids for the
+        // same name, which PingOne rejects with INVALID_DATA "Multiple scopes
+        // with the same name cannot be added to the same grant" on every
+        // future merge to this grant. idToName is built from THIS request's
+        // live GET of the resource's scopes, so an id it can't resolve is
+        // stale and safe to drop; a name collision keeps the fresh (toAdd) id.
+        const byName = new Map();
+        for (const id of [...existingIds, ...toAdd]) {
+          const name = idToName.get(id);
+          if (name) byName.set(name, id);
+        }
+        const merged = Array.from(byName.values()).map(id => ({ id }));
         // PUT replaces the grant in place; PingOne accepts updates here.
         await this.makeRequest('PUT', `/applications/${appId}/grants/${match.id}`, {
           resource: { id: resourceId },
