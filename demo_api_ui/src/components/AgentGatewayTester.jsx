@@ -73,12 +73,40 @@ const ARG_PLACEHOLDER_BY_TYPE = {
   object: {},
 };
 
-/** Template args for a tool's required inputSchema properties (e.g. {"account_id": ""}); '{}' when none. */
-const buildArgsTemplate = (tool) => {
+const ACCOUNT_ID_PATTERN = /_?account_id$/i;
+const CAPTURED_VALUES_LIMIT = 20;
+
+/** {label, value} for each id-bearing account in a tool result's `accounts` array. */
+function extractCapturedValues(result) {
+  const accounts = result && Array.isArray(result.accounts) ? result.accounts : [];
+  return accounts
+    .filter((a) => a && a.id)
+    .map((a) => {
+      const digits = String(a.accountNumber || a.accountNumberFull || '').replace(/\D/g, '');
+      const last4 = digits.slice(-4);
+      const descriptor = a.accountType || a.name || 'account';
+      return { label: last4 ? `${descriptor} …${last4}` : descriptor, value: a.id };
+    });
+}
+
+/** Fresh entries first, deduped by value against the existing list, capped. */
+function mergeCapturedValues(existing, fresh) {
+  if (!fresh.length) return existing;
+  const merged = [...fresh, ...existing.filter((e) => !fresh.some((f) => f.value === e.value))];
+  return merged.slice(0, CAPTURED_VALUES_LIMIT);
+}
+
+/** Template args for a tool's required inputSchema properties; account_id-like keys autofill from the most recent captured value. */
+const buildArgsTemplate = (tool, capturedValues = []) => {
   const required = tool?.inputSchema?.required || [];
   if (!required.length) return '{}';
   const template = {};
+  const latestId = capturedValues[0]?.value;
   for (const key of required) {
+    if (latestId && ACCOUNT_ID_PATTERN.test(key)) {
+      template[key] = latestId;
+      continue;
+    }
     const propType = tool.inputSchema.properties?.[key]?.type;
     template[key] = propType in ARG_PLACEHOLDER_BY_TYPE ? ARG_PLACEHOLDER_BY_TYPE[propType] : '';
   }
@@ -116,6 +144,7 @@ export default function AgentGatewayTester() {
   const [toolsSource, setToolsSource] = useState('static');
   const [selectedTool, setSelectedTool] = useState(null);
   const [argsText, setArgsText] = useState('{}');
+  const [capturedValues, setCapturedValues] = useState([]);
   const [sending, setSending] = useState(false);
   const [resp, setResp] = useState(null);
   const [rules, setRules] = useState(null);
@@ -257,6 +286,8 @@ export default function AgentGatewayTester() {
       const { data } = await apiClient.post('/api/mcp-gateway/test', { tool: selectedTool.name, args });
       setResp(data);
       setOutputTab('result');
+      const fresh = extractCapturedValues(data?.result ?? data?.rpcData);
+      if (fresh.length) setCapturedValues((prev) => mergeCapturedValues(prev, fresh));
     } catch (e) {
       setResp({ clientError: formatAxiosError(e, 'Request failed') });
     } finally {
@@ -315,7 +346,7 @@ export default function AgentGatewayTester() {
 
   const selectTool = (t) => {
     setSelectedTool(t);
-    setArgsText(buildArgsTemplate(t));
+    setArgsText(buildArgsTemplate(t, capturedValues));
     setResp(null);
     setOutputTab('result');
   };

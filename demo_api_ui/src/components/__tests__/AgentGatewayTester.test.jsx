@@ -114,3 +114,29 @@ test('the Form tab renders the gateway test result as labeled fields', async () 
   expect(screen.getByText('USD')).toBeInTheDocument();
   expect(screen.getByText('Count')).toBeInTheDocument();
 });
+
+test('running get_my_accounts captures the account id and autofills it into get_account_balance', async () => {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp-gateway/active') return Promise.resolve({ data: ACTIVE_GATEWAY });
+    if (url === '/api/mcp/inspector/tools') return Promise.resolve({
+      data: {
+        tools: [
+          { name: 'get_my_accounts', description: 'List accounts.', inputSchema: { type: 'object', properties: {}, required: [] } },
+          { name: 'get_account_balance', description: 'Get balance.', inputSchema: { type: 'object', properties: { account_id: { type: 'string' } }, required: ['account_id'] } },
+        ],
+        _source: 'live',
+      },
+    });
+    return Promise.resolve({ data: {} });
+  });
+  apiClient.post.mockResolvedValueOnce({
+    data: { ok: true, result: { success: true, accounts: [{ id: 'acct-123', accountType: 'checking', accountNumber: '****9876' }] }, durationMs: 10 },
+  });
+  render(<AgentGatewayTester />);
+  fireEvent.click(await screen.findByText('get_my_accounts'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await screen.findByText('200 OK');
+
+  fireEvent.click(screen.getByText('get_account_balance'));
+  expect(screen.getByRole('textbox')).toHaveValue(JSON.stringify({ account_id: 'acct-123' }, null, 2));
+});
