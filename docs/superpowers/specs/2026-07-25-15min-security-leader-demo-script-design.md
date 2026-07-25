@@ -123,3 +123,44 @@ Per the existing runbook, each step is visibly labeled, never silent:
 - No new code, pages, or use cases.
 - No slide deck — this is the live-driving script only.
 - Other verticals (healthcare, retail, etc.) — banking only for this slot.
+
+## Teleprompter modal (implementation)
+
+A companion UI so the presenter can read this script on a second monitor while driving the demo on the main screen, and run the same demo in-place once learned.
+
+### Requirements
+
+- Draggable, resizable, closable modal holding the storyboard (passive scroll).
+- 🪟 pop-out to a real separate browser window (second monitor).
+- Available to **any** user, including **unauthenticated** (renders on the sign-in screen and every route).
+- Persists across the mid-demo route hop (`/use-cases/live` -> `/ai-control-plane`).
+- Single small floating launcher button, always present.
+
+### Components
+
+- **`demo_api_ui/src/components/DemoScriptLauncher.jsx`** (new) — owns `showScript` state, renders the floating launcher button and the `DraggableModal`. No auth/session/provider dependency (static content).
+- **`demo_api_ui/src/components/demoScript.js`** (new) — the script as a plain data structure (preflight, intro, acts -> beats `{action, expected, say}`, closer). Keeps content out of JSX.
+- **`demo_api_ui/src/components/DemoScriptLauncher.css`** (new) — floating button + body styles, mirroring `ControlPlaneDemoGuideModal.css` conventions (solid high-contrast colors, uppercase section headers, code chips). No muted text (§0).
+- **`demo_api_ui/src/App.js`** (edit, additive only) — one import + `<DemoScriptLauncher />` as an **unguarded** sibling in the post-`</Routes>` global overlay block (after `<SpinnerHost />`, ~L1416). No `user`/`loading`/`isApiTrafficOnlyPage` guard, so it renders for unauthenticated users too.
+
+### DraggableModal usage
+
+`title="15-Min Security Demo Script"`, `storageKey="demo-script-teleprompter"` (persist size/position), `closeOnPopout` true (in-page copy closes on pop-out so screen 1 stays clean for the audience), pattern mirrored from `ControlPlaneDemoGuideModal.jsx`.
+
+### Constraints designed around
+
+- Pop-out copies stylesheets as a one-time snapshot and does **not** inherit theme CSS variables — so the teleprompter styles with **self-contained explicit colors** (dark text on white), readable in the popped window regardless of app theme.
+- Launcher label is **plain text** ("Demo Script"), no emoji — 📚 is reserved for Knowledge Grounding; 🪟 pop-out is rendered by `DraggableModal` itself.
+- Launcher placed **bottom-left** to avoid the bottom-right AI Agent FAB and the bottom agent dock.
+
+### Regression safety (§1)
+
+App.js is §1-protected for the AI Agent FAB (`banking-agent-fab`) and the bottom dock. Change is strictly additive: one import + one sibling. Not touched: FAB classes, `<AIAgent>` props, `shouldMountSingleAgent`, `EmbeddedAgentDock` and its route conditionals, `<Routes>`, auth branches, `isApiTrafficOnlyPage`. UI build gate (`cd demo_api_ui && npm run build` -> 0) required before done.
+
+### Success criteria
+
+- Launcher visible and modal opens for an unauthenticated user on the sign-in screen.
+- Modal drags, resizes, closes; 🪟 pop-out opens a separate window that stays readable and keeps the script.
+- Modal stays open across navigation from `/use-cases/live` to `/ai-control-plane`.
+- `npm run build` exits 0.
+- No change to FAB/dock/auth behavior.
