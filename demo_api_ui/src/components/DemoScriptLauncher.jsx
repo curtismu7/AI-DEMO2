@@ -3,15 +3,45 @@ import DraggableModal from "./DraggableModal";
 import { DEMO_SCRIPT } from "./demoScript";
 import "./DemoScriptLauncher.css";
 
+const FONT_KEY = "demo-script-font-px";
+const FONT_MIN = 12;
+const FONT_MAX = 26;
+const FONT_STEP = 2;
+const FONT_DEFAULT = 15;
+
+function readSavedFontPx() {
+  try {
+    const v = parseInt(window.localStorage.getItem(FONT_KEY), 10);
+    if (Number.isFinite(v)) return Math.min(FONT_MAX, Math.max(FONT_MIN, v));
+  } catch {
+    /* ignore storage errors */
+  }
+  return FONT_DEFAULT;
+}
+
 // Floating presenter teleprompter for the 15-min security demo. Mounted
 // unguarded in App.js's global overlay block so it renders for ANY user,
 // including unauthenticated (sign-in screen and every route). Static content
 // only - no auth/session/provider dependency. The DraggableModal built-in
 // pop-out opens the script in a separate window for a second monitor; the
-// beats are a passive scroll (no stepper state to lose mid-demo).
+// beats are a passive scroll. Text size is presenter-adjustable (A-/A+),
+// persisted, and applied via the body font-size so it scales in the pop-out.
 export default function DemoScriptLauncher() {
   const [open, setOpen] = useState(false);
+  const [fontPx, setFontPx] = useState(readSavedFontPx);
   const s = DEMO_SCRIPT;
+
+  const changeFont = (delta) => {
+    setFontPx((px) => {
+      const next = Math.min(FONT_MAX, Math.max(FONT_MIN, px + delta));
+      try {
+        window.localStorage.setItem(FONT_KEY, String(next));
+      } catch {
+        /* ignore storage errors */
+      }
+      return next;
+    });
+  };
 
   const beat = (b, key) => (
     <div className="dsl-beat" key={key}>
@@ -25,6 +55,40 @@ export default function DemoScriptLauncher() {
         <span className="dsl-tag">Say</span>
         <span className="dsl-say">{b.say}</span>
       </div>
+    </div>
+  );
+
+  const footer = (
+    <div className="dsl-footer">
+      <div className="dsl-size">
+        <span className="dsl-size-label">Text size</span>
+        <button
+          type="button"
+          className="dsl-size-btn"
+          onClick={() => changeFont(-FONT_STEP)}
+          disabled={fontPx <= FONT_MIN}
+          aria-label="Smaller text"
+        >
+          A-
+        </button>
+        <span className="dsl-size-val">{fontPx}px</span>
+        <button
+          type="button"
+          className="dsl-size-btn"
+          onClick={() => changeFont(FONT_STEP)}
+          disabled={fontPx >= FONT_MAX}
+          aria-label="Larger text"
+        >
+          A+
+        </button>
+      </div>
+      <button
+        type="button"
+        className="dsl-close-btn"
+        onClick={() => setOpen(false)}
+      >
+        Close
+      </button>
     </div>
   );
 
@@ -49,36 +113,37 @@ export default function DemoScriptLauncher() {
         minWidth={360}
         minHeight={320}
         closeOnPopout
+        footer={footer}
       >
-        <div className="dm-scroll dsl-body">
+        <div className="dm-scroll dsl-body" style={{ fontSize: `${fontPx}px` }}>
           <p className="dsl-lead">
             {s.audience} · {s.surface}
           </p>
 
           <h4>Preflight</h4>
           <ul className="dsl-list">
-            {s.preflight.map((p, i) => (
-              <li key={i}>{p}</li>
+            {s.preflight.map((p) => (
+              <li key={p}>{p}</li>
             ))}
           </ul>
 
           <h4>Intro</h4>
           <p className="dsl-say">{s.intro}</p>
 
-          {s.acts.map((act, ai) => (
-            <div key={ai}>
+          {s.acts.map((act) => (
+            <div key={act.title}>
               <h4>
                 {act.title} <span className="dsl-meta">{act.meta}</span>
               </h4>
-              {act.beats.map((b, bi) => beat(b, bi))}
+              {act.beats.map((b) => beat(b, b.action))}
             </div>
           ))}
 
           <h4>{s.closer.title}</h4>
           <p className="dsl-warn">{s.closer.warn}</p>
           <ol className="dsl-list">
-            {s.closer.steps.map((st, i) => (
-              <li key={i}>{st}</li>
+            {s.closer.steps.map((st) => (
+              <li key={st}>{st}</li>
             ))}
           </ol>
           <div className="dsl-beat">
@@ -93,8 +158,8 @@ export default function DemoScriptLauncher() {
 
           <h4>Fallback ladder</h4>
           <ol className="dsl-list">
-            {s.fallback.map((f, i) => (
-              <li key={i}>{f}</li>
+            {s.fallback.map((f) => (
+              <li key={f}>{f}</li>
             ))}
           </ol>
         </div>

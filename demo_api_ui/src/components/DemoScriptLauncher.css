@@ -25,9 +25,10 @@
 /* Teleprompter body - self-contained explicit colors. The pop-out window does
    not inherit theme CSS variables, so every color is stated here to stay
    readable on a second monitor in any app theme. */
+/* Body font-size is set inline by the A-/A+ control; children use em so they
+   scale with it (and carry into the pop-out window). */
 .dsl-body {
   padding: 4px 2px 8px;
-  font-size: 13px;
   line-height: 1.55;
   color: #111827;
   background: #ffffff;
@@ -45,7 +46,7 @@
 
 .dsl-body h4 {
   margin: 20px 0 8px;
-  font-size: 13px;
+  font-size: 1em;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -101,7 +102,7 @@
   margin-right: 6px;
   padding: 1px 6px;
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 0.72em;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -129,4 +130,70 @@
   border-radius: 6px;
   color: #991b1b;
   font-weight: 600;
+}
+
+/* Footer toolbar: text-size stepper + close. Fixed px so the controls stay a
+   constant size regardless of the body text scale. */
+.dsl-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.dsl-size {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dsl-size-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.dsl-size-btn {
+  min-width: 34px;
+  padding: 4px 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffffff;
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.dsl-size-btn:hover:not(:disabled) {
+  background: #1f2937;
+}
+
+.dsl-size-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.dsl-size-val {
+  min-width: 38px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #111827;
+  text-align: center;
+}
+
+.dsl-close-btn {
+  padding: 4px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.dsl-close-btn:hover {
+  background: #f3f4f6;
 }
