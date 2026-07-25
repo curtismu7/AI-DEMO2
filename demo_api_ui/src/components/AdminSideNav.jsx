@@ -442,6 +442,11 @@ export default function AdminSideNav({ user }) {
     { label: "Themes", path: "/themes", icon: "cfg" },
     { label: "Use Cases", path: "/use-cases", icon: "demo" },
     { label: "Use Cases (Live)", path: "/use-cases/live", icon: "demo" },
+    {
+      label: "Demo Script",
+      icon: "demo",
+      action: () => window.dispatchEvent(new CustomEvent("demo-script-toggle")),
+    },
     { label: "Demo Config", path: "/demo-config", icon: "cfg" },
     // Latest report — shown when agent run completes
     ...(latestRunId

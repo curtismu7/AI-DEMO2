@@ -1414,7 +1414,7 @@ function AppWithAuth() {
                 }}
               />
               <SpinnerHost />
-              <DemoScriptLauncher />
+              <DemoScriptLauncher user={user} />
             </div>
           </ActivityNarrativeProvider>
           </ProofOfEnforcementProvider>
