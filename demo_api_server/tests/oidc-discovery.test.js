@@ -180,6 +180,9 @@ describe('oauthDiscoveryService', () => {
       jwks_uri: 'https://auth.example.com/.well-known/jwks.json',
       userinfo_endpoint: 'https://auth.example.com/userinfo',
       issuer: 'https://auth.example.com',
+      // PAR (RFC 9126) endpoint — extractEndpoints normalizes it, null when the
+      // metadata omits it (mockMetadata has no PAR endpoint).
+      pushed_authorization_request_endpoint: null,
     });
   });
 
