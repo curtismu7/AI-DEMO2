@@ -6,7 +6,7 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "extend_rental",
-  "checkedAt": "2026-07-24T01:59:31.692Z",
+  "checkedAt": "2026-07-25T20:23:04.452Z",
   "requiredFlags": [
     "ff_mcp_gateway_pinggateway",
     "ff_gateway_brokered_exchange"

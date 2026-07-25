@@ -3,16 +3,13 @@
   "useCaseId": "UC2",
   "triggerType": "chip",
   "mode": "unit-prereq",
-  "status": "FAIL",
-  "errorClass": "missing_prereq",
-  "primaryTool": "sensitive_investment_holdings",
-  "checkedAt": "2026-07-24T01:59:32.039Z",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "sensitive_holdings",
+  "checkedAt": "2026-07-25T20:23:04.888Z",
   "requiredFlags": [
     "ff_a2a_delegation",
     "ff_mcp_gateway_pinggateway",
     "ff_gateway_brokered_exchange"
-  ],
-  "prereqErrors": [
-    "Holdings Specialist credentials missing (pingone_holdings_agent_client_id / pingone_holdings_agent_client_secret)"
   ]
 }

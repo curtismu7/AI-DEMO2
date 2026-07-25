@@ -1038,7 +1038,7 @@ export default function BankingAgent({
       if (e.detail?.autoSend) {
         setIsOpen(true); // no-op for inline (effectiveIsOpen is already true)
         // Defer so the panel mounts and runDrawerAttackRef points at the live closure.
-        const tid = setTimeout(() => runDrawerAttackRef.current?.({ message: msg }), 80);
+        const tid = setTimeout(() => runDrawerAttackRef.current?.({ message: msg, useCaseId: e.detail?.useCaseId }), 80);
         timerIds.push(tid);
         return;
       }
@@ -1103,8 +1103,8 @@ export default function BankingAgent({
   //                    Security Showcase panel when it was removed.
   useEffect(() => {
     runDrawerAttackRef.current = (detail = {}) => {
-      const { message, showcase, label } = detail;
-      if (message) { sendAsNl(message); return; }
+      const { message, showcase, label, useCaseId } = detail;
+      if (message) { sendAsNl(message, useCaseId); return; }
       if (!showcase) return;
       if (SHOWCASE_RUN_ACTION[showcase]) { runAction(SHOWCASE_RUN_ACTION[showcase]); return; }
       if (showcase === "authz_deny") {
@@ -1507,7 +1507,7 @@ export default function BankingAgent({
       if (prev.length > 0 && !isSoleGreeting) return prev;
       return [
         {
-          id: Date.now().toString(),
+          id: `${Date.now()}-w`,
           role: "assistant",
           content: welcomeMessage(
             user,
@@ -1849,7 +1849,7 @@ export default function BankingAgent({
         const isOnlyGuestMsg = prev.length === 1 && prev[0]?.id?.endsWith("-guest");
         if (prev.length === 0 || isOnlyGuestMsg) {
           return [{
-            id: Date.now().toString(),
+            id: `${Date.now()}-w`,
             role: "assistant",
             content: welcomeMessage(
               user || sessionUserRef.current,
@@ -2600,10 +2600,19 @@ export default function BankingAgent({
         "⚠️ The agent produced no reply for this turn. That is a bug in the demo " +
         "(not your request) — please try again, and report what you asked if it repeats.";
     }
-    setMessages((prev) => [
-      ...prev,
-      { id, role, content: contentString ?? "", tool, ...rest },
-    ]);
+    setMessages((prev) => {
+      // First real interaction clears the intro greeting bubble(s) so the
+      // conversation starts clean. The only messages carrying a -w/-vsw/-guest
+      // id suffix are the greeting seeds (see the welcome effects above).
+      const base =
+        role === "user"
+          ? prev.filter((m) => !/-(?:w|vsw|guest)$/.test(m.id || ""))
+          : prev;
+      return [
+        ...base,
+        { id, role, content: contentString ?? "", tool, ...rest },
+      ];
+    });
   }
 
   // Route an agent response's verticalResult to its renderer and return the
@@ -5299,7 +5308,7 @@ export default function BankingAgent({
     } catch (_) {}
   }
 
-  function sendAsNlInner(text) {
+  function sendAsNlInner(text, useCaseId) {
     // A typed message is a new turn: start a fresh token-chain trace with the
     // user's actual prompt so the trace rail shows "Pipeline — <prompt>" and
     // the prompt step lights up (demoAgentService's chip path only begins a
@@ -5339,6 +5348,10 @@ export default function BankingAgent({
         messages: [...priorHistory, { role: 'user', content: text }],
         provider: activeLlmProvider,
         mode: agentProviderMode,
+        // Carry the explicitly-clicked use case (e.g. UC31 weather-mcp-texas-deny)
+        // so the server stamps token events with the right slug instead of falling
+        // back to deriveUseCaseId, which returns the first get_weather match (UC30).
+        useCaseId,
       }).finally(() => {
         setNlLoading(false);
         nlSendGuardRef.current.release();
@@ -5460,10 +5473,10 @@ export default function BankingAgent({
   }
 
   // Sends text through the full NL pipeline (same path as typing in the chat box).
-  function sendAsNl(text) {
+  function sendAsNl(text, useCaseId) {
     if (!nlSendGuardRef.current.tryAcquire()) return;
     try {
-      sendAsNlInner(text);
+      sendAsNlInner(text, useCaseId);
     } catch (e) {
       // Synchronous failure before any async release path ran — free the
       // guard so the send box doesn't stay locked. (Parity with

@@ -5,6 +5,7 @@
   grid-template-rows: auto 1fr;
   height: calc(100vh - var(--stack-fab-top-base, 72px));
   min-height: 0;
+  min-width: 0;
 }
 
 .luw-topbar {
@@ -20,6 +21,7 @@
   display: grid;
   grid-template-columns: 336px 1fr;
   min-height: 0;
+  min-width: 0;
   height: 100%;
 }
 
@@ -110,16 +112,36 @@
 .luw-track { margin: 0.5rem 0 0.35rem; }
 .luw-track > summary {
   list-style: none; cursor: pointer; display: flex; align-items: center; gap: 0.45rem;
-  padding: 0.5rem 0.35rem; font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.06em; color: #64748b; border-radius: 6px;
+  padding: 0.55rem 0.4rem; font-size: 0.86rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.05em; color: #334155; border-radius: 6px;
 }
 .luw-track > summary::-webkit-details-marker { display: none; }
 .luw-track > summary:hover { background: #fff; }
 .luw-track__count { margin-left: auto; font-weight: 600; color: #94a3b8; }
 
+/* 15-Min Security Demo: bordered box marks exactly which tiles the 15-minute
+   script runs, so the presenter sees the demo scope at a glance. */
+.luw-track--security {
+  border: 2px solid #0f766e;
+  border-radius: 10px;
+  background: #f0fdfa;
+  padding: 0.15rem 0.55rem 0.5rem;
+  margin: 0.5rem 0 0.85rem;
+}
+.luw-track--security > summary { color: #0f766e; }
+.luw-track--security > summary:hover { background: #ccfbf1; }
+.luw-track--security .luw-track__count { color: #0f766e; }
+
+/* Color-code each group title so the tracks read apart at a glance. */
+.luw-track--foundations > summary { color: #1d4ed8; }
+.luw-track--controls > summary    { color: #b45309; }
+.luw-track--hitl > summary        { color: #7c3aed; }
+.luw-track--attacks > summary     { color: #b91c1c; }
+
 /* Main: agent + token chain + glance */
 .luw-main {
   min-height: 0;
+  min-width: 0;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
   background: #eef1f4;
@@ -217,7 +239,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-@media (max-width: 960px) {
+/* Medium: no room for Agent + Token Chain side-by-side — stack them inside the
+   stage (Demo script drawer stays beside); the stage scrolls, not the page. */
+@media (max-width: 1200px) {
   .luw-run-layout {
     flex-wrap: wrap;
     overflow-y: auto;
@@ -225,6 +249,35 @@
   .luw-agent-host,
   .luw-rail-host {
     flex: 1 1 100%;
-    min-height: 360px;
+    min-height: 420px;
+  }
+}
+
+/* Narrow: single column — Demo script, Agent, Token Chain stack and the page
+   scrolls, instead of the drawer + main clipping each other. */
+@media (max-width: 860px) {
+  .luw {
+    height: auto;
+    min-height: calc(100vh - var(--stack-fab-top-base, 72px));
+  }
+  .luw-body {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .luw-drawer {
+    border-right: 0;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .luw-drawer__scroll {
+    overflow-y: visible;
+  }
+  .luw-main {
+    height: auto;
+  }
+  .luw-main__stage {
+    overflow: visible;
+  }
+  .luw-run-layout {
+    overflow-y: visible;
   }
 }

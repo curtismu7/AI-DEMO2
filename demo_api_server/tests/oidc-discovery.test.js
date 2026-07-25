@@ -180,6 +180,7 @@ describe('oauthDiscoveryService', () => {
       jwks_uri: 'https://auth.example.com/.well-known/jwks.json',
       userinfo_endpoint: 'https://auth.example.com/userinfo',
       issuer: 'https://auth.example.com',
+      pushed_authorization_request_endpoint: null,
     });
   });
 

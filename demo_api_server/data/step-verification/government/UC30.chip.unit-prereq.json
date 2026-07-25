@@ -6,7 +6,7 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "get_weather",
-  "checkedAt": "2026-07-24T01:59:32.369Z",
+  "checkedAt": "2026-07-25T20:23:04.050Z",
   "requiredFlags": [
     "ff_mcp_gateway_pinggateway",
     "ff_gateway_brokered_exchange"

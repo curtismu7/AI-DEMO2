@@ -102,6 +102,82 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-25 — UC31 weather out-of-scope deny showed generic `tool_failed`/`gateway_policy_denied` instead of the real reason
+
+**Files changed:** `demo_api_server/services/demoAgentLangGraphService.js`
+(in-process `weather` handler), `demo_api_ui/src/services/demoAgentService.js`
+(`ingestLegacyRunTrace`), `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`
+(api-step narrative + `buildRunStory`), `demo_api_ui/src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`,
+`demo_api_server/config/useCases.js` (UC31 `evidence.tokenChain`),
+`demo_api_ui/src/context/__tests__/ProofOfEnforcementContext.test.js`.
+
+**What was broken:** UC31 (`weather-mcp-texas-deny`, chip "what's the weather in
+Miami", `expectedOutcome: 'DENY'`) is run via the in-process `/api/agent/invoke`
+heuristic path (the weather chip forces `forceHeuristic`). The Agent Gateway
+correctly denies with the specific code `weather_scope_denied` + message "weather
+scope restricted to Texas — city not recognized as Texas", but the in-process
+weather handler read only `parsedErr.error` (generic `gateway_policy_denied`) and
+returned an envelope with no `error`/`gatewayErrorCode`/`message` fields. The UI's
+`ingestLegacyRunTrace` then degraded it to `{ error: "tool_failed", message:
+"gateway_policy_denied" }` and the run rendered as a failure — hiding the actual
+control and making an expected deny look broken. (The external AG-UI `/api/agent/run`
+SSE path preserves the reason; only the in-process path collapsed it.)
+
+**What was fixed:** (1) The weather handler now prefers the human-readable gateway
+message in the reply and carries structured `error` + `gatewayErrorCode` + `message`
+on the deny envelope; it also stamps `expected: true` when `req.body.useCaseId`
+maps to a catalog use case whose `expectedOutcome === 'DENY'`. (2) `ingestLegacyRunTrace`
+detects a gateway denial (`data.gatewayErrorCode` / `error === 'gateway_policy_denied'`),
+surfaces the specific code + reason, sets `denied: true`, and passes `expected`
+through. (3) `buildTraceSteps` frames an expected deny (`mcpResult.denied &&
+mcpResult.expected`): the api card narrative reads "Expected DENY — the control
+working as designed" and `buildRunStory` returns `outcome: "ok"` with an
+"Expected DENY — the control worked" headline instead of "stopped with an error".
+(4) The prominent **ProofStrip verdict** showed "Incomplete ⚠️" because UC31's
+catalog `evidence.tokenChain` listed `sim-gateway-deny` — an event only the
+attack-sim path emits, never the chip/agent path — so `computeVerdict` always
+found a missing step. Changed UC31's `evidence.tokenChain` to `['user-token',
+'tool-dispatched']` (matching its permit twin UC30); `tool-dispatched` is
+satisfied by `trace.mcpResult`, so the verdict flips to the existing
+`denied-as-expected` state → ProofStrip renders "Verified (denied as expected)"
+with ✅. No verdict-engine code change — `computeVerdict` already supported it.
+(5) On the `/use-cases/live` external AG-UI path the verdict resolved to the wrong
+weather use case (UC30 "Verified" permit instead of UC31 "denied as expected"):
+the clicked `useCaseId` was dropped in the browser (the `banking-agent-prefill`
+handler ignored `e.detail.useCaseId`, and `sendAsNl`→`sendAsNlInner`→`aguiRun`→
+`useAgentRun.run` had no `useCaseId` slot), so the server fell back to
+`deriveUseCaseId('get_weather')` which returns the FIRST `get_weather` catalog
+match — UC30. Threaded `useCaseId` end-to-end (optional param) through
+`demo_api_ui/src/components/AIAgent.js` and `demo_api_ui/src/hooks/useAgentRun.js`
+so the AG-UI POST body carries the slug; the server already forwards a
+client-supplied slug (`agentRun.js` → `agentTool.js` → `bffMcpToolExecutor.js`
+`resolveChipUseCaseId`). `deriveUseCaseId` left unchanged (it can't tell Miami
+from Austin — that's outcome, not tool/args).
+(6) On the external LLM (AG-UI) path the banking-persona agent replied with a
+greeting instead of explaining the out-of-scope weather deny. Two-part fix in
+`langchain_agent`: (a) system-prompt rule 21 (`src/agent/langchain_mcp_agent.py`)
+tells the agent to state a policy denial + reason and not greet/deflect; (b) a
+deterministic fallback (`src/api/message_processor.py`) — if a tool result was a
+policy denial (`gateway_policy_denied`/`weather_scope_denied`/…) and the model's
+reply never surfaced it, emit `❌ <reason>` as its own message (parity with the
+in-process path). Also captures the non-streaming (`on_chat_model_end`) reply
+into `turn_reply_text` so the "did the model explain it" check works for
+poll-based providers. 5 new tests in `tests/test_message_processor.py`.
+
+**Do not break:** The deny *mechanism* is unchanged — this only surfaces the reason
+and reframes an already-denied call. `expected` is gated on the catalog's
+`expectedOutcome === 'DENY'`, so a non-catalog / freehand weather deny still reads
+as a normal deny (real reason, no green "expected" framing). The structured fields
+are only added on the two weather deny returns; the success path is untouched.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0);
+`cd demo_api_ui && CI=true npx vitest run src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`
+(43/43, incl. 3 new expected-DENY tests); BFF `node --check` on the handler +
+`require('./config/useCases')` UC31 lookup returns `expectedOutcome: 'DENY'`.
+Live: re-run UC31 on `/use-cases/live` (or the weather chip) — the Resource-server
+card shows `weather_scope_denied` + the Texas message and the run reads "Expected
+DENY", not `tool_failed`.
+
 ### 2026-07-25 — A2A investment delegation: last 2 of 5 stacked causes (fully working end to end now)
 
 **Files changed:**

@@ -122,7 +122,7 @@ export function useAgentRun({
     setIsRunning(false);
   }, []);
 
-  const run = useCallback(async ({ threadId, runId, messages, resume, provider, mode } = {}) => {
+  const run = useCallback(async ({ threadId, runId, messages, resume, provider, mode, useCaseId } = {}) => {
     // Abort any in-flight run
     if (abortRef.current) {
       abortRef.current.abort();
@@ -169,6 +169,10 @@ export function useAgentRun({
     // outranks the user's picker — so "Heuristics only" could still resolve to
     // an LLM. The mode is what the user actually chose; make it authoritative.
     if (mode) body.mode = mode;
+    // Forward the explicitly-clicked use case so the server stamps token events
+    // with the right slug (agentRun.js → agentTool.js → resolveChipUseCaseId).
+    // Omitted when absent so typed messages still derive organically.
+    if (useCaseId) body.useCaseId = useCaseId;
 
     let response;
     try {

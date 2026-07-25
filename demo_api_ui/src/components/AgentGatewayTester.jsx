@@ -85,16 +85,51 @@ const ARG_PLACEHOLDER_BY_TYPE = {
   object: {},
 };
 
-/** Template args for a tool's required inputSchema properties (e.g. {"account_id": ""}); '{}' when none. */
-const buildArgsTemplate = (tool) => {
+const ACCOUNT_ID_PATTERN = /_?account_id$/i;
+const CAPTURED_VALUES_LIMIT = 20;
+
+/** {label, value} for each id-bearing account in a tool result's `accounts` array. */
+function extractCapturedValues(result) {
+  const accounts = result && Array.isArray(result.accounts) ? result.accounts : [];
+  return accounts
+    .filter((a) => a && a.id)
+    .map((a) => {
+      const digits = String(a.accountNumber || a.accountNumberFull || '').replace(/\D/g, '');
+      const last4 = digits.slice(-4);
+      const descriptor = a.accountType || a.name || 'account';
+      return { label: last4 ? `${descriptor} …${last4}` : descriptor, value: a.id };
+    });
+}
+
+/** Fresh entries first, deduped by value against the existing list, capped. */
+function mergeCapturedValues(existing, fresh) {
+  if (!fresh.length) return existing;
+  const merged = [...fresh, ...existing.filter((e) => !fresh.some((f) => f.value === e.value))];
+  return merged.slice(0, CAPTURED_VALUES_LIMIT);
+}
+
+/** Template args for a tool's required inputSchema properties; account_id-like keys autofill from the most recent captured value. */
+const buildArgsTemplate = (tool, capturedValues = []) => {
   const required = tool?.inputSchema?.required || [];
   if (!required.length) return '{}';
   const template = {};
+  const latestId = capturedValues[0]?.value;
   for (const key of required) {
+    if (latestId && ACCOUNT_ID_PATTERN.test(key)) {
+      template[key] = latestId;
+      continue;
+    }
     const propType = tool.inputSchema.properties?.[key]?.type;
     template[key] = propType in ARG_PLACEHOLDER_BY_TYPE ? ARG_PLACEHOLDER_BY_TYPE[propType] : '';
   }
   return JSON.stringify(template, null, 2);
+};
+
+const CHAIN_STEPS = ['get_my_accounts', 'get_account_balance', 'get_sensitive_account_details'];
+
+const chainOrder = (name) => {
+  const idx = CHAIN_STEPS.indexOf(name);
+  return idx === -1 ? null : idx + 1;
 };
 
 const TOOL_GROUPS = {
@@ -129,6 +164,9 @@ export default function AgentGatewayTester() {
   const [toolsSource, setToolsSource] = useState('static');
   const [selectedTool, setSelectedTool] = useState(null);
   const [argsText, setArgsText] = useState('{}');
+  const [capturedValues, setCapturedValues] = useState([]);
+  const [chainRunning, setChainRunning] = useState(false);
+  const [chainResults, setChainResults] = useState([]);
   const [sending, setSending] = useState(false);
   const [resp, setResp] = useState(null);
   const [rules, setRules] = useState(null);
@@ -270,6 +308,8 @@ export default function AgentGatewayTester() {
       const { data } = await apiClient.post('/api/mcp-gateway/test', { tool: selectedTool.name, args });
       setResp(data);
       setOutputTab('result');
+      const fresh = extractCapturedValues(data?.result ?? data?.rpcData);
+      if (fresh.length) setCapturedValues((prev) => mergeCapturedValues(prev, fresh));
     } catch (e) {
       setResp({ clientError: formatAxiosError(e, 'Request failed') });
     } finally {
@@ -302,6 +342,57 @@ export default function AgentGatewayTester() {
     }
   }, [selectedTool, argsText]);
 
+  const runChain = useCallback(async () => {
+    setChainRunning(true);
+    setChainResults([]);
+    setOutputTab('chain');
+    let liveCaptured = capturedValues;
+    const results = [];
+    for (const toolName of CHAIN_STEPS) {
+      const tool = tools.find((t) => t.name === toolName);
+      if (!tool) {
+        results.push({ tool: toolName, ok: false, skipped: true, data: { clientError: 'Tool not available.' } });
+        setChainResults([...results]);
+        continue;
+      }
+      const stepArgsText = buildArgsTemplate(tool, liveCaptured);
+      let args;
+      try {
+        args = stepArgsText.trim() ? JSON.parse(stepArgsText) : {};
+      } catch {
+        results.push({ tool: toolName, ok: false, data: { clientError: 'Arguments must be valid JSON.' } });
+        setChainResults([...results]);
+        break;
+      }
+      // buildArgsTemplate only prefills required properties; account_id-like
+      // *optional* filters (e.g. get_sensitive_account_details) still need the
+      // chain to carry the id forward, so fill any unset schema property here.
+      const latestId = liveCaptured[0]?.value;
+      if (latestId) {
+        for (const key of Object.keys(tool.inputSchema?.properties || {})) {
+          if (ACCOUNT_ID_PATTERN.test(key) && !(key in args)) args[key] = latestId;
+        }
+      }
+      try {
+        const { data } = await apiClient.post('/api/mcp-gateway/test', { tool: toolName, args });
+        const ok = !data.clientError && data.ok !== false && data.result?.ok !== false;
+        results.push({ tool: toolName, ok, data });
+        setChainResults([...results]);
+        const fresh = extractCapturedValues(data?.result ?? data?.rpcData);
+        if (fresh.length) {
+          liveCaptured = mergeCapturedValues(liveCaptured, fresh);
+          setCapturedValues(liveCaptured);
+        }
+        if (!ok) break;
+      } catch (e) {
+        results.push({ tool: toolName, ok: false, data: { clientError: formatAxiosError(e, 'Request failed') } });
+        setChainResults([...results]);
+        break;
+      }
+    }
+    setChainRunning(false);
+  }, [tools, capturedValues]);
+
   const usePing = active?.usePingGateway;
   const simulated = active?.simulated;
   const az = resp?.gwAuditTrail?.authorize || null;
@@ -328,7 +419,7 @@ export default function AgentGatewayTester() {
 
   const selectTool = (t) => {
     setSelectedTool(t);
-    setArgsText(buildArgsTemplate(t));
+    setArgsText(buildArgsTemplate(t, capturedValues));
     setResp(null);
     setOutputTab('result');
   };
@@ -410,6 +501,9 @@ export default function AgentGatewayTester() {
                       >
                         <span className={`inspector-shell-tree-item__dot ${toolDotClass(t.name)}`} />
                         <span>{t.name}</span>
+                        {chainOrder(t.name) && (
+                          <span className="inspector-shell-tree-item__badge inspector-shell-tree-item__badge--order">{chainOrder(t.name)}</span>
+                        )}
                         {toolDotClass(t.name).includes('write') && (
                           <span className="inspector-shell-tree-item__badge inspector-shell-tree-item__badge--write">W</span>
                         )}
@@ -476,6 +570,17 @@ export default function AgentGatewayTester() {
                 </div>
               </div>
               <div className="inspector-shell-tree-group">
+                <div className="inspector-shell-tree-group__label">Sequential Chain</div>
+                <div
+                  className="inspector-shell-tree-item"
+                  onClick={() => !chainRunning && runChain()}
+                  style={{ color: chainRunning ? '#475569' : '#3b82f6', fontSize: 11 }}
+                >
+                  <span className="inspector-shell-tree-item__dot" style={{ background: '#6366f1' }} />
+                  <span>{chainRunning ? 'Running chain…' : 'Run chain (accounts → balance → sensitive)'}</span>
+                </div>
+              </div>
+              <div className="inspector-shell-tree-group">
                 <div className="inspector-shell-tree-group__label">Demo Presets</div>
                 {PRESETS.map(p => (
                   <div
@@ -531,6 +636,34 @@ export default function AgentGatewayTester() {
                   Arguments (JSON)
                   <span className="type">object</span>
                 </label>
+                {capturedValues.length > 0 && (
+                  <select
+                    aria-label="Insert captured value"
+                    value=""
+                    style={{ marginBottom: 6, fontSize: 11 }}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (!val) return;
+                      try {
+                        const parsed = argsText.trim() ? JSON.parse(argsText) : {};
+                        const key =
+                          Object.keys(parsed).find((k) => ACCOUNT_ID_PATTERN.test(k)) ||
+                          (selectedTool?.inputSchema?.required || []).find((k) => ACCOUNT_ID_PATTERN.test(k));
+                        if (key) {
+                          parsed[key] = val;
+                          setArgsText(JSON.stringify(parsed, null, 2));
+                        }
+                      } catch {
+                        // Invalid JSON in the box — leave it for the user to fix.
+                      }
+                    }}
+                  >
+                    <option value="">Insert captured value…</option>
+                    {capturedValues.map((c) => (
+                      <option key={c.value} value={c.value}>{c.label}</option>
+                    ))}
+                  </select>
+                )}
                 <textarea
                   value={argsText}
                   onChange={e => setArgsText(e.target.value)}
@@ -580,11 +713,35 @@ export default function AgentGatewayTester() {
               { key: 'authorize', label: 'Authorize Decision' },
               { key: 'mcpAudit', label: 'McpAudit (5W1H)' },
               { key: 'form', label: 'Form' },
+              { key: 'chain', label: 'Chain' },
             ]}
             activeKey={outputTab}
             onChange={setOutputTab}
           />
-          {resp ? (
+          {outputTab === 'chain' ? (
+            <div className="inspector-shell-output-body">
+              <pre className="inspector-shell-output-code">
+                {chainResults.length === 0 ? (
+                  <div style={{ padding: 16, color: '#64748b', fontSize: 12 }}>
+                    {chainRunning ? 'Running chain…' : 'Click "Run chain" (Config tab) to execute get_my_accounts → get_account_balance → get_sensitive_account_details in order.'}
+                  </div>
+                ) : (
+                  chainResults.map((step, i) => (
+                    <div
+                      key={`${step.tool}-${i}`}
+                      onClick={() => { if (!step.skipped) { setResp(step.data); setOutputTab('result'); } }}
+                      style={{ padding: '8px 12px', borderBottom: '1px solid #e2e8f0', cursor: step.skipped ? 'default' : 'pointer', display: 'flex', justifyContent: 'space-between', fontSize: 12 }}
+                    >
+                      <span>{i + 1}. {step.tool}</span>
+                      <span style={{ color: step.ok ? '#16a34a' : '#dc2626' }}>
+                        {step.skipped ? 'skipped' : step.ok ? `OK (${step.data.durationMs ?? '?'}ms)` : 'error'}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </pre>
+            </div>
+          ) : resp ? (
             <>
               <div className="inspector-shell-output-body">
                 <pre className="inspector-shell-output-code">

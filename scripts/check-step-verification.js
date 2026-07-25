@@ -19,9 +19,27 @@ const LEDGER_ROOT = path.join(ROOT, 'demo_api_server', 'data', 'step-verificatio
 const REQUIRED = ['vertical', 'useCaseId', 'triggerType', 'mode', 'status', 'checkedAt'];
 const MAX_AGE_DAYS = Number(process.env.STEP_VERIFICATION_MAX_AGE_DAYS || 30);
 
+// A few ledger entries legitimately reference ids outside the main USE_CASES
+// catalog: pingone-admin's ADMIN1-4 (config/admin/demoSteps.js — deliberately
+// not part of the 22-use-case banking trust-ladder catalog, see that file's
+// header comment) and a handful of unit-ref slugs stepVerification.adminAndRefs.test.js
+// coined for retail agent-lifecycle/kill-switch coverage that predates any
+// catalog entry (#761). Without these, check-step-verification.js flags them
+// as orphans every time those suites regenerate the files.
+const NON_CATALOG_VALID_IDS = new Set([
+  'agent-lifecycle-list-orders',
+  'agent-lifecycle-revoke',
+  'ciba-out-of-band-approval',
+]);
+
 function catalogUseCaseIds() {
   const { USE_CASES } = require(path.join(ROOT, 'demo_api_server', 'config', 'useCases.js'));
-  return new Set(USE_CASES.map((u) => u.id));
+  const { ADMIN_DEMO_STEPS } = require(path.join(ROOT, 'demo_api_server', 'config', 'admin', 'demoSteps.js'));
+  return new Set([
+    ...USE_CASES.map((u) => u.id),
+    ...ADMIN_DEMO_STEPS.map((s) => s.id),
+    ...NON_CATALOG_VALID_IDS,
+  ]);
 }
 
 function checkStepVerification() {

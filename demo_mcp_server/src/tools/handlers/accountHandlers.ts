@@ -113,7 +113,8 @@ export const executeUpdateContactEmail: HandlerFn = async (deps, token, params) 
   return createSuccessResult(JSON.stringify(data, null, 2), data);
 };
 
-export const executeGetSensitiveAccountDetails: HandlerFn = async (deps, token, _params) => {
+export const executeGetSensitiveAccountDetails: HandlerFn = async (deps, token, params) => {
+  const { account_id } = (params || {}) as { account_id?: string };
   deps.logger.debug(`[BankingToolProvider] Calling Banking API: getSensitiveAccountDetails`);
   try {
     const response = await deps.apiClient.getSensitiveAccountDetails(token);
@@ -141,7 +142,11 @@ export const executeGetSensitiveAccountDetails: HandlerFn = async (deps, token, 
       return createErrorResult(`Access denied: ${(response as any)?.reason || 'paz_denied'}`);
     }
 
-    const data = { success: true, accounts: (response as any).accounts || [] };
+    let accounts = (response as any).accounts || [];
+    if (account_id) {
+      accounts = accounts.filter((a: any) => a.id === account_id);
+    }
+    const data = { success: true, accounts };
     return createSuccessResult(JSON.stringify(data, null, 2), data);
   } catch (error) {
     deps.logger.error('[BankingToolProvider] getSensitiveAccountDetails error:', {}, error instanceof Error ? error : undefined);

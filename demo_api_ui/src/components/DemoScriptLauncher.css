@@ -1,0 +1,237 @@
+/* DemoScriptLauncher.css */
+
+/* Floating launcher - bottom-left, to avoid the bottom-right AI Agent FAB and
+   the bottom agent dock. Sits below DraggableModal (z-index 9999). */
+.demo-script-launch {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 1000;
+  padding: 8px 14px;
+  background: #111827;
+  color: #ffffff;
+  border: 1px solid #374151;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.demo-script-launch:hover {
+  background: #1f2937;
+}
+
+/* Teleprompter body - self-contained explicit colors. The pop-out window does
+   not inherit theme CSS variables, so every color is stated here to stay
+   readable on a second monitor in any app theme. */
+/* Body font-size is set inline by the A-/A+ control; children use em so they
+   scale with it (and carry into the pop-out window). */
+.dsl-body {
+  padding: 4px 2px 8px;
+  line-height: 1.55;
+  color: #111827;
+  background: #ffffff;
+}
+
+.dsl-lead {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  border-radius: 6px;
+  color: #1e3a8a;
+  font-weight: 600;
+}
+
+.dsl-body h4 {
+  margin: 20px 0 8px;
+  font-size: 1em;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #111827;
+}
+
+.dsl-body h4:first-of-type {
+  margin-top: 0;
+}
+
+.dsl-meta {
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #374151;
+}
+
+.dsl-list {
+  margin: 0 0 8px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #1f2937;
+}
+
+.dsl-say {
+  color: #111827;
+  font-style: italic;
+}
+
+.dsl-beat {
+  position: relative;
+  margin: 0 0 12px;
+  padding: 8px 64px 8px 10px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-left: 3px solid #2563eb;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* Run a use case straight from the script (fixed px so it stays constant
+   regardless of the adjustable body text size). */
+.dsl-run {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #ffffff;
+  background: #047857;
+  border: 1px solid #065f46;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.dsl-run:hover {
+  background: #065f46;
+}
+
+/* Closer "Go to AI Control Plane ->" navigate button. */
+.dsl-nav-btn {
+  margin: 0 0 12px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  background: #1d4ed8;
+  border: 1px solid #1e3a8a;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.dsl-nav-btn:hover {
+  background: #1e40af;
+}
+
+.dsl-do,
+.dsl-see,
+.dsl-say-row {
+  color: #1f2937;
+}
+
+.dsl-tag {
+  display: inline-block;
+  min-width: 30px;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.72em;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #ffffff;
+  text-align: center;
+}
+
+.dsl-do .dsl-tag {
+  background: #1d4ed8;
+}
+
+.dsl-see .dsl-tag {
+  background: #047857;
+}
+
+.dsl-say-row .dsl-tag {
+  background: #6d28d9;
+}
+
+.dsl-warn {
+  margin: 0 0 10px;
+  padding: 10px 14px;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  color: #991b1b;
+  font-weight: 600;
+}
+
+/* Footer toolbar: text-size stepper + close. Fixed px so the controls stay a
+   constant size regardless of the body text scale. */
+.dsl-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.dsl-size {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dsl-size-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.dsl-size-btn {
+  min-width: 34px;
+  padding: 4px 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffffff;
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.dsl-size-btn:hover:not(:disabled) {
+  background: #1f2937;
+}
+
+.dsl-size-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.dsl-size-val {
+  min-width: 38px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #111827;
+  text-align: center;
+}
+
+.dsl-close-btn {
+  padding: 4px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.dsl-close-btn:hover {
+  background: #f3f4f6;
+}

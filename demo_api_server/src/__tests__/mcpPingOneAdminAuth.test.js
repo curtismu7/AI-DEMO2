@@ -129,6 +129,8 @@ describe('mcpPingOneAdminAuth', () => {
           redirectUris: [
             ...EXISTING_APP.redirectUris,
             'https://api.ping.demo:3001/api/mcp/inspector/pingone-admin/callback',
+            'https://local.ping-devops.com:4000/api/mcp/inspector/pingone-admin/callback',
+            'https://api.ping.demo:4000/api/mcp/inspector/pingone-admin/callback',
           ],
         },
       });

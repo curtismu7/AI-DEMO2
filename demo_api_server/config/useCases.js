@@ -127,8 +127,8 @@ const A2A_TRIGGER_BY_VERTICAL = {
   healthcare:        'show my sensitive patient records',
   retail:            'show my sensitive order history',
   government:        'show my sensitive tax record',
-  university:        'show my student finance details',
-  workforce:         'show my payroll details',
+  university:        'access my sensitive student finance',
+  workforce:         'show my sensitive payroll details',
   'sporting-goods':  'show my sensitive membership details',
   manufacturing:     'show my sensitive supplier contract',
   investment:        'show my sensitive holdings',
@@ -141,7 +141,7 @@ const A2A_PRIMARY_TOOL_BY_VERTICAL = {
   workforce:         'sensitive_payroll_details',
   'sporting-goods':  'sensitive_membership_details',
   manufacturing:     'sensitive_supplier_contract',
-  investment:        'sensitive_investment_holdings',
+  investment:        'sensitive_holdings',
 };
 const A2A_PER_VERTICAL = chipOverrides(A2A_TRIGGER_BY_VERTICAL, withPrimaryTool(A2A_PRIMARY_TOOL_BY_VERTICAL));
 
@@ -1035,7 +1035,7 @@ const RAW_USE_CASES = [
     pingOneSolution: 'The Agent Gateway denies the call before it reaches the third-party weather MCP server, based on the currently-configured state scope (Texas by default) — the demo policy the backend never sees.',
     trigger: { type: 'chip', text: "what's the weather in Miami" },
     expectedOutcome: 'DENY',
-    evidence: { tokenChain: ['user-token', 'sim-gateway-deny'], activity: ['token', 'mcp'] },
+    evidence: { tokenChain: ['user-token', 'tool-dispatched'], activity: ['token', 'mcp'] },
     codeRefs: ['ping-gateway/scripts/groovy/tx-weather-scope.groovy', 'ping-gateway/config/routes/00-mcp-weather.json'],
     maturity: 'works',
     owasp: { threats: ['T6'], sections: ['§4.2.2'] },

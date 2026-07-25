@@ -12,6 +12,7 @@ const router = express.Router();
 const { listUseCases, resolveUseCase, VERTICALS } = require('../config/useCases');
 const { ADMIN_DEMO_STEPS } = require('../config/admin/demoSteps');
 const { authenticateToken } = require('../middleware/auth');
+const configStore = require('../services/configStore');
 
 function pickVertical(req, res) {
   const vertical = req.query.vertical || 'banking';
@@ -44,7 +45,7 @@ router.get('/:id', (req, res) => {
 });
 
 // POST /api/demo/use-cases/run  → execute use case, return trigger text for agent
-router.post('/demo/run', authenticateToken, (req, res) => {
+router.post('/demo/run', authenticateToken, async (req, res) => {
   const { useCaseId, triggerId } = req.body;
   const vertical = req.body?.vertical || req.query.vertical || 'banking';
 
@@ -66,6 +67,22 @@ router.post('/demo/run', authenticateToken, (req, res) => {
   const useCase = resolveUseCase(rawUseCase.id, vertical);
   if (!useCase) {
     return res.status(400).json({ success: false, error: 'Use case not found for vertical' });
+  }
+
+  // Auto-arm the feature flag this use case declares it needs, so running any
+  // step "just works" without manual preflight toggling. Flag-gated cases carry
+  // maturity 'flag:<name>' (e.g. UC2 → ff_a2a_delegation, UC14b → ff_rar).
+  // Non-fatal: a store failure shouldn't block dispatch.
+  const flagMatch = /^flag:(.+)$/.exec(useCase.maturity || '');
+  if (flagMatch) {
+    const flag = flagMatch[1];
+    try {
+      if (configStore.getEffective(flag) !== 'true') {
+        await configStore.setRaw({ [flag]: 'true' });
+      }
+    } catch (err) {
+      console.error(`[useCases] failed to arm ${flag} for ${useCase.id} (non-fatal):`, err.message);
+    }
   }
 
   if (triggerId) {

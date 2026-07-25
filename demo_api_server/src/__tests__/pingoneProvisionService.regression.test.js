@@ -388,4 +388,179 @@ describe('PingOneProvisionService — regression suite', () => {
       expect(assignmentCreated).toBe(true);
     });
   });
+
+  // -----------------------------------------------------------------------
+  // T5 — grantScopesToApplication: merge into an existing grant must dedup
+  // by scope NAME, not just id.
+  //
+  // Live symptom (2026-07-25 bootstrap run): PUT /applications/{id}/grants/{id}
+  // failed with INVALID_DATA "Multiple scopes with the same name cannot be
+  // added to the same grant". Root cause: the resource had two scope ids
+  // both named 'read' (e.g. one recreated after the other), the existing
+  // grant referenced the older id, and the merge unioned it with the newly
+  // resolved id for the same name — submitting two ids for one name.
+  // -----------------------------------------------------------------------
+  describe('T5 — grantScopesToApplication: existing-grant merge dedups by name', () => {
+    it('drops a stale same-named scope id from the existing grant instead of submitting both', async () => {
+      svc.makeRequest = jest.fn(async (method, path) => {
+        if (method === 'GET' && path === '/applications/app-1') {
+          return { data: { id: 'app-1', type: 'WEB_APP' } };
+        }
+        if (method === 'GET' && path === '/resources/resource-1/scopes') {
+          return {
+            data: {
+              _embedded: {
+                scopes: [
+                  { id: 'scope-read-v1', name: 'read' },
+                  { id: 'scope-read-v2', name: 'read' },
+                  { id: 'scope-write', name: 'write' },
+                ],
+              },
+            },
+          };
+        }
+        if (method === 'GET' && path === '/applications/app-1/grants') {
+          return {
+            data: {
+              _embedded: {
+                grants: [
+                  {
+                    id: 'grant-1',
+                    resource: { id: 'resource-1' },
+                    scopes: [{ id: 'scope-read-v1' }, { id: 'scope-write' }],
+                  },
+                ],
+              },
+            },
+          };
+        }
+        return { data: {} };
+      });
+
+      const result = await svc.grantScopesToApplication('app-1', 'resource-1', ['read', 'write']);
+
+      expect(result.success).toBe(true);
+      const putCall = svc.makeRequest.mock.calls.find(([method]) => method === 'PUT');
+      expect(putCall).toBeTruthy();
+      const [, , body] = putCall;
+      // Exactly one scope id per name — the stale 'read' id (scope-read-v1)
+      // must be dropped, not unioned alongside the fresh one (scope-read-v2).
+      expect(body.scopes).toEqual(expect.arrayContaining([
+        { id: 'scope-read-v2' },
+        { id: 'scope-write' },
+      ]));
+      expect(body.scopes).toHaveLength(2);
+    });
+
+    // -------------------------------------------------------------------
+    // T6 — the cross-resource name filter must apply to merges too, not
+    // just fresh grants.
+    //
+    // Live symptom (2026-07-25, second bootstrap run after T5 shipped):
+    // the SAME "Multiple scopes with the same name" error still hit the AI
+    // Agent/Admin/MCP Exchanger grants — this time as a PUT into an
+    // EXISTING grant requesting a name already granted via a DIFFERENT
+    // resource on the same app. The old code only ran the cross-resource
+    // filter when there was no existing grant to merge into.
+    // -------------------------------------------------------------------
+    it('drops a scope name already granted via a different resource, even when merging', async () => {
+      svc.makeRequest = jest.fn(async (method, path) => {
+        if (method === 'GET' && path === '/applications/app-1') {
+          return { data: { id: 'app-1', type: 'WEB_APP' } };
+        }
+        if (method === 'GET' && path === '/resources/resource-gw/scopes') {
+          return {
+            data: {
+              _embedded: {
+                scopes: [
+                  { id: 'gw-read', name: 'read' },
+                  { id: 'gw-invoke', name: 'agent:invoke' },
+                ],
+              },
+            },
+          };
+        }
+        if (method === 'GET' && path === '/resources/resource-api/scopes') {
+          return {
+            data: { _embedded: { scopes: [{ id: 'api-read', name: 'read' }] } },
+          };
+        }
+        if (method === 'GET' && path === '/applications/app-1/grants') {
+          return {
+            data: {
+              _embedded: {
+                grants: [
+                  // Existing grant on the target resource (gw) — merge path.
+                  { id: 'grant-gw', resource: { id: 'resource-gw' }, scopes: [{ id: 'gw-invoke' }] },
+                  // 'read' is already granted via a DIFFERENT resource.
+                  { id: 'grant-api', resource: { id: 'resource-api' }, scopes: [{ id: 'api-read' }] },
+                ],
+              },
+            },
+          };
+        }
+        return { data: {} };
+      });
+
+      const result = await svc.grantScopesToApplication('app-1', 'resource-gw', ['read', 'agent:invoke']);
+
+      expect(result.success).toBe(true);
+      // 'read' collides with the api-resource grant — dropped. 'agent:invoke'
+      // is already present on this grant — nothing new to add.
+      expect(result.action).toBe('unchanged');
+      const putCall = svc.makeRequest.mock.calls.find(([method]) => method === 'PUT');
+      expect(putCall).toBeUndefined();
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // T7 — writeEnvFile must not silently drop keys it doesn't manage.
+  //
+  // Live incident (2026-07-25): a bootstrap rerun regenerated .env from
+  // generateEnvContent's fixed template, which wiped 24 unrelated keys —
+  // PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID (that session's live CIBA fix),
+  // PINGONE_PAR_ENDPOINT, VAULT_PASSWORD, HELIX_*, LLM provider API keys —
+  // because none of them are part of the template. Fix: carry forward any
+  // existing key the template doesn't write, instead of discarding it.
+  // -----------------------------------------------------------------------
+  describe('T7 — writeEnvFile carries forward unmanaged keys', () => {
+    it('preserves an existing key generateEnvContent does not know about, and does not duplicate one it does', async () => {
+      const fs = require('fs');
+      const dotenv = require('dotenv');
+      const configStore = require('../../services/configStore');
+
+      const existingText = [
+        'PINGONE_ADMIN_CLIENT_ID=stale-admin-id',
+        'PINGONE_PAR_ENDPOINT=https://auth.pingone.com/env-1/as/par',
+        'VAULT_PASSWORD=supersecret',
+      ].join('\n');
+
+      let written = null;
+      jest.spyOn(fs, 'readFileSync').mockReturnValue(existingText);
+      jest.spyOn(fs.promises, 'readFile').mockResolvedValue(existingText);
+      jest.spyOn(fs.promises, 'writeFile').mockImplementation((_path, content) => {
+        written = content;
+        return Promise.resolve();
+      });
+      jest.spyOn(dotenv, 'config').mockImplementation(() => {});
+      jest.spyOn(configStore, 'ensureInitialized').mockResolvedValue(undefined);
+      jest.spyOn(configStore, '_seedFromEnv').mockImplementation(() => {});
+
+      const provisioned = {
+        adminApp: { clientId: 'fresh-admin-id', clientSecret: 'fresh-admin-secret' },
+        userApp: { clientId: 'user-id', clientSecret: 'user-secret' },
+        resourceServer: { audience: ['enduser.ping.demo'] },
+        demoUser: { password: 'Baseball123!' },
+        demoAdmin: { password: 'Baseball123!' },
+      };
+      const config = { envId: 'env-1', region: 'com', publicAppUrl: 'https://example.com' };
+
+      await svc.writeEnvFile(config, provisioned);
+
+      expect(written).toContain('PINGONE_ADMIN_CLIENT_ID=fresh-admin-id');
+      expect(written).not.toContain('stale-admin-id');
+      expect(written).toContain('PINGONE_PAR_ENDPOINT=https://auth.pingone.com/env-1/as/par');
+      expect(written).toContain('VAULT_PASSWORD=supersecret');
+    });
+  });
 });
