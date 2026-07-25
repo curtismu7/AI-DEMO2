@@ -9,10 +9,12 @@
  *     with `ba-mode-inline ba-split-column` chrome. There is NO floating FAB.
  *   - Admin /admin: Dashboard.js has no inline host, so the agent stays in
  *     floating chrome behind a `.banking-agent-fab`.
- *   - Banking actions moved out of the old `.ba-left-col` into an Actions
- *     popout: `button.ba-actions-trigger` opens `.ba-actions-popout`, whose
- *     collapsed `.ba-popout-section` groups hold `button.ba-popout-list-item`
- *     rows (label in `.ba-popout-item-name`).
+ *   - The old Actions dropdown (`button.ba-actions-trigger` text "Actions" →
+ *     `.ba-actions-popout`) was removed entirely. Core banking actions (My
+ *     Accounts … Transfer) are now reachable only via `/use-cases` (covered by
+ *     that page's own e2e specs, e.g. use-cases-catalog.spec.js). Admin-only
+ *     ops moved to a dedicated `Admin ▾` popout (`AdminToolsDropdown`,
+ *     `[data-testid="admin-tools-trigger"]`).
  *
  * Covers:
  *   UNAUTHENTICATED LANDING
@@ -23,13 +25,8 @@
  *   - Panel shows role badge in header subtitle (Admin / Customer)
  *   - Inline title ends with "Assistant"; admin float title ends with "AI Agent"
  *   - Dashboard nav button (`.ba-left-auth-btn.primary`) shows My/Admin Dashboard
- *   - Core actions (My Accounts … Transfer) appear as popout list items
- *   - "My Accounts" / "Recent Transactions" trigger /api/mcp/tool
- *   - Check Balance / Deposit / Withdraw / Transfer pre-fill the NL input
- *     (`input.ba-input`) — no inline form, not auto-sent
- *   - MCP error (502) shows user-friendly "not reachable" message
  *   - Login action buttons NOT shown when authenticated
- *   - Admin-only actions reachable from the popout
+ *   - Admin-only tools reachable from the Admin Tools popout
  *   - ?oauth=success URL param auto-renders / cleans the URL
  *
  * All API calls and OAuth status are intercepted — no live server required.
@@ -237,6 +234,13 @@ async function mockAuthenticatedAdmin(page, user = ADMIN_USER) {
     route.fulfill({ status: 200, contentType: 'application/json',
       body: JSON.stringify({ status: 'ok' }) })
   );
+  // Admin Tools popout (AdminToolsDropdown) — fixture matches config/adminTools.js.
+  await page.route('**/api/admin-tools**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({ tools: [
+        { id: 'lookup_customer', title: 'Look Up Customer', trigger: { type: 'chip', text: 'look up a customer' } },
+      ] }) })
+  );
   await page.route('**/ws**', (route) => route.abort());
   await page.route('**/mcp**', (route) => route.abort());
 }
@@ -252,54 +256,18 @@ async function mockMcpTool(page, result) {
 }
 
 /**
- * Stub /api/mcp/tool to return a 502 (MCP server unavailable).
- */
-async function mockMcpToolError(page) {
-  await page.route('**/api/mcp/tool', (route) =>
-    route.fulfill({ status: 502, contentType: 'application/json',
-      body: JSON.stringify({ message: 'mcp_error: WebSocket connection failed' }) })
-  );
-}
-
-/**
- * Post-Phase-4 the single BankingAgent renders inline on /dashboard (middle
- * placement default) and floating (via FAB) on /admin. Banking actions moved
- * out of the old `.ba-left-col` into an **Actions popout**: a header trigger
- * (`button.ba-actions-trigger`, text "Actions ▾") opens `.ba-actions-popout`,
- * whose `.ba-popout-section` groups (collapsed by default) hold
- * `button.ba-popout-list-item` rows. This opens the popout idempotently,
- * expands any collapsed section, and returns the matching action row.
+ * Open the admin-only "Admin ▾" tools popout (`AdminToolsDropdown`) idempotently.
+ * Replaces the deleted Actions popout for admin-only ops (Task 5/9).
  *
- * @returns {import('@playwright/test').Locator} the `.ba-popout-list-item`
- *   whose `.ba-popout-item-name` matches `namePattern`.
+ * @returns {import('@playwright/test').Locator} the popout's floating panel.
  */
-async function agentPanelButton(page, namePattern) {
-  const popout = page.locator('.ba-actions-popout');
-  if (!(await popout.isVisible().catch(() => false))) {
-    await page
-      .locator('button.ba-actions-trigger', { hasText: /Actions/i })
-      .first()
-      .click();
-    await expect(popout).toBeVisible({ timeout: 10000 });
+async function openAdminToolsPanel(page) {
+  const panel = page.locator('.ba-admin-tools-float');
+  if (!(await panel.isVisible().catch(() => false))) {
+    await page.locator('[data-testid="admin-tools-trigger"]').click();
+    await expect(panel).toBeVisible({ timeout: 10000 });
   }
-  // Expand every collapsed section so the target row is in the DOM regardless
-  // of which group it lives in (Account / Transaction / etc.).
-  const sections = popout.locator('.ba-popout-section');
-  const sectionCount = await sections.count();
-  for (let i = 0; i < sectionCount; i++) {
-    const toggle = sections.nth(i).locator('.ba-popout-section-toggle');
-    if (await toggle.count()) {
-      const label = (await toggle.first().textContent()) || '';
-      if (label.trim().startsWith('▶')) {
-        await toggle.first().click();
-      }
-    }
-  }
-  return popout
-    .locator('button.ba-popout-list-item')
-    .filter({
-      has: page.locator('.ba-popout-item-name', { hasText: namePattern }),
-    });
+  return panel;
 }
 
 /**
@@ -416,157 +384,12 @@ test.describe('BankingAgent — Authenticated (customer logged in)', () => {
     ).toBeVisible();
   });
 
-  test('panel lists core banking actions in the Actions popout', async ({ page }) => {
-    await mockAuthenticatedCustomer(page);
-    await page.goto('/dashboard');
-    await ensureAgentReady(page);
-    for (const label of [
-      'My Accounts',
-      'Recent Transactions',
-      'Check Balance',
-      'Deposit',
-      'Withdraw',
-      'Transfer',
-    ]) {
-      const row = await agentPanelButton(page, new RegExp(`^${label}$`));
-      await expect(row).toHaveCount(1);
-    }
-  });
-
-  test('customer banking suggestions are reachable from the Actions popout', async ({ page }) => {
-    await mockAuthenticatedCustomer(page);
-    await page.goto('/dashboard');
-    await ensureAgentReady(page);
-    // The old static `.ba-left-col` suggestion list does not exist in inline
-    // split-column chrome (useActionsPopout is true). The equivalent
-    // customer-facing entry point is the "Check Balance" action in the popout.
-    const row = await agentPanelButton(page, /^Check Balance$/);
-    await expect(row).toHaveCount(1);
-  });
-
-  // ── Read-only actions ──
-
-  test('"My Accounts" calls get_my_accounts and shows account list', async ({ page }) => {
-    await mockAuthenticatedCustomer(page);
-    await mockMcpTool(page, SAMPLE_ACCOUNTS);
-    await page.goto('/dashboard');
-    await ensureAgentReady(page);
-
-    const myAccounts = await agentPanelButton(page, /^My Accounts$/);
-    const [req] = await Promise.all([
-      page.waitForRequest((r) => r.url().includes('/api/mcp/tool') && r.method() === 'POST'),
-      myAccounts.click(),
-    ]);
-
-    const body = JSON.parse(req.postData() || '{}');
-    expect(body.tool).toBe('get_my_accounts');
-
-    const messages = page.locator('.banking-agent-messages');
-    await expect(messages).toContainText('CHK-001');
-    await expect(messages).toContainText('$1,500.00');
-  });
-
-  test('"Recent Transactions" calls get_my_transactions and shows list', async ({ page }) => {
-    await mockAuthenticatedCustomer(page);
-    await mockMcpTool(page, SAMPLE_TRANSACTIONS);
-    await page.goto('/dashboard');
-    await ensureAgentReady(page);
-
-    const recentTx = await agentPanelButton(page, /^Recent Transactions$/);
-    const [req] = await Promise.all([
-      page.waitForRequest((r) => r.url().includes('/api/mcp/tool')),
-      recentTx.click(),
-    ]);
-
-    const body = JSON.parse(req.postData() || '{}');
-    expect(body.tool).toBe('get_my_transactions');
-
-    await expect(page.locator('.banking-agent-messages')).toContainText('Payroll');
-  });
-
-  // ── Money-movement actions (API-direct chips) ──
-  //
-  // "balance", "deposit", "withdraw", "transfer" are API_DIRECT_CHIPS: clicking
-  // the popout row closes the popout and immediately dispatches the action
-  // (adds a user message + starts the API call). There is no NL-input prefill
-  // for these chips — they run directly through runAction().
-
-  test('"Check Balance" closes the popout and dispatches the action', async ({ page }) => {
-    await mockAuthenticatedCustomer(page);
-    await page.goto('/dashboard');
-    await ensureAgentReady(page);
-    const row = await agentPanelButton(page, /^Check Balance$/);
-    await row.click();
-    await expect(page.locator('.ba-actions-popout')).toBeHidden();
-    await expect(page.locator('.banking-agent-messages'))
-      .toContainText('Check Balance', { timeout: 5000 });
-  });
-
-  test('"Deposit" closes the popout and dispatches the action', async ({ page }) => {
-    await mockAuthenticatedCustomer(page);
-    await page.goto('/dashboard');
-    await ensureAgentReady(page);
-    const row = await agentPanelButton(page, /^Deposit$/);
-    await row.click();
-    await expect(page.locator('.ba-actions-popout')).toBeHidden();
-    await expect(page.locator('.banking-agent-messages'))
-      .toContainText('Deposit', { timeout: 5000 });
-  });
-
-  test('"Withdraw" closes the popout and dispatches the action', async ({ page }) => {
-    await mockAuthenticatedCustomer(page);
-    await page.goto('/dashboard');
-    await ensureAgentReady(page);
-    const row = await agentPanelButton(page, /^Withdraw$/);
-    await row.click();
-    await expect(page.locator('.ba-actions-popout')).toBeHidden();
-    await expect(page.locator('.banking-agent-messages'))
-      .toContainText('Withdraw', { timeout: 5000 });
-  });
-
-  test('"Transfer" closes the popout and dispatches the action', async ({ page }) => {
-    await mockAuthenticatedCustomer(page);
-    await page.goto('/dashboard');
-    await ensureAgentReady(page);
-    const row = await agentPanelButton(page, /^Transfer$/);
-    await row.click();
-    await expect(page.locator('.ba-actions-popout')).toBeHidden();
-    await expect(page.locator('.banking-agent-messages'))
-      .toContainText('Transfer', { timeout: 5000 });
-  });
-
-  test('money-movement chip closes the popout immediately (no form gate)', async ({ page }) => {
-    await mockAuthenticatedCustomer(page);
-    await page.goto('/dashboard');
-    await ensureAgentReady(page);
-    const row = await agentPanelButton(page, /^Withdraw$/);
-    await row.click();
-
-    // Popout must close immediately — no intermediate form required.
-    await expect(page.locator('.ba-actions-popout')).toBeHidden({ timeout: 3000 });
-    // User message confirms the chip was activated (not just a no-op click).
-    await expect(page.locator('.banking-agent-messages'))
-      .toContainText('Withdraw', { timeout: 5000 });
-  });
-
-  // ── Error handling ──
-
-  test('MCP 502 surfaces a friendly "server unreachable" toast', async ({ page }) => {
-    await mockAuthenticatedCustomer(page);
-    await mockMcpToolError(page);
-    await page.goto('/dashboard');
-    await ensureAgentReady(page);
-    const myAccounts = await agentPanelButton(page, /^My Accounts$/);
-    await myAccounts.click();
-
-    // Post-Phase-4 the conversation pane renders only user/assistant turns;
-    // connection failures surface as a react-toastify error toast, not chat
-    // text. Scope to the error variant (an in-progress info toast coexists).
-    const toast = page.locator('.Toastify__toast--error');
-    await expect(toast).toContainText(/unreachable|not reachable|server connection/i);
-    // No raw stack trace leaks into the user-facing message.
-    await expect(toast).not.toContainText('at Object.');
-  });
+  // NOTE: Actions-popout coverage of core banking actions (My Accounts,
+  // Recent Transactions, Check Balance, Deposit, Withdraw, Transfer — the old
+  // "primary rail") was removed here (Task 9, actions-dropdown-removal). That
+  // popout no longer exists; per the removal design, this content is now
+  // reachable only via `/use-cases`, which has its own e2e coverage
+  // (use-cases-catalog.spec.js, use-cases-live.spec.js, hitl-transfer.spec.js).
 
   test('login action buttons are NOT shown when user is authenticated', async ({ page }) => {
     await mockAuthenticatedCustomer(page);
@@ -620,14 +443,15 @@ test.describe('BankingAgent — Authenticated (admin logged in)', () => {
     ).toBeVisible();
   });
 
-  test('admin-only actions are present in the Actions popout', async ({ page }) => {
+  test('admin-only tools are present in the Admin Tools popout', async ({ page }) => {
     await mockAuthenticatedAdmin(page);
     await page.goto('/admin');
     await ensureAgentReady(page);
-    // Old admin "suggestions" (e.g. "Show all customer accounts") were replaced
-    // by admin-scoped popout actions; assert an admin-only entry is reachable.
-    const row = await agentPanelButton(page, /Query User by Email/i);
-    await expect(row).toHaveCount(1);
+    // The old Actions popout's "Admin Actions" / "PingOne Admin" sections were
+    // replaced by the dedicated Admin ▾ popout (AdminToolsDropdown, Task 5);
+    // assert a current admin-only entry is reachable there.
+    await openAdminToolsPanel(page);
+    await expect(page.locator('[data-testid="admin-tool-lookup_customer"]')).toBeVisible();
   });
 });
 
