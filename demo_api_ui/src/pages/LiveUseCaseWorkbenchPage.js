@@ -202,6 +202,27 @@ export default function LiveUseCaseWorkbenchPage() {
     }
   }, [handleRunChip, handleRunAttack, handleOpenLink]);
 
+  // Run a use case triggered from the Demo Script teleprompter. Uses the shared
+  // 'demo-script' BroadcastChannel so a Run click from the in-page modal OR the
+  // popped-out 2nd-screen window lands here exactly once, and reuses the same
+  // handleRunSelected path the tiles use.
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return undefined;
+    const channel = new BroadcastChannel('demo-script');
+    const onMsg = (e) => {
+      if (e.data?.type !== 'run' || !e.data.ucId) return;
+      const uc = useCases.find((u) => u.id === e.data.ucId);
+      if (!uc) return;
+      setSelectedId(uc.id);
+      handleRunSelected(uc);
+    };
+    channel.addEventListener('message', onMsg);
+    return () => {
+      channel.removeEventListener('message', onMsg);
+      channel.close();
+    };
+  }, [useCases, handleRunSelected]);
+
   const primaryDemo = useMemo(
     () => DEMO_PRIMARY_USE_CASE_IDS
       .map((id) => useCases.find((uc) => uc.id === id))

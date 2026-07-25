@@ -26,18 +26,21 @@ export const DEMO_SCRIPT = {
       meta: "~4 min · identity, across hops",
       beats: [
         {
+          ucId: "UC1",
           action: "Step 1 · `show my balance` (UC1)",
           expected:
             "Real balance; token-chain rail shows first exchange + act claim",
           say: "No password handed over. The agent got a token that says it acts for me - the act claim. Every step is attributable to me.",
         },
         {
+          ucId: "UC2",
           action: "Step 2 · `hand off to a specialist` (UC2, A2A)",
           expected:
             "PERMIT; rail shows a nested act chain - user, then Agent 1, then Agent 2 - scope narrowed at each hop",
           say: "The generalist agent hands the job to a specialist. Watch the token chain - a second exchange nests the act claim: Agent 2 acts for Agent 1, which acts for me. The whole delegation is provable, and each hop gets less scope, not more.",
         },
         {
+          ucId: "UC24",
           action: "Step 3 · `what branches are near me` (UC24)",
           expected: "PERMIT, no token exchange",
           say: "Public data - zero token exchange. The agent escalates privilege only when it must. Least privilege by default. (Trim this step first if the slot runs tight.)",
@@ -49,16 +52,19 @@ export const DEMO_SCRIPT = {
       meta: "~6 min · policy, PAR intent, gateway",
       beats: [
         {
+          ucId: "UC6",
           action: "Step 4 · type `transfer $2500 from checking to savings` (UC6)",
           expected: "DENY",
           say: "Money now. $2500. PingOne Authorize returns DENY before the transfer runs - over the ceiling. The agent can't argue.",
         },
         {
+          ucId: "UC8",
           action: "Step 5 · type `transfer $300 from checking to savings` (UC8)",
           expected: "HITL_REQUIRED, agent pauses",
           say: "$300 - the agent pauses and waits for a human to approve. It cannot complete this alone.",
         },
         {
+          ucId: "UC14b",
           action:
             "Step 6 · card 'PAR intent verified' (UC14b) - click Open page, run a within-cap transfer on the intent-binding page",
           expected:
@@ -66,12 +72,14 @@ export const DEMO_SCRIPT = {
           say: "The good path first. Before it acts, the agent pushes its intent - amount and payee - to PingOne as a Pushed Authorization Request, and gets back a request_uri that binds the transaction. Within the cap: PingOne Authorize verifies the pushed intent and PERMITs. The agent can only do what the user pre-approved.",
         },
         {
+          ucId: "UC14",
           action: "Step 7 · card 'PAR intent violation' (UC14) - click Run sim",
           expected:
             "DENY; Authorize rejects the over-cap request against the pushed authorization_details",
           say: "Same PAR grant, but now the agent asks for more than it pushed. PingOne Authorize compares the live request to the bound intent and DENYs. Intent is a contract - the agent cannot exceed what was pushed, even if its token scopes would otherwise allow it.",
         },
         {
+          ucId: "UC31",
           action: "Step 8 · `what's the weather in Miami` (UC31)",
           expected: "Gateway DENY",
           say: "Different control. The agent calls a third-party weather MCP. Miami is out of policy - the gateway kills the call before the third party ever sees it. Egress control on tool calls.",
@@ -83,12 +91,14 @@ export const DEMO_SCRIPT = {
       meta: "~3 min · points 4, 5",
       beats: [
         {
+          ucId: "UC12",
           action: "Step 9 · card 'DPoP / replay defense' (UC12) - click Run sim",
           expected:
             "Rail: sim-replay-start then sim-gateway-deny, DENY 401 (audience binding)",
           say: "The attack security teams actually lose sleep over. Steal the user's token, replay it straight at the backend, skip the gateway. DENY. The token is audience-bound - worthless anywhere but where it was minted. A stolen token is a dead token.",
         },
         {
+          ucId: "UC5",
           action: "Step 10 · card 'Insufficient scope' (UC5) - click Run sim",
           expected: "Glance DENY; rail DENY 403 (MCP scope)",
           say: "Second attack: an MCP server reaches for a tool it was never scoped for - beyond its job. DENY, 403, at the gateway. Scope is a hard ceiling, not a suggestion. The agent can't grant itself more.",
@@ -98,6 +108,8 @@ export const DEMO_SCRIPT = {
   ],
   closer: {
     title: "Close - kill switch (~1.5 min)",
+    navPath: "/ai-control-plane",
+    navLabel: "Go to AI Control Plane",
     warn: "One deliberate hop to /ai-control-plane. Use INSTANCE scope (the default) - it self-recovers and is safe for the shared env. Do NOT use full (disables the PingOne app for every user of that client). Do NOT re-run a step afterward - with instance scope it would just work again.",
     steps: [
       "Left nav: AI Control Plane.",
