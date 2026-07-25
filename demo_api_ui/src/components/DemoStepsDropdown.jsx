@@ -45,6 +45,7 @@ export default function DemoStepsDropdown({
   const [error, setError] = useState(null);
   const [tick, setTick] = useState(0);
   const [explainUc, setExplainUc] = useState(null);
+  const [query, setQuery] = useState('');
 
   const loadSteps = useCallback(() => {
     setLoading(true);
@@ -81,6 +82,7 @@ export default function DemoStepsDropdown({
 
   useEffect(() => {
     if (open) loadSteps();
+    else setQuery('');
   }, [open, loadSteps]);
 
   useEffect(() => {
@@ -148,6 +150,20 @@ export default function DemoStepsDropdown({
     primarySteps.length > 0
       ? Math.round((completedCount / primarySteps.length) * 100)
       : 0;
+
+  // Client-side filter on id + title. Progress above stays over the FULL
+  // primary set — searching narrows what is shown, not what counts as done.
+  const q = query.trim().toLowerCase();
+  const matches = ({ uc }) =>
+    !q ||
+    uc.id.toLowerCase().includes(q) ||
+    (uc.title || '').toLowerCase().includes(q);
+  const filteredPrimary = primarySteps.filter(matches);
+  const filteredAdvanced = advancedSteps.filter(matches);
+  // A query surfaces matches regardless of the collapsed "More demos" state.
+  const showAdvanced = q ? filteredAdvanced.length > 0 : advancedOpen;
+  const noMatches =
+    q && filteredPrimary.length === 0 && filteredAdvanced.length === 0;
 
   /**
    * Render one demo-step card (box style matching Actions grid).
@@ -249,6 +265,29 @@ export default function DemoStepsDropdown({
               </div>
             )}
             <div className="ba-demo-steps-popout__header-actions">
+              <div className="ba-demo-steps-popout__search">
+                <input
+                  type="search"
+                  className="ba-demo-steps-popout__search-input"
+                  placeholder="Search steps…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  aria-label="Search demo steps"
+                  data-testid="demo-steps-search"
+                />
+                {query && (
+                  <button
+                    type="button"
+                    className="ba-demo-steps-popout__search-clear"
+                    onClick={() => setQuery('')}
+                    title="Clear search"
+                    aria-label="Clear search"
+                    data-testid="demo-steps-search-clear"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
               <button
                 type="button"
                 className="ba-demo-steps-popout__clear"
@@ -273,23 +312,33 @@ export default function DemoStepsDropdown({
               No demo steps for this vertical.
             </p>
           )}
+          {noMatches && (
+            <p
+              className="ba-demo-steps-popout__status"
+              data-testid="demo-steps-no-match"
+            >
+              No steps match “{query.trim()}”.
+            </p>
+          )}
           <ul className="ba-demo-steps-popout__grid">
-            {primarySteps.map((row) => renderStep(row, { markNext: true }))}
+            {filteredPrimary.map((row) => renderStep(row, { markNext: !q }))}
           </ul>
           {advancedSteps.length > 0 && (
             <div className="ba-demo-steps-popout__advanced">
-              <button
-                type="button"
-                className="ba-demo-steps-popout__advanced-toggle"
-                onClick={() => setAdvancedOpen((v) => !v)}
-                aria-expanded={advancedOpen}
-                data-testid="demo-steps-advanced-toggle"
-              >
-                {advancedOpen ? '▾' : '▸'} More demos ({advancedSteps.length})
-              </button>
-              {advancedOpen && (
+              {!q && (
+                <button
+                  type="button"
+                  className="ba-demo-steps-popout__advanced-toggle"
+                  onClick={() => setAdvancedOpen((v) => !v)}
+                  aria-expanded={advancedOpen}
+                  data-testid="demo-steps-advanced-toggle"
+                >
+                  {advancedOpen ? '▾' : '▸'} More demos ({advancedSteps.length})
+                </button>
+              )}
+              {showAdvanced && (
                 <ul className="ba-demo-steps-popout__grid">
-                  {advancedSteps.map((row) => renderStep(row))}
+                  {filteredAdvanced.map((row) => renderStep(row))}
                 </ul>
               )}
             </div>

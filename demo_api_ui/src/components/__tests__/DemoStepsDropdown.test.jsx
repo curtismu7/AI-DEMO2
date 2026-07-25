@@ -185,6 +185,67 @@ describe('DemoStepsDropdown', () => {
   });
 });
 
+describe('DemoStepsDropdown — search', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sessionStorage.clear();
+    apiClient.get.mockResolvedValue({ data: { useCases: CATALOG } });
+  });
+
+  it('filters the cards to matches on id, hiding the rest', async () => {
+    render(
+      <DemoStepsDropdown open onOpenChange={() => {}} onSelect={() => {}} />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument());
+
+    // "UC8" is a collision-free id substring (no UC8x exists).
+    fireEvent.change(screen.getByTestId('demo-steps-search'), {
+      target: { value: 'UC8' },
+    });
+
+    const shown = screen.getAllByTestId(/^demo-step-/);
+    expect(shown.map((el) => el.getAttribute('data-testid'))).toEqual([
+      'demo-step-UC8',
+    ]);
+    expect(screen.queryByTestId('demo-step-UC1')).not.toBeInTheDocument();
+  });
+
+  it('filters on title as well as id', async () => {
+    render(
+      <DemoStepsDropdown open onOpenChange={() => {}} onSelect={() => {}} />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument());
+
+    // Catalog titles are `Title for <id>`; "for UC13" is unique to that card.
+    fireEvent.change(screen.getByTestId('demo-steps-search'), {
+      target: { value: 'for UC13' },
+    });
+
+    const shown = screen.getAllByTestId(/^demo-step-/);
+    expect(shown.map((el) => el.getAttribute('data-testid'))).toEqual([
+      'demo-step-UC13',
+    ]);
+  });
+
+  it('shows a no-match message and clears back to the full list', async () => {
+    render(
+      <DemoStepsDropdown open onOpenChange={() => {}} onSelect={() => {}} />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument());
+
+    fireEvent.change(screen.getByTestId('demo-steps-search'), {
+      target: { value: 'zzz-no-such-step' },
+    });
+    expect(screen.getByTestId('demo-steps-no-match')).toBeInTheDocument();
+    expect(screen.queryAllByTestId(/^demo-step-/)).toHaveLength(0);
+
+    // The ✕ clear button restores every card.
+    fireEvent.click(screen.getByTestId('demo-steps-search-clear'));
+    expect(screen.queryByTestId('demo-steps-no-match')).not.toBeInTheDocument();
+    expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument();
+  });
+});
+
 describe('DemoStepsDropdown — vertical switching', () => {
   const RETAIL_CATALOG = ['UC1', 'UC6', 'UC7'].map((id) => ({
     id,
