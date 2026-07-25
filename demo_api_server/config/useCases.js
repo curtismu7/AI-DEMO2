@@ -357,6 +357,7 @@ const RAW_USE_CASES = [
     // banking manifest's own bk8 chip, which is deliberately kept out of the
     // catalog for the same reason; this entry exists instead so the demo stays
     // reachable from /use-cases after the Actions dropdown is removed.
+    primaryTool: null,
   },
   {
     id: 'UC35',
@@ -381,6 +382,7 @@ const RAW_USE_CASES = [
     },
     // Free-form LLM explanation — no single deterministic tool (see UC34's note
     // and LLM_ANALYSIS_UNROUTABLE in useCases.primaryTool.test.js).
+    primaryTool: null,
   },
 
   // --- CONTROLS ---
