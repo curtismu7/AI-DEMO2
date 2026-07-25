@@ -5,6 +5,7 @@
   grid-template-rows: auto 1fr;
   height: calc(100vh - var(--stack-fab-top-base, 72px));
   min-height: 0;
+  min-width: 0;
 }
 
 .luw-topbar {
@@ -20,6 +21,7 @@
   display: grid;
   grid-template-columns: 336px 1fr;
   min-height: 0;
+  min-width: 0;
   height: 100%;
 }
 
@@ -120,6 +122,7 @@
 /* Main: agent + token chain + glance */
 .luw-main {
   min-height: 0;
+  min-width: 0;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
   background: #eef1f4;
@@ -217,7 +220,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-@media (max-width: 960px) {
+/* Medium: no room for Agent + Token Chain side-by-side — stack them inside the
+   stage (Demo script drawer stays beside); the stage scrolls, not the page. */
+@media (max-width: 1200px) {
   .luw-run-layout {
     flex-wrap: wrap;
     overflow-y: auto;
@@ -225,6 +230,35 @@
   .luw-agent-host,
   .luw-rail-host {
     flex: 1 1 100%;
-    min-height: 360px;
+    min-height: 420px;
+  }
+}
+
+/* Narrow: single column — Demo script, Agent, Token Chain stack and the page
+   scrolls, instead of the drawer + main clipping each other. */
+@media (max-width: 860px) {
+  .luw {
+    height: auto;
+    min-height: calc(100vh - var(--stack-fab-top-base, 72px));
+  }
+  .luw-body {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .luw-drawer {
+    border-right: 0;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .luw-drawer__scroll {
+    overflow-y: visible;
+  }
+  .luw-main {
+    height: auto;
+  }
+  .luw-main__stage {
+    overflow: visible;
+  }
+  .luw-run-layout {
+    overflow-y: visible;
   }
 }
