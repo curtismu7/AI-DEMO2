@@ -64,6 +64,7 @@ import JsonField from "./shared/JsonField";
 import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
 import DemoStepsDropdown from "./DemoStepsDropdown";
+import AdminToolsDropdown from "./AdminToolsDropdown";
 import BankingChips, { PINGONE_ADMIN_CHIP_IDS } from "./BankingChips";
 import { markUseCaseCompleted, clearCompletedUseCases } from "../utils/useCaseDemoProgress";
 import {
@@ -308,6 +309,8 @@ export default function BankingAgent({
   const [showDiscovery, setShowDiscovery] = useState(false);
   /** Demo steps popout — same list as /use-cases Demo section. */
   const [showDemoSteps, setShowDemoSteps] = useState(false);
+  /** Admin tools popout — PingOne ops + banking customer-CRUD, admin-only. */
+  const [showAdminTools, setShowAdminTools] = useState(false);
   const [discoverySearch, setDiscoverySearch] = useState("");
   const discoveryTriggerRef = useRef(null);
   const actionsPopoutRef = useRef(null);
@@ -6391,6 +6394,50 @@ export default function BankingAgent({
     );
   }
 
+  /** Dispatch a clicked Admin Tools item — PingOne ops go to the isolated admin
+   *  agent, banking customer-CRUD ops resolve like any other MCP-tool chip. */
+  async function handleAdminToolSelect(tool) {
+    if (!tool) return;
+    setShowAdminTools(false);
+    const message = tool.trigger?.text;
+    if (!message) return;
+    addMessage("user", tool.title);
+    if (tool.adminAgent) {
+      setNlLoading(true);
+      try {
+        const res = await fetch("/api/admin-agent/message", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message,
+            customer: adminCustomerContext.get(),
+          }),
+          signal: AbortSignal.timeout(30000),
+        });
+        const data = await res
+          .json()
+          .catch(() => ({ reply: "Admin agent request failed.", success: false }));
+        if (tokenChain && Array.isArray(data?.tokenEvents)) {
+          tokenChain.setTokenEvents("admin-agent", data.tokenEvents);
+        }
+        addMessage("assistant", `[ADMIN AGENT - LangGraph]\n${data?.reply || "Admin agent: no response."}`, null);
+      } catch (err) {
+        reportNlFailure(err);
+      } finally {
+        setNlLoading(false);
+      }
+      return;
+    }
+    // Banking customer-CRUD ops resolve through the normal chip pipeline —
+    // same fallthrough these messages already used inside the old Actions
+    // popout's onChipClick (no useCaseId, so forceHeuristic stays false and
+    // freeform text still reaches the LLM if the heuristic parser has no
+    // match for it).
+    pendingUcIdRef.current = null;
+    setNlResumeAfterAuth(message);
+  }
+
   async function handleNaturalLanguage() {
     const text = nlInput.trim();
     if (!text) return;
@@ -7772,6 +7819,17 @@ export default function BankingAgent({
                     handleDemoStepSelect(uc, stepNumber);
                   }}
                 />
+                {/* Admin Tools — customer CRUD + PingOne platform ops, admin-only */}
+                {effectiveUser?.role === "admin" && (
+                  <AdminToolsDropdown
+                    open={showAdminTools}
+                    onOpenChange={(next) => {
+                      setShowAdminTools(next);
+                      if (next) setShowDemoSteps(false);
+                    }}
+                    onSelect={handleAdminToolSelect}
+                  />
+                )}
                 {/* Actions trigger — float + dashboard inline agents (D-01, D-02) */}
                 {useActionsPopout && (
                   <button
