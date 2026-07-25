@@ -42,14 +42,23 @@ because they have "no consent/HITL gate or tokenChain evidence narrative to atta
    `ADMIN_DEMO_STEPS` (`{id, title, trigger}`, no security-narrative fields), not
    squeezed into the `UseCase` schema.
 2. **"My mortgage", 2 AI Reasoning chips** → 3 new full `UseCase` entries (UC33-35,
-   track `foundations`).
-3. **"My Actions" (custom chips)** → gets its own small section on `/use-cases`,
-   reusing the existing `useCustomChips` hook — no new backend.
-4. **Utility controls** (ask box, scope toggle, clear-progress) move out of the popout
-   into the always-visible AIAgent header row. The ask box specifically is redundant
-   and gets deleted outright — the main chat compose box (`ba-input-row`,
-   `AIAgent.js:10278`) already does free-text dispatch.
-5. **Actions dropdown removed entirely** once 1-4 are live and verified reachable.
+   track `foundations`). These land in `RAW_USE_CASES` only — pure data, no page code
+   change — and surface automatically in `/use-cases`'s existing `foundations` grid.
+3. **`/use-cases` page code is not touched.** Superseded an earlier draft of this spec
+   that added Admin Tools / My Actions sections there. Placement below instead.
+4. **Admin Tools (14)** → small admin-only `Admin ▾` header button + compact popout in
+   `AIAgent.js`, same pattern as the existing `DemoStepsDropdown` — just these 14
+   items, no chips rail, no Security Showcase.
+5. **"My Actions" (custom chips)** → a "Run" button added to each chip row in
+   `CustomChipsTab.js` (already the only place users manage custom chips) — no new
+   launch surface.
+6. **Utility controls** (ask box, scope toggle, clear-progress) move out of the popout
+   into the always-visible AIAgent header row, styled as **Option A1 — labeled
+   buttons** (matches the existing `Guide`/`Demo steps` style). The ask box
+   specifically is redundant and gets deleted outright — the main chat compose box
+   (`ba-input-row`, `AIAgent.js:10278`) already does free-text dispatch.
+7. **Actions dropdown (`BankingChips.jsx` + `SecurityShowcasePanel.jsx`) removed
+   entirely** once 1-6 are live and verified reachable.
 
 ## New content
 
@@ -84,34 +93,37 @@ const ADMIN_TOOLS = [
 ```
 
 New route `GET /api/admin-tools?vertical=` (separate from `/api/use-cases` — different
-shape, role-gated).
+shape, role-gated), consumed by the new `Admin ▾` popout in `AIAgent.js` (see UI wiring
+below) — not by `/use-cases`.
 
-### C. My Actions section
+### C. My Actions — Run button
 
-`/use-cases` renders a small section from `useCustomChips()`, same data BankingChips
-already reads, no backend change.
+`CustomChipsTab.js` (the existing custom-chip management panel) gets a "Run" button on
+each chip row, calling the same dispatch `BankingChips.jsx:423-448` used. No new
+section anywhere, no backend change — `useCustomChips()` already has everything the
+button needs.
 
 ## UI wiring
 
-### Dispatch consolidation (the actual risk in this change)
+### Dispatch consolidation (the actual risk in this change — now smaller)
 
-Three dispatch paths exist today:
+Two dispatch paths for catalog-driven content today:
 
 - `handleDemoStepSelect` (`AIAgent.js:6290`) — drives `DemoStepsDropdown`, handles
-  chip/attack/edu/link triggers generically.
+  chip/attack/edu/link triggers generically. Untouched by this change.
 - `/use-cases`'s own inline dispatch — `POST /api/use-cases/demo/run` then
-  `navigate('/dashboard', {state:{triggerText, useCaseId}})`; AIAgent.js consumes this
-  via the `location.state` effect at `AIAgent.js:1063-1070`, which resumes into the
-  generic NL pipeline.
-- The Actions popout's `onChipClick` (`AIAgent.js:7961+`) — the **only** path with
-  admin-agent routing: `PINGONE_ADMIN_CHIP_IDS.has(chipId)` → `POST
-  /api/admin-agent/message` (`AIAgent.js:8305-8330`).
+  `navigate('/dashboard', {state:{triggerText, useCaseId}})`, consumed by the
+  `location.state` effect at `AIAgent.js:1063-1070`. Untouched by this change — UC33-35
+  are ordinary catalog entries and need nothing special.
 
-Removing the popout removes that admin-agent branch unless ported. Fix: extend the
-`location.state` consumer effect to accept an `isAdminAgent` flag and branch to
-`/api/admin-agent/message` before falling into the generic NL-resume path, porting the
-~25-line block at `8305-8330`. The 8 banking Admin Actions need no new plumbing — they
-resolve like any other MCP-tool chip via the existing `triggerText` resume path.
+The Actions popout's `onChipClick` (`AIAgent.js:7961+`) is the only path with
+admin-agent routing (`PINGONE_ADMIN_CHIP_IDS.has(chipId)` → `POST
+/api/admin-agent/message`, `AIAgent.js:8305-8330`) and the direct MCP-tool-call path
+for the 8 banking Admin Actions. Since Admin Tools now gets its **own** small popout
+component instead of routing through `/use-cases`, this logic is ported as-is (not
+generalized) into that new component's own click handler — same two branches, same
+endpoints, just a smaller container. No change needed to `handleDemoStepSelect` or the
+`location.state` effect.
 
 ### Component removal
 
@@ -122,43 +134,50 @@ popout (verified via repo-wide grep) — delete both once their content is migra
   chip's `useCaseId`/`USE_CASE_TO_DEMO_STEP` wiring against the catalog before deletion,
   fixing any that resolve to the wrong entry.
 - Attacks tab (6): already a subset of the catalog's 11 attack-sim entries.
-- AI Reasoning (2) / PingOne Admin (6) tabs: covered by UC34/35 and the new Admin
-  Tools list respectively.
+- AI Reasoning (2) tab: covered by UC34/35.
+- Admin Actions (8) + PingOne Admin (6) tabs: become the new `Admin ▾` popout (see
+  below), not deleted content — just relocated and trimmed to admin-only.
 
 ### Header controls
 
 In `AIAgent.js`'s header row (~7754-7796): delete the `Actions` trigger button and the
 `ba-actions-popout` block (7850-7939) including its free-text search box. Keep
-`ScopePicker` and "Clear progress" as permanent inline controls in the same row, styled
-as **Option A1 — labeled buttons** (matches the existing `Guide`/`Demo steps` button
-style exactly; see mockup, option A3 "grouped pill" was the runner-up if A1 reads too
-busy once built).
+`ScopePicker` and "Clear progress" as permanent inline controls in the same row —
+**Option A1, labeled buttons** — matching the existing `Guide`/`Demo steps` button
+style exactly.
 
-### Page layout
+### New: `Admin ▾` popout
 
-`UseCaseLauncherPage.js` gets two more entries in the existing per-track grid —
-**Option B2 — tracks in the grid**: "Admin Tools" (role-gated) and "My Actions" render
-as two more sections in the same list every other track (`foundations`/`controls`/
-`attacks`/etc.) already uses. No new section component, no new visual language; Admin
-Tools naturally sorts near the bottom since it's role-gated. `LiveUseCaseWorkbenchPage.js`
-is unchanged — it's the technical live-run view, not the discovery surface, and doesn't
-need the admin/custom sections.
+Admin-role-only button in the same header row, same interaction pattern as
+`DemoStepsDropdown` (small anchored popout, not the full-width Actions shell it
+replaces). Renders the 14 Admin Tools items from `GET /api/admin-tools`, dispatches
+via the ported click-handler branches described above. No search box, no
+`ScopePicker`, no chip rail — just a flat list of 14 buttons.
+
+### `/use-cases` and `/use-cases/live`
+
+**Unchanged**, except UC33-35 appearing automatically in `/use-cases`'s existing
+`foundations` grid as a result of the `RAW_USE_CASES` data addition (Section A) — no
+page code touched.
 
 ## Verification
 
 - `useCases.primaryTool.test.js` drift gate passes for UC33-35
 - New unit tests: `adminTools.js` list shape, `/api/admin-tools` route (403 for
   non-admin)
-- Manual: every former Actions-dropdown chip reachable and dispatches correctly from
-  `/use-cases`, especially the 6 PingOne-Admin ones hitting `/api/admin-agent/message`
-  and not falling into the generic NL path
+- Manual: UC33-35 chips reachable and dispatch correctly from `/use-cases`; all 14
+  Admin Tools reachable from the new `Admin ▾` popout, especially the 6 PingOne-Admin
+  ones hitting `/api/admin-agent/message` and not falling into the generic NL path;
+  every saved custom chip runs correctly from its new "Run" button in
+  `CustomChipsTab.js`
 - `npm run topology:verify` (chip routing is part of the drift gate)
 - Update or remove e2e Playwright specs that reference `.ba-actions-trigger` /
   `.ba-actions-popout`
 
 ## Out of scope
 
-- Redesigning the `/use-cases` page beyond the two new grid sections
+- Any change to `/use-cases` or `/use-cases/live` page code (Admin Tools and My
+  Actions were originally drafted as new sections there — reversed; see Decisions)
 - Changing the `DemoStepsDropdown` ("Demo steps ▾") — it is a separate control from
   Actions and is not being touched
 - Any change to the 6 attack sims not currently surfaced in the Showcase tab
