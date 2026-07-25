@@ -102,6 +102,56 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-25 — ProofStrip "Incomplete" on successful reads: no-bearer session failed open to an ungated local read, skipping PingOne Authorize
+
+**Files changed:** `demo_api_server/services/mcpToolPipeline.js` (no-bearer
+branch), `demo_api_server/src/__tests__/mcpToolPipeline.characterization.test.js`,
+`demo_api_server/src/__tests__/mcpToolPipeline.authzBypass.test.js`.
+
+**What was broken:** UC1 "Delegated access with proof" (and every read use case
+whose `evidence.tokenChain` lists `authorize-decision`) rendered the ProofStrip
+"Incomplete ⚠️" on a tool call that actually succeeded. Root cause: when the
+server-side session was lost but the browser `_auth` cookie survived,
+`restoreSessionFromCookie` rebuilds a token-less session (`accessToken:
+'_cookie_session'`, BFF pattern — the cookie carries no access/refresh token).
+`getSessionBearerForMcp` then returns null, so `runMcpToolPipeline` took the
+no-bearer branch and, when a session user was present, served the tool through
+`callToolLocal` and `return`ed **before** the PingOne Authorize gate. No
+`mcpAuthorizeEvaluation` was produced, so the UI never set `trace.authorize`,
+`computeVerdict` could not match the `authorize-decision` evidence step, and the
+verdict was `incomplete`. Session-state dependent ("wrong a lot"): a healthy
+bearer ran the real exchange → gateway → Authorize path and showed Verified.
+This is NOT the expired-token path (expired+refresh silently refreshes;
+expired-no-refresh throws `TOKEN_INACTIVE` → 401). The sibling exchange-failure
+fallback (F5) was already made non-bypassing (`ff_local_fallback_on_exchange_failure`,
+default OFF); the no-bearer branch had been missed.
+
+**What was fixed:** The no-bearer branch no longer falls back to the local
+handler. It now returns the re-auth block from `mcpNoBearerResponse` (which
+already distinguishes the cookie-only `session_not_hydrated` case from a plain
+`authentication_required`) for the session-user case too, so the SPA restores
+real tokens and the retry runs the real exchange → gateway → Authorize path —
+producing a genuine authorize decision the ProofStrip can score. Matches
+`restoreSessionFromCookie`'s own contract that token-needing routes must error
+for a cookie-restored session.
+
+**Do not break:** the no-bearer path must NOT run `callToolLocal` (that bypasses
+the gateway, the MCP server, and the Authorize gate). `callToolLocal` /
+`localResultOutcome` remain reachable only via the opt-in, default-OFF
+exchange-failure fallback (F5). Public catalog reads (e.g. `branch_hours`) are
+handled before the pipeline and are unaffected. Tradeoff accepted by the owner:
+a cookie-only / unhydrated-session deployment now re-auths on the first tool call
+instead of silently serving a local read.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+src/__tests__/mcpToolPipeline.characterization.test.js
+src/__tests__/mcpToolPipeline.authzBypass.test.js
+src/__tests__/mcpToolPipeline.confusedDeputy.test.js
+--testPathIgnorePatterns="/node_modules/"` (all green). Live: with a healthy
+session, dashboard "show my balance" → ProofStrip **Verified** (gate ran); after
+a session-store loss (cookie-only), the same chip triggers re-auth instead of a
+silent local read.
+
 ### 2026-07-25 — UC31 weather out-of-scope deny showed generic `tool_failed`/`gateway_policy_denied` instead of the real reason
 
 **Files changed:** `demo_api_server/services/demoAgentLangGraphService.js`

@@ -113,13 +113,18 @@ describe('exchange-failure local fallback (F5)', () => {
     expect(outcome.body.policy_source).toBe('local-fallback');
   });
 
-  it('does not affect the no-bearer-token local path (a different branch)', async () => {
+  it('no-bearer-token path returns the re-auth block, not an ungated local read', async () => {
+    // The no-bearer branch used to serve the tool through the local handler when a
+    // session user was present, bypassing the Authorize gate (Proof of Enforcement
+    // rendered "Incomplete"). It now surfaces mcpNoBearerResponse so the SPA
+    // re-authenticates and the retry runs the real exchange → gateway → Authorize
+    // path. Independent of the F5 exchange-failure flag (a different branch).
     const deps = makeDeps({
       resolveMcpAccessTokenWithEvents: jest.fn(async () => ({ token: null, tokenEvents: [], userSub: null })),
     });
     const outcome = await runMcpToolPipeline(makeCtx({ deps }));
-    expect(outcome.kind).toBe('result');
-    expect(outcome.body._localFallback).toBe(true);
+    expect(outcome).toMatchObject({ kind: 'block', httpStatus: 401, body: { error: 'no_bearer' } });
+    expect(deps.callToolLocal).not.toHaveBeenCalled();
   });
 });
 

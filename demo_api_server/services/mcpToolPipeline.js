@@ -283,45 +283,19 @@ async function runMcpToolPipeline(ctx) {
     }
 
     if (!mcpAccessToken) {
+        // No real bearer (cookie-only / unhydrated session). Do NOT fall back to
+        // the local handler: that bypasses the gateway, the MCP server, and the
+        // PingOne Authorize gate below, so the tool would "succeed" with NO
+        // authorization decision and Proof of Enforcement renders "Incomplete" on a
+        // call that actually ran. Surface the re-auth block instead
+        // (mcpNoBearerResponse already distinguishes the cookie-only
+        // 'session_not_hydrated' case from a plain unauthenticated one) so the SPA
+        // restores real tokens and the retry runs the real exchange → gateway →
+        // Authorize path. Mirrors the exchange-failure fallback (F5), likewise made
+        // non-bypassing, and honors restoreSessionFromCookie's own contract that
+        // token-needing routes must error for a cookie-restored session.
         deps.emit({
             phase: 'no_bearer_token_branch'
-        });
-        // No bearer token (cookie-only or degraded session) — use local handler if session user present.
-        // This lets the banking agent work for basic operations even without a fully-hydrated Redis session.
-        const sessionUser = req.session ?.user;
-        if (sessionUser ?.id) {
-            logger.info(_CAT, `[MCP Local] ${tool} — no bearer token (cookie-only session), using local handler`);
-            try {
-                deps.emit({
-                    phase: 'local_tool_start',
-                    path: 'no_bearer'
-                });
-                // Use oauthId (PingOne sub/UUID) when available — accounts are stored under the UUID
-                // not the local sequential dataStore id, matching what authenticateToken sets on req.user.id.
-                const effectiveUserId = sessionUser.oauthId || sessionUser.id;
-                const result = await deps.callToolLocal(tool, params || {}, effectiveUserId, req);
-                deps.emit({
-                    phase: 'local_tool_done',
-                    path: 'no_bearer'
-                });
-                deps.publishTokenEventsToSse(flowTraceId, tokenEvents);
-                return localResultOutcome(result, tokenEvents, { _localFallback: true });
-            } catch (localErr) {
-                logger.error(_CAT, `[MCP Local] Error calling ${tool}: ${localErr.message}`);
-                deps.emit({
-                    phase: 'local_tool_error',
-                    path: 'no_bearer'
-                });
-                deps.publishTokenEventsToSse(flowTraceId, tokenEvents);
-                return { kind: 'error', httpStatus: 502, body: {
-                    error: 'mcp_error',
-                    message: localErr.message,
-                    tokenEvents
-                } };
-            }
-        }
-        deps.emit({
-            phase: 'no_bearer_no_user'
         });
         const r = deps.mcpNoBearerResponse(req, tokenEvents);
         deps.publishTokenEventsToSse(flowTraceId, tokenEvents);

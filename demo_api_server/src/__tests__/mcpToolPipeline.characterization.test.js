@@ -164,11 +164,22 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     });
   });
 
-  test('no bearer token + session user → local fallback result _localFallback', async () => {
-    const deps = makeDeps({ resolveMcpAccessTokenWithEvents: jest.fn(async () => ({ token: null, tokenEvents: [], userSub: null })) });
+  // Intentional behavior change (NOT a masked regression): the no-bearer path
+  // used to serve the tool through the ungated local handler when a session user
+  // was present. A cookie-only / unhydrated session has no real bearer, so that
+  // fallback bypassed the PingOne Authorize gate and Proof of Enforcement
+  // rendered "Incomplete" on a tool that had run. Both no-bearer cases (user or
+  // no user) now surface the re-auth block from mcpNoBearerResponse so the SPA
+  // restores real tokens and the call runs the real exchange → gateway →
+  // Authorize path.
+  test('no bearer token + session user → 401 re-auth block, no ungated local fallback', async () => {
+    const deps = makeDeps({
+      resolveMcpAccessTokenWithEvents: jest.fn(async () => ({ token: null, tokenEvents: [], userSub: null })),
+      mcpNoBearerResponse: jest.fn(() => ({ status: 401, body: { error: 'no_bearer' } })),
+    });
     const outcome = await runMcpToolPipeline(makeCtx({ deps }));
-    expect(outcome.kind).toBe('result');
-    expect(outcome.body._localFallback).toBe(true);
+    expect(outcome).toMatchObject({ kind: 'block', httpStatus: 401, body: { error: 'no_bearer' } });
+    expect(deps.callToolLocal).not.toHaveBeenCalled();
   });
 
   test('no bearer token + NO session user → block from mcpNoBearerResponse', async () => {
