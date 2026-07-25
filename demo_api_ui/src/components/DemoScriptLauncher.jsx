@@ -1,7 +1,17 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import DraggableModal from "./DraggableModal";
 import { DEMO_SCRIPT } from "./demoScript";
 import "./DemoScriptLauncher.css";
+
+// Cross-window channel so a Run/Go click from the popped-out teleprompter (2nd
+// monitor) reaches the workbench/router on the main window. Same-window clicks
+// use a window event / direct navigate; BroadcastChannel never echoes to the
+// posting window, so neither path double-fires.
+const runChannel =
+  typeof BroadcastChannel !== "undefined"
+    ? new BroadcastChannel("demo-script")
+    : null;
 
 const FONT_KEY = "demo-script-font-px";
 const FONT_MIN = 12;
@@ -29,6 +39,7 @@ function readSavedFontPx() {
 export default function DemoScriptLauncher({ user }) {
   const [open, setOpen] = useState(false);
   const [fontPx, setFontPx] = useState(readSavedFontPx);
+  const navigate = useNavigate();
   const s = DEMO_SCRIPT;
 
   // The sidebar "Demo Script" nav item (AdminSideNav) toggles the modal via a
@@ -38,6 +49,24 @@ export default function DemoScriptLauncher({ user }) {
     window.addEventListener("demo-script-toggle", toggle);
     return () => window.removeEventListener("demo-script-toggle", toggle);
   }, []);
+
+  // Trigger a use case on the workbench from the script. Uses the shared
+  // BroadcastChannel: the launcher's channel reaches the workbench's channel
+  // whether the click came from the in-page modal or the popped-out 2nd-screen
+  // window, exactly once (a channel never delivers to the object that posted, so
+  // there is no echo/double-run). Requires BroadcastChannel (all modern
+  // browsers); if absent, Run is a no-op.
+  const runUseCase = (ucId) => {
+    runChannel?.postMessage({ type: "run", ucId });
+  };
+
+  // Navigate the main window (kill-switch closer -> /ai-control-plane). navigate
+  // is bound to the main-window router, so it works even when the click fires in
+  // the popped-out window. Does NOT execute the revocation — the presenter does
+  // the deliberate STOP there.
+  const goTo = (path) => {
+    navigate(path);
+  };
 
   const changeFont = (delta) => {
     setFontPx((px) => {
@@ -53,6 +82,16 @@ export default function DemoScriptLauncher({ user }) {
 
   const beat = (b, key) => (
     <div className="dsl-beat" key={key}>
+      {b.ucId && (
+        <button
+          type="button"
+          className="dsl-run"
+          onClick={() => runUseCase(b.ucId)}
+          title={`Run ${b.ucId} on the workbench`}
+        >
+          Run
+        </button>
+      )}
       <div className="dsl-do">
         <span className="dsl-tag">Do</span> {b.action}
       </div>
@@ -168,6 +207,15 @@ export default function DemoScriptLauncher({ user }) {
               <span className="dsl-say">{s.closer.say}</span>
             </div>
           </div>
+          {s.closer.navPath && (
+            <button
+              type="button"
+              className="dsl-nav-btn"
+              onClick={() => goTo(s.closer.navPath)}
+            >
+              {s.closer.navLabel || "Go"} →
+            </button>
+          )}
 
           <h4>Fallback ladder</h4>
           <ol className="dsl-list">

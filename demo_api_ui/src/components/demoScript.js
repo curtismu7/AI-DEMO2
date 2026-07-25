@@ -21,6 +21,7 @@ export const DEMO_SCRIPT = {
       meta: "~3.5 min · points 1, 2",
       beats: [
         {
+          ucId: "UC1",
           action: "Chip: `show my balance` (UC1)",
           expected:
             "Real balance; token-chain rail shows first exchange + act claim",
@@ -32,6 +33,7 @@ export const DEMO_SCRIPT = {
           say: "Same result. Security doesn't care what drives the agent - LLM or deterministic routing, the identity chain is identical.",
         },
         {
+          ucId: "UC24",
           action: "Chip: `what branches are near me` (UC24)",
           expected: "PERMIT, no token exchange",
           say: "Public data - zero token exchange. The agent escalates privilege only when it must. Least privilege by default.",
@@ -43,16 +45,19 @@ export const DEMO_SCRIPT = {
       meta: "~4 min · point 3 + gateway",
       beats: [
         {
+          ucId: "UC6",
           action: "Type: `transfer $2500 from checking to savings` (UC6)",
           expected: "DENY",
           say: "Money now. $2500. PingOne Authorize returns DENY before the transfer runs - over the ceiling. The agent can't argue.",
         },
         {
+          ucId: "UC8",
           action: "Type: `transfer $300 from checking to savings` (UC8)",
           expected: "HITL_REQUIRED, agent pauses",
           say: "$300 - the agent pauses and waits for a human to approve. It cannot complete this alone.",
         },
         {
+          ucId: "UC31",
           action: "Chip: `what's the weather in Miami` (UC31)",
           expected: "Gateway DENY",
           say: "Different control. The agent calls a third-party weather MCP. Miami is out of policy - the gateway kills the call before the third party ever sees it. Egress control on tool calls.",
@@ -64,12 +69,14 @@ export const DEMO_SCRIPT = {
       meta: "~5 min · points 4, 5",
       beats: [
         {
+          ucId: "UC12",
           action: 'Card "5 · DPoP / replay defense" (UC12), click Run sim',
           expected:
             "Rail: sim-replay-start then sim-gateway-deny, DENY 401 (audience binding)",
           say: "The attack security teams actually lose sleep over. Steal the user's token, replay it straight at the backend, skip the gateway. DENY. The token is audience-bound - worthless anywhere but where it was minted. A stolen token is a dead token.",
         },
         {
+          ucId: "UC5",
           action: 'Card "10 · Insufficient scope" (UC5), click Run sim',
           expected: "Glance DENY; rail DENY 403 (MCP scope)",
           say: "Second attack: an MCP server reaches for a tool it was never scoped for - beyond its job. DENY, 403, at the gateway. Scope is a hard ceiling, not a suggestion. The agent can't grant itself more.",
@@ -79,6 +86,8 @@ export const DEMO_SCRIPT = {
   ],
   closer: {
     title: "Close - kill switch (~1.5 min)",
+    navPath: "/ai-control-plane",
+    navLabel: "Go to AI Control Plane",
     warn: "One deliberate hop to /ai-control-plane. Use INSTANCE scope (the default) - it self-recovers and is safe for the shared env. Do NOT use full (disables the PingOne app for every user of that client). Do NOT re-run a chip afterward - with instance scope it would just work again.",
     steps: [
       "Left nav: AI Control Plane.",

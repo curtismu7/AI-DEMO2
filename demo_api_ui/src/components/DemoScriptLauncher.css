@@ -79,8 +79,9 @@
 }
 
 .dsl-beat {
+  position: relative;
   margin: 0 0 12px;
-  padding: 8px 10px;
+  padding: 8px 64px 8px 10px;
   background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-left: 3px solid #2563eb;
@@ -88,6 +89,43 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
+}
+
+/* Run a use case straight from the script (fixed px so it stays constant
+   regardless of the adjustable body text size). */
+.dsl-run {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #ffffff;
+  background: #047857;
+  border: 1px solid #065f46;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.dsl-run:hover {
+  background: #065f46;
+}
+
+/* Closer "Go to AI Control Plane ->" navigate button. */
+.dsl-nav-btn {
+  margin: 0 0 12px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  background: #1d4ed8;
+  border: 1px solid #1e3a8a;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.dsl-nav-btn:hover {
+  background: #1e40af;
 }
 
 .dsl-do,
