@@ -14,6 +14,7 @@ import { buildSimRailEvents } from '../services/tokenChainTrace/simTraceAdapter'
 import {
   DEMO_ADVANCED_USE_CASE_IDS,
   DEMO_PRIMARY_USE_CASE_IDS,
+  SECURITY_DEMO_USE_CASE_IDS,
 } from '../config/demoUseCaseSteps';
 import './LiveUseCaseWorkbenchPage.css';
 
@@ -185,6 +186,14 @@ export default function LiveUseCaseWorkbenchPage() {
     [useCases, query],
   );
 
+  const securityDemo = useMemo(
+    () => SECURITY_DEMO_USE_CASE_IDS
+      .map((id) => useCases.find((uc) => uc.id === id))
+      .filter(Boolean)
+      .filter((uc) => matchesQuery(uc, query)),
+    [useCases, query],
+  );
+
   const advancedDemo = useMemo(
     () => DEMO_ADVANCED_USE_CASE_IDS
       .map((id) => useCases.find((uc) => uc.id === id))
@@ -299,6 +308,16 @@ export default function LiveUseCaseWorkbenchPage() {
             {error && <p className="luw-drawer__empty">{error}</p>}
             {!loading && !error && primaryDemo.length === 0 && advancedDemo.length === 0 && groupedOther.length === 0 && (
               <p className="luw-drawer__empty">No use cases match “{query}”.</p>
+            )}
+
+            {!loading && !error && securityDemo.length > 0 && (
+              <details className="luw-track luw-track--more" open>
+                <summary>
+                  15-Min Security Demo
+                  <span className="luw-track__count">{securityDemo.length}</span>
+                </summary>
+                {securityDemo.map((uc) => renderCard(uc))}
+              </details>
             )}
 
             {!loading && !error && primaryDemo.map((uc, i) => renderCard(uc, i + 1))}

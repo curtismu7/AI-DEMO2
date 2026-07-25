@@ -101,7 +101,7 @@ export default function LandingPage({ user, hasTopNav }) {
 
   const handleUseCases = (e) => {
     e.preventDefault();
-    navigate("/use-cases");
+    navigate("/use-cases/live");
   };
 
   return (
