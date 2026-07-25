@@ -15,6 +15,7 @@ const simulatedAuthorizeService = require('./simulatedAuthorizeService');
 const { decodeJwtClaims } = require('./agentMcpTokenService');
 const { buildActorBridgeHeaders } = require('./mcpActorBridge');
 const hitlServiceClient = require('./hitlServiceClient');
+const cibaTransactionReceipt = require('./cibaTransactionReceipt');
 const dataStore = require('../data/store');
 const groupPolicy = require('./groupPolicy');
 const {
@@ -630,6 +631,16 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
   const hitlAlreadyVerified = req.session?.hitlVerified > Date.now();
   if (hitlAlreadyVerified) {
     req.session.hitlVerified = 0;
+    // This gate only covers the BFF's own pre-check (POST /api/mcp/tool). The
+    // real write for banking transaction tools still lands on POST
+    // /api/transactions via demo_mcp_server's BankingAPIClient, which calls
+    // back in over a bearer token only (no session cookie) — so that route's
+    // OWN session-based hitlVerified check can never see this approval.
+    // Stash a short-lived receipt keyed by (userId, tool, amount) so it can
+    // look the approval up without a session. See cibaTransactionReceipt.js.
+    if (transactionType && toolAmount != null) {
+      cibaTransactionReceipt.record(policyUserId, tool, toolAmount);
+    }
   }
 
   if (groupPolicy.isEnabled(configStore) || shouldApplyEntitlementTierDemo(useCaseId)) {

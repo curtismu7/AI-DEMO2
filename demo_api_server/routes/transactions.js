@@ -8,6 +8,7 @@ const transactionAuthorizationService = require('../services/transactionAuthoriz
 const configStore = require('../services/configStore');
 const { sendTransactionConfirmation } = require('../services/emailService');
 const txConsent = require('../services/transactionConsentChallenge');
+const cibaTransactionReceipt = require('../services/cibaTransactionReceipt');
 const demoScenarioStore = require('../services/demoScenarioStore');
 const { resolveAccountId } = require('../utils/accountUtils');
 const { logEvent: logAppEvent, EVENT_CATEGORIES } = require('../services/appEventService');
@@ -607,6 +608,12 @@ router.post('/', authenticateToken, async (req, res) => {
     if (req.session?.hitlVerified > Date.now()) {
       sessionHitlFresh = true;
       req.session.hitlVerified = 0;
+    } else if (hasBearerAuth) {
+      // Bearer-token calls (demo_mcp_server's BankingAPIClient, the real MCP/
+      // agent path) carry no session cookie, so the check above never fires
+      // even right after a CIBA approval — see mcpToolAuthorizationService.js's
+      // matching cibaTransactionReceipt.record() call and cibaTransactionReceipt.js.
+      sessionHitlFresh = cibaTransactionReceipt.consume(req.user.id, `create_${type}`, hitlAmount);
     }
 
     // RFC 9470 §5 freshness: when stepUpMaxAge > 0, a strong ACR from a stale
