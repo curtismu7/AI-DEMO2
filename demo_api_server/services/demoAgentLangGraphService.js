@@ -1711,6 +1711,17 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
       try {
         const activity = await executeTool(activityTool, {});
         const compact = compactActivityForPrompt(activity);
+        // Diagnostic: what the model is actually handed. Five successive fixes to
+        // this path were each verified by reading the model's ANSWER, which
+        // cannot distinguish "wrong data injected" from "right data ignored".
+        // One line here settles it directly.
+        console.log('[activity-prefetch] tool=%s rawKeys=%s rows=%d preview=%j',
+          activityTool,
+          (activity && typeof activity === 'object' && !Array.isArray(activity))
+            ? Object.keys(activity).join(',')
+            : typeof activity,
+          compact ? compact.split('\n').length : 0,
+          String(compact || '').slice(0, 160));
         if (compact) {
           // Appended to the USER turn, not inserted as a mid-conversation system
           // message: a second system message is merged or dropped depending on
