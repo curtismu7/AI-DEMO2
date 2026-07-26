@@ -19,8 +19,9 @@
 }
 
 .device-selector__btn {
-  padding: 1rem;
+  padding: 1rem 1rem 1rem 0.875rem;
   border: 1px solid #e2e8f0;
+  border-left: 4px solid #cbd5e1;
   border-radius: 0.5rem;
   background-color: #fff;
   cursor: pointer;
@@ -42,6 +43,21 @@
   cursor: not-allowed;
   opacity: 0.6;
 }
+
+/* Per-method accent so email/SMS/security-key rows read apart at a glance. */
+.device-selector__btn--email { border-left-color: #2563eb; }
+.device-selector__btn--sms { border-left-color: #059669; }
+.device-selector__btn--fido2 { border-left-color: #7c3aed; }
+.device-selector__btn--otp { border-left-color: #d97706; }
+.device-selector__btn--totp { border-left-color: #0891b2; }
+.device-selector__btn--browser { border-left-color: #64748b; }
+
+.device-selector__btn--email:hover:not(:disabled) { background-color: #eff6ff; }
+.device-selector__btn--sms:hover:not(:disabled) { background-color: #ecfdf5; }
+.device-selector__btn--fido2:hover:not(:disabled) { background-color: #f5f3ff; }
+.device-selector__btn--otp:hover:not(:disabled) { background-color: #fffbeb; }
+.device-selector__btn--totp:hover:not(:disabled) { background-color: #ecfeff; }
+.device-selector__btn--browser:hover:not(:disabled) { background-color: #f8fafc; }
 
 .device-selector__btn--selected {
   border: 2px solid #3b82f6;

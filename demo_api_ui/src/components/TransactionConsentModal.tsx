@@ -1230,8 +1230,9 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
               className="drp-header drp-header--static"
               style={{
                 padding: "1rem",
-                borderBottom: "1px solid #cbd5e1",
-                background: "linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%)",
+                borderBottom: "1px solid #c7d2fe",
+                background:
+                  "linear-gradient(135deg, #eef2ff 0%, #e0e7ff 55%, #ede9fe 100%)",
                 color: "#1f2937",
               }}
             >
@@ -1306,8 +1307,9 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
           style={{
             padding: "1rem",
             cursor: "move",
-            borderBottom: "1px solid #cbd5e1",
-            background: "linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%)",
+            borderBottom: "1px solid #c7d2fe",
+            background:
+              "linear-gradient(135deg, #eef2ff 0%, #e0e7ff 55%, #ede9fe 100%)",
             color: "#1f2937",
             borderRadius: "0.5rem 0.5rem 0 0",
           }}
