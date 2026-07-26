@@ -47,13 +47,24 @@ function compactActivityForPrompt(raw) {
     try { parsed = JSON.parse(envelopeText); } catch (_) { return envelopeText.slice(0, 2000); }
   }
   if (!parsed || typeof parsed !== 'object') return '';
-  // Tool payloads nest differently per vertical; take the first array of objects.
+  // Tool payloads nest differently per vertical, so the array has to be found
+  // rather than addressed. Name-match FIRST: "the first array of objects" alone
+  // picked up tokenEvents that ride along in the same payload, and the model
+  // dutifully analysed token lifecycle states — "17 active, 2 exchanged, 1
+  // permit" — as if they were the user's spending. A confident answer about the
+  // wrong array is worse than a refusal, because nothing about it looks wrong.
+  const ACTIVITY_KEY_RE = /transaction|order|record|claim|activit|purchase|payment|item|appointment|enrollment/i;
+  const NON_ACTIVITY_KEY_RE = /token|event|scope|audit|trace|chain|step/i;
   const pools = [parsed, parsed.result, parsed.data].filter((p) => p && typeof p === 'object');
+  const isRowArray = (v) => Array.isArray(v) && v.length && typeof v[0] === 'object';
   let rows = null;
   for (const pool of pools) {
     if (Array.isArray(pool)) { rows = pool; break; }
-    const arr = Object.values(pool).find((v) => Array.isArray(v) && v.length && typeof v[0] === 'object');
-    if (arr) { rows = arr; break; }
+    const entries = Object.entries(pool).filter(([, v]) => isRowArray(v));
+    const named = entries.find(([k]) => ACTIVITY_KEY_RE.test(k) && !NON_ACTIVITY_KEY_RE.test(k));
+    if (named) { rows = named[1]; break; }
+    const other = entries.find(([k]) => !NON_ACTIVITY_KEY_RE.test(k));
+    if (other) { rows = other[1]; break; }
   }
   if (!rows || !rows.length) return '';
   const pick = (r) => [
