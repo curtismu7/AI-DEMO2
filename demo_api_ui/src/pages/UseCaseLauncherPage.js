@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AttackAnatomyExplainer from '../components/AttackAnatomyExplainer';
+import OWASPBadge from '../components/OWASPBadge';
 import UseCaseExplainModal from '../components/UseCaseExplainModal';
 import apiClient from '../services/apiClient';
 import { formatAxiosError } from '../utils/formatAxiosError';
@@ -245,19 +246,6 @@ function getDisplayItems(track, items) {
   return track === 'demo'
     ? items.filter((uc) => !PROGRESSIVE_TRUST_STRIP_IDS.has(uc.id))
     : items;
-}
-
-function OWASPBadge({ owasp }) {
-  if (!owasp || (!owasp.threats?.length && !owasp.sections?.length)) return null;
-  const title = [
-    owasp.threats?.length  ? `Threats: ${owasp.threats.join(', ')}`   : '',
-    owasp.sections?.length ? `Sections: ${owasp.sections.join(', ')}` : '',
-  ].filter(Boolean).join(' — ');
-  return (
-    <span className="uc-owasp-badge" title={title}>
-      OWASP ASI
-    </span>
-  );
 }
 
 function AttackSimResult({ result }) {
