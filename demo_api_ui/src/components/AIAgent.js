@@ -7882,8 +7882,21 @@ export default function BankingAgent({
                     />
                   </div>
                 )}
+              {/* Split-column sign-out — moved next to the title so it's never lost in the
+                  tools row below (inline split-column mode only, unchanged D-02 behavior) */}
+              {splitChrome && isLoggedIn && (
+                <button
+                  type="button"
+                  className="ba-header-signout-btn"
+                  onClick={() => onLogout?.()}
+                >
+                  Sign out
+                </button>
+              )}
               <MaybePortal target={toolbarHostEl}>
               <div className="ba-header-tools">
+                <div className={splitChrome ? "ba-hg" : "ba-hg--flat"}>
+                {splitChrome && <span className="ba-hg-label">Configuration</span>}
                 {/* Five-mode agent provider selector — leftmost, shared SSOT with /config */}
                 <AgentModeSelector
                   compact
@@ -7994,6 +8007,9 @@ export default function BankingAgent({
                 >
                   Guide
                 </button>
+                </div>
+                <div className={splitChrome ? "ba-hg ba-hg--demo" : "ba-hg--flat"}>
+                {splitChrome && <span className="ba-hg-label">Demo controls</span>}
                 {/* Demo steps — same scripted list as /use-cases Demo section */}
                 <DemoStepsDropdown
                   vertical={effectiveVerticalId || "banking"}
@@ -8007,6 +8023,49 @@ export default function BankingAgent({
                     handleDemoStepSelect(uc, stepNumber);
                   }}
                 />
+                {/* Live Use-Case Workbench — same catalog, live/interactive mode */}
+                {splitChrome && (
+                  <button
+                    type="button"
+                    className="ba-cta-live"
+                    onClick={() => navigate("/use-cases/live")}
+                    title="Open the Live Use-Case Workbench"
+                  >
+                    Live Use Cases
+                  </button>
+                )}
+                </div>
+                {splitChrome && (
+                  <div className="ba-hg">
+                    <span className="ba-hg-label">Inspectors</span>
+                    <button
+                      type="button"
+                      className="ba-insp-btn ba-insp-btn--mcp"
+                      onClick={() => navigate("/pingone-mcp-inspector?source=banking")}
+                      title="Open the MCP Inspector"
+                    >
+                      MCP Inspector
+                    </button>
+                    <button
+                      type="button"
+                      className="ba-insp-btn ba-insp-btn--p1az"
+                      onClick={() => navigate("/policy-decision-trace")}
+                      title="Open the P1AZ (PingOne Authorize) decision trace"
+                    >
+                      P1AZ Inspector
+                    </button>
+                    <button
+                      type="button"
+                      className="ba-insp-btn ba-insp-btn--gateway"
+                      onClick={() => navigate("/pinggateway-inspector?subtab=tester")}
+                      title="Open the Agent Gateway Inspector"
+                    >
+                      Agent Gateway Inspector
+                    </button>
+                  </div>
+                )}
+                <div className={splitChrome ? "ba-hg" : "ba-hg--flat"}>
+                {splitChrome && <span className="ba-hg-label">Session</span>}
                 {/* Admin Tools — customer CRUD + PingOne platform ops, admin-only */}
                 {effectiveUser?.role === "admin" && (
                   <AdminToolsDropdown
@@ -8035,6 +8094,7 @@ export default function BankingAgent({
                 >
                   Clear progress
                 </button>
+                </div>
                 {/* Expand/restore — float mode only (unchanged) */}
                 {!isInline && (
                   <button
@@ -8061,16 +8121,6 @@ export default function BankingAgent({
                     title="View system graph"
                   >
                     Graph
-                  </button>
-                )}
-                {/* Split-column sign-out — inline split-column mode only (unchanged, D-02 untouched) */}
-                {splitChrome && isLoggedIn && (
-                  <button
-                    type="button"
-                    className="ba-header-signout"
-                    onClick={() => onLogout?.()}
-                  >
-                    Sign out
                   </button>
                 )}
                 {/* Close — float mode only */}
