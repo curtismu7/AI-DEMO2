@@ -35,6 +35,29 @@
   opacity: 0.4; cursor: default;
 }
 
+/* Presenter text size — steps the rail's `zoom` (see TokenChainTraceRail.jsx). */
+.tctr-zoom {
+  display: flex; align-items: center; gap: 2px;
+  margin-right: 4px; padding-right: 6px;
+  border-right: 1px solid rgba(255, 255, 255, 0.25);
+}
+.tctr-zoom-btn,
+.tctr-zoom-pct {
+  background: none; border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #e2e8f0; font: inherit; font-size: 11px; font-weight: 700;
+  border-radius: 5px; padding: 3px 6px; cursor: pointer;
+}
+.tctr-zoom-pct {
+  min-width: 44px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.tctr-zoom-btn:hover:not(:disabled),
+.tctr-zoom-pct:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15); color: #fff;
+}
+.tctr-zoom-btn:disabled,
+.tctr-zoom-pct:disabled { opacity: 0.4; cursor: default; }
+
 .tctr-chain-line {
   display: flex; align-items: center; gap: 6px; padding: 10px 12px;
   border-bottom: 1px solid #e8eef7; font-weight: 600; flex-wrap: wrap;

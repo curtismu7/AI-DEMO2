@@ -19,11 +19,34 @@
 
 .luw-body {
   display: grid;
-  grid-template-columns: 336px 1fr;
+  grid-template-columns: var(--luw-drawer-w, 336px) 7px 1fr;
   min-height: 0;
   min-width: 0;
   height: 100%;
 }
+
+/* Presenter-draggable column dividers (see LiveUseCaseWorkbenchPage.js).
+   Drag to resize, double-click to reset, arrow keys when focused. */
+.luw-resize {
+  position: relative;
+  cursor: col-resize;
+  background: transparent;
+  touch-action: none;
+}
+.luw-resize--split { flex: 0 0 7px; align-self: stretch; }
+.luw-resize::before {
+  content: '';
+  position: absolute;
+  inset: 0 3px;
+  background: #cbd5e1;
+}
+.luw-resize:hover::before,
+.luw-resize:focus-visible::before {
+  background: #0f766e;
+}
+.luw-resize:focus-visible { outline: none; }
+body.luw-resizing,
+body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 
 .luw-drawer {
   border-right: 1px solid #e2e8f0; background: var(--brand-light-gray, #f8fafc);
@@ -269,11 +292,14 @@
     flex-wrap: wrap;
     overflow-y: auto;
   }
+  /* Stacked — the split handle has nothing to divide; !important beats the
+     inline flex-basis the drag writes onto the agent host. */
   .luw-agent-host,
   .luw-rail-host {
-    flex: 1 1 100%;
+    flex: 1 1 100% !important;
     min-height: 420px;
   }
+  .luw-resize--split { display: none; }
 }
 
 /* Narrow: single column — Demo script, Agent, Token Chain stack and the page
@@ -287,6 +313,7 @@
     grid-template-columns: 1fr;
     height: auto;
   }
+  .luw-resize--drawer { display: none; }
   .luw-drawer {
     border-right: 0;
     border-bottom: 1px solid #e2e8f0;

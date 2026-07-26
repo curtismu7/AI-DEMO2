@@ -3,7 +3,7 @@
 // /use-cases/live — A5.2 + Mock A chrome: demo cards + banking glance,
 // catalog drawer + real Token Chain, single <AIAgent> in the host column
 // (see App.js onLiveWorkbenchRoute).
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import { useVertical } from '../vertical/useVertical';
@@ -25,6 +25,44 @@ const RUNNABLE_SIMS = [
   'rogue-actor', 'rar-exceeded', 'tampered-intent-token', 'impersonation-no-act',
   'rate-limit-burst',
 ];
+
+// Presenter-resizable columns. Widths persist so a projector setup survives a
+// reload; null agent width means "keep the default flex proportions".
+const DRAWER_KEY = 'luw:drawerW';
+const AGENT_KEY = 'luw:agentW';
+const DRAWER_DEFAULT = 336;
+const DRAWER_MIN = 240;
+const DRAWER_MAX = 640;
+const PANE_MIN = 320;
+
+/**
+ * Read a persisted pane width.
+ * @param {string} key
+ * @param {number|null} fallback
+ * @returns {number|null}
+ */
+function readStoredWidth(key, fallback) {
+  try {
+    const v = Number(window.localStorage.getItem(key));
+    return v >= PANE_MIN ? v : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Persist a pane width (or clear it when reset to the default).
+ * @param {string} key
+ * @param {number|null} value
+ */
+function storeWidth(key, value) {
+  try {
+    if (value == null) window.localStorage.removeItem(key);
+    else window.localStorage.setItem(key, String(value));
+  } catch {
+    /* private mode / storage disabled — widths are session-only */
+  }
+}
 
 const TRACK_ORDER = ['foundations', 'controls', 'hitl', 'attacks'];
 const TRACK_LABELS = {
@@ -88,6 +126,44 @@ export default function LiveUseCaseWorkbenchPage() {
   const [glancePolicy, setGlancePolicy] = useState('—');
   const [glanceChecking, setGlanceChecking] = useState('$4,820.00');
   const [glanceRecent, setGlanceRecent] = useState('—');
+
+  const [drawerW, setDrawerW] = useState(() => readStoredWidth(DRAWER_KEY, DRAWER_DEFAULT));
+  const [agentW, setAgentW] = useState(() => readStoredWidth(AGENT_KEY, null));
+  const bodyRef = useRef(null);
+  const runLayoutRef = useRef(null);
+
+  useEffect(() => { storeWidth(DRAWER_KEY, drawerW); }, [drawerW]);
+  useEffect(() => { storeWidth(AGENT_KEY, agentW); }, [agentW]);
+
+  /**
+   * Drag a vertical divider until pointerup, feeding each clientX to `apply`.
+   * @param {import('react').PointerEvent} e
+   * @param {(clientX: number) => void} apply
+   */
+  const startResize = useCallback((e, apply) => {
+    e.preventDefault();
+    const onMove = (ev) => apply(ev.clientX);
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      document.body.classList.remove('luw-resizing');
+    };
+    document.body.classList.add('luw-resizing');
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }, []);
+
+  const applyDrawerW = useCallback((clientX) => {
+    const left = bodyRef.current?.getBoundingClientRect().left ?? 0;
+    setDrawerW(Math.min(DRAWER_MAX, Math.max(DRAWER_MIN, Math.round(clientX - left))));
+  }, []);
+
+  const applyAgentW = useCallback((clientX) => {
+    const rect = runLayoutRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const max = Math.max(PANE_MIN, rect.width - PANE_MIN);
+    setAgentW(Math.min(max, Math.max(PANE_MIN, Math.round(clientX - rect.left))));
+  }, []);
 
   const { setSurfaceHostEl } = useAgentUiMode();
   const [agentHostEl, setAgentHostEl] = useState(null);
@@ -344,7 +420,11 @@ export default function LiveUseCaseWorkbenchPage() {
         <div className="luw-topbar__vertical"><VerticalSwitcher /></div>
       </div>
 
-      <div className="luw-body">
+      <div
+        className="luw-body"
+        ref={bodyRef}
+        style={{ '--luw-drawer-w': `${drawerW}px` }}
+      >
         <nav className="luw-drawer" aria-label="Use case launcher">
           <div className="luw-drawer__head">
             <h1 className="luw-drawer__title">Demo script</h1>
@@ -403,10 +483,54 @@ export default function LiveUseCaseWorkbenchPage() {
           </div>
         </nav>
 
+        <div
+          className="luw-resize luw-resize--drawer"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize demo script column"
+          aria-valuenow={drawerW}
+          aria-valuemin={DRAWER_MIN}
+          aria-valuemax={DRAWER_MAX}
+          tabIndex={0}
+          onPointerDown={(e) => startResize(e, applyDrawerW)}
+          onDoubleClick={() => setDrawerW(DRAWER_DEFAULT)}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowLeft') setDrawerW((w) => Math.max(DRAWER_MIN, w - 16));
+            else if (e.key === 'ArrowRight') setDrawerW((w) => Math.min(DRAWER_MAX, w + 16));
+            else return;
+            e.preventDefault();
+          }}
+        />
+
         <section className="luw-main" aria-label="Live run">
           <div className="luw-main__stage">
-            <div className="luw-run-layout">
-              <div id="luw-agent-host" className="luw-agent-host" ref={agentHostRef} />
+            <div className="luw-run-layout" ref={runLayoutRef}>
+              <div
+                id="luw-agent-host"
+                className="luw-agent-host"
+                ref={agentHostRef}
+                style={agentW ? { flex: `0 0 ${agentW}px` } : undefined}
+              />
+              <div
+                className="luw-resize luw-resize--split"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Resize agent and token chain columns"
+                aria-valuenow={agentW ?? PANE_MIN}
+                aria-valuemin={PANE_MIN}
+                aria-valuemax={Math.max(PANE_MIN, Math.round(runLayoutRef.current?.getBoundingClientRect().width ?? 0) - PANE_MIN)}
+                tabIndex={0}
+                onPointerDown={(e) => startResize(e, applyAgentW)}
+                onDoubleClick={() => setAgentW(null)}
+                onKeyDown={(e) => {
+                  const w = agentW ?? runLayoutRef.current?.firstChild?.getBoundingClientRect().width;
+                  if (!w) return;
+                  if (e.key === 'ArrowLeft') setAgentW(Math.max(PANE_MIN, Math.round(w) - 16));
+                  else if (e.key === 'ArrowRight') setAgentW(Math.round(w) + 16);
+                  else return;
+                  e.preventDefault();
+                }}
+              />
               <div className="luw-rail-host">
                 <TokenChainTraceRail />
               </div>
