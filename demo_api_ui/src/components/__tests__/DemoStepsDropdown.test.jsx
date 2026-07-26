@@ -52,26 +52,21 @@ describe('DemoStepsDropdown', () => {
     );
     await waitFor(() => expect(screen.getByTestId('demo-steps-popout')).toBeInTheDocument());
 
-    // Primary steps are always visible
-    const primaryItems = screen.getAllByTestId(/^demo-step-/);
-    expect(primaryItems.map((el) => el.getAttribute('data-testid'))).toEqual(
-      DEMO_USE_CASE_IDS.slice(0, 6).map((id) => `demo-step-${id}`),
-    );
-    expect(
-      screen.getByTestId('demo-step-UC1').querySelector('.ba-demo-steps-popout__rail'),
-    ).toHaveAttribute('aria-label', 'Step 1');
-
-    // Expand the advanced section to reveal remaining steps
-    fireEvent.click(screen.getByTestId('demo-steps-advanced-toggle'));
-
-    const allItems = screen.getAllByTestId(/^demo-step-/);
-    expect(allItems.map((el) => el.getAttribute('data-testid'))).toEqual(
+    // All 19 steps show at once — the primary/advanced split was flattened
+    // to a single 5-column grid (#826); nothing is gated behind a toggle.
+    const items = screen.getAllByTestId(/^demo-step-/);
+    expect(items.map((el) => el.getAttribute('data-testid'))).toEqual(
       DEMO_USE_CASE_IDS.map((id) => `demo-step-${id}`),
     );
-    // UC2 is the first advanced step (step 7)
-    expect(
-      screen.getByTestId('demo-step-UC2').querySelector('.ba-demo-steps-popout__rail'),
-    ).toHaveAttribute('aria-label', 'Step 7');
+    expect(screen.getByTestId('demo-explain-UC1')).toHaveAttribute(
+      'aria-label',
+      'Explain step 1: UC1 — Title for UC1',
+    );
+    // UC2 is the 7th id in walkthrough order
+    expect(screen.getByTestId('demo-explain-UC2')).toHaveAttribute(
+      'aria-label',
+      'Explain step 7: UC2 — Title for UC2',
+    );
   });
 
   it('calls onSelect with the catalog entry when a step is clicked', async () => {
@@ -111,12 +106,12 @@ describe('DemoStepsDropdown', () => {
     fireEvent.click(screen.getByTestId(`demo-step-${DEMO_USE_CASE_IDS[1]}`));
 
     expect(await screen.findByTestId('demo-steps-clear')).toBeInTheDocument();
-    expect(screen.getByTestId('demo-step-UC1').querySelector('.ba-demo-steps-popout__check')).toBeTruthy();
+    expect(screen.getByTestId('demo-step-UC1').querySelector('.banking-chips-dropdown__check')).toBeTruthy();
 
     fireEvent.click(screen.getByTestId('demo-steps-clear'));
 
     expect(screen.getByTestId('demo-steps-clear')).toBeInTheDocument();
-    expect(screen.getByTestId('demo-step-UC1').querySelector('.ba-demo-steps-popout__check')).toBeFalsy();
+    expect(screen.getByTestId('demo-step-UC1').querySelector('.banking-chips-dropdown__check')).toBeFalsy();
     expect(sessionStorage.getItem('bx_uc_completed')).toBeNull();
   });
 
@@ -370,7 +365,7 @@ describe('DemoStepsDropdown — step rail numbering', () => {
     apiClient.get.mockResolvedValue({ data: { useCases: CATALOG } });
   });
 
-  it('numbers the full list 1–19 across primary and advanced', async () => {
+  it('numbers the full list 1–19 in walkthrough order', async () => {
     render(
       <DemoStepsDropdown
         open
@@ -382,26 +377,24 @@ describe('DemoStepsDropdown — step rail numbering', () => {
       expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument(),
     );
 
-    // Primary: step 1 (UC1) through step 6 (UC6)
-    expect(
-      screen.getByTestId('demo-step-UC1').querySelector('.ba-demo-steps-popout__rail'),
-    ).toHaveAttribute('aria-label', 'Step 1');
-    expect(
-      screen.getByTestId('demo-step-UC6').querySelector('.ba-demo-steps-popout__rail'),
-    ).toHaveAttribute('aria-label', 'Step 6');
-
-    // Expand advanced to reveal steps 7–19
-    fireEvent.click(screen.getByTestId('demo-steps-advanced-toggle'));
-
-    // First advanced step UC2 = step 7
-    expect(
-      screen.getByTestId('demo-step-UC2').querySelector('.ba-demo-steps-popout__rail'),
-    ).toHaveAttribute('aria-label', 'Step 7');
-
-    // Last step UC32 = step 19
-    expect(
-      screen.getByTestId('demo-step-UC32').querySelector('.ba-demo-steps-popout__rail'),
-    ).toHaveAttribute('aria-label', 'Step 19');
+    // No rail badge on the card itself since #826's 5-column grid — the
+    // stepNumber still flows through to the per-step explain button.
+    expect(screen.getByTestId('demo-explain-UC1')).toHaveAttribute(
+      'aria-label',
+      'Explain step 1: UC1 — Title for UC1',
+    );
+    expect(screen.getByTestId('demo-explain-UC6')).toHaveAttribute(
+      'aria-label',
+      'Explain step 6: UC6 — Title for UC6',
+    );
+    expect(screen.getByTestId('demo-explain-UC2')).toHaveAttribute(
+      'aria-label',
+      'Explain step 7: UC2 — Title for UC2',
+    );
+    expect(screen.getByTestId('demo-explain-UC32')).toHaveAttribute(
+      'aria-label',
+      'Explain step 19: UC32 — Title for UC32',
+    );
   });
 });
 
