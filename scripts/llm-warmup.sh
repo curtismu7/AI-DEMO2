@@ -26,13 +26,32 @@ TIMEOUT_S="${LLM_WARMUP_TIMEOUT_S:-240}"
 health() { curl -s --max-time 3 "${PROXY}/health" 2>/dev/null; }
 
 resolve_target() {
-  # Default to the LAST tier in /health (the biggest model).
+  # Pick the BIGGEST tier by declared size, preferring one that is already
+  # healthy.
+  #
+  # This used to take models[-1], on the assumption that last-in-list is the big
+  # tier. That held with two tiers. It stopped holding the moment router.js
+  # appended the experimental Llama-3-Groq-8B tier (:8093) LAST, deliberately, so
+  # it would never affect class-0/class-1 routing and would load only via an
+  # explicit LLM_PROXY_PIN_TIER=8093. Warmup then targeted exactly the tier that
+  # must not load: it is outside LLM_PROXY_RESIDENT_TIERS=8091,8096, so loading it
+  # would EVICT a resident tier — the thing that setting exists to prevent — and
+  # it never goes healthy on its own, so warmup could only ever burn its full
+  # 240s timeout and report failure. Positional selection was the bug; size is
+  # what the script always meant.
+  #
+  # Preferring a healthy tier keeps warmup from evicting a loaded resident to
+  # load a bigger non-resident one. With no healthy tiers (cold proxy) it falls
+  # back to the biggest overall, which is the resident big tier.
   health | python3 -c '
 import json,sys
+def size(m):
+    try: return float(str(m.get("size") or "0").upper().rstrip("B"))
+    except Exception: return 0.0
 try:
-    d=json.load(sys.stdin)
-    models=d.get("models") or []
-    print(models[-1]["name"] if models else "")
+    models=[m for m in (json.load(sys.stdin).get("models") or []) if m.get("name")]
+    pool=[m for m in models if m.get("healthy")] or models
+    print(max(pool, key=size)["name"] if pool else "")
 except Exception:
     print("")'
 }
