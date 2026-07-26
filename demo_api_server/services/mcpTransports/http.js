@@ -8,6 +8,7 @@
  * `--transport http`).
  */
 const axios = require('axios');
+const { normalizeAxiosError } = require('../../utils/normalizeAxiosError');
 
 const TIMEOUT_MS = 15_000;
 
@@ -49,12 +50,16 @@ async function send(profile, method, params) {
     );
   } catch (err) {
     const status = err.response?.status;
+    if (!status) {
+      // Transport failure (timeout / connection refused): normalize instead of
+      // leaking the raw axios message.
+      throw normalizeAxiosError(err, { label: 'MCP HTTP request', timeoutMs: TIMEOUT_MS });
+    }
     const body = err.response?.data;
-    const msg = status
-      ? `MCP HTTP ${status}${body ? `: ${typeof body === 'string' ? body.slice(0, 300) : JSON.stringify(body).slice(0, 300)}` : ''}`
-      : err.message;
+    const msg = `MCP HTTP ${status}${body ? `: ${typeof body === 'string' ? body.slice(0, 300) : JSON.stringify(body).slice(0, 300)}` : ''}`;
     const e = new Error(msg);
     e.code = 'mcp_http_error';
+    e.httpStatus = status;
     throw e;
   }
 
