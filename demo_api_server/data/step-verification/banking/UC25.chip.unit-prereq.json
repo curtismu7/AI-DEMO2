@@ -6,7 +6,7 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "get_account_balance",
-  "checkedAt": "2026-07-26T13:39:59.392Z",
+  "checkedAt": "2026-07-26",
   "requiredFlags": [
     "ff_enterprise_managed_mcp_auth",
     "ff_mcp_gateway_pinggateway"
