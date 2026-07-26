@@ -14,6 +14,9 @@
 | UC3 | [act gate](./may-act-gate.md) | foundations | ✅ works | 🛡️ T3, T13 |  |
 | UC19 | [Non-human (agent) identity lifecycle](./agent-identity-lifecycle.md) | foundations | ✅ works | 🛡️ T9, T13 |  |
 | UC20 | [Audit trail / traceability](./audit-trail.md) | foundations | ✅ works | 🛡️ T8 |  |
+| UC33 | [My mortgage](./mortgage-delegated-access.md) | foundations | ✅ works | 🛡️ T8, T9 |  |
+| UC34 | [Spot unusual patterns](./ai-spot-unusual-patterns.md) | foundations | ✅ works | 🛡️ T8 |  |
+| UC35 | [Why was that blocked?](./ai-explain-last-denial.md) | foundations | ✅ works | 🛡️ T8 |  |
 | UC4 | [Overscoped agent](./overscoped-agent.md) | controls | ✅ works | 🛡️ T3 |  |
 | UC6 | [Authz denied](./authz-denied.md) | controls | ✅ works | 🛡️ T6 |  |
 | UC7 | [Step-up required](./step-up-required.md) | hitl | ✅ works | 🛡️ T10, T3 |  |
@@ -71,8 +74,8 @@
 
 | Status | Count |
 |---|---|
-| ✅ Works | 38 |
+| ✅ Works | 41 |
 | 🚩 Flag-gated | 7 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 2 |
-| **Total** | **47** |
+| **Total** | **50** |
