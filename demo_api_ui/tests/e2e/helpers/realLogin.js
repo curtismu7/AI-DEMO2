@@ -49,6 +49,7 @@
 
 const path = require('path');
 const fs   = require('fs');
+const { mainCheckoutPath } = require('./repoRoots');
 
 const LOGIN_TIMEOUT      = Number(process.env.E2E_PINGONE_LOGIN_TIMEOUT)  || 20_000;
 const POST_LOGIN_TIMEOUT = Number(process.env.E2E_POST_LOGIN_TIMEOUT)     || 30_000;
@@ -253,8 +254,9 @@ async function loginAsCustomerViaApiCookie(page) {
   const candidates = [
     sessionHelper,
     path.resolve(__dirname, '../../../../../../demo_api_server/tests/real/helpers/session.js'),
-    '/Users/curtismuir/Development/AI-DEMO2/demo_api_server/tests/real/helpers/session.js',
-  ];
+    // Derived, not hardcoded: the old absolute named a user that does not exist.
+    mainCheckoutPath('demo_api_server', 'tests', 'real', 'helpers', 'session.js'),
+  ].filter(Boolean);
   const sessionPath = candidates.find((p) => fs.existsSync(p));
   if (!sessionPath) throw new Error('session.js helper not found');
 

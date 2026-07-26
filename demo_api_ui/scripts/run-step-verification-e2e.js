@@ -5,7 +5,18 @@
 const path = require('path');
 const { spawnSync } = require('child_process');
 
-require('dotenv').config({ path: '/Users/curtismuir/Development/AI-DEMO2/demo_api_server/.env' });
+// Derived, not hardcoded. The old absolute path named user `curtismuir`; the
+// real account is `cmuir`, so dotenv loaded nothing — and because dotenv reports
+// "injected env (0)" instead of throwing, every spec this script launched ran
+// without E2E creds and silently test.skip()'d.
+const { mainCheckoutPath } = require('../tests/e2e/helpers/repoRoots');
+
+const envPath = mainCheckoutPath('demo_api_server', '.env');
+if (!envPath) {
+  console.error('[run-step-verification-e2e] could not locate the main checkout — no .env loaded');
+} else {
+  require('dotenv').config({ path: envPath });
+}
 
 const env = {
   ...process.env,
