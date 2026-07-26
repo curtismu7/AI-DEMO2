@@ -29,7 +29,14 @@ function buildApp({ authed = true } = {}) {
   const sharedSession = { save: (cb) => cb && cb() };
   app.use((req, res, next) => {
     req.session = sharedSession;
-    if (authed) req.user = { id: 'admin-1', role: 'admin', username: 'demoAdmin' };
+    if (authed) {
+      req.user = { id: 'admin-1', role: 'admin', username: 'demoAdmin' };
+      // The router is mounted without authenticateToken, so its gate reads
+      // session.user.role rather than req.user — seed both.
+      sharedSession.user = { id: 'admin-1', role: 'admin', username: 'demoAdmin' };
+    } else {
+      delete sharedSession.user;
+    }
     next();
   });
   const routes = require('../../routes/mcpPingOneAdminAuth');
