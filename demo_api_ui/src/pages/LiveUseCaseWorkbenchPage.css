@@ -31,6 +31,7 @@
 .luw-topbar__vertical { margin-left: auto; }
 
 .luw-body {
+  position: relative;
   display: grid;
   grid-template-columns: 336px 1fr;
   min-height: 0;
@@ -38,11 +39,84 @@
   height: 100%;
 }
 
+/* Slide-over: closed is the default demo posture. The drawer leaves the grid
+   entirely so the agent spans the full width and never resizes mid-run. */
+.luw-body--drawer-closed { grid-template-columns: 1fr; }
+
 .luw-drawer {
-  border-right: 1px solid #e2e8f0; background: var(--brand-light-gray, #f8fafc);
-  display: flex; flex-direction: column; min-height: 0;
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 336px;
+  z-index: 3;
+  border-right: 1px solid #e2e8f0;
+  background: var(--brand-light-gray, #f8fafc);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  transform: translateX(0);
+  transition: transform 180ms ease;
 }
+.luw-body--drawer-closed .luw-drawer { transform: translateX(-100%); }
+
+.luw-drawer__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: rgba(15, 23, 42, 0.18);
+  transition: opacity 180ms ease;
+}
+.luw-body--drawer-closed .luw-drawer__scrim { opacity: 0; pointer-events: none; }
+
+.luw-drawer-tab {
+  position: absolute;
+  left: 0;
+  top: 14px;
+  z-index: 4;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  writing-mode: vertical-rl;
+  padding: 12px 6px;
+  border: 1px solid #cbd5e1;
+  border-left: 0;
+  border-radius: 0 8px 8px 0;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 2px 0 6px rgba(15, 23, 42, 0.06);
+}
+.luw-body--drawer-closed .luw-drawer-tab { display: flex; }
+
+.luw-drawer__toggle {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.5rem;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  color: #475569;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.luw-drawer__toggle:hover { border-color: #94a3b8; color: #0f172a; }
+
+@media (prefers-reduced-motion: reduce) {
+  .luw-drawer, .luw-drawer__scrim { transition: none; }
+}
+
 .luw-drawer__head {
+  position: relative;
   padding: 1rem 0.9rem 0.55rem;
 }
 .luw-drawer__title {
@@ -281,6 +355,13 @@
     border-right: 0;
     border-bottom: 1px solid #e2e8f0;
   }
+  .luw-drawer {
+    position: static;
+    width: auto;
+    transform: none;
+  }
+  .luw-drawer__scrim, .luw-drawer-tab { display: none; }
+  .luw-body--drawer-closed { grid-template-columns: 1fr; }
   .luw-drawer__scroll {
     overflow-y: visible;
   }

@@ -33,6 +33,8 @@ const TRACK_LABELS = {
   attacks: 'Attacks — blocked by PingOne',
 };
 
+const DRAWER_CLOSED_KEY = 'luw_demo_script_collapsed';
+
 const DEMO_ID_SET = new Set([
   ...DEMO_PRIMARY_USE_CASE_IDS,
   ...DEMO_ADVANCED_USE_CASE_IDS,
@@ -87,6 +89,30 @@ export default function LiveUseCaseWorkbenchPage() {
   const [glancePolicy, setGlancePolicy] = useState('—');
   const [glanceChecking, setGlanceChecking] = useState('$4,820.00');
   const [glanceRecent, setGlanceRecent] = useState('—');
+
+  const [drawerOpen, setDrawerOpen] = useState(() => {
+    try {
+      return localStorage.getItem(DRAWER_CLOSED_KEY) !== '1';
+    } catch {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(DRAWER_CLOSED_KEY, drawerOpen ? '0' : '1');
+    } catch {
+      /* ignore */
+    }
+  }, [drawerOpen]);
+
+  // Escape closes the slide-over, matching the scrim click.
+  useEffect(() => {
+    if (!drawerOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setDrawerOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [drawerOpen]);
 
   const { setSurfaceHostEl, setToolbarHostEl } = useAgentUiMode();
   const [agentHostEl, setAgentHostEl] = useState(null);
@@ -341,9 +367,33 @@ export default function LiveUseCaseWorkbenchPage() {
         <div className="luw-topbar__agent-tools" ref={toolbarHostRef} />
       </div>
 
-      <div className="luw-body">
+      <div className={`luw-body${drawerOpen ? '' : ' luw-body--drawer-closed'}`}>
+        <button
+          type="button"
+          className="luw-drawer-tab"
+          onClick={() => setDrawerOpen(true)}
+          aria-label="Open demo script"
+          title="Open demo script"
+        >
+          Demo script <span aria-hidden="true">→</span>
+        </button>
+        <div
+          className="luw-drawer__scrim"
+          onClick={() => setDrawerOpen(false)}
+          aria-hidden="true"
+        />
         <nav className="luw-drawer" aria-label="Use case launcher">
           <div className="luw-drawer__head">
+            <button
+              type="button"
+              className="luw-drawer__toggle"
+              onClick={() => setDrawerOpen(false)}
+              aria-expanded={drawerOpen}
+              aria-label="Close demo script"
+              title="Close"
+            >
+              ←
+            </button>
             <h1 className="luw-drawer__title">Demo script</h1>
             <p className="luw-drawer__sub">Pick a step — agent runs on the right</p>
           </div>

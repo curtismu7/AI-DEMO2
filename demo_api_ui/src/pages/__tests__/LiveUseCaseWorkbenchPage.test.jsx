@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 vi.mock('../LiveUseCaseWorkbenchPage.css', () => ({}), { virtual: true });
@@ -85,5 +85,46 @@ describe('LiveUseCaseWorkbenchPage — agent toolbar host', () => {
     });
     expect(registeredElement(mockSetSurfaceHostEl)).toHaveClass('luw-agent-host');
     expect(screen.getByTestId('trace-rail')).toBeInTheDocument();
+  });
+});
+
+describe('LiveUseCaseWorkbenchPage — demo script slide-over', () => {
+  it('starts open and closes on toggle', () => {
+    const { container } = render(<LiveUseCaseWorkbenchPage />);
+    expect(container.querySelector('.luw-body')).not.toHaveClass('luw-body--drawer-closed');
+
+    fireEvent.click(screen.getByLabelText('Close demo script'));
+
+    expect(container.querySelector('.luw-body')).toHaveClass('luw-body--drawer-closed');
+    expect(screen.getByLabelText('Open demo script')).toBeInTheDocument();
+  });
+
+  it('persists the closed state to localStorage', () => {
+    render(<LiveUseCaseWorkbenchPage />);
+    fireEvent.click(screen.getByLabelText('Close demo script'));
+    expect(localStorage.getItem('luw_demo_script_collapsed')).toBe('1');
+  });
+
+  it('restores the closed state on mount', () => {
+    localStorage.setItem('luw_demo_script_collapsed', '1');
+    const { container } = render(<LiveUseCaseWorkbenchPage />);
+    expect(container.querySelector('.luw-body')).toHaveClass('luw-body--drawer-closed');
+  });
+
+  it('reopens from the edge tab', () => {
+    localStorage.setItem('luw_demo_script_collapsed', '1');
+    const { container } = render(<LiveUseCaseWorkbenchPage />);
+    fireEvent.click(screen.getByLabelText('Open demo script'));
+    expect(container.querySelector('.luw-body')).not.toHaveClass('luw-body--drawer-closed');
+  });
+
+  it('closes on Escape and on scrim click', () => {
+    const { container } = render(<LiveUseCaseWorkbenchPage />);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(container.querySelector('.luw-body')).toHaveClass('luw-body--drawer-closed');
+
+    fireEvent.click(screen.getByLabelText('Open demo script'));
+    fireEvent.click(container.querySelector('.luw-drawer__scrim'));
+    expect(container.querySelector('.luw-body')).toHaveClass('luw-body--drawer-closed');
   });
 });
