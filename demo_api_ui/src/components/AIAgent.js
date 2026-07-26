@@ -231,9 +231,9 @@ const NL_FAILURE_MESSAGES = {
   // Token exchange #2 failed (often PingOne invalid_scope when gateway broker
   // flags drifted off). Surface a fixable sentence — not the generic fallback.
   delegation_chain_broken:
-    "Token exchange failed — turn on PingGateway routing and brokered exchange (Admin → Feature flags: ff_mcp_gateway_pinggateway and ff_gateway_brokered_exchange), then try again.",
+    "Token exchange failed — turn on PingGateway routing (Admin → Feature flags: ff_mcp_gateway_pinggateway), then try again.",
   invalid_scope:
-    "Token exchange requested scopes across multiple resources. Enable ff_mcp_gateway_pinggateway and ff_gateway_brokered_exchange, then retry.",
+    "Token exchange requested scopes across multiple resources. Enable ff_mcp_gateway_pinggateway, then retry.",
   a2a_delegation_disabled:
     "A2A delegation isn't enabled — turning it on automatically. Try the step again in a moment.",
 };

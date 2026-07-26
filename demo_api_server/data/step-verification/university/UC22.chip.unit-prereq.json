@@ -6,17 +6,15 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "pay_tuition_balance",
-  "checkedAt": "2026-07-26T04:50:56.144Z",
+  "checkedAt": "2026-07-26T13:40:00.923Z",
   "requiredFlags": [
     "ciba_enabled",
-    "ff_mcp_gateway_pinggateway",
-    "ff_gateway_brokered_exchange"
+    "ff_mcp_gateway_pinggateway"
   ],
   "flagsAssumedOn": true,
   "provesDeclaredOnly": true,
   "flagsOffDetected": [
     "ciba_enabled",
-    "ff_mcp_gateway_pinggateway",
-    "ff_gateway_brokered_exchange"
+    "ff_mcp_gateway_pinggateway"
   ]
 }

@@ -6,17 +6,15 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "list_orders",
-  "checkedAt": "2026-07-26T04:50:56.917Z",
+  "checkedAt": "2026-07-26T13:40:02.494Z",
   "requiredFlags": [
     "ff_enterprise_managed_mcp_auth",
-    "ff_mcp_gateway_pinggateway",
-    "ff_gateway_brokered_exchange"
+    "ff_mcp_gateway_pinggateway"
   ],
   "flagsAssumedOn": true,
   "provesDeclaredOnly": true,
   "flagsOffDetected": [
     "ff_enterprise_managed_mcp_auth",
-    "ff_mcp_gateway_pinggateway",
-    "ff_gateway_brokered_exchange"
+    "ff_mcp_gateway_pinggateway"
   ]
 }

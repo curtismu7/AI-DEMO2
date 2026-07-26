@@ -6,6 +6,7 @@
  * serializeFlag marks `pinned` only for ENV pins, so a stored runtime value is
  * returned as plain `value` — indistinguishable from the default. That is how
  * ff_gateway_brokered_exchange sat at false against a `defaultValue: true`
+ * (that flag has since been removed; the fixture now uses a current one)
  * registry entry on the live stack, taking 22 of 50 banking use cases with it.
  */
 
@@ -39,16 +40,16 @@ describe('config.flag_overrides', () => {
 
   test('FAILS on a demo-critical flag persisted against its default', async () => {
     // The exact live shape: default true, stored false, no env pin.
-    setFlags([row('ff_gateway_brokered_exchange', false, true)]);
+    setFlags([row('ff_mcp_gateway_pinggateway', false, true)]);
     const r = await flagOverrides.run({});
     expect(r.status).toBe('fail');
-    expect(r.detail).toContain('ff_gateway_brokered_exchange=false (default true)');
+    expect(r.detail).toContain('ff_mcp_gateway_pinggateway=false (default true)');
     expect(r.nextAction).toMatch(/PATCH \/api\/admin\/feature-flags/);
     expect(r.meta.critical).toHaveLength(1);
   });
 
   test('an ENV pin is not reported — that is a visible, deliberate decision', async () => {
-    setFlags([row('ff_gateway_brokered_exchange', false, true, { pinned: true, pinnedBy: 'FF_GATEWAY_BROKERED_EXCHANGE' })]);
+    setFlags([row('ff_mcp_gateway_pinggateway', false, true, { pinned: true, pinnedBy: 'FF_MCP_GATEWAY_PINGGATEWAY' })]);
     const r = await flagOverrides.run({});
     expect(r.status).toBe('pass');
   });

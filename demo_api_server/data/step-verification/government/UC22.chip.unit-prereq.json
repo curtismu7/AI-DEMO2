@@ -6,17 +6,15 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "pay_fee",
-  "checkedAt": "2026-07-26T04:50:57.594Z",
+  "checkedAt": "2026-07-26T13:40:01.719Z",
   "requiredFlags": [
     "ciba_enabled",
-    "ff_mcp_gateway_pinggateway",
-    "ff_gateway_brokered_exchange"
+    "ff_mcp_gateway_pinggateway"
   ],
   "flagsAssumedOn": true,
   "provesDeclaredOnly": true,
   "flagsOffDetected": [
     "ciba_enabled",
-    "ff_mcp_gateway_pinggateway",
-    "ff_gateway_brokered_exchange"
+    "ff_mcp_gateway_pinggateway"
   ]
 }
