@@ -6,6 +6,8 @@ import { useEducationUIOptional } from "../context/EducationUIContext";
 import { useDraggablePanel } from "../hooks/useDraggablePanel";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import JsonHighlight, { tokenize, formatJson } from "./shared/JsonHighlight";
+import JsonView, { JSON_VIEW_TABS } from "./shared/JsonView";
+import InspectorTabs from "./shared/InspectorTabs";
 import "./TokenChainDisplay.css";
 import {
   deriveTokenCategory,
@@ -175,7 +177,7 @@ function StatusBadge({ status }) {
 
 // ─── Claims viewer ────────────────────────────────────────────────────────────
 
-function ClaimsPanel({ claims, alg }) {
+function ClaimsPanel({ claims, alg, jsonMode = "json" }) {
   if (!claims) {
     return <p className="tcd-no-claims">No decoded claims available.</p>;
   }
@@ -280,7 +282,7 @@ function ClaimsPanel({ claims, alg }) {
               <span className="tcd-claim-agent-id"> Agent ID: {v.sub}</span>
             )}
             <pre className="tcd-claim-val">
-              {typeof v === "object" && v !== null ? <JsonHighlight value={v} /> : fmtVal(k, v)}
+              {typeof v === "object" && v !== null ? <JsonView mode={jsonMode} value={v} /> : fmtVal(k, v)}
             </pre>
           </div>
         ))}
@@ -1162,6 +1164,7 @@ function ExchangeCheckList({ event }) {
 
 function TratContextEduBox({ event }) {
   const [expanded, setExpanded] = React.useState(false);
+  const [jsonMode, setJsonMode] = useState("json");
   if (event.id !== "trat-context") return null;
   const ctx = event.tratContext || {};
   const isSimulated = !!ctx.trat_sim;
@@ -1190,9 +1193,12 @@ function TratContextEduBox({ event }) {
               {expanded ? "Hide claims" : "Show claims"}
             </button>
             {expanded && (
-              <pre className="tcd-trat-claims-detail">
-                <JsonHighlight value={ctx} />
-              </pre>
+              <>
+                <InspectorTabs tabs={JSON_VIEW_TABS} activeKey={jsonMode} onChange={setJsonMode} />
+                <pre className="tcd-trat-claims-detail">
+                  <JsonView mode={jsonMode} value={ctx} crackHeight={220} />
+                </pre>
+              </>
             )}
           </>
         )}
@@ -2074,10 +2080,14 @@ function GwAuthorizeEduBox({ event }) {
 
 /** Renders the full detail for a token chain event. */
 function EventDetail({ event, chainEvents }) {
+  const [jsonMode, setJsonMode] = useState("json");
   return (
     <>
       {isA2aEvent(event?.id) && (
         <A2aChainOverview chainEvents={chainEvents} />
+      )}
+      {(event.jwtFullDecode || event.claims) && (
+        <InspectorTabs tabs={JSON_VIEW_TABS} activeKey={jsonMode} onChange={setJsonMode} />
       )}
       {/* Full JWT JSON — collapsible, closed by default */}
       {event.jwtFullDecode && (
@@ -2087,7 +2097,11 @@ function EventDetail({ event, chainEvents }) {
           </summary>
           <div className="tcd-collapsible-body">
             <pre className="tcd-jwt-dump jh-dark">
-              <JsonHighlight value={event.jwtFullDecode} copyable />
+              {jsonMode === "json" ? (
+                <JsonHighlight value={event.jwtFullDecode} copyable />
+              ) : (
+                <JsonView mode={jsonMode} value={event.jwtFullDecode} crackHeight={300} />
+              )}
             </pre>
           </div>
         </details>
@@ -2099,7 +2113,7 @@ function EventDetail({ event, chainEvents }) {
             JWT Claims (Quick Reference)
           </summary>
           <div className="tcd-collapsible-body">
-            <ClaimsPanel claims={event.claims} alg={event.alg} />
+            <ClaimsPanel claims={event.claims} alg={event.alg} jsonMode={jsonMode} />
           </div>
         </details>
       )}
