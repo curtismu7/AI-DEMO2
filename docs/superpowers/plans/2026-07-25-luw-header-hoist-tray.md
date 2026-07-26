@@ -1333,22 +1333,52 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ---
 
-### Task 8: Build gate and live verification
+### Task 8: Build gate, real browser tests, and live verification
 
-No code changes unless a gate fails. This task is the evidence the work is done.
+Unit tests mock the whole world — they cannot tell you the drawer actually slides, the rail actually grows, or the verdict actually reflects a real PingOne decision. This task adds a **real browser spec against the running stack**, then a human walkthrough for what a spec cannot judge.
 
-**Files:** none expected.
+**Files:**
+- Create: `demo_api_ui/tests/e2e/luw-workbench.real.spec.js`
 
 **Interfaces:** consumes Tasks 3-7; produces verification evidence.
 
-- [ ] **Step 1: Run the full UI test suite**
+- [ ] **Step 1: Run the full UI test suite against the recorded baseline**
 
 ```bash
 cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray/demo_api_ui
 npx vitest run 2>&1 | tail -40
 ```
 
-Expected: no new failures versus baseline. If a suite fails, confirm whether it also fails on `origin/main` before attributing it to this work.
+**The baseline is not zero.** Before this branch, a full run already showed **54 failures across 40 suites**, all unrelated: a legacy duplicate test file missing a provider wrapper, `window.matchMedia` stubs, frozen-file SHA canaries, date-format drift, and capability-count mismatches. Compare against that. Any failure naming `luw`, `VerdictPair`, `UseCaseProofHeader`, `OWASPBadge`, `demoScript`, `findBeat`, `DemoScriptLauncher`, or `TraceStepCard` is yours. For anything else, confirm it fails identically on `origin/main` before dismissing it — and use a temporary WIP commit or `git show origin/main:<path>` to check, **never** `git stash` (the stack is shared across worktrees).
+
+- [ ] **Step 1b: Write the real browser spec**
+
+Create `demo_api_ui/tests/e2e/luw-workbench.real.spec.js`, following the conventions of the existing `*.real.spec.js` files in that directory (read `use-cases-agent.real.spec.js` and `vertical-core-chips.real.spec.js` first — match their auth handling, timeouts, and helper usage rather than inventing a new style).
+
+These specs hit the live stack, so they need a signed-in session. Sign-in only works on the `local.ping-devops.com` host — pointing the base URL at `api.ping.demo` puts the session cookie on the wrong host and every assertion fails in a way that looks like broken auth rather than a bad URL.
+
+Cover, in this order:
+
+1. **Toolbar is hoisted.** The Routing and Wiring selects, the RFC info / Compliance / Token Chain switches, Guide, Demo steps, Agent scope and Clear progress all resolve, and each sits outside `.ba-header` — assert the controls' common ancestor is `.luw-topbar__agent-tools`, and that `.ba-header` still contains the agent title.
+2. **Drawer slides.** Closing sets `.luw-body--drawer-closed`; the edge tab is visible and the drawer is off-canvas (assert its bounding box is left of the viewport, not merely that a class is present — that is the difference between testing CSS and testing a class name). Reopen from the edge tab. Reload and assert the state persisted. Press `Escape` and assert it closes.
+3. **Agent does not resize when the drawer opens.** Record `.luw-agent-host`'s bounding box with the drawer closed, open the drawer, and assert the box is unchanged. This is the whole point of the slide-over and no unit test can check it.
+4. **Proof header populates on selection.** Select a step; assert its `buyerStory` text and the "Say this" phrase render, and that they match the values the `/api/use-cases` response actually returned for that use case — fetch the catalog in the spec and compare, rather than hardcoding strings.
+5. **UC1 run — verdict matches.** Run `show my balance`; wait for the verdict to settle; assert Expected `PERMIT`, Actual `PERMIT`, and the match badge reads matched.
+6. **UC6 run — DENY reads as a deliberate pass.** Run the $2500 transfer; assert Expected `DENY`, Actual `DENY`, matched.
+7. **Token chain keeps its detail in the focus state.** After a run, assert `.luw-run-layout--rail-focus` is present, the rail's bounding box is **wider** than it was pre-run, AND that the rail's content is all still there: the `Token Chain` / `MCP` tabs, at least one `.tctr-step` card, and the "Exchange Mode Details" accordion. Assert the decisive `[data-step-id="authorize-decision"]` card is in the viewport.
+
+That last assertion is the one that matters most — it is the automated guard that the focus state never trades rail detail for size.
+
+Run it against the already-running worktree instance:
+
+```bash
+cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray/demo_api_ui
+PLAYWRIGHT_SKIP_WEBSERVER=1 \
+PLAYWRIGHT_BASE_URL=https://local.ping-devops.com:4443 \
+npx playwright test tests/e2e/luw-workbench.real.spec.js --reporter=list 2>&1 | tail -40
+```
+
+If the stack is not running, or auth cannot be established, **say so and stop** — do not weaken assertions or add skips to make the spec go green. A spec that passes because it asserted nothing is worse than no spec.
 
 - [ ] **Step 2: Run the build gate**
 
