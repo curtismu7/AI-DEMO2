@@ -102,6 +102,33 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-26 — MCP_INVEST_AUDIENCE was accepted on every MCP callback, not just the portfolio read
+
+**Files changed:** `demo_api_server/middleware/auth.js`,
+`demo_api_server/tests/mcpInvestAudience.regression.test.js` (new).
+
+**What was broken:** `validatePingOneCoreToken` pushed `MCP_INVEST_AUDIENCE` into the
+shared `gwAuds` list and folded the `/api/investment/.../portfolio` route into the same
+`isMcpCallback` predicate as the banking read/write callbacks. The audience check is
+`isMcpCallback && tokenAuds.some((a) => gwAuds.includes(a))`, so an A2A investment
+token (`aud=mcp-invest.ping.demo`, scopes `invest:read`) satisfied the audience gate on
+`POST /api/transactions`, `GET /api/accounts/my`, and the other write callbacks —
+routes it should never reach. Confirmed by reverting the fix: the regression suite's
+two rejection tests both fail against the old code.
+
+**What was fixed:** Split the predicate. `isMcpBankingCallback` keeps the banking /
+Path-B routes and matches against `gwAuds`; `isInvestPortfolioCallback` is separate and
+accepts **only** `MCP_INVEST_AUDIENCE`, on the portfolio path only. `MCP_INVEST_AUDIENCE`
+is no longer added to `gwAuds` at all.
+
+**Do not break:** Never re-add `MCP_INVEST_AUDIENCE` to `gwAuds` — that single line is
+the whole bug. The gateway/PingGateway/MCP-server audiences must keep working on the
+banking callbacks, and an enduser-audience token must keep working on the portfolio
+route; both are covered by regression tests.
+
+**Verify:** `CI=true npx jest tests/mcpInvestAudience.regression.test.js` (5 pass).
+Revert `auth.js` alone and 2 of the 5 must fail — that is the proof the gate is real.
+
 ### 2026-07-26 — Generic MCP Inspector profiles were reachable by any signed-in customer (stdio = RCE on the BFF host)
 
 **Files changed:** `demo_api_server/routes/mcpInspector.js`,
