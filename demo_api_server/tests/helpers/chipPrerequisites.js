@@ -37,6 +37,14 @@ const { writeLedgerEntry } = require('../../services/stepVerificationLedger');
 const CHIP_PREREQ_MODE = 'unit-prereq';
 
 /**
+ * Free-form LLM-analysis use cases: the LLM reasons over live data and picks
+ * its own tools, so the catalog carries `primaryTool: null` deliberately.
+ * Mirrors LLM_ANALYSIS_UNROUTABLE in useCases.primaryTool.test.js and
+ * useCases.verticalChipCoverage.test.js — keep the three in step.
+ */
+const LLM_ANALYSIS_UNROUTABLE = new Set(['UC34', 'UC35']);
+
+/**
  * Use cases in a vertical that carry an offline prerequisite expectation:
  * runnable maturity, and either a chip trigger or a PAR-dependent trigger.
  * @param {string} vertical
@@ -124,9 +132,15 @@ function runChipPrerequisiteCheck(uc, vertical, realConfigStore) {
   // authorize evidence with no primaryTool, so this invariant does not apply
   // to them. (Whether an attack sim emits the step id its catalog entry claims
   // is a separate defect — sims emit `sim-*` ids — and belongs to the sweep.)
+  //
+  // Free-form LLM-analysis use cases are exempt for a different reason: they
+  // dispatch tools the LLM chooses at runtime, so the catalog legitimately
+  // cannot name a primaryTool in advance, yet the run still produces dispatch
+  // evidence. Same set the routing gates already skip (LLM_ANALYSIS_UNROUTABLE
+  // in useCases.primaryTool.test.js and useCases.verticalChipCoverage.test.js).
   const tokenChain = (uc.evidence && uc.evidence.tokenChain) || [];
   const isChip = (uc.trigger || {}).type === 'chip';
-  const dispatchOnlyEvidence = isChip
+  const dispatchOnlyEvidence = isChip && !LLM_ANALYSIS_UNROUTABLE.has(uc.id)
     ? tokenChain.filter((s) => s === 'tool-dispatched' || s === 'authorize-decision')
     : [];
   const claimsToolDispatch = dispatchOnlyEvidence.length > 0;
@@ -199,6 +213,7 @@ function assertSharedChipPrerequisites(uc, result) {
 
 module.exports = {
   CHIP_PREREQ_MODE,
+  LLM_ANALYSIS_UNROUTABLE,
   chipPrerequisiteCases,
   runChipPrerequisiteCheck,
   assertSharedChipPrerequisites,
