@@ -345,6 +345,72 @@ class PingOneManagementService {
   }
 
   /**
+   * Delete an application
+   */
+  async deleteApplication(id) {
+    this.ensureInitialized();
+    try {
+      await axios.delete(`${this.baseURL}/applications/${id}`, { headers: this.getHeaders() });
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, 'deleteApplication');
+    }
+  }
+
+  /**
+   * Get all populations
+   */
+  async getPopulations() {
+    this.ensureInitialized();
+    try {
+      const response = await axios.get(`${this.baseURL}/populations`, { headers: this.getHeaders() });
+      return { success: true, populations: response.data._embedded?.populations || [] };
+    } catch (error) {
+      return this.handleError(error, 'getPopulations');
+    }
+  }
+
+  /**
+   * Get users (limited)
+   */
+  async getUsers(limit = 20) {
+    this.ensureInitialized();
+    try {
+      const response = await axios.get(`${this.baseURL}/users?limit=${limit}`, { headers: this.getHeaders() });
+      return { success: true, users: response.data._embedded?.users || [] };
+    } catch (error) {
+      return this.handleError(error, 'getUsers');
+    }
+  }
+
+  /**
+   * Create a user
+   */
+  async createUser({ populationId, username, email }) {
+    this.ensureInitialized();
+    const payload = { population: { id: populationId }, username, email };
+    try {
+      const response = await axios.post(`${this.baseURL}/users`, payload, { headers: this.getHeaders() });
+      return { success: true, user: response.data, id: response.data.id };
+    } catch (error) {
+      return this.handleError(error, 'createUser');
+    }
+  }
+
+  /**
+   * Delete a user
+   */
+  async deleteUser(id) {
+    this.ensureInitialized();
+    try {
+      await axios.delete(`${this.baseURL}/users/${id}`, { headers: this.getHeaders() });
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, 'deleteUser');
+    }
+  }
+
+  /**
    * Setup complete resource server with scopes and applications
    */
   async setupCompleteResourceServer(config) {
