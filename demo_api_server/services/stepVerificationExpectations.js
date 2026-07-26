@@ -25,12 +25,53 @@ const ACTION_TO_TOOL = {
   mortgage_demo: 'show_mortgage',
 };
 
-/** Catalog expectedOutcome → agentPreflight decision string (or null if N/A). */
+/**
+ * Catalog expectedOutcome → agentPreflight decision string (or null if N/A).
+ *
+ * SCOPE: this map is ONLY about the amount-gate ladder on a transfer-like tool
+ * (see amountGateExpectationsFor: DENY >= 2000, STEP_UP 500-1999.99, HITL < 500).
+ * Do NOT add DENY_401 / DENY_403 / DENY_429 / DENY_503 here. Those are
+ * transport- and authz-layer refusals on `attack`-trigger use cases with no
+ * amount and no primaryTool; adding them would pull them into amount-band
+ * assertions that cannot apply. For "is this outcome a refusal at all", use
+ * DENIED_LIKE_OUTCOMES below.
+ */
 const OUTCOME_TO_GATE = {
   DENY: 'DENY',
   STEP_UP: 'STEP_UP',
   HITL_REQUIRED: 'HITL',
 };
+
+/**
+ * Catalog expectedOutcome values that represent "blocked or challenged".
+ * MIRROR of DENIED_LIKE_OUTCOMES in
+ * demo_api_ui/src/context/ProofOfEnforcementContext.js — the two are kept equal
+ * by src/__tests__/deniedLikeOutcomes.parity.test.js. Scoring a refusal as a
+ * success (or vice versa) is the failure this exists to prevent.
+ */
+const DENIED_LIKE_OUTCOMES = new Set([
+  'DENY', 'DENY_401', 'DENY_403', 'DENY_429', 'DENY_503', 'STEP_UP', 'HITL_REQUIRED',
+]);
+
+/**
+ * Which block kind each deny-like expectedOutcome demands. Comparing families
+ * rather than "not PERMIT" is what stops a use case advertising a hard DENY
+ * from going green on an approval gate. MIRROR of EXPECTED_OUTCOME_FAMILY in
+ * ProofOfEnforcementContext.js (same parity test).
+ */
+const EXPECTED_OUTCOME_FAMILY = {
+  DENY: 'DENY', DENY_401: 'DENY', DENY_403: 'DENY', DENY_429: 'DENY', DENY_503: 'DENY',
+  STEP_UP: 'STEP_UP', HITL_REQUIRED: 'HITL_REQUIRED',
+};
+
+/**
+ * Whether the catalog expects this run to be refused.
+ * @param {string|null|undefined} expectedOutcome
+ * @returns {boolean}
+ */
+function isDeniedLikeOutcome(expectedOutcome) {
+  return DENIED_LIKE_OUTCOMES.has(String(expectedOutcome));
+}
 
 /**
  * Pull $amount from chip text (first $N or bare transfer amount).
@@ -104,6 +145,11 @@ function expectationFromUseCase(uc) {
     primaryTool: uc.primaryTool || null,
     expectedOutcome: uc.expectedOutcome,
     gate: OUTCOME_TO_GATE[uc.expectedOutcome] || null,
+    // deniedLike/outcomeFamily answer "is a refusal expected, and of what kind"
+    // for every deny-like outcome — including the DENY_401/403/429/503 attack
+    // cases that `gate` deliberately excludes (see OUTCOME_TO_GATE's scope note).
+    deniedLike: isDeniedLikeOutcome(uc.expectedOutcome),
+    outcomeFamily: EXPECTED_OUTCOME_FAMILY[uc.expectedOutcome] || null,
     amount: amount != null && Number.isFinite(amount) ? amount : null,
   };
 }
@@ -490,6 +536,9 @@ function scoreAgentReply({ reply, style, expectedReply, liveAccounts }) {
 
 module.exports = {
   OUTCOME_TO_GATE,
+  DENIED_LIKE_OUTCOMES,
+  EXPECTED_OUTCOME_FAMILY,
+  isDeniedLikeOutcome,
   TOKEN_SUMMARY_IDS_1EX,
   TOKEN_SUMMARY_IDS_2EX,
   amountFromChipText,
