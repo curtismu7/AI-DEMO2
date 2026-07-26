@@ -13,6 +13,45 @@ const { READ_PRIMARY_TOOL_BY_VERTICAL } = require('../config/useCases');
  * ordinary questions still let the model choose its own tools.
  */
 const ACTIVITY_ANALYSIS_RE = /\b(unusual|suspicious|anomal\w*|irregular|out of the ordinary)\b[\s\S]{0,60}\b(activity|transactions?|charges?|spending|orders?|claims?|records?)\b/i;
+
+/** Rows to hand the model. Enough to spot an outlier, small enough to reason over. */
+const ACTIVITY_ROWS_FOR_PROMPT = 25;
+
+/**
+ * Render a tool's activity payload as a compact table.
+ *
+ * Raw output is ~141 rows of verbose JSON (uuids, null account ids, ISO stamps,
+ * "CHECKING - undefined"). With LLAMACPP_MAX_TOKENS frozen at 2560 that alone
+ * can consume the answer budget, and the model responded "unable to retrieve"
+ * even though the rows were right there. Strip to the fields an anomaly check
+ * needs and cap the count.
+ *
+ * @param {string|object} raw tool result (JSON string or object)
+ * @returns {string} compact text, or '' when there is nothing usable
+ */
+function compactActivityForPrompt(raw) {
+  let parsed = raw;
+  if (typeof raw === 'string') {
+    try { parsed = JSON.parse(raw); } catch (_) { return String(raw).slice(0, 2000); }
+  }
+  if (!parsed || typeof parsed !== 'object') return '';
+  // Tool payloads nest differently per vertical; take the first array of objects.
+  const pools = [parsed, parsed.result, parsed.data].filter((p) => p && typeof p === 'object');
+  let rows = null;
+  for (const pool of pools) {
+    if (Array.isArray(pool)) { rows = pool; break; }
+    const arr = Object.values(pool).find((v) => Array.isArray(v) && v.length && typeof v[0] === 'object');
+    if (arr) { rows = arr; break; }
+  }
+  if (!rows || !rows.length) return '';
+  const pick = (r) => [
+    String(r.date || r.createdAt || r.timestamp || '').slice(0, 10),
+    r.type || r.status || '',
+    r.amount != null ? r.amount : '',
+    String(r.description || r.name || r.title || '').slice(0, 48),
+  ].join(' | ');
+  return rows.slice(0, ACTIVITY_ROWS_FOR_PROMPT).map(pick).join('\n');
+}
 const { executeBffTool, executeBffToolWithToken } = require('./bffMcpToolExecutor');
 const { searchPublicBranches, formatBranchCatalogReply } = require('../data/publicBranchCatalog');
 const { buildPublicCatalogTokenEvents } = require('./publicCatalogTokenEvents');
@@ -1623,12 +1662,17 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
       const activityTool = READ_PRIMARY_TOOL_BY_VERTICAL[activeId] || 'get_my_transactions';
       try {
         const activity = await executeTool(activityTool, {});
-        if (activity) {
-          // Insert BEFORE the user turn so the model reads it as context.
-          messages.splice(messages.length - 1, 0, {
-            role: 'system',
-            content: `Recent activity retrieved via ${activityTool} (authorized for this user). Reason over THIS data; do not ask the user to paste it:\n${String(activity).slice(0, 4000)}`,
-          });
+        const compact = compactActivityForPrompt(activity);
+        if (compact) {
+          // Appended to the USER turn, not inserted as a mid-conversation system
+          // message: a second system message is merged or dropped depending on
+          // provider, and the first attempt proved it — the tool ran, real rows
+          // came back, and the model still answered "unable to retrieve".
+          const last = messages[messages.length - 1];
+          messages[messages.length - 1] = {
+            ...last,
+            content: `${last.content}\n\nHere is my recent activity, already retrieved for you via ${activityTool}. Analyse THIS data and name anything unusual. Do not say you cannot retrieve it, and do not ask me to paste it.\n\n${compact}`,
+          };
           preToolsCalled.push(activityTool);
         }
       } catch (e) {
