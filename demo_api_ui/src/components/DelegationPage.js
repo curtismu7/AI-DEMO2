@@ -556,6 +556,9 @@ export default function DelegationPage({ user }) {
   // Revoke
   const [revoking, setRevoking] = useState(null);
 
+  // Manager approve/deny
+  const [approving, setApproving] = useState(null);
+
   // Tab
   const [activeSection, setActiveSection] = useState('active');
 
@@ -686,6 +689,30 @@ export default function DelegationPage({ user }) {
       console.error('[DelegationPage] revoke error:', err.message);
     } finally {
       setRevoking(null);
+    }
+  };
+
+  const handleApprove = async (id) => {
+    setApproving(id);
+    try {
+      await fetch(`/api/delegation/${id}/approve`, { method: 'POST' });
+      await loadData();
+    } catch (err) {
+      console.error('[DelegationPage] approve error:', err.message);
+    } finally {
+      setApproving(null);
+    }
+  };
+
+  const handleDeny = async (id) => {
+    setApproving(id);
+    try {
+      await fetch(`/api/delegation/${id}/deny`, { method: 'POST' });
+      await loadData();
+    } catch (err) {
+      console.error('[DelegationPage] deny error:', err.message);
+    } finally {
+      setApproving(null);
     }
   };
 
@@ -857,6 +884,29 @@ export default function DelegationPage({ user }) {
                               <span key={s} style={S.pill}>{s.replace(/_/g, ' ')}</span>
                             ))}
                           </div>
+                          {d.pendingApproval?.status === 'pending' && (
+                            <div style={{ marginTop: 8, padding: '8px 10px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6 }}>
+                              <p style={{ margin: '0 0 6px 0', fontSize: 12, color: '#92400e', fontWeight: 600 }}>
+                                Pending approval: ${d.pendingApproval.amount}{d.pendingApproval.tool ? ` (${d.pendingApproval.tool.replace(/_/g, ' ')})` : ''}
+                              </p>
+                              <div style={{ display: 'flex', gap: 8 }}>
+                                <button
+                                  onClick={() => handleApprove(d.id)}
+                                  disabled={approving === d.id}
+                                  style={S.primaryBtn}
+                                >
+                                  {approving === d.id ? 'Approving…' : 'Approve'}
+                                </button>
+                                <button
+                                  onClick={() => handleDeny(d.id)}
+                                  disabled={approving === d.id}
+                                  style={S.dangerBtn}
+                                >
+                                  Deny
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                         <button
                           onClick={() => handleRevoke(d.id)}
