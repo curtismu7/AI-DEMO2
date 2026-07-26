@@ -1016,16 +1016,21 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 ### Task 7: Token Chain takes focus when a run completes
 
-The token chain is the proof, so when the agent finishes it should own the room. On completion the rail expands to roughly half the stage, the decisive hop scrolls into view and pulses, the observed outcome appears in the rail head, and the result is announced politely. Focus is **not** stolen. The emphasis persists until the next run starts.
+The token chain is the proof, so when the agent finishes it should own the room. On completion the rail grows, the decisive hop scrolls into view and pulses, the observed outcome pins to the top of the rail, and the result is announced politely. Focus is **not** stolen. The emphasis persists until the next run starts.
+
+**THE RAIL'S DETAIL IS THE DEMO. This task is strictly additive.** The rail already renders, and must keep rendering unchanged in every state including focus: the `Token Chain` / `MCP` / `Trust` tabs, the run story, the per-step `TraceStepCard` `<details>` cards with their narrative, "Why this run", decision block, scope diff, key/value rows and RFC citations, `TraceTokenSummary`, the "Exchange Mode Details" accordion, and the `ClaimDetailsModal` / `TokenLegendModal` inspect paths. Do not hide, collapse, replace, summarise, truncate, virtualise, or reorder any of it. Do not swap a step card for the verdict chip. If a change would remove or shorten anything the rail shows today, it is out of scope — stop and report instead.
 
 **Files:**
 - Modify: `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js`
 - Modify: `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.css`
+- Modify: `demo_api_ui/src/components/TraceStepCard.jsx` (add one `data-step-id` attribute — nothing else)
 - Modify: `demo_api_ui/src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx`
 
 **Interfaces:**
 - Consumes: `authorizeSeen`, `verdict`, `runState` from Task 5.
-- Produces: `.luw-run-layout--rail-focus` on `.luw-run-layout`. This is a different element from Task 3's `.luw-body--drawer-closed`; the two must not be applied to the same node.
+- Produces: `.luw-run-layout--rail-focus` on `.luw-run-layout`. This is a different element from Task 3's `.luw-body--drawer-closed`; the two must not be applied to the same node. `TraceStepCard` gains `data-step-id={step.id}` on its root `<details>`, which the page uses to locate the decisive step.
+
+**Measured starting point — do not regress it.** `.luw-rail-host` is already the larger pane at `flex: 1.25 1 480px` with `overflow: auto` and `display: flex; flex-direction: column` (`LiveUseCaseWorkbenchPage.css:263-270`). Focus must **increase** its share. Never write a rigid `flex: 0 0 <n>` here — that drops grow/shrink and can make the rail *narrower* than its resting state at some widths, which is the opposite of this task's purpose.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1083,8 +1088,52 @@ describe('LiveUseCaseWorkbenchPage — rail focus on a settled verdict', () => {
     expect(live).toHaveTextContent(/not proven/i);
     expect(live).not.toHaveTextContent(/matched/i);
   });
+
+  it('keeps the token chain rail mounted and intact in the focus state', () => {
+    mockProof.verdict = { useCaseId: 'uc1', title: 'x', state: 'verified', matchedSteps: [], missingSteps: [] };
+    render(<LiveUseCaseWorkbenchPage />);
+    // The rail is mocked in this suite, so this asserts the focus state does not
+    // unmount or replace it. The real guarantee that its detail is untouched is
+    // the rail-detail regression test below plus Task 8's live walkthrough.
+    expect(screen.getByTestId('trace-rail')).toBeInTheDocument();
+  });
 });
 ```
+
+Add one more regression test in a separate file, `demo_api_ui/src/components/__tests__/TraceStepCard.stepId.test.jsx`, pinning the single attribute this task adds and proving the card still renders its body:
+
+```jsx
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
+
+import TraceStepCard from '../TraceStepCard';
+
+const step = {
+  id: 'authorize-decision',
+  status: 'ok',
+  lane: 'MCP',
+  title: 'Authorize decision',
+  detail: { narrative: 'PingOne Authorize evaluated the request.' },
+};
+
+describe('TraceStepCard', () => {
+  it('exposes a stable data-step-id for the workbench to target', () => {
+    const { container } = render(<TraceStepCard step={step} onInspect={() => {}} />);
+    const card = container.querySelector('[data-step-id="authorize-decision"]');
+    expect(card).not.toBeNull();
+    expect(card).toHaveClass('tctr-step');
+    expect(card).toHaveAttribute('data-status', 'ok');
+  });
+
+  it('still renders its narrative body — the attribute is additive only', () => {
+    render(<TraceStepCard step={step} onInspect={() => {}} defaultOpen />);
+    expect(screen.getByText(/PingOne Authorize evaluated the request/)).toBeInTheDocument();
+  });
+});
+```
+
+If `TraceStepCard`'s real prop shape differs from the `step` object above, adjust the fixture to match the shape the component actually consumes — read the component and its two existing test files (`TraceStepCard.teaching.test.jsx`, `TraceStepCard.defaultOpen.test.jsx`) for a correct fixture rather than guessing. Do not change the component to fit the test.
 
 - [ ] **Step 2: Run tests to verify they fail**
 
@@ -1119,7 +1168,7 @@ Add the live region and the focus class inside `.luw-main__stage`, replacing the
           <div className={`luw-run-layout${railFocus ? ' luw-run-layout--rail-focus' : ''}`}>
 ```
 
-Give the rail head the observed outcome, replacing the existing `.luw-rail-host` wrapper contents' opening:
+Pin the observed outcome to the top of the rail. It is added **above** `<TokenChainTraceRail />`, which stays mounted and unmodified — nothing the rail renders is removed, replaced, or wrapped:
 
 ```jsx
               <div className="luw-rail-host">
@@ -1132,6 +1181,39 @@ Give the rail head the observed outcome, replacing the existing `.luw-rail-host`
               </div>
 ```
 
+Add `data-step-id` to `TraceStepCard` so the page can find the decisive card. In `demo_api_ui/src/components/TraceStepCard.jsx:152`, change:
+
+```jsx
+    <details className="tctr-step" data-status={step.status} open={defaultOpen}>
+```
+
+to:
+
+```jsx
+    <details className="tctr-step" data-status={step.status} data-step-id={step.id} open={defaultOpen}>
+```
+
+That is the **only** permitted change to `TraceStepCard.jsx`. Do not alter its rendering, its `<details>` open behavior, or any of its body content.
+
+Scroll the decisive step into view and pulse it once the verdict settles. Add to `LiveUseCaseWorkbenchPage.js`:
+
+```js
+  // Bring the authorize decision into view and pulse it — the rail is the proof,
+  // so the eye should land on the step that decided the outcome. Purely additive:
+  // no rail content is hidden, collapsed, or reordered.
+  useEffect(() => {
+    if (!railFocus) return undefined;
+    const card = document.querySelector('[data-step-id="authorize-decision"]');
+    if (!card) return undefined;
+    card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    card.classList.add('luw-step-pulse');
+    const t = setTimeout(() => card.classList.remove('luw-step-pulse'), 2400);
+    return () => clearTimeout(t);
+  }, [railFocus]);
+```
+
+If no element matches `[data-step-id="authorize-decision"]` — which is exactly the `incomplete` case, where no authorize step was observed — the effect does nothing. That is correct: there is no decisive hop to point at, and the `Unproven` chip already says so.
+
 - [ ] **Step 5: Add the CSS**
 
 Append to `LiveUseCaseWorkbenchPage.css`, before the `@media (max-width: 1200px)` block:
@@ -1139,15 +1221,23 @@ Append to `LiveUseCaseWorkbenchPage.css`, before the `@media (max-width: 1200px)
 ```css
 /* Token Chain takes the room once a verdict settles, and keeps it until the
    next run. Emphasis is size + a pulse on the decisive hop — never a dimming
-   scrim, which reads as a hang on a projector. */
-.luw-rail-host { transition: flex-basis 260ms ease, box-shadow 260ms ease; }
+   scrim, which reads as a hang on a projector, and never hiding rail detail. */
+.luw-rail-host { transition: flex-grow 260ms ease, flex-basis 260ms ease, box-shadow 260ms ease; }
 
+/* Resting state is `flex: 1.25 1 480px`. Focus only ever GROWS the rail — keep
+   grow/shrink live so it stays responsive; a rigid `flex: 0 0 <n>` here can end
+   up narrower than the resting state at some widths. */
 .luw-run-layout--rail-focus .luw-rail-host {
-  flex: 0 0 50%;
+  flex: 2.2 1 640px;
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
 }
 
+/* Sticky so it stays readable while the presenter scrolls the chain — it must
+   never replace or push out the rail's own content. */
 .luw-rail-verdict {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   padding: 8px 12px;
   border-bottom: 1px solid #e2e8f0;
   font-size: 0.95rem;
@@ -1156,6 +1246,14 @@ Append to `LiveUseCaseWorkbenchPage.css`, before the `@media (max-width: 1200px)
   color: #0f172a;
   background: #f8fafc;
 }
+
+/* One-shot pulse on the step that decided the outcome. */
+@keyframes luwStepPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(15, 118, 110, 0.45); }
+  70%  { box-shadow: 0 0 0 12px rgba(15, 118, 110, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(15, 118, 110, 0); }
+}
+.luw-step-pulse { animation: luwStepPulse 1100ms ease-out 2; }
 
 .luw-sr-only {
   position: absolute;
@@ -1171,12 +1269,14 @@ Append to `LiveUseCaseWorkbenchPage.css`, before the `@media (max-width: 1200px)
 
 @media (prefers-reduced-motion: reduce) {
   .luw-rail-host { transition: none; }
+  .luw-step-pulse { animation: none; }
 }
 ```
 
-Inside the existing `@media (max-width: 1200px)` block, where the agent and rail already stack, neutralise the widening:
+Inside the existing `@media (max-width: 1200px)` block, where the agent and rail already stack full-width, neutralise the widening — matching the closed-state selector's specificity so it actually wins:
 
 ```css
+  .luw-rail-host,
   .luw-run-layout--rail-focus .luw-rail-host { flex: 1 1 100%; }
 ```
 
