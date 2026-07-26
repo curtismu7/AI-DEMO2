@@ -203,6 +203,11 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
           onClick={() => setTab("chain")}>
           Token Chain
         </button>
+        <button type="button" role="tab" aria-selected={tab === "tokens"}
+          className={`tctr-tab${tab === "tokens" ? " tctr-tab--active" : ""}`}
+          onClick={() => setTab("tokens")}>
+          Tokens
+        </button>
         <button type="button" role="tab" aria-selected={tab === "mcp"}
           className={`tctr-tab${tab === "mcp" ? " tctr-tab--active" : ""}`}
           onClick={() => setTab("mcp")}>
@@ -259,6 +264,8 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
             </div>
           </details>
         </>
+      ) : tab === "tokens" ? (
+        <TraceTokenSummary tokenEvents={trace.tokenEvents} onInspect={onInspect} standalone />
       ) : tab === "trust" ? (
         <TraceTrustPanel events={trace.tokenEvents} />
       ) : (
