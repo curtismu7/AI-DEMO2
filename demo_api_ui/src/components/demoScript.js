@@ -126,3 +126,19 @@ export const DEMO_SCRIPT = {
     "REPLAY - 'Show the expected result (REPLAY)' on the failure message; token chain / activity stay empty (live proof only).",
   ],
 };
+
+/** Flat ucId -> beat index, derived from DEMO_SCRIPT. No content duplicated. */
+const BEAT_BY_UC_ID = DEMO_SCRIPT.acts
+  .flatMap((act) => act.beats || [])
+  .reduce((acc, beat) => {
+    if (beat.ucId) acc[beat.ucId] = beat;
+    return acc;
+  }, {});
+
+/**
+ * The 15-min script beat for a use case, or null when it is not in the script.
+ * @param {string|null|undefined} ucId
+ */
+export function findBeat(ucId) {
+  return (ucId && BEAT_BY_UC_ID[ucId]) || null;
+}

@@ -9,6 +9,7 @@ import apiClient from '../services/apiClient';
 import { useVertical } from '../vertical/useVertical';
 import VerticalSwitcher from '../components/VerticalSwitcher';
 import UseCaseProofHeader from '../components/UseCaseProofHeader';
+import { findBeat } from '../components/demoScript';
 import VerdictPair from '../components/VerdictPair';
 import { useAgentUiMode } from '../context/AgentUiModeContext';
 import { useProofOfEnforcement } from '../context/ProofOfEnforcementContext';
@@ -319,6 +320,16 @@ export default function LiveUseCaseWorkbenchPage() {
   );
 
   const selectedUc = useCases.find((u) => u.id === selectedId) || null;
+  const selectedBeat = findBeat(selectedId);
+
+  // Mirror selection to the teleprompter (in-page modal or 2nd-screen pop-out)
+  // over the same channel it already uses to send us `run` messages.
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined' || !selectedId) return undefined;
+    const channel = new BroadcastChannel('demo-script');
+    channel.postMessage({ type: 'select', ucId: selectedId });
+    return () => channel.close();
+  }, [selectedId]);
 
   /**
    * Render a Mock A–style use-case card.
@@ -479,7 +490,7 @@ export default function LiveUseCaseWorkbenchPage() {
 
         <section className="luw-main" aria-label="Live run">
           <div className="luw-main__stage">
-            <UseCaseProofHeader uc={selectedUc} beat={null} />
+            <UseCaseProofHeader uc={selectedUc} beat={selectedBeat} />
             <div className="luw-run-layout">
               <div id="luw-agent-host" className="luw-agent-host" ref={agentHostRef} />
               <div className="luw-rail-host">

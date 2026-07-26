@@ -39,6 +39,7 @@ function readSavedFontPx() {
 export default function DemoScriptLauncher({ user }) {
   const [open, setOpen] = useState(false);
   const [fontPx, setFontPx] = useState(readSavedFontPx);
+  const [activeUcId, setActiveUcId] = useState(null);
   const navigate = useNavigate();
   const s = DEMO_SCRIPT;
 
@@ -48,6 +49,23 @@ export default function DemoScriptLauncher({ user }) {
     const toggle = () => setOpen((o) => !o);
     window.addEventListener("demo-script-toggle", toggle);
     return () => window.removeEventListener("demo-script-toggle", toggle);
+  }, []);
+
+  // Follow the workbench's selection so the teleprompter highlights and
+  // scrolls to the matching beat. Listens only - never posts a `select`
+  // message itself, or a run-channel echo could be misread as a selection.
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return undefined;
+    const channel = new BroadcastChannel("demo-script");
+    const onMsg = (e) => {
+      if (e.data?.type !== "select" || !e.data.ucId) return;
+      setActiveUcId(e.data.ucId);
+    };
+    channel.addEventListener("message", onMsg);
+    return () => {
+      channel.removeEventListener("message", onMsg);
+      channel.close();
+    };
   }, []);
 
   // Trigger a use case on the workbench from the script. Uses the shared
@@ -81,7 +99,15 @@ export default function DemoScriptLauncher({ user }) {
   };
 
   const beat = (b, key) => (
-    <div className="dsl-beat" key={key}>
+    <div
+      className={`dsl-beat${b.ucId && b.ucId === activeUcId ? " dsl-beat--active" : ""}`}
+      key={key}
+      ref={(node) => {
+        if (node && b.ucId && b.ucId === activeUcId) {
+          node.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+        }
+      }}
+    >
       {b.ucId && (
         <button
           type="button"
