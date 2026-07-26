@@ -33,6 +33,38 @@ describe('stepVerificationLedger', () => {
     expect(saved.status).toBe('PASS');
   });
 
+  test('re-recording the same verdict later the same day leaves the file byte-identical', () => {
+    const base = {
+      vertical,
+      useCaseId: 'UC-TEST',
+      triggerType: 'chip',
+      mode: 'heuristic',
+      status: 'PASS',
+      errorClass: null,
+      primaryTool: 'create_transfer',
+    };
+    writeLedgerEntry({ ...base, checkedAt: '2026-07-22T00:00:00.000Z' });
+    const first = fs.readFileSync(testFile, 'utf8');
+    writeLedgerEntry({ ...base, checkedAt: '2026-07-22T18:42:11.913Z' });
+    expect(fs.readFileSync(testFile, 'utf8')).toBe(first);
+  });
+
+  test('checkedAt is stored day-granular and stays Date.parse-able for the staleness gate', () => {
+    writeLedgerEntry({
+      vertical,
+      useCaseId: 'UC-TEST',
+      triggerType: 'chip',
+      mode: 'heuristic',
+      status: 'PASS',
+      errorClass: null,
+      primaryTool: 'create_transfer',
+      checkedAt: '2026-07-22T18:42:11.913Z',
+    });
+    const saved = JSON.parse(fs.readFileSync(testFile, 'utf8'));
+    expect(saved.checkedAt).toBe('2026-07-22');
+    expect(Number.isFinite(Date.parse(saved.checkedAt))).toBe(true);
+  });
+
   test('readLedger returns every entry written for a vertical', () => {
     writeLedgerEntry({
       vertical,

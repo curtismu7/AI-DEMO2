@@ -6,6 +6,6 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "create_transfer",
-  "checkedAt": "2026-07-25T20:23:05.815Z",
+  "checkedAt": "2026-07-25",
   "verifiedBy": "simulated-path step-up (non-DENY) still fires (e90262f9)"
 }
