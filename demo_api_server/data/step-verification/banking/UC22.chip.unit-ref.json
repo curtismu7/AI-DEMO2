@@ -6,6 +6,6 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "create_transfer",
-  "checkedAt": "2026-07-25T20:23:41.368Z",
-  "verifiedBy": "demo_api_server/src/__tests__/ciba.test.js (idempotent poll), demo_api_server/src/__tests__/pingOneAuthorizeRetry.test.js (429 retry)"
+  "checkedAt": "2026-07-26T04:50:58.712Z",
+  "verifiedBy": "demo_api_server/src/__tests__/ciba.test.js, demo_api_server/src/__tests__/cibaService.test.js, demo_api_server/src/__tests__/cibaSimulatedService.test.js, demo_api_server/src/__tests__/pingOneAuthorizeRetry.test.js"
 }

@@ -30,6 +30,11 @@ const {
   needsA2aCredentials,
   needsParConfig,
 } = require('../services/demoStepPrerequisites');
+const {
+  chipPrerequisiteCases,
+  runChipPrerequisiteCheck,
+  assertSharedChipPrerequisites,
+} = require('./helpers/chipPrerequisites');
 
 const _cfg = { ff_authorize_fail_open: 'true' };
 jest.mock('../services/configStore', () => ({
@@ -85,20 +90,7 @@ const fakeReq = () => ({
  * chip-triggered but still require live PingOne PAR config.
  */
 function bankingChipPrerequisiteCases() {
-  const out = [];
-  const seen = new Set();
-  for (const u of USE_CASES) {
-    const uc = resolveUseCase(u.id, 'banking') || u;
-    const mat = uc.maturity || '';
-    if (mat !== 'works' && !String(mat).startsWith('flag:')) continue;
-    const t = uc.trigger || {};
-    const isChip = t.type === 'chip' && t.text;
-    if (!isChip && !needsParConfig(uc)) continue;
-    if (seen.has(uc.id)) continue;
-    seen.add(uc.id);
-    out.push(uc);
-  }
-  return out;
+  return chipPrerequisiteCases('banking');
 }
 
 describe('step verification — banking chip routing (check 2: parse/route + amount)', () => {
@@ -232,40 +224,13 @@ describe('step verification — banking chip prerequisites (flags + A2A + PAR)',
   test.each(cases.map((c) => [c.id, c]))(
     '%s: required flags declared; A2A/PAR creds when needed (gateway flags assumed on offline)',
     (_id, uc) => {
-      const requiredFlags = requiredFlagsForUseCase(uc);
-      expect(requiredFlags.length).toBeGreaterThan(0);
-      // Offline Jest does not share the docker LMDB flag store. Gateway flags are
-      // asserted live (e2e setDemoRuntimeFlags + ensureRequiredDemoFlags). Here we
-      // only prove catalog wiring + A2A/PAR credential readiness.
-      const cfg = {
-        getEffective: (k) => {
-          // Offline: assume every catalog-declared feature flag is armed so this
-          // suite proves wiring + A2A/PAR creds, not the live LMDB flag store.
-          if (typeof k === 'string' && k.startsWith('ff_')) return true;
-          return realConfigStore.getEffective(k);
-        },
-      };
+      const result = runChipPrerequisiteCheck(uc, 'banking', realConfigStore);
+      assertSharedChipPrerequisites(uc, result);
 
-      const prereq = checkChipPrerequisites(uc, 'banking', cfg);
-      const status = prereq.ok ? 'PASS' : 'FAIL';
-      const errorClass = prereq.ok ? null : 'missing_prereq';
-      const t = uc.trigger || {};
-      const triggerType = t.type === 'chip' ? 'chip' : (t.type || 'chip');
-
-      writeLedgerEntry({
-        vertical: 'banking',
-        useCaseId: uc.id,
-        triggerType,
-        mode: 'unit-prereq',
-        status,
-        errorClass,
-        primaryTool: uc.primaryTool || null,
-        checkedAt: new Date().toISOString(),
-        requiredFlags,
-        prereqErrors: prereq.errors.length ? prereq.errors : undefined,
-      });
-
-      expect(prereq.ok).toBe(true);
+      // Banking is the primary demo vertical and its A2A/PAR credentials are
+      // expected to be present, so unlike the other verticals it holds the
+      // prerequisite verdict to a hard pass rather than filtering cred errors.
+      expect(result.prereq.ok).toBe(true);
     },
   );
 });

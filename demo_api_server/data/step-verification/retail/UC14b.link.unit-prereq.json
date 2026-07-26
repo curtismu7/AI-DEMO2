@@ -6,8 +6,15 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "create_transfer",
-  "checkedAt": "2026-07-25T20:23:04.651Z",
+  "checkedAt": "2026-07-26T04:50:56.915Z",
   "requiredFlags": [
+    "ff_rar",
+    "ff_mcp_gateway_pinggateway",
+    "ff_gateway_brokered_exchange"
+  ],
+  "flagsAssumedOn": true,
+  "provesDeclaredOnly": true,
+  "flagsOffDetected": [
     "ff_rar",
     "ff_mcp_gateway_pinggateway",
     "ff_gateway_brokered_exchange"
