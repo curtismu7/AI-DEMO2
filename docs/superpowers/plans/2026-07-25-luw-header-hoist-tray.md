@@ -1030,6 +1030,8 @@ The token chain is the proof, so when the agent finishes it should own the room.
 - Consumes: `authorizeSeen`, `verdict`, `runState` from Task 5.
 - Produces: `.luw-run-layout--rail-focus` on `.luw-run-layout`. This is a different element from Task 3's `.luw-body--drawer-closed`; the two must not be applied to the same node. `TraceStepCard` gains `data-step-id={step.id}` on its root `<details>`, which the page uses to locate the decisive step.
 
+**Carried-over coverage gap from Task 5's review — fix it here.** Task 5's page tests mock `tokenChainTraceStore.subscribe` with `vi.fn(() => vi.fn())`, which never invokes its callback, so `authorizeSeen` stays `null` in every page test and the page→component wiring is untested. That wiring is precisely where the "Policy cell fed from the expectation" bug lived: if someone re-seeded `authorizeSeen` from `uc.expectedOutcome`, no test would fail today. Step 1 below adds two tests that drive the subscribe callback and assert the Actual chip. You will need `act` from `@testing-library/react` and a reference to the mocked store — import `tokenChainTraceStore` in the test file so `.mockImplementation` can be called on its `subscribe`.
+
 **Measured starting point — do not regress it.** `.luw-rail-host` is already the larger pane at `flex: 1.25 1 480px` with `overflow: auto` and `display: flex; flex-direction: column` (`LiveUseCaseWorkbenchPage.css:263-270`). Focus must **increase** its share. Never write a rigid `flex: 0 0 <n>` here — that drops grow/shrink and can make the rail *narrower* than its resting state at some widths, which is the opposite of this task's purpose.
 
 - [ ] **Step 1: Write the failing tests**
@@ -1087,6 +1089,34 @@ describe('LiveUseCaseWorkbenchPage — rail focus on a settled verdict', () => {
     const live = container.querySelector('[aria-live="polite"]');
     expect(live).toHaveTextContent(/not proven/i);
     expect(live).not.toHaveTextContent(/matched/i);
+  });
+
+  // Carried over from Task 5's review: the page-level wiring that feeds the
+  // Actual chip had no coverage, because the store mock never invoked its
+  // callback. This is the exact layer the original bug lived in — Actual must
+  // track the observed trace, never the expectation.
+  it('feeds the Actual chip from the observed trace, not from expectedOutcome', () => {
+    let emit;
+    tokenChainTraceStore.subscribe.mockImplementation((fn) => { emit = fn; return () => {}; });
+    mockProof.verdict = { useCaseId: 'uc1', title: 'x', state: 'verified', matchedSteps: [], missingSteps: [] };
+
+    render(<LiveUseCaseWorkbenchPage />);
+    act(() => { emit({ trace: { authorize: { outcome: 'PERMIT', decision: 'PERMIT' } } }); });
+
+    expect(screen.getByTestId('verdict-actual')).toHaveTextContent('PERMIT');
+  });
+
+  it('shows the observed outcome even when it contradicts the expectation', () => {
+    let emit;
+    tokenChainTraceStore.subscribe.mockImplementation((fn) => { emit = fn; return () => {}; });
+    mockProof.verdict = { useCaseId: 'uc1', title: 'x', state: 'mismatch', matchedSteps: [], missingSteps: [] };
+
+    render(<LiveUseCaseWorkbenchPage />);
+    act(() => { emit({ trace: { authorize: { outcome: 'PERMIT', decision: 'PERMIT' } } }); });
+
+    // Would fail if anything seeded Actual from the expectation.
+    expect(screen.getByTestId('verdict-actual')).toHaveTextContent('PERMIT');
+    expect(screen.getByTestId('verdict-match')).toHaveTextContent('not proven');
   });
 
   it('keeps the token chain rail mounted and intact in the focus state', () => {
