@@ -58,6 +58,39 @@ describe('callMcpTool step-up 428 authorize ingest', () => {
     expect(snap.steps.find((s) => s.id === 'authorize').status).toBe('active');
   });
 
+  test('preserves step_up_method=ciba on thrown mcp_step_up_required (CIBA chip path)', async () => {
+    // runAction's catch must see step_up_method to open CIBA instead of MFA.
+    // Dropping it made the CIBA chip satisfy step-up via in-session MFA.
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        status: 428,
+        headers: { get: () => 'application/json' },
+        json: () =>
+          Promise.resolve({
+            error: 'mcp_step_up_required',
+            error_description: 'Out-of-band approval required',
+            step_up_method: 'ciba',
+            step_up_acr: 'Multi_Factor',
+            transaction_amount: 150,
+            fromAccountId: 'acct-from',
+            toAccountId: 'acct-to',
+            tokenEvents: [{ id: 'user-token', useCaseId: 'ciba-out-of-band-approval' }],
+          }),
+      }),
+    );
+
+    await expect(callMcpTool('create_transfer', { amount: 150 })).rejects.toMatchObject({
+      statusCode: 428,
+      code: 'mcp_step_up_required',
+      step_up_method: 'ciba',
+      step_up_acr: 'Multi_Factor',
+      transaction_amount: 150,
+      fromAccountId: 'acct-from',
+      toAccountId: 'acct-to',
+    });
+  });
+
   test('ingests mcpAuthorizeEvaluation from a 428 hitl_required body', async () => {
     const evaluation = {
       decision: 'INDETERMINATE',

@@ -102,6 +102,36 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-26 — Chip path opened the MFA modal for CIBA-required step-up (CIBA bypass)
+
+**Files changed:** `demo_api_ui/src/services/demoAgentService.js`,
+`demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/services/__tests__/callMcpTool.stepUpAuthorizeIngest.test.js`.
+
+**What was broken:** `callMcpTool` THROWS on `mcp_step_up_required` (HITL soft-resolves;
+step-up does not), and the Error it built dropped `step_up_method` — so `runAction`'s
+`err?.code === "mcp_step_up_required"` branch could not tell CIBA from MFA and always
+ran the P1MFA challenge + OTP modal. UC22 declares `step_up_method: 'ciba'`. Both MFA
+and CIBA set `session.stepUpVerified`, so satisfying the MFA modal made the retry PERMIT
+with **no out-of-band approval** — a CIBA bypass on the chip/runAction path. The soft
+(non-throwing) path already branched correctly; only the throw path was wrong.
+
+**What was fixed:** `demoAgentService.callMcpTool` now carries `step_up_method`,
+`step_up_acr`, `transaction_amount` and the from/to account ids onto the thrown Error.
+`AIAgent.runAction`'s catch branches on `err.step_up_method === 'ciba'` and runs the same
+initiate → `/ciba-approve` tab → `pollCibaStepUp` flow the soft path uses, returning
+before any MFA call; the P1MFA challenge now runs only for `p1mfa` or an unspecified
+method (the prior default).
+
+**Do not break:** Never drop `step_up_method` from the Error `callMcpTool` throws — that
+single omission is the whole bypass, and it is invisible because the MFA modal looks like
+correct behavior. Keep the `return` after the CIBA branch so MFA can never also fire.
+
+**Verify:** `CI=true npx vitest run
+src/services/__tests__/callMcpTool.stepUpAuthorizeIngest.test.js` (4 pass). Revert
+`demoAgentService.js` alone and 1 of the 4 must fail. The `AIAgent.js` CIBA branch has
+NO unit coverage — it needs a live UC22 chip run to confirm the popup, poll and retry.
+
 ### 2026-07-26 — Generic MCP Inspector profiles were reachable by any signed-in customer (stdio = RCE on the BFF host)
 
 **Files changed:** `demo_api_server/routes/mcpInspector.js`,
