@@ -35,6 +35,18 @@ function compactActivityForPrompt(raw) {
     try { parsed = JSON.parse(raw); } catch (_) { return String(raw).slice(0, 2000); }
   }
   if (!parsed || typeof parsed !== 'object') return '';
+  // Unwrap the MCP envelope FIRST. executeBffTool returns
+  // {content:[{type:'text',text:'<json>'}]}, so the real payload is a JSON
+  // string one level down. Without this, `content` looks like the row array and
+  // every row renders as empty cells — which is exactly what the model saw when
+  // it kept answering "I don't have access to your recent transaction history"
+  // while toolsCalled showed the fetch had succeeded.
+  const envelopeText = Array.isArray(parsed.content)
+    && parsed.content.find((c) => c && typeof c.text === 'string')?.text;
+  if (envelopeText) {
+    try { parsed = JSON.parse(envelopeText); } catch (_) { return envelopeText.slice(0, 2000); }
+  }
+  if (!parsed || typeof parsed !== 'object') return '';
   // Tool payloads nest differently per vertical; take the first array of objects.
   const pools = [parsed, parsed.result, parsed.data].filter((p) => p && typeof p === 'object');
   let rows = null;
