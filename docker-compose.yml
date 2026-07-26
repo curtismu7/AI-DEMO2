@@ -334,6 +334,11 @@ services:
       MCP_CODE_SEARCH_URL: "http://demo-mcp-code-search:8095"
       # Parity with mcp-gateway: allow BFF TraT simulation header in demo compose.
       ALLOW_UNSIGNED_TRAT_CONTEXT: ${ALLOW_UNSIGNED_TRAT_CONTEXT:-true}
+      BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
+      # mkcert CA so the emitter's HTTPS POST to the BFF can verify its leaf cert.
+      # Without it every hop fails UNABLE_TO_VERIFY_LEAF_SIGNATURE and is silently
+      # swallowed by the fire-and-forget .catch() -- an invisible, empty chain.
+      NODE_EXTRA_CA_CERTS: /certs/ca-bundle-with-mkcert.pem
     env_file:
       - path: ./demo_mcp_server/.env
         required: false   # copy demo_mcp_server/.env.example if you need overrides
@@ -341,6 +346,7 @@ services:
       - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
       # Gateway client cert for the mTLS pin. certs/ is gitignored; generate via
       # scripts/ensure-gateway-mtls-certs.sh. Read-only, public cert only.
+      # Dir mount, not a single file -- a single-file bind pins the inode.
       - ./certs:/certs:ro
     networks:
       - ai-demo
@@ -480,11 +486,17 @@ services:
       # TraT simulation: BFF forwards unsigned X-TraT-Context when PingOne does not
       # embed TraT claims. Opt-in for demo compose; leave unset in production-like envs.
       ALLOW_UNSIGNED_TRAT_CONTEXT: ${ALLOW_UNSIGNED_TRAT_CONTEXT:-true}
+      BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
+      # mkcert CA so the emitter's HTTPS POST to the BFF can verify its leaf cert.
+      # Without it every hop fails UNABLE_TO_VERIFY_LEAF_SIGNATURE and is silently
+      # swallowed by the fire-and-forget .catch() -- an invisible, empty chain.
+      NODE_EXTRA_CA_CERTS: /certs/ca-bundle-with-mkcert.pem
     env_file:
       - path: ./demo_mcp_gateway/.env
         required: false
     volumes:
       - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
+      - ./certs:/certs:ro  # dir mount, not a single file -- a single-file bind pins the inode
     networks:
       - ai-demo
     depends_on:
@@ -525,11 +537,17 @@ services:
       # this as a minimum capability class (per-agent routing, swap mode).
       LLAMACPP_MODEL: "gpt-oss-20b"
       MLX_LM_BASE_URL: "http://host.docker.internal:8098"
+      BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
+      # mkcert CA so the emitter's HTTPS POST to the BFF can verify its leaf cert.
+      # Without it every hop fails UNABLE_TO_VERIFY_LEAF_SIGNATURE and is silently
+      # swallowed by the fire-and-forget .catch() -- an invisible, empty chain.
+      NODE_EXTRA_CA_CERTS: /certs/ca-bundle-with-mkcert.pem
     env_file:
       - path: ./demo_agent_service/.env
         required: false
     volumes:
       - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
+      - ./certs:/certs:ro  # dir mount, not a single file -- a single-file bind pins the inode
     networks:
       - ai-demo
     depends_on:
@@ -557,11 +575,17 @@ services:
       OTEL_SERVICE_NAME: "hitl-service"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
       HITL_ALLOWED_ORIGINS: "http://api-server:3001,http://localhost:4000,https://local.ping-devops.com:4000,https://api.ping.demo:4000,https://api.ping.demo:3001"
+      BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
+      # mkcert CA so the emitter's HTTPS POST to the BFF can verify its leaf cert.
+      # Without it every hop fails UNABLE_TO_VERIFY_LEAF_SIGNATURE and is silently
+      # swallowed by the fire-and-forget .catch() -- an invisible, empty chain.
+      NODE_EXTRA_CA_CERTS: /certs/ca-bundle-with-mkcert.pem
     env_file:
       - path: ./demo_hitl_service/.env
         required: false
     volumes:
       - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
+      - ./certs:/certs:ro  # dir mount, not a single file -- a single-file bind pins the inode
     networks:
       - ai-demo
     restart: unless-stopped
@@ -728,6 +752,11 @@ services:
       # (aud https://api.ping.demo:3036/mcp) is denied with invalid_aud. Also
       # includes the A2A specialists' dedicated Exchange #2 audience.
       MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo"
+      BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
+      # mkcert CA so the emitter's HTTPS POST to the BFF can verify its leaf cert.
+      # Without it every hop fails UNABLE_TO_VERIFY_LEAF_SIGNATURE and is silently
+      # swallowed by the fire-and-forget .catch() -- an invisible, empty chain.
+      NODE_EXTRA_CA_CERTS: /certs/ca-bundle-with-mkcert.pem
     env_file:
       - path: ./demo_mcp_gateway/.env
         required: false
@@ -741,6 +770,7 @@ services:
         required: false
     volumes:
       - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
+      - ./certs:/certs:ro  # dir mount, not a single file -- a single-file bind pins the inode
     networks:
       - ai-demo
     restart: unless-stopped

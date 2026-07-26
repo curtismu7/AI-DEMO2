@@ -235,6 +235,7 @@ const {
 } = require('./middleware/tokenRefresh');
 const { agentRestrictionsGate } = require('./middleware/agentRestrictionsGate');
 const { delegationGate } = require('./middleware/delegationGate');
+const { transactionTurnMiddleware } = require('./middleware/transactionTurn');
 
 const app = express();
 
@@ -1077,7 +1078,7 @@ app.use('/api/test/token-validation', testTokenScenariosRoutes); // UI TokenSecu
 // so /nl/status, /nl, and /search are handled without agentSessionMiddleware.
 app.use('/api/demo-agent', demoAgentNlRoutes);
 // Authenticated agent routes: /init, /message, /consent — require OAuth session.
-app.use('/api/demo-agent', demoAgentRoutes);
+app.use('/api/demo-agent', transactionTurnMiddleware, demoAgentRoutes);
 // Admin agent: isolated stack for administrative operations
 app.use('/api/admin-agent', authenticateToken, requireAdmin, adminAgentRoutes);
 app.use('/api/ops-agent', authenticateToken, opsAgentRoutes);
@@ -1095,7 +1096,7 @@ app.use('/api/code-search', authenticateToken, require('./routes/codeSearch'));
 // Intent authorization and unified agent invocation
 app.use('/api', intentAuthRoutes);
 app.use('/api', delegationGate, agentInvokeRoutes);
-app.use('/api/agent', delegationGate, agentRunRoutes); // AG-UI Step 2: /api/agent/run
+app.use('/api/agent', delegationGate, transactionTurnMiddleware, agentRunRoutes); // AG-UI Step 2: /api/agent/run
 app.use('/api/agent/langchain', delegationGate, require('./routes/agentLangchainRunRoute')); // AG-UI Phase 2.3: LangChain /run
 const { codegraphProxy, codegraphReindexProxy } = require('./routes/codegraphProxy');
 app.post('/api/codegraph/query', codegraphProxy);
@@ -1257,6 +1258,10 @@ app.use('/internal', require('./routes/agentTool'));
 // cross-vertical tool-call outcome here to persist in LMDB (read back by the
 // admin MCP Audit Trail page). Secret-guarded; NOT browser-facing.
 app.use('/internal', require('./routes/mcpAuditIngest'));
+// Transaction chain of custody — every instrumentable service ships one hop
+// per phase here so the BFF can assemble the full chain. Secret-guarded;
+// NOT browser-facing. Read back at /api/transaction-trace.
+app.use('/internal', require('./routes/transactionHopIngest'));
 // Gateway-only vault-key bridge — IG fetches demo backend API keys (X-API-Key)
 // from here at request time. Secret-guarded + allow-listed; NOT browser-facing.
 app.use('/internal', require('./routes/vaultServiceKey'));
@@ -1311,6 +1316,9 @@ app.use('/api/oauth/jwks', require('./routes/oauthJwks'));
 app.use('/api/delegation', authenticateToken, delegationRoutes);
 app.use('/api/agent-authorization', authenticateToken, agentAuthorizationRoutes);
 app.use('/api/token-chain', authenticateToken, tokenChainRoutes);
+// Transaction chain of custody — read side. Any logged-in user, matching the
+// accessibility of its Telemetry sibling (the Tracing page).
+app.use('/api/transaction-trace', authenticateToken, require('./routes/transactionTrace'));
 app.use('/api/token-display', authenticateToken, tokenDisplayRoutes);
 app.use('/api/api-calls', apiCallTrackerRoutes);
 app.use('/api/admin/app-config', authenticateToken, appConfigRoutes);
