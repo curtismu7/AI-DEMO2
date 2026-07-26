@@ -47,9 +47,59 @@ def httpPostForm = { String url, String reqBody ->
 }
 
 // ── Blocking HTTP helper (JSON, returns response headers too) ─────────────────
+// ── mTLS to the MCP server ────────────────────────────────────────────────────
+// demo_mcp_server implements the server half already: with MCP_MTLS_ENABLED=true
+// it serves HTTPS and pins THIS gateway's client cert by SHA-256 fingerprint
+// (src/auth/mtlsMiddleware.ts). The client half was missing — IG presented no
+// cert, so the hop ran as plain http://mcp-server:8080 and mTLS could never be
+// switched on without every call failing "no client certificate presented".
+//
+// Built once per script evaluation and reused. Two deliberate choices:
+//  * Client auth comes from a PKCS#12 keystore (scripts/ensure-gateway-mtls-certs.sh).
+//  * The SERVER side is trust-all. demo_mcp_server generates a fresh self-signed
+//    server cert on every start (BankingMCPServer ~L127), so pinning it is
+//    impossible. The property being demonstrated is CLIENT authentication; the
+//    channel is container-to-container on a private Docker network.
+def mtlsKeystore = System.getenv('PG_MTLS_KEYSTORE_PATH') ?: ''
+def mtlsPassword = System.getenv('PG_MTLS_KEYSTORE_PASSWORD') ?: 'changeit'
+def mtlsFactory = null
+if (mtlsKeystore && new File(mtlsKeystore).exists()) {
+    try {
+        def ks = java.security.KeyStore.getInstance('PKCS12')
+        new File(mtlsKeystore).withInputStream { ks.load(it, mtlsPassword.toCharArray()) }
+        def kmf = javax.net.ssl.KeyManagerFactory.getInstance(
+            javax.net.ssl.KeyManagerFactory.getDefaultAlgorithm())
+        kmf.init(ks, mtlsPassword.toCharArray())
+        def trustAll = [ new javax.net.ssl.X509TrustManager() {
+            void checkClientTrusted(java.security.cert.X509Certificate[] c, String a) {}
+            void checkServerTrusted(java.security.cert.X509Certificate[] c, String a) {}
+            java.security.cert.X509Certificate[] getAcceptedIssuers() { return new java.security.cert.X509Certificate[0] }
+        } ] as javax.net.ssl.TrustManager[]
+        def ctx = javax.net.ssl.SSLContext.getInstance('TLS')
+        ctx.init(kmf.getKeyManagers(), trustAll, new java.security.SecureRandom())
+        mtlsFactory = ctx.getSocketFactory()
+        logger.info('[OlbExchange] mTLS client keystore loaded from ' + mtlsKeystore)
+    } catch (Exception e) {
+        // Do NOT fall back to plaintext silently: if mTLS was configured and the
+        // keystore is broken, the operator needs to see it rather than discover
+        // the hop quietly downgraded.
+        logger.error('[OlbExchange] mTLS keystore load FAILED (' + e.message +
+            ') — https calls to the MCP server will fail the client-cert check')
+    }
+} else if (mtlsKeystore) {
+    logger.error('[OlbExchange] PG_MTLS_KEYSTORE_PATH set to ' + mtlsKeystore +
+        ' but no such file — run scripts/ensure-gateway-mtls-certs.sh')
+}
+
 def httpPostJson = { String url, String jsonBody, Map hdrs ->
     try {
         def conn = new URL(url).openConnection() as java.net.HttpURLConnection
+        // Attach client cert + trust-all on https. CN is banking-mcp-server while
+        // the host is mcp-server, so the default hostname verifier would reject.
+        if (conn instanceof javax.net.ssl.HttpsURLConnection && mtlsFactory != null) {
+            conn.setSSLSocketFactory(mtlsFactory)
+            conn.setHostnameVerifier({ String h, javax.net.ssl.SSLSession sess -> true })
+        }
         conn.requestMethod = 'POST'
         conn.doOutput = true
         conn.connectTimeout = 5000

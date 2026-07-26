@@ -309,6 +309,13 @@ services:
       # comma-separated list; mcpgateway.ping.demo is kept as a transitional second entry
       # so tokens from callers still on the old forward-unchanged contract keep validating.
       MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
+      # mTLS on the PingGateway -> MCP server hop. When true the server serves
+      # HTTPS (self-signed, regenerated each start) and REQUIRES a client cert
+      # whose SHA-256 matches MCP_MTLS_GATEWAY_CERT_PATH. PingGateway presents it
+      # from PG_MTLS_KEYSTORE_PATH — the two must move together: flipping this
+      # alone rejects every gateway call with "no client certificate presented".
+      MCP_MTLS_ENABLED: "${MCP_MTLS_ENABLED:-false}"
+      MCP_MTLS_GATEWAY_CERT_PATH: "/certs/gw-mtls/gw-client.crt"
       # RAG code-search service — the code_search/get_code/list_codebases tool
       # handlers call this over compose DNS.
       MCP_CODE_SEARCH_URL: "http://demo-mcp-code-search:8095"
@@ -319,6 +326,9 @@ services:
         required: false   # copy demo_mcp_server/.env.example if you need overrides
     volumes:
       - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
+      # Gateway client cert for the mTLS pin. certs/ is gitignored; generate via
+      # scripts/ensure-gateway-mtls-certs.sh. Read-only, public cert only.
+      - ./certs:/certs:ro
     networks:
       - ai-demo
     healthcheck:
@@ -914,7 +924,12 @@ services:
     environment:
       # In-stack overrides (env block wins over env_file): reach backends + the mock
       # authz server by compose service DNS, not host.docker.internal.
-      PG_OLB_BACKEND_URL: "http://mcp-server:8080"
+      # https when mTLS is on (mcp-server serves TLS on the SAME port); http otherwise.
+      PG_OLB_BACKEND_URL: "${PG_OLB_BACKEND_URL:-http://mcp-server:8080}"
+      # Client cert IG presents to the MCP server. certs/ is already mounted at
+      # /certs on this service. Empty => plaintext, unchanged behaviour.
+      PG_MTLS_KEYSTORE_PATH: "${PG_MTLS_KEYSTORE_PATH:-}"
+      PG_MTLS_KEYSTORE_PASSWORD: "${PG_MTLS_KEYSTORE_PASSWORD:-changeit}"
       PG_INVEST_BACKEND_URL: "http://mcp-invest:8081"
       PG_WEATHER_BACKEND_URL: "http://mcp-weather:8896"
       PG_BRAVE_BACKEND_URL: "http://mcp-brave:8897"
