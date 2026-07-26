@@ -6,7 +6,7 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: #64748b;
+  color: #475569;
 }
 .verdict__chip {
   font-size: 0.95rem;
@@ -16,12 +16,14 @@
   border-radius: 7px;
   border: 1px solid transparent;
 }
-.verdict__chip--permit   { background: #dcfce7; color: #166534; border-color: #86efac; }
-.verdict__chip--deny     { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
-.verdict__chip--hitl     { background: #ffedd5; color: #9a3412; border-color: #fdba74; }
-.verdict__chip--unproven { background: #fef9c3; color: #854d0e; border-color: #fde047; }
-.verdict__chip--running  { background: #e0e7ff; color: #3730a3; border-color: #a5b4fc; }
-.verdict__chip--none     { background: #e2e8f0; color: #64748b; border-color: #cbd5e1; }
+/* Solid, saturated fills — legible as a color from across a room, not just
+   up close. A demo audience reads these at a glance, not by reading the text. */
+.verdict__chip--permit   { background: #16a34a; color: #fff; border-color: #15803d; }
+.verdict__chip--deny     { background: #dc2626; color: #fff; border-color: #b91c1c; }
+.verdict__chip--hitl     { background: #ea580c; color: #fff; border-color: #c2410c; }
+.verdict__chip--unproven { background: #eab308; color: #1e293b; border-color: #ca8a04; }
+.verdict__chip--running  { background: #4f46e5; color: #fff; border-color: #4338ca; }
+.verdict__chip--none     { background: #cbd5e1; color: #1e293b; border-color: #94a3b8; }
 .verdict__match { font-size: 0.78rem; font-weight: 800; padding: 3px 9px; border-radius: 999px; }
-.verdict__match--ok  { background: #dcfce7; color: #166534; }
-.verdict__match--bad { background: #fffbeb; color: #92400e; }
+.verdict__match--ok  { background: #16a34a; color: #fff; }
+.verdict__match--bad { background: #ea580c; color: #fff; }
