@@ -72,12 +72,18 @@ export function SessionTokenProvider({ children }) {
     return () => clearInterval(id);
   }, [tokenExpiresAt]);
 
-  // Periodic re-fetch of token status to pick up server-side silent refreshes.
-  // Without this, the pill shows "expired" even when the BFF has already refreshed.
+  // Adaptive re-fetch of token status. Each poll to /api/auth/oauth/* runs the
+  // refreshIfExpiring middleware, which silently refreshes the user access token
+  // when it is within 5 min of expiry — so polling is what keeps an idle user's
+  // token alive, and picks up the new expiry for the pill.
+  // Normally poll every 5 min (quiet); once under 5 min remaining, poll every
+  // minute so a refresh-triggering hit lands well before the token can expire.
+  const nearExpiry = tokenSecondsLeft != null && tokenSecondsLeft <= 300;
   useEffect(() => {
-    const id = setInterval(refreshTokenStatus, 300000); // every 5 min
+    const intervalMs = nearExpiry ? 60000 : 300000; // 1 min near expiry, else 5 min
+    const id = setInterval(refreshTokenStatus, intervalMs);
     return () => clearInterval(id);
-  }, [refreshTokenStatus]);
+  }, [refreshTokenStatus, nearExpiry]);
 
   // Register/unregister the page-owned token modal opener. Returns a cleanup
   // that only clears the opener if it is still the one this caller registered.
