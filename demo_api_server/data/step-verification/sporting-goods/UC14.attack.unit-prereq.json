@@ -6,8 +6,13 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": null,
-  "checkedAt": "2026-07-25T20:23:04.460Z",
+  "checkedAt": "2026-07-26T04:50:56.062Z",
   "requiredFlags": [
+    "ff_rar"
+  ],
+  "flagsAssumedOn": true,
+  "provesDeclaredOnly": true,
+  "flagsOffDetected": [
     "ff_rar"
   ]
 }

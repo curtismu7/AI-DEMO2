@@ -6,8 +6,15 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "view_courses",
-  "checkedAt": "2026-07-25T20:23:05.148Z",
+  "checkedAt": "2026-07-26T04:50:56.148Z",
   "requiredFlags": [
+    "ff_enterprise_managed_mcp_auth",
+    "ff_mcp_gateway_pinggateway",
+    "ff_gateway_brokered_exchange"
+  ],
+  "flagsAssumedOn": true,
+  "provesDeclaredOnly": true,
+  "flagsOffDetected": [
     "ff_enterprise_managed_mcp_auth",
     "ff_mcp_gateway_pinggateway",
     "ff_gateway_brokered_exchange"

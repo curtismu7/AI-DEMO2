@@ -27,6 +27,11 @@ const {
   needsA2aCredentials,
   needsParConfig,
 } = require('../services/demoStepPrerequisites');
+const {
+  chipPrerequisiteCases,
+  runChipPrerequisiteCheck,
+  assertSharedChipPrerequisites,
+} = require('./helpers/chipPrerequisites');
 
 const VERTICAL = 'government';
 
@@ -74,20 +79,7 @@ const fakeReq = () => ({
 });
 
 function verticalChipPrerequisiteCases() {
-  const out = [];
-  const seen = new Set();
-  for (const u of USE_CASES) {
-    const uc = resolveUseCase(u.id, VERTICAL) || u;
-    const mat = uc.maturity || '';
-    if (mat !== 'works' && !String(mat).startsWith('flag:')) continue;
-    const t = uc.trigger || {};
-    const isChip = t.type === 'chip' && t.text;
-    if (!isChip && !needsParConfig(uc)) continue;
-    if (seen.has(uc.id)) continue;
-    seen.add(uc.id);
-    out.push(uc);
-  }
-  return out;
+  return chipPrerequisiteCases(VERTICAL);
 }
 
 describe(`step verification — ${VERTICAL} chip routing (check 2: parse/route + amount)`, () => {
@@ -181,38 +173,12 @@ describe(`step verification — ${VERTICAL} chip prerequisites (flags + A2A + PA
   test.each(cases.map((c) => [c.id, c]))(
     '%s: required flags declared; creds when needed (gateway flags assumed on offline)',
     (_id, uc) => {
-      const requiredFlags = requiredFlagsForUseCase(uc);
-      expect(requiredFlags.length).toBeGreaterThan(0);
-
-      const cfg = {
-        getEffective: (k) => {
-          if (typeof k === 'string' && k.startsWith('ff_')) return true;
-          return realConfigStore.getEffective(k);
-        },
-      };
-
-      const prereq = checkChipPrerequisites(uc, VERTICAL, cfg);
-      const status = prereq.ok ? 'PASS' : 'FAIL';
-      const errorClass = prereq.ok ? null : 'missing_prereq';
-      const t = uc.trigger || {};
-      const triggerType = t.type === 'chip' ? 'chip' : (t.type || 'chip');
-
-      writeLedgerEntry({
-        vertical: VERTICAL,
-        useCaseId: uc.id,
-        triggerType,
-        mode: 'unit-prereq',
-        status,
-        errorClass,
-        primaryTool: uc.primaryTool || null,
-        checkedAt: new Date().toISOString(),
-        requiredFlags,
-        prereqErrors: prereq.errors.length ? prereq.errors : undefined,
-      });
+      const result = runChipPrerequisiteCheck(uc, VERTICAL, realConfigStore);
+      assertSharedChipPrerequisites(uc, result);
 
       // A2A credential failures are environment gaps, not catalog wiring errors —
-      // record them in the ledger above but don't hard-fail offline CI.
-      const nonCredErrors = prereq.errors.filter((e) => !/credentials missing/i.test(e));
+      // recorded in the ledger above, but they must not hard-fail offline CI.
+      const nonCredErrors = result.prereq.errors.filter((e) => !/credentials missing/i.test(e));
       expect(nonCredErrors).toEqual([]);
     },
   );

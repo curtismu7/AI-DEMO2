@@ -6,8 +6,14 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "pay_tuition_balance",
-  "checkedAt": "2026-07-25T20:23:05.145Z",
+  "checkedAt": "2026-07-26T04:50:56.143Z",
   "requiredFlags": [
+    "ff_mcp_gateway_pinggateway",
+    "ff_gateway_brokered_exchange"
+  ],
+  "flagsAssumedOn": true,
+  "provesDeclaredOnly": true,
+  "flagsOffDetected": [
     "ff_mcp_gateway_pinggateway",
     "ff_gateway_brokered_exchange"
   ]

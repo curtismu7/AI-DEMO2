@@ -154,6 +154,17 @@ const BOOTSTRAP_ALLOWLIST = new Set([
   'pingone_mgmt_client_secret',
   'pingone_management_client_id',
   'pingone_management_client_secret',
+  // The WORKER family must be here too — pingOneClientService.resolveWorkerCredentials
+  // tries it BEFORE pingone_mgmt_*, so a stale vault/LMDB copy of the worker secret
+  // wins over a correct .env and wedges every getManagementToken() caller
+  // (/mgmt-api, scope-audit, demoProvisioning, demoScenario). Observed 2026-07-26:
+  // vault held a secret for client 89ad8921 that PingOne rejected while .env's was
+  // valid; the basic attempt failed invalid_client, the basic->post self-heal then
+  // reported "Unsupported authentication method", hiding the real cause.
+  'pingone_worker_client_id',
+  'pingone_worker_client_secret',
+  'pingone_worker_token_client_id',
+  'pingone_worker_token_client_secret',
 ]);
 
 // All known config keys with their defaults and whether they are public

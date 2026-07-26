@@ -10,6 +10,7 @@ const express = require('express');
 const router = express.Router();
 const { requireSession } = require('../middleware/auth');
 const svc = require('../services/agentBuilderService');
+const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 
 router.use(requireSession);
 
@@ -22,7 +23,8 @@ function sendError(res, err) {
   console.error('[agent-builder]', err.message, pingone ? JSON.stringify(pingone).slice(0, 500) : '');
   return res.status(502).json({
     error: 'pingone_error',
-    message: pingone?.details?.[0]?.message || pingone?.message || err.message,
+    message: pingone?.details?.[0]?.message || pingone?.message
+      || normalizeAxiosError(err, { label: 'PingOne agent build' }).message,
   });
 }
 

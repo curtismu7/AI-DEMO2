@@ -8,7 +8,13 @@ const ProofContext = createContext(null);
 // below: these outcomes' block responses don't populate `decision` today, so
 // outcomeMatches defaults to true for them — this set is what maps that
 // true-by-default match to 'denied-as-expected' instead of 'verified'.
-const DENIED_LIKE_OUTCOMES = new Set(['DENY', 'DENY_401', 'DENY_403', 'DENY_429', 'STEP_UP', 'HITL_REQUIRED']);
+// DENY_503 belongs here too: UC29 is an attack-track use case whose whole point
+// is that the call is refused. Without it, expectedIsDenyLike was false, so the
+// verdict fell through to `decision === 'PERMIT'` — rendering UC29 as plain
+// 'verified' when no decision was recorded, or 'mismatch' when one was. Never
+// 'denied-as-expected'. Keep this set in step with the backend mirror in
+// demo_api_server/services/stepVerificationExpectations.js (parity-gated).
+const DENIED_LIKE_OUTCOMES = new Set(['DENY', 'DENY_401', 'DENY_403', 'DENY_429', 'DENY_503', 'STEP_UP', 'HITL_REQUIRED']);
 
 // Which block kind each catalog expectedOutcome demands. mcpToolPipeline stamps
 // the actual kind on trace.authorize.outcome (DENY / STEP_UP / HITL_REQUIRED /
@@ -16,7 +22,7 @@ const DENIED_LIKE_OUTCOMES = new Set(['DENY', 'DENY_401', 'DENY_403', 'DENY_429'
 // 'PERMIT'" — is what stops a use case expecting a hard DENY from rendering green
 // when the engine actually returned an approval gate.
 const EXPECTED_OUTCOME_FAMILY = {
-  DENY: 'DENY', DENY_401: 'DENY', DENY_403: 'DENY', DENY_429: 'DENY',
+  DENY: 'DENY', DENY_401: 'DENY', DENY_403: 'DENY', DENY_429: 'DENY', DENY_503: 'DENY',
   STEP_UP: 'STEP_UP', HITL_REQUIRED: 'HITL_REQUIRED',
 };
 
