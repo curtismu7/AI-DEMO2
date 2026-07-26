@@ -5,7 +5,7 @@ import '@testing-library/jest-dom';
 import TraceStepCard from '../TraceStepCard';
 
 const step = {
-  id: 'authorize-decision',
+  id: 'authorize',
   status: 'ok',
   lane: 'MCP',
   title: 'Authorize decision',
@@ -15,7 +15,7 @@ const step = {
 describe('TraceStepCard', () => {
   it('exposes a stable data-step-id for the workbench to target', () => {
     const { container } = render(<TraceStepCard step={step} onInspect={() => {}} />);
-    const card = container.querySelector('[data-step-id="authorize-decision"]');
+    const card = container.querySelector('[data-step-id="authorize"]');
     expect(card).not.toBeNull();
     expect(card).toHaveClass('tctr-step');
     expect(card).toHaveAttribute('data-status', 'ok');

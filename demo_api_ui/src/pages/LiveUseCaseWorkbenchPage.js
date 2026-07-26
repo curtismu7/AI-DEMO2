@@ -116,7 +116,7 @@ export default function LiveUseCaseWorkbenchPage() {
   // no rail content is hidden, collapsed, or reordered.
   useEffect(() => {
     if (!railFocus) return undefined;
-    const card = document.querySelector('[data-step-id="authorize-decision"]');
+    const card = document.querySelector('[data-step-id="authorize"]');
     if (!card) return undefined;
     card.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
     card.classList.add('luw-step-pulse');

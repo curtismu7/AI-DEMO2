@@ -25,8 +25,14 @@ vi.mock('../../components/VerticalSwitcher', () => ({
   default: () => <div data-testid="vertical-switcher" />,
 }));
 
+// Mutable so one test (see "rail focus scroll-and-pulse") can swap in a real
+// TraceStepCard for the stub, driving the page's scroll/pulse effect through
+// its actual `data-step-id={step.id}` output instead of a hardcoded stand-in.
+// Must be named `mock*` — vi.mock is hoisted above this file's other
+// top-level code, and only `mock`-prefixed bindings survive that hoist.
+let mockRailRender = () => <div data-testid="trace-rail" />;
 vi.mock('../../components/TokenChainTraceRail', () => ({
-  default: () => <div data-testid="trace-rail" />,
+  default: (props) => mockRailRender(props),
 }));
 
 vi.mock('../../services/tokenChainTrace/tokenChainTraceStore', () => ({
@@ -61,6 +67,9 @@ vi.mock('../../context/ProofOfEnforcementContext', () => ({
 import LiveUseCaseWorkbenchPage from '../LiveUseCaseWorkbenchPage';
 import apiClient from '../../services/apiClient';
 import { tokenChainTraceStore } from '../../services/tokenChainTrace/tokenChainTraceStore';
+// Real (unmocked) component — used only by the "rail focus scroll-and-pulse"
+// suite below to render a genuine `data-step-id="authorize"` node.
+import TraceStepCard from '../../components/TraceStepCard';
 
 /** The host-registration effect fires more than once during mount (pre-ref-attach
  *  null, functional cleanup updater, then the attached node). Pull the call that
@@ -324,5 +333,48 @@ describe('LiveUseCaseWorkbenchPage — rail focus on a settled verdict', () => {
     // unmount or replace it. The real guarantee that its detail is untouched is
     // the rail-detail regression test below plus Task 8's live walkthrough.
     expect(screen.getByTestId('trace-rail')).toBeInTheDocument();
+  });
+});
+
+// Regression for a wrong-id bug: the scroll-and-pulse effect targeted
+// `[data-step-id="authorize-decision"]`, a tokenChain *evidence-step* name
+// used elsewhere (ProofOfEnforcementContext, TokenChainDisplay), not the
+// TraceStepCard `step.id` the real rail renders (buildTraceSteps.js emits
+// `makeStep("authorize", ...)`). Every earlier test in this file mocks
+// TokenChainTraceRail down to an empty stub, so none of them could ever
+// exercise the selector against a real `data-step-id` attribute. This suite
+// swaps the stub for the real (unmocked) TraceStepCard for one render, so the
+// assertions below run against the actual selector string baked into
+// LiveUseCaseWorkbenchPage.js, not a copy of it re-typed in the test.
+describe('LiveUseCaseWorkbenchPage — rail focus scroll-and-pulse (real selector)', () => {
+  afterEach(() => {
+    mockProof.verdict = null;
+    mockRailRender = () => <div data-testid="trace-rail" />;
+  });
+
+  it('scrolls to and pulses the real authorize step card through the production selector', () => {
+    // src/setupTests.js already stubs scrollIntoView on HTMLElement.prototype
+    // (jsdom has no implementation) — reuse that vi.fn() rather than shadowing
+    // Element.prototype ourselves, which would sit behind HTMLElement.prototype
+    // in the chain and never see the real card's call.
+    const scrollSpy = window.HTMLElement.prototype.scrollIntoView;
+    scrollSpy.mockClear();
+
+    mockRailRender = () => (
+      <div data-testid="trace-rail">
+        <TraceStepCard
+          step={{ id: 'authorize', status: 'done', lane: 'MCP', title: 'Authorize decision', detail: {} }}
+          onInspect={() => {}}
+        />
+      </div>
+    );
+    mockProof.verdict = { useCaseId: 'uc1', title: 'x', state: 'verified', matchedSteps: [], missingSteps: [] };
+
+    const { container } = render(<LiveUseCaseWorkbenchPage />);
+
+    const card = container.querySelector('[data-step-id="authorize"]');
+    expect(card).not.toBeNull();
+    expect(scrollSpy).toHaveBeenCalled();
+    expect(card).toHaveClass('luw-step-pulse');
   });
 });
