@@ -58,6 +58,7 @@ vi.mock('../../context/ProofOfEnforcementContext', () => ({
 }));
 
 import LiveUseCaseWorkbenchPage from '../LiveUseCaseWorkbenchPage';
+import apiClient from '../../services/apiClient';
 
 /** The host-registration effect fires more than once during mount (pre-ref-attach
  *  null, functional cleanup updater, then the attached node). Pull the call that
@@ -189,5 +190,60 @@ describe('LiveUseCaseWorkbenchPage CSS — narrow-viewport drawer revert', () =>
     const ruleMatch = mediaBlock.match(/\.luw-body--drawer-closed\s+\.luw-drawer[^{]*\{([^}]*)\}/);
     expect(ruleMatch).not.toBeNull();
     expect(ruleMatch[1]).toMatch(/transform:\s*none/);
+  });
+});
+
+// Minimal BroadcastChannel spy: every `new BroadcastChannel('demo-script')`
+// call (the page recreates its channel each time selectedId changes) appends
+// its posted messages to one shared array so a test can assert on the
+// cross-window "select" broadcast without depending on jsdom's native
+// implementation.
+class TestBroadcastChannel {
+  constructor(name) {
+    this.name = name;
+    TestBroadcastChannel.posted = TestBroadcastChannel.posted || [];
+  }
+  postMessage(msg) {
+    TestBroadcastChannel.posted.push(msg);
+  }
+  addEventListener() {}
+  removeEventListener() {}
+  close() {}
+}
+
+describe('LiveUseCaseWorkbenchPage — teleprompter select broadcast', () => {
+  let originalBroadcastChannel;
+
+  beforeEach(() => {
+    originalBroadcastChannel = global.BroadcastChannel;
+    TestBroadcastChannel.posted = [];
+    global.BroadcastChannel = TestBroadcastChannel;
+  });
+
+  afterEach(() => {
+    global.BroadcastChannel = originalBroadcastChannel;
+  });
+
+  it('posts a select message on the demo-script channel when a card is chosen', async () => {
+    apiClient.get.mockResolvedValueOnce({
+      data: {
+        useCases: [
+          {
+            id: 'UC24',
+            title: 'Branches near me',
+            trigger: { type: 'chip', text: 'what branches are near me' },
+          },
+        ],
+      },
+    });
+
+    render(<LiveUseCaseWorkbenchPage />);
+
+    const card = await screen.findByText(/Branches near me/);
+    fireEvent.click(card);
+
+    await waitFor(() => {
+      expect(TestBroadcastChannel.posted).toContainEqual({ type: 'select', ucId: 'UC24' });
+    });
   });
 });
