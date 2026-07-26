@@ -102,6 +102,44 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-26 — Stale vault worker secret wedged every getManagementToken() caller
+
+**Files changed:** `demo_api_server/services/configStore.js` (BOOTSTRAP_ALLOWLIST),
+`demo_api_server/src/__tests__/workerCredsBootstrap.test.js` (new).
+
+**What was broken:** `BOOTSTRAP_ALLOWLIST` (where `.env` outranks vault/LMDB) listed
+`pingone_mgmt_*` and `pingone_management_*` but NOT the WORKER family — and
+`pingOneClientService.resolveWorkerCredentials` tries `PINGONE_WORKER_CLIENT_ID/SECRET`
+**first**. The vault held a secret for worker client `89ad8921` that PingOne rejected
+while `.env`'s was valid, so the vault copy won and every `getManagementToken()` caller
+401'd: `/api/admin/mgmt-api`, `/api/admin/scope-audit`, `routes/demoProvisioning.js`,
+`routes/demoScenario.js`.
+
+The symptom actively misled. The `basic` attempt failed `invalid_client`, so the
+basic→post self-heal in `services/pingOneTokenAuth.js` retried with `post`; the app
+only accepts `client_secret_basic`, so the surfaced error was **"Request denied:
+Unsupported authentication method"** — which reads as an auth-METHOD misconfiguration.
+The method was correct throughout (`basic`, order `["basic","post"]`); only the secret
+was wrong.
+
+Proof: in the running container, minting BEFORE `vaultLoader.loadVaultIntoConfigStore()`
+succeeded and AFTER it 401'd, with the worker client id identical and only the secret's
+sha256 changing (`f08f44f8…` → `3f7f49fa…`).
+
+**What was fixed:** added `pingone_worker_client_id`, `pingone_worker_client_secret`,
+`pingone_worker_token_client_id`, `pingone_worker_token_client_secret` to
+BOOTSTRAP_ALLOWLIST, so `.env` is authoritative for them exactly as it already was for
+the mgmt family.
+
+**Do not break:** entries must stay lowercase — `getEffective()` lowercases the key
+before the membership test, so an uppercase entry silently never matches. Note the
+tradeoff this makes explicit: worker credentials set through the /config UI (vault) no
+longer override `.env`. That is the same contract the mgmt family already had, and it
+is what makes a stale cached secret recoverable by editing `.env`.
+
+**Verify:** `CI=true npx jest src/__tests__/workerCredsBootstrap.test.js` (6 pass);
+revert `configStore.js` alone and 4 of the 6 fail.
+
 ### 2026-07-26 — MCP_INVEST_AUDIENCE was accepted on every MCP callback, not just the portfolio read
 
 **Files changed:** `demo_api_server/middleware/auth.js`,
