@@ -176,14 +176,29 @@ class PingOneManagementService {
   async createApplication(name, description, type, grantTypes, redirectUris = []) {
     this.ensureInitialized();
 
+    // PingOne's Applications API requires UPPERCASE enum values for
+    // grantTypes/tokenEndpointAuthMethod — accept either case from callers
+    // and normalize so `authorization_code` / `client_secret_post` etc. work.
     const payload = {
       name,
       description,
+      enabled: true,
       type,
-      grantTypes,
+      // PingOne rejects application creation with EMPTY_VALUE on `protocol`
+      // for every app type used here (SPA/WEB_APP/WORKER are all OIDC in
+      // this codebase) — required, not optional.
+      protocol: 'OPENID_CONNECT',
+      grantTypes: (grantTypes || []).map(g => String(g).toUpperCase()),
       redirectUris,
-      tokenEndpointAuthMethod: type === 'worker' ? 'client_secret_basic' : 'client_secret_post'
+      tokenEndpointAuthMethod: (type === 'worker' ? 'client_secret_basic' : 'client_secret_post').toUpperCase()
     };
+
+    // PingOne requires responseTypes to contain CODE whenever grantTypes
+    // includes AUTHORIZATION_CODE (and rejects it otherwise), so gate it on
+    // the same normalized grant list.
+    if (payload.grantTypes.includes('AUTHORIZATION_CODE')) {
+      payload.responseTypes = ['CODE'];
+    }
 
     try {
       const response = await axios.post(
