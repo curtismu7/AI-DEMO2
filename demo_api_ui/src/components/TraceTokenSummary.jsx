@@ -18,51 +18,66 @@ const TOKEN_META = {
   "two-ex-final-token": { name: "Final MCP Token", cls: "mcp", role: "act chain", parent: "two-ex-exchange1", inspect: "mcp" },
 };
 
-export default function TraceTokenSummary({ tokenEvents, onInspect, only }) {
+function TokenBox({ id, evt, meta, byId, onInspect }) {
+  const parent = meta.parent ? byId[meta.parent] : null;
+  const changes = parent ? diffTokenClaims(parent.claims || {}, evt.claims || {}) : [];
+  return (
+    <div key={id} className={`tctr-tok tctr-tok--${meta.cls}`}>
+      <button type="button" className="tctr-tok-inspect" onClick={() => onInspect(meta.inspect)}>
+        Inspect
+      </button>
+      <div className="tctr-tok-head">
+        <span className="tctr-tok-name">{evt.label || meta.name}</span>
+        <span className="tctr-tok-role">{meta.role}</span>
+      </div>
+      <div className="tctr-tok-claims">
+        {Object.entries(evt.claims || {}).slice(0, 6)
+          .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`)
+          .join(" · ")}
+      </div>
+      {changes.length > 0 && (
+        <div className="tctr-tok-changes">
+          {changes.map((c) => (
+            <div key={c.claim} className="tctr-tok-change">
+              <span className="tctr-kv-k">{c.claim}</span>
+              <span className="tctr-kv-v">{c.from} → {c.to} <em>({c.note})</em></span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function TraceTokenSummary({ tokenEvents, onInspect, only, standalone = false }) {
   const byId = Object.fromEntries((tokenEvents || []).map((e) => [e.id, e]));
   const tokens = Object.keys(TOKEN_META)
     .filter((id) => !only || TOKEN_META[id].cls === only)
     .map((id) => byId[id] && { id, evt: byId[id] })
     .filter(Boolean);
-  if (!tokens.length) return null;
+
+  if (!tokens.length) {
+    if (!standalone) return null;
+    return (
+      <div className="tctr-acc-body tctr-tok-empty">
+        No tokens captured yet — run a use case to populate the chain.
+      </div>
+    );
+  }
+
+  const boxes = tokens.map(({ id, evt }) => (
+    <TokenBox key={id} id={id} evt={evt} meta={TOKEN_META[id]} byId={byId} onInspect={onInspect} />
+  ));
+
+  if (standalone) {
+    return <div className="tctr-acc-body">{boxes}</div>;
+  }
 
   return (
     <details className="tctr-acc">
       <summary><span className="tctr-chev">▶</span> Token Summary
         <span className="tctr-count">{tokens.length}</span></summary>
-      <div className="tctr-acc-body">
-        {tokens.map(({ id, evt }) => {
-          const meta = TOKEN_META[id];
-          const parent = meta.parent ? byId[meta.parent] : null;
-          const changes = parent ? diffTokenClaims(parent.claims || {}, evt.claims || {}) : [];
-          return (
-            <div key={id} className={`tctr-tok tctr-tok--${meta.cls}`}>
-              <button type="button" className="tctr-tok-inspect" onClick={() => onInspect(meta.inspect)}>
-                Inspect
-              </button>
-              <div className="tctr-tok-head">
-                <span className="tctr-tok-name">{evt.label || meta.name}</span>
-                <span className="tctr-tok-role">{meta.role}</span>
-              </div>
-              <div className="tctr-tok-claims">
-                {Object.entries(evt.claims || {}).slice(0, 6)
-                  .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`)
-                  .join(" · ")}
-              </div>
-              {changes.length > 0 && (
-                <div className="tctr-tok-changes">
-                  {changes.map((c) => (
-                    <div key={c.claim} className="tctr-tok-change">
-                      <span className="tctr-kv-k">{c.claim}</span>
-                      <span className="tctr-kv-v">{c.from} → {c.to} <em>({c.note})</em></span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      <div className="tctr-acc-body">{boxes}</div>
     </details>
   );
 }
