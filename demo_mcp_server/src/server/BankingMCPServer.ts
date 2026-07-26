@@ -137,6 +137,15 @@ export class BankingMCPServer extends EventEmitter {
             rejectUnauthorized: false,
           },
           (req, res) => {
+            // Liveness probes are exempt from client-cert auth. They expose no
+            // data, and the container healthcheck runs inside the container with
+            // no keystore — requiring a cert there marks a healthy server
+            // unhealthy, which blocks depends_on and shows red on the demo board.
+            const probePath = (req.url || '').split('?')[0];
+            if (probePath === '/health' || probePath === '/.well-known/mcp-server') {
+              this.handleHttpRequest(req, res);
+              return;
+            }
             const socket = req.socket as tls.TLSSocket;
             try {
               mtlsVerifier!(socket);

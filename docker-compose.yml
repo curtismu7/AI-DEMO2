@@ -314,7 +314,7 @@ services:
       # whose SHA-256 matches MCP_MTLS_GATEWAY_CERT_PATH. PingGateway presents it
       # from PG_MTLS_KEYSTORE_PATH — the two must move together: flipping this
       # alone rejects every gateway call with "no client certificate presented".
-      MCP_MTLS_ENABLED: "${MCP_MTLS_ENABLED:-false}"
+      MCP_MTLS_ENABLED: "${MCP_MTLS_ENABLED:-true}"
       MCP_MTLS_GATEWAY_CERT_PATH: "/certs/gw-mtls/gw-client.crt"
       # RAG code-search service — the code_search/get_code/list_codebases tool
       # handlers call this over compose DNS.
@@ -925,10 +925,10 @@ services:
       # In-stack overrides (env block wins over env_file): reach backends + the mock
       # authz server by compose service DNS, not host.docker.internal.
       # https when mTLS is on (mcp-server serves TLS on the SAME port); http otherwise.
-      PG_OLB_BACKEND_URL: "${PG_OLB_BACKEND_URL:-http://mcp-server:8080}"
+      PG_OLB_BACKEND_URL: "${PG_OLB_BACKEND_URL:-https://mcp-server:8080}"
       # Client cert IG presents to the MCP server. certs/ is already mounted at
       # /certs on this service. Empty => plaintext, unchanged behaviour.
-      PG_MTLS_KEYSTORE_PATH: "${PG_MTLS_KEYSTORE_PATH:-}"
+      PG_MTLS_KEYSTORE_PATH: "${PG_MTLS_KEYSTORE_PATH:-/certs/gw-mtls/gw-client.p12}"
       PG_MTLS_KEYSTORE_PASSWORD: "${PG_MTLS_KEYSTORE_PASSWORD:-changeit}"
       PG_INVEST_BACKEND_URL: "http://mcp-invest:8081"
       PG_WEATHER_BACKEND_URL: "http://mcp-weather:8896"
