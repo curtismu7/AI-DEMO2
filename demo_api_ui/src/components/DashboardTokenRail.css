@@ -1,0 +1,89 @@
+/* demo_api_ui/src/components/DashboardTokenRail.css
+ * Side-nav-style collapse + drag-resize for the dashboard Token Chain rail. */
+
+.ud-token-rail {
+  position: relative;
+  transition: width 0.2s ease-in-out, min-width 0.2s ease-in-out,
+    max-width 0.2s ease-in-out;
+}
+
+.ud-token-rail--collapsed {
+  overflow: hidden;
+}
+
+.ud-token-rail__toggle {
+  position: absolute;
+  top: 10px;
+  left: 8px;
+  z-index: 3;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--brand-medium-gray, #cbd5e1);
+  border-radius: 6px;
+  background: #fff;
+  color: #334155;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.ud-token-rail__toggle:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.ud-token-rail__toggle:active {
+  transform: scale(0.96);
+}
+
+.ud-token-rail--collapsed .ud-token-rail__toggle {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.ud-token-rail--collapsed .ud-token-rail__toggle:active {
+  transform: translateX(-50%) scale(0.96);
+}
+
+/* Left edge drag handle — rail is on the right of the dashboard */
+.ud-token-rail__resize-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 4;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.ud-token-rail__resize-handle:hover,
+.ud-token-rail__resize-handle:focus-visible {
+  background: rgba(52, 152, 219, 0.35);
+}
+
+.ud-token-rail__collapsed-label {
+  display: block;
+  margin-top: 52px;
+  padding: 0 4px;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+  text-align: center;
+  width: 100%;
+}
+
+.ud-token-rail:not(.ud-token-rail--collapsed) .ud-token-rail__inner {
+  padding-top: 48px; /* room for collapse toggle */
+}

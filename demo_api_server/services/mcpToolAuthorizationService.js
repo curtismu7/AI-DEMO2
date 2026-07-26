@@ -15,6 +15,8 @@ const simulatedAuthorizeService = require('./simulatedAuthorizeService');
 const { decodeJwtClaims } = require('./agentMcpTokenService');
 const { buildActorBridgeHeaders } = require('./mcpActorBridge');
 const hitlServiceClient = require('./hitlServiceClient');
+const cibaTransactionReceipt = require('./cibaTransactionReceipt');
+const hitlCredit = require('./hitlCredit');
 const dataStore = require('../data/store');
 const groupPolicy = require('./groupPolicy');
 const {
@@ -283,6 +285,57 @@ function resolveStepUpMethod(useCaseId) {
 }
 
 /**
+ * Local amount-limit overlay used when the live Transaction decision endpoint
+ * is unreachable (e.g. PingOne 429 REQUEST_LIMITED). Mirrors the MCP simulated
+ * amount ladder (deny / step-up / confirm) so UC6–UC8 still fire when the MCP
+ * first-tool gate alone returns bare PERMIT (live P1AZ MCP policy does not
+ * encode amount limits).
+ *
+ * @param {object} r - gate result
+ * @param {{amount: number, acr?: string}} opts
+ * @returns {object} r, possibly upgraded
+ */
+function _localAmountLimitFallback(r, { amount, acr }) {
+  const denyAmount = simulatedAuthorizeService.getDenyAmountUsd();
+  const stepUpAmount = simulatedAuthorizeService.getStepUpAmountUsd();
+  const confirmAmount = simulatedAuthorizeService.getConfirmAmountUsd();
+  const acrStrong = typeof acr === 'string'
+    && /multi.?factor|mfa|aal2|Multi_Factor/i.test(acr);
+
+  if (amount > denyAmount) {
+    return {
+      ...r,
+      decision: 'DENY',
+      transactionPolicyDenied: true,
+      transactionPolicyFallback: true,
+      raw: {
+        ...(r.raw || {}),
+        decision: 'DENY',
+        reason: `Local amount fallback DENY: $${amount} exceeds deny limit $${denyAmount} (Transaction endpoint unavailable).`,
+        engine: 'local-amount-fallback',
+      },
+    };
+  }
+  if (amount >= stepUpAmount && !acrStrong) {
+    return {
+      ...r,
+      stepUpRequired: true,
+      transactionPolicyStepUp: true,
+      transactionPolicyFallback: true,
+    };
+  }
+  if (amount >= confirmAmount && !acrStrong) {
+    return {
+      ...r,
+      hitlRequired: true,
+      transactionPolicyHitl: true,
+      transactionPolicyFallback: true,
+    };
+  }
+  return r;
+}
+
+/**
  * Consult the Transaction decision endpoint for amount-bearing tool calls.
  *
  * The MCP first-tool gate answers "may this agent invoke this tool" — it does not
@@ -344,23 +397,51 @@ async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr
     if (forceStepUp || (t && t.stepUpRequired)) {
       // Step-up outranks HITL. Setting stepUpRequired makes mapLivePingOneResult
       // take its step-up branch (checked before HITL) — a 428 mcp_step_up_required.
+      // Clear hitlRequired so the gate's HITL obligation doesn't bleed through.
       return {
         ...r,
         stepUpRequired: true,
+        hitlRequired: false,
         decisionId: t?.decisionId || r.decisionId,
         raw: t?.raw || r.raw,
         transactionPolicyStepUp: true,
+      };
+    }
+    // Promote Transaction-policy HITL/consent onto the MCP gate. The gate itself
+    // often PERMITs vertical writes (pay_bill, checkout, …) with no obligation;
+    // without this, UC8 ($300) executed and ProofStrip showed authorize mismatch.
+    if (t && (t.consentRequired || t.hitlRequired)) {
+      return {
+        ...r,
+        hitlRequired: true,
+        decisionId: t.decisionId || r.decisionId,
+        raw: t.raw || r.raw,
+        transactionPolicyHitl: true,
       };
     }
   } catch (err) {
     // A declared step-up method is gated by the useCaseId, not the amount — it
     // must still route to step-up even if the amount-limit consult errors.
     if (forceStepUp) {
-      return { ...r, stepUpRequired: true, transactionPolicyStepUp: true };
+      return { ...r, stepUpRequired: true, hitlRequired: false, transactionPolicyStepUp: true };
     }
-    // Otherwise fail OPEN to the gate's decision: the gate already ran and is the
-    // primary control. A transaction-policy outage must not block every priced call.
-    console.warn('[mcpAuthz] transaction policy consult failed — keeping gate decision:', err.message);
+    // Live MCP first-tool policy often PERMITs without amount obligations. The
+    // Transaction endpoint is what enforces $2500 DENY / $600 step-up / $300
+    // HITL. When it 429s (REQUEST_LIMITED) or errors, failing open to the gate
+    // made UC6 pay the bill and Proof show "Authz denied — Mismatch". Apply
+    // the same amount ladder locally so demos stay correct under P1AZ pressure.
+    console.warn(
+      '[mcpAuthz] transaction policy consult failed — applying local amount fallback:',
+      err.message,
+    );
+    return _localAmountLimitFallback(r, { amount, acr });
+  }
+  // Local amount-band fallback when Transaction consult returned bare PERMIT (no
+  // DENY/step-up/HITL). Live P1AZ Transaction endpoint may PERMIT without any
+  // gate for agent vertical writes; the amount ladder still applies so UC6/7/8
+  // fire correctly even when the Transaction endpoint does not enforce them.
+  if (!forceStepUp && Number.isFinite(amount) && amount > 0) {
+    return _localAmountLimitFallback(r, { amount, acr });
   }
   return r;
 }
@@ -548,9 +629,21 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
   // otherwise a checkout/transfer that trips both step-up AND HITL (e.g. UC22)
   // clears step-up on retry but 428s forever on the untouched HITL statement.
   // Single-use, same pattern as stepUpAlreadyVerified above.
-  const hitlAlreadyVerified = req.session?.hitlVerified > Date.now();
+  const hitlAlreadyVerified = hitlCredit.isFresh(req.session);
   if (hitlAlreadyVerified) {
-    req.session.hitlVerified = 0;
+    // Consume-on-use (services/hitlCredit.js): the credit is spent below at the
+    // HITL-gate site it actually suppresses, NOT here — so an unrelated tool
+    // call no longer burns it out from under a pending transaction retry.
+    // This gate only covers the BFF's own pre-check (POST /api/mcp/tool). The
+    // real write for banking transaction tools still lands on POST
+    // /api/transactions via demo_mcp_server's BankingAPIClient, which calls
+    // back in over a bearer token only (no session cookie) — so that route's
+    // OWN session-based hitlVerified check can never see this approval.
+    // Stash a short-lived receipt keyed by (userId, tool, amount) so it can
+    // look the approval up without a session. See cibaTransactionReceipt.js.
+    if (transactionType && toolAmount != null) {
+      cibaTransactionReceipt.record(policyUserId, tool, toolAmount);
+    }
   }
 
   if (groupPolicy.isEnabled(configStore) || shouldApplyEntitlementTierDemo(useCaseId)) {
@@ -764,7 +857,10 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
       };
     }
 
-    if (r.hitlRequired && !hitlAlreadyVerified) {
+    if (r.hitlRequired && hitlAlreadyVerified) {
+      // Consume-on-use: the credit discharged this HITL gate, so spend it now.
+      hitlCredit.consume(req.session);
+    } else if (r.hitlRequired) {
       return {
         ran: true,
         block: {
@@ -802,61 +898,10 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     if (runSimulated) {
       const r = await simulatedAuthorizeService.evaluateMcpFirstTool(simParams);
 
-      if (r.stepUpRequired && !stepUpAlreadyVerified) {
-        return {
-          ran: true,
-          block: {
-            status: 428,
-            body: {
-              error: 'mcp_step_up_required',
-              error_description:
-                'Simulated authorization policy requires step-up before MCP tools (education mode).',
-              authorize_engine: 'simulated',
-              decisionContext: 'McpFirstTool',
-              decisionId: r.decisionId,
-              // Drives the agent step-up modal: only 'p1mfa' makes it show the
-              // device picker (SMS / email / passkey). Omitting the field left it
-              // undefined, so every agent step-up fell back to stub OTP-only.
-              step_up_method: resolveStepUpMethod(useCaseId),
-            },
-          },
-        };
-      }
-
-      if (r.hitlRequired && hitlApproved) {
-        return {
-          ran: true,
-          block: {
-            status: 403,
-            body: {
-              error: 'mcp_hitl_receipt_rejected',
-              error_description:
-                'HITL receipt accepted but authorization engine still requires approval — possible policy misconfiguration.',
-              authorize_engine: 'simulated',
-              decisionContext: 'McpFirstTool',
-              decisionId: r.decisionId,
-            },
-          },
-        };
-      }
-
-      if (r.hitlRequired && !hitlAlreadyVerified) {
-        return {
-          ran: true,
-          block: {
-            status: 428,
-            body: {
-              error: 'mcp_hitl_required',
-              error_description:
-                'Simulated authorization policy requires human approval before MCP tools (education mode).',
-              authorize_engine: 'simulated',
-              decisionContext: 'McpFirstTool',
-              decisionId: r.decisionId,
-            },
-          },
-        };
-      }
-
+      // DENY takes absolute precedence — mirrors mapLivePingOneResult ordering
+      // (DENY > step-up > HITL). Simulated gate sets stepUpRequired/hitlRequired
+      // false when it returns DENY, but checking DENY first is the invariant so
+      // the two paths cannot diverge regardless of future gate changes.
       if (r.decision === 'DENY') {
         return {
           ran: true,
@@ -881,6 +926,61 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
                 const { parameters: _p, ...rest } = r.raw;
                 return rest;
               })(),
+            },
+          },
+        };
+      }
+
+      if (r.stepUpRequired && !stepUpAlreadyVerified) {
+        return {
+          ran: true,
+          block: {
+            status: 428,
+            body: {
+              error: 'mcp_step_up_required',
+              error_description:
+                'Simulated authorization policy requires step-up before MCP tools (education mode).',
+              authorize_engine: 'simulated',
+              decisionContext: 'McpFirstTool',
+              decisionId: r.decisionId,
+              step_up_method: resolveStepUpMethod(useCaseId),
+            },
+          },
+        };
+      }
+
+      if (r.hitlRequired && hitlApproved) {
+        return {
+          ran: true,
+          block: {
+            status: 403,
+            body: {
+              error: 'mcp_hitl_receipt_rejected',
+              error_description:
+                'HITL receipt accepted but authorization engine still requires approval — possible policy misconfiguration.',
+              authorize_engine: 'simulated',
+              decisionContext: 'McpFirstTool',
+              decisionId: r.decisionId,
+            },
+          },
+        };
+      }
+
+      if (r.hitlRequired && hitlAlreadyVerified) {
+        // Consume-on-use: the credit discharged this HITL gate, so spend it now.
+        hitlCredit.consume(req.session);
+      } else if (r.hitlRequired) {
+        return {
+          ran: true,
+          block: {
+            status: 428,
+            body: {
+              error: 'mcp_hitl_required',
+              error_description:
+                'Simulated authorization policy requires human approval before MCP tools (education mode).',
+              authorize_engine: 'simulated',
+              decisionContext: 'McpFirstTool',
+              decisionId: r.decisionId,
             },
           },
         };
@@ -998,7 +1098,10 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
             authorizeFallback,
           } } };
         }
-        if (r.hitlRequired && !hitlAlreadyVerified) {
+        if (r.hitlRequired && hitlAlreadyVerified) {
+          // Consume-on-use: the credit discharged this HITL gate, so spend it now.
+          hitlCredit.consume(req.session);
+        } else if (r.hitlRequired) {
           return { ran: true, block: { status: 428, body: {
             error: 'mcp_hitl_required',
             error_description: 'PingOne Authorize was unreachable — simulated fallback requires human approval before MCP tools.',
@@ -1079,4 +1182,6 @@ module.exports = {
   // and that the returned id is in the subjectId (oauthId) space.
   resolveResourceOwnerId,
   RESOURCE_OWNER_TOOLS,
+  // Exported for direct unit testing of Transaction-policy precedence (UC6/7/8).
+  _applyTransactionPolicy,
 };

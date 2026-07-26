@@ -38,7 +38,7 @@ fetch(MCP_SERVER_URL, {
   Scopes: openid (or custom agent scopes)
 
 → Copy the Client ID and Client Secret</pre><h4>Step 2 — Register a Resource in PingOne</h4><p>The MCP Server needs its own <strong>Resource URI</strong> (audience) so PingOne knows what the MCP Token is valid for.</p><pre class="edu-code">PingOne → Applications → Resources → Add Resource
-  Name: Banking MCP Server
+  Name: AIDemo MCP Server
   Audience (Resource URI): https://mcp.yourdomain.com
   Scopes: read, write
 
@@ -81,7 +81,7 @@ const body = new URLSearchParams({
 });
 const response = await axios.post(this.config.tokenEndpoint, body.toString(), { ... });
 if (!response.data.access_token) throw new Error('Token exchange response missing access_token');</pre></section>
-<section class="snap-tab" id="sec-live-tokens"><h3 class="snap-tab-h">Live Tokens</h3><h3 style="">Your current User Token</h3><p>The User Token is stored in the Backend-for-Frontend (BFF) session (httpOnly cookie). It is never stored in the React app. The Backend-for-Frontend (BFF) exposes only the decoded payload here for educational purposes.</p><p style="color: rgb(185, 28, 28);">/api/auth/oauth/status returned 502</p></section>
+<section class="snap-tab" id="sec-live-tokens"><h3 class="snap-tab-h">Live Tokens</h3><h3 style="">Your current User Token</h3><p>The User Token is stored in the Backend-for-Frontend (BFF) session (httpOnly cookie). It is never stored in the React app. The Backend-for-Frontend (BFF) exposes only the decoded payload here for educational purposes.</p><p style="color: rgb(185, 28, 28);">No session token available — please sign in.</p></section>
 <section class="snap-tab" id="sec-compliance"><h3 class="snap-tab-h">✓ Compliance</h3><h3 style="margin-top: 0px;">IDC AI Governance Compliance</h3><p>This demo implements RFC 8693 §2.1 + §4, which fulfills two of the five IDC AI governance guardrails:</p><ul style="padding-left: 20px; line-height: 1.8;"><li><strong>Guardrail 02:</strong> Delegated authorization with full audit trail across agent chains<br><em>Standards: Identity Chaining + ID-JAG + RFC 8693 Token Exchange</em></li><li><strong>Guardrail 03:</strong> Explainability logs — every action traceable to its authorization decision<br><em>Standards: RFC 8693 nested act claims + Identity Chaining audit chain</em></li></ul><p style="margin-top: 16px;"><strong>Learn more:</strong> See the <strong>IETF Standards: Agentic Identity</strong> panel for the full stack.</p></section>
 </div></div>
 <div class="snap-foot">The AI Demo Learning Hub · <a href="index.html">back to index</a></div>

@@ -69,6 +69,8 @@ function getDeploymentUrls() {
     // Derive redirect URIs from publicAppUrl
     urls.PINGONE_ADMIN_REDIRECT_URI = `${envConfig.publicAppUrl}/api/auth/oauth/callback`;
     urls.PINGONE_USER_REDIRECT_URI = `${envConfig.publicAppUrl}/api/auth/oauth/user/callback`;
+    // AI Agent Actor (WEB) PAR redirect — must match pingoneProvisionService grant
+    urls.PINGONE_AI_AGENT_ACTOR_REDIRECT_URI = `${envConfig.publicAppUrl}/api/auth/oauth/ai-agent-placeholder-callback`;
   }
   if (envConfig.pingGatewayResourceUri) {
     urls.PINGONE_RESOURCE_PINGGATEWAY_URI = envConfig.pingGatewayResourceUri;
@@ -96,6 +98,10 @@ const _SECRET_KEYS_RAW = [
   'PINGONE_A2A_PURCHASE_AGENT_CLIENT_SECRET',
   'PINGONE_A2A_MEMBERSHIP_AGENT_CLIENT_SECRET',
   'PINGONE_A2A_PAYROLL_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_TAX_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_FINAID_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_SUPPLIER_AGENT_CLIENT_SECRET',
+  'PINGONE_A2A_HOLDINGS_AGENT_CLIENT_SECRET',
   'helix_api_key',
   'google_api_key',
   'pingone_introspection_client_secret',
@@ -140,8 +146,10 @@ const BOOTSTRAP_ALLOWLIST = new Set([
   'oauth_userinfo_endpoint',
   'oauth_jwks_uri',
   'oauth_discovery_endpoint',
+  'oauth_par_endpoint',
   'user_redirect_uri',
   'admin_redirect_uri',
+  'pingone_ai_agent_actor_redirect_uri',
   'pingone_mgmt_client_id',
   'pingone_mgmt_client_secret',
   'pingone_management_client_id',
@@ -253,6 +261,14 @@ const FIELD_DEFS = {
   PINGONE_A2A_MEMBERSHIP_AGENT_CLIENT_SECRET: { public: false, default: '' },
   PINGONE_A2A_PAYROLL_AGENT_CLIENT_ID:        { public: true,  default: '' },
   PINGONE_A2A_PAYROLL_AGENT_CLIENT_SECRET:    { public: false, default: '' },
+  PINGONE_A2A_TAX_AGENT_CLIENT_ID:            { public: true,  default: '' },
+  PINGONE_A2A_TAX_AGENT_CLIENT_SECRET:        { public: false, default: '' },
+  PINGONE_A2A_FINAID_AGENT_CLIENT_ID:         { public: true,  default: '' },
+  PINGONE_A2A_FINAID_AGENT_CLIENT_SECRET:     { public: false, default: '' },
+  PINGONE_A2A_SUPPLIER_AGENT_CLIENT_ID:       { public: true,  default: '' },
+  PINGONE_A2A_SUPPLIER_AGENT_CLIENT_SECRET:   { public: false, default: '' },
+  PINGONE_A2A_HOLDINGS_AGENT_CLIENT_ID:       { public: true,  default: '' },
+  PINGONE_A2A_HOLDINGS_AGENT_CLIENT_SECRET:   { public: false, default: '' },
   PINGONE_RESOURCE_A2A_INTERMEDIATE_URI:      { public: true,  default: '' },
 
   // Feature flags — granular toggles for in-development features
@@ -267,7 +283,6 @@ const FIELD_DEFS = {
   // `authorize_mode` UNSET so this flag drives the engine — an explicit
   // authorize_mode wins in resolveAuthorizeMode() and would ignore this flag.
   ff_authorize_simulated:      { public: true, default: 'false' },
-  ff_authorize_rules_panel:    { public: true, default: 'true'  },
   // Scenario 1 — group-membership deny. OFF by default (no behavior change);
   // SE enables it for the "user not in group" demo. When on, the authorize
   // engines DENY a restricted tool unless the user is in its required group.
@@ -369,6 +384,11 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   // Gateway. (PINGONE_RESOURCE_AGENT_GATEWAY_URI = the AI Agent actor-CC
   // audience.) The gateway re-exchanges downstream.
   PINGONE_AI_AGENT_ACTOR_CLIENT_ID:       { public: true,  default: '' }, // Demo AI Agent App client ID — the RFC 8693 actor
+  PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET:   { public: false, default: '' },
+  // Must stay in sync with public_app_url + pingoneProvisionService redirect grant
+  PINGONE_AI_AGENT_ACTOR_REDIRECT_URI:    { public: true,  default: '' },
+  // PAR (RFC 9126) — intent-binding live mode (routes/intentBinding.js)
+  pingone_par_endpoint:                   { public: true,  default: '' }, // https://auth.pingone.<region>/<envId>/as/par
   // No defaults for audience URIs — an unconfigured audience must fail explicitly,
   // not silently use a stale fallback value that produces a confusing token error.
   PINGONE_RESOURCE_AGENT_GATEWAY_URI:     { public: true,  default: '' }, // AI Agent actor client-credentials audience — matches Demo Agent Gateway resource aud in PingOne
@@ -452,6 +472,8 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   oauth_jwks_uri:                { public: true,  default: '' },
   oauth_issuer:                  { public: true,  default: '' },
   oauth_discovery_endpoint:      { public: true,  default: '' },
+  // RFC 9126 PAR — optional override; empty → oauthEndpointResolver derives …/as/par
+  oauth_par_endpoint:            { public: true,  default: '' },
   oauth_discovery_enabled:       { public: true,  default: 'false' },
   oauth_admin_callback_path:     { public: true,  default: '/api/auth/oauth/callback' },
   oauth_user_callback_path:      { public: true,  default: '/api/auth/oauth/user/callback' },
@@ -1071,10 +1093,10 @@ class ConfigStore {
       // Read directly via process.env in services/hitlServiceClient.js; mapped here so
       // the env-coverage guard sees it resolve (same pattern as bff_internal_secret).
       hitl_internal_secret:   ['HITL_INTERNAL_SECRET'],
-      frontend_url:           ['REACT_APP_CLIENT_URL', 'FRONTEND_ADMIN_URL'],
-      frontend_admin_url:     ['FRONTEND_ADMIN_URL', 'REACT_APP_CLIENT_URL'],
-      react_app_client_url:   ['REACT_APP_CLIENT_URL', 'FRONTEND_ADMIN_URL'],
-      public_app_url:         ['PUBLIC_APP_URL'],
+      frontend_url:           ['PUBLIC_APP_URL', 'PINGONE_PUBLIC_APP_URL', 'REACT_APP_CLIENT_URL', 'FRONTEND_ADMIN_URL'],
+      frontend_admin_url:     ['FRONTEND_ADMIN_URL', 'REACT_APP_CLIENT_URL', 'PUBLIC_APP_URL'],
+      react_app_client_url:   ['REACT_APP_CLIENT_URL', 'PUBLIC_APP_URL', 'FRONTEND_ADMIN_URL'],
+      public_app_url:         ['PUBLIC_APP_URL', 'PINGONE_PUBLIC_APP_URL'],
       mcp_server_url:                   ['MCP_SERVER_URL'],
       // MCP_SERVER_RESOURCE_URI is the authoritative env var for the MCP server audience.
       // MCP_RESOURCE_URI is kept as a fallback AFTER MCP_SERVER_RESOURCE_URI so that
@@ -1116,6 +1138,8 @@ class ConfigStore {
       // Direct aliases for the renamed env vars so getEffective(lowercased-new-name) works.
       pingone_ai_agent_actor_client_id:      ['PINGONE_AI_AGENT_ACTOR_CLIENT_ID', 'PINGONE_AI_AGENT_CLIENT_ID', 'AI_AGENT_CLIENT_ID'],
       pingone_ai_agent_actor_client_secret:  ['PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET', 'PINGONE_AI_AGENT_CLIENT_SECRET', 'AI_AGENT_CLIENT_SECRET'],
+      pingone_par_endpoint:                  ['PINGONE_PAR_ENDPOINT'],
+      pingone_ai_agent_actor_redirect_uri:   ['PINGONE_AI_AGENT_ACTOR_REDIRECT_URI'],
       pingone_token_exchanger_client_id:     ['PINGONE_TOKEN_EXCHANGER_CLIENT_ID', 'PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID', 'PINGONE_MCP_EXCHANGER_CLIENT_ID', 'AGENT_OAUTH_CLIENT_ID'],
       pingone_token_exchanger_client_secret: ['PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET', 'PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_SECRET', 'PINGONE_MCP_EXCHANGER_CLIENT_SECRET', 'AGENT_OAUTH_CLIENT_SECRET'],
       pingone_mcp_gateway_client_id:         ['PINGONE_MCP_GATEWAY_CLIENT_ID', 'MCP_GW_CLIENT_ID'],
@@ -1137,6 +1161,14 @@ class ConfigStore {
       pingone_membership_agent_client_secret: ['PINGONE_A2A_MEMBERSHIP_AGENT_CLIENT_SECRET'],
       pingone_payroll_agent_client_id:        ['PINGONE_A2A_PAYROLL_AGENT_CLIENT_ID'],
       pingone_payroll_agent_client_secret:    ['PINGONE_A2A_PAYROLL_AGENT_CLIENT_SECRET'],
+      pingone_tax_agent_client_id:            ['PINGONE_A2A_TAX_AGENT_CLIENT_ID'],
+      pingone_tax_agent_client_secret:        ['PINGONE_A2A_TAX_AGENT_CLIENT_SECRET'],
+      pingone_finaid_agent_client_id:         ['PINGONE_A2A_FINAID_AGENT_CLIENT_ID'],
+      pingone_finaid_agent_client_secret:     ['PINGONE_A2A_FINAID_AGENT_CLIENT_SECRET'],
+      pingone_supplier_agent_client_id:       ['PINGONE_A2A_SUPPLIER_AGENT_CLIENT_ID'],
+      pingone_supplier_agent_client_secret:   ['PINGONE_A2A_SUPPLIER_AGENT_CLIENT_SECRET'],
+      pingone_holdings_agent_client_id:       ['PINGONE_A2A_HOLDINGS_AGENT_CLIENT_ID'],
+      pingone_holdings_agent_client_secret:   ['PINGONE_A2A_HOLDINGS_AGENT_CLIENT_SECRET'],
       // Per-specialist A2A intermediate audiences (RFC 8707 — one resource per
       // specialist, not one shared across all of them; see a2aSpecialists.js).
       a2a_intermediate_audience_investment:   ['A2A_INTERMEDIATE_AUDIENCE_INVESTMENT'],
@@ -1147,6 +1179,7 @@ class ConfigStore {
       a2a_intermediate_audience_tax:          ['A2A_INTERMEDIATE_AUDIENCE_TAX'],
       a2a_intermediate_audience_finaid:       ['A2A_INTERMEDIATE_AUDIENCE_FINAID'],
       a2a_intermediate_audience_supplier:     ['A2A_INTERMEDIATE_AUDIENCE_SUPPLIER'],
+      a2a_intermediate_audience_holdings:     ['A2A_INTERMEDIATE_AUDIENCE_HOLDINGS'],
       // A2A specialists' Exchange #2 (final) destination — separate from
       // pingone_resource_mcp_gateway_uri so its nested-act composer SPEL never
       // touches the non-A2A two-exchange flow (see pingoneProvisionService.js
@@ -1192,6 +1225,8 @@ class ConfigStore {
       oauth_jwks_uri:                ['OAUTH_JWKS_URI'],
       oauth_issuer:                  ['OAUTH_ISSUER'],
       oauth_discovery_endpoint:      ['OAUTH_DISCOVERY_ENDPOINT'],
+      oauth_par_endpoint:            ['OAUTH_PAR_ENDPOINT', 'PINGONE_PAR_ENDPOINT'],
+      pingone_par_endpoint:          ['PINGONE_PAR_ENDPOINT', 'OAUTH_PAR_ENDPOINT'],
       oauth_discovery_enabled:       ['OAUTH_DISCOVERY_ENABLED'],
       oauth_admin_callback_path:       ['OAUTH_ADMIN_CALLBACK_PATH'],
       oauth_user_callback_path:        ['OAUTH_USER_CALLBACK_PATH'],
@@ -1983,8 +2018,10 @@ async function syncOAuthEndpointsToLmdb() {
     'oauth_jwks_uri',
     'oauth_discovery_endpoint',
     'oauth_issuer',
+    'oauth_par_endpoint',
     'user_redirect_uri',
     'admin_redirect_uri',
+    'pingone_ai_agent_actor_redirect_uri',
   ];
 
   // ENV key → config key mapping
@@ -1995,14 +2032,20 @@ async function syncOAuthEndpointsToLmdb() {
     'oauth_jwks_uri': 'OAUTH_JWKS_URI',
     'oauth_discovery_endpoint': 'OAUTH_DISCOVERY_ENDPOINT',
     'oauth_issuer': 'OAUTH_ISSUER',
+    'oauth_par_endpoint': 'OAUTH_PAR_ENDPOINT',
     'user_redirect_uri': 'PINGONE_USER_REDIRECT_URI',
     'admin_redirect_uri': 'PINGONE_ADMIN_REDIRECT_URI',
+    'pingone_ai_agent_actor_redirect_uri': 'PINGONE_AI_AGENT_ACTOR_REDIRECT_URI',
   };
 
   let synced = 0;
   for (const key of OAUTH_CONFIG_KEYS) {
     const envKey = envKeyMap[key];
-    const envVal = String(process.env[envKey] || '').trim();
+    let envVal = String(process.env[envKey] || '').trim();
+    // PINGONE_PAR_ENDPOINT is an accepted alias for oauth_par_endpoint
+    if (!envVal && key === 'oauth_par_endpoint') {
+      envVal = String(process.env.PINGONE_PAR_ENDPOINT || '').trim();
+    }
     if (!envVal) continue; // .env has no value for this key
 
     const stored = configStore.get(key);
@@ -2015,6 +2058,49 @@ async function syncOAuthEndpointsToLmdb() {
         console.log(`[configStore-lmdb-sync] Seeded LMDB ${key}: "${envVal.substring(0, 50)}..."`);
       }
       synced++;
+    }
+  }
+
+  // Derive actor PAR redirect + /as/par when .env overrides are absent so they
+  // stay in sync with PUBLIC_APP_URL / pingone_environment_id (same contract as
+  // user/admin redirects from topology publicAppUrl).
+  const publicAppUrl = String(
+    process.env.PUBLIC_APP_URL
+      || process.env.PINGONE_PUBLIC_APP_URL
+      || configStore.getEffective('public_app_url')
+      || '',
+  ).replace(/\/+$/, '');
+  const envId = String(
+    process.env.PINGONE_ENVIRONMENT_ID
+      || configStore.getEffective('pingone_environment_id')
+      || '',
+  ).trim();
+  const region = String(
+    process.env.PINGONE_REGION
+      || configStore.getEffective('pingone_region')
+      || 'com',
+  ).trim() || 'com';
+
+  const derivedPairs = [];
+  if (!process.env.PINGONE_AI_AGENT_ACTOR_REDIRECT_URI && publicAppUrl) {
+    derivedPairs.push([
+      'pingone_ai_agent_actor_redirect_uri',
+      `${publicAppUrl}/api/auth/oauth/ai-agent-placeholder-callback`,
+    ]);
+  }
+  if (!process.env.OAUTH_PAR_ENDPOINT && !process.env.PINGONE_PAR_ENDPOINT && envId) {
+    derivedPairs.push([
+      'oauth_par_endpoint',
+      `https://auth.pingone.${region}/${envId}/as/par`,
+    ]);
+  }
+  for (const [key, val] of derivedPairs) {
+    const stored = configStore.get(key);
+    if (stored !== val) {
+      _lmdbConfig.upsert(key, val);
+      configStore._setCache({ [key]: val }, 'sqlite');
+      synced++;
+      console.log(`[configStore-lmdb-sync] Derived LMDB ${key}: "${val.substring(0, 80)}..."`);
     }
   }
 

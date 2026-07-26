@@ -70,16 +70,35 @@ export class McpTokenExchangeClient {
   private async getActorToken(): Promise<string> {
     if (_actorToken && _actorToken.expiresAt > Date.now() + 5000) return _actorToken.token;
 
+    // Prefer the MCP Token Exchanger principal (GW_INTROSPECTION_CLIENT_*) —
+    // that app is granted `gateway:mcp:invoke` on the gateway resource. The
+    // MCP Gateway app (MCP_GW_CLIENT_ID) is intentionally granted tool scopes
+    // on OLB/invest backends instead; a bare CC mint with it fails PingOne's
+    // multi-resource check ("May not request scopes for multiple resources").
+    const actorClientId = this.config.introspectionClientId || this.config.clientId;
+    const actorClientSecret = this.config.introspectionClientSecret || this.config.clientSecret;
+
     const params = new URLSearchParams({ grant_type: 'client_credentials' });
+    // RFC 8707: narrow to ONE resource. MCP_GW_RESOURCE_URI may be a comma-list
+    // (primary + https + a2a); pick the first entry.
+    const actorResource = String(this.config.gatewayResourceUri || '')
+      .split(',')
+      .map((s) => s.trim())
+      .find(Boolean);
+    if (actorResource) params.set('resource', actorResource);
+    // Explicit single-resource scope — required when the client has grants on
+    // more than one resource (see oauthService.getClientCredentialsTokenAs).
+    params.set('scope', 'gateway:mcp:invoke');
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/x-www-form-urlencoded',
     };
     if (this.config.tokenEndpointAuthMethod === 'post') {
-      params.set('client_id', this.config.clientId);
-      params.set('client_secret', this.config.clientSecret);
+      params.set('client_id', actorClientId);
+      params.set('client_secret', actorClientSecret);
     } else {
       const credentials = Buffer.from(
-        `${this.config.clientId}:${this.config.clientSecret}`,
+        `${actorClientId}:${actorClientSecret}`,
       ).toString('base64');
       headers['Authorization'] = `Basic ${credentials}`;
     }

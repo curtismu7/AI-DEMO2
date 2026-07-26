@@ -22,6 +22,7 @@ import { isEducationalPath } from "../utils/educationalPages";
 import { PingProductChip, PingProductLegend } from './PingProductChip';
 import { productForEvent } from '../utils/pingProducts';
 import { clientAuthMethodLabel } from '../utils/clientAuthMethod';
+import { buildA2aChainDetail } from '../utils/a2aChainDetail';
 
 const FETCH_COOLDOWN_MS = 5000; // Don't fetch more than once per 5 seconds
 
@@ -1481,6 +1482,9 @@ function A2aDelegationEduBox({ event }) {
   const isExchange = event.id?.includes('exchange');
   const isExchange2 = event.id === 'a2a-exchange2';
   const isFailed = event.id === 'a2a-exchange-failed';
+  const isAgentCard = event.id === 'a2a-agent-card';
+  const isProtocolBearer = event.id === 'a2a-protocol-bearer';
+  const isProtocolMessage = event.id === 'a2a-protocol-message';
 
   if (isFailed) {
     return (
@@ -1500,11 +1504,104 @@ function A2aDelegationEduBox({ event }) {
     );
   }
 
+  if (isAgentCard) {
+    const skills = Array.isArray(event.skills) ? event.skills : [];
+    return (
+      <div className="tcd-edu-box tcd-edu-box--ok">
+        <div className="tcd-edu-box-hd">
+          <span className="tcd-edu-icon">✅</span>
+          <strong>A2A Agent Card</strong>
+          <RfcRef rfc="A2A Protocol · Agent Discovery" />
+        </div>
+        <div className="tcd-edu-body">
+          <p>
+            The generalist discovered the specialist via its Agent Card before sending an A2A message.
+            This is the Linux Foundation A2A wire layer — separate from the nested-<code>act</code> MCP token.
+          </p>
+          <ul className="tcd-edu-checklist">
+            {event.agentName && (
+              <li><span className="tcd-edu-check-lbl">Agent:</span><span>{event.agentName}</span></li>
+            )}
+            {event.protocolBinding && (
+              <li><span className="tcd-edu-check-lbl">Transport:</span><span>{event.protocolBinding} {event.protocolVersion || ''}</span></li>
+            )}
+            {skills.length > 0 && (
+              <li><span className="tcd-edu-check-lbl">Skills:</span><span>{skills.join(', ')}</span></li>
+            )}
+            {event.cardUrl && (
+              <li><span className="tcd-edu-check-lbl">Card URL:</span><span className="tcd-edu-detail">{event.cardUrl}</span></li>
+            )}
+            {Array.isArray(event.securitySchemes) && event.securitySchemes.length > 0 && (
+              <li><span className="tcd-edu-check-lbl">Security:</span><span>{event.securitySchemes.join(', ')}</span></li>
+            )}
+          </ul>
+          {event.agentCard && (
+            <JsonField label="Agent Card (JSON)" value={event.agentCard} defaultOpen />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (isProtocolBearer) {
+    return (
+      <div className="tcd-edu-box tcd-edu-box--neutral">
+        <div className="tcd-edu-box-hd">
+          <span className="tcd-edu-icon">🔑</span>
+          <strong>A2A Protocol — PingOne Wire Bearer</strong>
+          <RfcRef rfc="A2A · Bearer auth" />
+        </div>
+        <div className="tcd-edu-body">
+          <p>
+            Separate PingOne client_credentials token for the A2A hop (not the nested-act MCP token).
+            Matches the Magic 8 Ball security sample pattern with PingOne as IdP.
+          </p>
+          {event.clientId && (
+            <ul className="tcd-edu-checklist">
+              <li><span className="tcd-edu-check-lbl">client_id:</span><span>{event.clientId}</span></li>
+            </ul>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (isProtocolMessage) {
+    return (
+      <div className="tcd-edu-box tcd-edu-box--ok">
+        <div className="tcd-edu-box-hd">
+          <span className="tcd-edu-icon">✅</span>
+          <strong>A2A Protocol — SendMessage</strong>
+          <RfcRef rfc="A2A · JSON-RPC" />
+        </div>
+        <div className="tcd-edu-body">
+          <p>
+            JSON-RPC <code>SendMessage</code> to the specialist after Agent Card discovery.
+            {event.mode ? ` Mode: ${event.mode}.` : ''}
+          </p>
+          {event.replyText && (
+            <p className="tcd-edu-detail">{event.replyText}</p>
+          )}
+          {event.protocolRequest && (
+            <JsonField label="SendMessage request" value={event.protocolRequest} defaultOpen />
+          )}
+          {(event.protocolResponse || event.replyText) && (
+            <JsonField
+              label="SendMessage response"
+              value={event.protocolResponse || { replyText: event.replyText }}
+              defaultOpen
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (isActor) {
     return (
       <div className="tcd-edu-box tcd-edu-box--neutral">
         <div className="tcd-edu-box-hd">
-          <span className="tcd-edu-icon">🤖</span>
+          <span className="tcd-edu-icon">👤</span>
           <strong>A2A Agent Actor Token</strong>
           <RfcRef rfc="RFC 8693 §4.1" />
         </div>
@@ -1535,7 +1632,7 @@ function A2aDelegationEduBox({ event }) {
     return (
       <div className="tcd-edu-box tcd-edu-box--ok">
         <div className="tcd-edu-box-hd">
-          <span className="tcd-edu-icon">🔗</span>
+          <span className="tcd-edu-icon">✅</span>
           <strong>A2A Exchange #2 — Nested Act Chain</strong>
           <RfcRef rfc="RFC 8693 §4.1" />
         </div>
@@ -1576,25 +1673,108 @@ function A2aDelegationEduBox({ event }) {
     return (
       <div className="tcd-edu-box tcd-edu-box--neutral">
         <div className="tcd-edu-box-hd">
-          <span className="tcd-edu-icon">{isExchange1 ? '⚙️' : '🔗'}</span>
+          <span className="tcd-edu-icon">{isExchange1 ? '🔑' : '✅'}</span>
           <strong>A2A Exchange {isExchange1 ? '#1' : '#2'} — RFC 8693 Token Exchange</strong>
           <RfcRef rfc="RFC 8693 §2.1 · RFC 8693 §4.1" />
         </div>
         <div className="tcd-edu-body">
           <p>
             {isExchange1
-              ? 'User token + Agent 1 actor token → delegated token with act:{ agent1 }. The act claim records that Agent 1 is acting on the user\'s behalf.'
-              : 'Agent 1 delegated token + Agent 2 actor token → nested token with act:{ agent2, act:{ agent1 } }. The nested chain records both agents in order.'}
+              ? 'User access token is exchanged with Agent 1’s actor token. Subject remains the user; act names Agent 1.'
+              : 'Agent 1’s delegated token is exchanged with Agent 2’s actor token, nesting the act chain.'}
           </p>
-          {event.a2aSubtask && (
-            <p className="tcd-edu-detail">Subtask: {event.a2aSubtask}</p>
-          )}
         </div>
       </div>
     );
   }
 
   return null;
+}
+
+/**
+ * Token Inspector overview for an A2A run: sequence diagram, Agent Card,
+ * and request/response for each hop (both agents + exchanges + wire SendMessage).
+ */
+function A2aChainOverview({ chainEvents }) {
+  const detail = buildA2aChainDetail(chainEvents);
+  if (!detail.present) return null;
+
+  return (
+    <details className="tcd-collapsible" open>
+      <summary className="tcd-collapsible-header">A2A chain — what happened</summary>
+      <div className="tcd-collapsible-body">
+        <div className="tcd-edu-box tcd-edu-box--ok">
+          <div className="tcd-edu-box-hd">
+            <span className="tcd-edu-icon">✅</span>
+            <strong>Agent 1 → Agent 2</strong>
+            <RfcRef rfc="RFC 8693 §4.1 · A2A Protocol" />
+          </div>
+          <div className="tcd-edu-body">
+            <ul className="tcd-edu-checklist">
+              {detail.vertical && (
+                <li><span className="tcd-edu-check-lbl">Vertical:</span><span>{detail.vertical}</span></li>
+              )}
+              <li><span className="tcd-edu-check-lbl">Generalist:</span><span><code>{detail.generalist}</code></span></li>
+              <li><span className="tcd-edu-check-lbl">Specialist:</span><span>{detail.specialist}</span></li>
+              {detail.tool && (
+                <li><span className="tcd-edu-check-lbl">Tool:</span><span><code>{detail.tool}</code></span></li>
+              )}
+            </ul>
+            <pre className="tcd-a2a-diagram" aria-label="A2A sequence diagram">
+              {detail.diagramLines.join('\n')}
+            </pre>
+
+            {detail.agentCard && (
+              <div className="tcd-a2a-hop">
+                <h4 className="tcd-a2a-hop-title">How — Agent Card discovery</h4>
+                <ul className="tcd-edu-checklist">
+                  {detail.agentCard.agentName && (
+                    <li><span className="tcd-edu-check-lbl">Agent:</span><span>{detail.agentCard.agentName}</span></li>
+                  )}
+                  {detail.agentCard.cardUrl && (
+                    <li><span className="tcd-edu-check-lbl">Card URL:</span><span className="tcd-edu-detail">{detail.agentCard.cardUrl}</span></li>
+                  )}
+                  {detail.agentCard.skills?.length > 0 && (
+                    <li><span className="tcd-edu-check-lbl">Skills:</span><span>{detail.agentCard.skills.join(', ')}</span></li>
+                  )}
+                </ul>
+                {detail.agentCard.card && (
+                  <JsonField label="Agent Card (JSON)" value={detail.agentCard.card} defaultOpen />
+                )}
+              </div>
+            )}
+
+            {detail.hops.map((hop) => (
+              <div key={hop.id} className="tcd-a2a-hop">
+                <h4 className="tcd-a2a-hop-title">{hop.title}</h4>
+                {hop.request && (
+                  <JsonField label="Request" value={hop.request} defaultOpen />
+                )}
+                {hop.response && (
+                  <JsonField label="Response" value={hop.response} defaultOpen />
+                )}
+              </div>
+            ))}
+
+            {detail.protocol && (
+              <div className="tcd-a2a-hop">
+                <h4 className="tcd-a2a-hop-title">
+                  A2A Protocol SendMessage
+                  {detail.protocol.agentName ? ` → ${detail.protocol.agentName}` : ''}
+                </h4>
+                {detail.protocol.request && (
+                  <JsonField label="Request" value={detail.protocol.request} defaultOpen />
+                )}
+                {detail.protocol.response && (
+                  <JsonField label="Response" value={detail.protocol.response} defaultOpen />
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </details>
+  );
 }
 
 function AuthorizeDecisionEduBox({ event }) {
@@ -1893,9 +2073,12 @@ function GwAuthorizeEduBox({ event }) {
 // ─── Event detail content (shared between inline + inspector panel) ──────────
 
 /** Renders the full detail for a token chain event. */
-function EventDetail({ event }) {
+function EventDetail({ event, chainEvents }) {
   return (
     <>
+      {isA2aEvent(event?.id) && (
+        <A2aChainOverview chainEvents={chainEvents} />
+      )}
       {/* Full JWT JSON — collapsible, closed by default */}
       {event.jwtFullDecode && (
         <details className="tcd-collapsible">
@@ -1903,8 +2086,8 @@ function EventDetail({ event }) {
             🔓 Full Decoded Token (JSON)
           </summary>
           <div className="tcd-collapsible-body">
-            <pre className="tcd-jwt-dump">
-              <JsonHighlight value={event.jwtFullDecode} />
+            <pre className="tcd-jwt-dump jh-dark">
+              <JsonHighlight value={event.jwtFullDecode} copyable />
             </pre>
           </div>
         </details>
@@ -2110,7 +2293,6 @@ function openInNewWindow(event) {
         .map(([k, v]) => {
           const highlight =
             {
-              may_act: "var(--brand-navy)",
               act: "#0f766e",
               scope: "#6d28d9",
               aud: "#166534",
@@ -2133,14 +2315,8 @@ function openInNewWindow(event) {
     : "";
 
   const pillHtml = [
-    event.mayActPresent === true
-      ? `<div class="pill pill-may">may_act ✅ present — ${event.mayActDetails}</div>`
-      : "",
-    event.mayActPresent === false
-      ? `<div class="pill pill-warn">may_act absent — exchange may be rejected by PingOne</div>`
-      : "",
     event.actPresent === true
-      ? `<div class="pill pill-act">act ✅ ${event.actDetails} — BFF is current actor</div>`
+      ? `<div class="pill pill-act">act ✅ ${event.actDetails || ""} — BFF is current actor</div>`
       : "",
   ].join("");
 
@@ -2227,7 +2403,7 @@ function openInNewWindow(event) {
  * Floats above the page as a draggable, resizable, collapsible inspector.
  * Rendered via createPortal into document.body so it can go off-screen.
  */
-function TokenInspectorPanel({ event, initialPos, onClose }) {
+function TokenInspectorPanel({ event, chainEvents, initialPos, onClose }) {
   const { pos, size, handleDragStart, createResizeHandler } = useDraggablePanel(
     initialPos,
     { w: 800, h: 960 },
@@ -2303,7 +2479,7 @@ function TokenInspectorPanel({ event, initialPos, onClose }) {
             showScopes
             showRaw
           />
-          <EventDetail event={event} />
+          <EventDetail event={event} chainEvents={chainEvents} />
         </div>
       )}
 
@@ -2411,6 +2587,10 @@ const CLAIMS_STRIP_IDS = new Set([
   "a2a-exchange1",
   "a2a-agent2-actor",
   "a2a-exchange2",
+  // A2A Protocol wire hop (Agent Card + PingOne Bearer + SendMessage)
+  "a2a-protocol-bearer",
+  "a2a-agent-card",
+  "a2a-protocol-message",
 ]);
 
 function fmtSub(sub, hints) {
@@ -2497,8 +2677,6 @@ function ClaimsStrip({ event, hints }) {
   if (!cl) return null;
   const sub = fmtSub(cl.sub, hints);
   const act = fmtAct(cl.act, hints);
-  const mayAct =
-    cl.may_act && cl.may_act.client_id ? String(cl.may_act.client_id) : null;
   const aud = fmtAud(cl.aud);
   const injectedScopeNames =
     event.injectedScopeNames || cl.injected_scope_names || [];
@@ -2507,7 +2685,6 @@ function ClaimsStrip({ event, hints }) {
   const rows = [
     sub ? { key: "sub", val: sub, cls: "" } : null,
     act ? { key: "act", val: act, cls: "tcd-cs-act" } : null,
-    mayAct ? { key: "may_act", val: mayAct, cls: "tcd-cs-may" } : null,
     aud ? { key: "aud", val: aud, cls: "tcd-cs-aud" } : null,
     scope
       ? { key: "scope", val: scope, cls: "tcd-cs-scope", injectedScopeNames }
@@ -2587,6 +2764,9 @@ const STEP_SUB_LABELS = {
   "a2a-agent2-actor": "A2A Agent 2 Actor",
   "a2a-exchange2": "A2A Exchange #2 (Nested Act)",
   "a2a-exchange-failed": "A2A Delegation Failed",
+  "a2a-protocol-bearer": "A2A Protocol Bearer",
+  "a2a-agent-card": "A2A Agent Card",
+  "a2a-protocol-message": "A2A Protocol SendMessage",
 };
 
 /** Check if this event is part of an A2A delegation chain. */
@@ -2992,7 +3172,6 @@ function EventRow({
     event.explanation ||
     event.exchangeRequest ||
     event.jwtFullDecode ||
-    event.mayActPresent !== undefined ||
     event.actPresent !== undefined ||
     event.authorizeRequest ||
     event.authorizeResponse ||
@@ -3021,14 +3200,6 @@ function EventRow({
     event.trigger === "high_risk"
       ? { text: "⚡ High-Risk Transaction", cls: "warn" }
       : null;
-  const mayActHint =
-    event.mayActPresent === true
-      ? event.mayActValid
-        ? { text: "✅ may_act valid", cls: "ok" }
-        : { text: "❌ may_act mismatch", cls: "error" }
-      : event.mayActPresent === false
-        ? { text: "⚠️ may_act absent", cls: "warn" }
-        : null;
   const actHint =
     event.actPresent === true
       ? { text: "✅ act claimed", cls: "ok" }
@@ -3330,7 +3501,6 @@ function EventRow({
             </div>
           )}
           {(triggerHint ||
-            mayActHint ||
             actHint ||
             audHint ||
             constraintHint ||
@@ -3364,13 +3534,6 @@ function EventRow({
                   className={`tcd-event-hint tcd-event-hint--${constraintHint.cls}`}
                 >
                   {constraintHint.text}
-                </span>
-              )}
-              {mayActHint && (
-                <span
-                  className={`tcd-event-hint tcd-event-hint--${mayActHint.cls}`}
-                >
-                  {mayActHint.text}
                 </span>
               )}
               {actHint && (
@@ -3659,7 +3822,7 @@ const PLACEHOLDER_EVENTS = [
     status: "waiting",
     claims: null,
     explanation:
-      "Issued by PingOne after Authorization Code + PKCE login. Stored securely in the Backend-for-Frontend (BFF) session (server-side, httpOnly cookie — never exposed to the browser). Contains may_act authorising the Backend-for-Frontend (BFF) to exchange it on the user's behalf.",
+      "Issued by PingOne after Authorization Code + PKCE login. Stored securely in the Backend-for-Frontend (BFF) session (server-side, httpOnly cookie — never exposed to the browser).",
     rfc: "RFC 7519 · RFC 9068",
   },
   {
@@ -3669,7 +3832,7 @@ const PLACEHOLDER_EVENTS = [
     status: "waiting",
     claims: null,
     explanation:
-      "Backend-for-Frontend (BFF) presents the user access token to PingOne as subject_token. PingOne validates may_act, narrows the scope to the tool's required scopes, and issues the MCP access token with an act claim identifying the Backend-for-Frontend (BFF) as the actor. The user access token NEVER leaves the Backend-for-Frontend (BFF).",
+      "Backend-for-Frontend (BFF) presents the user access token to PingOne as subject_token (with the agent client-credentials token as actor_token). PingOne narrows the scope to the tool's required scopes and issues the MCP access token with an act claim identifying the agent as the actor. The user access token NEVER leaves the Backend-for-Frontend (BFF).",
     rfc: "RFC 8693 · RFC 8707",
   },
   {
@@ -4852,6 +5015,7 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
         <TokenInspectorPanel
           key={inspectedEvent.id}
           event={inspectedEvent}
+          chainEvents={currentEventsWithCc}
           initialPos={inspectorPos}
           onClose={() => setInspectedEvent(null)}
         />

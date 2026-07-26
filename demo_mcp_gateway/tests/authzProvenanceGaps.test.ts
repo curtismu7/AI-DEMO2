@@ -103,6 +103,33 @@ describe('C2 — a PERMIT carries its provenance, not just a DENY', () => {
     expect(auditTrail().authorize.policySource).toBe('p1az');
     expect(auditTrail().authorize.degraded).toBeFalsy();
   });
+
+  it('stamps denyingFilter=P1AZDecision and filterChain on DENY', async () => {
+    const { auditTrail, status } = await runWith(async () => ({
+      decision: 'DENY',
+      reason: 'policy deny',
+      policySource: 'p1az',
+    }));
+    expect(status()).toBe(403);
+    expect(auditTrail().denyingFilter).toBe('P1AZDecision');
+    expect(Array.isArray(auditTrail().filterChain)).toBe(true);
+    expect(auditTrail().filterChain.some((s: any) => s.filter === 'P1AZDecision' && s.result === 'blocked')).toBe(true);
+  });
+
+  it('stamps lastFilter=BackendExchange on PERMIT forward after exchange', async () => {
+    const { auditTrail, forwarded } = await runWith(async () => ({
+      decision: 'PERMIT',
+      policySource: 'p1az',
+    }));
+    expect(forwarded).toHaveLength(1);
+    expect(auditTrail().lastFilter).toBe('BackendExchange');
+    expect(auditTrail().denyingFilter).toBeUndefined();
+    expect(auditTrail().filterChain).toEqual(expect.arrayContaining([
+      expect.objectContaining({ filter: 'TokenIntrospection', result: 'passed' }),
+      expect.objectContaining({ filter: 'P1AZDecision', result: 'forwarded' }),
+      expect.objectContaining({ filter: 'BackendExchange', result: 'forwarded' }),
+    ]));
+  });
 });
 
 /**

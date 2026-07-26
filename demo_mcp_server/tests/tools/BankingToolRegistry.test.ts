@@ -225,6 +225,12 @@ describe('BankingToolRegistry', () => {
       expect(tool?.requiresUserAuth).toBe(true);
     });
 
+    it('get_sensitive_account_details accepts an optional account_id filter', () => {
+      const tool = BankingToolRegistry.getTool('get_sensitive_account_details');
+      expect(tool?.inputSchema.required).toEqual([]);
+      expect(tool?.inputSchema.properties?.account_id?.type).toBe('string');
+    });
+
     // Regression: parameterized vertical tools must advertise their real params.
     // A default empty schema ({ properties:{}, additionalProperties:false }) makes
     // the provider reject every argument ("Additional property not allowed"), so

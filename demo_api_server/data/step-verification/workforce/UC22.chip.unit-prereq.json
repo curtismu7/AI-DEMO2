@@ -1,0 +1,15 @@
+{
+  "vertical": "workforce",
+  "useCaseId": "UC22",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "submit_expense",
+  "checkedAt": "2026-07-25T20:23:03.397Z",
+  "requiredFlags": [
+    "ciba_enabled",
+    "ff_mcp_gateway_pinggateway",
+    "ff_gateway_brokered_exchange"
+  ]
+}

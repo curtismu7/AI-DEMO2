@@ -37,6 +37,7 @@ const ENV_SCOPED_KEYS = new Set([
   // ai agent / mcp exchanger / mcp gateway
   'pingone_ai_agent_client_id', 'pingone_ai_agent_client_secret',
   'pingone_ai_agent_actor_client_id', 'pingone_ai_agent_actor_client_secret',
+  'pingone_par_endpoint', 'pingone_ai_agent_actor_redirect_uri',
   'pingone_mcp_token_exchanger_client_id', 'pingone_mcp_token_exchanger_client_secret',
   'pingone_token_exchanger_client_id', 'pingone_token_exchanger_client_secret',
   'pingone_mcp_gateway_client_id', 'pingone_mcp_gateway_client_secret',
@@ -48,12 +49,20 @@ const ENV_SCOPED_KEYS = new Set([
   'pingone_a2a_purchase_agent_client_id', 'pingone_a2a_purchase_agent_client_secret',
   'pingone_a2a_membership_agent_client_id', 'pingone_a2a_membership_agent_client_secret',
   'pingone_a2a_payroll_agent_client_id', 'pingone_a2a_payroll_agent_client_secret',
+  'pingone_a2a_tax_agent_client_id', 'pingone_a2a_tax_agent_client_secret',
+  'pingone_a2a_finaid_agent_client_id', 'pingone_a2a_finaid_agent_client_secret',
+  'pingone_a2a_supplier_agent_client_id', 'pingone_a2a_supplier_agent_client_secret',
+  'pingone_a2a_holdings_agent_client_id', 'pingone_a2a_holdings_agent_client_secret',
   // a2a specialist aliases (without pingone_a2a_ prefix, used in brief)
   'pingone_investment_agent_client_id', 'pingone_investment_agent_client_secret',
   'pingone_records_agent_client_id', 'pingone_records_agent_client_secret',
   'pingone_purchase_agent_client_id', 'pingone_purchase_agent_client_secret',
   'pingone_membership_agent_client_id', 'pingone_membership_agent_client_secret',
   'pingone_payroll_agent_client_id', 'pingone_payroll_agent_client_secret',
+  'pingone_tax_agent_client_id', 'pingone_tax_agent_client_secret',
+  'pingone_finaid_agent_client_id', 'pingone_finaid_agent_client_secret',
+  'pingone_supplier_agent_client_id', 'pingone_supplier_agent_client_secret',
+  'pingone_holdings_agent_client_id', 'pingone_holdings_agent_client_secret',
   // copilot (copilot_agent_client_id/secret — copilot Studio auth to PingOne, env-specific)
   'copilot_agent_client_id', 'copilot_agent_client_secret',
   // resource/audience URIs (env-scoped resource servers)
@@ -67,6 +76,7 @@ const ENV_SCOPED_KEYS = new Set([
   'pingone_introspection_endpoint', 'pingone_introspection_client_id', 'pingone_introspection_client_secret',
   'oauth_authorization_endpoint', 'oauth_token_endpoint', 'oauth_userinfo_endpoint',
   'oauth_jwks_uri', 'oauth_issuer', 'oauth_discovery_endpoint',
+  'oauth_par_endpoint', 'pingone_par_endpoint',
   // per-env identity data
   'admin_population_id', 'pingone_mfa_policy_id',
   // private_key_jwt credentials for BFF admin client (tied to the PingOne app's JWK config)

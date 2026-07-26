@@ -1,0 +1,14 @@
+{
+  "vertical": "retail",
+  "useCaseId": "UC27",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "checkout",
+  "checkedAt": "2026-07-25T20:23:04.653Z",
+  "requiredFlags": [
+    "ff_mcp_gateway_pinggateway",
+    "ff_gateway_brokered_exchange"
+  ]
+}

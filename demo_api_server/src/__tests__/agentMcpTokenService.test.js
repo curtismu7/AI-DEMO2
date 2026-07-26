@@ -1086,6 +1086,22 @@ describe('resolveMcpAccessTokenWithEvents — 2-exchange delegation (ff_two_exch
       expect(exchange2Audience).toEqual([pingGatewayAud]);
     });
 
+    it('falls back to the first HTTP audience in MCP_GW_RESOURCE_URI when pingone_resource_pinggateway_uri is unset', async () => {
+      configStore.getEffective.mockImplementation((key) => {
+        if (key === 'pingone_resource_mcp_server_uri' || key === 'mcp_resource_uri') return TWO_EX_MCP_RESOURCE;
+        if (key === 'ff_two_exchange_delegation') return 'true';
+        if (key === 'ff_mcp_gateway_pinggateway') return 'true';
+        if (key === 'ff_gateway_brokered_exchange') return 'true';
+        if (key === 'pingone_resource_pinggateway_uri') return null;
+        if (key === 'mcp_gw_resource_uri') return 'mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo';
+        return null;
+      });
+
+      await resolveMcpAccessTokenWithEvents(makeReq2ex(sampleJwtUserAccessToken), 'get_my_accounts').catch(() => {});
+      const exchange2Audience = mockPerformTokenExchangeAs.mock.calls[1][4];
+      expect(exchange2Audience).toEqual([pingGatewayAud]);
+    });
+
     it('with the opt, Exchange #2 requests the direct mcp-server audience instead', async () => {
       await resolveMcpAccessTokenWithEvents(
         makeReq2ex(sampleJwtUserAccessToken), 'get_my_accounts', { forceDirectMcpAudience: true }

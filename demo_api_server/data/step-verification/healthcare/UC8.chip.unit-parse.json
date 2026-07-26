@@ -1,0 +1,10 @@
+{
+  "vertical": "healthcare",
+  "useCaseId": "UC8",
+  "triggerType": "chip",
+  "mode": "unit-parse",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "pay_bill",
+  "checkedAt": "2026-07-25T20:23:02.902Z"
+}

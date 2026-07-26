@@ -31,25 +31,6 @@ const runtimeSettings = require('../config/runtimeSettings');
  *                        // resolveFlag()/PATCH keep the two in sync.
  * }>} */
 const FLAG_REGISTRY = [
-  // ── Auth Error Handling ───────────────────────────────────────────────────
-  {
-    id:           'ff_error_classification_enabled',
-    name:         'Comprehensive Auth Error Handling',
-    category:     'Auth Error Handling',
-    description:
-      'Enable comprehensive error classification and intelligent error handling. ' +
-      'Classifies all auth errors into 4 categories (TRANSIENT, USER, CONFIG, UNKNOWN) for appropriate handling. ' +
-      'Frontend auto-retries transient errors with exponential backoff; shows category-specific UI with user guidance. ' +
-      'Hides sensitive config details (JWKS URIs, env IDs) from error responses for CONFIG errors.',
-    impact:
-      'OFF (default, legacy) = basic error responses without classification. ' +
-      'ON = errors classified, transient retried automatically, config details scrubbed, support contact info included. ' +
-      'Production impact: CONFIG error rate should be zero if configuration is correct; monitor via error telemetry.',
-    type:         'boolean',
-    defaultValue: true,
-    runtimeKey:   'errorClassificationEnabled',
-  },
-
   // ── PingOne Authorize (ALWAYS ON — no toggle) ──────────────────────────────
   // Authorization is mandatory for security. See transactionAuthorizationService.js for details.
   {
@@ -737,6 +718,23 @@ const FLAG_REGISTRY = [
     type:         'enum',
     options:      ['texas', 'michigan', 'any'],
     defaultValue: 'texas',
+  },
+  {
+    id:           'ff_brave_mcp_showcase',
+    name:         'Brave Search MCP Showcase (Agent Gateway)',
+    category:     'MCP / Agent',
+    description:
+      'Controls whether the Agent Gateway (PingGateway/IG) Brave Search MCP showcase route ' +
+      '(`/mcp/brave`) is enabled. A standalone gateway capability demo — a remote third-party ' +
+      'API (Brave News Search) fronted by the gateway, gated by a crypto-term content ' +
+      'blocklist. `tx-brave-scope.groovy` calls this flag live on every `/mcp/brave` request ' +
+      'via `GET /internal/feature-flags/brave-mcp-showcase`, so toggling it here takes effect ' +
+      'immediately, with no gateway restart.',
+    impact:
+      'ON (default) = /mcp/brave is reachable (subject to the content blocklist policy). ' +
+      'OFF = every /mcp/brave request is denied with HTTP 403.',
+    type:         'boolean',
+    defaultValue: true,
   },
   {
     id:           'ff_local_fallback_on_exchange_failure',

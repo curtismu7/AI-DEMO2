@@ -56,12 +56,14 @@ beforeEach(() => {
   process.env.MCP_GATEWAY_RESOURCE_URI = 'test-aud';
   process.env.ENFORCE_MAY_ACT = 'true';
   delete process.env.PINGONE_ENVIRONMENT_ID;
+  delete process.env.PINGONE_AI_AGENT_CLIENT_ID;
   try { fs.unlinkSync(OVERLAY); } catch { /* ignore */ }
   fresh();
 });
 
 afterEach(() => {
   mock.restoreAll();
+  delete process.env.PINGONE_AI_AGENT_CLIENT_ID;
   try { fs.unlinkSync(OVERLAY); } catch { /* ignore */ }
 });
 
@@ -79,6 +81,29 @@ test('single-actor token (act depth 1) is DENIED — must delegate', async () =>
 
 test('specialist delegation (act depth 2) is PERMITTED', async () => {
   const body = await decide(a2aParams({ ActChainDepth: '2', ActClientId: 'investment-specialist' }));
+  assert.strictEqual(body.decision, 'PERMIT');
+});
+
+test('depth 2 with wrong NestedActClientId is DENIED when generalist is configured', async () => {
+  process.env.PINGONE_AI_AGENT_CLIENT_ID = '71e878ea-2d79-4760-b570-66f00cbeffe7';
+  fresh();
+  const body = await decide(a2aParams({
+    ActChainDepth: '2',
+    ActClientId: 'investment-specialist',
+    NestedActClientId: '',
+  }));
+  assert.strictEqual(body.decision, 'DENY');
+  assert.match(body.reason, /invalid_a2a_generalist/);
+});
+
+test('depth 2 with matching NestedActClientId is PERMITTED when generalist is configured', async () => {
+  process.env.PINGONE_AI_AGENT_CLIENT_ID = '71e878ea-2d79-4760-b570-66f00cbeffe7';
+  fresh();
+  const body = await decide(a2aParams({
+    ActChainDepth: '2',
+    ActClientId: 'investment-specialist',
+    NestedActClientId: '71e878ea-2d79-4760-b570-66f00cbeffe7',
+  }));
   assert.strictEqual(body.decision, 'PERMIT');
 });
 

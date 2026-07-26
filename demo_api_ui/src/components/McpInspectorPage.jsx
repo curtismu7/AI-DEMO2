@@ -325,8 +325,10 @@ function useBankingSource() {
       setOutputTab('response');
     } catch (e) {
       const ms = Date.now() - t0;
+      const errBody = e.response?.data || { error: 'invoke_failed', message: formatAxiosError(e, 'Invoke failed') };
       appendMcpCall(selectedTool.name, e.response?.status ?? 0, ms, null, formatAxiosError(e, 'Invoke failed'));
-      setLastInvoke(e.response?.data?.frames ? e.response.data : null);
+      // Always put something in the response pane — toast-only made Execute look like a no-op.
+      setLastInvoke(errBody.frames ? errBody : errBody);
       setLastTiming({ ms, error: true, reason: formatAxiosError(e, 'Invoke failed') });
       if (e.response?.status === 401) {
         setNeedsLogin(true);
@@ -348,7 +350,11 @@ function useBankingSource() {
 
   const outputContent = useMemo(() => {
     if (!lastInvoke && !lastTiming) return null;
-    if (outputTab === 'response' || outputTab === 'form') return lastInvoke ?? null;
+    if (outputTab === 'response' || outputTab === 'form') {
+      if (lastInvoke) return lastInvoke;
+      if (lastTiming?.error) return { error: true, message: lastTiming.reason || 'Invoke failed' };
+      return null;
+    }
     if (outputTab === 'request') {
       return { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: selectedTool?.name, arguments: paramValues } };
     }
@@ -363,6 +369,14 @@ function useBankingSource() {
   return {
     statusOn: isConnected,
     statusText: isConnected ? `Connected - ${tools.length} tools` : `Local catalog - ${tools.length} tools`,
+    banner: toolsSourceInfo?.local ? (
+      <div style={{ background: '#fff7ed', color: '#9a3412', padding: '8px 20px', fontSize: 12 }}>
+        <strong>Local catalog.</strong>{' '}
+        {toolsSourceInfo.reason === 'no_mcp_bearer_cookie_only_or_missing_token'
+          ? 'Sign out and sign in again so the BFF has a real OAuth access token — cookie-only sessions cannot reach the live MCP server.'
+          : `Discovery fell back in-process (${toolsSourceInfo.reason || 'unknown'}). Execute still runs against the local handler when you are signed in.`}
+      </div>
+    ) : null,
     actions: (
       <button className="inspector-shell-topbar__btn" onClick={refreshTools} disabled={loadingTools}>
         {loadingTools ? 'Loading...' : 'Refresh'}
@@ -516,14 +530,22 @@ function usePingOneSource() {
   const [formError, setFormError] = useState(null);
   const [outputTab, setOutputTab] = useState('response');
 
+  const [authRequired, setAuthRequired] = useState(false);
+
   const refresh = useCallback(async () => {
     setLoading(true);
+    setAuthRequired(false);
     try {
       const res = await apiClient.get('/api/mcp/inspector/pingone-tools');
       setData(res.data);
     } catch (e) {
-      notifyError(formatAxiosError(e, 'Failed to query the PingOne MCP server'));
-      setData(null);
+      if (e.response?.status === 401) {
+        setAuthRequired(true);
+        setData({ enabled: false, tools: [], reason: 'Sign in required to query the PingOne MCP server.', _source: 'unauthenticated' });
+      } else {
+        notifyError(formatAxiosError(e, 'Failed to query the PingOne MCP server'));
+        setData({ enabled: false, tools: [], reason: formatAxiosError(e, 'Failed to query the PingOne MCP server'), error: true, _source: 'client_error' });
+      }
     } finally {
       setLoading(false);
     }
@@ -608,6 +630,21 @@ function usePingOneSource() {
   return {
     statusOn: !!enabled,
     statusText: enabled ? `Connected — ${tools.length} tools` : 'Disconnected',
+    banner: (!enabled || data?.error || authRequired) ? (
+      <div style={{ background: '#fff7ed', color: '#9a3412', padding: '8px 20px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <span>
+          <strong>{authRequired ? 'Sign in required.' : enabled ? 'PingOne MCP error.' : 'Live query is off.'}</strong>{' '}
+          {data?.reason || (authRequired
+            ? 'Log in, then use Live: ON (admin) if tools stay empty.'
+            : 'Turn Live: ON to load tools from the hosted PingOne MCP server.')}
+        </span>
+        {authRequired && (
+          <button className="inspector-shell-topbar__btn inspector-shell-topbar__btn--active" onClick={navigateToCustomerOAuthLogin}>
+            Log in
+          </button>
+        )}
+      </div>
+    ) : null,
     actions: (
       <>
         <button className="inspector-shell-topbar__btn" onClick={refresh} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</button>
@@ -650,7 +687,9 @@ function usePingOneSource() {
           ))}
           {groupedTools.length === 0 && (
             <div style={{ padding: '20px 16px', color: '#64748b', fontSize: 13 }}>
-              {tools.length === 0 ? 'No tools loaded.' : `No tools match "${toolSearch}".`}
+              {tools.length === 0
+                ? (enabled ? 'No tools returned from PingOne MCP.' : 'No tools loaded — turn Live: ON or sign in.')
+                : `No tools match "${toolSearch}".`}
             </div>
           )}
         </div>
@@ -1106,8 +1145,9 @@ function useCustomServerSource() {
       setOutputTab('response');
     } catch (e) {
       const ms = Date.now() - t0;
+      const errBody = e.response?.data || { error: 'invoke_failed', message: formatAxiosError(e, 'Invoke failed') };
       appendMcpCall(selectedTool.name, e.response?.status ?? 0, ms, null, formatAxiosError(e, 'Invoke failed'));
-      setLastInvoke(e.response?.data?.frames ? e.response.data : null);
+      setLastInvoke(errBody);
       setLastTiming({ ms, error: true, reason: formatAxiosError(e, 'Invoke failed') });
       if (e.response?.data?.error === 'pingone_admin_login_required') {
         setPingoneAdminLoginUrl(e.response.data.loginUrl || '/api/mcp/inspector/pingone-admin/login');
@@ -1134,6 +1174,7 @@ function useCustomServerSource() {
     if (outputTab === 'response' || outputTab === 'form') {
       if (lastInvoke?.frames?.response) return lastInvoke.frames.response;
       if (lastInvoke) return lastInvoke;
+      if (lastTiming?.error) return { error: true, message: lastTiming.reason || 'Invoke failed' };
       return null;
     }
     if (outputTab === 'request') {

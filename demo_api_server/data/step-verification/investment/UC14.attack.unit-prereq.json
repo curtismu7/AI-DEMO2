@@ -1,0 +1,13 @@
+{
+  "vertical": "investment",
+  "useCaseId": "UC14",
+  "triggerType": "attack",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": null,
+  "checkedAt": "2026-07-25T20:23:04.892Z",
+  "requiredFlags": [
+    "ff_rar"
+  ]
+}

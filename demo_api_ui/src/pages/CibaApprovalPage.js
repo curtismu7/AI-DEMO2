@@ -1,36 +1,19 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import DraggableModal from "../components/DraggableModal";
 
 // UC22's separate-device CIBA approval page. Opened in a new tab by
 // AIAgent.js when a CIBA request starts, sharing the same session cookie —
 // NOT a QR-code/device-flow page (CIBA's spec has no such concept; see
 // docs/superpowers/specs/2026-07-20-uc22-ciba-separate-device-approval-design.md).
-const WRAP_STYLE = {
+//
+// Bare chrome (no App side nav / agent FAB — see sideNavOwner isNoChromeRoute).
+// The card is a DraggableModal: drag title bar, resize edges, ✕ closes the tab.
+
+const PAGE_STYLE = {
   minHeight: "100vh",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
   background: "#f4f4f5",
-  font: '14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif',
 };
-
-const CARD_STYLE = {
-  width: 320,
-  background: "#fff",
-  borderRadius: 8,
-  boxShadow: "0 2px 16px rgba(0,0,0,.18)",
-  overflow: "hidden",
-};
-
-const HEADER_STYLE = {
-  background: "#022a52",
-  padding: "16px 20px",
-  color: "#fff",
-  fontSize: 15,
-  fontWeight: 600,
-};
-
-const BODY_STYLE = { padding: 20 };
 
 const DETAIL_BOX_STYLE = {
   background: "#f8f8f8",
@@ -38,14 +21,12 @@ const DETAIL_BOX_STYLE = {
   padding: 12,
   fontSize: 13,
   color: "#1a1a1a",
-  margin: "12px 0",
+  margin: "12px 0 0",
 };
 
-const BUTTON_ROW_STYLE = { display: "flex", gap: 8, marginTop: 16 };
-
-const APPROVE_BUTTON_STYLE = {
+const FOOTER_BTN_APPROVE = {
   flex: 1,
-  padding: "10px 0",
+  padding: "10px 16px",
   border: "none",
   borderRadius: 6,
   background: "#0a7c3f",
@@ -54,9 +35,9 @@ const APPROVE_BUTTON_STYLE = {
   cursor: "pointer",
 };
 
-const DENY_BUTTON_STYLE = {
+const FOOTER_BTN_DENY = {
   flex: 1,
-  padding: "10px 0",
+  padding: "10px 16px",
   border: "none",
   borderRadius: 6,
   background: "#eee",
@@ -64,6 +45,17 @@ const DENY_BUTTON_STYLE = {
   fontWeight: 600,
   cursor: "pointer",
 };
+
+const FOOTER_ROW = { display: "flex", gap: 8, width: "100%" };
+
+/** Close this popup tab when possible (opened via window.open from the agent). */
+function closeApprovalTab() {
+  try {
+    window.close();
+  } catch {
+    // ignore — some browsers block close of non-script-opened windows
+  }
+}
 
 export default function CibaApprovalPage() {
   const [searchParams] = useSearchParams();
@@ -125,11 +117,44 @@ export default function CibaApprovalPage() {
     }
   };
 
+  const footer =
+    status === "pending" && details ? (
+      <div style={FOOTER_ROW}>
+        <button
+          type="button"
+          style={FOOTER_BTN_APPROVE}
+          disabled={busy}
+          onClick={() => decide("approve")}
+        >
+          Approve
+        </button>
+        <button
+          type="button"
+          style={FOOTER_BTN_DENY}
+          disabled={busy}
+          onClick={() => decide("deny")}
+        >
+          Deny
+        </button>
+      </div>
+    ) : undefined;
+
   return (
-    <div style={WRAP_STYLE}>
-      <div style={CARD_STYLE}>
-        <div style={HEADER_STYLE}>PingOne Identity Verification</div>
-        <div style={BODY_STYLE}>
+    <div style={PAGE_STYLE} data-testid="ciba-approve-page">
+      <DraggableModal
+        isOpen
+        onClose={closeApprovalTab}
+        title="PingOne Identity Verification"
+        footer={footer}
+        closeLabel="Close"
+        defaultWidth={360}
+        defaultHeight={320}
+        minWidth={280}
+        minHeight={220}
+        storageKey="ciba-approve-modal"
+        zIndex={100100}
+      >
+        <div className="dm-scroll">
           {status === "loading" && <div>Loading approval request…</div>}
 
           {status === "expired" && (
@@ -155,31 +180,13 @@ export default function CibaApprovalPage() {
                   details.binding_message || "Approve this request"
                 )}
               </div>
-              <div style={BUTTON_ROW_STYLE}>
-                <button
-                  type="button"
-                  style={APPROVE_BUTTON_STYLE}
-                  disabled={busy}
-                  onClick={() => decide("approve")}
-                >
-                  Approve
-                </button>
-                <button
-                  type="button"
-                  style={DENY_BUTTON_STYLE}
-                  disabled={busy}
-                  onClick={() => decide("deny")}
-                >
-                  Deny
-                </button>
-              </div>
             </>
           )}
 
           {status === "approved" && <div>✓ Approved. You can close this tab.</div>}
           {status === "denied" && <div>Denied. You can close this tab.</div>}
         </div>
-      </div>
+      </DraggableModal>
     </div>
   );
 }

@@ -1,0 +1,10 @@
+{
+  "vertical": "university",
+  "useCaseId": "UC6",
+  "triggerType": "chip",
+  "mode": "unit-parse",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "pay_tuition_balance",
+  "checkedAt": "2026-07-25T20:23:04.994Z"
+}

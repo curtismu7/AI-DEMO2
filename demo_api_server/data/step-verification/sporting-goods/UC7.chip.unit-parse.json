@@ -1,0 +1,10 @@
+{
+  "vertical": "sporting-goods",
+  "useCaseId": "UC7",
+  "triggerType": "chip",
+  "mode": "unit-parse",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "extend_rental",
+  "checkedAt": "2026-07-25T20:23:04.274Z"
+}

@@ -1,0 +1,14 @@
+{
+  "vertical": "investment",
+  "useCaseId": "UC28",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "view_portfolios",
+  "checkedAt": "2026-07-25T20:23:04.894Z",
+  "requiredFlags": [
+    "ff_mcp_gateway_pinggateway",
+    "ff_gateway_brokered_exchange"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "vertical": "workforce",
+  "useCaseId": "UC8",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "submit_expense",
+  "checkedAt": "2026-07-25T20:23:03.392Z",
+  "requiredFlags": [
+    "ff_mcp_gateway_pinggateway",
+    "ff_gateway_brokered_exchange"
+  ]
+}

@@ -27,3 +27,58 @@
 
 /* Critical fields in dark mode */
 .jh-dark .jh-critical { color: #ff6b6b; font-weight: 600; }
+
+/* ============================================================
+   Layout — wrapping root, per-line indent guides, copy button
+   ============================================================ */
+
+.jh-root {
+  position: relative;
+  display: block;
+}
+
+.jh-line {
+  display: block;
+}
+
+/* One guide per 2-space indent level, replacing the leading whitespace
+   with a span carrying a left border — draws a vertical rule only as
+   deep as each line actually nests. */
+.jh-guide {
+  display: inline-block;
+  width: 2ch;
+  border-left: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.jh-dark .jh-guide {
+  border-left-color: rgba(255, 255, 255, 0.14);
+}
+
+.jh-copy {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.9);
+  color: #334155;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 5px;
+  cursor: pointer;
+  line-height: 1.6;
+}
+
+.jh-copy:hover {
+  background: #ffffff;
+}
+
+.jh-dark .jh-copy {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: #c9d1d9;
+}
+
+.jh-dark .jh-copy:hover {
+  background: rgba(255, 255, 255, 0.16);
+}

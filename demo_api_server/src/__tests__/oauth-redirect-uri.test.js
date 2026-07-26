@@ -7,6 +7,7 @@ const configStore = require('../../services/configStore');
 const {
   getAdminRedirectUri,
   getUserRedirectUri,
+  getFrontendOrigin,
   getOAuthRedirectDebugInfo,
   REFERENCE_REDIRECT_SETS,
 } = require('../../services/oauthRedirectUris');
@@ -28,7 +29,9 @@ describe('oauthRedirectUris', () => {
   beforeEach(() => {
     origGetEffective = configStore.getEffective.bind(configStore);
     jest.spyOn(configStore, 'getEffective').mockImplementation((key) => {
-      if (['admin_redirect_uri', 'user_redirect_uri', 'frontend_url'].includes(key)) return '';
+      if (['admin_redirect_uri', 'user_redirect_uri', 'frontend_url', 'public_app_url'].includes(key)) {
+        return '';
+      }
       return origGetEffective(key);
     });
   });
@@ -39,6 +42,16 @@ describe('oauthRedirectUris', () => {
     delete process.env.REACT_APP_CLIENT_URL;
     delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
     delete process.env.VERCEL;
+  });
+
+  it('getFrontendOrigin prefers PUBLIC_APP_URL over stale LMDB frontend_url', () => {
+    process.env.PUBLIC_APP_URL = 'https://local.ping-devops.com:4000';
+    configStore.getEffective.mockImplementation((key) => {
+      if (key === 'frontend_url') return 'https://api.ping.demo:4000';
+      if (key === 'public_app_url') return 'https://local.ping-devops.com:4000';
+      return '';
+    });
+    expect(getFrontendOrigin()).toBe('https://local.ping-devops.com:4000');
   });
 
   it('uses PUBLIC_APP_URL for admin and user callbacks on Vercel (ignores deployment host)', () => {

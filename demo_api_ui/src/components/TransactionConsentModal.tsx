@@ -116,6 +116,7 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
   const [otpError, setOtpError] = useState("");
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpExpiresAt, setOtpExpiresAt] = useState<string | null>(null);
+  const [otpResending, setOtpResending] = useState(false);
   const otpInputRef = useRef<HTMLInputElement>(null);
 
   const [mfaStep, setMfaStep] = useState(false);
@@ -147,6 +148,18 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
   // Pop-out: content renders in a separate browser window via createPortal,
   // mirroring DraggableModal.jsx's handlePopOut/PopOutPortal pattern.
   const [popoutWin, setPopoutWin] = useState<Window | null>(null);
+  const [mfaThreshold, setMfaThreshold] = useState<number>(500);
+
+  useEffect(() => {
+    if (!open) return;
+    bffAxios
+      .get("/api/config/thresholds")
+      .then((r) => {
+        const n = Number(r.data?.mfa_threshold_usd);
+        if (!Number.isNaN(n) && n > 0) setMfaThreshold(n);
+      })
+      .catch(() => {});
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -162,6 +175,7 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
       setOtpError("");
       setOtpVerifying(false);
       setOtpExpiresAt(null);
+      setOtpResending(false);
       setMfaStep(false);
       setMfaDevices([]);
       setSelectedDeviceId(null);
@@ -695,6 +709,54 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
   };
 
   /**
+   * Re-dispatch the OTP to the selected Email/SMS device (or re-send one-time
+   * contact OTP). Same endpoints as the first send — PingOne issues a new code.
+   */
+  const handleResendOtp = async () => {
+    if (otpResending || otpVerifying || !challengeId) return;
+    setOtpResending(true);
+    setOtpError("");
+    try {
+      if (selectedDeviceId) {
+        const { data } = await bffAxios.post(
+          `/api/transactions/consent-challenge/${encodeURIComponent(challengeId)}/select-device`,
+          { deviceId: selectedDeviceId },
+        );
+        setOtpExpiresAt(data.otpExpiresAt || null);
+        setOtpSent(data.otpSent !== false);
+        setOtpCode("");
+        notifySuccess("A new verification code was sent.");
+      } else if (maskedContact || contactInput.trim()) {
+        const val = contactInput.trim() || maskedContact || "";
+        const isPhone = /^\+?\d[\d\s\-().]{6,}$/.test(val);
+        const body = isPhone ? { phone: val } : { email: val };
+        const { data } = await bffAxios.post(
+          `/api/transactions/consent-challenge/${encodeURIComponent(challengeId)}/confirm-contact`,
+          body,
+        );
+        setOtpExpiresAt(data.otpExpiresAt || null);
+        setOtpSent(data.otpSent || false);
+        setMaskedContact(data.maskedContact || maskedContact);
+        setOtpCode("");
+        notifySuccess("A new verification code was sent.");
+      } else {
+        notifyError("Select Email or SMS again to resend a code.");
+      }
+    } catch (e: any) {
+      const d = e.response?.data;
+      notifyError(
+        d?.message ||
+          d?.error_description ||
+          d?.error ||
+          e.message ||
+          "Could not resend the code.",
+      );
+    } finally {
+      setOtpResending(false);
+    }
+  };
+
+  /**
    * Run the WebAuthn assertion ceremony for a PingOne FIDO2 device-selection
    * challenge, then submit the result the same way a typed code is submitted.
    */
@@ -959,9 +1021,18 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
                 type="button"
                 className="transaction-consent-btn transaction-consent-btn--primary tx-otp-panel__verify-btn"
                 onClick={handleVerifyOtp}
-                disabled={otpCode.length !== 6 || otpVerifying}
+                disabled={otpCode.length !== 6 || otpVerifying || otpResending}
               >
                 {otpVerifying ? "Verifying…" : "Confirm"}
+              </button>
+              <button
+                type="button"
+                className="tx-otp-panel__resend-btn"
+                onClick={handleResendOtp}
+                disabled={otpVerifying || otpResending}
+                data-testid="tx-otp-resend"
+              >
+                {otpResending ? "Sending…" : "Resend code"}
               </button>
             </div>
 
@@ -985,7 +1056,7 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
               type="button"
               className="tx-otp-panel__back-btn"
               onClick={onClose}
-              disabled={otpVerifying}
+              disabled={otpVerifying || otpResending}
             >
               Cancel
             </button>
@@ -993,7 +1064,7 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
         ) : (
           <>
             <p className="transaction-consent-popup__lead">
-              Amounts over $500 require your explicit consent. Review the
+              Amounts over ${mfaThreshold} require your explicit consent. Review the
               summary, then confirm if you want the banking assistant to
               complete this transaction on your behalf.
             </p>
@@ -1159,8 +1230,8 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
               className="drp-header drp-header--static"
               style={{
                 padding: "1rem",
-                borderBottom: "1px solid #e2e8f0",
-                background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
+                borderBottom: "1px solid #cbd5e1",
+                background: "linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%)",
                 color: "#1f2937",
               }}
             >
@@ -1235,8 +1306,8 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
           style={{
             padding: "1rem",
             cursor: "move",
-            borderBottom: "1px solid #e2e8f0",
-            background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
+            borderBottom: "1px solid #cbd5e1",
+            background: "linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%)",
             color: "#1f2937",
             borderRadius: "0.5rem 0.5rem 0 0",
           }}

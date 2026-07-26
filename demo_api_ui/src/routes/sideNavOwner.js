@@ -12,14 +12,16 @@
  */
 
 /** Routes that deliberately render without the app's global chrome. */
-function isNoChromeRoute(pathNorm) {
+export function isNoChromeRoute(pathNorm) {
   return (
     pathNorm === "/api-traffic" ||
     pathNorm === "/logs" ||
     pathNorm === "/agent" ||
     // SDK centralized-login sandbox: standalone page, no app chrome/panels/footer.
     pathNorm === "/sdk-login" ||
-    pathNorm === "/sdk-login/callback"
+    pathNorm === "/sdk-login/callback" ||
+    // UC22 CIBA approve popup: bare modal page — no sidebar / agent FAB.
+    pathNorm === "/ciba-approve"
   );
 }
 
@@ -37,7 +39,12 @@ export function appRendersSideNav({ pathname, user }) {
   return Boolean(user) && !isNoChromeRoute(pathNorm) && pathNorm !== "/";
 }
 
-/** True when AppShell must supply the side nav itself (App.js did not). */
+/**
+ * True when AppShell must supply the side nav itself (App.js did not).
+ * Bare popup pages (CIBA approve) never take a shell nav either.
+ */
 export function shellRendersSideNav({ pathname, user }) {
+  const pathNorm = normalizePath(pathname);
+  if (pathNorm === "/ciba-approve") return false;
   return !appRendersSideNav({ pathname, user });
 }

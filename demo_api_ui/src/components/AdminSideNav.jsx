@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAgentUiMode } from "../context/AgentUiModeContext";
 import { useEducationUI } from "../context/EducationUIContext";
+import apiClient from "../services/apiClient";
 import { persistAgentUi } from "../services/demoScenarioService";
 import { performLogout } from "../services/logout";
 import { navigateToCustomerOAuthLogin, requestSilentReauth } from "../utils/authUi";
@@ -45,6 +46,7 @@ import {
   MdPlayArrow,
   MdPolicy,
   MdPublic,
+  MdRefresh,
   MdRoute,
   MdSearch,
   MdSecurity,
@@ -227,6 +229,20 @@ export default function AdminSideNav({ user }) {
         ?.style.setProperty("--sidebar-width", `${sidebarWidth}px`);
     }
   }, [sidebarWidth, collapsed]);
+
+  // Auto-collapse to the icon rail on narrow viewports. App.css drops the
+  // content offset to the collapsed width at <=768px assuming this collapse
+  // happens; without it the still-310px nav overlaps the content by ~230px.
+  // Only collapse — never force-expand — so a manual toggle stays respected.
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const apply = () => {
+      if (mq.matches) setCollapsed(true);
+    };
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
 
   const startResize = useCallback(
     (e) => {
@@ -426,6 +442,11 @@ export default function AdminSideNav({ user }) {
     { label: "Themes", path: "/themes", icon: "cfg" },
     { label: "Use Cases", path: "/use-cases", icon: "demo" },
     { label: "Use Cases (Live)", path: "/use-cases/live", icon: "demo" },
+    {
+      label: "Demo Script",
+      icon: "demo",
+      action: () => window.dispatchEvent(new CustomEvent("demo-script-toggle")),
+    },
     { label: "Demo Config", path: "/demo-config", icon: "cfg" },
     // Latest report — shown when agent run completes
     ...(latestRunId
@@ -503,7 +524,37 @@ export default function AdminSideNav({ user }) {
           icon: "rte",
         },
         { label: "Capability Tour", path: "/agent-gateway-capabilities", icon: "shld" },
-        { label: "Weather MCP", path: "/use-cases", icon: "mcp" },
+        {
+          label: "Weather MCP",
+          icon: "mcp",
+          // UC30 — Texas permit kickoff (same as Use Cases → Run).
+          action: () => {
+            const vertical = activeVerticalId || "banking";
+            apiClient
+              .post("/api/use-cases/demo/run", {
+                useCaseId: "weather-mcp-texas-permit",
+                vertical,
+              })
+              .then(({ data }) =>
+                apiClient
+                  .post("/api/verticals/active", { id: vertical })
+                  .then(() => data),
+              )
+              .then((data) => {
+                navigate("/dashboard", {
+                  state: {
+                    useCaseId: data.useCaseId,
+                    triggerText: data.triggerText,
+                    type: data.type,
+                    vertical,
+                  },
+                });
+              })
+              .catch((err) => {
+                console.error("Weather MCP nav: failed to run use case", err);
+              });
+          },
+        },
       ],
     },
     {
@@ -759,6 +810,7 @@ export default function AdminSideNav({ user }) {
         { label: "Agent Onboarding Flow", path: "/agent-onboarding-flow", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
         { label: "Agent Onboarding Flow (Subway)", path: "/agent-onboarding-flow-subway", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
         { label: "Agent Onboarding Flow (Mermaid)", path: "/agent-onboarding-flow-mermaid", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
+        { label: "MCP Gateway OAuth Flow", path: "/mcp-gateway-oauth-flow", icon: "log" },
       ],
     },
     {
@@ -794,6 +846,7 @@ export default function AdminSideNav({ user }) {
         { label: "Code Explorer", path: "/code-explorer", icon: "tst" },
         { label: "Code Search", path: "/code-search", icon: "srch" },
         { label: "Graphify", path: "/graphify", icon: "arc" },
+        { label: "Mgmt API Runner", path: "/mgmt-api", icon: "tool" },
       ],
     },
     {
@@ -1224,7 +1277,8 @@ export default function AdminSideNav({ user }) {
 
       {/* Navigation Menu */}
       <nav className="admin-side-nav__menu" aria-label="Primary navigation">
-        {/* Quick-access shortcuts */}
+        {/* Quick-access shortcuts — 2×2 when collapsed (incl. Refresh); 2×2 of
+            Cust/Admin/Setup when expanded (Refresh lives next to search). */}
         <div className="admin-side-nav__quick-links">
           <button
             type="button"
@@ -1250,7 +1304,7 @@ export default function AdminSideNav({ user }) {
                 );
             }}
           >
-            {collapsed ? "C" : "Customer"}
+            {collapsed ? "C" : "Cust"}
           </button>
           <button
             type="button"
@@ -1285,43 +1339,57 @@ export default function AdminSideNav({ user }) {
           >
             {collapsed ? "S" : "Setup"}
           </Link>
-          <button
-            type="button"
-            className="admin-side-nav__quick-link"
-            title="Refresh sidebar (pick up Demo Config changes)"
-            onClick={loadNavConfig}
-          >
-            {collapsed ? "R" : "Refresh"}
-          </button>
+          {collapsed && (
+            <button
+              type="button"
+              className="admin-side-nav__quick-link"
+              title="Refresh sidebar (pick up Demo Config changes)"
+              aria-label="Refresh sidebar"
+              onClick={loadNavConfig}
+            >
+              R
+            </button>
+          )}
         </div>
 
         {/* Filter — live-filters nav items by label (hidden when collapsed) */}
         {!collapsed && (
-          <div className="admin-side-nav__filter">
-            <MdSearch
-              className="admin-side-nav__filter-icon"
-              size={16}
-              aria-hidden="true"
-            />
-            <input
-              type="text"
-              className="admin-side-nav__filter-input"
-              placeholder="Search menu…"
-              value={navFilter}
-              onChange={(e) => setNavFilter(e.target.value)}
-              aria-label="Search navigation"
-            />
-            {navFilter && (
-              <button
-                type="button"
-                className="admin-side-nav__filter-clear"
-                onClick={() => setNavFilter("")}
-                aria-label="Clear filter"
-                title="Clear"
-              >
-                ✕
-              </button>
-            )}
+          <div className="admin-side-nav__filter-row">
+            <div className="admin-side-nav__filter">
+              <MdSearch
+                className="admin-side-nav__filter-icon"
+                size={16}
+                aria-hidden="true"
+              />
+              <input
+                type="text"
+                className="admin-side-nav__filter-input"
+                placeholder="Search menu…"
+                value={navFilter}
+                onChange={(e) => setNavFilter(e.target.value)}
+                aria-label="Search navigation"
+              />
+              {navFilter && (
+                <button
+                  type="button"
+                  className="admin-side-nav__filter-clear"
+                  onClick={() => setNavFilter("")}
+                  aria-label="Clear filter"
+                  title="Clear"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              className="admin-side-nav__filter-refresh"
+              title="Refresh sidebar (pick up Demo Config changes)"
+              aria-label="Refresh sidebar"
+              onClick={loadNavConfig}
+            >
+              <MdRefresh size={16} aria-hidden="true" />
+            </button>
           </div>
         )}
 

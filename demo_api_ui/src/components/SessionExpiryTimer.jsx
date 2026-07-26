@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import bffAxios from "../services/bffAxios";
+import { getCachedJson } from "../services/cachedStatusService";
 import { isEducationalPath } from "../utils/educationalPages";
 import { performLogout } from "../services/logout";
 import "./SessionExpiryTimer.css";
@@ -47,9 +48,7 @@ export default function SessionExpiryTimer({ hideOnPaths = [] }) {
           bffAxios
             .get("/api/tokens/session-preview")
             .catch(() => ({ data: {} })),
-          bffAxios
-            .get("/api/auth/oauth/user/status")
-            .catch(() => ({ data: {} })),
+          getCachedJson("/api/auth/oauth/user/status").catch(() => ({ data: {} })),
         ]);
 
         if (cancelled) return;

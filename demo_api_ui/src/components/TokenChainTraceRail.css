@@ -35,6 +35,29 @@
   opacity: 0.4; cursor: default;
 }
 
+/* Presenter text size — steps the rail's `zoom` (see TokenChainTraceRail.jsx). */
+.tctr-zoom {
+  display: flex; align-items: center; gap: 2px;
+  margin-right: 4px; padding-right: 6px;
+  border-right: 1px solid rgba(255, 255, 255, 0.25);
+}
+.tctr-zoom-btn,
+.tctr-zoom-pct {
+  background: none; border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #e2e8f0; font: inherit; font-size: 11px; font-weight: 700;
+  border-radius: 5px; padding: 3px 6px; cursor: pointer;
+}
+.tctr-zoom-pct {
+  min-width: 44px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.tctr-zoom-btn:hover:not(:disabled),
+.tctr-zoom-pct:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15); color: #fff;
+}
+.tctr-zoom-btn:disabled,
+.tctr-zoom-pct:disabled { opacity: 0.4; cursor: default; }
+
 .tctr-chain-line {
   display: flex; align-items: center; gap: 6px; padding: 10px 12px;
   border-bottom: 1px solid #e8eef7; font-weight: 600; flex-wrap: wrap;
@@ -116,6 +139,32 @@
   color: #64748b; margin: 10px 0 4px; font-weight: 700;
 }
 .tctr-narrative { margin: 0 0 4px; }
+.tctr-why {
+  margin: 0 0 8px; padding: 8px 10px; border-radius: 6px;
+  background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; font-size: 12px;
+}
+.tctr-why-lbl { font-weight: 700; margin-right: 4px; }
+.tctr-story {
+  margin: 0 12px 10px; padding: 10px 12px; border-radius: 8px;
+  border: 1px solid #e2e8f0; background: #f8fafc;
+}
+.tctr-story--ok { border-color: #86efac; background: #f0fdf4; }
+.tctr-story--error { border-color: #fca5a5; background: #fef2f2; }
+.tctr-story--active { border-color: #93c5fd; background: #eff6ff; }
+.tctr-story-headline { font-size: 12.5px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+.tctr-story-bits { margin: 6px 0 0 16px; padding: 0; color: #334155; font-size: 11.5px; }
+.tctr-story-bits li { margin: 2px 0; }
+.tctr-evidence-inline { margin: 8px 0 4px; }
+.tctr-evidence-hint {
+  margin: 0 0 6px; font-size: 11px; font-weight: 600; color: #b45309;
+}
+.tctr-before-after {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin-top: 8px;
+}
+.tctr-before-after__column {
+  display: flex; flex-direction: column; gap: 4px;
+}
+.tctr-step-actions { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 6px; }
 .tctr-code {
   background: #0f172a; color: #bae6fd; font-size: 10.5px; padding: 8px;
   border-radius: 6px; margin: 4px 0; overflow-x: auto; line-height: 1.5;
@@ -140,7 +189,9 @@
 .tctr-inspect {
   color: var(--brand-navy, #1d4ed8); font-weight: 600; font-size: 11px;
   cursor: pointer; background: none; border: none; padding: 4px 0 0;
+  text-decoration: none;
 }
+.tctr-inspect--emphasize { color: #b45309; font-weight: 700; }
 
 /* Accordions (Token Summary) */
 .tctr-acc { border-top: 1px solid #e8eef7; }

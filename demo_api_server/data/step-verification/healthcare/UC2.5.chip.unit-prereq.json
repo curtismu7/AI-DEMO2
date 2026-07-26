@@ -1,0 +1,15 @@
+{
+  "vertical": "healthcare",
+  "useCaseId": "UC2.5",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "get_portfolio_summary",
+  "checkedAt": "2026-07-25T20:23:03.031Z",
+  "requiredFlags": [
+    "ff_a2a_delegation",
+    "ff_mcp_gateway_pinggateway",
+    "ff_gateway_brokered_exchange"
+  ]
+}

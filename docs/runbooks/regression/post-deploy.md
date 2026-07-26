@@ -33,6 +33,7 @@ Run after every production **or** preview deploy.
 | Check | Expected |
 |---|---|
 | Sign in as admin, open `/admin` | "Admin Dashboard" title, stats cards visible |
+| **Demo Steps** (agent) | Opens ADMIN1–4 only: List applications, Look up a user, List populations, Reset a password — **not** banking UC1–UC32. Run ADMIN2 → admin-agent reply; **no** “Log in as customer” card |
 | **Customer lookup** | Username + last 4 phone returns profile (PingOne when linked), accounts, recent transactions |
 | `/activity`, `/users`, `/accounts`, `/transactions` | All load without 403 |
 | MCP Inspector (`/mcp-inspector`) | Tools list populates |

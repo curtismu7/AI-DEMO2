@@ -5,12 +5,14 @@
   "main": "router.js",
   "scripts": {
     "start": "node router.js",
-    "dev": "node --watch router.js"
+    "dev": "node --watch router.js",
+    "test": "node --test posthogAi.test.js"
   },
   "keywords": ["llm", "proxy", "router", "llama.cpp"],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "http-proxy": "^1.18.1"
+    "http-proxy": "^1.18.1",
+    "posthog-node": "^5.21.2"
   }
 }

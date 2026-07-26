@@ -1,5 +1,12 @@
-/* ── Live Use-Case Workbench (A5.2) ─────────────────────────────────────── */
-.luw { display: grid; grid-template-rows: auto 1fr; height: calc(100vh - 0px); }
+/* ── Live Use-Case Workbench (A5.2 + Mock A chrome) ─────────────────────── */
+/* Subtract TopNav (~72px) so the stage is the remaining viewport, not 100vh under the shell */
+.luw {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: calc(100vh - var(--stack-fab-top-base, 72px));
+  min-height: 0;
+  min-width: 0;
+}
 
 .luw-topbar {
   display: flex; align-items: center; gap: 0.9rem;
@@ -10,50 +17,317 @@
 .luw-topbar__crumb { font-size: 0.8rem; color: #64748b; }
 .luw-topbar__vertical { margin-left: auto; }
 
-.luw-body { display: grid; grid-template-columns: 336px 1fr; min-height: 0; }
+.luw-body {
+  display: grid;
+  grid-template-columns: var(--luw-drawer-w, 336px) 7px 1fr;
+  min-height: 0;
+  min-width: 0;
+  height: 100%;
+}
+
+/* Presenter-draggable column dividers (see LiveUseCaseWorkbenchPage.js).
+   Drag to resize, double-click to reset, arrow keys when focused. */
+.luw-resize {
+  position: relative;
+  cursor: col-resize;
+  background: transparent;
+  touch-action: none;
+}
+.luw-resize--split { flex: 0 0 7px; align-self: stretch; }
+.luw-resize::before {
+  content: '';
+  position: absolute;
+  inset: 0 3px;
+  background: #cbd5e1;
+}
+.luw-resize:hover::before,
+.luw-resize:focus-visible::before {
+  background: #0f766e;
+}
+.luw-resize:focus-visible { outline: none; }
+body.luw-resizing,
+body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 
 .luw-drawer {
   border-right: 1px solid #e2e8f0; background: var(--brand-light-gray, #f8fafc);
   display: flex; flex-direction: column; min-height: 0;
 }
-.luw-drawer__search { padding: 0.75rem 0.85rem 0.6rem; border-bottom: 1px solid #e2e8f0; }
+.luw-drawer__head {
+  padding: 1rem 0.9rem 0.55rem;
+}
+.luw-drawer__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+}
+.luw-drawer__sub {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.35;
+}
+.luw-drawer__search { padding: 0.5rem 0.85rem 0.6rem; border-bottom: 1px solid #e2e8f0; }
 .luw-drawer__search input {
   width: 100%; padding: 0.45rem 0.6rem; border: 1px solid #cbd5e1; border-radius: 7px;
   background: #fff; font-size: 0.82rem;
 }
-.luw-drawer__scroll { overflow-y: auto; padding: 0.4rem 0.5rem 1rem; flex: 1; min-height: 0; }
-.luw-drawer__empty { padding: 1.2rem 0.75rem; color: #94a3b8; font-size: 0.8rem; font-style: italic; }
+.luw-drawer__scroll { overflow-y: auto; padding: 0.65rem 0.75rem 1rem; flex: 1; min-height: 0; }
+.luw-drawer__empty { padding: 1.2rem 0.75rem; color: #64748b; font-size: 0.8rem; font-style: italic; }
 
-.luw-track { margin-bottom: 0.35rem; }
+/* Mock A cards */
+.luw-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.85rem 0.95rem;
+  margin-bottom: 0.55rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  font: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.luw-card:hover { border-color: #cbd5e1; }
+.luw-card.is-active {
+  border-color: #0f766e;
+  border-width: 2px;
+  padding: calc(0.85rem - 1px) calc(0.95rem - 1px);
+}
+.luw-card__title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.25;
+}
+.luw-card__meta {
+  margin: 0.25rem 0 0;
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.3;
+}
+/* 15-Min Security Demo cards only: what the step does + what to expect,
+   sourced from the teleprompter beats (components/demoScript.js). */
+.luw-card__what {
+  margin: 0.4rem 0 0;
+  font-size: 0.78rem;
+  color: #334155;
+  line-height: 1.35;
+}
+.luw-card__expected {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  color: #0f172a;
+  line-height: 1.35;
+}
+.luw-card__expected-label {
+  display: inline-block;
+  margin-right: 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #0f766e;
+}
+.luw-card__run {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 0.65rem;
+  border: 0;
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fff;
+  background: #0f766e;
+  cursor: pointer;
+}
+.luw-card__run:disabled { opacity: 0.55; cursor: not-allowed; }
+.luw-card__run:not(:disabled):hover { filter: brightness(1.05); }
+.luw-card__hint {
+  margin: 0.55rem 0 0;
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.luw-track { margin: 0.5rem 0 0.35rem; }
 .luw-track > summary {
   list-style: none; cursor: pointer; display: flex; align-items: center; gap: 0.45rem;
-  padding: 0.5rem 0.55rem; font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.06em; color: #64748b; border-radius: 6px;
+  padding: 0.55rem 0.4rem; font-size: 0.86rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.05em; color: #334155; border-radius: 6px;
 }
 .luw-track > summary::-webkit-details-marker { display: none; }
 .luw-track > summary:hover { background: #fff; }
 .luw-track__count { margin-left: auto; font-weight: 600; color: #94a3b8; }
 
-.luw-row {
-  display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.6rem 0.5rem 0.55rem;
-  border: none; border-left: 3px solid transparent; border-radius: 0 7px 7px 0;
-  background: none; font: inherit; text-align: left; width: 100%; cursor: pointer;
-  -webkit-appearance: none; appearance: none;
+/* 15-Min Security Demo: bordered box marks exactly which tiles the 15-minute
+   script runs, so the presenter sees the demo scope at a glance. */
+.luw-track--security {
+  border: 2px solid #0f766e;
+  border-radius: 10px;
+  background: #f0fdfa;
+  padding: 0.15rem 0.55rem 0.5rem;
+  margin: 0.5rem 0 0.85rem;
 }
-.luw-row:hover { background: #fff; }
-.luw-row__main { min-width: 0; flex: 1; display: flex; flex-direction: column; }
-.luw-row__title { font-size: 0.82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.luw-row__trigger {
-  font-family: ui-monospace, Menlo, monospace; font-size: 0.68rem; color: #64748b;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.luw-pill { flex-shrink: 0; font-size: 0.68rem; font-weight: 700; padding: 0.12rem 0.4rem; border-radius: 5px; }
-.luw-pill--permit { background: #dcfce7; color: var(--brand-success, #4caf50); }
-.luw-pill--deny, .luw-pill--deny_401, .luw-pill--deny_403 { background: #fee2e2; color: var(--brand-error, #f44336); }
-.luw-pill--step_up { background: #fef3c7; color: var(--brand-warning, #ff9800); }
-.luw-pill--hitl_required { background: #ede9fe; color: #5b21b6; }
+.luw-track--security > summary { color: #0f766e; }
+.luw-track--security > summary:hover { background: #ccfbf1; }
+.luw-track--security .luw-track__count { color: #0f766e; }
 
-.luw-main { min-height: 0; overflow-y: auto; padding: 1.25rem; }
-.luw-run-layout { display: flex; gap: 1rem; align-items: flex-start; max-width: 1400px; margin: 0 auto; flex-wrap: wrap; }
-.luw-agent-host { flex: 1 1 360px; max-width: 420px; min-width: 320px; overflow: visible; }
-.luw-rail-host { flex: 2 1 480px; min-width: 0; }
+/* Color-code each group title so the tracks read apart at a glance. */
+.luw-track--foundations > summary { color: #1d4ed8; }
+.luw-track--controls > summary    { color: #b45309; }
+.luw-track--hitl > summary        { color: #7c3aed; }
+.luw-track--attacks > summary     { color: #b91c1c; }
+
+/* Main: agent + token chain + glance */
+.luw-main {
+  min-height: 0;
+  min-width: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  background: #eef1f4;
+}
+.luw-main__stage {
+  min-height: 0;
+  overflow: hidden;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+}
+.luw-run-layout {
+  display: flex;
+  gap: 1rem;
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  flex-wrap: nowrap;
+}
+/* Host must be a bounded flex column so portaled .ba-mode-inline (height:100%) fills it */
+.luw-agent-host {
+  flex: 1 1 420px;
+  min-width: 320px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.luw-rail-host {
+  flex: 1.25 1 480px;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
+/*
+ * Portaled BankingAgent uses .banking-agent-float-root { display: contents },
+ * which breaks height:100% for .ba-mode-inline. Same fix as .afm-host / .ac-chat-host.
+ */
+.luw-agent-host .banking-agent-float-root {
+  display: flex !important;
+  flex-direction: column;
+  flex: 1 1 0%;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+.luw-agent-host .banking-agent-panel.ba-mode-inline,
+.luw-agent-host .banking-agent-panel {
+  position: relative !important;
+  inset: auto !important;
+  flex: 1 1 0% !important;
+  align-self: stretch !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.luw-glance {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  border-top: 1px solid #d5dce3;
+  background: #e4e9ef;
+  font-size: 0.75rem;
+}
+.luw-glance__cell {
+  padding: 0.65rem 1rem;
+  border-right: 1px solid #d5dce3;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.luw-glance__cell:last-child { border-right: 0; }
+.luw-glance__label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+}
+.luw-glance__value {
+  color: #1e293b;
+  font-weight: 700;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Medium: no room for Agent + Token Chain side-by-side — stack them inside the
+   stage (Demo script drawer stays beside); the stage scrolls, not the page. */
+@media (max-width: 1200px) {
+  .luw-run-layout {
+    flex-wrap: wrap;
+    overflow-y: auto;
+  }
+  /* Stacked — the split handle has nothing to divide; !important beats the
+     inline flex-basis the drag writes onto the agent host. */
+  .luw-agent-host,
+  .luw-rail-host {
+    flex: 1 1 100% !important;
+    min-height: 420px;
+  }
+  .luw-resize--split { display: none; }
+}
+
+/* Narrow: single column — Demo script, Agent, Token Chain stack and the page
+   scrolls, instead of the drawer + main clipping each other. */
+@media (max-width: 860px) {
+  .luw {
+    height: auto;
+    min-height: calc(100vh - var(--stack-fab-top-base, 72px));
+  }
+  .luw-body {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .luw-resize--drawer { display: none; }
+  .luw-drawer {
+    border-right: 0;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .luw-drawer__scroll {
+    overflow-y: visible;
+  }
+  .luw-main {
+    height: auto;
+  }
+  .luw-main__stage {
+    overflow: visible;
+  }
+  .luw-run-layout {
+    overflow-y: visible;
+  }
+}

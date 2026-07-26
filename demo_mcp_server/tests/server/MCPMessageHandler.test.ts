@@ -152,7 +152,7 @@ describe('MCPMessageHandler', () => {
       expect(response.id).toBe('handshake-3');
       expect(response.error).toBeUndefined();
       expect(response.result).toBeDefined();
-      expect(response.result?.protocolVersion).toBe('2025-11-25');
+      expect(response.result?.protocolVersion).toBe('2026-07-28');
     });
 
     it('should handle missing protocol version', async () => {

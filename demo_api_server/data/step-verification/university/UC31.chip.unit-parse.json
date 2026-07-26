@@ -1,0 +1,10 @@
+{
+  "vertical": "university",
+  "useCaseId": "UC31",
+  "triggerType": "chip",
+  "mode": "unit-parse",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "get_weather",
+  "checkedAt": "2026-07-25T20:23:05.107Z"
+}

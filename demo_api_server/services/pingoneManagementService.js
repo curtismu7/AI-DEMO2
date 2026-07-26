@@ -176,14 +176,29 @@ class PingOneManagementService {
   async createApplication(name, description, type, grantTypes, redirectUris = []) {
     this.ensureInitialized();
 
+    // PingOne's Applications API requires UPPERCASE enum values for
+    // grantTypes/tokenEndpointAuthMethod — accept either case from callers
+    // and normalize so `authorization_code` / `client_secret_post` etc. work.
     const payload = {
       name,
       description,
+      enabled: true,
       type,
-      grantTypes,
+      // PingOne rejects application creation with EMPTY_VALUE on `protocol`
+      // for every app type used here (SPA/WEB_APP/WORKER are all OIDC in
+      // this codebase) — required, not optional.
+      protocol: 'OPENID_CONNECT',
+      grantTypes: (grantTypes || []).map(g => String(g).toUpperCase()),
       redirectUris,
-      tokenEndpointAuthMethod: type === 'worker' ? 'client_secret_basic' : 'client_secret_post'
+      tokenEndpointAuthMethod: (type === 'worker' ? 'client_secret_basic' : 'client_secret_post').toUpperCase()
     };
+
+    // PingOne requires responseTypes to contain CODE whenever grantTypes
+    // includes AUTHORIZATION_CODE (and rejects it otherwise), so gate it on
+    // the same normalized grant list.
+    if (payload.grantTypes.includes('AUTHORIZATION_CODE')) {
+      payload.responseTypes = ['CODE'];
+    }
 
     try {
       const response = await axios.post(
@@ -341,6 +356,72 @@ class PingOneManagementService {
       };
     } catch (error) {
       return this.handleError(error, 'getApplications');
+    }
+  }
+
+  /**
+   * Delete an application
+   */
+  async deleteApplication(id) {
+    this.ensureInitialized();
+    try {
+      await axios.delete(`${this.baseURL}/applications/${id}`, { headers: this.getHeaders() });
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, 'deleteApplication');
+    }
+  }
+
+  /**
+   * Get all populations
+   */
+  async getPopulations() {
+    this.ensureInitialized();
+    try {
+      const response = await axios.get(`${this.baseURL}/populations`, { headers: this.getHeaders() });
+      return { success: true, populations: response.data._embedded?.populations || [] };
+    } catch (error) {
+      return this.handleError(error, 'getPopulations');
+    }
+  }
+
+  /**
+   * Get users (limited)
+   */
+  async getUsers(limit = 20) {
+    this.ensureInitialized();
+    try {
+      const response = await axios.get(`${this.baseURL}/users?limit=${limit}`, { headers: this.getHeaders() });
+      return { success: true, users: response.data._embedded?.users || [] };
+    } catch (error) {
+      return this.handleError(error, 'getUsers');
+    }
+  }
+
+  /**
+   * Create a user
+   */
+  async createUser({ populationId, username, email }) {
+    this.ensureInitialized();
+    const payload = { population: { id: populationId }, username, email };
+    try {
+      const response = await axios.post(`${this.baseURL}/users`, payload, { headers: this.getHeaders() });
+      return { success: true, user: response.data, id: response.data.id };
+    } catch (error) {
+      return this.handleError(error, 'createUser');
+    }
+  }
+
+  /**
+   * Delete a user
+   */
+  async deleteUser(id) {
+    this.ensureInitialized();
+    try {
+      await axios.delete(`${this.baseURL}/users/${id}`, { headers: this.getHeaders() });
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, 'deleteUser');
     }
   }
 

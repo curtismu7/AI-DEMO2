@@ -1,0 +1,15 @@
+{
+  "vertical": "workforce",
+  "useCaseId": "UC2",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "sensitive_payroll_details",
+  "checkedAt": "2026-07-25T20:23:03.374Z",
+  "requiredFlags": [
+    "ff_a2a_delegation",
+    "ff_mcp_gateway_pinggateway",
+    "ff_gateway_brokered_exchange"
+  ]
+}

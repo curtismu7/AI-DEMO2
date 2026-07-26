@@ -12,6 +12,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const { getTokenEndpoint } = require('./oauthEndpointResolver');
 const scopeTopology = require('./scopeTopology');
+const agentConsentAgreement = require('../config/agentConsentAgreement');
 
 // Via the shared accessor (not a repo-root-relative require) so
 // SCOPE_TOPOLOGY_PATH is honored — see scopeTopology.js.
@@ -71,6 +72,21 @@ function resolvePingEmail(existingEnvText = '') {
   return '';
 }
 
+/**
+ * Parse `KEY=value` lines out of raw .env text into a Map<key, raw line>.
+ * Comments and blank lines are skipped. Used by writeEnvFile to carry
+ * forward keys generateEnvContent doesn't know about, instead of losing
+ * them on every bootstrap rerun.
+ */
+function parseEnvLines(text) {
+  const map = new Map();
+  for (const line of String(text || '').split('\n')) {
+    const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=/);
+    if (m) map.set(m[1], line);
+  }
+  return map;
+}
+
 // scope-topology.json (v2) is the SINGLE SOURCE OF TRUTH for which scopes
 // exist on each PingOne resource server and which scopes each app is granted.
 // These helpers convert topology scope-name lists into the {name,description}
@@ -101,14 +117,10 @@ function topologyAppGrantedScopes(appName) {
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'Baseball123!';
 
 // Known redirect origins across all deployment targets.
-// Bootstrap registers ALL of these so the same PingOne tenant works in local
-// dev, Docker Compose, the SE DevOps cluster, and any custom PUBLIC_APP_URL.
-// Paths are appended per-app below.
-const KNOWN_REDIRECT_ORIGINS = [
-  'https://local.ping-devops.com:4000',   // local dev — passkey-capable (see FIDO2_RP_ID)
-  'https://api.ping.demo:4000',           // local dev (legacy; run-demo.sh / docker-compose)
-  'https://ai-demo.ping-devops.com'       // SE DevOps cluster (Ping AWS / k8s)
-];
+// SoT shared with oauthRedirectUris.KNOWN_PUBLIC_ORIGINS so Actor PAR redirects
+// cannot drift from admin/user OAuth allowlists.
+const { KNOWN_PUBLIC_ORIGINS } = require('./oauthRedirectUris');
+const KNOWN_REDIRECT_ORIGINS = KNOWN_PUBLIC_ORIGINS.slice();
 
 /**
  * Derive a well-formed email domain from the public app URL.
@@ -858,6 +870,214 @@ class PingOneProvisionService {
   }
 
   /**
+   * Idempotently ensure PingOne Agreement "Agent Consent" (EN HTML revision).
+   * @returns {Promise<string>} agreement id
+   */
+  async _ensureAgentConsentAgreement() {
+    const {
+      AGREEMENT_NAME,
+      AGREEMENT_DESCRIPTION,
+      RECONSENT_PERIOD_DAYS,
+      DISPLAY_NAME,
+      LOCALE,
+      AGREEMENT_HTML,
+    } = agentConsentAgreement;
+
+    const listRes = await this.makeRequest('GET', '/agreements?limit=100');
+    let agreement = (listRes.data._embedded?.agreements || []).find((a) => a.name === AGREEMENT_NAME);
+    if (!agreement) {
+      const created = await this.makeRequest('POST', '/agreements', {
+        name: AGREEMENT_NAME,
+        description: AGREEMENT_DESCRIPTION,
+        enabled: false,
+        reconsentPeriodDays: RECONSENT_PERIOD_DAYS,
+      });
+      agreement = created.data;
+    }
+
+    const langsRes = await this.makeRequest('GET', '/languages?limit=100');
+    const envLang = (langsRes.data._embedded?.languages || []).find(
+      (l) => l.locale === LOCALE || l.locale === 'en-US'
+    );
+    if (!envLang) {
+      throw new Error(`PingOne environment has no "${LOCALE}" language for Agent Consent`);
+    }
+    if (envLang.enabled === false) {
+      await this.makeRequest('PUT', `/languages/${envLang.id}`, { ...envLang, enabled: true });
+    }
+
+    const agrLangsRes = await this.makeRequest('GET', `/agreements/${agreement.id}/languages?limit=100`);
+    let agrLang = (agrLangsRes.data._embedded?.languages || []).find(
+      (l) => l.locale === LOCALE || l.locale === envLang.locale
+    );
+    if (!agrLang) {
+      const createdLang = await this.makeRequest('POST', `/agreements/${agreement.id}/languages`, {
+        displayName: DISPLAY_NAME,
+        enabled: false,
+        locale: envLang.locale || LOCALE,
+      });
+      agrLang = createdLang.data;
+    }
+
+    const revsRes = await this.makeRequest(
+      'GET',
+      `/agreements/${agreement.id}/languages/${agrLang.id}/revisions?limit=100`
+    );
+    const revisions = revsRes.data._embedded?.revisions || [];
+    if (revisions.length === 0) {
+      await this.makeRequest('POST', `/agreements/${agreement.id}/languages/${agrLang.id}/revisions`, {
+        contentType: 'text/html',
+        effectiveAt: new Date().toISOString(),
+        requireReconsent: true,
+        text: AGREEMENT_HTML,
+      });
+    }
+
+    if (agrLang.enabled !== true) {
+      await this.makeRequest('PUT', `/agreements/${agreement.id}/languages/${agrLang.id}`, {
+        displayName: agrLang.displayName || DISPLAY_NAME,
+        enabled: true,
+        locale: agrLang.locale || envLang.locale || LOCALE,
+      });
+    }
+
+    if (agreement.enabled !== true) {
+      await this.makeRequest('PUT', `/agreements/${agreement.id}`, {
+        name: AGREEMENT_NAME,
+        description: agreement.description || AGREEMENT_DESCRIPTION,
+        enabled: true,
+        reconsentPeriodDays: agreement.reconsentPeriodDays || RECONSENT_PERIOD_DAYS,
+      });
+    }
+
+    return agreement.id;
+  }
+
+  /**
+   * Ensure Agent-Consent-Login has LOGIN + AGREEMENT actions.
+   * @param {string} agreementId
+   * @returns {Promise<string>} policy id
+   */
+  async _ensureAgentConsentLoginPolicy(agreementId) {
+    const { POLICY_NAME, POLICY_DESCRIPTION } = agentConsentAgreement;
+
+    const listRes = await this.makeRequest('GET', '/signOnPolicies?limit=100');
+    let policy = (listRes.data._embedded?.signOnPolicies || []).find((p) => p.name === POLICY_NAME);
+    if (!policy) {
+      const created = await this.makeRequest('POST', '/signOnPolicies', {
+        name: POLICY_NAME,
+        description: POLICY_DESCRIPTION,
+      });
+      policy = created.data;
+    }
+
+    const actionsRes = await this.makeRequest('GET', `/signOnPolicies/${policy.id}/actions`);
+    const actions = actionsRes.data._embedded?.signOnPolicyActions || actionsRes.data._embedded?.actions || [];
+    const hasLogin = actions.some((a) => String(a.type || '').toUpperCase() === 'LOGIN');
+    const agreementAction = actions.find((a) => String(a.type || '').toUpperCase() === 'AGREEMENT');
+
+    if (!hasLogin) {
+      await this.makeRequest('POST', `/signOnPolicies/${policy.id}/actions`, {
+        type: 'LOGIN',
+        priority: 1,
+        recovery: { enabled: true },
+      });
+    }
+
+    if (!agreementAction) {
+      const maxPri = actions.reduce((m, a) => Math.max(m, Number(a.priority) || 0), hasLogin ? 1 : 0);
+      await this.makeRequest('POST', `/signOnPolicies/${policy.id}/actions`, {
+        type: 'AGREEMENT',
+        priority: Math.max(2, maxPri + 1),
+        agreement: { id: agreementId },
+        disableDeclineOption: false,
+      });
+    } else if (agreementAction.agreement?.id !== agreementId) {
+      await this.makeRequest('PUT', `/signOnPolicies/${policy.id}/actions/${agreementAction.id}`, {
+        type: 'AGREEMENT',
+        priority: agreementAction.priority || 2,
+        agreement: { id: agreementId },
+        disableDeclineOption: agreementAction.disableDeclineOption ?? false,
+      });
+    }
+
+    return policy.id;
+  }
+
+  /**
+   * Assign Agent-Consent-Login to an app if missing.
+   * @param {string} applicationId
+   * @param {string} signOnPolicyId
+   */
+  async _ensureAppSignOnPolicyAssignment(applicationId, signOnPolicyId) {
+    const listRes = await this.makeRequest(
+      'GET',
+      `/applications/${applicationId}/signOnPolicyAssignments?limit=100`
+    );
+    const assignments =
+      listRes.data._embedded?.signOnPolicyAssignments ||
+      listRes.data._embedded?.policyAssignments ||
+      [];
+    if (assignments.some((a) => a.signOnPolicy?.id === signOnPolicyId)) {
+      return { created: false };
+    }
+    const used = new Set(assignments.map((a) => Number(a.priority)).filter(Number.isFinite));
+    let priority = 1;
+    while (used.has(priority)) priority += 1;
+    await this.makeRequest('POST', `/applications/${applicationId}/signOnPolicyAssignments`, {
+      priority,
+      signOnPolicy: { id: signOnPolicyId },
+    });
+    return { created: true, priority };
+  }
+
+  /**
+   * Append AGREEMENT to an existing SOP if missing (so MFA paths still prompt).
+   * @param {string} signOnPolicyId
+   * @param {string} agreementId
+   */
+  async _ensureAgreementActionOnPolicy(signOnPolicyId, agreementId) {
+    const actionsRes = await this.makeRequest('GET', `/signOnPolicies/${signOnPolicyId}/actions`);
+    const actions = actionsRes.data._embedded?.signOnPolicyActions || actionsRes.data._embedded?.actions || [];
+    if (actions.some((a) => String(a.type || '').toUpperCase() === 'AGREEMENT')) return;
+    const maxPri = actions.reduce((m, a) => Math.max(m, Number(a.priority) || 0), 0);
+    await this.makeRequest('POST', `/signOnPolicies/${signOnPolicyId}/actions`, {
+      type: 'AGREEMENT',
+      priority: maxPri + 1,
+      agreement: { id: agreementId },
+      disableDeclineOption: false,
+    });
+  }
+
+  /**
+   * Full IDAI Agent Consent: Agreement + Agent-Consent-Login + User app assignment.
+   * Keeps HITL; login-time ToS only.
+   * @param {string} userAppId
+   */
+  async ensureAgentConsentLoginForApp(userAppId) {
+    if (!userAppId) throw new Error('userAppId is required');
+    const agreementId = await this._ensureAgentConsentAgreement();
+    const policyId = await this._ensureAgentConsentLoginPolicy(agreementId);
+    const { created } = await this._ensureAppSignOnPolicyAssignment(userAppId, policyId);
+
+    const listRes = await this.makeRequest(
+      'GET',
+      `/applications/${userAppId}/signOnPolicyAssignments?limit=100`
+    );
+    const assignments =
+      listRes.data._embedded?.signOnPolicyAssignments ||
+      listRes.data._embedded?.policyAssignments ||
+      [];
+    for (const a of assignments) {
+      const sid = a.signOnPolicy?.id;
+      if (!sid || sid === policyId) continue;
+      await this._ensureAgreementActionOnPolicy(sid, agreementId);
+    }
+
+    return { agreementId, policyId, assignmentCreated: created };
+  }
+
+  /**
    * Bind a password policy to a population. PingOne's PUT /populations/{id}
    * is FULL replace — must include name, default flag, and other fields or
    * they get reset. We preserve the population's existing fields and only
@@ -1092,14 +1312,17 @@ class PingOneProvisionService {
 
       const match = existingGrants.find(g => g.resource?.id === resourceId);
 
-      // Cross-resource name filter: PingOne rejects POSTing a new grant whose
-      // scope names collide with names already granted on a different resource
-      // ("Multiple scopes with the same name cannot be added to the same grant").
-      // This only applies to a fresh POST — when merging into an existing grant
-      // (match exists) we're doing a PUT/PATCH on that grant, and PingOne allows
-      // same-named scopes across different resources in that case.
+      // Cross-resource name filter: PingOne rejects a grant whose scope names
+      // collide with names already granted on a different resource
+      // ("Multiple scopes with the same name cannot be added to the same
+      // grant"). Applies whether this is a fresh POST or a PUT merge into an
+      // existing grant — a prior version of this code exempted merges on the
+      // assumption PingOne allows the collision there; a live 2026-07-25
+      // bootstrap run proved that wrong (the AI Agent/Admin/MCP Exchanger
+      // grants failed on exactly this PUT path), so the filter now applies
+      // unconditionally.
       const idToName = new Map(resourceScopes.map(s => [s.id, s.name]));
-      if (!match) {
+      {
         const filteredIds = desiredIds.filter(id => {
           const name = idToName.get(id);
           return name && !allOtherNames.has(name);
@@ -1108,8 +1331,8 @@ class PingOneProvisionService {
         desiredIds.length = 0;
         desiredIds.push(...filteredIds);
 
-        // If all desired names were already granted via other resources and there
-        // is no existing grant to merge into, there is nothing to POST.
+        // If all desired names were already granted via other resources,
+        // there is nothing left to POST or merge.
         if (desiredIds.length === 0 && droppedAsCrossResource > 0) {
           return {
             success: true,
@@ -1127,7 +1350,21 @@ class PingOneProvisionService {
         if (toAdd.length === 0) {
           return { success: true, action: 'unchanged', granted: existingIds.size, missingScopes: missing };
         }
-        const merged = [...existingIds, ...toAdd].map(id => ({ id }));
+        // Dedup by NAME, not just id, before PUTting. An existing grant can
+        // reference a scope id that no longer matches 1:1 with the resource's
+        // current scopes (e.g. a scope deleted and recreated with a new id,
+        // same name) — the union would then carry two different ids for the
+        // same name, which PingOne rejects with INVALID_DATA "Multiple scopes
+        // with the same name cannot be added to the same grant" on every
+        // future merge to this grant. idToName is built from THIS request's
+        // live GET of the resource's scopes, so an id it can't resolve is
+        // stale and safe to drop; a name collision keeps the fresh (toAdd) id.
+        const byName = new Map();
+        for (const id of [...existingIds, ...toAdd]) {
+          const name = idToName.get(id);
+          if (name) byName.set(name, id);
+        }
+        const merged = Array.from(byName.values()).map(id => ({ id }));
         // PUT replaces the grant in place; PingOne accepts updates here.
         await this.makeRequest('PUT', `/applications/${appId}/grants/${match.id}`, {
           resource: { id: resourceId },
@@ -1329,7 +1566,26 @@ class PingOneProvisionService {
     })();
     preserved.BFF_INTERNAL_SECRET = existingBff || require('crypto').randomBytes(32).toString('hex');
 
-    const envContent = this.generateEnvContent(config, provisioned, preserved);
+    let envContent = this.generateEnvContent(config, provisioned, preserved);
+
+    // generateEnvContent only knows a fixed set of PingOne-provisioned keys —
+    // anything else (API keys, PAR endpoint, vault password, deployment URLs,
+    // a manually-set decision-endpoint id, ...) would otherwise be silently
+    // dropped on every rerun. Carry forward any existing key it didn't write.
+    // Root cause of the 2026-07-25 incident: a bootstrap rerun wiped 24
+    // unrelated keys this way, including that session's live-provisioned
+    // PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID.
+    const existingKeys = parseEnvLines(existingText);
+    const writtenKeys = parseEnvLines(envContent);
+    const carriedForward = [];
+    for (const [key, line] of existingKeys) {
+      if (!writtenKeys.has(key)) carriedForward.push(line);
+    }
+    if (carriedForward.length > 0) {
+      envContent += '\n# --- carried forward from the previous .env (not managed by bootstrap) ---\n'
+        + carriedForward.join('\n') + '\n';
+    }
+
     await fs.writeFile(envPath, envContent, 'utf8');
 
     // Mirror the newly-written .env into SQLite so the database is immediately
@@ -1513,6 +1769,7 @@ class PingOneProvisionService {
       '#              -> final MCP token (aud=mcpgateway.ping.demo).',
       `PINGONE_AI_AGENT_ACTOR_CLIENT_ID=${provisioned.aiAgentApp?.clientId || ''}`,
       `PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET=${provisioned.aiAgentApp?.clientSecret || '<set-in-pingone-console>'}`,
+      `PINGONE_AI_AGENT_ACTOR_REDIRECT_URI=${(config.publicAppUrl || '').replace(/\/+$/, '')}/api/auth/oauth/ai-agent-placeholder-callback`,
       `PINGONE_RESOURCE_AGENT_GATEWAY_URI=${provisioned.agentGwResourceServer?.audience?.[0] || 'agentgateway.ping.demo'}`,
       `PINGONE_RESOURCE_MCP_GATEWAY_URI=${provisioned.mcpGwResourceServer?.audience?.[0] || 'mcpgateway.ping.demo'}`,
       `# Two-Exchange Delegation audiences (Exchange #1 intermediate + Exchange #2 final)`,
@@ -1917,6 +2174,30 @@ class PingOneProvisionService {
       );
       
       pushGrantResultStep(steps, 'user-grants', 'User scope grants', userGrantResult);
+      onStep(steps[steps.length - 1]);
+
+      // Step 10.25: IDAI Agent Consent — Agreement + Agent-Consent-Login on User app.
+      // Does NOT replace HITL / transfer consent (Phase 170).
+      steps.push({
+        step: 'agent-consent',
+        icon: '👤',
+        message: 'Ensuring Agent Consent agreement + Agent-Consent-Login on User app...',
+      });
+      onStep(steps[steps.length - 1]);
+      try {
+        const consentResult = await this.ensureAgentConsentLoginForApp(userAppResult.application.id);
+        steps.push({
+          step: 'agent-consent',
+          icon: '✅',
+          message: `Agent Consent ready (agreement=${consentResult.agreementId.slice(0, 8)}…, policy=${consentResult.policyId.slice(0, 8)}…, assignment=${consentResult.assignmentCreated ? 'created' : 'exists'})`,
+        });
+      } catch (consentErr) {
+        steps.push({
+          step: 'agent-consent',
+          icon: '⚠️',
+          message: `Agent Consent step: ${consentErr.message}`,
+        });
+      }
       onStep(steps[steps.length - 1]);
 
       // Step 10.5: Ensure permissive demo password policy is bound to the
@@ -2657,15 +2938,39 @@ class PingOneProvisionService {
 
       // Step 37: Configure AI Agent redirect URI + auth method.
       // WEB_APP needs redirectUris; the authorization_code flow is never used
-      // for this app — it only mints CC tokens for token-exchange.
-      if (!aiAgentAppResult.exists) {
+      // for this app — it only mints CC tokens for token-exchange / PAR.
+      // Register ALL known public hosts (same set as admin/user apps) so live
+      // intent-binding PAR does not fail with Redirect URI mismatch when
+      // PUBLIC_APP_URL is local.ping-devops.com but the app was provisioned
+      // under api.ping.demo (or vice versa).
+      {
+        const { listActorPlaceholderRedirectUris } = require('./oauthRedirectUris');
+        const actorRedirectUris = listActorPlaceholderRedirectUris(config.publicAppUrl);
         steps.push({ step: 'ai-agent-config', icon: '⚙️', message: 'Configuring AI Agent application...' });
         onStep(steps[steps.length - 1]);
-        await this.updateApplication(aiAgentAppResult.application.id, {
-          redirectUris: [`${config.publicAppUrl}/api/auth/oauth/ai-agent-placeholder-callback`],
-          tokenEndpointAuthMethod: 'client_secret_post',
-        });
-        steps.push({ step: 'ai-agent-config', icon: '✅', message: 'AI Agent application configured' });
+        if (!aiAgentAppResult.exists) {
+          await this.updateApplication(aiAgentAppResult.application.id, {
+            redirectUris: actorRedirectUris,
+            tokenEndpointAuthMethod: 'client_secret_post',
+          });
+          steps.push({ step: 'ai-agent-config', icon: '✅', message: 'AI Agent application configured' });
+        } else {
+          const currentUris = Array.isArray(aiAgentAppResult.application?.redirectUris)
+            ? aiAgentAppResult.application.redirectUris
+            : [];
+          const merged = Array.from(new Set(currentUris.concat(actorRedirectUris)));
+          const needsRedirectUpdate = merged.length !== currentUris.length
+            || actorRedirectUris.some((u) => !currentUris.includes(u));
+          if (needsRedirectUpdate) {
+            await this.updateApplication(aiAgentAppResult.application.id, {
+              redirectUris: merged,
+              tokenEndpointAuthMethod: 'client_secret_post',
+            });
+            steps.push({ step: 'ai-agent-config', icon: '✅', message: 'AI Agent actor redirect URIs reconciled' });
+          } else {
+            steps.push({ step: 'ai-agent-config', icon: '✅', message: 'AI Agent application already configured' });
+          }
+        }
         onStep(steps[steps.length - 1]);
       }
 
@@ -2978,19 +3283,34 @@ class PingOneProvisionService {
       const pingOneMcpAppId = pingOneMcpServerAppResult.application?.id;
       if (pingOneMcpAppId) {
         try {
+          // Merge — never replace. A full replace wiped the Generic MCP Inspector
+          // callback (/api/mcp/inspector/pingone-admin/callback) and broke PingOne
+          // admin sign-in with invalid_grant (2026-07-22).
+          const existingMcpRedirects = Array.isArray(pingOneMcpServerAppResult.application?.redirectUris)
+            ? pingOneMcpServerAppResult.application.redirectUris
+            : [];
+          const publicOrigin = String(config.publicAppUrl || process.env.PUBLIC_APP_URL || '')
+            .trim()
+            .replace(/\/$/, '');
+          const inspectorCallbacks = [
+            // Loopback hosts — different MCP clients use localhost vs 127.0.0.1.
+            // 7464 = this repo's Claude Code callbackPort; 7474 = Ping's published
+            // Remote MCP onboarding default.
+            'http://localhost:7464/callback',
+            'http://127.0.0.1:7464/callback',
+            'http://localhost:7474/callback',
+            'http://127.0.0.1:7474/callback',
+            'cursor://anysphere.cursor-mcp/oauth/callback',
+            'https://www.cursor.com/agents/mcp/oauth/callback',
+            // Generic MCP Inspector (routes/mcpPingOneAdminAuth.js)
+            'https://local.ping-devops.com:4000/api/mcp/inspector/pingone-admin/callback',
+            'https://api.ping.demo:4000/api/mcp/inspector/pingone-admin/callback',
+          ];
+          if (publicOrigin) {
+            inspectorCallbacks.push(`${publicOrigin}/api/mcp/inspector/pingone-admin/callback`);
+          }
           const updatedMcpApp = await this.updateApplication(pingOneMcpAppId, {
-            // Register both loopback hosts — different MCP clients use localhost vs
-            // 127.0.0.1, and PingOne requires an exact redirect_uri match.
-            // 7464 = this repo's Claude Code callbackPort; 7474 = the port in
-            // Ping's published Remote MCP onboarding doc (some clients default to it).
-            redirectUris: [
-              'http://localhost:7464/callback',
-              'http://127.0.0.1:7464/callback',
-              'http://localhost:7474/callback',
-              'http://127.0.0.1:7474/callback',
-              'cursor://anysphere.cursor-mcp/oauth/callback',
-              'https://www.cursor.com/agents/mcp/oauth/callback',
-            ],
+            redirectUris: Array.from(new Set([...existingMcpRedirects, ...inspectorCallbacks])),
           });
           if (updatedMcpApp?.clientId) provisioned.pingOneMcpServerApp = updatedMcpApp;
         } catch (err) {
@@ -3434,5 +3754,7 @@ module.exports = {
   // singleton may have leftover state from a prior provision call. Each
   // wipeEnvironment call also re-initializes (calls getWorkerToken).
   wipeEnvironment: (config, onStep) => new PingOneProvisionService().wipeEnvironment(config, onStep),
-  checkResourceExists: (type, name) => provisionService.findResourceByName(type, name)
+  checkResourceExists: (type, name) => provisionService.findResourceByName(type, name),
+  ensureAgentConsentLoginForApp: (userAppId) =>
+    provisionService.ensureAgentConsentLoginForApp(userAppId),
 };

@@ -1,0 +1,11 @@
+{
+  "vertical": "healthcare",
+  "useCaseId": "UC8",
+  "triggerType": "chip",
+  "mode": "unit-gate-band",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "pay_bill",
+  "checkedAt": "2026-07-25T20:23:05.423Z",
+  "verifiedBy": "mcpToolAuthorizationService._applyTransactionPolicy localAmountBand (#769)"
+}

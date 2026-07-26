@@ -1,0 +1,14 @@
+{
+  "vertical": "retail",
+  "useCaseId": "UC24",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "get_branch_hours",
+  "checkedAt": "2026-07-25T20:23:04.650Z",
+  "requiredFlags": [
+    "ff_mcp_gateway_pinggateway",
+    "ff_gateway_brokered_exchange"
+  ]
+}

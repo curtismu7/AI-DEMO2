@@ -113,6 +113,23 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
     return JSON.stringify({ ...ADMIN_TOKEN_ON_CUSTOMER });
   }
 
+  // Teaching/education tools (oauth-teaching explain_concept, show_flow_diagram, …)
+  // are pure-local: text + optional education-panel directive. They must not enter
+  // the MCP gateway (Unknown tool) or trigger RFC 8693. Same contract as
+  // dispatchVerticalIntent's isLocalTool bypass.
+  const localPlugin = verticalDispatch.findLocalToolPlugin(name);
+  if (localPlugin) {
+    try {
+      const local = await localPlugin.executeTool(name, args || {}, {
+        userId, userToken, req, tokenEvents, sessionId,
+      });
+      const payload = local?.result !== undefined ? local.result : local;
+      return typeof payload === 'string' ? payload : JSON.stringify(payload ?? {});
+    } catch (e) {
+      return JSON.stringify({ error: e.message || 'local teaching tool failed' });
+    }
+  }
+
   if (!_pipelineDeps) {
     // Test/isolated context — full pipeline not wired. Plugin (vertical) tools are
     // not in getBankingToolDefinitions(), so route them via the gateway directly.
@@ -127,7 +144,16 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
     const { recordToolCall: recordMcpToolCall } = require('./mcpToolAuditStore');
     const tools = getBankingToolDefinitions();
     const tool = tools.find((t) => t.name === name);
-    if (!tool) return JSON.stringify({ error: `Unknown tool: ${name}` });
+    if (!tool) {
+      // Not a known LangChain tool schema either. This can still be a real
+      // MCP-server tool invoked directly rather than via LLM function-calling —
+      // e.g. oauth-teaching's demonstrate_token_exchange/demonstrate_scope_denial
+      // simulate a nested call to get_my_accounts/get_investment_balance, neither
+      // of which is a plugin action tool or a LangChain registry entry. The
+      // gateway is the source of truth for tool existence, so route there instead
+      // of guessing it doesn't exist.
+      return callMcpToolAsAgent({ name, args, userId, userToken, sessionId, tokenEvents });
+    }
 
     const mockReq = {
       session: { oauthTokens: { accessToken: userToken }, id: sessionId },
@@ -231,8 +257,13 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
     return JSON.stringify({ error: outcome.body?.error || 'mcp_blocked', ...outcome.body });
   }
 
-  // kind === 'error'
-  return JSON.stringify({ error: outcome.body?.error || 'mcp_error', message: outcome.body?.message });
+  // kind === 'error' — keep body fields (pingone / exchange detail) so the agent
+  // reply and Token Chain can surface why the hop failed, not just a bare code.
+  return JSON.stringify({
+    error: outcome.body?.error || 'mcp_error',
+    message: outcome.body?.message || outcome.body?.error_description || null,
+    ...(outcome.body && typeof outcome.body === 'object' ? outcome.body : {}),
+  });
 }
 
 /**

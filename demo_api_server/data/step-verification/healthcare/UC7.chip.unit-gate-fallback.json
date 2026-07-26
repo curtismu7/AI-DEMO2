@@ -1,0 +1,11 @@
+{
+  "vertical": "healthcare",
+  "useCaseId": "UC7",
+  "triggerType": "chip",
+  "mode": "unit-gate-fallback",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "pay_bill",
+  "checkedAt": "2026-07-25T20:23:05.425Z",
+  "verifiedBy": "Transaction 429 → catch fall-through → localAmountBand (#769)"
+}

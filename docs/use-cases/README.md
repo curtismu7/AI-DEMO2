@@ -5,7 +5,7 @@
 > Generated from `demo_api_server/config/useCases.js`.
 > Regenerate: `npm run use-cases:docs:gen` (from `demo_api_server/`).
 
-See also: [Audit Table](./audit-table.md)
+See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-verification-report.md)
 
 ## Foundations
 
@@ -15,6 +15,9 @@ See also: [Audit Table](./audit-table.md)
 - [**UC3** — act gate](./may-act-gate.md) ✅ 🛡️
 - [**UC19** — Non-human (agent) identity lifecycle](./agent-identity-lifecycle.md) ✅ 🛡️
 - [**UC20** — Audit trail / traceability](./audit-trail.md) ✅ 🛡️
+- [**UC33** — My mortgage](./mortgage-delegated-access.md) ✅ 🛡️
+- [**UC34** — Spot unusual patterns](./ai-spot-unusual-patterns.md) ✅ 🛡️
+- [**UC35** — Why was that blocked?](./ai-explain-last-denial.md) ✅ 🛡️
 
 ## Demo
 

@@ -1,0 +1,11 @@
+{
+  "vertical": "retail",
+  "useCaseId": "ciba-out-of-band-approval",
+  "triggerType": "button",
+  "mode": "unit-ref",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "checkout",
+  "checkedAt": "2026-07-25T20:23:05.294Z",
+  "verifiedBy": "demo_api_ui AgentLifecyclePage CIBA checkout + e2e button.heuristic (#761)"
+}

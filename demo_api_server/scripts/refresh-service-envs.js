@@ -250,6 +250,13 @@ async function main() {
     HITL_INTERNAL_SECRET:     fb('HITL_INTERNAL_SECRET'),
     PINGONE_AI_AGENT_ACTOR_CLIENT_ID:     creds.aiAgentClientId,
     PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET: creds.aiAgentSecret,
+    PINGONE_AI_AGENT_ACTOR_REDIRECT_URI: (() => {
+      const explicit = fb('PINGONE_AI_AGENT_ACTOR_REDIRECT_URI');
+      if (explicit) return explicit;
+      const base = String(fb('PUBLIC_APP_URL') || fb('PINGONE_PUBLIC_APP_URL') || '').replace(/\/+$/, '');
+      return base ? `${base}/api/auth/oauth/ai-agent-placeholder-callback` : '';
+    })(),
+    OAUTH_PAR_ENDPOINT: fb('OAUTH_PAR_ENDPOINT') || fb('PINGONE_PAR_ENDPOINT') || `${asBase}/par`,
     PINGONE_TOKEN_EXCHANGER_CLIENT_ID:    creds.mcpExchangerClientId,
     PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET: creds.mcpExchangerSecret,
     ff_admin_token_exchange:              fb('ff_admin_token_exchange') || 'true',
@@ -400,6 +407,15 @@ async function main() {
     PINGONE_INTROSPECTION_ENDPOINT:  `${asBase}/introspect`,
     GW_INTROSPECTION_CLIENT_ID:      creds.mcpExchangerClientId,
     GW_INTROSPECTION_CLIENT_SECRET:  creds.mcpExchangerSecret,
+    // pingOneUserLookup.js's Management API user-existence check (Rule 0a2 —
+    // every decision, including A2A nested-act tool discovery) needs its own
+    // worker credentials. Without them it throws "not configured", which the
+    // mock authz server surfaces as a DENY (user_lookup_failed) — an infra
+    // fault masquerading as a policy denial, and it silently killed every A2A
+    // specialist call (UC2 / UC2.5) since the mock engine denies by default
+    // on lookup failure.
+    PINGONE_WORKER_CLIENT_ID:        fb('PINGONE_WORKER_CLIENT_ID'),
+    PINGONE_WORKER_CLIENT_SECRET:    fb('PINGONE_WORKER_CLIENT_SECRET'),
   });
   console.log('[refresh-envs] Wrote demo_authz_server/.env');
 
@@ -434,16 +450,22 @@ async function main() {
                                       || 'https://api.ping.demo:3036/mcp',
     PG_GATEWAY_RESOURCE_URI:        mcpGatewayAud,
     PG_INBOUND_SCOPE:               'gateway:mcp:invoke',
-    TE_CLIENT_ID:                   creds.mcpExchangerClientId,
-    TE_CLIENT_SECRET:               creds.mcpExchangerSecret,
+    // Exchange #3 TE client MUST be the MCP Gateway app (grants on
+    // mcpserver.ping.demo), NOT the MCP Exchanger. The exchanger is for
+    // BFF hop #2 (aud=gateway); using it here yields wrong aud / D-05 or
+    // invalid_scope. Matches Node McpTokenExchangeClient's clientId.
+    TE_CLIENT_ID:                   creds.mcpGatewayClientId,
+    TE_CLIENT_SECRET:               creds.mcpGatewaySecret,
     PG_OLB_RESOURCE_URI:            mcpServerAud,
-    // Intersection of subject scopes ∩ mcpserver mirrored scopes. Must include
-    // `write` or every write tool (create_transfer/deposit/withdraw) 502s with
-    // "Insufficient scope" on the gateway-brokered path — the BFF-brokered
-    // equivalent mints "write mcp:invoke" for this same hop.
-    PG_OLB_SCOPE:                   'read write mcp:invoke',
+    // Mirrored scopes on Super Banking MCP Server ONLY. Do NOT include
+    // `mcp:invoke` — that name also lives on mcpgateway.ping.demo and
+    // triggers PingOne "May not request scopes for multiple resources"
+    // (or a 200 with the wrong aud). Must include `write` or write tools
+    // 502 with "Insufficient scope".
+    PG_OLB_SCOPE:                   'read write',
     PG_INVEST_RESOURCE_URI:         mcpInvestAud,
-    PG_INVEST_SCOPE:                'read mcp:invoke invest:read',
+    // Same single-resource rule: invest resource mirrored/native scopes only.
+    PG_INVEST_SCOPE:                'invest:read',
     PG_OLB_BACKEND_URL:             'http://mcp-server:8080',
     PG_INVEST_BACKEND_URL:          'http://mcp-invest:8081',
     BFF_INTERNAL_SECRET:            fb('BFF_INTERNAL_SECRET') || 'dev-shared-secret-change-me',
@@ -466,6 +488,19 @@ async function main() {
     P1AZ_WORKER_CLIENT_ID:          fb('PINGONE_AUTHORIZE_WORKER_CLIENT_ID') || fb('PINGONE_WORKER_CLIENT_ID'),
     P1AZ_WORKER_CLIENT_SECRET:    fb('PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET') || fb('PINGONE_WORKER_CLIENT_SECRET'),
     PINGONE_TOKEN_ENDPOINT:         `${asBase}/token`,
+    // ping-gateway/config/routes/03-mcp-delegation.json (Phase 2 RFC 8693
+    // delegation demo route) needs these two for DelegationProtection's
+    // resourceId and DelegationResourceServerFilter's scopes — without them
+    // the route fails to build at PingGateway boot: an unset resourceId is
+    // first a JsonValueException (empty string), and a bare non-URI string
+    // (e.g. "test") then NPEs in ResourceId.resourceId() (it calls
+    // URI.getScheme(), which is null without a scheme) — resourceId must be
+    // an absolute URI, same as every other route's PG_GATEWAY_RESOURCE_ID.
+    // The route's own comment documents this route against a fixed "test"
+    // resource/scope, not a real production audience — "test" alone just
+    // isn't a valid URI, so it needs a scheme.
+    DELEGATION_RESOURCE_AUDIENCE:   'https://test',
+    DELEGATION_RESOURCE_SCOPE:      'test',
   });
   console.log('[refresh-envs] Wrote ping-gateway/.env');
 

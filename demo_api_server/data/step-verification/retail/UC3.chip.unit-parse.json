@@ -1,0 +1,10 @@
+{
+  "vertical": "retail",
+  "useCaseId": "UC3",
+  "triggerType": "chip",
+  "mode": "unit-parse",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "list_orders",
+  "checkedAt": "2026-07-25T20:23:04.421Z"
+}

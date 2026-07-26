@@ -42,7 +42,19 @@ const KNOWN_DEFAULTS = new Set(['', 'demo-mortgage-key-0000', 'mortgage-compose-
 function readEnvValue(file, key) {
   try {
     const m = fs.readFileSync(file, 'utf8').match(new RegExp(`^${key}=(.*)$`, 'm'));
-    return m ? m[1].trim() : null;
+    if (!m) return null;
+    let v = m[1].trim();
+    // dotenv (used by the BFF) and docker compose env_file both strip ONE pair of
+    // surrounding matching quotes. This hand-rolled reader must match them: a
+    // VAULT_PASSWORD="..." line was otherwise passed to vault.js with the quotes
+    // still attached, giving "bad password" and blocking service-key provisioning
+    // while the BFF (quote-stripped) opened the same vault fine.
+    if (v.length >= 2 &&
+        ((v[0] === '"' && v[v.length - 1] === '"') ||
+         (v[0] === "'" && v[v.length - 1] === "'"))) {
+      v = v.slice(1, -1);
+    }
+    return v;
   } catch (_) {
     return null;
   }
@@ -68,6 +80,13 @@ function vault(args, input) {
   }).toString();
 }
 
+// Export helpers for tests; only run provisioning when invoked directly
+// (node ensure-service-keys.js), never when required as a module.
+module.exports = { readEnvValue };
+
+if (require.main === module) main();
+
+function main() {
 // VAULT_PASSWORD: env first, then demo_api_server/.env (same source the BFF uses).
 if (!process.env.VAULT_PASSWORD) {
   const fromEnvFile = readEnvValue(path.join(REPO_ROOT, 'demo_api_server/.env'), 'VAULT_PASSWORD');
@@ -103,4 +122,5 @@ try {
 } catch (err) {
   console.warn(`[ensure-service-keys] ⚠️  Failed: ${err.message} — mortgage/invest chips may reject the service key.`);
   process.exit(0); // fail soft: never block stack start
+}
 }

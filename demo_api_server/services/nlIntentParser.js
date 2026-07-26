@@ -235,6 +235,23 @@ function extractIntentAndConfidence(message) {
       confidence: 0.95,
     };
 
+  // Retail checkout — UC22 demo step ("checkout headphones for $150") and
+  // similar buy/purchase prompts. Without this, intent stays "unknown" →
+  // permitted_tools is read-only → PingGateway P1AZ DENYs checkout with
+  // intent_mismatch after CIBA approval (BFF gate already PERMITted).
+  //
+  // "check out" (two words) is too broad — it's natural English for
+  // "look at my balance/account/transactions", which map to banking read
+  // intents. Only match the single-word "checkout" or "check out" when
+  // explicitly followed by a shopping noun (cart, basket, item, order).
+  // norm() strips "$", so \$? in the buy/purchase branch was a no-op — removed.
+  const checkoutMatch =
+    /\bcheckout\b/.test(t) ||
+    /\bcheck\s+out\s+(?:my\s+)?(?:cart|basket|item|order)\b/.test(t) ||
+    /\b(buy|purchase)\b.*\d/.test(t);
+  if (checkoutMatch)
+    return { intent: "checkout", toolName: "checkout", confidence: 0.9 };
+
   // Balance/accounts: "show my X balance" or "check my X"
   const balanceMatch = /\b(balance|how much|what.*balance)\b/.test(t);
   if (balanceMatch)
@@ -926,11 +943,19 @@ function parseHeuristic(
   // "in <city>" clause — "the weather is nice today" (no location) is the
   // idiomatic off-topic control phrase used across this suite's kind:'none'
   // tests and must keep falling through, not be swallowed by a bare "weather".
-  const weatherCityMatch = t.match(/\bweather\b.*?\bin\s+(.+)$/i);
+  // Capture city from the ORIGINAL message: norm() replaces commas with spaces
+  // ("Austin, TX" → "austin tx"), which breaks tx-weather-scope.groovy's
+  // ", TX" / ", Texas" qualifier check and falsely DENYs in-scope cities.
+  const weatherCityMatch = String(message || "").match(
+    /\bweather\b.*?\bin\s+(.+)$/i,
+  );
   if (weatherCityMatch?.[1]) {
     return {
       kind: "banking",
-      banking: { action: "weather", params: { city_name: weatherCityMatch[1].trim() } },
+      banking: {
+        action: "weather",
+        params: { city_name: weatherCityMatch[1].trim() },
+      },
     };
   }
 

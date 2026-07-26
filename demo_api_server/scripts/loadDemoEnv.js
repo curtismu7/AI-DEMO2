@@ -30,6 +30,9 @@ function resolveEnvCandidates() {
     path.join(apiRoot, '.env'),
     path.resolve(repoRoot, '../AI-DEMO2/demo_api_server/.env'),
     path.resolve(repoRoot, '../AI-DEMO2/.env'),
+    // Nested under main/.worktrees/<branch>/
+    path.resolve(repoRoot, '../../demo_api_server/.env'),
+    path.resolve(repoRoot, '../../.env'),
   );
 
   const seen = new Set();

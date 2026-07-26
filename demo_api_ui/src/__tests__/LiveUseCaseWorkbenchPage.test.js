@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
@@ -53,24 +53,44 @@ function renderPage() {
   );
 }
 
+/** Click the Run button on a card (visible without selecting first). */
+async function runCardMatching(titleRe) {
+  const title = await screen.findByText(titleRe);
+  const card = title.closest('.luw-card');
+  expect(card).toBeTruthy();
+  const runBtn = within(card).getByRole('button', { name: /run/i });
+  await userEvent.click(runBtn);
+}
+
 describe('LiveUseCaseWorkbenchPage', () => {
   beforeEach(() => {
     apiClient.get.mockReset();
+    apiClient.post.mockReset();
+    mockSetSurfaceHostEl.mockClear();
     apiClient.get.mockResolvedValue({ data: { useCases: MOCK_USE_CASES } });
   });
 
-  it('fetches the real catalog for the active vertical and renders tracks + rows', async () => {
+  it('fetches the real catalog and renders Mock A demo cards + glance', async () => {
     renderPage();
     await waitFor(() => {
       expect(screen.getByText(/Delegated access with proof/)).toBeInTheDocument();
     });
     expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases', { params: { vertical: 'banking' } });
     expect(screen.getByText(/Authz denied/)).toBeInTheDocument();
-    expect(screen.getByText('PERMIT')).toBeInTheDocument();
-    expect(screen.getByText('DENY')).toBeInTheDocument();
+    expect(screen.getByText('Demo script')).toBeInTheDocument();
+    expect(screen.getByLabelText('Banking glance')).toBeInTheDocument();
+    expect(screen.getByText('Checking')).toBeInTheDocument();
+    expect(screen.getByText('Policy')).toBeInTheDocument();
   });
 
-  it('filters rows via the search box', async () => {
+  it('shows a Run button on every runnable card without requiring selection', async () => {
+    renderPage();
+    await waitFor(() => screen.getByText(/Delegated access with proof/));
+    const cards = screen.getAllByText(/Run in agent/i);
+    expect(cards.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('filters cards via the search box', async () => {
     renderPage();
     await waitFor(() => screen.getByText(/Delegated access with proof/));
     const search = screen.getByPlaceholderText(/Filter use cases/i);
@@ -85,10 +105,6 @@ describe('LiveUseCaseWorkbenchPage', () => {
     renderPage();
     await waitFor(() => screen.getByText(/Delegated access with proof/));
     expect(mockSetSurfaceHostEl).toHaveBeenCalled();
-    // The host-registration effect (mirroring UserDashboard.js) fires more than once
-    // during mount — an initial call with the pre-ref-attach null, a functional
-    // cleanup-updater call, then the call carrying the actual attached DOM node.
-    // Find the call that actually carries the element rather than assuming index 0.
     const registeredEl = mockSetSurfaceHostEl.mock.calls
       .map((call) => call[0])
       .find((arg) => arg instanceof HTMLElement);
@@ -106,8 +122,7 @@ describe('LiveUseCaseWorkbenchPage', () => {
     const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
 
     renderPage();
-    await waitFor(() => screen.getByText(/Delegated access with proof/));
-    screen.getByText(/Delegated access with proof/).closest('button').click();
+    await runCardMatching(/Delegated access with proof/);
 
     await waitFor(() => {
       expect(apiClient.post).toHaveBeenCalledWith('/api/use-cases/demo/run', { useCaseId: 'delegated-access-with-proof', vertical: 'banking' });
@@ -116,6 +131,9 @@ describe('LiveUseCaseWorkbenchPage', () => {
     await waitFor(() => {
       const fired = dispatchSpy.mock.calls.some(([e]) => e.type === 'banking-agent-prefill' && e.detail?.message === 'show my balance' && e.detail?.autoSend === true);
       expect(fired).toBe(true);
+    });
+    await waitFor(() => {
+      expect(screen.getByText('PERMIT')).toBeInTheDocument();
     });
   });
 
@@ -137,21 +155,15 @@ describe('LiveUseCaseWorkbenchPage', () => {
     });
 
     renderPage();
-    await waitFor(() => screen.getByText(/Wrong \/ insufficient scope/));
-    screen.getByText(/Wrong \/ insufficient scope/).closest('button').click();
+    await runCardMatching(/Wrong \/ insufficient scope/);
 
     await waitFor(() => {
       expect(apiClient.post).toHaveBeenCalledWith('/api/demo/attack-sim/run', { sim: 'insufficient-scope' });
     });
     expect(mockStore.beginTrace).toHaveBeenCalled();
-    // sim-exchange-ok is the one id simTraceAdapter remaps to the rail's
-    // recognized "exchanged-token" step — this is what makes the exchange
-    // step's real request/response JSON appear instead of a bare dot.
     expect(mockStore.ingestTokenEvent).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'exchanged-token', claims: { sub: 'user-1', aud: 'gw' } }),
     );
-    // user-token and sim-gateway-deny have no rail-recognized remap, so they
-    // pass through unchanged (buildSimRailEvents only rewrites known ids).
     expect(mockStore.ingestTokenEvent).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'user-token' }),
     );

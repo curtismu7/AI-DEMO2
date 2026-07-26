@@ -52,6 +52,82 @@
   }
 }
 
+/* Discovery Preview — cool teal (vs warm amber Agent Studio). Strong
+   chrome differences so the two routes are obvious at a glance. */
+.asp-root.asp-root--discovery {
+  --asp-bg: #dceef2;
+  --asp-panel: #ffffff;
+  --asp-panel-2: #cfe4ea;
+  --asp-border: #8fb6c0;
+  --asp-ink: #0f2a31;
+  --asp-ink-2: #2f5560;
+  --asp-ink-3: #5a7d87;
+  --asp-accent: #066a76;
+  --asp-accent-ink: #f2fcfd;
+  --asp-accent-wash: #b6dde4;
+  --asp-shadow: 0 1px 3px rgba(10, 60, 70, 0.08), 0 8px 24px rgba(10, 60, 70, 0.1);
+  border-top: 8px solid #066a76;
+  background:
+    linear-gradient(90deg, #066a76 0, #066a76 10px, transparent 10px),
+    var(--asp-bg);
+}
+
+.asp-root.asp-root--discovery .asp-banner {
+  border-radius: 6px;
+  background: #066a76;
+  color: #f2fcfd;
+  border: none;
+}
+
+.asp-root.asp-root--discovery .asp-banner a {
+  color: #f2fcfd;
+}
+
+.asp-root.asp-root--discovery .asp-eyebrow {
+  background: #066a76;
+  color: #f2fcfd;
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+.asp-root.asp-root--discovery .asp-tab {
+  border-radius: 6px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .asp-root.asp-root--discovery {
+    --asp-bg: #0c171a;
+    --asp-panel: #142327;
+    --asp-panel-2: #1a3036;
+    --asp-border: #2f4f58;
+    --asp-ink: #e4f0f3;
+    --asp-ink-2: #a8c0c8;
+    --asp-ink-3: #6f8890;
+    --asp-accent: #3ec3d4;
+    --asp-accent-ink: #061316;
+    --asp-accent-wash: #143640;
+    --asp-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 8px 30px rgba(0, 0, 0, 0.32);
+    border-top-color: #3ec3d4;
+    background:
+      linear-gradient(90deg, #3ec3d4 0, #3ec3d4 10px, transparent 10px),
+      var(--asp-bg);
+  }
+
+  .asp-root.asp-root--discovery .asp-banner {
+    background: #1a5560;
+    color: #e4f0f3;
+  }
+
+  .asp-root.asp-root--discovery .asp-banner a {
+    color: #e4f0f3;
+  }
+
+  .asp-root.asp-root--discovery .asp-eyebrow {
+    background: #1a5560;
+    color: #e4f0f3;
+  }
+}
+
 .asp-page {
   max-width: 900px;
   margin: 0 auto;

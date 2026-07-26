@@ -78,6 +78,14 @@ try {
     console.warn('[session-store] LMDB store init failed, falling back to memory store:', err.message);
 }
 
+// Compat: killSwitchService / auditLogService / agentRateLimit import
+// middleware/sessionConfig.store — keep that path wired to the same store.
+try {
+    require('./middleware/sessionConfig').setStore(sessionStore);
+} catch (sessionConfigErr) {
+    console.warn('[session-store] sessionConfig shim unavailable:', sessionConfigErr.message);
+}
+
 // Demo: force a fresh token after every restart. LMDB persists sessions (and the
 // stored access token) on disk, so without this a user keeps their pre-restart
 // token. Wiping sessions on boot makes the next request re-authenticate (silently
@@ -110,11 +118,13 @@ const transactionRoutes = require('./routes/transactions');
 const demoScenarioRoutes = require('./routes/demoScenario');
 const adminRoutes = require('./routes/admin');
 const pingcliRoutes = require('./routes/pingcli');
+const mgmtApiRoutes = require('./routes/mgmtApi');
 const pingAiTestLabRoutes = require('./routes/pingAiTestLab');
 const adminAgentToolsRoutes = require('./routes/adminAgentTools');
 const adminAgentRoutes = require('./routes/adminAgentRoutes');
 const opsAgentRoutes = require('./routes/opsAgentRoutes');
 const a2aAgentRoutes = require('./routes/a2aAgentRoutes');
+const { createA2aProtocolRouter } = require('./services/a2aProtocolServer');
 const supportAgentRoutes = require('./routes/supportAgentRoutes');
 const complianceAgentRoutes = require('./routes/complianceAgentRoutes');
 const adminConfigRoutes = require('./routes/adminConfig');
@@ -327,7 +337,7 @@ const _rateLimitHandler = (req, res) => {
         const proto = req.get('x-forwarded-proto') || (req.secure ? 'https' : 'http');
         const rawHost = (req.get('x-forwarded-host') || req.get('host') || '').split(',')[0].trim();
         const host = rawHost || null;
-        const origin = host ? `${proto}://${host}` : (process.env.REACT_APP_CLIENT_URL || process.env.PUBLIC_APP_URL || 'https://api.ping.demo:4000');
+        const origin = host ? `${proto}://${host}` : (process.env.REACT_APP_CLIENT_URL || process.env.PUBLIC_APP_URL || 'https://local.ping-devops.com:4000');
         return res.redirect(`${origin}/login?error=too_many_requests`);
     }
     res.status(429).json({
@@ -597,6 +607,7 @@ app.use(
         '/api/transactions',
         '/api/mcp',
         '/api/demo-agent',
+        '/api/demo/attack-sim',
         '/api/tokens',
         '/api/demo-scenario',
         '/api/auth/oauth',
@@ -960,6 +971,12 @@ app.get('/api/auth/debug', async (req, res) => {
 // unauthenticated requests to the config endpoint are not blocked by the
 // authenticateToken middleware that guards the broader /api/admin/* prefix.
 app.use('/api/admin/pingcli', authenticateToken, pingcliRoutes);
+// requireAdmin, not just authenticateToken (which the sibling pingcli/test-lab
+// mounts use): these operations list every PingOne user in the environment and
+// create/delete real applications, so a signed-in demo customer must not reach
+// them. Verified live — with authenticateToken alone a CUSTOMER session got 200
+// from GET /operations.
+app.use('/api/admin/mgmt-api', authenticateToken, requireAdmin, mgmtApiRoutes);
 app.use('/api/admin/ping-ai-test-lab', authenticateToken, pingAiTestLabRoutes);
 app.use('/api/admin/config', adminConfigRoutes);
 
@@ -1054,6 +1071,7 @@ app.use('/api/mcp', mcpDecisionPollingRoutes);
 app.use('/api/mcp', mcpExchangeModeRoutes); // GET/POST /api/mcp/exchange-mode — UI ExchangeModeContext toggle
 app.use('/api/mcp/apikey', require('./routes/apiKeyExchange')); // POST /api/mcp/apikey/exchange — API key → bearer token
 app.use('/api/use-cases', authenticateToken, require('./routes/useCases'));
+app.use('/api/admin-tools', authenticateToken, require('./routes/adminTools'));
 app.use('/api/test/token-validation', testTokenScenariosRoutes); // UI TokenSecurityTester; self-gated 403 in prod unless FF_TEST_TOKEN_SCENARIOS
 // NL/search routes: public LLM config + NL parsing. Must be mounted BEFORE demoAgentRoutes
 // so /nl/status, /nl, and /search are handled without agentSessionMiddleware.
@@ -1065,6 +1083,9 @@ app.use('/api/admin-agent', authenticateToken, requireAdmin, adminAgentRoutes);
 app.use('/api/ops-agent', authenticateToken, opsAgentRoutes);
 // A2A Orchestrator: delegation decision and specialist routing
 app.use('/api/a2a', authenticateToken, a2aAgentRoutes);
+// A2A Protocol wire surface (Agent Cards + JSON-RPC). PingOne Bearer only —
+// no session cookie. Gated inside the router by ff_a2a_delegation.
+app.use('/a2a/specialists', createA2aProtocolRouter());
 // Support Agent: customer support via Mastra framework
 app.use('/api/support-agent', authenticateToken, supportAgentRoutes);
 // Compliance Agent: transaction compliance checking via Pydantic AI
@@ -1240,6 +1261,7 @@ app.use('/internal', require('./routes/mcpAuditIngest'));
 // from here at request time. Secret-guarded + allow-listed; NOT browser-facing.
 app.use('/internal', require('./routes/vaultServiceKey'));
 app.use('/internal', require('./routes/weatherMcpFlag'));
+app.use('/internal', require('./routes/braveMcpFlag'));
 
 // Phase 266 R2 — Path A info marker (session-cookie auth; no Bearer needed from SPA)
 app.use('/api/path', require('./routes/pathInfo'));
@@ -1506,7 +1528,7 @@ app.get('/', (req, res) => {
 
 // Redirect /login requests to frontend
 app.get('/login', (req, res) => {
-    const frontendUrl = process.env.REACT_APP_CLIENT_URL || process.env.PUBLIC_APP_URL || 'https://api.ping.demo:4000';
+    const frontendUrl = process.env.REACT_APP_CLIENT_URL || process.env.PUBLIC_APP_URL || 'https://local.ping-devops.com:4000';
     const queryString = req.url.includes('?') ? req.url.split('?')[1] : '';
     const redirectUrl = queryString ? `${frontendUrl}/?${queryString}` : `${frontendUrl}/`;
     res.redirect(redirectUrl);
@@ -2279,7 +2301,7 @@ async function runBackgroundStartupTasks() {
                 configStore.getEffective('PUBLIC_APP_URL') ||
                 configStore.getEffective('REACT_APP_CLIENT_URL') ||
                 process.env.PUBLIC_APP_URL ||
-                'https://api.ping.demo:4000';
+                'https://local.ping-devops.com:4000';
             // Honours FIDO2_RP_ID / pingone_fido2_rp_id — required when several
             // origins share one PingOne environment, since rp.id must then be
             // their common parent domain rather than any one host.

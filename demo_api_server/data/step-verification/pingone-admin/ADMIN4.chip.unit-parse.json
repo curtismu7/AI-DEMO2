@@ -1,0 +1,11 @@
+{
+  "vertical": "pingone-admin",
+  "useCaseId": "ADMIN4",
+  "triggerType": "chip",
+  "mode": "unit-parse",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "call_pingone_tool",
+  "checkedAt": "2026-07-25T20:23:06.345Z",
+  "verifiedBy": "nlIntentParser pingone-admin heuristics → resetPassword"
+}

@@ -1,0 +1,10 @@
+{
+  "vertical": "workforce",
+  "useCaseId": "UC21",
+  "triggerType": "chip",
+  "mode": "unit-parse",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "submit_expense",
+  "checkedAt": "2026-07-25T20:23:03.274Z"
+}

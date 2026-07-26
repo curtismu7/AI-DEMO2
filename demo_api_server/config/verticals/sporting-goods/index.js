@@ -25,7 +25,7 @@ const HEURISTICS = [
   { re: /\bpromotions?\b|\bcoupons?\b|\bdeals?\b|\boffers?\b|\bdiscount\s+codes?\b|\bpromo\s+codes?\b|\bdiscounts?\b/i, action: 'list_promotions' },
   { re: /\bcoaching\b|\blessons?\b|\bclinics?\b|\btraining\s+sessions?\b/i, action: 'list_coaching_sessions' },
   /* PACK:heuristics:end */
-  { re: /\bsensitive\b.*\bmember\b|\bmember\b.*\bsensitive\b/i, action: 'sensitive_membership_details' },
+  { re: /\bsensitive\b.*\bmembership\b|\bmembership\b.*\bsensitive\b/i, action: 'sensitive_membership_details' },
   { re: /\btransfer\b.*\bmembership\b|\bmembership\b.*\btransfer\b/i, action: 'transfer_membership' },
   { re: /\bextend\b.*\brental\b|\brenew\b.*\brental\b/, action: 'extend_rental', extractsAmount: true, extractsRentalId: true, paramHint: 'e.g. "extend rental r1" — find your rental ID in the rentals list' },
   { re: /\b(my\s+)?rentals?\b|\bgear\s+rentals?\b|\bdue\s+back\b/, action: 'list_rentals' },

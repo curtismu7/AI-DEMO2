@@ -113,6 +113,8 @@ function buildDenyBody({ useSimulated, policyId }) {
  * @param {number} opts.amount
  * @param {string} opts.type
  * @param {string} [opts.acr]
+ * @param {boolean} [opts.hitlAlreadyVerified] - CIBA out-of-band approval already
+ *   discharged the consent gate this request (see routes/ciba.js); skip r.consentRequired.
  * @returns {Promise<
  *   | { ran: false, reason: string }
  *   | { ran: true, permit: true, evaluation: object }
@@ -129,7 +131,12 @@ async function evaluateTransactionPolicy({
   type,
   acr,
   useCaseId,
+  hitlAlreadyVerified = false,
 }) {
+  // Set true when hitlAlreadyVerified actually discharges a consent gate below,
+  // so the caller spends the single-use CIBA credit only on real use
+  // (consume-on-use — see services/hitlCredit.js).
+  let hitlConsentDischarged = false;
   // Authorization is ALWAYS ENABLED for security — no ff to disable it.
   // Either use simulated Authorize (education) or live PingOne (when configured).
   const USE_SIMULATED = simulatedAuthorizeService.isSimulatedModeEnabled(configStore);
@@ -245,10 +252,13 @@ async function evaluateTransactionPolicy({
       }
 
       if (r.consentRequired) {
-        logEvent(EVENT_CATEGORIES.HITL, 'info',
-          `HITL consent required — ${type} $${amount}`,
-          { tag: 'hitl/consent-required-authz', metadata: { type, amount, userId, ...(useCaseId ? { useCaseId } : {}) } });
-        return { ran: true, block: { status: 428, body: buildConsentBody() } };
+        if (!hitlAlreadyVerified) {
+          logEvent(EVENT_CATEGORIES.HITL, 'info',
+            `HITL consent required — ${type} $${amount}`,
+            { tag: 'hitl/consent-required-authz', metadata: { type, amount, userId, ...(useCaseId ? { useCaseId } : {}) } });
+          return { ran: true, block: { status: 428, body: buildConsentBody() } };
+        }
+        hitlConsentDischarged = true;
       }
 
       if (r.decision === 'DENY') {
@@ -261,6 +271,7 @@ async function evaluateTransactionPolicy({
       return {
         ran: true,
         permit: true,
+        hitlConsentDischarged,
         evaluation: {
           engine: 'simulated',
           decision: r.decision,
@@ -333,7 +344,10 @@ async function evaluateTransactionPolicy({
     }
 
     if (r.consentRequired) {
-      return { ran: true, block: { status: 428, body: buildConsentBody() } };
+      if (!hitlAlreadyVerified) {
+        return { ran: true, block: { status: 428, body: buildConsentBody() } };
+      }
+      hitlConsentDischarged = true;
     }
 
     // Engine evaluated OK but no policy matched (drift). Fail closed with a clear
@@ -356,6 +370,7 @@ async function evaluateTransactionPolicy({
     return {
       ran: true,
       permit: true,
+      hitlConsentDischarged,
       evaluation: {
         engine: 'pingone',
         decision: r.decision,
@@ -478,7 +493,10 @@ async function evaluateTransactionPolicy({
         };
       }
       if (fallback.consentRequired) {
-        return { ran: true, block: { status: 428, body: { ...buildConsentBody(), authorizeFallback } } };
+        if (!hitlAlreadyVerified) {
+          return { ran: true, block: { status: 428, body: { ...buildConsentBody(), authorizeFallback } } };
+        }
+        hitlConsentDischarged = true;
       }
       if (fallback.decision === 'DENY') {
         return {
@@ -489,6 +507,7 @@ async function evaluateTransactionPolicy({
       return {
         ran: true,
         permit: true,
+        hitlConsentDischarged,
         evaluation: {
           engine: 'fallback_simulated',
           decision: fallback.decision,

@@ -35,7 +35,7 @@ jest.mock('../../services/cibaService', () => ({
 jest.mock('../../services/cibaSimulatedService', () => ({
   initiateSimulated: jest.fn(),
   isSimulatedApproved: jest.fn(),
-  SIMULATED_APPROVE_DELAY_MS: 7000,
+  SIMULATED_APPROVE_DELAY_MS: 60_000,
 }));
 
 jest.mock('../../services/tokenChainService', () => ({
@@ -777,6 +777,39 @@ describe('GET /api/auth/ciba/poll/:authReqId — OTP approval simulation', () =>
     expect(res.body.scope).toBe('openid profile');
   });
 
+  it('returns approved again on a second poll (idempotent — no 404 race)', async () => {
+    cibaSimulatedService.isSimulatedApproved.mockReturnValue(true);
+    const agent = request.agent(buildApp(simulatedPendingReq(Date.now() - 8000)));
+
+    const first = await agent
+      .get(`/api/auth/ciba/poll/${SIM_AUTH_REQ_ID}`)
+      .set('x-test-user', USER_HDR);
+    expect(first.status).toBe(200);
+    expect(first.body.status).toBe('approved');
+
+    const second = await agent
+      .get(`/api/auth/ciba/poll/${SIM_AUTH_REQ_ID}`)
+      .set('x-test-user', USER_HDR);
+    expect(second.status).toBe(200);
+    expect(second.body.status).toBe('approved');
+
+    // Living step-verification record for UC22 poll-race fix (PR #799).
+    const { writeLedgerEntry } = require('../../services/stepVerificationLedger');
+    writeLedgerEntry({
+      vertical: 'banking',
+      useCaseId: 'UC22',
+      triggerType: 'chip',
+      mode: 'unit-ref',
+      status: 'PASS',
+      errorClass: null,
+      primaryTool: 'create_transfer',
+      checkedAt: new Date().toISOString(),
+      verifiedBy:
+        'demo_api_server/src/__tests__/ciba.test.js (idempotent poll), ' +
+        'demo_api_server/src/__tests__/pingOneAuthorizeRetry.test.js (429 retry)',
+    });
+  });
+
   it('records a token-chain event on simulated approval, identical in shape to a real one', async () => {
     cibaSimulatedService.isSimulatedApproved.mockReturnValue(true);
 
@@ -877,14 +910,16 @@ describe('CIBA full OTP flow simulation — sequential poll cycle', () => {
     expect(poll3.body.access_token).toBeUndefined();
     expect(poll3.body.id_token).toBeUndefined();
 
-    // ── Step 5: Verify request cleaned up from session ──────────────────────
-    // A fourth poll on the same auth_req_id should be 404 (deleted on approval)
+    // ── Step 5: Concurrent / late pollers stay idempotent (no 404 race) ──────
+    // Previously the first successful poll deleted the session entry and a
+    // second poller got unknown_request — false deny in the agent UI.
     const poll4 = await agent
       .set('x-test-user', USER_HDR)
       .get(`/api/auth/ciba/poll/${FLOW_AUTH_REQ_ID}`);
 
-    expect(poll4.status).toBe(404);
-    expect(poll4.body.error).toBe('unknown_request');
+    expect(poll4.status).toBe(200);
+    expect(poll4.body.status).toBe('approved');
+    expect(poll4.body.scope).toBe(PINGONE_OIDC_DEFAULT_SCOPES_SPACE);
   });
 
   it('completes the full pending → denied cycle', async () => {
@@ -1093,7 +1128,7 @@ describe('POST /api/auth/ciba/deny/:authReqId', () => {
     expect(pollRes.body.error).toBe('access_denied');
   });
 
-  it('a second poll after denial 404s (request deleted, same as approval)', async () => {
+  it('a second poll after denial 404s (request deleted on deny)', async () => {
     cibaService.isEnabled.mockReturnValue(true);
     cibaSimulatedService.initiateSimulated.mockClear();
     cibaSimulatedService.initiateSimulated.mockReturnValue({

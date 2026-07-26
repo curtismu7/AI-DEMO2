@@ -1,0 +1,13 @@
+{
+  "vertical": "university",
+  "useCaseId": "UC14",
+  "triggerType": "attack",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": null,
+  "checkedAt": "2026-07-25T20:23:05.146Z",
+  "requiredFlags": [
+    "ff_rar"
+  ]
+}

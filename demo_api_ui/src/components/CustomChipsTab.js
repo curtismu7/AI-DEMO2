@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useCustomChips } from "../hooks/useCustomChips";
 import { useVertical } from '../vertical/useVertical';
 
@@ -136,6 +137,11 @@ export default function CustomChipsTab() {
     useCustomChips();
   const { pageManifest } = useVertical();
   const activeId = pageManifest?.id;
+  const navigate = useNavigate();
+
+  function handleRunChip(chip) {
+    navigate('/dashboard', { state: { triggerText: chip.prompt } });
+  }
 
   const [newGroup, setNewGroup] = useState("");
   const [groupError, setGroupError] = useState("");
@@ -326,6 +332,14 @@ export default function CustomChipsTab() {
                   <span style={s.chipLabel}>{chip.label}</span>
                   {chip.desc && <span style={s.chipDesc}>{chip.desc}</span>}
                   <span style={s.chipPrompt}>"{chip.prompt}"</span>
+                  <button
+                    type="button"
+                    style={{ ...s.btn, background: '#0369a1', color: '#fff' }}
+                    onClick={() => handleRunChip(chip)}
+                    data-testid={`run-chip-${chip.id}`}
+                  >
+                    Run
+                  </button>
                   <button
                     type="button"
                     style={{ ...s.btn, ...s.removeBtn }}

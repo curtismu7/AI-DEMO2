@@ -197,7 +197,7 @@ export default function EducationBar() {
           <div className="edu-bar-panel__section">
             <p className="edu-bar-panel__heading">AI landscape</p>
             <button type="button" className="edu-bar-panel__btn" onClick={go(EDU.AI_PRIMER, 'terminology')}>AI primer</button>
-            <button type="button" className="edu-bar-panel__btn" onClick={go(EDU.AGENT_FRAMEWORKS, 'overview')}>Agent frameworks (4 types)</button>
+            <button type="button" className="edu-bar-panel__btn" onClick={go(EDU.AGENT_FRAMEWORKS, 'overview')}>Agent frameworks (inventory)</button>
             <button type="button" className="edu-bar-panel__btn" onClick={go(EDU.LLM_LANDSCAPE, 'commercial')}>LLM landscape</button>
             <button type="button" className="edu-bar-panel__btn" onClick={go(EDU.AI_PLATFORM_LANDSCAPE, 'aws')}>AI platform landscape</button>
             <button type="button" className="edu-bar-panel__btn" onClick={go(EDU.AGENT_BUILDER_LANDSCAPE, 'langchain')}>Agent builder landscape</button>

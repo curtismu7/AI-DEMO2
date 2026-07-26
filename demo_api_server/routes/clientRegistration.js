@@ -19,6 +19,7 @@ const { requireAdmin, requireScopes } = require('../middleware/auth');
 const pingOneClientService = require('../services/pingOneClientService');
 const { PINGONE_OIDC_DEFAULT_SCOPES_SPACE } = require('../config/scopes');
 const cimdLmdb = require('../services/lmdb/cimdStore.lmdb');
+const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 
 // ── CIMD document store ───────────────────────────────────────────────────────
 // Key: PingOne application id (the opaque client_id from PingOne)
@@ -145,10 +146,14 @@ router.post('/register', requireAdmin, requireScopes(['admin']), async (req, res
       registered_at: new Date().toISOString(),
     });
   } catch (err) {
-    console.error('[clientRegistration] register error:', err.message);
-    const status = err.response?.status || 500;
-    const detail = err.response?.data   || err.message;
-    return res.status(status).json({ error: 'registration_failed', detail });
+    // Normalize so a transport failure (timeout / PingOne unreachable) doesn't
+    // leak raw axios internals; an HTTP error keeps PingOne's structured body.
+    const n = normalizeAxiosError(err, { label: 'PingOne app registration' });
+    console.error('[clientRegistration] register error:', n.message);
+    return res.status(n.httpStatus || 500).json({
+      error: 'registration_failed',
+      detail: n.upstreamBody || n.message,
+    });
   }
 });
 
@@ -158,8 +163,9 @@ router.get('/', requireAdmin, requireScopes(['admin']), async (req, res) => {
     const apps = await pingOneClientService.listApplications();
     return res.json({ applications: apps });
   } catch (err) {
-    console.error('[clientRegistration] list error:', err.message);
-    return res.status(500).json({ error: 'list_failed', detail: err.message });
+    const n = normalizeAxiosError(err, { label: 'PingOne app list' });
+    console.error('[clientRegistration] list error:', n.message);
+    return res.status(n.httpStatus || 500).json({ error: 'list_failed', detail: n.message });
   }
 });
 

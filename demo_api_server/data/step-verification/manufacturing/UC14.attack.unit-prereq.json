@@ -1,0 +1,13 @@
+{
+  "vertical": "manufacturing",
+  "useCaseId": "UC14",
+  "triggerType": "attack",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": null,
+  "checkedAt": "2026-07-25T20:23:02.624Z",
+  "requiredFlags": [
+    "ff_rar"
+  ]
+}

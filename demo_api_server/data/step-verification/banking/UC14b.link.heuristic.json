@@ -1,0 +1,12 @@
+{
+  "vertical": "banking",
+  "useCaseId": "UC14b",
+  "triggerType": "link",
+  "mode": "heuristic",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "create_transfer",
+  "checkedAt": "2026-07-25T13:25:25.907Z",
+  "verifiedBy": "Manual live browser check at /intent-binding-learning, Live mode (real PingOne Authorize): Run permit ($80 vs $100 cap) returned PERMIT via POST /api/demo/intent-binding/run (200) with full token chain (PAR push, request_uri, intent cap check, Authorize PERMIT) all active. Prior server_error was stale, predating this session's PingOne Authorize decision-endpoint provisioning fix."
+}
+

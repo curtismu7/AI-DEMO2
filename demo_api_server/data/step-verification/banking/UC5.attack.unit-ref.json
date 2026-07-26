@@ -1,0 +1,11 @@
+{
+  "vertical": "banking",
+  "useCaseId": "UC5",
+  "triggerType": "attack",
+  "mode": "unit-ref",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": null,
+  "checkedAt": "2026-07-23T12:00:00.000Z",
+  "verifiedBy": "demo_api_server/src/__tests__/stepVerificationExpectations.uc5.test.js"
+}

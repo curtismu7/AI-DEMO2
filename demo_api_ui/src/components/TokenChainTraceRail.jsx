@@ -3,7 +3,7 @@
 // Spec: docs/superpowers/specs/2026-07-02-token-chain-trace-rail-design.md
 import React, { useEffect, useState, useCallback } from "react";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
-import { MCP_STEP_IDS } from "../services/tokenChainTrace/buildTraceSteps";
+import { MCP_STEP_IDS, buildRunStory } from "../services/tokenChainTrace/buildTraceSteps";
 import { resolveInspectClaims } from "../services/tokenChainTrace/resolveInspectClaims";
 import { isFlagOn, shouldShowTrustTab } from "../utils/tokenChainTrust";
 import { useTokenChainOptional } from "../context/TokenChainContext";
@@ -14,6 +14,21 @@ import TraceTrustPanel from "./TraceTrustPanel";
 import ClaimDetailsModal from "./ClaimDetailsModal";
 import TokenLegendModal from "./TokenLegendModal";
 import "./TokenChainTraceRail.css";
+
+const ZOOM_KEY = "tctr:zoom";
+const ZOOM_MIN = 0.8;
+const ZOOM_MAX = 1.6;
+const ZOOM_STEP = 0.1;
+
+/** Restore the presenter's saved rail scale, or 1 when unset/unreadable. */
+function readStoredZoom() {
+  try {
+    const v = Number(window.localStorage.getItem(ZOOM_KEY));
+    return v >= ZOOM_MIN && v <= ZOOM_MAX ? v : 1;
+  } catch {
+    return 1;
+  }
+}
 
 const CHAIN_DOTS = [
   { cls: "user", label: "User" },
@@ -64,7 +79,21 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
   const [inspectType, setInspectType] = useState(null);
   const [tab, setTab] = useState(mcpRouteOnly ? "mcp" : "chain");
   const [trustFlags, setTrustFlags] = useState({ ffDpop: false, ffRar: false });
+  const [zoom, setZoom] = useState(readStoredZoom);
   const tokenChain = useTokenChainOptional();
+
+  // Presenter text size — scales the whole rail so text, padding and dots stay
+  // proportioned. Persisted so a projector setup survives a reload.
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(ZOOM_KEY, String(zoom));
+    } catch {
+      /* private mode / storage disabled — scale is session-only */
+    }
+  }, [zoom]);
+  const stepZoom = useCallback((delta) => {
+    setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round((z + delta) * 10) / 10)));
+  }, []);
 
   useEffect(() => tokenChainTraceStore.subscribe(setSnap), []);
   useEffect(() => subscribeTrustFlags(setTrustFlags), []);
@@ -96,6 +125,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
     (trace.phases && trace.phases.length) || trace.mcpResult || trace.authorize ||
     trace.llmDetail || trace.llmReply || trace.outcome || trace.routingMode,
   );
+  const runStory = buildRunStory(trace, snap.steps);
 
   // Drop Trust selection if the use case ends while that tab is open.
   useEffect(() => {
@@ -105,10 +135,42 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
   }, [showTrust, tab, mcpRouteOnly]);
 
   return (
-    <div className="tctr">
+    <div className="tctr" style={{ zoom }}>
       <div className="tctr-head">
         <span className="tctr-title">Token Chain</span>
         <div className="tctr-head-actions">
+          <div className="tctr-zoom" role="group" aria-label="Token chain text size">
+            <button
+              type="button"
+              className="tctr-zoom-btn"
+              onClick={() => stepZoom(-ZOOM_STEP)}
+              disabled={zoom <= ZOOM_MIN}
+              title="Smaller token chain text"
+              aria-label="Decrease token chain text size"
+            >
+              A-
+            </button>
+            <button
+              type="button"
+              className="tctr-zoom-pct"
+              onClick={() => setZoom(1)}
+              disabled={zoom === 1}
+              title="Reset token chain text size"
+              aria-label="Reset token chain text size"
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+            <button
+              type="button"
+              className="tctr-zoom-btn"
+              onClick={() => stepZoom(ZOOM_STEP)}
+              disabled={zoom >= ZOOM_MAX}
+              title="Larger token chain text"
+              aria-label="Increase token chain text size"
+            >
+              A+
+            </button>
+          </div>
           <button
             type="button"
             className="tctr-clear-btn"
@@ -157,6 +219,21 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
 
       {tab === "chain" ? (
         <>
+          {runStory && (
+            <div
+              className={`tctr-story tctr-story--${runStory.outcome}`}
+              data-testid="tctr-run-story"
+            >
+              <div className="tctr-story-headline">{runStory.headline}</div>
+              {runStory.bits.length > 0 && (
+                <ul className="tctr-story-bits">
+                  {runStory.bits.map((b) => (
+                    <li key={b.slice(0, 48)}>{b}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
           <div className="tctr-sec-label">
             {trace.prompt ? `Pipeline — "${trace.prompt.message}"` : "Pipeline — awaiting agent action"}
           </div>

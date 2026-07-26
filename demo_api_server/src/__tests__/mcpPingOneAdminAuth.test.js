@@ -128,7 +128,12 @@ describe('mcpPingOneAdminAuth', () => {
           ...EXISTING_APP,
           redirectUris: [
             ...EXISTING_APP.redirectUris,
+            // All inspectorCallbackUrls() hosts must already be present or the
+            // route registers the missing ones (api.ping.demo:4000 +
+            // local.ping-devops.com:4000 were added alongside :3001).
             'https://api.ping.demo:3001/api/mcp/inspector/pingone-admin/callback',
+            'https://local.ping-devops.com:4000/api/mcp/inspector/pingone-admin/callback',
+            'https://api.ping.demo:4000/api/mcp/inspector/pingone-admin/callback',
           ],
         },
       });

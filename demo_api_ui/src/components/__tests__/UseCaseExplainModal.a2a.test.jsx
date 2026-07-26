@@ -5,7 +5,13 @@ import '@testing-library/jest-dom';
 
 vi.mock('../UseCaseExplainModal.css', () => ({}), { virtual: true });
 vi.mock('../../hooks/useExplainData', () => ({
-  useExplainData: () => ({ rules: null, topology: null, loading: false }),
+  useExplainData: (uc) => ({
+    rules: null,
+    topology: uc?.primaryTool === 'get_portfolio_summary'
+      ? { found: true, requiredScopes: ['invest:read'], a2aDelegated: true }
+      : null,
+    loading: false,
+  }),
 }));
 
 import UseCaseExplainModal from '../UseCaseExplainModal';
@@ -18,7 +24,19 @@ const a2aEvents = [
     claims: { aud: ['mcpgateway-a2a.ping.demo'], scope: 'invest:read', act: { sub: 'agent2-cid', act: { sub: 'agent1-cid' } } } },
 ];
 
-const uc2 = { id: 'UC2', title: 'A2A delegation', whatLong: 'x', pingOneSolution: 'y' };
+const uc2 = {
+  id: 'UC2',
+  title: 'A2A delegation',
+  whatLong: 'x',
+  pingOneSolution: 'y',
+  businessValue: 'bv',
+  productRoles: {
+    idp: 'Mints nested-act',
+    gw: 'Routes A2A gateway',
+    authz: 'Evaluates act chain',
+  },
+  primaryTool: 'get_portfolio_summary',
+};
 const uc7 = { id: 'UC7', title: 'Step-up required', whatLong: 'x', pingOneSolution: 'y' };
 
 describe('UseCaseExplainModal A2A section', () => {
@@ -27,7 +45,29 @@ describe('UseCaseExplainModal A2A section', () => {
     expect(screen.getByText(/Agent-to-Agent delegation/i)).toBeInTheDocument();
     expect(screen.getByText(/Investment Advisor/)).toBeInTheDocument();
     expect(screen.getByText(/mcpgateway-a2a\.ping\.demo/)).toBeInTheDocument();
-    expect(screen.getByText(/invest:read/)).toBeInTheDocument();
+    expect(screen.getAllByText(/invest:read/).length).toBeGreaterThan(0);
+  });
+
+  it('shows Ping product roles for A2A', () => {
+    render(<UseCaseExplainModal uc={uc2} open a2aTokenEvents={a2aEvents} onClose={() => {}} />);
+    expect(screen.getByText(/Mints nested-act/)).toBeInTheDocument();
+    expect(screen.getByText(/Routes A2A gateway/)).toBeInTheDocument();
+    expect(screen.getByText(/Evaluates act chain/)).toBeInTheDocument();
+  });
+
+  it('shows gateway topology for the specialist tool and A2A authz fallback', () => {
+    render(<UseCaseExplainModal uc={uc2} open a2aTokenEvents={a2aEvents} onClose={() => {}} />);
+    expect(screen.getAllByText('get_portfolio_summary', { exact: false }).length).toBeGreaterThan(0);
+    expect(screen.getByText(/a2aDelegated=/)).toBeInTheDocument();
+    expect(screen.getByText(/A2A delegation required/i)).toBeInTheDocument();
+  });
+
+  it('has a Done button that closes the modal', async () => {
+    const onClose = vi.fn();
+    render(<UseCaseExplainModal uc={uc2} open a2aTokenEvents={a2aEvents} onClose={onClose} />);
+    const done = screen.getByRole('button', { name: /^Done$/i });
+    done.click();
+    expect(onClose).toHaveBeenCalled();
   });
 
   it('shows the empty-state live note when no A2A events are supplied', () => {
