@@ -12,6 +12,9 @@
 #                             vertical manifest (anonymous; provider:'heuristic') —
 #                             asserts each resolves to a non-none intent and, when the
 #                             chip declares a tool, to that action.
+#   6. Demo feature flags     gen-demo-flag-map.js --live — fails only when an AMBIENT
+#                             flag is wrong (ff_use_cases_launcher, ff_heuristic_enabled).
+#                             Per-step flags off is fine: they arm when the step runs.
 #
 #   PREFLIGHT_BASE_URL   default https://api.ping.demo:3001 (mkcert TLS → curl -k)
 #
@@ -205,7 +208,29 @@ for r in "${chip_rows[@]}"; do
   fi
 done
 
-# ── 6. Deep pipeline replay (optional: --deep) ───────────────────────────────
+# ── 6. Demo feature flags ────────────────────────────────────────────────────
+# Shells out to gen-demo-flag-map.js --live rather than re-reading the flags
+# here. One implementation, one set of rules about which flags matter — a second
+# copy is exactly how the requiredDemoFlags mirror drifted and took 22 use cases
+# down (#886).
+#
+# It exits non-zero ONLY for AMBIENT flags (ff_use_cases_launcher,
+# ff_heuristic_enabled) — the ones nothing arms for you. Per-step flags reading
+# off is expected: /api/use-cases/demo/run arms them when the step executes, so
+# failing on those would cry wolf on every run.
+FLAGMAP_OUT="$(node "$ROOT/scripts/gen-demo-flag-map.js" --live --base "$BASE" 2>&1)"
+FLAGMAP_RC=$?
+FLAG_OFF_COUNT="$(printf '%s\n' "$FLAGMAP_OUT" | grep -c 'off ff_' 2>/dev/null || true)"
+if [[ "$FLAGMAP_RC" -eq 0 ]]; then
+  row OK "demo flags" "ambient OK; ${FLAG_OFF_COUNT:-0} per-step flag(s) off (armed on run)"
+elif [[ "$FLAGMAP_RC" -eq 1 ]]; then
+  BADFLAGS="$(printf '%s\n' "$FLAGMAP_OUT" | grep '!! ' | awk '{print $3}' | paste -sd, - 2>/dev/null)"
+  row FAIL "demo flags" "ambient flag(s) wrong: ${BADFLAGS:-see npm run demo:flag-map:live}"
+else
+  row FAIL "demo flags" "could not read flags — $(printf '%s' "$FLAGMAP_OUT" | tail -1 | cut -c1-70)"
+fi
+
+# ── 7. Deep pipeline replay (optional: --deep) ───────────────────────────────
 # Reuses the existing real-test machinery: scripts/run-real-tests.sh loads
 # PingOne creds from demo_api_server/.env, logs in headlessly, and replays every
 # `both` chip through the FULL authenticated RFC 8693 pipeline
