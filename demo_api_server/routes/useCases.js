@@ -13,6 +13,7 @@ const { listUseCases, resolveUseCase, VERTICALS } = require('../config/useCases'
 const { ADMIN_DEMO_STEPS } = require('../config/admin/demoSteps');
 const { authenticateToken } = require('../middleware/auth');
 const configStore = require('../services/configStore');
+const { requiredFlagsForUseCase, isFlagOn } = require('../services/demoStepPrerequisites');
 
 function pickVertical(req, res) {
   const vertical = req.query.vertical || 'banking';
@@ -69,15 +70,17 @@ router.post('/demo/run', authenticateToken, async (req, res) => {
     return res.status(400).json({ success: false, error: 'Use case not found for vertical' });
   }
 
-  // Auto-arm the feature flag this use case declares it needs, so running any
-  // step "just works" without manual preflight toggling. Flag-gated cases carry
-  // maturity 'flag:<name>' (e.g. UC2 → ff_a2a_delegation, UC14b → ff_rar).
+  // Auto-arm every feature flag this use case declares it needs, so running any
+  // step "just works" without manual preflight toggling. That is the maturity
+  // 'flag:<name>' gate (UC2 → ff_a2a_delegation, UC14b → ff_rar) AND the two
+  // MCP_GATEWAY_RUNTIME_FLAGS any tool-dispatching chip needs — without those,
+  // Exchange #2 fails invalid_scope and the agent shows the opaque
+  // "That step couldn't be completed". Do not narrow this back to maturity only:
+  // the client mirror is the only other arming path and it has drifted before.
   // Non-fatal: a store failure shouldn't block dispatch.
-  const flagMatch = /^flag:(.+)$/.exec(useCase.maturity || '');
-  if (flagMatch) {
-    const flag = flagMatch[1];
+  for (const flag of requiredFlagsForUseCase(useCase)) {
     try {
-      if (configStore.getEffective(flag) !== 'true') {
+      if (!isFlagOn(configStore.getEffective(flag))) {
         await configStore.setRaw({ [flag]: 'true' });
       }
     } catch (err) {
