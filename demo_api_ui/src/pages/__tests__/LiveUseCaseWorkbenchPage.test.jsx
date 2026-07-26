@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
@@ -53,12 +53,14 @@ vi.mock('../../context/AgentUiModeContext', () => ({
   }),
 }));
 
+const mockProof = { verdict: null, history: [] };
 vi.mock('../../context/ProofOfEnforcementContext', () => ({
-  useProofOfEnforcement: () => ({ verdict: null, history: [] }),
+  useProofOfEnforcement: () => mockProof,
 }));
 
 import LiveUseCaseWorkbenchPage from '../LiveUseCaseWorkbenchPage';
 import apiClient from '../../services/apiClient';
+import { tokenChainTraceStore } from '../../services/tokenChainTrace/tokenChainTraceStore';
 
 /** The host-registration effect fires more than once during mount (pre-ref-attach
  *  null, functional cleanup updater, then the attached node). Pull the call that
@@ -245,5 +247,82 @@ describe('LiveUseCaseWorkbenchPage — teleprompter select broadcast', () => {
     await waitFor(() => {
       expect(TestBroadcastChannel.posted).toContainEqual({ type: 'select', ucId: 'UC24' });
     });
+  });
+});
+
+describe('LiveUseCaseWorkbenchPage — token chain focus', () => {
+  it('does not emphasize the rail before a run', () => {
+    const { container } = render(<LiveUseCaseWorkbenchPage />);
+    expect(container.querySelector('.luw-run-layout'))
+      .not.toHaveClass('luw-run-layout--rail-focus');
+  });
+
+  it('exposes a polite live region that is empty before a run', () => {
+    const { container } = render(<LiveUseCaseWorkbenchPage />);
+    const live = container.querySelector('[aria-live="polite"]');
+    expect(live).not.toBeNull();
+    expect(live).toHaveTextContent('');
+  });
+
+  it('does not move DOM focus into the rail', () => {
+    render(<LiveUseCaseWorkbenchPage />);
+    expect(document.activeElement).toBe(document.body);
+  });
+});
+
+describe('LiveUseCaseWorkbenchPage — rail focus on a settled verdict', () => {
+  afterEach(() => { mockProof.verdict = null; });
+
+  it('emphasizes the rail and announces the result once a verdict lands', () => {
+    mockProof.verdict = { useCaseId: 'uc1', title: 'x', state: 'denied-as-expected', matchedSteps: [], missingSteps: [] };
+    const { container } = render(<LiveUseCaseWorkbenchPage />);
+    expect(container.querySelector('.luw-run-layout'))
+      .toHaveClass('luw-run-layout--rail-focus');
+    expect(container.querySelector('[aria-live="polite"]')).toHaveTextContent(/Run complete/i);
+  });
+
+  it('does not claim a match when the verdict is incomplete', () => {
+    mockProof.verdict = { useCaseId: 'uc1', title: 'x', state: 'incomplete', matchedSteps: [], missingSteps: ['authorize-decision'] };
+    const { container } = render(<LiveUseCaseWorkbenchPage />);
+    const live = container.querySelector('[aria-live="polite"]');
+    expect(live).toHaveTextContent(/not proven/i);
+    expect(live).not.toHaveTextContent(/matched/i);
+  });
+
+  // Carried over from Task 5's review: the page-level wiring that feeds the
+  // Actual chip had no coverage, because the store mock never invoked its
+  // callback. This is the exact layer the original bug lived in — Actual must
+  // track the observed trace, never the expectation.
+  it('feeds the Actual chip from the observed trace, not from expectedOutcome', () => {
+    let emit;
+    tokenChainTraceStore.subscribe.mockImplementation((fn) => { emit = fn; return () => {}; });
+    mockProof.verdict = { useCaseId: 'uc1', title: 'x', state: 'verified', matchedSteps: [], missingSteps: [] };
+
+    render(<LiveUseCaseWorkbenchPage />);
+    act(() => { emit({ trace: { authorize: { outcome: 'PERMIT', decision: 'PERMIT' } } }); });
+
+    expect(screen.getByTestId('verdict-actual')).toHaveTextContent('PERMIT');
+  });
+
+  it('shows the observed outcome even when it contradicts the expectation', () => {
+    let emit;
+    tokenChainTraceStore.subscribe.mockImplementation((fn) => { emit = fn; return () => {}; });
+    mockProof.verdict = { useCaseId: 'uc1', title: 'x', state: 'mismatch', matchedSteps: [], missingSteps: [] };
+
+    render(<LiveUseCaseWorkbenchPage />);
+    act(() => { emit({ trace: { authorize: { outcome: 'PERMIT', decision: 'PERMIT' } } }); });
+
+    // Would fail if anything seeded Actual from the expectation.
+    expect(screen.getByTestId('verdict-actual')).toHaveTextContent('PERMIT');
+    expect(screen.getByTestId('verdict-match')).toHaveTextContent('not proven');
+  });
+
+  it('keeps the token chain rail mounted and intact in the focus state', () => {
+    mockProof.verdict = { useCaseId: 'uc1', title: 'x', state: 'verified', matchedSteps: [], missingSteps: [] };
+    render(<LiveUseCaseWorkbenchPage />);
+    // The rail is mocked in this suite, so this asserts the focus state does not
+    // unmount or replace it. The real guarantee that its detail is untouched is
+    // the rail-detail regression test below plus Task 8's live walkthrough.
+    expect(screen.getByTestId('trace-rail')).toBeInTheDocument();
   });
 });

@@ -326,6 +326,59 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Token Chain takes the room once a verdict settles, and keeps it until the
+   next run. Emphasis is size + a pulse on the decisive hop — never a dimming
+   scrim, which reads as a hang on a projector, and never hiding rail detail. */
+.luw-rail-host { transition: flex-grow 260ms ease, flex-basis 260ms ease, box-shadow 260ms ease; }
+
+/* Resting state is `flex: 1.25 1 480px`. Focus only ever GROWS the rail — keep
+   grow/shrink live so it stays responsive; a rigid `flex: 0 0 <n>` here can end
+   up narrower than the resting state at some widths. */
+.luw-run-layout--rail-focus .luw-rail-host {
+  flex: 2.2 1 640px;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+}
+
+/* Sticky so it stays readable while the presenter scrolls the chain — it must
+   never replace or push out the rail's own content. */
+.luw-rail-verdict {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+/* One-shot pulse on the step that decided the outcome. */
+@keyframes luwStepPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(15, 118, 110, 0.45); }
+  70%  { box-shadow: 0 0 0 12px rgba(15, 118, 110, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(15, 118, 110, 0); }
+}
+.luw-step-pulse { animation: luwStepPulse 1100ms ease-out 2; }
+
+.luw-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .luw-rail-host { transition: none; }
+  .luw-step-pulse { animation: none; }
+}
+
 /* Medium: no room for Agent + Token Chain side-by-side — stack them inside the
    stage (Demo script drawer stays beside); the stage scrolls, not the page. */
 @media (max-width: 1200px) {
@@ -338,6 +391,8 @@
     flex: 1 1 100%;
     min-height: 420px;
   }
+  .luw-rail-host,
+  .luw-run-layout--rail-focus .luw-rail-host { flex: 1 1 100%; }
 }
 
 /* Narrow: single column — Demo script, Agent, Token Chain stack and the page

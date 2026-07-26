@@ -102,6 +102,28 @@ export default function LiveUseCaseWorkbenchPage() {
     setAuthorizeSeen(az ? (az.outcome || az.decision || null) : null);
   }), []);
 
+  const running = runState?.state === 'running';
+  // The rail owns the room once a verdict settles, and keeps it until the next
+  // run starts. Emphasis is visual only — DOM focus is never moved.
+  const railFocus = !running && Boolean(verdict?.state);
+  const verdictMatched = verdict?.state === 'verified' || verdict?.state === 'denied-as-expected';
+  const announcement = railFocus
+    ? `Run complete. ${verdictMatched ? 'Outcome matched.' : 'Outcome not proven.'}`
+    : '';
+
+  // Bring the authorize decision into view and pulse it — the rail is the proof,
+  // so the eye should land on the step that decided the outcome. Purely additive:
+  // no rail content is hidden, collapsed, or reordered.
+  useEffect(() => {
+    if (!railFocus) return undefined;
+    const card = document.querySelector('[data-step-id="authorize-decision"]');
+    if (!card) return undefined;
+    card.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+    card.classList.add('luw-step-pulse');
+    const t = setTimeout(() => card.classList.remove('luw-step-pulse'), 2400);
+    return () => clearTimeout(t);
+  }, [railFocus]);
+
   const [drawerOpen, setDrawerOpen] = useState(() => {
     try {
       return localStorage.getItem(DRAWER_CLOSED_KEY) !== '1';
@@ -491,9 +513,15 @@ export default function LiveUseCaseWorkbenchPage() {
         <section className="luw-main" aria-label="Live run">
           <div className="luw-main__stage">
             <UseCaseProofHeader uc={selectedUc} beat={selectedBeat} />
-            <div className="luw-run-layout">
+            <p className="luw-sr-only" aria-live="polite">{announcement}</p>
+            <div className={`luw-run-layout${railFocus ? ' luw-run-layout--rail-focus' : ''}`}>
               <div id="luw-agent-host" className="luw-agent-host" ref={agentHostRef} />
               <div className="luw-rail-host">
+                {railFocus && (
+                  <div className="luw-rail-verdict" data-testid="rail-verdict">
+                    {verdict?.state === 'incomplete' ? 'Unproven' : (authorizeSeen || '—')}
+                  </div>
+                )}
                 <TokenChainTraceRail />
               </div>
             </div>
