@@ -27,6 +27,7 @@ const axios = require('axios');
 const router = express.Router();
 const configStore = require('../services/configStore');
 const { PingOneProvisionService } = require('../services/pingoneProvisionService');
+const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 
 const APP_NAME = 'PingOne MCP Server';
 const CALLBACK_PATH = '/api/mcp/inspector/pingone-admin/callback';
@@ -233,7 +234,7 @@ router.get('/callback', async (req, res) => {
       res.redirect('/pingone-mcp-inspector?source=custom');
     });
   } catch (err) {
-    const detail = err.response?.data?.error_description || err.response?.data?.error || err.message;
+    const detail = normalizeAxiosError(err, { label: 'PingOne token request' }).message;
     console.error('[mcpPingOneAdminAuth] token exchange failed:', detail);
     failAndRedirect(detail);
   }

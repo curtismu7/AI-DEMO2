@@ -17,6 +17,7 @@
 'use strict';
 
 const axios = require('axios');
+const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 const configStore = require('./configStore');
 const { getTokenEndpoint } = require('./oauthEndpointResolver');
 
@@ -282,7 +283,7 @@ async function sendOtpEmail(userId, opts) {
     const detail = err.response?.data ? JSON.stringify(err.response.data) : err.message;
     console.error(`📧 [OTP Email] Failed for user ${userId}: ${detail}`);
     // Re-throw so caller can return 503 instead of silently proceeding without OTP
-    throw err;
+    throw normalizeAxiosError(err, { label: 'OTP email delivery' });
   }
 }
 
@@ -322,7 +323,7 @@ async function sendOtpSms(userId, opts) {
   } catch (err) {
     const detail = err.response?.data ? JSON.stringify(err.response.data) : err.message;
     console.error(`📱 [OTP SMS] Failed for user ${userId}: ${detail}`);
-    throw err;
+    throw normalizeAxiosError(err, { label: 'OTP SMS delivery' });
   }
 }
 

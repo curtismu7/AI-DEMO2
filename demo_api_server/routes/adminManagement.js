@@ -11,6 +11,7 @@ const express = require('express');
 const router = express.Router();
 const { managementService } = require('../services/pingoneManagementService');
 const { requireAdmin } = require('../middleware/auth');
+const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 
 /**
  * GET /api/admin/management/status
@@ -460,7 +461,8 @@ router.patch('/users/:userId/agent-restrictions', requireAdmin, async (req, res)
     return res.json({ userId, agentRestrictions, updated: true });
   } catch (error) {
     console.error('[adminManagement] PATCH /users/:userId/agent-restrictions error:', error.message);
-    return res.status(500).json({ error: 'update_failed', message: error.message });
+    const n = normalizeAxiosError(error, { label: 'PingOne app update' });
+    return res.status(500).json({ error: 'update_failed', message: n.message });
   }
 });
 

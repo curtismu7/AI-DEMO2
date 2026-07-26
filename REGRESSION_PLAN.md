@@ -102,6 +102,34 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-26 — normalizeAxiosError rolled out to the remaining PingOne call sites
+
+**Files changed:** `demo_api_server/routes/{admin,adminManagement,agentBuilder,appConfig,ciba,demoProvisioning,demoScenario,mcpPingOneAdminAuth,pingoneTestRoutes,scopeAudit}.js`,
+`demo_api_server/services/{emailService,mfaService}.js`.
+
+**What was broken:** #883 added `utils/normalizeAxiosError.js` and wired only the MCP
+adapters + client-registration routes. Everywhere else still did
+`err.response?.status || 500` with `err.message`, so a transport failure (PingOne
+unreachable / timeout) surfaced as a bare 500 carrying a raw `ECONNREFUSED` string —
+which embeds host/IP — and an HTTP error leaked whatever axios attached.
+
+**What was fixed:** Those call sites now route through `normalizeAxiosError`, which
+yields a credential-safe message plus a real status. `mfaService._getWorkerToken`'s
+axios call is wrapped in the file's existing `_wrapError(..., { workerToken: true })`
+so a worker-token outage reports `mfa_service_auth_failed` rather than being
+misreported as `token_expired` (which triggers the route's refresh→session_expired
+loop).
+
+**Do not break:** transport failures now return **503** (unreachable) and **504**
+(timeout), not 500 — any client or test asserting 500 on a PingOne outage is asserting
+the old shape. `routes/scopeAudit.js` must keep its 401 `hint` about
+`PINGONE_MGMT_CLIENT_ID/SECRET`; that hint is how the worker-credential drift gets
+diagnosed.
+
+**Verify:** full BFF suite — 592 suites / 7141 pass, zero net-new failures vs the
+pre-change baseline. `mfaService.test.js` already pins the `mfa_service_auth_failed`
+vs `token_expired` distinction.
+
 ### 2026-07-26 — MCP_INVEST_AUDIENCE was accepted on every MCP callback, not just the portfolio read
 
 **Files changed:** `demo_api_server/middleware/auth.js`,
