@@ -62,6 +62,7 @@ import LlmConfigPage from "./components/LlmConfigPage";
 import LogoutPage from "./components/LogoutPage";
 import LoginSuccessModal from "./components/LoginSuccessModal";
 import LogViewer from "./components/LogViewer";
+import MgmtApiRunnerPage from "./components/MgmtApiRunnerPage";
 import MissingCredentialsModal from "./components/MissingCredentialsModal";
 import MockAuthzRulesPage from "./components/MockAuthzRulesPage";
 import MortgagePathPage from "./components/MortgagePathPage";
@@ -1011,6 +1012,10 @@ function AppWithAuth() {
                             <Route
                               path="/pingone-authorize"
                               element={<PingOneAuthorizePage />}
+                            />
+                            <Route
+                              path="/mgmt-api"
+                              element={<MgmtApiRunnerPage />}
                             />
                             <Route
                               path="/pingone-authorize-capabilities"
