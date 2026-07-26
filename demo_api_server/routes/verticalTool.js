@@ -54,7 +54,13 @@ const TOOL_VERTICALS_MAP = (() => {
  */
 function resolveVertical(name, req) {
   const owners = TOOL_VERTICALS_MAP[name] || [];
-  const active = configStore.getEffective('active_vertical');
+  // Session-first (activeIdFor falls back to the process-global when this
+  // session never pinned one). Reading the process-global directly meant a
+  // shared-name tool dispatched to whatever vertical an admin last set
+  // globally, even though NL routing and the MCP authz gate had already
+  // resolved this request against the caller's own session vertical.
+  const active = verticalManifest.resolver.activeIdFor(req)
+    || configStore.getEffective('active_vertical');
   const hint = typeof req.body?.vertical === 'string' ? req.body.vertical : null;
   if (hint && owners.includes(hint)) return hint;
   if (owners.length === 1) return owners[0];
@@ -92,3 +98,7 @@ router.post('/vertical-tool', authenticateToken, express.json(), async (req, res
 });
 
 module.exports = router;
+// Pure decision function, exported for direct testing: which vertical's
+// implementation serves a tool call. Its session-vs-global precedence is the
+// thing src/__tests__/gatewayVerticalHeader.test.js asserts.
+module.exports.resolveVertical = resolveVertical;
