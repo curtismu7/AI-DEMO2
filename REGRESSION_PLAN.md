@@ -102,6 +102,44 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-26 — A vertical mismatch silently destroyed a user's accounts AND transaction history
+
+**Files changed:** `demo_api_server/services/verticalAccountSnapshots.js` (new),
+`demo_api_server/data/store.js`, `demo_api_server/routes/accounts.js`,
+`demo_api_server/services/demoAgentLangGraphService.js`,
+`demo_api_server/src/__tests__/verticalAccountSnapshots.test.js` (new).
+
+**What was broken:** Two sites reacted to a vertical mismatch by calling
+`dataStore.reseedUserForVertical()` — `routes/accounts.js` on an account read and
+`demoAgentLangGraphService.ensureAccountsForVertical()` on an agent dispatch. That
+function deletes **every account and every transaction** for the user, reseeds from the
+target vertical's profile, and `persistAllData()`. So an SE who had built up demo state
+mid-demo — transfers, HITL approvals, step-ups — lost all of it the moment anything
+touched accounts under a different vertical. HTTP 200, no error, no warning. It was also
+irreversible: `demoScenarioStore` held a single `accountSnapshot` slot per user, so the
+switch overwrote the only copy of what was there before.
+
+**What was fixed:** Reseeding is *also* how vertical switching works (you cannot show
+healthcare with banking accounts), so the fix makes the switch lossless rather than
+blocking it. `switchUserVertical()` snapshots the outgoing vertical's accounts +
+transactions under a per-vertical key (`verticalSnapshots[<id>]`), restores the incoming
+vertical's snapshot when one exists, and reseeds **only** when that vertical has never
+been visited. `currentSeededVertical` records which vertical the live rows belong to.
+Both call sites now go through it. The wipe itself was extracted to
+`dataStore.purgeUserFinancialData()` so restore and reseed share one implementation of
+the transaction-reference sweep.
+
+**Do not break:** Do not restore a snapshot without purging first — restoring on top of
+another vertical's rows produces the mixed-vertical state this path exists to prevent.
+Do not snapshot when the outgoing vertical is unknown (cold session): the rows are
+unattributable and filing them under the target corrupts that target's snapshot. Do not
+write an empty snapshot over a real one. The legacy single-slot `accountSnapshot` is
+still read by `restoreAccountsFromSnapshot` for cold-start recovery — leave it alone.
+
+**Verify:** `CI=true npx jest src/__tests__/verticalAccountSnapshots.test.js` (8 pass).
+Disable the restore branch in `switchUserVertical` and the "switching back RESTORES
+accounts and transactions" test must fail — that is the proof the round trip is lossless
+rather than merely non-throwing.
 ### 2026-07-26 — Chip path opened the MFA modal for CIBA-required step-up (CIBA bypass)
 
 **Files changed:** `demo_api_ui/src/services/demoAgentService.js`,

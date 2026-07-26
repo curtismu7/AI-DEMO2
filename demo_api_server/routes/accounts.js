@@ -6,6 +6,7 @@ const { blockInDemoMode } = require('../middleware/demoMode');
 const demoScenarioStore = require('../services/demoScenarioStore');
 const posthog = require('../services/posthog');
 const { verticalManifest } = require('../services/verticalManifest');
+const verticalAccountSnapshots = require('../services/verticalAccountSnapshots');
 const { BANKING_ACCOUNT_SPECS, SPEC_BY_TYPE, buildBankingAccount } = require('../data/bankingAccountSpecs');
 
 /**
@@ -197,12 +198,17 @@ router.get('/my', authenticateToken, requireNotAdmin, async (req, res) => {
         (expectedLower && restoredPrimary !== expectedLower);
 
       if (stillMismatched) {
-        // Session-scoped: reseed ONLY this user for THEIR session's vertical.
+        // Session-scoped: move ONLY this user to THEIR session's vertical.
         // Accounts are per-user, so other sessions' users are untouched — two
         // sessions on different verticals (banking + healthcare) coexist. This
         // replaces the former all-customers reseed, which clobbered every
         // session whenever any one detected a mismatch (the cross-session bleed).
-        await dataStore.reseedUserForVertical(req.user.id, activeVertical);
+        //
+        // switchUserVertical (not a bare reseed) so the outgoing vertical's
+        // accounts AND transactions are snapshotted first and restored on the
+        // way back. A bare reseed silently destroyed built-up demo state —
+        // transfers, HITL approvals, step-ups — with no way to recover it.
+        await verticalAccountSnapshots.switchUserVertical(req.user.id, activeVertical);
         const accts = dataStore.getAccountsByUserId(req.user.id);
         const snap = accts.map(a => ({
           id: a.id, accountType: a.accountType, accountNumber: a.accountNumber,

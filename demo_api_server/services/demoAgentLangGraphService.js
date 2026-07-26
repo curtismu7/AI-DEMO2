@@ -27,6 +27,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { logDelegationEvent } = require('../middleware/delegationAuditLogger');
 const { verticalManifest } = require('./verticalManifest');
+const verticalAccountSnapshots = require('./verticalAccountSnapshots');
 const verticalDispatch = require('./verticalDispatch');
 const { injectKnowledge } = require('./knowledgePromptInjector');
 const { recordToolCall: recordMcpToolCall } = require('./mcpToolAuditStore');
@@ -115,7 +116,10 @@ async function ensureAccountsForVertical(userId, verticalId) {
   if (!expectedPrimary) return;
   const primary = (accounts[0]?.accountType || '').toLowerCase();
   if (accounts.length > 0 && primary === expectedPrimary) return;
-  await dataStore.reseedUserForVertical(userId, verticalId);
+  // Snapshot the outgoing vertical and restore the incoming one rather than
+  // reseeding blind — a bare reseed here wiped accounts AND transactions for a
+  // user whose agent call happened to land under a different vertical.
+  await verticalAccountSnapshots.switchUserVertical(userId, verticalId);
 }
 
 /**
