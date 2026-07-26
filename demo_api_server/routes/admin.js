@@ -3,6 +3,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const router = express.Router();
 const dataStore = require('../data/store');
+const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 const { requireAdmin, requireScopes, authenticateToken } = require('../middleware/auth');
 
 // Activity-log READS are open to any authenticated user (relaxed in 9bc18996b),
@@ -915,7 +916,7 @@ router.post(
       console.error('[admin] Kill switch error:', error.message);
       return res.status(500).json({
         error: 'kill_switch_failed',
-        message: `Failed to execute kill switch: ${error.message}`,
+        message: `Failed to execute kill switch: ${normalizeAxiosError(error, { label: 'kill switch' }).message}`,
       });
     }
   }

@@ -32,6 +32,7 @@ const delegationService = require('../services/delegationService');
 const { authenticateToken } = require('../middleware/auth');
 const configStore = require('../services/configStore');
 const { PINGONE_OIDC_DEFAULT_SCOPES_SPACE } = require('../config/scopes');
+const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 const { trackTokenEvent } = require('../services/tokenChainService');
 
 const STEP_UP_TTL_MS = 5 * 60 * 1000; // 5 min step-up validity
@@ -215,7 +216,8 @@ router.post('/initiate', authenticateToken, async (req, res) => {
     const pingError = err.response?.data;
     res.status(502).json({
       error:   pingError?.error || 'ciba_initiation_failed',
-      message: pingError?.error_description || err.message,
+      message: pingError?.error_description
+        || normalizeAxiosError(err, { label: 'CIBA initiate' }).message,
     });
   }
 });
