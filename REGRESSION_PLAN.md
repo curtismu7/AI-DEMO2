@@ -128,9 +128,13 @@ single omission is the whole bypass, and it is invisible because the MFA modal l
 correct behavior. Keep the `return` after the CIBA branch so MFA can never also fire.
 
 **Verify:** `CI=true npx vitest run
-src/services/__tests__/callMcpTool.stepUpAuthorizeIngest.test.js` (4 pass). Revert
-`demoAgentService.js` alone and 1 of the 4 must fail. The `AIAgent.js` CIBA branch has
-NO unit coverage — it needs a live UC22 chip run to confirm the popup, poll and retry.
+src/services/__tests__/callMcpTool.stepUpAuthorizeIngest.test.js
+src/components/__tests__/AIAgent.cibaStepUp.test.js` (7 pass). Both halves are
+revert-proved: restore `demoAgentService.js` alone and 1 of its 4 fails; restore
+`AIAgent.js` from `origin/main` and the `ciba` case of `AIAgent.cibaStepUp` fails while
+both MFA cases still pass — the exact shape of the bug. That suite asserts on the next
+network call the UI makes (`/api/auth/ciba/initiate` vs `/api/auth/mfa/challenge`), which
+is the observable discriminator between the two flows.
 
 ### 2026-07-26 — Generic MCP Inspector profiles were reachable by any signed-in customer (stdio = RCE on the BFF host)
 
