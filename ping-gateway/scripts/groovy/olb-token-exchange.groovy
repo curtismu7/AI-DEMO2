@@ -78,7 +78,16 @@ if (mtlsKeystore && new File(mtlsKeystore).exists()) {
         def ctx = javax.net.ssl.SSLContext.getInstance('TLS')
         ctx.init(kmf.getKeyManagers(), trustAll, new java.security.SecureRandom())
         mtlsFactory = ctx.getSocketFactory()
-        logger.info('[OlbExchange] mTLS client keystore loaded from ' + mtlsKeystore)
+        // Subject of the cert we will actually present — read from the keystore
+        // rather than hardcoded, so a rotated cert shows its real subject.
+        def mtlsSubject = null
+        try {
+            def alias = ks.aliases().find { ks.isKeyEntry(it) }
+            mtlsSubject = alias ? ks.getCertificate(alias)?.getSubjectX500Principal()?.getName() : null
+        } catch (Exception ignored) { }
+        attributes['mtlsResult'] = [enabled: true, subject: mtlsSubject, keystore: mtlsKeystore]
+        logger.info('[OlbExchange] mTLS client keystore loaded from ' + mtlsKeystore +
+            (mtlsSubject ? ' subject=' + mtlsSubject : ''))
     } catch (Exception e) {
         // Do NOT fall back to plaintext silently: if mTLS was configured and the
         // keystore is broken, the operator needs to see it rather than discover
@@ -89,6 +98,12 @@ if (mtlsKeystore && new File(mtlsKeystore).exists()) {
 } else if (mtlsKeystore) {
     logger.error('[OlbExchange] PG_MTLS_KEYSTORE_PATH set to ' + mtlsKeystore +
         ' but no such file — run scripts/ensure-gateway-mtls-certs.sh')
+}
+if (attributes['mtlsResult'] == null) {
+    // Not configured (or the keystore failed to load). Reported explicitly so the
+    // token chain can distinguish "mTLS off" from "no information", rather than
+    // silently omitting the hop.
+    attributes['mtlsResult'] = [enabled: false, subject: null, keystore: mtlsKeystore ?: null]
 }
 
 def httpPostJson = { String url, String jsonBody, Map hdrs ->
