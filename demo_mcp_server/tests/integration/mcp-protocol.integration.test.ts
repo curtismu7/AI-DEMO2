@@ -5,6 +5,8 @@
  */
 
 import WebSocket from 'ws';
+import { makeAgentJwt } from '../helpers/agentJwt';
+import { MCP_LATEST_PROTOCOL_VERSION } from '../../src/server/protocolVersions';
 import { BankingMCPServer, ServerConfig } from '../../src/server/BankingMCPServer';
 import { BankingAuthenticationManager } from '../../src/auth/BankingAuthenticationManager';
 import { BankingSessionManager } from '../../src/storage/BankingSessionManager';
@@ -214,16 +216,6 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
         ws.on('error', reject);
       });
 
-      // Mock agent token validation
-      mockedAxios.post.mockResolvedValueOnce({
-        data: {
-          active: true,
-          client_id: 'test-client-id',
-          scope: 'read write',
-          exp: Math.floor(Date.now() / 1000) + 3600
-        }
-      });
-
       const handshakeMessage: HandshakeMessage = {
         id: 'handshake-with-token',
         method: 'initialize',
@@ -236,7 +228,7 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
             name: 'Test MCP Client',
             version: '1.0.0'
           },
-          agentToken: 'valid-agent-token-123'
+          agentToken: makeAgentJwt({ client_id: 'test-client-id', scope: 'read write' })
         }
       };
 
@@ -248,11 +240,10 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
       expect(response.result).toBeDefined();
       expect(response.result!.protocolVersion).toBe('2024-11-05');
 
-      // Verify agent token was validated
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        '/as/introspect',
-        expect.stringContaining('token=valid-agent-token-123'),
-      );
+      // Verify agent token was validated locally (validateAgentToken decodes the
+      // JWT itself — the MCP Gateway already authorized it via the Authorization
+      // Server, so introspection here would be redundant), not via introspection.
+      expect(mockedAxios.post).not.toHaveBeenCalled();
 
       ws.close();
     });
@@ -286,10 +277,14 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
 
       // Assert — per the MCP lifecycle spec, an unsupported (well-formed) version
       // is NOT an error: the server counter-offers a version it supports (latest).
+      // MCP_LATEST_PROTOCOL_VERSION moved 2025-11-25 -> 2026-07-28 (dual-stack
+      // migration, see src/server/protocolVersions.ts); negotiateProtocolVersion's
+      // fallback branch counter-offers that constant, not a fixed string, so this
+      // asserts against the same source of truth rather than hardcoding either date.
       expect(response.id).toBe('invalid-version');
       expect(response.error).toBeUndefined();
       expect(response.result).toBeDefined();
-      expect(response.result?.protocolVersion).toBe('2025-11-25');
+      expect(response.result?.protocolVersion).toBe(MCP_LATEST_PROTOCOL_VERSION);
 
       ws.close();
     });
@@ -333,16 +328,6 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
         authenticatedWs.on('error', reject);
       });
 
-      // Mock agent token validation
-      mockedAxios.post.mockResolvedValueOnce({
-        data: {
-          active: true,
-          client_id: 'test-client-id',
-          scope: 'read write',
-          exp: Math.floor(Date.now() / 1000) + 3600
-        }
-      });
-
       // Complete handshake
       const handshakeMessage: HandshakeMessage = {
         id: 'setup-handshake',
@@ -351,7 +336,7 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
           protocolVersion: '2024-11-05',
           capabilities: { tools: { listChanged: false } },
           clientInfo: { name: 'Test Client', version: '1.0.0' },
-          agentToken: 'test-agent-token'
+          agentToken: makeAgentJwt({ client_id: 'test-client-id', scope: 'read write' })
         }
       };
 
@@ -442,16 +427,6 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
         authenticatedWs.on('error', reject);
       });
 
-      // Mock agent token validation
-      mockedAxios.post.mockResolvedValueOnce({
-        data: {
-          active: true,
-          client_id: 'test-client-id',
-          scope: 'read write',
-          exp: Math.floor(Date.now() / 1000) + 3600
-        }
-      });
-
       // Complete handshake
       const handshakeMessage: HandshakeMessage = {
         id: 'setup-handshake',
@@ -460,7 +435,7 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
           protocolVersion: '2024-11-05',
           capabilities: { tools: { listChanged: false } },
           clientInfo: { name: 'Test Client', version: '1.0.0' },
-          agentToken: 'test-agent-token-' + Date.now()
+          agentToken: makeAgentJwt({ client_id: 'test-client-id', scope: 'read write' })
         }
       };
 
@@ -527,7 +502,8 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
       expect(response.result).toBeDefined();
       const accountsPayload = JSON.parse(response.result!.content[0].text);
       expect(accountsPayload.count).toBe(1);
-      expect(response.result!.content[0].success).toBe(true);
+      // success now surfaces as the top-level isError (MCPMessageHandler builds
+      // spec-clean content: { type, text } only) rather than a content[0] field.
       expect(response.result!.isError).toBe(false);
 
       // BankingAPIClient forwards the bearer header; the actual token value comes from
@@ -587,8 +563,8 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
       const response = await sendMessageAndWaitForResponse(authenticatedWs, toolCallMessage);
 
       expect(response.id).toBe('tool-call-error');
-      expect(response.result!.content[0].success).toBe(false);
       expect(response.result!.content[0].text).toContain('Banking API error');
+      // success now surfaces as the top-level isError, not a content[0] field.
       expect(response.result!.isError).toBe(true);
     });
 
@@ -606,12 +582,13 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
       // Act
       const response = await sendMessageAndWaitForResponse(authenticatedWs, toolCallMessage);
 
-      // Assert
+      // Assert — unknown-tool content is spec-clean ({ type, text }); success/isError
+      // is the top-level result.isError, not a field on the content item.
       expect(response.id).toBe('unknown-tool');
+      expect(response.result!.isError).toBe(true);
       expect(response.result!.content[0]).toMatchObject({
         type: 'text',
-        success: false,
-        error: expect.stringContaining('Unknown tool')
+        text: expect.stringContaining('Unknown tool')
       });
     });
 
@@ -631,7 +608,7 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
 
       expect(response.id).toBe('invalid-params');
       expect(response.result!.content[0].text).toContain('Invalid parameters');
-      expect(response.result!.content[0].success).toBe(false);
+      // success now surfaces as the top-level isError, not a content[0] field.
       expect(response.result!.isError).toBe(true);
     });
   });
@@ -681,7 +658,7 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
             protocolVersion: '2024-11-05',
             capabilities: { tools: { listChanged: false } },
             clientInfo: { name: `Test Client ${index}`, version: '1.0.0' },
-            agentToken: `concurrent-agent-token-${index}`
+            agentToken: makeAgentJwt({ sub: `concurrent-agent-${index}`, client_id: 'test-client-id', scope: 'read write' })
           }
         };
         return sendMessageAndWaitForResponse(ws, handshakeMessage);
@@ -740,7 +717,7 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
             protocolVersion: '2024-11-05',
             capabilities: { tools: { listChanged: false } },
             clientInfo: { name: `Agent ${i}`, version: '1.0.0' },
-            agentToken: `concurrent-test-token-${i}`
+            agentToken: makeAgentJwt({ sub: `concurrent-test-${i}`, client_id: 'test-client-id', scope: 'read write' })
           }
         };
 
@@ -772,7 +749,8 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
       expect(responses).toHaveLength(concurrentAgents);
       responses.forEach((response, index) => {
         expect(response.id).toBe(`concurrent-tool-${index}`);
-        expect(response.result!.content[0].success).toBe(true);
+        // success now surfaces as the top-level isError, not a content[0] field.
+        expect(response.result!.isError).toBe(false);
         expect(JSON.parse(response.result!.content[0].text).count).toBe(1);
       });
 

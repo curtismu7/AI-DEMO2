@@ -27,7 +27,7 @@ const axios = require('axios');
 const router = express.Router();
 const configStore = require('../services/configStore');
 const { PingOneProvisionService } = require('../services/pingoneProvisionService');
-const { requireAdmin } = require('../middleware/auth');
+const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 
 const APP_NAME = 'PingOne MCP Server';
 const CALLBACK_PATH = '/api/mcp/inspector/pingone-admin/callback';
@@ -137,10 +137,32 @@ async function ensureApp(req) {
   return _appCache;
 }
 
-// GET /api/mcp/inspector/pingone-admin/login — requireAdmin (this mints a
+/**
+ * Session-cookie admin gate. This router is mounted under /api/mcp/inspector
+ * WITHOUT authenticateToken, so middleware/auth.requireAdmin (which reads
+ * req.user) would 401 every browser redirect that arrives with only a session
+ * cookie. Match /api/mcp/audit and mcpInspector.js: check session.user.role.
+ */
+function requireAdminSession(req, res, next) {
+  if (!req.session?.user) {
+    return res.status(401).json({
+      error: 'unauthenticated',
+      message: 'A valid session is required. Please sign in.',
+    });
+  }
+  if (req.session.user.role !== 'admin') {
+    return res.status(403).json({
+      error: 'admin_required',
+      message: 'Admin session required for PingOne MCP admin login.',
+    });
+  }
+  return next();
+}
+
+// GET /api/mcp/inspector/pingone-admin/login — admin only (this mints a
 // token carrying the signed-in user's PingOne admin roles; only meaningful
 // for our own demo admin, same guard as other admin-only routes).
-router.get('/login', requireAdmin, async (req, res) => {
+router.get('/login', requireAdminSession, async (req, res) => {
   try {
     const app = await ensureApp(req);
     const state = crypto.randomBytes(16).toString('hex');
@@ -212,7 +234,8 @@ router.get('/callback', async (req, res) => {
       res.redirect('/pingone-mcp-inspector?source=custom');
     });
   } catch (err) {
-    const detail = err.response?.data?.error_description || err.response?.data?.error || err.message;
+    const n = normalizeAxiosError(err, { label: 'PingOne token request' });
+    const detail = n.message;
     console.error('[mcpPingOneAdminAuth] token exchange failed:', detail);
     failAndRedirect(detail);
   }

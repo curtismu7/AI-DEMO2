@@ -20,7 +20,6 @@ describe('demoStepPrerequisites', () => {
       expect.arrayContaining([
         'ff_a2a_delegation',
         'ff_mcp_gateway_pinggateway',
-        'ff_gateway_brokered_exchange',
       ]),
     );
     expect(needsA2aCredentials(uc)).toBe(true);
@@ -40,7 +39,6 @@ describe('demoStepPrerequisites', () => {
       expect.arrayContaining([
         'ff_a2a_delegation',
         'ff_mcp_gateway_pinggateway',
-        'ff_gateway_brokered_exchange',
       ]),
     );
   });
@@ -56,7 +54,6 @@ describe('demoStepPrerequisites', () => {
     expect(requiredFlagsForUseCase(uc)).toEqual(
       expect.arrayContaining([
         'ff_mcp_gateway_pinggateway',
-        'ff_gateway_brokered_exchange',
       ]),
     );
   });
@@ -69,7 +66,7 @@ describe('demoStepPrerequisites', () => {
     const r = checkChipPrerequisites(uc, 'banking', cfg);
     expect(r.ok).toBe(false);
     expect(r.errors.join(' ')).toMatch(/ff_mcp_gateway_pinggateway is off/);
-    expect(r.errors.join(' ')).toMatch(/ff_gateway_brokered_exchange is off/);
+    expect(r.errors.join(' ')).toMatch(/ff_mcp_gateway_pinggateway is off/);
   });
 
   test('checkA2aCredentials fails when Agent 2 id/secret empty', () => {
@@ -86,7 +83,6 @@ describe('demoStepPrerequisites', () => {
       getEffective: (k) => (
         k === 'ff_a2a_delegation'
         || k === 'ff_mcp_gateway_pinggateway'
-        || k === 'ff_gateway_brokered_exchange'
           ? true
           : null
       ),
@@ -106,7 +102,6 @@ describe('demoStepPrerequisites', () => {
       expect.arrayContaining([
         'ciba_enabled',
         'ff_mcp_gateway_pinggateway',
-        'ff_gateway_brokered_exchange',
       ]),
     );
     expect(needsA2aCredentials(uc)).toBe(false);

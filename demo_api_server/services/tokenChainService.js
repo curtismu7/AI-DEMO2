@@ -5,6 +5,7 @@ const mcpToolAuditStore = require('./mcpToolAuditStore');
 const configStore = require('./configStore');
 const fs = require('fs');
 const path = require('path');
+const { getCorrelationId } = require('../utils/correlationContext');
 
 // In-memory storage for token events (in production, this would be persisted)
 const tokenEvents = new Map();
@@ -108,6 +109,10 @@ async function trackTokenEvent(eventData) {
 
   const event = {
     id: crypto.randomUUID(),
+    // Read from AsyncLocalStorage so every existing call site gains transaction
+    // attribution with no change — routes/oauth.js and services/oauthService.js
+    // are REGRESSION_PLAN §1 protected and must not be edited.
+    correlationId: getCorrelationId() || null,
     timestamp: new Date().toISOString(),
     eventType,
     tokenType,

@@ -15,7 +15,7 @@ const ROOT = path.resolve(__dirname, '..', 'data', 'step-verification');
  * @property {'PASS'|'FAIL'} status
  * @property {string|null} errorClass one of 'server_error'|'parse_error'|'llm_error'|'wrong_response'|'wrong_gate'|'missing_prereq'|'exchange_failed'|'empty_token_events'|'failure_without_detail'|'no_event_detail'|null
  * @property {string|null} primaryTool
- * @property {string} checkedAt ISO timestamp
+ * @property {string} checkedAt ISO timestamp; stored day-granular (YYYY-MM-DD)
  * @property {string} [verifiedBy] optional note pointing at the test file that proved this, when no new dispatch was run
  * @property {string[]} [requiredFlags] feature flags the chip needs armed at runtime
  * @property {string[]} [prereqErrors] human-readable missing-prereq details when status is FAIL
@@ -33,7 +33,13 @@ function writeLedgerEntry(entry) {
   const dir = path.join(ROOT, entry.vertical);
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, `${entry.useCaseId}.${entry.triggerType}.${entry.mode}.json`);
-  fs.writeFileSync(file, JSON.stringify(entry, null, 2) + '\n', 'utf8');
+  // Store checkedAt day-granular. Callers stamp `new Date().toISOString()`, so a
+  // sub-second field would rewrite all ~440 ledger files on every suite run and
+  // leave the tree permanently dirty with no semantic change. Day granularity
+  // keeps check-step-verification.js's staleness gate (MAX_AGE_DAYS, default 30)
+  // working while making a same-day re-run byte-identical.
+  const record = { ...entry, checkedAt: String(entry.checkedAt).slice(0, 10) };
+  fs.writeFileSync(file, JSON.stringify(record, null, 2) + '\n', 'utf8');
   return file;
 }
 

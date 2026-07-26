@@ -13,6 +13,7 @@ const { getManagementToken } = require('../services/pingOneClientService');
 const configStore = require('../services/configStore');
 const scopeTopology = require('../services/scopeTopology');
 const axios = require('axios');
+const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 
 // ── Expected scopes derived from scope-topology.json (the SoT) ───────────────
 // Required = native scopes PLUS scopes mirrored onto the resource as an
@@ -102,9 +103,10 @@ router.get('/resources', async (_req, res) => {
     res.json({ resources: results, environment: envId, region });
   } catch (err) {
     console.error('[scope-audit] Error fetching resources:', err.message);
-    const status = err.response?.status || 500;
+    const n = normalizeAxiosError(err, { label: 'PingOne scope audit' });
+    const status = n.httpStatus || 500;
     res.status(status).json({
-      error: err.message,
+      error: n.message,
       hint: status === 401
         ? 'Management worker credentials may be invalid. Check PINGONE_MGMT_CLIENT_ID/SECRET.'
         : undefined,
@@ -138,8 +140,9 @@ router.post('/scopes', async (req, res) => {
     res.json({ created: true, scope: result.data });
   } catch (err) {
     console.error('[scope-audit] Error creating scope:', err.response?.data || err.message);
-    const status = err.response?.status || 500;
-    const detail = err.response?.data?.message || err.message;
+    const n = normalizeAxiosError(err, { label: 'PingOne scope audit' });
+    const status = n.httpStatus || 500;
+    const detail = n.message;
     res.status(status).json({ error: detail });
   }
 });

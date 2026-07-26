@@ -18,21 +18,18 @@
 const crypto = require('node:crypto');
 const axios = require('axios');
 const { getCorrelationId } = require('./correlationContext');
+const { traceIdFromCorrelation } = require('./traceIdFromCorrelation');
 
 let _registered = false;
 
 /**
  * Build a W3C traceparent (`00-<32hex traceId>-<16hex spanId>-01`) from the
- * correlation ID. When the correlation ID is a UUID we reuse its 32 hex digits
- * as the trace-id so the two identifiers stay visibly linked; otherwise we hash
- * it to 32 hex. The span-id is fresh per outbound call.
+ * correlation ID. The trace-id derivation lives in traceIdFromCorrelation so
+ * the transaction ledger can record the identical value. The span-id is fresh
+ * per outbound call.
  */
 function buildTraceparent(correlationId) {
-  const hex = String(correlationId).replace(/[^0-9a-f]/gi, '').toLowerCase();
-  const traceId =
-    hex.length >= 32
-      ? hex.slice(0, 32)
-      : crypto.createHash('sha256').update(String(correlationId)).digest('hex').slice(0, 32);
+  const traceId = traceIdFromCorrelation(correlationId);
   const spanId = crypto.randomBytes(8).toString('hex');
   return `00-${traceId}-${spanId}-01`;
 }

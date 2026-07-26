@@ -620,6 +620,23 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
           taskId: err.taskId || null,
           tool: err.tool || null,
           requiresLogin: !!err.requiresLogin,
+          // Preserve the step-up method (and the fields the CIBA initiate call
+          // needs) on the thrown Error. Dropping step_up_method made every
+          // mcp_step_up_required — including UC22, which declares 'ciba' — open
+          // the MFA modal on the chip/runAction path. MFA sets
+          // session.stepUpVerified, so the retry then PERMITs with no
+          // out-of-band approval: a CIBA bypass.
+          ...(err.step_up_method ? { step_up_method: err.step_up_method } : {}),
+          ...(err.step_up_acr ? { step_up_acr: err.step_up_acr } : {}),
+          ...(err.transaction_amount != null
+            ? { transaction_amount: err.transaction_amount }
+            : {}),
+          ...(err.fromAccountId || err.from_account_id
+            ? { fromAccountId: err.fromAccountId || err.from_account_id }
+            : {}),
+          ...(err.toAccountId || err.to_account_id
+            ? { toAccountId: err.toAccountId || err.to_account_id }
+            : {}),
         },
       );
       throw e;

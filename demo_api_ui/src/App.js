@@ -62,6 +62,7 @@ import LlmConfigPage from "./components/LlmConfigPage";
 import LogoutPage from "./components/LogoutPage";
 import LoginSuccessModal from "./components/LoginSuccessModal";
 import LogViewer from "./components/LogViewer";
+import MgmtApiRunnerPage from "./components/MgmtApiRunnerPage";
 import MissingCredentialsModal from "./components/MissingCredentialsModal";
 import MockAuthzRulesPage from "./components/MockAuthzRulesPage";
 import MortgagePathPage from "./components/MortgagePathPage";
@@ -118,6 +119,7 @@ import AdminThemesPage from "./pages/AdminThemesPage";
 import AiControlPlanePage from "./pages/AiControlPlanePage";
 import CheckPage from "./pages/CheckPage";
 import TracingPage from "./pages/TracingPage";
+import TransactionTracePage from "./pages/TransactionTracePage";
 import TelemetryPage from "./pages/TelemetryPage";
 import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
@@ -641,6 +643,21 @@ function AppWithAuth() {
                   }
                 />
                 <Route
+                  path="/transaction-trace"
+                  element={
+                    loading ? null : user ? (
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <TransactionTracePage />
+                        </main>
+                      </>
+                    ) : (
+                      <Navigate to="/" replace />
+                    )
+                  }
+                />
+                <Route
                   path="/telemetry"
                   element={
                     loading ? null : (
@@ -1011,6 +1028,10 @@ function AppWithAuth() {
                             <Route
                               path="/pingone-authorize"
                               element={<PingOneAuthorizePage />}
+                            />
+                            <Route
+                              path="/mgmt-api"
+                              element={<MgmtApiRunnerPage />}
                             />
                             <Route
                               path="/pingone-authorize-capabilities"

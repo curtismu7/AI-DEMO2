@@ -401,7 +401,10 @@ function prependRefreshEvent(req, events) {
 
 function buildTratContext(req, tool, userSub, agentClientId, gatewayClientId, extras = {}) {
   const correlationId = req?.headers?.['x-correlation-id'] || req?.session?.correlationId || null;
-  const vertical = req?.body?.vertical || req?.session?.activeVertical || 'banking';
+  // Session key is `active_vertical`, not `activeVertical` — the camelCase read
+  // matched nothing, so the TraT context stamped `banking` on every token
+  // regardless of the session's vertical.
+  const vertical = req?.body?.vertical || req?.session?.active_vertical || 'banking';
   const ctx = {
     reqctx: {
       tool: tool || '',
@@ -2301,13 +2304,17 @@ async function _performTwoExchangeDelegation(
   // introspection rejects as inactive (active: false).
   // PingGateway also requires the token aud to be an HTTPS URL matching McpProtectionFilter.resourceId
   // (bare audience strings like mcpgateway.ping.demo are rejected with URI scheme null error).
-  // ff_gateway_brokered_exchange (default true) decouples WHO performs the final
-  // RFC 8693 hop from routing. Gateway-brokered (default): the BFF stops at the
-  // coarse gateway audience and the IG runs olb-token-exchange.groovy to mint the
-  // mcpserver.ping.demo token at the edge. BFF-brokered (flag false): the BFF
-  // completes the exchange to the mcp-server audience itself and the IG skips its
-  // exchange (signaled by X-BFF-Exchanged; see mcpGatewayClient). Only meaningful
-  // when routing through PingGateway; unset/true preserves today's behavior exactly.
+  // The final RFC 8693 hop is ALWAYS gateway-brokered when routing through
+  // PingGateway: the BFF stops at the coarse gateway audience and the IG runs
+  // olb-token-exchange.groovy to mint the mcpserver.ping.demo token at the edge.
+  //
+  // ff_gateway_brokered_exchange used to make this switchable. It was removed
+  // because its OFF path could never work: completing the exchange here means
+  // requesting tool scopes that span multiple PingOne resources, and PingOne
+  // rejects that outright with
+  //   invalid_scope: "May not request scopes for multiple resources"
+  // which surfaced as the opaque "That step couldn't be completed" on every
+  // tool chip. Verified live before removal. See docs/dual-exchange-broker.md.
   //
   // opts.forceDirectMcpAudience: callers whose transport always dials the raw
   // MCP server directly (e.g. the Banking Inspector's WS client, which never
@@ -2315,8 +2322,7 @@ async function _performTwoExchangeDelegation(
   // gateway-audience override below and fall through to twoExFinalAud, which
   // already resolves correctly for direct/bypass mode.
   const routeViaPingGateway = !opts.forceDirectMcpAudience && configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
-  const gatewayBrokeredExchange = configStore.getEffective('ff_gateway_brokered_exchange') !== 'false';
-  const usePingGatewayForExchange = routeViaPingGateway && gatewayBrokeredExchange;
+  const usePingGatewayForExchange = routeViaPingGateway;
   const pingGatewayUriAud =
     firstHttpResourceUri(process.env.PINGONE_RESOURCE_PINGGATEWAY_URI) ||
     firstHttpResourceUri(configStore.getEffective('pingone_resource_pinggateway_uri')) ||

@@ -1,0 +1,229 @@
+.ttrace-page {
+  padding: 20px;
+  background: #f9fafb;
+  min-height: 100vh;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.ttrace-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.ttrace-sub {
+  margin: 4px 0 16px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.ttrace-notice {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.ttrace-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ttrace-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ttrace-row:hover { background: #f3f4f6; }
+.ttrace-time { color: #6b7280; font-variant-numeric: tabular-nums; }
+.ttrace-cid { font-family: ui-monospace, "SF Mono", Menlo, monospace; flex: 1; }
+.ttrace-count { color: #6b7280; }
+
+.ttrace-detail {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 14px;
+  margin: 0 0 12px;
+}
+
+.ttrace-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 12px;
+}
+
+.ttrace-verdict { font-weight: 700; }
+.ttrace-verdict.fail { color: #b91c1c; }
+.ttrace-verdict.pass { color: #047857; }
+.ttrace-verdict.incomplete { color: #b45309; }
+
+.ttrace-recon {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+}
+
+/* Unknown must not read as a failure — an unavailable witness is not tampering. */
+.ttrace-recon.match { background: #ecfdf5; color: #047857; }
+.ttrace-recon.mismatch { background: #fef2f2; color: #b91c1c; }
+.ttrace-recon.unknown { background: #f3f4f6; color: #6b7280; border-style: dashed; }
+
+.ttrace-links { margin-left: auto; display: flex; gap: 12px; font-size: 13px; }
+.ttrace-links a { color: #1d4ed8; font-weight: 600; text-decoration: none; }
+.ttrace-links a:hover { text-decoration: underline; }
+
+.ttrace-detail-error { color: #b91c1c; font-size: 13px; }
+.ttrace-detail-error p { margin: 0 0 8px; }
+
+.ttrace-retry-btn {
+  background: #fff;
+  border: 1px solid #b91c1c;
+  color: #b91c1c;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ttrace-retry-btn:hover { background: #fef2f2; }
+
+/*
+ * Chain-of-custody spine: hops are numbered nodes strung along a continuous
+ * 2px rule. Each <li> (hop or violation band) contributes one segment of
+ * that rule via its own left border, so the line reads as unbroken down the
+ * whole list. From the first violated hop onward the rule — and every node
+ * on it — turns red, so a severed chain of custody is visible at a glance
+ * without reading a word of text.
+ */
+.ttrace-hops {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ttrace-hop {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  padding: 12px 0 12px 26px;
+  margin-left: 9px;
+  border-left: 2px solid #d1d5db;
+}
+
+.ttrace-hop--severed { border-left-color: #b91c1c; }
+
+.ttrace-node {
+  position: absolute;
+  left: -11px;
+  top: 10px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #d1d5db;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ttrace-hop--severed .ttrace-node { border-color: #b91c1c; color: #b91c1c; }
+
+.ttrace-hop-body { flex: 1; min-width: 0; }
+
+.ttrace-hop-head {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  font-size: 14px;
+}
+
+.ttrace-phase { color: #6b7280; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
+.ttrace-op { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; }
+.ttrace-ms {
+  color: #9ca3af;
+  font-size: 12px;
+  margin-left: auto;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.ttrace-derived {
+  font-size: 11px;
+  color: #6b7280;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0 6px;
+}
+
+.ttrace-identity {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #4b5563;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+.ttrace-decision { margin-top: 4px; font-size: 12px; font-weight: 600; }
+.ttrace-decision.deny { color: #b91c1c; }
+.ttrace-decision.permit { color: #047857; }
+.ttrace-reason { font-weight: 400; color: #6b7280; margin-left: 8px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+
+/* The band that cuts across the spine at the offending hop. */
+.ttrace-violation {
+  list-style: none;
+  display: block;
+  background: #fef2f2;
+  border-left: 2px solid #b91c1c;
+  color: #b91c1c;
+  padding: 8px 12px 8px 26px;
+  margin: 0 0 0 9px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ttrace-violation--unanchored {
+  border-radius: 6px;
+  border-left-width: 3px;
+  margin: 0 0 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .ttrace-page { background: #111827; }
+  .ttrace-header h1 { color: #f9fafb; }
+  .ttrace-notice,
+  .ttrace-row,
+  .ttrace-detail { background: #1f2937; border-color: #374151; color: #e5e7eb; }
+  .ttrace-node { background: #1f2937; }
+}

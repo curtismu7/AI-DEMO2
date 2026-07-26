@@ -102,6 +102,208 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-26 — A vertical mismatch silently destroyed a user's accounts AND transaction history
+
+**Files changed:** `demo_api_server/services/verticalAccountSnapshots.js` (new),
+`demo_api_server/data/store.js`, `demo_api_server/routes/accounts.js`,
+`demo_api_server/services/demoAgentLangGraphService.js`,
+`demo_api_server/src/__tests__/verticalAccountSnapshots.test.js` (new).
+
+**What was broken:** Two sites reacted to a vertical mismatch by calling
+`dataStore.reseedUserForVertical()` — `routes/accounts.js` on an account read and
+`demoAgentLangGraphService.ensureAccountsForVertical()` on an agent dispatch. That
+function deletes **every account and every transaction** for the user, reseeds from the
+target vertical's profile, and `persistAllData()`. So an SE who had built up demo state
+mid-demo — transfers, HITL approvals, step-ups — lost all of it the moment anything
+touched accounts under a different vertical. HTTP 200, no error, no warning. It was also
+irreversible: `demoScenarioStore` held a single `accountSnapshot` slot per user, so the
+switch overwrote the only copy of what was there before.
+
+**What was fixed:** Reseeding is *also* how vertical switching works (you cannot show
+healthcare with banking accounts), so the fix makes the switch lossless rather than
+blocking it. `switchUserVertical()` snapshots the outgoing vertical's accounts +
+transactions under a per-vertical key (`verticalSnapshots[<id>]`), restores the incoming
+vertical's snapshot when one exists, and reseeds **only** when that vertical has never
+been visited. `currentSeededVertical` records which vertical the live rows belong to.
+Both call sites now go through it. The wipe itself was extracted to
+`dataStore.purgeUserFinancialData()` so restore and reseed share one implementation of
+the transaction-reference sweep.
+
+**Do not break:** Do not restore a snapshot without purging first — restoring on top of
+another vertical's rows produces the mixed-vertical state this path exists to prevent.
+Do not snapshot when the outgoing vertical is unknown (cold session): the rows are
+unattributable and filing them under the target corrupts that target's snapshot. Do not
+write an empty snapshot over a real one. The legacy single-slot `accountSnapshot` is
+still read by `restoreAccountsFromSnapshot` for cold-start recovery — leave it alone.
+
+**Verify:** `CI=true npx jest src/__tests__/verticalAccountSnapshots.test.js` (8 pass).
+Disable the restore branch in `switchUserVertical` and the "switching back RESTORES
+accounts and transactions" test must fail — that is the proof the round trip is lossless
+rather than merely non-throwing.
+### 2026-07-26 — Chip path opened the MFA modal for CIBA-required step-up (CIBA bypass)
+
+**Files changed:** `demo_api_ui/src/services/demoAgentService.js`,
+`demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/services/__tests__/callMcpTool.stepUpAuthorizeIngest.test.js`.
+
+**What was broken:** `callMcpTool` THROWS on `mcp_step_up_required` (HITL soft-resolves;
+step-up does not), and the Error it built dropped `step_up_method` — so `runAction`'s
+`err?.code === "mcp_step_up_required"` branch could not tell CIBA from MFA and always
+ran the P1MFA challenge + OTP modal. UC22 declares `step_up_method: 'ciba'`. Both MFA
+and CIBA set `session.stepUpVerified`, so satisfying the MFA modal made the retry PERMIT
+with **no out-of-band approval** — a CIBA bypass on the chip/runAction path. The soft
+(non-throwing) path already branched correctly; only the throw path was wrong.
+
+**What was fixed:** `demoAgentService.callMcpTool` now carries `step_up_method`,
+`step_up_acr`, `transaction_amount` and the from/to account ids onto the thrown Error.
+`AIAgent.runAction`'s catch branches on `err.step_up_method === 'ciba'` and runs the same
+initiate → `/ciba-approve` tab → `pollCibaStepUp` flow the soft path uses, returning
+before any MFA call; the P1MFA challenge now runs only for `p1mfa` or an unspecified
+method (the prior default).
+
+**Do not break:** Never drop `step_up_method` from the Error `callMcpTool` throws — that
+single omission is the whole bypass, and it is invisible because the MFA modal looks like
+correct behavior. Keep the `return` after the CIBA branch so MFA can never also fire.
+
+**Verify:** `CI=true npx vitest run
+src/services/__tests__/callMcpTool.stepUpAuthorizeIngest.test.js
+src/components/__tests__/AIAgent.cibaStepUp.test.js` (7 pass). Both halves are
+revert-proved: restore `demoAgentService.js` alone and 1 of its 4 fails; restore
+`AIAgent.js` from `origin/main` and the `ciba` case of `AIAgent.cibaStepUp` fails while
+both MFA cases still pass — the exact shape of the bug. That suite asserts on the next
+network call the UI makes (`/api/auth/ciba/initiate` vs `/api/auth/mfa/challenge`), which
+is the observable discriminator between the two flows.
+### 2026-07-26 — Stale vault worker secret wedged every getManagementToken() caller
+
+**Files changed:** `demo_api_server/services/configStore.js` (BOOTSTRAP_ALLOWLIST),
+`demo_api_server/src/__tests__/workerCredsBootstrap.test.js` (new).
+
+**What was broken:** `BOOTSTRAP_ALLOWLIST` (where `.env` outranks vault/LMDB) listed
+`pingone_mgmt_*` and `pingone_management_*` but NOT the WORKER family — and
+`pingOneClientService.resolveWorkerCredentials` tries `PINGONE_WORKER_CLIENT_ID/SECRET`
+**first**. The vault held a secret for worker client `89ad8921` that PingOne rejected
+while `.env`'s was valid, so the vault copy won and every `getManagementToken()` caller
+401'd: `/api/admin/mgmt-api`, `/api/admin/scope-audit`, `routes/demoProvisioning.js`,
+`routes/demoScenario.js`.
+
+The symptom actively misled. The `basic` attempt failed `invalid_client`, so the
+basic→post self-heal in `services/pingOneTokenAuth.js` retried with `post`; the app
+only accepts `client_secret_basic`, so the surfaced error was **"Request denied:
+Unsupported authentication method"** — which reads as an auth-METHOD misconfiguration.
+The method was correct throughout (`basic`, order `["basic","post"]`); only the secret
+was wrong.
+
+Proof: in the running container, minting BEFORE `vaultLoader.loadVaultIntoConfigStore()`
+succeeded and AFTER it 401'd, with the worker client id identical and only the secret's
+sha256 changing (`f08f44f8…` → `3f7f49fa…`).
+
+**What was fixed:** added `pingone_worker_client_id`, `pingone_worker_client_secret`,
+`pingone_worker_token_client_id`, `pingone_worker_token_client_secret` to
+BOOTSTRAP_ALLOWLIST, so `.env` is authoritative for them exactly as it already was for
+the mgmt family.
+
+**Do not break:** entries must stay lowercase — `getEffective()` lowercases the key
+before the membership test, so an uppercase entry silently never matches. Note the
+tradeoff this makes explicit: worker credentials set through the /config UI (vault) no
+longer override `.env`. That is the same contract the mgmt family already had, and it
+is what makes a stale cached secret recoverable by editing `.env`.
+
+**Verify:** `CI=true npx jest src/__tests__/workerCredsBootstrap.test.js` (6 pass);
+revert `configStore.js` alone and 4 of the 6 fail.
+
+### 2026-07-26 — MCP_INVEST_AUDIENCE was accepted on every MCP callback, not just the portfolio read
+
+**Files changed:** `demo_api_server/middleware/auth.js`,
+`demo_api_server/tests/mcpInvestAudience.regression.test.js` (new).
+
+**What was broken:** `validatePingOneCoreToken` pushed `MCP_INVEST_AUDIENCE` into the
+shared `gwAuds` list and folded the `/api/investment/.../portfolio` route into the same
+`isMcpCallback` predicate as the banking read/write callbacks. The audience check is
+`isMcpCallback && tokenAuds.some((a) => gwAuds.includes(a))`, so an A2A investment
+token (`aud=mcp-invest.ping.demo`, scopes `invest:read`) satisfied the audience gate on
+`POST /api/transactions`, `GET /api/accounts/my`, and the other write callbacks —
+routes it should never reach. Confirmed by reverting the fix: the regression suite's
+two rejection tests both fail against the old code.
+
+**What was fixed:** Split the predicate. `isMcpBankingCallback` keeps the banking /
+Path-B routes and matches against `gwAuds`; `isInvestPortfolioCallback` is separate and
+accepts **only** `MCP_INVEST_AUDIENCE`, on the portfolio path only. `MCP_INVEST_AUDIENCE`
+is no longer added to `gwAuds` at all.
+
+**Do not break:** Never re-add `MCP_INVEST_AUDIENCE` to `gwAuds` — that single line is
+the whole bug. The gateway/PingGateway/MCP-server audiences must keep working on the
+banking callbacks, and an enduser-audience token must keep working on the portfolio
+route; both are covered by regression tests.
+
+**Verify:** `CI=true npx jest tests/mcpInvestAudience.regression.test.js` (5 pass).
+Revert `auth.js` alone and 2 of the 5 must fail — that is the proof the gate is real.
+
+### 2026-07-26 — Generic MCP Inspector profiles were reachable by any signed-in customer (stdio = RCE on the BFF host)
+
+**Files changed:** `demo_api_server/routes/mcpInspector.js`,
+`demo_api_server/routes/mcpPingOneAdminAuth.js`,
+`src/__tests__/mcpInspectorProfiles.test.js`, `src/__tests__/mcpPingOneAdminAuth.test.js`.
+
+**What was broken:** `app.use('/api/mcp/inspector', mcpInspectorRoutes)` mounts this
+router WITHOUT `authenticateToken` (so banking `tools/list` can fall back to the local
+catalog for anonymous visitors). On top of that: `POST /profiles` and
+`DELETE /profiles/:id` were gated by `requireSession` only — any signed-in **customer**
+— and the non-default-profile branches of `GET /tools?profile=` and `POST /invoke` had
+**no gate at all**, short-circuiting to `handleProfileTools`/`handleProfileInvoke`
+before any user check. A `stdio` profile is dispatched by
+`services/mcpTransports/stdio.js`, which runs `spawn(profile.command, profile.args)` on
+the BFF host. Customer creates a stdio profile with an arbitrary command, invokes it,
+gets remote code execution; `http`/`websocket` profiles are SSRF by the same path.
+`mcpPingOneAdminAuth`'s `/login` used `middleware/auth.requireAdmin`, which reads
+`req.user` and therefore 401'd every cookie-only browser redirect.
+
+**What was fixed:** A local `requireAdminSession` (session-cookie based, mirroring the
+`/api/mcp/audit` check — `middleware/auth.requireAdmin` cannot be used on a router
+mounted without `authenticateToken`) now gates profile create/delete AND both
+non-default dispatch branches. Same gate replaces `requireAdmin` on the PingOne admin
+`/login`.
+
+**Do not break:** `GET /profiles` and the DEFAULT banking profile's `tools`/`invoke`
+path stay ungated on purpose — anonymous visitors must still get the local-catalog
+fallback. Only the non-default (`?profile=` / `body.profile`) branches are admin-gated.
+Never swap `requireAdminSession` for `middleware/auth.requireAdmin` here; this router
+has no `req.user`.
+
+**Verify:** `CI=true npx jest src/__tests__/mcpInspectorProfiles.test.js
+src/__tests__/mcpPingOneAdminAuth.test.js` (28 pass), incl. a customer-role stdio
+create → 403 with `mockStdioListTools` never called.
+
+### 2026-07-25 — CIBA HITL-consent credit was session-global, unbound, and eager-consumed (code-review fixes)
+
+**Files changed:** `demo_api_server/services/hitlCredit.js` (new), `routes/ciba.js`,
+`routes/transactions.js`, `services/transactionAuthorizationService.js`,
+`services/mcpToolAuthorizationService.js`, `src/__tests__/hitlCredit.test.js` (new).
+
+**What was broken:** The CIBA out-of-band approval credit (`req.session.hitlVerified`)
+that discharges the HITL consent 428 was (1) not bound to the approved amount — a
+small CIBA approval discharged consent for any larger unrelated transfer within the
+5-min TTL; (2) eager-consumed (zeroed on read) by two uncoordinated consumers
+(`routes/transactions.js` and `services/mcpToolAuthorizationService.js`), so an
+unrelated tool call burned the credit out from under a pending browser retry
+(double CIBA round-trip); (3) `useCaseId` was cleared only on step-up-fresh, not
+hitl-fresh, risking a re-forced CIBA loop.
+
+**What was fixed:** New `hitlCredit.js` owns an amount-bound, consume-on-use credit.
+`ciba.js` records `hitlApprovedAmount` at both approval set-sites. Consumers now call
+`hitlCredit.isFresh(session, { amount })` (bound) and consume ONLY when a gate was
+actually discharged: `transactionAuthorizationService` returns `hitlConsentDischarged`
+and `transactions.js` consumes on that signal; the MCP engine consumes at the exact
+HITL-gate site it suppresses instead of eager-zeroing at read. `useCaseId` now also
+drops on hitl-fresh.
+
+**Do not break:** DENY > STEP_UP > HITL precedence is unchanged — `hitlAlreadyVerified`
+only skips the consent 428, never a step-up or amount DENY. The bearer/agent path still
+uses `cibaTransactionReceipt` (amount+action bound); this change only touches the
+session-cookie path. `isFresh()` must never consume; only `consume()` spends the credit.
+
+**Verify:** `CI=true npx jest src/__tests__/hitlCredit.test.js` (9/9, incl.
+amount>approved → not fresh); plus `mcpToolAuthorizationService`,
+`transactionAuthorizationService`, `transferHitlIntegration`, `ciba` suites (108 pass).
 ### 2026-07-25 — ProofStrip "Incomplete" on successful reads: no-bearer session failed open to an ungated local read, skipping PingOne Authorize
 
 **Files changed:** `demo_api_server/services/mcpToolPipeline.js` (no-bearer

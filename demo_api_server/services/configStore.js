@@ -154,6 +154,17 @@ const BOOTSTRAP_ALLOWLIST = new Set([
   'pingone_mgmt_client_secret',
   'pingone_management_client_id',
   'pingone_management_client_secret',
+  // The WORKER family must be here too — pingOneClientService.resolveWorkerCredentials
+  // tries it BEFORE pingone_mgmt_*, so a stale vault/LMDB copy of the worker secret
+  // wins over a correct .env and wedges every getManagementToken() caller
+  // (/mgmt-api, scope-audit, demoProvisioning, demoScenario). Observed 2026-07-26:
+  // vault held a secret for client 89ad8921 that PingOne rejected while .env's was
+  // valid; the basic attempt failed invalid_client, the basic->post self-heal then
+  // reported "Unsupported authentication method", hiding the real cause.
+  'pingone_worker_client_id',
+  'pingone_worker_client_secret',
+  'pingone_worker_token_client_id',
+  'pingone_worker_token_client_secret',
 ]);
 
 // All known config keys with their defaults and whether they are public
@@ -289,6 +300,7 @@ const FIELD_DEFS = {
   ff_authorize_group_policy:   { public: true, default: 'false' },
   ff_hitl_enabled:             { public: true, default: 'true'  }, // require human approval for agent-initiated high-value transactions
   ff_tracing:                  { public: true, default: 'true'  }, // OTel→Jaeger tracing; reconciled by run-docker.sh demo-sync
+  ff_transaction_ledger:       { public: true, default: 'true'  }, // per-transaction chain of custody + identity invariants
   // Helix → LM Studio failover: when Helix returns a quota-exhausted reply, retry the turn on a local LM Studio model
   ff_helix_lmstudio_fallback:  { public: true, default: 'true'  },
   ff_knowledge_grounding:            { public: true, default: 'false' }, // knowledge grounding — inject deterministic assertions into agent system prompt with [Kn] citations

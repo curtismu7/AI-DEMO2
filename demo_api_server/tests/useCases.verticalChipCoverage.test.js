@@ -32,6 +32,11 @@ const { WRITE_TOOL_TYPE_MAP } = require('../services/mcpToolAuthorizationService
  * over. Everything else must route.
  */
 const A2A_UNROUTABLE = /specialist/i;
+// UC34/UC35 are free-form LLM analysis chips (primaryTool: null) — the LLM reasons
+// freely with no single deterministic heuristic, so they route via the LLM path at
+// runtime, not a heuristic match. Excluded like the A2A baseline above (mirrors
+// LLM_ANALYSIS_UNROUTABLE in useCases.primaryTool.test.js).
+const LLM_ANALYSIS_UNROUTABLE = new Set(['UC34', 'UC35']);
 
 /**
  * WRITE_TOOL_TYPE_MAP is keyed by TOOL name. A vertical plugin's heuristic action IS
@@ -54,6 +59,7 @@ function chipsFor(vertical) {
     const t = uc.trigger || {};
     if (t.type !== 'chip' || !t.text) continue;
     if (A2A_UNROUTABLE.test(t.text)) continue;
+    if (LLM_ANALYSIS_UNROUTABLE.has(u.id)) continue;
     if (seen.has(t.text)) continue;
     seen.add(t.text);
     out.push({ id: u.id, text: t.text });

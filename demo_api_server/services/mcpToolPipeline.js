@@ -118,6 +118,14 @@ function hitlSignalInResultContent(result) {
 async function runMcpToolPipeline(ctx) {
   const { tool, req, deps } = ctx;
   let params = { ...ctx.params };
+  // Resolved once and reused for the gateway's X-Active-Vertical header. Same
+  // resolver the MCP authz gate uses, so the policy input the gateway sees
+  // matches the one the BFF authorized against. Best-effort: a resolver failure
+  // must not block a tool call — mcpGatewayClient falls back to the global.
+  let sessionVertical = null;
+  try {
+    sessionVertical = require('./verticalManifest').verticalManifest.resolver.activeIdFor(req) || null;
+  } catch (_) { /* fall through to the client's own fallback */ }
   // Full JSON-RPC envelope snapshot (pre-HITL-strip) — used as requestJson in
   // audit store and SSE payload so the MCP Results tab shows the actual wire request.
   // The real bearer token (server.js-injected for e.g. jwt_decode_full) must never
@@ -708,7 +716,16 @@ async function runMcpToolPipeline(ctx) {
             // testActClientId is a SHOWCASE-ONLY demo affordance (confused-deputy chip):
             // it overrides the bridged actor with a rogue id so Authorize denies it.
             // Never populated by normal/production tool calls.
-            ({ result, gwAuditTrail } = await deps.callToolViaGateway(gatewayHttpUrl, mcpAccessToken, tool, params || {}, { correlationId: req.correlationId, tratContextHeader, intentToken: req.intentToken || null, dpopKey: _dpopKey, testActClientId: req.body?._testActClientId }));
+            // vertical: send the SESSION's active vertical, not the process-global
+            // that mcpGatewayClient falls back to. PingOne Authorize uses this as a
+            // policy input, and the BFF's own authz gate
+            // (mcpToolAuthorizationService) already resolved this request with
+            // resolver.activeIdFor(req) — so leaving the header on the global made
+            // the two halves of the same decision disagree whenever an admin had
+            // switched the global vertical. Still server-resolved: activeIdFor only
+            // returns a vertical this session legitimately selected, falling back to
+            // the global otherwise.
+            ({ result, gwAuditTrail } = await deps.callToolViaGateway(gatewayHttpUrl, mcpAccessToken, tool, params || {}, { correlationId: req.correlationId, vertical: sessionVertical, tratContextHeader, intentToken: req.intentToken || null, dpopKey: _dpopKey, testActClientId: req.body?._testActClientId }));
         } else if (useHttp2) {
             const h2Session = deps.http2Bridge.createHttp2Session(mcpUrl, mcpAccessToken);
             result = await deps.http2Bridge.forwardToolCall(h2Session, tool, params || {}, mcpAccessToken, userSub, req.correlationId);

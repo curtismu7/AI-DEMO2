@@ -11,6 +11,7 @@ import axios from 'axios';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { setupIntegrationAxiosMock } from '../helpers/integrationAxiosMock';
+import { makeAgentJwt, makeExpiredAgentJwt, MALFORMED_AGENT_TOKEN } from '../helpers/agentJwt';
 
 // Mock axios for PingOne API calls
 jest.mock('axios');
@@ -75,18 +76,7 @@ describe('Authentication Flows Integration Tests', () => {
   describe('Complete Agent Authentication Flow', () => {
     it('should validate agent token and create session successfully', async () => {
       // Arrange
-      const testAgentToken = 'valid-agent-token-12345';
-      const mockTokenResponse = {
-        data: {
-          active: true,
-          client_id: 'test-client-id',
-          scope: 'read write',
-          exp: Math.floor(Date.now() / 1000) + 3600 // 1 hour from now
-        }
-      };
-
-      mockedAxios.post.mockResolvedValueOnce(mockTokenResponse);
-
+      const testAgentToken = makeAgentJwt({ client_id: 'test-client-id', scope: 'read write' });
       // Act
       const agentTokenInfo = await authManager.validateAgentToken(testAgentToken);
       const session = await sessionManager.createSession(testAgentToken);
@@ -116,7 +106,7 @@ describe('Authentication Flows Integration Tests', () => {
 
     it('should handle invalid agent token and throw authentication error', async () => {
       // Arrange
-      const invalidAgentToken = 'invalid-agent-token';
+      const invalidAgentToken = MALFORMED_AGENT_TOKEN;
       const mockErrorResponse = {
         isAxiosError: true,
         message: 'Request failed with status 401',
@@ -131,56 +121,28 @@ describe('Authentication Flows Integration Tests', () => {
       // Act & Assert
       await expect(authManager.validateAgentToken(invalidAgentToken))
         .rejects
-        .toThrow('Invalid client credentials for token introspection');
+        .toThrow('Malformed JWT');
     });
 
     it('should handle expired agent token', async () => {
       // Arrange
-      const expiredAgentToken = 'expired-agent-token';
-      const mockTokenResponse = {
-        data: {
-          active: true,
-          client_id: 'test-client-id',
-          scope: 'read',
-          exp: Math.floor(Date.now() / 1000) - 3600 // 1 hour ago (expired)
-        }
-      };
-
-      mockedAxios.post.mockResolvedValueOnce(mockTokenResponse);
-
+      const expiredAgentToken = makeExpiredAgentJwt({ client_id: 'test-client-id', scope: 'read' });
       // Act & Assert
       await expect(authManager.validateAgentToken(expiredAgentToken))
         .rejects
-        .toThrow('Agent token has expired');
+        .toThrow('Agent token is not active');
     });
 
     it('should validate token scopes correctly', async () => {
       // Arrange
-      const testAgentToken = 'scoped-agent-token';
-      const mockTokenResponse = {
-        data: {
-          active: true,
-          client_id: 'test-client-id',
-          scope: 'read accounts:read',
-          exp: Math.floor(Date.now() / 1000) + 3600
-        }
-      };
-
-      mockedAxios.post.mockResolvedValueOnce(mockTokenResponse);
-
+      const testAgentToken = makeAgentJwt({ client_id: 'test-client-id', scope: 'read accounts:read' });
       // Act & Assert
       const hasReadScope = await authManager.validateTokenScopes(testAgentToken, ['read']);
       expect(hasReadScope).toBe(true);
 
-      // Reset mock for second call
-      mockedAxios.post.mockResolvedValueOnce(mockTokenResponse);
-      
       const hasWriteScope = await authManager.validateTokenScopes(testAgentToken, ['write']);
       expect(hasWriteScope).toBe(false);
 
-      // Reset mock for third call
-      mockedAxios.post.mockResolvedValueOnce(mockTokenResponse);
-      
       const hasMultipleScopes = await authManager.validateTokenScopes(
         testAgentToken, 
         ['read', 'accounts:read']
@@ -195,17 +157,7 @@ describe('Authentication Flows Integration Tests', () => {
 
     beforeEach(async () => {
       // Setup a valid session for user authorization tests
-      testAgentToken = 'valid-agent-token-for-user-auth';
-      const mockTokenResponse = {
-        data: {
-          active: true,
-          client_id: 'test-client-id',
-          scope: 'read write',
-          exp: Math.floor(Date.now() / 1000) + 3600
-        }
-      };
-
-      mockedAxios.post.mockResolvedValueOnce(mockTokenResponse);
+      testAgentToken = makeAgentJwt({ client_id: 'test-client-id', scope: 'read write' });
       await authManager.validateAgentToken(testAgentToken);
       testSession = await sessionManager.createSession(testAgentToken);
     });
@@ -347,17 +299,7 @@ describe('Authentication Flows Integration Tests', () => {
 
     beforeEach(async () => {
       // Setup test session with agent token
-      testAgentToken = 'correlation-test-agent-token';
-      const mockTokenResponse = {
-        data: {
-          active: true,
-          client_id: 'test-client-id',
-          scope: 'read write',
-          exp: Math.floor(Date.now() / 1000) + 3600
-        }
-      };
-
-      mockedAxios.post.mockResolvedValueOnce(mockTokenResponse);
+      testAgentToken = makeAgentJwt({ client_id: 'test-client-id', scope: 'read write' });
       await authManager.validateAgentToken(testAgentToken);
       testSession = await sessionManager.createSession(testAgentToken);
 
@@ -527,20 +469,31 @@ describe('Authentication Flows Integration Tests', () => {
   });
 
   describe('Error Handling and Edge Cases', () => {
-    it('should handle network errors during token validation', async () => {
-      // Arrange
-      const networkErrorToken = 'network-error-token';
-      mockedAxios.post.mockRejectedValueOnce(new Error('Network Error'));
+    // Was: "should handle network errors during token validation", asserting
+    // 'Token introspection failed: Network Error'. validateAgentToken no longer
+    // calls PingOne introspection — the MCP Gateway has already validated the
+    // token via the Authorization Server, so it decodes locally. A network fault
+    // therefore cannot occur on this path at all, which is the property worth
+    // pinning: an upstream outage must not be able to fail agent validation.
+    it('validates the agent token locally, making no HTTP call even if the network is down', async () => {
+      // Arrange — any axios.post would reject if it were reached.
+      mockedAxios.post.mockRejectedValue(new Error('Network Error'));
 
-      // Act & Assert
-      await expect(authManager.validateAgentToken(networkErrorToken))
-        .rejects
-        .toThrow('Token introspection failed: Network Error');
+      // Act
+      const info = await authManager.validateAgentToken(
+        makeAgentJwt({ client_id: 'test-client-id', scope: 'read write' }),
+      );
+
+      // Assert — succeeded without touching the network.
+      expect(info).toMatchObject({ clientId: 'test-client-id', isValid: true });
+      expect(mockedAxios.post).not.toHaveBeenCalled();
     });
 
     it('should handle malformed token responses', async () => {
       // Arrange
-      const malformedResponseToken = 'malformed-response-token';
+      // Was: an introspection body missing client_id/scope/exp. The local decoder's
+// equivalent is a JWT payload that omits them — same intent, same assertions.
+      const malformedResponseToken = makeAgentJwt({ sub: undefined, client_id: undefined, scope: undefined, exp: undefined });
       const mockMalformedResponse = {
         data: {
           // Missing required fields
@@ -577,7 +530,7 @@ describe('Authentication Flows Integration Tests', () => {
 
     it('should handle invalid user token association', async () => {
       // Arrange - Create a test session first
-      const testAgentToken = 'test-agent-token-invalid-user-tokens';
+      const testAgentToken = makeAgentJwt({ client_id: 'test-client-id', scope: 'read write' });
       
       mockedAxios.post.mockResolvedValueOnce({
         data: {
@@ -611,7 +564,8 @@ describe('Authentication Flows Integration Tests', () => {
     it('should handle multiple concurrent agent sessions', async () => {
       // Arrange
       const concurrentSessions = 5;
-      const agentTokens = Array.from({ length: concurrentSessions }, (_, i) => `concurrent-agent-token-${i}`);
+      const agentTokens = Array.from({ length: concurrentSessions }, (_, i) =>
+        makeAgentJwt({ sub: `concurrent-agent-${i}`, client_id: 'test-client-id', scope: 'read write' }));
       
       // Mock token validation for all tokens
       agentTokens.forEach(() => {
@@ -658,17 +612,7 @@ describe('Authentication Flows Integration Tests', () => {
 
     it('should handle concurrent user token associations', async () => {
       // Arrange
-      const testAgentToken = 'concurrent-user-token-test';
-      const mockTokenResponse = {
-        data: {
-          active: true,
-          client_id: 'test-client-id',
-          scope: 'read write',
-          exp: Math.floor(Date.now() / 1000) + 3600
-        }
-      };
-
-      mockedAxios.post.mockResolvedValueOnce(mockTokenResponse);
+      const testAgentToken = makeAgentJwt({ client_id: 'test-client-id', scope: 'read write' });
       await authManager.validateAgentToken(testAgentToken);
       const session = await sessionManager.createSession(testAgentToken);
 

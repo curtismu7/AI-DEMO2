@@ -61,7 +61,11 @@ router.post('/message', async (req, res) => {
       return res.status(401).json({ error: 'Session expired', agentInitRequired: true, need_auth: true });
     }
 
-    const activeVertical = vertical || req.session?.verticalId || 'banking';
+    // Session key is `active_vertical` (written by routes/verticalManifest.js and
+    // routes/demoAgentNl.js). This read used `verticalId`, which nothing ever
+    // writes, so every A2A delegation silently ran as banking regardless of the
+    // caller's vertical.
+    const activeVertical = vertical || req.session?.active_vertical || 'banking';
     const runId = crypto.randomUUID();
     void runId; // available for future correlation
 

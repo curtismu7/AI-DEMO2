@@ -57,7 +57,14 @@ async function _getWorkerToken() {
   } else {
     reqConfig.auth = { username: clientId, password: clientSecret };
   }
-  const resp = await axios.post(tokenUrl, body.toString(), reqConfig);
+  let resp;
+  try {
+    resp = await axios.post(tokenUrl, body.toString(), reqConfig);
+  } catch (err) {
+    // Normalize transport/HTTP failures so a worker-token outage doesn't
+    // propagate a raw axios error (host/IP on ECONNREFUSED) to the MFA routes.
+    throw _wrapError('_getWorkerToken', err, { workerToken: true });
+  }
   // Return the raw access-token string: every caller interpolates the result
   // directly as `Bearer ${token}`. Returning an object here yields
   // "Bearer [object Object]" and 401s every worker-token call.

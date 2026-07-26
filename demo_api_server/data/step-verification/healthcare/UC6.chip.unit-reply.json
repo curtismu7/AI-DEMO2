@@ -6,6 +6,6 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "pay_bill",
-  "checkedAt": "2026-07-25T20:23:17.665Z",
+  "checkedAt": "2026-07-25",
   "verifiedBy": "scoreAgentReply exact vs data/goldens (#762)"
 }

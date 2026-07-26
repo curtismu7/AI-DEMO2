@@ -6,10 +6,15 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "sensitive_supplier_contract",
-  "checkedAt": "2026-07-25T20:23:02.610Z",
+  "checkedAt": "2026-07-26",
   "requiredFlags": [
     "ff_a2a_delegation",
-    "ff_mcp_gateway_pinggateway",
-    "ff_gateway_brokered_exchange"
+    "ff_mcp_gateway_pinggateway"
+  ],
+  "flagsAssumedOn": true,
+  "provesDeclaredOnly": true,
+  "flagsOffDetected": [
+    "ff_a2a_delegation",
+    "ff_mcp_gateway_pinggateway"
   ]
 }
