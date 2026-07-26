@@ -1,0 +1,118 @@
+/* ============================================================
+   JsonColumnsView.css — Miller-column browser for JSON claims
+   Reuses the InspectorShell slate/blue palette and the exact
+   "solid blue + white text" active-row treatment from
+   .inspector-shell-tree-item--active, so the selected column
+   path reads clearly at a glance (demo-viewable, no faint tints).
+   ============================================================ */
+
+.jcv-columns {
+  display: flex;
+  gap: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  overflow-x: auto;
+  background: #ffffff;
+}
+
+.jcv-col {
+  flex: 1 0 200px;
+  min-width: 180px;
+  max-width: 260px;
+  border-right: 1px solid #e2e8f0;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.jcv-col:last-child { border-right: none; }
+
+.jcv-col-label {
+  padding: 8px 12px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  position: sticky;
+  top: 0;
+  background: #ffffff;
+}
+
+.jcv-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-family: 'SF Mono', SFMono-Regular, monospace;
+  color: #334155;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.08s;
+}
+.jcv-row:hover { background: #e2e8f0; }
+.jcv-row--leaf { cursor: pointer; }
+
+/* .jcv-row.jcv-row--selected (not just .jcv-row--selected) so this ties
+   :hover's specificity instead of losing to it — a selected row hovered by
+   the mouse must stay solid blue, not fall back to :hover's light gray
+   with our white selected-text still applied (unreadable). */
+.jcv-row.jcv-row--selected,
+.jcv-row.jcv-row--selected:hover {
+  background: #2563eb;
+  color: #ffffff;
+}
+.jcv-row--selected .jcv-row-key,
+.jcv-row--selected .jcv-row-preview,
+.jcv-row--selected .jcv-row-caret {
+  color: #ffffff;
+}
+
+.jcv-row-key { color: #0550ae; font-weight: 600; }
+.jcv-row-preview {
+  color: #64748b;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 9rem;
+}
+.jcv-row-caret { color: #94a3b8; font-size: 12px; }
+
+.jcv-col--detail {
+  flex: 1 0 240px;
+  max-width: 320px;
+  padding: 8px 0;
+}
+.jcv-detail-path {
+  padding: 0 12px 6px;
+  font-family: 'SF Mono', SFMono-Regular, monospace;
+  font-size: 11px;
+  color: #64748b;
+  word-break: break-all;
+}
+.jcv-detail-value {
+  margin: 0 12px;
+  padding: 10px 12px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-family: 'SF Mono', SFMono-Regular, monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.jcv-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 14px;
+  text-align: center;
+  padding: 40px 20px;
+}
