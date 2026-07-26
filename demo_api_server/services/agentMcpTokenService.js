@@ -401,7 +401,10 @@ function prependRefreshEvent(req, events) {
 
 function buildTratContext(req, tool, userSub, agentClientId, gatewayClientId, extras = {}) {
   const correlationId = req?.headers?.['x-correlation-id'] || req?.session?.correlationId || null;
-  const vertical = req?.body?.vertical || req?.session?.activeVertical || 'banking';
+  // Session key is `active_vertical`, not `activeVertical` — the camelCase read
+  // matched nothing, so the TraT context stamped `banking` on every token
+  // regardless of the session's vertical.
+  const vertical = req?.body?.vertical || req?.session?.active_vertical || 'banking';
   const ctx = {
     reqctx: {
       tool: tool || '',
