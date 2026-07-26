@@ -7,7 +7,7 @@ import {
 // Flags any tool-dispatching chip needs. Kept in sync with
 // demo_api_server/services/demoStepPrerequisites.js by the drift gate at
 // demo_api_server/src/__tests__/requiredDemoFlags.parity.test.js.
-const GATEWAY = ['ff_mcp_gateway_pinggateway', 'ff_gateway_brokered_exchange'];
+const GATEWAY = ['ff_mcp_gateway_pinggateway'];
 
 describe('requiredDemoFlags', () => {
   test('flag maturity maps to the flag id', () => {

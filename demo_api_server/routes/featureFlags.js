@@ -757,26 +757,6 @@ const FLAG_REGISTRY = [
     defaultValue: false,
   },
   {
-    id:           'ff_gateway_brokered_exchange',
-    name:         'Gateway-Brokered Final Token Exchange',
-    category:     'MCP / Agent',
-    description:
-      'Chooses **who performs the final RFC 8693 delegation exchange** to the backend MCP-server audience ' +
-      '(`mcpserver.ping.demo`) when routing through the **PingOne Agent Gateway** (ff_mcp_gateway_pinggateway ON). ' +
-      'When **ON (gateway-brokered)**, the BFF stops its delegation chain at the coarse gateway audience ' +
-      '(`gateway:mcp:invoke`) and the **IG runs olb-token-exchange.groovy** to mint the backend token at the edge ' +
-      '(token-exchange-at-the-gateway / phantom-token pattern). When **OFF (bff-brokered)**, the **BFF** completes ' +
-      'the exchange to the mcp-server audience itself and sends the already-delegated token; the IG then skips its ' +
-      'exchange (signaled by the X-BFF-Exchanged request header). Only takes effect while ff_mcp_gateway_pinggateway ' +
-      'is ON; with the Demo Agent Gateway the BFF always brokers.',
-    impact:
-      'ON (default) = the IG is the token broker; exchange credentials + the final hop live at the gateway edge. ' +
-      'OFF = the BFF is the token broker (it has the richest user+agent delegation context); the IG only validates ' +
-      'and proxies. Use this toggle to demonstrate both delegation-ownership architectures side by side.',
-    type:         'boolean',
-    defaultValue: true,
-  },
-  {
     id:           'ff_mcp_gateway_jwks',
     name:         'Local JWKS Token Validation (PingOne Agent Gateway)',
     category:     'MCP / Agent',
@@ -920,7 +900,6 @@ function resolveFlag(flag) {
 // in configStore's fallback map belong here.
 const PINNED_ENV_ALIASES = {
   ff_mcp_gateway_pinggateway: 'FF_MCP_GATEWAY_PINGGATEWAY',
-  ff_gateway_brokered_exchange: 'FF_GATEWAY_BROKERED_EXCHANGE',
   ff_mcp_gateway_jwks:        'FF_MCP_GATEWAY_JWKS',
   ff_enterprise_managed_mcp_auth: 'FF_ENTERPRISE_MANAGED_MCP_AUTH',
   ff_authorize_simulated:     'FF_AUTHORIZE_SIMULATED',

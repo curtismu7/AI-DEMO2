@@ -18,7 +18,6 @@ const A2A_USE_CASE_IDS = new Set([
  */
 const MCP_GATEWAY_RUNTIME_FLAGS = [
   'ff_mcp_gateway_pinggateway',
-  'ff_gateway_brokered_exchange',
 ];
 
 /**

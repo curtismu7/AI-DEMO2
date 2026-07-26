@@ -6,17 +6,15 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "sensitive_membership_details",
-  "checkedAt": "2026-07-26T04:50:56.046Z",
+  "checkedAt": "2026-07-26T13:40:00.164Z",
   "requiredFlags": [
     "ff_a2a_delegation",
-    "ff_mcp_gateway_pinggateway",
-    "ff_gateway_brokered_exchange"
+    "ff_mcp_gateway_pinggateway"
   ],
   "flagsAssumedOn": true,
   "provesDeclaredOnly": true,
   "flagsOffDetected": [
     "ff_a2a_delegation",
-    "ff_mcp_gateway_pinggateway",
-    "ff_gateway_brokered_exchange"
+    "ff_mcp_gateway_pinggateway"
   ]
 }

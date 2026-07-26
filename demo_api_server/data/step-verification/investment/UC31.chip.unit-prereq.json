@@ -6,15 +6,13 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "get_weather",
-  "checkedAt": "2026-07-26T04:50:54.499Z",
+  "checkedAt": "2026-07-26T13:40:01.708Z",
   "requiredFlags": [
-    "ff_mcp_gateway_pinggateway",
-    "ff_gateway_brokered_exchange"
+    "ff_mcp_gateway_pinggateway"
   ],
   "flagsAssumedOn": true,
   "provesDeclaredOnly": true,
   "flagsOffDetected": [
-    "ff_mcp_gateway_pinggateway",
-    "ff_gateway_brokered_exchange"
+    "ff_mcp_gateway_pinggateway"
   ]
 }

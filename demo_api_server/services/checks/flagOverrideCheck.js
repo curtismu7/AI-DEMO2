@@ -29,7 +29,6 @@ const { register } = require('./registry');
 /** Flags whose default-ON state the demo actually depends on. */
 const DEMO_CRITICAL = new Set([
   'ff_mcp_gateway_pinggateway',
-  'ff_gateway_brokered_exchange',
   'ff_heuristic_enabled',
 ]);
 
@@ -88,8 +87,8 @@ const flagOverrides = {
         meta: { overrides, critical },
         nextAction:
           'Set them back with PATCH /api/admin/feature-flags, or from the Feature Flags page. '
-          + 'With ff_gateway_brokered_exchange off, Exchange #2 fails invalid_scope and chips '
-          + 'show "That step couldn\'t be completed".',
+          + 'A demo-critical flag off usually shows up as chips failing with '
+          + '"That step couldn\'t be completed".',
       };
     }
 

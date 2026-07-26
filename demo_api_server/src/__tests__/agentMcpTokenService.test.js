@@ -1091,7 +1091,6 @@ describe('resolveMcpAccessTokenWithEvents — 2-exchange delegation (ff_two_exch
         if (key === 'pingone_resource_mcp_server_uri' || key === 'mcp_resource_uri') return TWO_EX_MCP_RESOURCE;
         if (key === 'ff_two_exchange_delegation') return 'true';
         if (key === 'ff_mcp_gateway_pinggateway') return 'true';
-        if (key === 'ff_gateway_brokered_exchange') return 'true';
         if (key === 'pingone_resource_pinggateway_uri') return null;
         if (key === 'mcp_gw_resource_uri') return 'mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo';
         return null;
