@@ -113,7 +113,15 @@ else
 fi
 
 # ── 5. Chip replay (anonymous, heuristic provider) ───────────────────────────
-CHIP_RESULTS="$(BASE="$BASE" ROOT="$ROOT" python3 - <<'PYEOF'
+# CLIENT_DISPATCHED_ACTIONS comes from the module that already owns it and is
+# already test-gated. Do not retype the list here — a second copy is how the
+# requiredDemoFlags mirror drifted and took 22 use cases down (#886).
+CLIENT_DISPATCHED="$(node -e '
+const { CLIENT_DISPATCHED_ACTIONS } = require(process.argv[1] + "/demo_api_server/scripts/useCaseSweepCauses.js");
+process.stdout.write(JSON.stringify([...CLIENT_DISPATCHED_ACTIONS]));
+' "$ROOT" 2>/dev/null || echo '[]')"
+
+CHIP_RESULTS="$(BASE="$BASE" ROOT="$ROOT" CLIENT_DISPATCHED="$CLIENT_DISPATCHED" python3 - <<'PYEOF'
 import json, os, glob, subprocess
 
 base = os.environ["BASE"]
@@ -121,6 +129,29 @@ root = os.environ["ROOT"]
 per_vertical = {}
 failures = []
 warnings = []
+
+# Actions the BFF deliberately does NOT dispatch — dispatchBankingAction returns
+# null and the UI switch handles them. Their chips are real, but this check
+# replays through the API, so it does not prove those paths. Counted and
+# reported rather than scored, so a green table never implies they were tested.
+try:
+    client_dispatched = set(json.loads(os.environ.get("CLIENT_DISPATCHED") or "[]"))
+except Exception:
+    client_dispatched = set()
+if not client_dispatched:
+    failures.append("could not load CLIENT_DISPATCHED_ACTIONS from useCaseSweepCauses.js")
+client_dispatched_count = 0
+
+# Every chip tool field must name a real tool. This is the assertion the old
+# action-vs-tool comparison was groping at: it catches a typo or a tool removed
+# from topology, and it is clean today (0 of 67), so a hit is a genuine defect.
+try:
+    _topo = json.load(open(os.path.join(root, "scope-topology.json"))).get("tools") or {}
+    topology_tools = set(_topo) if isinstance(_topo, dict) else {
+        t.get("name") for t in _topo if isinstance(t, dict)}
+except Exception as e:
+    topology_tools = set()
+    failures.append(f"could not read scope-topology.json tools ({e})")
 
 for mpath in sorted(glob.glob(os.path.join(root, "demo_api_server/config/verticals/*/manifest.json"))):
     vertical = os.path.basename(os.path.dirname(mpath))
@@ -162,23 +193,27 @@ for mpath in sorted(glob.glob(os.path.join(root, "demo_api_server/config/vertica
         tool = chip.get("tool")
         if not ok:
             failures.append(f"{vertical}/{cid} {cmsg!r}: kind={kind}")
-        elif tool and action and action != tool:
-            # DOWNGRADED (not a failure): the heuristic router internal dispatch
-            # keys (e.g. accounts, vertical_feature_demo, call_pingone_tool) are a
-            # deliberately distinct namespace from the manifest tool field, which
-            # names the formal MCP/LLM-mode tool (e.g. get_my_accounts,
-            # call_pingone_operation) used in direct/LLM modes. Confirmed against
-            # demo_api_server/services/nlIntentParser.js and the pingone-admin
-            # manifest -- see task-4-report.md. kind resolved correctly, so this
-            # chip is still counted OK; the mismatch is surfaced as a warning note.
-            warnings.append(f"{vertical}/{cid} {cmsg!r}: action differs from manifest: got {action}, manifest says {tool}")
+        if action and action in client_dispatched:
+            client_dispatched_count += 1
+        # NOT compared: action against tool. The heuristic router internal
+        # dispatch keys (accounts, vertical_feature_demo, transfer_600_test) are a
+        # deliberately distinct namespace from the manifest tool field, which
+        # names the formal MCP tool used in direct/LLM modes (get_my_accounts,
+        # show_permit, create_transfer). Comparing them has no true-positive
+        # capability by construction, and it fired on 28 of 28 mismatches — every
+        # one correct behaviour. Twenty-eight false alarms in the tool you run
+        # before going on stage is how a real one gets skimmed past.
+        if tool and topology_tools and tool not in topology_tools:
+            failures.append(f"{vertical}/{cid}: tool {tool!r} is not in scope-topology.json")
+            ok = False
         pv = per_vertical.setdefault(vertical, [0, 0])
         if ok:
             pv[0] += 1
         else:
             pv[1] += 1
 
-print(json.dumps({"per_vertical": per_vertical, "failures": failures, "warnings": warnings}))
+print(json.dumps({"per_vertical": per_vertical, "failures": failures, "warnings": warnings,
+                  "client_dispatched": client_dispatched_count}))
 PYEOF
 )"
 chip_rows=()
@@ -192,10 +227,14 @@ total_ok=0; total_fail=0
 for v,(ok,fail) in sorted(d["per_vertical"].items()):
     total_ok+=ok; total_fail+=fail
     print(("OK" if fail==0 else "FAIL")+f"|chips {v}|{ok} ok, {fail} failed")
-print(("OK" if total_fail==0 else "FAIL")+f"|chip replay total|{total_ok} ok, {total_fail} failed")
-for f in d["failures"][:20]:
+cd_n=d.get("client_dispatched",0)
+suffix=f"; {cd_n} client-dispatched (UI path, not proven here)" if cd_n else ""
+print(("OK" if total_fail==0 else "FAIL")+f"|chip replay total|{total_ok} ok, {total_fail} failed{suffix}")
+# Print every failure/warning. The previous [:20] cap silently dropped the rest,
+# which reads as "that was all of them".
+for f in d["failures"]:
     print(f"FAIL|  detail|{f}")
-for w in d["warnings"][:20]:
+for w in d["warnings"]:
     print(f"WARN|  detail|{w}")
 ' <<< "$CHIP_RESULTS"
 for r in "${chip_rows[@]}"; do
