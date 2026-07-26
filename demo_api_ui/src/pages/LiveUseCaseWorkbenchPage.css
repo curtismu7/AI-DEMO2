@@ -42,6 +42,11 @@
 /* Slide-over: closed is the default demo posture. The drawer leaves the grid
    entirely so the agent spans the full width and never resizes mid-run. */
 .luw-body--drawer-closed { grid-template-columns: 1fr; }
+/* With one column, .luw-resize--drawer (the drawer-width drag handle) is the
+   only other in-flow grid item and stretches to the full row width — an
+   invisible full-width drag hitbox sitting over the closed page. There is
+   nothing to resize while closed, so it must not intercept pointer events. */
+.luw-body--drawer-closed .luw-resize--drawer { pointer-events: none; }
 
 /* Presenter-draggable column dividers (see LiveUseCaseWorkbenchPage.js).
    Drag to resize, double-click to reset, arrow keys when focused. */
@@ -100,11 +105,11 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   gap: 8px;
   writing-mode: vertical-rl;
   padding: 12px 6px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #5eead4;
   border-left: 0;
   border-radius: 0 8px 8px 0;
-  background: #fff;
-  color: #334155;
+  background: #f0fdfa;
+  color: #0d9488;
   cursor: pointer;
   font: inherit;
   font-size: 0.74rem;
@@ -273,6 +278,12 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 
 /* Main: agent + token chain + glance */
 .luw-main {
+  /* .luw-body has 1 column when the drawer is closed and 3 when it's open
+     (drawer-width var + resize handle). With no explicit placement, grid
+     auto-flow drops .luw-main into the 2nd (7px handle) column as soon as
+     the drawer opens, collapsing it to 7px wide. `-1` always resolves to
+     the LAST declared column, in both states, regardless of column count. */
+  grid-column: -1;
   min-height: 0;
   min-width: 0;
   display: grid;
@@ -382,7 +393,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
    up narrower than the resting state at some widths. */
 .luw-run-layout--rail-focus .luw-rail-host {
   flex: 2.2 1 640px;
-  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.28);
 }
 
 /* Sticky so it stays readable while the presenter scrolls the chain — it must
@@ -392,19 +403,19 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   top: 0;
   z-index: 1;
   padding: 8px 12px;
-  border-bottom: 1px solid #e2e8f0;
-  font-size: 0.95rem;
-  font-weight: 800;
+  border-bottom: 2px solid #14b8a6;
+  font-size: 1.05rem;
+  font-weight: 900;
   letter-spacing: 0.03em;
   color: #0f172a;
-  background: #f8fafc;
+  background: #fff;
 }
 
 /* One-shot pulse on the step that decided the outcome. */
 @keyframes luwStepPulse {
-  0%   { box-shadow: 0 0 0 0 rgba(15, 118, 110, 0.45); }
-  70%  { box-shadow: 0 0 0 12px rgba(15, 118, 110, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(15, 118, 110, 0); }
+  0%   { box-shadow: 0 0 0 0 rgba(20, 184, 166, 0.55); }
+  70%  { box-shadow: 0 0 0 12px rgba(20, 184, 166, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(20, 184, 166, 0); }
 }
 .luw-step-pulse { animation: luwStepPulse 1100ms ease-out 2; }
 
