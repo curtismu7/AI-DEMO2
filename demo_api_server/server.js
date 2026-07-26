@@ -971,7 +971,12 @@ app.get('/api/auth/debug', async (req, res) => {
 // unauthenticated requests to the config endpoint are not blocked by the
 // authenticateToken middleware that guards the broader /api/admin/* prefix.
 app.use('/api/admin/pingcli', authenticateToken, pingcliRoutes);
-app.use('/api/admin/mgmt-api', authenticateToken, mgmtApiRoutes);
+// requireAdmin, not just authenticateToken (which the sibling pingcli/test-lab
+// mounts use): these operations list every PingOne user in the environment and
+// create/delete real applications, so a signed-in demo customer must not reach
+// them. Verified live — with authenticateToken alone a CUSTOMER session got 200
+// from GET /operations.
+app.use('/api/admin/mgmt-api', authenticateToken, requireAdmin, mgmtApiRoutes);
 app.use('/api/admin/ping-ai-test-lab', authenticateToken, pingAiTestLabRoutes);
 app.use('/api/admin/config', adminConfigRoutes);
 
