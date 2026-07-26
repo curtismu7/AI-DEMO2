@@ -4821,42 +4821,50 @@ body > .banking-agent-float-root .banking-agent-panel {
    .ba-hg boxes only render in splitChrome; .ba-hg--flat is `display:contents`
    so the floating widget's single flat row is completely unaffected. */
 .ba-hg-label {
-  flex: 1 1 100%;
+  flex: 0 0 auto;
   font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: #64748b;
-  margin: 4px 0 -2px;
+  white-space: nowrap;
+}
+.ba-hg-divider {
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: 1px;
+  background: var(--ba-border);
+  margin: 2px 0;
 }
 .ba-hg {
   flex: 1 1 100%;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   background: #fff;
   border: 1px solid var(--ba-border);
-  border-radius: 10px;
-  padding: 8px 12px;
+  border-radius: 9px;
+  padding: 5px 10px;
 }
 .ba-hg--flat {
   display: contents;
 }
 .ba-hg--demo {
   justify-content: center;
+  padding: 6px 10px;
 }
 
 /* Demo Steps — bold green CTA, split-column only (floating widget keeps the
    plain grey .ba-demo-steps-trigger above, unscoped). */
 .ba-hg--demo .ba-demo-steps-trigger {
-  height: 38px;
-  padding: 0 18px 0 28px;
-  border-radius: 10px;
+  height: 32px;
+  padding: 0 16px 0 26px;
+  border-radius: 8px;
   border: 1px solid #15803d;
   background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
   color: #fff;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
   box-shadow:
     0 3px 10px rgba(22, 163, 74, 0.35),
@@ -4890,13 +4898,13 @@ body > .banking-agent-float-root .banking-agent-panel {
 
 /* Live Use Cases — equally bold violet CTA, sits next to Demo Steps */
 .ba-cta-live {
-  height: 38px;
-  padding: 0 18px;
-  border-radius: 10px;
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 8px;
   border: 1px solid #6d28d9;
   background: linear-gradient(180deg, #8b5cf6 0%, #7c3aed 100%);
   color: #fff;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
   cursor: pointer;
   white-space: nowrap;
@@ -4912,11 +4920,11 @@ body > .banking-agent-float-root .banking-agent-panel {
    the set scans together without competing with the Demo Steps / Live Use
    Cases CTAs above. */
 .ba-insp-btn {
-  height: 32px;
-  padding: 0 14px;
-  border-radius: 8px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 7px;
   background: #fff;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;

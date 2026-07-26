@@ -8009,7 +8009,6 @@ export default function BankingAgent({
                 </button>
                 </div>
                 <div className={splitChrome ? "ba-hg ba-hg--demo" : "ba-hg--flat"}>
-                {splitChrome && <span className="ba-hg-label">Demo controls</span>}
                 {/* Demo steps — same scripted list as /use-cases Demo section */}
                 <DemoStepsDropdown
                   vertical={effectiveVerticalId || "banking"}
@@ -8035,8 +8034,9 @@ export default function BankingAgent({
                   </button>
                 )}
                 </div>
+                <div className={splitChrome ? "ba-hg" : "ba-hg--flat"}>
                 {splitChrome && (
-                  <div className="ba-hg">
+                  <>
                     <span className="ba-hg-label">Inspectors</span>
                     <button
                       type="button"
@@ -8062,10 +8062,9 @@ export default function BankingAgent({
                     >
                       Agent Gateway Inspector
                     </button>
-                  </div>
+                    <span className="ba-hg-divider" />
+                  </>
                 )}
-                <div className={splitChrome ? "ba-hg" : "ba-hg--flat"}>
-                {splitChrome && <span className="ba-hg-label">Session</span>}
                 {/* Admin Tools — customer CRUD + PingOne platform ops, admin-only */}
                 {effectiveUser?.role === "admin" && (
                   <AdminToolsDropdown
