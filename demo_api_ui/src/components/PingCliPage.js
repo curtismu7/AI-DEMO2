@@ -17,6 +17,8 @@ const RUNNABLE = new Set([
   'pingone_envs_list',
   'config_list_keys',
   'version',
+  'agent_skills_list',
+  'agent_skills_install',
 ]);
 
 // Client-side cap on how long a streamed run may take before it is aborted.
@@ -265,6 +267,15 @@ const CATEGORIES = [
       { key: 'pingone_envs_list', label: 'List Environments', desc: 'pingcli pingone environments list -O json' },
       { key: 'config_list_keys',  label: 'Config Keys',       desc: 'pingcli config list-keys' },
       { key: 'version',           label: 'Version',           desc: 'pingcli --version' },
+    ],
+  },
+  {
+    title: 'AI Agent Skills',
+    commands: [
+      { key: 'agent_skills_list',    label: 'List Agent Skills',
+        desc: 'pingcli agent-skills list -O json' },
+      { key: 'agent_skills_install', label: 'Install Agent Skill',
+        desc: 'pingcli agent-skills install pingcli-usage' },
     ],
   },
 ];
