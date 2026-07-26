@@ -16,6 +16,9 @@ const sseHub = require('./pingoneTestSseHub');
 /** Shared ring buffer read by the API Explorer monitoring page. */
 const GLOBAL_SESSION_ID = '__global__';
 
+// Per-call/-token console logs are chatty (status polls fire ~1s). Off by default.
+const TRACKER_DEBUG = process.env.API_TRACKER_DEBUG === 'true';
+
 // In-memory storage for API calls (production should use database)
 const apiCalls = new Map();
 const MAX_CALLS_PER_SESSION = 100;
@@ -89,7 +92,7 @@ async function trackApiCall(callData) {
     pushCall(GLOBAL_SESSION_ID, call);
   }
 
-  console.log('[apiCallTracker] Tracked call:', { id: call.id, method: call.method, url: call.url, status: call.response.status });
+  if (TRACKER_DEBUG) console.log('[apiCallTracker] Tracked call:', { id: call.id, method: call.method, url: call.url, status: call.response.status });
 
   // Push to any open SSE streams for this session
   sseHub.publishApiCall(sessionId, {
@@ -229,7 +232,7 @@ function trackToken(sessionId = 'default', tokenData) {
     sessionTokens.set(sessionId, tokens.slice(-MAX_TOKENS_PER_SESSION));
   }
 
-  console.log('[apiCallTracker] Tracked token:', { sessionId, tokenType, description });
+  if (TRACKER_DEBUG) console.log('[apiCallTracker] Tracked token:', { sessionId, tokenType, description });
 }
 
 /**
