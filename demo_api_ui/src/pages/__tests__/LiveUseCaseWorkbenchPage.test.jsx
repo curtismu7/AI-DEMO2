@@ -1,6 +1,8 @@
 import React from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 
 vi.mock('../LiveUseCaseWorkbenchPage.css', () => ({}), { virtual: true });
 
@@ -126,5 +128,61 @@ describe('LiveUseCaseWorkbenchPage — demo script slide-over', () => {
     fireEvent.click(screen.getByLabelText('Open demo script'));
     fireEvent.click(container.querySelector('.luw-drawer__scrim'));
     expect(container.querySelector('.luw-body')).toHaveClass('luw-body--drawer-closed');
+  });
+});
+
+describe('LiveUseCaseWorkbenchPage — demo script slide-over focus return', () => {
+  it('returns focus to the edge tab after the close button', () => {
+    render(<LiveUseCaseWorkbenchPage />);
+    fireEvent.click(screen.getByLabelText('Close demo script'));
+    expect(document.activeElement).toBe(screen.getByLabelText('Open demo script'));
+  });
+
+  it('returns focus to the edge tab after Escape', () => {
+    render(<LiveUseCaseWorkbenchPage />);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(document.activeElement).toBe(screen.getByLabelText('Open demo script'));
+  });
+
+  it('returns focus to the edge tab after a scrim click', () => {
+    const { container } = render(<LiveUseCaseWorkbenchPage />);
+    fireEvent.click(container.querySelector('.luw-drawer__scrim'));
+    expect(document.activeElement).toBe(screen.getByLabelText('Open demo script'));
+  });
+
+  it('does not steal focus on a fresh mount with a persisted closed state', () => {
+    localStorage.setItem('luw_demo_script_collapsed', '1');
+    render(<LiveUseCaseWorkbenchPage />);
+    expect(document.activeElement).not.toBe(screen.getByLabelText('Open demo script'));
+  });
+});
+
+// ── CSS regression: the narrow-viewport revert must beat the closed-state
+// specificity, or a presenter who closes the drawer (or arrives with the
+// closed preference persisted) sees a blank gap + invisible drawer at
+// <=860px with no way to recover (the edge tab is also hidden there).
+// jsdom cannot evaluate the cascade, so this asserts on the stylesheet
+// source text — same technique already used by
+// src/components/__tests__/layout-modal.regression.test.js for the
+// UserDashboard grid-column regression.
+describe('LiveUseCaseWorkbenchPage CSS — narrow-viewport drawer revert', () => {
+  let cssText;
+
+  beforeAll(() => {
+    const raw = readFileSync(
+      resolve(__dirname, '../LiveUseCaseWorkbenchPage.css'),
+      'utf8',
+    );
+    cssText = raw.replace(/\/\*[\s\S]*?\*\//g, '');
+  });
+
+  it('the 860px media query re-asserts transform: none at .luw-body--drawer-closed .luw-drawer specificity', () => {
+    const mediaMatch = cssText.match(/@media \(max-width: 860px\) \{([\s\S]*?)\n\}/);
+    expect(mediaMatch).not.toBeNull();
+    const mediaBlock = mediaMatch[1];
+
+    const ruleMatch = mediaBlock.match(/\.luw-body--drawer-closed\s+\.luw-drawer[^{]*\{([^}]*)\}/);
+    expect(ruleMatch).not.toBeNull();
+    expect(ruleMatch[1]).toMatch(/transform:\s*none/);
   });
 });

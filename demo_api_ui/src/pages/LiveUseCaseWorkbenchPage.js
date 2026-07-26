@@ -3,7 +3,7 @@
 // /use-cases/live — A5.2 + Mock A chrome: demo cards + banking glance,
 // catalog drawer + real Token Chain, single <AIAgent> in the host column
 // (see App.js onLiveWorkbenchRoute).
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import { useVertical } from '../vertical/useVertical';
@@ -106,13 +106,28 @@ export default function LiveUseCaseWorkbenchPage() {
     }
   }, [drawerOpen]);
 
+  const edgeTabRef = useRef(null);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+
+  // Return focus to the edge tab whenever the drawer closes, but not on the
+  // initial mount (a persisted closed preference shouldn't steal focus from
+  // wherever the page load put it).
+  const skipFocusReturnRef = useRef(true);
+  useEffect(() => {
+    if (skipFocusReturnRef.current) {
+      skipFocusReturnRef.current = false;
+      return;
+    }
+    if (!drawerOpen) edgeTabRef.current?.focus();
+  }, [drawerOpen]);
+
   // Escape closes the slide-over, matching the scrim click.
   useEffect(() => {
     if (!drawerOpen) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') setDrawerOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') closeDrawer(); };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [drawerOpen]);
+  }, [drawerOpen, closeDrawer]);
 
   const { setSurfaceHostEl, setToolbarHostEl } = useAgentUiMode();
   const [agentHostEl, setAgentHostEl] = useState(null);
@@ -370,6 +385,7 @@ export default function LiveUseCaseWorkbenchPage() {
       <div className={`luw-body${drawerOpen ? '' : ' luw-body--drawer-closed'}`}>
         <button
           type="button"
+          ref={edgeTabRef}
           className="luw-drawer-tab"
           onClick={() => setDrawerOpen(true)}
           aria-label="Open demo script"
@@ -379,7 +395,7 @@ export default function LiveUseCaseWorkbenchPage() {
         </button>
         <div
           className="luw-drawer__scrim"
-          onClick={() => setDrawerOpen(false)}
+          onClick={closeDrawer}
           aria-hidden="true"
         />
         <nav className="luw-drawer" aria-label="Use case launcher">
@@ -387,7 +403,7 @@ export default function LiveUseCaseWorkbenchPage() {
             <button
               type="button"
               className="luw-drawer__toggle"
-              onClick={() => setDrawerOpen(false)}
+              onClick={closeDrawer}
               aria-expanded={drawerOpen}
               aria-label="Close demo script"
               title="Close"

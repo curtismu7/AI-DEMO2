@@ -355,7 +355,8 @@
     border-right: 0;
     border-bottom: 1px solid #e2e8f0;
   }
-  .luw-drawer {
+  .luw-drawer,
+  .luw-body--drawer-closed .luw-drawer {
     position: static;
     width: auto;
     transform: none;
