@@ -1360,6 +1360,119 @@ Report which of the ten live checks passed, quoting any failure exactly. Do not 
 
 ---
 
+### Task 9: Design doc — what the MCP Inspector can borrow from this work
+
+**Deliverable is a document, not code.** Write a design doc; change no component. It ships inside this branch's PR so the thinking is reviewed alongside the work it derives from.
+
+**Files:**
+- Create: `docs/superpowers/specs/2026-07-26-mcp-inspector-legibility-design.md`
+
+**Interfaces:** consumes the shipped behavior of Tasks 3-7; produces a spec another plan can execute later.
+
+**Why there is something to borrow.** The MCP Inspector (`src/components/McpInspector.js`, ~862 lines, plus `PingOneMcpInspector.js` and `McpInspectorPage.jsx`) is the same shape as the live workbench: a tool list on the left, a parameter form in the middle, tabbed output on the right. It already tracks `selectedTool`, `lastInvoke`, `lastTiming`, `outputTab` and `mcpHistory`. It shares the `InspectorShell` component set in `src/components/shared/` (`InspectorShell.jsx`, `InspectorTabs.jsx`, `InspectorListItem.jsx`, `InspectorReplayBar.jsx`), and the repo has an `inspector-template` skill describing that layout as the standard for tool/list-detail pages.
+
+- [ ] **Step 1: Read the current inspector before proposing anything**
+
+Read, and record what each already does so the doc proposes nothing that exists:
+
+```bash
+cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray/demo_api_ui
+```
+
+- `src/components/McpInspector.js` — state, output tabs, history, error/step-up handling
+- `src/components/McpInspectorPage.jsx`
+- `src/components/shared/InspectorShell.jsx`, `InspectorTabs.jsx`, `InspectorReplayBar.jsx`
+- `.claude/skills/inspector-template/SKILL.md` (repo root) — the existing convention this must not contradict
+
+Also read what shipped in this plan, since that is the source material: `src/components/UseCaseProofHeader.jsx`, `src/components/VerdictPair.jsx`, and the slide-over and rail-focus sections of `src/pages/LiveUseCaseWorkbenchPage.{js,css}`.
+
+- [ ] **Step 2: Write the doc**
+
+Cover each candidate below with: what it would do in the inspector, which shipped component or pattern it reuses, what new data (if any) it needs, whether it belongs in `InspectorShell` (benefiting every inspector page) or only in the MCP inspector, and an honest cost/benefit. Reject the ones that do not earn their place — a doc that recommends everything is not a design.
+
+1. **Collapsible tool list (slide-over).** Direct lift of Task 3. The inspector's left tool tree has the same problem the Demo Script drawer had: it is fixed-width and always present, squeezing the output pane where the interesting content is. Note whether this belongs in `InspectorShell` so all inspector pages get it.
+2. **Expected vs Actual for tool calls.** The inspector shows what came back but has no notion of what *should* have come back, so a policy DENY looks the same as a failure. State plainly whether the inspector has, or could have, a source of expectation — a tool's declared scope requirement, a saved profile, a replay of a prior call from `mcpHistory`. **If no honest expectation source exists, say so and drop the idea** rather than inventing one; a fabricated expectation would recreate exactly the bug Task 5 removed.
+3. **Authorize decision surfaced as a first-class outcome.** MCP tool calls traverse the same authorize gate the workbench visualises. Assess whether the inspector's response tab already carries that decision, and whether a `VerdictPair`-style chip (reused, not reimplemented) would make a DENY read as policy rather than breakage.
+4. **Token chain for the invoked call.** The workbench pairs every run with `TokenChainTraceRail`. Evaluate adding a token-chain tab to the inspector's existing `InspectorTabs`, including whether `tokenChainTraceStore` is even populated on an inspector-initiated call — check, do not assume.
+5. **Result focus on completion.** Task 7's pattern: on completion, grow the output pane, scroll the decisive element into view, pulse it once, announce via `aria-live`, no focus stealing, persist until the next invocation. Assess fit for a tool that returns instantly versus one that takes seconds.
+6. **"What this tool proves" header.** The inspector already has each tool's `description` from `tools/list`. Judge whether a `UseCaseProofHeader`-style band adds anything beyond what the parameter form already shows, and reject it if not.
+
+Include a short "explicitly not recommended" section listing what you rejected and why — that is the most useful part of the doc for whoever executes it.
+
+Every claim about current inspector behavior must cite `file:line`. Do not describe behavior you have not read.
+
+- [ ] **Step 3: Commit**
+
+```bash
+cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray
+git add docs/superpowers/specs/2026-07-26-mcp-inspector-legibility-design.md
+git commit -m "docs(spec): what the MCP inspector can borrow from the live workbench
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+### Task 10: Push, open a PR, and merge
+
+**Gated on Task 8.** Do not start until Task 8's full suite, build gate, and live walkthrough have all passed and been recorded. If any live check failed, stop and report instead of merging.
+
+**Files:** none.
+
+- [ ] **Step 1: Confirm the branch is ready**
+
+```bash
+cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray
+git branch --show-current   # must be worktree-worktree-luw-header-hoist-tray
+git status --porcelain      # must be empty
+git log --oneline origin/main..HEAD
+```
+
+- [ ] **Step 2: Run the CI jobs locally**
+
+GitHub Actions is billing-blocked in this repo — jobs die in seconds with zero steps, so a red check is not a real signal. The gate is local. `CI=true` is REQUIRED: without it, jest's worker count differs and several supertest suites flake.
+
+```bash
+cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray
+CI=true npm test 2>&1 | tail -30
+npm run topology:verify 2>&1 | tail -20
+```
+
+`topology:verify` false-fails 6/7 if `demo_mcp_gateway` dependencies are not installed — install them first if that is the failure you see, rather than treating it as a real break.
+
+- [ ] **Step 3: Push and open the PR**
+
+```bash
+cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray
+git push -u origin worktree-worktree-luw-header-hoist-tray
+```
+
+Open the PR with a body covering: the two problems solved (agent space, demo legibility), the task list with commit SHAs, the `Policy`-cell correctness bug removed in Task 5, the deferred minors from the ledger, and the live-verification results from Task 8. End the body with:
+
+```
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+```
+
+- [ ] **Step 4: Merge**
+
+CI cannot pass while Actions is billing-blocked, so the merge needs `--admin`. Do not use `--delete-branch`: it collides with the worktree that still has this branch checked out.
+
+```bash
+gh pr merge --admin --squash
+```
+
+- [ ] **Step 5: Verify the merge landed**
+
+```bash
+cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray
+git fetch origin
+git log --oneline origin/main -5
+```
+
+Confirm the squashed commit is on `origin/main`. Report the merge commit SHA and the PR number.
+
+---
+
 ## Self-Review
 
 **Spec coverage**
