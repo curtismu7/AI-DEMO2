@@ -1230,16 +1230,16 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
               className="drp-header drp-header--static"
               style={{
                 padding: "1rem",
-                borderBottom: "1px solid #c7d2fe",
+                borderBottom: "1px solid #99c9d6",
                 background:
-                  "linear-gradient(135deg, #eef2ff 0%, #e0e7ff 55%, #ede9fe 100%)",
-                color: "#1f2937",
+                  "linear-gradient(135deg, #f0f9fb 0%, #e0f2f5 55%, #dcecee 100%)",
+                color: "#0f2b33",
               }}
             >
               <h2
                 id="transaction-consent-popup-title"
                 className="transaction-consent-popup__title"
-                style={{ margin: 0, color: "#1f2937" }}
+                style={{ margin: 0, color: "#0f2b33" }}
               >
                 {modalTitle}
               </h2>
@@ -1307,17 +1307,17 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
           style={{
             padding: "1rem",
             cursor: "move",
-            borderBottom: "1px solid #c7d2fe",
+            borderBottom: "1px solid #99c9d6",
             background:
-              "linear-gradient(135deg, #eef2ff 0%, #e0e7ff 55%, #ede9fe 100%)",
-            color: "#1f2937",
+              "linear-gradient(135deg, #f0f9fb 0%, #e0f2f5 55%, #dcecee 100%)",
+            color: "#0f2b33",
             borderRadius: "0.5rem 0.5rem 0 0",
           }}
         >
           <h2
             id="transaction-consent-popup-title"
             className="transaction-consent-popup__title"
-            style={{ margin: 0, color: "#1f2937" }}
+            style={{ margin: 0, color: "#0f2b33" }}
           >
             {modalTitle}
           </h2>

@@ -45,24 +45,24 @@
 }
 
 /* Per-method accent so email/SMS/security-key rows read apart at a glance. */
-.device-selector__btn--email { border-left-color: #2563eb; }
-.device-selector__btn--sms { border-left-color: #059669; }
-.device-selector__btn--fido2 { border-left-color: #7c3aed; }
+.device-selector__btn--email { border-left-color: #0284c7; }
+.device-selector__btn--sms { border-left-color: #0d9488; }
+.device-selector__btn--fido2 { border-left-color: #4338ca; }
 .device-selector__btn--otp { border-left-color: #d97706; }
 .device-selector__btn--totp { border-left-color: #0891b2; }
 .device-selector__btn--browser { border-left-color: #64748b; }
 
-.device-selector__btn--email:hover:not(:disabled) { background-color: #eff6ff; }
-.device-selector__btn--sms:hover:not(:disabled) { background-color: #ecfdf5; }
-.device-selector__btn--fido2:hover:not(:disabled) { background-color: #f5f3ff; }
+.device-selector__btn--email:hover:not(:disabled) { background-color: #f0f9ff; }
+.device-selector__btn--sms:hover:not(:disabled) { background-color: #f0fdfa; }
+.device-selector__btn--fido2:hover:not(:disabled) { background-color: #eef2ff; }
 .device-selector__btn--otp:hover:not(:disabled) { background-color: #fffbeb; }
 .device-selector__btn--totp:hover:not(:disabled) { background-color: #ecfeff; }
 .device-selector__btn--browser:hover:not(:disabled) { background-color: #f8fafc; }
 
 .device-selector__btn--selected {
-  border: 2px solid #3b82f6;
-  background-color: #eff6ff;
-  color: #1e40af;
+  border: 2px solid #0d9488;
+  background-color: #f0fdfa;
+  color: #0f766e;
   font-weight: 600;
 }
 
