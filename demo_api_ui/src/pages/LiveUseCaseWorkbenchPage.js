@@ -17,6 +17,7 @@ import {
   DEMO_PRIMARY_USE_CASE_IDS,
   SECURITY_DEMO_USE_CASE_IDS,
 } from '../config/demoUseCaseSteps';
+import { DEMO_SCRIPT_BEAT_BY_UC_ID } from '../components/demoScript';
 import './LiveUseCaseWorkbenchPage.css';
 
 const RUNNABLE_SIMS = [
@@ -263,8 +264,10 @@ export default function LiveUseCaseWorkbenchPage() {
    * Render a Mock A–style use-case card.
    * @param {object} uc
    * @param {number} [stepNumber]
+   * @param {boolean} [withScriptDetail] show the 15-Min Security Demo script's
+   *   what/expected copy under the title (security group only).
    */
-  function renderCard(uc, stepNumber) {
+  function renderCard(uc, stepNumber, withScriptDetail) {
     const isChip = uc.trigger?.type === 'chip';
     const isRunnableAttack = uc.trigger?.type === 'attack' && RUNNABLE_SIMS.includes(uc.trigger.sim);
     const isLink = uc.trigger?.type === 'link' && !!uc.trigger.path;
@@ -280,6 +283,7 @@ export default function LiveUseCaseWorkbenchPage() {
     else if (isRunning) meta = `${uc.id} · Running`;
     else if (isSelected) meta = `${uc.id} · Ready`;
     else if (uc.expectedOutcome) meta = `${uc.id} · ${uc.expectedOutcome}`;
+    const beat = withScriptDetail ? DEMO_SCRIPT_BEAT_BY_UC_ID[uc.id] : null;
 
     return (
       <div
@@ -302,6 +306,15 @@ export default function LiveUseCaseWorkbenchPage() {
       >
         <p className="luw-card__title">{title}</p>
         <p className="luw-card__meta">{meta}</p>
+        {beat?.what && (
+          <p className="luw-card__what">{beat.what}</p>
+        )}
+        {beat?.expected && (
+          <p className="luw-card__expected">
+            <span className="luw-card__expected-label">Expect</span>
+            {beat.expected}
+          </p>
+        )}
         {canRun && (
           <button
             type="button"
@@ -362,7 +375,7 @@ export default function LiveUseCaseWorkbenchPage() {
                   15-Min Security Demo
                   <span className="luw-track__count">{securityDemo.length}</span>
                 </summary>
-                {securityDemo.map((uc, i) => renderCard(uc, i + 1))}
+                {securityDemo.map((uc, i) => renderCard(uc, i + 1, true))}
               </details>
             )}
 
