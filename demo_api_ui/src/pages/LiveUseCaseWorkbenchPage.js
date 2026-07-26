@@ -9,7 +9,9 @@ import apiClient from '../services/apiClient';
 import { useVertical } from '../vertical/useVertical';
 import VerticalSwitcher from '../components/VerticalSwitcher';
 import UseCaseProofHeader from '../components/UseCaseProofHeader';
+import VerdictPair from '../components/VerdictPair';
 import { useAgentUiMode } from '../context/AgentUiModeContext';
+import { useProofOfEnforcement } from '../context/ProofOfEnforcementContext';
 import TokenChainTraceRail from '../components/TokenChainTraceRail';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import { buildSimRailEvents } from '../services/tokenChainTrace/simTraceAdapter';
@@ -87,9 +89,17 @@ export default function LiveUseCaseWorkbenchPage() {
   const [query, setQuery] = useState('');
   const [runState, setRunState] = useState(null); // { id, state: 'running'|'error'|'done', msg? }
   const [selectedId, setSelectedId] = useState(null);
-  const [glancePolicy, setGlancePolicy] = useState('—');
   const [glanceChecking, setGlanceChecking] = useState('$4,820.00');
   const [glanceRecent, setGlanceRecent] = useState('—');
+  const { verdict } = useProofOfEnforcement();
+  const [authorizeSeen, setAuthorizeSeen] = useState(null);
+
+  // The observed decision, read straight off the token-chain trace. Never
+  // derived from uc.expectedOutcome — that was the bug this replaces.
+  useEffect(() => tokenChainTraceStore.subscribe((snap) => {
+    const az = snap?.trace?.authorize;
+    setAuthorizeSeen(az ? (az.outcome || az.decision || null) : null);
+  }), []);
 
   const [drawerOpen, setDrawerOpen] = useState(() => {
     try {
@@ -179,7 +189,6 @@ export default function LiveUseCaseWorkbenchPage() {
       .then(({ data }) => apiClient.post('/api/verticals/active', { id: vertical }).then(() => data))
       .then((data) => {
         setRunState({ id: uc.id, state: 'done' });
-        setGlancePolicy(policyLabel(uc.expectedOutcome));
         if (String(uc.expectedOutcome || '').toUpperCase().includes('HITL')
           || /transfer/i.test(data.triggerText || '')) {
           setGlanceChecking('$4,570.00');
@@ -201,7 +210,6 @@ export default function LiveUseCaseWorkbenchPage() {
     apiClient.post('/api/demo/attack-sim/run', { sim: uc.trigger.sim })
       .then(({ data }) => {
         setRunState({ id: uc.id, state: 'done' });
-        setGlancePolicy('DENY');
         const isDeny = typeof data?.status !== 'number' || data.status >= 400;
         // Same rail-feed wiring as AIAgent's own attack-sim handler (AIAgent.js) —
         // buildSimRailEvents remaps sim-* ids onto the full-pipeline steps
@@ -485,8 +493,13 @@ export default function LiveUseCaseWorkbenchPage() {
               <span className="luw-glance__value">{glanceChecking}</span>
             </div>
             <div className="luw-glance__cell">
-              <span className="luw-glance__label">Policy</span>
-              <span className="luw-glance__value">{glancePolicy}</span>
+              <span className="luw-glance__label">Verdict</span>
+              <VerdictPair
+                expected={policyLabel(selectedUc?.expectedOutcome)}
+                actual={authorizeSeen}
+                state={verdict?.state || null}
+                running={runState?.state === 'running'}
+              />
             </div>
             <div className="luw-glance__cell">
               <span className="luw-glance__label">Recent</span>

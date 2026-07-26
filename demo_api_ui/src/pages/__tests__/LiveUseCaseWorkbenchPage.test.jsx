@@ -31,6 +31,7 @@ vi.mock('../../components/TokenChainTraceRail', () => ({
 
 vi.mock('../../services/tokenChainTrace/tokenChainTraceStore', () => ({
   tokenChainTraceStore: {
+    subscribe: vi.fn(() => vi.fn()),
     beginTrace: vi.fn(),
     ingestTokenEvent: vi.fn(),
     ingestAuthorize: vi.fn(),
@@ -50,6 +51,10 @@ vi.mock('../../context/AgentUiModeContext', () => ({
     setToolbarHostEl: mockSetToolbarHostEl,
     toolbarHostEl: null,
   }),
+}));
+
+vi.mock('../../context/ProofOfEnforcementContext', () => ({
+  useProofOfEnforcement: () => ({ verdict: null, history: [] }),
 }));
 
 import LiveUseCaseWorkbenchPage from '../LiveUseCaseWorkbenchPage';
