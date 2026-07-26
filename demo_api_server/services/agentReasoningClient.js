@@ -57,6 +57,10 @@ async function runReasonLoop(p) {
   // Without this the model can re-propose the same failing call up to
   // maxIterations times — the visible "show my accounts" loop.
   const seenCalls = new Map(); // sig -> last result string
+  // Names of tools actually executed this loop. The caller returned a hardcoded
+  // toolsCalled: [] because this was never reported, which made every LLM-path
+  // use case unable to satisfy 'tool-dispatched' evidence even when a tool ran.
+  const toolsCalled = [];
   for (let i = 0; i < p.maxIterations; i++) {
     let resp;
     try {
@@ -88,6 +92,10 @@ async function runReasonLoop(p) {
         ok: true,
         answer: data.answer,
         ...(data.truncated === true ? { truncated: true } : {}),
+        // Present only when a tool actually ran — same convention as `truncated`
+        // directly above. agentReasoningLoop.regression.test.js asserts this
+        // object with toEqual, so the no-tool shape must stay byte-identical.
+        ...(toolsCalled.length ? { toolsCalled } : {}),
         inputTokens: data.inputTokens ?? 0,
         outputTokens: data.outputTokens ?? 0,
       };
@@ -110,6 +118,7 @@ async function runReasonLoop(p) {
           return { ok: false, reason: 'repeated_tool_call', toolResult: parsed };
         }
         seenCalls.set(sig, resultStr);
+        toolsCalled.push(call.name);
         toolMessages.push({ role: 'tool', content: resultStr, tool_call_id: call.id });
       }
       messages = [...(data.messages || messages), ...toolMessages];

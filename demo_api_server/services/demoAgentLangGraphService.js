@@ -5,6 +5,14 @@
  */
 
 const { getBankingToolDefinitions, MAX_TOOL_ITERATIONS } = require('./agentBuilder');
+const { READ_PRIMARY_TOOL_BY_VERTICAL } = require('../config/useCases');
+
+/**
+ * UC34-class "reason over my recent activity" prompts. Narrow on purpose: it
+ * only pre-fetches when the ask is explicitly about reviewing past activity, so
+ * ordinary questions still let the model choose its own tools.
+ */
+const ACTIVITY_ANALYSIS_RE = /\b(unusual|suspicious|anomal\w*|irregular|out of the ordinary)\b[\s\S]{0,60}\b(activity|transactions?|charges?|spending|orders?|claims?|records?)\b/i;
 const { executeBffTool, executeBffToolWithToken } = require('./bffMcpToolExecutor');
 const { searchPublicBranches, formatBranchCatalogReply } = require('../data/publicBranchCatalog');
 const { buildPublicCatalogTokenEvents } = require('./publicCatalogTokenEvents');
@@ -1596,6 +1604,39 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     const historyMessages = conversationStore.getHistory(userId, verticalForHistory) || [];
     const messages = [...historyMessages, { role: 'user', content: message }];
 
+    const executeTool = resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, sessionId, isAdmin: isAdminUser });
+
+    // UC34 activity-analysis pre-fetch. Same precedent as the UC30
+    // weatherShowcase gate above: the model IS handed the right tool (banking
+    // gets 11, including get_my_transactions) and IS a capable tier (proxy logs
+    // show gpt-oss-20b, class 1) — it just does not emit a tool_call for "spot
+    // unusual patterns", and answers "I'm currently unable to retrieve your
+    // transaction history" with nothing dispatched.
+    //
+    // That makes UC34's catalog claim false: it promises every underlying tool
+    // call runs the identical RFC 8693 -> gateway -> Authorize legs, and
+    // declares tool-dispatched evidence. Fetching the activity through the SAME
+    // governed executor the loop would have used makes the claim true and emits
+    // the evidence, instead of leaving the model to decide whether the demo works.
+    const preToolsCalled = [];
+    if (ACTIVITY_ANALYSIS_RE.test(String(message || ''))) {
+      const activityTool = READ_PRIMARY_TOOL_BY_VERTICAL[activeId] || 'get_my_transactions';
+      try {
+        const activity = await executeTool(activityTool, {});
+        if (activity) {
+          // Insert BEFORE the user turn so the model reads it as context.
+          messages.splice(messages.length - 1, 0, {
+            role: 'system',
+            content: `Recent activity retrieved via ${activityTool} (authorized for this user). Reason over THIS data; do not ask the user to paste it:\n${String(activity).slice(0, 4000)}`,
+          });
+          preToolsCalled.push(activityTool);
+        }
+      } catch (e) {
+        // Non-fatal: the model still answers, just without grounded data.
+        console.warn('[processAgentMessage] activity pre-fetch failed (non-fatal): %s', e?.message);
+      }
+    }
+
     const loopResult = await runReasonLoop({
       messages,
       tools: toolSchemas,
@@ -1605,7 +1646,7 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
       helixConfig: extractHelixConfig(langchainConfig),
       anthropicApiKey: process.env.ANTHROPIC_API_KEY,
       maxIterations: MAX_TOOL_ITERATIONS,
-      executeTool: resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, sessionId, isAdmin: isAdminUser }),
+      executeTool,
     });
 
     console.log('[processAgentMessage] Reason loop completed');
@@ -1625,7 +1666,11 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
       return {
         reply: loopResult.answer,
         success: true,
-        toolsCalled: [],
+        // Was hardcoded []. Tools DO run on this path (the loop executes
+        // data.type === 'tool_calls' via executeTool), so reporting none made
+        // 'tool-dispatched' evidence unmatchable for every LLM-path use case —
+        // scoreDelegatedAccessInvoke keys on body.toolsCalled.length > 0.
+        toolsCalled: [...preToolsCalled, ...(Array.isArray(loopResult.toolsCalled) ? loopResult.toolsCalled : [])],
         inputTokens: loopResult.inputTokens ?? 0,
         outputTokens: loopResult.outputTokens ?? 0,
         requiresConsent: false,
