@@ -219,7 +219,7 @@ export default function DemoStepsDropdown({
       <button
         ref={triggerRef}
         type="button"
-        className={`ba-actions-trigger${open ? ' active' : ''}`}
+        className={`ba-demo-steps-trigger${open ? ' active' : ''}`}
         title="Demo steps — same script as /use-cases Demo section"
         onClick={handleToggle}
         disabled={disabled}
