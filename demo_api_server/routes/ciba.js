@@ -28,6 +28,7 @@ const express = require('express');
 const router  = express.Router();
 const cibaService = require('../services/cibaService');
 const cibaSimulatedService = require('../services/cibaSimulatedService');
+const delegationService = require('../services/delegationService');
 const { authenticateToken } = require('../middleware/auth');
 const configStore = require('../services/configStore');
 const { PINGONE_OIDC_DEFAULT_SCOPES_SPACE } = require('../config/scopes');
@@ -156,6 +157,27 @@ router.post('/initiate', authenticateToken, async (req, res) => {
     simulated = true;
   }
 
+  // Manager-as-approver: if the acting user is a workforce employee with an
+  // active manager delegation carrying create_transfer scope, this becomes a
+  // second-principal approval flow — the manager approves via their own
+  // session on /delegation, not via this CIBA channel. Any lookup failure
+  // falls through to today's plain self-approval behavior, unchanged.
+  let delegationId = null;
+  try {
+    const activeDelegation = await delegationService.findActiveByDelegate(req.user?.id);
+    if (activeDelegation) {
+      delegationId = activeDelegation.id;
+      await delegationService.requestApproval(delegationId, {
+        authReqId: result.auth_req_id,
+        amount,
+        tool: req.body.tool || null,
+        bindingMessage: binding_message || '',
+      });
+    }
+  } catch (delegErr) {
+    console.warn('[CIBA] manager-approval delegation lookup failed (continuing as self-approval):', delegErr.message);
+  }
+
   try {
     // Track in session so poll endpoint can verify ownership
     req.session.cibaRequests = req.session.cibaRequests || {};
@@ -178,6 +200,7 @@ router.post('/initiate', authenticateToken, async (req, res) => {
       amount,
       fromAccountLabel,
       toAccountLabel,
+      delegationId,
     };
 
     res.json({
@@ -284,7 +307,31 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
       });
     }
 
-    if (!cibaSimulatedService.isSimulatedApproved(pending)) {
+    let approvalStatus = 'approved';
+    let approverUserId = null;
+    if (pending.delegationId) {
+      try {
+        const approval = await delegationService.getApprovalStatus(pending.delegationId);
+        approvalStatus = approval.status;
+        approverUserId = approval.approverUserId;
+      } catch (approvalErr) {
+        console.warn('[CIBA] manager-approval status lookup failed (treating as still pending):', approvalErr.message);
+        approvalStatus = 'pending';
+      }
+    } else if (!cibaSimulatedService.isSimulatedApproved(pending)) {
+      approvalStatus = 'pending';
+    }
+
+    if (approvalStatus === 'denied') {
+      delete req.session.cibaRequests[authReqId];
+      return res.status(403).json({
+        status: 'denied',
+        error: 'access_denied',
+        message: 'The manager denied the approval request.',
+      });
+    }
+
+    if (approvalStatus !== 'approved') {
       return res.json({ status: 'pending' });
     }
 
@@ -316,7 +363,12 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
           token: fakeAccessToken,
           userId: subject,
           description: 'CIBA backchannel step-up approved (out-of-band)',
-          additionalData: { grantedVia: 'ciba', scope: pending.scope, engine: 'simulated' },
+          additionalData: {
+            grantedVia: 'ciba',
+            scope: pending.scope,
+            engine: 'simulated',
+            ...(approverUserId ? { approvedBy: approverUserId } : {}),
+          },
         }).catch((err) => console.error('[CIBA] token-chain track failed (simulated):', err.message));
       }
     } catch (trackErr) {
