@@ -102,6 +102,31 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-26 — Manager CIBA poll unbound from auth_req_id (cross-request approval)
+
+**Files changed:** `demo_api_server/routes/ciba.js`,
+`demo_api_server/services/delegationService.js`,
+`demo_api_server/src/__tests__/ciba.managerApproval.test.js`,
+`demo_api_server/tests/delegationApproval.test.js`.
+
+**What was broken:** Manager-as-approver (#885) stores one `pendingApproval` per
+delegation and overwrites it on each new CIBA initiate. Poll only read
+`pendingApproval.status` and ignored `authReqId`, so when request B was approved,
+poll(A) also completed and minted `hitlApprovedAmount` from A's session amount —
+a larger earlier request could complete after the manager only approved a later,
+smaller one.
+
+**What was fixed:** `getApprovalStatus` returns `authReqId`; the simulated
+manager-approval poll branch treats a status decision as pending unless
+`approval.authReqId` matches the polled id.
+
+**Do not break:** Matching auth_req_id must still approve/deny; self-approval
+(no `delegationId`) and real PingOne CIBA poll are unchanged.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+src/__tests__/ciba.managerApproval.test.js tests/delegationApproval.test.js
+--testPathIgnorePatterns="/node_modules/"`.
+
 ### 2026-07-26 — Chip path opened the MFA modal for CIBA-required step-up (CIBA bypass)
 
 **Files changed:** `demo_api_ui/src/services/demoAgentService.js`,

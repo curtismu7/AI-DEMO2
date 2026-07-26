@@ -124,7 +124,9 @@ describe('GET /api/auth/ciba/poll/:authReqId — manager-approval branch', () =>
 
   test('stays pending while the delegation record is still pending', async () => {
     const agent = await initiateWithDelegation();
-    delegationService.getApprovalStatus.mockResolvedValue({ status: 'pending', approverUserId: 'sam-1' });
+    delegationService.getApprovalStatus.mockResolvedValue({
+      status: 'pending', approverUserId: 'sam-1', authReqId: AUTH_REQ_ID,
+    });
 
     const res = await agent.set('x-test-user', EMPLOYEE_HDR).get(`/api/auth/ciba/poll/${AUTH_REQ_ID}`);
     expect(res.status).toBe(200);
@@ -134,7 +136,9 @@ describe('GET /api/auth/ciba/poll/:authReqId — manager-approval branch', () =>
 
   test('resolves approved once the manager approves, tracking approvedBy', async () => {
     const agent = await initiateWithDelegation();
-    delegationService.getApprovalStatus.mockResolvedValue({ status: 'approved', approverUserId: 'sam-1' });
+    delegationService.getApprovalStatus.mockResolvedValue({
+      status: 'approved', approverUserId: 'sam-1', authReqId: AUTH_REQ_ID,
+    });
 
     const res = await agent.set('x-test-user', EMPLOYEE_HDR).get(`/api/auth/ciba/poll/${AUTH_REQ_ID}`);
     expect(res.status).toBe(200);
@@ -148,7 +152,9 @@ describe('GET /api/auth/ciba/poll/:authReqId — manager-approval branch', () =>
 
   test('returns 403 denied when the manager denies', async () => {
     const agent = await initiateWithDelegation();
-    delegationService.getApprovalStatus.mockResolvedValue({ status: 'denied', approverUserId: 'sam-1' });
+    delegationService.getApprovalStatus.mockResolvedValue({
+      status: 'denied', approverUserId: 'sam-1', authReqId: AUTH_REQ_ID,
+    });
 
     const res = await agent.set('x-test-user', EMPLOYEE_HDR).get(`/api/auth/ciba/poll/${AUTH_REQ_ID}`);
     expect(res.status).toBe(403);
@@ -170,6 +176,34 @@ describe('GET /api/auth/ciba/poll/:authReqId — manager-approval branch', () =>
   test('a getApprovalStatus failure returns pending instead of hanging or erroring', async () => {
     const agent = await initiateWithDelegation();
     delegationService.getApprovalStatus.mockRejectedValue(new Error('store unavailable'));
+
+    const res = await agent.set('x-test-user', EMPLOYEE_HDR).get(`/api/auth/ciba/poll/${AUTH_REQ_ID}`);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('pending');
+  });
+
+  test('does not complete when the manager approved a different auth_req_id on the same delegation', async () => {
+    const agent = await initiateWithDelegation();
+    // Manager approved a later overwrite (auth-B), not this session's AUTH_REQ_ID.
+    delegationService.getApprovalStatus.mockResolvedValue({
+      status: 'approved',
+      approverUserId: 'sam-1',
+      authReqId: 'auth-B-other-request',
+    });
+
+    const res = await agent.set('x-test-user', EMPLOYEE_HDR).get(`/api/auth/ciba/poll/${AUTH_REQ_ID}`);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('pending');
+    expect(trackTokenEvent).not.toHaveBeenCalled();
+  });
+
+  test('does not deny when the manager denied a different auth_req_id on the same delegation', async () => {
+    const agent = await initiateWithDelegation();
+    delegationService.getApprovalStatus.mockResolvedValue({
+      status: 'denied',
+      approverUserId: 'sam-1',
+      authReqId: 'auth-B-other-request',
+    });
 
     const res = await agent.set('x-test-user', EMPLOYEE_HDR).get(`/api/auth/ciba/poll/${AUTH_REQ_ID}`);
     expect(res.status).toBe(200);
