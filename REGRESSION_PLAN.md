@@ -102,6 +102,41 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-26 — Generic MCP Inspector profiles were reachable by any signed-in customer (stdio = RCE on the BFF host)
+
+**Files changed:** `demo_api_server/routes/mcpInspector.js`,
+`demo_api_server/routes/mcpPingOneAdminAuth.js`,
+`src/__tests__/mcpInspectorProfiles.test.js`, `src/__tests__/mcpPingOneAdminAuth.test.js`.
+
+**What was broken:** `app.use('/api/mcp/inspector', mcpInspectorRoutes)` mounts this
+router WITHOUT `authenticateToken` (so banking `tools/list` can fall back to the local
+catalog for anonymous visitors). On top of that: `POST /profiles` and
+`DELETE /profiles/:id` were gated by `requireSession` only — any signed-in **customer**
+— and the non-default-profile branches of `GET /tools?profile=` and `POST /invoke` had
+**no gate at all**, short-circuiting to `handleProfileTools`/`handleProfileInvoke`
+before any user check. A `stdio` profile is dispatched by
+`services/mcpTransports/stdio.js`, which runs `spawn(profile.command, profile.args)` on
+the BFF host. Customer creates a stdio profile with an arbitrary command, invokes it,
+gets remote code execution; `http`/`websocket` profiles are SSRF by the same path.
+`mcpPingOneAdminAuth`'s `/login` used `middleware/auth.requireAdmin`, which reads
+`req.user` and therefore 401'd every cookie-only browser redirect.
+
+**What was fixed:** A local `requireAdminSession` (session-cookie based, mirroring the
+`/api/mcp/audit` check — `middleware/auth.requireAdmin` cannot be used on a router
+mounted without `authenticateToken`) now gates profile create/delete AND both
+non-default dispatch branches. Same gate replaces `requireAdmin` on the PingOne admin
+`/login`.
+
+**Do not break:** `GET /profiles` and the DEFAULT banking profile's `tools`/`invoke`
+path stay ungated on purpose — anonymous visitors must still get the local-catalog
+fallback. Only the non-default (`?profile=` / `body.profile`) branches are admin-gated.
+Never swap `requireAdminSession` for `middleware/auth.requireAdmin` here; this router
+has no `req.user`.
+
+**Verify:** `CI=true npx jest src/__tests__/mcpInspectorProfiles.test.js
+src/__tests__/mcpPingOneAdminAuth.test.js` (28 pass), incl. a customer-role stdio
+create → 403 with `mockStdioListTools` never called.
+
 ### 2026-07-25 — CIBA HITL-consent credit was session-global, unbound, and eager-consumed (code-review fixes)
 
 **Files changed:** `demo_api_server/services/hitlCredit.js` (new), `routes/ciba.js`,
