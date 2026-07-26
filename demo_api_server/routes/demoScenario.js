@@ -16,6 +16,7 @@ const { getManagementToken } = require('../services/pingOneClientService');
 const configStore = require('../services/configStore');
 const { authenticateToken } = require('../middleware/auth');
 const { roundToCents } = require('../utils/money');
+const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 
 const router = express.Router();
 
@@ -591,7 +592,8 @@ async function diagnoseMayAct(req, res) {
       report.checks.userAttribute.detail = 'mayAct attribute is null or missing on this user record';
     }
   } catch (err) {
-    report.checks.userAttribute.detail = `PingOne user GET failed: ${err.response?.status} — ${err.response?.data?.message || err.message}`;
+    const n = normalizeAxiosError(err, { label: 'PingOne diagnostic' });
+    report.checks.userAttribute.detail = `PingOne user GET failed: ${n.message}`;
   }
 
   // ── Check 2: Super Banking User app attribute mappings ─────────────────────────
@@ -625,7 +627,8 @@ async function diagnoseMayAct(req, res) {
       }
     }
   } catch (err) {
-    report.checks.appMapping.detail = `PingOne app/mappings GET failed: ${err.response?.status} — ${err.response?.data?.message || err.message}`;
+    const n = normalizeAxiosError(err, { label: 'PingOne diagnostic' });
+    report.checks.appMapping.detail = `PingOne app/mappings GET failed: ${n.message}`;
   }
 
   // ── Build diagnosis ──────────────────────────────────────────────────────────

@@ -21,6 +21,7 @@ const scopeTopology = require('../services/scopeTopology');
 const http = require('http');
 const https = require('https');
 const { URL } = require('url');
+const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 
 /**
  * Expected PingOne configuration sourced from scope-topology.json (the provisioning
@@ -2467,7 +2468,8 @@ router.get('/check-ai-agent-act', async (req, res) => {
     return res.json({ status: 'wrong_value', attributeId: existingAct.id, currentValue: existingAct.value, expectedValue: ACT_SPEL, resourceId: aiAgentRS.id, audience: audienceEnduser });
   } catch (err) {
     console.error('[PingOneTest] check-ai-agent-act error:', err.message);
-    res.status(500).json({ status: 'error', detail: err.response?.data?.message || err.message });
+    const n = normalizeAxiosError(err, { label: 'PingOne test call' });
+    res.status(500).json({ status: 'error', detail: n.message });
   }
 });
 
@@ -2517,7 +2519,8 @@ router.post('/fix-ai-agent-act', async (req, res) => {
     res.json({ success: true, action, audience: audienceEnduser, resourceId: aiAgentRS.id, value: ACT_SPEL });
   } catch (err) {
     console.error('[PingOneTest] fix-ai-agent-act error:', err.message);
-    res.status(500).json({ success: false, error: err.response?.data?.message || err.message });
+    const n = normalizeAxiosError(err, { label: 'PingOne test call' });
+    res.status(500).json({ success: false, error: n.message });
   }
 });
 
