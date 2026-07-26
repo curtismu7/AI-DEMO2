@@ -167,6 +167,11 @@ ensure_bind_mounts() {
   local llm2="${BASEDIR}/LLM2.json"
 
   bash "${BASEDIR}/scripts/ensure-dev-certs.sh"
+  # PingGateway -> MCP server mTLS is ON by default. Without this the
+  # keystore is missing and mcp-server rejects every gateway call with
+  # "no client certificate presented". Idempotent; regenerates only when
+  # a file is missing or the cert expired.
+  bash "${BASEDIR}/scripts/ensure-gateway-mtls-certs.sh"
 
   # LLM2.json — must be a FILE. Replace a stray Docker-created directory, and
   # placeholder a missing key so the mount is a file (Helix stays unconfigured
