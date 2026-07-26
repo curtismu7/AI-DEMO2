@@ -265,6 +265,12 @@ Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
 
 Granted scopes: `read`
 
+### Super Banking Holdings Specialist Agent
+
+Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
+
+Granted scopes: `read`
+
 ### Super Banking Agent
 
 Type: `WORKER`  ·  Grants: `client_credentials`

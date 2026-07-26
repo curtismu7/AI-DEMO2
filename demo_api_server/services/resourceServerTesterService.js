@@ -323,7 +323,9 @@ async function resolveTokenAsync(body, req) {
   }
 
   const scopes = ['mcp:invoke', 'openid', 'profile'];
-  const vertical = session.activeVertical || 'banking';
+  // Session key is `active_vertical`, not `activeVertical` — the camelCase read
+  // matched nothing, so the tester always minted a banking-scoped token.
+  const vertical = session.active_vertical || 'banking';
   const cached = agentTokenCache.get(session, vertical, scopes);
   if (cached && cached.access_token) {
     return { token: cached.access_token, source: 'session:mcp' };
