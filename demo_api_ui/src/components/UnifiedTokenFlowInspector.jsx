@@ -27,6 +27,7 @@ import StepDetailsSection from './StepDetailsSection';
 import ClaimDetailsModal from './ClaimDetailsModal';
 import TokenChainTraceRail from './TokenChainTraceRail';
 import JsonHighlight from './shared/JsonHighlight';
+import JsonColumnsView from './shared/JsonColumnsView';
 import InspectorShell from './shared/InspectorShell';
 import InspectorTabs from './shared/InspectorTabs';
 import InspectorListItem from './shared/InspectorListItem';
@@ -189,6 +190,7 @@ const RIGHT_TABS = [
   { key: 'exchange', label: 'Token Exchange' },
   { key: 'diagram', label: 'Diagram' },
   { key: 'raw', label: 'Raw' },
+  { key: 'columns', label: 'Columns' },
   { key: 'glossary', label: 'Glossary' },
 ];
 
@@ -347,6 +349,9 @@ function FlowTokensPanel({ onOpenClaimsModal }) {
           <pre className="inspector-shell-output-code">
             {selectedNode ? <JsonHighlight value={selectedNode.data} /> : 'Nothing selected yet.'}
           </pre>
+        )}
+        {activeRightTab === 'columns' && (
+          <JsonColumnsView value={selectedNode ? selectedNode.data : null} />
         )}
         {activeRightTab === 'glossary' && (
           <div className="utfi-detailed-steps-list">
