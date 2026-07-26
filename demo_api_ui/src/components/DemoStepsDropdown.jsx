@@ -240,6 +240,10 @@ export default function DemoStepsDropdown({
           minHeight={250}
           onClose={() => onOpenChange(false)}
           className="ba-demo-steps-float"
+          role="dialog"
+          aria-label="Demo steps"
+          aria-modal="false"
+          data-testid="demo-steps-popout"
         >
           <div className="ba-demo-steps-popout__header">
             <div className="ba-demo-steps-popout__header-top">
