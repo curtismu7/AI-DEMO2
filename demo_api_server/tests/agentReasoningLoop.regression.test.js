@@ -19,7 +19,10 @@ describe('runReasonLoop', () => {
     const calls = [];
     const out = await runReasonLoop({ messages: [{ role: 'user', content: 'x' }], tools: [], provider: 'helix', executeTool: async (n) => { calls.push(n); return 'r'; }, maxIterations: 10 });
     expect(calls).toEqual(['get_x']);
-    expect(out).toEqual({ ok: true, answer: 'done', inputTokens: 0, outputTokens: 0 });
+    // toolsCalled reports the tools the loop actually executed. It used to be
+    // dropped, so the caller returned a hardcoded toolsCalled: [] and no
+    // LLM-path use case could ever satisfy 'tool-dispatched' evidence.
+    expect(out).toEqual({ ok: true, answer: 'done', toolsCalled: ['get_x'], inputTokens: 0, outputTokens: 0 });
   });
 
   test('reasoningUnavailable:true → heuristic-fallback signal', async () => {

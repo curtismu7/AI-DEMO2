@@ -1532,4 +1532,4 @@ function resolveChipUseCaseId(clientId, toolName, args, vertical) {
   return deriveUseCaseId(toolName, args, vertical);
 }
 
-module.exports = { USE_CASES, VERTICALS, getUseCase, resolveUseCase, listUseCases, deriveUseCaseId, isValidUseCaseId, getUseCaseStepUpMethod, resolveChipUseCaseId };
+module.exports = { USE_CASES, VERTICALS, getUseCase, resolveUseCase, listUseCases, deriveUseCaseId, isValidUseCaseId, getUseCaseStepUpMethod, resolveChipUseCaseId, READ_PRIMARY_TOOL_BY_VERTICAL };
