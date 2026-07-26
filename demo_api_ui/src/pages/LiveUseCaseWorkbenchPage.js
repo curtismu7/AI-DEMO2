@@ -133,6 +133,14 @@ export default function LiveUseCaseWorkbenchPage() {
   const [glanceRecent, setGlanceRecent] = useState('—');
   const { verdict } = useProofOfEnforcement();
   const [authorizeSeen, setAuthorizeSeen] = useState(null);
+  const selectedUc = useCases.find((u) => u.id === selectedId) || null;
+  // The global trace store (and the verdict derived from it) isn't scoped to
+  // a selection — switching to a DIFFERENT card must not keep showing the
+  // PREVIOUS use case's result as if it belonged to the new one. Only
+  // suppress the verdict when a selection exists and disagrees with it;
+  // with nothing selected yet there is no "wrong" card to protect against.
+  const verdictForSelection =
+    verdict && selectedUc && verdict.useCaseId !== selectedUc.useCaseId ? null : verdict;
 
   // The observed decision, read straight off the token-chain trace. Never
   // derived from uc.expectedOutcome — that was the bug this replaces.
@@ -144,8 +152,8 @@ export default function LiveUseCaseWorkbenchPage() {
   const running = runState?.state === 'running';
   // The rail owns the room once a verdict settles, and keeps it until the next
   // run starts. Emphasis is visual only — DOM focus is never moved.
-  const railFocus = !running && Boolean(verdict?.state);
-  const verdictMatched = verdict?.state === 'verified' || verdict?.state === 'denied-as-expected';
+  const railFocus = !running && Boolean(verdictForSelection?.state);
+  const verdictMatched = verdictForSelection?.state === 'verified' || verdictForSelection?.state === 'denied-as-expected';
   const announcement = railFocus
     ? `Run complete. ${verdictMatched ? 'Outcome matched.' : 'Outcome not proven.'}`
     : '';
@@ -418,7 +426,6 @@ export default function LiveUseCaseWorkbenchPage() {
     [useCases, query],
   );
 
-  const selectedUc = useCases.find((u) => u.id === selectedId) || null;
   const selectedBeat = findBeat(selectedId);
 
   // Mirror selection to the teleprompter (in-page modal or 2nd-screen pop-out)
@@ -659,7 +666,7 @@ export default function LiveUseCaseWorkbenchPage() {
               <div className="luw-rail-host">
                 {railFocus && (
                   <div className="luw-rail-verdict" data-testid="rail-verdict">
-                    {verdict?.state === 'incomplete' ? 'Unproven' : (authorizeSeen || '—')}
+                    {verdictForSelection?.state === 'incomplete' ? 'Unproven' : (authorizeSeen || '—')}
                   </div>
                 )}
                 <TokenChainTraceRail />
@@ -675,8 +682,8 @@ export default function LiveUseCaseWorkbenchPage() {
               <span className="luw-glance__label">Verdict</span>
               <VerdictPair
                 expected={policyLabel(selectedUc?.expectedOutcome)}
-                actual={authorizeSeen}
-                state={verdict?.state || null}
+                actual={verdictForSelection ? authorizeSeen : null}
+                state={verdictForSelection?.state || null}
                 running={runState?.state === 'running'}
               />
             </div>

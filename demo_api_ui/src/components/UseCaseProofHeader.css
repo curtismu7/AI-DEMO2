@@ -2,7 +2,7 @@
 .ucph {
   background: #fff;
   border: 1px solid #e2e8f0;
-  border-left: 4px solid #0f766e;
+  border-left: 4px solid #14b8a6;
   border-radius: 10px;
   padding: 12px 14px;
 }
@@ -11,14 +11,14 @@
   font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.06em;
-  color: #0f766e;
-  background: #f0fdfa;
-  border: 1px solid #99f6e4;
+  color: #fff;
+  background: #0d9488;
+  border: 1px solid #0d9488;
   border-radius: 5px;
   padding: 2px 7px;
 }
 .ucph__title { font-size: 0.98rem; font-weight: 700; margin: 0; }
-.ucph__claim { margin: 0.5rem 0 0; font-size: 0.85rem; color: #334155; }
+.ucph__claim { margin: 0.5rem 0 0; font-size: 0.85rem; font-weight: 500; color: #1e293b; }
 .ucph__k {
   display: block;
   margin-bottom: 3px;
@@ -26,23 +26,24 @@
   font-weight: 800;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: #64748b;
+  color: #475569;
 }
 .ucph__say {
   margin: 0.6rem 0 0;
   font-size: 0.95rem;
   font-weight: 700;
   color: #0f172a;
-  background: #f1f5f9;
+  background: #ccfbf1;
   border-radius: 8px;
   padding: 8px 11px;
 }
+.ucph__say .ucph__k { color: #0d9488; }
 .ucph__presenter {
   margin: 0.55rem 0 0;
   padding-left: 10px;
-  border-left: 3px solid #cbd5e1;
+  border-left: 3px solid #7c3aed;
   font-size: 0.84rem;
   font-style: italic;
-  color: #475569;
+  color: #1e293b;
 }
-.ucph__presenter .ucph__k { font-style: normal; color: #94a3b8; }
+.ucph__presenter .ucph__k { font-style: normal; color: #7c3aed; }

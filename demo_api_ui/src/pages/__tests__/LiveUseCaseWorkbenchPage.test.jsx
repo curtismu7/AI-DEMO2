@@ -334,6 +334,43 @@ describe('LiveUseCaseWorkbenchPage — rail focus on a settled verdict', () => {
     // the rail-detail regression test below plus Task 8's live walkthrough.
     expect(screen.getByTestId('trace-rail')).toBeInTheDocument();
   });
+
+  // Live-verified bug (found by direct browser measurement, not a test): the
+  // global trace/verdict isn't scoped to a selection, so switching to a
+  // DIFFERENT card kept showing the PREVIOUS card's result as if it were the
+  // new one's. This is the exact "expectation vs. wrong observation" failure
+  // Task 5 removed, reappearing one layer up at the selection boundary.
+  it('clears a stale verdict when the selection changes to a different use case', async () => {
+    // UC24/UC5 are real ids (render as ordinary cards; the page filters out
+    // wholly synthetic ones) but neither is in DEMO_PRIMARY_USE_CASE_IDS, so
+    // the page's own first-primary auto-select never fires — the two clicks
+    // below are the only selection events in the test.
+    apiClient.get.mockResolvedValueOnce({
+      data: {
+        useCases: [
+          { id: 'UC24', useCaseId: 'public-catalog-access', title: 'Zeta test card A', expectedOutcome: 'PERMIT', trigger: { type: 'chip', text: 'do a' } },
+          { id: 'UC5', useCaseId: 'wrong-scope', title: 'Zeta test card B', expectedOutcome: 'DENY', trigger: { type: 'chip', text: 'do b' } },
+        ],
+      },
+    });
+    mockProof.verdict = { useCaseId: 'public-catalog-access', title: 'x', state: 'verified', matchedSteps: [], missingSteps: [] };
+
+    const { container } = render(<LiveUseCaseWorkbenchPage />);
+    const findCard = (title) =>
+      Array.from(container.querySelectorAll('.luw-card')).find((c) => c.textContent.includes(title));
+
+    fireEvent.click(await waitFor(() => {
+      const card = findCard('Zeta test card A');
+      if (!card) throw new Error('card A not found yet');
+      return card;
+    }));
+    expect(screen.getByTestId('verdict-match')).toHaveTextContent('matched');
+
+    fireEvent.click(findCard('Zeta test card B'));
+    // Would fail (still show "matched") if the verdict weren't gated on the
+    // newly selected use case's useCaseId.
+    expect(screen.queryByTestId('verdict-match')).toBeNull();
+  });
 });
 
 // Regression for a wrong-id bug: the scroll-and-pulse effect targeted
