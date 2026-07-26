@@ -10,20 +10,38 @@
 
 .luw-topbar {
   display: flex; align-items: center; gap: 0.9rem;
+  flex-wrap: wrap;
   padding: 0.65rem 1.1rem; border-bottom: 1px solid var(--brand-medium-gray, #e2e8f0);
   background: #fff;
 }
+
+/* Host for the agent's hoisted header control row. Takes the full remaining
+   width so the controls lay out on one line and wrap only when they must. */
+.luw-topbar__agent-tools {
+  flex: 1 1 100%;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.luw-topbar__agent-tools:empty { display: none; }
 .luw-topbar__title { font-size: 0.95rem; font-weight: 700; margin: 0; }
 .luw-topbar__crumb { font-size: 0.8rem; color: #64748b; }
 .luw-topbar__vertical { margin-left: auto; }
 
 .luw-body {
+  position: relative;
   display: grid;
   grid-template-columns: var(--luw-drawer-w, 336px) 7px 1fr;
   min-height: 0;
   min-width: 0;
   height: 100%;
 }
+
+/* Slide-over: closed is the default demo posture. The drawer leaves the grid
+   entirely so the agent spans the full width and never resizes mid-run. */
+.luw-body--drawer-closed { grid-template-columns: 1fr; }
 
 /* Presenter-draggable column dividers (see LiveUseCaseWorkbenchPage.js).
    Drag to resize, double-click to reset, arrow keys when focused. */
@@ -49,10 +67,79 @@ body.luw-resizing,
 body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 
 .luw-drawer {
-  border-right: 1px solid #e2e8f0; background: var(--brand-light-gray, #f8fafc);
-  display: flex; flex-direction: column; min-height: 0;
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 336px;
+  z-index: 3;
+  border-right: 1px solid #e2e8f0;
+  background: var(--brand-light-gray, #f8fafc);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  transform: translateX(0);
+  transition: transform 180ms ease;
 }
+.luw-body--drawer-closed .luw-drawer { transform: translateX(-100%); }
+
+.luw-drawer__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: rgba(15, 23, 42, 0.18);
+  transition: opacity 180ms ease;
+}
+.luw-body--drawer-closed .luw-drawer__scrim { opacity: 0; pointer-events: none; }
+
+.luw-drawer-tab {
+  position: absolute;
+  left: 0;
+  top: 14px;
+  z-index: 4;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  writing-mode: vertical-rl;
+  padding: 12px 6px;
+  border: 1px solid #cbd5e1;
+  border-left: 0;
+  border-radius: 0 8px 8px 0;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 2px 0 6px rgba(15, 23, 42, 0.06);
+}
+.luw-body--drawer-closed .luw-drawer-tab { display: flex; }
+
+.luw-drawer__toggle {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.5rem;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  color: #475569;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.luw-drawer__toggle:hover { border-color: #94a3b8; color: #0f172a; }
+
+@media (prefers-reduced-motion: reduce) {
+  .luw-drawer, .luw-drawer__scrim { transition: none; }
+}
+
 .luw-drawer__head {
+  position: relative;
   padding: 1rem 0.9rem 0.55rem;
 }
 .luw-drawer__title {
@@ -285,6 +372,59 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   font-variant-numeric: tabular-nums;
 }
 
+/* Token Chain takes the room once a verdict settles, and keeps it until the
+   next run. Emphasis is size + a pulse on the decisive hop — never a dimming
+   scrim, which reads as a hang on a projector, and never hiding rail detail. */
+.luw-rail-host { transition: flex-grow 260ms ease, flex-basis 260ms ease, box-shadow 260ms ease; }
+
+/* Resting state is `flex: 1.25 1 480px`. Focus only ever GROWS the rail — keep
+   grow/shrink live so it stays responsive; a rigid `flex: 0 0 <n>` here can end
+   up narrower than the resting state at some widths. */
+.luw-run-layout--rail-focus .luw-rail-host {
+  flex: 2.2 1 640px;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+}
+
+/* Sticky so it stays readable while the presenter scrolls the chain — it must
+   never replace or push out the rail's own content. */
+.luw-rail-verdict {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+/* One-shot pulse on the step that decided the outcome. */
+@keyframes luwStepPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(15, 118, 110, 0.45); }
+  70%  { box-shadow: 0 0 0 12px rgba(15, 118, 110, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(15, 118, 110, 0); }
+}
+.luw-step-pulse { animation: luwStepPulse 1100ms ease-out 2; }
+
+.luw-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .luw-rail-host { transition: none; }
+  .luw-step-pulse { animation: none; }
+}
+
 /* Medium: no room for Agent + Token Chain side-by-side — stack them inside the
    stage (Demo script drawer stays beside); the stage scrolls, not the page. */
 @media (max-width: 1200px) {
@@ -299,6 +439,8 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
     flex: 1 1 100% !important;
     min-height: 420px;
   }
+  .luw-rail-host,
+  .luw-run-layout--rail-focus .luw-rail-host { flex: 1 1 100%; }
   .luw-resize--split { display: none; }
 }
 
@@ -318,6 +460,14 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
     border-right: 0;
     border-bottom: 1px solid #e2e8f0;
   }
+  .luw-drawer,
+  .luw-body--drawer-closed .luw-drawer {
+    position: static;
+    width: auto;
+    transform: none;
+  }
+  .luw-drawer__scrim, .luw-drawer-tab { display: none; }
+  .luw-body--drawer-closed { grid-template-columns: 1fr; }
   .luw-drawer__scroll {
     overflow-y: visible;
   }

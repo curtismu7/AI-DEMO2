@@ -155,3 +155,11 @@ export const DEMO_SCRIPT = {
 export const DEMO_SCRIPT_BEAT_BY_UC_ID = Object.fromEntries(
   DEMO_SCRIPT.acts.flatMap((act) => act.beats).map((beat) => [beat.ucId, beat]),
 );
+
+/**
+ * The 15-min script beat for a use case, or null when it is not in the script.
+ * @param {string|null|undefined} ucId
+ */
+export function findBeat(ucId) {
+  return (ucId && DEMO_SCRIPT_BEAT_BY_UC_ID[ucId]) || null;
+}

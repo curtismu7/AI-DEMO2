@@ -149,7 +149,7 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false }) 
   const canOpenEdu = Boolean(more?.edu && eduUi?.open);
 
   return (
-    <details className="tctr-step" data-status={step.status} open={defaultOpen}>
+    <details className="tctr-step" data-status={step.status} data-step-id={step.id} open={defaultOpen}>
       <summary>
         <span className={`tctr-ic tctr-ic--${step.status}`}>{STATUS_ICON[step.status]}</span>
         <span className={`tctr-step-title${notInPath ? " tctr-step-title--notinpath" : ""}`}>{step.num}. {step.title}</span>

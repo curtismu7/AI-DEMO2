@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DraggableModal from "./DraggableModal";
 import { DEMO_SCRIPT } from "./demoScript";
@@ -39,8 +39,11 @@ function readSavedFontPx() {
 export default function DemoScriptLauncher({ user }) {
   const [open, setOpen] = useState(false);
   const [fontPx, setFontPx] = useState(readSavedFontPx);
+  const [activeUcId, setActiveUcId] = useState(null);
   const navigate = useNavigate();
   const s = DEMO_SCRIPT;
+  const bodyRef = useRef(null);
+  const lastScrolledUcIdRef = useRef(null);
 
   // The sidebar "Demo Script" nav item (AdminSideNav) toggles the modal via a
   // window CustomEvent, since this launcher owns the modal state globally.
@@ -49,6 +52,42 @@ export default function DemoScriptLauncher({ user }) {
     window.addEventListener("demo-script-toggle", toggle);
     return () => window.removeEventListener("demo-script-toggle", toggle);
   }, []);
+
+  // Follow the workbench's selection so the teleprompter highlights and
+  // scrolls to the matching beat. Listens only - never posts a `select`
+  // message itself, or a run-channel echo could be misread as a selection.
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return undefined;
+    const channel = new BroadcastChannel("demo-script");
+    const onMsg = (e) => {
+      if (e.data?.type !== "select" || !e.data.ucId) return;
+      setActiveUcId(e.data.ucId);
+    };
+    channel.addEventListener("message", onMsg);
+    return () => {
+      channel.removeEventListener("message", onMsg);
+      channel.close();
+    };
+  }, []);
+
+  // Scroll the active beat into view only on an actual selection change - not
+  // on every re-render (an unrelated A-/A+ font-size click re-renders this
+  // component too, and re-running scrollIntoView unconditionally would yank a
+  // presenter's manual scroll back to the active beat mid-preview). `open` is
+  // in the dependency list too: DraggableModal unmounts the beats while the
+  // panel is closed, so a selection that arrives while closed must still
+  // scroll once the panel reopens, even though activeUcId itself didn't
+  // change again. Query within this component's own body rather than the
+  // global document so it still resolves correctly when DraggableModal has
+  // portaled these beats into a popped-out second-screen window's own
+  // document.
+  useEffect(() => {
+    if (!open || !activeUcId || activeUcId === lastScrolledUcIdRef.current) return;
+    bodyRef.current
+      ?.querySelector(".dsl-beat--active")
+      ?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+    lastScrolledUcIdRef.current = activeUcId;
+  }, [activeUcId, open]);
 
   // Trigger a use case on the workbench from the script. Uses the shared
   // BroadcastChannel: the launcher's channel reaches the workbench's channel
@@ -81,7 +120,10 @@ export default function DemoScriptLauncher({ user }) {
   };
 
   const beat = (b, key) => (
-    <div className="dsl-beat" key={key}>
+    <div
+      className={`dsl-beat${b.ucId && b.ucId === activeUcId ? " dsl-beat--active" : ""}`}
+      key={key}
+    >
       {b.ucId && (
         <button
           type="button"
@@ -167,7 +209,11 @@ export default function DemoScriptLauncher({ user }) {
         noBackdrop
         footer={footer}
       >
-        <div className="dm-scroll dsl-body" style={{ fontSize: `${fontPx}px` }}>
+        <div
+          className="dm-scroll dsl-body"
+          style={{ fontSize: `${fontPx}px` }}
+          ref={bodyRef}
+        >
           <p className="dsl-lead">
             {s.audience} · {s.surface}
           </p>
