@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import './InspectorShell.css';
 
 const WIDTHS_KEY = 'inspector-shell-panel-widths';
+const LEFT_COLLAPSED_KEY = 'inspector-shell-left-collapsed';
 const MIN_LEFT = 160;
 const MAX_LEFT = 480;
 const MIN_MIDDLE = 260;
@@ -17,6 +18,15 @@ function loadWidths() {
     // Malformed or unavailable storage (private browsing, quota) — use defaults.
   }
   return DEFAULT_WIDTHS;
+}
+
+function loadLeftCollapsed() {
+  try {
+    return window.localStorage.getItem(LEFT_COLLAPSED_KEY) === 'true';
+  } catch {
+    // Malformed or unavailable storage (private browsing, quota) — default open.
+    return false;
+  }
 }
 
 /**
@@ -38,7 +48,20 @@ export default function InspectorShell({
   right,
 }) {
   const [widths, setWidths] = useState(loadWidths);
+  const [leftCollapsed, setLeftCollapsed] = useState(loadLeftCollapsed);
   const dragRef = useRef(null);
+
+  const toggleLeftCollapsed = useCallback(() => {
+    setLeftCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(LEFT_COLLAPSED_KEY, String(next));
+      } catch {
+        // Ignore write failures (private browsing, quota).
+      }
+      return next;
+    });
+  }, []);
 
   const onDragMove = useCallback((e) => {
     const drag = dragRef.current;
@@ -95,6 +118,17 @@ export default function InspectorShell({
           }
         />
         <h1>{title}</h1>
+        {left != null && (
+          <button
+            type="button"
+            className="inspector-shell-topbar__btn"
+            onClick={toggleLeftCollapsed}
+            aria-expanded={!leftCollapsed}
+            aria-label={leftCollapsed ? 'Show tools' : 'Hide tools'}
+          >
+            {leftCollapsed ? 'Show tools' : 'Hide tools'}
+          </button>
+        )}
         {statusText && <span className="inspector-shell-topbar__status">{statusText}</span>}
         {actions && <div className="inspector-shell-topbar__right">{actions}</div>}
       </div>
@@ -107,15 +141,30 @@ export default function InspectorShell({
               ? 'inspector-shell-grid'
               : 'inspector-shell-grid inspector-shell-grid--embedded'
         }
-        style={{ gridTemplateColumns: `${widths.left}px 6px ${widths.middle}px 6px 1fr` }}
+        style={{
+          gridTemplateColumns: leftCollapsed
+            ? `0px 0px ${widths.middle}px 6px 1fr`
+            : `${widths.left}px 6px ${widths.middle}px 6px 1fr`,
+        }}
       >
-        <div className="inspector-shell-col-left">{left}</div>
+        <div
+          className={
+            leftCollapsed
+              ? 'inspector-shell-col-left inspector-shell-col-left--collapsed'
+              : 'inspector-shell-col-left'
+          }
+          aria-hidden={leftCollapsed || undefined}
+        >
+          {left}
+        </div>
         <div
           className="inspector-shell-resize-handle"
           onMouseDown={onDragStart('left')}
           role="separator"
           aria-orientation="vertical"
           aria-label="Resize tool list column"
+          aria-hidden={leftCollapsed || undefined}
+          style={leftCollapsed ? { pointerEvents: 'none' } : undefined}
         />
         <div className="inspector-shell-col-middle">{middle}</div>
         <div
