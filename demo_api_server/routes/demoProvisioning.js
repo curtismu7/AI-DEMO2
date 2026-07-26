@@ -7,6 +7,7 @@ const { getManagementToken } = require('../services/pingOneClientService');
 const mfaService = require('../services/mfaService');
 const configStore = require('../services/configStore');
 const { PingOneProvisionService, DEMO_PASSWORD } = require('../services/pingoneProvisionService');
+const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 
 router.post('/provision-user', requireAdmin, async (req, res) => {
   const { email } = req.body;
@@ -62,7 +63,8 @@ router.post('/provision-user', requireAdmin, async (req, res) => {
       timeout: 10000,
     });
   } catch (err) {
-    const detail = err.response?.data?.message || err.message;
+    const n = normalizeAxiosError(err, { label: 'PingOne provisioning' });
+    const detail = n.message;
     steps.push({ name: 'Create PingOne user', status: 'error', detail });
     steps.push({ name: 'Set may_act attribute', status: 'skipped', detail: 'Skipped — depends on failed step above.' });
     steps.push({ name: 'Enroll email OTP MFA', status: 'skipped', detail: 'Skipped — depends on failed step above.' });
@@ -90,7 +92,8 @@ router.post('/provision-user', requireAdmin, async (req, res) => {
       });
       steps.push({ name: 'Set may_act attribute', status: 'ok', detail: `mayAct.sub = ${mcpClientId}` });
     } catch (err) {
-      const detail = err.response?.data?.message || err.message;
+      const n = normalizeAxiosError(err, { label: 'PingOne provisioning' });
+      const detail = n.message;
       steps.push({ name: 'Set may_act attribute', status: 'error', detail });
       // Non-fatal — continue to MFA enrollment
     }
