@@ -88,14 +88,23 @@ export default function LiveUseCaseWorkbenchPage() {
   const [glanceChecking, setGlanceChecking] = useState('$4,820.00');
   const [glanceRecent, setGlanceRecent] = useState('—');
 
-  const { setSurfaceHostEl } = useAgentUiMode();
+  const { setSurfaceHostEl, setToolbarHostEl } = useAgentUiMode();
   const [agentHostEl, setAgentHostEl] = useState(null);
   const agentHostRef = useCallback((node) => setAgentHostEl(node), []);
+  const [toolbarHostEl, setToolbarHostElNode] = useState(null);
+  const toolbarHostRef = useCallback((node) => setToolbarHostElNode(node), []);
 
   useEffect(() => {
     setSurfaceHostEl(agentHostEl);
     return () => setSurfaceHostEl((cur) => (cur === agentHostEl ? null : cur));
   }, [agentHostEl, setSurfaceHostEl]);
+
+  // The agent's header control row portals here so it spans the full page width
+  // instead of wrapping into six rows inside the middle column.
+  useEffect(() => {
+    setToolbarHostEl(toolbarHostEl);
+    return () => setToolbarHostEl((cur) => (cur === toolbarHostEl ? null : cur));
+  }, [toolbarHostEl, setToolbarHostEl]);
 
   useEffect(() => {
     let cancelled = false;
@@ -329,6 +338,7 @@ export default function LiveUseCaseWorkbenchPage() {
         <p className="luw-topbar__title">Use Cases</p>
         <span className="luw-topbar__crumb">/ Live Workbench</span>
         <div className="luw-topbar__vertical"><VerticalSwitcher /></div>
+        <div className="luw-topbar__agent-tools" ref={toolbarHostRef} />
       </div>
 
       <div className="luw-body">

@@ -10,9 +10,22 @@
 
 .luw-topbar {
   display: flex; align-items: center; gap: 0.9rem;
+  flex-wrap: wrap;
   padding: 0.65rem 1.1rem; border-bottom: 1px solid var(--brand-medium-gray, #e2e8f0);
   background: #fff;
 }
+
+/* Host for the agent's hoisted header control row. Takes the full remaining
+   width so the controls lay out on one line and wrap only when they must. */
+.luw-topbar__agent-tools {
+  flex: 1 1 100%;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.luw-topbar__agent-tools:empty { display: none; }
 .luw-topbar__title { font-size: 0.95rem; font-weight: 700; margin: 0; }
 .luw-topbar__crumb { font-size: 0.8rem; color: #64748b; }
 .luw-topbar__vertical { margin-left: auto; }
