@@ -10,6 +10,7 @@
 const express = require('express');
 const axios = require('axios');
 const configStore = require('../services/configStore');
+const { buildTraceGraph, buildOverviewGraph } = require('../services/tracingGraph');
 
 const router = express.Router();
 
@@ -39,6 +40,18 @@ function jaegerCandidates() {
   return [...new Set(raw.map((u) => u.replace(/\/$/, '')))];
 }
 
+/**
+ * True when /api/services looks like Jaeger's JSON query API.
+ * Fresh all-in-one often returns `{ data: null }` (no services yet) — that is
+ * still reachable. HTML shells (QUERY_BASE_PATH mismatch) must not pass.
+ * @param {unknown} body
+ */
+function isJaegerServicesPayload(body) {
+  if (body == null || typeof body !== 'object' || Array.isArray(body)) return false;
+  const data = body.data;
+  return data == null || Array.isArray(data);
+}
+
 /** Return the first reachable Jaeger query base, or null. */
 async function resolveJaegerBase() {
   for (const base of jaegerCandidates()) {
@@ -48,7 +61,7 @@ async function resolveJaegerBase() {
       // QUERY_BASE_PATH set, the root /api/services returns the UI's HTML shell
       // with a 200, which would otherwise be mistaken for a working query base
       // and silently yield empty services/traces.
-      if (resp.status === 200 && Array.isArray(resp.data?.data)) return base;
+      if (resp.status === 200 && isJaegerServicesPayload(resp.data)) return base;
     } catch {
       /* try next candidate */
     }
@@ -256,6 +269,183 @@ router.get('/traces/:id', async (req, res) => {
       return res.status(404).json({ error: 'trace_not_found', message: 'Trace not found.' });
     }
     return res.status(502).json({ error: 'jaeger_query_failed', message: err.message || 'Jaeger trace query failed' });
+  }
+});
+
+/**
+ * GET /graph — Telemetry page graph.
+ * ?traceId=<hex>  span-level graph of one trace (detailed view)
+ * ?lookback=1h    service-level graph aggregated from recent traces (overview)
+ * Fail-soft: Jaeger unreachable or query failure returns 200 with
+ * tracingEnabled:false so the page can render an empty state (never 5xx).
+ */
+router.get('/graph', async (req, res) => {
+  const failSoft = () => ({
+    tracingEnabled: false,
+    nodes: [],
+    edges: [],
+    fetchedAt: new Date().toISOString(),
+  });
+
+  // Spec rule: flag OFF behaves exactly like Jaeger-unreachable (fail-soft).
+  // ff_tracing defaults ON; only an explicit 'false' disables.
+  if (String(configStore.getEffective('ff_tracing')).trim() === 'false') {
+    return res.status(200).json(failSoft());
+  }
+
+  const base = await resolveJaegerBase();
+  if (!base) return res.status(200).json(failSoft());
+
+  const traceId = String(req.query.traceId || '').trim();
+  try {
+    if (traceId) {
+      if (!((/^[0-9a-f]{16,32}$/i).test(traceId))) {
+        return res.status(400).json({ error: 'invalid_trace_id', message: 'Trace id must be 16-32 hex characters.' });
+      }
+      const resp = await axios.get(`${base}/api/traces/${traceId}`, { timeout: 10000 });
+      const trace = Array.isArray(resp.data?.data) ? resp.data.data[0] : null;
+      if (!trace) return res.status(404).json({ error: 'trace_not_found', message: 'Trace not found.' });
+      return res.json({ ...buildTraceGraph(trace), tracingEnabled: true, fetchedAt: new Date().toISOString() });
+    }
+
+    const lookback = String(req.query.lookback || '1h').trim();
+    const svcResp = await axios.get(`${base}/api/services`, { timeout: 5000 });
+    const services = (Array.isArray(svcResp.data?.data) ? svcResp.data.data : []).filter((s) => s && s !== 'jaeger-all-in-one');
+    const perService = await Promise.all(
+      services.map((service) =>
+        axios
+          .get(`${base}/api/traces`, { timeout: 10000, params: { service, limit: 10, lookback } })
+          .then((r) => (Array.isArray(r.data?.data) ? r.data.data : []))
+          .catch(() => []),
+      ),
+    );
+    const byId = new Map();
+    for (const t of perService.flat()) {
+      if (t?.traceID && !byId.has(t.traceID)) byId.set(t.traceID, t);
+    }
+    return res.json({ ...buildOverviewGraph([...byId.values()]), tracingEnabled: true, fetchedAt: new Date().toISOString() });
+  } catch (err) {
+    if (traceId && err.response?.status === 404) {
+      return res.status(404).json({ error: 'trace_not_found', message: 'Trace not found.' });
+    }
+    return res.status(200).json(failSoft());
+  }
+});
+
+const { project } = require('../services/traceProjector');
+
+const TRACE_ID_RE = /^[0-9a-f]{16,32}$/i;
+const INGEST_RETRY_DELAYS_MS = [500, 1000, 1500];
+
+/** Fetch a trace, retrying 404s and empty responses to absorb Jaeger ingest lag (2–5s typical). */
+async function fetchTraceWithRetry(base, id, delays) {
+  for (let attempt = 0; attempt <= delays.length; attempt++) {
+    try {
+      const resp = await axios.get(`${base}/api/traces/${id}`, { timeout: 10000 });
+      // Jaeger returns 200 with empty data array for not-found traces, not 404.
+      if (!Array.isArray(resp.data?.data) || resp.data.data.length === 0) {
+        if (attempt < delays.length) {
+          await new Promise((r) => setTimeout(r, delays[attempt]));
+          continue;
+        }
+        return { ok: false, status: 404 };
+      }
+      return { ok: true, data: resp.data };
+    } catch (err) {
+      if (err.response?.status === 404 && attempt < delays.length) {
+        await new Promise((r) => setTimeout(r, delays[attempt]));
+        continue;
+      }
+      if (err.response?.status === 404) return { ok: false, status: 404 };
+      return { ok: false, status: 502, message: err.message };
+    }
+  }
+  return { ok: false, status: 404 };
+}
+
+/** GET /traces/:id/projected — curated business-step projection (Steps tab). */
+router.get('/traces/:id/projected', async (req, res) => {
+  const id = String(req.params.id || '');
+  if (!TRACE_ID_RE.test(id)) {
+    return res.status(400).json({ error: 'invalid_trace_id', message: 'Trace id must be 16-32 hex characters.' });
+  }
+  const base = await resolveJaegerBase();
+  if (!base) {
+    return res.status(503).json({ error: 'jaeger_unreachable', message: 'Jaeger query API is not reachable.' });
+  }
+  // retryDelaysMs=0 collapses the retry waits (tests); production callers omit it.
+  const delays = req.query.retryDelaysMs === '0'
+    ? INGEST_RETRY_DELAYS_MS.map(() => 0)
+    : INGEST_RETRY_DELAYS_MS;
+  const result = await fetchTraceWithRetry(base, id, delays);
+  if (!result.ok) {
+    if (result.status === 404) return res.status(404).json({ error: 'trace_not_found', message: 'Trace not found.' });
+    return res.status(502).json({ error: 'jaeger_query_failed', message: result.message || 'Jaeger trace query failed' });
+  }
+  return res.json(project(result.data));
+});
+
+/** GET /traces/:id/raw — unmodified Jaeger trace payload (Graph tab). */
+router.get('/traces/:id/raw', async (req, res) => {
+  const id = String(req.params.id || '');
+  if (!TRACE_ID_RE.test(id)) {
+    return res.status(400).json({ error: 'invalid_trace_id', message: 'Trace id must be 16-32 hex characters.' });
+  }
+  const base = await resolveJaegerBase();
+  if (!base) {
+    return res.status(503).json({ error: 'jaeger_unreachable', message: 'Jaeger query API is not reachable.' });
+  }
+  try {
+    const resp = await axios.get(`${base}/api/traces/${id}`, { timeout: 10000 });
+    // Jaeger returns 200 with empty data array for not-found traces, not 404.
+    if (!Array.isArray(resp.data?.data) || resp.data.data.length === 0) {
+      return res.status(404).json({ error: 'trace_not_found', message: 'Trace not found.' });
+    }
+    return res.json(resp.data);
+  } catch (err) {
+    if (err.response?.status === 404) {
+      return res.status(404).json({ error: 'trace_not_found', message: 'Trace not found.' });
+    }
+    return res.status(502).json({ error: 'jaeger_query_failed', message: err.message || 'Jaeger trace query failed' });
+  }
+});
+
+/**
+ * GET /overview/raw?lookback= — raw multi-trace Jaeger payload for the whole
+ * system (all instrumented services' recent traces, deduped by traceID). The
+ * client-side model (buildGraph/buildCollapsedGraph) aggregates this the same
+ * way it aggregates a single trace — this endpoint reuses the /graph route's
+ * overview-gathering exactly, just skips server-side aggregation so Overview
+ * and Detailed share one rendering path.
+ * Fail-soft: Jaeger unreachable, ff_tracing=false, or the gather throwing all
+ * return 200 { data: [] } — never 5xx.
+ */
+router.get('/overview/raw', async (req, res) => {
+  if (String(configStore.getEffective('ff_tracing')).trim() === 'false') {
+    return res.json({ data: [] });
+  }
+  const base = await resolveJaegerBase();
+  if (!base) return res.json({ data: [] });
+
+  const lookback = String(req.query.lookback || '1h').trim();
+  try {
+    const svcResp = await axios.get(`${base}/api/services`, { timeout: 5000 });
+    const services = (Array.isArray(svcResp.data?.data) ? svcResp.data.data : []).filter((s) => s && s !== 'jaeger-all-in-one');
+    const perService = await Promise.all(
+      services.map((service) =>
+        axios
+          .get(`${base}/api/traces`, { timeout: 10000, params: { service, limit: 10, lookback } })
+          .then((r) => (Array.isArray(r.data?.data) ? r.data.data : []))
+          .catch(() => []),
+      ),
+    );
+    const byId = new Map();
+    for (const t of perService.flat()) {
+      if (t?.traceID && !byId.has(t.traceID)) byId.set(t.traceID, t);
+    }
+    return res.json({ data: [...byId.values()] });
+  } catch {
+    return res.json({ data: [] });
   }
 });
 

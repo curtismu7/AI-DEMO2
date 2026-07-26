@@ -206,7 +206,9 @@ const STATIC_LOCAL_TOOLS = [
 ];
 
 /**
- * Demo MCP Inspector: live tools/list + tools/call via the BFF MCP Host proxy.
+ * Generic MCP Inspector: live tools/list + tools/call against a selectable MCP
+ * server profile (defaults to this app's own banking MCP server via the BFF
+ * MCP Host proxy; see services/mcpProfileStore.js for other profiles).
  * Dark IDE three-column layout matching PingOneMcpInspector.
  */
 const McpInspector = ({ user, onLogout }) => {
@@ -222,19 +224,76 @@ const McpInspector = ({ user, onLogout }) => {
   const [lastInvoke, setLastInvoke] = useState(null);
   const [lastTiming, setLastTiming] = useState(null);
   const [needsLogin, setNeedsLogin] = useState(false);
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [stepUpMethod, setStepUpMethod] = useState('');
   const [busy, setBusy] = useState(false);
   const [outputTab, setOutputTab] = useState('response');
   const [mcpHistory, setMcpHistory] = useState(getCalls);
+
+  // Server picker: which MCP server this page is inspecting. Defaults to this
+  // app's own banking MCP server (existing behavior, untouched) until the
+  // profile list loads; switching profiles re-runs discovery against a
+  // different server (mcpTransports/* on the BFF).
+  const [profiles, setProfiles] = useState([]);
+  const [defaultProfileId, setDefaultProfileId] = useState('');
+  const [selectedProfileId, setSelectedProfileId] = useState('');
+  const [profileError, setProfileError] = useState(null);
+  const [pingoneAdminLoginUrl, setPingoneAdminLoginUrl] = useState(null);
+  const [pingoneAdminError, setPingoneAdminError] = useState(null);
+  const [showAddServer, setShowAddServer] = useState(false);
+  const [addProfileError, setAddProfileError] = useState(null);
+  const [newProfile, setNewProfile] = useState({
+    label: '',
+    transport: 'http',
+    url: '',
+    authHeader: 'Authorization',
+    authValue: '',
+    command: '',
+    argsText: '',
+    envText: '',
+  });
 
   useEffect(() => {
     const unsub = subscribeMcpCalls(setMcpHistory);
     return unsub;
   }, []);
 
+  // Surface a failed PingOne admin login (routes/mcpPingOneAdminAuth.js redirects
+  // back here with ?pingone_admin_error=... on state mismatch / token exchange failure).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get('pingone_admin_error');
+    if (err) {
+      setPingoneAdminError(err);
+      params.delete('pingone_admin_error');
+      const qs = params.toString();
+      window.history.replaceState({}, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
+    }
+  }, []);
+
+  const loadProfiles = useCallback(async () => {
+    try {
+      const { data } = await apiClient.get('/api/mcp/inspector/profiles');
+      setProfiles(data.profiles || []);
+      setDefaultProfileId(data.defaultProfileId || '');
+      setSelectedProfileId((prev) => prev || data.defaultProfileId || '');
+    } catch {
+      // Non-fatal: the default banking profile still works via the query-less path.
+    }
+  }, []);
+
+  useEffect(() => {
+    loadProfiles();
+  }, [loadProfiles]);
+
   const refreshTools = useCallback(async () => {
     setLoadingTools(true);
+    setProfileError(null);
+    setPingoneAdminLoginUrl(null);
+    const isNonDefaultProfile = selectedProfileId && selectedProfileId !== defaultProfileId;
     try {
-      const { data } = await apiClient.get('/api/mcp/inspector/tools');
+      const qs = isNonDefaultProfile ? `?profile=${encodeURIComponent(selectedProfileId)}` : '';
+      const { data } = await apiClient.get(`/api/mcp/inspector/tools${qs}`);
       setTools(data.tools || []);
       setToolsFrames(data.frames || null);
       setToolsSourceInfo(
@@ -244,24 +303,89 @@ const McpInspector = ({ user, onLogout }) => {
             ? { local: false }
             : null,
       );
+      setMfaRequired(!!data.mfa_required);
+      setStepUpMethod(data.step_up_method || '');
+      if (data._source === 'profile_error') {
+        setProfileError(data.reason || 'Failed to reach this MCP server.');
+      }
+      if (data.pingone_admin_login_required) {
+        setPingoneAdminLoginUrl(data.loginUrl || '/api/mcp/inspector/pingone-admin/login');
+      }
       setSelectedTool(null);
       setLastInvoke(null);
       setLastTiming(null);
       setFormError(null);
       setNeedsLogin(false);
     } catch (e) {
-      notifyError(formatAxiosError(e, 'BFF unreachable - showing static tool catalog'));
-      setTools(STATIC_LOCAL_TOOLS);
-      setToolsFrames(null);
-      setToolsSourceInfo({ local: true, reason: 'bff_unreachable' });
+      if (isNonDefaultProfile) {
+        setTools([]);
+        setToolsFrames(null);
+        setToolsSourceInfo(null);
+        setProfileError(formatAxiosError(e, 'Failed to reach this MCP server'));
+      } else {
+        notifyError(formatAxiosError(e, 'BFF unreachable - showing static tool catalog'));
+        setTools(STATIC_LOCAL_TOOLS);
+        setToolsFrames(null);
+        setToolsSourceInfo({ local: true, reason: 'bff_unreachable' });
+      }
+      setMfaRequired(false);
     } finally {
       setLoadingTools(false);
     }
-  }, []);
+  }, [selectedProfileId, defaultProfileId]);
 
   useEffect(() => {
     refreshTools();
   }, [refreshTools]);
+
+  const handleAddProfile = useCallback(async () => {
+    setAddProfileError(null);
+    const { label, transport, url, authHeader, authValue, command, argsText, envText } = newProfile;
+    const body = { label: label.trim(), transport };
+    if (transport === 'stdio') {
+      if (!command.trim()) {
+        setAddProfileError('Command is required.');
+        return;
+      }
+      body.command = command.trim();
+      body.args = argsText.trim() ? argsText.trim().split(/\s+/) : [];
+      if (envText.trim()) {
+        body.env = {};
+        for (const pair of envText.split(',')) {
+          const [k, ...rest] = pair.split('=');
+          if (k && k.trim()) body.env[k.trim()] = rest.join('=').trim();
+        }
+      }
+    } else {
+      if (!url.trim()) {
+        setAddProfileError('Server URL is required.');
+        return;
+      }
+      body.url = url.trim();
+      if (authHeader.trim() && authValue.trim()) {
+        body.authHeader = authHeader.trim();
+        body.authValue = authValue.trim();
+      }
+    }
+    try {
+      const { data } = await apiClient.post('/api/mcp/inspector/profiles', body);
+      await loadProfiles();
+      setSelectedProfileId(data.profile.id);
+      setShowAddServer(false);
+      setNewProfile({
+        label: '',
+        transport: 'http',
+        url: '',
+        authHeader: 'Authorization',
+        authValue: '',
+        command: '',
+        argsText: '',
+        envText: '',
+      });
+    } catch (e) {
+      setAddProfileError(formatAxiosError(e, 'Failed to add server'));
+    }
+  }, [newProfile, loadProfiles]);
 
   // Group tools for the tree sidebar
   const groupedTools = useMemo(() => {
@@ -304,9 +428,11 @@ const McpInspector = ({ user, onLogout }) => {
     setBusy(true);
     const t0 = Date.now();
     try {
+      const isNonDefaultProfile = selectedProfileId && selectedProfileId !== defaultProfileId;
       const { data } = await apiClient.post('/api/mcp/inspector/invoke', {
         tool: selectedTool.name,
         params,
+        ...(isNonDefaultProfile ? { profile: selectedProfileId } : {}),
       });
       const ms = Date.now() - t0;
       appendMcpCall(selectedTool.name, 200, ms, data.result ?? data);
@@ -325,7 +451,9 @@ const McpInspector = ({ user, onLogout }) => {
       );
       setLastInvoke(e.response?.data?.frames ? e.response.data : null);
       setLastTiming({ ms, error: true, reason: formatAxiosError(e, 'Invoke failed') });
-      if (e.response?.status === 401) {
+      if (e.response?.data?.error === 'pingone_admin_login_required') {
+        setPingoneAdminLoginUrl(e.response.data.loginUrl || '/api/mcp/inspector/pingone-admin/login');
+      } else if (e.response?.status === 401) {
         setNeedsLogin(true);
       } else {
         setNeedsLogin(false);
@@ -334,7 +462,7 @@ const McpInspector = ({ user, onLogout }) => {
     } finally {
       setBusy(false);
     }
-  }, [selectedTool, paramValues]);
+  }, [selectedTool, paramValues, selectedProfileId, defaultProfileId]);
 
   const clearForm = () => {
     setParamValues({});
@@ -366,13 +494,27 @@ const McpInspector = ({ user, onLogout }) => {
 
   return (
     <div className="mcp-inspector-page">
-      <PageNav user={user} onLogout={onLogout} title="Demo MCP Inspector" />
+      <PageNav user={user} onLogout={onLogout} title="Generic MCP Inspector" />
 
       <div className="p1mcp-page">
         {/* Top bar */}
         <div className="p1mcp-topbar">
           <span className={`p1mcp-topbar__dot ${isConnected ? '' : 'p1mcp-topbar__dot--off'}`} />
-          <h1>Demo MCP Inspector</h1>
+          <h1>Generic MCP Inspector</h1>
+          <select
+            className="p1mcp-topbar__btn"
+            value={selectedProfileId}
+            onChange={(e) => setSelectedProfileId(e.target.value)}
+            title="MCP server to inspect"
+            style={{ marginLeft: 8 }}
+          >
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+                {p.isDefault ? ' (default)' : ''}
+              </option>
+            ))}
+          </select>
           <span className="p1mcp-topbar__status">
             {isConnected ? `Connected - ${tools.length} tools` : `Local catalog - ${tools.length} tools`}
           </span>
@@ -393,6 +535,12 @@ const McpInspector = ({ user, onLogout }) => {
             </Link>
             <button
               className="p1mcp-topbar__btn"
+              onClick={() => setShowAddServer((v) => !v)}
+            >
+              + Add server
+            </button>
+            <button
+              className="p1mcp-topbar__btn"
               onClick={refreshTools}
               disabled={loadingTools}
             >
@@ -401,12 +549,104 @@ const McpInspector = ({ user, onLogout }) => {
           </div>
         </div>
 
+        {showAddServer && (
+          <div style={{ background: '#f8fafc', padding: '12px 20px', fontSize: 12, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', borderBottom: '1px solid #cbd5e1' }}>
+            <input
+              placeholder="Label (e.g. Brave Search)"
+              value={newProfile.label}
+              onChange={(e) => setNewProfile((p) => ({ ...p, label: e.target.value }))}
+            />
+            <select
+              value={newProfile.transport}
+              onChange={(e) => setNewProfile((p) => ({ ...p, transport: e.target.value }))}
+            >
+              <option value="http">HTTP</option>
+              <option value="websocket">WebSocket</option>
+              <option value="stdio">stdio (local command)</option>
+            </select>
+            {newProfile.transport !== 'stdio' ? (
+              <>
+                <input
+                  placeholder="Server URL"
+                  value={newProfile.url}
+                  onChange={(e) => setNewProfile((p) => ({ ...p, url: e.target.value }))}
+                  style={{ minWidth: 220 }}
+                />
+                <input
+                  placeholder="Auth header (e.g. Authorization)"
+                  value={newProfile.authHeader}
+                  onChange={(e) => setNewProfile((p) => ({ ...p, authHeader: e.target.value }))}
+                />
+                <input
+                  placeholder="Auth value (e.g. Bearer xxx)"
+                  type="password"
+                  value={newProfile.authValue}
+                  onChange={(e) => setNewProfile((p) => ({ ...p, authValue: e.target.value }))}
+                />
+              </>
+            ) : (
+              <>
+                <input
+                  placeholder="Command (e.g. npx)"
+                  value={newProfile.command}
+                  onChange={(e) => setNewProfile((p) => ({ ...p, command: e.target.value }))}
+                />
+                <input
+                  placeholder="Args (space-separated, e.g. -y @brave/brave-search-mcp-server --transport stdio)"
+                  value={newProfile.argsText}
+                  onChange={(e) => setNewProfile((p) => ({ ...p, argsText: e.target.value }))}
+                  style={{ minWidth: 320 }}
+                />
+                <input
+                  placeholder="Env (KEY=value, comma-separated, e.g. BRAVE_API_KEY=xxx)"
+                  value={newProfile.envText}
+                  onChange={(e) => setNewProfile((p) => ({ ...p, envText: e.target.value }))}
+                  style={{ minWidth: 260 }}
+                />
+              </>
+            )}
+            <button className="p1mcp-topbar__btn p1mcp-topbar__btn--active" onClick={handleAddProfile}>
+              Save
+            </button>
+            {addProfileError && <span style={{ color: '#991b1b' }}>{addProfileError}</span>}
+          </div>
+        )}
+
         {/* Notices */}
+        {pingoneAdminError && (
+          <div style={{ background: '#fef2f2', color: '#991b1b', padding: '8px 20px', fontSize: 12 }}>
+            <strong>PingOne admin sign-in failed.</strong> {pingoneAdminError}
+          </div>
+        )}
+        {pingoneAdminLoginUrl && (
+          <div style={{ background: '#eff6ff', color: '#1e40af', padding: '8px 20px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <strong>PingOne admin sign-in required.</strong>{' '}
+            This profile calls the hosted PingOne MCP server with your PingOne admin roles, not a stored secret.
+            <button
+              className="p1mcp-topbar__btn p1mcp-topbar__btn--active"
+              onClick={() => { window.location.href = pingoneAdminLoginUrl; }}
+            >
+              Sign in as PingOne admin
+            </button>
+          </div>
+        )}
+        {profileError && (
+          <div style={{ background: '#fef2f2', color: '#991b1b', padding: '8px 20px', fontSize: 12 }}>
+            <strong>Could not reach this MCP server.</strong> {profileError}
+          </div>
+        )}
         {toolsSourceInfo?.local && (
           <div style={{ background: '#fffbeb', color: '#92400e', padding: '8px 20px', fontSize: 12 }}>
             <strong>Showing static / local catalog.</strong>{' '}
             {toolsSourceInfo.reason ? `(${toolsSourceInfo.reason}) ` : ''}
             Start the stack and sign in so the BFF can reach the banking MCP server, then refresh.
+          </div>
+        )}
+        {mfaRequired && (
+          <div style={{ background: '#eff6ff', color: '#1e40af', padding: '8px 20px', fontSize: 12 }}>
+            <strong>Step-up verification required.</strong>{' '}
+            This session needs MFA step-up{stepUpMethod ? ` (${stepUpMethod})` : ''} before tools/list can run.
+            Complete step-up verification, then refresh.
           </div>
         )}
         {needsLogin && (
@@ -428,14 +668,33 @@ const McpInspector = ({ user, onLogout }) => {
             <div className="p1mcp-tree-header">
               <span>Tools ({tools.length})</span>
             </div>
-            <div className="p1mcp-tree-search">
+            <div className="p1mcp-tree-search" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <input
                 type="search"
                 placeholder="Filter tools..."
                 value={toolSearch}
                 onChange={(e) => setToolSearch(e.target.value)}
                 spellCheck={false}
+                style={{ flex: 1 }}
               />
+              <span
+                title="Type to filter the tool list by name or description. Matching is case-insensitive and updates as you type."
+                style={{
+                  cursor: 'help',
+                  fontSize: 12,
+                  width: 16,
+                  height: 16,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '50%',
+                  border: '1px solid currentColor',
+                  opacity: 0.6,
+                  flexShrink: 0,
+                }}
+              >
+                i
+              </span>
             </div>
             <div className="p1mcp-tree-body">
               {groupedTools.map((group) => (

@@ -119,3 +119,18 @@ describe('GatewayIntrospectionClient — cold-start hardening', () => {
     });
   });
 });
+
+describe('GatewayIntrospectionClient — introspectionSimDown', () => {
+  it('fails closed immediately, without a network call, when introspectionSimDown is true', async () => {
+    const config = {
+      introspectionEndpoint: 'https://unused.example.com/introspect',
+      introspectionSimDown: true,
+      tokenEndpointAuthMethod: 'basic',
+      clientId: 'x', clientSecret: 'y',
+    } as unknown as GatewayConfig;
+    const client = new GatewayIntrospectionClient(config);
+    const result = await client.introspect('any-token');
+    expect(result.active).toBe(false);
+    expect(result.error).toMatch(/simulated/i);
+  });
+});

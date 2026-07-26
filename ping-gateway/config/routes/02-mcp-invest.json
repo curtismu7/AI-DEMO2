@@ -17,11 +17,19 @@
           "type": "UriPathRewriteFilter",
           "config": {
             "mappings": {
-              "^/mcp/invest(.*)$": "/mcp$1"
+              "/mcp/invest": "/mcp"
             }
           }
         },
-        "rsFilter",
+        {
+          "name": "McpGatewayProtection",
+          "type": "McpProtectionFilter",
+          "config": {
+            "resourceId": "${env['PG_GATEWAY_RESOURCE_ID']}/invest",
+            "authorizationServerUri": "${env['PINGONE_ISSUER_URI']}",
+            "resourceServerFilter": "rsFilter"
+          }
+        },
         {
           "name": "McpProtocol",
           "type": "McpValidationFilter",
@@ -81,9 +89,8 @@
       ],
       "handler": {
         "type": "ReverseProxyHandler",
-        "config": {
-          "baseURI": "${env['PG_INVEST_BACKEND_URL']}"
-        }
+        "baseURI": "${env['PG_INVEST_BACKEND_URL']}",
+        "config": {}
       }
     }
   }

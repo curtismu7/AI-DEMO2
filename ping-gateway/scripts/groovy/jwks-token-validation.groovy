@@ -20,6 +20,11 @@
  * documented fallback p1az-decision.groovy reads when no OAuth2Context exists —
  * so the downstream authorize + token-exchange filters run unmodified.
  *
+ * On 401, WWW-Authenticate includes RFC 9728 `resource_metadata` pointing at
+ * the protected-resource metadata URL derived from PG_GATEWAY_RESOURCE_ID
+ * (cosmetic parity with McpProtectionFilter; this script is NOT wrapped by that
+ * filter — see docs/superpowers/plans/2026-07-22-mcp-protection-filter-gap.md).
+ *
  * EDUCATIONAL TRADEOFF (by design): no round-trip to the authorization server,
  * so revocation is NOT detected until the token expires.
  */
@@ -46,12 +51,36 @@ def gatewayResourceId  = System.getenv('PG_GATEWAY_RESOURCE_ID') ?: ''
 // gateway_mcp_invoke_scope) or an unset PG_INBOUND_SCOPE denies every request.
 def requiredScope      = System.getenv('PG_INBOUND_SCOPE') ?: 'gateway:mcp:invoke'
 
+/**
+ * Build the RFC 9728 protected-resource metadata URL for a resource identifier.
+ * Path resources use /.well-known/oauth-protected-resource{path} after the authority.
+ */
+def resourceMetadataUrl = {
+    if (!gatewayResourceId) return ''
+    try {
+        def u = new java.net.URI(gatewayResourceId)
+        if (u.scheme && u.host) {
+            def path = (u.path ?: '')
+            if (path == '/') path = ''
+            def metaPath = '/.well-known/oauth-protected-resource' + path
+            return new java.net.URI(u.scheme, u.userInfo, u.host, u.port, metaPath, null, null).toString()
+        }
+    } catch (Exception ignored) {
+        // fall through
+    }
+    return gatewayResourceId.replaceAll(/\/$/, '') + '/.well-known/oauth-protected-resource'
+}()
+
 def deny = { String reason ->
     logger.info('[JWKS] validation FAILED: ' + reason)
     def resp = new Response(Status.UNAUTHORIZED)
     resp.headers.put('Content-Type', 'application/json')
-    resp.headers.put('WWW-Authenticate',
-        'Bearer realm="mcp", error="invalid_token", error_description="' + reason + '"')
+    // Match McpProtectionFilter challenge shape: Bearer + error + resource_metadata (RFC 9728).
+    def wwwAuth = 'Bearer realm="mcp", error="invalid_token", error_description="' + reason + '"'
+    if (resourceMetadataUrl) {
+        wwwAuth += ', resource_metadata="' + resourceMetadataUrl + '"'
+    }
+    resp.headers.put('WWW-Authenticate', wwwAuth)
     resp.entity.setString('{"error":"invalid_token","validation":"jwks","reason":"' + reason + '"}')
     return Promises.newResultPromise(resp)
 }

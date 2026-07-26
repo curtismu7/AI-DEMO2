@@ -81,6 +81,13 @@ const A2A_SPECIALISTS = {
     tools: ['sensitive_supplier_contract'],
     subtaskHint: 'review the sensitive supplier contract terms',
   },
+  investment: {
+    appKey: 'holdings',
+    appName: 'Super Banking Holdings Specialist Agent',
+    specialistName: 'Holdings Specialist',
+    tools: ['sensitive_investment_holdings'],
+    subtaskHint: 'review the sensitive investment holdings',
+  },
 };
 
 /** All verticals that have an A2A specialist. */
@@ -113,6 +120,18 @@ function intermediateAudienceKey(appKey) {
   return `a2a_intermediate_audience_${appKey}`;
 }
 
+/**
+ * scope-topology.json resource name for this specialist's Exchange #1 audience.
+ * Must match resources[] keys provisioned in Step 37a-A2A.
+ */
+function intermediateResourceName(specialist) {
+  if (!specialist?.specialistName) return null;
+  return `Super Banking A2A Intermediate - ${specialist.specialistName}`;
+}
+
+/** scope-topology.json resource name for A2A Exchange #2 gateway audience. */
+const A2A_GATEWAY_RESOURCE_NAME = 'Super Banking A2A MCP Gateway';
+
 module.exports = {
   A2A_SPECIALISTS,
   verticalsWithSpecialist,
@@ -120,4 +139,6 @@ module.exports = {
   clientIdKey,
   clientSecretKey,
   intermediateAudienceKey,
+  intermediateResourceName,
+  A2A_GATEWAY_RESOURCE_NAME,
 };

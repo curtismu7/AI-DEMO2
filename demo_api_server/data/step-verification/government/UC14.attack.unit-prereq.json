@@ -1,0 +1,18 @@
+{
+  "vertical": "government",
+  "useCaseId": "UC14",
+  "triggerType": "attack",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": null,
+  "checkedAt": "2026-07-26",
+  "requiredFlags": [
+    "ff_rar"
+  ],
+  "flagsAssumedOn": true,
+  "provesDeclaredOnly": true,
+  "flagsOffDetected": [
+    "ff_rar"
+  ]
+}

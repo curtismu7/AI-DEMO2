@@ -1,0 +1,11 @@
+{
+  "vertical": "banking",
+  "useCaseId": "UC8",
+  "triggerType": "chip",
+  "mode": "unit-transaction-hitl-promote",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "create_transfer",
+  "checkedAt": "2026-07-25",
+  "verifiedBy": "_applyTransactionPolicy Transaction-HITL promotion (e90262f9)"
+}

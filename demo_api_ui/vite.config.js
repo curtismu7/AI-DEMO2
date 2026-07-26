@@ -39,12 +39,17 @@ export default defineConfig(({ mode }) => {
   const hostname = cfg('REACT_APP_API_HOST') || (apiHttps ? 'api.ping.demo' : 'localhost')
   const httpTarget = `${apiHttps ? 'https' : 'http'}://${hostname}:${apiPort}`
   const wsTarget = `${apiHttps ? 'wss' : 'ws'}://${hostname}:${apiPort}`
+  // Jaeger itself is always plain HTTP on 16686. REACT_APP_API_HOST is only set
+  // in Docker (docker-compose.override.yml: demo-api-server) — its presence is
+  // the same docker-vs-native signal the BFF's own jaegerCandidates() resolves
+  // via env, just inlined here since Vite can't reach that Node module.
+  const jaegerTarget = cfg('REACT_APP_API_HOST') ? 'http://jaeger:16686' : 'http://localhost:16686'
 
   // Fail loud: surface the resolved proxy target at boot so a misconfigured
   // host/port is visible in `docker logs ai-demo-ui` instead of silently
   // hitting loopback and masquerading as a "servers down" error.
   console.log(
-    `[vite] dev proxy: /api,/health,/pinggateway-test.html → ${httpTarget}  |  /ws → ${wsTarget}`,
+    `[vite] dev proxy: /api,/health,/pinggateway-test.html → ${httpTarget}  |  /ws → ${wsTarget}  |  /jaeger → ${jaegerTarget}`,
   )
   if (process.env.HTTPS !== 'false') {
     if (mkcert) {
@@ -131,7 +136,10 @@ export default defineConfig(({ mode }) => {
       // HTTP) works after the CRA→Vite migration. Default stays 4000 + HTTPS
       // (mkcert cert present) for `npm start` and the Docker dev mount.
       port: process.env.PORT ? Number(process.env.PORT) : 4000,
-      allowedHosts: ['api.ping.demo'],
+      // local.ping-devops.com is the passkey-capable local origin: WebAuthn needs
+      // rp.id to be the host or a registrable parent of it, and PingOne rejects a
+      // rp.id whose TLD isn't public — so `api.ping.demo` can never carry passkeys.
+      allowedHosts: ['local.ping-devops.com', 'api.ping.demo'],
       ...(process.env.HTTPS !== 'false' && mkcert && {
         https: {
           key: readFileSync(mkcert.key),
@@ -169,6 +177,14 @@ export default defineConfig(({ mode }) => {
         '/ws': {
           target: wsTarget,
           ws: true,
+          changeOrigin: true,
+          secure: false,
+        },
+        // Raw Jaeger UI ("Open Jaeger UI" link) — mirrors nginx.conf's
+        // location /jaeger/ (no path rewrite: preserves the /jaeger prefix so
+        // it matches Jaeger's own QUERY_BASE_PATH=/jaeger).
+        '/jaeger': {
+          target: jaegerTarget,
           changeOrigin: true,
           secure: false,
         },

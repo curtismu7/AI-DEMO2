@@ -1,6 +1,6 @@
 {
   "name": "mcp-olb-jwks",
-  "condition": "${find(request.uri.path, '^/mcp(?!/invest)') and not empty request.headers['X-Token-Validation'] and request.headers['X-Token-Validation'][0] == 'jwks'}",
+  "condition": "${find(request.uri.path, '^/mcp(?!/invest|/weather)') and not empty request.headers['X-Token-Validation'] and request.headers['X-Token-Validation'][0] == 'jwks'}",
   "heap": [
     {
       "name": "SecretsStore",
@@ -67,6 +67,15 @@
           "config": {
             "acceptedOrigins": ".*",
             "metricsEnabled": true
+          }
+        },
+        {
+          "comment": "Tool-argument validation must run on EVERY route, not just the introspection ones — a token accepted here otherwise reaches the backend with unvalidated arguments that the same token could not send via 01-mcp-olb. Mounted after McpValidationFilter (body buffered) and before P1AZDecision, matching 01-mcp-olb.json.",
+          "name": "McpRequestValidation",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "mcp-request-validation.groovy"
           }
         },
         {

@@ -3,6 +3,7 @@
 require('./serversCheck');
 require('./authorizeCheck');
 require('./configCheck');
+require('./flagOverrideCheck');
 require('./llmCheck');
 require('./llmDeepCheck');
 require('./gatewayCheck');

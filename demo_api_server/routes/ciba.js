@@ -27,9 +27,12 @@
 const express = require('express');
 const router  = express.Router();
 const cibaService = require('../services/cibaService');
+const cibaSimulatedService = require('../services/cibaSimulatedService');
+const delegationService = require('../services/delegationService');
 const { authenticateToken } = require('../middleware/auth');
 const configStore = require('../services/configStore');
 const { PINGONE_OIDC_DEFAULT_SCOPES_SPACE } = require('../config/scopes');
+const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 const { trackTokenEvent } = require('../services/tokenChainService');
 
 const STEP_UP_TTL_MS = 5 * 60 * 1000; // 5 min step-up validity
@@ -90,7 +93,7 @@ router.post('/initiate', authenticateToken, async (req, res) => {
 
   const loginHint = field('login_hint', 'loginHint')
     || req.user?.email
-    || req.session?.oauthUser?.email;
+    || req.session?.user?.email;
 
   if (!loginHint) {
     return res.status(400).json({
@@ -102,6 +105,13 @@ router.post('/initiate', authenticateToken, async (req, res) => {
   const scope = req.body.scope;
   const acr_values = field('acr_values', 'acrValues') || '';
   let binding_message = field('binding_message', 'bindingMessage');
+
+  // Optional transaction-display context (UC22's separate-device approval
+  // page). Purely additive — no validation beyond type coercion, since
+  // these only ever populate a display string, never a policy decision.
+  const amount = req.body.amount != null ? Number(req.body.amount) : null;
+  const fromAccountLabel = field('from_account_label', 'fromAccountLabel') || null;
+  const toAccountLabel = field('to_account_label', 'toAccountLabel') || null;
 
   // Validate binding_message length and content (prevents log injection / oversized payloads)
   if (binding_message !== undefined) {
@@ -115,14 +125,61 @@ router.post('/initiate', authenticateToken, async (req, res) => {
     binding_message = binding_message.replace(/[\x00-\x1f\x7f]/g, '');
   }
 
+  let result;
+  let simulated = false;
   try {
-    const result = await cibaService.initiateBackchannelAuth(
+    result = await cibaService.initiateBackchannelAuth(
       loginHint,
       binding_message,
       scope || PINGONE_OIDC_DEFAULT_SCOPES_SPACE,
       acr_values,
     );
+  } catch (realErr) {
+    // Failover: PingOne's /as/bc-authorize can be unreachable OR entirely
+    // unrouted at the platform level (see the "Known gap" note in the ciba
+    // skill doc) — either way, fall back to the in-process simulated engine
+    // by default so the demo stays usable. Set ciba_failover_mode=deny to
+    // restore the old fail-loud behavior.
+    const failoverMode = configStore.getEffective('ciba_failover_mode') || 'fallback_simulated';
+    if (failoverMode !== 'fallback_simulated') {
+      console.error('[CIBA] initiate failed:', realErr.response?.data || realErr.message);
+      const pingError = realErr.response?.data;
+      return res.status(502).json({
+        error:   pingError?.error || 'ciba_initiation_failed',
+        message: pingError?.error_description || realErr.message,
+      });
+    }
+    result = cibaSimulatedService.initiateSimulated(
+      loginHint,
+      binding_message,
+      scope || PINGONE_OIDC_DEFAULT_SCOPES_SPACE,
+      acr_values,
+    );
+    simulated = true;
+  }
 
+  // Manager-as-approver: if the acting user is a workforce employee with an
+  // active manager delegation carrying create_transfer scope, this becomes a
+  // second-principal approval flow — the manager approves via their own
+  // session on /delegation, not via this CIBA channel. Any lookup failure
+  // falls through to today's plain self-approval behavior, unchanged.
+  let delegationId = null;
+  try {
+    const activeDelegation = await delegationService.findActiveByDelegate(req.user?.id);
+    if (activeDelegation) {
+      delegationId = activeDelegation.id;
+      await delegationService.requestApproval(delegationId, {
+        authReqId: result.auth_req_id,
+        amount,
+        tool: req.body.tool || null,
+        bindingMessage: binding_message || '',
+      });
+    }
+  } catch (delegErr) {
+    console.warn('[CIBA] manager-approval delegation lookup failed (continuing as self-approval):', delegErr.message);
+  }
+
+  try {
     // Track in session so poll endpoint can verify ownership
     req.session.cibaRequests = req.session.cibaRequests || {};
 
@@ -140,6 +197,11 @@ router.post('/initiate', authenticateToken, async (req, res) => {
       scope: scope || PINGONE_OIDC_DEFAULT_SCOPES_SPACE,
       acr_values: acr_values || '',
       binding_message: binding_message || '',
+      simulated,
+      amount,
+      fromAccountLabel,
+      toAccountLabel,
+      delegationId,
     };
 
     res.json({
@@ -154,14 +216,62 @@ router.post('/initiate', authenticateToken, async (req, res) => {
     const pingError = err.response?.data;
     res.status(502).json({
       error:   pingError?.error || 'ciba_initiation_failed',
-      message: pingError?.error_description || err.message,
+      message: pingError?.error_description
+        || normalizeAxiosError(err, { label: 'CIBA initiate' }).message,
     });
   }
 });
 
 // ---------------------------------------------------------------------------
+// GET /api/auth/ciba/request/:authReqId
+//
+// Display details for the separate-device approval page. Session-gated,
+// same ownership model as /poll — this page only ever opens in a new tab
+// on the SAME browser (shared session cookie), never a different device.
+// ---------------------------------------------------------------------------
+
+router.get('/request/:authReqId', authenticateToken, (req, res) => {
+  if (!_cibaEnabled(res)) return;
+
+  const { authReqId } = req.params;
+  const pending = req.session.cibaRequests?.[authReqId];
+
+  if (!pending) {
+    return res.status(404).json({
+      error: 'unknown_request',
+      message: 'No pending CIBA request with that ID in this session.',
+    });
+  }
+
+  if (Date.now() > pending.expiresAt) {
+    return res.status(410).json({
+      error: 'request_expired',
+      message: 'The CIBA authentication request has expired. Please try again.',
+    });
+  }
+
+  res.json({
+    binding_message: pending.binding_message || '',
+    amount: pending.amount ?? null,
+    from_account_label: pending.fromAccountLabel ?? null,
+    to_account_label: pending.toAccountLabel ?? null,
+  });
+});
+
+// ---------------------------------------------------------------------------
 // GET /api/auth/ciba/poll/:authReqId
 // ---------------------------------------------------------------------------
+
+/**
+ * Mark a session CIBA request as approved without deleting it.
+ * Concurrent pollers (agent loop + approve tab) used to race: the first
+ * successful poll deleted the entry and the second got 404 → false deny.
+ * Keep an approved sentinel until expiresAt so later polls stay idempotent.
+ */
+function _markCibaApproved(pending) {
+  pending.pollOutcome = 'approved';
+  pending.approvedAt = Date.now();
+}
 
 router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
   if (!_cibaEnabled(res)) return;
@@ -184,6 +294,98 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
     });
   }
 
+  // Idempotent: prior poll already applied step-up — do not 404 late pollers.
+  if (pending.pollOutcome === 'approved') {
+    return res.json({ status: 'approved', scope: pending.scope });
+  }
+
+  if (pending.simulated) {
+    if (pending.deniedByUser) {
+      delete req.session.cibaRequests[authReqId];
+      return res.status(403).json({
+        status: 'denied',
+        error: 'access_denied',
+        message: 'The user denied the authentication request.',
+      });
+    }
+
+    let approvalStatus = 'approved';
+    let approverUserId = null;
+    if (pending.delegationId) {
+      try {
+        const approval = await delegationService.getApprovalStatus(pending.delegationId);
+        approvalStatus = approval.status;
+        approverUserId = approval.approverUserId;
+      } catch (approvalErr) {
+        console.warn('[CIBA] manager-approval status lookup failed (treating as still pending):', approvalErr.message);
+        approvalStatus = 'pending';
+      }
+    } else if (!cibaSimulatedService.isSimulatedApproved(pending)) {
+      approvalStatus = 'pending';
+    }
+
+    if (approvalStatus === 'denied') {
+      delete req.session.cibaRequests[authReqId];
+      return res.status(403).json({
+        status: 'denied',
+        error: 'access_denied',
+        message: 'The manager denied the approval request.',
+      });
+    }
+
+    if (approvalStatus !== 'approved') {
+      return res.json({ status: 'pending' });
+    }
+
+    _markCibaApproved(pending);
+    req.session.stepUpVerified = Date.now() + STEP_UP_TTL_MS;
+    // CIBA out-of-band approval IS a human-in-the-loop event, so it discharges
+    // the separate HITL gate too (see mcpToolAuthorizationService.js's
+    // hitlAlreadyVerified) — otherwise a checkout/transfer that trips both
+    // step-up AND HITL clears step-up on retry but 428s forever on HITL.
+    // Amount-bound (services/hitlCredit.js): record what was approved so the
+    // credit only discharges consent for a transfer at or below this amount.
+    req.session.hitlVerified = Date.now() + STEP_UP_TTL_MS;
+    req.session.hitlApprovedAmount = pending.amount ?? null;
+
+    // Mirror the real path's token-chain tracking below so the "CIBA
+    // Step-Up" tab and floating token-chain panel show an identical event —
+    // never distinguishable from a real approval in the UI.
+    // `engine: 'simulated'` is stashed in additionalData for our own
+    // debugging only; CibaStepUpFlowPanel.jsx never renders additionalData.
+    // No fake access token is ever stored in req.session.oauthTokens — the
+    // step-up gate in routes/transactions.js only reads stepUpVerified.
+    try {
+      const jwt = require('jsonwebtoken');
+      const subject = req.user?.sub || req.user?.id;
+      if (subject) {
+        const fakeAccessToken = jwt.sign({ sub: subject, scope: pending.scope }, 'ciba-simulated-local-only');
+        trackTokenEvent({
+          eventType: 'auth',
+          token: fakeAccessToken,
+          userId: subject,
+          description: 'CIBA backchannel step-up approved (out-of-band)',
+          additionalData: {
+            grantedVia: 'ciba',
+            scope: pending.scope,
+            engine: 'simulated',
+            ...(approverUserId ? { approvedBy: approverUserId } : {}),
+          },
+        }).catch((err) => console.error('[CIBA] token-chain track failed (simulated):', err.message));
+      }
+    } catch (trackErr) {
+      console.warn('[CIBA] could not build token-chain event for simulated approval:', trackErr.message);
+    }
+
+    return req.session.save((saveErr) => {
+      if (saveErr) console.error('[CIBA] session save error on simulated approval:', saveErr);
+      res.json({
+        status: 'approved',
+        scope:  pending.scope,
+      });
+    });
+  }
+
   try {
     const tokens = await cibaService.pollForTokens(authReqId);
 
@@ -198,8 +400,11 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
       grantedVia:   'ciba',
     };
 
-    delete req.session.cibaRequests[authReqId];
+    _markCibaApproved(pending);
     req.session.stepUpVerified = Date.now() + STEP_UP_TTL_MS;
+    // See the matching comment in the simulated branch above.
+    req.session.hitlVerified = Date.now() + STEP_UP_TTL_MS;
+    req.session.hitlApprovedAmount = pending.amount ?? null;
 
     // Record the step-up in the token chain so the "CIBA Step-Up" tab and the
     // floating token-chain panel show the backchannel-granted token as a live
@@ -245,6 +450,61 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
       message: err.response?.data?.error_description || 'The user denied the authentication request.',
     });
   }
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/auth/ciba/approve-now/:authReqId
+//
+// Demo convenience: lets the presenter skip the fallback engine's timed
+// auto-approve instead of waiting it out. Only valid for a pending.simulated
+// request — real CIBA must be approved on its real out-of-band channel, so
+// this route is a no-op (404) for a real pending request; the next /poll
+// call resolves it exactly as a timed auto-approve would.
+// ---------------------------------------------------------------------------
+
+router.post('/approve-now/:authReqId', authenticateToken, (req, res) => {
+  const { authReqId } = req.params;
+  const pending = req.session.cibaRequests?.[authReqId];
+
+  if (!pending || !pending.simulated) {
+    return res.status(404).json({
+      error: 'unknown_request',
+      message: 'No pending request with that ID eligible for immediate approval.',
+    });
+  }
+
+  pending.initiatedAt = Date.now() - cibaSimulatedService.SIMULATED_APPROVE_DELAY_MS;
+  req.session.save((saveErr) => {
+    if (saveErr) console.error('[CIBA] session save error on approve-now:', saveErr);
+    res.json({ ok: true });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/auth/ciba/deny/:authReqId
+//
+// Explicit user denial from the separate-device approval page — distinct
+// from /cancel (give up waiting) or expiry (timed out). Same simulated-only
+// constraint as /approve-now: a real bc-authorize request can only be
+// denied on its actual out-of-band channel, not through this route.
+// ---------------------------------------------------------------------------
+
+router.post('/deny/:authReqId', authenticateToken, (req, res) => {
+  const { authReqId } = req.params;
+  const pending = req.session.cibaRequests?.[authReqId];
+
+  if (!pending || !pending.simulated) {
+    return res.status(404).json({
+      error: 'unknown_request',
+      message: 'No pending request with that ID eligible for denial.',
+    });
+  }
+
+  pending.deniedByUser = true;
+  req.session.save((saveErr) => {
+    if (saveErr) console.error('[CIBA] session save error on deny:', saveErr);
+    res.json({ ok: true });
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -1,0 +1,21 @@
+services:
+  mcpgw:
+    image: us-docker.pkg.dev/forgeops-public/images-base/ig:latest
+    container_name: demo-mcpgw
+    # Clear any stale PID left by an unclean shutdown before handing off to the
+    # stock launcher (otherwise IG refuses to boot: "PID file already exists").
+    entrypoint:
+      - /bin/sh
+      - -c
+      - rm -f "$${IG_INSTANCE_DIR}/tmp/"*.pid 2>/dev/null || true; exec "$${INSTALL_DIR}/bin/start.sh" "$${IG_INSTANCE_DIR}"
+    ports:
+      - "3046:8080"
+    volumes:
+      # Mount config as a DIRECTORY (not per-file) — IG's route watcher mis-detects
+      # per-file bind mounts as changes and unloads routes at runtime.
+      - ./config:/var/gateway/config:ro
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

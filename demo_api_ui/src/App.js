@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Navigate,
   Route,
@@ -15,7 +15,7 @@ import Accounts from "./components/Accounts";
 import { ActorTokenEducation } from "./components/ActorTokenEducation";
 import AdminErrorAuditLog from "./components/AdminErrorAuditLog";
 import AdminSideNav from "./components/AdminSideNav";
-import { appRendersSideNav } from "./routes/sideNavOwner";
+import { appRendersSideNav, isNoChromeRoute, normalizePath } from "./routes/sideNavOwner";
 import AdminTokenComplianceAudit from "./components/AdminTokenComplianceAudit";
 import AdminVaultPage from "./components/AdminVaultPage";
 import AgentBuilderPage from "./components/AgentBuilderPage";
@@ -23,6 +23,7 @@ import AgentGuardrailsPage from "./pages/AgentGuardrailsPage";
 import AgentOnboardingFlowDiagram from "./components/AgentOnboardingFlowDiagram";
 import AgentOnboardingSubwayPage from "./components/AgentOnboardingSubwayPage";
 import AgentOnboardingMermaidPage from "./components/AgentOnboardingMermaidPage";
+import McpGatewayOauthFlowPage from "./components/McpGatewayOauthFlowPage";
 import AgentStudioPreviewPage from "./components/agentStudioPreview/AgentStudioPreviewPage";
 import DiscoveryPreviewPage from "./components/agentStudioPreview/DiscoveryPreviewPage";
 import IgaForAiPage from "./components/agentStudioPreview/IgaForAiPage";
@@ -30,7 +31,6 @@ import PrivilegesGatewayPreviewPage from "./components/agentStudioPreview/Privil
 import PlatformGapsPage from "./components/agentStudioPreview/PlatformGapsPage";
 import AgentFlowDiagramPanel from "./components/AgentFlowDiagramPanel";
 import { AgenticTrustEducation } from "./components/AgenticTrustEducation";
-import AgentGatewayTester from "./components/AgentGatewayTester";
 import OwaspLearnerPage from "./components/OwaspLearnerPage";
 import UngovernedAgentPage from "./components/UngovernedAgentPage";
 import AIAgent from "./components/AIAgent";
@@ -44,13 +44,14 @@ import ClientCredentialsResourcePage from "./components/ClientCredentialsResourc
 import ClientRegistrationPage from "./components/ClientRegistrationPage";
 import ComplianceModalPopout from "./components/ComplianceModalPopout";
 import Dashboard from "./components/Dashboard";
-import DelegatedAccessPage from "./components/DelegatedAccessPage";
 import DelegationPage from "./components/DelegationPage";
+import AgentLifecyclePage from "./pages/AgentLifecyclePage";
 import DemoGuidePopout from "./components/DemoGuidePopout";
 import DemoServerCheckModal from "./components/DemoServerCheckModal";
 import { resolveEmbeddedFocus } from "./components/demoAgentSafety";
 import EmbeddedAgentDock from "./components/EmbeddedAgentDock";
 import EducationPanelsHost from "./components/education/EducationPanelsHost";
+import DemoConfigPage from "./components/DemoConfigPage";
 import FeatureFlagsPage from "./components/FeatureFlagsPage";
 import Footer from "./components/Footer";
 import FloatingTokenChainPanel from "./components/FloatingTokenChainPanel";
@@ -59,15 +60,17 @@ import LandingPage from "./components/LandingPage";
 import LearningHub from "./components/LearningHub";
 import LlmConfigPage from "./components/LlmConfigPage";
 import LogoutPage from "./components/LogoutPage";
+import LoginSuccessModal from "./components/LoginSuccessModal";
 import LogViewer from "./components/LogViewer";
-import McpInspector from "./components/McpInspector";
+import MgmtApiRunnerPage from "./components/MgmtApiRunnerPage";
 import MissingCredentialsModal from "./components/MissingCredentialsModal";
 import MockAuthzRulesPage from "./components/MockAuthzRulesPage";
 import MortgagePathPage from "./components/MortgagePathPage";
 import OAuthDebugLogViewer from "./components/OAuthDebugLogViewer";
 import OAuthTokenDisplayPage from "./components/OAuthTokenDisplayPage";
 import PingOneAuthorizePage from "./components/PingOneAuthorizePage";
-import PingOneMcpInspector from "./components/PingOneMcpInspector";
+import PingOneAuthorizeCapabilitiesPage from "./pages/PingOneAuthorizeCapabilitiesPage";
+import PolicyDecisionTracePage from "./components/PolicyDecisionTracePage";
 import PostmanCollectionsPage from "./components/PostmanCollectionsPage";
 import Profile from "./components/Profile";
 import ResourceServerPage from "./components/ResourceServerPage";
@@ -81,6 +84,7 @@ import AuthorizeFallbackListener from "./components/AuthorizeFallbackListener";
 import SessionReauthBanner from "./components/SessionReauthBanner";
 import SportingGoodsAdminOps from "./components/SportingGoodsAdminOps";
 import SpinnerHost from "./components/shared/SpinnerHost";
+import DemoScriptLauncher from "./components/DemoScriptLauncher";
 import TokenSecurityTester from "./components/TokenSecurityTester";
 import TopNav from "./components/TopNav";
 import TransactionConsentPage from "./components/TransactionConsentPage";
@@ -114,9 +118,9 @@ import { useServerHealthCheck } from "./hooks/useServerHealthCheck";
 import AdminThemesPage from "./pages/AdminThemesPage";
 import AiControlPlanePage from "./pages/AiControlPlanePage";
 import CheckPage from "./pages/CheckPage";
-import ServersPage from "./pages/ServersPage";
 import TracingPage from "./pages/TracingPage";
 import TransactionTracePage from "./pages/TransactionTracePage";
+import TelemetryPage from "./pages/TelemetryPage";
 import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
 import PingCliPage from "./components/PingCliPage";
@@ -133,14 +137,14 @@ import MonitoringRoutes, {
   SequenceDiagramRoute,
 } from "./routes/MonitoringRoutes";
 import PublicRoutes, {
-  AgentPageRoute,
-  AuthzTestPageRoute,
+  CibaApprovalPageRoute,
   CodeExplorerPageRoute,
   CodeSearchPageRoute,
   ConfigurePage,
   CopilotPageRoute,
   GraphifyPageRoute,
   IntentBindingLearningPageRoute,
+  LiveUseCaseWorkbenchPageRoute,
   MFATestPageRoute,
   OASDemoPageRoute,
   OAuthAcademyPageRoute,
@@ -154,6 +158,8 @@ import PublicRoutes, {
   SdkLoginPageRoute,
   SelfServicePageRoute,
   TokenExchangeTesterPageRoute,
+  McpInspectorPageRoute,
+  McpGatewayConfigRoute,
   UseCasesPageRoute,
 } from "./routes/PublicRoutes";
 import RequireAdminLogin from "./routes/RequireAdminLogin";
@@ -161,8 +167,11 @@ import { monitorApiHealth } from "./services/bankingRestartNotificationService";
 import {
   isBankingAgentDashboardRoute,
   isEmbeddedAgentDockRoute,
+  isLiveWorkbenchRoute,
+  isAgentLifecycleRoute,
   isMonitoringRoute,
   isPublicMarketingAgentPath,
+  isPingOneAdminAgentRoute,
 } from "./utils/embeddedAgentFabVisibility";
 import { VerticalEditorPage } from "./vertical/AdminEditor/VerticalEditorPage";
 import { VerticalProvider } from "./vertical/VerticalProvider";
@@ -243,16 +252,11 @@ function AppWithAuth() {
   const fullLocation = useLocation();
   const backgroundLocation = fullLocation.state?.backgroundLocation;
   const { pathname } = useLocation();
-  const pathNorm = pathname.replace(/\/$/, "") || "/";
+  const pathNorm = normalizePath(pathname);
   // Side-nav ownership (home + no-chrome routes opt out) lives in
   // routes/sideNavOwner.js so AppShell can't render a second one.
-  const isApiTrafficOnlyPage =
-    pathNorm === "/api-traffic" ||
-    pathNorm === "/logs" ||
-    pathNorm === "/agent" ||
-    // SDK centralized-login sandbox: standalone page, no app chrome/panels/footer.
-    pathNorm === "/sdk-login" ||
-    pathNorm === "/sdk-login/callback";
+  // Same list suppresses the floating agent FAB on bare popup pages.
+  const isApiTrafficOnlyPage = isNoChromeRoute(pathNorm);
   const {
     placement: agentPlacement,
     fab: agentFab,
@@ -270,6 +274,24 @@ function AppWithAuth() {
   const [logViewerOpen, setLogViewerOpen] = useState(false);
   const [credentialsModal, setCredentialsModal] = useState(null);
   const [showTokenChain, setShowTokenChain] = useState(false);
+
+  // Post-login success modal. `?oauth=success` is captured on the first render
+  // — before useOAuthUrlCleanup strips it — so the modal opens exactly once
+  // after a fresh PingOne login (not on every dashboard refresh).
+  const [freshLogin] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search || "").get("oauth") ===
+        "success",
+  );
+  const [loginSuccessOpen, setLoginSuccessOpen] = useState(false);
+  const loginModalShownRef = useRef(false);
+  useEffect(() => {
+    if (loginModalShownRef.current) return;
+    if (!freshLogin || !user || user.hideSuccessScreen) return;
+    loginModalShownRef.current = true;
+    setLoginSuccessOpen(true);
+  }, [freshLogin, user]);
 
   // Setup browser extension interference handling
   useEffect(() => {
@@ -318,6 +340,12 @@ function AppWithAuth() {
   // / now renders LandingPage for non-admin logged-in users; UserDashboard lives at /dashboard.
   const onUserDashboardRoute = Boolean(user) && pathname === "/dashboard";
 
+  // Live Use-Case Workbench (/use-cases/live) — same middle-column agent
+  // placement mechanism as UserDashboard, extended to a second route.
+  const onLiveWorkbenchRoute = Boolean(user) && isLiveWorkbenchRoute(pathname);
+
+  const onAgentLifecycleRoute = Boolean(user) && isAgentLifecycleRoute(pathname);
+
   // Landing home (/): show floating agent even when signed out.
   // Suppress float on signed-in / only when UserDashboard owns middle placement.
   const marketingAgentSurface = isPublicMarketingAgentPath(pathname) && !user;
@@ -360,10 +388,18 @@ function AppWithAuth() {
    *  Restricting to signed-in users would silently strip the inline agent
    *  for guests and leave them with no way to start the demo. */
   const onMiddlePlacementInDashboard =
-    agentPlacement === "middle" && onUserDashboardRoute;
-  /** Single <AIAgent> portals into the bottom dock host element when present; falls back to document.body otherwise. */
+    agentPlacement === "middle" && (onUserDashboardRoute || onLiveWorkbenchRoute);
+  /** Single <AIAgent> portals into the bottom dock host element when present; falls back to document.body otherwise.
+   *  onLiveWorkbenchRoute always mounts the agent here regardless of agentPlacement: this route's entire purpose
+   *  requires the real agent to be present (narrow, inline), and unlike UserDashboard it renders no dock fallback
+   *  of its own — without this, a "bottom"/"none" placement would leave banking-agent-prefill dispatches with
+   *  zero listeners. */
   const shouldMountSingleAgent =
-    showFloatingAgent || hasEmbeddedDockLayout || onMiddlePlacementInDashboard;
+    showFloatingAgent ||
+    hasEmbeddedDockLayout ||
+    onMiddlePlacementInDashboard ||
+    onLiveWorkbenchRoute ||
+    onAgentLifecycleRoute;
 
   // When the single agent is portaled into the bottom dock host it must wear
   // the dock's inline chrome (no floating frame/drag), exactly as the old
@@ -381,6 +417,11 @@ function AppWithAuth() {
     // Middle column owns the agent surface — render inline so the floating
     // dock chrome doesn't appear inside the column. Same pattern as the
     // clinical-split branch above.
+    singleAgentSurfaceProps = { mode: "inline", splitColumnChrome: true };
+  } else if (onLiveWorkbenchRoute || onAgentLifecycleRoute) {
+    // Both routes' own narrow/right-column host always want the agent,
+    // regardless of the user's dashboard-wide placement preference (same
+    // reasoning as clinicalSplit).
     singleAgentSurfaceProps = { mode: "inline", splitColumnChrome: true };
   }
 
@@ -453,7 +494,7 @@ function AppWithAuth() {
                 />
                 <Route
                   path="/authz-test"
-                  element={<AuthzTestPageRoute user={user} logout={logout} />}
+                  element={<Navigate to="/pingone-authorize?tab=guided" replace />}
                 />
                 <Route
                   path="/intent-binding-learning"
@@ -462,9 +503,43 @@ function AppWithAuth() {
                   }
                 />
                 <Route
+                  path="/agent-gateway-capabilities"
+                  element={
+                    <Navigate to="/pinggateway-inspector?subtab=capabilities" replace />
+                  }
+                />
+                <Route
                   path="/token-exchange-tester"
                   element={
                     <TokenExchangeTesterPageRoute user={user} logout={logout} />
+                  }
+                />
+                {/* MCP Inspector — top-level (not auth catch-all). Guests under
+                  path="*" only get TopNav; this page must remain reachable. */}
+                <Route
+                  path="/mcp-inspector"
+                  element={
+                    <Navigate to="/pingone-mcp-inspector?source=banking" replace />
+                  }
+                />
+                <Route
+                  path="/pingone-mcp-inspector"
+                  element={
+                    <McpInspectorPageRoute user={user} logout={logout} />
+                  }
+                />
+                {/* Gateway Inspector — top-level (not auth catch-all). Guests under
+                  path="*" only get TopNav; this page must remain reachable. */}
+                <Route
+                  path="/pinggateway-test"
+                  element={
+                    <Navigate to="/pinggateway-inspector?subtab=tester" replace />
+                  }
+                />
+                <Route
+                  path="/pinggateway-inspector"
+                  element={
+                    <McpGatewayConfigRoute user={user} logout={logout} />
                   }
                 />
                 <Route
@@ -472,6 +547,7 @@ function AppWithAuth() {
                   element={<SdkLoginPageRoute />}
                 />
                 <Route path="/sdk-login/callback" element={<SdkLoginCallbackRoute />} />
+                <Route path="/ciba-approve" element={<CibaApprovalPageRoute />} />
                 <Route
                   path="/code-explorer"
                   element={
@@ -533,22 +609,8 @@ function AppWithAuth() {
                     )
                   }
                 />
-                {/* Servers — live server inventory; any logged-in user (not admin-only) */}
-                <Route
-                  path="/servers"
-                  element={
-                    loading ? null : user ? (
-                      <>
-                        <TopNav user={user} onLogout={logout} />
-                        <main className="main-content">
-                          <ServersPage />
-                        </main>
-                      </>
-                    ) : (
-                      <Navigate to="/" replace />
-                    )
-                  }
-                />
+                {/* Legacy Servers URL — inventory is now a section on /check */}
+                <Route path="/servers" element={<Navigate to="/check" replace />} />
                 {/* Check — server/health checks; any logged-in user (not admin-only) */}
                 <Route
                   path="/check"
@@ -595,12 +657,35 @@ function AppWithAuth() {
                     )
                   }
                 />
+                <Route
+                  path="/telemetry"
+                  element={
+                    loading ? null : (
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <TelemetryPage />
+                        </main>
+                      </>
+                    )
+                  }
+                />
                 {/* Use-Case Launcher — any logged-in user; flag-gated (ff_use_cases_launcher default ON) */}
                 <Route
                   path="/use-cases"
                   element={
                     loading ? null : user && appFlags.showUseCaseLauncher ? (
                       <UseCasesPageRoute user={user} logout={logout} />
+                    ) : (
+                      <Navigate to="/" replace />
+                    )
+                  }
+                />
+                <Route
+                  path="/use-cases/live"
+                  element={
+                    loading ? null : user && appFlags.showUseCaseLauncher ? (
+                      <LiveUseCaseWorkbenchPageRoute user={user} logout={logout} />
                     ) : (
                       <Navigate to="/" replace />
                     )
@@ -738,10 +823,6 @@ function AppWithAuth() {
                 {/* /login is not a real route — redirect to home so stale links or misdirected post-logout URIs land cleanly */}
                 <Route path="/login" element={<Navigate to="/" replace />} />
                 <Route path="/logout" element={<LogoutPage />} />
-                <Route
-                  path="/agent"
-                  element={<AgentPageRoute user={user} logout={logout} />}
-                />
                 <Route
                   path="/copilot"
                   element={<CopilotPageRoute user={user} logout={logout} />}
@@ -892,6 +973,16 @@ function AppWithAuth() {
                               }
                             />
                             <Route
+                              path="/demo-config"
+                              element={
+                                user ? (
+                                  <DemoConfigPage />
+                                ) : (
+                                  <Navigate to="/" replace />
+                                )
+                              }
+                            />
+                            <Route
                               path="/feature-flags"
                               element={
                                 <RequireAdminLogin user={user}>
@@ -937,6 +1028,18 @@ function AppWithAuth() {
                             <Route
                               path="/pingone-authorize"
                               element={<PingOneAuthorizePage />}
+                            />
+                            <Route
+                              path="/mgmt-api"
+                              element={<MgmtApiRunnerPage />}
+                            />
+                            <Route
+                              path="/pingone-authorize-capabilities"
+                              element={<PingOneAuthorizeCapabilitiesPage />}
+                            />
+                            <Route
+                              path="/policy-decision-trace"
+                              element={<PolicyDecisionTracePage />}
                             />
                             <Route
                               path="/mcp-gateway"
@@ -986,25 +1089,6 @@ function AppWithAuth() {
                               element={
                                 <LogsRoute user={user} logout={logout} />
                               }
-                            />
-                            <Route
-                              path="/mcp-inspector"
-                              element={
-                                <McpInspector user={user} onLogout={logout} />
-                              }
-                            />
-                            <Route
-                              path="/pingone-mcp-inspector"
-                              element={
-                                <PingOneMcpInspector
-                                  user={user}
-                                  onLogout={logout}
-                                />
-                              }
-                            />
-                            <Route
-                              path="/pinggateway-test"
-                              element={<AgentGatewayTester />}
                             />
                             <Route
                               path="/token-security"
@@ -1084,6 +1168,10 @@ function AppWithAuth() {
                             <Route
                               path="/agent-onboarding-flow-mermaid"
                               element={<AgentOnboardingMermaidPage />}
+                            />
+                            <Route
+                              path="/mcp-gateway-oauth-flow"
+                              element={<McpGatewayOauthFlowPage />}
                             />
                             <Route
                               path="/agent-studio-preview"
@@ -1208,15 +1296,6 @@ function AppWithAuth() {
                               element={<TransactionConsentPage user={user} />}
                             />
                             <Route
-                              path="/delegated-access"
-                              element={
-                                <DelegatedAccessPage
-                                  user={user}
-                                  onLogout={logout}
-                                />
-                              }
-                            />
-                            <Route
                               path="/delegation"
                               element={
                                 user ? (
@@ -1224,6 +1303,16 @@ function AppWithAuth() {
                                     user={user}
                                     onLogout={logout}
                                   />
+                                ) : (
+                                  <Navigate to="/" replace />
+                                )
+                              }
+                            />
+                            <Route
+                              path="/agent-lifecycle"
+                              element={
+                                user ? (
+                                  <AgentLifecyclePage />
                                 ) : (
                                   <Navigate to="/" replace />
                                 )
@@ -1264,6 +1353,9 @@ function AppWithAuth() {
                     embeddedFocus={resolveEmbeddedFocus(pathname)}
                     distinctFloatingChrome
                     surfaceHostEl={surfaceHostEl}
+                    {...(isPingOneAdminAgentRoute(pathname)
+                      ? { forceVertical: "pingone-admin" }
+                      : {})}
                     {...singleAgentSurfaceProps}
                   />
                 </ErrorBoundary>
@@ -1293,6 +1385,7 @@ function AppWithAuth() {
               Guest landing (/) always uses float agent — no bottom dock. */}
               {!loading &&
                 !onUserDashboardRoute &&
+                !onLiveWorkbenchRoute &&
                 !(!user && isPublicMarketingAgentPath(pathname)) && (
                   <ErrorBoundary>
                     <EmbeddedAgentDock
@@ -1328,7 +1421,21 @@ function AppWithAuth() {
                 }}
                 onCancel={() => setCredentialsModal(null)}
               />
+              <LoginSuccessModal
+                user={user}
+                isOpen={loginSuccessOpen}
+                onClose={() => setLoginSuccessOpen(false)}
+                onDontShowAgain={() => {
+                  fetch("/api/auth/oauth/user/success-screen-preference", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({ hideSuccessScreen: true }),
+                  }).catch(() => {});
+                }}
+              />
               <SpinnerHost />
+              <DemoScriptLauncher user={user} />
             </div>
           </ActivityNarrativeProvider>
           </ProofOfEnforcementProvider>

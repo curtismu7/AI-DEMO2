@@ -72,7 +72,8 @@
 /* ── Main column ─────────────────────────────────────────── */
 .config-page__main {
   padding: 2rem 20px 3rem;
-  max-width: 880px;
+  max-width: min(1400px, 100%);
+  box-sizing: border-box;
 }
 
 /* ── Cards (scoped) ─────────────────────────────────────── */

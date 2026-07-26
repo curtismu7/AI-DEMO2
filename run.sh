@@ -4,7 +4,7 @@
 #
 # Port layout:
 #   Demo API Server  → https://api.ping.demo:3001
-#   Demo UI          → https://api.ping.demo:4000
+#   Demo UI          → https://local.ping-devops.com:4000
 #   Demo MCP Server  → localhost:8080
 #   LangChain Agent  → localhost:8887 (FastAPI/CodeGraph) + 8889 (chat WS) + 8881 (health/inspector)
 #
@@ -103,15 +103,14 @@ OTEL_NODE_OPTIONS="-r ${OTEL_BOOTSTRAP}"
 OTEL_SERVICE_NAME="demo-api-server"
 
 CERT_DIR="${BASEDIR}/certs"
-# mkcert names cert files after the first SAN argument, e.g.:
-#   mkcert api.ping.demo localhost 127.0.0.1  → api.ping.demo+2.pem
-#   mkcert localhost 127.0.0.1               → localhost+1.pem
-# We derive the expected filenames from API_HOST at runtime.
-_cert_sans_count=2   # api.ping.demo + localhost + 127.0.0.1 → +2
-[[ "$API_HOST" == "localhost" || "$API_HOST" == "127.0.0.1" ]] && _cert_sans_count=1
-CERT_FILE="${CERT_DIR}/${API_HOST}+${_cert_sans_count}.pem"
-KEY_FILE="${CERT_DIR}/${API_HOST}+${_cert_sans_count}-key.pem"
-unset _cert_sans_count
+# Fixed filenames, NOT derived from API_HOST or the SAN count. mkcert would
+# otherwise name the file after its first SAN and suffix it with the SAN count,
+# so changing API_HOST or adding a SAN would rename the cert — and
+# docker-compose.yml, nginx.conf, vite.config.js and ~7 other files hardcode
+# api.ping.demo+2.pem. The name is now just a constant; the SAN list below is
+# what actually decides which hosts the cert covers.
+CERT_FILE="${CERT_DIR}/api.ping.demo+2.pem"
+KEY_FILE="${CERT_DIR}/api.ping.demo+2-key.pem"
 
 # macOS default bash (3.2) does not support ${var^^}; use a helper for banners/help text.
 proto_label() {
@@ -169,7 +168,23 @@ else
     if [[ ! -f "${CERT_FILE}" ]] || [[ ! -f "${KEY_FILE}" ]]; then
       echo "[SSL] Generating SSL certs for ${API_HOST}..."
       mkdir -p "${CERT_DIR}"
-      (cd "${CERT_DIR}" && mkcert "${API_HOST}" localhost 127.0.0.1)
+      # local.ping-devops.com is always a SAN: WebAuthn requires rp.id to be the
+      # origin host or a registrable parent of it, and PingOne refuses a rp.id
+      # whose TLD isn't public — so passkeys can only be demoed from a host under
+      # ping-devops.com, never from api.ping.demo.
+      # Both local browser origins are always covered, plus demo-api-server: the
+      # first is the compose network alias and the second the compose service
+      # name, and both are used for intra-network TLS — dropping either breaks
+      # service-to-service calls.
+      _cert_sans=("${API_HOST}" localhost 127.0.0.1)
+      [[ "${API_HOST}" == "local.ping-devops.com" ]] || _cert_sans+=(local.ping-devops.com)
+      [[ "${API_HOST}" == "api.ping.demo" ]] || _cert_sans+=(api.ping.demo)
+      [[ "${API_HOST}" == "demo-api-server" ]] || _cert_sans+=(demo-api-server)
+      # -cert-file/-key-file pin the output names. Without them mkcert names the
+      # file after the SAN count, so adding a SAN would rename api.ping.demo+2.pem
+      # to +3 and break every hardcoded reference to it across the repo.
+      (cd "${CERT_DIR}" && mkcert -cert-file "${CERT_FILE}" -key-file "${KEY_FILE}" "${_cert_sans[@]}")
+      unset _cert_sans
       echo "[OK] Certs created in ${CERT_DIR}"
     fi
 
@@ -216,6 +231,10 @@ PID_AGENT_SVC=/tmp/demo-agent.pid
 LOG_AGENT_SVC=/tmp/demo-agent.log
 PID_INVEST=/tmp/demo-invest.pid
 LOG_INVEST=/tmp/demo-invest.log
+PID_WEATHER=/tmp/demo-weather.pid
+LOG_WEATHER=/tmp/demo-weather.log
+PID_JWTVERIFIER=/tmp/demo-mcp-jwt-verifier.pid
+LOG_JWTVERIFIER=/tmp/demo-mcp-jwt-verifier.log
 PID_MORTGAGE=/tmp/demo-mortgage.pid
 LOG_MORTGAGE=/tmp/demo-mortgage.log
 PID_OASDK=/tmp/demo-openai-agent.pid
@@ -238,7 +257,7 @@ fi
 # Defined once and referenced by both stop_listeners_on_demo_ports and
 # force_kill_listeners_on_demo_ports to avoid per-function drift.
 # LangChain ports: 8887 (FastAPI/CodeGraph), 8889 (chat WS), 8881 (health)
-DEMO_PORTS=(3001 4000 8080 8887 8889 8881 3005 3006 3009 8081 8082 8891 8892 8893 3036)
+DEMO_PORTS=(3001 4000 8080 8887 8889 8881 3005 3006 3009 8081 8082 8891 8892 8893 8896 3036)
 
 # Pre-create all log files so tail/log viewers work before services start.
 # We TRUNCATE here (not just touch) — services that get skipped or fail to relaunch
@@ -246,13 +265,13 @@ DEMO_PORTS=(3001 4000 8080 8887 8889 8881 3005 3006 3009 8081 8082 8891 8892 889
 # debugging the current startup. Only run on `start` to keep `status`/`tail` safe.
 if [[ "${1:-start}" == "start" || "${1:-start}" == "restart" || "${1:-start}" == "dev" || -z "${1:-}" ]]; then
   for _logf in "${LOG_API}" "${LOG_UI}" "${LOG_MCP}" "${LOG_AGENT}" "${LOG_MCP_TRAFFIC}" \
-               "${LOG_GW}" "${LOG_HITL}" "${LOG_AGENT_SVC}" "${LOG_INVEST}" "${LOG_MORTGAGE}" "${LOG_AUTH}" \
+               "${LOG_GW}" "${LOG_HITL}" "${LOG_AGENT_SVC}" "${LOG_INVEST}" "${LOG_WEATHER}" "${LOG_JWTVERIFIER}" "${LOG_MORTGAGE}" "${LOG_AUTH}" \
                "${LOG_HELIX}" "${LOG_OASDK}" "${LOG_MASTRA}" "${LOG_PYDANTIC}" "${LOG_PG}"; do
     : > "${_logf}" 2>/dev/null || true
   done
 else
   touch "${LOG_API}" "${LOG_UI}" "${LOG_MCP}" "${LOG_AGENT}" "${LOG_MCP_TRAFFIC}" \
-        "${LOG_GW}" "${LOG_HITL}" "${LOG_AGENT_SVC}" "${LOG_INVEST}" "${LOG_MORTGAGE}" "${LOG_AUTH}" \
+        "${LOG_GW}" "${LOG_HITL}" "${LOG_AGENT_SVC}" "${LOG_INVEST}" "${LOG_WEATHER}" "${LOG_JWTVERIFIER}" "${LOG_MORTGAGE}" "${LOG_AUTH}" \
         "${LOG_HELIX}" "${LOG_OASDK}" "${LOG_MASTRA}" "${LOG_PYDANTIC}" 2>/dev/null || true
 fi
 
@@ -398,29 +417,65 @@ preflight_checks() {
       || curl -sf --max-time 3 "http://127.0.0.1:${port}/v1/models" >/dev/null 2>&1
   }
 
-  # Start the local LLM proxy stack in SWAP MODE: the tier-manager daemon
-  # (:8097) + only the smallest tier, then the smart router on :8090 if nothing
-  # healthy is already serving it (e.g. the llm-proxy container in docker mode).
-  # The router asks the manager to swap up when a request needs a bigger model
-  # and decays back to the smallest tier when idle — one model loaded at a time.
+  # Start the local LLM proxy stack with automatic RAM residency policy
+  # (residencyPolicy.js): ≥32GB dual 8091+8096; <32GB pin :8091.
+  # The smart router on :8090 routes to host tiers; Docker uses host.docker.internal.
   _start_llm_proxy_stack() {
+    # shellcheck source=demo_llm_proxy/apply-residency-policy.sh
+    source "${BASEDIR}/demo_llm_proxy/apply-residency-policy.sh"
+    apply_llm_residency_policy "${BASEDIR}/demo_llm_proxy"
+    if [[ "${_LLM_RESIDENCY_MODE:-}" == "pin-phi" || "${_LLM_RESIDENCY_MODE:-}" == "pin" ]]; then
+      warn "${_LLM_RESIDENCY_REASON:-low-RAM pin}"
+    else
+      ok "${_LLM_RESIDENCY_REASON:-llm residency policy applied}"
+    fi
     # Keep-warm demo defaults: do not idle-decay the big tier after warmup.
     # Override with LLM_PROXY_IDLE_DECAY_MS=300000 to restore classic 5-min decay.
-    # Optional hard pin: LLM_PROXY_PIN_TIER=8096 (agent brain stays loaded).
     export LLM_PROXY_IDLE_DECAY_MS="${LLM_PROXY_IDLE_DECAY_MS:-0}"
-    if ! curl -sf --max-time 2 http://127.0.0.1:8097/health >/dev/null 2>&1; then
-      nohup node "${BASEDIR}/demo_llm_proxy/tier-manager.js" > /tmp/demo-tier-manager.log 2>&1 &
-      echo $! > /tmp/demo-tier-manager.pid
+
+    # Fresh tier-manager so RESIDENT_TIERS / LLAMA_ARG_HOST match this policy.
+    if [[ -f /tmp/demo-tier-manager.pid ]]; then
+      kill "$(cat /tmp/demo-tier-manager.pid)" 2>/dev/null || true
+      rm -f /tmp/demo-tier-manager.pid
     fi
-    bash "${BASEDIR}/demo_llm_proxy/start-local-models.sh" ensure-available || {
-      warn "no local GGUF tiers found — download from demo UI or: bash demo_llm_proxy/download-models.sh fetch (logs: /tmp/llama-models/)"
-      return 1
-    }
+    local _old_tm
+    _old_tm=$(lsof -nP -iTCP:8097 -sTCP:LISTEN 2>/dev/null | awk 'NR>1 {print $2}' | sort -u) || true
+    if [[ -n "${_old_tm:-}" ]]; then
+      kill ${_old_tm} 2>/dev/null || true
+      sleep 1
+    fi
+    LLM_PROXY_RESIDENT_TIERS="${LLM_PROXY_RESIDENT_TIERS}" \
+    LLAMA_ARG_HOST="${LLAMA_ARG_HOST}" \
+      nohup node "${BASEDIR}/demo_llm_proxy/tier-manager.js" > /tmp/demo-tier-manager.log 2>&1 &
+    echo $! > /tmp/demo-tier-manager.pid
+    local _i=0
+    while [[ $_i -lt 10 ]]; do
+      curl -sf --max-time 2 http://127.0.0.1:8097/health >/dev/null 2>&1 && break
+      sleep 1; (( _i++ )) || true
+    done
+
+    if [[ -n "${LLM_PROXY_RESIDENT_TIERS:-}" ]]; then
+      bash "${BASEDIR}/demo_llm_proxy/start-local-models.sh" ensure-set "${LLM_PROXY_RESIDENT_TIERS}" || {
+        warn "resident tiers failed — download from demo UI or: bash demo_llm_proxy/download-models.sh fetch (logs: /tmp/llama-models/)"
+        return 1
+      }
+    elif [[ -n "${LLM_PROXY_PIN_TIER:-}" ]]; then
+      bash "${BASEDIR}/demo_llm_proxy/start-local-models.sh" ensure "${LLM_PROXY_PIN_TIER}" || {
+        warn "pinned tier :${LLM_PROXY_PIN_TIER} failed — download GGUFs (logs: /tmp/llama-models/)"
+        return 1
+      }
+    else
+      bash "${BASEDIR}/demo_llm_proxy/start-local-models.sh" ensure-available || {
+        warn "no local GGUF tiers found — download from demo UI or: bash demo_llm_proxy/download-models.sh fetch (logs: /tmp/llama-models/)"
+        return 1
+      }
+    fi
     if ! _local_llm_ready 8090; then
       LLAMA_HOST=127.0.0.1 \
         LLM_PROXY_PORT=8090 \
         LLM_PROXY_IDLE_DECAY_MS="${LLM_PROXY_IDLE_DECAY_MS}" \
         LLM_PROXY_PIN_TIER="${LLM_PROXY_PIN_TIER:-}" \
+        LLM_PROXY_RESIDENT_TIERS="${LLM_PROXY_RESIDENT_TIERS:-}" \
         nohup node "${BASEDIR}/demo_llm_proxy/router.js" > /tmp/demo-llm-proxy.log 2>&1 &
       echo $! > /tmp/demo-llm-proxy.pid
     fi
@@ -567,7 +622,7 @@ _log_janitor_loop() {
   local keep_lines=5000
   local all_logs=(
     "${LOG_API}" "${LOG_MCP}" "${LOG_GW}" "${LOG_HITL}" "${LOG_AGENT_SVC}"
-    "${LOG_INVEST}" "${LOG_MORTGAGE}" "${LOG_OASDK}" "${LOG_MASTRA}"
+    "${LOG_INVEST}" "${LOG_WEATHER}" "${LOG_JWTVERIFIER}" "${LOG_MORTGAGE}" "${LOG_OASDK}" "${LOG_MASTRA}"
     "${LOG_PYDANTIC}" "${LOG_AGENT}" "${LOG_AUTH}" "${LOG_HELIX}"
   )
   while true; do
@@ -588,8 +643,8 @@ _log_janitor_loop() {
 tail_demo_logs() {
   local pre="${1:-}"
   [[ "${pre}" == "ALL" || "${pre}" == "All" ]] && pre="all"
-  local names=("Demo API" "Demo UI" "MCP Server" "LangChain Agent" "MCP Traffic" "MCP Gateway" "HITL Service" "Agent Service" "MCP Invest" "Demo Mortgage" "Authorize Server" "Helix LLM" "OpenAI Agents SDK" "Mastra Agent" "Pydantic AI Agent")
-  local logs=("${LOG_API}" "${LOG_UI}" "${LOG_MCP}" "${LOG_AGENT}" "${LOG_MCP_TRAFFIC}" "${LOG_GW}" "${LOG_HITL}" "${LOG_AGENT_SVC}" "${LOG_INVEST}" "${LOG_MORTGAGE}" "${LOG_AUTH}" "${LOG_HELIX}" "${LOG_OASDK}" "${LOG_MASTRA}" "${LOG_PYDANTIC}")
+  local names=("Demo API" "Demo UI" "MCP Server" "LangChain Agent" "MCP Traffic" "MCP Gateway" "HITL Service" "Agent Service" "MCP Invest" "MCP Weather" "MCP JWT Verifier" "Demo Mortgage" "Authorize Server" "Helix LLM" "OpenAI Agents SDK" "Mastra Agent" "Pydantic AI Agent")
+  local logs=("${LOG_API}" "${LOG_UI}" "${LOG_MCP}" "${LOG_AGENT}" "${LOG_MCP_TRAFFIC}" "${LOG_GW}" "${LOG_HITL}" "${LOG_AGENT_SVC}" "${LOG_INVEST}" "${LOG_WEATHER}" "${LOG_JWTVERIFIER}" "${LOG_MORTGAGE}" "${LOG_AUTH}" "${LOG_HELIX}" "${LOG_OASDK}" "${LOG_MASTRA}" "${LOG_PYDANTIC}")
   local count=${#names[@]}
   local all_opt=$((count + 1))
   local choice=""
@@ -801,6 +856,8 @@ print_status_table() {
   service_status_line "Authorization Server" 9001         "/health"        "http://localhost:9001 (internal)"
   service_status_line "MCP Gateway"          3005         "/health"        "http://localhost:3005 (internal)"
   service_status_line "MCP Invest Server"    8081         "/health"        "ws://localhost:8081 (internal)"
+  service_status_line "MCP Weather Server"   8896         "/health"        "http://localhost:8896 (internal)"
+  service_status_line "MCP JWT Verifier"     8083         "/health"        "http://localhost:8083 (internal)"
   service_status_line "Mortgage Service"     8082         "/health"        "http://localhost:8082 (internal)"
   service_status_line "Agent Service"        3006         "/health"        "http://localhost:3006 (internal)"
   service_status_line "HITL Service"         3009         "/health"        "http://localhost:3009 (internal)"
@@ -835,7 +892,7 @@ print_status_table() {
 cmd_stop() {
   echo "[STOP] Stopping Demo services (run.sh)..."
   set +e
-  for pid_file in "$PID_API" "$PID_MCP" "$PID_AUTHZ" "$PID_GW" "$PID_HITL" "$PID_AGENT_SVC" "$PID_INVEST" "$PID_MORTGAGE" "$PID_AGENT" "$PID_UI" "$PID_OASDK" "$PID_MASTRA" "$PID_PYDANTIC" "$PID_LOG_JANITOR"; do
+  for pid_file in "$PID_API" "$PID_MCP" "$PID_AUTHZ" "$PID_GW" "$PID_HITL" "$PID_AGENT_SVC" "$PID_INVEST" "$PID_WEATHER" "$PID_JWTVERIFIER" "$PID_MORTGAGE" "$PID_AGENT" "$PID_UI" "$PID_OASDK" "$PID_MASTRA" "$PID_PYDANTIC" "$PID_LOG_JANITOR"; do
     if [[ -f "$pid_file" ]]; then
       PID=$(cat "$pid_file" 2>/dev/null || true)
       rm -f "$pid_file"
@@ -851,7 +908,7 @@ cmd_stop() {
     docker compose -f "$BASEDIR/ping-gateway/docker-compose.yml" down --remove-orphans \
       >> "${LOG_PG}" 2>&1 || true
   fi
-  echo "   Sweeping ports (API :${API_PORT}, UI :${UI_PORT}, MCP :8080, AuthzServer :9001, GW :3005, Agent :3006, HITL :3009, Invest :8081, Mortgage :8082, LangChain :8887/8889/8881, OASDK :8891, Mastra :8892, Pydantic :8893, PingGateway :3036)…"
+  echo "   Sweeping ports (API :${API_PORT}, UI :${UI_PORT}, MCP :8080, AuthzServer :9001, GW :3005, Agent :3006, HITL :3009, Invest :8081, Weather :8896, Mortgage :8082, LangChain :8887/8889/8881, OASDK :8891, Mastra :8892, Pydantic :8893, PingGateway :3036)…"
   stop_listeners_on_demo_ports
   sleep 1
   force_kill_listeners_on_demo_ports
@@ -954,6 +1011,8 @@ cmd_help() {
   echo "    ${LOG_HITL}"
   echo "    ${LOG_AGENT_SVC}"
   echo "    ${LOG_INVEST}"
+  echo "    ${LOG_WEATHER}"
+  echo "    ${LOG_JWTVERIFIER}"
   echo "    ${LOG_MORTGAGE}"
   echo "    ${LOG_AUTH}"
   echo ""
@@ -1077,7 +1136,7 @@ done
 if [[ "$_any_running" == "true" ]]; then
   echo -e "${YELLOW}  [SPIN]  Stopping existing Demo services…${RESET}"
   set +e
-  for _pf in "$PID_API" "$PID_MCP" "$PID_AUTHZ" "$PID_GW" "$PID_HITL" "$PID_AGENT_SVC" "$PID_INVEST" "$PID_AGENT" "$PID_UI" "$PID_OASDK" "$PID_MASTRA" "$PID_PYDANTIC" "$PID_LOG_JANITOR"; do
+  for _pf in "$PID_API" "$PID_MCP" "$PID_AUTHZ" "$PID_GW" "$PID_HITL" "$PID_AGENT_SVC" "$PID_INVEST" "$PID_WEATHER" "$PID_JWTVERIFIER" "$PID_AGENT" "$PID_UI" "$PID_OASDK" "$PID_MASTRA" "$PID_PYDANTIC" "$PID_LOG_JANITOR"; do
     if [[ -f "$_pf" ]]; then
       _pid=$(cat "$_pf" 2>/dev/null || true)
       rm -f "$_pf"
@@ -1097,9 +1156,9 @@ fi
 # (tsc) when dist/index.js is missing. SVC_INSTALL_FLAGS handles services that
 # need extra `npm install` flags. Loud failure on any error — silent skips here
 # are exactly how we got cryptic MODULE_NOT_FOUND in service logs.
-SVC_LIST=(demo_api_server demo_mcp_server demo_api_ui demo_mcp_gateway demo_hitl_service demo_agent_service demo_mcp_invest demo_mortgage_service mastra_agent demo_authz_server)
-SVC_BUILD=(""                "ts"               ""       "ts"                ""                   "ts"                  "ts"               ""                    "ts"          "")
-SVC_INSTALL_FLAGS=("--legacy-peer-deps" ""                 ""       ""                  ""                   ""                    ""                 ""                    ""            "")
+SVC_LIST=(demo_api_server demo_mcp_server demo_api_ui demo_mcp_gateway demo_hitl_service demo_agent_service demo_mcp_invest demo_mcp_weather demo_mortgage_service mastra_agent demo_authz_server)
+SVC_BUILD=(""                "ts"               ""       "ts"                ""                   "ts"                  "ts"               ""                 ""                    "ts"          "")
+SVC_INSTALL_FLAGS=("--legacy-peer-deps" ""                 ""       ""                  ""                   ""                    ""                 ""                 ""                    ""            "")
 
 # Decide whether a Node service needs `npm install`. Prints a short human reason
 # and returns 0 when install is needed; returns 1 (no output) when in sync.
@@ -1184,7 +1243,7 @@ _pick_python() {
 }
 PY_CMD="$(_pick_python)"
 
-PY_AGENTS=(langchain_agent openai_agent pydantic_agent)
+PY_AGENTS=(langchain_agent openai_agent pydantic_agent demo_mcp_jwt_verifier)
 for svc in "${PY_AGENTS[@]}"; do
   [[ -d "$BASEDIR/$svc" ]] || continue
   venv_python="$BASEDIR/$svc/.venv/bin/python"
@@ -1227,7 +1286,7 @@ done
 # gracefully on a missing/stale DB.
 if command -v python3 >/dev/null 2>&1; then
   if python3 "$BASEDIR/scripts/build-codegraph.py" >/dev/null 2>&1; then
-    cp -f "$BASEDIR/.codegraph/codegraph.db" "$BASEDIR/langchain_agent/codegraph.db" 2>/dev/null || true
+    cp -f "$BASEDIR/.codegraph/demo-codegraph.db" "$BASEDIR/langchain_agent/codegraph.db" 2>/dev/null || true
     python3 "$BASEDIR/scripts/build-codegraph.py" --stage-src "$BASEDIR/langchain_agent/repo-src" >/dev/null 2>&1 || true
     ok "CodeGraph index refreshed (Code Explorer)"
   else
@@ -1491,6 +1550,27 @@ if [[ -d "$BASEDIR/demo_mcp_invest" ]]; then
   echo $! > "$PID_INVEST"
 fi
 
+# ── MCP Weather Server on :8896 (Agent Gateway Texas-scope showcase) ────────
+if [[ -d "$BASEDIR/demo_mcp_weather" ]]; then
+  echo "[WEATHER] Starting MCP Weather Server on :8896..."
+  (
+    cd "$BASEDIR/demo_mcp_weather"
+    PORT=8896 \
+    npm start > "${LOG_WEATHER}" 2>&1
+  ) &
+  echo $! > "$PID_WEATHER"
+fi
+
+# ── MCP JWT Verifier (Python/FastMCP) on :8083 ───────────────────────────────
+if [[ -d "$BASEDIR/demo_mcp_jwt_verifier" ]]; then
+  echo "[JWTVERIFIER] Starting MCP JWT Verifier on :8083..."
+  (
+    cd "$BASEDIR/demo_mcp_jwt_verifier"
+    .venv/bin/python server.py > "${LOG_JWTVERIFIER}" 2>&1
+  ) &
+  echo $! > "$PID_JWTVERIFIER"
+fi
+
 # ── Mortgage Service on :8082 (Phase 266 Path A backend) ─────────────────────
 # API-key-gated. Gateway swaps the user's OAuth bearer for X-API-Key and calls
 # this service on the api_key disposition. Single GET /mortgage route returns
@@ -1638,6 +1718,8 @@ except: pass
 # Wait for Tier 3 services (UI and LangChain were launched above to run in parallel)
 wait_for_health 3006 "/health" 15 "Agent Service"     "${LOG_AGENT_SVC}" >/dev/null
 wait_for_health 8081 "/health" 15 "MCP Invest Server" "${LOG_INVEST}"    >/dev/null
+wait_for_health 8896 "/health" 15 "MCP Weather Server" "${LOG_WEATHER}"  >/dev/null
+wait_for_health 8083 "/health" 15 "MCP JWT Verifier"  "${LOG_JWTVERIFIER}" >/dev/null
 wait_for_health 8082 "/health" 10 "Demo Mortgage"     "${LOG_MORTGAGE}"  >/dev/null
 # UI: port-only (CRA has no /health endpoint); full 90s budget since UI launched before waits
 wait_for_port "${UI_PORT}" 90 "Demo UI" >/dev/null

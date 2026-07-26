@@ -3,6 +3,12 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  /* App-level slide-in panels (CIBA drawer, token-exchange-mode drawer, …) park
+     off the right edge via transform; on narrow viewports their parked box still
+     extends the document's horizontal scroll, so every page gained a phantom
+     sideways scrollbar. Clip (not hidden) contains it without creating a scroll
+     container — same reasoning as .app-shell-body. Open panels stay in-viewport. */
+  overflow-x: clip;
   /* Bottom-right stack: CIBA guide (regular button) above agent FAB — shared by CIBAPanel + BankingAgent */
   --float-edge: 28px;
   --float-gap: 12px;
@@ -187,6 +193,32 @@
    regardless of CSS, so in-flight chat state survives collapse/expand. */
 .global-embedded-agent-dock-wrap .embedded-agent-dock--collapsed {
   display: none;
+}
+
+.embedded-agent-dock__toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.embedded-dock-graph-link-btn {
+  background: transparent;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 5px;
+  color: #999999;
+  font-size: 12px;
+  line-height: 1;
+  padding: 3px 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.embedded-dock-graph-link-btn:hover {
+  background: var(--brand-medium-gray);
+  color: var(--brand-dark-gray);
 }
 
 /* Collapse / expand toggle */
@@ -1617,6 +1649,13 @@
   box-sizing: border-box;
 }
 
+/* Nested AppShell .main-content must not re-apply the sidebar offset — that
+   shrunk the content column and left empty space on the right. */
+.App:has(.admin-side-nav) .main-content .main-content {
+  margin-left: 0;
+  width: 100%;
+}
+
 /* When sidebar is collapsed */
 .App:has(.admin-side-nav--collapsed) .main-content,
 .App:has(.admin-side-nav--collapsed) .topnav,
@@ -1625,6 +1664,11 @@
   margin-left: var(--sidebar-collapsed-width);
   width: calc(100% - var(--sidebar-collapsed-width));
   box-sizing: border-box;
+}
+
+.App:has(.admin-side-nav--collapsed) .main-content .main-content {
+  margin-left: 0;
+  width: 100%;
 }
 
 /* Responsive: on small screens sidebar auto-collapses to icon-only */

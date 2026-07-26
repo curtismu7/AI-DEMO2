@@ -1,0 +1,279 @@
+/* demo_api_ui/src/pages/TelemetryPage.css */
+
+.telemetry-page {
+  padding: 20px;
+  background: #f9fafb;
+  min-height: 100vh;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.telemetry-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.telemetry-back-btn {
+  display: inline-block;
+  margin: 0 0 6px 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.telemetry-back-btn:hover { text-decoration: underline; }
+
+.telemetry-header h1 { margin: 0; font-size: 24px; font-weight: 700; color: #111827; }
+
+.telemetry-subtitle { margin: 4px 0 0 0; font-size: 14px; color: #4b5563; max-width: 52rem; }
+
+.telemetry-header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+.telemetry-meta { font-size: 13px; color: #6b7280; white-space: nowrap; }
+
+.telemetry-btn {
+  padding: 6px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.telemetry-btn:hover { background: #f3f4f6; }
+.telemetry-btn:disabled { opacity: 0.6; cursor: default; }
+
+.telemetry-error-inline { font-size: 13px; color: #b91c1c; white-space: nowrap; }
+
+.telemetry-mode-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  width: fit-content;
+  background: #ffffff;
+  margin-bottom: 16px;
+}
+
+.telemetry-mode-tab {
+  padding: 7px 16px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.telemetry-mode-tab:hover { color: #374151; }
+.telemetry-mode-tab--active { background: #1d4ed8; color: #fff; }
+
+.telemetry-filters { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 16px; }
+
+.telemetry-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+}
+.telemetry-filter select {
+  min-width: 200px;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
+}
+
+.telemetry-trace-picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 16px;
+}
+.telemetry-trace-picker select {
+  min-width: 340px;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 400;
+  color: #111827;
+}
+
+.tracing-detail { padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; }
+.tracing-detail--msg { color: #6b7280; font-size: 13px; }
+.tracing-detail--error { color: #b91c1c; }
+
+/* ── Trace service graph (TraceGraphCore + D3 renderer) — copied verbatim
+   from TracingPage.css; each page's CSS is self-contained (no cross-page
+   imports), so both pages carry their own copy of these rules. ───────────── */
+.tracing-graph {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tracing-graph-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.tracing-graph-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+}
+
+.tracing-graph-canvas {
+  position: relative;
+  width: 100%;
+  height: 460px;
+  min-height: 220px;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  background: #0b1220;
+  overflow: auto;
+  resize: vertical;
+}
+
+.tracing-graph-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+
+.tracing-graph-node-group,
+.tracing-graph-edge-group {
+  cursor: pointer;
+}
+
+.tracing-graph-node-label {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  pointer-events: none;
+}
+
+.tracing-graph-edge-label {
+  pointer-events: none;
+}
+
+.tracing-graph-edge-label text {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.tracing-graph-dimmed {
+  opacity: 0.18;
+  transition: opacity 0.15s ease;
+}
+
+.tracing-graph-tooltip {
+  position: fixed;
+  z-index: 50;
+  max-width: 280px;
+  padding: 8px 10px;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.tracing-graph-tooltip strong { color: #f1f5f9; font-weight: 600; }
+.tracing-graph-tooltip-muted { color: #94a3b8; }
+.tracing-graph-tooltip-hr { border: none; border-top: 1px solid #334155; margin: 5px 0; }
+.tracing-graph-hidden { display: none; }
+
+.tracing-graph-zoom { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; }
+.tracing-graph-zoom-btn {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: #1e293b;
+  color: #e2e8f0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+.tracing-graph-zoom-btn:hover { background: #334155; }
+
+.tracing-graph-panel {
+  position: absolute;
+  top: 46px;
+  right: 12px;
+  width: 320px;
+  max-height: 480px;
+  overflow-y: auto;
+  padding: 14px 16px;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #e2e8f0;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.tracing-graph-panel h3 { margin: 10px 0 8px 0; font-size: 15px; font-weight: 600; color: #f1f5f9; }
+
+.tracing-graph-panel-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0 0 12px 0;
+  font-size: 12px;
+}
+.tracing-graph-panel-facts dt { color: #94a3b8; font-weight: 600; }
+.tracing-graph-panel-facts dd { margin: 0; color: #e2e8f0; font-variant-numeric: tabular-nums; }
+
+.tracing-graph-panel-spans {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid #1e293b;
+  padding-top: 10px;
+}
+.tracing-graph-panel-spans .tracing-span-row { grid-template-columns: 1fr auto; color: #cbd5e1; }
+.tracing-graph-panel-spans .tracing-span-dur { color: #94a3b8; }
+
+.tracing-btn {
+  padding: 6px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tracing-btn--secondary { background: #f9fafb; }
+
+.tracing-span-row { display: grid; grid-template-columns: 260px 1fr 72px; align-items: center; gap: 8px; font-size: 12px; }
+.tracing-span-op { text-overflow: ellipsis; overflow: hidden; }
+.tracing-span-dur { text-align: right; color: #6b7280; font-variant-numeric: tabular-nums; }

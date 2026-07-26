@@ -956,6 +956,15 @@ body > .banking-agent-float-root .banking-agent-panel {
     border-color 0.15s;
   flex-shrink: 0;
 }
+/* Text-label variant of .ba-icon-btn (fixed 28x28 assumes a single glyph) —
+   auto-widens for a short word instead of clipping it. */
+.ba-graph-link-btn {
+  width: auto;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .ba-icon-btn:hover {
   background: var(--ba-accent-h);
   color: #fff;
@@ -4058,12 +4067,14 @@ body > .banking-agent-float-root .banking-agent-panel {
   letter-spacing: 0.08em !important;
 }
 
-.App--marketing-page .embedded-dock-collapse-btn {
+.App--marketing-page .embedded-dock-collapse-btn,
+.App--marketing-page .embedded-dock-graph-link-btn {
   color: #666666 !important;
   border-color: #cccccc !important;
 }
 
-.App--marketing-page .embedded-dock-collapse-btn:hover {
+.App--marketing-page .embedded-dock-collapse-btn:hover,
+.App--marketing-page .embedded-dock-graph-link-btn:hover {
   background: #dddddd !important;
   color: var(--brand-dark-gray) !important;
 }
@@ -4771,18 +4782,208 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 /* Demo steps popout — same script as /use-cases Demo section */
+/* Wider than the shared .ba-actions-popout (360px) so the 5-column
+   grid has enough room (~130px per card). Two classes beat the shared
+   single-class rule regardless of source order; the Actions menu keeps
+   its own width. Kept in sync with the measured width used for
+   positioning. */
+.ba-actions-popout.ba-demo-steps-popout {
+  width: 760px;
+}
+
+/* Shared agent popout header — slate grey (Demo Steps + Actions).
+   §0: solid high-contrast text on the grey surface. */
+.ba-agent-popout-hdr,
 .ba-demo-steps-popout__header {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 14px 14px 12px;
+  color: #f8fafc;
+  background: #475569;
+  border-bottom: 1px solid #64748b;
+}
+
+.ba-demo-steps-popout__header-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #f8fafc;
+}
+
+.ba-demo-steps-popout__header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ba-demo-steps-popout__search {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ba-demo-steps-popout__search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 26px 5px 10px;
+  font-size: 12px;
+  color: #f8fafc;
+  background: #334155;
+  border: 1px solid #64748b;
+  border-radius: 6px;
+}
+
+.ba-demo-steps-popout__search-input::placeholder {
+  color: #cbd5e1;
+}
+
+.ba-demo-steps-popout__search-input:focus {
+  outline: none;
+  border-color: #93c5fd;
+}
+
+.ba-demo-steps-popout__search-clear {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  font-size: 11px;
+  line-height: 1;
+  color: #cbd5e1;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.ba-demo-steps-popout__search-clear:hover {
+  color: #fff;
+}
+
+.ba-demo-steps-popout__progress {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  color: #f8fafc;
+}
+
+.ba-demo-steps-popout__progress--all {
+  color: #4ade80;
+}
+
+.ba-agent-popout-hdr__top,
+.ba-demo-steps-popout__header-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 12px 14px 8px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
+  gap: 10px;
+}
+
+.ba-agent-popout-hdr__title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--ba-text-secondary, #64748b);
-  border-bottom: 1px solid var(--ba-border, #e2e8f0);
+  color: #f8fafc;
+}
+
+.ba-agent-popout-hdr__clear {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #94a3b8;
+  background: transparent;
+  color: #f8fafc;
+  cursor: pointer;
+}
+
+.ba-agent-popout-hdr__clear:hover {
+  border-color: #e2e8f0;
+  color: #fff;
+}
+
+.ba-agent-popout-hdr__progress {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.ba-agent-popout-hdr__progress em {
+  font-style: normal;
+  color: #4ade80;
+}
+
+.ba-agent-popout-hdr__tools {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 8px;
+}
+
+/* Scope picker on grey header — label left, toggle right; hide long hint. */
+.ba-agent-popout-hdr .agent-scope-picker-row {
+  width: 100%;
+  padding: 0;
+  border-bottom: none;
+  gap: 0;
+}
+.ba-agent-popout-hdr .scope-picker__hint {
+  display: none;
+}
+.ba-agent-popout-hdr .scope-picker__label {
+  color: #f8fafc;
+}
+.ba-agent-popout-hdr .scope-picker__toggle {
+  border-color: #94a3b8;
+  background: #334155;
+}
+.ba-agent-popout-hdr .scope-picker__opt {
+  color: #cbd5e1;
+}
+.ba-agent-popout-hdr .scope-picker__opt--on {
+  background: #2563eb;
+  color: #fff;
+}
+
+.ba-demo-steps-popout__track,
+.ba-agent-popout-hdr__track {
+  height: 3px;
+  background: #334155;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.ba-agent-popout-hdr__track > i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: #22c55e;
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.ba-demo-steps-popout__track > i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: #22c55e;
+  border-radius: 999px;
+  transition: width 0.2s ease;
 }
 
 .ba-demo-steps-popout__clear {
@@ -4790,23 +4991,25 @@ body > .banking-agent-float-root .banking-agent-panel {
   font-weight: 600;
   letter-spacing: normal;
   text-transform: none;
-  padding: 3px 8px;
+  padding: 4px 10px;
   border-radius: 6px;
-  border: 1px solid var(--ba-border, #d1d5db);
-  background: var(--ba-surface, #fff);
-  color: var(--ba-text-primary, #111);
+  border: 1px solid #64748b;
+  background: transparent;
+  color: #f8fafc;
   cursor: pointer;
 }
 
 .ba-demo-steps-popout__clear:hover {
-  border-color: var(--ba-text-secondary, #6b7280);
+  border-color: #e2e8f0;
+  color: #fff;
 }
 
 .ba-demo-steps-popout__status {
   margin: 0;
   padding: 12px 14px;
   font-size: 13px;
-  color: var(--ba-text-secondary, #64748b);
+  /* §0: solid text, not muted gray. */
+  color: var(--ba-text, #0f172a);
 }
 
 .ba-demo-steps-popout__status--error {
@@ -4819,14 +5022,32 @@ body > .banking-agent-float-root .banking-agent-panel {
   padding: 6px 0;
 }
 
+/* Timeline rail: connected nodes, UC chip above title, “next” ring. */
+.ba-demo-steps-popout__list--rail {
+  position: relative;
+  /* Right inset matches left breathing room so the explain "i" is not flush. */
+  padding: 10px 14px 8px 0;
+}
+
+.ba-demo-steps-popout__list--rail::before {
+  content: '';
+  position: absolute;
+  left: 25px;
+  top: 28px;
+  bottom: 28px;
+  width: 2px;
+  background: #e2e8f0;
+}
+
 .ba-demo-steps-popout__item {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 6px 8px;
-  width: 100%;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 12px;
+  /* No width:100% — that preferred size overflows the row and clips the
+     explain icon’s right margin against the popout’s overflow:auto. */
   text-align: left;
-  padding: 10px 14px;
+  padding: 8px 8px 8px 14px;
   border: none;
   background: transparent;
   color: var(--ba-text, #0f172a);
@@ -4840,34 +5061,59 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-demo-steps-popout__item--done {
-  background: rgba(21, 128, 61, 0.06);
+  background: #f0fdf4;
 }
 
-.ba-demo-steps-popout__step {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+.ba-demo-steps-popout__item--next .ba-demo-steps-popout__rail {
+  border-color: #2563eb;
   color: #2563eb;
+  box-shadow: 0 0 0 3px #dbeafe;
 }
 
-.ba-demo-steps-popout__id {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--ba-text-secondary, #64748b);
-}
-
-.ba-demo-steps-popout__check {
+.ba-demo-steps-popout__rail {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 1.1rem;
-  height: 1.1rem;
+  width: 24px;
+  height: 24px;
+  margin-top: 2px;
   border-radius: 999px;
-  background: #15803d;
-  color: #fff;
-  font-size: 0.7rem;
+  border: 2px solid #cbd5e1;
+  background: #fff;
+  font-size: 11px;
   font-weight: 700;
+  color: var(--ba-text, #0f172a);
+}
+
+.ba-demo-steps-popout__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.ba-demo-steps-popout__id {
+  display: inline-flex;
+  align-self: flex-start;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.ba-demo-steps-popout__check {
+  border-color: #16a34a;
+  background: #16a34a;
+  color: #fff;
+  font-size: 0.75rem;
 }
 
 .ba-demo-steps-popout__advanced {
@@ -4896,15 +5142,319 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-demo-steps-popout__title {
-  flex: 1 1 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
+
+.ba-demo-steps-popout__row--done .ba-demo-steps-popout__title {
+  color: #166534;
+}
+
+/* Row wrapper — the explain icon is a sibling of the run button, never nested
+   inside it (nested <button> is invalid HTML and breaks the click target). */
+.ba-demo-steps-popout__row {
+  display: flex;
+  align-items: stretch;
+  position: relative;
+}
+
+.ba-demo-steps-popout__row .ba-demo-steps-popout__item {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ba-demo-steps-popout__row:has(.ba-demo-steps-popout__item--done) {
+  background: #f0fdf4;
+  border-radius: 10px;
+}
+
+.ba-demo-steps-popout__row:has(.ba-demo-steps-popout__item--done) .ba-demo-steps-popout__id {
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.ba-demo-steps-popout__row:has(.ba-demo-steps-popout__item:hover) {
+  background: var(--ba-chip-bg-hover, #eff6ff);
+}
+
+.ba-demo-steps-popout__row:has(.ba-demo-steps-popout__item--done):has(.ba-demo-steps-popout__item:hover) {
+  background: #dcfce7;
+}
+
+/* CSS-only "i" glyph — no emoji (REGRESSION_PLAN §0 allowlist). */
+.ba-demo-steps-popout__explain {
+  flex: 0 0 auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin: 0 0 0 4px;
+  border-radius: 999px;
+  border: 1.5px solid var(--ba-text-secondary, #64748b);
+  background: transparent;
+  color: var(--ba-text-secondary, #64748b);
+  font: 700 12px/1 Georgia, 'Times New Roman', serif;
+  cursor: pointer;
+}
+
+.ba-demo-steps-popout__explain::before {
+  content: 'i';
+}
+
+.ba-demo-steps-popout__explain:hover,
+.ba-demo-steps-popout__explain:focus-visible {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: #e0e7ff;
+  outline: none;
+}
+
+/* Demo steps: 5-column box grid — same visual language as Actions chips */
+.ba-demo-steps-popout__grid {
+  list-style: none;
+  margin: 0;
+  padding: 8px 12px;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  max-height: 310px;
+  overflow-y: auto;
+}
+
+/* When inside FloatingPanel, the grid fills the panel and scrolls freely */
+.ba-demo-steps-float .fp-content {
+  overflow-y: auto;
+}
+.ba-demo-steps-float .ba-demo-steps-popout__grid {
+  max-height: none;
+  overflow-y: visible;
+  flex: 1;
+}
+.ba-demo-steps-float .ba-demo-steps-popout__header {
+  flex-shrink: 0;
+}
+
+/* Admin Tools: 2-column grid override for compact 420px panel */
+.ba-admin-tools-float .ba-demo-steps-popout__grid {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+/* .banking-chips-dropdown__button base + variants — ported from the deleted
+   BankingChips.css (Task 7, Actions dropdown removal). DemoStepsDropdown.jsx
+   and AdminToolsDropdown.jsx both render this class family, but neither file
+   ever imported BankingChips.css directly — they relied on it being pulled
+   into the global stylesheet by BankingChips.jsx. Once that component (its
+   only importer) was deleted, these rules would otherwise disappear from the
+   bundle even though DemoStepsDropdown.jsx/AdminToolsDropdown.jsx still use
+   the class names, so only the exact selectors those two files reference are
+   kept here (not the whole former stylesheet). */
+.banking-chips-dropdown__button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 11px;
+  border: 1.5px solid #64748b;
+  border-radius: 12px;
+  background-color: var(--ba-bg, #ffffff);
+  color: var(--ba-text, #1f2937);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  text-align: left;
+  white-space: normal;
+  word-break: break-word;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.banking-chips-dropdown__chip-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.25;
+  padding-right: 18px;
+}
+
+.banking-chips-dropdown__button:hover:not(:disabled) {
+  background-color: #f8fbff;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px #dbeafe;
+}
+
+.banking-chips-dropdown__button--done {
+  background: #f0fdf4;
+  border-color: #16a34a;
+}
+
+.banking-chips-dropdown__button--done:hover:not(:disabled) {
+  border-color: #86efac;
+  box-shadow: 0 0 0 3px #dcfce7;
+}
+
+.banking-chips-dropdown__check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #16a34a;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.banking-chips-dropdown__button:active:not(:disabled) {
+  background-color: var(--ba-bg-active, #e5e7eb);
+}
+
+.banking-chips-dropdown__button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.banking-chips-dropdown__button--heuristic {
+  background-color: var(--ba-bg, #ffffff);
+  border-color: #64748b;
+}
+
+/* ScopePicker.jsx base styles — also ported from the deleted BankingChips.css.
+   ScopePicker.jsx has no stylesheet of its own; it always relied on
+   BankingChips.css being pulled into the global bundle. The inline copy in
+   the agent header (Option A1, Task 6) is the only remaining mount, so its
+   base rules need a new home. (The old grey-popout-header override rules
+   scoped under `.ba-agent-popout-hdr` are dead now that that markup is gone —
+   left in place, out of scope for this fix.) */
+.agent-scope-picker-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-bottom: 1px solid var(--ba-border, #e5e7eb);
+}
+.scope-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+}
+.scope-picker__label {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ba-text, #1f2937);
+}
+.scope-picker__toggle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  margin-left: auto;
+  border: 1px solid #94a3b8;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #f1f5f9;
+}
+.scope-picker__opt {
+  appearance: none;
+  border: none;
+  margin: 0;
+  padding: 5px 12px;
+  font: 600 0.72rem/1.2 inherit;
+  color: #64748b;
+  background: transparent;
+  cursor: pointer;
+}
+.scope-picker__opt:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.scope-picker__opt--on {
+  background: #2563eb;
+  color: #fff;
+}
+.scope-picker__hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ba-text, #1f2937);
+}
+
+/* Each grid cell: flex row so the "i" button sits flush against the card's right edge */
+.ba-demo-steps-popout__card-item {
+  display: flex;
+  align-items: stretch;
+}
+
+/* Card button fills its grid cell, rounded right corners removed (explain button joins there) */
+.ba-demo-steps-popout__card-item .banking-chips-dropdown__button {
+  flex: 1 1 auto;
+  min-width: 0;
+  box-sizing: border-box;
+  border-radius: 12px 0 0 12px;
+  border-right: none;
+}
+
+/* Explain "i" button: narrow right-edge column, same height as the card */
+.ba-demo-steps-popout__card-item .ba-demo-steps-popout__explain {
+  flex: 0 0 auto;
+  width: 26px;
+  height: auto;
+  align-self: stretch;
+  border-radius: 0 12px 12px 0;
+  border: 1.5px solid #64748b;
+  border-left: none;
+  background: transparent;
+  color: #64748b;
+  font: 700 12px/1 Georgia, 'Times New Roman', serif;
+  cursor: pointer;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ba-demo-steps-popout__card-item .ba-demo-steps-popout__explain::before {
+  content: 'i';
+}
+.ba-demo-steps-popout__card-item .ba-demo-steps-popout__explain:hover,
+.ba-demo-steps-popout__card-item .ba-demo-steps-popout__explain:focus-visible {
+  background: #e0e7ff;
+  border-color: #2563eb;
+  color: #2563eb;
+  outline: none;
+}
+
+/* Done card — match explain border to the green done border */
+.ba-demo-steps-popout__card-item:has(.banking-chips-dropdown__button--done) .ba-demo-steps-popout__explain {
+  border-color: #16a34a;
+}
+
+/* Next card — match explain border to the blue next ring */
+.ba-demo-steps-popout__card-item:has(.ba-demo-steps-popout__card--next) .ba-demo-steps-popout__explain {
+  border-color: #2563eb;
+}
+
+/* "Next" highlight ring — marks the upcoming unfinished step */
+.ba-demo-steps-popout__card--next {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px #dbeafe !important;
 }
 
 /* Popout overlay — anchored to .ba-header (position:relative), opens below header */
 .ba-actions-popout {
   position: fixed;
   /* top/left set dynamically by JS — escapes panel overflow:hidden */
-  width: 360px;
+  width: 400px;
   max-height: 70vh;
   overflow-y: auto;
   scrollbar-width: none;
@@ -4953,6 +5503,22 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-popout-search:focus {
   outline: none;
   border-color: var(--ba-chip-bd);
+}
+
+/* Search inside the grey agent popout header */
+.ba-agent-popout-hdr .ba-popout-search {
+  width: 100%;
+  margin: 0;
+  border-radius: 999px;
+  border: 1px solid #64748b;
+  background: #334155;
+  color: #f8fafc;
+}
+.ba-agent-popout-hdr .ba-popout-search::placeholder {
+  color: #94a3b8;
+}
+.ba-agent-popout-hdr .ba-popout-search:focus {
+  border-color: #94a3b8;
 }
 
 /* Scrollable content area inside popout */

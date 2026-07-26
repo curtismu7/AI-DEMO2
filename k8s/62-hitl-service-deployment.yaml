@@ -37,8 +37,11 @@ spec:
           value: "production"
         - name: PORT
           value: "3009"
+        # Browser origins allowed to call HITL. demo_hitl_service fails OPEN when
+        # this is empty but CLOSED once set, so every real origin must be listed —
+        # including the cluster's own host, which was previously missing.
         - name: HITL_ALLOWED_ORIGINS
-          value: "https://api.ping.demo:4000,https://api.ping.demo:3005"
+          value: "https://ai-demo.ping-devops.com,https://local.ping-devops.com:4000,https://api.ping.demo:4000,https://api.ping.demo:3005"
         # OpenTelemetry → in-cluster Jaeger (k8s/73-jaeger-deployment.yaml).
         # Mirrors docker-compose: the bootstrap script is mounted at /otel from
         # the otel-instrument ConfigMap (created by the deploy scripts).

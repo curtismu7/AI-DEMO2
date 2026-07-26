@@ -30,7 +30,7 @@ describe('authorizeMcpRequest — RFC 8693 exchange before forward', () => {
     expect(forwarded).toEqual(['exchanged-tok']);
   });
 
-  it('exchanges with only the bearer token — the HTTP upstream is fixed to olb, no per-tool routing', async () => {
+  it('exchanges with the bearer token AND the tool name — per-tool routing picks the backend audience (invest tools need mcp-invest)', async () => {
     const forwarded: string[] = [];
     const exchange = jest.fn(async () => ({ token: 'exchanged-tok', targetAud: 'mcp-olb.ping.demo', cached: false }));
     const middleware = buildAuthorizeMcpRequest(stubConfig, {
@@ -40,7 +40,7 @@ describe('authorizeMcpRequest — RFC 8693 exchange before forward', () => {
     });
     const fakeRes = { writeHead: jest.fn(), end: jest.fn(), setHeader: jest.fn() } as any;
     await middleware('original-tx-token', body, {} as any, fakeRes, async (t) => { forwarded.push(t); });
-    expect(exchange).toHaveBeenCalledWith('original-tx-token');
+    expect(exchange).toHaveBeenCalledWith('original-tx-token', 'get_my_accounts');
   });
 
   it('fails closed with 502 + token_exchange_failed when exchange throws', async () => {
@@ -62,5 +62,31 @@ describe('authorizeMcpRequest — RFC 8693 exchange before forward', () => {
     const rpc = JSON.parse(chunks.join(''));
     expect(rpc.error.code).toBe(-32500);
     expect(rpc.error.data.error).toBe('token_exchange_failed');
+  });
+
+  it('records backend routing + exchange audience in the audit trail header', async () => {
+    const fakeRes = { writeHead: jest.fn(), end: jest.fn(), setHeader: jest.fn() } as any;
+    const middleware = buildAuthorizeMcpRequest(stubConfig, {
+      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999 }),
+      authorize: async () => ({ decision: 'PERMIT' as const }),
+      exchange: async () => ({ token: 'exchanged-tok', targetAud: 'mcpserver.ping.demo', cached: false }),
+    });
+    await middleware('original-tx-token', body, {} as any, fakeRes, async () => {});
+    const headerCalls = fakeRes.setHeader.mock.calls.filter((c: any[]) => c[0] === 'X-Gw-Audit-Trail');
+    const lastTrail = JSON.parse(headerCalls[headerCalls.length - 1][1]);
+    expect(lastTrail.backend).toEqual({ target: 'olb', audience: 'mcpserver.ping.demo', cached: false, exchanged: true });
+  });
+
+  it('records exchange failure in the backend audit trail before failing closed', async () => {
+    const fakeRes = { writeHead: jest.fn(), end: jest.fn(), setHeader: jest.fn() } as any;
+    const middleware = buildAuthorizeMcpRequest(stubConfig, {
+      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999 }),
+      authorize: async () => ({ decision: 'PERMIT' as const }),
+      exchange: async () => { throw new Error('invalid_scope'); },
+    });
+    await middleware('original-tx-token', body, {} as any, fakeRes, async () => {});
+    const headerCalls = fakeRes.setHeader.mock.calls.filter((c: any[]) => c[0] === 'X-Gw-Audit-Trail');
+    const lastTrail = JSON.parse(headerCalls[headerCalls.length - 1][1]);
+    expect(lastTrail.backend).toEqual({ target: 'olb', audience: null, exchanged: false, error: 'invalid_scope' });
   });
 });

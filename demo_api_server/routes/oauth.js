@@ -513,8 +513,11 @@ router.get('/status', (req, res) => {
   // protected API routes and enter a 401 redirect loop.
   const expiresAt = req.session.oauthTokens?.expiresAt;
   const tokenNotExpired = !expiresAt || Date.now() < expiresAt;
-  const isAuthenticated = !!(req.session.user && hasOAuthToken && tokenNotExpired);
-  
+  // Exclude end-user (oauthType 'user') sessions so this admin check doesn't shadow
+  // /api/auth/oauth/user/status for customer logins — checkOAuthSession (useAuth.js)
+  // queries this endpoint first and stops at the first authenticated:true it sees.
+  const isAuthenticated = !!(req.session.user && hasOAuthToken && tokenNotExpired && req.session.oauthType !== 'user');
+
   res.json({
     authenticated: isAuthenticated,
     user: isAuthenticated ? {

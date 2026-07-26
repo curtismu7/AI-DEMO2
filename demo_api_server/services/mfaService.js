@@ -57,7 +57,14 @@ async function _getWorkerToken() {
   } else {
     reqConfig.auth = { username: clientId, password: clientSecret };
   }
-  const resp = await axios.post(tokenUrl, body.toString(), reqConfig);
+  let resp;
+  try {
+    resp = await axios.post(tokenUrl, body.toString(), reqConfig);
+  } catch (err) {
+    // Normalize transport/HTTP failures so a worker-token outage doesn't
+    // propagate a raw axios error (host/IP on ECONNREFUSED) to the MFA routes.
+    throw _wrapError('_getWorkerToken', err, { workerToken: true });
+  }
   // Return the raw access-token string: every caller interpolates the result
   // directly as `Bearer ${token}`. Returning an object here yields
   // "Bearer [object Object]" and 401s every worker-token call.
@@ -1212,6 +1219,38 @@ async function updateDeviceNickname(userId, deviceId, nickname) {
 }
 
 /**
+ * Resolve the FIDO2 relying-party id for this environment.
+ *
+ * WebAuthn requires rp.id to be the origin's host OR a registrable parent of it,
+ * and one PingOne environment holds ONE rp.id — so when the demo is served from
+ * several origins (local dev, the SE DevOps cluster, …) the only value that
+ * works everywhere is their shared parent domain, which by definition is not any
+ * single host. Deriving rp.id from the serving hostname therefore cannot express
+ * the multi-origin case, hence this explicit override.
+ *
+ * PingOne also rejects a relying-party id whose TLD isn't public
+ * ("must be a valid domain name with a valid TLD"), so hosts like
+ * `api.ping.demo` or `localhost` can never be set — an override pointing at a
+ * real domain is the only way those origins get passkeys at all.
+ *
+ * Precedence: configStore `pingone_fido2_rp_id`, then `FIDO2_RP_ID`, then the
+ * public app URL's hostname (previous behaviour).
+ *
+ * @param {string} [publicAppUrl] - fallback source for the hostname
+ * @returns {string|null} rp.id, or null when nothing resolves
+ */
+function resolveRelyingPartyId(publicAppUrl) {
+  const explicit =
+    configStore.getEffective("pingone_fido2_rp_id") || process.env.FIDO2_RP_ID;
+  if (explicit && String(explicit).trim()) return String(explicit).trim();
+  try {
+    return new URL(publicAppUrl).hostname || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Ensure the environment's FIDO2 policies use a relying-party id that matches
  * the app's serving origin. PingOne defaults the FIDO2 rp.id to its own domain
  * (e.g. pingone.com); a browser rejects that when the app is served from a
@@ -1293,6 +1332,7 @@ async function ensureFido2RelyingParty(rpId, opts = {}) {
 
 module.exports = {
   ensureFido2RelyingParty,
+  resolveRelyingPartyId,
   initiateDeviceAuth,
   selectDevice,
   submitOtp,

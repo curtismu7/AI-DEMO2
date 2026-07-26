@@ -265,7 +265,7 @@ class DataStore {
     // map key always matches user.id — a generated key plus a spread-in userData.id
     // left the record unreachable via getUserById/updateUser.
     const id = userData.id || uuidv4();
-    const user = { ...userData, id, createdAt: new Date(), isActive: true };
+    const user = { ...userData, id, createdAt: new Date(), isActive: true, hideSuccessScreen: false };
     this.users.set(id, user);
     await this.persistAllData();
     return user;
@@ -296,6 +296,7 @@ class DataStore {
       password: seed.password != null ? seed.password : null,
       oauthProvider: seed.oauthProvider || null,
       oauthId: seed.oauthId || null,
+      hideSuccessScreen: false,
       createdAt: new Date(),
     };
     this.users.set(id, user);
@@ -643,18 +644,37 @@ class DataStore {
    * vertical mismatch instead of the all-customers reseed.
    */
   async reseedUserForVertical(userId, verticalId) {
+    this.purgeUserFinancialData(userId);
+    const result = await this.seedAccountsForUser(userId, verticalId);
+    await this.persistAllData();
+    return result;
+  }
+
+  /**
+   * Delete a single user's accounts and every transaction that references them.
+   * In-memory only — the caller decides when to persist, so a purge followed by
+   * a restore is one durable write rather than two.
+   *
+   * Extracted from reseedUserForVertical so services/verticalAccountSnapshots.js
+   * can reuse the exact same wipe when restoring a stored vertical, instead of
+   * re-implementing the transaction-reference sweep and drifting from it.
+   *
+   * @param {string} userId
+   * @returns {{ accounts: number, transactions: number }} counts removed
+   */
+  purgeUserFinancialData(userId) {
     const acctIds = new Set();
+    let removedTx = 0;
     for (const [id, acct] of this.accounts) {
       if (acct.userId === userId) { acctIds.add(id); this.accounts.delete(id); }
     }
     for (const [id, tx] of this.transactions) {
       if (tx.userId === userId || acctIds.has(tx.fromAccountId) || acctIds.has(tx.toAccountId)) {
         this.transactions.delete(id);
+        removedTx += 1;
       }
     }
-    const result = await this.seedAccountsForUser(userId, verticalId);
-    await this.persistAllData();
-    return result;
+    return { accounts: acctIds.size, transactions: removedTx };
   }
 
   async reseedAllCustomersForVertical(verticalId) {

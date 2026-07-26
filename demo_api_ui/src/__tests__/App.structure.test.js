@@ -78,6 +78,11 @@ describe("App.js — critical JSX placements", () => {
     expect(appSrc).toContain("surfaceHostEl={surfaceHostEl}");
   });
 
+  test("/admin forces pingone-admin vertical (admin demo steps, not banking UCs)", () => {
+    expect(appSrc).toContain("isPingOneAdminAgentRoute");
+    expect(appSrc).toContain('forceVertical: "pingone-admin"');
+  });
+
   test("resolveEmbeddedFocus is passed as embeddedFocus prop", () => {
     expect(appSrc).toContain("embeddedFocus={resolveEmbeddedFocus(pathname)}");
   });
@@ -111,6 +116,24 @@ describe("App.js — critical JSX placements", () => {
       expect(appSrc).not.toContain(fragment);
     }
   });
+
+  // Guests under path="*" only get TopNav — inspector must stay top-level.
+  test("/pingone-mcp-inspector is a top-level McpInspectorPageRoute", () => {
+    expect(appSrc).toContain("McpInspectorPageRoute");
+    expect(appSrc).toMatch(
+      /path=["']\/pingone-mcp-inspector["'][\s\S]*?<McpInspectorPageRoute/,
+    );
+    expect(appSrc).not.toContain('element={<McpInspectorPage />}');
+  });
+
+  // Guests under path="*" only get TopNav — gateway inspector must stay top-level.
+  test("/pinggateway-inspector is a top-level McpGatewayConfigRoute", () => {
+    expect(appSrc).toContain("McpGatewayConfigRoute");
+    expect(appSrc).toMatch(
+      /path=["']\/pinggateway-inspector["'][\s\S]*?<McpGatewayConfigRoute/,
+    );
+    expect(appSrc).not.toContain('element={<McpGatewayConfig />}');
+  });
 });
 
 // ─── DashboardContent (highest priority — guards the 3d2cf092 regression) ────
@@ -142,12 +165,29 @@ describe("MonitoringRoutes.js — critical imports", () => {
     "utf8"
   );
 
-  test('imports TokenChainDisplay', () => {
-    expect(src).toContain('import TokenChainDisplay from "../components/TokenChainDisplay"');
+  test('imports TokenChainTraceRail', () => {
+    expect(src).toContain('import TokenChainTraceRail from "../components/TokenChainTraceRail"');
   });
 
-  test('imports ApiExplorerPanel', () => {
-    expect(src).toContain('import ApiExplorerPanel from "../components/ApiExplorerPanel"');
+  test('token-chain route mounts TokenChainTraceRail', () => {
+    expect(src).toMatch(/path=["']token-chain["'][\s\S]*TokenChainTraceRail/);
+  });
+
+  test("api-explorer deep-links to PingOne MCP inspector", () => {
+    expect(src).toContain('path="api-explorer"');
+    expect(src).toContain("/pingone-mcp-inspector");
+  });
+
+  // Catch-all in App.js already wraps /agent-flow-inspector in TopNav +
+  // main-content; nesting AppShell re-applied the sidebar offset and left a
+  // gap on the right.
+  test("AgentFlowInspectorRoute does not wrap AppShell", () => {
+    const fn = src.match(
+      /export function AgentFlowInspectorRoute[\s\S]*?\n\}/
+    )?.[0];
+    expect(fn).toBeTruthy();
+    expect(fn).toContain("UnifiedTokenFlowInspector");
+    expect(fn).not.toContain("AppShell");
   });
 
   test("no stale banking_api_ui paths", () => {

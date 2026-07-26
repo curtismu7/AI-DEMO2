@@ -1,0 +1,11 @@
+{
+  "vertical": "pingone-admin",
+  "useCaseId": "ADMIN3",
+  "triggerType": "chip",
+  "mode": "unit-ref",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": null,
+  "checkedAt": "2026-07-25",
+  "verifiedBy": "demo_api_ui embeddedAgentFabVisibility + App.structure forceVertical; demoAgentService.adminRouting; useCases.route.test.js pingone-admin (#765/#766)"
+}

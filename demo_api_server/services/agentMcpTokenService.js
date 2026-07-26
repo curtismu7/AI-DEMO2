@@ -208,6 +208,16 @@ function countJwtScopes(claims) {
 }
 
 /**
+ * Return the first HTTP(S) URI from a comma-separated audience list.
+ * MCP_GW_RESOURCE_URI can contain both bare audiences and URI audiences.
+ */
+function firstHttpResourceUri(value) {
+  if (!value) return '';
+  const parts = String(value).split(',').map((s) => s.trim()).filter(Boolean);
+  return parts.find((p) => /^https?:\/\//i.test(p)) || '';
+}
+
+/**
  * Attach tokenEvents for the UI and throw with HTTP status + machine code.
  * @param {Array} tokenEvents
  * @param {string} code
@@ -348,6 +358,11 @@ function buildGwAuthorizeEventExtra(az) {
     authorizeResponse,
     authorizeRef: az.policyRef || az.ref || az.authorizeRef || null,
     decisionId: az.decisionId || null,
+    denyingFilter: az.denyingFilter || null,
+    lastFilter: az.lastFilter || null,
+    filterChain: az.filterChain || null,
+    policy: az.policy || null,
+    policySource: az.policySource || null,
   };
 }
 
@@ -386,7 +401,10 @@ function prependRefreshEvent(req, events) {
 
 function buildTratContext(req, tool, userSub, agentClientId, gatewayClientId, extras = {}) {
   const correlationId = req?.headers?.['x-correlation-id'] || req?.session?.correlationId || null;
-  const vertical = req?.body?.vertical || req?.session?.activeVertical || 'banking';
+  // Session key is `active_vertical`, not `activeVertical` — the camelCase read
+  // matched nothing, so the TraT context stamped `banking` on every token
+  // regardless of the session's vertical.
+  const vertical = req?.body?.vertical || req?.session?.active_vertical || 'banking';
   const ctx = {
     reqctx: {
       tool: tool || '',
@@ -1283,7 +1301,7 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   const ffTwoExchange = sessionExchangeMode !== 'single';
   if (ffTwoExchange) {
     return await _performTwoExchangeDelegation(
-      tokenEvents, userToken, finalScopes, userSub, toolTrigger, mcpResourceUri, req
+      tokenEvents, userToken, finalScopes, userSub, toolTrigger, mcpResourceUri, req, opts
     );
   }
   // ────────────────────────────────────────────────────────────────────
@@ -1798,8 +1816,10 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
     return { token: exchangedToken, tokenEvents, userSub, tratContextHeader };
 
   } catch (err) {
-    // Replace in-progress with failure
+    // Replace in-progress with failure — keep its exchangeRequest so TraceRail
+    // still shows the coloured request JSON on the failure step.
     const inProgressIdx = tokenEvents.findIndex(e => e.id === 'exchange-in-progress');
+    const inProgressEv = inProgressIdx !== -1 ? tokenEvents[inProgressIdx] : null;
     if (inProgressIdx !== -1) tokenEvents.splice(inProgressIdx, 1);
 
     // Build a human-readable summary from all available error detail
@@ -1825,6 +1845,7 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
         pingoneErrorDescription: err.pingoneErrorDescription,
         pingoneErrorDetail: err.pingoneErrorDetail,
         requestContext: err.requestContext,
+        exchangeRequest: inProgressEv?.exchangeRequest || err.requestContext || null,
         rfc: 'RFC 8693',
         trigger: toolTrigger,
       }
@@ -2021,7 +2042,7 @@ async function _resolveFinalMcpAudience(gatewayAud, mcpServerAud) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function _performTwoExchangeDelegation(
-  tokenEvents, userToken, effectiveToolScopes, userSub, toolTrigger, mcpResourceUri, req
+  tokenEvents, userToken, effectiveToolScopes, userSub, toolTrigger, mcpResourceUri, req, opts = {}
 ) {
   // ── RFC 8693 §2.1: Two-Exchange Delegation Configuration Validation
   let configResult;
@@ -2158,7 +2179,10 @@ async function _performTwoExchangeDelegation(
     );
     const agentExchangedDecoded = decodeJwtClaims(agentExchangedToken);
     const agentExchangedClaims = agentExchangedDecoded?.claims;
+    // Preserve exchangeRequest from the in-progress card before splice — TraceRail /
+    // TokenChain teaching JSON would otherwise vanish on success (1-exchange keeps it).
     const ex1Idx = tokenEvents.findIndex(e => e.id === 'two-ex-exchange1-in-progress');
+    const ex1ExchangeRequest = ex1Idx !== -1 ? (tokenEvents[ex1Idx].exchangeRequest || null) : null;
     if (ex1Idx !== -1) tokenEvents.splice(ex1Idx, 1);
     tokenEvents.push(buildTokenEvent(
       'two-ex-exchange1',
@@ -2171,12 +2195,14 @@ async function _performTwoExchangeDelegation(
       { rfc: 'RFC 8693', exchangeStep: '1-exchange',
         actPresent: !!agentExchangedClaims?.act,
         actExpectedHere: false,
-        actDetails: agentExchangedClaims?.act ? JSON.stringify(agentExchangedClaims.act) : null }
+        actDetails: agentExchangedClaims?.act ? JSON.stringify(agentExchangedClaims.act) : null,
+        ...(ex1ExchangeRequest ? { exchangeRequest: ex1ExchangeRequest } : {}) }
     ));
     // JWKS verify the agent exchanged token (result of Exchange #1)
     await pushJwksVerifyEvent(agentExchangedToken, tokenEvents, 'two-ex-exchange1-verified', 'Agent Exchanged Token (#1 result)');
   } catch (err) {
     const ex1Idx = tokenEvents.findIndex(e => e.id === 'two-ex-exchange1-in-progress');
+    const ex1ExchangeRequest = ex1Idx !== -1 ? (tokenEvents[ex1Idx].exchangeRequest || null) : null;
     if (ex1Idx !== -1) tokenEvents.splice(ex1Idx, 1);
     tokenEvents.push(buildTokenEvent(
       'two-ex-exchange1',
@@ -2185,7 +2211,8 @@ async function _performTwoExchangeDelegation(
       null,
       `Exchange #1 failed: ${err.message}.`,
       { error: err.message, httpStatus: err.httpStatus, pingoneError: err.pingoneError,
-        pingoneErrorDescription: err.pingoneErrorDescription, exchangeStep: '1-exchange' }
+        pingoneErrorDescription: err.pingoneErrorDescription, exchangeStep: '1-exchange',
+        ...(ex1ExchangeRequest ? { exchangeRequest: ex1ExchangeRequest } : {}) }
     ));
     const { errorCode: ex1Code, errorDetails: ex1Details } = mapErrorToStructuredResponse(err);
     void writeExchangeEvent({ type: 'exchange-failed', level: 'error',
@@ -2277,18 +2304,32 @@ async function _performTwoExchangeDelegation(
   // introspection rejects as inactive (active: false).
   // PingGateway also requires the token aud to be an HTTPS URL matching McpProtectionFilter.resourceId
   // (bare audience strings like mcpgateway.ping.demo are rejected with URI scheme null error).
-  // ff_gateway_brokered_exchange (default true) decouples WHO performs the final
-  // RFC 8693 hop from routing. Gateway-brokered (default): the BFF stops at the
-  // coarse gateway audience and the IG runs olb-token-exchange.groovy to mint the
-  // mcpserver.ping.demo token at the edge. BFF-brokered (flag false): the BFF
-  // completes the exchange to the mcp-server audience itself and the IG skips its
-  // exchange (signaled by X-BFF-Exchanged; see mcpGatewayClient). Only meaningful
-  // when routing through PingGateway; unset/true preserves today's behavior exactly.
-  const routeViaPingGateway = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
-  const gatewayBrokeredExchange = configStore.getEffective('ff_gateway_brokered_exchange') !== 'false';
-  const usePingGatewayForExchange = routeViaPingGateway && gatewayBrokeredExchange;
+  // The final RFC 8693 hop is ALWAYS gateway-brokered when routing through
+  // PingGateway: the BFF stops at the coarse gateway audience and the IG runs
+  // olb-token-exchange.groovy to mint the mcpserver.ping.demo token at the edge.
+  //
+  // ff_gateway_brokered_exchange used to make this switchable. It was removed
+  // because its OFF path could never work: completing the exchange here means
+  // requesting tool scopes that span multiple PingOne resources, and PingOne
+  // rejects that outright with
+  //   invalid_scope: "May not request scopes for multiple resources"
+  // which surfaced as the opaque "That step couldn't be completed" on every
+  // tool chip. Verified live before removal. See docs/dual-exchange-broker.md.
+  //
+  // opts.forceDirectMcpAudience: callers whose transport always dials the raw
+  // MCP server directly (e.g. the Banking Inspector's WS client, which never
+  // routes through PingGateway regardless of this flag) set this to skip the
+  // gateway-audience override below and fall through to twoExFinalAud, which
+  // already resolves correctly for direct/bypass mode.
+  const routeViaPingGateway = !opts.forceDirectMcpAudience && configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
+  const usePingGatewayForExchange = routeViaPingGateway;
+  const pingGatewayUriAud =
+    firstHttpResourceUri(process.env.PINGONE_RESOURCE_PINGGATEWAY_URI) ||
+    firstHttpResourceUri(configStore.getEffective('pingone_resource_pinggateway_uri')) ||
+    firstHttpResourceUri(process.env.MCP_GW_RESOURCE_URI) ||
+    firstHttpResourceUri(configStore.getEffective('mcp_gw_resource_uri'));
   const pingGatewayResourceAud = usePingGatewayForExchange
-    ? (process.env.PINGONE_RESOURCE_PINGGATEWAY_URI || configStore.getEffective('pingone_resource_pinggateway_uri') || twoExFinalAud)
+    ? (pingGatewayUriAud || twoExFinalAud)
     : null;
   const finalAudTarget = pingGatewayResourceAud || twoExFinalAud;
   // PingGateway requires the token aud to EXACTLY match its McpProtectionFilter
@@ -2300,9 +2341,13 @@ async function _performTwoExchangeDelegation(
   // gateway audience as a one-element ARRAY so it goes out as `resource=` and the
   // token actually carries aud=<PG_GATEWAY_RESOURCE_ID>. Verified live: requesting
   // resource=https://api.ping.demo:3036/mcp yields aud=[that] scope=gateway:mcp:invoke.
-  const finalAudiences = !usePingGatewayForExchange && mcpServerAudForFallback && mcpServerAudForFallback !== twoExFinalAud
-    ? [twoExFinalAud, mcpServerAudForFallback]
-    : (usePingGatewayForExchange ? [finalAudTarget] : finalAudTarget);
+  // Never pass two RFC 8707 resources in one exchange. PingOne returns
+  // invalid_scope ("May not request scopes for multiple resources") and the
+  // UI collapses that into the opaque demo-step failure sentence. When the
+  // PingGateway broker path is off, mint for a single final audience only.
+  const finalAudiences = usePingGatewayForExchange
+    ? [finalAudTarget]
+    : finalAudTarget;
   const finalAudDisplay = Array.isArray(finalAudiences) ? JSON.stringify(finalAudiences) : finalAudiences;
 
   tokenEvents.push(buildTokenEvent(
@@ -2339,11 +2384,29 @@ async function _performTwoExchangeDelegation(
     );
     const finalDecoded = decodeJwtClaims(finalToken);
     const finalClaims  = finalDecoded?.claims;
+    // Preserve exchangeRequest across splice so TraceRail's exchange step keeps
+    // its coloured request JSON (buildTraceSteps reads two-ex-final-token only).
     const ex2Idx = tokenEvents.findIndex(e => e.id === 'two-ex-exchange2-in-progress');
+    const ex2ExchangeRequest = ex2Idx !== -1 ? (tokenEvents[ex2Idx].exchangeRequest || null) : null;
     if (ex2Idx !== -1) tokenEvents.splice(ex2Idx, 1);
     const mcpTokenAud = finalClaims?.aud;
     const audMatches  = mcpTokenAud === finalAudTarget || (Array.isArray(mcpTokenAud) && mcpTokenAud.includes(finalAudTarget));
     const nestedActOk = !!finalClaims?.act?.sub && !!finalClaims?.act?.act?.sub;
+    // audMatches used to be computed here and then only REPORTED (in the event
+    // text and metadata), so a token minted for the wrong audience was sent
+    // anyway and failed downstream at the gateway/MCP server — far from the
+    // cause. Enforce it where it is known (F4). The catch below turns this into
+    // the standard delegation_chain_broken token-exchange error.
+    // (nestedActOk is deliberately NOT enforced: PingOne's SpEL cannot always
+    // construct a fully-nested act object, so an absent act.act is a documented,
+    // legitimate outcome — see docs/PINGONE_MAY_ACT_TWO_TOKEN_EXCHANGES.md §1e.
+    // It stays a reported signal on the token event.)
+    if (!audMatches) {
+      throw new Error(
+        `Final MCP token audience mismatch: expected "${finalAudTarget}", got ${JSON.stringify(mcpTokenAud)}. ` +
+          'Refusing to forward a token minted for the wrong audience.'
+      );
+    }
     tokenEvents.push(buildTokenEvent(
       'two-ex-final-token',
       '2-Exchange: Final MCP Token (nested act chain) ✔️',
@@ -2365,7 +2428,8 @@ async function _performTwoExchangeDelegation(
         nestedActPresent: nestedActOk,
         audienceNarrowed: finalAudTarget, audMatches,
         audExpected: finalAudTarget, audActual: mcpTokenAud,
-        scopeNarrowed: effectiveToolScopes.join(' ') }
+        scopeNarrowed: effectiveToolScopes.join(' '),
+        ...(ex2ExchangeRequest ? { exchangeRequest: ex2ExchangeRequest } : {}) }
     ));
     // JWKS verify the final MCP token (result of Exchange #2)
     await pushJwksVerifyEvent(finalToken, tokenEvents, 'two-ex-final-token-verified', 'Final MCP Token (#2 result)');
@@ -2419,6 +2483,7 @@ async function _performTwoExchangeDelegation(
 
   } catch (err) {
     const ex2Idx = tokenEvents.findIndex(e => e.id === 'two-ex-exchange2-in-progress');
+    const ex2ExchangeRequest = ex2Idx !== -1 ? (tokenEvents[ex2Idx].exchangeRequest || null) : null;
     if (ex2Idx !== -1) tokenEvents.splice(ex2Idx, 1);
     tokenEvents.push(buildTokenEvent(
       'two-ex-final-token',
@@ -2429,7 +2494,8 @@ async function _performTwoExchangeDelegation(
         'Check that act.sub on the Agent Exchanged Token matches AGENT_OAUTH_CLIENT_ID ' +
         'and that the act expression on Super Banking MCP Server resource server is correct.',
       { error: err.message, httpStatus: err.httpStatus, pingoneError: err.pingoneError,
-        pingoneErrorDescription: err.pingoneErrorDescription, exchangeStep: '2-exchange' }
+        pingoneErrorDescription: err.pingoneErrorDescription, exchangeStep: '2-exchange',
+        ...(ex2ExchangeRequest ? { exchangeRequest: ex2ExchangeRequest } : {}) }
     ));
     const { errorCode: ex2Code, errorDetails: ex2Details } = mapErrorToStructuredResponse(err);
     void writeExchangeEvent({ type: 'exchange-failed', level: 'error',
@@ -2455,6 +2521,63 @@ async function resolveMcpAccessToken(req, tool) {
   return token;
 }
 
+/**
+ * Interactive Token Exchange Tester — run the production 2-exchange chain and
+ * return scrubbed step events (never raw JWTs). Used by POST /api/tokens/exchange-test
+ * when mode=double.
+ *
+ * @param {object} req - Express request (session / teach context)
+ * @param {string} userToken - Session subject access token
+ * @param {string[]} scopes - Tool / MCP scopes for Exchange #1/#2 narrowing
+ * @returns {Promise<{ success: true, tokenEvents: object[], subjectClaims: object|null, finalClaims: object|null, mcpResourceUri: string }>}
+ */
+async function runTwoExchangeInteractiveTest(req, userToken, scopes = ['read', 'write']) {
+  if (!userToken) {
+    const err = new Error('User access token required for 2-exchange test');
+    err.code = 'missing_user_token';
+    err.httpStatus = 401;
+    throw err;
+  }
+
+  const tokenEvents = [];
+  const decoded = decodeJwtClaims(userToken);
+  const userSub = decoded?.claims?.sub || 'unknown';
+  const mcpResourceUri =
+    configStore.getEffective('pingone_resource_mcp_gateway_uri') ||
+    configStore.getEffective('pingone_resource_mcp_server_uri') ||
+    process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI ||
+    process.env.PINGONE_RESOURCE_MCP_SERVER_URI ||
+    'mcpgateway.ping.demo';
+
+  const scopeList = Array.isArray(scopes) && scopes.length > 0 ? scopes : ['read', 'write'];
+
+  try {
+    const result = await _performTwoExchangeDelegation(
+      tokenEvents,
+      userToken,
+      scopeList,
+      userSub,
+      'token-exchange-tester',
+      mcpResourceUri,
+      req,
+      {}
+    );
+    const finalDecoded = result.token ? decodeJwtClaims(result.token) : null;
+    return {
+      success: true,
+      tokenEvents,
+      subjectClaims: sanitizeClaims(decoded?.claims),
+      finalClaims: sanitizeClaims(finalDecoded?.claims),
+      mcpResourceUri,
+    };
+  } catch (err) {
+    err.tokenEvents = tokenEvents;
+    err.subjectClaims = sanitizeClaims(decoded?.claims);
+    err.mcpResourceUri = mcpResourceUri;
+    throw err;
+  }
+}
+
 module.exports = {
   resolveMcpAccessToken,
   resolveMcpAccessTokenWithEvents,
@@ -2469,6 +2592,7 @@ module.exports = {
   MIN_USER_SCOPES_FOR_MCP,
   buildTratContext,
   buildRarAuthorizationDetails,
+  runTwoExchangeInteractiveTest,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

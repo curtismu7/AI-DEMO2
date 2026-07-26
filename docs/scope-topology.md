@@ -22,9 +22,11 @@
 | `finaid:read` | low | Super Banking API | Read sensitive student financial aid records (university vertical A2A specialist scope) |
 | `supplier:read` | low | Super Banking API | Read sensitive supplier contract records (manufacturing vertical A2A specialist scope) |
 | `invest:read` | low | Super Banking API | Read investment accounts, balances, and portfolio summaries (A2A specialist scope) |
+| `holdings:read` | high | Super Banking API | Read sensitive investment holdings (investment vertical A2A specialist scope) |
 | `ai:agent:read` | medium | Super Banking API | Agent invocation permission |
 | `mcp:invoke` | medium | Super Banking MCP Server | Invoke MCP tools via the gateway (RFC 8693 exchange) |
 | `code:search` | low | Super Banking MCP Server | Search and read the indexed source code (read-only) |
+| `jwt:verify` | low | Super Banking MCP JWT Verifier | Invoke JWT/JWKS diagnostic tools (decode, verify signature, validate claims, fetch JWKS, inspect key) |
 | `agent:invoke` | medium | Super Banking Agent Gateway | Invoke the Agent Gateway (Two-Exchange Step 1 audience) |
 | `ai_agent` | medium | Super Banking API | AI agent identity |
 | `admin:read` | medium | Super Banking API | Read access to administrative data |
@@ -42,6 +44,7 @@
 | `agent:invoke:tax` | medium | Super Banking A2A Intermediate - Tax Records Specialist | Invoke the Tax Records Specialist A2A intermediate (Exchange #1 actor) |
 | `agent:invoke:finaid` | medium | Super Banking A2A Intermediate - Financial Aid Specialist | Invoke the Financial Aid Specialist A2A intermediate (Exchange #1 actor) |
 | `agent:invoke:supplier` | medium | Super Banking A2A Intermediate - Supplier Contract Specialist | Invoke the Supplier Contract Specialist A2A intermediate (Exchange #1 actor) |
+| `agent:invoke:holdings` | medium | Super Banking A2A Intermediate - Holdings Specialist | Invoke the Holdings Specialist A2A intermediate (Exchange #1 actor) |
 
 ## Resources
 
@@ -49,7 +52,7 @@
 
 Audience: `enduser.ping.demo`
 
-Native scopes: `read`, `write`, `transfer`, `accounts:read`, `transactions:read`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `ai:agent:read`, `ai_agent`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`
+Native scopes: `read`, `write`, `transfer`, `accounts:read`, `transactions:read`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `holdings:read`, `ai:agent:read`, `ai_agent`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`
 
 ### Super Banking MCP Server
 
@@ -66,6 +69,12 @@ Audience: `mcp-invest.ping.demo`
 Native scopes: `mcp:invoke`
 
 Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `invest:read`, `read`
+
+### Super Banking MCP JWT Verifier
+
+Audience: `mcp-jwt-verifier.ping.demo`
+
+Native scopes: `jwt:verify`
 
 ### Super Banking MCP Gateway
 
@@ -137,11 +146,17 @@ Audience: `a2a-intermediate-supplier.ping.demo`
 
 Native scopes: `agent:invoke:supplier`
 
+### Super Banking A2A Intermediate - Holdings Specialist
+
+Audience: `a2a-intermediate-holdings.ping.demo`
+
+Native scopes: `agent:invoke:holdings`
+
 ### Super Banking A2A MCP Gateway
 
 Audience: `mcpgateway-a2a.ping.demo`
 
-Native scopes: `read`, `invest:read`
+Native scopes: `read`, `invest:read`, `holdings:read`
 
 ### Super Banking PingGateway MCP
 
@@ -250,6 +265,12 @@ Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
 
 Granted scopes: `read`
 
+### Super Banking Holdings Specialist Agent
+
+Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
+
+Granted scopes: `read`
+
 ### Super Banking Agent
 
 Type: `WORKER`  ·  Grants: `client_credentials`
@@ -275,6 +296,7 @@ Granted scopes: — (none; resource-server or worker app)
 | `get_my_transactions` | gateway | `read` | — |
 | `get_sensitive_account_details` | gateway | `read` `sensitive:read` | consent |
 | `sequential_think` | gateway | `read` | — |
+| `jwt_decode_full` | gateway | `read` | — |
 | `get_investment_balance` | gateway | `invest:read` | — |
 | `get_investment_accounts` | gateway | `invest:read` | — |
 | `get_investment_transactions` | gateway | `invest:read` | — |
@@ -496,6 +518,7 @@ Granted scopes: — (none; resource-server or worker app)
 | `view_portfolios` | gateway | `read` | — |
 | `view_trades` | gateway | `read` | — |
 | `sensitive_holdings` | gateway | `read` | consent |
+| `sensitive_investment_holdings` | gateway | `read` | consent |
 | `cash_out_store_credit` | gateway | `write` | step_up |
 | `transfer_membership` | gateway | `write` | step_up |
 | `call_pingone_tool` | gateway | `read` | — |

@@ -13,7 +13,9 @@ from typing import Any
 
 _MODULE_DIR = Path(__file__).resolve().parent          # .../langchain_agent/src/codegraph
 _REPO_ROOT = _MODULE_DIR.parent.parent.parent          # .../AI-Demo
-_DEFAULT_DB = str(_REPO_ROOT / ".codegraph" / "codegraph.db")
+# demo-codegraph.db avoids colliding with the host CodeGraph product daemon
+# which owns .codegraph/codegraph.db on the same bind mount.
+_DEFAULT_DB = str(_REPO_ROOT / ".codegraph" / "demo-codegraph.db")
 
 CODEGRAPH_DB_PATH: str = os.getenv("CODEGRAPH_DB_PATH", _DEFAULT_DB)
 _CAP_EXPLORE = 10
@@ -31,36 +33,79 @@ def _rows_to_dicts(rows) -> list[dict[str, Any]]:
     return [dict(r) for r in rows]
 
 
+# NL filler that floods FTS OR-queries and drowns real identifiers.
+_FTS_STOPWORDS = frozenset({
+    "a", "an", "the", "and", "or", "but", "if", "then", "else", "when",
+    "how", "what", "where", "why", "who", "which", "whom", "whose",
+    "is", "are", "was", "were", "be", "been", "being", "do", "does", "did",
+    "to", "of", "in", "on", "for", "with", "from", "by", "as", "at", "into",
+    "about", "over", "after", "before", "between", "through",
+    "this", "that", "these", "those", "it", "its", "they", "them", "their",
+    "we", "our", "you", "your", "me", "my", "i",
+    "can", "could", "should", "would", "will", "may", "might", "must",
+    "please", "show", "tell", "explain", "describe", "walk", "work", "works",
+    "working", "code", "file", "files", "function", "functions", "class",
+})
+
+
 def _sanitize_fts(query: str) -> str:
-    """Convert a natural-language query to a safe FTS5 expression."""
+    """Convert a natural-language query to a content-token FTS5 expression.
+
+    Drops stopwords so "How does the MCP gateway work?" becomes
+    ``MCP OR gateway`` instead of ``How OR does OR the OR MCP OR gateway OR work``.
+    """
     cleaned = re.sub(r"[^\w\s]", " ", query)
-    tokens = [t for t in cleaned.split() if len(t) > 1]
-    return " OR ".join(tokens[:6]) if tokens else ""
+    tokens = []
+    for raw in cleaned.split():
+        if len(raw) < 2:
+            continue
+        if raw.lower() in _FTS_STOPWORDS:
+            continue
+        tokens.append(raw)
+    # Prefer longer / CamelCase-ish tokens first, keep up to 6.
+    tokens = sorted(set(tokens), key=lambda t: (len(t), t[0].isupper()), reverse=True)[:6]
+    return " OR ".join(tokens) if tokens else ""
 
 
 def explore(query: str) -> list[dict[str, Any]]:
     """
     Full-text search across node names, qualified names, docstrings, and
-    signatures.  Returns up to 10 nodes with location and signature info.
+    signatures.  Returns up to 10 nodes ranked by bm25 when available.
     """
     fts_query = _sanitize_fts(query)
     if not fts_query:
         return []
     conn = _get_conn()
     try:
-        rows = conn.execute(
-            """
-            SELECT n.id, n.kind, n.name, n.qualified_name,
-                   n.file_path, n.start_line, n.end_line,
-                   n.signature, n.docstring
-            FROM nodes n
-            WHERE n.rowid IN (
-                SELECT rowid FROM nodes_fts WHERE nodes_fts MATCH ?
-            )
-            LIMIT ?
-            """,
-            (fts_query, _CAP_EXPLORE),
-        ).fetchall()
+        try:
+            rows = conn.execute(
+                """
+                SELECT n.id, n.kind, n.name, n.qualified_name,
+                       n.file_path, n.start_line, n.end_line,
+                       n.signature, n.docstring
+                FROM nodes_fts
+                JOIN nodes n ON n.rowid = nodes_fts.rowid
+                WHERE nodes_fts MATCH ?
+                ORDER BY bm25(nodes_fts)
+                LIMIT ?
+                """,
+                (fts_query, _CAP_EXPLORE),
+            ).fetchall()
+        except sqlite3.OperationalError:
+            # Older SQLite builds without bm25() — unordered MATCH is fine.
+            rows = conn.execute(
+                """
+                SELECT n.id, n.kind, n.name, n.qualified_name,
+                       n.file_path, n.start_line, n.end_line,
+                       n.signature, n.docstring
+                FROM nodes n
+                WHERE n.rowid IN (
+                    SELECT rowid FROM nodes_fts WHERE nodes_fts MATCH ?
+                )
+                LIMIT ?
+                """,
+                (fts_query, _CAP_EXPLORE),
+            ).fetchall()
         return _rows_to_dicts(rows)
     except sqlite3.OperationalError:
         return []

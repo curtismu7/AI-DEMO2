@@ -148,7 +148,7 @@ describe('runIntentBindingDemo / runAttackSim — drift honors requestedAmount (
           .then((result) => {
             // callToolViaGateway signature: (gatewayUrl, token, tool, params, opts)
             expect(callToolViaGateway).toHaveBeenCalledTimes(1);
-            expect(callToolViaGateway.mock.calls[0][3]).toEqual({ amount: 50, to_account_id: 'sim-acc-001' });
+            expect(callToolViaGateway.mock.calls[0][3]).toEqual({ amount: 50, from_account_id: 'sim-acc-002', to_account_id: 'sim-acc-001' });
             // The gateway call did not throw → this is the "unexpected permit" branch,
             // proving a $50 request against a $100 cap actually succeeds once the
             // amount is real (the UX implication flagged for the controller).
@@ -173,7 +173,7 @@ describe('runIntentBindingDemo / runAttackSim — drift honors requestedAmount (
         isolatedRunAttackSim('rar-exceeded', req)
           .then((result) => {
             expect(callToolViaGateway).toHaveBeenCalledTimes(1);
-            expect(callToolViaGateway.mock.calls[0][3]).toEqual({ amount: 500, to_account_id: 'sim-acc-001' });
+            expect(callToolViaGateway.mock.calls[0][3]).toEqual({ amount: 500, from_account_id: 'sim-acc-002', to_account_id: 'sim-acc-001' });
             expect(result.status).toBe(403);
             expect(result.errorCode).toBe('rar_amount_exceeded');
             resolve();
@@ -184,46 +184,265 @@ describe('runIntentBindingDemo / runAttackSim — drift honors requestedAmount (
   });
 });
 
-// ── Finding 2 (live-mode flag leak) regression coverage ──────────────────────
-describe('POST /api/demo/intent-binding/run — live mode restores ff_authorize_simulated (Finding 2)', () => {
-  function bootIsolatedApp({ runResult, runError }) {
+// ── RAR on the real path: PingOne Authorize is the PDP ───────────────────────
+//
+// RAR sims call callToolViaGateway(null, ...) — they no longer pin to the
+// Demo Agent Gateway, they let it self-resolve whichever gateway is active
+// (PingGateway by default). PingGateway forwards TraT's RarAuthorizationDetails
+// (incl. RarMaxAmount) to PingOne Authorize, which is the sole RAR PDP on that
+// path. The Node Demo Agent Gateway's local requireRarIntent (rarEnforce.ts)
+// is an optional belt-and-suspenders PEP that only arms when PingGateway is
+// OFF (ff_mcp_gateway_pinggateway === 'false') AND ff_rar_gateway_enforcement
+// is ON — with PingGateway active, arming it would 403 the sim token before
+// Authorize ever sees the request (insufficient_scope on the Node-shaped
+// token), so _runRarExceeded deliberately skips it in that case.
+describe('RAR sims: PingOne Authorize enforces via the active gateway (self-resolved, not pinned)', () => {
+  const DEMO_GW = 'http://demo-gw.example:3005';
+  const MOCKED_PATHS = [
+    '../../services/configStore',
+    '../../services/oauthService',
+    '../../services/mcpGatewayClient',
+    '../../routes/mcpGatewayConfig',
+    '../../services/hitlServiceClient',
+  ];
+  let savedDemoGwEnv;
+
+  beforeAll(() => {
+    savedDemoGwEnv = process.env.MCP_DEMO_GATEWAY_URL;
+    delete process.env.MCP_DEMO_GATEWAY_URL; // force the configStore path
+  });
+  afterAll(() => {
+    if (savedDemoGwEnv !== undefined) process.env.MCP_DEMO_GATEWAY_URL = savedDemoGwEnv;
+    // doMock registrations here are NOT wrapped in isolateModules (see below),
+    // so clear them before the next describe block runs.
+    MOCKED_PATHS.forEach((p) => jest.dontMock(p));
+    jest.resetModules();
+  });
+
+  function fakeJwt(payload) {
+    const header = Buffer.from(JSON.stringify({ alg: 'none' }), 'utf8').toString('base64url');
+    const body = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+    return `${header}.${body}.sig`;
+  }
+  const FAKE_EXCHANGED_TOKEN = fakeJwt({ sub: 'user-1', aud: 'https://gateway.example/mcp' });
+
+  // Unlike the Finding-1 suite, these tests must observe LAZY requires
+  // (_pushGatewayFlags requires routes/mcpGatewayConfig and _runRarPermit
+  // requires hitlServiceClient at call time, i.e. after an await). A
+  // jest.isolateModules window closes when its sync callback returns, so those
+  // late requires would resolve OUTSIDE it and miss the mocks. Plain
+  // resetModules + doMock keeps the registrations active for the whole test.
+  function mockPinnedDeps({ callToolImpl, gatewayEnforce = false, pinggatewayOn = true }) {
+    jest.resetModules();
     jest.doMock('../../services/configStore', () => ({
       getEffective: jest.fn((key) => {
-        if (key === 'ff_use_cases_launcher') return 'true';
-        if (key === 'ff_authorize_simulated') return 'true'; // pre-existing value to be restored
+        if (key === 'ff_mcp_gateway_pinggateway') return pinggatewayOn ? 'true' : 'false';
+        if (key === 'mcp_demo_gateway_url') return DEMO_GW;
+        if (key === 'pingone_resource_mcp_gateway_uri') return 'https://gateway.example/mcp';
+        // Gateway-local RAR enforcement is opt-in; default OFF → PingOne Authorize enforces.
+        if (key === 'ff_rar_gateway_enforcement') return gatewayEnforce ? 'true' : 'false';
         return '';
       }),
+      setRaw: jest.fn().mockResolvedValue(undefined),
+    }));
+    jest.doMock('../../services/oauthService', () => ({
+      performTokenExchange: jest.fn().mockResolvedValue(FAKE_EXCHANGED_TOKEN),
+      performTokenExchangeAs: jest.fn().mockResolvedValue(FAKE_EXCHANGED_TOKEN),
+    }));
+    jest.doMock('../../services/mcpGatewayClient', () => ({
+      callToolViaGateway: jest.fn(callToolImpl),
+      // Real getMcpGatewayHttpUrl() resolves mcp_demo_gateway_url when PingGateway
+      // is off — mirror that branch so _pushGatewayFlags's fallback (no explicit
+      // gatewayUrl passed) targets DEMO_GW in the pinggatewayOn:false scenario.
+      getMcpGatewayHttpUrl: jest.fn(() => (pinggatewayOn ? 'https://pinggateway.example' : DEMO_GW)),
+    }));
+    jest.doMock('../../routes/mcpGatewayConfig', () => ({
+      pushGatewayAdminConfig: jest.fn().mockResolvedValue({ ok: true }),
+    }));
+    jest.doMock('../../services/hitlServiceClient', () => ({
+      createChallenge: jest.fn().mockResolvedValue({ challengeId: 'hitl-1' }),
+      respondToChallenge: jest.fn().mockResolvedValue({ ok: true }),
+    }));
+    return {
+      run: require('../../services/attackSimulatorService').runIntentBindingDemo,
+      callToolViaGateway: require('../../services/mcpGatewayClient').callToolViaGateway,
+      pushGatewayAdminConfig: require('../../routes/mcpGatewayConfig').pushGatewayAdminConfig,
+    };
+  }
+
+  const req = {
+    session: { oauthTokens: { accessToken: 'user-access-token' }, user: { sub: 'user-1' } },
+  };
+
+  test('drift: tool call self-resolves the active gateway (null pin); gateway NOT armed by default (PingOne Authorize enforces RAR)', async () => {
+    const denyErr = Object.assign(new Error('rar exceeded'), { code: 'rar_amount_exceeded', httpStatus: 403 });
+    const { run, callToolViaGateway, pushGatewayAdminConfig } =
+      mockPinnedDeps({ callToolImpl: jest.fn().mockRejectedValue(denyErr) });
+
+    const result = await run('drift', req, 500);
+    expect(callToolViaGateway).toHaveBeenCalledTimes(1);
+    // null → callToolViaGateway resolves whichever gateway is active itself.
+    expect(callToolViaGateway.mock.calls[0][0]).toBe(null);
+    // Default OFF: the gateway's local requireRarIntent is not armed — the RAR cap
+    // is enforced by PingOne Authorize's RarMaxAmount rule instead.
+    expect(pushGatewayAdminConfig).not.toHaveBeenCalledWith(DEMO_GW, { requireRarIntent: true });
+    expect(result.status).toBe(403);
+    expect(result.errorCode).toBe('rar_amount_exceeded');
+  });
+
+  test('drift: with ff_rar_gateway_enforcement ON and PingGateway off, the Demo Agent Gateway IS armed (belt-and-suspenders)', async () => {
+    const denyErr = Object.assign(new Error('rar exceeded'), { code: 'rar_amount_exceeded', httpStatus: 403 });
+    // armGateway requires !usePingGateway — local requireRarIntent arming only
+    // applies to the Demo Agent Gateway; when PingGateway is active, RAR
+    // enforcement is P1AZ's call alone (see _runRarExceeded).
+    const { run, pushGatewayAdminConfig } =
+      mockPinnedDeps({ callToolImpl: jest.fn().mockRejectedValue(denyErr), gatewayEnforce: true, pinggatewayOn: false });
+
+    const result = await run('drift', req, 500);
+    expect(pushGatewayAdminConfig).toHaveBeenCalledWith(DEMO_GW, { requireRarIntent: true });
+    expect(result.status).toBe(403);
+    expect(result.errorCode).toBe('rar_amount_exceeded');
+  });
+
+  test('permit: account discovery + transfer both self-resolve the active gateway (null pin) and a within-cap request PERMITs', async () => {
+    const { run, callToolViaGateway, pushGatewayAdminConfig } =
+      mockPinnedDeps({ callToolImpl: jest.fn().mockResolvedValue({ ok: true }) });
+
+    const result = await run('permit', req, 80);
+    // First call discovers the token's own accounts, second is the transfer —
+    // both let callToolViaGateway resolve the active gateway itself.
+    expect(callToolViaGateway).toHaveBeenCalledTimes(2);
+    expect(callToolViaGateway.mock.calls[0][0]).toBe(null);
+    expect(callToolViaGateway.mock.calls[0][2]).toBe('get_my_accounts');
+    expect(callToolViaGateway.mock.calls[1][0]).toBe(null);
+    expect(callToolViaGateway.mock.calls[1][2]).toBe('create_transfer');
+    // Default OFF: gateway not armed; PingOne Authorize is the RAR enforcement point.
+    expect(pushGatewayAdminConfig).not.toHaveBeenCalledWith(DEMO_GW, { requireRarIntent: true });
+    expect(result.status).toBe(200);
+    expect(result.errorCode).toBeNull();
+  });
+
+  test('permit: discovered account ids are used and a backend isError result is NOT reported as PERMIT', async () => {
+    // callToolViaGateway resolves to { result, gwAuditTrail } — mock the real wrapper shape.
+    const accountsPayload = { result: { structuredContent: { success: true, count: 2, accounts: [{ id: 'acc-real-1' }, { id: 'acc-real-2' }] } }, gwAuditTrail: null };
+    const callToolImpl = jest.fn()
+      .mockResolvedValueOnce(accountsPayload)
+      .mockResolvedValueOnce({ result: { isError: true, content: [{ type: 'text', text: 'Error: Banking API error: From account not found' }] }, gwAuditTrail: null });
+    const { run, callToolViaGateway } = mockPinnedDeps({ callToolImpl });
+
+    const result = await run('permit', req, 80);
+    expect(callToolViaGateway.mock.calls[1][3]).toMatchObject({
+      amount: 80, from_account_id: 'acc-real-1', to_account_id: 'acc-real-2',
+    });
+    expect(result.status).toBe(502);
+    expect(result.errorCode).toBe('backend_execution_failed');
+  });
+});
+
+// ── Finding 2 (live-mode flag leak) + PAR config resolution ──────────────────
+describe('POST /api/demo/intent-binding/run — live mode restores ff_authorize_simulated (Finding 2)', () => {
+  function bootIsolatedApp({ runResult, runError, config = {}, parImpl }) {
+    const cfg = {
+      ff_use_cases_launcher: 'true',
+      ff_authorize_simulated: 'true',
+      ...config,
+    };
+    jest.doMock('../../services/configStore', () => ({
+      getEffective: jest.fn((key) => (cfg[key] !== undefined ? cfg[key] : '')),
       setRaw: jest.fn().mockResolvedValue(undefined),
     }));
     jest.doMock('../../services/attackSimulatorService', () => ({
       runIntentBindingDemo: jest.fn(() => (runError ? Promise.reject(runError) : Promise.resolve(runResult))),
     }));
+    jest.doMock('../../services/parService', () => {
+      const isParRedirectUriMismatch = (msg) =>
+        /redirect uri mismatch/i.test(String((msg && msg.message) || msg || ''));
+      const pushAuthorizationRequest = jest.fn(
+        parImpl
+          || (() => Promise.resolve({
+            requestUri: 'urn:ietf:params:oauth:request_uri:test',
+            expiresIn: 60,
+          })),
+      );
+      const pushAuthorizationRequestWithRedirectFallback = jest.fn(
+        async (endpoint, clientId, clientSecret, payload, candidates) => {
+          let lastErr = null;
+          const tried = [];
+          for (const redirect_uri of candidates || []) {
+            tried.push(redirect_uri);
+            try {
+              const result = await pushAuthorizationRequest(
+                endpoint,
+                clientId,
+                clientSecret,
+                { ...payload, redirect_uri },
+              );
+              return {
+                ...result,
+                redirectUri: redirect_uri,
+                triedRedirects: tried,
+                usedFallback: tried.length > 1,
+              };
+            } catch (err) {
+              lastErr = err;
+              if (!isParRedirectUriMismatch(err)) throw err;
+            }
+          }
+          throw lastErr || new Error('PAR push failed: Redirect URI mismatch');
+        },
+      );
+      return {
+        pushAuthorizationRequest,
+        pushAuthorizationRequestWithRedirectFallback,
+        isParRedirectUriMismatch,
+      };
+    });
+    // Resolve PAR from env id the same way production does (configStore mock
+    // above returns '' for pingone_environment_id unless cfg supplies it).
+    jest.doMock('../../services/oauthEndpointResolver', () => ({
+      getParEndpoint: jest.fn(() => {
+        const envId = cfg.pingone_environment_id;
+        if (!envId) return '';
+        const region = cfg.pingone_region || 'com';
+        return `https://auth.pingone.${region}/${envId}/as/par`;
+      }),
+    }));
     const express = require('express');
     const supertest = require('supertest');
     const intentBindingRouter = require('../../routes/intentBinding');
     const configStore = require('../../services/configStore');
+    const {
+      pushAuthorizationRequest,
+      pushAuthorizationRequestWithRedirectFallback,
+    } = require('../../services/parService');
     const app = express();
     app.use(express.json());
     app.use('/api/demo/intent-binding', intentBindingRouter);
-    return { app, supertest, configStore };
+    return {
+      app,
+      supertest,
+      configStore,
+      pushAuthorizationRequest,
+      pushAuthorizationRequestWithRedirectFallback,
+    };
   }
 
-  test('live:true snapshots the current flag, arms simulated=false, then restores the snapshot on success', async () => {
+  test('live:true returns 503 when actor credentials missing', async () => {
     await new Promise((resolve, reject) => {
       jest.isolateModules(() => {
-        const { app, supertest, configStore } = bootIsolatedApp({
+        const { app, supertest } = bootIsolatedApp({
           runResult: { sim: 'rar-permit', useCaseId: 'rar-intent-verified', status: 200, errorCode: null, reason: 'PERMIT', tokenChainEvents: [] },
+          config: {
+            pingone_environment_id: 'env-1',
+            public_app_url: 'https://api.ping.demo:4000',
+          },
         });
         supertest(app)
           .post('/api/demo/intent-binding/run')
           .send({ action: 'permit', requestedAmount: 50, live: true })
           .then((res) => {
-            expect(res.status).toBe(200);
-            expect(res.body.live).toBe(true);
-            expect(configStore.setRaw.mock.calls).toEqual([
-              [{ ff_authorize_simulated: 'false' }],
-              [{ ff_authorize_simulated: 'true' }],
-            ]);
+            expect(res.status).toBe(503);
+            expect(res.body.error).toBe('par_config_missing');
             resolve();
           })
           .catch(reject);
@@ -231,19 +450,135 @@ describe('POST /api/demo/intent-binding/run — live mode restores ff_authorize_
     });
   });
 
-  test('live:true restores the snapshot even when runIntentBindingDemo throws (finally runs on the error path)', async () => {
+  test('live:true pushes PAR with derived endpoint and actor redirect', async () => {
     await new Promise((resolve, reject) => {
       jest.isolateModules(() => {
-        const { app, supertest, configStore } = bootIsolatedApp({ runError: new Error('boom') });
+        const { app, supertest, pushAuthorizationRequest } = bootIsolatedApp({
+          runResult: { sim: 'rar-permit', status: 200, tokenChainEvents: [] },
+          config: {
+            pingone_environment_id: 'env-1',
+            public_app_url: 'https://api.ping.demo:4000',
+            pingone_ai_agent_actor_client_id: 'actor-client',
+            pingone_ai_agent_actor_client_secret: 'actor-secret',
+          },
+        });
         supertest(app)
           .post('/api/demo/intent-binding/run')
-          .send({ action: 'permit', requestedAmount: 50, live: true })
+          .send({ action: 'permit', requestedAmount: 80, live: true })
           .then((res) => {
-            expect(res.status).toBe(500);
-            expect(configStore.setRaw.mock.calls).toEqual([
-              [{ ff_authorize_simulated: 'false' }],
-              [{ ff_authorize_simulated: 'true' }],
-            ]);
+            expect(res.status).toBe(200);
+            expect(res.body.sim).toBe('par-permit');
+            expect(res.body.requestUri).toBe('urn:ietf:params:oauth:request_uri:test');
+            expect(pushAuthorizationRequest).toHaveBeenCalledWith(
+              'https://auth.pingone.com/env-1/as/par',
+              'actor-client',
+              'actor-secret',
+              expect.objectContaining({
+                redirect_uri: 'https://api.ping.demo:4000/api/auth/oauth/ai-agent-placeholder-callback',
+              }),
+            );
+            resolve();
+          })
+          .catch(reject);
+      });
+    });
+  });
+
+  test('live:true $80 permit uses local.ping-devops PUBLIC_APP_URL redirect', async () => {
+    await new Promise((resolve, reject) => {
+      jest.isolateModules(() => {
+        const { app, supertest, pushAuthorizationRequest } = bootIsolatedApp({
+          runResult: { sim: 'rar-permit', status: 200, tokenChainEvents: [] },
+          config: {
+            pingone_environment_id: 'env-1',
+            public_app_url: 'https://local.ping-devops.com:4000',
+            pingone_ai_agent_actor_client_id: 'actor-client',
+            pingone_ai_agent_actor_client_secret: 'actor-secret',
+          },
+        });
+        supertest(app)
+          .post('/api/demo/intent-binding/run')
+          .send({ action: 'permit', requestedAmount: 80, live: true })
+          .then((res) => {
+            expect(res.status).toBe(200);
+            expect(res.body.sim).toBe('par-permit');
+            expect(res.body.errorCode).toBeNull();
+            expect(pushAuthorizationRequest).toHaveBeenCalledWith(
+              expect.any(String),
+              'actor-client',
+              'actor-secret',
+              expect.objectContaining({
+                redirect_uri: 'https://local.ping-devops.com:4000/api/auth/oauth/ai-agent-placeholder-callback',
+                authorization_details: [expect.objectContaining({ amount: 80 })],
+              }),
+            );
+            resolve();
+          })
+          .catch(reject);
+      });
+    });
+  });
+
+  test('live:true falls back to api.ping.demo when local redirect mismatches', async () => {
+    await new Promise((resolve, reject) => {
+      jest.isolateModules(() => {
+        const localUri = 'https://local.ping-devops.com:4000/api/auth/oauth/ai-agent-placeholder-callback';
+        const apiUri = 'https://api.ping.demo:4000/api/auth/oauth/ai-agent-placeholder-callback';
+        const { app, supertest, pushAuthorizationRequest } = bootIsolatedApp({
+          runResult: { sim: 'rar-permit', status: 200, tokenChainEvents: [] },
+          config: {
+            pingone_environment_id: 'env-1',
+            public_app_url: 'https://local.ping-devops.com:4000',
+            pingone_ai_agent_actor_client_id: 'actor-client',
+            pingone_ai_agent_actor_client_secret: 'actor-secret',
+          },
+          parImpl: (_ep, _id, _sec, payload) => {
+            if (payload.redirect_uri === localUri) {
+              return Promise.reject(new Error('PAR push failed: Redirect URI mismatch'));
+            }
+            return Promise.resolve({
+              requestUri: 'urn:ietf:params:oauth:request_uri:fallback',
+              expiresIn: 60,
+            });
+          },
+        });
+        supertest(app)
+          .post('/api/demo/intent-binding/run')
+          .send({ action: 'permit', requestedAmount: 80, live: true })
+          .then((res) => {
+            expect(res.status).toBe(200);
+            expect(res.body.sim).toBe('par-permit');
+            expect(res.body.redirectUri).toBe(apiUri);
+            expect(res.body.tokenChainEvents.some((e) => e.id === 'par-redirect-fallback')).toBe(true);
+            expect(pushAuthorizationRequest).toHaveBeenCalledTimes(2);
+            resolve();
+          })
+          .catch(reject);
+      });
+    });
+  });
+
+  test('live:true classifies Redirect URI mismatch (par_redirect_uri_mismatch)', async () => {
+    await new Promise((resolve, reject) => {
+      jest.isolateModules(() => {
+        const { app, supertest } = bootIsolatedApp({
+          runResult: { sim: 'rar-permit', status: 200, tokenChainEvents: [] },
+          config: {
+            pingone_environment_id: 'env-1',
+            public_app_url: 'https://local.ping-devops.com:4000',
+            pingone_ai_agent_actor_client_id: 'actor-client',
+            pingone_ai_agent_actor_client_secret: 'actor-secret',
+          },
+          parImpl: () => Promise.reject(new Error('PAR push failed: Redirect URI mismatch')),
+        });
+        supertest(app)
+          .post('/api/demo/intent-binding/run')
+          .send({ action: 'permit', requestedAmount: 80, live: true })
+          .then((res) => {
+            expect(res.status).toBe(200);
+            expect(res.body.errorCode).toBe('par_redirect_uri_mismatch');
+            expect(res.body.tokenChainEvents[0]).toMatchObject({ id: 'par-push', status: 'error' });
+            expect(res.body.reason).toMatch(/local\.ping-devops\.com/);
             resolve();
           })
           .catch(reject);

@@ -25,7 +25,7 @@ The gateway enforces audience binding (D-05) unconditionally; DPoP key binding a
 
 ## Evidence
 
-**Token chain steps:** user-token → authorize-decision  
+**Token chain steps:** sim-replay-start → sim-gateway-deny  
 **Activity categories:** token, gateway
 
 ## Code References

@@ -61,6 +61,26 @@ else
 fi
 
 echo ""
+echo "== RAR PEP → PDP (practical rule) =="
+# PingGateway must forward RarMaxAmount (cloud Trust Framework NUMBER attr) from TraT.
+if grep -q "RarMaxAmount" "$GROOVY"; then
+  echo "  ok   forwards RarMaxAmount from TraT to P1AZ"
+else
+  echo "  MISSING RarMaxAmount forward"
+  missing=$((missing + 1))
+fi
+if grep -q "X-TraT-Context" "$GROOVY"; then
+  echo "  ok   reads X-TraT-Context"
+else
+  echo "  MISSING X-TraT-Context read"
+  missing=$((missing + 1))
+fi
+# Must NOT locally DENY on rar_intent_violation as the primary path (P1AZ decides).
+if grep -qE "rar_intent_violation|rar_intent_required" "$GROOVY"; then
+  echo "  WARN local RAR DENY strings present — prefer PDP-only (check this is not primary)"
+fi
+
+echo ""
 echo "Missing/violations: $missing"
 if [ "$missing" -ne 0 ]; then
   echo "RESULT: FAIL"

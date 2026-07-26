@@ -1,0 +1,10 @@
+{
+  "vertical": "government",
+  "useCaseId": "UC27",
+  "triggerType": "chip",
+  "mode": "unit-parse",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "pay_fee",
+  "checkedAt": "2026-07-25"
+}

@@ -1,0 +1,10 @@
+{
+  "vertical": "healthcare",
+  "useCaseId": "UC28",
+  "triggerType": "chip",
+  "mode": "unit-parse",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "view_coverage",
+  "checkedAt": "2026-07-25"
+}

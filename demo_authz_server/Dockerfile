@@ -1,7 +1,7 @@
 # Build context: repo root — the server reads the single-source-of-truth
 # scope-topology.json at runtime via __dirname/../scope-topology.json.
 ARG GIT_SHA=unknown
-FROM node:20-alpine
+FROM node:22-alpine
 ENV GIT_SHA=$GIT_SHA
 
 # Recreate the sibling layout so __dirname/../scope-topology.json resolves
@@ -18,6 +18,11 @@ COPY demo_authz_server/routes/ ./routes/
 
 # Required at runtime (require() at module load, not embedded).
 COPY scope-topology.json /repo/scope-topology.json
+
+# routes/generate-snapshot.js require()s the reconciler + the snapshot it
+# reads/writes at module load — missing this crash-loops the container.
+COPY snapshots/gen-authorize-snapshot.js /repo/snapshots/gen-authorize-snapshot.js
+COPY snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json /repo/snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json
 
 EXPOSE 9001
 

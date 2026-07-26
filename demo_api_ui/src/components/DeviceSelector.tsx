@@ -9,6 +9,10 @@ export interface Device {
   nickname?: string;
 }
 
+/** Verification methods a user can add from the picker. */
+export const ENROLLABLE_TYPES = ["FIDO2", "EMAIL", "SMS"] as const;
+export type EnrollableType = (typeof ENROLLABLE_TYPES)[number];
+
 interface DeviceSelectorProps {
   devices?: Device[];
   selectedDeviceId?: string | null;
@@ -16,6 +20,12 @@ interface DeviceSelectorProps {
   onBack?: (() => void) | null;
   disabled?: boolean;
   title?: string;
+  /** Offer to enrol the methods the user has not registered yet. */
+  onRegisterDevice?: ((type: EnrollableType) => void) | null;
+  /** Type currently mid-enrolment, so its row can show progress. */
+  registeringType?: EnrollableType | null;
+  /** Enrolment failure to surface inline, next to what the user just tried. */
+  registerError?: string | null;
 }
 
 const DeviceSelector: FC<DeviceSelectorProps> = ({
@@ -25,7 +35,42 @@ const DeviceSelector: FC<DeviceSelectorProps> = ({
   onBack = null,
   disabled = false,
   title = "Select how you'd like to verify this transaction:",
+  onRegisterDevice = null,
+  registeringType = null,
+  registerError = null,
 }) => {
+  // Types the user has no device for. PingOne reports passkeys as FIDO2.
+  const enrolledTypes = new Set(devices.map((d) => d.type.toUpperCase()));
+  const missingTypes = onRegisterDevice
+    ? ENROLLABLE_TYPES.filter((t) => !enrolledTypes.has(t))
+    : [];
+
+  const getSetupLabel = (type: EnrollableType): string => {
+    switch (type) {
+      case "FIDO2":
+        return "Passkey";
+      case "SMS":
+        return "SMS Text Message";
+      case "EMAIL":
+        return "Email Code";
+      default:
+        return type;
+    }
+  };
+
+  const getSetupHint = (type: EnrollableType): string => {
+    switch (type) {
+      case "FIDO2":
+        return "Use Touch ID, Face ID or a security key";
+      case "SMS":
+        return "Send codes to your phone";
+      case "EMAIL":
+        return "Send codes to your email";
+      default:
+        return "";
+    }
+  };
+
   const getDeviceLabel = (device: Device): string => {
     switch (device.type) {
       case "FIDO2":
@@ -72,6 +117,40 @@ const DeviceSelector: FC<DeviceSelectorProps> = ({
           </button>
         ))}
       </div>
+      {missingTypes.length > 0 && (
+        <div className="device-selector__setup">
+          {devices.length > 0 && (
+            <p className="device-selector__setup-title">Or set up a new method:</p>
+          )}
+          <div className="device-selector__list">
+            {missingTypes.map((type) => {
+              const isRegistering = registeringType === type;
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  className={`device-selector__btn device-selector__btn--setup device-selector__btn--${type.toLowerCase()}`}
+                  onClick={() => onRegisterDevice(type)}
+                  disabled={disabled || Boolean(registeringType)}
+                  aria-busy={isRegistering}
+                >
+                  <span className="device-selector__label">
+                    {isRegistering ? "Waiting…" : `Set up ${getSetupLabel(type)}`}
+                  </span>
+                  <span className="device-selector__detail">
+                    {getSetupHint(type)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {registerError && (
+            <p className="device-selector__setup-error" role="alert">
+              {registerError}
+            </p>
+          )}
+        </div>
+      )}
       {onBack && (
         <button
           type="button"

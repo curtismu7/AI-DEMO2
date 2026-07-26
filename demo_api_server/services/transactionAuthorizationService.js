@@ -29,12 +29,19 @@ const simulatedAuthorizeService = require('./simulatedAuthorizeService');
 const { logEvent, EVENT_CATEGORIES } = require('./appEventService');
 const { buildChallengeHeader } = require('./rfc9470');
 
+// UC22's catalog useCaseId (config/useCases.js) — running it should always
+// demonstrate CIBA, regardless of this environment's configured default
+// step-up method. See docs/superpowers/specs/2026-07-19-uc22-ciba-step-up-override-design.md.
+const CIBA_DEMO_USE_CASE_ID = 'ciba-out-of-band-approval';
+
 /**
  * Build 428/403 bodies shared between engines (Feature Flags + Config labels).
  */
-function buildStepUpBody({ useSimulated, policyId, runtimeSettings }) {
+function buildStepUpBody({ useSimulated, policyId, runtimeSettings, useCaseId }) {
   const STEP_UP_ACR = runtimeSettings.get('stepUpAcrValue');
-  const stepUpMethod = configStore.getEffective('step_up_method') || runtimeSettings.get('stepUpMethod') || 'ciba';
+  const stepUpMethod = useCaseId === CIBA_DEMO_USE_CASE_ID
+    ? 'ciba'
+    : (configStore.getEffective('step_up_method') || runtimeSettings.get('stepUpMethod') || 'ciba');
   return {
     error: 'step_up_required',
     hitl: { type: 'step_up' },
@@ -58,8 +65,8 @@ function buildStepUpBody({ useSimulated, policyId, runtimeSettings }) {
  * The JSON body is kept in BOTH modes (step_up_url / step_up_method are demo
  * conveniences); in RFC mode the header is the normative signal clients parse.
  */
-function buildStepUpBlock({ useSimulated, policyId, runtimeSettings, extra = {} }) {
-  const body = { ...buildStepUpBody({ useSimulated, policyId, runtimeSettings }), ...extra };
+function buildStepUpBlock({ useSimulated, policyId, runtimeSettings, useCaseId, extra = {} }) {
+  const body = { ...buildStepUpBody({ useSimulated, policyId, runtimeSettings, useCaseId }), ...extra };
   if (configStore.getEffective('ff_rfc9470_challenge') === 'false') {
     return { status: 428, body };
   }
@@ -106,6 +113,8 @@ function buildDenyBody({ useSimulated, policyId }) {
  * @param {number} opts.amount
  * @param {string} opts.type
  * @param {string} [opts.acr]
+ * @param {boolean} [opts.hitlAlreadyVerified] - CIBA out-of-band approval already
+ *   discharged the consent gate this request (see routes/ciba.js); skip r.consentRequired.
  * @returns {Promise<
  *   | { ran: false, reason: string }
  *   | { ran: true, permit: true, evaluation: object }
@@ -122,7 +131,12 @@ async function evaluateTransactionPolicy({
   type,
   acr,
   useCaseId,
+  hitlAlreadyVerified = false,
 }) {
+  // Set true when hitlAlreadyVerified actually discharges a consent gate below,
+  // so the caller spends the single-use CIBA credit only on real use
+  // (consume-on-use — see services/hitlCredit.js).
+  let hitlConsentDischarged = false;
   // Authorization is ALWAYS ENABLED for security — no ff to disable it.
   // Either use simulated Authorize (education) or live PingOne (when configured).
   const USE_SIMULATED = simulatedAuthorizeService.isSimulatedModeEnabled(configStore);
@@ -206,6 +220,22 @@ async function evaluateTransactionPolicy({
         `Authorize simulated — ${type} $${amount} — decision=${r.decision} consent=${r.consentRequired} stepUp=${r.stepUpRequired}`,
         { tag: 'authorize/simulated-result', metadata: { type, amount, userId, decision: r.decision, consentRequired: r.consentRequired, stepUpRequired: r.stepUpRequired, ...(useCaseId ? { useCaseId } : {}) } });
 
+      // UC22's demo slug always shows CIBA — force entry into the step-up
+      // block regardless of what the policy engine decided (consent-only or
+      // even a silent permit), so the presenter never sees the HITL
+      // device-select/OTP modal for this specific demo transfer.
+      if (useCaseId === CIBA_DEMO_USE_CASE_ID) {
+        return {
+          ran: true,
+          block: buildStepUpBlock({
+            useSimulated: true,
+            policyId: AUTHORIZE_POLICY_ID,
+            runtimeSettings,
+            useCaseId,
+          }),
+        };
+      }
+
       // Check stepUpRequired before consentRequired: step-up is the stronger gate
       // and must not be bypassed by the ff_hitl_enabled=false consent-skip path.
       // A $600 transfer satisfies both thresholds; step-up takes priority.
@@ -216,15 +246,19 @@ async function evaluateTransactionPolicy({
             useSimulated: true,
             policyId: AUTHORIZE_POLICY_ID,
             runtimeSettings,
+            useCaseId,
           }),
         };
       }
 
       if (r.consentRequired) {
-        logEvent(EVENT_CATEGORIES.HITL, 'info',
-          `HITL consent required — ${type} $${amount}`,
-          { tag: 'hitl/consent-required-authz', metadata: { type, amount, userId, ...(useCaseId ? { useCaseId } : {}) } });
-        return { ran: true, block: { status: 428, body: buildConsentBody() } };
+        if (!hitlAlreadyVerified) {
+          logEvent(EVENT_CATEGORIES.HITL, 'info',
+            `HITL consent required — ${type} $${amount}`,
+            { tag: 'hitl/consent-required-authz', metadata: { type, amount, userId, ...(useCaseId ? { useCaseId } : {}) } });
+          return { ran: true, block: { status: 428, body: buildConsentBody() } };
+        }
+        hitlConsentDischarged = true;
       }
 
       if (r.decision === 'DENY') {
@@ -237,6 +271,7 @@ async function evaluateTransactionPolicy({
       return {
         ran: true,
         permit: true,
+        hitlConsentDischarged,
         evaluation: {
           engine: 'simulated',
           decision: r.decision,
@@ -279,6 +314,20 @@ async function evaluateTransactionPolicy({
       };
     }
 
+    // UC22's demo slug always shows CIBA — see the matching check in the
+    // simulated branch above.
+    if (useCaseId === CIBA_DEMO_USE_CASE_ID) {
+      return {
+        ran: true,
+        block: buildStepUpBlock({
+          useSimulated: false,
+          policyId: AUTHORIZE_POLICY_ID,
+          runtimeSettings,
+          useCaseId,
+        }),
+      };
+    }
+
     // Check stepUpRequired before consentRequired (parity with the simulated
     // branch above): step-up is the stronger gate and must not be bypassed by
     // satisfying the weaker consent flow when a transaction trips both thresholds.
@@ -289,12 +338,16 @@ async function evaluateTransactionPolicy({
           useSimulated: false,
           policyId: AUTHORIZE_POLICY_ID,
           runtimeSettings,
+          useCaseId,
         }),
       };
     }
 
     if (r.consentRequired) {
-      return { ran: true, block: { status: 428, body: buildConsentBody() } };
+      if (!hitlAlreadyVerified) {
+        return { ran: true, block: { status: 428, body: buildConsentBody() } };
+      }
+      hitlConsentDischarged = true;
     }
 
     // Engine evaluated OK but no policy matched (drift). Fail closed with a clear
@@ -317,6 +370,7 @@ async function evaluateTransactionPolicy({
     return {
       ran: true,
       permit: true,
+      hitlConsentDischarged,
       evaluation: {
         engine: 'pingone',
         decision: r.decision,
@@ -413,6 +467,19 @@ async function evaluateTransactionPolicy({
         `[Authorize] Fell back to simulated engine — ${type} $${amount} — decision=${fallback.decision}`,
         { tag: 'authorize/fallback-simulated', metadata: { type, amount, userId, decision: fallback.decision, ...(useCaseId ? { useCaseId } : {}) } });
 
+      // UC22's demo slug always shows CIBA — see the matching check above.
+      if (useCaseId === CIBA_DEMO_USE_CASE_ID) {
+        return {
+          ran: true,
+          block: buildStepUpBlock({
+            useSimulated: true,
+            policyId: AUTHORIZE_POLICY_ID,
+            runtimeSettings,
+            useCaseId,
+            extra: { authorizeFallback },
+          }),
+        };
+      }
       if (fallback.stepUpRequired) {
         return {
           ran: true,
@@ -420,12 +487,16 @@ async function evaluateTransactionPolicy({
             useSimulated: true,
             policyId: AUTHORIZE_POLICY_ID,
             runtimeSettings,
+            useCaseId,
             extra: { authorizeFallback },
           }),
         };
       }
       if (fallback.consentRequired) {
-        return { ran: true, block: { status: 428, body: { ...buildConsentBody(), authorizeFallback } } };
+        if (!hitlAlreadyVerified) {
+          return { ran: true, block: { status: 428, body: { ...buildConsentBody(), authorizeFallback } } };
+        }
+        hitlConsentDischarged = true;
       }
       if (fallback.decision === 'DENY') {
         return {
@@ -436,6 +507,7 @@ async function evaluateTransactionPolicy({
       return {
         ran: true,
         permit: true,
+        hitlConsentDischarged,
         evaluation: {
           engine: 'fallback_simulated',
           decision: fallback.decision,
@@ -522,4 +594,5 @@ function getAuthorizationStatusSummary() {
 module.exports = {
   evaluateTransactionPolicy,
   getAuthorizationStatusSummary,
+  buildStepUpBody,
 };

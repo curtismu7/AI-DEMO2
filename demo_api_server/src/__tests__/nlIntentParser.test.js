@@ -54,6 +54,14 @@ describe('nlIntentParser — banking intents', () => {
   it('routes "withdraw cash" → withdraw', () => {
     expect(bank('withdraw cash').banking.action).toBe('withdraw');
   });
+
+  it('routes "decode my jwt token" → jwt_decode_demo', () => {
+    expect(bank('decode my jwt token').banking.action).toBe('jwt_decode_demo');
+  });
+
+  it('routes "decode my token" → jwt_decode_demo', () => {
+    expect(bank('decode my token').banking.action).toBe('jwt_decode_demo');
+  });
 });
 
 // ── Education intents: CIBA ───────────────────────────────────────────────────
@@ -365,6 +373,13 @@ describe('nlIntentParser — fallback', () => {
   it('returns kind none for unrecognised input', () => {
     const r = parseHeuristic('the weather is nice today');
     expect(r.kind).toBe('none');
+  });
+
+  it('preserves comma in weather city_name (Austin, TX)', () => {
+    const r = parseHeuristic("what's the weather in Austin, TX");
+    expect(r.kind).toBe('banking');
+    expect(r.banking?.action).toBe('weather');
+    expect(r.banking?.params?.city_name).toBe('Austin, TX');
   });
 
   it('returns kind none for empty string', () => {

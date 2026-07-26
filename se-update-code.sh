@@ -147,7 +147,7 @@ if [[ -z "$SERVICE" || "$SERVICE" == "agent" ]] && [[ ! -s "$BASEDIR/langchain_a
   info "langchain_agent/codegraph.db missing/empty — building CodeGraph index for image bake..."
   python3 "$BASEDIR/scripts/build-codegraph.py" \
     || die "CodeGraph index build failed — run: python3 scripts/build-codegraph.py"
-  cp -f "$BASEDIR/.codegraph/codegraph.db" "$BASEDIR/langchain_agent/codegraph.db" \
+  cp -f "$BASEDIR/.codegraph/demo-codegraph.db" "$BASEDIR/langchain_agent/codegraph.db" \
     || die "Failed to bake langchain_agent/codegraph.db"
   success "Baked langchain_agent/codegraph.db ($(wc -c < "$BASEDIR/langchain_agent/codegraph.db") bytes)"
 fi

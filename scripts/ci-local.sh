@@ -39,17 +39,37 @@ run() { # run <label> <npm-script>
 # people bypass, and --no-verify also disables the secret guards in pre-commit.
 ensure_deps() { # ensure_deps <pkg-dir>
   [ -d "$1" ] || return 0
-  [ -e "$1/node_modules" ] && return 0
   local common main_ck
   common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || return 0
   main_ck=$(dirname "$common")
-  if [ -d "$main_ck/$1/node_modules" ]; then
-    ln -sfn "$main_ck/$1/node_modules" "$1/node_modules"
-    echo "  deps: linked $1/node_modules from the main checkout"
-  else
-    echo "  deps: installing $1 (no main-checkout node_modules to link)..."
-    npm install --prefix "$1" --no-audit --no-fund >/dev/null 2>&1 \
-      || echo "  deps: WARNING npm install failed for $1 — checks may be inaccurate"
+
+  if [ ! -e "$1/node_modules" ]; then
+    if [ -d "$main_ck/$1/node_modules" ]; then
+      ln -sfn "$main_ck/$1/node_modules" "$1/node_modules"
+      echo "  deps: linked $1/node_modules from the main checkout"
+    else
+      echo "  deps: installing $1 (no main-checkout node_modules to link)..."
+      npm install --prefix "$1" --no-audit --no-fund >/dev/null 2>&1 \
+        || echo "  deps: WARNING npm install failed for $1 — checks may be inaccurate"
+    fi
+  fi
+
+  # .env is gitignored, so a fresh worktree has none -- any check that reads
+  # real config (e.g. checkParConfig's configStore.getEffective fallback to
+  # process.env for PingOne PAR credentials) sees every key as unset and fails,
+  # even though the actual dev environment has it configured. Symlink the main
+  # checkout's .env, same as node_modules above, so worktree test runs see the
+  # same config the main checkout does.
+  # `-ef` (same device+inode) rather than `-L`: in the main checkout, main_ck
+  # equals the checkout itself, so `$1/.env` and `$main_ck/$1/.env` are the SAME
+  # real file -- `ln -sfn` there would replace the real .env with a symlink to
+  # its own (now-deleted) path, destroying it. `-ef` is false both when the
+  # target is missing (fresh worktree, safe to link) and when the two paths
+  # already resolve to the same file (main checkout, or an already-linked
+  # worktree), so it only ever fires for the worktree-needs-linking case.
+  if [ -f "$main_ck/$1/.env" ] && ! [ "$1/.env" -ef "$main_ck/$1/.env" ]; then
+    ln -sfn "$main_ck/$1/.env" "$1/.env"
+    echo "  deps: linked $1/.env from the main checkout"
   fi
 }
 
@@ -147,6 +167,16 @@ run "use-cases:check"   use-cases:check
 
 echo "job: API server tests (Jest)"
 run_api_tests
+
+# demo_authz_server / demo_mcp_gateway used to reach no runner at all: the gateway
+# appeared in ci.yml only to `npm install` its deps so topology:verify could run an
+# unrelated drift check, and the authz server appeared nowhere. Their suites now
+# run here and in ci.yml. Both report pre-existing failures without blocking (see
+# scripts/test-service-suite.sh); a suite that cannot RUN still fails the gate.
+echo "job: Authz decision-point suites"
+run "test:authz-server"  test:authz-server
+run "test:mcp-gateway"   test:mcp-gateway
+run "test:snapshots"     test:snapshots
 
 if [ -n "$FAILED" ]; then
   echo

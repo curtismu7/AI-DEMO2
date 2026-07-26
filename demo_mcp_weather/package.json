@@ -1,0 +1,15 @@
+{
+  "name": "demo-mcp-weather",
+  "version": "1.0.0",
+  "description": "HTTP bridge for weather-mcp (stdio-only third-party MCP server) — Agent Gateway (IG) Texas-only showcase",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@dangahagan/weather-mcp": "1.13.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

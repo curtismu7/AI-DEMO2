@@ -1,0 +1,18 @@
+{
+  "vertical": "workforce",
+  "useCaseId": "UC30",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "get_weather",
+  "checkedAt": "2026-07-26",
+  "requiredFlags": [
+    "ff_mcp_gateway_pinggateway"
+  ],
+  "flagsAssumedOn": true,
+  "provesDeclaredOnly": true,
+  "flagsOffDetected": [
+    "ff_mcp_gateway_pinggateway"
+  ]
+}

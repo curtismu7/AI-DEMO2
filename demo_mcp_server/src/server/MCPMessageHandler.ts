@@ -21,6 +21,7 @@ import { BankingAuthenticationManager } from '../auth/BankingAuthenticationManag
 import { BankingSessionManager, BankingSession } from '../storage/BankingSessionManager';
 import { BankingToolProvider } from '../tools/BankingToolProvider';
 import { AuthenticationError, AuthErrorCodes } from '../interfaces/auth';
+import { authorizeLastHop } from '../auth/lastHopAuthorization';
 import { AuthenticationIntegration, AuthenticationResult } from './AuthenticationIntegration';
 import { MCP_LATEST_PROTOCOL_VERSION } from './protocolVersions';
 import type { BankingToolDefinition } from '../tools/BankingToolRegistry';
@@ -171,18 +172,27 @@ export class MCPMessageHandler {
       console.log(`[MCPMessageHandler] Handshake - looking for agent token in params:`, !!agentToken);
       
       if (agentToken) {
-        context.agentToken = agentToken;
-        
-        // Validate agent token and create session
-        try {
-          await this.authManager.validateAgentToken(agentToken);
-          const session = await this.sessionManager.createSession(agentToken);
-          context.session = session;
-          
-          console.log(`[MCPMessageHandler] Created session ${session.sessionId} for agent token`);
-        } catch (error) {
-          console.warn(`[MCPMessageHandler] Agent token validation failed:`, error);
-          // Continue with handshake but without session - tools will require authentication
+        // A token supplied in initialize params establishes a session exactly as a
+        // connect-time Authorization header does, so it MUST clear the same bar.
+        // It previously did not: BankingMCPServer.handleConnection guarded the
+        // actor check behind `if (authHeader?.startsWith('bearer '))`, so a client
+        // that connected with no header and put its token here got a session
+        // without D-05 or the F10 allow-list ever running — the allow-list was
+        // one JSON field away from being optional.
+        const decision = await authorizeLastHop(this.authManager, agentToken);
+        if (!decision.ok) {
+          console.warn(`[MCPMessageHandler] Rejecting initialize agent token: ${decision.reason}`);
+          // Continue the handshake without a session — tools then require
+          // authentication — but do NOT adopt the rejected token.
+        } else {
+          context.agentToken = agentToken;
+          try {
+            const session = await this.sessionManager.createSession(agentToken);
+            context.session = session;
+            console.log(`[MCPMessageHandler] Created session ${session.sessionId} for agent token`);
+          } catch (error) {
+            console.warn(`[MCPMessageHandler] Session creation failed:`, error);
+          }
         }
       } else {
         console.log(`[MCPMessageHandler] No agent token found in handshake params`);
@@ -204,6 +214,9 @@ export class MCPMessageHandler {
 
   /**
    * Handle tools/list message
+   * 
+   * Per 2026-07-28 SEP-2549, includes ttlMs and cacheScope so clients know
+   * how long the list is fresh and whether it's safe to cache across users.
    */
   async handleListTools(message: ListToolsMessage, context: MessageHandlerContext): Promise<ListToolsResponse> {
     try {
@@ -236,7 +249,9 @@ export class MCPMessageHandler {
         id: message.id ?? 'unknown',
         result: {
           tools: mcpTools as unknown as ToolDefinition[],
-          nextCursor: message.params?.cursor ? undefined : undefined // No pagination for now
+          nextCursor: message.params?.cursor ? undefined : undefined, // No pagination for now
+          ttlMs: 3600000,               // Cache for 1 hour (3600 seconds = 3600000 ms)
+          cacheScope: 'shared',         // Tool list is the same for all users of this server
         }
       };
     } catch (error) {

@@ -49,8 +49,17 @@
             "auditService": "AuditService"
           }
         },
-        "ApikeyResourceServerFilter",
+        {
+          "name": "McpGatewayProtection",
+          "type": "McpProtectionFilter",
+          "config": {
+            "resourceId": "${env['PG_GATEWAY_RESOURCE_ID']}/apikey",
+            "authorizationServerUri": "${env['PINGONE_ISSUER_URI']}",
+            "resourceServerFilter": "ApikeyResourceServerFilter"
+          }
+        },
         { "name": "McpProtocol", "type": "McpValidationFilter", "config": { "acceptedOrigins": ".*", "metricsEnabled": true } },
+        { "comment": "Tool-argument validation, mounted after McpValidationFilter (body buffered) and before P1AZDecision — parity with 01-mcp-olb.json. The nine api-key tools are all declared in mcp-tool-schemas.json with empty argument schemas, so a well-formed argument-less call passes and an unknown tool or injected argument now fails closed instead of reaching apikey-dispatch unvalidated.", "name": "McpRequestValidation", "type": "ScriptableFilter", "config": { "type": "application/x-groovy", "file": "mcp-request-validation.groovy" } },
         { "name": "Uc18RateLimit", "type": "ScriptableFilter", "config": { "type": "application/x-groovy", "file": "uc18-rate-limit.groovy" } },
         { "name": "P1AZDecision", "type": "ScriptableFilter", "config": { "type": "application/x-groovy", "file": "p1az-decision.groovy" } }
       ],

@@ -33,12 +33,15 @@ import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 import axios, { AxiosError } from 'axios';
 import { GatewayConfig, isInternalSecretUsable } from '../config';
-import { adminConfigSafeView } from '../adminConfig';
+import { adminConfigSafeView, applyAdminConfigUpdate, ADMIN_CONFIG_ALLOWED_KEYS } from '../adminConfig';
 import { extractBearerToken, validateInboundToken, TokenValidationError } from '../tokenValidator';
 import { extractCorrelationId } from '../correlationId';
+import { routeTool, backendWsUrl, backendHttpMcpUrl } from '../router';
+import { proxyJsonRpc } from '../proxy';
 import { selfBaseUrl } from '../selfBaseUrl';
 import { appendEnterpriseWwwAuthHint, buildEnterpriseExtensionBlock, isEnterpriseManagedMcpAuthEnabled } from '../enterpriseMcpAuth';
 import { runWithCorrelation } from '../correlationContext';
+import { buildAuthzHealth } from '../authzPosture';
 
 const MCP_SESSION_HEADER = 'mcp-session-id';
 const MCP_PROTO_HEADER = 'mcp-protocol-version';
@@ -171,6 +174,9 @@ export class GatewayServer {
         ts: new Date().toISOString(),
         devBypass: this.config.devBypass,
         gatewayResourceUri: this.config.gatewayResourceUri,
+        // Contract C3 — the aggregate "is the gate armed" signal. `failOpen`
+        // names every currently-active bypass; an empty array means fully armed.
+        authz: buildAuthzHealth(this.config),
       }));
       return;
     }
@@ -183,6 +189,45 @@ export class GatewayServer {
       if (!this.requireInternalSecret(req, res)) return;
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(adminConfigSafeView(this.config)));
+      return;
+    }
+
+    // POST /admin/config — dynamic config updates (the BFF's sim arming:
+    // requireRarIntent / intentTokenRequired / requireActForAgentTools, and the
+    // Setup UI's devBypass toggle). The WS-era listener had this handler in
+    // index.ts (handleHttp) but it was never wired to this HTTP ingress, so
+    // every pushGatewayAdminConfig call 404'd and demo arming silently failed.
+    // Same secret gate as GET; all validation/hardening (strict booleans,
+    // production devBypass refusal) lives in applyAdminConfigUpdate.
+    if (url === '/admin/config' && method === 'POST') {
+      if (!this.requireInternalSecret(req, res)) return;
+      let adminBody: Buffer;
+      try {
+        adminBody = await this.readBody(req);
+      } catch {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'bad_request', message: 'Could not read request body' }));
+        return;
+      }
+      let updates: Partial<Record<string, unknown>>;
+      try {
+        updates = JSON.parse(adminBody.toString('utf-8') || '{}');
+      } catch {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid JSON body' }));
+        return;
+      }
+      const result = applyAdminConfigUpdate(this.config, updates, process.env.NODE_ENV);
+      if (result.mutated) {
+        console.log(
+          '[GW] /admin/config updated:',
+          Object.keys(updates).filter((k) =>
+            ADMIN_CONFIG_ALLOWED_KEYS.includes(k as keyof typeof this.config),
+          ),
+        );
+      }
+      res.writeHead(result.status, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(result.body));
       return;
     }
 
@@ -531,12 +576,41 @@ export class GatewayServer {
     upstreamToken: string,
     body: Buffer,
   ): Promise<void> {
-    const upstreamUrl = `${this.upstreamMcpUrl}/mcp`;
     const timeoutMs = parseInt(process.env.GW_UPSTREAM_TIMEOUT_MS || '30000', 10);
 
     // Parse body to determine if we need the initialize handshake
-    let jsonRpc: { method?: string; id?: unknown } = {};
+    let jsonRpc: { method?: string; id?: unknown; params?: { name?: string } } = {};
     try { jsonRpc = JSON.parse(body.toString('utf-8')); } catch { /* malformed — forward as-is */ }
+
+    // Invest tools live on the mcp-invest WS backend — the HTTP upstream
+    // (mcp-server) does not serve them. Mirror the WS ingress routing here;
+    // the middleware already exchanged upstreamToken for the invest audience.
+    const rpcToolName = jsonRpc.method === 'tools/call' ? jsonRpc.params?.name : undefined;
+    if (rpcToolName && routeTool(rpcToolName) === 'invest') {
+      try {
+        const rpcResult = await proxyJsonRpc(
+          backendWsUrl('invest', this.config),
+          upstreamToken,
+          JSON.parse(body.toString('utf-8')),
+        );
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(rpcResult));
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[GatewayServer] invest WS proxy error for ${rpcToolName}:`, msg);
+        res.writeHead(502, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ jsonrpc: '2.0', id: jsonRpc.id ?? null, error: { code: -32500, message: 'Backend error' } }));
+      }
+      return;
+    }
+
+    // demo_mcp_jwt_verifier (FastMCP/Python) is a second HTTP-forward target —
+    // same Streamable HTTP handshake/forward path as 'olb' below, just pointed
+    // at a different upstream base.
+    const upstreamBase = rpcToolName && routeTool(rpcToolName) === 'jwtverifier'
+      ? backendHttpMcpUrl('jwtverifier', this.config)
+      : this.upstreamMcpUrl;
+    const upstreamUrl = `${upstreamBase}/mcp`;
 
     const isInitialize = jsonRpc.method === 'initialize';
     const isNotification = !isInitialize && jsonRpc.id === undefined;

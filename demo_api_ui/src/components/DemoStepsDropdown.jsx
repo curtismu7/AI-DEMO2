@@ -5,14 +5,20 @@
  * Testing + Attacks are separate collapsed groups on the Actions popout.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import FloatingPanel from './FloatingPanel';
 import {
+  ADMIN_PRIMARY_USE_CASE_IDS,
   DEMO_ADVANCED_USE_CASE_IDS,
   DEMO_PRIMARY_USE_CASE_IDS,
 } from '../config/demoUseCaseSteps';
 import apiClient from '../services/apiClient';
+import UseCaseExplainModal from './UseCaseExplainModal';
+import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
+import { a2aEventsForExplain } from './demoStepsA2a';
 import {
   clearCompletedUseCases,
   isUseCaseCompleted,
+  BX_UC_PROGRESS_EVENT,
 } from '../utils/useCaseDemoProgress';
 
 /**
@@ -31,17 +37,22 @@ export default function DemoStepsDropdown({
   onSelect,
 }) {
   const triggerRef = useRef(null);
-  const popoutRef = useRef(null);
+  const panelPosRef = useRef({ x: 0, y: 0 });
   const [primarySteps, setPrimarySteps] = useState([]);
   const [advancedSteps, setAdvancedSteps] = useState([]);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [tick, setTick] = useState(0);
+  const [explainUc, setExplainUc] = useState(null);
+  const [query, setQuery] = useState('');
 
   const loadSteps = useCallback(() => {
     setLoading(true);
     setError(null);
+    const isAdmin = vertical === 'pingone-admin';
+    const primaryIds = isAdmin ? ADMIN_PRIMARY_USE_CASE_IDS : DEMO_PRIMARY_USE_CASE_IDS;
+    const advancedIds = isAdmin ? [] : DEMO_ADVANCED_USE_CASE_IDS;
     apiClient
       .get('/api/use-cases', { params: { vertical }, _silent: true })
       .then(({ data }) => {
@@ -53,11 +64,16 @@ export default function DemoStepsDropdown({
               return uc ? { uc, stepNumber: offset + index + 1 } : null;
             })
             .filter(Boolean);
-        setPrimarySteps(mapIds(DEMO_PRIMARY_USE_CASE_IDS, 0));
-        setAdvancedSteps(mapIds(DEMO_ADVANCED_USE_CASE_IDS, DEMO_PRIMARY_USE_CASE_IDS.length));
+        setPrimarySteps(mapIds(primaryIds, 0));
+        setAdvancedSteps(mapIds(advancedIds, primaryIds.length));
       })
       .catch((err) => {
-        setError(err.message || 'Failed to load demo steps');
+        // The backend 400s with unknown_vertical for verticals that have no
+        // use-case catalog (e.g. the PingOne Admin console) — that is an
+        // expected empty state for this dropdown, not a failure to report.
+        if (err?.response?.data?.error !== 'unknown_vertical') {
+          setError(err.message || 'Failed to load demo steps');
+        }
         setPrimarySteps([]);
         setAdvancedSteps([]);
       })
@@ -66,7 +82,14 @@ export default function DemoStepsDropdown({
 
   useEffect(() => {
     if (open) loadSteps();
+    else setQuery('');
   }, [open, loadSteps]);
+
+  useEffect(() => {
+    const onProgress = () => setTick((n) => n + 1);
+    window.addEventListener(BX_UC_PROGRESS_EVENT, onProgress);
+    return () => window.removeEventListener(BX_UC_PROGRESS_EVENT, onProgress);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -77,49 +100,16 @@ export default function DemoStepsDropdown({
     return () => document.removeEventListener('keydown', onKey);
   }, [open, onOpenChange]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (e) => {
-      if (
-        popoutRef.current?.contains(e.target) ||
-        triggerRef.current?.contains(e.target)
-      ) {
-        return;
-      }
-      onOpenChange(false);
-    };
-    document.addEventListener('pointerdown', onPointerDown);
-    return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [open, onOpenChange]);
-
-  useEffect(() => {
-    if (!open || !popoutRef.current || !triggerRef.current) return;
-    const reposition = () => {
-      const trigger = triggerRef.current;
-      const popout = popoutRef.current;
-      if (!trigger || !popout) return;
-      const rect = trigger.getBoundingClientRect();
-      const popoutWidth = 360;
-      let left = rect.right - popoutWidth;
-      if (left < 8) left = 8;
-      if (left + popoutWidth > window.innerWidth - 8) {
-        left = window.innerWidth - 8 - popoutWidth;
-      }
-      popout.style.left = `${left}px`;
-      popout.style.top = `${rect.bottom + 4}px`;
-    };
-    reposition();
-    window.addEventListener('resize', reposition);
-    window.addEventListener('scroll', reposition, true);
-    return () => {
-      window.removeEventListener('resize', reposition);
-      window.removeEventListener('scroll', reposition, true);
-    };
-  }, [open, primarySteps.length, advancedOpen]);
-
-  /** Toggle the popout open/closed. */
+  /** Toggle the panel open/closed; capture trigger position for initial placement. */
   function handleToggle() {
     if (disabled) return;
+    if (!open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const panelWidth = 760;
+      let x = rect.right - panelWidth;
+      if (x < 8) x = 8;
+      panelPosRef.current = { x, y: rect.bottom + 6 };
+    }
     onOpenChange(!open);
   }
 
@@ -130,43 +120,99 @@ export default function DemoStepsDropdown({
     setTick((n) => n + 1);
   }
 
+  /**
+   * Open the explanation for a step. The popout must close first: it is
+   * z-index 100061 (`.ba-actions-popout`) and DraggableModal defaults to 9999,
+   * so leaving it open renders the modal behind the dropdown.
+   */
+  function handleExplain(uc) {
+    onOpenChange(false);
+    setExplainUc(uc);
+  }
+
   /** Reset demo check-offs for a fresh presenter pass. */
   function handleClearProgress() {
     clearCompletedUseCases();
     setTick((n) => n + 1);
   }
 
+  // Counted over the primary steps only — that is the "scripted walkthrough"
+  // the header names; the advanced group is opt-in extra material. Recomputed
+  // each render, and `tick` is bumped by select/clear, so it refreshes on the
+  // same path as the per-row checkmarks.
+  void tick;
+  const completedCount = primarySteps.filter(({ uc }) =>
+    isUseCaseCompleted(uc.id),
+  ).length;
+  const nextPrimaryId = primarySteps.find(({ uc }) => !isUseCaseCompleted(uc.id))?.uc
+    ?.id;
+  const progressPct =
+    primarySteps.length > 0
+      ? Math.round((completedCount / primarySteps.length) * 100)
+      : 0;
+
+  // Client-side filter on id + title. Progress above stays over the FULL
+  // primary set — searching narrows what is shown, not what counts as done.
+  const q = query.trim().toLowerCase();
+  const matches = ({ uc }) =>
+    !q ||
+    uc.id.toLowerCase().includes(q) ||
+    (uc.title || '').toLowerCase().includes(q);
+  const filteredPrimary = primarySteps.filter(matches);
+  const filteredAdvanced = advancedSteps.filter(matches);
+  // A query surfaces matches regardless of the collapsed "More demos" state.
+  const showAdvanced = q ? filteredAdvanced.length > 0 : advancedOpen;
+  const noMatches =
+    q && filteredPrimary.length === 0 && filteredAdvanced.length === 0;
+
   /**
-   * Render one demo-step row.
+   * Render one demo-step card (box style matching Actions grid).
    * @param {{ uc: object, stepNumber: number }} row
+   * @param {{ markNext?: boolean }} [opts]
    */
-  function renderStep({ uc, stepNumber }) {
+  function renderStep({ uc, stepNumber }, { markNext = false } = {}) {
     const completed = isUseCaseCompleted(uc.id);
-    void tick;
+    const isNext = markNext && !completed && uc.id === nextPrimaryId;
+    const btnClass = [
+      'banking-chips-dropdown__button',
+      completed
+        ? 'banking-chips-dropdown__button--done'
+        : 'banking-chips-dropdown__button--heuristic',
+      isNext ? 'ba-demo-steps-popout__card--next' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+
     return (
-      <li key={uc.id}>
+      <li key={uc.id} className="ba-demo-steps-popout__card-item">
         <button
           type="button"
-          className={`ba-demo-steps-popout__item${completed ? ' ba-demo-steps-popout__item--done' : ''}`}
+          className={btnClass}
           onClick={() => handleSelect(uc, stepNumber)}
           data-testid={`demo-step-${uc.id}`}
         >
-          <span className="ba-demo-steps-popout__step">
-            Step {stepNumber}
-          </span>
-          <span className="ba-demo-steps-popout__id">{uc.id}</span>
           {completed && (
-            <span className="ba-demo-steps-popout__check" aria-label="Completed">
+            <span
+              className="banking-chips-dropdown__check"
+              aria-label="Completed"
+            >
               ✓
             </span>
           )}
-          <span className="ba-demo-steps-popout__title">{uc.title}</span>
+          <span className="ba-demo-steps-popout__id">{uc.id}</span>
+          <span className="banking-chips-dropdown__chip-name">{uc.title}</span>
         </button>
+        <button
+          type="button"
+          className="ba-demo-steps-popout__explain"
+          onClick={() => handleExplain(uc)}
+          title="Explain this step"
+          aria-label={`Explain step ${stepNumber}: ${uc.id} — ${uc.title}`}
+          data-testid={`demo-explain-${uc.id}`}
+        />
       </li>
     );
   }
-
-  void tick;
 
   return (
     <>
@@ -184,25 +230,74 @@ export default function DemoStepsDropdown({
         Demo steps {open ? '▴' : '▾'}
       </button>
       {open && (
-        <div
-          ref={popoutRef}
-          className="ba-actions-popout ba-demo-steps-popout"
-          role="dialog"
-          aria-label="Demo steps"
-          aria-modal="false"
-          data-testid="demo-steps-popout"
+        <FloatingPanel
+          title="Demo Steps"
+          defaultX={panelPosRef.current.x}
+          defaultY={panelPosRef.current.y}
+          defaultWidth={760}
+          defaultHeight={420}
+          minWidth={420}
+          minHeight={250}
+          onClose={() => onOpenChange(false)}
+          className="ba-demo-steps-float"
         >
           <div className="ba-demo-steps-popout__header">
-            <span>Demo steps — scripted walkthrough</span>
-            <button
-              type="button"
-              className="ba-demo-steps-popout__clear"
-              onClick={handleClearProgress}
-              title="Clear checkmarks for a fresh demo pass"
-              data-testid="demo-steps-clear"
-            >
-              Clear progress
-            </button>
+            <div className="ba-demo-steps-popout__header-top">
+              {primarySteps.length > 0 && (
+                <span
+                  className={`ba-demo-steps-popout__progress${
+                    completedCount === primarySteps.length
+                      ? ' ba-demo-steps-popout__progress--all'
+                      : ''
+                  }`}
+                  data-testid="demo-steps-progress"
+                >
+                  {completedCount} of {primarySteps.length} done
+                </span>
+              )}
+            </div>
+            {primarySteps.length > 0 && (
+              <div
+                className="ba-demo-steps-popout__track"
+                aria-hidden="true"
+              >
+                <i style={{ width: `${progressPct}%` }} />
+              </div>
+            )}
+            <div className="ba-demo-steps-popout__header-actions">
+              <div className="ba-demo-steps-popout__search">
+                <input
+                  type="search"
+                  className="ba-demo-steps-popout__search-input"
+                  placeholder="Search steps…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  aria-label="Search demo steps"
+                  data-testid="demo-steps-search"
+                />
+                {query && (
+                  <button
+                    type="button"
+                    className="ba-demo-steps-popout__search-clear"
+                    onClick={() => setQuery('')}
+                    title="Clear search"
+                    aria-label="Clear search"
+                    data-testid="demo-steps-search-clear"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                className="ba-demo-steps-popout__clear"
+                onClick={handleClearProgress}
+                title="Clear checkmarks for a fresh demo pass"
+                data-testid="demo-steps-clear"
+              >
+                Clear progress
+              </button>
+            </div>
           </div>
           {loading && (
             <p className="ba-demo-steps-popout__status">Loading…</p>
@@ -217,29 +312,47 @@ export default function DemoStepsDropdown({
               No demo steps for this vertical.
             </p>
           )}
-          <ul className="ba-demo-steps-popout__list">
-            {primarySteps.map(renderStep)}
+          {noMatches && (
+            <p
+              className="ba-demo-steps-popout__status"
+              data-testid="demo-steps-no-match"
+            >
+              No steps match “{query.trim()}”.
+            </p>
+          )}
+          <ul className="ba-demo-steps-popout__grid">
+            {filteredPrimary.map((row) => renderStep(row, { markNext: !q }))}
           </ul>
           {advancedSteps.length > 0 && (
             <div className="ba-demo-steps-popout__advanced">
-              <button
-                type="button"
-                className="ba-demo-steps-popout__advanced-toggle"
-                onClick={() => setAdvancedOpen((v) => !v)}
-                aria-expanded={advancedOpen}
-                data-testid="demo-steps-advanced-toggle"
-              >
-                {advancedOpen ? '▾' : '▸'} More demos ({advancedSteps.length})
-              </button>
-              {advancedOpen && (
-                <ul className="ba-demo-steps-popout__list">
-                  {advancedSteps.map(renderStep)}
+              {!q && (
+                <button
+                  type="button"
+                  className="ba-demo-steps-popout__advanced-toggle"
+                  onClick={() => setAdvancedOpen((v) => !v)}
+                  aria-expanded={advancedOpen}
+                  data-testid="demo-steps-advanced-toggle"
+                >
+                  {advancedOpen ? '▾' : '▸'} More demos ({advancedSteps.length})
+                </button>
+              )}
+              {showAdvanced && (
+                <ul className="ba-demo-steps-popout__grid">
+                  {filteredAdvanced.map((row) => renderStep(row))}
                 </ul>
               )}
             </div>
           )}
-        </div>
+        </FloatingPanel>
       )}
+      {/* Rendered outside the popout so the explanation survives the
+          outside-pointerdown close. */}
+      <UseCaseExplainModal
+        uc={explainUc}
+        open={Boolean(explainUc)}
+        a2aTokenEvents={a2aEventsForExplain(explainUc, tokenChainTraceStore)}
+        onClose={() => setExplainUc(null)}
+      />
     </>
   );
 }

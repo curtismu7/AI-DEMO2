@@ -1,0 +1,10 @@
+{
+  "vertical": "government",
+  "useCaseId": "UC6",
+  "triggerType": "chip",
+  "mode": "unit-gate",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "pay_fee",
+  "checkedAt": "2026-07-25"
+}

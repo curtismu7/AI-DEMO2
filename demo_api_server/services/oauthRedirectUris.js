@@ -62,18 +62,33 @@ function getUserRedirectUri(req, opts) {
 }
 
 /**
+ * Strip trailing slashes / CR from an origin URL.
+ * @param {string} raw
+ * @returns {string}
+ */
+function normalizeOrigin(raw) {
+  return String(raw || '').trim().replace(/[\/\r\n]+$/, '');
+}
+
+/**
  * Frontend origin for redirects after login / config (no /api prefix).
- * Reads from configStore; falls back to env vars or hardcoded default.
+ *
+ * Prefer PUBLIC_APP_URL / public_app_url so post-login Location matches the
+ * OAuth redirect_uri host (passkey-capable local.ping-devops.com). Stale LMDB
+ * FRONTEND_URL must not win — that caused double PingOne login when callback
+ * cookies were set on one host and the SPA landed on another.
  */
 function getFrontendOrigin() {
-  const fromStore = configStore.getEffective('frontend_url');
-  if (fromStore) return (fromStore || '').trim().replace(/[\/\r\n]+$/, '');
+  const publicApp = normalizeOrigin(
+    configStore.getEffective('public_app_url') || process.env.PUBLIC_APP_URL || '',
+  );
+  if (publicApp) return publicApp;
 
-  const clientUrl = (process.env.REACT_APP_CLIENT_URL || '').trim();
+  const clientUrl = normalizeOrigin(process.env.REACT_APP_CLIENT_URL || '');
   if (clientUrl) return clientUrl;
 
-  const publicUrl = (process.env.PUBLIC_APP_URL || '').trim();
-  if (publicUrl) return publicUrl;
+  const fromStore = normalizeOrigin(configStore.getEffective('frontend_url') || '');
+  if (fromStore) return fromStore;
 
   return 'https://demo-api-server:3001';
 }
@@ -172,7 +187,74 @@ const REFERENCE_REDIRECT_SETS = [
   },
 ];
 
+/**
+ * Placeholder callback path for the Demo AI Agent Actor WEB app.
+ * Authorization_code is never used for this client — PAR (RFC 9126) still
+ * requires a registered redirect_uri on every /as/par push.
+ */
+const ACTOR_PLACEHOLDER_CALLBACK_PATH = '/api/auth/oauth/ai-agent-placeholder-callback';
+
+/**
+ * Origins that must stay registered on the AI Agent Actor app so live
+ * intent-binding PAR works whether PUBLIC_APP_URL is local.ping-devops.com
+ * (passkeys) or api.ping.demo (legacy compose). Same set as provision's
+ * KNOWN_REDIRECT_ORIGINS for admin/user apps.
+ */
+const KNOWN_PUBLIC_ORIGINS = [
+  'https://local.ping-devops.com:4000',
+  'https://api.ping.demo:4000',
+  'https://ai-demo.ping-devops.com',
+];
+
+/**
+ * All actor placeholder redirect URIs to register in PingOne (KNOWN + publicAppUrl).
+ * @param {string} [publicAppUrl]
+ * @returns {string[]}
+ */
+function listActorPlaceholderRedirectUris(publicAppUrl) {
+  return Array.from(new Set(
+    KNOWN_PUBLIC_ORIGINS.concat([publicAppUrl])
+      .map((o) => String(o || '').trim().replace(/\/+$/, ''))
+      .filter(Boolean)
+      .map((o) => `${o}${ACTOR_PLACEHOLDER_CALLBACK_PATH}`),
+  ));
+}
+
+/**
+ * Single redirect_uri for a live PAR push — config override, else public_app_url.
+ * Must be one of the URIs returned by listActorPlaceholderRedirectUris.
+ * @returns {string}
+ */
+function getActorPlaceholderRedirectUri() {
+  const override = configStore.getEffective('pingone_ai_agent_actor_redirect_uri');
+  if (override) return String(override).trim();
+  const base = String(
+    configStore.getEffective('public_app_url') || process.env.PUBLIC_APP_URL || '',
+  ).trim().replace(/\/+$/, '');
+  return base ? `${base}${ACTOR_PLACEHOLDER_CALLBACK_PATH}` : '';
+}
+
+/**
+ * Ordered PAR redirect candidates: preferred PUBLIC_APP_URL first, then every
+ * known demo host. Live intent-binding retries this list on Redirect URI mismatch
+ * so a stale PingOne allowlist (only api.ping.demo while the SPA is on
+ * local.ping-devops.com) does not break the demo.
+ * @param {string} [publicAppUrl]
+ * @returns {string[]}
+ */
+function listActorParRedirectCandidates(publicAppUrl) {
+  const preferred = getActorPlaceholderRedirectUri();
+  const base = publicAppUrl
+    || configStore.getEffective('public_app_url')
+    || process.env.PUBLIC_APP_URL
+    || '';
+  const all = listActorPlaceholderRedirectUris(base);
+  if (!preferred) return all;
+  return [preferred, ...all.filter((u) => u !== preferred)];
+}
+
 module.exports = {
+  getCanonicalPublicOrigin,
   getAdminRedirectUri,
   getUserRedirectUri,
   getFrontendOrigin,
@@ -180,4 +262,9 @@ module.exports = {
   validateRedirectUriOrigin,
   getOAuthRedirectDebugInfo,
   REFERENCE_REDIRECT_SETS,
+  ACTOR_PLACEHOLDER_CALLBACK_PATH,
+  KNOWN_PUBLIC_ORIGINS,
+  listActorPlaceholderRedirectUris,
+  getActorPlaceholderRedirectUri,
+  listActorParRedirectCandidates,
 };

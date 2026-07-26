@@ -1,0 +1,166 @@
+/* Document-flow height (not 100vh): a viewport-tall wrap overflowed under
+   .footer (z-index 10) and .topnav, so slot buttons looked clickable but
+   pointer events hit the chrome instead. */
+.alp-wrap {
+  padding: 48px 24px 80px;
+  background: #fff;
+  color: #1a1a1a;
+  font-family: Helvetica, Arial, sans-serif;
+}
+.alp-title {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.alp-subtitle {
+  color: #555;
+  margin-bottom: 40px;
+  font-size: 15px;
+}
+.alp-body { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: nowrap; }
+.alp-slots { flex: 1 1 auto; min-width: 0; }
+.alp-run-layout {
+  flex: 0 1 520px;
+  min-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  position: sticky;
+  top: 24px;
+}
+.alp-agent-host { overflow: visible; }
+.alp-rail-host { min-width: 0; }
+.alp-slot {
+  border-top: 1px solid #1a1a1a;
+  padding: 32px 0;
+  margin-bottom: 0;
+}
+.alp-slot__title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.alp-slot__desc { color: #555; margin-bottom: 16px; font-size: 14px; line-height: 1.5; }
+.alp-slot__status { margin-top: 14px; font-size: 14px; }
+.alp-video { width: 100%; display: block; }
+.alp-btn {
+  background: #1a1a1a;
+  color: #fff;
+  border: none;
+  padding: 14px 28px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.alp-btn:disabled { background: #999; cursor: not-allowed; }
+.alp-result {
+  background: #f7f6f4;
+  padding: 16px;
+  overflow-x: auto;
+  font-size: 13px;
+  margin-top: 16px;
+}
+.alp-error { color: #b3261e; margin-top: 10px; font-size: 14px; }
+.alp-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 8px;
+  border: 2px solid #ccc;
+  border-top-color: #1a1a1a;
+  border-radius: 50%;
+  vertical-align: -1px;
+  animation: alp-spin 0.8s linear infinite;
+}
+@keyframes alp-spin {
+  to { transform: rotate(360deg); }
+}
+.alp-audit-link {
+  display: inline-block;
+  margin-top: 16px;
+  color: #1a1a1a;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: underline;
+}
+.alp-view-toggle {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+.alp-view-btn {
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+.alp-view-btn:hover {
+  background: #e8e8e8;
+}
+.alp-view-btn--active {
+  background: #1a1a1a;
+  color: #fff;
+  border-color: #1a1a1a;
+}
+.alp-form-container {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.alp-form-empty {
+  background: #f7f6f4;
+  padding: 24px;
+  text-align: center;
+  color: #888;
+  font-size: 14px;
+  margin-top: 16px;
+}
+.alp-form-card {
+  background: #f7f6f4;
+  border: 1px solid #e0dbd3;
+  border-radius: 6px;
+  padding: 16px;
+}
+.alp-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+.alp-form-field {
+  display: flex;
+  flex-direction: column;
+}
+.alp-form-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #555;
+  margin-bottom: 6px;
+}
+.alp-form-value {
+  font-size: 14px;
+  color: #1a1a1a;
+  word-break: break-word;
+  padding: 8px;
+  background: #fff;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}

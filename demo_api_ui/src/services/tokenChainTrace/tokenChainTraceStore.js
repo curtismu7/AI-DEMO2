@@ -11,6 +11,11 @@ const EMPTY_TRACE = () => ({
   phases: [], tokenEvents: [], mcpResult: null, authorize: null, outcome: null,
 });
 
+// Session-scoped evidence (the sign-in token) outlives any single tool call —
+// beginTrace carries it forward and ingestTokenEvents must not wipe it when a
+// per-call event array (e.g. an attack sim's) arrives without it.
+const SESSION_EVENT_IDS = ["user-token", "session-token-introspection", "user-token-introspection"];
+
 let trace = EMPTY_TRACE();
 const listeners = new Set();
 
@@ -37,7 +42,6 @@ export const tokenChainTraceStore = {
     // Strip useCaseId from the carry-over: stampUseCaseId tags user-token on the
     // first demo run, and firstUseCaseId would otherwise keep scoring every later
     // run against that sticky slug (e.g. always "A2A delegation — Incomplete").
-    const SESSION_EVENT_IDS = ["user-token", "session-token-introspection", "user-token-introspection"];
     const sessionEvents = trace.tokenEvents
       .filter((e) => e && SESSION_EVENT_IDS.includes(e.id))
       .map((e) => {
@@ -69,13 +73,49 @@ export const tokenChainTraceStore = {
   ingestTokenEvents(events) {
     if (!Array.isArray(events) || !events.length) return;
     ensureTrace();
-    trace.tokenEvents = events.slice();
+    const incoming = new Set(events.map((e) => e && e.id));
+    const carried = trace.tokenEvents.filter(
+      (e) => e && SESSION_EVENT_IDS.includes(e.id) && !incoming.has(e.id),
+    );
+    trace.tokenEvents = [...carried, ...events];
+    emit();
+  },
+  ingestTokenEvent(event) {
+    if (!event || !event.id) return;
+    ensureTrace();
+    const idx = trace.tokenEvents.findIndex((e) => e.id === event.id);
+    if (idx >= 0) {
+      trace.tokenEvents = [
+        ...trace.tokenEvents.slice(0, idx),
+        event,
+        ...trace.tokenEvents.slice(idx + 1),
+      ];
+    } else {
+      trace.tokenEvents = [...trace.tokenEvents, event];
+    }
     emit();
   },
   ingestAuthorize(evaluation) {
     if (!evaluation) return;
     ensureTrace();
-    trace.authorize = evaluation;
+    const prev = trace.authorize;
+    // HITL/step-up challenge then approve→retry PERMITs. Keep the block-kind
+    // outcome so ProofStrip still scores the gate that fired (UC7/UC8), instead
+    // of overwriting with a bare PERMIT and rendering "Mismatch".
+    const priorGate =
+      prev &&
+      (prev.outcome === "HITL_REQUIRED" || prev.outcome === "STEP_UP")
+        ? prev.outcome
+        : null;
+    if (
+      priorGate &&
+      evaluation.decision === "PERMIT" &&
+      !evaluation.outcome
+    ) {
+      trace.authorize = { ...evaluation, outcome: priorGate, priorGate };
+    } else {
+      trace.authorize = evaluation;
+    }
     emit();
   },
   ingestLlmDetail(value) {
@@ -93,7 +133,15 @@ export const tokenChainTraceStore = {
   ingestMcpResult(payload) {
     if (!payload) return;
     ensureTrace();
-    trace.mcpResult = payload;
+    // Normalize SSE shape (toolName/resultJson) to the rail's mcpResult model.
+    const next = {
+      ...payload,
+      tool: payload.tool || payload.toolName || null,
+      requestJson: payload.requestJson ?? null,
+      result: payload.result ?? payload.resultJson ?? null,
+      denied: Boolean(payload.denied),
+    };
+    trace.mcpResult = next;
     emit();
   },
   completeTrace(ok) { trace.outcome = ok ? "ok" : "error"; emit(); },

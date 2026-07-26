@@ -52,6 +52,21 @@ function makeDeps(over = {}) {
   };
 }
 
+// The exchange-failure LOCAL FALLBACK bypasses the gateway, the MCP server, and
+// therefore every authorization check (docs/authorization-decision-split.md F5).
+// The path still exists but is now opt-in via
+// ff_local_fallback_on_exchange_failure (default OFF), so the tests that
+// characterize it enable it explicitly. Driven through the env alias, not a
+// module mock: the pipeline lazily requires configStore and setup.js calls
+// jest.resetModules() after every test, so a mocked instance would not be the
+// one the pipeline resolves. Default-OFF behaviour and the C2 degraded marker
+// are covered in mcpToolPipeline.authzBypass.test.js.
+const LOCAL_FALLBACK_ENV = 'FF_LOCAL_FALLBACK_ON_EXCHANGE_FAILURE';
+function enableLocalFallback() {
+  process.env[LOCAL_FALLBACK_ENV] = 'true';
+}
+afterEach(() => { delete process.env[LOCAL_FALLBACK_ENV]; });
+
 function makeCtx(over = {}) {
   return {
     tool: 'get_my_accounts',
@@ -99,6 +114,7 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
   });
 
   test('exchange-scope-error (httpStatus 400) + session user → local fallback result, flags set', async () => {
+    enableLocalFallback();
     const err = Object.assign(new Error('At least one scope must be granted'), { httpStatus: 400 });
     const deps = makeDeps({
       resolveMcpAccessTokenWithEvents: jest.fn(async () => { throw err; }),
@@ -113,6 +129,7 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
   });
 
   test('pingoneError 401 IS an exchange-scope error (local fallback), session-guard 401 is NOT', async () => {
+    enableLocalFallback();
     const pingoneErr = Object.assign(new Error('Unsupported authentication method'), { httpStatus: 401, pingoneError: 'invalid_client' });
     const depsP = makeDeps({ resolveMcpAccessTokenWithEvents: jest.fn(async () => { throw pingoneErr; }) });
     const outP = await runMcpToolPipeline(makeCtx({ deps: depsP }));
@@ -147,11 +164,22 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     });
   });
 
-  test('no bearer token + session user → local fallback result _localFallback', async () => {
-    const deps = makeDeps({ resolveMcpAccessTokenWithEvents: jest.fn(async () => ({ token: null, tokenEvents: [], userSub: null })) });
+  // Intentional behavior change (NOT a masked regression): the no-bearer path
+  // used to serve the tool through the ungated local handler when a session user
+  // was present. A cookie-only / unhydrated session has no real bearer, so that
+  // fallback bypassed the PingOne Authorize gate and Proof of Enforcement
+  // rendered "Incomplete" on a tool that had run. Both no-bearer cases (user or
+  // no user) now surface the re-auth block from mcpNoBearerResponse so the SPA
+  // restores real tokens and the call runs the real exchange → gateway →
+  // Authorize path.
+  test('no bearer token + session user → 401 re-auth block, no ungated local fallback', async () => {
+    const deps = makeDeps({
+      resolveMcpAccessTokenWithEvents: jest.fn(async () => ({ token: null, tokenEvents: [], userSub: null })),
+      mcpNoBearerResponse: jest.fn(() => ({ status: 401, body: { error: 'no_bearer' } })),
+    });
     const outcome = await runMcpToolPipeline(makeCtx({ deps }));
-    expect(outcome.kind).toBe('result');
-    expect(outcome.body._localFallback).toBe(true);
+    expect(outcome).toMatchObject({ kind: 'block', httpStatus: 401, body: { error: 'no_bearer' } });
+    expect(deps.callToolLocal).not.toHaveBeenCalled();
   });
 
   test('no bearer token + NO session user → block from mcpNoBearerResponse', async () => {
@@ -182,6 +210,7 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     expect(outcome.body.error).toBe('mcp_authorization_denied');
     expect(outcome.body.mcpAuthorizeEvaluation).toEqual({
       decision: 'DENY',
+      outcome: 'DENY',
       engine: null,
       decisionContext: { x: 1 },
       decisionId: 'd1',
@@ -260,6 +289,56 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     expect(ids).not.toContain('gw-exchange');
   });
 
+  test('remote success via gateway with gwAuditTrail.backend → gw-route + gw-backend-exchange token events', async () => {
+    const deps = makeDeps();
+    deps.config = { ...deps.config, useGateway: true, gatewayHttpUrl: 'http://gw' };
+    deps.callToolViaGateway = jest.fn(async () => ({
+      result: { content: [{ text: 'gw-ok' }] },
+      gwAuditTrail: {
+        introspection: { active: true, sub: 'u1' },
+        authorize: { decision: 'PERMIT' },
+        backend: { target: 'jwtverifier', audience: 'mcp-jwt-verifier.ping.demo', cached: false, exchanged: true },
+      },
+    }));
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    const ids = outcome.body.tokenEvents.map((e) => e.id);
+    expect(ids).toContain('gw-route');
+    expect(ids).toContain('gw-backend-exchange');
+    const routeCall = deps.buildTokenEvent.mock.calls.find((c) => c[0] === 'gw-route');
+    expect(routeCall[5]).toEqual({ target: 'jwtverifier' });
+    const exchangeCall = deps.buildTokenEvent.mock.calls.find((c) => c[0] === 'gw-backend-exchange');
+    expect(exchangeCall[2]).toBe('active');
+    expect(exchangeCall[5]).toEqual({ target: 'jwtverifier', audience: 'mcp-jwt-verifier.ping.demo', cached: false, exchanged: true, error: undefined });
+  });
+
+  test('remote failure via gateway with gwAuditTrail.backend.exchanged=false → gw-backend-exchange status=deny', async () => {
+    // A backend exchange failure is a THROWN error (mcpGatewayClient's
+    // status>=500 branch), not a normal { result, gwAuditTrail } return —
+    // mock the real failure shape (code/httpStatus/gwAuditTrail on a thrown
+    // Error), matching what callToolViaGateway actually produces in prod.
+    const deps = makeDeps();
+    deps.config = { ...deps.config, useGateway: true, gatewayHttpUrl: 'http://gw' };
+    deps.callToolViaGateway = jest.fn(async () => {
+      throw Object.assign(new Error('Gateway upstream error (HTTP 502)'), {
+        code: 'gateway_upstream_error',
+        httpStatus: 502,
+        gwAuditTrail: {
+          introspection: { active: true, sub: 'u1' },
+          authorize: { decision: 'PERMIT' },
+          backend: { target: 'jwtverifier', audience: null, exchanged: false, error: 'invalid_scope' },
+        },
+      });
+    });
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    expect(outcome.kind).toBe('error');
+    expect(outcome.httpStatus).toBe(502);
+    const ids = outcome.body.tokenEvents.map((e) => e.id);
+    expect(ids).toContain('gw-route');
+    expect(ids).toContain('gw-backend-exchange');
+    const exchangeCall = deps.buildTokenEvent.mock.calls.find((c) => c[0] === 'gw-backend-exchange');
+    expect(exchangeCall[2]).toBe('deny');
+  });
+
   test('remote success via gateway with mcpAudit → gw-mcp-audit token event (5W1H)', async () => {
     const deps = makeDeps();
     deps.config = { ...deps.config, useGateway: true, gatewayHttpUrl: 'http://gw' };
@@ -296,11 +375,11 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     expect(deps.callToolLocal).not.toHaveBeenCalled();
   });
 
-  test('gateway_policy_denied hitl_required → block 428 step_up_required', async () => {
+  test('gateway_policy_denied hitl_required → block 428 hitl_required', async () => {
     const deps = makeDeps();
     deps.mcpCallTool = jest.fn(async () => { throw Object.assign(new Error('policy'), { code: 'gateway_policy_denied', gatewayErrorCode: 'hitl_required' }); });
     const outcome = await runMcpToolPipeline(makeCtx({ deps }));
-    expect(outcome).toMatchObject({ kind: 'block', httpStatus: 428, body: { error: 'step_up_required' } });
+    expect(outcome).toMatchObject({ kind: 'block', httpStatus: 428, body: { error: 'hitl_required' } });
   });
 
   test('connection error + session user → remote_fallback local result', async () => {
@@ -344,6 +423,96 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     expect(outcome.body.activeProvider).toBe('helix');
     expect(outcome.body.activeModel).toBe('gpt-4o-mini');
     expect(outcome.body.mcpAuthorizeEvaluation).toEqual({ decision: 'PERMIT', decisionId: 'dz' });
+  });
+
+  // Task 7 (docs/superpowers/sdd — token-chain dynamic steps plan): the
+  // BFF-simulated authorize decision (ff_authorize_simulated=true, engine
+  // 'simulated') must produce a gw-authorize Token Chain event with the SAME
+  // id/status contract as the real-gateway path (gwAuditTrail.authorize,
+  // tested above) — so TokenChainDisplay renders identically regardless of
+  // which backend actually decided.
+  test('permit path (simulated engine) → tokenEvents carries a gw-authorize card, same id/status contract as the real gateway path', async () => {
+    const deps = makeDeps();
+    deps.evaluateMcpFirstToolGate = jest.fn(async () => ({
+      ran: true,
+      permit: true,
+      evaluation: { engine: 'simulated', decision: 'PERMIT', decisionId: 'sim-1', path: 'simulated' },
+    }));
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    const gwAz = outcome.body.tokenEvents.find((e) => e.id === 'gw-authorize');
+    expect(gwAz).toBeDefined();
+    expect(['permit', 'deny', 'indeterminate']).toContain(gwAz.status);
+    expect(gwAz.status).toBe('permit');
+  });
+
+  // Task-reviewer follow-up (Important #1): the DENY/step-up/HITL branch
+  // (mcpAuthz.block, simulated engine) must ALSO push a gw-authorize
+  // tokenEvent, mirroring the PERMIT branch above — same id/status contract,
+  // computed from the same DENY/INDETERMINATE decision value the block body
+  // already carries in mcpAuthorizeEvaluation.decision.
+  test('gate block (simulated engine) DENY → tokenEvents carries a gw-authorize card with status deny', async () => {
+    const deps = makeDeps();
+    deps.evaluateMcpFirstToolGate = jest.fn(async () => ({
+      ran: true,
+      block: {
+        status: 403,
+        body: { error: 'mcp_authorization_denied', decisionId: 'd1', decisionContext: { x: 1 }, authorize_engine: 'simulated' },
+      },
+    }));
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    const gwAz = outcome.body.tokenEvents.find((e) => e.id === 'gw-authorize');
+    expect(gwAz).toBeDefined();
+    expect(gwAz.status).toBe('deny');
+    // Sanity: outcome.body.mcpAuthorizeEvaluation.decision is the same source
+    // value ('DENY') the new tokenEvent's status is derived from — proves the
+    // fix reuses the existing computed decision rather than duplicating logic.
+    expect(outcome.body.mcpAuthorizeEvaluation.decision).toBe('DENY');
+  });
+
+  // Task-reviewer follow-up (Important #2): when useGateway is true AND the
+  // simulated engine ran a PERMIT, the real-gateway audit-trail push
+  // (gwAuditTrail.authorize, below) and the simulated-path push must not BOTH
+  // fire for the same call — exactly one gw-authorize event, not two.
+  test('useGateway=true AND simulated engine PERMIT AND gwAuditTrail.authorize populated → only ONE gw-authorize event (no double-push)', async () => {
+    const deps = makeDeps();
+    deps.config = { ...deps.config, useGateway: true, gatewayHttpUrl: 'http://gw' };
+    deps.evaluateMcpFirstToolGate = jest.fn(async () => ({
+      ran: true,
+      permit: true,
+      evaluation: { engine: 'simulated', decision: 'PERMIT', decisionId: 'sim-2', path: 'simulated' },
+    }));
+    deps.callToolViaGateway = jest.fn(async () => ({
+      result: { content: [{ text: 'gw-ok' }] },
+      gwAuditTrail: { authorize: { decision: 'PERMIT', tool: 'get_my_accounts' } },
+    }));
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    const gwAzEvents = outcome.body.tokenEvents.filter((e) => e.id === 'gw-authorize');
+    expect(gwAzEvents.length).toBe(1);
+  });
+
+  // Final whole-branch review follow-up: the DENY/block branch is NOT
+  // symmetric with the PERMIT branch above — it returns early (before any
+  // gateway call), so when useGateway=true there is no later
+  // gwAuditTrail.authorize push that could ever supply the card. The
+  // !useGateway guard on the block branch's push was copied from the PERMIT
+  // branch for the wrong reason: there is no double-push risk here because
+  // the gateway is never reached on a block. This must produce exactly one
+  // gw-authorize card with status 'deny', even with useGateway=true.
+  test('useGateway=true AND simulated engine DENY (gate block) → tokenEvents still carries a gw-authorize card (block branch never reaches the gateway)', async () => {
+    const deps = makeDeps();
+    deps.config = { ...deps.config, useGateway: true, gatewayHttpUrl: 'http://gw' };
+    deps.evaluateMcpFirstToolGate = jest.fn(async () => ({
+      ran: true,
+      block: {
+        status: 403,
+        body: { error: 'mcp_authorization_denied', decisionId: 'd2', decisionContext: { x: 1 }, authorize_engine: 'simulated' },
+      },
+    }));
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    const gwAzEvents = outcome.body.tokenEvents.filter((e) => e.id === 'gw-authorize');
+    expect(gwAzEvents.length).toBe(1);
+    expect(gwAzEvents[0].status).toBe('deny');
+    expect(deps.callToolViaGateway).not.toHaveBeenCalled();
   });
 
   test('HTTP/2 transport → result Outcome carries stream:true marker', async () => {
@@ -425,6 +594,14 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     });
     expect(deps.callToolLocal).not.toHaveBeenCalled(); // policy denial does NOT fall back to local
   });
+
+  test('session-token-introspection step is present for every successful tool call', async () => {
+    const deps = makeDeps();
+    deps.mcpCallTool = jest.fn(async () => ({ content: [{ text: 'remote-ok' }] }));
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    expect(outcome.kind).toBe('result');
+    expect(outcome.body.tokenEvents.some((e) => e.id === 'session-token-introspection')).toBe(true);
+  });
 });
 
 // REGRESSION (transfer HTTP-code consistency, 2026-05-18): a transfer that
@@ -435,6 +612,7 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
 // outcome, three wire shapes. Phase 170: ALL transfers require consent.
 describe('runMcpToolPipeline — HITL/step-up surfaces as 428 on every path (REGRESSION_PLAN §1)', () => {
   test('local-fallback result with error:hitl_required → kind:block httpStatus:428', async () => {
+    enableLocalFallback();
     const scopeErr = Object.assign(new Error('At least one scope must be granted'), { httpStatus: 400 });
     const deps = makeDeps({
       resolveMcpAccessTokenWithEvents: jest.fn(async () => { throw scopeErr; }),
@@ -454,6 +632,7 @@ describe('runMcpToolPipeline — HITL/step-up surfaces as 428 on every path (REG
   });
 
   test('local-fallback result with error:step_up_required → 428 mcp_step_up_required', async () => {
+    enableLocalFallback();
     const scopeErr = Object.assign(new Error('scope'), { httpStatus: 400 });
     const deps = makeDeps({
       resolveMcpAccessTokenWithEvents: jest.fn(async () => { throw scopeErr; }),
@@ -484,6 +663,7 @@ describe('runMcpToolPipeline — HITL/step-up surfaces as 428 on every path (REG
   });
 
   test('NON-HITL local fallback still returns kind:result httpStatus:200 (no false-positive)', async () => {
+    enableLocalFallback();
     const scopeErr = Object.assign(new Error('scope'), { httpStatus: 400 });
     const deps = makeDeps({
       resolveMcpAccessTokenWithEvents: jest.fn(async () => { throw scopeErr; }),

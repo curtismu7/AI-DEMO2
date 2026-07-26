@@ -161,18 +161,67 @@ router.post('/check-chip', requireAdmin, express.json(), async (req, res) => {
   const workerId = process.env.PINGAUTHORIZE_WORKER_ID || 'mcp-gateway-policy';
   const p1azEnabled = process.env.MCP_GW_P1AZ_ENABLED === 'true';
 
+  // Contract C4 — omission is not permission. This used to return a local
+  // PERMIT, so an unconfigured authorization server rendered every chip as
+  // policy-approved. INDETERMINATE says what is true: no decision was made.
   if (!authzEndpoint || !p1azEnabled) {
-    return res.json({ decision: 'PERMIT', reason: 'Authorization Server not configured — local permit' });
+    return res.json({
+      decision: 'INDETERMINATE',
+      degraded: true,
+      policy_source: 'unconfigured',
+      reason: 'Authorization Server not configured (PINGAUTHORIZE_ENDPOINT / MCP_GW_P1AZ_ENABLED) — no decision was evaluated',
+    });
   }
 
-  // Extract scopes from the current user's session token
+  // Extract scopes and the ACTUAL audience from the current user's session token.
   const userToken = req.session?.oauthTokens?.accessToken;
   let tokenScopes = '';
+  let tokenAud = null;
   if (userToken) {
     try {
       const claims = JSON.parse(Buffer.from(userToken.split('.')[1], 'base64url').toString());
       tokenScopes = claims.scope || '';
+      // C1: TokenAudience is the token's real `aud` (array ⇒ first entry).
+      const aud = Array.isArray(claims.aud) ? claims.aud[0] : claims.aud;
+      tokenAud = aud ? String(aud) : null;
     } catch { /* ignore */ }
+  }
+
+  // This call used to send NO audience at all, so mock Rule 0b DENYed
+  // `invalid_aud` before ChipAuthorization could run. The first fix for that
+  // set TokenAudience, TokenAudActual AND McpResourceUri to the expected URI —
+  // which re-introduced the tautology contract C1 rule 1 forbids: Rule 0b then
+  // passed on a fabricated value, Rule 0b-2 (D-05 anti-bypass) could never flag
+  // because the "actual" aud was synthetic, and Rule 0c compared a value to
+  // itself. The audience sent is now the one on the presented token.
+  //
+  // C1 preamble — absent values are omitted, never fabricated. With no readable
+  // aud there is nothing honest to send: a DENY produced by the missing input
+  // would be reported to the UI as a policy decision. C4 — say that no decision
+  // was evaluated instead of manufacturing one.
+  if (!tokenAud) {
+    return res.json({
+      decision: 'INDETERMINATE',
+      degraded: true,
+      policy_source: 'no-token-audience',
+      reason: 'No access token audience on this session — chip authorization cannot be evaluated without the token actual aud',
+    });
+  }
+
+  // The EXPECTED gateway resource URI (C1 defines McpResourceUri that way),
+  // read from the same source the live MCP gate uses so the two cannot drift.
+  // Returns '' when nothing is configured — it no longer invents a host
+  // (REGRESSION_PLAN §3). With no expected resource there is nothing to compare
+  // the token audience against, so no meaningful decision exists to render.
+  const expectedResourceUri =
+    require('../services/mcpToolAuthorizationService').resolveExpectedMcpResourceUri();
+  if (!expectedResourceUri) {
+    return res.json({
+      decision: 'INDETERMINATE',
+      degraded: true,
+      policy_source: 'unconfigured',
+      reason: 'No expected MCP resource URI configured — chip authorization cannot be evaluated',
+    });
   }
 
   try {
@@ -186,6 +235,13 @@ router.post('/check-chip', requireAdmin, express.json(), async (req, res) => {
           Vertical: vertical,
           TokenScopes: tokenScopes,
           ClientId: req.user?.sub || '',
+          // The token's REAL aud (C1 rule 1) — never the expected URI.
+          TokenAudience: tokenAud,
+          // C1: same value, retained for mock back-compat.
+          TokenAudActual: tokenAud,
+          // The EXPECTED resource, independent of the above, so mock Rule 0c is
+          // a real comparison rather than a value against itself.
+          McpResourceUri: expectedResourceUri,
         },
       },
       { timeout: 3000, headers: { 'Content-Type': 'application/json' } },
@@ -204,19 +260,27 @@ router.post('/check-chip', requireAdmin, express.json(), async (req, res) => {
 // Specific paths first, parameterized paths last (express routes top-to-bottom).
 
 // Switching the active vertical is open to any authenticated user (not admin-only).
-// Session-scoped: the choice is stored on THIS session (req.session.active_vertical)
-// so another session switching can't change it. The process-global is still set as
-// the default for sessions that never switched (back-compat + SSE hydration). The id
-// is validated against the loaded set; hidden verticals cannot be activated.
+// Session-scoped: the choice is ALWAYS stored on THIS session (req.session.active_vertical)
+// so another session switching can't change it. The process-global + SSE broadcast
+// (setActive) is admin-only (or body.global=true from an admin) — otherwise a
+// CareConnect / retail e2e (or casual end-user switch) left healthcare as the
+// first-load default for every new session and the room looked "stuck".
+// The id is validated against the loaded set; hidden verticals cannot be activated.
 router.post('/active', requireSession, (req, res) => {
-  const { id } = req.body || {};
+  const { id, global: wantGlobal } = req.body || {};
   if (!id) return res.status(400).json({ error: 'id required' });
   if (verticalManifest.HIDDEN_IDS.has(id)) return res.status(403).json({ error: 'cannot activate hidden vertical' });
   if (!verticalManifest.loader.get(id)) return res.status(404).json({ error: 'unknown id' });
   // Session preference (takes precedence in resolver.activeIdFor / scope / data seeding).
   req.session.active_vertical = id;
-  // Global default for new/never-switched sessions + SSE hydration (back-compat).
-  verticalManifest.resolver.setActive(id);
+  const isAdmin = req.user && req.user.role === 'admin';
+  // Only admins move the process-global default (and SSE-broadcast to everyone).
+  if (isAdmin || wantGlobal === true) {
+    if (wantGlobal === true && !isAdmin) {
+      return res.status(403).json({ error: 'admin only for global vertical switch' });
+    }
+    verticalManifest.resolver.setActive(id);
+  }
   req.session.save((err) => {
     if (err) return res.status(500).json({ error: 'session_save_failed' });
     res.status(204).end();

@@ -27,6 +27,10 @@
 | PingOne Management API | Demo Worker Token App | `15881ac7-4d83-4cbf-9ab0-4d7cda31fab8` | WORKER | CLIENT_SECRET_BASIC | client_credentials |
 | Agent service (internal) | Demo Agent | `cf314c00-1fa8-470f-ab55-2ce58504e318` | WORKER | — | client_credentials |
 
+> **Demo AI Agent packaging:** `WEB_APP` (not PingOne **AI Agents** product UI) is
+> intentional — same CC + TE grants as the IDAI tutorial, stable client ID for the
+> TE chain. See [`PINGONE_APP_CONFIG.md`](PINGONE_APP_CONFIG.md) §5.
+
 ### Redirect URIs
 
 | App | Redirect URI |

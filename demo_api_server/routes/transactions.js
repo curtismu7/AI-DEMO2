@@ -8,12 +8,15 @@ const transactionAuthorizationService = require('../services/transactionAuthoriz
 const configStore = require('../services/configStore');
 const { sendTransactionConfirmation } = require('../services/emailService');
 const txConsent = require('../services/transactionConsentChallenge');
+const cibaTransactionReceipt = require('../services/cibaTransactionReceipt');
+const hitlCredit = require('../services/hitlCredit');
 const demoScenarioStore = require('../services/demoScenarioStore');
 const { resolveAccountId } = require('../utils/accountUtils');
 const { logEvent: logAppEvent, EVENT_CATEGORIES } = require('../services/appEventService');
 const posthog = require('../services/posthog');
 const { BANKING_SCOPES } = require('../config/scopes');
 const { roundToCents } = require('../utils/money');
+const { getCanonicalPublicOrigin } = require('../services/oauthRedirectUris');
 
 /**
  * Re-hydrate a user's accounts from the Redis snapshot on cold-start.
@@ -209,6 +212,10 @@ router.post(
         responseBody = { challengeId: result.challengeId, mfaRequired: true, devices: result.devices };
       } else if (result.needsContact) {
         responseBody = { challengeId: result.challengeId, needsContact: true };
+      } else if (result.consentOnly) {
+        // Consent-only tier: challenge already 'confirmed' server-side, no OTP/MFA.
+        // Pass the flag through so the modal skips the OTP step and executes.
+        responseBody = { challengeId: result.challengeId, consentOnly: true, confirmExpiresAt: result.confirmExpiresAt };
       } else {
         responseBody = {
           challengeId: result.challengeId,
@@ -219,6 +226,22 @@ router.post(
         };
       }
       return res.status(200).json(responseBody);
+    });
+  },
+);
+
+// Refresh the device list for a challenge already awaiting device verification.
+// Lets a user who enrols a device from the picker (typically a first passkey)
+// use it immediately: /confirm captured the list once and cannot be re-run.
+router.post(
+  '/consent-challenge/:challengeId/mfa-reinit',
+  authenticateToken,
+  async (req, res) => {
+    const result = await txConsent.reinitMfaDevices(req, req.params.challengeId);
+    if (!result.ok) return res.status(result.status).json(result.json);
+    req.session.save((saveErr) => {
+      if (saveErr) console.error('[ConsentChallenge] session save error (mfa-reinit):', saveErr);
+      return res.status(200).json({ challengeId: result.challengeId, devices: result.devices });
     });
   },
 );
@@ -246,29 +269,49 @@ router.post(
   '/consent-challenge/:challengeId/verify-otp',
   authenticateToken,
   async (req, res) => {
-    const challengeId = req.params.challengeId;
-    const path = txConsent.getChallengePath(req, challengeId);
-    let result;
-    if (path === 'mfa' || path === 'onetime') {
-      // The onetime path (PingOne email OTP, no device picker) UI sends the code
-      // as `otpCode`; the device-picker UI sends `otp`. Accept either, or a valid
-      // code is dropped as missing_credential before PingOne is ever called.
-      const { deviceId, otp, otpCode, fido2Assertion } = req.body || {};
-      const host = req.get('host') || null;
-      const origin = host ? `${req.protocol}://${host}` : `https://demo-api-server:3001`;
-      result = await txConsent.verifyMfa(req, challengeId, { deviceId, otp: otp || otpCode, fido2Assertion }, origin);
-    } else {
-      const { otpCode } = req.body || {};
-      result = txConsent.verifyOtp(req, challengeId, otpCode);
-    }
-    if (!result.ok) return res.status(result.status).json(result.json);
-    req.session.save((saveErr) => {
-      if (saveErr) console.error('[ConsentChallenge] session save error (verify-otp):', saveErr);
-      return res.status(200).json({
-        challengeId: result.challengeId,
-        confirmExpiresAt: result.confirmExpiresAt,
+    try {
+      const challengeId = req.params.challengeId;
+      const path = txConsent.getChallengePath(req, challengeId);
+      let result;
+      if (path === 'mfa' || path === 'onetime') {
+        // The onetime path (PingOne email OTP, no device picker) UI sends the code
+        // as `otpCode`; the device-picker UI sends `otp`. Accept either, or a valid
+        // code is dropped as missing_credential before PingOne is ever called.
+        const { deviceId, otp, otpCode, fido2Assertion } = req.body || {};
+        // PingOne's Check Assertion API rejects a FIDO2 assertion whose `origin`
+        // doesn't match clientDataJSON's embedded origin ("Incorrect origin").
+        // req.get('host') is the wrong source: demo_api_ui/nginx.conf hardcodes
+        // the Host header it forwards to the BFF to api.ping.demo:4000
+        // regardless of the browser's real origin, so this was silently rejecting
+        // every FIDO2 assertion submitted from any other origin (e.g.
+        // local.ping-devops.com, where passkeys actually work). Same resolution
+        // OAuth redirect_uri already uses, which is why that path never hit this.
+        const origin = getCanonicalPublicOrigin(req);
+        result = await txConsent.verifyMfa(req, challengeId, { deviceId, otp: otp || otpCode, fido2Assertion }, origin);
+      } else {
+        const { otpCode } = req.body || {};
+        result = txConsent.verifyOtp(req, challengeId, otpCode);
+      }
+      if (!result.ok) return res.status(result.status).json(result.json);
+      req.session.save((saveErr) => {
+        if (saveErr) console.error('[ConsentChallenge] session save error (verify-otp):', saveErr);
+        return res.status(200).json({
+          challengeId: result.challengeId,
+          confirmExpiresAt: result.confirmExpiresAt,
+        });
       });
-    });
+    } catch (err) {
+      // Express 4 does not catch async throws — without this the client hangs on
+      // "Verifying…" forever (seen 2026-07-22 when getCanonicalPublicOrigin was
+      // imported but not exported).
+      console.error('[ConsentChallenge] verify-otp failed:', err);
+      if (!res.headersSent) {
+        return res.status(500).json({
+          error: 'verify_otp_failed',
+          message: err.message || 'Verification failed.',
+        });
+      }
+    }
   },
 );
 
@@ -314,7 +357,14 @@ router.post(
     if (!result.ok) return res.status(result.status).json(result.json);
     req.session.save((saveErr) => {
       if (saveErr) console.error('[ConsentChallenge] session save error (select-device):', saveErr);
-      return res.status(200).json({ otpSent: true, otpExpiresAt: result.otpExpiresAt });
+      return res.status(200).json({
+        otpSent: true,
+        otpExpiresAt: result.otpExpiresAt,
+        status: result.status,
+        ...(result.publicKeyCredentialRequestOptions
+          ? { publicKeyCredentialRequestOptions: result.publicKeyCredentialRequestOptions }
+          : {}),
+      });
     });
   },
 );
@@ -550,6 +600,26 @@ router.post('/', authenticateToken, async (req, res) => {
       req.session.stepUpVerified = 0;
     }
 
+    // CIBA out-of-band approval (routes/ciba.js) is itself a human-in-the-loop
+    // event, so it must also discharge the consent gate below — otherwise a
+    // CIBA-approved retry still has no consentChallengeId and 428s forever on
+    // r.consentRequired, even though sessionStepUpFresh already cleared the
+    // step-up gate. Single-use, same pattern as stepUpVerified above.
+    let sessionHitlFresh = false;
+    if (hitlCredit.isFresh(req.session, { amount: hitlAmount })) {
+      // Amount-bound + consume-on-use (services/hitlCredit.js): a live CIBA
+      // credit for this amount applies, but do NOT spend it yet — consume it
+      // below only if it actually discharged the consent gate, so an unrelated
+      // call never burns it out from under a pending retry.
+      sessionHitlFresh = true;
+    } else if (hasBearerAuth) {
+      // Bearer-token calls (demo_mcp_server's BankingAPIClient, the real MCP/
+      // agent path) carry no session cookie, so the check above never fires
+      // even right after a CIBA approval — see mcpToolAuthorizationService.js's
+      // matching cibaTransactionReceipt.record() call and cibaTransactionReceipt.js.
+      sessionHitlFresh = cibaTransactionReceipt.consume(req.user.id, `create_${type}`, hitlAmount);
+    }
+
     // RFC 9470 §5 freshness: when stepUpMaxAge > 0, a strong ACR from a stale
     // authentication event is NOT sufficient — downgrade it so the gate fires
     // and the challenge sends the user back through a fresh ceremony.
@@ -565,6 +635,13 @@ router.post('/', authenticateToken, async (req, res) => {
       }
     }
 
+    // UC22's useCaseId forces the CIBA step-up block unconditionally (see
+    // transactionAuthorizationService's CIBA_DEMO_USE_CASE_ID check) — it does
+    // not look at acr, so a retry that still carries the same useCaseId would
+    // be re-forced into another CIBA prompt forever, even right after the user
+    // approved one. Drop it once this exact request already consumed a fresh
+    // session-level step-up: that retry has already proven CIBA, so let the
+    // gate fall through to the policy engine's normal (acr-aware) decision.
     const authz = await transactionAuthorizationService.evaluateTransactionPolicy({
       runtimeSettings,
       userRole: req.user.role,
@@ -572,8 +649,17 @@ router.post('/', authenticateToken, async (req, res) => {
       amount: parseFloat(amount),
       type,
       acr: effectiveAcr,
-      useCaseId: req.body?.useCaseId || '',
+      useCaseId: (sessionStepUpFresh || sessionHitlFresh) ? '' : (req.body?.useCaseId || ''),
+      hitlAlreadyVerified: sessionHitlFresh,
     });
+
+    // Consume-on-use: spend the single-use CIBA credit only now that the policy
+    // engine confirmed it actually discharged the consent gate. An unrelated
+    // request never reaches here with hitlConsentDischarged set, so it cannot
+    // burn the credit (fixes the cross-consumer starvation with the MCP gate).
+    if (authz.hitlConsentDischarged) {
+      hitlCredit.consume(req.session);
+    }
 
     if (authz.ran) {
       if (authz.block) {

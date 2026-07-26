@@ -113,6 +113,23 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
     return JSON.stringify({ ...ADMIN_TOKEN_ON_CUSTOMER });
   }
 
+  // Teaching/education tools (oauth-teaching explain_concept, show_flow_diagram, …)
+  // are pure-local: text + optional education-panel directive. They must not enter
+  // the MCP gateway (Unknown tool) or trigger RFC 8693. Same contract as
+  // dispatchVerticalIntent's isLocalTool bypass.
+  const localPlugin = verticalDispatch.findLocalToolPlugin(name);
+  if (localPlugin) {
+    try {
+      const local = await localPlugin.executeTool(name, args || {}, {
+        userId, userToken, req, tokenEvents, sessionId,
+      });
+      const payload = local?.result !== undefined ? local.result : local;
+      return typeof payload === 'string' ? payload : JSON.stringify(payload ?? {});
+    } catch (e) {
+      return JSON.stringify({ error: e.message || 'local teaching tool failed' });
+    }
+  }
+
   if (!_pipelineDeps) {
     // Test/isolated context — full pipeline not wired. Plugin (vertical) tools are
     // not in getBankingToolDefinitions(), so route them via the gateway directly.
@@ -127,7 +144,16 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
     const { recordToolCall: recordMcpToolCall } = require('./mcpToolAuditStore');
     const tools = getBankingToolDefinitions();
     const tool = tools.find((t) => t.name === name);
-    if (!tool) return JSON.stringify({ error: `Unknown tool: ${name}` });
+    if (!tool) {
+      // Not a known LangChain tool schema either. This can still be a real
+      // MCP-server tool invoked directly rather than via LLM function-calling —
+      // e.g. oauth-teaching's demonstrate_token_exchange/demonstrate_scope_denial
+      // simulate a nested call to get_my_accounts/get_investment_balance, neither
+      // of which is a plugin action tool or a LangChain registry entry. The
+      // gateway is the source of truth for tool existence, so route there instead
+      // of guessing it doesn't exist.
+      return callMcpToolAsAgent({ name, args, userId, userToken, sessionId, tokenEvents });
+    }
 
     const mockReq = {
       session: { oauthTokens: { accessToken: userToken }, id: sessionId },
@@ -192,6 +218,19 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
 
   const outcome = await runMcpToolPipeline(ctx);
 
+  // Surface the PingOne Authorize evaluation to the caller. On the agent path the
+  // tool result flows back as a plain string (the LLM tool message), so the
+  // evaluation would otherwise be lost — the agent route reads it off req and
+  // merges it into the response envelope so the Proof trace's authorize-decision
+  // step matches on the SUCCESS path too (not only on block/deny). Best-effort;
+  // never present on a mockReq (chip/direct path already carries it on the body).
+  const _authEval = outcome.mcpAuthorizeEvaluation
+    || (outcome.body && outcome.body.mcpAuthorizeEvaluation)
+    || null;
+  if (_authEval && req && typeof req === 'object') {
+    req._mcpAuthorizeEvaluation = _authEval;
+  }
+
   // Merge any token events the pipeline produced into the caller's tokenEvents array.
   // stampUseCaseId never overwrites an existing tag.
   if (Array.isArray(outcome.tokenEvents)) {
@@ -218,8 +257,47 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
     return JSON.stringify({ error: outcome.body?.error || 'mcp_blocked', ...outcome.body });
   }
 
-  // kind === 'error'
-  return JSON.stringify({ error: outcome.body?.error || 'mcp_error', message: outcome.body?.message });
+  // kind === 'error' — keep body fields (pingone / exchange detail) so the agent
+  // reply and Token Chain can surface why the hop failed, not just a bare code.
+  return JSON.stringify({
+    error: outcome.body?.error || 'mcp_error',
+    message: outcome.body?.message || outcome.body?.error_description || null,
+    ...(outcome.body && typeof outcome.body === 'object' ? outcome.body : {}),
+  });
+}
+
+/**
+ * Run a tool call through the FULL production pipeline (RFC 8693 exchange,
+ * BFF-preflight PingOne Authorize gate, real Agent Gateway call — with its own
+ * downstream PingOne Authorize — HITL, SSE/audit) and return the RAW pipeline
+ * Outcome (`{kind, httpStatus, body, tokenEvents}`), not the string-unwrapped
+ * shape `executeBffTool` returns for LLM tool messages.
+ *
+ * Used by the Security Showcase attack sims (UC10/UC13) so a sim exercises the
+ * SAME code path a real chip/agent call does — full flow, not a hand-rolled
+ * direct token-exchange + gateway call. `req` must be the real, authenticated
+ * Express request (the attack-sim route already has one); callers may stamp a
+ * demo-only override onto `req.body` (e.g. `_testActClientId`, read at
+ * mcpToolPipeline.js's gateway-call site) before invoking this.
+ * @param {{tool: string, params?: object, req: object, useCaseId?: string, vertical?: string}} args
+ * @returns {Promise<object>} pipeline Outcome
+ */
+async function runPipelineForSim({ tool, params, req, useCaseId, vertical }) {
+  if (!_pipelineDeps) {
+    throw Object.assign(new Error('Full MCP pipeline is not wired (pipeline deps unset)'), { code: 'pipeline_unavailable' });
+  }
+  const { flowTraceId, deps: callDeps } = bindTraceEmit(req, tool);
+  const ctx = {
+    tool,
+    params: params || {},
+    flowTraceId,
+    startTime: Date.now(),
+    req,
+    deps: callDeps,
+    useCaseId,
+    vertical,
+  };
+  return runMcpToolPipeline(ctx);
 }
 
 /**
@@ -274,4 +352,4 @@ async function executeBffToolWithToken({ name, args, req = null, tokenEvents = [
   return JSON.stringify({ error: outcome.body?.error || 'mcp_error', message: outcome.body?.message });
 }
 
-module.exports = { executeBffTool, executeBffToolWithToken, callMcpToolAsAgent, setPipelineDeps, unwrapMcpResultEnvelope };
+module.exports = { executeBffTool, executeBffToolWithToken, callMcpToolAsAgent, setPipelineDeps, unwrapMcpResultEnvelope, runPipelineForSim };

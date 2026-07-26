@@ -1,28 +1,142 @@
 // AgentGatewayTester.jsx
-// Dark IDE three-column layout (Mock B) - sends MCP tool calls through the
+// InspectorShell three-column layout - sends MCP tool calls through the
 // active gateway and shows response, authorize decision, audit trail.
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import apiClient from '../services/apiClient';
 import { notifyError } from '../utils/appToast';
 import { formatAxiosError } from '../utils/formatAxiosError';
 import JsonHighlight from './shared/JsonHighlight';
-import './PingOneMcpInspector.css';
+import JsonFormView from './shared/JsonFormView';
+import InspectorShell from './shared/InspectorShell';
+import InspectorTabs from './shared/InspectorTabs';
 
 const GATEWAY_FLAG = 'ff_mcp_gateway_pinggateway';
 const AUTHZ_FLAG = 'ff_authorize_simulated';
 
 const FALLBACK_TOOLS = [
-  { name: 'get_my_accounts', description: 'List all bank accounts with balances and status.' },
-  { name: 'get_my_transactions', description: 'Retrieve transaction history for the authenticated user.' },
-  { name: 'get_account_balance', description: 'Get current balance for a specific account by ID.' },
-  { name: 'get_sensitive_account_details', description: 'Full account + routing number (sensitive:read + consent).' },
-  { name: 'create_transfer', description: 'Transfer funds between accounts (write; may require HITL consent).' },
+  {
+    name: 'get_my_accounts',
+    description: 'List all bank accounts with balances and status.',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'get_my_transactions',
+    description: 'Retrieve transaction history for the authenticated user.',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'get_account_balance',
+    description: 'Get current balance for a specific account by ID.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        account_id: {
+          type: 'string',
+          description: 'Account ID (UUID format, not account number) - use the "id" field from get_my_accounts response',
+        },
+      },
+      required: ['account_id'],
+    },
+  },
+  {
+    name: 'get_sensitive_account_details',
+    description: 'Full account + routing number (sensitive:read + consent).',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'create_transfer',
+    description: 'Transfer funds between accounts (write; may require HITL consent).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        from_account_id: {
+          type: 'string',
+          description: 'Source account ID (UUID format, not account number) - use the "id" field from get_my_accounts response',
+        },
+        to_account_id: {
+          type: 'string',
+          description: 'Destination account ID (UUID format, not account number) - use the "id" field from get_my_accounts response',
+        },
+        amount: { type: 'number', description: 'Amount to transfer (minimum $0.01)' },
+      },
+      required: ['from_account_id', 'to_account_id', 'amount'],
+    },
+  },
+  {
+    name: 'brave_news_search',
+    description: 'Search recent news via the Brave Search API (Agent Gateway remote MCP showcase).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search query' },
+        count: { type: 'number', description: 'Number of results (default 10, max 50)' },
+      },
+      required: ['query'],
+    },
+  },
 ];
+
+const ARG_PLACEHOLDER_BY_TYPE = {
+  string: '',
+  number: 0,
+  integer: 0,
+  boolean: false,
+  array: [],
+  object: {},
+};
+
+const ACCOUNT_ID_PATTERN = /_?account_id$/i;
+const CAPTURED_VALUES_LIMIT = 20;
+
+/** {label, value} for each id-bearing account in a tool result's `accounts` array. */
+function extractCapturedValues(result) {
+  const accounts = result && Array.isArray(result.accounts) ? result.accounts : [];
+  return accounts
+    .filter((a) => a && a.id)
+    .map((a) => {
+      const digits = String(a.accountNumber || a.accountNumberFull || '').replace(/\D/g, '');
+      const last4 = digits.slice(-4);
+      const descriptor = a.accountType || a.name || 'account';
+      return { label: last4 ? `${descriptor} …${last4}` : descriptor, value: a.id };
+    });
+}
+
+/** Fresh entries first, deduped by value against the existing list, capped. */
+function mergeCapturedValues(existing, fresh) {
+  if (!fresh.length) return existing;
+  const merged = [...fresh, ...existing.filter((e) => !fresh.some((f) => f.value === e.value))];
+  return merged.slice(0, CAPTURED_VALUES_LIMIT);
+}
+
+/** Template args for a tool's required inputSchema properties; account_id-like keys autofill from the most recent captured value. */
+const buildArgsTemplate = (tool, capturedValues = []) => {
+  const required = tool?.inputSchema?.required || [];
+  if (!required.length) return '{}';
+  const template = {};
+  const latestId = capturedValues[0]?.value;
+  for (const key of required) {
+    if (latestId && ACCOUNT_ID_PATTERN.test(key)) {
+      template[key] = latestId;
+      continue;
+    }
+    const propType = tool.inputSchema.properties?.[key]?.type;
+    template[key] = propType in ARG_PLACEHOLDER_BY_TYPE ? ARG_PLACEHOLDER_BY_TYPE[propType] : '';
+  }
+  return JSON.stringify(template, null, 2);
+};
+
+const CHAIN_STEPS = ['get_my_accounts', 'get_account_balance', 'get_sensitive_account_details'];
+
+const chainOrder = (name) => {
+  const idx = CHAIN_STEPS.indexOf(name);
+  return idx === -1 ? null : idx + 1;
+};
 
 const TOOL_GROUPS = {
   Accounts: ['get_my_accounts', 'get_account_balance', 'get_sensitive_account_details'],
   Transactions: ['get_my_transactions'],
   Transfers: ['create_transfer'],
+  Search: ['brave_news_search'],
 };
 
 const groupKey = (name) => {
@@ -34,8 +148,8 @@ const groupKey = (name) => {
 
 const toolDotClass = (name) => {
   const lower = name.toLowerCase();
-  if (lower.includes('sensitive')) return 'p1mcp-tree-item__dot--sensitive';
-  if (lower.startsWith('create') || lower.includes('transfer')) return 'p1mcp-tree-item__dot--write';
+  if (lower.includes('sensitive')) return 'inspector-shell-tree-item__dot--sensitive';
+  if (lower.startsWith('create') || lower.includes('transfer')) return 'inspector-shell-tree-item__dot--write';
   return '';
 };
 
@@ -50,6 +164,9 @@ export default function AgentGatewayTester() {
   const [toolsSource, setToolsSource] = useState('static');
   const [selectedTool, setSelectedTool] = useState(null);
   const [argsText, setArgsText] = useState('{}');
+  const [capturedValues, setCapturedValues] = useState([]);
+  const [chainRunning, setChainRunning] = useState(false);
+  const [chainResults, setChainResults] = useState([]);
   const [sending, setSending] = useState(false);
   const [resp, setResp] = useState(null);
   const [rules, setRules] = useState(null);
@@ -191,6 +308,8 @@ export default function AgentGatewayTester() {
       const { data } = await apiClient.post('/api/mcp-gateway/test', { tool: selectedTool.name, args });
       setResp(data);
       setOutputTab('result');
+      const fresh = extractCapturedValues(data?.result ?? data?.rpcData);
+      if (fresh.length) setCapturedValues((prev) => mergeCapturedValues(prev, fresh));
     } catch (e) {
       setResp({ clientError: formatAxiosError(e, 'Request failed') });
     } finally {
@@ -223,6 +342,57 @@ export default function AgentGatewayTester() {
     }
   }, [selectedTool, argsText]);
 
+  const runChain = useCallback(async () => {
+    setChainRunning(true);
+    setChainResults([]);
+    setOutputTab('chain');
+    let liveCaptured = capturedValues;
+    const results = [];
+    for (const toolName of CHAIN_STEPS) {
+      const tool = tools.find((t) => t.name === toolName);
+      if (!tool) {
+        results.push({ tool: toolName, ok: false, skipped: true, data: { clientError: 'Tool not available.' } });
+        setChainResults([...results]);
+        continue;
+      }
+      const stepArgsText = buildArgsTemplate(tool, liveCaptured);
+      let args;
+      try {
+        args = stepArgsText.trim() ? JSON.parse(stepArgsText) : {};
+      } catch {
+        results.push({ tool: toolName, ok: false, data: { clientError: 'Arguments must be valid JSON.' } });
+        setChainResults([...results]);
+        break;
+      }
+      // buildArgsTemplate only prefills required properties; account_id-like
+      // *optional* filters (e.g. get_sensitive_account_details) still need the
+      // chain to carry the id forward, so fill any unset schema property here.
+      const latestId = liveCaptured[0]?.value;
+      if (latestId) {
+        for (const key of Object.keys(tool.inputSchema?.properties || {})) {
+          if (ACCOUNT_ID_PATTERN.test(key) && !(key in args)) args[key] = latestId;
+        }
+      }
+      try {
+        const { data } = await apiClient.post('/api/mcp-gateway/test', { tool: toolName, args });
+        const ok = !data.clientError && data.ok !== false && data.result?.ok !== false;
+        results.push({ tool: toolName, ok, data });
+        setChainResults([...results]);
+        const fresh = extractCapturedValues(data?.result ?? data?.rpcData);
+        if (fresh.length) {
+          liveCaptured = mergeCapturedValues(liveCaptured, fresh);
+          setCapturedValues(liveCaptured);
+        }
+        if (!ok) break;
+      } catch (e) {
+        results.push({ tool: toolName, ok: false, data: { clientError: formatAxiosError(e, 'Request failed') } });
+        setChainResults([...results]);
+        break;
+      }
+    }
+    setChainRunning(false);
+  }, [tools, capturedValues]);
+
   const usePing = active?.usePingGateway;
   const simulated = active?.simulated;
   const az = resp?.gwAuditTrail?.authorize || null;
@@ -243,13 +413,13 @@ export default function AgentGatewayTester() {
       if (!groups[g]) groups[g] = [];
       groups[g].push(t);
     }
-    const order = ['Accounts', 'Transactions', 'Transfers', 'Other'];
+    const order = ['Accounts', 'Transactions', 'Transfers', 'Search', 'Other'];
     return order.filter(g => groups[g]?.length).map(g => ({ label: g, tools: groups[g] }));
   }, [tools, toolSearch]);
 
   const selectTool = (t) => {
     setSelectedTool(t);
-    setArgsText('{}');
+    setArgsText(buildArgsTemplate(t, capturedValues));
     setResp(null);
     setOutputTab('result');
   };
@@ -262,54 +432,47 @@ export default function AgentGatewayTester() {
   };
 
   return (
-    <div className="p1mcp-page">
-      {/* Top bar */}
-      <div className="p1mcp-topbar">
-        <span className={`p1mcp-topbar__dot ${active ? '' : 'p1mcp-topbar__dot--off'}`} />
-        <h1>Agent Gateway Tester</h1>
-        <span className="p1mcp-topbar__status">
-          {active
-            ? `${active.name} | Authz: ${active.authzBackend}`
-            : 'Loading...'}
-        </span>
-        <div className="p1mcp-topbar__right">
+    <InspectorShell
+      title="Agent Gateway Tester"
+      statusOn={!!active}
+      statusText={active ? `${active.name} | Authz: ${active.authzBackend}` : 'Loading...'}
+      fullHeight={false}
+      actions={
+        <>
           <button
-            className="p1mcp-topbar__btn"
+            className="inspector-shell-topbar__btn"
             onClick={() => { fetchActive(); fetchTools(); fetchRules(); fetchRateStatus(); }}
           >
             Refresh
           </button>
           <button
-            className="p1mcp-topbar__btn"
+            className="inspector-shell-topbar__btn"
             disabled={toggling === GATEWAY_FLAG || !active}
             onClick={() => toggleFlag(GATEWAY_FLAG, usePing)}
           >
             {toggling === GATEWAY_FLAG ? 'Switching...' : `Switch to ${usePing ? 'Demo' : 'PingOne'} GW`}
           </button>
           <button
-            className="p1mcp-topbar__btn"
+            className="inspector-shell-topbar__btn"
             disabled={toggling === AUTHZ_FLAG || !active}
             onClick={() => toggleFlag(AUTHZ_FLAG, simulated)}
           >
             {toggling === AUTHZ_FLAG ? 'Switching...' : `Authz: ${simulated ? 'simulated' : 'real'}`}
           </button>
-        </div>
-      </div>
-
-      {/* Three-column grid */}
-      <div className="p1mcp-grid">
-        {/* Column 1: Tree */}
-        <div className="p1mcp-col-tree">
-          <div className="p1mcp-tree-header">
+        </>
+      }
+      left={
+        <>
+          <div className="inspector-shell-tree-header">
             <span>
               <button
-                className={`p1mcp-topbar__btn ${treeSection === 'tools' ? 'p1mcp-topbar__btn--active' : ''}`}
+                className={`inspector-shell-topbar__btn ${treeSection === 'tools' ? 'inspector-shell-topbar__btn--active' : ''}`}
                 style={{ fontSize: 10, padding: '2px 8px' }}
                 onClick={() => setTreeSection('tools')}
               >Tools</button>
               {' '}
               <button
-                className={`p1mcp-topbar__btn ${treeSection === 'config' ? 'p1mcp-topbar__btn--active' : ''}`}
+                className={`inspector-shell-topbar__btn ${treeSection === 'config' ? 'inspector-shell-topbar__btn--active' : ''}`}
                 style={{ fontSize: 10, padding: '2px 8px' }}
                 onClick={() => setTreeSection('config')}
               >Config</button>
@@ -317,7 +480,7 @@ export default function AgentGatewayTester() {
           </div>
           {treeSection === 'tools' && (
             <>
-              <div className="p1mcp-tree-search">
+              <div className="inspector-shell-tree-search">
                 <input
                   type="search"
                   placeholder="Filter tools..."
@@ -326,23 +489,26 @@ export default function AgentGatewayTester() {
                   spellCheck={false}
                 />
               </div>
-              <div className="p1mcp-tree-body">
+              <div className="inspector-shell-tree-body">
                 {groupedTools.map(group => (
-                  <div className="p1mcp-tree-group" key={group.label}>
-                    <div className="p1mcp-tree-group__label">{group.label} ({group.tools.length})</div>
+                  <div className="inspector-shell-tree-group" key={group.label}>
+                    <div className="inspector-shell-tree-group__label">{group.label} ({group.tools.length})</div>
                     {group.tools.map(t => (
                       <div
                         key={t.name}
-                        className={`p1mcp-tree-item ${selectedTool?.name === t.name ? 'p1mcp-tree-item--active' : ''}`}
+                        className={`inspector-shell-tree-item ${selectedTool?.name === t.name ? 'inspector-shell-tree-item--active' : ''}`}
                         onClick={() => selectTool(t)}
                       >
-                        <span className={`p1mcp-tree-item__dot ${toolDotClass(t.name)}`} />
+                        <span className={`inspector-shell-tree-item__dot ${toolDotClass(t.name)}`} />
                         <span>{t.name}</span>
+                        {chainOrder(t.name) && (
+                          <span className="inspector-shell-tree-item__badge inspector-shell-tree-item__badge--order">{chainOrder(t.name)}</span>
+                        )}
                         {toolDotClass(t.name).includes('write') && (
-                          <span className="p1mcp-tree-item__badge p1mcp-tree-item__badge--write">W</span>
+                          <span className="inspector-shell-tree-item__badge inspector-shell-tree-item__badge--write">W</span>
                         )}
                         {toolDotClass(t.name).includes('sensitive') && (
-                          <span className="p1mcp-tree-item__badge p1mcp-tree-item__badge--sensitive">S</span>
+                          <span className="inspector-shell-tree-item__badge inspector-shell-tree-item__badge--sensitive">S</span>
                         )}
                       </div>
                     ))}
@@ -360,168 +526,227 @@ export default function AgentGatewayTester() {
             </>
           )}
           {treeSection === 'config' && (
-            <div className="p1mcp-tree-body">
-              <div className="p1mcp-tree-group">
-                <div className="p1mcp-tree-group__label">Gateway</div>
-                <div className="p1mcp-tree-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4, cursor: 'default' }}>
+            <div className="inspector-shell-tree-body">
+              <div className="inspector-shell-tree-group">
+                <div className="inspector-shell-tree-group__label">Gateway</div>
+                <div className="inspector-shell-tree-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4, cursor: 'default' }}>
                   <span style={{ fontSize: 11, color: '#475569' }}>Active: {active?.name || '...'}</span>
                   {active?.url && <code style={{ fontSize: 10, color: '#64748b' }}>{active.url}</code>}
                 </div>
               </div>
-              <div className="p1mcp-tree-group">
-                <div className="p1mcp-tree-group__label">Rate Limiting (UC18)</div>
+              <div className="inspector-shell-tree-group">
+                <div className="inspector-shell-tree-group__label">Rate Limiting (UC18)</div>
                 {rateStatus && (
                   <>
-                    <div className="p1mcp-tree-item" style={{ cursor: 'default', fontSize: 11 }}>
-                      <span className="p1mcp-tree-item__dot" style={{ background: rateStatus.aligned ? '#22c55e' : '#ef4444' }} />
+                    <div className="inspector-shell-tree-item" style={{ cursor: 'default', fontSize: 11 }}>
+                      <span className="inspector-shell-tree-item__dot" style={{ background: rateStatus.aligned ? '#22c55e' : '#ef4444' }} />
                       <span>Layer: {rateStatus.rateLimitLayer || 'off'}</span>
                     </div>
-                    <div className="p1mcp-tree-item" style={{ cursor: 'default', fontSize: 11 }}>
-                      <span className="p1mcp-tree-item__dot" style={{ background: rateStatus.bffFlag ? '#22c55e' : '#64748b' }} />
+                    <div className="inspector-shell-tree-item" style={{ cursor: 'default', fontSize: 11 }}>
+                      <span className="inspector-shell-tree-item__dot" style={{ background: rateStatus.bffFlag ? '#22c55e' : '#64748b' }} />
                       <span>BFF flag: {rateStatus.bffFlag ? 'ON' : 'OFF'}</span>
                     </div>
-                    <div className="p1mcp-tree-item" style={{ cursor: 'default', fontSize: 11 }}>
-                      <span className="p1mcp-tree-item__dot" style={{ background: rateStatus.aligned ? '#22c55e' : '#f59e0b' }} />
+                    <div className="inspector-shell-tree-item" style={{ cursor: 'default', fontSize: 11 }}>
+                      <span className="inspector-shell-tree-item__dot" style={{ background: rateStatus.aligned ? '#22c55e' : '#f59e0b' }} />
                       <span>Aligned: {rateStatus.aligned ? 'YES' : 'NO'}</span>
                     </div>
                   </>
                 )}
                 <div
-                  className="p1mcp-tree-item"
+                  className="inspector-shell-tree-item"
                   onClick={toggleUc18Demo}
                   style={{ color: uc18Busy ? '#475569' : '#3b82f6', fontSize: 11 }}
                 >
-                  <span className="p1mcp-tree-item__dot" style={{ background: '#3b82f6' }} />
+                  <span className="inspector-shell-tree-item__dot" style={{ background: '#3b82f6' }} />
                   <span>{uc18Busy ? 'Updating...' : (rateStatus?.aligned ? 'Disable UC18' : 'Enable UC18')}</span>
                 </div>
                 <div
-                  className="p1mcp-tree-item"
+                  className="inspector-shell-tree-item"
                   onClick={() => !bursting && selectedTool && rateStatus?.aligned && runBurst()}
                   style={{ color: (!selectedTool || !rateStatus?.aligned || bursting) ? '#475569' : '#3b82f6', fontSize: 11 }}
                 >
-                  <span className="p1mcp-tree-item__dot" style={{ background: '#f59e0b' }} />
+                  <span className="inspector-shell-tree-item__dot" style={{ background: '#f59e0b' }} />
                   <span>{bursting ? 'Running...' : 'Burst test (5 calls)'}</span>
                 </div>
               </div>
-              <div className="p1mcp-tree-group">
-                <div className="p1mcp-tree-group__label">Demo Presets</div>
+              <div className="inspector-shell-tree-group">
+                <div className="inspector-shell-tree-group__label">Sequential Chain</div>
+                <div
+                  className="inspector-shell-tree-item"
+                  onClick={() => !chainRunning && runChain()}
+                  style={{ color: chainRunning ? '#475569' : '#3b82f6', fontSize: 11 }}
+                >
+                  <span className="inspector-shell-tree-item__dot" style={{ background: '#6366f1' }} />
+                  <span>{chainRunning ? 'Running chain…' : 'Run chain (accounts → balance → sensitive)'}</span>
+                </div>
+              </div>
+              <div className="inspector-shell-tree-group">
+                <div className="inspector-shell-tree-group__label">Demo Presets</div>
                 {PRESETS.map(p => (
                   <div
                     key={p.id}
-                    className="p1mcp-tree-item"
+                    className="inspector-shell-tree-item"
                     onClick={() => !presetBusy && runPreset(p.id)}
                     style={{ color: presetBusy ? '#475569' : '#3b82f6', fontSize: 11 }}
                   >
-                    <span className="p1mcp-tree-item__dot" style={{ background: '#8b5cf6' }} />
+                    <span className="inspector-shell-tree-item__dot" style={{ background: '#8b5cf6' }} />
                     <span>{presetBusy === p.id ? 'Applying...' : p.label}</span>
                   </div>
                 ))}
               </div>
-              <div className="p1mcp-tree-group">
-                <div className="p1mcp-tree-group__label">RFC 9728 Metadata</div>
+              <div className="inspector-shell-tree-group">
+                <div className="inspector-shell-tree-group__label">RFC 9728 Metadata</div>
                 <div
-                  className="p1mcp-tree-item"
+                  className="inspector-shell-tree-item"
                   onClick={() => !metadataLoading && fetchMetadata()}
                   style={{ color: metadataLoading ? '#475569' : '#3b82f6', fontSize: 11 }}
                 >
-                  <span className="p1mcp-tree-item__dot" style={{ background: '#06b6d4' }} />
+                  <span className="inspector-shell-tree-item__dot" style={{ background: '#06b6d4' }} />
                   <span>{metadataLoading ? 'Fetching...' : 'Fetch live metadata'}</span>
                 </div>
                 {metadata && Object.entries(metadata).map(([key, data]) => (
-                  <div key={key} className="p1mcp-tree-item" style={{ cursor: 'default', fontSize: 10 }}>
-                    <span className="p1mcp-tree-item__dot" style={{ background: data?._status === 'ok' ? '#22c55e' : '#ef4444' }} />
+                  <div key={key} className="inspector-shell-tree-item" style={{ cursor: 'default', fontSize: 10 }}>
+                    <span className="inspector-shell-tree-item__dot" style={{ background: data?._status === 'ok' ? '#22c55e' : '#ef4444' }} />
                     <span>{key}: {data?._status || 'unknown'}</span>
                   </div>
                 ))}
               </div>
             </div>
           )}
-        </div>
-
-        {/* Column 2: Form */}
-        <div className="p1mcp-col-form">
-          {selectedTool ? (
-            <>
-              <div className="p1mcp-form-header">
-                <div className="p1mcp-form-header__name">{selectedTool.name}</div>
-                {selectedTool.description && (
-                  <div className="p1mcp-form-header__desc">{selectedTool.description}</div>
-                )}
-              </div>
-              <div className="p1mcp-form-actions p1mcp-form-actions--top">
-                <button className="p1mcp-btn-call" onClick={send} disabled={sending}>
-                  {sending ? 'Sending...' : 'Execute'}
-                </button>
-                <button className="p1mcp-btn-clear" onClick={clearForm}>Clear</button>
-              </div>
-              <div className="p1mcp-form-body">
-                <div className="p1mcp-field">
-                  <label>
-                    Arguments (JSON)
-                    <span className="type">object</span>
-                  </label>
-                  <textarea
-                    value={argsText}
-                    onChange={e => setArgsText(e.target.value)}
-                    placeholder='{}'
-                    spellCheck={false}
-                    rows={6}
-                    style={{ fontFamily: "'SF Mono', monospace" }}
-                  />
-                </div>
-                {active && (
-                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 8, lineHeight: 1.6 }}>
-                    <div>Gateway: <strong style={{ color: '#334155' }}>{active.name}</strong></div>
-                    <div>Authorize: <strong style={{ color: '#334155' }}>{active.authzBackend}</strong></div>
-                    {active.url && <div>URL: <code style={{ fontSize: 10 }}>{active.url}</code></div>}
-                  </div>
-                )}
-              </div>
-              <div className="p1mcp-form-actions">
-                <button className="p1mcp-btn-call" onClick={send} disabled={sending}>
-                  {sending ? 'Sending...' : 'Execute'}
-                </button>
-                <button className="p1mcp-btn-clear" onClick={clearForm}>Clear</button>
-                {rateStatus?.aligned && (
-                  <button
-                    className="p1mcp-btn-clear"
-                    onClick={runBurst}
-                    disabled={bursting}
-                    style={{ marginLeft: 'auto' }}
-                  >
-                    {bursting ? 'Burst...' : 'Burst x5'}
-                  </button>
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="p1mcp-form-empty">
-              Select a tool from the tree to send through the Agent Gateway.
+        </>
+      }
+      middle={
+        selectedTool ? (
+          <>
+            <div className="inspector-shell-form-header">
+              <div className="inspector-shell-form-header__name">{selectedTool.name}</div>
+              {selectedTool.description && (
+                <div className="inspector-shell-form-header__desc">{selectedTool.description}</div>
+              )}
             </div>
-          )}
-        </div>
-
-        {/* Column 3: Output */}
-        <div className="p1mcp-col-output">
-          <div className="p1mcp-output-tabs">
-            {['result', 'audit', 'authorize', 'mcpAudit'].map(tab => (
-              <button
-                key={tab}
-                className={`p1mcp-output-tab ${outputTab === tab ? 'p1mcp-output-tab--active' : ''}`}
-                onClick={() => setOutputTab(tab)}
-              >
-                {tab === 'result' && 'Result'}
-                {tab === 'audit' && 'Audit Trail'}
-                {tab === 'authorize' && 'Authorize Decision'}
-                {tab === 'mcpAudit' && 'McpAudit (5W1H)'}
+            <div className="inspector-shell-form-actions inspector-shell-form-actions--top">
+              <button className="inspector-shell-btn-call" onClick={send} disabled={sending}>
+                {sending ? 'Sending...' : 'Execute'}
               </button>
-            ))}
+              <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
+            </div>
+            <div className="inspector-shell-form-body">
+              <div className="inspector-shell-field">
+                <label>
+                  Arguments (JSON)
+                  <span className="type">object</span>
+                </label>
+                {capturedValues.length > 0 && (
+                  <select
+                    aria-label="Insert captured value"
+                    value=""
+                    style={{ marginBottom: 6, fontSize: 11 }}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (!val) return;
+                      try {
+                        const parsed = argsText.trim() ? JSON.parse(argsText) : {};
+                        const key =
+                          Object.keys(parsed).find((k) => ACCOUNT_ID_PATTERN.test(k)) ||
+                          (selectedTool?.inputSchema?.required || []).find((k) => ACCOUNT_ID_PATTERN.test(k));
+                        if (key) {
+                          parsed[key] = val;
+                          setArgsText(JSON.stringify(parsed, null, 2));
+                        }
+                      } catch {
+                        // Invalid JSON in the box — leave it for the user to fix.
+                      }
+                    }}
+                  >
+                    <option value="">Insert captured value…</option>
+                    {capturedValues.map((c) => (
+                      <option key={c.value} value={c.value}>{c.label}</option>
+                    ))}
+                  </select>
+                )}
+                <textarea
+                  value={argsText}
+                  onChange={e => setArgsText(e.target.value)}
+                  placeholder='{}'
+                  spellCheck={false}
+                  rows={6}
+                  style={{ fontFamily: "'SF Mono', monospace" }}
+                />
+              </div>
+              {active && (
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: 8, lineHeight: 1.6 }}>
+                  <div>Gateway: <strong style={{ color: '#334155' }}>{active.name}</strong></div>
+                  <div>Authorize: <strong style={{ color: '#334155' }}>{active.authzBackend}</strong></div>
+                  {active.url && <div>URL: <code style={{ fontSize: 10 }}>{active.url}</code></div>}
+                </div>
+              )}
+            </div>
+            <div className="inspector-shell-form-actions">
+              <button className="inspector-shell-btn-call" onClick={send} disabled={sending}>
+                {sending ? 'Sending...' : 'Execute'}
+              </button>
+              <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
+              {rateStatus?.aligned && (
+                <button
+                  className="inspector-shell-btn-clear"
+                  onClick={runBurst}
+                  disabled={bursting}
+                  style={{ marginLeft: 'auto' }}
+                >
+                  {bursting ? 'Burst...' : 'Burst x5'}
+                </button>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="inspector-shell-form-empty">
+            Select a tool from the tree to send through the Agent Gateway.
           </div>
-          {resp ? (
+        )
+      }
+      right={
+        <>
+          <InspectorTabs
+            tabs={[
+              { key: 'result', label: 'Result' },
+              { key: 'audit', label: 'Audit Trail' },
+              { key: 'authorize', label: 'Authorize Decision' },
+              { key: 'mcpAudit', label: 'McpAudit (5W1H)' },
+              { key: 'form', label: 'Form' },
+              { key: 'chain', label: 'Chain' },
+            ]}
+            activeKey={outputTab}
+            onChange={setOutputTab}
+          />
+          {outputTab === 'chain' ? (
+            <div className="inspector-shell-output-body">
+              <pre className="inspector-shell-output-code">
+                {chainResults.length === 0 ? (
+                  <div style={{ padding: 16, color: '#64748b', fontSize: 12 }}>
+                    {chainRunning ? 'Running chain…' : 'Click "Run chain" (Config tab) to execute get_my_accounts → get_account_balance → get_sensitive_account_details in order.'}
+                  </div>
+                ) : (
+                  chainResults.map((step, i) => (
+                    <div
+                      key={`${step.tool}-${i}`}
+                      onClick={() => { if (!step.skipped) { setResp(step.data); setOutputTab('result'); } }}
+                      style={{ padding: '8px 12px', borderBottom: '1px solid #e2e8f0', cursor: step.skipped ? 'default' : 'pointer', display: 'flex', justifyContent: 'space-between', fontSize: 12 }}
+                    >
+                      <span>{i + 1}. {step.tool}</span>
+                      <span style={{ color: step.ok ? '#16a34a' : '#dc2626' }}>
+                        {step.skipped ? 'skipped' : step.ok ? `OK (${step.data.durationMs ?? '?'}ms)` : 'error'}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </pre>
+            </div>
+          ) : resp ? (
             <>
-              <div className="p1mcp-output-body">
-                <pre className="p1mcp-output-code">
+              <div className="inspector-shell-output-body">
+                <pre className="inspector-shell-output-code">
                   {outputTab === 'result' && <JsonHighlight value={resultValue} />}
+                  {outputTab === 'form' && <JsonFormView value={resultValue} />}
                   {outputTab === 'audit' && (
                     <JsonHighlight value={resp.gwAuditTrail || { note: 'No audit trail on this response.' }} />
                   )}
@@ -668,7 +893,7 @@ export default function AgentGatewayTester() {
                   )}
                 </pre>
               </div>
-              <div className="p1mcp-output-footer">
+              <div className="inspector-shell-output-footer">
                 <span>
                   <strong>Status:</strong>{' '}
                   {resp.clientError
@@ -686,24 +911,24 @@ export default function AgentGatewayTester() {
             </>
           ) : burstResp ? (
             <>
-              <div className="p1mcp-output-body">
-                <pre className="p1mcp-output-code">
+              <div className="inspector-shell-output-body">
+                <pre className="inspector-shell-output-code">
                   <JsonHighlight value={burstResp} />
                 </pre>
               </div>
-              <div className="p1mcp-output-footer">
+              <div className="inspector-shell-output-footer">
                 <span><strong>Burst test:</strong> {burstResp.summary || `${(burstResp.results || []).length} calls`}</span>
               </div>
             </>
           ) : (
-            <div className="p1mcp-output-empty">
+            <div className="inspector-shell-output-empty">
               {selectedTool
                 ? 'Click Execute to send through the gateway and see results here.'
                 : 'Select a tool, then execute it to see results.'}
             </div>
           )}
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    />
   );
 }

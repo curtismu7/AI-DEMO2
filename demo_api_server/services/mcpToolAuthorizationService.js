@@ -9,11 +9,14 @@
 'use strict';
 
 const configStore = require('./configStore');
+const runtimeSettings = require('../config/runtimeSettings');
 const pingOneAuthorizeService = require('./pingOneAuthorizeService');
 const simulatedAuthorizeService = require('./simulatedAuthorizeService');
 const { decodeJwtClaims } = require('./agentMcpTokenService');
 const { buildActorBridgeHeaders } = require('./mcpActorBridge');
 const hitlServiceClient = require('./hitlServiceClient');
+const cibaTransactionReceipt = require('./cibaTransactionReceipt');
+const hitlCredit = require('./hitlCredit');
 const dataStore = require('../data/store');
 const groupPolicy = require('./groupPolicy');
 const {
@@ -21,6 +24,7 @@ const {
   resolveDemoUserGroupsForUseCase,
   shouldApplyEntitlementTierDemo,
 } = require('./useCaseDemoBehaviors');
+const { getUseCaseStepUpMethod } = require('../config/useCases');
 const { verticalManifest } = require('./verticalManifest');
 
 /**
@@ -43,32 +47,82 @@ function nestedActIdFromClaim(act) {
  *
  *   PingGateway mode (ff_mcp_gateway_pinggateway) → pingone_resource_pinggateway_uri
  *   Node gateway mode (MCP_GATEWAY_HTTP_URL set)  → pingone_resource_mcp_gateway_uri
- *   Two-Exchange (ff_two_exchange_delegation)     → pingone_resource_two_exchange_uri || mcp_resource_uri
- *   Single-Exchange (default)                     → mcp_resource_uri
+ *   Two-Exchange (the default)                    → pingone_resource_two_exchange_uri || mcp_resource_uri
+ *
+ * NOTE: this used to branch on configStore.getEffective('ff_two_exchange_delegation'),
+ * a key with NO entry in configStore FIELD_DEFS and no row in the featureFlags
+ * registry. getEffective() therefore returned undefined and `!== 'false'` was
+ * permanently true, making the final single-exchange branch dead code. The read
+ * was deleted rather than registered because the flag no longer drives anything:
+ * the exchange path is chosen by req.session.mcpExchangeMode
+ * (agentMcpTokenService.resolveMcpAccessTokenWithEvents — two exchanges are
+ * mandatory, 'single' is a debug-only escape hatch). Behaviour is unchanged.
  *
  * @returns {string} resolved resource URI, or '' when nothing is configured.
  */
-function resolveExpectedMcpResourceUri() {
+function _resolveResourceMode() {
   // useGateway: only true when explicitly configured (env var or persisted SQLite value).
   // Intentionally excludes FIELD_DEFS defaults — a default gateway URL doesn't mean the
   // gateway is deployed, so we must not switch audience resolution based on it.
   const useGateway = !!(process.env.MCP_GATEWAY_HTTP_URL || configStore.get('mcp_gateway_http_url'));
   const usePingGateway = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
-  const twoExchangeOn = configStore.getEffective('ff_two_exchange_delegation') !== 'false';
 
+  if (usePingGateway) return 'pinggateway';
+  if (useGateway) return 'gateway';
+  // Two-exchange is the mandatory default. origin/main branched here on
+  // ff_two_exchange_delegation, but that flag is unregistered (getEffective →
+  // undefined, `!== 'false'` permanently true), so the branch always returned
+  // 'two-exchange' and 'single-exchange' was dead. This branch keeps that exact
+  // behaviour WITHOUT reading the phantom flag (the 'single' path is a
+  // req.session.mcpExchangeMode escape hatch, not a config resolution) — so the
+  // authzGateFailOpen "never reads ff_two_exchange_delegation" guard holds.
+  return 'two-exchange';
+}
+
+function resolveExpectedMcpResourceUri() {
   // When routing through PingGateway (IG), the final token audience is the
   // PingGateway resource URI (https://api.ping.demo:3036/mcp), not the Node
   // gateway audience (mcpgateway.ping.demo).
-  if (usePingGateway) {
-    return configStore.getEffective('pingone_resource_pinggateway_uri') || process.env.PINGONE_RESOURCE_PINGGATEWAY_URI || 'https://api.ping.demo:3036/mcp';
+  // Every branch used to end in a literal `|| 'https://api.ping.demo:<port>/mcp'`.
+  // That contradicted this function's own contract (see @returns) and is the same
+  // defect class as a fabricated audience: an unconfigured deployment silently
+  // received a made-up expected resource, so the audience guard compared real
+  // tokens against an endpoint nobody had configured — and REGRESSION_PLAN §3
+  // forbids hardcoded hosts/ports outright. Resolution is config/env only; when
+  // nothing is configured the caller gets '' and must decide honestly what to do
+  // (omit the key, or report that no decision could be evaluated).
+  switch (_resolveResourceMode()) {
+    case 'pinggateway':
+      return configStore.getEffective('pingone_resource_pinggateway_uri') || process.env.PINGONE_RESOURCE_PINGGATEWAY_URI || '';
+    case 'gateway':
+      return configStore.getEffective('pingone_resource_mcp_gateway_uri') || '';
+    case 'two-exchange':
+      return configStore.getEffective('pingone_resource_two_exchange_uri') || configStore.getEffective('mcp_resource_uri') || '';
+    default:
+      return configStore.getEffective('mcp_resource_uri') || '';
   }
-  if (useGateway) {
-    return configStore.getEffective('pingone_resource_mcp_gateway_uri') || 'https://api.ping.demo:3000/mcp';
+}
+
+/**
+ * The setting that actually drives resolveExpectedMcpResourceUri() in the active
+ * mode. Used to render accurate remediation text on an audience mismatch — naming
+ * the wrong setting (e.g. MCP_SERVER_RESOURCE_URI on the PingGateway path) tells
+ * an operator to break a correct config.
+ *
+ * @returns {{ mode: string, settingKey: string, envVar: string|null }}
+ */
+function resolveExpectedMcpResourceSetting() {
+  const mode = _resolveResourceMode();
+  switch (mode) {
+    case 'pinggateway':
+      return { mode, settingKey: 'pingone_resource_pinggateway_uri', envVar: 'PINGONE_RESOURCE_PINGGATEWAY_URI' };
+    case 'gateway':
+      return { mode, settingKey: 'pingone_resource_mcp_gateway_uri', envVar: null };
+    case 'two-exchange':
+      return { mode, settingKey: 'pingone_resource_two_exchange_uri', envVar: null };
+    default:
+      return { mode, settingKey: 'mcp_resource_uri', envVar: null };
   }
-  if (twoExchangeOn) {
-    return configStore.getEffective('pingone_resource_two_exchange_uri') || configStore.getEffective('mcp_resource_uri') || 'https://api.ping.demo:3000/mcp';
-  }
-  return configStore.getEffective('mcp_resource_uri') || 'https://api.ping.demo:3000/mcp';
 }
 
 /**
@@ -81,12 +135,17 @@ function resolveExpectedMcpResourceUri() {
  * carry a native `act`; an empty actor there means genuinely no delegation, which the
  * UC16 no-actor guard must still be able to DENY. Mirrors resolveExpectedMcpResourceUri's
  * non-single-exchange branches so the bridge fallback and audience resolution agree.
+ *
+ * Two-exchange is the default and mandatory path (see resolveExpectedMcpResourceUri
+ * for why the unregistered ff_two_exchange_delegation read was removed), so this
+ * is true on every mode. It was ALREADY true on every mode — the deleted read
+ * returned undefined and `!== 'false'` was permanently true — so the deny posture
+ * is unchanged. Kept as a named predicate because the single-exchange escape
+ * hatch (req.session.mcpExchangeMode = 'single') is the case it exists to
+ * distinguish, and wiring that through is a separate change.
  */
 function isActorBridgedMode() {
-  const useGateway = !!(process.env.MCP_GATEWAY_HTTP_URL || configStore.get('mcp_gateway_http_url'));
-  const usePingGateway = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
-  const twoExchangeOn = configStore.getEffective('ff_two_exchange_delegation') !== 'false';
-  return useGateway || usePingGateway || twoExchangeOn;
+  return true;
 }
 
 /**
@@ -128,17 +187,39 @@ const WRITE_TOOL_TYPE_MAP = {
 };
 
 /**
- * Tools that carry a target resource identifier in their params. Returns the userId
- * who owns that resource, or null if the account cannot be found / tool does not apply.
- * Used to populate ResourceOwnerId in the authorization call so the policy can enforce
- * ownership (the Meta-chatbot attack prevention pattern).
+ * Account-scoped tools whose params name a target account. Used to populate
+ * ResourceOwnerId so PingOne Authorize / the mock can DENY cross-owner access
+ * (NNP-3, UC10 Meta-chatbot pattern). get_account_balance must be here: UC10's
+ * attack sim calls it with a foreign account_id — limiting this to
+ * update_contact_email left ResourceOwnerId unset, Authorize inert, and the
+ * sim reporting unexpected_permit even when the banking API correctly 403'd.
+ */
+const RESOURCE_OWNER_TOOLS = new Set([
+  'update_contact_email',
+  'get_account_balance',
+]);
+
+/**
+ * Tools that carry a target resource identifier in their params. Returns the
+ * owner id in the SAME space as subjectId / userSub (PingOne oauthId preferred,
+ * else the store user id), or null if the account cannot be found / tool does
+ * not apply.
  */
 function resolveResourceOwnerId(tool, toolParams) {
-  if (tool === 'update_contact_email' && toolParams && toolParams.account_id) {
-    const account = dataStore.getAccountById(toolParams.account_id);
-    return account ? account.userId : null;
-  }
-  return null;
+  if (!RESOURCE_OWNER_TOOLS.has(tool) || !toolParams) return null;
+  const accountId =
+    toolParams.account_id ||
+    toolParams.accountId ||
+    null;
+  if (!accountId) return null;
+  const account = dataStore.getAccountById(accountId);
+  if (!account) return null;
+  const owner = dataStore.getUserById(account.userId);
+  // Match evaluateMcpFirstToolGate's subjectId preference (oauthId / PingOne
+  // sub). Comparing store-internal ids to oauth UUIDs made the rule fire on
+  // every own-account call for bootstrap users linked to PingOne.
+  if (owner) return owner.oauthId || owner.id;
+  return account.userId;
 }
 
 /**
@@ -178,6 +259,194 @@ function resolveAmountForPolicy(tool, toolParams, verticalId, userId) {
 }
 
 /**
+ * Which step-up method the client should drive, echoed on every 428 step-up body.
+ *
+ * The agent step-up modal renders its device picker (SMS / email / passkey) only
+ * when this is exactly 'p1mfa'; any other value — including a missing field —
+ * makes it fall back to the stub OTP-only modal, so a passkey can never be
+ * chosen. Same resolution order as transactionAuthorizationService so the agent
+ * and direct transaction paths cannot disagree.
+ *
+ * A use case may DECLARE its step-up modality in the catalog (e.g. UC22 →
+ * 'ciba'); that explicit, amount-independent trigger wins over the global
+ * config default and is inherited by every vertical.
+ *
+ * @param {string|null} [useCaseId] - resolveActiveUseCaseId(req) result, if known
+ * @returns {string} 'p1mfa' | 'email' | 'ciba'
+ */
+function resolveStepUpMethod(useCaseId) {
+  const declared = getUseCaseStepUpMethod(useCaseId);
+  if (declared) return declared;
+  return (
+    configStore.getEffective('step_up_method') ||
+    runtimeSettings.get('stepUpMethod') ||
+    'email'
+  );
+}
+
+/**
+ * Local amount-limit overlay used when the live Transaction decision endpoint
+ * is unreachable (e.g. PingOne 429 REQUEST_LIMITED). Mirrors the MCP simulated
+ * amount ladder (deny / step-up / confirm) so UC6–UC8 still fire when the MCP
+ * first-tool gate alone returns bare PERMIT (live P1AZ MCP policy does not
+ * encode amount limits).
+ *
+ * @param {object} r - gate result
+ * @param {{amount: number, acr?: string}} opts
+ * @returns {object} r, possibly upgraded
+ */
+function _localAmountLimitFallback(r, { amount, acr }) {
+  const denyAmount = simulatedAuthorizeService.getDenyAmountUsd();
+  const stepUpAmount = simulatedAuthorizeService.getStepUpAmountUsd();
+  const confirmAmount = simulatedAuthorizeService.getConfirmAmountUsd();
+  const acrStrong = typeof acr === 'string'
+    && /multi.?factor|mfa|aal2|Multi_Factor/i.test(acr);
+
+  if (amount > denyAmount) {
+    return {
+      ...r,
+      decision: 'DENY',
+      transactionPolicyDenied: true,
+      transactionPolicyFallback: true,
+      raw: {
+        ...(r.raw || {}),
+        decision: 'DENY',
+        reason: `Local amount fallback DENY: $${amount} exceeds deny limit $${denyAmount} (Transaction endpoint unavailable).`,
+        engine: 'local-amount-fallback',
+      },
+    };
+  }
+  if (amount >= stepUpAmount && !acrStrong) {
+    return {
+      ...r,
+      stepUpRequired: true,
+      transactionPolicyStepUp: true,
+      transactionPolicyFallback: true,
+    };
+  }
+  if (amount >= confirmAmount && !acrStrong) {
+    return {
+      ...r,
+      hitlRequired: true,
+      transactionPolicyHitl: true,
+      transactionPolicyFallback: true,
+    };
+  }
+  return r;
+}
+
+/**
+ * Consult the Transaction decision endpoint for amount-bearing tool calls.
+ *
+ * The MCP first-tool gate answers "may this agent invoke this tool" — it does not
+ * evaluate transaction limits. The Amount rule lives on the Transaction policy,
+ * which until now was only reachable from routes/transactions.js (the direct
+ * transfer API). So an agent chip asking for a $2500 transfer got PERMIT + a HITL
+ * obligation from the gate and never met the limit rule at all — UC6 could not
+ * DENY through the agent path in any vertical.
+ *
+ * The limit policy's outcome takes precedence over the gate's, in the natural
+ * ordering DENY > STEP_UP > HITL: a hard limit-DENY overrides everything (UC6,
+ * $2500), and a step-up obligation outranks the gate's HITL so UC7 ($600) demos
+ * MFA step-up rather than the consent gate UC8 ($300) shows. A limit-policy
+ * result with only a consent obligation (or none) leaves the gate's decision
+ * intact — it must never CLEAR a HITL/step-up obligation the gate attached.
+ *
+ * The transaction policy is where amount thresholds live (verified live:
+ * $300 -> HITL, $600 -> step-up, $2500 -> DENY); the MCP first-tool gate itself
+ * only ever emits HITL, so without this consult UC6/UC7 could not fire.
+ *
+ * No amount → no call, so non-transactional tools are completely unaffected.
+ *
+ * @param {object} r - the gate's normalized PingOne result
+ * @param {{amount: number|null, transactionType: string|null, userId: string, acr: string}} opts
+ * @returns {Promise<object>} r, possibly upgraded to DENY or STEP_UP
+ */
+async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr, useCaseId }) {
+  // Explicit step-up trigger: a use case may DECLARE its step-up method in the
+  // catalog — 'ciba' (UC22, out-of-band) or 'p1mfa' (UC7, device-list MFA).
+  // Forcing stepUpRequired makes mapLivePingOneResult emit mcp_step_up_required
+  // with that method (resolveStepUpMethod), so the transaction rides the SAME
+  // step-up path and the UI's single handler branches on step_up_method. This is
+  // amount-independent (never collides with the amount-based MFA threshold) and
+  // cross-vertical (declared once, inherited by every vertical). It also fires
+  // the correct STEP_UP decision here even though the live P1AZ MCP policy only
+  // returns HITL for every amount — without it, the "Step-up required" demo
+  // (UC7) evaluated to HITL and the proof strip flagged an authorize mismatch.
+  // DENY still wins: mapLivePingOneResult checks r.decision==='DENY' before
+  // step-up, and the transaction-policy DENY below is evaluated first.
+  const declaredMethod = getUseCaseStepUpMethod(useCaseId);
+  const forceStepUp = !!declaredMethod;
+  if (!forceStepUp && (!transactionType || !Number.isFinite(amount) || amount <= 0 || !userId)) return r;
+  if (r.decision === 'DENY' || r.policyNotFound || r.stepUpRequired) return r; // already at/above what we could add
+  try {
+    const t = await pingOneAuthorizeService.evaluateTransaction({
+      userId, amount, type: transactionType, acr,
+    });
+    if (t && t.decision === 'DENY') {
+      return {
+        ...r,
+        decision: 'DENY',
+        // Surface the limit policy's own decision id/response so the Token Chain
+        // and the 403 body show the rule that actually denied, not the gate's.
+        decisionId: t.decisionId || r.decisionId,
+        raw: t.raw || r.raw,
+        transactionPolicyDenied: true,
+      };
+    }
+    if (forceStepUp || (t && t.stepUpRequired)) {
+      // Step-up outranks HITL. Setting stepUpRequired makes mapLivePingOneResult
+      // take its step-up branch (checked before HITL) — a 428 mcp_step_up_required.
+      // Clear hitlRequired so the gate's HITL obligation doesn't bleed through.
+      return {
+        ...r,
+        stepUpRequired: true,
+        hitlRequired: false,
+        decisionId: t?.decisionId || r.decisionId,
+        raw: t?.raw || r.raw,
+        transactionPolicyStepUp: true,
+      };
+    }
+    // Promote Transaction-policy HITL/consent onto the MCP gate. The gate itself
+    // often PERMITs vertical writes (pay_bill, checkout, …) with no obligation;
+    // without this, UC8 ($300) executed and ProofStrip showed authorize mismatch.
+    if (t && (t.consentRequired || t.hitlRequired)) {
+      return {
+        ...r,
+        hitlRequired: true,
+        decisionId: t.decisionId || r.decisionId,
+        raw: t.raw || r.raw,
+        transactionPolicyHitl: true,
+      };
+    }
+  } catch (err) {
+    // A declared step-up method is gated by the useCaseId, not the amount — it
+    // must still route to step-up even if the amount-limit consult errors.
+    if (forceStepUp) {
+      return { ...r, stepUpRequired: true, hitlRequired: false, transactionPolicyStepUp: true };
+    }
+    // Live MCP first-tool policy often PERMITs without amount obligations. The
+    // Transaction endpoint is what enforces $2500 DENY / $600 step-up / $300
+    // HITL. When it 429s (REQUEST_LIMITED) or errors, failing open to the gate
+    // made UC6 pay the bill and Proof show "Authz denied — Mismatch". Apply
+    // the same amount ladder locally so demos stay correct under P1AZ pressure.
+    console.warn(
+      '[mcpAuthz] transaction policy consult failed — applying local amount fallback:',
+      err.message,
+    );
+    return _localAmountLimitFallback(r, { amount, acr });
+  }
+  // Local amount-band fallback when Transaction consult returned bare PERMIT (no
+  // DENY/step-up/HITL). Live P1AZ Transaction endpoint may PERMIT without any
+  // gate for agent vertical writes; the amount ladder still applies so UC6/7/8
+  // fire correctly even when the Transaction endpoint does not enforce them.
+  if (!forceStepUp && Number.isFinite(amount) && amount > 0) {
+    return _localAmountLimitFallback(r, { amount, acr });
+  }
+  return r;
+}
+
+/**
  * Run MCP Authorize gate on every tool call when enabled. Evaluates aud/scope
  * from the token and business rules (e.g. HITL for transfers over threshold).
  *
@@ -204,12 +473,13 @@ function resolveAmountForPolicy(tool, toolParams, verticalId, userId) {
  */
 async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAcr, toolParams, hitlChallengeId = null }) {
   if (!agentToken || typeof agentToken !== 'string') {
-    return { ran: false, reason: 'no_agent_token' };
+    return { ran: false, reason: 'no_agent_token', skipReason: 'no_agent_token' };
   }
 
-  if (req.session?.user?.role === 'admin') {
-    return { ran: false, reason: 'admin_role_exempt' };
-  }
+  // NOTE: admin sessions used to return early here, skipping the ENTIRE
+  // authorization gate in code (F5). Role is now forwarded to the PDP as
+  // UserRole so the POLICY decides whether admin means anything — a code-level
+  // skip is not an authorization decision.
 
   // Resolved once here (not at the group-policy block below) because the amount
   // resolution needs it too.
@@ -266,6 +536,27 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     || (isActorBridgedMode() ? (buildActorBridgeHeaders()['X-Act-Client-Id'] || '') : '');
   const nestedActClientId = nestedActIdFromClaim(claims.act);
 
+  // ── Contract C1 token facts (F3) ───────────────────────────────────────────
+  // The gateway McpToolCall gate sends these; the BFF McpFirstTool gate did
+  // not, so the two evaluations of the same call saw different inputs and could
+  // legitimately disagree. Read straight off the presented token; null when the
+  // claim is absent so evaluateMcpToolDelegation OMITS the key (C1 rule 3 —
+  // omission means "unknown", not "verified absent").
+  // tokenScopes in particular is the only way the PDP can enforce least
+  // privilege on the default path (F11).
+  const tokenScopes = typeof claims.scope === 'string' && claims.scope
+    ? claims.scope
+    : (Array.isArray(claims.scope) ? claims.scope.join(' ') : null);
+  const tokenExp = typeof claims.exp === 'number' ? claims.exp : null;
+  const tokenIat = typeof claims.iat === 'number' ? claims.iat : null;
+  const tokenNbf = typeof claims.nbf === 'number' ? claims.nbf : null;
+  const tokenIss = claims.iss ? String(claims.iss) : null;
+  const mayActSub = claims.may_act && typeof claims.may_act === 'object' && claims.may_act.sub
+    ? String(claims.may_act.sub)
+    : null;
+  // Role as a policy INPUT, replacing the removed admin code-level bypass (F5).
+  const userRole = req.session?.user?.role || null;
+
   // ── HITL receipt verification (the ONLY place hitlApproved is derived) ──────
   // On a retry the agent echoes back the challenge id. Verify it against the
   // canonical HITL service (3009): approved + not-expired + bound to THIS
@@ -318,6 +609,43 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
   let inRequiredGroup = null;
   const verticalId = activeVerticalId;
   const useCaseId = resolveActiveUseCaseId(req);
+
+  // Session-level step-up already satisfied this cycle (CIBA / stub OTP
+  // completion) -- mirrors mcpLocalTools.js's consumption of the same flag.
+  // Unlike a real P1MFA re-auth, CIBA/OTP completion never re-mints the
+  // access token's ACR, so without this the presented token looks unchanged
+  // and this gate would re-demand step-up forever on the immediate retry.
+  // Single-use: consumed here so it cannot silently PERMIT a later,
+  // unrelated tool call. Suppresses only the step-up escalation below --
+  // DENY and HITL checks (which run first in every branch) are unaffected.
+  const stepUpAlreadyVerified = req.session?.stepUpVerified > Date.now();
+  if (stepUpAlreadyVerified) {
+    req.session.stepUpVerified = 0;
+  }
+
+  // Session-level HITL already satisfied this cycle via CIBA out-of-band
+  // approval (set by routes/ciba.js alongside stepUpVerified). CIBA approval
+  // is itself a human-in-the-loop event, so it discharges the HITL gate too —
+  // otherwise a checkout/transfer that trips both step-up AND HITL (e.g. UC22)
+  // clears step-up on retry but 428s forever on the untouched HITL statement.
+  // Single-use, same pattern as stepUpAlreadyVerified above.
+  const hitlAlreadyVerified = hitlCredit.isFresh(req.session);
+  if (hitlAlreadyVerified) {
+    // Consume-on-use (services/hitlCredit.js): the credit is spent below at the
+    // HITL-gate site it actually suppresses, NOT here — so an unrelated tool
+    // call no longer burns it out from under a pending transaction retry.
+    // This gate only covers the BFF's own pre-check (POST /api/mcp/tool). The
+    // real write for banking transaction tools still lands on POST
+    // /api/transactions via demo_mcp_server's BankingAPIClient, which calls
+    // back in over a bearer token only (no session cookie) — so that route's
+    // OWN session-based hitlVerified check can never see this approval.
+    // Stash a short-lived receipt keyed by (userId, tool, amount) so it can
+    // look the approval up without a session. See cibaTransactionReceipt.js.
+    if (transactionType && toolAmount != null) {
+      cibaTransactionReceipt.record(policyUserId, tool, toolAmount);
+    }
+  }
+
   if (groupPolicy.isEnabled(configStore) || shouldApplyEntitlementTierDemo(useCaseId)) {
     userGroups = await groupPolicy.groupsForUser(
       req.session?.user?.username,
@@ -373,6 +701,11 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     rarPermittedPayees,
     toAccountId,
     useCaseId,
+    // F5 — role as a policy INPUT. The live PingOne path already receives this;
+    // omitting it here made the two engines evaluate DIFFERENT inputs for the
+    // same call, which is finding F3 (the two evaluations can legitimately
+    // disagree) reproduced inside the failover path. Consumed by WS-D.
+    userRole,
   };
 
   // Live PingOne selected but no MCP decision endpoint is configured. Honor the
@@ -389,11 +722,16 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     } else if (failoverMode === 'deny') {
       notConfiguredDeny = true;
     } else {
+      // Contract C4 — omission is not permission. The caller must be able to
+      // tell "the gate did not run" from "the gate PERMITted", so the skip
+      // carries an explicit, inspectable reason.
       console.warn(
         '[MCP Authorize] authorize_mcp_decision_endpoint_id (or worker credentials) is missing ' +
-          'and failover is permit — skipping the live PingOne MCP gate.',
+          `and failover is permit — SKIPPING the live PingOne MCP gate for tool=${tool}. ` +
+          'This call is NOT authorized.',
       );
-      return { ran: false };
+      return { ran: false, reason: 'authorize_not_configured_failover_permit',
+               skipReason: 'authorize_not_configured_failover_permit' };
     }
   }
 
@@ -419,6 +757,15 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     toAccountId,
     useCaseId,
     verticalId,
+    // Contract C1 (F3) + role as policy input (F5).
+    clientId: subjectId || null,
+    mayActSub,
+    tokenScopes,
+    tokenExp,
+    tokenIat,
+    tokenNbf,
+    tokenIss,
+    userRole,
   };
 
   const mapLivePingOneResult = (r, { autoDisabledGroupPolicy = false } = {}) => {
@@ -470,7 +817,7 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
       };
     }
 
-    if (r.stepUpRequired) {
+    if (r.stepUpRequired && !stepUpAlreadyVerified) {
       return {
         ran: true,
         block: {
@@ -482,6 +829,10 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
             authorize_engine: 'pingone',
             decisionContext: 'McpFirstTool',
             decisionId: r.decisionId,
+            // Drives the agent step-up modal: only 'p1mfa' makes it show the
+            // device picker (SMS / email / passkey). Omitting the field left it
+            // undefined, so every agent step-up fell back to stub OTP-only.
+            step_up_method: resolveStepUpMethod(useCaseId),
             ...autoDisabled,
           },
         },
@@ -506,7 +857,10 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
       };
     }
 
-    if (r.hitlRequired) {
+    if (r.hitlRequired && hitlAlreadyVerified) {
+      // Consume-on-use: the credit discharged this HITL gate, so spend it now.
+      hitlCredit.consume(req.session);
+    } else if (r.hitlRequired) {
       return {
         ran: true,
         block: {
@@ -544,57 +898,10 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     if (runSimulated) {
       const r = await simulatedAuthorizeService.evaluateMcpFirstTool(simParams);
 
-      if (r.stepUpRequired) {
-        return {
-          ran: true,
-          block: {
-            status: 428,
-            body: {
-              error: 'mcp_step_up_required',
-              error_description:
-                'Simulated authorization policy requires step-up before MCP tools (education mode).',
-              authorize_engine: 'simulated',
-              decisionContext: 'McpFirstTool',
-              decisionId: r.decisionId,
-            },
-          },
-        };
-      }
-
-      if (r.hitlRequired && hitlApproved) {
-        return {
-          ran: true,
-          block: {
-            status: 403,
-            body: {
-              error: 'mcp_hitl_receipt_rejected',
-              error_description:
-                'HITL receipt accepted but authorization engine still requires approval — possible policy misconfiguration.',
-              authorize_engine: 'simulated',
-              decisionContext: 'McpFirstTool',
-              decisionId: r.decisionId,
-            },
-          },
-        };
-      }
-
-      if (r.hitlRequired) {
-        return {
-          ran: true,
-          block: {
-            status: 428,
-            body: {
-              error: 'mcp_hitl_required',
-              error_description:
-                'Simulated authorization policy requires human approval before MCP tools (education mode).',
-              authorize_engine: 'simulated',
-              decisionContext: 'McpFirstTool',
-              decisionId: r.decisionId,
-            },
-          },
-        };
-      }
-
+      // DENY takes absolute precedence — mirrors mapLivePingOneResult ordering
+      // (DENY > step-up > HITL). Simulated gate sets stepUpRequired/hitlRequired
+      // false when it returns DENY, but checking DENY first is the invariant so
+      // the two paths cannot diverge regardless of future gate changes.
       if (r.decision === 'DENY') {
         return {
           ran: true,
@@ -619,6 +926,61 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
                 const { parameters: _p, ...rest } = r.raw;
                 return rest;
               })(),
+            },
+          },
+        };
+      }
+
+      if (r.stepUpRequired && !stepUpAlreadyVerified) {
+        return {
+          ran: true,
+          block: {
+            status: 428,
+            body: {
+              error: 'mcp_step_up_required',
+              error_description:
+                'Simulated authorization policy requires step-up before MCP tools (education mode).',
+              authorize_engine: 'simulated',
+              decisionContext: 'McpFirstTool',
+              decisionId: r.decisionId,
+              step_up_method: resolveStepUpMethod(useCaseId),
+            },
+          },
+        };
+      }
+
+      if (r.hitlRequired && hitlApproved) {
+        return {
+          ran: true,
+          block: {
+            status: 403,
+            body: {
+              error: 'mcp_hitl_receipt_rejected',
+              error_description:
+                'HITL receipt accepted but authorization engine still requires approval — possible policy misconfiguration.',
+              authorize_engine: 'simulated',
+              decisionContext: 'McpFirstTool',
+              decisionId: r.decisionId,
+            },
+          },
+        };
+      }
+
+      if (r.hitlRequired && hitlAlreadyVerified) {
+        // Consume-on-use: the credit discharged this HITL gate, so spend it now.
+        hitlCredit.consume(req.session);
+      } else if (r.hitlRequired) {
+        return {
+          ran: true,
+          block: {
+            status: 428,
+            body: {
+              error: 'mcp_hitl_required',
+              error_description:
+                'Simulated authorization policy requires human approval before MCP tools (education mode).',
+              authorize_engine: 'simulated',
+              decisionContext: 'McpFirstTool',
+              decisionId: r.decisionId,
             },
           },
         };
@@ -665,7 +1027,9 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     }
 
     const r = await pingOneAuthorizeService.evaluateMcpToolDelegation(liveDelegationArgs);
-    return mapLivePingOneResult(r);
+    return mapLivePingOneResult(await _applyTransactionPolicy(r, {
+      amount: toolAmount, transactionType, userId: policyUserId || subjectId, acr: userAcr, useCaseId,
+    }));
   } catch (err) {
     if (USE_SIMULATED) {
       return { ran: true, simulatedError: err };
@@ -704,8 +1068,13 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
       });
 
     if (failoverMode === 'permit') {
-      console.warn(`[MCP Authorize] PingOne error — fail open (failover=permit): ${err.message}`);
-      return { ran: false };
+      // Contract C4 — an unreachable PDP must not look like a PERMIT.
+      console.warn(
+        `[MCP Authorize] PingOne error — SKIPPING the gate (failover=permit) for tool=${tool}. ` +
+          `This call is NOT authorized: ${err.message}`,
+      );
+      return { ran: false, reason: 'pingone_error_failover_permit',
+               skipReason: 'pingone_error_failover_permit', authorizeFallback };
     }
 
     if (failoverMode === 'fallback_simulated') {
@@ -715,17 +1084,24 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
       console.warn(`[MCP Authorize] PingOne error — falling back to simulated engine: ${err.message}`);
       try {
         const r = await simulatedAuthorizeService.evaluateMcpFirstTool(simParams);
-        if (r.stepUpRequired) {
+        if (r.stepUpRequired && !stepUpAlreadyVerified) {
           return { ran: true, block: { status: 428, body: {
             error: 'mcp_step_up_required',
             error_description: 'PingOne Authorize was unreachable — simulated fallback requires step-up before MCP tools.',
             authorize_engine: 'fallback_simulated',
             decisionContext: 'McpFirstTool',
             decisionId: r.decisionId,
+            // Drives the agent step-up modal: only 'p1mfa' makes it show the
+            // device picker (SMS / email / passkey). Omitting the field left it
+            // undefined, so every agent step-up fell back to stub OTP-only.
+            step_up_method: resolveStepUpMethod(useCaseId),
             authorizeFallback,
           } } };
         }
-        if (r.hitlRequired) {
+        if (r.hitlRequired && hitlAlreadyVerified) {
+          // Consume-on-use: the credit discharged this HITL gate, so spend it now.
+          hitlCredit.consume(req.session);
+        } else if (r.hitlRequired) {
           return { ran: true, block: { status: 428, body: {
             error: 'mcp_hitl_required',
             error_description: 'PingOne Authorize was unreachable — simulated fallback requires human approval before MCP tools.',
@@ -796,9 +1172,16 @@ module.exports = {
   evaluateMcpFirstToolGate,
   getMcpFirstToolGateStatus,
   resolveExpectedMcpResourceUri,
+  resolveExpectedMcpResourceSetting,
   nestedActIdFromClaim,
   resolveAmountForPolicy,
   // Exported so tests can assert the gate contract: a vertical's amount action that
   // is absent here routes fine but is NEVER amount-gated (silent authorize).
   WRITE_TOOL_TYPE_MAP,
+  // Exported so UC10 / NNP-3 coverage can assert which tools populate ResourceOwnerId
+  // and that the returned id is in the subjectId (oauthId) space.
+  resolveResourceOwnerId,
+  RESOURCE_OWNER_TOOLS,
+  // Exported for direct unit testing of Transaction-policy precedence (UC6/7/8).
+  _applyTransactionPolicy,
 };

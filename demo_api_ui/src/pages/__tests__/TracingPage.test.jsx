@@ -1,11 +1,19 @@
 // demo_api_ui/src/pages/__tests__/TracingPage.test.jsx
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TracingPage from "../TracingPage";
 import {
   TRACING_SERVICE_STORAGE_KEY,
   __setTracingStorageForTests,
 } from "../tracingServiceSelect";
+
+vi.mock("../../components/TraceGraphView", () => ({
+  default: ({ traceId }) => <div data-testid="graph-view">graph:{traceId}</div>,
+}));
+vi.mock("../../components/ProjectedTimeline", () => ({
+  default: ({ traceId }) => <div data-testid="steps-view">steps:{traceId}</div>,
+}));
 
 function jsonOk(body) {
   return Promise.resolve({
@@ -150,6 +158,59 @@ describe("TracingPage", () => {
     fireEvent.change(screen.getByLabelText("Service"), { target: { value: "b-svc" } });
     await waitFor(() => expect(screen.getByText(/Try another service/i)).toBeInTheDocument());
     expect(store.getItem(TRACING_SERVICE_STORAGE_KEY)).toBe("b-svc");
+  });
+
+  it("expanded trace shows Waterfall|Graph|Steps tabs and switches views", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url) => {
+        const u = String(url);
+        if (u.includes("/tracing/status")) {
+          return jsonOk({ ok: true, jaegerUiUrl: "http://jaeger", otelEndpoint: "http://otel" });
+        }
+        if (u.includes("/tracing/services")) {
+          return jsonOk({ services: ["quiet-svc", "busy-svc"] });
+        }
+        if (u.includes("/tracing/traces/abcd1234abcd1234ffff")) {
+          return jsonOk({ spans: [], durationMs: 0, serviceColors: {} });
+        }
+        if (u.includes("service=quiet-svc") && u.includes("limit=5")) {
+          return jsonOk({ traces: [] });
+        }
+        if (u.includes("service=busy-svc") && u.includes("limit=5")) {
+          return jsonOk({
+            traces: [{ traceId: "abcd1234abcd1234ffff", startTime: "2026-07-15T12:00:00.000Z", operation: "GET", spanCount: 1, durationMs: 10 }],
+          });
+        }
+        if (u.includes("service=busy-svc") && u.includes("limit=25")) {
+          return jsonOk({
+            traces: [
+              {
+                traceId: "abcd1234abcd1234ffff",
+                startTime: "2026-07-15T12:00:00.000Z",
+                operation: "GET /accounts",
+                spanCount: 3,
+                durationMs: 42,
+              },
+            ],
+            timestamp: "2026-07-15T12:01:00.000Z",
+          });
+        }
+        return jsonOk({ traces: [] });
+      }),
+    );
+
+    render(<TracingPage />);
+    await waitFor(() => expect(screen.getByText("GET /accounts")).toBeInTheDocument());
+    await userEvent.click(screen.getByText("GET /accounts"));
+
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Waterfall" })).toBeInTheDocument());
+    expect(screen.queryByTestId("graph-view")).not.toBeInTheDocument(); // lazy: not mounted until selected
+    await userEvent.click(screen.getByRole("tab", { name: "Graph" }));
+    expect(screen.getByTestId("graph-view")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("tab", { name: "Steps" }));
+    expect(screen.getByTestId("steps-view")).toBeInTheDocument();
+    expect(screen.queryByTestId("graph-view")).not.toBeInTheDocument();
   });
 
   it("shows retry copy on HTTP 502 instead of empty traces", async () => {

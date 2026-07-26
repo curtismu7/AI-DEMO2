@@ -71,6 +71,23 @@ const BANKINGDATA_TOOLS = new Set([
     'demo_show_transactions',
 ]);
 
+// weather-mcp showcase: PingGateway (IG) only — 00-mcp-weather.json fronts a
+// third-party weather MCP server, scoped to Texas by tx-weather-scope.groovy.
+// No Node mcp-gateway equivalent exists. Only applied when the gateway base
+// IS PingGateway (base === pgUrl below).
+const WEATHER_TOOLS = new Set([
+    'get_weather',
+]);
+
+// brave-mcp showcase: PingGateway (IG) only — 00-mcp-brave.json fronts a
+// hand-written MCP server that calls the real Brave Search News API, gated
+// by tx-brave-scope.groovy (crypto-term content blocklist). No
+// Node mcp-gateway equivalent exists. Only applied when the gateway base IS
+// PingGateway (base === pgUrl below) — same conditional weather uses.
+const BRAVE_TOOLS = new Set([
+    'brave_news_search',
+]);
+
 /**
  * Call an MCP tool via the gateway HTTP endpoint.
  *
@@ -97,8 +114,34 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         const nodeUrl = (process.env.MCP_GATEWAY_HTTP_URL || configStore.getEffective('mcp_gateway_http_url') || '').replace(/\/$/, '');
         if (nodeUrl) base = nodeUrl;
     }
+    // A2A nested-act tokens are audienced to the DEDICATED A2A gateway resource
+    // (a2a_gateway_audience / A2A_GATEWAY_AUDIENCE), which only the Node Demo
+    // Agent Gateway accepts (comma-list MCP_GW_RESOURCE_URI). PingGateway (IG)
+    // introspects against its own resource URI and its McpProtectionFilter also
+    // requires scope gateway:mcp:invoke, so an A2A specialist call routed there
+    // always fails (401 wrong aud / 403 insufficient_scope). Pin A2A-audienced
+    // bearers to the Node gateway, same Node-only routing as Path B/C above and
+    // the RAR sims (#603). mcp_demo_gateway_url, not MCP_GATEWAY_HTTP_URL — the
+    // latter is baked per-container and may point at IG (#375).
+    if (pgUrl && base === pgUrl) {
+        const a2aAud = process.env.A2A_GATEWAY_AUDIENCE
+            || configStore.getEffective('a2a_gateway_audience') || '';
+        if (a2aAud) {
+            const claims = decodeJwt(bearerToken)?.claims;
+            const audList = Array.isArray(claims?.aud) ? claims.aud.map(String)
+                : (claims?.aud != null ? [String(claims.aud)] : []);
+            if (audList.includes(a2aAud)) {
+                const nodeUrl = (process.env.MCP_DEMO_GATEWAY_URL
+                    || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
+                if (nodeUrl) base = nodeUrl;
+            }
+        }
+    }
     const isIgBase = !!pgUrl && base === pgUrl;
-    const url  = isIgBase && APIKEY_TOOLS.has(tool) ? `${base}/mcp/apikey` : `${base}/mcp`;
+    const url  = isIgBase && APIKEY_TOOLS.has(tool) ? `${base}/mcp/apikey`
+               : isIgBase && WEATHER_TOOLS.has(tool) ? `${base}/mcp/weather`
+               : isIgBase && BRAVE_TOOLS.has(tool) ? `${base}/mcp/brave`
+               : `${base}/mcp`;
 
     const body = {
         jsonrpc: '2.0',
@@ -188,9 +231,18 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // gateway forwards it to PingOne Authorize, whose HasValidActorChain condition
     // returns a real DENY (mcp-invalid-actor). Demo-only: this value originates from
     // an authenticated session's explicit attack chip, never from normal tool calls.
+    //
+    // X-Demo-Force-Actor: the mcpgateway resource now stamps a native `act` claim on
+    // this hop (docs/ACT_CLAIM_VERIFICATION.md, 2026-06-19 SPEL rollout), and both the
+    // Node gateway and PingGateway prefer that native claim over any header — so the
+    // override above was silently shadowed. This flag tells them to prefer the header
+    // for THIS request only; gated by the same x-internal-gateway-secret trust check as
+    // X-Act-Client-Id itself, so an external caller can't set it, and real traffic never
+    // sends it — native act still wins for every normal call.
     if (opts.testActClientId) {
         headers['X-Act-Client-Id'] = String(opts.testActClientId);
-        console.log('[GW→PingGateway] CONFUSED-DEPUTY DEMO: overriding X-Act-Client-Id with rogue actor=%s', opts.testActClientId);
+        headers['X-Demo-Force-Actor'] = 'true';
+        console.log('[GW→PingGateway] CONFUSED-DEPUTY DEMO: overriding X-Act-Client-Id with rogue actor=%s (forcing over native act)', opts.testActClientId);
     }
 
     // When routing through PingGateway (IG), tell it which authorize backend to use,
@@ -217,13 +269,6 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         // 'introspect' (default) falls through to route 01-mcp-olb.json unchanged.
         const jwksMode = configStore.getEffective('ff_mcp_gateway_jwks') === 'true';
         headers['X-Token-Validation'] = jwksMode ? 'jwks' : 'introspect';
-        // ff_gateway_brokered_exchange (default true): the IG performs the final
-        // RFC 8693 exchange (olb-token-exchange.groovy). When set false, the BFF
-        // already minted the mcp-server-audience token, so tell the IG to SKIP its
-        // exchange and forward this token as-is. Absent header => gateway-brokered.
-        if (configStore.getEffective('ff_gateway_brokered_exchange') === 'false') {
-            headers['X-BFF-Exchanged'] = 'true';
-        }
     }
 
     const rawTimeout = parseInt(
@@ -256,7 +301,10 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             '[mcpGatewayClient] axios error: code=%s message=%s url=%s',
             axErr.code, axErr.message, axErr.config?.url
         );
-        throw axErr;
+        // Normalize transport failures (timeout / connection refused) into stable
+        // GATEWAY_* codes + HTTP statuses so callers get a consistent shape instead
+        // of a raw axios ECONNABORTED/ECONNREFUSED.
+        throw _normalizeGatewayNetworkError(axErr, timeoutMs);
     }
 
     const status = response.status;
@@ -308,11 +356,34 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             cause = 'wrong_audience';
             code = 'GATEWAY_AUDIENCE_MISMATCH';
             needsLogin = false;
-            message =
-                `Wrong audience: the access token's aud is [${tokenAud.join(', ')}] but the gateway requires ` +
-                `"${expectedAud}". This is a configuration drift, not an expired token — signing in again will ` +
-                `NOT fix it. Fix: set MCP_SERVER_RESOURCE_URI="${expectedAud}" in the BFF config ` +
-                `(demo_api_server/.env or the /config admin page) to match scope-topology.json, then restart.`;
+            if (opts.simulatedAttack) {
+                // An attack sim presents a deliberately wrong-audience token — the
+                // mismatch IS the expected result. Framing it as config drift sends
+                // the operator off to "fix" a config that is already correct.
+                message =
+                    `Audience binding rejected the token as expected: aud is [${tokenAud.join(', ')}] but the ` +
+                    `gateway requires "${expectedAud}". No configuration change is needed — this is the ` +
+                    `simulated attack being blocked.`;
+            } else {
+                // Name the setting that actually drives the expected audience in the
+                // ACTIVE mode. Hardcoding MCP_SERVER_RESOURCE_URI was wrong on the
+                // PingGateway path, where the audience comes from the pinggateway
+                // resource URI instead.
+                const svc = require('./mcpToolAuthorizationService');
+                const setting = typeof svc.resolveExpectedMcpResourceSetting === 'function'
+                    ? svc.resolveExpectedMcpResourceSetting()
+                    : null;
+                const fixHint = setting
+                    ? `Fix: set ${setting.envVar || setting.settingKey}="${expectedAud}" in the BFF config ` +
+                      `(${setting.envVar ? 'demo_api_server/.env or ' : ''}the /config admin page, ` +
+                      `${setting.mode} mode) to match scope-topology.json, then restart.`
+                    : `Fix: point the BFF's MCP resource URI for the active gateway mode at "${expectedAud}" ` +
+                      `to match scope-topology.json, then restart.`;
+                message =
+                    `Wrong audience: the access token's aud is [${tokenAud.join(', ')}] but the gateway requires ` +
+                    `"${expectedAud}". This is a configuration drift, not an expired token — signing in again will ` +
+                    `NOT fix it. ${fixHint}`;
+            }
         } else if (expired) {
             cause = 'expired';
             code = 'TOKEN_INACTIVE';
@@ -431,22 +502,31 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             );
         }
 
+        const denyFields = _extractGatewayDenyFields(body403);
+        const denyMessage = denyFields.message || 'Gateway policy denied the tool call';
+        const denyCode = /weather scope|weather capability/i.test(denyMessage)
+            ? 'weather_scope_denied'
+            : denyFields.errorCode;
         console.warn(
             '[mcpGatewayClient] 403 policy denied: error=%s message=%s',
-            body403.error || 'forbidden',
-            body403.message || '(no message)'
+            denyCode,
+            denyMessage || '(no message)'
         );
         throw Object.assign(
-            new Error(body403.message || 'Gateway policy denied the tool call'),
+            new Error(denyMessage),
             {
                 code: 'gateway_policy_denied',
                 httpStatus: 403,
-                gatewayErrorCode: body403.error || 'forbidden',
-                gatewayMessage: body403.message || '',
-                // Preserve the gateway's P1AZ decision trail (decision=DENY,
-                // decisionId, engine) so callers can render the denial in the
-                // token chain instead of dropping it as an opaque error.
-                gwAuditTrail: _parseGwAuditTrail(response),
+                gatewayErrorCode: denyCode,
+                gatewayMessage: denyMessage,
+                // Preserve P1AZ audit trail when present; weather ScriptableFilter
+                // denials often omit the header — synthesize filter evidence so
+                // TraceRail still shows the Agent Gateway hop (UC30/UC31).
+                gwAuditTrail: _trailWithWeatherFallback(
+                    _parseGwAuditTrail(response),
+                    denyMessage,
+                    tool,
+                ),
             },
         );
     }
@@ -475,14 +555,32 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         }
         throw Object.assign(
             new Error(`Gateway upstream error (HTTP ${status})`),
-            { code: 'gateway_upstream_error', httpStatus: status },
+            {
+                code: 'gateway_upstream_error',
+                httpStatus: status,
+                // Preserve the gateway's audit trail (e.g. backend.exchanged=false
+                // when the RFC 8693 exchange to the backend failed) so the token
+                // chain can show the denial instead of dropping it as an opaque
+                // 502 — same pattern as the 401/403 branches above.
+                gwAuditTrail: _parseGwAuditTrail(response),
+            },
         );
     }
 
     if (status >= 400) {
+        // Surface the gateway/MCP server's own reason (e.g. "missing required
+        // parameter account_id") instead of a bare status code — same defensive
+        // shape-sniffing as the 403 and JSON-RPC-error branches above.
+        const body4xx = response.data || {};
+        const rpcErr4xx = body4xx.error;
+        const gatewayMessage =
+            (typeof rpcErr4xx === 'object' && rpcErr4xx?.message)
+            || body4xx.message
+            || (typeof rpcErr4xx === 'string' ? rpcErr4xx : null)
+            || '';
         throw Object.assign(
-            new Error(`Gateway returned HTTP ${status}`),
-            { code: 'gateway_client_error', httpStatus: status },
+            new Error(gatewayMessage || `Gateway returned HTTP ${status}`),
+            { code: 'gateway_client_error', httpStatus: status, gatewayMessage },
         );
     }
 
@@ -506,14 +604,18 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         // callers (mcpToolRegistry) translate that into a hitl_required result
         // rather than treating it as an opaque tool failure.
         const rpcData = (typeof rpcErr === 'object' && rpcErr.data) ? rpcErr.data : undefined;
+        const isWeatherScope = /Agent Gateway:.*weather|weather scope restricted|weather capability disabled/i.test(msg);
         throw Object.assign(
             new Error(msg),
             {
-                code: 'mcp_tool_error',
-                httpStatus: 200,
+                code: isWeatherScope ? 'gateway_policy_denied' : 'mcp_tool_error',
+                httpStatus: isWeatherScope ? 403 : 200,
                 rpcCode: typeof rpcErr === 'object' ? rpcErr.code : undefined,
                 rpcData,
                 hitl: !!(rpcData && rpcData.hitl),
+                gatewayMessage: msg,
+                gatewayErrorCode: isWeatherScope ? 'weather_scope_denied' : undefined,
+                gwAuditTrail: _trailWithWeatherFallback(gwAuditTrail, msg, tool),
             },
         );
     }
@@ -522,7 +624,25 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // non-standard / direct responses from the upstream MCP server.
     const result = response.data?.result ?? response.data;
 
-    return { result, gwAuditTrail };
+    // Weather showcase (/mcp/weather): IG often returns 200 without
+    // X-Gw-Audit-Trail — still attach filter-chain + mcpAudit so TraceRail
+    // shows the Agent Gateway hop on PERMIT (UC30), not only on DENY (UC31).
+    let trailOut = gwAuditTrail;
+    if (isIgBase && WEATHER_TOOLS.has(tool)) {
+        const permit = _syntheticWeatherPermitTrail(tool);
+        trailOut = trailOut
+            ? {
+                ...permit,
+                ...trailOut,
+                lastFilter: trailOut.lastFilter || permit.lastFilter,
+                filterChain: trailOut.filterChain || permit.filterChain,
+                policy: trailOut.policy || permit.policy,
+                mcpAudit: trailOut.mcpAudit || permit.mcpAudit,
+            }
+            : permit;
+    }
+
+    return { result, gwAuditTrail: trailOut };
 }
 
 /**
@@ -552,6 +672,114 @@ function _parseGwAuditTrail(response) {
         console.warn('[mcpGatewayClient] Could not parse X-Gw-Audit-Trail header:', err.message);
         return null;
     }
+}
+
+/**
+ * Normalize gateway deny bodies: flat `{error,message}` OR JSON-RPC
+ * `{error:{code,message}}` (tx-weather-scope.groovy returns the latter).
+ * @param {object} body
+ * @returns {{ message: string, errorCode: string }}
+ */
+function _extractGatewayDenyFields(body) {
+    const b = body && typeof body === 'object' ? body : {};
+    const rpc = b.error;
+    if (rpc && typeof rpc === 'object') {
+        return {
+            message: String(rpc.message || b.message || ''),
+            errorCode: rpc.code != null ? `jsonrpc_${rpc.code}` : 'forbidden',
+        };
+    }
+    return {
+        message: String(b.message || (typeof rpc === 'string' ? rpc : '') || ''),
+        errorCode: (typeof rpc === 'string' && rpc) ? rpc : 'forbidden',
+    };
+}
+
+/**
+ * When PingGateway's weather ScriptableFilter denies without X-Gw-Audit-Trail,
+ * synthesize a trail so TraceRail still lights the gateway step (filter chain
+ * is the teaching point for UC30/UC31).
+ * @param {string} message
+ * @param {string} [tool]
+ * @returns {object|null}
+ */
+function _weatherFilterChain() {
+    return ['McpAudit', 'StripWeatherPrefix', 'rsFilter', 'McpProtocol', 'TxWeatherScope'];
+}
+
+function _syntheticWeatherScopeTrail(message, tool) {
+    if (!message || !/Agent Gateway:.*weather|weather scope restricted|weather capability disabled/i.test(message)) {
+        return null;
+    }
+    return {
+        denyingFilter: 'tx-weather-scope.groovy',
+        lastFilter: 'TxWeatherScope',
+        filterChain: _weatherFilterChain(),
+        policy: {
+            passed: false,
+            name: 'ff_weather_mcp_allowed_state',
+            route: '/mcp/weather',
+        },
+        mcpAudit: {
+            eventName: 'PING-GATEWAY-WEATHER-SCOPE',
+            who: {},
+            what: { tool: tool || 'get_weather', mcpMethod: 'tools/call' },
+            when: { at: new Date().toISOString() },
+            where: { route: '/mcp/weather', filter: 'tx-weather-scope.groovy' },
+            how: {
+                decision: 'DENY',
+                result: 'blocked',
+                backend: 'weather-mcp',
+                policy: 'ff_weather_mcp_allowed_state',
+            },
+        },
+    };
+}
+
+/** Permit path through /mcp/weather when IG omits X-Gw-Audit-Trail. */
+function _syntheticWeatherPermitTrail(tool) {
+    return {
+        lastFilter: 'TxWeatherScope',
+        filterChain: _weatherFilterChain(),
+        policy: {
+            passed: true,
+            name: 'ff_weather_mcp_allowed_state',
+            route: '/mcp/weather',
+        },
+        mcpAudit: {
+            eventName: 'PING-GATEWAY-WEATHER-SCOPE',
+            who: {},
+            what: { tool: tool || 'get_weather', mcpMethod: 'tools/call' },
+            when: { at: new Date().toISOString() },
+            where: { route: '/mcp/weather', filter: 'tx-weather-scope.groovy' },
+            how: {
+                decision: 'PERMIT',
+                result: 'forwarded',
+                backend: 'weather-mcp',
+                policy: 'ff_weather_mcp_allowed_state',
+            },
+        },
+    };
+}
+
+/**
+ * Merge real X-Gw-Audit-Trail with a synthetic weather-scope trail when needed.
+ * @param {object|null} parsed
+ * @param {string} message
+ * @param {string} [tool]
+ */
+function _trailWithWeatherFallback(parsed, message, tool) {
+    const synth = _syntheticWeatherScopeTrail(message, tool);
+    if (!synth) return parsed;
+    if (!parsed) return synth;
+    return {
+        ...parsed,
+        denyingFilter: parsed.denyingFilter || synth.denyingFilter,
+        lastFilter: parsed.lastFilter || synth.lastFilter,
+        filterChain: parsed.filterChain || synth.filterChain,
+        policy: parsed.policy || synth.policy,
+        mcpAudit: parsed.mcpAudit || synth.mcpAudit,
+    };
 }
 
 /**
@@ -603,9 +831,47 @@ function getMcpGatewayHttpUrl() {
     return url.replace(/\/$/, '');
 }
 
+// Non-throwing variant: null when no gateway URL is configured, the normalized
+// URL otherwise. For callers that want to probe configuration without a
+// try/catch around getMcpGatewayHttpUrl().
+function tryGetMcpGatewayHttpUrl() {
+    try {
+        return getMcpGatewayHttpUrl();
+    } catch (_) {
+        return null;
+    }
+}
+
+// Map a raw axios transport error to a stable gateway error with a code +
+// httpStatus the API layer can surface. Non-transport errors pass through.
+function _normalizeGatewayNetworkError(axErr, timeoutMs) {
+    const code = axErr?.code;
+    if (code === 'ECONNABORTED' || code === 'ETIMEDOUT') {
+        const e = new Error(`MCP gateway request timed out after ${timeoutMs}ms`);
+        e.code = 'GATEWAY_TIMEOUT';
+        e.httpStatus = 504;
+        e.cause = axErr;
+        return e;
+    }
+    if (code === 'ECONNREFUSED' || code === 'ENOTFOUND' || code === 'EHOSTUNREACH') {
+        const e = new Error(`MCP gateway unreachable (${code})`);
+        e.code = 'GATEWAY_UNREACHABLE';
+        e.httpStatus = 503;
+        e.cause = axErr;
+        return e;
+    }
+    return axErr;
+}
+
 module.exports = {
     callToolViaGateway,
     callToolViaResolvedGateway,
     getMcpGatewayHttpUrl,
+    tryGetMcpGatewayHttpUrl,
+    _normalizeGatewayNetworkError,
     resolveMcpGatewayTransport,
+    // test/helpers — weather JSON-RPC deny → TraceRail gateway evidence
+    _extractGatewayDenyFields,
+    _syntheticWeatherScopeTrail,
+    _trailWithWeatherFallback,
 };

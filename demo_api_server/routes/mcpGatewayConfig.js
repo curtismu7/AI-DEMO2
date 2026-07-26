@@ -306,9 +306,25 @@ router.get('/config', async (req, res) => {
     const gatewayEnabled = !!process.env.MCP_GATEWAY_HTTP_URL;
     const devBypass      = process.env.MCP_GW_DEV_BYPASS === 'true';
 
-    const [{ running, response: healthResponse }, liveConfig] = await Promise.all([
-        probeGatewayHealth(gatewayUrl),
-        fetchGatewayLiveConfig(gatewayUrl),
+    // Demo Agent Gateway URL (Node :3005) — Env-tab vars live here. Do NOT use
+    // MCP_GATEWAY_HTTP_URL for that probe: when PingGateway mode is ON that
+    // env points at IG, which has no /admin/config (404) and no MCP_GW_* secrets.
+    const demoGatewayUrl = (
+      process.env.MCP_DEMO_GATEWAY_URL
+      || configStore.getEffective('mcp_demo_gateway_url')
+      || 'http://mcp-gateway:3005'
+    ).replace(/\/$/, '');
+
+    const [
+      { running, response: healthResponse },
+      liveConfig,
+      demoHealth,
+      demoLiveConfig,
+    ] = await Promise.all([
+      probeGatewayHealth(gatewayUrl),
+      fetchGatewayLiveConfig(gatewayUrl),
+      probeGatewayHealth(demoGatewayUrl),
+      fetchGatewayLiveConfig(demoGatewayUrl),
     ]);
 
     const envId  = configStore.getEffective('pingone_environment_id') || '<PingOne Environment ID>';
@@ -335,6 +351,27 @@ router.get('/config', async (req, res) => {
     };
     cfg.introspectEndpoint = `${cfg.pingOneEnvUrl}/as/introspect`;
 
+    // Env tab is labeled "Required (gateway service)" — those vars live on the
+    // Demo Agent Gateway (demo_mcp_gateway/.env + compose), not necessarily on
+    // this BFF process. Checking only process.env produced false "NOT SET"
+    // rows while the gateway was healthy. Resolve presence from BFF env,
+    // configStore aliases, Demo GW live GET /admin/config, and (for
+    // boot-required secrets) Demo GW /health — loadConfig() refuses to start
+    // without them.
+    const live = liveConfig.ok ? liveConfig.config : null;
+    const demoLive = demoLiveConfig.ok ? demoLiveConfig.config : null;
+    const gatewayServiceUp = !!demoHealth.running;
+    const derivedTokenEndpoint = (() => {
+      if (process.env.PINGONE_TOKEN_ENDPOINT) return process.env.PINGONE_TOKEN_ENDPOINT;
+      if (envId && !String(envId).includes('<')) {
+        return `https://auth.pingone.${region}/${envId}/as/token`;
+      }
+      return '';
+    })();
+    const maskSet = (...vals) => (
+      vals.some((v) => v != null && String(v).trim() !== '') ? '••••' : 'NOT SET'
+    );
+
     res.json({
         mcpMode: configStore.get('mcp_use_pingone_server') === 'true' ? 'pingone' : 'custom',
         mock: {
@@ -346,18 +383,43 @@ router.get('/config', async (req, res) => {
             // Live config read from the gateway's GET /admin/config (the real
             // loaded routing config, not the generated mirror). null when the
             // gateway is unreachable or doesn't expose /admin/config.
-            liveConfig: liveConfig.ok ? liveConfig.config : null,
+            liveConfig: live,
             liveConfigError: liveConfig.ok ? null : liveConfig.error,
         },
         config: cfg,
         envVars: {
             required: {
-                MCP_GW_RESOURCE_URI:     process.env.MCP_GW_RESOURCE_URI     ? '••••' : 'NOT SET',
-                MCP_GW_CLIENT_ID:        process.env.MCP_GW_CLIENT_ID        ? '••••' : 'NOT SET',
-                MCP_GW_CLIENT_SECRET:    process.env.MCP_GW_CLIENT_SECRET    ? '••••' : 'NOT SET',
-                PINGONE_TOKEN_ENDPOINT:  process.env.PINGONE_TOKEN_ENDPOINT   ? '••••' : 'NOT SET',
-                MCP_OLB_RESOURCE_URI:    process.env.MCP_OLB_RESOURCE_URI    ? '••••' : 'NOT SET',
-                MCP_INVEST_RESOURCE_URI: process.env.MCP_INVEST_RESOURCE_URI  ? '••••' : 'NOT SET',
+                MCP_GW_RESOURCE_URI: maskSet(
+                    process.env.MCP_GW_RESOURCE_URI,
+                    demoLive?.gatewayResourceUri,
+                    configStore.getEffective('mcp_gw_resource_uri'),
+                    configStore.getEffective('pingone_resource_mcp_gateway_uri'),
+                ),
+                MCP_GW_CLIENT_ID: maskSet(
+                    process.env.MCP_GW_CLIENT_ID,
+                    configStore.getEffective('mcp_gw_client_id'),
+                    gatewayServiceUp ? 'gateway-up' : '',
+                ),
+                MCP_GW_CLIENT_SECRET: maskSet(
+                    process.env.MCP_GW_CLIENT_SECRET,
+                    configStore.getEffective('mcp_gw_client_secret'),
+                    gatewayServiceUp ? 'gateway-up' : '',
+                ),
+                PINGONE_TOKEN_ENDPOINT: maskSet(
+                    process.env.PINGONE_TOKEN_ENDPOINT,
+                    derivedTokenEndpoint,
+                    gatewayServiceUp ? 'gateway-up' : '',
+                ),
+                MCP_OLB_RESOURCE_URI: maskSet(
+                    process.env.MCP_OLB_RESOURCE_URI,
+                    demoLive?.mcpOlbResourceUri,
+                    configStore.getEffective('mcp_resource_uri'),
+                    configStore.getEffective('pingone_resource_mcp_server_uri'),
+                ),
+                MCP_INVEST_RESOURCE_URI: maskSet(
+                    process.env.MCP_INVEST_RESOURCE_URI,
+                    demoLive?.mcpInvestResourceUri,
+                ),
             },
             optional: {
                 MCP_GATEWAY_HTTP_URL:    process.env.MCP_GATEWAY_HTTP_URL    || '(not set — gateway routing disabled)',

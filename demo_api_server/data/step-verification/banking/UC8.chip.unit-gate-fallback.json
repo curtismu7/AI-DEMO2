@@ -1,0 +1,11 @@
+{
+  "vertical": "banking",
+  "useCaseId": "UC8",
+  "triggerType": "chip",
+  "mode": "unit-gate-fallback",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "create_transfer",
+  "checkedAt": "2026-07-25",
+  "verifiedBy": "Transaction 429 → catch fall-through → localAmountBand (#769)"
+}

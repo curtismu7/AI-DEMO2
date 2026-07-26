@@ -78,6 +78,57 @@ function makeStep(id, status, detail) {
   return { id, title: TITLES[id], lane: LANES[id], status, detail: { ...base, ...(detail || {}) } };
 }
 
+/**
+ * L0 run story for the TraceRail header — plain English, no JSON.
+ * @param {object} trace
+ * @param {Array} steps from buildTraceSteps
+ * @returns {{ headline: string, outcome: string, bits: string[] } | null}
+ */
+export function buildRunStory(trace, steps) {
+  if (!trace) return null;
+  const hasActivity = Boolean(
+    trace.startedAt || trace.prompt || (trace.tokenEvents && trace.tokenEvents.length) ||
+    (trace.phases && trace.phases.length) || trace.mcpResult || trace.authorize ||
+    trace.llmDetail || trace.llmReply || trace.outcome || trace.routingMode,
+  );
+  if (!hasActivity) return null;
+
+  const list = Array.isArray(steps) ? steps : [];
+  const errStep = list.find((s) => s && s.status === "error");
+  const az = list.find((s) => s && s.id === "authorize");
+  const decision = az?.detail?.decision?.outcome;
+  const prompt = trace.prompt?.message;
+  // An expected DENY (an expectedOutcome:'DENY' use case whose gateway block fired)
+  // is the control working — present it as a successful run, not an error.
+  const expectedDeny = Boolean(trace.mcpResult?.denied && trace.mcpResult?.expected);
+  let outcome = trace.outcome || (errStep ? "error" : "active");
+  let headline;
+  if (expectedDeny) {
+    outcome = "ok";
+    headline = "Expected DENY — the control worked: the gateway blocked the out-of-scope call, exactly as this use case is meant to demonstrate.";
+  } else if (outcome === "error" || errStep) {
+    outcome = "error";
+    headline = errStep
+      ? `This run stopped with an error at “${errStep.title}”.`
+      : "This run ended with an error.";
+  } else if (outcome === "ok") {
+    headline = decision
+      ? `This run completed successfully — Authorize returned ${decision}.`
+      : "This run completed successfully.";
+  } else if (prompt) {
+    headline = `In progress: “${String(prompt).slice(0, 80)}${String(prompt).length > 80 ? "…" : ""}”`;
+  } else {
+    headline = "Trace started — waiting for pipeline evidence.";
+  }
+
+  const bits = list
+    .filter((s) => s && (s.status === "done" || s.status === "error") && s.detail?.why)
+    .slice(0, 3)
+    .map((s) => s.detail.why);
+
+  return { headline, outcome, bits };
+}
+
 export function buildTraceSteps(trace) {
   const { prompt, routingMode, routingDetail, llmDetail, llmReply, phases, tokenEvents, mcpResult, authorize, outcome } = trace;
   const isHeuristic = routingMode === "heuristic";
@@ -106,7 +157,7 @@ export function buildTraceSteps(trace) {
 
   // 3. agent — evidence: request_accepted phase, LLM activity, or heuristic routing
   const agentSeen = isHeuristic || hasPhase(phases, "request_accepted") || !!llmDetail;
-  steps.push(makeStep("agent", agentSeen ? "done" : "pending", isHeuristic ? {
+  steps.push(makeStep("agent", agentSeen ? "done" : traceComplete ? "notinpath" : "pending", isHeuristic ? {
     kv: [
       ["routing", "Heuristic intent match"],
       routingDetail?.action ? ["matched action", String(routingDetail.action)] : null,
@@ -129,7 +180,7 @@ export function buildTraceSteps(trace) {
     llmStep.lane = "HEURISTICS";
     steps.push(llmStep);
   } else {
-    steps.push(makeStep("llm", llmDetail ? "done" : "pending", llmDetail ? {
+    steps.push(makeStep("llm", llmDetail ? "done" : traceComplete ? "notinpath" : "pending", llmDetail ? {
       request: { title: "LLM request (actual)",
         text: `model: ${llmDetail.model || "?"}\n${asJson(llmDetail.request || {})}` },
       response: { title: "LLM response — tool call", text: asJson(llmDetail.toolCalls || []) },
@@ -141,7 +192,7 @@ export function buildTraceSteps(trace) {
 
   // 5. agent-token
   const agentTok = findEvent(tokenEvents, "agent-actor-token", "two-ex-agent-actor");
-  steps.push(makeStep("agent-token", agentTok ? "done" : "pending", agentTok ? {
+  steps.push(makeStep("agent-token", agentTok ? "done" : traceComplete ? "notinpath" : "pending", agentTok ? {
     kv: Object.entries(agentTok.claims || {}).slice(0, 6).map(([k, v]) => [k, asJson(v)]),
     response: claimsBlock("Agent actor token claims (full)", agentTok.claims),
     inspectToken: "agent",
@@ -150,22 +201,41 @@ export function buildTraceSteps(trace) {
 
   // 6. exchange — "exchanged-token" (1-exchange) or "two-ex-final-token"
   // (2-exchange: the final delegated MCP token with the nested act chain).
-  const exTok = findEvent(tokenEvents, "exchanged-token", "two-ex-final-token");
-  const exFailed = findEvent(tokenEvents, "exchange-failed");
+  // Attack sims (attackSimulatorService) emit their own exchange vocabulary:
+  // "sim-exchange-ok" carries the deliberately-deficient delegated token.
+  const exTok = findEvent(tokenEvents, "exchanged-token", "two-ex-final-token", "sim-exchange-ok");
+  const exFailed = findEvent(tokenEvents, "exchange-failed", "sim-exchange-error");
   const exDone = exTok && exTok.status !== "waiting";
   const ex1Tok = findEvent(tokenEvents, "two-ex-exchange1");
   const beforeScopes = splitScopes((userTok && userTok.claims && userTok.claims.scope) || []);
   const afterScopes = splitScopes((exTok && exTok.claims && exTok.claims.scope) || []);
+  const exchangeWhy = exDone
+    ? (afterScopes.length
+      ? `This run issued a delegated token with scope “${afterScopes.join(" ")}”`
+        + (exTok.audActual != null ? ` and audience ${asJson(exTok.audActual)}` : "")
+        + (exTok.claims?.act ? "; the act claim proves the agent acts for this user." : ".")
+      : `This run completed token exchange (${exTok.exchangeMethod || "RFC 8693"}).`)
+    : exFailed
+      ? `Token exchange failed — without a delegated token the MCP hop cannot run.`
+      : undefined;
+  const exchangeBeforeAfter = exDone && userTok && exTok ? {
+    before: { title: "Before exchange", text: asJson(userTok.claims || {}) },
+    after: { title: "After exchange", text: asJson(exTok.claims || {}) },
+  } : undefined;
   steps.push(makeStep("exchange",
     exFailed ? "error" : exDone ? "done" : (exTok || ex1Tok) ? "active" : "pending",
-    exDone ? {
-      request: exTok.exchangeRequest
+    exDone || exFailed ? {
+      why: exchangeWhy,
+      request: exTok?.exchangeRequest
         ? { title: "Exchange request (actual)", text: asJson(exTok.exchangeRequest) }
         : undefined,
-      response: { title: "Delegated token claims", text: asJson(exTok.claims || {}) },
-      scopeDiff: beforeScopes.length || afterScopes.length
+      response: exTok
+        ? { title: "Delegated token claims", text: asJson(exTok.claims || {}) }
+        : undefined,
+      beforeAfter: exchangeBeforeAfter,
+      scopeDiff: exDone && (beforeScopes.length || afterScopes.length)
         ? { before: beforeScopes, after: afterScopes } : undefined,
-      kv: [
+      kv: exTok ? [
         exTok.claims && exTok.claims.act ? ["act chain", asJson(exTok.claims.act)] : null,
         exTok.exchangeMethod ? ["exchange method", String(exTok.exchangeMethod)] : null,
         exTok.audExpected != null
@@ -173,23 +243,27 @@ export function buildTraceSteps(trace) {
           : null,
         ex1Tok && ex1Tok.claims && ex1Tok.claims.scope
           ? ["exchange #1 scope", String(ex1Tok.claims.scope)] : null,
-      ].filter(Boolean),
-      inspectToken: "mcp",
-      tokenEvent: exTok,
+      ].filter(Boolean) : [],
+      inspectToken: exTok ? "mcp" : undefined,
+      tokenEvent: exTok || undefined,
     } : {}));
 
   // 7. authorize — prefer live ingestAuthorize evaluation; fall back to the
-  // synthesize authorize-decision token event (same payloads, different source).
+  // synthesize authorize-decision token event; finally gw-authorize (gateway
+  // often holds the only P1AZ request/response on the agent/invoke path).
   //
   // Pipeline always emits phase "authorize_denied" on a gate *block*, including
   // HTTP 428 step-up / HITL. That is a challenge, not a hard DENY — paint
   // "active" (or done after PERMIT) so TraceRail does not show a false ✗.
   const azDeniedPhase = findPhase(phases, "authorize_denied");
   const azDenied = !!azDeniedPhase;
-  const azPermitted = hasPhase(phases, "authorize_permitted") || (authorize && authorize.decision === "PERMIT");
   const azBegun = hasPhase(phases, "authorize_gate_begin");
   const azUnavailable = hasPhase(phases, "authorize_unavailable");
   const azEvent = findEvent(tokenEvents, "authorize-decision");
+  const gwAzForAuthorize = findEvent(tokenEvents, "gw-authorize");
+  const azPermitted = hasPhase(phases, "authorize_permitted")
+    || (authorize && authorize.decision === "PERMIT")
+    || String(gwAzForAuthorize?.decision || gwAzForAuthorize?.authorizeDecision || "").toUpperCase() === "PERMIT";
   const azEval = authorize || (azEvent ? {
     engine: azEvent.authorizeEngine,
     decision: azEvent.authorizeDecision || azEvent.decision,
@@ -198,6 +272,18 @@ export function buildTraceSteps(trace) {
     path: azEvent.authorizePath || azEvent.path,
     request: azEvent.authorizeRequest || azEvent.request,
     response: azEvent.authorizeResponse || azEvent.response || azEvent.rawResponse,
+  } : null) || (gwAzForAuthorize ? {
+    engine: gwAzForAuthorize.authorizeEngine || gwAzForAuthorize.backend || "pingone",
+    decision: gwAzForAuthorize.decision || gwAzForAuthorize.authorizeDecision,
+    decisionId: gwAzForAuthorize.decisionId || null,
+    decisionContext: gwAzForAuthorize.tool ? `tool:${gwAzForAuthorize.tool}` : null,
+    path: gwAzForAuthorize.url || null,
+    request: gwAzForAuthorize.authorizeRequest
+      || (gwAzForAuthorize.parameters
+        ? { method: "POST", url: gwAzForAuthorize.url || "", parameters: gwAzForAuthorize.parameters }
+        : null),
+    response: gwAzForAuthorize.authorizeResponse || gwAzForAuthorize.rawResponse || null,
+    source: "gw-authorize",
   } : null);
   const azDecision = azEval && azEval.decision != null
     ? String(azEval.decision).toUpperCase()
@@ -216,15 +302,30 @@ export function buildTraceSteps(trace) {
   const azStatus = azIsPermit ? "done"
     : azIsDeny || azUnavailable || (azDenied && !azIsChallenge) ? "error"
     : azIsChallenge || azBegun || azEval ? "active"
+    // Gateway-level denies (UC5/UC11/UC12 sims) block BEFORE Authorize is
+    // consulted — once the trace completes with no evaluation, it was never
+    // in this run's path.
+    : traceComplete ? "notinpath"
     : "pending";
+  const authorizeFailed = azStatus === "error";
   const azRequestPayload = azEval && azEval.request
     ? ((azEval.request.body && azEval.request.body.parameters)
         || azEval.request.parameters
         || azEval.request.body
         || azEval.request)
     : null;
+  const authorizeWhy = azEval
+    ? (azIsChallenge
+      ? `Authorize returned ${azEval.decision || "INDETERMINATE"} — the human must approve before the tool proceeds.`
+      : azIsDeny
+        ? `Authorize denied this action (${azEval.engine || "policy"}) — the tool call is blocked.`
+        : `Authorize returned ${azEval.decision || "PERMIT"}`
+          + (azEval.decisionContext ? ` for ${azEval.decisionContext}` : "")
+          + (azEval.source === "gw-authorize" ? " at the Agent Gateway hop." : " before the tool ran."))
+    : undefined;
   steps.push(makeStep("authorize", azStatus,
     azEval ? {
+      why: authorizeWhy,
       request: azRequestPayload || azEval.request
         ? { title: "Decision request (actual)",
             text: `${(azEval.request && azEval.request.method) || "POST"} ${(azEval.request && azEval.request.url) || ""}\n${asJson(azRequestPayload || azEval.request)}` }
@@ -236,8 +337,9 @@ export function buildTraceSteps(trace) {
       kv: [
         ["engine", String(azEval.engine || "")],
         ["decision id", String(azEval.decisionId || "")],
-      ].filter(([, v]) => v),
-      moreDetail: { href: "/pingone-authorize", label: "Show more detail" },
+        azEval.source === "gw-authorize" ? ["evidence", "from gw-authorize (gateway hop)"] : null,
+      ].filter((row) => row && row[1]),
+      moreDetail: { href: "/pingone-authorize", label: "More Education" },
     } : {}));
 
   // 7a. step-up (conditional) — omitted mid-flight so it doesn't sit "pending"
@@ -287,16 +389,32 @@ export function buildTraceSteps(trace) {
   const gwInbound = findEvent(tokenEvents, "evt-inbound");
   const gwScope = findEvent(tokenEvents, "evt-scope");
   const gwDeniedPhase = findPhase(phases, "gateway_policy_denied");
-  const gwDenied = !!gwDeniedPhase;
+  // Attack sims emit "sim-gateway-deny" instead of a phase. RAR denies
+  // (rar_amount_exceeded / rar_unexpected_deny) already feed the
+  // intent-binding step above and must not double-report here.
+  const simGwDeny = (tokenEvents || []).find(
+    (e) => e && e.id === "sim-gateway-deny"
+      && e.error !== "rar_amount_exceeded" && e.error !== "rar_unexpected_deny",
+  );
+  const gwDenied = !!gwDeniedPhase || !!simGwDeny;
   const gwSeen = !!(gwAz || gwIntro || gwInbound || gwScope);
   const gwSkipEvidence = [gwIntroRaw, gwMtls].filter((e) => e && e.status === "skipped");
   steps.push(makeStep("gateway",
-    gwDenied ? "error" : gwSeen ? "done" : traceComplete ? "notinpath" : "pending",
+    authorizeFailed ? "notinpath" : gwDenied ? "error" : gwSeen ? "done" : traceComplete ? "notinpath" : "pending",
     (gwSeen || gwDenied) ? {
+      why: gwDenied
+        ? "The Agent Gateway blocked this call before it reached the MCP server."
+        : (gwAz
+          ? `Gateway validated the delegated token`
+            + (gwAz.tool ? ` and authorized tool “${gwAz.tool}”` : "")
+            + (gwAz.decision ? ` (${gwAz.decision}).` : ".")
+          : "Gateway processed the inbound delegated bearer on this hop."),
       decision: gwDenied
         ? { outcome: "DENY",
             // serverEvents rows use "—" as the empty-detail placeholder
-            label: `DENY — ${(gwDeniedPhase.detail && gwDeniedPhase.detail !== "—" ? gwDeniedPhase.detail : gwDeniedPhase.label) || "gateway policy"}` }
+            label: `DENY — ${(gwDeniedPhase
+              ? (gwDeniedPhase.detail && gwDeniedPhase.detail !== "—" ? gwDeniedPhase.detail : gwDeniedPhase.label)
+              : (simGwDeny.label || simGwDeny.explanation)) || "gateway policy"}` }
         : undefined,
       kv: [
         gwIntro ? ["introspection", gwIntro.status === "active" ? "✓ active" : String(gwIntro.status)] : null,
@@ -304,6 +422,24 @@ export function buildTraceSteps(trace) {
         gwAz && gwAz.statements ? ["statements", asJson(gwAz.statements)] : null,
         gwInbound ? ["inbound", gwInbound.label || "user bearer received"] : null,
         gwScope ? ["scope gate", gwScope.label || "scope checked before swap"] : null,
+        // invalid_aud teaching: show both sides of the mismatch (token vs gateway).
+        (() => {
+          const tokenAud = simGwDeny?.triedAudience || simGwDeny?.tokenAud
+            || gwDeniedPhase?.triedAudience || gwDeniedPhase?.tokenAud
+            || null;
+          const expectedAud = simGwDeny?.allowedAudience || simGwDeny?.expectedAud
+            || gwDeniedPhase?.allowedAudience || gwDeniedPhase?.expectedAud
+            || null;
+          if (tokenAud == null && expectedAud == null) return null;
+          const actual = tokenAud != null
+            ? (Array.isArray(tokenAud) ? tokenAud.join(", ") : String(tokenAud))
+            : "(unknown)";
+          const expected = expectedAud != null
+            ? (Array.isArray(expectedAud) ? expectedAud.join(", ") : String(expectedAud))
+            : "(unknown)";
+          return ["audience", `token ${actual} · gateway expects ${expected} (MISMATCH)`];
+        })(),
+        simGwDeny ? ["attack sim", simGwDeny.explanation || simGwDeny.label] : null,
       ].filter(Boolean),
       request: (() => {
         if (!gwAz) return undefined;
@@ -329,7 +465,7 @@ export function buildTraceSteps(trace) {
           ? { title: "Gateway authorize response", text: asJson(body) }
           : undefined;
       })(),
-      moreDetail: { href: "/pingone-authorize", label: "Show more detail" },
+      moreDetail: { href: "/pingone-authorize", label: "More Education" },
     } : !gwSeen && !gwDenied && gwSkipEvidence.length ? {
       narrative: gwSkipEvidence.map((e) => e.explanation).filter(Boolean).join(" ") ||
         "The Agent Gateway was not in this run's path.",
@@ -345,7 +481,7 @@ export function buildTraceSteps(trace) {
     tokenEvents.some((e) => e && e.credentialPath === "api_key");
   const apiKeySwapDone = apiKeyPath && (evtSwap || evtBackend || apiMetaEarly.credentialPath === "api_key");
   steps.push(makeStep("api-key-swap",
-    apiKeySwapDone ? "done" : traceComplete ? "notinpath" : "pending",
+    authorizeFailed ? "notinpath" : apiKeySwapDone ? "done" : traceComplete ? "notinpath" : "pending",
     apiKeyPath ? {
       kv: [
         evtSwap ? ["swap", evtSwap.label || "OAuth bearer → service API key"] : null,
@@ -366,18 +502,25 @@ export function buildTraceSteps(trace) {
   const mcpDone = hasPhase(phases, "mcp_remote_done") || !!(mcpResult && mcpResult.result);
   const mcpBegun = hasPhase(phases, "mcp_remote_begin");
   steps.push(makeStep("mcp",
-    mcpDone ? "done" : gwDenied ? "error" : mcpBegun ? "active" : "pending",
+    authorizeFailed ? "notinpath" : mcpDone ? "done" : gwDenied ? "error" : mcpBegun ? "active" : traceComplete ? "notinpath" : "pending",
     mcpResult ? {
+      why: `MCP executed “${mcpResult.tool || mcpResult.toolName || "tool"}”`
+        + (mcpResult.durationMs != null ? ` in ${mcpResult.durationMs} ms` : "")
+        + " under the delegated identity.",
       request: { title: "JSON-RPC call (actual)", text: asJson(mcpResult.requestJson || { name: mcpResult.tool }) },
       kv: mcpResult.durationMs != null ? [["duration", `${mcpResult.durationMs} ms`]] : [],
+    } : gwDenied ? {
+      why: "MCP never ran — the gateway denied the call upstream.",
     } : {}));
   const apiMeta = apiMetaEarly;
   const apiKeyCall = apiMeta.credentialPath === "api_key" || apiKeyPath;
-  steps.push(makeStep("api", (mcpDone && mcpResult) || apiKeyCall ? "done" : "pending",
+  steps.push(makeStep("api", authorizeFailed ? "notinpath" : (mcpDone && mcpResult) || apiKeyCall ? "done" : traceComplete ? "notinpath" : "pending",
     mcpResult && (mcpResult.result || apiKeyCall) ? {
       narrative: apiKeyCall
         ? "Backend call after credential swap — X-API-Key + X-User-Sub (no OAuth bearer on the wire)."
-        : "The actual resource-server call made with the delegated bearer token.",
+        : (mcpResult.denied && mcpResult.expected)
+          ? "Expected DENY — the gateway blocked this out-of-scope call before the resource server ran. That block is the control working as designed, not a failure."
+          : "The actual resource-server call made with the delegated bearer token.",
       response: mcpResult.result ? { title: "API result", text: asJson(mcpResult.result) } : undefined,
       kv: [
         apiKeyCall && apiMeta.apiCall ? ["api call", apiMeta.apiCall] : null,
@@ -389,7 +532,7 @@ export function buildTraceSteps(trace) {
   // 11. reply — heuristics compose from the tool result (no LLM); chip paths
   // often have mcpResult but no llmReply, so either evidence marks the step done.
   const replyDone = Boolean(llmReply) || (isHeuristic && mcpDone);
-  const replyStep = makeStep("reply", replyDone ? "done" : "pending",
+  const replyStep = makeStep("reply", replyDone ? "done" : traceComplete ? "notinpath" : "pending",
     llmReply ? {
       response: { title: "Streamed reply", text: String(llmReply) },
     } : isHeuristic && mcpDone ? {

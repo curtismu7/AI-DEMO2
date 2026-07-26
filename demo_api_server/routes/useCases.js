@@ -10,7 +10,10 @@
 const express = require('express');
 const router = express.Router();
 const { listUseCases, resolveUseCase, VERTICALS } = require('../config/useCases');
+const { ADMIN_DEMO_STEPS } = require('../config/admin/demoSteps');
 const { authenticateToken } = require('../middleware/auth');
+const configStore = require('../services/configStore');
+const { requiredFlagsForUseCase, isFlagOn } = require('../services/demoStepPrerequisites');
 
 function pickVertical(req, res) {
   const vertical = req.query.vertical || 'banking';
@@ -23,6 +26,10 @@ function pickVertical(req, res) {
 
 // GET /api/use-cases  → list
 router.get('/', (req, res) => {
+  if (req.query.vertical === 'pingone-admin') {
+    res.set({ 'Cache-Control': 'private, max-age=60' });
+    return res.json({ vertical: 'pingone-admin', useCases: ADMIN_DEMO_STEPS });
+  }
   const vertical = pickVertical(req, res);
   if (!vertical) return;
   res.set({ 'Cache-Control': 'private, max-age=60' });
@@ -39,7 +46,7 @@ router.get('/:id', (req, res) => {
 });
 
 // POST /api/demo/use-cases/run  → execute use case, return trigger text for agent
-router.post('/demo/run', authenticateToken, (req, res) => {
+router.post('/demo/run', authenticateToken, async (req, res) => {
   const { useCaseId, triggerId } = req.body;
   const vertical = req.body?.vertical || req.query.vertical || 'banking';
 
@@ -61,6 +68,24 @@ router.post('/demo/run', authenticateToken, (req, res) => {
   const useCase = resolveUseCase(rawUseCase.id, vertical);
   if (!useCase) {
     return res.status(400).json({ success: false, error: 'Use case not found for vertical' });
+  }
+
+  // Auto-arm every feature flag this use case declares it needs, so running any
+  // step "just works" without manual preflight toggling. That is the maturity
+  // 'flag:<name>' gate (UC2 → ff_a2a_delegation, UC14b → ff_rar) AND the two
+  // MCP_GATEWAY_RUNTIME_FLAGS any tool-dispatching chip needs — without those,
+  // Exchange #2 fails invalid_scope and the agent shows the opaque
+  // "That step couldn't be completed". Do not narrow this back to maturity only:
+  // the client mirror is the only other arming path and it has drifted before.
+  // Non-fatal: a store failure shouldn't block dispatch.
+  for (const flag of requiredFlagsForUseCase(useCase)) {
+    try {
+      if (!isFlagOn(configStore.getEffective(flag))) {
+        await configStore.setRaw({ [flag]: 'true' });
+      }
+    } catch (err) {
+      console.error(`[useCases] failed to arm ${flag} for ${useCase.id} (non-fatal):`, err.message);
+    }
   }
 
   if (triggerId) {

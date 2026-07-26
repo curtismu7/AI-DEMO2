@@ -5,7 +5,7 @@
 > Generated from `demo_api_server/config/useCases.js`.
 > Regenerate: `npm run use-cases:docs:gen` (from `demo_api_server/`).
 
-See also: [Audit Table](./audit-table.md)
+See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-verification-report.md)
 
 ## Foundations
 
@@ -15,6 +15,9 @@ See also: [Audit Table](./audit-table.md)
 - [**UC3** — act gate](./may-act-gate.md) ✅ 🛡️
 - [**UC19** — Non-human (agent) identity lifecycle](./agent-identity-lifecycle.md) ✅ 🛡️
 - [**UC20** — Audit trail / traceability](./audit-trail.md) ✅ 🛡️
+- [**UC33** — My mortgage](./mortgage-delegated-access.md) ✅ 🛡️
+- [**UC34** — Spot unusual patterns](./ai-spot-unusual-patterns.md) ✅ 🛡️
+- [**UC35** — Why was that blocked?](./ai-explain-last-denial.md) ✅ 🛡️
 
 ## Demo
 
@@ -29,6 +32,9 @@ See also: [Audit Table](./audit-table.md)
 - [**UC9** — Group / entitlement check](./group-entitlement-check.md) 🚩 🛡️
 - [**UC21** — Entitlement-tiered capability](./entitlement-tiered-capability.md) ✅ 🛡️
 - [**UC17** — JIT / ephemeral credentials](./jit-ephemeral-credentials.md) ✅ 🛡️
+- [**UC30** — Third-party MCP server, scoped at the gateway](./weather-mcp-texas-permit.md) ✅ 🛡️
+- [**UC31** — Third-party MCP server — out-of-scope call denied](./weather-mcp-texas-deny.md) ✅ 🛡️
+- [**UC32** — Live-reconfigure the gateway's scope policy](./weather-mcp-live-reconfigure.md) ✅ 🛡️
 - [**UC25** — Enterprise-managed MCP access](./enterprise-managed-mcp-access.md) 🚩 🛡️
 - [**UC28** — Tool set as the authorization boundary (Air Canada pattern)](./unauthorized-commitment-fee-waiver.md) ✅ 🛡️
 
@@ -39,10 +45,11 @@ See also: [Audit Table](./audit-table.md)
 - [**UC11** — Bad client → agent gateway](./bad-client-gateway.md) ✅ 🛡️
 - [**UC12** — Token theft / replay defense](./token-theft-replay.md) 🚩 🛡️
 - [**UC13** — Confused-deputy actor injection](./confused-deputy-actor-injection.md) ✅ 🛡️
-- [**UC14** — RAR intent violation](./rar-intent-violation.md) 🚩 🛡️
+- [**UC14** — PAR intent violation (Pushed Auth Request)](./rar-intent-violation.md) 🚩 🛡️
 - [**UC15** — Intent-token tampering](./intent-token-tampering.md) 🏗️ 🛡️
 - [**UC16** — Impersonation blocked (OBO required)](./impersonation-blocked.md) 🏗️ 🛡️
 - [**UC18** — Rate-limit / resource-overload defense](./rate-limit-defense.md) ✅ 🛡️
+- [**UC29** — OAuth introspection outage — fail closed](./oauth-fail-closed.md) ✅ 🛡️
 
 ## Hitl
 
@@ -58,10 +65,10 @@ See also: [Audit Table](./audit-table.md)
 
 ## Learn
 
-- [**UC14b** — RAR intent verified (PERMIT)](./rar-intent-verified.md) 🚩
+- [**UC14b** — PAR intent verified (PERMIT)](./rar-intent-verified.md) 🚩
 - [**UC-LEARN1** — OAuth Academy](./oauth-academy.md) ✅
 - [**UC-LEARN2** — PingOne MCP Inspector](./pingone-mcp-inspector.md) ✅
-- [**UC-LEARN3** — Demo MCP Inspector](./demo-mcp-inspector.md) ✅
+- [**UC-LEARN3** — Generic MCP Inspector](./demo-mcp-inspector.md) ✅
 - [**UC-LEARN4** — MCP Tools](./mcp-tools.md) ✅
 - [**UC-LEARN5** — Learning Hub](./learning-hub.md) ✅
 - [**UC-LEARN6** — Token Flow (Interactive)](./token-flow.md) ✅

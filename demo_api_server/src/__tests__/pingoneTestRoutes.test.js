@@ -130,6 +130,7 @@ const MOCK_APPS = [
   { id: 'app-10', name: 'Demo AI App - Tax Records Specialist Agent',       type: 'WEB_APP', oidcOptions: { clientId: 'tax-cid' } },
   { id: 'app-11', name: 'Demo AI App - Financial Aid Specialist Agent',     type: 'WEB_APP', oidcOptions: { clientId: 'aid-cid' } },
   { id: 'app-12', name: 'Demo AI App - Supplier Contract Specialist Agent', type: 'WEB_APP', oidcOptions: { clientId: 'sup-cid' } },
+  { id: 'app-13', name: 'Demo AI App - Holdings Specialist Agent',          type: 'WEB_APP', oidcOptions: { clientId: 'hold-cid' } },
   { id: 'app-w', name: 'Demo AI App - Introspection Worker',       type: 'WORKER',   oidcOptions: { clientId: 'worker-cid' } },
   { id: 'app-x', name: 'Some Unrelated App',                       type: 'WEB_APP',  oidcOptions: { clientId: 'other-cid' } },
 ];

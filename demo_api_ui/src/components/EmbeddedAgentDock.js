@@ -1,6 +1,6 @@
 // banking_api_ui/src/components/EmbeddedAgentDock.js
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAgentUiMode } from '../context/AgentUiModeContext';
 import { useVertical } from '../vertical/useVertical';
 import { isEmbeddedAgentDockRoute } from '../utils/embeddedAgentFabVisibility';
@@ -42,6 +42,7 @@ const FRAMEWORK_LABELS = {
 
 export default function EmbeddedAgentDock({ user, agentPlacement }) {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const { setSurfaceHostEl } = useAgentUiMode();
   const { pageManifest } = useVertical();
   const terminology = pageManifest?.terminology;
@@ -211,16 +212,27 @@ export default function EmbeddedAgentDock({ user, agentPlacement }) {
             )}
           </h2>
         </div>
-        <button
-          type="button"
-          className="embedded-dock-collapse-btn"
-          onClick={() => setCollapsed((c) => !c)}
-          aria-expanded={!collapsed}
-          title={collapsed ? 'Expand assistant' : 'Collapse assistant'}
-          aria-label={collapsed ? 'Expand assistant' : 'Collapse assistant'}
-        >
-          {collapsed ? '▴' : '▾'}
-        </button>
+        <div className="embedded-agent-dock__toolbar-actions">
+          <button
+            type="button"
+            className="embedded-dock-graph-link-btn"
+            onClick={() => navigate('/telemetry')}
+            title="View system graph"
+            aria-label="View system graph"
+          >
+            Graph
+          </button>
+          <button
+            type="button"
+            className="embedded-dock-collapse-btn"
+            onClick={() => setCollapsed((c) => !c)}
+            aria-expanded={!collapsed}
+            title={collapsed ? 'Expand assistant' : 'Collapse assistant'}
+            aria-label={collapsed ? 'Expand assistant' : 'Collapse assistant'}
+          >
+            {collapsed ? '▴' : '▾'}
+          </button>
+        </div>
       </div>
 
       {/* Host div is ALWAYS mounted so the BankingAgent portal target / its

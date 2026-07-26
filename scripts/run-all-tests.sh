@@ -25,6 +25,20 @@ step "demo_api_server — Jest (unit + integration under src/__tests__)"
 step "demo_mcp_server — Jest (unit; integration: npm run test:integration in that package)"
 ( cd "$ROOT/demo_mcp_server" && npm run test:unit ) || FAILED=1
 
+# demo_authz_server and demo_mcp_gateway were in NO runner and NO CI job, so ~90
+# test cases — including decision.contract, importSnapshot.parity, and five
+# gateway regression suites — ran only if a human cd'd into the directory.
+# Both carry pre-existing failures, so the helper reports them without failing
+# the gate; it DOES fail if a suite cannot run at all. See the script's header.
+step "demo_authz_server — node --test (root *.test.js + tests/*.test.js)"
+bash "$ROOT/scripts/test-service-suite.sh" authz-server || FAILED=1
+
+step "demo_mcp_gateway — Jest (CI=true, --maxWorkers=2)"
+bash "$ROOT/scripts/test-service-suite.sh" mcp-gateway || FAILED=1
+
+step "snapshots — node --test (cloud P1AZ snapshot drift + DecisionContext)"
+( cd "$ROOT" && npm run --silent test:snapshots ) || FAILED=1
+
 step "demo_api_ui — CRA Jest (non-interactive)"
 ( cd "$ROOT/demo_api_ui" && CI=true npm test -- --watchAll=false --passWithNoTests ) || FAILED=1
 

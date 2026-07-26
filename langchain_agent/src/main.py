@@ -322,16 +322,30 @@ class LangChainMCPApplication:
         app.include_router(agui_router)
         app.include_router(codegraph_router, prefix="/codegraph")
 
-        # Heal empty /app/codegraph.db from a prior Refresh that wrote the legacy
-        # repo-src path — pod restarts must not re-expose the Code Explorer 503.
+        # Heal empty/wrong-schema demo index. Never promote the host CodeGraph
+        # product DB (.codegraph/codegraph.db). Rebuild into demo-codegraph.db
+        # when missing, empty, or failing hardening checks.
         try:
-            from codegraph.ensure_index import ensure_query_index
+            from codegraph.ensure_index import (
+                build_query_index_sync,
+                ensure_query_index,
+                query_db_path,
+            )
+            from codegraph.index_guard import inspect_demo_index
+            from codegraph.repo import repo_src_root
             if ensure_query_index():
-                logger.info("[CodeGraph] query index ready at startup")
+                info = inspect_demo_index(query_db_path(), repo_root=repo_src_root())
+                logger.info(
+                    "[CodeGraph] query index ready at startup "
+                    "(ui=%s api=%s nodes=%s)",
+                    info.get("uiFiles"), info.get("apiFiles"), info.get("nodes"),
+                )
+            elif build_query_index_sync():
+                logger.info("[CodeGraph] query index built at startup")
             else:
                 logger.warning(
-                    "[CodeGraph] query index missing at startup — Code Explorer "
-                    "will 503 until Refresh index (or bake) succeeds"
+                    "[CodeGraph] query index missing/unusable at startup — "
+                    "Code Explorer will 503 until Refresh index (or bake) succeeds"
                 )
         except Exception as exc:
             logger.warning("[CodeGraph] startup index check failed: %s", exc)

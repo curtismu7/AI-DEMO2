@@ -30,6 +30,13 @@ jest.mock('../../middleware/auth', () => ({
       req.user = JSON.parse(userHeader);
       req.session = req.session || {};
       req.session.user = req.user;
+      // Test-only hook: lets a single test simulate an already-fresh
+      // session-level step-up (e.g. from a CIBA/P1MFA approval) without
+      // deriving it from an ACR claim on this request's token.
+      const stepUpVerifiedHeader = req.headers['x-test-step-up-verified'];
+      if (stepUpVerifiedHeader) {
+        req.session.stepUpVerified = Number(stepUpVerifiedHeader);
+      }
       return next();
     } catch {
       return res.status(401).json({ error: 'invalid_token' });
@@ -360,6 +367,71 @@ describe('Step-Up MFA Gate — POST /api/transactions', () => {
         .send(highValueWithdrawal(500));
 
       expect(res.status).not.toBe(428);
+    });
+  });
+
+  // ── Gate passes: fresh session-level step-up, independent of the token's ACR ──
+  // Proves the mechanism routes/ciba.js's simulated (and real) CIBA approval
+  // relies on: req.session.stepUpVerified alone satisfies the gate — the
+  // token itself is never re-decoded once that flag is fresh. See the
+  // "Key simplification" section of
+  // docs/superpowers/specs/2026-07-19-ciba-simulated-fallback-design.md.
+  describe('when req.session.stepUpVerified is fresh (session-level step-up, e.g. CIBA)', () => {
+    it('allows the transaction even with no ACR on the token, using the original access token unchanged', async () => {
+      runtimeSettings.update({
+        stepUpEnabled: true,
+        stepUpAmountThreshold: 250,
+        stepUpAcrValue: 'Multi_factor',
+      }, 'test');
+
+      const res = await request(app)
+        .post('/api/transactions')
+        .set('x-test-user', customerUser({ acr: null }))
+        .set('x-test-step-up-verified', String(Date.now() + 5 * 60 * 1000))
+        .send(highValueWithdrawal(500));
+
+      expect(res.status).not.toBe(428);
+    });
+  });
+
+  // ── UC22's useCaseId forces CIBA unconditionally (transactionAuthorizationService's
+  // CIBA_DEMO_USE_CASE_ID check does not look at acr) — so a retry that still carried
+  // useCaseId would be re-forced into another CIBA prompt forever, even right after
+  // the user approved one and the response should have gone straight back to them.
+  // routes/transactions.js breaks the loop by not re-sending useCaseId once this
+  // exact request already consumed a fresh session-level step-up. ──
+  describe('UC22 useCaseId — dropped once this request already consumed a fresh step-up', () => {
+    it('does not forward useCaseId to the policy engine on the post-approval retry', async () => {
+      runtimeSettings.update({
+        stepUpEnabled: true,
+        stepUpAmountThreshold: 250,
+        stepUpAcrValue: 'Multi_factor',
+      }, 'test');
+
+      await request(app)
+        .post('/api/transactions')
+        .set('x-test-user', customerUser({ acr: null }))
+        .set('x-test-step-up-verified', String(Date.now() + 5 * 60 * 1000))
+        .send({ ...highValueWithdrawal(500), useCaseId: 'ciba-out-of-band-approval' });
+
+      const calls = transactionAuthorizationServiceMock.evaluateTransactionPolicy.mock.calls;
+      expect(calls[calls.length - 1][0].useCaseId).toBe('');
+    });
+
+    it('still forwards useCaseId when there is no fresh session-level step-up', async () => {
+      runtimeSettings.update({
+        stepUpEnabled: true,
+        stepUpAmountThreshold: 250,
+        stepUpAcrValue: 'Multi_factor',
+      }, 'test');
+
+      await request(app)
+        .post('/api/transactions')
+        .set('x-test-user', customerUser({ acr: null }))
+        .send({ ...highValueWithdrawal(500), useCaseId: 'ciba-out-of-band-approval' });
+
+      const calls = transactionAuthorizationServiceMock.evaluateTransactionPolicy.mock.calls;
+      expect(calls[calls.length - 1][0].useCaseId).toBe('ciba-out-of-band-approval');
     });
   });
 

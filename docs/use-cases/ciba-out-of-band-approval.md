@@ -3,25 +3,25 @@
 # UC22 — CIBA out-of-band approval
 
 **Track:** hitl  
-**Maturity:** 🚩 `flag:ff_ciba`  
+**Maturity:** 🚩 `flag:ciba_enabled`  
 **OWASP:** 🛡️ **OWASP ASI** — Threats: T10 · Sections: §3.1.5
 
 ## Buyer Story
 
-A high-value action should be approvable on the user's separate device, not just in the same browser session.
+An AI agent has no browser to prompt for step-up. When it performs a sensitive action, approval must be requested out-of-band on the user's own device — driven by the action and the agent context, not by a dollar amount.
 
 ## PingOne Solution
 
-PingOne CIBA sends a backchannel auth request; the agent polls for the auth_req_id and proceeds only after the user approves on their device.
+Because an agent is acting (no browser redirect) on a sensitive money movement, PingOne Authorize returns a CIBA obligation. The backend calls bc-authorize and polls for the auth_req_id, proceeding only after the user approves out-of-band on their phone.
 
 ## How to Run
 
-**Trigger:** Chip message: `transfer $600 from checking to savings`  
+**Trigger:** Chip message: `transfer $150 from checking to savings`  
 **Expected outcome:** `PERMIT`
 
 ## What to Say
 
-> The approval came from the user's phone — a decoupled, out-of-band confirmation distinct from in-app step-up.
+> Note the amount — $150, below the MFA threshold. A person doing this in-browser would sail through. But an AGENT moving money is a sensitive, agent-context action, so approval is requested out-of-band on the user's phone. CIBA is triggered by the action and the actor, not the amount.
 
 ## Evidence
 

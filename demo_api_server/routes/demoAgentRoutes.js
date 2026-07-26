@@ -31,7 +31,13 @@ router.post('/init', async (req, res) => {
   try {
     const { userId, accessToken } = req.agentContext || {};
     if (!userId || !accessToken) {
-      return res.status(401).json({ error: 'Session expired', agentInitRequired: true, need_auth: true });
+      return res.status(401).json({
+        error: 'session_expired',
+        message: 'Your sign-in session has expired. Sign in again to continue.',
+        agentInitRequired: true,
+        need_auth: true,
+        requiresLogin: true,
+      });
     }
 
     console.log('[demo-agent/init] User authenticated, requesting agent CC token');
@@ -130,7 +136,13 @@ router.post('/tools', express.json(), async (req, res) => {
   try {
     const { userId, accessToken } = req.agentContext || {};
     if (!userId || !accessToken) {
-      return res.status(401).json({ error: 'Session expired', agentInitRequired: true, need_auth: true });
+      return res.status(401).json({
+        error: 'session_expired',
+        message: 'Your sign-in session has expired. Sign in again to continue.',
+        agentInitRequired: true,
+        need_auth: true,
+        requiresLogin: true,
+      });
     }
     const configStore = require('../services/configStore');
     const vertical = (typeof req.body?.vertical === 'string' && req.body.vertical)
@@ -207,7 +219,13 @@ router.post('/message', async (req, res) => {
 
     if (!userId || !accessToken) {
       console.error('[demo-agent/message] ERROR: Session expired - userId:', userId, 'accessToken present:', !!accessToken);
-      return res.status(401).json({ error: 'Session expired', agentInitRequired: true, need_auth: true });
+      return res.status(401).json({
+        error: 'session_expired',
+        message: 'Your sign-in session has expired. Sign in again to continue.',
+        agentInitRequired: true,
+        need_auth: true,
+        requiresLogin: true,
+      });
     }
 
     // Bookend for Activity Log demos — same correlationId on start + end.
@@ -546,7 +564,14 @@ router.post('/message', async (req, res) => {
       const rawScopes = Array.isArray(error.requiredScopes) ? error.requiredScopes : [];
       const validScope = /^[a-z][a-z0-9:_-]*$/;
       const requiredScopes = rawScopes.filter(s => typeof s === 'string' && validScope.test(s));
-      return res.status(401).json({ error: 'login_required', requiredScopes, events: req.eventEmitter.getAllEvents() });
+      return res.status(401).json({
+        error: 'login_required',
+        message: 'Your sign-in session has expired. Sign in again to continue.',
+        requiredScopes,
+        need_auth: true,
+        requiresLogin: true,
+        events: req.eventEmitter.getAllEvents(),
+      });
     }
     if (error.name === 'HitlRequiredError') {
       return res.status(403).json({
@@ -565,7 +590,14 @@ router.post('/message', async (req, res) => {
     }
         // TOKEN_INACTIVE — user's PingOne session expired; signal UI to re-authenticate
     if (error.code === 'TOKEN_INACTIVE') {
-      return res.status(401).json({ error: 'Session expired', need_auth: true, agentInitRequired: true, events: req.eventEmitter.getAllEvents() });
+      return res.status(401).json({
+        error: 'session_expired',
+        message: 'Your sign-in session has expired. Sign in again to continue.',
+        need_auth: true,
+        agentInitRequired: true,
+        requiresLogin: true,
+        events: req.eventEmitter.getAllEvents(),
+      });
     }
     // Downstream MCP/gateway rejected the agent's delegated token; the user's BFF
     // session is still valid, so surface inline (502) without forcing a re-login.

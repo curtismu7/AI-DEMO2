@@ -126,8 +126,8 @@
 /* Two-class selector beats ud-body--2026 single-class override */
 .ud-body.ud-body--dashboard-split3 {
   display: grid;
-  /* Token rail | Banking | Agent — give agent more space */
-  grid-template-columns: minmax(240px, 260px) 1fr minmax(360px, 420px);
+  /* Token rail | Banking | Agent — width driven by CSS vars set by drag-resize */
+  grid-template-columns: minmax(240px, 260px) var(--ud-agent-col-width, 380px) var(--ud-token-rail-width, 320px);
   grid-template-rows: 1fr;
   gap: 0;
   align-items: stretch;
@@ -148,7 +148,7 @@
    rendered container `ud-body ud-body--2026 ud-body--dashboard-split3`. */
 .ud-body.ud-body--2026.ud-body--dashboard-split3.ud-body--dashboard-split3--no-banking {
   width: 100%;
-  grid-template-columns: minmax(280px, 0.9fr) 2fr;
+  grid-template-columns: var(--ud-agent-col-width, 380px) var(--ud-token-rail-width, 320px);
 }
 
 /* In split3 page-mode the grid fills the flex remainder — height:0 lets flex control it */
@@ -186,7 +186,7 @@
 .ud-body.ud-body--2026.ud-body--dashboard-split3.ud-middle-collapsed {
   /* Open 3-col split3 template (UserDashboard.css line ~121), agent
      track now occupied by the float-reserve card (column display:none). */
-  grid-template-columns: minmax(240px, 260px) 1fr minmax(360px, 420px);
+  grid-template-columns: minmax(240px, 260px) var(--ud-agent-col-width, 380px) var(--ud-token-rail-width, 320px);
   grid-template-rows: 1fr;
   /* Undo the split3 viewport-flex lock so collapsed flows normally */
   height: auto;
@@ -208,17 +208,17 @@
    `--no-banking` values (UserDashboard.css line ~142) verbatim — the
    float-reserve card occupies the slot the agent track held. */
 .ud-body.ud-body--2026.ud-body--dashboard-split3.ud-body--dashboard-split3--no-banking.ud-middle-collapsed {
-  grid-template-columns: minmax(280px, 0.9fr) 2fr;
+  grid-template-columns: var(--ud-agent-col-width, 380px) var(--ud-token-rail-width, 320px);
 }
 
 /* Mirror the open split3 @media 1280px override (UserDashboard.css
-   line ~331): 3-col → 1fr 1fr 1fr; no-banking → 1fr 1fr. */
+   line ~331): 3-col → minmax(0,1fr) x3; no-banking → minmax(0,1fr) x2. */
 @media (max-width: 1280px) {
   .ud-body.ud-body--2026.ud-body--dashboard-split3.ud-middle-collapsed {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
   }
   .ud-body.ud-body--2026.ud-body--dashboard-split3.ud-body--dashboard-split3--no-banking.ud-middle-collapsed {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 
@@ -306,6 +306,7 @@
 }
 
 .ud-agent-column {
+  position: relative;
   min-width: 0;
   border-left: 1px solid var(--brand-medium-gray);
   border-right: 1px solid var(--brand-medium-gray);
@@ -315,6 +316,24 @@
   padding: 0;
   box-sizing: border-box;
   overflow: hidden;
+}
+
+/* Right-edge drag handle — agent column sits left of banking/token */
+.ud-agent-column__resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 5px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 4;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.ud-agent-column__resize-handle:hover,
+.ud-agent-column__resize-handle:focus-visible {
+  background: rgba(52, 152, 219, 0.35);
 }
 
 .ud-banking-column.ud-center {
@@ -343,14 +362,32 @@
   inset: 0;
   z-index: 2;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 16px;
   text-align: center;
   padding: 24px;
   color: #475569;
   font-size: 1.05rem;
   font-weight: 600;
   background: #ffffff;
+}
+
+.ud-dashboard-inline-agent-login-btn {
+  padding: 10px 28px;
+  background: var(--brand-navy, #1e3a5f);
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.ud-dashboard-inline-agent-login-btn:hover {
+  opacity: 0.85;
 }
 
 /* Host div for the portaled BankingAgent — must fill ud-dashboard-inline-agent so
@@ -370,11 +407,11 @@
 
 @media (max-width: 1280px) {
   .ud-body.ud-body--dashboard-split3 {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
   }
 
   .ud-body.ud-body--2026.ud-body--dashboard-split3.ud-body--dashboard-split3--no-banking {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 
@@ -2556,10 +2593,14 @@
   overflow: visible;
 }
 
-/* Split-3 overrides ud-body--2026: all 3 columns equal, flex-fills the viewport */
+/* Split-3 overrides ud-body--2026: all 3 columns equal, flex-fills the viewport.
+   minmax(0,1fr) — not plain 1fr — so grid columns are hard-capped at their track
+   size and never grow to fit overflowing token-chain step cards. Without the
+   explicit min:0, a wide step card pushed the token-rail column wider and squished
+   the agent column. */
 .ud-body.ud-body--2026.ud-body--dashboard-split3 {
   height: 0; /* flex:1 1 0% on the parent rule grows this to fill; 0 prevents content-overflow */
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
   grid-template-rows: 1fr;
   overflow: hidden;
   align-items: stretch;
@@ -3919,15 +3960,17 @@
 /* ── 2026 skin: token rail on the RIGHT (Side Menu | Agent | Token Chain) ──
  * Scoped to .user-dashboard--2026 so the legacy UserDashboard keeps its
  * left rail. JSX source order was flipped to match (rail is last child);
- * these rules put the wide/narrow tracks in the matching order. */
+ * these rules put the wide/narrow tracks in the matching order.
+ * Agent + token tracks are `auto` so inline drag-resize widths drive columns;
+ * banking (when shown) keeps the leftover `1fr` track. */
 .user-dashboard--2026 .ud-body.ud-body--dashboard-split3 {
-  grid-template-columns: 1fr minmax(360px, 420px) minmax(240px, 260px);
+  grid-template-columns: auto minmax(0, 1fr) auto;
 }
 .user-dashboard--2026 .ud-body.ud-body--dashboard-split3.ud-body--dashboard-split3--no-banking {
-  grid-template-columns: 2fr minmax(280px, 0.9fr);
+  grid-template-columns: auto auto;
 }
 .user-dashboard--2026 .ud-body.ud-body--2026.ud-body--float-mode {
-  grid-template-columns: minmax(0, 1fr) 380px;
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 .user-dashboard--2026 .ud-token-rail {
   border-right: none;
@@ -3940,8 +3983,8 @@
  * to keep winning the cascade tie-break. Values are the same rotate-left
  * transform: rail's track moves from first to last, other tracks shift up. */
 .user-dashboard--2026 .ud-body.ud-body--dashboard-split3.ud-middle-collapsed {
-  grid-template-columns: 1fr minmax(360px, 420px) minmax(240px, 260px);
+  grid-template-columns: auto minmax(0, 1fr) auto;
 }
 .user-dashboard--2026 .ud-body.ud-body--dashboard-split3.ud-body--dashboard-split3--no-banking.ud-middle-collapsed {
-  grid-template-columns: 2fr minmax(280px, 0.9fr);
+  grid-template-columns: auto auto;
 }

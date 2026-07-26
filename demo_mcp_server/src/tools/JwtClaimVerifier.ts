@@ -64,36 +64,52 @@ export class JwtClaimVerifier {
     }
 
     // MCP server resource URI — tokens arriving here must be issued for this service.
-    // Reads PINGONE_RESOURCE_MCP_SERVER_URI (set by bootstrapPingOne) or the legacy
-    // MCP_RESOURCE_URI alias. When configured the check is mandatory and fail-hard:
-    // a mismatched or absent aud on a sensitive-tool token is an authentication error,
-    // not just a warning, because it could indicate token replay from another service.
-    const expectedAud =
+    // Reads PINGONE_RESOURCE_MCP_SERVER_URI (set by bootstrapPingOne), MCP_SERVER_RESOURCE_URI
+    // (docker-compose.yml's own name for this — see its comment there: RFC 8693 rollout,
+    // comma-separated, "mcpserver.ping.demo,mcpgateway.ping.demo"), or the legacy
+    // MCP_RESOURCE_URI alias, in that order. When configured the check is mandatory and
+    // fail-hard: a mismatched or absent aud on a sensitive-tool token is an authentication
+    // error, not just a warning, because it could indicate token replay from another service.
+    //
+    // docker-compose.yml's environment: block only sets MCP_SERVER_RESOURCE_URI for this
+    // service, not MCP_RESOURCE_URI — so MCP_RESOURCE_URI comes solely from
+    // demo_mcp_server/.env, which still pins it to the old single value
+    // ("mcpgateway.ping.demo"). Without checking MCP_SERVER_RESOURCE_URI first this fell
+    // through to that stale single value — which never matches this server's real aud
+    // (mcpserver.ping.demo) — and every
+    // sensitive banking write (create_transfer, create_withdrawal, create_deposit) failed
+    // with a false "aud mismatch" AuthenticationError before the transfer logic ever ran.
+    // See UC22. The value can also be a comma-separated list, so split it either way.
+    const expectedAudRaw =
       process.env.PINGONE_RESOURCE_MCP_SERVER_URI ||
+      process.env.MCP_SERVER_RESOURCE_URI ||
       process.env.MCP_RESOURCE_URI ||
       process.env.BANKING_API_RESOURCE_URI || // legacy alias kept for backwards compat
       null;
+    const expectedAudList = expectedAudRaw
+      ? expectedAudRaw.split(',').map((s) => s.trim()).filter(Boolean)
+      : [];
 
-    if (expectedAud) {
+    if (expectedAudRaw) {
       const audArray: string[] = aud
         ? (Array.isArray(aud) ? (aud as string[]) : [aud as string])
         : [];
 
       if (audArray.length === 0) {
         throw new AuthenticationError(
-          `Token for sensitive tool '${toolName}' is missing the aud claim (expected '${expectedAud}')`,
+          `Token for sensitive tool '${toolName}' is missing the aud claim (expected one of '${expectedAudList.join(', ')}')`,
           AuthErrorCodes.INVALID_TOKEN
         );
       }
 
-      if (!audArray.includes(expectedAud)) {
+      if (!audArray.some((a) => expectedAudList.includes(a))) {
         throw new AuthenticationError(
-          `Token aud [${audArray.join(', ')}] does not match MCP server audience '${expectedAud}' for '${toolName}'`,
+          `Token aud [${audArray.join(', ')}] does not match MCP server audience (expected one of '${expectedAudList.join(', ')}') for '${toolName}'`,
           AuthErrorCodes.INVALID_TOKEN
         );
       }
 
-      this.logger.debug(`[BankingToolProvider] Audience check passed for '${toolName}': aud includes '${expectedAud}'`);
+      this.logger.debug(`[BankingToolProvider] Audience check passed for '${toolName}': aud includes one of '${expectedAudList.join(', ')}'`);
     }
 
     // ── JWKS Cryptographic Signature Verification (RFC 7515) ──────────────────
@@ -105,7 +121,7 @@ export class JwtClaimVerifier {
       try {
         const { jwtVerify } = await getJose();
         const verifyOpts: Parameters<typeof jwtVerify>[2] = {};
-        if (expectedAud) verifyOpts.audience = expectedAud;
+        if (expectedAudList.length > 0) verifyOpts.audience = expectedAudList;
         if (iss) verifyOpts.issuer = iss;
         await jwtVerify(token, jwks, verifyOpts);
         this.logger.info(`[BankingToolProvider] JWKS sig ✅ verified for sensitive tool '${toolName}'`);

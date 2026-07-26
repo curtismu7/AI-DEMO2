@@ -27,7 +27,17 @@ const settings = {
   // Default ON to match the feature flag registry default for step_up_enabled.
   // The boot seed (server.js) overrides this when a persisted value exists.
   stepUpEnabled: true,
-  // Step-up method: 'ciba' (back-channel challenge) or 'email' (OIDC re-auth redirect)
+  // Step-up method, surfaced to the UI as `step_up_method` on every 428:
+  //   'ciba'  — back-channel challenge
+  //   'email' — OIDC re-auth redirect
+  //   'p1mfa' — real PingOne device authentication. This is the ONLY value that
+  //             makes the agent step-up modal render the device picker
+  //             (SMS / email / passkey); see AIAgent.js `step_up_method === "p1mfa"`.
+  //             Any other value renders the stub OTP-only modal, so a passkey can
+  //             never be chosen. Passkeys additionally require the browser origin
+  //             to sit under the FIDO2 rp.id (see FIDO2_RP_ID).
+  // The value is passed straight through by every producer, so it is data, not a
+  // branch — do not add a whitelist here without updating the UI's check too.
   stepUpMethod: process.env.STEP_UP_METHOD || 'email',
 
   // Which transaction types require step-up

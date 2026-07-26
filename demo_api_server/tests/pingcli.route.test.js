@@ -1,6 +1,14 @@
 const request = require('supertest');
 const express = require('express');
 
+// getPingcliConfigPath() (routes/pingcli.js) needs these to resolve a
+// --config flag; setup.js deliberately never loads real PINGONE_* secrets
+// into tests. Without them, ensureAuthBootstrap() short-circuits with
+// "not configured" before ever calling execFile, for every cmd.auth command.
+process.env.PINGONE_ENVIRONMENT_ID = process.env.PINGONE_ENVIRONMENT_ID || 'test-env-id';
+process.env.PINGONE_WORKER_CLIENT_ID = process.env.PINGONE_WORKER_CLIENT_ID || 'test-client-id';
+process.env.PINGONE_WORKER_CLIENT_SECRET = process.env.PINGONE_WORKER_CLIENT_SECRET || 'test-client-secret';
+
 jest.mock('child_process', () => ({
   execFile: jest.fn((_bin, _args, _opts, cb) => {
     cb(null, '{"data":[]}', '');
@@ -110,5 +118,44 @@ describe('GET /api/admin/pingcli/commands', () => {
     expect(users.prereqs.find((p) => p.title === 'Authenticate').command).toBe(
       'pingcli pingone auth login'
     );
+  });
+});
+
+describe('agent-skills commands', () => {
+  it('lists both agent-skills commands as runnable, no auth', async () => {
+    const res = await request(app).get('/api/admin/pingcli/commands');
+    const list = res.body.find((c) => c.key === 'agent_skills_list');
+    const install = res.body.find((c) => c.key === 'agent_skills_install');
+    expect(list).toMatchObject({ runnable: true, auth: false });
+    expect(install).toMatchObject({ runnable: true, auth: false });
+    // No PingOne creds needed -> prereqs are just Install + Run.
+    expect(list.prereqs.map((p) => p.title)).toEqual(['Install PingCLI', 'Run command']);
+  });
+
+  it('runs agent-skills list via execFile', async () => {
+    execFile.mockClear();
+    const res = await request(app)
+      .post('/api/admin/pingcli/run')
+      .send({ commandKey: 'agent_skills_list' });
+    expect(res.status).toBe(200);
+    expect(res.body.command).toBe('pingcli agent-skills list -O json');
+    const args = execFile.mock.calls[execFile.mock.calls.length - 1][1];
+    expect(args).toEqual(expect.arrayContaining(['agent-skills', 'list', '-O', 'json']));
+  });
+
+  it('injects a sandbox --output-dir for install but keeps the label clean', async () => {
+    execFile.mockClear();
+    const res = await request(app)
+      .post('/api/admin/pingcli/run')
+      .send({ commandKey: 'agent_skills_install' });
+    expect(res.status).toBe(200);
+    // Label a presenter copies must NOT leak the server-internal --output-dir.
+    expect(res.body.command).toBe('pingcli agent-skills install pingcli-usage');
+    const args = execFile.mock.calls[execFile.mock.calls.length - 1][1];
+    expect(args).toEqual(expect.arrayContaining(['agent-skills', 'install', 'pingcli-usage']));
+    const i = args.indexOf('--output-dir');
+    expect(i).toBeGreaterThan(-1);
+    expect(typeof args[i + 1]).toBe('string');
+    expect(args[i + 1].length).toBeGreaterThan(0);
   });
 });

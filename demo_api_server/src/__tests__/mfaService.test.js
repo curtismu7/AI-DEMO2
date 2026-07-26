@@ -556,3 +556,51 @@ describe('completeEmailEnrollment', () => {
     expect(err.message).toBe('Invalid OTP provided');
   });
 });
+
+// ─── resolveRelyingPartyId ────────────────────────────────────────────────────
+
+describe('resolveRelyingPartyId', () => {
+  const APP_URL = 'https://api.ping.demo:4000';
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    delete process.env.FIDO2_RP_ID;
+    configStore.getEffective.mockReturnValue(undefined);
+  });
+
+  afterEach(() => {
+    delete process.env.FIDO2_RP_ID;
+  });
+
+  it('falls back to the public app URL hostname when no override is set', () => {
+    expect(mfaService.resolveRelyingPartyId(APP_URL)).toBe('api.ping.demo');
+  });
+
+  it('prefers the FIDO2_RP_ID env override over the hostname', () => {
+    process.env.FIDO2_RP_ID = 'ping-devops.com';
+    expect(mfaService.resolveRelyingPartyId(APP_URL)).toBe('ping-devops.com');
+  });
+
+  it('prefers configStore pingone_fido2_rp_id over the env override', () => {
+    process.env.FIDO2_RP_ID = 'from-env.example';
+    configStore.getEffective.mockImplementation((key) =>
+      key === 'pingone_fido2_rp_id' ? 'from-config.example' : undefined,
+    );
+    expect(mfaService.resolveRelyingPartyId(APP_URL)).toBe('from-config.example');
+  });
+
+  it('ignores a blank override and falls back to the hostname', () => {
+    process.env.FIDO2_RP_ID = '   ';
+    expect(mfaService.resolveRelyingPartyId(APP_URL)).toBe('api.ping.demo');
+  });
+
+  it('trims surrounding whitespace on the override', () => {
+    process.env.FIDO2_RP_ID = '  ping-devops.com  ';
+    expect(mfaService.resolveRelyingPartyId(APP_URL)).toBe('ping-devops.com');
+  });
+
+  it('returns null when there is no override and the URL is unparseable', () => {
+    expect(mfaService.resolveRelyingPartyId('not-a-url')).toBeNull();
+    expect(mfaService.resolveRelyingPartyId(undefined)).toBeNull();
+  });
+});

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAgentUiMode } from "../context/AgentUiModeContext";
 import { useEducationUI } from "../context/EducationUIContext";
+import apiClient from "../services/apiClient";
 import { persistAgentUi } from "../services/demoScenarioService";
 import { performLogout } from "../services/logout";
 import { navigateToCustomerOAuthLogin, requestSilentReauth } from "../utils/authUi";
@@ -45,6 +46,7 @@ import {
   MdPlayArrow,
   MdPolicy,
   MdPublic,
+  MdRefresh,
   MdRoute,
   MdSearch,
   MdSecurity,
@@ -146,14 +148,15 @@ const EXPANDED_SECTIONS_KEY_BASE = "adminSideNav.expandedSections";
 const AUTO_EXPAND_SECTIONS = [
   { id: "ai-agents", paths: ["/ai-control-plane", "/agent", "/copilot", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
   { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client"] },
-  { id: "banking-mcp", paths: ["/webmcp", "/mcp-inspector", "/ping-ai-test-lab"] },
+  { id: "banking-mcp", paths: ["/webmcp", "/ping-ai-test-lab"] },
+  { id: "banking-mcp-gateways", paths: ["/pinggateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security", "/agent-gateway-capabilities"] },
   { id: "pingone-demo-apps", paths: ["/self-service", "/pingone-test", "/mfa-test", "/token-exchange-tester", "/oauth-academy", "/oas-demo", "/privilege-demo", "/sdk-login"] },
-  { id: "delegation-consent", paths: ["/delegation", "/delegated-access", "/transaction-consent", "/actor-token-education"] },
-  { id: "authorize", paths: ["/pingone-authorize", "/authz-test", "/scope-audit", "/scope-reference"] },
+  { id: "delegation-consent", paths: ["/transaction-consent", "/actor-token-education"] },
+  { id: "authorize", paths: ["/pingone-authorize", "/pingone-authorize-capabilities", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
   { id: "users-accounts", paths: ["/users", "/accounts", "/transactions"] },
   { id: "industry-verticals", paths: ["/admin/banking", "/admin/healthcare", "/admin/retail", "/admin/sporting-goods", "/admin/workforce", "/admin/verticals", "/path/mortgage"] },
   { id: "monitoring", paths: ["/audit", "/monitoring", "/reports", "/error-audit"] },
-  { id: "telemetry", paths: ["/tracing", "/transaction-trace", "/check"] },
+  { id: "telemetry", paths: ["/tracing", "/telemetry", "/transaction-trace", "/check"] },
   { id: "agent-studio-preview", paths: ["/agent-studio-preview", "/iga-for-ai", "/discovery-preview", "/privileges-gateway-preview", "/platform-gaps"] },
   { id: "learn-present", paths: ["/learning", "/agentic-trust", "/agent-guardrails", "/owasp", "/llama-vscode-guide"] },
   { id: "tests", paths: ["/resource-server", "/resource-server-cc"] },
@@ -198,7 +201,25 @@ export default function AdminSideNav({ user }) {
   const [collapsed, setCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_WIDTH);
   const [navFilter, setNavFilter] = useState("");
+  const [hiddenNavLabels, setHiddenNavLabels] = useState([]);
   const isResizing = useRef(false);
+
+  // Per-user sidebar customization (Demo Config page). Returns [] when
+  // ff_sidebar_customization is OFF or the request fails — full nav either way.
+  const loadNavConfig = useCallback(() => {
+    if (!user) return;
+    fetch("/api/user/nav-config", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => setHiddenNavLabels(data.hiddenLabels || []))
+      .catch(() => setHiddenNavLabels([]));
+  }, [user]);
+  // Refetch on 'nav-config-changed' (Demo Config save/apply) so the sidebar
+  // updates without a full page reload; also callable via the refresh button.
+  useEffect(() => {
+    loadNavConfig();
+    window.addEventListener("nav-config-changed", loadNavConfig);
+    return () => window.removeEventListener("nav-config-changed", loadNavConfig);
+  }, [loadNavConfig]);
 
   // Sync --sidebar-width CSS var on App so main content margin stays correct
   useEffect(() => {
@@ -208,6 +229,20 @@ export default function AdminSideNav({ user }) {
         ?.style.setProperty("--sidebar-width", `${sidebarWidth}px`);
     }
   }, [sidebarWidth, collapsed]);
+
+  // Auto-collapse to the icon rail on narrow viewports. App.css drops the
+  // content offset to the collapsed width at <=768px assuming this collapse
+  // happens; without it the still-310px nav overlaps the content by ~230px.
+  // Only collapse — never force-expand — so a manual toggle stays respected.
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const apply = () => {
+      if (mq.matches) setCollapsed(true);
+    };
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
 
   const startResize = useCallback(
     (e) => {
@@ -398,13 +433,21 @@ export default function AdminSideNav({ user }) {
   const allNavItems = [
     { label: "Home", path: "/", icon: "~" },
     { label: "Dashboard", path: "/dashboard", icon: "≡" },
+    {
+      label: "Agent Lifecycle",
+      path: "/agent-lifecycle",
+      icon: "agt",
+      customerOnly: true,
+    },
     { label: "Themes", path: "/themes", icon: "cfg" },
     { label: "Use Cases", path: "/use-cases", icon: "demo" },
+    { label: "Use Cases (Live)", path: "/use-cases/live", icon: "demo" },
     {
-      label: "Agent Demo Guide",
-      icon: "doc",
-      action: () => navigate("/agent", { state: { openDemoGuide: true } }),
+      label: "Demo Script",
+      icon: "demo",
+      action: () => window.dispatchEvent(new CustomEvent("demo-script-toggle")),
     },
+    { label: "Demo Config", path: "/demo-config", icon: "cfg" },
     // Latest report — shown when agent run completes
     ...(latestRunId
       ? [
@@ -420,7 +463,6 @@ export default function AdminSideNav({ user }) {
       label: "Family Delegation",
       path: "/delegation",
       icon: "usr",
-      customerOnly: true,
     },
     {
       label: "AI Agents",
@@ -433,7 +475,6 @@ export default function AdminSideNav({ user }) {
           highlight: true,
           introGate: true,
         },
-        { label: "Agent Chat", path: "/agent", icon: "chat" },
         { label: "Copilot", path: "/copilot", icon: "ai" },
         {
           label: "PingOne Agent Builder",
@@ -451,7 +492,6 @@ export default function AdminSideNav({ user }) {
           path: "/ungoverned-agent",
           icon: "dbg",
         },
-        { label: "Agent Servers", path: "/servers", icon: "clk" },
       ],
     },
     {
@@ -460,30 +500,18 @@ export default function AdminSideNav({ user }) {
       highlight: true,
       children: [
         {
-          label: "PingOne MCP Inspector",
+          label: "MCP Inspector",
           path: "/pingone-mcp-inspector",
           icon: "dbg",
-        },
-        {
-          label: "PingOne MCP Tools",
-          action: () => {
-            window.location.href = "/pingone-mcp-tools.html";
-          },
-          icon: "tool",
         },
         { label: "PingOne MCP Setup", path: "/pingone-setup", icon: "cfg" },
         { label: "Privilege MCP Client", path: "/privilege-mcp-client", icon: "shld" },
       ],
     },
     {
-      label: "Banking MCP & Gateways",
+      label: "MCP & Gateways",
       icon: "rte",
       children: [
-        {
-          label: "Demo MCP Inspector",
-          path: "/mcp-inspector",
-          icon: "dbg",
-        },
         {
           label: "Ping AI Test Lab",
           path: "/ping-ai-test-lab",
@@ -491,14 +519,41 @@ export default function AdminSideNav({ user }) {
         },
         { label: "Web MCP", path: "/webmcp", icon: "web" },
         {
-          label: "PingGateway Config",
-          path: "/configure?tab=mcp-gateway",
+          label: "PingGateway Inspector",
+          path: "/pinggateway-inspector",
           icon: "rte",
         },
+        { label: "Capability Tour", path: "/agent-gateway-capabilities", icon: "shld" },
         {
-          label: "PingGateway Test",
-          path: "/pinggateway-test",
-          icon: "tst",
+          label: "Weather MCP",
+          icon: "mcp",
+          // UC30 — Texas permit kickoff (same as Use Cases → Run).
+          action: () => {
+            const vertical = activeVerticalId || "banking";
+            apiClient
+              .post("/api/use-cases/demo/run", {
+                useCaseId: "weather-mcp-texas-permit",
+                vertical,
+              })
+              .then(({ data }) =>
+                apiClient
+                  .post("/api/verticals/active", { id: vertical })
+                  .then(() => data),
+              )
+              .then((data) => {
+                navigate("/dashboard", {
+                  state: {
+                    useCaseId: data.useCaseId,
+                    triggerText: data.triggerText,
+                    type: data.type,
+                    vertical,
+                  },
+                });
+              })
+              .catch((err) => {
+                console.error("Weather MCP nav: failed to run use case", err);
+              });
+          },
         },
       ],
     },
@@ -524,12 +579,6 @@ export default function AdminSideNav({ user }) {
       label: "Delegation & Consent",
       icon: "dlg",
       children: [
-        { label: "User Delegation", path: "/delegation", icon: "dlg" },
-        {
-          label: "Delegated Access",
-          path: "/delegated-access",
-          icon: "lnk",
-        },
         {
           label: "Transaction Consent",
           path: "/transaction-consent",
@@ -547,7 +596,12 @@ export default function AdminSideNav({ user }) {
       icon: "pol",
       children: [
         { label: "PingOne Authorize", path: "/pingone-authorize", icon: "pol" },
-        { label: "Demo Server Authz Test", path: "/authz-test", icon: "pol" },
+        { label: "Authorize Capabilities", path: "/pingone-authorize-capabilities", icon: "pol" },
+        {
+          label: "Policy Decision Trace",
+          path: "/policy-decision-trace",
+          icon: "flw",
+        },
         {
           label: "Scope Audit",
           path: "/scope-audit",
@@ -666,6 +720,23 @@ export default function AdminSideNav({ user }) {
                 detail: { type: "intent-bypass" },
               }),
             );
+            // Same no-agent fallback as AiAttacksPanel Run buttons — without
+            // this, Intent Bypass is a silent no-op on routes where the agent
+            // is not mounted.
+            if (!window.__bankingAgentMounted) {
+              try {
+                sessionStorage.setItem(
+                  "banking-agent-pending-attack",
+                  JSON.stringify({
+                    type: "intent-bypass",
+                    payload: { type: "intent-bypass" },
+                  }),
+                );
+              } catch (_) {
+                /* sessionStorage unavailable */
+              }
+              window.location.assign("/dashboard");
+            }
           },
         },
       ],
@@ -691,11 +762,6 @@ export default function AdminSideNav({ user }) {
           path: "/monitoring/activity-log",
           icon: "log",
         },
-        {
-          label: "API Explorer",
-          path: "/monitoring/api-explorer",
-          icon: "api",
-        },
         { label: "Run Reports", path: "/reports", icon: "rpt" },
         {
           label: "Error Audit Log",
@@ -709,6 +775,7 @@ export default function AdminSideNav({ user }) {
       label: "Telemetry",
       icon: "log",
       children: [
+        { label: "Service Graph", path: "/telemetry", icon: "log" },
         { label: "Tracing", path: "/tracing", icon: "log" },
         { label: "Transaction Trace", path: "/transaction-trace", icon: "log" },
         { label: "Health Check", path: "/check", icon: "clk" },
@@ -741,9 +808,10 @@ export default function AdminSideNav({ user }) {
         },
         { label: "Sequence Diagram", path: "/sequence-diagram", icon: "log" },
         { label: "Canvas Diagram", path: "/architecture/canvas", icon: "⬡" },
-        { label: "Agent Onboarding Flow", path: "/agent-onboarding-flow", icon: "arc" },
-        { label: "Agent Onboarding Flow (Subway)", path: "/agent-onboarding-flow-subway", icon: "arc" },
-        { label: "Agent Onboarding Flow (Mermaid)", path: "/agent-onboarding-flow-mermaid", icon: "arc" },
+        { label: "Agent Onboarding Flow", path: "/agent-onboarding-flow", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
+        { label: "Agent Onboarding Flow (Subway)", path: "/agent-onboarding-flow-subway", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
+        { label: "Agent Onboarding Flow (Mermaid)", path: "/agent-onboarding-flow-mermaid", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
+        { label: "MCP Gateway OAuth Flow", path: "/mcp-gateway-oauth-flow", icon: "log" },
       ],
     },
     {
@@ -779,6 +847,7 @@ export default function AdminSideNav({ user }) {
         { label: "Code Explorer", path: "/code-explorer", icon: "tst" },
         { label: "Code Search", path: "/code-search", icon: "srch" },
         { label: "Graphify", path: "/graphify", icon: "arc" },
+        { label: "Mgmt API Runner", path: "/mgmt-api", icon: "tool" },
       ],
     },
     {
@@ -818,7 +887,11 @@ export default function AdminSideNav({ user }) {
 
   // Filter by role. adminOnly items are NOT hidden — they render with an
   // "admin" badge and non-admin clicks prompt an admin re-login instead.
-  const navItems = allNavItems.filter((item) => !item.customerOnly || !isAdmin);
+  // Then filter by the user's Demo Config hidden-item selection — "Demo
+  // Config" itself is never hideable (would lock the user out of undoing it).
+  const navItems = allNavItems
+    .filter((item) => !item.customerOnly || !isAdmin)
+    .filter((item) => item.label === "Demo Config" || !hiddenNavLabels.includes(item.label));
 
   // Live filter: match by label across top-level items and their children. A
   // group is kept if its own label matches (all children shown) or if any child
@@ -1091,7 +1164,7 @@ export default function AdminSideNav({ user }) {
                   <Link
                     key={childKey}
                     to={child.path}
-                    className={`admin-side-nav__item admin-side-nav__item--child${child.highlight ? " admin-side-nav__item--highlight-danger" : ""} ${isActive(child.path) ? " admin-side-nav__item--active" : ""}`}
+                    className={`admin-side-nav__item admin-side-nav__item--child${child.highlight ? " admin-side-nav__item--highlight-danger" : ""}${child.className ? ` ${child.className}` : ""} ${isActive(child.path) ? " admin-side-nav__item--active" : ""}`}
                     title={child.label}
                     aria-current={isActive(child.path) ? "page" : undefined}
                     onClick={
@@ -1205,7 +1278,8 @@ export default function AdminSideNav({ user }) {
 
       {/* Navigation Menu */}
       <nav className="admin-side-nav__menu" aria-label="Primary navigation">
-        {/* Quick-access shortcuts */}
+        {/* Quick-access shortcuts — 2×2 when collapsed (incl. Refresh); 2×2 of
+            Cust/Admin/Setup when expanded (Refresh lives next to search). */}
         <div className="admin-side-nav__quick-links">
           <button
             type="button"
@@ -1231,7 +1305,7 @@ export default function AdminSideNav({ user }) {
                 );
             }}
           >
-            {collapsed ? "C" : "Customer"}
+            {collapsed ? "C" : "Cust"}
           </button>
           <button
             type="button"
@@ -1266,35 +1340,57 @@ export default function AdminSideNav({ user }) {
           >
             {collapsed ? "S" : "Setup"}
           </Link>
+          {collapsed && (
+            <button
+              type="button"
+              className="admin-side-nav__quick-link"
+              title="Refresh sidebar (pick up Demo Config changes)"
+              aria-label="Refresh sidebar"
+              onClick={loadNavConfig}
+            >
+              R
+            </button>
+          )}
         </div>
 
         {/* Filter — live-filters nav items by label (hidden when collapsed) */}
         {!collapsed && (
-          <div className="admin-side-nav__filter">
-            <MdSearch
-              className="admin-side-nav__filter-icon"
-              size={16}
-              aria-hidden="true"
-            />
-            <input
-              type="text"
-              className="admin-side-nav__filter-input"
-              placeholder="Search menu…"
-              value={navFilter}
-              onChange={(e) => setNavFilter(e.target.value)}
-              aria-label="Search navigation"
-            />
-            {navFilter && (
-              <button
-                type="button"
-                className="admin-side-nav__filter-clear"
-                onClick={() => setNavFilter("")}
-                aria-label="Clear filter"
-                title="Clear"
-              >
-                ✕
-              </button>
-            )}
+          <div className="admin-side-nav__filter-row">
+            <div className="admin-side-nav__filter">
+              <MdSearch
+                className="admin-side-nav__filter-icon"
+                size={16}
+                aria-hidden="true"
+              />
+              <input
+                type="text"
+                className="admin-side-nav__filter-input"
+                placeholder="Search menu…"
+                value={navFilter}
+                onChange={(e) => setNavFilter(e.target.value)}
+                aria-label="Search navigation"
+              />
+              {navFilter && (
+                <button
+                  type="button"
+                  className="admin-side-nav__filter-clear"
+                  onClick={() => setNavFilter("")}
+                  aria-label="Clear filter"
+                  title="Clear"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              className="admin-side-nav__filter-refresh"
+              title="Refresh sidebar (pick up Demo Config changes)"
+              aria-label="Refresh sidebar"
+              onClick={loadNavConfig}
+            >
+              <MdRefresh size={16} aria-hidden="true" />
+            </button>
           </div>
         )}
 

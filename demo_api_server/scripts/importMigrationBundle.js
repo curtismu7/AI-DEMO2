@@ -668,10 +668,10 @@ async function main() {
   if (certsMissing) {
     console.log(`  ${stepNum++}. Generate TLS certs (machine-bound — not in archive):`);
     if (hasMkcert()) {
-      console.log('       mkdir -p certs && cd certs && mkcert api.ping.demo localhost 127.0.0.1');
+      console.log('       mkdir -p certs && cd certs && mkcert -cert-file api.ping.demo+2.pem -key-file api.ping.demo+2-key.pem api.ping.demo local.ping-devops.com demo-api-server localhost 127.0.0.1');
     } else {
       console.log('       brew install mkcert && mkcert -install');
-      console.log('       mkdir -p certs && cd certs && mkcert api.ping.demo localhost 127.0.0.1');
+      console.log('       mkdir -p certs && cd certs && mkcert -cert-file api.ping.demo+2.pem -key-file api.ping.demo+2-key.pem api.ping.demo local.ping-devops.com demo-api-server localhost 127.0.0.1');
     }
     console.log('');
   }

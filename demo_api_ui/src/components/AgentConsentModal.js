@@ -1,6 +1,5 @@
 import { useState, useCallback } from "react";
 import DraggableModal from "./DraggableModal";
-import IntentAuthDecisionDisplay from "./IntentAuthDecisionDisplay";
 import { formatCurrency } from "../utils/formatters";
 import "./AgentConsentModal.css";
 
@@ -89,10 +88,6 @@ export default function AgentConsentModal({
   const showTo =
     !!transaction?.toAccountId &&
     (transaction.type === "transfer" || transaction.type === "deposit");
-  const showDetails =
-    !!transaction?.description &&
-    prettyLabel(transaction.description) !== actionHeadline;
-  const hasTxRows = isMonetary || showFrom || showTo || showDetails;
 
   const title = hitlContext
     ? "Authorize Agent Action"
@@ -101,6 +96,7 @@ export default function AgentConsentModal({
       : "Allow AI Agent Access";
 
   const requiresCheckbox = !!(hitlContext || transaction);
+  const defaultModalHeight = requiresCheckbox ? 520 : 470;
 
   const footer = (
     <>
@@ -129,9 +125,9 @@ export default function AgentConsentModal({
       onClose={onDismiss}
       title={title}
       footer={footer}
-      defaultWidth={460}
-      defaultHeight={640}
-      storageKey="agent-consent-modal-v3"
+      defaultWidth={500}
+      defaultHeight={defaultModalHeight}
+      storageKey="agent-consent-modal-v5"
       zIndex={100070}
       backdropClose={false}
     >
@@ -190,51 +186,19 @@ export default function AgentConsentModal({
               — it cannot proceed without you.
             </p>
 
-            {intentAuthDecision && (
-              <IntentAuthDecisionDisplay decision={intentAuthDecision} compact />
-            )}
-
             <section className="acm-card">
               <div className="acm-card__head">
                 <span className="acm-card__kicker">Requested action</span>
                 <span className="acm-card__title">{actionHeadline}</span>
+                {(isMonetary || showFrom || showTo) && (
+                  <span className="acm-card__subtitle">
+                    {isMonetary && <strong>{fmtAmount(txAmount)}</strong>}
+                    {showFrom && ` from ${transaction.fromAccountId}`}
+                    {showTo && ` to ${transaction.toAccountId}`}
+                  </span>
+                )}
               </div>
-              {hasTxRows && (
-                <dl className="acm-kv">
-                  {isMonetary && (
-                    <div className="acm-kv__row">
-                      <dt>Amount</dt>
-                      <dd className="acm-kv__amount">{fmtAmount(txAmount)}</dd>
-                    </div>
-                  )}
-                  {showFrom && (
-                    <div className="acm-kv__row">
-                      <dt>From</dt>
-                      <dd>{transaction.fromAccountId}</dd>
-                    </div>
-                  )}
-                  {showTo && (
-                    <div className="acm-kv__row">
-                      <dt>To</dt>
-                      <dd>{transaction.toAccountId}</dd>
-                    </div>
-                  )}
-                  {showDetails && (
-                    <div className="acm-kv__row">
-                      <dt>Details</dt>
-                      <dd>{transaction.description}</dd>
-                    </div>
-                  )}
-                </dl>
-              )}
             </section>
-
-            {isMonetary && txAmount >= hitlThreshold && (
-              <div className="acm-high-value-warning">
-                ⚠️ This exceeds {fmtAmount(hitlThreshold)} — please double-check
-                before authorizing.
-              </div>
-            )}
 
             <ul className="acm-assurances">
               <li>Verified with a one-time code sent to your registered email</li>

@@ -64,56 +64,212 @@ module.exports = async function importSnapshot(req, res) {
       return [...new Set(tools)].sort();
     };
 
-    // Verify consent tools
-    const consentCond = conditions.find(c => c.name === 'RequiresHitlConsent');
-    if (consentCond) {
-      const snapshotConsent = extractToolsFromCondition(consentCond);
-      const sotConsent = Object.entries(manifest.tools || {})
-        .filter(([_, t]) => t.challengeType === 'consent')
-        .map(([n]) => n)
-        .sort();
+    /** Tool names the SoT gates with the given challengeType. */
+    const sotToolsForChallenge = (challengeType) => Object.entries(manifest.tools || {})
+      .filter(([_, t]) => t.challengeType === challengeType)
+      .map(([n]) => n)
+      .sort();
 
-      if (JSON.stringify(snapshotConsent) !== JSON.stringify(sotConsent)) {
+    /**
+     * Compare one challenge condition against the SoT.
+     *
+     * The condition being ABSENT is drift in its own right, and a worse one than
+     * a tool being dropped from it: a snapshot missing RequiresHitlConsent
+     * un-gates EVERY consent tool, where the .FIXED.json variant only un-gated
+     * three. The previous `if (cond) {...}` shape skipped the whole comparison in
+     * that case and scored zero conflicts — valid:true, HTTP 200.
+     *
+     * A rename lands here too. The lookup is by NAME while
+     * gen-authorize-snapshot.js addresses conditions by stable ID, so an
+     * ID-preserving rename is invisible to the generator and would otherwise
+     * silently disable this check forever.
+     *
+     * Absence is only a conflict when the SoT actually expects tools of that
+     * kind — if nothing is gated with this challengeType, a snapshot without the
+     * condition is correct, not drift.
+     */
+    const checkChallengeCondition = ({ conditionName, challengeType, missingType, mismatchType }) => {
+      const sotTools = sotToolsForChallenge(challengeType);
+      const cond = conditions.find(c => c.name === conditionName);
+
+      if (!cond) {
+        if (sotTools.length > 0) {
+          conflicts.push({
+            type: missingType,
+            condition: conditionName,
+            snapshot: null,
+            sot: sotTools,
+            message:
+              `Condition "${conditionName}" is absent from the snapshot (deleted or renamed) while ` +
+              `scope-topology.json still gates ${sotTools.length} tool(s) with challengeType=${challengeType}. ` +
+              `Importing would un-gate all of them.`,
+          });
+        }
+        return;
+      }
+
+      const snapshotTools = extractToolsFromCondition(cond);
+      if (JSON.stringify(snapshotTools) !== JSON.stringify(sotTools)) {
         conflicts.push({
-          type: 'consent_tool_mismatch',
-          snapshot: snapshotConsent,
-          sot: sotConsent,
+          type: mismatchType,
+          snapshot: snapshotTools,
+          sot: sotTools,
         });
       }
-    }
+    };
+
+    // Verify consent tools
+    checkChallengeCondition({
+      conditionName: 'RequiresHitlConsent',
+      challengeType: 'consent',
+      missingType: 'consent_condition_missing',
+      mismatchType: 'consent_tool_mismatch',
+    });
 
     // Verify step-up tools
-    const stepUpCond = conditions.find(c => c.name === 'RequiresMcpStepUp');
-    if (stepUpCond) {
-      const snapshotStepUp = extractToolsFromCondition(stepUpCond);
-      const sotStepUp = Object.entries(manifest.tools || {})
-        .filter(([_, t]) => t.challengeType === 'step_up')
-        .map(([n]) => n)
-        .sort();
+    checkChallengeCondition({
+      conditionName: 'RequiresMcpStepUp',
+      challengeType: 'step_up',
+      missingType: 'step_up_condition_missing',
+      mismatchType: 'step_up_tool_mismatch',
+    });
 
-      if (JSON.stringify(snapshotStepUp) !== JSON.stringify(sotStepUp)) {
+    // Verify HasValidMcpAudience — the round-3 import blocker. Post-C1 every
+    // caller sends the token's REAL single aud as TokenAudience, so the
+    // condition must be an OR of `TokenAudience Equals <accepted gateway
+    // identity>` whose constants match the SoT gateway resources exactly.
+    // Two shapes make an import deny ALL MCP traffic and must block:
+    //   1. the pre-round-3 attribute-to-attribute equality
+    //      (TokenAudience == McpResourceUri) — never true post-C1;
+    //   2. a wrong/partial constant set — a dropped identity denies that
+    //      gateway wholesale, a foreign one admits nobody real.
+    // Lookup is by NAME (like the challenge conditions): a rename or delete
+    // reads as missing and blocks too.
+    const GATEWAY_RESOURCE_NAMES = ['Super Banking MCP Gateway', 'Super Banking PingGateway MCP'];
+    const sotGatewayAuds = GATEWAY_RESOURCE_NAMES
+      .map((n) => manifest.resources && manifest.resources[n] && manifest.resources[n].uri)
+      .filter(Boolean)
+      .sort();
+    const audCond = conditions.find((c) => c.name === 'HasValidMcpAudience');
+    if (sotGatewayAuds.length !== GATEWAY_RESOURCE_NAMES.length) {
+      conflicts.push({
+        type: 'mcp_audience_sot_missing',
+        sot: sotGatewayAuds,
+        message:
+          `scope-topology.json resources does not define every accepted gateway identity ` +
+          `(${GATEWAY_RESOURCE_NAMES.join(', ')}) — cannot validate HasValidMcpAudience; failing closed.`,
+      });
+    } else if (!audCond) {
+      conflicts.push({
+        type: 'mcp_audience_condition_missing',
+        condition: 'HasValidMcpAudience',
+        snapshot: null,
+        sot: sotGatewayAuds,
+        message:
+          'Condition "HasValidMcpAudience" is absent from the snapshot (deleted or renamed). ' +
+          'Importing would leave MCP audience validation undefined.',
+      });
+    } else {
+      let attributeEquality = false;
+      const audConstants = [];
+      const walkAud = (node) => {
+        if (!node || typeof node !== 'object') return;
+        if (node.comparison) {
+          if (node.comparison.right && node.comparison.right.attribute) attributeEquality = true;
+          if (node.comparison.right && node.comparison.right.constant) {
+            const v = node.comparison.right.constant.value;
+            if (typeof v === 'string' && v) audConstants.push(v);
+          }
+        }
+        if (node.and) (node.and.conditions || []).forEach(walkAud);
+        if (node.or) (node.or.conditions || []).forEach(walkAud);
+        if (node.not) walkAud(node.not.condition);
+      };
+      walkAud(audCond.condition);
+      if (attributeEquality) {
         conflicts.push({
-          type: 'step_up_tool_mismatch',
-          snapshot: snapshotStepUp,
-          sot: sotStepUp,
+          type: 'mcp_audience_attribute_equality',
+          condition: 'HasValidMcpAudience',
+          message:
+            'HasValidMcpAudience compares TokenAudience against another ATTRIBUTE (the pre-round-3 ' +
+            'TokenAudience == McpResourceUri equality). Post-C1 that is never true — importing this ' +
+            'snapshot would deny ALL MCP traffic. It must be an OR of Equals against the accepted ' +
+            'gateway identity constants.',
+        });
+      }
+      const snapshotAuds = [...new Set(audConstants)].sort();
+      if (!attributeEquality && JSON.stringify(snapshotAuds) !== JSON.stringify(sotGatewayAuds)) {
+        conflicts.push({
+          type: 'mcp_audience_mismatch',
+          snapshot: snapshotAuds,
+          sot: sotGatewayAuds,
+          message:
+            'HasValidMcpAudience constants do not match the SoT gateway identities. A dropped identity ' +
+            'denies that gateway wholesale; a foreign one admits no real caller.',
         });
       }
     }
 
-    // Verify statement sharing (step-up must be shared)
-    const stepUpStmt = statements.find(s => s.id === '34567890-0003-4321-abcd-000000000003');
-    if (stepUpStmt && !stepUpStmt.shared) {
-      conflicts.push({
-        type: 'statement_not_shared',
-        statement: 'Step-Up MFA Required (34567890-0003)',
-        message: 'Must be shared: true to avoid multi-parent conflict',
-      });
+    // Verify the round-3 fine-grained deny statement codes exist. The BFF
+    // obligation classifier keys on these codes; a snapshot missing one ships a
+    // rule whose deny is unclassifiable (or drops the rule entirely).
+    const REQUIRED_STATEMENT_CODES = [
+      'mcp-bypass-attempt',
+      'mcp-resource-owner-mismatch',
+      'mcp-intent-invalid',
+      'mcp-intent-mismatch',
+      'mcp-admin-role-not-permitted',
+      // RAR amount-cap deny (#611/#615) — code matches the simulated engine's
+      // deny_reason (rar_amount_exceeded), not the mcp-* convention.
+      'rar_amount_exceeded',
+    ];
+    for (const code of REQUIRED_STATEMENT_CODES) {
+      if (!statements.some((s) => s.code === code)) {
+        conflicts.push({
+          type: 'statement_code_missing',
+          code,
+          message: `Statement code "${code}" is required by the round-3 fine-grained deny rules but is absent from the snapshot.`,
+        });
+      }
+    }
+
+    // Verify statement sharing. Any statement referenced by MORE THAN ONE rule
+    // is multi-parented and must be `shared: true`, or the import produces a
+    // multi-parent conflict. This is derived from the snapshot's own rule graph
+    // rather than a hardcoded id: the previous check only covered the step-up
+    // statement, so `mcp-authorization-denied` — shared across seven MCP deny
+    // rules — was never validated.
+    const referencedBy = new Map();
+    for (const rule of rules) {
+      for (const ref of rule.statements || []) {
+        const id = typeof ref === 'string' ? ref : ref && ref.id;
+        if (!id) continue;
+        referencedBy.set(id, (referencedBy.get(id) || 0) + 1);
+      }
+    }
+    for (const stmt of statements) {
+      const count = referencedBy.get(stmt.id) || 0;
+      if (count > 1 && !stmt.shared) {
+        conflicts.push({
+          type: 'statement_not_shared',
+          statement: `${stmt.code || stmt.name || 'unknown'} (${stmt.id})`,
+          referencedBy: count,
+          message: `Referenced by ${count} rules — must be shared: true to avoid multi-parent conflict`,
+        });
+      }
     }
 
     report.conflicts = conflicts;
     report.valid = conflicts.length === 0;
 
-        res.json(report);
+    // Parity failures BLOCK the import (F9). Returning 200 with `valid:false`
+    // let an automated importer treat a drifted snapshot as success — e.g. a
+    // snapshot that drops tools from RequiresHitlConsent silently un-gates them.
+    // The full report is still returned so the caller can show the conflicts.
+    if (!report.valid) {
+      return res.status(409).json(report);
+    }
+    res.json(report);
   } catch (err) {
     res.status(400).json({
       error: 'Invalid snapshot file',

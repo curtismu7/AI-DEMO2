@@ -36,11 +36,11 @@ export default function DiscoveryPreviewPage() {
   const activeStory = FLOWS.admin.stories[story];
 
   return (
-    <div className="asp-root">
+    <div className="asp-root asp-root--discovery">
       <div className="asp-page">
         <PreviewBanner />
         <div className="asp-hero">
-          <span className="asp-eyebrow">Agent Studio · Preview</span>
+          <span className="asp-eyebrow">Discovery · Preview</span>
           <h1>Discovery</h1>
           <p>Two stories, sixteen steps — walk either one from the diagram.</p>
         </div>

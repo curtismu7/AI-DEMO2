@@ -63,6 +63,9 @@ export default function Profile({ user }) {
   const [enrollOtp, setEnrollOtp] = useState('');
   const [enrollBusy, setEnrollBusy] = useState(false);
 
+  const [showSuccessScreen, setShowSuccessScreen] = useState(!user?.hideSuccessScreen);
+  const [savingPreference, setSavingPreference] = useState(false);
+
   const loadDevices = useCallback(async () => {
     setDevicesLoading(true);
     try {
@@ -104,6 +107,22 @@ export default function Profile({ user }) {
       phone: user?.phone || '',
     });
     setIsEditing(false);
+  };
+
+  const handleToggleSuccessScreen = async () => {
+    setSavingPreference(true);
+    try {
+      const newValue = !showSuccessScreen;
+      await bffAxios.post('/api/auth/oauth/user/success-screen-preference', {
+        hideSuccessScreen: !newValue,
+      });
+      setShowSuccessScreen(newValue);
+      toast.success(newValue ? 'Success screen enabled' : 'Success screen disabled');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to update preference');
+    } finally {
+      setSavingPreference(false);
+    }
   };
 
   const handleRemoveDevice = async (deviceId) => {
@@ -391,6 +410,31 @@ export default function Profile({ user }) {
           </div>
         </div>
       )}
+
+      {/* Login Preferences */}
+      <div className="up-card">
+        <div className="up-card__header">
+          <span className="up-card__title">Login Preferences</span>
+        </div>
+
+        <div className="up-fields">
+          <div className="up-field up-field--toggle">
+            <div className="up-field__content">
+              <span className="up-field__label">Success Screen</span>
+              <span className="up-field__desc">Show the authentication success screen when you log in</span>
+            </div>
+            <button
+              type="button"
+              className={`up-toggle ${showSuccessScreen ? 'up-toggle--on' : 'up-toggle--off'}`}
+              onClick={handleToggleSuccessScreen}
+              disabled={savingPreference}
+              aria-pressed={showSuccessScreen}
+            >
+              <span className="up-toggle__knob" />
+            </button>
+          </div>
+        </div>
+      </div>
 
       <AgentAccessCard />
     </div>

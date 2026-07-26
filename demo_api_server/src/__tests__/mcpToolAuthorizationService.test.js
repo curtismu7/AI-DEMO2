@@ -7,11 +7,17 @@ jest.mock('../../services/configStore');
 jest.mock('../../services/pingOneAuthorizeService', () => ({
   evaluateMcpToolDelegation: jest.fn(),
   isMcpDelegationDecisionReady: jest.fn(),
+  // Transaction-limit policy, consulted for amount-bearing tool calls.
+  // Default PERMIT so existing cases keep the gate's own decision.
+  evaluateTransaction: jest.fn(async () => ({ decision: 'PERMIT' })),
 }));
 jest.mock('../../services/simulatedAuthorizeService', () => ({
   evaluateMcpFirstTool: jest.fn(),
   isSimulatedModeEnabled: jest.fn(),
   resolveAuthorizeMode: jest.fn(),
+  getDenyAmountUsd: jest.fn(() => 2000),
+  getStepUpAmountUsd: jest.fn(() => 500),
+  getConfirmAmountUsd: jest.fn(() => 250),
   buildAuthorizeFallbackSignal: jest.fn((failoverMode, err, path, extra = {}) => ({
     occurred: true, attemptedEngine: 'pingone', failoverMode,
     effectiveAction: failoverMode === 'deny' ? 'denied' : failoverMode === 'permit' ? 'permitted' : 'fell_back_to_simulated',
@@ -70,6 +76,105 @@ describe('mcpToolAuthorizationService', () => {
   });
 
   describe('evaluateMcpFirstToolGate', () => {
+    // Transaction-limit policy consult. The MCP first-tool gate answers "may this
+    // agent call this tool" and never evaluates amount limits — that rule lives on
+    // the Transaction decision endpoint, previously reachable only from
+    // routes/transactions.js. Without this consult a $2500 agent transfer got
+    // PERMIT + HITL and no use case could demo a hard limit DENY.
+    describe('transaction-limit policy consult', () => {
+      const readyGate = () => {
+        configStore.get.mockImplementation((k) =>
+          k === 'ff_authorize_mcp_first_tool' ? 'true' : null);
+        // The outer beforeEach assigns getEffective as a PLAIN function, so it has
+        // no .mockImplementation — reassign rather than configure.
+        configStore.getEffective = jest.fn((k) => configStore.get(k));
+        pingOneAuthorizeService.isMcpDelegationDecisionReady.mockReturnValue(true);
+        simulatedAuthorizeService.resolveAuthorizeMode.mockReturnValue({
+          mode: 'pingone', useSimulated: false, failoverMode: 'deny',
+        });
+        simulatedAuthorizeService.isSimulatedModeEnabled.mockReturnValue(false);
+      };
+      const call = (params) => evaluateMcpFirstToolGate({
+        req: { session: {}, user: { id: 'u1' } },
+        tool: 'create_transfer',
+        toolParams: params,
+        transactionType: 'transfer',
+        agentToken: jwtWithPayload({ sub: 'u1', aud: 'mcp' }),
+        userSub: 'u1',
+      });
+
+      beforeEach(() => {
+        readyGate();
+        // Gate itself permits with a HITL obligation — the live shape today.
+        pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({
+          decision: 'PERMIT', hitlRequired: true, decisionId: 'gate-1',
+        });
+        pingOneAuthorizeService.evaluateTransaction.mockResolvedValue({ decision: 'PERMIT' });
+      });
+
+      it('a transaction-policy DENY overrides the gate PERMIT+HITL', async () => {
+        pingOneAuthorizeService.evaluateTransaction.mockResolvedValue({
+          decision: 'DENY', decisionId: 'limit-1',
+          raw: { decision: 'DENY', reason: 'amount over limit', statements: [] },
+        });
+        // Stale gate body must not leak into authorize_response (UC6 TraceRail).
+        pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({
+          decision: 'PERMIT', hitlRequired: true, decisionId: 'gate-1',
+          raw: {
+            decision: 'PERMIT',
+            statements: [{ code: 'HITL' }, { code: 'mcp-tool-authorized' }],
+          },
+          _debug: {
+            request: { method: 'POST', url: 'https://example/mcp' },
+            response: {
+              decision: 'PERMIT',
+              statements: [{ code: 'HITL' }, { code: 'mcp-tool-authorized' }],
+            },
+          },
+        });
+        const r = await call({ amount: 2500 });
+        expect(r.block.status).toBe(403);
+        expect(r.block.body.error).toBe('mcp_authorization_denied');
+        expect(r.block.body.decisionId).toBe('limit-1');
+        expect(r.block.body.decisionContext).toBe('McpFirstTool');
+      });
+
+      it('a transaction-policy STEP_UP obligation upgrades the gate HITL to step-up', async () => {
+        // $600 live: PERMIT + Step-Up MFA Required + HITL. Step-up outranks HITL.
+        pingOneAuthorizeService.evaluateTransaction.mockResolvedValue({
+          decision: 'PERMIT', stepUpRequired: true, hitlRequired: true, decisionId: 'limit-2',
+        });
+        const r = await call({ amount: 600 });
+        expect(r.block.status).toBe(428);
+        expect(r.block.body.error).toBe('mcp_step_up_required');
+      });
+
+      it('a transaction-policy PERMIT leaves the HITL gate intact (sub-deny amount)', async () => {
+        // Use confirm-band amount so local amount-band DENY/step-up do not fire;
+        // Transaction PERMIT must not clear the gate's HITL.
+        const r = await call({ amount: 300 });
+        expect(r.block.status).toBe(428);
+        expect(r.block.body.error).toBe('mcp_hitl_required');
+      });
+
+      it('is not consulted at all when the tool carries no amount', async () => {
+        await evaluateMcpFirstToolGate({
+          req: { session: {}, user: { id: 'u1' } },
+          tool: 'get_my_accounts',
+          agentToken: jwtWithPayload({ sub: 'u1', aud: 'mcp' }),
+          userSub: 'u1',
+        });
+        expect(pingOneAuthorizeService.evaluateTransaction).not.toHaveBeenCalled();
+      });
+
+      it('applies local amount DENY when the limit policy errors (UC6)', async () => {
+        pingOneAuthorizeService.evaluateTransaction.mockRejectedValue(new Error('p1az down'));
+        const r = await call({ amount: 2500 });
+        expect(r.block.body.error).toBe('mcp_authorization_denied');
+        expect(r.block.body.decisionContext).toBe('McpFirstTool');
+      });
+    });
+
     it('fails CLOSED (503) when no backend configured + failover=deny (PingOne-only default)', async () => {
       // simulated off + PingOne not ready + failover=deny (beforeEach) → must NOT
       // skip the gate (fail-open); it fails closed so an unconfigured install
@@ -134,17 +239,32 @@ describe('mcpToolAuthorizationService', () => {
       expect(r).toMatchObject({ ran: true, permit: true });
     });
 
-    it('skips for admin role', async () => {
+    // WAS: 'skips for admin role' — asserted { ran: false } for any admin
+    // session, i.e. it pinned the F5 fail-open where the admin role bypassed
+    // the ENTIRE authorization gate in code. That test encoded the bug: an
+    // admin could invoke any MCP tool with no policy evaluation at all.
+    // The role is now a PDP input (UserRole), so policy decides.
+    // Full coverage lives in authzGateFailOpen.test.js.
+    it('does NOT skip for admin role — the gate runs and policy decides', async () => {
       configStore.get.mockImplementation((k) =>
         k === 'ff_authorize_mcp_first_tool' ? 'true' : null,
       );
+      pingOneAuthorizeService.isMcpDelegationDecisionReady.mockReturnValue(true);
+      pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({
+        decision: 'PERMIT', stepUpRequired: false, raw: {}, decisionId: 'd1',
+      });
+
       const r = await evaluateMcpFirstToolGate({
         req: { session: { user: { role: 'admin' } } },
         tool: 'get_my_accounts',
         agentToken: jwtWithPayload({ sub: 'u1' }),
         userSub: 'u1',
       });
-      expect(r).toMatchObject({ ran: false });
+
+      expect(r).toMatchObject({ ran: true, permit: true });
+      expect(
+        pingOneAuthorizeService.evaluateMcpToolDelegation.mock.calls[0][0].userRole,
+      ).toBe('admin');
     });
 
     it('runs simulated path and permits', async () => {
@@ -180,6 +300,12 @@ describe('mcpToolAuthorizationService', () => {
 
       expect(r.ran).toBe(true);
       expect(r.permit).toBe(true);
+      // simParams must carry the SAME role the live PingOne path gets. When it
+      // did not, the two engines evaluated different inputs for one call —
+      // which is finding F3, the disagreement this workstream exists to close.
+      expect(simulatedAuthorizeService.evaluateMcpFirstTool).toHaveBeenCalledWith(
+        expect.objectContaining({ userRole: 'user' }),
+      );
       expect(simulatedAuthorizeService.evaluateMcpFirstTool).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: 'user-sub',
@@ -269,6 +395,38 @@ describe('mcpToolAuthorizationService', () => {
       expect(r.block.body.error).toBe('mcp_step_up_required');
     });
 
+    // The agent step-up modal only renders its device picker (SMS / email /
+    // passkey) when the 428 body carries step_up_method === 'p1mfa'
+    // (AIAgent.js checks that exact string). The gate omitted the field
+    // entirely, so `normalized.step_up_method` was undefined and every agent
+    // step-up silently fell back to the stub OTP-only modal.
+    it('includes step_up_method on the step-up block so the UI can pick a device', async () => {
+      configStore.get.mockImplementation((k) =>
+        k === 'ff_authorize_mcp_first_tool' ? 'true' : null,
+      );
+      // jest automock leaves getEffective without mock helpers here; install one.
+      configStore.getEffective = jest.fn((k) => (k === 'step_up_method' ? 'p1mfa' : null));
+      simulatedAuthorizeService.isSimulatedModeEnabled.mockReturnValue(true);
+      simulatedAuthorizeService.evaluateMcpFirstTool.mockResolvedValue({
+        decision: 'INDETERMINATE',
+        stepUpRequired: true,
+        hitlRequired: false,
+        path: 'simulated',
+        decisionId: 'sim-stepup',
+        raw: {},
+      });
+
+      const r = await evaluateMcpFirstToolGate({
+        req: { session: { user: { role: 'user' } } },
+        tool: 'create_transfer',
+        agentToken: jwtWithPayload({ sub: 'u1' }),
+        userSub: 'u1',
+      });
+
+      expect(r.block.body.error).toBe('mcp_step_up_required');
+      expect(r.block.body.step_up_method).toBe('p1mfa');
+    });
+
     it('calls PingOne when live and MCP endpoint ready', async () => {
       configStore.get.mockImplementation((k) => {
         if (k === 'ff_authorize_mcp_first_tool') return 'true';
@@ -297,6 +455,151 @@ describe('mcpToolAuthorizationService', () => {
       expect(r.ran).toBe(true);
       expect(r.permit).toBe(true);
       expect(pingOneAuthorizeService.evaluateMcpToolDelegation).toHaveBeenCalled();
+    });
+
+    // The LIVE PingOne path is what the real stack runs (P1AZ + PingGateway), so
+    // this is the branch that actually decides whether the agent step-up modal
+    // can show its device picker. Covered separately from the simulated block —
+    // they are distinct response builders and only one was exercised before.
+    it('includes step_up_method on the LIVE PingOne step-up block', async () => {
+      configStore.get.mockImplementation((k) => {
+        if (k === 'ff_authorize_mcp_first_tool') return 'true';
+        if (k === 'ff_authorize_fail_open') return 'false';
+        if (k === 'authorize_mcp_decision_endpoint_id') return 'mcp-endpoint-uuid';
+        if (k === 'PINGONE_RESOURCE_MCP_SERVER_URI') return 'https://mcp';
+        return null;
+      });
+      configStore.getEffective = jest.fn((k) => (k === 'step_up_method' ? 'p1mfa' : null));
+      simulatedAuthorizeService.isSimulatedModeEnabled.mockReturnValue(false);
+      pingOneAuthorizeService.isMcpDelegationDecisionReady.mockReturnValue(true);
+      pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({
+        decision: 'INDETERMINATE',
+        stepUpRequired: true,
+        path: 'decision-endpoint',
+        decisionId: 'p1-stepup',
+        raw: {},
+      });
+
+      const r = await evaluateMcpFirstToolGate({
+        req: { session: { user: { role: 'user' } } },
+        tool: 'get_my_accounts',
+        agentToken: jwtWithPayload({ sub: 'sub-99', aud: 'https://mcp' }),
+        userSub: 'sub-99',
+      });
+
+      expect(r.block.status).toBe(428);
+      expect(r.block.body.error).toBe('mcp_step_up_required');
+      expect(r.block.body.step_up_method).toBe('p1mfa');
+    });
+
+    // UC22's demo slug (req.body.useCaseId) must force step_up_method: 'ciba'
+    // even when the global step_up_method config says 'p1mfa' -- this gate is
+    // the one the live banking-agent chat path actually calls (mcpToolPipeline.js),
+    // so without this override UC22 showed the P1MFA device picker instead of
+    // the CIBA out-of-band flow, though transactionAuthorizationService (a
+    // different, unrelated gate) already had its own CIBA override.
+    it('overrides step_up_method to ciba for the UC22 demo use-case, ignoring the global config', async () => {
+      configStore.get.mockImplementation((k) => {
+        if (k === 'ff_authorize_mcp_first_tool') return 'true';
+        if (k === 'ff_authorize_fail_open') return 'false';
+        if (k === 'authorize_mcp_decision_endpoint_id') return 'mcp-endpoint-uuid';
+        if (k === 'PINGONE_RESOURCE_MCP_SERVER_URI') return 'https://mcp';
+        return null;
+      });
+      configStore.getEffective = jest.fn((k) => (k === 'step_up_method' ? 'p1mfa' : null));
+      simulatedAuthorizeService.isSimulatedModeEnabled.mockReturnValue(false);
+      pingOneAuthorizeService.isMcpDelegationDecisionReady.mockReturnValue(true);
+      pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({
+        decision: 'INDETERMINATE',
+        stepUpRequired: true,
+        path: 'decision-endpoint',
+        decisionId: 'p1-ciba-stepup',
+        raw: {},
+      });
+
+      const r = await evaluateMcpFirstToolGate({
+        req: { session: { user: { role: 'user' } }, body: { useCaseId: 'ciba-out-of-band-approval' } },
+        tool: 'create_transfer',
+        agentToken: jwtWithPayload({ sub: 'sub-99', aud: 'https://mcp' }),
+        userSub: 'sub-99',
+      });
+
+      expect(r.block.status).toBe(428);
+      expect(r.block.body.error).toBe('mcp_step_up_required');
+      expect(r.block.body.step_up_method).toBe('ciba');
+    });
+
+    // CIBA (and the stub OTP flow) only set req.session.stepUpVerified on
+    // completion -- unlike a real P1MFA re-auth, they never re-mint the
+    // access token's ACR. Without this check, the retried tool call presents
+    // the SAME token to PingOne and gets step-up-required again forever
+    // (an infinite CIBA-approval loop, caught live: UC22's chat kept
+    // re-initiating CIBA every ~11s instead of completing after approval).
+    it('PERMITs a retried call when session.stepUpVerified is fresh, even though PingOne still reports stepUpRequired', async () => {
+      configStore.get.mockImplementation((k) => {
+        if (k === 'ff_authorize_mcp_first_tool') return 'true';
+        if (k === 'ff_authorize_fail_open') return 'false';
+        if (k === 'authorize_mcp_decision_endpoint_id') return 'mcp-endpoint-uuid';
+        if (k === 'PINGONE_RESOURCE_MCP_SERVER_URI') return 'https://mcp';
+        return null;
+      });
+      configStore.getEffective = jest.fn((k) => (k === 'step_up_method' ? 'p1mfa' : null));
+      simulatedAuthorizeService.isSimulatedModeEnabled.mockReturnValue(false);
+      pingOneAuthorizeService.isMcpDelegationDecisionReady.mockReturnValue(true);
+      pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({
+        decision: 'INDETERMINATE',
+        stepUpRequired: true,
+        path: 'decision-endpoint',
+        decisionId: 'p1-retry',
+        raw: {},
+      });
+
+      const req = {
+        session: { user: { role: 'user' }, stepUpVerified: Date.now() + 60_000 },
+        body: { useCaseId: 'ciba-out-of-band-approval' },
+      };
+      const r = await evaluateMcpFirstToolGate({
+        req,
+        tool: 'create_transfer',
+        agentToken: jwtWithPayload({ sub: 'sub-99', aud: 'https://mcp' }),
+        userSub: 'sub-99',
+      });
+
+      expect(r.ran).toBe(true);
+      expect(r.permit).toBe(true);
+      expect(r.block).toBeUndefined();
+      // Single-use: consumed so a later, unrelated call re-evaluates fresh.
+      expect(req.session.stepUpVerified).toBe(0);
+    });
+
+    it('still demands step-up when session.stepUpVerified is stale/expired', async () => {
+      configStore.get.mockImplementation((k) => {
+        if (k === 'ff_authorize_mcp_first_tool') return 'true';
+        if (k === 'ff_authorize_fail_open') return 'false';
+        if (k === 'authorize_mcp_decision_endpoint_id') return 'mcp-endpoint-uuid';
+        if (k === 'PINGONE_RESOURCE_MCP_SERVER_URI') return 'https://mcp';
+        return null;
+      });
+      configStore.getEffective = jest.fn((k) => (k === 'step_up_method' ? 'p1mfa' : null));
+      simulatedAuthorizeService.isSimulatedModeEnabled.mockReturnValue(false);
+      pingOneAuthorizeService.isMcpDelegationDecisionReady.mockReturnValue(true);
+      pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({
+        decision: 'INDETERMINATE',
+        stepUpRequired: true,
+        path: 'decision-endpoint',
+        decisionId: 'p1-stale',
+        raw: {},
+      });
+
+      const r = await evaluateMcpFirstToolGate({
+        req: { session: { user: { role: 'user' }, stepUpVerified: Date.now() - 1000 } },
+        tool: 'create_transfer',
+        agentToken: jwtWithPayload({ sub: 'sub-99', aud: 'https://mcp' }),
+        userSub: 'sub-99',
+      });
+
+      expect(r.block.status).toBe(428);
+      expect(r.block.body.error).toBe('mcp_step_up_required');
     });
 
     it('returns 428 HITL block when PingOne live requires human approval', async () => {

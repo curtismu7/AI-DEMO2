@@ -1,0 +1,24 @@
+# docker-compose.no-gateway.yml
+#
+# Override for running the stack without any MCP gateway (no ping-gateway, no
+# mcp-gateway). The BFF falls back to a direct WebSocket connection to mcp-server
+# when MCP_GATEWAY_HTTP_URL is empty.
+#
+# Used by: ./run-docker.sh no-gateway
+# Do NOT use with full stack or demo-sync — those assume a gateway is present.
+
+services:
+  demo-api-server:
+    environment:
+      # Empty string → BFF.config.useGateway = false → direct WebSocket to mcp-server.
+      MCP_GATEWAY_HTTP_URL: ""
+      # Keep the PingGateway URL clear too so nothing accidentally re-enables it.
+      MCP_PINGGATEWAY_URL: ""
+
+  # Prevent ping-gateway from starting by overriding its entrypoint to a no-op
+  # and marking it as not required so dependants don't block.
+  ping-gateway:
+    entrypoint: ["/bin/sh", "-c", "echo 'ping-gateway disabled (no-gateway mode)' && sleep infinity"]
+    restart: "no"
+    healthcheck:
+      disable: true

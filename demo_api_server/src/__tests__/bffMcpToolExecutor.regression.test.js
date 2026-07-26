@@ -57,7 +57,11 @@ describe('bffMcpToolExecutor — all plugin tools', () => {
         sessionId: 'sess',
         tokenEvents: [],
       });
-      expect(String(raw)).not.toMatch(/Unknown tool/i);
+      // Guard the DISPATCH-level rejection only (bffMcpToolExecutor emits
+      // `Unknown tool: ${name}` for an unrecognized tool). Some teaching tools
+      // (oauth-teaching/*) legitimately embed "Unknown tool: <other-tool>" in
+      // their narrative output, so match this tool's own name, not the phrase.
+      expect(String(raw)).not.toMatch(new RegExp(`Unknown tool: ${name}`));
     },
   );
 });

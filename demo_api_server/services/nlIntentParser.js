@@ -235,6 +235,23 @@ function extractIntentAndConfidence(message) {
       confidence: 0.95,
     };
 
+  // Retail checkout — UC22 demo step ("checkout headphones for $150") and
+  // similar buy/purchase prompts. Without this, intent stays "unknown" →
+  // permitted_tools is read-only → PingGateway P1AZ DENYs checkout with
+  // intent_mismatch after CIBA approval (BFF gate already PERMITted).
+  //
+  // "check out" (two words) is too broad — it's natural English for
+  // "look at my balance/account/transactions", which map to banking read
+  // intents. Only match the single-word "checkout" or "check out" when
+  // explicitly followed by a shopping noun (cart, basket, item, order).
+  // norm() strips "$", so \$? in the buy/purchase branch was a no-op — removed.
+  const checkoutMatch =
+    /\bcheckout\b/.test(t) ||
+    /\bcheck\s+out\s+(?:my\s+)?(?:cart|basket|item|order)\b/.test(t) ||
+    /\b(buy|purchase)\b.*\d/.test(t);
+  if (checkoutMatch)
+    return { intent: "checkout", toolName: "checkout", confidence: 0.9 };
+
   // Balance/accounts: "show my X balance" or "check my X"
   const balanceMatch = /\b(balance|how much|what.*balance)\b/.test(t);
   if (balanceMatch)
@@ -872,6 +889,12 @@ function parseHeuristic(
     return { kind: "banking", banking: { action: "mcp_tools" } };
   }
 
+  // JWT decode diagnostic chip — cross-vertical (not tied to any vertical's
+  // data), so this fast-path runs unconditionally like mcp_tools above.
+  if (/\bdecode\s+my\s+(jwt|token)\b/.test(t)) {
+    return { kind: "banking", banking: { action: "jwt_decode_demo" } };
+  }
+
   // Account nickname — cross-vertical banking MCP chip; must precede plugin heuristics
   // that match bare "account" (banking accounts list, admin customer accounts, etc.).
   if (matchesAccountNickname(t)) {
@@ -910,6 +933,29 @@ function parseHeuristic(
     return {
       kind: "banking",
       banking: { action: "branch_hours", ...(params ? { params } : {}) },
+    };
+  }
+
+  // weather-mcp showcase (cross-vertical) — real third-party MCP server fronted
+  // by the Agent Gateway, Texas-scoped at the edge (ping-gateway/scripts/groovy/
+  // tx-weather-scope.groovy). Runs before plugin heuristics like branch_hours
+  // above, since it isn't tied to any vertical's own data. Requires an actual
+  // "in <city>" clause — "the weather is nice today" (no location) is the
+  // idiomatic off-topic control phrase used across this suite's kind:'none'
+  // tests and must keep falling through, not be swallowed by a bare "weather".
+  // Capture city from the ORIGINAL message: norm() replaces commas with spaces
+  // ("Austin, TX" → "austin tx"), which breaks tx-weather-scope.groovy's
+  // ", TX" / ", Texas" qualifier check and falsely DENYs in-scope cities.
+  const weatherCityMatch = String(message || "").match(
+    /\bweather\b.*?\bin\s+(.+)$/i,
+  );
+  if (weatherCityMatch?.[1]) {
+    return {
+      kind: "banking",
+      banking: {
+        action: "weather",
+        params: { city_name: weatherCityMatch[1].trim() },
+      },
     };
   }
 

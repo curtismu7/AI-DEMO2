@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import IntentBindingLearningPage from "../IntentBindingLearningPage";
 
 beforeEach(() => {
@@ -57,4 +58,24 @@ test("running the drift column posts action:'drift' and shows DENY", async () =>
     }),
   ));
   expect(await screen.findByText(/^DENY \(rar_amount_exceeded\)/i)).toBeInTheDocument();
+});
+
+test("status boxes use permit green / deny red by column kind", async () => {
+  const reason = "PingOne PAR (RFC 9126) is enabled by default. Configure: pingone_par_endpoint";
+  global.fetch
+    .mockResolvedValueOnce({ ok: false, json: async () => ({ reason }) })
+    .mockResolvedValueOnce({ ok: false, json: async () => ({ reason }) });
+
+  const { container } = render(
+    <MemoryRouter>
+      <IntentBindingLearningPage />
+    </MemoryRouter>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: /run permit/i }));
+  fireEvent.click(screen.getByRole("button", { name: /run drift/i }));
+
+  await waitFor(() => {
+    expect(container.querySelector(".ib-col--permit .ib-status--permit")).toBeTruthy();
+    expect(container.querySelector(".ib-col--drift .ib-status--deny")).toBeTruthy();
+  });
 });

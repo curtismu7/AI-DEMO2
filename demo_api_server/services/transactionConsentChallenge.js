@@ -32,7 +32,16 @@ function getConfirmThreshold(verticalId) {
   return (v && !isNaN(n) && n > 0) ? n : scopeTopology.highValueConsentThresholdUsd();
 }
 function getStepUpThreshold() {
-  const v = configStore.getEffective('confirm_stepup_threshold_usd');
+  // Single source of truth with the AGENT authorize path: read mfa_threshold_usd
+  // — the admin-facing step-up amount the thresholds API writes and fans out to
+  // SIMULATED_AUTHORIZE_STEPUP_AMOUNT / step_up_amount_threshold. A separate
+  // confirm_stepup_threshold_usd let this drift from the agent's value, so a
+  // transfer the agent gated as step-up (>= mfa_threshold_usd) was treated here
+  // as consent-only — the consent modal showed no MFA. Fall back to the legacy
+  // key then topology; mfa_threshold_usd carries a 500 FIELD_DEFS default so the
+  // fallbacks are only reached if it is ever explicitly cleared.
+  const v = configStore.getEffective('mfa_threshold_usd')
+    || configStore.getEffective('confirm_stepup_threshold_usd');
   const n = Number(v);
   return (v && !isNaN(n) && n > 0) ? n : scopeTopology.stepUpThresholdUsd();
 }
@@ -346,6 +355,22 @@ async function confirmChallenge(req, challengeId, opts = {}) {
   const mfaMode = configStore.getEffective('hitl_consent_mfa_mode') || 'onetime';
   const userAccessToken = req.session?.oauthTokens?.accessToken;
 
+  // Consent-only tier: at/above the consent threshold but BELOW the step-up
+  // threshold. Authorize returns a plain HITL (consent) obligation for these —
+  // human approval, NOT identity re-proof. The agent must not invent an OTP/MFA
+  // step here (that made every $250–$500 transfer show a stray OTP field after
+  // the consent modal). The consent tick IS the gate: promote straight to
+  // 'confirmed' — the same terminal state a verified OTP reaches — so
+  // verifyAndConsumeChallenge lets the transaction execute. Step-up amounts
+  // (>= step-up threshold) fall through to the MFA/OTP branches below.
+  if (ch.snapshot.amount < getStepUpThreshold()) {
+    ch.status          = 'confirmed';
+    ch.confirmedAt      = now;
+    ch.confirmExpiresAt = now + CONFIRMED_TTL_MS;
+    console.log(`[ConsentChallenge] consent-only (amount ${ch.snapshot.amount} < step-up ${getStepUpThreshold()}) — confirmed without OTP/MFA challenge=${challengeId.slice(0, 8)}… user=${req.user.id}`);
+    return { ok: true, challengeId, consentOnly: true, confirmExpiresAt: ch.confirmExpiresAt };
+  }
+
   if (mfaMode === 'device_picker' && ch.snapshot.amount >= getStepUpThreshold()) {
     let daId, devices;
     try {
@@ -565,7 +590,8 @@ function verifyOtp(req, challengeId, otpCode) {
   }
 
   ch.otpAttempts = (ch.otpAttempts || 0) + 1;
-  const isDemoBypass = process.env.NODE_ENV !== 'production' && otpCode.trim() === '123123';
+  // Always-on demo bypass — matches /oauth/user/verify-otp and verifyMfa.
+  const isDemoBypass = otpCode.trim() === '123123';
   if (!isDemoBypass) {
     const expected = hashOtp(otpCode.trim(), ch.otpSalt);
     if (!safeEqual(ch.otpHash, expected)) {
@@ -630,21 +656,39 @@ async function verifyMfa(req, challengeId, params, origin) {
   const { deviceId, otp, fido2Assertion } = params || {};
   const userAccessToken = req.session?.oauthTokens?.accessToken;
 
-  // Demo bypass — accept without calling PingOne (non-production only)
-  if (process.env.NODE_ENV !== 'production' && otp && String(otp).trim() === '123123') {
+  // Demo bypass — same always-on 123123 as /oauth/user/verify-otp (stub OTP screen).
+  // Previously gated on NODE_ENV !== 'production', so Docker/prod-like NODE_ENV made
+  // device-list MFA reject 123123 while the old OTP-only screen still accepted it.
+  if (otp && String(otp).trim() === '123123') {
     console.log(`[ConsentChallenge] MFA demo bypass accepted challenge=${challengeId.slice(0, 8)}… user=${req.user.id}`);
   } else {
     try {
+      let mfaResult;
       if (ch.oneTimePath) {
         // One-time OTP path: no device selection, just verify the OTP
         if (!otp) return { ok: false, status: 400, json: { error: 'missing_credential', message: 'Provide otp.' } };
-        await mfaService.verifyOneTimeOtp(ch.daId, otp);
+        mfaResult = await mfaService.verifyOneTimeOtp(ch.daId, otp);
       } else if (fido2Assertion) {
-        await mfaService.submitFido2Assertion(ch.daId, fido2Assertion, userAccessToken, origin);
+        mfaResult = await mfaService.submitFido2Assertion(ch.daId, fido2Assertion, userAccessToken, origin);
       } else if (otp) {
-        await mfaService.submitOtp(ch.daId, deviceId, otp, userAccessToken);
+        mfaResult = await mfaService.submitOtp(ch.daId, deviceId, otp, userAccessToken);
       } else {
         return { ok: false, status: 400, json: { error: 'missing_credential', message: 'Provide otp or fido2Assertion.' } };
+      }
+      // PingOne can return HTTP 200 with status FAILED (wrong OTP / lockout) —
+      // do not promote the consent challenge unless the MFA step actually completed.
+      if (mfaResult?.status && mfaResult.status !== 'COMPLETED') {
+        console.warn(`[ConsentChallenge] MFA verify incomplete challenge=${challengeId.slice(0, 8)}… status=${mfaResult.status}`);
+        return {
+          ok: false,
+          status: 400,
+          json: {
+            error: mfaResult.status === 'FAILED' ? 'otp_incorrect' : 'mfa_incomplete',
+            message: mfaResult.status === 'FAILED'
+              ? 'Incorrect code. Try again.'
+              : `MFA not complete (status: ${mfaResult.status}).`,
+          },
+        };
       }
     } catch (err) {
       const code = err.code || 'mfa_failed';
@@ -699,9 +743,19 @@ async function selectMfaDevice(req, challengeId, deviceId) {
   }
   const userAccessToken = req.session?.oauthTokens?.accessToken;
   try {
-    await mfaService.selectDevice(ch.daId, deviceId, userAccessToken);
+    const selected = await mfaService.selectDevice(ch.daId, deviceId, userAccessToken);
     ch.otpExpiresAt = Date.now() + OTP_TTL_MS;
-    return { ok: true, otpExpiresAt: ch.otpExpiresAt };
+    // FIDO2 devices don't get a typed code — PingOne answers ASSERTION_REQUIRED
+    // with a WebAuthn challenge instead, which the client must run through
+    // navigator.credentials.get() and submit as fido2Assertion to /verify-otp.
+    // Passing status/options through (previously discarded) is what lets the
+    // client tell the two cases apart instead of always showing a code field.
+    return {
+      ok: true,
+      otpExpiresAt: ch.otpExpiresAt,
+      status: selected?.status || null,
+      publicKeyCredentialRequestOptions: selected?.publicKeyCredentialRequestOptions || null,
+    };
   } catch (err) {
     console.warn(`[ConsentChallenge] selectDevice failed: ${err.message}`);
     return { ok: false, status: err.status || 502, json: { error: err.code || 'mfa_select_failed', message: err.message } };
@@ -853,6 +907,59 @@ function getChallengePath(req, challengeId) {
   return 'otp';
 }
 
+/**
+ * Re-run PingOne device authentication for a challenge already on the
+ * device-picker path, refreshing its daId and device list.
+ *
+ * confirmChallenge() captures the device list once and then moves the challenge
+ * to 'otp_pending', so it answers 409 if called again. That means a device the
+ * user enrols *while the picker is open* (e.g. registering a passkey because
+ * they have none) can never appear — the stored daId predates it. This gives
+ * the UI a way to pick it up without cancelling and restarting the transfer.
+ *
+ * Deliberately narrow: it only refreshes daId/devices on a challenge that is
+ * already mfaPath + otp_pending. It cannot start MFA, change the amount, or
+ * revive a consumed challenge, so it adds no new way past the consent gate.
+ *
+ * @param {import('express').Request} req
+ * @param {string} challengeId
+ * @returns {Promise<{ok: boolean, status?: number, json?: object, challengeId?: string, devices?: Array}>}
+ */
+async function reinitMfaDevices(req, challengeId) {
+  if (!req.user?.id) {
+    return { ok: false, status: 401, json: { error: 'not_authenticated', message: 'Sign in to continue.' } };
+  }
+  const st = store(req.session);
+  pruneExpired(st);
+  const ch = st[challengeId];
+  if (!ch || ch.userId !== req.user.id) {
+    return { ok: false, status: 404, json: { error: 'challenge_not_found', message: 'Unknown or expired consent challenge.' } };
+  }
+  if (!ch.mfaPath || ch.status !== 'otp_pending') {
+    return { ok: false, status: 409, json: { error: 'challenge_not_mfa_pending', message: 'This challenge is not awaiting device verification.' } };
+  }
+  if (ch.expiresAt < Date.now()) {
+    delete st[challengeId];
+    return { ok: false, status: 410, json: { error: 'challenge_expired', message: 'Consent challenge expired. Start again from the dashboard.' } };
+  }
+
+  let initiated;
+  try {
+    initiated = await mfaService.initiateDeviceAuth(req.user.id, req.session?.oauthTokens?.accessToken);
+  } catch (err) {
+    console.warn(`[ConsentChallenge] reinit initiateDeviceAuth failed: ${err.message}`);
+    return _mfaInitFailureResult(err, req.session?.oauthTokens?.expiresAt);
+  }
+
+  ch.daId    = initiated.id;
+  ch.devices = initiated._embedded?.devices || [];
+  // A fresh challenge means the previous attempts no longer apply.
+  ch.otpAttempts = 0;
+
+  console.log(`[ConsentChallenge] MFA devices refreshed challenge=${challengeId.slice(0, 8)}… daId=${ch.daId} devices=${ch.devices.length}`);
+  return { ok: true, challengeId, devices: ch.devices };
+}
+
 module.exports = {
   get HIGH_VALUE_CONSENT_USD() { return getConfirmThreshold(); },
   CHALLENGE_TTL_MS,
@@ -864,6 +971,7 @@ module.exports = {
   createChallenge,
   getChallenge,
   confirmChallenge,
+  reinitMfaDevices,
   confirmOnetimeContact,
   verifyOtp,
   verifyMfa,

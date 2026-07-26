@@ -24,12 +24,12 @@ import WebSocket from 'ws';
 import { loadConfig, GatewayConfig, assertProductionSecrets, isInternalSecretUsable, checkInternalSecret } from './config';
 import { validateInboundToken, extractBearerToken, TokenValidationError } from './tokenValidator';
 import { validateIntentToken } from './intentTokenValidator';
-import { routeTool, backendWsUrl } from './router';
+import { routeTool, backendWsUrl, backendHttpMcpUrl } from './router';
 import { buildApiKeyToolResult } from './apiKeyDispatch';
 import { buildDualTokenToolResult } from './dualTokenDispatch';
 import { buildBankingDataToolResult } from './bankingDataDispatch';
 import { McpTokenExchangeClient } from './auth/McpTokenExchangeClient';
-import { proxyJsonRpc, JsonRpcRequest, JsonRpcResponse } from './proxy';
+import { proxyJsonRpc, proxyJsonRpcHttp, JsonRpcRequest, JsonRpcResponse } from './proxy';
 import { guardToolsList, guardToolCall, warmupAuthz, isPolicyNotFoundReason } from './pingAuthorizeGuard';
 import { createHitlChallenge, getHitlChallengeStatus, verifyHitlReceipt, ReceiptVerification } from './hitlClient';
 import { GatewayServer } from './server/GatewayServer';
@@ -419,11 +419,12 @@ async function handleMessage(
       return;
     }
 
-    // Proxy tools/list to both backends, merge results
-    const backendLabels = ['olb', 'invest'] as const;
+    // Proxy tools/list to all backends, merge results
+    const backendLabels = ['olb', 'invest', 'jwtverifier'] as const;
     const results = await Promise.allSettled([
       proxyToolsList('olb', token),
       proxyToolsList('invest', token),
+      proxyToolsListJwtVerifier(token),
     ]);
 
     const allTools: unknown[] = [];
@@ -507,6 +508,11 @@ async function handleMessage(
     // Surface which authorization backend produced the per-tool decision so the
     // BFF/UI can show real vs. mock mode without polling a separate endpoint.
     if (authz.engine) meta.authzEngine = authz.engine;
+    // C2 — a permitted tools/list is a decision, and when P1AZ is off it is a
+    // decision the GATEWAY made about itself. Without provenance the degraded
+    // discovery result looked identical to a PDP-approved one.
+    if (authz.policySource) meta.policySource = authz.policySource;
+    if (authz.degraded) meta.degraded = true;
     // HI-04: when any backend rejected, mark the response so the caller can
     // render a partial-results warning. Gateway-owned tools are always present.
     if (failedBackends.length > 0) {
@@ -891,7 +897,19 @@ async function handleMessage(
         credentialPath: 'oauth_bearer',
         backendTransport: 'websocket',
         tokenExchangeCached: exchangeCached,
+        resourceRequest: {
+          method: 'JSON-RPC',
+          transport: 'websocket',
+          url: wsUrl,
+          tool: toolName,
+          target,
+          note: 'Gateway exchanged to backend audience, then proxied JSON-RPC over WebSocket.',
+        },
         tokenEvents: gwTokenEvents,
+        // C2 — same reason as tools/list: a permitted tool call must say which
+        // authority permitted it, or a degraded local PERMIT reads as a PDP one.
+        ...(authz.policySource ? { policySource: authz.policySource } : {}),
+        ...(authz.degraded ? { degraded: true } : {}),
       };
     }
 
@@ -937,6 +955,21 @@ async function proxyToolsList(target: 'olb' | 'invest', inboundToken: string): P
     method: 'tools/list',
     params: {},
   }, undefined, tlsOpts);
+}
+
+// demo_mcp_jwt_verifier (FastMCP/Python) speaks Streamable HTTP, not WebSocket
+// — same merge role as proxyToolsList('invest', ...) above, but over HTTP via
+// proxyJsonRpcHttp. See GatewayServer.forwardToUpstream() for the tools/call
+// side of this same HTTP backend.
+async function proxyToolsListJwtVerifier(inboundToken: string): Promise<JsonRpcResponse> {
+  const httpUrl = backendHttpMcpUrl('jwtverifier', config);
+  const { token: backendToken } = await mcpExchangeClient.exchangeForBackend(inboundToken, 'jwtverifier');
+  return proxyJsonRpcHttp(httpUrl, backendToken, {
+    jsonrpc: '2.0',
+    id: 'gw-list-jwtverifier',
+    method: 'tools/list',
+    params: {},
+  });
 }
 
 // ---------------------------------------------------------------------------

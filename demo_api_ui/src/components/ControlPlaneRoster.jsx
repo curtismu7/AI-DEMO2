@@ -2,7 +2,9 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import apiClient from "../services/apiClient";
 import { getAgents, stopAgent, resetRoster } from "../services/controlPlaneApi";
 import { useAppEventsSSE } from "../hooks/useAppEventsSSE";
+import { useAuth } from "../hooks/useAuth";
 import KillSwitchConfirmModal from "./KillSwitchConfirmModal";
+import ControlPlaneDemoGuideModal from "./ControlPlaneDemoGuideModal";
 import "./ControlPlaneRoster.css";
 
 const STAGGER_MS = 640;
@@ -14,6 +16,8 @@ const nowStamp = () => new Date().toLocaleTimeString();
 // (real PingOne revocation via the existing kill-switch endpoint); the other
 // rows are Ping-governed demo identities stopped via the control-plane API.
 export default function ControlPlaneRoster() {
+  const { user } = useAuth();
+  const [showGuide, setShowGuide] = useState(false);
   const [live, setLive] = useState(null);
   const [demo, setDemo] = useState([]);
   const [auditCount, setAuditCount] = useState(0);
@@ -119,12 +123,32 @@ export default function ControlPlaneRoster() {
 
   // Live row: real kill via the existing unchanged endpoint. Destroys the
   // session (logout) on the server; the apiClient 401 handling takes over.
-  const confirmLiveKill = async (agentId, reason) => {
+  // Returns the kill result (scope + step breakdown) so the confirm modal can
+  // show what ran vs. what was skipped before it closes.
+  const confirmLiveKill = async (agentId, reason, scope) => {
+    let data = null;
     try {
-      await apiClient.post(`/api/admin/agent/${agentId}/kill-switch`, { reason });
-    } catch (_) { /* 401 agent_killed is expected; interceptor handles redirect */ }
+      const res = await apiClient.post(`/api/admin/agent/${agentId}/kill-switch`, { reason, scope });
+      data = res?.data || null;
+    } catch (err) {
+      // 401 agent_killed is the expected success response — the body still carries scope/steps
+      data = err?.response?.data?.error === "agent_killed" ? err.response.data : null;
+    }
     setLive((l) => (l ? { ...l, status: "revoked" } : l));
-    setShowLiveModal(false);
+    return data;
+  };
+
+  // Inverse of confirmLiveKill: re-enables the PingOne agent application(s)
+  // the kill switch disabled, so testing the red button doesn't require
+  // manual PingOne console access to recover.
+  const confirmLiveRevive = async (agentId) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await apiClient.post(`/api/admin/agent/${agentId}/re-enable`);
+      setLive((l) => (l ? { ...l, status: "active" } : l));
+    } catch (_) { /* surfaced via the normal apiClient error toast */ }
+    setBusy(false);
   };
 
   const allRows = [];
@@ -143,6 +167,15 @@ export default function ControlPlaneRoster() {
           Ping &mdash; AI Control Plane
           <small>ONE PLACE TO GOVERN AI ACROSS EVERY PLATFORM</small>
         </div>
+        {user?.role === "admin" && (
+          <button
+            type="button"
+            className="cp-demo-guide-btn"
+            onClick={() => setShowGuide(true)}
+          >
+            📚 Demo Guide
+          </button>
+        )}
         <div className="cp-verbs">
           <div className="cp-verb">govern</div>
           <div className="cp-verb">authorize</div>
@@ -223,6 +256,13 @@ export default function ControlPlaneRoster() {
                 disabled={revoked || busy}
                 onClick={() => (a.isLive ? setShowLiveModal(true) : onStopAgent(a))}
               >{a.isLive ? "STOP" : "stop"}</button>
+              {a.isLive && revoked && (
+                <button
+                  className="cp-stop cp-stop--revive"
+                  disabled={busy}
+                  onClick={() => confirmLiveRevive(a.id)}
+                >Re-enable</button>
+              )}
             </div>
           );
         })}
@@ -269,6 +309,13 @@ export default function ControlPlaneRoster() {
         onConfirm={confirmLiveKill}
         onCancel={() => setShowLiveModal(false)}
       />
+
+      {user?.role === "admin" && (
+        <ControlPlaneDemoGuideModal
+          isOpen={showGuide}
+          onClose={() => setShowGuide(false)}
+        />
+      )}
     </div>
   );
 }

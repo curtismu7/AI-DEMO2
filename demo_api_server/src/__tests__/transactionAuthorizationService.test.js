@@ -11,9 +11,51 @@ jest.mock('../../services/pingOneAuthorizeService', () => ({
 
 const configStore = require('../../services/configStore');
 const pingOneAuthorizeService = require('../../services/pingOneAuthorizeService');
-const { getAuthorizationStatusSummary } = require('../../services/transactionAuthorizationService');
+const { getAuthorizationStatusSummary, buildStepUpBody } = require('../../services/transactionAuthorizationService');
 
 describe('transactionAuthorizationService', () => {
+  describe('buildStepUpBody — UC22 demo override', () => {
+    // Proves the mechanism docs/superpowers/specs/2026-07-19-uc22-ciba-step-up-override-design.md
+    // relies on: useCaseId is already threaded per-request into evaluateTransactionPolicy;
+    // matching UC22's catalog slug ('ciba-out-of-band-approval') forces step_up_method
+    // to 'ciba' for that one call only, regardless of the environment's configured default.
+    const runtimeSettingsStub = { get: (k) => (k === 'stepUpAcrValue' ? 'Multi_factor' : undefined) };
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      configStore.getEffective.mockImplementation((k) => (k === 'step_up_method' ? 'p1mfa' : null));
+    });
+
+    it('forces step_up_method: "ciba" when useCaseId matches UC22\'s demo slug', () => {
+      const body = buildStepUpBody({
+        useSimulated: false,
+        policyId: null,
+        runtimeSettings: runtimeSettingsStub,
+        useCaseId: 'ciba-out-of-band-approval',
+      });
+      expect(body.step_up_method).toBe('ciba');
+    });
+
+    it('leaves step_up_method at the configured default for any other useCaseId', () => {
+      const body = buildStepUpBody({
+        useSimulated: false,
+        policyId: null,
+        runtimeSettings: runtimeSettingsStub,
+        useCaseId: 'delegated-access-with-proof',
+      });
+      expect(body.step_up_method).toBe('p1mfa');
+    });
+
+    it('leaves step_up_method at the configured default when useCaseId is absent', () => {
+      const body = buildStepUpBody({
+        useSimulated: false,
+        policyId: null,
+        runtimeSettings: runtimeSettingsStub,
+      });
+      expect(body.step_up_method).toBe('p1mfa');
+    });
+  });
+
   describe('getAuthorizationStatusSummary', () => {
     beforeEach(() => {
       jest.clearAllMocks();

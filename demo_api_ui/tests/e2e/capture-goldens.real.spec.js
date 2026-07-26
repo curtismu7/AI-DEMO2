@@ -82,8 +82,13 @@ test.describe('capture goldens from real runs', () => {
         const body = await r.json().catch(() => ({}));
         // Only a HEALTHY result becomes a golden: a reply, no empty_reply flag.
         // HITL/consent challenges (428-class) are valid goldens too — the
-        // expected outcome IS the challenge.
-        const ok = typeof body.reply === 'string' && body.reply.trim() && !body.empty_reply;
+        // expected outcome IS the challenge, so do NOT gate on r.ok() here.
+        // An upstream failure still returns non-empty prose ("❌ Gateway
+        // upstream error (HTTP 500)"), which passed this check and poisoned
+        // every vertical's UC1 golden on 2026-07-17. Error replies carry a
+        // leading ❌; genuine deny/HITL/step-up replies are plain prose.
+        const reply = typeof body.reply === 'string' ? body.reply.trim() : '';
+        const ok = reply && !body.empty_reply && !reply.startsWith('❌');
         if (!ok) {
           console.log(`  SKIP ${vertical}/${chip.useCaseId}: unhealthy result (status ${r.status()}) — not captured`);
           continue;

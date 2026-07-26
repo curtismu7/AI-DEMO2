@@ -33,6 +33,9 @@ const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 const NON_MCP_PRIMARY_TOOLS = new Set(['delegate_to_specialist']);
 /** A2A handoff chips are intentionally not heuristic-routable — the known baseline. */
 const A2A_UNROUTABLE = /specialist/i;
+/** UC34/UC35 are free-form LLM analysis chips with no single deterministic tool — the
+ *  only other sanctioned exception besides A2A "specialist" handoffs. */
+const LLM_ANALYSIS_UNROUTABLE = new Set(['UC34', 'UC35']);
 
 /**
  * Heuristic ACTION -> dispatched TOOL where they differ. Vertical plugin actions
@@ -40,16 +43,7 @@ const A2A_UNROUTABLE = /specialist/i;
  * showcase alias: its AIAgent case calls createTransfer(DEMO_LARGE_TRANSFER) and
  * the HITL gate fires — it IS create_transfer.
  */
-const ACTION_TO_TOOL = {
-  transfer: 'create_transfer',
-  transfer_600_test: 'create_transfer',
-  deposit: 'create_deposit',
-  withdraw: 'create_withdrawal',
-  balance: 'get_account_balance',
-  accounts: 'get_my_accounts',
-  transactions: 'get_my_transactions',
-  branch_hours: 'get_branch_hours',
-};
+const { ACTION_TO_TOOL } = require('./helpers/actionToTool');
 
 /** Every (vertical, useCase) chip entry with a real resolved primaryTool. */
 function chipEntries() {
@@ -59,7 +53,7 @@ function chipEntries() {
       const uc = resolveUseCase(u.id, vertical) || u;
       const t = uc.trigger || {};
       if (t.type !== 'chip' || !t.text) continue;
-      if (A2A_UNROUTABLE.test(t.text)) continue;
+      if (A2A_UNROUTABLE.test(t.text) || LLM_ANALYSIS_UNROUTABLE.has(u.id)) continue;
       if (!uc.primaryTool || NON_MCP_PRIMARY_TOOLS.has(uc.primaryTool)) continue;
       out.push({ vertical, id: u.id, text: t.text, primaryTool: uc.primaryTool });
     }
@@ -72,6 +66,9 @@ describe('primaryTool existence — no dangling tool premises, any vertical', ()
     const surfaces = [
       read('demo_mcp_server/src/tools/BankingToolRegistry.ts'),
       read('demo_mcp_server/src/tools/handlers/verticalTools.generated.ts'),
+      // weather-mcp showcase: a real MCP tool, but hosted by a third-party MCP
+      // server (not demo_mcp_server) — registered here instead.
+      read('demo_api_server/utils/mcpToolRegistry.js'),
     ];
     const missing = [];
     for (const tool of new Set(chipEntries().map((e) => e.primaryTool))) {
@@ -101,7 +98,9 @@ describe('chip dollar amounts are canonical threshold tiers', () => {
   const CANONICAL_AMOUNTS = new Set([300, 600, 2500]);
   // Add an entry here ONLY when a use case's whole point is a non-tier amount,
   // with the reason: e.g. { 3000: 'UC99 demos the daily cumulative cap' }.
-  const AMOUNT_EXCEPTIONS = {};
+  const AMOUNT_EXCEPTIONS = {
+    150: 'UC22 CIBA demos the trigger is agent-context + action sensitivity, not amount — deliberately below the $300 tier',
+  };
 
   test('every $ amount in a chip trigger is a canonical tier or a justified exception', () => {
     const offenders = [];
@@ -141,7 +140,7 @@ describe('every vertical chip routes to its OWN stored primaryTool', () => {
       for (const u of USE_CASES) {
         const uc = resolveUseCase(u.id, vertical) || u;
         const t = uc.trigger || {};
-        if (t.type !== 'chip' || !t.text || A2A_UNROUTABLE.test(t.text)) continue;
+        if (t.type !== 'chip' || !t.text || A2A_UNROUTABLE.test(t.text) || LLM_ANALYSIS_UNROUTABLE.has(u.id)) continue;
         if (!uc.primaryTool) naked.push(`${vertical} ${u.id} "${t.text}"`);
       }
     }

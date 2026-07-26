@@ -1,0 +1,10 @@
+{
+  "vertical": "investment",
+  "useCaseId": "UC6",
+  "triggerType": "chip",
+  "mode": "unit-parse",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "large_trade",
+  "checkedAt": "2026-07-25"
+}

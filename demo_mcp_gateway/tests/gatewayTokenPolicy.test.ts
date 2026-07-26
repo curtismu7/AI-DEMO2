@@ -220,3 +220,64 @@ describe('GatewayTokenPolicy — UC16 require-act for agent-mediated tools', () 
     ).not.toThrow();
   });
 });
+
+// ── Actor allow-list — validateActClaim was imported but never invoked ───────
+//
+// The policy only checked that act.sub was NON-EMPTY, so ANY actor identity
+// satisfied the delegation chain. config.authorizedActorClientId existed and
+// toolScopes.validateActClaim implemented the comparison, but nothing called it.
+
+describe('GatewayTokenPolicy — actor allow-list (ActClientId)', () => {
+  const AUTHORIZED = 'mcp-token-exchanger-client-id';
+
+  test('ACT-1: act.sub that is NOT the authorized actor -> throws unauthorized_actor', () => {
+    const config = makeConfig({ authorizedActorClientId: AUTHORIZED });
+    const token = makeToken({ act: { sub: 'some-other-client' } } as any);
+    expect(() => GatewayTokenPolicy.validate(token, config)).toThrow(
+      expect.objectContaining({ code: 'unauthorized_actor' }),
+    );
+  });
+
+  test('ACT-2: act.sub that IS the authorized actor -> no throw', () => {
+    const config = makeConfig({ authorizedActorClientId: AUTHORIZED });
+    const token = makeToken({ act: { sub: AUTHORIZED } } as any);
+    expect(() => GatewayTokenPolicy.validate(token, config)).not.toThrow();
+  });
+
+  test('ACT-3: no allow-list configured -> any actor is accepted (dev / no-actor mode)', () => {
+    const config = makeConfig({ authorizedActorClientId: '' });
+    const token = makeToken({ act: { sub: 'anything-at-all' } } as any);
+    expect(() => GatewayTokenPolicy.validate(token, config)).not.toThrow();
+  });
+
+  test('ACT-4: no act claim at all -> allow-list does not fire (simple exchange)', () => {
+    const config = makeConfig({ authorizedActorClientId: AUTHORIZED });
+    const token = makeToken(); // no act
+    expect(() => GatewayTokenPolicy.validate(token, config)).not.toThrow();
+  });
+
+  test('ACT-5: the rejection names the presented actor and the expected one', () => {
+    const config = makeConfig({ authorizedActorClientId: AUTHORIZED });
+    const token = makeToken({ act: { sub: 'impostor-client' } } as any);
+    let caught: GatewayTokenPolicyError | undefined;
+    try {
+      GatewayTokenPolicy.validate(token, config);
+    } catch (e) { caught = e as GatewayTokenPolicyError; }
+    expect(caught!.message).toContain('impostor-client');
+    expect(caught!.message).toContain(AUTHORIZED);
+  });
+
+  test('ACT-6: a non-string act.sub is coerced before comparison (PingOne UUID objects)', () => {
+    const config = makeConfig({ authorizedActorClientId: AUTHORIZED });
+    const token = makeToken({ act: { sub: { toString: () => AUTHORIZED } } } as any);
+    expect(() => GatewayTokenPolicy.validate(token, config)).not.toThrow();
+  });
+
+  test('ACT-7: A2A nested act (depth 2) skips exchanger allow-list — specialist may act', () => {
+    const config = makeConfig({ authorizedActorClientId: AUTHORIZED });
+    const token = makeToken({
+      act: { sub: 'investment-specialist', act: { sub: 'generalist-agent' } },
+    } as any);
+    expect(() => GatewayTokenPolicy.validate(token, config)).not.toThrow();
+  });
+});

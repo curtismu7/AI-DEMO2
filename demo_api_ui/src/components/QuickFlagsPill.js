@@ -33,6 +33,37 @@ const QUICK_FLAGS = [
 const GROUPS = ['Token & Gateway', 'AuthN / AuthZ', 'Agent', 'Observability'];
 const PILL_FLAG = 'ff_mcp_gateway_jwks';
 
+/** Ping IDAI–shaped demo: PingGateway + live P1AZ + introspect (not JWKS). */
+const IDAI_FAITHFUL_PRESET = [
+  { id: 'ff_mcp_gateway_pinggateway', value: true,  label: 'PingOne GW' },
+  { id: 'ff_authorize_simulated',     value: false, label: 'Real P1AZ' },
+  { id: 'ff_mcp_gateway_jwks',        value: false, label: 'Introspect' },
+];
+
+/**
+ * Returns whether the three IDAI-faithful target flags already match the preset.
+ * @param {Record<string, { value?: unknown, pinned?: boolean }>|null} flagsById
+ * @returns {boolean}
+ */
+function isIdaiFaithful(flagsById) {
+  if (!flagsById) return false;
+  return IDAI_FAITHFUL_PRESET.every((t) => flagsById[t.id]?.value === t.value);
+}
+
+/**
+ * Lists preset targets that are env-pinned and cannot be flipped from the UI.
+ * @param {Record<string, { pinned?: boolean, pinnedBy?: string }>|null} flagsById
+ * @returns {Array<{ id: string, pinnedBy?: string }>}
+ */
+function pinnedIdaiTargets(flagsById) {
+  if (!flagsById) return [];
+  return IDAI_FAITHFUL_PRESET
+    .filter((t) => flagsById[t.id]?.pinned)
+    .map((t) => ({ id: t.id, pinnedBy: flagsById[t.id]?.pinnedBy }));
+}
+
+export { IDAI_FAITHFUL_PRESET, isIdaiFaithful, pinnedIdaiTargets };
+
 export default function QuickFlagsPill({ user }) {
   const [flagsById, setFlagsById] = useState(null); // null = not loaded
   const [loadFailed, setLoadFailed] = useState(false);
@@ -40,6 +71,7 @@ export default function QuickFlagsPill({ user }) {
   const [savingId, setSavingId] = useState(null);
   const [error, setError] = useState(null);
   const [adminDenied, setAdminDenied] = useState(false);
+  const [presetNotice, setPresetNotice] = useState(null);
   const btnRef = useRef(null);
   const panelRef = useRef(null);
   const aliveRef = useRef(true);
@@ -131,6 +163,84 @@ export default function QuickFlagsPill({ user }) {
     }
   }, [flagsById]);
 
+  /**
+   * Apply Ping IDAI–shaped flags in one PATCH (skips env-pinned targets).
+   */
+  const applyIdaiFaithfulPreset = useCallback(async () => {
+    if (!flagsById || !canEdit) return;
+    const pinned = pinnedIdaiTargets(flagsById);
+    const updates = {};
+    const snapshot = {};
+    for (const t of IDAI_FAITHFUL_PRESET) {
+      const f = flagsById[t.id];
+      if (!f || f.pinned) continue;
+      if (f.value === t.value) continue;
+      updates[t.id] = t.value;
+      snapshot[t.id] = f;
+    }
+    if (!Object.keys(updates).length) {
+      setPresetNotice(
+        pinned.length
+          ? `⚠️ Already matching where unlocked; pinned: ${pinned.map((p) => p.id).join(', ')}`
+          : '✅ Already IDAI-faithful (PingOne GW + Real P1AZ + Introspect)'
+      );
+      return;
+    }
+    setSavingId('idai-preset');
+    setError(null);
+    setPresetNotice(null);
+    setFlagsById((cur) => {
+      const next = { ...cur };
+      for (const [id, value] of Object.entries(updates)) {
+        next[id] = { ...cur[id], value };
+      }
+      return next;
+    });
+    try {
+      const res = await fetch('/api/admin/feature-flags', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates }),
+      });
+      if (!aliveRef.current) return;
+      if (res.status === 403) {
+        setAdminDenied(true);
+        setFlagsById((cur) => {
+          const next = { ...cur };
+          for (const [id, prev] of Object.entries(snapshot)) next[id] = prev;
+          return next;
+        });
+        return;
+      }
+      if (!res.ok) throw new Error(`preset failed (${res.status})`);
+      const data = await res.json();
+      if (!aliveRef.current) return;
+      if (Array.isArray(data.flags) && data.flags.length) {
+        setFlagsById((cur) => {
+          const next = { ...cur };
+          for (const f of data.flags) next[f.id] = f;
+          return next;
+        });
+      }
+      setPresetNotice(
+        pinned.length
+          ? `✅ Applied (⚠️ skipped pinned: ${pinned.map((p) => p.id).join(', ')})`
+          : '✅ IDAI-faithful applied — PingOne GW + Real P1AZ + Introspect'
+      );
+    } catch (e) {
+      if (!aliveRef.current) return;
+      setFlagsById((cur) => {
+        const next = { ...cur };
+        for (const [id, prev] of Object.entries(snapshot)) next[id] = prev;
+        return next;
+      });
+      setError(e.message || 'preset failed');
+    } finally {
+      if (aliveRef.current) setSavingId(null);
+    }
+  }, [flagsById, canEdit]);
+
   const pillFlag = flagsById?.[PILL_FLAG];
   const pillLabel = !flagsById
     ? (loadFailed ? 'Flags –' : '…')
@@ -214,6 +324,30 @@ export default function QuickFlagsPill({ user }) {
           {error && <div className="qfp-error">{error}</div>}
           {loadFailed && (
             <button type="button" className="qfp-retry" onClick={load}>Reload flags</button>
+          )}
+          {flagsById && (
+            <div className="qfp-preset">
+              <div className="qfp-group-title">Demo preset</div>
+              {isIdaiFaithful(flagsById) ? (
+                <div className="qfp-preset-status qfp-preset-status--ok">
+                  ✅ IDAI-faithful: PingOne GW + Real P1AZ + Introspect
+                </div>
+              ) : (
+                <div className="qfp-preset-status qfp-preset-status--warn">
+                  ⚠️ Not IDAI-faithful — Demo GW, Simulated, and/or JWKS may be on
+                </div>
+              )}
+              {presetNotice && <div className="qfp-preset-notice">{presetNotice}</div>}
+              <button
+                type="button"
+                className="qfp-preset-btn"
+                disabled={!canEdit || savingId === 'idai-preset'}
+                title="Set PingOne Agent Gateway ON, Simulated Authorize OFF, JWKS OFF. See docs/IDAI_FAITHFUL_DEMO_MODE.md"
+                onClick={applyIdaiFaithfulPreset}
+              >
+                {savingId === 'idai-preset' ? 'Applying…' : 'Apply IDAI-faithful preset'}
+              </button>
+            </div>
           )}
           {GROUPS.map((g) => (
             <div key={g} className="qfp-group">

@@ -49,6 +49,9 @@ const AI_AGENT_AUDIENCE = process.env.AI_AGENT_AUDIENCE || null;
 const MCP_RESOURCE_URI  = process.env.PINGONE_RESOURCE_MCP_SERVER_URI || process.env.MCP_RESOURCE_URI || null;
 const BANKING_API_RESOURCE_URI = process.env.BANKING_API_RESOURCE_URI || null;
 const MCP_GATEWAY_RESOURCE_URI = process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI || null;
+// mcp-invest backend resource URI — tokens minted for this audience arrive on the
+// investment BFF callback route (A2A nested-act chain, gateway Exchange #3 target).
+const MCP_INVEST_AUDIENCE = process.env.MCP_INVEST_AUDIENCE || null;
 const AI_AGENT_SCOPE = process.env.AI_AGENT_SCOPE || 'ai_agent';
 const DEFAULT_USER_TYPE = process.env.DEFAULT_USER_TYPE || 'customer';
 
@@ -570,7 +573,8 @@ const validatePingOneCoreToken = async (token, requestContext = {}) => {
       // only obtainable via RFC 8693 exchange of a valid user token.
       // /identity is Path B (dual_token): Node gateway forwards the TX gateway
       // bearer + id_token to banking_resource_server. Accept gateway audiences.
-      const isMcpCallback = path === '/vertical-tool' || path === '/api/path/vertical-tool'
+      // Banking / Path-B MCP callbacks — gateway + MCP-server audiences only.
+      const isMcpBankingCallback = path === '/vertical-tool' || path === '/api/path/vertical-tool'
         || path === '/identity' || path === '/api/resource-server/identity'
         || path === '/my'                              // GET /api/accounts/my, GET /api/transactions/my
         || /^\/[^/]+(\/balance)?$/.test(path)          // GET /api/accounts/:id, GET /api/accounts/:id/balance
@@ -584,12 +588,33 @@ const validatePingOneCoreToken = async (token, requestContext = {}) => {
         || (method === 'POST' && baseUrl === '/api/transactions' && path === '/')
         || (method === 'POST' && baseUrl === '/api/accounts' && /^\/[^/]+\/fee-waiver-request$/.test(path))
         || (method === 'PATCH' && baseUrl === '/api/accounts' && /^\/[^/]+\/contact-email$/.test(path));
+      // A2A investment specialist callback — deliberately NOT folded into the
+      // banking callback list above, and its audience is NOT added to gwAuds.
+      // Doing so let an invest:read token (aud=mcp-invest.ping.demo) satisfy the
+      // audience check on POST /api/transactions and the other write callbacks;
+      // those routes then failed open past the banking write-scope gate, because
+      // the token's scopes are invest:read rather than read/write.
+      const isInvestPortfolioCallback =
+        baseUrl === '/api/investment' && /^\/accounts\/[^/]+\/portfolio/.test(path);
       const gwAuds = String(MCP_GW_RESOURCE_URI).split(',').map((s) => s.trim()).filter(Boolean);
       if (PINGGATEWAY_RESOURCE_URI && !gwAuds.includes(PINGGATEWAY_RESOURCE_URI)) {
         gwAuds.push(PINGGATEWAY_RESOURCE_URI);
       }
+      // MCP server resource URI (mcpserver.ping.demo) — Exchange #3 (PingGateway ->
+      // MCP server) narrows the gateway-audience token to this audience per RFC 8693;
+      // the MCP server's callback to this route forwards that same bearer, so it must
+      // be accepted here on the same trust basis as the gateway audiences above
+      // (sub-scoped, only obtainable via RFC 8693 exchange).
+      if (MCP_RESOURCE_URI && !gwAuds.includes(MCP_RESOURCE_URI)) {
+        gwAuds.push(MCP_RESOURCE_URI);
+      }
+      // mcp-invest's audience is intentionally absent from gwAuds — Exchange #3 for
+      // the A2A investment specialist narrows the nested-act token to that audience,
+      // and it is accepted ONLY on the portfolio callback below, never on a banking
+      // read or write callback.
       const hasMatch = tokenAuds.includes(BFF_RESOURCE_URI) ||
-        (isMcpCallback && tokenAuds.some((a) => gwAuds.includes(a)));
+        (isMcpBankingCallback && tokenAuds.some((a) => gwAuds.includes(a))) ||
+        (isInvestPortfolioCallback && MCP_INVEST_AUDIENCE && tokenAuds.includes(MCP_INVEST_AUDIENCE));
       if (!hasMatch) {
         logger.warn(LOG_CATEGORIES.OAUTH_VALIDATION, 'Token audience mismatch — rejecting', {
           method, path,

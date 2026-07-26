@@ -7,8 +7,11 @@
  *     `.ud-dashboard-inline-agent-host`) with `ba-mode-inline ba-split-column`.
  *     There is NO floating FAB on the customer dashboard.
  *   - Admin /admin: agent uses floating chrome behind `.banking-agent-fab`.
- *   - Banking actions live in an Actions popout: `button.ba-actions-trigger` →
- *     `.ba-actions-popout` → `button.ba-popout-list-item`.
+ *   - The old Actions popout (`button.ba-actions-trigger` → `.ba-actions-popout`
+ *     → `button.ba-popout-list-item`) was removed entirely. Core banking
+ *     actions are now reachable only via `/use-cases` (own e2e coverage).
+ *     Admin-only ops moved to the `Admin ▾` popout
+ *     (`[data-testid="admin-tools-trigger"]`, `AdminToolsDropdown`).
  *
  * SKIPPED AUTOMATICALLY when credentials are not set.
  */
@@ -44,32 +47,18 @@ async function ensureAgentReady(page) {
 }
 
 /**
- * Click a named action row inside the Actions popout.
- * Opens the popout idempotently and expands any collapsed section.
+ * Open the admin-only "Admin ▾" tools popout (`AdminToolsDropdown`) idempotently.
+ * Replaces the deleted Actions popout for admin-only ops (Task 5/9).
+ *
+ * @returns {import('@playwright/test').Locator} the popout's floating panel.
  */
-async function agentPanelButton(page, namePattern) {
-  const popout = page.locator('.ba-actions-popout');
-  if (!(await popout.isVisible().catch(() => false))) {
-    await page
-      .locator('button.ba-actions-trigger', { hasText: /Actions/i })
-      .first()
-      .click();
-    await expect(popout).toBeVisible({ timeout: 10000 });
+async function openAdminToolsPanel(page) {
+  const panel = page.locator('.ba-admin-tools-float');
+  if (!(await panel.isVisible().catch(() => false))) {
+    await page.locator('[data-testid="admin-tools-trigger"]').click();
+    await expect(panel).toBeVisible({ timeout: 10000 });
   }
-  const sections = popout.locator('.ba-popout-section');
-  const sectionCount = await sections.count();
-  for (let i = 0; i < sectionCount; i++) {
-    const toggle = sections.nth(i).locator('.ba-popout-section-toggle');
-    if (await toggle.count()) {
-      const label = (await toggle.first().textContent()) || '';
-      if (label.trim().startsWith('▶')) {
-        await toggle.first().click();
-      }
-    }
-  }
-  return popout
-    .locator('button.ba-popout-list-item')
-    .filter({ has: page.locator('.ba-popout-item-name', { hasText: namePattern }) });
+  return panel;
 }
 
 // ─── Customer real-login suite ────────────────────────────────────────────────
@@ -112,77 +101,11 @@ test.describe('BankingAgent — Real login (customer)', () => {
     await expect(page.locator('[role="alert"]')).toHaveCount(0);
   });
 
-  test('core banking actions appear in the Actions popout', async ({ page }) => {
-    await ensureAgentReady(page);
-    for (const label of ['My Accounts', 'Recent Transactions', 'Check Balance', 'Deposit', 'Transfer']) {
-      const row = await agentPanelButton(page, new RegExp(`^${label}$`));
-      await expect(row).toHaveCount(1);
-    }
-  });
-
-  test('My Accounts chip triggers real /api/mcp/tool call and shows account data', async ({ page }) => {
-    await ensureAgentReady(page);
-
-    const mcpRequest = page.waitForRequest(req =>
-      req.url().includes('/api/mcp/tool') && req.method() === 'POST'
-    );
-
-    const row = await agentPanelButton(page, /^My Accounts$/);
-    await row.click();
-    const req = await mcpRequest;
-
-    const body = req.postDataJSON();
-    expect(body.tool).toBe('get_my_accounts');
-
-    const messages = page.locator('.banking-agent-messages');
-    await expect(messages).not.toBeEmpty({ timeout: 30000 });
-
-    const text = await messages.textContent();
-    expect(text).not.toMatch(/at Object\.|TypeError:|Cannot read/);
-  });
-
-  test('Recent Transactions chip triggers real API call', async ({ page }) => {
-    await ensureAgentReady(page);
-
-    const mcpRequest = page.waitForRequest(req =>
-      req.url().includes('/api/mcp/tool') && req.method() === 'POST'
-    );
-
-    const row = await agentPanelButton(page, /^Recent Transactions$/);
-    await row.click();
-    const req = await mcpRequest;
-    const body = req.postDataJSON();
-    expect(body.tool).toBe('get_my_transactions');
-
-    const messages = page.locator('.banking-agent-messages');
-    await expect(messages).not.toBeEmpty({ timeout: 30000 });
-    const text = await messages.textContent();
-    expect(text).not.toMatch(/at Object\.|TypeError:/);
-  });
-
-  test('Check Balance chip closes popout and dispatches action', async ({ page }) => {
-    await ensureAgentReady(page);
-    const row = await agentPanelButton(page, /^Check Balance$/);
-    await row.click();
-    await expect(page.locator('.ba-actions-popout')).toBeHidden();
-    await expect(page.locator('.banking-agent-messages')).toContainText('Check Balance', { timeout: 15000 });
-  });
-
-  test('Deposit chip closes popout and dispatches action', async ({ page }) => {
-    await ensureAgentReady(page);
-    const row = await agentPanelButton(page, /^Deposit$/);
-    await row.click();
-    await expect(page.locator('.ba-actions-popout')).toBeHidden();
-    await expect(page.locator('.banking-agent-messages')).toContainText('Deposit', { timeout: 15000 });
-  });
-
-  test('Transfer chip closes popout and dispatches action', async ({ page }) => {
-    await ensureAgentReady(page);
-    const row = await agentPanelButton(page, /^Transfer$/);
-    await row.click();
-    await expect(page.locator('.ba-actions-popout')).toBeHidden();
-    await expect(page.locator('.banking-agent-messages')).toContainText('Transfer', { timeout: 15000 });
-  });
+  // NOTE: Actions-popout coverage of core banking actions (My Accounts, Recent
+  // Transactions, Check Balance, Deposit, Transfer — the old "primary rail")
+  // was removed here (Task 9, actions-dropdown-removal). That popout no
+  // longer exists; per the removal design, this content is now reachable only
+  // via `/use-cases`, which has its own e2e coverage.
 });
 
 // ─── Admin real-login suite ───────────────────────────────────────────────────
@@ -218,9 +141,9 @@ test.describe('BankingAgent — Real login (admin)', () => {
     ).toBeVisible();
   });
 
-  test('admin-only actions are present in the Actions popout', async ({ page }) => {
+  test('admin-only tools are present in the Admin Tools popout', async ({ page }) => {
     await ensureAgentReady(page);
-    const row = await agentPanelButton(page, /Query User by Email/i);
-    await expect(row).toHaveCount(1);
+    await openAdminToolsPanel(page);
+    await expect(page.locator('[data-testid="admin-tool-lookup_customer"]')).toBeVisible();
   });
 });

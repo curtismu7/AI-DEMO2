@@ -578,6 +578,17 @@ router.get('/callback', async (req, res) => {
     // Determine client type from the original OAuth token
     const clientType = determineClientType(tokenData.access_token);
     const authedUser = user;
+    // Best-effort: pull the user's mobile phone from PingOne so the post-login
+    // success modal can show it. Non-fatal — login proceeds if the lookup fails.
+    try {
+      const pingoneUserId = authedUser?.oauthId || authedUser?.id;
+      if (pingoneUserId) {
+        const { user: p1User } = await fetchPingOneUserById(pingoneUserId);
+        if (p1User?.mobilePhone) authedUser.phone = p1User.mobilePhone;
+      }
+    } catch (phoneErr) {
+      console.warn('[oauth/user/callback] phone lookup failed (non-fatal):', phoneErr.message);
+    }
     const origin = getFrontendOrigin();
     // Preserve step-up return destination across session regeneration
     const stepUpReturnTo = req.session.stepUpReturnTo || null;
@@ -714,11 +725,12 @@ router.get('/callback', async (req, res) => {
         }
 
         const ssoParam = silentSso ? '&sso_silent=1' : '';
-        if (postLoginReturnToPath) {
-          res.redirect(`${origin}${postLoginReturnToPath}?oauth=success${ssoParam}`);
-        } else {
-          res.redirect(`${origin}/dashboard?oauth=success${ssoParam}`);
-        }
+        const returnPath = postLoginReturnToPath || '/dashboard';
+        // Land directly on the app (was /success) carrying oauth=success so the
+        // dashboard-level LoginSuccessModal opens once. returnPath is sanitized.
+        const sep = returnPath.includes('?') ? '&' : '?';
+        res.redirect(`${origin}${returnPath}${sep}oauth=success${ssoParam}`);
+
       });
       });
     });
@@ -848,7 +860,9 @@ router.get('/status', (req, res) => {
       email: req.session.user.email,
       firstName: req.session.user.firstName,
       lastName: req.session.user.lastName,
-      role: req.session.user.role
+      role: req.session.user.role,
+      phone: req.session.user.phone || null,
+      hideSuccessScreen: req.session.user.hideSuccessScreen || false
     } : null,
     oauthProvider: isAuthenticated ? req.session.user.oauthProvider : null,
     // accessToken intentionally omitted — token stays on the backend (Backend-for-Frontend (BFF) pattern)
@@ -1015,6 +1029,55 @@ router.get('/consent-url', (req, res) => {
 });
 
 /**
+ * Mask a delivery address for display: emails keep the first and last character
+ * of the local part, phone numbers keep the last four digits. Returns null for
+ * anything unrecognizable so callers never leak a raw value by accident.
+ *
+ * @param {string|{number?: string}|null} value
+ * @returns {string|null}
+ */
+function maskContact(value) {
+  const raw = typeof value === 'string' ? value : (value?.number || '');
+  if (!raw) return null;
+  if (raw.includes('@')) {
+    const [local, domain] = raw.split('@');
+    if (!local || !domain) return null;
+    const visible = local.length > 2
+      ? local[0] + '*'.repeat(local.length - 2) + local[local.length - 1]
+      : local[0] + '*';
+    return visible + '@' + domain;
+  }
+  const digits = raw.replace(/\D/g, '');
+  return digits.length >= 4 ? '***-***-' + digits.slice(-4) : null;
+}
+
+/**
+ * Contact address from the user's first ACTIVE MFA device of the requested
+ * channel. PingOne stores the address on the device itself (`email`, or `phone`
+ * as an E.164 string), which is the address the user enrolled — unlike the user
+ * profile's email, which this demo provisions synthetically. Returns null when
+ * nothing is enrolled so the caller can fall back.
+ *
+ * @param {string} userId - PingOne user UUID
+ * @param {'email'|'sms'} method
+ * @returns {Promise<string|null>}
+ */
+async function resolveEnrolledContact(userId, method) {
+  try {
+    const { devices } = await mfaService.listMfaDevices(userId);
+    const wanted = method === 'sms' ? ['SMS', 'VOICE'] : ['EMAIL'];
+    const device = (devices || []).find((d) => wanted.includes(String(d.type || '').toUpperCase()));
+    if (!device) return null;
+    return method === 'sms'
+      ? (device.phone?.number || device.phone || null)
+      : (device.email || null);
+  } catch (err) {
+    console.warn('[OTP] enrolled-device contact lookup failed, falling back to profile:', err.message);
+    return null;
+  }
+}
+
+/**
  * POST /api/auth/oauth/user/initiate-otp
  *
  * Email OTP step-up: generate a 6-digit code, store it in the session with a
@@ -1059,7 +1122,13 @@ router.post('/initiate-otp', async (req, res) => {
     try {
       const contact = await mfaService.getPingOneUserContact(pingoneUserId);
       const deliveryType = method === 'sms' ? 'SMS' : 'EMAIL';
-      const to = method === 'sms' ? contact.mobilePhone : contact.email;
+      // Prefer the address on the user's registered MFA device — that is what the
+      // user actually enrolled and can receive at. The PingOne user *profile*
+      // email is provisioned synthetically from the app host
+      // (demoUser@api.ping.demo, see pingoneProvisionService.demoEmailDomain) and
+      // is not deliverable, so it is only a last-resort fallback.
+      const enrolled = await resolveEnrolledContact(pingoneUserId, method);
+      const to = enrolled || (method === 'sms' ? contact.mobilePhone : contact.email);
       if (!to) {
         throw new Error(
           method === 'sms'
@@ -1071,7 +1140,9 @@ router.post('/initiate-otp', async (req, res) => {
       // Persist the PingOne transaction id so verify can check the real code.
       req.session.pendingStepUpOtp.daId = result.id || null;
       const dev = result?._embedded?.devices?.[0];
-      pingMaskedContact = dev ? (dev.email || dev.phone || null) : null;
+      // PingOne echoes the delivery address in full; mask it before it leaves the
+      // BFF so this field matches its name and the other two branches below.
+      pingMaskedContact = dev ? maskContact(dev.email || dev.phone || null) : null;
       delivered = !!result.id;
     } catch (sendErr) {
       deliveryError =
@@ -1126,7 +1197,9 @@ router.post('/initiate-otp', async (req, res) => {
       deliveryError,
       method,
       expiresIn: 300,
-      email: user.email || '',
+      // No raw address here — the PingOne user profile email is provisioned
+      // synthetically (demoUser@<app host>) and is not the delivery target
+      // anyway. maskedContact is the only address the client needs.
       maskedContact,
       // devCode: only included in non-production so demos can complete step-up
       // without email/SMS delivery being configured.
@@ -1193,6 +1266,40 @@ router.post('/verify-otp', async (req, res) => {
     console.log(`[OTP] Step-up verified for user ${req.session.user?.id}`);
     res.json({ verified: true });
   });
+});
+
+/**
+ * Update user preference to hide/show the success screen on login
+ */
+router.post('/user/success-screen-preference', (req, res) => {
+  try {
+    if (!req.session?.user?.id) {
+      return res.status(401).json({ error: 'not_authenticated' });
+    }
+
+    const { hideSuccessScreen } = req.body;
+    if (typeof hideSuccessScreen !== 'boolean') {
+      return res.status(400).json({ error: 'invalid_hideSuccessScreen' });
+    }
+
+    const dataStore = require('../data/store');
+    dataStore.updateUser(req.session.user.id, { hideSuccessScreen }).then(() => {
+      req.session.user.hideSuccessScreen = hideSuccessScreen;
+      req.session.save((err) => {
+        if (err) {
+          console.error('[success-screen-preference] Session save error:', err);
+          return res.status(500).json({ error: 'session_error' });
+        }
+        res.json({ hideSuccessScreen, message: 'Preference updated' });
+      });
+    }).catch((err) => {
+      console.error('[success-screen-preference] Update error:', err);
+      res.status(500).json({ error: 'update_failed' });
+    });
+  } catch (error) {
+    console.error('[success-screen-preference] Error:', error);
+    res.status(500).json({ error: 'server_error' });
+  }
 });
 
 module.exports = router;

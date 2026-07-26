@@ -16,28 +16,29 @@ function buildDecisionTask(agent, message) {
   };
 }
 
-function buildCoordinatorTask(agent, vertical, specialists) {
+function buildCoordinatorTask(agent, vertical, tools, message) {
   return {
     description:
-      `Given the vertical "${vertical}" with available specialists: ${JSON.stringify(specialists)}\n\n` +
-      'Recommend which specialist should handle the delegated task and what minimum scopes they need.\n' +
-      'Respond with JSON: { "specialist": string, "scopes": string[], "reasoning": string }',
+      `The "${vertical}" vertical's specialist agent can perform these tools: ${JSON.stringify(tools)}\n\n` +
+      `User message: "${message}"\n\n` +
+      'Recommend which ONE tool from the list best matches the request.\n' +
+      'Respond with JSON: { "tool": string, "reasoning": string }',
     expected_output:
-      'A JSON recommendation with specialist name, required scopes, and explanation.',
+      'A JSON recommendation naming exactly one tool from the provided list, with reasoning.',
     agent,
   };
 }
 
-function buildAuthorizationTask(agent, specialist, scopes) {
+function buildAuthorizationTask(agent, specialistName, tool) {
   return {
     description:
       `Review this delegation request for authorization feasibility:\n` +
-      `Specialist: ${specialist}\n` +
-      `Requested scopes: ${scopes.join(', ')}\n\n` +
-      'Determine if this delegation and scope set can be approved by PingOne Authorize (RFC 8693 chained token).\n' +
-      'Respond with JSON: { "approved": boolean, "blockers": string[], "suggestedScopes": string[] }',
+      `Specialist: ${specialistName}\n` +
+      `Requested tool: ${tool}\n\n` +
+      'Determine if this delegation can be approved by PingOne Authorize (RFC 8693 chained token).\n' +
+      'Respond with JSON: { "approved": boolean, "blockers": string[] }',
     expected_output:
-      'A JSON review with approval status, any blockers, and suggested scope modifications.',
+      'A JSON review with approval status and any blockers.',
     agent,
   };
 }

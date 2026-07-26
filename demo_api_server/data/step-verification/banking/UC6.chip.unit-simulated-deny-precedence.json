@@ -1,0 +1,11 @@
+{
+  "vertical": "banking",
+  "useCaseId": "UC6",
+  "triggerType": "chip",
+  "mode": "unit-simulated-deny-precedence",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "create_transfer",
+  "checkedAt": "2026-07-25",
+  "verifiedBy": "simulated-path DENY-before-stepUp ordering fix (e90262f9)"
+}

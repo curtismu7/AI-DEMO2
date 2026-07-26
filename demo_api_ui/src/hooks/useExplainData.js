@@ -31,7 +31,9 @@ export function useExplainData(uc) {
 
     Promise.all([fetchRules, fetchTopo]).then(([rulesRes, topoRes]) => {
       if (cancelled) return;
-      setRules(rulesRes?.data ?? null);
+      const rulesData = rulesRes?.data ?? null;
+      // BFF returns { ok:false, error } when authz is unreachable — treat as empty.
+      setRules(rulesData && rulesData.ok === false ? null : rulesData);
       setTopology(topoRes?.data ?? null);
       setLoading(false);
     }).catch(() => {

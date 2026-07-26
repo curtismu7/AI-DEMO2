@@ -9,6 +9,7 @@
  */
 
 import { HttpMCPTransport } from '../src/server/HttpMCPTransport';
+import { enforceUpstreamContract } from '../src/auth/lastHopAuthorization';
 
 // --------------------------------------------------------------------------
 // Helpers
@@ -25,7 +26,7 @@ const GATEWAY_AUD  = 'https://mcp-gateway.example.com';
 // Test suite: upstream contract enforcement (D-05)
 // --------------------------------------------------------------------------
 
-describe('HttpMCPTransport.enforceUpstreamContract — D-05 next-hop token enforcement', () => {
+describe('enforceUpstreamContract — D-05 next-hop token enforcement', () => {
   it('Test 1: rejects direct caller tokens with the gateway audience at the upstream', () => {
     // A token issued to the gateway audience must NOT be accepted at the upstream.
     // This prevents a client from obtaining a gateway-aud token and bypassing the
@@ -36,7 +37,7 @@ describe('HttpMCPTransport.enforceUpstreamContract — D-05 next-hop token enfor
       exp: makeExp(),
     };
 
-    const result = HttpMCPTransport.enforceUpstreamContract(claims, {
+    const result = enforceUpstreamContract(claims, {
       upstreamAudience: UPSTREAM_AUD,
       gatewayAudience:  GATEWAY_AUD,
     });
@@ -56,7 +57,7 @@ describe('HttpMCPTransport.enforceUpstreamContract — D-05 next-hop token enfor
       act:     { sub: 'gateway-client-id' },  // delegation chain via gateway
     };
 
-    const result = HttpMCPTransport.enforceUpstreamContract(claims, {
+    const result = enforceUpstreamContract(claims, {
       upstreamAudience: UPSTREAM_AUD,
       gatewayAudience:  GATEWAY_AUD,
     });
@@ -82,7 +83,7 @@ describe('HttpMCPTransport.enforceUpstreamContract — D-05 next-hop token enfor
     // When neither upstreamAudience nor gatewayAudience is set, the check is a
     // no-op — allows local dev without env vars.
     const claims = { sub: 'dev-agent', aud: 'local-dev', exp: makeExp() };
-    const result = HttpMCPTransport.enforceUpstreamContract(claims, {});
+    const result = enforceUpstreamContract(claims, {});
     expect(result.valid).toBe(true);
   });
 
@@ -92,7 +93,7 @@ describe('HttpMCPTransport.enforceUpstreamContract — D-05 next-hop token enfor
       aud: [GATEWAY_AUD],
       exp: makeExp(),
     };
-    const result = HttpMCPTransport.enforceUpstreamContract(claims, {
+    const result = enforceUpstreamContract(claims, {
       upstreamAudience: UPSTREAM_AUD,
       gatewayAudience:  GATEWAY_AUD,
     });
@@ -108,7 +109,7 @@ describe('HttpMCPTransport.enforceUpstreamContract — D-05 next-hop token enfor
       aud: [GATEWAY_AUD, UPSTREAM_AUD],
       exp: makeExp(),
     };
-    const result = HttpMCPTransport.enforceUpstreamContract(claims, {
+    const result = enforceUpstreamContract(claims, {
       upstreamAudience: UPSTREAM_AUD,
       gatewayAudience:  GATEWAY_AUD,
     });
@@ -119,7 +120,7 @@ describe('HttpMCPTransport.enforceUpstreamContract — D-05 next-hop token enfor
 
   it('rejects tokens missing aud entirely', () => {
     const claims = { sub: 'agent-no-aud', exp: makeExp() };
-    const result = HttpMCPTransport.enforceUpstreamContract(claims, {
+    const result = enforceUpstreamContract(claims, {
       upstreamAudience: UPSTREAM_AUD,
       gatewayAudience:  GATEWAY_AUD,
     });

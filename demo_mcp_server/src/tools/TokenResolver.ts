@@ -66,7 +66,13 @@ export class TokenResolver {
               subject_token: agentToken,
               subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',
               scope: toolScopes.join(' '),
-              audience: process.env.BANKING_API_RESOURCE_URI,
+              // RFC 8707 `resource`, NOT `audience`. PingOne honors resource= and
+              // SILENTLY IGNORES audience= (same trap documented at length in
+              // demo_api_server/services/agentMcpTokenService.js ~L2330). With
+              // audience= the exchange returned 200 with expires_in=3600 and the
+              // token still carried aud=mcpserver.ping.demo — Step 9 "succeeded"
+              // while narrowing nothing. Verified live before/after.
+              resource: process.env.BANKING_API_RESOURCE_URI,
             };
             const exchangeResponse = await tokenExchangeService.exchangeToken(exchangeRequest);
             // Validate the response before caching (parity with the user path): a

@@ -17,6 +17,19 @@ vi.mock("../../vertical/useVertical", () => ({
 }));
 vi.mock("../../services/demoScenarioService", () => ({ persistAgentUi: vi.fn() }));
 vi.mock("../../services/logout", () => ({ performLogout: vi.fn() }));
+vi.mock("../../services/apiClient", () => ({
+  default: {
+    post: vi.fn(() =>
+      Promise.resolve({
+        data: {
+          useCaseId: "weather-mcp-texas-permit",
+          triggerText: "what's the weather in Austin, TX",
+          type: "chip",
+        },
+      }),
+    ),
+  },
+}));
 vi.mock("../../utils/authUi", () => ({ requestSilentReauth: vi.fn() }));
 vi.mock("../../utils/dashboardLayout", () => ({ setDashboardLayout: vi.fn() }));
 vi.mock("../../utils/roleSwitch", () => ({ startRoleSwitch: vi.fn() }));
@@ -25,6 +38,7 @@ vi.mock("../ControlPlaneIntroModal", () => ({ default: () => null }));
 vi.mock("../KillSwitchConfirmModal", () => ({ default: () => null }));
 
 import AdminSideNav from "../AdminSideNav";
+import { NAV_ITEM_CATALOG } from "../../config/navItemsCatalog";
 
 const adminUser = { id: "4", username: "admin", role: "admin" };
 const customerUser = { id: "1", username: "customer", role: "customer" };
@@ -92,9 +106,57 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(adminQuick).toBeTruthy();
   });
 
-  it("shows the Demo check nav item for a non-admin user (no admin gate)", () => {
+  it("shows the Health Check nav item for a non-admin user (no admin gate)", () => {
     renderNavAsUser(customerUser);
-    fireEvent.click(screen.getByRole("button", { name: /^Monitoring/ }));
-    expect(screen.getByText("Demo check")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Telemetry/ }));
+    expect(screen.getByText("Health Check")).toBeInTheDocument();
+  });
+
+  it("shows the Demo Config link for a non-admin user (no admin gate)", () => {
+    renderNavAsUser(customerUser);
+    expect(screen.getByText("Demo Config")).toBeInTheDocument();
+  });
+
+  it("shows a Use Cases (Live) link right under Use Cases, linking to /use-cases/live", () => {
+    renderNav();
+    const liveLink = screen.getByText("Use Cases (Live)").closest("a");
+    expect(liveLink).toHaveAttribute("href", "/use-cases/live");
+  });
+
+  it("Weather MCP runs UC30 (weather-mcp-texas-permit) via demo/run", async () => {
+    const apiClient = (await import("../../services/apiClient")).default;
+    renderNav();
+    fireEvent.click(screen.getByRole("button", { name: /^MCP & Gateways/ }));
+    fireEvent.click(screen.getByText("Weather MCP"));
+    expect(apiClient.post).toHaveBeenCalledWith("/api/use-cases/demo/run", {
+      useCaseId: "weather-mcp-texas-permit",
+      vertical: "banking",
+    });
+  });
+
+  it("hides a nav item the user marked hidden via Demo Config, once loaded", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url) => {
+        if (String(url).includes("/api/user/nav-config")) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ hiddenLabels: ["Themes"], activeConfigId: null, flagOn: true }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      }),
+    );
+    renderNav();
+    expect(await screen.findByText("Monitoring")).toBeInTheDocument();
+    expect(screen.queryByText("Themes")).toBeNull();
+    vi.unstubAllGlobals();
+  });
+
+  it("NAV_ITEM_CATALOG stays in sync with AdminSideNav's real top-level labels", () => {
+    renderNavAsUser(customerUser);
+    NAV_ITEM_CATALOG.forEach((label) => {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    });
   });
 });

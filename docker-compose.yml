@@ -35,8 +35,8 @@
 #   5. Use the search box to filter log lines
 #   6. Click the download icon to save logs to a file
 #
-# Optional compose profiles (lean default — core only; start on demand):
-#   rag        weaviate, embeddings, demo-mcp-code-search, llamaindex-agent
+# Optional compose profiles (run-docker.sh default = core + rag):
+#   rag        weaviate, embeddings, demo-mcp-code-search, llamaindex-agent (on by default)
 #   agents     openai-agent, mastra-agent, pydantic-agent
 #   tracing    jaeger
 #   demo-auth  demo authz-server + demo mcp-gateway (when FF selects demo path)
@@ -56,6 +56,7 @@ services:
     image: jaegertracing/all-in-one:1.62.0
     container_name: ai-demo-jaeger
     mem_limit: 512m
+    restart: unless-stopped
     ports:
       - "16686:16686"   # Jaeger UI
       - "4317:4317"     # OTLP gRPC
@@ -126,6 +127,11 @@ services:
       # Do NOT set AUTHORIZE_MODE here — an explicit authorize_mode wins over the
       # flag in resolveAuthorizeMode() and would make the flip a no-op.
       AUTHORIZE_FAILOVER_MODE: "deny"
+      # Mock Authorize PDP for teaching surfaces (/api/authorize/mock-authz-rules).
+      # Must be compose DNS — localhost:9001 is the BFF code default and is unreachable
+      # inside this container (left the A2A explain modal empty for Authorize rules).
+      PINGAUTHORIZE_ENDPOINT: "http://authz-server:9001"
+      PINGAUTHORIZE_MOCK_BASE: "http://authz-server:9001"
       # Default agent to the local llama.cpp reasoning engine (free, no external
       # key). NOTE: getEffective() reads env-FIRST, so this AGENT_MODE env var
       # OVERRIDES any persisted /config selection on every read — it is the
@@ -255,8 +261,8 @@ services:
   # ── UI (Vite build → nginx HTTPS) ──────────────────────────────────────────
   ui:
     build:
-      context: ./demo_api_ui
-      dockerfile: Dockerfile
+      context: .    # repo root — builder needs llm-timeouts.json (../../../ from /app/src/services)
+      dockerfile: demo_api_ui/Dockerfile
       args:
         GIT_SHA: ${GIT_SHA:-unknown}
     container_name: ai-demo-ui
@@ -303,6 +309,13 @@ services:
       # comma-separated list; mcpgateway.ping.demo is kept as a transitional second entry
       # so tokens from callers still on the old forward-unchanged contract keep validating.
       MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
+      # mTLS on the PingGateway -> MCP server hop. When true the server serves
+      # HTTPS (self-signed, regenerated each start) and REQUIRES a client cert
+      # whose SHA-256 matches MCP_MTLS_GATEWAY_CERT_PATH. PingGateway presents it
+      # from PG_MTLS_KEYSTORE_PATH — the two must move together: flipping this
+      # alone rejects every gateway call with "no client certificate presented".
+      MCP_MTLS_ENABLED: "${MCP_MTLS_ENABLED:-false}"
+      MCP_MTLS_GATEWAY_CERT_PATH: "/certs/gw-mtls/gw-client.crt"
       # RAG code-search service — the code_search/get_code/list_codebases tool
       # handlers call this over compose DNS.
       MCP_CODE_SEARCH_URL: "http://demo-mcp-code-search:8095"
@@ -318,7 +331,10 @@ services:
         required: false   # copy demo_mcp_server/.env.example if you need overrides
     volumes:
       - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
-      - ./certs:/certs:ro  # dir mount, not a single file -- a single-file bind pins the inode
+      # Gateway client cert for the mTLS pin. certs/ is gitignored; generate via
+      # scripts/ensure-gateway-mtls-certs.sh. Read-only, public cert only.
+      # Dir mount, not a single file -- a single-file bind pins the inode.
+      - ./certs:/certs:ro
     networks:
       - ai-demo
     healthcheck:
@@ -364,7 +380,14 @@ services:
       # tree means grep/read_file always see current source and a re-index only
       # needs to rerun the indexer — no image rebuild, no repo-src re-stage.
       REPO_SRC_ROOT: "/app/live-repo"
-      CODEGRAPH_DB_PATH: "/app/live-repo/.codegraph/codegraph.db"
+      # Separate from the host CodeGraph product DB at .codegraph/codegraph.db
+      # (same bind mount) so Refresh cannot be overwritten by the IDE daemon.
+      CODEGRAPH_DB_PATH: "/app/live-repo/.codegraph/demo-codegraph.db"
+      # Prefer the live-mounted script over the baked /app/indexer copy so
+      # indexer fixes apply without rebuilding the langchain-agent image.
+      CODEGRAPH_INDEXER: "/app/live-repo/scripts/build-codegraph.py"
+      # Do NOT set CODEGRAPH_INDEX_ALL here — Refresh/startup must stay scoped to
+      # demo_api_ui + demo_api_server (full-repo walks are opt-in via --all only).
       # Trust the BFF's mkcert TLS cert on the internal tool callback (httpx
       # honors SSL_CERT_FILE). Combined bundle = system roots + mkcert root CA,
       # so external HTTPS (Anthropic/OpenAI/PingOne) keeps verifying. Generate:
@@ -376,9 +399,10 @@ services:
     volumes:
       # Live repo, read-only — source the agent greps/reads + the indexer scans.
       - ./:/app/live-repo:ro
-      # .codegraph overlaid read-write so the in-container re-index can rewrite
-      # codegraph.db (a directory mount, so the indexer's unlink+recreate is safe
-      # — a single-file bind mount would pin the old inode after rebuild).
+      # .codegraph overlaid read-write so Refresh can rewrite demo-codegraph.db
+      # (directory mount — unlink+recreate is safe; a single-file bind would pin
+      # the old inode). Host product CodeGraph may also use this dir for
+      # codegraph.db — demo must keep the demo-codegraph.db filename.
       - ./.codegraph:/app/live-repo/.codegraph
       # CA bundle for SSL_CERT_FILE above (gitignored; generated on the host).
       - ./certs/ca-bundle-with-mkcert.pem:/etc/ssl/certs/ca-bundle-with-mkcert.pem:ro
@@ -416,11 +440,33 @@ services:
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
       MCP_GW_OLB_WS_URL: "ws://mcp-server:8080"
       MCP_GW_INVEST_WS_URL: "ws://mcp-invest:8081"
+      MCP_GW_JWTVERIFIER_HTTP_URL: "http://mcp-jwt-verifier:8083"
+      MCP_JWTVERIFIER_RESOURCE_URI: "mcp-jwt-verifier.ping.demo"
       MCP_GW_PASSTHROUGH_TO_MCP_SERVER: "false"
+      # Accepted token audiences (comma list, tokenValidator.ts): Node-gateway +
+      # PingGateway + the A2A specialists' dedicated Exchange #2 audience. This
+      # list was wired onto demo-api-server/authz-server but never onto the
+      # gateway itself, whose env_file pinned the single Node audience — so every
+      # A2A specialist call 401'd at the gateway with "Audience mismatch".
+      MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo"
       PINGAUTHORIZE_ENDPOINT: "http://authz-server:9001"
+      # Declare the mock explicitly. Decision provenance (contract C2) and the
+      # /health posture block both derive "is this a real PDP?" by comparing the
+      # endpoint against this value. With it unset, a deployment pointed at the
+      # mock reports policySource 'p1az' — i.e. the audit trail claims cloud
+      # PingOne Authorize decided when the mock did. Must equal PINGAUTHORIZE_ENDPOINT
+      # whenever that endpoint IS the mock.
+      PINGAUTHORIZE_MOCK_BASE: "http://authz-server:9001"
       PINGAUTHORIZE_WORKER_ID: "mcp-gateway"
       MCP_GW_P1AZ_ENABLED: "true"
       GW_INTROSPECTION_ENDPOINT: "http://authz-server:9001/as/introspect"
+      # This stack has never configured PINGONE_JWKS_ENDPOINT, so the gateway has
+      # always run decode-only (no signature verification). That used to be silent;
+      # it now requires this explicit opt-in and is reported in the failOpen list of
+      # GET /health. Closing it means pointing the gateway at real PingOne JWKS —
+      # which needs a live check first, because demo tokens introspect against the
+      # mock authz-server and some are minted HS256 locally.
+      MCP_GW_ALLOW_UNVERIFIED_TOKENS: "true"
       MORTGAGE_SERVICE_URL: "http://mortgage-service:8082"   # api-key dispatch backend (mortgage + invest routes)
       # Must match mortgage-service MORTGAGE_SERVICE_API_KEY (no committed demo default).
       DEMO_MORTGAGE_SERVICE_KEY: ${MORTGAGE_SERVICE_API_KEY:-mortgage-compose-dev-key}
@@ -446,6 +492,9 @@ services:
       mcp-invest:
         condition: service_started
         required: false   # core service — routes invest when up
+      mcp-jwt-verifier:
+        condition: service_started
+        required: false   # routes jwt_* diagnostic tools when up
       authz-server:
         condition: service_started
         required: false   # demo-auth profile — co-starts with mcp-gateway via demo-sync
@@ -512,7 +561,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
       OTEL_SERVICE_NAME: "hitl-service"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
-      HITL_ALLOWED_ORIGINS: "http://api-server:3001,http://localhost:4000,https://api.ping.demo:3001"
+      HITL_ALLOWED_ORIGINS: "http://api-server:3001,http://localhost:4000,https://local.ping-devops.com:4000,https://api.ping.demo:4000,https://api.ping.demo:3001"
       BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
       # mkcert CA so the emitter's HTTPS POST to the BFF can verify its leaf cert.
       # Without it every hop fails UNABLE_TO_VERIFY_LEAF_SIGNATURE and is silently
@@ -560,6 +609,79 @@ services:
       - ai-demo
     depends_on:
       - demo-api-server
+    restart: unless-stopped
+
+  # ── MCP Weather (third-party weather-mcp, stdio bridged to HTTP) ────────────
+  # Agent Gateway (IG) showcase: fronts github.com/weather-mcp/weather-mcp,
+  # scoped at the edge by ping-gateway/scripts/groovy/tx-weather-scope.groovy.
+  # Core service (no profile) — started by lean `./run-docker.sh` with mcp-invest.
+  mcp-weather:
+    build:
+      context: ./demo_mcp_weather
+      dockerfile: Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
+    container_name: ai-demo-mcp-weather
+    ports:
+      - "8896:8896"
+    environment:
+      PORT: "8896"
+    networks:
+      - ai-demo
+    restart: unless-stopped
+
+  # ── MCP Brave (remote third-party API, real outbound calls) ─────────────
+  # Agent Gateway (IG) showcase: fronts a hand-written MCP server that calls
+  # the real Brave Search News API, scoped at the edge by
+  # ping-gateway/scripts/groovy/tx-brave-scope.groovy (crypto-term content
+  # blocklist + a live feature-flag check).
+  mcp-brave:
+    build:
+      context: ./demo_mcp_brave
+      dockerfile: Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
+    container_name: ai-demo-mcp-brave
+    ports:
+      - "8897:8897"
+    env_file:
+      - path: ./demo_mcp_brave/.env
+        required: false
+    environment:
+      PORT: "8897"
+    networks:
+      - ai-demo
+    restart: unless-stopped
+
+  # ── MCP JWT Verifier (Python / FastMCP — JWT/JWKS diagnostic tools) ─────────
+  # profile demo-auth — only useful behind the Node mcp-gateway (co-starts with it).
+  mcp-jwt-verifier:
+    profiles: ["demo-auth"]
+    build:
+      context: ./demo_mcp_jwt_verifier
+      dockerfile: Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-unknown}
+    container_name: ai-demo-mcp-jwt-verifier
+    ports:
+      - "8083:8083"
+    environment:
+      MCP_JWT_VERIFIER_HOST: "0.0.0.0"
+      MCP_JWT_VERIFIER_PORT: "8083"
+      # RFC 8707 audience — must match demo_mcp_gateway's MCP_JWTVERIFIER_RESOURCE_URI
+      # so the gateway's RFC 8693 re-exchange mints tokens this server accepts.
+      MCP_JWTVERIFIER_RESOURCE_URI: "mcp-jwt-verifier.ping.demo"
+    env_file:
+      - path: ./demo_mcp_jwt_verifier/.env
+        required: false   # copy demo_mcp_jwt_verifier/.env.example for PINGONE_JWKS_URI / PINGONE_ISSUER
+    networks:
+      - ai-demo
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8083/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     restart: unless-stopped
 
   # ── Mortgage Service (plain JS) ───────────────────────────────────────────────
@@ -832,8 +954,15 @@ services:
     environment:
       # In-stack overrides (env block wins over env_file): reach backends + the mock
       # authz server by compose service DNS, not host.docker.internal.
-      PG_OLB_BACKEND_URL: "http://mcp-server:8080"
+      # https when mTLS is on (mcp-server serves TLS on the SAME port); http otherwise.
+      PG_OLB_BACKEND_URL: "${PG_OLB_BACKEND_URL:-http://mcp-server:8080}"
+      # Client cert IG presents to the MCP server. certs/ is already mounted at
+      # /certs on this service. Empty => plaintext, unchanged behaviour.
+      PG_MTLS_KEYSTORE_PATH: "${PG_MTLS_KEYSTORE_PATH:-}"
+      PG_MTLS_KEYSTORE_PASSWORD: "${PG_MTLS_KEYSTORE_PASSWORD:-changeit}"
       PG_INVEST_BACKEND_URL: "http://mcp-invest:8081"
+      PG_WEATHER_BACKEND_URL: "http://mcp-weather:8896"
+      PG_BRAVE_BACKEND_URL: "http://mcp-brave:8897"
       PG_INBOUND_SCOPE: "gateway:mcp:invoke"
       P1AZ_MOCK_BASE: "http://authz-server:9001"
       # P1AZ_WORKER_ID comes from ./ping-gateway/.env (real decision endpoint id).
@@ -842,9 +971,34 @@ services:
       # so the real value works for both backends).
       PG_MORTGAGE_BACKEND_URL: "http://mortgage-service:8082"
       BFF_VAULT_KEY_URL: "https://api.ping.demo:3001/internal/vault/service-key"
+      BFF_WEATHER_FLAG_URL: "http://api-server:3001/internal/feature-flags/weather-mcp-showcase"
+      BFF_BRAVE_FLAG_URL: "https://api.ping.demo:3001/internal/feature-flags/brave-mcp-showcase"
       # BFF_INTERNAL_SECRET comes from env_file (ping-gateway/.env, written by
       # refresh-service-envs.js) so it matches the BFF's real value — do NOT set
       # it here (environment: would override env_file with a wrong/default value).
+      #
+      # INTENT_TOKEN_SECRET: SAME RULE, and the reason intent verification was dead
+      # on this path. p1az-decision.groovy reads INTENT_TOKEN_SECRET (falling back to
+      # SESSION_SECRET); with neither present the verifier short-circuits and omits
+      # IntentTokenValid / IntentMatchesTool, so ~190 lines of correct HMAC checking
+      # never ran. It arrives via env_file from refresh-service-envs.js, which must
+      # write the BFF's EFFECTIVE signing key (intentTokenService.js:8 signs with
+      # INTENT_TOKEN_SECRET || SESSION_SECRET — writing only the former leaves the
+      # gateway verifying with a different key than the BFF signed with, which is a
+      # silent invalid_signature on every request). Do NOT pin it here: a
+      # `${INTENT_TOKEN_SECRET:-}` default would resolve to empty on a host without
+      # the var and override env_file, re-killing the verifier.
+      #
+      # TraT parity (Path A / Path B must agree). mcp-server and mcp-gateway both
+      # default this true; ping-gateway set it nowhere, so it was effectively false
+      # here and the SAME request had its RAR / purp / cnf evidence forwarded to the
+      # PDP through the Node gateway and silently dropped through PingGateway — while
+      # PingGateway is the DEFAULT path (ff_mcp_gateway_pinggateway). Chose `true` to
+      # match the other two rather than flipping them to false: the BFF's TraT context
+      # is simulated for the demo, so false would strip RAR/purp/cnf from the decision
+      # everywhere and leave the F4 finding unfixed on both paths. Same variable name
+      # across all three services, so one host-level override moves them together.
+      ALLOW_UNSIGNED_TRAT_CONTEXT: ${ALLOW_UNSIGNED_TRAT_CONTEXT:-true}
       # Fallback truststore (see entrypoint comment above): -cacerts isn't writable
       # by the fixed non-root image user, so the mkcert root is imported into a
       # copy of cacerts under /var/gateway instead, and the JVM is pointed at it.
@@ -859,6 +1013,10 @@ services:
       mcp-server:
         condition: service_started
       mcp-invest:
+        condition: service_started
+      mcp-weather:
+        condition: service_started
+      mcp-brave:
         condition: service_started
       mortgage-service:
         condition: service_started
@@ -1021,14 +1179,13 @@ services:
       # Optional pin: LLM_PROXY_PIN_TIER=8096
       LLM_PROXY_IDLE_DECAY_MS: "${LLM_PROXY_IDLE_DECAY_MS:-0}"
       LLM_PROXY_PIN_TIER: "${LLM_PROXY_PIN_TIER:-}"
-      # Keep BOTH tiers loaded: the BFF pins phi-4-mini (:8091) and the agent
-      # pins gpt-oss-20b (:8096). In swap mode they evict each other, so the
-      # second surface used pays a 7-30s model swap — and when that swap outruns
-      # the caller, the BFF falls back to the heuristic catalog. Disabling decay
-      # (above) keeps a tier warm once loaded, but nothing pre-loads the agent's
-      # tier — residency does, so the FIRST request doesn't swap either.
-      # Costs ~14GB resident. Set empty to fall back to classic swap mode.
-      LLM_PROXY_RESIDENT_TIERS: "${LLM_PROXY_RESIDENT_TIERS:-8091,8096}"
+      # Keep BOTH tiers loaded on hosts with enough RAM (≥32GB via residencyPolicy).
+      # Costs ~14GB resident. Empty string = classic swap / pin-phi (24GB strategy).
+      # Use ${VAR-default} (not :-) so an explicit empty from run-docker.sh is honored.
+      LLM_PROXY_RESIDENT_TIERS: "${LLM_PROXY_RESIDENT_TIERS-8091,8096}"
+      # PostHog LLM Analytics ($ai_generation). Optional — proxy no-ops when unset.
+      POSTHOG_API_KEY: "${POSTHOG_API_KEY:-}"
+      POSTHOG_HOST: "${POSTHOG_HOST:-https://us.i.posthog.com}"
     networks:
       - ai-demo
     # Access host llama-server instances via host.docker.internal
@@ -1070,6 +1227,25 @@ services:
     networks:
       - ai-demo
     restart: "no"
+
+  # ── promptfoo step narration (core — always on, idle until eval) ───────────
+  # Sidecar with promptfoo installed. Does not auto-run the eval on start.
+  #   ./run-docker.sh promptfoo
+  # Targets host :8090 (llm-proxy publish or host oMLX/mlx) via host.docker.internal.
+  promptfoo-step-narration:
+    build:
+      context: ./demo_api_server/promptfoo
+      dockerfile: Dockerfile
+    image: ai-demo-promptfoo:latest
+    container_name: ai-demo-promptfoo-step-narration
+    environment:
+      OPENAI_API_KEY: not-needed
+      OPENAI_API_BASE_URL: http://host.docker.internal:8090/v1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - ai-demo
+    restart: unless-stopped
 
 networks:
   ai-demo:

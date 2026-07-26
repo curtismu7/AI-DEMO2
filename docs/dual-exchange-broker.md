@@ -1,81 +1,68 @@
-# Dual token-exchange broker (`ff_gateway_brokered_exchange`)
+# Who brokers the final token exchange
 
-Lets the demo show **both** delegation-ownership architectures for the final
-RFC 8693 hop that mints the backend MCP-server token (`mcpserver.ping.demo`),
-while routing through the **real PingGateway (IG)** in both cases.
+**Status: settled. The gateway brokers it. There is no switch.**
 
-## The two modes
+This document used to describe `ff_gateway_brokered_exchange`, a flag that chose
+between two delegation-ownership architectures. That flag was removed on
+2026-07-26 because one of its two paths could never work. The reasoning is kept
+here so nobody rebuilds it.
 
-Both require `ff_mcp_gateway_pinggateway = ON` (route through the real IG).
+## The chain today
 
-| `ff_gateway_brokered_exchange` | Who mints the `mcpserver.ping.demo` token | Flow |
+| # | Who | Subject → Audience |
 |---|---|---|
-| **ON** (default) — *gateway-brokered* | The **IG** (`olb-token-exchange.groovy`) | BFF stops its two-exchange chain at the coarse gateway audience (`gateway:mcp:invoke`). The IG runs Exchange #3 at the edge. Token-exchange-at-the-gateway / phantom-token pattern. |
-| **OFF** — *bff-brokered* | The **BFF** | BFF completes the exchange to the mcp-server audience itself (reusing the existing `!usePingGatewayForExchange` branch) and sends the delegated token. The BFF stamps `X-BFF-Exchanged: true`; the IG **skips** Exchange #3 and forwards the token as-is. |
+| 1 | **BFF** | user token + AI Agent Actor (actor) → Agent Gateway (`agentgateway.ping.demo`) |
+| 2 | **BFF** | intermediate + MCP Exchanger (actor) → PingGateway (`PG_GATEWAY_RESOURCE_ID`) |
+| 3 | **PingGateway** | gateway-scoped token → backend MCP server (`PG_OLB_RESOURCE_URI`) |
 
-Both are legitimate production patterns. Gateway-brokered centralizes token
-brokering + exchange credentials at the enforcement edge; bff-brokered performs
-the exchange where the user+agent delegation context is richest. This toggle
-demonstrates the tradeoff side by side.
+P1AZ then authorizes; the MCP server validates. Neither mints tokens.
 
-## Using both flags together (the full matrix)
+Exchange #1 must stay on the BFF — it is the only component holding both the
+user session and the agent identity, which is what makes the `act` chain
+meaningful. Exchange #3 is at the edge: the phantom-token pattern, where the
+resource-scoped token is minted by the gateway and never leaves it.
 
-The demo has **two** flags in play — one for routing, one for who brokers the
-final exchange. Set both to pick the architecture you want to show:
+## Why "BFF-brokered" could not work
 
-| `ff_mcp_gateway_pinggateway` (routing) | `ff_gateway_brokered_exchange` (broker) | Result |
-|---|---|---|
-| **ON** (real PingGateway) | **ON** (default) | Real IG enforces + **IG** mints the backend token (edge token-exchange). The headline "real gateway does it all" demo. |
-| **ON** (real PingGateway) | **OFF** | Real IG enforces + **BFF** mints the backend token; IG validates + proxies. Same real gateway, delegation owned by the BFF. |
-| **OFF** (Demo Node gateway) | *(ignored)* | Node Demo Agent Gateway path; the BFF always brokers. `ff_gateway_brokered_exchange` has no effect here. |
+The removed flag's OFF path had the BFF perform Exchange #2 all the way to the
+MCP-server audience, then signal `X-BFF-Exchanged` so the gateway skipped
+Exchange #3.
 
-To showcase the delegation-ownership contrast, hold `ff_mcp_gateway_pinggateway`
-**ON** and flip `ff_gateway_brokered_exchange` between runs — the Token Chain
-view shows the final RFC 8693 hop landing at the IG (ON) vs. the BFF (OFF).
+That fails at PingOne, every time:
 
-## What changed
+```
+invalid_scope: "May not request scopes for multiple resources"
+```
 
-- `demo_api_server/routes/featureFlags.js` — new flag `ff_gateway_brokered_exchange`
-  (default `true`, `MCP / Agent` category) + `FF_GATEWAY_BROKERED_EXCHANGE`
-  pin-alias.
-- `demo_api_server/services/agentMcpTokenService.js` — `usePingGatewayForExchange`
-  is now `routeViaPingGateway && gatewayBrokeredExchange`. Unset/true preserves
-  today's gateway-brokered flow byte-for-byte; false routes the final exchange to
-  the BFF (the existing `!usePingGatewayForExchange` audience/scope branch).
-- `demo_api_server/services/mcpGatewayClient.js` — sends `X-BFF-Exchanged: true`
-  when the flag is off (PingGateway routing only).
-- `ping-gateway/scripts/groovy/olb-token-exchange.groovy` — skips Exchange #3 and
-  forwards the inbound token when `X-BFF-Exchanged: true`.
+Scope vocabularies in PingOne are **per resource** and do not cascade
+(ARCHITECTURE-TRUTHS T-10). A single RFC 8693 request may narrow to exactly one
+resource. Completing the chain from the BFF means asking for tool scopes that
+live on several resources at once, which PingOne refuses outright. The user saw
+the opaque `"That step couldn't be completed"`.
 
-Default behavior (flag unset/true) is unchanged.
+The same constraint shapes the rest of the design: it is why Exchange #2 exists
+as a separate hop rather than being folded into #1, and why PingGateway's
+Exchange #3 needs its own token-exchange client — an app cannot hold two scopes
+of the same *name* across different resource grants.
 
-## Live-verify checklist (deferred — needs an un-gated cluster + PingOne access)
+## What was removed
 
-This wires the code paths; two IG/PingOne items still need live confirmation
-against the SE/AWS cluster:
+- `ff_gateway_brokered_exchange` from `FLAG_REGISTRY` and its `FF_*` env alias
+- the `gatewayBrokeredExchange` branch in `services/agentMcpTokenService.js`
+- the `X-BFF-Exchanged` request header in `services/mcpGatewayClient.js`
+- the skip branch, and its `BFF_INTERNAL_SECRET` trusted-caller gate, in
+  `ping-gateway/scripts/groovy/olb-token-exchange.groovy`
+- the flag from `MCP_GATEWAY_RUNTIME_FLAGS` in `services/demoStepPrerequisites.js`
+  and its UI mirror `demo_api_ui/src/utils/requiredDemoFlags.js`
 
-1. **Gateway-brokered path currently returns a downstream 400.** Observed on
-   `ping-devops-cmuir`: the IG route matches (`01-mcp-olb`), the exchange env is
-   set (`TE_CLIENT_ID/SECRET`, `PG_OLB_RESOURCE_URI=mcpserver.ping.demo`,
-   `PG_OLB_SCOPE`), but `olb-token-exchange.groovy` produced **no log** during a
-   call and the backend received the un-exchanged token. Raise IG log level and
-   confirm the exchange filter actually executes in the route's handler chain
-   (the `McpProtectionFilter` introspection runs first — verify it isn't
-   short-circuiting before the ScriptableFilter).
-2. **BFF-brokered path — IG must accept the pre-delegated audience.** In bff mode
-   the inbound token's `aud` is `mcpserver.ping.demo`, not the IG's HTTPS
-   resourceId. The IG's `McpProtectionFilter` (introspection, runs before the
-   groovy) may reject that audience. Confirm the filter accepts it when
-   `X-BFF-Exchanged: true` (or add a skip there mirroring the groovy skip).
-   Also note PingOne's multi-resource-token constraint (see the comment at
-   `agentMcpTokenService.js` ~L2372): requesting both the gateway and mcp-server
-   audiences yields a token PingGateway introspection rejects — bff mode requests
-   the mcp-server resource directly, which sidesteps it, but verify live.
+Dropping the header also closed an attack surface: it suppressed Exchange #3, so
+any caller reaching the IG port could have forwarded its inbound
+gateway-audience token straight to the MCP server instead of a re-scoped one.
+The gate that guarded it is gone along with the thing it guarded.
 
-## How to demo
+## If you want to demo delegation-ownership tradeoffs
 
-Toggle `ff_gateway_brokered_exchange` on the `/config` feature-flags page (or pin
-`FF_GATEWAY_BROKERED_EXCHANGE=false` in the BFF env), keep
-`ff_mcp_gateway_pinggateway = ON`, and run a banking chip. The Token Chain view
-shows the final exchange happening at the IG (gateway-brokered) vs. at the BFF
-(bff-brokered).
+Talk about **where Exchange #3 happens** — at the edge (today) versus at the
+resource server — rather than trying to move Exchange #2. The MCP-spec hop
+(Step 9, the MCP server exchanging for a resource-scoped token before calling
+the backend API) is the live example of that discussion.

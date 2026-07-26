@@ -3,7 +3,7 @@ const { buildAdminSystemPrompt } = require('../config/admin/systemPrompt');
 describe('buildAdminSystemPrompt', () => {
   test('returns the base prompt with no customer selected', () => {
     const p = buildAdminSystemPrompt();
-    expect(p).toMatch(/administrative assistant/i);
+    expect(p).toMatch(/PingOne Admin Assistant/i);
     expect(p).not.toMatch(/already selected/i);
   });
 

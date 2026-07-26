@@ -217,7 +217,10 @@ describe('vault-migrate.js — integration', () => {
     }
   });
 
-  test('unset env var: skipped with "not set in env" log', async () => {
+  // Same real-.env caveat as the count-exact test above: dotenv only fills
+  // in a var when it's absent from process.env, so on a machine with a real
+  // HELIX_API_KEY in .env, the script copies it here instead of skipping it.
+  itEnvClean('unset env var: skipped with "not set in env" log', async () => {
     const v = await createVault(vaultPath, 'pw-6');
     await v.save();
     v.close();

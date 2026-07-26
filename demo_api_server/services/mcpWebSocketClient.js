@@ -273,6 +273,18 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
           reject(err);
         });
 
+        // Server-side policy rejections (e.g. BankingMCPServer.handleConnection's
+        // authorizeLastHop check) close the socket cleanly with a reason instead of
+        // emitting a WS-level error — ws surfaces that as 'close', not 'error'. Without
+        // this handler the promise sat out the full 15s timeout below and reported the
+        // generic "MCP call timed out" instead of the real rejection reason.
+        ws.on('close', (code, reasonBuf) => {
+          clearTimeout(timeout);
+          const reason = (reasonBuf && reasonBuf.toString()) || '';
+          const suffix = reason ? `: ${reason}` : '';
+          reject(new Error(`MCP connection closed before response (code ${code}${suffix})`));
+        });
+
         ws.on('open', () => {
           const initParams = {
             protocolVersion: getMcpProtocolVersion(),
@@ -492,10 +504,10 @@ function mcpCallTool(toolName, toolParams, agentToken, userSub, correlationId) {
 // behavior as the plain calls; additionally return the exact follow-up
 // JSON-RPC frames. On rejection the captured frames ride on err.frames (the
 // response frame is present when the failure was a JSON-RPC error).
-async function mcpListToolsWithFrames(agentToken, userSub, correlationId) {
+async function mcpListToolsWithFrames(agentToken, userSub, correlationId, opts) {
   const frames = {};
   try {
-    const result = await mcpRpc(agentToken, 'tools/list', {}, userSub, correlationId, frames);
+    const result = await mcpRpc(agentToken, 'tools/list', {}, userSub, correlationId, frames, opts);
     return { result, frames };
   } catch (err) {
     err.frames = frames;
@@ -503,13 +515,13 @@ async function mcpListToolsWithFrames(agentToken, userSub, correlationId) {
   }
 }
 
-async function mcpCallToolWithFrames(toolName, toolParams, agentToken, userSub, correlationId) {
+async function mcpCallToolWithFrames(toolName, toolParams, agentToken, userSub, correlationId, opts) {
   const frames = {};
   try {
     const result = await mcpRpc(agentToken, 'tools/call', {
       name: toolName,
       arguments: toolParams || {},
-    }, userSub, correlationId, frames);
+    }, userSub, correlationId, frames, opts);
     return { result, frames };
   } catch (err) {
     err.frames = frames;

@@ -329,48 +329,14 @@ describe('MCP Inspector routes', () => {
   });
 });
 
-describe('MCP Inspector — MFA gate (GET /api/mcp/inspector/tools)', () => {
-  beforeEach(() => {
+describe('MCP Inspector — GET /api/mcp/inspector/tools is not step-up gated', () => {
+  // tools/list is read-only metadata (names + schemas, no execution, no account
+  // data). Step-up MFA only applies to actual transfer/withdrawal tool calls
+  // (see mcpLocalTools.js's checkLocalStepUp and its two call sites). This
+  // guards against re-adding a blanket gate on the listing route.
+  it('returns tools even when stepUpEnabled is true and there is no stepUpVerified session', async () => {
     mockRtGet.mockImplementation((key) => {
       if (key === 'stepUpEnabled') return true;
-      if (key === 'stepUpMethod') return 'email';
-      return undefined;
-    });
-  });
-
-  afterEach(() => {
-    mockRtGet.mockImplementation((key) => {
-      if (key === 'stepUpEnabled') return false;
-      return undefined;
-    });
-  });
-
-  it('returns mfa_required:true when stepUpEnabled and session has no stepUpVerified', async () => {
-    const res = await request(app)
-      .get('/api/mcp/inspector/tools')
-      .set('Authorization', `Bearer ${bearerToken()}`);
-
-    expect(res.status).toBe(200);
-    expect(res.body.mfa_required).toBe(true);
-    expect(res.body.tools).toEqual([]);
-    expect(res.body.step_up_method).toBe('email');
-    expect(res.body._source).toBe('mfa_gate');
-  });
-
-  it('returns mfa_required:true when stepUpVerified is in the past', async () => {
-    const res = await request(app)
-      .get('/api/mcp/inspector/tools')
-      .set('Authorization', `Bearer ${bearerToken()}`)
-      // Simulate expired stepUpVerified via session cookie (server sets it; we test without it)
-      ;
-
-    expect(res.status).toBe(200);
-    expect(res.body.mfa_required).toBe(true);
-  });
-
-  it('returns tools (not mfa_required) when stepUpEnabled is false', async () => {
-    mockRtGet.mockImplementation((key) => {
-      if (key === 'stepUpEnabled') return false;
       return undefined;
     });
     mockList.mockResolvedValueOnce({
@@ -384,5 +350,6 @@ describe('MCP Inspector — MFA gate (GET /api/mcp/inspector/tools)', () => {
     expect(res.status).toBe(200);
     expect(res.body.mfa_required).toBeUndefined();
     expect(Array.isArray(res.body.tools)).toBe(true);
+    expect(res.body.tools.length).toBeGreaterThan(0);
   });
 });

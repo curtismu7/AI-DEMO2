@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Token Chain (edu) — AI Demo Learning Hub</title>
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/snapshot.css">
+</head><body>
+<div class="snap-top"><a href="index.html">← Learning Hub</a><span class="crumb">/ Token Chain (edu)</span></div>
+<div class="edu-drawer snap-drawer">
+<div class="snap-title">Token Chain (edu)</div>
+<nav class="snap-toc"><span class="snap-toc-label">On this page — 6 sections</span><ul><li><a href="#sec-overview">Overview</a></li><li><a href="#sec-jwt-claims">JWT Claims</a></li><li><a href="#sec-exchange-paths">Exchange Paths</a></li><li><a href="#sec-examples">Examples</a></li><li><a href="#sec-live-demo">Live Demo</a></li><li><a href="#sec-transaction-tokens">Transaction Tokens</a></li></ul></nav>
+<div class="edu-drawer-body">
+<section class="snap-tab" id="sec-overview"><h3 class="snap-tab-h">Overview</h3><div><h3 style="margin-top: 0px;">What is a token chain?</h3><p>A <strong>token chain</strong> tracks the lineage of OAuth tokens as they flow through the system — from initial login through delegation exchanges to final MCP tool calls. Each step in the chain records who the token belongs to, who is acting on their behalf, and what scopes were granted.</p><h4>Why it matters</h4><ul><li><strong>Auditability</strong> — trace every action back to the original user and the delegated agent</li><li><strong>Least privilege</strong> — each exchange can narrow scopes (never widen)</li><li><strong>Delegation transparency</strong> — the <code>act</code> claim shows exactly who acted on behalf of whom</li><li><strong>Debugging</strong> — see where in the chain a token was rejected or expired</li></ul><h4>Token chain lifecycle</h4><pre class="edu-code">1. User Login (Authorization Code + PKCE)
+   → access_token (sub=user, scopes=read,write,transfer)
+   → refresh_token · id_token (nonce verified)
+   ✓ RFC 7662 introspection — BFF asks PingOne "is this session still active?"
+     Catches revoked tokens that are not yet expired.
+
+2. Agent Actor Token (client_credentials) — when 2-exchange is active
+   → actor_token (sub=agent-client-id, aud=agent-gateway)
+   ✓ RFC 7515 (JWS) signature verified via RFC 7517 (JWKS) — verified against PingOne public key
+
+3. Token Exchange — RFC 8693
+   subject_token=user_token  (actor_token optional — see Exchange Paths tab)
+   → exchanged_token (sub=user, act={client_id:bff}, aud=mcp_server)
+   → Scopes narrowed to what MCP server needs
+   ✓ RFC 7515 (JWS) signature verified via RFC 7517 (JWKS) — every exchanged token checked on arrival
+
+4. MCP Tool Call
+   → MCP server validates scopes for requested tool
+   → Executes tool on behalf of user
+   ✓ RFC 7515 (JWS) signature verified via RFC 7517 (JWKS) — MCP server re-verifies the token it received</pre><h4>Key components tracked</h4><table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;"><thead><tr style="border-bottom: 2px solid rgb(229, 231, 235); text-align: left;"><th style="padding: 6px;">Field</th><th style="padding: 6px;">Description</th></tr></thead><tbody><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: white;"><td style="padding: 6px; font-family: inherit; font-size: 0.8rem; font-weight: 600;">tokenType</td><td style="padding: 6px;">user_token, agent_token, or exchanged_token</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: rgb(249, 250, 251);"><td style="padding: 6px; font-family: inherit; font-size: 0.8rem; font-weight: 600;">sub</td><td style="padding: 6px;">Subject — the user the token represents</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: white;"><td style="padding: 6px; font-family: inherit; font-size: 0.8rem; font-weight: 600;">act.client_id</td><td style="padding: 6px;">Actor — the client acting on behalf of the user</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: rgb(249, 250, 251);"><td style="padding: 6px; font-family: inherit; font-size: 0.8rem; font-weight: 600;">aud</td><td style="padding: 6px;">Audience — the intended recipient of the token</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: white;"><td style="padding: 6px; font-family: inherit; font-size: 0.8rem; font-weight: 600;">scopes</td><td style="padding: 6px;">Granted permissions, narrowed at each exchange</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: rgb(249, 250, 251);"><td style="padding: 6px; font-family: inherit; font-size: 0.8rem; font-weight: 600;">iss</td><td style="padding: 6px;">Issuer — PingOne authorization server</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: white;"><td style="padding: 6px; font-family: inherit; font-size: 0.8rem; font-weight: 600;">exp</td><td style="padding: 6px;">Expiration timestamp</td></tr></tbody></table></div></section>
+<section class="snap-tab" id="sec-jwt-claims"><h3 class="snap-tab-h">JWT Claims</h3><div><h3 style="margin-top: 0px;">JWT claims in token exchange</h3><h4>The <code>sub</code> claim — Subject</h4><p>Always identifies the <strong>end user</strong>. In a delegated token, <code>sub</code> stays the same through every exchange — it's always the human who originally authenticated.</p><pre class="edu-code">// User's original token
+{
+  "sub": "a1b2c3d4-user-uuid",
+  "name": "Jane Smith",
+  "email": "jane@example.com"
+}
+
+// After token exchange — sub unchanged
+{
+  "sub": "a1b2c3d4-user-uuid",  // same user
+  "act": { "client_id": "bff-admin-app" }
+}</pre><h4>The <code>act</code> claim — Actor</h4><p>Added by token exchange (RFC 8693). Identifies <strong>who is acting on behalf of</strong> the subject. In this demo, the BFF or AI agent acts on behalf of the user.</p><pre class="edu-code">// 1-exchange: BFF acts directly
+{
+  "sub": "a1b2c3d4-user-uuid",
+  "act": {
+    "client_id": "admin-oidc-app-id"
+  }
+}
+
+// 2-exchange: Agent acts, then BFF acts on agent's behalf
+{
+  "sub": "a1b2c3d4-user-uuid",
+  "act": {
+    "client_id": "bff-admin-app-id",
+    "act": {
+      "client_id": "ai-agent-app-id"
+    }
+  }
+}</pre><h4>The <code>may_act</code> claim — Permission to delegate</h4><p>Present in the <strong>subject token</strong> (the user's original token). It tells the authorization server which clients are allowed to exchange this token.</p><pre class="edu-code">// User's token with may_act
+{
+  "sub": "a1b2c3d4-user-uuid",
+  "may_act": {
+    "client_id": "admin-oidc-app-id"
+  }
+}
+// Only admin-oidc-app-id can exchange this token
+// Any other client_id attempting exchange → "invalid_request"</pre><h4>The <code>aud</code> claim — Audience</h4><p>Specifies who the token is <strong>intended for</strong>. Each exchange can target a different audience (e.g., from the BFF's audience to the MCP server's audience).</p><pre class="edu-code">// Step 1: User token audience = BFF
+{ "aud": "banking_api_enduser" }
+
+// Step 2: Exchanged token audience = MCP server
+{ "aud": "https://mcp.pingdemo.com" }</pre></div></section>
+<section class="snap-tab" id="sec-exchange-paths"><h3 class="snap-tab-h">Exchange Paths</h3><div><h3 style="margin-top: 0px;">Exchange paths</h3><h4>Path 1: Direct exchange (1-exchange)</h4><p>The BFF exchanges the user's token directly for an MCP-scoped token.</p><pre class="edu-code">User Login
+    │
+    ▼
+┌──────────────────┐
+│ T1: User Token    │  sub=user, aud=bff
+│ may_act: {        │
+│   client_id: bff  │
+│ }                 │
+└────────┬─────────┘
+         │ POST /as/token
+         │ grant_type=token-exchange
+         │ subject_token=T1
+         │ audience=mcp_server
+         ▼
+┌──────────────────┐
+│ T2: Delegated     │  sub=user, act={client_id:bff}
+│ Token             │  aud=mcp_server
+│                   │  scopes=read
+└────────┬─────────┘
+         │
+         ▼
+    MCP tools/call</pre><h4>Path 2: Two-token exchange (2-exchange)</h4><p>The AI agent first gets its own token (client_credentials), then the BFF exchanges both the user token and agent token for a delegated token.</p><pre class="edu-code">User Login              Agent Bootstrap
+    │                        │
+    ▼                        ▼
+┌──────────────┐    ┌──────────────┐
+│ T1: User     │    │ T0: Agent    │
+│ Token        │    │ Token        │
+│ sub=user     │    │ sub=agent    │
+│ may_act:     │    │ (client_cred)│
+│  {client_id: │    └──────┬───────┘
+│   agent}     │           │
+└──────┬───────┘           │
+       │                   │
+       └───────┬───────────┘
+               │ POST /as/token
+               │ subject_token=T1
+               │ actor_token=T0
+               ▼
+      ┌──────────────────┐
+      │ T2: Delegated     │  sub=user
+      │ Token             │  act={client_id:bff,
+      │                   │       act:{client_id:agent}}
+      └────────┬─────────┘
+               │
+               ▼
+         MCP tools/call</pre><h4>Scope narrowing</h4><p>Each exchange can request fewer scopes than the original token. The authorization server will never grant more scopes than the subject token has.</p><pre class="edu-code">T1 scopes: read write transfer admin
+                    ↓ exchange requests only read
+T2 scopes: read
+// T2 can only read — even though T1 could write and transfer</pre></div></section>
+<section class="snap-tab" id="sec-examples"><h3 class="snap-tab-h">Examples</h3><div><h3 style="margin-top: 0px;">Real token chain examples</h3><h4>Example 1: Check balance via AI agent</h4><pre class="edu-code">Step 1: User logs in as "bankuser"
+  Event: user_login
+  Token: access_token (sub=abc123, scopes=openid read write)
+
+Step 2: User asks agent "What's my balance?"
+  Event: agent_request
+  Tool: get_balance
+
+Step 3: BFF exchanges user token for MCP token
+  Event: token_exchange
+  Input:  T1 (sub=abc123, may_act={client_id:bff})
+  Output: T2 (sub=abc123, act={client_id:bff}, aud=mcp_server)
+  Scopes: read (narrowed from read,write)
+
+Step 4: MCP server validates and executes
+  Event: tool_call
+  Tool: get_balance
+  Result: { checking: $5,230.00, savings: $12,500.00 }</pre><h4>Example 2: Transfer with step-up MFA</h4><pre class="edu-code">Step 1: User requests "Transfer $500 to savings"
+  Event: agent_request
+  Tool: transfer_funds
+  Amount: $500 (exceeds step-up threshold of $250)
+
+Step 2: Step-up MFA triggered
+  Event: mfa_challenge
+  Method: email OTP
+  ACR: urn:pingone:mfa
+
+Step 3: User completes MFA
+  Event: mfa_complete
+  Result: success
+
+Step 4: BFF exchanges with elevated token
+  Event: token_exchange
+  Scopes: transfer (requires step-up)
+
+Step 5: Transfer executed
+  Event: tool_call
+  Tool: transfer_funds
+  Result: { success: true, newBalance: $4,730.00 }</pre><h4>Token chain visualization</h4><p>The <strong>Token Chain Display</strong> in the Agent Flow Diagram panel shows these events in real time as they happen. Each event is color-coded by type:</p><ul><li><span style="color: var(--brand-navy); font-weight: 600;">●</span> <strong>user_token</strong> — initial login token</li><li><span style="color: rgb(8, 145, 178); font-weight: 600;">●</span> <strong>user_token_introspection</strong> — RFC 7662: PingOne confirms session is active</li><li><span style="color: rgb(124, 58, 237); font-weight: 600;">●</span> <strong>agent_token</strong> — agent's client_credentials token (2-exchange only)</li><li><span style="color: rgb(5, 150, 105); font-weight: 600;">●</span> <strong>exchanged_token</strong> — delegated token after RFC 8693 exchange</li><li><span style="color: rgb(21, 128, 61); font-weight: 600;">●</span> <strong>*_verified</strong> — RFC 7515 (JWS) signature verified via RFC 7517 (JWKS): cryptographic signature check on each token</li><li><span style="color: rgb(220, 38, 38); font-weight: 600;">●</span> <strong>error</strong> — exchange failure (invalid scope, expired token, etc.)</li></ul></div></section>
+<section class="snap-tab" id="sec-live-demo"><h3 class="snap-tab-h">Live Demo</h3><div><h3 style="margin-top: 0px;">Live Token Chain Visualization</h3><p>The <strong>Token Chain Trace Rail</strong> below shows the complete RFC 8693 token exchange flow in real time as you interact with the agent. Watch each step:</p><ul><li><strong>User Token</strong> — Your login token with initial scopes</li><li><strong>Agent Token</strong> — Agent's client_credentials (if 2-exchange mode)</li><li><strong>Exchange Steps</strong> — RFC 8693 exchanges narrowing scopes</li><li><strong>MCP Token</strong> — Final delegated token for the tool call</li></ul><p style="margin-top: 1rem; color: rgb(100, 116, 139); font-size: 0.9rem;">Go back to the dashboard and perform a tool action (e.g., "Check my balance") to see the token chain update in real time.</p><div style="margin-top: 1rem; border-radius: 6px; border: 1px solid rgb(187, 247, 208); background: rgb(240, 253, 244); padding: 12px; max-height: 400px; overflow: auto;"><div class="tctr"><div class="tctr-head"><span class="tctr-title">Token Chain</span><div class="tctr-head-actions"><button type="button" class="tctr-clear-btn" disabled="" title="Clear token chain back to nothing done (ready for next demo run)" aria-label="Clear token chain">Clear</button><button type="button" class="tctr-legend-btn">Legend</button></div></div><div class="tctr-chain-line"><span class="tctr-dot tctr-dot--user"></span> User<span class="tctr-arrow">→</span><span class="tctr-dot tctr-dot--agent"></span> Agent<span class="tctr-arrow">→</span><span class="tctr-dot tctr-dot--mcp"></span> MCP<span class="tctr-badge">CHAINED</span></div><div class="tctr-tabs" role="tablist"><button type="button" role="tab" aria-selected="true" class="tctr-tab tctr-tab--active">Token Chain</button><button type="button" role="tab" aria-selected="false" class="tctr-tab">MCP <span class="tctr-tab-count">0</span></button><button type="button" role="tab" aria-selected="false" class="tctr-tab">Trust</button></div><div class="tctr-sec-label">Pipeline — awaiting agent action</div><details class="tctr-step" data-status="pending"><summary><span class="tctr-ic tctr-ic--pending">·</span><span class="tctr-step-title">1. Sign-in — User Token acquired</span><span class="tctr-lane tctr-lane--pingone">PINGONE</span><span class="tctr-step-chev" aria-hidden="true">▶</span></summary><div class="tctr-step-body"><p class="tctr-narrative">User authenticated via OIDC Authorization Code + PKCE. The BFF holds the User Token server-side — it never reaches the browser.</p><span class="tctr-rfc">RFC 6749</span><span class="tctr-rfc">RFC 7636</span><div class="tctr-step-actions"></div></div></details><details class="tctr-step" data-status="pending"><summary><span class="tctr-ic tctr-ic--pending">·</span><span class="tctr-step-title">2. Chatbot — prompt sent</span><span class="tctr-lane tctr-lane--chat">CHAT</span><span class="tctr-step-chev" aria-hidden="true">▶</span></summary><div class="tctr-step-body"><p class="tctr-narrative">The browser sends only the message — no tokens; the session cookie identifies the user to the BFF.</p><div class="tctr-step-actions"></div></div></details><details class="tctr-step" data-status="pending"><summary><span class="tctr-ic tctr-ic--pending">·</span><span class="tctr-step-title">3. Agent service receives request</span><span class="tctr-lane tctr-lane--agent">AGENT</span><span class="tctr-step-chev" aria-hidden="true">▶</span></summary><div class="tctr-step-body"><p class="tctr-narrative">BFF forwards to the agent. The agent loads conversation history and the gateway tool catalog (with required scopes), then prepares the LLM call.</p><div class="tctr-step-actions"></div></div></details><details class="tctr-step" data-status="pending"><summary><span class="tctr-ic tctr-ic--pending">·</span><span class="tctr-step-title">4. LLM — reasoning &amp; tool choice</span><span class="tctr-lane tctr-lane--llm">LLM</span><span class="tctr-step-chev" aria-hidden="true">▶</span></summary><div class="tctr-step-body"><p class="tctr-narrative">The agent sends the conversation to the LLM. The model returns a tool call — it never sees or holds any OAuth token.</p><div class="tctr-step-actions"></div></div></details><details class="tctr-step" data-status="pending"><summary><span class="tctr-ic tctr-ic--pending">·</span><span class="tctr-step-title">5. Agent identity token</span><span class="tctr-lane tctr-lane--bff">BFF</span><span class="tctr-step-chev" aria-hidden="true">▶</span></summary><div class="tctr-step-body"><p class="tctr-narrative">BFF obtains a client-credentials token — the agent's own identity, separate from the user's.</p><div class="tctr-step-actions"></div></div></details><details class="tctr-step" data-status="pending"><summary><span class="tctr-ic tctr-ic--pending">·</span><span class="tctr-step-title">6. Token exchange — delegation</span><span class="tctr-lane tctr-lane--bff">BFF</span><span class="tctr-step-chev" aria-hidden="true">▶</span></summary><div class="tctr-step-body"><p class="tctr-narrative">BFF exchanges subject (user) + actor (agent) for one delegated token: proof the agent acts FOR this user. Scope narrows to what the tool needs; audience binds to the gateway.</p><span class="tctr-rfc">RFC 8693</span><span class="tctr-rfc">RFC 8707</span><div class="tctr-step-actions"></div></div></details><details class="tctr-step" data-status="pending"><summary><span class="tctr-ic tctr-ic--pending">·</span><span class="tctr-step-title">7. PingOne Authorize — policy decision</span><span class="tctr-lane tctr-lane--authz">AUTHZ</span><span class="tctr-step-chev" aria-hidden="true">▶</span></summary><div class="tctr-step-body"><p class="tctr-narrative">Before any tool runs, the BFF asks PingOne Authorize whether THIS user + agent may perform THIS action.</p><div class="tctr-step-actions"></div></div></details><details class="tctr-step" data-status="pending"><summary><span class="tctr-ic tctr-ic--pending">·</span><span class="tctr-step-title">8. Agent Gateway — token validated</span><span class="tctr-lane tctr-lane--gateway">GATEWAY</span><span class="tctr-step-chev" aria-hidden="true">▶</span></summary><div class="tctr-step-body"><p class="tctr-narrative">Ping Agent Gateway checks the delegated token before anything reaches the MCP server: introspection, audience binding, scope, delegation chain.</p><div class="tctr-step-actions"></div></div></details><details class="tctr-step" data-status="pending"><summary><span class="tctr-ic tctr-ic--pending">·</span><span class="tctr-step-title">9. API-key path — credential swap</span><span class="tctr-lane tctr-lane--gateway">GATEWAY</span><span class="tctr-step-chev" aria-hidden="true">▶</span></summary><div class="tctr-step-body"><p class="tctr-narrative">Path A (api_key): the gateway drops the OAuth bearer and attaches a service API key (X-API-Key + X-User-Sub). The user's bearer never reaches the downstream service.</p><div class="tctr-step-actions"></div></div></details><details class="tctr-step" data-status="pending"><summary><span class="tctr-ic tctr-ic--pending">·</span><span class="tctr-step-title">10. MCP server — tool executes</span><span class="tctr-lane tctr-lane--mcp">MCP</span><span class="tctr-step-chev" aria-hidden="true">▶</span></summary><div class="tctr-step-body"><p class="tctr-narrative">Gateway forwards the JSON-RPC call; the MCP server re-validates the token, resolves the user from sub, and invokes the banking API with the delegated identity.</p><div class="tctr-step-actions"></div></div></details><details class="tctr-step" data-status="pending"><summary><span class="tctr-ic tctr-ic--pending">·</span><span class="tctr-step-title">11. Resource server — API call</span><span class="tctr-lane tctr-lane--api">API</span><span class="tctr-step-chev" aria-hidden="true">▶</span></summary><div class="tctr-step-body"><p class="tctr-narrative">The actual resource-server call made with the delegated bearer token.</p><div class="tctr-step-actions"></div></div></details><details class="tctr-step" data-status="pending"><summary><span class="tctr-ic tctr-ic--pending">·</span><span class="tctr-step-title">12. LLM composes reply → chat</span><span class="tctr-lane tctr-lane--llm">LLM</span><span class="tctr-step-chev" aria-hidden="true">▶</span></summary><div class="tctr-step-body"><p class="tctr-narrative">The tool result goes back to the LLM, which writes the reply the user sees in the chat.</p><div class="tctr-step-actions"></div></div></details><details class="tctr-acc"><summary><span class="tctr-chev">▶</span> Exchange Mode Details</summary><div class="tctr-acc-body"><div class="tctr-kv" style="grid-template-columns: 70px 1fr;"><span class="tctr-kv-k" style="color: rgb(190, 24, 93);">User</span><span class="tctr-kv-v">PingOne OIDC login → subject_token (RFC 8693 §1.1)</span><span class="tctr-kv-k" style="color: rgb(126, 34, 206);">Agent</span><span class="tctr-kv-v">client credentials → actor_token (RFC 8693 §1.1)</span><span class="tctr-kv-k" style="color: rgb(4, 120, 87);">MCP</span><span class="tctr-kv-v">RFC 8693 exchange → delegated token with nested act claim</span></div></div></details></div></div></div></section>
+<section class="snap-tab" id="sec-transaction-tokens"><h3 class="snap-tab-h">Transaction Tokens</h3><div><h3 style="margin-top: 0px;">Transaction Tokens (draft-araut-oauth-transaction-tokens-for-agents / draft-ietf-oauth-transaction-tokens)</h3><p>Transaction Tokens are a draft OAuth extension designed for <strong>agent-to-resource delegation</strong>. Unlike RFC 8693's general-purpose token exchange, Transaction Tokens add per-operation context and accountability to agent actions.</p><h4>Key Concepts</h4><ul><li><strong>Transaction ID</strong> — Unique identifier per agent-user interaction. Enables audit trails and replay prevention. Example: <code class="edu-code-inline">txn-a1b2c3d4-e5f6-47a8-b9c0-d1e2f3a4b5c6</code></li><li><strong>Transaction Scope</strong> — What operation the agent is authorized to perform. Example: <code class="edu-code-inline">check_balance</code> or <code class="edu-code-inline">transfer_funds</code></li><li><strong>Agent Identity</strong> — Who initiated the request, carried in <code class="edu-code-inline">act</code> or<code class="edu-code-inline">agent_id</code> claim</li><li><strong>Audit Trail</strong> — Every agent action is tagged with <code class="edu-code-inline">txn_id</code>, enabling compliance logging and incident investigation</li></ul><h4>Token Exchange Flow</h4><pre class="edu-code">1. User logs in → receives user access token
+2. Agent prepares delegation request:
+   - subject_token: user access token
+   - actor_token:   agent access token (client_credentials)
+   - transaction context: scope + optional attestation
+3. PingOne issues Transaction Token:
+   {
+     "sub":       "user-uuid",          // User identity
+     "txn_id":    "txn-a1b2c3d4...",   // Transaction ID (unique)
+     "txn_scope": "check_balance",      // Operation intent
+     "act": { "sub": "agent-client-id" }, // Agent identity
+     "aud":       "https://mcp.example.com"
+   }
+4. MCP server validates token:
+   - Checks JWT signature (PingOne public key)
+   - Validates audience matches MCP server URI
+   - Logs txn_id for audit trail
+   - Executes tool operation</pre><h4>RFC 8693 vs Transaction Tokens</h4><table style="width: 100%; border-collapse: collapse; font-size: 0.83rem; margin-bottom: 1rem;"><thead><tr style="border-bottom: 2px solid rgb(229, 231, 235); background: rgb(248, 250, 252);"><th style="padding: 8px 10px; text-align: left;">Aspect</th><th style="padding: 8px 10px; text-align: left;">RFC 8693</th><th style="padding: 8px 10px; text-align: left;">Transaction Tokens</th></tr></thead><tbody><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: white;"><td style="padding: 7px 10px; font-weight: 600;">Design Intent</td><td style="padding: 7px 10px;">General-purpose delegation</td><td style="padding: 7px 10px;">Agent-specific delegation</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: rgb(249, 250, 251);"><td style="padding: 7px 10px; font-weight: 600;">Scope Granularity</td><td style="padding: 7px 10px;">Broad scopes (e.g., read)</td><td style="padding: 7px 10px;">Per-operation (e.g., check_balance)</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: white;"><td style="padding: 7px 10px; font-weight: 600;">Audit Trail</td><td style="padding: 7px 10px;">Agent ID only (act claim)</td><td style="padding: 7px 10px;">Transaction ID + scope + timestamp</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: rgb(249, 250, 251);"><td style="padding: 7px 10px; font-weight: 600;">Replay Protection</td><td style="padding: 7px 10px;">TTL only</td><td style="padding: 7px 10px;">Transaction ID enables replay detection</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: white;"><td style="padding: 7px 10px; font-weight: 600;">Key Claim</td><td style="padding: 7px 10px;">act (actor chain)</td><td style="padding: 7px 10px;">txn_id + txn_scope</td></tr><tr style="border-bottom: 1px solid rgb(243, 244, 246); background: rgb(249, 250, 251);"><td style="padding: 7px 10px; font-weight: 600;">Status</td><td style="padding: 7px 10px;">✅ RFC — Stable</td><td style="padding: 7px 10px;">🔬 IETF Draft — In progress</td></tr></tbody></table><h4>When to use each mode</h4><dl style="margin: 0px;"><dt style="font-weight: 700; margin-top: 0.75rem;">RFC 8693 (Default)</dt><dd style="margin-left: 1rem; margin-bottom: 0.5rem; color: rgb(75, 85, 99); font-size: 0.85rem;">General-purpose token exchange that works with any OAuth 2.0 authorization server. Best for broad delegations and established integrations. This is the default mode in this demo.</dd><dt style="font-weight: 700;">Transaction Tokens</dt><dd style="margin-left: 1rem; color: rgb(75, 85, 99); font-size: 0.85rem;">Agent-specific delegation with fine-grained authorization and transaction audit context. Choose this mode for compliance requirements or detailed agent action auditing. Enable via <code class="edu-code-inline">TOKEN_EXCHANGE_MODE=transaction_tokens</code> in BFF <code class="edu-code-inline">.env</code>.</dd></dl><h4 style="margin-top: 1rem;">References</h4><ul style="font-size: 0.85rem;"><li><a href="https://tools.ietf.org/html/rfc8693" target="_blank" rel="noopener noreferrer">RFC 8693 — OAuth 2.0 Token Exchange</a> (IETF, Stable)</li><li><a href="https://datatracker.ietf.org/doc/draft-araut-oauth-transaction-tokens-for-agents/" target="_blank" rel="noopener noreferrer">draft-araut-oauth-transaction-tokens-for-agents</a> (individual Internet-Draft, agent-specific extension)</li><li><a href="https://datatracker.ietf.org/doc/draft-ietf-oauth-transaction-tokens/" target="_blank" rel="noopener noreferrer">draft-ietf-oauth-transaction-tokens</a> (WG-adopted base spec)</li></ul></div></section>
+</div></div>
+<div class="snap-foot">The AI Demo Learning Hub · <a href="index.html">back to index</a></div>
+<style>
+#backToTop{position:fixed;right:22px;bottom:22px;z-index:50;background:#1c2230;color:#fff;border:0;border-radius:999px;padding:10px 18px;font:600 .9rem -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(28,34,48,.35);opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .2s,transform .2s,visibility .2s}
+#backToTop.show{opacity:1;visibility:visible;transform:translateY(0)}
+#backToTop:hover{background:#39435c}
+</style>
+<button id="backToTop" type="button" aria-label="Back to top">↑ Top</button>
+<script>
+(function(){
+  var btn=document.getElementById('backToTop');
+  window.addEventListener('scroll',function(){btn.classList.toggle('show',window.scrollY>400);},{passive:true});
+  btn.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body></html>

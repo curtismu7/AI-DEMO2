@@ -31,14 +31,100 @@
 }
 
 .transaction-consent-popup__lead {
-  margin: 0 0 0.4rem;
+  margin: 0 0 0.75rem;
   font-size: 0.82rem;
   line-height: 1.45;
   color: #64748b;
 }
 
 .transaction-consent-popup__learn {
-  margin: 0 0 0.6rem;
+  margin: 0 0 1rem;
+}
+
+/* ── Draggable-panel header controls (pop-out / close) ───────────────────── */
+
+.drp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.drp-header--static {
+  cursor: default;
+}
+
+.drp-header__controls {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.drp-header__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: rgba(31, 41, 55, 0.08);
+  color: #1f2937;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.drp-header__btn:hover {
+  background: rgba(31, 41, 55, 0.18);
+}
+
+/* ── Pop-out window layout + placeholder shown in the original window ────── */
+
+.drp-popout-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.drp-popout-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1.5rem 1.75rem;
+}
+
+.drp-popout-placeholder {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 100071;
+  background: #f9fafb;
+  border: 2px dashed #9ca3af;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #1f2937;
+}
+
+.drp-popout-placeholder__btn {
+  background: #e5e7eb;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  color: #1f2937;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.drp-popout-placeholder__btn:hover {
+  background: #d1d5db;
 }
 
 .transaction-consent-learn-btn--dark {
@@ -200,10 +286,11 @@
   color: #64748b;
   line-height: 1.45;
   margin-bottom: 1.25rem;
-  padding: 0.5rem 0.75rem;
-  background: var(--brand-light-gray);
+  padding: 0.6rem 0.85rem;
+  background: linear-gradient(180deg, #fbfcfe 0%, var(--brand-light-gray) 100%);
   border-radius: 8px;
   border: 1px solid #dddddd;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.07);
 }
 
 .transaction-consent-card__legal p {
@@ -213,25 +300,37 @@
 .transaction-consent-card__check {
   display: flex;
   align-items: flex-start;
-  gap: 1.25rem;
+  /* column-gap survives even when global controls.css zeros input margin */
+  column-gap: 14px;
+  gap: 14px;
   cursor: pointer;
   font-size: 1rem;
   color: var(--brand-dark-gray);
   line-height: 1.45;
   margin-bottom: 0.75rem;
   padding: 0.75rem;
-  background: #f8fafc;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   border-radius: 8px;
   border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.07);
 }
 
-.transaction-consent-card__check input {
+/* Specificity must beat `body input[type="checkbox"]:not(.ctl-raw) { margin: 0 }` */
+body .transaction-consent-card__check input[type="checkbox"] {
   flex-shrink: 0;
-  margin-top: 3px;
+  float: none;
+  margin: 0.2rem 0 0 0;
   width: 18px;
   height: 18px;
   cursor: pointer;
   accent-color: #dc2626;
+}
+
+.transaction-consent-card__check > span {
+  display: block;
+  min-width: 0;
+  /* Spacing lives on the label text — controls.css forces checkbox margin: 0 */
+  padding-left: 12px;
 }
 
 .transaction-consent-card__error {
@@ -450,6 +549,29 @@
   font-size: 0.95rem;
   font-weight: 600;
   white-space: nowrap;
+}
+
+.tx-otp-panel__resend-btn {
+  width: 100%;
+  padding: 0.7rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  background: #fff;
+  color: #1f2937;
+  border: 1.5px solid #d1d5db;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.tx-otp-panel__resend-btn:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.tx-otp-panel__resend-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .tx-otp-panel__error {

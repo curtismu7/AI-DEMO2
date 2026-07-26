@@ -60,8 +60,28 @@ function fetchT(url, opts = {}) {
 // client-side must not be re-fired into a duplicate). These calls also get a
 // tighter default timeout (5s vs fetchT's 15s) so a frozen P1AZ hands off to
 // failover fast; PINGONE_AUTHZ_TIMEOUT_MS still overrides. At most one retry,
-// on a transient failure only (network/timeout or 5xx); a 4xx is never retried.
+// on a transient failure only (network/timeout, 5xx, or 429 rate-limit).
+// Other 4xx are never retried. Cap Retry-After so a long server hint cannot
+// stall the demo gate for minutes.
 const AUTHZ_EVAL_TIMEOUT_MS = Number(process.env.PINGONE_AUTHZ_TIMEOUT_MS) || 5000;
+const AUTHZ_429_RETRY_CAP_MS = 5_000;
+const AUTHZ_429_DEFAULT_MS = 1_000;
+
+/** Resolve Retry-After (seconds or HTTP-date) to a capped delay in ms. */
+function _retryAfterMs(response) {
+  const raw = response.headers?.get?.('Retry-After');
+  if (!raw) return AUTHZ_429_DEFAULT_MS;
+  const asSeconds = Number(raw);
+  if (Number.isFinite(asSeconds) && asSeconds >= 0) {
+    return Math.min(asSeconds * 1000, AUTHZ_429_RETRY_CAP_MS);
+  }
+  const asDate = Date.parse(raw);
+  if (!Number.isNaN(asDate)) {
+    return Math.min(Math.max(0, asDate - Date.now()), AUTHZ_429_RETRY_CAP_MS);
+  }
+  return AUTHZ_429_DEFAULT_MS;
+}
+
 async function fetchRetryable(url, opts = {}) {
   const attempt = () =>
     globalThis.fetch(url, { ...opts, signal: opts.signal ?? AbortSignal.timeout(AUTHZ_EVAL_TIMEOUT_MS) });
@@ -76,7 +96,13 @@ async function fetchRetryable(url, opts = {}) {
     // transient server error — one retry
     return attempt();
   }
-  return response; // 2xx / 3xx / 4xx — never retried
+  if (response.status === 429) {
+    // Rate limit — brief backoff then one retry (CIBA resume often hits P1AZ
+    // immediately after step-up and gets 429 → mcp_authorize_unavailable).
+    await new Promise((r) => setTimeout(r, _retryAfterMs(response)));
+    return attempt();
+  }
+  return response; // 2xx / 3xx / other 4xx — never retried
 }
 
 /** Stable names — idempotent GET list + create if missing */
@@ -505,6 +531,25 @@ async function evaluateMcpToolDelegation({
   toAccountId = null,
   // Active vertical — sent as Vertical so PingOne policy can key on it
   verticalId = null,
+  // ── Contract C1 (planning/authz-fix-contract.md) — canonical parameter set ──
+  // The gateway McpToolCall gate already sends these; the BFF McpFirstTool gate
+  // did not, so the two evaluations of the SAME call could legitimately
+  // disagree (F3). Every value below is read off the presented token by the
+  // caller. C1 rule 3: a caller that cannot supply a value passes null and the
+  // key is OMITTED — omission means "unknown", never "verified absent".
+  clientId = null,
+  mayActSub = null,
+  // F11 — the token's actual scopes. Without this the PDP cannot enforce
+  // least privilege on the default path, where the final token collapses to the
+  // single coarse scope gateway:mcp:invoke.
+  tokenScopes = null,
+  tokenExp = null,
+  tokenIat = null,
+  tokenNbf = null,
+  tokenIss = null,
+  // F5 — admin used to skip the whole gate in code. The role is now a policy
+  // INPUT so the PDP decides what (if anything) admin means.
+  userRole = null,
 }) {
   const creds = _getCredentials();
   const endpointId = decisionEndpointId || creds.mcpDecisionEndpointId;
@@ -518,14 +563,48 @@ async function evaluateMcpToolDelegation({
     );
   }
 
+  // Depth of the RFC 8693 actor chain, derived from the actor ids above so it
+  // can never disagree with them: no act ⇒ 0, act ⇒ 1, act.act (A2A) ⇒ 2.
+  // This was NEVER sent, and the Trust Framework attribute defaults to 0, so
+  // the cloud rule "Deny — Invalid A2A Generalist" (ActChainDepth > 1 AND
+  // NestedActClientId != <allowed>) was unreachable from the BFF (F3, §5.4).
+  const actChainDepth = nestedActClientId ? 2 : (actClientId ? 1 : 0);
+
   const parameters = {
     DecisionContext: 'McpFirstTool',
+    // C1 request key — the MCP method this decision is about. The BFF gate only
+    // ever guards a tool invocation.
+    McpMethod: 'tools/call',
     UserId: userId,
     ToolName: toolName || '',
-    TokenAudience: tokenAudience != null ? String(tokenAudience) : '',
+    // C1 preamble — absent values are OMITTED, never fabricated. '' is a value:
+    // it claims the token was read and its audience was empty. Omission is the
+    // honest encoding of "this caller could not read an aud". Both encodings
+    // fail closed at the PDP (mock Rule 0b denies invalid_aud either way).
+    ...(tokenAudience != null
+      ? {
+        TokenAudience: String(tokenAudience),
+        // C1: same value, retained for mock back-compat. The BFF reads the REAL
+        // aud off the presented token, so actual and reported audience are
+        // identical here (C1 rule 1 — never hardcode this to the expected URI).
+        TokenAudActual: String(tokenAudience),
+      }
+      : {}),
     ActClientId: actClientId || '',          // from act.client_id || act.sub
     NestedActClientId: nestedActClientId || '', // from act.act.client_id || act.act.sub
-    McpResourceUri: mcpResourceUri || '',    // expected MCP resource URI from config
+    ActChainDepth: actChainDepth,
+    // Expected MCP resource URI from config. Reachably empty since
+    // resolveExpectedMcpResourceUri() stopped inventing a host, so the same C1
+    // rule applies: omit rather than send ''.
+    ...(mcpResourceUri ? { McpResourceUri: mcpResourceUri } : {}),
+    ...(clientId ? { ClientId: clientId } : {}),
+    ...(mayActSub ? { MayActSub: mayActSub } : {}),
+    ...(tokenScopes ? { TokenScopes: tokenScopes } : {}),
+    ...(tokenExp != null ? { TokenExp: tokenExp } : {}),
+    ...(tokenIat != null ? { TokenIat: tokenIat } : {}),
+    ...(tokenNbf != null ? { TokenNbf: tokenNbf } : {}),
+    ...(tokenIss ? { TokenIss: tokenIss } : {}),
+    ...(userRole ? { UserRole: userRole } : {}),
     ...(acr ? { Acr: acr } : {}),
     ...(hitlApproved ? { HitlApproved: true } : {}),
     ...(hitlApproved && hitlChallengeId ? { HitlChallengeId: hitlChallengeId } : {}),
@@ -832,9 +911,11 @@ function getAuthorizationPoliciesFromSnapshot() {
   const fs = require('fs');
   const path = require('path');
   const candidates = [
+    // Docker image: COPY … /snapshots/… (see demo_api_server/Dockerfile)
+    '/snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json',
     // Native run: demo_api_server/services → repo root snapshots/
     path.join(__dirname, '..', '..', 'snapshots', 'Super_Banking_Transaction_Authorization_P1AZ.snapshot.json'),
-    // Docker image: COPY snapshots/ ./snapshots/ lands beside the app code
+    // Alternate Docker layout: snapshots beside the app code
     path.join(__dirname, '..', 'snapshots', 'Super_Banking_Transaction_Authorization_P1AZ.snapshot.json'),
   ];
   const file = candidates.find((p) => { try { return fs.existsSync(p); } catch (_) { return false; } });
@@ -1140,6 +1221,40 @@ async function setEndpointRecording(endpointId, enabled = true) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Statement codes the deployed policy set is known to emit that legitimately
+ * drive NO gate: PERMIT effects (nothing to enforce) and DENY effects (the
+ * enforcement is the top-level DENY decision, not the statement). Anything
+ * outside this set that also fails gate classification is drift — either a new
+ * policy effect nobody wired up, or a renamed code that has silently stopped
+ * enforcing (F8). Sourced from snapshots/Super_Banking_*.snapshot.json.
+ */
+const KNOWN_STATEMENT_CODES = new Set([
+  'transaction-approved',
+  'mcp-tool-authorized',
+  'transaction-denied',
+  'mcp-authorization-denied',
+  'mcp-invalid-audience',
+  'mcp-invalid-actor',
+  'mcp-invalid-a2a-generalist',
+  'mcp-missing-user-id',
+  'mcp-tier-amount-exceeded',
+  'mcp-tier-tool-not-allowed',
+  'mcp-user-not-in-group',
+  // Round-3 cloud-delta deny codes (new rules in the imported MCP Delegation
+  // policy — see snapshots/gen-authorize-snapshot.js). Listed so a real cloud
+  // decision carrying them does not trip the F8 "unrecognised statement code"
+  // warning; they classify to the top-level decision, not an obligation.
+  'mcp-bypass-attempt',
+  'mcp-resource-owner-mismatch',
+  'mcp-intent-invalid',
+  'mcp-intent-mismatch',
+  'mcp-admin-role-not-permitted',
+  // RAR amount-cap deny (#611/#615) — the RFC 9396 rule's statement code
+  // matches the simulated engine's deny_reason, not the mcp-* convention.
+  'rar_amount_exceeded',
+]);
+
+/**
  * Classify a PingOne Authorize raw response into the three enforcement flags.
  *
  * This function owns ONLY the PingOne-specific source merge — a PA response
@@ -1171,14 +1286,28 @@ function _classifyRawObligations(raw) {
   ];
 
   // F4: warn on obligation/advice types the classifier doesn't recognise so
-  // policy changes don't silently fall through as PERMIT. Statements are
-  // excluded from this check: PERMIT statements (transaction-approved,
-  // mcp-tool-authorized) are benign non-gates and would be false positives.
-  const unrecognised = obligationsAndAdvice.filter((ob) => {
+  // policy changes don't silently fall through as PERMIT.
+  //
+  // F8: statements are checked too. They used to be excluded wholesale to avoid
+  // false positives on benign PERMIT effects — but that also silenced the case
+  // this warning exists for: a RENAMED statement code stops classifying to a
+  // gate and degrades to no enforcement with nothing in the logs. Statements
+  // are therefore checked against the known-code set below, so the benign
+  // effects stay quiet while an unknown/renamed code is reported.
+  const isUnrecognisedGate = (ob) => {
     const key = String((ob && (ob.type || ob.id || ob.code)) || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (!key) return false;
     return !key.includes('HITL') && !key.includes('STEPUP') && !key.includes('HUMANAPPROVAL');
-  });
+  };
+  const unrecognised = [
+    ...obligationsAndAdvice.filter(isUnrecognisedGate),
+    // A statement is only noteworthy when it is neither a gate NOR a known
+    // effect of the deployed policy set.
+    ...[...(raw.statements || []), ...(raw.details?.statements || [])].filter(
+      (st) => isUnrecognisedGate(st)
+        && !KNOWN_STATEMENT_CODES.has(String((st && (st.code || st.type || st.id)) || '').toLowerCase()),
+    ),
+  ];
   if (unrecognised.length > 0) {
     console.warn(
       '[PingOneAuthorize] Unrecognised obligation types — not enforced (check policy config):',

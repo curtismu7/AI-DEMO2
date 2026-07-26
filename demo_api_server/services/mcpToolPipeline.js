@@ -118,10 +118,29 @@ function hitlSignalInResultContent(result) {
 async function runMcpToolPipeline(ctx) {
   const { tool, req, deps } = ctx;
   let params = { ...ctx.params };
+  // Resolved once and reused for the gateway's X-Active-Vertical header. Same
+  // resolver the MCP authz gate uses, so the policy input the gateway sees
+  // matches the one the BFF authorized against. Best-effort: a resolver failure
+  // must not block a tool call — mcpGatewayClient falls back to the global.
+  let sessionVertical = null;
+  try {
+    sessionVertical = require('./verticalManifest').verticalManifest.resolver.activeIdFor(req) || null;
+  } catch (_) { /* fall through to the client's own fallback */ }
   // Full JSON-RPC envelope snapshot (pre-HITL-strip) — used as requestJson in
   // audit store and SSE payload so the MCP Results tab shows the actual wire request.
-  const requestJson = { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: tool, arguments: { ...ctx.params } } };
+  // The real bearer token (server.js-injected for e.g. jwt_decode_full) must never
+  // reach this display/audit snapshot — it is redacted here only; the actual
+  // downstream call further below uses `params` (derived from ctx.params), untouched.
+  const argumentsForDisplay = ctx.params && ctx.params.token
+    ? { ...ctx.params, token: '[redacted]' }
+    : ctx.params;
+  const requestJson = { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: tool, arguments: { ...argumentsForDisplay } } };
   const { config } = deps;
+  // Hoisted above the authorize-gate block (below) so both the simulated-path
+  // gw-authorize pushes (PERMIT and DENY branches) and the real-gateway call
+  // site further down can gate on the same value — a call either goes through
+  // the real gateway or it doesn't, decided once per pipeline run.
+  const useGateway = deps.config.useGateway;
 
   const flowTraceId = ctx.flowTraceId;
   const startTime = ctx.startTime;
@@ -200,10 +219,25 @@ async function runMcpToolPipeline(ctx) {
             err.httpStatus === 400 ||
             err.code === 'token_exchange_failed' ||
             (err.httpStatus === 401 && Boolean(err.pingoneError));
+        // F5: this fallback runs the tool through the LOCAL handler, bypassing
+        // the gateway AND the MCP server — and therefore every authorization
+        // check on that path. It is a demo convenience, not a safe default, so
+        // it is now opt-in and OFF by default. When enabled, the response is
+        // marked degraded (contract C2) so the caller can see the call was not
+        // authorized by any policy engine.
+        const localFallbackOnExchangeFailure =
+            require('./configStore').getEffective('ff_local_fallback_on_exchange_failure') === 'true';
         logger.debug(_CAT,
-            `[MCP Fallback] tool=${tool} httpStatus=${err.httpStatus ?? '(none)'} errCode=${err.code ?? '(none)'} pingoneError=${err.pingoneError ?? '(none)'} sessionUserId=${sessionUser?.id ?? '(missing)'} isExchangeScopeError=${isExchangeScopeError}`
+            `[MCP Fallback] tool=${tool} httpStatus=${err.httpStatus ?? '(none)'} errCode=${err.code ?? '(none)'} pingoneError=${err.pingoneError ?? '(none)'} sessionUserId=${sessionUser?.id ?? '(missing)'} isExchangeScopeError=${isExchangeScopeError} localFallbackEnabled=${localFallbackOnExchangeFailure}`
         );
-        if (sessionUser ?.id && isExchangeScopeError) {
+        const localFallbackApplies = Boolean(sessionUser ?.id) && isExchangeScopeError;
+        if (localFallbackApplies && !localFallbackOnExchangeFailure) {
+            logger.warn(_CAT,
+                `[MCP Fallback] ${tool} — exchange failed and the ungated local fallback is DISABLED ` +
+                '(ff_local_fallback_on_exchange_failure=false); surfacing the error instead of running unauthorized.'
+            );
+        }
+        if (localFallbackApplies && localFallbackOnExchangeFailure) {
             const fallbackEvents = err.tokenEvents && err.tokenEvents.length ? err.tokenEvents : [];
             deps.publishTokenEventsToSse(flowTraceId, fallbackEvents);
             const effectiveUserId = sessionUser.oauthId || sessionUser.id;
@@ -225,6 +259,10 @@ async function runMcpToolPipeline(ctx) {
                 return localResultOutcome(result, fallbackEvents, {
                     _localFallback: true,
                     _exchangeFailed: true,
+                    // Contract C2 — this result was produced without the
+                    // gateway/MCP-server authorization path.
+                    _degraded: true,
+                    policy_source: 'local-fallback',
                 });
             } catch (localErr) {
                 logger.error(_CAT, `[MCP Local] ${tool} — callToolLocal threw after exchange failure: ${localErr.message}`, { stack: localErr.stack });
@@ -253,45 +291,19 @@ async function runMcpToolPipeline(ctx) {
     }
 
     if (!mcpAccessToken) {
+        // No real bearer (cookie-only / unhydrated session). Do NOT fall back to
+        // the local handler: that bypasses the gateway, the MCP server, and the
+        // PingOne Authorize gate below, so the tool would "succeed" with NO
+        // authorization decision and Proof of Enforcement renders "Incomplete" on a
+        // call that actually ran. Surface the re-auth block instead
+        // (mcpNoBearerResponse already distinguishes the cookie-only
+        // 'session_not_hydrated' case from a plain unauthenticated one) so the SPA
+        // restores real tokens and the retry runs the real exchange → gateway →
+        // Authorize path. Mirrors the exchange-failure fallback (F5), likewise made
+        // non-bypassing, and honors restoreSessionFromCookie's own contract that
+        // token-needing routes must error for a cookie-restored session.
         deps.emit({
             phase: 'no_bearer_token_branch'
-        });
-        // No bearer token (cookie-only or degraded session) — use local handler if session user present.
-        // This lets the banking agent work for basic operations even without a fully-hydrated Redis session.
-        const sessionUser = req.session ?.user;
-        if (sessionUser ?.id) {
-            logger.info(_CAT, `[MCP Local] ${tool} — no bearer token (cookie-only session), using local handler`);
-            try {
-                deps.emit({
-                    phase: 'local_tool_start',
-                    path: 'no_bearer'
-                });
-                // Use oauthId (PingOne sub/UUID) when available — accounts are stored under the UUID
-                // not the local sequential dataStore id, matching what authenticateToken sets on req.user.id.
-                const effectiveUserId = sessionUser.oauthId || sessionUser.id;
-                const result = await deps.callToolLocal(tool, params || {}, effectiveUserId, req);
-                deps.emit({
-                    phase: 'local_tool_done',
-                    path: 'no_bearer'
-                });
-                deps.publishTokenEventsToSse(flowTraceId, tokenEvents);
-                return localResultOutcome(result, tokenEvents, { _localFallback: true });
-            } catch (localErr) {
-                logger.error(_CAT, `[MCP Local] Error calling ${tool}: ${localErr.message}`);
-                deps.emit({
-                    phase: 'local_tool_error',
-                    path: 'no_bearer'
-                });
-                deps.publishTokenEventsToSse(flowTraceId, tokenEvents);
-                return { kind: 'error', httpStatus: 502, body: {
-                    error: 'mcp_error',
-                    message: localErr.message,
-                    tokenEvents
-                } };
-            }
-        }
-        deps.emit({
-            phase: 'no_bearer_no_user'
         });
         const r = deps.mcpNoBearerResponse(req, tokenEvents);
         deps.publishTokenEventsToSse(flowTraceId, tokenEvents);
@@ -306,6 +318,18 @@ async function runMcpToolPipeline(ctx) {
     // to avoid redundant denials from a policy that doesn't cover specialist tools.
     if (ctx.skipBffAuthorize) {
         deps.emit({ phase: 'authorize_gate_skipped', reason: 'a2a_supplied_token' });
+        // Contract C4 — omission is not permission. The SSE phase alone left the
+        // RESPONSE BODY byte-identical to a run where the gate PERMITted, so a
+        // caller reading the response could not tell the two apart. The other
+        // two skip paths already set this; this was the last gap.
+        mcpAuthorizeEvaluationThisRequest = {
+            ran: false,
+            skipped: true,
+            skipReason: 'a2a_supplied_token',
+            decisionContext: 'McpFirstTool',
+            ...(ctx.useCaseId ? { useCaseId: ctx.useCaseId } : {}),
+            ...(ctx.vertical ? { vertical: ctx.vertical } : {}),
+        };
     } else {
     try {
         deps.emit({
@@ -394,6 +418,49 @@ async function runMcpToolPipeline(ctx) {
                     logger.error(_CAT, `[MCP HITL] Failed to create challenge in HITL service: ${hitlErr.message}`);
                 }
             }
+            const authorizeDecision = mcpAuthz.block.body.error === 'mcp_step_up_required'
+                ? 'INDETERMINATE'
+                : mcpAuthz.block.body.error === 'mcp_hitl_required'
+                    ? 'INDETERMINATE'
+                    : 'DENY';
+            // Which KIND of block this was. `authorizeDecision` above collapses
+            // step-up and HITL to the same 'INDETERMINATE', so a consumer checking
+            // "decision !== PERMIT" cannot tell a hard deny from an approval gate —
+            // that made a use case expecting DENY render green on a HITL block.
+            // The block's `error` code already names the outcome exactly; surface it.
+            const authorizeOutcome = {
+                mcp_authorization_denied: 'DENY',
+                mcp_step_up_required: 'STEP_UP',
+                mcp_hitl_required: 'HITL_REQUIRED',
+                mcp_hitl_receipt_rejected: 'HITL_REQUIRED',
+                policy_not_found: 'POLICY_NOT_FOUND',
+            }[mcpAuthz.block.body.error] || null;
+            // BFF-simulated engine decided (ff_authorize_simulated, or a genuine
+            // PingOne-unreachable fallback): mirror the PERMIT branch below and
+            // push the gw-authorize Token Chain card here too, so DENY/step-up/
+            // HITL outcomes render the same card the real-gateway path would.
+            // NOT guarded by !useGateway (unlike the PERMIT branch below): this
+            // branch returns early, before the real gateway is ever called, so
+            // there is no later gwAuditTrail.authorize push that could ever
+            // supply a card — the simulated engine's decision is the only
+            // decision that will be made, so its card must always be pushed
+            // here regardless of useGateway (final whole-branch review finding).
+            if (mcpAuthz.block.body.authorize_engine === 'simulated') {
+                tokenEvents.push(deps.buildTokenEvent(
+                    'gw-authorize',
+                    'PingGateway → PingOne Authorize',
+                    authorizeDecision === 'INDETERMINATE' ? 'indeterminate' : 'deny',
+                    null,
+                    `PingOne Authorize decision: ${authorizeDecision}`,
+                    buildGwAuthorizeEventExtra({
+                        decision: authorizeDecision,
+                        engine: 'simulated',
+                        decisionId: mcpAuthz.block.body.decisionId,
+                        request: mcpAuthz.block.body.authorize_request,
+                        response: mcpAuthz.block.body.authorize_response,
+                    })
+                ));
+            }
             return { kind: 'block', httpStatus: mcpAuthz.block.status, tokenEvents, body: {
                 ...mcpAuthz.block.body,
                 tool,
@@ -407,11 +474,8 @@ async function runMcpToolPipeline(ctx) {
                 } : {}),
                 tokenEvents,
                 mcpAuthorizeEvaluation: {
-                    decision: mcpAuthz.block.body.error === 'mcp_step_up_required'
-                        ? 'INDETERMINATE'
-                        : mcpAuthz.block.body.error === 'mcp_hitl_required'
-                            ? 'INDETERMINATE'
-                            : 'DENY',
+                    decision: authorizeDecision,
+                    outcome: authorizeOutcome,
                     engine: mcpAuthz.block.body.authorize_engine || null,
                     decisionContext: mcpAuthz.block.body.decisionContext,
                     decisionId: mcpAuthz.block.body.decisionId,
@@ -453,18 +517,53 @@ async function runMcpToolPipeline(ctx) {
             mcpAuthorizeEvaluationThisRequest = (ctx.useCaseId || ctx.vertical)
               ? { ...mcpAuthz.evaluation, ...(ctx.useCaseId ? { useCaseId: ctx.useCaseId } : {}), ...(ctx.vertical ? { vertical: ctx.vertical } : {}) }
               : mcpAuthz.evaluation;
+            // BFF-simulated engine decided (ff_authorize_simulated, or a genuine
+            // PingOne-unreachable fallback): no gateway audit trail exists for
+            // this call, so the gw-authorize Token Chain card is built here —
+            // same id/status contract as the real-gateway path (gwAuditTrail.
+            // authorize, above) so TokenChainDisplay renders the same card
+            // regardless of which backend actually decided.
+            // Guarded by !useGateway: when the call goes through the real
+            // gateway (ff_authorize_simulated + ff_mcp_gateway_pinggateway both
+            // on), PingGateway runs its own decision too and the audit-trail
+            // push below (gwAuditTrail.authorize) already covers it — pushing
+            // here as well would double the gw-authorize card for one call.
+            if (!useGateway && mcpAuthz.evaluation?.engine === 'simulated') {
+                tokenEvents.push(deps.buildTokenEvent(
+                    'gw-authorize',
+                    'PingGateway → PingOne Authorize',
+                    'permit',
+                    null,
+                    `PingOne Authorize decision: ${mcpAuthz.evaluation.decision || 'PERMIT'}`,
+                    buildGwAuthorizeEventExtra(mcpAuthz.evaluation)
+                ));
+            }
             deps.appEventLog('authorize', 'info',
                 `Authorize gate permitted — ${tool}`,
                 { tag: 'authorize/gate-permitted', metadata: { tool, useCaseId: ctx.useCaseId, vertical: ctx.vertical } });
         }
         if (!mcpAuthz.ran) {
+            // Contract C4 — omission is not permission. A gate that did not run
+            // must be visible to the caller and the UI, never silently
+            // indistinguishable from a PERMIT. Logged at WARN (not info): an
+            // unauthorized tool call is not routine.
+            const skipReason = mcpAuthz.skipReason || mcpAuthz.reason || 'unknown';
             deps.emit({
                 phase: 'authorize_gate_skipped',
-                reason: mcpAuthz.reason,
+                reason: skipReason,
             });
-            deps.appEventLog('authorize', 'info',
-                `Authorize gate skipped — ${mcpAuthz.reason || 'unknown'}`,
-                { tag: 'authorize/gate-skipped', metadata: { reason: mcpAuthz.reason, useCaseId: ctx.useCaseId, vertical: ctx.vertical } });
+            deps.appEventLog('authorize', 'warn',
+                `Authorize gate did NOT run — ${skipReason} (tool=${tool} is unauthorized)`,
+                { tag: 'authorize/gate-skipped', metadata: { reason: skipReason, useCaseId: ctx.useCaseId, vertical: ctx.vertical } });
+            mcpAuthorizeEvaluationThisRequest = {
+                ran: false,
+                skipped: true,
+                skipReason,
+                decisionContext: 'McpFirstTool',
+                ...(mcpAuthz.authorizeFallback ? { authorizeFallback: mcpAuthz.authorizeFallback } : {}),
+                ...(ctx.useCaseId ? { useCaseId: ctx.useCaseId } : {}),
+                ...(ctx.vertical ? { vertical: ctx.vertical } : {}),
+            };
         }
     } catch (mcpAuthzErr) {
         deps.emit({
@@ -590,7 +689,8 @@ async function runMcpToolPipeline(ctx) {
     // must already be scoped to the gateway audience (MCP_GW_RESOURCE_URI).
     // Graceful fallback: if MCP_GATEWAY_HTTP_URL is not set, use the previous direct path.
     const gatewayHttpUrl = deps.config.gatewayHttpUrl;
-    const useGateway = deps.config.useGateway;
+    // useGateway hoisted above the authorize-gate block — see declaration near
+    // the top of the function.
     const mcpUrl = deps.config.mcpUrl;
     const isLocalDefault = mcpUrl === 'ws://localhost:8080' && !deps.config.mcpServerUrlEnv;
     const useHttp2 = deps.config.useHttp2;
@@ -616,7 +716,16 @@ async function runMcpToolPipeline(ctx) {
             // testActClientId is a SHOWCASE-ONLY demo affordance (confused-deputy chip):
             // it overrides the bridged actor with a rogue id so Authorize denies it.
             // Never populated by normal/production tool calls.
-            ({ result, gwAuditTrail } = await deps.callToolViaGateway(gatewayHttpUrl, mcpAccessToken, tool, params || {}, { correlationId: req.correlationId, tratContextHeader, intentToken: req.intentToken || null, dpopKey: _dpopKey, testActClientId: req.body?._testActClientId }));
+            // vertical: send the SESSION's active vertical, not the process-global
+            // that mcpGatewayClient falls back to. PingOne Authorize uses this as a
+            // policy input, and the BFF's own authz gate
+            // (mcpToolAuthorizationService) already resolved this request with
+            // resolver.activeIdFor(req) — so leaving the header on the global made
+            // the two halves of the same decision disagree whenever an admin had
+            // switched the global vertical. Still server-resolved: activeIdFor only
+            // returns a vertical this session legitimately selected, falling back to
+            // the global otherwise.
+            ({ result, gwAuditTrail } = await deps.callToolViaGateway(gatewayHttpUrl, mcpAccessToken, tool, params || {}, { correlationId: req.correlationId, vertical: sessionVertical, tratContextHeader, intentToken: req.intentToken || null, dpopKey: _dpopKey, testActClientId: req.body?._testActClientId }));
         } else if (useHttp2) {
             const h2Session = deps.http2Bridge.createHttp2Session(mcpUrl, mcpAccessToken);
             result = await deps.http2Bridge.forwardToolCall(h2Session, tool, params || {}, mcpAccessToken, userSub, req.correlationId);
@@ -626,6 +735,7 @@ async function runMcpToolPipeline(ctx) {
         deps.appEventLog('mcp', 'info', `MCP tool done ← ${tool} (${Date.now() - startTime}ms)`, { tag: 'mcp/tool', metadata: { tool, durationMs: Date.now() - startTime } });
 
         // Build token events from gateway audit trail if present (Phase 259)
+        const gwEvents = [];
         if (gwAuditTrail) {
             if (gwAuditTrail.introspection) {
                 const introspRes = gwAuditTrail.introspection;
@@ -633,7 +743,7 @@ async function runMcpToolPipeline(ctx) {
                 const desc = introspRes.skipped
                     ? 'Gateway introspection skipped (endpoint not configured)'
                     : (introspRes.active ? 'Token verified active at gateway' : 'Token is revoked or no longer active');
-                tokenEvents.push(deps.buildTokenEvent(
+                const gwIntrospectionEvent = deps.buildTokenEvent(
                     'gw-introspection',
                     'PingGateway — Token Introspection (RFC 7662)',
                     status,
@@ -650,28 +760,38 @@ async function runMcpToolPipeline(ctx) {
                         skipped: introspRes.skipped,
                         rawResponse: introspRes,
                     }
-                ));
+                );
+                tokenEvents.push(gwIntrospectionEvent);
+                gwEvents.push(gwIntrospectionEvent);
             }
             if (gwAuditTrail.authorize) {
                 const authzRes = gwAuditTrail.authorize;
                 const decision = authzRes.decision; // PERMIT, DENY, INDETERMINATE
                 const status = decision === 'PERMIT' ? 'permit' : (decision === 'INDETERMINATE' ? 'indeterminate' : 'deny');
                 const desc = `PingOne Authorize decision: ${decision}${authzRes.reason ? ' — ' + authzRes.reason : ''}`;
-                tokenEvents.push(deps.buildTokenEvent(
+                const gwAuthorizeEvent = deps.buildTokenEvent(
                     'gw-authorize',
                     'PingGateway → PingOne Authorize',
                     status,
                     null,
                     desc,
-                    buildGwAuthorizeEventExtra(authzRes)
-                ));
+                    buildGwAuthorizeEventExtra({
+                        ...authzRes,
+                        denyingFilter: gwAuditTrail.denyingFilter || authzRes.denyingFilter,
+                        lastFilter: gwAuditTrail.lastFilter || authzRes.lastFilter,
+                        filterChain: gwAuditTrail.filterChain || authzRes.filterChain,
+                        policy: gwAuditTrail.policy || authzRes.policy,
+                    })
+                );
+                tokenEvents.push(gwAuthorizeEvent);
+                gwEvents.push(gwAuthorizeEvent);
             }
             if (gwAuditTrail.mcpAudit) {
                 const a = gwAuditTrail.mcpAudit;
                 const howResult = a.how?.result || a.how?.decision || 'recorded';
                 const whoUser = a.who?.userSub || a.who?.clientId || 'unknown';
                 const whatTool = a.what?.tool || a.what?.mcpMethod || 'mcp';
-                tokenEvents.push(deps.buildTokenEvent(
+                const gwMcpAuditEvent = deps.buildTokenEvent(
                     'gw-mcp-audit',
                     'PingGateway McpAuditFilter — who / what / when / where / how',
                     howResult === 'blocked' ? 'deny' : 'active',
@@ -686,7 +806,9 @@ async function runMcpToolPipeline(ctx) {
                         how: a.how,
                         eventName: a.eventName || 'PING-GATEWAY-MCP',
                     }
-                ));
+                );
+                tokenEvents.push(gwMcpAuditEvent);
+                gwEvents.push(gwMcpAuditEvent);
             }
             if (gwAuditTrail.mtls) {
                 const mtlsRes = gwAuditTrail.mtls;
@@ -694,15 +816,74 @@ async function runMcpToolPipeline(ctx) {
                 const desc = mtlsRes.enabled
                     ? `Gateway → MCP server mTLS verified. Client cert subject: ${mtlsRes.subject || 'banking-mcp-gateway'}`
                     : 'mTLS not enforced between gateway and MCP server (MCP_MTLS_ENABLED=false). Set MCP_MTLS_ENABLED=true to enforce.';
-                tokenEvents.push(deps.buildTokenEvent(
+                const gwMtlsEvent = deps.buildTokenEvent(
                     'gw-mtls',
                     'Gateway → MCP Server mTLS',
                     status,
                     null,
                     desc,
                     { mtlsEnabled: mtlsRes.enabled, subject: mtlsRes.subject }
-                ));
+                );
+                tokenEvents.push(gwMtlsEvent);
+                gwEvents.push(gwMtlsEvent);
             }
+            if (gwAuditTrail.backend) {
+                const backendRes = gwAuditTrail.backend;
+                const gwRouteEvent = deps.buildTokenEvent(
+                    'gw-route',
+                    'Gateway — Backend Routing',
+                    'active',
+                    null,
+                    `Gateway routed "${tool}" to backend: ${backendRes.target}`,
+                    { target: backendRes.target }
+                );
+                tokenEvents.push(gwRouteEvent);
+                gwEvents.push(gwRouteEvent);
+
+                const exchangeDesc = backendRes.exchanged
+                    ? `RFC 8693 exchange: token scoped to audience ${backendRes.audience}${backendRes.cached ? ' (cache hit)' : ''}`
+                    : `RFC 8693 exchange failed: ${backendRes.error || 'unknown error'} — request not forwarded`;
+                const gwBackendExchangeEvent = deps.buildTokenEvent(
+                    'gw-backend-exchange',
+                    'Gateway — RFC 8693 Token Exchange',
+                    backendRes.exchanged ? 'active' : 'deny',
+                    null,
+                    exchangeDesc,
+                    { target: backendRes.target, audience: backendRes.audience, cached: backendRes.cached, exchanged: backendRes.exchanged, error: backendRes.error }
+                );
+                tokenEvents.push(gwBackendExchangeEvent);
+                gwEvents.push(gwBackendExchangeEvent);
+            }
+            // Weather / ScriptableFilter permit: surface filter chain when present
+            // (often the only Agent Gateway teaching evidence on UC30 success).
+            if (gwAuditTrail.filterChain
+                && !tokenEvents.some((e) => e && e.id === 'gw-filter-chain')) {
+                const policyPassed = gwAuditTrail.policy?.passed !== false;
+                const gwFilterEvent = deps.buildTokenEvent(
+                    'gw-filter-chain',
+                    'PingGateway — filter chain',
+                    policyPassed ? 'active' : 'deny',
+                    null,
+                    policyPassed
+                        ? `Agent Gateway forwarded “${tool}” through ${gwAuditTrail.lastFilter || 'filter chain'} (state-scope policy passed).`
+                        : (gwAuditTrail.policy?.name
+                            ? `Agent Gateway blocked “${tool}” (${gwAuditTrail.policy.name}).`
+                            : `Agent Gateway blocked “${tool}”.`),
+                    {
+                        denyingFilter: policyPassed ? null : (gwAuditTrail.denyingFilter || gwAuditTrail.lastFilter || null),
+                        lastFilter: gwAuditTrail.lastFilter || null,
+                        filterChain: gwAuditTrail.filterChain,
+                        policy: gwAuditTrail.policy || null,
+                        tool,
+                        route: gwAuditTrail.policy?.route || null,
+                    }
+                );
+                tokenEvents.push(gwFilterEvent);
+                gwEvents.push(gwFilterEvent);
+            }
+        }
+        if (gwEvents.length > 0) {
+            deps.publishTokenEventsToSse(flowTraceId, gwEvents);
         }
 
         // Log the actual MCP result so it's queryable via /api/app-events
@@ -770,6 +951,41 @@ async function runMcpToolPipeline(ctx) {
             return localResultOutcome(contentHitl, tokenEvents, { _hitlFromResultContent: true });
         }
 
+        // A gateway-brokered call whose P1AZ check came back DENY does NOT throw
+        // (callToolViaGateway returns { result, gwAuditTrail } normally even on a
+        // gateway-side denial) — without this check the call fell through to the
+        // ordinary httpStatus 200 result below, handing the LLM a raw error
+        // envelope (e.g. {"message":"Unauthorized"}) to narrate instead of the
+        // request stopping with the same gateway_policy_denied / gateway_misconfigured
+        // Outcome the thrown-error path above already produces. A response with no
+        // correlationId and a bare "Unauthorized" rawResponse means PingGateway's own
+        // call to PingOne Authorize failed (its worker credentials), not a real
+        // policy verdict — that must read as "fix the gateway", not "you are denied"
+        // (same distinction the gateway_misconfigured catch-block handler makes).
+        if (useGateway && gwAuditTrail?.authorize?.decision === 'DENY') {
+            const authzRes = gwAuditTrail.authorize;
+            const isInfraFault = !authzRes.correlationId
+                && (/unauthorized/i.test(authzRes.rawResponse?.message || ''));
+            if (isInfraFault) {
+                logger.warn(_CAT, `[/api/mcp/tool] Gateway's own PingOne Authorize call failed for tool '${tool}' — infra fault, not a policy denial.`);
+                deps.emit({ phase: 'gateway_misconfigured' });
+                return { kind: 'block', httpStatus: 503, tokenEvents, body: {
+                    error: 'gateway_misconfigured',
+                    tool,
+                    message: 'The gateway could not reach PingOne Authorize to evaluate this request (its own credentials were rejected). Contact an administrator.',
+                    tokenEvents,
+                } };
+            }
+            logger.warn(_CAT, `[/api/mcp/tool] Gateway denied tool '${tool}' via PingOne Authorize.`);
+            deps.emit({ phase: 'gateway_policy_denied' });
+            return { kind: 'block', httpStatus: 403, tokenEvents, body: {
+                error: 'gateway_policy_denied',
+                tool,
+                message: authzRes.reason || 'PingOne Authorize declined this request.',
+                tokenEvents,
+            } };
+        }
+
         const out = {
             result,
             tokenEvents,
@@ -829,6 +1045,7 @@ async function runMcpToolPipeline(ctx) {
             // in the token chain instead of only as an error message.
             if (err.gwAuditTrail && err.gwAuditTrail.authorize) {
                 const authzRes = err.gwAuditTrail.authorize;
+                const trail = err.gwAuditTrail;
                 const decision = authzRes.decision;
                 const status = decision === 'PERMIT' ? 'permit' : (decision === 'INDETERMINATE' ? 'indeterminate' : 'deny');
                 tokenEvents.push(deps.buildTokenEvent(
@@ -837,7 +1054,13 @@ async function runMcpToolPipeline(ctx) {
                     status,
                     null,
                     `PingOne Authorize decision: ${decision}${authzRes.reason ? ' — ' + authzRes.reason : ''}`,
-                    buildGwAuthorizeEventExtra(authzRes)
+                    buildGwAuthorizeEventExtra({
+                        ...authzRes,
+                        denyingFilter: trail.denyingFilter || authzRes.denyingFilter,
+                        lastFilter: trail.lastFilter || authzRes.lastFilter,
+                        filterChain: trail.filterChain || authzRes.filterChain,
+                        policy: trail.policy || authzRes.policy,
+                    })
                 ));
             }
             if (err.gwAuditTrail && err.gwAuditTrail.mcpAudit) {
@@ -857,31 +1080,85 @@ async function runMcpToolPipeline(ctx) {
                         where: a.where,
                         how: a.how,
                         eventName: a.eventName || 'PING-GATEWAY-MCP',
+                        denyingFilter: err.gwAuditTrail.denyingFilter || a.where?.filter || null,
+                    }
+                ));
+            }
+            // Weather / ScriptableFilter denials: always emit gw-filter-chain so
+            // TraceRail's gateway step lights even when X-Gw-Audit-Trail was absent.
+            const denyTrail = err.gwAuditTrail || {};
+            if ((denyTrail.denyingFilter || err.gatewayErrorCode === 'weather_scope_denied'
+                || /weather scope|weather capability/i.test(err.gatewayMessage || err.message || ''))
+                && !tokenEvents.some((e) => e && e.id === 'gw-filter-chain')) {
+                tokenEvents.push(deps.buildTokenEvent(
+                    'gw-filter-chain',
+                    'PingGateway — filter chain',
+                    'deny',
+                    null,
+                    err.gatewayMessage || err.message || 'Gateway filter denied the call',
+                    {
+                        denyingFilter: denyTrail.denyingFilter || 'tx-weather-scope.groovy',
+                        lastFilter: denyTrail.lastFilter || denyTrail.denyingFilter || 'TxWeatherScope',
+                        filterChain: denyTrail.filterChain || null,
+                        policy: denyTrail.policy || null,
+                        tool,
+                        gatewayErrorCode: err.gatewayErrorCode || 'gateway_policy_denied',
+                        route: denyTrail.policy?.route || '/mcp/weather',
                     }
                 ));
             }
 
-            // HTTP 428 Precondition Required: step-up auth needed (INDETERMINATE decision)
+            // HTTP 428 Precondition Required: HITL consent needed (INDETERMINATE decision)
             if (err.gatewayErrorCode === 'hitl_required') {
-                deps.emit({ phase: 'gateway_step_up_required' });
-                return { kind: 'block', httpStatus: 428, tokenEvents, body: {
-                    error: 'step_up_required',
+                deps.emit({ phase: 'gateway_hitl_required' });
+                const hitlBody = {
+                    error: 'hitl_required',
                     tool,
-                    message: 'Transaction requires additional authentication (step-up MFA)',
+                    message: 'Transaction requires human approval (HITL consent)',
                     tokenEvents,
-                } };
+                    requestJson,
+                };
+                try {
+                    deps.publishMcpResultToSse(flowTraceId, {
+                        tool,
+                        result: { error: 'hitl_required', message: hitlBody.message },
+                        durationMs: Date.now() - startTime,
+                        isDelegated: !!mcpAccessToken,
+                        requestJson,
+                        denied: true,
+                    });
+                } catch (_) { /* SSE best-effort */ }
+                return { kind: 'block', httpStatus: 428, tokenEvents, body: hitlBody };
             }
 
-            return { kind: 'block', httpStatus: 403, tokenEvents, body: {
+            const denyBody = {
                 error: 'gateway_policy_denied',
                 tool,
                 gatewayErrorCode: err.gatewayErrorCode || err.code,
                 message: err.message,
                 tokenEvents,
+                requestJson,
                 ...(req.body?._testActClientId
                     ? { allowedActor: require('./configStore').getEffective('pingone_ai_agent_client_id') || null }
                     : {}),
-            } };
+            };
+            // Phase D teaching: deny paths still publish attempted JSON-RPC + error
+            // so TraceRail MCP step is not blank.
+            try {
+                deps.publishMcpResultToSse(flowTraceId, {
+                    tool,
+                    result: {
+                        error: denyBody.error,
+                        gatewayErrorCode: denyBody.gatewayErrorCode,
+                        message: denyBody.message,
+                    },
+                    durationMs: Date.now() - startTime,
+                    isDelegated: !!mcpAccessToken,
+                    requestJson,
+                    denied: true,
+                });
+            } catch (_) { /* SSE best-effort */ }
+            return { kind: 'block', httpStatus: 403, tokenEvents, body: denyBody };
         }
 
         // Any gateway error that carried an X-Gw-Audit-Trail (e.g. 401
@@ -912,7 +1189,13 @@ async function runMcpToolPipeline(ctx) {
                     decision === 'PERMIT' ? 'permit' : (decision === 'INDETERMINATE' ? 'indeterminate' : 'deny'),
                     null,
                     `PingOne Authorize decision: ${decision}${authzRes.reason ? ' — ' + authzRes.reason : ''}`,
-                    buildGwAuthorizeEventExtra(authzRes)
+                    buildGwAuthorizeEventExtra({
+                        ...authzRes,
+                        denyingFilter: trail.denyingFilter || authzRes.denyingFilter,
+                        lastFilter: trail.lastFilter || authzRes.lastFilter,
+                        filterChain: trail.filterChain || authzRes.filterChain,
+                        policy: trail.policy || authzRes.policy,
+                    })
                 ));
             }
             if (trail.mcpAudit && !tokenEvents.some((e) => e && e.id === 'gw-mcp-audit')) {
@@ -933,6 +1216,28 @@ async function runMcpToolPipeline(ctx) {
                         how: a.how,
                         eventName: a.eventName || 'PING-GATEWAY-MCP',
                     }
+                ));
+            }
+            if (trail.backend && !tokenEvents.some((e) => e && e.id === 'gw-route')) {
+                const backendRes = trail.backend;
+                tokenEvents.push(deps.buildTokenEvent(
+                    'gw-route',
+                    'Gateway — Backend Routing',
+                    'active',
+                    null,
+                    `Gateway routed "${tool}" to backend: ${backendRes.target}`,
+                    { target: backendRes.target }
+                ));
+                const exchangeDesc = backendRes.exchanged
+                    ? `RFC 8693 exchange: token scoped to audience ${backendRes.audience}${backendRes.cached ? ' (cache hit)' : ''}`
+                    : `RFC 8693 exchange failed: ${backendRes.error || 'unknown error'} — request not forwarded`;
+                tokenEvents.push(deps.buildTokenEvent(
+                    'gw-backend-exchange',
+                    'Gateway — RFC 8693 Token Exchange',
+                    backendRes.exchanged ? 'active' : 'deny',
+                    null,
+                    exchangeDesc,
+                    { target: backendRes.target, audience: backendRes.audience, cached: backendRes.cached, exchanged: backendRes.exchanged, error: backendRes.error }
                 ));
             }
         }

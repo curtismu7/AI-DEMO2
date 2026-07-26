@@ -43,13 +43,16 @@ const mfaInitLimiter = rateLimit({
 // origin the app is served from, or the browser rejects passkey registration
 // ("'rp.id' cannot be used with the current origin"). PingOne defaults it to
 // its own domain. Resolve the rp.id from the public app origin.
+// Honours the FIDO2_RP_ID / pingone_fido2_rp_id override, which is what lets a
+// single PingOne environment serve passkeys to several origins at once (see
+// mfaService.resolveRelyingPartyId).
 function resolveFido2RpId() {
   const url =
     configStore.getEffective('PUBLIC_APP_URL') ||
     configStore.getEffective('REACT_APP_CLIENT_URL') ||
     process.env.PUBLIC_APP_URL ||
     'https://demo-api-server:3001';
-  try { return new URL(url).hostname; } catch { return 'demo-api-server'; }
+  return mfaService.resolveRelyingPartyId(url) || 'demo-api-server';
 }
 
 const STEP_UP_TTL_MS = 5 * 60 * 1000; // 5 min step-up validity
@@ -157,7 +160,15 @@ router.put('/challenge/:daId', mfaSubmitLimiter, authenticateToken, async (req, 
     if (assertion) {
       result = await mfaService.submitFido2Assertion(daId, assertion, userAccessToken, origin || req.headers.origin);
     } else if (otp) {
-      result = await mfaService.submitOtp(daId, deviceId, otp, userAccessToken);
+      // Demo bypass — same code as stub /oauth/user/verify-otp and consent verifyMfa.
+      // Device-list (PingOne) path used to call submitOtp only, so 123123 worked on
+      // the old OTP-only screen but failed after picking Email/SMS from the list.
+      if (String(otp).trim() === '123123') {
+        console.log(`[MFA] demo bypass OTP accepted daId=${String(daId).slice(0, 8)}…`);
+        result = { status: 'COMPLETED' };
+      } else {
+        result = await mfaService.submitOtp(daId, deviceId, otp, userAccessToken);
+      }
     } else if (deviceId) {
       result = await mfaService.selectDevice(daId, deviceId, userAccessToken);
     } else {
@@ -201,6 +212,7 @@ router.put('/challenge/:daId', mfaSubmitLimiter, authenticateToken, async (req, 
         const { deviceId, otp, assertion, origin } = req.body;
         let result;
         if (assertion) result = await mfaService.submitFido2Assertion(daId, assertion, newToken, origin || req.headers.origin);
+        else if (otp && String(otp).trim() === '123123') result = { status: 'COMPLETED' };
         else if (otp) result = await mfaService.submitOtp(daId, deviceId, otp, newToken);
         else result = await mfaService.selectDevice(daId, deviceId, newToken);
         const completed = result.status === 'COMPLETED';
@@ -337,9 +349,14 @@ router.get('/devices', authenticateToken, async (req, res) => {
           ? local[0] + '*'.repeat(local.length - 2) + local[local.length - 1]
           : local[0] + '*';
         maskedContact = vis + '@' + domain;
-      } else if ((type === 'SMS' || type === 'PHONE' || type === 'MOBILE_PHONE') && d.phone?.number) {
-        const digits = d.phone.number.replace(/\D/g, '');
-        maskedContact = digits.length >= 4 ? '***-***-' + digits.slice(-4) : d.phone.number;
+      } else if (type === 'SMS' || type === 'PHONE' || type === 'MOBILE_PHONE') {
+        // PingOne returns an SMS device's number as a bare E.164 string
+        // ("phone": "+19725551234"); accept the { number } shape too.
+        const number = d.phone?.number || (typeof d.phone === 'string' ? d.phone : null);
+        if (number) {
+          const digits = number.replace(/\D/g, '');
+          maskedContact = digits.length >= 4 ? '***-***-' + digits.slice(-4) : number;
+        }
       } else if (type === 'TOTP') {
         maskedContact = d.nickname || d.applicationName || 'Authenticator app';
       } else if (type === 'FIDO2') {

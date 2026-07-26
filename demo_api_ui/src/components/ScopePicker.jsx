@@ -14,18 +14,38 @@ import React from "react";
 export default function ScopePicker({ allowWrite, onChange, disabled = false }) {
   return (
     <div className="agent-scope-picker-row">
-      <label className="scope-picker" title="Controls the scopes the agent token requests. Read-only greys out write-action chips via PingOne Authorize.">
-        <span className="scope-picker__label">Agent scope</span>
-        <select
-          className="ctl-select scope-picker__select"
-          value={allowWrite ? "rw" : "ro"}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value === "rw")}
+      <div
+        className="scope-picker"
+        title="Controls the scopes the agent token requests. Read-only greys out write-action chips via PingOne Authorize."
+      >
+        <span className="scope-picker__label" id="agent-scope-label">
+          Agent scope
+        </span>
+        <div
+          className="scope-picker__toggle"
+          role="group"
+          aria-labelledby="agent-scope-label"
         >
-          <option value="rw">Read + Write</option>
-          <option value="ro">Read only</option>
-        </select>
-      </label>
+          <button
+            type="button"
+            className={`scope-picker__opt${!allowWrite ? " scope-picker__opt--on" : ""}`}
+            aria-pressed={!allowWrite}
+            disabled={disabled}
+            onClick={() => onChange(false)}
+          >
+            Read
+          </button>
+          <button
+            type="button"
+            className={`scope-picker__opt${allowWrite ? " scope-picker__opt--on" : ""}`}
+            aria-pressed={allowWrite}
+            disabled={disabled}
+            onClick={() => onChange(true)}
+          >
+            Write
+          </button>
+        </div>
+      </div>
       <p className="scope-picker__hint">
         Controls the OAuth scopes in the agent&apos;s token. &ldquo;Read only&rdquo; greys out write actions via PingOne Authorize.
       </p>

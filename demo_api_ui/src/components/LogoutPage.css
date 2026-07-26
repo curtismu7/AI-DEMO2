@@ -1,121 +1,224 @@
-/* banking_api_ui/src/components/LogoutPage.css */
+/* LogoutPage — split-hero card matching LoginSuccessModal.
+   Vertical brand colors via --brand-dashboard-header-* / --theme-accent.
+   Solid high-contrast text only (REGRESSION_PLAN §0). */
+
 .logout-page {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 24px 16px;
+  /* Opaque — semi-transparent overlay reads as a white screen over the app chrome */
+  background: #0f172a;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
 }
 
-.logout-container {
-  background: white;
-  border-radius: 12px;
-  padding: 3rem 2rem;
-  max-width: 420px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-  text-align: center;
-  animation: slideIn 0.4s ease-out;
+.logout-card {
+  width: 100%;
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--modal-radius, 12px);
+  background: var(--modal-body-bg, #ffffff);
+  box-shadow: var(
+    --modal-shadow,
+    0 20px 48px rgba(0, 0, 0, 0.22),
+    0 4px 12px rgba(0, 0, 0, 0.1)
+  );
+  overflow: hidden;
+  animation: logout-enter 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-@keyframes slideIn {
+@keyframes logout-enter {
   from {
     opacity: 0;
-    transform: translateY(-20px);
+    transform: scale(0.96) translateY(6px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: scale(1) translateY(0);
   }
 }
 
-.logout-icon {
-  font-size: 4rem;
-  margin-bottom: 1.5rem;
-  animation: wave 0.6s ease-in-out;
-}
-
-@keyframes wave {
-  0%, 100% {
-    transform: rotate(0deg);
-  }
-  25% {
-    transform: rotate(20deg);
-  }
-  75% {
-    transform: rotate(-20deg);
+@media (prefers-reduced-motion: reduce) {
+  .logout-card {
+    animation: none;
   }
 }
 
-.logout-container h1 {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: #1a202c;
-  margin: 0 0 0.75rem 0;
-}
-
-.logout-message {
-  font-size: 1rem;
-  color: #4a5568;
-  margin: 0 0 2rem 0;
-  line-height: 1.5;
-}
-
-.logout-actions {
+/* ── Title bar (matches DraggableModal) ───────────────────────────────── */
+.logout-titlebar {
   display: flex;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
-  flex-direction: column;
+  align-items: center;
+  padding: 0 14px;
+  min-height: var(--modal-header-height, 48px);
+  background: var(
+    --modal-header-bg,
+    linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)
+  );
+  color: var(--modal-header-text, #ffffff);
+  flex-shrink: 0;
 }
 
-.logout-button {
-  padding: 0.875rem 1.5rem;
-  border: none;
-  border-radius: 6px;
-  font-size: 0.95rem;
+.logout-title {
+  font-size: 13px;
   font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
 }
 
-.logout-button--primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+/* ── Split body (matches LoginSuccessModal) ───────────────────────────── */
+.logout-split {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  min-height: 220px;
 }
 
-.logout-button--primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+.logout-left {
+  background: linear-gradient(
+    165deg,
+    var(--brand-dashboard-header-start, #0e7c86),
+    var(--brand-dashboard-header-end, #0a5960)
+  );
+  color: var(--brand-dashboard-header-text, #ffffff);
+  padding: 22px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.logout-button--secondary {
-  background: #edf2f7;
-  color: #2d3748;
+.logout-mark {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.16);
+  display: grid;
+  place-items: center;
+  font-size: 22px;
 }
 
-.logout-button--secondary:hover {
-  background: #DDDDDD;
-  transform: translateY(-2px);
+.logout-hello {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 6px 0 0;
 }
 
-.logout-redirect-notice {
-  font-size: 0.85rem;
-  color: #718096;
+.logout-via {
+  font-size: 12.5px;
   margin: 0;
-  font-style: italic;
+  color: var(--brand-dashboard-header-text, #ffffff);
+  opacity: 0.88;
 }
 
-/* Responsive */
-@media (max-width: 640px) {
-  .logout-container {
-    padding: 2rem 1.5rem;
-    margin: 1rem;
+.logout-secure {
+  margin-top: auto;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--brand-dashboard-header-text, #ffffff);
+  opacity: 0.82;
+}
+
+.logout-right {
+  padding: 22px 22px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.logout-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.logout-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #475569;
+}
+
+.logout-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+  word-break: break-word;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logout-tick {
+  color: var(--theme-accent, #0e7c86);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* ── Footer ───────────────────────────────────────────────────────────── */
+.logout-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid #e5e7eb;
+  background: #fafafa;
+}
+
+/* Prefixed .logout-action — do NOT use .logout-btn (UserDashboard owns that
+   class with white-on-transparent styles that wipe these buttons). */
+.logout-action {
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s, background 0.15s;
+}
+
+.logout-action--primary {
+  background: var(--theme-accent, #0e7c86);
+  border: 1px solid var(--theme-accent, #0e7c86);
+  color: #ffffff;
+}
+
+.logout-action--primary:hover {
+  filter: brightness(1.07);
+}
+
+.logout-action--primary:focus-visible {
+  outline: 2px solid var(--theme-accent, #0e7c86);
+  outline-offset: 2px;
+}
+
+.logout-action--secondary {
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  font-weight: 500;
+}
+
+.logout-action--secondary:hover {
+  background: #e5e7eb;
+}
+
+@media (max-width: 360px) {
+  .logout-split {
+    grid-template-columns: 1fr;
   }
 
-  .logout-container h1 {
-    font-size: 1.5rem;
+  .logout-left {
+    flex-direction: row;
+    align-items: center;
   }
 
-  .logout-icon {
-    font-size: 3rem;
+  .logout-secure {
+    display: none;
   }
 }

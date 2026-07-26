@@ -414,6 +414,15 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
 
     // ── PHASE 5: RETURN RESPONSE ──
     agentResponse.runId = runId;
+    // Surface the PingOne Authorize evaluation the tool executor stashed on req.
+    // On a successful (PERMIT) agent tool call the evaluation lives only inside
+    // the pipeline outcome, which executeBffTool returns as a plain string — so
+    // without this the Proof trace's authorize-decision step never matched on the
+    // success path (UC1 rendered Incomplete though the tool ran). Only set when
+    // the agent envelope did not already carry one (deny/HITL paths do).
+    if (req._mcpAuthorizeEvaluation && !agentResponse.mcpAuthorizeEvaluation) {
+      agentResponse.mcpAuthorizeEvaluation = req._mcpAuthorizeEvaluation;
+    }
     ensureNonEmptyReply(agentResponse);
     return res.json(agentResponse);
   } catch (error) {
@@ -425,12 +434,18 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
       },
       flowId: flowTraceId,
     });
+    // Preserve any exchange/authorize evidence attached to the thrown error so
+    // the Token Chain still updates when the invoke path hard-fails.
+    const errorTokenEvents = Array.isArray(error.tokenEvents) && error.tokenEvents.length
+      ? error.tokenEvents
+      : (Array.isArray(req.tokenEvents) ? req.tokenEvents : []);
     // Dead/expired user token: surface as 401 so the SPA can trigger re-auth
     // instead of treating it as a generic server error.
     if (error.code === 'TOKEN_INACTIVE') {
       return res.status(401).json({
         error: 'token_inactive',
         message: 'Your session is no longer active. Please sign in again.',
+        tokenEvents: errorTokenEvents,
       });
     }
     // Downstream MCP/gateway rejected the agent's delegated token while the user's
@@ -441,9 +456,14 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
         error: 'gateway_token_rejected',
         message: error.message,
         needsLogin: false,
+        tokenEvents: errorTokenEvents,
       });
     }
-    res.status(500).json({ error: 'Agent invocation failed', message: error.message });
+    res.status(500).json({
+      error: 'Agent invocation failed',
+      message: error.message,
+      tokenEvents: errorTokenEvents,
+    });
   }
 });
 

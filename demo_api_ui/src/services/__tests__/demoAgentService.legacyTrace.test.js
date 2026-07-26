@@ -60,3 +60,46 @@ test("forceHeuristic wins over agentPath and errors complete the trace as failed
   expect(trace.routingMode).toBe("heuristic");
   expect(trace.outcome).toBe("error");
 });
+
+// Regression: the agent success path (UC1) rendered "Incomplete" because
+// ingestLegacyRunTrace never surfaced the tool result or the response's token
+// events — so 'tool-dispatched' and 'token-exchange' evidence could not match.
+test("successful agent run ingests token events + a tool-dispatched marker", () => {
+  ingestLegacyRunTrace({
+    agentPath: "llm",
+    reply: "Your checking balance is $10877.02.",
+    success: true,
+    toolsCalled: ["get_account_balance"],
+    tokenEvents: [
+      { id: "user-token", timestamp: 1 },
+      { id: "two-ex-exchange1", timestamp: 2, exchangeStep: 1 },
+    ],
+    mcpAuthorizeEvaluation: { decision: "PERMIT", engine: "pingone" },
+  });
+  const { trace } = tokenChainTraceStore.getState();
+  expect(trace.tokenEvents.map((e) => e.id)).toEqual(
+    expect.arrayContaining(["user-token", "two-ex-exchange1"]),
+  );
+  expect(trace.tokenEvents.some((e) => e.exchangeStep != null)).toBe(true);
+  expect(trace.authorize).toMatchObject({ decision: "PERMIT" });
+  expect(trace.mcpResult).toMatchObject({ tool: "get_account_balance", status: "success" });
+});
+
+test("a failed agent run synthesizes an error mcpResult for TraceRail", () => {
+  ingestLegacyRunTrace({
+    agentPath: "heuristic",
+    success: false,
+    reply: "❌ mcp_error",
+    toolsCalled: ["get_weather"],
+  });
+  const { trace, steps } = tokenChainTraceStore.getState();
+  expect(trace.mcpResult).toMatchObject({
+    tool: "get_weather",
+    status: "error",
+    error: "mcp_error",
+  });
+  expect(trace.outcome).toBe("error");
+  const mcp = steps.find((s) => s.id === "mcp");
+  expect(mcp.status).toBe("error");
+  expect(mcp.detail.why).toMatch(/get_weather|mcp_error/i);
+});

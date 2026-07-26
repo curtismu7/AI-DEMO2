@@ -12,7 +12,7 @@ A rogue agent forcing itself into the act claim must be caught — only the auth
 
 ## PingOne Solution
 
-The gateway and Authorize check ActClientId against the single configured authorized actor; a rogue actor is denied.
+PingOne stamps a native, cryptographically-issued act claim on the exchanged token whenever the actor actually performed the RFC 8693 exchange. The gateway and Authorize always prefer that native claim over any header — a header can only fill in on hops where no native claim exists. A rogue actor can't win by spoofing a header; it would have to perform a real token exchange as an unauthorized client, and Authorize's ActClientId check on the resulting native claim then denies it.
 
 ## How to Run
 
@@ -21,7 +21,7 @@ The gateway and Authorize check ActClientId against the single configured author
 
 ## What to Say
 
-> The act claim named a rogue client — the authorized-actor check blocked it immediately.
+> Actor identity comes from a native, PingOne-issued claim on the token — never from a header. Headers are only a fallback for hops where PingOne can't natively stamp an actor; they can never override a real claim. That's why this rogue actor is denied.
 
 ## Evidence
 
@@ -30,7 +30,10 @@ The gateway and Authorize check ActClientId against the single configured author
 
 ## Code References
 
+- `demo_api_server/services/mcpGatewayClient.js`
+- `demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts`
 - `demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts`
+- `ping-gateway/scripts/groovy/p1az-decision.groovy`
 - `demo_authz_server/routes/decision.js`
 
 

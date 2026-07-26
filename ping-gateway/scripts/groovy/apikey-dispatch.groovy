@@ -69,14 +69,24 @@ def rpcError = { id, code, message ->
 }
 
 // Blocking GET (URLConnection, not http.send — event-loop safe). Returns [code, body].
+//
 // HostnameVerifier: the BFF mkcert cert SANs are api.ping.demo/localhost only, but
-// in-cluster the vault URL uses demo-api-server ClusterIP DNS. Trust still comes
-// from the JVM truststore (mkcert root imported at container start); this only
-// relaxes the name check for those two demo hostnames.
+// in-cluster the vault URL uses demo-api-server ClusterIP DNS, whose name is not on the
+// cert. Overriding the verifier silently disables hostname checking for that name, so
+// it is now OPT-IN via PG_ALLOW_INSECURE_VAULT_HOSTNAME=true and can never be active in
+// a deployed environment that does not set it. Default: the JVM's standard verifier.
+// Trust always comes from the JVM truststore (mkcert root imported at container start);
+// this only ever relaxed the NAME check, never certificate validation.
+//
+// The durable fix is to add `demo-api-server` to the BFF cert SANs (or address the
+// vault bridge as api.ping.demo) and drop this flag entirely.
+def allowInsecureVaultHostname = System.getenv('PG_ALLOW_INSECURE_VAULT_HOSTNAME') == 'true'
 def httpGet = { String url, Map hdrs ->
     try {
         def conn = new URL(url).openConnection() as java.net.HttpURLConnection
-        if (conn instanceof javax.net.ssl.HttpsURLConnection) {
+        if (allowInsecureVaultHostname && conn instanceof javax.net.ssl.HttpsURLConnection) {
+            logger.warn('[apikey-dispatch] PG_ALLOW_INSECURE_VAULT_HOSTNAME=true — ' +
+                'TLS hostname verification relaxed for the vault bridge (dev only)')
             conn.setHostnameVerifier({ String hostname, javax.net.ssl.SSLSession session ->
                 hostname == 'demo-api-server' || hostname == 'api.ping.demo' || hostname == 'localhost'
             } as javax.net.ssl.HostnameVerifier)

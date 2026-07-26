@@ -14,6 +14,9 @@
 | UC3 | [act gate](./may-act-gate.md) | foundations | ✅ works | 🛡️ T3, T13 |  |
 | UC19 | [Non-human (agent) identity lifecycle](./agent-identity-lifecycle.md) | foundations | ✅ works | 🛡️ T9, T13 |  |
 | UC20 | [Audit trail / traceability](./audit-trail.md) | foundations | ✅ works | 🛡️ T8 |  |
+| UC33 | [My mortgage](./mortgage-delegated-access.md) | foundations | ✅ works | 🛡️ T8, T9 |  |
+| UC34 | [Spot unusual patterns](./ai-spot-unusual-patterns.md) | foundations | ✅ works | 🛡️ T8 |  |
+| UC35 | [Why was that blocked?](./ai-explain-last-denial.md) | foundations | ✅ works | 🛡️ T8 |  |
 | UC4 | [Overscoped agent](./overscoped-agent.md) | controls | ✅ works | 🛡️ T3 |  |
 | UC6 | [Authz denied](./authz-denied.md) | controls | ✅ works | 🛡️ T6 |  |
 | UC7 | [Step-up required](./step-up-required.md) | hitl | ✅ works | 🛡️ T10, T3 |  |
@@ -28,11 +31,15 @@
 | UC13 | [Confused-deputy actor injection](./confused-deputy-actor-injection.md) | attacks | ✅ works | 🛡️ T13 |  |
 | UC17 | [JIT / ephemeral credentials](./jit-ephemeral-credentials.md) | controls | ✅ works | 🛡️ T3, T9 |  |
 | UC18 | [Rate-limit / resource-overload defense](./rate-limit-defense.md) | attacks | ✅ works | 🛡️ T4 |  |
+| UC29 | [OAuth introspection outage — fail closed](./oauth-fail-closed.md) | attacks | ✅ works | 🛡️ T2 |  |
+| UC30 | [Third-party MCP server, scoped at the gateway](./weather-mcp-texas-permit.md) | controls | ✅ works | 🛡️ T6 |  |
+| UC31 | [Third-party MCP server — out-of-scope call denied](./weather-mcp-texas-deny.md) | controls | ✅ works | 🛡️ T6 |  |
+| UC32 | [Live-reconfigure the gateway's scope policy](./weather-mcp-live-reconfigure.md) | controls | ✅ works | 🛡️ T6 |  |
 | UC-TOOL1 | [RAG code search](./code-search.md) | tools | ✅ works |  |  |
 | UC-TOOL2 | [Code Explorer](./code-explorer.md) | tools | ✅ works |  |  |
 | UC-LEARN1 | [OAuth Academy](./oauth-academy.md) | learn | ✅ works |  |  |
 | UC-LEARN2 | [PingOne MCP Inspector](./pingone-mcp-inspector.md) | learn | ✅ works |  |  |
-| UC-LEARN3 | [Demo MCP Inspector](./demo-mcp-inspector.md) | learn | ✅ works |  |  |
+| UC-LEARN3 | [Generic MCP Inspector](./demo-mcp-inspector.md) | learn | ✅ works |  |  |
 | UC-LEARN4 | [MCP Tools](./mcp-tools.md) | learn | ✅ works |  |  |
 | UC-LEARN5 | [Learning Hub](./learning-hub.md) | learn | ✅ works |  |  |
 | UC-LEARN6 | [Token Flow (Interactive)](./token-flow.md) | learn | ✅ works |  |  |
@@ -50,10 +57,10 @@
 |---|---|---|---|---|---|
 | UC2 | [A2A delegation](./a2a-delegation.md) | foundations | 🚩 flag-gated (ff_a2a_delegation) | 🛡️ T9, T13 |  |
 | UC9 | [Group / entitlement check](./group-entitlement-check.md) | controls | 🚩 flag-gated (ff_authorize_group_policy) | 🛡️ T3 |  |
-| UC22 | [CIBA out-of-band approval](./ciba-out-of-band-approval.md) | hitl | 🚩 flag-gated (ff_ciba) | 🛡️ T10 |  |
+| UC22 | [CIBA out-of-band approval](./ciba-out-of-band-approval.md) | hitl | 🚩 flag-gated (ciba_enabled) | 🛡️ T10 |  |
 | UC12 | [Token theft / replay defense](./token-theft-replay.md) | attacks | 🚩 flag-gated (ff_dpop) | 🛡️ T9 |  |
-| UC14 | [RAR intent violation](./rar-intent-violation.md) | attacks | 🚩 flag-gated (ff_rar) | 🛡️ T6 |  |
-| UC14b | [RAR intent verified (PERMIT)](./rar-intent-verified.md) | learn | 🚩 flag-gated (ff_rar) |  |  |
+| UC14 | [PAR intent violation (Pushed Auth Request)](./rar-intent-violation.md) | attacks | 🚩 flag-gated (ff_rar) | 🛡️ T6 |  |
+| UC14b | [PAR intent verified (PERMIT)](./rar-intent-verified.md) | learn | 🚩 flag-gated (ff_rar) |  |  |
 | UC25 | [Enterprise-managed MCP access](./enterprise-managed-mcp-access.md) | controls | 🚩 flag-gated (ff_enterprise_managed_mcp_auth) | 🛡️ T8, T9 |  |
 
 ## 🏗️ Needs build (`needs-build`)
@@ -67,8 +74,8 @@
 
 | Status | Count |
 |---|---|
-| ✅ Works | 34 |
+| ✅ Works | 41 |
 | 🚩 Flag-gated | 7 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 2 |
-| **Total** | **43** |
+| **Total** | **50** |

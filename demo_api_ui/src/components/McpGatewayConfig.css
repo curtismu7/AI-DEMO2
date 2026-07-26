@@ -1,7 +1,12 @@
 .mgc-root {
-  max-width: 900px;
+  /* Wide enough for the Gateway Tester's 3-column InspectorShell
+     (left ~240 + middle ~380 + results). Was 900px and crushed the
+     result pane; fill the admin main content area instead. */
+  max-width: none;
+  width: 100%;
   margin: 0 auto;
   padding: 24px;
+  box-sizing: border-box;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -28,7 +33,7 @@
 }
 
 .mgc-subtitle {
-  font-size: 14px;
+  font-size: 16px;
   color: #666;
   margin: 0;
 }
@@ -97,12 +102,31 @@
   border-bottom-color: var(--brand-navy, #1d4ed8);
   font-weight: 600;
 }
+.mgc-tab--highlight {
+  font-weight: 600;
+  color: #0f5132;
+}
+.mgc-tab--highlight:not(.mgc-tab--active) {
+  border-bottom-color: #b8dabb;
+}
 
 /* Panel */
 .mgc-panel {
   display: flex;
   flex-direction: column;
   gap: 24px;
+}
+
+/* MCP Tool Tester tab — give the embedded page a definite height so its
+   inner flex:1 / minHeight:0 two-panel layout does not collapse to blank. */
+.mgc-panel--traffic {
+  gap: 0;
+  height: calc(100vh - 220px);
+  min-height: 480px;
+}
+.mgc-panel--traffic > * {
+  flex: 1;
+  min-height: 0;
 }
 
 /* Info grid */
@@ -126,7 +150,7 @@
 }
 .mgc-info-label {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: #374151;
@@ -142,13 +166,13 @@
 
 /* Sections */
 .mgc-section h4 {
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 600;
   margin: 0 0 10px;
   color: #1a1a2e;
 }
 .mgc-section p {
-  font-size: 14px;
+  font-size: 16px;
   color: #444;
   margin: 0 0 10px;
 }
@@ -158,14 +182,14 @@
   color: #cdd6f4;
   padding: 14px 16px;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 14px;
   overflow-x: auto;
   margin: 0;
   white-space: pre;
 }
 .mgc-pre--code {
   margin-top: 8px;
-  font-size: 12.5px;
+  font-size: 14px;
   line-height: 1.6;
 }
 
@@ -174,7 +198,7 @@
   padding-left: 20px;
 }
 .mgc-chain li {
-  font-size: 14px;
+  font-size: 16px;
   margin-bottom: 6px;
   color: #444;
 }
@@ -184,7 +208,7 @@
   padding-left: 20px;
 }
 .mgc-steps li {
-  font-size: 14px;
+  font-size: 16px;
   margin-bottom: 8px;
   color: #444;
 }
@@ -210,7 +234,7 @@
 
 /* Env tables */
 .mgc-env-section h4 {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   margin: 0 0 8px;
   color: #1a1a2e;
@@ -218,7 +242,7 @@
 .mgc-env-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 15px;
 }
 .mgc-env-table tr {
   border-bottom: 1px solid #f0f0f0;
@@ -248,7 +272,7 @@
 .mgc-alert {
   padding: 12px 16px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 15px;
 }
 .mgc-alert--info {
   background: #e7f3ff;
@@ -284,7 +308,7 @@
   gap: 8px;
 }
 .mgc-field-label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-secondary, #374151);
   text-transform: uppercase;
@@ -295,7 +319,7 @@
   padding: 6px 10px;
   border: 1px solid var(--border, #d1d5db);
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.5;
   letter-spacing: 0.01em;
   font-family: inherit;
@@ -310,7 +334,7 @@
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 .mgc-field-hint {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-secondary, #374151);
   line-height: 1.6;
   margin-top: 2px;
@@ -341,7 +365,7 @@
   color: #065f46;
   padding: 8px 12px;
   border-radius: 6px;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
 }
 .mgc-alert--error {
   background: #fef2f2;
@@ -349,7 +373,7 @@
   color: #991b1b;
   padding: 8px 12px;
   border-radius: 6px;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
 }
 
 /* Phase 247 — MCP mode chip */
@@ -372,19 +396,19 @@
   margin-bottom: 16px;
 }
 .mgc-doc-card-title {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: #1a1a2e;
   margin: 0 0 4px;
 }
 .mgc-doc-card-desc {
-  font-size: 12px;
+  font-size: 14px;
   color: #666;
   margin: 0 0 8px;
   line-height: 1.4;
 }
 .mgc-doc-card-link {
-  font-size: 13px;
+  font-size: 15px;
   color: #0070f3;
   text-decoration: none;
 }
@@ -439,13 +463,13 @@
   color: #6c757d;
 }
 .mgc-wizard-step-label {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 600;
   color: #1a1a2e;
   flex: 1;
 }
 .mgc-wizard-step-status {
-  font-size: 12px;
+  font-size: 14px;
   color: #666;
 }
 .mgc-wizard-step-body {
@@ -498,7 +522,7 @@
   border: 1px solid #bee5eb;
   border-radius: 8px;
   padding: 12px 16px;
-  font-size: 13px;
+  font-size: 15px;
   color: #0c5460;
   margin-bottom: 16px;
 }

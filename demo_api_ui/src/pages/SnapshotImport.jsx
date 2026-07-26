@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
 import './SnapshotImport.css';
 
-const AUTHZ_BASE = 'http://localhost:9001';
+// Same pattern as the sibling admin pages (AuthorizeConfigPage, McpGatewayConfig):
+// env-configured base, empty default so requests stay same-origin and resolve
+// through the dev/prod proxy. It must not be a hardcoded host — REGRESSION_PLAN §3
+// makes api.ping.demo canonical and forbids baked-in hosts/ports, and the previous
+// literal ('http://localhost:9001') could not work anyway: this UI is served over
+// HTTPS, so a plain-http request to it is blocked as mixed content.
+const AUTHZ_BASE = process.env.REACT_APP_AUTHZ_BASE || '';
 
 function ConflictDiff({ conflict }) {
   if (conflict.type === 'consent_tool_mismatch' || conflict.type === 'step_up_tool_mismatch') {
@@ -69,7 +75,9 @@ export default function SnapshotImport() {
       const formData = new FormData();
       formData.append('snapshot', file);
       const res = await fetch(`${AUTHZ_BASE}/admin/import-snapshot`, { method: 'POST', body: formData });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      // 409 means the snapshot was rejected for parity conflicts — the body is a
+      // full conflict report, so render it instead of collapsing it to a status code.
+      if (!res.ok && res.status !== 409) throw new Error(`HTTP ${res.status}`);
       setResult(await res.json());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Import failed');
@@ -94,14 +102,20 @@ export default function SnapshotImport() {
       </div>
 
       <div className="download-section">
-        <span className="download-label">Current correct snapshot (SoT-generated):</span>
+        <span className="download-label">Regenerated live from scope-topology.json:</span>
         <a
           className="download-btn"
           href={`${AUTHZ_BASE}/admin/current-snapshot`}
           download="Super_Banking_Transaction_Authorization_P1AZ.snapshot.json"
         >
-          Download for P1AZ import
+          Generate & download import file
         </a>
+      </div>
+
+      <div className="apply-note">
+        <strong>Applying to PingOne:</strong> PingOne Authorize does not accept policy changes
+        via API (the condition-write endpoint rejects the DSL this policy needs). Import the
+        downloaded file manually: PingOne Authorize console → Snapshots → Import.
       </div>
 
       {error && <div className="error">{error}</div>}

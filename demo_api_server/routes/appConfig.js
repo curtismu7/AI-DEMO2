@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const configStore = require('../services/configStore');
 const { getAppConfig, fixLogoutUrls, auditAppConfig } = require('../services/pingoneAppConfigService');
+const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 
 // GET /api/admin/app-config/:appType — get PingOne app config (admin or user)
 router.get('/:appType', async (req, res) => {
@@ -22,7 +23,8 @@ router.get('/:appType', async (req, res) => {
     res.json({ appType, appId, config });
   } catch (err) {
     console.error(`[appConfig] GET /${req.params.appType} error:`, err.message);
-    res.status(err.response?.status || 500).json({ error: err.message });
+    const n = normalizeAxiosError(err);
+    res.status(n.httpStatus || 500).json({ error: n.message });
   }
 });
 
@@ -50,7 +52,8 @@ router.post('/fix-logout-urls', async (req, res) => {
     res.json({ results, publicAppUrl });
   } catch (err) {
     console.error('[appConfig] fix-logout-urls error:', err.message);
-    res.status(err.response?.status || 500).json({ error: err.message });
+    const n = normalizeAxiosError(err);
+    res.status(n.httpStatus || 500).json({ error: n.message });
   }
 });
 
@@ -73,7 +76,8 @@ router.get('/audit/all', async (_req, res) => {
     res.json({ reports, totalIssues, allHealthy: totalIssues === 0 });
   } catch (err) {
     console.error('[appConfig] audit error:', err.message);
-    res.status(err.response?.status || 500).json({ error: err.message });
+    const n = normalizeAxiosError(err);
+    res.status(n.httpStatus || 500).json({ error: n.message });
   }
 });
 

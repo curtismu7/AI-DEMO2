@@ -13,6 +13,10 @@
 .cp-verb{font-size:11px;text-transform:uppercase;letter-spacing:1px;padding:5px 10px;border-radius:999px;
   background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14)}
 .cp-verb.audit b{color:#7dd3fc}
+.cp-demo-guide-btn{font-size:12px;font-weight:700;letter-spacing:.2px;padding:7px 14px;border-radius:8px;
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.28);color:#e8eef7;cursor:pointer;
+  white-space:nowrap;transition:background .15s,border-color .15s}
+.cp-demo-guide-btn:hover{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.4)}
 /* intro + explainer */
 .cp-intro{position:relative;z-index:2;font-size:12.5px;line-height:1.5;opacity:.92;
   border-left:3px solid #2563eb;padding:2px 0 2px 12px;margin:4px 0 12px}
@@ -83,6 +87,8 @@ svg.cp-links line.dead{stroke:#dc2626;opacity:.22;stroke-dasharray:4 7}
    standalone red STOP AGENT button) — bold red, opens the reason-logging modal. */
 .cp-stop--live{background:#dc2626;border-color:#dc2626;color:#fff;font-weight:800;letter-spacing:.5px;padding:5px 18px}
 .cp-stop--live:hover{background:#b91c1c;border-color:#b91c1c}
+.cp-stop--revive{background:#16a34a;border-color:#16a34a;color:#fff;font-weight:800;letter-spacing:.5px;padding:5px 18px;margin-left:8px}
+.cp-stop--revive:hover{background:#15803d;border-color:#15803d}
 .cp-pulse .rdot{animation:cppulse .6s infinite}
 @keyframes cppulse{0%,100%{transform:scale(1)}50%{transform:scale(1.5)}}
 .cp-actions{display:flex;gap:10px;margin-top:14px;align-items:center;position:relative;z-index:2}

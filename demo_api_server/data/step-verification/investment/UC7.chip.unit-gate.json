@@ -1,0 +1,10 @@
+{
+  "vertical": "investment",
+  "useCaseId": "UC7",
+  "triggerType": "chip",
+  "mode": "unit-gate",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "large_trade",
+  "checkedAt": "2026-07-25"
+}

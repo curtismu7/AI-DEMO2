@@ -45,9 +45,13 @@ export function isAgentMediatedTool(name: string): boolean {
 interface ResourceEntry { uri: string; scopes?: string[]; mirroredScopes?: string[]; }
 interface ManifestWithResources { resources: Record<string, ResourceEntry>; }
 
-const BACKEND_RESOURCE_NAME: Record<'olb' | 'invest', string> = {
+const BACKEND_RESOURCE_NAME: Record<'olb' | 'invest' | 'jwtverifier', string> = {
   olb: 'Super Banking MCP Server',
   invest: 'Super Banking MCP Invest',
+  // scope-topology.json now declares this resource (jwt:verify scope). The live
+  // PingOne resource server self-provisions via twoExchangeReconciler.js on the
+  // next demo_api_server boot — same mechanism as MCP Invest.
+  jwtverifier: 'Super Banking MCP JWT Verifier',
 };
 
 /**
@@ -66,7 +70,7 @@ const BACKEND_RESOURCE_NAME: Record<'olb' | 'invest', string> = {
  * rather than erroring. If that silent-drop behavior ever changes, both
  * sites need to be revisited together.
  */
-export function resourceScopesForBackend(backend: 'olb' | 'invest'): string[] {
+export function resourceScopesForBackend(backend: 'olb' | 'invest' | 'jwtverifier'): string[] {
   const r = (manifest as unknown as ManifestWithResources).resources[BACKEND_RESOURCE_NAME[backend]];
   return r ? [...(r.scopes || []), ...(r.mirroredScopes || [])] : [];
 }

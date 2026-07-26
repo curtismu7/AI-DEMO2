@@ -31,25 +31,6 @@ const runtimeSettings = require('../config/runtimeSettings');
  *                        // resolveFlag()/PATCH keep the two in sync.
  * }>} */
 const FLAG_REGISTRY = [
-  // ── Auth Error Handling ───────────────────────────────────────────────────
-  {
-    id:           'ff_error_classification_enabled',
-    name:         'Comprehensive Auth Error Handling',
-    category:     'Auth Error Handling',
-    description:
-      'Enable comprehensive error classification and intelligent error handling. ' +
-      'Classifies all auth errors into 4 categories (TRANSIENT, USER, CONFIG, UNKNOWN) for appropriate handling. ' +
-      'Frontend auto-retries transient errors with exponential backoff; shows category-specific UI with user guidance. ' +
-      'Hides sensitive config details (JWKS URIs, env IDs) from error responses for CONFIG errors.',
-    impact:
-      'OFF (default, legacy) = basic error responses without classification. ' +
-      'ON = errors classified, transient retried automatically, config details scrubbed, support contact info included. ' +
-      'Production impact: CONFIG error rate should be zero if configuration is correct; monitor via error telemetry.',
-    type:         'boolean',
-    defaultValue: true,
-    runtimeKey:   'errorClassificationEnabled',
-  },
-
   // ── PingOne Authorize (ALWAYS ON — no toggle) ──────────────────────────────
   // Authorization is mandatory for security. See transactionAuthorizationService.js for details.
   {
@@ -364,6 +345,21 @@ const FLAG_REGISTRY = [
     defaultValue: false,
   },
   {
+    id:           'ff_rar_gateway_enforcement',
+    name:         'RAR — Gateway-local enforcement',
+    category:     'Token Exchange',
+    description:
+      'Controls WHERE the RFC 9396 RAR amount cap is enforced. OFF (default): PingOne Authorize is the sole ' +
+      'enforcement point — its `RarMaxAmount` rule (Amount > RarMaxAmount → DENY) denies an over-cap tool call, ' +
+      'the same way the simulated engine does. ON: additionally arm the Demo Agent Gateway’s local ' +
+      '`requireRarIntent` check (rarEnforce.ts), so the gateway blocks the call itself before Authorize. ' +
+      'Requires the PingOne Authorize snapshot with the RarMaxAmount rule imported for the OFF path to enforce.',
+    impact:
+      'OFF (default) = PingOne Authorize enforces RAR. ON = gateway also enforces locally (belt-and-suspenders).',
+    type:         'boolean',
+    defaultValue: false,
+  },
+  {
     id:           'ff_inject_scopes',
     name:         'Inject Banking Scopes (Demo Mode)',
     category:     'OAuth Scopes',
@@ -667,6 +663,21 @@ const FLAG_REGISTRY = [
     defaultValue: false,
   },
   {
+    id:           'ff_sidebar_customization',
+    name:         'Sidebar Customization',
+    category:     'UI / Dashboard',
+    description:
+      'When **ON** (default), the sidebar hides items the current user has unchecked on the Demo Config page ' +
+      '(`/demo-config`) — new/unconfigured users start with "Use Cases" hidden. When **OFF**, the full sidebar ' +
+      'always shows regardless of any saved per-user selection — the selection is preserved server-side either ' +
+      'way, so re-enabling restores it.',
+    impact:
+      'ON (default) = each user sees only their own saved subset of top-level nav items; new users start with ' +
+      '"Use Cases" hidden. OFF = full sidebar for everyone.',
+    type:         'boolean',
+    defaultValue: true,
+  },
+  {
     id:           'ff_mcp_gateway_pinggateway',
     name:         'Use PingOne Agent Gateway',
     category:     'MCP / Agent',
@@ -686,24 +697,77 @@ const FLAG_REGISTRY = [
     defaultValue: true,
   },
   {
-    id:           'ff_gateway_brokered_exchange',
-    name:         'Gateway-Brokered Final Token Exchange',
+    id:           'ff_weather_mcp_showcase',
+    name:         'Weather MCP Showcase (Agent Gateway)',
     category:     'MCP / Agent',
     description:
-      'Chooses **who performs the final RFC 8693 delegation exchange** to the backend MCP-server audience ' +
-      '(`mcpserver.ping.demo`) when routing through the **PingOne Agent Gateway** (ff_mcp_gateway_pinggateway ON). ' +
-      'When **ON (gateway-brokered)**, the BFF stops its delegation chain at the coarse gateway audience ' +
-      '(`gateway:mcp:invoke`) and the **IG runs olb-token-exchange.groovy** to mint the backend token at the edge ' +
-      '(token-exchange-at-the-gateway / phantom-token pattern). When **OFF (bff-brokered)**, the **BFF** completes ' +
-      'the exchange to the mcp-server audience itself and sends the already-delegated token; the IG then skips its ' +
-      'exchange (signaled by the X-BFF-Exchanged request header). Only takes effect while ff_mcp_gateway_pinggateway ' +
-      'is ON; with the Demo Agent Gateway the BFF always brokers.',
+      'Controls whether the Agent Gateway (PingGateway/IG) weather-mcp showcase route ' +
+      '(`/mcp/weather`) is enabled. This is a standalone gateway capability demo — a ' +
+      'third-party MCP server fronted and scoped to Texas-only by the gateway — with no ' +
+      'banking chat/agent wiring. `tx-weather-scope.groovy` calls this flag live on every ' +
+      '`/mcp/weather` request via `GET /internal/feature-flags/weather-mcp-showcase`, so ' +
+      'toggling it here takes effect immediately, with no gateway restart.',
     impact:
-      'ON (default) = the IG is the token broker; exchange credentials + the final hop live at the gateway edge. ' +
-      'OFF = the BFF is the token broker (it has the richest user+agent delegation context); the IG only validates ' +
-      'and proxies. Use this toggle to demonstrate both delegation-ownership architectures side by side.',
+      'ON (default) = /mcp/weather is reachable (subject to the Texas-only scope policy). ' +
+      'OFF = every /mcp/weather request is denied with HTTP 403, regardless of location.',
     type:         'boolean',
     defaultValue: true,
+  },
+  {
+    id:           'ff_weather_mcp_allowed_state',
+    name:         'Weather MCP — Allowed State',
+    category:     'MCP / Agent',
+    description:
+      'Which US state the Agent Gateway (PingGateway/IG) currently allows through the ' +
+      'weather-mcp showcase route (`/mcp/weather`). `tx-weather-scope.groovy` reads this ' +
+      'live on every request via `GET /internal/feature-flags/weather-mcp-showcase`, so ' +
+      'changing it here takes effect immediately, with no gateway restart — the SAME query ' +
+      '("what\'s the weather in Miami") can flip from denied to allowed live, during a demo.',
+    impact:
+      'texas (default) = only the 20 largest Texas cities / TX bounding box pass. ' +
+      'michigan = only the 20 largest Michigan cities / MI bounding box pass. ' +
+      'any = no geographic restriction — every city passes (subject to ff_weather_mcp_showcase ' +
+      'still being ON).',
+    type:         'enum',
+    options:      ['texas', 'michigan', 'any'],
+    defaultValue: 'texas',
+  },
+  {
+    id:           'ff_brave_mcp_showcase',
+    name:         'Brave Search MCP Showcase (Agent Gateway)',
+    category:     'MCP / Agent',
+    description:
+      'Controls whether the Agent Gateway (PingGateway/IG) Brave Search MCP showcase route ' +
+      '(`/mcp/brave`) is enabled. A standalone gateway capability demo — a remote third-party ' +
+      'API (Brave News Search) fronted by the gateway, gated by a crypto-term content ' +
+      'blocklist. `tx-brave-scope.groovy` calls this flag live on every `/mcp/brave` request ' +
+      'via `GET /internal/feature-flags/brave-mcp-showcase`, so toggling it here takes effect ' +
+      'immediately, with no gateway restart.',
+    impact:
+      'ON (default) = /mcp/brave is reachable (subject to the content blocklist policy). ' +
+      'OFF = every /mcp/brave request is denied with HTTP 403.',
+    type:         'boolean',
+    defaultValue: true,
+  },
+  {
+    id:           'ff_local_fallback_on_exchange_failure',
+    name:         'Local Fallback on Exchange Failure',
+    category:     'MCP / Agent',
+    description:
+      'Controls what happens when the RFC 8693 token exchange fails (for example PingOne returns ' +
+      '"At least one scope must be granted", or the exchanger client is misconfigured). ' +
+      'When **ON**, the BFF runs the tool through its **local handler** so the operation still ' +
+      'completes — but that path never reaches the Agent Gateway or the MCP server, so it bypasses ' +
+      'the gateway policy decision, the PingOne Authorize evaluation, and the per-tool scope check. ' +
+      'Any such response is tagged `_degraded: true` and `policy_source: "local-fallback"`. ' +
+      'When **OFF (default)**, the exchange error is surfaced to the caller and the tool does not run.',
+    impact:
+      'OFF (default) = fail closed; a broken token chain shows up as an error instead of an ' +
+      'unauthorized-but-successful tool call. ' +
+      'ON = demo keeps working through a misconfigured exchange, at the cost of running tools ' +
+      'with no authorization check at all. Use only to demonstrate the failure mode.',
+    type:         'boolean',
+    defaultValue: false,
   },
   {
     id:           'ff_mcp_gateway_jwks',
@@ -849,7 +913,6 @@ function resolveFlag(flag) {
 // in configStore's fallback map belong here.
 const PINNED_ENV_ALIASES = {
   ff_mcp_gateway_pinggateway: 'FF_MCP_GATEWAY_PINGGATEWAY',
-  ff_gateway_brokered_exchange: 'FF_GATEWAY_BROKERED_EXCHANGE',
   ff_mcp_gateway_jwks:        'FF_MCP_GATEWAY_JWKS',
   ff_enterprise_managed_mcp_auth: 'FF_ENTERPRISE_MANAGED_MCP_AUTH',
   ff_authorize_simulated:     'FF_AUTHORIZE_SIMULATED',

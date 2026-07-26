@@ -1076,6 +1076,34 @@
   font-size: 13px;
 }
 
+/* A2A inspector overview — sequence diagram + per-hop request/response */
+.tcd-a2a-diagram {
+  margin: 10px 0 14px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #0f172a;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.tcd-a2a-hop {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.tcd-a2a-hop-title {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
 /* ─── Exchange request preview ───────────────────────────────────────────── */
 .tcd-exchange-req {
   background: #fff;
@@ -1118,6 +1146,15 @@ pre.tcd-jwt-dump {
   word-break: break-word;
   overflow-x: auto;
   color: inherit;
+}
+
+/* Full Decoded Token collapsible — self-contained dark surface so JSON text
+   stays readable regardless of the panel it's nested in (color: inherit
+   above was pulling in a dark ancestor color on dark surfaces). */
+pre.tcd-jwt-dump.jh-dark {
+  background: #0f172a;
+  color: #c9d1d9;
+  border-radius: 6px;
 }
 
 .tcd-exchange-req pre.tcd-jwt-dump {

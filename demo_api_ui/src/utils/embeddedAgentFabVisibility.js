@@ -12,6 +12,18 @@ export function isBankingAgentDashboardRoute(pathname) {
 }
 
 /**
+ * /admin console agent — PingOne Admin vertical (ADMIN1–4 demo steps +
+ * /api/admin-agent), not the banking trust-ladder catalog.
+ * @param {string} [pathname]
+ * @returns {boolean}
+ */
+export function isPingOneAdminAgentRoute(pathname) {
+  if (pathname == null || typeof pathname !== 'string') return false;
+  const p = pathname.replace(/\/$/, '') || '/';
+  return p === '/admin';
+}
+
+/**
  * Routes where the embedded bottom-dock agent is mounted (dashboard homes + Application Configuration).
  * Floating FAB still uses {@link isBankingAgentDashboardRoute} only — not `/config`.
  * @param {string} [pathname]
@@ -101,4 +113,30 @@ export function isMonitoringRoute(pathname) {
     '/architecture',
   ];
   return MONITORING_PREFIXES.some(prefix => p === prefix || p.startsWith(prefix + '/'));
+}
+
+/**
+ * The live use-case workbench (/use-cases/live) — drawer + real Token Chain
+ * rail driven by the single real agent squeezed into a narrow "middle" column,
+ * same placement mechanism UserDashboard uses for its own middle column.
+ * @param {string} [pathname]
+ * @returns {boolean}
+ */
+export function isLiveWorkbenchRoute(pathname) {
+  if (pathname == null || typeof pathname !== 'string') return false;
+  const p = pathname.replace(/\/$/, '') || '/';
+  return p === '/use-cases/live';
+}
+
+/**
+ * The Agent Lifecycle showcase (/agent-lifecycle) — four demo slots driven
+ * by the single real agent + live Token Chain rail in a persistent right
+ * column, same placement mechanism the live use-case workbench uses.
+ * @param {string} [pathname]
+ * @returns {boolean}
+ */
+export function isAgentLifecycleRoute(pathname) {
+  if (pathname == null || typeof pathname !== 'string') return false;
+  const p = pathname.replace(/\/$/, '') || '/';
+  return p === '/agent-lifecycle';
 }

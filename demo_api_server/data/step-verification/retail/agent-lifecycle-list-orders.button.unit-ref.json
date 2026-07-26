@@ -1,0 +1,11 @@
+{
+  "vertical": "retail",
+  "useCaseId": "agent-lifecycle-list-orders",
+  "triggerType": "button",
+  "mode": "unit-ref",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "list_orders",
+  "checkedAt": "2026-07-25",
+  "verifiedBy": "demo_api_ui/src/pages/__tests__/AgentLifecyclePage.test.jsx + e2e stepVerification retail list_orders button (#761)"
+}

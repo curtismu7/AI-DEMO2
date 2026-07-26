@@ -1,4 +1,4 @@
-import { buildTraceSteps } from "../buildTraceSteps";
+import { buildTraceSteps, buildRunStory } from "../buildTraceSteps";
 
 const EMPTY_TRACE = {
   startedAt: null, prompt: null, routingMode: null, routingDetail: null,
@@ -66,9 +66,66 @@ describe("buildTraceSteps — statuses from evidence", () => {
     const ex = steps.find((s) => s.id === "exchange");
     expect(ex.status).toBe("done");
     expect(ex.detail.scopeDiff).toEqual({ before: ["read", "write"], after: ["write"] });
+    expect(ex.detail.beforeAfter.before.text).toContain("read write");
+    expect(ex.detail.beforeAfter.after.text).toContain("aud");
     expect(ex.detail.request.text).toContain("token-exchange");
     expect(ex.detail.inspectToken).toBe("mcp");
     expect(ex.detail.rfcs).toContain("RFC 8693");
+  });
+
+  // Regression: 2-exchange used to drop exchangeRequest when splicing the
+  // in-progress card — TraceRail then had claims response but no coloured request.
+  test("two-ex-final-token with exchangeRequest fills TraceRail request JSON", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [
+        { id: "user-token", status: "active", claims: { scope: "read write" } },
+        {
+          id: "two-ex-final-token",
+          status: "exchanged",
+          claims: { sub: "user-123", scope: "gateway:mcp:invoke", aud: "mcpgateway.ping.demo",
+            act: { sub: "agent-001" } },
+          exchangeRequest: {
+            exchanger: "mcp-exchanger-client",
+            audience: "mcpgateway.ping.demo",
+            scope: "gateway:mcp:invoke",
+          },
+        },
+      ],
+    });
+    const ex = steps.find((s) => s.id === "exchange");
+    expect(ex.status).toBe("done");
+    expect(ex.detail.request).toBeDefined();
+    expect(ex.detail.request.title).toBe("Exchange request (actual)");
+    expect(ex.detail.request.text).toContain("mcp-exchanger-client");
+    expect(ex.detail.request.text).toContain("gateway:mcp:invoke");
+    expect(ex.detail.response.text).toContain("user-123");
+    expect(ex.detail.why).toMatch(/delegated token/i);
+  });
+
+  test("gw-authorize alone fills authorize step why + request (no BFF authorize-decision)", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      tokenEvents: [
+        {
+          id: "gw-authorize",
+          status: "permit",
+          decision: "PERMIT",
+          tool: "get_my_accounts",
+          url: "https://api.pingone.com/v1/.../decisionEndpoints/abc",
+          parameters: { ToolName: "get_my_accounts", UserId: "u1" },
+          rawResponse: { decision: "PERMIT", id: "dec_1" },
+          backend: "real",
+        },
+      ],
+    });
+    const az = steps.find((s) => s.id === "authorize");
+    expect(az.status).toBe("done");
+    expect(az.detail.why).toMatch(/PERMIT/);
+    expect(az.detail.request.text).toContain("get_my_accounts");
+    expect(az.detail.response.text).toContain("PERMIT");
+    expect(az.detail.decision.outcome).toBe("PERMIT");
   });
 
   test("authorize evaluation fills authorize step with decision + full request", () => {
@@ -212,7 +269,7 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(az.status).toBe("done");
     expect(az.detail.request.text).toContain("transfer_funds");
     expect(az.detail.response.text).toContain("PERMIT");
-    expect(az.detail.moreDetail.label).toBe("Show more detail");
+    expect(az.detail.moreDetail.label).toBe("More Education");
   });
 
   test("mcpResult fills mcp and api steps; llmReply fills reply", () => {
@@ -442,5 +499,149 @@ describe("buildTraceSteps — intent-binding step", () => {
     });
     const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
     expect(byId["intent-binding"].status).toBe("error");
+  });
+});
+
+describe("buildTraceSteps — attack sim (UC5 gateway scope deny)", () => {
+  const SIM_TRACE = {
+    ...EMPTY_TRACE,
+    prompt: { message: "Demo step 10: UC5 — Wrong / insufficient scope" },
+    outcome: "error",
+    tokenEvents: [
+      { id: "user-token", status: "active", claims: { sub: "user-123", scope: "read write" } },
+      { id: "sim-exchange-ok", label: "Exchanged Token (read-only)", status: "active",
+        claims: { sub: "user-123", scope: "read", aud: "https://api.ping.demo:3036/mcp" } },
+      { id: "sim-gateway-deny", label: "Gateway DENY (insufficient_scope)", status: "error",
+        error: "insufficient_scope", httpStatus: 403,
+        explanation: "Gateway rejected the call with 403 insufficient_scope: create_transfer requires write" },
+    ],
+  };
+
+  test("sim-exchange-ok fills the exchange step; the deny lands on the gateway step", () => {
+    const steps = buildTraceSteps(SIM_TRACE);
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+    expect(byId.exchange.status).toBe("done");
+    expect(byId.exchange.detail.scopeDiff).toEqual({ before: ["read", "write"], after: ["read"] });
+    expect(byId.gateway.status).toBe("error");
+    expect(byId.gateway.detail.decision.outcome).toBe("DENY");
+    expect(byId.gateway.detail.decision.label).toContain("insufficient_scope");
+    expect(byId.mcp.status).toBe("error");
+  });
+
+  test("steps the sim never touches resolve notinpath, not pending", () => {
+    const steps = buildTraceSteps(SIM_TRACE);
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+    for (const id of ["agent", "llm", "agent-token", "authorize", "reply", "api"]) {
+      expect(byId[id].status).toBe("notinpath");
+    }
+  });
+
+  test("RAR denies keep feeding intent-binding only — the gateway step is untouched", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [
+        { id: "sim-gateway-deny", status: "error", error: "rar_amount_exceeded" },
+      ],
+    });
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+    expect(byId["intent-binding"].status).toBe("error");
+    expect(byId.gateway.status).not.toBe("error");
+  });
+
+  test("invalid_aud deny shows token aud vs gateway expected aud", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [
+        {
+          id: "sim-gateway-deny",
+          label: "Gateway DENY (invalid_aud)",
+          status: "error",
+          error: "invalid_aud",
+          httpStatus: 401,
+          triedAudience: "https://api.ping.demo:3001",
+          allowedAudience: "https://api.ping.demo:3036/mcp",
+          explanation: "Gateway rejected the call with 401 invalid_aud",
+        },
+      ],
+    });
+    const gateway = steps.find((s) => s.id === "gateway");
+    expect(gateway.status).toBe("error");
+    const audKv = gateway.detail.kv.find((row) => row[0] === "audience");
+    expect(audKv).toBeTruthy();
+    expect(audKv[1]).toContain("https://api.ping.demo:3001");
+    expect(audKv[1]).toContain("https://api.ping.demo:3036/mcp");
+    expect(audKv[1]).toMatch(/MISMATCH/);
+  });
+});
+
+describe("buildRunStory — L0 strip", () => {
+  test("returns null when the trace is empty", () => {
+    expect(buildRunStory(EMPTY_TRACE, [])).toBeNull();
+  });
+
+  test("summarizes a successful run with authorize decision", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      prompt: { message: "show my balance" },
+      tokenEvents: [
+        {
+          id: "gw-authorize", status: "permit", decision: "PERMIT",
+          tool: "get_my_accounts", parameters: { ToolName: "get_my_accounts" },
+          rawResponse: { decision: "PERMIT" }, backend: "real",
+        },
+      ],
+    });
+    const story = buildRunStory({
+      ...EMPTY_TRACE, outcome: "ok", prompt: { message: "show my balance" },
+      tokenEvents: [{ id: "gw-authorize" }],
+    }, steps);
+    expect(story.headline).toMatch(/completed successfully/i);
+    expect(story.headline).toMatch(/PERMIT/);
+    expect(story.outcome).toBe("ok");
+    expect(story.bits.length).toBeGreaterThan(0);
+  });
+});
+
+describe("buildTraceSteps — expected DENY (control worked)", () => {
+  const expectedDenyTrace = {
+    ...EMPTY_TRACE,
+    outcome: "error",
+    prompt: { message: "what's the weather in Miami" },
+    mcpResult: {
+      tool: "get_weather",
+      denied: true,
+      expected: true,
+      result: {
+        error: "weather_scope_denied",
+        gatewayErrorCode: "weather_scope_denied",
+        message: "Agent Gateway: weather scope restricted to Texas — city not recognized as Texas",
+      },
+    },
+  };
+
+  test("api step frames an expected deny as the control working", () => {
+    const steps = buildTraceSteps(expectedDenyTrace);
+    const api = steps.find((s) => s.id === "api");
+    expect(api.status).toBe("done");
+    expect(api.detail.narrative).toMatch(/Expected DENY/);
+    expect(api.detail.response.text).toContain("weather_scope_denied");
+  });
+
+  test("buildRunStory presents an expected deny as a successful run, not an error", () => {
+    const steps = buildTraceSteps(expectedDenyTrace);
+    const story = buildRunStory(expectedDenyTrace, steps);
+    expect(story.outcome).toBe("ok");
+    expect(story.headline).toMatch(/Expected DENY/);
+  });
+
+  test("a denied result that is NOT expected still reads as an error", () => {
+    const trace = { ...expectedDenyTrace, mcpResult: { ...expectedDenyTrace.mcpResult, expected: false } };
+    const steps = buildTraceSteps(trace);
+    const story = buildRunStory(trace, steps);
+    expect(story.outcome).toBe("error");
+    expect(story.headline).not.toMatch(/Expected DENY/);
   });
 });

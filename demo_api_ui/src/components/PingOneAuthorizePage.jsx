@@ -1,8 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import bffAxios from '../services/bffAxios';
-import PolicyDecisionTree from './PolicyDecisionTree';
-import FloatingPanel from './FloatingPanel';
 import JsonHighlight from './shared/JsonHighlight';
+import AuthzTestPage from './AuthzTestPage';
+import MockAuthzRulesPage from './MockAuthzRulesPage';
+import ScopeAuditPage from './ScopeAuditPage';
+import ScopeReferencePage from './ScopeReferencePage';
+import SnapshotImport from '../pages/SnapshotImport';
+import InspectorShell from './shared/InspectorShell';
+import InspectorTabs from './shared/InspectorTabs';
 import { explainAuthorizeResult, displayDecision as explainDisplayDecision } from '../utils/authorizeResultExplain';
 import './McpInspector.css';
 import './PingOneMcpInspector.css';
@@ -33,7 +39,7 @@ const Section = ({ title, hint, status, defaultOpen = true, children }) => (
 // ---------------------------------------------------------------------------
 
 const S = {
-  root: { padding: '28px 32px', maxWidth: '1000px', fontFamily: 'inherit' },
+  root: { padding: '28px 32px', width: '100%', maxWidth: 'none', boxSizing: 'border-box', fontFamily: 'inherit' },
   header: { marginBottom: '20px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' },
   title: { fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: '0 0 6px' },
   subtitle: { fontSize: '13px', color: '#64748b', margin: 0, lineHeight: 1.5 },
@@ -110,11 +116,6 @@ const S = {
     borderRadius: '7px', fontSize: '12px', fontWeight: 700, color: '#fff', cursor: 'pointer',
     display: 'inline-flex', alignItems: 'center', gap: '8px',
   },
-  reopenTraceOpen: {
-    marginTop: '12px', padding: '9px 14px', background: '#eef2ff', border: '1px solid #c7d2fe',
-    borderRadius: '7px', fontSize: '12px', fontWeight: 700, color: '#3730a3', cursor: 'pointer',
-    display: 'inline-flex', alignItems: 'center', gap: '8px',
-  },
 
   policyUsed: { marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(0,0,0,.06)' },
   policyUsedLabel: { fontSize: '10px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: '4px' },
@@ -157,6 +158,17 @@ const S = {
   polDisabled: { fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '20px', background: '#f3f4f6', color: '#6b7280' },
   polTestActions: { display: 'flex', gap: '10px', marginTop: '6px' },
   polTestBtn: { background: 'none', border: 'none', padding: 0, fontSize: '11px', fontWeight: 600, color: '#1d4ed8', cursor: 'pointer', textDecoration: 'underline' },
+  polSearchWrap: { padding: '8px 12px 0' },
+  polSearch: {
+    padding: '7px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '12px',
+    fontFamily: 'inherit', background: '#fff', width: '100%', boxSizing: 'border-box',
+  },
+  polSearchMeta: { fontSize: '11px', color: '#94a3b8', marginTop: '6px' },
+  polNodeMatch: {
+    border: '1px solid #c7d2fe',
+    borderLeft: '3px solid #4f46e5',
+    borderRadius: '8px', padding: '10px 12px', background: '#eef2ff',
+  },
   pendingLabel: { fontSize: '11px', fontWeight: 700, color: '#3730a3', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: '6px', padding: '4px 10px', marginBottom: '10px', display: 'inline-block' },
 };
 
@@ -212,6 +224,38 @@ function endpointLabel(ep) {
   return `${ep.name || '(unnamed)'} — ${ep.id}`;
 }
 
+/** Recursively counts RULE nodes in a policy tree (used by the left-column header count). */
+function ruleCount(nodes) {
+  return nodes.reduce((n, p) => n + (p.kind === 'RULE' ? 1 : 0) + ruleCount(p.children || []), 0);
+}
+
+/** True when a policy node's name or description contains the query (case-insensitive). */
+export function policyNodeMatches(node, query) {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q || !node) return false;
+  const name = String(node.name || '').toLowerCase();
+  const desc = String(node.description || '').toLowerCase();
+  return name.includes(q) || desc.includes(q);
+}
+
+/**
+ * Prune the policy tree to nodes that match `query` (name/description) or have a
+ * matching descendant. Empty query returns the original tree. A matching node
+ * keeps its full subtree so nested rules stay usable (Trigger / Avoid). Ancestors
+ * of a deeper match are kept so the path to a hit stays visible.
+ */
+export function filterPolicyTree(nodes, query) {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) return nodes || [];
+  const walk = (node) => {
+    if (policyNodeMatches(node, q)) return node;
+    const kids = (node.children || []).map(walk).filter(Boolean);
+    if (kids.length === 0) return null;
+    return { ...node, children: kids };
+  };
+  return (nodes || []).map(walk).filter(Boolean);
+}
+
 function DecisionRow({ d, idx }) {
   // PingOne recent-decision items nest the verdict under decisionResponse and
   // stamp the time as requestedAt. The request parameters (Amount/Type/Acr) are
@@ -234,14 +278,23 @@ function DecisionRow({ d, idx }) {
 // Evaluate panel — preset-driven parameter builders, all routed through the
 // generic /api/authorize/evaluate-endpoint against the selected endpoint.
 // ---------------------------------------------------------------------------
-function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearPendingTest }) {
+export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTest, onClearPendingTest, onEvaluated, onTestRule }) {
+  const navigate = useNavigate();
+  const { policies, loading: policiesLoading, error: policiesError, note: policiesNote } = policiesState;
+  const [outputTab, setOutputTab] = useState('decision');
   const [preset, setPreset] = useState(autoPreset);
   const [result, setResult] = useState(null);
-  const [traceOpen, setTraceOpen] = useState(false);
   const [running, setRunning] = useState(false);
   const [err, setErr] = useState(null);
   const [lastTrace, setLastTrace] = useState(null);
   const [lastParameters, setLastParameters] = useState(null);
+  const [policyQuery, setPolicyQuery] = useState('');
+
+  const filteredPolicies = useMemo(
+    () => filterPolicyTree(policies, policyQuery),
+    [policies, policyQuery],
+  );
+  const queryActive = Boolean(String(policyQuery || '').trim());
 
   // Transaction preset fields
   const [amount, setAmount] = useState('5000');
@@ -272,7 +325,6 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearP
   useEffect(() => {
     setPreset(autoPreset);
     setResult(null);
-    setTraceOpen(false);
     setErr(null);
     setLastTrace(null);
     setLastParameters(null);
@@ -286,7 +338,6 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearP
     if (!pendingTest) return;
     setPreset(pendingTest.preset);
     setResult(null);
-    setTraceOpen(false);
     setErr(null);
     const p = pendingTest.parameters;
     if (pendingTest.preset === 'transaction') {
@@ -361,7 +412,7 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearP
   };
 
   const run = async () => {
-    setRunning(true); setResult(null); setTraceOpen(false); setErr(null); setLastTrace(null); setLastParameters(null);
+    setRunning(true); setResult(null); setErr(null); setLastTrace(null); setLastParameters(null); setOutputTab('decision');
     const parameters = buildParameters();
     const started = Date.now();
     try {
@@ -377,6 +428,13 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearP
         response: authorizeResponsePayload(res.data),
         timingsMs: elapsed,
         error: false,
+      });
+      onEvaluated?.({
+        preset,
+        decision: displayDecision(res.data),
+        engine: res.data.engine,
+        stepUpRequired: !!res.data.stepUpRequired,
+        decisionId: res.data.decisionId,
       });
     } catch (e) {
       const elapsed = Date.now() - started;
@@ -412,245 +470,283 @@ function EvaluatePanel({ endpointId, autoPreset, policies, pendingTest, onClearP
   const presetLabel = { transaction: 'Transaction', mcp: 'MCP First Tool', custom: 'Custom' }[preset];
 
   return (
-    <div>
-      {pendingTest && (
-        <div style={S.pendingLabel}>Testing: {pendingTest.ruleName} — {pendingTest.case}</div>
-      )}
-      <div style={S.tabs}>
-        <span style={S.tab(preset === 'transaction')} onClick={() => { setPreset('transaction'); onClearPendingTest?.(); }}>Transaction</span>
-        <span style={S.tab(preset === 'mcp')} onClick={() => { setPreset('mcp'); onClearPendingTest?.(); }}>MCP First Tool</span>
-        <span style={S.tab(preset === 'custom')} onClick={() => { setPreset('custom'); onClearPendingTest?.(); }}>Custom parameters</span>
-        <span style={S.presetPill}>preset: {presetLabel}</span>
-      </div>
-
-      {TAB_HELP[preset] && (
-        <div style={S.tabHelp}>
-          <span style={S.tabHelpTitle}>{TAB_HELP[preset].title}:</span>
-          {TAB_HELP[preset].body}
-        </div>
-      )}
-
-      {preset === 'transaction' && (
-        <div style={S.formRow}>
-          <div style={S.fieldGroup}><label style={S.fld}>Amount (USD)</label>
-            <input style={S.input} type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="e.g. 5000" /></div>
-          <div style={S.fieldGroup}><label style={S.fld}>Transaction type</label>
-            <select style={S.select} value={txType} onChange={e => setTxType(e.target.value)}>
-              {TX_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-            </select></div>
-          <div style={S.fieldGroup}><label style={S.fld}>ACR (auth context)</label>
-            <select style={S.select} value={acr} onChange={e => setAcr(e.target.value)}>
-              <option value="">(none)</option><option value="MFA">MFA</option><option value="Single">Single</option>
-            </select></div>
-          <div style={S.fieldGroup}><label style={S.fld}>User ID</label>
-            <input style={S.input} type="text" value={userId} onChange={e => setUserId(e.target.value)} /></div>
-        </div>
-      )}
-
-      {preset === 'mcp' && (
-        <>
-          <div style={S.formRow}>
-            <div style={S.fieldGroup}><label style={S.fld}>Tool name</label>
-              <input style={S.input} type="text" value={toolName} onChange={e => setToolName(e.target.value)} /></div>
-            <div style={S.fieldGroup}><label style={S.fld}>Token audience</label>
-              <input style={S.input} type="text" value={tokenAudience} onChange={e => setTokenAudience(e.target.value)} /></div>
-            <div style={S.fieldGroup}><label style={S.fld}>Act client id</label>
-              <input style={S.input} type="text" value={actClientId} onChange={e => setActClientId(e.target.value)} placeholder="act.client_id" /></div>
-            <div style={S.fieldGroup}><label style={S.fld}>User ID</label>
-              <input style={S.input} type="text" value={userId} onChange={e => setUserId(e.target.value)} /></div>
-          </div>
-          <div style={{ ...S.formRow, gridTemplateColumns: '1fr 2fr 1fr', marginTop: '12px' }}>
-            <div style={S.fieldGroup}><label style={S.fld}>HitlApproved</label>
-              <select style={S.select} value={hitlApproved ? 'true' : 'false'} onChange={e => setHitlApproved(e.target.value === 'true')}>
-                <option value="false">false</option><option value="true">true</option>
-              </select></div>
-            <div style={S.fieldGroup}><label style={S.fld}>MCP resource URI</label>
-              <input style={S.input} type="text" value={mcpResourceUri} onChange={e => setMcpResourceUri(e.target.value)} /></div>
-            <div />
-          </div>
-        </>
-      )}
-
-      {preset === 'custom' && (
-        <table style={S.table}>
-          <thead><tr>
-            <th style={{ ...S.th, width: '42%' }}>Parameter (Trust Framework attribute)</th>
-            <th style={S.th}>Value</th>
-            <th style={{ ...S.th, width: '44px' }}></th>
-          </tr></thead>
-          <tbody>
-            {customRows.map((r, i) => (
-              <tr key={i}>
-                <td style={S.td}><input style={S.input} type="text" value={r.key} placeholder="add attribute…" onChange={e => setRow(i, 'key', e.target.value)} /></td>
-                <td style={S.td}><input style={S.input} type="text" value={r.value} placeholder="value…" onChange={e => setRow(i, 'value', e.target.value)} /></td>
-                <td style={S.td}>
-                  {(r.key || r.value) ? (
-                    <button style={{ ...S.iconBtn, marginTop: 0, color: '#dc2626' }} onClick={() => removeRow(i)}>remove</button>
-                  ) : null}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      <div style={S.formFoot}>
-        <button style={S.evalBtn} onClick={run} disabled={running || !endpointId}>{running ? 'Evaluating…' : 'Evaluate (live)'}</button>
-      </div>
-
-      {err && <div style={{ color: '#dc2626', fontSize: '12px', marginTop: '10px' }}>❌ {err}</div>}
-
-      {result && (
-        <div style={{ ...S.resultBox(decision), marginTop: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-            <span style={S.resultDecision(decision)}>{DECISION_ICON[decision] || '?'} {decision}</span>
-            <span style={{ fontSize: '12px', color: '#6b7280' }}>engine: {result.engine}</span>
-          </div>
-          <div style={S.resultSub}>
-            {result.decisionId ? `Decision ID ${result.decisionId} · ` : ''}path: {result.path || '—'}
-          </div>
-          {explanation?.policyName && (
-            <div style={S.policyUsed}>
-              <div style={S.policyUsedLabel}>Policy evaluated</div>
-              <div style={S.policyUsedName}>{explanation.policyName}</div>
-              {explanation.policyDescription && (
-                <div style={S.policyUsedDesc}>{explanation.policyDescription}</div>
-              )}
-              {explanation.ruleName && (
-                <>
-                  <div style={S.policyUsedLabel}>Rule that applied</div>
-                  <div style={S.ruleUsedName}>{explanation.ruleName}</div>
-                  {explanation.ruleDescription && (
-                    <div style={S.policyUsedDesc}>{explanation.ruleDescription}</div>
+    <InspectorShell
+      title="PingOne Authorize"
+      statusOn={!!endpointId}
+      statusText={endpointId ? undefined : 'Select a decision endpoint above'}
+      fullHeight={false}
+      left={
+          <>
+            <div className="inspector-shell-tree-header">
+              <span>Authorization Policies</span>
+              <span>{policiesLoading ? 'loading…' : `${ruleCount(queryActive ? filteredPolicies : policies)} rule${ruleCount(queryActive ? filteredPolicies : policies) !== 1 ? 's' : ''}`}</span>
+            </div>
+            {!policiesLoading && !policiesError && policies.length > 0 && (
+              <div style={S.polSearchWrap}>
+                <input
+                  type="search"
+                  style={S.polSearch}
+                  value={policyQuery}
+                  onChange={(e) => setPolicyQuery(e.target.value)}
+                  placeholder="Search policies (name or description)…"
+                  aria-label="Search authorization policies"
+                />
+                {queryActive && (
+                  <div style={S.polSearchMeta}>
+                    {filteredPolicies.length === 0
+                      ? 'No matching policies'
+                      : `Showing matches for “${String(policyQuery).trim()}”`}
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="inspector-shell-tree-body">
+              {policiesLoading ? (
+                <div style={{ padding: '20px 16px', color: '#64748b', fontSize: '13px' }}>Loading policies…</div>
+              ) : policiesError ? (
+                <div style={{ padding: '20px 16px', color: '#b45309', fontSize: '13px' }}>⚠️ {policiesError}</div>
+              ) : policies.length === 0 ? (
+                <div style={{ padding: '20px 16px', color: '#64748b', fontSize: '13px' }}>
+                  {policiesNote || 'No authorization policies found in this environment.'}
+                </div>
+              ) : filteredPolicies.length === 0 ? (
+                <div style={{ padding: '20px 16px', color: '#64748b', fontSize: '13px' }}>
+                  No policies match “{String(policyQuery).trim()}”.
+                </div>
+              ) : (
+                <div style={{ padding: '8px 12px' }}>
+                  {policiesNote && (
+                    <div style={{ marginBottom: '10px', fontSize: '12px', color: '#64748b' }}>{policiesNote}</div>
                   )}
+                  <div style={S.polTree}>
+                    {filteredPolicies.map((p) => (
+                      <PolicyNode key={p.id} node={p} onTestRule={onTestRule} query={policyQuery} />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        }
+        middle={
+          <>
+            <div className="inspector-shell-form-header">
+              <div className="inspector-shell-form-header__name">Evaluate</div>
+              <div className="inspector-shell-form-header__desc">Send a real decision request to the selected endpoint.</div>
+            </div>
+            <div className="inspector-shell-form-body">
+              {pendingTest && (
+                <div style={S.pendingLabel}>Testing: {pendingTest.ruleName} — {pendingTest.case}</div>
+              )}
+              <div style={S.tabs}>
+                <span style={S.tab(preset === 'transaction')} onClick={() => { setPreset('transaction'); onClearPendingTest?.(); }}>Transaction</span>
+                <span style={S.tab(preset === 'mcp')} onClick={() => { setPreset('mcp'); onClearPendingTest?.(); }}>MCP First Tool</span>
+                <span style={S.tab(preset === 'custom')} onClick={() => { setPreset('custom'); onClearPendingTest?.(); }}>Custom parameters</span>
+                <span style={S.presetPill}>preset: {presetLabel}</span>
+              </div>
+
+              {TAB_HELP[preset] && (
+                <div style={S.tabHelp}>
+                  <span style={S.tabHelpTitle}>{TAB_HELP[preset].title}:</span>
+                  {TAB_HELP[preset].body}
+                </div>
+              )}
+
+              {preset === 'transaction' && (
+                <div style={S.formRow}>
+                  <div style={S.fieldGroup}><label style={S.fld}>Amount (USD)</label>
+                    <input style={S.input} type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="e.g. 5000" /></div>
+                  <div style={S.fieldGroup}><label style={S.fld}>Transaction type</label>
+                    <select style={S.select} value={txType} onChange={e => setTxType(e.target.value)}>
+                      {TX_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select></div>
+                  <div style={S.fieldGroup}><label style={S.fld}>ACR (auth context)</label>
+                    <select style={S.select} value={acr} onChange={e => setAcr(e.target.value)}>
+                      <option value="">(none)</option><option value="MFA">MFA</option><option value="Single">Single</option>
+                    </select></div>
+                  <div style={S.fieldGroup}><label style={S.fld}>User ID</label>
+                    <input style={S.input} type="text" value={userId} onChange={e => setUserId(e.target.value)} /></div>
+                </div>
+              )}
+
+              {preset === 'mcp' && (
+                <>
+                  <div style={S.formRow}>
+                    <div style={S.fieldGroup}><label style={S.fld}>Tool name</label>
+                      <input style={S.input} type="text" value={toolName} onChange={e => setToolName(e.target.value)} /></div>
+                    <div style={S.fieldGroup}><label style={S.fld}>Token audience</label>
+                      <input style={S.input} type="text" value={tokenAudience} onChange={e => setTokenAudience(e.target.value)} /></div>
+                    <div style={S.fieldGroup}><label style={S.fld}>Act client id</label>
+                      <input style={S.input} type="text" value={actClientId} onChange={e => setActClientId(e.target.value)} placeholder="act.client_id" /></div>
+                    <div style={S.fieldGroup}><label style={S.fld}>User ID</label>
+                      <input style={S.input} type="text" value={userId} onChange={e => setUserId(e.target.value)} /></div>
+                  </div>
+                  <div style={{ ...S.formRow, gridTemplateColumns: '1fr 2fr 1fr', marginTop: '12px' }}>
+                    <div style={S.fieldGroup}><label style={S.fld}>HitlApproved</label>
+                      <select style={S.select} value={hitlApproved ? 'true' : 'false'} onChange={e => setHitlApproved(e.target.value === 'true')}>
+                        <option value="false">false</option><option value="true">true</option>
+                      </select></div>
+                    <div style={S.fieldGroup}><label style={S.fld}>MCP resource URI</label>
+                      <input style={S.input} type="text" value={mcpResourceUri} onChange={e => setMcpResourceUri(e.target.value)} /></div>
+                    <div />
+                  </div>
                 </>
               )}
-              {explanation.combiningAlgorithm && (
-                <div style={{ fontSize: '11px', color: '#94a3b8' }}>
-                  Combining algorithm: {explanation.combiningAlgorithm.replace(/([A-Z])/g, ' $1').trim()}
-                </div>
-              )}
-            </div>
-          )}
-          <div style={S.oblig}>
-            <div>Step-up: <b>{result.stepUpRequired ? 'yes' : 'no'}</b></div>
-            <div>Consent / HITL: <b>{(result.consentRequired || result.hitlRequired) ? 'yes' : 'no'}</b></div>
-          </div>
-          {explanation && (
-            <div style={S.explainBox}>
-              <div style={S.explainHeadline}>{explanation.headline}</div>
-              {explanation.ruleLikely && !explanation.ruleName && (
-                <div style={S.explainRule}>
-                  Likely rule: <strong>{explanation.ruleLikely}</strong>
-                </div>
-              )}
-              {explanation.reasons.length > 0 && (
-                <ul style={S.explainList}>
-                  {explanation.reasons.map((line) => <li key={line}>{line}</li>)}
-                </ul>
-              )}
-              {explanation.thresholds?.length > 0 && preset === 'transaction' && (
-                <div style={{ fontSize: '11px', color: '#64748b' }}>
-                  Policy thresholds: {explanation.thresholds.join(' · ')}
-                </div>
-              )}
-              {explanation.apiSummary && (
-                <div style={S.explainApi}>
-                  API: {explanation.apiSummary}
-                  {result.decisionId ? ` · decisionId ${result.decisionId}` : ''}
-                </div>
-              )}
-            </div>
-          )}
-          <button
-            type="button"
-            style={traceOpen ? S.reopenTraceOpen : S.reopenTrace}
-            onClick={() => setTraceOpen((open) => !open)}
-            aria-expanded={traceOpen}
-          >
-            {traceOpen ? 'Close floating policy decision trace' : '🪟 Open policy decision trace'}
-          </button>
-        </div>
-      )}
 
-      {lastTrace && (
-        <>
-          <div className={`p1mcp-call-status ${lastTrace.error ? 'p1mcp-call-status--error' : ''}`} style={{ marginTop: '12px' }}>
-            {lastTrace.error
-              ? 'PingOne Authorize call failed'
-              : `Live API call completed in ${lastTrace.timingsMs ?? '?'} ms — request and response below`}
-          </div>
-          <Section
-            title="PingOne API request"
-            hint="Trust Framework parameters sent to the decision endpoint"
-            status="ok"
-            defaultOpen
-          >
-            <pre className="mcp-inspector__code jh-dark">
-              <JsonHighlight value={lastTrace.request} deep />
-            </pre>
-          </Section>
-          <Section
-            title="PingOne API response"
-            hint={`decision: ${result ? (explainDisplayDecision(result) || result.decision) : '—'}`}
-            status={lastTrace.error ? 'error' : 'ok'}
-            defaultOpen
-          >
-            {lastTrace.response ? (
-              <pre className="mcp-inspector__code jh-dark">
-                <JsonHighlight value={lastTrace.response} deep />
-              </pre>
-            ) : (
-              <p className="mcp-inspector__muted">No response body returned.</p>
-            )}
-          </Section>
-        </>
-      )}
-
-      {result && traceOpen && (
-        <FloatingPanel
-          title="Policy decision trace"
-          defaultWidth={Math.min(780, window.innerWidth - 48)}
-          defaultHeight={Math.min(560, window.innerHeight - 100)}
-          defaultX={Math.max(24, Math.floor((window.innerWidth - Math.min(780, window.innerWidth - 48)) / 2))}
-          defaultY={Math.max(48, Math.floor((window.innerHeight - Math.min(560, window.innerHeight - 100)) / 5))}
-          minWidth={360}
-          minHeight={280}
-          onClose={() => setTraceOpen(false)}
-          className="p1dt-floating-panel"
-        >
-          {/* Only mount the tree once policies exist. It calls useState AFTER its
-              own `policies.length === 0` early-return, so rendering it empty and
-              then letting the fetch resolve would take it from 0 hooks to 1 hook
-              on the same mount — React throws "Rendered more hooks than during
-              the previous render" and the panel blanks. Gating here also keeps
-              its auto-collapse correct: the useState initializer runs once, so it
-              must first run with real policies, not with []. */}
-          {Array.isArray(policies) && policies.length > 0 && (
-            <PolicyDecisionTree policies={policies} result={result} floating />
-          )}
-          {/* Fallback when there is no tree to show (no policies loaded) */}
-          {(!Array.isArray(policies) || policies.length === 0) && (
-            <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
-              <p style={{ marginBottom: '12px', fontWeight: 600, color: '#0f172a' }}>No policy tree available</p>
-              <p>The decision trace requires the authorization policy tree from PingOne. Either the policies have not loaded yet or the worker credentials are not configured.</p>
-              <p style={{ marginTop: '12px', fontSize: '12px' }}>The raw API request and response are shown inline below the Evaluate result.</p>
+              {preset === 'custom' && (
+                <table style={S.table}>
+                  <thead><tr>
+                    <th style={{ ...S.th, width: '42%' }}>Parameter (Trust Framework attribute)</th>
+                    <th style={S.th}>Value</th>
+                    <th style={{ ...S.th, width: '44px' }}></th>
+                  </tr></thead>
+                  <tbody>
+                    {customRows.map((r, i) => (
+                      <tr key={i}>
+                        <td style={S.td}><input style={S.input} type="text" value={r.key} placeholder="add attribute…" onChange={e => setRow(i, 'key', e.target.value)} /></td>
+                        <td style={S.td}><input style={S.input} type="text" value={r.value} placeholder="value…" onChange={e => setRow(i, 'value', e.target.value)} /></td>
+                        <td style={S.td}>
+                          {(r.key || r.value) ? (
+                            <button style={{ ...S.iconBtn, marginTop: 0, color: '#dc2626' }} onClick={() => removeRow(i)}>remove</button>
+                          ) : null}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
-          )}
-        </FloatingPanel>
-      )}
-    </div>
+            <div className="inspector-shell-form-actions">
+              <button style={S.evalBtn} onClick={run} disabled={running || !endpointId}>{running ? 'Evaluating…' : 'Evaluate (live)'}</button>
+              {err && <span style={{ color: '#dc2626', fontSize: '12px', marginLeft: '8px' }}>❌ {err}</span>}
+            </div>
+          </>
+        }
+        right={
+          <>
+            <InspectorTabs
+              tabs={[
+                { key: 'decision', label: 'Decision' },
+                { key: 'response', label: 'Response' },
+                { key: 'request', label: 'Request' },
+              ]}
+              activeKey={outputTab}
+              onChange={setOutputTab}
+            />
+            <div className="inspector-shell-output-body">
+              {outputTab === 'decision' && (
+                result ? (
+                  <div style={S.resultBox(decision)}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                      <span style={S.resultDecision(decision)}>{DECISION_ICON[decision] || '?'} {decision}</span>
+                      <span style={{ fontSize: '12px', color: '#6b7280' }}>engine: {result.engine}</span>
+                    </div>
+                    <div style={S.resultSub}>
+                      {result.decisionId ? `Decision ID ${result.decisionId} · ` : ''}path: {result.path || '—'}
+                    </div>
+                    {explanation?.policyName && (
+                      <div style={S.policyUsed}>
+                        <div style={S.policyUsedLabel}>Policy evaluated</div>
+                        <div style={S.policyUsedName}>{explanation.policyName}</div>
+                        {explanation.policyDescription && (
+                          <div style={S.policyUsedDesc}>{explanation.policyDescription}</div>
+                        )}
+                        {explanation.ruleName && (
+                          <>
+                            <div style={S.policyUsedLabel}>Rule that applied</div>
+                            <div style={S.ruleUsedName}>{explanation.ruleName}</div>
+                            {explanation.ruleDescription && (
+                              <div style={S.policyUsedDesc}>{explanation.ruleDescription}</div>
+                            )}
+                          </>
+                        )}
+                        {explanation.combiningAlgorithm && (
+                          <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                            Combining algorithm: {explanation.combiningAlgorithm.replace(/([A-Z])/g, ' $1').trim()}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div style={S.oblig}>
+                      <div>Step-up: <b>{result.stepUpRequired ? 'yes' : 'no'}</b></div>
+                      <div>Consent / HITL: <b>{(result.consentRequired || result.hitlRequired) ? 'yes' : 'no'}</b></div>
+                    </div>
+                    {explanation && (
+                      <div style={S.explainBox}>
+                        <div style={S.explainHeadline}>{explanation.headline}</div>
+                        {explanation.ruleLikely && !explanation.ruleName && (
+                          <div style={S.explainRule}>
+                            Likely rule: <strong>{explanation.ruleLikely}</strong>
+                          </div>
+                        )}
+                        {explanation.reasons.length > 0 && (
+                          <ul style={S.explainList}>
+                            {explanation.reasons.map((line) => <li key={line}>{line}</li>)}
+                          </ul>
+                        )}
+                        {explanation.thresholds?.length > 0 && preset === 'transaction' && (
+                          <div style={{ fontSize: '11px', color: '#64748b' }}>
+                            Policy thresholds: {explanation.thresholds.join(' · ')}
+                          </div>
+                        )}
+                        {explanation.apiSummary && (
+                          <div style={S.explainApi}>
+                            API: {explanation.apiSummary}
+                            {result.decisionId ? ` · decisionId ${result.decisionId}` : ''}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      style={S.reopenTrace}
+                      onClick={() => navigate('/policy-decision-trace', { state: { policies, result } })}
+                    >
+                      Open policy decision trace
+                    </button>
+                  </div>
+                ) : (
+                  <div className="inspector-shell-output-empty">Run an evaluation to see the decision.</div>
+                )
+              )}
+              {outputTab === 'response' && (
+                lastTrace ? (
+                  lastTrace.response ? (
+                    <pre className="mcp-inspector__code jh-dark">
+                      <JsonHighlight value={lastTrace.response} deep />
+                    </pre>
+                  ) : (
+                    <p className="mcp-inspector__muted">No response body returned.</p>
+                  )
+                ) : (
+                  <div className="inspector-shell-output-empty">Run an evaluation to see the response.</div>
+                )
+              )}
+              {outputTab === 'request' && (
+                lastTrace ? (
+                  <pre className="mcp-inspector__code jh-dark">
+                    <JsonHighlight value={lastTrace.request} deep />
+                  </pre>
+                ) : (
+                  <div className="inspector-shell-output-empty">Run an evaluation to see the request.</div>
+                )
+              )}
+            </div>
+          </>
+        }
+      />
   );
 }
 
 // ---------------------------------------------------------------------------
 // Authorization policy tree — one recursive node (Policy Set → Policy → Rule)
 // ---------------------------------------------------------------------------
-function PolicyNode({ node, onTestRule }) {
+function PolicyNode({ node, onTestRule, query }) {
   if (!node) return null;
   const kindLabel = { POLICY_SET: 'Policy Set', POLICY: 'Policy', RULE: 'Rule' }[node.kind] || node.kind;
+  const matched = policyNodeMatches(node, query);
   return (
-    <div style={S.polNode(node.kind)}>
+    <div style={matched ? S.polNodeMatch : S.polNode(node.kind)} data-policy-match={matched ? 'true' : undefined}>
       <div style={S.polHead}>
         <span style={S.polKind(node.kind)}>{kindLabel}</span>
         <span style={S.polName}>{node.name}</span>
@@ -667,50 +763,9 @@ function PolicyNode({ node, onTestRule }) {
       )}
       {node.children?.length > 0 && (
         <div style={S.polChildren}>
-          {node.children.map((c) => <PolicyNode key={c.id} node={c} onTestRule={onTestRule} />)}
+          {node.children.map((c) => <PolicyNode key={c.id} node={c} onTestRule={onTestRule} query={query} />)}
         </div>
       )}
-    </div>
-  );
-}
-
-// Read-only listing of the live PingOne Authorize policy tree. This is what the
-// decision endpoints actually enforce — distinct from the endpoints themselves.
-// The tree is fetched once at the page level and passed in via `state` so the
-// Evaluate panel's decision-trace diagram can reuse it without a second fetch.
-function PoliciesCard({ state, onTestRule }) {
-  const ruleCount = (nodes) => nodes.reduce((n, p) => n + (p.kind === 'RULE' ? 1 : 0) + ruleCount(p.children || []), 0);
-
-  return (
-    <div style={S.card}>
-      <div style={S.cardHead}>
-        <span style={S.cardTitle}>Authorization Policies</span>
-        <span style={S.cardHint}>
-          {state.loading ? 'loading…' : `${state.policies.length} policy set${state.policies.length !== 1 ? 's' : ''} · ${ruleCount(state.policies)} rules`}
-        </span>
-      </div>
-      <div style={S.cardBody}>
-        <p style={{ ...S.subtitle, marginBottom: '12px' }}>
-          The live policy tree from PingOne Authorize. Each decision endpoint above evaluates a published version of this tree —
-          a decision endpoint is the HTTP entry point, while these policies and rules are the logic it runs.
-        </p>
-        {state.loading ? (
-          <div style={S.empty}>Loading policies…</div>
-        ) : state.error ? (
-          <div style={{ ...S.empty, color: '#b45309', borderColor: '#fde68a', background: '#fffbeb' }}>⚠️ {state.error}</div>
-        ) : state.policies.length === 0 ? (
-          <div style={S.empty}>{state.note || 'No authorization policies found in this environment.'}</div>
-        ) : (
-          <>
-            {/* A note alongside a tree means the tree came from a fallback
-                source (e.g. the repo snapshot) — show it above, don't hide the tree. */}
-            {state.note ? <div style={{ ...S.empty, marginBottom: '10px' }}>{state.note}</div> : null}
-            <div style={S.polTree}>
-              {state.policies.map((p) => <PolicyNode key={p.id} node={p} onTestRule={onTestRule} />)}
-            </div>
-          </>
-        )}
-      </div>
     </div>
   );
 }
@@ -719,6 +774,24 @@ function PoliciesCard({ state, onTestRule }) {
 // Main page
 // ---------------------------------------------------------------------------
 export default function PingOneAuthorizePage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const TABS = ['console', 'guided', 'snapshot', 'mockRules', 'scopes'];
+  const tab = TABS.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'console';
+  const setTab = useCallback((next) => {
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev);
+      if (next === 'console') p.delete('tab'); else p.set('tab', next);
+      return p;
+    }, { replace: true });
+  }, [setSearchParams]);
+  const [scopesSubTab, setScopesSubTab] = useState('audit');
+
+  // Client-side ring buffer of this session's ad-hoc Evaluate calls (Console tab).
+  const [runHistory, setRunHistory] = useState([]);
+  const pushRunHistory = useCallback((entry) => {
+    setRunHistory((h) => [entry, ...h].slice(0, 8));
+  }, []);
+
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -726,8 +799,8 @@ export default function PingOneAuthorizePage() {
   const [recent, setRecent] = useState({ decisions: [], error: null, loading: false });
   const [enabling, setEnabling] = useState(false);
   const [pendingTest, setPendingTest] = useState(null);
-  // Live policy tree — fetched once and shared by the read-only PoliciesCard and
-  // the Evaluate panel's decision-trace diagram (avoids a duplicate fetch).
+  // Live policy tree — fetched once and passed into EvaluatePanel, which renders
+  // it in the left-column tree and reuses it for the decision-trace diagram.
   const [policiesState, setPoliciesState] = useState({ policies: [], loading: true, error: null, note: null });
 
   useEffect(() => {
@@ -808,12 +881,38 @@ export default function PingOneAuthorizePage() {
     } finally { setEnabling(false); }
   };
 
-  if (loading) return <div style={{ padding: '40px', color: '#64748b', fontSize: '14px' }}>Loading PingOne Authorize configuration…</div>;
-
   const notConfigured = !data?.workerConfigured;
 
   return (
     <div style={S.root}>
+      <div style={S.tabs}>
+        <span style={S.tab(tab === 'console')} onClick={() => setTab('console')}>Live / Simulated Console</span>
+        <span style={S.tab(tab === 'guided')} onClick={() => setTab('guided')}>Guided Scenarios &amp; Learn</span>
+        <span style={S.tab(tab === 'mockRules')} onClick={() => setTab('mockRules')}>Mock Authz Rules</span>
+        <span style={S.tab(tab === 'scopes')} onClick={() => setTab('scopes')}>Scopes &amp; Resources</span>
+        <span style={S.tab(tab === 'snapshot')} onClick={() => setTab('snapshot')}>Snapshot Import</span>
+      </div>
+
+      {tab === 'guided' && <AuthzTestPage />}
+
+      {tab === 'mockRules' && <MockAuthzRulesPage />}
+
+      {tab === 'snapshot' && <SnapshotImport />}
+
+      {tab === 'scopes' && (
+        <div>
+          <div style={S.tabs}>
+            <span style={S.tab(scopesSubTab === 'audit')} onClick={() => setScopesSubTab('audit')}>Scope Audit</span>
+            <span style={S.tab(scopesSubTab === 'reference')} onClick={() => setScopesSubTab('reference')}>Scope Reference</span>
+          </div>
+          {scopesSubTab === 'audit' ? <ScopeAuditPage /> : <ScopeReferencePage />}
+        </div>
+      )}
+
+      {tab === 'console' && (loading ? (
+        <div style={{ padding: '40px', color: '#64748b', fontSize: '14px' }}>Loading PingOne Authorize configuration…</div>
+      ) : (
+        <>
       <div style={S.header}>
         <div>
           <h2 style={S.title}>PingOne Authorize — Live Policy Console</h2>
@@ -894,18 +993,10 @@ export default function PingOneAuthorizePage() {
         </div>
       </div>
 
-      {/* Authorization policies (read-only tree) */}
-      <PoliciesCard state={policiesState} onTestRule={handleTestRule} />
-
-      {/* Evaluate */}
-      <div style={S.card} id="evaluate-card">
-        <div style={S.cardHead}><span style={S.cardTitle}>Evaluate</span></div>
-        <div style={S.cardBody}>
-          {selectedId
-            ? <EvaluatePanel endpointId={selectedId} autoPreset={autoPreset} policies={policiesState.policies} pendingTest={pendingTest} onClearPendingTest={clearPendingTest} />
-            : <div style={S.empty}>Select a decision endpoint to evaluate.</div>}
-        </div>
-      </div>
+      {/* Evaluate — policy tree, form, and result all live inside one InspectorShell */}
+      {selectedId
+        ? <EvaluatePanel endpointId={selectedId} autoPreset={autoPreset} policiesState={policiesState} pendingTest={pendingTest} onClearPendingTest={clearPendingTest} onEvaluated={pushRunHistory} onTestRule={handleTestRule} />
+        : <div style={S.card}><div style={S.cardBody}><div style={S.empty}>Select a decision endpoint to evaluate.</div></div></div>}
 
       {/* Recent decisions */}
       <div style={S.card}>
@@ -935,6 +1026,40 @@ export default function PingOneAuthorizePage() {
           )}
         </div>
       </div>
+
+      {/* Run history — this session's ad-hoc Evaluate calls (any endpoint/preset) */}
+      <div style={S.card}>
+        <div style={S.cardHead}>
+          <span style={S.cardTitle}>Run History</span>
+          <span style={S.cardHint}>this session · {runHistory.length} loaded</span>
+        </div>
+        <div style={S.cardBody}>
+          {runHistory.length === 0 ? (
+            <div style={S.empty}>No evaluations run yet this session.</div>
+          ) : (
+            <table style={S.table}>
+              <thead><tr>
+                <th style={S.th}>#</th><th style={S.th}>Preset</th><th style={S.th}>Decision</th>
+                <th style={S.th}>Engine</th><th style={S.th}>Step-up</th><th style={S.th}>Decision ID</th>
+              </tr></thead>
+              <tbody>
+                {runHistory.map((h, i) => (
+                  <tr key={i}>
+                    <td style={S.td}>{i + 1}</td>
+                    <td style={S.td}>{{ transaction: 'Transaction', mcp: 'MCP First Tool', custom: 'Custom' }[h.preset] || h.preset}</td>
+                    <td style={S.td}><span style={S.dBadge(h.decision)}>{h.decision || '?'}</span></td>
+                    <td style={S.td}>{h.engine}</td>
+                    <td style={S.td}>{String(h.stepUpRequired)}</td>
+                    <td style={S.tdMono}>{h.decisionId || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+        </>
+      ))}
     </div>
   );
 }

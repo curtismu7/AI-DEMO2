@@ -104,6 +104,85 @@ function _resolveUserTier(userGroupsParam) {
   return NNP8_DEFAULT_TIER;
 }
 
+// ── Mock/cloud contract (F9) ──────────────────────────────────────────────────
+// The cloud PDP returns applied rule effects as `statements[].code`; this mock
+// used to return only `reason`, so consumers merged six response shapes to cover
+// both (pingOneAuthorizeService._classifyRawObligations). The mock now emits the
+// SAME codes the cloud snapshot defines
+// (snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json) while
+// KEEPING `reason` for back-compat.
+//
+// Codes are looked up from the deny reason's prefix (the token before ':'), so a
+// new deny reason inherits the shared code rather than emitting an unknown one.
+// Reasons whose cloud equivalent is not prefix-derivable pass an explicit code.
+const DENY_CODE_BY_REASON_PREFIX = {
+  missing_sub: 'mcp-missing-user-id',
+  invalid_aud: 'mcp-invalid-audience',
+  a2a_delegation_required: 'mcp-invalid-a2a-generalist',
+  invalid_a2a_generalist: 'mcp-invalid-a2a-generalist',
+  missing_act: 'mcp-invalid-actor',
+  missing_user_groups: 'mcp-user-not-in-group',
+  malformed_user_groups: 'mcp-user-not-in-group',
+  user_not_in_group: 'mcp-user-not-in-group',
+  amount_exceeds_ceiling: 'transaction-denied',
+  tier_tool_not_allowed: 'mcp-tier-tool-not-allowed',
+  tier_amount_exceeded: 'mcp-tier-amount-exceeded',
+};
+// Every deny without a specific cloud rule maps to the shared MCP deny statement
+// (the cloud snapshot multi-parents this one across all seven MCP deny rules).
+const DEFAULT_DENY_CODE = 'mcp-authorization-denied';
+
+// C2 — decision provenance. Every response this module returns is labelled.
+const POLICY_SOURCE = 'p1az-mock';
+
+// ── DecisionContext: two sets, deliberately different sizes ──────────────────
+//
+// ROUTING. Every context that identifies a request as MCP. Must stay identical
+// to MCP_DECISION_CONTEXTS in snapshots/gen-authorize-snapshot.js, which is what
+// the cloud condition `IsMcpFirstToolRequest` (cond 0008) expands to. The cloud
+// uses it to pick WHICH POLICY evaluates the request: in-set goes to the MCP
+// Delegation policy, out-of-set goes to the Transaction policy.
+//
+// Deliberately a DUPLICATE of the generator's list rather than an import: the
+// authz-server image does not ship snapshots/ (see Dockerfile — it copies only
+// *.js, routes/ and scope-topology.json), so requiring the generator here would
+// crash the container at startup. decision.mockCloudParity.test.js pins the two
+// copies together so the duplication cannot drift.
+const MCP_DECISION_CONTEXTS = new Set(['McpFirstTool', 'McpToolCall', 'McpToolsList', 'McpRequest']);
+
+// APPLICABILITY. The subset that represents a single MCP TOOL INVOCATION. The
+// gateways send 'McpToolCall'; the BFF sends 'McpFirstTool'. Rules gated on only
+// the former were skipped for every BFF-originated call (docs §5.5).
+//
+// This is intentionally NOT widened to match the routing set above, because the
+// cloud constant answers a different question. `McpToolsList` returns early at
+// Rule 1 and never reaches a tool-scoped rule at all; `McpRequest` is session
+// lifecycle (initialize / ping / notifications) and carries no ToolName and no
+// amount. A require-act rule (2.5) or an entitlement-tier ceiling (3d) has
+// nothing to evaluate on either — copying the four-entry routing list here would
+// add two contexts on which both rules are unconditionally inert, and would
+// misstate the rules' scope for the next reader. Rule applicability is per-rule;
+// policy routing is per-request.
+const MCP_TOOL_CALL_CONTEXTS = new Set(['McpToolCall', 'McpFirstTool']);
+
+// Scopes that authorize the gateway hop itself rather than a specific tool. A
+// token carrying only these cannot express per-tool scopes (Rule 3).
+const GATEWAY_HOP_SCOPES = ['gateway:mcp:invoke', 'pinggateway:invoke'];
+
+/**
+ * Parse an audience-ish value that may be a JSON array string, a
+ * comma-separated list, or a whitespace-separated list.
+ */
+function parseAudList(value) {
+  const raw = typeof value === 'string' ? value : value == null ? '' : String(value);
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.map(String) : [String(parsed)];
+  } catch {
+    return raw.split(/[\s,]+/).filter(Boolean);
+  }
+}
+
 function randomId() {
   try { return require('crypto').randomUUID(); } catch { return `id-${Date.now()}`; }
 }
@@ -244,16 +323,25 @@ module.exports = async function decisionHandler(req, res) {
     }
   }
 
-  // ── Rule 0c: TokenAudience must equal McpResourceUri ──────────────────────
+  // ── Rule 0c: TokenAudience must name the expected MCP resource ────────────
   // Mirrors the cloud policy's HasValidMcpAudience condition (TokenAudience ==
-  // McpResourceUri). The PingGateway sends the same gatewayResourceUri for both
-  // (p1az-decision.groovy), so they always match in the real flow; a mismatch
-  // (e.g. a token minted for a different MCP server) must DENY identically to
-  // cloud PingOne Authorize. Only enforced when the gateway supplies
-  // McpResourceUri — older callers that omit it keep the legacy behaviour.
-  if (McpResourceUri && TokenAudience && TokenAudience !== McpResourceUri) {
-    warn(`[AuthzServer/decision] DENY — TokenAudience "${TokenAudience}" != McpResourceUri "${McpResourceUri}"`);
-    return deny(res, `invalid_aud: TokenAudience "${TokenAudience}" does not match McpResourceUri "${McpResourceUri}"`);
+  // McpResourceUri). This USED to be a tautology: both gateways sent the same
+  // gatewayResourceUri for both keys, so the comparison could never fail.
+  // Under contract C1 TokenAudience becomes the token's REAL `aud`, which makes
+  // the rule meaningful — a token minted for a different MCP server now DENYs.
+  //
+  // Compared as SETS, not raw strings: post-C1 the caller sends the token's
+  // single actual aud while McpResourceUri still lists every accepted audience
+  // (k8s comma-joins them), so string equality would spuriously DENY the normal
+  // flow. Only enforced when the gateway supplies McpResourceUri — older callers
+  // that omit it keep the legacy behaviour.
+  if (McpResourceUri && TokenAudience) {
+    const tokenAudList = parseAudList(TokenAudience);
+    const resourceUriList = parseAudList(McpResourceUri);
+    if (!tokenAudList.some((a) => resourceUriList.includes(a))) {
+      warn(`[AuthzServer/decision] DENY — TokenAudience [${tokenAudList.join(',')}] does not name McpResourceUri [${resourceUriList.join(',')}]`);
+      return deny(res, `invalid_aud: TokenAudience "${TokenAudience}" does not match McpResourceUri "${McpResourceUri}"`);
+    }
   }
 
   // ── Rule 0c: exp must be in the future ────────────────────────────────────
@@ -448,7 +536,8 @@ module.exports = async function decisionHandler(req, res) {
     const isAuthorizedAiAgent = !!authorizedAiAgent && ActClientId === authorizedAiAgent;
     if (!isAuthorizedActor && !isAuthorizedAiAgent) {
       warn(`[AuthzServer/decision] DENY — act.sub "${ActClientId}" != authorized actor "${authorizedActor || '(none configured)'}" or AI Agent "${authorizedAiAgent || '(none configured)'}"`);
-      return deny(res, `act.sub "${ActClientId}" is not an authorized actor`);
+      // Explicit code: this reason has no "prefix:" shape to derive from.
+      return deny(res, `act.sub "${ActClientId}" is not an authorized actor`, 'mcp-invalid-actor');
     }
   }
 
@@ -459,12 +548,68 @@ module.exports = async function decisionHandler(req, res) {
   // primary act-based replacement for the may_act-based Rule 2 check removed
   // above (set REQUIRE_ACT_FOR_AGENT_TOOLS=false to opt out).
   // Parity: simulatedAuthorizeService.js evaluateMcpFirstTool mirrors this rule.
+  // Accepts BOTH tool-call contexts: the gateways send 'McpToolCall' and the BFF
+  // sends 'McpFirstTool'. Gating on 'McpToolCall' alone skipped this rule for
+  // every BFF-originated call (docs §5.5).
   const requireActForAgentTools = process.env.REQUIRE_ACT_FOR_AGENT_TOOLS !== 'false';
-  if (requireActForAgentTools && DecisionContext === 'McpToolCall') {
+  if (requireActForAgentTools && MCP_TOOL_CALL_CONTEXTS.has(DecisionContext)) {
     if (scopeTopology.isAgentMediatedTool(ToolName) && !ActClientId) {
       warn(`[AuthzServer/decision] DENY — missing_act: tool "${ToolName}" requires agent delegation`);
       return deny(res, `missing_act: tool "${ToolName}" requires an act claim (agent delegation). Impersonation is not permitted.`);
     }
+  }
+
+  // ── Rule 2.9: MCP session lifecycle — no tool to evaluate ─────────────────
+  // Both gateways send DecisionContext='McpRequest' for every non-tools/call
+  // method (PingOneAuthorizeClient.ts:127, p1az-decision.groovy:321) —
+  // initialize, ping, notifications/*. Those carry no ToolName.
+  //
+  // Since 1e8619d09 the cloud routes McpRequest to the MCP Delegation policy,
+  // whose deny rules are all tool-name or identity keyed and whose catch-all is
+  // `Permit Valid Tool Invocation` — so the cloud PERMITs a lifecycle call whose
+  // identity, actor and token claims check out. The mock had no routing notion,
+  // so the same request fell into Rule 3 below and was denied `unknown_tool: no
+  // policy defined for tool ""`. Same DecisionContext, opposite verdict — the
+  // exact mock/cloud drift this constant pair exists to prevent.
+  //
+  // Everything above this line (identity 0a/0a2, audience 0b/0b-2/0c, temporal
+  // 0c-0f, A2A 1c, actor 2, require-act 2.5) has already run and passed. Every
+  // rule BELOW it is tool-scoped. So there is nothing left to decide.
+  //
+  // Deliberately narrow: it requires BOTH a non-tool-call MCP context AND an
+  // absent ToolName. A tool call that forgot its tool name is still a DENY, and
+  // an McpRequest that DOES name a tool runs the full chain.
+  const isMcpContext = MCP_DECISION_CONTEXTS.has(DecisionContext);
+  if (isMcpContext && !MCP_TOOL_CALL_CONTEXTS.has(DecisionContext) && !asStr(ToolName).trim()) {
+    log(`[AuthzServer/decision] PERMIT — MCP session lifecycle (ctx=${DecisionContext} method=${params.McpMethod || '(none)'}), no tool to evaluate`);
+    return permit(res, `mcp session lifecycle permitted (${DecisionContext})`);
+  }
+
+  // ── Rule 2.95: UserRole — admin may not drive customer write tools ────────
+  // The BFF used to skip the ENTIRE authorization gate for admin sessions
+  // (F5, mcpToolAuthorizationService.js). That skip was removed and the role is
+  // now forwarded as UserRole (pingOneAuthorizeService.js:570) so the POLICY
+  // decides what admin means — but nothing consumed the key, which left the
+  // parameter decorative and the invariant enforced nowhere on the agent path.
+  //
+  // The invariant is not new: middleware/auth.js:1049 (requireNotAdmin) already
+  // 403s an admin token on every customer banking surface, and REGRESSION_PLAN
+  // §1 protects it. This states the same rule at the PDP. Note the direction —
+  // admin is a RESTRICTION here, never a bypass; re-adding a permit-for-admin
+  // branch would reinstate F5.
+  //
+  // Scoped to write tools: an admin observing customer state is the supported
+  // support-desk path, mutating it through the customer's agent is not.
+  // Inert when UserRole is absent, empty, or any non-admin value.
+  const isWriteToolForRole = ruleStore.isWriteTool(ToolName);
+  if (asStr(params.UserRole).trim().toLowerCase() === 'admin' && isWriteToolForRole) {
+    warn(`[AuthzServer/decision] DENY — admin_role_not_permitted: tool "${ToolName}" is a customer write tool`);
+    return deny(
+      res,
+      `admin_role_not_permitted: tool "${ToolName}" mutates customer banking state and is not available to an admin role. ` +
+      `Switch to a customer session (parity with requireNotAdmin).`,
+      'mcp-admin-role-not-permitted',
+    );
   }
 
   // ── Rule 3: scope check ───────────────────────────────────────────────────
@@ -475,17 +620,33 @@ module.exports = async function decisionHandler(req, res) {
     warn(`[AuthzServer/decision] DENY — unknown tool: "${ToolName}"`);
     return deny(res, `unknown_tool: no policy defined for tool "${ToolName}"`);
   }
-  // When the request comes through PingGateway (scope gateway:mcp:invoke —
-  // the BFF's Exchange #2 default since the pinggateway:invoke rename; the
-  // old name is still honored for tokens minted by older deployments), the
-  // gateway has already validated the inbound token. The P1AZ policy still
-  // enforces delegation (act/may_act) and HITL, but skips banking scope checks:
-  // the gateway-level scope proves authorization at the gateway; the banking
-  // scopes belong to the MCP server resource, not the PingGateway resource.
-  const viaPingGateway =
-    grantedScopes.has('gateway:mcp:invoke') ||
-    grantedScopes.has('pinggateway:invoke');
-  if (!viaPingGateway && requiredScopes.length > 0) {
+  // F11: this rule used to disable itself. Any token carrying the gateway-hop
+  // scope (gateway:mcp:invoke — the BFF's Exchange #2 default since the
+  // pinggateway:invoke rename; the old name is still honored) skipped the
+  // per-tool scope check entirely. On the default topology the final token
+  // carries ONLY that scope, so per-tool scope was enforced NOWHERE in the
+  // system — least privilege was asserted in scope-topology.json and applied by
+  // nobody.
+  //
+  // The bypass now survives only for the case it was actually meant to cover: a
+  // caller that genuinely CANNOT express per-tool scopes because its token holds
+  // the gateway-hop scope and nothing else. As soon as the token carries a real
+  // per-tool scope (contract C1 makes these reachable as TokenScopes), the check
+  // enforces against TokenScopes.
+  //
+  // "Real per-tool scope" means a scope scope-topology.json actually defines —
+  // so unrelated OIDC scopes (openid/profile) neither satisfy nor trigger the
+  // check, and a token with no gateway-hop scope is enforced exactly as before.
+  const hasGatewayHopScope = GATEWAY_HOP_SCOPES.some((s) => grantedScopes.has(s));
+  const topologyScopes = new Set(scopeTopology.allowedScopes());
+  const suppliesPerToolScopes = [...grantedScopes].some(
+    (s) => topologyScopes.has(s) && !GATEWAY_HOP_SCOPES.includes(s)
+  );
+  const skipPerToolScopeCheck = hasGatewayHopScope && !suppliesPerToolScopes;
+  if (skipPerToolScopeCheck) {
+    log(`[AuthzServer/decision] Rule 3 bypass — gateway-hop scope only, no per-tool scopes to enforce (tool="${ToolName}")`);
+  }
+  if (!skipPerToolScopeCheck && requiredScopes.length > 0) {
     const missing = requiredScopes.filter(s => !grantedScopes.has(s));
     if (missing.length > 0) {
       warn(`[AuthzServer/decision] DENY — missing scopes: ${missing.join(', ')}`);
@@ -612,7 +773,9 @@ module.exports = async function decisionHandler(req, res) {
   //
   // Parity: simulatedAuthorizeService.js tier guard (after group guard, before UC16 guard)
   // mirrors this block exactly.
-  if (process.env.FF_AUTHORIZE_GROUP_POLICY === 'true' && DecisionContext === 'McpToolCall') {
+  // Accepts BOTH tool-call contexts (see Rule 2.5) — the BFF's 'McpFirstTool'
+  // calls previously skipped the entire tier check.
+  if (process.env.FF_AUTHORIZE_GROUP_POLICY === 'true' && MCP_TOOL_CALL_CONTEXTS.has(DecisionContext)) {
     const userTier = _resolveUserTier(UserGroups);
     const tierConfig = NNP8_TIER_POLICY[userTier] || NNP8_TIER_POLICY[NNP8_DEFAULT_TIER];
     // (a) Tool restriction: privateBankingOnlyTools are denied for non-PrivateBanking tiers.
@@ -676,11 +839,17 @@ module.exports = async function decisionHandler(req, res) {
       ruleStore.hasChallengeType(ToolName) && !acrStrong && !hitlApproved;
     if (overStepUp || declaresStepUp) {
       log(`[AuthzServer/decision] INDETERMINATE — STEP_UP: "${ToolName}" amount=$${amount} declaresStepUp=${declaresStepUp}`);
-      return indeterminate(res, 'STEP_UP');
+      return indeterminate(res, 'STEP_UP', 'step-up-required');
     }
     if (overConfirm || declaresConsent) {
       log(`[AuthzServer/decision] INDETERMINATE — HITL_CONSENT: "${ToolName}" amount=$${amount} confirm=$${CONFIRM_AMOUNT} declaresConsent=${declaresConsent}`);
-      return indeterminate(res, 'HITL_CONSENT');
+      // Cloud parity: the snapshot splits these into two statements —
+      // tool-name-driven consent ("MCP Require HITL Consent for sensitive tools")
+      // emits HITL, while the amount-threshold rule ("Require Consent for
+      // Mid-Value Transactions") emits HITL_CONSENT. `reason` stays HITL_CONSENT
+      // for both, unchanged. The two branches are mutually exclusive:
+      // declaresConsent requires !hasAmount, overConfirm requires hasAmount.
+      return indeterminate(res, 'HITL_CONSENT', declaresConsent ? 'HITL' : 'HITL_CONSENT');
     }
   }
 
@@ -718,6 +887,11 @@ module.exports = async function decisionHandler(req, res) {
  * Copied verbatim from simulatedAuthorizeService.js:acrLooksStrong so the
  * mock and live engine share identical ACR bypass semantics (IMP-1 parity).
  */
+// Exposed for the mock/cloud drift guard in decision.mockCloudParity.test.js.
+// The module's export is the handler itself, so the constants hang off it.
+module.exports.MCP_DECISION_CONTEXTS = MCP_DECISION_CONTEXTS;
+module.exports.MCP_TOOL_CALL_CONTEXTS = MCP_TOOL_CALL_CONTEXTS;
+
 function acrLooksStrong(acr) {
   if (acr == null || acr === '') return false;
   const s = String(acr).toLowerCase();
@@ -741,26 +915,64 @@ function _emitDecisionHop(outcome, reason) {
   });
 }
 
+/**
+ * Build the cloud-shaped `statements` array for a decision.
+ *
+ * IMPORTANT: the entries carry ONLY `code`. The shared classifier
+ * (demo_api_server/services/authorizeObligations.js classifyObligation) reads
+ * `String(ob.type || ob.id || ob.code)` — an `id` or `type` field would SHADOW
+ * the code, classify to null, and silently defeat every step-up/HITL gate.
+ */
+function statementsFor(code) {
+  return [{ code }];
+}
+
+/** Map a deny reason to its cloud statement code (prefix lookup, shared default). */
+function denyCodeFor(reason) {
+  const prefix = String(reason || '').split(':')[0].trim();
+  return DENY_CODE_BY_REASON_PREFIX[prefix] || DEFAULT_DENY_CODE;
+}
+
 function permit(res, reason) {
   auditDecision('PERMIT', reason);
   _emitDecisionHop('permit', reason);
-  res.json({ decision: 'PERMIT', reason, decision_id: randomId(), policy_version: 'mock-v1' });
+  res.json({
+    decision: 'PERMIT', reason,
+    statements: statementsFor('mcp-tool-authorized'),
+    policy_source: POLICY_SOURCE,
+    decision_id: randomId(), policy_version: 'mock-v1',
+  });
 }
 
 function permitWithAdvice(res, reason, advice) {
   auditDecision('PERMIT', reason);
   _emitDecisionHop('permit', reason);
-  res.json({ decision: 'PERMIT', reason, advice, decision_id: randomId(), policy_version: 'mock-v1' });
+  res.json({
+    decision: 'PERMIT', reason, advice,
+    statements: statementsFor('mcp-tool-authorized'),
+    policy_source: POLICY_SOURCE,
+    decision_id: randomId(), policy_version: 'mock-v1',
+  });
 }
 
-function deny(res, reason) {
+function deny(res, reason, code) {
   auditDecision('DENY', reason);
   _emitDecisionHop('deny', reason);
-  res.json({ decision: 'DENY', reason, decision_id: randomId(), policy_version: 'mock-v1' });
+  res.json({
+    decision: 'DENY', reason,
+    statements: statementsFor(code || denyCodeFor(reason)),
+    policy_source: POLICY_SOURCE,
+    decision_id: randomId(), policy_version: 'mock-v1',
+  });
 }
 
-function indeterminate(res, reason) {
+function indeterminate(res, reason, code) {
   auditDecision('INDETERMINATE', reason);
   _emitDecisionHop('n/a', reason);
-  res.json({ decision: 'INDETERMINATE', reason, decision_id: randomId(), policy_version: 'mock-v1' });
+  res.json({
+    decision: 'INDETERMINATE', reason,
+    statements: statementsFor(code),
+    policy_source: POLICY_SOURCE,
+    decision_id: randomId(), policy_version: 'mock-v1',
+  });
 }

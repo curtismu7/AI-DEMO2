@@ -114,6 +114,37 @@ const withPrimaryTool = (toolByVertical, extraByVertical = {}) => {
 };
 
 const READ_PER_VERTICAL = chipOverrides(READ_TRIGGER_BY_VERTICAL, withPrimaryTool(READ_PRIMARY_TOOL_BY_VERTICAL));
+
+/**
+ * A2A-specific per-vertical triggers for UC2.
+ * Each entry maps to a tool marked a2aDelegated:true in scope-topology.json and
+ * registered in a2aSpecialists.js. Using READ_PER_VERTICAL here would route to
+ * the standard read tool (e.g. list_orders) which is NOT a2aDelegated — the A2A
+ * delegation code path would never fire and the token chain would show UC1-style
+ * single-exchange dispatch instead of the expected nested-act chain.
+ */
+const A2A_TRIGGER_BY_VERTICAL = {
+  healthcare:        'show my sensitive patient records',
+  retail:            'show my sensitive order history',
+  government:        'show my sensitive tax record',
+  university:        'access my sensitive student finance',
+  workforce:         'show my sensitive payroll details',
+  'sporting-goods':  'show my sensitive membership details',
+  manufacturing:     'show my sensitive supplier contract',
+  investment:        'show my sensitive holdings',
+};
+const A2A_PRIMARY_TOOL_BY_VERTICAL = {
+  healthcare:        'sensitive_patient_records',
+  retail:            'sensitive_order_history',
+  government:        'sensitive_tax_record',
+  university:        'sensitive_student_finance',
+  workforce:         'sensitive_payroll_details',
+  'sporting-goods':  'sensitive_membership_details',
+  manufacturing:     'sensitive_supplier_contract',
+  investment:        'sensitive_holdings',
+};
+const A2A_PER_VERTICAL = chipOverrides(A2A_TRIGGER_BY_VERTICAL, withPrimaryTool(A2A_PRIMARY_TOOL_BY_VERTICAL));
+
 const AMOUNT_PER_VERTICAL = (amount, whatToSayByVertical = {}) =>
   chipOverrides(amountTriggerByVertical(amount), withPrimaryTool(AMOUNT_PRIMARY_TOOL_BY_VERTICAL, Object.fromEntries(
     Object.entries(whatToSayByVertical).map(([v, whatToSay]) => [v, { whatToSay }])
@@ -168,10 +199,12 @@ const RAW_USE_CASES = [
     businessValue: 'Multi-agent pipelines stay governed end-to-end. Each specialist inherits only the scope the handoff explicitly granted — least privilege across agent hops, with the full chain visible in the token.',
     productRoles: {
       idp:   'Mints a nested-act delegated token for the specialist, narrowing scope at each exchange hop.',
+      gw:    'Validates the nested act chain on the A2A gateway audience and routes the specialist tool call after PERMIT.',
       authz: 'Evaluates the full act chain at each hop; denies if any link is unauthorized.',
     },
-    primaryTool: 'delegate_to_specialist',
-    perVertical: READ_PER_VERTICAL,
+    // Topology / Authorize teach against the specialist tool that hits the gateway.
+    primaryTool: 'get_portfolio_summary',
+    perVertical: A2A_PER_VERTICAL,
   },
   {
     id: 'UC2.5',
@@ -196,7 +229,7 @@ const RAW_USE_CASES = [
       authz: 'Evaluates the full act chain at each hop and narrows policy context for the specialist.',
       llm:   'Orchestrates multi-agent workflows — detects delegation cues, selects specialists, and drives coordinated sub-tasks.',
     },
-    primaryTool: null,
+    primaryTool: 'get_portfolio_summary',
   },
   {
     id: 'UC3',
@@ -269,6 +302,87 @@ const RAW_USE_CASES = [
     },
     primaryTool: 'get_account_balance',
     perVertical: READ_PER_VERTICAL,
+  },
+  {
+    id: 'UC33',
+    useCaseId: 'mortgage-delegated-access',
+    track: 'foundations',
+    title: 'My mortgage',
+    buyerStory: "Delegated-access proof can't be special-cased per tool — every account type the agent touches needs the same chain of custody, not just the everyday balance check.",
+    pingOneSolution: 'The same RFC 8693 delegated token (act={agent}) authorizes every tool call, including less-common products like a mortgage — one token exchange covers the whole tool surface.',
+    trigger: { type: 'chip', text: 'show my mortgage' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'token-exchange', 'authorize-decision', 'tool-dispatched'], activity: ['token', 'authorize', 'mcp'] },
+    codeRefs: ['demo_api_server/services/agentMcpTokenService.js', 'demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts'],
+    maturity: 'works',
+    owasp: { threats: ['T8', 'T9'], sections: ['§4.1.1', '§3.3.3', '§8'] },
+    whatToSay: 'Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check.',
+    advanced: false,
+    whatLong: "Delegated-access proof isn't special-cased per tool. This scenario runs the identical RFC 8693 chain from UC1 — user token, act={agent}, gateway validation, Authorize decision — against a less-common tool (mortgage lookup) to show the proof travels with every call the agent makes, not just the common ones.",
+    businessValue: "Attribution coverage doesn't shrink as the agent's tool surface grows. Adding a new tool never means adding new attribution plumbing — every call already carries the same proof.",
+    productRoles: {
+      idp:   'Mints the same delegated token regardless of which tool the agent calls next.',
+      gw:    'Validates the token identically no matter which tool it is routed to.',
+      authz: 'Evaluates the same act-claim policy for every tool in scope.',
+    },
+    primaryTool: 'show_mortgage',
+    // Mortgage is a banking-only product — other verticals fall back to their own
+    // read chip/tool (same convention as UC28) so the routing gate holds everywhere.
+    perVertical: READ_PER_VERTICAL,
+  },
+  {
+    id: 'UC34',
+    useCaseId: 'ai-spot-unusual-patterns',
+    track: 'foundations',
+    title: 'Spot unusual patterns',
+    buyerStory: 'A security-aware agent should be able to reason over live activity, not just execute fixed lookups — and that reasoning has to run through the same governed pipeline as everything else.',
+    pingOneSolution: 'The free-form LLM path runs through the identical RFC 8693 → gateway → Authorize legs as a heuristic chip — reasoning is not a shortcut around the policy chain.',
+    trigger: { type: 'chip', text: 'Check for unusual patterns in my recent activity' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'token-exchange', 'authorize-decision', 'tool-dispatched'], activity: ['token', 'authorize', 'mcp'] },
+    codeRefs: ['demo_api_server/services/demoAgentLangGraphService.js'],
+    maturity: 'works',
+    owasp: { threats: ['T8'], sections: ['§3.3.3'] },
+    whatToSay: 'The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut.',
+    advanced: false,
+    whatLong: 'Not every useful agent action is a fixed lookup. This scenario asks the agent to reason freely over recent activity for anything unusual — the LLM decides what to look at and how to summarize it, but every underlying tool call it makes still goes through the same token-exchange and Authorize legs as a deterministic chip.',
+    businessValue: 'Free-form reasoning does not create a policy gap. Whatever the agent decides to look at, every tool call it actually makes is still attributed and authorized — reasoning changes what runs, never whether it is governed.',
+    productRoles: {
+      llm: 'Reasons over the request and issues whichever tool calls it decides are relevant.',
+      gw: 'Validates and routes every tool call the reasoning step issues, same as any other call.',
+      authz: 'Evaluates each resulting tool call independently — freeform intent grants no special access.',
+    },
+    // Free-form LLM analysis — no single deterministic tool to declare (see
+    // LLM_ANALYSIS_UNROUTABLE in useCases.primaryTool.test.js). Same shape as the
+    // banking manifest's own bk8 chip, which is deliberately kept out of the
+    // catalog for the same reason; this entry exists instead so the demo stays
+    // reachable from /use-cases after the Actions dropdown is removed.
+    primaryTool: null,
+  },
+  {
+    id: 'UC35',
+    useCaseId: 'ai-explain-last-denial',
+    track: 'foundations',
+    title: 'Why was that blocked?',
+    buyerStory: 'When a control fires, the person watching the demo should be able to ask the agent to explain itself in plain language — backed by the real evidence, not a canned line.',
+    pingOneSolution: "The agent explains its own security posture by reading the live token-chain events, not a scripted explanation — the explanation is only as good as the evidence PingOne actually produced.",
+    trigger: { type: 'chip', text: 'Explain why my last blocked action was denied and walk me through the token chain' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'token-exchange', 'authorize-decision'], activity: ['token', 'authorize'] },
+    codeRefs: ['demo_api_server/services/demoAgentLangGraphService.js', 'demo_api_server/services/appEventService.js'],
+    maturity: 'works',
+    owasp: { threats: ['T8'], sections: ['§3.3.3', '§8'] },
+    whatToSay: 'The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired.',
+    advanced: false,
+    whatLong: "After a control fires (a DENY, a step-up, a consent gate), the agent can be asked to explain what just happened. It reads the real token-chain events from the run — not a canned script — and narrates the decision in plain language, teaching the audience why the control triggered.",
+    businessValue: 'Every enforcement decision is self-explaining. Support and audit teams get a plain-language narration of what PingOne decided and why, sourced from the same evidence an auditor would pull, not a separate explanation system that can drift from reality.',
+    productRoles: {
+      llm: "Narrates the live token-chain evidence in plain language — it explains PingOne's decision, it doesn't make one.",
+      authz: 'Recorded the original PERMIT/DENY/STEP_UP decision the explanation is built from.',
+    },
+    // Free-form LLM explanation — no single deterministic tool (see UC34's note
+    // and LLM_ANALYSIS_UNROUTABLE in useCases.primaryTool.test.js).
+    primaryTool: null,
   },
 
   // --- CONTROLS ---
@@ -356,6 +470,13 @@ const RAW_USE_CASES = [
       mfa:   'Delivers the step-up challenge; the success receipt is presented back to the policy for re-evaluation.',
     },
     primaryTool: 'create_transfer',
+    // Declared step-up method: this demo IS the step-up case, so Authorize must
+    // return STEP_UP (device-list MFA) — not HITL. The live P1AZ MCP policy
+    // returns HITL for every amount, so without this declaration UC7 evaluated
+    // to HITL and the proof strip flagged an authorize-decision mismatch. Same
+    // mechanism as UC22's 'ciba', differing only by method. See
+    // mcpToolAuthorizationService._applyTransactionPolicy.
+    stepUpMethod: 'p1mfa',
     perVertical: AMOUNT_PER_VERTICAL(600, {
       healthcare: '$600 bill payment >= the step-up bar → MFA required first.',
       retail: '$600 checkout >= the step-up bar → MFA required first.',
@@ -457,26 +578,36 @@ const RAW_USE_CASES = [
     useCaseId: 'ciba-out-of-band-approval',
     track: 'hitl',
     title: 'CIBA out-of-band approval',
-    buyerStory: "A high-value action should be approvable on the user's separate device, not just in the same browser session.",
-    pingOneSolution: 'PingOne CIBA sends a backchannel auth request; the agent polls for the auth_req_id and proceeds only after the user approves on their device.',
-    trigger: { type: 'chip', text: 'transfer $600 from checking to savings' },
+    buyerStory: "An AI agent has no browser to prompt for step-up. When it performs a sensitive action, approval must be requested out-of-band on the user's own device — driven by the action and the agent context, not by a dollar amount.",
+    pingOneSolution: 'Because an agent is acting (no browser redirect) on a sensitive money movement, PingOne Authorize returns a CIBA obligation. The backend calls bc-authorize and polls for the auth_req_id, proceeding only after the user approves out-of-band on their phone.',
+    trigger: { type: 'chip', text: 'transfer $150 from checking to savings' },
     expectedOutcome: 'PERMIT',
     evidence: { tokenChain: ['authorize-decision', 'ciba-poll', 'tool-dispatched'], activity: ['authorize', 'mcp', 'ciba'] },
     codeRefs: ['demo_api_server/services/cibaService.js', 'demo_api_server/routes/ciba.js'],
-    maturity: 'flag:ff_ciba',
+    maturity: 'flag:ciba_enabled',
     owasp: { threats: ['T10'], sections: ['§3.1.5'] },
-    whatToSay: 'The approval came from the user\'s phone — a decoupled, out-of-band confirmation distinct from in-app step-up.',
+    whatToSay: "Note the amount — $150, below the MFA threshold. A person doing this in-browser would sail through. But an AGENT moving money is a sensitive, agent-context action, so approval is requested out-of-band on the user's phone. CIBA is triggered by the action and the actor, not the amount.",
     advanced: false,
-    whatLong: "A high-value action requires approval on the user's separate device — not in the same browser session. PingOne CIBA (Client-Initiated Backchannel Authentication) sends an out-of-band approval request; the agent polls for the result and proceeds only after the user approves on their phone.",
-    businessValue: 'Out-of-band approval is meaningfully stronger than in-session step-up — a compromised browser cannot self-approve. CIBA is natively supported by PingOne; no custom push notification infrastructure is needed.',
+    whatLong: "An AI agent performs a sensitive action — moving money on the user's behalf — with no browser in which to prompt for step-up. PingOne CIBA (Client-Initiated Backchannel Authentication) requests decoupled approval on the user's separate device. The trigger is the agent context plus the sensitivity of the action, NOT a dollar threshold: this demo uses a deliberately small $150 transfer to make that explicit — the same amount in-browser needs no step-up, yet the agent-initiated action still requires out-of-band approval. The agent polls for the result and proceeds only after the user approves on their phone.",
+    businessValue: "Out-of-band approval is meaningfully stronger than in-session step-up — a compromised browser (or a rogue agent) cannot self-approve. Basing the trigger on agent-context and action sensitivity, not amount, means an autonomous agent can never move money without a real human's decoupled confirmation. CIBA is natively supported by PingOne; no custom push infrastructure needed.",
     productRoles: {
       idp:   "Receives the CIBA auth_req_id request and delivers the approval challenge to the user's device.",
-      authz: 'Evaluates the CIBA approval receipt; returns PERMIT only after the user has approved out-of-band.',
+      authz: 'Returns the CIBA obligation for the sensitive, agent-initiated action; PERMITs only after the user approves out-of-band.',
       gw:    'Holds the tool call until the agent presents the CIBA approval receipt.',
       mfa:   "Delivers the CIBA challenge to the user's enrolled device (push notification / OTP).",
     },
     primaryTool: 'create_transfer',
-    perVertical: AMOUNT_PER_VERTICAL(600),
+    // Explicit CIBA trigger — the durable, cross-vertical signal that instigates
+    // out-of-band approval. It is AMOUNT-INDEPENDENT by design: CIBA models a
+    // policy decision ("this sensitive, agent-initiated action needs decoupled
+    // approval"), NOT a dollar gate — so it never collides with the amount-based
+    // MFA step-up. The trigger is the CIBA intent (this useCase / the agent
+    // context), which is why the demo amount is a small $150. Authorize reads
+    // this declared method and routes through the SAME step-up path as MFA,
+    // differing only by step_up_method='ciba'. Declared once; every vertical
+    // inherits it via the shared catalog + perVertical below.
+    stepUpMethod: 'ciba',
+    perVertical: AMOUNT_PER_VERTICAL(150),
   },
 
   // --- PROGRESSIVE TRUST DEMO (Ping MyHotels pattern on banking agents) ---
@@ -591,7 +722,9 @@ const RAW_USE_CASES = [
     pingOneSolution: 'The MCP server validates required scopes before dispatching; a token missing a required scope yields DENY.',
     trigger: { type: 'attack', sim: 'insufficient-scope' },
     expectedOutcome: 'DENY_403',
-    evidence: { tokenChain: ['user-token', 'authorize-decision'], activity: ['token', 'mcp'] },
+    // Gateway-level deny: the scope check runs BEFORE PingOne Authorize is consulted,
+    // so no 'authorize-decision' evidence exists. Declare the events the sim emits.
+    evidence: { tokenChain: ['sim-exchange-ok', 'sim-gateway-deny'], activity: ['token', 'mcp'] },
     codeRefs: ['demo_mcp_server/src/auth/validateTokenScopes.js', 'demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts'],
     maturity: 'works',
     owasp: { threats: ['T2', 'T3'], sections: ['§5.1'] },
@@ -638,7 +771,9 @@ const RAW_USE_CASES = [
     pingOneSolution: 'The gateway validates aud/exp/iss/nbf before any routing; a bad token is rejected with 401.',
     trigger: { type: 'attack', sim: 'wrong-aud' },
     expectedOutcome: 'DENY_401',
-    evidence: { tokenChain: ['user-token', 'authorize-decision'], activity: ['token', 'gateway'] },
+    // Gateway-level deny: aud/exp/iss/nbf validation runs BEFORE PingOne Authorize
+    // is consulted, so no 'authorize-decision' evidence exists.
+    evidence: { tokenChain: ['sim-exchange-ok', 'sim-gateway-deny'], activity: ['token', 'gateway'] },
     codeRefs: ['demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts'],
     maturity: 'works',
     owasp: { threats: ['T9'], sections: ['§8', '§4.2.2'] },
@@ -660,7 +795,10 @@ const RAW_USE_CASES = [
     pingOneSolution: 'The gateway enforces audience binding (D-05) unconditionally; DPoP key binding adds a proof-of-possession check when enabled.',
     trigger: { type: 'attack', sim: 'replayed-token' },
     expectedOutcome: 'DENY_401',
-    evidence: { tokenChain: ['user-token', 'authorize-decision'], activity: ['token', 'gateway'] },
+    // Audience binding is enforced at the gateway BEFORE PingOne Authorize is
+    // consulted, so this sim never produces an 'authorize-decision'. The replayed
+    // user token is carried on 'sim-replay-start'.
+    evidence: { tokenChain: ['sim-replay-start', 'sim-gateway-deny'], activity: ['token', 'gateway'] },
     codeRefs: ['demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts', 'demo_api_server/services/dpopKeyService.js'],
     maturity: 'flag:ff_dpop',
     owasp: { threats: ['T9'], sections: ['§3.2.8', '§4.2.3'] },
@@ -680,19 +818,25 @@ const RAW_USE_CASES = [
     track: 'attacks',
     title: 'Confused-deputy actor injection',
     buyerStory: "A rogue agent forcing itself into the act claim must be caught — only the authorized actor is allowed.",
-    pingOneSolution: 'The gateway and Authorize check ActClientId against the single configured authorized actor; a rogue actor is denied.',
+    pingOneSolution: "PingOne stamps a native, cryptographically-issued act claim on the exchanged token whenever the actor actually performed the RFC 8693 exchange. The gateway and Authorize always prefer that native claim over any header — a header can only fill in on hops where no native claim exists. A rogue actor can't win by spoofing a header; it would have to perform a real token exchange as an unauthorized client, and Authorize's ActClientId check on the resulting native claim then denies it.",
     trigger: { type: 'attack', sim: 'rogue-actor' },
     expectedOutcome: 'DENY',
     evidence: { tokenChain: ['authorize-decision'], activity: ['authorize', 'gateway'] },
-    codeRefs: ['demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts', 'demo_authz_server/routes/decision.js'],
+    codeRefs: [
+      'demo_api_server/services/mcpGatewayClient.js',
+      'demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts',
+      'demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts',
+      'ping-gateway/scripts/groovy/p1az-decision.groovy',
+      'demo_authz_server/routes/decision.js',
+    ],
     maturity: 'works',
     owasp: { threats: ['T13'], sections: ['§4.2.2'] },
-    whatToSay: 'The act claim named a rogue client — the authorized-actor check blocked it immediately.',
+    whatToSay: "Actor identity comes from a native, PingOne-issued claim on the token — never from a header. Headers are only a fallback for hops where PingOne can't natively stamp an actor; they can never override a real claim. That's why this rogue actor is denied.",
     advanced: false,
-    whatLong: 'A rogue agent injects itself into the act claim, claiming to be the authorized actor. The gateway and Authorize policy both check the ActClientId claim against the single configured authorized actor client ID — an unrecognized actor is denied immediately.',
-    businessValue: 'One configuration — the authorized actor client ID — locks down which agent may act on users behalf. No rogue actor can forge its way into the delegation chain.',
+    whatLong: "A rogue agent tries to force itself into the delegation chain by claiming to be the authorized actor. PingOne's resource attribute mapping stamps a native act claim on the exchanged token whenever a real RFC 8693 actor-token exchange happened — that claim always wins over any header. Only on hops where PingOne can't natively emit act does the gateway fall back to a trusted, internal-secret-gated header bridge. Either way, the ActClientId Authorize receives traces back to a real, authenticated exchange — never an attacker-controlled value.",
+    businessValue: "Actor identity is anchored to a real token exchange, not a request header. Even a compromised internal service that could forge headers still can't spoof identity once PingOne has stamped a native claim — there is no path for a rogue actor to talk its way past the authorized-actor check.",
     productRoles: {
-      gw:    'Extracts the act.sub claim and forwards it to Authorize as ActClientId.',
+      gw:    "Prefers the token's native act claim; falls back to the trusted X-Act-Client-Id header bridge only when no native claim is present, then forwards act.sub to Authorize as ActClientId.",
       authz: 'Checks ActClientId against the configured authorized actor; returns DENY for any other value.',
     },
     primaryTool: null,
@@ -701,9 +845,9 @@ const RAW_USE_CASES = [
     id: 'UC14',
     useCaseId: 'rar-intent-violation',
     track: 'attacks',
-    title: 'RAR intent violation',
-    buyerStory: "An agent that exceeds the amount or payee granted in its Rich Authorization Request must be denied.",
-    pingOneSolution: 'PingOne Authorize evaluates authorization_details; exceeding the granted amount or payee yields DENY.',
+    title: 'PAR intent violation (Pushed Auth Request)',
+    buyerStory: "An agent that exceeds the amount or payee granted via Pushed Authorization Request (RFC 9126) must be denied.",
+    pingOneSolution: 'PingOne Authorize evaluates the PAR-submitted authorization details; exceeding the granted amount or payee yields DENY.',
     trigger: { type: 'attack', sim: 'rar-exceeded' },
     expectedOutcome: 'DENY',
     evidence: { tokenChain: ['authorize-decision'], activity: ['authorize', 'mcp'] },
@@ -725,9 +869,9 @@ const RAW_USE_CASES = [
     id: 'UC14b',
     useCaseId: 'rar-intent-verified',
     track: 'learn',
-    title: 'RAR intent verified (PERMIT)',
-    buyerStory: 'A transfer that stays within its declared RFC 9396 authorization_details cap is verified and permitted — the legitimate counterpart to the RAR overage attack.',
-    pingOneSolution: 'RFC 9396 authorization_details bind the transfer to an amount cap; the MCP gateway and PingOne Authorize verify the requested transfer against it before permitting.',
+    title: 'PAR intent verified (PERMIT)',
+    buyerStory: 'A transfer that stays within its PAR (RFC 9126) request_uri authorization cap is verified and permitted — the legitimate counterpart to the PAR overage attack.',
+    pingOneSolution: 'RFC 9126 PAR authorization details bind the transfer to an amount cap; the MCP gateway and PingOne Authorize verify the requested transfer against it before permitting.',
     trigger: { type: 'link', path: '/intent-binding-learning#rar' },
     expectedOutcome: 'PERMIT',
     evidence: { tokenChain: ['sim-rar-armed', 'sim-rar-grant', 'intent-binding-verified'], activity: [] },
@@ -837,6 +981,99 @@ const RAW_USE_CASES = [
     },
     primaryTool: null,
   },
+  {
+    id: 'UC29',
+    useCaseId: 'oauth-fail-closed',
+    track: 'attacks',
+    title: 'OAuth introspection outage — fail closed',
+    buyerStory: "If the token-validation backend itself goes down, the gateway must reject every call — not silently let traffic through.",
+    pingOneSolution: 'RFC 7662 introspection is on the request path for every call; when it cannot be reached, the gateway fails closed rather than open.',
+    trigger: { type: 'attack', sim: 'introspection-down' },
+    expectedOutcome: 'DENY_503',
+    evidence: { tokenChain: ['user-token'], activity: ['gateway'] },
+    codeRefs: ['demo_mcp_gateway/src/auth/GatewayIntrospectionClient.ts', 'demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts'],
+    maturity: 'works',
+    owasp: { threats: ['T2'], sections: ['§3.2.1', '§8'] },
+    whatToSay: 'Kill the introspection path and the gateway stops every call cold — it never fails open.',
+    advanced: false,
+    whatLong: 'The gateway validates every inbound token against the authorization server via RFC 7662 introspection before anything else runs. This scenario simulates that introspection endpoint going unreachable and shows the gateway reject the call with a fail-closed 503, rather than letting it through.',
+    businessValue: 'Many systems degrade to "allow" when their auth backend is unreachable. This gateway is built to fail closed instead — an outage in token validation becomes a blocked request, not an open door.',
+    productRoles: {
+      gw: 'Introspects every token before evaluating policy; on introspection failure, rejects the call rather than forwarding it.',
+    },
+    primaryTool: null,
+  },
+  {
+    id: 'UC30',
+    useCaseId: 'weather-mcp-texas-permit',
+    track: 'controls',
+    title: 'Third-party MCP server, scoped at the gateway',
+    buyerStory: "A third-party tool the agent calls must be constrained to the business's actual footprint — even though the tool itself has no idea what that footprint is. That footprint should be something the business can change, not a hardcoded assumption.",
+    pingOneSolution: 'The Agent Gateway fronts a third-party weather MCP server and enforces a live, admin-configurable state-scope policy (Texas by default) entirely at the edge — the backend never sees the restriction.',
+    trigger: { type: 'chip', text: "what's the weather in Austin, TX" },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'tool-dispatched'], activity: ['token', 'mcp'] },
+    codeRefs: ['ping-gateway/scripts/groovy/tx-weather-scope.groovy', 'ping-gateway/config/routes/00-mcp-weather.json'],
+    maturity: 'works',
+    owasp: { threats: ['T6'], sections: ['§4.2.2'] },
+    whatToSay: 'Austin is in Texas — the gateway lets the call through to the real weather server.',
+    advanced: false,
+    match: { tool: 'get_weather' },
+    whatLong: 'The agent calls a real, unmodified third-party weather MCP server through the Agent Gateway. A city in the gateway\'s currently-configured state (Texas by default) is in scope for this demo policy, so the gateway forwards the call and the backend responds normally — the third-party server itself has no concept of the restriction.',
+    businessValue: 'Any third-party or unmanaged MCP server can be brought into a governed environment without modifying it — the gateway enforces the business boundary, not the tool.',
+    productRoles: {
+      gw: 'Validates the token, then runs the currently-configured state-scope policy (Texas by default) before forwarding the call to the third-party server.',
+    },
+    primaryTool: 'get_weather',
+  },
+  {
+    id: 'UC31',
+    useCaseId: 'weather-mcp-texas-deny',
+    track: 'controls',
+    title: 'Third-party MCP server — out-of-scope call denied',
+    buyerStory: "When an agent's tool call falls outside the business's actual footprint, it must be stopped before the third-party tool ever runs — not after.",
+    pingOneSolution: 'The Agent Gateway denies the call before it reaches the third-party weather MCP server, based on the currently-configured state scope (Texas by default) — the demo policy the backend never sees.',
+    trigger: { type: 'chip', text: "what's the weather in Miami" },
+    expectedOutcome: 'DENY',
+    evidence: { tokenChain: ['user-token', 'tool-dispatched'], activity: ['token', 'mcp'] },
+    codeRefs: ['ping-gateway/scripts/groovy/tx-weather-scope.groovy', 'ping-gateway/config/routes/00-mcp-weather.json'],
+    maturity: 'works',
+    owasp: { threats: ['T6'], sections: ['§4.2.2'] },
+    whatToSay: 'Miami is outside Texas — the gateway denies the call before the third-party server ever sees it.',
+    advanced: false,
+    whatLong: 'The agent asks for weather in a city outside the demo policy\'s currently-configured state scope (Texas by default). The gateway denies the call before it is ever forwarded to the third-party weather MCP server — the backend never runs, and never sees the request.',
+    businessValue: 'Scoping happens once, at the gateway, instead of being re-implemented (or forgotten) in every tool integration — a policy change takes effect for every agent immediately.',
+    productRoles: {
+      gw: 'Runs the currently-configured state-scope policy (Texas by default) and returns DENY before the call is forwarded to the third-party server.',
+    },
+    primaryTool: 'get_weather',
+  },
+  {
+    id: 'UC32',
+    useCaseId: 'weather-mcp-live-reconfigure',
+    track: 'controls',
+    title: 'Live-reconfigure the gateway\'s scope policy',
+    buyerStory: "A demo of a policy control isn't credible if the policy is actually hardcoded in the app. The business needs to change the rule itself — live, without a code change or a restart — and see the SAME request's outcome flip.",
+    pingOneSolution: 'An admin-editable Allowed State control, right on the gateway capability card, changes ff_weather_mcp_allowed_state live; the Agent Gateway reads it on the very next request, no restart.',
+    trigger: { type: 'link', path: '/agent-gateway-capabilities', label: 'Open Capability Tour' },
+    expectedOutcome: 'POLICY_RECONFIGURED',
+    evidence: { tokenChain: [], activity: [] },
+    codeRefs: [
+      'demo_api_server/routes/featureFlags.js',
+      'demo_api_ui/src/components/WeatherStateControl.jsx',
+      'ping-gateway/scripts/groovy/tx-weather-scope.groovy',
+    ],
+    maturity: 'works',
+    owasp: { threats: ['T6'], sections: ['§4.2.2'] },
+    whatToSay: 'Watch: the same "weather in Miami" query — denied under Texas, permitted the moment I switch this dropdown to Any.',
+    advanced: false,
+    whatLong: 'UC30/UC31 each show one fixed outcome (Texas permits Austin, denies Miami). This use case is the proof that the scope itself is a live, admin-owned policy value — not app logic: switch the Allowed State dropdown on the Capability Tour card to Michigan, Any, or back to Texas, and the exact same weather chat query changes its outcome immediately, with no gateway restart.',
+    businessValue: 'A policy that can only be changed by redeploying code isn\'t really externalized governance — it just moved the hardcoding one layer down. Making the scope itself admin-editable, live, is what makes the "the gateway decides, not the app" story provable in front of a customer.',
+    productRoles: {
+      gw: 'Reads the currently-configured state on every request via the same flag-check call that already gates ff_weather_mcp_showcase — no new round-trip.',
+    },
+    primaryTool: null,
+  },
 
   // --- DEVELOPER TOOLS ---
   {
@@ -925,10 +1162,10 @@ const RAW_USE_CASES = [
     id: 'UC-LEARN3',
     useCaseId: 'demo-mcp-inspector',
     track: 'learn',
-    title: 'Demo MCP Inspector',
+    title: 'Generic MCP Inspector',
     buyerStory: 'Explore the demo’s own banking MCP server the same way you would any MCP endpoint.',
     pingOneSolution: 'Inspects the demo’s banking MCP server — tool discovery, schema-driven invocation, and the live tool-call pipeline with token-exchange and Authorize gates.',
-    trigger: { type: 'link', path: '/mcp-inspector', label: 'Open Demo MCP Inspector' },
+    trigger: { type: 'link', path: '/mcp-inspector', label: 'Open Generic MCP Inspector' },
     expectedOutcome: 'LIVE_MCP_TOOLS',
     evidence: { tokenChain: [], activity: [] },
     codeRefs: ['demo_api_ui/src/components/McpInspector.js'],
@@ -1244,6 +1481,21 @@ function isValidUseCaseId(id) {
 }
 
 /**
+ * The declared step-up method for a use case (by useCaseId slug), or null.
+ * This is the explicit, amount-independent trigger for a specific step-up
+ * modality (e.g. 'ciba' on UC22): Authorize reads it to route the transaction
+ * through the shared step-up path — no amount threshold, no hardcoded id string.
+ * Declared once in the catalog, so every vertical inherits it.
+ * @param {string|undefined} slug useCaseId slug (resolveActiveUseCaseId result)
+ * @returns {string|null} e.g. 'ciba' | 'p1mfa' | 'email' | null
+ */
+function getUseCaseStepUpMethod(slug) {
+  if (!slug || typeof slug !== 'string') return null;
+  const uc = USE_CASES.find((u) => u.useCaseId === slug);
+  return (uc && typeof uc.stepUpMethod === 'string') ? uc.stepUpMethod : null;
+}
+
+/**
  * Organic reverse-map: given a resolved tool name + args, return the useCaseId
  * of the matching catalog entry, or undefined. The catalog `match` field is the SoT.
  * Per-vertical match routing is a future extension (catalog `match` is banking-only today).
@@ -1280,4 +1532,4 @@ function resolveChipUseCaseId(clientId, toolName, args, vertical) {
   return deriveUseCaseId(toolName, args, vertical);
 }
 
-module.exports = { USE_CASES, VERTICALS, getUseCase, resolveUseCase, listUseCases, deriveUseCaseId, isValidUseCaseId, resolveChipUseCaseId };
+module.exports = { USE_CASES, VERTICALS, getUseCase, resolveUseCase, listUseCases, deriveUseCaseId, isValidUseCaseId, getUseCaseStepUpMethod, resolveChipUseCaseId };

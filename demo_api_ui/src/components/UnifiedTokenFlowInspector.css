@@ -20,6 +20,9 @@
 
 .utfi-container.utfi-fixed {
   border: 1px solid #e5e7eb;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: calc(100vh - 8rem);
 }
 
 /* ============================================================================
@@ -960,6 +963,31 @@
   line-height: 1.3;
 }
 
+.utfi-event-message--error {
+  border-left-color: #dc2626;
+  color: #991b1b;
+  background: #fef2f2;
+}
+
+.utfi-event-json-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.utfi-event-pre {
+  margin: 0;
+  padding: 8px 10px;
+  background: #0f172a;
+  color: #bae6fd;
+  border-radius: 6px;
+  font: 11px/1.45 ui-monospace, Menlo, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow: auto;
+}
+
 .utfi-scopes-inline {
   display: flex;
   flex-wrap: wrap;
@@ -1240,6 +1268,14 @@
 
 /* Chain view */
 .utfi-chain-view {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+/* Token Transform view */
+.utfi-transform-view {
   flex: 1;
   min-height: 0;
   overflow-y: auto;

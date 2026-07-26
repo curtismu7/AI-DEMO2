@@ -161,6 +161,42 @@ describe('killSwitchService', () => {
         expect.any(String)
       );
     });
+
+    test('default scope is instance — skips PingOne app + user disable', async () => {
+      const agentId = 'mcp-agent-001';
+      axios.post.mockResolvedValue({ status: 200, data: {} });
+
+      const result = await killSwitchService.killAgent(
+        agentId,
+        'demo_safe',
+        'user-sub-1',
+        { accessToken: 'at', idToken: 'it' },
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.scope).toBe('instance');
+      const appStep = result.steps.find((s) => s.key === 'app_disable');
+      const userStep = result.steps.find((s) => s.key === 'user_disable');
+      expect(appStep?.skipped).toBe(true);
+      expect(userStep?.skipped).toBe(true);
+    });
+
+    test('full scope records app_disable step as not instance-skipped', async () => {
+      const agentId = 'mcp-agent-001';
+      axios.post.mockResolvedValue({ status: 200, data: {} });
+
+      const result = await killSwitchService.killAgent(
+        agentId,
+        'compromise',
+        null,
+        { accessToken: 'at' },
+        'full',
+      );
+
+      expect(result.scope).toBe('full');
+      const appStep = result.steps.find((s) => s.key === 'app_disable');
+      expect(appStep?.skipReason).not.toBe('instance_scope');
+    });
   });
 
   describe('revokeTokenAtPingOne', () => {

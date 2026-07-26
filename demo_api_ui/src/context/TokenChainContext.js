@@ -169,6 +169,24 @@ export function TokenChainProvider({ children, activePath = "" }) {
     [],
   );
 
+  /**
+   * Called by demoAgentService's per-turn SSE handler as each token-event
+   * frame arrives, so the panel updates live instead of waiting for the
+   * whole turn to finish. Does not touch history — setTokenEvents still
+   * owns the once-per-turn history write when the call resolves.
+   */
+  const appendTokenEvent = useCallback((tool, event) => {
+    if (!event || !event.id) return;
+    tokenChainTraceStore.ingestTokenEvent(event);
+    setEvents((prev) => {
+      const idx = prev.findIndex((e) => e.id === event.id);
+      if (idx >= 0) {
+        return [...prev.slice(0, idx), event, ...prev.slice(idx + 1)];
+      }
+      return [...prev, event];
+    });
+  }, []);
+
   /** Clear live tool-chain events and return to session preview (login tokens). */
   const clearEvents = useCallback(() => {
     setEvents([]);
@@ -534,6 +552,7 @@ export function TokenChainProvider({ children, activePath = "" }) {
       mcpAuthMode,
       resolvedIdentity,
       setTokenEvents,
+      appendTokenEvent,
       clearEvents,
       setNlRoutingEvent,
       setSessionToken,
@@ -551,6 +570,7 @@ export function TokenChainProvider({ children, activePath = "" }) {
     mcpAuthMode,
     resolvedIdentity,
     setTokenEvents,
+    appendTokenEvent,
     clearEvents,
     setNlRoutingEvent,
     setSessionToken,

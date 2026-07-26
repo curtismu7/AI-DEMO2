@@ -30,13 +30,13 @@
  */
 
 import type { IncomingMessage, ServerResponse } from 'http';
-import { PingOneAuthorizeClient } from '../auth/PingOneAuthorizeClient';
+import { PingOneAuthorizeClient, policySourceForEngine } from '../auth/PingOneAuthorizeClient';
 import { GatewayIntrospectionClient } from '../auth/GatewayIntrospectionClient';
 import { runMcpAuthorizationPipeline } from '../auth/authorizeMcpRequestCore';
 import type { McpRequestMiddleware } from '../server/GatewayServer';
 import { McpTokenExchangeClient } from '../auth/McpTokenExchangeClient';
 import type { GatewayConfig } from '../config';
-import { checkInternalSecret } from '../config';
+import { checkInternalSecret, isP1AZActive, usingRealPdpEndpoint } from '../config';
 import { getScopesForGatewayTool, getChallengeTypeForTool } from '../auth/toolScopes';
 import { teachLog } from '../teachLogger';
 import { routeTool } from '../router';
@@ -51,7 +51,8 @@ import { recordGatewayAudit, auditOutcomeFromHttp, httpScopeAlertDetails } from 
 import { verifyDpopProof } from '../dpopVerify';
 import { verifyWebBotAuth } from '../webBotAuthVerify';
 import { enforceRarSubset, rarDetailsFromEnvelope, type RarDetail, type RarToolArgs } from '../rarEnforce';
-import type { TratClaims } from '../auth/PingOneAuthorizeClient';
+import type { TratClaims, PolicySource } from '../auth/PingOneAuthorizeClient';
+import { noteBindingHeaderSeen } from '../authzPosture';
 import { SlidingWindowLimiter, _resetLimiterForTest as _resetRateLimiterForTest } from '../rateLimit';
 
 // ---------------------------------------------------------------------------
@@ -77,11 +78,78 @@ interface GwAuditTrail {
     policyVersion?: string;
     traceId?: string;
     engine?: string;
+    // C2 — provenance. A PERMIT is forwarded upstream, so the response BODY is
+    // the backend's; this trail (emitted as X-Gw-Audit-Trail and to teachLog) is
+    // the gateway's only channel for WHO decided. Without these two fields a
+    // degraded local-fallback PERMIT was indistinguishable from a PDP PERMIT in
+    // the audit record — the one direction C2 exists to make impossible.
+    policySource?: PolicySource;
+    degraded?: boolean;
     attributes?: Record<string, string>;
   } | null;
   mtls: { enabled: boolean; subject?: string } | null;
+  backend: { target: string; audience: string | null; cached?: boolean; exchanged: boolean; error?: string } | null;
+  /** Teaching: ordered gateway stages for Token Chain. */
+  filterChain?: Array<{ filter: string; result: string; decision?: string }>;
+  /** Teaching: which stage blocked the call (omit on success). */
+  denyingFilter?: string;
+  /** Teaching: last stage that completed on a forward path. */
+  lastFilter?: string;
 }
 
+/** Rebuild filterChain / denyingFilter / lastFilter from filled audit stages.
+ * Always emits the full teaching chain (skipped when a stage did not run) so
+ * success paths show every hop, not only stages that happened to stamp data.
+ */
+function stampFilterTrail(
+  trail: GwAuditTrail,
+  opts?: { denyingFilter?: string; lastFilter?: string },
+): void {
+  const chain: NonNullable<GwAuditTrail['filterChain']> = [
+    {
+      filter: 'TokenIntrospection',
+      result: trail.introspection
+        ? (trail.introspection.active ? 'passed' : 'blocked')
+        : 'skipped',
+    },
+    {
+      filter: 'GatewayTokenPolicy',
+      result: trail.policy
+        ? (trail.policy.passed ? 'passed' : 'blocked')
+        : 'skipped',
+    },
+    {
+      filter: 'P1AZDecision',
+      result: trail.authorize
+        ? (trail.authorize.decision === 'PERMIT' ? 'forwarded' : 'blocked')
+        : 'skipped',
+      ...(trail.authorize?.decision ? { decision: trail.authorize.decision } : {}),
+    },
+    {
+      filter: 'mTLS',
+      result: trail.mtls
+        ? (trail.mtls.enabled ? 'passed' : 'skipped')
+        : 'skipped',
+    },
+    {
+      filter: 'BackendExchange',
+      result: trail.backend
+        ? (trail.backend.exchanged ? 'forwarded' : (trail.backend.error ? 'blocked' : 'skipped'))
+        : 'skipped',
+    },
+  ];
+  trail.filterChain = chain;
+  if (opts?.denyingFilter) trail.denyingFilter = opts.denyingFilter;
+  if (opts?.lastFilter) {
+    trail.lastFilter = opts.lastFilter;
+  } else if (!opts?.denyingFilter) {
+    if (trail.backend?.exchanged) trail.lastFilter = 'BackendExchange';
+    else if (trail.mtls?.enabled) trail.lastFilter = 'mTLS';
+    else if (trail.authorize?.decision === 'PERMIT') trail.lastFilter = 'P1AZDecision';
+    else if (trail.policy?.passed) trail.lastFilter = 'GatewayTokenPolicy';
+    else if (trail.introspection?.active) trail.lastFilter = 'TokenIntrospection';
+  }
+}
 /**
  * Injectable dependencies for `buildAuthorizeMcpRequest`.
  * When provided (e.g. in tests), the production introspection + authorize
@@ -105,9 +173,13 @@ export interface AuthorizeMcpRequestDeps {
       policyVersion?: string;
       traceId?: string;
       engine?: 'real' | 'mock' | 'mock-failover';
+      // Contract C2 — which authority decided, and whether it was a degraded
+      // (gateway-local) decision rather than a PDP one.
+      policySource?: PolicySource;
+      degraded?: boolean;
       sentParameters?: Record<string, string>;
     }>;
-  exchange?: (subjectToken: string) => Promise<{ token: string; targetAud: string; cached: boolean }>;
+  exchange?: (subjectToken: string, toolName?: string) => Promise<{ token: string; targetAud: string; cached: boolean }>;
 }
 
 function parseJsonRpcBody(body: Buffer): JsonRpcBody {
@@ -145,7 +217,10 @@ export function buildAuthorizeMcpRequest(
   const introspectionClient = new GatewayIntrospectionClient(config);
   const authorizeClient = new PingOneAuthorizeClient(config);
   const exchangeClient = new McpTokenExchangeClient(config);
-  const doExchange = deps?.exchange ?? ((t: string) => exchangeClient.exchangeForBackend(t, 'olb'));
+  // Exchange per tool: invest tools need the mcp-invest audience — a hardcoded
+  // 'olb' exchange minted an mcpserver-audience token that the invest backend
+  // (and mcp-server, which does not serve invest tools) both reject.
+  const doExchange = deps?.exchange ?? ((t: string, tool?: string) => exchangeClient.exchange(t, tool));
 
   return async (
     bearerToken: string,
@@ -187,6 +262,33 @@ export function buildAuthorizeMcpRequest(
         const _rlResult = getRateLimiter(config).check(_rlKey);
         if (!_rlResult.allowed) {
           teachLog.warn(`[GW] UC18 rate_limited key=${_rlKey} retryAfterMs=${_rlResult.retryAfterMs}`);
+          // Minimal, self-contained audit record — the durable audit-hook wrapper
+          // below hasn't been installed yet at this point in the pipeline, so a
+          // 429 here would otherwise leave no trace in X-Gw-Audit-Trail or
+          // /internal/mcp-audit (confirmed by reading the pipeline in full).
+          try {
+            res.setHeader('X-Gw-Audit-Trail', JSON.stringify({
+              introspection: null,
+              policy: null,
+              authorize: null,
+              mtls: null,
+              rateLimit: { limited: true, retryAfterMs: _rlResult.retryAfterMs },
+            }));
+          } catch {
+            // headers already sent — ignore
+          }
+          recordGatewayAudit(
+            {
+              operation: _rlTool,
+              outcome: 'failure',
+              userId: _rlSub,
+              agentId: _rlSub,
+              vertical: routeTool(_rlTool),
+              duration: 0,
+              details: { httpStatus: 429, rate_limited: true, retryAfterMs: _rlResult.retryAfterMs },
+            },
+            config,
+          );
           res.writeHead(429, {
             'Content-Type': 'application/json',
             'Retry-After': String(Math.ceil(_rlResult.retryAfterMs / 1000)),
@@ -261,13 +363,15 @@ export function buildAuthorizeMcpRequest(
       policy: null,
       authorize: null,
       mtls: null,
+      backend: null,
     };
     // Store introspection result to pass to P1AZ when introspectionProvider is 'p1az'
     let introspectionResult: { active: boolean; sub?: string; exp?: number; scope?: string; aud?: string } | undefined;
 
     // Helper: set the audit trail header on any response path
-    const setAuditHeader = (r: ServerResponse) => {
+    const setAuditHeader = (r: ServerResponse, filterOpts?: { denyingFilter?: string; lastFilter?: string }) => {
       try {
+        stampFilterTrail(auditTrail, filterOpts);
         r.setHeader('X-Gw-Audit-Trail', JSON.stringify(auditTrail));
       } catch {
         // headers already sent — ignore
@@ -288,7 +392,7 @@ export function buildAuthorizeMcpRequest(
         exp: introspResult.exp,
       };
       if (!introspResult.active) {
-        setAuditHeader(res);
+        setAuditHeader(res, { denyingFilter: 'TokenIntrospection' });
         // introspResult.error is only set when introspection itself failed
         // (transport error, or the client's own auth was rejected) — a
         // genuinely confirmed-inactive token never carries it. Don't tell
@@ -327,7 +431,18 @@ export function buildAuthorizeMcpRequest(
       // Production path: transport-agnostic pipeline (introspection + policy)
       // HTTP-specific rendering (writeHead, WWW-Authenticate, JSON body shape)
       // stays here; the core only returns a tagged decision.
-      const pipelineResult = await runMcpAuthorizationPipeline(bearerToken, introspectionClient, config);
+      // UC16 needs the tool name at policy time. Peek at the JSON-RPC envelope
+      // here (it is re-parsed below for the main flow) so the require-act branch
+      // in GatewayTokenPolicy is reachable on HTTP — without these two arguments
+      // the check silently never fired.
+      const preParsed = parseJsonRpcBody(body);
+      const pipelineResult = await runMcpAuthorizationPipeline(
+        bearerToken,
+        introspectionClient,
+        config,
+        preParsed.params?.name,
+        preParsed.method === 'tools/call' ? 'McpToolCall' : undefined,
+      );
       auditTrail.introspection = pipelineResult.audit.introspection;
       auditTrail.policy = pipelineResult.audit.policy;
       // Capture introspection result for passing to P1AZ when introspectionProvider='p1az'.
@@ -357,7 +472,7 @@ export function buildAuthorizeMcpRequest(
       }
 
       if (pipelineResult.kind === 'introspection_failed') {
-        setAuditHeader(res);
+        setAuditHeader(res, { denyingFilter: 'TokenIntrospection' });
         teachLog.info('gateway audit trail', { gw_audit_trail: auditTrail });
         res.writeHead(401, {
           'Content-Type': 'application/json',
@@ -373,7 +488,7 @@ export function buildAuthorizeMcpRequest(
       }
 
       if (pipelineResult.kind === 'policy_violation') {
-        setAuditHeader(res);
+        setAuditHeader(res, { denyingFilter: 'GatewayTokenPolicy' });
         teachLog.info('gateway audit trail', { gw_audit_trail: auditTrail });
         res.writeHead(401, {
           'Content-Type': 'application/json',
@@ -389,6 +504,10 @@ export function buildAuthorizeMcpRequest(
       }
 
       decoded = pipelineResult.decoded;
+      // C3: an act claim is delegation evidence. If it is present while
+      // REQUIRE_ACT_FOR_AGENT_TOOLS is off, /health reports that as a live
+      // bypass rather than an untested optional control.
+      if (decoded?.act) noteBindingHeaderSeen('act');
     }
 
     // ── Step 2: Parse JSON-RPC to get method, tool name, and transaction args ──────
@@ -490,6 +609,10 @@ export function buildAuthorizeMcpRequest(
 
     // ── Step 2b: Intent token validation (parity with WS path in index.ts) ───
     const xIntentToken = _req?.headers?.['x-intent-token'] as string | undefined;
+    // C3: record that intent evidence is being presented, so /health can report
+    // "intent token received but INTENT_TOKEN_REQUIRED is off" as a live bypass
+    // rather than as an unexercised optional control.
+    if (xIntentToken) noteBindingHeaderSeen('intent');
     const intentRequired = config.intentTokenRequired === true;
     const intentValidation = xIntentToken || intentRequired
       ? validateIntentToken(xIntentToken, toolName ?? '')
@@ -514,8 +637,10 @@ export function buildAuthorizeMcpRequest(
     }
 
     // ── Step 2c: bridge actor identity from BFF headers (HTTP parity with the WS path) ──
-    // PingOne can't emit `act`/`may_act` on exchanged tokens (resource SpEL can't reference
-    // the actor token), so the BFF bridges them via trusted server-to-server headers. The WS
+    // On hops where PingOne can't emit a native `act`/`may_act` (resource SpEL has no actor
+    // token to reference), the BFF bridges them via trusted server-to-server headers. Where a
+    // native claim IS present (e.g. this resource's null-safe act SPEL, rolled out 2026-06-19 —
+    // see docs/ACT_CLAIM_VERIFICATION.md), it always wins; the header is a fallback only. The WS
     // path (index.ts) already applies these; mirror it here so the Authorize decision sees
     // ActClientId + MayActSub on the HTTP transport too — required for ENFORCE_MAY_ACT.
     const _hdr = (n: string): string | undefined => {
@@ -530,7 +655,13 @@ export function buildAuthorizeMcpRequest(
     const _wsSecretOk = checkInternalSecret(_hdr('x-internal-gateway-secret'), config.bffInternalSecret);
     const bffActClientId = _wsSecretOk ? _hdr('x-act-client-id') : undefined;
     const bffMayActSub = _wsSecretOk ? _hdr('x-may-act-sub') : undefined;
-    if (decoded && !decoded.act?.sub && bffActClientId) {
+    // Confused-deputy demo (UC13): X-Demo-Force-Actor, gated by the same trust check, tells
+    // us to prefer the bridged header even when a native `act` claim is already present —
+    // otherwise the rogue actor the sim injects is silently shadowed by the real native claim
+    // and PingOne Authorize sees the real actor instead. Real traffic never sets this header;
+    // native act still wins for every normal call. Demo-only escape hatch, not a security change.
+    const _forceDemoActor = _wsSecretOk && _hdr('x-demo-force-actor') === 'true';
+    if (decoded && (_forceDemoActor || !decoded.act?.sub) && bffActClientId) {
       decoded.act = { sub: bffActClientId };
     }
     if (decoded && !decoded.may_act?.sub && bffMayActSub) {
@@ -544,11 +675,13 @@ export function buildAuthorizeMcpRequest(
     // is useless without the private key. Fail-closed only when REQUIRE_DPOP_PROOF=true;
     // otherwise observe + log + bridge so the demo runs with the flag on but enforcement off.
     const _dpopProof = _hdr('dpop');
+    if (_dpopProof) noteBindingHeaderSeen('dpop');
     let _cnfJkt: string | undefined;
     let _rarDetails: RarDetail[] | undefined;
     let _tratClaims: TratClaims | null = null;
     try {
       const xt = _hdr('x-trat-context');
+      if (xt) noteBindingHeaderSeen('rar');
       // Unsigned X-TraT-Context is demo-only; gate like MCP TratClaimsExtractor.
       if (xt && process.env.ALLOW_UNSIGNED_TRAT_CONTEXT === 'true') {
         const _env = JSON.parse(xt) as {
@@ -700,7 +833,23 @@ export function buildAuthorizeMcpRequest(
         );
       }
     } catch {
-      authzDecision = { decision: 'DENY' as const, reason: 'Authorization service unavailable' };
+      // C2: a DENY the gateway manufactured because the evaluation never
+      // completed still has an author. Label it with the authority that WAS
+      // meant to decide — matching PingOneAuthorizeClient's own unreachable-PDP
+      // DENY — and fall back to 'local-fallback' + degraded when no PDP is
+      // configured at all, because then the gateway really did decide alone.
+      authzDecision = isP1AZActive(config)
+        ? {
+            decision: 'DENY' as const,
+            reason: 'Authorization service unavailable',
+            policySource: policySourceForEngine(usingRealPdpEndpoint(config) ? 'real' : 'mock'),
+          }
+        : {
+            decision: 'DENY' as const,
+            reason: 'Authorization service unavailable',
+            policySource: 'local-fallback' as const,
+            degraded: true,
+          };
     }
     auditTrail.authorize = {
       decision: authzDecision.decision,
@@ -709,6 +858,9 @@ export function buildAuthorizeMcpRequest(
       policyVersion: authzDecision.policyVersion,
       traceId: authzDecision.traceId,
       engine: authzDecision.engine,
+      // C2 — recorded for EVERY outcome, PERMIT included.
+      policySource: authzDecision.policySource,
+      degraded: authzDecision.degraded,
       attributes: authzDecision.sentParameters,
     };
 
@@ -719,7 +871,7 @@ export function buildAuthorizeMcpRequest(
     // in the mock authz server's decision.js. Surface it distinctly instead
     // of a generic 403 policy denial.
     if (authzDecision.decision === 'DENY' && /^user_lookup_failed:/.test(authzDecision.reason || '')) {
-      setAuditHeader(res);
+      setAuditHeader(res, { denyingFilter: 'P1AZDecision' });
       teachLog.warn('gateway audit trail — user lookup unavailable', { gw_audit_trail: auditTrail });
       res.writeHead(503, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
@@ -730,8 +882,13 @@ export function buildAuthorizeMcpRequest(
     }
 
     if (authzDecision.decision !== 'PERMIT') {
-      setAuditHeader(res);
+      setAuditHeader(res, { denyingFilter: 'P1AZDecision' });
       teachLog.info('gateway audit trail', { gw_audit_trail: auditTrail });
+      // F8 — `required_scopes` is derived from the LOCAL scope topology, so it
+      // only describes the decision when the local scope engine IS what decided.
+      // Both non-PERMIT branches below render it, so the gate is computed once
+      // here rather than only on the insufficient_scope branch.
+      const deniedLocally = authzDecision.policySource === 'local-fallback';
       res.writeHead(403, {
         'Content-Type': 'application/json',
         'WWW-Authenticate': `Bearer realm="PingOne", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource"`,
@@ -781,17 +938,31 @@ export function buildAuthorizeMcpRequest(
           challenge_type: challengeType,
           expiresAt,
           instructions: 'Approve at dashboard, then retry with _hitl_challenge_id in arguments',
-          required_scopes: getScopesForGatewayTool(toolName ?? ''),
+          // C2 — an obligation is a decision; it carries provenance like any other.
+          policy_source: authzDecision.policySource,
+          ...(authzDecision.degraded ? { degraded: true } : {}),
+          // F8, same reasoning as the denial branch below: what a PDP-issued HITL
+          // hold needs is a human, not more scopes. Listing scopes here told the
+          // operator to re-authenticate for permissions that were never missing.
+          ...(deniedLocally ? { required_scopes: getScopesForGatewayTool(toolName ?? '') } : {}),
           login_required: false,
         }));
         return;
       }
 
+      // F8 — `required_scopes` is a hint derived from the LOCAL scope topology.
+      // It only describes the decision when the local scope engine IS what
+      // denied. Attaching it to a P1AZ denial for an unrelated reason (tier
+      // ceiling, group membership, actor chain) tells the operator to fix scopes
+      // that were never the problem — and can directly contradict the PDP.
       res.end(JSON.stringify({
         error: 'insufficient_scope',
         message: authzDecision.reason ?? 'Request denied by policy',
         decision: authzDecision.decision,
-        required_scopes: getScopesForGatewayTool(toolName ?? ''),
+        // C2 — provenance travels with every decision the caller can see.
+        policy_source: authzDecision.policySource,
+        ...(authzDecision.degraded ? { degraded: true } : {}),
+        ...(deniedLocally ? { required_scopes: getScopesForGatewayTool(toolName ?? '') } : {}),
         login_required: false,
       }));
       return;
@@ -858,12 +1029,10 @@ export function buildAuthorizeMcpRequest(
     }
 
     // ── Step 4: RFC 8693 exchange, then forward (spec §4) ──────────────────────────
-    // The HTTP upstream is FIXED to the OLB server (GatewayServer.upstreamMcpUrl) —
-    // there is no per-tool routing on this transport, unlike the WS path (index.ts),
-    // which proxies to olb or invest per routeTool(toolName). So every Step-4
-    // exchange here targets the olb audience regardless of toolName; invest tools
-    // are not reachable over this HTTP path. Fail closed: on exchange failure
-    // nothing is forwarded.
+    // doExchange()/routeTool() route per-tool to the olb, invest, or jwtverifier
+    // audience (see demo_mcp_gateway/src/router.ts and PR #654/#674) — this HTTP
+    // transport reaches all three backends, not just olb. Fail closed: on
+    // exchange failure nothing is forwarded.
     // WR-03: outBody has `_hitl_challenge_id` stripped (or === body if absent).
     auditTrail.mtls = config.mtlsEnabled
       ? { enabled: true, subject: 'banking-mcp-gateway' }
@@ -872,13 +1041,16 @@ export function buildAuthorizeMcpRequest(
     teachLog.info('gateway audit trail', { gw_audit_trail: auditTrail });
     let upstreamToken: string;
     try {
-      const ex = await doExchange(bearerToken);
+      const ex = await doExchange(bearerToken, toolName);
       upstreamToken = ex.token;
+      auditTrail.backend = { target: routeTool(toolName || ''), audience: ex.targetAud, cached: ex.cached, exchanged: true };
+      setAuditHeader(res);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       const axiosData = (err as any)?.response?.data;
       const detail = axiosData?.error_description || axiosData?.error || errMsg;
       teachLog.error('[GW] HTTP token exchange failed', err instanceof Error ? err : undefined, { tool: toolName });
+      auditTrail.backend = { target: routeTool(toolName || ''), audience: null, exchanged: false, error: detail };
       sendRpcError(502, parsedBody.id, {
         code: -32500,
         message: `Token exchange failed: ${detail}`,

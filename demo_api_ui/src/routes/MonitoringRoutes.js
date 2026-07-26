@@ -2,14 +2,13 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./AppShell";
 import ActivityLogPage from "../components/ActivityLogPage";
 import ActivityLogs from "../components/ActivityLogs";
-import ApiExplorerPanel from "../components/ApiExplorerPanel";
 import ApiTrafficPage from "../components/ApiTrafficPage";
 import DevToolsDashboard from "../components/DevToolsDashboard";
 import LogViewerPage from "../components/LogViewerPage";
 import McpInspector from "../components/McpInspector";
 import McpTrafficPage from "../components/McpTrafficPage";
 import SequenceDiagramPage from "../components/SequenceDiagramPage";
-import TokenChainDisplay from "../components/TokenChainDisplay";
+import TokenChainTraceRail from "../components/TokenChainTraceRail";
 import UnifiedTokenFlowInspector from "../components/UnifiedTokenFlowInspector";
 import WebMcpPanel from "../components/WebMcpPanel";
 
@@ -23,9 +22,11 @@ export default function MonitoringRoutes({ user, logout, AgentFlowPage }) {
             links work for guests. The wildcard catch-all path for the same
             slugs in App.js was historically gated; only the top-level path
             (this one) ever rendered them in practice. */}
-        <Route path="token-chain" element={<TokenChainDisplay />} />
+        {/* One live Token Chain model (tokenChainTraceStore) — TraceRail is the
+            canonical display; classic TokenChainDisplay is no longer mounted. */}
+        <Route path="token-chain" element={<TokenChainTraceRail />} />
         <Route path="mcp-traffic" element={<McpTrafficPage />} />
-        <Route path="api-explorer" element={<ApiExplorerPanel />} />
+        <Route path="api-explorer" element={<Navigate to="/pingone-mcp-inspector?source=api" replace />} />
         <Route path="agent-flow" element={
           user && AgentFlowPage
             ? <AgentFlowPage />
@@ -99,11 +100,12 @@ export function WebMcpRoute({ user, logout }) {
   );
 }
 
-export function AgentFlowInspectorRoute({ user, logout }) {
+export function AgentFlowInspectorRoute({ user }) {
   if (!user) return <Navigate to="/" replace />;
+  // Mounted under App.js catch-all which already supplies TopNav + main-content
+  // (+ side nav). Do not nest another shell — a second .main-content also got
+  // the sidebar width offset and left empty space on the right.
   return (
-    <AppShell user={user} logout={logout}>
-      <UnifiedTokenFlowInspector floatingByDefault={false} showToggle={true} />
-    </AppShell>
+    <UnifiedTokenFlowInspector floatingByDefault={false} showToggle={true} />
   );
 }

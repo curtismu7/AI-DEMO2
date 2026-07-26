@@ -1,0 +1,20 @@
+{
+  "vertical": "workforce",
+  "useCaseId": "UC25",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "view_benefits",
+  "checkedAt": "2026-07-26",
+  "requiredFlags": [
+    "ff_enterprise_managed_mcp_auth",
+    "ff_mcp_gateway_pinggateway"
+  ],
+  "flagsAssumedOn": true,
+  "provesDeclaredOnly": true,
+  "flagsOffDetected": [
+    "ff_enterprise_managed_mcp_auth",
+    "ff_mcp_gateway_pinggateway"
+  ]
+}

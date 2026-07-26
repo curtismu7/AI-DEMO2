@@ -187,4 +187,15 @@ describe('UC18 rate-limiting in buildAuthorizeMcpRequest', () => {
     const { fakeRes: res456 } = await callMiddleware(config, TOOL_CALL_BODY, bearer456);
     expect(res456.statusCode).not.toBe(429);
   });
+
+  it('rate-limit ON: a 429 sets X-Gw-Audit-Trail so it is visible in the shared audit panel', async () => {
+    const config = makeConfig({ rateLimitEnabled: true, rateLimitMaxRequests: 1, rateLimitWindowMs: 10000 });
+    await callMiddleware(config, TOOL_CALL_BODY); // consume the one allowed slot
+    const { fakeRes } = await callMiddleware(config, TOOL_CALL_BODY); // this one is rate-limited
+    expect(fakeRes.statusCode).toBe(429);
+    expect(fakeRes.setHeader).toHaveBeenCalledWith('X-Gw-Audit-Trail', expect.any(String));
+    const auditTrailArg = fakeRes.setHeader.mock.calls.find((c: any[]) => c[0] === 'X-Gw-Audit-Trail')[1];
+    const auditTrail = JSON.parse(auditTrailArg);
+    expect(auditTrail.rateLimit).toEqual({ limited: true, retryAfterMs: expect.any(Number) });
+  });
 });

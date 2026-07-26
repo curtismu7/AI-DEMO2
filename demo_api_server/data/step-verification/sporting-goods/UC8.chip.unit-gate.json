@@ -1,0 +1,10 @@
+{
+  "vertical": "sporting-goods",
+  "useCaseId": "UC8",
+  "triggerType": "chip",
+  "mode": "unit-gate",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": "extend_rental",
+  "checkedAt": "2026-07-25"
+}

@@ -5,7 +5,8 @@
 
 .device-selector__title {
   margin-bottom: 1.5rem;
-  color: #475569;
+  /* §0: dialogs use solid high-contrast text, not muted gray. */
+  color: #0f172a;
   font-size: 1rem;
   font-weight: 500;
 }
@@ -57,9 +58,37 @@
 .device-selector__detail {
   display: block;
   font-size: 0.8rem;
-  color: #64748b;
+  color: #334155;
   font-weight: 400;
   margin-top: 0.25rem;
+}
+
+.device-selector__setup {
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.device-selector__setup-title {
+  margin: 0 0 0.75rem;
+  color: #0f172a;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.device-selector__btn--setup {
+  border-style: dashed;
+}
+
+.device-selector__btn--setup[aria-busy="true"] {
+  cursor: wait;
+}
+
+.device-selector__setup-error {
+  margin: 0.75rem 0 0;
+  color: #b91c1c;
+  font-size: 0.85rem;
+  font-weight: 500;
 }
 
 .device-selector__back-btn {

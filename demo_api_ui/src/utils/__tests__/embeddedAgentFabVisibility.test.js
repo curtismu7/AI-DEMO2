@@ -4,6 +4,9 @@ import {
   isEmbeddedAgentDockRoute,
   isDashboardQuickNavRoute,
   shouldShowGlobalFloatingBankingAgentFab,
+  isLiveWorkbenchRoute,
+  isAgentLifecycleRoute,
+  isPingOneAdminAgentRoute,
 } from '../embeddedAgentFabVisibility';
 
 const customer = { role: 'customer', id: '1' };
@@ -18,6 +21,16 @@ describe('isBankingAgentDashboardRoute', () => {
     expect(isBankingAgentDashboardRoute('/demo-data')).toBe(false);
     expect(isBankingAgentDashboardRoute('/mcp-inspector')).toBe(false);
     expect(isBankingAgentDashboardRoute('/config')).toBe(false);
+  });
+});
+
+describe('isPingOneAdminAgentRoute', () => {
+  it('matches only the /admin console (not vertical ops or customer dash)', () => {
+    expect(isPingOneAdminAgentRoute('/admin')).toBe(true);
+    expect(isPingOneAdminAgentRoute('/admin/')).toBe(true);
+    expect(isPingOneAdminAgentRoute('/admin/banking')).toBe(false);
+    expect(isPingOneAdminAgentRoute('/dashboard')).toBe(false);
+    expect(isPingOneAdminAgentRoute('/')).toBe(false);
   });
 });
 
@@ -144,5 +157,35 @@ describe('shouldShowGlobalFloatingBankingAgentFab', () => {
         pathname: '/dashboard',
       }),
     ).toBe(false);
+  });
+});
+
+describe('isLiveWorkbenchRoute', () => {
+  it('is true only for /use-cases/live', () => {
+    expect(isLiveWorkbenchRoute('/use-cases/live')).toBe(true);
+    expect(isLiveWorkbenchRoute('/use-cases/live/')).toBe(true);
+  });
+
+  it('is false for the catalog page, dashboard, and unrelated routes', () => {
+    expect(isLiveWorkbenchRoute('/use-cases')).toBe(false);
+    expect(isLiveWorkbenchRoute('/dashboard')).toBe(false);
+    expect(isLiveWorkbenchRoute('/')).toBe(false);
+    expect(isLiveWorkbenchRoute(null)).toBe(false);
+    expect(isLiveWorkbenchRoute(undefined)).toBe(false);
+  });
+});
+
+describe('isAgentLifecycleRoute', () => {
+  it('is true only for /agent-lifecycle', () => {
+    expect(isAgentLifecycleRoute('/agent-lifecycle')).toBe(true);
+    expect(isAgentLifecycleRoute('/agent-lifecycle/')).toBe(true);
+  });
+
+  it('is false for unrelated routes', () => {
+    expect(isAgentLifecycleRoute('/use-cases/live')).toBe(false);
+    expect(isAgentLifecycleRoute('/dashboard')).toBe(false);
+    expect(isAgentLifecycleRoute('/')).toBe(false);
+    expect(isAgentLifecycleRoute(null)).toBe(false);
+    expect(isAgentLifecycleRoute(undefined)).toBe(false);
   });
 });

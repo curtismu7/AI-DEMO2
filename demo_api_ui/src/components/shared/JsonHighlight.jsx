@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 import "./JsonHighlight.css";
 
 // Shared colour-coded JSON viewer.
@@ -38,7 +38,7 @@ function parseJsonString(value) {
 // shaped { text: "<escaped JSON string>" }, which renders as one long unwrapped
 // line; this expands them. Opt-in via the `deep` prop — most viewers want to
 // show the payload as-is, so the default leaves nested strings untouched.
-function deepParse(value, depth = 0) {
+export function deepParse(value, depth = 0) {
   if (depth > 6) return value;
   if (typeof value === "string") {
     const parsed = parseJsonString(value);
@@ -53,7 +53,7 @@ function deepParse(value, depth = 0) {
   return value;
 }
 
-function formatJson(value, deep) {
+export function formatJson(value, deep) {
   if (value === null || value === undefined) return null;
   try {
     const normalized = deep ? deepParse(value) : parseJsonString(value);
@@ -65,31 +65,86 @@ function formatJson(value, deep) {
 
 const TOKEN_RE = /("(?:[^"\\]|\\.)*"\s*:)|("(?:[^"\\]|\\.)*")|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|(\b(?:true|false|null)\b)|([{}[\],:])/g;
 
-function tokenize(text) {
+const CRITICAL_FIELDS = new Set(['decision', 'outcome', 'error', 'status', 'errorCode', 'error_code', 'result']);
+
+function extractFieldName(keyText) {
+  const m = keyText.match(/"([^"]+)"\s*:/);
+  return m ? m[1] : null;
+}
+
+export function tokenize(text) {
   const tokens = [];
   let last = 0;
+  let lastKeyWasCritical = false;
   TOKEN_RE.lastIndex = 0;
   for (let m = TOKEN_RE.exec(text); m !== null; m = TOKEN_RE.exec(text)) {
     if (m.index > last) tokens.push({ type: "plain", text: text.slice(last, m.index) });
-    if (m[1]) tokens.push({ type: "key", text: m[1] });
-    else if (m[2]) tokens.push({ type: "string", text: m[2] });
-    else if (m[3]) tokens.push({ type: "number", text: m[3] });
-    else if (m[4]) tokens.push({ type: "keyword", text: m[4] });
-    else if (m[5]) tokens.push({ type: "punct", text: m[5] });
+    if (m[1]) {
+      const fieldName = extractFieldName(m[1]);
+      const isCritical = fieldName && CRITICAL_FIELDS.has(fieldName);
+      tokens.push({ type: "key", text: m[1], critical: isCritical });
+      lastKeyWasCritical = isCritical;
+    } else if (m[2]) {
+      tokens.push({ type: "string", text: m[2], critical: lastKeyWasCritical });
+      lastKeyWasCritical = false;
+    } else if (m[3]) {
+      tokens.push({ type: "number", text: m[3], critical: lastKeyWasCritical });
+      lastKeyWasCritical = false;
+    } else if (m[4]) {
+      tokens.push({ type: "keyword", text: m[4], critical: lastKeyWasCritical });
+      lastKeyWasCritical = false;
+    } else if (m[5]) {
+      tokens.push({ type: "punct", text: m[5] });
+    }
     last = TOKEN_RE.lastIndex;
   }
   if (last < text.length) tokens.push({ type: "plain", text: text.slice(last) });
   return tokens;
 }
 
-export default function JsonHighlight({ value, deep = false }) {
+function CopyButton({ text }) {
+  const [copied, setCopied] = useState(false);
+  const copy = useCallback(() => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    });
+  }, [text]);
+  return (
+    <button type="button" className="jh-copy" onClick={copy}>
+      {copied ? "✅" : "Copy"}
+    </button>
+  );
+}
+
+// One JSON.stringify(..., null, 2) line, rendered with a vertical guide span
+// per indent level (2 spaces each) so deep nesting stays scannable.
+function Line({ line }) {
+  const spaces = line.match(/^ */)[0].length;
+  const depth = Math.floor(spaces / 2);
+  const rest = line.slice(spaces);
+  return (
+    <span className="jh-line">
+      {Array.from({ length: depth }, (_, d) => (
+        <span key={d} className="jh-guide" />
+      ))}
+      {tokenize(rest).map((t, i) => {
+        const className = t.critical ? `jh-${t.type} jh-critical` : `jh-${t.type}`;
+        return <span key={i} className={className}>{t.text}</span>;
+      })}
+    </span>
+  );
+}
+
+export default function JsonHighlight({ value, deep = false, copyable = false }) {
   const text = formatJson(value, deep);
   if (text === null) return <span className="jh-empty">—</span>;
   return (
-    <>
-      {tokenize(text).map((t, i) => (
-        <span key={i} className={`jh-${t.type}`}>{t.text}</span>
+    <span className="jh-root">
+      {copyable && <CopyButton text={text} />}
+      {text.split("\n").map((line, i) => (
+        <Line key={i} line={line} />
       ))}
-    </>
+    </span>
   );
 }

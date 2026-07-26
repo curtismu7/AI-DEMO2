@@ -77,6 +77,8 @@ describe('a2aDelegationService.delegateToSpecialist (chained RFC 8693)', () => {
     configStore: makeConfig(cfgOverrides),
     getSessionBearerForMcp: sessionBearer,
     scopeTopology: makeScopeTopology(),
+    // Unit tests cover RFC 8693 identity only; protocol wire hop is separate.
+    sendA2aProtocolHandoff: async ({ tokenEvents }) => ({ ok: true, tokenEvents }),
   });
 
   test('produces nested act:{agent2, act:{agent1}} bound to the user (banking)', async () => {
@@ -244,6 +246,63 @@ describe('a2aDelegationService.delegateToSpecialist (chained RFC 8693)', () => {
     expect(result.error).toMatch(/Investment Advisor can only run/i);
     expect(result.error).toMatch(/not authorized for "mortgage_demo"/i);
     expect(calls.exchanges).toHaveLength(0); // fails fast, before any token exchange
+  });
+
+  test('legacy fake topo (no resourceUri) keeps shared intermediate + mcpgateway audiences', async () => {
+    const { oauthService, calls } = makeOauth();
+    await a2a.delegateToSpecialist(reqWithToken(), {
+      vertical: 'banking',
+      deps: { ...bankingDeps(), oauthService },
+    });
+    expect(calls.exchanges[0].audience).toBe('a2a-intermediate.ping.demo');
+    expect(calls.exchanges[1].audience).toBe('mcpgateway.ping.demo');
+  });
+
+  test('topology resourceUri prefers investment intermediate + A2A gateway over shared config', async () => {
+    const { oauthService, calls } = makeOauth();
+    const scopeTopology = {
+      ...makeScopeTopology(),
+      resourceUri: (name) => {
+        if (name === 'Super Banking A2A Intermediate - Investment Advisor') {
+          return 'a2a-intermediate-investment.ping.demo';
+        }
+        if (name === 'Super Banking A2A MCP Gateway') {
+          return 'mcpgateway-a2a.ping.demo';
+        }
+        return null;
+      },
+    };
+    // Shared audiences remain set (the live bug: wrong shared + agent:invoke:investment).
+    const result = await a2a.delegateToSpecialist(reqWithToken(), {
+      vertical: 'banking',
+      deps: { ...bankingDeps(), oauthService, scopeTopology },
+    });
+    expect(result.error).toBeUndefined();
+    expect(calls.exchanges[0].audience).toBe('a2a-intermediate-investment.ping.demo');
+    expect(calls.exchanges[0].audience).not.toBe('a2a-intermediate.ping.demo');
+    expect(calls.exchanges[1].audience).toBe('mcpgateway-a2a.ping.demo');
+    expect(calls.exchanges[1].audience).not.toBe('mcpgateway.ping.demo');
+  });
+
+  test('per-appKey config still wins over topology resourceUri', async () => {
+    const { oauthService, calls } = makeOauth();
+    const scopeTopology = {
+      ...makeScopeTopology(),
+      resourceUri: () => 'a2a-intermediate-investment.ping.demo',
+    };
+    await a2a.delegateToSpecialist(reqWithToken(), {
+      vertical: 'banking',
+      deps: {
+        ...bankingDeps({
+          a2a_intermediate_audience_investment: 'custom-intermediate.ping.demo',
+          a2a_gateway_audience: 'custom-a2a-gw.ping.demo',
+        }),
+        oauthService,
+        scopeTopology,
+      },
+    });
+    expect(calls.exchanges[0].audience).toBe('custom-intermediate.ping.demo');
+    expect(calls.exchanges[1].audience).toBe('custom-a2a-gw.ping.demo');
   });
 });
 

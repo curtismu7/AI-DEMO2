@@ -3,6 +3,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const router = express.Router();
 const dataStore = require('../data/store');
+const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 const { requireAdmin, requireScopes, authenticateToken } = require('../middleware/auth');
 
 // Activity-log READS are open to any authenticated user (relaxed in 9bc18996b),
@@ -856,7 +857,9 @@ router.post(
   async (req, res) => {
     try {
       const { agentId } = req.params;
-      const { reason = 'manual_red_button' } = req.body;
+      // Default instance: omitting scope must NEVER disable PingOne agent apps
+      // (that used to brick the whole demo when a caller forgot to pass scope).
+      const { reason = 'manual_red_button', scope = 'instance' } = req.body;
 
       // Validation
       if (!agentId || typeof agentId !== 'string' || agentId.trim().length === 0) {
@@ -873,6 +876,13 @@ router.post(
         });
       }
 
+      if (scope !== 'full' && scope !== 'instance') {
+        return res.status(400).json({
+          error: 'invalid_scope',
+          message: "scope must be 'full' or 'instance'",
+        });
+      }
+
       // Check if already revoked
       const isRevoked = await killSwitchService.isAgentRevoked(agentId);
       if (isRevoked) {
@@ -885,7 +895,7 @@ router.post(
       // Execute kill switch — pass userId and session tokens for revocation at PingOne
       const userId = req.session?.user?.oauthId || req.session?.user?.id || null;
       const oauthTokens = req.session?.oauthTokens || null;
-      const result = await killSwitchService.killAgent(agentId, reason, userId, oauthTokens);
+      const result = await killSwitchService.killAgent(agentId, reason, userId, oauthTokens, scope);
 
       // Destroy admin session — token is revoked, session is now invalid
       req.session.destroy(() => {});
@@ -897,6 +907,8 @@ router.post(
         revoked_at: result.revoked_at,
         state_snapshot_id: result.state_snapshot_id,
         time_to_revoke_ms: result.time_to_revoke_ms,
+        scope: result.scope,
+        steps: result.steps,
         message: `Agent stopped. Session revoked. Please sign in again.`,
       });
 
@@ -904,7 +916,33 @@ router.post(
       console.error('[admin] Kill switch error:', error.message);
       return res.status(500).json({
         error: 'kill_switch_failed',
-        message: `Failed to execute kill switch: ${error.message}`,
+        message: `Failed to execute kill switch: ${normalizeAxiosError(error, { label: 'kill switch' }).message}`,
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/admin/agent/:agentId/re-enable
+ * Inverse of the kill switch: re-enables the PingOne agent application(s)
+ * disabled by killAgent, so the demo can continue without manual PingOne
+ * console access. Gated the same way as kill-switch (authenticateToken) since
+ * killing an agent destroys the calling session — whoever signs back in
+ * (customer or admin) can revive it, matching this control plane's existing
+ * "any logged-in user" model (see ControlPlaneRoster.jsx).
+ */
+router.post(
+  '/agent/:agentId/re-enable',
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const applications = await killSwitchService.enableAgentApplicationsAtPingOne();
+      return res.status(200).json({ ok: true, applications });
+    } catch (error) {
+      console.error('[admin] Re-enable agent error:', error.message);
+      return res.status(500).json({
+        error: 're_enable_failed',
+        message: `Failed to re-enable agent: ${error.message}`,
       });
     }
   }
@@ -1025,10 +1063,18 @@ const appEventService = require('../services/appEventService');
 const { clearAllTokenChains } = require('../services/tokenChainService');
 const mcpToolAuditStore = require('../services/mcpToolAuditStore');
 const apiCallTracker = require('../services/apiCallTrackerService');
+const { FLAG_REGISTRY } = require('./featureFlags');
+
+// Feature flags reset to their FLAG_REGISTRY defaultValue on Reset Demo, so a
+// presenter's mid-demo change (e.g. weather Allowed State -> Michigan) doesn't
+// silently carry into the next run. Scoped to just these two — this is not a
+// general "reset every flag" feature, only the ones a live weather demo touches.
+const RESET_DEMO_FLAG_IDS = ['ff_weather_mcp_showcase', 'ff_weather_mcp_allowed_state'];
 
 /**
  * POST /api/admin/reset-demo — Clear all in-memory demo state for a fresh start.
  * Clears: app events, token chain, MCP audit, API call tracker, pending consents.
+ * Also resets RESET_DEMO_FLAG_IDS to their registry defaults.
  * Auth: authenticateToken only — any logged-in user can reset the demo.
  */
 router.post('/reset-demo', authenticateToken, async (req, res) => {
@@ -1037,6 +1083,16 @@ router.post('/reset-demo', authenticateToken, async (req, res) => {
     clearAllTokenChains();
     mcpToolAuditStore.clearToolCalls();
     apiCallTracker.clearApiCalls('default');
+
+    const flagDefaults = {};
+    for (const id of RESET_DEMO_FLAG_IDS) {
+      const flag = FLAG_REGISTRY.find((f) => f.id === id);
+      if (!flag) continue;
+      flagDefaults[id] = typeof flag.defaultValue === 'boolean' ? String(flag.defaultValue) : flag.defaultValue;
+    }
+    if (Object.keys(flagDefaults).length > 0) {
+      await configStore.setRaw(flagDefaults);
+    }
 
     // Clear MCP server's own in-memory audit log (fire-and-forget, non-fatal)
     try {

@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./AppShell";
-import AuthzTestPage from "../components/AuthzTestPage";
 import IntentBindingLearningPage from "../pages/IntentBindingLearningPage";
+import LiveUseCaseWorkbenchPage from "../pages/LiveUseCaseWorkbenchPage";
 import AIAgent from "../components/AIAgent";
 import CodeExplorerPage from "../components/CodeExplorerPage";
 import GraphifyPage from "../components/GraphifyPage";
@@ -24,8 +24,11 @@ import SetupWizard from "../components/SetupWizard";
 import UnifiedConfigurationPage from "../components/Configuration/UnifiedConfigurationPage";
 import UseCaseLauncherPage from "../pages/UseCaseLauncherPage";
 import TokenExchangeTesterPage from "../pages/TokenExchangeTesterPage";
+import McpInspectorPage from "../components/McpInspectorPage";
+import McpGatewayConfig from "../components/McpGatewayConfig";
 import SdkLoginPage from "../pages/SdkLoginPage";
 import SdkLoginCallback from "../pages/SdkLoginCallback";
+import CibaApprovalPage from "../pages/CibaApprovalPage";
 import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
 import PrivilegeMcpClientPage from "../pages/PrivilegeMcpClientPage";
 
@@ -91,14 +94,6 @@ export function MFATestPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <MFATestPage />
-    </AppShell>
-  );
-}
-
-export function AuthzTestPageRoute({ user, logout }) {
-  return (
-    <AppShell user={user} logout={logout}>
-      <AuthzTestPage />
     </AppShell>
   );
 }
@@ -202,10 +197,36 @@ export function UseCasesPageRoute({ user, logout }) {
   );
 }
 
+export function LiveUseCaseWorkbenchPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <LiveUseCaseWorkbenchPage />
+    </AppShell>
+  );
+}
+
 export function TokenExchangeTesterPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <TokenExchangeTesterPage />
+    </AppShell>
+  );
+}
+
+/** MCP Inspector — top-level so guests aren't stuck on the auth catch-all (TopNav only). */
+export function McpInspectorPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <McpInspectorPage />
+    </AppShell>
+  );
+}
+
+/** Gateway Inspector — top-level so guests aren't stuck on the auth catch-all (TopNav only). */
+export function McpGatewayConfigRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <McpGatewayConfig />
     </AppShell>
   );
 }
@@ -220,6 +241,10 @@ export function SdkLoginPageRoute() {
 // OIDC redirect callback (bare — no shell, it exchanges the code and redirects).
 export function SdkLoginCallbackRoute() {
   return <SdkLoginCallback />;
+}
+
+export function CibaApprovalPageRoute() {
+  return <CibaApprovalPage />;
 }
 
 export { LogoutPage, ComplianceModalPopout, DemoGuidePopout };

@@ -64,7 +64,7 @@ checkout. Concurrent sessions share one index; collisions have wiped staged work
 |---|---|
 | Run | `./run.sh` (native); `./run-docker.sh` (Compose, lean core by default); `./run-k8.sh` |
 | SE AWS | `./run-pingaws.sh` — Ping SE cluster only (`ai-demo.ping-devops.com`); wraps `./run-k8.sh se-*` + `se-update-{code,config,pingone}.sh` |
-| API / UI | `https://api.ping.demo:3001` / UI `:4000` (hosts + `mkcert -install` once) |
+| API / UI | API `https://api.ping.demo:3001` / UI `https://local.ping-devops.com:4000` (hosts + `mkcert -install` once) |
 | Test | `./run-tests.sh unit` (fastest); `./run-tests.sh [api\|e2e\|all]`; `npm test` |
 | Hygiene | `npm run topology:verify`, `npm run hygiene:check` |
 | LLM proxy | `:8090` via `demo_llm_proxy/` (`LLM_BACKEND=llamacpp` default; `omlx` on Apple Silicon) |
@@ -73,10 +73,26 @@ PingOne lifecycle (`setup:fresh`, `pingone:bootstrap`, import/export/reset) muta
 a live environment — read the script before running. Prefer hosted PingOne MCP
 tools for app/population/user reads during development.
 
+## Stack
+
+Node >= 22 everywhere. **Read the nested `CLAUDE.md` for the directory you are
+editing** — it carries that service's versions, layout and hard rules.
+
+- `demo_api_server/` — CommonJS, Express 4.18, jest 29.7 + supertest, LMDB, Redis session
+- `demo_api_ui/` — React 19.2, Vite 8, **vitest** (not jest), Playwright, plain JSX
+- `langchain_agent/`, `openai_agent/`, `pydantic_agent/` — Python + pytest;
+  `mastra_agent/` is Node
+
 ## Watch out
 
 - Auth / token / session / UI: treat as protected; state what you will **not**
   break before editing.
+- **Sign-in only works on `local.ping-devops.com:4000`** — passkeys need an
+  rp.id matching the serving host, so `PUBLIC_APP_URL` and the OAuth callback
+  point there. `api.ping.demo:4000` still serves the app (allowed by
+  `CORS_ORIGIN`) but the session cookie is on the other host, so the dashboard
+  renders "Please sign in to use the Agent". Point `E2E_BASE_URL` at the same
+  host or every `*.real.spec.js` 401s in a way that looks like broken auth.
 - Do not invent conventions (error shapes, date handling, import paths) — match
   the nearest existing module.
 - After code edits, run `graphify update .` (AST-only). For codebase questions,
@@ -97,10 +113,22 @@ grounds the demo agent when the **Knowledge Grounding** flag
 (`ff_knowledge_grounding`) is ON — this is the demo's citable-facts feature, not
 Google's Open Knowledge Format.
 
+## Before claiming done
+
+1. Run the checks for what you touched, and paste the result line:
+   - server → `cd demo_api_server && CI=true npm test -- --forceExit`
+   - UI → `cd demo_api_ui && npm run test:unit && npm run build`
+   - cross-service config → `npm run topology:verify`
+2. State ✅ or ❌ for each — no bare "done":
+   - tests / build green (evidence, not assertion)
+   - every changed line traces to the request
+   - staged explicitly on a worktree branch (`git branch --show-current`)
+   - emoji allowlist respected in any rendered string
+
 ## Repo map (high level)
 
-- `demo_api_server/` — BFF / API + provisioning (main test surface)
-- `demo_api_ui/` — React UI (Vite)
+- `demo_api_server/` — BFF / API + provisioning (main test surface) · own `CLAUDE.md`
+- `demo_api_ui/` — React UI (Vite) · own `CLAUDE.md`
 - `demo_mcp_server/`, `demo_mcp_gateway/`, `demo_mcp_proxy/`
 - `demo_authz_server/`, `demo_hitl_service/`, `ping-gateway/`
 - `langchain_agent/`, `openai_agent/`, `pydantic_agent/`, `mastra_agent/`

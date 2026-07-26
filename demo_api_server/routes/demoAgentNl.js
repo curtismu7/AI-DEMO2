@@ -112,6 +112,10 @@ router.post('/nl', async (req, res) => {
     return res.status(400).json({ error: 'invalid_vertical', message: 'vertical must match [a-z][a-z0-9-]*' });
   }
   const vertical = parseVerticalParam(verticalRaw);
+  if (vertical && req.session && req.session.active_vertical !== vertical) {
+    req.session.active_vertical = vertical;
+    if (typeof req.session.save === 'function') req.session.save(() => {});
+  }
 
   const promptBlock = guardPromptInput(message.trim());
   if (promptBlock) {

@@ -5,7 +5,7 @@
  * attack-type triggers: POST /api/demo/attack-sim/run when sim is in RUNNABLE_SIMS.
  * A6: runnable attack sims wired to POST /api/demo/attack-sim/run.
  * A5.2 (slim launch drawer on /agent) — NOT included here; deferred.
- * A5.3 — FF-aware run-gating + inline enable toggle.
+ * A5.3 — FF-aware notice + inline toggle; Run auto-enables required flags.
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -29,10 +29,13 @@ import {
   getCompletedUseCaseIds,
   markUseCaseCompleted,
 } from '../utils/useCaseDemoProgress';
+import { requiredFlagsForUseCase } from '../utils/requiredDemoFlags';
 import {
   DEMO_USE_CASE_IDS,
   DEMO_USE_CASE_LABEL,
 } from '../config/demoUseCaseSteps';
+import { allRelatedUCIds as allAgentGatewayUCIds } from '../config/capabilityLedgers/agentGatewayCapabilities';
+import { allRelatedUCIds as allPingOneAuthorizeUCIds } from '../config/capabilityLedgers/pingOneAuthorizeCapabilities';
 
 const TRACK_ORDER = ['foundations', 'demo', 'attacks', 'hitl', 'controls', 'learn', 'tools'];
 const TRACK_LABELS = {
@@ -47,6 +50,8 @@ const TRACK_LABELS = {
 
 const HAPPY_PATH_LABEL = 'Happy Paths — successful outcomes across every track';
 const DEMO_LABEL = DEMO_USE_CASE_LABEL;
+const AGENT_GATEWAY_LABEL = 'Agent Gateway — validate, throttle, transform, and enforce, cited against the running code';
+const PINGONE_AUTHORIZE_LABEL = 'PingOne Authorize — contextual runtime decisions, cited against the running code';
 
 // Attack sims wired to POST /api/demo/attack-sim/run (A6.1 + A6.2).
 const RUNNABLE_SIMS = [
@@ -380,7 +385,7 @@ function UseCaseCard({ uc, stepNumber, completed, onRun, onRunAttack, onExplain,
   const flagGated = flagId != null && !flagIsOn;
 
   return (
-    <div className={`uc-card${uc.advanced ? ' uc-card--advanced' : ''}${completed ? ' uc-card--completed' : ''}`}>
+    <div id={uc.id} className={`uc-card${uc.advanced ? ' uc-card--advanced' : ''}${completed ? ' uc-card--completed' : ''}`}>
       <div className="uc-card__header">
         <span className="uc-card__id">{uc.id}</span>
         {completed && (
@@ -436,9 +441,9 @@ function UseCaseCard({ uc, stepNumber, completed, onRun, onRunAttack, onExplain,
         {isChip && (
           <button
             type="button"
-            className={`uc-run-btn${flagGated || chipRunning ? ' uc-run-btn--disabled' : ''}`}
-            disabled={flagGated || chipRunning}
-            title={flagGated ? `Enable ${flagId} to run this scenario` : undefined}
+            className={`uc-run-btn${chipRunning ? ' uc-run-btn--disabled' : ''}`}
+            disabled={chipRunning}
+            title={flagGated ? `Will auto-enable ${flagId} on Run` : undefined}
             onClick={() => onRun(uc)}
           >
             {chipRunning ? 'Launching…' : completed ? 'Run again' : 'Run'}
@@ -608,9 +613,9 @@ function ProgressiveTrustDemoStrip({
                 </button>
                 <button
                   type="button"
-                  className={`uc-run-btn${flagGated || chipRunning ? ' uc-run-btn--disabled' : ''}`}
-                  disabled={flagGated || chipRunning}
-                  title={flagGated ? `Enable ${flagId} to run this act` : undefined}
+                  className={`uc-run-btn${chipRunning ? ' uc-run-btn--disabled' : ''}`}
+                  disabled={chipRunning}
+                  title={flagGated ? `Will auto-enable ${flagId} on Run` : undefined}
                   onClick={() => onRun(uc)}
                 >
                   {chipRunning ? 'Launching…' : completed ? 'Run act again' : 'Run act'}
@@ -732,9 +737,10 @@ export default function UseCaseLauncherPage() {
 
   const vertical = verticalId || 'banking';
 
-  // Pre-load gpt-oss while the presenter browses use cases (fire-and-forget).
+  // Pre-load the agent-brain tier while the presenter browses use cases
+  // (fire-and-forget). Honors LLM_PROXY_PIN_TIER when set.
   useEffect(() => {
-    opportunisticPrewarm('gpt-oss-20b');
+    opportunisticPrewarm();
   }, []);
 
   // Re-read progress when returning to this route (remount) or gaining focus after
@@ -783,7 +789,7 @@ export default function UseCaseLauncherPage() {
     return () => { cancelled = true; };
   }, [vertical]);
 
-  const handleRun = useCallback((uc) => {
+  const handleRun = useCallback(async (uc) => {
     if (uc.trigger?.type !== 'chip') return;
     // The backend resolves by the useCaseId slug only — uc.id (e.g. "UC1") is not accepted.
     const useCaseId = uc.useCaseId;
@@ -793,6 +799,16 @@ export default function UseCaseLauncherPage() {
       return;
     }
     setChipRun({ id: uc.id, state: 'running' });
+    // Auto-arm required flags so Run is not blocked when maturity is flag:* or A2A.
+    const flags = requiredFlagsForUseCase(uc);
+    if (flags.length) {
+      const updates = Object.fromEntries(flags.map((id) => [id, true]));
+      try {
+        await apiClient.patch('/api/admin/feature-flags', { updates });
+      } catch (e) {
+        console.warn('[handleRun] Could not auto-enable flags:', e.message);
+      }
+    }
     apiClient.post('/api/use-cases/demo/run', { useCaseId, vertical })
       .then(({ data }) => {
         // Switch to the target vertical so the dashboard loads with the correct context.
@@ -869,6 +885,10 @@ export default function UseCaseLauncherPage() {
   const happyPathIds = new Set(happyPathAll.map((uc) => uc.id));
   const happyPath = happyPathAll.filter((uc) => matchesQuery(uc, query));
 
+  const authorizeIds = new Set(allPingOneAuthorizeUCIds());
+  const authorizeAll = useCases.filter((uc) => authorizeIds.has(uc.id));
+  const authorizeVisible = authorizeAll.filter((uc) => matchesQuery(uc, query));
+
   const grouped = TRACK_ORDER.map((track) => ({
     track,
     items: useCases
@@ -883,6 +903,10 @@ export default function UseCaseLauncherPage() {
     .filter(Boolean);
   const demoVisible = demoAll.filter((uc) => matchesQuery(uc, query));
 
+  const agentGatewayIds = new Set(allAgentGatewayUCIds());
+  const agentGatewayAll = useCases.filter((uc) => agentGatewayIds.has(uc.id));
+  const agentGatewayVisible = agentGatewayAll.filter((uc) => matchesQuery(uc, query));
+
   const isSearching = query.trim().length > 0;
   // getDisplayItems mirrors the demo-track STRIP_IDS exclusion applied at
   // render time, so this reflects what actually becomes visible, not just
@@ -890,6 +914,8 @@ export default function UseCaseLauncherPage() {
   const hasAnyResults =
     demoVisible.length > 0 ||
     happyPath.length > 0 ||
+    agentGatewayVisible.length > 0 ||
+    authorizeVisible.length > 0 ||
     grouped.some(({ track, items }) => getDisplayItems(track, items).length > 0);
 
   if (loading) {
@@ -955,6 +981,31 @@ export default function UseCaseLauncherPage() {
         <p className="uc-launcher__empty">No use cases match &quot;{query.trim()}&quot;.</p>
       )}
 
+      {agentGatewayVisible.length > 0 && (
+        <section className="uc-track uc-track--agent-gateway">
+          <h2 className="uc-track__heading">{AGENT_GATEWAY_LABEL}</h2>
+          <div className="uc-track__grid">
+            {agentGatewayVisible.map((uc) => (
+              <UseCaseCard
+                key={uc.id}
+                uc={uc}
+                completed={completedIds.has(uc.id)}
+                onRun={handleRun}
+                onRunAttack={handleRunAttack}
+                onExplain={setExplainUc}
+                onOpen={handleOpen}
+                attackState={attackStates[uc.id]}
+                chipRunning={chipRun?.id === uc.id && chipRun.state === 'running'}
+                chipRunError={chipRun?.id === uc.id && chipRun.state === 'error' ? chipRun.msg : null}
+                flagMap={flagMap}
+                flagsLoading={flagsLoading}
+                setFlag={setFlag}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
       {demoVisible.length > 0 && (
         <section className="uc-track uc-track--demo-script">
           <h2 className="uc-track__heading">{DEMO_LABEL}</h2>
@@ -986,6 +1037,31 @@ export default function UseCaseLauncherPage() {
           <h2 className="uc-track__heading">{HAPPY_PATH_LABEL}</h2>
           <div className="uc-track__grid">
             {happyPath.map((uc) => (
+              <UseCaseCard
+                key={uc.id}
+                uc={uc}
+                completed={completedIds.has(uc.id)}
+                onRun={handleRun}
+                onRunAttack={handleRunAttack}
+                onExplain={setExplainUc}
+                onOpen={handleOpen}
+                attackState={attackStates[uc.id]}
+                chipRunning={chipRun?.id === uc.id && chipRun.state === 'running'}
+                chipRunError={chipRun?.id === uc.id && chipRun.state === 'error' ? chipRun.msg : null}
+                flagMap={flagMap}
+                flagsLoading={flagsLoading}
+                setFlag={setFlag}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {authorizeVisible.length > 0 && (
+        <section className="uc-track uc-track--pingone-authorize">
+          <h2 className="uc-track__heading">{PINGONE_AUTHORIZE_LABEL}</h2>
+          <div className="uc-track__grid">
+            {authorizeVisible.map((uc) => (
               <UseCaseCard
                 key={uc.id}
                 uc={uc}

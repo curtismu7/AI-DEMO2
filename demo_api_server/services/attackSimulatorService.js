@@ -8,7 +8,24 @@
  * the deficiency is in the claim values (wrong scope, wrong aud, cross-owner
  * resource, rogue actor, RAR overage, tampered intent, missing act, replay).
  *
- * Gateway error contract (from mcpGatewayClient.js):
+ * Two dispatch styles, by design:
+ *   - PIPELINE_ROUTED_SIMS (rogue-actor, cross-owner-account): routed through
+ *     the FULL production pipeline (bffMcpToolExecutor.runPipelineForSim →
+ *     runMcpToolPipeline) — the SAME code path a real chip/agent call takes:
+ *     RFC 8693 exchange, BFF-preflight PingOne Authorize, real Agent Gateway
+ *     call. These reach Authorize genuinely, so "full flow" evidence matters.
+ *   - Everything else: a direct token-exchange (_exchangeSimToken /
+ *     oauthService) + callToolViaGateway call. These are deliberately
+ *     gateway-PERIMETER probes (wrong scope/aud/replay checked BEFORE
+ *     Authorize by the real architecture) or need a deficiency the pipeline's
+ *     own exchange can't express (a forced narrow scope, a raw un-exchanged
+ *     token, a tampered signature) — routing them through the full pipeline
+ *     would require adding demo-only override hooks to the exchange helper
+ *     every real call also runs through, which is a bigger, riskier change.
+ *
+ * Gateway error contract (from mcpGatewayClient.js) — applies to the direct
+ * path; the pipeline path's errors are pipeline Outcomes ({kind, httpStatus,
+ * body, tokenEvents}), handled by _denyFromPipeline:
  *   - 401 wrong-aud → throws { code: 'GATEWAY_AUDIENCE_MISMATCH', httpStatus: 401, message }
  *   - scope denial (MCP server, HTTP 200 RPC error) → throws { code: 'mcp_tool_error', httpStatus: 200, rpcCode }
  *   - scope denial (gateway 403) → throws { code: 'gateway_policy_denied', httpStatus: 403 }
@@ -17,6 +34,7 @@
 
 const oauthService = require('./oauthService');
 const { callToolViaGateway, getMcpGatewayHttpUrl } = require('./mcpGatewayClient');
+const { runPipelineForSim } = require('./bffMcpToolExecutor');
 const { buildTokenEvent, decodeJwtClaims, buildTratContext, buildRarAuthorizationDetails } = require('./agentMcpTokenService');
 const { mintIntentToken } = require('./intentTokenService');
 const dataStore = require('../data/store');
@@ -40,6 +58,7 @@ const SIM_USE_CASE_IDS = {
   'tampered-intent-token': 'intent-token-tampering',
   'impersonation-no-act': 'impersonation-blocked',
   'rate-limit-burst': 'rate-limit-defense',
+  'introspection-down': 'oauth-fail-closed',
 };
 
 /** Confused-deputy showcase rogue actor (parity with AIAgent.js + decision.confused-deputy.test.js). */
@@ -47,6 +66,14 @@ const ROGUE_ACTOR_CLIENT_ID = 'rogue-agent-9f2a-not-allowlisted';
 
 /** Sample-data account owned by user id "2" (not the demo customer). */
 const FOREIGN_ACCOUNT_ID = '3';
+
+/**
+ * Sims routed through the FULL production pipeline (bffMcpToolExecutor.
+ * runPipelineForSim → runMcpToolPipeline: RFC 8693 exchange, BFF-preflight
+ * PingOne Authorize, real Agent Gateway call) instead of a direct
+ * exchange + gateway shortcut — "full flow, not direct".
+ */
+const PIPELINE_ROUTED_SIMS = new Set(['rogue-actor', 'cross-owner-account']);
 
 /**
  * Resolve the gateway resource URI — the audience the gateway expects.
@@ -116,22 +143,146 @@ async function _exchangeSimToken(subjectToken, audience, scopes) {
 /**
  * Parse the gateway error from an error thrown by callToolViaGateway.
  *
- * callToolViaGateway throws errors with ONLY .code + .httpStatus + .message
- * (no .body / .wwwAuth / .response.data — those fields do not exist on the
- * thrown error object). Map the internal gateway codes to canonical sim codes:
+ * callToolViaGateway throws .code + .httpStatus + .message (no .body /
+ * .wwwAuth / .response.data). On GATEWAY_AUDIENCE_MISMATCH it also carries
+ * .tokenAud / .expectedAud — preserve those so the Token Chain can show both
+ * sides of the mismatch. Map internal gateway codes to canonical sim codes:
  *   'GATEWAY_AUDIENCE_MISMATCH' → 'invalid_aud'
  *   'mcp_tool_error' (httpStatus 200, scope deny from MCP server) → 'insufficient_scope'
  *   'gateway_policy_denied' (403 from gateway) → 'insufficient_scope'
  *
- * @param {object} err - Error thrown by callToolViaGateway (.code, .httpStatus, .message)
+ * @param {object} err - Error thrown by callToolViaGateway (.code, .httpStatus, .message,
+ *   and on GATEWAY_AUDIENCE_MISMATCH also .tokenAud / .expectedAud)
  * @param {number} fallbackStatus - HTTP status to use if not on the error
- * @returns {{ errorCode: string, httpStatus: number, reason: string }}
+ * @returns {{ errorCode: string, httpStatus: number, reason: string, triedAudience: string|null, allowedAudience: string|null }}
  */
+function _audString(v) {
+  if (v == null || v === '') return null;
+  if (Array.isArray(v)) {
+    const parts = v.map(String).filter(Boolean);
+    return parts.length ? parts.join(', ') : null;
+  }
+  return String(v);
+}
+
 function _parseGatewayError(err, fallbackStatus) {
   const httpStatus = err.httpStatus || fallbackStatus;
   const errorCode = err.code || 'gateway_error';
   const reason = err.message || `Gateway rejected the request (HTTP ${httpStatus})`;
-  return { errorCode, httpStatus, reason };
+  const triedAudience = _audString(err.triedAudience ?? err.tokenAud);
+  const allowedAudience = _audString(err.allowedAudience ?? err.expectedAud);
+  return { errorCode, httpStatus, reason, triedAudience, allowedAudience };
+}
+
+/**
+ * Human-readable description of the control that fired, keyed by the sim's
+ * canonical deny code. Used only when the real PingOne Authorize response
+ * carries no `reason` string of its own — the mapping names the SAME control
+ * the 403 actually came from, so it is descriptive, not fabricated. Keeps
+ * UC13's reason ("unauthorized actor…") distinct from UC10's ("resource owner…")
+ * instead of both collapsing to the gateway's generic body.
+ */
+const CANONICAL_DENY_REASON = {
+  mcp_invalid_actor: 'unauthorized actor in the delegation chain (HasValidActorChain)',
+  resource_owner_mismatch: 'requested resource belongs to a different user (resource-owner binding)',
+  rar_amount_exceeded: 'transfer exceeds the granted RAR authorization_details cap (RFC 9396)',
+  missing_act: 'agent-mediated tool call is missing the required act (delegation) claim',
+  invalid_aud: 'token audience does not match the gateway resource',
+  insufficient_scope: 'token is missing a scope the tool requires',
+};
+
+/**
+ * Normalize a gateway/pipeline "authorize" audit object into the shape the UI
+ * consumes: tokenChainTraceStore.ingestAuthorize populates trace.authorize,
+ * which drives BOTH buildTraceSteps' PingOne Authorize step and
+ * computeVerdict's 'authorize-decision' evidence check. Accepts either the raw
+ * X-Gw-Audit-Trail shape (decision/backend/url/tool/method/vertical/
+ * parameters/rawResponse/reason/statements — from mcpGatewayClient.js) or the
+ * richer gw-authorize event extras shape (buildGwAuthorizeEventExtra —
+ * authorizeEngine/decisionId/authorizeRequest/authorizeResponse on top of the
+ * same base fields) — one normalizer, two real sources.
+ * @param {object} az - authorize audit object
+ * @param {string} useCaseId - catalog slug for Proof-verdict selection
+ * @returns {object|null}
+ */
+function _normalizeAuthorizeDecision(az, useCaseId) {
+  if (!az || !az.decision) return null;
+  const decision = String(az.decision).toUpperCase(); // DENY / INDETERMINATE / PERMIT
+  const outcome = decision === 'PERMIT' ? 'PERMIT'
+    : decision === 'INDETERMINATE' ? 'INDETERMINATE'
+      : 'DENY';
+  const raw = az.rawResponse || az.authorizeResponse || null;
+  const decisionId = az.decisionId || (raw && (raw.id || raw.decisionId)) || null;
+  return {
+    // buildGwAuthorizeEventExtra defaults authorizeEngine to the bare string
+    // 'pingone' when the audit trail sets no engine — not a display label.
+    // Only trust an explicit, more specific engine name; otherwise derive one
+    // from backend the same way the raw-audit-trail path does.
+    engine: (az.authorizeEngine && az.authorizeEngine !== 'pingone')
+      ? az.authorizeEngine
+      : (az.backend === 'mock' ? 'PingOne Authorize (simulated)' : 'PingOne Authorize'),
+    decision,
+    outcome,
+    decisionId,
+    decisionContext: az.method === 'tools/call' ? 'McpToolCall' : (az.method || null),
+    reason: az.reason || null,
+    statements: az.statements || null,
+    request: az.authorizeRequest || ((az.url || az.parameters) ? { url: az.url || null, parameters: az.parameters || null } : null),
+    response: az.authorizeResponse || raw,
+    useCaseId,
+    vertical: az.vertical || null,
+  };
+}
+
+/**
+ * Extract the REAL PingOne Authorize decision the gateway attached to a denied
+ * tool call via its X-Gw-Audit-Trail header (surfaced on the thrown error as
+ * err.gwAuditTrail — see mcpGatewayClient.js 403/401 paths). Present only when
+ * the gateway actually consulted Authorize before denying; gateway-perimeter
+ * denials (aud/scope checked BEFORE Authorize) carry no `authorize` node, so
+ * this returns null and those sims are unaffected.
+ * @param {object} err - error thrown by callToolViaGateway
+ * @param {string} useCaseId - catalog slug for Proof-verdict selection
+ * @returns {object|null}
+ */
+function _authorizeFromGatewayError(err, useCaseId) {
+  return _normalizeAuthorizeDecision(err && err.gwAuditTrail && err.gwAuditTrail.authorize, useCaseId);
+}
+
+/**
+ * Extract the REAL PingOne Authorize decision from a full-pipeline Outcome
+ * (runPipelineForSim / runMcpToolPipeline). Prefers the structured
+ * `body.mcpAuthorizeEvaluation` the BFF-preflight gate attaches (present on
+ * BOTH its permit and its deny/step-up/HITL branches); falls back to the
+ * `gw-authorize` token event the pipeline builds from the real gateway's own
+ * downstream PingOne Authorize call (X-Gw-Audit-Trail) when the BFF preflight
+ * permitted and the gateway itself denied — covers whichever real stage
+ * actually made the call.
+ * @param {object} outcome - pipeline Outcome ({kind, httpStatus, body, tokenEvents})
+ * @param {string} useCaseId - catalog slug for Proof-verdict selection
+ * @returns {object|null}
+ */
+function _authorizeFromPipelineOutcome(outcome, useCaseId) {
+  const preflight = outcome && outcome.body && outcome.body.mcpAuthorizeEvaluation;
+  if (preflight && preflight.decision) {
+    const decision = String(preflight.decision).toUpperCase();
+    return {
+      engine: preflight.engine || 'PingOne Authorize',
+      decision,
+      outcome: preflight.outcome || decision,
+      decisionId: preflight.decisionId || null,
+      decisionContext: preflight.decisionContext || null,
+      reason: null,
+      statements: null,
+      request: preflight.request || null,
+      response: preflight.response || null,
+      useCaseId,
+      vertical: preflight.vertical || null,
+    };
+  }
+  const events = (outcome && outcome.tokenEvents) || [];
+  const gwEvent = events.find((e) => e && e.id === 'gw-authorize');
+  return _normalizeAuthorizeDecision(gwEvent, useCaseId);
 }
 
 /**
@@ -144,19 +295,22 @@ function _useCaseIdForSim(sim) {
 }
 
 /**
- * Push runtime gateway flags for UC14/15/16 demo arming (Demo Agent Gateway only).
+ * Push runtime gateway flags (Demo Agent Gateway admin API only).
+ * No-op when PingGateway is the active path — P1AZ owns RAR there.
  * @param {Record<string, boolean>} flags
+ * @param {string} [gatewayUrl]
  * @returns {Promise<{ ok: boolean, error?: string }>}
  */
-async function _pushGatewayFlags(flags) {
-  if (configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true') {
-    return { ok: true };
-  }
-  let gatewayUrl;
-  try {
-    gatewayUrl = getMcpGatewayHttpUrl();
-  } catch (err) {
-    return { ok: false, error: err.message };
+async function _pushGatewayFlags(flags, gatewayUrl) {
+  if (!gatewayUrl) {
+    if (configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true') {
+      return { ok: true };
+    }
+    try {
+      gatewayUrl = getMcpGatewayHttpUrl();
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
   }
   const { pushGatewayAdminConfig } = require('../routes/mcpGatewayConfig');
   return pushGatewayAdminConfig(gatewayUrl, flags);
@@ -233,19 +387,113 @@ async function _exchangeGatewayToken(subjectToken, scopes, useCaseId, tokenChain
  * Build a deny result from a gateway error with optional canonical error code.
  */
 function _denyFromGateway(sim, useCaseId, tokenChainEvents, err, fallbackStatus, canonicalCode, eventLabel) {
-  const { errorCode: rawCode, httpStatus: rawStatus, reason } = _parseGatewayError(err, fallbackStatus);
+  const {
+    errorCode: rawCode,
+    httpStatus: rawStatus,
+    reason: rawReason,
+    triedAudience,
+    allowedAudience,
+  } = _parseGatewayError(err, fallbackStatus);
   const errorCode = canonicalCode || rawCode;
   const httpStatus = canonicalCode ? fallbackStatus : rawStatus;
+
+  // Surface the REAL PingOne Authorize decision the gateway returned (when it
+  // reached Authorize at all — see _authorizeFromGatewayError). This is the
+  // evidence that turns a generic "Gateway policy denied" into a provable,
+  // engine-attributed DENY in the Token Chain and Proof verdict.
+  const authorize = _authorizeFromGatewayError(err, useCaseId);
+
+  // Reason precedence: the engine's own reason string > a control-specific
+  // description keyed on the canonical code > the gateway's generic body. The
+  // generic fallback ("Gateway policy denied the tool call") is the LAST resort
+  // so every sim reads distinctly and names the control that blocked it.
+  const controlReason = (authorize && authorize.reason) || CANONICAL_DENY_REASON[errorCode] || null;
+  const reason = controlReason
+    ? `PingOne Authorize DENY — ${controlReason}`
+    : rawReason;
+
+  // Keep both audience values on the deny event so the Token Chain gateway step
+  // can show why invalid_aud fired (token aud ≠ gateway resource).
+  const audExtra = {
+    ...(triedAudience ? { triedAudience } : {}),
+    ...(allowedAudience ? { allowedAudience } : {}),
+  };
+
   tokenChainEvents.push(buildTokenEvent(
     'sim-gateway-deny',
     eventLabel || `Gateway DENY (${errorCode})`,
     'error',
     null,
     `Gateway rejected the call with ${httpStatus} ${errorCode}: ${reason}`,
-    { error: errorCode, httpStatus },
+    {
+      error: errorCode,
+      httpStatus,
+      ...audExtra,
+      ...(authorize ? { authorizeDecisionId: authorize.decisionId } : {}),
+    },
   ));
   stampUseCaseId(tokenChainEvents, useCaseId);
-  return { sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents };
+  return {
+    sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents,
+    ...audExtra,
+    ...(authorize ? { authorize } : {}),
+  };
+}
+
+/**
+ * Build a deny result from a full-pipeline Outcome (runPipelineForSim) whose
+ * `kind` is 'block' or 'error' — the pipeline-routed counterpart to
+ * _denyFromGateway. The pipeline already built real token events (agent-token,
+ * exchange, gw-introspection/gw-authorize/gw-mcp-audit) into `outcome.tokenEvents`;
+ * this only derives the sim's {status, errorCode, reason, authorize} summary and
+ * merges those events in.
+ * @param {string} sim
+ * @param {string} useCaseId
+ * @param {Array} tokenChainEvents
+ * @param {object} outcome - pipeline Outcome
+ * @param {string} canonicalCode - sim-specific error code (e.g. 'mcp_invalid_actor')
+ * @returns {object} sim result
+ */
+function _denyFromPipeline(sim, useCaseId, tokenChainEvents, outcome, canonicalCode) {
+  if (Array.isArray(outcome.tokenEvents)) tokenChainEvents.push(...outcome.tokenEvents);
+
+  const authorize = _authorizeFromPipelineOutcome(outcome, useCaseId);
+  const httpStatus = outcome.httpStatus || 403;
+  const bodyError = (outcome.body && outcome.body.error) || 'mcp_error';
+  // gateway_policy_denied is the generic gateway body — canonicalize to the
+  // sim-specific code so the reason map below names the actual control. Any
+  // OTHER body.error (e.g. mcp_authorization_denied from the BFF-preflight
+  // gate) is already descriptive — keep it as-is.
+  const errorCode = bodyError === 'gateway_policy_denied' ? canonicalCode : bodyError;
+
+  const controlReason = (authorize && authorize.reason) || CANONICAL_DENY_REASON[errorCode] || null;
+  const reason = controlReason
+    ? `PingOne Authorize DENY — ${controlReason}`
+    : ((outcome.body && outcome.body.message) || `Pipeline rejected the call (HTTP ${httpStatus})`);
+
+  stampUseCaseId(tokenChainEvents, useCaseId);
+  return { sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents, ...(authorize ? { authorize } : {}) };
+}
+
+/**
+ * True when a pipeline `kind:'result'` Outcome still encodes a cross-owner
+ * denial (MCP isError text or local `{ error: 'Access denied…' }`). Ownership
+ * may be enforced at the banking API even when Authorize never saw
+ * ResourceOwnerId — do not treat that as unexpected_permit.
+ * @param {object} outcome
+ * @returns {boolean}
+ */
+function _isCrossOwnerDeniedResult(outcome) {
+  const result = outcome && outcome.body && outcome.body.result;
+  if (!result || typeof result !== 'object') return false;
+  const haystack = [
+    result.error,
+    result.message,
+    result.isError ? JSON.stringify(result.content || '') : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  return /access denied|not your account|resource_owner|only check your own/i.test(haystack);
 }
 
 /**
@@ -277,6 +525,24 @@ async function runAttackSim(sim, req, attackAmount) {
   const useCaseId = _useCaseIdForSim(sim);
   const tokenChainEvents = [];
 
+  // Sign-in step: the user's session token is the subject every sim's RFC 8693
+  // exchange abuses — surface it as the chain root so the Token Chain shows the
+  // real User → … → DENY path, not just the chatbot prompt. Session-scoped id
+  // (user-token) so it is not treated as a per-call event by the Proof verdict.
+  // Skipped for the full-pipeline sims (PIPELINE_ROUTED_SIMS below) — their
+  // real pipeline run already emits a richer user-token event (JWKS-validated,
+  // real scope claims) via resolveMcpAccessTokenWithEvents; this manual one
+  // would just be a redundant, less-detailed duplicate in the flat event log.
+  if (!PIPELINE_ROUTED_SIMS.has(sim)) {
+    tokenChainEvents.push(buildTokenEvent(
+      'user-token',
+      'User Token — session sign-in',
+      'active',
+      decodeJwtClaims(subjectToken),
+      "The signed-in user's session token — the subject of the delegated exchange this attack scenario abuses.",
+    ));
+  }
+
   if (sim === 'insufficient-scope') {
     return _runInsufficientScope(subjectToken, useCaseId, tokenChainEvents);
   }
@@ -289,6 +555,10 @@ async function runAttackSim(sim, req, attackAmount) {
     return _runRateLimitBurst(subjectToken, useCaseId, tokenChainEvents);
   }
 
+  if (sim === 'introspection-down') {
+    return _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents);
+  }
+
   if (sim === 'cross-owner-account') {
     return _runCrossOwnerAccount(subjectToken, useCaseId, tokenChainEvents, req);
   }
@@ -298,7 +568,7 @@ async function runAttackSim(sim, req, attackAmount) {
   }
 
   if (sim === 'rogue-actor') {
-    return _runRogueActor(subjectToken, useCaseId, tokenChainEvents);
+    return _runRogueActor(subjectToken, useCaseId, tokenChainEvents, req);
   }
 
   if (sim === 'rar-exceeded') {
@@ -520,7 +790,9 @@ async function _runWrongAud(subjectToken, useCaseId, tokenChainEvents) {
       null,
       exchangedToken,
       'get_accounts',
-      {}
+      {},
+      // The wrong audience is deliberate — suppress the "configuration drift" remediation.
+      { simulatedAttack: true }
     );
     // Unexpected permit
     tokenChainEvents.push(buildTokenEvent(
@@ -549,7 +821,12 @@ async function _runWrongAud(subjectToken, useCaseId, tokenChainEvents) {
       'error',
       null,
       `Gateway rejected the token with ${httpStatus} ${errorCode}: ${reason}`,
-      { error: errorCode, httpStatus }
+      {
+        error: errorCode,
+        httpStatus,
+        triedAudience: _audString(err.tokenAud) || wrongAud,
+        allowedAudience: _audString(err.expectedAud) || gatewayAud,
+      }
     ));
     stampUseCaseId(tokenChainEvents, useCaseId);
     return {
@@ -720,12 +997,103 @@ async function _runRateLimitBurst(subjectToken, useCaseId, tokenChainEvents) {
 }
 
 /**
- * UC10 cross-owner-account: read another user's account with a valid delegated token.
+ * introspection-down sim (UC29):
+ *   Arm GatewayIntrospectionClient into a simulated-down state via the
+ *   existing live POST /admin/config push (same mechanism UC18 uses for
+ *   rateLimitEnabled), fire one real call, capture the fail-closed 503,
+ *   then immediately disarm — unlike rate-limiting, leaving this armed
+ *   would block every subsequent call on the gateway container.
+ */
+async function _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents) {
+  const sim = 'introspection-down';
+  const gatewayAud = _gatewayAud();
+
+  if (!gatewayAud) {
+    return {
+      sim, useCaseId,
+      status: 503,
+      errorCode: 'gateway_not_configured',
+      reason: 'pingone_resource_mcp_gateway_uri is not configured',
+      tokenChainEvents,
+    };
+  }
+
+  let gatewayUrl;
+  try {
+    gatewayUrl = getMcpGatewayHttpUrl();
+  } catch (err) {
+    return {
+      sim, useCaseId,
+      status: 503,
+      errorCode: 'gateway_not_configured',
+      reason: err.message,
+      tokenChainEvents,
+    };
+  }
+
+  const { pushGatewayAdminConfig } = require('../routes/mcpGatewayConfig');
+  const armResult = await pushGatewayAdminConfig(gatewayUrl, { introspectionSimDown: true });
+  if (!armResult.ok) {
+    return {
+      sim, useCaseId,
+      status: 502,
+      errorCode: 'gateway_push_failed',
+      reason: armResult.error || 'Could not arm the introspection-down sim on the gateway',
+      tokenChainEvents,
+    };
+  }
+
+  tokenChainEvents.push(buildTokenEvent(
+    'sim-introspection-armed',
+    'Introspection outage armed (UC29)',
+    'active',
+    null,
+    'Pushed introspectionSimDown:true to the gateway — the next call fails RFC 7662 introspection closed.',
+  ));
+
+  let exchangedToken;
+  let result;
+  try {
+    exchangedToken = await _exchangeSimToken(subjectToken, gatewayAud, ['read']);
+    await callToolViaGateway(null, exchangedToken, 'get_my_accounts', {});
+    // No throw means the gateway did NOT fail closed as expected.
+    result = {
+      sim, useCaseId,
+      status: 200,
+      errorCode: 'unexpected_permit',
+      reason: 'Call succeeded despite the armed introspection-down sim — sim may not have taken effect.',
+      tokenChainEvents,
+    };
+  } catch (err) {
+    const { errorCode, httpStatus, reason } = _parseGatewayError(err, 503);
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-introspection-failclosed',
+      'Call FAILED CLOSED (503)',
+      'error',
+      null,
+      reason,
+      { error: errorCode, httpStatus },
+    ));
+    result = { sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents };
+  } finally {
+    // Always disarm, even if the call above threw for an unrelated reason —
+    // an armed sim left on would silently break every later demo step.
+    await pushGatewayAdminConfig(gatewayUrl, { introspectionSimDown: false });
+  }
+
+  stampUseCaseId(tokenChainEvents, useCaseId);
+  return result;
+}
+
+/**
+ * UC10 cross-owner-account: read another user's account with a valid delegated
+ * token — routed through the FULL production pipeline (RFC 8693 exchange,
+ * BFF-preflight PingOne Authorize, real Agent Gateway call), the same code
+ * path a real chip/agent call uses. Not a direct token-exchange + gateway
+ * shortcut — every step (agent-token, exchange, Authorize, gateway) is real.
  */
 async function _runCrossOwnerAccount(subjectToken, useCaseId, tokenChainEvents, req) {
   const sim = 'cross-owner-account';
-  const exchanged = await _exchangeGatewayToken(subjectToken, ['read'], useCaseId, tokenChainEvents, sim);
-  if (!exchanged.ok) return exchanged.result;
 
   const foreign = dataStore.getAccountById(FOREIGN_ACCOUNT_ID);
   const foreignOwner = foreign?.userId || 'another user';
@@ -735,30 +1103,69 @@ async function _runCrossOwnerAccount(subjectToken, useCaseId, tokenChainEvents, 
     'active',
     null,
     `Attempting get_account_balance for account ${FOREIGN_ACCOUNT_ID} owned by user "${foreignOwner}" ` +
-    `while authenticated as "${req?.session?.user?.sub || req?.user?.sub || 'current user'}".`,
+    `while authenticated as "${req?.session?.user?.sub || req?.user?.sub || 'current user'}" — ` +
+    'via the full BFF pipeline (exchange → Authorize → gateway).',
   ));
 
+  let outcome;
   try {
-    await callToolViaGateway(null, exchanged.token, 'get_account_balance', { account_id: FOREIGN_ACCOUNT_ID });
+    outcome = await runPipelineForSim({
+      tool: 'get_account_balance',
+      params: { account_id: FOREIGN_ACCOUNT_ID },
+      req,
+      useCaseId,
+    });
+  } catch (err) {
+    return { sim, useCaseId, status: err.httpStatus || 502, errorCode: err.code || 'pipeline_error', reason: err.message, tokenChainEvents };
+  }
+
+  if (outcome.kind === 'result') {
+    // Defense in depth: even if Authorize was inert (ResourceOwnerId missing),
+    // the banking API / MCP layer may still return an ownership error as an
+    // MCP isError / local { error } result. Treat that as the expected DENY —
+    // never as unexpected_permit — so the showcase does not claim enforcement
+    // is off when the data plane correctly blocked the read.
+    if (_isCrossOwnerDeniedResult(outcome)) {
+      if (Array.isArray(outcome.tokenEvents)) tokenChainEvents.push(...outcome.tokenEvents);
+      tokenChainEvents.push(buildTokenEvent(
+        'sim-cross-owner-denied',
+        'Cross-owner balance read denied',
+        'deny',
+        null,
+        'Ownership check blocked get_account_balance for a foreign account_id '
+        + '(tool/API layer). Prefer Authorize ResourceOwnerId DENY when the BFF '
+        + 'gate populates ResourceOwnerId for this tool.',
+      ));
+      stampUseCaseId(tokenChainEvents, useCaseId);
+      const authorize = _authorizeFromPipelineOutcome(outcome, useCaseId);
+      return {
+        sim,
+        useCaseId,
+        status: 403,
+        errorCode: 'resource_owner_mismatch',
+        reason: 'requested resource belongs to a different user (resource-owner binding)',
+        tokenChainEvents,
+        ...(authorize ? { authorize } : {}),
+      };
+    }
+    if (Array.isArray(outcome.tokenEvents)) tokenChainEvents.push(...outcome.tokenEvents);
     tokenChainEvents.push(buildTokenEvent(
       'sim-gateway-unexpected-permit',
       'Gateway PERMIT (unexpected)',
       'warning',
       null,
-      'The gateway permitted a cross-owner balance read — resource-ownership enforcement may not be active.',
+      'The full pipeline permitted a cross-owner balance read — resource-ownership enforcement may not be active.',
     ));
     stampUseCaseId(tokenChainEvents, useCaseId);
+    const authorize = _authorizeFromPipelineOutcome(outcome, useCaseId);
     return {
       sim, useCaseId, status: 200, errorCode: 'unexpected_permit',
-      reason: 'Gateway permitted the call — resource-ownership enforcement may not be active',
-      tokenChainEvents,
+      reason: 'Pipeline permitted the call — resource-ownership enforcement may not be active',
+      tokenChainEvents, ...(authorize ? { authorize } : {}),
     };
-  } catch (err) {
-    return _denyFromGateway(
-      sim, useCaseId, tokenChainEvents, err, 403, 'resource_owner_mismatch',
-      'Gateway DENY (resource_owner_mismatch)',
-    );
   }
+
+  return _denyFromPipeline(sim, useCaseId, tokenChainEvents, outcome, 'resource_owner_mismatch');
 }
 
 /**
@@ -779,7 +1186,9 @@ async function _runReplayedToken(subjectToken, useCaseId, tokenChainEvents) {
   ));
 
   try {
-    await callToolViaGateway(null, subjectToken, 'get_my_accounts', {});
+    // The replayed token's audience is deliberately wrong — suppress the
+    // "configuration drift" remediation text.
+    await callToolViaGateway(null, subjectToken, 'get_my_accounts', {}, { simulatedAttack: true });
     tokenChainEvents.push(buildTokenEvent(
       'sim-gateway-unexpected-permit',
       'Gateway PERMIT (unexpected)',
@@ -794,50 +1203,66 @@ async function _runReplayedToken(subjectToken, useCaseId, tokenChainEvents) {
       tokenChainEvents,
     };
   } catch (err) {
-    return _denyFromGateway(sim, useCaseId, tokenChainEvents, err, 401, 'invalid_aud', 'Gateway DENY (invalid_aud)');
+    // Ensure Token Chain can show both auds even if a non-client throw omits them.
+    const enriched = Object.assign(err || {}, {
+      tokenAud: err?.tokenAud ?? decoded?.claims?.aud ?? null,
+      expectedAud: err?.expectedAud ?? gatewayAud ?? null,
+    });
+    return _denyFromGateway(sim, useCaseId, tokenChainEvents, enriched, 401, 'invalid_aud', 'Gateway DENY (invalid_aud)');
   }
 }
 
 /**
- * UC13 rogue-actor: inject a non-allowlisted ActClientId (confused-deputy pattern).
+ * UC13 rogue-actor: inject a non-allowlisted ActClientId (confused-deputy
+ * pattern) — routed through the FULL production pipeline (RFC 8693 exchange,
+ * BFF-preflight PingOne Authorize, real Agent Gateway call), the same code
+ * path a real chip/agent call uses. The rogue actor is injected via
+ * `req.body._testActClientId`, the SAME demo-only affordance
+ * mcpToolPipeline.js already reads at its gateway-call site (not a sim-only
+ * shortcut) — Authorize must DENY via HasValidActorChain.
  */
-async function _runRogueActor(subjectToken, useCaseId, tokenChainEvents) {
+async function _runRogueActor(subjectToken, useCaseId, tokenChainEvents, req) {
   const sim = 'rogue-actor';
-  const exchanged = await _exchangeGatewayToken(subjectToken, ['read', 'write'], useCaseId, tokenChainEvents, sim);
-  if (!exchanged.ok) return exchanged.result;
 
   tokenChainEvents.push(buildTokenEvent(
     'sim-rogue-actor',
     'Rogue actor injected into act chain',
     'active',
     null,
-    `Overriding X-Act-Client-Id with rogue actor "${ROGUE_ACTOR_CLIENT_ID}" — ` +
-    'Authorize must DENY via HasValidActorChain.',
+    `Overriding X-Act-Client-Id with rogue actor "${ROGUE_ACTOR_CLIENT_ID}" as the request flows through the ` +
+    'full BFF pipeline (exchange → Authorize → gateway) — Authorize must DENY via HasValidActorChain.',
   ));
 
+  const savedBody = req.body;
+  req.body = { ...(savedBody || {}), _testActClientId: ROGUE_ACTOR_CLIENT_ID };
+  let outcome;
   try {
-    await callToolViaGateway(null, exchanged.token, 'get_my_accounts', {}, {
-      testActClientId: ROGUE_ACTOR_CLIENT_ID,
-    });
+    outcome = await runPipelineForSim({ tool: 'get_my_accounts', params: {}, req, useCaseId });
+  } catch (err) {
+    return { sim, useCaseId, status: err.httpStatus || 502, errorCode: err.code || 'pipeline_error', reason: err.message, tokenChainEvents };
+  } finally {
+    req.body = savedBody;
+  }
+
+  if (outcome.kind === 'result') {
+    if (Array.isArray(outcome.tokenEvents)) tokenChainEvents.push(...outcome.tokenEvents);
     tokenChainEvents.push(buildTokenEvent(
       'sim-gateway-unexpected-permit',
       'Gateway PERMIT (unexpected)',
       'warning',
       null,
-      'The gateway permitted a rogue actor — authorized-actor enforcement may not be active.',
+      'The full pipeline permitted a rogue actor — authorized-actor enforcement may not be active.',
     ));
     stampUseCaseId(tokenChainEvents, useCaseId);
+    const authorize = _authorizeFromPipelineOutcome(outcome, useCaseId);
     return {
       sim, useCaseId, status: 200, errorCode: 'unexpected_permit',
-      reason: 'Gateway permitted the call — authorized-actor enforcement may not be active',
-      tokenChainEvents,
+      reason: 'Pipeline permitted the call — authorized-actor enforcement may not be active',
+      tokenChainEvents, ...(authorize ? { authorize } : {}),
     };
-  } catch (err) {
-    return _denyFromGateway(
-      sim, useCaseId, tokenChainEvents, err, 403, 'mcp_invalid_actor',
-      'Gateway DENY (mcp_invalid_actor)',
-    );
   }
+
+  return _denyFromPipeline(sim, useCaseId, tokenChainEvents, outcome, 'mcp_invalid_actor');
 }
 
 /**
@@ -859,7 +1284,14 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
     return { sim, useCaseId, status: 500, errorCode: 'config_store_failed', reason: err.message, tokenChainEvents };
   }
 
-  const pushResult = await _pushGatewayFlags({ requireRarIntent: true });
+  // PDP: PingOne Authorize RarMaxAmount. Optional Node-gateway requireRarIntent
+  // only when Demo GW is active AND ff_rar_gateway_enforcement is ON.
+  const usePingGateway = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
+  const armGateway = !usePingGateway
+    && configStore.getEffective('ff_rar_gateway_enforcement') === 'true';
+  const pushResult = armGateway
+    ? await _pushGatewayFlags({ requireRarIntent: true })
+    : { ok: true };
   if (!pushResult.ok) {
     tokenChainEvents.push(buildTokenEvent(
       'sim-rar-arm-failed',
@@ -871,10 +1303,14 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
   } else {
     tokenChainEvents.push(buildTokenEvent(
       'sim-rar-armed',
-      'Gateway RAR enforcement armed (UC14)',
+      'RAR enforced by PingOne Authorize',
       'active',
       null,
-      'requireRarIntent enabled on Demo Agent Gateway for this burst.',
+      usePingGateway
+        ? 'PingGateway forwards TraT RarMaxAmount to PingOne Authorize (PDP); gateway does not locally DENY RAR.'
+        : (armGateway
+          ? 'Demo Agent Gateway requireRarIntent armed (extra PEP); PingOne Authorize remains the PDP.'
+          : 'RarMaxAmount rule in PingOne Authorize denies over-cap calls.'),
     ));
   }
 
@@ -910,11 +1346,15 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
   ));
 
   try {
+    // null → active gateway (PingGateway by default). P1AZ decides via RarMaxAmount.
     await callToolViaGateway(
       null,
       exchanged.token,
       'create_transfer',
-      { amount: finalAttackAmount, to_account_id: 'sim-acc-001' },
+      // from_account_id: required by the gateway's spec-§2 arg schema
+      // (mcp-tool-schemas.json) — without it the call 400s before Authorize
+      // sees the amount. RAR constraints are amount + payee only.
+      { amount: finalAttackAmount, from_account_id: 'sim-acc-002', to_account_id: 'sim-acc-001' },
       { tratContextHeader },
     );
     tokenChainEvents.push(buildTokenEvent(
@@ -933,7 +1373,7 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
   } catch (err) {
     return _denyFromGateway(
       sim, useCaseId, tokenChainEvents, err, 403, 'rar_amount_exceeded',
-      'Gateway DENY (rar_amount_exceeded)',
+      'Authorize DENY (rar_amount_exceeded)',
     );
   }
 }
@@ -955,7 +1395,13 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
     return { sim, useCaseId, status: 500, errorCode: 'config_store_failed', reason: err.message, tokenChainEvents };
   }
 
-  const pushResult = await _pushGatewayFlags({ requireRarIntent: true });
+  // PDP: PingOne Authorize. Optional Node requireRarIntent only on Demo GW path.
+  const usePingGateway = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
+  const armGateway = !usePingGateway
+    && configStore.getEffective('ff_rar_gateway_enforcement') === 'true';
+  const pushResult = armGateway
+    ? await _pushGatewayFlags({ requireRarIntent: true })
+    : { ok: true };
   if (!pushResult.ok) {
     tokenChainEvents.push(buildTokenEvent(
       'sim-rar-arm-failed',
@@ -967,10 +1413,14 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
   } else {
     tokenChainEvents.push(buildTokenEvent(
       'sim-rar-armed',
-      'Gateway RAR enforcement armed (Intent Binding demo)',
+      'RAR enforced by PingOne Authorize',
       'active',
       null,
-      'requireRarIntent enabled on Demo Agent Gateway for this call.',
+      usePingGateway
+        ? 'PingGateway forwards TraT RarMaxAmount to PingOne Authorize (PDP); within-cap calls PERMIT.'
+        : (armGateway
+          ? 'Demo Agent Gateway requireRarIntent armed (extra PEP); PingOne Authorize remains the PDP.'
+          : 'RarMaxAmount rule in PingOne Authorize; within-cap calls PERMIT.'),
     ));
   }
 
@@ -980,17 +1430,52 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
   if (!exchanged.ok) return exchanged.result;
 
   const userSub = req?.session?.user?.sub || req?.user?.sub || '';
+  const actorClientId = configStore.getEffective('pingone_ai_agent_actor_client_id') || '';
+  const adminClientId = configStore.getEffective('admin_client_id') || '';
+
+  // Real accounts: on PERMIT the gateway forwards to the real banking backend,
+  // which executes the transfer — fake sim ids come back "From account not
+  // found". They must be the accounts of the user THE TOKEN resolves to, not
+  // the BFF session's store user: the banking API maps the exchanged token via
+  // its own claim fallback chain, and a session-store id came back "Access
+  // denied. You can only transfer from your own accounts." So discover them the
+  // way the agent does — get_my_accounts through the gateway with the same
+  // exchanged token. Its own read-scoped RAR grant keeps the call valid when
+  // requireRarIntent is already armed (sticky from a previous run).
+  // The drift path keeps its fake ids on purpose: it is DENIED before the backend.
+  let fromAccountId = 'sim-acc-002';
+  let toAccountId = 'sim-acc-001';
+  try {
+    const readRar = buildRarAuthorizationDetails('get_my_accounts', {}, userSub);
+    const readCtx = buildTratContext(req, 'get_my_accounts', userSub, actorClientId, adminClientId, { rarDetails: readRar });
+    const accountsResult = await callToolViaGateway(
+      null, exchanged.token, 'get_my_accounts', {},
+      { tratContextHeader: JSON.stringify({ ...readCtx, trat_sim: true }) },
+    );
+    // callToolViaGateway resolves to { result, gwAuditTrail } — the JSON-RPC
+    // result value lives one level down.
+    const accountsRpc = accountsResult?.result ?? accountsResult;
+    let data = accountsRpc?.structuredContent;
+    if (!data?.accounts) {
+      try { data = JSON.parse(accountsRpc?.content?.[0]?.text || 'null'); } catch { data = null; }
+    }
+    const accounts = Array.isArray(data?.accounts) ? data.accounts : [];
+    if (accounts[0]?.id) fromAccountId = String(accounts[0].id);
+    if (accounts[1]?.id) toAccountId = String(accounts[1].id);
+  } catch (acctErr) {
+    console.warn('[_runRarPermit] get_my_accounts via gateway failed (non-fatal, using sim ids):', acctErr.message);
+  }
   const rarDetails = buildRarAuthorizationDetails(
     'create_transfer',
-    { amount: grantedAmount, to_account_id: 'sim-acc-001' },
+    { amount: grantedAmount, to_account_id: toAccountId },
     userSub,
   );
   const tratCtx = buildTratContext(
     req,
     'create_transfer',
     userSub,
-    configStore.getEffective('pingone_ai_agent_actor_client_id') || '',
-    configStore.getEffective('admin_client_id') || '',
+    actorClientId,
+    adminClientId,
     { rarDetails },
   );
   const tratContextHeader = JSON.stringify({ ...tratCtx, trat_sim: true });
@@ -1016,7 +1501,7 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
     const challenge = await hitlClient.createChallenge({
       tool: 'create_transfer',
       userId: userSub2,
-      context: { amount, to_account_id: 'sim-acc-001', demo: 'rar-permit' },
+      context: { amount, to_account_id: toAccountId, demo: 'rar-permit' },
     });
     if (challenge?.challengeId) {
       await hitlClient.respondToChallenge(challenge.challengeId, 'approved');
@@ -1026,18 +1511,37 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
     console.warn('[_runRarPermit] HITL pre-approval failed (non-fatal):', hitlErr.message);
   }
 
+  let transferResult;
   try {
-    await callToolViaGateway(
+    transferResult = await callToolViaGateway(
       null,
       exchanged.token,
       'create_transfer',
-      { amount, to_account_id: 'sim-acc-001', ...(hitlChallengeId ? { _hitl_challenge_id: hitlChallengeId } : {}) },
+      // from_account_id: required by the gateway's spec-§2 arg schema — see
+      // the matching note on the rar-exceeded call above.
+      { amount, from_account_id: fromAccountId, to_account_id: toAccountId, ...(hitlChallengeId ? { _hitl_challenge_id: hitlChallengeId } : {}) },
       { tratContextHeader },
     );
   } catch (err) {
     return _denyFromGateway(
       sim, useCaseId, tokenChainEvents, err, 403, 'rar_unexpected_deny',
-      'Gateway DENY (unexpected — requested amount was within the granted cap)',
+      'Authorize DENY (unexpected — requested amount was within the granted cap)',
+    );
+  }
+
+  // A backend tool failure arrives as a 200 JSON-RPC result with isError:true —
+  // callToolViaGateway does NOT throw for it. Without this guard the demo
+  // rendered PERMIT while the transfer never actually executed (e.g. "From
+  // account not found" during debugging). Gateway PERMIT + failed execution is
+  // a broken demo state — surface it, don't celebrate it.
+  const transferRpc = transferResult?.result ?? transferResult;
+  if (transferRpc?.isError) {
+    const errText = transferRpc?.content?.[0]?.text || 'backend tool error';
+    return _denyFromGateway(
+      sim, useCaseId, tokenChainEvents,
+      Object.assign(new Error(errText), { code: 'backend_execution_failed', httpStatus: 502 }),
+      502, 'backend_execution_failed',
+      'Backend execution failed (gateway PERMIT, tool error)',
     );
   }
 
@@ -1046,8 +1550,8 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
     'Intent Verified (RAR — RFC 9396)',
     'active',
     null,
-    `Gateway PERMIT: requested $${amount} is within the RAR authorization_details cap of $${grantedAmount}. ` +
-    'The MCP gateway and PingOne Authorize confirmed the transfer matches the declared intent.',
+    `PERMIT: requested $${amount} is within the RAR authorization_details cap of $${grantedAmount}. ` +
+    'PingGateway forwarded the grant; PingOne Authorize confirmed the transfer matches the declared intent.',
     { authorization_details: rarDetails, requestedAmount: amount, grantedAmount },
   ));
   stampUseCaseId(tokenChainEvents, useCaseId);
@@ -1060,6 +1564,9 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
  * side); 'permit' is the new legitimate counterpart above.
  */
 async function runIntentBindingDemo(action, req, requestedAmount) {
+  // Offline simulator path only. Live mode (real PingOne PAR, RFC 9126) is
+  // handled in routes/intentBinding.js before this function is ever called, so
+  // this always runs the RAR simulator used for the learning/demo view.
   if (action === 'drift') {
     return runAttackSim('rar-exceeded', req, requestedAmount);
   }
