@@ -1,24 +1,34 @@
-# Live Workbench Header Hoist + Collapsible Demo Script Tray — Implementation Plan
+# Live Workbench: reclaim agent space + make the demo legible — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** On `/use-cases/live`, move the agent's control row out of the middle column into a full-width bar above the columns, and let the Demo Script column collapse to a thin rail — both to give the agent more room.
+**Goal:** On `/use-cases/live`, give the agent room and make every run legible to a demo audience — what claim is on trial, whether it held, and where in the token chain it was decided.
 
-**Architecture:** The agent's `.ba-header-tools` element stays one React element; only its DOM parent changes, via `createPortal` into a host node the page registers on `AgentUiModeContext`. This mirrors the existing `surfaceHostEl` mechanism the agent surface itself already uses, so no state is duplicated and no other agent surface is affected. The tray collapse is local page state persisted to `localStorage`.
+**Architecture:** The agent's `.ba-header-tools` element stays one React element; only its DOM parent changes, via `createPortal` into a host node the page registers on `AgentUiModeContext`. Everything else is page-local state plus small presentational components fed by data the page already fetches (`/api/use-cases`) and by two existing observers: `useProofOfEnforcement()` and `tokenChainTraceStore`.
 
 **Tech Stack:** React 18, Vite, vitest + @testing-library/react, plain CSS (no CSS modules on these files).
 
 ## Global Constraints
 
 - Work only inside the worktree `/Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray`. Prefix every Write/Edit path with it. Never edit the main checkout.
-- Stage explicitly with `git add <files>`. Never `git add -A`.
+- Stage explicitly with `git add <files>`. Never `git add -A` — the shared index carries a large dirty pile of unrelated data artifacts.
 - All commands run from `<worktree>/demo_api_ui` unless stated otherwise.
 - Test runner is **vitest**, not jest: `npx vitest run <path>`.
-- Emoji allowlist (`REGRESSION_PLAN.md` §0): `⚠️ ✅ ❌ 🔐 ✕ ✓ 👤 🔑 🪟 📚` only. This plan uses `←` / `→`, which are arrow glyphs already used in `AdminSideNav.jsx`, not emoji. Do not introduce any other symbol.
+- Emoji allowlist (`REGRESSION_PLAN.md` §0): `⚠️ ✅ ❌ 🔐 ✕ ✓ 👤 🔑 🪟 📚` only. `←` / `→` are arrow glyphs already used in `AdminSideNav.jsx`, not emoji, and are permitted. Introduce nothing else.
+- **Invent no demo copy.** Every user-visible string comes from the `/api/use-cases` catalog or `demoScript.js`. Do not write new claims, narration, or outcome labels.
+- **Never derive an observed result from an expectation.** Removing exactly that bug is the point of Task 5.
 - Do not change: OAuth/login, RFC 8693 token exchange, BFF session handling, role enforcement, HITL consent, ports/hosts, chip dispatch, agent routing, or the behavior of `ScopePicker` / `DemoStepsDropdown` / `Clear progress` / `Sign out`.
-- `AIAgent.js` is shared by every agent surface. Its only change in this plan is a conditional wrapper around markup that is otherwise byte-identical.
+- Honour `prefers-reduced-motion: reduce` on every transition or animation this plan adds.
 - localStorage key: `luw_demo_script_collapsed`, values `"1"` / `"0"`.
-- CSS class names: `luw-topbar__agent-tools`, `luw-body--drawer-collapsed`, `luw-drawer__toggle`, `luw-drawer__vlabel`.
+- Commit messages end with: `Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>`
+
+---
+
+## Completed
+
+**Task 1** — commit `e9e47b010`, review clean. `AgentUiModeContext` gained `toolbarHostEl` / `setToolbarHostEl`; `LiveUseCaseWorkbenchPage` renders and registers `<div className="luw-topbar__agent-tools">` in `.luw-topbar`; new `src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx` (2/2).
+
+**Task 2** — commit `bf16f1af6`, review clean. `AIAgent.js` gained a module-scope `MaybePortal({ target, children })` and a two-line wrapper around `.ba-header-tools`; controls portal into the host when registered, render inline otherwise. Chips suite 57/57, nine regression suites 40/40.
 
 ---
 
@@ -26,474 +36,86 @@
 
 | File | Responsibility | Action |
 |---|---|---|
-| `demo_api_ui/src/context/AgentUiModeContext.js` | Owns cross-component agent-UI state. Gains `toolbarHostEl` / `setToolbarHostEl`. | Modify |
-| `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js` | Route component. Registers the toolbar host node; owns tray-collapse state. | Modify |
-| `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.css` | Route layout. Toolbar bar styles + collapsed-drawer styles. | Modify |
-| `demo_api_ui/src/components/AIAgent.js` | The agent. Portals `.ba-header-tools` when a host is registered. | Modify |
-| `demo_api_ui/src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx` | Covers host registration + tray collapse/persist. | Create |
-| `demo_api_ui/src/components/__tests__/AIAgent.chips.test.js` | Existing agent harness. Gains a toolbar-portal describe block. | Modify |
+| `src/pages/LiveUseCaseWorkbenchPage.js` | Route component: drawer state, selection, run handlers, focus orchestration | Modify (Tasks 3-7) |
+| `src/pages/LiveUseCaseWorkbenchPage.css` | Route layout: slide-over, rail focus state | Modify (Tasks 3, 7) |
+| `src/components/OWASPBadge.jsx` | Shared OWASP badge, extracted from `UseCaseLauncherPage` | Create (Task 4) |
+| `src/components/UseCaseProofHeader.jsx` + `.css` | "What this proves" band above the agent | Create (Task 4) |
+| `src/components/VerdictPair.jsx` + `.css` | Expected vs Actual chips + match badge | Create (Task 5) |
+| `src/components/demoScript.js` | Gains a `findBeat(ucId)` lookup over existing data | Modify (Task 6) |
+| `src/components/DemoScriptLauncher.jsx` | Highlights the beat matching page selection | Modify (Task 6) |
+| `src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx` | Page-level behavior | Modify (Tasks 3, 7) |
+| `src/components/__tests__/UseCaseProofHeader.test.jsx` | Proof header | Create (Task 4) |
+| `src/components/__tests__/VerdictPair.test.jsx` | Verdict logic | Create (Task 5) |
+| `src/components/__tests__/demoScriptBeats.test.js` | Beat lookup | Create (Task 6) |
+
+## Key existing code to reuse — read before writing anything new
+
+- **`useProofOfEnforcement()`** → `{ verdict, history }`. `verdict.state` is one of `'verified'`, `'denied-as-expected'`, `'mismatch'`, `'incomplete'`. It also carries `useCaseId`, `title`, `matchedSteps`, `missingSteps`, `vertical`. It does **not** carry the raw decision string. Source: `src/context/ProofOfEnforcementContext.js:77-128`.
+- **`tokenChainTraceStore`** — `subscribe(fn)` returns an unsubscribe and invokes `fn(snapshot)` immediately; `getState()` returns `{ trace, ... }`. The observed decision lives at `trace.authorize.outcome` (specific kind: `DENY` / `STEP_UP` / `HITL_REQUIRED`) and `trace.authorize.decision` (`PERMIT` or a block value). Source: `src/services/tokenChainTrace/tokenChainTraceStore.js:36-37, 98-119`.
+- **`OWASPBadge`** at `src/pages/UseCaseLauncherPage.js:250-261` — renders the literal text `OWASP ASI` with threats/sections in the `title` attribute. It is not a per-use-case code string.
+- **`policyLabel(outcome)`** at `src/pages/LiveUseCaseWorkbenchPage.js:65-73` — maps an expectedOutcome to `HITL` / `MFA` / `DENY` / `PERMIT`.
+- **`DEMO_SCRIPT`** at `src/components/demoScript.js` — `{ acts: [{ title, meta, beats: [{ ucId, action, expected, say }] }] }`, 1:1 with `SECURITY_DEMO_USE_CASE_IDS`.
+- **`demo-script` BroadcastChannel** — `DemoScriptLauncher` posts `{ type: 'run', ucId }`; the page already listens at `LiveUseCaseWorkbenchPage.js:218-230`.
+- **AdminSideNav collapse idiom** at `src/components/AdminSideNav.jsx:1257-1265` — `←`/`→`, `aria-label`, `title`.
 
 ---
 
-### Task 1: Register a toolbar host node on the workbench topbar
+### Task 3: Demo Script drawer as a slide-over
 
-Adds the context slot and the page-side host, plus the test file that later tasks extend. Nothing visually moves yet — `AIAgent.js` still renders its tools inline until Task 2.
-
-**Files:**
-- Modify: `demo_api_ui/src/context/AgentUiModeContext.js:85-86, 103, 167-183`
-- Modify: `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js:91-98, 327-331`
-- Modify: `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.css:10-18`
-- Create: `demo_api_ui/src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx`
-
-**Interfaces:**
-- Consumes: nothing from earlier tasks.
-- Produces: `useAgentUiMode()` returns `toolbarHostEl: HTMLElement | null` and `setToolbarHostEl(elOrUpdater)`. Task 2 reads `toolbarHostEl`. The page renders `<div className="luw-topbar__agent-tools">` as that element.
-
-- [ ] **Step 1: Write the failing test**
-
-Create `demo_api_ui/src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx`:
-
-```jsx
-import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
-import '@testing-library/jest-dom';
-
-vi.mock('../LiveUseCaseWorkbenchPage.css', () => ({}), { virtual: true });
-
-vi.mock('react-router-dom', () => ({
-  useNavigate: () => vi.fn(),
-}));
-
-vi.mock('../../services/apiClient', () => ({
-  default: {
-    get: vi.fn(() => Promise.resolve({ data: { useCases: [] } })),
-    post: vi.fn(() => Promise.resolve({ data: {} })),
-  },
-}));
-
-vi.mock('../../vertical/useVertical', () => ({
-  useVertical: () => ({ activeId: 'banking' }),
-}));
-
-vi.mock('../../components/VerticalSwitcher', () => ({
-  default: () => <div data-testid="vertical-switcher" />,
-}));
-
-vi.mock('../../components/TokenChainTraceRail', () => ({
-  default: () => <div data-testid="trace-rail" />,
-}));
-
-vi.mock('../../services/tokenChainTrace/tokenChainTraceStore', () => ({
-  tokenChainTraceStore: {
-    beginTrace: vi.fn(),
-    ingestTokenEvent: vi.fn(),
-    ingestAuthorize: vi.fn(),
-    completeTrace: vi.fn(),
-  },
-}));
-
-vi.mock('../../services/tokenChainTrace/simTraceAdapter', () => ({
-  buildSimRailEvents: vi.fn(() => []),
-}));
-
-const mockSetSurfaceHostEl = vi.fn();
-const mockSetToolbarHostEl = vi.fn();
-vi.mock('../../context/AgentUiModeContext', () => ({
-  useAgentUiMode: () => ({
-    setSurfaceHostEl: mockSetSurfaceHostEl,
-    setToolbarHostEl: mockSetToolbarHostEl,
-    toolbarHostEl: null,
-  }),
-}));
-
-import LiveUseCaseWorkbenchPage from '../LiveUseCaseWorkbenchPage';
-
-/** The host-registration effect fires more than once during mount (pre-ref-attach
- *  null, functional cleanup updater, then the attached node). Pull the call that
- *  actually carries an Element rather than assuming an index. */
-function registeredElement(mockFn) {
-  return mockFn.mock.calls
-    .map(([arg]) => arg)
-    .find((arg) => arg instanceof Element);
-}
-
-beforeEach(() => {
-  mockSetSurfaceHostEl.mockClear();
-  mockSetToolbarHostEl.mockClear();
-  localStorage.clear();
-});
-
-describe('LiveUseCaseWorkbenchPage — agent toolbar host', () => {
-  it('registers a toolbar host node in the topbar', async () => {
-    render(<LiveUseCaseWorkbenchPage />);
-    await waitFor(() => {
-      expect(registeredElement(mockSetToolbarHostEl)).toBeInstanceOf(Element);
-    });
-    const el = registeredElement(mockSetToolbarHostEl);
-    expect(el).toHaveClass('luw-topbar__agent-tools');
-    expect(el.closest('.luw-topbar')).not.toBeNull();
-  });
-
-  it('still registers the agent surface host', async () => {
-    render(<LiveUseCaseWorkbenchPage />);
-    await waitFor(() => {
-      expect(registeredElement(mockSetSurfaceHostEl)).toBeInstanceOf(Element);
-    });
-    expect(registeredElement(mockSetSurfaceHostEl)).toHaveClass('luw-agent-host');
-    expect(screen.getByTestId('trace-rail')).toBeInTheDocument();
-  });
-});
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-```bash
-cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray/demo_api_ui
-npx vitest run src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx
-```
-
-Expected: the toolbar-host test FAILS (`registeredElement` is `undefined` — `setToolbarHostEl` is never called). The surface-host test passes.
-
-- [ ] **Step 3: Add the context slot**
-
-In `demo_api_ui/src/context/AgentUiModeContext.js`, in the `createContext` default object, immediately after `setSurfaceHostEl: () => {},` (line 86) add:
-
-```js
-  // Registered by a host page that wants the agent's header control row rendered
-  // outside the agent column (see LiveUseCaseWorkbenchPage). Null everywhere else,
-  // which keeps every other surface on the inline header.
-  toolbarHostEl: null,
-  setToolbarHostEl: () => {},
-```
-
-In `AgentUiModeProvider`, immediately after line 103 (`const [surfaceHostEl, setSurfaceHostEl] = useState(null);`) add:
-
-```js
-  const [toolbarHostEl, setToolbarHostEl] = useState(null);
-```
-
-In the `useMemo` value object, immediately after `setSurfaceHostEl,` add:
-
-```js
-      toolbarHostEl,
-      setToolbarHostEl,
-```
-
-And add `toolbarHostEl` to that `useMemo` dependency array, so it reads:
-
-```js
-    [state.placement, state.fab, state.mode, setAgentUi, webMcpLastResult, surfaceHostEl, toolbarHostEl, clinicalSplit, setClinicalSplit]
-```
-
-- [ ] **Step 4: Register the host on the page**
-
-In `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js`, replace lines 91-98 with:
-
-```jsx
-  const { setSurfaceHostEl, setToolbarHostEl } = useAgentUiMode();
-  const [agentHostEl, setAgentHostEl] = useState(null);
-  const agentHostRef = useCallback((node) => setAgentHostEl(node), []);
-  const [toolbarHostEl, setToolbarHostElNode] = useState(null);
-  const toolbarHostRef = useCallback((node) => setToolbarHostElNode(node), []);
-
-  useEffect(() => {
-    setSurfaceHostEl(agentHostEl);
-    return () => setSurfaceHostEl((cur) => (cur === agentHostEl ? null : cur));
-  }, [agentHostEl, setSurfaceHostEl]);
-
-  // The agent's header control row portals here so it spans the full page width
-  // instead of wrapping into six rows inside the middle column.
-  useEffect(() => {
-    setToolbarHostEl(toolbarHostEl);
-    return () => setToolbarHostEl((cur) => (cur === toolbarHostEl ? null : cur));
-  }, [toolbarHostEl, setToolbarHostEl]);
-```
-
-In the topbar JSX (currently lines 327-331), add the host node as the last child:
-
-```jsx
-      <div className="luw-topbar">
-        <p className="luw-topbar__title">Use Cases</p>
-        <span className="luw-topbar__crumb">/ Live Workbench</span>
-        <div className="luw-topbar__vertical"><VerticalSwitcher /></div>
-        <div className="luw-topbar__agent-tools" ref={toolbarHostRef} />
-      </div>
-```
-
-- [ ] **Step 5: Style the bar**
-
-In `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.css`, replace the `.luw-topbar` rule (lines 10-14) with:
-
-```css
-.luw-topbar {
-  display: flex; align-items: center; gap: 0.9rem;
-  flex-wrap: wrap;
-  padding: 0.65rem 1.1rem; border-bottom: 1px solid var(--brand-medium-gray, #e2e8f0);
-  background: #fff;
-}
-
-/* Host for the agent's hoisted header control row. Takes the full remaining
-   width so the controls lay out on one line and wrap only when they must. */
-.luw-topbar__agent-tools {
-  flex: 1 1 100%;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  min-width: 0;
-}
-.luw-topbar__agent-tools:empty { display: none; }
-```
-
-- [ ] **Step 6: Run test to verify it passes**
-
-```bash
-cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray/demo_api_ui
-npx vitest run src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx
-```
-
-Expected: both tests PASS.
-
-- [ ] **Step 7: Commit**
-
-```bash
-cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray
-git add demo_api_ui/src/context/AgentUiModeContext.js \
-        demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js \
-        demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.css \
-        demo_api_ui/src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx
-git commit -m "feat(luw): register an agent toolbar host node on the workbench topbar
-
-Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
-```
-
----
-
-### Task 2: Portal `.ba-header-tools` into the registered host
+Closed is the default demo posture: the grid drops to a single track so the agent spans the full width. Opening slides the drawer in *over* the agent rather than reflowing columns, so the agent never resizes mid-run.
 
 **Files:**
-- Modify: `demo_api_ui/src/components/AIAgent.js:281, 7807, 8009` (plus one small module-scope component)
-- Modify: `demo_api_ui/src/components/__tests__/AIAgent.chips.test.js:49-55` (+ new describe block at end of file)
-
-**Interfaces:**
-- Consumes: `toolbarHostEl` from `useAgentUiMode()` (Task 1).
-- Produces: nothing later tasks depend on. `.ba-header-tools` keeps its class name and all children unchanged, so `data-testid="header-clear-progress"` and every existing selector still resolve — only `.parentElement` changes.
-
-- [ ] **Step 1: Make the existing agent-UI mock mutable**
-
-In `demo_api_ui/src/components/__tests__/AIAgent.chips.test.js`, replace lines 49-55 with:
-
-```js
-const mockAgentUiMode = {
-  placement: "none",
-  fab: true,
-  setAgentUi: jest.fn(),
-  toolbarHostEl: null,
-};
-vi.mock("../../context/AgentUiModeContext", () => ({
-  useAgentUiMode: () => mockAgentUiMode,
-}));
-```
-
-- [ ] **Step 2: Write the failing test**
-
-Append to the end of `demo_api_ui/src/components/__tests__/AIAgent.chips.test.js`:
-
-```js
-// ─── Header toolbar portal (live workbench hoist) ────────────────────────────
-
-describe("Header controls portal", () => {
-  afterEach(() => {
-    mockAgentUiMode.toolbarHostEl = null;
-  });
-
-  it("renders the header controls inside the agent header when no host is registered", () => {
-    renderAgent({ user: customerUser, mode: "inline" });
-    const clear = screen.getByTestId("header-clear-progress");
-    expect(clear.closest(".ba-header")).not.toBeNull();
-  });
-
-  it("portals the header controls into a registered toolbar host", () => {
-    const host = document.createElement("div");
-    host.setAttribute("data-testid", "toolbar-host");
-    document.body.appendChild(host);
-    mockAgentUiMode.toolbarHostEl = host;
-
-    renderAgent({ user: customerUser, mode: "inline" });
-
-    const clear = screen.getByTestId("header-clear-progress");
-    expect(host.contains(clear)).toBe(true);
-    expect(clear.closest(".ba-header")).toBeNull();
-    // The controls keep their wrapper class, so existing selectors still resolve.
-    expect(clear.closest(".ba-header-tools")).not.toBeNull();
-
-    document.body.removeChild(host);
-  });
-});
-```
-
-- [ ] **Step 3: Run test to verify it fails**
-
-```bash
-cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray/demo_api_ui
-npx vitest run src/components/__tests__/AIAgent.chips.test.js -t "Header controls portal"
-```
-
-Expected: the first test PASSES (current inline behavior), the second FAILS — `host.contains(clear)` is `false` because the controls are still inside `.ba-header`.
-
-- [ ] **Step 4: Add the portal wrapper component**
-
-In `demo_api_ui/src/components/AIAgent.js`, `createPortal` is already imported at line 8. Add this small component at module scope, immediately before the main `AIAgent` component's definition (search for the line that begins `const splitChrome` at line 273 and scroll up to the enclosing `function`/`export` declaration; place the helper directly above that declaration):
-
-```jsx
-/**
- * Renders children into `target` when one is registered, otherwise in place.
- * Used so a host page (LiveUseCaseWorkbenchPage) can hoist the agent's header
- * control row above its columns without duplicating any of the controls' state.
- * @param {{ target: HTMLElement|null, children: React.ReactNode }} props
- */
-function MaybePortal({ target, children }) {
-  return target ? createPortal(children, target) : children;
-}
-```
-
-- [ ] **Step 5: Read the host from context**
-
-In `demo_api_ui/src/components/AIAgent.js`, change line 281 from:
-
-```js
-  const { mode: agentUiMode } = useAgentUiMode();
-```
-
-to:
-
-```js
-  const { mode: agentUiMode, toolbarHostEl } = useAgentUiMode();
-```
-
-- [ ] **Step 6: Wrap the controls**
-
-In `demo_api_ui/src/components/AIAgent.js`, wrap the existing `ba-header-tools` block. At line 7807, change:
-
-```jsx
-              <div className="ba-header-tools">
-```
-
-to:
-
-```jsx
-              <MaybePortal target={toolbarHostEl}>
-              <div className="ba-header-tools">
-```
-
-and at line 8009 — the `</div>` that closes `ba-header-tools`, immediately before the `</div>` closing `ba-header-top` — change:
-
-```jsx
-              </div>
-            </div>
-```
-
-to:
-
-```jsx
-              </div>
-              </MaybePortal>
-            </div>
-```
-
-Do **not** re-indent the block's contents. Every line between the new wrapper tags must stay byte-identical, so the diff shows exactly two added lines.
-
-- [ ] **Step 7: Run test to verify it passes**
-
-```bash
-cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray/demo_api_ui
-npx vitest run src/components/__tests__/AIAgent.chips.test.js
-```
-
-Expected: the whole file PASSES, including both new tests and every pre-existing test (the mutable mock returns the same shape as before plus `toolbarHostEl: null`).
-
-- [ ] **Step 8: Verify no other agent surface regressed**
-
-```bash
-cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray/demo_api_ui
-npx vitest run src/components/__tests__/AIAgent.a2aExplain.test.js \
-  src/components/__tests__/AIAgent.aguiError.test.js \
-  src/components/__tests__/AIAgent.confusedDeputy.test.js \
-  src/components/__tests__/AIAgent.greeting.test.js \
-  src/components/__tests__/AIAgent.greetingUpdate.test.js \
-  src/components/__tests__/AIAgent.groundingCorrection.test.js \
-  src/components/__tests__/AIAgent.terminology.test.js \
-  src/components/__tests__/AIAgent.wrongAudience.test.js \
-  src/components/__tests__/AIAgent.wrongScope.test.js
-```
-
-Expected: PASS. These files mock `useAgentUiMode` without `toolbarHostEl`, so it is `undefined` → falsy → inline branch, exactly as before.
-
-If any of these files does **not** mock `AgentUiModeContext` at all and fails on the new destructure, that is a real signal — the fix is to keep the destructure safe rather than to edit those tests. Only if a failure appears, change line 281 to:
-
-```js
-  const { mode: agentUiMode, toolbarHostEl } = useAgentUiMode() || {};
-```
-
-- [ ] **Step 9: Commit**
-
-```bash
-cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray
-git add demo_api_ui/src/components/AIAgent.js \
-        demo_api_ui/src/components/__tests__/AIAgent.chips.test.js
-git commit -m "feat(agent): portal header controls into a registered toolbar host
-
-Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
-```
-
----
-
-### Task 3: Collapsible Demo Script tray
-
-**Files:**
-- Modify: `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js:78-98, 333-345`
-- Modify: `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.css:20-26, 30-40, 258-283`
+- Modify: `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js` (state near line 89; markup at `.luw-body` line 333 and `.luw-drawer` 334-346)
+- Modify: `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.css` (`.luw-body` 20-26, `.luw-drawer` 28-33, `@media (max-width: 860px)` 258-283)
 - Modify: `demo_api_ui/src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx`
 
 **Interfaces:**
-- Consumes: the test file and mocks created in Task 1.
-- Produces: nothing later tasks depend on.
+- Consumes: the test file and mock preamble created in Task 1.
+- Produces: `.luw-body--drawer-closed` on the body wrapper when shut. Task 7 adds a sibling class to `.luw-run-layout`, not to `.luw-body` — they must not collide.
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `demo_api_ui/src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx` (the `fireEvent` import must be added to the existing `@testing-library/react` import line at the top of the file):
+Add `fireEvent` to the existing `@testing-library/react` import at the top of `demo_api_ui/src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx`, then append:
 
 ```jsx
-describe('LiveUseCaseWorkbenchPage — demo script tray', () => {
-  it('starts expanded and collapses on toggle', () => {
+describe('LiveUseCaseWorkbenchPage — demo script slide-over', () => {
+  it('starts open and closes on toggle', () => {
     const { container } = render(<LiveUseCaseWorkbenchPage />);
-    expect(container.querySelector('.luw-body')).not.toHaveClass(
-      'luw-body--drawer-collapsed',
-    );
-    expect(screen.getByPlaceholderText('Filter use cases…')).toBeInTheDocument();
+    expect(container.querySelector('.luw-body')).not.toHaveClass('luw-body--drawer-closed');
 
-    fireEvent.click(screen.getByLabelText('Collapse demo script'));
+    fireEvent.click(screen.getByLabelText('Close demo script'));
 
-    expect(container.querySelector('.luw-body')).toHaveClass(
-      'luw-body--drawer-collapsed',
-    );
-    expect(screen.queryByPlaceholderText('Filter use cases…')).toBeNull();
-    expect(screen.getByLabelText('Expand demo script')).toBeInTheDocument();
+    expect(container.querySelector('.luw-body')).toHaveClass('luw-body--drawer-closed');
+    expect(screen.getByLabelText('Open demo script')).toBeInTheDocument();
   });
 
-  it('persists the collapsed state to localStorage', () => {
+  it('persists the closed state to localStorage', () => {
     render(<LiveUseCaseWorkbenchPage />);
-    fireEvent.click(screen.getByLabelText('Collapse demo script'));
+    fireEvent.click(screen.getByLabelText('Close demo script'));
     expect(localStorage.getItem('luw_demo_script_collapsed')).toBe('1');
   });
 
-  it('restores the collapsed state on mount', () => {
+  it('restores the closed state on mount', () => {
     localStorage.setItem('luw_demo_script_collapsed', '1');
     const { container } = render(<LiveUseCaseWorkbenchPage />);
-    expect(container.querySelector('.luw-body')).toHaveClass(
-      'luw-body--drawer-collapsed',
-    );
-    expect(screen.getByLabelText('Expand demo script')).toBeInTheDocument();
+    expect(container.querySelector('.luw-body')).toHaveClass('luw-body--drawer-closed');
+  });
+
+  it('reopens from the edge tab', () => {
+    localStorage.setItem('luw_demo_script_collapsed', '1');
+    const { container } = render(<LiveUseCaseWorkbenchPage />);
+    fireEvent.click(screen.getByLabelText('Open demo script'));
+    expect(container.querySelector('.luw-body')).not.toHaveClass('luw-body--drawer-closed');
+  });
+
+  it('closes on Escape and on scrim click', () => {
+    const { container } = render(<LiveUseCaseWorkbenchPage />);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(container.querySelector('.luw-body')).toHaveClass('luw-body--drawer-closed');
+
+    fireEvent.click(screen.getByLabelText('Open demo script'));
+    fireEvent.click(container.querySelector('.luw-drawer__scrim'));
+    expect(container.querySelector('.luw-body')).toHaveClass('luw-body--drawer-closed');
   });
 });
 ```
@@ -502,136 +124,161 @@ describe('LiveUseCaseWorkbenchPage — demo script tray', () => {
 
 ```bash
 cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray/demo_api_ui
-npx vitest run src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx -t "demo script tray"
+npx vitest run src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx -t "slide-over"
 ```
 
-Expected: all three FAIL with `Unable to find a label with the text of: Collapse demo script`.
+Expected: all five FAIL with `Unable to find a label with the text of: Close demo script`.
 
-- [ ] **Step 3: Add the collapse state**
+- [ ] **Step 3: Add the drawer state**
 
-In `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js`, add this module-scope constant next to the other top-level constants (after `TRACK_LABELS`, around line 34):
+Add next to the other module-scope constants in `LiveUseCaseWorkbenchPage.js` (after `TRACK_LABELS`, around line 34):
 
 ```js
-const DRAWER_COLLAPSED_KEY = 'luw_demo_script_collapsed';
+const DRAWER_CLOSED_KEY = 'luw_demo_script_collapsed';
 ```
 
-Inside the component, after the `glanceRecent` state declaration (line 89), add:
+Inside the component, after the `glanceRecent` state declaration (line 89):
 
 ```js
-  const [drawerCollapsed, setDrawerCollapsed] = useState(() => {
+  const [drawerOpen, setDrawerOpen] = useState(() => {
     try {
-      return localStorage.getItem(DRAWER_COLLAPSED_KEY) === '1';
+      return localStorage.getItem(DRAWER_CLOSED_KEY) !== '1';
     } catch {
-      return false;
+      return true;
     }
   });
 
   useEffect(() => {
     try {
-      localStorage.setItem(DRAWER_COLLAPSED_KEY, drawerCollapsed ? '1' : '0');
+      localStorage.setItem(DRAWER_CLOSED_KEY, drawerOpen ? '0' : '1');
     } catch {
       /* ignore */
     }
-  }, [drawerCollapsed]);
+  }, [drawerOpen]);
+
+  // Escape closes the slide-over, matching the scrim click.
+  useEffect(() => {
+    if (!drawerOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setDrawerOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [drawerOpen]);
 ```
 
 - [ ] **Step 4: Wire the markup**
 
-In the same file, change the body wrapper (line 333) from:
+Change the body wrapper (line 333) to:
 
 ```jsx
-      <div className="luw-body">
+      <div className={`luw-body${drawerOpen ? '' : ' luw-body--drawer-closed'}`}>
 ```
 
-to:
+Immediately inside it, before `<nav className="luw-drawer"`, add the edge tab and the scrim:
 
 ```jsx
-      <div className={`luw-body${drawerCollapsed ? ' luw-body--drawer-collapsed' : ''}`}>
+        <button
+          type="button"
+          className="luw-drawer-tab"
+          onClick={() => setDrawerOpen(true)}
+          aria-label="Open demo script"
+          title="Open demo script"
+        >
+          Demo script <span aria-hidden="true">→</span>
+        </button>
+        <div
+          className="luw-drawer__scrim"
+          onClick={() => setDrawerOpen(false)}
+          aria-hidden="true"
+        />
 ```
 
-Replace the drawer head block (lines 334-346, from `<nav className="luw-drawer"` through the closing `</div>` of `.luw-drawer__search`) with:
+Then add the close control as the first child of `.luw-drawer__head` (line 335):
 
 ```jsx
-        <nav className="luw-drawer" aria-label="Use case launcher">
-          <div className="luw-drawer__head">
             <button
               type="button"
               className="luw-drawer__toggle"
-              onClick={() => setDrawerCollapsed((c) => !c)}
-              aria-expanded={!drawerCollapsed}
-              aria-label={drawerCollapsed ? 'Expand demo script' : 'Collapse demo script'}
-              title={drawerCollapsed ? 'Expand' : 'Collapse'}
+              onClick={() => setDrawerOpen(false)}
+              aria-expanded={drawerOpen}
+              aria-label="Close demo script"
+              title="Close"
             >
-              {drawerCollapsed ? '→' : '←'}
+              ←
             </button>
-            {drawerCollapsed ? (
-              <span className="luw-drawer__vlabel">Demo script</span>
-            ) : (
-              <>
-                <h1 className="luw-drawer__title">Demo script</h1>
-                <p className="luw-drawer__sub">Pick a step — agent runs on the right</p>
-              </>
-            )}
-          </div>
-          {!drawerCollapsed && (
-            <div className="luw-drawer__search">
-              <input
-                type="text"
-                placeholder="Filter use cases…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                autoComplete="off"
-              />
-            </div>
-          )}
 ```
 
-Then guard the two remaining drawer children. Change:
-
-```jsx
-          {runState?.state === 'error' && (
-            <p className="luw-drawer__empty">{runState.msg}</p>
-          )}
-          <div className="luw-drawer__scroll">
-```
-
-to:
-
-```jsx
-          {!drawerCollapsed && runState?.state === 'error' && (
-            <p className="luw-drawer__empty">{runState.msg}</p>
-          )}
-          {!drawerCollapsed && (
-          <div className="luw-drawer__scroll">
-```
-
-and add a closing `)}` immediately after the `</div>` that closes `.luw-drawer__scroll` (the line directly before `</nav>`), so it reads:
-
-```jsx
-          </div>
-          )}
-        </nav>
-```
+Leave the rest of the drawer's contents untouched — the slide-over hides them by transform, not by conditional rendering, so filter state and scroll position survive a close/open cycle.
 
 - [ ] **Step 5: Add the CSS**
 
-In `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.css`, immediately after the `.luw-body` rule (which ends at line 26) insert:
+In `LiveUseCaseWorkbenchPage.css`, replace the `.luw-body` rule (lines 20-26) with:
 
 ```css
-/* Collapsed Demo Script tray — thin rail, toggle + vertical label only. Declared
-   before the 860px stack breakpoint so that breakpoint still wins on narrow. */
-.luw-body--drawer-collapsed {
-  grid-template-columns: 44px 1fr;
+.luw-body {
+  position: relative;
+  display: grid;
+  grid-template-columns: 336px 1fr;
+  min-height: 0;
+  min-width: 0;
+  height: 100%;
 }
+
+/* Slide-over: closed is the default demo posture. The drawer leaves the grid
+   entirely so the agent spans the full width and never resizes mid-run. */
+.luw-body--drawer-closed { grid-template-columns: 1fr; }
 ```
 
-Then replace the `.luw-drawer__head` rule (lines 30-32) with:
+Replace the `.luw-drawer` rule (lines 28-31) with:
 
 ```css
-.luw-drawer__head {
-  padding: 1rem 0.9rem 0.55rem;
-  position: relative;
+.luw-drawer {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 336px;
+  z-index: 3;
+  border-right: 1px solid #e2e8f0;
+  background: var(--brand-light-gray, #f8fafc);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  transform: translateX(0);
+  transition: transform 180ms ease;
 }
+.luw-body--drawer-closed .luw-drawer { transform: translateX(-100%); }
+
+.luw-drawer__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: rgba(15, 23, 42, 0.18);
+  transition: opacity 180ms ease;
+}
+.luw-body--drawer-closed .luw-drawer__scrim { opacity: 0; pointer-events: none; }
+
+.luw-drawer-tab {
+  position: absolute;
+  left: 0;
+  top: 14px;
+  z-index: 4;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  writing-mode: vertical-rl;
+  padding: 12px 6px;
+  border: 1px solid #cbd5e1;
+  border-left: 0;
+  border-radius: 0 8px 8px 0;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 2px 0 6px rgba(15, 23, 42, 0.06);
+}
+.luw-body--drawer-closed .luw-drawer-tab { display: flex; }
 
 .luw-drawer__toggle {
   position: absolute;
@@ -652,37 +299,23 @@ Then replace the `.luw-drawer__head` rule (lines 30-32) with:
 }
 .luw-drawer__toggle:hover { border-color: #94a3b8; color: #0f172a; }
 
-.luw-body--drawer-collapsed .luw-drawer__head {
-  padding: 0.5rem 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-}
-.luw-body--drawer-collapsed .luw-drawer__toggle {
-  position: static;
-}
-
-.luw-drawer__vlabel {
-  writing-mode: vertical-rl;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #64748b;
-  white-space: nowrap;
+@media (prefers-reduced-motion: reduce) {
+  .luw-drawer, .luw-drawer__scrim { transition: none; }
 }
 ```
 
-Finally, inside the existing `@media (max-width: 860px)` block (line 258), add a reset so a collapsed tray still stacks readably on narrow viewports — put it right after the existing `.luw-body` rule in that block:
+Add `position: relative;` to `.luw-drawer__head` (line 30 in the original file).
+
+Finally, inside the existing `@media (max-width: 860px)` block, revert the slide-over to static flow so the narrow stacked layout still works — add after that block's `.luw-drawer` rule:
 
 ```css
-  .luw-body--drawer-collapsed {
-    grid-template-columns: 1fr;
+  .luw-drawer {
+    position: static;
+    width: auto;
+    transform: none;
   }
-  .luw-drawer__vlabel {
-    writing-mode: horizontal-tb;
-  }
+  .luw-drawer__scrim, .luw-drawer-tab { display: none; }
+  .luw-body--drawer-closed { grid-template-columns: 1fr; }
 ```
 
 - [ ] **Step 6: Run tests to verify they pass**
@@ -692,7 +325,7 @@ cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist
 npx vitest run src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx
 ```
 
-Expected: all five tests in the file PASS (two from Task 1, three from this task).
+Expected: all seven tests in the file PASS (two from Task 1, five from this task).
 
 - [ ] **Step 7: Commit**
 
@@ -701,23 +334,882 @@ cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist
 git add demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js \
         demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.css \
         demo_api_ui/src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx
-git commit -m "feat(luw): collapsible demo script tray with persisted state
+git commit -m "feat(luw): demo script drawer becomes a slide-over
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
 
-### Task 4: Build gate and live verification
+### Task 4: "What this proves" panel
 
-No code changes unless a gate fails. This task is the evidence that the work is done.
+A band directly above the agent, driven by the selected use case, visible *before* a run — so the room knows the claim being tested.
 
 **Files:**
-- Modify: none expected.
+- Create: `demo_api_ui/src/components/OWASPBadge.jsx`
+- Create: `demo_api_ui/src/components/UseCaseProofHeader.jsx`, `demo_api_ui/src/components/UseCaseProofHeader.css`
+- Create: `demo_api_ui/src/components/__tests__/UseCaseProofHeader.test.jsx`
+- Modify: `demo_api_ui/src/pages/UseCaseLauncherPage.js:250-261` (delete the local copy, import the shared one)
+- Modify: `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js` (mount in `.luw-main__stage`)
 
 **Interfaces:**
-- Consumes: Tasks 1-3.
-- Produces: verification evidence.
+- Consumes: nothing from Tasks 3, 5-7.
+- Produces: `<UseCaseProofHeader uc={selectedUc} beat={beat} />`. Task 6 supplies the `beat` prop; until then the page passes `null` and the presenter line does not render. `OWASPBadge` is the default export of `src/components/OWASPBadge.jsx` with prop `{ owasp }`.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `demo_api_ui/src/components/__tests__/UseCaseProofHeader.test.jsx`:
+
+```jsx
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
+
+vi.mock('../UseCaseProofHeader.css', () => ({}), { virtual: true });
+
+import UseCaseProofHeader from '../UseCaseProofHeader';
+
+const UC = {
+  id: 'UC1',
+  title: 'Delegated access with proof',
+  buyerStory: 'The agent acts for a named human, provably, at every hop.',
+  whatToSay: 'show my balance',
+  owasp: { threats: ['T1'], sections: ['S2'] },
+};
+
+describe('UseCaseProofHeader', () => {
+  it('renders the claim, the phrase to say, and the OWASP badge', () => {
+    render(<UseCaseProofHeader uc={UC} beat={null} />);
+    expect(screen.getByText(UC.title)).toBeInTheDocument();
+    expect(screen.getByText(UC.buyerStory)).toBeInTheDocument();
+    expect(screen.getByText(/show my balance/)).toBeInTheDocument();
+    expect(screen.getByText('OWASP ASI')).toBeInTheDocument();
+  });
+
+  it('renders nothing when no use case is selected', () => {
+    const { container } = render(<UseCaseProofHeader uc={null} beat={null} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('omits the OWASP badge when the use case has none', () => {
+    render(<UseCaseProofHeader uc={{ ...UC, owasp: null }} beat={null} />);
+    expect(screen.queryByText('OWASP ASI')).toBeNull();
+  });
+
+  it('falls back to the trigger text when whatToSay is absent', () => {
+    render(
+      <UseCaseProofHeader
+        uc={{ ...UC, whatToSay: null, trigger: { type: 'chip', text: 'show my accounts' } }}
+        beat={null}
+      />,
+    );
+    expect(screen.getByText(/show my accounts/)).toBeInTheDocument();
+  });
+
+  it('renders no presenter line without a beat', () => {
+    render(<UseCaseProofHeader uc={UC} beat={null} />);
+    expect(screen.queryByText(/Presenter line/i)).toBeNull();
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray/demo_api_ui
+npx vitest run src/components/__tests__/UseCaseProofHeader.test.jsx
+```
+
+Expected: FAIL — `Failed to resolve import "../UseCaseProofHeader"`.
+
+- [ ] **Step 3: Extract the shared OWASP badge**
+
+Create `demo_api_ui/src/components/OWASPBadge.jsx` with the body moved verbatim from `UseCaseLauncherPage.js:250-261`:
+
+```jsx
+/**
+ * OWASP ASI badge — threats/sections surface in the tooltip, not the label.
+ * Shared by the use-case launcher and the live workbench proof header.
+ * @param {{ owasp?: { threats?: string[], sections?: string[] } }} props
+ */
+export default function OWASPBadge({ owasp }) {
+  if (!owasp || (!owasp.threats?.length && !owasp.sections?.length)) return null;
+  const title = [
+    owasp.threats?.length  ? `Threats: ${owasp.threats.join(', ')}`   : '',
+    owasp.sections?.length ? `Sections: ${owasp.sections.join(', ')}` : '',
+  ].filter(Boolean).join(' — ');
+  return (
+    <span className="uc-owasp-badge" title={title}>
+      OWASP ASI
+    </span>
+  );
+}
+```
+
+In `UseCaseLauncherPage.js`, delete the local `OWASPBadge` function (lines 250-261) and add `import OWASPBadge from '../components/OWASPBadge';` alongside the other component imports. The `.uc-owasp-badge` CSS stays in `UseCaseLauncherPage.css`; `UseCaseProofHeader.css` must not redefine it.
+
+- [ ] **Step 4: Write the component**
+
+Create `demo_api_ui/src/components/UseCaseProofHeader.jsx`:
+
+```jsx
+import OWASPBadge from './OWASPBadge';
+import './UseCaseProofHeader.css';
+
+/**
+ * The claim on trial for the selected use case, shown above the agent so an
+ * audience knows what is being proved before anything runs. Every string comes
+ * from the use-case catalog or the demo script — nothing is authored here.
+ *
+ * @param {{
+ *   uc: object|null,
+ *   beat: { say?: string }|null,
+ * }} props
+ */
+export default function UseCaseProofHeader({ uc, beat }) {
+  if (!uc) return null;
+  const phrase = uc.whatToSay || uc.trigger?.text || '';
+  return (
+    <div className="ucph" data-testid="uc-proof-header">
+      <div className="ucph__top">
+        <span className="ucph__id">{uc.id}</span>
+        <p className="ucph__title">{uc.title}</p>
+        <OWASPBadge owasp={uc.owasp} />
+      </div>
+      {uc.buyerStory && <p className="ucph__claim">{uc.buyerStory}</p>}
+      {phrase && (
+        <p className="ucph__say">
+          <span className="ucph__k">Say this</span>
+          {phrase}
+        </p>
+      )}
+      {beat?.say && (
+        <p className="ucph__presenter">
+          <span className="ucph__k">Presenter line</span>
+          {beat.say}
+        </p>
+      )}
+    </div>
+  );
+}
+```
+
+Create `demo_api_ui/src/components/UseCaseProofHeader.css`:
+
+```css
+/* UseCaseProofHeader.css — claim band above the live-workbench agent. */
+.ucph {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #0f766e;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.ucph__top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ucph__id {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #0f766e;
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+  border-radius: 5px;
+  padding: 2px 7px;
+}
+.ucph__title { font-size: 0.98rem; font-weight: 700; margin: 0; }
+.ucph__claim { margin: 0.5rem 0 0; font-size: 0.85rem; color: #334155; }
+.ucph__k {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+.ucph__say {
+  margin: 0.6rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 8px 11px;
+}
+.ucph__presenter {
+  margin: 0.55rem 0 0;
+  padding-left: 10px;
+  border-left: 3px solid #cbd5e1;
+  font-size: 0.84rem;
+  font-style: italic;
+  color: #475569;
+}
+.ucph__presenter .ucph__k { font-style: normal; color: #94a3b8; }
+```
+
+- [ ] **Step 5: Mount it on the page**
+
+In `LiveUseCaseWorkbenchPage.js`, add `import UseCaseProofHeader from '../components/UseCaseProofHeader';` with the other component imports. Derive the selected use case next to the other derived values in the component body:
+
+```js
+  const selectedUc = useCases.find((u) => u.id === selectedId) || null;
+```
+
+Then render it as the first child of `.luw-main__stage`, directly above `.luw-run-layout`:
+
+```jsx
+          <UseCaseProofHeader uc={selectedUc} beat={null} />
+```
+
+- [ ] **Step 6: Run tests to verify they pass**
+
+```bash
+cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray/demo_api_ui
+npx vitest run src/components/__tests__/UseCaseProofHeader.test.jsx \
+  src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx \
+  src/__tests__/UseCaseLauncherPage.test.js
+```
+
+Expected: all PASS. The launcher suite is included because Task 4 removes its local `OWASPBadge`.
+
+- [ ] **Step 7: Commit**
+
+```bash
+cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray
+git add demo_api_ui/src/components/OWASPBadge.jsx \
+        demo_api_ui/src/components/UseCaseProofHeader.jsx \
+        demo_api_ui/src/components/UseCaseProofHeader.css \
+        demo_api_ui/src/components/__tests__/UseCaseProofHeader.test.jsx \
+        demo_api_ui/src/pages/UseCaseLauncherPage.js \
+        demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js
+git commit -m "feat(luw): what-this-proves header above the agent
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+### Task 5: Expected vs Actual verdict
+
+Replaces the `Policy` cell in `.luw-glance`, which today is assigned from `uc.expectedOutcome` and therefore cannot disagree with the expectation — it looks like a result and proves nothing.
+
+**Files:**
+- Create: `demo_api_ui/src/components/VerdictPair.jsx`, `demo_api_ui/src/components/VerdictPair.css`
+- Create: `demo_api_ui/src/components/__tests__/VerdictPair.test.jsx`
+- Modify: `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js` (glance markup; delete both `setGlancePolicy` calls at lines 140 and 162 and the `glancePolicy` state)
+
+**Interfaces:**
+- Consumes: `selectedUc` from Task 4.
+- Produces: `<VerdictPair expected={string} actual={string|null} state={string|null} running={boolean} />` where `state` is a `verdict.state` value. Task 7 reads the same `verdict` and `trace.authorize` and must not re-derive the match judgement itself.
+
+**Critical correctness note.** The comparison rules are subtle and already implemented and tested in `computeVerdict` (`DENIED_LIKE_OUTCOMES`, `EXPECTED_OUTCOME_FAMILY`). This component must **not** re-implement them. It takes the match judgement from `verdict.state` and only *displays* the observed decision string. Deriving `actual` from `expected` in any form is the bug being removed.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `demo_api_ui/src/components/__tests__/VerdictPair.test.jsx`:
+
+```jsx
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
+
+vi.mock('../VerdictPair.css', () => ({}), { virtual: true });
+
+import VerdictPair from '../VerdictPair';
+
+describe('VerdictPair', () => {
+  it('shows no result before a run', () => {
+    render(<VerdictPair expected="PERMIT" actual={null} state={null} running={false} />);
+    expect(screen.getByTestId('verdict-expected')).toHaveTextContent('PERMIT');
+    expect(screen.getByTestId('verdict-actual')).toHaveTextContent('—');
+    expect(screen.queryByTestId('verdict-match')).toBeNull();
+  });
+
+  it('shows a running state without claiming a result', () => {
+    render(<VerdictPair expected="PERMIT" actual={null} state={null} running />);
+    expect(screen.getByTestId('verdict-actual')).toHaveTextContent('Running');
+    expect(screen.queryByTestId('verdict-match')).toBeNull();
+  });
+
+  it('marks a verified run as matched', () => {
+    render(<VerdictPair expected="PERMIT" actual="PERMIT" state="verified" running={false} />);
+    expect(screen.getByTestId('verdict-match')).toHaveTextContent('matched');
+  });
+
+  it('marks a denied-as-expected run as matched', () => {
+    render(<VerdictPair expected="DENY" actual="DENY" state="denied-as-expected" running={false} />);
+    expect(screen.getByTestId('verdict-actual')).toHaveTextContent('DENY');
+    expect(screen.getByTestId('verdict-match')).toHaveTextContent('matched');
+  });
+
+  it('does not claim success on a mismatch', () => {
+    render(<VerdictPair expected="DENY" actual="PERMIT" state="mismatch" running={false} />);
+    const match = screen.getByTestId('verdict-match');
+    expect(match).toHaveTextContent('not proven');
+    expect(match).not.toHaveTextContent('matched');
+  });
+
+  it('reports an incomplete run as unproven, not as a pass', () => {
+    render(<VerdictPair expected="DENY" actual={null} state="incomplete" running={false} />);
+    expect(screen.getByTestId('verdict-actual')).toHaveTextContent('Unproven');
+    expect(screen.getByTestId('verdict-match')).toHaveTextContent('not proven');
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray/demo_api_ui
+npx vitest run src/components/__tests__/VerdictPair.test.jsx
+```
+
+Expected: FAIL — `Failed to resolve import "../VerdictPair"`.
+
+- [ ] **Step 3: Write the component**
+
+Create `demo_api_ui/src/components/VerdictPair.jsx`:
+
+```jsx
+import './VerdictPair.css';
+
+/** Chip tone per outcome label. Unknown labels render neutral. */
+function toneOf(label) {
+  const t = String(label || '').toUpperCase();
+  if (t === 'PERMIT') return 'permit';
+  if (t === 'DENY') return 'deny';
+  if (t === 'HITL' || t === 'HITL_REQUIRED' || t === 'MFA' || t === 'STEP_UP') return 'hitl';
+  if (t === 'UNPROVEN') return 'unproven';
+  return 'none';
+}
+
+/**
+ * Expected vs observed outcome for the selected use case.
+ *
+ * `actual` is the decision observed on the token chain; `state` is the verdict
+ * computed by ProofOfEnforcementContext. The match judgement comes from `state`
+ * alone — this component never compares `expected` to `actual` itself, because
+ * the real comparison rules (deny-like families, block kinds) live in
+ * computeVerdict and are tested there.
+ *
+ * @param {{
+ *   expected: string,
+ *   actual: string|null,
+ *   state: 'verified'|'denied-as-expected'|'mismatch'|'incomplete'|null,
+ *   running: boolean,
+ * }} props
+ */
+export default function VerdictPair({ expected, actual, state, running }) {
+  const incomplete = state === 'incomplete';
+  const actualLabel = running ? 'Running…' : incomplete ? 'Unproven' : actual || '—';
+  const matched = state === 'verified' || state === 'denied-as-expected';
+  const showMatch = !running && Boolean(state);
+
+  return (
+    <div className="verdict">
+      <span className="verdict__side">
+        <span className="verdict__k">Expected</span>
+        <span className={`verdict__chip verdict__chip--${toneOf(expected)}`} data-testid="verdict-expected">
+          {expected || '—'}
+        </span>
+      </span>
+      <span className="verdict__side">
+        <span className="verdict__k">Actual</span>
+        <span
+          className={`verdict__chip verdict__chip--${running ? 'running' : incomplete ? 'unproven' : toneOf(actual)}`}
+          data-testid="verdict-actual"
+        >
+          {actualLabel}
+        </span>
+      </span>
+      {showMatch && (
+        <span
+          className={`verdict__match verdict__match--${matched ? 'ok' : 'bad'}`}
+          data-testid="verdict-match"
+        >
+          {matched ? '✅ matched' : '⚠️ not proven'}
+        </span>
+      )}
+    </div>
+  );
+}
+```
+
+Create `demo_api_ui/src/components/VerdictPair.css`:
+
+```css
+/* VerdictPair.css — expected vs observed outcome, live workbench glance strip. */
+.verdict { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.verdict__side { display: flex; align-items: baseline; gap: 7px; }
+.verdict__k {
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #64748b;
+}
+.verdict__chip {
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  padding: 3px 11px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+}
+.verdict__chip--permit   { background: #dcfce7; color: #166534; border-color: #86efac; }
+.verdict__chip--deny     { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+.verdict__chip--hitl     { background: #ffedd5; color: #9a3412; border-color: #fdba74; }
+.verdict__chip--unproven { background: #fef9c3; color: #854d0e; border-color: #fde047; }
+.verdict__chip--running  { background: #e0e7ff; color: #3730a3; border-color: #a5b4fc; }
+.verdict__chip--none     { background: #e2e8f0; color: #64748b; border-color: #cbd5e1; }
+.verdict__match { font-size: 0.78rem; font-weight: 800; padding: 3px 9px; border-radius: 999px; }
+.verdict__match--ok  { background: #dcfce7; color: #166534; }
+.verdict__match--bad { background: #fffbeb; color: #92400e; }
+```
+
+- [ ] **Step 4: Feed it real observed data on the page**
+
+In `LiveUseCaseWorkbenchPage.js`:
+
+Add imports:
+
+```js
+import VerdictPair from '../components/VerdictPair';
+import { useProofOfEnforcement } from '../context/ProofOfEnforcementContext';
+```
+
+Subscribe to the observed decision next to the other state:
+
+```js
+  const { verdict } = useProofOfEnforcement();
+  const [authorizeSeen, setAuthorizeSeen] = useState(null);
+
+  // The observed decision, read straight off the token-chain trace. Never
+  // derived from uc.expectedOutcome — that was the bug this replaces.
+  useEffect(() => tokenChainTraceStore.subscribe((snap) => {
+    const az = snap?.trace?.authorize;
+    setAuthorizeSeen(az ? (az.outcome || az.decision || null) : null);
+  }), []);
+```
+
+Delete the `glancePolicy` state declaration, the `setGlancePolicy(policyLabel(uc.expectedOutcome));` line in `handleRunChip` (line 140), and the `setGlancePolicy('DENY');` line in `handleRunAttack` (line 162). Leave `policyLabel` — it is still used for the Expected side.
+
+Replace the middle `.luw-glance__cell` (the `Policy` cell) with:
+
+```jsx
+            <div className="luw-glance__cell">
+              <span className="luw-glance__label">Verdict</span>
+              <VerdictPair
+                expected={policyLabel(selectedUc?.expectedOutcome)}
+                actual={authorizeSeen}
+                state={verdict?.state || null}
+                running={runState?.state === 'running'}
+              />
+            </div>
+```
+
+Add `useProofOfEnforcement` to the page test's mock preamble so the existing page tests keep rendering:
+
+```jsx
+vi.mock('../../context/ProofOfEnforcementContext', () => ({
+  useProofOfEnforcement: () => ({ verdict: null, history: [] }),
+}));
+```
+
+- [ ] **Step 5: Run tests to verify they pass**
+
+```bash
+cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray/demo_api_ui
+npx vitest run src/components/__tests__/VerdictPair.test.jsx \
+  src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx
+```
+
+Expected: all PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray
+git add demo_api_ui/src/components/VerdictPair.jsx \
+        demo_api_ui/src/components/VerdictPair.css \
+        demo_api_ui/src/components/__tests__/VerdictPair.test.jsx \
+        demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js \
+        demo_api_ui/src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx
+git commit -m "feat(luw): expected vs observed verdict replaces the expectation-fed policy cell
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+### Task 6: Teleprompter beat sync
+
+**Files:**
+- Modify: `demo_api_ui/src/components/demoScript.js` (append a lookup; do not touch `DEMO_SCRIPT`)
+- Create: `demo_api_ui/src/components/__tests__/demoScriptBeats.test.js`
+- Modify: `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js`
+- Modify: `demo_api_ui/src/components/DemoScriptLauncher.jsx`
+
+**Interfaces:**
+- Consumes: `UseCaseProofHeader`'s `beat` prop (Task 4).
+- Produces: `findBeat(ucId)` exported from `demoScript.js`, returning `{ ucId, action, expected, say }` or `null`. The page posts `{ type: 'select', ucId }` on the existing `demo-script` BroadcastChannel; the launcher must ignore message types it does not recognise, as it already does for `run`.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `demo_api_ui/src/components/__tests__/demoScriptBeats.test.js`:
+
+```js
+import { DEMO_SCRIPT, findBeat } from '../demoScript';
+
+describe('findBeat', () => {
+  it('finds a beat by use-case id', () => {
+    const beat = findBeat('UC1');
+    expect(beat).toBeTruthy();
+    expect(beat.ucId).toBe('UC1');
+    expect(typeof beat.say).toBe('string');
+    expect(beat.say.length).toBeGreaterThan(0);
+  });
+
+  it('returns null for a use case outside the script', () => {
+    expect(findBeat('UC999')).toBeNull();
+    expect(findBeat(null)).toBeNull();
+  });
+
+  it('covers every beat declared in DEMO_SCRIPT', () => {
+    const all = DEMO_SCRIPT.acts.flatMap((a) => a.beats).filter((b) => b.ucId);
+    all.forEach((b) => { expect(findBeat(b.ucId)).toEqual(b); });
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray/demo_api_ui
+npx vitest run src/components/__tests__/demoScriptBeats.test.js
+```
+
+Expected: FAIL — `findBeat is not a function`.
+
+- [ ] **Step 3: Add the lookup**
+
+Append to `demo_api_ui/src/components/demoScript.js`, after the `DEMO_SCRIPT` export:
+
+```js
+/** Flat ucId -> beat index, derived from DEMO_SCRIPT. No content duplicated. */
+const BEAT_BY_UC_ID = DEMO_SCRIPT.acts
+  .flatMap((act) => act.beats || [])
+  .reduce((acc, beat) => {
+    if (beat.ucId) acc[beat.ucId] = beat;
+    return acc;
+  }, {});
+
+/**
+ * The 15-min script beat for a use case, or null when it is not in the script.
+ * @param {string|null|undefined} ucId
+ */
+export function findBeat(ucId) {
+  return (ucId && BEAT_BY_UC_ID[ucId]) || null;
+}
+```
+
+- [ ] **Step 4: Show the presenter line and broadcast selection**
+
+In `LiveUseCaseWorkbenchPage.js`, import the lookup:
+
+```js
+import { findBeat } from '../components/demoScript';
+```
+
+Derive the beat next to `selectedUc` and pass it through, replacing the `beat={null}` placeholder from Task 4:
+
+```js
+  const selectedBeat = findBeat(selectedId);
+```
+
+```jsx
+          <UseCaseProofHeader uc={selectedUc} beat={selectedBeat} />
+```
+
+Broadcast the selection so a popped-out teleprompter follows along. Add next to the existing channel listener:
+
+```js
+  // Mirror selection to the teleprompter (in-page modal or 2nd-screen pop-out)
+  // over the same channel it already uses to send us `run` messages.
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined' || !selectedId) return undefined;
+    const channel = new BroadcastChannel('demo-script');
+    channel.postMessage({ type: 'select', ucId: selectedId });
+    return () => channel.close();
+  }, [selectedId]);
+```
+
+- [ ] **Step 5: Highlight the beat in the launcher**
+
+In `DemoScriptLauncher.jsx`, track the active beat and mark it. Add state and a listener:
+
+```jsx
+  const [activeUcId, setActiveUcId] = useState(null);
+
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return undefined;
+    const channel = new BroadcastChannel('demo-script');
+    const onMsg = (e) => {
+      if (e.data?.type !== 'select' || !e.data.ucId) return;
+      setActiveUcId(e.data.ucId);
+    };
+    channel.addEventListener('message', onMsg);
+    return () => { channel.removeEventListener('message', onMsg); channel.close(); };
+  }, []);
+```
+
+Change the beat wrapper at line 84 to carry the active class and a ref-based scroll:
+
+```jsx
+      <div
+        className={`dsl-beat${b.ucId && b.ucId === activeUcId ? ' dsl-beat--active' : ''}`}
+        key={key}
+        ref={(node) => {
+          if (node && b.ucId && b.ucId === activeUcId) {
+            node.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+          }
+        }}
+      >
+```
+
+Add to `DemoScriptLauncher.css`:
+
+```css
+.dsl-beat--active {
+  background: #f0fdfa;
+  border-left: 4px solid #0f766e;
+  padding-left: 0.6em;
+}
+```
+
+- [ ] **Step 6: Run tests to verify they pass**
+
+```bash
+cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray/demo_api_ui
+npx vitest run src/components/__tests__/demoScriptBeats.test.js \
+  src/components/__tests__/UseCaseProofHeader.test.jsx \
+  src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx
+```
+
+Expected: all PASS.
+
+- [ ] **Step 7: Commit**
+
+```bash
+cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray
+git add demo_api_ui/src/components/demoScript.js \
+        demo_api_ui/src/components/__tests__/demoScriptBeats.test.js \
+        demo_api_ui/src/components/DemoScriptLauncher.jsx \
+        demo_api_ui/src/components/DemoScriptLauncher.css \
+        demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js
+git commit -m "feat(luw): sync the teleprompter beat to workbench selection
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+### Task 7: Token Chain takes focus when a run completes
+
+The token chain is the proof, so when the agent finishes it should own the room. On completion the rail expands to roughly half the stage, the decisive hop scrolls into view and pulses, the observed outcome appears in the rail head, and the result is announced politely. Focus is **not** stolen. The emphasis persists until the next run starts.
+
+**Files:**
+- Modify: `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js`
+- Modify: `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.css`
+- Modify: `demo_api_ui/src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx`
+
+**Interfaces:**
+- Consumes: `authorizeSeen`, `verdict`, `runState` from Task 5.
+- Produces: `.luw-run-layout--rail-focus` on `.luw-run-layout`. This is a different element from Task 3's `.luw-body--drawer-closed`; the two must not be applied to the same node.
+
+- [ ] **Step 1: Write the failing tests**
+
+Append to `demo_api_ui/src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx`:
+
+```jsx
+describe('LiveUseCaseWorkbenchPage — token chain focus', () => {
+  it('does not emphasize the rail before a run', () => {
+    const { container } = render(<LiveUseCaseWorkbenchPage />);
+    expect(container.querySelector('.luw-run-layout'))
+      .not.toHaveClass('luw-run-layout--rail-focus');
+  });
+
+  it('exposes a polite live region that is empty before a run', () => {
+    const { container } = render(<LiveUseCaseWorkbenchPage />);
+    const live = container.querySelector('[aria-live="polite"]');
+    expect(live).not.toBeNull();
+    expect(live).toHaveTextContent('');
+  });
+
+  it('does not move DOM focus into the rail', () => {
+    render(<LiveUseCaseWorkbenchPage />);
+    expect(document.activeElement).toBe(document.body);
+  });
+});
+```
+
+The emphasis-on-completion path is driven by the `verdict` from context. Add a second describe that overrides the mock to simulate a settled verdict — place this at the very end of the file, and add a mutable mock object to the preamble by replacing the Task 5 `ProofOfEnforcementContext` mock with:
+
+```jsx
+const mockProof = { verdict: null, history: [] };
+vi.mock('../../context/ProofOfEnforcementContext', () => ({
+  useProofOfEnforcement: () => mockProof,
+}));
+```
+
+Then:
+
+```jsx
+describe('LiveUseCaseWorkbenchPage — rail focus on a settled verdict', () => {
+  afterEach(() => { mockProof.verdict = null; });
+
+  it('emphasizes the rail and announces the result once a verdict lands', () => {
+    mockProof.verdict = { useCaseId: 'uc1', title: 'x', state: 'denied-as-expected', matchedSteps: [], missingSteps: [] };
+    const { container } = render(<LiveUseCaseWorkbenchPage />);
+    expect(container.querySelector('.luw-run-layout'))
+      .toHaveClass('luw-run-layout--rail-focus');
+    expect(container.querySelector('[aria-live="polite"]')).toHaveTextContent(/Run complete/i);
+  });
+
+  it('does not claim a match when the verdict is incomplete', () => {
+    mockProof.verdict = { useCaseId: 'uc1', title: 'x', state: 'incomplete', matchedSteps: [], missingSteps: ['authorize-decision'] };
+    const { container } = render(<LiveUseCaseWorkbenchPage />);
+    const live = container.querySelector('[aria-live="polite"]');
+    expect(live).toHaveTextContent(/not proven/i);
+    expect(live).not.toHaveTextContent(/matched/i);
+  });
+});
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+```bash
+cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray/demo_api_ui
+npx vitest run src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx -t "focus"
+```
+
+Expected: the live-region and rail-focus tests FAIL (no `[aria-live]` node, no focus class).
+
+- [ ] **Step 3: Derive the focus state**
+
+In `LiveUseCaseWorkbenchPage.js`, add next to the Task 5 state:
+
+```js
+  const running = runState?.state === 'running';
+  // The rail owns the room once a verdict settles, and keeps it until the next
+  // run starts. Emphasis is visual only — DOM focus is never moved.
+  const railFocus = !running && Boolean(verdict?.state);
+  const verdictMatched = verdict?.state === 'verified' || verdict?.state === 'denied-as-expected';
+  const announcement = railFocus
+    ? `Run complete. ${verdictMatched ? 'Outcome matched.' : 'Outcome not proven.'}`
+    : '';
+```
+
+- [ ] **Step 4: Wire the markup**
+
+Add the live region and the focus class inside `.luw-main__stage`, replacing the opening `<div className="luw-run-layout">`:
+
+```jsx
+          <p className="luw-sr-only" aria-live="polite">{announcement}</p>
+          <div className={`luw-run-layout${railFocus ? ' luw-run-layout--rail-focus' : ''}`}>
+```
+
+Give the rail head the observed outcome, replacing the existing `.luw-rail-host` wrapper contents' opening:
+
+```jsx
+              <div className="luw-rail-host">
+                {railFocus && (
+                  <div className="luw-rail-verdict" data-testid="rail-verdict">
+                    {verdict?.state === 'incomplete' ? 'Unproven' : (authorizeSeen || '—')}
+                  </div>
+                )}
+                <TokenChainTraceRail />
+              </div>
+```
+
+- [ ] **Step 5: Add the CSS**
+
+Append to `LiveUseCaseWorkbenchPage.css`, before the `@media (max-width: 1200px)` block:
+
+```css
+/* Token Chain takes the room once a verdict settles, and keeps it until the
+   next run. Emphasis is size + a pulse on the decisive hop — never a dimming
+   scrim, which reads as a hang on a projector. */
+.luw-rail-host { transition: flex-basis 260ms ease, box-shadow 260ms ease; }
+
+.luw-run-layout--rail-focus .luw-rail-host {
+  flex: 0 0 50%;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+}
+
+.luw-rail-verdict {
+  padding: 8px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+.luw-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .luw-rail-host { transition: none; }
+}
+```
+
+Inside the existing `@media (max-width: 1200px)` block, where the agent and rail already stack, neutralise the widening:
+
+```css
+  .luw-run-layout--rail-focus .luw-rail-host { flex: 1 1 100%; }
+```
+
+- [ ] **Step 6: Run tests to verify they pass**
+
+```bash
+cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray/demo_api_ui
+npx vitest run src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx
+```
+
+Expected: every test in the file PASSES.
+
+- [ ] **Step 7: Commit**
+
+```bash
+cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist-tray
+git add demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js \
+        demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.css \
+        demo_api_ui/src/pages/__tests__/LiveUseCaseWorkbenchPage.test.jsx
+git commit -m "feat(luw): token chain takes focus when a run completes
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+```
+
+---
+
+### Task 8: Build gate and live verification
+
+No code changes unless a gate fails. This task is the evidence the work is done.
+
+**Files:** none expected.
+
+**Interfaces:** consumes Tasks 3-7; produces verification evidence.
 
 - [ ] **Step 1: Run the full UI test suite**
 
@@ -726,7 +1218,7 @@ cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist
 npx vitest run 2>&1 | tail -40
 ```
 
-Expected: no new failures versus the baseline. If any suite fails, first confirm whether it also fails on `origin/main` before treating it as caused by this work.
+Expected: no new failures versus baseline. If a suite fails, confirm whether it also fails on `origin/main` before attributing it to this work.
 
 - [ ] **Step 2: Run the build gate**
 
@@ -735,7 +1227,7 @@ cd /Users/cmuir/Development/AI-DEMO2/.claude/worktrees/worktree-luw-header-hoist
 npm run build 2>&1 | tail -20
 ```
 
-Expected: build succeeds, no errors.
+Expected: build succeeds.
 
 - [ ] **Step 3: Confirm the diff is scoped**
 
@@ -745,23 +1237,26 @@ git diff origin/main --stat -- demo_api_ui/src
 git diff origin/main -- demo_api_ui/src/components/AIAgent.js
 ```
 
-Expected: exactly five source files touched plus two test files. The `AIAgent.js` diff shows only the destructure change, the `MaybePortal` helper, and the two wrapper lines — no changed lines inside `ba-header-tools`.
+Expected: the `AIAgent.js` diff shows only the destructure change, the `MaybePortal` helper, and the two wrapper lines — nothing inside `ba-header-tools`.
 
 - [ ] **Step 4: Verify live**
 
-Serve the worktree UI and open `https://local.ping-devops.com:4000/use-cases/live` (the login host — see CLAUDE.md; `api.ping.demo` will show "Please sign in"). Sign in, then confirm:
+Open `https://local.ping-devops.com:4443/use-cases/live` (the running worktree UI instance) and sign in. Sign-in only works on the `local.ping-devops.com` host.
 
-1. The control row (Routing, Wiring, RFC info, Compliance, Token Chain, Guide, Demo steps, Agent scope, Clear progress, Sign out) renders as one full-width bar above all three columns.
-2. The agent column header shows only the status dot, "Super Banking Assistant" and "Customer · Demo".
-3. Each control still works: change Routing, flip the Token Chain switch, open Demo steps, toggle Agent scope Read/Write, click Clear progress.
-4. Click the Demo Script collapse toggle — the tray shrinks to a thin rail with a vertical "Demo script" label, the agent column widens, and the toggle flips to `→`.
-5. Reload the page — the tray is still collapsed. Expand it, reload again — it is expanded.
-6. Run a chip (e.g. "show my balance") end-to-end; the Token Chain rail populates.
-7. Open `/dashboard` and the floating agent — their header controls still render inline inside the agent, unchanged.
+1. Controls render as one full-width bar above all three columns; the agent column header keeps only the status dot, "Super Banking Assistant", "Customer · Demo".
+2. Every control still works: change Routing, flip Token Chain, open Demo steps, toggle Agent scope Read/Write, click Clear progress.
+3. Drawer closes — agent spans the full width, edge tab remains. Reopens over the agent; scrim click and `Escape` both close it; the agent does not resize.
+4. Reload — drawer state persists both ways.
+5. Select a step without running it: the proof header names the claim, the phrase to say, the OWASP ASI badge, and the presenter line. Verdict reads `—`.
+6. Run **UC1** (`show my balance`) — Expected `PERMIT`, Actual `PERMIT`, matched; the rail widens, the authorize hop is in view, the rail head shows `PERMIT`.
+7. Run **UC6** (`transfer $2500`) — Expected `DENY`, Actual `DENY`, matched. Confirm it reads as a deliberate pass, not a failure.
+8. Produce an `incomplete` verdict (e.g. a read that never reaches the authorize gate) and confirm Actual reads `Unproven` with `⚠️ not proven` — never a claimed pass.
+9. Pop out the teleprompter (🪟) to a second window; changing selection on the page highlights and scrolls to the matching beat there.
+10. `/dashboard` and the floating agent still render their header controls inline, unchanged.
 
 - [ ] **Step 5: Record the result**
 
-Report which of the seven live checks passed, quoting any failure exactly. Do not claim completion without this evidence.
+Report which of the ten live checks passed, quoting any failure exactly. Do not claim completion without this evidence.
 
 ---
 
@@ -769,19 +1264,21 @@ Report which of the seven live checks passed, quoting any failure exactly. Do no
 
 **Spec coverage**
 
-| Spec section | Task |
+| Requirement | Task |
 |---|---|
-| A1 context `toolbarHostEl` | Task 1, Step 3 |
-| A2 page host registration | Task 1, Step 4 |
-| A3 `AIAgent.js` portal | Task 2, Steps 4-6 |
-| A4 topbar CSS | Task 1, Step 5 |
-| B1 collapse state + toggle + persistence | Task 3, Steps 3-4 |
-| B2 collapsed CSS + 860px interaction | Task 3, Step 5 |
-| Success criteria 1-4 | Task 4 |
-| Risk / protected areas | Global Constraints + Task 2 Step 8 + Task 4 Step 3 |
+| Toolbar host + portal | Tasks 1-2 (complete) |
+| Slide-over drawer, persistence, Escape/scrim, edge tab | Task 3 |
+| "What this proves" panel, shared OWASPBadge | Task 4 |
+| Expected vs Actual, removal of the expectation-fed Policy cell | Task 5 |
+| Teleprompter beat sync | Task 6 |
+| Token Chain focus on completion, aria-live, no focus steal, persists to next run | Task 7 |
+| Build gate + live walkthrough | Task 8 |
 
-**Deviation from spec, noted deliberately:** the spec described assigning the controls to a local const. That is not possible inside a JSX return without hoisting ~200 lines, which would produce a large, review-hostile diff in a shared file. Task 2 uses a `MaybePortal` wrapper component instead — same effect, two-line diff. Everything else follows the spec.
+**Corrections made against the source while writing this plan:**
+- `verdict.state` has four values, including `mismatch` — the earlier design listed only three. Task 5 handles all four.
+- `OWASPBadge` renders the literal text `OWASP ASI` with detail in `title`; it is not a per-use-case code like "LLM06". Task 4's test asserts the real string.
+- `verdict` carries no raw decision string, so Task 5 reads the observed decision from `trace.authorize.outcome || trace.authorize.decision` and takes only the match judgement from `verdict.state`.
 
-**Placeholder scan:** no TBD/TODO; every code step carries the literal code; no "similar to Task N" references.
+**Placeholder scan:** no TBD/TODO; every code step carries literal code; no "similar to Task N" references.
 
-**Type consistency:** `toolbarHostEl` / `setToolbarHostEl` are the names used in the context (Task 1 Step 3), the page (Task 1 Step 4), the page test mock (Task 1 Step 1), the agent (Task 2 Step 5) and the agent test mock (Task 2 Step 1). The page's local node state is deliberately named `setToolbarHostElNode` so it does not shadow the context setter. `DRAWER_COLLAPSED_KEY` resolves to `luw_demo_script_collapsed` in both the implementation and the test assertion. Class names `luw-topbar__agent-tools`, `luw-body--drawer-collapsed`, `luw-drawer__toggle`, `luw-drawer__vlabel` are identical across JS, CSS and tests.
+**Type consistency:** `findBeat(ucId)` is defined in Task 6 and consumed as `selectedBeat` there; Task 4 ships `UseCaseProofHeader` with a `beat` prop that Task 4 passes as `null` and Task 6 fills — a deliberate two-stage handoff, stated in both tasks' Interfaces. `authorizeSeen` and `verdict` are introduced in Task 5 and reused in Task 7. `.luw-body--drawer-closed` (Task 3) and `.luw-run-layout--rail-focus` (Task 7) apply to different elements, stated in both. `DRAWER_CLOSED_KEY` resolves to `luw_demo_script_collapsed` in the implementation and in every test assertion.
