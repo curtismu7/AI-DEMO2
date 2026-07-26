@@ -247,7 +247,112 @@ for r in "${chip_rows[@]}"; do
   fi
 done
 
-# ── 6. Demo feature flags ────────────────────────────────────────────────────
+# ── 6. UI dispatch coverage (static — no stack needed) ───────────────────────
+# Check 5 replays chips through the API, which by construction cannot prove the
+# ~20 client-dispatched ones: the BFF returns null for those and the UI switch
+# handles them in the browser. This check proves statically what that replay
+# cannot, so those chips stop being a blind spot:
+#
+#   1. every client-dispatched action still has a handler in AIAgent.js
+#   2. every vertical with a feature chip declares featurePage.mcpTool
+#   3. that mcpTool equals the chip declared tool
+#   4. that mcpTool is a real tool in scope-topology.json
+#
+# (2) is the sharp one. vertical_feature_demo does NOT call the chip tool field.
+# It calls featurePage.mcpTool, defaulting to show_mortgage when absent — so a
+# vertical missing that field silently serves BANKING MORTGAGE DATA on, say, the
+# government vertical. HTTP 200, wrong data, no error anywhere.
+# Clean today (8 of 8 verticals agree), so a red row here is a real defect.
+UIDISPATCH="$(ROOT="$ROOT" CLIENT_DISPATCHED="$CLIENT_DISPATCHED" python3 - <<'PYEOF'
+import json, os, glob, re
+
+root = os.environ["ROOT"]
+failures = []
+try:
+    actions = set(json.loads(os.environ.get("CLIENT_DISPATCHED") or "[]"))
+except Exception:
+    actions = set()
+
+try:
+    src = open(os.path.join(root, "demo_api_ui/src/components/AIAgent.js"),
+               encoding="utf-8").read()
+except Exception as e:
+    src = ""
+    failures.append(f"could not read AIAgent.js ({e})")
+
+# Handlers appear in three forms; all three are real dispatch, none is preferred.
+handled = 0
+for a in sorted(actions):
+    if not src:
+        break
+    pat = r'case\s+"%s"|action\s*===\s*"%s"|action\.id\s*===\s*"%s"' % (a, a, a)
+    if re.search(pat, src):
+        handled += 1
+    else:
+        failures.append(f"action {a} is client-dispatched but has no handler in AIAgent.js")
+
+try:
+    topo = json.load(open(os.path.join(root, "scope-topology.json"))).get("tools") or {}
+    topology_tools = set(topo) if isinstance(topo, dict) else {
+        t.get("name") for t in topo if isinstance(t, dict)}
+except Exception as e:
+    topology_tools = set()
+    failures.append(f"could not read scope-topology.json tools ({e})")
+
+feature_ok = 0
+for mpath in sorted(glob.glob(os.path.join(root, "demo_api_server/config/verticals/*/manifest.json"))):
+    vertical = os.path.basename(os.path.dirname(mpath))
+    try:
+        manifest = json.load(open(mpath))
+    except Exception:
+        continue
+    chips = [c for c in (((manifest.get("dashboard") or {}).get("chips10")) or [])
+             if str(c.get("id") or "").endswith("-feature")]
+    if not chips:
+        continue
+    mcp_tool = (manifest.get("featurePage") or {}).get("mcpTool")
+    for chip in chips:
+        declared = chip.get("tool")
+        if not mcp_tool:
+            failures.append(
+                f"{vertical}: featurePage.mcpTool missing — {chip.get('id')} would "
+                f"silently call show_mortgage (banking data on {vertical})")
+        elif declared and mcp_tool != declared:
+            failures.append(
+                f"{vertical}/{chip.get('id')}: featurePage.mcpTool={mcp_tool} but "
+                f"chip tool={declared} — the UI calls the former, the catalog claims the latter")
+        elif topology_tools and mcp_tool not in topology_tools:
+            failures.append(f"{vertical}: featurePage.mcpTool {mcp_tool} is not in scope-topology.json")
+        else:
+            feature_ok += 1
+
+print(json.dumps({"handled": handled, "actions": len(actions),
+                  "feature_ok": feature_ok, "failures": failures}))
+PYEOF
+)"
+ui_rows=()
+read_lines ui_rows python3 -c '
+import json,sys
+try:
+    d=json.load(sys.stdin)
+except Exception:
+    print("FAIL|ui dispatch|aggregator crashed — see script output"); raise SystemExit
+f=d["failures"]; h=d["handled"]; n=d["actions"]; fo=d["feature_ok"]
+print(("OK" if not f else "FAIL")+f"|ui dispatch|{h}/{n} client-dispatched actions have a UI handler")
+print(("OK" if not f else "FAIL")+f"|feature tool wiring|{fo} vertical(s): featurePage.mcpTool == chip tool, in topology")
+for x in f:
+    print(f"FAIL|  detail|{x}")
+' <<< "$UIDISPATCH"
+for r in "${ui_rows[@]}"; do
+  IFS='|' read -r st name detail <<< "$r"
+  if [[ "$name" == "  detail" ]]; then
+    ROWS+=("$st|$name|$detail")
+  else
+    row "$st" "$name" "$detail"
+  fi
+done
+
+# ── 7. Demo feature flags ────────────────────────────────────────────────────
 # Shells out to gen-demo-flag-map.js --live rather than re-reading the flags
 # here. One implementation, one set of rules about which flags matter — a second
 # copy is exactly how the requiredDemoFlags mirror drifted and took 22 use cases
