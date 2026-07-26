@@ -323,12 +323,13 @@ services:
       # across resource grants, so "Demo AI App - Token Exchanger" (read/write on
       # Demo MCP Server) can never also hold them on Demo API.
       #
-      # DEFAULT OFF. BANKING_API_RESOURCE_URI is the switch: unset => TokenResolver
-      # falls back to agent-passthrough and nothing changes. Set it to
-      # enduser.ping.demo to turn Step 9 on (adds one live PingOne call per tool).
-      PINGONE_MCP_EXCHANGER_CLIENT_ID: "${PINGONE_MCP_EXCHANGER_CLIENT_ID:-}"
-      PINGONE_MCP_EXCHANGER_CLIENT_SECRET: "${PINGONE_MCP_EXCHANGER_CLIENT_SECRET:-}"
-      BANKING_API_RESOURCE_URI: "${BANKING_API_RESOURCE_URI:-}"
+      # Its three settings are NOT declared here on purpose:
+      #   PINGONE_MCP_EXCHANGER_CLIENT_ID / _SECRET / BANKING_API_RESOURCE_URI
+      # They come from this service's env_file (demo_mcp_server/.env). A compose
+      # `environment:` entry OVERRIDES env_file, so declaring them here with a
+      # "${VAR:-}" default blanked the real secret that env_file already supplied
+      # — the gate then silently fell back to agent-passthrough. Set or comment
+      # BANKING_API_RESOURCE_URI in demo_mcp_server/.env to switch Step 9 on/off.
       # RAG code-search service — the code_search/get_code/list_codebases tool
       # handlers call this over compose DNS.
       MCP_CODE_SEARCH_URL: "http://demo-mcp-code-search:8095"
