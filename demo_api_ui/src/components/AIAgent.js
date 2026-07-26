@@ -254,6 +254,16 @@ const SHOWCASE_INJECTION = {
   atk_indirect_injection: { seed: "seed-poisoned-account-note", readTool: "get_my_accounts", where: "account notes" },
 };
 
+/**
+ * Renders children into `target` when one is registered, otherwise in place.
+ * Used so a host page (LiveUseCaseWorkbenchPage) can hoist the agent's header
+ * control row above its columns without duplicating any of the controls' state.
+ * @param {{ target: HTMLElement|null, children: React.ReactNode }} props
+ */
+function MaybePortal({ target, children }) {
+  return target ? createPortal(children, target) : children;
+}
+
 export default function BankingAgent({
   user,
   onLogout,
@@ -278,7 +288,7 @@ export default function BankingAgent({
   const brandShortName = industryPreset.shortName;
   const edu = useEducationUIOptional();
   const tokenChain = useTokenChainOptional();
-  const { mode: agentUiMode } = useAgentUiMode();
+  const { mode: agentUiMode, toolbarHostEl } = useAgentUiMode();
   const { chips: customChips, groups: customGroups } = useCustomChips();
   const { mode: agentProviderMode } = useLangchainProvider();
   const { addEvent } = useEventStream();
@@ -7804,6 +7814,7 @@ export default function BankingAgent({
                     />
                   </div>
                 )}
+              <MaybePortal target={toolbarHostEl}>
               <div className="ba-header-tools">
                 {/* Five-mode agent provider selector — leftmost, shared SSOT with /config */}
                 <AgentModeSelector
@@ -8007,6 +8018,7 @@ export default function BankingAgent({
                   </button>
                 )}
               </div>
+              </MaybePortal>
             </div>
           </div>
           {/* Two-column body */}
