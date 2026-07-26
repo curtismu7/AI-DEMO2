@@ -118,6 +118,7 @@ const transactionRoutes = require('./routes/transactions');
 const demoScenarioRoutes = require('./routes/demoScenario');
 const adminRoutes = require('./routes/admin');
 const pingcliRoutes = require('./routes/pingcli');
+const mgmtApiRoutes = require('./routes/mgmtApi');
 const pingAiTestLabRoutes = require('./routes/pingAiTestLab');
 const adminAgentToolsRoutes = require('./routes/adminAgentTools');
 const adminAgentRoutes = require('./routes/adminAgentRoutes');
@@ -970,6 +971,7 @@ app.get('/api/auth/debug', async (req, res) => {
 // unauthenticated requests to the config endpoint are not blocked by the
 // authenticateToken middleware that guards the broader /api/admin/* prefix.
 app.use('/api/admin/pingcli', authenticateToken, pingcliRoutes);
+app.use('/api/admin/mgmt-api', authenticateToken, mgmtApiRoutes);
 app.use('/api/admin/ping-ai-test-lab', authenticateToken, pingAiTestLabRoutes);
 app.use('/api/admin/config', adminConfigRoutes);
 
