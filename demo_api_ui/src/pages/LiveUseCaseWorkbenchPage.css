@@ -28,7 +28,7 @@
 .luw-topbar__agent-tools:empty { display: none; }
 .luw-topbar__title { font-size: 0.95rem; font-weight: 700; margin: 0; }
 .luw-topbar__crumb { font-size: 0.8rem; color: #64748b; }
-.luw-topbar__vertical { margin-left: auto; }
+.luw-topbar__vertical { margin-left: 0.75rem; }
 
 .luw-body {
   position: relative;
