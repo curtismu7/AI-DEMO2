@@ -101,7 +101,11 @@ export default function LandingPage({ user, hasTopNav }) {
 
   const handleUseCases = (e) => {
     e.preventDefault();
-    navigate("/use-cases/live");
+    if (user) {
+      navigate("/use-cases/live");
+    } else {
+      window.location.href = "/api/auth/oauth/login";
+    }
   };
 
   return (
