@@ -5241,6 +5241,155 @@ body > .banking-agent-float-root .banking-agent-panel {
   flex-shrink: 0;
 }
 
+/* Admin Tools: 2-column grid override for compact 420px panel */
+.ba-admin-tools-float .ba-demo-steps-popout__grid {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+/* .banking-chips-dropdown__button base + variants — ported from the deleted
+   BankingChips.css (Task 7, Actions dropdown removal). DemoStepsDropdown.jsx
+   and AdminToolsDropdown.jsx both render this class family, but neither file
+   ever imported BankingChips.css directly — they relied on it being pulled
+   into the global stylesheet by BankingChips.jsx. Once that component (its
+   only importer) was deleted, these rules would otherwise disappear from the
+   bundle even though DemoStepsDropdown.jsx/AdminToolsDropdown.jsx still use
+   the class names, so only the exact selectors those two files reference are
+   kept here (not the whole former stylesheet). */
+.banking-chips-dropdown__button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 11px;
+  border: 1.5px solid #64748b;
+  border-radius: 12px;
+  background-color: var(--ba-bg, #ffffff);
+  color: var(--ba-text, #1f2937);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  text-align: left;
+  white-space: normal;
+  word-break: break-word;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.banking-chips-dropdown__chip-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.25;
+  padding-right: 18px;
+}
+
+.banking-chips-dropdown__button:hover:not(:disabled) {
+  background-color: #f8fbff;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px #dbeafe;
+}
+
+.banking-chips-dropdown__button--done {
+  background: #f0fdf4;
+  border-color: #16a34a;
+}
+
+.banking-chips-dropdown__button--done:hover:not(:disabled) {
+  border-color: #86efac;
+  box-shadow: 0 0 0 3px #dcfce7;
+}
+
+.banking-chips-dropdown__check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #16a34a;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.banking-chips-dropdown__button:active:not(:disabled) {
+  background-color: var(--ba-bg-active, #e5e7eb);
+}
+
+.banking-chips-dropdown__button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.banking-chips-dropdown__button--heuristic {
+  background-color: var(--ba-bg, #ffffff);
+  border-color: #64748b;
+}
+
+/* ScopePicker.jsx base styles — also ported from the deleted BankingChips.css.
+   ScopePicker.jsx has no stylesheet of its own; it always relied on
+   BankingChips.css being pulled into the global bundle. The inline copy in
+   the agent header (Option A1, Task 6) is the only remaining mount, so its
+   base rules need a new home. (The old grey-popout-header override rules
+   scoped under `.ba-agent-popout-hdr` are dead now that that markup is gone —
+   left in place, out of scope for this fix.) */
+.agent-scope-picker-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-bottom: 1px solid var(--ba-border, #e5e7eb);
+}
+.scope-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+}
+.scope-picker__label {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ba-text, #1f2937);
+}
+.scope-picker__toggle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  margin-left: auto;
+  border: 1px solid #94a3b8;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #f1f5f9;
+}
+.scope-picker__opt {
+  appearance: none;
+  border: none;
+  margin: 0;
+  padding: 5px 12px;
+  font: 600 0.72rem/1.2 inherit;
+  color: #64748b;
+  background: transparent;
+  cursor: pointer;
+}
+.scope-picker__opt:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.scope-picker__opt--on {
+  background: #2563eb;
+  color: #fff;
+}
+.scope-picker__hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ba-text, #1f2937);
+}
+
 /* Each grid cell: flex row so the "i" button sits flush against the card's right edge */
 .ba-demo-steps-popout__card-item {
   display: flex;

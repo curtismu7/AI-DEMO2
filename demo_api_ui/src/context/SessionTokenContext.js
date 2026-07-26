@@ -75,7 +75,7 @@ export function SessionTokenProvider({ children }) {
   // Periodic re-fetch of token status to pick up server-side silent refreshes.
   // Without this, the pill shows "expired" even when the BFF has already refreshed.
   useEffect(() => {
-    const id = setInterval(refreshTokenStatus, 60000); // every 60s
+    const id = setInterval(refreshTokenStatus, 300000); // every 5 min
     return () => clearInterval(id);
   }, [refreshTokenStatus]);
 

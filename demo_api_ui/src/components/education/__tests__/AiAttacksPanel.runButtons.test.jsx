@@ -78,6 +78,34 @@ describe('AiAttacksPanel — Run this attack buttons', () => {
     });
   });
 
+  // Ported from the old Actions dropdown's Security Showcase panel — these 3
+  // tabs had no other reachable surface once BankingChips/SecurityShowcasePanel
+  // were deleted. Same 'banking-run-showcase' wiring as the tabs above; the live
+  // harness lives in AIAgent.js's runDrawerAttackRef.
+  it('authz-deny fires the authz_deny showcase', () => {
+    renderPanel({ onClose: vi.fn(), initialTabId: 'authz-deny' });
+    clickRun();
+    expect(eventsByType('banking-run-showcase')[0].detail).toMatchObject({
+      showcase: 'authz_deny',
+    });
+  });
+
+  it('confused-deputy fires the atk_confused_deputy showcase', () => {
+    renderPanel({ onClose: vi.fn(), initialTabId: 'confused-deputy' });
+    clickRun();
+    expect(eventsByType('banking-run-showcase')[0].detail).toMatchObject({
+      showcase: 'atk_confused_deputy',
+    });
+  });
+
+  it('hitl-replay fires the atk_hitl_replay showcase', () => {
+    renderPanel({ onClose: vi.fn(), initialTabId: 'hitl-replay' });
+    clickRun();
+    expect(eventsByType('banking-run-showcase')[0].detail).toMatchObject({
+      showcase: 'atk_hitl_replay',
+    });
+  });
+
   it('hitl-bypass runs the CATALOG use case and navigates with its triggerText', async () => {
     // Prompt text comes from the catalog at runtime — the panel hardcodes no
     // prompt and no dollar amount (the old free-text 'Transfer $1000' drifted

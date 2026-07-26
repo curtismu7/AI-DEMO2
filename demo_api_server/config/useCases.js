@@ -303,6 +303,87 @@ const RAW_USE_CASES = [
     primaryTool: 'get_account_balance',
     perVertical: READ_PER_VERTICAL,
   },
+  {
+    id: 'UC33',
+    useCaseId: 'mortgage-delegated-access',
+    track: 'foundations',
+    title: 'My mortgage',
+    buyerStory: "Delegated-access proof can't be special-cased per tool — every account type the agent touches needs the same chain of custody, not just the everyday balance check.",
+    pingOneSolution: 'The same RFC 8693 delegated token (act={agent}) authorizes every tool call, including less-common products like a mortgage — one token exchange covers the whole tool surface.',
+    trigger: { type: 'chip', text: 'show my mortgage' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'token-exchange', 'authorize-decision', 'tool-dispatched'], activity: ['token', 'authorize', 'mcp'] },
+    codeRefs: ['demo_api_server/services/agentMcpTokenService.js', 'demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts'],
+    maturity: 'works',
+    owasp: { threats: ['T8', 'T9'], sections: ['§4.1.1', '§3.3.3', '§8'] },
+    whatToSay: 'Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check.',
+    advanced: false,
+    whatLong: "Delegated-access proof isn't special-cased per tool. This scenario runs the identical RFC 8693 chain from UC1 — user token, act={agent}, gateway validation, Authorize decision — against a less-common tool (mortgage lookup) to show the proof travels with every call the agent makes, not just the common ones.",
+    businessValue: "Attribution coverage doesn't shrink as the agent's tool surface grows. Adding a new tool never means adding new attribution plumbing — every call already carries the same proof.",
+    productRoles: {
+      idp:   'Mints the same delegated token regardless of which tool the agent calls next.',
+      gw:    'Validates the token identically no matter which tool it is routed to.',
+      authz: 'Evaluates the same act-claim policy for every tool in scope.',
+    },
+    primaryTool: 'show_mortgage',
+    // Mortgage is a banking-only product — other verticals fall back to their own
+    // read chip/tool (same convention as UC28) so the routing gate holds everywhere.
+    perVertical: READ_PER_VERTICAL,
+  },
+  {
+    id: 'UC34',
+    useCaseId: 'ai-spot-unusual-patterns',
+    track: 'foundations',
+    title: 'Spot unusual patterns',
+    buyerStory: 'A security-aware agent should be able to reason over live activity, not just execute fixed lookups — and that reasoning has to run through the same governed pipeline as everything else.',
+    pingOneSolution: 'The free-form LLM path runs through the identical RFC 8693 → gateway → Authorize legs as a heuristic chip — reasoning is not a shortcut around the policy chain.',
+    trigger: { type: 'chip', text: 'Check for unusual patterns in my recent activity' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'token-exchange', 'authorize-decision', 'tool-dispatched'], activity: ['token', 'authorize', 'mcp'] },
+    codeRefs: ['demo_api_server/services/demoAgentLangGraphService.js'],
+    maturity: 'works',
+    owasp: { threats: ['T8'], sections: ['§3.3.3'] },
+    whatToSay: 'The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut.',
+    advanced: false,
+    whatLong: 'Not every useful agent action is a fixed lookup. This scenario asks the agent to reason freely over recent activity for anything unusual — the LLM decides what to look at and how to summarize it, but every underlying tool call it makes still goes through the same token-exchange and Authorize legs as a deterministic chip.',
+    businessValue: 'Free-form reasoning does not create a policy gap. Whatever the agent decides to look at, every tool call it actually makes is still attributed and authorized — reasoning changes what runs, never whether it is governed.',
+    productRoles: {
+      llm: 'Reasons over the request and issues whichever tool calls it decides are relevant.',
+      gw: 'Validates and routes every tool call the reasoning step issues, same as any other call.',
+      authz: 'Evaluates each resulting tool call independently — freeform intent grants no special access.',
+    },
+    // Free-form LLM analysis — no single deterministic tool to declare (see
+    // LLM_ANALYSIS_UNROUTABLE in useCases.primaryTool.test.js). Same shape as the
+    // banking manifest's own bk8 chip, which is deliberately kept out of the
+    // catalog for the same reason; this entry exists instead so the demo stays
+    // reachable from /use-cases after the Actions dropdown is removed.
+    primaryTool: null,
+  },
+  {
+    id: 'UC35',
+    useCaseId: 'ai-explain-last-denial',
+    track: 'foundations',
+    title: 'Why was that blocked?',
+    buyerStory: 'When a control fires, the person watching the demo should be able to ask the agent to explain itself in plain language — backed by the real evidence, not a canned line.',
+    pingOneSolution: "The agent explains its own security posture by reading the live token-chain events, not a scripted explanation — the explanation is only as good as the evidence PingOne actually produced.",
+    trigger: { type: 'chip', text: 'Explain why my last blocked action was denied and walk me through the token chain' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'token-exchange', 'authorize-decision'], activity: ['token', 'authorize'] },
+    codeRefs: ['demo_api_server/services/demoAgentLangGraphService.js', 'demo_api_server/services/appEventService.js'],
+    maturity: 'works',
+    owasp: { threats: ['T8'], sections: ['§3.3.3', '§8'] },
+    whatToSay: 'The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired.',
+    advanced: false,
+    whatLong: "After a control fires (a DENY, a step-up, a consent gate), the agent can be asked to explain what just happened. It reads the real token-chain events from the run — not a canned script — and narrates the decision in plain language, teaching the audience why the control triggered.",
+    businessValue: 'Every enforcement decision is self-explaining. Support and audit teams get a plain-language narration of what PingOne decided and why, sourced from the same evidence an auditor would pull, not a separate explanation system that can drift from reality.',
+    productRoles: {
+      llm: "Narrates the live token-chain evidence in plain language — it explains PingOne's decision, it doesn't make one.",
+      authz: 'Recorded the original PERMIT/DENY/STEP_UP decision the explanation is built from.',
+    },
+    // Free-form LLM explanation — no single deterministic tool (see UC34's note
+    // and LLM_ANALYSIS_UNROUTABLE in useCases.primaryTool.test.js).
+    primaryTool: null,
+  },
 
   // --- CONTROLS ---
   {

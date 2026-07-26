@@ -18,6 +18,7 @@
  * for call-site compatibility but are NOT used for authentication.
  */
 const axios = require('axios');
+const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 const configStore = require('./configStore');
 const pingoneUserService = require('./pingOneUserService');
 
@@ -82,13 +83,18 @@ async function _send(method, params) {
         );
     } catch (err) {
         const status = err.response?.status;
+        if (!status) {
+            // Transport failure (timeout / connection refused): normalize to a
+            // stable UPSTREAM_TIMEOUT/UNREACHABLE + httpStatus instead of leaking
+            // the raw axios message.
+            throw normalizeAxiosError(err, { label: 'PingOne MCP HTTP request', timeoutMs: TIMEOUT_MS });
+        }
         const body = err.response?.data;
-        const msg = status
-            ? `PingOne MCP HTTP ${status}${body ? `: ${typeof body === 'string' ? body.slice(0, 300) : JSON.stringify(body).slice(0, 300)}` : ''}`
-            : err.message;
+        const msg = `PingOne MCP HTTP ${status}${body ? `: ${typeof body === 'string' ? body.slice(0, 300) : JSON.stringify(body).slice(0, 300)}` : ''}`;
         const e = new Error(msg);
         e.code = 'pingone_mcp_http_error';
         e.status = status;
+        e.httpStatus = status;
         throw e;
     }
 

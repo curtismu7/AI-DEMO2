@@ -64,12 +64,9 @@ import JsonField from "./shared/JsonField";
 import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
 import DemoStepsDropdown from "./DemoStepsDropdown";
-import BankingChips, { PINGONE_ADMIN_CHIP_IDS } from "./BankingChips";
+import AdminToolsDropdown from "./AdminToolsDropdown";
 import { markUseCaseCompleted, clearCompletedUseCases } from "../utils/useCaseDemoProgress";
-import {
-  requiredFlagsForUseCase,
-  requiredFlagsForUseCaseId,
-} from "../utils/requiredDemoFlags";
+import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
 import apiClient from "../services/apiClient";
 import { formatAxiosError } from "../utils/formatAxiosError";
 import { adminCustomerContext } from "../services/adminCustomerContext";
@@ -308,6 +305,8 @@ export default function BankingAgent({
   const [showDiscovery, setShowDiscovery] = useState(false);
   /** Demo steps popout — same list as /use-cases Demo section. */
   const [showDemoSteps, setShowDemoSteps] = useState(false);
+  /** Admin tools popout — PingOne ops + banking customer-CRUD, admin-only. */
+  const [showAdminTools, setShowAdminTools] = useState(false);
   const [discoverySearch, setDiscoverySearch] = useState("");
   const discoveryTriggerRef = useRef(null);
   const actionsPopoutRef = useRef(null);
@@ -774,57 +773,6 @@ export default function BankingAgent({
     );
   };
 
-  /** Ordered group list for the discovery popout. */
-  const allDiscoveryGroups = useMemo(() => {
-    const allGroups = [
-      { id: "custom", label: "Custom Actions" },
-      ...customGroups,
-    ];
-    const customEntries = allGroups
-      .map((g) => ({
-        key: g.id,
-        label: g.label,
-        chips: customChips
-          .filter((c) => (c.groupId || "custom") === g.id)
-          .map((c) => ({
-            id: c.id,
-            label: c.label,
-            desc: c.desc || "",
-            rfcs: [],
-          })),
-        isEducation: false,
-      }))
-      .filter((g) => g.chips.length > 0);
-
-    return [
-      {
-        key: "testing",
-        label: "Testing",
-        chips: ACTION_GROUPS.testing,
-        isEducation: false,
-      },
-      {
-        key: "attacks",
-        label: "Attacks",
-        chips: ACTION_GROUPS.attacks || [],
-        isEducation: false,
-      },
-      ...customEntries,
-    ];
-  }, [customChips, customGroups, effectiveVerticalId, pageManifest]);
-
-  /** Live filtered view of allDiscoveryGroups based on discoverySearch. */
-  const filteredDiscoveryGroups = useMemo(() => {
-    const q = discoverySearch.trim().toLowerCase();
-    if (!q) return allDiscoveryGroups;
-    return allDiscoveryGroups
-      .map((group) => ({
-        ...group,
-        chips: group.chips.filter((c) => c.label.toLowerCase().includes(q)),
-      }))
-      .filter((g) => g.chips.length > 0);
-  }, [discoverySearch, allDiscoveryGroups]);
-
   /** Render ACTION_GROUPS with collapsible headers, count badges, and collapse-all toolbar. */
   const renderActionGroups = () => {
     const allCustomGroups = [
@@ -1146,15 +1094,165 @@ export default function BankingAgent({
   // Reassigned on every render so the window listeners below always invoke the
   // current closures (callMcpTool/addMessage/runAction/sendAsNl/tokenChain).
   //   - { message }  → auto-send a prompt through the live NL pipeline
-  //   - { showcase } → run a Security Showcase attack (scope-escalation runAction,
-  //                    or an injection: seed a poisoned payload + surface it via the
-  //                    agent's read tool, mirroring the in-chat showcase chip).
+  //   - { showcase } → run a Security Showcase attack: scope-escalation runAction,
+  //                    an injection (seed a poisoned payload + surface it via the
+  //                    agent's read tool), authz_deny (cross-vertical AllowedVertical
+  //                    DENY), atk_confused_deputy (live rogue-actor fetch), or
+  //                    atk_hitl_replay (approve a receipt, replay it on a different
+  //                    tool) — these 3 were ported from the old Actions dropdown's
+  //                    Security Showcase panel when it was removed.
   useEffect(() => {
     runDrawerAttackRef.current = (detail = {}) => {
       const { message, showcase, label, useCaseId } = detail;
       if (message) { sendAsNl(message, useCaseId); return; }
       if (!showcase) return;
       if (SHOWCASE_RUN_ACTION[showcase]) { runAction(SHOWCASE_RUN_ACTION[showcase]); return; }
+      if (showcase === "authz_deny") {
+        // Cross-vertical AllowedVertical DENY — ported from the old Security
+        // Showcase panel's onChipClick branch (Actions dropdown, removed).
+        // Pin to banking + a non-banking tool: attacks demonstrate the security
+        // infrastructure (banking is the reference), not vertical data, so the
+        // demo runs the same regardless of the active vertical instead of
+        // dead-ending on a cross-vertical deny.
+        addMessage("user", `Run attack: ${label || showcase}`);
+        setNlLoading(true);
+        (async () => {
+          const tool = "show_health_record";
+          try {
+            const r = await callMcpTool(tool, {}, {
+              vertical: "banking",
+              onTokenEvent: (ev) => tokenChain?.appendTokenEvent(tool, ev),
+            });
+            const denied =
+              r?.status === 403 ||
+              isAgentToolErrorResult(normalizeAgentToolResult(r?.result));
+            addMessage(
+              "assistant",
+              denied
+                ? `❌ PingOne Authorize DENY — '${tool}' is not permitted in this vertical (AllowedVertical).`
+                : `❌ Expected a DENY for '${tool}', but the call returned a result.`,
+              null,
+            );
+            if (tokenChain && Array.isArray(r?.tokenEvents)) {
+              tokenChain.setTokenEvents(tool, r.tokenEvents);
+            }
+          } catch (err) {
+            addMessage(
+              "assistant",
+              `❌ PingOne Authorize DENY — ${err.code || err.message || "request rejected"}`,
+              null,
+            );
+            if (tokenChain && Array.isArray(err?.tokenEvents)) {
+              tokenChain.setTokenEvents(tool, err.tokenEvents);
+            }
+          } finally {
+            setNlLoading(false);
+          }
+        })();
+        return;
+      }
+      if (showcase === "atk_confused_deputy") {
+        // Live rogue-actor-injection fetch — ported from the old Security
+        // Showcase panel's onChipClick branch (Actions dropdown, removed).
+        // The /use-cases catalog's UC13 covers the same concept via a
+        // simulated sim run; this is the live variant.
+        addMessage("user", `Run attack: ${label || showcase}`);
+        setNlLoading(true);
+        (async () => {
+          const rogue = "rogue-agent-9f2a-not-allowlisted";
+          try {
+            const apiBase = process.env.REACT_APP_API_URL || "";
+            const r = await fetch(`${apiBase}/api/mcp/tool`, {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ tool: "get_my_accounts", params: {}, vertical: "banking", _testActClientId: rogue }),
+            });
+            const data = await r.json().catch(() => ({}));
+            const denied = r.status >= 400 || isAgentToolErrorResult(normalizeAgentToolResult(data?.result));
+            const allowedActorLine = data?.allowedActor
+              ? `\nAllowed actor: "${data.allowedActor}"`
+              : "";
+            addMessage(
+              "assistant",
+              denied
+                ? `❌ PingOne Authorize DENY (HTTP ${r.status}) — ${data.error || data.gatewayErrorCode || "mcp-invalid-actor"}\nTried: actor "${rogue}"${allowedActorLine}\nHasValidActorChain → false: actor "${rogue}" is not among the registered actors (delegation is bound to the AI Agent, not a may_act allowlist).`
+                : `❌ Expected a DENY for a rogue actor chain, but the call returned HTTP ${r.status}.`,
+              null,
+            );
+            if (tokenChain && Array.isArray(data?.tokenEvents)) {
+              tokenChain.setTokenEvents("confused_deputy", data.tokenEvents);
+            }
+          } catch (err) {
+            addMessage("assistant", `❌ Rogue actor rejected — ${err.code || err.message || "request blocked"}`, null);
+          } finally {
+            setNlLoading(false);
+          }
+        })();
+        return;
+      }
+      if (showcase === "atk_hitl_replay") {
+        // HITL receipt-binding replay — ported from the old Security Showcase
+        // panel's onChipClick branch (Actions dropdown, removed). Approve a
+        // consent receipt for create_transfer, then reuse that same receipt on
+        // a DIFFERENT tool (create_withdrawal); the gateway binds each receipt
+        // to the tool it approved, so the reuse is re-challenged, not honored.
+        addMessage("user", `Run attack: ${label || showcase}`);
+        setNlLoading(true);
+        (async () => {
+          const apiBase = process.env.REACT_APP_API_URL || "";
+          // Pin to banking: the receipt-replay demo exercises the gateway's
+          // per-tool receipt binding (a security control), not vertical data, so it
+          // runs the same everywhere instead of dead-ending on a cross-vertical deny.
+          const call = (tool, params) =>
+            fetch(`${apiBase}/api/mcp/tool`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool, params, vertical: "banking" }) });
+          try {
+            const acctD = await (await call("get_my_accounts", {})).json().catch(() => ({}));
+            let accounts = [];
+            try { accounts = JSON.parse(acctD.result?.content?.[0]?.text || "{}").accounts || []; } catch (_) { /* shape */ }
+            if (accounts.length < 2) {
+              addMessage("assistant", "HITL replay demo needs ≥2 accounts — click My accounts first to load them.", null);
+              setNlLoading(false);
+              return;
+            }
+            const [a0, a1] = accounts;
+            const t1 = await call("create_transfer", { fromAccountId: a0.id, toAccountId: a1.id, amount: 300 });
+            const b1 = await t1.json().catch(() => ({}));
+            const challengeId = b1.challengeId || b1.taskId;
+            if (!challengeId) {
+              addMessage("assistant", `Expected a HITL challenge for create_transfer but got HTTP ${t1.status}.`, null);
+              setNlLoading(false);
+              return;
+            }
+            const approve = await fetch(`${apiBase}/api/mcp/decision/${challengeId}/approve`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: "{}" });
+            if (!approve.ok) {
+              addMessage("assistant", `Could not approve the consent receipt (HTTP ${approve.status}) — can't run the replay demo right now.`, null);
+              setNlLoading(false);
+              return;
+            }
+            const replay = await call("create_withdrawal", { fromAccountId: a0.id, amount: 300, _hitl_challenge_id: challengeId });
+            const rb = await replay.json().catch(() => ({}));
+            const blocked = replay.status >= 400;
+            addMessage(
+              "assistant",
+              [
+                `Approved a consent receipt for create_transfer (challenge ${String(challengeId).slice(0, 8)}…).`,
+                "Replaying that SAME receipt on a different tool (create_withdrawal):",
+                blocked
+                  ? `❌ Blocked (HTTP ${replay.status} · ${rb.error || rb.gatewayErrorCode || "re-challenged"}) — the receipt is bound to the tool it approved; reuse is re-challenged, never honored.`
+                  : `❌ Expected the replay to be blocked, but it returned HTTP ${replay.status}.`,
+              ].join("\n"),
+              null,
+            );
+            if (tokenChain && Array.isArray(rb?.tokenEvents)) tokenChain.setTokenEvents("hitl_replay", rb.tokenEvents);
+          } catch (err) {
+            addMessage("assistant", `HITL replay demo error: ${err.code || err.message || "failed"}`, null);
+          } finally {
+            setNlLoading(false);
+          }
+        })();
+        return;
+      }
       const inj = SHOWCASE_INJECTION[showcase];
       if (!inj) return;
       addMessage("user", `Run attack: ${label || showcase}`);
@@ -6404,6 +6502,51 @@ export default function BankingAgent({
     );
   }
 
+  /** Dispatch a clicked Admin Tools item — PingOne ops go to the isolated admin
+   *  agent, banking customer-CRUD ops resolve like any other MCP-tool chip. */
+  async function handleAdminToolSelect(tool) {
+    if (!tool) return;
+    setShowAdminTools(false);
+    const message = tool.trigger?.text;
+    if (!message) return;
+    addMessage("user", tool.title);
+    if (tool.adminAgent) {
+      prepNlCompliance(message);
+      setNlLoading(true);
+      try {
+        const res = await fetch("/api/admin-agent/message", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message,
+            customer: adminCustomerContext.get(),
+          }),
+          signal: AbortSignal.timeout(30000),
+        });
+        const data = await res
+          .json()
+          .catch(() => ({ reply: "Admin agent request failed.", success: false }));
+        if (tokenChain && Array.isArray(data?.tokenEvents)) {
+          tokenChain.setTokenEvents("admin-agent", data.tokenEvents);
+        }
+        addMessage("assistant", `[ADMIN AGENT - LangGraph]\n${data?.reply || "Admin agent: no response."}`, null);
+      } catch (err) {
+        reportNlFailure(err);
+      } finally {
+        setNlLoading(false);
+      }
+      return;
+    }
+    // Banking customer-CRUD ops resolve through the normal chip pipeline —
+    // same fallthrough these messages already used inside the old Actions
+    // popout's onChipClick (no useCaseId, so forceHeuristic stays false and
+    // freeform text still reaches the LLM if the heuristic parser has no
+    // match for it).
+    pendingUcIdRef.current = null;
+    setNlResumeAfterAuth(message);
+  }
+
   async function handleNaturalLanguage() {
     const text = nlInput.trim();
     if (!text) return;
@@ -7785,28 +7928,34 @@ export default function BankingAgent({
                     handleDemoStepSelect(uc, stepNumber);
                   }}
                 />
-                {/* Actions trigger — float + dashboard inline agents (D-01, D-02) */}
-                {useActionsPopout && (
-                  <button
-                    ref={discoveryTriggerRef}
-                    type="button"
-                    className={
-                      "ba-actions-trigger" + (showDiscovery ? " active" : "")
-                    }
-                    onClick={() => {
-                      setShowDiscovery((v) => {
-                        const next = !v;
-                        if (next) setShowDemoSteps(false);
-                        return next;
-                      });
+                {/* Admin Tools — customer CRUD + PingOne platform ops, admin-only */}
+                {effectiveUser?.role === "admin" && (
+                  <AdminToolsDropdown
+                    open={showAdminTools}
+                    onOpenChange={(next) => {
+                      setShowAdminTools(next);
+                      if (next) setShowDemoSteps(false);
                     }}
-                    disabled={consentBlocked}
-                    aria-expanded={showDiscovery}
-                    aria-haspopup="dialog"
-                  >
-                    Actions {showDiscovery ? "▴" : "▾"}
-                  </button>
+                    onSelect={handleAdminToolSelect}
+                  />
                 )}
+                {/* Session controls — moved inline from the old Actions popout (Option A1) */}
+                {isLoggedIn && (
+                  <ScopePicker
+                    allowWrite={agentAllowWrite}
+                    disabled={agentToolsLoading}
+                    onChange={setAgentAllowWrite}
+                  />
+                )}
+                <button
+                  type="button"
+                  className="ba-actions-trigger ba-header-toggle-label"
+                  onClick={() => clearCompletedUseCases()}
+                  title="Clear checkmarks for a fresh demo pass"
+                  data-testid="header-clear-progress"
+                >
+                  Clear progress
+                </button>
                 {/* Expand/restore — float mode only (unchanged) */}
                 {!isInline && (
                   <button
@@ -7859,674 +8008,6 @@ export default function BankingAgent({
                 )}
               </div>
             </div>
-            {/* Phase 246: Actions popout — anchored to ba-header (position:relative in CSS) */}
-            {showDiscovery && (
-              <div
-                className="ba-actions-popout"
-                role="dialog"
-                aria-label="Action browser"
-                aria-modal="false"
-                ref={actionsPopoutRef}
-              >
-                <div className="ba-agent-popout-hdr">
-                  <div className="ba-agent-popout-hdr__top">
-                    <span className="ba-agent-popout-hdr__title">Actions</span>
-                    <button
-                      type="button"
-                      className="ba-agent-popout-hdr__clear"
-                      onClick={() => clearCompletedUseCases()}
-                      title="Clear checkmarks for a fresh demo pass"
-                      data-testid="actions-clear-progress"
-                    >
-                      Clear progress
-                    </button>
-                  </div>
-                  <input
-                  className="ba-popout-search"
-                  type="search"
-                  placeholder="Search actions or type a question…"
-                  value={discoverySearch}
-                  onChange={(e) => setDiscoverySearch(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key !== "Enter") return;
-                    const text = discoverySearch.trim();
-                    if (!text) return;
-                    setShowDiscovery(false);
-                    setDiscoverySearch("");
-                    if (isAgentBlockedByConsentDecline()) {
-                      addMessage("assistant", AGENT_CONSENT_BLOCK_USER_MESSAGE);
-                      return;
-                    }
-                    if (!(isLoggedIn || marketingGuestChatEnabled)) return;
-                    try {
-                      sessionStorage.setItem(BX_AGENT_PENDING_NL_KEY, text);
-                    } catch (_) {}
-                    setNlInput("");
-                    addMessage("user", text);
-                    setNlLoading(true);
-                    (async () => {
-                      try {
-                        const _discNlRes = await fetch(
-                          "/api/demo-agent/nl",
-                          {
-                            method: "POST",
-                            credentials: "include",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              message: text,
-                              provider: activeLlmProvider || "heuristic",
-                            }),
-                            signal: AbortSignal.timeout(15000),
-                          },
-                        );
-
-                        const { result: _discNlResult } = await _discNlRes
-                          .json()
-                          .catch(() => ({
-                            result: {
-                              kind: "none",
-                              message: "Could not parse request.",
-                            },
-                          }));
-                        try {
-                          sessionStorage.removeItem(BX_AGENT_PENDING_NL_KEY);
-                        } catch (_) {}
-                        await dispatchNlResult(_discNlResult, "nl", text);
-                      } catch (err) {
-                        reportNlFailure(err);
-                      } finally {
-                        setNlLoading(false);
-                      }
-                    })();
-                  }}
-                />
-                {isLoggedIn && (
-                  <div className="ba-agent-popout-hdr__tools">
-                    <ScopePicker
-                      allowWrite={agentAllowWrite}
-                      disabled={agentToolsLoading}
-                      onChange={setAgentAllowWrite}
-                    />
-                  </div>
-                )}
-                </div>
-                {isLoggedIn && degradedAuthz && (
-                  <div className="ba-authz-degraded-badge" title="PingOne Authorize unreachable — using the demo authorize server">
-                    Demo Authorize
-                  </div>
-                )}
-                {isLoggedIn && (
-                  <BankingChips
-                    customChips={customChips}
-                    user={user}
-                    llmAvailable={!!activeLlmProvider}
-                    isHelixMode={agentProviderMode === 'helix_google'}
-                    toolPermissions={toolPermissions}
-                    toolsError={agentToolsError}
-                    userPrompt={messages[messages.length - 1]?.content || ''}
-                    onDeniedChip={(chip, reason) => {
-                      addMessage("user", chip.label);
-                      addMessage(
-                        "assistant",
-                        `This action was denied by PingOne Authorize: "${chip.label}" — ${reason}. Switch the Agent scope to "Read + Write" to enable it.`,
-                      );
-                    }}
-                    onChipClick={async ({ message, label, requiresLlm, chipId, direct, showcase, caption, stepUpMethod, denyTool, useCaseId: chipUseCaseId }) => {
-                      setShowDiscovery(false);
-                      if (isAgentBlockedByConsentDecline()) {
-                        addMessage(
-                          "assistant",
-                          AGENT_CONSENT_BLOCK_USER_MESSAGE,
-                        );
-                        return;
-                      }
-                      // Arm flag-gated / A2A chips before the NL or direct path runs
-                      // (demo-step dropdown already does this; BankingChips did not).
-                      await ensureRequiredDemoFlags(
-                        requiredFlagsForUseCaseId(chipUseCaseId),
-                        chipUseCaseId || chipId || "chip",
-                      );
-                      addMessage("user", label || message);
-                      setNlLoading(true);
-
-                      // ── Security Showcase dispatch ─────────────────────────────
-                      // Action-typed showcase chips fire a dedicated live harness here;
-                      // message-typed ones (MFA/HITL transfers, LLM prompts) fall through
-                      // to the normal routing below. `caption` is the presenter's
-                      // plain-language "what this demonstrates" line.
-                      if (showcase) {
-                        // Showcase outcomes must be `assistant` (not token-event):
-                        // token-event bubbles are hidden when RFC info is off (default).
-                        if (caption) addMessage("assistant", `Expected: ${caption}`, null);
-                        if (showcase === "authz_deny") {
-                          // Call a tool from another vertical directly → AllowedVertical DENY.
-                          (async () => {
-                            const tool = denyTool || "show_health_record";
-                            try {
-                              const r = await callMcpTool(tool, {}, {
-                                onTokenEvent: (ev) => tokenChain?.appendTokenEvent(tool, ev),
-                              });
-                              const denied =
-                                r?.status === 403 ||
-                                isAgentToolErrorResult(normalizeAgentToolResult(r?.result));
-                              addMessage(
-                                "assistant",
-                                denied
-                                  ? `❌ PingOne Authorize DENY — '${tool}' is not permitted in this vertical (AllowedVertical).`
-                                  : `❌ Expected a DENY for '${tool}', but the call returned a result.`,
-                                null,
-                              );
-                              if (tokenChain && Array.isArray(r?.tokenEvents)) {
-                                tokenChain.setTokenEvents(tool, r.tokenEvents);
-                              }
-                            } catch (err) {
-                              addMessage(
-                                "assistant",
-                                `❌ PingOne Authorize DENY — ${err.code || err.message || "request rejected"}`,
-                                null,
-                              );
-                              if (tokenChain && Array.isArray(err?.tokenEvents)) {
-                                tokenChain.setTokenEvents(tool, err.tokenEvents);
-                              }
-                            } finally {
-                              setNlLoading(false);
-                            }
-                          })();
-                          return;
-                        }
-                        if (showcase === "atk_confused_deputy") {
-                          // Confused deputy (live): fire a normal tool call but override the
-                          // bridged actor with a rogue, non-allowlisted client_id (_testActClientId).
-                          // PingOne Authorize's HasValidActorChain returns a real DENY.
-                          (async () => {
-                            const rogue = "rogue-agent-9f2a-not-allowlisted";
-                            try {
-                              const apiBase = process.env.REACT_APP_API_URL || "";
-                              const r = await fetch(`${apiBase}/api/mcp/tool`, {
-                                method: "POST",
-                                credentials: "include",
-                                headers: { "Content-Type": "application/json" },
-                                // Attacks demonstrate the security infrastructure (banking is the
-                                // reference), not vertical data — pin to banking so the demo runs the
-                                // same regardless of the active vertical instead of dead-ending on a
-                                // cross-vertical deny.
-                                body: JSON.stringify({ tool: "get_my_accounts", params: {}, vertical: "banking", _testActClientId: rogue }),
-                              });
-                              const data = await r.json().catch(() => ({}));
-                              const denied = r.status >= 400 || isAgentToolErrorResult(normalizeAgentToolResult(data?.result));
-                              const allowedActorLine = data?.allowedActor
-                                ? `\nAllowed actor: "${data.allowedActor}"`
-                                : "";
-                              addMessage(
-                                "assistant",
-                                denied
-                                  ? `❌ PingOne Authorize DENY (HTTP ${r.status}) — ${data.error || data.gatewayErrorCode || "mcp-invalid-actor"}\nTried: actor "${rogue}"${allowedActorLine}\nHasValidActorChain → false: actor "${rogue}" is not among the registered actors (delegation is bound to the AI Agent, not a may_act allowlist).`
-                                  : `❌ Expected a DENY for a rogue actor chain, but the call returned HTTP ${r.status}.`,
-                                null,
-                              );
-                              if (tokenChain && Array.isArray(data?.tokenEvents)) {
-                                tokenChain.setTokenEvents("confused_deputy", data.tokenEvents);
-                              }
-                            } catch (err) {
-                              addMessage("assistant", `❌ Rogue actor rejected — ${err.code || err.message || "request blocked"}`, null);
-                            } finally {
-                              setNlLoading(false);
-                            }
-                          })();
-                          return;
-                        }
-                        if (SHOWCASE_INJECTION[showcase]) {
-                          // Injection (live): plant a poisoned payload in the user's data,
-                          // surface it via the agent's read tool, and show the agent cannot
-                          // auto-execute the injected instruction (writes stay policy-gated).
-                          const inj = SHOWCASE_INJECTION[showcase];
-                          (async () => {
-                            try {
-                              const apiBase = process.env.REACT_APP_API_URL || "";
-                              const seedRes = await fetch(`${apiBase}/api/demo/attacks/${inj.seed}`, {
-                                method: "POST",
-                                credentials: "include",
-                                headers: { "Content-Type": "application/json" },
-                                body: "{}",
-                              });
-                              const seedData = await seedRes.json().catch(() => ({}));
-                              const payload = seedData.description || seedData.notes || "(payload planted)";
-                              // Pin the poisoned read to banking (where the seed plants data) so the
-                              // injection surfaces regardless of the active vertical.
-                              // Result is `assistant` (not token-event) so chips stay visible when RFC info is off.
-                              const readResp = await (await fetch(`${apiBase}/api/mcp/tool`, {
-                                method: "POST",
-                                credentials: "include",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ tool: inj.readTool, params: inj.readTool === "get_my_transactions" ? { limit: 100 } : {}, vertical: "banking" }),
-                              })).json().catch(() => ({}));
-                              const surfaced = JSON.stringify(readResp?.result ?? "").includes("[SYSTEM:");
-                              addMessage(
-                                "assistant",
-                                [
-                                  `Injection planted in your ${inj.where} and surfaced to the agent via ${inj.readTool}:`,
-                                  `   "${payload}"`,
-                                  "",
-                                  surfaced
-                                    ? "The poisoned directive is now in the agent's context — but it cannot auto-execute:"
-                                    : "(payload planted; agent read completed)",
-                                  "❌ Any write the injection demands (e.g. create_transfer) is gated by PingOne Authorize + HITL consent.",
-                                  "   The policy evaluates the request independently of whatever the LLM 'decided' from the poisoned text.",
-                                ].join("\n"),
-                                null,
-                              );
-                              if (tokenChain && Array.isArray(readResp?.tokenEvents)) {
-                                tokenChain.setTokenEvents(inj.readTool, readResp.tokenEvents);
-                              }
-                            } catch (err) {
-                              addMessage("assistant", `Injection demo error: ${err.code || err.message || "failed"}`, null);
-                            } finally {
-                              setNlLoading(false);
-                            }
-                          })();
-                          return;
-                        }
-                        if (showcase === "atk_hitl_replay") {
-                          // HITL receipt-binding replay (live): approve a consent receipt for
-                          // create_transfer, then reuse that same receipt on a DIFFERENT tool
-                          // (create_withdrawal). The gateway binds each receipt to the tool it
-                          // approved, so the reuse is re-challenged (428), not honored.
-                          (async () => {
-                            const apiBase = process.env.REACT_APP_API_URL || "";
-                            // Pin to banking: the receipt-replay demo exercises the gateway's
-                            // per-tool receipt binding (a security control), not vertical data, so it
-                            // runs the same everywhere instead of dead-ending on a cross-vertical deny.
-                            const call = (tool, params) =>
-                              fetch(`${apiBase}/api/mcp/tool`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool, params, vertical: "banking" }) });
-                            try {
-                              const acctD = await (await call("get_my_accounts", {})).json().catch(() => ({}));
-                              let accounts = [];
-                              try { accounts = JSON.parse(acctD.result?.content?.[0]?.text || "{}").accounts || []; } catch (_) { /* shape */ }
-                              if (accounts.length < 2) {
-                                addMessage("assistant", "HITL replay demo needs ≥2 accounts — click My accounts first to load them.", null);
-                                setNlLoading(false);
-                                return;
-                              }
-                              const [a0, a1] = accounts;
-                              const t1 = await call("create_transfer", { fromAccountId: a0.id, toAccountId: a1.id, amount: 300 });
-                              const b1 = await t1.json().catch(() => ({}));
-                              const challengeId = b1.challengeId || b1.taskId;
-                              if (!challengeId) {
-                                addMessage("assistant", `Expected a HITL challenge for create_transfer but got HTTP ${t1.status}.`, null);
-                                setNlLoading(false);
-                                return;
-                              }
-                              const approve = await fetch(`${apiBase}/api/mcp/decision/${challengeId}/approve`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: "{}" });
-                              if (!approve.ok) {
-                                addMessage("assistant", `Could not approve the consent receipt (HTTP ${approve.status}) — can't run the replay demo right now.`, null);
-                                setNlLoading(false);
-                                return;
-                              }
-                              const replay = await call("create_withdrawal", { fromAccountId: a0.id, amount: 300, _hitl_challenge_id: challengeId });
-                              const rb = await replay.json().catch(() => ({}));
-                              const blocked = replay.status >= 400;
-                              addMessage(
-                                "assistant",
-                                [
-                                  `Approved a consent receipt for create_transfer (challenge ${String(challengeId).slice(0, 8)}…).`,
-                                  "Replaying that SAME receipt on a different tool (create_withdrawal):",
-                                  blocked
-                                    ? `❌ Blocked (HTTP ${replay.status} · ${rb.error || rb.gatewayErrorCode || "re-challenged"}) — the receipt is bound to the tool it approved; reuse is re-challenged, never honored.`
-                                    : `❌ Expected the replay to be blocked, but it returned HTTP ${replay.status}.`,
-                                ].join("\n"),
-                                null,
-                              );
-                              if (tokenChain && Array.isArray(rb?.tokenEvents)) tokenChain.setTokenEvents("hitl_replay", rb.tokenEvents);
-                            } catch (err) {
-                              addMessage("assistant", `HITL replay demo error: ${err.code || err.message || "failed"}`, null);
-                            } finally {
-                              setNlLoading(false);
-                            }
-                          })();
-                          return;
-                        }
-                        if (SHOWCASE_RUN_ACTION[showcase]) {
-                          setNlLoading(false);
-                          runAction(SHOWCASE_RUN_ACTION[showcase]);
-                          return;
-                        }
-                        // mfa_otp / mfa_fido / hitl_consent / llm_* → fall through to the
-                        // normal message routing below (transfer triggers HITL/step-up;
-                        // llm chips route to the active provider).
-                      }
-
-                      // Direct MCP path — MCP spec compliant:
-                      // 1. NL parser resolves intent + params (same as any other chip)
-                      // 2. Resolved action maps to an MCP tool name
-                      // 3. callMcpTool issues a typed tools/call — skips only the LangGraph loop
-                      if (direct) {
-                        (async () => {
-                          try {
-                            const nlRes = await fetch("/api/demo-agent/nl", {
-                              method: "POST",
-                              credentials: "include",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                message,
-                                provider: "heuristic",
-                                ...(effectiveVerticalId && { vertical: effectiveVerticalId }),
-                              }),
-                              signal: AbortSignal.timeout(10000),
-                            });
-                            const { result: nlResult } = await nlRes.json().catch(() => ({ result: null }));
-                            // Resolve MCP tool name from NL action.
-                            // kind:banking accounts → get_my_accounts
-                            // kind:banking vertical_feature_demo → featurePage.mcpTool
-                            // kind:vertical → action IS the tool name (list_orders, show_health_record…)
-                            let resolvedTool = null;
-                            let resolvedParams = {};
-                            if (nlResult?.kind === "banking" && nlResult.banking?.action) {
-                              const ba = nlResult.banking;
-                              if (ba.action === "accounts") {
-                                resolvedTool = "get_my_accounts";
-                              } else if (ba.action === "account_nickname") {
-                                resolvedTool = "get_account_nickname";
-                              } else if (ba.action === "mortgage_demo") {
-                                resolvedTool = "show_mortgage";
-                              } else if (ba.action === "invest_demo") {
-                                resolvedTool = "show_investment";
-                              } else if (ba.action === "vertical_feature_demo") {
-                                resolvedTool = themeManifest?.featurePage?.mcpTool || null;
-                              }
-                              resolvedParams = ba.params || {};
-                            } else if (nlResult?.kind === "vertical" && nlResult.action) {
-                              resolvedTool = nlResult.action;
-                              resolvedParams = nlResult.params || {};
-                            }
-                            if (!resolvedTool) {
-                              addMessage("assistant", "Could not resolve an MCP tool for this request — try rephrasing.", null);
-                              return;
-                            }
-                            const mcpResp = await callMcpTool(resolvedTool, resolvedParams, {
-                              useCaseId: chipUseCaseId,
-                              vertical: effectiveVerticalId,
-                              onTokenEvent: (ev) => tokenChain?.appendTokenEvent(resolvedTool, ev),
-                            });
-                            if (tokenChain && Array.isArray(mcpResp?.tokenEvents)) {
-                              tokenChain.setTokenEvents(resolvedTool, mcpResp.tokenEvents);
-                            }
-                            const normalized = normalizeAgentToolResult(mcpResp?.result);
-                            const isErr = isAgentToolErrorResult(normalized);
-                            if (isErr) {
-                              addMessage(
-                                "assistant",
-                                `MCP returned an error: ${normalized?.error || normalized?.message || "unknown error"}`,
-                                resolvedTool,
-                                { source: "direct-mcp" },
-                              );
-                              return;
-                            }
-                            // Same human-readable path as heuristic runAction — not a raw JSON wall.
-                            let text = formatResult(normalized, terminology);
-                            const looksLikeJson =
-                              typeof text === "string" &&
-                              /^\s*[\[{]/.test(text);
-                            const descriptor =
-                              pageManifest?.render?.[resolvedTool] || null;
-                            if (descriptor && looksLikeJson) {
-                              text = `Direct MCP · ${resolvedTool}`;
-                            }
-                            const { resultType, resultData } =
-                              inferAgentResultTypeAndData(normalized);
-                            if (resultType) {
-                              const titleMap = {
-                                accounts: terminology?.accounts || "Accounts",
-                                transactions:
-                                  terminology?.transactions ||
-                                  "Recent Transactions",
-                                balance: terminology?.balance || "Balance",
-                                confirm: `${resolvedTool} confirmed`,
-                              };
-                              setResultPanel({
-                                type: resultType,
-                                title: titleMap[resultType] || resolvedTool,
-                                data: resultData,
-                                terminology,
-                              });
-                            }
-                            const directExtra = {
-                              source: "direct-mcp",
-                              rawMcpResult: normalized,
-                            };
-                            if (descriptor) {
-                              directExtra.verticalResult = {
-                                descriptor,
-                                data: normalized,
-                                terminology,
-                              };
-                            }
-                            addMessage(
-                              "assistant",
-                              text,
-                              resolvedTool,
-                              directExtra,
-                            );
-                          } catch (err) {
-                            reportNlFailure(err);
-                          } finally {
-                            setNlLoading(false);
-                          }
-                        })();
-                        return;
-                      }
-
-                      // Admin chips invoke the isolated admin agent via /api/admin-agent
-                      // which uses hosted PingOne MCP tools with worker client_credentials token.
-                      if (PINGONE_ADMIN_CHIP_IDS.has(chipId)) {
-                        prepNlCompliance(message);
-                        (async () => {
-                          try {
-                            const res = await fetch("/api/admin-agent/message", {
-                              method: "POST",
-                              credentials: "include",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                message,
-                                customer: adminCustomerContext.get(),
-                              }),
-                              signal: AbortSignal.timeout(30000),
-                            });
-                            const data = await res
-                              .json()
-                              .catch(() => ({ reply: "Admin agent request failed.", success: false }));
-                            if (tokenChain && Array.isArray(data?.tokenEvents)) {
-                              tokenChain.setTokenEvents("admin-agent", data.tokenEvents);
-                            }
-                            const reply = `[ADMIN AGENT - LangGraph]\n${data?.reply || "Admin agent: no response."}`;
-                            addMessage("assistant", reply, null);
-                          } catch (err) {
-                            reportNlFailure(err);
-                          } finally {
-                            setNlLoading(false);
-                          }
-                        })();
-                        return;
-                      }
-
-                      // A2A Orchestrator — detect delegation requests and route to /api/a2a
-                      const delegationKeywords = [
-                        /\bdelegate\b/i,
-                        /\bhand\s*off\b/i,
-                        /\bescalate\b/i,
-                        /\bspecialist\b/i,
-                        /\borchestrat/i,
-                        /second\s+agent/i,
-                      ];
-                      const shouldDelegateToA2a = delegationKeywords.some((kw) => kw.test(message));
-
-                      if (shouldDelegateToA2a) {
-                        prepNlCompliance(message);
-                        (async () => {
-                          try {
-                            const res = await fetch("/api/a2a/message", {
-                              method: "POST",
-                              credentials: "include",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                message,
-                                vertical: effectiveVerticalId,
-                              }),
-                              signal: AbortSignal.timeout(30000),
-                            });
-                            const data = await res
-                              .json()
-                              .catch(() => ({ reply: "A2A orchestrator request failed.", success: false }));
-                            if (tokenChain && Array.isArray(data?.tokenEvents)) {
-                              tokenChain.setTokenEvents("a2a-orchestrator", data.tokenEvents);
-                            }
-                            const header = data?.delegationDecision?.agentHeader || '🤖 [A2A ORCHESTRATOR]';
-                            const reply = `${header}\n${data?.reply || "A2A orchestrator: no response."}`;
-                            addMessage("assistant", reply, null);
-                          } catch (err) {
-                            reportNlFailure(err);
-                          } finally {
-                            setNlLoading(false);
-                          }
-                        })();
-                        return;
-                      }
-
-                      prepNlCompliance(message);
-                      (async () => {
-                        try {
-                          const res = await fetch("/api/demo-agent/nl", {
-                            method: "POST",
-                            credentials: "include",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              message: message,
-                              // In helix_google (Helix only) mode every chip goes through Helix —
-                              // heuristic is only used as a fallback when Helix fails, not as the
-                              // first-choice path. Routing="LLM only" (!heuristicEnabled) also forces
-                              // every chip through the active provider — the dropdown means what it
-                              // says. Otherwise (Fallback/Heuristics routing), chips with
-                              // requiresLlm=false deliberately bypass the LLM for speed.
-                              // PingOne Admin chips are handled above (POST /message); this /nl
-                              // path only sees non-pingone chips.
-                              provider: (requiresLlm || agentProviderMode === "helix_google" || !heuristicEnabled)
-                                ? (activeLlmProvider || "heuristic")
-                                : "heuristic",
-                            }),
-                            signal: AbortSignal.timeout(15000),
-                          });
-                          const { result, source, llm_attempted, llm_not_configured } = await res
-                            .json()
-                            .catch(() => ({
-                              result: {
-                                kind: "none",
-                                message: "Could not parse request.",
-                              },
-                              source: "heuristic",
-                            }));
-                          if (result?.kind === "none") {
-                            if (llm_not_configured) {
-                              const agentName = pageManifest?.agent?.persona || pageManifest?.identity?.displayName || 'the agent';
-                              result.message =
-                                `This chip needs an LLM (Helix or LM Studio) to interpret freeform questions, ` +
-                                `but no provider is configured.\n\n` +
-                                `Open the Helix tab in ${agentName} and add base_url + api_key + agent_id, ` +
-                                `or pick a different chip — the heuristic chips work without an LLM.`;
-                            } else if (llm_attempted) {
-                              const agentName = pageManifest?.agent?.persona || pageManifest?.identity?.displayName || 'the agent';
-                              result.message =
-                                `${agentName} couldn't map this to a supported action. ` +
-                                `Try rephrasing, or pick one of the other chips.`;
-                            }
-                          }
-                          await dispatchNlResult(
-                            result,
-                            source || "heuristic",
-                            message,
-                            chipUseCaseId,
-                          );
-                        } catch (err) {
-                          reportNlFailure(err);
-                        } finally {
-                          setNlLoading(false);
-                        }
-                      })();
-                    }}
-                    isLoading={nlLoading}
-                  />
-                )}
-                <div className="ba-popout-body">
-                  {filteredDiscoveryGroups.map((group) => {
-                    if (
-                      group.key === "admin" &&
-                      effectiveUser?.role !== "admin"
-                    )
-                      return null;
-                    if (group.chips.length === 0) return null;
-                    const groupExpanded = !!chipGroupsState[group.key];
-                    return (
-                      <div key={group.key} className="ba-popout-section">
-                        <button
-                          type="button"
-                          className="ba-popout-section-label ba-popout-section-toggle"
-                          onClick={() => toggleGroupExpanded(group.key)}
-                        >
-                          {groupExpanded ? "▼" : "▶"} {group.label}
-                        </button>
-                        {groupExpanded && (
-                          <div className="ba-popout-list">
-                            {group.chips.map((action) => (
-                              <button
-                                key={action.id}
-                                type="button"
-                                className="ba-popout-list-item"
-                                disabled={consentBlocked}
-                                onClick={() => {
-                                  setShowDiscovery(false);
-                                  handleChipActivate(action);
-                                }}
-                              >
-                                <span className="ba-popout-item-name">
-                                  {action.label}
-                                  {(action.challenge || action.hitlTrigger) && <HitlChipMark challenge={action.challenge || 'both'} />}
-                                </span>
-                                {action.desc && (
-                                  <span className="ba-popout-item-desc">
-                                    {action.desc}
-                                  </span>
-                                )}
-                                {action.rfcs?.length > 0 && (
-                                  <span className="ba-popout-item-rfcs">
-                                    {action.rfcs.map((r) => (
-                                      <span key={r} className="ba-rfc-badge">
-                                        {r}
-                                      </span>
-                                    ))}
-                                  </span>
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                  {discoverySearch.trim() !== "" &&
-                    filteredDiscoveryGroups.filter(
-                      (g) => g.chips.length > 0,
-                    ).length === 0 && (
-                      <div className="ba-popout-empty">
-                        <div className="ba-popout-empty-heading">
-                          No matching actions
-                        </div>
-                        <div>
-                          Try a different keyword, or type directly in the chat
-                          below.
-                        </div>
-                      </div>
-                    )}
-                </div>
-              </div>
-            )}
           </div>
           {/* Two-column body */}
           <div className="ba-body">
@@ -9800,20 +9281,16 @@ export default function BankingAgent({
 
                     <div className="ba-left-divider" />
 
-                    {/* "All actions" discovery popout trigger */}
-                    <button
-                      ref={discoveryTriggerRef}
-                      type="button"
-                      className={
-                        "ba-all-actions-btn" + (showDiscovery ? " active" : "")
-                      }
-                      onClick={() => setShowDiscovery((v) => !v)}
-                      disabled={consentBlocked}
-                      aria-expanded={showDiscovery}
-                      aria-haspopup="dialog"
-                    >
-                      ⊞ All actions
-                    </button>
+                    {/* "All actions" discovery popout trigger — removed (Task 7,
+                        Actions dropdown removal): it opened the ba-actions-popout,
+                        which no longer exists anywhere in this file. Leaving the
+                        button would make it a silent no-op click. showDiscovery /
+                        discoveryTriggerRef / actionsPopoutRef stay declared —
+                        they're still referenced by this component's popout-lifecycle
+                        effects (Escape/click-outside/scroll/reposition, all now
+                        harmless no-ops since actionsPopoutRef.current is always
+                        null) — removing those is a separate, out-of-scope cleanup
+                        of this whole `!useActionsPopout` fallback branch. */}
                   </>
                 ) : (
                   <>

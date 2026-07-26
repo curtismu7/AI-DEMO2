@@ -15,6 +15,7 @@ const ACTION_TO_TOOL = {
   transactions: 'get_my_transactions',
   branch_hours: 'get_branch_hours',
   weather: 'get_weather',
+  mortgage_demo: 'show_mortgage',
 };
 
 module.exports = { ACTION_TO_TOOL };
