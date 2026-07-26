@@ -6,14 +6,19 @@
  * was tried — see docs/superpowers/plans/2026-07-13-remaining-tried-vs-allowed.md
  * Task 2.
  *
- * Unlike the "Test Wrong Audience"/"Test Wrong Scope" chips (static
- * ACTION_GROUPS.testing entries), this chip is only reachable through the
- * manifest-driven Security Showcase panel (BankingChips → SecurityShowcasePanel),
- * rendered inside the "Actions" popout in float mode (mode !== "inline").
+ * This live harness used to be reachable only through the old "Actions"
+ * dropdown's manifest-driven Security Showcase panel (BankingChips →
+ * SecurityShowcasePanel). That dropdown was removed (see
+ * docs/superpowers/plans/2026-07-24-actions-dropdown-removal.md Task 7); the
+ * harness itself was ported into AIAgent.js's `runDrawerAttackRef` (the same
+ * bridge that already serves the AI Attacks education drawer's "Run this
+ * attack" buttons — see education/AiAttacksPanel.js's 'confused-deputy' tab)
+ * and is now driven by the 'banking-run-showcase' window event, exactly like
+ * the other showcase attacks (see AiAttacksPanel.inlineAgent.test.jsx).
  */
 import React from "react";
 import "@testing-library/jest-dom";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { ActivityNarrativeProvider } from "../../context/ActivityNarrativeContext";
 import { ProofOfEnforcementProvider } from "../../context/ProofOfEnforcementContext";
@@ -125,36 +130,6 @@ vi.mock("../../hooks/useAgentRun", () => ({
   useAgentRun: () => ({ run: jest.fn(), abort: jest.fn() }),
 }));
 
-// The confused-deputy chip only exists in the manifest-driven Security
-// Showcase panel (dashboard.securityShowcase.tabs), not the static
-// ACTION_GROUPS list — so useVertical must be mocked to supply it.
-vi.mock("../../vertical/useVertical", () => ({
-  useVertical: () => ({
-    pageManifest: {
-      identity: { displayName: "Super Banking" },
-      dashboard: {
-        securityShowcase: {
-          tabs: [
-            {
-              id: "attacks",
-              label: "Attacks",
-              chips: [
-                {
-                  id: "atk_confused_deputy",
-                  label: "Attack: Confused Deputy",
-                  showcase: "atk_confused_deputy",
-                },
-              ],
-            },
-          ],
-        },
-      },
-    },
-    agentManifest: null,
-    activeId: "banking",
-  }),
-}));
-
 import AIAgent from "../AIAgent";
 
 const customerUser = {
@@ -178,19 +153,19 @@ function renderAgent(props = {}) {
   );
 }
 
-// atk_confused_deputy is only reachable through the "Actions" popout (float
-// mode, useActionsPopout === true) → BankingChips → SecurityShowcasePanel's
-// "Attacks" tab, unlike the static ACTION_GROUPS.testing chips used by the
-// wrong-audience/wrong-scope tests. Open the FAB, open Actions, click the chip.
-async function clickConfusedDeputyChip() {
+// atk_confused_deputy now runs via the 'banking-run-showcase' window event —
+// the same bridge the AI Attacks education drawer's "Run this attack" button
+// uses for its 'confused-deputy' tab (see AiAttacksPanel.js RUN_BY_TAB and
+// AiAttacksPanel.runButtons.test.jsx for the button→event wiring; this file
+// only needs to lock the AIAgent-side harness behavior).
+function runConfusedDeputyShowcase() {
   renderAgent({ user: customerUser });
-  const fab = await screen.findByRole("button", { name: /Open .* AI Agent/i });
-  fireEvent.click(fab);
-  const actionsTrigger = await screen.findByRole("button", { name: /^Actions/i });
-  fireEvent.click(actionsTrigger);
-  const chip = await screen.findByText("Attack: Confused Deputy");
-  await act(async () => {
-    fireEvent.click(chip);
+  act(() => {
+    window.dispatchEvent(
+      new CustomEvent("banking-run-showcase", {
+        detail: { showcase: "atk_confused_deputy", label: "Confused Deputy" },
+      }),
+    );
   });
 }
 
@@ -210,7 +185,7 @@ describe("Confused Deputy attack chip", () => {
       }),
     });
 
-    await clickConfusedDeputyChip();
+    runConfusedDeputyShowcase();
 
     await waitFor(() => {
       expect(document.body.textContent).toContain("rogue-agent-9f2a-not-allowlisted");

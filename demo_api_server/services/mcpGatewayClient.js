@@ -79,6 +79,15 @@ const WEATHER_TOOLS = new Set([
     'get_weather',
 ]);
 
+// brave-mcp showcase: PingGateway (IG) only — 00-mcp-brave.json fronts a
+// hand-written MCP server that calls the real Brave Search News API, gated
+// by tx-brave-scope.groovy (crypto-term content blocklist). No
+// Node mcp-gateway equivalent exists. Only applied when the gateway base IS
+// PingGateway (base === pgUrl below) — same conditional weather uses.
+const BRAVE_TOOLS = new Set([
+    'brave_news_search',
+]);
+
 /**
  * Call an MCP tool via the gateway HTTP endpoint.
  *
@@ -131,6 +140,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     const isIgBase = !!pgUrl && base === pgUrl;
     const url  = isIgBase && APIKEY_TOOLS.has(tool) ? `${base}/mcp/apikey`
                : isIgBase && WEATHER_TOOLS.has(tool) ? `${base}/mcp/weather`
+               : isIgBase && BRAVE_TOOLS.has(tool) ? `${base}/mcp/brave`
                : `${base}/mcp`;
 
     const body = {
@@ -221,9 +231,18 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // gateway forwards it to PingOne Authorize, whose HasValidActorChain condition
     // returns a real DENY (mcp-invalid-actor). Demo-only: this value originates from
     // an authenticated session's explicit attack chip, never from normal tool calls.
+    //
+    // X-Demo-Force-Actor: the mcpgateway resource now stamps a native `act` claim on
+    // this hop (docs/ACT_CLAIM_VERIFICATION.md, 2026-06-19 SPEL rollout), and both the
+    // Node gateway and PingGateway prefer that native claim over any header — so the
+    // override above was silently shadowed. This flag tells them to prefer the header
+    // for THIS request only; gated by the same x-internal-gateway-secret trust check as
+    // X-Act-Client-Id itself, so an external caller can't set it, and real traffic never
+    // sends it — native act still wins for every normal call.
     if (opts.testActClientId) {
         headers['X-Act-Client-Id'] = String(opts.testActClientId);
-        console.log('[GW→PingGateway] CONFUSED-DEPUTY DEMO: overriding X-Act-Client-Id with rogue actor=%s', opts.testActClientId);
+        headers['X-Demo-Force-Actor'] = 'true';
+        console.log('[GW→PingGateway] CONFUSED-DEPUTY DEMO: overriding X-Act-Client-Id with rogue actor=%s (forcing over native act)', opts.testActClientId);
     }
 
     // When routing through PingGateway (IG), tell it which authorize backend to use,
@@ -853,10 +872,10 @@ function _normalizeGatewayNetworkError(axErr, timeoutMs) {
 
 module.exports = {
     callToolViaGateway,
-    tryGetMcpGatewayHttpUrl,
-    _normalizeGatewayNetworkError,
     callToolViaResolvedGateway,
     getMcpGatewayHttpUrl,
+    tryGetMcpGatewayHttpUrl,
+    _normalizeGatewayNetworkError,
     resolveMcpGatewayTransport,
     // test/helpers — weather JSON-RPC deny → TraceRail gateway evidence
     _extractGatewayDenyFields,

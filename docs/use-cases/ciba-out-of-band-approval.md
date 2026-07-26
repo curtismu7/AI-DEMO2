@@ -3,7 +3,7 @@
 # UC22 — CIBA out-of-band approval
 
 **Track:** hitl  
-**Maturity:** 🚩 `flag:ff_ciba`  
+**Maturity:** 🚩 `flag:ciba_enabled`  
 **OWASP:** 🛡️ **OWASP ASI** — Threats: T10 · Sections: §3.1.5
 
 ## Buyer Story

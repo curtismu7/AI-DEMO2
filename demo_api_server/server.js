@@ -1064,6 +1064,7 @@ app.use('/api/mcp', mcpDecisionPollingRoutes);
 app.use('/api/mcp', mcpExchangeModeRoutes); // GET/POST /api/mcp/exchange-mode — UI ExchangeModeContext toggle
 app.use('/api/mcp/apikey', require('./routes/apiKeyExchange')); // POST /api/mcp/apikey/exchange — API key → bearer token
 app.use('/api/use-cases', authenticateToken, require('./routes/useCases'));
+app.use('/api/admin-tools', authenticateToken, require('./routes/adminTools'));
 app.use('/api/test/token-validation', testTokenScenariosRoutes); // UI TokenSecurityTester; self-gated 403 in prod unless FF_TEST_TOKEN_SCENARIOS
 // NL/search routes: public LLM config + NL parsing. Must be mounted BEFORE demoAgentRoutes
 // so /nl/status, /nl, and /search are handled without agentSessionMiddleware.
@@ -1253,6 +1254,7 @@ app.use('/internal', require('./routes/mcpAuditIngest'));
 // from here at request time. Secret-guarded + allow-listed; NOT browser-facing.
 app.use('/internal', require('./routes/vaultServiceKey'));
 app.use('/internal', require('./routes/weatherMcpFlag'));
+app.use('/internal', require('./routes/braveMcpFlag'));
 
 // Phase 266 R2 — Path A info marker (session-cookie auth; no Bearer needed from SPA)
 app.use('/api/path', require('./routes/pathInfo'));

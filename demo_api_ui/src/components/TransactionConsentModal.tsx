@@ -148,6 +148,18 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
   // Pop-out: content renders in a separate browser window via createPortal,
   // mirroring DraggableModal.jsx's handlePopOut/PopOutPortal pattern.
   const [popoutWin, setPopoutWin] = useState<Window | null>(null);
+  const [mfaThreshold, setMfaThreshold] = useState<number>(500);
+
+  useEffect(() => {
+    if (!open) return;
+    bffAxios
+      .get("/api/config/thresholds")
+      .then((r) => {
+        const n = Number(r.data?.mfa_threshold_usd);
+        if (!Number.isNaN(n) && n > 0) setMfaThreshold(n);
+      })
+      .catch(() => {});
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -1052,7 +1064,7 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
         ) : (
           <>
             <p className="transaction-consent-popup__lead">
-              Amounts over $500 require your explicit consent. Review the
+              Amounts over ${mfaThreshold} require your explicit consent. Review the
               summary, then confirm if you want the banking assistant to
               complete this transaction on your behalf.
             </p>

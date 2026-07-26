@@ -229,6 +229,88 @@ describe("Inline agent handles AI Attacks drawer events (no isInline early retur
       await screen.findByText(/Injection planted in your transaction history/, {}, { timeout: 3000 }),
     ).toBeInTheDocument();
   });
+
+  // authz_deny / atk_hitl_replay ported from the old Actions dropdown's
+  // Security Showcase panel (BankingChips → SecurityShowcasePanel) into
+  // runDrawerAttackRef when that dropdown was removed (Task 7) — locking the
+  // ported logic itself, not just the AiAttacksPanel button→event wiring
+  // (see AiAttacksPanel.runButtons.test.jsx for that half).
+  it("banking-run-showcase runs the authz_deny showcase in the inline agent", async () => {
+    demoAgentService.callMcpTool.mockResolvedValue({ status: 403, result: null, tokenEvents: [] });
+
+    renderInlineAgent();
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent("banking-run-showcase", {
+          detail: { showcase: "authz_deny", label: "Authz Deny" },
+        }),
+      );
+    });
+
+    await waitFor(
+      () => {
+        expect(document.body.textContent).toContain("Run attack: Authz Deny");
+        expect(document.body.textContent).toContain(
+          "PingOne Authorize DENY — 'show_health_record' is not permitted in this vertical (AllowedVertical).",
+        );
+      },
+      { timeout: 3000 },
+    );
+    expect(demoAgentService.callMcpTool).toHaveBeenCalledWith(
+      "show_health_record",
+      {},
+      expect.objectContaining({ vertical: "banking" }),
+    );
+  });
+
+  it("banking-run-showcase runs the atk_hitl_replay showcase in the inline agent", async () => {
+    global.fetch = vi.fn().mockImplementation((url, opts) => {
+      const body = opts?.body ? JSON.parse(opts.body) : {};
+      if (String(url).includes("/api/mcp/decision/")) {
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      }
+      if (String(url).includes("/api/mcp/tool")) {
+        if (body.tool === "get_my_accounts") {
+          return Promise.resolve({
+            status: 200,
+            json: async () => ({
+              result: { content: [{ text: JSON.stringify({ accounts: [{ id: "a1" }, { id: "a2" }] }) }] },
+            }),
+          });
+        }
+        if (body.tool === "create_transfer") {
+          return Promise.resolve({ status: 200, json: async () => ({ challengeId: "chal-123" }) });
+        }
+        if (body.tool === "create_withdrawal") {
+          return Promise.resolve({ status: 428, json: async () => ({ error: "re_challenged" }) });
+        }
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ result: { kind: "none", message: "ok" }, source: "heuristic" }),
+      });
+    });
+
+    renderInlineAgent();
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent("banking-run-showcase", {
+          detail: { showcase: "atk_hitl_replay", label: "HITL Replay" },
+        }),
+      );
+    });
+
+    await waitFor(
+      () => {
+        expect(document.body.textContent).toContain("Run attack: HITL Replay");
+        expect(document.body.textContent).toContain("Approved a consent receipt for create_transfer");
+        expect(document.body.textContent).toContain("the receipt is bound to the tool it approved");
+      },
+      { timeout: 3000 },
+    );
+  });
 });
 
 describe("Agent presence flag + pending-attack replay", () => {

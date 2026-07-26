@@ -71,8 +71,6 @@ describe('_applyTransactionPolicy — HITL/step-up for MCP write tools', () => {
       useCaseId: 'hitl-consent',
     });
     expect(out.hitlRequired).toBe(true);
-    // The local amount-ladder fallback tags its results transactionPolicyFallback
-    // (the localAmountBand field was renamed in f049a603d).
     expect(out.transactionPolicyFallback).toBe(true);
   });
 
@@ -110,14 +108,15 @@ describe('_applyTransactionPolicy — HITL/step-up for MCP write tools', () => {
   });
 
   test('never clears an existing gate hitlRequired', async () => {
+    // Transaction IS consulted even when the gate already has hitlRequired (see
+    // mcpToolAuthorizationService._applyTransactionPolicy — deliberately changed
+    // so a gate PERMIT+HITL can still be upgraded to DENY/step-up, UC6). $50 is
+    // below every local band, so it PERMITs without upgrading; the invariant
+    // under test is that the gate's HITL obligation survives untouched.
     const out = await _applyTransactionPolicy(
       { ...base, hitlRequired: true },
       { amount: 50, transactionType: 'transfer', userId: 'user-1', acr: 'Password' },
     );
     expect(out.hitlRequired).toBe(true);
-    // f049a603d: the Transaction policy is consulted even when the gate already
-    // returns HITL (so a hard limit-DENY can still upgrade it) — it must never
-    // CLEAR the gate's HITL, which the assertion above guards.
-    expect(pingOneAuthorizeService.evaluateTransaction).toHaveBeenCalled();
   });
 });

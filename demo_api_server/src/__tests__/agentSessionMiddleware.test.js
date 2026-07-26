@@ -87,8 +87,6 @@ describe('agentSessionMiddleware', () => {
 
     expect(next).not.toHaveBeenCalled();
     expect(res._status).toBe(401);
-    // 401s are unified to the session_expired code so the UI shows one
-    // consistent sign-in message on overnight expiries (b41f3dfda).
     expect(res._json.error).toBe('session_expired');
   });
 

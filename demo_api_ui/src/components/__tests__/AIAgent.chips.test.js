@@ -18,7 +18,6 @@ import {
   render,
   screen,
   waitFor,
-  within,
 } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import AIAgent from "../AIAgent";
@@ -204,14 +203,6 @@ function renderAgent(props = {}) {
   );
 }
 
-// The redesigned Actions/discovery popout always renders the agent scope picker
-// and a search box (its "chrome"); per-action chips come from the vertical
-// manifest / main rail. Shared by the float + inline popout tests.
-function expectPopoutChrome(popout) {
-  expect(popout.querySelector(".agent-scope-picker-row")).toBeInTheDocument();
-  expect(popout.querySelector(".ba-popout-search")).toBeInTheDocument();
-}
-
 // ─── Suggestion chips ────────────────────────────────────────────────────────
 
 describe("Suggestion chips — customer role", () => {
@@ -266,18 +257,6 @@ describe("Suggestion chips — admin role", () => {
 
 describe("Suggestion chips — all 3 modes render correctly", () => {
   const FIRST_CUSTOMER_SUGGESTION = '"Show me my accounts"';
-
-  it("float mode: shows Actions trigger button (no left-column chips) after opening panel", async () => {
-    renderAgent({ user: customerUser, mode: "float" });
-    const fab = screen.getByRole("button", { name: /Open.*AI Agent/i });
-    await act(async () => {
-      fireEvent.click(fab);
-    });
-    // Float mode uses Actions popout — find the trigger by its CSS class
-    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
-    const actionsBtn = document.querySelector(".ba-actions-trigger");
-    expect(actionsBtn).toBeInTheDocument();
-  });
 
   it("inline (middle) mode: renders suggestion chips", () => {
     renderAgent({
@@ -364,29 +343,6 @@ describe("Action chips — not logged in", () => {
 });
 
 describe("Action chips — all 3 modes", () => {
-  it("float mode: opens the Actions popout (scope picker + search) after opening panel", async () => {
-    renderAgent({ user: customerUser, mode: "float" });
-    const fab = screen.getByRole("button", { name: /Open.*AI Agent/i });
-    await act(async () => {
-      fireEvent.click(fab);
-    });
-    // Float mode: open the Actions popout via its trigger. Query by accessible
-    // name — the Demo steps trigger shares the ".ba-actions-trigger" class and
-    // aria-haspopup="dialog", and renders first, so a CSS selector picks it up.
-    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
-    const actionsBtn = screen.getByRole("button", { name: /^Actions/i });
-    await act(async () => {
-      fireEvent.click(actionsBtn);
-    });
-    // The Actions popout (redesigned in the scope-picker feature) renders the
-    // agent scope picker + a search box. Per-action chips ("My Accounts" etc.)
-    // now live in the main rail / vertical manifest, not this popout.
-    const popout = await screen.findByRole("dialog", {
-      name: /Action browser/i,
-    });
-    expectPopoutChrome(popout);
-  });
-
   it("inline (middle) mode: renders action items", () => {
     renderAgent({
       user: customerUser,
@@ -444,105 +400,47 @@ describe("Action chips — disabled when consent blocked", () => {
   });
 });
 
-// ─── Discovery popout content (education chips moved to EducationBar) ────────
-// Education chips were moved out of the discovery popout; the popout now shows
-// action groups only. Verify the popout renders action chips for logged-in users.
+// ─── Actions dropdown removed (Task 7) ────────────────────────────────────────
+// The "Actions ▾" trigger + its discovery popout (search box, scope picker,
+// BankingChips/SecurityShowcasePanel action-group listing) were deleted —
+// see docs/superpowers/plans/2026-07-24-actions-dropdown-removal.md Task 7.
+// Its content is reachable elsewhere now: catalog entries via /use-cases,
+// admin/PingOne ops via the `Admin ▾` popout (AdminToolsDropdown.jsx,
+// AdminToolsDropdown.test.jsx), and the 3 previously popout-only attack
+// showcases via the AI Attacks education drawer (AiAttacksPanel.js,
+// AiAttacksPanel.runButtons.test.jsx / AiAttacksPanel.inlineAgent.test.jsx).
+// The scope toggle and "Clear progress" moved inline into the header (Task 6).
 
-describe("Education chips — discovery popout shows action groups (not education labels)", () => {
-  it("discovery popout contains real action chips after clicking Actions (inline)", () => {
-    renderAgent({
-      user: customerUser,
-      mode: "inline",
-      distinctFloatingChrome: true,
-    });
-    fireEvent.click(screen.getByRole("button", { name: /^Actions/i }));
-    const popout = document.querySelector(".ba-actions-popout");
-    expect(popout).toBeInTheDocument();
-    // Real content check: popout must render at least one section header AND
-    // one action chip. The old test only asserted the container existed —
-    // an empty popout would have passed.
-    expect(popout.querySelector(".ba-popout-section-label")).not.toBeNull();
-    // Groups start collapsed — expand every section so its action chips render.
-    popout.querySelectorAll(".ba-popout-section-toggle").forEach((t) => {
-      fireEvent.click(t);
-    });
-    expect(popout.querySelectorAll(".ba-popout-list-item").length).toBeGreaterThan(0);
-    // Education labels must NOT appear in the popout (they moved to the EducationBar).
-    expect(within(popout).queryByText("OAuth: Authorization Code + PKCE")).not.toBeInTheDocument();
-    expect(within(popout).queryByText("MCP protocol")).not.toBeInTheDocument();
-  });
-
-  it("inline bottom-dock mode: discovery popout opens with action chips on Actions click", () => {
-    renderAgent({
-      user: customerUser,
-      mode: "inline",
-      embeddedDockBottom: true,
-      distinctFloatingChrome: true,
-    });
-    fireEvent.click(screen.getByRole("button", { name: /^Actions/i }));
-    const popout = document.querySelector(".ba-actions-popout");
-    expect(popout).toBeInTheDocument();
-    // Groups start collapsed — expand every section so its action chips render.
-    popout.querySelectorAll(".ba-popout-section-toggle").forEach((t) => {
-      fireEvent.click(t);
-    });
-    expect(popout.querySelectorAll(".ba-popout-list-item").length).toBeGreaterThan(0);
+describe("Discovery popout — '⊞ All actions' button (inline, non-popout fallback)", () => {
+  // This is the SEPARATE `!useActionsPopout` left-column fallback (isInline &&
+  // !distinctFloatingChrome) — unaffected by the main Actions dropdown removal
+  // above, but its own "⊞ All actions" trigger opened the same now-deleted
+  // popout, so it was removed too (a task-review finding, not part of the
+  // original brief) rather than left as a silently-broken no-op click. Only
+  // reachable via a bare mode="inline" mount (no production route uses it
+  // without distinctFloatingChrome — see App.js's single AIAgent mount).
+  it("inline mode: 'All actions' button is no longer rendered (its popout was deleted)", () => {
+    renderAgent({ user: customerUser, mode: "inline" });
+    expect(
+      screen.queryByRole("button", { name: /All actions/i }),
+    ).not.toBeInTheDocument();
   });
 });
 
-// ─── Education chips (⚡ popup) ───────────────────────────────────────────────
-
-describe("Discovery popout — '⊞ All actions' button", () => {
-  it("'Actions' trigger button is rendered in float mode (replaces left-column All actions)", async () => {
+describe("Header controls after the Actions dropdown removal", () => {
+  it("float mode: no 'Actions' trigger, but Guide/Demo steps/scope picker/Clear progress still render", async () => {
     renderAgent({ user: customerUser, mode: "float" });
     const fab = screen.getByRole("button", { name: /Open.*AI Agent/i });
     await act(async () => {
       fireEvent.click(fab);
     });
-    // Float mode: ".ba-actions-trigger" header button replaces the left-column "⊞ All actions"
     await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
-    expect(document.querySelector(".ba-actions-trigger")).toBeInTheDocument();
-  });
-
-  it("clicking 'Actions' trigger button opens the discovery popout in float mode", async () => {
-    renderAgent({ user: customerUser, mode: "float" });
-    const fab = screen.getByRole("button", { name: /Open.*AI Agent/i });
-    await act(async () => {
-      fireEvent.click(fab);
-    });
-    // Float mode: "Actions" button opens the discovery popout
-    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
-    const actionsBtn = screen.getByRole("button", { name: /^Actions/i });
-    await act(async () => {
-      fireEvent.click(actionsBtn);
-    });
-    await waitFor(() =>
-      expect(
-        screen.getByRole("dialog", { name: /Action browser/i }),
-      ).toBeInTheDocument(),
-    );
-  });
-
-  it("inline mode: 'All actions' button is rendered", () => {
-    renderAgent({ user: customerUser, mode: "inline" });
     expect(
-      screen.getByRole("button", { name: /All actions/i }),
-    ).toBeInTheDocument();
-  });
-
-  it("inline mode: clicking 'All actions' opens the discovery popout (scope picker, search, groups)", () => {
-    renderAgent({
-      user: customerUser,
-      mode: "inline",
-      distinctFloatingChrome: true,
-    });
-    fireEvent.click(screen.getByRole("button", { name: /^Actions/i }));
-    const dialog = screen.getByRole("dialog", { name: /Action browser/i });
-    // The redesigned discovery popout renders the scope picker + search box, and
-    // the action groups (e.g. Testing). Per-action chips ("My Accounts") now live
-    // in the main rail / vertical manifest, not this popout.
-    expectPopoutChrome(dialog);
-    expect(dialog.textContent).toMatch(/Testing/i);
+      screen.queryByRole("button", { name: /^Actions/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Guide$/i })).toBeInTheDocument();
+    expect(document.querySelector(".agent-scope-picker-row")).toBeInTheDocument();
+    expect(screen.getByTestId("header-clear-progress")).toBeInTheDocument();
   });
 });
 
@@ -867,25 +765,12 @@ describe("Action chip dispatch — MCP tool calls", () => {
     expect(input.value).toMatch(/Think:/i);
   });
 
-  it("admin actions popout renders the admin action chips", async () => {
-    renderAgent({
-      user: adminUser,
-      mode: "inline",
-      distinctFloatingChrome: true,
-    });
-    fireEvent.click(screen.getByRole("button", { name: /^Actions/i }));
-    const dialog = screen.getByRole("dialog", { name: /Action browser/i });
-    // BankingChips renders the admin action chips in the discovery popout: the
-    // customer-admin tools (Look Up Customer, …) and the PingOne admin tools
-    // (List all apps, …). The old hardcoded "Query User by Email" admin group +
-    // query-template pre-fill were removed in the scope-picker redesign.
-    // BankingChips loads chips10 in an effect and renders "Loading chips..."
-    // until it resolves, so the admin chips appear asynchronously.
-    expect(
-      await within(dialog).findByText("Look Up Customer"),
-    ).toBeInTheDocument();
-    expect(within(dialog).getByText("List all apps")).toBeInTheDocument();
-  });
+  // "admin actions popout renders the admin action chips" (BankingChips'
+  // discovery-popout admin section) removed with the Actions dropdown (Task 7).
+  // Equivalent, real coverage already exists for its replacement:
+  // AdminToolsDropdown.test.jsx's "loads and lists tools when open" asserts
+  // the identical "Look Up Customer" / "List all apps" content via the new
+  // `Admin ▾` popout.
 });
 
 // ─── Suggested prompts (Actions dropdown) ────────────────────────────────────
@@ -1158,246 +1043,22 @@ describe("agent failure envelopes render a plain sentence, not the raw error", (
   });
 });
 
-// ─── Chip useCaseId → dispatchNlResult → sendAgentMessage ────────────────────
-// Most chips are NOT `direct: true` — they fall through onChipClick to
-// dispatchNlResult's "vertical" branch, which calls
-// sendAgentMessage(agentMessage, null, verticalOpts). Regression: verticalOpts
-// never carried the chip's useCaseId, so PingOne Authorize proof-of-enforcement
-// context was silently dropped for every non-direct chip click.
-
-describe("Chip useCaseId threads through dispatchNlResult into sendAgentMessage (non-direct chip)", () => {
-  const CHIP_WITH_USE_CASE_ID = {
-    id: "uc_chip",
-    label: "Use Case Demo Chip",
-    message: "run the use case demo",
-    mode: "both",
-    useCaseId: "delegated-access-with-proof",
-  };
-
-  let origFetch;
-
-  beforeEach(() => {
-    useVertical.mockReturnValue({
-      ...DEFAULT_VERTICAL_MOCK,
-      pageManifest: { dashboard: { chips10: [CHIP_WITH_USE_CASE_ID] } },
-      activeId: "healthcare",
-    });
-    origFetch = global.fetch;
-    global.fetch = jest.fn((url) => {
-      if (String(url).includes("/api/demo-agent/nl")) {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: async () => ({
-            source: "heuristic",
-            result: {
-              kind: "vertical",
-              vertical: "healthcare",
-              action: "show_health_record",
-              params: {},
-            },
-          }),
-        });
-      }
-      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
-    });
-    demoAgentService.sendAgentMessage.mockClear();
-    demoAgentService.sendAgentMessage.mockResolvedValue({
-      success: true,
-      reply: "Done.",
-    });
-  });
-
-  afterEach(() => {
-    global.fetch = origFetch;
-    useVertical.mockReturnValue(DEFAULT_VERTICAL_MOCK);
-  });
-
-  it("passes the chip's useCaseId into sendAgentMessage's options when clicked", async () => {
-    renderAgent({
-      user: customerUser,
-      mode: "inline",
-      distinctFloatingChrome: true,
-    });
-    fireEvent.click(screen.getByRole("button", { name: /^Actions/i }));
-    const dialog = await screen.findByRole("dialog", {
-      name: /Action browser/i,
-    });
-    const chipBtn = within(dialog)
-      .getByText("Use Case Demo Chip")
-      .closest("button");
-    await act(async () => {
-      fireEvent.click(chipBtn);
-    });
-    await waitFor(() => {
-      expect(demoAgentService.sendAgentMessage).toHaveBeenCalled();
-    });
-    const [, , verticalOpts] =
-      demoAgentService.sendAgentMessage.mock.calls[0];
-    expect(verticalOpts).toMatchObject({
-      useCaseId: "delegated-access-with-proof",
-    });
-  });
-});
-
-// ─── Chip useCaseId → dispatchNlResult's "banking" branch → runAction ───────
-// Regression: unlike the "vertical" kind branch above, dispatchNlResult's
-// "banking" branch (result.kind === "banking") calls runAction(...) directly
-// instead of sendAgentMessage — and runAction never forwarded opts.useCaseId
-// into the underlying tool-call helper (getMyAccounts/getAccountBalance/etc.),
-// so proof-of-enforcement context was silently dropped for these chips too.
-
-describe("Chip useCaseId threads through dispatchNlResult's banking branch into runAction", () => {
-  const CHIP_BANKING_USE_CASE = {
-    id: "uc_banking_chip",
-    label: "Use Case Banking Chip",
-    message: "show my accounts for this use case",
-    mode: "both",
-    useCaseId: "proof-of-enforcement-demo",
-  };
-
-  let origFetch;
-
-  beforeEach(() => {
-    useVertical.mockReturnValue({
-      ...DEFAULT_VERTICAL_MOCK,
-      pageManifest: { dashboard: { chips10: [CHIP_BANKING_USE_CASE] } },
-      activeId: "banking",
-    });
-    origFetch = global.fetch;
-    global.fetch = jest.fn((url) => {
-      if (String(url).includes("/api/demo-agent/nl")) {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: async () => ({
-            source: "heuristic",
-            result: {
-              kind: "banking",
-              banking: { action: "accounts", params: {} },
-            },
-          }),
-        });
-      }
-      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
-    });
-    demoAgentService.getMyAccounts.mockClear();
-    demoAgentService.getMyAccounts.mockResolvedValue({
-      result: { accounts: [] },
-      tokenEvents: [],
-    });
-  });
-
-  afterEach(() => {
-    global.fetch = origFetch;
-    useVertical.mockReturnValue(DEFAULT_VERTICAL_MOCK);
-  });
-
-  it("passes the chip's useCaseId into getMyAccounts when a banking-kind chip is clicked", async () => {
-    renderAgent({
-      user: customerUser,
-      mode: "inline",
-      distinctFloatingChrome: true,
-    });
-    fireEvent.click(screen.getByRole("button", { name: /^Actions/i }));
-    const dialog = await screen.findByRole("dialog", {
-      name: /Action browser/i,
-    });
-    const chipBtn = within(dialog)
-      .getByText("Use Case Banking Chip")
-      .closest("button");
-    await act(async () => {
-      fireEvent.click(chipBtn);
-    });
-    await waitFor(() => {
-      expect(demoAgentService.getMyAccounts).toHaveBeenCalled();
-    });
-    const callArgs = demoAgentService.getMyAccounts.mock.calls[0];
-    expect(callArgs[0]).toMatchObject({
-      useCaseId: "proof-of-enforcement-demo",
-    });
-  });
-});
-
-// ─── Chip useCaseId → dispatchNlResult's "banking" branch → getMyTransactions ─
-// Regression: the "biggest_purchase"/"spending_summary" banking actions call
-// getMyTransactions(50) directly (bypassing runAction entirely), so unlike the
-// other banking-branch actions above, this call site never forwarded
-// useCaseId/vertical — proof-of-enforcement context was silently dropped here.
-
-describe("Chip useCaseId threads through dispatchNlResult's banking branch into getMyTransactions", () => {
-  const CHIP_BANKING_SPENDING_USE_CASE = {
-    id: "uc_banking_chip_spending",
-    label: "Use Case Spending Chip",
-    message: "what was my biggest purchase for this use case",
-    mode: "both",
-    useCaseId: "proof-of-enforcement-demo",
-  };
-
-  let origFetch;
-
-  beforeEach(() => {
-    useVertical.mockReturnValue({
-      ...DEFAULT_VERTICAL_MOCK,
-      pageManifest: { dashboard: { chips10: [CHIP_BANKING_SPENDING_USE_CASE] } },
-      activeId: "banking",
-    });
-    origFetch = global.fetch;
-    global.fetch = jest.fn((url) => {
-      if (String(url).includes("/api/demo-agent/nl")) {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: async () => ({
-            source: "heuristic",
-            result: {
-              kind: "banking",
-              banking: { action: "biggest_purchase", params: {} },
-            },
-          }),
-        });
-      }
-      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
-    });
-    demoAgentService.getMyTransactions.mockClear();
-    demoAgentService.getMyTransactions.mockResolvedValue({
-      result: {
-        transactions: [
-          { amount: -50, merchant: "Test Merchant", createdAt: "2024-01-01" },
-        ],
-      },
-      tokenEvents: [],
-    });
-  });
-
-  afterEach(() => {
-    global.fetch = origFetch;
-    useVertical.mockReturnValue(DEFAULT_VERTICAL_MOCK);
-  });
-
-  it("passes the chip's useCaseId into getMyTransactions when a biggest_purchase-kind chip is clicked", async () => {
-    renderAgent({
-      user: customerUser,
-      mode: "inline",
-      distinctFloatingChrome: true,
-    });
-    fireEvent.click(screen.getByRole("button", { name: /^Actions/i }));
-    const dialog = await screen.findByRole("dialog", {
-      name: /Action browser/i,
-    });
-    const chipBtn = within(dialog)
-      .getByText("Use Case Spending Chip")
-      .closest("button");
-    await act(async () => {
-      fireEvent.click(chipBtn);
-    });
-    await waitFor(() => {
-      expect(demoAgentService.getMyTransactions).toHaveBeenCalled();
-    });
-    const callArgs = demoAgentService.getMyTransactions.mock.calls[0];
-    expect(callArgs[0]).toBe(50);
-    expect(callArgs[1]).toMatchObject({
-      useCaseId: "proof-of-enforcement-demo",
-    });
-  });
-});
+// ─── Chip useCaseId → dispatchNlResult (REMOVED — mechanism now unreachable) ──
+// These 3 describe blocks tested dispatchNlResult's useCaseId-forwarding logic
+// (→ sendAgentMessage's opts / getMyAccounts' params / getMyTransactions'
+// params) by injecting a custom chip into pageManifest.dashboard.chips10 and
+// clicking it inside the old Actions popout (BankingChips, deleted in Task 7
+// — see docs/superpowers/plans/2026-07-24-actions-dropdown-removal.md).
+//
+// Verified before deleting (grepped every remaining dispatchNlResult call site
+// in AIAgent.js): `dashboard.chips10` had exactly one consumer — BankingChips.jsx
+// — so no UI surface reads it anymore. Every surviving chip-click path either
+// (a) calls sendAsNl(message) → dispatchNlResult(result, source, text) with
+// only 3 args, never a useCaseId, or (b) bypasses dispatchNlResult entirely via
+// the nlResumeAfterAuth/sendAgentMessage-direct mechanism (Demo Steps, Admin
+// Tools, /use-cases, CustomChipsTab's Run button), which explicitly sets
+// pendingUcIdRef instead. dispatchNlResult's own useCaseId parameter and
+// forwarding logic are untouched and still correct — they are just not
+// currently exercised by any live caller. Flagged in the Task 7 report as a
+// residual concern rather than silently removed from AIAgent.js, since the
+// parameter may be needed again if a future caller reintroduces it.

@@ -1,8 +1,13 @@
 module.exports = {
   testEnvironment: 'node',
-  // uuid v9+ is ESM-only; Jest runs CJS — redirect to a minimal CJS shim.
+  // uuid v9+ and jose v6+ are ESM-only; Jest runs CJS — redirect to minimal CJS shims.
+  // jose arrives transitively via @a2a-js/sdk's bundled CJS (dist/*.cjs), which
+  // `require("jose")`s at module scope for its unused agent-card-signature helper —
+  // without this mapping, any test requiring server.js (which mounts the A2A
+  // protocol router) fails at require-time with a jose ESM SyntaxError.
   moduleNameMapper: {
     '^uuid$': '<rootDir>/src/__tests__/__mocks__/uuid-cjs.js',
+    '^jose$': '<rootDir>/src/__tests__/__mocks__/jose-cjs.js',
   },
   // CI runs many suites in parallel across packages; cap workers to reduce flaky supertest/socket errors.
   ...(process.env.CI === 'true' ? { maxWorkers: 2 } : {}),

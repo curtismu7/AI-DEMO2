@@ -499,7 +499,7 @@ async function main() {
     // The route's own comment documents this route against a fixed "test"
     // resource/scope, not a real production audience — "test" alone just
     // isn't a valid URI, so it needs a scheme.
-    DELEGATION_RESOURCE_AUDIENCE:   fb('DELEGATION_RESOURCE_AUDIENCE') || 'https://test',
+    DELEGATION_RESOURCE_AUDIENCE:   'https://test',
     DELEGATION_RESOURCE_SCOPE:      'test',
   });
   console.log('[refresh-envs] Wrote ping-gateway/.env');

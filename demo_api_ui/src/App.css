@@ -3,6 +3,12 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  /* App-level slide-in panels (CIBA drawer, token-exchange-mode drawer, …) park
+     off the right edge via transform; on narrow viewports their parked box still
+     extends the document's horizontal scroll, so every page gained a phantom
+     sideways scrollbar. Clip (not hidden) contains it without creating a scroll
+     container — same reasoning as .app-shell-body. Open panels stay in-viewport. */
+  overflow-x: clip;
   /* Bottom-right stack: CIBA guide (regular button) above agent FAB — shared by CIBAPanel + BankingAgent */
   --float-edge: 28px;
   --float-gap: 12px;

@@ -3,16 +3,13 @@
   "useCaseId": "UC2",
   "triggerType": "chip",
   "mode": "unit-prereq",
-  "status": "FAIL",
-  "errorClass": "missing_prereq",
+  "status": "PASS",
+  "errorClass": null,
   "primaryTool": "sensitive_payroll_details",
-  "checkedAt": "2026-07-24T01:59:32.727Z",
+  "checkedAt": "2026-07-25T20:23:03.374Z",
   "requiredFlags": [
     "ff_a2a_delegation",
     "ff_mcp_gateway_pinggateway",
     "ff_gateway_brokered_exchange"
-  ],
-  "prereqErrors": [
-    "Payroll Specialist credentials missing (pingone_payroll_agent_client_id / pingone_payroll_agent_client_secret)"
   ]
 }

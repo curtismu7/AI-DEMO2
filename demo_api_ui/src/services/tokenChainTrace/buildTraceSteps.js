@@ -98,9 +98,15 @@ export function buildRunStory(trace, steps) {
   const az = list.find((s) => s && s.id === "authorize");
   const decision = az?.detail?.decision?.outcome;
   const prompt = trace.prompt?.message;
+  // An expected DENY (an expectedOutcome:'DENY' use case whose gateway block fired)
+  // is the control working — present it as a successful run, not an error.
+  const expectedDeny = Boolean(trace.mcpResult?.denied && trace.mcpResult?.expected);
   let outcome = trace.outcome || (errStep ? "error" : "active");
   let headline;
-  if (outcome === "error" || errStep) {
+  if (expectedDeny) {
+    outcome = "ok";
+    headline = "Expected DENY — the control worked: the gateway blocked the out-of-scope call, exactly as this use case is meant to demonstrate.";
+  } else if (outcome === "error" || errStep) {
     outcome = "error";
     headline = errStep
       ? `This run stopped with an error at “${errStep.title}”.`
@@ -333,7 +339,7 @@ export function buildTraceSteps(trace) {
         ["decision id", String(azEval.decisionId || "")],
         azEval.source === "gw-authorize" ? ["evidence", "from gw-authorize (gateway hop)"] : null,
       ].filter((row) => row && row[1]),
-      moreDetail: { href: "/pingone-authorize", label: "Show more detail" },
+      moreDetail: { href: "/pingone-authorize", label: "More Education" },
     } : {}));
 
   // 7a. step-up (conditional) — omitted mid-flight so it doesn't sit "pending"
@@ -459,7 +465,7 @@ export function buildTraceSteps(trace) {
           ? { title: "Gateway authorize response", text: asJson(body) }
           : undefined;
       })(),
-      moreDetail: { href: "/pingone-authorize", label: "Show more detail" },
+      moreDetail: { href: "/pingone-authorize", label: "More Education" },
     } : !gwSeen && !gwDenied && gwSkipEvidence.length ? {
       narrative: gwSkipEvidence.map((e) => e.explanation).filter(Boolean).join(" ") ||
         "The Agent Gateway was not in this run's path.",
@@ -496,7 +502,7 @@ export function buildTraceSteps(trace) {
   const mcpDone = hasPhase(phases, "mcp_remote_done") || !!(mcpResult && mcpResult.result);
   const mcpBegun = hasPhase(phases, "mcp_remote_begin");
   steps.push(makeStep("mcp",
-    authorizeFailed ? "notinpath" : mcpDone ? "done" : gwDenied ? "error" : mcpBegun ? "active" : "pending",
+    authorizeFailed ? "notinpath" : mcpDone ? "done" : gwDenied ? "error" : mcpBegun ? "active" : traceComplete ? "notinpath" : "pending",
     mcpResult ? {
       why: `MCP executed “${mcpResult.tool || mcpResult.toolName || "tool"}”`
         + (mcpResult.durationMs != null ? ` in ${mcpResult.durationMs} ms` : "")
@@ -512,7 +518,9 @@ export function buildTraceSteps(trace) {
     mcpResult && (mcpResult.result || apiKeyCall) ? {
       narrative: apiKeyCall
         ? "Backend call after credential swap — X-API-Key + X-User-Sub (no OAuth bearer on the wire)."
-        : "The actual resource-server call made with the delegated bearer token.",
+        : (mcpResult.denied && mcpResult.expected)
+          ? "Expected DENY — the gateway blocked this out-of-scope call before the resource server ran. That block is the control working as designed, not a failure."
+          : "The actual resource-server call made with the delegated bearer token.",
       response: mcpResult.result ? { title: "API result", text: asJson(mcpResult.result) } : undefined,
       kv: [
         apiKeyCall && apiMeta.apiCall ? ["api call", apiMeta.apiCall] : null,

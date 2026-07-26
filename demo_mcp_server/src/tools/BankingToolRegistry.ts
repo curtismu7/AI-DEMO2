@@ -190,7 +190,7 @@ export class BankingToolRegistry {
     get_sensitive_account_details: {
       name: 'get_sensitive_account_details',
       title: 'Account Details (Sensitive)',
-      description: 'Retrieve sensitive account details (full account number and routing number). Requires sensitive:read scope and user consent — the UI will prompt the user to approve access before this data is released.',
+      description: 'Retrieve sensitive account details (full account number and routing number). Requires sensitive:read scope and user consent — the UI will prompt the user to approve access before this data is released. Optionally pass account_id (from get_my_accounts) to limit the result to one account.',
       requiresUserAuth: true,
       requiredScopes: ['read'],
       handler: 'executeGetSensitiveAccountDetails',
@@ -213,7 +213,12 @@ export class BankingToolRegistry {
       outputSchema: GET_SENSITIVE_ACCOUNT_DETAILS_OUTPUT,
       inputSchema: {
         type: 'object',
-        properties: {},
+        properties: {
+          account_id: {
+            type: 'string',
+            description: 'Optional account ID (UUID) from get_my_accounts. Omit to return every account\'s sensitive details.',
+          },
+        },
         required: [],
         additionalProperties: false
       }

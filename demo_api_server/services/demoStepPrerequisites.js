@@ -54,9 +54,9 @@ function needsParConfig(uc) {
 }
 
 /**
- * Runtime config keys the PAR/RAR (RFC 9126) path needs before it can run
- * against live PingOne. Mirrors the A2A credential keys — checked by
- * checkParConfig below and surfaced by checkChipPrerequisites.
+ * configStore keys that must all be set for PingOne PAR (RFC 9126) — the AI
+ * Agent Actor (WEB) app's PAR push + token exchange. Mirrors the live check
+ * in routes/intentBinding.js (parEndpoint / clientId / clientSecret / redirect).
  */
 const PAR_CONFIG_KEYS = [
   'pingone_par_endpoint',
@@ -66,16 +66,16 @@ const PAR_CONFIG_KEYS = [
 ];
 
 /**
- * Check every PAR/RAR config key is set (non-empty) in the given config store.
+ * Check PingOne PAR (RFC 9126) config keys are present.
  * @param {{ getEffective: (k: string) => * }} cfg configStore-like
- * @returns {{ required: boolean, ok: boolean, missing: string[] }}
+ * @returns {{ ok: boolean, missing: string[] }}
  */
 function checkParConfig(cfg) {
   const missing = PAR_CONFIG_KEYS.filter((k) => {
     const v = cfg && typeof cfg.getEffective === 'function' ? cfg.getEffective(k) : null;
-    return v === null || v === undefined || String(v).trim() === '';
+    return !v;
   });
-  return { required: true, ok: missing.length === 0, missing };
+  return { ok: missing.length === 0, missing };
 }
 
 /**
@@ -169,7 +169,7 @@ function checkA2aCredentials(vertical, cfg) {
  * @param {object} uc
  * @param {string} vertical
  * @param {{ getEffective: (k: string) => * }} cfg
- * @returns {{ ok: boolean, requiredFlags: string[], a2a: ReturnType<typeof checkA2aCredentials>|null, errors: string[] }}
+ * @returns {{ ok: boolean, requiredFlags: string[], a2a: ReturnType<typeof checkA2aCredentials>|null, par: ReturnType<typeof checkParConfig>|null, errors: string[] }}
  */
 /**
  * Whether a configStore-like value means the flag is armed.
@@ -184,6 +184,7 @@ function checkChipPrerequisites(uc, vertical, cfg) {
   const requiredFlags = requiredFlagsForUseCase(uc);
   const errors = [];
   let a2a = null;
+  let par = null;
   for (const flag of requiredFlags) {
     const v = cfg && typeof cfg.getEffective === 'function' ? cfg.getEffective(flag) : null;
     if (!isFlagOn(v)) {
@@ -199,10 +200,17 @@ function checkChipPrerequisites(uc, vertical, cfg) {
       );
     }
   }
+  if (needsParConfig(uc)) {
+    par = checkParConfig(cfg);
+    if (!par.ok) {
+      errors.push(`PAR config missing: ${par.missing.join(', ')}`);
+    }
+  }
   return {
     ok: errors.length === 0,
     requiredFlags,
     a2a,
+    par,
     errors,
   };
 }

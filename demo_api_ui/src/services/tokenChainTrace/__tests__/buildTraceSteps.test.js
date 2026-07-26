@@ -269,7 +269,7 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(az.status).toBe("done");
     expect(az.detail.request.text).toContain("transfer_funds");
     expect(az.detail.response.text).toContain("PERMIT");
-    expect(az.detail.moreDetail.label).toBe("Show more detail");
+    expect(az.detail.moreDetail.label).toBe("More Education");
   });
 
   test("mcpResult fills mcp and api steps; llmReply fills reply", () => {
@@ -602,5 +602,46 @@ describe("buildRunStory — L0 strip", () => {
     expect(story.headline).toMatch(/PERMIT/);
     expect(story.outcome).toBe("ok");
     expect(story.bits.length).toBeGreaterThan(0);
+  });
+});
+
+describe("buildTraceSteps — expected DENY (control worked)", () => {
+  const expectedDenyTrace = {
+    ...EMPTY_TRACE,
+    outcome: "error",
+    prompt: { message: "what's the weather in Miami" },
+    mcpResult: {
+      tool: "get_weather",
+      denied: true,
+      expected: true,
+      result: {
+        error: "weather_scope_denied",
+        gatewayErrorCode: "weather_scope_denied",
+        message: "Agent Gateway: weather scope restricted to Texas — city not recognized as Texas",
+      },
+    },
+  };
+
+  test("api step frames an expected deny as the control working", () => {
+    const steps = buildTraceSteps(expectedDenyTrace);
+    const api = steps.find((s) => s.id === "api");
+    expect(api.status).toBe("done");
+    expect(api.detail.narrative).toMatch(/Expected DENY/);
+    expect(api.detail.response.text).toContain("weather_scope_denied");
+  });
+
+  test("buildRunStory presents an expected deny as a successful run, not an error", () => {
+    const steps = buildTraceSteps(expectedDenyTrace);
+    const story = buildRunStory(expectedDenyTrace, steps);
+    expect(story.outcome).toBe("ok");
+    expect(story.headline).toMatch(/Expected DENY/);
+  });
+
+  test("a denied result that is NOT expected still reads as an error", () => {
+    const trace = { ...expectedDenyTrace, mcpResult: { ...expectedDenyTrace.mcpResult, expected: false } };
+    const steps = buildTraceSteps(trace);
+    const story = buildRunStory(trace, steps);
+    expect(story.outcome).toBe("error");
+    expect(story.headline).not.toMatch(/Expected DENY/);
   });
 });
