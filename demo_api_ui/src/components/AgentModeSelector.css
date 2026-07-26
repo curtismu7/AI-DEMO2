@@ -13,7 +13,7 @@
   flex-direction: row;
   align-items: center;
   gap: 18px;
-  padding: 10px 12px;
+  padding: 2px 10px;
 }
 .ams-label {
   display: flex;
@@ -41,6 +41,11 @@
   white-space: nowrap;
   box-shadow: 0 2px 6px rgba(11, 105, 163, 0.12);
   transition: all 0.2s ease;
+}
+.ams--compact .ams-select {
+  height: 26px;
+  padding: 0 26px 0 8px;
+  font-size: 12px;
 }
 .ams-select:hover:not(:disabled) {
   box-shadow: 0 4px 12px rgba(11, 105, 163, 0.18);

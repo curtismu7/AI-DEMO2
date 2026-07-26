@@ -102,6 +102,60 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-26 — Live Workbench control bar ate 280-350px of vertical space on short/small monitors, squeezing Demo script/Chat/Token Chain to a sliver
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/AIAgent.css`,
+`demo_api_ui/src/components/AgentModeSelector.css`,
+`demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.css`.
+
+**What was broken:** The split-column control bar (`.ba-hg` groups:
+Configuration / Demo controls / Inspectors / Session) rendered four
+full-width, generously-padded stacked boxes unconditionally — costing
+~280-350px of vertical chrome on any monitor. On a short browser window
+(~735px tall, a real small/non-maximized-monitor case) that left only
+~200-300px for the entire Demo script + Chat + Token Chain row, reading as
+tiny/cramped with `.luw-main`'s grey background dominating. Collapsing the
+left icon rail (horizontal chrome) did nothing, since the constraint was
+vertical. Live-measured breakdown of the excess: `ScopePicker.jsx` always
+rendered a `<p className="scope-picker__hint">` duplicating the exact text
+already in its own `title` tooltip (~59px for nothing); `AgentModeSelector`'s
+`.ams--compact` variant had more internal padding than its compact intent
+implied; `.ba-hg`/`.luw-topbar` padding and gaps were sized for a full
+settings page, not a toolbar.
+
+**What was fixed:** Merged the Inspectors and Session groups into one row
+(Inspector buttons stay gated inside `{splitChrome && ...}`, never leaking
+into the floating/flat widget mode), dropped the redundant "Demo controls"
+label, and moved group labels inline (`.ba-hg-label` from `flex: 1 1 100%`
+to `flex: 0 0 auto`). Hid `ScopePicker`'s duplicate hint paragraph when
+rendered inside `.ba-hg` (info still available via the existing `title`
+tooltip — same "hide long hint" pattern already used for
+`.ba-agent-popout-hdr`). Trimmed `.ams--compact` padding/select height
+(compact-mode only; the non-compact/full-settings usage is untouched).
+Tightened `.ba-hg`/`.ba-hg--demo` padding and `.luw-topbar`/
+`.luw-topbar__agent-tools` gaps.
+
+**Do not break:** Inspector buttons (`MCP Inspector`/`P1AZ Inspector`/
+`Agent Gateway Inspector`) must stay inside the `{splitChrome && (...)}`
+guard — they were never meant to render in the floating/flat widget mode,
+only in the Live Workbench's split-column header. `.ba-agent-popout-hdr`'s
+existing scope-picker overrides are untouched (separate context, different
+background color). `AgentModeSelector`'s base (non-`--compact`) styles are
+untouched — the trims are scoped under `.ams--compact` only.
+
+**Verify:** `cd demo_api_ui && npm run build` (0). Live-measured via a
+worktree dev server (`demo_api_ui/CLAUDE.md`-adjacent recipe: symlink
+`node_modules`/`certs`, `.env` with `REACT_APP_API_*`, serve on a spare
+port, browse `https://local.ping-devops.com:<port>` to reuse the BFF
+session): `.luw-topbar` height went from ~282px (no-wrap best case) to
+~154px at full width, and from ~348px to ~188px at a constrained
+1450×735px window. `npm run test:unit` has 49 pre-existing failures
+unrelated to this change (missing context providers, router-outside-
+`<Router>`, monospace/markdown regressions elsewhere) — confirmed none
+touch `AIAgent.js`/`.css`, `AgentModeSelector`, or
+`LiveUseCaseWorkbenchPage.js` (the latter untouched by this diff).
+
 ### 2026-07-26 — /dashboard TopNav hidden until auth resolved; TopNav session actions clipped off-canvas at 769-1350px
 
 **Files changed:** `demo_api_ui/src/App.js`, `demo_api_ui/src/components/TopNav.css`,

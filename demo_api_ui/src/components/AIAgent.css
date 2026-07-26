@@ -4845,14 +4845,26 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: #fff;
   border: 1px solid var(--ba-border);
   border-radius: 9px;
-  padding: 5px 10px;
+  padding: 2px 10px;
 }
 .ba-hg--flat {
   display: contents;
 }
 .ba-hg--demo {
   justify-content: center;
-  padding: 6px 10px;
+  padding: 2px 10px;
+}
+
+/* Scope picker inside the compact control bar — label + toggle only, no
+   settings-panel padding/divider/hint (same "hide long hint" pattern as
+   .ba-agent-popout-hdr above). */
+.ba-hg .agent-scope-picker-row {
+  padding: 0;
+  border-bottom: none;
+  gap: 0;
+}
+.ba-hg .scope-picker__hint {
+  display: none;
 }
 
 /* Demo Steps — bold green CTA, split-column only (floating widget keeps the
