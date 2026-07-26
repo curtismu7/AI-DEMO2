@@ -7,6 +7,7 @@ import { useExchangeMode } from '../context/ExchangeModeContext';
 import { useEducationUIOptional } from '../context/EducationUIContext';
 import { useTokenChainOptional } from '../context/TokenChainContext';
 import TokenExchangeFlowDiagram from './TokenExchangeFlowDiagram';
+import JsonHighlight from './shared/JsonHighlight';
 import './AgentFlowDiagramPanel.css';
 
 function statusBadge(status) {
@@ -102,19 +103,19 @@ export function TokenEventCard({ event, resolvedIdentity }) {
           {event.exchangeRequest && (
             <section className="afd-tc-section">
               <h4 className="afd-tc-section-title">API Request</h4>
-              <pre className="afd-tc-pre">{JSON.stringify(event.exchangeRequest, null, 2)}</pre>
+              <pre className="afd-tc-pre"><JsonHighlight value={event.exchangeRequest} /></pre>
             </section>
           )}
           {(claims || event.jwtFullDecode) && (
             <section className="afd-tc-section">
               <h4 className="afd-tc-section-title">Token Claims (Response)</h4>
-              <pre className="afd-tc-pre">{JSON.stringify(claims || event.jwtFullDecode, null, 2)}</pre>
+              <pre className="afd-tc-pre"><JsonHighlight value={claims || event.jwtFullDecode} /></pre>
             </section>
           )}
           {event.jwtFullDecode?.header && (
             <section className="afd-tc-section">
               <h4 className="afd-tc-section-title">JWT Header</h4>
-              <pre className="afd-tc-pre">{JSON.stringify(event.jwtFullDecode.header, null, 2)}</pre>
+              <pre className="afd-tc-pre"><JsonHighlight value={event.jwtFullDecode.header} /></pre>
             </section>
           )}
         </div>

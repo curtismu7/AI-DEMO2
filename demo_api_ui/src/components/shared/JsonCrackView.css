@@ -1,0 +1,12 @@
+.jcv-root {
+  position: relative;
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.jcv-empty {
+  color: #94a3b8;
+  font-style: italic;
+}

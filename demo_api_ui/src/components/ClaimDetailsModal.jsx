@@ -3,10 +3,11 @@
  * Displays JWT claims for a specific token type (user, agent, mcp)
  * Renders claims dynamically based on tokenType prop
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { TOKEN_CLAIMS } from '../constants/tokenClaims';
-import JsonHighlight from './shared/JsonHighlight';
+import InspectorTabs from './shared/InspectorTabs';
+import JsonView, { JSON_VIEW_TABS } from './shared/JsonView';
 import '../styles/TokenChainRedesign.css';
 
 /**
@@ -42,9 +43,11 @@ function buildClaimRows(tokenType, liveClaims) {
  * @param {function} onClose - Callback when modal should close
  */
 function ClaimDetailsModal({ isOpen, tokenType, liveClaims, onClose }) {
+  const [jsonMode, setJsonMode] = useState('json');
   if (!isOpen) return null;
 
   const { claims, isLive } = buildClaimRows(tokenType, liveClaims);
+  const hasObjectClaim = claims.some((c) => c.isObject);
   const titleMap = {
     user: 'User Token Claims',
     agent: 'Agent Token Claims',
@@ -75,12 +78,15 @@ function ClaimDetailsModal({ isOpen, tokenType, liveClaims, onClose }) {
           </button>
         </div>
         <div className="utfi-modal-body">
+          {hasObjectClaim && (
+            <InspectorTabs tabs={JSON_VIEW_TABS} activeKey={jsonMode} onChange={setJsonMode} />
+          )}
           <div className="utfi-claims-list">
             {claims.map((claim, index) => (
               <div key={index} className="utfi-claim-item">
                 <div className="utfi-claim-key">{claim.key}</div>
                 <div className="utfi-claim-value">
-                  {claim.isObject ? <JsonHighlight value={claim.value} /> : claim.value}
+                  {claim.isObject ? <JsonView mode={jsonMode} value={claim.value} crackHeight={240} /> : claim.value}
                 </div>
                 <div className="utfi-claim-description">{claim.description}</div>
               </div>
