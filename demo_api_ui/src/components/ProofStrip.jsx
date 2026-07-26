@@ -29,6 +29,28 @@ export default function ProofStrip() {
           </React.Fragment>
         ))}
       </div>
+      {(verdict.intent || verdict.resultText || (verdict.mechanism && verdict.mechanism.length > 0)) && (
+        <div className="proof-strip-details">
+          {verdict.intent && (
+            <div className="proof-strip-row">
+              <span className="proof-strip-label">Intent</span>
+              <span>{verdict.intent}</span>
+            </div>
+          )}
+          {verdict.resultText && (
+            <div className="proof-strip-row">
+              <span className="proof-strip-label">Result</span>
+              <span>{verdict.resultText}</span>
+            </div>
+          )}
+          {verdict.mechanism && verdict.mechanism.length > 0 && (
+            <div className="proof-strip-row">
+              <span className="proof-strip-label">Used</span>
+              <span>{[...verdict.mechanism, verdict.tool].filter(Boolean).join(' · ')}</span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
