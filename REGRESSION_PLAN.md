@@ -135,6 +135,70 @@ revert-proved: restore `demoAgentService.js` alone and 1 of its 4 fails; restore
 both MFA cases still pass — the exact shape of the bug. That suite asserts on the next
 network call the UI makes (`/api/auth/ciba/initiate` vs `/api/auth/mfa/challenge`), which
 is the observable discriminator between the two flows.
+### 2026-07-26 — Stale vault worker secret wedged every getManagementToken() caller
+
+**Files changed:** `demo_api_server/services/configStore.js` (BOOTSTRAP_ALLOWLIST),
+`demo_api_server/src/__tests__/workerCredsBootstrap.test.js` (new).
+
+**What was broken:** `BOOTSTRAP_ALLOWLIST` (where `.env` outranks vault/LMDB) listed
+`pingone_mgmt_*` and `pingone_management_*` but NOT the WORKER family — and
+`pingOneClientService.resolveWorkerCredentials` tries `PINGONE_WORKER_CLIENT_ID/SECRET`
+**first**. The vault held a secret for worker client `89ad8921` that PingOne rejected
+while `.env`'s was valid, so the vault copy won and every `getManagementToken()` caller
+401'd: `/api/admin/mgmt-api`, `/api/admin/scope-audit`, `routes/demoProvisioning.js`,
+`routes/demoScenario.js`.
+
+The symptom actively misled. The `basic` attempt failed `invalid_client`, so the
+basic→post self-heal in `services/pingOneTokenAuth.js` retried with `post`; the app
+only accepts `client_secret_basic`, so the surfaced error was **"Request denied:
+Unsupported authentication method"** — which reads as an auth-METHOD misconfiguration.
+The method was correct throughout (`basic`, order `["basic","post"]`); only the secret
+was wrong.
+
+Proof: in the running container, minting BEFORE `vaultLoader.loadVaultIntoConfigStore()`
+succeeded and AFTER it 401'd, with the worker client id identical and only the secret's
+sha256 changing (`f08f44f8…` → `3f7f49fa…`).
+
+**What was fixed:** added `pingone_worker_client_id`, `pingone_worker_client_secret`,
+`pingone_worker_token_client_id`, `pingone_worker_token_client_secret` to
+BOOTSTRAP_ALLOWLIST, so `.env` is authoritative for them exactly as it already was for
+the mgmt family.
+
+**Do not break:** entries must stay lowercase — `getEffective()` lowercases the key
+before the membership test, so an uppercase entry silently never matches. Note the
+tradeoff this makes explicit: worker credentials set through the /config UI (vault) no
+longer override `.env`. That is the same contract the mgmt family already had, and it
+is what makes a stale cached secret recoverable by editing `.env`.
+
+**Verify:** `CI=true npx jest src/__tests__/workerCredsBootstrap.test.js` (6 pass);
+revert `configStore.js` alone and 4 of the 6 fail.
+
+### 2026-07-26 — MCP_INVEST_AUDIENCE was accepted on every MCP callback, not just the portfolio read
+
+**Files changed:** `demo_api_server/middleware/auth.js`,
+`demo_api_server/tests/mcpInvestAudience.regression.test.js` (new).
+
+**What was broken:** `validatePingOneCoreToken` pushed `MCP_INVEST_AUDIENCE` into the
+shared `gwAuds` list and folded the `/api/investment/.../portfolio` route into the same
+`isMcpCallback` predicate as the banking read/write callbacks. The audience check is
+`isMcpCallback && tokenAuds.some((a) => gwAuds.includes(a))`, so an A2A investment
+token (`aud=mcp-invest.ping.demo`, scopes `invest:read`) satisfied the audience gate on
+`POST /api/transactions`, `GET /api/accounts/my`, and the other write callbacks —
+routes it should never reach. Confirmed by reverting the fix: the regression suite's
+two rejection tests both fail against the old code.
+
+**What was fixed:** Split the predicate. `isMcpBankingCallback` keeps the banking /
+Path-B routes and matches against `gwAuds`; `isInvestPortfolioCallback` is separate and
+accepts **only** `MCP_INVEST_AUDIENCE`, on the portfolio path only. `MCP_INVEST_AUDIENCE`
+is no longer added to `gwAuds` at all.
+
+**Do not break:** Never re-add `MCP_INVEST_AUDIENCE` to `gwAuds` — that single line is
+the whole bug. The gateway/PingGateway/MCP-server audiences must keep working on the
+banking callbacks, and an enduser-audience token must keep working on the portfolio
+route; both are covered by regression tests.
+
+**Verify:** `CI=true npx jest tests/mcpInvestAudience.regression.test.js` (5 pass).
+Revert `auth.js` alone and 2 of the 5 must fail — that is the proof the gate is real.
 
 ### 2026-07-26 — Generic MCP Inspector profiles were reachable by any signed-in customer (stdio = RCE on the BFF host)
 
