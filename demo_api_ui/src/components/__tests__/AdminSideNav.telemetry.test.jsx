@@ -25,6 +25,19 @@ vi.mock("../KillSwitchConfirmModal", () => ({ default: () => null }));
 
 import AdminSideNav from "../AdminSideNav";
 
+// jsdom has no matchMedia; AdminSideNav's responsive-collapse effect calls it
+// unconditionally on mount, so any full render needs this stub. This same gap
+// pre-exists in adminSideNav.test.jsx in this directory.
+window.matchMedia =
+  window.matchMedia ||
+  (() => ({
+    matches: false,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }));
+
 function renderAt(path) {
   return render(
     <MemoryRouter initialEntries={[path]}>
