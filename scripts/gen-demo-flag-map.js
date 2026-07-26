@@ -14,6 +14,8 @@
  *   node scripts/gen-demo-flag-map.js            write docs/demo-flag-map.md
  *   node scripts/gen-demo-flag-map.js --check    fail if the file is stale
  *   node scripts/gen-demo-flag-map.js --stdout   print, write nothing
+ *   node scripts/gen-demo-flag-map.js --live     ON/off per flag from the RUNNING
+ *                                                stack; prints only, never writes
  */
 
 const fs = require('node:fs');
@@ -140,19 +142,120 @@ function build() {
 
   L.push('## Checking live state');
   L.push('');
+  L.push('This file shows WHICH flags matter. For whether they are currently ON or off:');
+  L.push('');
   L.push('```bash');
-  L.push('npm run sweep:use-cases     # every use case x vertical, blocked rows clustered by cause');
-  L.push('bash scripts/preflight-demo.sh   # ~10 min before showtime');
+  L.push('npm run demo:flag-map:live   # ON/off per step, from the RUNNING stack');
+  L.push('npm run sweep:use-cases      # every use case x vertical, blocked rows clustered by cause');
+  L.push('bash scripts/preflight-demo.sh    # ~10 min before showtime');
   L.push('```');
   L.push('');
-  L.push('The sweep reads flags as a cold start would resolve them. It does **not** see');
-  L.push('another process\'s unpersisted in-memory overrides — for the running stack, read');
-  L.push('`GET /api/admin/feature-flags`.');
+  L.push('`demo:flag-map:live` reads `GET /api/admin/feature-flags` — what the BFF actually');
+  L.push('resolved, including env pins and runtime changes. It exits non-zero only when an');
+  L.push('AMBIENT setting is wrong, since per-step flags being off is expected. Point it');
+  L.push('elsewhere with `--base https://host:port` or `PREFLIGHT_BASE_URL`.');
+  L.push('');
+  L.push('`sweep:use-cases` instead reads flags as a COLD START would resolve them, so it');
+  L.push('cannot see another process\'s unpersisted in-memory overrides. When the two');
+  L.push('disagree, the live endpoint is the truth for the running stack.');
   L.push('');
   return L.join('\n') + '\n';
 }
 
+/**
+ * Per-step ON/off from the RUNNING stack.
+ *
+ * Prints, never writes: live values change constantly, so baking them into the
+ * committed doc would make --check fail every few minutes and train everyone to
+ * ignore it.
+ *
+ * Reads GET /api/admin/feature-flags (unauthenticated for GET) rather than
+ * configStore, because that endpoint is what the BFF actually resolved —
+ * including env pins and values set at runtime that a standalone process cannot
+ * see. That distinction already produced one false alarm during this work.
+ */
+async function live(baseUrl) {
+  const https = require('node:https');
+  const url = baseUrl || process.env.PREFLIGHT_BASE_URL || 'https://api.ping.demo:3001';
+
+  const flags = await new Promise((resolve, reject) => {
+    const req = https.get(
+      url + '/api/admin/feature-flags',
+      { rejectUnauthorized: false, timeout: 10000 },
+      (res) => {
+        let body = '';
+        res.on('data', (d) => { body += d; });
+        res.on('end', () => {
+          try {
+            const j = JSON.parse(body);
+            const map = {};
+            for (const f of (j.flags || [])) map[f.id] = f;
+            resolve(map);
+          } catch (e) { reject(new Error('bad response from ' + url + ': ' + e.message)); }
+        });
+      },
+    );
+    req.on('error', (e) => reject(new Error('cannot reach ' + url + ' — is the stack up? (' + e.message + ')')));
+    req.on('timeout', () => { req.destroy(); reject(new Error('timed out reaching ' + url)); });
+  });
+
+  const beats = readBeats();
+  const on = (id) => flags[id] && flags[id].value === true;
+  const known = (id) => Object.prototype.hasOwnProperty.call(flags, id);
+
+  console.log('');
+  console.log('Demo flag map — LIVE (' + url + ')');
+  console.log('');
+  console.log('Per-step flags are ARMED AUTOMATICALLY when the step runs, so "off" here is');
+  console.log('normal and not a blocker. Shown so you can see what will change.');
+  console.log('');
+
+  for (let i = 0; i < beats.length; i++) {
+    const b = beats[i];
+    const uc = resolveUseCase(b.ucId, 'banking') || USE_CASES.find((u) => u.id === b.ucId) || {};
+    const f = requiredFlagsForUseCase(uc);
+    const state = f.length
+      ? f.map((x) => (on(x) ? 'ON ' : 'off') + ' ' + x).join('   ')
+      : '(no flags)';
+    console.log('  ' + String(i + 1).padStart(2) + '. ' + b.ucId.padEnd(7) + state);
+  }
+
+  // The part that can actually stop the demo: nothing arms these.
+  console.log('');
+  console.log('  AMBIENT — not armed by running a step:');
+  const ambient = [
+    ['ff_use_cases_launcher', true, 'gates the /use-cases surface'],
+    ['ff_heuristic_enabled', true, 'routing floor; off => chips go to the LLM'],
+  ];
+  let problems = 0;
+  for (const [id, want, why] of ambient) {
+    if (!known(id)) { console.log('      ??  ' + id.padEnd(30) + '(not in registry) — ' + why); continue; }
+    const good = on(id) === want;
+    if (!good) problems++;
+    console.log('      ' + (good ? 'OK ' : '!! ') + (on(id) ? 'ON ' : 'off') + ' ' + id.padEnd(30)
+      + (good ? '' : 'WANT ' + (want ? 'ON' : 'off') + ' — ' + why));
+  }
+  console.log('');
+  console.log('  Not readable from here (check on the host running the stack):');
+  console.log('      NODE_ENV must not be production   (attack sims 403 in prod — that is Act 3)');
+  console.log('      sign in on local.ping-devops.com:4000   (passkey rp.id)');
+  console.log('      MCP_MTLS_ENABLED / BANKING_API_RESOURCE_URI   (demo_mcp_server/.env)');
+  console.log('');
+  console.log(problems
+    ? '  ' + problems + ' ambient setting(s) need attention before presenting.'
+    : '  Ambient flags look right.');
+  console.log('');
+  return problems ? 1 : 0;
+}
+
 function main() {
+  if (process.argv.includes('--live')) {
+    const i = process.argv.indexOf('--base');
+    live(i >= 0 ? process.argv[i + 1] : null)
+      .then((code) => process.exit(code))
+      .catch((e) => { console.error('live check failed: ' + e.message); process.exit(2); });
+    return;
+  }
   const out = build();
   if (process.argv.includes('--stdout')) { process.stdout.write(out); return; }
   if (process.argv.includes('--check')) {

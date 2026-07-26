@@ -54,12 +54,20 @@ None of these are armed by running a step.
 
 ## Checking live state
 
+This file shows WHICH flags matter. For whether they are currently ON or off:
+
 ```bash
-npm run sweep:use-cases     # every use case x vertical, blocked rows clustered by cause
-bash scripts/preflight-demo.sh   # ~10 min before showtime
+npm run demo:flag-map:live   # ON/off per step, from the RUNNING stack
+npm run sweep:use-cases      # every use case x vertical, blocked rows clustered by cause
+bash scripts/preflight-demo.sh    # ~10 min before showtime
 ```
 
-The sweep reads flags as a cold start would resolve them. It does **not** see
-another process's unpersisted in-memory overrides — for the running stack, read
-`GET /api/admin/feature-flags`.
+`demo:flag-map:live` reads `GET /api/admin/feature-flags` — what the BFF actually
+resolved, including env pins and runtime changes. It exits non-zero only when an
+AMBIENT setting is wrong, since per-step flags being off is expected. Point it
+elsewhere with `--base https://host:port` or `PREFLIGHT_BASE_URL`.
+
+`sweep:use-cases` instead reads flags as a COLD START would resolve them, so it
+cannot see another process's unpersisted in-memory overrides. When the two
+disagree, the live endpoint is the truth for the running stack.
 

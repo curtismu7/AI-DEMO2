@@ -66,7 +66,8 @@
     "sweep:use-cases": "node demo_api_server/scripts/useCaseSweep.js --dry-run",
     "sweep:use-cases:json": "node demo_api_server/scripts/useCaseSweep.js --dry-run --json",
     "demo:flag-map": "node scripts/gen-demo-flag-map.js",
-    "demo:flag-map:check": "node scripts/gen-demo-flag-map.js --check"
+    "demo:flag-map:check": "node scripts/gen-demo-flag-map.js --check",
+    "demo:flag-map:live": "node scripts/gen-demo-flag-map.js --live"
   },
   "dependencies": {
     "ajv": "^8.20.0",
