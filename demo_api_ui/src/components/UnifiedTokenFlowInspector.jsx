@@ -27,6 +27,9 @@ import StepDetailsSection from './StepDetailsSection';
 import ClaimDetailsModal from './ClaimDetailsModal';
 import TokenChainTraceRail from './TokenChainTraceRail';
 import JsonHighlight from './shared/JsonHighlight';
+import JsonColumnsView from './shared/JsonColumnsView';
+import JsonCrackView from './shared/JsonCrackView';
+import JsonView, { JSON_VIEW_TABS } from './shared/JsonView';
 import InspectorShell from './shared/InspectorShell';
 import InspectorTabs from './shared/InspectorTabs';
 import InspectorListItem from './shared/InspectorListItem';
@@ -189,6 +192,8 @@ const RIGHT_TABS = [
   { key: 'exchange', label: 'Token Exchange' },
   { key: 'diagram', label: 'Diagram' },
   { key: 'raw', label: 'Raw' },
+  { key: 'columns', label: 'Columns' },
+  { key: 'crack', label: 'Crack' },
   { key: 'glossary', label: 'Glossary' },
 ];
 
@@ -348,6 +353,12 @@ function FlowTokensPanel({ onOpenClaimsModal }) {
             {selectedNode ? <JsonHighlight value={selectedNode.data} /> : 'Nothing selected yet.'}
           </pre>
         )}
+        {activeRightTab === 'columns' && (
+          <JsonColumnsView value={selectedNode ? selectedNode.data : null} />
+        )}
+        {activeRightTab === 'crack' && (
+          <JsonCrackView value={selectedNode ? selectedNode.data : null} height={360} />
+        )}
         {activeRightTab === 'glossary' && (
           <div className="utfi-detailed-steps-list">
             {STEP_DETAILS.map((step) => (
@@ -437,6 +448,7 @@ function OAuthInspectorSection({ selectedToken, onOpenClaimsModal, activeTab }) 
     tokenExchange: true,
     tokenGrid: true,
   });
+  const [jsonMode, setJsonMode] = useState('json');
 
   // Token exchange details state
   const [tokenExchangeEvents, setTokenExchangeEvents] = useState([]);
@@ -718,6 +730,10 @@ function OAuthInspectorSection({ selectedToken, onOpenClaimsModal, activeTab }) 
         </div>
       </div>
 
+      <div className="utfi-json-mode-bar">
+        <InspectorTabs tabs={JSON_VIEW_TABS} activeKey={jsonMode} onChange={setJsonMode} />
+      </div>
+
       <div className="utfi-sections">
         <div style={{ display: activeTab === 'exchange' ? 'none' : undefined }}>
           {renderSection('tokenGrid', 'Token Overview', '📊', (
@@ -765,7 +781,7 @@ function OAuthInspectorSection({ selectedToken, onOpenClaimsModal, activeTab }) 
               {payload.act && (
                 <div className="utfi-act-chain">
                   <span className="utfi-act-chain-label" title={CLAIM_GLOSSARY.act}>Actor chain (act) — RFC 8693 §4.1</span>
-                  <code className="utfi-act-chain-value">{typeof payload.act === 'object' ? <JsonHighlight value={payload.act} /> : payload.act}</code>
+                  <code className="utfi-act-chain-value">{typeof payload.act === 'object' ? <JsonView mode={jsonMode} value={payload.act} /> : payload.act}</code>
                   <div className="utfi-rfc-inline-hint utfi-rfc-inline-hint--good">✅ act claim present — BFF identity is cryptographically bound in this token. MCP server can verify the delegation chain without trusting the caller.</div>
                 </div>
               )}
@@ -829,7 +845,7 @@ function OAuthInspectorSection({ selectedToken, onOpenClaimsModal, activeTab }) 
                             {evt.exchangeRequest && (
                               <div className="utfi-event-json-block">
                                 <div className="utfi-event-label">Exchange request</div>
-                                <pre className="utfi-event-pre"><JsonHighlight value={evt.exchangeRequest} /></pre>
+                                <pre className="utfi-event-pre"><JsonView mode={jsonMode} value={evt.exchangeRequest} crackHeight={220} /></pre>
                               </div>
                             )}
                             {evt.decoded?.payload && (
@@ -848,7 +864,7 @@ function OAuthInspectorSection({ selectedToken, onOpenClaimsModal, activeTab }) 
                                   <div className="utfi-event-row"><span className="utfi-event-label">Audience (aud):</span><code className="utfi-event-value">{evt.decoded.payload.aud}</code></div>
                                 )}
                                 {evt.decoded.payload.act && (
-                                  <div className="utfi-event-row"><span className="utfi-event-label">Actor (act):</span><code className="utfi-event-value"><JsonHighlight value={evt.decoded.payload.act} /></code></div>
+                                  <div className="utfi-event-row"><span className="utfi-event-label">Actor (act):</span><code className="utfi-event-value"><JsonView mode={jsonMode} value={evt.decoded.payload.act} /></code></div>
                                 )}
                                 {evt.decoded.payload.may_act && (
                                   <div className="utfi-event-row"><span className="utfi-event-label">May Act:</span><code className="utfi-event-value">✓ Delegation authorized</code></div>
@@ -891,7 +907,7 @@ function OAuthInspectorSection({ selectedToken, onOpenClaimsModal, activeTab }) 
                                 </div>
                                 <div className="utfi-event-json-block">
                                   <div className="utfi-event-label">Token claims</div>
-                                  <pre className="utfi-event-pre"><JsonHighlight value={evt.claims} /></pre>
+                                  <pre className="utfi-event-pre"><JsonView mode={jsonMode} value={evt.claims} crackHeight={220} /></pre>
                                 </div>
                               </>
                             )}

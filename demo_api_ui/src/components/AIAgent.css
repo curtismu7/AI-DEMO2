@@ -4781,6 +4781,39 @@ body > .banking-agent-float-root .banking-agent-panel {
   outline-offset: 2px;
 }
 
+/* Demo steps trigger — grey header-strip button, same height as the other
+   toggles in .ba-header-tools. */
+.ba-demo-steps-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
+  color: #1f2937;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.ba-demo-steps-trigger:hover {
+  background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%);
+}
+.ba-demo-steps-trigger.active {
+  background: #cbd5e1;
+}
+.ba-demo-steps-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ba-demo-steps-trigger:focus-visible {
+  outline: 2px solid var(--ba-chip-bd);
+  outline-offset: 2px;
+}
+
 /* Demo steps popout — same script as /use-cases Demo section */
 /* Wider than the shared .ba-actions-popout (360px) so the 5-column
    grid has enough room (~130px per card). Two classes beat the shared

@@ -806,18 +806,16 @@ function AppWithAuth() {
                 <Route
                   path="/dashboard"
                   element={
-                    loading ? null : (
-                      <>
-                        <TopNav user={user} onLogout={logout} />
-                        <main className="main-content">
-                          {user?.role === "admin" ? (
-                            <AdminBlockedDashboard user={user} onLogout={logout} />
-                          ) : (
-                            <DashboardContent user={user} logout={logout} />
-                          )}
-                        </main>
-                      </>
-                    )
+                    <>
+                      <TopNav user={user} onLogout={logout} />
+                      <main className="main-content">
+                        {loading ? null : user?.role === "admin" ? (
+                          <AdminBlockedDashboard user={user} onLogout={logout} />
+                        ) : (
+                          <DashboardContent user={user} logout={logout} />
+                        )}
+                      </main>
+                    </>
                   }
                 />
                 {/* /login is not a real route — redirect to home so stale links or misdirected post-logout URIs land cleanly */}

@@ -102,6 +102,92 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-26 — /dashboard TopNav hidden until auth resolved; TopNav session actions clipped off-canvas at 769-1350px
+
+**Files changed:** `demo_api_ui/src/App.js`, `demo_api_ui/src/components/TopNav.css`,
+`demo_api_ui/src/components/UserMenu.js`.
+
+**What was broken:** (1) The `/dashboard` route wrapped the entire element —
+`TopNav` included — in `loading ? null : (...)`, so the nav bar didn't render
+until the auth check round-trip finished, even though `/dashboard` itself
+needs no auth (guests see demo data; the comment on that route says so).
+(2) `.topnav-right`'s children — `.topnav-right-scroll` (search/session
+controls, meant to shrink/scroll) and `.topnav-session-actions` +
+`.user-menu` (`flex-shrink: 0`, "always visible" per the existing comment
+protecting a prior "no way to logout" fix) — have no working responsive
+path between the (dead, unused) 768px hamburger breakpoint and ~1350px,
+where the content naturally fits. Below that, nothing shrinks, so
+`.topnav-session-actions`/`.user-menu` spill past the viewport and get
+invisibly clipped by an ancestor's overflow-x:clip. Reproduced live at
+1000-1250px on both `/dashboard` and `/use-cases/live` (page-agnostic, not
+specific to either route) — `Sign Out` and the user-menu avatar become
+unreachable. Two exploratory CSS-only fixes (`min-width`/`flex-shrink`
+tweaks on `.topnav-right`) each just moved the collapse elsewhere; reverted
+both — see history if revisiting.
+
+**What was fixed:** (1) Moved the `loading` gate in the `/dashboard` route
+down to only wrap the main content, so `TopNav` renders immediately.
+(2) `UserMenu`'s dropdown already had a working, always-reachable Sign Out
+and role-switch — but the switch entry was gated to `user?.role === 'admin'`
+only, so customers had no fallback. Removed that gate (`onSwitchView &&`
+instead of `user?.role === 'admin' && onSwitchView &&`) so it shows for any
+role. Then hid the wide `.topnav-session-actions` text-button pair below
+1350px (`@media (max-width: 1350px)`, placed *after* the base
+`.topnav-session-actions` rule — an earlier draft put it before, which lost
+to source order) since `UserMenu` now fully covers the same actions.
+
+**Do not break:** Don't remove the `user?.role === 'admin'` intent entirely
+from `UserMenu` — only the *gate* on showing the switch button changed; the
+label logic (`isAdminView ? 'Switch to Customer View' : 'Switch to Admin
+View'`) already handled both roles correctly and was untouched. Don't
+re-add `min-width: 0` to `.topnav-right` or set `flex-shrink: 0` there —
+both were tried live and each re-broke it a different way (collapse
+Sign Out to nothing, or make the whole cluster refuse to shrink and
+overflow anyway). The true mobile breakpoint (≲860px) still has a
+separate, pre-existing, unaddressed gap: the admin sidebar itself doesn't
+collapse, so TopNav clipping persists there too — that's out of scope for
+this fix, don't assume it's covered.
+
+**Verify:** `cd demo_api_ui && npm run build` (0). Live: at 1000-1250px,
+`.topnav-session-actions` computed `display: none`, `.user-menu`'s
+`getBoundingClientRect().right` stays inside the viewport; opening the user
+menu shows both "Switch to Admin/Customer View" (any role) and "Sign Out".
+Above 1350px the full-text buttons return with no clipping (no regression).
+
+### 2026-07-26 — Landing page "Use Cases" silently no-op'd for signed-out visitors, and the header overflowed instead of wrapping
+
+**Files changed:** `demo_api_ui/src/components/LandingPage.js`,
+`demo_api_ui/src/components/LandingPage.css`.
+
+**What was broken:** Two independent home-page defects, both reproduced live
+against the running stack. (1) `handleUseCases` always called
+`navigate("/use-cases/live")`; that route's guard in `App.js`
+(`user && appFlags.showUseCaseLauncher ? ... : <Navigate to="/" replace />`)
+silently bounced signed-out visitors straight back to `/` with zero feedback —
+the button looked completely dead. `handleAdminDashboard` already had the
+correct pattern (kick off `/api/auth/oauth/login` when there's no `user`) but
+`handleUseCases` never got it. (2) `.landing-header-actions` (the logged-out
+header's button row) had `flex-shrink: 0` and no `flex-wrap`, so at narrow
+viewports the 4 nowrap buttons (471px) exceeded the viewport and got clipped
+inside the sticky header instead of reflowing — "Use Cases" and "Setup"
+disappeared off the edge on resize.
+
+**What was fixed:** `handleUseCases` now checks `user` and redirects to
+`/api/auth/oauth/login` when signed out, mirroring `handleAdminDashboard`.
+`.landing-header-actions` gained `flex-wrap: wrap`, matching the existing
+`.landing-hero-actions` rule.
+
+**Do not break:** Don't revert `handleUseCases` to an unconditional `navigate`
+— that reintroduces the silent bounce-back for anonymous visitors.
+`handleCustomerDashboard` has the same latent unconditional-`navigate` shape
+but was out of scope for this report — do not assume it's fixed too.
+
+**Verify:** `cd demo_api_ui && npm run build` (0). Live: at width 390 the
+header actions row wraps onto its own line instead of clipping
+(`.landing-header-actions` scrollWidth/clientWidth both fit within the
+viewport, `flexWrap: wrap`); clicking "Use Cases" while signed out navigates
+to the PingOne `/signon` URL instead of silently returning to `/`.
+
 ### 2026-07-26 — A vertical mismatch silently destroyed a user's accounts AND transaction history
 
 **Files changed:** `demo_api_server/services/verticalAccountSnapshots.js` (new),

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
+import { productsForUseCase } from '../utils/pingProducts';
 
 const ProofContext = createContext(null);
 
@@ -84,6 +85,11 @@ export function computeVerdict(trace, catalogEntry) {
   const useCaseId = catalogEntry.useCaseId;
   const evidence = catalogEntry.evidence || { tokenChain: [], activity: [] };
   const vertical = verticalOf(trace);
+  // Highlights for the ProofStrip box: what the user asked for, which tool ran
+  // it, and which Ping products the catalog's evidence chain says are in play.
+  const intent = trace.prompt?.message || catalogEntry.trigger?.text || null;
+  const tool = catalogEntry.primaryTool || trace.mcpResult?.tool || null;
+  const mechanism = productsForUseCase(catalogEntry).map((p) => p.label);
   const seenTokenIds = new Set((trace.tokenEvents || []).map((e) => e.id));
   const matchedSteps = (evidence.tokenChain || []).filter((step) => {
     if (step === 'authorize-decision') return !!trace.authorize;
@@ -94,7 +100,11 @@ export function computeVerdict(trace, catalogEntry) {
   const missingSteps = (evidence.tokenChain || []).filter((s) => !matchedSteps.includes(s));
 
   if (missingSteps.length > 0) {
-    return { useCaseId, title: catalogEntry.title, state: 'incomplete', matchedSteps, missingSteps, vertical };
+    return {
+      useCaseId, title: catalogEntry.title, state: 'incomplete', matchedSteps, missingSteps, vertical,
+      intent, tool, mechanism,
+      resultText: `Waiting on ${missingSteps.join(', ')}`,
+    };
   }
 
   const decision = decisionOf(trace);
@@ -121,15 +131,24 @@ export function computeVerdict(trace, catalogEntry) {
       : expectedIsDenyLike
         ? decision !== 'PERMIT'
         : decision === 'PERMIT';
+  const state = outcomeMatches
+    ? (expectedIsDenyLike ? 'denied-as-expected' : 'verified')
+    : 'mismatch';
+  const resultText = state === 'mismatch'
+    ? 'Result did not match the expected outcome'
+    : expectedIsDenyLike
+      ? 'Denied as expected by policy'
+      : tool
+        ? `Completed — ${tool} dispatched`
+        : 'Completed';
   return {
     useCaseId,
     title: catalogEntry.title,
-    state: outcomeMatches
-      ? (expectedIsDenyLike ? 'denied-as-expected' : 'verified')
-      : 'mismatch',
+    state,
     matchedSteps,
     missingSteps: [],
     vertical,
+    intent, tool, mechanism, resultText,
   };
 }
 

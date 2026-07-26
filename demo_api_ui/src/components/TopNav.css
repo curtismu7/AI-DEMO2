@@ -411,6 +411,20 @@
   flex-shrink: 0;
 }
 
+/* Below this, topnav-left + nav links + topnav-right's always-visible
+   children (session-actions + user-menu) no longer all fit — nothing here
+   shrinks (by design: session actions must never disappear, see the
+   "no way to logout" comment above), so without this the overflow just
+   pushes user-menu off-canvas. UserMenu's own dropdown already duplicates
+   Sign Out + Switch view, so hiding the wide text-button pair here doesn't
+   lose functionality — it consolidates onto the compact control that
+   already fits. */
+@media (max-width: 1350px) {
+  .topnav-session-actions {
+    display: none;
+  }
+}
+
 .topnav-switch-btn {
   display: flex;
   align-items: center;
