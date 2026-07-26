@@ -833,6 +833,31 @@ function buildA2aReplyEnvelope(a2aResult, tokenEvents) {
 // Plugin-first executeTool. Returns a function with the reason-loop signature
 // (name, args) => Promise<string>. Plugin results are JSON-stringified so the
 // reason loop sees a string, matching executeBffTool's contract.
+/**
+ * Strip token-chain plumbing from a tool result before the MODEL sees it.
+ *
+ * dispatchBankingAction returns the full agent-response envelope — reply,
+ * success, toolsCalled, tokensUsed AND tokenEvents. runReasonLoop pushes that
+ * whole object into the conversation as the tool message, so the model receives
+ * a 13-element tokenEvents array alongside 5 transactions and cannot tell which
+ * is the user's data. Live, it picked the wrong one and produced a confident,
+ * well-formatted table of token lifecycle states — "17 active, 2 exchanged,
+ * 1 permit" — presented as the user's spending.
+ *
+ * Events are merged into the caller's collector first, so the Token Chain panel
+ * still sees everything; only the model's copy is trimmed.
+ *
+ * @param {*} out raw tool result
+ * @param {Array} collector ctx.tokenEvents to merge into (may be undefined)
+ * @returns {*} the result without token-chain fields
+ */
+function stripChainFieldsForModel(out, collector) {
+  if (!out || typeof out !== 'object' || Array.isArray(out)) return out;
+  const { tokenEvents: evs, tokensUsed, agentConfigured, ...rest } = out;
+  if (Array.isArray(evs) && Array.isArray(collector)) collector.push(...evs);
+  return rest;
+}
+
 function resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, sessionId, isAdmin = false }) {
   return async (name, args) => {
     if (name === 'delegate_to_specialist') {
@@ -853,7 +878,7 @@ function resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, ses
       activeId, name, args, { userId, userToken, req, tokenEvents, sessionId, isAdmin },
       (n, a) => executeBffTool({ name: n, args: a, userId, userToken, req, tokenEvents, sessionId }),
     );
-    return typeof out === 'string' ? out : JSON.stringify(out);
+    return typeof out === 'string' ? out : JSON.stringify(stripChainFieldsForModel(out, tokenEvents));
   };
 }
 
