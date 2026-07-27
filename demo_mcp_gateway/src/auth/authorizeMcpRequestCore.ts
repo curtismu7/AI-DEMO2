@@ -93,7 +93,32 @@ export async function runMcpAuthorizationPipeline(
 ): Promise<AuthorizationResult> {
   const audit: AuditTrail = { introspection: null, policy: null };
 
-  // Step 0 — RFC 7662 active-token introspection
+  // Step 0 — RFC 7662 active-token introspection.
+  //
+  // Skippable, but ONLY when signatures are actually verified. PingOne scopes
+  // introspection to the ISSUING client, and this gateway receives tokens from
+  // the Token Exchanger AND five A2A specialist clients — probed live, a
+  // specialist's token introspected by the exchanger returns active:false, so no
+  // single introspection client can cover them. JWKS verification is the
+  // mechanism that does.
+  //
+  // The guard below is the point of this branch: skipping introspection with NO
+  // signature verification would leave the pipeline validating nothing at all,
+  // while still returning PERMIT. Refuse instead — omission is not permission.
+  const signatureVerifiable =
+    !!(process.env.PINGONE_JWKS_ENDPOINT || process.env.PINGONE_JWKS_URI);
+  if (config.introspectionEnabled === false) {
+    if (!signatureVerifiable) {
+      audit.introspection = {
+        active: false,
+        error: 'introspection disabled but no JWKS endpoint configured — refusing to validate nothing',
+      };
+      return { kind: 'introspection_unavailable', audit };
+    }
+    // null = NOT PERFORMED. Deliberately not { active: true }: a check that did
+    // not run must never render as a check that passed.
+    audit.introspection = null;
+  } else {
   const introspResult = await introspectionClient.introspect(bearerToken);
   audit.introspection = {
     active: introspResult.active,
@@ -109,6 +134,7 @@ export async function runMcpAuthorizationPipeline(
       return { kind: 'introspection_unavailable', audit };
     }
     return { kind: 'introspection_failed', audit };
+  }
   }
 
   // Step 1 — claims + identity policy

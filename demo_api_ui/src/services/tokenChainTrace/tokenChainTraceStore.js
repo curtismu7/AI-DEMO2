@@ -9,6 +9,10 @@ const EMPTY_TRACE = () => ({
   startedAt: null, prompt: null, routingMode: null, routingDetail: null,
   llmDetail: null, llmReply: null,
   phases: [], tokenEvents: [], mcpResult: null, authorize: null, outcome: null,
+  // 'declined' once the human refuses a step-up / HITL approval gate. Without
+  // it the trace ends at authorize.outcome === 'STEP_UP' and the Proof verdict
+  // cannot tell "gate fired, human approved" from "gate fired, human refused".
+  approvalOutcome: null,
 });
 
 // Session-scoped evidence (the sign-in token) outlives any single tool call —
@@ -142,6 +146,12 @@ export const tokenChainTraceStore = {
       denied: Boolean(payload.denied),
     };
     trace.mcpResult = next;
+    emit();
+  },
+  /** The human refused a step-up / HITL approval gate — nothing was executed. */
+  ingestApprovalDeclined() {
+    ensureTrace();
+    trace.approvalOutcome = "declined";
     emit();
   },
   completeTrace(ok) { trace.outcome = ok ? "ok" : "error"; emit(); },

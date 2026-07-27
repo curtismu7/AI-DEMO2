@@ -29,6 +29,7 @@ vi.mock('../../context/IndustryBrandingContext', () => ({
 
 import bffAxios from '../../services/bffAxios';
 import { setAgentBlockedByConsentDecline } from '../../services/agentAccessConsent';
+import { tokenChainTraceStore } from '../../services/tokenChainTrace/tokenChainTraceStore';
 import TransactionConsentModal from '../TransactionConsentModal';
 
 const USER = { id: 'user-1', email: 'demo@ping.demo' };
@@ -67,6 +68,9 @@ describe('TransactionConsentModal — what counts as a decline', () => {
     fireEvent.click(await screen.findByText(/confirm decline/i));
     expect(setAgentBlockedByConsentDecline).toHaveBeenCalledWith(true);
     expect(onDeclinedConfirmed).toHaveBeenCalled();
+    // Without this the Proof verdict ends at authorize.outcome === 'STEP_UP'
+    // and reports "then permitted" for a transaction that never ran.
+    expect(tokenChainTraceStore.getState().trace.approvalOutcome).toBe('declined');
   });
 
   it('dismissing at the OTP step aborts without blocking the agent', async () => {
