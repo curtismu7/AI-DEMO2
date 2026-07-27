@@ -3,8 +3,7 @@
 .luw {
   display: grid;
   grid-template-rows: auto 1fr;
-  height: calc(100vh - var(--stack-fab-top-base, 72px));
-  min-height: 0;
+  min-height: calc(100vh - var(--stack-fab-top-base, 72px));
   min-width: 0;
 }
 
@@ -36,7 +35,6 @@
   grid-template-columns: var(--luw-drawer-w, 336px) 7px 1fr;
   min-height: 0;
   min-width: 0;
-  height: 100%;
 }
 
 /* Slide-over: closed is the default demo posture. The drawer leaves the grid
@@ -292,7 +290,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 }
 .luw-main__stage {
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   padding: 1.25rem;
   display: flex;
   flex-direction: column;
@@ -459,16 +457,11 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   .luw-resize--split { display: none; }
 }
 
-/* Narrow: single column — Demo script, Agent, Token Chain stack and the page
-   scrolls, instead of the drawer + main clipping each other. */
+/* Narrow: single column — Demo script, Agent, Token Chain stack (height/scroll
+   is the unconditional default now — see .luw / .luw-main__stage above). */
 @media (max-width: 860px) {
-  .luw {
-    height: auto;
-    min-height: calc(100vh - var(--stack-fab-top-base, 72px));
-  }
   .luw-body {
     grid-template-columns: 1fr;
-    height: auto;
   }
   .luw-resize--drawer { display: none; }
   .luw-drawer {
@@ -484,15 +477,6 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   .luw-drawer__scrim, .luw-drawer-tab { display: none; }
   .luw-body--drawer-closed { grid-template-columns: 1fr; }
   .luw-drawer__scroll {
-    overflow-y: visible;
-  }
-  .luw-main {
-    height: auto;
-  }
-  .luw-main__stage {
-    overflow: visible;
-  }
-  .luw-run-layout {
     overflow-y: visible;
   }
 }
