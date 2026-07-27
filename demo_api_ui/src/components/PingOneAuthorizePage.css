@@ -1,0 +1,9 @@
+/* PingOneAuthorizePage.css — page-scoped overrides for /pingone-authorize.
+
+   The Evaluate inspector is the point of this page, so it gets more room than
+   the shared embedded default (InspectorShell.css `.inspector-shell-grid--embedded`,
+   640px). Scoped to this wrapper so AgentGatewayTester keeps the shared height. */
+.p1az-evaluate-shell .inspector-shell-grid--embedded {
+  height: calc(100vh - 160px);
+  min-height: 720px;
+}
