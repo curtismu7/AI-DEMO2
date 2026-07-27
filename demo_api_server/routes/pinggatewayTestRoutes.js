@@ -21,7 +21,14 @@ const { URL } = require('url');
  */
 function callPingGateway(method, path, body = null) {
   return new Promise((resolve, reject) => {
-    const gwUrl = process.env.PINGGATEWAY_URL || 'https://localhost:3036';
+    // Same orphan as pingGatewayClient.js had (#972): PINGGATEWAY_URL is read
+    // here but nothing sets it — compose sets MCP_PINGGATEWAY_URL. The fallback
+    // is worse than wrong: inside the BFF container localhost is the BFF, and
+    // 3036 is the HOST port (IG listens on 8080 in-network).
+    const gwUrl = process.env.PINGGATEWAY_URL
+      || process.env.MCP_PINGGATEWAY_URL
+      || (() => { try { return require('../services/configStore').getEffective('mcp_pinggateway_url'); } catch (_) { return null; } })()
+      || 'https://localhost:3036';
     const url = new URL(path, gwUrl);
     const isHttps = url.protocol === 'https:';
     const transport = isHttps ? https : http;
