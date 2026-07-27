@@ -2000,5 +2000,8 @@ module.exports = {
   processAgentMessage,
   dispatchBankingAction,
   dispatchVerticalIntent,
+  // Public for routes/agentTool.js — external LLM agents' tool callback runs
+  // the same A2A fast-path as dispatchVerticalIntent for a2aDelegated tools.
+  executeA2aDelegation,
   __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation, normalizeVerticalToolArgs, applyAdminCustomerContext },
 };
