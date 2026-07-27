@@ -58,25 +58,39 @@ test.describe('Token Chain step actions — real browser (link affordance + repl
       .toContain(new URL(process.env.PLAYWRIGHT_BASE_URL || process.env.E2E_BASE_URL).port);
     await page.waitForSelector('.luw-topbar__agent-tools', { timeout: 30_000 });
 
-    // Same reason as luw-workbench.real.spec.js: without a live decision
-    // endpoint no authorize-decision lands at all, so the authorize step
-    // would have no replay to test.
-    const flagsResp = await ctx.request.get('/api/admin/feature-flags');
-    if (flagsResp.ok()) {
-      const flags = (await flagsResp.json())?.flags || [];
-      const f = flags.find((x) => x.id === 'ff_authorize_simulated');
-      const current = f && (f.value === true || f.value === 'true');
-      if (f && current !== true) {
-        restoreFlags.ff_authorize_simulated = current;
-        await ctx.request.patch('/api/admin/feature-flags', {
-          data: { updates: { ff_authorize_simulated: true } },
-        });
-      }
-    }
+    // Deliberately does NOT pin ff_authorize_simulated. This demo always runs
+    // real PingOne Authorize — the simulated engine is only for the handful of
+    // use cases P1AZ cannot cover (e.g. PAR). Forcing the flag on here would
+    // verify a configuration nobody demos, and would hide a replay button that
+    // only appears when a real decision lands.
+    // (luw-workbench.real.spec.js pins it and says no live decision endpoint is
+    // configured — that comment is stale: PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID
+    // and ..._MCP_DECISION_ENDPOINT_ID are both set on the running BFF.)
 
-    // One real run supplies the evidence every assertion below reads.
-    // The drawer's open/closed state is persisted per origin, so this
-    // worktree's port starts with its own default — never assume it is open.
+    await forceTokenExchange();
+    await runUseCase1();
+  });
+
+  /**
+   * Forces a delegated-token cache miss.
+   *
+   * services/agentTokenCache.js caches the exchanged token on the session keyed
+   * by (vertical, scopeSet), so a second UC1 run in the same session reuses it
+   * and emits NO exchange event — the rail's exchange step then sits at
+   * "pending" even though the run succeeded. Switching the vertical away and
+   * back is the documented deliberate miss, which re-mints the token and makes
+   * the RFC 8693 hop observable again.
+   */
+  async function forceTokenExchange() {
+    for (const id of ['healthcare', 'banking']) {
+      await ctx.request.post('/api/verticals/active', { data: { id } });
+    }
+  }
+
+  /** Opens the drawer, runs UC1, waits for the rail, then closes the drawer. */
+  async function runUseCase1() {
+    // The drawer's open/closed state is persisted per origin, so a given port
+    // starts with its own default — never assume it is open.
     const body = page.locator('.luw-body');
     await expect(body).toBeVisible({ timeout: 30_000 });
     if (((await body.getAttribute('class')) || '').includes('luw-body--drawer-closed')) {
@@ -92,13 +106,12 @@ test.describe('Token Chain step actions — real browser (link affordance + repl
     await card.locator('.luw-card__run').click();
     await expect(page.locator('.tctr-step').first()).toBeVisible({ timeout: 60_000 });
     // Gate on the rail's own evidence, not the use-case verdict: a replay
-    // button exists exactly when buildTraceSteps found a re-issuable request,
-    // which is the precondition every assertion below actually needs.
+    // button exists exactly when buildTraceSteps found a re-issuable request.
     await page
       .locator('button.tctr-inspect', { hasText: /^→ Replay in/ })
       .first()
       .waitFor({ state: 'attached', timeout: 180_000 })
-      .catch(() => {}); // diagnostic test 0 reports what landed either way
+      .catch(() => {}); // the assertions report what actually landed
 
     // Close the drawer: its scrim overlays the rail and intercepts clicks on
     // the replay buttons the later tests have to press.
@@ -106,18 +119,33 @@ test.describe('Token Chain step actions — real browser (link affordance + repl
       await page.locator('.luw-drawer__toggle').click();
       await expect(body).toHaveClass(/luw-body--drawer-closed/);
     }
-  });
+  }
 
-  test('0. the run produced both replayable hops', async () => {
-    const labels = await page.locator('.tctr-step').evaluateAll((els) =>
-      els.flatMap((el) => {
-        el.open = true;
-        return Array.from(el.querySelectorAll('.tctr-inspect'))
-          .map((a) => `${el.getAttribute('data-step-id')}:${(a.textContent || '').trim()}`);
-      }),
-    );
-    expect(labels).toContain('authorize:→ Replay in P1AZ Evaluate');
-    expect(labels).toContain('gateway:→ Replay in Gateway Tester');
+  /**
+   * The rail streams: a step sits at `pending` until its evidence arrives, so a
+   * one-shot getAttribute races the run. These use auto-retrying assertions.
+   *
+   * "pending" means the RFC 8693 exchange never fired; "error" means it failed.
+   * Either way the delegated token never reached the MCP hop.
+   */
+  async function expectExchangeFired(engineLabel) {
+    await expect(
+      page.locator('.tctr-step[data-step-id="exchange"]'),
+      `token exchange must fire under ${engineLabel}`,
+    ).toHaveAttribute('data-status', /^(done|active)$/, { timeout: 120_000 });
+  }
+
+  async function expectReplayButton(stepId, label) {
+    await expect(
+      page.locator(`.tctr-step[data-step-id="${stepId}"] button.tctr-inspect`, { hasText: label }),
+      `${stepId} step must offer "${label}"`,
+    ).toHaveCount(1, { timeout: 120_000 });
+  }
+
+  test('0. real P1AZ — token exchange fires and both hops are replayable', async () => {
+    await expectExchangeFired('real P1AZ');
+    await expectReplayButton('authorize', 'Replay in P1AZ Evaluate');
+    await expectReplayButton('gateway', 'Replay in Gateway Tester');
   });
 
   test.afterAll(async () => {
@@ -205,6 +233,34 @@ test.describe('Token Chain step actions — real browser (link affordance + repl
     // never larger than the prose it sits under.
     expect(style.fontSize).toBeGreaterThan(style.bodyFontSize);
     expect(style.decoration).toContain('underline');
+  });
+
+  // Runs LAST and restores the flag in afterAll: it mutates global demo state,
+  // so every real-P1AZ assertion above must already have run.
+  test('5. simulated authorize — token exchange still fires', async () => {
+    test.setTimeout(300_000);
+    const flagsResp = await ctx.request.get('/api/admin/feature-flags');
+    expect(flagsResp.ok(), 'feature-flag API reachable').toBe(true);
+    const flags = (await flagsResp.json())?.flags || [];
+    const flag = flags.find((x) => x.id === 'ff_authorize_simulated');
+    expect(flag, 'ff_authorize_simulated exists').toBeTruthy();
+    restoreFlags.ff_authorize_simulated = flag.value === true || flag.value === 'true';
+
+    const patch = await ctx.request.patch('/api/admin/feature-flags', {
+      data: { updates: { ff_authorize_simulated: true } },
+    });
+    expect(patch.ok(), 'simulated authorize pinned on').toBe(true);
+
+    await page.goto('/use-cases/live');
+    await page.waitForSelector('.luw-topbar__agent-tools', { timeout: 30_000 });
+    await forceTokenExchange();
+    await runUseCase1();
+
+    // The point of this test: swapping the authorize engine must not skip the
+    // RFC 8693 exchange — the delegated token is what the MCP hop runs on,
+    // regardless of who made the decision.
+    await expectExchangeFired('simulated authorize');
+    await expectReplayButton('gateway', 'Replay in Gateway Tester');
   });
 
 });
