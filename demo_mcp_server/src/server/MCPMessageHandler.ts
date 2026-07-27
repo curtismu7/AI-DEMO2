@@ -375,7 +375,10 @@ export class MCPMessageHandler {
       authResult = await this.authIntegration.validateToolAuthentication(
         context.session,
         context.agentToken,
-        requiredScopes
+        requiredScopes,
+        // A2A-delegated tools: the specialist bearer carries the per-vertical
+        // Exchange #2 scope (records:read, …) instead of the coarse 'read'.
+        tool.a2aDelegatedScope ? [tool.a2aDelegatedScope] : undefined
       );
 
       console.log(`[MCPMessageHandler] Auth result:`, {

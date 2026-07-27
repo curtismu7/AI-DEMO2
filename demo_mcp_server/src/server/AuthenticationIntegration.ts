@@ -398,7 +398,8 @@ export class AuthenticationIntegration {
   async validateToolAuthentication(
     session: BankingSession | undefined,
     agentToken: string | undefined,
-    requiredScopes: string[]
+    requiredScopes: string[],
+    alternativeScopes?: string[]
   ): Promise<AuthenticationResult> {
     // First validate agent authentication
     if (!session && agentToken) {
@@ -432,7 +433,15 @@ export class AuthenticationIntegration {
     // but we still enforce requiredScopes against the bearer itself so an
     // under-scoped token cannot invoke privileged tools on direct MCP access.
     if (agentToken) {
-      const hasScopes = await this.authManager.validateTokenScopes(agentToken, requiredScopes);
+      // alternativeScopes: an A2A-delegated tool's per-vertical scope
+      // (scope-topology a2aDelegatedScope — records:read, tax:read, …). PingOne
+      // enforces scope-name uniqueness across resource grants, so the
+      // specialist's Exchange #2 bearer carries that scope INSTEAD of the
+      // coarse 'read'. Either set satisfies the tool; both absent fails closed.
+      const hasScopes =
+        (await this.authManager.validateTokenScopes(agentToken, requiredScopes)) ||
+        (!!alternativeScopes?.length &&
+          (await this.authManager.validateTokenScopes(agentToken, alternativeScopes)));
       if (!hasScopes) {
         console.log(
           `[AuthenticationIntegration] agentToken missing required scopes [${requiredScopes.join(', ')}]`
