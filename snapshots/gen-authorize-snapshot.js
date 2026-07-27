@@ -119,6 +119,7 @@ const COND = {
   TokenAudTargetsUpstream: '23456789-0026-4321-abcd-000000000026',
 };
 const STMT = {
+  a2aDelegationRequired: '34567890-0010-4321-abcd-000000000010',   // code mcp-invalid-a2a-generalist (shared)
   stepUp: '34567890-0003-4321-abcd-000000000003',           // step-up-required (reused)
   mcpSharedDeny: '34567890-0004-4321-abcd-000000000004',    // mcp-authorization-denied (shared, reused)
   hitl: '34567890-0009-4321-abcd-000000000009',             // HITL (reused)
@@ -343,6 +344,35 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
         comparison: { left: { attribute: { id: ATTR.ActChainDepth } }, op: 'GreaterThan', right: { constant: { value: '1' } } },
       } } },
     ] } };
+  }
+
+  // 1c) The DENY message must describe what the rule now tests.
+  //
+  // The rule fires on a SHALLOW chain (no delegation), but its statement still
+  // read "nested generalist '<id>' is not the registered AI Agent" — the reason
+  // for a DIFFERENT rule. Left alone, the demo denies correctly and then explains
+  // the denial wrongly on screen, which is worse than a wrong verdict because it
+  // is not visibly wrong.
+  //
+  // The CODE stays mcp-invalid-a2a-generalist: DENY_CODE_BY_REASON_PREFIX in
+  // demo_authz_server/routes/decision.js deliberately maps BOTH
+  // a2a_delegation_required and invalid_a2a_generalist onto it, so consumers
+  // already treat one code as covering both halves of mock Rule 1c. Changing it
+  // would break that mapping for no gain.
+  const a2aStmt = byId.get(STMT.a2aDelegationRequired);
+  if (a2aStmt) {
+    a2aStmt.name = 'MCP Denied — A2A Delegation Required';
+    a2aStmt.description =
+      'Returned when an A2A-delegated tool is called without a two-hop act chain — the generalist '
+      + 'acting alone, or no delegation at all. PingOne Authorize validates the RFC 8693 chain depth, '
+      + 'not just the immediate actor.';
+    a2aStmt.payload = JSON.stringify({
+      denied: true,
+      reason: 'a2a-delegation-required',
+      message:
+        'A2A delegation is required for this tool: the call did not arrive through a two-hop act '
+        + 'chain (specialist delegated by the generalist). The generalist acting alone is denied.',
+    });
   }
 
   // 2) Ensure RequiresMcpStepUp condition (step_up tool list AND no MFA yet).

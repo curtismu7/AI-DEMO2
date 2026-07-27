@@ -65,11 +65,35 @@ describe('getAuthorizationPoliciesFromSnapshot testCases wiring', () => {
     expect(tc.trigger.parameters).toMatchObject({ ToolName: 'book_appointment', HitlApproved: false });
   });
 
-  test('MCP Deny — Invalid A2A Generalist: trigger needs a 2+ hop chain with an unverified generalist', () => {
+  // Inverted by #1003, and this assertion was left behind asserting the OLD
+  // semantics (trigger on a 2-hop chain). It red-gated every push in the repo.
+  //
+  // The rule denies a SHALLOW chain: an A2A-delegated tool reached without the
+  // specialist hop. So the triggering case is depth 1 on a delegated tool.
+  //
+  // The tool list is read from scope-topology.json rather than hardcoded — the
+  // condition is generated from that same source, so pinning a literal tool name
+  // here would just restate the generator and rot the moment a specialist tool
+  // is added.
+  test('MCP Deny — A2A Delegation Required: a SHALLOW chain on a delegated tool triggers', () => {
     const tc = findRule(policies, 'MCP Deny — Invalid A2A Generalist').testCases;
+    const sot = require('../../../scope-topology.json');
+    const a2aTools = Object.entries(sot.tools)
+      .filter(([, m]) => m && m.a2aDelegated === true)
+      .map(([n]) => n);
+    expect(a2aTools.length).toBeGreaterThan(0);
+
     expect(tc.trigger.preset).toBe('custom');
-    expect(tc.trigger.parameters).toMatchObject({ ActChainDepth: 2, NestedActClientId: '' });
-    expect(tc.avoid.parameters.ActChainDepth).toBe(1);
+    expect(tc.trigger.parameters.ActChainDepth).toBe(1);
+    expect(a2aTools).toContain(tc.trigger.parameters.ToolName);
+
+    // The solver escapes this condition via the TOOL, not the depth — `avoid`
+    // picks a non-delegated tool and leaves depth at 1. Asserted as-is rather
+    // than wished otherwise. NOTE the limitation: this control proves the rule
+    // ignores unrelated tools, NOT that a proper two-hop chain is permitted.
+    // That second property is covered live by verify:a2a-policy, which is where
+    // it belongs — it needs a real decision, not a solved parameter set.
+    expect(a2aTools).not.toContain(tc.avoid.parameters.ToolName);
   });
 
   test('MCP Require Step-Up for sensitive tools: trigger uses a gated tool with no MFA', () => {
