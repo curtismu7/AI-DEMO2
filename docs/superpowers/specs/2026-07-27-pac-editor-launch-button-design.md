@@ -36,13 +36,15 @@ entry.
 ### Behaviour
 
 | Probe result | Status text | Button |
-|---|---|---|
+| --- | --- | --- |
 | Reachable | `Running` | `Open editor` enabled → new tab to `http://127.0.0.1:9099` |
 | Not reachable | `Not running` | disabled; panel shows `./scripts/pac-edit.sh` |
 | Probe blocked | `Unknown — click to open` | enabled |
 
-Probes on mount only. No polling loop — a background timer hitting a local port
-every few seconds is noise for a status dot nobody is watching continuously.
+Probes on mount, and re-probes when the window regains focus — so starting the
+editor in a terminal and switching back to the browser updates the status
+without a reload. No polling loop: a background timer hitting a local port every
+few seconds is noise for a status dot nobody watches continuously.
 
 ### Status detection
 
@@ -77,7 +79,7 @@ following the `demo_api_server/routes/pingcli.js` precedent (allow-listed
 It cannot work under the project's default startup (`./run-docker.sh`), verified
 against the running stack:
 
-```
+```text
 docker exec ai-demo-api-server java -version   → sh: java: not found
 pac.jar                                        → /repo/pac/pac.jar (not /app)
 ```
