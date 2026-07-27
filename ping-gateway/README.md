@@ -111,6 +111,48 @@ The secondary `/mcp/invest` path has the same switch: `00-mcp-invest-jwks.json`
 is route `02-mcp-invest.json` with the shared `rsFilter` stage replaced by the
 same Groovy validator, selected by the same header.
 
+## API Access Management route (`04-aam-api-access.json`)
+
+A **second, coarse-grained** PingOne Authorize capability, running alongside the
+decision-endpoint path above rather than replacing it. The stock
+[`PingAuthorizeFilter`](https://docs.pingidentity.com/pinggateway/2026/pingone/aam.html)
+posts method / path / headers / client IP to the PingOne Authorize **Sideband
+API**, which matches them against an **API Service**'s operations and returns
+allow or deny. It never sees an MCP tool name or its arguments — the `/mcp`
+routes keep using `p1az-decision.groovy` for that, and neither route touches the
+other.
+
+The route protects `GET /aam/health` and, on allow, proxies to
+`demo_mortgage_service`'s unauthenticated `/health`, so a permit is observable
+without introducing another credential. Only the AAM verdict is being shown.
+
+**Console prerequisites** (not created by this repo — they mutate a live PingOne
+environment):
+
+1. **Directory > Groups** — a group whose members get access, e.g. `Full access`.
+   Add one test user to it and leave a second user out.
+2. **Authorization > API Gateways** — add a gateway, then add a **Credential**.
+3. **Authorization > API Services** — add a service whose **Base URL** is the
+   gateway as the client reaches it (`http://api.ping.demo:3036` locally,
+   `https://ai-demo.ping-devops.com` on the SE cluster), with one operation:
+   method `GET`, path `/aam/health`, rule "member of any of `Full access`".
+   **Deploy** it.
+4. Copy the gateway's **Service URL** and **Credential** into `ping-gateway/.env`
+   as `PG_AAM_SERVICE_URL` and `AAM_GATEWAY_SECRET` (verbatim — see `.env.example`
+   for why the doc's base64 step does not apply here), then restart the gateway.
+
+Until `PG_AAM_SERVICE_URL` is set the route's condition fails, nothing matches
+`/aam`, and the gateway returns `404` — inert, not fail-open.
+
+**Verify** once provisioned:
+
+```bash
+# member of Full access -> 200, mortgage-service health JSON
+curl -i -H "Authorization: Bearer $PERMITTED_TOKEN" http://api.ping.demo:3036/aam/health
+# not a member -> 403 from PingGateway, request never reaches the backend
+curl -i -H "Authorization: Bearer $DENIED_TOKEN"    http://api.ping.demo:3036/aam/health
+```
+
 ## Files
 
 - `config/admin.json` — IG admin (PRODUCTION mode, streaming on).
@@ -120,6 +162,9 @@ same Groovy validator, selected by the same header.
   per request via the `X-Token-Validation: jwks` header (effective `ff_mcp_gateway_jwks`).
 - `config/routes/00-mcp-invest-jwks.json` — same JWKS switch for the `/mcp/invest` path
   (route 02 with the `rsFilter` stage replaced by the Groovy validator).
+- `config/routes/04-aam-api-access.json` — PingOne Authorize **API Access Management** route
+  (`/aam`), stock `PingAuthorizeFilter` against the Sideband API. Inert until
+  `PG_AAM_SERVICE_URL` is set.
 - `scripts/groovy/p1az-decision.groovy` — the authorize decision filter.
 - `scripts/groovy/jwks-token-validation.groovy` — local inbound token validation for the JWKS
   route: RS256 against the PingOne JWKS, HS256 against the mock demo_authz_server secret.

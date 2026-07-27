@@ -1,0 +1,35 @@
+{
+  "comment": "PingOne Authorize API Access Management (AAM) route — the stock PingGateway integration from https://docs.pingidentity.com/pinggateway/2026/pingone/aam.html, which this repo did not use anywhere. Distinct from the /mcp routes: those call the P1AZ *Decision Endpoints* API from p1az-decision.groovy with MCP-aware inputs (tool name, buffered arguments, DecisionContext, aud sets, RAR amount). AAM is coarse-grained by contrast — the built-in PingAuthorizeFilter posts only method/path/headers/client-IP to the PingOne Authorize Sideband API, which matches them against an API Service's operations and returns allow/deny. Both capabilities therefore run side by side rather than one replacing the other. The route proxies to demo_mortgage_service's unauthenticated /health so a PERMIT is observable without introducing another credential; only the AAM verdict is being demonstrated. Condition is gated on PG_AAM_SERVICE_URL: with the console side unprovisioned no route matches and /aam 404s, instead of the filter erroring on every request.",
+  "name": "aam-api-access",
+  "condition": "${not empty env['PG_AAM_SERVICE_URL'] and find(request.uri.path, '^/aam')}",
+  "handler": {
+    "type": "Chain",
+    "config": {
+      "filters": [
+        {
+          "comment": "Runs BEFORE the path rewrite so the Sideband API sees the client-facing URL. The API Service in the PingOne console registers its base URL and operation paths against that URL (/aam/health), not the rewritten backend path. gatewayServiceUri = Authorization > API Gateways > Service URL, supplied as the configuration token pg.aam.service.url, which resolves from env PG_AAM_SERVICE_URL (dots to underscores, uppercased). It is NOT a ${env[...]} expression: despite the reference doc typing this attribute as a configuration expression, IG hands the raw string to java.net.URI, so an expression fails route build with 'Illegal character in path at index 1' (confirmed live). Note the token resolver scans every string in this file, comments included, so do not write a bare token-open sequence in prose here — an empty key fails route build with 'key can't be empty'. The .invalid default only keeps route loading valid when unconfigured — the route condition already stops it matching in that state. gatewayCredentialSecretId resolves through the global SecretsStore, a SystemAndEnvSecretStore with format PLAIN, so AAM_GATEWAY_SECRET holds the API gateway credential verbatim (the Ping doc's base64 step applies to the default base64 format, not PLAIN). No accessToken expression: the filter takes the bearer from the request's Authorization header, which is what an API client presents.",
+          "name": "AamDecision",
+          "type": "PingAuthorizeFilter",
+          "config": {
+            "gatewayServiceUri": "&{pg.aam.service.url|https://aam-not-configured.invalid}",
+            "secretsProvider": "SecretsStore",
+            "gatewayCredentialSecretId": "aam.gateway.secret"
+          }
+        },
+        {
+          "comment": "Strips the /aam demo prefix so the backend sees its own path. Mapped explicitly rather than /aam -> / because UriPathRewriteFilter strips trailing slashes from path values.",
+          "name": "StripAamPrefix",
+          "type": "UriPathRewriteFilter",
+          "config": {
+            "mappings": { "/aam/health": "/health" }
+          }
+        }
+      ],
+      "handler": {
+        "type": "ReverseProxyHandler",
+        "baseURI": "${empty env['PG_MORTGAGE_BACKEND_URL'] ? 'http://mortgage-service:8082' : env['PG_MORTGAGE_BACKEND_URL']}",
+        "config": {}
+      }
+    }
+  }
+}
