@@ -1004,6 +1004,10 @@ app.use('/api/admin/token-compliance', authenticateToken, require('./routes/toke
 app.use('/api/nav-configs', authenticateToken, require('./routes/navConfigs'));
 app.use('/api/user/nav-config', authenticateToken, require('./routes/userNavConfig'));
 app.use('/api/admin/lighthouse', authenticateToken, require('./routes/lighthouseRoute'));
+// PingOne Authorize API Access Management probe. /aam is called directly by
+// clients, so this is the only BFF path that sees the gateway's aam audit trail
+// and can feed a gw-aam event into the token chain.
+app.use('/api/aam', authenticateToken, require('./routes/aamProbe'));
 
 // Knowledge Assertions API — citation resolution for the chat UI + admin reload.
 // Public read (assertions/domains/status); admin-only write (reload).

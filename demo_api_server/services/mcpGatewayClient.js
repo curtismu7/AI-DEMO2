@@ -876,6 +876,9 @@ module.exports = {
     tryGetMcpGatewayHttpUrl,
     _normalizeGatewayNetworkError,
     resolveMcpGatewayTransport,
+    // Shared with routes/aamProbe.js: the AAM route stamps the same
+    // X-Gw-Audit-Trail header, so it reuses this parser rather than a second one.
+    _parseGwAuditTrail,
     // test/helpers — weather JSON-RPC deny → TraceRail gateway evidence
     _extractGatewayDenyFields,
     _syntheticWeatherScopeTrail,
