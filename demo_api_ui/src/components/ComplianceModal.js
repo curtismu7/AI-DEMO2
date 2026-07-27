@@ -20,13 +20,13 @@ export default function ComplianceModal({
       isOpen={open}
       onClose={onClose}
       title="MCP Compliance Checklist"
-      defaultWidth={420}
+      defaultWidth={460}
       defaultHeight={600}
       defaultX={20}
       defaultY={80}
       storageKey="compliance-modal"
       noBackdrop
-      minWidth={300}
+      minWidth={380}
       minHeight={250}
       footer={null}
     >
