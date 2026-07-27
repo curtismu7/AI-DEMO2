@@ -501,7 +501,7 @@ export default function AdminSideNav({ user }) {
       icon: "dbg",
       children: [
         { label: "MCP Inspector", path: "/pingone-mcp-inspector", icon: "dbg" },
-        { label: "PingGateway Inspector", path: "/pinggateway-inspector", icon: "rte" },
+        { label: "Agent Gateway Inspector", path: "/pinggateway-inspector", icon: "rte" },
         { label: "P1AZ Inspector", path: "/pingone-authorize", icon: "pol", searchAlias: "PingOne Authorize" },
       ],
     },
@@ -530,7 +530,7 @@ export default function AdminSideNav({ user }) {
         },
         { label: "Web MCP", path: "/webmcp", icon: "web" },
         {
-          label: "PingGateway Inspector",
+          label: "Agent Gateway Inspector",
           path: "/pinggateway-inspector",
           icon: "rte",
         },

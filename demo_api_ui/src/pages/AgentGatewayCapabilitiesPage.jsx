@@ -7,7 +7,7 @@ import {
 } from '../config/capabilityLedgers/agentGatewayCapabilities';
 
 const INTRO =
-  'PingGateway is the default live enforcement path in this demo — Node is ' +
+  'Agent Gateway is the default live enforcement path in this demo — Node Gateway is ' +
   'the offline/dev fallback. Every capability below cites the exact code ' +
   'in this repo that implements it, on both paths.';
 
