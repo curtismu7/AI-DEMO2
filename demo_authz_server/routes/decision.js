@@ -500,6 +500,10 @@ module.exports = async function decisionHandler(req, res) {
   // decides over the act chain" semantic; it REPLACES the may_act check below for
   // these tools (A2A intentionally carries no may_act).
   const a2aDelegated = scopeTopology.isA2aDelegatedTool(ToolName);
+  // Set only after Rule 1c has verified BOTH the chain depth and that the nested
+  // generalist is the registered AI Agent. Rule 4 keys the consent waiver off
+  // this, so the waiver can never apply to an unverified or forged chain.
+  let a2aDelegationVerified = false;
   if (a2aDelegated) {
     const depth = parseInt(ActChainDepth, 10);
     const chainDepth = Number.isNaN(depth) ? 0 : depth;
@@ -512,6 +516,7 @@ module.exports = async function decisionHandler(req, res) {
       warn(`[AuthzServer/decision] DENY — invalid_a2a_generalist: nested act.sub "${NestedActClientId}" is not the registered AI Agent "${authorizedGeneralist}"`);
       return deny(res, `invalid_a2a_generalist: nested act.sub "${NestedActClientId}" is not the authorized generalist`);
     }
+    a2aDelegationVerified = true;
     log(`[AuthzServer/decision] A2A OK — "${ToolName}" reached via specialist delegation (depth ${chainDepth}, generalist ${NestedActClientId})`);
   }
 
@@ -849,9 +854,29 @@ module.exports = async function decisionHandler(req, res) {
     //     can NEVER satisfy MFA (IMP-3), so it is NOT guarded by hitlApproved.
     //   - consent tool: HITL_CONSENT, dischargeable by a verified receipt.
     const declaresStepUp = !hasAmount && scopeTopology.isStepUpTool(ToolName) && !acrStrong;
+    // A verified A2A delegation is NOT held for consent.
+    //
+    // Rule 1c has already proved the specialist is acting under a user-bound
+    // chain (act:{specialist -> generalist}, depth >= 2) whose nested generalist
+    // is the REGISTERED AI Agent, for exactly this tool. That delegation is the
+    // user's authorization for this specialist to act; a second human prompt adds
+    // no control and stopped UC2 from ever completing — every delegation
+    // dead-ended at INDETERMINATE/HITL_REQUIRED after both token exchanges had
+    // already succeeded. Consent has its own use case (UC8).
+    //
+    // Deliberately narrow:
+    //   * STEP_UP above is untouched — a delegation can never satisfy MFA.
+    //   * A NON-delegated call to the same tool still requires consent, so the
+    //     control is not removed from the tool, only satisfied by the chain.
+    //   * Keyed off a2aDelegationVerified, never off the tool name alone, so an
+    //     unverified or forged chain gets no waiver.
+    if (a2aDelegationVerified) {
+      log(`[AuthzServer/decision] Rule 4 — verified A2A delegation satisfies consent for "${ToolName}"`);
+    }
     const declaresConsent =
       !hasAmount && !scopeTopology.isStepUpTool(ToolName) &&
-      ruleStore.hasChallengeType(ToolName) && !acrStrong && !hitlApproved;
+      ruleStore.hasChallengeType(ToolName) && !acrStrong && !hitlApproved
+      && !a2aDelegationVerified;
     if (overStepUp || declaresStepUp) {
       log(`[AuthzServer/decision] INDETERMINATE — STEP_UP: "${ToolName}" amount=$${amount} declaresStepUp=${declaresStepUp}`);
       return indeterminate(res, 'STEP_UP', 'step-up-required');
