@@ -40,8 +40,8 @@ Three gaps follow from that:
 
 - Replacing the `/mcp` routes' authorization. AAM sees only method, path,
   headers, and client IP; it cannot express per-tool rules.
-- Creating the PingOne console objects (group, API Gateway credential, API
-  Service). Those mutate a live environment and stay a manual step.
+- Reimplementing PingOne Authorize in the mock. The mock exists to make the
+  integration demonstrable offline, not to be a policy engine.
 - Rule-level explanation of a deny. The Sideband response carries what it
   carries; whatever it omits stays in the PingOne console.
 
@@ -188,6 +188,7 @@ and the mock has to speak that schema.
 
 | # | Phase | Done when |
 | --- | --- | --- |
+| 0 | Provision PingOne via the Management API (below) | Group, two test users, API gateway with credential, and a deployed API server exist; `PG_AAM_SERVICE_URL` and `AAM_GATEWAY_SECRET` are set and `/aam/health` returns 200 for the member and 403 for the non-member |
 | 1 | `AamSidebandCapture` + `AamTrailStamp` in the IG route | A request to `/aam/health` against a stub returns `X-Gw-Audit-Trail` containing the verbatim Sideband request; the emitted schema is recorded in this spec |
 | 2 | Mock Sideband endpoint on `demo_authz_server` | `X-Authz-Simulated: true` produces a PERMIT and a DENY from the mock, both with real request/response JSON in the trail |
 | 3 | `aam` trail section parsed by the BFF + `GET /api/aam/probe` | The probe returns decision plus both JSON bodies; jest covers parse and route |
@@ -196,14 +197,50 @@ and the mock has to speak that schema.
 
 Each phase is independently verifiable and leaves the demo working.
 
+## Phase 0 — provisioning without the console
+
+AAM's objects are reachable through the PingOne Management API using the worker
+credentials already in `demo_api_server/.env`
+(`PINGONE_WORKER_CLIENT_ID` / `PINGONE_WORKER_CLIENT_SECRET`). Neither the hosted
+PingOne MCP server nor console clicks are required. Verified live on
+2026-07-27 against environment `01d89b06`:
+
+| Call | Result |
+| --- | --- |
+| `POST auth.pingone.com/{envId}/as/token`, `client_secret_basic` | token issued; `client_secret_post` is rejected with `invalid_client` / "Unsupported authentication method" |
+| `GET /v1/environments/{envId}/apiServers` | `200` — AAM API Services are named **apiServers** in the Management API |
+| `GET /v1/environments/{envId}/gateways` | `200` |
+| `POST /v1/environments/{envId}/gateways` | requires `type`; the accepted value is `API_GATEWAY_INTEGRATION` |
+| `POST /v1/environments/{envId}/apiServers` | requires `name` and `baseUrls` |
+| `DELETE /v1/environments/{envId}/gateways/{id}` | `204` — creations are reversible |
+
+Two traps worth carrying into the plan. `demo_api_server/.env` contains a
+malformed line that breaks shell sourcing, silently leaving
+`PINGONE_ENVIRONMENT_ID` empty and sending requests to a bare
+`auth.pingone.com//as/token`, which answers with an AWS API Gateway error rather
+than a PingOne one — read the values with a targeted `grep`, not `.` sourcing.
+And an unrecognised `type` on `POST /gateways` returns a validation error while a
+recognised one creates the object immediately, so enum probing leaves artifacts
+that must be deleted.
+
+Still undiscovered: the gateway credential sub-resource, the operations and rules
+schema on an API server, and the deploy action. Phase 0 discovers these the same
+way, deleting probe artifacts as it goes.
+
 ## Risks
 
-**The real PingOne response schema is unverified.** Confirming it needs the
-console objects, which are not created by this work. The mock is built from the
-captured request and a best-effort response shape; the real path is confirmed
-after provisioning. If the real response differs, phase 2's mock is corrected —
-the capture and trail plumbing are unaffected, because they treat both bodies as
-opaque JSON.
+**The real PingOne response schema is unverified until phase 0 runs.** It is no
+longer blocked, only unfinished: phase 0 provisions the environment and phase 1's
+capture then records the real response verbatim. If the shape surprises us,
+phase 2's mock is corrected — the capture and trail plumbing are unaffected,
+because they treat both bodies as opaque JSON.
+
+**Phase 0 mutates a live PingOne environment.** Every object it creates is
+additive and individually deletable (`DELETE /gateways/{id}` returns 204,
+verified). Schema discovery for the remaining shapes — the gateway credential
+sub-resource, API server operations and rules, and the deploy action — proceeds
+by create-and-delete probing, so the environment must be left in a known state
+after each session.
 
 **`AttributesContext` sharing across the nested handler.** `AamSidebandCapture`
 runs inside `sidebandHandler`, a nested chain; `AamTrailStamp` runs on the outer
