@@ -916,10 +916,17 @@ function stripChainFieldsForModel(out, collector) {
   return rest;
 }
 
-function resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, sessionId, isAdmin = false }) {
+function resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, sessionId, isAdmin = false, a2aResultRef }) {
   return async (name, args) => {
     if (name === 'delegate_to_specialist') {
-      return executeA2aDelegation(activeId, args, { req, tokenEvents, sessionId });
+      const json = await executeA2aDelegation(activeId, args, { req, tokenEvents, sessionId });
+      // Captured so the reason-loop caller can replace the model's own phrasing
+      // with the same deterministic reply/card the non-LLM dispatch path uses
+      // (buildA2aReplyEnvelope) — see the loopResult.ok branch below.
+      if (a2aResultRef) {
+        try { a2aResultRef.current = JSON.parse(json); } catch (_) { /* leave unset */ }
+      }
+      return json;
     }
     if (verticalDispatch.isPluginToolName(name)) {
       return executeBffTool({
@@ -1749,7 +1756,8 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     const historyMessages = conversationStore.getHistory(userId, verticalForHistory) || [];
     const messages = [...historyMessages, { role: 'user', content: message }];
 
-    const executeTool = resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, sessionId, isAdmin: isAdminUser });
+    const a2aResultRef = { current: null };
+    const executeTool = resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, sessionId, isAdmin: isAdminUser, a2aResultRef });
 
     // UC34 activity-analysis pre-fetch. Same precedent as the UC30
     // weatherShowcase gate above: the model IS handed the right tool (banking
@@ -1824,8 +1832,14 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     if (loopResult.ok) {
       appEventService.logEvent('agent_prompt', 'info', `LLM response: ${String(loopResult.answer || '')}`,
         { tag: 'agent_prompt/llm_complete', metadata: { userId, response: String(loopResult.answer || ''), model: model || undefined } });
+      // delegate_to_specialist ran this turn: the model was handed the raw A2A
+      // JSON as its tool result and tends to paste it back verbatim instead of
+      // summarizing (small local models especially). Replace its answer with the
+      // same deterministic reply/card buildA2aReplyEnvelope gives the non-LLM
+      // dispatch path, so UC2 renders identically to a chip-driven delegation.
+      const a2aDisplay = a2aResultRef.current ? buildA2aReplyEnvelope(a2aResultRef.current, tokenEvents) : null;
       return {
-        reply: loopResult.answer,
+        reply: a2aDisplay ? a2aDisplay.reply : loopResult.answer,
         success: true,
         // Was hardcoded []. Tools DO run on this path (the loop executes
         // data.type === 'tool_calls' via executeTool), so reporting none made
@@ -1837,6 +1851,7 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
         requiresConsent: false,
         agentConfigured: true,
         tokenEvents: tokenEvents || [],
+        ...(a2aDisplay?.verticalResult ? { verticalResult: a2aDisplay.verticalResult } : {}),
       };
     }
     // Loop guard tripped: a tool returned a terminal signal (e.g. admin token on
