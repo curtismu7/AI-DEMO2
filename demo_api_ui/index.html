@@ -37,6 +37,34 @@
       font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
         monospace;
     }
+
+    /* Boot spinner: static markup inside #root, painted before the JS bundle
+       loads. React's root.render() replaces #root's children on mount, so
+       this disappears on its own — no cleanup code needed. */
+    #boot-spinner {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #f7f7f5;
+    }
+
+    #boot-spinner::after {
+      content: "";
+      width: 40px;
+      height: 40px;
+      border: 3px solid #d8d8d4;
+      border-top-color: #1e40af;
+      border-radius: 50%;
+      animation: boot-spin 0.8s linear infinite;
+    }
+
+    @keyframes boot-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
   </style>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -48,7 +76,7 @@
 
 <body>
   <noscript>You need to enable JavaScript to run this app.</noscript>
-  <div id="root"></div>
+  <div id="root"><div id="boot-spinner"></div></div>
 
   <!--
     Path A (CR-02/CR-04): the global WebSocket URL-token interceptor was
