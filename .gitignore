@@ -113,3 +113,12 @@ demo_api_server/data/persistent/lmdb/lock.mdb
 
 # pac.jar is a 33MB Ping-supplied binary — set PAC_JAR instead of committing it.
 /pac/pac.jar
+
+# Ad-hoc scratch files that accumulate in the repo root. Left untracked they
+# trip scripts/sync-main-checkout.sh's "unexpected dirty files" guard, which
+# then refuses to fast-forward — so the Docker stack (which bind-mounts the
+# main checkout) silently keeps serving pre-merge code after every PR.
+/amountAsCode.yaml
+/restrictions.yaml
+/content-api.zip
+/out.txt
