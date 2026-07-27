@@ -456,7 +456,15 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
       OTEL_SERVICE_NAME: "mcp-gateway"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
-      MCP_GW_OLB_WS_URL: "ws://mcp-server:8080"
+      # wss + client cert: mcp-server runs MCP_MTLS_ENABLED=true (#906), so its
+      # :8080 is TLS and pins certs/gw-mtls/gw-client.crt. Plain ws:// (or the
+      # http:// upstream derived from it) dies at the TLS handshake — every
+      # olb-routed A2A sensitive_* tools/call was a 502 "upstream_unavailable".
+      # If you disable mcp-server mTLS, flip this back to ws:// and drop the
+      # two *_CLIENT_*_PATH vars below.
+      MCP_GW_OLB_WS_URL: "wss://mcp-server:8080"
+      MCP_GW_UPSTREAM_CLIENT_CERT_PATH: "/certs/gw-mtls/gw-client.crt"
+      MCP_GW_UPSTREAM_CLIENT_KEY_PATH: "/certs/gw-mtls/gw-client.key"
       MCP_GW_INVEST_WS_URL: "ws://mcp-invest:8081"
       MCP_GW_JWTVERIFIER_HTTP_URL: "http://mcp-jwt-verifier:8083"
       MCP_JWTVERIFIER_RESOURCE_URI: "mcp-jwt-verifier.ping.demo"
