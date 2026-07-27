@@ -102,6 +102,47 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-27 — Gateway's 401 crashed into a 500 once signature verification was switched on
+
+**Files changed:** `demo_mcp_gateway/src/server/GatewayServer.ts`,
+`demo_mcp_gateway/tests/wwwAuthenticateHeaderSafety.test.ts` (new).
+
+**What was broken:** `sendUnauthorized` folded quotes but not control
+characters. Validator messages are multi-line (`tokenValidator.ts` builds
+multi-line templates; jose/jsonwebtoken embed newlines in signature errors), so
+`res.writeHead` threw `ERR_INVALID_CHAR` and a correct 401 surfaced to the
+client as a 500 `internal_server_error` — losing both the status and the
+`resource_metadata` hint RFC 9728 discovery depends on. MCP clients that
+re-authenticate on 401 see a server error instead.
+
+This was unreachable while the gateway accepted every token: it ran decode-only
+because `tokenValidator.ts` read `PINGONE_JWKS_ENDPOINT` while the stack only
+ever set `PINGONE_JWKS_URI`. **#1012 fixed that name mismatch** (accepting
+`PINGONE_JWKS_URI` as an alias), which turns signature verification on — and
+makes this crash reachable in the running stack. Found by enabling JWKS against
+live PingOne via a throwaway compose overlay: a forged HS256 token carrying
+correct `iss`/`aud`/`scope` was correctly rejected, then the 401 crashed on the
+way out and the client got `{"error":"internal_server_error"}`.
+
+**What was fixed:** header descriptions now go through the exported
+`sanitizeHeaderDescription` — strips CR/LF/tab and non-ASCII, folds quotes so
+the message cannot break out of its auth-param, caps at 300 chars.
+
+**Do not break:** keep `sanitizeHeaderDescription` between any validator
+message and a header value. The test imports the real exported function rather
+than a copy, so it cannot pass while production drifts. No compose change is
+needed for JWKS after #1012 — the alias resolves the already-present
+`PINGONE_JWKS_URI`; do not re-add a `PINGONE_JWKS_ENDPOINT` line.
+
+**Verify:** `cd demo_mcp_gateway && npm run build` (exit 0) and `npm test` —
+failures byte-identical to an untouched main checkout, plus 6 new passing
+(`tests/vault.test.ts` additionally needs `demo_api_server/node_modules`
+symlinked inside a worktree or it fails to run on missing `argon2`).
+Revert-to-RED: drop the control-character strips from
+`sanitizeHeaderDescription` and 3 of the 6 header tests fail.
+NOT verified live: that the rejection now returns a clean 401 rather than 500 —
+that needs a gateway image rebuild, since the gateway bakes its code.
+
 ### 2026-07-27 — Passkey step-up dead-ended when the credential lived on another device; SMS had no registration path on the dashboard
 
 **Files changed:** `demo_api_ui/src/components/OtpStepUpModal.js`,

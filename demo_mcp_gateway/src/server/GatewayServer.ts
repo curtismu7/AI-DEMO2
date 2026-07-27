@@ -100,6 +100,25 @@ export interface GatewayServerOptions {
   requestMiddleware?: McpRequestMiddleware;
 }
 
+/**
+ * Make a validator message safe to carry in a WWW-Authenticate header value.
+ *
+ * HTTP header values are ASCII-printable only, but validator messages are not:
+ * tokenValidator builds multi-line templates and jose/jsonwebtoken embed
+ * newlines in signature errors. Emitting one raw makes res.writeHead throw
+ * ERR_INVALID_CHAR, which turned a correct 401 into a 500
+ * internal_server_error — the client lost both the status and the
+ * resource_metadata hint RFC 9728 discovery relies on. Quotes are also folded
+ * so the message cannot break out of the auth-param it sits in.
+ */
+export function sanitizeHeaderDescription(description: string): string {
+  return description
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/[^\x20-\x7E]/g, '')
+    .replace(/"/g, "'")
+    .slice(0, 300);
+}
+
 export class GatewayServer {
   private readonly server: http.Server | https.Server;
   private readonly config: GatewayConfig;
@@ -726,7 +745,7 @@ export class GatewayServer {
   private sendUnauthorized(req: IncomingMessage, res: ServerResponse, errorCode: string, description: string): void {
     const realm = 'banking-mcp-gateway';
     const metadataUrl = `${selfBaseUrl(req, this.config.port)}/.well-known/oauth-protected-resource`;
-    const safeDesc = description.replace(/"/g, "'");
+    const safeDesc = sanitizeHeaderDescription(description);
     res.writeHead(401, {
       'Content-Type': 'application/json',
       'WWW-Authenticate': appendEnterpriseWwwAuthHint([
