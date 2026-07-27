@@ -1,0 +1,12 @@
+{
+  "vertical": "manufacturing",
+  "useCaseId": "a2a-delegation",
+  "ucId": "UC2",
+  "trigger": "show my sensitive supplier contract",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-27T21:26:17.951Z",
+  "seedHash": "dcba7c79003a5241",
+  "reply": "Delegation complete — Supplier Contract Specialist retrieved sensitive supplier contract on your behalf (act-chain depth 2).",
+  "agentPath": null,
+  "tokenEventCount": 14
+}

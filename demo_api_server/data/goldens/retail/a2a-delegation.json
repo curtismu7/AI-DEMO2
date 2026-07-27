@@ -1,0 +1,12 @@
+{
+  "vertical": "retail",
+  "useCaseId": "a2a-delegation",
+  "ucId": "UC2",
+  "trigger": "show my sensitive order history",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-27T21:20:05.807Z",
+  "seedHash": "6a8345537e56d245",
+  "reply": "Delegation complete — Purchase History Specialist retrieved sensitive order history on your behalf (act-chain depth 2).",
+  "agentPath": null,
+  "tokenEventCount": 14
+}
