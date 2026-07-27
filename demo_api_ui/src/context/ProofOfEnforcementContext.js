@@ -134,10 +134,20 @@ export function computeVerdict(trace, catalogEntry) {
   const state = outcomeMatches
     ? (expectedIsDenyLike ? 'denied-as-expected' : 'verified')
     : 'mismatch';
+  // STEP_UP/HITL_REQUIRED are approval gates, not hard denials — the call is
+  // paused, not refused, and goes on to PERMIT once the human/MFA step is
+  // satisfied. Labeling that "denied" reads as a contradiction next to the
+  // chat's own "completed successfully" message, so give those two families
+  // their own gate-specific wording and reserve "denied" for the real DENY
+  // family (where the call is in fact refused).
   const resultText = state === 'mismatch'
     ? 'Result did not match the expected outcome'
     : expectedIsDenyLike
-      ? 'Denied as expected by policy'
+      ? (expectedFamily === 'STEP_UP'
+          ? 'Step-up MFA required as expected — then permitted'
+          : expectedFamily === 'HITL_REQUIRED'
+            ? 'Human approval required as expected — then permitted'
+            : 'Denied as expected by policy')
       : tool
         ? `Completed — ${tool} dispatched`
         : 'Completed';

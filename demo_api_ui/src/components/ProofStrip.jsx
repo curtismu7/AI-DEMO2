@@ -4,7 +4,7 @@ import './ProofStrip.css';
 
 const STATE_LABEL = {
   verified: 'Verified',
-  'denied-as-expected': 'Verified (denied as expected)',
+  'denied-as-expected': 'Verified (as expected)',
   mismatch: 'Mismatch',
   incomplete: 'Incomplete',
 };
