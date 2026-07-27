@@ -4855,15 +4855,18 @@ body > .banking-agent-float-root .banking-agent-panel {
   padding: 2px 10px;
 }
 
-/* Scope picker inside the compact control bar — label + toggle only, no
-   settings-panel padding/divider/hint (same "hide long hint" pattern as
+/* Scope picker inside the control bar (split-column boxes AND the flat
+   floating-widget row) — label + toggle only, no settings-panel
+   padding/divider/hint (same "hide long hint" pattern as
    .ba-agent-popout-hdr above). */
-.ba-hg .agent-scope-picker-row {
+.ba-hg .agent-scope-picker-row,
+.ba-hg--flat .agent-scope-picker-row {
   padding: 0;
   border-bottom: none;
   gap: 0;
 }
-.ba-hg .scope-picker__hint {
+.ba-hg .scope-picker__hint,
+.ba-hg--flat .scope-picker__hint {
   display: none;
 }
 

@@ -554,11 +554,11 @@ const Dashboard = ({ user, onLogout }) => {
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: "0.5rem",
+                  gap: "0.4rem",
                   cursor: "pointer",
-                  padding: "0.5rem 0.75rem",
+                  padding: "0.3rem 0.5rem",
                   borderRadius: "6px",
-                  fontSize: "0.9rem",
+                  fontSize: "0.85rem",
                   fontWeight: 500,
                   userSelect: "none",
                 }}
