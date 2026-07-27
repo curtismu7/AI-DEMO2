@@ -40,8 +40,8 @@
 
 | | Count |
 |---|---|
-| Total prompt-shaped entries scanned | 170 |
-| Non-text triggers noted (simulations / showcases) | 29 |
+| Total prompt-shaped entries scanned | 183 |
+| Non-text triggers noted (simulations / showcases) | 34 |
 | Exact-duplicate groups (same literal text, 2+ places) | 19 |
 | Near-duplicate intent groups (same ask, different wording) | 3 |
 | Prompts with NO documented expected outcome | 3 |
@@ -80,10 +80,10 @@
 | Source | Location | Outcome documented? |
 |---|---|---|
 | catalog (chip) | UC1 [healthcare] | PERMIT |
-| catalog (chip) | UC2 [healthcare] | PERMIT |
 | catalog (chip) | UC3 [healthcare] | PERMIT |
 | catalog (chip) | UC19 [healthcare] | DENY_401 |
 | catalog (chip) | UC20 [healthcare] | PERMIT |
+| catalog (chip) | UC33 [healthcare] | PERMIT |
 | catalog (chip) | UC4 [healthcare] | PERMIT |
 | catalog (chip) | UC17 [healthcare] | PERMIT |
 | catalog (chip) | UC25 [healthcare] | PERMIT |
@@ -94,10 +94,10 @@
 | Source | Location | Outcome documented? |
 |---|---|---|
 | catalog (chip) | UC1 [retail] | PERMIT |
-| catalog (chip) | UC2 [retail] | PERMIT |
 | catalog (chip) | UC3 [retail] | PERMIT |
 | catalog (chip) | UC19 [retail] | DENY_401 |
 | catalog (chip) | UC20 [retail] | PERMIT |
+| catalog (chip) | UC33 [retail] | PERMIT |
 | catalog (chip) | UC4 [retail] | PERMIT |
 | catalog (chip) | UC17 [retail] | PERMIT |
 | catalog (chip) | UC25 [retail] | PERMIT |
@@ -108,10 +108,10 @@
 | Source | Location | Outcome documented? |
 |---|---|---|
 | catalog (chip) | UC1 [government] | PERMIT |
-| catalog (chip) | UC2 [government] | PERMIT |
 | catalog (chip) | UC3 [government] | PERMIT |
 | catalog (chip) | UC19 [government] | DENY_401 |
 | catalog (chip) | UC20 [government] | PERMIT |
+| catalog (chip) | UC33 [government] | PERMIT |
 | catalog (chip) | UC4 [government] | PERMIT |
 | catalog (chip) | UC17 [government] | PERMIT |
 | catalog (chip) | UC25 [government] | PERMIT |
@@ -122,10 +122,10 @@
 | Source | Location | Outcome documented? |
 |---|---|---|
 | catalog (chip) | UC1 [university] | PERMIT |
-| catalog (chip) | UC2 [university] | PERMIT |
 | catalog (chip) | UC3 [university] | PERMIT |
 | catalog (chip) | UC19 [university] | DENY_401 |
 | catalog (chip) | UC20 [university] | PERMIT |
+| catalog (chip) | UC33 [university] | PERMIT |
 | catalog (chip) | UC4 [university] | PERMIT |
 | catalog (chip) | UC17 [university] | PERMIT |
 | catalog (chip) | UC25 [university] | PERMIT |
@@ -136,10 +136,10 @@
 | Source | Location | Outcome documented? |
 |---|---|---|
 | catalog (chip) | UC1 [workforce] | PERMIT |
-| catalog (chip) | UC2 [workforce] | PERMIT |
 | catalog (chip) | UC3 [workforce] | PERMIT |
 | catalog (chip) | UC19 [workforce] | DENY_401 |
 | catalog (chip) | UC20 [workforce] | PERMIT |
+| catalog (chip) | UC33 [workforce] | PERMIT |
 | catalog (chip) | UC4 [workforce] | PERMIT |
 | catalog (chip) | UC17 [workforce] | PERMIT |
 | catalog (chip) | UC25 [workforce] | PERMIT |
@@ -150,10 +150,10 @@
 | Source | Location | Outcome documented? |
 |---|---|---|
 | catalog (chip) | UC1 [sporting-goods] | PERMIT |
-| catalog (chip) | UC2 [sporting-goods] | PERMIT |
 | catalog (chip) | UC3 [sporting-goods] | PERMIT |
 | catalog (chip) | UC19 [sporting-goods] | DENY_401 |
 | catalog (chip) | UC20 [sporting-goods] | PERMIT |
+| catalog (chip) | UC33 [sporting-goods] | PERMIT |
 | catalog (chip) | UC4 [sporting-goods] | PERMIT |
 | catalog (chip) | UC17 [sporting-goods] | PERMIT |
 | catalog (chip) | UC25 [sporting-goods] | PERMIT |
@@ -164,10 +164,10 @@
 | Source | Location | Outcome documented? |
 |---|---|---|
 | catalog (chip) | UC1 [manufacturing] | PERMIT |
-| catalog (chip) | UC2 [manufacturing] | PERMIT |
 | catalog (chip) | UC3 [manufacturing] | PERMIT |
 | catalog (chip) | UC19 [manufacturing] | DENY_401 |
 | catalog (chip) | UC20 [manufacturing] | PERMIT |
+| catalog (chip) | UC33 [manufacturing] | PERMIT |
 | catalog (chip) | UC4 [manufacturing] | PERMIT |
 | catalog (chip) | UC17 [manufacturing] | PERMIT |
 | catalog (chip) | UC25 [manufacturing] | PERMIT |
@@ -178,10 +178,10 @@
 | Source | Location | Outcome documented? |
 |---|---|---|
 | catalog (chip) | UC1 [investment] | PERMIT |
-| catalog (chip) | UC2 [investment] | PERMIT |
 | catalog (chip) | UC3 [investment] | PERMIT |
 | catalog (chip) | UC19 [investment] | DENY_401 |
 | catalog (chip) | UC20 [investment] | PERMIT |
+| catalog (chip) | UC33 [investment] | PERMIT |
 | catalog (chip) | UC4 [investment] | PERMIT |
 | catalog (chip) | UC17 [investment] | PERMIT |
 | catalog (chip) | UC25 [investment] | PERMIT |
@@ -194,7 +194,6 @@
 | catalog (chip) | UC7 | STEP_UP |
 | catalog (chip) | UC9 | DENY |
 | catalog (chip) | UC21 | PERMIT |
-| catalog (chip) | UC22 | PERMIT |
 | catalog (chip) | UC27 | HITL_REQUIRED |
 | AiAttacksPanel.js (catalog, resolved via /api/use-cases/demo/run) | RUN_BY_TAB['hitl-bypass'] -> hitl-consent-bypass-attempt | HITL_REQUIRED |
 
@@ -205,7 +204,6 @@
 | catalog (chip) | UC7 [healthcare] | STEP_UP |
 | catalog (chip) | UC9 [healthcare] | DENY |
 | catalog (chip) | UC21 [healthcare] | PERMIT |
-| catalog (chip) | UC22 [healthcare] | PERMIT |
 | catalog (chip) | UC27 [healthcare] | HITL_REQUIRED |
 
 ### "checkout headphones for $600"
@@ -215,7 +213,6 @@
 | catalog (chip) | UC7 [retail] | STEP_UP |
 | catalog (chip) | UC9 [retail] | DENY |
 | catalog (chip) | UC21 [retail] | PERMIT |
-| catalog (chip) | UC22 [retail] | PERMIT |
 | catalog (chip) | UC27 [retail] | HITL_REQUIRED |
 
 ### "pay the $600 fee"
@@ -225,7 +222,6 @@
 | catalog (chip) | UC7 [government] | STEP_UP |
 | catalog (chip) | UC9 [government] | DENY |
 | catalog (chip) | UC21 [government] | PERMIT |
-| catalog (chip) | UC22 [government] | PERMIT |
 | catalog (chip) | UC27 [government] | HITL_REQUIRED |
 
 ### "pay $600 tuition"
@@ -235,7 +231,6 @@
 | catalog (chip) | UC7 [university] | STEP_UP |
 | catalog (chip) | UC9 [university] | DENY |
 | catalog (chip) | UC21 [university] | PERMIT |
-| catalog (chip) | UC22 [university] | PERMIT |
 | catalog (chip) | UC27 [university] | HITL_REQUIRED |
 
 ### "submit a $600 expense"
@@ -245,7 +240,6 @@
 | catalog (chip) | UC7 [workforce] | STEP_UP |
 | catalog (chip) | UC9 [workforce] | DENY |
 | catalog (chip) | UC21 [workforce] | PERMIT |
-| catalog (chip) | UC22 [workforce] | PERMIT |
 | catalog (chip) | UC27 [workforce] | HITL_REQUIRED |
 
 ### "extend my rental $600"
@@ -255,7 +249,6 @@
 | catalog (chip) | UC7 [sporting-goods] | STEP_UP |
 | catalog (chip) | UC9 [sporting-goods] | DENY |
 | catalog (chip) | UC21 [sporting-goods] | PERMIT |
-| catalog (chip) | UC22 [sporting-goods] | PERMIT |
 | catalog (chip) | UC27 [sporting-goods] | HITL_REQUIRED |
 
 ### "approve a $600 purchase order"
@@ -265,7 +258,6 @@
 | catalog (chip) | UC7 [manufacturing] | STEP_UP |
 | catalog (chip) | UC9 [manufacturing] | DENY |
 | catalog (chip) | UC21 [manufacturing] | PERMIT |
-| catalog (chip) | UC22 [manufacturing] | PERMIT |
 | catalog (chip) | UC27 [manufacturing] | HITL_REQUIRED |
 
 ### "execute a large trade of $600"
@@ -275,7 +267,6 @@
 | catalog (chip) | UC7 [investment] | STEP_UP |
 | catalog (chip) | UC9 [investment] | DENY |
 | catalog (chip) | UC21 [investment] | PERMIT |
-| catalog (chip) | UC22 [investment] | PERMIT |
 | catalog (chip) | UC27 [investment] | HITL_REQUIRED |
 
 ### "Can you waive the fee on my checking account?"
@@ -317,7 +308,7 @@
 | "transfer $300 from checking to savings" | $300 | catalog (chip) | UC8 | HITL_REQUIRED |
 | "transfer $600 from checking to savings" | $600 | catalog (chip) | UC9 | DENY |
 | "transfer $600 from checking to savings" | $600 | catalog (chip) | UC21 | PERMIT |
-| "transfer $600 from checking to savings" | $600 | catalog (chip) | UC22 | PERMIT |
+| "transfer $150 from checking to savings" | $150 | catalog (chip) | UC22 | PERMIT |
 | "transfer $600 from checking to savings" | $600 | catalog (chip) | UC27 | HITL_REQUIRED |
 | "transfer $600 from checking to savings" | $600 | AiAttacksPanel.js (catalog, resolved via /api/use-cases/demo/run) | RUN_BY_TAB['hitl-bypass'] -> hitl-consent-bypass-attempt | HITL_REQUIRED |
 | "Transfer $500 from checking to savings on behalf of the user" | $500 | PingOneTestPage.jsx (illustrative text only — does not launch the agent) | agentPrompt #2 (line 56) | — |
@@ -368,14 +359,14 @@
 | "show my work orders" | catalog (chip) | UC1 [manufacturing] | PERMIT |
 | "show my portfolios" | catalog (chip) | UC1 [investment] | PERMIT |
 | "hand off to a specialist" | catalog (chip) | UC2 | PERMIT |
-| "check my coverage" | catalog (chip) | UC2 [healthcare] | PERMIT |
-| "list my orders" | catalog (chip) | UC2 [retail] | PERMIT |
-| "show my permits" | catalog (chip) | UC2 [government] | PERMIT |
-| "show my enrolled courses" | catalog (chip) | UC2 [university] | PERMIT |
-| "my benefits" | catalog (chip) | UC2 [workforce] | PERMIT |
-| "my gear" | catalog (chip) | UC2 [sporting-goods] | PERMIT |
-| "show my work orders" | catalog (chip) | UC2 [manufacturing] | PERMIT |
-| "show my portfolios" | catalog (chip) | UC2 [investment] | PERMIT |
+| "show my sensitive patient records" | catalog (chip) | UC2 [healthcare] | PERMIT |
+| "show my sensitive order history" | catalog (chip) | UC2 [retail] | PERMIT |
+| "show my sensitive tax record" | catalog (chip) | UC2 [government] | PERMIT |
+| "access my sensitive student finance" | catalog (chip) | UC2 [university] | PERMIT |
+| "show my sensitive payroll details" | catalog (chip) | UC2 [workforce] | PERMIT |
+| "show my sensitive membership details" | catalog (chip) | UC2 [sporting-goods] | PERMIT |
+| "show my sensitive supplier contract" | catalog (chip) | UC2 [manufacturing] | PERMIT |
+| "show my sensitive holdings" | catalog (chip) | UC2 [investment] | PERMIT |
 | "delegate this to a specialist" | catalog (chip) | UC2.5 | DELEGATE_AND_EXECUTE |
 | "show my balance" | catalog (chip) | UC3 | PERMIT |
 | "check my coverage" | catalog (chip) | UC3 [healthcare] | PERMIT |
@@ -404,6 +395,17 @@
 | "my gear" | catalog (chip) | UC20 [sporting-goods] | PERMIT |
 | "show my work orders" | catalog (chip) | UC20 [manufacturing] | PERMIT |
 | "show my portfolios" | catalog (chip) | UC20 [investment] | PERMIT |
+| "show my mortgage" | catalog (chip) | UC33 | PERMIT |
+| "check my coverage" | catalog (chip) | UC33 [healthcare] | PERMIT |
+| "list my orders" | catalog (chip) | UC33 [retail] | PERMIT |
+| "show my permits" | catalog (chip) | UC33 [government] | PERMIT |
+| "show my enrolled courses" | catalog (chip) | UC33 [university] | PERMIT |
+| "my benefits" | catalog (chip) | UC33 [workforce] | PERMIT |
+| "my gear" | catalog (chip) | UC33 [sporting-goods] | PERMIT |
+| "show my work orders" | catalog (chip) | UC33 [manufacturing] | PERMIT |
+| "show my portfolios" | catalog (chip) | UC33 [investment] | PERMIT |
+| "Check for unusual patterns in my recent activity" | catalog (chip) | UC34 | PERMIT |
+| "Explain why my last blocked action was denied and walk me through the token chain" | catalog (chip) | UC35 | PERMIT |
 | "show my balance" | catalog (chip) | UC4 | PERMIT |
 | "check my coverage" | catalog (chip) | UC4 [healthcare] | PERMIT |
 | "list my orders" | catalog (chip) | UC4 [retail] | PERMIT |
@@ -458,15 +460,15 @@
 | "extend my rental $600" | catalog (chip) | UC21 [sporting-goods] | PERMIT |
 | "approve a $600 purchase order" | catalog (chip) | UC21 [manufacturing] | PERMIT |
 | "execute a large trade of $600" | catalog (chip) | UC21 [investment] | PERMIT |
-| "transfer $600 from checking to savings" | catalog (chip) | UC22 | PERMIT |
-| "pay my $600 bill" | catalog (chip) | UC22 [healthcare] | PERMIT |
-| "checkout headphones for $600" | catalog (chip) | UC22 [retail] | PERMIT |
-| "pay the $600 fee" | catalog (chip) | UC22 [government] | PERMIT |
-| "pay $600 tuition" | catalog (chip) | UC22 [university] | PERMIT |
-| "submit a $600 expense" | catalog (chip) | UC22 [workforce] | PERMIT |
-| "extend my rental $600" | catalog (chip) | UC22 [sporting-goods] | PERMIT |
-| "approve a $600 purchase order" | catalog (chip) | UC22 [manufacturing] | PERMIT |
-| "execute a large trade of $600" | catalog (chip) | UC22 [investment] | PERMIT |
+| "transfer $150 from checking to savings" | catalog (chip) | UC22 | PERMIT |
+| "pay my $150 bill" | catalog (chip) | UC22 [healthcare] | PERMIT |
+| "checkout headphones for $150" | catalog (chip) | UC22 [retail] | PERMIT |
+| "pay the $150 fee" | catalog (chip) | UC22 [government] | PERMIT |
+| "pay $150 tuition" | catalog (chip) | UC22 [university] | PERMIT |
+| "submit a $150 expense" | catalog (chip) | UC22 [workforce] | PERMIT |
+| "extend my rental $150" | catalog (chip) | UC22 [sporting-goods] | PERMIT |
+| "approve a $150 purchase order" | catalog (chip) | UC22 [manufacturing] | PERMIT |
+| "execute a large trade of $150" | catalog (chip) | UC22 [investment] | PERMIT |
 | "What branches are near me?" | catalog (chip) | UC24 | PERMIT |
 | "What clinics are near me?" | catalog (chip) | UC24 [healthcare] | PERMIT |
 | "What stores are near me?" | catalog (chip) | UC24 [retail] | PERMIT |
@@ -483,6 +485,8 @@
 | "my gear" | catalog (chip) | UC17 [sporting-goods] | PERMIT |
 | "show my work orders" | catalog (chip) | UC17 [manufacturing] | PERMIT |
 | "show my portfolios" | catalog (chip) | UC17 [investment] | PERMIT |
+| "what's the weather in Austin, TX" | catalog (chip) | UC30 | PERMIT |
+| "what's the weather in Miami" | catalog (chip) | UC31 | DENY |
 | "show my balance" | catalog (chip) | UC25 | PERMIT |
 | "check my coverage" | catalog (chip) | UC25 [healthcare] | PERMIT |
 | "list my orders" | catalog (chip) | UC25 [retail] | PERMIT |
@@ -536,9 +540,14 @@
 | [simulation: impersonation-no-act] | catalog (attack-sim) | UC16 |
 | [simulation: rate-limit-burst] | catalog (attack-sim) | UC18 |
 | [simulation: rate-limit-burst] | catalog (attack-sim) | UC18 |
+| [simulation: introspection-down] | catalog (attack-sim) | UC29 |
+| [simulation: introspection-down] | catalog (attack-sim) | UC29 |
 | [showcase: atk_prompt_injection] | AiAttacksPanel.js (showcase) | RUN_BY_TAB['prompt-injection'] |
 | [showcase: atk_indirect_injection] | AiAttacksPanel.js (showcase) | RUN_BY_TAB['indirect-injection'] |
 | [showcase: atk_scope_escalation] | AiAttacksPanel.js (showcase) | RUN_BY_TAB['scope-abuse'] |
+| [showcase: authz_deny] | AiAttacksPanel.js (showcase) | RUN_BY_TAB['authz-deny'] |
+| [showcase: atk_confused_deputy] | AiAttacksPanel.js (showcase) | RUN_BY_TAB['confused-deputy'] |
+| [showcase: atk_hitl_replay] | AiAttacksPanel.js (showcase) | RUN_BY_TAB['hitl-replay'] |
 | Re-enable ff_hitl_enabled in Demo Controls for subsequent tests | AgentDemoGuide.jsx (UI instruction, not a prompt) | line 278 |
 | Sign in modal appears — click Customer Sign In | AgentDemoGuide.jsx (UI instruction, not a prompt) | line 442 |
 | Go to Controls → Feature Flags → confirm ff_intent_token_enabled is ON (default) | AgentDemoGuide.jsx (UI instruction, not a prompt) | line 768 |
