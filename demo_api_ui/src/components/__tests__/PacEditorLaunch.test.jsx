@@ -1,9 +1,35 @@
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import PacEditorLaunch from '../PacEditorLaunch';
 
+const originalLocation = window.location;
+
+function stubHostname(hostname) {
+  Object.defineProperty(window, 'location', {
+    value: { ...originalLocation, hostname },
+    configurable: true,
+    writable: true,
+  });
+}
+
 describe('PacEditorLaunch', () => {
+  afterEach(() => {
+    // jsdom defaults window.location.hostname to 'localhost'; restore it in
+    // case a test overrode it.
+    Object.defineProperty(window, 'location', {
+      value: originalLocation,
+      configurable: true,
+      writable: true,
+    });
+  });
+
+  it('renders nothing on a non-local hostname, so a shared cluster never probes or advertises the local editor', () => {
+    stubHostname('ai-demo.ping-devops.com');
+    const { container } = render(<PacEditorLaunch probe={() => Promise.resolve('running')} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('shows Running when the editor answers', async () => {
     render(<PacEditorLaunch probe={() => Promise.resolve('running')} />);
     expect(await screen.findByText('Policy editor: Running')).toBeTruthy();

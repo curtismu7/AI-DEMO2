@@ -6,7 +6,7 @@ import {
 } from './pacEditorStatus';
 
 const S = {
-  wrap: { display: 'flex', alignItems: 'center', gap: 10, fontSize: 12 },
+  wrap: { display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, flexWrap: 'wrap' },
   status: { color: '#475569', whiteSpace: 'nowrap' },
   dot: (on) => ({
     display: 'inline-block',
@@ -18,23 +18,29 @@ const S = {
   }),
   hint: {
     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-    background: '#f1f5f9',
-    border: '1px solid #e2e8f0',
+    background: '#e2e8f0',
+    border: '1px solid #cbd5e1',
     borderRadius: 4,
     padding: '2px 6px',
     color: '#334155',
     whiteSpace: 'nowrap',
   },
-  link: {
-    textDecoration: 'none',
-    border: '1px solid #cbd5e1',
-    borderRadius: 6,
-    padding: '4px 10px',
-    color: '#0f172a',
-    background: '#fff',
-    whiteSpace: 'nowrap',
-  },
 };
+
+// Local-only: this control probes the presenter's own loopback address and
+// advertises a shell command that must not be run against a shared cluster
+// (see scripts/pac-edit.sh's own header). On a shared deployment (e.g. the SE
+// AWS cluster at ai-demo.ping-devops.com) that probe would just hit each
+// viewer's own machine and the command would be actively wrong, so the
+// control renders nothing outside local hostnames.
+const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', 'local.ping-devops.com']);
+
+function isLocalHost() {
+  return (
+    typeof window !== 'undefined' &&
+    LOCAL_HOSTNAMES.has(window.location.hostname)
+  );
+}
 
 // Status + launcher for the local Policy-as-Code editor.
 //
@@ -43,16 +49,20 @@ const S = {
 // disabling on failure would block a working editor in browsers that block the
 // probe. Better to let the click through and let the new tab tell the truth.
 export default function PacEditorLaunch({ probe = probePacEditor }) {
+  const local = isLocalHost();
   const [status, setStatus] = useState('unknown');
   const aliveRef = useRef(true);
 
   const check = useCallback(() => {
-    Promise.resolve(probe()).then((next) => {
-      if (aliveRef.current) setStatus(next);
-    });
+    Promise.resolve(probe())
+      .then((next) => {
+        if (aliveRef.current) setStatus(next);
+      })
+      .catch(() => {});
   }, [probe]);
 
   useEffect(() => {
+    if (!local) return undefined;
     aliveRef.current = true;
     check();
     const onFocus = () => check();
@@ -61,7 +71,11 @@ export default function PacEditorLaunch({ probe = probePacEditor }) {
       aliveRef.current = false;
       window.removeEventListener('focus', onFocus);
     };
-  }, [check]);
+  }, [check, local]);
+
+  // Nothing to render on a shared deployment — see the LOCAL_HOSTNAMES note
+  // above.
+  if (!local) return null;
 
   const running = status === 'running';
 
@@ -73,7 +87,7 @@ export default function PacEditorLaunch({ probe = probePacEditor }) {
       </span>
       {!running && <code style={S.hint}>{PAC_EDITOR_COMMAND}</code>}
       <a
-        style={S.link}
+        className="inspector-shell-topbar__btn"
         href={PAC_EDITOR_URL}
         target="_blank"
         rel="noopener noreferrer"
