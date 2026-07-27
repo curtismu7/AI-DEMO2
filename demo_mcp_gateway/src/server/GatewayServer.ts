@@ -99,6 +99,13 @@ export interface GatewayServerOptions {
   upstreamMcpUrl?: string;
   /** Injected by Plan 243-02 to add authorize + exchange pipeline */
   requestMiddleware?: McpRequestMiddleware;
+  /**
+   * Gateway client cert for the mTLS hop to an https upstream (the client
+   * half of #906 — mcp-server with MCP_MTLS_ENABLED=true rejects bare
+   * connections with 403 mtls_required). Same PEM pair proxy.ts passes to
+   * the WS backends via MtlsOptions.
+   */
+  mtlsCerts?: { clientCert: string; clientKey: string };
 }
 
 /**
@@ -126,8 +133,9 @@ export class GatewayServer {
   private readonly upstreamMcpUrl: string;
   private readonly middleware: McpRequestMiddleware;
   private readonly acceptedOriginsRe: RegExp;
+  private readonly upstreamHttpsAgent: https.Agent | undefined;
 
-  constructor({ config, upstreamMcpUrl, requestMiddleware }: GatewayServerOptions) {
+  constructor({ config, upstreamMcpUrl, requestMiddleware, mtlsCerts }: GatewayServerOptions) {
     this.config = config;
     this.upstreamMcpUrl = (
       upstreamMcpUrl ||
@@ -135,6 +143,16 @@ export class GatewayServer {
       httpUpstreamFromWsUrl(config.mcpOlbWsUrl) ||
       'http://localhost:8080'
     ).replace(/\/$/, '');
+    // axios only consults httpsAgent for https:// URLs, so this is inert for
+    // plain-http upstreams (jwtverifier). rejectUnauthorized:false mirrors
+    // proxy.ts — the mcp-server cert is self-signed per boot.
+    this.upstreamHttpsAgent = mtlsCerts
+      ? new https.Agent({
+          cert: mtlsCerts.clientCert,
+          key: mtlsCerts.clientKey,
+          rejectUnauthorized: false,
+        })
+      : undefined;
     this.middleware = requestMiddleware ?? defaultMiddleware;
     // McpValidationFilter equivalent: accepted origins for CORS (default: allow all)
     // IN-05: anchor with ^(?:...)$ so an operator who tightens the value to
@@ -679,6 +697,7 @@ export class GatewayServer {
           headers: baseHeaders,
           timeout: 10_000,
           validateStatus: () => true,
+          httpsAgent: this.upstreamHttpsAgent,
         });
         sessionId = initResp.headers[MCP_SESSION_HEADER] as string | undefined;
         if (sessionId) {
@@ -687,7 +706,7 @@ export class GatewayServer {
           await axios.post(
             upstreamUrl,
             JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} }),
-            { headers: notifHeaders, timeout: 5_000, validateStatus: () => true },
+            { headers: notifHeaders, timeout: 5_000, validateStatus: () => true, httpsAgent: this.upstreamHttpsAgent },
           );
         }
       } catch (err) {
@@ -710,6 +729,7 @@ export class GatewayServer {
         responseType: 'arraybuffer',
         timeout: timeoutMs,
         validateStatus: () => true, // forward all status codes
+        httpsAgent: this.upstreamHttpsAgent,
       });
 
       // Propagate upstream response headers clients care about
