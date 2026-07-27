@@ -473,32 +473,7 @@ services:
       PINGAUTHORIZE_MOCK_BASE: "http://authz-server:9001"
       PINGAUTHORIZE_WORKER_ID: "mcp-gateway"
       MCP_GW_P1AZ_ENABLED: "true"
-      # Token introspection now goes to REAL PingOne, not the mock.
-      #
-      # GW_INTROSPECTION_ENDPOINT overrides PINGONE_INTROSPECTION_ENDPOINT
-      # (config.ts: optional('GW_INTROSPECTION_ENDPOINT', optional('PINGONE_
-      # INTROSPECTION_ENDPOINT', ''))). Pointed at authz-server it meant the
-      # gateway validated EVERY token against the mock, which answers
-      # active:true for essentially anything — the weakest link in the chain,
-      # and invisible because the demo worked either way.
-      #
-      # demo_mcp_gateway/.env ALREADY set GW_INTROSPECTION_ENDPOINT to the real
-      # PingOne endpoint — compose `environment:` beats `env_file`, so this line
-      # silently overrode the intended value. Removing it lets the env_file
-      # value apply. Credentials are unchanged: introspection
-      # auth reads GW_INTROSPECTION_CLIENT_ID/SECRET regardless of endpoint,
-      # and those are the "Demo AI App - Token Exchanger" app, which is a real
-      # PingOne client.
-      #
-      # Verified 2026-07-27 against live PingOne before flipping: introspecting
-      # a gateway-audienced token (aud https://api.ping.demo:3036/mcp, scope
-      # gateway:mcp:invoke) returned HTTP 200 active:true with full claims
-      # including act — exactly what the gateway reads. A token for a DIFFERENT
-      # resource returned active:false, so entitlement is real and this is not
-      # a rubber stamp.
-      #
-      # To roll back: restore GW_INTROSPECTION_ENDPOINT to
-      # http://authz-server:9001/as/introspect and force-recreate mcp-gateway.
+      GW_INTROSPECTION_ENDPOINT: "http://authz-server:9001/as/introspect"
       # This stack has never configured PINGONE_JWKS_ENDPOINT, so the gateway has
       # always run decode-only (no signature verification). That used to be silent;
       # it now requires this explicit opt-in and is reported in the failOpen list of
