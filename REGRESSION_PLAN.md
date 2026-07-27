@@ -102,6 +102,38 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-27 — Inspector "Form" output tab unreadable on MCP Inspector and PingGateway Inspector; PingOne Authorize had no Form tab
+
+**Files changed:** `demo_api_ui/src/components/McpInspectorPage.jsx`,
+`demo_api_ui/src/components/AgentGatewayTester.jsx`,
+`demo_api_ui/src/components/PingOneAuthorizePage.jsx`.
+
+**What was broken:** The Form output tab (all four `McpInspectorPage`
+sources, plus `AgentGatewayTester`'s Tester tab) rendered `JsonFormView` —
+a flex-row label/value layout with its own font — inside
+`<pre className="inspector-shell-output-code">`, a wrapper built for raw
+JSON text (monospace font, `white-space: pre-wrap`, code-box padding/
+border/background). Every inherited property leaked onto the form's
+labels and rows, so the Form tab rendered as cramped monospace text
+instead of the intended label/value layout. `pingone-authorize` had no
+Form tab at all.
+
+**What was fixed:** Form tab now renders `JsonFormView` directly in
+`.inspector-shell-output-body`, outside the `<pre>` — the other output
+tabs (Response/Request/History/Result/Audit/Authorize/McpAudit) still
+render inside `<pre className="inspector-shell-output-code">` unchanged.
+Added a matching Form tab to `PingOneAuthorizePage`'s EvaluatePanel
+(Decision/Response/Request/Form), reusing `lastTrace.response`.
+
+**Do not break:** Non-form output tabs must keep rendering inside
+`inspector-shell-output-code` (JSON-highlight styling depends on it) —
+only the Form branch moves outside.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0); Form tab on
+`/pingone-mcp-inspector` (all 4 sources), `/pinggateway-inspector?subtab=tester`,
+and `/pingone-authorize` renders as label/value rows, not a monospace
+code block.
+
 ### 2026-07-26 — Live Workbench control bar ate 280-350px of vertical space on short/small monitors, squeezing Demo script/Chat/Token Chain to a sliver
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`,

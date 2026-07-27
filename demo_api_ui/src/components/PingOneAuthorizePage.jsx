@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import bffAxios from '../services/bffAxios';
 import JsonHighlight from './shared/JsonHighlight';
+import JsonFormView from './shared/JsonFormView';
 import AuthzTestPage from './AuthzTestPage';
 import MockAuthzRulesPage from './MockAuthzRulesPage';
 import ScopeAuditPage from './ScopeAuditPage';
@@ -639,6 +640,7 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
                 { key: 'decision', label: 'Decision' },
                 { key: 'response', label: 'Response' },
                 { key: 'request', label: 'Request' },
+                { key: 'form', label: 'Form' },
               ]}
               activeKey={outputTab}
               onChange={setOutputTab}
@@ -739,6 +741,13 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
                   </pre>
                 ) : (
                   <div className="inspector-shell-output-empty">Run an evaluation to see the request.</div>
+                )
+              )}
+              {outputTab === 'form' && (
+                lastTrace?.response ? (
+                  <JsonFormView value={lastTrace.response} />
+                ) : (
+                  <div className="inspector-shell-output-empty">Run an evaluation to see the response as a form.</div>
                 )
               )}
             </div>
