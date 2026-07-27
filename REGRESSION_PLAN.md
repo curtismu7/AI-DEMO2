@@ -102,6 +102,35 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-27 — MCP first-tool gate opted out of CIBA HITL amount-binding (escalation via bearer receipt)
+
+**Files changed:** `demo_api_server/services/mcpToolAuthorizationService.js`,
+`demo_api_server/services/hitlCredit.js`,
+`demo_api_server/src/__tests__/mcpToolAuthorization.hitlAmountBind.test.js` (new),
+`demo_api_server/src/__tests__/hitlCredit.test.js`.
+
+**What was broken:** `#883` amount-bound `hitlCredit.isFresh(session, { amount })` on
+the REST path (`routes/transactions.js`), but the MCP first-tool gate called
+`isFresh(req.session)` with no amount — the documented "opt out". For write tools
+the gate already had `toolAmount`, then minted a `cibaTransactionReceipt` keyed by
+that **request** amount. Trigger: CIBA-approve $50 → agent retries
+`create_transfer` $300 → MCP gate discharged HITL unbound, recorded a $300
+receipt → bearer `/api/transactions` consumed it and completed the larger write.
+The amount-binding invariant from `#883` was bypassed on the agent/MCP path.
+
+**What was fixed:** Pass `{ amount: toolAmount }` into `isFresh` when the write tool
+carries a finite amount; only record a bearer receipt after that amount-bound check
+passes. Non-write tools (no amount) still omit amount for tool-level HITL consent.
+
+**Do not break:** DENY > STEP_UP > HITL precedence; unbound credit when
+`hitlApprovedAmount` is null; REST path amount binding; consume-on-use at the HITL
+gate site; receipt mechanism when request amount ≤ approved.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+src/__tests__/mcpToolAuthorization.hitlAmountBind.test.js
+src/__tests__/hitlCredit.test.js
+--testPathIgnorePatterns="/node_modules/|/tests/real/" --forceExit` (11/11).
+
 ### 2026-07-26 — Live Workbench control bar ate 280-350px of vertical space on short/small monitors, squeezing Demo script/Chat/Token Chain to a sliver
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`,

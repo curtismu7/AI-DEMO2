@@ -629,7 +629,19 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
   // otherwise a checkout/transfer that trips both step-up AND HITL (e.g. UC22)
   // clears step-up on retry but 428s forever on the untouched HITL statement.
   // Single-use, same pattern as stepUpAlreadyVerified above.
-  const hitlAlreadyVerified = hitlCredit.isFresh(req.session);
+  //
+  // Amount-bound: when this call carries a transfer amount, pass it so a CIBA
+  // credit minted for $50 cannot discharge a $5000 retry. Omitting amount here
+  // used to opt out of binding, then record a receipt keyed by the REQUEST
+  // amount — the bearer /api/transactions path consumed that receipt and the
+  // larger write went through. Non-write tools (toolAmount null) still omit
+  // amount and keep the unbound discharge for tool-level HITL consent.
+  const hitlAlreadyVerified = hitlCredit.isFresh(
+    req.session,
+    toolAmount != null && Number.isFinite(Number(toolAmount))
+      ? { amount: toolAmount }
+      : {},
+  );
   if (hitlAlreadyVerified) {
     // Consume-on-use (services/hitlCredit.js): the credit is spent below at the
     // HITL-gate site it actually suppresses, NOT here — so an unrelated tool
@@ -641,6 +653,8 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     // OWN session-based hitlVerified check can never see this approval.
     // Stash a short-lived receipt keyed by (userId, tool, amount) so it can
     // look the approval up without a session. See cibaTransactionReceipt.js.
+    // Only record AFTER amount-bound isFresh — never mint a receipt for an
+    // amount the CIBA credit did not cover.
     if (transactionType && toolAmount != null) {
       cibaTransactionReceipt.record(policyUserId, tool, toolAmount);
     }
