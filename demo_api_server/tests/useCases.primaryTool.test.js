@@ -40,8 +40,8 @@ const LLM_ANALYSIS_UNROUTABLE = new Set(['UC34', 'UC35']);
 /**
  * Heuristic ACTION -> dispatched TOOL where they differ. Vertical plugin actions
  * ARE their tool names (identity fallback). transfer_600_test is a scripted
- * showcase alias: its AIAgent case calls createTransfer(DEMO_LARGE_TRANSFER) and
- * the HITL gate fires — it IS create_transfer.
+ * showcase alias: its AIAgent case POSTs /api/transactions with
+ * DEMO_HITL_TRANSFER (600) and the HITL gate fires — it IS create_transfer.
  */
 const { ACTION_TO_TOOL } = require('./helpers/actionToTool');
 
