@@ -136,6 +136,28 @@ class ApiClient {
         return Promise.reject(error);
       }
     );
+
+    // ── Dev-proxy transient bounce — retry once ───────────────────────────────
+    // vite's dev proxy (vite.config.js) answers 502 {error:'proxy_error'} when
+    // the BFF's `node --watch` process is mid hot-reload restart and hasn't
+    // reopened its listener yet (ECONNREFUSED at the proxy, before the request
+    // ever reaches the backend). Nothing server-side ran, so retrying once
+    // after a short delay is safe for any method. Production (nginx) never
+    // emits this exact shape, so this is a no-op outside dev.
+    this.client.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const cfg = error.config;
+        const isDevProxyBounce =
+          error.response?.status === 502 && error.response?.data?.error === 'proxy_error';
+        if (isDevProxyBounce && cfg && !cfg._proxyRetried) {
+          cfg._proxyRetried = true;
+          await new Promise((resolve) => setTimeout(resolve, 700));
+          return this.client(cfg);
+        }
+        return Promise.reject(error);
+      }
+    );
   }
 
   async getValidToken() {
