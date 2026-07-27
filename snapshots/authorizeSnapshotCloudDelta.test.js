@@ -99,19 +99,41 @@ test('a2a: RequiresA2aDelegation denies a SHALLOW chain, never a valid two-hop o
   const cond = findById(reconciled(), COND.RequiresA2aDelegation);
   assert.ok(cond, 'RequiresA2aDelegation must exist');
 
-  const cmps = comparisons(cond.condition);
-  const depth = cmps.find((c) => c.left?.attribute?.id === ATTR.ActChainDepth);
-  assert.ok(depth, 'condition must test ActChainDepth');
+  // depth < 2 is expressed as NOT(depth > 1): the bare comparison keeps the
+  // inherited `GreaterThan "1"` and the NOT wrapper is what inverts it.
+  const negated = cond.condition.and.conditions.find((c) => c.not);
+  assert.ok(negated, 'the depth test must be NEGATED — an un-negated GreaterThan denies the CORRECT two-hop chain');
 
-  // The inherited condition was `ActChainDepth GreaterThan "1"` on a
-  // conditionalDenyElsePermit rule: DENY when the chain IS two-hop. That denies
-  // correct specialist delegation and permits the generalist acting alone —
-  // the exact case UC2 blocks, inverted. It never fired (probed live: depth 1,
-  // 2 and 5 all PERMIT), so it was harmless only by accident.
-  assert.strictEqual(depth.op, 'LessThan', 'must deny SHALLOW chains, not deep ones');
-  assert.strictEqual(depth.right.constant.value, 2);
-  // NUMBER, not the quoted "1" it carried — ActChainDepth's valueType is NUMBER.
-  assert.strictEqual(typeof depth.right.constant.value, 'number');
+  const depth = negated.not.condition.comparison;
+  assert.strictEqual(depth.left.attribute.id, ATTR.ActChainDepth);
+  assert.strictEqual(depth.op, 'GreaterThan');
+  assert.strictEqual(depth.right.constant.value, '1');
+  // STRING, not a number. The whole snapshot is 163 string constants, 2 booleans
+  // and zero numbers; `Amount GreaterThan "2000"` is a string and demonstrably
+  // denies a 5000 transfer live. A first draft used `LessThan` with a numeric 2,
+  // introducing an untested operator AND value type at once.
+  assert.strictEqual(typeof depth.right.constant.value, 'string');
+});
+
+test('a2a: the depth test uses only operators this snapshot already exercises', () => {
+  // Guards the class of bug above rather than the one instance: an operator or
+  // value type that appears exactly once is unproven against the live DSL, and
+  // the import is the last place to discover that.
+  const snap = reconciled();
+  const ops = new Set();
+  const valueTypes = new Set();
+  const visit = (n) => {
+    if (!n || typeof n !== 'object') return;
+    if (n.comparison) {
+      ops.add(n.comparison.op);
+      const c = n.comparison.right?.constant;
+      if (c && 'value' in c) valueTypes.add(typeof c.value);
+    }
+    for (const v of Object.values(n)) visit(v);
+  };
+  snap.forEach(visit);
+  assert.ok(!ops.has('LessThan'), 'LessThan is not used anywhere else in this snapshot');
+  assert.ok(!valueTypes.has('number'), 'numeric constants are unprecedented here — use the quoted form');
 });
 
 test('a2a: the gated tool list comes from scope-topology a2aDelegated, not hand-typed', () => {
