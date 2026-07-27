@@ -49,7 +49,19 @@ describe('gatewayCheck.real_path', () => {
     agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue('gw-token');
     callPingGateway.mockResolvedValueOnce({ statusCode: 200, body: { result: { ok: true } } });
     await realPath.run(ctxWithToken);
-    expect(callPingGateway.mock.calls[0][3]).toEqual({ token: 'gw-token' });
+    expect(callPingGateway.mock.calls[0][3].token).toBe('gw-token');
+  });
+
+  // Live 2026-07-27: with the bearer finally accepted, the gateway answered
+  // 406 "Invalid 'Accept' header" — the streamable-HTTP transport rejects the
+  // request before any tool runs. Pinned because the symptom reads as a
+  // gateway fault rather than a malformed request from the check.
+  test('sends the streamable-HTTP Accept header the transport requires', async () => {
+    agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue('gw-token');
+    callPingGateway.mockResolvedValueOnce({ statusCode: 200, body: { result: { ok: true } } });
+    await realPath.run(ctxWithToken);
+    expect(callPingGateway.mock.calls[0][3].headers.Accept)
+      .toBe('application/json, text/event-stream');
   });
 
   test('does NOT probe /introspect or /authorize (they 404 on IG)', async () => {
