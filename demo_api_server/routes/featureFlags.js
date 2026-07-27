@@ -623,15 +623,10 @@ const FLAG_REGISTRY = [
     category:     'UI / Dashboard',
     description:
       'Selects which agent framework handles POST /api/agent/run requests. ' +
-      '**langchain** (default) — LangChain agent on port 8889. ' +
-      '**openai_agents** — OpenAI Agents SDK on port 8891. ' +
-      '**mastra** — Mastra agent on port 8892. ' +
-      '**pydantic_ai** — Pydantic AI agent on port 8893.',
-    impact:
-      'Changes take effect immediately — no restart required. ' +
-      'Only switch to a framework whose service is running.',
+      '**langchain** — LangChain agent on port 8889, the only supported framework.',
+    impact: 'Changes take effect immediately — no restart required.',
     type:         'enum',
-    options:      ['langchain', 'openai_agents', 'mastra', 'pydantic_ai'],
+    options:      ['langchain'],
     defaultValue: 'langchain',
   },
   {
