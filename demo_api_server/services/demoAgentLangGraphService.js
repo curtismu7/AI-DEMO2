@@ -761,6 +761,54 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
       suppliedUserSub: result.userSub,
     });
     ({ result: toolResult } = parseToolResult(raw, { site: `a2a:${result.tool}` }));
+
+    // The gateway AUTHORIZES, but it cannot always SERVE.
+    //
+    // Only banking's OLB tools sit behind the gateway's backend. Every other
+    // vertical's specialist tool (sensitive_patient_records, sensitive_tax_record,
+    // sensitive_payroll_details, ...) is implemented in this process by the
+    // vertical plugin — config/verticals/<v>/tools.js. So the A2A call ran the
+    // full chain, PingOne Authorize PERMITted it, and then the gateway had
+    // nothing to forward to:
+    //
+    //     P1AZDecision    -> forwarded (PERMIT)
+    //     BackendExchange -> skipped     backend: null
+    //     -> Gateway upstream error (HTTP 502)
+    //
+    // Authorization succeeded; only delivery failed. The BFF is the resource
+    // server for these tools, so run it here — the decision has already been
+    // made by the gateway, and this does not bypass it.
+    //
+    // Deliberately narrow: only after a transport/upstream failure (never after
+    // a DENY or a challenge, which are real answers), and only when the active
+    // vertical's plugin actually owns the tool.
+    const failedUpstream = toolResult && typeof toolResult === 'object'
+      && ['mcp_error', 'gateway_error', 'mcp_unreachable'].includes(toolResult.error);
+    if (failedUpstream) {
+      const ownsTool = (() => {
+        try {
+          const schemas = verticalDispatch.toolSchemasFor(activeId, { isAdmin: false }, () => []) || [];
+          return schemas.some((t) => (t && (t.name || (t.function && t.function.name))) === result.tool);
+        } catch (_) { return false; }
+      })();
+      if (ownsTool) {
+        try {
+          // userId is not a parameter of this function; derive it the same way
+          // the rest of the file does, falling back to the delegation subject.
+          const localUserId = req?.session?.user?.id || result.userSub || 'anon';
+          const localRaw = await resolveExecuteTool(activeId, {
+            userId: localUserId, userToken: null, req, tokenEvents: events, sessionId: sessionId || req?.sessionID || '', isAdmin: false,
+          })(result.tool, toolArgs);
+          const { result: localResult } = parseToolResult(localRaw, { site: `a2a-local:${result.tool}` });
+          if (localResult && !(typeof localResult === 'object' && 'error' in localResult)) {
+            console.log('[executeA2aDelegation] %s authorized at the gateway, served locally (no gateway backend for this vertical)', result.tool);
+            toolResult = localResult;
+          }
+        } catch (localErr) {
+          console.warn('[executeA2aDelegation] local execution of %s failed: %s', result.tool, localErr?.message);
+        }
+      }
+    }
   }
 
   // "Delegated" only means the nested-act token was minted — it is NOT proof the
