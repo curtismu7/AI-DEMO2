@@ -41,6 +41,38 @@ const { register } = require('./registry');
 /** Policy sources that are not a real PDP answering. */
 const NOT_REAL = new Set(['p1az-mock', 'local-fallback', 'mock', 'none']);
 
+/**
+ * "p1az-mock" is not a fake standing in for PingOne, and calling it one sent a
+ * reader down the wrong path twice.
+ *
+ * authz-server is a faithful local implementation of an AUTHORED cloud policy:
+ * snapshots/gen-authorize-snapshot.js generates the P1AZ snapshot from the same
+ * source of truth, and the mock deliberately emits the SAME statements[].code
+ * values that snapshot defines (DENY_CODE_BY_REASON_PREFIX in
+ * demo_authz_server/routes/decision.js).
+ *
+ * The real gap is one pending operation: that snapshot has never been imported,
+ * so the live decision endpoint runs an older, partial policy. Probed
+ * 2026-07-27 against the live endpoint — amount ceiling DENY (imported), but
+ * A2A act-chain depth, group membership and resource ownership all PERMIT what
+ * the authored policy denies.
+ *
+ * So the fix is NOT "repoint the endpoint at the cloud". Doing that today
+ * deletes three authored controls while making the demo look more legitimate.
+ * The fix is to import the snapshot, then repoint.
+ */
+const LOCAL_POLICY_PHRASE =
+  'A2A decisions come from authz-server, which implements the authored policy locally — '
+  + 'the generated P1AZ snapshot has not been imported, so the live cloud policy is missing '
+  + 'rules the demo relies on.';
+
+const LOCAL_POLICY_NEXT_ACTION =
+  'Run `node demo_api_server/scripts/verifyAuthorizeCloudParity.js` to see which authored rules '
+  + 'the live policy is missing. Import the generated snapshot in the console (needs the '
+  + 'Authorization Admin role — the demo worker is 403 on the policy APIs), re-run until it '
+  + 'passes, THEN point PINGAUTHORIZE_ENDPOINT at the cloud. Repointing first removes the '
+  + 'controls that only run here.';
+
 function gatewayUrl() {
   return (
     process.env.MCP_GW_URL
@@ -124,13 +156,11 @@ const posture = {
     // enforcing, and what fails open.
 
     if (off.length || failOpen.length) {
-      // Never call the engine "real" here just because there is no
-      // contradiction: when simulation is DECLARED, p1az-mock is the expected
-      // answer, not a real PDP. Mislabelling it would reintroduce the exact
-      // confusion this check exists to remove.
+      // Never call the engine "real" just because there is no contradiction —
+      // but do not call authz-server a fake either. See LOCAL_POLICY_PHRASE.
       const enginePhrase = engineIsReal
         ? `Engine "${policySource}" is a real PDP, but `
-        : `Decisions come from "${policySource}" (not a real PDP), and `;
+        : `${LOCAL_POLICY_PHRASE} `;
       return {
         status: 'warn',
         detail:
@@ -148,16 +178,10 @@ const posture = {
       return {
         status: 'warn',
         detail:
-          `Decisions on this gateway come from "${policySource}", not a real PDP. `
-          + 'Every declared control is enforcing and nothing is failing open, but only claim '
-          + 'real policy enforcement for paths this gateway does not decide.',
+          `${LOCAL_POLICY_PHRASE} `
+          + 'Every declared control is enforcing and nothing is failing open.',
         meta,
-        nextAction:
-          'This gateway speaks the PingAuthorize PAP API, not PingOne cloud, so repointing the '
-          + 'endpoint will not make it real. To move the A2A path onto real PingOne: author a rule '
-          + 'DENYing ActChainDepth < 2 for the sensitive_* tools, confirm with '
-          + '`npm run verify:a2a-policy` (real P1AZ currently PERMITs depth-1, so switching first '
-          + 'would remove the delegation control), then point Exchange #2 at IG.',
+        nextAction: LOCAL_POLICY_NEXT_ACTION,
       };
     }
 

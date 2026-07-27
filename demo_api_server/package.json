@@ -86,7 +86,8 @@
     "install-client": "cd ../demo_api_ui && npm install",
     "heroku-postbuild": "npm run install-client && npm run build",
     "lint": "biome lint .",
-    "verify:a2a-policy": "node scripts/verifyA2aDelegationPolicy.js"
+    "verify:a2a-policy": "node scripts/verifyA2aDelegationPolicy.js",
+    "verify:authorize-parity": "node scripts/verifyAuthorizeCloudParity.js"
   },
   "dependencies": {
     "@a2a-js/sdk": "^1.0.0",
