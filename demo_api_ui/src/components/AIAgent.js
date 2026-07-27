@@ -8033,8 +8033,7 @@ export default function BankingAgent({
                     Live Use Cases
                   </button>
                 )}
-                </div>
-                <div className={splitChrome ? "ba-hg" : "ba-hg--flat"}>
+                {splitChrome && <span className="ba-hg-divider" />}
                 {splitChrome && (
                   <>
                     <span className="ba-hg-label">Inspectors</span>
