@@ -1,0 +1,12 @@
+{
+  "vertical": "banking",
+  "useCaseId": "mortgage-delegated-access",
+  "ucId": "UC33",
+  "trigger": "show my mortgage",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-26T23:49:38.695Z",
+  "seedHash": null,
+  "reply": "I don’t see a mortgage account in your current list of accounts. The only loan listed is a **Car Loan** (balance –$12,000).  \n\nWould you like more details about that loan, or is there another account you’re referring to? If you have a separate mortgage account that isn’t showing up, it may be under a different name or in a different system. Let me know how I can help!",
+  "agentPath": null,
+  "tokenEventCount": 19
+}

@@ -1,0 +1,12 @@
+{
+  "vertical": "banking",
+  "useCaseId": "ai-spot-unusual-patterns",
+  "ucId": "UC34",
+  "trigger": "Check for unusual patterns in my recent activity",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-26T23:50:19.200Z",
+  "seedHash": null,
+  "reply": "The llamacpp LLM could not complete this request (empty_answer). If the stack was just deployed or restarted, the local model takes several minutes to load — try again shortly. Switch the agent to \"Heuristics only\" mode for deterministic responses, or check the LLM backend status and try again.",
+  "agentPath": null,
+  "tokenEventCount": 19
+}

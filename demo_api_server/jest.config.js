@@ -49,10 +49,18 @@ module.exports = {
   // suiteSetup.js. Under the default config that global is undefined, so every
   // real test throws `ReferenceError: skipIfNoSession is not defined` (was
   // breaking CI — the default testMatch '**/tests/**' picked them up).
+  // The worktree excludes stop suites from OTHER worktrees double-running when
+  // jest is invoked from the main checkout. But when rootDir IS inside a
+  // worktree they exclude EVERYTHING: jest reports "No tests found" and exits 1,
+  // so `npm run test:api-server` — and therefore the .husky/pre-push gate — can
+  // never pass from a worktree, which is the required working practice here.
+  // Worse, "No tests found" reads as clean to anything grepping for failures.
+  // Drop the worktree excludes only when we are already running inside one.
   testPathIgnorePatterns: [
     '/node_modules/',
-    '/\\.claude/worktrees/',
-    '/\\.kilo/worktrees/',
+    ...(/\/\.(claude|kilo)\/worktrees\//.test(__dirname)
+      ? []
+      : ['/\\.claude/worktrees/', '/\\.kilo/worktrees/']),
     '/tests/real/',
   ],
   // ESM-only deps that babel-jest MUST transpile so Jest's CJS runtime can load

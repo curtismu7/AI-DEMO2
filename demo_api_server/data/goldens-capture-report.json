@@ -1,0 +1,30 @@
+{
+  "capturedAt": "2026-07-26T23:50:40.940Z",
+  "captured": 10,
+  "skipped": 2,
+  "byReason": {
+    "unhealthy_result": {
+      "count": 2,
+      "pairs": [
+        "banking/weather-mcp-texas-deny",
+        "banking/weather-mcp-texas-permit"
+      ]
+    }
+  },
+  "skips": [
+    {
+      "vertical": "banking",
+      "useCaseId": "weather-mcp-texas-permit",
+      "ucId": "UC30",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ Error: Tool 'get_weather' is not enabled. Please check your ENABLED_TOOLS configuration."
+    },
+    {
+      "vertical": "banking",
+      "useCaseId": "weather-mcp-texas-deny",
+      "ucId": "UC31",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ Agent Gateway: weather scope restricted to Texas (demo policy) — city not recognized as Texas"
+    }
+  ]
+}
