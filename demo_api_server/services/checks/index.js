@@ -7,6 +7,7 @@ require('./flagOverrideCheck');
 require('./llmCheck');
 require('./llmDeepCheck');
 require('./gatewayCheck');
+require('./gatewayPostureCheck');
 require('./usecaseCheck');
 require('./uiDispatchCheck');
 require('./containerDriftCheck');
