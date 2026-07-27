@@ -528,6 +528,77 @@ describe('AuthenticationIntegration', () => {
       expect(result.insufficientScope).toBe(true);
       expect(result.missingScopes).toEqual(['accounts:write']);
     });
+
+    it('accepts the a2aDelegatedScope alternative when the coarse scope is missing', async () => {
+      // A2A-delegated sensitive tools: PingOne scope-name uniqueness forces the
+      // specialist's Exchange #2 to mint a per-vertical scope (records:read, …)
+      // instead of the coarse 'read'. The bearer carries records:read only —
+      // the tool's a2aDelegatedScope must satisfy the check.
+      const mockAgentTokenInfo: AgentTokenInfo = {
+        tokenHash: 'test-hash',
+        clientId: 'records-specialist',
+        scopes: ['records:read'],
+        expiresAt: new Date(Date.now() + 3600000),
+        isValid: true
+      };
+      const mockSession: BankingSession = {
+        sessionId: 'test-session-a2a',
+        agentTokenHash: 'test-hash',
+        userTokens: [],
+        createdAt: new Date(),
+        lastActivity: new Date(),
+        expiresAt: new Date(Date.now() + 3600000)
+      };
+      mockAuthManager.validateAgentToken.mockResolvedValue(mockAgentTokenInfo);
+      mockSessionManager.getSessionByAgentToken.mockResolvedValue(mockSession);
+      mockAuthManager.validateTokenScopes.mockImplementation(
+        async (_token: string, scopes: string[]) => scopes.includes('records:read')
+      );
+
+      const result = await authIntegration.validateToolAuthentication(
+        undefined,
+        'test-agent-token',
+        ['read'],
+        ['records:read']
+      );
+
+      expect(result.success).toBe(true);
+      expect(mockAuthManager.validateTokenScopes).toHaveBeenCalledWith(
+        'test-agent-token',
+        ['records:read']
+      );
+    });
+
+    it('still fails closed when neither the coarse nor the delegated scope is present', async () => {
+      const mockAgentTokenInfo: AgentTokenInfo = {
+        tokenHash: 'test-hash',
+        clientId: 'records-specialist',
+        scopes: ['unrelated:scope'],
+        expiresAt: new Date(Date.now() + 3600000),
+        isValid: true
+      };
+      const mockSession: BankingSession = {
+        sessionId: 'test-session-a2a-deny',
+        agentTokenHash: 'test-hash',
+        userTokens: [],
+        createdAt: new Date(),
+        lastActivity: new Date(),
+        expiresAt: new Date(Date.now() + 3600000)
+      };
+      mockAuthManager.validateAgentToken.mockResolvedValue(mockAgentTokenInfo);
+      mockSessionManager.getSessionByAgentToken.mockResolvedValue(mockSession);
+      mockAuthManager.validateTokenScopes.mockResolvedValue(false);
+
+      const result = await authIntegration.validateToolAuthentication(
+        undefined,
+        'test-agent-token',
+        ['read'],
+        ['records:read']
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.insufficientScope).toBe(true);
+    });
   });
 
   describe('Authentication Status', () => {
