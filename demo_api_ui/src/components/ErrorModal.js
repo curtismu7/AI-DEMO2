@@ -27,8 +27,9 @@ export default function ErrorModal({ error, isOpen, onClose }) {
       onClose={onClose}
       title={title}
       footer={footer}
-      defaultWidth={560}
+      defaultWidth={460}
       defaultHeight={480}
+      minWidth={380}
       storageKey="error-modal"
     >
       <div className="dm-scroll">
