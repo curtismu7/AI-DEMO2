@@ -184,29 +184,10 @@ body > .banking-agent-float-root .banking-agent-panel {
 .banking-agent-panel:not(.ba-mode-inline) .ba-body {
   flex-wrap: nowrap;
 }
-/* Floating: full-width banner on its own row above the columns */
-.banking-agent-panel:not(.ba-mode-inline) .ba-consent-denied-banner {
-  flex: 0 0 100%;
-  min-width: 100%;
-}
-.banking-agent-panel:not(.ba-mode-inline)
-  .ba-body:has(.ba-consent-denied-banner) {
-  flex-wrap: wrap;
-}
-/* Inline: same treatment — banner spans full width above left/right columns */
-.banking-agent-panel.ba-mode-inline .ba-consent-denied-banner {
-  flex: 0 0 100%;
-  min-width: 100%;
-  order: -1;
-}
 /* Inline: prevent ba-body from wrapping so ba-right-col gets a definite height
-   and banking-agent-messages can scroll instead of expanding to content height.
-   Exception: when the consent-denied banner is present it still needs to wrap. */
+   and banking-agent-messages can scroll instead of expanding to content height. */
 .banking-agent-panel.ba-mode-inline .ba-body {
   flex-wrap: nowrap;
-}
-.banking-agent-panel.ba-mode-inline .ba-body:has(.ba-consent-denied-banner) {
-  flex-wrap: wrap;
 }
 
 /* Floating: narrower compact rail — chips are smaller and the column scrolls */
@@ -3246,7 +3227,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   cursor: not-allowed;
 }
 
-/* High-value consent declined — full-width notice above agent body */
+/* High-value consent declined — notice body inside the dismissable modal */
 .ba-consent-denied-banner {
   gap: 0.75rem;
   padding: 0.65rem 0.85rem;

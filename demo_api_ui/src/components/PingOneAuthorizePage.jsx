@@ -13,6 +13,7 @@ import InspectorTabs from './shared/InspectorTabs';
 import { explainAuthorizeResult, displayDecision as explainDisplayDecision } from '../utils/authorizeResultExplain';
 import './McpInspector.css';
 import './PingOneMcpInspector.css';
+import './PingOneAuthorizePage.css';
 
 /** Collapsible trace section — same pattern as PingOne MCP Inspector. */
 const Section = ({ title, hint, status, defaultOpen = true, children }) => (
@@ -1026,7 +1027,7 @@ export default function PingOneAuthorizePage() {
 
       {/* Evaluate — policy tree, form, and result all live inside one InspectorShell */}
       {selectedId
-        ? <EvaluatePanel endpointId={selectedId} autoPreset={autoPreset} policiesState={policiesState} pendingTest={pendingTest} onClearPendingTest={clearPendingTest} onEvaluated={pushRunHistory} onTestRule={handleTestRule} />
+        ? <div className="p1az-evaluate-shell"><EvaluatePanel endpointId={selectedId} autoPreset={autoPreset} policiesState={policiesState} pendingTest={pendingTest} onClearPendingTest={clearPendingTest} onEvaluated={pushRunHistory} onTestRule={handleTestRule} /></div>
         : <div style={S.card}><div style={S.cardBody}><div style={S.empty}>Select a decision endpoint to evaluate.</div></div></div>}
 
       {/* Recent decisions */}

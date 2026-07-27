@@ -185,6 +185,48 @@ main checkout) and `npm run build` (exit 0). Revert-to-RED: restore
 `OtpStepUpModal.fidoAssertion.test.jsx` fails with the exact defect —
 `Error: Invalid base64url string`, `navigator.credentials.get` never called.
 
+### 2026-07-27 — Declining MFA left the agent dead-ended: only a browser reload restored it
+
+**Files changed:** `demo_api_ui/src/components/TransactionConsentModal.tsx`,
+`demo_api_ui/src/components/AIAgent.js`, `demo_api_ui/src/components/AIAgent.css`,
+`demo_api_ui/src/services/agentAccessConsent.js`,
+`demo_api_ui/src/components/UserDashboard.js`,
+`demo_api_ui/src/components/UserDashboardPing2026.js`,
+`demo_api_ui/src/components/__tests__/AIAgent.chips.test.js`,
+`demo_api_ui/src/components/__tests__/UserDashboardPing2026.test.js` (canary
+re-baseline), plus new `AIAgent.consentDeclineDismiss.test.js` and
+`TransactionConsentModal.declineScope.test.jsx`.
+
+**What was broken:** Two faults compounded. (1) `handleCancelClick` opened the
+"Confirm decline" dialog from ANY step — the modal's titlebar `✕`, Escape and
+backdrop route through it — so walking away from an expired OTP counted as
+declining high-value consent. (2) Confirming set
+`banking_agent_blocked_consent_decline` in `localStorage`, which disabled the
+chat input, chips and every action except logout, with no in-app way to clear
+it: the only clears were sign-out/sign-in or a successful consent (unreachable —
+the agent was disabled). A browser reload also cleared it, because `AIAgent`'s
+mount effect and `checkSelfAuth` call `setAgentBlockedByConsentDecline(false)`
+unconditionally — so the "not available for this session" copy was never true.
+
+**What was fixed:** Cancelling once identity proof has started (MFA / OTP /
+contact / enrollment sub-steps) now just aborts the transaction via `onClose` —
+only the consent review step can decline. The decline notice moved from a
+permanent `.ba-consent-denied-banner` flex child of `.ba-body` into a
+`DraggableModal` portal whose dismiss (button, `✕`, Escape) clears the block, so
+the agent is usable again without signing out. Decline copy updated in both
+dashboards and `AGENT_CONSENT_BLOCK_USER_MESSAGE` to match.
+
+**Do not break:** Declining at the review step must still deny the transaction
+and set the block (the HITL teaching moment). Server-side 428 enforcement in
+`services/transactionConsentChallenge.js` / `routes/transactions.js` is
+unchanged and must stay that way. The approve path (Agree & continue → confirm →
+MFA → OTP → verify) is untouched.
+
+**Verify:** `cd demo_api_ui && npx vitest run
+src/components/__tests__/TransactionConsentModal.declineScope.test.jsx
+src/components/__tests__/AIAgent.consentDeclineDismiss.test.js` then
+`npm run test:unit && npm run build`.
+
 ### 2026-07-27 — Inspector "Form" output tab unreadable on MCP Inspector and PingGateway Inspector; PingOne Authorize had no Form tab
 
 **Files changed:** `demo_api_ui/src/components/McpInspectorPage.jsx`,

@@ -80,6 +80,7 @@ import OtpStepUpModal from "./OtpStepUpModal";
 import QuickLoginModal from "./QuickLoginModal";
 import DemoAuthzFallbackModal from "./DemoAuthzFallbackModal";
 import TransactionConsentModal from "./TransactionConsentModal";
+import DraggableModal from "./DraggableModal";
 import ElicitationDialog from "./ElicitationDialog";
 import UseCaseExplainModal from "./UseCaseExplainModal";
 import { shouldAutoOpenA2a, buildA2aExplainUc } from "./a2aAutoOpen";
@@ -8154,30 +8155,45 @@ export default function BankingAgent({
                 </fieldset>
               </aside>
             )}
+            {/* High-value consent declined — the agent stays disabled only while
+                this notice is up. Dismissing clears the block so the session is
+                never a dead end (previously it needed a sign-out or a reload). */}
             {isLoggedIn && consentBlocked && (
-              <div className="ba-consent-denied-banner" role="alert">
-                <div className="ba-consent-denied-banner__text">
-                  <strong>Access denied.</strong> You declined a high-value
-                  transaction. The AI banking assistant is not available for
-                  this session. Sign out and sign in again to restore it.
+              <DraggableModal
+                isOpen
+                onClose={() => setAgentBlockedByConsentDecline(false)}
+                title="Transaction declined"
+                defaultWidth={460}
+                defaultHeight={300}
+                storageKey="agent-consent-denied-modal"
+                footer={
+                  <div className="ba-consent-denied-banner__actions">
+                    <button
+                      type="button"
+                      className="ba-consent-denied-banner__btn ba-consent-denied-banner__btn--secondary"
+                      onClick={() => edu?.open(EDU.HUMAN_IN_LOOP, "decline")}
+                    >
+                      Learn: Human-in-the-loop
+                    </button>
+                    <button
+                      type="button"
+                      className="ba-consent-denied-banner__btn"
+                      onClick={() => setAgentBlockedByConsentDecline(false)}
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                }
+              >
+                <div className="ba-consent-denied-banner" role="alert">
+                  <div className="ba-consent-denied-banner__text">
+                    <strong>Access denied.</strong> You declined a high-value
+                    transaction, so it was not processed. The AI banking
+                    assistant is paused while this notice is open — dismiss it to
+                    keep using the assistant.
+                  </div>
                 </div>
-                <div className="ba-consent-denied-banner__actions">
-                  <button
-                    type="button"
-                    className="ba-consent-denied-banner__btn ba-consent-denied-banner__btn--secondary"
-                    onClick={() => edu?.open(EDU.HUMAN_IN_LOOP, "decline")}
-                  >
-                    Learn: Human-in-the-loop
-                  </button>
-                  <button
-                    type="button"
-                    className="ba-consent-denied-banner__btn"
-                    onClick={() => onLogout?.()}
-                  >
-                    Sign out
-                  </button>
-                </div>
-              </div>
+              </DraggableModal>
             )}
 
             {hitlPendingIntent &&
