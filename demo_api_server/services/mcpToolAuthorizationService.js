@@ -13,6 +13,8 @@ const runtimeSettings = require('../config/runtimeSettings');
 const pingOneAuthorizeService = require('./pingOneAuthorizeService');
 const simulatedAuthorizeService = require('./simulatedAuthorizeService');
 const { decodeJwtClaims } = require('./agentMcpTokenService');
+const jwksService = require('./jwksService');
+const oauthEndpointResolver = require('./oauthEndpointResolver');
 const { buildActorBridgeHeaders } = require('./mcpActorBridge');
 const hitlServiceClient = require('./hitlServiceClient');
 const cibaTransactionReceipt = require('./cibaTransactionReceipt');
@@ -551,6 +553,28 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
   const tokenIat = typeof claims.iat === 'number' ? claims.iat : null;
   const tokenNbf = typeof claims.nbf === 'number' ? claims.nbf : null;
   const tokenIss = claims.iss ? String(claims.iss) : null;
+  // Signing-key identity (additional check). kid comes off the token HEADER,
+  // which decodeJwt already returns (utils/tokenUtils.js:25) and every caller
+  // so far discarded. tokenKidKnown is BFF-pre-resolved because the P1AZ
+  // snapshot DSL can neither fetch a JWKS nor do array-contains — the same
+  // reason InRequiredGroup and UserTier are pre-resolved. null → the key is
+  // OMITTED downstream (C1 rule 3: omission means "unknown", never "verified
+  // absent"), so a JWKS outage degrades THIS check and leaves the rest of the
+  // gate enforcing exactly as it does today.
+  const tokenKid = decoded?.header?.kid ? String(decoded.header.kid) : null;
+  // A kid is only meaningful against the keyset of the issuer that minted it.
+  // jwksService resolves PingOne's JWKS, so a token from any OTHER issuer must
+  // resolve to null (unknown), never false — judging it against the wrong
+  // keyset would report a perfectly valid token as forged.
+  //
+  // This is not hypothetical: clientCredentialsTokenService signs local demo
+  // tokens with keyid 'client-credentials-key', which is by definition absent
+  // from PingOne's JWKS. Without this guard such a token resolves false and
+  // DENIES — in simulated mode (the demo default) as well as live.
+  const tokenKidIssuerMatches = !!(tokenIss && tokenIss === oauthEndpointResolver.getIssuer());
+  const tokenKidKnown = tokenKidIssuerMatches
+    ? await jwksService.hasKid(tokenKid)
+    : null;
   const mayActSub = claims.may_act && typeof claims.may_act === 'object' && claims.may_act.sub
     ? String(claims.may_act.sub)
     : null;
@@ -765,6 +789,8 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     tokenIat,
     tokenNbf,
     tokenIss,
+    tokenKid,
+    tokenKidKnown,
     userRole,
   };
 

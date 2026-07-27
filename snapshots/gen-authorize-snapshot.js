@@ -70,6 +70,16 @@ const ATTR = {
   IntentMatchesTool: '12345678-0022-4321-abcd-000000000022',
   IntentTokenError: '12345678-0023-4321-abcd-000000000023',
   UserRole: '12345678-0024-4321-abcd-000000000024',
+  // BFF-pre-resolved JWKS membership of the token's header kid. BOOLEAN with
+  // defaultValue TRUE — the inert side. The BFF OMITS this key when membership
+  // is unknown (no kid, or the JWKS fetch failed), so an absent value MUST NOT
+  // deny; defaulting false would deny every call that omits it, including
+  // during a PingOne JWKS outage. Same fail-open default as InRequiredGroup.
+  TokenKidKnown: '12345678-0027-4321-abcd-000000000027',
+  // The kid string itself. Reportable input only — no rule branches on it; it
+  // exists so the deny payload and the recent-decisions log can name the key.
+  // Default '' (absent), matching TokenAudActual / ResourceOwnerId.
+  TokenKid: '12345678-0028-4321-abcd-000000000028',
 };
 // The accepted gateway identities (step 0) are read from these SoT resource
 // entries — the same identities the runtime accepts (PG_GATEWAY_RESOURCE_URI +
@@ -119,6 +129,7 @@ const COND = {
   IntentToolMismatch: '23456789-0024-4321-abcd-000000000024',
   AdminRoleOnWriteTool: '23456789-0025-4321-abcd-000000000025',
   TokenAudTargetsUpstream: '23456789-0026-4321-abcd-000000000026',
+  TokenKidUnpublished: '23456789-0027-4321-abcd-000000000027',
 };
 const STMT = {
   a2aDelegationRequired: '34567890-0010-4321-abcd-000000000010',   // code mcp-invalid-a2a-generalist (shared)
@@ -137,6 +148,7 @@ const STMT = {
   intentMismatch: '34567890-0019-4321-abcd-000000000019',
   rarAmountExceeded: '34567890-0020-4321-abcd-000000000020', // rar_amount_exceeded (DENY)
   adminRole: '34567890-0022-4321-abcd-000000000022',         // NOT -0021 (retired)
+  invalidKid: '34567890-0027-4321-abcd-000000000027',        // mcp-invalid-kid (DENY)
 };
 const RULE = {
   mcpHitl: '45678901-0008-4321-abcd-000000000008',          // existing (generalized)
@@ -155,6 +167,7 @@ const RULE = {
   mcpDenyIntentInvalid: '45678901-0018-4321-abcd-000000000018',
   mcpDenyIntentMismatch: '45678901-0019-4321-abcd-000000000019',
   mcpDenyAdminRole: '45678901-0022-4321-abcd-000000000022',  // NOT -0021 (retired)
+  mcpDenyInvalidKid: '45678901-0027-4321-abcd-000000000027',
 };
 const POLICY = { transaction: '56789012-0001-4321-abcd-000000000001', mcp: '56789012-0002-4321-abcd-000000000002' };
 const CONFIRM_USD = '250';
@@ -666,9 +679,48 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
     'DENY when UserRole=admin invokes a customer write tool (AdminRoleOnWriteTool, generated from scope-topology.json). Mirrors mock Rule 2.95 / requireNotAdmin. Restriction only — no admin permit branch exists.',
     COND.AdminRoleOnWriteTool, STMT.adminRole), beforeFirstPolicyIdx);
 
+  // 8f) Signing-key identity (mock deny_reason invalid_kid). The BFF resolves
+  // the token header's kid against the live PingOne JWKS and forwards the
+  // result as TokenKidKnown; this rule is what turns that input into a DENY.
+  //
+  // This is a key-IDENTITY check, NOT signature verification — it detects a
+  // token whose header names a signing key the issuer does not publish. Do not
+  // reword the payload to claim the signature was checked.
+  //
+  // Fail-open by construction: the BFF omits TokenKidKnown when membership is
+  // unknown (no kid in the header, or the JWKS fetch failed), and the attribute
+  // defaults TRUE, so the condition below is false and this rule stays inert.
+  // Only an explicit false — a resolved, unpublished kid — denies. Same shape
+  // as GroupMembershipFailed (InRequiredGroup Equals false on a BOOLEAN that
+  // defaults true); no new operator/valueType combination is introduced (#1009).
+  upsert(requestAttr(ATTR.TokenKidKnown, 'TokenKidKnown', 'BOOLEAN', true,
+    'BFF-pre-resolved JWKS membership of the presented token header kid. true = the kid is published in the ' +
+    "issuer's JWKS; false = it is not. The BFF OMITS this key when it cannot resolve membership, and the default " +
+    'is TRUE so an absent value never denies — a JWKS outage degrades this check instead of denying every call. ' +
+    'Pre-resolved BFF-side because this DSL cannot fetch a JWKS (same reason as InRequiredGroup).'), afterLastAttrIdx);
+  upsert(requestAttr(ATTR.TokenKid, 'TokenKid', 'STRING', '',
+    'The kid from the presented token header. Reportable input only — no rule branches on it; TokenKidUnpublished ' +
+    "reads TokenKidKnown. Present so the deny payload and PingOne's recent-decisions log can name the key. " +
+    "Default '' when the header carries no kid."), afterLastAttrIdx);
+  upsert(conditionDef(COND.TokenKidUnpublished, 'TokenKidUnpublished',
+    'TokenKidKnown = false — the token header names a signing key the issuer does not publish. Absent/unknown ' +
+    '(attribute default true) does NOT match, so the rule is inert unless the BFF positively resolved the kid ' +
+    'as unpublished. Key-identity check only; signature verification happens at authentication.',
+    { comparison: { left: { attribute: { id: ATTR.TokenKidKnown } }, op: 'Equals', right: { constant: { value: false } } } }),
+  beforeSepIdx);
+  upsert(denyStatement(STMT.invalidKid, 'MCP Denied — Invalid Signing Key', 'mcp-invalid-kid',
+    'Signing-key identity (invalid_kid): the token header names a kid that is not published in the issuer JWKS. ' +
+    'Mirrors the simulated engine deny_reason invalid_kid. Not a signature-verification failure.',
+    `{"denied": true, "reason": "invalid_kid", "message": "The token header names signing key '{{${ATTR.TokenKid}}}' which is not published in the issuer's JWKS. This is a key-identity check, not signature verification.", "kid": "{{${ATTR.TokenKid}}}", "toolName": "{{${ATTR.ToolName}}}"}`), beforeFirstPolicyIdx);
+  upsert(denyRule(RULE.mcpDenyInvalidKid, 'MCP Deny — Invalid Signing Key',
+    'DENY when the BFF resolved the token header kid as absent from the issuer JWKS (TokenKidUnpublished). ' +
+    'Inert when TokenKidKnown is omitted — unknown is not "verified absent".',
+    COND.TokenKidUnpublished, STMT.invalidKid), beforeFirstPolicyIdx);
+
   for (const ruleId of [
     RULE.mcpDenyUpstreamAud, RULE.mcpDenyResourceOwner,
     RULE.mcpDenyIntentInvalid, RULE.mcpDenyIntentMismatch, RULE.mcpDenyAdminRole,
+    RULE.mcpDenyInvalidKid,
   ]) {
     addChild(POLICY.mcp, ruleId, RULE.mcpPermitValid);
   }

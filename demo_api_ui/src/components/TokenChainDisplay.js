@@ -1783,6 +1783,24 @@ function A2aChainOverview({ chainEvents }) {
   );
 }
 
+/**
+ * Normalise decision parameters off an authorize-decision event.
+ *
+ * The two engines expose them at different paths — live PingOne nests them
+ * under the HTTP body (mcpToolAuthorizationService.js:890), the simulated
+ * engine does not (:1001). Reading only one shape renders an empty callout in
+ * the other mode while looking correct in whichever mode was tested.
+ *
+ * @returns {object|null} the parameters object, or null when absent
+ */
+export function readAuthorizeParameters(event) {
+  return (
+    event?.authorizeRequest?.body?.parameters ??
+    event?.authorizeRequest?.parameters ??
+    null
+  );
+}
+
 function AuthorizeDecisionEduBox({ event }) {
   if (event.id !== "authorize-decision") return null;
   const rawDecision = event.authorizeDecision || event.decision || null;
@@ -1792,6 +1810,14 @@ function AuthorizeDecisionEduBox({ event }) {
   const path = event.authorizePath || null;
   const decisionId = event.authorizeDecisionId || null;
   const authorizeRef = event.authorizeRef || null;
+  // Signing-key identity as a policy input — fine-grained authorization.
+  // Distinct from the authn-step kid display, which reports a verified
+  // signature; here the same key identity is re-evaluated per call as an
+  // authorization attribute. Absent keys render nothing: omission is a
+  // legitimate state (no kid, or JWKS unavailable), not a failure.
+  const azParams = readAuthorizeParameters(event);
+  const tokenKid = azParams?.TokenKid ?? null;
+  const tokenKidKnown = azParams?.TokenKidKnown;
   const isPermit = !isPending && decision === "PERMIT";
   const isDeny = !isPending && decision === "DENY";
   return (
@@ -1864,7 +1890,28 @@ function AuthorizeDecisionEduBox({ event }) {
               </span>
             </li>
           )}
+          {tokenKid && (
+            <li>
+              <span className="tcd-edu-check-lbl">Signing key:</span>
+              <span>
+                <code>{tokenKid}</code>
+                {tokenKidKnown === true
+                  ? " — published in the issuer's JWKS"
+                  : tokenKidKnown === false
+                    ? " — not published in the issuer's JWKS"
+                    : " — JWKS membership unresolved"}
+              </span>
+            </li>
+          )}
         </ul>
+        {tokenKid && (
+          <p className="tcd-edu-detail">
+            Authentication asked whether the signature was valid. Authorization
+            asks a different question, on every call: is this signing key one
+            the policy still accepts? The same <code>kid</code> is re-evaluated
+            here as a policy attribute — this is not signature verification.
+          </p>
+        )}
         <JsonField label="Authorize Request (JSON)" value={event.authorizeRequest || event.request || (event.parameters ? { parameters: event.parameters } : null)} defaultOpen />
         <JsonField label="Authorize Response (JSON)" value={event.authorizeResponse || event.response || event.rawResponse} defaultOpen />
         {event.id === "authorize-decision" && (

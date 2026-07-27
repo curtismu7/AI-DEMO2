@@ -463,12 +463,73 @@ test('3g: UserRole is a RESTRICTION only — no permit branch consumes it', () =
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Signing-key identity (mcp-invalid-kid)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('kid: TokenKidKnown defaults TRUE so an omitted value can never deny', () => {
+  const attr = findById(reconciled(), ATTR.TokenKidKnown);
+  assert.strictEqual(attr.valueType, 'BOOLEAN');
+  // This is the whole fail-open contract. The BFF OMITS TokenKidKnown when it
+  // cannot resolve membership (no kid, or the JWKS fetch failed). A false
+  // default would make every such request match TokenKidUnpublished and DENY —
+  // turning a PingOne JWKS outage into a demo-wide outage.
+  assert.strictEqual(attr.defaultValue, true,
+    'defaultValue MUST be true — an absent TokenKidKnown means "unknown", never "verified absent"');
+});
+
+test('kid: the deny condition matches only an explicit false', () => {
+  const cond = findById(reconciled(), COND.TokenKidUnpublished);
+  assert.deepStrictEqual(cond.condition, {
+    comparison: {
+      left: { attribute: { id: ATTR.TokenKidKnown } },
+      op: 'Equals',
+      right: { constant: { value: false } },
+    },
+  });
+  // Equals-false on a BOOLEAN is the shape GroupMembershipFailed already uses
+  // (InRequiredGroup). No new operator/valueType combination is introduced —
+  // #1009 shipped a depth fix using an operator and value type this DSL had
+  // never exercised, and it silently did not evaluate.
+  const snap = reconciled();
+  const booleanIds = new Set(snap
+    .filter((o) => o.type === 'ATTRIBUTE' && o.valueType === 'BOOLEAN')
+    .map((o) => o.id));
+  const opsOnBooleans = new Set();
+  const walk = (node) => {
+    if (Array.isArray(node)) { node.forEach(walk); return; }
+    if (!node || typeof node !== 'object') return;
+    const c = node.comparison;
+    if (c && booleanIds.has(c.left?.attribute?.id)) opsOnBooleans.add(c.op);
+    Object.values(node).forEach(walk);
+  };
+  walk(snap);
+  assert.ok(opsOnBooleans.has('Equals'),
+    'Equals-on-BOOLEAN must remain an operator/valueType combination this snapshot actually exercises (#1009)');
+});
+
+test('kid: exactly one rule carries the invalid-kid statement, as a conditional deny', () => {
+  const snap = reconciled();
+  const stmt = findById(snap, STMT.invalidKid);
+  assert.strictEqual(stmt.code, 'mcp-invalid-kid');
+  assert.strictEqual(stmt.appliesTo, 'DENY');
+  // The payload must not claim a signature was verified — this rule only knows
+  // that the named key is unpublished.
+  assert.ok(!/signature (was )?(verified|valid)/i.test(stmt.payload),
+    'payload must not claim signature verification');
+
+  const rulesUsingCond = snap.filter((o) => o.type === 'Rule'
+    && JSON.stringify(o).includes(COND.TokenKidUnpublished));
+  assert.deepStrictEqual(rulesUsingCond.map((o) => o.id), [RULE.mcpDenyInvalidKid]);
+  assert.strictEqual(rulesUsingCond[0].effectSettings.type, 'conditionalDenyElsePermit');
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Structure — exactly the intended delta, idempotent, committed
 // ─────────────────────────────────────────────────────────────────────────────
 
-test('structure: the committed snapshot carries all 25 new objects (98 total) and is reconciled', () => {
+test('structure: the committed snapshot carries all 30 new objects (103 total) and is reconciled', () => {
   const committed = readSnapshot();
-  assert.strictEqual(committed.length, 98, '73 pre-delta objects + 7 attrs + 6 conds + 6 stmts + 6 rules');
+  assert.strictEqual(committed.length, 103, '73 pre-delta objects + 9 attrs + 7 conds + 7 stmts + 7 rules');
   assert.deepStrictEqual(reconcile(clone(committed), loadSot()), committed,
     'committed snapshot is out of date — run: node snapshots/gen-authorize-snapshot.js');
 
@@ -481,19 +542,23 @@ test('structure: the committed snapshot carries all 25 new objects (98 total) an
     STMT.intentInvalid, STMT.intentMismatch, STMT.adminRole,
     RULE.mcpDenyUpstreamAud, RULE.mcpDenyResourceOwner, RULE.rarAmountExceeded,
     RULE.mcpDenyIntentInvalid, RULE.mcpDenyIntentMismatch, RULE.mcpDenyAdminRole,
+    // Signing-key identity (mcp-invalid-kid).
+    ATTR.TokenKidKnown, ATTR.TokenKid, COND.TokenKidUnpublished,
+    STMT.invalidKid, RULE.mcpDenyInvalidKid,
   ];
-  assert.strictEqual(new Set(newIds).size, 25, 'the 25 new ids must be distinct');
+  assert.strictEqual(new Set(newIds).size, 30, 'the 30 new ids must be distinct');
   for (const id of newIds) assert.ok(findById(committed, id), `committed snapshot must contain ${id}`);
 });
 
-test('structure: all six deny rules run before the MCP catch-all permit, in order', () => {
+test('structure: all seven deny rules run before the MCP catch-all permit, in order', () => {
   const mcpPolicy = findById(reconciled(), '56789012-0002-4321-abcd-000000000002');
   const childIds = mcpPolicy.children.map((c) => c.id);
   // The RAR deny landed first (on main, #611) so it sits ahead of the five
-  // round-3 denies added after it.
+  // round-3 denies added after it; the signing-key deny landed last.
   const denies = [
     RULE.rarAmountExceeded, RULE.mcpDenyUpstreamAud, RULE.mcpDenyResourceOwner,
     RULE.mcpDenyIntentInvalid, RULE.mcpDenyIntentMismatch, RULE.mcpDenyAdminRole,
+    RULE.mcpDenyInvalidKid,
   ];
   const permitIdx = childIds.indexOf(RULE.mcpPermitValid);
   assert.strictEqual(permitIdx, childIds.length - 1, 'the catch-all permit stays last');
