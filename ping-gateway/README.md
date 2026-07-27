@@ -126,32 +126,101 @@ The route protects `GET /aam/health` and, on allow, proxies to
 `demo_mortgage_service`'s unauthenticated `/health`, so a permit is observable
 without introducing another credential. Only the AAM verdict is being shown.
 
-**Console prerequisites** (not created by this repo — they mutate a live PingOne
-environment):
+**`ff_aam`** (default `true`) governs whether AAM runs at all. Off, the route's
+Groovy filters are bypassed and `GET /api/aam/probe` (below) reports
+`{ disabled: true }` without calling the gateway. It does not change which
+authorization path the `/mcp` routes use — that stays on
+`p1az-decision.groovy` regardless.
 
-1. **Directory > Groups** — a group whose members get access, e.g. `Full access`.
-   Add one test user to it and leave a second user out.
-2. **Authorization > API Gateways** — add a gateway, then add a **Credential**.
-3. **Authorization > API Services** — add a service whose **Base URL** is the
-   gateway as the client reaches it (`http://api.ping.demo:3036` locally,
-   `https://ai-demo.ping-devops.com` on the SE cluster), with one operation:
-   method `GET`, path `/aam/health`, rule "member of any of `Full access`".
-   **Deploy** it.
-4. Copy the gateway's **Service URL** and **Credential** into `ping-gateway/.env`
-   as `PG_AAM_SERVICE_URL` and `AAM_GATEWAY_SECRET` (verbatim — see `.env.example`
-   for why the doc's base64 step does not apply here), then restart the gateway.
+### Provisioning — PingOne Management API, not the console
 
-Until `PG_AAM_SERVICE_URL` is set the route's condition fails, nothing matches
-`/aam`, and the gateway returns `404` — inert, not fail-open.
+Every object below can be created with the worker credentials already in
+`demo_api_server/.env` (`PINGONE_WORKER_CLIENT_ID` / `_SECRET`,
+`client_secret_basic`). No console clicks and no PingOne MCP server needed.
+AAM's "API Services" are named **`apiServers`** in the Management API.
 
-**Verify** once provisioned:
+| Step | Call |
+| --- | --- |
+| Group | `POST /groups` `{"name":"Full access",...}` — add one test user to it, leave a second out |
+| Gateway | `POST /gateways` `{"type":"API_GATEWAY_INTEGRATION","name":...}` |
+| Credential | `POST /gateways/{id}/credentials` `{}` — the secret is returned **only** in this response; the list view omits it |
+| Resource | `POST /resources` — required first; `POST /apiServers` fails with `authorizationServer.resource.id must be provided` otherwise |
+| API server | `POST /apiServers` `{"name":...,"baseUrls":["http://api.ping.demo:3036"],"authorizationServer":{"resource":{"id":...},"type":"PINGONE_SSO"}}` |
+| Operation | `POST /apiServers/{id}/operations` `{"name":...,"methods":["GET"],"paths":[{"pattern":"/aam/health","type":"EXACT"}]}` |
+| Rule | `PUT` the operation with `accessControl` — `{"group":{"groups":[{"id":...}]}}`, or `{"scope":{"matchType":"ANY" (or "ALL"),"scopes":[{"id":...}]}}` (`matchType` is required, no default), or `{"permission":{...}}` |
+| Deploy | `POST /apiServers/{id}/deployment` with `Content-Type: application/vnd.pingidentity.apiServer.deploy+json` — plain JSON returns `415` |
+
+Copy the gateway's **Service URL** — `https://http-access-api.pingone.{region}/v1/environments/{envId}`, **not** returned by any of the above — and the credential from the `POST /credentials` response into `ping-gateway/.env`:
 
 ```bash
-# member of Full access -> 200, mortgage-service health JSON
+PG_AAM_SERVICE_URL=https://http-access-api.pingone.com/v1/environments/<envId>
+AAM_GATEWAY_SECRET=<credential verbatim — NOT base64, see .env.example>
+AAM_MOCK_BASE=http://authz-server:9001
+```
+
+then `docker restart` the gateway (env changes need a restart; route files hot-reload). Until `PG_AAM_SERVICE_URL` is set the route's condition fails, nothing matches `/aam`, and the gateway returns `404` — inert, not fail-open.
+
+Full working values (steps, error messages, request/response schemas) are recorded in
+[`docs/superpowers/specs/2026-07-27-aam-end-to-end-design.md`](../docs/superpowers/specs/2026-07-27-aam-end-to-end-design.md).
+
+### Simulated mode
+
+AAM has the same mock/real split as the decision endpoint. The BFF's
+`GET /api/aam/probe` sends `X-Authz-Simulated` (mirroring the effective
+`ff_authorize_simulated`) together with `X-BFF-Internal`; the gateway trusts
+the header only alongside that secret, so a gateway-audience token cannot force
+the mock. `true` retargets the Sideband call to `AAM_MOCK_BASE`
+(`demo_authz_server`'s `POST /sideband/request` and `/sideband/response`);
+absent or `false` calls real PingOne.
+
+**Verify** (works against either backend):
+
+```bash
+# simulated, group present -> 200, mortgage-service health JSON, decision PERMIT
+curl -i -H "X-Authz-Simulated: true" -H "X-Demo-Groups: Full access" \
+     http://api.ping.demo:3036/aam/health
+# simulated, no group -> 403, decision DENY, request never reaches the backend
+curl -i -H "X-Authz-Simulated: true" \
+     http://api.ping.demo:3036/aam/health
+# real PingOne (once provisioned)
 curl -i -H "Authorization: Bearer $PERMITTED_TOKEN" http://api.ping.demo:3036/aam/health
-# not a member -> 403 from PingGateway, request never reaches the backend
 curl -i -H "Authorization: Bearer $DENIED_TOKEN"    http://api.ping.demo:3036/aam/health
 ```
+
+### Tracing — `X-Gw-Audit-Trail` and the token chain
+
+`PingAuthorizeFilter` is a built-in Java filter: it consumes the Sideband
+request/response internally and exposes only `200`/`403` to the client. Two
+Groovy filters recover the JSON for the trace:
+
+- `aam-sideband-capture.groovy` sits inside `PingAuthorizeFilter`'s
+  `sidebandHandler` — the one place that can both retarget the call (real vs
+  mock) and observe its JSON — and records the exchange, redacting
+  `Authorization`/`CLIENT-TOKEN` at capture.
+- `aam-trail-stamp.groovy` **wraps** `PingAuthorizeFilter` rather than
+  following it (a deny returns its own 403 without calling downstream filters)
+  and stamps `X-Gw-Audit-Trail` with an `aam` section on both outcomes.
+
+`/aam` is called directly by clients, so nothing in the BFF normally sees that
+header. `GET /api/aam/probe` (mounted behind `authenticateToken`) closes that
+gap: it calls `/aam/health` itself, parses the trail, and returns
+`{ ok, httpStatus, decision, backend, serviceUri, elapsedMs, request, response }`.
+A `403` is a successful probe, not an error — the deny is the decision worth
+showing, so the route never throws on gateway status.
+
+The UI renders this as a `gw-aam` event in the token chain
+(`TokenChainDisplay.js`), alongside — not instead of — the `gw-authorize`
+event: AAM sees only method/path/headers/client IP, so the fine-grained
+per-tool decision still runs behind it.
+
+**`streamingEnabled: true`** (global, `admin.json`) means IG streams entity
+content; reading the Sideband JSON directly from a `ScriptableFilter` blocks a
+Vert.x event-loop thread and the request never completes (curl exit `28`,
+not a fast failure). The `/mcp` routes avoid this only because
+`McpValidationFilter` buffers first. `04-aam-api-access.json` fixes it with a
+`CaptureDecorator` (`captureEntity: true`) scoped to this route's sideband
+chain only — `/mcp` streaming is untouched. The decorator value must be a
+capture-point string (`"all"`); `true` fails route build.
 
 ## Files
 
@@ -163,8 +232,12 @@ curl -i -H "Authorization: Bearer $DENIED_TOKEN"    http://api.ping.demo:3036/aa
 - `config/routes/00-mcp-invest-jwks.json` — same JWKS switch for the `/mcp/invest` path
   (route 02 with the `rsFilter` stage replaced by the Groovy validator).
 - `config/routes/04-aam-api-access.json` — PingOne Authorize **API Access Management** route
-  (`/aam`), stock `PingAuthorizeFilter` against the Sideband API. Inert until
-  `PG_AAM_SERVICE_URL` is set.
+  (`/aam`), stock `PingAuthorizeFilter` against the Sideband API, plus the `CaptureDecorator` and
+  `sidebandHandler` chain that make the exchange traceable. Inert until `PG_AAM_SERVICE_URL` is set.
+- `scripts/groovy/aam-sideband-capture.groovy` — inside `sidebandHandler`: retargets real vs mock
+  and captures the Sideband request/response JSON, redacted, onto the shared `AttributesContext`.
+- `scripts/groovy/aam-trail-stamp.groovy` — wraps `PingAuthorizeFilter`; stamps `X-Gw-Audit-Trail`
+  with the `aam` section on both outcomes (the deny only reaches this filter, not a later one).
 - `scripts/groovy/p1az-decision.groovy` — the authorize decision filter.
 - `scripts/groovy/jwks-token-validation.groovy` — local inbound token validation for the JWKS
   route: RS256 against the PingOne JWKS, HS256 against the mock demo_authz_server secret.

@@ -102,6 +102,69 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-27 — PingOne Authorize API Access Management (AAM) had no trace, no simulated mode, and no flag
+
+**Files changed:** `ping-gateway/config/routes/04-aam-api-access.json`,
+`ping-gateway/scripts/groovy/aam-sideband-capture.groovy` (new),
+`ping-gateway/scripts/groovy/aam-trail-stamp.groovy` (new),
+`demo_authz_server/routes/sideband.js` (new), `demo_authz_server/index.js`,
+`demo_api_server/routes/aamProbe.js` (new),
+`demo_api_server/services/mcpGatewayClient.js`,
+`demo_api_server/services/configStore.js`,
+`demo_api_ui/src/components/TokenChainDisplay.js`,
+`ping-gateway/README.md`.
+
+**What was broken:** PR #1025 added the stock `PingAuthorizeFilter` on a
+new `/aam` route (a second, coarse-grained PingOne Authorize capability
+alongside the existing `p1az-decision.groovy` decision-endpoint path). It
+enforced correctly but was invisible: `PingAuthorizeFilter` consumes the
+Sideband request/response internally and exposes only 200/403, so nothing
+reached the token chain. It also had no mock backend (undemoable without a
+live PingOne environment) and no way to turn it off.
+
+**What was fixed:** `sidebandHandler` — a `PingAuthorizeFilter` config
+property typed as a Handler reference we own — hosts
+`aam-sideband-capture.groovy`, which retargets the call (real PingOne vs
+`demo_authz_server`'s new `/sideband/request` + `/sideband/response` mock,
+switched by `X-Authz-Simulated`, same pattern as `P1AZ_MOCK_BASE` /
+`P1AZ_REAL_BASE`) and captures the exchange with `Authorization` redacted at
+capture. `aam-trail-stamp.groovy` wraps `PingAuthorizeFilter` (not follows
+it — a deny short-circuits downstream filters) and stamps
+`X-Gw-Audit-Trail` with an `aam` section, reusing the existing header
+`p1az-decision.groovy` already populates. `GET /api/aam/probe` is the only
+new BFF surface: `/aam` is called directly by clients, so without it
+nothing in the BFF ever sees the trail. The UI renders a `gw-aam` event in
+`TokenChainDisplay.js` alongside `gw-authorize`, not instead of it — AAM
+sees only method/path/headers/client IP, the fine-grained per-tool
+decision still runs behind it. `ff_aam` (default `true`) gates whether AAM
+runs at all.
+
+Two IG-specific traps, both now documented in the route/script comments and
+the design spec: `streamingEnabled: true` (global) means reading the
+Sideband entity from a `ScriptableFilter` blocks a Vert.x event-loop thread
+— the request hangs (curl exit 28) rather than failing fast — fixed with a
+`CaptureDecorator` scoped to this route only (`/mcp` untouched). And the
+Sideband API has two endpoints: `/sideband/request` decides, and on
+**allow only** the gateway posts the backend's answer to
+`/sideband/response`; a mock missing that leg produces a 404 "from the
+Sideband API" on allow while deny keeps working.
+
+**Do not break:** No existing route, heap object, or `p1az-decision.groovy`
+line is modified — AAM is additive. The `/mcp` routes keep enforcing
+through the decision-endpoint path regardless of `ff_aam`.
+
+**Verify:** Live against real PingOne (env `01d89b06`), isolated container,
+running stack never repointed: DENY (`decision=DENY backend=real`,
+`response_code "401"`) and, via the mock, both PERMIT (`200`,
+`{"service":"banking_mortgage_service"}`) and DENY (`403`) with the
+Sideband JSON captured and `Authorization: <redacted>`; 11/11 routes load,
+0 build errors, 0 `Thread blocked`; `/health` 200 and `/mcp` no-token 401
+unchanged. `demo_authz_server` sideband 9/9 (211/217 full suite — the 6
+failures are a strict subset of 14 failing on a clean `origin/main`
+baseline). `aamProbe` 8/8, `ffAam` 4/4, `gw-aam` chain 9/9.
+`npm run topology:verify` PASSED; UI `test:unit` 278 files / 2365 passed;
+`npm run build` exit 0.
+
 ### 2026-07-27 — Scope audit: Holdings A2A chain half-wired; SSOT under-documented live A2A gateway scopes; non-canonical scope spellings in enforcement/metadata
 
 **Files changed:** `scope-topology.json`, `docs/scope-topology.md` (regenerated),
