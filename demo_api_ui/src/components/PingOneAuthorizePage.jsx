@@ -10,6 +10,7 @@ import ScopeAuditPage from './ScopeAuditPage';
 import ScopeReferencePage from './ScopeReferencePage';
 import SnapshotImport from '../pages/SnapshotImport';
 import InspectorShell from './shared/InspectorShell';
+import PacEditorLaunch from './PacEditorLaunch';
 import InspectorTabs from './shared/InspectorTabs';
 import { explainAuthorizeResult, displayDecision as explainDisplayDecision } from '../utils/authorizeResultExplain';
 import './McpInspector.css';
@@ -497,6 +498,7 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
   return (
     <InspectorShell
       title="P1AZ Inspector"
+      actions={<PacEditorLaunch />}
       statusOn={!!endpointId}
       statusText={endpointId ? undefined : 'Select a decision endpoint above'}
       fullHeight={false}
