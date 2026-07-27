@@ -10,7 +10,6 @@ const { register } = require('./registry');
 // valid for this tool — unlike get_account_balance, whose schema requires
 // account_id and would reject an empty-args call.
 const TOOL_NAME = 'get_my_accounts';
-const RESOURCE_ID = 'accounts:self';
 
 const realPath = {
   id: 'gateway.real_path', name: 'Real gateway path (introspect -> authorize -> mcp-call)',
@@ -41,22 +40,42 @@ const realPath = {
       gwToken = await oauth.performTokenExchange(userToken, aud, [scope]);
     } catch (err) { return fail('token-exchange', err.message); }
 
-    // Hop 1: introspection
-    let r = await callPingGateway('POST', '/introspect', { token: gwToken });
-    if (!(r.statusCode < 300 && r.body?.active)) return fail('introspect', `active=${r.body?.active} status=${r.statusCode}`);
-    hops.push({ name: 'introspect', status: 'pass', detail: 'active=true' });
+    // ONE authenticated tools/call. There is deliberately no /introspect or
+    // /authorize hop: those were written for the Node demo gateway, but this
+    // check is gated to ff_mcp_gateway_pinggateway === true, i.e. it only ever
+    // runs against PingGateway (IG) — where they are FILTERS INSIDE the route
+    // chain, not endpoints. Probed live: /introspect 404, /authorize 404,
+    // /mcp 401, /health 200. So the gate could never pass in the only mode it
+    // runs in, and had been failing for that reason alone.
+    //
+    // Introspection and the authorize decision still happen; they are reported
+    // in IG's own filter chain. WHO decided and what is enforcing is asserted
+    // by gateway.posture, which reads it from the source rather than inferring
+    // it from three round trips that never existed.
+    let r;
+    try {
+      r = await callPingGateway('POST', '/mcp', {
+        jsonrpc: '2.0', id: 1, method: 'tools/call',
+        params: { name: TOOL_NAME, arguments: {} },
+      });
+    } catch (err) {
+      // Name the hop. Unwrapped, a transport error escaped to the runner and
+      // arrived as a bare code with no indication of where it happened.
+      return fail('mcp-call', (err && (err.message || err.code)) || 'transport error');
+    }
+    if (r.statusCode === 401 || r.statusCode === 403) {
+      return fail('mcp-call', `gateway refused the token (status ${r.statusCode}) — enforcement is ON and this token did not satisfy it`);
+    }
+    if (!(r.statusCode < 300 && r.body?.result && !r.body?.error)) {
+      return fail('mcp-call', `status=${r.statusCode} error=${JSON.stringify(r.body?.error) || 'none'}`);
+    }
+    hops.push({ name: 'mcp-call', status: 'pass', detail: `${TOOL_NAME} tools/call returned a result` });
 
-    // Hop 2: authorize
-    r = await callPingGateway('POST', '/authorize', { token: gwToken, resourceId: RESOURCE_ID });
-    if (!(r.statusCode < 300 && r.body?.decision === 'PERMIT')) return fail('authorize', `decision=${r.body?.decision} status=${r.statusCode}`);
-    hops.push({ name: 'authorize', status: 'pass', detail: 'PERMIT' });
-
-    // Hop 3: MCP tools/call
-    r = await callPingGateway('POST', '/mcp', { jsonrpc: '2.0', method: 'tools/call', params: { name: TOOL_NAME, arguments: {} } });
-    if (!(r.statusCode < 300 && r.body?.result && !r.body?.error)) return fail('mcp-call', `status=${r.statusCode} error=${JSON.stringify(r.body?.error) || 'none'}`);
-    hops.push({ name: 'mcp-call', status: 'pass', detail: 'tools/call result ok' });
-
-    return { status: 'pass', detail: 'introspect + authorize + mcp-call all succeeded', meta: { hops } };
+    return {
+      status: 'pass',
+      detail: `${TOOL_NAME} completed through the real gateway path`,
+      meta: { hops },
+    };
   },
 };
 
