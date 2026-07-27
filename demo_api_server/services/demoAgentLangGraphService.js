@@ -782,10 +782,20 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
     result: toolResult,
     toolError: toolError || null,
     render: !toolError && result.tool ? A2A_TOOL_RENDER[result.tool] || null : null,
-    note:
-      `Delegated to the ${result.specialist}. A nested act chain ` +
-      `(act:{${result.specialist} → generalist}) bound to the user was minted, and ` +
-      `PingOne Authorize permitted the specialist to run ${result.tool}.`,
+    // The note must not claim more than happened. It previously asserted
+    // "PingOne Authorize permitted the specialist to run X" UNCONDITIONALLY —
+    // including when the tool call had just failed, which is exactly the
+    // sentence a presenter reads aloud. Delegation (minting the nested-act
+    // token) and authorization (the tool actually running) are separate facts,
+    // and toolError already tracks the second one.
+    note: toolError
+      ? `Delegated to the ${result.specialist} — a nested act chain `
+        + `(act:{${result.specialist} → generalist}) bound to the user was minted. `
+        + `The specialist's ${result.tool} call did NOT succeed (${toolError}), so this is `
+        + 'not a completed authorization.'
+      : `Delegated to the ${result.specialist}. A nested act chain `
+        + `(act:{${result.specialist} → generalist}) bound to the user was minted, and `
+        + `the authorization policy permitted the specialist to run ${result.tool}.`,
   });
 }
 
