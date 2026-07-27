@@ -4,7 +4,7 @@
   "ucId": "UC22",
   "trigger": "pay $150 tuition",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-27T00:20:49.886Z",
+  "capturedAt": "2026-07-27T00:27:48.099Z",
   "seedHash": "55fb07346bdb7866",
   "reply": "PingOne Authorize requires additional authentication before MCP tools can run.",
   "agentPath": null,

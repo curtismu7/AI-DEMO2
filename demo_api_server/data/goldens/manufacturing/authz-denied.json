@@ -4,7 +4,7 @@
   "ucId": "UC6",
   "trigger": "approve a $2500 purchase order",
   "expectedOutcome": "DENY",
-  "capturedAt": "2026-07-27T00:21:28.813Z",
+  "capturedAt": "2026-07-27T00:28:34.596Z",
   "seedHash": "dcba7c79003a5241",
   "reply": "❌ PingOne Authorize denied MCP tool access for this session.",
   "agentPath": null,

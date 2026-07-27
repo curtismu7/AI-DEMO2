@@ -4,7 +4,7 @@
   "ucId": "UC6",
   "trigger": "transfer $2500 from checking to savings",
   "expectedOutcome": "DENY",
-  "capturedAt": "2026-07-27T00:19:37.511Z",
+  "capturedAt": "2026-07-27T00:26:39.647Z",
   "seedHash": null,
   "reply": "Transfer failed: PingOne Authorize denied MCP tool access for this session.",
   "agentPath": null,

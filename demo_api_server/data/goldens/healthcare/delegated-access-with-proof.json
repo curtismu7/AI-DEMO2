@@ -4,7 +4,7 @@
   "ucId": "UC1",
   "trigger": "check my coverage",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-27T00:19:46.325Z",
+  "capturedAt": "2026-07-27T00:26:49.439Z",
   "seedHash": "956244bc8453547f",
   "reply": "Here is your Coverage.",
   "agentPath": null,

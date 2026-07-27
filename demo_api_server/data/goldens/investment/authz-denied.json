@@ -4,7 +4,7 @@
   "ucId": "UC6",
   "trigger": "execute a large trade of $2500",
   "expectedOutcome": "DENY",
-  "capturedAt": "2026-07-27T00:21:45.412Z",
+  "capturedAt": "2026-07-27T00:29:03.477Z",
   "seedHash": null,
   "reply": "❌ PingOne Authorize denied MCP tool access for this session.",
   "agentPath": null,

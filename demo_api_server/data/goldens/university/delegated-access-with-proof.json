@@ -4,7 +4,7 @@
   "ucId": "UC1",
   "trigger": "show my enrolled courses",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-27T00:20:37.792Z",
+  "capturedAt": "2026-07-27T00:27:37.323Z",
   "seedHash": "55fb07346bdb7866",
   "reply": "Here are your courses.",
   "agentPath": null,

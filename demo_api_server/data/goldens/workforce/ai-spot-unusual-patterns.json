@@ -4,7 +4,7 @@
   "ucId": "UC34",
   "trigger": "Check for unusual patterns in my recent activity",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-27T00:20:55.498Z",
+  "capturedAt": "2026-07-27T00:27:54.549Z",
   "seedHash": "53b2bac25e5daf21",
   "reply": "Here are your expenses (6 total).",
   "agentPath": null,

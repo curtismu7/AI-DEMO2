@@ -4,7 +4,7 @@
   "ucId": "UC7",
   "trigger": "approve a $600 purchase order",
   "expectedOutcome": "STEP_UP",
-  "capturedAt": "2026-07-27T00:21:29.543Z",
+  "capturedAt": "2026-07-27T00:28:35.437Z",
   "seedHash": "dcba7c79003a5241",
   "reply": "PingOne Authorize requires additional authentication before MCP tools can run.",
   "agentPath": null,
