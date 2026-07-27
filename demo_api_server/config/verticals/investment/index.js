@@ -16,6 +16,7 @@ const HEURISTICS = [
   { re: /\bdeposit\b/i, action: 'deposit', extractsAmount: true, paramHint: 'e.g. "deposit $1,000 into my brokerage portfolio"' },
   { re: /\bwithdraw\b/i, action: 'withdraw', extractsAmount: true, paramHint: 'e.g. "withdraw $500 from my retirement portfolio"' },
   { re: /\bdividends?\b/i, action: 'view_dividends' },
+  { re: /\b(unusual|anomal\w*|suspicious|unexpected)\b.*\b(pattern|transaction|activity|trade|position)|check for unusual|flag any unusual|spot unusual/i, action: 'view_trades' },
   { re: /\btrades?\b|\btrade\s+history\b/i, action: 'view_trades' },
   { re: /\bsensitive\b.*\b(holdings?|positions?|cost\s*basis|tax\s*lots?)\b|\bholdings?\b.*\bsensitive\b/i, action: 'sensitive_holdings' },
   { re: /\bholdings?\b|\bsecurities\b/i, action: 'view_holdings' },
