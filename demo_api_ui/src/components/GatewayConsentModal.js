@@ -43,7 +43,7 @@ export default function GatewayConsentModal({
     <>
       <button
         type="button"
-        className="gcm-btn-approve"
+        className="btn btn-primary"
         disabled={!agreed}
         onClick={() => onApprove?.()}
       >
@@ -51,7 +51,7 @@ export default function GatewayConsentModal({
       </button>
       <button
         type="button"
-        className="gcm-btn-cancel"
+        className="btn btn-secondary"
         onClick={() => onDismiss?.()}
       >
         Cancel
@@ -65,7 +65,7 @@ export default function GatewayConsentModal({
       onClose={onDismiss}
       title="Action Requires Your Approval"
       footer={footer}
-      defaultWidth={420}
+      defaultWidth={380}
       defaultHeight={380}
       storageKey="gateway-consent-modal"
       zIndex={9995}

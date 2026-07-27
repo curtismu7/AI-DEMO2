@@ -1,34 +1,5 @@
 /* GatewayConsentModal — gcm- prefix */
 
-.gcm-card {
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 12px;
-  box-shadow: 0 24px 60px rgba(10, 20, 50, 0.18);
-  width: 420px;
-  min-height: 160px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.gcm-drag-handle {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 16px 20px 12px;
-  background: #f8fafc;
-  cursor: move;
-  user-select: none;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.gcm-title {
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #1e293b;
-}
-
 .gcm-hitl-badge {
   display: inline-block;
   background: #fff3cd;
@@ -41,17 +12,6 @@
   width: fit-content;
 }
 
-.gcm-body {
-  padding: 20px 24px 8px;
-  font-size: 0.88rem;
-  color: #1e293b;
-  line-height: 1.5;
-}
-
-.gcm-body p {
-  margin: 0 0 8px;
-}
-
 .gcm-challenge-id {
   font-size: 0.78rem;
   color: #1e293b;
@@ -61,42 +21,4 @@
 .gcm-expires {
   font-size: 0.78rem;
   color: #1e293b;
-}
-
-.gcm-footer {
-  display: flex;
-  gap: 10px;
-  padding: 8px 24px 20px;
-  align-items: center;
-}
-
-.gcm-btn-approve {
-  background: #3b82f6;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 20px;
-  font-size: 0.88rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.gcm-btn-approve:hover {
-  background: #2563eb;
-}
-
-.gcm-btn-cancel {
-  background: transparent;
-  color: #1e293b;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 8px 16px;
-  font-size: 0.88rem;
-  cursor: pointer;
-  transition: border-color 0.15s;
-}
-
-.gcm-btn-cancel:hover {
-  border-color: #94a3b8;
 }
