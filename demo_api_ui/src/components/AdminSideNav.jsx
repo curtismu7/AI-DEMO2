@@ -502,7 +502,7 @@ export default function AdminSideNav({ user }) {
       children: [
         { label: "MCP Inspector", path: "/pingone-mcp-inspector", icon: "dbg" },
         { label: "PingGateway Inspector", path: "/pinggateway-inspector", icon: "rte" },
-        { label: "P1AZ Inspector", path: "/pingone-authorize", icon: "pol" },
+        { label: "P1AZ Inspector", path: "/pingone-authorize", icon: "pol", searchAlias: "PingOne Authorize" },
       ],
     },
     {
@@ -606,7 +606,7 @@ export default function AdminSideNav({ user }) {
       label: "Authorize",
       icon: "pol",
       children: [
-        { label: "P1AZ Inspector", path: "/pingone-authorize", icon: "pol" },
+        { label: "P1AZ Inspector", path: "/pingone-authorize", icon: "pol", searchAlias: "PingOne Authorize" },
         { label: "Authorize Capabilities", path: "/pingone-authorize-capabilities", icon: "pol" },
         {
           label: "Policy Decision Trace",
@@ -904,20 +904,24 @@ export default function AdminSideNav({ user }) {
     .filter((item) => !item.customerOnly || !isAdmin)
     .filter((item) => item.label === "Demo Config" || !hiddenNavLabels.includes(item.label));
 
-  // Live filter: match by label across top-level items and their children. A
-  // group is kept if its own label matches (all children shown) or if any child
-  // matches (only matching children shown). Empty query = show everything.
+  // Live filter: match by label (or an item's optional search alias, for
+  // renamed items whose old/product name should still surface them — e.g.
+  // "P1AZ Inspector" via "authorize") across top-level items and their
+  // children. A group is kept if its own label/alias matches (all children
+  // shown) or if any child matches (only matching children shown). Empty
+  // query = show everything.
   const navQuery = navFilter.trim().toLowerCase();
-  const labelMatches = (label) =>
-    String(label || "").toLowerCase().includes(navQuery);
+  const itemMatches = (item) =>
+    String(item?.label || "").toLowerCase().includes(navQuery) ||
+    String(item?.searchAlias || "").toLowerCase().includes(navQuery);
   const filterNavItem = (item) => {
     if (!navQuery) return item;
     if (item.children?.length) {
-      if (labelMatches(item.label)) return item;
-      const kids = item.children.filter((c) => labelMatches(c.label));
+      if (itemMatches(item)) return item;
+      const kids = item.children.filter((c) => itemMatches(c));
       return kids.length ? { ...item, children: kids } : null;
     }
-    return labelMatches(item.label) ? item : null;
+    return itemMatches(item) ? item : null;
   };
   const visibleNavItems = navQuery
     ? navItems.map(filterNavItem).filter(Boolean)
