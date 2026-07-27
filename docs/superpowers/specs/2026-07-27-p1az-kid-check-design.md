@@ -32,6 +32,7 @@ this check "validates the JWKS" would be false.
 | Scope | BFF `McpFirstTool` gate only — not the Node gateway, not the IG groovy path |
 | JWKS fetch failure | Omit `TokenKidKnown` — fail open on this check |
 | Simulated engine | Mirror the rule, so the check works in both modes |
+| Token chain | Call it out as a policy-input row on the `authorize-decision` step |
 
 ### Accepted tradeoffs
 
@@ -214,6 +215,90 @@ phasing is:
 Until then the live path is inert for this check. That is expected, not a bug,
 and the tests below assert what is actually true at each stage.
 
+## Component 6 — token chain callout (fine-grained authorization)
+
+`demo_api_ui/src/components/TokenChainDisplay.js`, `AuthorizeDecisionEduBox`
+(line 1786) — the `authorize-decision` step.
+
+### Why not the existing kid display
+
+The token chain **already renders `kid`**, at lines 1024-1056. That block sits
+behind `verified && fallback === "jwks"` and is fed by `verif.kid` from
+`tokenVerificationService`, which performs real signature verification. Its copy
+says the signature "was verified using the RSA public key" — accurate there.
+
+Adding the new check's callout to that block would state that a `kid` check
+verifies a signature. It does not. The two must stay visibly distinct:
+
+| | existing block | new callout |
+|---|---|---|
+| step | authentication | authorization |
+| question | is this signature valid? | is this signing key one policy accepts? |
+| frequency | once, at verification | per call |
+| source | `tokenVerificationService` | P1AZ decision parameters |
+
+That contrast is the teaching point, and is the reason the callout goes on the
+decision step rather than the verification step.
+
+### No new plumbing required
+
+`demoAgentService.js:695` already puts the full decision request on the event as
+`authorizeRequest: ae.request`. Both engines populate it, but **at different
+paths**:
+
+| engine | source | parameters live at |
+|---|---|---|
+| live PingOne | `mcpToolAuthorizationService.js:890` (`r._debug.request`) | `authorizeRequest.body.parameters` |
+| simulated | `mcpToolAuthorizationService.js:1001` | `authorizeRequest.parameters` |
+
+The reader must handle both:
+
+```js
+const params =
+  event.authorizeRequest?.body?.parameters ??
+  event.authorizeRequest?.parameters ??
+  null;
+```
+
+Handling only one shape renders an empty callout in the other mode while looking
+correct in whichever mode was tested — the false-green pattern this repo has hit
+repeatedly. Both modes must be exercised in test.
+
+Because the parameters already flow, this component is **read-only against
+existing data**. No backend change beyond Components 2-4.
+
+### Content
+
+Render `TokenKid` and `TokenKidKnown` in a policy-inputs list, plus one line of
+copy drawing the authn/authz distinction. Absent keys render nothing — omission
+is a legitimate state here (no `kid`, or JWKS unavailable), and must not display
+as a failure.
+
+## Regression guard
+
+`authorize-decision` is **ProofStrip evidence**. `computeVerdict` short-circuits
+on `missingSteps.length > 0` before `expectedOutcome` is compared, so any change
+to the event's `id` or its presence flips correct runs to "Incomplete" — the
+exact bug logged in `REGRESSION_PLAN.md` §4 (2026-07-27 and the UC5/UC11/UC12
+entry at line 3276).
+
+**What this change will NOT break:**
+
+- The `authorize-decision` event `id`, its presence, or its status values —
+  Component 6 only *reads* fields already on the event; it adds none and renames
+  none.
+- `computeVerdict`'s short-circuit, and every catalog `evidence.tokenChain`
+  declaration.
+- The existing `verified && fallback === "jwks"` kid block — untouched, so
+  signature-verification copy keeps saying exactly what it says today.
+- `getPublicKey`, and every existing gate check in Components 2-4.
+
+**Hard UI rules (§0):** emoji allowlist only; no muted low-contrast text. The
+callout is plain text and existing `tcd-edu-*` classes — no new emoji.
+
+**UI build gate:** `cd demo_api_ui && npm run build` must exit 0. UI tests are
+**vitest**, not jest.
+
 ## Testing
 
 ### Unit — `hasKid`
@@ -250,6 +335,16 @@ Extend the existing `C1 canonical parameter set` block in
 - `tokenKidKnown === null` → guard skipped, decision unchanged from today
 - `tokenKidKnown === true` → decision unchanged from today
 
+### UI — token chain callout (vitest)
+
+- live-shape event (`authorizeRequest.body.parameters`) → `TokenKid` +
+  `TokenKidKnown` rendered
+- simulated-shape event (`authorizeRequest.parameters`) → same render. **Both
+  shapes required**; one alone proves nothing about the other mode.
+- parameters absent → callout renders nothing, no error state
+- the `verified && fallback === "jwks"` block is unchanged — existing
+  `TokenChainDisplay` specs (including `haltedAt` bucket assertions) still pass
+
 ## Success criteria
 
 - ✅ `hasKid` returns `false` for an unpublished kid, and the revert-to-RED step
@@ -257,8 +352,12 @@ Extend the existing `C1 canonical parameter set` block in
 - ✅ Live path emits both attributes; JWKS outage omits `TokenKidKnown` and
   leaves all other parameters intact
 - ✅ Simulated path denies on `false`, is inert on `null`
+- ✅ Token chain decision step shows `TokenKid` / `TokenKidKnown` in **both**
+  live and simulated shapes; absent parameters render nothing
 - ✅ `CI=true npm test -- --forceExit` green, output pasted as evidence
-- ✅ No existing check altered; `getPublicKey` untouched
+- ✅ `cd demo_api_ui && npm run test:unit && npm run build` green (vitest, not jest)
+- ✅ No existing check altered; `getPublicKey` untouched; the authn-step kid
+  block and the `authorize-decision` event shape both unchanged
 - ✅ Staged explicitly on `worktree-p1az-kid-check`
 
 ## Files touched
@@ -269,8 +368,10 @@ Extend the existing `C1 canonical parameter set` block in
 | `demo_api_server/services/mcpToolAuthorizationService.js` | read `kid`, resolve, pass to both engines |
 | `demo_api_server/services/pingOneAuthorizeService.js` | 2 params, 2 spreads, 1 statement code |
 | `demo_api_server/services/simulatedAuthorizeService.js` | 2 params, parameters entry, 1 guard |
-| tests | `hasKid` unit spec + parity spec extension |
+| `demo_api_ui/src/components/TokenChainDisplay.js` | policy-input row in `AuthorizeDecisionEduBox` (read-only) |
+| tests | `hasKid` unit spec, parity spec extension, vitest callout spec |
 
 Not touched: `demo_mcp_gateway/src/tokenValidator.ts`,
-`ping-gateway/scripts/groovy/p1az-decision.groovy`, `getPublicKey`, and every
+`ping-gateway/scripts/groovy/p1az-decision.groovy`, `getPublicKey`, the
+authn-step `kid` block, the `authorize-decision` event shape, and every
 existing gate check.
