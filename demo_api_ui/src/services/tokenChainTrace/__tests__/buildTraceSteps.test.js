@@ -143,7 +143,7 @@ describe("buildTraceSteps — statuses from evidence", () => {
     const az = steps.find((s) => s.id === "authorize");
     expect(az.status).toBe("done");
     expect(az.detail.decision).toEqual({ outcome: "PERMIT",
-      label: "PERMIT — pingone (McpFirstTool)" });
+      label: "PERMIT — pingone (MCP tool-call check)" });
     expect(az.detail.request.text).toContain("decisionEndpoints/d1");
     expect(az.detail.request.text).toContain("transfer_funds");
     expect(az.detail.kv).toContainEqual(["decision id", "dec_8f31"]);

@@ -58,6 +58,13 @@ const STEP_RFCS = {
   exchange: ["RFC 8693", "RFC 8707"],
 };
 
+// PingOne Authorize's DecisionContext is an internal Trust Framework parameter
+// name — surface what it actually gates instead of the raw code.
+const DECISION_CONTEXT_LABELS = {
+  McpFirstTool: "MCP tool-call check",
+};
+const friendlyDecisionContext = (ctx) => (ctx && DECISION_CONTEXT_LABELS[ctx]) || ctx;
+
 export const asJson = (v) => { try { return JSON.stringify(v, null, 2); } catch { return String(v); } };
 const splitScopes = (s) =>
   Array.isArray(s) ? s : typeof s === "string" ? s.split(" ").filter(Boolean) : [];
@@ -320,7 +327,7 @@ export function buildTraceSteps(trace) {
       : azIsDeny
         ? `Authorize denied this action (${azEval.engine || "policy"}) — the tool call is blocked.`
         : `Authorize returned ${azEval.decision || "PERMIT"}`
-          + (azEval.decisionContext ? ` for ${azEval.decisionContext}` : "")
+          + (azEval.decisionContext ? ` for the ${friendlyDecisionContext(azEval.decisionContext)}` : "")
           + (azEval.source === "gw-authorize" ? " at the Agent Gateway hop." : " before the tool ran."))
     : undefined;
   steps.push(makeStep("authorize", azStatus,
@@ -333,7 +340,7 @@ export function buildTraceSteps(trace) {
       response: azEval.response
         ? { title: "Decision response (raw)", text: asJson(azEval.response) } : undefined,
       decision: { outcome: azEval.decision || "INDETERMINATE",
-        label: `${azEval.decision || "INDETERMINATE"} — ${azEval.engine || "?"}${azEval.decisionContext ? ` (${azEval.decisionContext})` : ""}` },
+        label: `${azEval.decision || "INDETERMINATE"} — ${azEval.engine || "?"}${azEval.decisionContext ? ` (${friendlyDecisionContext(azEval.decisionContext)})` : ""}` },
       kv: [
         ["engine", String(azEval.engine || "")],
         ["decision id", String(azEval.decisionId || "")],
