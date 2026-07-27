@@ -550,6 +550,12 @@ async function evaluateMcpToolDelegation({
   // F5 — admin used to skip the whole gate in code. The role is now a policy
   // INPUT so the PDP decides what (if anything) admin means.
   userRole = null,
+  // Signing-key identity (additional check). tokenKid is the JWT header kid;
+  // tokenKidKnown is the caller's pre-resolved JWKS membership. The snapshot
+  // DSL cannot fetch a JWKS, so the boolean is resolved BFF-side — same
+  // precedent as InRequiredGroup / UserTier. null → key OMITTED (C1 rule 3).
+  tokenKid = null,
+  tokenKidKnown = null,
 }) {
   const creds = _getCredentials();
   const endpointId = decisionEndpointId || creds.mcpDecisionEndpointId;
@@ -604,6 +610,8 @@ async function evaluateMcpToolDelegation({
     ...(tokenIat != null ? { TokenIat: tokenIat } : {}),
     ...(tokenNbf != null ? { TokenNbf: tokenNbf } : {}),
     ...(tokenIss ? { TokenIss: tokenIss } : {}),
+    ...(tokenKid ? { TokenKid: tokenKid } : {}),
+    ...(tokenKidKnown != null ? { TokenKidKnown: tokenKidKnown } : {}),
     ...(userRole ? { UserRole: userRole } : {}),
     ...(acr ? { Acr: acr } : {}),
     ...(hitlApproved ? { HitlApproved: true } : {}),
@@ -1252,6 +1260,9 @@ const KNOWN_STATEMENT_CODES = new Set([
   // RAR amount-cap deny (#611/#615) — the RFC 9396 rule's statement code
   // matches the simulated engine's deny_reason, not the mcp-* convention.
   'rar_amount_exceeded',
+  // Signing-key deny. Listed so a live decision carrying it does not trip the
+  // F8 "unrecognised statement code" warning.
+  'mcp-invalid-kid',
 ]);
 
 /**
