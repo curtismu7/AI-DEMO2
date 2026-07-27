@@ -2,14 +2,34 @@
 // TraceRail into the matching inspector page so the learner can watch it run
 // again in the test tool.
 //
-// The payload rides in sessionStorage (not the URL) — P1AZ parameter sets and
-// MCP tool arguments are unbounded, and the target opens in a new tab, which
-// same-origin sessionStorage survives. The URL carries only a short id.
+// The payload rides in storage (not the URL) — P1AZ parameter sets and MCP tool
+// arguments are unbounded. The URL carries only a short id.
+//
+// localStorage, NOT sessionStorage: the inspector opens via
+// window.open(..., "noopener"), and a noopener context starts with a FRESH
+// sessionStorage, so the payload would never arrive. Entries are removed on
+// read, and any stragglers (tab closed before the page ran) are swept by age.
 
 const KEY_PREFIX = "tctr:replay:";
 export const REPLAY_PARAM = "replay";
+/** Stale-entry sweep horizon — a handoff is consumed within seconds or never. */
+const MAX_AGE_MS = 5 * 60 * 1000;
 
 let seq = 0;
+
+function sweep(store) {
+  const now = Date.now();
+  for (let i = store.length - 1; i >= 0; i -= 1) {
+    const key = store.key(i);
+    if (!key || !key.startsWith(KEY_PREFIX)) continue;
+    try {
+      const { stagedAt } = JSON.parse(store.getItem(key)) || {};
+      if (!stagedAt || now - stagedAt > MAX_AGE_MS) store.removeItem(key);
+    } catch {
+      store.removeItem(key);
+    }
+  }
+}
 
 /**
  * Stash a replay payload and return the URL to open (href + ?replay=<id>).
@@ -20,7 +40,11 @@ export function stageReplay(replay) {
   if (!replay || !replay.href) return null;
   const id = `${replay.target || "r"}-${++seq}-${Date.now()}`;
   try {
-    window.sessionStorage.setItem(KEY_PREFIX + id, JSON.stringify(replay));
+    sweep(window.localStorage);
+    window.localStorage.setItem(
+      KEY_PREFIX + id,
+      JSON.stringify({ ...replay, stagedAt: Date.now() }),
+    );
   } catch {
     return null; // private mode / quota — caller falls back to the plain link
   }
@@ -40,8 +64,8 @@ export function consumeReplay(search) {
   const id = params?.get?.(REPLAY_PARAM);
   if (!id) return null;
   try {
-    const raw = window.sessionStorage.getItem(KEY_PREFIX + id);
-    window.sessionStorage.removeItem(KEY_PREFIX + id);
+    const raw = window.localStorage.getItem(KEY_PREFIX + id);
+    window.localStorage.removeItem(KEY_PREFIX + id);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;

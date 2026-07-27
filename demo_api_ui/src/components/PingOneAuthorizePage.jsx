@@ -833,7 +833,12 @@ export default function PingOneAuthorizePage() {
 
   // Client-side ring buffer of this session's ad-hoc Evaluate calls (Console tab).
   const [runHistory, setRunHistory] = useState([]);
+  // Set while a Token Chain replay is staged; see clearPendingTest below.
+  const replayPendingRef = useRef(false);
   const pushRunHistory = useCallback((entry) => {
+    // The replay has been evaluated — release the clear guard so ordinary
+    // endpoint switches reset the panel again.
+    replayPendingRef.current = false;
     setRunHistory((h) => [entry, ...h].slice(0, 8));
   }, []);
 
@@ -884,32 +889,41 @@ export default function PingOneAuthorizePage() {
     document.getElementById('evaluate-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
-  const clearPendingTest = useCallback(() => setPendingTest(null), []);
+  // A replay hand-off has to survive EvaluatePanel's endpoint-change reset:
+  // that effect fires again once the endpoint list settles (autoPreset changes
+  // a commit later than selectedId) and would clear the pendingTest we just
+  // staged, leaving the panel on its default preset with nothing evaluated.
+  const clearPendingTest = useCallback(() => {
+    if (replayPendingRef.current) return;
+    setPendingTest(null);
+  }, []);
 
   // Replay handoff from the Token Chain TraceRail (?replay=<id>): re-issue this
-  // run's actual decision request in the Evaluate console. Consumed once, then
-  // held until endpoints have loaded — EvaluatePanel clears pendingTest on every
-  // endpointId change, so handing it over any earlier would be discarded.
-  const [replay, setReplay] = useState(null);
+  // run's actual decision request in the Evaluate console.
+  //
+  // Deliberately consumed only once `selectedId` is set, and handed straight to
+  // pendingTest in the same pass. consumeReplay is one-shot, so reading it on
+  // mount and parking it in state loses the payload entirely if the route
+  // remounts before the endpoint list arrives — which is what happens here.
+  // EvaluatePanel also clears pendingTest on every endpointId change, so an
+  // earlier hand-off would be discarded anyway.
   const replayConsumed = useRef(false);
   useEffect(() => {
-    if (replayConsumed.current) return;
-    replayConsumed.current = true;
+    if (replayConsumed.current || !selectedId) return;
     const r = consumeReplay(searchParams);
-    if (r && r.target === 'p1az') setReplay(r);
-  }, [searchParams]);
-  useEffect(() => {
-    if (!replay || !selectedId) return;
-    setReplay(null);
+    if (!r) return;
+    replayConsumed.current = true;
+    if (r.target !== 'p1az') return;
+    replayPendingRef.current = true;
     setTab('console');
     setPendingTest({
       preset: 'custom',
-      parameters: replay.parameters || {},
+      parameters: r.parameters || {},
       ruleName: 'Token Chain replay',
       case: 'the request this run actually sent',
       autoRun: true,
     });
-  }, [replay, selectedId, setTab]);
+  }, [selectedId, searchParams, setTab]);
 
   const endpoints = data?.endpoints || [];
   const selected = useMemo(() => endpoints.find(e => e.id === selectedId) || null, [endpoints, selectedId]);
