@@ -255,13 +255,14 @@
 
 .acm-btn--secondary {
   background: #ffffff;
-  color: #334155;
-  border-color: #cbd5e1;
+  color: var(--app-primary-red, #b91c1c);
+  border-color: var(--app-primary-red-border, #7f1d1d);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 .acm-btn--secondary:hover:not(:disabled) {
-  background: #f8fafc;
-  border-color: #94a3b8;
+  background: #fef2f2;
+  border-color: var(--app-primary-red, #b91c1c);
+  color: var(--app-primary-red-hover, #991b1b);
 }
 .acm-btn--secondary:disabled {
   opacity: 0.5;
