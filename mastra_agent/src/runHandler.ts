@@ -48,6 +48,15 @@ export async function handleRun(req: Request, res: Response): Promise<void> {
   // (including "anthropic-lmstudio", "lmstudio", "") stays on LM Studio.
   const provider = (ctx.provider as string | undefined) || '';
 
+  // This handler previously had zero stdout output, so a failed run left no
+  // trace in `docker logs` — the only way to diagnose it was to reproduce it
+  // by hand. Log enough per-run context to tell a bad prompt/model apart from
+  // an unreachable dependency after the fact.
+  console.log(
+    `[mastra] run ${runId} start — messages=${messages.length} tools=${toolSchemas.length} ` +
+      `model=${model} provider=${provider || 'lmstudio'} session=${sessionId.slice(0, 8)}`,
+  );
+
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('X-Accel-Buffering', 'no');
