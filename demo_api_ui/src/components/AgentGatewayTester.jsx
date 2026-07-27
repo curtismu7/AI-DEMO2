@@ -6,6 +6,7 @@ import apiClient from '../services/apiClient';
 import { consumeReplay } from '../services/inspectorReplay';
 import { notifyError } from '../utils/appToast';
 import { formatAxiosError } from '../utils/formatAxiosError';
+import { decodeMcpTextContent } from '../utils/decodeMcpTextContent';
 import JsonHighlight from './shared/JsonHighlight';
 import JsonFormView from './shared/JsonFormView';
 import InspectorShell from './shared/InspectorShell';
@@ -434,7 +435,11 @@ export default function AgentGatewayTester() {
   const mcpAudit = resp?.gwAuditTrail?.mcpAudit || null;
   const decision = resp?.decision || az?.decision || null;
   const isRateLimited = resp?.rateLimited || resp?.error === 'rate_limited' || resp?.httpStatus === 429;
-  const resultValue = resp?.result ?? resp?.rpcData ?? (resp ? { error: resp.error, message: resp.message } : null);
+  // Decoded, not raw: the MCP envelope carries the payload as a JSON *string*,
+  // which renders as one escaped blob. See decodeMcpTextContent.
+  const resultValue = decodeMcpTextContent(
+    resp?.result ?? resp?.rpcData ?? (resp ? { error: resp.error, message: resp.message } : null),
+  );
 
   // Tool tree grouping with search
   const groupedTools = useMemo(() => {
