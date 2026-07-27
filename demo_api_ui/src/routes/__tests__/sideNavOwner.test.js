@@ -23,6 +23,7 @@ describe("side-nav ownership", () => {
     ["/", user, "shell"], // home is full-bleed: App.js opts out
     ["/use-cases", null, "shell"], // logged out: App.js opts out
     ["/self-service", null, "shell"],
+    ["/dashboard", null, "app"], // /dashboard keeps its nav even logged out
   ];
 
   it.each(cases)("%s (user=%s) is owned by %s", (pathname, u, owner) => {
