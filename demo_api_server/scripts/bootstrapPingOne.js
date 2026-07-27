@@ -904,6 +904,17 @@ const KNOWN_APP_NAMES = [
   'Demo AI Agent',
   'Demo AI App - Agent Actor',
   'worker token',
+  // A2A specialist agents (scope-topology.json provisioning.appNames)
+  'Demo AI App - Investment Advisor Agent',
+  'Demo AI App - Records Specialist Agent',
+  'Demo AI App - Purchase Specialist Agent',
+  'Demo AI App - Membership Specialist Agent',
+  'Demo AI App - Payroll Specialist Agent',
+  'Demo AI App - Tax Records Specialist Agent',
+  'Demo AI App - Financial Aid Specialist Agent',
+  'Demo AI App - Supplier Contract Specialist Agent',
+  'Demo AI App - Holdings Specialist Agent',
+  'Super Banking Holdings Specialist Agent',
 ];
 
 const KNOWN_RESOURCE_NAMES = [
@@ -911,6 +922,21 @@ const KNOWN_RESOURCE_NAMES = [
   'Demo MCP Server',
   'Demo MCP Gateway',
   'Demo Agent Gateway',
+  'Demo MCP Invest',
+  'Demo MCP JWT Verifier',
+  'Demo PingGateway MCP',
+  // A2A resources (scope-topology.json provisioning.resourceNames — self-mapped)
+  'Demo A2A Intermediate',
+  'Super Banking A2A Intermediate - Investment Advisor',
+  'Super Banking A2A Intermediate - Records Specialist',
+  'Super Banking A2A Intermediate - Purchase History Specialist',
+  'Super Banking A2A Intermediate - Membership Specialist',
+  'Super Banking A2A Intermediate - Payroll Specialist',
+  'Super Banking A2A Intermediate - Tax Records Specialist',
+  'Super Banking A2A Intermediate - Financial Aid Specialist',
+  'Super Banking A2A Intermediate - Supplier Contract Specialist',
+  'Super Banking A2A Intermediate - Holdings Specialist',
+  'Super Banking A2A MCP Gateway',
 ];
 
 async function wipeExistingResources(creds) {
