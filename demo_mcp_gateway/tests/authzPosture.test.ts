@@ -276,3 +276,40 @@ describe('C3 — GET /health carries the authz block', () => {
     expect(body.service).toBe('banking-mcp-gateway');
   });
 });
+
+describe('failOpen: MCP_GW_ALLOW_UNVERIFIED_TOKENS resolves JWKS like the validator', () => {
+  // The orphan-name bug, third occurrence. authzPosture read only
+  // PINGONE_JWKS_ENDPOINT — a name nothing in this stack sets — so the "no JWKS
+  // configured" term was permanently true and /health listed
+  // MCP_GW_ALLOW_UNVERIFIED_TOKENS as fail-open while the gateway was genuinely
+  // verifying signatures (a forged token 401s).
+  //
+  // A lie in the SAFE direction is still a lie: an operator reading failOpen
+  // cannot tell a real bypass from a phantom one, so the list stops being
+  // actionable. Both names must resolve.
+  const KEYS = ['PINGONE_JWKS_ENDPOINT', 'PINGONE_JWKS_URI', 'MCP_GW_ALLOW_UNVERIFIED_TOKENS', 'STRICT_AUTH'];
+  const saved: Record<string, string | undefined> = {};
+  beforeEach(() => { KEYS.forEach((k) => { saved[k] = process.env[k]; delete process.env[k]; }); });
+  afterEach(() => {
+    KEYS.forEach((k) => { if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k]; });
+  });
+
+  const cfg = () => ({ wbaMode: 'monitor', hitlServiceUrl: 'http://hitl' } as unknown as Parameters<typeof buildAuthzHealth>[0]);
+
+  test('PINGONE_JWKS_URI alone clears the fail-open — it is the name this stack sets', () => {
+    process.env.MCP_GW_ALLOW_UNVERIFIED_TOKENS = 'true';
+    process.env.PINGONE_JWKS_URI = 'https://auth.pingone.com/env/as/jwks';
+    expect(buildAuthzHealth(cfg()).failOpen).not.toContain('MCP_GW_ALLOW_UNVERIFIED_TOKENS');
+  });
+
+  test('PINGONE_JWKS_ENDPOINT alone also clears it', () => {
+    process.env.MCP_GW_ALLOW_UNVERIFIED_TOKENS = 'true';
+    process.env.PINGONE_JWKS_ENDPOINT = 'https://auth.pingone.com/env/as/jwks';
+    expect(buildAuthzHealth(cfg()).failOpen).not.toContain('MCP_GW_ALLOW_UNVERIFIED_TOKENS');
+  });
+
+  test('with NO jwks configured and the opt-in on, it IS reported — the real bypass still surfaces', () => {
+    process.env.MCP_GW_ALLOW_UNVERIFIED_TOKENS = 'true';
+    expect(buildAuthzHealth(cfg()).failOpen).toContain('MCP_GW_ALLOW_UNVERIFIED_TOKENS');
+  });
+});

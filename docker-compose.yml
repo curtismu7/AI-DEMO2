@@ -508,7 +508,15 @@ services:
       # GET /health. Closing it means pointing the gateway at real PingOne JWKS —
       # which needs a live check first, because demo tokens introspect against the
       # mock authz-server and some are minted HS256 locally.
-      MCP_GW_ALLOW_UNVERIFIED_TOKENS: "true"
+      # false, now that JWKS verification is real.
+      #
+      # This does not change today's behaviour: the flag is only consulted when
+      # NO JWKS endpoint is configured, and one is. What it changes is the
+      # FAILURE mode. If JWKS ever stops resolving — key rotation, a network
+      # partition, someone renaming the var again — "true" silently degrades the
+      # gateway to decode-only and it accepts forged tokens. "false" makes it
+      # REFUSE instead. A loud failure beats a silent bypass.
+      MCP_GW_ALLOW_UNVERIFIED_TOKENS: "false"
       MORTGAGE_SERVICE_URL: "http://mortgage-service:8082"   # api-key dispatch backend (mortgage + invest routes)
       # Must match mortgage-service MORTGAGE_SERVICE_API_KEY (no committed demo default).
       DEMO_MORTGAGE_SERVICE_KEY: ${MORTGAGE_SERVICE_API_KEY:-mortgage-compose-dev-key}
