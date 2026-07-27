@@ -42,6 +42,24 @@ const BRANCHES = Object.freeze([
     hours: 'Mon–Fri 9:00–17:00, Sat 9:00–13:00',
     atm: true,
   },
+  {
+    id: 'branch-san-antonio',
+    name: 'Super Banking San Antonio Branch',
+    city: 'San Antonio',
+    state: 'TX',
+    address: '300 Convent St, San Antonio, TX 78205',
+    hours: 'Mon–Fri 9:00–17:00',
+    atm: true,
+  },
+  {
+    id: 'branch-fort-worth',
+    name: 'Super Banking Fort Worth Branch',
+    city: 'Fort Worth',
+    state: 'TX',
+    address: '777 Main St, Fort Worth, TX 76102',
+    hours: 'Mon–Fri 9:00–17:00, Sat 10:00–14:00',
+    atm: true,
+  },
 ]);
 
 /**
