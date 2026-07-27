@@ -57,7 +57,7 @@ const realPath = {
       r = await callPingGateway('POST', '/mcp', {
         jsonrpc: '2.0', id: 1, method: 'tools/call',
         params: { name: TOOL_NAME, arguments: {} },
-      });
+      }, { token: gwToken });
     } catch (err) {
       // Name the hop. Unwrapped, a transport error escaped to the runner and
       // arrived as a bare code with no indication of where it happened.
