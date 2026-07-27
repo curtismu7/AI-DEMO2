@@ -760,10 +760,10 @@ function _requireWorker(res) {
 
 /**
  * POST /api/authorize/evaluate-endpoint
- * Admin-only. Send an arbitrary Trust Framework parameters object to ANY
- * decision endpoint in the environment and return the live PingOne verdict.
- * Powers the Live Policy Console — always calls real PingOne (no simulated
- * fallback). Body: { endpointId: string, parameters: object }
+ * Any authenticated user. Send an arbitrary Trust Framework parameters object
+ * to ANY decision endpoint in the environment and return the live PingOne
+ * verdict. Powers the Live Policy Console — always calls real PingOne (no
+ * simulated fallback). Body: { endpointId: string, parameters: object }
  */
 router.post('/evaluate-endpoint', authenticateToken, async (req, res) => {
   if (!_requireWorker(res)) return;
@@ -830,8 +830,8 @@ router.get('/mcp-console-defaults', authenticateToken, (_req, res) => {
 
 /**
  * POST /api/authorize/endpoints/:id/recording
- * Admin-only. Enable (default) or disable recent-decision recording on a
- * decision endpoint so the Recent Decisions list can populate.
+ * Any authenticated user. Enable (default) or disable recent-decision
+ * recording on a decision endpoint so the Recent Decisions list can populate.
  * Body: { enabled?: boolean }  (defaults to true)
  */
 router.post('/endpoints/:id/recording', authenticateToken, async (req, res) => {
