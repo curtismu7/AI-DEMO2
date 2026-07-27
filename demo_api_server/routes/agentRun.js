@@ -131,13 +131,23 @@ const FRAMEWORK_PORTS = {
   pydantic_ai:   8893,
 };
 
+// Each framework runs in its own container with its own docker-network name
+// (see data/serverInventory.js) — only langchain's honors AGENT_SERVICE_HOST,
+// its original (pre-multi-framework) override knob. Any other framework
+// pinned to that same hostname reaches langchain-agent's container, which
+// doesn't listen on that framework's port — connection refused.
+const FRAMEWORK_HOSTS = {
+  langchain:     process.env.AGENT_SERVICE_HOST || 'langchain-agent',
+  openai_agents: 'openai-agent',
+  mastra:        'mastra-agent',
+  pydantic_ai:   'pydantic-agent',
+};
+
 function resolveAgentTarget() {
   const framework = configStore.getEffective('llm_framework') || 'langchain';
   const port = FRAMEWORK_PORTS[framework] ?? FRAMEWORK_PORTS.langchain;
-  return {
-    hostname: process.env.AGENT_SERVICE_HOST || 'langchain-agent',
-    port,
-  };
+  const hostname = FRAMEWORK_HOSTS[framework] ?? FRAMEWORK_HOSTS.langchain;
+  return { hostname, port };
 }
 
 function getInternalSecret() {
@@ -560,6 +570,7 @@ module.exports = router;
 // Exported for the framework-routing test so it asserts against the actual
 // constants instead of a re-declared copy that can silently drift.
 module.exports.FRAMEWORK_PORTS = FRAMEWORK_PORTS;
+module.exports.FRAMEWORK_HOSTS = FRAMEWORK_HOSTS;
 module.exports.__test = {
   resolveAgentRunTools,
   _recordTraceEvents,
