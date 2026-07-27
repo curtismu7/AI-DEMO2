@@ -12,7 +12,6 @@ export const NAV_ITEM_CATALOG = [
   "Use Cases (Live)",
   "AI Footprint",
   "Footprint Gallery",
-  "Agent Demo Guide",
   "Family Delegation",
   "AI Agents",
   "PingOne MCP",
