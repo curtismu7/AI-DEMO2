@@ -364,9 +364,9 @@ body .transaction-consent-card__check input[type="checkbox"] {
 }
 
 .transaction-consent-btn--ghost {
-  background: linear-gradient(135deg, #dc2626, #991b1b);
-  border-color: transparent;
-  color: #fff;
+  background: #fff;
+  border-color: var(--app-primary-red-border);
+  color: var(--app-primary-red);
 }
 
 .transaction-consent-rfc-note {
@@ -387,7 +387,9 @@ body .transaction-consent-card__check input[type="checkbox"] {
 }
 
 .transaction-consent-btn--ghost:hover:not(:disabled) {
-  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  background: #fef2f2;
+  border-color: var(--app-primary-red);
+  color: var(--app-primary-red-hover);
 }
 
 .transaction-consent-btn--primary {
