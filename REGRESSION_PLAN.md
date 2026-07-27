@@ -102,6 +102,36 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-27 — ProofStrip claimed "then permitted" after the user declined the step-up gate
+
+**Files changed:** `demo_api_ui/src/context/ProofOfEnforcementContext.js`,
+`demo_api_ui/src/services/tokenChainTrace/tokenChainTraceStore.js`,
+`demo_api_ui/src/components/TransactionConsentModal.tsx`, plus tests in
+`src/context/__tests__/ProofOfEnforcementContext.test.js` and
+`src/components/__tests__/TransactionConsentModal.declineScope.test.jsx`.
+
+**What was broken:** Declining a high-value transfer rendered a green
+ProofStrip reading "Step-up MFA required as expected — then permitted", right
+below the chat's own "Transaction declined. The transaction was not completed."
+The decline was never recorded anywhere the verdict could see: the trace ended
+at `authorize.outcome === 'STEP_UP'`, `computeVerdict` scored that as the
+expected gate, and "then permitted" was a hardcoded literal — an assumption, not
+an observation.
+
+**What was fixed:** `tokenChainTraceStore` gained `approvalOutcome` +
+`ingestApprovalDeclined()`; `TransactionConsentModal.handleDenialConfirm` calls
+it (one site — every parent routes its decline through there); `computeVerdict`
+reports "you declined, so the transaction was not completed" for a declined
+STEP_UP / HITL_REQUIRED gate.
+
+**Do not break:** The state stays `denied-as-expected` (green ✅) — enforcement
+did its job, the gate held. Only the result wording changes. An approved gate
+must still read "then permitted" (pinned by test).
+
+**Verify:** `cd demo_api_ui && npx vitest run
+src/context/__tests__/ProofOfEnforcementContext.test.js
+src/components/__tests__/TransactionConsentModal.declineScope.test.jsx`
+
 ### 2026-07-27 — Passkey step-up dead-ended when the credential lived on another device; SMS had no registration path on the dashboard
 
 **Files changed:** `demo_api_ui/src/components/OtpStepUpModal.js`,

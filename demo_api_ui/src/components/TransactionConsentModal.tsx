@@ -10,6 +10,7 @@ import { createPortal } from "react-dom";
 import bffAxios from "../services/bffAxios";
 import { notifyError, notifyWarning, notifySuccess } from "../utils/appToast";
 import { setAgentBlockedByConsentDecline } from "../services/agentAccessConsent";
+import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { useEducationUI } from "../context/EducationUIContext";
 import { EDU } from "./education/educationIds";
 import { useIndustryBranding } from "../context/IndustryBrandingContext";
@@ -297,6 +298,10 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
   const handleDenialConfirm = () => {
     setAgentBlockedByConsentDecline(true);
     setDenialOpen(false);
+    // Tell the trace the gate was refused. Every parent (agent + both
+    // dashboards) routes its decline through here, so recording it once keeps
+    // the Proof verdict from claiming the approval gate ended in a permit.
+    tokenChainTraceStore.ingestApprovalDeclined();
     onDeclinedConfirmed();
   };
 

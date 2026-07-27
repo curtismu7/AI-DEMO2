@@ -300,6 +300,32 @@ describe('deny-like verdicts discriminate block kind', () => {
     const t = { tokenEvents: [], mcpResult: null, authorize: { decision: 'DENY' } };
     expect(computeVerdict(t, entry('DENY')).state).toBe('denied-as-expected');
   });
+
+  // Regression: declining the step-up still rendered "Step-up MFA required as
+  // expected — then permitted". Nothing was permitted — the human refused the
+  // gate — but the trace had no way to say so, so the string asserted a permit
+  // that never happened.
+  test('a declined step-up gate stays green but does not claim a permit', () => {
+    const t = { ...trace('STEP_UP'), approvalOutcome: 'declined' };
+    const v = computeVerdict(t, entry('STEP_UP'));
+    expect(v.state).toBe('denied-as-expected');
+    expect(v.resultText).not.toMatch(/then permitted/);
+    expect(v.resultText).toMatch(/you declined/i);
+  });
+
+  test('a declined HITL gate stays green but does not claim a permit', () => {
+    const t = { ...trace('HITL_REQUIRED'), approvalOutcome: 'declined' };
+    const v = computeVerdict(t, entry('HITL_REQUIRED'));
+    expect(v.state).toBe('denied-as-expected');
+    expect(v.resultText).not.toMatch(/then permitted/);
+    expect(v.resultText).toMatch(/you declined/i);
+  });
+
+  test('an approved step-up gate still reports the permit', () => {
+    expect(computeVerdict(trace('STEP_UP'), entry('STEP_UP')).resultText).toMatch(
+      /then permitted/,
+    );
+  });
 });
 
 // Regression: UC31 (weather-mcp-texas-deny) runs via the chip/agent path, which
