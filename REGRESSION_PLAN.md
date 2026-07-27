@@ -102,6 +102,48 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-27 — Token Chain step card: "More Education" on the Agent Gateway hop opened P1AZ, and its actions did not read as clickable
+
+**Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`,
+`demo_api_ui/src/components/TokenChainTraceRail.css`,
+`demo_api_ui/src/components/TraceStepCard.jsx`,
+`demo_api_ui/src/components/PingOneAuthorizePage.jsx`,
+`demo_api_ui/src/components/AgentGatewayTester.jsx`,
+`demo_api_ui/src/services/inspectorReplay.js` (new), plus
+`src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`.
+
+**What was broken:** the `gateway` step's `moreDetail.href` was the same literal
+`/pingone-authorize` as the `authorize` step's, so "More Education" on the Agent
+Gateway hop landed on the P1AZ page instead of the gateway inspector — and the
+old assertion in `buildTraceSteps.test.js` pinned that wrong value, so the bug
+was test-protected. Separately, `.tctr-inspect` rendered every step action
+(including the "Pop out full detail" button) at 11px with
+`text-decoration: none`, so nothing on the card read as clickable.
+
+**What was fixed:** gateway `moreDetail.href` → `/pinggateway-inspector`;
+`.tctr-inspect` → 12.5px, underlined with a hover/focus state. Added a replay
+path: `buildTraceSteps` now emits `detail.replay` on the `authorize` step (the
+actual P1AZ decision parameters) and the `gateway` step (the actual MCP tool +
+arguments from `mcpResult.requestJson`); `TraceStepCard` renders a separate
+"→ Replay in …" button that stashes the payload via `services/inspectorReplay.js`
+(sessionStorage, `?replay=<id>` in the URL) and opens the inspector, which
+consumes it once and re-runs the call.
+
+**Do not break:** `consumeReplay` must stay one-shot (it deletes the key on
+read) — a page refresh must not re-fire a live gateway tool call. The P1AZ
+handoff must wait for `selectedId` to be non-empty: `EvaluatePanel` clears
+`pendingTest` on every `endpointId` change, so handing it over earlier is
+silently discarded. Keep the two `moreDetail.href` values distinct — a shared
+constant would re-create the original bug.
+
+**Verify:** `cd demo_api_ui && npm run test:unit` (277 files, 2358 pass, 24
+skipped) and `npm run build` (exit 0). Revert-to-RED: restore
+`/pingone-authorize` on the gateway step and
+`buildTraceSteps.test.js` "gw-authorize parameters + rawResponse render full
+request/response and moreDetail link" fails.
+NOT verified live: the auto-run behaviour on both inspector pages — that needs a
+running stack with a completed agent run to replay.
+
 ### 2026-07-27 — Scope audit: Holdings A2A chain half-wired; SSOT under-documented live A2A gateway scopes; non-canonical scope spellings in enforcement/metadata
 
 **Files changed:** `scope-topology.json`, `docs/scope-topology.md` (regenerated),

@@ -3,6 +3,7 @@
 import React from "react";
 import { tokenize, formatJson } from "./shared/JsonHighlight";
 import { useEducationUIOptional } from "../context/EducationUIContext";
+import { stageReplay } from "../services/inspectorReplay";
 import "./shared/JsonHighlight.css";
 
 const STATUS_ICON = { pending: "·", active: "…", done: "✓", error: "✗", notinpath: "–" };
@@ -147,6 +148,14 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false }) 
   const canPopOut = hasPopoutWorthyDetail(d);
   const more = d.moreDetail || null;
   const canOpenEdu = Boolean(more?.edu && eduUi?.open);
+  const replay = d.replay || null;
+
+  // Stash this run's actual request, then open the inspector on it. Falls back
+  // to the bare page when sessionStorage is unavailable.
+  const openReplay = () => {
+    const url = stageReplay(replay) || replay.href;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <details className="tctr-step" data-status={step.status} data-step-id={step.id} open={defaultOpen}>
@@ -250,6 +259,11 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false }) 
               onClick={() => openStepTeachingWindow(step)}
             >
               → Pop out full detail
+            </button>
+          )}
+          {replay && (
+            <button type="button" className="tctr-inspect" onClick={openReplay}>
+              → {replay.label || "Replay in tester"}
             </button>
           )}
           {d.inspectToken && (

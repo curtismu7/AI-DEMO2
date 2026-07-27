@@ -1,8 +1,9 @@
 // AgentGatewayTester.jsx
 // InspectorShell three-column layout - sends MCP tool calls through the
 // active gateway and shows response, authorize decision, audit trail.
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import apiClient from '../services/apiClient';
+import { consumeReplay } from '../services/inspectorReplay';
 import { notifyError } from '../utils/appToast';
 import { formatAxiosError } from '../utils/formatAxiosError';
 import JsonHighlight from './shared/JsonHighlight';
@@ -316,6 +317,40 @@ export default function AgentGatewayTester() {
       setSending(false);
     }
   }, [selectedTool, argsText]);
+
+  // Replay from the Token Chain TraceRail (?replay=<id>): select the tool this
+  // run actually called, load its real arguments, and fire it. Two effects, not
+  // one — send() closes over selectedTool/argsText, so the call has to wait for
+  // the commit that applied them.
+  const [pendingReplay, setPendingReplay] = useState(null);
+  const [replayArmed, setReplayArmed] = useState(false);
+  const replayConsumed = useRef(false);
+  // Mount-only, and reads location directly rather than via useSearchParams:
+  // consumeReplay is one-shot, so re-running on a param change would find
+  // nothing and could only clobber an in-flight replay.
+  useEffect(() => {
+    if (replayConsumed.current) return;
+    replayConsumed.current = true;
+    const r = consumeReplay(window.location.search);
+    if (r && r.target === 'gateway' && r.tool) setPendingReplay(r);
+  }, []);
+  useEffect(() => {
+    if (!pendingReplay) return;
+    // Prefer the catalog entry (carries description/schema for the form header);
+    // fall back to a bare name so a tool missing from the list still replays.
+    const tool = tools.find((t) => t.name === pendingReplay.tool) || { name: pendingReplay.tool };
+    setSelectedTool(tool);
+    setArgsText(JSON.stringify(pendingReplay.arguments || {}, null, 2));
+    setResp(null);
+    setOutputTab('result');
+    setPendingReplay(null);
+    setReplayArmed(true);
+  }, [pendingReplay, tools]);
+  useEffect(() => {
+    if (!replayArmed || !selectedTool) return;
+    setReplayArmed(false);
+    send();
+  }, [replayArmed, selectedTool, send]);
 
   const runBurst = useCallback(async () => {
     if (!selectedTool) return;

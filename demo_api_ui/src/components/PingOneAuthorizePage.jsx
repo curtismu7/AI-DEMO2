@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import bffAxios from '../services/bffAxios';
+import { consumeReplay } from '../services/inspectorReplay';
 import JsonHighlight from './shared/JsonHighlight';
 import JsonFormView from './shared/JsonFormView';
 import AuthzTestPage from './AuthzTestPage';
@@ -423,9 +424,10 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
     return params;
   };
 
-  const run = async () => {
+  // Explicit-parameters form so a replay can evaluate the exact payload it was
+  // handed without waiting for the prefill setState round-trip.
+  const runParameters = async (parameters) => {
     setRunning(true); setResult(null); setErr(null); setLastTrace(null); setLastParameters(null); setOutputTab('decision');
-    const parameters = buildParameters();
     const started = Date.now();
     try {
       const res = await bffAxios.post('/api/authorize/evaluate-endpoint', {
@@ -460,6 +462,17 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
       });
     } finally { setRunning(false); }
   };
+
+  const run = () => runParameters(buildParameters());
+
+  // A replayed step arrives with autoRun — evaluate immediately so the learner
+  // lands on the decision, not on a form they still have to submit. Read-only:
+  // an Authorize evaluation has no side effects.
+  useEffect(() => {
+    if (!pendingTest?.autoRun || !endpointId) return;
+    runParameters(pendingTest.parameters);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingTest, endpointId]);
 
   const setRow = (i, field, val) => {
     setCustomRows(rows => {
@@ -872,6 +885,31 @@ export default function PingOneAuthorizePage() {
   }, []);
 
   const clearPendingTest = useCallback(() => setPendingTest(null), []);
+
+  // Replay handoff from the Token Chain TraceRail (?replay=<id>): re-issue this
+  // run's actual decision request in the Evaluate console. Consumed once, then
+  // held until endpoints have loaded — EvaluatePanel clears pendingTest on every
+  // endpointId change, so handing it over any earlier would be discarded.
+  const [replay, setReplay] = useState(null);
+  const replayConsumed = useRef(false);
+  useEffect(() => {
+    if (replayConsumed.current) return;
+    replayConsumed.current = true;
+    const r = consumeReplay(searchParams);
+    if (r && r.target === 'p1az') setReplay(r);
+  }, [searchParams]);
+  useEffect(() => {
+    if (!replay || !selectedId) return;
+    setReplay(null);
+    setTab('console');
+    setPendingTest({
+      preset: 'custom',
+      parameters: replay.parameters || {},
+      ruleName: 'Token Chain replay',
+      case: 'the request this run actually sent',
+      autoRun: true,
+    });
+  }, [replay, selectedId, setTab]);
 
   const endpoints = data?.endpoints || [];
   const selected = useMemo(() => endpoints.find(e => e.id === selectedId) || null, [endpoints, selectedId]);

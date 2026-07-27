@@ -189,10 +189,11 @@
 .tctr-sc--kept { background: #dcfce7; color: #166534; font-weight: 700; }
 .tctr-sc-note { color: #64748b; font-size: 10.5px; }
 .tctr-inspect {
-  color: var(--brand-navy, #1d4ed8); font-weight: 600; font-size: 11px;
+  color: var(--brand-navy, #1d4ed8); font-weight: 600; font-size: 12.5px;
   cursor: pointer; background: none; border: none; padding: 4px 0 0;
-  text-decoration: none;
+  text-decoration: underline; text-underline-offset: 2px;
 }
+.tctr-inspect:hover, .tctr-inspect:focus-visible { color: #1e3a8a; text-decoration-thickness: 2px; }
 .tctr-inspect--emphasize { color: #b45309; font-weight: 700; }
 
 /* Accordions (Token Summary) */
