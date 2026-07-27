@@ -358,7 +358,6 @@ function RulesEditor({ editable, onSaved }) {
     const patch = {};
     const gp = {};
     if (Number(g.hitlThresholdUsd.value) !== editable.global.hitlThresholdUsd.value) gp.hitlThresholdUsd = Number(g.hitlThresholdUsd.value);
-    if (!!g.enforceMayAct.value !== editable.global.enforceMayAct.value) gp.enforceMayAct = !!g.enforceMayAct.value;
     if ((g.authorizedActorClientId.value || '') !== (editable.global.authorizedActorClientId.value || '')) gp.authorizedActorClientId = g.authorizedActorClientId.value || '';
     if (g.toolDiscoveryDecision.value !== editable.global.toolDiscoveryDecision.value) gp.toolDiscoveryDecision = g.toolDiscoveryDecision.value;
     if (Object.keys(gp).length) patch.global = gp;
@@ -428,13 +427,6 @@ function RulesEditor({ editable, onSaved }) {
           <div style={S.fld}>
             <label style={S.lbl}>HITL threshold (USD){editable.global.hitlThresholdUsd.overridden && <span style={modTag}>mod</span>}</label>
             <input style={S.inp} type="number" value={g.hitlThresholdUsd.value} onChange={e => setG('hitlThresholdUsd', e.target.value)} />
-          </div>
-          <div style={S.fld}>
-            <label style={S.lbl}>Enforce may_act{editable.global.enforceMayAct.overridden && <span style={modTag}>mod</span>}</label>
-            <select style={S.sel} value={String(g.enforceMayAct.value)} onChange={e => setG('enforceMayAct', e.target.value === 'true')}>
-              <option value="true">true</option>
-              <option value="false">false (legacy static actor)</option>
-            </select>
           </div>
           <div style={S.fld}>
             <label style={S.lbl}>Authorized actor client ID{editable.global.authorizedActorClientId.overridden && <span style={modTag}>mod</span>}</label>
