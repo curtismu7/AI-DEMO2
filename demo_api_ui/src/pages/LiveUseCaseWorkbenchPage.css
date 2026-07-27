@@ -323,8 +323,12 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-shadow: none;
+  border-radius: 0;
 }
+.luw-rail-host .tctr { min-height: 100%; }
 
 /*
  * Portaled BankingAgent uses .banking-agent-float-root { display: contents },
