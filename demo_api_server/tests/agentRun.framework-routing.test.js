@@ -17,10 +17,14 @@ jest.mock('../services/configStore', () => ({
 }));
 
 const agentRunRoute = require('../routes/agentRun');
-const { FRAMEWORK_PORTS } = agentRunRoute;
+const { FRAMEWORK_PORTS, FRAMEWORK_HOSTS } = agentRunRoute;
 
 function resolvePort(framework) {
   return FRAMEWORK_PORTS[framework] ?? FRAMEWORK_PORTS.langchain;
+}
+
+function resolveHost(framework) {
+  return FRAMEWORK_HOSTS[framework] ?? FRAMEWORK_HOSTS.langchain;
 }
 
 describe('resolveAgentTarget — framework port routing', () => {
@@ -54,5 +58,27 @@ describe('resolveAgentTarget — framework port routing', () => {
     mockGetEffective.mockReturnValue(null);
     const framework = mockGetEffective('llm_framework') || 'langchain';
     expect(resolvePort(framework)).toBe(FRAMEWORK_PORTS.langchain);
+  });
+});
+
+describe('resolveAgentTarget — framework hostname routing', () => {
+  afterEach(() => mockGetEffective.mockReset());
+
+  // Each framework runs in its own container (data/serverInventory.js) — a
+  // shared hostname across frameworks means non-langchain runs connect to
+  // langchain-agent's container, which doesn't listen on their port.
+  test.each([
+    ['langchain',     'langchain-agent'],
+    ['openai_agents', 'openai-agent'],
+    ['mastra',        'mastra-agent'],
+    ['pydantic_ai',   'pydantic-agent'],
+  ])('llm_framework=%s → hostname %s', (framework, expectedHost) => {
+    mockGetEffective.mockReturnValue(framework);
+    expect(resolveHost(mockGetEffective('llm_framework'))).toBe(expectedHost);
+  });
+
+  test('unknown framework falls back to langchain hostname', () => {
+    mockGetEffective.mockReturnValue('unknown_framework');
+    expect(resolveHost(mockGetEffective('llm_framework'))).toBe(FRAMEWORK_HOSTS.langchain);
   });
 });
