@@ -139,7 +139,12 @@ const S = {
     borderLeft: `3px solid ${{ POLICY_SET: '#6366f1', POLICY: '#0ea5e9', RULE: '#cbd5e1' }[kind] || '#cbd5e1'}`,
     borderRadius: '8px', padding: '10px 12px', background: '#fff',
   }),
-  polHead: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' },
+  polHeadRow: { display: 'flex', alignItems: 'center', gap: '8px' },
+  polHeadBtn: {
+    display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', flex: 1,
+    background: 'none', border: 'none', padding: 0, margin: 0, font: 'inherit', textAlign: 'left',
+  },
+  polChevron: { fontSize: '10px', color: '#94a3b8', width: '10px', flexShrink: 0 },
   polKind: (kind) => ({
     fontSize: '9.5px', fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase',
     padding: '2px 7px', borderRadius: '5px',
@@ -148,7 +153,12 @@ const S = {
   }),
   polName: { fontSize: '13px', fontWeight: 700, color: '#0f172a' },
   polMeta: { fontSize: '10.5px', fontFamily: 'monospace', color: '#94a3b8' },
-  polDesc: { fontSize: '12px', color: '#64748b', lineHeight: 1.5, margin: '6px 0 0' },
+  polInfoIcon: {
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    width: '15px', height: '15px', borderRadius: '50%', border: '1px solid #94a3b8',
+    fontSize: '10px', fontWeight: 700, fontStyle: 'italic', color: '#64748b',
+    cursor: 'help', flexShrink: 0,
+  },
   polChildren: { marginTop: '10px', marginLeft: '12px', display: 'flex', flexDirection: 'column', gap: '8px' },
   polEffect: (effect) => ({
     fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '20px',
@@ -742,26 +752,38 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
 // Authorization policy tree — one recursive node (Policy Set → Policy → Rule)
 // ---------------------------------------------------------------------------
 function PolicyNode({ node, onTestRule, query }) {
+  const [expanded, setExpanded] = useState(false);
   if (!node) return null;
   const kindLabel = { POLICY_SET: 'Policy Set', POLICY: 'Policy', RULE: 'Rule' }[node.kind] || node.kind;
   const matched = policyNodeMatches(node, query);
+  const hasChildren = node.children?.length > 0;
+  // A query already pruned the tree to matches + their ancestors, so force
+  // subtrees open while searching regardless of the toggle state.
+  const showChildren = hasChildren && (!!query || expanded);
   return (
     <div style={matched ? S.polNodeMatch : S.polNode(node.kind)} data-policy-match={matched ? 'true' : undefined}>
-      <div style={S.polHead}>
-        <span style={S.polKind(node.kind)}>{kindLabel}</span>
-        <span style={S.polName}>{node.name}</span>
-        {node.algorithm && <span style={S.polMeta}>{node.algorithm}</span>}
-        {node.effect && <span style={S.polEffect(node.effect)}>{node.effect.replace(/_/g, ' ')}</span>}
-        {!node.enabled && <span style={S.polDisabled}>disabled</span>}
+      <div style={S.polHeadRow}>
+        <button
+          type="button"
+          style={{ ...S.polHeadBtn, cursor: hasChildren ? 'pointer' : 'default' }}
+          onClick={hasChildren ? () => setExpanded((e) => !e) : undefined}
+        >
+          {hasChildren && <span style={S.polChevron}>{showChildren ? '▾' : '▸'}</span>}
+          <span style={S.polKind(node.kind)}>{kindLabel}</span>
+          <span style={S.polName}>{node.name}</span>
+          {node.algorithm && <span style={S.polMeta}>{node.algorithm}</span>}
+          {node.effect && <span style={S.polEffect(node.effect)}>{node.effect.replace(/_/g, ' ')}</span>}
+          {!node.enabled && <span style={S.polDisabled}>disabled</span>}
+        </button>
+        {node.description && <span style={S.polInfoIcon} title={node.description}>i</span>}
       </div>
-      {node.description && <p style={S.polDesc}>{node.description}</p>}
       {node.kind === 'RULE' && node.testCases && (
         <div style={S.polTestActions}>
           <button style={S.polTestBtn} onClick={() => onTestRule({ ruleName: node.name, case: 'trigger', ...node.testCases.trigger })}>Trigger →</button>
           <button style={S.polTestBtn} onClick={() => onTestRule({ ruleName: node.name, case: 'avoid', ...node.testCases.avoid })}>Avoid →</button>
         </div>
       )}
-      {node.children?.length > 0 && (
+      {showChildren && (
         <div style={S.polChildren}>
           {node.children.map((c) => <PolicyNode key={c.id} node={c} onTestRule={onTestRule} query={query} />)}
         </div>
