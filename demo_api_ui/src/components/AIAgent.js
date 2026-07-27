@@ -9614,11 +9614,15 @@ export default function BankingAgent({
                       (showRfcInfo && msg.role === "token-event"),
                   )
                   .map((msg, msgIdx, filteredMsgs) => {
-                    const isLastAssistantMsg =
-                      msg.role === "assistant" &&
-                      !filteredMsgs
-                        .slice(msgIdx + 1)
-                        .some((m) => m.role === "assistant");
+                    // Rank 0 = last assistant reply, 1 = the one before it —
+                    // lets ProofStrip show the previous verified/denied result
+                    // alongside the newest one so the two can be compared.
+                    const assistantRankFromEnd =
+                      msg.role === "assistant"
+                        ? filteredMsgs
+                            .slice(msgIdx + 1)
+                            .filter((m) => m.role === "assistant").length
+                        : null;
                     if (msg.role === "reasoning") {
                       return (
                         <div
@@ -9865,7 +9869,10 @@ export default function BankingAgent({
                               </button>
                             )}
                           </div>
-                          {isLastAssistantMsg && <ProofStrip />}
+                          {assistantRankFromEnd != null &&
+                            assistantRankFromEnd < 2 && (
+                              <ProofStrip rank={assistantRankFromEnd} />
+                            )}
                         </div>
                       </div>
                     );
