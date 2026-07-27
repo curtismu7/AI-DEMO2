@@ -28,30 +28,41 @@ next deploy overwrites it. YAML in `pac/policies/` is the only source.
 
 ## Prerequisites
 
-pac.jar needs **Java 21+** and is 33MB, so it is not committed.
+**Java 21+.** pac.jar is built for Java 21 (its MANIFEST says so); an older JVM
+dies with `UnsupportedClassVersionError`. The scripts check the major version
+up front and say so plainly rather than letting that surface.
 
 ```bash
-brew install openjdk          # keg-only; the wrapper adds it to PATH itself
+brew install openjdk    # keg-only — the scripts add it to PATH themselves
+```
+
+Note macOS ships `/usr/bin/java` as a stub that exists on `PATH` even with no
+JDK installed; it only prints "Unable to locate a Java Runtime". The scripts
+probe by running `java -version`, not with `command -v`, for that reason.
+
+**pac.jar** is a 33MB Ping-supplied binary and is not committed. Point
+`PAC_JAR` at your copy:
+
+```bash
 export PAC_JAR=/path/to/pac.jar
 ```
 
-Deploy credentials come from `~/.pac/endpoints.json`, keyed by alias
-(`demo` by default, override with `PAC_ENDPOINT_ALIAS`):
+**Credentials** come from `demo_api_server/.env`
+(`PINGONE_ENVIRONMENT_ID`, `PINGONE_WORKER_CLIENT_ID`,
+`PINGONE_WORKER_CLIENT_SECRET`). The worker app needs `deployments:create` on
+the target environment — the demo worker already has it.
 
-```json
-{
-  "endpoints": {
-    "demo": {
-      "decisionEndpointUrl": "https://api.pingone.com/v1/environments/<envId>/decisionEndpoints/<endpointId>",
-      "clientId": "<worker client id>",
-      "clientSecret": "<worker client secret>"
-    }
-  }
-}
-```
+There is deliberately **no `~/.pac/endpoints.json`**. pac reads connection
+details, including the worker client secret, from `$HOME/.pac/endpoints.json`
+in cleartext; writing it there leaves a second long-lived copy of a live
+PingOne credential outside the gitignored `.env` files. Instead
+`scripts/pac-common.sh` builds that file under a `mktemp` directory, points the
+JVM at it with `-Duser.home`, and shreds it on exit. `.env` stays the single
+source of truth.
 
-The client needs `deployments:create` on the target environment. The demo
-worker app already has it.
+`demo_api_server/.env` is gitignored, so it does not exist inside a worktree.
+The scripts fall back to the main checkout's copy via the shared git dir;
+override with `PAC_ENV_FILE` if needed.
 
 ## Usage
 
@@ -64,11 +75,36 @@ The wrapper validates, runs the policy's own `tests:` block, and only then
 deploys. It refuses to deploy a file whose tests did not run — an empty
 `tests:` block would otherwise pass silently and ship an unverified package.
 
-To edit with the bundled Monaco editor (syntax highlighting, live validation):
+Environment overrides: `PAC_JAR`, `PAC_ENV_FILE`, `PAC_ENDPOINT_ALIAS`,
+`PAC_DECISION_ENDPOINT_ID`, `PAC_EDIT_PORT`.
+
+## The demo: local editor
 
 ```bash
-java -jar "$PAC_JAR" edit pac/policies/
+./scripts/pac-edit.sh          # http://127.0.0.1:9099
 ```
+
+Serves the jar's Monaco editor over `pac/policies/`: edit YAML with live
+validation, run the policy's tests, visualise the decision tree (`/viz`), and
+deploy to the PaC endpoint — the whole authoring loop on one page. It picks up
+the same ephemeral endpoint config, so its Deploy button targets `ad5fc1d4…`
+and the secret still never lands in your home directory.
+
+> **Run this locally only.** The editor serves an **unauthenticated** REST API
+> (`/api/file`, `/api/deploy`, `/api/generate`, `/api/shutdown`, …). Anyone who
+> can reach the port can read and write policy files on disk and deploy policy
+> to the live PingOne environment using the worker credentials. The jar binds
+> `127.0.0.1` only — verified with `lsof` — but that is the jar's behaviour, not
+> something the script enforces, and there is no bind-address flag. Do not
+> reverse-proxy it, iframe it from the demo UI, or run it on the SE AWS cluster.
+> Run it beside the demo on the presenter's machine and screen-share it.
+
+`pac-edit.sh` deliberately does not `exec` the JVM: `exec` would replace the
+shell and discard the cleanup trap, leaving the ephemeral credential file on
+disk after the editor stops.
+
+`/api/generate` (natural language → PAC YAML) needs `ANTHROPIC_API_KEY` in the
+environment, or Bedrock config. It is not required for the demo loop above.
 
 ## Fallback
 
