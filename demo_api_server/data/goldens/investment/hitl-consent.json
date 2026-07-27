@@ -4,7 +4,7 @@
   "ucId": "UC8",
   "trigger": "execute a large trade of $300",
   "expectedOutcome": "HITL_REQUIRED",
-  "capturedAt": "2026-07-27T00:21:48.354Z",
+  "capturedAt": "2026-07-27T00:29:06.506Z",
   "seedHash": null,
   "reply": "PingOne Authorize requires human approval before MCP tools can run.",
   "requiresConsent": true,

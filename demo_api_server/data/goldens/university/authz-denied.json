@@ -4,7 +4,7 @@
   "ucId": "UC6",
   "trigger": "pay $2500 tuition",
   "expectedOutcome": "DENY",
-  "capturedAt": "2026-07-27T00:20:44.130Z",
+  "capturedAt": "2026-07-27T00:27:42.334Z",
   "seedHash": "55fb07346bdb7866",
   "reply": "❌ PingOne Authorize denied MCP tool access for this session.",
   "agentPath": null,

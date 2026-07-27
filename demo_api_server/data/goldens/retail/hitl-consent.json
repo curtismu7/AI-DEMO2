@@ -4,7 +4,7 @@
   "ucId": "UC8",
   "trigger": "checkout headphones for $300",
   "expectedOutcome": "HITL_REQUIRED",
-  "capturedAt": "2026-07-27T00:20:14.086Z",
+  "capturedAt": "2026-07-27T00:27:16.693Z",
   "seedHash": "6a8345537e56d245",
   "reply": "PingOne Authorize requires human approval before MCP tools can run.",
   "requiresConsent": true,

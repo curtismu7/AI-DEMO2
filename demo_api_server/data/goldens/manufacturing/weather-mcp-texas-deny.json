@@ -4,7 +4,7 @@
   "ucId": "UC31",
   "trigger": "what's the weather in Miami",
   "expectedOutcome": "DENY",
-  "capturedAt": "2026-07-27T00:21:35.395Z",
+  "capturedAt": "2026-07-27T00:28:41.831Z",
   "seedHash": "dcba7c79003a5241",
   "reply": "❌ Agent Gateway: weather scope restricted to Texas (demo policy) — city not recognized as Texas",
   "agentPath": null,

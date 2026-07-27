@@ -4,7 +4,7 @@
   "ucId": "UC1",
   "trigger": "my gear",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-27T00:21:09.262Z",
+  "capturedAt": "2026-07-27T00:28:07.600Z",
   "seedHash": "c48bf4072b509915",
   "reply": "Here are your Purchases (6 total).",
   "agentPath": null,

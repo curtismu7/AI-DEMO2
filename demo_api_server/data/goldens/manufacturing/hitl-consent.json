@@ -4,7 +4,7 @@
   "ucId": "UC8",
   "trigger": "approve a $300 purchase order",
   "expectedOutcome": "HITL_REQUIRED",
-  "capturedAt": "2026-07-27T00:21:31.505Z",
+  "capturedAt": "2026-07-27T00:28:37.397Z",
   "seedHash": "dcba7c79003a5241",
   "reply": "PingOne Authorize requires human approval before MCP tools can run.",
   "requiresConsent": true,

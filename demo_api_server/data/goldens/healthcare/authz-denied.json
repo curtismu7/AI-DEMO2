@@ -4,7 +4,7 @@
   "ucId": "UC6",
   "trigger": "pay my $2500 bill",
   "expectedOutcome": "DENY",
-  "capturedAt": "2026-07-27T00:19:52.305Z",
+  "capturedAt": "2026-07-27T00:26:54.365Z",
   "seedHash": "956244bc8453547f",
   "reply": "❌ PingOne Authorize denied MCP tool access for this session.",
   "agentPath": null,

@@ -1,0 +1,12 @@
+{
+  "vertical": "manufacturing",
+  "useCaseId": "weather-mcp-texas-permit",
+  "ucId": "UC30",
+  "trigger": "what's the weather in Austin, TX",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-27T00:28:40.809Z",
+  "seedHash": "dcba7c79003a5241",
+  "reply": "**Location:** Austin, Travis County, Texas, United States (30.2711, -97.7437)\n\n# Current Weather Conditions\n\n**Station:** https://api.weather.gov/stations/KATT\n**Time:** Jul 26, 2026, 6:51 PM\n\n**Conditions:** Clear\n**Temperature:** 94°F\n**Feels Like (Heat Index):** 96°F\n**Dewpoint:** 65°F\n**Humidity:** 39%\n**Wind:** 7 mph from 190°\n**Pressure:** 29.96 inHg\n**Visibility:** 10.0 miles\n**Cloud Cover:** Clear\n\n---\n*Data source: NOAA National Weather Service*\n",
+  "agentPath": null,
+  "tokenEventCount": 16
+}

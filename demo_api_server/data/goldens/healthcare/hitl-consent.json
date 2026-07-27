@@ -4,7 +4,7 @@
   "ucId": "UC8",
   "trigger": "pay my $300 bill",
   "expectedOutcome": "HITL_REQUIRED",
-  "capturedAt": "2026-07-27T00:19:56.082Z",
+  "capturedAt": "2026-07-27T00:26:58.453Z",
   "seedHash": "956244bc8453547f",
   "reply": "PingOne Authorize requires human approval before MCP tools can run.",
   "requiresConsent": true,
