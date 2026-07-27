@@ -160,16 +160,16 @@ export default function MissingCredentialsModal({
       isOpen
       onClose={onCancel}
       title="Missing Credentials"
-      defaultWidth={520}
+      defaultWidth={460}
       defaultHeight={560}
       storageKey="missing-credentials-modal"
-      minWidth={340}
+      minWidth={380}
       minHeight={300}
       backdropClose
       footer={
         <>
           <button
-            className="mcm-btn mcm-btn-cancel"
+            className="btn btn-secondary"
             onClick={onCancel}
             disabled={submitting}
             type="button"
@@ -177,7 +177,7 @@ export default function MissingCredentialsModal({
             Cancel
           </button>
           <button
-            className="mcm-btn mcm-btn-submit"
+            className="btn btn-primary"
             onClick={handleSubmit}
             disabled={submitting}
             type="button"

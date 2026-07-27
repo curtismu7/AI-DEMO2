@@ -117,26 +117,6 @@
   accent-color: var(--theme-accent, #0e7c86);
 }
 
-.lsm-continue {
-  padding: 8px 18px;
-  background: var(--theme-accent, #0e7c86);
-  border: 1px solid var(--theme-accent, #0e7c86);
-  border-radius: 8px;
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: filter 0.15s;
-}
-
-.lsm-continue:hover {
-  filter: brightness(1.07);
-}
-
-.lsm-continue:focus-visible {
-  outline: 2px solid var(--theme-accent, #0e7c86);
-  outline-offset: 2px;
-}
 
 /* Narrow (small pop-out): stack the accent panel above the fields */
 @media (max-width: 360px) {

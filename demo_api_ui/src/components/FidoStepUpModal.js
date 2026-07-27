@@ -84,7 +84,7 @@ export default function FidoStepUpModal({ show, onSubmit, onCancel, contextLine 
       onClose={handleCancel}
       title="Verify with Passkey"
       footer={footer}
-      defaultWidth={420}
+      defaultWidth={380}
       defaultHeight={320}
       storageKey="fido-step-up-modal"
       zIndex={100080}

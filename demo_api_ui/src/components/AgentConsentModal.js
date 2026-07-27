@@ -127,7 +127,7 @@ export default function AgentConsentModal({
       onClose={onDismiss}
       title={title}
       footer={footer}
-      defaultWidth={500}
+      defaultWidth={460}
       defaultHeight={defaultModalHeight}
       storageKey="agent-consent-modal-v5"
       zIndex={100070}
