@@ -102,6 +102,54 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-27 — Passkey step-up dead-ended when the credential lived on another device; SMS had no registration path on the dashboard
+
+**Files changed:** `demo_api_ui/src/components/OtpStepUpModal.js`,
+`demo_api_ui/src/components/Fido2Challenge.js`,
+`demo_api_ui/src/components/UserDashboardPing2026.js`,
+`demo_api_ui/src/components/__tests__/OtpStepUpModal.fidoAssertion.test.jsx`,
+`demo_api_ui/src/components/__tests__/Fido2Challenge.registerOffer.test.jsx` (new).
+
+**What was broken:** A FIDO2 device on the PingOne **account** does not mean the
+credential exists on **this** device — a passkey saved to a phone reports the
+same `NotAllowedError`. Both step-up surfaces treated that as terminal:
+`OtpStepUpModal`'s recovery branch was gated on `!fidoEnrolled` (false whenever
+any FIDO2 device is registered), so it fell through to "Passkey verification
+failed. Try another method."; `Fido2Challenge` reported "cancelled or timed
+out" and called `onError`, which the dashboard uses to close the overlay.
+Separately the dashboard's Set Up MFA modal offered only Email OTP and Passkey —
+there was no way to register SMS from it, though `/enroll/sms-init` and
+`/enroll/sms-complete` already existed.
+
+**What was fixed:** `NotAllowedError` (or "No credential") now routes to a
+`passkey-register-offer` step in `OtpStepUpModal` regardless of `fidoEnrolled`,
+offering local registration plus "Choose another method". `Fido2Challenge`
+takes an optional `onRegisterPasskey`; when supplied it renders the offer
+inline and **returns without calling `onError`** (calling it would close the
+overlay and destroy the offer) — without the prop the old fail-out is
+unchanged. The dashboard passes that prop to reopen its enroll modal, which now
+also carries an SMS phone → activation-code sub-flow.
+
+**Do not break:** `Fido2Challenge` must not call `onError` on the
+offer-registration path — the dashboard's `onError` unmounts the component.
+Keep the `onRegisterPasskey`-absent branch failing out as before; a test covers
+that control. Do not restore the `!fidoEnrolled` gate: it is precisely what made
+a cross-device passkey unrecoverable.
+
+**Verify:** `cd demo_api_ui && npm run test:unit` (2345 pass; the 1
+`adminSideNav.test.jsx` failure is pre-existing and reproduces on an untouched
+main checkout) and `npm run build` (exit 0). `npx biome check` on the three
+changed components reports 60 errors / 15 warnings — byte-identical to `HEAD`,
+so no new lint debt. Revert-to-RED verified for both behaviors: restoring the
+`!fidoEnrolled` gate fails the OtpStepUpModal offer test, and disabling the
+`Fido2Challenge` branch fails its offer test while the control test stays green.
+SMS enrollment was verified live against PingOne with a real number:
+`/enroll/sms-init` returned `status: "ACTIVE"` immediately (worker-token enroll),
+so in this environment the `ACTIVE`/`ENABLED` short-circuit is the path that runs
+and no activation code is issued. The phone → activation-code sub-step is the
+fallback for environments where PingOne returns an activation-required status;
+that branch is not exercised here. Test device was deleted afterwards (204).
+
 ### 2026-07-27 — Step-up passkey (FIDO2) verification never reached the browser: options decoder rejected PingOne's real byte-array shape
 
 **Files changed:** `demo_api_ui/src/components/OtpStepUpModal.js`,

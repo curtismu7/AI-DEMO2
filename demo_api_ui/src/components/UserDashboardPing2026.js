@@ -20,6 +20,7 @@ import {
   toast,
 } from "../utils/appToast";
 import { navigateToCustomerOAuthLogin, SESSION_REAUTH_EVENT } from "../utils/authUi";
+import { normalizePhoneE164 } from "../utils/mfaEnrollment";
 import {
   getDashboardLayout,
   setDashboardLayout,
@@ -318,6 +319,11 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   const [enrollModalOpen, setEnrollModalOpen] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
   const [enrollError, setEnrollError] = useState("");
+  // SMS enrollment sub-flow inside the enroll modal: 'choose' | 'phone' | 'otp'
+  const [smsEnrollStep, setSmsEnrollStep] = useState("choose");
+  const [smsEnrollPhone, setSmsEnrollPhone] = useState("");
+  const [smsEnrollOtp, setSmsEnrollOtp] = useState("");
+  const [smsEnrollDeviceId, setSmsEnrollDeviceId] = useState(null);
   const autoInitiateTimerRef = useRef(null); // [t1, t2, t3] setTimeout IDs
   const handleCibaStepUpRef = useRef(null); // stays current — avoids stale closure
   const handleInitiateOtpRef = useRef(null); // stays current — avoids stale closure
@@ -868,6 +874,80 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       setEnrolling(false);
     }
   }, []);
+
+  /** Close the enroll modal and reset the SMS sub-flow so it reopens clean. */
+  const closeEnrollModal = useCallback(() => {
+    setEnrollModalOpen(false);
+    setSmsEnrollStep("choose");
+    setSmsEnrollOtp("");
+    setSmsEnrollDeviceId(null);
+    setEnrollError("");
+  }, []);
+
+  /** POST /enroll/sms-init — PingOne texts an activation code to the phone. */
+  const handleEnrollSmsInit = useCallback(async () => {
+    const phone = normalizePhoneE164(smsEnrollPhone);
+    if (!phone || phone.length < 10) {
+      setEnrollError("Enter a phone number in E.164 format, e.g. +15551234567");
+      return;
+    }
+    setEnrolling(true);
+    setEnrollError("");
+    try {
+      const { data } = await apiClient.post("/api/auth/mfa/enroll/sms-init", {
+        phone,
+      });
+      const status = String(data.status || "").toUpperCase();
+      // Worker-token enroll can return ACTIVE immediately — no activation code.
+      if (status === "ACTIVE" || status === "ENABLED") {
+        setEnrollModalOpen(false);
+        notifySuccess("SMS device enrolled — starting MFA challenge…");
+        handleInitiateOtpRef.current?.();
+        return;
+      }
+      if (!data.deviceId) throw new Error("SMS enroll did not return a deviceId");
+      setSmsEnrollDeviceId(data.deviceId);
+      setSmsEnrollOtp("");
+      setSmsEnrollStep("otp");
+    } catch (err) {
+      setEnrollError(
+        err.response?.data?.message ||
+          err.message ||
+          "SMS enrollment failed. Please try again.",
+      );
+    } finally {
+      setEnrolling(false);
+    }
+  }, [smsEnrollPhone]);
+
+  /** POST /enroll/sms-complete — activate the device, then challenge it. */
+  const handleEnrollSmsComplete = useCallback(async () => {
+    if (!/^\d{6}$/.test(smsEnrollOtp)) {
+      setEnrollError("Enter the 6-digit code from your SMS");
+      return;
+    }
+    setEnrolling(true);
+    setEnrollError("");
+    try {
+      await apiClient.post("/api/auth/mfa/enroll/sms-complete", {
+        deviceId: smsEnrollDeviceId,
+        otp: smsEnrollOtp,
+      });
+      setEnrollModalOpen(false);
+      setSmsEnrollOtp("");
+      setSmsEnrollDeviceId(null);
+      notifySuccess("SMS device enrolled — starting MFA challenge…");
+      handleInitiateOtpRef.current?.();
+    } catch (err) {
+      setEnrollError(
+        err.response?.data?.message ||
+          err.message ||
+          "Could not activate the SMS device. Please try again.",
+      );
+    } finally {
+      setEnrolling(false);
+    }
+  }, [smsEnrollOtp, smsEnrollDeviceId]);
 
   /** Enroll a FIDO2 passkey, then auto-initiate MFA challenge. */
   const handleEnrollFido2 = useCallback(async () => {
@@ -3109,6 +3189,13 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             setFido2ModalOpen(false);
             notifyError(msg);
           }}
+          onRegisterPasskey={() => {
+            // No passkey for this site on this device — send the user to the
+            // enrollment modal rather than dead-ending the step-up.
+            setFido2ModalOpen(false);
+            setEnrollError("");
+            setEnrollModalOpen(true);
+          }}
         />
       )}
 
@@ -3168,12 +3255,12 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           </div>
         )}
 
-      {/* MFA Device Enrollment — shown when no devices enrolled */}
+      {/* MFA Device Enrollment — no devices enrolled, or none usable here */}
       {enrollModalOpen && (
         <div
           className="otp-step-up-overlay"
           onClick={() => {
-            if (!enrolling) setEnrollModalOpen(false);
+            if (!enrolling) closeEnrollModal();
           }}
         >
           <div
@@ -3184,7 +3271,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               <h3 className="otp-step-up-modal__title">Set Up MFA</h3>
               <button
                 className="otp-step-up-modal__close"
-                onClick={() => setEnrollModalOpen(false)}
+                onClick={closeEnrollModal}
                 aria-label="Close"
                 disabled={enrolling}
               >
@@ -3193,37 +3280,150 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             </div>
             <div className="otp-step-up-modal__body">
               <p className="otp-step-up-modal__lead">
-                No MFA devices are enrolled on your account. Set one up to
-                continue.
+                Set up a verification method to continue. Email, SMS, and
+                passkeys can each be registered here.
               </p>
               {enrollError && (
                 <p className="otp-step-up-modal__error">{enrollError}</p>
               )}
-              <div
-                className="otp-step-up-modal__actions"
-                style={{ flexDirection: "column", gap: "0.75rem" }}
-              >
-                <button
-                  type="button"
-                  className="otp-step-up-modal__btn-primary"
-                  disabled={enrolling}
-                  onClick={handleEnrollEmail}
+
+              {smsEnrollStep === "choose" && (
+                <div
+                  className="otp-step-up-modal__actions"
+                  style={{ flexDirection: "column", gap: "0.75rem" }}
                 >
-                  {enrolling ? "Setting up…" : "Set up Email OTP"}
-                </button>
-                <button
-                  type="button"
-                  className="otp-step-up-modal__btn-ghost"
-                  disabled={enrolling}
-                  onClick={handleEnrollFido2}
-                >
-                  {enrolling ? "Setting up…" : "Register a Passkey"}
-                </button>
-              </div>
-              <p className="otp-step-up-modal__hint">
-                Email OTP is easiest for demos. Passkeys require a compatible
-                device.
-              </p>
+                  <button
+                    type="button"
+                    className="otp-step-up-modal__btn-primary"
+                    disabled={enrolling}
+                    onClick={handleEnrollEmail}
+                    data-testid="enroll-email"
+                  >
+                    {enrolling ? "Setting up…" : "Set up Email OTP"}
+                  </button>
+                  <button
+                    type="button"
+                    className="otp-step-up-modal__btn-ghost"
+                    disabled={enrolling}
+                    onClick={() => {
+                      setEnrollError("");
+                      setSmsEnrollStep("phone");
+                    }}
+                    data-testid="enroll-sms"
+                  >
+                    Set up SMS OTP
+                  </button>
+                  <button
+                    type="button"
+                    className="otp-step-up-modal__btn-ghost"
+                    disabled={enrolling}
+                    onClick={handleEnrollFido2}
+                    data-testid="enroll-passkey"
+                  >
+                    {enrolling ? "Setting up…" : "Register a Passkey"}
+                  </button>
+                </div>
+              )}
+
+              {smsEnrollStep === "phone" && (
+                <>
+                  <label
+                    className="otp-step-up-modal__lead"
+                    htmlFor="enroll-sms-phone"
+                  >
+                    Mobile number (E.164 format)
+                  </label>
+                  <input
+                    id="enroll-sms-phone"
+                    className="otp-step-up-modal__input"
+                    type="tel"
+                    placeholder="+15551234567"
+                    value={smsEnrollPhone}
+                    onChange={(e) => setSmsEnrollPhone(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleEnrollSmsInit();
+                    }}
+                    data-testid="enroll-sms-phone"
+                  />
+                  <div
+                    className="otp-step-up-modal__actions"
+                    style={{ flexDirection: "column", gap: "0.75rem" }}
+                  >
+                    <button
+                      type="button"
+                      className="otp-step-up-modal__btn-primary"
+                      disabled={enrolling}
+                      onClick={handleEnrollSmsInit}
+                      data-testid="enroll-sms-send"
+                    >
+                      {enrolling ? "Sending…" : "Send activation code"}
+                    </button>
+                    <button
+                      type="button"
+                      className="otp-step-up-modal__btn-ghost"
+                      disabled={enrolling}
+                      onClick={() => {
+                        setEnrollError("");
+                        setSmsEnrollStep("choose");
+                      }}
+                    >
+                      ← Back
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {smsEnrollStep === "otp" && (
+                <>
+                  <label
+                    className="otp-step-up-modal__lead"
+                    htmlFor="enroll-sms-otp"
+                  >
+                    Enter the 6-digit code we texted you
+                  </label>
+                  <input
+                    id="enroll-sms-otp"
+                    className="otp-step-up-modal__input"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="000000"
+                    value={smsEnrollOtp}
+                    onChange={(e) =>
+                      setSmsEnrollOtp(e.target.value.replace(/\D/g, ""))
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleEnrollSmsComplete();
+                    }}
+                    data-testid="enroll-sms-otp"
+                  />
+                  <div
+                    className="otp-step-up-modal__actions"
+                    style={{ flexDirection: "column", gap: "0.75rem" }}
+                  >
+                    <button
+                      type="button"
+                      className="otp-step-up-modal__btn-primary"
+                      disabled={enrolling}
+                      onClick={handleEnrollSmsComplete}
+                      data-testid="enroll-sms-activate"
+                    >
+                      {enrolling ? "Activating…" : "Activate SMS"}
+                    </button>
+                    <button
+                      type="button"
+                      className="otp-step-up-modal__btn-ghost"
+                      disabled={enrolling}
+                      onClick={() => {
+                        setEnrollError("");
+                        setSmsEnrollStep("phone");
+                      }}
+                    >
+                      ← Back
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -566,9 +566,12 @@ export default function OtpStepUpModal({
       }
     } catch (err) {
       console.error('[OtpStepUpModal] FIDO assertion error:', err);
-      // When NotAllowedError occurs and user has no passkey yet, offer registration
-      if ((err?.name === 'NotAllowedError' || err?.message?.includes('No credential')) && !fidoEnrolled && onPasskeyRegistered) {
-        setP1Step('pick-device');
+      // A FIDO2 device on the ACCOUNT does not mean its credential exists on
+      // THIS device — a passkey saved to a phone or another laptop lands here
+      // too, and the browser reports the same NotAllowedError. Offer to
+      // register one locally instead of dead-ending, regardless of fidoEnrolled.
+      if ((err?.name === 'NotAllowedError' || err?.message?.includes('No credential')) && onPasskeyRegistered) {
+        setP1Step('passkey-register-offer');
         setP1Error('');
         setOtp('');
       } else {
@@ -819,6 +822,43 @@ export default function OtpStepUpModal({
     }))
     : [];
 
+  /**
+   * Shown when the browser could not find a passkey for this site on THIS
+   * device. The account may still have one registered elsewhere, so the way
+   * out is to register a local passkey — not to give up on the method.
+   */
+  const passkeyRegisterOfferPanel = (
+    <div className="otp-step-up-modal__passkey-offer">
+      <p className="otp-step-up-modal__lead">
+        No passkey for this site was found on this device.
+      </p>
+      <p className="otp-step-up-modal__lead">
+        If your passkey is saved on another device, use the browser prompt to scan its
+        QR code. Otherwise, register one here to verify with Touch ID, Face ID, or a
+        security key on this device.
+      </p>
+      <div className="otp-step-up-modal__actions" style={{ flexDirection: 'column', gap: '0.75rem' }}>
+        <button
+          type="button"
+          className="otp-step-up-modal__btn-primary"
+          onClick={handleRegisterPasskey}
+          disabled={registering}
+          data-testid="mfa-register-passkey-here"
+        >
+          {registering ? 'Registering…' : 'Register a passkey on this device'}
+        </button>
+        <button
+          type="button"
+          className="otp-step-up-modal__btn-ghost"
+          onClick={handleBackToMethodChoice}
+          data-testid="mfa-passkey-offer-back"
+        >
+          ← Choose another method
+        </button>
+      </div>
+    </div>
+  );
+
   const methodTable = (
     <MethodChoiceTable
       otpContactLabel={emailContactLabel}
@@ -1025,6 +1065,7 @@ export default function OtpStepUpModal({
           </p>
 
           {p1Step === 'pick-device' && methodTable}
+          {p1Step === 'passkey-register-offer' && passkeyRegisterOfferPanel}
           {p1Step === 'sms-enroll-phone' && smsEnrollPhonePanel}
           {p1Step === 'sms-enroll-otp' && smsEnrollOtpPanel}
 
@@ -1069,6 +1110,7 @@ export default function OtpStepUpModal({
 
   const stubShowRegistering = registering || p1Step === 'registering';
   const stubShowPasskeyError = p1Step === 'error' && !!p1Error;
+  const stubShowPasskeyOffer = p1Step === 'passkey-register-offer';
   const stubSmsEnroll = stubStep === 'sms-enroll-phone' || stubStep === 'sms-enroll-otp' || p1Step === 'sms-enroll-phone' || p1Step === 'sms-enroll-otp';
   const showSmsPhone = stubStep === 'sms-enroll-phone' || p1Step === 'sms-enroll-phone';
   const showSmsOtp = stubStep === 'sms-enroll-otp' || p1Step === 'sms-enroll-otp';
@@ -1119,7 +1161,8 @@ export default function OtpStepUpModal({
           {contextLine || 'Step-up authentication required to complete this action'}
         </p>
 
-        {stubStep === 'choose' && !stubShowRegistering && !stubShowPasskeyError && !stubSmsEnroll && methodTable}
+        {stubStep === 'choose' && !stubShowRegistering && !stubShowPasskeyError && !stubShowPasskeyOffer && !stubSmsEnroll && methodTable}
+        {stubShowPasskeyOffer && passkeyRegisterOfferPanel}
         {showSmsPhone && smsEnrollPhonePanel}
         {showSmsOtp && smsEnrollOtpPanel}
 

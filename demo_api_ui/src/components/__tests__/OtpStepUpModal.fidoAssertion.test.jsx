@@ -108,4 +108,22 @@ describe('OtpStepUpModal — FIDO2 assertion option decoding', () => {
 
     await waitFor(() => expect(onP1MfaComplete).toHaveBeenCalled());
   });
+
+  test('offers local registration when the passkey is not on this device', async () => {
+    // The account HAS a FIDO2 device (devices below), but the credential lives
+    // elsewhere — the browser reports NotAllowedError. The old gate required
+    // !fidoEnrolled, so this dead-ended with a generic failure instead.
+    getMock.mockRejectedValueOnce(
+      Object.assign(new Error('The operation either timed out or was not allowed.'), {
+        name: 'NotAllowedError',
+      }),
+    );
+    render(<OtpStepUpModal {...baseProps} onPasskeyRegistered={vi.fn()} />);
+
+    fireEvent.click(screen.getByTestId('mfa-choose-passkey'));
+
+    await waitFor(() => expect(screen.getByTestId('mfa-register-passkey-here')).toBeInTheDocument());
+    expect(screen.getByText(/No passkey for this site was found on this device/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Passkey verification failed/i)).not.toBeInTheDocument();
+  });
 });
