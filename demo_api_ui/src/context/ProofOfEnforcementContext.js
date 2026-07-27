@@ -140,13 +140,24 @@ export function computeVerdict(trace, catalogEntry) {
   // chat's own "completed successfully" message, so give those two families
   // their own gate-specific wording and reserve "denied" for the real DENY
   // family (where the call is in fact refused).
+  // "then permitted" is only true when the human actually satisfied the gate.
+  // TransactionConsentModal records a refusal on the trace, so a declined run
+  // says so instead of asserting a permit that never happened. The state stays
+  // 'denied-as-expected' (green): enforcement did exactly its job — the gate
+  // held — and the only thing that changes is what the run is reported to have
+  // ended in.
+  const gateDeclined = trace.approvalOutcome === 'declined';
   const resultText = state === 'mismatch'
     ? 'Result did not match the expected outcome'
     : expectedIsDenyLike
       ? (expectedFamily === 'STEP_UP'
-          ? 'Step-up MFA required as expected — then permitted'
+          ? (gateDeclined
+              ? 'Step-up MFA required as expected — you declined, so the transaction was not completed'
+              : 'Step-up MFA required as expected — then permitted')
           : expectedFamily === 'HITL_REQUIRED'
-            ? 'Human approval required as expected — then permitted'
+            ? (gateDeclined
+                ? 'Human approval required as expected — you declined, so the transaction was not completed'
+                : 'Human approval required as expected — then permitted')
             : 'Denied as expected by policy')
       : tool
         ? `Completed — ${tool} dispatched`
