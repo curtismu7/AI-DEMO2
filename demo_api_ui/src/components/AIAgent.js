@@ -232,7 +232,7 @@ const NL_FAILURE_MESSAGES = {
   // Token exchange #2 failed (often PingOne invalid_scope when gateway broker
   // flags drifted off). Surface a fixable sentence — not the generic fallback.
   delegation_chain_broken:
-    "Token exchange failed — turn on PingGateway routing (Admin → Feature flags: ff_mcp_gateway_pinggateway), then try again.",
+    "Token exchange failed — turn on Agent Gateway routing (Admin → Feature flags: ff_mcp_gateway_pinggateway), then try again.",
   invalid_scope:
     "Token exchange requested scopes across multiple resources. Enable ff_mcp_gateway_pinggateway, then retry.",
   a2a_delegation_disabled:
@@ -8057,7 +8057,7 @@ export default function BankingAgent({
                     <button
                       type="button"
                       className="ba-insp-btn ba-insp-btn--gateway"
-                      onClick={() => navigate("/pinggateway-inspector?subtab=tester")}
+                      onClick={() => navigate("/agent-gateway-inspector?subtab=tester")}
                       title="Open the Agent Gateway Inspector"
                     >
                       Agent Gateway Inspector

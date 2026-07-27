@@ -1,6 +1,6 @@
 /**
  * @file pinggateway-inspector.spec.js
- * @description Playwright E2E smoke for the Ping Gateway Inspector (/pinggateway-inspector).
+ * @description Playwright E2E smoke for the Agent Gateway Inspector (/agent-gateway-inspector).
  *
  * Covers:
  *   - Page loads and shows "Agent Gateway Configuration" heading
@@ -104,84 +104,84 @@ async function mockGatewayInspector(page, { user = ADMIN_USER, config = GATEWAY_
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-test.describe('Ping Gateway Inspector — page load', () => {
+test.describe('Agent Gateway Inspector — page load', () => {
   test('shows "Agent Gateway Configuration" heading', async ({ page }) => {
     await mockGatewayInspector(page);
-    await page.goto('/pinggateway-inspector');
+    await page.goto('/agent-gateway-inspector');
     await expect(page.getByText('Agent Gateway Configuration')).toBeVisible({ timeout: 10000 });
   });
 
   test('subtitle mentions mcp.json', async ({ page }) => {
     await mockGatewayInspector(page);
-    await page.goto('/pinggateway-inspector');
+    await page.goto('/agent-gateway-inspector');
     await expect(page.getByText(/mcp\.json/)).toBeVisible({ timeout: 10000 });
   });
 
   test('status badge is visible', async ({ page }) => {
     await mockGatewayInspector(page);
-    await page.goto('/pinggateway-inspector');
+    await page.goto('/agent-gateway-inspector');
     // Running badge (not devBypass) should show
     await expect(page.getByText('Running (Live)')).toBeVisible({ timeout: 10000 });
   });
 
   test('Refresh button is visible', async ({ page }) => {
     await mockGatewayInspector(page);
-    await page.goto('/pinggateway-inspector');
+    await page.goto('/agent-gateway-inspector');
     // Use CSS class to avoid strict-mode conflict with sidebar "Refresh sidebar" button
     await expect(page.locator('.mgc-refresh-btn')).toBeVisible({ timeout: 10000 });
   });
 });
 
-test.describe('Ping Gateway Inspector — tabs', () => {
+test.describe('Agent Gateway Inspector — tabs', () => {
   test('Demo Agent Gateway (Dev) tab is present', async ({ page }) => {
     await mockGatewayInspector(page);
-    await page.goto('/pinggateway-inspector');
+    await page.goto('/agent-gateway-inspector');
     await expect(page.getByRole('button', { name: 'Demo Agent Gateway (Dev)' })).toBeVisible({ timeout: 10000 });
   });
 
   test('Agent Gateway tab is present', async ({ page }) => {
     await mockGatewayInspector(page);
-    await page.goto('/pinggateway-inspector');
+    await page.goto('/agent-gateway-inspector');
     // Scope to .mgc-tabs to avoid sidebar nav matching the same label
     await expect(page.locator('.mgc-tabs').getByRole('button', { name: 'Agent Gateway', exact: true })).toBeVisible({ timeout: 10000 });
   });
 
   test('Agent Gateway Tester tab is present', async ({ page }) => {
     await mockGatewayInspector(page);
-    await page.goto('/pinggateway-inspector');
+    await page.goto('/agent-gateway-inspector');
     await expect(page.getByRole('button', { name: 'Agent Gateway Tester' })).toBeVisible({ timeout: 10000 });
   });
 
   test('Capability Tour tab is present', async ({ page }) => {
     await mockGatewayInspector(page);
-    await page.goto('/pinggateway-inspector');
+    await page.goto('/agent-gateway-inspector');
     await expect(page.getByRole('button', { name: 'Capability Tour' })).toBeVisible({ timeout: 10000 });
   });
 
   test('Token Security tab is present', async ({ page }) => {
     await mockGatewayInspector(page);
-    await page.goto('/pinggateway-inspector');
+    await page.goto('/agent-gateway-inspector');
     await expect(page.getByRole('button', { name: 'Token Security' })).toBeVisible({ timeout: 10000 });
   });
 
   test('MCP Tool Tester tab is present', async ({ page }) => {
     await mockGatewayInspector(page);
-    await page.goto('/pinggateway-inspector');
+    await page.goto('/agent-gateway-inspector');
     await expect(page.getByRole('button', { name: 'MCP Tool Tester' })).toBeVisible({ timeout: 10000 });
   });
 
   test('default tab panel shows Gateway URL from config', async ({ page }) => {
     await mockGatewayInspector(page);
-    await page.goto('/pinggateway-inspector');
+    await page.goto('/agent-gateway-inspector');
     // Default "mock" tab shows the gateway URL
     await expect(page.getByText('http://localhost:8080')).toBeVisible({ timeout: 10000 });
   });
 });
 
-test.describe('Ping Gateway Inspector — deep-link subtabs', () => {
+test.describe('Agent Gateway Inspector — deep-link subtabs', () => {
   test('?subtab=tester activates Agent Gateway Tester tab', async ({ page }) => {
     await mockGatewayInspector(page);
-    await page.goto('/pinggateway-inspector?subtab=tester');
+    await page.goto('/agent-gateway-inspector?subtab=tester');
     await expect(
       page.getByRole('button', { name: 'Agent Gateway Tester' })
         .and(page.locator('.mgc-tab--active'))
@@ -190,7 +190,7 @@ test.describe('Ping Gateway Inspector — deep-link subtabs', () => {
 
   test('?subtab=capabilities activates Capability Tour tab', async ({ page }) => {
     await mockGatewayInspector(page);
-    await page.goto('/pinggateway-inspector?subtab=capabilities');
+    await page.goto('/agent-gateway-inspector?subtab=capabilities');
     await expect(
       page.getByRole('button', { name: 'Capability Tour' })
         .and(page.locator('.mgc-tab--active'))
@@ -198,7 +198,7 @@ test.describe('Ping Gateway Inspector — deep-link subtabs', () => {
   });
 });
 
-test.describe('Ping Gateway Inspector — Refresh', () => {
+test.describe('Agent Gateway Inspector — Refresh', () => {
   test('Refresh button re-fetches gateway config', async ({ page }) => {
     await mockGatewayInspector(page);
     let fetchCount = 0;
@@ -206,7 +206,7 @@ test.describe('Ping Gateway Inspector — Refresh', () => {
       fetchCount++;
       return route.fulfill(json(GATEWAY_CONFIG));
     });
-    await page.goto('/pinggateway-inspector');
+    await page.goto('/agent-gateway-inspector');
     await page.locator('.mgc-refresh-btn').waitFor({ timeout: 10000 });
     await page.locator('.mgc-refresh-btn').click();
     await page.waitForTimeout(500);
@@ -214,16 +214,16 @@ test.describe('Ping Gateway Inspector — Refresh', () => {
   });
 });
 
-test.describe('Ping Gateway Inspector — MCP mode chip', () => {
+test.describe('Agent Gateway Inspector — MCP mode chip', () => {
   test('shows Custom Gateway chip when mcpMode is custom', async ({ page }) => {
     await mockGatewayInspector(page, { config: { ...GATEWAY_CONFIG, mcpMode: 'custom' } });
-    await page.goto('/pinggateway-inspector');
+    await page.goto('/agent-gateway-inspector');
     await expect(page.getByText('Custom Gateway')).toBeVisible({ timeout: 10000 });
   });
 
   test('shows PingOne MCP Server chip when mcpMode is pingone', async ({ page }) => {
     await mockGatewayInspector(page, { config: { ...GATEWAY_CONFIG, mcpMode: 'pingone' } });
-    await page.goto('/pinggateway-inspector');
+    await page.goto('/agent-gateway-inspector');
     await expect(page.getByText('PingOne MCP Server')).toBeVisible({ timeout: 10000 });
   });
 });

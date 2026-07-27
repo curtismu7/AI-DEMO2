@@ -127,10 +127,10 @@ describe("App.js — critical JSX placements", () => {
   });
 
   // Guests under path="*" only get TopNav — gateway inspector must stay top-level.
-  test("/pinggateway-inspector is a top-level McpGatewayConfigRoute", () => {
+  test("/agent-gateway-inspector is a top-level McpGatewayConfigRoute", () => {
     expect(appSrc).toContain("McpGatewayConfigRoute");
     expect(appSrc).toMatch(
-      /path=["']\/pinggateway-inspector["'][\s\S]*?<McpGatewayConfigRoute/,
+      /path=["']\/agent-gateway-inspector["'][\s\S]*?<McpGatewayConfigRoute/,
     );
     expect(appSrc).not.toContain('element={<McpGatewayConfig />}');
   });

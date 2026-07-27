@@ -252,9 +252,9 @@ function ToolsTab() {
         </Card>
       </Section>
 
-      <Section title="ping-gateway" role="PingGateway config — production gateway alternative">
+      <Section title="ping-gateway" role="Agent Gateway config — production gateway alternative">
         <p style={{ marginTop: 4 }}>
-          Configuration and deployment scripts for PingGateway, the real PingOne product.
+          Configuration and deployment scripts for Agent Gateway, the real PingOne product.
           Configured to do the same job as demo_mcp_gateway — validate tokens against PingOne
           introspection, perform RFC 8693 token exchange, and forward to backend MCP servers.
           Exists as a "what this looks like in production" counterpart to the Node.js gateway.

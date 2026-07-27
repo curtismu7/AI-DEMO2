@@ -155,9 +155,9 @@ const toolDotClass = (name) => {
 };
 
 const PRESETS = [
-  { id: 'uc18-throttle', label: 'UC18 throttling (Demo Gateway)' },
-  { id: 'real-throttle-ig', label: 'UC18 throttling (Real IG)' },
-  { id: 'real-policy', label: 'Real IG policy (simulated authz)' },
+  { id: 'uc18-throttle', label: 'UC18 throttling (Node Gateway)' },
+  { id: 'real-throttle-ig', label: 'UC18 throttling (Real Agent Gateway)' },
+  { id: 'real-policy', label: 'Real Agent Gateway policy (simulated authz)' },
 ];
 
 export default function AgentGatewayTester() {
