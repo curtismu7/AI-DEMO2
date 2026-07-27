@@ -36,24 +36,6 @@
   color: #64748b;
 }
 
-.transaction-consent-learn-link {
-  display: inline-block;
-  margin: 0 0 0.65rem;
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--brand-navy);
-  font-size: 0.78rem;
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-
-.transaction-consent-learn-link:hover {
-  text-decoration: none;
-}
-
 /* ── Draggable-panel header controls (pop-out / close) ───────────────────── */
 
 .drp-header {

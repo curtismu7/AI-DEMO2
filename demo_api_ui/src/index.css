@@ -641,6 +641,24 @@ body {
   color: #fff;
 }
 
+.modal-text-link {
+  display: inline-block;
+  margin: 0 0 0.65rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--brand-navy);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.modal-text-link:hover {
+  text-decoration: none;
+}
+
 .btn-success {
   background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
   color: #fff;

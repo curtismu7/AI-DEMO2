@@ -1070,7 +1070,7 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
             </p>
             <button
               type="button"
-              className="transaction-consent-learn-link"
+              className="modal-text-link"
               onClick={() => openEducation(EDU.HUMAN_IN_LOOP, "what")}
             >
               Learn: Human-in-the-loop
