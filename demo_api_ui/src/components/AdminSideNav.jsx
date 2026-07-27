@@ -497,6 +497,15 @@ export default function AdminSideNav({ user }) {
       ],
     },
     {
+      label: "Inspectors",
+      icon: "dbg",
+      children: [
+        { label: "MCP Inspector", path: "/pingone-mcp-inspector", icon: "dbg" },
+        { label: "PingGateway Inspector", path: "/pinggateway-inspector", icon: "rte" },
+        { label: "PingOne Authorize", path: "/pingone-authorize", icon: "pol" },
+      ],
+    },
+    {
       label: "PingOne MCP",
       icon: "mcp",
       highlight: true,
