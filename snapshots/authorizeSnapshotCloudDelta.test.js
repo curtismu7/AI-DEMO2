@@ -151,6 +151,42 @@ test('a2a: the gated tool list comes from scope-topology a2aDelegated, not hand-
     'adding a specialist tool to the SoT must gate it here automatically');
 });
 
+test('actor chain: every A2A specialist in the env is a registered actor', () => {
+  // The four specialists missing from this list (tax, finaid, supplier,
+  // holdings) mapped EXACTLY to the four verticals that failed
+  // verify:a2a-policy with depth2=DENY after the policy import. They were
+  // rejected by THIS rule as mcp-invalid-actor — a correct two-hop chain denied
+  // for having an unrecognised specialist, which reads like a delegation
+  // failure and is not one.
+  const cond = findById(reconciled(), COND.HasValidActorChain);
+  assert.ok(cond, 'HasValidActorChain must exist');
+  const registered = comparisons(cond.condition).map((c) => c.right.constant.value);
+
+  const fromEnv = Object.keys(process.env)
+    .filter((k) => /^PINGONE_A2A_[A-Z0-9]+_AGENT_CLIENT_ID$/.test(k))
+    .map((k) => (process.env[k] || '').trim())
+    .filter(Boolean);
+  // Skips rather than fails without .env — gitignored, so CI has no ids to check.
+  for (const id of fromEnv) {
+    assert.ok(registered.includes(id), `specialist ${id} is not a registered actor`);
+  }
+});
+
+test('actor chain: the list can only grow — regeneration never drops an id', () => {
+  // The union is what makes this safe to regenerate anywhere. A checkout with
+  // no .env (CI, fresh clone, worktree) must not shrink the allowlist and
+  // silently un-register a specialist that IS provisioned in the tenant.
+  const committed = comparisons(findById(readSnapshot(), 'HasValidActorChain')
+    ? findById(readSnapshot(), 'HasValidActorChain').condition
+    : findById(reconciled(), COND.HasValidActorChain).condition)
+    .map((c) => c.right.constant.value);
+  const after = comparisons(findById(reconciled(), COND.HasValidActorChain).condition)
+    .map((c) => c.right.constant.value);
+  for (const id of committed) {
+    assert.ok(after.includes(id), `regeneration dropped registered actor ${id}`);
+  }
+});
+
 test('step 0: no attribute-to-attribute comparison survives in HasValidMcpAudience', () => {
   const cond = findById(reconciled(), COND.HasValidMcpAudience);
   assert.ok(cond && cond.objectType === 'ConditionDefinition', 'HasValidMcpAudience must be addressable by stable id');
