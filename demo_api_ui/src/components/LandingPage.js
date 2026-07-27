@@ -104,7 +104,7 @@ export default function LandingPage({ user, hasTopNav }) {
     if (user) {
       navigate("/use-cases/live");
     } else {
-      window.location.href = "/api/auth/oauth/login";
+      window.location.href = "/api/auth/oauth/user/login?return_to=/use-cases/live";
     }
   };
 
