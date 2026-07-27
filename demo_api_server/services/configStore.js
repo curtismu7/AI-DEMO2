@@ -353,6 +353,7 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   introspectionProvider:           { public: true, default: 'pinggateway' }, // Token introspection provider: 'pinggateway' (PingGateway/ForgeRock IG, default) or 'p1az' (PingOne Authorize, optional)
   ff_mcp_gateway_pinggateway:      { public: true, default: 'true' }, // Route MCP traffic through PingGateway (IG) instead of the Node gateway
   ff_mcp_gateway_jwks:             { public: true, default: 'false' }, // PingGateway validates MCP tokens locally (JWKS/HS256) instead of introspecting
+  ff_aam:                          { public: true, default: 'true' }, // PingOne Authorize API Access Management on the IG /aam route. Defaults ON: AAM is the coarse-grained layer the demo expects to be running, so this flag turns it OFF rather than opting in
   ff_enterprise_managed_mcp_auth:  { public: true, default: 'false' }, // MCP Enterprise-Managed Authorization — IT policy gate + RFC 8693 ID-JAG stand-in (Phase 1–2)
   enterprise_mcp_allowed_groups:    { public: true, default: 'banking-agents,employees' }, // Comma-separated PingOne group names or population IDs
   enterprise_mcp_resource_uris:    { public: true, default: '' }, // Optional override; defaults to scope-topology MCP resource URIs
@@ -1142,6 +1143,7 @@ class ConfigStore {
       ff_a2a_delegation:               ['FF_A2A_DELEGATION'],
       ff_mcp_gateway_pinggateway:      ['FF_MCP_GATEWAY_PINGGATEWAY'],
       ff_mcp_gateway_jwks:             ['FF_MCP_GATEWAY_JWKS'],
+      ff_aam:                          ['FF_AAM'],
       ff_local_fallback_on_exchange_failure: ['FF_LOCAL_FALLBACK_ON_EXCHANGE_FAILURE'],
       ff_bedrock_agentcore_gateway:    ['FF_BEDROCK_AGENTCORE_GATEWAY'],
       ff_bedrock_llm:                  ['FF_BEDROCK_LLM'],
@@ -2146,6 +2148,7 @@ async function syncOAuthEndpointsToLmdb() {
     ff_a2a_delegation:          'FF_A2A_DELEGATION',
     ff_mcp_gateway_pinggateway: 'FF_MCP_GATEWAY_PINGGATEWAY',
     ff_mcp_gateway_jwks:        'FF_MCP_GATEWAY_JWKS',
+    ff_aam:                     'FF_AAM',
     ff_local_fallback_on_exchange_failure: 'FF_LOCAL_FALLBACK_ON_EXCHANGE_FAILURE',
     ff_bedrock_agentcore_gateway: 'FF_BEDROCK_AGENTCORE_GATEWAY',
     ff_bedrock_llm:             'FF_BEDROCK_LLM',
