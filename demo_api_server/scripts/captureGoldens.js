@@ -16,8 +16,29 @@
  */
 
 const path = require('path');
+const fs = require('fs');
 
-require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
+// demo_api_server/.env is gitignored, so a git WORKTREE does not have one and a
+// bare relative path silently loads nothing — dotenv reports "injected env (0)"
+// instead of throwing, and the run then dies later with the far less obvious
+// "could not resolve an enduser session". Derive the main checkout from git,
+// same as tests/e2e/helpers/repoRoots.js and verifyA2aDelegationPolicy.js.
+function envPath() {
+  const local = path.resolve(__dirname, '..', '.env');
+  if (fs.existsSync(local)) return local;
+  try {
+    const common = require('child_process')
+      .execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'],
+        { cwd: __dirname, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+      .trim();
+    if (common) {
+      const candidate = path.join(path.dirname(common), 'demo_api_server', '.env');
+      if (fs.existsSync(candidate)) return candidate;
+    }
+  } catch (_) { /* git unavailable */ }
+  return local;
+}
+require('dotenv').config({ path: envPath() });
 
 const { runGoldenCapture } = require('./goldenCaptureCore');
 const { VERTICALS } = require('../config/useCases');
