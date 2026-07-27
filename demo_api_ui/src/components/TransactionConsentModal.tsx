@@ -270,9 +270,25 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
     return lines;
   }, [snapshot, accounts]);
 
+  // Declining is the CONSENT decision, not "I gave up on the verification code".
+  // Only the review step (before any MFA/OTP/contact/enrollment sub-step) counts
+  // as a decline; cancelling once identity proof has started just aborts the
+  // transaction, leaving the assistant usable.
+  const atConsentReviewStep =
+    !otpStep &&
+    !mfaStep &&
+    !contactStep &&
+    !assertionPending &&
+    !enrollStep &&
+    !registeringType;
+
   const handleCancelClick = useCallback(() => {
+    if (!atConsentReviewStep) {
+      onClose();
+      return;
+    }
     setDenialOpen(true);
-  }, []);
+  }, [atConsentReviewStep, onClose]);
 
   const handleDenialDismiss = () => {
     setDenialOpen(false);
@@ -1107,8 +1123,8 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
               is denied and will not be processed.
             </p>
             <p className="transaction-consent-modal__body transaction-consent-modal__body--emphasis">
-              You will not be able to use the AI banking assistant for this
-              session. To use the assistant again, sign out and sign in again.
+              The AI banking assistant is paused and shows a decline notice.
+              Dismiss that notice when you want to keep using the assistant.
             </p>
             <div className="transaction-consent-modal__actions">
               <button
