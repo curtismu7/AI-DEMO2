@@ -77,6 +77,45 @@ const findPhase = (phases, name) => phases.find((p) => p && p.phase === name) ||
 const claimsBlock = (title, claims) =>
   claims && Object.keys(claims).length ? { title, text: asJson(claims) } : undefined;
 
+// --- replay payloads -------------------------------------------------------
+// A step can carry a `replay` descriptor: enough of THIS run's actual request
+// to re-issue it in the matching inspector page. Consumed by TraceStepCard,
+// handed off via services/inspectorReplay.js. Null when the run produced no
+// re-issuable request (nothing to replay -> no button).
+
+/** P1AZ decision request -> Evaluate console (custom preset rows). */
+function buildAuthorizeReplay(azEval, azRequestPayload) {
+  const params = azRequestPayload
+    || azEval?.request?.parameters || azEval?.request?.body || null;
+  if (!params || typeof params !== "object" || Array.isArray(params)) return null;
+  if (!Object.keys(params).length) return null;
+  return {
+    target: "p1az",
+    href: "/pingone-authorize",
+    label: "Replay in P1AZ Evaluate",
+    parameters: params,
+    endpointId: azEval?.endpointId || null,
+  };
+}
+
+/** MCP JSON-RPC call -> Agent Gateway Tester (tool + arguments). */
+function buildGatewayReplay(mcpResult, gwAz) {
+  const req = mcpResult?.requestJson || null;
+  const tool = req?.name || req?.params?.name
+    || mcpResult?.tool || mcpResult?.toolName
+    || gwAz?.tool
+    || null;
+  if (!tool) return null;
+  const args = req?.arguments || req?.params?.arguments || mcpResult?.arguments || {};
+  return {
+    target: "gateway",
+    href: "/pinggateway-inspector?subtab=tester",
+    label: "Replay in Gateway Tester",
+    tool: String(tool),
+    arguments: args && typeof args === "object" ? args : {},
+  };
+}
+
 function makeStep(id, status, detail) {
   const base = { narrative: NARRATIVES[id] };
   if (STEP_RFCS[id]) base.rfcs = STEP_RFCS[id];
@@ -347,6 +386,7 @@ export function buildTraceSteps(trace) {
         azEval.source === "gw-authorize" ? ["evidence", "from gw-authorize (gateway hop)"] : null,
       ].filter((row) => row && row[1]),
       moreDetail: { href: "/pingone-authorize", label: "More Education" },
+      replay: buildAuthorizeReplay(azEval, azRequestPayload),
     } : {}));
 
   // 7a. step-up (conditional) — omitted mid-flight so it doesn't sit "pending"
@@ -472,7 +512,10 @@ export function buildTraceSteps(trace) {
           ? { title: "Gateway authorize response", text: asJson(body) }
           : undefined;
       })(),
-      moreDetail: { href: "/pingone-authorize", label: "More Education" },
+      // This is the Agent Gateway hop — its education page is the gateway
+      // inspector, not P1AZ (the P1AZ decision has its own step above).
+      moreDetail: { href: "/pinggateway-inspector", label: "More Education" },
+      replay: buildGatewayReplay(mcpResult, gwAz),
     } : !gwSeen && !gwDenied && gwSkipEvidence.length ? {
       narrative: gwSkipEvidence.map((e) => e.explanation).filter(Boolean).join(" ") ||
         "The Agent Gateway was not in this run's path.",

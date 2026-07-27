@@ -251,7 +251,33 @@ describe("buildTraceSteps — statuses from evidence", () => {
     const gw = steps.find((s) => s.id === "gateway");
     expect(gw.detail.request.text).toContain("get_my_accounts");
     expect(gw.detail.response.text).toContain("PERMIT");
-    expect(gw.detail.moreDetail.href).toBe("/pingone-authorize");
+    // The gateway hop's education page is the gateway inspector — the P1AZ
+    // decision is a separate step with its own link.
+    expect(gw.detail.moreDetail.href).toBe("/pinggateway-inspector");
+  });
+
+  test("gateway step carries a gateway-tester replay of the tool call that ran", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [{ id: "gw-authorize", status: "permit", decision: "PERMIT" }],
+      mcpResult: { requestJson: { name: "transfer_funds", arguments: { amount: 250 } } },
+    });
+    const gw = steps.find((s) => s.id === "gateway");
+    expect(gw.detail.replay).toEqual({
+      target: "gateway",
+      href: "/pinggateway-inspector?subtab=tester",
+      label: "Replay in Gateway Tester",
+      tool: "transfer_funds",
+      arguments: { amount: 250 },
+    });
+  });
+
+  test("gateway step has no replay when the run produced no tool call", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [{ id: "evt-inbound", label: "user bearer received" }],
+    });
+    expect(steps.find((s) => s.id === "gateway").detail.replay).toBeNull();
   });
 
   test("authorize-decision token event fills authorize step when ingestAuthorize absent", () => {
@@ -270,6 +296,13 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(az.detail.request.text).toContain("transfer_funds");
     expect(az.detail.response.text).toContain("PERMIT");
     expect(az.detail.moreDetail.label).toBe("More Education");
+    expect(az.detail.replay).toEqual({
+      target: "p1az",
+      href: "/pingone-authorize",
+      label: "Replay in P1AZ Evaluate",
+      parameters: { ToolName: "transfer_funds" },
+      endpointId: null,
+    });
   });
 
   test("mcpResult fills mcp and api steps; llmReply fills reply", () => {

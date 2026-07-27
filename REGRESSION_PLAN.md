@@ -102,6 +102,68 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-27 — Token Chain step card: "More Education" on the Agent Gateway hop opened P1AZ, and its actions did not read as clickable
+
+**Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`,
+`demo_api_ui/src/components/TokenChainTraceRail.css`,
+`demo_api_ui/src/components/TraceStepCard.jsx`,
+`demo_api_ui/src/components/PingOneAuthorizePage.jsx`,
+`demo_api_ui/src/components/AgentGatewayTester.jsx`,
+`demo_api_ui/src/services/inspectorReplay.js` (new), plus
+`src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`.
+
+**What was broken:** the `gateway` step's `moreDetail.href` was the same literal
+`/pingone-authorize` as the `authorize` step's, so "More Education" on the Agent
+Gateway hop landed on the P1AZ page instead of the gateway inspector — and the
+old assertion in `buildTraceSteps.test.js` pinned that wrong value, so the bug
+was test-protected. Separately, `.tctr-inspect` rendered every step action
+(including the "Pop out full detail" button) at 11px with
+`text-decoration: none`, so nothing on the card read as clickable.
+
+**What was fixed:** gateway `moreDetail.href` → `/pinggateway-inspector`;
+`.tctr .tctr-inspect` → 13px, underlined with a hover/focus state. Added a replay
+path: `buildTraceSteps` now emits `detail.replay` on the `authorize` step (the
+actual P1AZ decision parameters) and the `gateway` step (the actual MCP tool +
+arguments from `mcpResult.requestJson`); `TraceStepCard` renders a separate
+"→ Replay in …" button that stashes the payload via `services/inspectorReplay.js`
+(`?replay=<id>` in the URL) and opens the inspector, which consumes it once and
+re-runs the call.
+
+Three further defects were found only by driving the real browser — all three
+looked correct in unit tests and in the served CSS/JS:
+
+1. **The font-size never applied to the buttons.** PingOne's `end-user-nano`
+   sheet ships `.end-user-nano button { font-size: inherit }`; `(0,1,1)` beats a
+   lone `.tctr-inspect`, so every button action inherited the 12px step body
+   while only the `<a>` variants took our size. Hence the `.tctr` scope.
+2. **The handoff never arrived.** It used `sessionStorage`, but the inspector
+   opens via `window.open(..., "noopener")` and a noopener context starts with a
+   **fresh sessionStorage** — the tester loaded on the right tab and sat on
+   "Select a tool from the tree". Now `localStorage` + an age sweep.
+3. **The P1AZ hand-off was consumed and thrown away.** Reading the one-shot
+   payload on mount and parking it in state lost it whenever the route remounted
+   before the endpoint list arrived; and `EvaluatePanel`'s endpoint-change reset
+   fires *again* once `autoPreset` settles, wiping the staged `pendingTest`.
+   Now consumed only when `selectedId` is set, and guarded by `replayPendingRef`
+   until the evaluation reports back through `onEvaluated`.
+
+**Do not break:** `consumeReplay` must stay one-shot (it deletes the key on
+read) — a page refresh must not re-fire a live gateway tool call. Keep the
+storage as `localStorage`, keep the `.tctr` scope on the action styles, keep the
+P1AZ consume gated on `selectedId`, and keep `replayPendingRef` guarding
+`clearPendingTest`. Keep the two `moreDetail.href` values distinct — a shared
+constant would re-create the original bug.
+
+**Verify:** `cd demo_api_ui && npm run test:unit` (2357 pass, 24 skipped; the 1
+failure is a pre-existing `TransactionConsentModal.declineScope` flake under
+full-suite parallelism — passes in isolation) and `npm run build` (exit 0).
+Live: `PLAYWRIGHT_BASE_URL=https://local.ping-devops.com:4444 npx playwright test
+tests/e2e/tokenchain-replay.real.spec.js --config=playwright.real.config.js`
+— 5 passed against the running stack.
+Revert-to-RED: restore `/pingone-authorize` on the gateway step and
+`buildTraceSteps.test.js` "gw-authorize parameters + rawResponse render full
+request/response and moreDetail link" fails.
+
 ### 2026-07-27 — Scope audit: Holdings A2A chain half-wired; SSOT under-documented live A2A gateway scopes; non-canonical scope spellings in enforcement/metadata
 
 **Files changed:** `scope-topology.json`, `docs/scope-topology.md` (regenerated),
