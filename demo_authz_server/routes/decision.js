@@ -646,7 +646,22 @@ module.exports = async function decisionHandler(req, res) {
   if (skipPerToolScopeCheck) {
     log(`[AuthzServer/decision] Rule 3 bypass — gateway-hop scope only, no per-tool scopes to enforce (tool="${ToolName}")`);
   }
-  if (!skipPerToolScopeCheck && requiredScopes.length > 0) {
+  // An A2A specialist presents the tool's LEAST-PRIVILEGE delegated scope
+  // (records:read) rather than its generic requiredScopes (read) — that
+  // narrowing is the point of the A2A demo, not a defect. Rule 3 only knew
+  // requiredScopes, so it denied every delegated call with
+  // "insufficient_scope: missing read" AFTER both exchanges had succeeded: the
+  // token was right, the act chain was depth 2, and the policy rejected it on a
+  // scope NAME. Accept the declared delegated scope as satisfying the
+  // requirement; a tool with no a2aDelegatedScope is unaffected.
+  const delegatedScope = scopeTopology.a2aDelegatedScope
+    ? scopeTopology.a2aDelegatedScope(ToolName)
+    : null;
+  const satisfiedByDelegatedScope = !!delegatedScope && grantedScopes.has(delegatedScope);
+  if (satisfiedByDelegatedScope) {
+    log(`[AuthzServer/decision] Rule 3 — A2A delegated scope "${delegatedScope}" satisfies ${ToolName} (requiredScopes: ${requiredScopes.join(', ')})`);
+  }
+  if (!skipPerToolScopeCheck && !satisfiedByDelegatedScope && requiredScopes.length > 0) {
     const missing = requiredScopes.filter(s => !grantedScopes.has(s));
     if (missing.length > 0) {
       warn(`[AuthzServer/decision] DENY — missing scopes: ${missing.join(', ')}`);
