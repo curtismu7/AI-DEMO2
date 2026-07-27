@@ -64,8 +64,36 @@ const SIM_USE_CASE_IDS = {
 /** Confused-deputy showcase rogue actor (parity with AIAgent.js + decision.confused-deputy.test.js). */
 const ROGUE_ACTOR_CLIENT_ID = 'rogue-agent-9f2a-not-allowlisted';
 
-/** Sample-data account owned by user id "2" (not the demo customer). */
-const FOREIGN_ACCOUNT_ID = '3';
+/**
+ * Banking account types get_account_balance actually serves — the tool this
+ * sim targets is a core banking OLB tool, not a vertical plugin one.
+ */
+const BANKING_ACCOUNT_TYPES = new Set(['CHECKING', 'SAVINGS', 'LOAN', 'CREDIT_CARD']);
+
+/**
+ * UC10 cross-owner-account needs a REAL account belonging to someone other
+ * than the calling user — a hardcoded id drifts stale the moment the demo
+ * dataset is reseeded/reset (confirmed live 2026-07-27: the previous
+ * FOREIGN_ACCOUNT_ID='3' no longer existed at all — dataStore.getAccountById
+ * returned undefined — yet the sim still reported status:200,
+ * errorCode:'unexpected_permit', implying an ownership-enforcement bypass
+ * that was never real: the actual data-plane gate (routes/accounts.js
+ * :id/balance) correctly 403s a genuine foreign account. The false
+ * 'unexpected_permit' was the sim harness itself lying about a security
+ * failure, arguably worse for a live demo than a broken chip.
+ * Resolved fresh on every run instead.
+ * @returns {{ id: string, userId: string } | null}
+ */
+function _resolveForeignAccountId(dataStoreImpl, callingUserId) {
+  const all = dataStoreImpl.getAllAccounts();
+  const banking = all.find((a) =>
+    a.userId !== callingUserId && BANKING_ACCOUNT_TYPES.has(String(a.accountType || '').toUpperCase()));
+  if (banking) return banking;
+  // Fall back to any other user's account rather than failing the sim outright
+  // — get_account_balance will 404 (unknown to this tool) or 403 either way,
+  // both still proving the cross-owner boundary, just with a less on-theme log line.
+  return all.find((a) => a.userId !== callingUserId) || null;
+}
 
 /**
  * Sims routed through the FULL production pipeline (bffMcpToolExecutor.
@@ -1111,15 +1139,17 @@ async function _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents) 
 async function _runCrossOwnerAccount(subjectToken, useCaseId, tokenChainEvents, req) {
   const sim = 'cross-owner-account';
 
-  const foreign = dataStore.getAccountById(FOREIGN_ACCOUNT_ID);
+  const callingUserId = req?.session?.user?.sub || req?.user?.sub || '';
+  const foreign = _resolveForeignAccountId(dataStore, callingUserId);
+  const foreignAccountId = foreign?.id || 'unknown';
   const foreignOwner = foreign?.userId || 'another user';
   tokenChainEvents.push(buildTokenEvent(
     'sim-attack-setup',
     'Cross-owner target selected',
     'active',
     null,
-    `Attempting get_account_balance for account ${FOREIGN_ACCOUNT_ID} owned by user "${foreignOwner}" ` +
-    `while authenticated as "${req?.session?.user?.sub || req?.user?.sub || 'current user'}" — ` +
+    `Attempting get_account_balance for account ${foreignAccountId} owned by user "${foreignOwner}" ` +
+    `while authenticated as "${callingUserId || 'current user'}" — ` +
     'via the full BFF pipeline (exchange → Authorize → gateway).',
   ));
 
@@ -1127,7 +1157,7 @@ async function _runCrossOwnerAccount(subjectToken, useCaseId, tokenChainEvents, 
   try {
     outcome = await runPipelineForSim({
       tool: 'get_account_balance',
-      params: { account_id: FOREIGN_ACCOUNT_ID },
+      params: { account_id: foreignAccountId },
       req,
       useCaseId,
     });
@@ -1743,4 +1773,7 @@ async function _runImpersonationNoAct(subjectToken, useCaseId, tokenChainEvents)
   }
 }
 
-module.exports = { runAttackSim, runIntentBindingDemo, _exchangeSimToken };
+module.exports = {
+  runAttackSim, runIntentBindingDemo, _exchangeSimToken,
+  __test: { _resolveForeignAccountId },
+};
