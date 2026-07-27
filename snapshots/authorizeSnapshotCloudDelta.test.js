@@ -91,6 +91,44 @@ test('step 0: HasValidMcpAudience is an OR of TokenAudience Equals <SoT gateway 
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// UC2 — A2A delegation depth. This rule shipped INVERTED.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('a2a: RequiresA2aDelegation denies a SHALLOW chain, never a valid two-hop one', () => {
+  const cond = findById(reconciled(), COND.RequiresA2aDelegation);
+  assert.ok(cond, 'RequiresA2aDelegation must exist');
+
+  const cmps = comparisons(cond.condition);
+  const depth = cmps.find((c) => c.left?.attribute?.id === ATTR.ActChainDepth);
+  assert.ok(depth, 'condition must test ActChainDepth');
+
+  // The inherited condition was `ActChainDepth GreaterThan "1"` on a
+  // conditionalDenyElsePermit rule: DENY when the chain IS two-hop. That denies
+  // correct specialist delegation and permits the generalist acting alone —
+  // the exact case UC2 blocks, inverted. It never fired (probed live: depth 1,
+  // 2 and 5 all PERMIT), so it was harmless only by accident.
+  assert.strictEqual(depth.op, 'LessThan', 'must deny SHALLOW chains, not deep ones');
+  assert.strictEqual(depth.right.constant.value, 2);
+  // NUMBER, not the quoted "1" it carried — ActChainDepth's valueType is NUMBER.
+  assert.strictEqual(typeof depth.right.constant.value, 'number');
+});
+
+test('a2a: the gated tool list comes from scope-topology a2aDelegated, not hand-typed', () => {
+  const cond = findById(reconciled(), COND.RequiresA2aDelegation);
+  const tools = comparisons(cond.condition)
+    .filter((c) => c.left?.attribute?.id === ATTR.ToolName)
+    .map((c) => c.right.constant.value)
+    .sort();
+  const expected = Object.entries(readSot().tools)
+    .filter(([, m]) => m && m.a2aDelegated === true)
+    .map(([n]) => n)
+    .sort();
+  assert.ok(expected.length > 0, 'SoT must declare a2aDelegated tools');
+  assert.deepStrictEqual(tools, expected,
+    'adding a specialist tool to the SoT must gate it here automatically');
+});
+
 test('step 0: no attribute-to-attribute comparison survives in HasValidMcpAudience', () => {
   const cond = findById(reconciled(), COND.HasValidMcpAudience);
   assert.ok(cond && cond.objectType === 'ConditionDefinition', 'HasValidMcpAudience must be addressable by stable id');

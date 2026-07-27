@@ -51,6 +51,7 @@ const ATTR = {
   Amount: '12345678-0001-4321-abcd-000000000001',
   UserId: '12345678-0003-4321-abcd-000000000003',
   ToolName: '12345678-0008-4321-abcd-000000000008',
+  ActChainDepth: '12345678-0014-4321-abcd-000000000014',
   HitlApproved: '12345678-0013-4321-abcd-000000000013',
   DecisionContext: '12345678-0007-4321-abcd-000000000007',
   TokenAudience: '12345678-0009-4321-abcd-000000000009',
@@ -101,6 +102,7 @@ const BANKING_RS_URI_DEFAULT = 'https://banking-resource-server.ping.demo';
 const MCP_DECISION_CONTEXTS = ['McpFirstTool', 'McpToolCall', 'McpToolsList', 'McpRequest'];
 const COND = {
   HasMFAAuthentication: '23456789-0003-4321-abcd-000000000003',
+  RequiresA2aDelegation: '23456789-0011-4321-abcd-000000000011',
   HasValidMcpAudience: '23456789-0007-4321-abcd-000000000007',
   RequiresHitlConsent: '23456789-0010-4321-abcd-000000000010',
   RequiresMcpStepUp: '23456789-0013-4321-abcd-000000000013',
@@ -211,14 +213,18 @@ function deriveSot(sot) {
   const consent = [];
   const stepUp = [];
   const writeTools = [];
+  const a2aDelegated = [];
   for (const [name, meta] of Object.entries(tools)) {
     if (!meta || typeof meta !== 'object') continue;
     if (meta.challengeType === 'consent') consent.push(name);
     else if (meta.challengeType === 'step_up') stepUp.push(name);
     // Same derivation as demo_authz_server/scopeTopology.js isWriteTool().
     if ((meta.requiredScopes || []).includes('write')) writeTools.push(name);
+    // UC2: tools reachable ONLY through a specialist delegation. Same flag the
+    // mock reads via scopeTopology.isA2aDelegatedTool().
+    if (meta.a2aDelegated === true) a2aDelegated.push(name);
   }
-  consent.sort(); stepUp.sort(); writeTools.sort();
+  consent.sort(); stepUp.sort(); writeTools.sort(); a2aDelegated.sort();
   // Step 0 — the accepted gateway identities, by resource NAME. A missing entry
   // must abort generation: emitting a partial OR would silently deny one
   // gateway's entire traffic on import.
@@ -244,14 +250,14 @@ function deriveSot(sot) {
     ...UPSTREAM_RESOURCE_NAMES.map((name) => requireUri(name, 'the D-05 upstream audience blacklist')),
     process.env.BANKING_RESOURCE_SERVER_RESOURCE_URI || BANKING_RS_URI_DEFAULT,
   ].filter((u) => u && u !== gatewayUri);
-  return { consent, stepUp, writeTools, acceptedGatewayAudiences, upstreamAudiences };
+  return { consent, stepUp, writeTools, a2aDelegated, acceptedGatewayAudiences, upstreamAudiences };
 }
 
 function loadSot() {
   return deriveSot(JSON.parse(fs.readFileSync(SOT, 'utf8')));
 }
 
-function reconcile(snap, { consent, stepUp, writeTools, acceptedGatewayAudiences, upstreamAudiences }) {
+function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGatewayAudiences, upstreamAudiences }) {
   const byId = new Map(snap.map((o) => [o.id, o]));
   const sepIdx = snap.findIndex((o) => o.type === 'SnapshotPackageFile$PackageSeparator');
 
@@ -284,6 +290,44 @@ function reconcile(snap, { consent, stepUp, writeTools, acceptedGatewayAudiences
     toolOr(consent),
     { comparison: { left: { attribute: { id: ATTR.HitlApproved } }, op: 'NotEquals', right: { constant: { value: true } } } },
   ] } };
+
+  // 1b) RequiresA2aDelegation — the UC2 control, and it was BACKWARDS.
+  //
+  // As inherited this condition was `ActChainDepth GreaterThan "1"`, attached to
+  // a conditionalDenyElsePermit rule. Read it literally: DENY when the chain is
+  // two-hop. That denies the CORRECT specialist delegation and permits the
+  // generalist acting alone — the exact case UC2 exists to block, inverted.
+  //
+  // It never fired, which is the only reason A2A works: probed live 2026-07-27
+  // against the imported policy, depth 1, 2 and 5 all PERMIT with valid actor
+  // ids, and the rule sits at index 3 of a DenyOverrides policy so ordering
+  // cannot explain it. So the rule is inert AND wrong — harmless today, but a
+  // landmine: any future import that made it evaluate would break every A2A
+  // demo while looking like enforcement.
+  //
+  // Correct semantics, matching mock Rule 1c's depth half: DENY when an
+  // a2aDelegated tool is called WITHOUT a two-hop chain. The tool list comes
+  // from scope-topology.json (a2aDelegated), never hand-typed, so adding a
+  // specialist tool cannot silently leave it ungated. The constant is a NUMBER
+  // to match ActChainDepth's valueType (NUMBER, defaultValue 0) rather than the
+  // quoted "1" it carried.
+  //
+  // The generalist half of Rule 1c (nested act.sub must be the registered agent)
+  // is already enforced live by "MCP Deny — Invalid Actor Chain", so this rule
+  // deliberately covers depth only.
+  const a2aCond = byId.get(COND.RequiresA2aDelegation);
+  if (a2aCond) {
+    a2aCond.name = 'RequiresA2aDelegation';
+    a2aCond.fullName = 'RequiresA2aDelegation';
+    a2aCond.description =
+      `ToolName is one of the A2A-delegated tools (${a2aDelegated.join(', ')}) AND ActChainDepth < 2, ` +
+      `i.e. the caller is NOT a specialist acting under a two-hop act chain. Fires the delegation-required DENY. ` +
+      `Generated from scope-topology.json (a2aDelegated) — do not hand-edit.`;
+    a2aCond.condition = { and: { conditions: [
+      toolOr(a2aDelegated),
+      { comparison: { left: { attribute: { id: ATTR.ActChainDepth } }, op: 'LessThan', right: { constant: { value: 2 } } } },
+    ] } };
+  }
 
   // 2) Ensure RequiresMcpStepUp condition (step_up tool list AND no MFA yet).
   const stepUpCond = {
