@@ -54,6 +54,11 @@ export class AGUIEmitter {
   }
 
   async onError(err: Error): Promise<void> {
+    // Every failure path (mid-stream provider error, a thrown exception, and
+    // the empty-output guard in onRunEnd) funnels through here — logging once
+    // at this choke point means a run that fails leaves a trace in `docker
+    // logs` instead of only a RUN_ERROR event the client may not have kept.
+    console.error(`[mastra] run ${this.runId} failed:`, err.message);
     await this.emit({ type: 'RUN_ERROR', runId: this.runId, threadId: this.threadId, message: err.message });
   }
 }
