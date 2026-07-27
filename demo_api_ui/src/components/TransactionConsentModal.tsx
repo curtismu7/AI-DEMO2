@@ -315,10 +315,10 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
 
   const { pos, size, handleDragStart, createResizeHandler } = useDraggablePanel(
     () => ({
-      x: Math.max(20, (window.innerWidth - 500) / 2),
-      y: Math.max(20, (window.innerHeight - 600) / 2),
+      x: Math.max(20, (window.innerWidth - 380) / 2),
+      y: Math.max(20, (window.innerHeight - 460) / 2),
     }),
-    { w: 500, h: 600 },
+    { w: 380, h: 460 },
     { storageKey: "transaction-consent-modal" },
   ) as any;
 
@@ -1104,11 +1104,21 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
                 <h3 className="transaction-consent-card__h2">
                   Transaction summary
                 </h3>
-                <ul className="transaction-consent-card__summary">
-                  {summaryLines.map((line, i) => (
-                    <li key={i}>{line}</li>
-                  ))}
-                </ul>
+                <table className="transaction-consent-card__kv">
+                  <tbody>
+                    {summaryLines.map((line) => {
+                      const sep = line.indexOf(": ");
+                      const label = sep === -1 ? "" : line.slice(0, sep);
+                      const value = sep === -1 ? line : line.slice(sep + 2);
+                      return (
+                        <tr key={line}>
+                          <td>{label}</td>
+                          <td>{value}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
 
                 <div className="transaction-consent-card__legal">
                   <p>
@@ -1229,17 +1239,16 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
             <div
               className="drp-header drp-header--static"
               style={{
-                padding: "1rem",
-                borderBottom: "1px solid #99c9d6",
-                background:
-                  "linear-gradient(135deg, #f0f9fb 0%, #e0f2f5 55%, #dcecee 100%)",
-                color: "#0f2b33",
+                padding: "0.5rem 1rem",
+                borderBottom: "1px solid #d1d5db",
+                background: "#f3f4f6",
+                color: "#374151",
               }}
             >
               <h2
                 id="transaction-consent-popup-title"
                 className="transaction-consent-popup__title"
-                style={{ margin: 0, color: "#0f2b33" }}
+                style={{ margin: 0, color: "#374151" }}
               >
                 {modalTitle}
               </h2>
@@ -1305,19 +1314,18 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
           className="drp-header"
           onMouseDown={handleDragStart}
           style={{
-            padding: "1rem",
+            padding: "0.5rem 1rem",
             cursor: "move",
-            borderBottom: "1px solid #99c9d6",
-            background:
-              "linear-gradient(135deg, #f0f9fb 0%, #e0f2f5 55%, #dcecee 100%)",
-            color: "#0f2b33",
+            borderBottom: "1px solid #d1d5db",
+            background: "#f3f4f6",
+            color: "#374151",
             borderRadius: "0.5rem 0.5rem 0 0",
           }}
         >
           <h2
             id="transaction-consent-popup-title"
             className="transaction-consent-popup__title"
-            style={{ margin: 0, color: "#0f2b33" }}
+            style={{ margin: 0, color: "#374151" }}
           >
             {modalTitle}
           </h2>
