@@ -35,7 +35,21 @@ const path = require('path');
 const { register } = require('./registry');
 const { CLIENT_DISPATCHED_ACTIONS } = require('../../scripts/useCaseSweepCauses');
 
-const ROOT = path.resolve(__dirname, '..', '..', '..');
+/**
+ * Repo root. Inside a container the checkout may be bind-mounted at /repo while
+ * the service itself runs from /app, so the UI sources are not under __dirname.
+ * Probe both — and if neither has them, the check must WARN, never pass.
+ */
+function resolveRepoRoot() {
+  const candidates = [path.resolve(__dirname, '..', '..', '..'), '/repo'];
+  for (const c of candidates) {
+    try {
+      if (fs.existsSync(path.join(c, 'demo_api_ui', 'src', 'components', 'AIAgent.js'))) return c;
+    } catch (_) { /* next */ }
+  }
+  return path.resolve(__dirname, '..', '..', '..');
+}
+const ROOT = resolveRepoRoot();
 const AGENT_JS = path.join(ROOT, 'demo_api_ui', 'src', 'components', 'AIAgent.js');
 const VERTICALS_DIR = path.join(ROOT, 'demo_api_server', 'config', 'verticals');
 const TOPOLOGY = path.join(ROOT, 'scope-topology.json');
@@ -109,6 +123,25 @@ const uiDispatch = {
   async run() {
     const { missingHandlers, featureIssues, handled, featureOk } = auditUiDispatch();
     const total = CLIENT_DISPATCHED_ACTIONS.size;
+
+    // Zero evidence is NOT a pass. The first live run of this check reported
+    // "0/13 client-dispatched actions have a UI handler" as PASS, because inside
+    // the container demo_api_ui/ is not under __dirname so it read nothing and
+    // found nothing to complain about. A check that goes green without reading
+    // anything is worse than no check — it is the exact silent-pass shape this
+    // check exists to catch elsewhere.
+    if (handled === 0 || featureOk + featureIssues.length === 0) {
+      return {
+        status: 'warn',
+        detail:
+          'Could not read the UI sources from here, so nothing was verified '
+          + `(searched ${ROOT}). handled=${handled}, feature chips seen=${featureOk + featureIssues.length}.`,
+        meta: { handled, featureOk, root: ROOT },
+        nextAction:
+          'Run this where the repo is present — the host, or a container with the '
+          + 'checkout bind-mounted. scripts/preflight-demo.sh check 6 asserts the same thing.',
+      };
+    }
 
     if (missingHandlers.length || featureIssues.length) {
       const parts = [];
