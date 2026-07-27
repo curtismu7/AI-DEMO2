@@ -481,7 +481,7 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
 
   return (
     <InspectorShell
-      title="PingOne Authorize"
+      title="P1AZ Inspector"
       statusOn={!!endpointId}
       statusText={endpointId ? undefined : 'Select a decision endpoint above'}
       fullHeight={false}
