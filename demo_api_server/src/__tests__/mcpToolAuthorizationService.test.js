@@ -34,11 +34,15 @@ jest.mock('../../services/hitlServiceClient', () => ({
   getChallengeStatus: jest.fn(),
   verifyHitlReceipt: jest.fn(),
 }));
+jest.mock('../../services/jwksService', () => ({
+  hasKid: jest.fn(),
+}));
 
 const configStore = require('../../services/configStore');
 const pingOneAuthorizeService = require('../../services/pingOneAuthorizeService');
 const simulatedAuthorizeService = require('../../services/simulatedAuthorizeService');
 const hitlServiceClient = require('../../services/hitlServiceClient');
+const jwksService = require('../../services/jwksService');
 const {
   evaluateMcpFirstToolGate,
   getMcpFirstToolGateStatus,
@@ -913,6 +917,81 @@ describe('mcpToolAuthorizationService', () => {
       expect(s.mcpFirstToolGateEnabled).toBe(true);
       expect(s.mcpFirstToolWouldRunLive).toBe(true);
       expect(s.mcpFirstToolWouldRunSimulated).toBe(false);
+    });
+  });
+
+  // Signing-key identity reaches the PDP. kid lives in the token HEADER,
+  // which decodeJwt already returns and every caller so far discarded.
+  describe('signing-key (kid) forwarding', () => {
+    /** Build a JWT with an explicit header so kid is present. */
+    const jwtWithHeader = (header, payload) => {
+      const h = Buffer.from(JSON.stringify(header), 'utf8').toString('base64url');
+      const b = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+      return `${h}.${b}.x`;
+    };
+
+    const callWith = (token) => evaluateMcpFirstToolGate({
+      req: { session: {}, user: { id: 'u1' } },
+      tool: 'get_my_accounts',
+      toolParams: {},
+      agentToken: token,
+      userSub: 'u1',
+    });
+
+    beforeEach(() => {
+      configStore.get.mockImplementation((k) =>
+        k === 'ff_authorize_mcp_first_tool' ? 'true' : null);
+      configStore.getEffective = jest.fn((k) => configStore.get(k));
+      pingOneAuthorizeService.isMcpDelegationDecisionReady.mockReturnValue(true);
+      simulatedAuthorizeService.resolveAuthorizeMode.mockReturnValue({
+        mode: 'pingone', useSimulated: false, failoverMode: 'deny',
+      });
+      simulatedAuthorizeService.isSimulatedModeEnabled.mockReturnValue(false);
+      pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({
+        decision: 'PERMIT', decisionId: 'gate-1',
+      });
+    });
+
+    it('forwards the header kid and its resolved JWKS membership', async () => {
+      jwksService.hasKid.mockResolvedValue(true);
+      await callWith(jwtWithHeader(
+        { alg: 'RS256', kid: 'kid-abc' }, { sub: 'u1', aud: 'mcp' },
+      ));
+      expect(jwksService.hasKid).toHaveBeenCalledWith('kid-abc');
+      expect(pingOneAuthorizeService.evaluateMcpToolDelegation)
+        .toHaveBeenCalledWith(expect.objectContaining({
+          tokenKid: 'kid-abc', tokenKidKnown: true,
+        }));
+    });
+
+    it('forwards tokenKidKnown=false for an unpublished key', async () => {
+      jwksService.hasKid.mockResolvedValue(false);
+      await callWith(jwtWithHeader(
+        { alg: 'RS256', kid: 'kid-forged' }, { sub: 'u1', aud: 'mcp' },
+      ));
+      expect(pingOneAuthorizeService.evaluateMcpToolDelegation)
+        .toHaveBeenCalledWith(expect.objectContaining({
+          tokenKid: 'kid-forged', tokenKidKnown: false,
+        }));
+    });
+
+    // A JWKS outage must degrade this check, not the whole gate.
+    it('forwards tokenKidKnown=null when JWKS is unavailable', async () => {
+      jwksService.hasKid.mockResolvedValue(null);
+      await callWith(jwtWithHeader(
+        { alg: 'RS256', kid: 'kid-abc' }, { sub: 'u1', aud: 'mcp' },
+      ));
+      expect(pingOneAuthorizeService.evaluateMcpToolDelegation)
+        .toHaveBeenCalledWith(expect.objectContaining({
+          tokenKid: 'kid-abc', tokenKidKnown: null,
+        }));
+    });
+
+    it('forwards tokenKid=null when the header carries no kid', async () => {
+      jwksService.hasKid.mockResolvedValue(null);
+      await callWith(jwtWithHeader({ alg: 'none' }, { sub: 'u1', aud: 'mcp' }));
+      expect(pingOneAuthorizeService.evaluateMcpToolDelegation)
+        .toHaveBeenCalledWith(expect.objectContaining({ tokenKid: null }));
     });
   });
 });
