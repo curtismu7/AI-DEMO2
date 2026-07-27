@@ -146,7 +146,16 @@ let _jwksFetchInFlight: Promise<JwkKey[]> | null = null;
  * and emits a one-time console warning.
  */
 async function _decodeAndVerify(token: string): Promise<DecodedGatewayToken> {
-  const jwksEndpoint = process.env.PINGONE_JWKS_ENDPOINT;
+  // PINGONE_JWKS_URI is accepted as an alias because it is the name this stack
+  // actually SETS. The gateway container carries
+  // PINGONE_JWKS_URI=https://auth.pingone.com/<env>/as/jwks and nothing anywhere
+  // sets PINGONE_JWKS_ENDPOINT — so this lookup was always undefined and the
+  // gateway has NEVER verified a signature, falling through to decode-only with
+  // MCP_GW_ALLOW_UNVERIFIED_TOKENS=true. The correct URL was present the whole
+  // time under the other name. Same orphan-name class as PINGGATEWAY_URL in
+  // pingGatewayClient: reading a variable nothing writes fails silently, and
+  // "no JWKS configured" is indistinguishable from "JWKS misnamed".
+  const jwksEndpoint = process.env.PINGONE_JWKS_ENDPOINT || process.env.PINGONE_JWKS_URI;
 
   if (!jwksEndpoint) {
     // STRICT_AUTH must verify signatures — decode-only accepts forged tokens. Also
