@@ -69,7 +69,14 @@ const realPath = {
       r = await callPingGateway('POST', '/mcp', {
         jsonrpc: '2.0', id: 1, method: 'tools/call',
         params: { name: TOOL_NAME, arguments: {} },
-      }, { token: gwToken });
+      }, {
+        token: gwToken,
+        // Same Accept the production client sends (mcpGatewayClient.js). The
+        // streamable-HTTP transport answers 406 without it, BEFORE the request
+        // reaches a tool — so the check would report a gateway failure that no
+        // real caller can hit.
+        headers: { Accept: 'application/json, text/event-stream' },
+      });
     } catch (err) {
       // Name the hop. Unwrapped, a transport error escaped to the runner and
       // arrived as a bare code with no indication of where it happened.
