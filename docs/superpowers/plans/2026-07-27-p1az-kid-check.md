@@ -37,7 +37,7 @@
 | `demo_api_ui/src/components/TokenChainDisplay.js` | export `readAuthorizeParameters`; policy-input row |
 | `demo_api_ui/src/components/__tests__/TokenChainDisplay.kidCallout.test.js` | new — vitest spec |
 
-**Out of code scope:** the live P1AZ rule (`DENY if TokenKidKnown == false` → statement `mcp-invalid-kid`) must be authored in the PingOne Authorize console. Until it exists the live path is inert for this check; simulated mode enforces immediately. Do not treat the live path's non-enforcement as a bug in this plan.
+**Out of code scope:** the live P1AZ rule (`DENY if TokenKidKnown == false` → statement `mcp-invalid-kid`). Author it by editing `snapshots/gen-authorize-snapshot.js`, regenerating the snapshot, and importing — that path works and needs no Management API access. Until that import the live path is inert for this check; simulated mode enforces immediately. Do not treat the live path's non-enforcement as a bug in this plan.
 
 ---
 

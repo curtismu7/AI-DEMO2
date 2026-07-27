@@ -198,22 +198,25 @@ function too, not only `tokenKidKnown`.
 ## Component 5 — live policy authoring (out of code scope)
 
 The BFF sending `TokenKidKnown` changes nothing on its own — P1AZ ignores
-parameters no rule reads. Enforcement on the live path requires a rule authored
-in the PingOne Authorize console:
+parameters no rule reads. Enforcement on the live path requires this rule:
 
 ```
 DENY if TokenKidKnown == false   →  statement code: mcp-invalid-kid
 ```
 
-Per prior experience in this repo, rules that exist only in the snapshot file
-were never live cloud-side, and re-importing did not fix that. So the honest
-phasing is:
+**Snapshot import is how policy gets authored here, and it works.** No
+Management API access is required: edit `snapshots/gen-authorize-snapshot.js`,
+regenerate `Super_Banking_Transaction_Authorization_P1AZ.snapshot.json`, and
+import it. A rule is only ever "missing" cloud-side because it was never written
+into the generator in the first place — not because import is unreliable.
+
+So the phasing is:
 
 - **Code lands:** attribute is provably sent; simulated mode enforces immediately.
-- **Live enforcement:** arrives only when the console rule exists.
+- **Live enforcement:** add the rule to the generator, regenerate, import.
 
-Until then the live path is inert for this check. That is expected, not a bug,
-and the tests below assert what is actually true at each stage.
+Until that import the live path is inert for this check. That is expected, not a
+bug, and the tests below assert what is actually true at each stage.
 
 ## Component 6 — token chain callout (fine-grained authorization)
 
