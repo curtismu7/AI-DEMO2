@@ -1,5 +1,6 @@
 'use strict';
 const { callPingGateway } = require('../pingGatewayClient');
+const { IG_MCP_PROTOCOL_VERSION } = require('../mcpGatewayClient');
 // Static, NOT a lazy require inside run(): the jest setup calls resetModules(),
 // which gives a lazy require a FRESH module and silently bypasses jest.mock —
 // the check then passes in isolation while failing under test for no visible
@@ -71,11 +72,14 @@ const realPath = {
         params: { name: TOOL_NAME, arguments: {} },
       }, {
         token: gwToken,
-        // Same Accept the production client sends (mcpGatewayClient.js). The
-        // streamable-HTTP transport answers 406 without it, BEFORE the request
-        // reaches a tool — so the check would report a gateway failure that no
-        // real caller can hit.
-        headers: { Accept: 'application/json, text/event-stream' },
+        // Exactly what the production client sends to IG (mcpGatewayClient.js).
+        // Both are required by the transport and are rejected BEFORE the request
+        // reaches a tool: no Accept -> 406, no/!= MCP-Protocol-Version -> 400.
+        // Either way the check reports a gateway failure no real caller can hit.
+        headers: {
+          Accept: 'application/json, text/event-stream',
+          'MCP-Protocol-Version': IG_MCP_PROTOCOL_VERSION,
+        },
       });
     } catch (err) {
       // Name the hop. Unwrapped, a transport error escaped to the runner and
