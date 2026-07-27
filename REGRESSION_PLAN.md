@@ -102,6 +102,35 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-27 — Landing page "Use Cases" button sent signed-out visitors through the admin login, landing them on the admin dashboard instead of the customer use-cases page
+
+**Files changed:** `demo_api_ui/src/components/LandingPage.js`.
+
+**What was broken:** the 2026-07-26 fix to `handleUseCases` (see below) made it
+"mirror `handleAdminDashboard`" — but `handleAdminDashboard`'s redirect target,
+`/api/auth/oauth/login`, is the **admin** OAuth route (`routes/oauth.js`). A
+signed-out visitor clicking "Use Cases" authenticated through the admin flow,
+then landed on the admin `Dashboard` (root `/` renders `Dashboard` when
+`user?.role === "admin"`) instead of `/use-cases/live`. `handleAdminDashboard`
+using that route is correct; `handleUseCases` copying it was not.
+
+**What was fixed:** `handleUseCases`'s signed-out branch now hits the
+end-user OAuth route with a return path — `/api/auth/oauth/user/login?return_to=/use-cases/live`
+— matching the existing `return_to` convention used by
+`PingOneTestPage.jsx`/`TokenExchangeTesterPage.jsx`. `routes/oauthUser.js`
+already supports `return_to` (`sanitizePostLoginReturnPath`); no server change
+needed.
+
+**Do not break:** don't point `handleUseCases`'s signed-out branch back at
+`/api/auth/oauth/login` (admin route) — that reintroduces this bug. Don't
+change `handleAdminDashboard`, which correctly uses the admin route.
+`handleCustomerDashboard` has its own unrelated unconditional-`navigate` shape
+(noted in the 2026-07-26 entry below) — still out of scope here.
+
+**Verify:** `cd demo_api_ui && npm run build` (0). Live: signed out, click
+"Use Cases" → PingOne end-user `/signon` → after login, lands on
+`/use-cases/live`, not `/` or the admin dashboard.
+
 ### 2026-07-27 — Token Chain step card: "More Education" on the Agent Gateway hop opened P1AZ, and its actions did not read as clickable
 
 **Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`,
