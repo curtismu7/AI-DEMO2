@@ -1,0 +1,12 @@
+{
+  "vertical": "retail",
+  "useCaseId": "ai-spot-unusual-patterns",
+  "ucId": "UC34",
+  "trigger": "Check for unusual patterns in my recent activity",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-27T00:20:07.456Z",
+  "seedHash": "6a8345537e56d245",
+  "reply": "Here are your Activity (6 total).",
+  "agentPath": null,
+  "tokenEventCount": 19
+}

@@ -4,9 +4,9 @@
   "ucId": "UC8",
   "trigger": "extend my rental $300",
   "expectedOutcome": "HITL_REQUIRED",
-  "capturedAt": "2026-07-17T15:13:20.633Z",
+  "capturedAt": "2026-07-27T00:21:16.368Z",
   "seedHash": "c48bf4072b509915",
-  "reply": "Simulated authorization policy requires human approval before MCP tools (education mode).",
+  "reply": "PingOne Authorize requires human approval before MCP tools can run.",
   "requiresConsent": true,
   "agentPath": null,
   "tokenEventCount": 13

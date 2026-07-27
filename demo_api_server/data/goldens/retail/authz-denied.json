@@ -4,9 +4,9 @@
   "ucId": "UC6",
   "trigger": "checkout headphones for $2500",
   "expectedOutcome": "DENY",
-  "capturedAt": "2026-07-17T15:13:06.143Z",
+  "capturedAt": "2026-07-27T00:20:10.232Z",
   "seedHash": "6a8345537e56d245",
-  "reply": "❌ MCP tool access was denied by the simulated authorization policy (education mode).",
+  "reply": "❌ PingOne Authorize denied MCP tool access for this session.",
   "agentPath": null,
   "tokenEventCount": 13
 }

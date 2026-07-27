@@ -4,9 +4,9 @@
   "ucId": "UC8",
   "trigger": "execute a large trade of $300",
   "expectedOutcome": "HITL_REQUIRED",
-  "capturedAt": "2026-07-17T15:13:25.598Z",
+  "capturedAt": "2026-07-27T00:21:48.354Z",
   "seedHash": null,
-  "reply": "Simulated authorization policy requires human approval before MCP tools (education mode).",
+  "reply": "PingOne Authorize requires human approval before MCP tools can run.",
   "requiresConsent": true,
   "agentPath": null,
   "tokenEventCount": 13

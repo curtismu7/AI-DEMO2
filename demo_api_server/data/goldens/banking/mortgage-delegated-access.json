@@ -4,9 +4,9 @@
   "ucId": "UC33",
   "trigger": "show my mortgage",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-26T23:49:38.695Z",
+  "capturedAt": "2026-07-27T00:19:17.066Z",
   "seedHash": null,
-  "reply": "I don’t see a mortgage account in your current list of accounts. The only loan listed is a **Car Loan** (balance –$12,000).  \n\nWould you like more details about that loan, or is there another account you’re referring to? If you have a separate mortgage account that isn’t showing up, it may be under a different name or in a different system. Let me know how I can help!",
+  "reply": "I don’t see a mortgage account in your current list of accounts. The only loan listed is a **Car Loan** (balance –$12,000).  \n\nIf you’d like more details about that loan—or if you think there’s another mortgage account that isn’t showing up—just let me know how I can help!",
   "agentPath": null,
-  "tokenEventCount": 19
+  "tokenEventCount": 1
 }

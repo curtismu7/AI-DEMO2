@@ -1,0 +1,12 @@
+{
+  "vertical": "healthcare",
+  "useCaseId": "ai-spot-unusual-patterns",
+  "ucId": "UC34",
+  "trigger": "Check for unusual patterns in my recent activity",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-27T00:19:49.728Z",
+  "seedHash": "956244bc8453547f",
+  "reply": "Here is your Patient Records.",
+  "agentPath": null,
+  "tokenEventCount": 19
+}

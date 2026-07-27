@@ -4,9 +4,9 @@
   "ucId": "UC1",
   "trigger": "show my enrolled courses",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-18T13:58:54.150Z",
+  "capturedAt": "2026-07-27T00:20:37.792Z",
   "seedHash": "55fb07346bdb7866",
   "reply": "Here are your courses.",
   "agentPath": null,
-  "tokenEventCount": 18
+  "tokenEventCount": 19
 }
