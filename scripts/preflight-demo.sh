@@ -374,6 +374,65 @@ else
   row FAIL "demo flags" "could not read flags — $(printf '%s' "$FLAGMAP_OUT" | tail -1 | cut -c1-70)"
 fi
 
+# ── 8. Container/repo drift ──────────────────────────────────────────────────
+# Does the code RUNNING match the code you have? Every other check here talks to
+# the stack, so a container serving a stale build passes all of them while
+# demoing something you cannot reproduce from the repo.
+#
+# This is not hypothetical. Both happened on 2026-07-26:
+#
+#   mcp-weather   get_weather -> get_current_conditions bridge merged 07-22.
+#                 Image built 07-26 STILL lacked it — Docker's layer cache
+#                 served a stale COPY. host 182 lines / container 167.
+#                 The weather demo failed in all 9 verticals with the fix
+#                 sitting merged on main.
+#   authz-server  code is BAKED (no bind mount), so `docker restart` cannot
+#                 pick up a change; it needs a rebuild.
+#
+# Neither is visible to a unit test — the code is right, the artifact is not.
+# Checks a distinctive line per service, so it fails on the specific drift
+# rather than on a version string nobody updates.
+drift=()
+# Containers mount code differently — some bake it at /app, some bind-mount the
+# checkout at /repo. Probe both and FAIL LOUDLY when neither exists: a check
+# pointed at a missing file greps nothing, reports no drift, and is worse than
+# no check at all.
+check_drift() {  # <container> <container-path-csv> <repo-path> <needle>
+  local c="$1" cpaths="$2" rpath="$3" needle="$4"
+  docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$c" || return 0
+  local want have found p
+  # grep -c prints 0 AND exits 1 when there are no matches, so `|| echo 0`
+  # appends a SECOND zero and the value becomes "0\n0" — which makes every
+  # later [[ -eq ]] error out and silently skip the drift branch. head -1 keeps
+  # it a single integer; `|| true` stops the non-zero exit from tripping set -e.
+  want="$( { grep -c -- "$needle" "$ROOT/$rpath" 2>/dev/null || true; } | head -1 )"
+  [[ "$want" -eq 0 ]] && return 0   # needle gone from the repo — nothing to assert
+  found=""
+  IFS=',' read -ra _paths <<< "$cpaths"
+  for p in "${_paths[@]}"; do
+    if docker exec "$c" sh -c "[ -f '$p' ]" 2>/dev/null; then found="$p"; break; fi
+  done
+  if [[ -z "$found" ]]; then
+    drift+=("$c(path?)")
+    return 0
+  fi
+  have="$(docker exec "$c" sh -c "grep -c -- '$needle' '$found' 2>/dev/null || true" 2>/dev/null | tr -d '\r' | head -1)"
+  [[ -z "$have" ]] && have=0
+  # Only the direction that matters: repo has it, running container does not.
+  [[ "$have" -eq 0 ]] && drift+=("$c")
+}
+check_drift ai-demo-mcp-weather  "/app/server.js,/repo/demo_mcp_weather/server.js" \
+  demo_mcp_weather/server.js "get_current_conditions"
+check_drift ai-demo-authz-server "/repo/demo_authz_server/routes/decision.js,/app/routes/decision.js" \
+  demo_authz_server/routes/decision.js "a2aDelegatedScope"
+check_drift ai-demo-api-server   "/app/services/demoAgentLangGraphService.js,/repo/demo_api_server/services/demoAgentLangGraphService.js" \
+  demo_api_server/services/demoAgentLangGraphService.js "stripChainFieldsForModel"
+if [[ ${#drift[@]} -eq 0 ]]; then
+  row OK "container drift" "running code matches the repo"
+else
+  row FAIL "container drift" "stale build: ${drift[*]} — rebuild (docker compose build --no-cache <svc>)"
+fi
+
 # ── 7. Deep pipeline replay (optional: --deep) ───────────────────────────────
 # Reuses the existing real-test machinery: scripts/run-real-tests.sh loads
 # PingOne creds from demo_api_server/.env, logs in headlessly, and replays every
