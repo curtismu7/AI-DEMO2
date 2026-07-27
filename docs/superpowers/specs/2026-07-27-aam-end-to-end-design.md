@@ -271,8 +271,21 @@ now exist in environment `01d89b06`:
 | Resource | `POST /resources` — required first; `POST /apiServers` fails with `authorizationServer.resource.id must be provided` |
 | API server | `POST /apiServers` `{"name":…,"baseUrls":[…],"authorizationServer":{"resource":{"id":…},"type":"PINGONE_SSO"}}` |
 | Operation | `POST /apiServers/{id}/operations` `{"name":…,"methods":["GET"],"paths":[{"pattern":"/aam/health","type":"EXACT"}]}` |
-| Rule | `PUT` the operation with `accessControl.group.groups[].id` |
+| Rule | `PUT` the operation with `accessControl` (shapes below) |
 | Deploy | `POST /apiServers/{id}/deployment` with `Content-Type: application/vnd.pingidentity.apiServer.deploy+json` — a plain JSON content type returns 415 |
+
+The console's three "Access Rules" checkboxes on an operation are one
+`accessControl` object. Shapes confirmed live 2026-07-27:
+
+| Console checkbox | `accessControl` |
+| --- | --- |
+| member of any of these groups | `{"group":{"groups":[{"id":…}]}}` |
+| authorized with these scopes | `{"scope":{"matchType":"ANY"\|"ALL","scopes":[{"id":…}]}}` |
+| must have this permission | `{"permission":{…}}` — shape not yet pinned down |
+
+`matchType` is required on the scope rule and has no default; omitting it fails
+with `accessControl.scope.matchType must not be null`. The console UI does not
+expose it, so a naive translation from the screen fails.
 
 The Sideband service URL is not returned by any of these. It is
 `https://http-access-api.pingone.{region}/v1/environments/{envId}`; the
