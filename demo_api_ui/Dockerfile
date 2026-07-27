@@ -29,6 +29,15 @@ COPY demo_api_ui/ .
 # /llm-timeouts.json (3 levels above /app/src/services/). Provide it at build time.
 COPY llm-timeouts.json /llm-timeouts.json
 
+# PostHog browser SDK. vite.config.js inlines process.env.REACT_APP_* at build
+# time, so these must be present HERE — the nginx production stage serves a
+# static bundle and a runtime env var would never reach the browser. Unset is a
+# supported no-op (posthogClient.js skips init).
+ARG REACT_APP_POSTHOG_KEY=
+ARG REACT_APP_POSTHOG_HOST=
+ENV REACT_APP_POSTHOG_KEY=$REACT_APP_POSTHOG_KEY
+ENV REACT_APP_POSTHOG_HOST=$REACT_APP_POSTHOG_HOST
+
 # Build the app
 RUN npm run build
 

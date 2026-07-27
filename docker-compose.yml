@@ -265,6 +265,10 @@ services:
       dockerfile: demo_api_ui/Dockerfile
       args:
         GIT_SHA: ${GIT_SHA:-unknown}
+        # Read from the ROOT .env. Build-time, not runtime: the production stage
+        # is static nginx, so Vite must inline the value during `npm run build`.
+        REACT_APP_POSTHOG_KEY: ${REACT_APP_POSTHOG_KEY:-}
+        REACT_APP_POSTHOG_HOST: ${REACT_APP_POSTHOG_HOST:-}
     container_name: ai-demo-ui
     ports:
       # Container listens on 4000 in both modes — nginx (production stage,
