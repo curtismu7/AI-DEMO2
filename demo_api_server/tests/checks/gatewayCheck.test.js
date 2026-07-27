@@ -39,6 +39,17 @@ describe('gatewayCheck.real_path', () => {
     expect(r.meta.hops.map((h) => h.status)).toEqual(['pass']);
   });
 
+  // gwToken was exchanged and then never sent: no Authorization header, no
+  // token in the /mcp body. Against live IG every call 401'd, and the check
+  // reported "enforcement is ON and this token did not satisfy it" — a
+  // misdiagnosis, since no token was ever transmitted.
+  test('forwards the exchanged token to callPingGateway', async () => {
+    oauth.performTokenExchange.mockResolvedValue('gw-token');
+    callPingGateway.mockResolvedValueOnce({ statusCode: 200, body: { result: { ok: true } } });
+    await realPath.run(ctxWithToken);
+    expect(callPingGateway.mock.calls[0][3]).toEqual({ token: 'gw-token' });
+  });
+
   test('does NOT probe /introspect or /authorize (they 404 on IG)', async () => {
     oauth.performTokenExchange.mockResolvedValue('gw-token');
     callPingGateway.mockResolvedValueOnce({ statusCode: 200, body: { result: { ok: true } } });
