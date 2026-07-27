@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import DraggableModal from "./DraggableModal";
+import IntentAuthDecisionDisplay from "./IntentAuthDecisionDisplay";
 import { formatCurrency } from "../utils/formatters";
 import "./AgentConsentModal.css";
 
@@ -88,6 +89,7 @@ export default function AgentConsentModal({
   const showTo =
     !!transaction?.toAccountId &&
     (transaction.type === "transfer" || transaction.type === "deposit");
+  const exceedsThreshold = isMonetary && txAmount >= hitlThreshold;
 
   const title = hitlContext
     ? "Authorize Agent Action"
@@ -193,12 +195,21 @@ export default function AgentConsentModal({
                 {(isMonetary || showFrom || showTo) && (
                   <span className="acm-card__subtitle">
                     {isMonetary && <strong>{fmtAmount(txAmount)}</strong>}
-                    {showFrom && ` from ${transaction.fromAccountId}`}
-                    {showTo && ` to ${transaction.toAccountId}`}
+                    {showFrom && <> from <span>{transaction.fromAccountId}</span></>}
+                    {showTo && <> to <span>{transaction.toAccountId}</span></>}
                   </span>
                 )}
               </div>
+              {exceedsThreshold && (
+                <p className="acm-warning" role="alert">
+                  This amount exceeds the {fmtAmount(hitlThreshold)} manual-review threshold.
+                </p>
+              )}
             </section>
+
+            {intentAuthDecision && (
+              <IntentAuthDecisionDisplay decision={intentAuthDecision} compact />
+            )}
 
             <ul className="acm-assurances">
               <li>Verified with a one-time code sent to your registered email</li>

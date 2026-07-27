@@ -43,9 +43,26 @@ describe("AI footprint mock gallery", () => {
       "classic-dark",
     );
   });
+
+  it("toggles light/dark and persists the choice", () => {
+    render(
+      <MemoryRouter>
+        <FootprintMockGalleryPage />
+      </MemoryRouter>,
+    );
+    const root = screen.getByTestId("footprint-mock-gallery");
+    expect(root).toHaveAttribute("data-theme", "light");
+    fireEvent.click(screen.getByRole("button", { name: "Dark" }));
+    expect(root).toHaveAttribute("data-theme", "dark");
+    expect(localStorage.getItem("ai-footprint-theme-v1")).toBe("dark");
+  });
 });
 
 describe("AI footprint live shell", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
   it("renders selected VS Code chrome with agent host", () => {
     localStorage.setItem(
       "ai-footprint-mock-selection-v1",
@@ -59,6 +76,17 @@ describe("AI footprint live shell", () => {
     expect(screen.getByTestId("footprint-live-vscode")).toBeInTheDocument();
     expect(screen.getByText(/Simulated shell/)).toBeInTheDocument();
     expect(screen.getByText("Copilot Chat")).toBeInTheDocument();
+  });
+
+  it("has a light/dark toggle scoped to this page", () => {
+    render(
+      <MemoryRouter>
+        <FootprintLiveShellPage category="vscode" />
+      </MemoryRouter>,
+    );
+    const root = screen.getByTestId("footprint-live-vscode");
+    fireEvent.click(screen.getByRole("button", { name: "Dark" }));
+    expect(root).toHaveAttribute("data-theme", "dark");
   });
 });
 
@@ -75,5 +103,17 @@ describe("AI footprint locked picks page", () => {
     expect(screen.getAllByText("Light workbench").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Desktop light").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Vendor embed").length).toBeGreaterThan(0);
+  });
+
+  it("has a light/dark toggle", async () => {
+    const { default: FootprintPicksPage } = await import("../FootprintPicksPage");
+    render(
+      <MemoryRouter>
+        <FootprintPicksPage />
+      </MemoryRouter>,
+    );
+    const root = screen.getByTestId("footprint-picks-page");
+    fireEvent.click(screen.getByRole("button", { name: "Dark" }));
+    expect(root).toHaveAttribute("data-theme", "dark");
   });
 });

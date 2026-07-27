@@ -14,6 +14,22 @@ global.jest = vi;
 // jsdom does not implement scrollIntoView — mock it globally
 window.HTMLElement.prototype.scrollIntoView = vi.fn();
 
+// jsdom does not implement matchMedia — components that read a responsive
+// breakpoint on mount (e.g. AdminSideNav's collapse-below-768px check) throw
+// "window.matchMedia is not a function" without this stub.
+if (typeof window.matchMedia !== "function") {
+  window.matchMedia = vi.fn().mockImplementation((query) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+}
+
 // In Node.js v22+, `localStorage` is an experimental getter that returns
 // undefined (requires --localstorage-file). jsdom provides window.localStorage
 // but it may not be aliased to the bare `localStorage` global in all Vitest

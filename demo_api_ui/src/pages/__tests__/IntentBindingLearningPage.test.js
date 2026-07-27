@@ -7,8 +7,12 @@ beforeEach(() => {
 });
 
 test("renders the pipeline, the grant, and both columns", () => {
-  render(<IntentBindingLearningPage />);
-  expect(screen.getAllByText(/RFC 9396/i).length).toBeGreaterThan(0);
+  render(
+    <MemoryRouter>
+      <IntentBindingLearningPage />
+    </MemoryRouter>,
+  );
+  expect(screen.getAllByText(/RFC 9126/i).length).toBeGreaterThan(0);
   expect(screen.getByText("Within the grant")).toBeInTheDocument();
   expect(screen.getByText("Drifts past the grant")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /run permit/i })).toBeInTheDocument();
@@ -24,7 +28,11 @@ test("running the permit column posts action:'permit' and shows PERMIT", async (
     }),
   });
 
-  render(<IntentBindingLearningPage />);
+  render(
+    <MemoryRouter>
+      <IntentBindingLearningPage />
+    </MemoryRouter>,
+  );
   fireEvent.click(screen.getByRole("button", { name: /run permit/i }));
 
   await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
@@ -47,7 +55,11 @@ test("running the drift column posts action:'drift' and shows DENY", async () =>
     }),
   });
 
-  render(<IntentBindingLearningPage />);
+  render(
+    <MemoryRouter>
+      <IntentBindingLearningPage />
+    </MemoryRouter>,
+  );
   fireEvent.click(screen.getByRole("button", { name: /run drift/i }));
 
   await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(

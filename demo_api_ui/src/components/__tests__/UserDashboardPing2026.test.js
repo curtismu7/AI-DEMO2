@@ -307,18 +307,13 @@ test("9. ConfirmModal (Reset Demo) mounts in clinical-split branch when showRese
 });
 
 test("8. UserDashboard.js is byte-for-byte frozen (sha256 canary)", () => {
-  // Re-baselined 2026-07-17 for the policy_not_found fix: the friendly
-  // "contact your administrator" message was gated behind status === 403,
-  // but the real (non-simulated) PingOne Authorize engine returns 503 for
-  // policy_not_found — so it fell through to a bare "Transfer failed" for
-  // real users. Fix hoists the `d?.error === "policy_not_found"` check above
-  // the 403 branch (independent of status), in all three handlers
-  // (transfer/deposit/withdraw), mirroring the same fix already shipped in
-  // UserDashboardPing2026.js. New coverage: UserDashboard.test.js.
+  // Re-baselined 2026-07-26 to pick up three merged PRs since the 2026-07-17
+  // baseline (Sign In button + narrow checkout intent regex, drag-resize
+  // dashboard agent column width, and an SE ingress routing change).
   // If this test fails, UserDashboard.js was modified — confirm the change
   // is intended, then update this hash.
   const FROZEN_SHA256 =
-    "22ce9ecf69c2ec83e4001a6dba0cfaf645f8e9cc8e872369bd5960d87972be35";
+    "398b724eebe0049961160a4f3cec5aadee8ee7ca2ca3536eb4d75d3958456915";
 
   const filePath = node_path.resolve(__dirname, "../UserDashboard.js");
   const content = node_fs.readFileSync(filePath);

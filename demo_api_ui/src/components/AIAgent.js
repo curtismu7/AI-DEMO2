@@ -6247,7 +6247,7 @@ export default function BankingAgent({
           notifyError("⚠️ That took too long — the request timed out.", { autoClose: agentToastMs.errShort });
           addMessage(
             "assistant",
-            `That took too long to answer, so I stopped waiting — this was **${result.action.replace(/_/g, " ")}**, ` +
+            `That took too long to answer, so I stopped waiting — this was ${result.action.replace(/_/g, " ")}, ` +
               `not a misunderstanding. The local model is faster once warmed up; try again, or switch Agent mode to Heuristics for a deterministic answer.`,
             null,
             {
@@ -6263,7 +6263,7 @@ export default function BankingAgent({
         }
         addMessage(
           "assistant",
-          `I understood that as **${result.action.replace(/_/g, " ")}**, but couldn't complete it` +
+          `I understood that as ${result.action.replace(/_/g, " ")}, but couldn't complete it` +
             `${e?.message ? `: ${e.message}` : "."} Try again, or switch Agent mode to Heuristics.`,
           null,
           {

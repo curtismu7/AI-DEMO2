@@ -1,12 +1,31 @@
 /* Gallery picker for AI footprint costume shells. */
 
-.afm-gallery {
+.afm-gallery,
+.afm-live-shell {
   --ink: #0f172a;
   --muted: #475569;
   --line: #e2e8f0;
   --card: #fff;
+  --note-bg: #ecfdf5;
+  --note-ink: #134e4a;
   --accent: #0f766e;
   --bg: #f1f5f9;
+}
+
+/* Dark mode — manual toggle, scoped to these pages only (see useFootprintTheme). */
+.afm-gallery[data-theme="dark"],
+.afm-live-shell[data-theme="dark"] {
+  --ink: #e5e9f0;
+  --muted: #93a2b8;
+  --line: #2a3342;
+  --card: #171e2a;
+  --note-bg: #0f2b26;
+  --note-ink: #6ee7c9;
+  --accent: #2dd4bf;
+  --bg: #0b0f16;
+}
+
+.afm-gallery {
   min-height: calc(100vh - 64px);
   background: var(--bg);
   color: var(--ink);
@@ -14,9 +33,42 @@
   padding: 24px 28px 48px;
 }
 
+.afm-theme-toggle {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.afm-theme-btn {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.afm-theme-btn.is-on {
+  background: var(--accent);
+  color: #fff;
+}
+
 .afm-gallery-head {
   max-width: 1200px;
   margin: 0 auto 20px;
+}
+
+.afm-gallery-headrow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .afm-gallery-head h1 {
@@ -37,8 +89,8 @@
   margin-top: 10px;
   padding: 8px 12px;
   border-left: 3px solid var(--accent);
-  background: #ecfdf5;
-  color: #134e4a;
+  background: var(--note-bg);
+  color: var(--note-ink);
   font-size: 13px;
 }
 
@@ -163,7 +215,7 @@
 
 .afm-pick-tab {
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--card);
   color: var(--ink);
   border-radius: 999px;
   padding: 8px 14px;
@@ -217,7 +269,7 @@
 
 .afm-thumb {
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--card);
   border-radius: 10px;
   padding: 0;
   overflow: hidden;
@@ -312,7 +364,7 @@
 .afm-card-actions button,
 .afm-card-actions a {
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--card);
   color: var(--ink);
   border-radius: 6px;
   padding: 6px 10px;
@@ -349,6 +401,14 @@
   background: #000;
   display: flex;
   flex-direction: column;
+}
+
+.afm-live-shell .afm-theme-toggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1201;
+  background: var(--card);
 }
 
 .afm-live-shell > .afm-vcs,

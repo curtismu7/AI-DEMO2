@@ -442,6 +442,8 @@ export default function AdminSideNav({ user }) {
     { label: "Themes", path: "/themes", icon: "cfg" },
     { label: "Use Cases", path: "/use-cases", icon: "demo" },
     { label: "Use Cases (Live)", path: "/use-cases/live", icon: "demo" },
+    { label: "AI Footprint", path: "/demo/footprint-picks", icon: "demo" },
+    { label: "Footprint Gallery", path: "/demo/footprint-mocks", icon: "demo" },
     {
       label: "Demo Script",
       icon: "demo",

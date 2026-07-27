@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FootprintChrome } from "../components/aiFootprintMocks/ChromeFrames";
 import { LOCKED_PICKS } from "../components/aiFootprintMocks/mockSelection";
+import { FootprintThemeToggle } from "../components/aiFootprintMocks/FootprintThemeToggle";
+import { useFootprintTheme } from "../hooks/useFootprintTheme";
 import "./FootprintMockGalleryPage.css";
 
 /**
@@ -11,6 +13,7 @@ import "./FootprintMockGalleryPage.css";
  */
 export default function FootprintPicksPage() {
   const navigate = useNavigate();
+  const [theme, toggleTheme] = useFootprintTheme();
   const [activeId, setActiveId] = useState(LOCKED_PICKS[0].category);
   const active = useMemo(
     () => LOCKED_PICKS.find((p) => p.category === activeId) || LOCKED_PICKS[0],
@@ -18,9 +21,12 @@ export default function FootprintPicksPage() {
   );
 
   return (
-    <div className="afm-gallery afm-gallery--picks" data-testid="footprint-picks-page">
+    <div className="afm-gallery afm-gallery--picks" data-testid="footprint-picks-page" data-theme={theme}>
       <header className="afm-gallery-head">
-        <h1>Your 4 locked costumes</h1>
+        <div className="afm-gallery-headrow">
+          <h1>Your 4 locked costumes</h1>
+          <FootprintThemeToggle theme={theme} onToggle={toggleTheme} />
+        </div>
         <p>
           Pick which shell to focus, then open it live (Ping banking agent — sign-in required).
         </p>
