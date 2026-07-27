@@ -502,7 +502,7 @@ export default function AdminSideNav({ user }) {
       children: [
         { label: "MCP Inspector", path: "/pingone-mcp-inspector", icon: "dbg" },
         { label: "PingGateway Inspector", path: "/pinggateway-inspector", icon: "rte" },
-        { label: "PingOne Authorize", path: "/pingone-authorize", icon: "pol" },
+        { label: "P1AZ Inspector", path: "/pingone-authorize", icon: "pol" },
       ],
     },
     {
@@ -606,7 +606,7 @@ export default function AdminSideNav({ user }) {
       label: "Authorize",
       icon: "pol",
       children: [
-        { label: "PingOne Authorize", path: "/pingone-authorize", icon: "pol" },
+        { label: "P1AZ Inspector", path: "/pingone-authorize", icon: "pol" },
         { label: "Authorize Capabilities", path: "/pingone-authorize-capabilities", icon: "pol" },
         {
           label: "Policy Decision Trace",
