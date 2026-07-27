@@ -287,15 +287,23 @@ module.exports = async function decisionHandler(req, res) {
   // (snapshots/gen-authorize-snapshot.js, statement mcp-invalid-kid) and with
   // simulatedAuthorizeService's invalid_kid guard.
   //
-  // STRICTLY `=== false`. TokenKidKnown is a caller-resolved tri-state and the
-  // caller OMITS it when membership is unknown (no kid, JWKS unreachable, or a
-  // token from an issuer whose keyset this PDP has no business judging). Absent
-  // MUST stay inert — the cloud attribute defaults TRUE for the same reason.
-  // Treating absent/falsy as a deny would break every caller that does not send
-  // this parameter, which today is all of them.
+  // Two wire shapes reach this PDP and BOTH must be understood:
+  //   BFF     → JSON boolean  false   (evaluateMcpToolDelegation sends booleans)
+  //   gateway → string       'false'  (buildAuthorizeParameters is
+  //                                    Record<string,string>; cf. HitlApproved)
+  // Reading only one shape silently ignores the other caller — a false green.
+  //
+  // ONLY those two values deny. TokenKidKnown is a caller-resolved tri-state and
+  // the caller OMITS it when membership is unknown (no kid, JWKS unreachable, or
+  // a token from an issuer whose keyset this PDP has no business judging).
+  // Absent MUST stay inert — the cloud attribute defaults TRUE for the same
+  // reason — so this deliberately does NOT test falsiness: '' and undefined are
+  // "unknown", not "unpublished".
   //
   // Key-IDENTITY check, not signature verification.
-  if (params.TokenKidKnown === false) {
+  const tokenKidKnownDenies = params.TokenKidKnown === false
+    || params.TokenKidKnown === 'false';
+  if (tokenKidKnownDenies) {
     warn(`[AuthzServer/decision] DENY — invalid_kid: kid "${asStr(params.TokenKid)}" is not published in the issuer JWKS`);
     return deny(res,
       `invalid_kid: the token header names signing key "${asStr(params.TokenKid)}" which is not published in the ` +
