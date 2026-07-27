@@ -1020,7 +1020,7 @@ export default function OtpStepUpModal({
         onClose={handleCancel}
         title="Verify Your Identity"
         footer={p1Footer}
-        defaultWidth={520}
+        defaultWidth={460}
         defaultHeight={440}
         storageKey="otp-step-up-modal-p1mfa"
         zIndex={100080}
@@ -1115,7 +1115,7 @@ export default function OtpStepUpModal({
       onClose={handleCancel}
       title="Verify Your Identity"
       footer={stubFooter}
-      defaultWidth={520}
+      defaultWidth={460}
       defaultHeight={stubStep === 'choose' ? 400 : 480}
       storageKey="otp-step-up-modal-stub"
       zIndex={100080}
