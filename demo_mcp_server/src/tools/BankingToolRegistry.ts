@@ -39,6 +39,7 @@ export interface BankingToolDefinition extends ToolDefinition {
   handler: string; // Method name in BankingToolProvider
   readOnly: boolean; // true = safe read-only; false = writes data or accesses PII
   vertical?: string; // set for vertical action tools (incl. 'admin') — lets the gateway filter tools/list per active vertical (AllowedVertical advice). Absent = cross-vertical (banking/feature).
+  a2aDelegatedScope?: string; // scope-topology a2aDelegatedScope — the specialist's per-vertical Exchange #2 scope (records:read, …) accepted as an alternative to requiredScopes
   outputSchema?: JSONSchema;
 }
 
@@ -62,6 +63,7 @@ const VERTICAL_TOOL_DEFS: Record<string, BankingToolDefinition> = VERTICAL_TOOLS
       handler: verticalHandlerName(t.name),
       readOnly: t.scope === 'read',
       vertical: t.vertical,
+      ...(t.a2aDelegatedScope ? { a2aDelegatedScope: t.a2aDelegatedScope } : {}),
       icons: [],
       annotations: { userFacing: { readable: t.scope === 'read', destructive: t.scope === 'write', idempotent: t.scope === 'read', openWorld: false } },
       // Parameterized tools (book_appointment, checkout, order_status, ...) carry

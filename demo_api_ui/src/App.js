@@ -508,7 +508,7 @@ function AppWithAuth() {
                 <Route
                   path="/agent-gateway-capabilities"
                   element={
-                    <Navigate to="/pinggateway-inspector?subtab=capabilities" replace />
+                    <Navigate to="/agent-gateway-inspector?subtab=capabilities" replace />
                   }
                 />
                 <Route
@@ -536,11 +536,17 @@ function AppWithAuth() {
                 <Route
                   path="/pinggateway-test"
                   element={
-                    <Navigate to="/pinggateway-inspector?subtab=tester" replace />
+                    <Navigate to="/agent-gateway-inspector?subtab=tester" replace />
                   }
                 />
                 <Route
                   path="/pinggateway-inspector"
+                  element={
+                    <Navigate to="/agent-gateway-inspector" replace />
+                  }
+                />
+                <Route
+                  path="/agent-gateway-inspector"
                   element={
                     <McpGatewayConfigRoute user={user} logout={logout} />
                   }

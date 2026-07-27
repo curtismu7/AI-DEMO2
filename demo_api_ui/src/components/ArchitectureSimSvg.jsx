@@ -304,8 +304,8 @@ function ArchitectureSimSvg({ nodeStates = {}, edgeStates = {} }) {
       <SimNode id="n-bff"      x={COL.bff}      y={ROW.top} label="BFF"           sub="demo_api_server :3001"
         tooltip="Backend For Frontend — sole OAuth token custodian; resolves session cookie to access token; never exposes tokens to the browser"
         state={ns('n-bff')} />
-      <SimNode id="n-mcp-gw"   x={COL.mcpGw}   y={ROW.top} label="Ping Agent Gateway"   sub="PingGateway (IG) :3036"
-        tooltip="Ping Agent Gateway — central enforcement point; default is PingGateway (IG, :3036, ff_mcp_gateway_pinggateway=true); demo Node gateway (:3005) is the opt-in demo-auth path; introspects token then consults PingOne Authorize before every tool call; validates aud (D-05 anti-bypass)"
+      <SimNode id="n-mcp-gw"   x={COL.mcpGw}   y={ROW.top} label="Agent Gateway"   sub="Agent Gateway :3036"
+        tooltip="Agent Gateway — central enforcement point; default is the real product (:3036, ff_mcp_gateway_pinggateway=true); demo Node Gateway (:3005) is the opt-in demo-auth path; introspects token then consults PingOne Authorize before every tool call; validates aud (D-05 anti-bypass)"
         state={ns('n-mcp-gw')} />
       <SimNode id="n-mcp-server" x={COL.services} y={ROW.top} label="MCP Server"  sub=":8080"
         tooltip="MCP Server (:8080) — executes banking tools; validates token aud and scopes per tool; checks act claim for delegated agent authority"

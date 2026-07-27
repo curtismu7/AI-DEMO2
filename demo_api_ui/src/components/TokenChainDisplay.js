@@ -1294,7 +1294,7 @@ function GwIntrospectionEduBox({ event }) {
       </div>
       <div className="tcd-edu-body">
         <p>
-          Before evaluating any policy, PingGateway calls PingOne Authorization Server's
+          Before evaluating any policy, Agent Gateway calls PingOne Authorization Server's
           introspection endpoint to confirm the delegated token is currently <strong>active</strong>
           — not expired and not revoked. This fires on every tool call.
         </p>
@@ -1327,7 +1327,7 @@ function GwIntrospectionEduBox({ event }) {
         <p className="tcd-edu-detail">
           RFC 7662 §2.1: POST /introspect with the bearer token. Response <code>active: true</code>{" "}
           means the token has not expired, has not been revoked, and was issued by a trusted server.
-          Introspected by PingGateway on every MCP tool call.
+          Introspected by Agent Gateway on every MCP tool call.
         </p>
       </div>
     </div>
@@ -1934,7 +1934,7 @@ function AuthorizeDecisionEduBox({ event }) {
 
 /**
  * Shows the McpAuditFilter 5W1H attribution for a gateway tool call.
- * Mirrors what PingGateway writes to audit/mcp.audit.json.
+ * Mirrors what Agent Gateway writes to audit/mcp.audit.json.
  */
 function GwMcpAuditEduBox({ event }) {
   if (event.id !== "gw-mcp-audit") return null;
@@ -1955,7 +1955,7 @@ function GwMcpAuditEduBox({ event }) {
       </div>
       <div className="tcd-edu-body">
         <p>
-          PingGateway <code>McpAuditFilter</code> emits MCP-specific audit events for{" "}
+          Agent Gateway <code>McpAuditFilter</code> emits MCP-specific audit events for{" "}
           <em>who called which tool, where, and with what result</em>. The same story is
           written to <code>audit/mcp.audit.json</code> and returned on{" "}
           <code>X-Gw-Audit-Trail.mcpAudit</code> for this Token Chain hop.
@@ -2112,11 +2112,11 @@ function GwAuthorizeEduBox({ event }) {
         <span className="tcd-edu-icon">
           {isPending ? "⏳" : isPermit ? "✅" : isDeny ? "❌" : "⚠️"}
         </span>
-        <strong>PingGateway → PingOne Authorize</strong>
+        <strong>Agent Gateway → PingOne Authorize</strong>
       </div>
       <div className="tcd-edu-body">
         <p>
-          After introspection passes, PingGateway evaluates a{" "}
+          After introspection passes, Agent Gateway evaluates a{" "}
           <strong>PingOne Authorize policy</strong> against the tool call context.
           On PERMIT the token is forwarded to the MCP Server. On DENY a 403 is
           returned. On INDETERMINATE a HITL consent challenge is created.
@@ -4011,12 +4011,12 @@ const PLACEHOLDER_EVENTS = [
   },
   {
     id: "gw-mcp-audit",
-    label: "Ping Agent Gateway — McpAuditFilter (who / what / when / where / how)",
+    label: "Agent Gateway — McpAuditFilter (who / what / when / where / how)",
     status: "waiting",
     claims: null,
     explanation:
       "McpAuditFilter records MCP-specific audit events: who (user + agent), what (method/tool), when, where (resource), and how (PERMIT/DENY result). Events are written to audit/mcp.audit.json and mirrored on X-Gw-Audit-Trail.mcpAudit for this Token Chain hop.",
-    rfc: "PingGateway McpAuditFilter",
+    rfc: "Agent Gateway McpAuditFilter",
   },
   {
     id: "mcp-gateway-route",
@@ -4153,12 +4153,12 @@ const STEP_EXPLAINERS = {
     value: "Every request gets an allow, deny, or step-up decision, and there is one place to watch and stop agent traffic.",
   },
   "gw-mcp-audit": {
-    what: "PingGateway recorded who called which tool, where, when, and with what result (McpAuditFilter).",
+    what: "Agent Gateway recorded who called which tool, where, when, and with what result (McpAuditFilter).",
     why: "Governance needs a durable trail of agent actions — not only token hops.",
     value: "You can answer who / what / when / where / how for every MCP transaction through the gateway.",
   },
   gateway: {
-    what: "PingGateway received the request, checked the token, and routed it to the MCP server upstream.",
+    what: "Agent Gateway received the request, checked the token, and routed it to the MCP server upstream.",
     why: "A single gateway in front of the MCP server is the one place to enforce token checks and policy on agent traffic.",
     value: "All agent calls funnel through one controlled, observable chokepoint that can stop traffic on demand.",
   },

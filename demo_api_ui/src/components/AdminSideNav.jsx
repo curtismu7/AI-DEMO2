@@ -149,7 +149,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "ai-agents", paths: ["/ai-control-plane", "/agent", "/copilot", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
   { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client"] },
   { id: "banking-mcp", paths: ["/webmcp", "/ping-ai-test-lab"] },
-  { id: "banking-mcp-gateways", paths: ["/pinggateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security", "/agent-gateway-capabilities"] },
+  { id: "banking-mcp-gateways", paths: ["/agent-gateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security", "/agent-gateway-capabilities"] },
   { id: "pingone-demo-apps", paths: ["/self-service", "/pingone-test", "/mfa-test", "/token-exchange-tester", "/oauth-academy", "/oas-demo", "/privilege-demo", "/sdk-login"] },
   { id: "delegation-consent", paths: ["/transaction-consent", "/actor-token-education"] },
   { id: "authorize", paths: ["/pingone-authorize", "/pingone-authorize-capabilities", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
@@ -501,7 +501,7 @@ export default function AdminSideNav({ user }) {
       icon: "dbg",
       children: [
         { label: "MCP Inspector", path: "/pingone-mcp-inspector", icon: "dbg" },
-        { label: "PingGateway Inspector", path: "/pinggateway-inspector", icon: "rte" },
+        { label: "Agent Gateway Inspector", path: "/agent-gateway-inspector", icon: "rte" },
         { label: "P1AZ Inspector", path: "/pingone-authorize", icon: "pol", searchAlias: "PingOne Authorize" },
       ],
     },
@@ -530,8 +530,8 @@ export default function AdminSideNav({ user }) {
         },
         { label: "Web MCP", path: "/webmcp", icon: "web" },
         {
-          label: "PingGateway Inspector",
-          path: "/pinggateway-inspector",
+          label: "Agent Gateway Inspector",
+          path: "/agent-gateway-inspector",
           icon: "rte",
         },
         { label: "Capability Tour", path: "/agent-gateway-capabilities", icon: "shld" },

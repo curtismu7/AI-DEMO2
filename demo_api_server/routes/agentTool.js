@@ -34,6 +34,16 @@ if (process.env.NODE_ENV === 'production' && INTERNAL_SECRET === DEFAULT_INTERNA
 }
 
 const { executeBffTool } = require('../services/bffMcpToolExecutor');
+const { A2A_SPECIALISTS } = require('../config/a2aSpecialists');
+
+/** The single vertical whose A2A specialist owns this tool (each sensitive_*
+ * tool belongs to exactly one specialist), or null for ordinary tools. */
+function verticalForA2aTool(toolName) {
+  for (const [vertical, spec] of Object.entries(A2A_SPECIALISTS)) {
+    if (Array.isArray(spec.tools) && spec.tools.includes(toolName)) return vertical;
+  }
+  return null;
+}
 
 function checkSecret(req, res) {
   const presented = req.headers['x-internal-gateway-secret'];
@@ -98,15 +108,35 @@ router.post('/agent-tool', async (req, res) => {
   const tokenEvents = [];
 
   try {
-    const raw = await executeBffTool({
-      name: tool,
-      args: args || {},
-      userId,
-      userToken,
-      req: fakeReq,
-      tokenEvents,
-      sessionId,
-    });
+    // A2A fast-path — parity with the heuristic dispatcher
+    // (demoAgentLangGraphService.dispatchVerticalIntent): an a2aDelegated tool
+    // is DENIED for the generalist alone by design (McpFirstTool:
+    // a2a-delegation-required). External LLM agents calling back through this
+    // endpoint used to run the direct call anyway and surface that DENY as the
+    // final chat reply. Route it through the RFC 8693 nested-act delegation
+    // service instead — the specialist chain is where authorization happens.
+    // Lazy requires: keep route load free of the agent-service module graph.
+    let raw;
+    const { isA2aEnabled } = require('../services/a2aDelegationService');
+    const a2aVertical = isA2aEnabled() ? verticalForA2aTool(tool) : null;
+    if (a2aVertical) {
+      const { executeA2aDelegation } = require('../services/demoAgentLangGraphService');
+      raw = await executeA2aDelegation(
+        a2aVertical,
+        { tool, args: args || {} },
+        { req: fakeReq, tokenEvents, sessionId },
+      );
+    } else {
+      raw = await executeBffTool({
+        name: tool,
+        args: args || {},
+        userId,
+        userToken,
+        req: fakeReq,
+        tokenEvents,
+        sessionId,
+      });
+    }
 
     let parsed;
     try {

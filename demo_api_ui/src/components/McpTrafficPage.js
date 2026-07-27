@@ -99,7 +99,7 @@ function extractAccountOptions(toolName, result) {
 
 /**
  * @param {{ embedded?: boolean }} [props]
- * `embedded` — rendered inside PingGateway Inspector (definite-height host).
+ * `embedded` — rendered inside Agent Gateway Inspector (definite-height host).
  */
 export default function McpTrafficPage({ embedded = false } = {}) {
   const [tools, setTools] = useState([]);

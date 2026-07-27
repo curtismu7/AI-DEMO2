@@ -928,6 +928,24 @@ function resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, ses
       }
       return json;
     }
+    // A2A fast-path for a DIRECT model tool call. The model is handed the full
+    // plugin tool list (incl. a2aDelegated tools like sensitive_patient_records)
+    // and may call one directly instead of emitting delegate_to_specialist —
+    // direct execution hits the McpFirstTool DENY (a2a-delegation-required) and
+    // that DENY becomes the final chat reply. Same guard as
+    // dispatchVerticalIntent's heuristic path (line ~1117): route through the
+    // RFC 8693 nested-act delegation service instead, and reuse a2aResultRef so
+    // the reason-loop caller renders the same clean card delegate_to_specialist
+    // produces (buildA2aReplyEnvelope), not the model's own DENY narration.
+    const { isA2aDelegatedTool } = require('./scopeTopology');
+    const { isA2aEnabled } = require('./a2aDelegationService');
+    if (isA2aEnabled() && isA2aDelegatedTool(name)) {
+      const json = await executeA2aDelegation(activeId, { tool: name, args }, { req, tokenEvents, sessionId });
+      if (a2aResultRef) {
+        try { a2aResultRef.current = JSON.parse(json); } catch (_) { /* leave unset */ }
+      }
+      return json;
+    }
     if (verticalDispatch.isPluginToolName(name)) {
       return executeBffTool({
         name,
@@ -2000,5 +2018,8 @@ module.exports = {
   processAgentMessage,
   dispatchBankingAction,
   dispatchVerticalIntent,
+  // Public for routes/agentTool.js — external LLM agents' tool callback runs
+  // the same A2A fast-path as dispatchVerticalIntent for a2aDelegated tools.
+  executeA2aDelegation,
   __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation, normalizeVerticalToolArgs, applyAdminCustomerContext },
 };
