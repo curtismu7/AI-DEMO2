@@ -321,11 +321,27 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
     a2aCond.fullName = 'RequiresA2aDelegation';
     a2aCond.description =
       `ToolName is one of the A2A-delegated tools (${a2aDelegated.join(', ')}) AND ActChainDepth < 2, ` +
-      `i.e. the caller is NOT a specialist acting under a two-hop act chain. Fires the delegation-required DENY. ` +
+      `i.e. NOT(ActChainDepth > 1) — the caller is not a specialist acting under a two-hop act chain. ` +
+      `Fires the delegation-required DENY. ` +
       `Generated from scope-topology.json (a2aDelegated) — do not hand-edit.`;
+    // depth < 2 expressed as NOT(depth > 1), and the constant is the STRING "1".
+    //
+    // Both deliberate. A survey of the whole snapshot: 162 string constants, 2
+    // booleans, and — before this — ZERO numbers; `GreaterThan` appears 7 times,
+    // `LessThan` zero. The first draft used `LessThan` with a numeric 2, which
+    // introduced an untested operator AND an untested value type in one line.
+    //
+    // I had reasoned "ActChainDepth's valueType is NUMBER, so send a number",
+    // but the live policy contradicts that: `Amount GreaterThan "2000"` is a
+    // STRING constant and demonstrably denies a 5000 transfer. So string
+    // constants are the proven form for numeric comparisons in this DSL, and
+    // GreaterThan is the proven operator. Using only constructs this file
+    // already exercises removes the import as a variable.
     a2aCond.condition = { and: { conditions: [
       toolOr(a2aDelegated),
-      { comparison: { left: { attribute: { id: ATTR.ActChainDepth } }, op: 'LessThan', right: { constant: { value: 2 } } } },
+      { not: { condition: {
+        comparison: { left: { attribute: { id: ATTR.ActChainDepth } }, op: 'GreaterThan', right: { constant: { value: '1' } } },
+      } } },
     ] } };
   }
 
