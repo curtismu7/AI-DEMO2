@@ -302,10 +302,22 @@ end to end against real PingOne.
 ## Risks
 
 **~~The real PingOne response schema is unverified.~~ Resolved 2026-07-27.**
-Both directions were recorded against the live service and are written into the
-Mock Sideband endpoint section above. The remaining unknown is narrower: only the
-allow path and the `/sideband/response` leg have not been exercised, because that
-needs a token carrying the group claim.
+Both directions were recorded against the live service. The allow path and the
+`/sideband/response` leg were then exercised too, through the mock:
+
+The Sideband API has **two** endpoints, not one. `/sideband/request` decides, and
+on **allow only** the gateway posts the backend's answer to
+`/sideband/response` so AAM can rewrite it before the client sees it. A mock
+implementing just the request leg produces a confusing split — deny works
+perfectly, allow fails with a 404 *from the Sideband API* — because deny never
+reaches the second leg.
+
+Also confirmed: inside `sidebandHandler` the `request` is the Sideband request
+PingAuthorizeFilter constructed, carrying `CLIENT-TOKEN` and `Content-Type` but
+**none of the client's headers**. `X-Authz-Simulated` is therefore unreadable
+there. The trust check and mock/real choice run in `aam-trail-stamp.groovy` on the
+outer route, which still holds the client request, and pass the answer down
+through the shared `AttributesContext`.
 
 **Phase 0 mutates a live PingOne environment.** Every object it creates is
 additive and individually deletable (`DELETE /gateways/{id}` returns 204,

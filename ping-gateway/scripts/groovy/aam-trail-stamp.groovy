@@ -14,6 +14,21 @@
 // which must never escalate into a failed request.
 import groovy.json.JsonOutput
 
+// Decide mock-vs-real HERE, not in the capture filter. Inside sidebandHandler the
+// `request` is the Sideband request PingAuthorizeFilter constructed — it carries
+// CLIENT-TOKEN and Content-Type, NOT the client's headers, so the capture filter
+// cannot see X-Authz-Simulated at all. This filter runs on the outer route where
+// the real client request is still in hand, and hands the answer down through the
+// AttributesContext both filters share.
+//
+// Trusted exactly like p1az-decision.groovy: the simulated flag counts only from
+// the BFF, so a gateway-audience token cannot force the mock backend.
+def internalSecret = System.getenv('BFF_INTERNAL_SECRET') ?: ''
+def trustedCaller = internalSecret &&
+    request.headers.getFirst('X-BFF-Internal') == internalSecret
+attributes['aamSimulated'] = (trustedCaller &&
+    request.headers.getFirst('X-Authz-Simulated') == 'true')
+
 return next.handle(context, request).thenOnResult({ response ->
     try {
         def trail = attributes['aamTrail']

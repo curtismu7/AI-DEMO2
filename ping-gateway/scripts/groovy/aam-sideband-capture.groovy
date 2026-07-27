@@ -53,13 +53,12 @@ redactBody = { obj ->
     return copy
 }
 
-// Trust X-Authz-Simulated only from the BFF, matching p1az-decision.groovy.
-// A gateway-audience token must not be able to force the mock backend.
-def internalSecret = System.getenv('BFF_INTERNAL_SECRET') ?: ''
-def trustedCaller = internalSecret &&
-    request.headers.getFirst('X-BFF-Internal') == internalSecret
-def simulated = trustedCaller &&
-    request.headers.getFirst('X-Authz-Simulated') == 'true'
+// `request` here is the Sideband request PingAuthorizeFilter constructed, which
+// carries CLIENT-TOKEN and Content-Type but NONE of the client's headers — so
+// X-Authz-Simulated is not readable at this point. aam-trail-stamp.groovy runs on
+// the outer route, where the client request is still in hand, and leaves the
+// already-trust-checked answer on the shared AttributesContext.
+def simulated = (attributes['aamSimulated'] == true)
 
 def mockBase = System.getenv('AAM_MOCK_BASE') ?: ''
 if (simulated && mockBase) {
