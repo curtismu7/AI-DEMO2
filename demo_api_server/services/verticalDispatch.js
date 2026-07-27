@@ -143,13 +143,33 @@ function toolSchemasFor(activeId, ctx, legacy) {
   return tools;
 }
 
+/**
+ * Sentinel a vertical plugin returns from executeTool to say "this tool name is
+ * not mine" — distinct from null, which plugins already use for other outcomes.
+ */
+const NOT_MY_TOOL = Symbol.for('verticalDispatch.NOT_MY_TOOL');
+
 async function executeToolFor(activeId, name, params, ctx, legacy) {
   const p = resolvePlugin(activeId);
   if (!p) return legacy(name, params, ctx);
 
   // First try the vertical's tools
   try {
-    return await p.executeTool(name, params, ctx);
+    const out = await p.executeTool(name, params, ctx);
+    // A plugin returns NOT_MY_TOOL to say "I do not own this name" — fall
+    // through to the MCP executor instead of surfacing a local error. Banking
+    // advertises the real MCP tool names (get_weather, explain_topic,
+    // brave_search, get_login_activity) alongside its heuristic action aliases
+    // but only ever dispatched the aliases, so those calls died as
+    // "unknown banking action: <name>" while the MCP server that owns them was
+    // never asked.
+    //
+    // Deliberately NOT null: dispatchBankingAction already returns null for its
+    // own reasons (no user token, client-dispatched placeholder), and treating
+    // that as "not my tool" would silently reroute unauthenticated core calls
+    // into the MCP path. The sentinel means exactly one thing.
+    if (out === NOT_MY_TOOL) return legacy(name, params, ctx);
+    return out;
   } catch (e) {
     // If tool not found in vertical and user is admin, try admin overlay
     if (ctx?.isAdmin) {
@@ -242,6 +262,7 @@ function findLocalToolPlugin(name) {
 }
 
 module.exports = {
+  NOT_MY_TOOL,
   resolvePlugin, hasPlugin,
   heuristicsFor, systemPromptFor, toolSchemasFor, executeToolFor, authzFor,
   isPluginToolName,

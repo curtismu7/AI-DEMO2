@@ -4,6 +4,7 @@ const { verticalManifest } = require('../../../services/verticalManifest');
 const { getBankingToolDefinitions } = require('../../../services/agentBuilder');
 const { dispatchBankingAction } = require('../../../services/demoAgentLangGraphService');
 const { EDUCATION_HEURISTICS } = require('../shared/educationHeuristics');
+const NOT_MY_TOOL = Symbol.for('verticalDispatch.NOT_MY_TOOL');
 const { ACCOUNT_NICKNAME_HEURISTIC } = require('../shared/bankingChipHeuristics');
 
 // Banking heuristics: phrase → action map (mirrors parseBanking() from nlIntentParser.js)
@@ -319,7 +320,9 @@ module.exports = {
   executeTool: async (name, params, ctx) => {
     // Banking actions delegated to dispatchBankingAction (extracted from executeHeuristicBanking).
     // These handle core banking operations that require MCP or store access.
-    const coreActions = ['accounts', 'balance', 'transactions', 'transfer', 'deposit', 'withdraw', 'sensitive_account_details'];
+    // account_nickname is dispatched by dispatchBankingAction (its read branch)
+    // but was absent here, so the plugin rejected it before it could get there.
+    const coreActions = ['accounts', 'balance', 'transactions', 'transfer', 'deposit', 'withdraw', 'sensitive_account_details', 'account_nickname'];
 
     // getToolsWithActionAliases() advertises BOTH namespaces to the LLM: the
     // real MCP tool names (get_my_transactions) and the heuristic action
@@ -363,8 +366,14 @@ module.exports = {
       return { result: { data: {} }, render: 'text' };
     }
 
-    // Unknown action
-    return { result: { error: `unknown banking action: ${name}` }, render: 'text' };
+    // Not a banking action. Return null so executeToolFor falls through to the
+    // MCP executor — these are real tools this vertical ADVERTISES via
+    // getToolsWithActionAliases() (get_weather, explain_topic, brave_search,
+    // get_login_activity, request_fee_waiver, invest_demo) but does not own.
+    // Returning an error object here made the gateway answer
+    // "unknown banking action: get_my_transactions" for a tool the model was
+    // handed in its own schema — advertising a tool the executor cannot run.
+    return NOT_MY_TOOL;
   },
   getAuthz,
 };
