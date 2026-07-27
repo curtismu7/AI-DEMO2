@@ -79,21 +79,31 @@ const RULES = [
     code: 'transaction-denied',
     label: 'amount ceiling',
     mockRule: 'Rule 3b',
+    // DecisionContext MUST be Transaction. The MCP contexts route to the MCP
+    // Delegation policy, and the amount ceiling lives in the Transaction policy
+    // — so probing this as McpToolCall returns PERMIT no matter what the rule
+    // says, and this row reported a live rule as MISSING for exactly that
+    // reason. Verified: Amount 5000 -> DENY, Amount 100 -> PERMIT.
     deny: {
       tool: 'create_transfer', vertical: 'banking', depth: 1,
-      extra: { Amount: '5000', TransactionAmount: '5000', TransactionType: 'create_transfer', TokenScopes: 'transfer' },
+      extra: { DecisionContext: 'Transaction', Amount: 5000, TransactionType: 'create_transfer', TokenScopes: 'transfer' },
     },
+    permit: { DecisionContext: 'Transaction', Amount: 100, TransactionType: 'create_transfer', TokenScopes: 'transfer' },
   },
   {
     code: 'mcp-user-not-in-group',
     label: 'group membership (UC9)',
     mockRule: 'Rule 3.5b',
-    // UserGroups POPULATED with a different group. An empty list is also a mock
-    // DENY, but it cannot distinguish "rule enforced" from "attribute ignored".
+    // InRequiredGroup is the attribute the rule actually reads: a BFF-RESOLVED
+    // boolean (the snapshot DSL has no array-contains operator), DEFAULTING TO
+    // TRUE. Sending UserGroups/RequiredGroup and omitting it left the default
+    // in place, so the condition could never be true and this row reported a
+    // live rule as MISSING. Verified: false -> DENY, true -> PERMIT.
     deny: {
       tool: 'get_my_accounts', vertical: 'banking', depth: 1,
-      extra: { RequiredGroup: 'Premium', UserGroups: '["Standard"]' },
+      extra: { RequiredGroup: 'Premium', UserGroups: '["Standard"]', InRequiredGroup: false },
     },
+    permit: { RequiredGroup: 'Premium', UserGroups: '["Premium"]', InRequiredGroup: true },
   },
   {
     code: 'mcp-resource-owner-mismatch',
@@ -135,12 +145,28 @@ async function main() {
     // (an empty ActClientId denies as mcp-invalid-actor and would otherwise read
     // as "the depth rule works"). Require the statement code this rule owns.
     const codes = ((r.body && r.body.statements) || []).map((st) => st.code).filter(Boolean);
-    const enforced = r.decision === 'DENY' && codes.includes(rule.code);
-    const mismatch = r.decision === 'DENY' && !enforced;
-    rows.push({ ...rule, decision: r.decision, codes, enforced, mismatch });
+    const denied = r.decision === 'DENY' && codes.includes(rule.code);
+    const mismatch = r.decision === 'DENY' && !denied;
+
+    // Negative control. A rule that denies its bad case AND its good one is not
+    // enforcing anything — it is broken in a way that reads as enforcement, and
+    // is exactly what a one-sided probe cannot see.
+    let discriminates = true;
+    let permitDecision = null;
+    if (denied && rule.permit) {
+      await sleep(1400);
+      const ok = await decide(token, { ...p, ...rule.permit });
+      permitDecision = ok.decision;
+      discriminates = ok.decision === 'PERMIT';
+    }
+
+    const enforced = denied && discriminates;
+    rows.push({ ...rule, decision: r.decision, codes, enforced, mismatch, permitDecision });
     console.log(
       `  ${enforced ? 'live   ' : 'MISSING'} ${rule.label.padEnd(44)} ${String(r.decision).padEnd(7)}`
-      + `[${codes.join('+') || '-'}]${mismatch ? '  <- DENY, but not this rule' : ''}`,
+      + `[${codes.join('+') || '-'}]`
+      + (mismatch ? '  <- DENY, but not this rule' : '')
+      + (denied && !discriminates ? `  <- denies its ALLOWED case too (${permitDecision}) — not discriminating` : ''),
     );
   }
 
