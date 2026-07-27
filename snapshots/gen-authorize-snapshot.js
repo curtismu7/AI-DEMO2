@@ -69,11 +69,24 @@ const ATTR = {
   IntentTokenError: '12345678-0023-4321-abcd-000000000023',
   UserRole: '12345678-0024-4321-abcd-000000000024',
 };
-// The two accepted gateway identities (step 0) are read from these SoT resource
+// The accepted gateway identities (step 0) are read from these SoT resource
 // entries — the same identities the runtime accepts (PG_GATEWAY_RESOURCE_URI +
 // PG_GATEWAY_RESOURCE_ID; groovy p1az-decision.groovy acceptedAuds). Never
 // hardcode the URIs here (REGRESSION_PLAN §3).
-const GATEWAY_RESOURCE_NAMES = ['Super Banking MCP Gateway', 'Super Banking PingGateway MCP'];
+//
+// The A2A gateway MUST be in this list. Its resource was added to the SoT after
+// this constant was written, so the generated snapshot accepted only two of the
+// three identities the runtime accepts (MCP_GW_RESOURCE_URI carries all three).
+// Importing that snapshot made HasValidMcpAudience false for every A2A token —
+// and rule 45678901-0004 denies NOT that condition — so ALL A2A TRAFFIC WOULD
+// HAVE BEEN DENIED, with the same all-or-nothing shape as the step-0 blocker
+// this reconcile pass exists to prevent. Adding a gateway resource to the SoT
+// means adding it here; snapshotAudienceParity.test.js now fails if it does not.
+const GATEWAY_RESOURCE_NAMES = [
+  'Super Banking MCP Gateway',
+  'Super Banking PingGateway MCP',
+  'Super Banking A2A MCP Gateway',
+];
 // D-05 anti-bypass blacklist — parity with demo_authz_server/scopeTopology.js
 // upstreamAudiences(): the SoT upstream resources plus the banking RS (env-driven
 // with the same default), minus the gateway's own URI.
