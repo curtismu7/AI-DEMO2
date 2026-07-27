@@ -55,9 +55,33 @@ describe('getAuthorizationPoliciesFromSnapshot testCases wiring', () => {
     expect(tc.avoid.parameters.UserId).toBe('demoUser');
   });
 
+  // Was pinned to one literal id and broke when the registered-actor list grew
+  // from 7 to 11 (the A2A specialists were never added). The test's own NAME
+  // says "a registered actor id" — so assert membership in the list the policy
+  // actually carries, not one arbitrary member of it. Pinning the identity
+  // asserted the solver's ordering, which is not the property that matters.
   test('MCP Deny — Invalid Actor Chain: avoid uses a registered actor id', () => {
     const tc = findRule(policies, 'MCP Deny — Invalid Actor Chain').testCases;
-    expect(tc.avoid.parameters.ActClientId).toBe('f4dd707d-f78d-4417-ba56-dc8707d10a1f');
+
+    // The service exposes only testCases on a rule, not its condition, so the
+    // registered set is read from the snapshot — the same artifact the policy
+    // is generated into.
+    const snap = require('../../../snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json');
+    const actorCond = snap.find((o) => o.name === 'HasValidActorChain');
+    const registered = [];
+    const collect = (n) => {
+      if (!n || typeof n !== 'object') return;
+      const v = n.comparison && n.comparison.right && n.comparison.right.constant;
+      if (v && typeof v.value === 'string') registered.push(v.value);
+      Object.values(n).forEach(collect);
+    };
+    collect(actorCond && actorCond.condition);
+
+    expect(registered.length).toBeGreaterThan(0);
+    expect(registered).toContain(tc.avoid.parameters.ActClientId);
+    // The control: the triggering case must NOT be a registered actor, or this
+    // rule would deny valid callers.
+    expect(registered).not.toContain(tc.trigger.parameters.ActClientId);
   });
 
   test('MCP Require HITL Consent for sensitive tools: trigger uses a gated tool with HitlApproved false', () => {

@@ -51,6 +51,7 @@ const ATTR = {
   Amount: '12345678-0001-4321-abcd-000000000001',
   UserId: '12345678-0003-4321-abcd-000000000003',
   ToolName: '12345678-0008-4321-abcd-000000000008',
+  ActClientId: '12345678-0010-4321-abcd-000000000010',
   ActChainDepth: '12345678-0014-4321-abcd-000000000014',
   HitlApproved: '12345678-0013-4321-abcd-000000000013',
   DecisionContext: '12345678-0007-4321-abcd-000000000007',
@@ -101,6 +102,7 @@ const BANKING_RS_URI_DEFAULT = 'https://banking-resource-server.ping.demo';
 // unconditional PERMIT — no MCP delegation rule ever ran for tool discovery.
 const MCP_DECISION_CONTEXTS = ['McpFirstTool', 'McpToolCall', 'McpToolsList', 'McpRequest'];
 const COND = {
+  HasValidActorChain: '23456789-0009-4321-abcd-000000000009',
   HasMFAAuthentication: '23456789-0003-4321-abcd-000000000003',
   RequiresA2aDelegation: '23456789-0011-4321-abcd-000000000011',
   HasValidMcpAudience: '23456789-0007-4321-abcd-000000000007',
@@ -373,6 +375,62 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
         'A2A delegation is required for this tool: the call did not arrive through a two-hop act '
         + 'chain (specialist delegated by the generalist). The generalist acting alone is denied.',
     });
+  }
+
+  // 1d) HasValidActorChain — the A2A specialists were never added to it.
+  //
+  // The condition is an OR of `ActClientId Equals <registered actor>`. It
+  // carried 7 ids; the tenant has 9 A2A specialists. The four missing
+  // (tax, finaid, supplier, holdings) map EXACTLY to the four verticals that
+  // failed verify:a2a-policy with depth2=DENY after the policy import —
+  // government, university, manufacturing, investment. They were denied by THIS
+  // rule (mcp-invalid-actor), not by the delegation-depth rule, so a correct
+  // two-hop chain was rejected for having an unrecognised specialist.
+  //
+  // UNION, never replace. The client ids live only in demo_api_server/.env,
+  // which is gitignored — so a checkout without it (CI, a fresh clone, another
+  // worktree) must not be able to SHRINK the list and silently un-register a
+  // specialist. Ids already in the snapshot are always kept; env only adds.
+  // That also keeps `--check` deterministic: a machine with no .env regenerates
+  // byte-identical output instead of failing the drift gate.
+  const actorCond = byId.get(COND.HasValidActorChain);
+  if (actorCond) {
+    const existing = [];
+    const collect = (n) => {
+      if (!n || typeof n !== 'object') return;
+      const v = n.comparison && n.comparison.right && n.comparison.right.constant;
+      if (v && typeof v.value === 'string') existing.push(v.value);
+      Object.values(n).forEach(collect);
+    };
+    collect(actorCond.condition);
+
+    const fromEnv = Object.keys(process.env)
+      .filter((k) => /^PINGONE_A2A_[A-Z0-9]+_AGENT_CLIENT_ID$/.test(k))
+      .map((k) => (process.env[k] || '').trim())
+      .filter(Boolean);
+
+    const actors = [...new Set([...existing, ...fromEnv])].sort();
+    if (actors.length > existing.length) {
+      console.log(`  actor chain: +${actors.length - existing.length} specialist id(s) from env`);
+    }
+    actorCond.description =
+      `ActClientId is one of the registered chain identities (${actors.length}): the MCP Token `
+      + `Exchanger, the AI Agent, and each A2A specialist. A two-hop chain whose specialist is not `
+      + `listed here is denied as an invalid actor, regardless of chain depth. Union of the ids `
+      + `already in the snapshot and PINGONE_A2A_*_AGENT_CLIENT_ID — never shrinks.`;
+    // The RULE description is what a reader sees in the policy UI. It said
+    // "any of the 5 A2A specialist agents" while the list held 7 and the tenant
+    // had 9 — a stale count is how nobody noticed four specialists were absent.
+    const actorRule = byId.get('45678901-0006-4321-abcd-000000000006');
+    if (actorRule) {
+      actorRule.description =
+        `DENY when ActClientId is not one of the ${actors.length} registered chain identities `
+        + `(the MCP Token Exchanger, the AI Agent, and each A2A specialist). Validates the RFC 8693 `
+        + `delegation chain has a known registered actor. Generated — do not hand-edit the list.`;
+    }
+    actorCond.condition = { or: { conditions: actors.map((id) => ({
+      comparison: { left: { attribute: { id: ATTR.ActClientId } }, op: 'Equals', right: { constant: { value: id } } },
+    })) } };
   }
 
   // 2) Ensure RequiresMcpStepUp condition (step_up tool list AND no MFA yet).
