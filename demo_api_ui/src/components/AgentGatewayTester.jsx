@@ -744,9 +744,10 @@ export default function AgentGatewayTester() {
           ) : resp ? (
             <>
               <div className="inspector-shell-output-body">
+                {outputTab === 'form' && <JsonFormView value={resultValue} />}
+                {outputTab !== 'form' && (
                 <pre className="inspector-shell-output-code">
                   {outputTab === 'result' && <JsonHighlight value={resultValue} />}
-                  {outputTab === 'form' && <JsonFormView value={resultValue} />}
                   {outputTab === 'audit' && (
                     <JsonHighlight value={resp.gwAuditTrail || { note: 'No audit trail on this response.' }} />
                   )}
@@ -892,6 +893,7 @@ export default function AgentGatewayTester() {
                     </>
                   )}
                 </pre>
+                )}
               </div>
               <div className="inspector-shell-output-footer">
                 <span>

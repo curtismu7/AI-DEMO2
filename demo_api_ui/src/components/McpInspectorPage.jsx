@@ -498,9 +498,13 @@ function useBankingSource() {
         {outputContent ? (
           <>
             <div className="inspector-shell-output-body">
-              <pre className="inspector-shell-output-code">
-                {outputTab === 'form' ? <JsonFormView value={outputContent} /> : <JsonHighlight value={outputContent} deep />}
-              </pre>
+              {outputTab === 'form' ? (
+                <JsonFormView value={outputContent} />
+              ) : (
+                <pre className="inspector-shell-output-code">
+                  <JsonHighlight value={outputContent} deep />
+                </pre>
+              )}
             </div>
             <div className="inspector-shell-output-footer">
               <span><strong>Status:</strong> {lastTiming?.error ? 'Error' : lastTiming ? '200 OK' : '-'}</span>
@@ -743,13 +747,13 @@ function usePingOneSource() {
         {lastCall ? (
           <>
             <div className="inspector-shell-output-body">
-              <pre className="inspector-shell-output-code">
-                {outputTab === 'form' ? (
-                  <JsonFormView value={lastCall.response} />
-                ) : (
+              {outputTab === 'form' ? (
+                <JsonFormView value={lastCall.response} />
+              ) : (
+                <pre className="inspector-shell-output-code">
                   <JsonHighlight value={outputTab === 'response' ? lastCall.response : lastCall.request} deep />
-                )}
-              </pre>
+                </pre>
+              )}
             </div>
             <div className="inspector-shell-output-footer">
               <span><strong>Status:</strong> {lastCall.error ? 'Error' : '200 OK'}</span>
@@ -910,12 +914,15 @@ function useApiCallsSource() {
         {selectedCall ? (
           <>
             <div className="inspector-shell-output-body">
-              <pre className="inspector-shell-output-code">
-                {outputTab === 'response' && (selectedCall.response?.body ? <JsonHighlight value={selectedCall.response.body} /> : <span style={{ color: '#64748b', fontStyle: 'italic' }}>No response body captured</span>)}
-                {outputTab === 'request' && (selectedCall.request?.body ? <JsonHighlight value={selectedCall.request.body} /> : <span style={{ color: '#64748b', fontStyle: 'italic' }}>No request body</span>)}
-                {outputTab === 'headers' && (selectedCall.request?.headers && Object.keys(selectedCall.request.headers).length > 0 ? <JsonHighlight value={selectedCall.request.headers} /> : <span style={{ color: '#64748b', fontStyle: 'italic' }}>No headers captured</span>)}
-                {outputTab === 'form' && (selectedCall.response?.body ? <JsonFormView value={selectedCall.response.body} /> : <span style={{ color: '#64748b', fontStyle: 'italic' }}>No response body captured</span>)}
-              </pre>
+              {outputTab === 'form' ? (
+                selectedCall.response?.body ? <JsonFormView value={selectedCall.response.body} /> : <span style={{ color: '#64748b', fontStyle: 'italic' }}>No response body captured</span>
+              ) : (
+                <pre className="inspector-shell-output-code">
+                  {outputTab === 'response' && (selectedCall.response?.body ? <JsonHighlight value={selectedCall.response.body} /> : <span style={{ color: '#64748b', fontStyle: 'italic' }}>No response body captured</span>)}
+                  {outputTab === 'request' && (selectedCall.request?.body ? <JsonHighlight value={selectedCall.request.body} /> : <span style={{ color: '#64748b', fontStyle: 'italic' }}>No request body</span>)}
+                  {outputTab === 'headers' && (selectedCall.request?.headers && Object.keys(selectedCall.request.headers).length > 0 ? <JsonHighlight value={selectedCall.request.headers} /> : <span style={{ color: '#64748b', fontStyle: 'italic' }}>No headers captured</span>)}
+                </pre>
+              )}
             </div>
             <div className="inspector-shell-output-footer">
               <span><strong>Status:</strong> {status != null ? status : 'N/A'}</span>
@@ -1426,9 +1433,13 @@ function useCustomServerSource() {
         {outputContent ? (
           <>
             <div className="inspector-shell-output-body">
-              <pre className="inspector-shell-output-code">
-                {outputTab === 'form' ? <JsonFormView value={outputContent} /> : <JsonHighlight value={outputContent} deep />}
-              </pre>
+              {outputTab === 'form' ? (
+                <JsonFormView value={outputContent} />
+              ) : (
+                <pre className="inspector-shell-output-code">
+                  <JsonHighlight value={outputContent} deep />
+                </pre>
+              )}
             </div>
             <div className="inspector-shell-output-footer">
               <span><strong>Status:</strong> {lastTiming?.error ? 'Error' : lastTiming ? '200 OK' : '-'}</span>
