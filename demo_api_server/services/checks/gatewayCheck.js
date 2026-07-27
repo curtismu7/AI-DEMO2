@@ -1,7 +1,10 @@
 'use strict';
 const { callPingGateway } = require('../pingGatewayClient');
-const oauth = require('../oauthService');
-const configStore = require('../configStore');
+// Static, NOT a lazy require inside run(): the jest setup calls resetModules(),
+// which gives a lazy require a FRESH module and silently bypasses jest.mock —
+// the check then passes in isolation while failing under test for no visible
+// reason. Same landmine as the LLM intent-grammar suite.
+const { resolveMcpAccessTokenWithEvents } = require('../agentMcpTokenService');
 const { register } = require('./registry');
 
 // Read-only banking tool for the mcp-call probe. Confirmed against
@@ -31,14 +34,23 @@ const realPath = {
 
     let gwToken;
     try {
-      // PingGateway (IG) requires the token aud to be its HTTPS resource URI
-      // and a coarse gateway-invoke scope — not the demo/Node gateway audience.
-      // Matches resolveExpectedMcpResourceUri() (mcpToolAuthorizationService.js)
-      // and the Exchange #2 aud/scope resolution in agentMcpTokenService.js.
-      const aud = configStore.getEffective('pingone_resource_pinggateway_uri');
-      const scope = configStore.getEffective('gateway_mcp_invoke_scope') || 'gateway:mcp:invoke';
-      gwToken = await oauth.performTokenExchange(userToken, aud, [scope]);
-    } catch (err) { return fail('token-exchange', err.message); }
+      // Mint the token the way the DEMO does, not a bespoke exchange.
+      //
+      // This used to call performTokenExchange directly with an aud/scope pair
+      // assembled here. Both resolved correctly (aud
+      // https://api.ping.demo:3036/mcp, scope gateway:mcp:invoke — identical to
+      // what IG sees on a working call), and IG still answered 401. A token that
+      // merely carries the right aud and scope is not the same token the real
+      // path presents: resolveMcpAccessTokenWithEvents does the full two-exchange
+      // chain and the surrounding context the gateway authenticates against.
+      //
+      // A check that mints its own credential does not test the demo — it tests
+      // the check. Using the production path means a red here is a real finding
+      // about the demo, which is the only kind worth showing before a talk.
+      const minted = await resolveMcpAccessTokenWithEvents(ctx.req, TOOL_NAME, {});
+      gwToken = typeof minted === 'string' ? minted : (minted && (minted.token || minted.accessToken));
+      if (!gwToken) return fail('token-exchange', 'no MCP access token was minted for this session');
+    } catch (err) { return fail('token-exchange', (err && (err.message || err.code)) || 'token minting failed'); }
 
     // ONE authenticated tools/call. There is deliberately no /introspect or
     // /authorize hop: those were written for the Node demo gateway, but this
