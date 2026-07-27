@@ -25,6 +25,7 @@ const QUICK_FLAGS = [
   { id: 'ciba_enabled',                 group: 'AuthN / AuthZ',   control: 'toggle',    label: 'CIBA — Out-of-Band Approval' },
   { id: 'ff_heuristic_enabled',         group: 'Agent',           control: 'toggle',    label: 'Routing — Fallback to Heuristics' },
   { id: 'ff_agent_results_panel',       group: 'Agent',           control: 'toggle',    label: 'Floating Results Panel' },
+  { id: 'ff_preflight_modal',           group: 'Agent',           control: 'toggle',    label: 'Preflight Modal' },
   { id: 'ff_helix_lmstudio_fallback',   group: 'Agent',           control: 'toggle',    label: 'Helix → LM Studio Fallback' },
   { id: 'ff_knowledge_grounding',             group: 'Agent',           control: 'toggle',    label: '📚 Knowledge Grounding' },
   { id: 'ff_tracing',                   group: 'Observability',   control: 'toggle',    label: 'Tracing (OTel → Jaeger)' },
