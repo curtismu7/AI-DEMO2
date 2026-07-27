@@ -52,8 +52,9 @@
 }
 .ib-grant-json {
   margin: 8px 0 0;
-  background: #12182380;
-  color: #e6eaf1;
+  background: #ffffff;
+  color: #1a1f28;
+  border: 1px solid var(--border-color, #d8dde5);
   border-radius: 8px;
   padding: 10px 12px;
   font-size: 0.78rem;
