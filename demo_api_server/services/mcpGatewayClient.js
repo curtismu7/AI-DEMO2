@@ -40,6 +40,11 @@ const _httpsAgent = new https.Agent({ rejectUnauthorized: !_allowInsecureTls });
 const DEFAULT_TIMEOUT_MS    = 30_000;
 // Keep in sync with demo_mcp_gateway and demo_mcp_server package.json#mcpVersion.
 const MCP_PROTOCOL_VERSION  = '2025-11-25';
+// PingGateway (IG) ships an older MCP SDK that validates against this exact
+// version and 400s on anything else. Exported so gateway.real_path pins the
+// same value rather than keeping a second copy that can drift from the client
+// it is supposed to be imitating.
+const IG_MCP_PROTOCOL_VERSION = '2025-06-18';
 
 // api-key-disposition tools: PingGateway (IG) singles these out onto a dedicated
 // /mcp/apikey path so its route (00-mcp-apikey.json) hands them to the vault-key
@@ -156,7 +161,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
 
     // PingGateway (IG) ships with an older MCP SDK that validates against
     // 2025-06-18; the Node gateway and MCP server use the current 2025-11-25.
-    const mcpVersion = isIgBase ? '2025-06-18' : MCP_PROTOCOL_VERSION;
+    const mcpVersion = isIgBase ? IG_MCP_PROTOCOL_VERSION : MCP_PROTOCOL_VERSION;
     const headers = {
         'Authorization':        `Bearer ${bearerToken}`,
         'Content-Type':         'application/json',
@@ -864,6 +869,7 @@ function _normalizeGatewayNetworkError(axErr, timeoutMs) {
 }
 
 module.exports = {
+    IG_MCP_PROTOCOL_VERSION,
     callToolViaGateway,
     callToolViaResolvedGateway,
     getMcpGatewayHttpUrl,

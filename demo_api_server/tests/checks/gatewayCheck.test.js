@@ -64,6 +64,18 @@ describe('gatewayCheck.real_path', () => {
       .toBe('application/json, text/event-stream');
   });
 
+  // ...and then 400 "Missing, malformed or unsupported MCP-Protocol-Version".
+  // Pinned to the SAME exported constant the production client uses, so an IG
+  // upgrade cannot leave the check imitating a version nothing sends.
+  test('pins the MCP protocol version IG accepts', async () => {
+    const { IG_MCP_PROTOCOL_VERSION } = require('../../services/mcpGatewayClient');
+    agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue('gw-token');
+    callPingGateway.mockResolvedValueOnce({ statusCode: 200, body: { result: { ok: true } } });
+    await realPath.run(ctxWithToken);
+    expect(callPingGateway.mock.calls[0][3].headers['MCP-Protocol-Version'])
+      .toBe(IG_MCP_PROTOCOL_VERSION);
+  });
+
   test('does NOT probe /introspect or /authorize (they 404 on IG)', async () => {
     agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue('gw-token');
     callPingGateway.mockResolvedValueOnce({ statusCode: 200, body: { result: { ok: true } } });
