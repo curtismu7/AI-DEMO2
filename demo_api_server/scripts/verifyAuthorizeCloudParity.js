@@ -59,10 +59,20 @@ const { decide, params, workerToken } = require('./verifyA2aDelegationPolicy');
 const RULES = [
   {
     code: 'mcp-invalid-a2a-generalist',
-    label: 'A2A delegation — act chain depth >= 2',
-    mockRule: 'Rule 1c',
+    label: 'A2A — act chain depth >= 2',
+    mockRule: 'Rule 1c (depth half)',
+    deny: { tool: 'sensitive_patient_records', vertical: 'healthcare', depth: 1 },
+  },
+  {
+    // The imported statement is about the NESTED GENERALIST, not depth — the mock
+    // Rule 1c does both and the cloud policy only got the second half. Probing
+    // depth alone reported the whole rule missing and hid that half of it landed.
+    code: 'mcp-invalid-actor',
+    label: 'A2A — nested generalist is the registered agent',
+    mockRule: 'Rule 1c (generalist half)',
     deny: {
-      tool: 'sensitive_patient_records', vertical: 'healthcare', depth: 1,
+      tool: 'sensitive_patient_records', vertical: 'healthcare', depth: 2,
+      extra: { NestedActClientId: '00000000-0000-4000-8000-0000000000ff', MayActSub: '00000000-0000-4000-8000-0000000000ff' },
     },
   },
   {
@@ -78,13 +88,15 @@ const RULES = [
     code: 'mcp-user-not-in-group',
     label: 'group membership (UC9)',
     mockRule: 'Rule 3.5b',
+    // UserGroups POPULATED with a different group. An empty list is also a mock
+    // DENY, but it cannot distinguish "rule enforced" from "attribute ignored".
     deny: {
       tool: 'get_my_accounts', vertical: 'banking', depth: 1,
-      extra: { RequiredGroup: 'Premium', UserGroups: '' },
+      extra: { RequiredGroup: 'Premium', UserGroups: '["Standard"]' },
     },
   },
   {
-    code: 'mcp-authorization-denied',
+    code: 'mcp-resource-owner-mismatch',
     label: 'resource ownership (UC10)',
     mockRule: 'Rule 3.5a',
     deny: {
@@ -119,10 +131,16 @@ async function main() {
     await sleep(1400);
     const p = { ...params({ tool: rule.deny.tool, depth: rule.deny.depth, vertical: rule.deny.vertical }), ...(rule.deny.extra || {}) };
     const r = await decide(token, p);
-    const enforced = r.decision === 'DENY';
-    rows.push({ ...rule, decision: r.decision, enforced });
+    // A DENY alone is not proof: the endpoint can deny for an unrelated reason
+    // (an empty ActClientId denies as mcp-invalid-actor and would otherwise read
+    // as "the depth rule works"). Require the statement code this rule owns.
+    const codes = ((r.body && r.body.statements) || []).map((st) => st.code).filter(Boolean);
+    const enforced = r.decision === 'DENY' && codes.includes(rule.code);
+    const mismatch = r.decision === 'DENY' && !enforced;
+    rows.push({ ...rule, decision: r.decision, codes, enforced, mismatch });
     console.log(
-      `  ${enforced ? 'live  ' : 'MISSING'} ${rule.label.padEnd(38)} ${String(r.decision)}   (mock ${rule.mockRule}, code ${rule.code})`,
+      `  ${enforced ? 'live   ' : 'MISSING'} ${rule.label.padEnd(44)} ${String(r.decision).padEnd(7)}`
+      + `[${codes.join('+') || '-'}]${mismatch ? '  <- DENY, but not this rule' : ''}`,
     );
   }
 
@@ -139,13 +157,20 @@ async function main() {
   console.log(`[cloud-parity] FAIL — ${missing.length} of ${rows.length} authored rules are NOT live:`);
   for (const m of missing) console.log(`      ${m.label}  (${m.code})`);
   console.log('');
-  console.log('  These rules exist in the generated snapshot and run in authz-server, but the');
-  console.log('  live decision endpoint permits what they deny. Until the snapshot is imported,');
-  console.log('  authz-server is the ONLY place they run — so pointing the Agent Gateway at the');
-  console.log('  cloud would remove them while making the demo look more legitimate.');
+  console.log('  These rules run in authz-server but the live decision endpoint permits what');
+  console.log('  they deny, so authz-server is the ONLY place they run. Pointing the Agent');
+  console.log('  Gateway at the cloud now would remove exactly these while making the demo');
+  console.log('  look more legitimate.');
   console.log('');
-  console.log('  Fix (console, needs the Authorization Admin role — the demo worker is 403 on');
-  console.log('  the policy APIs): import the reconciled snapshot, then re-run this script.');
+  console.log('  The 2026-07-27 import DID land — resource ownership and the A2A nested-');
+  console.log('  generalist check went live, and the endpoint returns real statement codes.');
+  console.log('  What is missing was never authored cloud-side, so re-importing the same');
+  console.log('  snapshot will not fix it. Each rule above needs a condition in the console');
+  console.log('  (Authorization Admin role — the demo worker is 403 on the policy APIs).');
+  console.log('');
+  console.log('  Note: act-chain DEPTH and the nested-generalist check are two halves of mock');
+  console.log('  Rule 1c. The second half is live; the first is not. A specialist token still');
+  console.log('  gets in on depth 1, which is the control UC2 exists to demonstrate.');
   process.exit(1);
 }
 
