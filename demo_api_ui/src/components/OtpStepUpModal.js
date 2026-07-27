@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import DraggableModal from './DraggableModal';
-import { registerPasskey } from '../utils/passkeyCeremony';
+import { registerPasskey, normalizePublicKeyRequestOptions } from '../utils/passkeyCeremony';
 import { normalizePhoneE164, describePasskeyRegistrationError } from '../utils/mfaEnrollment';
 
 /**
@@ -512,14 +512,6 @@ export default function OtpStepUpModal({
 
   const handleFidoAssertion = async (daIdOverride) => {
     const useDaId = daIdOverride || daId;
-    // Decode base64url string -> Uint8Array for WebAuthn input fields.
-    const b64ToBytes = (s) => {
-      if (!s || typeof s !== 'string') {
-        throw new Error('Invalid base64url string');
-      }
-      const p = s.replace(/-/g, '+').replace(/_/g, '/').replace(/=+$/, '');
-      return Uint8Array.from(atob(p + '='.repeat((4 - (p.length % 4)) % 4)), (c) => c.charCodeAt(0));
-    };
     // Encode ArrayBuffer -> base64url (PingOne expects base64url, not standard base64).
     const bufToB64url = (buf) => {
       const bytes = new Uint8Array(buf);
@@ -533,15 +525,15 @@ export default function OtpStepUpModal({
       });
       if (!statusResp.ok) throw new Error('Failed to get FIDO options');
       const statusData = await statusResp.json();
-      const options = statusData.publicKeyCredentialRequestOptions;
+      const rawOptions = statusData.publicKeyCredentialRequestOptions;
 
-      if (!options) throw new Error('No FIDO options available');
+      if (!rawOptions) throw new Error('No FIDO options available');
 
-      // Decode challenge and allowCredentials ids from base64url -> Uint8Array.
-      options.challenge = b64ToBytes(options.challenge);
-      if (Array.isArray(options.allowCredentials)) {
-        options.allowCredentials = options.allowCredentials.map((c) => ({ ...c, id: b64ToBytes(c.id) }));
-      }
+      // PingOne returns these options as a JSON *string*, with challenge and
+      // allowCredentials[].id as signed byte arrays (not base64url strings).
+      // normalizePublicKeyRequestOptions parses + decodes both shapes; a
+      // string-only decoder here threw before navigator.credentials.get() ever ran.
+      const options = normalizePublicKeyRequestOptions(rawOptions);
 
       const credential = await navigator.credentials.get({ publicKey: options });
       if (!credential) throw new Error('No credential returned');

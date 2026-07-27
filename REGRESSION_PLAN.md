@@ -102,6 +102,41 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-27 — Step-up passkey (FIDO2) verification never reached the browser: options decoder rejected PingOne's real byte-array shape
+
+**Files changed:** `demo_api_ui/src/components/OtpStepUpModal.js`,
+`demo_api_ui/src/components/__tests__/OtpStepUpModal.fidoAssertion.test.jsx` (new).
+
+**What was broken:** `handleFidoAssertion` decoded the WebAuthn challenge with
+its own local `b64ToBytes`, which threw `Invalid base64url string` on anything
+that is not a string. Live PingOne (env 01d89b06) returns
+`publicKeyCredentialRequestOptions` as a JSON **string** whose `challenge` and
+`allowCredentials[].id` are signed **byte arrays** — captured live as
+`challengeType: "array(32)"`. So the step-up passkey path threw before
+`navigator.credentials.get()` was ever called, and the catch reported the
+generic "Passkey verification failed. Try another method." The recovery branch
+did not fire either: it is gated on `!fidoEnrolled`, which is false whenever the
+user already has a FIDO2 device registered server-side.
+
+**What was fixed:** `handleFidoAssertion` now calls
+`normalizePublicKeyRequestOptions` from `utils/passkeyCeremony` — the same
+array-tolerant helper `Fido2Challenge.js` already uses on the live-proven
+dashboard path — which JSON-parses the string form and decodes both base64url
+and signed-byte-array shapes. The local duplicate decoder was removed.
+
+**Do not break:** the outgoing assertion encoding stays **base64url with no
+`origin` field**. That shape was live-verified end-to-end against PingOne
+(`status: "COMPLETED"`, `completed: true`); do not "align" it with
+`formatPublicKeyCredentialAssertion`'s standard-base64 + `origin` shape without
+re-testing, as the two paths legitimately differ. Only the *decode* was wrong.
+
+**Verify:** `cd demo_api_ui && npm run test:unit` (2342 pass; the 1
+`adminSideNav.test.jsx` failure is pre-existing and reproduces on an untouched
+main checkout) and `npm run build` (exit 0). Revert-to-RED: restore
+`OtpStepUpModal.js` from `HEAD` and
+`OtpStepUpModal.fidoAssertion.test.jsx` fails with the exact defect —
+`Error: Invalid base64url string`, `navigator.credentials.get` never called.
+
 ### 2026-07-27 — Inspector "Form" output tab unreadable on MCP Inspector and PingGateway Inspector; PingOne Authorize had no Form tab
 
 **Files changed:** `demo_api_ui/src/components/McpInspectorPage.jsx`,
