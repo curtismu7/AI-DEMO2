@@ -42,6 +42,33 @@ const BRANCHES = Object.freeze([
     hours: 'Mon–Fri 9:00–17:00, Sat 9:00–13:00',
     atm: true,
   },
+  {
+    id: 'branch-dallas-uptown',
+    name: 'Super Banking Uptown Dallas Branch',
+    city: 'Dallas',
+    state: 'TX',
+    address: '1445 Ross Ave, Dallas, TX 75202',
+    hours: 'Mon–Fri 9:00–18:00',
+    atm: true,
+  },
+  {
+    id: 'branch-miami',
+    name: 'Super Banking Miami Branch',
+    city: 'Miami',
+    state: 'FL',
+    address: '200 S Biscayne Blvd, Miami, FL 33131',
+    hours: 'Mon–Fri 9:00–17:00',
+    atm: true,
+  },
+  {
+    id: 'branch-denver',
+    name: 'Super Banking Denver Branch',
+    city: 'Denver',
+    state: 'CO',
+    address: '1700 Lincoln St, Denver, CO 80203',
+    hours: 'Mon–Fri 9:00–17:00, Sat 10:00–14:00',
+    atm: true,
+  },
 ]);
 
 /**
