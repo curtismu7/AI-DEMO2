@@ -110,3 +110,6 @@ demo_api_server/data/persistent/lmdb/lock.mdb
 *-keys.txt
 *.key
 
+
+# pac.jar is a 33MB Ping-supplied binary — set PAC_JAR instead of committing it.
+/pac/pac.jar
