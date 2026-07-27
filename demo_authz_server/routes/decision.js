@@ -127,6 +127,7 @@ const DENY_CODE_BY_REASON_PREFIX = {
   amount_exceeds_ceiling: 'transaction-denied',
   tier_tool_not_allowed: 'mcp-tier-tool-not-allowed',
   tier_amount_exceeded: 'mcp-tier-amount-exceeded',
+  invalid_kid: 'mcp-invalid-kid',
 };
 // Every deny without a specific cloud rule maps to the shared MCP deny statement
 // (the cloud snapshot multi-parents this one across all seven MCP deny rules).
@@ -279,6 +280,27 @@ module.exports = async function decisionHandler(req, res) {
   if (!ClientId || !asStr(ClientId).trim()) {
     warn(`[AuthzServer/decision] DENY — missing sub`);
     return deny(res, 'missing_sub: token must carry a non-empty sub claim');
+  }
+
+  // ── Rule 0a-2: signing-key identity ───────────────────────────────────────
+  // Parity with the cloud rule "MCP Deny — Invalid Signing Key"
+  // (snapshots/gen-authorize-snapshot.js, statement mcp-invalid-kid) and with
+  // simulatedAuthorizeService's invalid_kid guard.
+  //
+  // STRICTLY `=== false`. TokenKidKnown is a caller-resolved tri-state and the
+  // caller OMITS it when membership is unknown (no kid, JWKS unreachable, or a
+  // token from an issuer whose keyset this PDP has no business judging). Absent
+  // MUST stay inert — the cloud attribute defaults TRUE for the same reason.
+  // Treating absent/falsy as a deny would break every caller that does not send
+  // this parameter, which today is all of them.
+  //
+  // Key-IDENTITY check, not signature verification.
+  if (params.TokenKidKnown === false) {
+    warn(`[AuthzServer/decision] DENY — invalid_kid: kid "${asStr(params.TokenKid)}" is not published in the issuer JWKS`);
+    return deny(res,
+      `invalid_kid: the token header names signing key "${asStr(params.TokenKid)}" which is not published in the ` +
+      `issuer's JWKS. Key-identity check, not signature verification.`,
+    );
   }
 
   // ── Rule 0b: aud must include the gateway resource URI ────────────────────

@@ -37,6 +37,9 @@ jest.mock('../../services/hitlServiceClient', () => ({
 jest.mock('../../services/jwksService', () => ({
   hasKid: jest.fn(),
 }));
+jest.mock('../../services/oauthEndpointResolver', () => ({
+  getIssuer: jest.fn(() => 'https://auth.pingone.com/env-123/as'),
+}));
 
 const configStore = require('../../services/configStore');
 const pingOneAuthorizeService = require('../../services/pingOneAuthorizeService');
@@ -923,6 +926,8 @@ describe('mcpToolAuthorizationService', () => {
   // Signing-key identity reaches the PDP. kid lives in the token HEADER,
   // which decodeJwt already returns and every caller so far discarded.
   describe('signing-key (kid) forwarding', () => {
+    const PINGONE_ISS = 'https://auth.pingone.com/env-123/as';
+
     /** Build a JWT with an explicit header so kid is present. */
     const jwtWithHeader = (header, payload) => {
       const h = Buffer.from(JSON.stringify(header), 'utf8').toString('base64url');
@@ -955,7 +960,7 @@ describe('mcpToolAuthorizationService', () => {
     it('forwards the header kid and its resolved JWKS membership', async () => {
       jwksService.hasKid.mockResolvedValue(true);
       await callWith(jwtWithHeader(
-        { alg: 'RS256', kid: 'kid-abc' }, { sub: 'u1', aud: 'mcp' },
+        { alg: 'RS256', kid: 'kid-abc' }, { sub: 'u1', aud: 'mcp', iss: PINGONE_ISS },
       ));
       expect(jwksService.hasKid).toHaveBeenCalledWith('kid-abc');
       expect(pingOneAuthorizeService.evaluateMcpToolDelegation)
@@ -967,7 +972,7 @@ describe('mcpToolAuthorizationService', () => {
     it('forwards tokenKidKnown=false for an unpublished key', async () => {
       jwksService.hasKid.mockResolvedValue(false);
       await callWith(jwtWithHeader(
-        { alg: 'RS256', kid: 'kid-forged' }, { sub: 'u1', aud: 'mcp' },
+        { alg: 'RS256', kid: 'kid-forged' }, { sub: 'u1', aud: 'mcp', iss: PINGONE_ISS },
       ));
       expect(pingOneAuthorizeService.evaluateMcpToolDelegation)
         .toHaveBeenCalledWith(expect.objectContaining({
@@ -979,7 +984,7 @@ describe('mcpToolAuthorizationService', () => {
     it('forwards tokenKidKnown=null when JWKS is unavailable', async () => {
       jwksService.hasKid.mockResolvedValue(null);
       await callWith(jwtWithHeader(
-        { alg: 'RS256', kid: 'kid-abc' }, { sub: 'u1', aud: 'mcp' },
+        { alg: 'RS256', kid: 'kid-abc' }, { sub: 'u1', aud: 'mcp', iss: PINGONE_ISS },
       ));
       expect(pingOneAuthorizeService.evaluateMcpToolDelegation)
         .toHaveBeenCalledWith(expect.objectContaining({
@@ -989,9 +994,40 @@ describe('mcpToolAuthorizationService', () => {
 
     it('forwards tokenKid=null when the header carries no kid', async () => {
       jwksService.hasKid.mockResolvedValue(null);
-      await callWith(jwtWithHeader({ alg: 'none' }, { sub: 'u1', aud: 'mcp' }));
+      await callWith(jwtWithHeader({ alg: 'none' }, { sub: 'u1', aud: 'mcp', iss: PINGONE_ISS }));
       expect(pingOneAuthorizeService.evaluateMcpToolDelegation)
         .toHaveBeenCalledWith(expect.objectContaining({ tokenKid: null }));
+    });
+
+    // A kid is only meaningful against the keyset of the issuer that minted it.
+    // jwksService resolves PingOne's JWKS, so a token from a DIFFERENT issuer
+    // must never be judged against it.
+    //
+    // Concrete case this protects: clientCredentialsTokenService signs local
+    // demo tokens with keyid 'client-credentials-key', which is by definition
+    // absent from PingOne's JWKS. Judging it there returns false -> DENY, in
+    // simulated mode (the demo default) as well as live.
+    it('does NOT consult the JWKS for a token from another issuer', async () => {
+      jwksService.hasKid.mockResolvedValue(false); // would DENY if consulted
+      await callWith(jwtWithHeader(
+        { alg: 'RS256', kid: 'client-credentials-key' },
+        { sub: 'u1', aud: 'mcp', iss: 'https://local.demo/oauth' },
+      ));
+      expect(jwksService.hasKid).not.toHaveBeenCalled();
+      expect(pingOneAuthorizeService.evaluateMcpToolDelegation)
+        .toHaveBeenCalledWith(expect.objectContaining({
+          tokenKid: 'client-credentials-key', tokenKidKnown: null,
+        }));
+    });
+
+    it('does NOT consult the JWKS when the token carries no issuer', async () => {
+      jwksService.hasKid.mockResolvedValue(false);
+      await callWith(jwtWithHeader(
+        { alg: 'RS256', kid: 'kid-abc' }, { sub: 'u1', aud: 'mcp' },
+      ));
+      expect(jwksService.hasKid).not.toHaveBeenCalled();
+      expect(pingOneAuthorizeService.evaluateMcpToolDelegation)
+        .toHaveBeenCalledWith(expect.objectContaining({ tokenKidKnown: null }));
     });
   });
 });
