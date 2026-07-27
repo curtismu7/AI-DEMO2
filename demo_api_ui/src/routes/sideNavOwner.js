@@ -36,6 +36,9 @@ export function normalizePath(pathname) {
  */
 export function appRendersSideNav({ pathname, user }) {
   const pathNorm = normalizePath(pathname);
+  // /dashboard shows the side nav even logged-out (guests see demo data there,
+  // same as the rest of the page — see App.js's /dashboard route comment).
+  if (pathNorm === "/dashboard") return true;
   return Boolean(user) && !isNoChromeRoute(pathNorm) && pathNorm !== "/";
 }
 
