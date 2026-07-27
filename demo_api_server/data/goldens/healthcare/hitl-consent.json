@@ -4,9 +4,9 @@
   "ucId": "UC8",
   "trigger": "pay my $300 bill",
   "expectedOutcome": "HITL_REQUIRED",
-  "capturedAt": "2026-07-17T15:13:04.379Z",
+  "capturedAt": "2026-07-27T00:19:56.082Z",
   "seedHash": "956244bc8453547f",
-  "reply": "Simulated authorization policy requires human approval before MCP tools (education mode).",
+  "reply": "PingOne Authorize requires human approval before MCP tools can run.",
   "requiresConsent": true,
   "agentPath": null,
   "tokenEventCount": 13

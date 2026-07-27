@@ -1,13 +1,27 @@
 {
-  "capturedAt": "2026-07-26T23:50:40.940Z",
-  "captured": 10,
-  "skipped": 2,
+  "capturedAt": "2026-07-27T00:21:52.457Z",
+  "captured": 84,
+  "skipped": 16,
   "byReason": {
     "unhealthy_result": {
-      "count": 2,
+      "count": 16,
       "pairs": [
-        "banking/weather-mcp-texas-deny",
-        "banking/weather-mcp-texas-permit"
+        "banking/weather-mcp-texas-permit",
+        "government/a2a-delegation",
+        "government/weather-mcp-texas-permit",
+        "healthcare/a2a-delegation",
+        "healthcare/weather-mcp-texas-permit",
+        "investment/weather-mcp-texas-permit",
+        "manufacturing/a2a-delegation",
+        "manufacturing/weather-mcp-texas-permit",
+        "retail/a2a-delegation",
+        "retail/weather-mcp-texas-permit",
+        "sporting-goods/a2a-delegation",
+        "sporting-goods/weather-mcp-texas-permit",
+        "university/a2a-delegation",
+        "university/weather-mcp-texas-permit",
+        "workforce/a2a-delegation",
+        "workforce/weather-mcp-texas-permit"
       ]
     }
   },
@@ -20,11 +34,109 @@
       "detail": "HTTP 200: ❌ Error: Tool 'get_weather' is not enabled. Please check your ENABLED_TOOLS configuration."
     },
     {
-      "vertical": "banking",
-      "useCaseId": "weather-mcp-texas-deny",
-      "ucId": "UC31",
+      "vertical": "healthcare",
+      "useCaseId": "a2a-delegation",
+      "ucId": "UC2",
       "reason": "unhealthy_result",
-      "detail": "HTTP 200: ❌ Agent Gateway: weather scope restricted to Texas (demo policy) — city not recognized as Texas"
+      "detail": "HTTP 200: ❌ Token exchange failed for 74d7fafe-67be-452c-9d29-0b54ba59eef8: Request failed: At least one scope must be granted (Correlation ID: df87872f-24e8-4556-8aba-09"
+    },
+    {
+      "vertical": "healthcare",
+      "useCaseId": "weather-mcp-texas-permit",
+      "ucId": "UC30",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ Error: Tool 'get_weather' is not enabled. Please check your ENABLED_TOOLS configuration."
+    },
+    {
+      "vertical": "retail",
+      "useCaseId": "a2a-delegation",
+      "ucId": "UC2",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ Delegated to Purchase History Specialist, but sensitive_order_history failed: mcp_error."
+    },
+    {
+      "vertical": "retail",
+      "useCaseId": "weather-mcp-texas-permit",
+      "ucId": "UC30",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ Error: Tool 'get_weather' is not enabled. Please check your ENABLED_TOOLS configuration."
+    },
+    {
+      "vertical": "government",
+      "useCaseId": "a2a-delegation",
+      "ucId": "UC2",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ Token exchange failed for 9fb0efa4-bf04-4f18-b442-70c9b32e684c: Request failed: At least one scope must be granted (Correlation ID: 303a59fb-0c3a-44ea-871a-e1"
+    },
+    {
+      "vertical": "government",
+      "useCaseId": "weather-mcp-texas-permit",
+      "ucId": "UC30",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ Error: Tool 'get_weather' is not enabled. Please check your ENABLED_TOOLS configuration."
+    },
+    {
+      "vertical": "university",
+      "useCaseId": "a2a-delegation",
+      "ucId": "UC2",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ Token exchange failed for a1dc8b3d-df50-4b57-9c4a-4c34095bea5a: Request failed: At least one scope must be granted (Correlation ID: 6435b870-09ed-4a52-93e1-b9"
+    },
+    {
+      "vertical": "university",
+      "useCaseId": "weather-mcp-texas-permit",
+      "ucId": "UC30",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ Error: Tool 'get_weather' is not enabled. Please check your ENABLED_TOOLS configuration."
+    },
+    {
+      "vertical": "workforce",
+      "useCaseId": "a2a-delegation",
+      "ucId": "UC2",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ Delegated to Payroll Specialist, but sensitive_payroll_details failed: mcp_error."
+    },
+    {
+      "vertical": "workforce",
+      "useCaseId": "weather-mcp-texas-permit",
+      "ucId": "UC30",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ Error: Tool 'get_weather' is not enabled. Please check your ENABLED_TOOLS configuration."
+    },
+    {
+      "vertical": "sporting-goods",
+      "useCaseId": "a2a-delegation",
+      "ucId": "UC2",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ Delegated to Membership Specialist, but sensitive_membership_details failed: mcp_error."
+    },
+    {
+      "vertical": "sporting-goods",
+      "useCaseId": "weather-mcp-texas-permit",
+      "ucId": "UC30",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ Error: Tool 'get_weather' is not enabled. Please check your ENABLED_TOOLS configuration."
+    },
+    {
+      "vertical": "manufacturing",
+      "useCaseId": "a2a-delegation",
+      "ucId": "UC2",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ Token exchange failed for f1ed734a-08d5-4a15-bff7-a84852c1cffd: Request failed: At least one scope must be granted (Correlation ID: d49810dc-cedb-48c5-9ae2-29"
+    },
+    {
+      "vertical": "manufacturing",
+      "useCaseId": "weather-mcp-texas-permit",
+      "ucId": "UC30",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ Error: Tool 'get_weather' is not enabled. Please check your ENABLED_TOOLS configuration."
+    },
+    {
+      "vertical": "investment",
+      "useCaseId": "weather-mcp-texas-permit",
+      "ucId": "UC30",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ Error: Tool 'get_weather' is not enabled. Please check your ENABLED_TOOLS configuration."
     }
   ]
 }

@@ -1,0 +1,12 @@
+{
+  "vertical": "university",
+  "useCaseId": "ai-spot-unusual-patterns",
+  "ucId": "UC34",
+  "trigger": "Check for unusual patterns in my recent activity",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-27T00:20:41.294Z",
+  "seedHash": "55fb07346bdb7866",
+  "reply": "Here are your enrollment history.",
+  "agentPath": null,
+  "tokenEventCount": 19
+}

@@ -4,9 +4,9 @@
   "ucId": "UC6",
   "trigger": "submit a $2500 expense",
   "expectedOutcome": "DENY",
-  "capturedAt": "2026-07-17T15:13:16.583Z",
+  "capturedAt": "2026-07-27T00:20:59.732Z",
   "seedHash": "53b2bac25e5daf21",
-  "reply": "❌ MCP tool access was denied by the simulated authorization policy (education mode).",
+  "reply": "❌ PingOne Authorize denied MCP tool access for this session.",
   "agentPath": null,
   "tokenEventCount": 13
 }

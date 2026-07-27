@@ -4,7 +4,7 @@
   "ucId": "UC7",
   "trigger": "transfer $600 from checking to savings",
   "expectedOutcome": "STEP_UP",
-  "capturedAt": "2026-07-26T23:50:34.706Z",
+  "capturedAt": "2026-07-27T00:19:38.147Z",
   "seedHash": null,
   "reply": "PingOne Authorize requires additional authentication before MCP tools can run.",
   "agentPath": null,
