@@ -19,10 +19,10 @@
  *                   ALLOW_UNSIGNED_TRAT_CONTEXT, INTENT_TOKEN_REQUIRED,
  *                   REQUIRE_ACT_FOR_AGENT_TOOLS ]
  *
- * ...while ff_authorize_simulated was FALSE, i.e. the UI told the audience the
- * decisions were real PingOne Authorize. Standing up and saying "PingOne
- * Authorize denied that" when mock-v1 decided it is the one inaccuracy that
- * matters, because it is the exact claim the demo exists to make.
+ * A mock PDP is worth KNOWING about before you claim real enforcement on stage.
+ * It is not, on its own, a contradiction: ff_authorize_simulated governs the
+ * BFF's in-process transaction authorization, and this gateway never reads it.
+ * An earlier version of this check failed on that pair and was wrong.
  *
  * NOTE ON SCOPE: two gateways decide here, and they disagree. PingGateway (IG)
  * calls real PingOne cloud (api.pingone.com/.../decisionEndpoints/) and serves
@@ -100,47 +100,28 @@ const posture = {
 
     // The demo claims real Authorize unless it says otherwise. Reading the flag
     // rather than assuming, so turning simulation ON deliberately is not a fail.
-    const simulated = configStore.getEffective('ff_authorize_simulated');
-    const pgw = configStore.getEffective('ff_mcp_gateway_pinggateway');
-    const pinggatewayOn = pgw === true || pgw === 'true';
-    const claimsReal = !(simulated === true || simulated === 'true');
+    // Is a real PDP answering? Read from the gateway itself. Deliberately NOT
+    // cross-referenced against ff_authorize_simulated — see the note below.
     const engineIsReal = !NOT_REAL.has(policySource);
+    const meta = { url, policySource, failOpen, enforcing, engineIsReal };
 
-    const meta = { url, policySource, failOpen, enforcing, claimsReal };
-
-    if (claimsReal && !engineIsReal) {
-      // Say WHICH path this is. This check reads the NODE gateway's /health, and
-      // that gateway serves the A2A specialist path (audience
-      // mcpgateway-a2a.ping.demo). The MAIN chip path goes through PingGateway
-      // (IG), which calls real PingOne cloud —
-      // api.pingone.com/.../decisionEndpoints/ — verified by correlating tool
-      // names across both gateways: IG decided get_my_accounts, this one decided
-      // get_portfolio_summary and the sensitive_* specialist tools.
-      //
-      // Reporting "decisions come from a mock" without that scope reads as "the
-      // whole demo is fake", which is not true and is its own inaccuracy.
-      const mainPathReal = pinggatewayOn
-        ? 'The MAIN chip path is unaffected — it runs through PingGateway (IG), which calls real PingOne Authorize.'
-        : 'NOTE: ff_mcp_gateway_pinggateway is OFF, so the main chip path may also be served by this gateway.';
-      return {
-        status: 'fail',
-        detail:
-          `A2A path split-brain: decisions on this gateway come from "${policySource}" while `
-          + 'ff_authorize_simulated is false, so the UI presents them as real PingOne Authorize '
-          + `decisions. ${mainPathReal} `
-          + (off.length ? `Also not enforcing: ${off.join(', ')}. ` : '')
-          + (failOpen.length ? `${failOpen.length} fail-open switch(es) active.` : ''),
-        meta,
-        nextAction:
-          'This gateway speaks the PingAuthorize PAP API, NOT PingOne cloud — repointing the '
-          + 'endpoint will not make it real (and moving PINGAUTHORIZE_MOCK_BASE only relabels the '
-          + 'mock as real, since usingRealPdpEndpoint is just endpoint !== mockBase). To make A2A '
-          + 'genuinely real: author a rule DENYing ActChainDepth < 2 for the sensitive_* tools, '
-          + 'confirm it with `npm run verify:a2a-policy` (real P1AZ currently PERMITs depth-1, so '
-          + 'switching first would remove the delegation control), then point Exchange #2 at IG. '
-          + 'Otherwise set ff_authorize_simulated=true so the UI stops claiming otherwise.',
-      };
-    }
+    // NO split-brain check here, deliberately.
+    //
+    // An earlier version FAILED when policySource was a mock while
+    // ff_authorize_simulated was false, calling it "the UI claims real PingOne
+    // Authorize". That coupling was wrong. ff_authorize_simulated controls the
+    // BFF's in-process TRANSACTION authorization (simulatedAuthorizeService) —
+    // its own description says "evaluate with an in-process policy... no worker
+    // token or PingOne API call" — and demo_mcp_gateway does not read that flag
+    // at ALL (zero references in its source). Which PDP this gateway calls is
+    // set by PINGAUTHORIZE_ENDPOINT, independently.
+    //
+    // Two unrelated facts that both say "authorize". Failing on the pair put a
+    // false blocking red on the demo-readiness screen, which is worse than not
+    // checking: the screen you trust has to be right about what is wrong.
+    //
+    // What IS worth reporting is below, factually: who decides, what is
+    // enforcing, and what fails open.
 
     if (off.length || failOpen.length) {
       // Never call the engine "real" here just because there is no
@@ -148,8 +129,8 @@ const posture = {
       // answer, not a real PDP. Mislabelling it would reintroduce the exact
       // confusion this check exists to remove.
       const enginePhrase = engineIsReal
-        ? `Engine "${policySource}" is real, but `
-        : `Engine "${policySource}" is simulated (declared via ff_authorize_simulated), and `;
+        ? `Engine "${policySource}" is a real PDP, but `
+        : `Decisions come from "${policySource}" (not a real PDP), and `;
       return {
         status: 'warn',
         detail:
@@ -163,11 +144,26 @@ const posture = {
       };
     }
 
+    if (!engineIsReal) {
+      return {
+        status: 'warn',
+        detail:
+          `Decisions on this gateway come from "${policySource}", not a real PDP. `
+          + 'Every declared control is enforcing and nothing is failing open, but only claim '
+          + 'real policy enforcement for paths this gateway does not decide.',
+        meta,
+        nextAction:
+          'This gateway speaks the PingAuthorize PAP API, not PingOne cloud, so repointing the '
+          + 'endpoint will not make it real. To move the A2A path onto real PingOne: author a rule '
+          + 'DENYing ActChainDepth < 2 for the sensitive_* tools, confirm with '
+          + '`npm run verify:a2a-policy` (real P1AZ currently PERMITs depth-1, so switching first '
+          + 'would remove the delegation control), then point Exchange #2 at IG.',
+      };
+    }
+
     return {
       status: 'pass',
-      detail: engineIsReal
-        ? `Decisions come from "${policySource}"; every declared control is enforcing and nothing is failing open.`
-        : `Decisions come from "${policySource}" (simulation declared); every declared control is enforcing and nothing is failing open.`,
+      detail: `Decisions come from "${policySource}"; every declared control is enforcing and nothing is failing open.`,
       meta,
     };
   },
