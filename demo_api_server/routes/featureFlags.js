@@ -576,6 +576,20 @@ const FLAG_REGISTRY = [
     defaultValue: true,
   },
   {
+    id:           'ff_preflight_modal',
+    name:         'Preflight Modal',
+    category:     'UI / Dashboard',
+    description:
+      'Adds a "Preflight" button that opens a modal running the /api/check registry — the same checks ' +
+      'scripts/preflight-demo.sh runs from the terminal, including container/repo drift and ' +
+      'client-dispatched chip wiring.',
+    impact:
+      'OFF (default) = no button; /check is still reachable directly. ON = one-click demo-prep view ' +
+      'with a single verdict, so you are not reading a terminal 10 minutes before showtime.',
+    type:         'boolean',
+    defaultValue: false,
+  },
+  {
     id:           'ff_use_cases_launcher',
     name:         'Use-Case Launcher',
     category:     'UI / Dashboard',

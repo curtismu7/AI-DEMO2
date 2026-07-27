@@ -8,4 +8,6 @@ require('./llmCheck');
 require('./llmDeepCheck');
 require('./gatewayCheck');
 require('./usecaseCheck');
+require('./uiDispatchCheck');
+require('./containerDriftCheck');
 module.exports = require('./registry');
