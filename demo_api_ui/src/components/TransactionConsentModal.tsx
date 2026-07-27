@@ -69,7 +69,7 @@ function accountSummaryLine(account: Account): string {
     typeof account.name === "string" && account.name.trim()
       ? account.name.trim()
       : "";
-  if (nick) return `${nick} · ${type} - ${num}`;
+  if (nick) return `${nick} · ${num}`;
   return `${type} - ${num}`;
 }
 
@@ -315,10 +315,10 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
 
   const { pos, size, handleDragStart, createResizeHandler } = useDraggablePanel(
     () => ({
-      x: Math.max(20, (window.innerWidth - 380) / 2),
-      y: Math.max(20, (window.innerHeight - 460) / 2),
+      x: Math.max(20, (window.innerWidth - 420) / 2),
+      y: Math.max(20, (window.innerHeight - 440) / 2),
     }),
-    { w: 380, h: 460 },
+    { w: 420, h: 440 },
     { storageKey: "transaction-consent-modal" },
   ) as any;
 
@@ -1068,15 +1068,13 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
               summary, then confirm if you want the banking assistant to
               complete this transaction on your behalf.
             </p>
-            <p className="transaction-consent-popup__learn">
-              <button
-                type="button"
-                className="transaction-consent-learn-btn transaction-consent-learn-btn--dark"
-                onClick={() => openEducation(EDU.HUMAN_IN_LOOP, "what")}
-              >
-                Learn: Human-in-the-loop
-              </button>
-            </p>
+            <button
+              type="button"
+              className="transaction-consent-learn-link"
+              onClick={() => openEducation(EDU.HUMAN_IN_LOOP, "what")}
+            >
+              Learn: Human-in-the-loop
+            </button>
 
             {loading && (
               <p className="transaction-consent-card__loading">
@@ -1101,9 +1099,6 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
 
             {!loading && !loadFailed && snapshot && (
               <div className="transaction-consent-card transaction-consent-card--in-popup">
-                <h3 className="transaction-consent-card__h2">
-                  Transaction summary
-                </h3>
                 <table className="transaction-consent-card__kv">
                   <tbody>
                     {summaryLines.map((line) => {
@@ -1264,7 +1259,7 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
                 </button>
               </div>
             </div>
-            <div className="drp-popout-body">{stepContent}</div>
+            <div className="drp-body">{stepContent}</div>
           </div>
           {denialOverlay}
         </PopOutPortal>
@@ -1403,7 +1398,7 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
           />
         </div>
 
-        {stepContent}
+        <div className="drp-body">{stepContent}</div>
       </div>
 
       {denialOverlay}
