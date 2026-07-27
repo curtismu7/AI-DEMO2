@@ -8057,7 +8057,7 @@ export default function BankingAgent({
                     <button
                       type="button"
                       className="ba-insp-btn ba-insp-btn--gateway"
-                      onClick={() => navigate("/pinggateway-inspector?subtab=tester")}
+                      onClick={() => navigate("/agent-gateway-inspector?subtab=tester")}
                       title="Open the Agent Gateway Inspector"
                     >
                       Agent Gateway Inspector

@@ -226,7 +226,7 @@ function McpGatewayConfigInner() {
 		<div className="mgc-root">
 			<CapabilityCallout
 				capability={AGENT_GATEWAY_CAPABILITIES.find((c) => c.id === "audit-logging")}
-				to="/pinggateway-inspector?subtab=capabilities"
+				to="/agent-gateway-inspector?subtab=capabilities"
 			/>
 			<div className="mgc-header">
 				<div>
