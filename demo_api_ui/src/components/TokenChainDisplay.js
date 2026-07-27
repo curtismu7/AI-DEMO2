@@ -2015,6 +2015,81 @@ function GwMcpAuditEduBox({ event }) {
   );
 }
 
+/**
+ * gw-aam — PingOne Authorize API Access Management.
+ *
+ * The COARSE-grained layer, shown alongside gw-authorize rather than instead of
+ * it: AAM sees only method, path, headers and client IP, so it cannot express
+ * the per-tool rules the /mcp routes rely on. Both capabilities running side by
+ * side is the thing being demonstrated.
+ *
+ * Renders the verbatim Sideband request and response, which is what makes the
+ * decision auditable instead of merely asserted. The gateway redacts the
+ * caller's Authorization header at capture, so what arrives here already reads
+ * "<redacted>".
+ */
+export function AamDecisionEduBox({ event }) {
+  if (event.id !== "gw-aam") return null;
+  const decision = event.decision || null;
+  const isPermit = decision === "PERMIT";
+  const isDeny = decision === "DENY";
+  const isMock = event.backend === "mock";
+  return (
+    <div
+      className={`tcd-edu-box ${isPermit ? "tcd-edu-box--ok" : isDeny ? "tcd-edu-box--error" : "tcd-edu-box--neutral"}`}
+    >
+      <div className="tcd-edu-box-hd">
+        <span className="tcd-edu-icon">
+          {isPermit ? "✅" : isDeny ? "❌" : "⚠️"}
+        </span>
+        <strong>PingGateway → PingOne Authorize (API Access Management)</strong>
+      </div>
+      <div className="tcd-edu-body">
+        <p>
+          Before any per-tool policy runs, PingGateway asks the{" "}
+          <strong>Sideband API</strong> whether this <em>request</em> is allowed —
+          matching method and path against an API service operation. It sees no
+          tool name and no arguments, which is exactly why the fine-grained{" "}
+          <strong>Policy Decision</strong> step still runs behind it.
+        </p>
+        <p>
+          Decision <strong>{decision || "unknown"}</strong>
+          {event.elapsedMs != null ? ` in ${event.elapsedMs} ms` : ""} via{" "}
+          <strong>{isMock ? "Mock Sideband" : "PingOne Authorize"}</strong>
+          {event.serviceUri ? (
+            <>
+              {" "}
+              (<code>{event.serviceUri}</code>)
+            </>
+          ) : null}
+          .
+        </p>
+        {event.request ? (
+          <>
+            <div className="tcd-edu-detail">Sideband request</div>
+            <pre className="tcd-edu-code">
+              <JsonHighlight value={event.request} />
+            </pre>
+          </>
+        ) : null}
+        {event.response ? (
+          <>
+            <div className="tcd-edu-detail">Sideband response</div>
+            <pre className="tcd-edu-code">
+              <JsonHighlight value={event.response} />
+            </pre>
+          </>
+        ) : null}
+        <p>
+          A <code>response</code> object in the reply means AAM answered for the
+          gateway — that is the deny signal. Its absence means the request was
+          forwarded to the backend.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function GwAuthorizeEduBox({ event }) {
   if (event.id !== "gw-authorize") return null;
   const rawDecision = event.decision || null;
@@ -2205,6 +2280,11 @@ function EventDetail({ event, chainEvents }) {
         title="PingOne Authorize Decision"
         event={event}
         Component={GwAuthorizeEduBox}
+      />
+      <CollapsibleEdu
+        title="API Access Management"
+        event={event}
+        Component={AamDecisionEduBox}
       />
       {event.id === "gw-mcp-audit" && (
         <CollapsibleEdu
@@ -2632,6 +2712,9 @@ const CLAIMS_STRIP_IDS = new Set([
   "two-ex-final-token-verified",
   // Gateway auth pipeline events (Phase 259)
   "gw-introspection",
+  // Coarse-grained AAM sits BEFORE the fine-grained per-tool decision: the
+  // gateway asks the Sideband API about the request, then evaluates policy.
+  "gw-aam",
   "gw-authorize",
   "gw-mcp-audit",
   "gw-exchange",
@@ -2814,6 +2897,7 @@ const STEP_SUB_LABELS = {
   "mcp-tool-invoked": "Tool Token",
   "mcp-agent-token-presented": "Tool Token",
   "gw-introspection": "Introspection",
+  "gw-aam": "API Access Management",
   "gw-authorize": "Policy Decision",
   "gw-mcp-audit": "MCP Audit",
   "mcp-gateway-route": "Gateway",
