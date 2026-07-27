@@ -45,10 +45,21 @@ read_lines() {
 }
 
 # ── 1. BFF liveness ──────────────────────────────────────────────────────────
-if jget "${BASE}/api/healthz" | grep -q '"status"'; then
+# node --watch (demo_api_server) briefly drops its listener on every hot-reload
+# restart (~1-2s). A single curl mid-restart would false-fail the whole run, so
+# retry a few times before declaring the stack down.
+bff_ok=0
+for attempt in 1 2 3; do
+  if jget "${BASE}/api/healthz" | grep -q '"status"'; then
+    bff_ok=1
+    break
+  fi
+  [[ $attempt -lt 3 ]] && sleep 1
+done
+if [[ $bff_ok -eq 1 ]]; then
   row OK "BFF liveness" "${BASE}/api/healthz"
 else
-  row FAIL "BFF liveness" "unreachable at ${BASE} — is the stack running?"
+  row FAIL "BFF liveness" "unreachable at ${BASE} after 3 attempts — is the stack running?"
   # Without the BFF nothing else can run; print and bail.
 fi
 
