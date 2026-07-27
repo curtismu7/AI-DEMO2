@@ -55,6 +55,12 @@
   touch-action: none;
 }
 .luw-resize--split { flex: 0 0 7px; align-self: stretch; }
+/* .luw-drawer is position:absolute (removed from grid flow for its slide
+   animation), so this is the grid's only other auto-placed item besides
+   .luw-main (grid-column:-1) — without an explicit column it lands in
+   column 1 (336px) instead of its own 7px track, stretching its ::before
+   into a wide grey bar across the drawer. */
+.luw-resize--drawer { grid-column: 2; }
 .luw-resize::before {
   content: '';
   position: absolute;
