@@ -1138,8 +1138,8 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
         title={modalTitle}
         footer={null}
         className="transaction-consent-popup"
-        defaultWidth={380}
-        defaultHeight={440}
+        defaultWidth={460}
+        defaultHeight={520}
         storageKey="transaction-consent-modal"
       >
         <div className="drp-body">{stepContent}</div>
