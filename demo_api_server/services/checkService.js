@@ -51,7 +51,23 @@ async function runChecks(checks, ctx, onResult = () => {}) {
     try {
       outcome = await check.run(ctx);
     } catch (err) {
-      outcome = { status: 'fail', detail: err.message };
+      // err.message can be empty (or err may not be an Error at all), and the
+      // bare version produced `detail: ""` — a GATE check failing with no
+      // reason whatsoever, which is unusable 10 minutes before a demo.
+      // Observed live on gateway.real_path: status fail, detail "", meta null.
+      // Deliberately NOT String(err): for `new Error('')` that yields the
+      // useless literal "Error", which is barely better than the empty string
+      // it replaced. Use the real message, or say plainly that there was none.
+      const raw = err && typeof err === 'object' ? err.message : err;
+      const msg = typeof raw === 'string' ? raw : '';
+      const where = err && err.stack ? String(err.stack).split('\n')[1] : '';
+      outcome = {
+        status: 'fail',
+        detail: msg.trim()
+          || (err && err.code ? `${err.code}` : '')
+          || `check threw ${err && err.name ? err.name : 'a non-Error'} with no message${where ? ` ${where.trim()}` : ''}`,
+        meta: { thrown: true, name: err && err.name, code: err && err.code },
+      };
     }
     if (!outcome || typeof outcome !== 'object') outcome = { status: 'fail', detail: 'check returned no result' };
     const result = {
