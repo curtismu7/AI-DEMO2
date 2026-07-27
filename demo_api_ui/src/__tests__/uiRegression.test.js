@@ -282,7 +282,20 @@ describe("CSS/JS monospace regression", () => {
         f.includes("ServersPage.css") ||                // container/port/latency data columns (intentional)
         f.includes("CheckPage.css") ||                   // pre-demo check id/count/log display via --mono (intentional)
         f.includes("ProofStrip.css") ||                   // evidence chain step id display (intentional)
-        f.includes("VerifiedBanner.css")                  // evidence chain step id display (intentional)
+        f.includes("VerifiedBanner.css") ||                // evidence chain step id display (intentional)
+        f.includes("ApiExplorerPanel.css") ||             // HTTP method/path badge display (intentional)
+        f.includes("CitationPill.css") ||                // knowledge-graph citation id pill display (intentional)
+        f.includes("LearningLogLearnPane.css") ||        // correlation id display (intentional)
+        f.includes("McpGatewayOauthFlowPage.css") ||     // OAuth flow code/token display (intentional)
+        f.includes("TokenSecurityTester.css") ||         // security tester tree/token display (intentional)
+        f.includes("UnifiedTokenFlowInspector.css") ||   // token inspector code/JSON display (intentional)
+        f.includes("aiFootprintMocks/chrome.css") ||     // mock code-editor/terminal chrome display (intentional)
+        f.includes("shared/InspectorShell.css") ||       // shared inspector template code display (intentional)
+        f.includes("shared/JsonColumnsView.css") ||      // JSON display component (intentional)
+        f.includes("shared/JsonFormView.css") ||         // JSON display component (intentional)
+        f.includes("FootprintMockGalleryPage.css") ||    // mock code-editor/terminal gallery display (intentional)
+        f.includes("PrivilegeMcpClientPage.css") ||      // MCP client code/token display (intentional)
+        f.includes("TransactionTracePage.css")           // trace cid/phase/op code display (intentional)
       )
         continue;
       const lines = fs.readFileSync(f, "utf8").split("\n");
@@ -308,7 +321,8 @@ describe("CSS/JS monospace regression", () => {
         f.includes("SequenceDiagramPage.js") ||
         f.includes("SetupWizard.js") ||
         f.includes("HitlSequenceDiagram.js") ||   // sequence diagram node code display (intentional)
-        f.includes("UserDashboardPing2026.js")     // RFC 9470 raw challenge header display (intentional)
+        f.includes("UserDashboardPing2026.js") ||  // RFC 9470 raw challenge header display (intentional)
+        f.includes("McpInspector.js")              // tool name/scope code display (intentional)
       )
         continue;
       const lines = fs.readFileSync(f, "utf8").split("\n");

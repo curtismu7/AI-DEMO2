@@ -97,7 +97,7 @@ const MOCK_USE_CASES = [
     buyerStory: 'Generalist delegates to specialist via nested act chain.',
     pingOneSolution: 'RFC 8693 nested-act.',
     trigger: { type: 'chip', text: 'hand off to a specialist' },
-    expectedOutcome: 'PERMIT',
+    expectedOutcome: 'PERMIT with act-chain depth',
     evidence: {},
     codeRefs: [],
     maturity: 'flag:ff_a2a_delegation',

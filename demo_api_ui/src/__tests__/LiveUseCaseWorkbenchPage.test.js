@@ -1,5 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { ProofOfEnforcementProvider } from '../context/ProofOfEnforcementContext';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import LiveUseCaseWorkbenchPage from '../pages/LiveUseCaseWorkbenchPage';
@@ -14,8 +15,9 @@ vi.mock('../components/VerticalSwitcher', () => ({
   default: function VerticalSwitcherStub() { return null; },
 }));
 const mockSetSurfaceHostEl = vi.fn();
+const mockSetToolbarHostEl = vi.fn();
 vi.mock('../context/AgentUiModeContext', () => ({
-  useAgentUiMode: () => ({ placement: 'middle', setSurfaceHostEl: mockSetSurfaceHostEl }),
+  useAgentUiMode: () => ({ placement: 'middle', setSurfaceHostEl: mockSetSurfaceHostEl, setToolbarHostEl: mockSetToolbarHostEl }),
 }));
 // TokenChainTraceRail (already rendered by the page since Task 4) also calls
 // getState/subscribe/reset on this store, so the mock must stub those too or
@@ -48,15 +50,22 @@ const MOCK_USE_CASES = [
 function renderPage() {
   return render(
     <MemoryRouter>
-      <LiveUseCaseWorkbenchPage />
+      <ProofOfEnforcementProvider>
+        <LiveUseCaseWorkbenchPage />
+      </ProofOfEnforcementProvider>
     </MemoryRouter>
   );
 }
 
-/** Click the Run button on a card (visible without selecting first). */
+/**
+ * Click the Run button on a card (visible without selecting first). A use
+ * case can legitimately render in more than one section (e.g. Demo script +
+ * its track), so this matches the first occurrence — any of the duplicates
+ * is the same use case and Run behaves identically.
+ */
 async function runCardMatching(titleRe) {
-  const title = await screen.findByText(titleRe);
-  const card = title.closest('.luw-card');
+  const titles = await screen.findAllByText(titleRe);
+  const card = titles[0].closest('.luw-card');
   expect(card).toBeTruthy();
   const runBtn = within(card).getByRole('button', { name: /run/i });
   await userEvent.click(runBtn);
@@ -73,37 +82,42 @@ describe('LiveUseCaseWorkbenchPage', () => {
   it('fetches the real catalog and renders Mock A demo cards + glance', async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText(/Delegated access with proof/)).toBeInTheDocument();
+      expect(screen.getAllByText(/Delegated access with proof/).length).toBeGreaterThan(0);
     });
     expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases', { params: { vertical: 'banking' } });
-    expect(screen.getByText(/Authz denied/)).toBeInTheDocument();
-    expect(screen.getByText('Demo script')).toBeInTheDocument();
+    expect(screen.getAllByText(/Authz denied/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Demo script').length).toBeGreaterThan(0);
     expect(screen.getByLabelText('Banking glance')).toBeInTheDocument();
     expect(screen.getByText('Checking')).toBeInTheDocument();
-    expect(screen.getByText('Policy')).toBeInTheDocument();
+    expect(screen.getByText('Verdict')).toBeInTheDocument();
   });
 
   it('shows a Run button on every runnable card without requiring selection', async () => {
     renderPage();
-    await waitFor(() => screen.getByText(/Delegated access with proof/));
+    await waitFor(() => expect(screen.getAllByText(/Delegated access with proof/).length).toBeGreaterThan(0));
     const cards = screen.getAllByText(/Run in agent/i);
     expect(cards.length).toBeGreaterThanOrEqual(2);
   });
 
   it('filters cards via the search box', async () => {
     renderPage();
-    await waitFor(() => screen.getByText(/Delegated access with proof/));
+    await waitFor(() => expect(screen.getAllByText(/Delegated access with proof/).length).toBeGreaterThan(0));
     const search = screen.getByPlaceholderText(/Filter use cases/i);
     await userEvent.type(search, 'authz');
     await waitFor(() => {
-      expect(screen.queryByText(/Delegated access with proof/)).not.toBeInTheDocument();
+      // Scoped to card titles — the currently-selected use case's live-run
+      // header (.ucph__title) legitimately keeps showing regardless of the
+      // search box; only the pickable card list should be filtered.
+      expect(
+        screen.queryAllByText(/Delegated access with proof/, { selector: '.luw-card__title' }),
+      ).toHaveLength(0);
     });
-    expect(screen.getByText(/Authz denied/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Authz denied/).length).toBeGreaterThan(0);
   });
 
   it('registers a narrow agent host on mount so the real single agent portals in', async () => {
     renderPage();
-    await waitFor(() => screen.getByText(/Delegated access with proof/));
+    await waitFor(() => expect(screen.getAllByText(/Delegated access with proof/).length).toBeGreaterThan(0));
     expect(mockSetSurfaceHostEl).toHaveBeenCalled();
     const registeredEl = mockSetSurfaceHostEl.mock.calls
       .map((call) => call[0])

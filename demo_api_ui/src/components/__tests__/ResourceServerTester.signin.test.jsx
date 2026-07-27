@@ -24,10 +24,10 @@ vi.mock("../../utils/authUi", () => ({
   navigateToCustomerOAuthLogin: jest.fn(),
 }));
 
-// Open the outer "Test this Resource Server" collapsible, then the named inner panel.
+// Select the named operation in the tree (InspectorShell layout — always
+// open, no outer collapsible toggle).
 function openPanel(panelNameRe) {
-  fireEvent.click(screen.getByRole("button", { name: /Test this Resource Server/i }));
-  fireEvent.click(screen.getByRole("button", { name: panelNameRe }));
+  fireEvent.click(screen.getByText(panelNameRe));
 }
 
 beforeEach(() => {
@@ -41,7 +41,7 @@ test("probe verdict 401 renders the rejected/sign-in row with a Sign in button",
 
   render(<ResourceServerTester />);
   openPanel(/Live request probe/i);
-  fireEvent.click(screen.getByRole("button", { name: /Send request/i }));
+  fireEvent.click(screen.getAllByRole("button", { name: /Execute/i })[0]);
 
   expect(await screen.findByText(/HTTP 401 Unauthorized/i)).toBeInTheDocument();
   expect(screen.getByText(/sign in to retry with a fresh session token/i)).toBeInTheDocument();
@@ -57,7 +57,7 @@ test("session-expired 401 error renders a Sign in button beside the message", as
 
   render(<ResourceServerTester />);
   openPanel(/Real RS validation/i);
-  fireEvent.click(screen.getByRole("button", { name: /Run validation/i }));
+  fireEvent.click(screen.getAllByRole("button", { name: /Execute/i })[0]);
 
   expect(await screen.findByText(/session has expired/i)).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /^sign in$/i })).toBeInTheDocument();
@@ -70,7 +70,7 @@ test("non-401 failure shows the error but no Sign in button", async () => {
 
   render(<ResourceServerTester />);
   openPanel(/Real RS validation/i);
-  fireEvent.click(screen.getByRole("button", { name: /Run validation/i }));
+  fireEvent.click(screen.getAllByRole("button", { name: /Execute/i })[0]);
 
   expect(await screen.findByText(/Internal error/i)).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /^sign in$/i })).not.toBeInTheDocument();

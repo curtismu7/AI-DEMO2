@@ -4,7 +4,7 @@
  * Renders claims dynamically based on tokenType prop
  */
 import React, { useState } from 'react';
-import { createPortal } from 'react-dom';
+import DraggableModal from './DraggableModal';
 import { TOKEN_CLAIMS } from '../constants/tokenClaims';
 import InspectorTabs from './shared/InspectorTabs';
 import JsonView, { JSON_VIEW_TABS } from './shared/JsonView';
@@ -55,57 +55,25 @@ function ClaimDetailsModal({ isOpen, tokenType, liveClaims, onClose }) {
   };
   const title = titleMap[tokenType] || 'Token Claims';
 
-  const handleBackdropClick = (e) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  };
-
-  const modalContent = (
-    <div className="utfi-modal-backdrop" onClick={handleBackdropClick}>
-      <div className="utfi-modal-container">
-        <div className="utfi-modal-header">
-          <div className="utfi-modal-title-group">
-            <h2 className="utfi-modal-title">{title}</h2>
-            {isLive && <span className="utfi-modal-live-badge">Live — this run</span>}
+  return (
+    <DraggableModal isOpen={isOpen} onClose={onClose} title={title} storageKey="claim-details-modal">
+      {isLive && <span className="utfi-modal-live-badge">Live — this run</span>}
+      {hasObjectClaim && (
+        <InspectorTabs tabs={JSON_VIEW_TABS} activeKey={jsonMode} onChange={setJsonMode} />
+      )}
+      <div className="utfi-claims-list">
+        {claims.map((claim) => (
+          <div key={claim.key} className="utfi-claim-item">
+            <div className="utfi-claim-key">{claim.key}</div>
+            <div className="utfi-claim-value">
+              {claim.isObject ? <JsonView mode={jsonMode} value={claim.value} crackHeight={240} /> : claim.value}
+            </div>
+            <div className="utfi-claim-description">{claim.description}</div>
           </div>
-          <button
-            className="utfi-modal-close"
-            onClick={onClose}
-            aria-label="Close modal"
-          >
-            ×
-          </button>
-        </div>
-        <div className="utfi-modal-body">
-          {hasObjectClaim && (
-            <InspectorTabs tabs={JSON_VIEW_TABS} activeKey={jsonMode} onChange={setJsonMode} />
-          )}
-          <div className="utfi-claims-list">
-            {claims.map((claim, index) => (
-              <div key={index} className="utfi-claim-item">
-                <div className="utfi-claim-key">{claim.key}</div>
-                <div className="utfi-claim-value">
-                  {claim.isObject ? <JsonView mode={jsonMode} value={claim.value} crackHeight={240} /> : claim.value}
-                </div>
-                <div className="utfi-claim-description">{claim.description}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="utfi-modal-footer">
-          <button
-            className="utfi-modal-button utfi-modal-button--primary"
-            onClick={onClose}
-          >
-            Close
-          </button>
-        </div>
+        ))}
       </div>
-    </div>
+    </DraggableModal>
   );
-
-  return createPortal(modalContent, document.body);
 }
 
 export default ClaimDetailsModal;

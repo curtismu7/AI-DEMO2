@@ -38,7 +38,7 @@ describe('explainAuthorizeResult — transaction', () => {
     expect(r.policyDescription).toMatch(/banking transactions/i);
     expect(r.ruleName).toBe('Deny Large Transactions');
     expect(r.ruleDescription).toMatch(/\$2,000/);
-    expect(r.reasons.some((x) => x.includes(String(TX_DENY_USD)))).toBe(true);
+    expect(r.reasons.some((x) => x.includes(TX_DENY_USD.toLocaleString()))).toBe(true);
   });
 
   it('explains step-up for mid amount without MFA', () => {

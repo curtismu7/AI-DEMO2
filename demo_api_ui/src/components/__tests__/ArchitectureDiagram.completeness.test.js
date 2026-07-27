@@ -78,8 +78,8 @@ describe("Architecture diagram completeness", () => {
   const services = getServiceList();
   const mmds = loadAllMmdContent();
 
-  test("SVC_LIST parses to exactly 10 services", () => {
-    expect(services).toHaveLength(10);
+  test("SVC_LIST parses to exactly 11 services", () => {
+    expect(services).toHaveLength(11);
   });
 
   // Services known to be missing from the .mmd diagrams. Adding to this list
@@ -87,6 +87,7 @@ describe("Architecture diagram completeness", () => {
   // (e.g. waiting on a docs PR). When you add the service to a .mmd file,
   // remove it from this list. Order: most-recently-added first.
   const KNOWN_MISSING_FROM_DIAGRAMS = new Set([
+    "demo_mcp_weather",  // added to run.sh for the weather-mcp feature; diagram update pending
     "mastra_agent",      // added to run.sh in commit 5261846a (feat(mastra)); diagram update pending
     "demo_authz_server", // added to run.sh SVC_LIST; not in .mmd diagrams yet
   ]);

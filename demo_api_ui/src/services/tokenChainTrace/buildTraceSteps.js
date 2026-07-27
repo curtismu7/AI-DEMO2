@@ -499,14 +499,20 @@ export function buildTraceSteps(trace) {
 
   // 9. mcp + 10. api — a gateway denial means the call never reached the MCP
   // server; surface that as an error instead of leaving the step stuck "active".
-  const mcpDone = hasPhase(phases, "mcp_remote_done") || !!(mcpResult && mcpResult.result);
+  // A failed MCP tool call still carries a `result` (e.g. { error, message }
+  // for TraceRail), so `mcpResult.result` alone can't distinguish success from
+  // failure — check mcpResult.status explicitly.
+  const mcpErrored = !!(mcpResult && mcpResult.status === "error");
+  const mcpDone = !mcpErrored && (hasPhase(phases, "mcp_remote_done") || !!(mcpResult && mcpResult.result));
   const mcpBegun = hasPhase(phases, "mcp_remote_begin");
   steps.push(makeStep("mcp",
-    authorizeFailed ? "notinpath" : mcpDone ? "done" : gwDenied ? "error" : mcpBegun ? "active" : traceComplete ? "notinpath" : "pending",
+    authorizeFailed ? "notinpath" : mcpDone ? "done" : (gwDenied || mcpErrored) ? "error" : mcpBegun ? "active" : traceComplete ? "notinpath" : "pending",
     mcpResult ? {
-      why: `MCP executed “${mcpResult.tool || mcpResult.toolName || "tool"}”`
-        + (mcpResult.durationMs != null ? ` in ${mcpResult.durationMs} ms` : "")
-        + " under the delegated identity.",
+      why: mcpErrored
+        ? `MCP call failed for “${mcpResult.tool || mcpResult.toolName || "tool"}”${mcpResult.error ? ` (${mcpResult.error})` : ""}.`
+        : `MCP executed “${mcpResult.tool || mcpResult.toolName || "tool"}”`
+          + (mcpResult.durationMs != null ? ` in ${mcpResult.durationMs} ms` : "")
+          + " under the delegated identity.",
       request: { title: "JSON-RPC call (actual)", text: asJson(mcpResult.requestJson || { name: mcpResult.tool }) },
       kv: mcpResult.durationMs != null ? [["duration", `${mcpResult.durationMs} ms`]] : [],
     } : gwDenied ? {
