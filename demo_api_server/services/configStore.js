@@ -357,7 +357,8 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   enterprise_mcp_allowed_groups:    { public: true, default: 'banking-agents,employees' }, // Comma-separated PingOne group names or population IDs
   enterprise_mcp_resource_uris:    { public: true, default: '' }, // Optional override; defaults to scope-topology MCP resource URIs
   // URL of the PingGateway MCP endpoint — used when ff_mcp_gateway_pinggateway is true.
-  mcp_pinggateway_url:             { public: true, default: 'https://api.ping.demo:3006' },
+  // Host port is 3036 (OrbStack reserves 3006 on macOS — see docker-compose.yml).
+  mcp_pinggateway_url:             { public: true, default: 'https://api.ping.demo:3036' },
   // URL of the demo/Node MCP gateway — used when ff_mcp_gateway_pinggateway is false.
   // Kept separate from mcp_gateway_http_url/MCP_GATEWAY_HTTP_URL, which is baked
   // per-container in docker-compose.yml and can point at PingGateway instead (#375).
@@ -1594,9 +1595,23 @@ function buildAllowedScopesByAudience() {
 
   // User End-User banking API (standard 1-exchange)
   // Audience: enduser.ping.demo — see docs/PINGONE_CONFIG.md
+  // Canonical names per scope-topology.json "Super Banking API"; the flat
+  // legacy spellings (admin/sensitive/ai:agent) stay because UI defaults
+  // (DEFAULT_AGENT_MCP_ALLOWED_SCOPES) still send them.
   allow(configStore.getEffective('enduser_audience'), [
     'read',
     'write',
+    'transfer',
+    'accounts:read',
+    'transactions:read',
+    'sensitive:read',
+    'admin:read',
+    'admin:write',
+    'admin:delete',
+    'users:read',
+    'users:manage',
+    'ai:agent:read',
+    'ai_agent',
     'admin',
     'sensitive',
     'ai:agent',
@@ -1605,6 +1620,7 @@ function buildAllowedScopesByAudience() {
   // Agent Gateway (Step 1 actor token) — 2-exchange only
   // Audience: agentgateway.ping.demo — see docs/PINGONE_CONFIG.md
   allow(configStore.getEffective('pingone_resource_agent_gateway_uri'), [
+    'agent:invoke',
     'ai:agent',
     'ai_agent',
   ]);

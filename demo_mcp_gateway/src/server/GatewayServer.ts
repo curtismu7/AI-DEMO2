@@ -49,7 +49,8 @@ const MCP_PROTO_HEADER = 'mcp-protocol-version';
 const GATEWAY_SCOPES = [
   'read',
   'write',
-  'admin',
+  'transfer',
+  'mcp:invoke',
   'mortgage:read',  // Phase 267 — Path A api_key disposition
   'ai_agent',
 ];

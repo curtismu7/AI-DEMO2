@@ -1391,7 +1391,7 @@ router.post('/fix-banking-resource-server', async (req, res) => {
     managementService.initialize(workerToken);
 
     const CANONICAL_BANKING_SCOPES = _sotExpectations().bankingScopes;
-    const audienceEnduser = configStore.getEffective('pingone_audience_enduser') || process.env.ENDUSER_AUDIENCE || 'agentgateway.ping.demo';
+    const audienceEnduser = configStore.getEffective('pingone_audience_enduser') || process.env.ENDUSER_AUDIENCE || 'enduser.ping.demo';
 
     // Find or create the banking resource server
     const resourcesResult = await managementService.getResourceServers();
@@ -1900,7 +1900,7 @@ router.post('/update-resources', async (req, res) => {
     }
     managementService.initialize(workerToken);
 
-    const audienceEnduser = configStore.getEffective('pingone_audience_enduser') || process.env.ENDUSER_AUDIENCE || 'agentgateway.ping.demo';
+    const audienceEnduser = configStore.getEffective('pingone_audience_enduser') || process.env.ENDUSER_AUDIENCE || 'enduser.ping.demo';
     const mcpUri = configStore.getEffective('pingone_resource_mcp_server_uri') || process.env.PINGONE_RESOURCE_MCP_SERVER_URI || 'mcpserver.ping.demo';
 
     const _sot = _sotExpectations();
@@ -1967,7 +1967,7 @@ router.post('/update-scopes', async (req, res) => {
     }
     managementService.initialize(workerToken);
 
-    const audienceEnduser = configStore.getEffective('pingone_audience_enduser') || process.env.ENDUSER_AUDIENCE || 'agentgateway.ping.demo';
+    const audienceEnduser = configStore.getEffective('pingone_audience_enduser') || process.env.ENDUSER_AUDIENCE || 'enduser.ping.demo';
     const mcpUri = configStore.getEffective('pingone_resource_mcp_server_uri') || process.env.PINGONE_RESOURCE_MCP_SERVER_URI || 'mcpserver.ping.demo';
     const _sot = _sotExpectations();
     const SCOPE_MAP = {
@@ -2019,7 +2019,7 @@ router.post('/update-apps', async (req, res) => {
     }
     managementService.initialize(workerToken);
 
-    const audienceEnduser = configStore.getEffective('pingone_audience_enduser') || process.env.ENDUSER_AUDIENCE || 'agentgateway.ping.demo';
+    const audienceEnduser = configStore.getEffective('pingone_audience_enduser') || process.env.ENDUSER_AUDIENCE || 'enduser.ping.demo';
     const _sot = _sotExpectations();
 
     // Real app name → FULL expected grant (scope-topology apps[].grantedScopes).

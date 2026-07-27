@@ -54,6 +54,7 @@ const BANKING_SCOPES = [
   'accounts:read',
   'transactions:read',
   'transactions:write',
+  'sensitive:read',
 ];
 
 // ---------------------------------------------------------------------------
@@ -293,7 +294,7 @@ export class HttpMCPTransport {
         scopes: [
           'accounts:read',
           'transactions:read',
-          'accounts:write',
+          'transactions:write',
           'sensitive:read',
         ],
       },

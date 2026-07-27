@@ -102,6 +102,41 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-27 — Scope audit: Holdings A2A chain half-wired; SSOT under-documented live A2A gateway scopes; non-canonical scope spellings in enforcement/metadata
+
+**Files changed:** `scope-topology.json`, `docs/scope-topology.md` (regenerated),
+`demo_api_server/services/configStore.js`, `demo_api_server/routes/pingoneTestRoutes.js`,
+`demo_api_server/scripts/bootstrapPingOne.js`, `demo_api_server/package.json`,
+`demo_api_server/src/__tests__/scopeTopology.regression.test.js`,
+`demo_mcp_gateway/src/server/GatewayServer.ts`, `demo_mcp_server/src/server/HttpMCPTransport.ts`,
+`scripts/rebuild-pingone.sh`; deleted `demo_api_server/services/oauthScopeValidator.js` (zero consumers),
+`scripts/fix-pingone-scopes.{sh,py}` + `demo_api_server/scripts/cleanupPingOneApps.js` (stale pre-rename
+name lists; the fix scripts wrote legacy `banking:*` scopes).
+
+**What was broken:** `sensitive_investment_holdings` had no `a2aDelegatedScope`, the Holdings
+Specialist resource was missing from `provisioning.resourceNames`, and the SSOT's A2A MCP Gateway
+resource omitted the four delegated scopes (`records:read`, `tax:read`, `finaid:read`, `supplier:read`)
+that live PingOne actually carries — so the manifest was wrong in both directions and the live tenant
+is still missing `holdings:read` + the Holdings app rename. The enduser RFC 8707 allowlist in
+`configStore.buildAllowedScopesByAudience` listed only flat legacy names (`admin`, `sensitive`,
+`ai:agent`) — canonical `admin:*`/`sensitive:read`/`ai:agent:read` were silently stripped on narrowing.
+`mcp_pinggateway_url` default pointed at the OrbStack-reserved port `:3006`. `pingoneTestRoutes`
+defaulted `ENDUSER_AUDIENCE` to `agentgateway.ping.demo`.
+
+**What was fixed:** SSOT documents the verified live truth (A2A gateway scopes, specialist
+`grantedScopes` incl. `holdings:read`, Holdings rename-map entry, `pinggateway:invoke` alias);
+allowlist edits are ADDITIVE (flat legacy names retained — UI `DEFAULT_AGENT_MCP_ALLOWED_SCOPES`
+still sends them); gateway/mcp-server scope metadata unified to canonical spellings; recreate/wipe
+name lists now cover all A2A apps+resources. Five new gate tests (audit hardening block) —
+revert-to-RED verified: restoring the old SSOT fails 2 of them.
+
+**Do not break:** keep the flat legacy scope names in the enduser allowlist alongside canonical ones;
+`a2aDelegatedScope` values must stay present on the `Super Banking A2A MCP Gateway` resource scopes;
+never collapse A2A specialist scopes to bare `read`.
+
+**Verify:** `npm run topology:verify` (exit 0) · `cd demo_api_server && CI=true npm run test:unit`
+(91/91) · after live provisioning: `npm run verify:scopes -- --manifest-diff` must be clean.
+
 ### 2026-07-27 — Gateway's 401 crashed into a 500 once signature verification was switched on
 
 **Files changed:** `demo_mcp_gateway/src/server/GatewayServer.ts`,
