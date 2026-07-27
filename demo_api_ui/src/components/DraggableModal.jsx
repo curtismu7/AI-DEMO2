@@ -25,6 +25,7 @@ function PopOutPortal({ win, children }) {
  *   isOpen        boolean
  *   onClose       () => void
  *   title         string
+ *   className     string (default '') — appended to the panel's own class
  *   children      React node — body content
  *   footer        React node | null | undefined
  *                   undefined  → renders default "Close" button
@@ -45,6 +46,7 @@ export default function DraggableModal({
   isOpen,
   onClose,
   title = "Panel",
+  className = "",
   children,
   footer,
   defaultWidth = 520,
@@ -224,7 +226,7 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
 
       {/* Panel */}
       <div
-        className="dm-panel"
+        className={`dm-panel${className ? ` ${className}` : ""}`}
         role="dialog"
         aria-modal={noBackdrop ? undefined : "true"}
         style={{
