@@ -477,7 +477,31 @@ services:
       PINGAUTHORIZE_MOCK_BASE: "http://authz-server:9001"
       PINGAUTHORIZE_WORKER_ID: "mcp-gateway"
       MCP_GW_P1AZ_ENABLED: "true"
-      GW_INTROSPECTION_ENDPOINT: "http://authz-server:9001/as/introspect"
+      # Token validation on this gateway is JWKS, not introspection.
+      #
+      # RFC 7662 introspection CANNOT work here, and three reverts were spent
+      # discovering that. PingOne scopes introspection to the ISSUING client.
+      # This gateway serves the A2A path only, and those tokens are minted by
+      # FIVE different specialist clients — probed live 2026-07-27, a specialist
+      # token introspected by the Token Exchanger (f4dd707d, the gateway's
+      # introspection identity) returns active:false, while the specialist
+      # introspecting its own returns active:true. So no single
+      # GW_INTROSPECTION_CLIENT_ID can ever cover them: pointing this at real
+      # PingOne blocks every A2A call at the first filter. It is the wrong
+      # mechanism for a multi-issuer resource server, not a permission gap.
+      #
+      # JWKS verifies anything PingOne signed regardless of issuer. Confirmed
+      # active on this path: a forged token is rejected with "no kid header and
+      # the JWKS exposes 4 keys" — the gateway really fetched PingOne's keys.
+      #
+      # Real introspection still runs where it CAN: PingGateway/IG serves the
+      # main path, where tokens ARE minted by f4dd707d, and introspects against
+      # real PingOne. Both mechanisms are live, each where it works.
+      #
+      # A skipped introspection audits as filterChain TokenIntrospection=skipped
+      # and audit.introspection=null — never "passed". A check that did not run
+      # must never read as a check that succeeded.
+      GW_INTROSPECTION_ENABLED: "false"
       # This stack has never configured PINGONE_JWKS_ENDPOINT, so the gateway has
       # always run decode-only (no signature verification). That used to be silent;
       # it now requires this explicit opt-in and is reported in the failOpen list of
