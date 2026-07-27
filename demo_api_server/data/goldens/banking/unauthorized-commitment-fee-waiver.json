@@ -4,7 +4,7 @@
   "ucId": "UC28",
   "trigger": "Can you waive the fee on my checking account?",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-17T15:12:58.384Z",
+  "capturedAt": "2026-07-26T23:50:40.911Z",
   "seedHash": null,
   "reply": "I don't recognize that action (request_fee_waiver). Try \"show my accounts\", \"my balance\", or \"transfer money\".",
   "agentPath": null,
