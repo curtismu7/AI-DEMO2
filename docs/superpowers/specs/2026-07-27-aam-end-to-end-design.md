@@ -151,9 +151,47 @@ does not change which authorization path the `/mcp` routes use.
 ### Mock Sideband endpoint
 
 New route in `demo_authz_server` serving the Sideband contract. The public
-PingAuthorize documentation describes the sideband model but does not publish
-the full request/response schema, so the mock is written against the request
-that `PingAuthorizeFilter` actually emits, recorded in phase 1.
+PingAuthorize documentation does not publish the wire schema, so it was recorded
+directly on 2026-07-27 — the request by pointing `PG_AAM_SERVICE_URL` at a
+throwaway echo server, the response by calling the live PingOne Sideband API with
+the captured request and the real gateway credential.
+
+`POST {serviceUrl}/sideband/request`, authenticated with the gateway credential
+in a `CLIENT-TOKEN` header (the `sharedSecretHeaderName` default):
+
+```json
+{
+  "source_ip": "192.168.97.1",
+  "source_port": 56782,
+  "method": "GET",
+  "url": "http://api.ping.demo:3036/aam/health",
+  "http_version": "1.1",
+  "headers": [ { "Accept": "*/*" }, { "Authorization": "Bearer …" } ]
+}
+```
+
+The response echoes those fields and adds a `response` object **only when AAM
+wants the gateway to answer immediately**:
+
+```json
+{
+  "…echoed request fields…": "…",
+  "response": {
+    "response_code": "401",
+    "response_status": "Unauthorized",
+    "http_version": "1.1",
+    "headers": [ { "www-authenticate": "Bearer realm=\"…\", error=\"invalid_token\"" } ]
+  }
+}
+```
+
+So the allow/deny discriminator is the **presence of `response`**: absent means
+forward the (possibly modified) request to the backend; present means return that
+status and those headers to the client. `response_code` is a **string**, not a
+number. `headers` is an array of single-key objects, not a map — passing a map
+fails inside `SidebandApiFilter.fillHeadersFromJson` with a null-map NPE, and
+omitting `url` or `http_version` fails in the URI parser and
+`toCommonsHttpVersion` respectively.
 
 The mock's decision logic stays deliberately thin, because the point is
 demonstrating the integration and the trace, not reimplementing PingOne
@@ -223,17 +261,38 @@ And an unrecognised `type` on `POST /gateways` returns a validation error while 
 recognised one creates the object immediately, so enum probing leaves artifacts
 that must be deleted.
 
-Still undiscovered: the gateway credential sub-resource, the operations and rules
-schema on an API server, and the deploy action. Phase 0 discovers these the same
-way, deleting probe artifacts as it goes.
+The remaining shapes were discovered the same way on 2026-07-27 and the objects
+now exist in environment `01d89b06`:
+
+| Step | Call |
+| --- | --- |
+| Gateway | `POST /gateways` `{"type":"API_GATEWAY_INTEGRATION","name":…}` |
+| Credential | `POST /gateways/{id}/credentials` `{}` — the secret is returned **only in this response**; the list view omits it, so capture it at creation |
+| Resource | `POST /resources` — required first; `POST /apiServers` fails with `authorizationServer.resource.id must be provided` |
+| API server | `POST /apiServers` `{"name":…,"baseUrls":[…],"authorizationServer":{"resource":{"id":…},"type":"PINGONE_SSO"}}` |
+| Operation | `POST /apiServers/{id}/operations` `{"name":…,"methods":["GET"],"paths":[{"pattern":"/aam/health","type":"EXACT"}]}` |
+| Rule | `PUT` the operation with `accessControl.group.groups[].id` |
+| Deploy | `POST /apiServers/{id}/deployment` with `Content-Type: application/vnd.pingidentity.apiServer.deploy+json` — a plain JSON content type returns 415 |
+
+The Sideband service URL is not returned by any of these. It is
+`https://http-access-api.pingone.{region}/v1/environments/{envId}`; the
+credential's `apiUrl` field is only the region's management base
+(`https://api.pingone.com`) and is not the value `PG_AAM_SERVICE_URL` needs.
+
+Verified live: an isolated gateway configured with that service URL and the
+credential returns `401` with
+`WWW-Authenticate: Bearer realm="http://api.ping.demo:3036/", error="invalid_token"`
+for an unauthenticated call. The realm echoes the registered base URL, which
+confirms AAM matched the API service and answered — the integration works
+end to end against real PingOne.
 
 ## Risks
 
-**The real PingOne response schema is unverified until phase 0 runs.** It is no
-longer blocked, only unfinished: phase 0 provisions the environment and phase 1's
-capture then records the real response verbatim. If the shape surprises us,
-phase 2's mock is corrected — the capture and trail plumbing are unaffected,
-because they treat both bodies as opaque JSON.
+**~~The real PingOne response schema is unverified.~~ Resolved 2026-07-27.**
+Both directions were recorded against the live service and are written into the
+Mock Sideband endpoint section above. The remaining unknown is narrower: only the
+allow path and the `/sideband/response` leg have not been exercised, because that
+needs a token carrying the group claim.
 
 **Phase 0 mutates a live PingOne environment.** Every object it creates is
 additive and individually deletable (`DELETE /gateways/{id}` returns 204,
