@@ -3,7 +3,8 @@ const http = require('http');
 const https = require('https');
 const { URL } = require('url');
 
-function callPingGateway(method, path, body = null) {
+function callPingGateway(method, path, body = null, extra) {
+  const token = extra && extra.token;
   return new Promise((resolve, reject) => {
     // MCP_PINGGATEWAY_URL is the canonical name — it is what docker-compose
     // sets, what configStore maps to mcp_pinggateway_url, and what
@@ -30,6 +31,7 @@ function callPingGateway(method, path, body = null) {
       method,
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         ...(body ? { 'Content-Length': Buffer.byteLength(JSON.stringify(body)) } : {}),
       },
       timeout: 10000,
