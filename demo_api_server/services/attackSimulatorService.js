@@ -1018,21 +1018,31 @@ async function _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents) 
     };
   }
 
-  let gatewayUrl;
-  try {
-    gatewayUrl = getMcpGatewayHttpUrl();
-  } catch (err) {
-    return {
-      sim, useCaseId,
-      status: 503,
-      errorCode: 'gateway_not_configured',
-      reason: err.message,
-      tokenChainEvents,
-    };
+  // PingGateway (IG) has no /admin/config and no introspectionSimDown toggle —
+  // this sim is Demo Agent Gateway-only (GatewayIntrospectionClient.ts). Arming
+  // it against IG 404s at the admin-config push, so skip the push on that path
+  // (mirrors the usePingGateway guard the RAR sims already use).
+  const usePingGateway = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
+
+  let gatewayUrl = null;
+  if (!usePingGateway) {
+    try {
+      gatewayUrl = getMcpGatewayHttpUrl();
+    } catch (err) {
+      return {
+        sim, useCaseId,
+        status: 503,
+        errorCode: 'gateway_not_configured',
+        reason: err.message,
+        tokenChainEvents,
+      };
+    }
   }
 
   const { pushGatewayAdminConfig } = require('../routes/mcpGatewayConfig');
-  const armResult = await pushGatewayAdminConfig(gatewayUrl, { introspectionSimDown: true });
+  const armResult = usePingGateway
+    ? { ok: true }
+    : await pushGatewayAdminConfig(gatewayUrl, { introspectionSimDown: true });
   if (!armResult.ok) {
     return {
       sim, useCaseId,
@@ -1048,7 +1058,9 @@ async function _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents) 
     'Introspection outage armed (UC29)',
     'active',
     null,
-    'Pushed introspectionSimDown:true to the gateway — the next call fails RFC 7662 introspection closed.',
+    usePingGateway
+      ? 'PingGateway performs its own RFC 7662 introspection directly against PingOne — the Demo Agent Gateway simulated-outage toggle does not apply on that path.'
+      : 'Pushed introspectionSimDown:true to the gateway — the next call fails RFC 7662 introspection closed.',
   ));
 
   let exchangedToken;
@@ -1061,7 +1073,9 @@ async function _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents) 
       sim, useCaseId,
       status: 200,
       errorCode: 'unexpected_permit',
-      reason: 'Call succeeded despite the armed introspection-down sim — sim may not have taken effect.',
+      reason: usePingGateway
+        ? 'PingGateway path does not support the introspection-down sim toggle — the call went through normally.'
+        : 'Call succeeded despite the armed introspection-down sim — sim may not have taken effect.',
       tokenChainEvents,
     };
   } catch (err) {
@@ -1078,7 +1092,9 @@ async function _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents) 
   } finally {
     // Always disarm, even if the call above threw for an unrelated reason —
     // an armed sim left on would silently break every later demo step.
-    await pushGatewayAdminConfig(gatewayUrl, { introspectionSimDown: false });
+    if (!usePingGateway) {
+      await pushGatewayAdminConfig(gatewayUrl, { introspectionSimDown: false });
+    }
   }
 
   stampUseCaseId(tokenChainEvents, useCaseId);
