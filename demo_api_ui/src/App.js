@@ -120,6 +120,9 @@ import AiControlPlanePage from "./pages/AiControlPlanePage";
 import CheckPage from "./pages/CheckPage";
 import TracingPage from "./pages/TracingPage";
 import TransactionTracePage from "./pages/TransactionTracePage";
+import FootprintPicksPage from "./pages/FootprintPicksPage";
+import FootprintMockGalleryPage from "./pages/FootprintMockGalleryPage";
+import FootprintLiveShellPage from "./pages/FootprintLiveShellPage";
 import TelemetryPage from "./pages/TelemetryPage";
 import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
@@ -652,6 +655,48 @@ function AppWithAuth() {
                           <TransactionTracePage />
                         </main>
                       </>
+                    ) : (
+                      <Navigate to="/" replace />
+                    )
+                  }
+                />
+                {/* AI footprint costume-shell picker — SE tool, any logged-in user */}
+                <Route
+                  path="/demo/footprint-picks"
+                  element={
+                    loading ? null : user ? (
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <FootprintPicksPage />
+                        </main>
+                      </>
+                    ) : (
+                      <Navigate to="/" replace />
+                    )
+                  }
+                />
+                <Route
+                  path="/demo/footprint-mocks"
+                  element={
+                    loading ? null : user ? (
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <FootprintMockGalleryPage />
+                        </main>
+                      </>
+                    ) : (
+                      <Navigate to="/" replace />
+                    )
+                  }
+                />
+                {/* Live costume shell — one route per catalog entry (mockSelection.MOCK_CATALOG[*].route) */}
+                <Route
+                  path="/demo/:shellSlug"
+                  element={
+                    loading ? null : user ? (
+                      <FootprintLiveShellPage />
                     ) : (
                       <Navigate to="/" replace />
                     )
