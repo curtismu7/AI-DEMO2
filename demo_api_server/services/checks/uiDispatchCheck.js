@@ -41,7 +41,23 @@ const { CLIENT_DISPATCHED_ACTIONS } = require('../../scripts/useCaseSweepCauses'
  * Probe both — and if neither has them, the check must WARN, never pass.
  */
 function resolveRepoRoot() {
-  const candidates = [path.resolve(__dirname, '..', '..', '..'), '/repo'];
+  // '/repo' FIRST, and this order is load-bearing.
+  //
+  // The api-server image BAKES a copy of the repo at the container root: /app is
+  // not a mount (only /app/node_modules is), and /snapshots, /scope-topology.json
+  // and /demo_api_ui all exist at / from build time. Only /repo is the live
+  // bind-mount of the working checkout.
+  //
+  // So resolving __dirname/../../.. from /app/services/checks lands on '/', where
+  // a snapshots dir DOES exist — and the probe stops there, reading a build-time
+  // artifact. Measured 2026-07-27: / held a 7-actor policy snapshot while /repo
+  // held 11, so a2a.registered_actors reported four specialists missing on a
+  // system that was correctly configured. A confidently-red check about a healthy
+  // demo is the failure mode this whole board exists to avoid.
+  //
+  // No file-existence heuristic can separate the two — the baked copy has the
+  // same marker files. The mount path is the only reliable discriminator.
+  const candidates = ['/repo', path.resolve(__dirname, '..', '..', '..')];
   for (const c of candidates) {
     try {
       if (fs.existsSync(path.join(c, 'demo_api_ui', 'src', 'components', 'AIAgent.js'))) return c;
