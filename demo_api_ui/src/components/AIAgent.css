@@ -5387,7 +5387,9 @@ body > .banking-agent-float-root .banking-agent-panel {
   overflow-y: auto;
 }
 
-/* When inside FloatingPanel, the grid fills the panel and scrolls freely */
+/* When inside FloatingPanel, the grid fills the panel and scrolls freely.
+   align-content: start stops the grid's default row-stretch (rows would
+   otherwise expand to fill the flex:1 height, ballooning each card). */
 .ba-demo-steps-float .fp-content {
   overflow-y: auto;
 }
@@ -5395,6 +5397,14 @@ body > .banking-agent-float-root .banking-agent-panel {
   max-height: none;
   overflow-y: visible;
   flex: 1;
+  align-content: start;
+}
+
+/* FloatingPanel sets an inline z-index:9000 (fp-panel base is 9500), both
+   below the agent panel's z-index:100059 !important — Demo Steps was
+   opening behind the agent. Needs !important to beat the inline style. */
+.ba-demo-steps-float.fp-panel {
+  z-index: 100061 !important;
 }
 .ba-demo-steps-float .ba-demo-steps-popout__header {
   flex-shrink: 0;
