@@ -296,7 +296,14 @@ async function main() {
     GW_INTROSPECTION_CLIENT_ID:      creds.mcpExchangerClientId,
     GW_INTROSPECTION_CLIENT_SECRET:  creds.mcpExchangerSecret,
     PINGONE_MCP_EXCHANGER_CLIENT_SECRET: creds.mcpExchangerSecret,
-    ENCRYPTION_KEY:                  fb('BFF_INTERNAL_SECRET').slice(0, 32) || 'demo-encryption-key-32chars-paddd',
+    // Independent key, NOT derived from BFF_INTERNAL_SECRET. This key encrypts
+    // persisted tokens at rest (EncryptedTokenStorage / EncryptionUtils), so
+    // deriving it from the BFF HMAC secret meant one compromised value exposed
+    // both. Set MCP_SERVER_ENCRYPTION_KEY in demo_api_server/.env; the derived
+    // value remains only as a back-compat fallback for envs that never set it.
+    // NOTE: changing this orphans any existing *.enc token storage — re-encrypt
+    // or purge the store before rotating it on a populated deployment.
+    ENCRYPTION_KEY:                  fb('MCP_SERVER_ENCRYPTION_KEY') || fb('BFF_INTERNAL_SECRET').slice(0, 32) || 'demo-encryption-key-32chars-paddd',
     DEMO_API_BASE_URL:               'http://api-server:3001',
   });
   console.log('[refresh-envs] Wrote demo_mcp_server/.env');
@@ -344,7 +351,9 @@ async function main() {
     PINGONE_AUTHORIZATION_ENDPOINT:        `${asBase}/authorize`,
     PINGONE_CLIENT_REGISTRATION_ENDPOINT:  `${asBase}/register`,
     PINGONE_REDIRECT_URI:                  `${clientUrl}/auth/callback`,
-    ENCRYPTION_MASTER_KEY:                 fb('BFF_INTERNAL_SECRET').slice(0, 32) || 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    // Independent key — see the MCP_SERVER_ENCRYPTION_KEY note above. Set
+    // LANGCHAIN_ENCRYPTION_MASTER_KEY in demo_api_server/.env.
+    ENCRYPTION_MASTER_KEY:                 fb('LANGCHAIN_ENCRYPTION_MASTER_KEY') || fb('BFF_INTERNAL_SECRET').slice(0, 32) || 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     ENCRYPTION_SALT:                       'bbbbbbbbbbbbbbbb',
     BFF_BASE_URL:                          'http://api-server:3001',
     BFF_INTERNAL_TOOL_URL:                 'http://api-server:3001/internal/agent-tool',

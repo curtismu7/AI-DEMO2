@@ -138,6 +138,102 @@ UI is Vite HMR off the main checkout, no restart needed): the UC8 retail chip at
 $300 must complete on Agree & Continue with no verification-code modal, and UC7 at
 $600 must still ask for MFA.
 
+### 2026-07-28 — `/use-cases/live` panes wrapped at ~975px instead of the 780px container threshold
+
+**Files changed:** `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.css` (PR #1088).
+
+**What was broken:** `flex-wrap` breaks the line when the flex BASES no longer
+fit — it never shrinks first. With `1 1 420px` on `.luw-agent-host` and
+`1.25 1 480px` on `.luw-rail-host`, the bases plus the 7px handle and 2rem of
+gaps needed ~939px, so the panes stacked far above the
+`@container luw-main (max-width: 780px)` threshold meant to decide it. The
+rail-focus state (`2.2 1 640px`) was worse — and that is the state right after a
+run settles, exactly when a presenter is looking.
+
+**What was fixed:** basis is now the 320px floor both panes already declare via
+`min-width`. Grow (1 vs 1.25, 2.2 on focus) still sets the resting proportions,
+so the wide layout is unchanged; the panes shrink toward the floor before
+wrapping. Measured stage width at which each variant stacks:
+resting 975 → 715, rail-focus 1135 → 715.
+
+**Do not break:** keep the flex BASIS at the 320px floor on both panes. Raising
+it back to a "preferred" width silently moves the stacking point above the
+container query again, and the container query stops governing anything.
+
+**Verify:** `cd demo_api_ui && npm run test:unit && npm run build`. Behaviourally,
+the panes must still sit side by side at a 1200px stage and stack only at ≤780px.
+
+### 2026-07-28 — UC16 impersonation sim proved nothing: schema-invalid args, then a bridged actor
+
+**Files changed:** `demo_api_server/services/attackSimulatorService.js`,
+`demo_api_server/services/mcpGatewayClient.js` (new `opts.omitActorBridge`),
+`demo_api_server/tests/attackSimToolArgs.test.js` (PRs #1075, #1077).
+
+**What was broken — two layers.** First, `_runImpersonationNoAct` called
+`create_transfer` with only `{amount, to_account_id}`; `mcp-tool-schemas.json`
+requires `from_account_id`, so PingGateway rejected it at schema validation with
+`HTTP 400 -32602` and no audit trail — PingOne Authorize never saw the call.
+`_denyFromGateway` then relabeled that 400 as `401 missing_act` with a
+"PingOne Authorize DENY —" reason, so the card showed a convincing policy denial
+for a run that never reached policy.
+
+With valid args the call reached Authorize and was **PERMITted**, because
+`mcpActorBridge.buildActorBridgeHeaders()` stamps `X-Act-Client-Id` /
+`X-May-Act-Sub` on every gateway call. PingGateway falls back to that trusted
+header when the token has no native `act`, so the impersonation attempt was
+silently upgraded into a well-formed delegated call — the sim's own decision
+request carried `ActClientId=71e878ea` (Demo AI App - AI Agent Actor) despite the
+token having no `act` at all.
+
+**What was fixed:** pass the required `from_account_id`, and add
+`opts.omitActorBridge` so this one demo call presents no delegation evidence —
+an attacker would not have the BFF's header bridge. The act-less call now reaches
+Authorize with an empty actor and the EXISTING `HasValidActorChain` condition
+denies it. Verified live: `403 missing_act`, `authorize: true`, statements
+`MCP Tool Authorization Denied, MCP Denied — Invalid Actor Chain`.
+
+**Do not break:** `omitActorBridge` must stay opt-in — every other caller needs
+the bridge. And a sim's tool args must satisfy `mcp-tool-schemas.json`: once the
+canonical relabeling runs, a schema rejection is indistinguishable from a policy
+denial, which is why the contract is asserted statically in
+`tests/attackSimToolArgs.test.js`.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/attackSimToolArgs.test.js --testPathIgnorePatterns="/node_modules/" --forceExit`.
+Live: `POST /api/demo/attack-sim/run {"sim":"impersonation-no-act"}` must return
+`authorize: true`, never `200 unexpected_permit`.
+
+### 2026-07-28 — PingGateway resource stamped a CONSTANT act claim (live PingOne change, NOT in git)
+
+**Changed in PingOne, not in this repo.** Resource **Demo PingGateway MCP**
+(`6635cfb8-caaa-432b-bf00-3201f74181ae`, aud `https://api.ping.demo:3036/mcp`),
+attribute `act` (`ba0bc01f-238a-4a75-8f97-8bea0d08804e`):
+
+```text
+was:  {"sub":"f4dd707d-f78d-4417-ba56-dc8707d10a1f"}     <- literal
+now:  ${#root.context.requestData.subjectToken.act}       <- expression
+```
+
+**What was broken:** every token minted for that resource carried the same `act`
+regardless of whether any delegation occurred — proved by minting a plain
+`client_credentials` token (no user, no actor) that came back with the full act
+claim. PingGateway forwards `act.sub` to P1AZ as `ActClientId`, and
+`HasValidActorChain` allowlists 11 identities *including* that constant
+(Demo AI App - Token Exchanger) — so **"MCP Deny — Invalid Actor Chain" could
+never fire** while `ff_mcp_gateway_pinggateway=true` (the default). UC13's sim
+still passed because it evaluates via the BFF preflight rather than IG, which is
+why this stayed hidden.
+
+**Verified after the change:** real chip → `ActClientId 71e878ea` (the real
+actor); rogue-actor sim → `ActClientId rogue-agent-9f2a-not-allowlisted` reaching
+policy for real; `client_credentials` token → `act` ABSENT. No PERMIT→DENY
+regressions across six sims; a real UC1 chip still PERMITs at the gateway hop.
+
+**Do not break:** all 13 other act-bearing resources already use expressions —
+only this one was literal. Audit them via the Management API attributes endpoint,
+**not** a P1AZ snapshot: resource attribute mappings are not part of a snapshot
+export (that carries Trust Framework only), so an import cannot fix *or restore*
+this. A PingOne restore or environment reimport silently reverts it and the
+control goes quiet again; the rollback value is recorded above.
 
 ### 2026-07-28 — A2A local-serve after gateway 502 re-entered executeA2aDelegation forever
 
@@ -373,36 +469,6 @@ End-to-end (requires this code running in the stack, i.e. after merge +
 `docker restart demo-api-server`): `POST /api/demo/attack-sim/run {"sim":"rar-exceeded"}`
 must return `authorize: true` with a PingOne Authorize RarMaxAmount decision,
 and `/use-cases/live` UC14 must show ProofStrip "Verified (as expected)".
-
-### 2026-07-28 — A2A local-serve after gateway 502 re-entered executeA2aDelegation forever
-
-**Files changed:** `demo_api_server/services/demoAgentLangGraphService.js`
-(`executeA2aDelegation` local-serve path), `demo_api_server/src/__tests__/a2aExecution.test.js`
-(regression: gateway_error → local serve, one mint only).
-
-**What was broken:** After #986, when the gateway AUTHORIZES an A2A specialist
-tool then returns an upstream error (`gateway_error` / `mcp_error` /
-`mcp_unreachable` — common for vertical plugin tools with no gateway backend),
-`executeA2aDelegation` fell back to `resolveExecuteTool` to serve the tool
-locally. #1042 then added an A2A fast-path inside `resolveExecuteTool` that
-re-enters `executeA2aDelegation` for every `isA2aDelegatedTool` name. Trigger:
-UC2 `sensitive_patient_records` (or any other a2aDelegated specialist tool)
-when the gateway returns 502 → infinite recursion / process crash. Authorization
-had already succeeded; only delivery failed.
-
-**What was fixed:** Local-serve now calls `verticalDispatch.executeToolFor`
-directly. Nested-act minting and gateway authorize are unchanged; the fast-path
-in `resolveExecuteTool` is unchanged for genuine direct model tool calls.
-
-**Do not break:** Successful gateway-served A2A (local path not entered);
-DENY / HITL / challenge outcomes (local path only after transport upstream
-errors); `resolveExecuteTool` A2A fast-path for direct LLM tool calls (#1042);
-RFC 8693 nested-act minting in `a2aDelegationService`.
-
-**Verify:** `cd demo_api_server && CI=true npx jest
-src/__tests__/a2aExecution.test.js
-src/__tests__/demoAgentLangGraph.pluginRoute.test.js
---testPathIgnorePatterns="/node_modules/" --forceExit` — 10 passed.
 
 ### 2026-07-27 — MCP first-tool gate opted out of CIBA HITL amount-binding (escalation via bearer receipt)
 
