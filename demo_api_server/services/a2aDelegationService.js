@@ -440,6 +440,11 @@ async function delegateToSpecialist(req, opts = {}) {
       claims: tInvestDecoded?.claims || null,
       userSub,
       vertical,
+      // The specialist's OWN vertical namespace (e.g. banking's Investment
+      // Advisor is appKey 'investment') — distinct from `vertical` above,
+      // which is the DELEGATING vertical. Needed to resolve the render
+      // descriptor from the specialist's manifest, not the delegator's.
+      specialistVertical: specialist.appKey,
       specialist: specialist.specialistName,
       tool,
       agent1: c.agent1ClientId,
