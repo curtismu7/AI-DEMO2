@@ -111,7 +111,9 @@ export function computeVerdict(trace, catalogEntry) {
 
   if (missingSteps.length > 0) {
     return {
-      useCaseId, title: catalogEntry.title, state: 'incomplete', matchedSteps, missingSteps, vertical,
+      useCaseId, id: catalogEntry.id, title: catalogEntry.title,
+      expectedOutcome: catalogEntry.expectedOutcome || null,
+      state: 'incomplete', matchedSteps, missingSteps, vertical,
       intent, tool, mechanism,
       resultText: `Waiting on ${missingSteps.join(', ')}`,
     };
@@ -174,6 +176,11 @@ export function computeVerdict(trace, catalogEntry) {
         : 'Completed';
   return {
     useCaseId,
+    // Catalog identity carried alongside the verdict so consumers that need to
+    // name the use case (the Token Chain step pop-out) don't have to re-fetch
+    // /api/use-cases to render "UC7 — Step-up required · expected STEP_UP".
+    id: catalogEntry.id,
+    expectedOutcome: expected || null,
     title: catalogEntry.title,
     state,
     matchedSteps,
@@ -245,4 +252,14 @@ export function useProofOfEnforcement() {
   const ctx = useContext(ProofContext);
   if (!ctx) throw new Error('useProofOfEnforcement must be used within ProofOfEnforcementProvider');
   return ctx;
+}
+
+/**
+ * Same context, null instead of throwing. TokenChainTraceRail mounts on ~20
+ * surfaces and not all of them sit under ProofOfEnforcementProvider, so the
+ * rail cannot use the throwing hook to look up which use case is running.
+ * @returns {{verdict: object|null, history: object[]}|null}
+ */
+export function useProofOfEnforcementOptional() {
+  return useContext(ProofContext);
 }

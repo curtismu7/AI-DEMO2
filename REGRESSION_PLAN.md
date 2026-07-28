@@ -139,6 +139,86 @@ positional/rank lookup: assistant-message index does not map to runs.
 test is "a later run does not repaint an earlier run's verdict"
 (`src/context/__tests__/ProofOfEnforcementContext.test.js`) — collapsing the
 key in `recompute` back to a constant makes it fail.
+### 2026-07-28 — `/use-cases/live` Token Chain clipped; stage stacking used a viewport breakpoint
+
+**Files changed:** `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.css` only.
+
+**What was broken:** stacking was gated on `@media (max-width: 1200px)` — a
+*viewport* measure — while the stage's real width is `viewport − 310px sidebar −
+240..640px drawer column − 7px handle`. At a 1280px viewport with the drawer open
+the stage had 612px but needed 710px, so `.luw-main__stage` (default
+`min-width: auto`) overflowed 63px past the viewport and `.App{overflow-x:clip}`
+cut the Token Chain off with no scrollbar. The related dead-grey-band defect
+(`.luw-main` at `grid-column: -1`, a grid *line* rather than a track, which put
+it in an implicit content-sized column) was fixed separately on main by #1067
+placing `.luw-main` at `-2 / -1`; that placement is kept here unchanged.
+
+**What was fixed:** `min-width: 0` added to `.luw-main__stage` and
+`.luw-run-layout` so they can shrink. The 1200px media query became
+`@container luw-main (max-width: 780px)` (`.luw-main` carries
+`container-type: inline-size`), and `.luw-run-layout` now wraps with a 320px
+floor on both panes as the non-container-query fallback. The `≤860px` media
+query states `.luw-main { grid-column: 1 }` explicitly, where the drawer is back
+in flow.
+
+**Do not break:** `.luw-main` placement stays `-2 / -1` (see #1067) — never
+`grid-column: -1`, which is a line, not a track. Stage stacking must stay
+container-queried; a viewport breakpoint cannot see the sidebar or the
+presenter-dragged drawer width.
+
+**Verify:** `cd demo_api_ui && npm run test:unit && npm run build`. The pixel
+measurements originally recorded here (stage 428px at 1400px/640px drawer; panes
+951px + 1143px at 2498px) were taken against an earlier `grid-column: 3` variant
+of this fix, not the shipped `-2 / -1` placement — re-measure live rather than
+treating them as current baselines.
+
+
+### 2026-07-28 — Attack sims denied at the PingGateway perimeter, then relabeled as policy denials (UC14 false pass)
+
+**Files changed:** `demo_api_server/services/attackSimulatorService.js`
+(new `_gatewayExchangeTarget`, used by `_exchangeGatewayToken`),
+`demo_api_server/services/agentMcpTokenService.js` (exports
+`firstHttpResourceUri`), `demo_api_server/tests/attackSimExchangerParity.test.js`.
+
+**What was broken:** with `ff_mcp_gateway_pinggateway=true`, the sims exchanged
+the user token for tool scopes (`read write transfer`) against
+`mcpgateway.ping.demo`. PingGateway's McpProtectionFilter requires the coarse
+`gateway:mcp:invoke` scope and an aud exactly matching its resourceId, so it
+refused the call at the perimeter:
+
+```text
+[GW→PingGateway] RESPONSE: status=403
+www-authenticate: Bearer error="insufficient_scope", scope="gateway:mcp:invoke"
+```
+
+`_denyFromGateway` then overwrote that generic 403 with each sim's own canonical
+code. UC14 reported `rar_amount_exceeded` and printed "PingOne Authorize DENY —
+transfer exceeds the granted RAR authorization_details cap (RFC 9396)" — from
+the hardcoded `CANONICAL_DENY_REASON` map — for a run in which PingOne Authorize
+was never consulted. Right verdict, wrong reason. Because no Authorize decision
+existed, no `authorize` node was attached, so ProofStrip correctly reported
+"Unproven / Waiting on authorize-decision" and the rail read "This run stopped
+with an error". Measured live: `rar-exceeded` → `authorize: False`, while
+`rogue-actor` and `cross-owner-account` → `authorize: True` (those reach P1AZ
+through the BFF preflight, not the gateway).
+
+**What was fixed:** `_gatewayExchangeTarget` mirrors the production Exchange #2
+recipe in `agentMcpTokenService` — behind PingGateway, mint the coarse invoke
+scope for the PingGateway resource URI passed as a ONE-ELEMENT ARRAY (PingOne
+honors RFC 8707 `resource=` and silently ignores `audience=`; a string maps to
+the latter). Flag off, the Node-gateway audience and tool scopes are unchanged.
+
+**Do not break:** the sims must keep using the same audience AND scope recipe as
+the real chip flow. A sim that mints tool scopes behind PingGateway is refused
+before any policy runs, and the canonical-code relabeling hides it — the sim
+still "passes". This is the scope sibling of the 2026-07-10 audience-drift bug;
+both guards live in `tests/attackSimExchangerParity.test.js`.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/attackSimExchangerParity.test.js --testPathIgnorePatterns="/node_modules/" --forceExit`.
+End-to-end (requires this code running in the stack, i.e. after merge +
+`docker restart demo-api-server`): `POST /api/demo/attack-sim/run {"sim":"rar-exceeded"}`
+must return `authorize: true` with a PingOne Authorize RarMaxAmount decision,
+and `/use-cases/live` UC14 must show ProofStrip "Verified (as expected)".
 
 ### 2026-07-27 — RAR demo (UC14b/UC14): quick chat result toggle + fail chip + full request/response in the Token Chain
 
