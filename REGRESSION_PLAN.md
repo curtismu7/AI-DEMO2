@@ -102,6 +102,102 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-27 — In-page HITL consent never discharged the MCP-gateway/REST HITL gate, so a second consent prompt appeared after the first
+
+**Files changed:** `demo_api_server/services/transactionConsentChallenge.js`,
+`demo_api_ui/src/components/AIAgent.js` (unrelated ProofStrip fix, same session
+— see next entry), `demo_api_ui/src/pages/CibaApprovalPage.js` (unrelated
+phone-frame styling, same session).
+
+**What was broken:** `services/hitlCredit.js`'s session credit
+(`req.session.hitlVerified` / `hitlApprovedAmount`) is what
+`mcpToolAuthorizationService.js` (MCP gateway path) and
+`routes/transactions.js` (REST `POST /transactions`, line ~609) both read to
+skip their own independent HITL gate on the `isRefire` retry that follows any
+consent. Until this fix, **only `routes/ciba.js`** (CIBA out-of-band approval)
+ever wrote that credit. A user who satisfied the in-page
+`TransactionConsentModal` instead (consent-only, OTP, PingOne MFA, or
+Recognize — any of `transactionConsentChallenge.js`'s four confirm paths)
+got no credit at all, so the `isRefire` retry re-tripped the exact same HITL
+gate and opened a second, redundant consent challenge for the transaction
+they'd just approved. Live-reproduced on UC22 (banking, $150 transfer,
+consent-only tier): `[BFF→P1AZ]` showed `McpFirstTool` PERMIT+HITL, then a
+`transactionConsentChallenge` create+confirm round (`Acr: Agent-Consent-Login`)
+— and a second identical round on retry, since `mcpToolAuthorizationService.js`
+still saw `hitlAlreadyVerified: false`.
+
+**What was fixed:** added `_grantHitlCredit(req, ch)` to
+`transactionConsentChallenge.js` — the same stamp `routes/ciba.js` already
+performs on CIBA approval (`hitlVerified` + amount-bound
+`hitlApprovedAmount`) — called at all four places a challenge reaches
+`status: 'confirmed'`: the consent-only branch of `confirmChallenge`,
+`verifyOtp`, `verifyMfa`, and `verifyRecognize`.
+
+**Do not break:** `_grantHitlCredit` only WRITES the credit; it does not
+change any existing read/consume site (`mcpToolAuthorizationService.js`'s
+`hitlAlreadyVerified`, `routes/transactions.js` line 609's amount-bound
+`isFresh` check, or `hitlCredit.consume()`'s single-use semantics) — a
+credit minted here is spent exactly like a CIBA-minted one. Do not add an
+amount-unbound stamp here without a reason; `ch.snapshot.amount` is always
+available on a real challenge, so binding it is strictly safer than CIBA's
+`pending.amount ?? null` fallback.
+
+**Verify:** `CI=true npx jest src/__tests__/transactionConsentChallenge.test.js
+src/__tests__/transaction-flows.test.js src/__tests__/transactions.authorization.test.js
+src/__tests__/transferHitlIntegration.test.js src/__tests__/hitlRoute.integration.test.js
+src/__tests__/hitlRoute.regression.test.js src/__tests__/hitlPingOneMfa.integration.test.js
+src/__tests__/recognizeConsent.regression.test.js src/__tests__/step-up-gate.test.js
+src/__tests__/ciba.test.js src/__tests__/cibaService.test.js src/__tests__/mcpToolAuthorizationService.test.js
+src/__tests__/mcpToolAuthorization.amountFromRecord.test.js --testPathIgnorePatterns="/node_modules/"`
+(11+2 suites, 255 tests, all pass); `CI=true npm run test:unit` (91 pass).
+Not yet re-verified live end-to-end (the live repro that found this logged
+the demo account out mid-session — see the ciba-poll entry below for that
+same-session hazard).
+
+### 2026-07-27 — ProofStrip showed "Incomplete — Waiting on ciba-poll" forever after a CIBA-approved resume
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`
+(`pollCibaThenResumeNl`), `demo_api_ui/src/pages/CibaApprovalPage.js`,
+`demo_api_ui/src/pages/CibaApprovalPage.css` (new).
+
+**What was broken:** `routes/ciba.js` stamps CIBA approval with a
+`ciba-poll` token-chain event, but that event lives in
+`services/tokenChainService.js`'s per-user store, which
+`routes/agentInvokeRoute.js` never re-reads into a response's `tokenEvents`
+(`req.tokenEvents` is built fresh per request). The resumed
+`sendAgentMessage()` call also calls `tokenChainTraceStore.beginTrace()` at
+its start, which only carries forward session-scoped events
+(`user-token` etc.) — not `ciba-poll`. So the client-side trace ProofStrip
+reads from never contains `ciba-poll`, and `computeVerdict()`
+(`ProofOfEnforcementContext.js`) always reports it as a missing step —
+"Incomplete" regardless of whether the underlying transfer actually
+succeeded.
+
+**What was fixed:** `pollCibaThenResumeNl`'s approved branch now calls
+`tokenChainTraceStore.ingestTokenEvent({id: 'ciba-poll', ...})` itself,
+right after the resumed `sendAgentMessage()` call (i.e. after that call's own
+`beginTrace()` has already run), so the event lands in the trace this
+resumed turn is building instead of the one that just got discarded. Also
+restyled `CibaApprovalPage.js`'s popup as a phone frame (notch, rounded
+bezel, home-indicator, portrait 320×600 via a new `className="ciba-phone-
+modal"` on `DraggableModal`) and widened the three `window.open()` popup
+calls in `AIAgent.js` to 440×760 so it isn't clipped.
+
+**Do not break:** the `ciba-poll` event this stamps is a client-side display
+marker only — it carries no real token/claims (see `routes/ciba.js`'s own
+comment on why a fake token in this position is safe: never stored in
+`req.session.oauthTokens`). Don't confuse it with the real server-recorded
+event of the same id in `tokenChainService.js`; they're for different
+consumers. The phone-frame CSS targets `.ciba-phone-modal` only —
+`DraggableModal`'s own drag/resize/close/pop-out behavior is untouched.
+
+**Verify:** `demo_api_ui` vitest — 281 files / 2383 tests pass (including
+`AIAgent.cibaStepUp.test.js` and both `CibaApprovalPage.test.js`/`.test.jsx`);
+`npm run build` exits 0. Not yet visually confirmed live in a browser — the
+live repro session hit the shared-demo-account single-session hazard before
+this could be checked; the phone-frame CSS and the ciba-poll ingest are
+build/unit-verified only.
+
 ### 2026-07-27 — PingOne Authorize API Access Management (AAM) had no trace, no simulated mode, and no flag
 
 **Files changed:** `ping-gateway/config/routes/04-aam-api-access.json`,

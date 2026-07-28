@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import DraggableModal from "../components/DraggableModal";
+import "./CibaApprovalPage.css";
 
 // UC22's separate-device CIBA approval page. Opened in a new tab by
 // AIAgent.js when a CIBA request starts, sharing the same session cookie —
@@ -145,12 +146,13 @@ export default function CibaApprovalPage() {
         isOpen
         onClose={closeApprovalTab}
         title="PingOne Identity Verification"
+        className="ciba-phone-modal"
         footer={footer}
         closeLabel="Close"
-        defaultWidth={360}
-        defaultHeight={320}
+        defaultWidth={320}
+        defaultHeight={600}
         minWidth={280}
-        minHeight={220}
+        minHeight={460}
         storageKey="ciba-approve-modal"
         zIndex={100100}
       >
