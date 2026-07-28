@@ -20,6 +20,20 @@ import supertest from 'supertest';
 import { GatewayServer } from '../src/server/GatewayServer';
 import type { GatewayConfig } from '../src/config';
 
+// makeToken below produces jwt.decode()-only tokens (fake signature) — see its
+// own comment. tokenValidator.ts attempts REAL JWKS signature verification
+// whenever PINGONE_JWKS_ENDPOINT or its alias PINGONE_JWKS_URI is set, and
+// fails closed if neither is configured (omission is not permission). Both
+// must be cleared and the opt-in set explicitly: importing GatewayServer above
+// transitively loads config.ts, which calls dotenv.config() — dotenv fills any
+// env var that is not ALREADY set, so deleting these before the import is
+// pointless (dotenv just re-populates them from demo_mcp_gateway/.env, a
+// worktree-shared symlink to real PingOne credentials). Clearing must happen
+// after the import, once dotenv has already run.
+delete process.env.PINGONE_JWKS_ENDPOINT;
+delete process.env.PINGONE_JWKS_URI;
+process.env.MCP_GW_ALLOW_UNVERIFIED_TOKENS = 'true';
+
 // ---------------------------------------------------------------------------
 // Minimal GatewayConfig stub — only fields used by GatewayServer in plan 01
 // ---------------------------------------------------------------------------
