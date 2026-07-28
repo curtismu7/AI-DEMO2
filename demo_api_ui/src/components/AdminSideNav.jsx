@@ -508,7 +508,6 @@ export default function AdminSideNav({ user }) {
     {
       label: "PingOne MCP",
       icon: "mcp",
-      highlight: true,
       children: [
         {
           label: "MCP Inspector",
