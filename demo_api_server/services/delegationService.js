@@ -321,6 +321,9 @@ async function getApprovalStatus(delegationId) {
   return {
     status: rec?.pendingApproval?.status || 'pending',
     approverUserId: rec?.delegator_user_id || null,
+    // Callers must bind the decision to this auth_req_id — a newer CIBA
+    // request overwrites pendingApproval on the same delegation.
+    authReqId: rec?.pendingApproval?.authReqId || null,
   };
 }
 

@@ -855,6 +855,31 @@ only the Form branch moves outside.
 and `/pingone-authorize` renders as label/value rows, not a monospace
 code block.
 
+### 2026-07-26 — Manager CIBA poll unbound from auth_req_id (cross-request approval)
+
+**Files changed:** `demo_api_server/routes/ciba.js`,
+`demo_api_server/services/delegationService.js`,
+`demo_api_server/src/__tests__/ciba.managerApproval.test.js`,
+`demo_api_server/tests/delegationApproval.test.js`.
+
+**What was broken:** Manager-as-approver (#885) stores one `pendingApproval` per
+delegation and overwrites it on each new CIBA initiate. Poll only read
+`pendingApproval.status` and ignored `authReqId`, so when request B was approved,
+poll(A) also completed and minted `hitlApprovedAmount` from A's session amount —
+a larger earlier request could complete after the manager only approved a later,
+smaller one.
+
+**What was fixed:** `getApprovalStatus` returns `authReqId`; the simulated
+manager-approval poll branch treats a status decision as pending unless
+`approval.authReqId` matches the polled id.
+
+**Do not break:** Matching auth_req_id must still approve/deny; self-approval
+(no `delegationId`) and real PingOne CIBA poll are unchanged.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+src/__tests__/ciba.managerApproval.test.js tests/delegationApproval.test.js
+--testPathIgnorePatterns="/node_modules/"`.
+
 ### 2026-07-26 — Live Workbench control bar ate 280-350px of vertical space on short/small monitors, squeezing Demo script/Chat/Token Chain to a sliver
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`,
