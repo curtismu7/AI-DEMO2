@@ -139,6 +139,76 @@ deliberately abandoned path that bypasses the gateway's Authorize tool filtering
 End-to-end (after merge + `docker restart ai-demo-api-server`): a `checkout
 headphones for $2500` run must show Simple Stepper halting at the Authorize step,
 with the tools/list row red but the rows after it keeping their real statuses.
+### 2026-07-28 — Every rendered ProofStrip repainted with the newest run's verdict
+
+**Files changed:** `demo_api_ui/src/services/tokenChainTrace/tokenChainTraceStore.js`
+(traces carry a `runId`), `demo_api_ui/src/context/ProofOfEnforcementContext.js`
+(verdicts stored per run, `verdictFor(runId)` replaces the `history` array),
+`demo_api_ui/src/components/ProofStrip.jsx` (`runId` prop),
+`demo_api_ui/src/components/AIAgent.js` (`addMessage` stamps `proofRunId` on
+assistant bubbles; one strip per run, on that run's last bubble), plus unit
+tests in both `__tests__` dirs.
+
+**What was broken:** ProofStrip instances were selected by POSITION —
+`<ProofStrip rank={assistantRankFromEnd} />` — and read live global state:
+rank 0 took the current `verdict`, rank 1 indexed a `history` array. That
+array was appended once per trace-store EMIT (beginTrace, every
+`ingestTokenEvent`, `ingestAuthorize`, `completeTrace`), so a single run
+produced ~6 entries and `history[1]` was the SAME run one event earlier, not
+the previous run. Consequences: a run that emitted two assistant bubbles (e.g.
+"Running Demo step 1…" + the reply) rendered its result twice, and starting
+any new run repainted every visible strip with the new run's state — a green
+UC1 "Verified" strip turned yellow "Incomplete" the moment UC14 ran.
+
+**What was fixed:** `beginTrace` stamps a monotonic `runId` (a counter, not
+`startedAt` — two runs can share a millisecond). The provider files each
+verdict under its run and replaces rather than appends, keeping the last 20
+runs. `addMessage` captures the in-flight `runId` on assistant messages;
+render shows one strip per run, on that run's last bubble, resolved via
+`verdictFor(msg.proofRunId)`.
+
+**Do not break:** `verdict` (latest run) is still what `VerifiedBanner`,
+`TokenChainPanel` and `LiveUseCaseWorkbenchPage` read — unchanged. `ProofStrip`
+with no `runId` still renders that latest verdict. Do not reintroduce
+positional/rank lookup: assistant-message index does not map to runs.
+
+**Verify:** `cd demo_api_ui && npm run test:unit && npm run build`. The pinning
+test is "a later run does not repaint an earlier run's verdict"
+(`src/context/__tests__/ProofOfEnforcementContext.test.js`) — collapsing the
+key in `recompute` back to a constant makes it fail.
+### 2026-07-28 — `/use-cases/live` Token Chain clipped; stage stacking used a viewport breakpoint
+
+**Files changed:** `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.css` only.
+
+**What was broken:** stacking was gated on `@media (max-width: 1200px)` — a
+*viewport* measure — while the stage's real width is `viewport − 310px sidebar −
+240..640px drawer column − 7px handle`. At a 1280px viewport with the drawer open
+the stage had 612px but needed 710px, so `.luw-main__stage` (default
+`min-width: auto`) overflowed 63px past the viewport and `.App{overflow-x:clip}`
+cut the Token Chain off with no scrollbar. The related dead-grey-band defect
+(`.luw-main` at `grid-column: -1`, a grid *line* rather than a track, which put
+it in an implicit content-sized column) was fixed separately on main by #1067
+placing `.luw-main` at `-2 / -1`; that placement is kept here unchanged.
+
+**What was fixed:** `min-width: 0` added to `.luw-main__stage` and
+`.luw-run-layout` so they can shrink. The 1200px media query became
+`@container luw-main (max-width: 780px)` (`.luw-main` carries
+`container-type: inline-size`), and `.luw-run-layout` now wraps with a 320px
+floor on both panes as the non-container-query fallback. The `≤860px` media
+query states `.luw-main { grid-column: 1 }` explicitly, where the drawer is back
+in flow.
+
+**Do not break:** `.luw-main` placement stays `-2 / -1` (see #1067) — never
+`grid-column: -1`, which is a line, not a track. Stage stacking must stay
+container-queried; a viewport breakpoint cannot see the sidebar or the
+presenter-dragged drawer width.
+
+**Verify:** `cd demo_api_ui && npm run test:unit && npm run build`. The pixel
+measurements originally recorded here (stage 428px at 1400px/640px drawer; panes
+951px + 1143px at 2498px) were taken against an earlier `grid-column: 3` variant
+of this fix, not the shipped `-2 / -1` placement — re-measure live rather than
+treating them as current baselines.
+
 
 ### 2026-07-28 — Attack sims denied at the PingGateway perimeter, then relabeled as policy denials (UC14 false pass)
 

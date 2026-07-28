@@ -190,10 +190,21 @@ export function computeVerdict(trace, catalogEntry) {
   };
 }
 
+// Cap on how many past runs keep a rendered verdict. Older runs fall out and
+// their strip disappears rather than showing someone else's result.
+const MAX_TRACKED_RUNS = 20;
+
 export function ProofOfEnforcementProvider({ children, vertical = 'banking' }) {
   const [catalog, setCatalog] = useState([]);
   const [verdict, setVerdict] = useState(null);
-  const [history, setHistory] = useState([]);
+  // Verdict per RUN, keyed by the trace's runId (beginTrace stamps a fresh one
+  // per call). recompute fires on every store emit — beginTrace, each
+  // ingestTokenEvent, ingestAuthorize, completeTrace — so a single run produces
+  // several snapshots; keying by run means the later ones REPLACE the earlier
+  // ones instead of accumulating. The previous append-only `history` array made
+  // every entry a snapshot of the same run, and positional lookups into it
+  // repainted older strips with the newest run's result.
+  const [verdictsByRun, setVerdictsByRun] = useState({});
 
   useEffect(() => {
     let cancelled = false;
@@ -212,12 +223,27 @@ export function ProofOfEnforcementProvider({ children, vertical = 'banking' }) {
     if (!entry) { setVerdict(null); return; }
     const next = computeVerdict(trace, entry);
     setVerdict(next);
-    setHistory((prev) => [next, ...prev].slice(0, 20));
+    const runId = trace.runId;
+    if (runId == null) return;
+    setVerdictsByRun((prev) => {
+      const merged = { ...prev, [runId]: next };
+      const keys = Object.keys(merged);
+      if (keys.length <= MAX_TRACKED_RUNS) return merged;
+      const keep = keys.map(Number).sort((a, b) => b - a).slice(0, MAX_TRACKED_RUNS);
+      return Object.fromEntries(keep.map((k) => [k, merged[k]]));
+    });
   }, [catalog]);
 
   useEffect(() => tokenChainTraceStore.subscribe(recompute), [recompute]);
 
-  const value = useMemo(() => ({ verdict, history }), [verdict, history]);
+  // verdictFor(runId) is what pins a rendered strip to the run that produced it;
+  // `verdict` stays the latest-run value the banner/panel/workbench read.
+  const verdictFor = useCallback(
+    (runId) => (runId == null ? null : verdictsByRun[runId] || null),
+    [verdictsByRun],
+  );
+
+  const value = useMemo(() => ({ verdict, verdictFor }), [verdict, verdictFor]);
 
   return <ProofContext.Provider value={value}>{children}</ProofContext.Provider>;
 }

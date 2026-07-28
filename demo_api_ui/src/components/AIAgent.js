@@ -2611,6 +2611,17 @@ export default function BankingAgent({
         "⚠️ The agent produced no reply for this turn. That is a bug in the demo " +
         "(not your request) — please try again, and report what you asked if it repeats.";
     }
+    // Pin the assistant bubble to the trace run that is in flight when it is
+    // added, so its ProofStrip keeps showing THAT run's verdict after the next
+    // run starts. Without it strips were looked up by position and every
+    // visible one repainted with the latest result.
+    const proofRunId =
+      role === "assistant"
+        ? (() => {
+            try { return tokenChainTraceStore.getState().trace.runId ?? null; }
+            catch { return null; }
+          })()
+        : null;
     setMessages((prev) => {
       // First real interaction clears the intro greeting bubble(s) so the
       // conversation starts clean. The only messages carrying a -w/-vsw/-guest
@@ -2621,7 +2632,7 @@ export default function BankingAgent({
           : prev;
       return [
         ...base,
-        { id, role, content: contentString ?? "", tool, ...rest },
+        { id, role, content: contentString ?? "", tool, proofRunId, ...rest },
       ];
     });
   }
@@ -9692,14 +9703,21 @@ export default function BankingAgent({
                       (showRfcInfo && msg.role === "token-event"),
                   )
                   .map((msg, msgIdx, filteredMsgs) => {
-                    // Rank 0 = last assistant reply, 1 = the one before it —
-                    // lets ProofStrip show the previous verified/denied result
-                    // alongside the newest one so the two can be compared.
-                    const assistantRankFromEnd =
-                      msg.role === "assistant"
-                        ? filteredMsgs
-                            .slice(msgIdx + 1)
-                            .filter((m) => m.role === "assistant").length
+                    // One strip per RUN, on that run's last assistant bubble.
+                    // A run can emit several bubbles ("Running Demo step 1…"
+                    // then the reply); only the last carries the verdict, so
+                    // the same result no longer renders twice.
+                    const showProofFor =
+                      msg.role === "assistant" &&
+                      msg.proofRunId != null &&
+                      !filteredMsgs
+                        .slice(msgIdx + 1)
+                        .some(
+                          (m) =>
+                            m.role === "assistant" &&
+                            m.proofRunId === msg.proofRunId,
+                        )
+                        ? msg.proofRunId
                         : null;
                     if (msg.role === "reasoning") {
                       return (
@@ -9947,10 +9965,9 @@ export default function BankingAgent({
                               </button>
                             )}
                           </div>
-                          {assistantRankFromEnd != null &&
-                            assistantRankFromEnd < 2 && (
-                              <ProofStrip rank={assistantRankFromEnd} />
-                            )}
+                          {showProofFor != null && (
+                            <ProofStrip runId={showProofFor} />
+                          )}
                         </div>
                       </div>
                     );

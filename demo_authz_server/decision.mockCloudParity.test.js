@@ -260,6 +260,26 @@ test('TokenKidKnown=true does not deny', async () => {
   assert.notStrictEqual(body.decision, 'DENY');
 });
 
+// The gateway's buildAuthorizeParameters is Record<string,string>, so it sends
+// 'false' where the BFF sends JSON false. Reading only one shape silently
+// ignores the other caller.
+test("the gateway's string 'false' DENYs exactly like the BFF's boolean false", async () => {
+  const asString = await decide(base({
+    ToolName: 'get_my_accounts', TokenKidKnown: 'false', TokenKid: 'kid-forged',
+  }));
+  const asBoolean = await decide(base({
+    ToolName: 'get_my_accounts', TokenKidKnown: false, TokenKid: 'kid-forged',
+  }));
+  assert.strictEqual(asString.decision, 'DENY');
+  assert.strictEqual(asString.decision, asBoolean.decision);
+  assert.deepStrictEqual(asString.statements, asBoolean.statements);
+});
+
+test("the gateway's string 'true' does not deny", async () => {
+  const body = await decide(base({ ToolName: 'get_my_accounts', TokenKidKnown: 'true' }));
+  assert.notStrictEqual(body.decision, 'DENY');
+});
+
 test('TokenKidKnown=false DENYs with the cloud statement code', async () => {
   const body = await decide(base({
     ToolName: 'get_my_accounts', TokenKidKnown: false, TokenKid: 'kid-forged',
