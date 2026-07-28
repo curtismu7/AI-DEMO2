@@ -137,14 +137,21 @@ describe('LiveUseCaseWorkbenchPage — demo script slide-over', () => {
     expect(container.querySelector('.luw-body')).not.toHaveClass('luw-body--drawer-closed');
   });
 
-  it('closes on Escape and on scrim click', () => {
+  it('closes on Escape and on the close button', () => {
     const { container } = render(<LiveUseCaseWorkbenchPage />);
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(container.querySelector('.luw-body')).toHaveClass('luw-body--drawer-closed');
 
     fireEvent.click(screen.getByLabelText('Open demo script'));
-    fireEvent.click(container.querySelector('.luw-drawer__scrim'));
+    fireEvent.click(screen.getByLabelText('Close demo script'));
     expect(container.querySelector('.luw-body')).toHaveClass('luw-body--drawer-closed');
+  });
+
+  // The drawer is docked in its own grid column, so a modal scrim covers only
+  // the agent + Token Chain — dimming them and eating every click there.
+  it('renders no scrim over the run area', () => {
+    const { container } = render(<LiveUseCaseWorkbenchPage />);
+    expect(container.querySelector('.luw-drawer__scrim')).toBeNull();
   });
 });
 
@@ -158,12 +165,6 @@ describe('LiveUseCaseWorkbenchPage — demo script slide-over focus return', () 
   it('returns focus to the edge tab after Escape', () => {
     render(<LiveUseCaseWorkbenchPage />);
     fireEvent.keyDown(document, { key: 'Escape' });
-    expect(document.activeElement).toBe(screen.getByLabelText('Open demo script'));
-  });
-
-  it('returns focus to the edge tab after a scrim click', () => {
-    const { container } = render(<LiveUseCaseWorkbenchPage />);
-    fireEvent.click(container.querySelector('.luw-drawer__scrim'));
     expect(document.activeElement).toBe(screen.getByLabelText('Open demo script'));
   });
 
@@ -201,6 +202,16 @@ describe('LiveUseCaseWorkbenchPage CSS — narrow-viewport drawer revert', () =>
     const ruleMatch = mediaBlock.match(/\.luw-body--drawer-closed\s+\.luw-drawer[^{]*\{([^}]*)\}/);
     expect(ruleMatch).not.toBeNull();
     expect(ruleMatch[1]).toMatch(/transform:\s*none/);
+  });
+
+  // A bare `grid-column: -1` is a LINE, not a track: .luw-main starts at the
+  // last line and spans one IMPLICIT track past the grid, so the explicit 1fr
+  // stays empty and swallows the free space as a grey band while the agent +
+  // Token Chain stay pinned at max-content.
+  it('places .luw-main in the last declared column, not an implicit track', () => {
+    const ruleMatch = cssText.match(/\n\.luw-main\s*\{([^}]*)\}/);
+    expect(ruleMatch).not.toBeNull();
+    expect(ruleMatch[1]).toMatch(/grid-column:\s*-2\s*\/\s*-1/);
   });
 });
 
