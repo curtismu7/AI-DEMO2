@@ -227,6 +227,33 @@ Vault must be updated in the same step as `.env` for every rotated secret — th
 outranks LMDB in `configStore._setCache` (`configStore.js:787-799`), so a `.env`-only update
 leaves the BFF on the old value. Vault currently holds 8 of the affected secrets.
 
+## §4a — Outcomes (2026-07-28)
+
+The duplicate scan's yield was two real bugs, both value-level. Most flagged
+"lying names" survived inspection: the `PG_*`, `MCP_GW_*`, `TE_*`, `INTROSPECT_*`
+prefixes are per-service config namespaces with `refresh-service-envs.js` as the
+translation layer, not accidental duplication.
+
+| Item | Outcome |
+|---|---|
+| **D-1** upstream-audience check inert | **FIXED** — `7ee28cc89`. Rule 2 had never executed. 951 tests green. |
+| **D-3** mortgage service key | **FIXED + VERIFIED** — vault held the committed default `demo-mortgage-key-0000`, which the backend hard-rejects; the BFF served it to ping-gateway. Re-minted via `ensure-service-keys.js`; all hops now agree. |
+| **D-2** `PINGONE_BASE_URL` two meanings | **NOT a name bug.** Each service's value is correct for its own use. Real defect underneath: `resolveJwksUri()` appended `/jwks` to a base lacking `/as`, yielding an unreachable URL — silent because `TokenIntrospector` then warns "signature NOT verified" and continues (fail-open). Fixed + 6 tests, revert-to-RED verified. |
+| **R-2** `P1AZ_WORKER_ID` | **RENAMED** to `P1AZ_DECISION_ENDPOINT_ID`. Held a decision-endpoint id while `P1AZ_WORKER_CLIENT_ID` sat three lines away holding an actual worker. Groovy keeps a one-release fallback; k8s picks it up automatically via `secret_from_envfile`. |
+| **R-1** `TE_CLIENT_*` | **DROPPED.** The IG filter is `TokenExchangeClientAuth`; `TE_` = the token-exchange *operation*, and the MCP Gateway app is the client performing it. Name is correct in context. |
+| **R-3** unqualified `PINGONE_CLIENT_*` | **DROPPED.** Generic name for "this service's PingOne client" is conventional, not a lie. Genuine oddity underneath, left as-is: `validator.ts` hard-requires it by name while `environments.ts` puts it *last* in a 4-name fallback chain, so a deployment must set a var the resolver rarely uses. |
+| **D-4** langchain identity drift | **DROPPED — not drift.** `refresh-service-envs.js:347` deliberately maps actor credentials onto the variable names langchain_agent's own code reads. Changing it would repoint the agent to the end-user authorization-code app. |
+| `PG_GATEWAY_RESOURCE_ID` | **DROPPED.** RFC 8707 resource indicators *are* URIs; the name is accurate. |
+| **D-6** secret reuse | Deferred to the rotation pass, per §0. |
+
+Incidental: removed a duplicate `PINGONE_TOKEN_ENDPOINT` key in the ping-gateway
+block of `refresh-service-envs.js` (both occurrences held the same value, so no
+behavior change — it was an Error-severity lint in a file already being edited).
+
+**Not yet live:** `demo_mcp_server` bakes its TypeScript into the image, so D-1
+and the JWKS fix require `docker compose build --no-cache mcp-server` before any
+smoke test is meaningful.
+
 ## §5 — Rollback
 
 Snapshot all 11 `.env` files + `secrets.vault` outside the repo before phase 9. Note: a
