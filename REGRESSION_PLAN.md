@@ -102,6 +102,63 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-27 — RAR demo (UC14b/UC14): quick chat result toggle + fail chip + full request/response in the Token Chain
+
+**Files changed:** `demo_api_ui/src/config/demoUseCaseSteps.js` (UC14 added
+to `DEMO_PRIMARY_USE_CASE_IDS`, now 20 steps), `demo_api_ui/src/components/DemoStepsDropdown.jsx`
+(UC14b-only "Q"/"F" toggle, persisted via `rar_intent_quick_result`),
+`demo_api_ui/src/components/AIAgent.js` (`handleDemoStepSelect` "link" branch
+grows a quick-result path for UC14b), `demo_api_ui/src/components/AIAgent.css`
+(`.ba-demo-steps-popout__rar-toggle`), `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`
+("intent-binding" step gains `request`/`response` JSON blocks),
+`demo_api_server/services/attackSimulatorService.js` (`_runRarPermit`'s
+`intent-binding-verified` event and `_runRarExceeded`'s `sim-rar-grant` event
+now carry the real `create_transfer` request/response payloads).
+
+**Not a bug fix** — a feature addition, logged here (not just in a PR
+description) because it touches the intent-binding/Token-Chain routing that
+has 3 prior entries in this log (2026-07-18 ×2, 2026-07-21) for exactly this
+code path.
+
+**What was added:** UC14b ("PAR intent verified") previously only navigated
+away to `/intent-binding-learning` when run from the AI Agent's Demo Steps
+dropdown — no inline result, no request/response evidence anywhere. UC14
+("PAR intent violation", the DENY counterpart) existed in the backend catalog
+but was never listed in `DEMO_PRIMARY_USE_CASE_IDS`, so it never appeared in
+that dropdown at all. Now: UC14b has a toggle between the original full-page
+behavior and a new "quick result" mode that runs `POST
+/api/demo/intent-binding/run` inline (same chat + Token Chain wiring the
+`trigger.type === "attack"` branch already used) with no navigation; UC14 is
+a visible sibling row using its existing attack-sim path unchanged. The
+"Intent Binding Check" Token Chain step (pre-existing, `buildTraceSteps.js`)
+now renders the real `create_transfer` request and its response/deny detail
+as JSON, via the same `detail.request`/`detail.response` mechanism the
+`gateway` step already uses — no new step type.
+
+**Do not break:** `_denyFromGateway` / `_authorizeFromGatewayError` were NOT
+touched (shared by the other 7 attack sims, explicitly protected in this
+log's 2026-07-18 entry below). The DENY-side request block is sourced from
+the sibling `sim-rar-grant` event — `buildSimRailEvents` (simTraceAdapter.js)
+renames that event to `rar-authorization` on the attack-sim path, so the
+lookup in `buildTraceSteps.js` matches BOTH ids; matching only the raw id
+would silently drop the request block for every UC14 run through the Demo
+Steps dropdown / `/use-cases/live` attack-sim path. `LiveUseCaseWorkbenchPage.js`'s
+own UC14/UC14b cards (`/use-cases/live`) and `IntentBindingLearningPage.js`
+itself are untouched — this only changes the AI Agent chrome's Demo Steps
+dropdown. A `data-testid` on a new UC14b-only button must NOT start with
+`demo-step-` — it collides with the `/^demo-step-/` row-enumeration regex
+several tests use (hit and fixed live during this change; landed as
+`uc14b-result-toggle`).
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+src/__tests__/attackSimulator.authorizeEvidence.test.js
+src/__tests__/attackSimulator.test.js --forceExit` (25 passed, 2 pending
+[live-API-gated]); `cd demo_api_ui && CI=true npm run test:unit` (282 files,
+2389 passed); `cd demo_api_ui && npm run build` (exit 0). Not yet
+live-verified in a browser — the running Docker stack bind-mounts the main
+checkout, not this worktree (see `project-docker-serves-main-checkout`);
+needs an isolated worktree-pointed stack to click through.
+
 ### 2026-07-27 — In-page HITL consent never discharged the MCP-gateway/REST HITL gate, so a second consent prompt appeared after the first
 
 **Files changed:** `demo_api_server/services/transactionConsentChallenge.js`,

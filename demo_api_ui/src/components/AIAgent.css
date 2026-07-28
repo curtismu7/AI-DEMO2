@@ -5603,6 +5603,35 @@ body > .banking-agent-float-root .banking-agent-panel {
   outline: none;
 }
 
+/* UC14b-only: quick chat result vs. full intent-binding page. Same shape as
+   the "i" explain button — sits between the title and it. "Q" (default) =
+   filled/active; "F" = outline, matching aria-pressed. */
+.ba-demo-steps-popout__rar-toggle {
+  flex: 0 0 auto;
+  width: 26px;
+  height: auto;
+  align-self: stretch;
+  border: 1.5px solid #7c3aed;
+  border-left: none;
+  background: transparent;
+  color: #7c3aed;
+  font: 700 11px/1 ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ba-demo-steps-popout__rar-toggle[aria-pressed="true"] {
+  background: #7c3aed;
+  color: #fff;
+}
+.ba-demo-steps-popout__rar-toggle:hover,
+.ba-demo-steps-popout__rar-toggle:focus-visible {
+  border-color: #6d28d9;
+  outline: none;
+}
+
 /* Done card — match explain border to the green done border */
 .ba-demo-steps-popout__card-item:has(.banking-chips-dropdown__button--done) .ba-demo-steps-popout__explain {
   border-color: #16a34a;

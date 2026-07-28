@@ -441,8 +441,25 @@ export function buildTraceSteps(trace) {
     (e) => e.id === "sim-gateway-deny" && (e.error === "rar_amount_exceeded" || e.error === "rar_unexpected_deny"),
   );
   if (intentVerifiedEvent || intentDeniedEvent) {
+    // Permit carries its own request/response (the real create_transfer call
+    // + gateway result). Deny never reaches a backend response, so "request"
+    // comes from the sibling sim-rar-grant event (the attempted over-cap
+    // call) and "response" is reconstructed from the deny event's own
+    // error/httpStatus/explanation — both already present on these events,
+    // no change to the protected _denyFromGateway needed. buildSimRailEvents
+    // (attack-sim path) renames sim-rar-grant -> rar-authorization, so match
+    // both ids.
+    const rarGrantEvent = findEvent(tokenEvents, "sim-rar-grant", "rar-authorization");
+    const request = intentVerifiedEvent?.request || rarGrantEvent?.request || null;
+    const response = intentVerifiedEvent
+      ? intentVerifiedEvent.response
+      : intentDeniedEvent
+        ? { status: intentDeniedEvent.httpStatus, errorCode: intentDeniedEvent.error, reason: intentDeniedEvent.explanation }
+        : null;
     steps.push(makeStep("intent-binding", intentVerifiedEvent ? "done" : "error", {
       tokenEvent: intentVerifiedEvent || intentDeniedEvent || null,
+      request: request ? { title: "Request", text: asJson(request) } : undefined,
+      response: response ? { title: "Response", text: asJson(response) } : undefined,
     }));
   } else if (traceComplete) {
     steps.push(makeStep("intent-binding", "notinpath", {

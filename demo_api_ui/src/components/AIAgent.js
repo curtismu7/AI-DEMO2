@@ -6477,7 +6477,7 @@ export default function BankingAgent({
    * Chip triggers replay NL with useCaseId stamping; attacks hit the sim API;
    * link/edu open their destinations.
    */
-  async function handleDemoStepSelect(uc, stepNumber) {
+  async function handleDemoStepSelect(uc, stepNumber, opts) {
     if (!uc) return;
     setShowDemoSteps(false);
     setShowDiscovery(false);
@@ -6513,6 +6513,57 @@ export default function BankingAgent({
     }
 
     if (trigger.type === "link" && trigger.path) {
+      // UC14b only: "Quick result" toggle (DemoStepsDropdown) runs the RAR
+      // permit check inline instead of navigating to /intent-binding-learning
+      // — mirrors the "attack" branch below (same chat + Token Chain wiring),
+      // just against the intent-binding endpoint. Every other link step
+      // (Code Search, MCP Inspector, Learning Hub, ...) is unaffected.
+      if (uc.id === "UC14b" && opts?.quickResult) {
+        addMessage("user", stepLabel);
+        setNlLoading(true);
+        try { tokenChainTraceStore.beginTrace({ prompt: stepLabel }); } catch (_) {}
+        try {
+          const { data } = await apiClient.post("/api/demo/intent-binding/run", {
+            action: "permit",
+            requestedAmount: 80,
+          });
+          const status = data?.status;
+          const isDeny = typeof status !== "number" || status >= 400;
+          const verdict = isDeny ? "DENY" : "PERMIT";
+          const reason = data?.reason || data?.errorCode || "";
+          addMessage(
+            "assistant",
+            [
+              `${stepLabel}`,
+              `Intent binding \`permit\` → ${status ?? "?"} ${verdict}`,
+              reason ? reason : null,
+            ]
+              .filter(Boolean)
+              .join("\n"),
+            null,
+            { source: "attack-sim" },
+          );
+          if (data?.tokenChainEvents?.length) {
+            appendTokenEvents(data.tokenChainEvents);
+            if (tokenChain) {
+              tokenChain.setTokenEvents("agent", data.tokenChainEvents);
+            }
+            try {
+              buildSimRailEvents(data).forEach((ev) => { tokenChainTraceStore.ingestTokenEvent(ev); });
+            } catch (_) { /* display-only — never break the reply */ }
+          }
+          try { tokenChainTraceStore.completeTrace(!isDeny); } catch (_) {}
+        } catch (err) {
+          addMessage(
+            "assistant",
+            `${stepLabel}\nIntent binding check failed: ${formatAxiosError(err, err.message || "failed")}`,
+          );
+          try { tokenChainTraceStore.completeTrace(false); } catch (_) {}
+        } finally {
+          setNlLoading(false);
+        }
+        return;
+      }
       addMessage("assistant", `${stepLabel} — opening ${trigger.path}.`);
       navigate(trigger.path);
       return;
@@ -8034,8 +8085,8 @@ export default function BankingAgent({
                     setShowDemoSteps(next);
                     if (next) setShowDiscovery(false);
                   }}
-                  onSelect={(uc, stepNumber) => {
-                    handleDemoStepSelect(uc, stepNumber);
+                  onSelect={(uc, stepNumber, opts) => {
+                    handleDemoStepSelect(uc, stepNumber, opts);
                   }}
                 />
                 {/* Live Use-Case Workbench — same catalog, live/interactive mode */}
