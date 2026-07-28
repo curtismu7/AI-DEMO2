@@ -102,6 +102,43 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-28 — UC8 consent-only vertical writes demanded an MFA code PingOne never asked for
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js` (`isStepUp` carried onto
+`hitlPendingIntent` at both set sites; `handleHitlConfirm`'s `isVerticalConsent`
+branch), `demo_api_ui/src/components/__tests__/AIAgent.verticalConsentNoOtp.test.js`.
+
+**What was broken:** approving a $300 retail checkout popped the MFA device list.
+The server never asked for it — $300 sits between confirm=250 and step-up=500, and
+the live decision carried only `Transaction Consent Required` + `HITL Approval
+Required`. The OTP was started by the browser 2s AFTER `/api/agent/invoke` returned
+200 (`POST /api/auth/oauth/user/initiate-otp` → `POST /api/auth/mfa/challenge`):
+`handleHitlConfirm`'s `isVerticalConsent` branch called `initiateStepUpOtp()`
+unconditionally and gated the challenge-approve behind the OTP callback. The
+`isMcpHitl` branch had already been fixed for exactly this ("Do NOT pre-chain an
+OTP here: that made every consent-only transfer (UC8 $300) and the CIBA demo
+(UC22) show a stray OTP field"), but vertical tools — retail `checkout`,
+healthcare `pay_bill`, every `*_PER_VERTICAL` amount-gated write — go through the
+other branch and never got it. Both set sites already computed `isStepUp` and used
+it only to title the modal.
+
+**What was fixed:** `isStepUp` is carried onto the intent. Consent-only approves
+the challenge and retries immediately, like `isMcpHitl`. A genuine vertical
+step-up keeps OTP-then-approve.
+
+**Do not break:** UC7 in a vertical must still verify identity before the retry —
+the second test in the new spec is the discriminator. Consent-only must not
+pre-chain an OTP: if the retry needs step-up, it returns its OWN 428 and the
+response handler opens the device-list modal. Do not "fix" a missing MFA prompt by
+restoring the unconditional `initiateStepUpOtp()`.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/components/__tests__/AIAgent.verticalConsentNoOtp.test.js`
+(2 passed), plus `npm run test:unit && npm run build`. End-to-end (after merge —
+UI is Vite HMR off the main checkout, no restart needed): the UC8 retail chip at
+$300 must complete on Agree & Continue with no verification-code modal, and UC7 at
+$600 must still ask for MFA.
+
+
 ### 2026-07-28 — A2A local-serve after gateway 502 re-entered executeA2aDelegation forever
 
 **Files changed:** `demo_api_server/services/demoAgentLangGraphService.js`
