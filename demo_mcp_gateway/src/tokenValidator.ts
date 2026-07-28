@@ -145,6 +145,18 @@ let _jwksFetchInFlight: Promise<JwkKey[]> | null = null;
  * When PINGONE_JWKS_ENDPOINT is not set, falls back to jwt.decode (no sig check)
  * and emits a one-time console warning.
  */
+/**
+ * True when this process verifies inbound signatures against a JWKS.
+ *
+ * Single source of truth for the endpoint lookup below, so a caller reporting
+ * "this token's kid was checked" cannot drift from the code that does the
+ * checking. In JWKS mode _decodeAndVerify THROWS on an unmatched kid, so any
+ * token that survives validation demonstrably names a published key.
+ */
+export function isJwksVerificationEnabled(): boolean {
+  return !!(process.env.PINGONE_JWKS_ENDPOINT || process.env.PINGONE_JWKS_URI);
+}
+
 async function _decodeAndVerify(token: string): Promise<DecodedGatewayToken> {
   // PINGONE_JWKS_URI is accepted as an alias because it is the name this stack
   // actually SETS. The gateway container carries

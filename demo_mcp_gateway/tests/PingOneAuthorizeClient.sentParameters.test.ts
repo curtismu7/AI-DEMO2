@@ -162,4 +162,52 @@ describe('buildAuthorizeParameters — C1 canonical parameter set', () => {
     expect(p.ActChainDepth).toBe('1');
     expect(p.NestedActClientId).toBe('');
   });
+
+  // C1 parity with the BFF's McpFirstTool gate, which sends TokenKidKnown.
+  // Only 'true' or omitted is honest from here: in JWKS mode an unmatched kid
+  // throws in _decodeAndVerify, so any token reaching this builder names a
+  // published key. Decode-only mode knows nothing and must omit.
+  describe('TokenKidKnown (signing-key identity)', () => {
+    const ENV_KEYS = ['PINGONE_JWKS_ENDPOINT', 'PINGONE_JWKS_URI'] as const;
+    const saved: Record<string, string | undefined> = {};
+    beforeEach(() => {
+      for (const k of ENV_KEYS) { saved[k] = process.env[k]; delete process.env[k]; }
+    });
+    afterEach(() => {
+      for (const k of ENV_KEYS) {
+        if (saved[k] === undefined) delete process.env[k];
+        else process.env[k] = saved[k];
+      }
+    });
+
+    it("sends 'true' when JWKS verification is enabled", () => {
+      process.env.PINGONE_JWKS_ENDPOINT = 'https://auth.pingone.com/e/as/jwks';
+      const p = buildAuthorizeParameters(tok(), 'tools/call', GW, 'get_my_accounts');
+      expect(p.TokenKidKnown).toBe('true');
+    });
+
+    // PINGONE_JWKS_URI is the name this stack actually sets; the endpoint var
+    // was an orphan for a long time. Both must count as JWKS mode.
+    it("accepts PINGONE_JWKS_URI as the alias the stack actually sets", () => {
+      process.env.PINGONE_JWKS_URI = 'https://auth.pingone.com/e/as/jwks';
+      const p = buildAuthorizeParameters(tok(), 'tools/call', GW, 'get_my_accounts');
+      expect(p.TokenKidKnown).toBe('true');
+    });
+
+    // THE load-bearing case: decode-only mode knows nothing about the kid, and
+    // a fabricated value here would be a claim the gateway cannot support.
+    it('OMITS the key entirely in decode-only mode', () => {
+      const p = buildAuthorizeParameters(tok(), 'tools/call', GW, 'get_my_accounts');
+      expect('TokenKidKnown' in p).toBe(false);
+    });
+
+    it("never sends 'false' — an unpublished kid is rejected before P1AZ", () => {
+      process.env.PINGONE_JWKS_ENDPOINT = 'https://auth.pingone.com/e/as/jwks';
+      const withJwks = buildAuthorizeParameters(tok(), 'tools/call', GW, 'get_my_accounts');
+      delete process.env.PINGONE_JWKS_ENDPOINT;
+      const without = buildAuthorizeParameters(tok(), 'tools/call', GW, 'get_my_accounts');
+      expect(withJwks.TokenKidKnown).not.toBe('false');
+      expect(without.TokenKidKnown).not.toBe('false');
+    });
+  });
 });
