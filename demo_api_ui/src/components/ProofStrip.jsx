@@ -41,7 +41,9 @@ export default function ProofStrip({ rank = 0 }) {
           {item.resultText && (
             <div className="proof-strip-row">
               <span className="proof-strip-label">Result</span>
-              <span>{item.resultText}</span>
+              <span className={`proof-strip-result${item.resultText === 'Denied as expected by policy' ? ' proof-strip-result--denied' : ''}`}>
+                {item.resultText}
+              </span>
             </div>
           )}
           {item.mechanism && item.mechanism.length > 0 && (
