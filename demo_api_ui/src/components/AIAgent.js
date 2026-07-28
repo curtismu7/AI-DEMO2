@@ -7633,40 +7633,52 @@ export default function BankingAgent({
         timestamp: new Date().toISOString(),
       });
     } else {
-      const replyText = response.reply || AGENT_UNAVAILABLE_MESSAGE;
-      const replyWithAgentBadge = `${response.agentHeader || "[CUSTOMER AGENT]"}\n${replyText}`;
-      addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
-      // A2A teaching popup: auto-open after a successful A2A delegation,
-      // mirroring how RAR auto-explains. The response's own token events
-      // feed the modal's live values.
-      if (shouldAutoOpenA2a(response)) {
-        setA2aExplainUc(buildA2aExplainUc(response));
-        setA2aExplainEvents(Array.isArray(response.tokenEvents) ? response.tokenEvents : []);
-      }
-      if (response.tokenEvents?.length) {
-        appendTokenEvents(response.tokenEvents);
-        if (tokenChain) {
-          tokenChain.setTokenEvents("agent", response.tokenEvents);
+      try {
+        const replyText = response.reply || AGENT_UNAVAILABLE_MESSAGE;
+        const replyWithAgentBadge = `${response.agentHeader || "[CUSTOMER AGENT]"}\n${replyText}`;
+        addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
+        // A2A teaching popup: auto-open after a successful A2A delegation,
+        // mirroring how RAR auto-explains. The response's own token events
+        // feed the modal's live values.
+        if (shouldAutoOpenA2a(response)) {
+          setA2aExplainUc(buildA2aExplainUc(response));
+          setA2aExplainEvents(Array.isArray(response.tokenEvents) ? response.tokenEvents : []);
         }
-        const agentTokenMsg = buildTokenEventMsg(response.tokenEvents);
-        if (agentTokenMsg) {
-          addMessage("token-event", agentTokenMsg, null);
+        if (response.tokenEvents?.length) {
+          appendTokenEvents(response.tokenEvents);
+          if (tokenChain) {
+            tokenChain.setTokenEvents("agent", response.tokenEvents);
+          }
+          const agentTokenMsg = buildTokenEventMsg(response.tokenEvents);
+          if (agentTokenMsg) {
+            addMessage("token-event", agentTokenMsg, null);
+          }
         }
-      }
-      if (response.inputTokens || response.outputTokens) {
-        const inc = {
-          input: response.inputTokens ?? 0,
-          output: response.outputTokens ?? 0,
-        };
-        setSessionTokens((prev) => ({
-          input: prev.input + inc.input,
-          output: prev.output + inc.output,
-        }));
-        setLifetimeTokens((prev) => {
-          const next = { input: prev.input + inc.input, output: prev.output + inc.output };
-          try { localStorage.setItem('ba_tokens_lifetime', JSON.stringify(next)); } catch (_) {}
-          return next;
-        });
+        if (response.inputTokens || response.outputTokens) {
+          const inc = {
+            input: response.inputTokens ?? 0,
+            output: response.outputTokens ?? 0,
+          };
+          setSessionTokens((prev) => ({
+            input: prev.input + inc.input,
+            output: prev.output + inc.output,
+          }));
+          setLifetimeTokens((prev) => {
+            const next = { input: prev.input + inc.input, output: prev.output + inc.output };
+            try { localStorage.setItem('ba_tokens_lifetime', JSON.stringify(next)); } catch (_) {}
+            return next;
+          });
+        }
+      } catch (renderErr) {
+        // Diagnostic only: the NL-resume success branch (e.g. after CIBA
+        // approval) has been observed reaching reportNlFailure's generic
+        // "That step couldn't be completed" even when the backend response
+        // carried a genuine success (toolsCalled populated, no error field).
+        // Log the real exception + response shape before rethrowing so the
+        // catch in pollCibaThenResumeNl/callers still drives reportNlFailure,
+        // but the browser console shows what actually broke.
+        console.error("[BankingAgent] handleNlResumeResponse success-branch threw:", renderErr, { response });
+        throw renderErr;
       }
     }
   };
