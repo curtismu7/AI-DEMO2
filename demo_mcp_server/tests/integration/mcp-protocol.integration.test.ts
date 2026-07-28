@@ -7,7 +7,7 @@
 import WebSocket from 'ws';
 import { makeAgentJwt } from '../helpers/agentJwt';
 import { MCP_LATEST_PROTOCOL_VERSION } from '../../src/server/protocolVersions';
-import { BankingMCPServer, ServerConfig } from '../../src/server/BankingMCPServer';
+import { DemoMCPServer, ServerConfig } from '../../src/server/DemoMCPServer';
 import { BankingAuthenticationManager } from '../../src/auth/BankingAuthenticationManager';
 import { BankingSessionManager } from '../../src/storage/BankingSessionManager';
 import { BankingToolProvider } from '../../src/tools/BankingToolProvider';
@@ -31,7 +31,7 @@ jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe('MCP Protocol End-to-End Integration Tests', () => {
-  let server: BankingMCPServer;
+  let server: DemoMCPServer;
   let authManager: BankingAuthenticationManager;
   let sessionManager: BankingSessionManager;
   let toolProvider: BankingToolProvider;
@@ -100,7 +100,7 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
       timeout: 30000
     });
     toolProvider = new BankingToolProvider(bankingClient, authManager, sessionManager);
-    server = new BankingMCPServer(serverConfig, authManager, sessionManager, toolProvider);
+    server = new DemoMCPServer(serverConfig, authManager, sessionManager, toolProvider);
 
     // Start server
     await server.startServer();
@@ -831,10 +831,10 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
       // The server should respond to bad input without crashing. Earlier this test
       // asserted `totalErrors > 0` after sending raw invalid UTF-8, but whether that
       // counter increments depends on which WebSocket layer rejects the frame —
-      // the `ws` library, Node's stream, or BankingMCPServer.processMessage. We now
+      // the `ws` library, Node's stream, or DemoMCPServer.processMessage. We now
       // assert the contract that actually matters: server remains responsive after
       // garbage input. Malformed JSON inside a valid UTF-8 text frame is the canonical
-      // case — BankingMCPServer.ts:280-282 catches it and returns -32700 Parse error.
+      // case — DemoMCPServer.ts:280-282 catches it and returns -32700 Parse error.
       const ws1 = new WebSocket(`ws://localhost:${serverPort}`);
       await new Promise<void>((resolve, reject) => {
         ws1.on('open', resolve);
@@ -906,7 +906,7 @@ describe('MCP Protocol End-to-End Integration Tests', () => {
 
     it('should handle server shutdown gracefully', async () => {
       // Arrange
-      const testServer = new BankingMCPServer(
+      const testServer = new DemoMCPServer(
         { ...serverConfig, port: serverPort + 1 },
         authManager,
         sessionManager,

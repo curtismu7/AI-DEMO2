@@ -273,7 +273,7 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
           reject(err);
         });
 
-        // Server-side policy rejections (e.g. BankingMCPServer.handleConnection's
+        // Server-side policy rejections (e.g. DemoMCPServer.handleConnection's
         // authorizeLastHop check) close the socket cleanly with a reason instead of
         // emitting a WS-level error — ws surfaces that as 'close', not 'error'. Without
         // this handler the promise sat out the full 15s timeout below and reported the

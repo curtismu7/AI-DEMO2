@@ -7,7 +7,7 @@
  */
 
 import WebSocket from 'ws';
-import { BankingMCPServer, ServerConfig } from '../../src/server/BankingMCPServer';
+import { DemoMCPServer, ServerConfig } from '../../src/server/DemoMCPServer';
 import { BankingAuthenticationManager } from '../../src/auth/BankingAuthenticationManager';
 import { BankingSessionManager } from '../../src/storage/BankingSessionManager';
 import { BankingToolProvider } from '../../src/tools/BankingToolProvider';
@@ -31,7 +31,7 @@ const NEW_PUBLIC_TOOLS = [
 ];
 
 describe('Integration: public vs auth-required tools', () => {
-  let server: BankingMCPServer;
+  let server: DemoMCPServer;
   let authManager: BankingAuthenticationManager;
   let sessionManager: BankingSessionManager;
   let toolProvider: BankingToolProvider;
@@ -62,7 +62,7 @@ describe('Integration: public vs auth-required tools', () => {
     sessionManager = new BankingSessionManager(testStoragePath, 'test-encryption-key-32-chars-long!', 3600, 60, { enableDetailedLogging: false });
     bankingClient = new BankingAPIClient({ baseUrl: 'http://localhost:3001', timeout: 30000 });
     toolProvider = new BankingToolProvider(bankingClient, authManager, sessionManager);
-    server = new BankingMCPServer(serverConfig, authManager, sessionManager, toolProvider);
+    server = new DemoMCPServer(serverConfig, authManager, sessionManager, toolProvider);
 
     await server.startServer();
     await new Promise((resolve) => setTimeout(resolve, 100));

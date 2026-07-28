@@ -3,7 +3,7 @@
  * Comprehensive validation for all configuration parameters
  */
 
-import { BankingMCPServerConfig, EnvironmentVariables } from '../interfaces/config';
+import { DemoMCPServerConfig, EnvironmentVariables } from '../interfaces/config';
 import { Environment } from './environments';
 
 export class ConfigurationValidationError extends Error {
@@ -44,7 +44,7 @@ export class ConfigurationValidator {
     };
   }
 
-  public validateConfiguration(config: BankingMCPServerConfig, environment: Environment): ValidationResult {
+  public validateConfiguration(config: DemoMCPServerConfig, environment: Environment): ValidationResult {
     this.errors = [];
     this.warnings = [];
 
@@ -130,7 +130,7 @@ export class ConfigurationValidator {
     }
   }
 
-  private validateServerConfig(server: BankingMCPServerConfig['server']): void {
+  private validateServerConfig(server: DemoMCPServerConfig['server']): void {
     // Validate port
     if (server.port < 1 || server.port > 65535) {
       this.errors.push(new ConfigurationValidationError(
@@ -176,7 +176,7 @@ export class ConfigurationValidator {
     }
   }
 
-  private validatePingOneConfig(pingone: BankingMCPServerConfig['pingone']): void {
+  private validatePingOneConfig(pingone: DemoMCPServerConfig['pingone']): void {
     // Validate base URL
     if (!pingone.baseUrl.startsWith('https://')) {
       this.errors.push(new ConfigurationValidationError(
@@ -230,7 +230,7 @@ export class ConfigurationValidator {
     }
   }
 
-  private validateBankingApiConfig(bankingApi: BankingMCPServerConfig['bankingApi']): void {
+  private validateBankingApiConfig(bankingApi: DemoMCPServerConfig['bankingApi']): void {
     // Validate base URL
     if (!this.isValidUrl(bankingApi.baseUrl)) {
       this.errors.push(new ConfigurationValidationError(
@@ -276,7 +276,7 @@ export class ConfigurationValidator {
     }
   }
 
-  private validateSecurityConfig(security: BankingMCPServerConfig['security'], environment: Environment): void {
+  private validateSecurityConfig(security: DemoMCPServerConfig['security'], environment: Environment): void {
     // Fatal boot guard: SKIP_TOKEN_SIGNATURE_VALIDATION=true outside development
     // disables signature verification entirely — must never run in staging or production.
     // (Documented as "already fatal via ConfigManager" in TokenIntrospector.ts — this is
@@ -333,7 +333,7 @@ export class ConfigurationValidator {
     }
   }
 
-  private validateLoggingConfig(logging: BankingMCPServerConfig['logging']): void {
+  private validateLoggingConfig(logging: DemoMCPServerConfig['logging']): void {
     // Validate log level
     const validLevels = ['ERROR', 'WARN', 'INFO', 'DEBUG'];
     if (!validLevels.includes(logging.level.toUpperCase())) {

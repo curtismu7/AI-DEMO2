@@ -93,7 +93,7 @@ describe('forwardToUpstream — mTLS client half to a TLS upstream (#906)', () =
     upstream = https.createServer(
       { cert: serverPems.cert, key: serverPems.private, requestCert: true, rejectUnauthorized: false },
       (req, res) => {
-        // Mirror BankingMCPServer's mTLS gate: no client cert → 403 mtls_required.
+        // Mirror DemoMCPServer's mTLS gate: no client cert → 403 mtls_required.
         const peer = (req.socket as TLSSocket).getPeerCertificate();
         if (!peer || !peer.subject) {
           res.writeHead(403, { 'Content-Type': 'application/json' });
