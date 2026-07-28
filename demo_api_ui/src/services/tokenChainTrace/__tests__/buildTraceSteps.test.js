@@ -697,3 +697,42 @@ describe("buildTraceSteps — expected DENY (control worked)", () => {
     expect(story.headline).not.toMatch(/Expected DENY/);
   });
 });
+
+describe("buildTraceSteps — dynamic authorize cards (multi-decision)", () => {
+  test("2 authorize evaluations render 2 cards, gate first then secondary", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      authorizeEvaluations: [
+        { decision: "PERMIT", decisionId: "gate-1", engine: "pingone", decisionContext: "McpFirstTool", response: { decision: "PERMIT" } },
+        { decision: "DENY", decisionId: "limit-1", engine: "pingone", decisionContext: "TransactionAmount", raw: { decision: "DENY", reason: "over limit" } },
+      ],
+    });
+    const authorizeSteps = steps.filter((s) => s.baseId === "authorize");
+    expect(authorizeSteps).toHaveLength(2);
+    expect(authorizeSteps[0].id).toBe("authorize");
+    expect(authorizeSteps[0].status).toBe("done");
+    expect(authorizeSteps[0].detail.decision.outcome).toBe("PERMIT");
+    expect(authorizeSteps[0].detail.response.text).toContain('"PERMIT"');
+    expect(authorizeSteps[1].id).toBe("authorize:2");
+    expect(authorizeSteps[1].status).toBe("error");
+    expect(authorizeSteps[1].detail.decision.outcome).toBe("DENY");
+    expect(authorizeSteps[1].detail.response.text).toContain("over limit");
+    expect(authorizeSteps[1].detail.decision.label).toContain("Amount / transaction policy check");
+  });
+
+  test("no authorizeEvaluations field still renders exactly 1 authorize card (back-compat)", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      authorize: { decision: "PERMIT", engine: "pingone", decisionId: "d-1" },
+    });
+    const authorizeSteps = steps.filter((s) => s.baseId === "authorize");
+    expect(authorizeSteps).toHaveLength(1);
+    expect(authorizeSteps[0].id).toBe("authorize");
+  });
+
+  test("empty authorizeEvaluations array falls back to the single-decision path", () => {
+    const steps = buildTraceSteps({ ...EMPTY_TRACE, authorizeEvaluations: [] });
+    expect(steps.filter((s) => s.baseId === "authorize")).toHaveLength(1);
+  });
+});
