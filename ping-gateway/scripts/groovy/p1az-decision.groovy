@@ -4,7 +4,7 @@
  *
  * Builds the SAME 18-key `parameters` payload buildAuthorizeParameters() sends and
  * POSTs it to:
- *     <BASE>/governance/pap/alpha/policy/<P1AZ_WORKER_ID>/decision
+ *     <BASE>/governance/pap/alpha/policy/<P1AZ_DECISION_ENDPOINT_ID>/decision
  *
  * LIVE-SWITCHABLE backend (mock demo_authz_server vs real PingOne Authorize):
  * the BFF stamps the X-Authz-Simulated header (value = effective ff_authorize_simulated)
@@ -24,7 +24,8 @@
  * Env vars:
  *   P1AZ_MOCK_BASE          — mock authz base, e.g. http://authz-server:9001
  *   P1AZ_REAL_BASE          — real PingOne Authorize base
- *   P1AZ_WORKER_ID          — worker/policy id in the decision path
+ *   P1AZ_DECISION_ENDPOINT_ID — decision-endpoint / policy id in the decision path
+ *                             (legacy alias: P1AZ_WORKER_ID — not a worker)
  *   P1AZ_WORKER_CLIENT_ID   — client_credentials client (REAL backend only)
  *   P1AZ_WORKER_CLIENT_SECRET
  *   PINGONE_TOKEN_ENDPOINT  — token endpoint for the worker client_credentials grant
@@ -52,7 +53,10 @@ import org.forgerock.util.promise.ResultHandler
 // ── Env ───────────────────────────────────────────────────────────────────────
 def mockBase            = System.getenv('P1AZ_MOCK_BASE') ?: ''
 def realBase            = System.getenv('P1AZ_REAL_BASE') ?: ''
-def workerId            = System.getenv('P1AZ_WORKER_ID') ?: ''
+// Decision-endpoint id. P1AZ_WORKER_ID is the legacy name — it never held a worker,
+// and sat one line from the real worker (P1AZ_WORKER_CLIENT_ID). Fallback kept for one
+// release so a stale generated ping-gateway/.env cannot produce INVALID_REQUEST (400).
+def workerId            = System.getenv('P1AZ_DECISION_ENDPOINT_ID') ?: System.getenv('P1AZ_WORKER_ID') ?: ''
 def tokenEndpoint       = System.getenv('PINGONE_TOKEN_ENDPOINT') ?: ''
 def workerClientId      = System.getenv('P1AZ_WORKER_CLIENT_ID') ?: ''
 def workerClientSecret  = System.getenv('P1AZ_WORKER_CLIENT_SECRET') ?: ''
@@ -584,7 +588,7 @@ def requestBody = JsonOutput.toJson([parameters: parameters])
 // P1AZ_REAL_BASE may be either the environment base (.../v1/environments/{envId}) or the
 // full decision-endpoint URL — append the /decisionEndpoints/{workerId} segment when it is
 // absent so a bare environment base cannot silently 403 (→ no `decision` → DENY-all). The
-// decision-endpoint id is P1AZ_WORKER_ID (the same id the mock uses as its policy path param).
+// decision-endpoint id is P1AZ_DECISION_ENDPOINT_ID (the same id the mock uses as its policy path param).
 def realDecisionUrl = {
     def b = decisionBase.replaceAll('/$', '')
     b.contains('/decisionEndpoints/') ? b : (b + '/decisionEndpoints/' + workerId)

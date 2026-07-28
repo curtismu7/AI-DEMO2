@@ -2593,6 +2593,7 @@ module.exports = {
   buildTratContext,
   buildRarAuthorizationDetails,
   runTwoExchangeInteractiveTest,
+  firstHttpResourceUri,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

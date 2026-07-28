@@ -97,6 +97,7 @@ describe('requestApproval / getApprovalStatus', () => {
     const status = await getApprovalStatus(id);
     expect(status.status).toBe('pending');
     expect(status.approverUserId).toBe('manager-1');
+    expect(status.authReqId).toBe('auth-1');
   });
 
   test('overwrites a prior pending approval on the same delegation (no queue)', async () => {
@@ -111,6 +112,7 @@ describe('requestApproval / getApprovalStatus', () => {
 
     const status = await getApprovalStatus(id);
     expect(status.status).toBe('pending');
+    expect(status.authReqId).toBe('auth-2');
   });
 
   test('returns ok:false for an unknown delegation id', async () => {

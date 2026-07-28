@@ -90,14 +90,9 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 }
 .luw-body--drawer-closed .luw-drawer { transform: translateX(-100%); }
 
-.luw-drawer__scrim {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  background: rgba(15, 23, 42, 0.18);
-  transition: opacity 180ms ease;
-}
-.luw-body--drawer-closed .luw-drawer__scrim { opacity: 0; pointer-events: none; }
+/* No modal scrim: the drawer is docked in its own grid column, so it never
+   covers .luw-main. A full-body scrim only dimmed the agent + Token Chain and
+   ate every click on them. Close is the ← button or Escape. */
 
 .luw-drawer-tab {
   position: absolute;
@@ -144,7 +139,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 .luw-drawer__toggle:hover { border-color: #94a3b8; color: #0f172a; }
 
 @media (prefers-reduced-motion: reduce) {
-  .luw-drawer, .luw-drawer__scrim { transition: none; }
+  .luw-drawer { transition: none; }
 }
 
 .luw-drawer__head {
@@ -285,17 +280,28 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   /* .luw-body has 1 column when the drawer is closed and 3 when it's open
      (drawer-width var + resize handle). With no explicit placement, grid
      auto-flow drops .luw-main into the 2nd (7px handle) column as soon as
-     the drawer opens, collapsing it to 7px wide. `-1` always resolves to
-     the LAST declared column, in both states, regardless of column count. */
-  grid-column: -1;
+     the drawer opens, collapsing it to 7px wide.
+     `-2 / -1` is the LAST DECLARED column in both states — a bare `-1` is a
+     line, not a track: it starts at the final line and spans one IMPLICIT
+     track past the grid, leaving the explicit 1fr empty to swallow all free
+     space as a grey band while .luw-main stays pinned at max-content. */
+  grid-column: -2 / -1;
   min-height: 0;
   min-width: 0;
+  /* Stage stacking is driven by the room .luw-main actually has, not by the
+     viewport — the sidebar and the drawer eat width the viewport can't see. */
+  container-type: inline-size;
+  container-name: luw-main;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
   background: #eef1f4;
 }
 .luw-main__stage {
   min-height: 0;
+  /* Grid items default to min-width:auto, which refuses to shrink below the
+     run layout's min-content width — the stage then overflows .luw-main and
+     .App{overflow-x:clip} silently cuts the Token Chain off. */
+  min-width: 0;
   overflow: visible;
   padding: 1.25rem;
   display: flex;
@@ -307,10 +313,14 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   align-items: stretch;
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
   width: 100%;
   max-width: none;
   margin: 0;
-  flex-wrap: nowrap;
+  /* Wrap is the safety net: both panes carry a 320px floor, so when the stage
+     can't hold them side by side they drop to a second line instead of being
+     crushed (or overflowing into the clipped region). */
+  flex-wrap: wrap;
 }
 /* Host must be a bounded flex column so portaled .ba-mode-inline (height:100%) fills it */
 .luw-agent-host {
@@ -323,7 +333,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 }
 .luw-rail-host {
   flex: 1.25 1 480px;
-  min-width: 0;
+  min-width: 320px;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -445,8 +455,12 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 }
 
 /* Medium: no room for Agent + Token Chain side-by-side — stack them inside the
-   stage (Demo script drawer stays beside); the stage scrolls, not the page. */
-@media (max-width: 1200px) {
+   stage (Demo script drawer stays beside); the stage scrolls, not the page.
+   Queried on .luw-main, not the viewport: the sidebar (310px) plus the drawer
+   column (240–640px, presenter-draggable) can leave the stage under 700px at a
+   1300px viewport, which a viewport breakpoint never sees. 780px is the two-pane
+   floor: 320 + 320 panes + 7 handle + 16 gap + 40 padding, with headroom. */
+@container luw-main (max-width: 780px) {
   .luw-run-layout {
     flex-wrap: wrap;
     overflow-y: auto;
@@ -456,6 +470,9 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   .luw-agent-host,
   .luw-rail-host {
     flex: 1 1 100% !important;
+    /* Already stacked — the 320px side-by-side floors would only overflow a
+       stage narrower than that (phone widths). */
+    min-width: 0;
     min-height: 420px;
   }
   .luw-rail-host,
@@ -466,9 +483,14 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 /* Narrow: single column — Demo script, Agent, Token Chain stack (height/scroll
    is the unconditional default now — see .luw / .luw-main__stage above). */
 @media (max-width: 860px) {
-  .luw-body {
+  .luw-body,
+  .luw-body--drawer-closed {
     grid-template-columns: 1fr;
   }
+  /* One column here, and the drawer is back in flow (position:static below) —
+     both stack as rows in column 1. Stated explicitly rather than relying on
+     `-2 / -1` resolving to column 1 in a single-track grid. */
+  .luw-main { grid-column: 1; }
   .luw-resize--drawer { display: none; }
   .luw-drawer {
     border-right: 0;
@@ -480,7 +502,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
     width: auto;
     transform: none;
   }
-  .luw-drawer__scrim, .luw-drawer-tab { display: none; }
+  .luw-drawer-tab { display: none; }
   .luw-body--drawer-closed { grid-template-columns: 1fr; }
   .luw-drawer__scroll {
     overflow-y: visible;

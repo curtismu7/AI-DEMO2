@@ -9,9 +9,13 @@ const STATE_LABEL = {
   incomplete: 'Incomplete',
 };
 
-export default function ProofStrip({ rank = 0 }) {
-  const { verdict, history } = useProofOfEnforcement();
-  const item = rank === 0 ? verdict : history[rank] || null;
+// `runId` binds this strip to ONE run (the trace.startedAt captured when the
+// message it hangs under was added), so a later run can no longer repaint it.
+// Omitting it keeps the old behaviour — always the latest verdict — for callers
+// that render a single live strip.
+export default function ProofStrip({ runId = null }) {
+  const { verdict, verdictFor } = useProofOfEnforcement();
+  const item = runId == null ? verdict : verdictFor(runId);
   if (!item) return null;
 
   const icon = item.state === 'verified' || item.state === 'denied-as-expected' ? '✅' : '⚠️';

@@ -314,8 +314,16 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
     if (pending.delegationId) {
       try {
         const approval = await delegationService.getApprovalStatus(pending.delegationId);
-        approvalStatus = approval.status;
-        approverUserId = approval.approverUserId;
+        // Bind the manager decision to THIS auth_req_id only. requestApproval
+        // overwrites pendingApproval on the same delegation (one-at-a-time), so
+        // without this check approving request B would also complete poll(A)
+        // and mint hitlApprovedAmount from A's (possibly larger) session amount.
+        if (approval.authReqId && approval.authReqId !== authReqId) {
+          approvalStatus = 'pending';
+        } else {
+          approvalStatus = approval.status;
+          approverUserId = approval.approverUserId;
+        }
       } catch (approvalErr) {
         console.warn('[CIBA] manager-approval status lookup failed (treating as still pending):', approvalErr.message);
         approvalStatus = 'pending';
