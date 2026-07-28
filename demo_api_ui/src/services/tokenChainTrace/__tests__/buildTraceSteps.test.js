@@ -251,9 +251,9 @@ describe("buildTraceSteps — statuses from evidence", () => {
     const gw = steps.find((s) => s.id === "gateway");
     expect(gw.detail.request.text).toContain("get_my_accounts");
     expect(gw.detail.response.text).toContain("PERMIT");
-    // The gateway hop's education page is the gateway inspector — the P1AZ
+    // The gateway hop's education topic is the Agent Gateway — the P1AZ
     // decision is a separate step with its own link.
-    expect(gw.detail.moreDetail.href).toBe("/pinggateway-inspector");
+    expect(gw.detail.moreDetail).toEqual({ edu: "agent-gateway", label: "Learn: Agent Gateway" });
   });
 
   test("gateway step carries a gateway-tester replay of the tool call that ran", () => {
@@ -265,10 +265,29 @@ describe("buildTraceSteps — statuses from evidence", () => {
     const gw = steps.find((s) => s.id === "gateway");
     expect(gw.detail.replay).toEqual({
       target: "gateway",
-      href: "/pinggateway-inspector?subtab=tester",
+      href: "/agent-gateway-inspector?subtab=tester",
       label: "Replay in Gateway Tester",
       tool: "transfer_funds",
       arguments: { amount: 250 },
+    });
+  });
+
+  test("gateway step falls back to the sim-gateway-deny tool/arguments when the call never reached the MCP server", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [{
+        id: "sim-gateway-deny", label: "Gateway DENY (insufficient_scope)", status: "error",
+        error: "insufficient_scope", httpStatus: 403,
+        tool: "create_transfer", arguments: { amount: 1, toAccountId: "sim-acc-001" },
+      }],
+    });
+    const gw = steps.find((s) => s.id === "gateway");
+    expect(gw.detail.replay).toEqual({
+      target: "gateway",
+      href: "/agent-gateway-inspector?subtab=tester",
+      label: "Replay in Gateway Tester",
+      tool: "create_transfer",
+      arguments: { amount: 1, toAccountId: "sim-acc-001" },
     });
   });
 
@@ -295,7 +314,7 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(az.status).toBe("done");
     expect(az.detail.request.text).toContain("transfer_funds");
     expect(az.detail.response.text).toContain("PERMIT");
-    expect(az.detail.moreDetail.label).toBe("More Education");
+    expect(az.detail.moreDetail).toEqual({ edu: "pingone-authorize", label: "Learn: PingOne Authorize" });
     expect(az.detail.replay).toEqual({
       target: "p1az",
       href: "/pingone-authorize",

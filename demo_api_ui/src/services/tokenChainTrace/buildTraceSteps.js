@@ -1,6 +1,8 @@
 // Pure derivation: merged trace evidence -> ordered step model for the
 // TokenChainTraceRail. No I/O, no store access — unit-testable in isolation.
 
+import { EDU } from "../../components/education/educationIds";
+
 export const LANES = {
   signin: "PINGONE", prompt: "CHAT", agent: "AGENT", llm: "LLM",
   "agent-token": "BFF", exchange: "BFF", authorize: "AUTHZ", stepup: "AUTHZ",
@@ -98,19 +100,42 @@ function buildAuthorizeReplay(azEval, azRequestPayload) {
   };
 }
 
-/** MCP JSON-RPC call -> Agent Gateway Tester (tool + arguments). */
-function buildGatewayReplay(mcpResult, gwAz) {
+/** MCP JSON-RPC call -> Agent Gateway Tester (tool + arguments). Falls back to
+ * the attempted tool recorded on a sim-gateway-deny event when the call never
+ * reached the MCP server (nothing to replay from a real result otherwise). */
+function buildGatewayReplay(mcpResult, gwAz, simGwDeny) {
   const req = mcpResult?.requestJson || null;
   const tool = req?.name || req?.params?.name
     || mcpResult?.tool || mcpResult?.toolName
     || gwAz?.tool
+    || simGwDeny?.tool
     || null;
+  if (!tool) return null;
+  const args = req?.arguments || req?.params?.arguments || mcpResult?.arguments
+    || simGwDeny?.arguments || {};
+  return {
+    target: "gateway",
+    // Direct route, not /pinggateway-inspector — that path redirects via
+    // <Navigate to="/agent-gateway-inspector" replace/> which drops the query
+    // string, losing both ?subtab=tester and the staged ?replay=<id>.
+    href: "/agent-gateway-inspector?subtab=tester",
+    label: "Replay in Gateway Tester",
+    tool: String(tool),
+    arguments: args && typeof args === "object" ? args : {},
+  };
+}
+
+/** MCP JSON-RPC call -> MCP Inspector (tool + arguments), same shape as the
+ * gateway replay above but targeting the banking MCP server's own tester. */
+function buildMcpReplay(mcpResult) {
+  const req = mcpResult?.requestJson || null;
+  const tool = req?.name || req?.params?.name || mcpResult?.tool || mcpResult?.toolName || null;
   if (!tool) return null;
   const args = req?.arguments || req?.params?.arguments || mcpResult?.arguments || {};
   return {
-    target: "gateway",
-    href: "/pinggateway-inspector?subtab=tester",
-    label: "Replay in Gateway Tester",
+    target: "mcp",
+    href: "/pingone-mcp-inspector?source=banking",
+    label: "Replay in MCP Inspector",
     tool: String(tool),
     arguments: args && typeof args === "object" ? args : {},
   };
@@ -385,7 +410,7 @@ export function buildTraceSteps(trace) {
         ["decision id", String(azEval.decisionId || "")],
         azEval.source === "gw-authorize" ? ["evidence", "from gw-authorize (gateway hop)"] : null,
       ].filter((row) => row && row[1]),
-      moreDetail: { href: "/pingone-authorize", label: "More Education" },
+      moreDetail: { edu: EDU.PINGONE_AUTHORIZE, label: "Learn: PingOne Authorize" },
       replay: buildAuthorizeReplay(azEval, azRequestPayload),
     } : {}));
 
@@ -512,10 +537,10 @@ export function buildTraceSteps(trace) {
           ? { title: "Gateway authorize response", text: asJson(body) }
           : undefined;
       })(),
-      // This is the Agent Gateway hop — its education page is the gateway
-      // inspector, not P1AZ (the P1AZ decision has its own step above).
-      moreDetail: { href: "/pinggateway-inspector", label: "More Education" },
-      replay: buildGatewayReplay(mcpResult, gwAz),
+      // This is the Agent Gateway hop — its education topic is the Agent
+      // Gateway (not P1AZ, which has its own step + education link above).
+      moreDetail: { edu: EDU.AGENT_GATEWAY, label: "Learn: Agent Gateway" },
+      replay: buildGatewayReplay(mcpResult, gwAz, simGwDeny),
     } : !gwSeen && !gwDenied && gwSkipEvidence.length ? {
       narrative: gwSkipEvidence.map((e) => e.explanation).filter(Boolean).join(" ") ||
         "The Agent Gateway was not in this run's path.",
@@ -565,6 +590,8 @@ export function buildTraceSteps(trace) {
           + " under the delegated identity.",
       request: { title: "JSON-RPC call (actual)", text: asJson(mcpResult.requestJson || { name: mcpResult.tool }) },
       kv: mcpResult.durationMs != null ? [["duration", `${mcpResult.durationMs} ms`]] : [],
+      moreDetail: { edu: EDU.MCP_PROTOCOL, label: "Learn: MCP Protocol" },
+      replay: buildMcpReplay(mcpResult),
     } : gwDenied ? {
       why: "MCP never ran — the gateway denied the call upstream.",
     } : {}));

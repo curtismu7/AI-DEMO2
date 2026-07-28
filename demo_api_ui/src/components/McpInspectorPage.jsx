@@ -11,6 +11,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import apiClient from '../services/apiClient';
+import { consumeReplay } from '../services/inspectorReplay';
 import { notifyError } from '../utils/appToast';
 import { formatAxiosError } from '../utils/formatAxiosError';
 import { getCalls, subscribe as subscribeMcpCalls, appendMcpCall } from '../services/mcpCallStore';
@@ -246,6 +247,13 @@ function useBankingSource() {
   const [busy, setBusy] = useState(false);
   const [outputTab, setOutputTab] = useState('response');
   const [mcpHistory, setMcpHistory] = useState(getCalls);
+  // Computed once, synchronously, before any effect runs: a Token Chain replay
+  // handoff (?replay=<id>) races the tool-catalog GET below — if the catalog
+  // resolves after the replay has selected/invoked a tool, its reset would
+  // wipe the replayed selection and result right back to "Select a tool".
+  const hasPendingReplayRef = useRef(
+    typeof window !== 'undefined' && /[?&]replay=/.test(window.location.search),
+  );
 
   useEffect(() => {
     const unsub = subscribeMcpCalls(setMcpHistory);
@@ -264,11 +272,13 @@ function useBankingSource() {
             ? { local: false }
             : null,
       );
-      setSelectedTool(null);
-      setLastInvoke(null);
-      setLastTiming(null);
-      setFormError(null);
-      setNeedsLogin(false);
+      if (!hasPendingReplayRef.current) {
+        setSelectedTool(null);
+        setLastInvoke(null);
+        setLastTiming(null);
+        setFormError(null);
+        setNeedsLogin(false);
+      }
     } catch (e) {
       notifyError(formatAxiosError(e, 'BFF unreachable - showing static tool catalog'));
       setTools(BANKING_STATIC_TOOLS);
@@ -347,6 +357,48 @@ function useBankingSource() {
     setLastInvoke(null);
     setLastTiming(null);
   };
+
+  // Replay from the Token Chain TraceRail (?replay=<id>): select the tool this
+  // run actually attempted, load its real arguments, and invoke it. Two
+  // effects, not one — handleInvoke closes over selectedTool/paramValues, so
+  // the call has to wait for the commit that applied them (same pattern as
+  // AgentGatewayTester's gateway-tool replay).
+  const [pendingReplay, setPendingReplay] = useState(null);
+  const [replayArmed, setReplayArmed] = useState(false);
+  const replayConsumed = useRef(false);
+  // Mount-only, and reads location directly rather than via useSearchParams:
+  // consumeReplay is one-shot, so re-running on a param change would find
+  // nothing and could only clobber an in-flight replay.
+  useEffect(() => {
+    if (replayConsumed.current) return;
+    replayConsumed.current = true;
+    const r = consumeReplay(window.location.search);
+    if (r && r.target === 'mcp' && r.tool) setPendingReplay(r);
+  }, []);
+  useEffect(() => {
+    if (!pendingReplay) return;
+    // Prefer the catalog entry (carries the schema for the form header); fall
+    // back to a bare name so a tool missing from the list still replays.
+    const tool = tools.find((t) => t.name === pendingReplay.tool) || { name: pendingReplay.tool };
+    const values = {};
+    for (const [key, value] of Object.entries(pendingReplay.arguments || {})) {
+      values[key] = value !== null && typeof value === 'object' ? JSON.stringify(value) : String(value);
+    }
+    setSelectedTool(tool);
+    setParamValues(values);
+    setFormError(null);
+    setLastInvoke(null);
+    setLastTiming(null);
+    setNeedsLogin(false);
+    setOutputTab('response');
+    setPendingReplay(null);
+    setReplayArmed(true);
+  }, [pendingReplay, tools]);
+  useEffect(() => {
+    if (!replayArmed || !selectedTool) return;
+    setReplayArmed(false);
+    handleInvoke();
+  }, [replayArmed, selectedTool, handleInvoke]);
 
   const outputContent = useMemo(() => {
     if (!lastInvoke && !lastTiming) return null;
