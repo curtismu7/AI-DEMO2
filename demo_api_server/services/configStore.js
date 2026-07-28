@@ -298,6 +298,12 @@ const FIELD_DEFS = {
   // SE enables it for the "user not in group" demo. When on, the authorize
   // engines DENY a restricted tool unless the user is in its required group.
   ff_authorize_group_policy:   { public: true, default: 'false' },
+  // Advisory batch pre-flight (POST /api/authorize/pre-flight-bulk): resolves
+  // one MCP token, evaluates several tools in one PingOne bulk decision call,
+  // narrows which tools to offer. Never grants a call and mints no HITL
+  // challenge — evaluateMcpFirstToolGate still runs unchanged on the actual
+  // invocation. OFF by default; route 404s when off.
+  ff_authorize_bulk_preflight: { public: true, default: 'false' },
   ff_hitl_enabled:             { public: true, default: 'true'  }, // require human approval for agent-initiated high-value transactions
   ff_tracing:                  { public: true, default: 'true'  }, // OTel→Jaeger tracing; reconciled by run-docker.sh demo-sync
   ff_transaction_ledger:       { public: true, default: 'true'  }, // per-transaction chain of custody + identity invariants
