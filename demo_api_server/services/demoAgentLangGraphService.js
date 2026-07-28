@@ -824,6 +824,7 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
     delegated: true,
     specialist: result.specialist,
     vertical: result.vertical,
+    specialistVertical: result.specialistVertical,
     tool: result.tool,
     actChainDepth: result.actChainDepth,
     scopes: result.scopes,
@@ -860,9 +861,10 @@ function buildA2aReplyEnvelope(a2aResult, tokenEvents) {
   // so portfolio_summary (an investment-only key) would resolve to null there.
   // Embedding the descriptor in the response lets the UI use it directly.
   let renderDescriptor = null;
-  if (toolOk && a2aResult.render && a2aResult.vertical) {
+  const descriptorVertical = a2aResult.specialistVertical || a2aResult.vertical;
+  if (toolOk && a2aResult.render && descriptorVertical) {
     try {
-      const entry = verticalManifest.loader.get(a2aResult.vertical);
+      const entry = verticalManifest.loader.get(descriptorVertical);
       renderDescriptor = entry?.manifest?.render?.[a2aResult.render] || null;
     } catch (_) { /* best-effort — missing descriptor just hides the card */ }
   }
