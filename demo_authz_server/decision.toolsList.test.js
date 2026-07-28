@@ -10,6 +10,17 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const decisionHandler = require('./routes/decision');
+const userLookup = require('./pingOneUserLookup');
+
+// node:test's MockTracker only intercepts calls made once a test context is
+// active — mocking at module top-level (before any test starts) silently
+// no-ops. Each test below mocks via t.mock.method instead, which auto-
+// restores when that test ends. Without this, decisionHandler hits the real
+// PingOne lookup, which fails closed without live credentials (test/CI),
+// denying with user_lookup_failed before McpToolsList's own logic runs.
+function mockUserLookup(t) {
+  t.mock.method(userLookup, 'lookupUser', async () => ({ found: true, enabled: true, status: 'ACTIVE' }));
+}
 
 function mkRes() { return { body: null, json(b) { this.body = b; } }; }
 const AUD = process.env.MCP_GATEWAY_RESOURCE_URI || 'mcpgateway.ping.demo';
@@ -26,7 +37,8 @@ function baseParams(over = {}) {
   };
 }
 
-test('McpToolsList returns per-tool advice: read scope permits read tools, denies write tools', async () => {
+test('McpToolsList returns per-tool advice: read scope permits read tools, denies write tools', async (t) => {
+  mockUserLookup(t);
   const res = mkRes();
   await decisionHandler({ params: { workerId: 'p' }, body: { parameters: baseParams() } }, res);
   assert.strictEqual(res.body.decision, 'PERMIT');
@@ -41,14 +53,16 @@ test('McpToolsList returns per-tool advice: read scope permits read tools, denie
   assert.strictEqual(vertical, 'healthcare');
 });
 
-test('McpToolsList with read+write permits both', async () => {
+test('McpToolsList with read+write permits both', async (t) => {
+  mockUserLookup(t);
   const res = mkRes();
   await decisionHandler({ params: { workerId: 'p' }, body: { parameters: baseParams({ TokenScopes: 'read write' }) } }, res);
   const advice = res.body.advice || [];
   assert.deepStrictEqual(JSON.parse(advice.find(a => a.name === 'DeniedTools').value), []);
 });
 
-test('McpToolsList without CandidateTools keeps legacy single-PERMIT', async () => {
+test('McpToolsList without CandidateTools keeps legacy single-PERMIT', async (t) => {
+  mockUserLookup(t);
   const res = mkRes();
   const p = baseParams();
   delete p.CandidateTools;
