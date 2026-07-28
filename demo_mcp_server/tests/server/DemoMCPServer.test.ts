@@ -120,7 +120,7 @@ describe('DemoMCPServer', () => {
     it('starts a TLS listener on MCP_TLS_PORT when enabled', async () => {
       process.env.MCP_TLS_ENABLED = 'true';
       process.env.MCP_TLS_PORT = '0'; // random port, matches the plain listener's test pattern
-      const tlsServer = new BankingMCPServer(config, mockAuthManager, mockSessionManager, mockToolProvider);
+      const tlsServer = new DemoMCPServer(config, mockAuthManager, mockSessionManager, mockToolProvider);
 
       await tlsServer.startServer();
       try {
@@ -134,7 +134,7 @@ describe('DemoMCPServer', () => {
     it('serves real HTTP/2 (ALPN h2) and falls back to HTTP/1.1 on the TLS port', async () => {
       process.env.MCP_TLS_ENABLED = 'true';
       process.env.MCP_TLS_PORT = '0';
-      const tlsServer = new BankingMCPServer(config, mockAuthManager, mockSessionManager, mockToolProvider);
+      const tlsServer = new DemoMCPServer(config, mockAuthManager, mockSessionManager, mockToolProvider);
       await tlsServer.startServer();
       const port = tlsServer.getActualTlsPort();
 
@@ -178,7 +178,7 @@ describe('DemoMCPServer', () => {
     it('leaves the default ws:// listener on the original port unaffected when TLS is enabled', async () => {
       process.env.MCP_TLS_ENABLED = 'true';
       process.env.MCP_TLS_PORT = '0';
-      const tlsServer = new BankingMCPServer(config, mockAuthManager, mockSessionManager, mockToolProvider);
+      const tlsServer = new DemoMCPServer(config, mockAuthManager, mockSessionManager, mockToolProvider);
       await tlsServer.startServer();
 
       try {
