@@ -60,6 +60,11 @@ function createHttp2Session(mcpServerUrl, bearerToken) {
   if (parsed.protocol === 'http:') {
     // Node http2 only speaks h2c (cleartext HTTP/2) via http2.connect with allowHTTP1
     options.allowHTTP1 = true;
+  } else if (parsed.protocol === 'https:') {
+    // Same-network internal hop to demo_mcp_server's self-signed TLS+ALPN
+    // listener (MCP_TLS_ENABLED) — not a trust boundary. Matches PingGateway's
+    // own local-dev requireHttps:false pattern.
+    options.rejectUnauthorized = false;
   }
 
   const session = http2.connect(connectUrl, options);
