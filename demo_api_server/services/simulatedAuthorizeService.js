@@ -217,6 +217,11 @@ async function evaluateMcpFirstTool({
   rarPermittedPayees = null, // allowed payee list from RAR intent (azd.authorization_details[0].payee, normalised to array)
   toAccountId = null,        // payee from the tool call params (checked against rarPermittedPayees)
   useCaseId = null,          // launcher-supplied catalog slug (UC21 tier demo, etc.)
+  // Signing-key identity, resolved by the caller against the live JWKS.
+  // false = the header names a key the issuer does not publish; null = unknown
+  // (no kid, or JWKS unavailable) and the guard is skipped.
+  tokenKid = null,
+  tokenKidKnown = null,
 }) {
   const decisionId = `sim-mcp-${Date.now()}-${++_seq}`;
   const parameters = {
@@ -235,6 +240,8 @@ async function evaluateMcpFirstTool({
     ...(resourceOwnerId ? { ResourceOwnerId: resourceOwnerId } : {}),
     ...(requiredGroup ? { RequiredGroup: requiredGroup } : {}),
     ...(Array.isArray(userGroups) ? { UserGroups: userGroups } : {}),
+    ...(tokenKid ? { TokenKid: tokenKid } : {}),
+    ...(tokenKidKnown != null ? { TokenKidKnown: tokenKidKnown } : {}),
     Timestamp: new Date().toISOString(),
   };
 
@@ -267,6 +274,39 @@ async function evaluateMcpFirstTool({
         ...rawBase,
         decision: 'DENY',
         reason: 'mcp_missing_user_id: no authenticated subject (UserId) on the tool call — cannot authorize.',
+      },
+    };
+    recordSimulatedDecision(out);
+    return out;
+  }
+
+  // ── Signing-key guard (parity with the P1AZ "MCP Deny — Invalid Kid" rule).
+  // tokenKidKnown is resolved by the caller against the live JWKS; false means
+  // the token header names a signing key PingOne does not publish. null (JWKS
+  // unavailable, or no kid in the header) skips the guard — parity with the
+  // live path, where the attribute is omitted and the rule cannot fire.
+  //
+  // Runs before the audience guard: an unpublished signing key means the token
+  // is not ours at all, whereas an audience mismatch means a real token reached
+  // the wrong place. When both would fire, this is the accurate reason.
+  //
+  // This is a key-IDENTITY check, not signature verification. It detects a
+  // token naming an unpublished key; it does not prove the signature is valid.
+  if (tokenKidKnown === false) {
+    const out = {
+      decision: 'DENY',
+      stepUpRequired: false,
+      hitlRequired: false,
+      path: 'simulated',
+      decisionId,
+      raw: {
+        ...rawBase,
+        decision: 'DENY',
+        deny_reason: 'invalid_kid',
+        reason:
+          `Signing-key check failed — the token header names kid="${tokenKid}", which is not ` +
+          `published in the issuer's JWKS. The token was not signed by a key this environment ` +
+          `recognises. Note this is a key-identity check, not signature verification.`,
       },
     };
     recordSimulatedDecision(out);

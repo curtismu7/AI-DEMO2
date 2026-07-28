@@ -1,10 +1,12 @@
 // AgentGatewayTester.jsx
 // InspectorShell three-column layout - sends MCP tool calls through the
 // active gateway and shows response, authorize decision, audit trail.
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import apiClient from '../services/apiClient';
+import { consumeReplay } from '../services/inspectorReplay';
 import { notifyError } from '../utils/appToast';
 import { formatAxiosError } from '../utils/formatAxiosError';
+import { decodeMcpTextContent } from '../utils/decodeMcpTextContent';
 import JsonHighlight from './shared/JsonHighlight';
 import JsonFormView from './shared/JsonFormView';
 import InspectorShell from './shared/InspectorShell';
@@ -154,9 +156,9 @@ const toolDotClass = (name) => {
 };
 
 const PRESETS = [
-  { id: 'uc18-throttle', label: 'UC18 throttling (Demo Gateway)' },
-  { id: 'real-throttle-ig', label: 'UC18 throttling (Real IG)' },
-  { id: 'real-policy', label: 'Real IG policy (simulated authz)' },
+  { id: 'uc18-throttle', label: 'UC18 throttling (Node Gateway)' },
+  { id: 'real-throttle-ig', label: 'UC18 throttling (Real Agent Gateway)' },
+  { id: 'real-policy', label: 'Real Agent Gateway policy (simulated authz)' },
 ];
 
 export default function AgentGatewayTester() {
@@ -317,6 +319,40 @@ export default function AgentGatewayTester() {
     }
   }, [selectedTool, argsText]);
 
+  // Replay from the Token Chain TraceRail (?replay=<id>): select the tool this
+  // run actually called, load its real arguments, and fire it. Two effects, not
+  // one — send() closes over selectedTool/argsText, so the call has to wait for
+  // the commit that applied them.
+  const [pendingReplay, setPendingReplay] = useState(null);
+  const [replayArmed, setReplayArmed] = useState(false);
+  const replayConsumed = useRef(false);
+  // Mount-only, and reads location directly rather than via useSearchParams:
+  // consumeReplay is one-shot, so re-running on a param change would find
+  // nothing and could only clobber an in-flight replay.
+  useEffect(() => {
+    if (replayConsumed.current) return;
+    replayConsumed.current = true;
+    const r = consumeReplay(window.location.search);
+    if (r && r.target === 'gateway' && r.tool) setPendingReplay(r);
+  }, []);
+  useEffect(() => {
+    if (!pendingReplay) return;
+    // Prefer the catalog entry (carries description/schema for the form header);
+    // fall back to a bare name so a tool missing from the list still replays.
+    const tool = tools.find((t) => t.name === pendingReplay.tool) || { name: pendingReplay.tool };
+    setSelectedTool(tool);
+    setArgsText(JSON.stringify(pendingReplay.arguments || {}, null, 2));
+    setResp(null);
+    setOutputTab('result');
+    setPendingReplay(null);
+    setReplayArmed(true);
+  }, [pendingReplay, tools]);
+  useEffect(() => {
+    if (!replayArmed || !selectedTool) return;
+    setReplayArmed(false);
+    send();
+  }, [replayArmed, selectedTool, send]);
+
   const runBurst = useCallback(async () => {
     if (!selectedTool) return;
     let args;
@@ -399,7 +435,11 @@ export default function AgentGatewayTester() {
   const mcpAudit = resp?.gwAuditTrail?.mcpAudit || null;
   const decision = resp?.decision || az?.decision || null;
   const isRateLimited = resp?.rateLimited || resp?.error === 'rate_limited' || resp?.httpStatus === 429;
-  const resultValue = resp?.result ?? resp?.rpcData ?? (resp ? { error: resp.error, message: resp.message } : null);
+  // Decoded, not raw: the MCP envelope carries the payload as a JSON *string*,
+  // which renders as one escaped blob. See decodeMcpTextContent.
+  const resultValue = decodeMcpTextContent(
+    resp?.result ?? resp?.rpcData ?? (resp ? { error: resp.error, message: resp.message } : null),
+  );
 
   // Tool tree grouping with search
   const groupedTools = useMemo(() => {
@@ -744,9 +784,10 @@ export default function AgentGatewayTester() {
           ) : resp ? (
             <>
               <div className="inspector-shell-output-body">
+                {outputTab === 'form' && <JsonFormView value={resultValue} />}
+                {outputTab !== 'form' && (
                 <pre className="inspector-shell-output-code">
                   {outputTab === 'result' && <JsonHighlight value={resultValue} />}
-                  {outputTab === 'form' && <JsonFormView value={resultValue} />}
                   {outputTab === 'audit' && (
                     <JsonHighlight value={resp.gwAuditTrail || { note: 'No audit trail on this response.' }} />
                   )}
@@ -892,6 +933,7 @@ export default function AgentGatewayTester() {
                     </>
                   )}
                 </pre>
+                )}
               </div>
               <div className="inspector-shell-output-footer">
                 <span>

@@ -1,0 +1,12 @@
+{
+  "vertical": "university",
+  "useCaseId": "a2a-delegation",
+  "ucId": "UC2",
+  "trigger": "access my sensitive student finance",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-27T21:22:43.181Z",
+  "seedHash": "55fb07346bdb7866",
+  "reply": "Delegation complete — Financial Aid Specialist retrieved sensitive student finance on your behalf (act-chain depth 2).",
+  "agentPath": null,
+  "tokenEventCount": 14
+}

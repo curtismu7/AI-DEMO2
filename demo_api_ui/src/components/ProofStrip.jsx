@@ -9,44 +9,51 @@ const STATE_LABEL = {
   incomplete: 'Incomplete',
 };
 
-export default function ProofStrip() {
-  const { verdict } = useProofOfEnforcement();
-  if (!verdict) return null;
+// `runId` binds this strip to ONE run (the trace.startedAt captured when the
+// message it hangs under was added), so a later run can no longer repaint it.
+// Omitting it keeps the old behaviour — always the latest verdict — for callers
+// that render a single live strip.
+export default function ProofStrip({ runId = null }) {
+  const { verdict, verdictFor } = useProofOfEnforcement();
+  const item = runId == null ? verdict : verdictFor(runId);
+  if (!item) return null;
 
-  const icon = verdict.state === 'verified' || verdict.state === 'denied-as-expected' ? '✅' : '⚠️';
+  const icon = item.state === 'verified' || item.state === 'denied-as-expected' ? '✅' : '⚠️';
 
   return (
-    <div className={`proof-strip proof-strip--${verdict.state}`} data-testid="proof-strip">
+    <div className={`proof-strip proof-strip--${item.state}`} data-testid="proof-strip">
       <div className="proof-strip-head">
-        <span>{verdict.title} — {STATE_LABEL[verdict.state] || verdict.state}</span>
+        <span>{item.title} — {STATE_LABEL[item.state] || item.state}</span>
         <span>{icon}</span>
       </div>
       <div className="proof-strip-chain">
-        {verdict.matchedSteps.map((step, i) => (
+        {item.matchedSteps.map((step, i) => (
           <React.Fragment key={step}>
             <span className="proof-strip-step">{step}</span>
-            {i < verdict.matchedSteps.length - 1 && <span className="proof-strip-arrow">→</span>}
+            {i < item.matchedSteps.length - 1 && <span className="proof-strip-arrow">→</span>}
           </React.Fragment>
         ))}
       </div>
-      {(verdict.intent || verdict.resultText || (verdict.mechanism && verdict.mechanism.length > 0)) && (
+      {(item.intent || item.resultText || (item.mechanism && item.mechanism.length > 0)) && (
         <div className="proof-strip-details">
-          {verdict.intent && (
+          {item.intent && (
             <div className="proof-strip-row">
               <span className="proof-strip-label">Intent</span>
-              <span>{verdict.intent}</span>
+              <span>{item.intent}</span>
             </div>
           )}
-          {verdict.resultText && (
+          {item.resultText && (
             <div className="proof-strip-row">
               <span className="proof-strip-label">Result</span>
-              <span>{verdict.resultText}</span>
+              <span className={`proof-strip-result${item.resultText === 'Denied as expected by policy' ? ' proof-strip-result--denied' : ''}`}>
+                {item.resultText}
+              </span>
             </div>
           )}
-          {verdict.mechanism && verdict.mechanism.length > 0 && (
+          {item.mechanism && item.mechanism.length > 0 && (
             <div className="proof-strip-row">
               <span className="proof-strip-label">Used</span>
-              <span>{[...verdict.mechanism, verdict.tool].filter(Boolean).join(' · ')}</span>
+              <span>{[...item.mechanism, item.tool].filter(Boolean).join(' · ')}</span>
             </div>
           )}
         </div>

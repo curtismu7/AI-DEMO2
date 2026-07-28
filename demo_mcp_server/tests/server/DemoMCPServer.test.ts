@@ -4,7 +4,7 @@
  */
 
 import WebSocket from 'ws';
-import { BankingMCPServer, ServerConfig } from '../../src/server/BankingMCPServer';
+import { DemoMCPServer, ServerConfig } from '../../src/server/DemoMCPServer';
 import { BankingAuthenticationManager } from '../../src/auth/BankingAuthenticationManager';
 import { BankingSessionManager } from '../../src/storage/BankingSessionManager';
 import { BankingToolProvider } from '../../src/tools/BankingToolProvider';
@@ -15,8 +15,8 @@ jest.mock('../../src/auth/BankingAuthenticationManager');
 jest.mock('../../src/storage/BankingSessionManager');
 jest.mock('../../src/tools/BankingToolProvider');
 
-describe('BankingMCPServer', () => {
-  let server: BankingMCPServer;
+describe('DemoMCPServer', () => {
+  let server: DemoMCPServer;
   let mockAuthManager: jest.Mocked<BankingAuthenticationManager>;
   let mockSessionManager: jest.Mocked<BankingSessionManager>;
   let mockToolProvider: jest.Mocked<BankingToolProvider>;
@@ -45,7 +45,7 @@ describe('BankingMCPServer', () => {
       enableLogging: false
     };
 
-    server = new BankingMCPServer(config, mockAuthManager, mockSessionManager, mockToolProvider);
+    server = new DemoMCPServer(config, mockAuthManager, mockSessionManager, mockToolProvider);
   });
 
   afterEach(async () => {
@@ -101,6 +101,97 @@ describe('BankingMCPServer', () => {
       
       // Should not throw
       await expect(server.stopServer()).resolves.toBeUndefined();
+    });
+  });
+
+  describe('TLS+ALPN listener (MCP_TLS_ENABLED)', () => {
+    const ORIGINAL_ENV = { ...process.env };
+
+    afterEach(() => {
+      process.env = { ...ORIGINAL_ENV };
+    });
+
+    it('does not start a TLS listener by default', async () => {
+      delete process.env.MCP_TLS_ENABLED;
+      await server.startServer();
+      expect(server.getActualTlsPort()).toBeNull();
+    });
+
+    it('starts a TLS listener on MCP_TLS_PORT when enabled', async () => {
+      process.env.MCP_TLS_ENABLED = 'true';
+      process.env.MCP_TLS_PORT = '0'; // random port, matches the plain listener's test pattern
+      const tlsServer = new DemoMCPServer(config, mockAuthManager, mockSessionManager, mockToolProvider);
+
+      await tlsServer.startServer();
+      try {
+        expect(tlsServer.getActualTlsPort()).not.toBeNull();
+        expect(tlsServer.getActualTlsPort()).not.toBe(tlsServer.getActualPort());
+      } finally {
+        await tlsServer.stopServer();
+      }
+    });
+
+    it('serves real HTTP/2 (ALPN h2) and falls back to HTTP/1.1 on the TLS port', async () => {
+      process.env.MCP_TLS_ENABLED = 'true';
+      process.env.MCP_TLS_PORT = '0';
+      const tlsServer = new DemoMCPServer(config, mockAuthManager, mockSessionManager, mockToolProvider);
+      await tlsServer.startServer();
+      const port = tlsServer.getActualTlsPort();
+
+      try {
+        // HTTP/1.1 fallback
+        const https = require('https');
+        const h1Body: string = await new Promise((resolve, reject) => {
+          https.get(
+            { hostname: 'localhost', port, path: '/health', rejectUnauthorized: false },
+            (res: any) => {
+              let body = '';
+              res.on('data', (c: Buffer) => (body += c));
+              res.on('end', () => resolve(body));
+            },
+          ).on('error', reject);
+        });
+        expect(h1Body).toBeTruthy();
+
+        // Real HTTP/2
+        const http2 = require('http2');
+        const client = http2.connect(`https://localhost:${port}`, { rejectUnauthorized: false });
+        const alpn: string = await new Promise((resolve, reject) => {
+          client.on('error', reject);
+          const req = client.request({ ':path': '/health' });
+          req.on('response', () => resolve(client.alpnProtocol));
+          req.on('error', reject);
+          // Drain the response body — an unconsumed HTTP/2 stream never reaches
+          // 'end', which keeps the session "open" and makes the following
+          // client.close() (and the server's tlsServer.close() in stopServer())
+          // hang indefinitely waiting for a stream that will never close itself.
+          req.on('data', () => {});
+          req.end();
+        });
+        client.close();
+        expect(alpn).toBe('h2');
+      } finally {
+        await tlsServer.stopServer();
+      }
+    });
+
+    it('leaves the default ws:// listener on the original port unaffected when TLS is enabled', async () => {
+      process.env.MCP_TLS_ENABLED = 'true';
+      process.env.MCP_TLS_PORT = '0';
+      const tlsServer = new DemoMCPServer(config, mockAuthManager, mockSessionManager, mockToolProvider);
+      await tlsServer.startServer();
+
+      try {
+        const plainPort = tlsServer.getActualPort();
+        const ws = new WebSocket(`ws://localhost:${plainPort}`);
+        await new Promise((resolve, reject) => {
+          ws.once('open', resolve);
+          ws.once('error', reject);
+        });
+        ws.close();
+      } finally {
+        await tlsServer.stopServer();
+      }
     });
   });
 
@@ -168,7 +259,7 @@ describe('BankingMCPServer', () => {
     it('should reject connections when at maximum capacity', async () => {
       // Set low connection limit
       const limitedConfig = { ...config, maxConnections: 1 };
-      const limitedServer = new BankingMCPServer(limitedConfig, mockAuthManager, mockSessionManager, mockToolProvider);
+      const limitedServer = new DemoMCPServer(limitedConfig, mockAuthManager, mockSessionManager, mockToolProvider);
       
       await limitedServer.startServer();
       const limitedServerPort = limitedServer.getActualPort() || 8080;
@@ -396,7 +487,7 @@ describe('BankingMCPServer', () => {
     it('should handle server startup errors gracefully', async () => {
       // Try to start server on invalid port
       const invalidConfig = { ...config, port: -1 };
-      const invalidServer = new BankingMCPServer(invalidConfig, mockAuthManager, mockSessionManager, mockToolProvider);
+      const invalidServer = new DemoMCPServer(invalidConfig, mockAuthManager, mockSessionManager, mockToolProvider);
 
       await expect(invalidServer.startServer()).rejects.toThrow('Failed to start server');
     });

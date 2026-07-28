@@ -1,0 +1,60 @@
+# Transfer amount gate — Policy as Code source of truth.
+#
+# Deployed by scripts/pac-deploy.sh to the "Super Banking Demo - Policy as Code"
+# decision endpoint. This endpoint is PaC-managed: `pac deploy` PUTs a whole
+# deployment package, so anything authored against it in the console is
+# overwritten on the next deploy. The console-authored policies (Transactions,
+# MCP first tool) live on separate endpoints and are not touched by this file.
+
+policyset AmountPolicies evaluate first-applicable:
+  description: "Root decision point for transfer amount limits"
+
+  policy ValuePolicies evaluate first-applicable:
+    description: "Permit small amounts, deny amounts over the limit"
+
+    rule PermitAmount permit:
+      - Request.Amount < 100
+
+    rule DenyAmount deny:
+      - Request.Amount > 100
+
+    # Amount exactly 100 matches neither comparison above. Without this rule the
+    # engine returns NOT_APPLICABLE rather than a decision. The BFF normalises
+    # NOT_APPLICABLE to DENY (pingOneAuthorizeService._normalizeDecision), so the
+    # boundary already fails closed, but an explicit rule is what makes the DENY
+    # provable from the decision tree instead of inferred from caller behaviour.
+    rule DefaultDeny: deny
+
+# ---------------------------
+# TRUST FRAMEWORK
+# ---------------------------
+attributes:
+
+  attribute Request.Amount number:
+    description: "Transfer amount in the request"
+    resolve: request amount
+
+# ---------------------------
+# TESTS
+# ---------------------------
+tests:
+  test 'Permit amount under the limit':
+    request:
+      attributes:
+        amount: "10"
+    expect:
+      decision: permit
+
+  test 'Deny amount over the limit':
+    request:
+      attributes:
+        amount: "150"
+    expect:
+      decision: deny
+
+  test 'Deny amount exactly on the limit':
+    request:
+      attributes:
+        amount: "100"
+    expect:
+      decision: deny

@@ -552,6 +552,12 @@ function parseEducation(t) {
   return null;
 }
 
+// UC34 / bk9 "Spot unusual patterns" — LLM-analysis intent with no deterministic
+// tool. The sec_llm_analyze chip ships this exact text in EVERY vertical manifest,
+// so the same phrases must resolve to unusual_patterns regardless of vertical.
+const UNUSUAL_PATTERNS_RE =
+  /\b(unusual|anomal\w*|suspicious|unexpected)\b.*\b(pattern|transaction|activity|purchase|charge|spend)|check for unusual|flag any unusual|spot unusual/;
+
 /**
  * @returns {{ kind: 'banking', banking: { action: string, params?: object } } | null}
  */
@@ -668,11 +674,7 @@ function parseBanking(t) {
     return { kind: "banking", banking: { action: "spending_summary" } };
   }
   // Unusual / anomaly scan — must precede bare "transactions"/"activity"
-  if (
-    /\b(unusual|anomal\w*|suspicious|unexpected)\b.*\b(pattern|transaction|activity|purchase|charge|spend)|check for unusual|flag any unusual|spot unusual/.test(
-      t,
-    )
-  ) {
+  if (UNUSUAL_PATTERNS_RE.test(t)) {
     return { kind: "banking", banking: { action: "unusual_patterns" } };
   }
   // Affordability — chip "Could my savings cover a big upcoming expense?"
@@ -957,6 +959,17 @@ function parseHeuristic(
         params: { city_name: weatherCityMatch[1].trim() },
       },
     };
+  }
+
+  // UC34 "Spot unusual patterns" chip (sec_llm_analyze) — cross-vertical like
+  // mcp_tools above: every vertical manifest ships the same text. Must precede
+  // plugin heuristics, whose broad read intents ("recent activity" →
+  // view_records / list_orders / list_expenses …) would swallow it and answer
+  // with a data listing instead of the LLM-analysis path (heuristics mode says
+  // "needs an LLM", LLM modes reason via sequential_think — AIAgent.js case
+  // unusual_patterns, same contract as banking).
+  if (UNUSUAL_PATTERNS_RE.test(t)) {
+    return { kind: "banking", banking: { action: "unusual_patterns" } };
   }
 
   // Plugin-first: a vertical with a plugin matches its OWN heuristics/actions.

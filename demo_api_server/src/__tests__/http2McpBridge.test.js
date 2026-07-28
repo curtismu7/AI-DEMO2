@@ -150,6 +150,29 @@ describe('http2McpBridge', () => {
       expect(http2.connect).toHaveBeenCalledTimes(2);
       expect(_pool.size).toBe(2);
     });
+
+    it('should skip TLS verification for https:// targets (self-signed MCP server cert)', () => {
+      const mockSession = createMockSession();
+      mockSessions = [mockSession];
+
+      createHttp2Session('https://mcp-server:8443', 'test-token-abc');
+
+      expect(http2.connect).toHaveBeenCalledWith(
+        'https://mcp-server:8443',
+        expect.objectContaining({ rejectUnauthorized: false }),
+      );
+    });
+
+    it('should NOT set rejectUnauthorized for http:// targets', () => {
+      const mockSession = createMockSession();
+      mockSessions = [mockSession];
+
+      createHttp2Session('http://mcp-server:8080', 'test-token-abc');
+
+      const [, options] = http2.connect.mock.calls[0];
+      expect(options).not.toHaveProperty('rejectUnauthorized');
+      expect(options.allowHTTP1).toBe(true);
+    });
   });
 
   describe('forwardToolCall', () => {

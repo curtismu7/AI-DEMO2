@@ -761,6 +761,54 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
       suppliedUserSub: result.userSub,
     });
     ({ result: toolResult } = parseToolResult(raw, { site: `a2a:${result.tool}` }));
+
+    // The gateway AUTHORIZES, but it cannot always SERVE.
+    //
+    // Only banking's OLB tools sit behind the gateway's backend. Every other
+    // vertical's specialist tool (sensitive_patient_records, sensitive_tax_record,
+    // sensitive_payroll_details, ...) is implemented in this process by the
+    // vertical plugin — config/verticals/<v>/tools.js. So the A2A call ran the
+    // full chain, PingOne Authorize PERMITted it, and then the gateway had
+    // nothing to forward to:
+    //
+    //     P1AZDecision    -> forwarded (PERMIT)
+    //     BackendExchange -> skipped     backend: null
+    //     -> Gateway upstream error (HTTP 502)
+    //
+    // Authorization succeeded; only delivery failed. The BFF is the resource
+    // server for these tools, so run it here — the decision has already been
+    // made by the gateway, and this does not bypass it.
+    //
+    // Deliberately narrow: only after a transport/upstream failure (never after
+    // a DENY or a challenge, which are real answers), and only when the active
+    // vertical's plugin actually owns the tool.
+    const failedUpstream = toolResult && typeof toolResult === 'object'
+      && ['mcp_error', 'gateway_error', 'mcp_unreachable'].includes(toolResult.error);
+    if (failedUpstream) {
+      const ownsTool = (() => {
+        try {
+          const schemas = verticalDispatch.toolSchemasFor(activeId, { isAdmin: false }, () => []) || [];
+          return schemas.some((t) => (t && (t.name || (t.function && t.function.name))) === result.tool);
+        } catch (_) { return false; }
+      })();
+      if (ownsTool) {
+        try {
+          // userId is not a parameter of this function; derive it the same way
+          // the rest of the file does, falling back to the delegation subject.
+          const localUserId = req?.session?.user?.id || result.userSub || 'anon';
+          const localRaw = await resolveExecuteTool(activeId, {
+            userId: localUserId, userToken: null, req, tokenEvents: events, sessionId: sessionId || req?.sessionID || '', isAdmin: false,
+          })(result.tool, toolArgs);
+          const { result: localResult } = parseToolResult(localRaw, { site: `a2a-local:${result.tool}` });
+          if (localResult && !(typeof localResult === 'object' && 'error' in localResult)) {
+            console.log('[executeA2aDelegation] %s authorized at the gateway, served locally (no gateway backend for this vertical)', result.tool);
+            toolResult = localResult;
+          }
+        } catch (localErr) {
+          console.warn('[executeA2aDelegation] local execution of %s failed: %s', result.tool, localErr?.message);
+        }
+      }
+    }
   }
 
   // "Delegated" only means the nested-act token was minted — it is NOT proof the
@@ -776,6 +824,7 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
     delegated: true,
     specialist: result.specialist,
     vertical: result.vertical,
+    specialistVertical: result.specialistVertical,
     tool: result.tool,
     actChainDepth: result.actChainDepth,
     scopes: result.scopes,
@@ -812,9 +861,10 @@ function buildA2aReplyEnvelope(a2aResult, tokenEvents) {
   // so portfolio_summary (an investment-only key) would resolve to null there.
   // Embedding the descriptor in the response lets the UI use it directly.
   let renderDescriptor = null;
-  if (toolOk && a2aResult.render && a2aResult.vertical) {
+  const descriptorVertical = a2aResult.specialistVertical || a2aResult.vertical;
+  if (toolOk && a2aResult.render && descriptorVertical) {
     try {
-      const entry = verticalManifest.loader.get(a2aResult.vertical);
+      const entry = verticalManifest.loader.get(descriptorVertical);
       renderDescriptor = entry?.manifest?.render?.[a2aResult.render] || null;
     } catch (_) { /* best-effort — missing descriptor just hides the card */ }
   }
@@ -868,10 +918,35 @@ function stripChainFieldsForModel(out, collector) {
   return rest;
 }
 
-function resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, sessionId, isAdmin = false }) {
+function resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, sessionId, isAdmin = false, a2aResultRef }) {
   return async (name, args) => {
     if (name === 'delegate_to_specialist') {
-      return executeA2aDelegation(activeId, args, { req, tokenEvents, sessionId });
+      const json = await executeA2aDelegation(activeId, args, { req, tokenEvents, sessionId });
+      // Captured so the reason-loop caller can replace the model's own phrasing
+      // with the same deterministic reply/card the non-LLM dispatch path uses
+      // (buildA2aReplyEnvelope) — see the loopResult.ok branch below.
+      if (a2aResultRef) {
+        try { a2aResultRef.current = JSON.parse(json); } catch (_) { /* leave unset */ }
+      }
+      return json;
+    }
+    // A2A fast-path for a DIRECT model tool call. The model is handed the full
+    // plugin tool list (incl. a2aDelegated tools like sensitive_patient_records)
+    // and may call one directly instead of emitting delegate_to_specialist —
+    // direct execution hits the McpFirstTool DENY (a2a-delegation-required) and
+    // that DENY becomes the final chat reply. Same guard as
+    // dispatchVerticalIntent's heuristic path (line ~1117): route through the
+    // RFC 8693 nested-act delegation service instead, and reuse a2aResultRef so
+    // the reason-loop caller renders the same clean card delegate_to_specialist
+    // produces (buildA2aReplyEnvelope), not the model's own DENY narration.
+    const { isA2aDelegatedTool } = require('./scopeTopology');
+    const { isA2aEnabled } = require('./a2aDelegationService');
+    if (isA2aEnabled() && isA2aDelegatedTool(name)) {
+      const json = await executeA2aDelegation(activeId, { tool: name, args }, { req, tokenEvents, sessionId });
+      if (a2aResultRef) {
+        try { a2aResultRef.current = JSON.parse(json); } catch (_) { /* leave unset */ }
+      }
+      return json;
     }
     if (verticalDispatch.isPluginToolName(name)) {
       return executeBffTool({
@@ -1701,7 +1776,8 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     const historyMessages = conversationStore.getHistory(userId, verticalForHistory) || [];
     const messages = [...historyMessages, { role: 'user', content: message }];
 
-    const executeTool = resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, sessionId, isAdmin: isAdminUser });
+    const a2aResultRef = { current: null };
+    const executeTool = resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, sessionId, isAdmin: isAdminUser, a2aResultRef });
 
     // UC34 activity-analysis pre-fetch. Same precedent as the UC30
     // weatherShowcase gate above: the model IS handed the right tool (banking
@@ -1776,8 +1852,14 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     if (loopResult.ok) {
       appEventService.logEvent('agent_prompt', 'info', `LLM response: ${String(loopResult.answer || '')}`,
         { tag: 'agent_prompt/llm_complete', metadata: { userId, response: String(loopResult.answer || ''), model: model || undefined } });
+      // delegate_to_specialist ran this turn: the model was handed the raw A2A
+      // JSON as its tool result and tends to paste it back verbatim instead of
+      // summarizing (small local models especially). Replace its answer with the
+      // same deterministic reply/card buildA2aReplyEnvelope gives the non-LLM
+      // dispatch path, so UC2 renders identically to a chip-driven delegation.
+      const a2aDisplay = a2aResultRef.current ? buildA2aReplyEnvelope(a2aResultRef.current, tokenEvents) : null;
       return {
-        reply: loopResult.answer,
+        reply: a2aDisplay ? a2aDisplay.reply : loopResult.answer,
         success: true,
         // Was hardcoded []. Tools DO run on this path (the loop executes
         // data.type === 'tool_calls' via executeTool), so reporting none made
@@ -1789,6 +1871,7 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
         requiresConsent: false,
         agentConfigured: true,
         tokenEvents: tokenEvents || [],
+        ...(a2aDisplay?.verticalResult ? { verticalResult: a2aDisplay.verticalResult } : {}),
       };
     }
     // Loop guard tripped: a tool returned a terminal signal (e.g. admin token on
@@ -1937,5 +2020,8 @@ module.exports = {
   processAgentMessage,
   dispatchBankingAction,
   dispatchVerticalIntent,
+  // Public for routes/agentTool.js — external LLM agents' tool callback runs
+  // the same A2A fast-path as dispatchVerticalIntent for a2aDelegated tools.
+  executeA2aDelegation,
   __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation, normalizeVerticalToolArgs, applyAdminCustomerContext },
 };

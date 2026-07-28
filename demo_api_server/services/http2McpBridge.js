@@ -2,13 +2,15 @@
 /**
  * HTTP/2-capable adapter between BFF and MCP server's POST /mcp endpoint.
  *
- * Status (2026-05-14): the BFF default is still `MCP_SERVER_URL=ws://localhost:8080`
+ * Status (2026-07-27): the BFF default is still `MCP_SERVER_URL=ws://localhost:8080`
  * (server.js line ~1729), so this bridge is only exercised when an operator sets
- * `MCP_SERVER_URL` to an `http://` / `https://` URL. Even when invoked, the local
- * MCP server runs on plain `http.createServer` (banking_mcp_server BankingMCPServer.ts),
- * which does NOT advertise h2 — Node's `http2.connect(..., { allowHTTP1: true })`
- * therefore negotiates DOWN to HTTP/1.1. The "multiplexing" benefit is theoretical
- * until the MCP server enables `http2.createServer({ allowHTTP1: true })`.
+ * `MCP_SERVER_URL` to an `http://` / `https://` URL. The MCP server now supports
+ * real HTTP/2 via an opt-in TLS+ALPN listener (`MCP_TLS_ENABLED=true`,
+ * banking_mcp_server DemoMCPServer.ts) on `MCP_TLS_PORT` (default 8443, e.g.
+ * `https://mcp-server:8443`) — set `MCP_SERVER_URL` to that address to get real
+ * h2 multiplexing through this bridge. Plaintext h2c (`http2.createServer`
+ * without TLS) was tested and rejected: cleartext HTTP/2 has no ALPN, so it
+ * breaks plain HTTP/1.1 clients outright.
  *
  * Connection pool: keyed by `{url}:{tokenPrefix}`, max 5 concurrent sessions.
  * Graceful shutdown: drain pending streams on SIGTERM.
@@ -60,6 +62,11 @@ function createHttp2Session(mcpServerUrl, bearerToken) {
   if (parsed.protocol === 'http:') {
     // Node http2 only speaks h2c (cleartext HTTP/2) via http2.connect with allowHTTP1
     options.allowHTTP1 = true;
+  } else if (parsed.protocol === 'https:') {
+    // Same-network internal hop to demo_mcp_server's self-signed TLS+ALPN
+    // listener (MCP_TLS_ENABLED) — not a trust boundary. Matches PingGateway's
+    // own local-dev requireHttps:false pattern.
+    options.rejectUnauthorized = false;
   }
 
   const session = http2.connect(connectUrl, options);

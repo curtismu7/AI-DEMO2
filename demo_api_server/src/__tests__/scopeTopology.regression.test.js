@@ -338,3 +338,64 @@ describe('P1AZ decision-path gateway audience matches the manifest', () => {
     expect(authzTopo.gatewayToolNames().slice().sort()).toEqual(manifestGatewayTools);
   });
 });
+
+// ───────────────────────────────────────────────────────────────────────────
+// Audit hardening (2026-07-27). Three invariant classes the gate previously
+// missed — each one corresponds to a real defect found by the scope audit:
+// the Holdings specialist shipped with no provisioning.resourceNames entry,
+// and sensitive_investment_holdings shipped an a2aDelegated tool whose
+// delegated scope was absent from the A2A gateway resource (live exchange
+// would fail with invalid_scope).
+// ───────────────────────────────────────────────────────────────────────────
+describe('audit hardening — a2aDelegatedScope, provisioning maps, naming', () => {
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  const declared = new Set(Object.keys(manifest.scopes));
+  const aliases = manifest.aliases || {};
+  const normalize = (s) => aliases[s] || s;
+
+  test('every a2aDelegatedScope is a declared scope AND present on the A2A MCP Gateway resource', () => {
+    const a2aGw = manifest.resources['Super Banking A2A MCP Gateway'];
+    const a2aGwScopes = new Set(a2aGw.scopes);
+    const problems = [];
+    for (const [tool, def] of Object.entries(manifest.tools)) {
+      if (!def.a2aDelegatedScope) continue;
+      const scope = normalize(def.a2aDelegatedScope);
+      if (!declared.has(scope)) problems.push(`${tool}: ${scope} not declared in scopes{}`);
+      if (!a2aGwScopes.has(scope)) problems.push(`${tool}: ${scope} missing from Super Banking A2A MCP Gateway scopes`);
+    }
+    expect(problems).toEqual([]);
+  });
+
+  test('provisioning.resourceNames covers every resources{} key', () => {
+    const map = manifest.provisioning.resourceNames;
+    const missing = Object.keys(manifest.resources).filter((k) => !(k in map));
+    expect(missing).toEqual([]);
+  });
+
+  test('provisioning.appNames covers every apps{} key', () => {
+    const map = manifest.provisioning.appNames;
+    const missing = Object.keys(manifest.apps).filter((k) => !(k in map));
+    expect(missing).toEqual([]);
+  });
+
+  // Scope naming convention: lowercase segments joined by ':' (1-3 segments).
+  // ai_agent is the sole grandfathered snake_case exception — do not add more.
+  test('scope names follow the colon-delimited lowercase convention', () => {
+    const EXCEPTIONS = new Set(['ai_agent']);
+    const pattern = /^[a-z]+(:[a-z]+){0,2}$/;
+    const offenders = Object.keys(manifest.scopes)
+      .filter((s) => !EXCEPTIONS.has(s) && !pattern.test(s));
+    expect(offenders).toEqual([]);
+  });
+
+  // Alias hygiene: alias keys must not collide with declared scope names, and
+  // every alias target must be declared.
+  test('aliases map onto declared scopes and never shadow one', () => {
+    const problems = [];
+    for (const [from, to] of Object.entries(aliases)) {
+      if (declared.has(from)) problems.push(`alias key "${from}" shadows a declared scope`);
+      if (!declared.has(to)) problems.push(`alias target "${to}" is not declared`);
+    }
+    expect(problems).toEqual([]);
+  });
+});

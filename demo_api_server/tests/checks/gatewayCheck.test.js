@@ -1,10 +1,12 @@
 'use strict';
 jest.mock('../../services/pingGatewayClient', () => ({ callPingGateway: jest.fn() }));
-jest.mock('../../services/oauthService', () => ({ performTokenExchange: jest.fn() }));
+// The check now mints via the PRODUCTION path (resolveMcpAccessTokenWithEvents)
+// instead of a bespoke performTokenExchange, so that is what these mock.
+jest.mock('../../services/agentMcpTokenService', () => ({ resolveMcpAccessTokenWithEvents: jest.fn() }));
 jest.mock('../../services/configStore', () => ({ getEffective: jest.fn(() => 'gw-aud') }));
 
 const { callPingGateway } = require('../../services/pingGatewayClient');
-const oauth = require('../../services/oauthService');
+const agentMcpTokenService = require('../../services/agentMcpTokenService');
 const { realPath } = require('../../services/checks/gatewayCheck');
 
 const ctxWithToken = { flags: { ff_mcp_gateway_pinggateway: true }, req: { session: { oauthTokens: { accessToken: 'user-jwt' } } } };
@@ -30,7 +32,7 @@ describe('gatewayCheck.real_path', () => {
   // On IG those are FILTERS inside the route chain, not URLs; who decided and
   // what is enforcing is asserted by gateway.posture instead.
   test('passes on a single authenticated tools/call', async () => {
-    oauth.performTokenExchange.mockResolvedValue('gw-token');
+    agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue('gw-token');
     callPingGateway.mockResolvedValueOnce({ statusCode: 200, body: { result: { ok: true } } });
     const r = await realPath.run(ctxWithToken);
     expect(r.status).toBe('pass');
@@ -44,14 +46,38 @@ describe('gatewayCheck.real_path', () => {
   // reported "enforcement is ON and this token did not satisfy it" — a
   // misdiagnosis, since no token was ever transmitted.
   test('forwards the exchanged token to callPingGateway', async () => {
-    oauth.performTokenExchange.mockResolvedValue('gw-token');
+    agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue('gw-token');
     callPingGateway.mockResolvedValueOnce({ statusCode: 200, body: { result: { ok: true } } });
     await realPath.run(ctxWithToken);
-    expect(callPingGateway.mock.calls[0][3]).toEqual({ token: 'gw-token' });
+    expect(callPingGateway.mock.calls[0][3].token).toBe('gw-token');
+  });
+
+  // Live 2026-07-27: with the bearer finally accepted, the gateway answered
+  // 406 "Invalid 'Accept' header" — the streamable-HTTP transport rejects the
+  // request before any tool runs. Pinned because the symptom reads as a
+  // gateway fault rather than a malformed request from the check.
+  test('sends the streamable-HTTP Accept header the transport requires', async () => {
+    agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue('gw-token');
+    callPingGateway.mockResolvedValueOnce({ statusCode: 200, body: { result: { ok: true } } });
+    await realPath.run(ctxWithToken);
+    expect(callPingGateway.mock.calls[0][3].headers.Accept)
+      .toBe('application/json, text/event-stream');
+  });
+
+  // ...and then 400 "Missing, malformed or unsupported MCP-Protocol-Version".
+  // Pinned to the SAME exported constant the production client uses, so an IG
+  // upgrade cannot leave the check imitating a version nothing sends.
+  test('pins the MCP protocol version IG accepts', async () => {
+    const { IG_MCP_PROTOCOL_VERSION } = require('../../services/mcpGatewayClient');
+    agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue('gw-token');
+    callPingGateway.mockResolvedValueOnce({ statusCode: 200, body: { result: { ok: true } } });
+    await realPath.run(ctxWithToken);
+    expect(callPingGateway.mock.calls[0][3].headers['MCP-Protocol-Version'])
+      .toBe(IG_MCP_PROTOCOL_VERSION);
   });
 
   test('does NOT probe /introspect or /authorize (they 404 on IG)', async () => {
-    oauth.performTokenExchange.mockResolvedValue('gw-token');
+    agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue('gw-token');
     callPingGateway.mockResolvedValueOnce({ statusCode: 200, body: { result: { ok: true } } });
     await realPath.run(ctxWithToken);
     const paths = callPingGateway.mock.calls.map((c) => c[1]);
@@ -60,7 +86,7 @@ describe('gatewayCheck.real_path', () => {
   });
 
   test('names the hop when the gateway refuses the token', async () => {
-    oauth.performTokenExchange.mockResolvedValue('gw-token');
+    agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue('gw-token');
     callPingGateway.mockResolvedValueOnce({ statusCode: 401, body: {} });
     const r = await realPath.run(ctxWithToken);
     expect(r.status).toBe('fail');
@@ -72,7 +98,7 @@ describe('gatewayCheck.real_path', () => {
     // Unwrapped, a connection error escaped to runChecks and arrived as a bare
     // code with no indication of which hop produced it — observed live as
     // detail:"ECONNREFUSED", and before that as detail:"" .
-    oauth.performTokenExchange.mockResolvedValue('gw-token');
+    agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue('gw-token');
     callPingGateway.mockRejectedValueOnce(Object.assign(new Error(''), { code: 'ECONNREFUSED' }));
     const r = await realPath.run(ctxWithToken);
     expect(r.status).toBe('fail');
@@ -81,14 +107,14 @@ describe('gatewayCheck.real_path', () => {
   });
 
   test('fails when token exchange throws', async () => {
-    oauth.performTokenExchange.mockRejectedValue(new Error('exchange_failed'));
+    agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockRejectedValue(new Error('exchange_failed'));
     const r = await realPath.run(ctxWithToken);
     expect(r.status).toBe('fail');
     expect(r.detail).toMatch(/exchange_failed/);
   });
 
   test('fails when the tool call returns a JSON-RPC error', async () => {
-    oauth.performTokenExchange.mockResolvedValue('gw-token');
+    agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue('gw-token');
     callPingGateway.mockResolvedValueOnce({ statusCode: 200, body: { error: { code: -32005, message: 'insufficient_scope' } } });
     const r = await realPath.run(ctxWithToken);
     expect(r.status).toBe('fail');
@@ -97,7 +123,7 @@ describe('gatewayCheck.real_path', () => {
   });
 
   test('fails and pinpoints the hop when mcp-call returns no result', async () => {
-    oauth.performTokenExchange.mockResolvedValue('gw-token');
+    agentMcpTokenService.resolveMcpAccessTokenWithEvents.mockResolvedValue('gw-token');
     callPingGateway
       .mockResolvedValueOnce({ statusCode: 200, body: { active: true } })            // introspect
       .mockResolvedValueOnce({ statusCode: 200, body: { decision: 'PERMIT' } })       // authorize

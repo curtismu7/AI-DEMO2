@@ -19,10 +19,10 @@
  *                   ALLOW_UNSIGNED_TRAT_CONTEXT, INTENT_TOKEN_REQUIRED,
  *                   REQUIRE_ACT_FOR_AGENT_TOOLS ]
  *
- * ...while ff_authorize_simulated was FALSE, i.e. the UI told the audience the
- * decisions were real PingOne Authorize. Standing up and saying "PingOne
- * Authorize denied that" when mock-v1 decided it is the one inaccuracy that
- * matters, because it is the exact claim the demo exists to make.
+ * A mock PDP is worth KNOWING about before you claim real enforcement on stage.
+ * It is not, on its own, a contradiction: ff_authorize_simulated governs the
+ * BFF's in-process transaction authorization, and this gateway never reads it.
+ * An earlier version of this check failed on that pair and was wrong.
  *
  * NOTE ON SCOPE: two gateways decide here, and they disagree. PingGateway (IG)
  * calls real PingOne cloud (api.pingone.com/.../decisionEndpoints/) and serves
@@ -40,6 +40,38 @@ const { register } = require('./registry');
 
 /** Policy sources that are not a real PDP answering. */
 const NOT_REAL = new Set(['p1az-mock', 'local-fallback', 'mock', 'none']);
+
+/**
+ * "p1az-mock" is not a fake standing in for PingOne, and calling it one sent a
+ * reader down the wrong path twice.
+ *
+ * authz-server is a faithful local implementation of an AUTHORED cloud policy:
+ * snapshots/gen-authorize-snapshot.js generates the P1AZ snapshot from the same
+ * source of truth, and the mock deliberately emits the SAME statements[].code
+ * values that snapshot defines (DENY_CODE_BY_REASON_PREFIX in
+ * demo_authz_server/routes/decision.js).
+ *
+ * The real gap is one pending operation: that snapshot has never been imported,
+ * so the live decision endpoint runs an older, partial policy. Probed
+ * 2026-07-27 against the live endpoint — amount ceiling DENY (imported), but
+ * A2A act-chain depth, group membership and resource ownership all PERMIT what
+ * the authored policy denies.
+ *
+ * So the fix is NOT "repoint the endpoint at the cloud". Doing that today
+ * deletes three authored controls while making the demo look more legitimate.
+ * The fix is to import the snapshot, then repoint.
+ */
+const LOCAL_POLICY_PHRASE =
+  'A2A decisions come from authz-server, which implements the authored policy locally — '
+  + 'the generated P1AZ snapshot has not been imported, so the live cloud policy is missing '
+  + 'rules the demo relies on.';
+
+const LOCAL_POLICY_NEXT_ACTION =
+  'Run `node demo_api_server/scripts/verifyAuthorizeCloudParity.js` to see which authored rules '
+  + 'the live policy is missing. Import the generated snapshot in the console (needs the '
+  + 'Authorization Admin role — the demo worker is 403 on the policy APIs), re-run until it '
+  + 'passes, THEN point PINGAUTHORIZE_ENDPOINT at the cloud. Repointing first removes the '
+  + 'controls that only run here.';
 
 function gatewayUrl() {
   return (
@@ -100,37 +132,35 @@ const posture = {
 
     // The demo claims real Authorize unless it says otherwise. Reading the flag
     // rather than assuming, so turning simulation ON deliberately is not a fail.
-    const simulated = configStore.getEffective('ff_authorize_simulated');
-    const claimsReal = !(simulated === true || simulated === 'true');
+    // Is a real PDP answering? Read from the gateway itself. Deliberately NOT
+    // cross-referenced against ff_authorize_simulated — see the note below.
     const engineIsReal = !NOT_REAL.has(policySource);
+    const meta = { url, policySource, failOpen, enforcing, engineIsReal };
 
-    const meta = { url, policySource, failOpen, enforcing, claimsReal };
-
-    if (claimsReal && !engineIsReal) {
-      return {
-        status: 'fail',
-        detail:
-          `Split-brain: decisions come from "${policySource}" but ff_authorize_simulated is false, `
-          + 'so the UI tells the audience these are real PingOne Authorize decisions. '
-          + (off.length ? `Also not enforcing: ${off.join(', ')}. ` : '')
-          + (failOpen.length ? `${failOpen.length} fail-open switch(es) active.` : ''),
-        meta,
-        nextAction:
-          'This gateway speaks the PingAuthorize PAP API, NOT PingOne cloud — repointing the '
-          + 'endpoint will not make it real (and setting PINGAUTHORIZE_MOCK_BASE elsewhere only '
-          + 'relabels the mock as real). Either run a real PingAuthorize, teach it PingOne\'s '
-          + 'decision API, or set ff_authorize_simulated=true so the UI stops claiming otherwise.',
-      };
-    }
+    // NO split-brain check here, deliberately.
+    //
+    // An earlier version FAILED when policySource was a mock while
+    // ff_authorize_simulated was false, calling it "the UI claims real PingOne
+    // Authorize". That coupling was wrong. ff_authorize_simulated controls the
+    // BFF's in-process TRANSACTION authorization (simulatedAuthorizeService) —
+    // its own description says "evaluate with an in-process policy... no worker
+    // token or PingOne API call" — and demo_mcp_gateway does not read that flag
+    // at ALL (zero references in its source). Which PDP this gateway calls is
+    // set by PINGAUTHORIZE_ENDPOINT, independently.
+    //
+    // Two unrelated facts that both say "authorize". Failing on the pair put a
+    // false blocking red on the demo-readiness screen, which is worse than not
+    // checking: the screen you trust has to be right about what is wrong.
+    //
+    // What IS worth reporting is below, factually: who decides, what is
+    // enforcing, and what fails open.
 
     if (off.length || failOpen.length) {
-      // Never call the engine "real" here just because there is no
-      // contradiction: when simulation is DECLARED, p1az-mock is the expected
-      // answer, not a real PDP. Mislabelling it would reintroduce the exact
-      // confusion this check exists to remove.
+      // Never call the engine "real" just because there is no contradiction —
+      // but do not call authz-server a fake either. See LOCAL_POLICY_PHRASE.
       const enginePhrase = engineIsReal
-        ? `Engine "${policySource}" is real, but `
-        : `Engine "${policySource}" is simulated (declared via ff_authorize_simulated), and `;
+        ? `Engine "${policySource}" is a real PDP, but `
+        : `${LOCAL_POLICY_PHRASE} `;
       return {
         status: 'warn',
         detail:
@@ -144,11 +174,20 @@ const posture = {
       };
     }
 
+    if (!engineIsReal) {
+      return {
+        status: 'warn',
+        detail:
+          `${LOCAL_POLICY_PHRASE} `
+          + 'Every declared control is enforcing and nothing is failing open.',
+        meta,
+        nextAction: LOCAL_POLICY_NEXT_ACTION,
+      };
+    }
+
     return {
       status: 'pass',
-      detail: engineIsReal
-        ? `Decisions come from "${policySource}"; every declared control is enforcing and nothing is failing open.`
-        : `Decisions come from "${policySource}" (simulation declared); every declared control is enforcing and nothing is failing open.`,
+      detail: `Decisions come from "${policySource}"; every declared control is enforcing and nothing is failing open.`,
       meta,
     };
   },

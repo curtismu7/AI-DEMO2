@@ -386,6 +386,48 @@ describe('nlIntentParser — unusual_patterns and afford_check chips', () => {
   });
 });
 
+// ── UC34 "Spot unusual patterns" chip — cross-vertical ────────────────────────
+// The sec_llm_analyze chip ships the SAME text in every vertical manifest.
+// The heuristic floor must resolve it to unusual_patterns in EVERY vertical —
+// never a vertical read tool — so heuristics mode fails loud ("needs an LLM")
+// and LLM modes reason via sequential_think, exactly like banking. Regression:
+// healthcare answered view_records, retail list_orders, workforce list_expenses.
+
+describe('nlIntentParser — UC34 unusual patterns chip is cross-vertical', () => {
+  const { resolveVerticalCtx } = require('../../services/nlIntentParser');
+  const verticals = [
+    'banking',
+    'healthcare',
+    'retail',
+    'government',
+    'university',
+    'workforce',
+    'sporting-goods',
+    'manufacturing',
+    'investment',
+  ];
+  const chipText = 'Check for unusual patterns in my recent activity';
+
+  for (const v of verticals) {
+    it(`${v}: chip text → unusual_patterns`, () => {
+      const r = parseHeuristic(chipText, v, resolveVerticalCtx(v), {});
+      expect(r.kind).toBe('banking');
+      expect(r.banking.action).toBe('unusual_patterns');
+    });
+
+    it(`${v}: typed variant "anything suspicious in my recent charges" → unusual_patterns`, () => {
+      const r = parseHeuristic(
+        'anything suspicious in my recent charges',
+        v,
+        resolveVerticalCtx(v),
+        {},
+      );
+      expect(r.kind).toBe('banking');
+      expect(r.banking.action).toBe('unusual_patterns');
+    });
+  }
+});
+
 // ── Fallback / none ───────────────────────────────────────────────────────────
 
 describe('nlIntentParser — heuristic none fallback', () => {

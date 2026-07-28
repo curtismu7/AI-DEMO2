@@ -60,7 +60,18 @@ export interface AuthzHealth {
  * auth — all three, or the token is refused instead.
  */
 function unverifiedTokensAccepted(): boolean {
-  return !process.env.PINGONE_JWKS_ENDPOINT
+  // PINGONE_JWKS_URI is the name this stack actually SETS; nothing sets
+  // PINGONE_JWKS_ENDPOINT (#1012 taught tokenValidator to accept both). Reading
+  // only the unset name made this term permanently true, so /health reported
+  // MCP_GW_ALLOW_UNVERIFIED_TOKENS as fail-open while the gateway was genuinely
+  // verifying signatures — a forged token 401s with "no kid header and the JWKS
+  // exposes 4 keys".
+  //
+  // That is a lie in the SAFE direction, which is still a lie: an operator
+  // reading failOpen cannot tell a real bypass from a phantom one, so the whole
+  // list stops being actionable. Must resolve JWKS identically to the validator.
+  const jwksConfigured = !!(process.env.PINGONE_JWKS_ENDPOINT || process.env.PINGONE_JWKS_URI);
+  return !jwksConfigured
     && process.env.STRICT_AUTH !== 'true'
     && process.env.MCP_GW_ALLOW_UNVERIFIED_TOKENS === 'true';
 }

@@ -3,7 +3,7 @@ import topologyRaw from '../service-topology.json';
 
 const STORAGE_KEY = 'arch-canvas-v8';
 
-// Layout — single Agent Gateway node (Node/IG modes are the same product),
+// Layout — single Agent Gateway node (Node Gateway / Agent Gateway modes are the same product),
 // PingOne SSO added as IDP for RFC 8693 token exchange.
 //
 // Positions are computed deterministically from NODE_GRID rather than
@@ -68,7 +68,7 @@ const NODE_LAYER = {
 const NODE_LABEL = {
   'a2a-orchestrator': 'A2A Orchestrator',
   'a2a-specialist':   'Specialist Agent',
-  'mcp-gateway':  'Ping Agent Gateway',
+  'mcp-gateway':  'Agent Gateway',
   'authz-server': 'PingOne Authorize',
   'pingone-sso':  'PingOne SSO',
   'hitl-service': 'HITL Service',
@@ -81,7 +81,7 @@ const NODE_SUB = {
   'agent-service':   'http:3006 · NL mode',
   'a2a-orchestrator':'CrewAI · decide/authorize',
   'a2a-specialist':  'Investment / Records / Purchase',
-  'mcp-gateway':     'http:3005 · Node / IG',
+  'mcp-gateway':     'http:3005 · Node Gateway / Agent Gateway',
   'authz-server':    'http:9001 · P1AZ',
   'pingone-sso':     'IDP · Token Exchange',
   'hitl-service':    'http:3009',

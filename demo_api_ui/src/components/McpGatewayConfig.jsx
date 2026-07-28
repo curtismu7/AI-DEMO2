@@ -226,7 +226,7 @@ function McpGatewayConfigInner() {
 		<div className="mgc-root">
 			<CapabilityCallout
 				capability={AGENT_GATEWAY_CAPABILITIES.find((c) => c.id === "audit-logging")}
-				to="/pinggateway-inspector?subtab=capabilities"
+				to="/agent-gateway-inspector?subtab=capabilities"
 			/>
 			<div className="mgc-header">
 				<div>
@@ -374,12 +374,12 @@ function McpGatewayConfigInner() {
 					<div className="mgc-section">
 						<h4>How to enable mock gateway</h4>
 						<p>The gateway starts automatically with <code>./run.sh</code>. Ensure these files exist:</p>
-						<pre className="mgc-pre">{`# banking_mcp_gateway/.env.development
+						<pre className="mgc-pre">{`# demo_mcp_gateway/.env
 MCP_GW_DEV_BYPASS=true
 MCP_GW_RESOURCE_URI=https://mcpgateway.ping.demo
 MCP_OLB_RESOURCE_URI=https://mcp-olb.ping.demo
 MCP_INVEST_RESOURCE_URI=https://mcp-invest.ping.demo
-# ... (stubs pre-filled in .env.development)`}</pre>
+# ... (stubs pre-filled in .env.example)`}</pre>
 						<p>
 							BFF routes through gateway when{" "}
 							<code>MCP_GATEWAY_HTTP_URL=http://localhost:3005</code> is set — done automatically by{" "}
@@ -660,9 +660,10 @@ MCP_INVEST_RESOURCE_URI=https://mcp-invest.ping.demo
 					<EnvVarTable vars={envVars.required} title="Required (gateway service)" />
 					<EnvVarTable vars={envVars.optional} title="Optional / defaults" />
 					<div className="mgc-alert mgc-alert--info">
-						Secrets are masked. Set vars in{" "}
-						<code>banking_mcp_gateway/.env.development</code> for local dev,
-						or in your deployment environment for production.
+						Secrets are masked — <code>••••</code> means the value is set,
+						<code>NOT SET</code> (red) means it is missing. Set vars in{" "}
+						<code>demo_mcp_gateway/.env</code> for local dev, or in your
+						deployment environment for production.
 					</div>
 				</div>
 			)}

@@ -3,6 +3,7 @@
 import React from "react";
 import { tokenize, formatJson } from "./shared/JsonHighlight";
 import { useEducationUIOptional } from "../context/EducationUIContext";
+import { stageReplay } from "../services/inspectorReplay";
 import "./shared/JsonHighlight.css";
 
 const STATUS_ICON = { pending: "·", active: "…", done: "✓", error: "✗", notinpath: "–" };
@@ -52,8 +53,88 @@ function renderMoreDetailLinks(moreDetail) {
   return `<p class="more-detail"><a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a></p>`;
 }
 
-/** Opens a standalone teaching window for one TraceRail step (L3 overflow). */
-export function openStepTeachingWindow(step) {
+/** Which use case this run belongs to, from the Proof verdict (may be absent). */
+function renderUseCaseBanner(useCase) {
+  if (!useCase || (!useCase.title && !useCase.useCaseId)) return "";
+  const name = [useCase.id, useCase.title || useCase.useCaseId].filter(Boolean).join(" — ");
+  const facts = [
+    useCase.vertical ? `vertical ${useCase.vertical}` : null,
+    useCase.tool ? `tool ${useCase.tool}` : null,
+    useCase.expectedOutcome ? `expected ${useCase.expectedOutcome}` : null,
+  ].filter(Boolean).join(" · ");
+  const state = useCase.state
+    ? `<span class="uc-state uc-state--${escapeHtml(useCase.state)}">${escapeHtml(useCase.state)}</span>`
+    : "";
+  return `<div class="uc">
+    <div class="uc-row"><strong>${escapeHtml(name)}</strong>${state}</div>
+    ${facts ? `<div class="uc-facts">${escapeHtml(facts)}</div>` : ""}
+    ${useCase.resultText ? `<div class="uc-facts">${escapeHtml(useCase.resultText)}</div>` : ""}
+  </div>`;
+}
+
+/** Normative citations + rationale for this hop (static, from STEP_SPEC). */
+function renderSpecBlock(spec, fallbackRfcs) {
+  if (!spec) {
+    return Array.isArray(fallbackRfcs) && fallbackRfcs.length
+      ? `<h2>Specification</h2><p class="spec-refs">${fallbackRfcs.map((r) => escapeHtml(r)).join(" · ")}</p>`
+      : "";
+  }
+  const refs = Array.isArray(spec.refs) && spec.refs.length
+    ? `<p class="spec-refs">${spec.refs.map((r) => (r.href
+      ? `<a href="${escapeHtml(r.href)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(r.title || "")}">${escapeHtml(r.label)}</a>`
+      : `<span>${escapeHtml(r.label)}</span>`)).join(" · ")}</p>`
+    : "";
+  const titles = Array.isArray(spec.refs) && spec.refs.length
+    ? `<ul class="spec-titles">${spec.refs.map((r) =>
+      `<li><strong>${escapeHtml(r.label)}</strong> — ${escapeHtml(r.title || "")}</li>`).join("")}</ul>`
+    : "";
+  return `
+    ${spec.why ? `<h2>Why it works this way</h2><p class="prose">${escapeHtml(spec.why)}</p>` : ""}
+    <h2>What the specification requires</h2>
+    ${refs}${titles}
+    ${spec.mandate ? `<p class="prose">${escapeHtml(spec.mandate)}</p>` : ""}
+    ${spec.failure ? `<h2>Common failure mode</h2><p class="prose prose--warn">${escapeHtml(spec.failure)}</p>` : ""}`;
+}
+
+/** Scope narrowing produced by this hop — kept/dropped scopes, before → after. */
+function renderScopeDiff(scopeDiff) {
+  if (!scopeDiff || !Array.isArray(scopeDiff.before)) return "";
+  const after = Array.isArray(scopeDiff.after) ? scopeDiff.after : [];
+  const chips = scopeDiff.before.map((s) => {
+    const kept = after.includes(s);
+    return `<span class="sc sc--${kept ? "kept" : "gone"}">${escapeHtml(s)}${kept ? "" : " (dropped)"}</span>`;
+  }).join("");
+  return `<h2>Scope narrowing</h2><div class="scope">${chips}
+    <div class="scope-note">Scope after this hop: ${escapeHtml(after.join(" ") || "(none)")}</div></div>`;
+}
+
+/**
+ * The exact request this run made, in a form the matching inspector can re-issue.
+ * Rendered read-only: staging a replay payload is a one-shot localStorage write
+ * that the next inspector visit consumes and re-fires as a LIVE tool call, so it
+ * must only happen on a real click of the card's own "Replay in …" button.
+ */
+function renderReplayBlock(replay) {
+  if (!replay) return "";
+  const rows = [
+    ["target", replay.target],
+    ["tool", replay.tool],
+    ["endpoint", replay.href],
+  ].filter(([, v]) => v);
+  const rawArgs = replay.arguments || replay.parameters || null;
+  const args = rawArgs && Object.keys(rawArgs).length ? rawArgs : null;
+  return `<h2>Re-issuable request</h2><table>${rows.map(([k, v]) =>
+    `<tr><th>${escapeHtml(k)}</th><td><pre class="inline">${escapeHtml(String(v))}</pre></td></tr>`).join("")}</table>
+    ${args ? `<pre class="pre">${textToHtml(formatJson(args))}</pre>` : ""}
+    <p class="prose prose--note">Use the “${escapeHtml(replay.label || "Replay")}” button on the step card to re-run this against the live stack.</p>`;
+}
+
+/**
+ * Opens a standalone teaching window for one TraceRail step (L3 overflow).
+ * @param {object} step the step model from buildTraceSteps
+ * @param {object} [useCase] the Proof verdict for this run — names the use case
+ */
+export function openStepTeachingWindow(step, useCase) {
   const d = step?.detail || {};
   const title = `${step?.num != null ? `${step.num}. ` : ""}${step?.title || "Step"}`;
   const whyHtml = d.why ? `<p class="why"><strong>Why this run:</strong> ${escapeHtml(d.why)}</p>` : "";
@@ -77,6 +158,13 @@ export function openStepTeachingWindow(step) {
     : "";
   const beforeAfterHtml = renderBeforeAfterBlock(d.beforeAfter);
   const moreDetailHtml = renderMoreDetailLinks(d.moreDetail);
+  const useCaseHtml = renderUseCaseBanner(useCase);
+  const specHtml = renderSpecBlock(d.spec, d.rfcs);
+  const scopeHtml = renderScopeDiff(d.scopeDiff);
+  const replayHtml = renderReplayBlock(d.replay);
+  const laneHtml = step?.lane
+    ? `<div class="meta">${escapeHtml(step.lane)}${step.status ? ` · ${escapeHtml(step.status)}` : ""}</div>`
+    : "";
   const kvHtml = Array.isArray(d.kv) && d.kv.length
     ? `<h2>Proof</h2><table>${d.kv.map(([k, v]) =>
       `<tr><th>${escapeHtml(k)}</th><td><pre class="inline">${textToHtml(typeof v === "string" ? v : formatJson(v) || String(v))}</pre></td></tr>`).join("")}</table>`
@@ -91,6 +179,26 @@ export function openStepTeachingWindow(step) {
   h1{font-size:1.05rem;margin-bottom:8px}
   h2{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:#475569;margin:14px 0 6px;border-bottom:1px solid #e5e7eb;padding-bottom:4px}
   .narrative,.why{margin:0 0 8px;color:#334155}
+  .meta{font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:10px}
+  .prose{margin:0 0 8px;color:#334155;max-width:76ch}
+  .prose--warn{border-left:3px solid #f59e0b;padding-left:10px}
+  .prose--note{color:#475569;font-size:12px}
+  .uc{background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;margin:0 0 12px}
+  .uc-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .uc-facts{color:#475569;font-size:12px;margin-top:3px}
+  .uc-state{font-size:.65rem;text-transform:uppercase;letter-spacing:.06em;border-radius:999px;padding:2px 8px;border:1px solid #cbd5e1;color:#334155}
+  .uc-state--verified,.uc-state--denied-as-expected{background:#f0fdf4;border-color:#86efac;color:#166534}
+  .uc-state--mismatch{background:#fef2f2;border-color:#fca5a5;color:#991b1b}
+  .uc-state--incomplete{background:#fffbeb;border-color:#fcd34d;color:#92400e}
+  .spec-refs{margin:0 0 6px}
+  .spec-refs a{color:#1d4ed8;font-weight:600;text-decoration:none;margin-right:4px}
+  .spec-refs a:hover,.spec-refs a:focus{text-decoration:underline}
+  .spec-titles{margin:0 0 8px 16px;color:#475569;font-size:12px}
+  .scope{margin-bottom:10px}
+  .sc{display:inline-block;font:11px ui-monospace,Menlo,monospace;border-radius:6px;padding:2px 7px;margin:0 5px 5px 0}
+  .sc--kept{background:#f0fdf4;border:1px solid #86efac;color:#166534}
+  .sc--gone{background:#f1f5f9;border:1px solid #cbd5e1;color:#64748b;text-decoration:line-through}
+  .scope-note{color:#475569;font-size:12px}
   .decision{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px 10px;margin:8px 0;font-weight:600}
   .pre{background:#0f172a;color:#bae6fd;border-radius:8px;padding:12px;font:11px/1.5 ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-word;max-height:70vh;overflow:auto}
   .inline{margin:0;white-space:pre-wrap;word-break:break-word;font:11px ui-monospace,Menlo,monospace}
@@ -108,7 +216,7 @@ export function openStepTeachingWindow(step) {
 </style></head>
 <body>
   <h1>${escapeHtml(title)}</h1>
-  ${narrativeHtml}${whyHtml}${decisionHtml}${kvHtml}${reqHtml}${resHtml}${altReqHtml}${altResHtml}${beforeAfterHtml}${moreDetailHtml}
+  ${laneHtml}${useCaseHtml}${narrativeHtml}${specHtml}${scopeHtml}${whyHtml}${decisionHtml}${kvHtml}${reqHtml}${resHtml}${altReqHtml}${altResHtml}${beforeAfterHtml}${replayHtml}${moreDetailHtml}
 </body></html>`;
 
   const win = window.open(
@@ -138,7 +246,7 @@ export function hasPopoutWorthyDetail(d) {
   return false;
 }
 
-export default function TraceStepCard({ step, onInspect, defaultOpen = false }) {
+export default function TraceStepCard({ step, onInspect, defaultOpen = false, useCase = null }) {
   const eduUi = useEducationUIOptional();
   const d = step.detail || {};
   const notInPath = step.status === "notinpath";
@@ -147,6 +255,14 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false }) 
   const canPopOut = hasPopoutWorthyDetail(d);
   const more = d.moreDetail || null;
   const canOpenEdu = Boolean(more?.edu && eduUi?.open);
+  const replay = d.replay || null;
+
+  // Stash this run's actual request, then open the inspector on it. Falls back
+  // to the bare page when sessionStorage is unavailable.
+  const openReplay = () => {
+    const url = stageReplay(replay) || replay.href;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <details className="tctr-step" data-status={step.status} data-step-id={step.id} open={defaultOpen}>
@@ -247,9 +363,14 @@ export default function TraceStepCard({ step, onInspect, defaultOpen = false }) 
             <button
               type="button"
               className={`tctr-inspect${largeEvidence ? " tctr-inspect--emphasize" : ""}`}
-              onClick={() => openStepTeachingWindow(step)}
+              onClick={() => openStepTeachingWindow(step, useCase)}
             >
               → Pop out full detail
+            </button>
+          )}
+          {replay && (
+            <button type="button" className="tctr-inspect" onClick={openReplay}>
+              → {replay.label || "Replay in tester"}
             </button>
           )}
           {d.inspectToken && (

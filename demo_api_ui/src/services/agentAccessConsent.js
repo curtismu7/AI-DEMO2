@@ -1,5 +1,5 @@
 // banking_api_ui/src/services/agentAccessConsent.js
-/** Set when the user declines high-value consent; AI banking agent is disabled until sign-out. */
+/** Set when the user declines high-value consent; AI banking agent is disabled until the decline notice is dismissed. */
 const STORAGE_KEY = 'banking_agent_blocked_consent_decline';
 
 export function isAgentBlockedByConsentDecline() {
@@ -24,4 +24,4 @@ export function setAgentBlockedByConsentDecline(blocked) {
 }
 
 export const AGENT_CONSENT_BLOCK_USER_MESSAGE =
-  'You declined to authorize a high-value transaction. The AI banking assistant is not available for this session. Sign out and sign in again if you need the assistant.';
+  'You declined to authorize a high-value transaction. The AI banking assistant is paused — dismiss the decline notice to keep using it.';

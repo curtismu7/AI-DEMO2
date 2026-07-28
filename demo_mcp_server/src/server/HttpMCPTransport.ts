@@ -54,6 +54,7 @@ const BANKING_SCOPES = [
   'accounts:read',
   'transactions:read',
   'transactions:write',
+  'sensitive:read',
 ];
 
 // ---------------------------------------------------------------------------
@@ -152,7 +153,7 @@ export class HttpMCPTransport {
   }
 
   // -------------------------------------------------------------------------
-  // Entry point — called by BankingMCPServer.handleHttpRequest
+  // Entry point — called by DemoMCPServer.handleHttpRequest
   // -------------------------------------------------------------------------
 
   async handleRequest(req: IncomingMessage, res: ServerResponse, pathname: string): Promise<void> {
@@ -293,7 +294,7 @@ export class HttpMCPTransport {
         scopes: [
           'accounts:read',
           'transactions:read',
-          'accounts:write',
+          'transactions:write',
           'sensitive:read',
         ],
       },

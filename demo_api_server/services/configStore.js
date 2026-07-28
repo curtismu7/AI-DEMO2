@@ -298,6 +298,12 @@ const FIELD_DEFS = {
   // SE enables it for the "user not in group" demo. When on, the authorize
   // engines DENY a restricted tool unless the user is in its required group.
   ff_authorize_group_policy:   { public: true, default: 'false' },
+  // Advisory batch pre-flight (POST /api/authorize/pre-flight-bulk): resolves
+  // one MCP token, evaluates several tools in one PingOne bulk decision call,
+  // narrows which tools to offer. Never grants a call and mints no HITL
+  // challenge — evaluateMcpFirstToolGate still runs unchanged on the actual
+  // invocation. OFF by default; route 404s when off.
+  ff_authorize_bulk_preflight: { public: true, default: 'false' },
   ff_hitl_enabled:             { public: true, default: 'true'  }, // require human approval for agent-initiated high-value transactions
   ff_tracing:                  { public: true, default: 'true'  }, // OTel→Jaeger tracing; reconciled by run-docker.sh demo-sync
   ff_transaction_ledger:       { public: true, default: 'true'  }, // per-transaction chain of custody + identity invariants
@@ -353,11 +359,13 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   introspectionProvider:           { public: true, default: 'pinggateway' }, // Token introspection provider: 'pinggateway' (PingGateway/ForgeRock IG, default) or 'p1az' (PingOne Authorize, optional)
   ff_mcp_gateway_pinggateway:      { public: true, default: 'true' }, // Route MCP traffic through PingGateway (IG) instead of the Node gateway
   ff_mcp_gateway_jwks:             { public: true, default: 'false' }, // PingGateway validates MCP tokens locally (JWKS/HS256) instead of introspecting
+  ff_aam:                          { public: true, default: 'true' }, // PingOne Authorize API Access Management on the IG /aam route. Defaults ON: AAM is the coarse-grained layer the demo expects to be running, so this flag turns it OFF rather than opting in
   ff_enterprise_managed_mcp_auth:  { public: true, default: 'false' }, // MCP Enterprise-Managed Authorization — IT policy gate + RFC 8693 ID-JAG stand-in (Phase 1–2)
   enterprise_mcp_allowed_groups:    { public: true, default: 'banking-agents,employees' }, // Comma-separated PingOne group names or population IDs
   enterprise_mcp_resource_uris:    { public: true, default: '' }, // Optional override; defaults to scope-topology MCP resource URIs
   // URL of the PingGateway MCP endpoint — used when ff_mcp_gateway_pinggateway is true.
-  mcp_pinggateway_url:             { public: true, default: 'https://api.ping.demo:3006' },
+  // Host port is 3036 (OrbStack reserves 3006 on macOS — see docker-compose.yml).
+  mcp_pinggateway_url:             { public: true, default: 'https://api.ping.demo:3036' },
   // URL of the demo/Node MCP gateway — used when ff_mcp_gateway_pinggateway is false.
   // Kept separate from mcp_gateway_http_url/MCP_GATEWAY_HTTP_URL, which is baked
   // per-container in docker-compose.yml and can point at PingGateway instead (#375).
@@ -1141,6 +1149,7 @@ class ConfigStore {
       ff_a2a_delegation:               ['FF_A2A_DELEGATION'],
       ff_mcp_gateway_pinggateway:      ['FF_MCP_GATEWAY_PINGGATEWAY'],
       ff_mcp_gateway_jwks:             ['FF_MCP_GATEWAY_JWKS'],
+      ff_aam:                          ['FF_AAM'],
       ff_local_fallback_on_exchange_failure: ['FF_LOCAL_FALLBACK_ON_EXCHANGE_FAILURE'],
       ff_bedrock_agentcore_gateway:    ['FF_BEDROCK_AGENTCORE_GATEWAY'],
       ff_bedrock_llm:                  ['FF_BEDROCK_LLM'],
@@ -1594,9 +1603,23 @@ function buildAllowedScopesByAudience() {
 
   // User End-User banking API (standard 1-exchange)
   // Audience: enduser.ping.demo — see docs/PINGONE_CONFIG.md
+  // Canonical names per scope-topology.json "Super Banking API"; the flat
+  // legacy spellings (admin/sensitive/ai:agent) stay because UI defaults
+  // (DEFAULT_AGENT_MCP_ALLOWED_SCOPES) still send them.
   allow(configStore.getEffective('enduser_audience'), [
     'read',
     'write',
+    'transfer',
+    'accounts:read',
+    'transactions:read',
+    'sensitive:read',
+    'admin:read',
+    'admin:write',
+    'admin:delete',
+    'users:read',
+    'users:manage',
+    'ai:agent:read',
+    'ai_agent',
     'admin',
     'sensitive',
     'ai:agent',
@@ -1605,6 +1628,7 @@ function buildAllowedScopesByAudience() {
   // Agent Gateway (Step 1 actor token) — 2-exchange only
   // Audience: agentgateway.ping.demo — see docs/PINGONE_CONFIG.md
   allow(configStore.getEffective('pingone_resource_agent_gateway_uri'), [
+    'agent:invoke',
     'ai:agent',
     'ai_agent',
   ]);
@@ -2130,6 +2154,7 @@ async function syncOAuthEndpointsToLmdb() {
     ff_a2a_delegation:          'FF_A2A_DELEGATION',
     ff_mcp_gateway_pinggateway: 'FF_MCP_GATEWAY_PINGGATEWAY',
     ff_mcp_gateway_jwks:        'FF_MCP_GATEWAY_JWKS',
+    ff_aam:                     'FF_AAM',
     ff_local_fallback_on_exchange_failure: 'FF_LOCAL_FALLBACK_ON_EXCHANGE_FAILURE',
     ff_bedrock_agentcore_gateway: 'FF_BEDROCK_AGENTCORE_GATEWAY',
     ff_bedrock_llm:             'FF_BEDROCK_LLM',

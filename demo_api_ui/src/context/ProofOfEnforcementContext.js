@@ -87,7 +87,17 @@ export function computeVerdict(trace, catalogEntry) {
   const vertical = verticalOf(trace);
   // Highlights for the ProofStrip box: what the user asked for, which tool ran
   // it, and which Ping products the catalog's evidence chain says are in play.
-  const intent = trace.prompt?.message || catalogEntry.trigger?.text || null;
+  // Chip clicks replay the chip's own button caption as trace.prompt.message
+  // (see AIAgent.js handleDemoStepSelect / TokenChainContext beginTrace) — so
+  // for a chip-driven run this ends up displaying the raw button text (e.g.
+  // "hand off to a specialist") as if it were the user's intent, which reads
+  // like an instruction rather than a description of what happened. Prefer
+  // the catalog entry's title in that case; a genuine free-typed prompt that
+  // doesn't match the trigger text is shown as-is.
+  const rawIntent = trace.prompt?.message || catalogEntry.trigger?.text || null;
+  const intent = rawIntent === catalogEntry.trigger?.text
+    ? (catalogEntry.title || rawIntent)
+    : rawIntent;
   const tool = catalogEntry.primaryTool || trace.mcpResult?.tool || null;
   const mechanism = productsForUseCase(catalogEntry).map((p) => p.label);
   const seenTokenIds = new Set((trace.tokenEvents || []).map((e) => e.id));
@@ -101,7 +111,9 @@ export function computeVerdict(trace, catalogEntry) {
 
   if (missingSteps.length > 0) {
     return {
-      useCaseId, title: catalogEntry.title, state: 'incomplete', matchedSteps, missingSteps, vertical,
+      useCaseId, id: catalogEntry.id, title: catalogEntry.title,
+      expectedOutcome: catalogEntry.expectedOutcome || null,
+      state: 'incomplete', matchedSteps, missingSteps, vertical,
       intent, tool, mechanism,
       resultText: `Waiting on ${missingSteps.join(', ')}`,
     };
@@ -140,19 +152,35 @@ export function computeVerdict(trace, catalogEntry) {
   // chat's own "completed successfully" message, so give those two families
   // their own gate-specific wording and reserve "denied" for the real DENY
   // family (where the call is in fact refused).
+  // "then permitted" is only true when the human actually satisfied the gate.
+  // TransactionConsentModal records a refusal on the trace, so a declined run
+  // says so instead of asserting a permit that never happened. The state stays
+  // 'denied-as-expected' (green): enforcement did exactly its job — the gate
+  // held — and the only thing that changes is what the run is reported to have
+  // ended in.
+  const gateDeclined = trace.approvalOutcome === 'declined';
   const resultText = state === 'mismatch'
     ? 'Result did not match the expected outcome'
     : expectedIsDenyLike
       ? (expectedFamily === 'STEP_UP'
-          ? 'Step-up MFA required as expected — then permitted'
+          ? (gateDeclined
+              ? 'Step-up MFA required as expected — you declined, so the transaction was not completed'
+              : 'Step-up MFA required as expected — then permitted')
           : expectedFamily === 'HITL_REQUIRED'
-            ? 'Human approval required as expected — then permitted'
+            ? (gateDeclined
+                ? 'Human approval required as expected — you declined, so the transaction was not completed'
+                : 'Human approval required as expected — then permitted')
             : 'Denied as expected by policy')
       : tool
         ? `Completed — ${tool} dispatched`
         : 'Completed';
   return {
     useCaseId,
+    // Catalog identity carried alongside the verdict so consumers that need to
+    // name the use case (the Token Chain step pop-out) don't have to re-fetch
+    // /api/use-cases to render "UC7 — Step-up required · expected STEP_UP".
+    id: catalogEntry.id,
+    expectedOutcome: expected || null,
     title: catalogEntry.title,
     state,
     matchedSteps,
@@ -162,10 +190,21 @@ export function computeVerdict(trace, catalogEntry) {
   };
 }
 
+// Cap on how many past runs keep a rendered verdict. Older runs fall out and
+// their strip disappears rather than showing someone else's result.
+const MAX_TRACKED_RUNS = 20;
+
 export function ProofOfEnforcementProvider({ children, vertical = 'banking' }) {
   const [catalog, setCatalog] = useState([]);
   const [verdict, setVerdict] = useState(null);
-  const [history, setHistory] = useState([]);
+  // Verdict per RUN, keyed by the trace's runId (beginTrace stamps a fresh one
+  // per call). recompute fires on every store emit — beginTrace, each
+  // ingestTokenEvent, ingestAuthorize, completeTrace — so a single run produces
+  // several snapshots; keying by run means the later ones REPLACE the earlier
+  // ones instead of accumulating. The previous append-only `history` array made
+  // every entry a snapshot of the same run, and positional lookups into it
+  // repainted older strips with the newest run's result.
+  const [verdictsByRun, setVerdictsByRun] = useState({});
 
   useEffect(() => {
     let cancelled = false;
@@ -184,12 +223,27 @@ export function ProofOfEnforcementProvider({ children, vertical = 'banking' }) {
     if (!entry) { setVerdict(null); return; }
     const next = computeVerdict(trace, entry);
     setVerdict(next);
-    setHistory((prev) => [next, ...prev].slice(0, 20));
+    const runId = trace.runId;
+    if (runId == null) return;
+    setVerdictsByRun((prev) => {
+      const merged = { ...prev, [runId]: next };
+      const keys = Object.keys(merged);
+      if (keys.length <= MAX_TRACKED_RUNS) return merged;
+      const keep = keys.map(Number).sort((a, b) => b - a).slice(0, MAX_TRACKED_RUNS);
+      return Object.fromEntries(keep.map((k) => [k, merged[k]]));
+    });
   }, [catalog]);
 
   useEffect(() => tokenChainTraceStore.subscribe(recompute), [recompute]);
 
-  const value = useMemo(() => ({ verdict, history }), [verdict, history]);
+  // verdictFor(runId) is what pins a rendered strip to the run that produced it;
+  // `verdict` stays the latest-run value the banner/panel/workbench read.
+  const verdictFor = useCallback(
+    (runId) => (runId == null ? null : verdictsByRun[runId] || null),
+    [verdictsByRun],
+  );
+
+  const value = useMemo(() => ({ verdict, verdictFor }), [verdict, verdictFor]);
 
   return <ProofContext.Provider value={value}>{children}</ProofContext.Provider>;
 }
@@ -198,4 +252,14 @@ export function useProofOfEnforcement() {
   const ctx = useContext(ProofContext);
   if (!ctx) throw new Error('useProofOfEnforcement must be used within ProofOfEnforcementProvider');
   return ctx;
+}
+
+/**
+ * Same context, null instead of throwing. TokenChainTraceRail mounts on ~20
+ * surfaces and not all of them sit under ProofOfEnforcementProvider, so the
+ * rail cannot use the throwing hook to look up which use case is running.
+ * @returns {{verdict: object|null, history: object[]}|null}
+ */
+export function useProofOfEnforcementOptional() {
+  return useContext(ProofContext);
 }

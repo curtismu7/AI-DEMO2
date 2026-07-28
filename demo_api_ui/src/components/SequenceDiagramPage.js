@@ -939,7 +939,7 @@ const ALL_STEPS = [
     },
     onError: [
       "401 invalid_token — gateway can't verify the agent's bearer (wrong issuer or expired)",
-      "Connection refused — PingGateway (IG) not running on 3036 or firewall blocking",
+      "Connection refused — Agent Gateway not running on 3036 or firewall blocking",
       "JSON-RPC parse error — malformed payload from agent",
     ],
   },

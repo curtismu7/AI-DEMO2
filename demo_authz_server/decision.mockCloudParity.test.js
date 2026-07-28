@@ -236,3 +236,56 @@ test('the admin deny carries a cloud statement code, not the bare default', asyn
   assert.deepStrictEqual(body.statements, [{ code: 'mcp-admin-role-not-permitted' }]);
   assert.strictEqual(body.policy_source, 'p1az-mock');
 });
+
+// ── Signing-key identity (mcp-invalid-kid) ───────────────────────────────────
+// Parity with the cloud rule "MCP Deny — Invalid Signing Key" and with
+// simulatedAuthorizeService's invalid_kid guard.
+
+test('an absent TokenKidKnown is inert — no caller sends it today', async () => {
+  // THE load-bearing case. Every current caller (both gateways) omits this
+  // parameter entirely. If absent were treated as a deny, this rule would break
+  // every decision the moment it shipped.
+  const withOut = await decide(base({ ToolName: 'get_my_accounts' }));
+  const withEmpty = await decide(base({ ToolName: 'get_my_accounts', TokenKidKnown: '' }));
+  const withNull = await decide(base({ ToolName: 'get_my_accounts', TokenKidKnown: null }));
+  for (const body of [withEmpty, withNull]) {
+    assert.strictEqual(body.decision, withOut.decision);
+    assert.strictEqual(body.reason, withOut.reason);
+  }
+  assert.notStrictEqual(withOut.decision, 'DENY');
+});
+
+test('TokenKidKnown=true does not deny', async () => {
+  const body = await decide(base({ ToolName: 'get_my_accounts', TokenKidKnown: true }));
+  assert.notStrictEqual(body.decision, 'DENY');
+});
+
+// The gateway's buildAuthorizeParameters is Record<string,string>, so it sends
+// 'false' where the BFF sends JSON false. Reading only one shape silently
+// ignores the other caller.
+test("the gateway's string 'false' DENYs exactly like the BFF's boolean false", async () => {
+  const asString = await decide(base({
+    ToolName: 'get_my_accounts', TokenKidKnown: 'false', TokenKid: 'kid-forged',
+  }));
+  const asBoolean = await decide(base({
+    ToolName: 'get_my_accounts', TokenKidKnown: false, TokenKid: 'kid-forged',
+  }));
+  assert.strictEqual(asString.decision, 'DENY');
+  assert.strictEqual(asString.decision, asBoolean.decision);
+  assert.deepStrictEqual(asString.statements, asBoolean.statements);
+});
+
+test("the gateway's string 'true' does not deny", async () => {
+  const body = await decide(base({ ToolName: 'get_my_accounts', TokenKidKnown: 'true' }));
+  assert.notStrictEqual(body.decision, 'DENY');
+});
+
+test('TokenKidKnown=false DENYs with the cloud statement code', async () => {
+  const body = await decide(base({
+    ToolName: 'get_my_accounts', TokenKidKnown: false, TokenKid: 'kid-forged',
+  }));
+  assert.strictEqual(body.decision, 'DENY');
+  assert.match(body.reason, /invalid_kid/);
+  assert.match(body.reason, /kid-forged/);
+  assert.deepStrictEqual(body.statements, [{ code: 'mcp-invalid-kid' }]);
+});

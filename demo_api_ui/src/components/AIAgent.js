@@ -80,6 +80,7 @@ import OtpStepUpModal from "./OtpStepUpModal";
 import QuickLoginModal from "./QuickLoginModal";
 import DemoAuthzFallbackModal from "./DemoAuthzFallbackModal";
 import TransactionConsentModal from "./TransactionConsentModal";
+import DraggableModal from "./DraggableModal";
 import ElicitationDialog from "./ElicitationDialog";
 import UseCaseExplainModal from "./UseCaseExplainModal";
 import { shouldAutoOpenA2a, buildA2aExplainUc } from "./a2aAutoOpen";
@@ -231,7 +232,7 @@ const NL_FAILURE_MESSAGES = {
   // Token exchange #2 failed (often PingOne invalid_scope when gateway broker
   // flags drifted off). Surface a fixable sentence — not the generic fallback.
   delegation_chain_broken:
-    "Token exchange failed — turn on PingGateway routing (Admin → Feature flags: ff_mcp_gateway_pinggateway), then try again.",
+    "Token exchange failed — turn on Agent Gateway routing (Admin → Feature flags: ff_mcp_gateway_pinggateway), then try again.",
   invalid_scope:
     "Token exchange requested scopes across multiple resources. Enable ff_mcp_gateway_pinggateway, then retry.",
   a2a_delegation_disabled:
@@ -2610,6 +2611,17 @@ export default function BankingAgent({
         "⚠️ The agent produced no reply for this turn. That is a bug in the demo " +
         "(not your request) — please try again, and report what you asked if it repeats.";
     }
+    // Pin the assistant bubble to the trace run that is in flight when it is
+    // added, so its ProofStrip keeps showing THAT run's verdict after the next
+    // run starts. Without it strips were looked up by position and every
+    // visible one repainted with the latest result.
+    const proofRunId =
+      role === "assistant"
+        ? (() => {
+            try { return tokenChainTraceStore.getState().trace.runId ?? null; }
+            catch { return null; }
+          })()
+        : null;
     setMessages((prev) => {
       // First real interaction clears the intro greeting bubble(s) so the
       // conversation starts clean. The only messages carrying a -w/-vsw/-guest
@@ -2620,7 +2632,7 @@ export default function BankingAgent({
           : prev;
       return [
         ...base,
-        { id, role, content: contentString ?? "", tool, ...rest },
+        { id, role, content: contentString ?? "", tool, proofRunId, ...rest },
       ];
     });
   }
@@ -4215,7 +4227,7 @@ export default function BankingAgent({
             const cibaTab = window.open(
               "",
               "ciba-approve",
-              "popup=yes,width=400,height=380,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
+              "popup=yes,width=440,height=760,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
             );
             try {
               const apiBase = process.env.REACT_APP_API_URL || "";
@@ -4897,7 +4909,7 @@ export default function BankingAgent({
           const cibaTab = window.open(
             "",
             "ciba-approve",
-            "popup=yes,width=440,height=720,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
+            "popup=yes,width=440,height=760,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
           );
           try {
             const apiBase = process.env.REACT_APP_API_URL || "";
@@ -6476,7 +6488,7 @@ export default function BankingAgent({
    * Chip triggers replay NL with useCaseId stamping; attacks hit the sim API;
    * link/edu open their destinations.
    */
-  async function handleDemoStepSelect(uc, stepNumber) {
+  async function handleDemoStepSelect(uc, stepNumber, opts) {
     if (!uc) return;
     setShowDemoSteps(false);
     setShowDiscovery(false);
@@ -6512,6 +6524,57 @@ export default function BankingAgent({
     }
 
     if (trigger.type === "link" && trigger.path) {
+      // UC14b only: "Quick result" toggle (DemoStepsDropdown) runs the RAR
+      // permit check inline instead of navigating to /intent-binding-learning
+      // — mirrors the "attack" branch below (same chat + Token Chain wiring),
+      // just against the intent-binding endpoint. Every other link step
+      // (Code Search, MCP Inspector, Learning Hub, ...) is unaffected.
+      if (uc.id === "UC14b" && opts?.quickResult) {
+        addMessage("user", stepLabel);
+        setNlLoading(true);
+        try { tokenChainTraceStore.beginTrace({ prompt: stepLabel }); } catch (_) {}
+        try {
+          const { data } = await apiClient.post("/api/demo/intent-binding/run", {
+            action: "permit",
+            requestedAmount: 80,
+          });
+          const status = data?.status;
+          const isDeny = typeof status !== "number" || status >= 400;
+          const verdict = isDeny ? "DENY" : "PERMIT";
+          const reason = data?.reason || data?.errorCode || "";
+          addMessage(
+            "assistant",
+            [
+              `${stepLabel}`,
+              `Intent binding \`permit\` → ${status ?? "?"} ${verdict}`,
+              reason ? reason : null,
+            ]
+              .filter(Boolean)
+              .join("\n"),
+            null,
+            { source: "attack-sim" },
+          );
+          if (data?.tokenChainEvents?.length) {
+            appendTokenEvents(data.tokenChainEvents);
+            if (tokenChain) {
+              tokenChain.setTokenEvents("agent", data.tokenChainEvents);
+            }
+            try {
+              buildSimRailEvents(data).forEach((ev) => { tokenChainTraceStore.ingestTokenEvent(ev); });
+            } catch (_) { /* display-only — never break the reply */ }
+          }
+          try { tokenChainTraceStore.completeTrace(!isDeny); } catch (_) {}
+        } catch (err) {
+          addMessage(
+            "assistant",
+            `${stepLabel}\nIntent binding check failed: ${formatAxiosError(err, err.message || "failed")}`,
+          );
+          try { tokenChainTraceStore.completeTrace(false); } catch (_) {}
+        } finally {
+          setNlLoading(false);
+        }
+        return;
+      }
       addMessage("assistant", `${stepLabel} — opening ${trigger.path}.`);
       navigate(trigger.path);
       return;
@@ -7387,7 +7450,7 @@ export default function BankingAgent({
       const cibaTab = window.open(
         "",
         "ciba-approve",
-        "popup=yes,width=400,height=380,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
+        "popup=yes,width=440,height=760,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
       );
       try {
         const apiBase = process.env.REACT_APP_API_URL || "";
@@ -7581,40 +7644,52 @@ export default function BankingAgent({
         timestamp: new Date().toISOString(),
       });
     } else {
-      const replyText = response.reply || AGENT_UNAVAILABLE_MESSAGE;
-      const replyWithAgentBadge = `${response.agentHeader || "[CUSTOMER AGENT]"}\n${replyText}`;
-      addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
-      // A2A teaching popup: auto-open after a successful A2A delegation,
-      // mirroring how RAR auto-explains. The response's own token events
-      // feed the modal's live values.
-      if (shouldAutoOpenA2a(response)) {
-        setA2aExplainUc(buildA2aExplainUc(response));
-        setA2aExplainEvents(Array.isArray(response.tokenEvents) ? response.tokenEvents : []);
-      }
-      if (response.tokenEvents?.length) {
-        appendTokenEvents(response.tokenEvents);
-        if (tokenChain) {
-          tokenChain.setTokenEvents("agent", response.tokenEvents);
+      try {
+        const replyText = response.reply || AGENT_UNAVAILABLE_MESSAGE;
+        const replyWithAgentBadge = `${response.agentHeader || "[CUSTOMER AGENT]"}\n${replyText}`;
+        addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
+        // A2A teaching popup: auto-open after a successful A2A delegation,
+        // mirroring how RAR auto-explains. The response's own token events
+        // feed the modal's live values.
+        if (shouldAutoOpenA2a(response)) {
+          setA2aExplainUc(buildA2aExplainUc(response));
+          setA2aExplainEvents(Array.isArray(response.tokenEvents) ? response.tokenEvents : []);
         }
-        const agentTokenMsg = buildTokenEventMsg(response.tokenEvents);
-        if (agentTokenMsg) {
-          addMessage("token-event", agentTokenMsg, null);
+        if (response.tokenEvents?.length) {
+          appendTokenEvents(response.tokenEvents);
+          if (tokenChain) {
+            tokenChain.setTokenEvents("agent", response.tokenEvents);
+          }
+          const agentTokenMsg = buildTokenEventMsg(response.tokenEvents);
+          if (agentTokenMsg) {
+            addMessage("token-event", agentTokenMsg, null);
+          }
         }
-      }
-      if (response.inputTokens || response.outputTokens) {
-        const inc = {
-          input: response.inputTokens ?? 0,
-          output: response.outputTokens ?? 0,
-        };
-        setSessionTokens((prev) => ({
-          input: prev.input + inc.input,
-          output: prev.output + inc.output,
-        }));
-        setLifetimeTokens((prev) => {
-          const next = { input: prev.input + inc.input, output: prev.output + inc.output };
-          try { localStorage.setItem('ba_tokens_lifetime', JSON.stringify(next)); } catch (_) {}
-          return next;
-        });
+        if (response.inputTokens || response.outputTokens) {
+          const inc = {
+            input: response.inputTokens ?? 0,
+            output: response.outputTokens ?? 0,
+          };
+          setSessionTokens((prev) => ({
+            input: prev.input + inc.input,
+            output: prev.output + inc.output,
+          }));
+          setLifetimeTokens((prev) => {
+            const next = { input: prev.input + inc.input, output: prev.output + inc.output };
+            try { localStorage.setItem('ba_tokens_lifetime', JSON.stringify(next)); } catch (_) {}
+            return next;
+          });
+        }
+      } catch (renderErr) {
+        // Diagnostic only: the NL-resume success branch (e.g. after CIBA
+        // approval) has been observed reaching reportNlFailure's generic
+        // "That step couldn't be completed" even when the backend response
+        // carried a genuine success (toolsCalled populated, no error field).
+        // Log the real exception + response shape before rethrowing so the
+        // catch in pollCibaThenResumeNl/callers still drives reportNlFailure,
+        // but the browser console shows what actually broke.
+        console.error("[BankingAgent] handleNlResumeResponse success-branch threw:", renderErr, { response });
+        throw renderErr;
       }
     }
   };
@@ -7676,6 +7751,21 @@ export default function BankingAgent({
             vertical: effectiveVerticalId,
             useCaseId,
             forceHeuristic: !!useCaseId,
+          });
+          // sendAgentMessage's own beginTrace() (fired at the top of that call,
+          // to clear the prior turn's trace) wipes the 'ciba-poll' event the
+          // server recorded during polling -- that event lives in a separate
+          // server-side store (services/tokenChainService.js) that the resumed
+          // /api/agent/invoke response never re-includes. Re-stamp it into the
+          // trace this resumed call just started, so the ProofStrip evidence
+          // chain (which requires 'ciba-poll') can actually complete instead of
+          // reading "Incomplete -- Waiting on ciba-poll" forever.
+          tokenChainTraceStore.ingestTokenEvent({
+            id: "ciba-poll",
+            eventType: "auth",
+            timestamp: new Date().toISOString(),
+            description: "CIBA backchannel step-up approved (out-of-band)",
+            additionalData: { grantedVia: "ciba" },
           });
           await handleNlResumeResponse(response, text, useCaseId);
         } catch (e) {
@@ -8018,8 +8108,8 @@ export default function BankingAgent({
                     setShowDemoSteps(next);
                     if (next) setShowDiscovery(false);
                   }}
-                  onSelect={(uc, stepNumber) => {
-                    handleDemoStepSelect(uc, stepNumber);
+                  onSelect={(uc, stepNumber, opts) => {
+                    handleDemoStepSelect(uc, stepNumber, opts);
                   }}
                 />
                 {/* Live Use-Case Workbench — same catalog, live/interactive mode */}
@@ -8056,7 +8146,7 @@ export default function BankingAgent({
                     <button
                       type="button"
                       className="ba-insp-btn ba-insp-btn--gateway"
-                      onClick={() => navigate("/pinggateway-inspector?subtab=tester")}
+                      onClick={() => navigate("/agent-gateway-inspector?subtab=tester")}
                       title="Open the Agent Gateway Inspector"
                     >
                       Agent Gateway Inspector
@@ -8154,30 +8244,45 @@ export default function BankingAgent({
                 </fieldset>
               </aside>
             )}
+            {/* High-value consent declined — the agent stays disabled only while
+                this notice is up. Dismissing clears the block so the session is
+                never a dead end (previously it needed a sign-out or a reload). */}
             {isLoggedIn && consentBlocked && (
-              <div className="ba-consent-denied-banner" role="alert">
-                <div className="ba-consent-denied-banner__text">
-                  <strong>Access denied.</strong> You declined a high-value
-                  transaction. The AI banking assistant is not available for
-                  this session. Sign out and sign in again to restore it.
+              <DraggableModal
+                isOpen
+                onClose={() => setAgentBlockedByConsentDecline(false)}
+                title="Transaction declined"
+                defaultWidth={460}
+                defaultHeight={300}
+                storageKey="agent-consent-denied-modal"
+                footer={
+                  <div className="ba-consent-denied-banner__actions">
+                    <button
+                      type="button"
+                      className="ba-consent-denied-banner__btn ba-consent-denied-banner__btn--secondary"
+                      onClick={() => edu?.open(EDU.HUMAN_IN_LOOP, "decline")}
+                    >
+                      Learn: Human-in-the-loop
+                    </button>
+                    <button
+                      type="button"
+                      className="ba-consent-denied-banner__btn"
+                      onClick={() => setAgentBlockedByConsentDecline(false)}
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                }
+              >
+                <div className="ba-consent-denied-banner" role="alert">
+                  <div className="ba-consent-denied-banner__text">
+                    <strong>Access denied.</strong> You declined a high-value
+                    transaction, so it was not processed. The AI banking
+                    assistant is paused while this notice is open — dismiss it to
+                    keep using the assistant.
+                  </div>
                 </div>
-                <div className="ba-consent-denied-banner__actions">
-                  <button
-                    type="button"
-                    className="ba-consent-denied-banner__btn ba-consent-denied-banner__btn--secondary"
-                    onClick={() => edu?.open(EDU.HUMAN_IN_LOOP, "decline")}
-                  >
-                    Learn: Human-in-the-loop
-                  </button>
-                  <button
-                    type="button"
-                    className="ba-consent-denied-banner__btn"
-                    onClick={() => onLogout?.()}
-                  >
-                    Sign out
-                  </button>
-                </div>
-              </div>
+              </DraggableModal>
             )}
 
             {hitlPendingIntent &&
@@ -9598,11 +9703,22 @@ export default function BankingAgent({
                       (showRfcInfo && msg.role === "token-event"),
                   )
                   .map((msg, msgIdx, filteredMsgs) => {
-                    const isLastAssistantMsg =
+                    // One strip per RUN, on that run's last assistant bubble.
+                    // A run can emit several bubbles ("Running Demo step 1…"
+                    // then the reply); only the last carries the verdict, so
+                    // the same result no longer renders twice.
+                    const showProofFor =
                       msg.role === "assistant" &&
+                      msg.proofRunId != null &&
                       !filteredMsgs
                         .slice(msgIdx + 1)
-                        .some((m) => m.role === "assistant");
+                        .some(
+                          (m) =>
+                            m.role === "assistant" &&
+                            m.proofRunId === msg.proofRunId,
+                        )
+                        ? msg.proofRunId
+                        : null;
                     if (msg.role === "reasoning") {
                       return (
                         <div
@@ -9849,7 +9965,9 @@ export default function BankingAgent({
                               </button>
                             )}
                           </div>
-                          {isLastAssistantMsg && <ProofStrip />}
+                          {showProofFor != null && (
+                            <ProofStrip runId={showProofFor} />
+                          )}
                         </div>
                       </div>
                     );

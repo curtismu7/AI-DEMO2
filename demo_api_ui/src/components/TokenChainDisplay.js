@@ -1294,7 +1294,7 @@ function GwIntrospectionEduBox({ event }) {
       </div>
       <div className="tcd-edu-body">
         <p>
-          Before evaluating any policy, PingGateway calls PingOne Authorization Server's
+          Before evaluating any policy, Agent Gateway calls PingOne Authorization Server's
           introspection endpoint to confirm the delegated token is currently <strong>active</strong>
           — not expired and not revoked. This fires on every tool call.
         </p>
@@ -1327,7 +1327,7 @@ function GwIntrospectionEduBox({ event }) {
         <p className="tcd-edu-detail">
           RFC 7662 §2.1: POST /introspect with the bearer token. Response <code>active: true</code>{" "}
           means the token has not expired, has not been revoked, and was issued by a trusted server.
-          Introspected by PingGateway on every MCP tool call.
+          Introspected by Agent Gateway on every MCP tool call.
         </p>
       </div>
     </div>
@@ -1783,6 +1783,24 @@ function A2aChainOverview({ chainEvents }) {
   );
 }
 
+/**
+ * Normalise decision parameters off an authorize-decision event.
+ *
+ * The two engines expose them at different paths — live PingOne nests them
+ * under the HTTP body (mcpToolAuthorizationService.js:890), the simulated
+ * engine does not (:1001). Reading only one shape renders an empty callout in
+ * the other mode while looking correct in whichever mode was tested.
+ *
+ * @returns {object|null} the parameters object, or null when absent
+ */
+export function readAuthorizeParameters(event) {
+  return (
+    event?.authorizeRequest?.body?.parameters ??
+    event?.authorizeRequest?.parameters ??
+    null
+  );
+}
+
 function AuthorizeDecisionEduBox({ event }) {
   if (event.id !== "authorize-decision") return null;
   const rawDecision = event.authorizeDecision || event.decision || null;
@@ -1792,6 +1810,14 @@ function AuthorizeDecisionEduBox({ event }) {
   const path = event.authorizePath || null;
   const decisionId = event.authorizeDecisionId || null;
   const authorizeRef = event.authorizeRef || null;
+  // Signing-key identity as a policy input — fine-grained authorization.
+  // Distinct from the authn-step kid display, which reports a verified
+  // signature; here the same key identity is re-evaluated per call as an
+  // authorization attribute. Absent keys render nothing: omission is a
+  // legitimate state (no kid, or JWKS unavailable), not a failure.
+  const azParams = readAuthorizeParameters(event);
+  const tokenKid = azParams?.TokenKid ?? null;
+  const tokenKidKnown = azParams?.TokenKidKnown;
   const isPermit = !isPending && decision === "PERMIT";
   const isDeny = !isPending && decision === "DENY";
   return (
@@ -1864,7 +1890,28 @@ function AuthorizeDecisionEduBox({ event }) {
               </span>
             </li>
           )}
+          {tokenKid && (
+            <li>
+              <span className="tcd-edu-check-lbl">Signing key:</span>
+              <span>
+                <code>{tokenKid}</code>
+                {tokenKidKnown === true
+                  ? " — published in the issuer's JWKS"
+                  : tokenKidKnown === false
+                    ? " — not published in the issuer's JWKS"
+                    : " — JWKS membership unresolved"}
+              </span>
+            </li>
+          )}
         </ul>
+        {tokenKid && (
+          <p className="tcd-edu-detail">
+            Authentication asked whether the signature was valid. Authorization
+            asks a different question, on every call: is this signing key one
+            the policy still accepts? The same <code>kid</code> is re-evaluated
+            here as a policy attribute — this is not signature verification.
+          </p>
+        )}
         <JsonField label="Authorize Request (JSON)" value={event.authorizeRequest || event.request || (event.parameters ? { parameters: event.parameters } : null)} defaultOpen />
         <JsonField label="Authorize Response (JSON)" value={event.authorizeResponse || event.response || event.rawResponse} defaultOpen />
         {event.id === "authorize-decision" && (
@@ -1887,7 +1934,7 @@ function AuthorizeDecisionEduBox({ event }) {
 
 /**
  * Shows the McpAuditFilter 5W1H attribution for a gateway tool call.
- * Mirrors what PingGateway writes to audit/mcp.audit.json.
+ * Mirrors what Agent Gateway writes to audit/mcp.audit.json.
  */
 function GwMcpAuditEduBox({ event }) {
   if (event.id !== "gw-mcp-audit") return null;
@@ -1908,7 +1955,7 @@ function GwMcpAuditEduBox({ event }) {
       </div>
       <div className="tcd-edu-body">
         <p>
-          PingGateway <code>McpAuditFilter</code> emits MCP-specific audit events for{" "}
+          Agent Gateway <code>McpAuditFilter</code> emits MCP-specific audit events for{" "}
           <em>who called which tool, where, and with what result</em>. The same story is
           written to <code>audit/mcp.audit.json</code> and returned on{" "}
           <code>X-Gw-Audit-Trail.mcpAudit</code> for this Token Chain hop.
@@ -1968,6 +2015,81 @@ function GwMcpAuditEduBox({ event }) {
   );
 }
 
+/**
+ * gw-aam — PingOne Authorize API Access Management.
+ *
+ * The COARSE-grained layer, shown alongside gw-authorize rather than instead of
+ * it: AAM sees only method, path, headers and client IP, so it cannot express
+ * the per-tool rules the /mcp routes rely on. Both capabilities running side by
+ * side is the thing being demonstrated.
+ *
+ * Renders the verbatim Sideband request and response, which is what makes the
+ * decision auditable instead of merely asserted. The gateway redacts the
+ * caller's Authorization header at capture, so what arrives here already reads
+ * "<redacted>".
+ */
+export function AamDecisionEduBox({ event }) {
+  if (event.id !== "gw-aam") return null;
+  const decision = event.decision || null;
+  const isPermit = decision === "PERMIT";
+  const isDeny = decision === "DENY";
+  const isMock = event.backend === "mock";
+  return (
+    <div
+      className={`tcd-edu-box ${isPermit ? "tcd-edu-box--ok" : isDeny ? "tcd-edu-box--error" : "tcd-edu-box--neutral"}`}
+    >
+      <div className="tcd-edu-box-hd">
+        <span className="tcd-edu-icon">
+          {isPermit ? "✅" : isDeny ? "❌" : "⚠️"}
+        </span>
+        <strong>PingGateway → PingOne Authorize (API Access Management)</strong>
+      </div>
+      <div className="tcd-edu-body">
+        <p>
+          Before any per-tool policy runs, PingGateway asks the{" "}
+          <strong>Sideband API</strong> whether this <em>request</em> is allowed —
+          matching method and path against an API service operation. It sees no
+          tool name and no arguments, which is exactly why the fine-grained{" "}
+          <strong>Policy Decision</strong> step still runs behind it.
+        </p>
+        <p>
+          Decision <strong>{decision || "unknown"}</strong>
+          {event.elapsedMs != null ? ` in ${event.elapsedMs} ms` : ""} via{" "}
+          <strong>{isMock ? "Mock Sideband" : "PingOne Authorize"}</strong>
+          {event.serviceUri ? (
+            <>
+              {" "}
+              (<code>{event.serviceUri}</code>)
+            </>
+          ) : null}
+          .
+        </p>
+        {event.request ? (
+          <>
+            <div className="tcd-edu-detail">Sideband request</div>
+            <pre className="tcd-edu-code">
+              <JsonHighlight value={event.request} />
+            </pre>
+          </>
+        ) : null}
+        {event.response ? (
+          <>
+            <div className="tcd-edu-detail">Sideband response</div>
+            <pre className="tcd-edu-code">
+              <JsonHighlight value={event.response} />
+            </pre>
+          </>
+        ) : null}
+        <p>
+          A <code>response</code> object in the reply means AAM answered for the
+          gateway — that is the deny signal. Its absence means the request was
+          forwarded to the backend.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function GwAuthorizeEduBox({ event }) {
   if (event.id !== "gw-authorize") return null;
   const rawDecision = event.decision || null;
@@ -1990,11 +2112,11 @@ function GwAuthorizeEduBox({ event }) {
         <span className="tcd-edu-icon">
           {isPending ? "⏳" : isPermit ? "✅" : isDeny ? "❌" : "⚠️"}
         </span>
-        <strong>PingGateway → PingOne Authorize</strong>
+        <strong>Agent Gateway → PingOne Authorize</strong>
       </div>
       <div className="tcd-edu-body">
         <p>
-          After introspection passes, PingGateway evaluates a{" "}
+          After introspection passes, Agent Gateway evaluates a{" "}
           <strong>PingOne Authorize policy</strong> against the tool call context.
           On PERMIT the token is forwarded to the MCP Server. On DENY a 403 is
           returned. On INDETERMINATE a HITL consent challenge is created.
@@ -2158,6 +2280,11 @@ function EventDetail({ event, chainEvents }) {
         title="PingOne Authorize Decision"
         event={event}
         Component={GwAuthorizeEduBox}
+      />
+      <CollapsibleEdu
+        title="API Access Management"
+        event={event}
+        Component={AamDecisionEduBox}
       />
       {event.id === "gw-mcp-audit" && (
         <CollapsibleEdu
@@ -2585,6 +2712,9 @@ const CLAIMS_STRIP_IDS = new Set([
   "two-ex-final-token-verified",
   // Gateway auth pipeline events (Phase 259)
   "gw-introspection",
+  // Coarse-grained AAM sits BEFORE the fine-grained per-tool decision: the
+  // gateway asks the Sideband API about the request, then evaluates policy.
+  "gw-aam",
   "gw-authorize",
   "gw-mcp-audit",
   "gw-exchange",
@@ -2767,6 +2897,7 @@ const STEP_SUB_LABELS = {
   "mcp-tool-invoked": "Tool Token",
   "mcp-agent-token-presented": "Tool Token",
   "gw-introspection": "Introspection",
+  "gw-aam": "API Access Management",
   "gw-authorize": "Policy Decision",
   "gw-mcp-audit": "MCP Audit",
   "mcp-gateway-route": "Gateway",
@@ -3880,12 +4011,12 @@ const PLACEHOLDER_EVENTS = [
   },
   {
     id: "gw-mcp-audit",
-    label: "Ping Agent Gateway — McpAuditFilter (who / what / when / where / how)",
+    label: "Agent Gateway — McpAuditFilter (who / what / when / where / how)",
     status: "waiting",
     claims: null,
     explanation:
       "McpAuditFilter records MCP-specific audit events: who (user + agent), what (method/tool), when, where (resource), and how (PERMIT/DENY result). Events are written to audit/mcp.audit.json and mirrored on X-Gw-Audit-Trail.mcpAudit for this Token Chain hop.",
-    rfc: "PingGateway McpAuditFilter",
+    rfc: "Agent Gateway McpAuditFilter",
   },
   {
     id: "mcp-gateway-route",
@@ -4022,12 +4153,12 @@ const STEP_EXPLAINERS = {
     value: "Every request gets an allow, deny, or step-up decision, and there is one place to watch and stop agent traffic.",
   },
   "gw-mcp-audit": {
-    what: "PingGateway recorded who called which tool, where, when, and with what result (McpAuditFilter).",
+    what: "Agent Gateway recorded who called which tool, where, when, and with what result (McpAuditFilter).",
     why: "Governance needs a durable trail of agent actions — not only token hops.",
     value: "You can answer who / what / when / where / how for every MCP transaction through the gateway.",
   },
   gateway: {
-    what: "PingGateway received the request, checked the token, and routed it to the MCP server upstream.",
+    what: "Agent Gateway received the request, checked the token, and routed it to the MCP server upstream.",
     why: "A single gateway in front of the MCP server is the one place to enforce token checks and policy on agent traffic.",
     value: "All agent calls funnel through one controlled, observable chokepoint that can stop traffic on demand.",
   },

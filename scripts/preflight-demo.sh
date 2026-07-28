@@ -45,10 +45,21 @@ read_lines() {
 }
 
 # ── 1. BFF liveness ──────────────────────────────────────────────────────────
-if jget "${BASE}/api/healthz" | grep -q '"status"'; then
+# node --watch (demo_api_server) briefly drops its listener on every hot-reload
+# restart (~1-2s). A single curl mid-restart would false-fail the whole run, so
+# retry a few times before declaring the stack down.
+bff_ok=0
+for attempt in 1 2 3; do
+  if jget "${BASE}/api/healthz" | grep -q '"status"'; then
+    bff_ok=1
+    break
+  fi
+  [[ $attempt -lt 3 ]] && sleep 1
+done
+if [[ $bff_ok -eq 1 ]]; then
   row OK "BFF liveness" "${BASE}/api/healthz"
 else
-  row FAIL "BFF liveness" "unreachable at ${BASE} — is the stack running?"
+  row FAIL "BFF liveness" "unreachable at ${BASE} after 3 attempts — is the stack running?"
   # Without the BFF nothing else can run; print and bail.
 fi
 
@@ -427,6 +438,17 @@ check_drift ai-demo-authz-server "/repo/demo_authz_server/routes/decision.js,/ap
   demo_authz_server/routes/decision.js "a2aDelegatedScope"
 check_drift ai-demo-api-server   "/app/services/demoAgentLangGraphService.js,/repo/demo_api_server/services/demoAgentLangGraphService.js" \
   demo_api_server/services/demoAgentLangGraphService.js "stripChainFieldsForModel"
+# mcp-server / mcp-gateway are TypeScript, baked (no bind mount) — the exact
+# shape of the 2026-07-27 A2A outage: three merged fixes (#1029 gateway mTLS,
+# #1030/#1031 scope-topology acceptance) each needed a rebuild + recreate, not
+# a restart, and neither container was drift-checked, so a forgotten rebuild
+# on either would have shipped silently while every other check stayed green.
+# Needle is checked against the .ts SOURCE (dist/ is gitignored build output,
+# not committed) — check_drift's plain grep doesn't care about extension.
+check_drift ai-demo-mcp-server    "/app/dist/tools/handlers/verticalTools.generated.js" \
+  demo_mcp_server/src/tools/handlers/verticalTools.generated.ts "a2aDelegatedScope"
+check_drift ai-demo-mcp-gateway   "/repo/demo_mcp_gateway/dist/server/GatewayServer.js" \
+  demo_mcp_gateway/src/server/GatewayServer.ts "upstreamHttpsAgent"
 if [[ ${#drift[@]} -eq 0 ]]; then
   row OK "container drift" "running code matches the repo"
 else

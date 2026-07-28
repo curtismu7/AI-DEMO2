@@ -54,6 +54,8 @@ export interface GatewayConfig {
   // Set GW_INTROSPECTION_ENDPOINT to enable active-token validation at the gateway.
   // Falls back to PINGONE_INTROSPECTION_ENDPOINT if unset.
   introspectionEndpoint: string;
+  /** RFC 7662 introspection performed per request. Default true. */
+  introspectionEnabled: boolean;
   // Credentials used for RFC 7662 introspection requests.
   // PingOne only returns active:true for a token when the introspecting client
   // is the token's issuing client or a resource server that owns the audience.
@@ -276,6 +278,20 @@ export function loadConfig(): GatewayConfig {
     hitlServiceUrl: optional('HITL_SERVICE_URL', ''),
     introspectionEndpoint: optional('GW_INTROSPECTION_ENDPOINT',
       optional('PINGONE_INTROSPECTION_ENDPOINT', '')),
+    // RFC 7662 introspection is ON unless explicitly disabled. Default true, so
+    // omitting the var changes nothing.
+    //
+    // Turning it OFF is legitimate ONLY when signatures are verified instead:
+    // PingOne scopes introspection to the ISSUING client, and this gateway
+    // receives tokens minted by the Token Exchanger AND five A2A specialist
+    // clients. Probed live 2026-07-27 — a specialist's token introspected by the
+    // exchanger returns active:false, so a single GW_INTROSPECTION_CLIENT_ID can
+    // never cover them all. JWKS validates anything PingOne signed regardless of
+    // issuer, which is the property introspection lacks here.
+    //
+    // authorizeMcpRequestCore REFUSES to skip introspection unless signature
+    // verification is actually available — the two must never both be off.
+    introspectionEnabled: optional('GW_INTROSPECTION_ENABLED', 'true') !== 'false',
     introspectionClientId: optional('GW_INTROSPECTION_CLIENT_ID', ''),
     introspectionClientSecret: optional('GW_INTROSPECTION_CLIENT_SECRET', ''),
     introspectionProvider: (process.env.INTROSPECTION_PROVIDER === 'p1az' ? 'p1az' : 'pinggateway') as 'pinggateway' | 'p1az',

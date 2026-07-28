@@ -7,19 +7,31 @@
  * must return 428 hitl_required.
  *
  * HITL tool → chip mapping:
- *   banking:        bk-hitl  "transfer $500 from checking to savings"  → transfer (consent)
- *   healthcare:     hc5      "release my records"                       → release_records (stepUp+consent)
- *   retail:         rt4      "checkout"                                 → checkout (consent)
- *   sporting-goods: sg3      "extend my rental"                         → extend_rental (consent)
- *   workforce:      wf4      "submit an expense"                        → submit_expense (consent)
- *                   wf5      "request time off"                         → request_time_off (stepUp+consent)
+ *   banking:        bk-hitl    "transfer $500 from checking to savings"     → transfer (consent)
+ *   healthcare:     hc5        "release my records"                        → release_records (stepUp+consent)
+ *   retail:         rt4        "checkout"                                  → checkout (consent)
+ *   sporting-goods: sg3        "extend my rental"                          → extend_rental (consent)
+ *   workforce:      wf4        "submit an expense"                         → submit_expense (consent)
+ *                   wf5        "request time off"                          → request_time_off (stepUp+consent)
+ *   government:     gv5        "release my permit record"                  → release_permit_record (stepUp+consent)
+ *   university:     un5        "release my official transcript"            → release_transcript (stepUp+consent)
+ *   manufacturing:  mf5        "release my work order"                     → release_work_order (stepUp+consent)
+ *   investment:     inv-hitl   "execute a large trade of $50000 in VTI"     → large_trade (consent)
+ *
+ * government/university/manufacturing/investment had zero real-test HITL
+ * coverage until 2026-07-27 (present in every manifest, never asserted
+ * live) — added here rather than 4 new per-vertical directories since this
+ * file already iterates the pattern per vertical.
  */
 
 const path = require('path');
 const { createBffClient } = require('../helpers/bffClient');
 const { resetSuite } = require('../helpers/reset');
 
-const VERTICALS = ['banking', 'healthcare', 'retail', 'sporting-goods', 'workforce'];
+const VERTICALS = [
+  'banking', 'healthcare', 'retail', 'sporting-goods', 'workforce',
+  'government', 'university', 'manufacturing', 'investment',
+];
 
 function getHitlChips(verticalId) {
   const manifest = require(path.join(
@@ -44,7 +56,13 @@ describe('HITL per vertical — hitlTrigger chips return 428 (real)', () => {
     const flagR = await admin.get('/api/admin/feature-flags');
     const flags = flagR.data?.flags || [];
     const flag = flags.find(f => f.id === 'ff_hitl_enabled');
-    hitlEnabled = flag?.value === 'true';
+    // /api/admin/feature-flags returns value as a JSON boolean (confirmed live:
+    // {"id":"ff_hitl_enabled",...,"value":true}) — the string-only comparison
+    // here always evaluated false, silently skipping every assertion below on
+    // any environment where the flag is really on. Accept both forms; the PATCH
+    // side of this same endpoint already documents accepting 'true'/'false'
+    // string input for boolean flags, so tolerating both on read is consistent.
+    hitlEnabled = flag?.value === true || flag?.value === 'true';
     if (!hitlEnabled) {
       console.warn('[hitl-per-vertical] ff_hitl_enabled=false — all HITL assertions will be skipped');
     }

@@ -591,9 +591,10 @@ describe("My Dashboard button placement", () => {
   });
 });
 
-// ─── Consent-denied banner ────────────────────────────────────────────────────
-// Regression: banner rendered as 3rd flex column in inline/row-reverse mode,
-// squeezing the chat column and hiding the prompt. Banner must always be full-width.
+// ─── Consent-denied notice ────────────────────────────────────────────────────
+// Regression: the notice rendered as a 3rd flex column in inline/row-reverse mode,
+// squeezing the chat column and hiding the prompt. It is now a DraggableModal
+// portalled to document.body, so it can no longer take part in the ba-body layout.
 
 describe("Consent-denied banner visibility", () => {
   beforeEach(() => {
@@ -613,14 +614,15 @@ describe("Consent-denied banner visibility", () => {
     expect(screen.getByText(/Access denied/)).toBeInTheDocument();
   });
 
-  it("banner is inside ba-body (not outside panel)", () => {
+  it("notice renders in a modal portal, never as a ba-body flex child", () => {
     const { container } = renderAgent({ user: customerUser, mode: "inline" });
     act(() => {
       window.dispatchEvent(new Event("bankingAgentConsentBlockChanged"));
     });
     const body = container.querySelector(".ba-body");
     const alert = screen.getByRole("alert");
-    expect(body).toContainElement(alert);
+    expect(body).not.toContainElement(alert);
+    expect(document.querySelector(".dm-panel")).toContainElement(alert);
   });
 
   it("banner is NOT inside ba-left-col or ba-right-col (must be a direct ba-body child)", () => {

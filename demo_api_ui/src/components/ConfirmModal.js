@@ -23,17 +23,12 @@ export default function ConfirmModal({
 }) {
   const footer = (
     <>
-      <button type="button" className="dm-close-btn" onClick={onCancel}>
+      <button type="button" className="btn btn-secondary" onClick={onCancel}>
         {cancelLabel}
       </button>
       <button
         type="button"
-        className="dm-close-btn"
-        style={{
-          background: danger ? '#dc2626' : '#2563eb',
-          borderColor: danger ? '#b91c1c' : '#1d4ed8',
-          color: '#fff',
-        }}
+        className={`btn ${danger ? 'btn-danger' : 'btn-primary'}`}
         onClick={onConfirm}
       >
         {confirmLabel}
@@ -47,8 +42,9 @@ export default function ConfirmModal({
       onClose={onCancel}
       title={title}
       footer={footer}
-      defaultWidth={440}
+      defaultWidth={380}
       defaultHeight={210}
+      minWidth={380}
       backdropClose
       storageKey={null}
     >

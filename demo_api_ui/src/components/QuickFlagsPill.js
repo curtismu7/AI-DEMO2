@@ -34,7 +34,7 @@ const QUICK_FLAGS = [
 const GROUPS = ['Token & Gateway', 'AuthN / AuthZ', 'Agent', 'Observability'];
 const PILL_FLAG = 'ff_mcp_gateway_jwks';
 
-/** Ping IDAI–shaped demo: PingGateway + live P1AZ + introspect (not JWKS). */
+/** Ping IDAI–shaped demo: Agent Gateway + live P1AZ + introspect (not JWKS). */
 const IDAI_FAITHFUL_PRESET = [
   { id: 'ff_mcp_gateway_pinggateway', value: true,  label: 'PingOne GW' },
   { id: 'ff_authorize_simulated',     value: false, label: 'Real P1AZ' },

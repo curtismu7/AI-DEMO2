@@ -1,17 +1,22 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import bffAxios from '../services/bffAxios';
+import { consumeReplay } from '../services/inspectorReplay';
 import JsonHighlight from './shared/JsonHighlight';
+import JsonFormView from './shared/JsonFormView';
 import AuthzTestPage from './AuthzTestPage';
 import MockAuthzRulesPage from './MockAuthzRulesPage';
 import ScopeAuditPage from './ScopeAuditPage';
 import ScopeReferencePage from './ScopeReferencePage';
 import SnapshotImport from '../pages/SnapshotImport';
+import BulkDecisionPanel from './BulkDecisionPanel';
 import InspectorShell from './shared/InspectorShell';
+import PacEditorLaunch from './PacEditorLaunch';
 import InspectorTabs from './shared/InspectorTabs';
 import { explainAuthorizeResult, displayDecision as explainDisplayDecision } from '../utils/authorizeResultExplain';
 import './McpInspector.css';
 import './PingOneMcpInspector.css';
+import './PingOneAuthorizePage.css';
 
 /** Collapsible trace section — same pattern as PingOne MCP Inspector. */
 const Section = ({ title, hint, status, defaultOpen = true, children }) => (
@@ -421,9 +426,10 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
     return params;
   };
 
-  const run = async () => {
+  // Explicit-parameters form so a replay can evaluate the exact payload it was
+  // handed without waiting for the prefill setState round-trip.
+  const runParameters = async (parameters) => {
     setRunning(true); setResult(null); setErr(null); setLastTrace(null); setLastParameters(null); setOutputTab('decision');
-    const parameters = buildParameters();
     const started = Date.now();
     try {
       const res = await bffAxios.post('/api/authorize/evaluate-endpoint', {
@@ -459,6 +465,17 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
     } finally { setRunning(false); }
   };
 
+  const run = () => runParameters(buildParameters());
+
+  // A replayed step arrives with autoRun — evaluate immediately so the learner
+  // lands on the decision, not on a form they still have to submit. Read-only:
+  // an Authorize evaluation has no side effects.
+  useEffect(() => {
+    if (!pendingTest?.autoRun || !endpointId) return;
+    runParameters(pendingTest.parameters);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingTest, endpointId]);
+
   const setRow = (i, field, val) => {
     setCustomRows(rows => {
       const next = rows.map((r, idx) => idx === i ? { ...r, [field]: val } : r);
@@ -482,6 +499,7 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
   return (
     <InspectorShell
       title="P1AZ Inspector"
+      actions={<PacEditorLaunch />}
       statusOn={!!endpointId}
       statusText={endpointId ? undefined : 'Select a decision endpoint above'}
       fullHeight={false}
@@ -639,6 +657,7 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
                 { key: 'decision', label: 'Decision' },
                 { key: 'response', label: 'Response' },
                 { key: 'request', label: 'Request' },
+                { key: 'form', label: 'Form' },
               ]}
               activeKey={outputTab}
               onChange={setOutputTab}
@@ -741,6 +760,13 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
                   <div className="inspector-shell-output-empty">Run an evaluation to see the request.</div>
                 )
               )}
+              {outputTab === 'form' && (
+                lastTrace?.response ? (
+                  <JsonFormView value={lastTrace.response} />
+                ) : (
+                  <div className="inspector-shell-output-empty">Run an evaluation to see the response as a form.</div>
+                )
+              )}
             </div>
           </>
         }
@@ -797,7 +823,7 @@ function PolicyNode({ node, onTestRule, query }) {
 // ---------------------------------------------------------------------------
 export default function PingOneAuthorizePage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const TABS = ['console', 'guided', 'snapshot', 'mockRules', 'scopes'];
+  const TABS = ['console', 'bulk', 'guided', 'snapshot', 'mockRules', 'scopes'];
   const tab = TABS.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'console';
   const setTab = useCallback((next) => {
     setSearchParams((prev) => {
@@ -810,7 +836,12 @@ export default function PingOneAuthorizePage() {
 
   // Client-side ring buffer of this session's ad-hoc Evaluate calls (Console tab).
   const [runHistory, setRunHistory] = useState([]);
+  // Set while a Token Chain replay is staged; see clearPendingTest below.
+  const replayPendingRef = useRef(false);
   const pushRunHistory = useCallback((entry) => {
+    // The replay has been evaluated — release the clear guard so ordinary
+    // endpoint switches reset the panel again.
+    replayPendingRef.current = false;
     setRunHistory((h) => [entry, ...h].slice(0, 8));
   }, []);
 
@@ -861,7 +892,41 @@ export default function PingOneAuthorizePage() {
     document.getElementById('evaluate-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
-  const clearPendingTest = useCallback(() => setPendingTest(null), []);
+  // A replay hand-off has to survive EvaluatePanel's endpoint-change reset:
+  // that effect fires again once the endpoint list settles (autoPreset changes
+  // a commit later than selectedId) and would clear the pendingTest we just
+  // staged, leaving the panel on its default preset with nothing evaluated.
+  const clearPendingTest = useCallback(() => {
+    if (replayPendingRef.current) return;
+    setPendingTest(null);
+  }, []);
+
+  // Replay handoff from the Token Chain TraceRail (?replay=<id>): re-issue this
+  // run's actual decision request in the Evaluate console.
+  //
+  // Deliberately consumed only once `selectedId` is set, and handed straight to
+  // pendingTest in the same pass. consumeReplay is one-shot, so reading it on
+  // mount and parking it in state loses the payload entirely if the route
+  // remounts before the endpoint list arrives — which is what happens here.
+  // EvaluatePanel also clears pendingTest on every endpointId change, so an
+  // earlier hand-off would be discarded anyway.
+  const replayConsumed = useRef(false);
+  useEffect(() => {
+    if (replayConsumed.current || !selectedId) return;
+    const r = consumeReplay(searchParams);
+    if (!r) return;
+    replayConsumed.current = true;
+    if (r.target !== 'p1az') return;
+    replayPendingRef.current = true;
+    setTab('console');
+    setPendingTest({
+      preset: 'custom',
+      parameters: r.parameters || {},
+      ruleName: 'Token Chain replay',
+      case: 'the request this run actually sent',
+      autoRun: true,
+    });
+  }, [selectedId, searchParams, setTab]);
 
   const endpoints = data?.endpoints || [];
   const selected = useMemo(() => endpoints.find(e => e.id === selectedId) || null, [endpoints, selectedId]);
@@ -909,11 +974,14 @@ export default function PingOneAuthorizePage() {
     <div style={S.root}>
       <div style={S.tabs}>
         <span style={S.tab(tab === 'console')} onClick={() => setTab('console')}>Live / Simulated Console</span>
+        <span style={S.tab(tab === 'bulk')} onClick={() => setTab('bulk')}>Bulk Decisions</span>
         <span style={S.tab(tab === 'guided')} onClick={() => setTab('guided')}>Guided Scenarios &amp; Learn</span>
         <span style={S.tab(tab === 'mockRules')} onClick={() => setTab('mockRules')}>Mock Authz Rules</span>
         <span style={S.tab(tab === 'scopes')} onClick={() => setTab('scopes')}>Scopes &amp; Resources</span>
         <span style={S.tab(tab === 'snapshot')} onClick={() => setTab('snapshot')}>Snapshot Import</span>
       </div>
+
+      {tab === 'bulk' && <BulkDecisionPanel />}
 
       {tab === 'guided' && <AuthzTestPage />}
 
@@ -1017,7 +1085,7 @@ export default function PingOneAuthorizePage() {
 
       {/* Evaluate — policy tree, form, and result all live inside one InspectorShell */}
       {selectedId
-        ? <EvaluatePanel endpointId={selectedId} autoPreset={autoPreset} policiesState={policiesState} pendingTest={pendingTest} onClearPendingTest={clearPendingTest} onEvaluated={pushRunHistory} onTestRule={handleTestRule} />
+        ? <div className="p1az-evaluate-shell"><EvaluatePanel endpointId={selectedId} autoPreset={autoPreset} policiesState={policiesState} pendingTest={pendingTest} onClearPendingTest={clearPendingTest} onEvaluated={pushRunHistory} onTestRule={handleTestRule} /></div>
         : <div style={S.card}><div style={S.cardBody}><div style={S.empty}>Select a decision endpoint to evaluate.</div></div></div>}
 
       {/* Recent decisions */}

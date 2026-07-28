@@ -4,11 +4,11 @@
  * from here. Ledger shape is generic — see CapabilityShowcasePage — so it
  * shares the same rendering as the PingOne Authorize showcase.
  *
- * PingGateway is the default LIVE enforcement path in this demo
- * (ff_mcp_gateway_pinggateway) — Node is the offline/dev fallback, not what
+ * Agent Gateway is the default LIVE enforcement path in this demo
+ * (ff_mcp_gateway_pinggateway) — Node Gateway is the offline/dev fallback, not what
  * runs by default. Each evidence string cites both paths so that claim is
  * inspectable, not asserted. RAR is the one exception: no Groovy equivalent
- * exists yet, so it runs on the Node path only, live or not.
+ * exists yet, so it runs on the Node Gateway path only, live or not.
  */
 
 export const AGENT_GATEWAY_GROUPS = [
@@ -23,7 +23,7 @@ export const AGENT_GATEWAY_CAPABILITIES = [
     group: 'validate-audit',
     title: 'Validate MCP requests',
     oneLiner: 'Method allowlist plus per-tool Ajv schema validation — fail closed on an unknown tool or malformed call.',
-    evidence: { code: 'Node: demo_mcp_gateway/src/validation/mcpRequestValidation.ts:15-69 · PingGateway (default, live): ping-gateway/scripts/groovy/mcp-request-validation.groovy:1-30' },
+    evidence: { code: 'Node Gateway: demo_mcp_gateway/src/validation/mcpRequestValidation.ts:15-69 · Agent Gateway (default, live): ping-gateway/scripts/groovy/mcp-request-validation.groovy:1-30' },
     relatedUCIds: ['UC1', 'UC5', 'UC11'],
   },
   {
@@ -31,7 +31,7 @@ export const AGENT_GATEWAY_CAPABILITIES = [
     group: 'validate-audit',
     title: 'Scope a third-party MCP server',
     oneLiner: 'Fronts a third-party weather MCP server and denies any tool call outside the currently-allowed US state (Texas by default — configurable live, right on this card), entirely at the gateway — the demo policy the backend never sees. Live-toggleable via ff_weather_mcp_showcase / ff_weather_mcp_allowed_state.',
-    evidence: { code: 'PingGateway only — no Node mcp-gateway equivalent: ping-gateway/scripts/groovy/tx-weather-scope.groovy · ping-gateway/config/routes/00-mcp-weather.json · demo_api_server/routes/weatherMcpFlag.js · demo_api_server/routes/featureFlags.js' },
+    evidence: { code: 'Agent Gateway only — no Node Gateway equivalent: ping-gateway/scripts/groovy/tx-weather-scope.groovy · ping-gateway/config/routes/00-mcp-weather.json · demo_api_server/routes/weatherMcpFlag.js · demo_api_server/routes/featureFlags.js' },
     relatedUCIds: ['UC30', 'UC31', 'UC32'],
   },
   {
@@ -39,7 +39,7 @@ export const AGENT_GATEWAY_CAPABILITIES = [
     group: 'validate-audit',
     title: 'Audit every MCP call',
     oneLiner: 'Every tool-call outcome is shipped to durable storage with the acting agent, subject, and decision.',
-    evidence: { code: 'Node: demo_mcp_gateway/src/gatewayAudit.ts:41-118 · PingGateway (default, live): demo_api_server/services/unifiedTrace.js:128-141' },
+    evidence: { code: 'Node Gateway: demo_mcp_gateway/src/gatewayAudit.ts:41-118 · Agent Gateway (default, live): demo_api_server/services/unifiedTrace.js:128-141' },
     relatedUCIds: ['UC20'],
   },
   {
@@ -47,7 +47,7 @@ export const AGENT_GATEWAY_CAPABILITIES = [
     group: 'throttle-transform',
     title: 'Throttle requests',
     oneLiner: 'Sliding-window per-agent, per-tool rate limit — a burst past quota gets 429 with Retry-After.',
-    evidence: { code: 'Node: demo_mcp_gateway/src/rateLimit.ts:38-97 · PingGateway (default, live): ping-gateway/scripts/groovy/uc18-rate-limit.groovy:1-20' },
+    evidence: { code: 'Node Gateway: demo_mcp_gateway/src/rateLimit.ts:38-97 · Agent Gateway (default, live): ping-gateway/scripts/groovy/uc18-rate-limit.groovy:1-20' },
     relatedUCIds: ['UC18', 'UC29'],
   },
   {
@@ -55,7 +55,7 @@ export const AGENT_GATEWAY_CAPABILITIES = [
     group: 'throttle-transform',
     title: 'Transform tokens',
     oneLiner: 'RFC 8693 token exchange rewrites the inbound gateway-audience token to the backend resource audience.',
-    evidence: { code: 'Node: demo_mcp_gateway/src/auth/McpTokenExchangeClient.ts:1-24 · PingGateway (default, live): ping-gateway/scripts/groovy/olb-token-exchange.groovy:1-20' },
+    evidence: { code: 'Node Gateway: demo_mcp_gateway/src/auth/McpTokenExchangeClient.ts:1-24 · Agent Gateway (default, live): ping-gateway/scripts/groovy/olb-token-exchange.groovy:1-20' },
     relatedUCIds: ['UC1'],
   },
   {
@@ -63,7 +63,7 @@ export const AGENT_GATEWAY_CAPABILITIES = [
     group: 'oauth-policy-metadata',
     title: 'Enforce OAuth',
     oneLiner: 'RFC 7662 introspection confirms the token is active before anything else runs — fails closed on outage.',
-    evidence: { code: 'Node: demo_mcp_gateway/src/auth/GatewayIntrospectionClient.ts:110-187 · PingGateway (default, live): ping-gateway/config/routes/01-mcp-olb.json:33,41' },
+    evidence: { code: 'Node Gateway: demo_mcp_gateway/src/auth/GatewayIntrospectionClient.ts:110-187 · Agent Gateway (default, live): ping-gateway/config/routes/01-mcp-olb.json:33,41' },
     relatedUCIds: ['UC1', 'UC29'],
   },
   {
@@ -71,7 +71,7 @@ export const AGENT_GATEWAY_CAPABILITIES = [
     group: 'oauth-policy-metadata',
     title: 'Enforce policy',
     oneLiner: 'Every call is evaluated against PingOne Authorize (P1AZ) — PERMIT, DENY, or INDETERMINATE, failing closed if the PDP is unreachable.',
-    evidence: { code: 'Node: demo_mcp_gateway/src/auth/PingOneAuthorizeClient.ts:1-36 · PingGateway (default, live): ping-gateway/scripts/groovy/p1az-decision.groovy:1-19' },
+    evidence: { code: 'Node Gateway: demo_mcp_gateway/src/auth/PingOneAuthorizeClient.ts:1-36 · Agent Gateway (default, live): ping-gateway/scripts/groovy/p1az-decision.groovy:1-19' },
     relatedUCIds: ['UC6', 'UC10'],
   },
   {
@@ -79,7 +79,7 @@ export const AGENT_GATEWAY_CAPABILITIES = [
     group: 'oauth-policy-metadata',
     title: 'Enforce metadata controls (RAR)',
     oneLiner: 'RFC 9396 rich-authorization-request subset check — the actual tool-call params must be covered by what was granted.',
-    evidence: { code: 'Node only — no Groovy equivalent exists yet: demo_mcp_gateway/src/rarEnforce.ts:1-41' },
+    evidence: { code: 'Node Gateway only — no Groovy equivalent exists yet: demo_mcp_gateway/src/rarEnforce.ts:1-41' },
     relatedUCIds: ['UC14b'],
   },
 ];

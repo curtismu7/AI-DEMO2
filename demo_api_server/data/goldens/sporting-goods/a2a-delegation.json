@@ -1,0 +1,12 @@
+{
+  "vertical": "sporting-goods",
+  "useCaseId": "a2a-delegation",
+  "ucId": "UC2",
+  "trigger": "show my sensitive membership details",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-27T21:25:37.980Z",
+  "seedHash": "c48bf4072b509915",
+  "reply": "Delegation complete — Membership Specialist retrieved sensitive membership details on your behalf (act-chain depth 2).",
+  "agentPath": null,
+  "tokenEventCount": 14
+}

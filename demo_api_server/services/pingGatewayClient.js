@@ -33,6 +33,11 @@ function callPingGateway(method, path, body = null, extra) {
         'Content-Type': 'application/json',
         ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         ...(body ? { 'Content-Length': Buffer.byteLength(JSON.stringify(body)) } : {}),
+        // Caller-supplied last so it can set what only it knows — /mcp needs
+        // the streamable-HTTP Accept or the transport answers 406 before the
+        // request reaches any tool. Not defaulted here: this client also talks
+        // to plain-JSON endpoints that must not advertise text/event-stream.
+        ...((extra && extra.headers) || {}),
       },
       timeout: 10000,
       ...(isHttps && process.env.NODE_ENV !== 'production' ? { rejectUnauthorized: false } : {}),

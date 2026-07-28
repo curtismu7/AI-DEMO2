@@ -156,7 +156,7 @@ Native scopes: `agent:invoke:holdings`
 
 Audience: `mcpgateway-a2a.ping.demo`
 
-Native scopes: `read`, `invest:read`, `holdings:read`
+Native scopes: `read`, `invest:read`, `holdings:read`, `records:read`, `tax:read`, `finaid:read`, `supplier:read`
 
 ### Super Banking PingGateway MCP
 
@@ -227,7 +227,7 @@ Granted scopes: `invest:read`
 
 Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
 
-Granted scopes: `read`
+Granted scopes: `read`, `records:read`
 
 ### Super Banking Purchase Specialist Agent
 
@@ -251,25 +251,25 @@ Granted scopes: `read`
 
 Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
 
-Granted scopes: `read`
+Granted scopes: `read`, `tax:read`
 
 ### Super Banking Financial Aid Specialist Agent
 
 Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
 
-Granted scopes: `read`
+Granted scopes: `read`, `finaid:read`
 
 ### Super Banking Supplier Contract Specialist Agent
 
 Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
 
-Granted scopes: `read`
+Granted scopes: `read`, `supplier:read`
 
 ### Super Banking Holdings Specialist Agent
 
 Type: `WEB_APP`  ·  Grants: `client_credentials`, `token_exchange`
 
-Granted scopes: `read`
+Granted scopes: `read`, `holdings:read`
 
 ### Super Banking Agent
 

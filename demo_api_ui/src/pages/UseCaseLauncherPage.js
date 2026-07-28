@@ -417,6 +417,8 @@ function UseCaseCard({ uc, stepNumber, completed, onRun, onRunAttack, onExplain,
         />
       )}
 
+      {uc.hint && <p className="uc-card__hint">{uc.hint}</p>}
+
       <div className="uc-card__actions">
         <button
           type="button"

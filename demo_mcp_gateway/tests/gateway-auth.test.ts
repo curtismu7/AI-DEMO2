@@ -76,6 +76,20 @@ const stubConfig: GatewayConfig = {
   mcpServerPassthrough: false,
   mtlsEnabled: false,
   mtlsCertPath: '/tmp/gw-client.crt',
+  mcpJwtVerifierHttpUrl: 'http://localhost:8083',
+  mcpJwtVerifierResourceUri: 'mcp-jwt-verifier.ping.demo',
+  allowLocalScopeFallback: false,
+  introspectionEnabled: false,
+  introspectionProvider: 'pinggateway',
+  authorizedActorClientId: '',
+  requireActForAgentTools: false,
+  intentTokenRequired: false,
+  requireRarIntent: false,
+  rateLimitEnabled: false,
+  wbaMode: 'monitor',
+  rateLimitMaxRequests: 20,
+  rateLimitWindowMs: 60000,
+  introspectionSimDown: false,
 };
 
 const stubConfigNoAuthz: GatewayConfig = {
@@ -83,6 +97,11 @@ const stubConfigNoAuthz: GatewayConfig = {
   pingAuthorizeEndpoint: '', // no PingAuthorize — permit all
   pingAuthorizeWorkerId: '',
   p1azEnabled: false,
+  // F1: without this, an unconfigured PDP now fails CLOSED (see config.ts) —
+  // opt into the degraded local-scope engine to get the "permit all" dev/test
+  // behaviour these tests exercise, matching the convention used by
+  // PingOneAuthorizeClient.sentParameters.test.ts and others.
+  allowLocalScopeFallback: true,
 };
 
 function decodedToken(overrides: Partial<DecodedGatewayToken> = {}): DecodedGatewayToken {
@@ -115,7 +134,7 @@ function mockReqRes(): { req: Partial<IncomingMessage>; res: Partial<ServerRespo
     writeHead: jest.fn(),
     end: jest.fn((data?: unknown) => { ended.push(typeof data === 'string' ? data : ''); return res as unknown as ServerResponse; }),
   };
-  const req: Partial<IncomingMessage> = { headers: {} };
+  const req: Partial<IncomingMessage> = { headers: {}, socket: { encrypted: false } as never };
   return { req, res, ended };
 }
 
@@ -247,7 +266,16 @@ describe('PingAuthorize WS/HTTP parity (WR-02)', () => {
     await guardToolCall('create_transfer', decoded, stubConfig, toolArgs);
     const wsBody = mockedAxios.post.mock.calls[0][1];
 
-    expect(wsBody).toEqual(httpBody);
+    // Timestamp is generated independently by each call, a few ms apart —
+    // asserting parity on it is inherently flaky. The invariant this test
+    // cares about is that WS and HTTP build the SAME parameters otherwise.
+    const stripTimestamp = (body: unknown) => {
+      const clone = { ...(body as { parameters: Record<string, unknown> }) };
+      clone.parameters = { ...clone.parameters };
+      delete clone.parameters.Timestamp;
+      return clone;
+    };
+    expect(stripTimestamp(wsBody)).toEqual(stripTimestamp(httpBody));
     expect((wsBody as { parameters: Record<string, string> }).parameters.TransactionAmount).toBe('750');
     expect((wsBody as { parameters: Record<string, string> }).parameters.McpMethod).toBe('tools/call');
   });
@@ -258,7 +286,17 @@ describe('PingAuthorize WS/HTTP parity (WR-02)', () => {
 // ---------------------------------------------------------------------------
 
 describe('McpTokenExchangeClient', () => {
-  beforeEach(() => { jest.clearAllMocks(); McpTokenExchangeClient.clearCache(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    McpTokenExchangeClient.clearCache();
+    // F10 — exchangeForBackend mints its own actor token via a separate POST
+    // (client_credentials) before performing Exchange #3. Queue that call's
+    // response here so each test's own mockResolvedValueOnce lines up with
+    // the real exchange call (mock.calls[0] = mint, mock.calls[1] = exchange).
+    mockedAxios.post.mockResolvedValueOnce({
+      data: { access_token: 'actor-cc-token', expires_in: 300 },
+    });
+  });
 
   it('exchanges for OLB audience when tool belongs to OLB backend', async () => {
     mockedAxios.post.mockResolvedValueOnce({
@@ -268,10 +306,13 @@ describe('McpTokenExchangeClient', () => {
     const result = await client.exchange('inbound-token', 'get_my_accounts');
     expect(result.token).toBe('olb-token-xyz');
     expect(result.targetAud).toBe(OLB_AUD);
-    // RFC 8693: subject_token must be the inbound token
-    const body = new URLSearchParams(mockedAxios.post.mock.calls[0][1] as string);
+    // RFC 8693: subject_token must be the inbound token. RFC 8707: the target
+    // resource is narrowed via `resource=`, not `audience=` (see
+    // McpTokenExchangeClient.exchangeForBackend) — PingOne silently ignores a
+    // bare `audience=` when the client has grants on more than one resource.
+    const body = new URLSearchParams(mockedAxios.post.mock.calls[1][1] as string);
     expect(body.get('subject_token')).toBe('inbound-token');
-    expect(body.get('audience')).toBe(OLB_AUD);
+    expect(body.get('resource')).toBe(OLB_AUD);
   });
 
   it('exchanges for invest audience when tool belongs to invest backend', async () => {
@@ -331,10 +372,17 @@ describe('buildAuthorizeMcpRequest middleware', () => {
     res = mocks.res;
   });
 
-  it('permit → calls forward with the original bearer token unchanged (no re-exchange)', async () => {
-    // PingAuthorize: PERMIT
-    mockedAxios.post.mockResolvedValueOnce({ data: { decision: 'PERMIT' } });
-    // No token exchange mock needed — the gateway now forwards the TX token unchanged.
+  it('permit → calls forward with the RFC 8693 exchanged token', async () => {
+    // Step 3: PingAuthorize PERMIT, then Step 4 unconditionally performs the
+    // RFC 8693 exchange (doExchange = exchangeClient.exchange, no PERMIT-time
+    // bypass) — same two-call shape as the McpTokenExchangeClient block above:
+    // an actor-token mint (client_credentials) followed by the real exchange.
+    // Confirmed against tests/authorizeMcpRequest.productionPath.test.ts, which
+    // stubs the exchange endpoint for every one of its PERMIT cases.
+    mockedAxios.post
+      .mockResolvedValueOnce({ data: { decision: 'PERMIT' } })
+      .mockResolvedValueOnce({ data: { access_token: 'actor-cc-token', expires_in: 300 } })
+      .mockResolvedValueOnce({ data: { access_token: 'exchanged-upstream-token', expires_in: 300 } });
 
     const body = mcpBody('tools/call', 'get_my_accounts');
     const bearerToken = VALID_BEARER;
@@ -348,15 +396,21 @@ describe('buildAuthorizeMcpRequest middleware', () => {
     );
 
     expect(forwardSpy).toHaveBeenCalledTimes(1);
-    // The TX token (aud: ping.demo) is forwarded unchanged — no re-exchange at the gateway.
     const [calledWithToken] = forwardSpy.mock.calls[0];
-    expect(calledWithToken).toBe(bearerToken);
+    expect(calledWithToken).toBe('exchanged-upstream-token');
   });
 
   it('WR-03: strips _hitl_challenge_id from arguments before forwarding on the HTTP path', async () => {
-    mockedAxios.post.mockResolvedValueOnce({ data: { decision: 'PERMIT' } });
-    // No exchange mock needed — bearer token is forwarded unchanged.
+    mockedAxios.post
+      .mockResolvedValueOnce({ data: { decision: 'PERMIT' } })
+      .mockResolvedValueOnce({ data: { access_token: 'actor-cc-token', expires_in: 300 } })
+      .mockResolvedValueOnce({ data: { access_token: 'exchanged-upstream-token', expires_in: 300 } });
 
+    // create_transfer's mcp-tool-schemas.json input schema requires
+    // from_account_id + to_account_id + amount (additionalProperties: false
+    // for everything else) — the AJV shape check at spec §2 runs before the
+    // HITL-stripping step this test exercises, so the fixture must be a
+    // schema-valid transfer, not just carry the field under test.
     const body = Buffer.from(
       JSON.stringify({
         jsonrpc: '2.0',
@@ -364,7 +418,7 @@ describe('buildAuthorizeMcpRequest middleware', () => {
         method: 'tools/call',
         params: {
           name: 'create_transfer',
-          arguments: { amount: 10, _hitl_challenge_id: 'chal-abc', to_account_id: 'a1' },
+          arguments: { amount: 10, _hitl_challenge_id: 'chal-abc', from_account_id: 'src-1', to_account_id: 'a1' },
         },
       }),
     );
@@ -381,13 +435,25 @@ describe('buildAuthorizeMcpRequest middleware', () => {
     const forwardedBody = forwardSpy.mock.calls[0][1] as Buffer;
     const forwarded = JSON.parse(forwardedBody.toString('utf-8'));
     expect(forwarded.params.arguments).not.toHaveProperty('_hitl_challenge_id');
-    expect(forwarded.params.arguments).toEqual({ amount: 10, to_account_id: 'a1' });
+    expect(forwarded.params.arguments).toEqual({ amount: 10, from_account_id: 'src-1', to_account_id: 'a1' });
   });
 
   it('deny from PingAuthorize → returns 403 and does NOT call forward', async () => {
     mockedAxios.post.mockResolvedValueOnce({ data: { decision: 'DENY' } });
 
-    const body = mcpBody('tools/call', 'create_transfer');
+    // create_transfer's AJV shape check (spec §2) runs before PingAuthorize and
+    // requires from_account_id/to_account_id/amount — mcpBody() sends no
+    // arguments at all, which would 400 before ever reaching the DENY this
+    // test exercises.
+    const body = Buffer.from(JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: {
+        name: 'create_transfer',
+        arguments: { amount: 10, from_account_id: 'src-1', to_account_id: 'a1' },
+      },
+    }));
     await middleware(
       VALID_BEARER,
       body,
@@ -417,10 +483,14 @@ describe('buildAuthorizeMcpRequest middleware', () => {
     expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything());
   });
 
-  it('no-authz config → permit all, forwards original bearer token unchanged', async () => {
-    // No PingAuthorize configured — no exchange, bearer forwarded as-is.
-    // Use plain scope names that match the scope topology (generic naming).
+  it('no-authz config → permit all, still exchanges before forwarding', async () => {
+    // No PingAuthorize configured — the PERMIT decision is local (no axios call
+    // for it), but Step 4's RFC 8693 exchange still runs unconditionally: actor
+    // mint + real exchange, same as every other PERMIT path.
     McpTokenExchangeClient.clearCache();
+    mockedAxios.post
+      .mockResolvedValueOnce({ data: { access_token: 'actor-cc-token', expires_in: 300 } })
+      .mockResolvedValueOnce({ data: { access_token: 'exchanged-upstream-token', expires_in: 300 } });
     const NO_AUTHZ_BEARER = makeToken('user-123', GATEWAY_AUD, { scope: 'read write' });
     const noAuthzMiddleware = buildAuthorizeMcpRequest(stubConfigNoAuthz);
     const body = mcpBody('tools/list');
@@ -435,8 +505,7 @@ describe('buildAuthorizeMcpRequest middleware', () => {
     );
 
     expect(forward2).toHaveBeenCalledTimes(1);
-    // TX token forwarded unchanged — no re-exchange at the gateway.
-    expect(forward2.mock.calls[0][0]).toBe(NO_AUTHZ_BEARER);
+    expect(forward2.mock.calls[0][0]).toBe('exchanged-upstream-token');
   });
 });
 
@@ -461,7 +530,13 @@ describe('authorizeMcpRequest — RFC 9728 WWW-Authenticate header', () => {
   it('401 on inactive token includes WWW-Authenticate with realm="PingOne" and resource_metadata', async () => {
     // Use a config with introspectionEndpoint set so the inactive-token path is reachable.
     // Without it, GatewayIntrospectionClient skips and returns { active: true, skipped: true }.
-    const configWithIntrospection = { ...stubConfig, introspectionEndpoint: 'https://auth.example.com/introspect' };
+    // introspectionEnabled must ALSO be true — authorizeMcpRequestCore.ts skips the whole
+    // introspection step outright when it's false, regardless of endpoint config.
+    const configWithIntrospection = {
+      ...stubConfig,
+      introspectionEndpoint: 'https://auth.example.com/introspect',
+      introspectionEnabled: true,
+    };
     mockedAxios.post.mockResolvedValueOnce({ data: { active: false } });
     const middleware = buildAuthorizeMcpRequest(configWithIntrospection);
     const body = mcpBody('tools/list');
@@ -475,14 +550,25 @@ describe('authorizeMcpRequest — RFC 9728 WWW-Authenticate header', () => {
     const wwwAuth: string = call401![1]['WWW-Authenticate'];
     expect(wwwAuth).toMatch(/Bearer realm="PingOne"/);
     expect(wwwAuth).toMatch(/resource_metadata=/);
-    expect(wwwAuth).toMatch(/\/\.well-known\/mcp-server/);
+    expect(wwwAuth).toMatch(/\/\.well-known\/oauth-protected-resource/);
   });
 
   it('403 on Authorize DENY includes WWW-Authenticate with realm="PingOne" and resource_metadata', async () => {
     mockedAxios.post.mockResolvedValueOnce({ data: { active: true, sub: 'user-123' } });
     mockedAxios.post.mockResolvedValueOnce({ data: { decision: 'DENY' } });
     const middleware = buildAuthorizeMcpRequest(stubConfig);
-    const body = mcpBody('tools/call', 'create_transfer');
+    // create_transfer's AJV shape check runs before introspection/PingAuthorize
+    // and requires from_account_id/to_account_id/amount — mcpBody() sends no
+    // arguments, which would 400 before ever reaching the DENY under test.
+    const body = Buffer.from(JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: {
+        name: 'create_transfer',
+        arguments: { amount: 10, from_account_id: 'src-1', to_account_id: 'a1' },
+      },
+    }));
     const BEARER = makeToken('user-123', GATEWAY_AUD);
 
     await middleware(BEARER, body, req as IncomingMessage, res as ServerResponse, forwardSpy);
@@ -493,7 +579,7 @@ describe('authorizeMcpRequest — RFC 9728 WWW-Authenticate header', () => {
     const wwwAuth: string = call403![1]['WWW-Authenticate'];
     expect(wwwAuth).toMatch(/Bearer realm="PingOne"/);
     expect(wwwAuth).toMatch(/resource_metadata=/);
-    expect(wwwAuth).toMatch(/\/\.well-known\/mcp-server/);
+    expect(wwwAuth).toMatch(/\/\.well-known\/oauth-protected-resource/);
     expect(forwardSpy).not.toHaveBeenCalled();
   });
 });

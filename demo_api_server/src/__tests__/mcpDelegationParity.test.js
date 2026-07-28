@@ -215,6 +215,58 @@ describe('evaluateMcpToolDelegation — decision parameters', () => {
       expect(body.TokenScopes).toBe('gateway:mcp:invoke banking:transfers:write');
     });
 
+    // Signing-key identity as a policy input. kid is read off the token HEADER;
+    // tokenKidKnown is BFF-pre-resolved because the snapshot DSL can neither
+    // fetch a JWKS nor do array-contains. This is NOT signature verification —
+    // it detects a token naming a key the issuer does not publish.
+    test('forwards TokenKid and TokenKidKnown when the key resolved', async () => {
+      mockWorkerThenDecision({ id: 'd1', decision: 'PERMIT', obligations: [] });
+      await svc.evaluateMcpToolDelegation({
+        userId: 'u1', toolName: 'get_my_accounts',
+        tokenAudience: 'mcp.aud', mcpResourceUri: 'mcp.aud',
+        tokenKid: 'kid-abc', tokenKidKnown: true,
+      });
+      const body = JSON.parse(fetchSpy.mock.calls[1][1].body).parameters;
+      expect(body.TokenKid).toBe('kid-abc');
+      expect(body.TokenKidKnown).toBe(true);
+    });
+
+    test('forwards TokenKidKnown=false so the policy can deny an unpublished key', async () => {
+      mockWorkerThenDecision({ id: 'd1', decision: 'DENY', obligations: [] });
+      await svc.evaluateMcpToolDelegation({
+        userId: 'u1', toolName: 'get_my_accounts',
+        tokenAudience: 'mcp.aud', mcpResourceUri: 'mcp.aud',
+        tokenKid: 'kid-forged', tokenKidKnown: false,
+      });
+      const body = JSON.parse(fetchSpy.mock.calls[1][1].body).parameters;
+      expect(body.TokenKidKnown).toBe(false);
+    });
+
+    // C1 rule 3 — a JWKS outage is "unknown", never "verified absent". A
+    // fabricated false here would turn a PingOne blip into a demo-wide DENY.
+    test('OMITS TokenKidKnown when JWKS was unavailable', async () => {
+      mockWorkerThenDecision({ id: 'd1', decision: 'PERMIT', obligations: [] });
+      await svc.evaluateMcpToolDelegation({
+        userId: 'u1', toolName: 'get_my_accounts',
+        tokenAudience: 'mcp.aud', mcpResourceUri: 'mcp.aud',
+        tokenKid: 'kid-abc', tokenKidKnown: null,
+      });
+      const body = JSON.parse(fetchSpy.mock.calls[1][1].body).parameters;
+      expect(body.TokenKid).toBe('kid-abc');
+      expect('TokenKidKnown' in body).toBe(false);
+    });
+
+    test('OMITS both keys when the token header carries no kid', async () => {
+      mockWorkerThenDecision({ id: 'd1', decision: 'PERMIT', obligations: [] });
+      await svc.evaluateMcpToolDelegation({
+        userId: 'u1', toolName: 'get_my_accounts',
+        tokenAudience: 'mcp.aud', mcpResourceUri: 'mcp.aud',
+      });
+      const body = JSON.parse(fetchSpy.mock.calls[1][1].body).parameters;
+      expect('TokenKid' in body).toBe(false);
+      expect('TokenKidKnown' in body).toBe(false);
+    });
+
     // C1 rule 3: a caller that cannot supply a value OMITS the key rather than
     // sending a falsy placeholder ("unknown" != "verified absent").
     test('omits TokenScopes and the temporal claims when unknown', async () => {

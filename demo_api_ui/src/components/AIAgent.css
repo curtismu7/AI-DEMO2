@@ -184,29 +184,10 @@ body > .banking-agent-float-root .banking-agent-panel {
 .banking-agent-panel:not(.ba-mode-inline) .ba-body {
   flex-wrap: nowrap;
 }
-/* Floating: full-width banner on its own row above the columns */
-.banking-agent-panel:not(.ba-mode-inline) .ba-consent-denied-banner {
-  flex: 0 0 100%;
-  min-width: 100%;
-}
-.banking-agent-panel:not(.ba-mode-inline)
-  .ba-body:has(.ba-consent-denied-banner) {
-  flex-wrap: wrap;
-}
-/* Inline: same treatment — banner spans full width above left/right columns */
-.banking-agent-panel.ba-mode-inline .ba-consent-denied-banner {
-  flex: 0 0 100%;
-  min-width: 100%;
-  order: -1;
-}
 /* Inline: prevent ba-body from wrapping so ba-right-col gets a definite height
-   and banking-agent-messages can scroll instead of expanding to content height.
-   Exception: when the consent-denied banner is present it still needs to wrap. */
+   and banking-agent-messages can scroll instead of expanding to content height. */
 .banking-agent-panel.ba-mode-inline .ba-body {
   flex-wrap: nowrap;
-}
-.banking-agent-panel.ba-mode-inline .ba-body:has(.ba-consent-denied-banner) {
-  flex-wrap: wrap;
 }
 
 /* Floating: narrower compact rail — chips are smaller and the column scrolls */
@@ -3246,7 +3227,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   cursor: not-allowed;
 }
 
-/* High-value consent declined — full-width notice above agent body */
+/* High-value consent declined — notice body inside the dismissable modal */
 .ba-consent-denied-banner {
   gap: 0.75rem;
   padding: 0.65rem 0.85rem;
@@ -5406,7 +5387,9 @@ body > .banking-agent-float-root .banking-agent-panel {
   overflow-y: auto;
 }
 
-/* When inside FloatingPanel, the grid fills the panel and scrolls freely */
+/* When inside FloatingPanel, the grid fills the panel and scrolls freely.
+   align-content: start stops the grid's default row-stretch (rows would
+   otherwise expand to fill the flex:1 height, ballooning each card). */
 .ba-demo-steps-float .fp-content {
   overflow-y: auto;
 }
@@ -5414,6 +5397,14 @@ body > .banking-agent-float-root .banking-agent-panel {
   max-height: none;
   overflow-y: visible;
   flex: 1;
+  align-content: start;
+}
+
+/* FloatingPanel sets an inline z-index:9000 (fp-panel base is 9500), both
+   below the agent panel's z-index:100059 !important — Demo Steps was
+   opening behind the agent. Needs !important to beat the inline style. */
+.ba-demo-steps-float.fp-panel {
+  z-index: 100061 !important;
 }
 .ba-demo-steps-float .ba-demo-steps-popout__header {
   flex-shrink: 0;
@@ -5609,6 +5600,35 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: #e0e7ff;
   border-color: #2563eb;
   color: #2563eb;
+  outline: none;
+}
+
+/* UC14b-only: quick chat result vs. full intent-binding page. Same shape as
+   the "i" explain button — sits between the title and it. "Q" (default) =
+   filled/active; "F" = outline, matching aria-pressed. */
+.ba-demo-steps-popout__rar-toggle {
+  flex: 0 0 auto;
+  width: 26px;
+  height: auto;
+  align-self: stretch;
+  border: 1.5px solid #7c3aed;
+  border-left: none;
+  background: transparent;
+  color: #7c3aed;
+  font: 700 11px/1 ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ba-demo-steps-popout__rar-toggle[aria-pressed="true"] {
+  background: #7c3aed;
+  color: #fff;
+}
+.ba-demo-steps-popout__rar-toggle:hover,
+.ba-demo-steps-popout__rar-toggle:focus-visible {
+  border-color: #6d28d9;
   outline: none;
 }
 
