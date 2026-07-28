@@ -102,6 +102,36 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-28 — A2A local-serve after gateway 502 re-entered executeA2aDelegation forever
+
+**Files changed:** `demo_api_server/services/demoAgentLangGraphService.js`
+(`executeA2aDelegation` local-serve path), `demo_api_server/src/__tests__/a2aExecution.test.js`
+(regression: gateway_error → local serve, one mint only).
+
+**What was broken:** After #986, when the gateway AUTHORIZES an A2A specialist
+tool then returns an upstream error (`gateway_error` / `mcp_error` /
+`mcp_unreachable` — common for vertical plugin tools with no gateway backend),
+`executeA2aDelegation` fell back to `resolveExecuteTool` to serve the tool
+locally. #1042 then added an A2A fast-path inside `resolveExecuteTool` that
+re-enters `executeA2aDelegation` for every `isA2aDelegatedTool` name. Trigger:
+UC2 `sensitive_patient_records` (or any other a2aDelegated specialist tool)
+when the gateway returns 502 → infinite recursion / process crash. Authorization
+had already succeeded; only delivery failed.
+
+**What was fixed:** Local-serve now calls `verticalDispatch.executeToolFor`
+directly. Nested-act minting and gateway authorize are unchanged; the fast-path
+in `resolveExecuteTool` is unchanged for genuine direct model tool calls.
+
+**Do not break:** Successful gateway-served A2A (local path not entered);
+DENY / HITL / challenge outcomes (local path only after transport upstream
+errors); `resolveExecuteTool` A2A fast-path for direct LLM tool calls (#1042);
+RFC 8693 nested-act minting in `a2aDelegationService`.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+src/__tests__/a2aExecution.test.js
+src/__tests__/demoAgentLangGraph.pluginRoute.test.js
+--testPathIgnorePatterns="/node_modules/" --forceExit` — 10 passed.
+
 ### 2026-07-27 — RAR demo (UC14b/UC14): quick chat result toggle + fail chip + full request/response in the Token Chain
 
 **Files changed:** `demo_api_ui/src/config/demoUseCaseSteps.js` (UC14 added

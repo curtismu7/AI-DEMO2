@@ -795,11 +795,31 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
         try {
           // userId is not a parameter of this function; derive it the same way
           // the rest of the file does, falling back to the delegation subject.
+          //
+          // Call executeToolFor DIRECTLY — do NOT go through resolveExecuteTool.
+          // That helper's A2A fast-path (#1042) re-enters executeA2aDelegation for
+          // every isA2aDelegatedTool name, which would recurse forever here the
+          // moment the gateway returns an upstream error (the exact case this
+          // local-serve path exists to handle). Authorization already ran at the
+          // gateway; this is delivery only.
           const localUserId = req?.session?.user?.id || result.userSub || 'anon';
-          const localRaw = await resolveExecuteTool(activeId, {
-            userId: localUserId, userToken: null, req, tokenEvents: events, sessionId: sessionId || req?.sessionID || '', isAdmin: false,
-          })(result.tool, toolArgs);
-          const { result: localResult } = parseToolResult(localRaw, { site: `a2a-local:${result.tool}` });
+          const localOut = await verticalDispatch.executeToolFor(
+            activeId,
+            result.tool,
+            toolArgs,
+            {
+              userId: localUserId,
+              userToken: null,
+              req,
+              tokenEvents: events,
+              sessionId: sessionId || req?.sessionID || '',
+              isAdmin: false,
+            },
+            async () => ({ result: { error: 'no_local_plugin_handler' }, render: 'text' }),
+          );
+          const localResult = (localOut && typeof localOut === 'object' && !Array.isArray(localOut) && 'result' in localOut)
+            ? localOut.result
+            : localOut;
           if (localResult && !(typeof localResult === 'object' && 'error' in localResult)) {
             console.log('[executeA2aDelegation] %s authorized at the gateway, served locally (no gateway backend for this vertical)', result.tool);
             toolResult = localResult;

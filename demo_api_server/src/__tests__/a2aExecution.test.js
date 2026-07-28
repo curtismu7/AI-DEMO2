@@ -99,4 +99,49 @@ describe('A2A execution wiring (Slice 3b)', () => {
     expect(out.verticalResult.descriptor).toBeTruthy();
     expect(out.verticalResult.descriptor.type).toBe('fieldList');
   });
+
+  it('serves locally after gateway upstream error without re-entering A2A', async () => {
+    // #986 local-serve path: gateway AUTHORIZES then returns 502 (no backend for
+    // the vertical plugin tool). After #1042, resolveExecuteTool's A2A fast-path
+    // re-entered executeA2aDelegation for every isA2aDelegatedTool name — infinite
+    // recursion / process crash on the exact failure this path exists to handle.
+    // Delivery must call executeToolFor directly and mint the nested-act token once.
+    const verticalDispatch = require('../../services/verticalDispatch');
+    a2a.delegateToSpecialist.mockImplementation((_req, opts) => Promise.resolve({
+      token: 'NESTED.ACT.TOKEN',
+      userSub: 'user',
+      vertical: opts.vertical,
+      specialist: 'Records Specialist',
+      tool: 'sensitive_patient_records',
+      scopes: ['records:read'],
+      actChainDepth: 2,
+    }));
+    executor.executeBffToolWithToken.mockResolvedValueOnce(
+      JSON.stringify({ error: 'gateway_error', message: 'Gateway upstream error (HTTP 502)' }),
+    );
+    const schemasSpy = jest.spyOn(verticalDispatch, 'toolSchemasFor').mockReturnValue([
+      { name: 'sensitive_patient_records' },
+    ]);
+    const execSpy = jest.spyOn(verticalDispatch, 'executeToolFor').mockResolvedValue({
+      result: { records: [{ id: 'r1' }] },
+      render: 'list',
+    });
+
+    const out = await svc.__test.executeA2aDelegation(
+      'healthcare',
+      { tool: 'sensitive_patient_records' },
+      { req: { sessionID: 's1', session: { user: { id: 'u1' } } }, tokenEvents: [], sessionId: 's1' },
+    );
+    const parsed = JSON.parse(out);
+
+    expect(a2a.delegateToSpecialist).toHaveBeenCalledTimes(1);
+    expect(executor.executeBffToolWithToken).toHaveBeenCalledTimes(1);
+    expect(execSpy).toHaveBeenCalledTimes(1);
+    expect(parsed.delegated).toBe(true);
+    expect(parsed.toolError).toBeNull();
+    expect(parsed.result).toEqual({ records: [{ id: 'r1' }] });
+
+    schemasSpy.mockRestore();
+    execSpy.mockRestore();
+  });
 });
