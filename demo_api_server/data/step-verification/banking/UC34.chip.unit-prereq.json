@@ -1,0 +1,14 @@
+{
+  "vertical": "banking",
+  "useCaseId": "UC34",
+  "triggerType": "chip",
+  "mode": "unit-prereq",
+  "status": "PASS",
+  "errorClass": null,
+  "primaryTool": null,
+  "checkedAt": "2026-07-28",
+  "requiredFlags": [],
+  "flagsAssumedOn": true,
+  "provesDeclaredOnly": true,
+  "flagsOffDetected": []
+}

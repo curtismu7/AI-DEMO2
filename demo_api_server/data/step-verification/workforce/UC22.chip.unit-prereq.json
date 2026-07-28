@@ -6,7 +6,7 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "submit_expense",
-  "checkedAt": "2026-07-26",
+  "checkedAt": "2026-07-28",
   "requiredFlags": [
     "ciba_enabled",
     "ff_mcp_gateway_pinggateway"
