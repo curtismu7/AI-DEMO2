@@ -9,6 +9,7 @@ import MockAuthzRulesPage from './MockAuthzRulesPage';
 import ScopeAuditPage from './ScopeAuditPage';
 import ScopeReferencePage from './ScopeReferencePage';
 import SnapshotImport from '../pages/SnapshotImport';
+import BulkDecisionPanel from './BulkDecisionPanel';
 import InspectorShell from './shared/InspectorShell';
 import PacEditorLaunch from './PacEditorLaunch';
 import InspectorTabs from './shared/InspectorTabs';
@@ -822,7 +823,7 @@ function PolicyNode({ node, onTestRule, query }) {
 // ---------------------------------------------------------------------------
 export default function PingOneAuthorizePage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const TABS = ['console', 'guided', 'snapshot', 'mockRules', 'scopes'];
+  const TABS = ['console', 'bulk', 'guided', 'snapshot', 'mockRules', 'scopes'];
   const tab = TABS.includes(searchParams.get('tab')) ? searchParams.get('tab') : 'console';
   const setTab = useCallback((next) => {
     setSearchParams((prev) => {
@@ -973,11 +974,14 @@ export default function PingOneAuthorizePage() {
     <div style={S.root}>
       <div style={S.tabs}>
         <span style={S.tab(tab === 'console')} onClick={() => setTab('console')}>Live / Simulated Console</span>
+        <span style={S.tab(tab === 'bulk')} onClick={() => setTab('bulk')}>Bulk Decisions</span>
         <span style={S.tab(tab === 'guided')} onClick={() => setTab('guided')}>Guided Scenarios &amp; Learn</span>
         <span style={S.tab(tab === 'mockRules')} onClick={() => setTab('mockRules')}>Mock Authz Rules</span>
         <span style={S.tab(tab === 'scopes')} onClick={() => setTab('scopes')}>Scopes &amp; Resources</span>
         <span style={S.tab(tab === 'snapshot')} onClick={() => setTab('snapshot')}>Snapshot Import</span>
       </div>
+
+      {tab === 'bulk' && <BulkDecisionPanel />}
 
       {tab === 'guided' && <AuthzTestPage />}
 
