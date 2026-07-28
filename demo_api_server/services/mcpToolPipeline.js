@@ -536,16 +536,18 @@ async function runMcpToolPipeline(ctx) {
                     { ...mcpAuthz.block.body.secondaryEvaluation, engine: secondaryEvaluationEngine(mcpAuthz.block.body.secondaryEvaluation), decisionContext: 'TransactionAmount' },
                 ]
                 : null;
-            deps.publishMcpResultToSse(flowTraceId, {
-                tool,
-                result: { error: mcpAuthz.block.body.error, message: mcpAuthz.block.body.error_description },
-                durationMs: Date.now() - startTime,
-                isDelegated: !!mcpAccessToken,
-                requestJson,
-                denied: true,
-                mcpAuthorizeEvaluation: _blockAuthEval,
-                mcpAuthorizeEvaluations: _blockAuthEvals,
-            });
+            try {
+                deps.publishMcpResultToSse(flowTraceId, {
+                    tool,
+                    result: { error: mcpAuthz.block.body.error, message: mcpAuthz.block.body.error_description },
+                    durationMs: Date.now() - startTime,
+                    isDelegated: !!mcpAccessToken,
+                    requestJson,
+                    denied: true,
+                    mcpAuthorizeEvaluation: _blockAuthEval,
+                    mcpAuthorizeEvaluations: _blockAuthEvals,
+                });
+            } catch (_) { /* SSE best-effort */ }
             return { kind: 'block', httpStatus: mcpAuthz.block.status, tokenEvents, body: {
                 ...mcpAuthz.block.body,
                 tool,
