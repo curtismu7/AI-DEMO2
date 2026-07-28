@@ -8,7 +8,7 @@
  * detour sign. The checks now live here and both transports call them:
  *
  *   HttpMCPTransport.handlePost          — POST /mcp
- *   BankingMCPServer.handleConnection    — WS connect Authorization header
+ *   DemoMCPServer.handleConnection    — WS connect Authorization header
  *   MCPMessageHandler.handleHandshake    — WS initialize params.agentToken
  *
  * Two checks, in order:

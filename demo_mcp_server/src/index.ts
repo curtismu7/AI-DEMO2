@@ -9,8 +9,8 @@ dotenv.config();
 
 import { loadConfiguration, validateConfiguration, ConfigurationError } from './config';
 import { loadVaultIntoEnv } from './vault';
-import { BankingMCPServerConfig } from './interfaces';
-import { BankingMCPServer } from './server/BankingMCPServer';
+import { DemoMCPServerConfig } from './interfaces';
+import { DemoMCPServer } from './server/DemoMCPServer';
 import { BankingAuthenticationManager } from './auth/BankingAuthenticationManager';
 import { BankingSessionManager } from './storage/BankingSessionManager';
 import { BankingToolProvider } from './tools/BankingToolProvider';
@@ -24,7 +24,7 @@ export * from './config';
 
 // Export specific interfaces to avoid conflicts
 export type { 
-  BankingMCPServerConfig,
+  DemoMCPServerConfig,
   EnvironmentVariables,
   DEFAULT_CONFIG
 } from './interfaces';
@@ -41,9 +41,9 @@ export {
 } from './config';
 
 // Export the main server class
-export { BankingMCPServer } from './server/BankingMCPServer';
+export { DemoMCPServer } from './server/DemoMCPServer';
 
-let server: BankingMCPServer | null = null;
+let server: DemoMCPServer | null = null;
 
 async function main(): Promise<void> {
   try {
@@ -69,7 +69,7 @@ async function main(): Promise<void> {
     }
 
     // Load and validate configuration
-    const config: BankingMCPServerConfig = loadConfiguration();
+    const config: DemoMCPServerConfig = loadConfiguration();
     validateConfiguration(config);
     
     console.log(`Server configured to run on ${config.server.host}:${config.server.port}`);
@@ -146,7 +146,7 @@ async function main(): Promise<void> {
       enableLogging: config.logging.level === 'DEBUG'
     };
     
-    server = new BankingMCPServer(serverConfig, authManager, sessionManager, toolProvider);
+    server = new DemoMCPServer(serverConfig, authManager, sessionManager, toolProvider);
     
     console.log('Starting MCP server...');
     await server.startServer();

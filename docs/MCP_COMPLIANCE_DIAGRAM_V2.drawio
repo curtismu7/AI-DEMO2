@@ -83,7 +83,7 @@
     <mxCell id="r3b" value="MCP Lifecycle §ordering (SHOULD)" style="text;html=1;strokeColor=#cccccc;fillColor=#f9f9f9;align=left;verticalAlign=middle;fontSize=10;spacingLeft=6;whiteSpace=wrap;" vertex="1" parent="1">
       <mxGeometry x="270" y="250" width="200" height="38" as="geometry" />
     </mxCell>
-    <mxCell id="r3c" value="BankingMCPServer.routeMessage — connection.initialized flag; rejects −32600 before flag set" style="text;html=1;strokeColor=#cccccc;fillColor=#f9f9f9;align=left;verticalAlign=middle;fontSize=10;spacingLeft=6;whiteSpace=wrap;" vertex="1" parent="1">
+    <mxCell id="r3c" value="DemoMCPServer.routeMessage — connection.initialized flag; rejects −32600 before flag set" style="text;html=1;strokeColor=#cccccc;fillColor=#f9f9f9;align=left;verticalAlign=middle;fontSize=10;spacingLeft=6;whiteSpace=wrap;" vertex="1" parent="1">
       <mxGeometry x="480" y="250" width="340" height="38" as="geometry" />
     </mxCell>
     <mxCell id="r3d" value="✔ DONE" style="text;html=1;strokeColor=#0d6b3e;fillColor=#d4edda;align=center;verticalAlign=middle;fontSize=10;fontStyle=1;fontColor=#0d6b3e;rounded=1;" vertex="1" parent="1">
@@ -145,7 +145,7 @@
     <mxCell id="r6b" value="JSON-RPC 2.0 / MCP Basic §messages" style="text;html=1;strokeColor=#cccccc;fillColor=#f9f9f9;align=left;verticalAlign=middle;fontSize=10;spacingLeft=6;whiteSpace=wrap;" vertex="1" parent="1">
       <mxGeometry x="270" y="436" width="200" height="38" as="geometry" />
     </mxCell>
-    <mxCell id="r6c" value="BankingMCPServer.isValidMCPMessage() — rejects id===null; notifications must use notifications/* without id" style="text;html=1;strokeColor=#cccccc;fillColor=#f9f9f9;align=left;verticalAlign=middle;fontSize=10;spacingLeft=6;whiteSpace=wrap;" vertex="1" parent="1">
+    <mxCell id="r6c" value="DemoMCPServer.isValidMCPMessage() — rejects id===null; notifications must use notifications/* without id" style="text;html=1;strokeColor=#cccccc;fillColor=#f9f9f9;align=left;verticalAlign=middle;fontSize=10;spacingLeft=6;whiteSpace=wrap;" vertex="1" parent="1">
       <mxGeometry x="480" y="436" width="340" height="38" as="geometry" />
     </mxCell>
     <mxCell id="r6d" value="✔ DONE" style="text;html=1;strokeColor=#0d6b3e;fillColor=#d4edda;align=center;verticalAlign=middle;fontSize=10;fontStyle=1;fontColor=#0d6b3e;rounded=1;" vertex="1" parent="1">
@@ -676,7 +676,7 @@
     </mxCell>
 
     <!-- ── ROW 2: MCP SERVER ──────────────────────────── -->
-    <mxCell id="ov_mcp_label" value="MCP SERVER — banking_mcp_server  (TypeScript, port 8080)" style="text;html=1;fontStyle=1;fontSize=10;fillColor=none;strokeColor=none;fontColor=#1a1a2e;align=left;" vertex="1" parent="1">
+    <mxCell id="ov_mcp_label" value="MCP SERVER — demo_mcp_server  (TypeScript, port 8080)" style="text;html=1;fontStyle=1;fontSize=10;fillColor=none;strokeColor=none;fontColor=#1a1a2e;align=left;" vertex="1" parent="1">
       <mxGeometry x="960" y="222" width="520" height="16" as="geometry"/>
     </mxCell>
     <mxCell id="ov_mcp_bg" value="" style="rounded=1;fillColor=#f4f0ff;strokeColor=#512DA8;strokeWidth=2;dashed=1;" vertex="1" parent="1">
@@ -686,7 +686,7 @@
     <mxCell id="ov_httptransport" value="&lt;b&gt;HttpMCPTransport.ts&lt;/b&gt;&lt;br/&gt;POST /mcp · DELETE /mcp&lt;br/&gt;GET /.well-known (RFC 9728)" style="html=1;rounded=1;fillColor=#d4edda;strokeColor=#0d6b3e;strokeWidth=2;fontSize=10;whiteSpace=wrap;verticalAlign=middle;" vertex="1" parent="1">
       <mxGeometry x="970"  y="258" width="270" height="68" as="geometry"/>
     </mxCell>
-    <mxCell id="ov_mcpserver"    value="&lt;b&gt;BankingMCPServer.ts&lt;/b&gt;&lt;br/&gt;WebSocket JSON-RPC&lt;br/&gt;routeMessage() lifecycle gate" style="html=1;rounded=1;fillColor=#d4edda;strokeColor=#0d6b3e;strokeWidth=2;fontSize=10;whiteSpace=wrap;verticalAlign=middle;" vertex="1" parent="1">
+    <mxCell id="ov_mcpserver"    value="&lt;b&gt;DemoMCPServer.ts&lt;/b&gt;&lt;br/&gt;WebSocket JSON-RPC&lt;br/&gt;routeMessage() lifecycle gate" style="html=1;rounded=1;fillColor=#d4edda;strokeColor=#0d6b3e;strokeWidth=2;fontSize=10;whiteSpace=wrap;verticalAlign=middle;" vertex="1" parent="1">
       <mxGeometry x="1260" y="258" width="270" height="68" as="geometry"/>
     </mxCell>
     <mxCell id="ov_msghandler"   value="&lt;b&gt;MCPMessageHandler.ts&lt;/b&gt;&lt;br/&gt;initialize · ping · tools&lt;br/&gt;logging/setLevel · timeouts" style="html=1;rounded=1;fillColor=#d4edda;strokeColor=#0d6b3e;strokeWidth=2;fontSize=10;whiteSpace=wrap;verticalAlign=middle;" vertex="1" parent="1">
@@ -837,7 +837,7 @@
     <mxCell id="0"/>
     <mxCell id="1" parent="0"/>
 
-    <mxCell id="mcp_title" value="MCP Server (banking_mcp_server) — Compliance Detail" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontColor=#1a1a2e;" vertex="1" parent="1">
+    <mxCell id="mcp_title" value="MCP Server (demo_mcp_server) — Compliance Detail" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontColor=#1a1a2e;" vertex="1" parent="1">
       <mxGeometry x="100" y="10" width="1600" height="34" as="geometry"/>
     </mxCell>
     <mxCell id="mcp_sub" value="Each box shows MCP spec 2025-11-25 requirement enforced by that TypeScript class.  Green=MUST | Blue=SHOULD | Orange=Opt-in ⚠" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontColor=#444444;" vertex="1" parent="1">
@@ -849,11 +849,11 @@
       <mxGeometry x="20" y="70" width="1760" height="980" as="geometry"/>
     </mxCell>
 
-    <!-- Row 1: HTTP Transport + BankingMCPServer -->
+    <!-- Row 1: HTTP Transport + DemoMCPServer -->
     <mxCell id="m_httptransport" value="&lt;b&gt;HttpMCPTransport.ts&lt;/b&gt; (Phase D — HTTP Streamable)&lt;br/&gt;POST /mcp · GET /mcp (405) · DELETE /mcp&lt;br/&gt;GET /.well-known/oauth-protected-resource&lt;br/&gt;&lt;br/&gt;&lt;font color=&quot;#0d6b3e&quot;&gt;MUST: RFC 9728 — .well-known returns resource, AS, scopes&lt;/font&gt;&lt;br/&gt;&lt;font color=&quot;#0d6b3e&quot;&gt;MUST: 401 WWW-Authenticate w/ resource_metadata URL&lt;/font&gt;&lt;br/&gt;&lt;font color=&quot;#0c5460&quot;&gt;SHOULD: scope= in WWW-Authenticate on 401 (RFC 6750)&lt;/font&gt;&lt;br/&gt;&lt;font color=&quot;#0d6b3e&quot;&gt;MUST: 403 insufficient_scope with scope in WWW-Authenticate&lt;/font&gt;&lt;br/&gt;&lt;font color=&quot;#0d6b3e&quot;&gt;MUST: MCP-Session-Id UUID issued on initialize&lt;/font&gt;&lt;br/&gt;&lt;font color=&quot;#0d6b3e&quot;&gt;MUST: MCP-Protocol-Version header required on non-init requests&lt;/font&gt;&lt;br/&gt;&lt;font color=&quot;#0d6b3e&quot;&gt;MUST: Origin header validated vs MCP_ALLOWED_ORIGINS (DNS rebind guard)&lt;/font&gt;&lt;br/&gt;&lt;font color=&quot;#0d6b3e&quot;&gt;MUST: 404 on unknown MCP-Session-Id&lt;/font&gt;&lt;br/&gt;&lt;font color=&quot;#0d6b3e&quot;&gt;MUST: Notifications return 202 (no response body)&lt;/font&gt;&lt;br/&gt;Opt-out: HTTP_MCP_TRANSPORT_ENABLED=false" style="html=1;rounded=1;fillColor=#d4edda;strokeColor=#0d6b3e;strokeWidth=3;fontSize=10;verticalAlign=top;align=left;spacingLeft=8;spacingTop=6;whiteSpace=wrap;" vertex="1" parent="1">
       <mxGeometry x="30" y="90" width="520" height="290" as="geometry"/>
     </mxCell>
-    <mxCell id="m_mcpserver" value="&lt;b&gt;BankingMCPServer.ts&lt;/b&gt;&lt;br/&gt;WebSocket JSON-RPC server (port 8080)&lt;br/&gt;routeMessage() · isValidMCPMessage()&lt;br/&gt;&lt;br/&gt;&lt;font color=&quot;#0d6b3e&quot;&gt;MUST: JSON-RPC request id MUST NOT be null (isValidMCPMessage rejects)&lt;/font&gt;&lt;br/&gt;&lt;font color=&quot;#0d6b3e&quot;&gt;MUST: notifications/* MUST NOT include id field&lt;/font&gt;&lt;br/&gt;&lt;font color=&quot;#0d6b3e&quot;&gt;MUST: connection.initialized flag gating (routeMessage)&lt;/font&gt;&lt;br/&gt;&lt;font color=&quot;#0c5460&quot;&gt;SHOULD: Lifecycle gate — rejects pre-initialized requests (−32600)&lt;/font&gt;&lt;br/&gt;&lt;font color=&quot;#0c5460&quot;&gt;SHOULD: ping always permitted even before initialized&lt;/font&gt;&lt;br/&gt;&lt;font color=&quot;#0d6b3e&quot;&gt;MUST: WS + HTTP share same BankingSessionManager&lt;/font&gt;&lt;br/&gt;&lt;font color=&quot;#0d6b3e&quot;&gt;MUST: handleHttpRequest delegates to HttpMCPTransport&lt;/font&gt;" style="html=1;rounded=1;fillColor=#d4edda;strokeColor=#0d6b3e;strokeWidth=3;fontSize=10;verticalAlign=top;align=left;spacingLeft=8;spacingTop=6;whiteSpace=wrap;" vertex="1" parent="1">
+    <mxCell id="m_mcpserver" value="&lt;b&gt;DemoMCPServer.ts&lt;/b&gt;&lt;br/&gt;WebSocket JSON-RPC server (port 8080)&lt;br/&gt;routeMessage() · isValidMCPMessage()&lt;br/&gt;&lt;br/&gt;&lt;font color=&quot;#0d6b3e&quot;&gt;MUST: JSON-RPC request id MUST NOT be null (isValidMCPMessage rejects)&lt;/font&gt;&lt;br/&gt;&lt;font color=&quot;#0d6b3e&quot;&gt;MUST: notifications/* MUST NOT include id field&lt;/font&gt;&lt;br/&gt;&lt;font color=&quot;#0d6b3e&quot;&gt;MUST: connection.initialized flag gating (routeMessage)&lt;/font&gt;&lt;br/&gt;&lt;font color=&quot;#0c5460&quot;&gt;SHOULD: Lifecycle gate — rejects pre-initialized requests (−32600)&lt;/font&gt;&lt;br/&gt;&lt;font color=&quot;#0c5460&quot;&gt;SHOULD: ping always permitted even before initialized&lt;/font&gt;&lt;br/&gt;&lt;font color=&quot;#0d6b3e&quot;&gt;MUST: WS + HTTP share same BankingSessionManager&lt;/font&gt;&lt;br/&gt;&lt;font color=&quot;#0d6b3e&quot;&gt;MUST: handleHttpRequest delegates to HttpMCPTransport&lt;/font&gt;" style="html=1;rounded=1;fillColor=#d4edda;strokeColor=#0d6b3e;strokeWidth=3;fontSize=10;verticalAlign=top;align=left;spacingLeft=8;spacingTop=6;whiteSpace=wrap;" vertex="1" parent="1">
       <mxGeometry x="570" y="90" width="480" height="240" as="geometry"/>
     </mxCell>
 
@@ -924,7 +924,7 @@
     </mxCell>
 
     <!-- Test coverage panel -->
-    <mxCell id="cs_tests" value="&lt;b&gt;Test Coverage (banking_mcp_server)&lt;/b&gt;&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Total: 726 passed, 0 failed, 5 skipped&lt;/b&gt;&lt;br/&gt;&lt;br/&gt;MCPMessageHandler.test.ts — handshake, tools, lifecycle,&lt;br/&gt;  logging/setLevel (all 8 RFC 5424 levels), tool timeout&lt;br/&gt;BankingMCPServer.test.ts — server lifecycle, connections,&lt;br/&gt;  lifecycle gate (pre-init −32600, post-init pass, ping ok)&lt;br/&gt;HttpMCPTransport.test.ts — RFC 9728 metadata, 401 bearer,&lt;br/&gt;  session management, MCP-Session-Id, MCP-Protocol-Version,&lt;br/&gt;  DELETE, GET 405, origin 403, insufficient_scope 403, 202&lt;br/&gt;mcp-protocol.integration.test.ts — full lifecycle E2E&lt;br/&gt;TokenIntrospector.test.ts — may_act, act.client_id, aud&lt;br/&gt;BankingToolProvider/Registry/Validator — tool execution&lt;br/&gt;AuthorizationManager — PKCE, CIBA flows&lt;br/&gt;BankingSessionManager — TTL, encryption, cleanup&lt;br/&gt;&lt;br/&gt;Run: cd banking_mcp_server &amp;amp;&amp;amp; CI=true npm test --forceExit" style="html=1;rounded=1;fillColor=#d1ecf1;strokeColor=#0c5460;strokeWidth=2;fontSize=10;verticalAlign=top;align=left;spacingLeft=10;spacingTop=8;whiteSpace=wrap;" vertex="1" parent="1">
+    <mxCell id="cs_tests" value="&lt;b&gt;Test Coverage (demo_mcp_server)&lt;/b&gt;&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Total: 726 passed, 0 failed, 5 skipped&lt;/b&gt;&lt;br/&gt;&lt;br/&gt;MCPMessageHandler.test.ts — handshake, tools, lifecycle,&lt;br/&gt;  logging/setLevel (all 8 RFC 5424 levels), tool timeout&lt;br/&gt;DemoMCPServer.test.ts — server lifecycle, connections,&lt;br/&gt;  lifecycle gate (pre-init −32600, post-init pass, ping ok)&lt;br/&gt;HttpMCPTransport.test.ts — RFC 9728 metadata, 401 bearer,&lt;br/&gt;  session management, MCP-Session-Id, MCP-Protocol-Version,&lt;br/&gt;  DELETE, GET 405, origin 403, insufficient_scope 403, 202&lt;br/&gt;mcp-protocol.integration.test.ts — full lifecycle E2E&lt;br/&gt;TokenIntrospector.test.ts — may_act, act.client_id, aud&lt;br/&gt;BankingToolProvider/Registry/Validator — tool execution&lt;br/&gt;AuthorizationManager — PKCE, CIBA flows&lt;br/&gt;BankingSessionManager — TTL, encryption, cleanup&lt;br/&gt;&lt;br/&gt;Run: cd demo_mcp_server &amp;amp;&amp;amp; CI=true npm test --forceExit" style="html=1;rounded=1;fillColor=#d1ecf1;strokeColor=#0c5460;strokeWidth=2;fontSize=10;verticalAlign=top;align=left;spacingLeft=10;spacingTop=8;whiteSpace=wrap;" vertex="1" parent="1">
       <mxGeometry x="1240" y="510" width="440" height="300" as="geometry"/>
     </mxCell>
 

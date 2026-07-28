@@ -15,7 +15,7 @@ import {
   createExampleConfig,
   validateConfigFile
 } from '../../src/config';
-import { BankingMCPServerConfig } from '../../src/interfaces/config';
+import { DemoMCPServerConfig } from '../../src/interfaces/config';
 
 describe('Configuration', () => {
   const originalEnv = process.env;
@@ -138,7 +138,7 @@ describe('Configuration', () => {
 
   describe('ConfigurationValidator', () => {
     let validator: ConfigurationValidator;
-    let validConfig: BankingMCPServerConfig;
+    let validConfig: DemoMCPServerConfig;
 
     beforeEach(() => {
       validator = new ConfigurationValidator();

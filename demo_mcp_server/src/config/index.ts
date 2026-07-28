@@ -3,7 +3,7 @@
  * Handles environment-based configuration loading and validation
  */
 
-import { BankingMCPServerConfig, EnvironmentVariables } from '../interfaces/config';
+import { DemoMCPServerConfig, EnvironmentVariables } from '../interfaces/config';
 import { Environment, getEnvironmentConfig, getCurrentEnvironment } from './environments';
 import { ConfigurationValidator, ConfigurationValidationError } from './validator';
 
@@ -17,13 +17,13 @@ export class ConfigurationError extends Error {
 export class ConfigurationManager {
   private validator = new ConfigurationValidator();
   private environment: Environment;
-  private config?: BankingMCPServerConfig;
+  private config?: DemoMCPServerConfig;
 
   constructor(environment?: Environment) {
     this.environment = environment || getCurrentEnvironment();
   }
 
-  public loadConfiguration(): BankingMCPServerConfig {
+  public loadConfiguration(): DemoMCPServerConfig {
     if (this.config) {
       return this.config;
     }
@@ -65,7 +65,7 @@ export class ConfigurationManager {
     return this.environment;
   }
 
-  public reloadConfiguration(): BankingMCPServerConfig {
+  public reloadConfiguration(): DemoMCPServerConfig {
     this.config = undefined;
     return this.loadConfiguration();
   }
@@ -86,12 +86,12 @@ export class ConfigurationManager {
 }
 
 // Legacy functions for backward compatibility
-export function loadConfiguration(): BankingMCPServerConfig {
+export function loadConfiguration(): DemoMCPServerConfig {
   const manager = new ConfigurationManager();
   return manager.loadConfiguration();
 }
 
-export function validateConfiguration(config: BankingMCPServerConfig): void {
+export function validateConfiguration(config: DemoMCPServerConfig): void {
   const validator = new ConfigurationValidator();
   const environment = getCurrentEnvironment();
   const validation = validator.validateConfiguration(config, environment);

@@ -153,7 +153,7 @@ export class HttpMCPTransport {
   }
 
   // -------------------------------------------------------------------------
-  // Entry point — called by BankingMCPServer.handleHttpRequest
+  // Entry point — called by DemoMCPServer.handleHttpRequest
   // -------------------------------------------------------------------------
 
   async handleRequest(req: IncomingMessage, res: ServerResponse, pathname: string): Promise<void> {

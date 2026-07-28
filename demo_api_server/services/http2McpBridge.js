@@ -5,7 +5,7 @@
  * Status (2026-05-14): the BFF default is still `MCP_SERVER_URL=ws://localhost:8080`
  * (server.js line ~1729), so this bridge is only exercised when an operator sets
  * `MCP_SERVER_URL` to an `http://` / `https://` URL. Even when invoked, the local
- * MCP server runs on plain `http.createServer` (banking_mcp_server BankingMCPServer.ts),
+ * MCP server runs on plain `http.createServer` (banking_mcp_server DemoMCPServer.ts),
  * which does NOT advertise h2 — Node's `http2.connect(..., { allowHTTP1: true })`
  * therefore negotiates DOWN to HTTP/1.1. The "multiplexing" benefit is theoretical
  * until the MCP server enables `http2.createServer({ allowHTTP1: true })`.

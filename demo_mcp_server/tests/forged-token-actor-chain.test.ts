@@ -15,7 +15,7 @@
  *
  * Covers three enforcement points that must agree:
  *   - HTTP  POST /mcp                       (HttpMCPTransport.handlePost)
- *   - WS    connect Authorization header    (BankingMCPServer.handleConnection)
+ *   - WS    connect Authorization header    (DemoMCPServer.handleConnection)
  *   - WS    initialize params.agentToken    (MCPMessageHandler.handleHandshake)
  */
 
@@ -23,7 +23,7 @@ import { EventEmitter } from 'events';
 import { createHmac } from 'crypto';
 import { IncomingMessage, ServerResponse } from 'http';
 import { HttpMCPTransport, HttpMCPTransportConfig } from '../src/server/HttpMCPTransport';
-import { BankingMCPServer } from '../src/server/BankingMCPServer';
+import { DemoMCPServer } from '../src/server/DemoMCPServer';
 import { MCPMessageHandler } from '../src/server/MCPMessageHandler';
 import { BankingSessionManager, BankingSession } from '../src/storage/BankingSessionManager';
 import { BankingAuthenticationManager } from '../src/auth/BankingAuthenticationManager';
@@ -324,7 +324,7 @@ describe('forged token vs the F10 actor allow-list — HTTP POST /mcp', () => {
 // ---------------------------------------------------------------------------
 
 describe('forged token vs the F10 actor allow-list — WebSocket', () => {
-  let server: BankingMCPServer;
+  let server: DemoMCPServer;
   let mockSessionManager: jest.Mocked<BankingSessionManager>;
 
   function makeWs() {
@@ -339,7 +339,7 @@ describe('forged token vs the F10 actor allow-list — WebSocket', () => {
     mockSessionManager.createSession = jest.fn().mockResolvedValue(mockSession);
     mockSessionManager.getSession = jest.fn().mockResolvedValue(mockSession);
 
-    server = new BankingMCPServer(
+    server = new DemoMCPServer(
       { host: 'localhost', port: 0, maxConnections: 10, sessionTimeout: 3600, enableLogging: false },
       new BankingAuthenticationManager(pingOneConfig),
       mockSessionManager,
@@ -375,7 +375,7 @@ describe('forged token vs the F10 actor allow-list — WebSocket', () => {
   });
 
   // -------------------------------------------------------------------------
-  // The header-less bypass: BankingMCPServer only ran the actor check inside
+  // The header-less bypass: DemoMCPServer only ran the actor check inside
   // `if (authHeader?.startsWith('bearer '))`. A client that sends NO header and
   // puts the token in initialize params reached handleHandshake, which validated
   // it and created a session without ever consulting the allow-list.

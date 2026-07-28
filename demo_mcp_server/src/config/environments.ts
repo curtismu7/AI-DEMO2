@@ -3,7 +3,7 @@
  * Provides configuration for different deployment environments
  */
 
-import { BankingMCPServerConfig, EnvironmentVariables, SecurityConfig, ServerConfig, LoggingConfig } from '../interfaces/config';
+import { DemoMCPServerConfig, EnvironmentVariables, SecurityConfig, ServerConfig, LoggingConfig } from '../interfaces/config';
 import { BankingAPIConfig } from '../interfaces';
 
 export enum Environment {
@@ -23,7 +23,7 @@ interface EnvironmentDefaults {
 export abstract class BaseEnvironmentConfig {
   protected abstract getEnvironmentDefaults(): EnvironmentDefaults;
   
-  public getConfig(env: EnvironmentVariables): BankingMCPServerConfig {
+  public getConfig(env: EnvironmentVariables): DemoMCPServerConfig {
     const defaults = this.getEnvironmentDefaults();
     
     return {
