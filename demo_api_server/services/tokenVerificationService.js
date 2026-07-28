@@ -18,6 +18,7 @@
 const jwt = require('jsonwebtoken');
 const jwksService = require('./jwksService');
 const tokenIntrospectionService = require('./tokenIntrospectionService');
+const oauthEndpointResolver = require('./oauthEndpointResolver');
 const { logger, LOG_CATEGORIES } = require('../utils/logger');
 
 /**
@@ -129,10 +130,26 @@ async function verifyExchangedToken(token) {
   }
 
   // --- Cryptographic verification ---
+  //
+  // RFC 7519 §4.1.1 — `iss` identifies the principal that issued the token, and
+  // a verifier that skips it accepts a correctly-signed token from the wrong
+  // issuer. Enforced by jsonwebtoken so the check cannot drift from the parse.
+  //
+  // Applied ONLY when an issuer is actually configured. getIssuer() falls back
+  // to '' on an unconfigured environment, and passing '' would reject every
+  // token — the demo runs unconfigured in places, and an empty expectation is
+  // "unknown", not "must equal empty string". Same omission-means-unknown rule
+  // the decision parameters follow.
+  //
+  // getIssuer() normalises the PingOne `/as` suffix, which is the exact
+  // misconfiguration that once made every token fail with "jwt issuer invalid"
+  // — that normalisation is why this can be turned on safely.
+  const expectedIssuer = oauthEndpointResolver.getIssuer();
   try {
     const claims = jwt.verify(token, pem, {
       algorithms: [alg || keyEntry.alg || 'RS256'],
       complete: false,
+      ...(expectedIssuer ? { issuer: expectedIssuer } : {}),
     });
 
     logger.info(LOG_CATEGORIES.AUTHENTICATION, `tokenVerificationService: JWKS verified — kid=${kid || '(none)'} alg=${alg}`);
@@ -141,6 +158,12 @@ async function verifyExchangedToken(token) {
     let errorMsg;
     if (err.name === 'TokenExpiredError') {
       errorMsg = `Token expired at ${new Date(err.expiredAt).toISOString()}`;
+    } else if (err.name === 'JsonWebTokenError' && /jwt issuer invalid/i.test(err.message)) {
+      // Distinct from a signature failure: the signature was fine, the token
+      // came from somewhere else (or oauth_issuer is misconfigured — the
+      // missing `/as` suffix is the classic case). Name both sides so the
+      // cause is readable instead of surfacing as "signature invalid".
+      errorMsg = `Issuer mismatch: token iss does not match the configured issuer (${expectedIssuer})`;
     } else if (err.name === 'JsonWebTokenError') {
       errorMsg = `Signature invalid: ${err.message}`;
     } else {

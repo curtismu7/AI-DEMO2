@@ -35,7 +35,7 @@
 const oauthService = require('./oauthService');
 const { callToolViaGateway, getMcpGatewayHttpUrl } = require('./mcpGatewayClient');
 const { runPipelineForSim } = require('./bffMcpToolExecutor');
-const { buildTokenEvent, decodeJwtClaims, buildTratContext, buildRarAuthorizationDetails } = require('./agentMcpTokenService');
+const { buildTokenEvent, decodeJwtClaims, buildTratContext, buildRarAuthorizationDetails, firstHttpResourceUri } = require('./agentMcpTokenService');
 const { mintIntentToken } = require('./intentTokenService');
 const dataStore = require('../data/store');
 const configStore = require('./configStore');
@@ -345,6 +345,42 @@ async function _pushGatewayFlags(flags, gatewayUrl) {
 }
 
 /**
+ * Resolve the audience + scopes an exchanged sim token needs to actually get
+ * PAST the active gateway, mirroring the production recipe in
+ * agentMcpTokenService (Exchange #2, `usePingGatewayForExchange`).
+ *
+ * PingGateway's McpProtectionFilter demands the coarse `gateway:mcp:invoke`
+ * scope and an aud that EXACTLY matches its resourceId (an HTTPS URL, passed as
+ * a one-element array so PingOne emits `resource=` rather than the silently
+ * ignored `audience=`). A sim minting `read write transfer` against
+ * mcpgateway.ping.demo is refused at the perimeter with 403 insufficient_scope
+ * — before PingOne Authorize evaluates anything. The sim then relabels that
+ * generic 403 with its own canonical code, so the run LOOKS like the control
+ * fired when the policy was never consulted. Getting the token right is what
+ * makes the DENY real and gives the UI an authorize record to prove it with.
+ *
+ * @param {string[]} toolScopes - scopes the sim wants when NOT behind PingGateway
+ * @returns {{ audience: string|string[], scopes: string[], viaPingGateway: boolean }}
+ */
+function _gatewayExchangeTarget(toolScopes) {
+  const viaPingGateway = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
+  if (!viaPingGateway) {
+    return { audience: _gatewayAud(), scopes: toolScopes, viaPingGateway };
+  }
+  const pgAud =
+    firstHttpResourceUri(process.env.PINGONE_RESOURCE_PINGGATEWAY_URI) ||
+    firstHttpResourceUri(configStore.getEffective('pingone_resource_pinggateway_uri')) ||
+    firstHttpResourceUri(process.env.MCP_GW_RESOURCE_URI) ||
+    firstHttpResourceUri(configStore.getEffective('mcp_gw_resource_uri'));
+  if (!pgAud) return { audience: _gatewayAud(), scopes: toolScopes, viaPingGateway };
+  const invokeScope =
+    configStore.getEffective('gateway_mcp_invoke_scope') ||
+    configStore.getEffective('pinggateway_invoke_scope') ||
+    'gateway:mcp:invoke';
+  return { audience: [pgAud], scopes: [invokeScope], viaPingGateway };
+}
+
+/**
  * Exchange the session token to the gateway audience and record token-chain events.
  * @returns {Promise<{ ok: true, token: string } | { ok: false, result: object }>}
  */
@@ -364,17 +400,24 @@ async function _exchangeGatewayToken(subjectToken, scopes, useCaseId, tokenChain
     };
   }
 
+  const target = _gatewayExchangeTarget(scopes);
+  const audDisplay = Array.isArray(target.audience) ? target.audience.join(', ') : target.audience;
+
   tokenChainEvents.push(buildTokenEvent(
     'sim-exchange-start',
     `Token Exchange (${label})`,
     'active',
     null,
-    `Exchanging user token to gateway audience ${gatewayAud} with scope "${scopes.join(' ')}".`,
+    `Exchanging user token to gateway audience ${audDisplay} with scope "${target.scopes.join(' ')}".`
+    + (target.viaPingGateway
+      ? ' PingGateway is the active PEP, so the token carries its coarse invoke scope — '
+        + 'the per-tool scopes are enforced downstream by PingOne Authorize.'
+      : ''),
   ));
 
   let exchangedToken;
   try {
-    exchangedToken = await _exchangeSimToken(subjectToken, gatewayAud, scopes);
+    exchangedToken = await _exchangeSimToken(subjectToken, target.audience, target.scopes);
   } catch (err) {
     const errorCode = err.pingoneError || 'exchange_failed';
     const reason = `Token exchange failed: ${err.message}`;
@@ -1806,5 +1849,5 @@ async function _runImpersonationNoAct(subjectToken, useCaseId, tokenChainEvents)
 
 module.exports = {
   runAttackSim, runIntentBindingDemo, _exchangeSimToken,
-  __test: { _resolveForeignAccountId },
+  __test: { _resolveForeignAccountId, _gatewayExchangeTarget },
 };

@@ -37,14 +37,13 @@
   min-width: 0;
 }
 
-/* Slide-over: closed is the default demo posture. The drawer and its handle
-   collapse to zero-width tracks so the agent spans the full width and never
-   resizes mid-run. The track COUNT must stay 3 in both states — .luw-main is
-   placed in column 3 explicitly (see below) and a state with fewer columns
-   would push it into an implicit, content-sized track. */
-.luw-body--drawer-closed { grid-template-columns: 0 0 1fr; }
-/* The drag handle's track is 0-wide while closed, but its ::before still paints
-   and it would still take a pointer. Nothing to resize while closed. */
+/* Slide-over: closed is the default demo posture. The drawer leaves the grid
+   entirely so the agent spans the full width and never resizes mid-run. */
+.luw-body--drawer-closed { grid-template-columns: 1fr; }
+/* With one column, .luw-resize--drawer (the drawer-width drag handle) is the
+   only other in-flow grid item and stretches to the full row width — an
+   invisible full-width drag hitbox sitting over the closed page. There is
+   nothing to resize while closed, so it must not intercept pointer events. */
 .luw-body--drawer-closed .luw-resize--drawer { pointer-events: none; }
 
 /* Presenter-draggable column dividers (see LiveUseCaseWorkbenchPage.js).
@@ -91,14 +90,9 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 }
 .luw-body--drawer-closed .luw-drawer { transform: translateX(-100%); }
 
-.luw-drawer__scrim {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  background: rgba(15, 23, 42, 0.18);
-  transition: opacity 180ms ease;
-}
-.luw-body--drawer-closed .luw-drawer__scrim { opacity: 0; pointer-events: none; }
+/* No modal scrim: the drawer is docked in its own grid column, so it never
+   covers .luw-main. A full-body scrim only dimmed the agent + Token Chain and
+   ate every click on them. Close is the ← button or Escape. */
 
 .luw-drawer-tab {
   position: absolute;
@@ -145,7 +139,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 .luw-drawer__toggle:hover { border-color: #94a3b8; color: #0f172a; }
 
 @media (prefers-reduced-motion: reduce) {
-  .luw-drawer, .luw-drawer__scrim { transition: none; }
+  .luw-drawer { transition: none; }
 }
 
 .luw-drawer__head {
@@ -283,13 +277,15 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 
 /* Main: agent + token chain + glance */
 .luw-main {
-  /* Column 3 is the 1fr track in BOTH drawer states (closed collapses tracks
-     1 and 2 to 0). Do NOT use `grid-column: -1` here: -1 is the last explicit
-     grid LINE, so a span-1 item starting there lands in an implicit 4th
-     column that is auto-sized (content-driven, not viewport-driven). That
-     left the 1fr track empty — a dead grey band — and stopped the page
-     tracking the window width at all. */
-  grid-column: 3;
+  /* .luw-body has 1 column when the drawer is closed and 3 when it's open
+     (drawer-width var + resize handle). With no explicit placement, grid
+     auto-flow drops .luw-main into the 2nd (7px handle) column as soon as
+     the drawer opens, collapsing it to 7px wide.
+     `-2 / -1` is the LAST DECLARED column in both states — a bare `-1` is a
+     line, not a track: it starts at the final line and spans one IMPLICIT
+     track past the grid, leaving the explicit 1fr empty to swallow all free
+     space as a grey band while .luw-main stays pinned at max-content. */
+  grid-column: -2 / -1;
   min-height: 0;
   min-width: 0;
   /* Stage stacking is driven by the room .luw-main actually has, not by the
@@ -492,7 +488,8 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
     grid-template-columns: 1fr;
   }
   /* One column here, and the drawer is back in flow (position:static below) —
-     both stack as rows in column 1. Column 3 would be implicit again. */
+     both stack as rows in column 1. Stated explicitly rather than relying on
+     `-2 / -1` resolving to column 1 in a single-track grid. */
   .luw-main { grid-column: 1; }
   .luw-resize--drawer { display: none; }
   .luw-drawer {
@@ -505,7 +502,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
     width: auto;
     transform: none;
   }
-  .luw-drawer__scrim, .luw-drawer-tab { display: none; }
+  .luw-drawer-tab { display: none; }
   .luw-body--drawer-closed { grid-template-columns: 1fr; }
   .luw-drawer__scroll {
     overflow-y: visible;

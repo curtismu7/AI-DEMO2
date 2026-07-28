@@ -55,9 +55,144 @@ const NARRATIVES = {
 };
 
 // Static RFC references per hop — teaching content, shown regardless of evidence.
+// Deliberately short: these render as chips on the collapsed step card, where
+// only a couple fit. The long-form citations live in STEP_SPEC below and are
+// shown only in the pop-out window — keep the two independent so adding a
+// citation to the pop-out never changes the rail's visual density.
 const STEP_RFCS = {
   signin: ["RFC 6749", "RFC 7636"],
   exchange: ["RFC 8693", "RFC 8707"],
+};
+
+// Long-form teaching content per hop, rendered ONLY by the pop-out window
+// (openStepTeachingWindow). Four fields, in the order a learner needs them:
+//   refs    — the normative citations, deep-linked to the section that applies
+//   mandate — what the specification actually requires on this hop
+//   why     — why THIS demo is built the way it is (design rationale, not spec)
+//   failure — the mistake that makes this hop look correct while being broken
+// Every step id in TITLES has an entry; hops that no specification governs say
+// so explicitly rather than being omitted, because "no spec here" is itself the
+// teaching point (the LLM hop, the credential swap).
+const STEP_SPEC = {
+  signin: {
+    refs: [
+      { label: "RFC 6749 §4.1", title: "Authorization Code Grant", href: "https://www.rfc-editor.org/rfc/rfc6749#section-4.1" },
+      { label: "RFC 7636 §4", title: "PKCE — code_challenge / code_verifier", href: "https://www.rfc-editor.org/rfc/rfc7636#section-4" },
+      { label: "OIDC Core 1.0 §3.1.3.7", title: "ID Token validation", href: "https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation" },
+    ],
+    mandate: "OAuth 2.0 §4.1 splits login into two legs: the browser receives a single-use authorization code over the front channel, and that code is redeemed for tokens over the back channel. RFC 7636 requires the client to bind the two legs with a code_verifier / code_challenge pair, so a code intercepted in the browser cannot be redeemed by anyone else.",
+    why: "The BFF is a confidential client and keeps the User Token server-side; the browser only ever holds a session cookie. That is why no access token appears in devtools, and why every later hop in this chain has to be initiated by the BFF rather than by page JavaScript.",
+    failure: "If the User Token reaches the browser, every delegation proof downstream is worthless — anyone with an XSS foothold holds the subject token itself. The second common break is origin drift: the passkey rp.id, the redirect_uri and the session cookie host must all be the same origin, which is why sign-in here only works on local.ping-devops.com:4000.",
+  },
+  prompt: {
+    refs: [],
+    mandate: "No OAuth message travels on this hop. The browser posts the message text only; the session cookie is what identifies the user to the BFF.",
+    why: "Deliberate: the page holds no bearer token, so it has none to send. Identity is re-established server-side from the session on every request, which means the agent cannot be driven by a token the page could leak or an attacker could lift and replay.",
+    failure: "Handing the browser a bearer to forward makes the chat page a token-exfiltration target, and lets a prompt-injected page mint requests carrying the user's own authority.",
+  },
+  agent: {
+    refs: [
+      { label: "MCP 2025-11-25", title: "tools/list — tool discovery", href: "https://modelcontextprotocol.io/specification/2025-11-25/server/tools" },
+    ],
+    mandate: "MCP defines tools/list as the discovery call: the server advertises each tool's name, JSON Schema, and — in this demo — the OAuth scopes that tool requires.",
+    why: "The catalog is loaded with its required scopes BEFORE the model reasons, so the delegated token minted two hops later can ask for exactly the scope the chosen tool needs. Discovering scope after the model picks a tool would force either an over-broad token or a second round-trip to the authorization server.",
+    failure: "A stale catalog is the classic silent break: the model picks a tool the gateway no longer routes, and the failure surfaces as a 502 at the gateway rather than as an obvious discovery error.",
+  },
+  llm: {
+    refs: [],
+    mandate: "No specification governs this hop. The model receives conversation text plus tool schemas and returns a proposed tool call.",
+    why: "The LLM sits deliberately outside the trust boundary — it never sees, holds, or mints a token. It proposes an action; every question of authority is settled after it, at Authorize and at the gateway.",
+    failure: "Treating model output as authorization. If a tool ran because the model asked for it, prompt injection becomes privilege escalation. Here the model's choice is only one input to a policy decision made elsewhere.",
+  },
+  "agent-token": {
+    refs: [
+      { label: "RFC 6749 §4.4", title: "Client Credentials Grant", href: "https://www.rfc-editor.org/rfc/rfc6749#section-4.4" },
+      { label: "RFC 9068 §2.2", title: "JWT access token — data structure", href: "https://www.rfc-editor.org/rfc/rfc9068#section-2.2" },
+    ],
+    mandate: "OAuth 2.0 §4.4 mints a token for the client itself, with no user involved. RFC 9068 defines the JWT access-token profile whose client_id and sub identify that machine principal.",
+    why: "The agent needs its own verifiable identity so the exchange on the next hop has something real to put in actor_token. Without a separate agent identity there is nothing to prove WHO acted for the user — only that a call arrived.",
+    failure: "Reusing the user's token as the agent identity collapses the two parties into one, and the act claim produced by the next hop becomes decorative rather than evidential.",
+  },
+  exchange: {
+    refs: [
+      { label: "RFC 8693 §2.1", title: "Token exchange request", href: "https://www.rfc-editor.org/rfc/rfc8693#section-2.1" },
+      { label: "RFC 8693 §4.1", title: "The act (actor) claim", href: "https://www.rfc-editor.org/rfc/rfc8693#section-4.1" },
+      { label: "RFC 8707 §2", title: "Resource indicators — audience narrowing", href: "https://www.rfc-editor.org/rfc/rfc8707#section-2" },
+    ],
+    mandate: "RFC 8693 §2.1 posts grant_type=urn:ietf:params:oauth:grant-type:token-exchange carrying subject_token (the user) and actor_token (the agent). §4.1 defines the act claim the authorization server embeds: sub stays the user, act.sub is the agent, and a nested act records a chain of actors with the most recent outermost. RFC 8707 resource pins the audience of the issued token.",
+    why: "One token now carries both parties, so the resource server can see who is being acted for AND who is acting. Scope is narrowed to what the chosen tool needs and audience is pinned to the gateway, which makes the token useless anywhere else. This is what makes an agent action attributable to a human without impersonating them.",
+    failure: "Two classic breaks. First, requesting the same broad scope the user already holds — the delegation is genuine but least privilege is gone. Second, omitting resource so the issued token is accepted by any resource server that trusts the issuer, which is a confused deputy waiting to be exploited.",
+  },
+  authorize: {
+    refs: [
+      { label: "XACML 3.0 §2", title: "PDP / PEP separation and the PERMIT / DENY / INDETERMINATE vocabulary", href: "http://docs.oasis-open.org/xacml/3.0/xacml-3.0-core-spec-os-en.html" },
+      { label: "RFC 8693 §4.1", title: "act chain — the attribute policy evaluates here", href: "https://www.rfc-editor.org/rfc/rfc8693#section-4.1" },
+    ],
+    mandate: "No IETF RFC governs the decision itself; this is attribute-based access control, whose model XACML 3.0 formalizes. The enforcement point never decides — it submits attributes (subject, actor, action, resource, context) to a decision point and obeys the verdict, which is PERMIT, DENY or INDETERMINATE, optionally carrying obligations.",
+    why: "Policy runs before the tool, not inside it. Amount caps, actor checks and step-up demands live in one place a security team can change without redeploying the agent or the MCP server — and the decision id makes each verdict individually auditable.",
+    failure: "Evaluating the wrong policy is invisible from the outside: a DENY proves the engine answered, not that YOUR rule fired. Always reconcile decisionContext and the decision id against the rule you expected to trigger.",
+  },
+  stepup: {
+    refs: [
+      { label: "OIDC CIBA Core 1.0", title: "Client-Initiated Backchannel Authentication", href: "https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html" },
+      { label: "RFC 8176", title: "Authentication Method Reference (amr) values", href: "https://www.rfc-editor.org/rfc/rfc8176" },
+    ],
+    mandate: "CIBA defines a decoupled flow: the client initiates, the human approves on a separate authenticated device, and the client polls the token endpoint until the decision lands. RFC 8176 defines the amr values that record HOW that human authenticated, so the approval is provable after the fact.",
+    why: "The human is pulled back into the loop at the moment of risk rather than only at login. The agent's request pauses with HTTP 428 instead of failing outright, and resumes only after a real human decision that is recorded in the resulting token's amr and acr.",
+    failure: "Treating advice as enforcement. An approval gate returned with obligatory:false is guidance — if the caller is free to skip it, the gate does not exist. Verify the call actually blocked, not merely that a challenge was mentioned.",
+  },
+  "intent-binding": {
+    refs: [
+      { label: "RFC 9396 §2", title: "authorization_details — rich authorization requests", href: "https://www.rfc-editor.org/rfc/rfc9396#section-2" },
+      { label: "RFC 9126 §2", title: "Pushed Authorization Requests", href: "https://www.rfc-editor.org/rfc/rfc9126#section-2" },
+    ],
+    mandate: "RFC 9396 replaces coarse scope with a structured authorization_details array — a type, the permitted actions, and limits such as a maximum amount or a specific target account. RFC 9126 (PAR) lets the client push those details to the authorization server over the back channel first, so the browser never carries them and cannot tamper with them.",
+    why: "Scope says 'may transfer'. RAR says 'may transfer up to $2,000 to account X'. Binding the intent at authorization time means the check no longer depends on the agent honestly restating the amount at call time.",
+    failure: "In this demo PAR does NOT validate the amount — the cap is enforced in the route. Assuming the authorization server enforces a RAR limit it never parsed is exactly how an over-cap transfer sails through while the flow still looks compliant.",
+  },
+  gateway: {
+    refs: [
+      { label: "RFC 6750 §3", title: "WWW-Authenticate challenge on an invalid token", href: "https://www.rfc-editor.org/rfc/rfc6750#section-3" },
+      { label: "RFC 7662 §2", title: "Token introspection", href: "https://www.rfc-editor.org/rfc/rfc7662#section-2" },
+      { label: "RFC 9068 §4", title: "Validating a JWT access token (aud, exp, scope)", href: "https://www.rfc-editor.org/rfc/rfc9068#section-4" },
+    ],
+    mandate: "RFC 6750 §3 requires a protected resource to reject an invalid token with 401 and a WWW-Authenticate challenge naming the error. RFC 7662 defines introspection for opaque tokens; RFC 9068 §4 lists what a JWT access token must be checked for locally — audience, expiry, scope and client_id.",
+    why: "The gateway is the enforcement point in front of MCP: it re-validates audience, expiry, scope and the act chain so the MCP server is never the only thing between a forged token and the data. Introspection is issuer-scoped — it can only see tokens the introspecting client issued — which is why A2A specialist tokens are validated locally against JWKS instead.",
+    failure: "Checking the signature but not the audience. A correctly signed token minted for a different resource server is still a valid JWT; only the aud check stops it from being replayed here.",
+  },
+  "api-key-swap": {
+    refs: [
+      { label: "RFC 6750 §1", title: "Bearer tokens must not be disclosed beyond their audience", href: "https://www.rfc-editor.org/rfc/rfc6750#section-1" },
+    ],
+    mandate: "No specification covers this hop — it is the deliberate boundary where OAuth ends. The gateway strips the Authorization: Bearer header entirely and attaches a service credential plus the already-resolved user identity (X-API-Key and X-User-Sub).",
+    why: "Legacy services that cannot validate OAuth still must not receive the user's bearer. Terminating the token at the gateway means a compromised downstream service holds a rotatable service key scoped to the gateway, never a delegated user token it could replay elsewhere.",
+    failure: "Forwarding both the bearer and the API key. The downstream now holds a token it has no reason to have, and the audience restriction that made that token safe has been bypassed by hand.",
+  },
+  mcp: {
+    refs: [
+      { label: "MCP 2025-11-25", title: "tools/call over JSON-RPC 2.0", href: "https://modelcontextprotocol.io/specification/2025-11-25/server/tools" },
+      { label: "MCP Authorization", title: "MCP server as an OAuth 2.1 resource server", href: "https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization" },
+      { label: "RFC 9728", title: "Protected Resource Metadata", href: "https://www.rfc-editor.org/rfc/rfc9728" },
+    ],
+    mandate: "MCP tools/call carries the tool name and a JSON-Schema-validated arguments object over JSON-RPC 2.0. The MCP authorization spec makes the server an OAuth 2.1 resource server in its own right: it validates the bearer itself and advertises its authorization server through RFC 9728 protected-resource metadata.",
+    why: "The MCP server re-validates rather than trusting the gateway, resolves the user from sub, and calls the banking API under the delegated identity. Defense in depth: a bug or a bypass at the gateway does not turn into unauthenticated data access.",
+    failure: "Trusting the gateway's word. If the MCP server accepts a header-asserted user id without re-checking the token, anything that can reach it directly can impersonate any user.",
+  },
+  api: {
+    refs: [
+      { label: "RFC 6750 §2.1", title: "Authorization request header field", href: "https://www.rfc-editor.org/rfc/rfc6750#section-2.1" },
+      { label: "RFC 6750 §3.1", title: "insufficient_scope", href: "https://www.rfc-editor.org/rfc/rfc6750#section-3.1" },
+    ],
+    mandate: "RFC 6750 §2.1 puts the delegated token in the Authorization: Bearer header of the resource request. The resource server enforces scope itself and returns 403 with error=\"insufficient_scope\" when the required scope is absent.",
+    why: "This is where the narrowing done at the exchange hop actually pays off: the same call made with the user's original broad token would succeed against far more endpoints. The delegated token can only do the one thing the chosen tool needed.",
+    failure: "Reading an expected DENY here as an outage. A blocked out-of-scope call is the control working, and in the deny-track use cases it is the whole demonstration.",
+  },
+  reply: {
+    refs: [],
+    mandate: "No specification governs this hop. The tool result goes back to the model, which writes the user-facing text.",
+    why: "The model composes prose from data it did not fetch and could not have fetched on its own authority. Everything security-relevant already happened upstream, which is why the reply can be wrong without the enforcement being wrong.",
+    failure: "Letting the model's summary stand as the audit record. The reply is presentation; the token chain and the decision id are the evidence.",
+  },
 };
 
 // PingOne Authorize's DecisionContext is an internal Trust Framework parameter
@@ -144,6 +279,10 @@ function buildMcpReplay(mcpResult) {
 function makeStep(id, status, detail) {
   const base = { narrative: NARRATIVES[id] };
   if (STEP_RFCS[id]) base.rfcs = STEP_RFCS[id];
+  // Pop-out-only long form. Not part of hasPopoutWorthyDetail: spec is static
+  // teaching text present on every step, so counting it would put a "Pop out"
+  // button on steps that have not run yet.
+  if (STEP_SPEC[id]) base.spec = STEP_SPEC[id];
   // base first so live evidence in `detail` overrides/extends it; base narrative
   // guarantees the expanded body is never blank even for not-yet-run steps.
   return { id, title: TITLES[id], lane: LANES[id], status, detail: { ...base, ...(detail || {}) } };
@@ -239,6 +378,14 @@ export function buildTraceSteps(trace) {
   if (isHeuristic) {
     const llmStep = makeStep("llm", "done", {
       narrative: "Heuristics matched the prompt to a known intent and chose the tool — the LLM was not invoked.",
+      // STEP_SPEC.llm teaches "the model proposes, policy decides"; on this path
+      // there is no model at all, so replace it rather than teach the wrong hop.
+      spec: {
+        refs: [],
+        mandate: "No specification governs this hop, and on this run no model was called at all — a deterministic phrase match chose the tool.",
+        why: "Heuristic routing exists so the demo can prove the security chain with the model removed from the picture. Identical tokens, identical policy decision, identical gateway checks: what changes is only who picked the tool.",
+        failure: "Reading a heuristic run as proof the LLM path works. If a chip succeeds and free-typed text fails, the defect is in routing, not in enforcement — the token chain below will look the same either way.",
+      },
       kv: [["routing", "Heuristic match — LLM not invoked"]],
       response: {
         title: "Heuristic routing",
