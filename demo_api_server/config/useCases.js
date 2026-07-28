@@ -644,6 +644,7 @@ const RAW_USE_CASES = [
     buyerStory: 'Users should explore low-risk information before signing in — auth only when value is clear.',
     pingOneSolution: 'PingOne Authorize PERMITs a read-only public tool with no token exchange.',
     trigger: { type: 'chip', text: 'What branches are near me?' },
+    hint: 'Works for Austin, Dallas, Houston, Miami, or Denver.',
     expectedOutcome: 'PERMIT',
     evidence: { tokenChain: ['authorize-decision', 'tool-dispatched'], activity: ['mcp', 'authorize'] },
     codeRefs: ['docs/planning/PLAN-progressive-trust-demo.md', 'demo_api_server/data/publicBranchCatalog.js', 'demo_mcp_server/src/tools/handlers/publicCatalogHandlers.ts'],

@@ -57,7 +57,7 @@ def httpPostForm = { String url, String reqBody ->
 // Built once per script evaluation and reused. Two deliberate choices:
 //  * Client auth comes from a PKCS#12 keystore (scripts/ensure-gateway-mtls-certs.sh).
 //  * The SERVER side is trust-all. demo_mcp_server generates a fresh self-signed
-//    server cert on every start (BankingMCPServer ~L127), so pinning it is
+//    server cert on every start (DemoMCPServer ~L127), so pinning it is
 //    impossible. The property being demonstrated is CLIENT authentication; the
 //    channel is container-to-container on a private Docker network.
 def mtlsKeystore = System.getenv('PG_MTLS_KEYSTORE_PATH') ?: ''

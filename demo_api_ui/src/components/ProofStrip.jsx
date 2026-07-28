@@ -9,44 +9,47 @@ const STATE_LABEL = {
   incomplete: 'Incomplete',
 };
 
-export default function ProofStrip() {
-  const { verdict } = useProofOfEnforcement();
-  if (!verdict) return null;
+export default function ProofStrip({ rank = 0 }) {
+  const { verdict, history } = useProofOfEnforcement();
+  const item = rank === 0 ? verdict : history[rank] || null;
+  if (!item) return null;
 
-  const icon = verdict.state === 'verified' || verdict.state === 'denied-as-expected' ? '✅' : '⚠️';
+  const icon = item.state === 'verified' || item.state === 'denied-as-expected' ? '✅' : '⚠️';
 
   return (
-    <div className={`proof-strip proof-strip--${verdict.state}`} data-testid="proof-strip">
+    <div className={`proof-strip proof-strip--${item.state}`} data-testid="proof-strip">
       <div className="proof-strip-head">
-        <span>{verdict.title} — {STATE_LABEL[verdict.state] || verdict.state}</span>
+        <span>{item.title} — {STATE_LABEL[item.state] || item.state}</span>
         <span>{icon}</span>
       </div>
       <div className="proof-strip-chain">
-        {verdict.matchedSteps.map((step, i) => (
+        {item.matchedSteps.map((step, i) => (
           <React.Fragment key={step}>
             <span className="proof-strip-step">{step}</span>
-            {i < verdict.matchedSteps.length - 1 && <span className="proof-strip-arrow">→</span>}
+            {i < item.matchedSteps.length - 1 && <span className="proof-strip-arrow">→</span>}
           </React.Fragment>
         ))}
       </div>
-      {(verdict.intent || verdict.resultText || (verdict.mechanism && verdict.mechanism.length > 0)) && (
+      {(item.intent || item.resultText || (item.mechanism && item.mechanism.length > 0)) && (
         <div className="proof-strip-details">
-          {verdict.intent && (
+          {item.intent && (
             <div className="proof-strip-row">
               <span className="proof-strip-label">Intent</span>
-              <span>{verdict.intent}</span>
+              <span>{item.intent}</span>
             </div>
           )}
-          {verdict.resultText && (
+          {item.resultText && (
             <div className="proof-strip-row">
               <span className="proof-strip-label">Result</span>
-              <span>{verdict.resultText}</span>
+              <span className={`proof-strip-result${item.resultText === 'Denied as expected by policy' ? ' proof-strip-result--denied' : ''}`}>
+                {item.resultText}
+              </span>
             </div>
           )}
-          {verdict.mechanism && verdict.mechanism.length > 0 && (
+          {item.mechanism && item.mechanism.length > 0 && (
             <div className="proof-strip-row">
               <span className="proof-strip-label">Used</span>
-              <span>{[...verdict.mechanism, verdict.tool].filter(Boolean).join(' · ')}</span>
+              <span>{[...item.mechanism, item.tool].filter(Boolean).join(' · ')}</span>
             </div>
           )}
         </div>

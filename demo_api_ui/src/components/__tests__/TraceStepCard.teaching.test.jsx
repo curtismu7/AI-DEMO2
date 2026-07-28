@@ -116,3 +116,113 @@ test("openStepTeachingWindow includes before/after evidence and more detail link
 
   openSpy.mockRestore();
 });
+
+/** Captures the single HTML string openStepTeachingWindow writes to the popup. */
+function popoutHtml(step, useCase) {
+  const write = vi.fn();
+  const mockWindow = { document: { write, close: vi.fn() }, focus: vi.fn() };
+  const openSpy = vi.spyOn(window, "open").mockReturnValue(mockWindow);
+  openStepTeachingWindow(step, useCase);
+  openSpy.mockRestore();
+  return write.mock.calls[0][0];
+}
+
+const SPEC = {
+  refs: [
+    { label: "RFC 8693 §2.1", title: "Token exchange request", href: "https://www.rfc-editor.org/rfc/rfc8693#section-2.1" },
+  ],
+  mandate: "Posts grant_type=urn:ietf:params:oauth:grant-type:token-exchange with subject_token and actor_token.",
+  why: "One token carries both parties, so the resource server sees who acts for whom.",
+  failure: "Requesting the same broad scope the user holds keeps the delegation but loses least privilege.",
+};
+
+test("pop-out carries the spec citation, the mandate, the rationale and the failure mode", () => {
+  const html = popoutHtml({
+    ...STEP_WITH_EVIDENCE,
+    detail: { ...STEP_WITH_EVIDENCE.detail, spec: SPEC },
+  });
+
+  expect(html).toContain("Why it works this way");
+  expect(html).toContain("One token carries both parties");
+  expect(html).toContain("What the specification requires");
+  expect(html).toContain("https://www.rfc-editor.org/rfc/rfc8693#section-2.1");
+  expect(html).toContain("RFC 8693 §2.1");
+  expect(html).toContain("Token exchange request");
+  expect(html).toContain("grant_type=urn:ietf:params:oauth:grant-type:token-exchange");
+  expect(html).toContain("Common failure mode");
+  expect(html).toContain("loses least privilege");
+});
+
+test("pop-out falls back to the short rfcs chips when a step has no spec block", () => {
+  const html = popoutHtml({
+    ...STEP_WITH_EVIDENCE,
+    detail: { ...STEP_WITH_EVIDENCE.detail, rfcs: ["RFC 6749", "RFC 7636"] },
+  });
+  expect(html).toContain("Specification");
+  expect(html).toContain("RFC 6749");
+  expect(html).toContain("RFC 7636");
+});
+
+test("pop-out names the use case, its expected outcome and the verdict", () => {
+  const html = popoutHtml(STEP_WITH_EVIDENCE, {
+    id: "UC7",
+    useCaseId: "step-up-required",
+    title: "Step-up required",
+    expectedOutcome: "STEP_UP",
+    state: "denied-as-expected",
+    vertical: "banking",
+    tool: "create_transfer",
+    resultText: "Step-up MFA required as expected — then permitted",
+  });
+
+  expect(html).toContain("UC7 — Step-up required");
+  expect(html).toContain("expected STEP_UP");
+  expect(html).toContain("denied-as-expected");
+  expect(html).toContain("tool create_transfer");
+  expect(html).toContain("Step-up MFA required as expected");
+});
+
+test("pop-out omits the use-case banner entirely when no verdict is available", () => {
+  const html = popoutHtml(STEP_WITH_EVIDENCE, null);
+  expect(html).not.toContain('class="uc"');
+});
+
+test("pop-out shows which scopes this hop dropped", () => {
+  const html = popoutHtml({
+    ...STEP_WITH_EVIDENCE,
+    detail: {
+      ...STEP_WITH_EVIDENCE.detail,
+      scopeDiff: { before: ["banking:read", "banking:write"], after: ["banking:read"] },
+    },
+  });
+  expect(html).toContain("Scope narrowing");
+  expect(html).toContain("banking:write (dropped)");
+  expect(html).toContain("Scope after this hop: banking:read");
+});
+
+test("pop-out renders the replay payload read-only and never stages a live re-issue", () => {
+  const setItem = vi.spyOn(Storage.prototype, "setItem");
+  const html = popoutHtml({
+    ...STEP_WITH_EVIDENCE,
+    detail: {
+      ...STEP_WITH_EVIDENCE.detail,
+      replay: {
+        target: "gateway",
+        href: "/agent-gateway-inspector?subtab=tester",
+        label: "Replay in Gateway Tester",
+        tool: "get_account_balance",
+        arguments: { accountId: "acct-1" },
+      },
+    },
+  });
+
+  expect(html).toContain("Re-issuable request");
+  expect(html).toContain("get_account_balance");
+  expect(html).toContain("acct-1");
+  expect(html).toContain("Replay in Gateway Tester");
+  // Staging writes a one-shot payload the next inspector visit consumes and
+  // FIRES as a live tool call — opening a teaching window must never do that.
+  expect(setItem).not.toHaveBeenCalled();
+  expect(html).not.toContain("?replay=");
+  setItem.mockRestore();
+});

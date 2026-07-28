@@ -6,7 +6,7 @@
  * (server.js line ~1729), so this bridge is only exercised when an operator sets
  * `MCP_SERVER_URL` to an `http://` / `https://` URL. The MCP server now supports
  * real HTTP/2 via an opt-in TLS+ALPN listener (`MCP_TLS_ENABLED=true`,
- * banking_mcp_server BankingMCPServer.ts) on `MCP_TLS_PORT` (default 8443, e.g.
+ * banking_mcp_server DemoMCPServer.ts) on `MCP_TLS_PORT` (default 8443, e.g.
  * `https://mcp-server:8443`) — set `MCP_SERVER_URL` to that address to get real
  * h2 multiplexing through this bridge. Plaintext h2c (`http2.createServer`
  * without TLS) was tested and rejected: cleartext HTTP/2 has no ALPN, so it

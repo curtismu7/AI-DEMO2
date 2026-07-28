@@ -102,6 +102,206 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-28 — Attack sims denied at the PingGateway perimeter, then relabeled as policy denials (UC14 false pass)
+
+**Files changed:** `demo_api_server/services/attackSimulatorService.js`
+(new `_gatewayExchangeTarget`, used by `_exchangeGatewayToken`),
+`demo_api_server/services/agentMcpTokenService.js` (exports
+`firstHttpResourceUri`), `demo_api_server/tests/attackSimExchangerParity.test.js`.
+
+**What was broken:** with `ff_mcp_gateway_pinggateway=true`, the sims exchanged
+the user token for tool scopes (`read write transfer`) against
+`mcpgateway.ping.demo`. PingGateway's McpProtectionFilter requires the coarse
+`gateway:mcp:invoke` scope and an aud exactly matching its resourceId, so it
+refused the call at the perimeter:
+
+```text
+[GW→PingGateway] RESPONSE: status=403
+www-authenticate: Bearer error="insufficient_scope", scope="gateway:mcp:invoke"
+```
+
+`_denyFromGateway` then overwrote that generic 403 with each sim's own canonical
+code. UC14 reported `rar_amount_exceeded` and printed "PingOne Authorize DENY —
+transfer exceeds the granted RAR authorization_details cap (RFC 9396)" — from
+the hardcoded `CANONICAL_DENY_REASON` map — for a run in which PingOne Authorize
+was never consulted. Right verdict, wrong reason. Because no Authorize decision
+existed, no `authorize` node was attached, so ProofStrip correctly reported
+"Unproven / Waiting on authorize-decision" and the rail read "This run stopped
+with an error". Measured live: `rar-exceeded` → `authorize: False`, while
+`rogue-actor` and `cross-owner-account` → `authorize: True` (those reach P1AZ
+through the BFF preflight, not the gateway).
+
+**What was fixed:** `_gatewayExchangeTarget` mirrors the production Exchange #2
+recipe in `agentMcpTokenService` — behind PingGateway, mint the coarse invoke
+scope for the PingGateway resource URI passed as a ONE-ELEMENT ARRAY (PingOne
+honors RFC 8707 `resource=` and silently ignores `audience=`; a string maps to
+the latter). Flag off, the Node-gateway audience and tool scopes are unchanged.
+
+**Do not break:** the sims must keep using the same audience AND scope recipe as
+the real chip flow. A sim that mints tool scopes behind PingGateway is refused
+before any policy runs, and the canonical-code relabeling hides it — the sim
+still "passes". This is the scope sibling of the 2026-07-10 audience-drift bug;
+both guards live in `tests/attackSimExchangerParity.test.js`.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/attackSimExchangerParity.test.js --testPathIgnorePatterns="/node_modules/" --forceExit`.
+End-to-end (requires this code running in the stack, i.e. after merge +
+`docker restart demo-api-server`): `POST /api/demo/attack-sim/run {"sim":"rar-exceeded"}`
+must return `authorize: true` with a PingOne Authorize RarMaxAmount decision,
+and `/use-cases/live` UC14 must show ProofStrip "Verified (as expected)".
+
+### 2026-07-27 — RAR demo (UC14b/UC14): quick chat result toggle + fail chip + full request/response in the Token Chain
+
+**Files changed:** `demo_api_ui/src/config/demoUseCaseSteps.js` (UC14 added
+to `DEMO_PRIMARY_USE_CASE_IDS`, now 20 steps), `demo_api_ui/src/components/DemoStepsDropdown.jsx`
+(UC14b-only "Q"/"F" toggle, persisted via `rar_intent_quick_result`),
+`demo_api_ui/src/components/AIAgent.js` (`handleDemoStepSelect` "link" branch
+grows a quick-result path for UC14b), `demo_api_ui/src/components/AIAgent.css`
+(`.ba-demo-steps-popout__rar-toggle`), `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`
+("intent-binding" step gains `request`/`response` JSON blocks),
+`demo_api_server/services/attackSimulatorService.js` (`_runRarPermit`'s
+`intent-binding-verified` event and `_runRarExceeded`'s `sim-rar-grant` event
+now carry the real `create_transfer` request/response payloads).
+
+**Not a bug fix** — a feature addition, logged here (not just in a PR
+description) because it touches the intent-binding/Token-Chain routing that
+has 3 prior entries in this log (2026-07-18 ×2, 2026-07-21) for exactly this
+code path.
+
+**What was added:** UC14b ("PAR intent verified") previously only navigated
+away to `/intent-binding-learning` when run from the AI Agent's Demo Steps
+dropdown — no inline result, no request/response evidence anywhere. UC14
+("PAR intent violation", the DENY counterpart) existed in the backend catalog
+but was never listed in `DEMO_PRIMARY_USE_CASE_IDS`, so it never appeared in
+that dropdown at all. Now: UC14b has a toggle between the original full-page
+behavior and a new "quick result" mode that runs `POST
+/api/demo/intent-binding/run` inline (same chat + Token Chain wiring the
+`trigger.type === "attack"` branch already used) with no navigation; UC14 is
+a visible sibling row using its existing attack-sim path unchanged. The
+"Intent Binding Check" Token Chain step (pre-existing, `buildTraceSteps.js`)
+now renders the real `create_transfer` request and its response/deny detail
+as JSON, via the same `detail.request`/`detail.response` mechanism the
+`gateway` step already uses — no new step type.
+
+**Do not break:** `_denyFromGateway` / `_authorizeFromGatewayError` were NOT
+touched (shared by the other 7 attack sims, explicitly protected in this
+log's 2026-07-18 entry below). The DENY-side request block is sourced from
+the sibling `sim-rar-grant` event — `buildSimRailEvents` (simTraceAdapter.js)
+renames that event to `rar-authorization` on the attack-sim path, so the
+lookup in `buildTraceSteps.js` matches BOTH ids; matching only the raw id
+would silently drop the request block for every UC14 run through the Demo
+Steps dropdown / `/use-cases/live` attack-sim path. `LiveUseCaseWorkbenchPage.js`'s
+own UC14/UC14b cards (`/use-cases/live`) and `IntentBindingLearningPage.js`
+itself are untouched — this only changes the AI Agent chrome's Demo Steps
+dropdown. A `data-testid` on a new UC14b-only button must NOT start with
+`demo-step-` — it collides with the `/^demo-step-/` row-enumeration regex
+several tests use (hit and fixed live during this change; landed as
+`uc14b-result-toggle`).
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+src/__tests__/attackSimulator.authorizeEvidence.test.js
+src/__tests__/attackSimulator.test.js --forceExit` (25 passed, 2 pending
+[live-API-gated]); `cd demo_api_ui && CI=true npm run test:unit` (282 files,
+2389 passed); `cd demo_api_ui && npm run build` (exit 0). Not yet
+live-verified in a browser — the running Docker stack bind-mounts the main
+checkout, not this worktree (see `project-docker-serves-main-checkout`);
+needs an isolated worktree-pointed stack to click through.
+
+### 2026-07-27 — In-page HITL consent never discharged the MCP-gateway/REST HITL gate, so a second consent prompt appeared after the first
+
+**Files changed:** `demo_api_server/services/transactionConsentChallenge.js`,
+`demo_api_ui/src/components/AIAgent.js` (unrelated ProofStrip fix, same session
+— see next entry), `demo_api_ui/src/pages/CibaApprovalPage.js` (unrelated
+phone-frame styling, same session).
+
+**What was broken:** `services/hitlCredit.js`'s session credit
+(`req.session.hitlVerified` / `hitlApprovedAmount`) is what
+`mcpToolAuthorizationService.js` (MCP gateway path) and
+`routes/transactions.js` (REST `POST /transactions`, line ~609) both read to
+skip their own independent HITL gate on the `isRefire` retry that follows any
+consent. Until this fix, **only `routes/ciba.js`** (CIBA out-of-band approval)
+ever wrote that credit. A user who satisfied the in-page
+`TransactionConsentModal` instead (consent-only, OTP, PingOne MFA, or
+Recognize — any of `transactionConsentChallenge.js`'s four confirm paths)
+got no credit at all, so the `isRefire` retry re-tripped the exact same HITL
+gate and opened a second, redundant consent challenge for the transaction
+they'd just approved. Live-reproduced on UC22 (banking, $150 transfer,
+consent-only tier): `[BFF→P1AZ]` showed `McpFirstTool` PERMIT+HITL, then a
+`transactionConsentChallenge` create+confirm round (`Acr: Agent-Consent-Login`)
+— and a second identical round on retry, since `mcpToolAuthorizationService.js`
+still saw `hitlAlreadyVerified: false`.
+
+**What was fixed:** added `_grantHitlCredit(req, ch)` to
+`transactionConsentChallenge.js` — the same stamp `routes/ciba.js` already
+performs on CIBA approval (`hitlVerified` + amount-bound
+`hitlApprovedAmount`) — called at all four places a challenge reaches
+`status: 'confirmed'`: the consent-only branch of `confirmChallenge`,
+`verifyOtp`, `verifyMfa`, and `verifyRecognize`.
+
+**Do not break:** `_grantHitlCredit` only WRITES the credit; it does not
+change any existing read/consume site (`mcpToolAuthorizationService.js`'s
+`hitlAlreadyVerified`, `routes/transactions.js` line 609's amount-bound
+`isFresh` check, or `hitlCredit.consume()`'s single-use semantics) — a
+credit minted here is spent exactly like a CIBA-minted one. Do not add an
+amount-unbound stamp here without a reason; `ch.snapshot.amount` is always
+available on a real challenge, so binding it is strictly safer than CIBA's
+`pending.amount ?? null` fallback.
+
+**Verify:** `CI=true npx jest src/__tests__/transactionConsentChallenge.test.js
+src/__tests__/transaction-flows.test.js src/__tests__/transactions.authorization.test.js
+src/__tests__/transferHitlIntegration.test.js src/__tests__/hitlRoute.integration.test.js
+src/__tests__/hitlRoute.regression.test.js src/__tests__/hitlPingOneMfa.integration.test.js
+src/__tests__/recognizeConsent.regression.test.js src/__tests__/step-up-gate.test.js
+src/__tests__/ciba.test.js src/__tests__/cibaService.test.js src/__tests__/mcpToolAuthorizationService.test.js
+src/__tests__/mcpToolAuthorization.amountFromRecord.test.js --testPathIgnorePatterns="/node_modules/"`
+(11+2 suites, 255 tests, all pass); `CI=true npm run test:unit` (91 pass).
+Not yet re-verified live end-to-end (the live repro that found this logged
+the demo account out mid-session — see the ciba-poll entry below for that
+same-session hazard).
+
+### 2026-07-27 — ProofStrip showed "Incomplete — Waiting on ciba-poll" forever after a CIBA-approved resume
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`
+(`pollCibaThenResumeNl`), `demo_api_ui/src/pages/CibaApprovalPage.js`,
+`demo_api_ui/src/pages/CibaApprovalPage.css` (new).
+
+**What was broken:** `routes/ciba.js` stamps CIBA approval with a
+`ciba-poll` token-chain event, but that event lives in
+`services/tokenChainService.js`'s per-user store, which
+`routes/agentInvokeRoute.js` never re-reads into a response's `tokenEvents`
+(`req.tokenEvents` is built fresh per request). The resumed
+`sendAgentMessage()` call also calls `tokenChainTraceStore.beginTrace()` at
+its start, which only carries forward session-scoped events
+(`user-token` etc.) — not `ciba-poll`. So the client-side trace ProofStrip
+reads from never contains `ciba-poll`, and `computeVerdict()`
+(`ProofOfEnforcementContext.js`) always reports it as a missing step —
+"Incomplete" regardless of whether the underlying transfer actually
+succeeded.
+
+**What was fixed:** `pollCibaThenResumeNl`'s approved branch now calls
+`tokenChainTraceStore.ingestTokenEvent({id: 'ciba-poll', ...})` itself,
+right after the resumed `sendAgentMessage()` call (i.e. after that call's own
+`beginTrace()` has already run), so the event lands in the trace this
+resumed turn is building instead of the one that just got discarded. Also
+restyled `CibaApprovalPage.js`'s popup as a phone frame (notch, rounded
+bezel, home-indicator, portrait 320×600 via a new `className="ciba-phone-
+modal"` on `DraggableModal`) and widened the three `window.open()` popup
+calls in `AIAgent.js` to 440×760 so it isn't clipped.
+
+**Do not break:** the `ciba-poll` event this stamps is a client-side display
+marker only — it carries no real token/claims (see `routes/ciba.js`'s own
+comment on why a fake token in this position is safe: never stored in
+`req.session.oauthTokens`). Don't confuse it with the real server-recorded
+event of the same id in `tokenChainService.js`; they're for different
+consumers. The phone-frame CSS targets `.ciba-phone-modal` only —
+`DraggableModal`'s own drag/resize/close/pop-out behavior is untouched.
+
+**Verify:** `demo_api_ui` vitest — 281 files / 2383 tests pass (including
+`AIAgent.cibaStepUp.test.js` and both `CibaApprovalPage.test.js`/`.test.jsx`);
+`npm run build` exits 0. Not yet visually confirmed live in a browser — the
+live repro session hit the shared-demo-account single-session hazard before
+this could be checked; the phone-frame CSS and the ciba-poll ingest are
+build/unit-verified only.
+
 ### 2026-07-27 — PingOne Authorize API Access Management (AAM) had no trace, no simulated mode, and no flag
 
 **Files changed:** `ping-gateway/config/routes/04-aam-api-access.json`,

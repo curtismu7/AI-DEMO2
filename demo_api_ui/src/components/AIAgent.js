@@ -4216,7 +4216,7 @@ export default function BankingAgent({
             const cibaTab = window.open(
               "",
               "ciba-approve",
-              "popup=yes,width=400,height=380,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
+              "popup=yes,width=440,height=760,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
             );
             try {
               const apiBase = process.env.REACT_APP_API_URL || "";
@@ -4898,7 +4898,7 @@ export default function BankingAgent({
           const cibaTab = window.open(
             "",
             "ciba-approve",
-            "popup=yes,width=440,height=720,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
+            "popup=yes,width=440,height=760,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
           );
           try {
             const apiBase = process.env.REACT_APP_API_URL || "";
@@ -6477,7 +6477,7 @@ export default function BankingAgent({
    * Chip triggers replay NL with useCaseId stamping; attacks hit the sim API;
    * link/edu open their destinations.
    */
-  async function handleDemoStepSelect(uc, stepNumber) {
+  async function handleDemoStepSelect(uc, stepNumber, opts) {
     if (!uc) return;
     setShowDemoSteps(false);
     setShowDiscovery(false);
@@ -6513,6 +6513,57 @@ export default function BankingAgent({
     }
 
     if (trigger.type === "link" && trigger.path) {
+      // UC14b only: "Quick result" toggle (DemoStepsDropdown) runs the RAR
+      // permit check inline instead of navigating to /intent-binding-learning
+      // — mirrors the "attack" branch below (same chat + Token Chain wiring),
+      // just against the intent-binding endpoint. Every other link step
+      // (Code Search, MCP Inspector, Learning Hub, ...) is unaffected.
+      if (uc.id === "UC14b" && opts?.quickResult) {
+        addMessage("user", stepLabel);
+        setNlLoading(true);
+        try { tokenChainTraceStore.beginTrace({ prompt: stepLabel }); } catch (_) {}
+        try {
+          const { data } = await apiClient.post("/api/demo/intent-binding/run", {
+            action: "permit",
+            requestedAmount: 80,
+          });
+          const status = data?.status;
+          const isDeny = typeof status !== "number" || status >= 400;
+          const verdict = isDeny ? "DENY" : "PERMIT";
+          const reason = data?.reason || data?.errorCode || "";
+          addMessage(
+            "assistant",
+            [
+              `${stepLabel}`,
+              `Intent binding \`permit\` → ${status ?? "?"} ${verdict}`,
+              reason ? reason : null,
+            ]
+              .filter(Boolean)
+              .join("\n"),
+            null,
+            { source: "attack-sim" },
+          );
+          if (data?.tokenChainEvents?.length) {
+            appendTokenEvents(data.tokenChainEvents);
+            if (tokenChain) {
+              tokenChain.setTokenEvents("agent", data.tokenChainEvents);
+            }
+            try {
+              buildSimRailEvents(data).forEach((ev) => { tokenChainTraceStore.ingestTokenEvent(ev); });
+            } catch (_) { /* display-only — never break the reply */ }
+          }
+          try { tokenChainTraceStore.completeTrace(!isDeny); } catch (_) {}
+        } catch (err) {
+          addMessage(
+            "assistant",
+            `${stepLabel}\nIntent binding check failed: ${formatAxiosError(err, err.message || "failed")}`,
+          );
+          try { tokenChainTraceStore.completeTrace(false); } catch (_) {}
+        } finally {
+          setNlLoading(false);
+        }
+        return;
+      }
       addMessage("assistant", `${stepLabel} — opening ${trigger.path}.`);
       navigate(trigger.path);
       return;
@@ -7388,7 +7439,7 @@ export default function BankingAgent({
       const cibaTab = window.open(
         "",
         "ciba-approve",
-        "popup=yes,width=400,height=380,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
+        "popup=yes,width=440,height=760,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
       );
       try {
         const apiBase = process.env.REACT_APP_API_URL || "";
@@ -7582,40 +7633,52 @@ export default function BankingAgent({
         timestamp: new Date().toISOString(),
       });
     } else {
-      const replyText = response.reply || AGENT_UNAVAILABLE_MESSAGE;
-      const replyWithAgentBadge = `${response.agentHeader || "[CUSTOMER AGENT]"}\n${replyText}`;
-      addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
-      // A2A teaching popup: auto-open after a successful A2A delegation,
-      // mirroring how RAR auto-explains. The response's own token events
-      // feed the modal's live values.
-      if (shouldAutoOpenA2a(response)) {
-        setA2aExplainUc(buildA2aExplainUc(response));
-        setA2aExplainEvents(Array.isArray(response.tokenEvents) ? response.tokenEvents : []);
-      }
-      if (response.tokenEvents?.length) {
-        appendTokenEvents(response.tokenEvents);
-        if (tokenChain) {
-          tokenChain.setTokenEvents("agent", response.tokenEvents);
+      try {
+        const replyText = response.reply || AGENT_UNAVAILABLE_MESSAGE;
+        const replyWithAgentBadge = `${response.agentHeader || "[CUSTOMER AGENT]"}\n${replyText}`;
+        addMessage("assistant", replyWithAgentBadge, null, verticalResultExtra(response));
+        // A2A teaching popup: auto-open after a successful A2A delegation,
+        // mirroring how RAR auto-explains. The response's own token events
+        // feed the modal's live values.
+        if (shouldAutoOpenA2a(response)) {
+          setA2aExplainUc(buildA2aExplainUc(response));
+          setA2aExplainEvents(Array.isArray(response.tokenEvents) ? response.tokenEvents : []);
         }
-        const agentTokenMsg = buildTokenEventMsg(response.tokenEvents);
-        if (agentTokenMsg) {
-          addMessage("token-event", agentTokenMsg, null);
+        if (response.tokenEvents?.length) {
+          appendTokenEvents(response.tokenEvents);
+          if (tokenChain) {
+            tokenChain.setTokenEvents("agent", response.tokenEvents);
+          }
+          const agentTokenMsg = buildTokenEventMsg(response.tokenEvents);
+          if (agentTokenMsg) {
+            addMessage("token-event", agentTokenMsg, null);
+          }
         }
-      }
-      if (response.inputTokens || response.outputTokens) {
-        const inc = {
-          input: response.inputTokens ?? 0,
-          output: response.outputTokens ?? 0,
-        };
-        setSessionTokens((prev) => ({
-          input: prev.input + inc.input,
-          output: prev.output + inc.output,
-        }));
-        setLifetimeTokens((prev) => {
-          const next = { input: prev.input + inc.input, output: prev.output + inc.output };
-          try { localStorage.setItem('ba_tokens_lifetime', JSON.stringify(next)); } catch (_) {}
-          return next;
-        });
+        if (response.inputTokens || response.outputTokens) {
+          const inc = {
+            input: response.inputTokens ?? 0,
+            output: response.outputTokens ?? 0,
+          };
+          setSessionTokens((prev) => ({
+            input: prev.input + inc.input,
+            output: prev.output + inc.output,
+          }));
+          setLifetimeTokens((prev) => {
+            const next = { input: prev.input + inc.input, output: prev.output + inc.output };
+            try { localStorage.setItem('ba_tokens_lifetime', JSON.stringify(next)); } catch (_) {}
+            return next;
+          });
+        }
+      } catch (renderErr) {
+        // Diagnostic only: the NL-resume success branch (e.g. after CIBA
+        // approval) has been observed reaching reportNlFailure's generic
+        // "That step couldn't be completed" even when the backend response
+        // carried a genuine success (toolsCalled populated, no error field).
+        // Log the real exception + response shape before rethrowing so the
+        // catch in pollCibaThenResumeNl/callers still drives reportNlFailure,
+        // but the browser console shows what actually broke.
+        console.error("[BankingAgent] handleNlResumeResponse success-branch threw:", renderErr, { response });
+        throw renderErr;
       }
     }
   };
@@ -7677,6 +7740,21 @@ export default function BankingAgent({
             vertical: effectiveVerticalId,
             useCaseId,
             forceHeuristic: !!useCaseId,
+          });
+          // sendAgentMessage's own beginTrace() (fired at the top of that call,
+          // to clear the prior turn's trace) wipes the 'ciba-poll' event the
+          // server recorded during polling -- that event lives in a separate
+          // server-side store (services/tokenChainService.js) that the resumed
+          // /api/agent/invoke response never re-includes. Re-stamp it into the
+          // trace this resumed call just started, so the ProofStrip evidence
+          // chain (which requires 'ciba-poll') can actually complete instead of
+          // reading "Incomplete -- Waiting on ciba-poll" forever.
+          tokenChainTraceStore.ingestTokenEvent({
+            id: "ciba-poll",
+            eventType: "auth",
+            timestamp: new Date().toISOString(),
+            description: "CIBA backchannel step-up approved (out-of-band)",
+            additionalData: { grantedVia: "ciba" },
           });
           await handleNlResumeResponse(response, text, useCaseId);
         } catch (e) {
@@ -8019,8 +8097,8 @@ export default function BankingAgent({
                     setShowDemoSteps(next);
                     if (next) setShowDiscovery(false);
                   }}
-                  onSelect={(uc, stepNumber) => {
-                    handleDemoStepSelect(uc, stepNumber);
+                  onSelect={(uc, stepNumber, opts) => {
+                    handleDemoStepSelect(uc, stepNumber, opts);
                   }}
                 />
                 {/* Live Use-Case Workbench — same catalog, live/interactive mode */}
@@ -9614,11 +9692,15 @@ export default function BankingAgent({
                       (showRfcInfo && msg.role === "token-event"),
                   )
                   .map((msg, msgIdx, filteredMsgs) => {
-                    const isLastAssistantMsg =
-                      msg.role === "assistant" &&
-                      !filteredMsgs
-                        .slice(msgIdx + 1)
-                        .some((m) => m.role === "assistant");
+                    // Rank 0 = last assistant reply, 1 = the one before it —
+                    // lets ProofStrip show the previous verified/denied result
+                    // alongside the newest one so the two can be compared.
+                    const assistantRankFromEnd =
+                      msg.role === "assistant"
+                        ? filteredMsgs
+                            .slice(msgIdx + 1)
+                            .filter((m) => m.role === "assistant").length
+                        : null;
                     if (msg.role === "reasoning") {
                       return (
                         <div
@@ -9865,7 +9947,10 @@ export default function BankingAgent({
                               </button>
                             )}
                           </div>
-                          {isLastAssistantMsg && <ProofStrip />}
+                          {assistantRankFromEnd != null &&
+                            assistantRankFromEnd < 2 && (
+                              <ProofStrip rank={assistantRankFromEnd} />
+                            )}
                         </div>
                       </div>
                     );

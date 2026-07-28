@@ -4,7 +4,7 @@
  */
 
 import WebSocket from 'ws';
-import { BankingMCPServer, ServerConfig } from '../../src/server/BankingMCPServer';
+import { DemoMCPServer, ServerConfig } from '../../src/server/DemoMCPServer';
 import { BankingAuthenticationManager } from '../../src/auth/BankingAuthenticationManager';
 import { BankingSessionManager } from '../../src/storage/BankingSessionManager';
 import { BankingToolProvider } from '../../src/tools/BankingToolProvider';
@@ -15,8 +15,8 @@ jest.mock('../../src/auth/BankingAuthenticationManager');
 jest.mock('../../src/storage/BankingSessionManager');
 jest.mock('../../src/tools/BankingToolProvider');
 
-describe('BankingMCPServer', () => {
-  let server: BankingMCPServer;
+describe('DemoMCPServer', () => {
+  let server: DemoMCPServer;
   let mockAuthManager: jest.Mocked<BankingAuthenticationManager>;
   let mockSessionManager: jest.Mocked<BankingSessionManager>;
   let mockToolProvider: jest.Mocked<BankingToolProvider>;
@@ -45,7 +45,7 @@ describe('BankingMCPServer', () => {
       enableLogging: false
     };
 
-    server = new BankingMCPServer(config, mockAuthManager, mockSessionManager, mockToolProvider);
+    server = new DemoMCPServer(config, mockAuthManager, mockSessionManager, mockToolProvider);
   });
 
   afterEach(async () => {
@@ -259,7 +259,7 @@ describe('BankingMCPServer', () => {
     it('should reject connections when at maximum capacity', async () => {
       // Set low connection limit
       const limitedConfig = { ...config, maxConnections: 1 };
-      const limitedServer = new BankingMCPServer(limitedConfig, mockAuthManager, mockSessionManager, mockToolProvider);
+      const limitedServer = new DemoMCPServer(limitedConfig, mockAuthManager, mockSessionManager, mockToolProvider);
       
       await limitedServer.startServer();
       const limitedServerPort = limitedServer.getActualPort() || 8080;
@@ -487,7 +487,7 @@ describe('BankingMCPServer', () => {
     it('should handle server startup errors gracefully', async () => {
       // Try to start server on invalid port
       const invalidConfig = { ...config, port: -1 };
-      const invalidServer = new BankingMCPServer(invalidConfig, mockAuthManager, mockSessionManager, mockToolProvider);
+      const invalidServer = new DemoMCPServer(invalidConfig, mockAuthManager, mockSessionManager, mockToolProvider);
 
       await expect(invalidServer.startServer()).rejects.toThrow('Failed to start server');
     });

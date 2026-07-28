@@ -1,6 +1,6 @@
 # MCP Specification 2025-11-25 — Gap Analysis (Super Banking demo)
 
-This document compares this repository’s MCP implementation (primarily `banking_mcp_server/` + BFF bridge `banking_api_server/services/mcpWebSocketClient.js`) against the authoritative specification:
+This document compares this repository’s MCP implementation (primarily `demo_mcp_server/` + BFF bridge `demo_api_server/services/mcpWebSocketClient.js`) against the authoritative specification:
 
 - [Specification index](https://modelcontextprotocol.io/specification/2025-11-25)
 - [Authorization (HTTP transports)](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization)
@@ -73,9 +73,9 @@ This table summarizes **what the specification obliges** versus **what is option
 | **Lifecycle: client `initialize` params** | `protocolVersion`, **capabilities**, **clientInfo**. | **Compliant** | BFF sends `capabilities: {}`, `clientInfo`, `MCP_CLIENT_PROTOCOL_VERSION` (default `2025-11-25`). Server defaults missing `capabilities` to `{}`. |
 | **Protocol version negotiation** | Same version if supported; else server version. | **Compliant** | Server supports **`2025-11-25`** and **`2024-11-05`** (any `2024-*` maps to `2024-11-05`). |
 | **SHOULD: Disconnect on version mismatch** | Client SHOULD disconnect if it cannot accept the server's negotiated `protocolVersion`. | **Implemented** | `mcpWebSocketClient.js` checks `msg.result.protocolVersion` against `SUPPORTED_PROTOCOL_VERSIONS = {'2025-11-25', '2024-11-05'}` after `initialize` response and rejects/closes on mismatch. |
-| **SHOULD: Lifecycle ordering (server gate)** | Server SHOULD NOT process non-init requests before `notifications/initialized` is received. | **Implemented** | `BankingMCPServer.routeMessage` intercepts `notifications/initialized` and sets `connection.initialized = true`; rejects (−32600) any other request (except `initialize` and `ping`) until that flag is set. |
+| **SHOULD: Lifecycle ordering (server gate)** | Server SHOULD NOT process non-init requests before `notifications/initialized` is received. | **Implemented** | `DemoMCPServer.routeMessage` intercepts `notifications/initialized` and sets `connection.initialized = true`; rejects (−32600) any other request (except `initialize` and `ping`) until that flag is set. |
 | **SHOULD: Request timeouts** | Implementations SHOULD establish timeouts for sent requests; SHOULD cancel on timeout per cancellation utilities. | **Implemented** | `MCPMessageHandler.handleToolCall` wraps `executeTool` in `Promise.race` with a configurable `TOOL_CALL_TIMEOUT_MS` timeout (default 30 s). Returns `isError: true` on timeout so the LLM can retry. CIBA waits are excluded. |
-| **JSON-RPC: request IDs** | MUST NOT be `null`. | **Compliant** | `BankingMCPServer.isValidMCPMessage` rejects `id === null`; notifications use `notifications/*` without `id`. |
+| **JSON-RPC: request IDs** | MUST NOT be `null`. | **Compliant** | `DemoMCPServer.isValidMCPMessage` rejects `id === null`; notifications use `notifications/*` without `id`. |
 | **Server capabilities** | Advertised features should match implementation. | **Compliant** | **tools** + **logging** only (prompts/resources removed). `logging/setLevel` handled; `notifications/message` from server is optional and not currently emitted. |
 | **Server methods** | `tools/list`, `tools/call` | **Compliant (+ extensions)** | Tool schema extensions unchanged. |
 | **`ping`** | Optional utility. | **Compliant** | `ping` returns `{ result: {} }`. |
@@ -155,7 +155,7 @@ This is **not** the **HTTP MCP authorization profile**. Interoperability with a 
 - **`scope=` in `WWW-Authenticate` 401**: `HttpMCPTransport.sendUnauthorized` accepts `requiredScopes?` and appends `scope="…"` to the header.
 - **403 on insufficient scope**: `HttpMCPTransport.sendInsufficientScope` emits HTTP 403 with `error="insufficient_scope"` in `WWW-Authenticate`; `handlePost` promotes an `authChallenge`-carrying tool result to 403.
 - **Disconnect on version mismatch**: `mcpWebSocketClient.js` checks `msg.result.protocolVersion` against `SUPPORTED_PROTOCOL_VERSIONS` after `initialize` response; closes and rejects on mismatch.
-- **Server lifecycle gate**: `BankingMCPServer.routeMessage` intercepts `notifications/initialized` (sets `connection.initialized = true`) and rejects any non-init, non-ping request received before that flag is set (−32600). **Tests**: `BankingMCPServer.test.ts` — `describe('Lifecycle gate')` covers pre-init rejection (-32600), post-init allowed, ping always permitted.
+- **Server lifecycle gate**: `DemoMCPServer.routeMessage` intercepts `notifications/initialized` (sets `connection.initialized = true`) and rejects any non-init, non-ping request received before that flag is set (−32600). **Tests**: `DemoMCPServer.test.ts` — `describe('Lifecycle gate')` covers pre-init rejection (-32600), post-init allowed, ping always permitted.
 - **Request timeouts**: `MCPMessageHandler.handleToolCall` wraps `executeTool` in `Promise.race` with `TOOL_CALL_TIMEOUT_MS` (default 30 s, configurable via env). On timeout, returns `isError: true` with a descriptive message. CIBA waits are not affected. **Tests**: `MCPMessageHandler.test.ts` — `describe('Tool call timeout')` verifies `isError: true` with timeout message.
 
 ### Phase D — HTTP authorization profile — **fully implemented + tested** (2026-03-30)
@@ -191,7 +191,7 @@ The following fields were added to tool definitions and results in the 2025-11-2
 | `audio` content | Tool call result `content[]` | `{ type: "audio", data: "<base64>", mimeType: "audio/wav" }` — audio media in results. |
 | `resource_link` content | Tool call result `content[]` | `{ type: "resource_link", uri, name, description, mimeType }` — links to server resources without embedding them. |
 
-**Current interfaces to update when implementing any of the above:** `ToolDefinition` and `ToolResult` in `banking_mcp_server/src/interfaces/mcp.ts`.
+**Current interfaces to update when implementing any of the above:** `ToolDefinition` and `ToolResult` in `demo_mcp_server/src/interfaces/mcp.ts`.
 
 ---
 
@@ -200,9 +200,9 @@ The following fields were added to tool definitions and results in the 2025-11-2
 | Option | Where | How | Notes |
 |--------|-------|-----|-------|
 | **MCP Protocol Version** | Admin → Feature Flags → "MCP Server" category | Toggle **"MCP — Use 2024-11-05 Protocol (legacy)"** ON/OFF | OFF (default) = `2025-11-25`. ON = `2024-11-05`. Checked at call time in `mcpWebSocketClient.js`; takes effect on the next agent tool call. |
-| **HTTP MCP Transport** | `banking_mcp_server/.env` | `HTTP_MCP_TRANSPORT_ENABLED=true/false` | MCP server env var; cannot be toggled at runtime from the BFF. Default: enabled. |
-| **Tool call timeout** | `banking_mcp_server/.env` | `TOOL_CALL_TIMEOUT_MS=<ms>` | MCP server env var. Default: 30 000 ms. |
-| **RFC 8707 audience validation** | `banking_mcp_server/.env` | `MCP_SERVER_RESOURCE_URI=<value>` | When set, `TokenIntrospector` rejects tokens whose `aud` claim does not include this value. Recommended: set to `MCP_RESOURCE_URL` in production. |
+| **HTTP MCP Transport** | `demo_mcp_server/.env` | `HTTP_MCP_TRANSPORT_ENABLED=true/false` | MCP server env var; cannot be toggled at runtime from the BFF. Default: enabled. |
+| **Tool call timeout** | `demo_mcp_server/.env` | `TOOL_CALL_TIMEOUT_MS=<ms>` | MCP server env var. Default: 30 000 ms. |
+| **RFC 8707 audience validation** | `demo_mcp_server/.env` | `MCP_SERVER_RESOURCE_URI=<value>` | When set, `TokenIntrospector` rejects tokens whose `aud` claim does not include this value. Recommended: set to `MCP_RESOURCE_URL` in production. |
 | **Auto-inject `may_act`** | Admin → Feature Flags → "Token Exchange" | Toggle **"Token Exchange — Auto-inject may_act"** | Demo-only. See Token Exchange section. |
 | **Auto-inject audience** | Admin → Feature Flags → "Token Exchange" | Toggle **"Token Exchange — Auto-inject audience"** | Demo-only. See Token Exchange section. |
 
@@ -214,7 +214,7 @@ The following fields were added to tool definitions and results in the 2025-11-2
 - [MCP 2025-11-25 Specification](https://modelcontextprotocol.io/specification/2025-11-25)
 - [Authorization (HTTP)](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization)
 - [Lifecycle](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle)
-- Repo: `banking_mcp_server/src/server/MCPMessageHandler.ts`, `banking_mcp_server/src/server/BankingMCPServer.ts`, `banking_api_server/services/mcpWebSocketClient.js`
+- Repo: `demo_mcp_server/src/server/MCPMessageHandler.ts`, `demo_mcp_server/src/server/DemoMCPServer.ts`, `demo_api_server/services/mcpWebSocketClient.js`
 
 ---
 

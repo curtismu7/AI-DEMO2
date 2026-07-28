@@ -35,7 +35,7 @@
 const oauthService = require('./oauthService');
 const { callToolViaGateway, getMcpGatewayHttpUrl } = require('./mcpGatewayClient');
 const { runPipelineForSim } = require('./bffMcpToolExecutor');
-const { buildTokenEvent, decodeJwtClaims, buildTratContext, buildRarAuthorizationDetails } = require('./agentMcpTokenService');
+const { buildTokenEvent, decodeJwtClaims, buildTratContext, buildRarAuthorizationDetails, firstHttpResourceUri } = require('./agentMcpTokenService');
 const { mintIntentToken } = require('./intentTokenService');
 const dataStore = require('../data/store');
 const configStore = require('./configStore');
@@ -64,8 +64,36 @@ const SIM_USE_CASE_IDS = {
 /** Confused-deputy showcase rogue actor (parity with AIAgent.js + decision.confused-deputy.test.js). */
 const ROGUE_ACTOR_CLIENT_ID = 'rogue-agent-9f2a-not-allowlisted';
 
-/** Sample-data account owned by user id "2" (not the demo customer). */
-const FOREIGN_ACCOUNT_ID = '3';
+/**
+ * Banking account types get_account_balance actually serves — the tool this
+ * sim targets is a core banking OLB tool, not a vertical plugin one.
+ */
+const BANKING_ACCOUNT_TYPES = new Set(['CHECKING', 'SAVINGS', 'LOAN', 'CREDIT_CARD']);
+
+/**
+ * UC10 cross-owner-account needs a REAL account belonging to someone other
+ * than the calling user — a hardcoded id drifts stale the moment the demo
+ * dataset is reseeded/reset (confirmed live 2026-07-27: the previous
+ * FOREIGN_ACCOUNT_ID='3' no longer existed at all — dataStore.getAccountById
+ * returned undefined — yet the sim still reported status:200,
+ * errorCode:'unexpected_permit', implying an ownership-enforcement bypass
+ * that was never real: the actual data-plane gate (routes/accounts.js
+ * :id/balance) correctly 403s a genuine foreign account. The false
+ * 'unexpected_permit' was the sim harness itself lying about a security
+ * failure, arguably worse for a live demo than a broken chip.
+ * Resolved fresh on every run instead.
+ * @returns {{ id: string, userId: string } | null}
+ */
+function _resolveForeignAccountId(dataStoreImpl, callingUserId) {
+  const all = dataStoreImpl.getAllAccounts();
+  const banking = all.find((a) =>
+    a.userId !== callingUserId && BANKING_ACCOUNT_TYPES.has(String(a.accountType || '').toUpperCase()));
+  if (banking) return banking;
+  // Fall back to any other user's account rather than failing the sim outright
+  // — get_account_balance will 404 (unknown to this tool) or 403 either way,
+  // both still proving the cross-owner boundary, just with a less on-theme log line.
+  return all.find((a) => a.userId !== callingUserId) || null;
+}
 
 /**
  * Sims routed through the FULL production pipeline (bffMcpToolExecutor.
@@ -317,6 +345,42 @@ async function _pushGatewayFlags(flags, gatewayUrl) {
 }
 
 /**
+ * Resolve the audience + scopes an exchanged sim token needs to actually get
+ * PAST the active gateway, mirroring the production recipe in
+ * agentMcpTokenService (Exchange #2, `usePingGatewayForExchange`).
+ *
+ * PingGateway's McpProtectionFilter demands the coarse `gateway:mcp:invoke`
+ * scope and an aud that EXACTLY matches its resourceId (an HTTPS URL, passed as
+ * a one-element array so PingOne emits `resource=` rather than the silently
+ * ignored `audience=`). A sim minting `read write transfer` against
+ * mcpgateway.ping.demo is refused at the perimeter with 403 insufficient_scope
+ * — before PingOne Authorize evaluates anything. The sim then relabels that
+ * generic 403 with its own canonical code, so the run LOOKS like the control
+ * fired when the policy was never consulted. Getting the token right is what
+ * makes the DENY real and gives the UI an authorize record to prove it with.
+ *
+ * @param {string[]} toolScopes - scopes the sim wants when NOT behind PingGateway
+ * @returns {{ audience: string|string[], scopes: string[], viaPingGateway: boolean }}
+ */
+function _gatewayExchangeTarget(toolScopes) {
+  const viaPingGateway = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
+  if (!viaPingGateway) {
+    return { audience: _gatewayAud(), scopes: toolScopes, viaPingGateway };
+  }
+  const pgAud =
+    firstHttpResourceUri(process.env.PINGONE_RESOURCE_PINGGATEWAY_URI) ||
+    firstHttpResourceUri(configStore.getEffective('pingone_resource_pinggateway_uri')) ||
+    firstHttpResourceUri(process.env.MCP_GW_RESOURCE_URI) ||
+    firstHttpResourceUri(configStore.getEffective('mcp_gw_resource_uri'));
+  if (!pgAud) return { audience: _gatewayAud(), scopes: toolScopes, viaPingGateway };
+  const invokeScope =
+    configStore.getEffective('gateway_mcp_invoke_scope') ||
+    configStore.getEffective('pinggateway_invoke_scope') ||
+    'gateway:mcp:invoke';
+  return { audience: [pgAud], scopes: [invokeScope], viaPingGateway };
+}
+
+/**
  * Exchange the session token to the gateway audience and record token-chain events.
  * @returns {Promise<{ ok: true, token: string } | { ok: false, result: object }>}
  */
@@ -336,17 +400,24 @@ async function _exchangeGatewayToken(subjectToken, scopes, useCaseId, tokenChain
     };
   }
 
+  const target = _gatewayExchangeTarget(scopes);
+  const audDisplay = Array.isArray(target.audience) ? target.audience.join(', ') : target.audience;
+
   tokenChainEvents.push(buildTokenEvent(
     'sim-exchange-start',
     `Token Exchange (${label})`,
     'active',
     null,
-    `Exchanging user token to gateway audience ${gatewayAud} with scope "${scopes.join(' ')}".`,
+    `Exchanging user token to gateway audience ${audDisplay} with scope "${target.scopes.join(' ')}".`
+    + (target.viaPingGateway
+      ? ' PingGateway is the active PEP, so the token carries its coarse invoke scope — '
+        + 'the per-tool scopes are enforced downstream by PingOne Authorize.'
+      : ''),
   ));
 
   let exchangedToken;
   try {
-    exchangedToken = await _exchangeSimToken(subjectToken, gatewayAud, scopes);
+    exchangedToken = await _exchangeSimToken(subjectToken, target.audience, target.scopes);
   } catch (err) {
     const errorCode = err.pingoneError || 'exchange_failed';
     const reason = `Token exchange failed: ${err.message}`;
@@ -662,12 +733,14 @@ async function _runInsufficientScope(subjectToken, useCaseId, tokenChainEvents) 
   //   code: 'mcp_tool_error' + httpStatus: 200  (JSON-RPC error in 200 response)
   //   code: 'gateway_policy_denied' + httpStatus: 403  (gateway-layer 403)
   // Both are canonicalized to the sim's reason-distinct code 'insufficient_scope'.
+  const simTool = 'create_transfer';
+  const simArgs = { amount: 1, toAccountId: 'sim-acc-001' };
   try {
     await callToolViaGateway(
       null,
       exchangedToken,
-      'create_transfer',
-      { amount: 1, toAccountId: 'sim-acc-001' }
+      simTool,
+      simArgs
     );
     // If no error thrown, scope enforcement did not fire — unexpected permit.
     tokenChainEvents.push(buildTokenEvent(
@@ -698,7 +771,10 @@ async function _runInsufficientScope(subjectToken, useCaseId, tokenChainEvents) 
       'error',
       null,
       `Gateway rejected the call with ${httpStatus} ${errorCode}: ${reason}`,
-      { error: errorCode, httpStatus }
+      // tool/arguments let the Token Chain UI replay the attempted call in
+      // the Agent Gateway Tester — this sim never reaches mcpResult since
+      // the gateway rejects it before the MCP server runs.
+      { error: errorCode, httpStatus, tool: simTool, arguments: simArgs }
     ));
     stampUseCaseId(tokenChainEvents, useCaseId);
     return { sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents };
@@ -1018,21 +1094,31 @@ async function _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents) 
     };
   }
 
-  let gatewayUrl;
-  try {
-    gatewayUrl = getMcpGatewayHttpUrl();
-  } catch (err) {
-    return {
-      sim, useCaseId,
-      status: 503,
-      errorCode: 'gateway_not_configured',
-      reason: err.message,
-      tokenChainEvents,
-    };
+  // PingGateway (IG) has no /admin/config and no introspectionSimDown toggle —
+  // this sim is Demo Agent Gateway-only (GatewayIntrospectionClient.ts). Arming
+  // it against IG 404s at the admin-config push, so skip the push on that path
+  // (mirrors the usePingGateway guard the RAR sims already use).
+  const usePingGateway = configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
+
+  let gatewayUrl = null;
+  if (!usePingGateway) {
+    try {
+      gatewayUrl = getMcpGatewayHttpUrl();
+    } catch (err) {
+      return {
+        sim, useCaseId,
+        status: 503,
+        errorCode: 'gateway_not_configured',
+        reason: err.message,
+        tokenChainEvents,
+      };
+    }
   }
 
   const { pushGatewayAdminConfig } = require('../routes/mcpGatewayConfig');
-  const armResult = await pushGatewayAdminConfig(gatewayUrl, { introspectionSimDown: true });
+  const armResult = usePingGateway
+    ? { ok: true }
+    : await pushGatewayAdminConfig(gatewayUrl, { introspectionSimDown: true });
   if (!armResult.ok) {
     return {
       sim, useCaseId,
@@ -1048,20 +1134,43 @@ async function _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents) 
     'Introspection outage armed (UC29)',
     'active',
     null,
-    'Pushed introspectionSimDown:true to the gateway — the next call fails RFC 7662 introspection closed.',
+    usePingGateway
+      ? 'PingGateway performs its own RFC 7662 introspection directly against PingOne — the Demo Agent Gateway simulated-outage toggle does not apply on that path.'
+      : 'Pushed introspectionSimDown:true to the gateway — the next call fails RFC 7662 introspection closed.',
   ));
 
   let exchangedToken;
   let result;
   try {
-    exchangedToken = await _exchangeSimToken(subjectToken, gatewayAud, ['read']);
+    // Exchange failure is a broken/misconfigured token exchange, not the
+    // gateway's introspection fail-closed behavior this sim tests for —
+    // keep it out of the fail-closed catch below so it can't be mislabeled
+    // "Verified (as expected)".
+    try {
+      exchangedToken = await _exchangeSimToken(subjectToken, gatewayAud, ['read']);
+    } catch (err) {
+      const errorCode = err.pingoneError || 'exchange_failed';
+      const reason = `Token exchange failed: ${err.message}`;
+      tokenChainEvents.push(buildTokenEvent(
+        'sim-exchange-error',
+        'Token Exchange FAILED',
+        'error',
+        null,
+        reason,
+        { error: errorCode },
+      ));
+      return { sim, useCaseId, status: 502, errorCode, reason, tokenChainEvents };
+    }
+
     await callToolViaGateway(null, exchangedToken, 'get_my_accounts', {});
     // No throw means the gateway did NOT fail closed as expected.
     result = {
       sim, useCaseId,
       status: 200,
       errorCode: 'unexpected_permit',
-      reason: 'Call succeeded despite the armed introspection-down sim — sim may not have taken effect.',
+      reason: usePingGateway
+        ? 'PingGateway path does not support the introspection-down sim toggle — the call went through normally.'
+        : 'Call succeeded despite the armed introspection-down sim — sim may not have taken effect.',
       tokenChainEvents,
     };
   } catch (err) {
@@ -1078,7 +1187,9 @@ async function _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents) 
   } finally {
     // Always disarm, even if the call above threw for an unrelated reason —
     // an armed sim left on would silently break every later demo step.
-    await pushGatewayAdminConfig(gatewayUrl, { introspectionSimDown: false });
+    if (!usePingGateway) {
+      await pushGatewayAdminConfig(gatewayUrl, { introspectionSimDown: false });
+    }
   }
 
   stampUseCaseId(tokenChainEvents, useCaseId);
@@ -1095,15 +1206,17 @@ async function _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents) 
 async function _runCrossOwnerAccount(subjectToken, useCaseId, tokenChainEvents, req) {
   const sim = 'cross-owner-account';
 
-  const foreign = dataStore.getAccountById(FOREIGN_ACCOUNT_ID);
+  const callingUserId = req?.session?.user?.sub || req?.user?.sub || '';
+  const foreign = _resolveForeignAccountId(dataStore, callingUserId);
+  const foreignAccountId = foreign?.id || 'unknown';
   const foreignOwner = foreign?.userId || 'another user';
   tokenChainEvents.push(buildTokenEvent(
     'sim-attack-setup',
     'Cross-owner target selected',
     'active',
     null,
-    `Attempting get_account_balance for account ${FOREIGN_ACCOUNT_ID} owned by user "${foreignOwner}" ` +
-    `while authenticated as "${req?.session?.user?.sub || req?.user?.sub || 'current user'}" — ` +
+    `Attempting get_account_balance for account ${foreignAccountId} owned by user "${foreignOwner}" ` +
+    `while authenticated as "${callingUserId || 'current user'}" — ` +
     'via the full BFF pipeline (exchange → Authorize → gateway).',
   ));
 
@@ -1111,7 +1224,7 @@ async function _runCrossOwnerAccount(subjectToken, useCaseId, tokenChainEvents, 
   try {
     outcome = await runPipelineForSim({
       tool: 'get_account_balance',
-      params: { account_id: FOREIGN_ACCOUNT_ID },
+      params: { account_id: foreignAccountId },
       req,
       useCaseId,
     });
@@ -1342,7 +1455,10 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
     null,
     `Attested authorization_details cap the transfer at $${grantedAmount}. ` +
     `Attack attempts create_transfer for $${finalAttackAmount}.`,
-    { authorization_details: rarDetails },
+    {
+      authorization_details: rarDetails,
+      request: { tool: 'create_transfer', params: { amount: finalAttackAmount, from_account_id: 'sim-acc-002', to_account_id: 'sim-acc-001' } },
+    },
   ));
 
   try {
@@ -1552,7 +1668,11 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
     null,
     `PERMIT: requested $${amount} is within the RAR authorization_details cap of $${grantedAmount}. ` +
     'PingGateway forwarded the grant; PingOne Authorize confirmed the transfer matches the declared intent.',
-    { authorization_details: rarDetails, requestedAmount: amount, grantedAmount },
+    {
+      authorization_details: rarDetails, requestedAmount: amount, grantedAmount,
+      request: { tool: 'create_transfer', params: { amount, from_account_id: fromAccountId, to_account_id: toAccountId } },
+      response: transferRpc,
+    },
   ));
   stampUseCaseId(tokenChainEvents, useCaseId);
   return { sim, useCaseId, status: 200, errorCode: null, reason: 'PERMIT — within granted RAR cap', tokenChainEvents };
@@ -1727,4 +1847,7 @@ async function _runImpersonationNoAct(subjectToken, useCaseId, tokenChainEvents)
   }
 }
 
-module.exports = { runAttackSim, runIntentBindingDemo, _exchangeSimToken };
+module.exports = {
+  runAttackSim, runIntentBindingDemo, _exchangeSimToken,
+  __test: { _resolveForeignAccountId, _gatewayExchangeTarget },
+};

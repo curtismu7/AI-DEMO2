@@ -1,4 +1,5 @@
 import { buildTraceSteps, buildRunStory } from "../buildTraceSteps";
+import { hasPopoutWorthyDetail } from "../../../components/TraceStepCard";
 
 const EMPTY_TRACE = {
   startedAt: null, prompt: null, routingMode: null, routingDetail: null,
@@ -15,6 +16,53 @@ describe("buildTraceSteps — empty trace", () => {
     ]);
     expect(steps.every((s) => s.status === "pending")).toBe(true);
     expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12]);
+  });
+});
+
+describe("buildTraceSteps — pop-out spec content", () => {
+  test("every step carries a spec block with a mandate, a rationale and a failure mode", () => {
+    const steps = buildTraceSteps({ ...EMPTY_TRACE, outcome: "ok" });
+    for (const s of steps) {
+      expect(s.detail.spec, `${s.id} has no spec`).toBeTruthy();
+      expect(s.detail.spec.mandate, `${s.id} spec.mandate`).toEqual(expect.any(String));
+      expect(s.detail.spec.why, `${s.id} spec.why`).toEqual(expect.any(String));
+      expect(s.detail.spec.failure, `${s.id} spec.failure`).toEqual(expect.any(String));
+      expect(Array.isArray(s.detail.spec.refs), `${s.id} spec.refs`).toBe(true);
+    }
+  });
+
+  test("spec refs deep-link to the section that applies", () => {
+    const steps = buildTraceSteps(EMPTY_TRACE);
+    const exchange = steps.find((s) => s.id === "exchange");
+    expect(exchange.detail.spec.refs.map((r) => r.label))
+      .toEqual(["RFC 8693 §2.1", "RFC 8693 §4.1", "RFC 8707 §2"]);
+    for (const ref of exchange.detail.spec.refs) {
+      expect(ref.href).toMatch(/^https:\/\/.+#section-/);
+      expect(ref.title).toEqual(expect.any(String));
+    }
+  });
+
+  test("heuristic routing replaces the LLM spec instead of teaching a hop that did not run", () => {
+    const steps = buildTraceSteps({ ...EMPTY_TRACE, routingMode: "heuristic" });
+    const llm = steps.find((s) => s.id === "llm");
+    expect(llm.detail.spec.mandate).toMatch(/no model was called/i);
+    expect(llm.detail.spec.why).toMatch(/model removed from the picture/i);
+  });
+
+  test("spec alone does not make an un-run step pop-out-worthy", () => {
+    const steps = buildTraceSteps(EMPTY_TRACE);
+    const prompt = steps.find((s) => s.id === "prompt");
+    expect(prompt.detail.spec).toBeTruthy();
+    expect(hasPopoutWorthyDetail(prompt.detail)).toBe(false);
+  });
+
+  test("the short rfcs chips stay independent of the long-form spec refs", () => {
+    const steps = buildTraceSteps(EMPTY_TRACE);
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+    expect(byId.signin.detail.rfcs).toEqual(["RFC 6749", "RFC 7636"]);
+    expect(byId.exchange.detail.rfcs).toEqual(["RFC 8693", "RFC 8707"]);
+    expect(byId.gateway.detail.rfcs).toBeUndefined();
+    expect(byId.gateway.detail.spec.refs.length).toBeGreaterThan(0);
   });
 });
 
@@ -251,9 +299,9 @@ describe("buildTraceSteps — statuses from evidence", () => {
     const gw = steps.find((s) => s.id === "gateway");
     expect(gw.detail.request.text).toContain("get_my_accounts");
     expect(gw.detail.response.text).toContain("PERMIT");
-    // The gateway hop's education page is the gateway inspector — the P1AZ
+    // The gateway hop's education topic is the Agent Gateway — the P1AZ
     // decision is a separate step with its own link.
-    expect(gw.detail.moreDetail.href).toBe("/pinggateway-inspector");
+    expect(gw.detail.moreDetail).toEqual({ edu: "agent-gateway", label: "Learn: Agent Gateway" });
   });
 
   test("gateway step carries a gateway-tester replay of the tool call that ran", () => {
@@ -265,10 +313,29 @@ describe("buildTraceSteps — statuses from evidence", () => {
     const gw = steps.find((s) => s.id === "gateway");
     expect(gw.detail.replay).toEqual({
       target: "gateway",
-      href: "/pinggateway-inspector?subtab=tester",
+      href: "/agent-gateway-inspector?subtab=tester",
       label: "Replay in Gateway Tester",
       tool: "transfer_funds",
       arguments: { amount: 250 },
+    });
+  });
+
+  test("gateway step falls back to the sim-gateway-deny tool/arguments when the call never reached the MCP server", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [{
+        id: "sim-gateway-deny", label: "Gateway DENY (insufficient_scope)", status: "error",
+        error: "insufficient_scope", httpStatus: 403,
+        tool: "create_transfer", arguments: { amount: 1, toAccountId: "sim-acc-001" },
+      }],
+    });
+    const gw = steps.find((s) => s.id === "gateway");
+    expect(gw.detail.replay).toEqual({
+      target: "gateway",
+      href: "/agent-gateway-inspector?subtab=tester",
+      label: "Replay in Gateway Tester",
+      tool: "create_transfer",
+      arguments: { amount: 1, toAccountId: "sim-acc-001" },
     });
   });
 
@@ -295,7 +362,7 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(az.status).toBe("done");
     expect(az.detail.request.text).toContain("transfer_funds");
     expect(az.detail.response.text).toContain("PERMIT");
-    expect(az.detail.moreDetail.label).toBe("More Education");
+    expect(az.detail.moreDetail).toEqual({ edu: "pingone-authorize", label: "Learn: PingOne Authorize" });
     expect(az.detail.replay).toEqual({
       target: "p1az",
       href: "/pingone-authorize",

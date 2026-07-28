@@ -79,6 +79,20 @@ const FLAG_REGISTRY = [
     defaultValue: false,
     docsUrl:      'https://docs.pingidentity.com/pingone/authorization_using_pingone_authorize/p1az_overview.html',
   },
+  {
+    id:           'ff_authorize_bulk_preflight',
+    name:         'Authorize — Bulk pre-flight (advisory)',
+    category:     'PingOne Authorize',
+    description:
+      'Enables POST /api/authorize/pre-flight-bulk — resolves one MCP token, evaluates several tools in one PingOne ' +
+      '**bulk decision** call (up to 20/call, RFC-shaped by decisionEndpoints bulk media type), and returns a ' +
+      'PERMIT/DENY/HITL/STEP_UP verdict per tool. Advisory only: narrows which tools to offer, never grants a call ' +
+      'and mints no HITL challenge — evaluateMcpFirstToolGate still runs unchanged on the actual tool invocation.',
+    impact:       'OFF = the route 404s. ON = agents/UI can pre-flight a whole tool list in one round trip instead of one call per tool.',
+    type:         'boolean',
+    defaultValue: false,
+    docsUrl:      'https://developer.pingidentity.com/pingone-api/authorize/authorization-decisions/decision-evaluation/execute-a-bulk-decision-request.html',
+  },
 
   // ── Step-Up Auth ───────────────────────────────────────────────────────────
   {

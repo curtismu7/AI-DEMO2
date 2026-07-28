@@ -8,16 +8,17 @@
  *      tool/sub/actor) for every DENY / INDETERMINATE outcome.
  */
 
-const test = require('node:test');
+const { test } = require('node:test');
 const assert = require('node:assert');
 
 const correlationMiddleware = require('./correlationId');
 const { runWithCorrelation, getCorrelationId } = require('./correlationContext');
-const decisionHandler = require('./routes/decision');
 
 const AUD = process.env.MCP_GATEWAY_RESOURCE_URI || 'mcpgateway.ping.demo';
 // Rule 2 is act-only now: the fixtures' baseline actor ('agent-1') must be a
-// recognized authorized actor, not just may_act-matched.
+// recognized authorized actor, not just may_act-matched. Must be set BEFORE
+// routes/decision is required — ruleStore.js reads this env var once, at
+// module-load time, into authorizedActorClientId.
 process.env.PINGONE_MCP_EXCHANGER_CLIENT_ID = process.env.PINGONE_MCP_EXCHANGER_CLIENT_ID || 'agent-1';
 
 function mkRes() {
@@ -49,7 +50,21 @@ test('correlation middleware falls back to X-Request-ID, else generates one', ()
   assert.ok(res2.headers['X-Correlation-ID'] && res2.headers['X-Correlation-ID'].length > 0);
 });
 
-test('a DENY emits a structured authz_decision audit line carrying the correlation id', async () => {
+test('a DENY emits a structured authz_decision audit line carrying the correlation id', async (t) => {
+  // Mocked INSIDE the running test, matching decision.contract.test.js's
+  // fresh() — node:test's MockTracker only intercepts calls made once a test
+  // context is active; mocking at module top-level (before any test starts)
+  // silently no-ops, and routes/decision must be required fresh AFTER the
+  // mock is in place so its internal `pingOneUserLookup.lookupUser` calls
+  // resolve against the mocked implementation, not the real one (which fails
+  // closed without live PingOne credentials in test/CI).
+  for (const m of ['./pingOneUserLookup', './routes/decision']) {
+    try { delete require.cache[require.resolve(m)]; } catch { /* ignore */ }
+  }
+  const userLookup = require('./pingOneUserLookup');
+  t.mock.method(userLookup, 'lookupUser', async () => ({ found: true, enabled: true, status: 'ACTIVE' }));
+  const decisionHandler = require('./routes/decision');
+
   const lines = [];
   const orig = console.log;
   console.log = (...args) => lines.push(args.map(String).join(' '));

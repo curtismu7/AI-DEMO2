@@ -2,6 +2,6 @@
  * Server module exports
  */
 
-export { BankingMCPServer, ServerConfig, ConnectionInfo, ServerStats } from './BankingMCPServer';
+export { DemoMCPServer, ServerConfig, ConnectionInfo, ServerStats } from './DemoMCPServer';
 export { MCPMessageHandler, MessageHandlerContext } from './MCPMessageHandler';
 export { AuthenticationIntegration } from './AuthenticationIntegration';

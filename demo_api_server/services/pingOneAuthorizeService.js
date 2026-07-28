@@ -26,6 +26,7 @@
  * Exported functions:
  *   evaluateTransaction(params)   — full policy evaluation returning PERMIT/DENY/INDETERMINATE
  *   evaluateMcpToolDelegation(params) — MCP first-tool gate (DecisionContext=McpFirstTool); requires authorize_mcp_decision_endpoint_id
+ *   evaluateDecisionEndpointBulk(endpointId, decisionRequests, sharedParameters) — bulk decision request (up to 20/call, auto-chunked); Content-Type discriminates it from a single decision, same URL
  *   checkStepUpRequired(params)   — lightweight check: returns { stepUpRequired, reason }
  *   getRecentDecisions(endpointId, limit) — Phase 3: last N decisions for an endpoint
  *   isConfigured()                — returns true if all required credentials are present
@@ -331,11 +332,15 @@ function _resetAuthorizeRuntimeState() {
  * freshly-minted token (the cached token may have been rotated/revoked at P1AZ).
  * Idempotent evaluate call, so the underlying fetchRetryable transient-retry is
  * safe. A 401 that survives the refresh is returned to the caller as-is.
+ *
+ * @param {string} contentType - defaults to the single-decision media type so
+ *   every existing caller is unaffected; the bulk path passes the PingOne
+ *   bulk-decision media type explicitly.
  */
-async function _postDecisionWithAuth(url, body) {
+async function _postDecisionWithAuth(url, body, contentType = 'application/json') {
   const doFetch = (tok) => fetchRetryable(url, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${tok}`, 'Content-Type': contentType },
     body,
   });
 
@@ -437,6 +442,156 @@ async function _postDecisionEndpoint(endpointId, parameters) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Bulk decision requests — PingOne Authorize bulk API. Same URL as a single
+// decision (POST /v1/environments/{envId}/decisionEndpoints/{endpointId}),
+// discriminated ONLY by Content-Type. Up to BULK_MAX_ITEMS decisionRequests
+// per call; PingOne returns 400 above that, so it is rejected client-side
+// first. See https://developer.pingidentity.com/pingone-api/authorize/authorization-decisions/decision-evaluation/execute-a-bulk-decision-request.html
+// ---------------------------------------------------------------------------
+const BULK_DECISION_CONTENT_TYPE = 'application/vnd.pingidentity.decisionengine.authorize.bulk+json';
+const BULK_DECISION_MAX_ITEMS = 20;
+
+/**
+ * POST a batch of Trust Framework parameter objects to one decision endpoint
+ * in a single PingOne Authorize bulk decision request.
+ *
+ * Correlates responses to requests BY ARRAY INDEX — the bulk API assigns no
+ * client-supplied id to a request item. When the response array is shorter
+ * than the request array, at least one request has no matching verdict; that
+ * index fails closed to DENY (reason: bulk_response_length_mismatch) rather
+ * than being silently dropped or shifted onto the wrong request.
+ *
+ * @param {string} endpointId
+ * @param {object} opts
+ * @param {Record<string, unknown>} [opts.sharedParameters] - applied to every item; item-level keys win
+ * @param {Array<Record<string, unknown>>} opts.decisionRequests - each becomes `{ parameters }`
+ * @returns {Promise<{ correlationId, summary, results: Array<object>, _debug }>}
+ */
+async function _postBulkDecisionEndpoint(endpointId, { sharedParameters, decisionRequests } = {}) {
+  if (!Array.isArray(decisionRequests) || decisionRequests.length === 0) {
+    throw new Error('decisionRequests must be a non-empty array.');
+  }
+  if (decisionRequests.length > BULK_DECISION_MAX_ITEMS) {
+    const err = new Error(
+      `decisionRequests exceeds the PingOne Authorize bulk limit of ${BULK_DECISION_MAX_ITEMS} (got ${decisionRequests.length}).`,
+    );
+    err.code = 'bulk_limit_exceeded';
+    throw err;
+  }
+
+  const { envId, regionTld } = _getCredentials();
+  const url = `${apiBase(regionTld)}/v1/environments/${envId}/decisionEndpoints/${endpointId}`;
+  const body = {
+    ...(sharedParameters ? { parameters: sharedParameters } : {}),
+    decisionRequests: decisionRequests.map((parameters) => ({ parameters })),
+  };
+
+  console.log('[BFF→P1AZ] BULK REQUEST: url=%s count=%d', url, decisionRequests.length);
+
+  return _evaluateWithBreaker(`decision:${endpointId}`, async () => {
+    const response = await _postDecisionWithAuth(url, JSON.stringify(body), BULK_DECISION_CONTENT_TYPE);
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw _decisionError(response.status, text, 'bulk decision endpoint');
+    }
+
+    const raw = await response.json();
+    console.log('[BFF→P1AZ] BULK RESPONSE: status=%d summary=%j', response.status, raw?.summary);
+
+    const responses = Array.isArray(raw?.responses) ? raw.responses : [];
+    const results = decisionRequests.map((_parameters, index) => {
+      const item = responses[index];
+      if (!item) {
+        return {
+          index,
+          decision: 'DENY',
+          stepUpRequired: false,
+          hitlRequired: false,
+          consentRequired: false,
+          policyNotFound: false,
+          decisionId: null,
+          elapsedMicroseconds: null,
+          raw: null,
+          reason: 'bulk_response_length_mismatch',
+        };
+      }
+      const { stepUpRequired, hitlRequired, consentRequired } = _classifyRawObligations(item);
+      const decision = _normalizeDecision(item, {
+        hasObligation: stepUpRequired || hitlRequired || consentRequired,
+      });
+      return {
+        index,
+        decision,
+        stepUpRequired,
+        hitlRequired,
+        consentRequired,
+        policyNotFound: _isPolicyNotFoundEffect(item),
+        decisionId: item.id || item.decisionId || null,
+        elapsedMicroseconds: item.elapsedMicroseconds ?? null,
+        raw: item,
+      };
+    });
+
+    const _debug = {
+      request: { method: 'POST', url, contentType: BULK_DECISION_CONTENT_TYPE, body },
+      response: raw,
+    };
+    return { correlationId: raw?.correlationId || null, summary: raw?.summary || null, results, _debug };
+  });
+}
+
+/**
+ * Public bulk entry — chunks decisionRequests into PingOne's max-20-per-call
+ * limit and concatenates results, preserving a single global index across
+ * chunks. Each chunk is its own PingOne call with its own correlationId;
+ * callers that want one correlationId for a demo run should keep
+ * decisionRequests at or under BULK_DECISION_MAX_ITEMS.
+ *
+ * @param {string} endpointId
+ * @param {Array<Record<string, unknown>>} decisionRequests
+ * @param {Record<string, unknown>} [sharedParameters]
+ * @returns {Promise<{ correlationIds: string[], summary: {requested:number,errors:number,successful:number}, results: Array<object>, _debug }>}
+ */
+async function evaluateDecisionEndpointBulk(endpointId, decisionRequests, sharedParameters) {
+  if (!endpointId) throw new Error('endpointId is required.');
+  if (!Array.isArray(decisionRequests) || decisionRequests.length === 0) {
+    throw new Error('decisionRequests must be a non-empty array.');
+  }
+
+  const chunks = [];
+  for (let i = 0; i < decisionRequests.length; i += BULK_DECISION_MAX_ITEMS) {
+    chunks.push(decisionRequests.slice(i, i + BULK_DECISION_MAX_ITEMS));
+  }
+
+  const correlationIds = [];
+  const results = [];
+  let requested = 0;
+  let errors = 0;
+  let successful = 0;
+  let _debug = null;
+
+  for (let c = 0; c < chunks.length; c += 1) {
+    const chunk = chunks[c];
+    const offset = c * BULK_DECISION_MAX_ITEMS;
+    // Sequential, not Promise.all — chunks share one circuit breaker key, so
+    // a mid-batch outage should stop issuing further chunks rather than
+    // firing them all into an already-open breaker.
+    const chunkResult = await _postBulkDecisionEndpoint(endpointId, { sharedParameters, decisionRequests: chunk });
+    correlationIds.push(chunkResult.correlationId);
+    _debug = chunkResult._debug;
+    requested += chunkResult.summary?.requested ?? chunk.length;
+    errors += chunkResult.summary?.errors ?? 0;
+    successful += chunkResult.summary?.successful ?? 0;
+    for (const r of chunkResult.results) {
+      results.push({ ...r, index: offset + r.index });
+    }
+  }
+
+  return { correlationIds, summary: { requested, errors, successful }, results, _debug };
+}
+
 /**
  * Evaluate using the Decision Endpoints API (Phase 2 path).
  * Parameters map to Trust Framework attribute names defined in PingOne Authorize.
@@ -464,12 +619,14 @@ async function _evaluateViaDecisionEndpoint({ endpointId, userId, amount, type, 
 }
 
 /**
- * MCP first-tool delegation evaluation (separate Trust Framework shape).
- * Requires authorize_mcp_decision_endpoint_id (or explicit decisionEndpointId).
- * PingOne policy should key off DecisionContext === "McpFirstTool" and attributes below.
+ * Build the MCP first-tool delegation Trust Framework parameters object.
+ * Pure — no I/O, no credential resolution. Extracted from
+ * evaluateMcpToolDelegation so the real-time gate and the advisory bulk
+ * pre-flight path (agentPreflightService.evaluateBatch) build a tool's
+ * parameters from IDENTICAL code. Two builders that could drift apart is
+ * exactly the F3 divergence the C1 comments below already warn about.
  *
  * @param {object} opts
- * @param {string} [opts.decisionEndpointId] - overrides config authorize_mcp_decision_endpoint_id
  * @param {string} opts.userId
  * @param {string} opts.toolName
  * @param {string} [opts.tokenAudience] - MCP access token aud (string)
@@ -477,9 +634,9 @@ async function _evaluateViaDecisionEndpoint({ endpointId, userId, amount, type, 
  * @param {string} [opts.nestedActClientId] - act.act.client_id or act.act.sub (nested delegation, RFC 8693 two-hop)
  * @param {string} [opts.mcpResourceUri] - expected MCP resource audience
  * @param {string} [opts.acr] - end-user ACR from session when available
+ * @returns {Record<string, unknown>}
  */
-async function evaluateMcpToolDelegation({
-  decisionEndpointId,
+function buildMcpDelegationParameters({
   userId,
   toolName,
   tokenAudience,
@@ -557,18 +714,6 @@ async function evaluateMcpToolDelegation({
   tokenKid = null,
   tokenKidKnown = null,
 }) {
-  const creds = _getCredentials();
-  const endpointId = decisionEndpointId || creds.mcpDecisionEndpointId;
-
-  if (!creds.envId) {
-    throw new Error('PingOne environment ID is not configured.');
-  }
-  if (!endpointId) {
-    throw new Error(
-      'MCP delegation decision endpoint is not configured. Set authorize_mcp_decision_endpoint_id in Admin → Config.',
-    );
-  }
-
   // Depth of the RFC 8693 actor chain, derived from the actor ids above so it
   // can never disagree with them: no act ⇒ 0, act ⇒ 1, act.act (A2A) ⇒ 2.
   // This was NEVER sent, and the Trust Framework attribute defaults to 0, so
@@ -576,7 +721,7 @@ async function evaluateMcpToolDelegation({
   // NestedActClientId != <allowed>) was unreachable from the BFF (F3, §5.4).
   const actChainDepth = nestedActClientId ? 2 : (actClientId ? 1 : 0);
 
-  const parameters = {
+  return {
     DecisionContext: 'McpFirstTool',
     // C1 request key — the MCP method this decision is about. The BFF gate only
     // ever guards a tool invocation.
@@ -628,8 +773,31 @@ async function evaluateMcpToolDelegation({
     ...(verticalId ? { Vertical: verticalId } : {}),
     Timestamp: new Date().toISOString(),
   };
+}
 
-  return _postDecisionEndpoint(endpointId, parameters);
+/**
+ * MCP first-tool delegation evaluation (separate Trust Framework shape).
+ * Requires authorize_mcp_decision_endpoint_id (or explicit decisionEndpointId).
+ * PingOne policy should key off DecisionContext === "McpFirstTool" and the
+ * attributes buildMcpDelegationParameters builds above.
+ *
+ * @param {object} opts - see buildMcpDelegationParameters, plus:
+ * @param {string} [opts.decisionEndpointId] - overrides config authorize_mcp_decision_endpoint_id
+ */
+async function evaluateMcpToolDelegation(opts) {
+  const creds = _getCredentials();
+  const endpointId = opts.decisionEndpointId || creds.mcpDecisionEndpointId;
+
+  if (!creds.envId) {
+    throw new Error('PingOne environment ID is not configured.');
+  }
+  if (!endpointId) {
+    throw new Error(
+      'MCP delegation decision endpoint is not configured. Set authorize_mcp_decision_endpoint_id in Admin → Config.',
+    );
+  }
+
+  return _postDecisionEndpoint(endpointId, buildMcpDelegationParameters(opts));
 }
 
 // ---------------------------------------------------------------------------
@@ -1157,6 +1325,17 @@ function isMcpDelegationDecisionReady() {
 }
 
 /**
+ * The configured MCP first-tool decision endpoint id, or null. Read-only
+ * accessor for callers (agentPreflightService.evaluateBatch) that need the
+ * raw id to drive evaluateDecisionEndpointBulk directly — _getCredentials()
+ * itself stays private.
+ */
+function getMcpDecisionEndpointId() {
+  const { mcpDecisionEndpointId } = _getCredentials();
+  return mcpDecisionEndpointId || null;
+}
+
+/**
  * Evaluate an arbitrary Trust Framework parameters object against ANY decision
  * endpoint in the environment. Powers the admin Live Policy Console — lets an
  * operator send a real decision request to any endpoint (transaction, MCP, or
@@ -1377,10 +1556,13 @@ module.exports = {
   _resetAuthorizeRuntimeState,
   _fetchRetryable: fetchRetryable,
   _postDecisionWithAuth,
+  _postBulkDecisionEndpoint,
   _evaluateWithBreaker,
   evaluateTransaction,
   evaluateMcpToolDelegation,
+  buildMcpDelegationParameters,
   evaluateDecisionEndpoint,
+  evaluateDecisionEndpointBulk,
   checkStepUpRequired,
   getRecentDecisions,
   getDecisionEndpoints,
@@ -1389,6 +1571,7 @@ module.exports = {
   setEndpointRecording,
   isConfigured,
   isMcpDelegationDecisionReady,
+  getMcpDecisionEndpointId,
   isWorkerCredentialReady,
   provisionDemoDecisionEndpoints,
   getWorkerToken,

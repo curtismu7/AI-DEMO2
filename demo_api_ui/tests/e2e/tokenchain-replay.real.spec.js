@@ -4,10 +4,10 @@
  * Token Chain step card — real browser spec for the step actions.
  *
  * Unit tests prove buildTraceSteps emits the right descriptors, but they
- * cannot tell you the action reads as a link, that "More Education" on the
- * gateway hop lands on the gateway inspector, or that a replay actually
- * re-runs the call in the target inspector. This drives /use-cases/live
- * against the running stack.
+ * cannot tell you the action reads as a link, that "Learn: Agent Gateway" on
+ * the gateway hop opens the Learning Hub education drawer (not the
+ * inspector), or that a replay actually re-runs the call in the target
+ * inspector. This drives /use-cases/live against the running stack.
  *
  * Sign-in only works on the local.ping-devops.com host (passkey rp.id /
  * OAuth callback), so PLAYWRIGHT_BASE_URL must point there.
@@ -142,10 +142,11 @@ test.describe('Token Chain step actions — real browser (link affordance + repl
     ).toHaveCount(1, { timeout: 120_000 });
   }
 
-  test('0. real P1AZ — token exchange fires and both hops are replayable', async () => {
+  test('0. real P1AZ — token exchange fires and all three hops are replayable', async () => {
     await expectExchangeFired('real P1AZ');
     await expectReplayButton('authorize', 'Replay in P1AZ Evaluate');
     await expectReplayButton('gateway', 'Replay in Gateway Tester');
+    await expectReplayButton('mcp', 'Replay in MCP Inspector');
   });
 
   test.afterAll(async () => {
@@ -171,12 +172,16 @@ test.describe('Token Chain step actions — real browser (link affordance + repl
     return step;
   }
 
-  test('2. "More Education" on the Agent Gateway hop opens the gateway inspector', async () => {
+  test('2. "Learn: Agent Gateway" on the Agent Gateway hop opens the education drawer, not the inspector', async () => {
     const step = await openStep('gateway');
-    const link = step.locator('a.tctr-inspect', { hasText: 'More Education' });
-    await expect(link).toHaveCount(1);
-    const href = await link.getAttribute('href');
-    expect(href, 'gateway hop must not point at the P1AZ page').toBe('/pinggateway-inspector');
+    const learn = step.locator('button.tctr-inspect', { hasText: 'Learn: Agent Gateway' });
+    await expect(learn).toHaveCount(1);
+    await learn.click();
+    const drawer = page.locator('.edu-drawer');
+    await expect(drawer).toBeVisible();
+    await expect(drawer.locator('.edu-drawer-title')).toContainText('Agent Gateway');
+    await drawer.locator('.edu-drawer-close').click();
+    await expect(drawer).toHaveCount(0);
   });
 
   test('3. replaying the gateway hop re-runs the tool in the Agent Gateway Tester', async () => {
@@ -186,8 +191,27 @@ test.describe('Token Chain step actions — real browser (link affordance + repl
 
     const [tab] = await Promise.all([ctx.waitForEvent('page'), replay.click()]);
     await tab.waitForLoadState('domcontentloaded');
-    expect(tab.url()).toContain('/pinggateway-inspector');
+    // Direct route, not /pinggateway-inspector — that path redirects and drops
+    // the query string (both ?subtab=tester and the staged ?replay=<id>).
+    expect(tab.url()).toContain('/agent-gateway-inspector');
     expect(tab.url()).toContain('subtab=tester');
+    expect(tab.url()).toMatch(/[?&]replay=/);
+
+    // Auto-run: a result footer only renders once a response has come back.
+    await expect(tab.locator('.inspector-shell-output-footer')).toBeVisible({ timeout: 60_000 });
+    await expect(tab.locator('.inspector-shell-output-footer')).toContainText('Status:');
+    await tab.close();
+  });
+
+  test('3b. replaying the MCP hop re-runs the tool in the MCP Inspector', async () => {
+    const step = await openStep('mcp');
+    const replay = step.locator('button.tctr-inspect', { hasText: 'Replay in MCP Inspector' });
+    await expect(replay).toHaveCount(1);
+
+    const [tab] = await Promise.all([ctx.waitForEvent('page'), replay.click()]);
+    await tab.waitForLoadState('domcontentloaded');
+    expect(tab.url()).toContain('/pingone-mcp-inspector');
+    expect(tab.url()).toContain('source=banking');
     expect(tab.url()).toMatch(/[?&]replay=/);
 
     // Auto-run: a result footer only renders once a response has come back.

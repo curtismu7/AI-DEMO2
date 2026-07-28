@@ -87,7 +87,17 @@ export function computeVerdict(trace, catalogEntry) {
   const vertical = verticalOf(trace);
   // Highlights for the ProofStrip box: what the user asked for, which tool ran
   // it, and which Ping products the catalog's evidence chain says are in play.
-  const intent = trace.prompt?.message || catalogEntry.trigger?.text || null;
+  // Chip clicks replay the chip's own button caption as trace.prompt.message
+  // (see AIAgent.js handleDemoStepSelect / TokenChainContext beginTrace) — so
+  // for a chip-driven run this ends up displaying the raw button text (e.g.
+  // "hand off to a specialist") as if it were the user's intent, which reads
+  // like an instruction rather than a description of what happened. Prefer
+  // the catalog entry's title in that case; a genuine free-typed prompt that
+  // doesn't match the trigger text is shown as-is.
+  const rawIntent = trace.prompt?.message || catalogEntry.trigger?.text || null;
+  const intent = rawIntent === catalogEntry.trigger?.text
+    ? (catalogEntry.title || rawIntent)
+    : rawIntent;
   const tool = catalogEntry.primaryTool || trace.mcpResult?.tool || null;
   const mechanism = productsForUseCase(catalogEntry).map((p) => p.label);
   const seenTokenIds = new Set((trace.tokenEvents || []).map((e) => e.id));
@@ -101,7 +111,9 @@ export function computeVerdict(trace, catalogEntry) {
 
   if (missingSteps.length > 0) {
     return {
-      useCaseId, title: catalogEntry.title, state: 'incomplete', matchedSteps, missingSteps, vertical,
+      useCaseId, id: catalogEntry.id, title: catalogEntry.title,
+      expectedOutcome: catalogEntry.expectedOutcome || null,
+      state: 'incomplete', matchedSteps, missingSteps, vertical,
       intent, tool, mechanism,
       resultText: `Waiting on ${missingSteps.join(', ')}`,
     };
@@ -164,6 +176,11 @@ export function computeVerdict(trace, catalogEntry) {
         : 'Completed';
   return {
     useCaseId,
+    // Catalog identity carried alongside the verdict so consumers that need to
+    // name the use case (the Token Chain step pop-out) don't have to re-fetch
+    // /api/use-cases to render "UC7 — Step-up required · expected STEP_UP".
+    id: catalogEntry.id,
+    expectedOutcome: expected || null,
     title: catalogEntry.title,
     state,
     matchedSteps,
@@ -209,4 +226,14 @@ export function useProofOfEnforcement() {
   const ctx = useContext(ProofContext);
   if (!ctx) throw new Error('useProofOfEnforcement must be used within ProofOfEnforcementProvider');
   return ctx;
+}
+
+/**
+ * Same context, null instead of throwing. TokenChainTraceRail mounts on ~20
+ * surfaces and not all of them sit under ProofOfEnforcementProvider, so the
+ * rail cannot use the throwing hook to look up which use case is running.
+ * @returns {{verdict: object|null, history: object[]}|null}
+ */
+export function useProofOfEnforcementOptional() {
+  return useContext(ProofContext);
 }

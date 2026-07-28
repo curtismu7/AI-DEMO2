@@ -54,7 +54,7 @@ export interface ServerStats {
   startTime: Date;
 }
 
-export class BankingMCPServer extends EventEmitter {
+export class DemoMCPServer extends EventEmitter {
   private server: WebSocket.Server | null = null;
   private httpServer: HttpServer | null = null;
   private tlsServer: http2.Http2SecureServer | null = null;
@@ -160,7 +160,7 @@ export class BankingMCPServer extends EventEmitter {
           },
         ) as unknown as HttpServer;
 
-        console.log('[BankingMCPServer] mTLS enabled — connections require gateway client cert');
+        console.log('[DemoMCPServer] mTLS enabled — connections require gateway client cert');
       } else {
         this.httpServer = createServer((req, res) => {
           this.handleHttpRequest(req, res);
@@ -223,7 +223,7 @@ export class BankingMCPServer extends EventEmitter {
         if (this.config.enableLogging) {
           const addr = this.tlsServer.address();
           const actualTlsPort = addr && typeof addr === 'object' ? addr.port : tlsPort;
-          console.log(`[BankingMCPServer] TLS+ALPN listener started on ${this.config.host}:${actualTlsPort} (h2)`);
+          console.log(`[DemoMCPServer] TLS+ALPN listener started on ${this.config.host}:${actualTlsPort} (h2)`);
         }
       }
 
@@ -231,12 +231,12 @@ export class BankingMCPServer extends EventEmitter {
       this.stats.startTime = new Date();
 
       if (this.config.enableLogging) {
-        console.log(`[BankingMCPServer] Server started on ${this.config.host}:${this.config.port}`);
+        console.log(`[DemoMCPServer] Server started on ${this.config.host}:${this.config.port}`);
         if (this.httpTransport) {
           const resourceUrl = process.env.MCP_RESOURCE_URL ||
             `http://${this.config.host === '0.0.0.0' ? 'localhost' : this.config.host}:${this.config.port}`;
-          console.log(`[BankingMCPServer] HTTP MCP transport enabled — POST ${resourceUrl}/mcp`);
-          console.log(`[BankingMCPServer] RFC 9728 metadata — GET ${resourceUrl}/.well-known/oauth-protected-resource`);
+          console.log(`[DemoMCPServer] HTTP MCP transport enabled — POST ${resourceUrl}/mcp`);
+          console.log(`[DemoMCPServer] RFC 9728 metadata — GET ${resourceUrl}/.well-known/oauth-protected-resource`);
         }
       }
 
@@ -294,7 +294,7 @@ export class BankingMCPServer extends EventEmitter {
       await this.cleanup();
 
       if (this.config.enableLogging) {
-        console.log('[BankingMCPServer] Server stopped');
+        console.log('[DemoMCPServer] Server stopped');
       }
 
       this.emit('serverStopped', {
@@ -303,7 +303,7 @@ export class BankingMCPServer extends EventEmitter {
       });
 
     } catch (error) {
-      console.error('[BankingMCPServer] Error stopping server:', error);
+      console.error('[DemoMCPServer] Error stopping server:', error);
       throw error;
     }
   }
@@ -342,12 +342,12 @@ export class BankingMCPServer extends EventEmitter {
         if (bearerToken) {
           const decision = await authorizeLastHop(this.authManager, bearerToken);
           if (!decision.ok) {
-            console.warn(`[BankingMCPServer] Rejecting connection ${connectionId}: ${decision.reason}`);
+            console.warn(`[DemoMCPServer] Rejecting connection ${connectionId}: ${decision.reason}`);
             ws.close(1008, 'Agent token rejected');
             return;
           }
           connectionInfo.agentToken = bearerToken;
-          console.log(`[BankingMCPServer] Agent token validated via Authorization header for connection ${connectionId}`);
+          console.log(`[DemoMCPServer] Agent token validated via Authorization header for connection ${connectionId}`);
         }
       }
 
@@ -357,7 +357,7 @@ export class BankingMCPServer extends EventEmitter {
       this.stats.activeConnections++;
 
       if (this.config.enableLogging) {
-        console.log(`[BankingMCPServer] New connection: ${connectionId} (${this.stats.activeConnections} active)`);
+        console.log(`[DemoMCPServer] New connection: ${connectionId} (${this.stats.activeConnections} active)`);
       }
 
       // Set up connection event handlers
@@ -370,7 +370,7 @@ export class BankingMCPServer extends EventEmitter {
       });
 
     } catch (error) {
-      console.error(`[BankingMCPServer] Error handling connection ${connectionId}:`, error);
+      console.error(`[DemoMCPServer] Error handling connection ${connectionId}:`, error);
       await this.closeConnection(connectionId, 1011, 'Internal server error');
     }
   }
@@ -411,7 +411,7 @@ export class BankingMCPServer extends EventEmitter {
             if (connection.sessionId) {
               this.sessionManager.setSessionEmail(connection.sessionId, email);
             }
-            console.log(`[BankingMCPServer] session_init: stored email for connection ${connectionId}`);
+            console.log(`[DemoMCPServer] session_init: stored email for connection ${connectionId}`);
           }
           // No response expected for session_init
           return;
@@ -425,7 +425,7 @@ export class BankingMCPServer extends EventEmitter {
         }
 
         if (this.config.enableLogging) {
-          console.log(`[BankingMCPServer] Processing message from ${connectionId}: ${message.method}`);
+          console.log(`[DemoMCPServer] Processing message from ${connectionId}: ${message.method}`);
         }
 
         // Route message to appropriate handler
@@ -445,7 +445,7 @@ export class BankingMCPServer extends EventEmitter {
       });
 
     } catch (error) {
-      console.error(`[BankingMCPServer] Error processing message from ${connectionId}:`, error);
+      console.error(`[DemoMCPServer] Error processing message from ${connectionId}:`, error);
       this.stats.totalErrors++;
       
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -481,7 +481,7 @@ export class BankingMCPServer extends EventEmitter {
       this.stats.activeConnections = Math.max(0, this.stats.activeConnections - 1);
 
       if (this.config.enableLogging) {
-        console.log(`[BankingMCPServer] Connection closed: ${connectionId} (${this.stats.activeConnections} active)`);
+        console.log(`[DemoMCPServer] Connection closed: ${connectionId} (${this.stats.activeConnections} active)`);
       }
 
       this.emit('connectionClosed', {
@@ -493,7 +493,7 @@ export class BankingMCPServer extends EventEmitter {
       });
 
     } catch (error) {
-      console.error(`[BankingMCPServer] Error closing connection ${connectionId}:`, error);
+      console.error(`[DemoMCPServer] Error closing connection ${connectionId}:`, error);
     }
   }
 
@@ -575,13 +575,13 @@ export class BankingMCPServer extends EventEmitter {
     });
 
     this.server.on('error', (error: Error) => {
-      console.error('[BankingMCPServer] Server error:', error);
+      console.error('[DemoMCPServer] Server error:', error);
       this.emit('serverError', { error: error.message, timestamp: new Date() });
     });
 
     this.server.on('close', () => {
       if (this.config.enableLogging) {
-        console.log('[BankingMCPServer] Server closed');
+        console.log('[DemoMCPServer] Server closed');
       }
     });
   }
@@ -595,7 +595,7 @@ export class BankingMCPServer extends EventEmitter {
         const message = data.toString();
         await this.processMessage(connectionId, message);
       } catch (error) {
-        console.error(`[BankingMCPServer] Error handling message from ${connectionId}:`, error);
+        console.error(`[DemoMCPServer] Error handling message from ${connectionId}:`, error);
         await this.closeConnection(connectionId, 1011, 'Message processing error');
       }
     });
@@ -605,7 +605,7 @@ export class BankingMCPServer extends EventEmitter {
     });
 
     ws.on('error', async (error: Error) => {
-      console.error(`[BankingMCPServer] Connection error for ${connectionId}:`, error);
+      console.error(`[DemoMCPServer] Connection error for ${connectionId}:`, error);
       await this.closeConnection(connectionId, 1011, 'Connection error');
     });
 
@@ -635,7 +635,7 @@ export class BankingMCPServer extends EventEmitter {
     if (message.method === 'notifications/initialized') {
       connection.initialized = true;
       if (this.config.enableLogging) {
-        console.log(`[BankingMCPServer] Connection ${connectionId}: lifecycle ready (notifications/initialized received)`);
+        console.log(`[DemoMCPServer] Connection ${connectionId}: lifecycle ready (notifications/initialized received)`);
       }
       return null;
     }
@@ -647,7 +647,7 @@ export class BankingMCPServer extends EventEmitter {
         message.method !== 'initialize' &&
         message.method !== 'ping') {
       if (message.id !== undefined && message.id !== null) {
-        console.warn(`[BankingMCPServer] Premature request ${message.method} from ${connectionId} (notifications/initialized not yet received)`);
+        console.warn(`[DemoMCPServer] Premature request ${message.method} from ${connectionId} (notifications/initialized not yet received)`);
         return this.createErrorResponse(
           message.id,
           -32600,
@@ -700,11 +700,11 @@ export class BankingMCPServer extends EventEmitter {
       const responseData = JSON.stringify(responseWithVersion);
       
       // Log the response being sent back to client
-      console.log(`[BankingMCPServer] Sending response to ${connectionId}:`, JSON.stringify(responseWithVersion, null, 2));
+      console.log(`[DemoMCPServer] Sending response to ${connectionId}:`, JSON.stringify(responseWithVersion, null, 2));
       
       connection.ws.send(responseData);
     } catch (error) {
-      console.error(`[BankingMCPServer] Error sending response to ${connectionId}:`, error);
+      console.error(`[DemoMCPServer] Error sending response to ${connectionId}:`, error);
       await this.closeConnection(connectionId, 1011, 'Send error');
     }
   }
@@ -899,7 +899,7 @@ export class BankingMCPServer extends EventEmitter {
       const error = url.searchParams.get('error');
 
       if (error) {
-        console.error(`[BankingMCPServer] OAuth error: ${error}`);
+        console.error(`[DemoMCPServer] OAuth error: ${error}`);
         // Escape before interpolating: `error` is an attacker-controllable query
         // param, so echoing it raw into HTML is a reflected-XSS sink.
         const safeError = String(error).replace(/[&<>"']/g, (c) => (
@@ -931,13 +931,13 @@ export class BankingMCPServer extends EventEmitter {
         return;
       }
 
-      console.log(`[BankingMCPServer] Received OAuth callback - code: ${code.substring(0, 10)}..., state: ${state}`);
+      console.log(`[DemoMCPServer] Received OAuth callback - code: ${code.substring(0, 10)}..., state: ${state}`);
 
       // Exchange authorization code for user tokens
       const result = await this.messageHandler.handleAuthorizationCodeExchange(code, state);
 
       if (result.success) {
-        console.log(`[BankingMCPServer] OAuth authorization successful for session: ${result.sessionId}`);
+        console.log(`[DemoMCPServer] OAuth authorization successful for session: ${result.sessionId}`);
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end(`<!doctype html>
 <meta charset="utf-8">
@@ -973,7 +973,7 @@ export class BankingMCPServer extends EventEmitter {
       }
 
     } catch (error) {
-      console.error('[BankingMCPServer] Error handling OAuth callback:', error);
+      console.error('[DemoMCPServer] Error handling OAuth callback:', error);
       res.writeHead(500, { 'Content-Type': 'text/html' });
       res.end(`
         <html>
@@ -1010,7 +1010,7 @@ export class BankingMCPServer extends EventEmitter {
       }));
 
     } catch (error) {
-      console.error('[BankingMCPServer] Error checking auth status:', error);
+      console.error('[DemoMCPServer] Error checking auth status:', error);
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Internal server error' }));
     }
@@ -1092,7 +1092,7 @@ export class BankingMCPServer extends EventEmitter {
       res.end(JSON.stringify(tokenResponse));
 
     } catch (error) {
-      console.error('[BankingMCPServer] Token exchange error:', error);
+      console.error('[DemoMCPServer] Token exchange error:', error);
       
       // Handle specific error types
       if (error instanceof Error) {

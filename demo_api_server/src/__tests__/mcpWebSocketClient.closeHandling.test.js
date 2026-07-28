@@ -1,7 +1,7 @@
 /**
  * @file mcpWebSocketClient.closeHandling.test.js
  * @description Regression test: a server-side policy rejection (clean WS close,
- * e.g. BankingMCPServer.handleConnection's authorizeLastHop check calling
+ * e.g. DemoMCPServer.handleConnection's authorizeLastHop check calling
  * ws.close(1008, 'Agent token rejected')) must reject the pending RPC promise
  * immediately with the close reason, not silently wait out the 15s timeout
  * and report a generic "MCP call timed out".

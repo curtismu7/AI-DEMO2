@@ -19,7 +19,7 @@
 import axios from 'axios';
 import { type GatewayConfig, isP1AZActive, usingRealPdpEndpoint } from '../config';
 import type { IntentValidationResult } from '../intentTokenValidator';
-import type { DecodedGatewayToken } from '../tokenValidator';
+import { type DecodedGatewayToken, isJwksVerificationEnabled } from '../tokenValidator';
 import { evaluateScopeDecisionLocally, validateActClaim } from './toolScopes'; // evaluateScopeDecisionLocally kept for tests that import it directly
 
 export type AuthzDecisionOutcome = 'PERMIT' | 'DENY' | 'INDETERMINATE';
@@ -198,6 +198,25 @@ export function buildAuthorizeParameters(
   if (toolArgs?.amount !== undefined) {
     base.Amount = String(toolArgs.amount);
     base.TransactionAmount = String(toolArgs.amount);
+  }
+
+  // C1 parity — signing-key identity. The BFF's McpFirstTool gate sends this;
+  // without it the two gates evaluate the SAME call on different inputs, the
+  // divergence class that caused F3.
+  //
+  // Only 'true' or omitted is honest here, and 'false' is unreachable by
+  // construction: in JWKS mode _decodeAndVerify THROWS on an unmatched kid, so
+  // a token that reached this function demonstrably names a published key.
+  // Without JWKS the gateway is decode-only and knows nothing — omit, because
+  // omission means "unknown" and the cloud attribute defaults true (C1 rule 3).
+  //
+  // String 'true', not a boolean: this builder is Record<string,string> and the
+  // mock parses the same way it parses HitlApproved.
+  //
+  // TokenKid itself is deliberately not sent — it is reportable-only (no rule
+  // reads it) and the raw token is not in scope here, only the decoded payload.
+  if (isJwksVerificationEnabled()) {
+    base.TokenKidKnown = 'true';
   }
 
   // Authentication strength. Without this, the cloud rule RequiresMcpStepUp

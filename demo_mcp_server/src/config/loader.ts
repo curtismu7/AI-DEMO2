@@ -5,7 +5,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { BankingMCPServerConfig, EnvironmentVariables } from '../interfaces/config';
+import { DemoMCPServerConfig, EnvironmentVariables } from '../interfaces/config';
 import { ConfigurationManager, ConfigurationError } from './index';
 import { Environment } from './environments';
 
@@ -27,11 +27,11 @@ export class SecureConfigurationLoader {
     this.sources.push(source);
   }
 
-  public loadFromEnvironment(): BankingMCPServerConfig {
+  public loadFromEnvironment(): DemoMCPServerConfig {
     return this.configManager.loadConfiguration();
   }
 
-  public loadFromFile(filePath: string): BankingMCPServerConfig {
+  public loadFromFile(filePath: string): DemoMCPServerConfig {
     if (!fs.existsSync(filePath)) {
       throw new ConfigurationError(`Configuration file not found: ${filePath}`);
     }
@@ -62,7 +62,7 @@ export class SecureConfigurationLoader {
     }
   }
 
-  public loadFromMultipleSources(): BankingMCPServerConfig {
+  public loadFromMultipleSources(): DemoMCPServerConfig {
     const mergedConfig: Partial<EnvironmentVariables> = {};
 
     for (const source of this.sources) {
@@ -257,7 +257,7 @@ export class SecureConfigurationLoader {
 }
 
 // Utility functions for configuration management
-export function loadConfigurationFromFile(filePath: string, environment?: Environment): BankingMCPServerConfig {
+export function loadConfigurationFromFile(filePath: string, environment?: Environment): DemoMCPServerConfig {
   const loader = new SecureConfigurationLoader(environment);
   return loader.loadFromFile(filePath);
 }
