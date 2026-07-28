@@ -810,6 +810,11 @@ export default function AdminSideNav({ user }) {
           path: "/architecture/token-flow",
           icon: "lnk",
         },
+        {
+          label: "Token Chain Architecture",
+          path: "/architecture/token-chain",
+          icon: "lnk",
+        },
         { label: "Interactive Flow", path: "/architecture/flow", icon: ">" },
         {
           label: "Phase 266 — 3 Paths",
