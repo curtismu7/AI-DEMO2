@@ -102,6 +102,56 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-28 — UC8 403'd the call the human had just approved; UC7 scored a satisfied step-up as "Mismatch"
+
+**Files changed:** `demo_api_server/services/mcpToolAuthorizationService.js`
+(`_applyTransactionPolicy` + `_localAmountLimitFallback` take `hitlSatisfied`),
+`demo_api_server/src/__tests__/mcpToolAuthorizationService.test.js`,
+`demo_api_ui/src/services/tokenChainTrace/tokenChainTraceStore.js` (`gateToCarry`),
+`demo_api_ui/src/services/tokenChainTrace/__tests__/tokenChainTraceStore.test.js`.
+
+**What was broken (UC8, $300):** on the post-approval retry the MCP delegation
+endpoint correctly honored the HITL receipt and dropped its HITL statement
+(live log, 15:36:01 — `HitlApproved:true` in, no HITL statement out). But the
+Transaction decision endpoint is never told about the receipt — its params are
+`{Amount, TransactionAmount, TransactionType, UserId}` only — so it kept
+answering "Transaction Consent Required", and the local confirm-band fallback
+kept re-raising the same gate. `_applyTransactionPolicy` promoted that back onto
+`r.hitlRequired`, and `mapLivePingOneResult`'s receipt branch
+(`r.hitlRequired && hitlApproved`) turned it into a 403
+`mcp_hitl_receipt_rejected` — the gate accusing itself of policy misconfiguration
+over an obligation the overlay had just re-added. $600 escaped because step-up is
+promoted first and `stepUpAlreadyVerified` clears it; HITL had no equivalent
+because the receipt branch runs BEFORE the `hitlAlreadyVerified` consume.
+
+**What was broken (UC7, $600):** the step-up resume re-enters `sendAgentMessage`,
+whose `beginTrace()` wipes `trace.authorize` — taking the `STEP_UP` outcome with
+it. The retry recorded a bare PERMIT, so ProofStrip compared PERMIT against
+expected `STEP_UP` and rendered "Mismatch" on a run where enforcement had worked
+exactly as designed (gate fired, MFA satisfied, order placed). HITL never hit
+this because its retry stays inside one trace, where `ingestAuthorize`'s existing
+`priorGate` carry-forward already handles it.
+
+**What was fixed:** the transaction overlay and the local amount ladder skip the
+HITL/consent band when `hitlApproved || hitlAlreadyVerified`. DENY and step-up
+bands stay unconditional. On the UI side `gateToCarry` hands an undischarged gate
+to the run that resumes it.
+
+**Do not break:** the receipt-rejected 403 must still fire when the ENGINE's own
+decision keeps requiring HITL after approval — that is a real misconfiguration
+signal, and both pre-existing tests for it are the discriminator. The gate
+carry-over must stay non-sticky: it is handed on exactly once (`priorGate`
+present means already carried) and only when the resume replays the identical
+prompt, or a later unrelated run inherits a verdict it never earned. A declined
+gate is never carried.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/mcpToolAuthorizationService.test.js --testPathIgnorePatterns="/node_modules/" --forceExit`
+(45 passed) and `cd demo_api_ui && npm run test:unit && npm run build`.
+End-to-end (after merge + `docker restart ai-demo-api-server`): `checkout
+headphones for $300` must complete after approval with no
+`mcp_hitl_receipt_rejected`, and `checkout headphones for $600` must show
+"Step-up required — Verified", not "Mismatch".
+
 ### 2026-07-28 — Simple Stepper blamed a recovered tools/list failure for the halt and ghosted 13 steps that ran
 
 **Files changed:** `demo_api_server/routes/agentRun.js` (new `markRecovered`,

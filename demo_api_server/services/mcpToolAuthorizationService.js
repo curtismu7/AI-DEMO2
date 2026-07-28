@@ -297,7 +297,7 @@ function resolveStepUpMethod(useCaseId) {
  * @param {{amount: number, acr?: string}} opts
  * @returns {object} r, possibly upgraded
  */
-function _localAmountLimitFallback(r, { amount, acr }) {
+function _localAmountLimitFallback(r, { amount, acr, hitlSatisfied = false }) {
   const denyAmount = simulatedAuthorizeService.getDenyAmountUsd();
   const stepUpAmount = simulatedAuthorizeService.getStepUpAmountUsd();
   const confirmAmount = simulatedAuthorizeService.getConfirmAmountUsd();
@@ -326,7 +326,10 @@ function _localAmountLimitFallback(r, { amount, acr }) {
       transactionPolicyFallback: true,
     };
   }
-  if (amount >= confirmAmount && !acrStrong) {
+  // The confirm band is a HITL gate — do not re-raise it on a call the human has
+  // already approved. DENY and step-up above are unconditional: DENY always wins,
+  // and a discharged step-up is cleared downstream by stepUpAlreadyVerified.
+  if (amount >= confirmAmount && !acrStrong && !hitlSatisfied) {
     return {
       ...r,
       hitlRequired: true,
@@ -364,7 +367,10 @@ function _localAmountLimitFallback(r, { amount, acr }) {
  * @param {{amount: number|null, transactionType: string|null, userId: string, acr: string}} opts
  * @returns {Promise<object>} r, possibly upgraded to DENY or STEP_UP
  */
-async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr, useCaseId }) {
+async function _applyTransactionPolicy(
+  r,
+  { amount, transactionType, userId, acr, useCaseId, hitlSatisfied = false },
+) {
   // Explicit step-up trigger: a use case may DECLARE its step-up method in the
   // catalog — 'ciba' (UC22, out-of-band) or 'p1mfa' (UC7, device-list MFA).
   // Forcing stepUpRequired makes mapLivePingOneResult emit mcp_step_up_required
@@ -412,7 +418,14 @@ async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr
     // Promote Transaction-policy HITL/consent onto the MCP gate. The gate itself
     // often PERMITs vertical writes (pay_bill, checkout, …) with no obligation;
     // without this, UC8 ($300) executed and ProofStrip showed authorize mismatch.
-    if (t && (t.consentRequired || t.hitlRequired)) {
+    //
+    // Not on a call the human has ALREADY approved. The Transaction endpoint is
+    // never told about the HITL receipt (its params are amount/type/user only),
+    // so it keeps answering "Transaction Consent Required" on the retry. Promoting
+    // that made the receipt-rejected branch in mapLivePingOneResult 403 the very
+    // call the human had just authorized — the gate accusing itself of
+    // misconfiguration over an obligation this overlay re-added.
+    if (!hitlSatisfied && t && (t.consentRequired || t.hitlRequired)) {
       return {
         ...r,
         hitlRequired: true,
@@ -436,14 +449,14 @@ async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr
       '[mcpAuthz] transaction policy consult failed — applying local amount fallback:',
       err.message,
     );
-    return _localAmountLimitFallback(r, { amount, acr });
+    return _localAmountLimitFallback(r, { amount, acr, hitlSatisfied });
   }
   // Local amount-band fallback when Transaction consult returned bare PERMIT (no
   // DENY/step-up/HITL). Live P1AZ Transaction endpoint may PERMIT without any
   // gate for agent vertical writes; the amount ladder still applies so UC6/7/8
   // fire correctly even when the Transaction endpoint does not enforce them.
   if (!forceStepUp && Number.isFinite(amount) && amount > 0) {
-    return _localAmountLimitFallback(r, { amount, acr });
+    return _localAmountLimitFallback(r, { amount, acr, hitlSatisfied });
   }
   return r;
 }
@@ -1191,6 +1204,7 @@ async function evaluateMcpFirstToolGate(opts) {
     const r = await pingOneAuthorizeService.evaluateMcpToolDelegation(liveDelegationArgs);
     return mapLivePingOneResult(await _applyTransactionPolicy(r, {
       amount: toolAmount, transactionType, userId: policyUserId || subjectId, acr: userAcr, useCaseId,
+      hitlSatisfied: hitlApproved || hitlAlreadyVerified,
     }));
   } catch (err) {
     if (USE_SIMULATED) {
