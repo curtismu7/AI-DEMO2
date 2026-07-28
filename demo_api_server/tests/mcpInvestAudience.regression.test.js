@@ -9,8 +9,8 @@
 
 process.env.SKIP_TOKEN_SIGNATURE_VALIDATION = 'false';
 process.env.ENDUSER_AUDIENCE = 'enduser.ping.demo';
-process.env.MCP_GW_RESOURCE_URI = 'mcpgateway.ping.demo';
-process.env.MCP_INVEST_AUDIENCE = 'mcp-invest.ping.demo';
+process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI = 'mcpgateway.ping.demo';
+process.env.PINGONE_RESOURCE_MCP_INVEST_URI = 'mcp-invest.ping.demo';
 
 let mockPayload;
 jest.mock('../services/tokenValidationService', () => ({

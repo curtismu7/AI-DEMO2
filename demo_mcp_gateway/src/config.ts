@@ -261,14 +261,15 @@ export function loadConfig(): GatewayConfig {
     mcpOlbWsUrl: optional('MCP_GW_OLB_WS_URL', optional('MCP_OLB_WS_URL', 'ws://localhost:8080')),
     mcpInvestWsUrl: optional('MCP_GW_INVEST_WS_URL', optional('MCP_INVEST_WS_URL', 'ws://localhost:8081')),
     // Resource URIs default to the audiences bootstrap provisions. Setup
-    // writes ENDUSER_AUDIENCE and MCP_RESOURCE_URI; we accept either the
+    // writes ENDUSER_AUDIENCE and PINGONE_RESOURCE_MCP_SERVER_URI; we accept either the
     // service-specific var or those fallbacks.
     mcpOlbResourceUri: optional('MCP_OLB_RESOURCE_URI',
-      optional('MCP_RESOURCE_URI', 'mcpserver.ping.demo')),
-    mcpInvestResourceUri: optional('MCP_INVEST_RESOURCE_URI',
+      optional('PINGONE_RESOURCE_MCP_SERVER_URI', 'mcpserver.ping.demo')),
+    mcpInvestResourceUri: optional('PINGONE_RESOURCE_MCP_INVEST_URI',
       optional('MCP_INVEST_AUDIENCE', 'mcp-invest.ping.demo')),
     mcpJwtVerifierHttpUrl: optional('MCP_GW_JWTVERIFIER_HTTP_URL', 'http://localhost:8083'),
-    mcpJwtVerifierResourceUri: optional('MCP_JWTVERIFIER_RESOURCE_URI', 'mcp-jwt-verifier.ping.demo'),
+    mcpJwtVerifierResourceUri: optional('PINGONE_RESOURCE_JWT_VERIFIER_URI',
+      optional('MCP_JWTVERIFIER_RESOURCE_URI', 'mcp-jwt-verifier.ping.demo')),
     pingAuthorizeEndpoint: optional('PINGAUTHORIZE_ENDPOINT', ''),
     pingAuthorizeWorkerId: optional('PINGAUTHORIZE_WORKER_ID', ''),
     pingAuthorizeMockBase: optional('PINGAUTHORIZE_MOCK_BASE', '') || undefined,

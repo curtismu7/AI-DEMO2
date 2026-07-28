@@ -28,10 +28,9 @@ function getBffResourceAudience() {
 /** Audience for the in-flow (gateway TX) resource-server hop. */
 function getInFlowResourceAudience() {
   return firstAudience(
-    process.env.MCP_GW_RESOURCE_URI ||
     process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI ||
-    configStore.getEffective('mcp_gw_resource_uri') ||
     configStore.getEffective('pingone_resource_mcp_gateway_uri') ||
+    configStore.getEffective('mcp_gw_resource_uri') ||
     '',
   );
 }

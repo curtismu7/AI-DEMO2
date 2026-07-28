@@ -356,9 +356,9 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         // old chain for the Node-gateway path / if resolution is unavailable.
         const expectedAud =
             require('./mcpToolAuthorizationService').resolveExpectedMcpResourceUri() ||
-            configStore.getEffective('pingone_resource_mcp_gateway_uri') ||
-            process.env.MCP_GW_RESOURCE_URI ||
             process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI ||
+            configStore.getEffective('pingone_resource_mcp_gateway_uri') ||
+            configStore.getEffective('mcp_gw_resource_uri') ||
             null;
         // Wrong audience: token decoded fine but its aud doesn't include the gateway's.
         // This is a CONFIG drift (e.g. MCP_SERVER_RESOURCE_URI set to the MCP-server aud

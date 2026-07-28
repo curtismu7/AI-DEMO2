@@ -109,9 +109,9 @@ const PIPELINE_ROUTED_SIMS = new Set(['rogue-actor', 'cross-owner-account']);
  */
 function _gatewayAud() {
   return (
-    configStore.getEffective('pingone_resource_mcp_gateway_uri') ||
-    process.env.MCP_GW_RESOURCE_URI ||
     process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI ||
+    configStore.getEffective('pingone_resource_mcp_gateway_uri') ||
+    configStore.getEffective('mcp_gw_resource_uri') ||
     ''
   );
 }
@@ -370,8 +370,8 @@ function _gatewayExchangeTarget(toolScopes) {
   const pgAud =
     firstHttpResourceUri(process.env.PINGONE_RESOURCE_PINGGATEWAY_URI) ||
     firstHttpResourceUri(configStore.getEffective('pingone_resource_pinggateway_uri')) ||
-    firstHttpResourceUri(process.env.MCP_GW_RESOURCE_URI) ||
-    firstHttpResourceUri(configStore.getEffective('mcp_gw_resource_uri'));
+    firstHttpResourceUri(process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI) ||
+    firstHttpResourceUri(configStore.getEffective('pingone_resource_mcp_gateway_uri'));
   if (!pgAud) return { audience: _gatewayAud(), scopes: toolScopes, viaPingGateway };
   const invokeScope =
     configStore.getEffective('gateway_mcp_invoke_scope') ||
