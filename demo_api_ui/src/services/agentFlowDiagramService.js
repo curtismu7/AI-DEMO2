@@ -153,7 +153,7 @@ function buildCompletedSteps(toolName, tokenEvents, ok, errorMessage) {
         }
         return 'Validated session; forwarded to MCP proxy (WebSocket)';
       })(),
-      status: failed || badScopes ? 'error' : 'done',
+      status: ok ? 'done' : 'error',
     },
     {
       id: 'mcp-gateway',
@@ -161,7 +161,7 @@ function buildCompletedSteps(toolName, tokenEvents, ok, errorMessage) {
       detail: exchanged
         ? `TX token received (aud: ${exchanged.audienceNarrowed || 'mcp-gw'}, act: agent1) — sidebanding to PingOne Authorize`
         : 'Routes tool call; sidebands to PingOne Authorize for scope/AUD/HITL decision',
-      status: failed || badScopes ? 'error' : 'done',
+      status: ok ? 'done' : 'error',
     },
     {
       id: 'pingauthorize',
