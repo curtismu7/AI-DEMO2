@@ -484,6 +484,12 @@ async function runMcpToolPipeline(ctx) {
                     ...(ctx.useCaseId ? { useCaseId: ctx.useCaseId } : {}),
                     ...(ctx.vertical ? { vertical: ctx.vertical } : {}),
                 },
+                ...(mcpAuthz.block.body.gateEvaluation && mcpAuthz.block.body.secondaryEvaluation ? {
+                    mcpAuthorizeEvaluations: [
+                        { ...mcpAuthz.block.body.gateEvaluation, engine: 'pingone', decisionContext: 'McpFirstTool' },
+                        { ...mcpAuthz.block.body.secondaryEvaluation, engine: 'pingone', decisionContext: 'TransactionAmount' },
+                    ],
+                } : {}),
             } };
         }
         if (mcpAuthz.ran && mcpAuthz.simulatedError) {
@@ -994,6 +1000,12 @@ async function runMcpToolPipeline(ctx) {
         };
         if (mcpAuthorizeEvaluationThisRequest) {
             out.mcpAuthorizeEvaluation = mcpAuthorizeEvaluationThisRequest;
+            if (mcpAuthorizeEvaluationThisRequest.gateEvaluation && mcpAuthorizeEvaluationThisRequest.secondaryEvaluation) {
+                out.mcpAuthorizeEvaluations = [
+                    { ...mcpAuthorizeEvaluationThisRequest.gateEvaluation, engine: 'pingone', decisionContext: 'McpFirstTool' },
+                    { ...mcpAuthorizeEvaluationThisRequest.secondaryEvaluation, engine: 'pingone', decisionContext: 'TransactionAmount' },
+                ];
+            }
         }
 
         // Stream response when using HTTP/2 transport (client detects via Content-Type)
