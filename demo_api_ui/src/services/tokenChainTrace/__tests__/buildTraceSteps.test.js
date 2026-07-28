@@ -735,4 +735,32 @@ describe("buildTraceSteps — dynamic authorize cards (multi-decision)", () => {
     const steps = buildTraceSteps({ ...EMPTY_TRACE, authorizeEvaluations: [] });
     expect(steps.filter((s) => s.baseId === "authorize")).toHaveLength(1);
   });
+
+  test("a completed trace (outcome 'ok') renders a satisfied STEP_UP secondary card as done, not active", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      authorizeEvaluations: [
+        { decision: "PERMIT", decisionId: "gate-1", engine: "pingone", decisionContext: "McpFirstTool" },
+        { decision: "STEP_UP", decisionId: "limit-2", engine: "pingone", decisionContext: "TransactionAmount" },
+      ],
+    });
+    const authorizeSteps = steps.filter((s) => s.baseId === "authorize");
+    expect(authorizeSteps).toHaveLength(2);
+    // The run already finished successfully — a STEP_UP the user already
+    // satisfied earlier must not render as a permanently "active" ask.
+    expect(authorizeSteps[1].status).toBe("done");
+  });
+
+  test("a mid-flight trace (no terminal outcome) still renders the STEP_UP secondary card as active", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      authorizeEvaluations: [
+        { decision: "PERMIT", decisionId: "gate-1", engine: "pingone", decisionContext: "McpFirstTool" },
+        { decision: "STEP_UP", decisionId: "limit-2", engine: "pingone", decisionContext: "TransactionAmount" },
+      ],
+    });
+    const authorizeSteps = steps.filter((s) => s.baseId === "authorize");
+    expect(authorizeSteps[1].status).toBe("active");
+  });
 });

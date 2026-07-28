@@ -443,8 +443,16 @@ export function buildTraceSteps(trace) {
     // policy DENY) — one card per decision, in execution order.
     authorizeEvaluations.forEach((evalObj, idx) => {
       const decision = evalObj && evalObj.decision != null ? String(evalObj.decision).toUpperCase() : "";
+      // A challenge-type decision (STEP_UP/HITL_REQUIRED/INDETERMINATE) is only
+      // "active" (awaiting human approval) while the run is still in flight.
+      // Once the trace has completed (outcome 'ok'/'error'), the challenge was
+      // already satisfied earlier in the session (stepUpAlreadyVerified /
+      // hitlAlreadyVerified) — render it as done, same as the single-decision
+      // path already does via `traceComplete`, so a finished run never shows a
+      // stale "must approve" card.
       const status = decision === "DENY" ? "error"
-        : (decision === "INDETERMINATE" || decision === "STEP_UP" || decision === "HITL_REQUIRED") ? "active"
+        : (decision === "INDETERMINATE" || decision === "STEP_UP" || decision === "HITL_REQUIRED")
+          ? (traceComplete ? "done" : "active")
         : "done";
       const step = makeStep("authorize", status, evalObj ? buildAuthorizeDetail(evalObj) : {});
       step.id = idx === 0 ? "authorize" : `authorize:${idx + 1}`;
