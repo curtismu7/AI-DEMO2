@@ -55,7 +55,7 @@ Copy `demo_api_server/.env` to your deployment. All secrets are required.
 
 **Removed duplicates:**
 - ✅ `GW_INTROSPECTION_CLIENT_ID/SECRET` → consolidated into `PINGONE_TOKEN_EXCHANGER_*`
-- ✅ `AGENT_CLIENT_ID/SECRET` → renamed to `PINGONE_AGENT_CLIENT_*`
+- ✅ `AGENT_CLIENT_ID/SECRET` → renamed to `PINGONE_AGENT_CLIENT_*` (code updated; env still accepts both names via backward-compat fallback in configStore.js)
 
 **Consolidated resource URIs:**
 - ✅ `MCP_RESOURCE_URI`, `MCP_SERVER_RESOURCE_URI`, `MCP_GW_RESOURCE_URI`, `PINGONE_RESOURCE_TWO_EXCHANGE_URI` → single `PINGONE_RESOURCE_MCP_GATEWAY_URI`

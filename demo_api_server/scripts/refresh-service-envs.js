@@ -260,6 +260,9 @@ async function main() {
       const base = String(fb('PUBLIC_APP_URL') || fb('PINGONE_PUBLIC_APP_URL') || '').replace(/\/+$/, '');
       return base ? `${base}/api/auth/oauth/ai-agent-placeholder-callback` : '';
     })(),
+    // Main agent app credentials (Task 2: renamed AGENT_CLIENT_ID → PINGONE_AGENT_CLIENT_ID)
+    PINGONE_AGENT_CLIENT_ID:               creds.agentClientId,
+    PINGONE_AGENT_CLIENT_SECRET:           creds.agentSecret,
     OAUTH_PAR_ENDPOINT: fb('OAUTH_PAR_ENDPOINT') || fb('PINGONE_PAR_ENDPOINT') || `${asBase}/par`,
     PINGONE_TOKEN_EXCHANGER_CLIENT_ID:    creds.mcpExchangerClientId,
     PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET: creds.mcpExchangerSecret,
@@ -319,8 +322,8 @@ async function main() {
   writeEnvFile(path.join(ROOT, 'demo_agent_service', '.env'), {
     ...shared,
     PINGONE_TOKEN_ENDPOINT: `${asBase}/token`,
-    AGENT_CLIENT_ID:        creds.agentClientId,
-    AGENT_CLIENT_SECRET:    creds.agentSecret,
+    PINGONE_AGENT_CLIENT_ID:        creds.agentClientId,
+    PINGONE_AGENT_CLIENT_SECRET:    creds.agentSecret,
     LLM_PROVIDER:           fb('LLM_PROVIDER') || 'helix',
     LLAMACPP_BASE_URL:      fb('LLAMACPP_BASE_URL'),
     OLLAMA_BASE_URL:        fb('OLLAMA_BASE_URL'),
