@@ -102,6 +102,43 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-28 — Every rendered ProofStrip repainted with the newest run's verdict
+
+**Files changed:** `demo_api_ui/src/services/tokenChainTrace/tokenChainTraceStore.js`
+(traces carry a `runId`), `demo_api_ui/src/context/ProofOfEnforcementContext.js`
+(verdicts stored per run, `verdictFor(runId)` replaces the `history` array),
+`demo_api_ui/src/components/ProofStrip.jsx` (`runId` prop),
+`demo_api_ui/src/components/AIAgent.js` (`addMessage` stamps `proofRunId` on
+assistant bubbles; one strip per run, on that run's last bubble), plus unit
+tests in both `__tests__` dirs.
+
+**What was broken:** ProofStrip instances were selected by POSITION —
+`<ProofStrip rank={assistantRankFromEnd} />` — and read live global state:
+rank 0 took the current `verdict`, rank 1 indexed a `history` array. That
+array was appended once per trace-store EMIT (beginTrace, every
+`ingestTokenEvent`, `ingestAuthorize`, `completeTrace`), so a single run
+produced ~6 entries and `history[1]` was the SAME run one event earlier, not
+the previous run. Consequences: a run that emitted two assistant bubbles (e.g.
+"Running Demo step 1…" + the reply) rendered its result twice, and starting
+any new run repainted every visible strip with the new run's state — a green
+UC1 "Verified" strip turned yellow "Incomplete" the moment UC14 ran.
+
+**What was fixed:** `beginTrace` stamps a monotonic `runId` (a counter, not
+`startedAt` — two runs can share a millisecond). The provider files each
+verdict under its run and replaces rather than appends, keeping the last 20
+runs. `addMessage` captures the in-flight `runId` on assistant messages;
+render shows one strip per run, on that run's last bubble, resolved via
+`verdictFor(msg.proofRunId)`.
+
+**Do not break:** `verdict` (latest run) is still what `VerifiedBanner`,
+`TokenChainPanel` and `LiveUseCaseWorkbenchPage` read — unchanged. `ProofStrip`
+with no `runId` still renders that latest verdict. Do not reintroduce
+positional/rank lookup: assistant-message index does not map to runs.
+
+**Verify:** `cd demo_api_ui && npm run test:unit && npm run build`. The pinning
+test is "a later run does not repaint an earlier run's verdict"
+(`src/context/__tests__/ProofOfEnforcementContext.test.js`) — collapsing the
+key in `recompute` back to a constant makes it fail.
 ### 2026-07-28 — `/use-cases/live` Token Chain clipped; stage stacking used a viewport breakpoint
 
 **Files changed:** `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.css` only.
