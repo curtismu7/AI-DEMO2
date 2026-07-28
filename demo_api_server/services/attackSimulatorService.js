@@ -690,12 +690,14 @@ async function _runInsufficientScope(subjectToken, useCaseId, tokenChainEvents) 
   //   code: 'mcp_tool_error' + httpStatus: 200  (JSON-RPC error in 200 response)
   //   code: 'gateway_policy_denied' + httpStatus: 403  (gateway-layer 403)
   // Both are canonicalized to the sim's reason-distinct code 'insufficient_scope'.
+  const simTool = 'create_transfer';
+  const simArgs = { amount: 1, toAccountId: 'sim-acc-001' };
   try {
     await callToolViaGateway(
       null,
       exchangedToken,
-      'create_transfer',
-      { amount: 1, toAccountId: 'sim-acc-001' }
+      simTool,
+      simArgs
     );
     // If no error thrown, scope enforcement did not fire — unexpected permit.
     tokenChainEvents.push(buildTokenEvent(
@@ -726,7 +728,10 @@ async function _runInsufficientScope(subjectToken, useCaseId, tokenChainEvents) 
       'error',
       null,
       `Gateway rejected the call with ${httpStatus} ${errorCode}: ${reason}`,
-      { error: errorCode, httpStatus }
+      // tool/arguments let the Token Chain UI replay the attempted call in
+      // the Agent Gateway Tester — this sim never reaches mcpResult since
+      // the gateway rejects it before the MCP server runs.
+      { error: errorCode, httpStatus, tool: simTool, arguments: simArgs }
     ));
     stampUseCaseId(tokenChainEvents, useCaseId);
     return { sim, useCaseId, status: httpStatus, errorCode, reason, tokenChainEvents };
