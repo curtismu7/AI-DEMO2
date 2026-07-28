@@ -6,10 +6,9 @@
 #   brew install kubeseal
 #
 # Usage:
-#   1. Create namespace: kubectl apply -f k8s/01-namespace.yaml
-#   2. Install sealed-secrets: kubectl apply -f k8s/00-sealed-secrets-install.yaml
-#   3. Wait for controller: kubectl get deploy -n ai-demo sealed-secrets-controller
-#   4. Seal secrets: k8s/sealed-secrets.sh
+#   1. Install sealed-secrets: kubectl apply -f k8s/00-sealed-secrets-install.yaml
+#   2. Wait for controller: kubectl get deploy -n ping-devops-cmuir sealed-secrets-controller
+#   3. Seal secrets: k8s/sealed-secrets.sh
 #
 # Output: k8s/04-sealed-secrets.yaml (encrypted, safe to commit)
 
@@ -17,7 +16,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-NS="${K8S_NAMESPACE:-ai-demo}"
+NS="${K8S_NAMESPACE:-ping-devops-cmuir}"
 
 # Resolve assets from primary checkout if in a worktree
 ASSET_ROOT="$REPO_ROOT"
