@@ -46,6 +46,20 @@ function makeConfig(passthrough: boolean): GatewayConfig {
     bankingResourceServerResourceUri: 'https://banking-resource-server.ping.demo',
     mtlsEnabled: false,
     mtlsCertPath: '/tmp/gw-client.crt',
+    mcpJwtVerifierHttpUrl: 'http://localhost:8083',
+    mcpJwtVerifierResourceUri: 'mcp-jwt-verifier.ping.demo',
+    allowLocalScopeFallback: false,
+    introspectionEnabled: false,
+    introspectionProvider: 'pinggateway',
+    authorizedActorClientId: '',
+    requireActForAgentTools: false,
+    intentTokenRequired: false,
+    requireRarIntent: false,
+    rateLimitEnabled: false,
+    wbaMode: 'monitor',
+    rateLimitMaxRequests: 20,
+    rateLimitWindowMs: 60000,
+    introspectionSimDown: false,
   };
 }
 

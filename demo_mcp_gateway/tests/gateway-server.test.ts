@@ -58,6 +58,19 @@ const stubConfig: GatewayConfig = {
   mtlsEnabled: false,
   mtlsCertPath: '/tmp/gw-client.crt',
   authorizedActorClientId: '',
+  mcpJwtVerifierHttpUrl: 'http://localhost:8083',
+  mcpJwtVerifierResourceUri: 'mcp-jwt-verifier.ping.demo',
+  allowLocalScopeFallback: false,
+  introspectionEnabled: false,
+  introspectionProvider: 'pinggateway',
+  requireActForAgentTools: false,
+  intentTokenRequired: false,
+  requireRarIntent: false,
+  rateLimitEnabled: false,
+  wbaMode: 'monitor',
+  rateLimitMaxRequests: 20,
+  rateLimitWindowMs: 60000,
+  introspectionSimDown: false,
 };
 
 const INTERNAL_SECRET = stubConfig.bffInternalSecret;
