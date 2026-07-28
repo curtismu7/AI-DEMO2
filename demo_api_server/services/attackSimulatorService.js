@@ -1099,7 +1099,26 @@ async function _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents) 
   let exchangedToken;
   let result;
   try {
-    exchangedToken = await _exchangeSimToken(subjectToken, gatewayAud, ['read']);
+    // Exchange failure is a broken/misconfigured token exchange, not the
+    // gateway's introspection fail-closed behavior this sim tests for —
+    // keep it out of the fail-closed catch below so it can't be mislabeled
+    // "Verified (as expected)".
+    try {
+      exchangedToken = await _exchangeSimToken(subjectToken, gatewayAud, ['read']);
+    } catch (err) {
+      const errorCode = err.pingoneError || 'exchange_failed';
+      const reason = `Token exchange failed: ${err.message}`;
+      tokenChainEvents.push(buildTokenEvent(
+        'sim-exchange-error',
+        'Token Exchange FAILED',
+        'error',
+        null,
+        reason,
+        { error: errorCode },
+      ));
+      return { sim, useCaseId, status: 502, errorCode, reason, tokenChainEvents };
+    }
+
     await callToolViaGateway(null, exchangedToken, 'get_my_accounts', {});
     // No throw means the gateway did NOT fail closed as expected.
     result = {
