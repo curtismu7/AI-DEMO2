@@ -164,6 +164,58 @@ describe('mcpToolAuthorizationService', () => {
         expect(r.block.body.error).toBe('mcp_hitl_required');
       });
 
+      it('does not re-promote transaction consent onto a call the human already approved (UC8 $300 retry)', async () => {
+        // Live UC8 retry: the MCP delegation endpoint HAS honored the receipt and
+        // dropped its HITL statement, but the Transaction endpoint is never told
+        // the human approved, so it still answers "Transaction Consent Required".
+        // Promoting that back onto r.hitlRequired made the receipt-rejected branch
+        // fire and 403 the very call the human had just authorized.
+        pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({
+          decision: 'PERMIT', hitlRequired: false, decisionId: 'gate-1',
+        });
+        pingOneAuthorizeService.evaluateTransaction.mockResolvedValue({
+          decision: 'PERMIT', consentRequired: true, decisionId: 'limit-3',
+        });
+        hitlServiceClient.getChallengeStatus.mockResolvedValue({
+          status: 'approved', userId: 'u1', agentId: 'agent-1', tool: 'create_transfer',
+        });
+        hitlServiceClient.verifyHitlReceipt.mockReturnValue({ ok: true });
+        const r = await evaluateMcpFirstToolGate({
+          req: { session: {}, user: { id: 'u1' } },
+          tool: 'create_transfer',
+          toolParams: { amount: 300 },
+          transactionType: 'transfer',
+          agentToken: jwtWithPayload({ sub: 'u1', aud: 'mcp' }),
+          userSub: 'u1',
+          hitlChallengeId: 'c1',
+        });
+        expect(r.block).toBeUndefined();
+      });
+
+      it('still 403s when the ENGINE itself keeps requiring HITL after approval', async () => {
+        // The misconfiguration signal must survive: this is the engine's own
+        // obligation, not one the transaction overlay added.
+        pingOneAuthorizeService.evaluateMcpToolDelegation.mockResolvedValue({
+          decision: 'PERMIT', hitlRequired: true, decisionId: 'gate-1',
+        });
+        pingOneAuthorizeService.evaluateTransaction.mockResolvedValue({ decision: 'PERMIT' });
+        hitlServiceClient.getChallengeStatus.mockResolvedValue({
+          status: 'approved', userId: 'u1', agentId: 'agent-1', tool: 'create_transfer',
+        });
+        hitlServiceClient.verifyHitlReceipt.mockReturnValue({ ok: true });
+        const r = await evaluateMcpFirstToolGate({
+          req: { session: {}, user: { id: 'u1' } },
+          tool: 'create_transfer',
+          toolParams: { amount: 300 },
+          transactionType: 'transfer',
+          agentToken: jwtWithPayload({ sub: 'u1', aud: 'mcp' }),
+          userSub: 'u1',
+          hitlChallengeId: 'c1',
+        });
+        expect(r.block.status).toBe(403);
+        expect(r.block.body.error).toBe('mcp_hitl_receipt_rejected');
+      });
+
       it('is not consulted at all when the tool carries no amount', async () => {
         await evaluateMcpFirstToolGate({
           req: { session: {}, user: { id: 'u1' } },
