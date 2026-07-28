@@ -175,3 +175,86 @@ describe('runMcpToolPipeline — mcpAuthorizeEvaluations (dynamic Token Chain au
     expect(outcome.body.mcpAuthorizeEvaluations[1].engine).toBe('local-amount-fallback');
   });
 });
+
+describe('runMcpToolPipeline — publishMcpResultToSse carries the authorize evaluation', () => {
+  test('normal remote success: publishMcpResultToSse receives both fields on a dual decision', async () => {
+    const publishMcpResultToSse = jest.fn();
+    const deps = baseDeps({
+      publishMcpResultToSse,
+      evaluateMcpFirstToolGate: async () => ({
+        ran: true,
+        permit: true,
+        evaluation: {
+          decision: 'PERMIT', decisionId: 'limit-2', decisionContext: 'McpFirstTool',
+          gateEvaluation: { decision: 'PERMIT', decisionId: 'gate-1', raw: null, request: null, response: null },
+          secondaryEvaluation: { source: 'transaction-policy', decision: 'STEP_UP', decisionId: 'limit-2', raw: null },
+        },
+      }),
+      mcpCallTool: async () => ({ content: [{ text: 'ok' }] }),
+    });
+    await runMcpToolPipeline({
+      tool: 'create_transfer', params: { amount: 600 }, flowTraceId: 'ft-1', startTime: Date.now(),
+      req: { session: { user: { id: 'u1' } } }, deps,
+    });
+    expect(publishMcpResultToSse).toHaveBeenCalled();
+    const call = publishMcpResultToSse.mock.calls.find((c) => c[0] === 'ft-1');
+    // Singular retains the top-level (merged) decisionId — same "unchanged"
+    // contract as the pre-existing block/permit-path tests above (gateEvaluation/
+    // secondaryEvaluation keys are stripped, everything else passes through).
+    expect(call[1].mcpAuthorizeEvaluation).toMatchObject({ decision: 'PERMIT', decisionId: 'limit-2' });
+    expect(call[1].mcpAuthorizeEvaluations).toEqual([
+      { decision: 'PERMIT', decisionId: 'gate-1', raw: null, request: null, response: null, engine: 'pingone', decisionContext: 'McpFirstTool' },
+      { source: 'transaction-policy', decision: 'STEP_UP', decisionId: 'limit-2', raw: null, engine: 'pingone', decisionContext: 'TransactionAmount' },
+    ]);
+  });
+
+  test('normal remote success: single decision (no secondary) → mcpAuthorizeEvaluations omitted', async () => {
+    const publishMcpResultToSse = jest.fn();
+    const deps = baseDeps({
+      publishMcpResultToSse,
+      evaluateMcpFirstToolGate: async () => ({
+        ran: true, permit: true,
+        evaluation: { decision: 'PERMIT', decisionId: 'd1', decisionContext: 'McpFirstTool' },
+      }),
+      mcpCallTool: async () => ({ content: [{ text: 'ok' }] }),
+    });
+    await runMcpToolPipeline({
+      tool: 'get_my_accounts', params: {}, flowTraceId: 'ft-2', startTime: Date.now(),
+      req: { session: { user: { id: 'u1' } } }, deps,
+    });
+    const call = publishMcpResultToSse.mock.calls.find((c) => c[0] === 'ft-2');
+    expect(call[1].mcpAuthorizeEvaluation).toMatchObject({ decision: 'PERMIT', decisionId: 'd1' });
+    // Call-site options always carry the key (set to null when there's no
+    // plural) rather than omitting it — mcpSsePublisher.js spreads it into the
+    // outgoing SSE payload only when truthy, so null is equivalent to absent.
+    expect(call[1].mcpAuthorizeEvaluations).toBeNull();
+  });
+
+  test('exchange-failure local fallback (pre-gate branch): publishMcpResultToSse gets NEITHER field', async () => {
+    const publishMcpResultToSse = jest.fn();
+    process.env.FF_LOCAL_FALLBACK_ON_EXCHANGE_FAILURE = 'true';
+    try {
+      const deps = baseDeps({
+        publishMcpResultToSse,
+        resolveMcpAccessTokenWithEvents: async () => {
+          const err = new Error('exchange failed');
+          err.httpStatus = 400;
+          err.code = 'token_exchange_failed';
+          err.tokenEvents = [];
+          throw err;
+        },
+        callToolLocal: async () => ({ result: 'local-ok' }),
+      });
+      await runMcpToolPipeline({
+        tool: 'get_my_accounts', params: {}, flowTraceId: 'ft-3', startTime: Date.now(),
+        req: { session: { user: { id: '1', oauthId: 'u1' } } }, deps,
+      });
+      const call = publishMcpResultToSse.mock.calls.find((c) => c[0] === 'ft-3');
+      expect(call).toBeDefined();
+      expect(call[1]).not.toHaveProperty('mcpAuthorizeEvaluation');
+      expect(call[1]).not.toHaveProperty('mcpAuthorizeEvaluations');
+    } finally {
+      delete process.env.FF_LOCAL_FALLBACK_ON_EXCHANGE_FAILURE;
+    }
+  });
+});
