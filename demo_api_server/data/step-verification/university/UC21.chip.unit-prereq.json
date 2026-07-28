@@ -6,7 +6,7 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "pay_tuition_balance",
-  "checkedAt": "2026-07-26",
+  "checkedAt": "2026-07-28",
   "requiredFlags": [
     "ff_mcp_gateway_pinggateway"
   ],
