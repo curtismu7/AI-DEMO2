@@ -117,7 +117,7 @@ function buildGovernmentTools(store) {
         return { result: _item, render: 'renew_permit' };
       }
       case 'cancel_appointment': {
-        const _id = params && (params.id || params.recordId);
+        const _id = params && (params.id || params.recordId || params.appointmentId);
         const _arr = store.get(userId).appointments || [];
         let _item = _arr.find((r) => r.id === _id);
         if (!_item) { const _d = String(_id || '').replace(/\D/g, ''); if (_d) { const _m = _arr.filter((r) => String(r.id).replace(/\D/g, '') === _d); if (_m.length === 1) _item = _m[0]; } }
