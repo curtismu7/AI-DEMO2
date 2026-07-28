@@ -428,6 +428,9 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
           }
           tokenChainTraceStore.ingestAuthorize(ae);
           tokenChainTraceStore.ingestTokenEvents(allTokenEvents);
+          if (err.mcpAuthorizeEvaluations) {
+            tokenChainTraceStore.ingestAuthorizeEvaluations(err.mcpAuthorizeEvaluations);
+          }
         } catch { /* display-only */ }
       }
 
@@ -697,6 +700,9 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
         explanation: `${engine === "pingone" ? "PingOne Authorize" : "Simulated policy engine"} evaluated the agent tool call and returned ${decision}.`,
       });
       tokenChainTraceStore.ingestAuthorize(data.mcpAuthorizeEvaluation);
+      if (data.mcpAuthorizeEvaluations) {
+        tokenChainTraceStore.ingestAuthorizeEvaluations(data.mcpAuthorizeEvaluations);
+      }
     }
 
     // Phase 266 — credentialPath stamping and gateway-synthesized event merge.
@@ -1039,6 +1045,9 @@ export function ingestLegacyRunTrace(data, { forceHeuristic = false } = {}) {
     }
     if (data.mcpAuthorizeEvaluation) {
       tokenChainTraceStore.ingestAuthorize(data.mcpAuthorizeEvaluation);
+    }
+    if (data.mcpAuthorizeEvaluations) {
+      tokenChainTraceStore.ingestAuthorizeEvaluations(data.mcpAuthorizeEvaluations);
     }
     // Token-chain events from the response body. The agent path has no callMcpTool
     // ingest, so without this the Proof trace only sees whatever the SSE stream

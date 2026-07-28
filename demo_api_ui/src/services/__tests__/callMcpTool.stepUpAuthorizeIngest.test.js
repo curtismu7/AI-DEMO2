@@ -152,4 +152,60 @@ describe('callMcpTool step-up 428 authorize ingest', () => {
     expect(snap.trace.authorize).toEqual(evaluation);
     expect(snap.trace.tokenEvents.some((e) => e && e.id === 'authorize-decision')).toBe(true);
   });
+
+  test('ingests mcpAuthorizeEvaluations (gate + secondary) from a 403 mcp_authorization_denied body', async () => {
+    const evaluations = [
+      { decision: 'PERMIT', decisionId: 'gate-1', engine: 'pingone', decisionContext: 'McpFirstTool' },
+      { decision: 'DENY', decisionId: 'limit-1', engine: 'pingone', decisionContext: 'TransactionAmount' },
+    ];
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        status: 403,
+        headers: { get: () => 'application/json' },
+        json: () =>
+          Promise.resolve({
+            error: 'mcp_authorization_denied',
+            error_description: 'PingOne Authorize denied MCP tool access for this session.',
+            tokenEvents: [],
+            mcpAuthorizeEvaluation: { decision: 'DENY', decisionId: 'limit-1' },
+            mcpAuthorizeEvaluations: evaluations,
+          }),
+      }),
+    );
+
+    await expect(callMcpTool('create_transfer', { amount: 2500 })).rejects.toMatchObject({
+      statusCode: 403,
+      code: 'mcp_authorization_denied',
+    });
+
+    const snap = tokenChainTraceStore.getState();
+    expect(snap.trace.authorizeEvaluations).toEqual(evaluations);
+  });
+
+  test('ingests mcpAuthorizeEvaluations on a 200 OK permit response', async () => {
+    const evaluations = [
+      { decision: 'PERMIT', decisionId: 'gate-1', engine: 'pingone', decisionContext: 'McpFirstTool' },
+      { decision: 'STEP_UP', decisionId: 'limit-2', engine: 'pingone', decisionContext: 'TransactionAmount' },
+    ];
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        headers: { get: () => 'application/json' },
+        json: () =>
+          Promise.resolve({
+            result: 'ok',
+            tokenEvents: [],
+            mcpAuthorizeEvaluation: { decision: 'PERMIT', decisionId: 'limit-2' },
+            mcpAuthorizeEvaluations: evaluations,
+          }),
+      }),
+    );
+
+    await callMcpTool('create_transfer', { amount: 600 });
+
+    const snap = tokenChainTraceStore.getState();
+    expect(snap.trace.authorizeEvaluations).toEqual(evaluations);
+  });
 });
