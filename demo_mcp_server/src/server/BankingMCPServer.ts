@@ -211,19 +211,18 @@ export class BankingMCPServer extends EventEmitter {
             ALPNProtocols: ['h2', 'http/1.1'],
           },
           (req, res) => {
-            this.handleHttpRequest(req as any, res as any);
+            this.handleHttpRequest(req, res);
           },
         );
 
         await new Promise<void>((resolve, reject) => {
-          this.tlsServer!.listen(tlsPort, this.config.host, (error?: Error) => {
-            if (error) reject(error);
-            else resolve();
-          });
+          this.tlsServer!.once('error', reject);
+          this.tlsServer!.listen(tlsPort, this.config.host, () => resolve());
         });
 
         if (this.config.enableLogging) {
-          const actualTlsPort = this.getActualTlsPort();
+          const addr = this.tlsServer.address();
+          const actualTlsPort = addr && typeof addr === 'object' ? addr.port : tlsPort;
           console.log(`[BankingMCPServer] TLS+ALPN listener started on ${this.config.host}:${actualTlsPort} (h2)`);
         }
       }

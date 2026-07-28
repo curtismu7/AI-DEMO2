@@ -297,7 +297,6 @@ services:
     container_name: ai-demo-mcp-server
     ports:
       - "8080:8080"
-      - "8443:8443"
     environment:
       NODE_ENV: production
       MCP_SERVER_HOST: "0.0.0.0"
