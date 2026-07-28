@@ -2,12 +2,16 @@
 # Seal secrets for K8s deployment
 # Encrypts K8s Secrets at rest in etcd using sealed-secrets controller
 #
-# Usage:
-#   1. Install sealed-secrets: kubectl apply -f k8s/00-sealed-secrets-install.yaml
-#   2. Wait for controller to start: kubectl get deploy -n kube-system sealed-secrets-controller
-#   3. Seal secrets: k8s/sealed-secrets.sh
+# Prerequisites:
+#   brew install kubeseal
 #
-# Output: k8s/04-sealed-secrets.yaml (committed to git, safe to share)
+# Usage:
+#   1. Create namespace: kubectl apply -f k8s/01-namespace.yaml
+#   2. Install sealed-secrets: kubectl apply -f k8s/00-sealed-secrets-install.yaml
+#   3. Wait for controller: kubectl get deploy -n ai-demo sealed-secrets-controller
+#   4. Seal secrets: k8s/sealed-secrets.sh
+#
+# Output: k8s/04-sealed-secrets.yaml (encrypted, safe to commit)
 
 set -e
 
@@ -33,10 +37,19 @@ fi
 echo "[INFO] Sealing secrets for namespace: $NS"
 echo "[INFO] Using assets from: $ASSET_ROOT"
 
+# Check kubeseal is installed
+if ! command -v kubeseal &>/dev/null; then
+  echo "[ERROR] kubeseal not found. Install with:"
+  echo "  brew install kubeseal"
+  exit 1
+fi
+
 # Check sealed-secrets controller is running
-if ! kubectl get deploy sealed-secrets-controller -n kube-system &>/dev/null; then
-  echo "[ERROR] sealed-secrets-controller not found. Install first:"
+if ! kubectl get deploy sealed-secrets-controller -n "$NS" &>/dev/null; then
+  echo "[ERROR] sealed-secrets-controller not found in namespace $NS. Install first:"
+  echo "  kubectl apply -f k8s/01-namespace.yaml"
   echo "  kubectl apply -f k8s/00-sealed-secrets-install.yaml"
+  echo "  kubectl wait --for=condition=available --timeout=60s deployment/sealed-secrets-controller -n $NS"
   exit 1
 fi
 
