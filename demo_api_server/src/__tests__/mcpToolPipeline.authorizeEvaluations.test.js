@@ -129,4 +129,49 @@ describe('runMcpToolPipeline — mcpAuthorizeEvaluations (dynamic Token Chain au
     expect(outcome.body.mcpAuthorizeEvaluation).toBeDefined();
     expect(outcome.body.mcpAuthorizeEvaluations).toBeUndefined();
   });
+
+  test('block path: local-amount-fallback secondary decision is NOT labeled engine "pingone"', async () => {
+    const deps = baseDeps({
+      evaluateMcpFirstToolGate: async () => ({
+        ran: true,
+        block: {
+          status: 403,
+          body: {
+            error: 'mcp_authorization_denied',
+            decisionId: 'limit-1',
+            decisionContext: 'McpFirstTool',
+            gateEvaluation: { decision: 'PERMIT', decisionId: 'gate-1', raw: { decision: 'PERMIT' }, request: null, response: { decision: 'PERMIT' } },
+            secondaryEvaluation: { source: 'transaction-policy-fallback', decision: 'DENY', decisionId: null, raw: { engine: 'local-amount-fallback', reason: '$2500 exceeds deny limit $2000' } },
+          },
+        },
+      }),
+    });
+    const outcome = await runMcpToolPipeline({
+      tool: 'create_transfer', params: { amount: 2500 }, flowTraceId: null, startTime: Date.now(),
+      req: { session: { user: { id: 'u1' } } }, deps,
+    });
+    expect(outcome.body.mcpAuthorizeEvaluations[0].engine).toBe('pingone'); // gate card is always a real live decision
+    expect(outcome.body.mcpAuthorizeEvaluations[1].engine).not.toBe('pingone'); // secondary card was a LOCAL fallback, not PingOne
+    expect(outcome.body.mcpAuthorizeEvaluations[1].engine).toBe('local-amount-fallback');
+  });
+
+  test('permit path: local-amount-fallback secondary decision is NOT labeled engine "pingone"', async () => {
+    const deps = baseDeps({
+      evaluateMcpFirstToolGate: async () => ({
+        ran: true,
+        permit: true,
+        evaluation: {
+          decision: 'PERMIT', decisionId: 'limit-2', decisionContext: 'McpFirstTool',
+          gateEvaluation: { decision: 'PERMIT', decisionId: 'gate-1', raw: null, request: null, response: null },
+          secondaryEvaluation: { source: 'transaction-policy-fallback', decision: 'STEP_UP', decisionId: null, raw: { engine: 'local-amount-fallback', reason: '$600 at/above step-up limit $500' } },
+        },
+      }),
+    });
+    const outcome = await runMcpToolPipeline({
+      tool: 'create_transfer', params: { amount: 600 }, flowTraceId: null, startTime: Date.now(),
+      req: { session: { user: { id: 'u1' } } }, deps,
+    });
+    expect(outcome.body.mcpAuthorizeEvaluations[1].engine).not.toBe('pingone');
+    expect(outcome.body.mcpAuthorizeEvaluations[1].engine).toBe('local-amount-fallback');
+  });
 });
