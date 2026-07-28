@@ -6198,6 +6198,9 @@ export default function BankingAgent({
               !!response.step_up_required;
             setHitlPendingIntent({
               isVerticalConsent: true,
+              // Consent and step-up share this branch; only a real step-up may
+              // pre-chain an OTP on approve (see handleHitlConfirm).
+              isStepUp,
               verticalMessage: agentMessage,
               verticalOpts,
               // challengeId issued by the BFF (pre-flight or gateway). On approve we
@@ -7590,6 +7593,9 @@ export default function BankingAgent({
             !!response.step_up_required;
           setHitlPendingIntent({
             isVerticalConsent: true,
+            // Consent and step-up share this branch; only a real step-up may
+            // pre-chain an OTP on approve (see handleHitlConfirm).
+            isStepUp,
             verticalMessage: text,
             // Retry opts must NOT carry the aborted-by-now signal.
             verticalOpts: { vertical: effectiveVerticalId, useCaseId, forceHeuristic: !!useCaseId },
@@ -8331,18 +8337,14 @@ export default function BankingAgent({
                   // Flow: consent approved → initiate OTP email → show OTP modal → callback executes tool
                   if (hitlPendingIntent.isVerticalConsent) {
                     const { verticalMessage, verticalOpts, intentPayload, hitlChallengeId: verticalChallengeId } = hitlPendingIntent;
+                    const verticalIsStepUp = !!hitlPendingIntent.isStepUp;
                     setHitlPendingIntent(null);
 
-                    // Initiate OTP — sends to user's email/SMS (non-fatal if Notifications unconfigured)
-                    try {
-                      await initiateStepUpOtp();
-                    } catch (_) { /* non-fatal */ }
-
-                    // Post-OTP callback: approve the HITL challenge, then retry the
-                    // vertical tool carrying the challenge id. Approving records the
-                    // receipt in demo_hitl_service; the retry's hitlChallengeId makes
-                    // the BFF pre-flight AND the gateway verify that receipt and PERMIT.
-                    pendingStepUpCallbackRef.current = async () => {
+                    // Approve the HITL challenge, then retry the vertical tool
+                    // carrying the challenge id. Approving records the receipt in
+                    // demo_hitl_service; the retry's hitlChallengeId makes the BFF
+                    // pre-flight AND the gateway verify that receipt and PERMIT.
+                    const approveAndRetry = async () => {
                       setNlLoading(true);
                       try {
                         if (verticalChallengeId) {
@@ -8382,6 +8384,26 @@ export default function BankingAgent({
                         setNlLoading(false);
                       }
                     };
+
+                    // Consent IS the gate — approve and retry, exactly like the
+                    // isMcpHitl branch above. Pre-chaining an OTP here made every
+                    // consent-only vertical write (UC8 retail $300 checkout,
+                    // healthcare pay_bill) demand MFA that PingOne Authorize never
+                    // asked for: $300 sits below the step-up band, so the decision
+                    // carried Transaction Consent Required and nothing else. If the
+                    // retry does need step-up, it returns its OWN 428 and the
+                    // response handler opens the device-list modal then.
+                    if (!verticalIsStepUp) {
+                      await approveAndRetry();
+                      return;
+                    }
+
+                    // A genuine vertical step-up (UC7): verify identity first, then
+                    // approve + retry from the OTP callback.
+                    try {
+                      await initiateStepUpOtp();
+                    } catch (_) { /* non-fatal */ }
+                    pendingStepUpCallbackRef.current = approveAndRetry;
 
                     const actionLabel = intentPayload?.description || "this action";
                     openStepUpModal(
