@@ -95,6 +95,31 @@ describe('runMcpToolPipeline — mcpAuthorizeEvaluations (dynamic Token Chain au
     ]);
   });
 
+  test('permit path: singular mcpAuthorizeEvaluation does NOT contain gateEvaluation/secondaryEvaluation keys', async () => {
+    const deps = baseDeps({
+      evaluateMcpFirstToolGate: async () => ({
+        ran: true,
+        permit: true,
+        evaluation: {
+          decision: 'PERMIT', decisionId: 'limit-2', decisionContext: 'McpFirstTool',
+          gateEvaluation: { decision: 'PERMIT', decisionId: 'gate-1', raw: null, request: null, response: null },
+          secondaryEvaluation: { source: 'transaction-policy', decision: 'STEP_UP', decisionId: 'limit-2', raw: null },
+        },
+      }),
+    });
+    const outcome = await runMcpToolPipeline({
+      tool: 'create_transfer', params: { amount: 600 }, flowTraceId: null, startTime: Date.now(),
+      req: { session: { user: { id: 'u1' } } }, deps,
+    });
+    // Verify singular field exists but does not contain the dual-decision keys
+    expect(outcome.body.mcpAuthorizeEvaluation).toBeDefined();
+    expect(outcome.body.mcpAuthorizeEvaluation).not.toHaveProperty('gateEvaluation');
+    expect(outcome.body.mcpAuthorizeEvaluation).not.toHaveProperty('secondaryEvaluation');
+    // Verify it still has the core fields
+    expect(outcome.body.mcpAuthorizeEvaluation.decision).toBe('PERMIT');
+    expect(outcome.body.mcpAuthorizeEvaluation.decisionId).toBe('limit-2');
+  });
+
   test('permit path: no secondary decision → no mcpAuthorizeEvaluations', async () => {
     const deps = baseDeps();
     const outcome = await runMcpToolPipeline({

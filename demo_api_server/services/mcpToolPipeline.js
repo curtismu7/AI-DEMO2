@@ -999,11 +999,12 @@ async function runMcpToolPipeline(ctx) {
             activeProvider
         };
         if (mcpAuthorizeEvaluationThisRequest) {
-            out.mcpAuthorizeEvaluation = mcpAuthorizeEvaluationThisRequest;
-            if (mcpAuthorizeEvaluationThisRequest.gateEvaluation && mcpAuthorizeEvaluationThisRequest.secondaryEvaluation) {
+            const { gateEvaluation: _ge, secondaryEvaluation: _se, ...singularEvaluation } = mcpAuthorizeEvaluationThisRequest;
+            out.mcpAuthorizeEvaluation = singularEvaluation;
+            if (_ge && _se) {
                 out.mcpAuthorizeEvaluations = [
-                    { ...mcpAuthorizeEvaluationThisRequest.gateEvaluation, engine: 'pingone', decisionContext: 'McpFirstTool' },
-                    { ...mcpAuthorizeEvaluationThisRequest.secondaryEvaluation, engine: 'pingone', decisionContext: 'TransactionAmount' },
+                    { ..._ge, engine: 'pingone', decisionContext: 'McpFirstTool' },
+                    { ..._se, engine: 'pingone', decisionContext: 'TransactionAmount' },
                 ];
             }
         }
