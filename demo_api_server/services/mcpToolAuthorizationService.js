@@ -478,10 +478,16 @@ async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr
     );
     return _localAmountLimitFallback(r, { amount, acr });
   }
-  // No local fallback when transaction succeeds with bare PERMIT — only fall back
-  // when the endpoint is actually unreachable (catch block above). A bare PERMIT
-  // means the Transaction endpoint had no amount obligation for this call; we honor
-  // that, even if our local ladder would apply. The gate's decision stands.
+  // Local amount-band fallback when Transaction consult returned bare PERMIT (no
+  // DENY/step-up/HITL). Live P1AZ Transaction endpoint may PERMIT without any
+  // gate for agent vertical writes; the amount ladder still applies so UC6/7/8
+  // fire correctly even when the Transaction endpoint does not enforce them.
+  // _localAmountLimitFallback now attaches gateEvaluation/secondaryEvaluation on
+  // its own override branches, so bare PERMIT results with no amount-ladder trigger
+  // will still have those fields undefined (no override happened).
+  if (!forceStepUp && Number.isFinite(amount) && amount > 0) {
+    return _localAmountLimitFallback(r, { amount, acr });
+  }
   return r;
 }
 

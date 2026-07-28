@@ -249,7 +249,7 @@ describe('mcpToolAuthorizationService', () => {
       it('bare PERMIT from the transaction consult attaches neither field', async () => {
         pingOneAuthorizeService.evaluateTransaction.mockResolvedValue({ decision: 'PERMIT' });
         const r = await _applyTransactionPolicy({ ...GATE_PERMIT_HITL }, {
-          amount: 300, transactionType: 'transfer', userId: 'u1', acr: null,
+          amount: 100, transactionType: 'transfer', userId: 'u1', acr: null,
         });
         expect(r.secondaryEvaluation).toBeUndefined();
         expect(r.gateEvaluation).toBeUndefined();
