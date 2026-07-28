@@ -3,7 +3,7 @@
 # Encrypts K8s Secrets at rest in etcd using sealed-secrets controller
 #
 # Prerequisites:
-#   brew install kubeseal
+#   Docker installed (uses ghcr.io/getsops/sealed-secrets image)
 #
 # Usage:
 #   1. Install sealed-secrets: kubectl apply -f k8s/00-sealed-secrets-install.yaml
@@ -36,10 +36,9 @@ fi
 echo "[INFO] Sealing secrets for namespace: $NS"
 echo "[INFO] Using assets from: $ASSET_ROOT"
 
-# Check kubeseal is installed
-if ! command -v kubeseal &>/dev/null; then
-  echo "[ERROR] kubeseal not found. Install with:"
-  echo "  brew install kubeseal"
+# Check Docker is available
+if ! command -v docker &>/dev/null; then
+  echo "[ERROR] Docker not found. Install Docker first."
   exit 1
 fi
 
@@ -52,11 +51,14 @@ if ! kubectl get deploy sealed-secrets-controller -n "$NS" &>/dev/null; then
   exit 1
 fi
 
-# Create regular secret (intermediate step)
+# Create regular secret (intermediate step) and seal with Docker
 kubectl -n "$NS" create secret generic ai-demo-secrets \
   --from-env-file="$ASSET_ROOT/demo_api_server/.env" \
   --dry-run=client -o yaml | \
-  kubeseal -n "$NS" -o yaml > "$SCRIPT_DIR/04-sealed-secrets.yaml"
+  docker run -it --rm \
+    -v ~/.kube/config:/root/.kube/config \
+    ghcr.io/getsops/sealed-secrets:v0.24.0 \
+    kubeseal -n "$NS" -o yaml > "$SCRIPT_DIR/04-sealed-secrets.yaml"
 
 echo "[INFO] Sealed secrets written to: $SCRIPT_DIR/04-sealed-secrets.yaml"
 echo "[INFO] This file is safe to commit (encrypted at rest in etcd only)."
