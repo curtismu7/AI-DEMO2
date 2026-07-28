@@ -182,6 +182,13 @@ async function main() {
   const APP_TARGETS = {
     mcpGateway:   appNames['Super Banking MCP Gateway'],
     mcpExchanger: appNames['Super Banking MCP Exchanger'],
+    // Step 9 (backend exchange to the banking API) needs its OWN client. The
+    // mcpExchanger entry above maps to the Token Exchanger, which holds grants on
+    // the MCP/gateway resources but NOT on Demo API (enduser.ping.demo) -- so the
+    // Step 9 exchange it was falling back to could never mint a token for that
+    // audience. Keep the two separate; do not fold this into mcpExchanger, which
+    // also feeds PINGONE_TOKEN_EXCHANGER_* / GW_INTROSPECTION_* / PINGONE_CLIENT_*.
+    step9Exchanger: appNames['Super Banking Step 9 Exchanger'],
     mcpServer:    appNames['Super Banking MCP Server'],
     aiAgent:      appNames['Super Banking AI Agent'],
     agent:        appNames['Super Banking Agent'],
@@ -209,11 +216,13 @@ async function main() {
     mcpExchangerSecret,
     aiAgentSecret,
     agentSecret,
+    step9ExchangerSecret,
   ] = await Promise.all([
     secret('mcpGateway'),
     secret('mcpExchanger'),
     secret('aiAgent'),
     secret('agent'),
+    secret('step9Exchanger'),
   ]);
 
   // Convenience: fall back to whatever bootstrap already wrote to api_server .env
@@ -228,6 +237,10 @@ async function main() {
     aiAgentSecret:          aiAgentSecret                 || fb('PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET'),
     agentClientId:          apps.agent?.clientId          || fb('AGENT_CLIENT_ID'),
     agentSecret:            agentSecret                   || fb('AGENT_CLIENT_SECRET'),
+    // Step 9 backend exchange. Falls back to the Token Exchanger only so an
+    // environment without the dedicated app keeps its previous behaviour.
+    step9ExchangerClientId: apps.step9Exchanger?.clientId || fb('PINGONE_MCP_EXCHANGER_CLIENT_ID'),
+    step9ExchangerSecret:   step9ExchangerSecret          || fb('PINGONE_MCP_EXCHANGER_CLIENT_SECRET'),
   };
 
   // Shared vars that every service gets (read from api_server .env — bootstrap writes these)
@@ -295,7 +308,13 @@ async function main() {
     PINGONE_TOKEN_ENDPOINT:          `${asBase}/token`,
     GW_INTROSPECTION_CLIENT_ID:      creds.mcpExchangerClientId,
     GW_INTROSPECTION_CLIENT_SECRET:  creds.mcpExchangerSecret,
-    PINGONE_MCP_EXCHANGER_CLIENT_SECRET: creds.mcpExchangerSecret,
+    // Step 9 backend exchange (demo_mcp_server/src/index.ts). Both halves must come
+    // from the SAME app: the ID was never emitted before, so index.ts fell through to
+    // PINGONE_TOKEN_EXCHANGER_CLIENT_ID -- a client with no grant on Demo API
+    // (enduser.ping.demo), the very audience Step 9 requests. Hence "Step 9 had never
+    // run once" in that file's comment.
+    PINGONE_MCP_EXCHANGER_CLIENT_ID:     creds.step9ExchangerClientId,
+    PINGONE_MCP_EXCHANGER_CLIENT_SECRET: creds.step9ExchangerSecret,
     // Independent key, NOT derived from BFF_INTERNAL_SECRET. This key encrypts
     // persisted tokens at rest (EncryptedTokenStorage / EncryptionUtils), so
     // deriving it from the BFF HMAC secret meant one compromised value exposed

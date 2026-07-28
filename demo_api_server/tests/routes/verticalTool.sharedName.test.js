@@ -24,11 +24,18 @@ jest.mock('../../services/verticalDispatch', () => ({
 
 const configStore = require('../../services/configStore');
 const verticalDispatch = require('../../services/verticalDispatch');
+const { verticalManifest } = require('../../services/verticalManifest');
 const verticalToolRouter = require('../../routes/verticalTool');
 
 function appWithActive(activeVertical) {
   jest.spyOn(configStore, 'getEffective').mockImplementation((k) =>
     (k === 'active_vertical' ? activeVertical : undefined));
+  // resolveVertical() reads verticalManifest.resolver.activeIdFor(req) FIRST and only
+  // falls back to configStore. activeIdFor -> activeId() -> store.getActiveId() (LMDB),
+  // so on any machine with a persisted active_vertical the configStore spy above never
+  // takes effect and this suite silently asserts against real LMDB state — passing on a
+  // fresh clone, failing wherever the demo has been run. Pin the resolver too.
+  jest.spyOn(verticalManifest.resolver, 'activeIdFor').mockReturnValue(activeVertical);
   const app = express();
   app.use('/api/path', verticalToolRouter);
   return app;
