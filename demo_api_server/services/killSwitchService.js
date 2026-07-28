@@ -97,7 +97,7 @@ async function disableUserAtPingOne(userId) {
  * kill: the PingOne analog of the PingFed Agent Discovery kill-switch
  * pattern (decommission the agent's client at the IdP).
  *
- * Targets the agent identity apps only (AGENT_CLIENT_ID = "Demo Agent",
+ * Targets the agent identity apps only (PINGONE_AGENT_CLIENT_ID = "Demo Agent",
  * PINGONE_AI_AGENT_CLIENT_ID = "Demo AI Agent") — NOT the shared MCP
  * exchanger/gateway apps, so non-agent flows keep working.
  *
@@ -109,7 +109,7 @@ async function disableUserAtPingOne(userId) {
  */
 async function disableAgentApplicationsAtPingOne() {
   const apps = [
-    { key: 'AGENT_CLIENT_ID', id: process.env.AGENT_CLIENT_ID || configStore.getEffective('AGENT_CLIENT_ID') },
+    { key: 'PINGONE_AGENT_CLIENT_ID', id: process.env.PINGONE_AGENT_CLIENT_ID || configStore.getEffective('PINGONE_AGENT_CLIENT_ID') },
     { key: 'PINGONE_AI_AGENT_CLIENT_ID', id: process.env.PINGONE_AI_AGENT_CLIENT_ID || configStore.getEffective('PINGONE_AI_AGENT_CLIENT_ID') },
   ].filter(a => a.id);
 
@@ -152,7 +152,7 @@ async function disableAgentApplicationsAtPingOne() {
  */
 async function enableAgentApplicationsAtPingOne() {
   const apps = [
-    { key: 'AGENT_CLIENT_ID', id: process.env.AGENT_CLIENT_ID || configStore.getEffective('AGENT_CLIENT_ID') },
+    { key: 'PINGONE_AGENT_CLIENT_ID', id: process.env.PINGONE_AGENT_CLIENT_ID || configStore.getEffective('PINGONE_AGENT_CLIENT_ID') },
     { key: 'PINGONE_AI_AGENT_CLIENT_ID', id: process.env.PINGONE_AI_AGENT_CLIENT_ID || configStore.getEffective('PINGONE_AI_AGENT_CLIENT_ID') },
   ].filter(a => a.id);
 

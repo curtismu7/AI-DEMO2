@@ -1745,8 +1745,8 @@ class PingOneProvisionService {
       'MCP_GW_PASSTHROUGH_TO_MCP_SERVER=true',
       '',
       '# Agent Service (banking_agent_service on :3006)',
-      `AGENT_CLIENT_ID=${provisioned.agentApp?.clientId || ''}`,
-      `AGENT_CLIENT_SECRET=${provisioned.agentApp?.clientSecret || '<set-in-pingone-console>'}`,
+      `PINGONE_AGENT_CLIENT_ID=${provisioned.agentApp?.clientId || ''}`,
+      `PINGONE_AGENT_CLIENT_SECRET=${provisioned.agentApp?.clientSecret || '<set-in-pingone-console>'}`,
       '',
       '# Claude Code / Cursor "pingone" MCP server OAuth client (developer tooling, not a',
       '# runtime component). NATIVE_APP, PKCE S256, no secret; redirect',
@@ -2800,8 +2800,8 @@ class PingOneProvisionService {
       onStep(steps[steps.length - 1]);
 
       // Step 30: Create Agent WORKER application
-      // banking_agent_service requires AGENT_CLIENT_ID; without it port 3006 exits at startup.
-      // The agent is the actor in delegated token-exchange (act.sub = AGENT_CLIENT_ID).
+      // banking_agent_service requires PINGONE_AGENT_CLIENT_ID; without it port 3006 exits at startup.
+      // The agent is the actor in delegated token-exchange (act.sub = PINGONE_AGENT_CLIENT_ID).
       steps.push({ step: 'agent-app', icon: '🤝', message: 'Creating Agent application...' });
       onStep(steps[steps.length - 1]);
       const agentAppResult = await this.createApplication(
