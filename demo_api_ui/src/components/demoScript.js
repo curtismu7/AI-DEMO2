@@ -47,7 +47,7 @@ export const DEMO_SCRIPT = {
           ucId: "UC24",
           action: "Step 3 · `what branches are near me` (UC24)",
           what:
-            "Agent answers from public branch data — no user token, no privilege escalation.",
+            "Agent answers from public branch data (Austin, Dallas, Houston, Miami, Denver) — no user token, no privilege escalation.",
           expected: "PERMIT, no token exchange",
           say: "Public data - zero token exchange. The agent escalates privilege only when it must. Least privilege by default. (Trim this step first if the slot runs tight.)",
         },

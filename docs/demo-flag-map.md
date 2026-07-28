@@ -19,7 +19,7 @@ Beat order and `SECURITY_DEMO_USE_CASE_IDS` agree (10 steps).
 |---|---|---|---|---|
 | 1 | `UC1` — Delegated access with proof | Agent reads the user's balance on their behalf — the baseline delegated call. | — | yes |
 | 2 | `UC2` — A2A delegation | Generalist agent hands the job to a specialist agent — delegation across a second hop. | `ff_a2a_delegation` | yes |
-| 3 | `UC24` — Act 1 — Public catalog access | Agent answers from public branch data — no user token, no privilege escalation. | — | yes |
+| 3 | `UC24` — Act 1 — Public catalog access | Agent answers from public branch data (Austin, Dallas, Houston, Miami, Denver) — no user | — | yes |
 | 4 | `UC6` — Authz denied | Agent attempts a transfer over the policy ceiling — PingOne Authorize decides, not the a | — | yes |
 | 5 | `UC8` — HITL consent | Same transfer, under the ceiling but over the auto-approve line — a human must consent. | — | yes |
 | 6 | `UC14b` — PAR intent verified (PERMIT) | Agent pushes its intent (amount, payee) to PingOne as a PAR, then transfers within that  | `ff_rar` | yes |
