@@ -249,6 +249,12 @@ async function main() {
     PINGONE_REGION:           region,
     PINGONE_JWKS_URI:         fb('PINGONE_JWKS_URI') || `${asBase}/jwks`,
     ENDUSER_AUDIENCE:         fb('ENDUSER_AUDIENCE') || 'enduser.ping.demo',
+    // Same value under the name demo_mcp_server actually reads. Its Step 9 gate is
+    // `if (clientId && clientSecret && bankingApiResourceUri)` where
+    // bankingApiResourceUri = process.env.BANKING_API_RESOURCE_URI -- a name this
+    // generator never emitted, so the gate could not pass even with a valid client
+    // pair. Keep both: ENDUSER_AUDIENCE is the name other services read.
+    BANKING_API_RESOURCE_URI: fb('BANKING_API_RESOURCE_URI') || fb('ENDUSER_AUDIENCE') || 'enduser.ping.demo',
     MCP_RESOURCE_URI:         fb('MCP_RESOURCE_URI') || 'mcpserver.ping.demo,mcpgateway.ping.demo',
     // PINGONE_RESOURCE_MCP_SERVER_URI first — same precedence as configStore's
     // pingone_resource_mcp_server_uri entry. A stale MCP_SERVER_RESOURCE_URI set
