@@ -423,6 +423,9 @@ router.post('/agent/invoke', authenticateToken, agentSessionMiddleware, express.
     if (req._mcpAuthorizeEvaluation && !agentResponse.mcpAuthorizeEvaluation) {
       agentResponse.mcpAuthorizeEvaluation = req._mcpAuthorizeEvaluation;
     }
+    if (req._mcpAuthorizeEvaluations && !agentResponse.mcpAuthorizeEvaluations) {
+      agentResponse.mcpAuthorizeEvaluations = req._mcpAuthorizeEvaluations;
+    }
     ensureNonEmptyReply(agentResponse);
     return res.json(agentResponse);
   } catch (error) {
