@@ -180,6 +180,13 @@ agentFlowDiagram.subscribe((snap) => {
 });
 if (typeof window !== "undefined") {
   window.addEventListener("mcp-tool-result-sse", (e) => {
-    if (e && e.detail) tokenChainTraceStore.ingestMcpResult(e.detail);
+    if (!e || !e.detail) return;
+    tokenChainTraceStore.ingestMcpResult(e.detail);
+    if (e.detail.mcpAuthorizeEvaluation) {
+      tokenChainTraceStore.ingestAuthorize(e.detail.mcpAuthorizeEvaluation);
+    }
+    if (e.detail.mcpAuthorizeEvaluations) {
+      tokenChainTraceStore.ingestAuthorizeEvaluations(e.detail.mcpAuthorizeEvaluations);
+    }
   });
 }
