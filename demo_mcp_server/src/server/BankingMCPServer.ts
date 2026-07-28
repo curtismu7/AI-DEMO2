@@ -6,6 +6,7 @@
 import WebSocket from 'ws';
 import { createServer, Server as HttpServer } from 'http';
 import * as https from 'https';
+import * as http2 from 'http2';
 import * as fs from 'fs';
 import * as tls from 'tls';
 import { generate as selfsignedGenerate } from 'selfsigned';
@@ -56,6 +57,7 @@ export interface ServerStats {
 export class BankingMCPServer extends EventEmitter {
   private server: WebSocket.Server | null = null;
   private httpServer: HttpServer | null = null;
+  private tlsServer: http2.Http2SecureServer | null = null;
   private connections: Map<string, ConnectionInfo> = new Map();
   private messageHandler: MCPMessageHandler;
   private httpTransport: HttpMCPTransport | null = null;
@@ -186,6 +188,46 @@ export class BankingMCPServer extends EventEmitter {
         });
       });
 
+      // Second, TLS+ALPN listener — opt-in, additive. Does NOT replace or modify
+      // the plain http.createServer listener above; ws:// on MCP_SERVER_PORT is
+      // unaffected whether or not this branch runs.
+      if (process.env.MCP_TLS_ENABLED === 'true') {
+        const tlsPort = parseInt(process.env.MCP_TLS_PORT || '8443', 10);
+        // Independent self-signed cert — NOT shared with the MCP_MTLS_ENABLED
+        // branch above. Two unrelated concerns (peer-auth vs protocol
+        // negotiation); sharing would couple them for no benefit.
+        const notAfterDate = new Date();
+        notAfterDate.setDate(notAfterDate.getDate() + 1);
+        const tlsPems = await selfsignedGenerate(
+          [{ name: 'commonName', value: 'banking-mcp-server-tls' }],
+          { notAfterDate, keySize: 2048, algorithm: 'sha256' },
+        );
+
+        this.tlsServer = http2.createSecureServer(
+          {
+            key: tlsPems.private,
+            cert: tlsPems.cert,
+            allowHTTP1: true,
+            ALPNProtocols: ['h2', 'http/1.1'],
+          },
+          (req, res) => {
+            this.handleHttpRequest(req as any, res as any);
+          },
+        );
+
+        await new Promise<void>((resolve, reject) => {
+          this.tlsServer!.listen(tlsPort, this.config.host, (error?: Error) => {
+            if (error) reject(error);
+            else resolve();
+          });
+        });
+
+        if (this.config.enableLogging) {
+          const actualTlsPort = this.getActualTlsPort();
+          console.log(`[BankingMCPServer] TLS+ALPN listener started on ${this.config.host}:${actualTlsPort} (h2)`);
+        }
+      }
+
       this.isRunning = true;
       this.stats.startTime = new Date();
 
@@ -240,6 +282,13 @@ export class BankingMCPServer extends EventEmitter {
           this.httpServer!.close(() => {
             resolve();
           });
+        });
+      }
+
+      // Close TLS listener, if one was started
+      if (this.tlsServer) {
+        await new Promise<void>((resolve) => {
+          this.tlsServer!.close(() => resolve());
         });
       }
 
@@ -494,6 +543,23 @@ export class BankingMCPServer extends EventEmitter {
       return address.port;
     }
     
+    return null;
+  }
+
+  /**
+   * Get the actual port the TLS+ALPN listener is bound to, or null if
+   * MCP_TLS_ENABLED was not set (or the server isn't running).
+   */
+  getActualTlsPort(): number | null {
+    if (!this.tlsServer || !this.isRunning) {
+      return null;
+    }
+
+    const address = this.tlsServer.address();
+    if (address && typeof address === 'object') {
+      return address.port;
+    }
+
     return null;
   }
 
@@ -1097,6 +1163,7 @@ export class BankingMCPServer extends EventEmitter {
     this.connections.clear();
     this.server = null;
     this.httpServer = null;
+    this.tlsServer = null;
     this.stats.activeConnections = 0;
   }
 }
