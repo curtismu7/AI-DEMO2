@@ -52,6 +52,19 @@ function splitAuthorizeEvaluation(v) {
 }
 
 /**
+ * Like splitAuthorizeEvaluation, but for the AG-UI SSE channel only: skip-shape
+ * objects ({ran:false, skipped:true, skipReason} — a2a-supplied-token skip, or
+ * gate-not-run skip) have no .decision and must never be published as if they
+ * were a real PERMIT/DENY (Contract C4 — omission is not permission; the HTTP
+ * response body still exposes the raw skip shape via out.mcpAuthorizeEvaluation,
+ * this only guards the Token Chain UI's SSE feed from misrepresenting it).
+ */
+function splitAuthorizeEvaluationForSse(v) {
+  const split = splitAuthorizeEvaluation(v);
+  return split && split.singular && split.singular.decision != null ? split : null;
+}
+
+/**
  * runMcpToolPipeline — pure orchestration of a BFF MCP tool call (ADR-0004).
  * Returns a discriminated Outcome; never touches Express res/req response APIs.
  * Built up path-by-path under characterization tests.
@@ -498,6 +511,41 @@ async function runMcpToolPipeline(ctx) {
                     })
                 ));
             }
+            // Final whole-branch review finding: this branch (the gate's own
+            // DENY/step-up/HITL block) returns early and never previously called
+            // publishMcpResultToSse, so a dual gateEvaluation+secondaryEvaluation
+            // DENY (e.g. the $2500 create_transfer example) produced zero Token
+            // Chain cards on the AG-UI SSE feed despite building both evaluation
+            // shapes for the HTTP response body right below. Factor them into
+            // named consts and reuse for both the new publish call and the body,
+            // to avoid duplicating/drifting the construction logic.
+            const _blockAuthEval = {
+                decision: authorizeDecision,
+                outcome: authorizeOutcome,
+                engine: mcpAuthz.block.body.authorize_engine || null,
+                decisionContext: mcpAuthz.block.body.decisionContext,
+                decisionId: mcpAuthz.block.body.decisionId,
+                request: mcpAuthz.block.body.authorize_request || null,
+                response: mcpAuthz.block.body.authorize_response || null,
+                ...(ctx.useCaseId ? { useCaseId: ctx.useCaseId } : {}),
+                ...(ctx.vertical ? { vertical: ctx.vertical } : {}),
+            };
+            const _blockAuthEvals = mcpAuthz.block.body.gateEvaluation && mcpAuthz.block.body.secondaryEvaluation
+                ? [
+                    { ...mcpAuthz.block.body.gateEvaluation, engine: 'pingone', decisionContext: 'McpFirstTool' },
+                    { ...mcpAuthz.block.body.secondaryEvaluation, engine: secondaryEvaluationEngine(mcpAuthz.block.body.secondaryEvaluation), decisionContext: 'TransactionAmount' },
+                ]
+                : null;
+            deps.publishMcpResultToSse(flowTraceId, {
+                tool,
+                result: { error: mcpAuthz.block.body.error, message: mcpAuthz.block.body.error_description },
+                durationMs: Date.now() - startTime,
+                isDelegated: !!mcpAccessToken,
+                requestJson,
+                denied: true,
+                mcpAuthorizeEvaluation: _blockAuthEval,
+                mcpAuthorizeEvaluations: _blockAuthEvals,
+            });
             return { kind: 'block', httpStatus: mcpAuthz.block.status, tokenEvents, body: {
                 ...mcpAuthz.block.body,
                 tool,
@@ -510,23 +558,8 @@ async function runMcpToolPipeline(ctx) {
                     instructions: `Approve at the dashboard, then retry the tool with ${HITL_CHALLENGE_ARG} in arguments.`,
                 } : {}),
                 tokenEvents,
-                mcpAuthorizeEvaluation: {
-                    decision: authorizeDecision,
-                    outcome: authorizeOutcome,
-                    engine: mcpAuthz.block.body.authorize_engine || null,
-                    decisionContext: mcpAuthz.block.body.decisionContext,
-                    decisionId: mcpAuthz.block.body.decisionId,
-                    request: mcpAuthz.block.body.authorize_request || null,
-                    response: mcpAuthz.block.body.authorize_response || null,
-                    ...(ctx.useCaseId ? { useCaseId: ctx.useCaseId } : {}),
-                    ...(ctx.vertical ? { vertical: ctx.vertical } : {}),
-                },
-                ...(mcpAuthz.block.body.gateEvaluation && mcpAuthz.block.body.secondaryEvaluation ? {
-                    mcpAuthorizeEvaluations: [
-                        { ...mcpAuthz.block.body.gateEvaluation, engine: 'pingone', decisionContext: 'McpFirstTool' },
-                        { ...mcpAuthz.block.body.secondaryEvaluation, engine: secondaryEvaluationEngine(mcpAuthz.block.body.secondaryEvaluation), decisionContext: 'TransactionAmount' },
-                    ],
-                } : {}),
+                mcpAuthorizeEvaluation: _blockAuthEval,
+                ...(_blockAuthEvals ? { mcpAuthorizeEvaluations: _blockAuthEvals } : {}),
             } };
         }
         if (mcpAuthz.ran && mcpAuthz.simulatedError) {
@@ -943,7 +976,7 @@ async function runMcpToolPipeline(ctx) {
 
         // Publish MCP result via SSE so Token Chain MCP Results tab updates immediately
         const _durationMs = Date.now() - startTime;
-        const _authEval = splitAuthorizeEvaluation(mcpAuthorizeEvaluationThisRequest);
+        const _authEval = splitAuthorizeEvaluationForSse(mcpAuthorizeEvaluationThisRequest);
         deps.publishMcpResultToSse(flowTraceId, {
             tool, result, durationMs: _durationMs, isDelegated: !!mcpAccessToken, requestJson,
             mcpAuthorizeEvaluation: _authEval?.singular || null,
@@ -972,7 +1005,7 @@ async function runMcpToolPipeline(ctx) {
                     const localResult = await deps.callToolLocal(tool, params || {}, effectiveUserId, req);
                     deps.emit({ phase: 'local_tool_done', path: 'auth_challenge_fallback' });
                     const _acDuration = Date.now() - startTime;
-                    const _authEval = splitAuthorizeEvaluation(mcpAuthorizeEvaluationThisRequest);
+                    const _authEval = splitAuthorizeEvaluationForSse(mcpAuthorizeEvaluationThisRequest);
                     deps.publishMcpResultToSse(flowTraceId, {
                         tool, result: localResult, durationMs: _acDuration, isDelegated: false, requestJson,
                         mcpAuthorizeEvaluation: _authEval?.singular || null,
@@ -1174,7 +1207,7 @@ async function runMcpToolPipeline(ctx) {
                     requestJson,
                 };
                 try {
-                    const _authEval = splitAuthorizeEvaluation(mcpAuthorizeEvaluationThisRequest);
+                    const _authEval = splitAuthorizeEvaluationForSse(mcpAuthorizeEvaluationThisRequest);
                     deps.publishMcpResultToSse(flowTraceId, {
                         tool,
                         result: { error: 'hitl_required', message: hitlBody.message },
@@ -1203,7 +1236,7 @@ async function runMcpToolPipeline(ctx) {
             // Phase D teaching: deny paths still publish attempted JSON-RPC + error
             // so TraceRail MCP step is not blank.
             try {
-                const _authEval = splitAuthorizeEvaluation(mcpAuthorizeEvaluationThisRequest);
+                const _authEval = splitAuthorizeEvaluationForSse(mcpAuthorizeEvaluationThisRequest);
                 deps.publishMcpResultToSse(flowTraceId, {
                     tool,
                     result: {
@@ -1350,7 +1383,7 @@ async function runMcpToolPipeline(ctx) {
                 path: 'remote_fallback'
             });
             const _rfDuration = Date.now() - startTime;
-            const _authEval = splitAuthorizeEvaluation(mcpAuthorizeEvaluationThisRequest);
+            const _authEval = splitAuthorizeEvaluationForSse(mcpAuthorizeEvaluationThisRequest);
             deps.publishMcpResultToSse(flowTraceId, {
                 tool, result, durationMs: _rfDuration, isDelegated: false, requestJson,
                 mcpAuthorizeEvaluation: _authEval?.singular || null,

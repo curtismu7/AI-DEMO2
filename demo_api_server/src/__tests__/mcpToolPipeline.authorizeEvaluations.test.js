@@ -257,4 +257,157 @@ describe('runMcpToolPipeline — publishMcpResultToSse carries the authorize eva
       delete process.env.FF_LOCAL_FALLBACK_ON_EXCHANGE_FAILURE;
     }
   });
+
+  test('auth-challenge → local fallback: publishMcpResultToSse receives the authorize evaluation', async () => {
+    const publishMcpResultToSse = jest.fn();
+    const deps = baseDeps({
+      publishMcpResultToSse,
+      evaluateMcpFirstToolGate: async () => ({
+        ran: true,
+        permit: true,
+        evaluation: {
+          decision: 'PERMIT', decisionId: 'limit-3', decisionContext: 'McpFirstTool',
+          gateEvaluation: { decision: 'PERMIT', decisionId: 'gate-1', raw: null, request: null, response: null },
+          secondaryEvaluation: { source: 'transaction-policy', decision: 'PERMIT', decisionId: 'limit-3', raw: null },
+        },
+      }),
+      mcpCallTool: async () => ({ content: [{ text: 'need auth' }], _meta: { authChallenge: { type: 'redirect', url: 'https://idp/authorize' } } }),
+      callToolLocal: async () => ({ result: 'local-ok' }),
+    });
+    await runMcpToolPipeline({
+      tool: 'get_my_accounts', params: {}, flowTraceId: 'ft-4', startTime: Date.now(),
+      req: { session: { user: { id: 'u1' } } }, deps,
+    });
+    const calls = publishMcpResultToSse.mock.calls.filter((c) => c[0] === 'ft-4');
+    // Two publishes fire on this path: the unconditional "normal remote success"
+    // one, then the auth-challenge → local-fallback one this test targets — index
+    // into the SECOND call specifically so a still-broken fallback site can't
+    // hide behind the first (already-covered) call carrying the right data.
+    expect(calls.length).toBe(2);
+    const fallbackCall = calls[1];
+    expect(fallbackCall[1].mcpAuthorizeEvaluation).toMatchObject({ decision: 'PERMIT', decisionId: 'limit-3' });
+    expect(fallbackCall[1].mcpAuthorizeEvaluations).toEqual([
+      { decision: 'PERMIT', decisionId: 'gate-1', raw: null, request: null, response: null, engine: 'pingone', decisionContext: 'McpFirstTool' },
+      { source: 'transaction-policy', decision: 'PERMIT', decisionId: 'limit-3', raw: null, engine: 'pingone', decisionContext: 'TransactionAmount' },
+    ]);
+  });
+
+  test('gateway HITL-required 428: publishMcpResultToSse receives the authorize evaluation', async () => {
+    const publishMcpResultToSse = jest.fn();
+    const deps = baseDeps({
+      publishMcpResultToSse,
+      evaluateMcpFirstToolGate: async () => ({
+        ran: true, permit: true,
+        evaluation: { decision: 'PERMIT', decisionId: 'd5', decisionContext: 'McpFirstTool' },
+      }),
+      mcpCallTool: async () => { throw Object.assign(new Error('policy'), { code: 'gateway_policy_denied', gatewayErrorCode: 'hitl_required' }); },
+    });
+    const outcome = await runMcpToolPipeline({
+      tool: 'create_transfer', params: { amount: 100 }, flowTraceId: 'ft-5', startTime: Date.now(),
+      req: { session: { user: { id: 'u1' } } }, deps,
+    });
+    expect(outcome).toMatchObject({ kind: 'block', httpStatus: 428 });
+    const call = publishMcpResultToSse.mock.calls.find((c) => c[0] === 'ft-5');
+    expect(call).toBeDefined();
+    expect(call[1].mcpAuthorizeEvaluation).toMatchObject({ decision: 'PERMIT', decisionId: 'd5' });
+    expect(call[1].mcpAuthorizeEvaluations).toBeNull();
+  });
+
+  test('gateway generic deny 403: publishMcpResultToSse receives the authorize evaluation', async () => {
+    const publishMcpResultToSse = jest.fn();
+    const deps = baseDeps({
+      publishMcpResultToSse,
+      evaluateMcpFirstToolGate: async () => ({
+        ran: true, permit: true,
+        evaluation: { decision: 'PERMIT', decisionId: 'd6', decisionContext: 'McpFirstTool' },
+      }),
+      mcpCallTool: async () => { throw Object.assign(new Error('audience mismatch'), { code: 'gateway_policy_denied', gatewayErrorCode: 'aud_invalid' }); },
+    });
+    const outcome = await runMcpToolPipeline({
+      tool: 'get_my_accounts', params: {}, flowTraceId: 'ft-6', startTime: Date.now(),
+      req: { session: { user: { id: 'u1' } } }, deps,
+    });
+    expect(outcome).toMatchObject({ kind: 'block', httpStatus: 403 });
+    const call = publishMcpResultToSse.mock.calls.find((c) => c[0] === 'ft-6');
+    expect(call).toBeDefined();
+    expect(call[1].mcpAuthorizeEvaluation).toMatchObject({ decision: 'PERMIT', decisionId: 'd6' });
+    expect(call[1].mcpAuthorizeEvaluations).toBeNull();
+  });
+
+  test('remote-unreachable → local fallback: publishMcpResultToSse receives the authorize evaluation', async () => {
+    const publishMcpResultToSse = jest.fn();
+    const deps = baseDeps({
+      publishMcpResultToSse,
+      evaluateMcpFirstToolGate: async () => ({
+        ran: true, permit: true,
+        evaluation: { decision: 'PERMIT', decisionId: 'd7', decisionContext: 'McpFirstTool' },
+      }),
+      mcpCallTool: async () => { throw Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' }); },
+      callToolLocal: async () => ({ result: 'local-ok' }),
+    });
+    const outcome = await runMcpToolPipeline({
+      tool: 'get_my_accounts', params: {}, flowTraceId: 'ft-7', startTime: Date.now(),
+      req: { session: { user: { id: '1', oauthId: 'u1' } } }, deps,
+    });
+    expect(outcome.kind).toBe('result');
+    expect(outcome.body._localFallback).toBe(true);
+    const call = publishMcpResultToSse.mock.calls.find((c) => c[0] === 'ft-7');
+    expect(call).toBeDefined();
+    expect(call[1].mcpAuthorizeEvaluation).toMatchObject({ decision: 'PERMIT', decisionId: 'd7' });
+    expect(call[1].mcpAuthorizeEvaluations).toBeNull();
+  });
+
+  test('gate block (dual-decision DENY) NOW publishes to SSE — Fix 2: previously ZERO cards on this path', async () => {
+    const publishMcpResultToSse = jest.fn();
+    const deps = baseDeps({
+      publishMcpResultToSse,
+      evaluateMcpFirstToolGate: async () => ({
+        ran: true,
+        block: {
+          status: 403,
+          body: {
+            error: 'mcp_authorization_denied',
+            decisionId: 'limit-1',
+            decisionContext: 'McpFirstTool',
+            gateEvaluation: { decision: 'PERMIT', decisionId: 'gate-1', raw: { decision: 'PERMIT' }, request: null, response: { decision: 'PERMIT' } },
+            secondaryEvaluation: { source: 'transaction-policy', decision: 'DENY', decisionId: 'limit-1', raw: { decision: 'DENY', reason: 'over limit' } },
+          },
+        },
+      }),
+    });
+    const outcome = await runMcpToolPipeline({
+      tool: 'create_transfer', params: { amount: 2500 }, flowTraceId: 'ft-8', startTime: Date.now(),
+      req: { session: { user: { id: 'u1' } } }, deps,
+    });
+    expect(outcome.kind).toBe('block');
+    expect(publishMcpResultToSse).toHaveBeenCalled();
+    const call = publishMcpResultToSse.mock.calls.find((c) => c[0] === 'ft-8');
+    expect(call).toBeDefined();
+    expect(call[1].denied).toBe(true);
+    expect(call[1].mcpAuthorizeEvaluation).toMatchObject({ decision: 'DENY', decisionId: 'limit-1' });
+    expect(call[1].mcpAuthorizeEvaluations).toEqual([
+      { decision: 'PERMIT', decisionId: 'gate-1', raw: { decision: 'PERMIT' }, request: null, response: { decision: 'PERMIT' }, engine: 'pingone', decisionContext: 'McpFirstTool' },
+      { source: 'transaction-policy', decision: 'DENY', decisionId: 'limit-1', raw: { decision: 'DENY', reason: 'over limit' }, engine: 'pingone', decisionContext: 'TransactionAmount' },
+    ]);
+  });
+
+  test('a2a-supplied-token skip shape — Fix 1: publishMcpResultToSse gets NEITHER field, never a false PERMIT', async () => {
+    const publishMcpResultToSse = jest.fn();
+    const deps = baseDeps({
+      publishMcpResultToSse,
+      mcpCallTool: async () => ({ content: [{ text: 'ok' }] }),
+    });
+    await runMcpToolPipeline({
+      tool: 'create_transfer', params: { amount: 100 }, flowTraceId: 'ft-9', startTime: Date.now(),
+      req: { session: { user: { id: 'u1' } } }, deps,
+      skipBffAuthorize: true,
+    });
+    const call = publishMcpResultToSse.mock.calls.find((c) => c[0] === 'ft-9');
+    expect(call).toBeDefined();
+    // The skip shape ({ran:false, skipped:true, skipReason:'a2a_supplied_token'})
+    // has no .decision — splitAuthorizeEvaluationForSse must null both fields out
+    // rather than let it read as a real PERMIT on the Token Chain.
+    expect(call[1].mcpAuthorizeEvaluation).toBeNull();
+    expect(call[1].mcpAuthorizeEvaluations).toBeNull();
+  });
 });
