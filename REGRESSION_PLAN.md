@@ -102,6 +102,43 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-28 — Simple Stepper blamed a recovered tools/list failure for the halt and ghosted 13 steps that ran
+
+**Files changed:** `demo_api_server/routes/agentRun.js` (new `markRecovered`,
+exported on `__test`), `demo_api_server/tests/agentRun.recoveredToolsList.test.js`,
+`demo_api_ui/src/components/TokenChainDisplay.js` (`isHaltedAt`),
+`demo_api_ui/src/components/__tests__/TokenChainDisplay.haltedAt.test.js`.
+
+**What was broken:** `agentRun` still calls the legacy HTTP
+`agentGatewayClient.getAvailableTools()`, which posts to `<AGENT_GATEWAY_URL>/tools/list`.
+That path is superseded by `listAvailableTools()` (WS through the gateway) and
+nothing in the stack serves it — `AGENT_GATEWAY_URL` is unset, so the request hits
+`http://localhost:8080` inside the BFF container and is refused on every run
+(13 occurrences in 6h of logs). The run recovers: it falls back to the local tool
+catalog and continues. But the `status:'failed'` event was merged into the token
+chain unmarked, and `isHaltedAt`'s fallback ("first failed-bucket event that isn't
+last is the halt") latched onto it. Simple Stepper then rendered rows 8-20 as
+"— did not run" for a `checkout $2500` run in which those steps demonstrably ran
+(actor token issued, JWKS verified, both exchanges completed, both P1AZ decision
+endpoints called). The real halt — `Transaction Denied: amount $2500 exceeds the
+maximum permitted limit of $2,000` — was correctly shown by the Token Chain
+pipeline view, which builds from `buildTraceSteps.js`, not from raw events.
+
+**What was fixed:** the recovery site marks the failure's events `recovered: true`;
+`isHaltedAt` returns false for them. The step stays red (it did fail) but the halt
+marker moves to the real stopping point and later steps keep their own status.
+
+**Do not break:** `isHaltedStep === true` still wins over `recovered` — the A6
+attack-simulator's explicit halt marker is authoritative. `recovered` must not be
+set anywhere the run actually stops; it means "the server continued past this".
+Do not "fix" this by pointing `AGENT_GATEWAY_URL` at a service — that revives a
+deliberately abandoned path that bypasses the gateway's Authorize tool filtering.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/agentRun --testPathIgnorePatterns="/node_modules/" --forceExit`
+(29 passed) and `cd demo_api_ui && npm run test:unit && npm run build`.
+End-to-end (after merge + `docker restart ai-demo-api-server`): a `checkout
+headphones for $2500` run must show Simple Stepper halting at the Authorize step,
+with the tools/list row red but the rows after it keeping their real statuses.
 ### 2026-07-28 — Every rendered ProofStrip repainted with the newest run's verdict
 
 **Files changed:** `demo_api_ui/src/services/tokenChainTrace/tokenChainTraceStore.js`

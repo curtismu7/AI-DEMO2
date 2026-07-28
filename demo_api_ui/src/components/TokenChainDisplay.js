@@ -151,12 +151,18 @@ export function resolveStatusVisual(status) {
  * Fallback: the step's status resolves to "failed" AND it is not the last step
  * in the array (meaning subsequent steps were queued but never executed).
  * This degrades gracefully for pre-A6 events that lack isHaltedStep.
+ *
+ * `event.recovered === true` marks a failure the server fell back from (e.g.
+ * tools/list failing over to the local tool catalog): the step is still red,
+ * but the run continued past it, so it is not the halt point and the steps
+ * after it must not be ghosted as "did not run".
  */
 /* @visibleForTesting */
 export function isHaltedAt(events, index) {
   const ev = events[index];
   if (!ev) return false;
   if (ev.isHaltedStep === true) return true;
+  if (ev.recovered === true) return false;
   // Fallback: failed bucket + not last
   if (resolveStatusVisual(ev.status).bucket === "failed" && index < events.length - 1) {
     return true;
