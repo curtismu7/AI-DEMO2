@@ -87,7 +87,17 @@ export function computeVerdict(trace, catalogEntry) {
   const vertical = verticalOf(trace);
   // Highlights for the ProofStrip box: what the user asked for, which tool ran
   // it, and which Ping products the catalog's evidence chain says are in play.
-  const intent = trace.prompt?.message || catalogEntry.trigger?.text || null;
+  // Chip clicks replay the chip's own button caption as trace.prompt.message
+  // (see AIAgent.js handleDemoStepSelect / TokenChainContext beginTrace) — so
+  // for a chip-driven run this ends up displaying the raw button text (e.g.
+  // "hand off to a specialist") as if it were the user's intent, which reads
+  // like an instruction rather than a description of what happened. Prefer
+  // the catalog entry's title in that case; a genuine free-typed prompt that
+  // doesn't match the trigger text is shown as-is.
+  const rawIntent = trace.prompt?.message || catalogEntry.trigger?.text || null;
+  const intent = rawIntent === catalogEntry.trigger?.text
+    ? (catalogEntry.title || rawIntent)
+    : rawIntent;
   const tool = catalogEntry.primaryTool || trace.mcpResult?.tool || null;
   const mechanism = productsForUseCase(catalogEntry).map((p) => p.label);
   const seenTokenIds = new Set((trace.tokenEvents || []).map((e) => e.id));
