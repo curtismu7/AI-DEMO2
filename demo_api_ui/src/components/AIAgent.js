@@ -2208,13 +2208,8 @@ export default function BankingAgent({
     if (!interrupt) return;
     setAguiHitlPending(null);
 
-    // Initiate OTP (non-fatal — OTP modal still shows even if this fails)
-    try {
-      await initiateStepUpOtp();
-    } catch (_) { /* non-fatal */ }
-
-    // Post-OTP callback: signal consent via pub/sub, then resume the AG-UI agent
-    pendingStepUpCallbackRef.current = async () => {
+    // Signal consent via pub/sub, then resume the AG-UI agent.
+    const consentAndResume = async () => {
       try {
         await submitConsent(true);
       } catch (err) {
@@ -2239,6 +2234,21 @@ export default function BankingAgent({
       }).finally(() => setNlLoading(false));
     };
 
+    // Consent IS the gate — same rule as the chip path (see handleHitlConfirm).
+    // The interrupt carries `stepUp` from the BFF's gate normalization
+    // (routes/agentTool.js), so only a real step-up verifies identity first;
+    // a consent-only gate that also demanded an emailed code was asking for MFA
+    // PingOne Authorize never required.
+    if (!interrupt.stepUp) {
+      await consentAndResume();
+      return;
+    }
+
+    // Initiate OTP (non-fatal — OTP modal still shows even if this fails)
+    try {
+      await initiateStepUpOtp();
+    } catch (_) { /* non-fatal */ }
+    pendingStepUpCallbackRef.current = consentAndResume;
     openStepUpModal("Verify your identity to approve this agent action");
   }, [aguiHitlPending, aguiRun, aguiState.messages, submitConsent, activeLlmProvider, agentProviderMode, openStepUpModal]);
 

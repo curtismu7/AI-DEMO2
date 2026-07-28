@@ -102,6 +102,49 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-28 — a typed free-text approval gate created a challenge no modal ever showed
+
+**Files changed:** `langchain_agent/src/agui/event_types.py` (`RunFinished.outcome`),
+`langchain_agent/src/agui/emitter.py` (`on_hitl_interrupt`),
+`langchain_agent/src/api/message_processor.py` (`_extract_hitl_interrupt` + turn-end
+wiring), `langchain_agent/tests/agui/test_emitter.py`,
+`langchain_agent/tests/test_hitl_interrupt_extraction.py`,
+`demo_api_ui/src/components/AIAgent.js` (`handleAguiHitlApprove`).
+
+**What was broken:** typing `checkout headphones for $300` (rather than clicking the
+UC8 chip) routes to `/api/agent/run` — the AG-UI SSE path. The gate fired and
+`demo_hitl_service` recorded real challenges (`a24f00d4…`, `badf28bf…`), but no
+consent modal ever opened, so the agent narrated "I've submitted the request and
+it's pending approval" and the challenge sat unapproved forever. The SPA opens that
+modal only on `RUN_FINISHED` whose `outcome.type === 'interrupt'`
+(`useAgentState.js`) — and `RunFinished` had NO `outcome` field at all, so the
+trigger was structurally unreachable. The BFF was already doing its part:
+`/internal/agent-tool` normalizes a 428 into `result.hitlRequired` + `interruptId`
+(`routes/agentTool.js`). Nothing downstream read it, so the gate result went back to
+the LLM as one more observation to talk about. Chips were unaffected — they go
+through `/api/agent/invoke`, a different handler.
+
+**What was fixed:** `RunFinished` carries an optional `outcome` (omitted entirely
+when absent). `on_hitl_interrupt` emits the terminal interrupt and sets
+`_terminated`, mirroring `on_error`. `_extract_hitl_interrupt` scans the turn's tool
+results — mirroring `_extract_policy_denial` — and the turn ends on it. The AG-UI
+approve handler now branches on `interrupt.stepUp` instead of always demanding an
+OTP, matching the chip path fixed in #1090.
+
+**Do not break:** a plain run must stay outcome-less — `useAgentState` clears
+`hitlPending` on any non-interrupt `RUN_FINISHED`, and a stray outcome-less
+`RUN_FINISHED` after an interrupt would close the modal (the `_terminated` guard is
+what prevents it; there is a test for exactly that). A DENY is NOT an interrupt: it
+stays terminal and keeps `_extract_policy_denial`'s deterministic notice, or a
+denied run would hang waiting for an approval that never comes.
+
+**Verify:** `cd langchain_agent && bash scripts/run-pytest.sh tests/` (818 passed) and
+`cd demo_api_ui && npm run test:unit && npm run build`. End-to-end (requires
+`docker compose build langchain-agent` — Python, no src mount): type `checkout
+headphones for $300` into the chat; the consent modal must open, approving must
+complete the order, and no verification-code prompt may appear.
+
+
 ### 2026-07-28 — UC8 consent-only vertical writes demanded an MFA code PingOne never asked for
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js` (`isStepUp` carried onto

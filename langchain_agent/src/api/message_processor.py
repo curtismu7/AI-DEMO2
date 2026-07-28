@@ -68,6 +68,31 @@ def _extract_policy_denial(tool_calls) -> Optional[str]:
     return None
 
 
+def _extract_hitl_interrupt(tool_calls) -> Optional[dict]:
+    """Return the interrupt payload if a tool this turn needs human approval.
+
+    The BFF normalizes a 428 approval gate into ``result.hitlRequired`` +
+    ``interruptId`` (routes/agentTool.js). A gate is a PAUSE, not a failure, so
+    it must end the turn as an AG-UI interrupt rather than becoming another
+    observation for the LLM to narrate — otherwise the challenge is created and
+    nobody is ever shown a modal to approve it.
+
+    Deliberately distinct from _extract_policy_denial: a DENY is terminal and
+    keeps its deterministic notice; only an approval gate pauses the run.
+    """
+    for rec in tool_calls or []:
+        result = str(getattr(rec, "result", "") or "")
+        if "hitlRequired" not in result:
+            continue
+        try:
+            data = json.loads(result)
+        except (ValueError, TypeError):
+            continue
+        if isinstance(data, dict) and data.get("hitlRequired"):
+            return data
+    return None
+
+
 def _reply_surfaces_denial(reply: str) -> bool:
     """Heuristic: did the model's reply already explain the denial? Prevents
     doubling the deterministic notice when the system-prompt rule worked. A
@@ -1232,6 +1257,20 @@ class MessageProcessor:
         # 4. Close the LLM message if it was still open at stream end.
         if llm_streaming:
             await emitter.on_llm_end()
+
+        # An approval gate ends the turn as an interrupt. The model has already
+        # said its piece above (usually "I've submitted the request"), but the
+        # run must STOP here rather than fall through to a plain RUN_FINISHED —
+        # that is the only event the SPA turns into a consent modal, and without
+        # it the challenge is created and never approvable.
+        _interrupt = _extract_hitl_interrupt(turn_tool_calls)
+        if _interrupt:
+            logger.info(
+                "[AG-UI] turn interrupted for human approval (tool=%s challenge=%s)",
+                _interrupt.get("tool"), _interrupt.get("interruptId"),
+            )
+            await emitter.on_hitl_interrupt(_interrupt)
+            return  # on_hitl_interrupt emits the terminal RUN_FINISHED
 
         # Deterministic policy-denial fallback: if a tool was blocked by an
         # authorization / gateway policy but the model's reply never surfaced it
