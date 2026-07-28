@@ -22,10 +22,42 @@
 }
 .dash-scope-injection-banner__close:hover { opacity: 1; }
 
+/* ── Admin dashboard: skip link hidden until focused (standard skip-link
+   pattern — it had no CSS at all, so it rendered as a permanently-visible
+   line above the toolbar instead of only appearing for keyboard users). ── */
+.dash-skip-link {
+  position: absolute;
+  top: -40px;
+  left: 8px;
+  z-index: 100;
+  padding: 6px 12px;
+  background: #fff;
+  border: 1px solid var(--brand-medium-gray, #e2e8f0);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  transition: top 0.15s ease;
+}
+.dash-skip-link:focus {
+  top: 8px;
+}
+
 /* ── Admin dashboard: override split-pane-layout to column so toolbar stacks above grid ── */
 .admin-dashboard-page .split-pane-layout {
   flex-direction: column;
   height: auto;
+}
+
+/* ── Admin dashboard: tighten the toolbar row (scoped here — .app-page-toolbar
+   and .app-page-toolbar-btn are shared across other app-page-shell pages,
+   so the base rules in appShellPages.css are left untouched). ── */
+.admin-dashboard-page .app-page-toolbar {
+  padding: 8px 14px;
+  margin-bottom: 0.6rem;
+  gap: 8px;
+}
+.admin-dashboard-page .app-page-toolbar-btn {
+  padding: 6px 11px;
+  font-size: 0.78rem;
 }
 
 /* ── Admin dashboard: two-column layout in Middle mode ───────────────────── */

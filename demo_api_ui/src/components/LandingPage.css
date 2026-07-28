@@ -95,6 +95,7 @@
   display: flex;
   gap: 8px;
   flex-shrink: 0;
+  flex-wrap: wrap;
   align-items: center;
 }
 .landing-header-actions .btn {

@@ -46,12 +46,14 @@ vi.mock("../../context/TokenChainContext", () => ({
   useTokenChainOptional: () => null,
 }));
 
+const mockAgentUiMode = {
+  placement: "none",
+  fab: true,
+  setAgentUi: jest.fn(),
+  toolbarHostEl: null,
+};
 vi.mock("../../context/AgentUiModeContext", () => ({
-  useAgentUiMode: () => ({
-    placement: "none",
-    fab: true,
-    setAgentUi: jest.fn(),
-  }),
+  useAgentUiMode: () => mockAgentUiMode,
 }));
 
 // Default matches the real hook's no-VerticalProvider fallback (pageManifest:
@@ -589,9 +591,10 @@ describe("My Dashboard button placement", () => {
   });
 });
 
-// ─── Consent-denied banner ────────────────────────────────────────────────────
-// Regression: banner rendered as 3rd flex column in inline/row-reverse mode,
-// squeezing the chat column and hiding the prompt. Banner must always be full-width.
+// ─── Consent-denied notice ────────────────────────────────────────────────────
+// Regression: the notice rendered as a 3rd flex column in inline/row-reverse mode,
+// squeezing the chat column and hiding the prompt. It is now a DraggableModal
+// portalled to document.body, so it can no longer take part in the ba-body layout.
 
 describe("Consent-denied banner visibility", () => {
   beforeEach(() => {
@@ -611,14 +614,15 @@ describe("Consent-denied banner visibility", () => {
     expect(screen.getByText(/Access denied/)).toBeInTheDocument();
   });
 
-  it("banner is inside ba-body (not outside panel)", () => {
+  it("notice renders in a modal portal, never as a ba-body flex child", () => {
     const { container } = renderAgent({ user: customerUser, mode: "inline" });
     act(() => {
       window.dispatchEvent(new Event("bankingAgentConsentBlockChanged"));
     });
     const body = container.querySelector(".ba-body");
     const alert = screen.getByRole("alert");
-    expect(body).toContainElement(alert);
+    expect(body).not.toContainElement(alert);
+    expect(document.querySelector(".dm-panel")).toContainElement(alert);
   });
 
   it("banner is NOT inside ba-left-col or ba-right-col (must be a direct ba-body child)", () => {
@@ -1062,3 +1066,34 @@ describe("agent failure envelopes render a plain sentence, not the raw error", (
 // currently exercised by any live caller. Flagged in the Task 7 report as a
 // residual concern rather than silently removed from AIAgent.js, since the
 // parameter may be needed again if a future caller reintroduces it.
+
+// ─── Header toolbar portal (live workbench hoist) ────────────────────────────
+
+describe("Header controls portal", () => {
+  afterEach(() => {
+    mockAgentUiMode.toolbarHostEl = null;
+  });
+
+  it("renders the header controls inside the agent header when no host is registered", () => {
+    renderAgent({ user: customerUser, mode: "inline" });
+    const clear = screen.getByTestId("header-clear-progress");
+    expect(clear.closest(".ba-header")).not.toBeNull();
+  });
+
+  it("portals the header controls into a registered toolbar host", () => {
+    const host = document.createElement("div");
+    host.setAttribute("data-testid", "toolbar-host");
+    document.body.appendChild(host);
+    mockAgentUiMode.toolbarHostEl = host;
+
+    renderAgent({ user: customerUser, mode: "inline" });
+
+    const clear = screen.getByTestId("header-clear-progress");
+    expect(host.contains(clear)).toBe(true);
+    expect(clear.closest(".ba-header")).toBeNull();
+    // The controls keep their wrapper class, so existing selectors still resolve.
+    expect(clear.closest(".ba-header-tools")).not.toBeNull();
+
+    document.body.removeChild(host);
+  });
+});

@@ -1,11 +1,32 @@
 import { Request, Response } from 'express';
-import { timingSafeEqual } from 'crypto';
-import { trace } from '@opentelemetry/api';
+import { randomUUID, timingSafeEqual } from 'crypto';
+import { context as otelContext, trace } from '@opentelemetry/api';
 import { EventType } from '@ag-ui/core';
 import { reasonOnce } from './reasoningGraph';
+import { runWithCorrelation, getCorrelationId } from './correlationContext';
+import { emitHop } from './transactionHop';
 import type { ReasonMessage, ReasonResponse, ReasonToolSchema } from './reasonContract';
 
 const tracer = trace.getTracer('banking-agent-service');
+
+/**
+ * Resolve the correlation id for an agent run.
+ *
+ * Precedence: inbound header → body context → top-level body field → fresh UUID.
+ * Mirrors reasonRoute.ts so both agent-service entry points agree.
+ */
+export function correlationIdFromRequest(
+  headers: Record<string, string | string[] | undefined>,
+  body: { correlationId?: unknown; context?: { correlationId?: unknown } } | undefined,
+): string {
+  const h = headers?.['x-correlation-id'];
+  if (typeof h === 'string' && h) return h;
+  const fromContext = body?.context?.correlationId;
+  if (typeof fromContext === 'string' && fromContext) return fromContext;
+  const fromBody = body?.correlationId;
+  if (typeof fromBody === 'string' && fromBody) return fromBody;
+  return randomUUID();
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -264,10 +285,21 @@ function secretsMatch(a: string, b: string): boolean {
 
 export function makeAgentRunHandler(internalSecret: string, pinnedBffToolUrl?: string) {
   return async function agentRunHandler(req: Request, res: Response): Promise<void> {
+    const correlationId = correlationIdFromRequest(req.headers, req.body);
     const requestSpan = tracer.startSpan('agent-run-request', {
-      attributes: { 'http.method': 'POST', 'http.url': '/run' },
+      attributes: {
+        'http.method': 'POST',
+        'http.url': '/run',
+        // Joins this Jaeger trace to the ledger record and to every log line.
+        correlation_id: correlationId,
+      },
     });
+    // Child spans are started inside this context so reasoning-step-N and
+    // tool-execution parent to agent-run-request instead of attaching to
+    // whatever ambient auto-instrumented HTTP span happens to be active.
+    const runContext = trace.setSpan(otelContext.active(), requestSpan);
 
+    return runWithCorrelation(correlationId, async () => {
     try {
       const incoming = req.headers['x-internal-gateway-secret'];
       if (typeof incoming !== 'string' || !secretsMatch(incoming, internalSecret)) {
@@ -358,12 +390,12 @@ export function makeAgentRunHandler(internalSecret: string, pinnedBffToolUrl?: s
       emit(res, { type: EventType.STEP_STARTED, stepName: 'reasoning-' + (iter + 1) });
 
       let reasonResult: ReasonResponse | undefined;
+      const span = tracer.startSpan(`reasoning-step-${iter + 1}`, undefined, runContext);
+      span.setAttribute('iteration', iter + 1);
+      span.setAttribute('message_count', conversationMessages.length);
+      span.setAttribute('provider', provider ?? process.env.AGENT_PROVIDER ?? 'anthropic');
+      span.setAttribute('correlation_id', getCorrelationId() ?? '');
       try {
-        const span = tracer.startSpan(`reasoning-step-${iter + 1}`);
-        span.setAttribute('iteration', iter + 1);
-        span.setAttribute('message_count', conversationMessages.length);
-        span.setAttribute('provider', provider ?? process.env.AGENT_PROVIDER ?? 'anthropic');
-
         reasonResult = await reasonOnce({
           messages: conversationMessages,
           tools,
@@ -387,7 +419,13 @@ export function makeAgentRunHandler(internalSecret: string, pinnedBffToolUrl?: s
           }
         }
         span.end();
+        emitHop({
+          phase: 'agent.reason',
+          op: `reasoning-step-${iter + 1}`,
+          status: 'ok',
+        });
       } catch (err) {
+        span.end();
         emit(res, { type: EventType.RUN_ERROR, message: 'Reasoning failed: ' + String(err), code: 'REASONING_ERROR' });
         res.end();
         return;
@@ -480,9 +518,10 @@ export function makeAgentRunHandler(internalSecret: string, pinnedBffToolUrl?: s
           emit(res, { type: EventType.TOOL_CALL_ARGS, toolCallId: callId, delta: JSON.stringify(call.args) });
           emit(res, { type: EventType.TOOL_CALL_END, toolCallId: callId });
 
-          const toolSpan = tracer.startSpan(`tool-execution`);
+          const toolSpan = tracer.startSpan('tool-execution', undefined, runContext);
           toolSpan.setAttribute('tool_name', call.name);
           toolSpan.setAttribute('tool_call_id', callId);
+          toolSpan.setAttribute('correlation_id', getCorrelationId() ?? '');
 
           const { result, mcpEntry, authorizeDecision, callTokenEvents } = await executeTool(call.name, call.args, bffToolUrl, pinnedBffToolUrl, sessionId, internalSecret);
 
@@ -490,6 +529,13 @@ export function makeAgentRunHandler(internalSecret: string, pinnedBffToolUrl?: s
             toolSpan.setAttribute('duration_ms', mcpEntry.durationMs);
           }
           toolSpan.end();
+          emitHop({
+            phase: 'agent.reason',
+            op: `tool:${call.name}`,
+            durationMs: mcpEntry?.durationMs,
+            params: call.args as Record<string, unknown>,
+            status: 'ok',
+          });
 
           const interrupt = extractHitlInterrupt(result);
           if (interrupt) {
@@ -575,5 +621,6 @@ export function makeAgentRunHandler(internalSecret: string, pinnedBffToolUrl?: s
     } finally {
       requestSpan.end();
     }
+    });
   };
 }

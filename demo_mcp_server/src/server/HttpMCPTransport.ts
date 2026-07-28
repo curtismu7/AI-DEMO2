@@ -32,6 +32,7 @@ import { AuditLogger } from '../utils/AuditLogger';
 import { Logger, createDefaultLoggerConfig } from '../utils/Logger';
 import { correlationFromMessage } from './correlationFromMessage';
 import { runWithCorrelation } from '../utils/correlationContext';
+import { emitHop } from '../utils/transactionHop';
 import { extractTratClaims } from '../auth/TratClaimsExtractor';
 import { verifyActorChain, parseAllowedActors } from '../auth/actorChain';
 import { enforceUpstreamContract, resolveUpstreamAudiences } from '../auth/lastHopAuthorization';
@@ -53,6 +54,7 @@ const BANKING_SCOPES = [
   'accounts:read',
   'transactions:read',
   'transactions:write',
+  'sensitive:read',
 ];
 
 // ---------------------------------------------------------------------------
@@ -151,7 +153,7 @@ export class HttpMCPTransport {
   }
 
   // -------------------------------------------------------------------------
-  // Entry point — called by BankingMCPServer.handleHttpRequest
+  // Entry point — called by DemoMCPServer.handleHttpRequest
   // -------------------------------------------------------------------------
 
   async handleRequest(req: IncomingMessage, res: ServerResponse, pathname: string): Promise<void> {
@@ -292,7 +294,7 @@ export class HttpMCPTransport {
         scopes: [
           'accounts:read',
           'transactions:read',
-          'accounts:write',
+          'transactions:write',
           'sensitive:read',
         ],
       },
@@ -577,10 +579,19 @@ export class HttpMCPTransport {
 
     // 7. Route message — wrapped in ALS correlation scope so all downstream
     // teachLog.step calls (TokenIntrospector etc.) inherit correlation_id automatically.
-    const correlationId = correlationFromMessage(message as any);
+    const correlationId = correlationFromMessage(message as any, req.headers);
     // Correlation scope begins here: pre-route bearer/JWKS validation, gateway-contract and protocol-version checks (steps 1-6 above) run before the correlation id is bound. The RFC 7662 introspection that the teaching trace cares about runs inside handleMessage (within this scope) on both transports.
     await runWithCorrelation(correlationId, async () => {
       const mcpResponse = await this.messageHandler.handleMessage(message, context);
+
+      if (message.method === 'tools/call') {
+        emitHop({
+          phase: 'mcp.tool',
+          op: String((message.params as any)?.name ?? 'unknown'),
+          params: (message.params as any)?.arguments ?? {},
+          status: mcpResponse?.error ? 'error' : 'ok',
+        });
+      }
 
       // Capture negotiated protocol version from initialize response
       if (isInitialize && mcpResponse?.result?.['protocolVersion']) {

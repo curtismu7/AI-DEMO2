@@ -13,6 +13,8 @@ const runtimeSettings = require('../config/runtimeSettings');
 const pingOneAuthorizeService = require('./pingOneAuthorizeService');
 const simulatedAuthorizeService = require('./simulatedAuthorizeService');
 const { decodeJwtClaims } = require('./agentMcpTokenService');
+const jwksService = require('./jwksService');
+const oauthEndpointResolver = require('./oauthEndpointResolver');
 const { buildActorBridgeHeaders } = require('./mcpActorBridge');
 const hitlServiceClient = require('./hitlServiceClient');
 const cibaTransactionReceipt = require('./cibaTransactionReceipt');
@@ -471,44 +473,26 @@ async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr
  *   | { ran: true, pingoneError: Error }
  * >}
  */
-async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAcr, toolParams, hitlChallengeId = null }) {
-  if (!agentToken || typeof agentToken !== 'string') {
-    return { ran: false, reason: 'no_agent_token', skipReason: 'no_agent_token' };
-  }
-
-  // NOTE: admin sessions used to return early here, skipping the ENTIRE
-  // authorization gate in code (F5). Role is now forwarded to the PDP as
-  // UserRole so the POLICY decides whether admin means anything — a code-level
-  // skip is not an authorization decision.
-
-  // Resolved once here (not at the group-policy block below) because the amount
-  // resolution needs it too.
-  const activeVerticalId = verticalManifest.resolver.activeIdFor(req) || 'banking';
-
-  // Extract amount and transaction type from params for write-tool policy evaluation
-  const transactionType = WRITE_TOOL_TYPE_MAP[tool] || null;
-  // A tool that names a RECORD carries no amount of its own — read it from the
-  // record so the policy decides on the real figure, never on a number parsed out
-  // of the phrase. Returns null when it does not apply, so the stated amount stands.
-  //
-  // User id must match the vertical store key. POST /api/mcp/tool is gated by
-  // requireSession only — it never sets req.user — so falling back to
-  // userSub / session.oauthId / session.id is required. Using only req.user.id
-  // made resolveAmountForPolicy always return null on the chip path, and the
-  // gate fell back to the fabricated phrase amount (#539 regression).
-  const policyUserId =
-    (req.user && req.user.id) ||
-    userSub ||
-    req.session?.user?.oauthId ||
-    req.session?.user?.id ||
-    null;
-  const recordAmount = resolveAmountForPolicy(tool, toolParams, activeVerticalId, policyUserId);
-  const toolAmount = transactionType && toolParams
-    ? (recordAmount !== null ? recordAmount : parseFloat(toolParams.amount || 0))
-    : null;
-
-  const USE_SIMULATED = simulatedAuthorizeService.isSimulatedModeEnabled(configStore);
-
+/**
+ * Decode an MCP access token into the flat token facts the PingOne Authorize
+ * McpFirstTool parameter map needs (Contract C1, F3). Pure and side-effect
+ * free — jwksService.hasKid is a read-only cache lookup, isActorBridgedMode /
+ * buildActorBridgeHeaders are read-only config derivations — so unlike
+ * buildMcpFirstToolGateInputs (which mutates session state and calls the
+ * HITL service) this is safe to call more than once per request. Extracted
+ * so agentPreflightService.evaluateBatch can decode the ONE token it
+ * resolves for a whole tool batch without re-deriving this logic, and so
+ * buildMcpFirstToolGateInputs itself has one less reason to drift from it.
+ *
+ * @param {object} opts
+ * @param {import('express').Request} opts.req
+ * @param {string} opts.agentToken
+ * @param {string} [opts.userSub]
+ * @returns {Promise<{ claims, subjectId, tokenAudience, actClientId, nestedActClientId,
+ *   tokenScopes, tokenExp, tokenIat, tokenNbf, tokenIss, tokenKid, tokenKidKnown,
+ *   mayActSub, userRole }>}
+ */
+async function decodeMcpTokenFacts({ req, agentToken, userSub }) {
   // PAZ Trust Framework parameter map (see docs/PINGONE_AUTHORIZE_PLAN.md §MCP Delegation):
   // JWT aud                              → TokenAudience
   // JWT act.client_id || act.sub         → ActClientId     (RFC 8693 §4.1 canonical: act.sub)
@@ -551,11 +535,106 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
   const tokenIat = typeof claims.iat === 'number' ? claims.iat : null;
   const tokenNbf = typeof claims.nbf === 'number' ? claims.nbf : null;
   const tokenIss = claims.iss ? String(claims.iss) : null;
+  // Signing-key identity (additional check). kid comes off the token HEADER,
+  // which decodeJwt already returns (utils/tokenUtils.js:25) and every caller
+  // so far discarded. tokenKidKnown is BFF-pre-resolved because the P1AZ
+  // snapshot DSL can neither fetch a JWKS nor do array-contains — the same
+  // reason InRequiredGroup and UserTier are pre-resolved. null → the key is
+  // OMITTED downstream (C1 rule 3: omission means "unknown", never "verified
+  // absent"), so a JWKS outage degrades THIS check and leaves the rest of the
+  // gate enforcing exactly as it does today.
+  const tokenKid = decoded?.header?.kid ? String(decoded.header.kid) : null;
+  // A kid is only meaningful against the keyset of the issuer that minted it.
+  // jwksService resolves PingOne's JWKS, so a token from any OTHER issuer must
+  // resolve to null (unknown), never false — judging it against the wrong
+  // keyset would report a perfectly valid token as forged.
+  //
+  // This is not hypothetical: clientCredentialsTokenService signs local demo
+  // tokens with keyid 'client-credentials-key', which is by definition absent
+  // from PingOne's JWKS. Without this guard such a token resolves false and
+  // DENIES — in simulated mode (the demo default) as well as live.
+  const tokenKidIssuerMatches = !!(tokenIss && tokenIss === oauthEndpointResolver.getIssuer());
+  const tokenKidKnown = tokenKidIssuerMatches
+    ? await jwksService.hasKid(tokenKid)
+    : null;
   const mayActSub = claims.may_act && typeof claims.may_act === 'object' && claims.may_act.sub
     ? String(claims.may_act.sub)
     : null;
   // Role as a policy INPUT, replacing the removed admin code-level bypass (F5).
   const userRole = req.session?.user?.role || null;
+
+  return {
+    claims, subjectId, tokenAudience, actClientId, nestedActClientId,
+    tokenScopes, tokenExp, tokenIat, tokenNbf, tokenIss, tokenKid, tokenKidKnown,
+    mayActSub, userRole,
+  };
+}
+
+/**
+ * Assemble the token + context facts evaluateMcpFirstToolGate decides on —
+ * JWT claim extraction, actor-chain derivation, HITL receipt verification,
+ * group/tier/RAR resolution, and the simulated-vs-live engine parameter
+ * shapes (simParams / liveDelegationArgs). Extracted so the real-time gate
+ * and the advisory bulk pre-flight path (agentPreflightService.evaluateBatch)
+ * assemble a tool's facts from IDENTICAL code — the alternative (two
+ * assemblers that can drift) is exactly the F3 divergence this file already
+ * warns about elsewhere.
+ *
+ * Retains every side effect of the original inline code (session mutation
+ * for stepUpAlreadyVerified, cibaTransactionReceipt.record, the HITL service
+ * call) — this is a pure extraction, not a purification; async I/O and the
+ * two `req.session` writes are unchanged in kind and order.
+ *
+ * Callable only once agentToken is confirmed present — evaluateMcpFirstToolGate
+ * keeps that zero-fact short-circuit check itself.
+ *
+ * @param {object} opts - same shape as evaluateMcpFirstToolGate, agentToken required
+ * @returns {Promise<
+ *   | { earlyExit: { ran: false, reason: string, skipReason: string } }
+ *   | { USE_SIMULATED, runSimulated, notConfiguredDeny, simParams, liveDelegationArgs,
+ *       toolAmount, transactionType, policyUserId, subjectId, useCaseId,
+ *       stepUpAlreadyVerified, hitlApproved, hitlAlreadyVerified }
+ * >}
+ */
+async function buildMcpFirstToolGateInputs({ req, tool, agentToken, userSub, userAcr, toolParams, hitlChallengeId = null }) {
+  // NOTE: admin sessions used to return early here, skipping the ENTIRE
+  // authorization gate in code (F5). Role is now forwarded to the PDP as
+  // UserRole so the POLICY decides whether admin means anything — a code-level
+  // skip is not an authorization decision.
+
+  // Resolved once here (not at the group-policy block below) because the amount
+  // resolution needs it too.
+  const activeVerticalId = verticalManifest.resolver.activeIdFor(req) || 'banking';
+
+  // Extract amount and transaction type from params for write-tool policy evaluation
+  const transactionType = WRITE_TOOL_TYPE_MAP[tool] || null;
+  // A tool that names a RECORD carries no amount of its own — read it from the
+  // record so the policy decides on the real figure, never on a number parsed out
+  // of the phrase. Returns null when it does not apply, so the stated amount stands.
+  //
+  // User id must match the vertical store key. POST /api/mcp/tool is gated by
+  // requireSession only — it never sets req.user — so falling back to
+  // userSub / session.oauthId / session.id is required. Using only req.user.id
+  // made resolveAmountForPolicy always return null on the chip path, and the
+  // gate fell back to the fabricated phrase amount (#539 regression).
+  const policyUserId =
+    (req.user && req.user.id) ||
+    userSub ||
+    req.session?.user?.oauthId ||
+    req.session?.user?.id ||
+    null;
+  const recordAmount = resolveAmountForPolicy(tool, toolParams, activeVerticalId, policyUserId);
+  const toolAmount = transactionType && toolParams
+    ? (recordAmount !== null ? recordAmount : parseFloat(toolParams.amount || 0))
+    : null;
+
+  const USE_SIMULATED = simulatedAuthorizeService.isSimulatedModeEnabled(configStore);
+
+  const {
+    claims, subjectId, tokenAudience, actClientId, nestedActClientId,
+    tokenScopes, tokenExp, tokenIat, tokenNbf, tokenIss, tokenKid, tokenKidKnown,
+    mayActSub, userRole,
+  } = await decodeMcpTokenFacts({ req, agentToken, userSub });
 
   // ── HITL receipt verification (the ONLY place hitlApproved is derived) ──────
   // On a retry the agent echoes back the challenge id. Verify it against the
@@ -629,7 +708,19 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
   // otherwise a checkout/transfer that trips both step-up AND HITL (e.g. UC22)
   // clears step-up on retry but 428s forever on the untouched HITL statement.
   // Single-use, same pattern as stepUpAlreadyVerified above.
-  const hitlAlreadyVerified = hitlCredit.isFresh(req.session);
+  //
+  // Amount-bound: when this call carries a transfer amount, pass it so a CIBA
+  // credit minted for $50 cannot discharge a $5000 retry. Omitting amount here
+  // used to opt out of binding, then record a receipt keyed by the REQUEST
+  // amount — the bearer /api/transactions path consumed that receipt and the
+  // larger write went through. Non-write tools (toolAmount null) still omit
+  // amount and keep the unbound discharge for tool-level HITL consent.
+  const hitlAlreadyVerified = hitlCredit.isFresh(
+    req.session,
+    toolAmount != null && Number.isFinite(Number(toolAmount))
+      ? { amount: toolAmount }
+      : {},
+  );
   if (hitlAlreadyVerified) {
     // Consume-on-use (services/hitlCredit.js): the credit is spent below at the
     // HITL-gate site it actually suppresses, NOT here — so an unrelated tool
@@ -641,6 +732,8 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     // OWN session-based hitlVerified check can never see this approval.
     // Stash a short-lived receipt keyed by (userId, tool, amount) so it can
     // look the approval up without a session. See cibaTransactionReceipt.js.
+    // Only record AFTER amount-bound isFresh — never mint a receipt for an
+    // amount the CIBA credit did not cover.
     if (transactionType && toolAmount != null) {
       cibaTransactionReceipt.record(policyUserId, tool, toolAmount);
     }
@@ -730,8 +823,8 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
           `and failover is permit — SKIPPING the live PingOne MCP gate for tool=${tool}. ` +
           'This call is NOT authorized.',
       );
-      return { ran: false, reason: 'authorize_not_configured_failover_permit',
-               skipReason: 'authorize_not_configured_failover_permit' };
+      return { earlyExit: { ran: false, reason: 'authorize_not_configured_failover_permit',
+               skipReason: 'authorize_not_configured_failover_permit' } };
     }
   }
 
@@ -765,8 +858,77 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
     tokenIat,
     tokenNbf,
     tokenIss,
+    tokenKid,
+    tokenKidKnown,
     userRole,
   };
+
+  return {
+    USE_SIMULATED,
+    runSimulated,
+    notConfiguredDeny,
+    simParams,
+    liveDelegationArgs,
+    toolAmount,
+    transactionType,
+    policyUserId,
+    subjectId,
+    useCaseId,
+    stepUpAlreadyVerified,
+    hitlApproved,
+    hitlAlreadyVerified,
+  };
+}
+
+/**
+ * @param {object} opts
+ * @param {import('express').Request} opts.req
+ * @param {string} opts.tool
+ * @param {string} opts.agentToken
+ * @param {string} [opts.userSub]
+ * @param {string} [opts.userAcr] - from session user
+ * @param {object} [opts.toolParams] - raw tool params (used for amount on write tools)
+ * @param {string} [opts.hitlChallengeId] - On a HITL retry, the challenge id the
+ *   agent echoes back. The gate verifies it against the canonical HITL service
+ *   (3009) — approved + not-expired + bound to THIS user/agent/tool — and only
+ *   then treats the HITL_CONSENT gate as discharged. A missing/invalid/forged id
+ *   fails closed (re-challenge), never PERMIT. This is the ONLY place hitlApproved
+ *   is derived; it is never accepted as a raw client flag.
+ * @returns {Promise<
+ *   | { ran: false }
+ *   | { ran: true, permit: true, evaluation: object }
+ *   | { ran: true, block: { status: number, body: object } }
+ *   | { ran: true, simulatedError: Error }
+ *   | { ran: true, pingoneError: Error }
+ * >}
+ */
+async function evaluateMcpFirstToolGate(opts) {
+  const { req, tool, agentToken } = opts;
+  if (!agentToken || typeof agentToken !== 'string') {
+    return { ran: false, reason: 'no_agent_token', skipReason: 'no_agent_token' };
+  }
+
+  const inputs = await buildMcpFirstToolGateInputs(opts);
+  if (inputs.earlyExit) {
+    return inputs.earlyExit;
+  }
+
+  const {
+    USE_SIMULATED,
+    runSimulated,
+    notConfiguredDeny,
+    simParams,
+    liveDelegationArgs,
+    toolAmount,
+    transactionType,
+    policyUserId,
+    subjectId,
+    useCaseId,
+    stepUpAlreadyVerified,
+    hitlApproved,
+    hitlAlreadyVerified,
+  } = inputs;
+  const userAcr = opts.userAcr;
 
   const mapLivePingOneResult = (r, { autoDisabledGroupPolicy = false } = {}) => {
     const autoDisabled = autoDisabledGroupPolicy
@@ -1170,6 +1332,8 @@ async function evaluateMcpFirstToolGate({ req, tool, agentToken, userSub, userAc
 
 module.exports = {
   evaluateMcpFirstToolGate,
+  buildMcpFirstToolGateInputs,
+  decodeMcpTokenFacts,
   getMcpFirstToolGateStatus,
   resolveExpectedMcpResourceUri,
   resolveExpectedMcpResourceSetting,

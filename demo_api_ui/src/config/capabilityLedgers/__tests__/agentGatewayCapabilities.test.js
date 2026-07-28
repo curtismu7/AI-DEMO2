@@ -6,8 +6,8 @@ import {
 } from '../agentGatewayCapabilities';
 
 describe('agentGatewayCapabilities', () => {
-  it('has exactly 7 capabilities', () => {
-    expect(AGENT_GATEWAY_CAPABILITIES).toHaveLength(7);
+  it('has exactly 8 capabilities', () => {
+    expect(AGENT_GATEWAY_CAPABILITIES).toHaveLength(8);
   });
 
   it('every capability has a unique id, a known group, a one-liner, and evidence', () => {
@@ -25,11 +25,11 @@ describe('agentGatewayCapabilities', () => {
     }
   });
 
-  it('groups split 2/2/3 across validate-audit, throttle-transform, oauth-policy-metadata', () => {
+  it('groups split 3/2/3 across validate-audit, throttle-transform, oauth-policy-metadata', () => {
     const counts = AGENT_GATEWAY_GROUPS.map(
       (g) => AGENT_GATEWAY_CAPABILITIES.filter((c) => c.group === g.id).length,
     );
-    expect(counts).toEqual([2, 2, 3]);
+    expect(counts).toEqual([3, 2, 3]);
   });
 
   it('the metadata-controls (RAR) capability cites no Groovy/PingGateway equivalent', () => {

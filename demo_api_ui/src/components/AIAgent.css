@@ -184,29 +184,10 @@ body > .banking-agent-float-root .banking-agent-panel {
 .banking-agent-panel:not(.ba-mode-inline) .ba-body {
   flex-wrap: nowrap;
 }
-/* Floating: full-width banner on its own row above the columns */
-.banking-agent-panel:not(.ba-mode-inline) .ba-consent-denied-banner {
-  flex: 0 0 100%;
-  min-width: 100%;
-}
-.banking-agent-panel:not(.ba-mode-inline)
-  .ba-body:has(.ba-consent-denied-banner) {
-  flex-wrap: wrap;
-}
-/* Inline: same treatment — banner spans full width above left/right columns */
-.banking-agent-panel.ba-mode-inline .ba-consent-denied-banner {
-  flex: 0 0 100%;
-  min-width: 100%;
-  order: -1;
-}
 /* Inline: prevent ba-body from wrapping so ba-right-col gets a definite height
-   and banking-agent-messages can scroll instead of expanding to content height.
-   Exception: when the consent-denied banner is present it still needs to wrap. */
+   and banking-agent-messages can scroll instead of expanding to content height. */
 .banking-agent-panel.ba-mode-inline .ba-body {
   flex-wrap: nowrap;
-}
-.banking-agent-panel.ba-mode-inline .ba-body:has(.ba-consent-denied-banner) {
-  flex-wrap: wrap;
 }
 
 /* Floating: narrower compact rail — chips are smaller and the column scrolls */
@@ -3246,7 +3227,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   cursor: not-allowed;
 }
 
-/* High-value consent declined — full-width notice above agent body */
+/* High-value consent declined — notice body inside the dismissable modal */
 .ba-consent-denied-banner {
   gap: 0.75rem;
   padding: 0.65rem 0.85rem;
@@ -3423,22 +3404,25 @@ body > .banking-agent-float-root .banking-agent-panel {
   }
 }
 
-.ba-header-signout {
-  padding: 4px 10px;
-  font-size: 0.65rem;
+/* Split-column sign-out — sits next to the title, so it needs to read on the
+   white .ba-header-top surface (the old transparent/light-text treatment
+   assumed a dark header and was nearly invisible here). */
+.ba-header-signout-btn {
+  padding: 4px 12px;
+  font-size: 0.7rem;
   font-weight: 700;
   border-radius: 6px;
-  border: none;
-  background: transparent;
-  color: rgba(232, 238, 252, 0.9);
+  border: 1px dashed var(--ba-border);
+  background: #fff;
+  color: #374151;
   cursor: pointer;
   flex-shrink: 0;
   line-height: 1.2;
 }
 
-.ba-header-signout:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+.ba-header-signout-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
 }
 
 .banking-agent-panel.ba-mode-inline.ba-split-column .ba-header-top {
@@ -4781,6 +4765,181 @@ body > .banking-agent-float-root .banking-agent-panel {
   outline-offset: 2px;
 }
 
+/* Demo steps trigger — grey header-strip button, same height as the other
+   toggles in .ba-header-tools. */
+.ba-demo-steps-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
+  color: #1f2937;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.ba-demo-steps-trigger:hover {
+  background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%);
+}
+.ba-demo-steps-trigger.active {
+  background: #cbd5e1;
+}
+.ba-demo-steps-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ba-demo-steps-trigger:focus-visible {
+  outline: 2px solid var(--ba-chip-bd);
+  outline-offset: 2px;
+}
+
+/* ─── Split-column header groups (Phase: control-bar redesign) ─────────
+   .ba-hg boxes only render in splitChrome; .ba-hg--flat is `display:contents`
+   so the floating widget's single flat row is completely unaffected. */
+.ba-hg-label {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  white-space: nowrap;
+}
+.ba-hg-divider {
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: 1px;
+  background: var(--ba-border);
+  margin: 2px 0;
+}
+.ba-hg {
+  flex: 1 1 100%;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid var(--ba-border);
+  border-radius: 9px;
+  padding: 2px 10px;
+}
+.ba-hg--flat {
+  display: contents;
+}
+/* .ba-hg--demo no longer centers its own row — Demo Steps/Live Use Cases now
+   share a row with Inspectors/Session, left-aligned like every other group.
+   The class stays on the wrapper only so .ba-demo-steps-trigger below keeps
+   its bold sizing. */
+
+/* Scope picker inside the control bar (split-column boxes AND the flat
+   floating-widget row) — label + toggle only, no settings-panel
+   padding/divider/hint (same "hide long hint" pattern as
+   .ba-agent-popout-hdr above). */
+.ba-hg .agent-scope-picker-row,
+.ba-hg--flat .agent-scope-picker-row {
+  padding: 0;
+  border-bottom: none;
+  gap: 0;
+}
+.ba-hg .scope-picker__hint,
+.ba-hg--flat .scope-picker__hint {
+  display: none;
+}
+
+/* Demo Steps — bold green CTA, split-column only (floating widget keeps the
+   plain grey .ba-demo-steps-trigger above, unscoped). */
+.ba-hg--demo .ba-demo-steps-trigger {
+  height: 32px;
+  padding: 0 16px 0 26px;
+  border-radius: 8px;
+  border: 1px solid #15803d;
+  background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow:
+    0 3px 10px rgba(22, 163, 74, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  position: relative;
+}
+.ba-hg--demo .ba-demo-steps-trigger::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #fff;
+  animation: ba-cta-pulse 1.6s infinite;
+}
+.ba-hg--demo .ba-demo-steps-trigger:hover {
+  background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
+}
+@keyframes ba-cta-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Live Use Cases — equally bold violet CTA, sits next to Demo Steps */
+.ba-cta-live {
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid #6d28d9;
+  background: linear-gradient(180deg, #8b5cf6 0%, #7c3aed 100%);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow:
+    0 3px 10px rgba(124, 58, 237, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.ba-cta-live:hover {
+  background: linear-gradient(180deg, #7c3aed 0%, #6d28d9 100%);
+}
+
+/* Inspector links — outlined, white fill, one hairline color per surface so
+   the set scans together without competing with the Demo Steps / Live Use
+   Cases CTAs above. */
+.ba-insp-btn {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 7px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  border: 1.5px solid var(--insp-c, #64748b);
+  color: var(--insp-c, #475569);
+}
+.ba-insp-btn:hover {
+  background: color-mix(in srgb, var(--insp-c, #64748b) 8%, #fff);
+}
+.ba-insp-btn--mcp {
+  --insp-c: #0ea5e9;
+}
+.ba-insp-btn--p1az {
+  --insp-c: #d97706;
+}
+.ba-insp-btn--gateway {
+  --insp-c: #0891b2;
+}
+
 /* Demo steps popout — same script as /use-cases Demo section */
 /* Wider than the shared .ba-actions-popout (360px) so the 5-column
    grid has enough room (~130px per card). Two classes beat the shared
@@ -5228,7 +5387,9 @@ body > .banking-agent-float-root .banking-agent-panel {
   overflow-y: auto;
 }
 
-/* When inside FloatingPanel, the grid fills the panel and scrolls freely */
+/* When inside FloatingPanel, the grid fills the panel and scrolls freely.
+   align-content: start stops the grid's default row-stretch (rows would
+   otherwise expand to fill the flex:1 height, ballooning each card). */
 .ba-demo-steps-float .fp-content {
   overflow-y: auto;
 }
@@ -5236,6 +5397,14 @@ body > .banking-agent-float-root .banking-agent-panel {
   max-height: none;
   overflow-y: visible;
   flex: 1;
+  align-content: start;
+}
+
+/* FloatingPanel sets an inline z-index:9000 (fp-panel base is 9500), both
+   below the agent panel's z-index:100059 !important — Demo Steps was
+   opening behind the agent. Needs !important to beat the inline style. */
+.ba-demo-steps-float.fp-panel {
+  z-index: 100061 !important;
 }
 .ba-demo-steps-float .ba-demo-steps-popout__header {
   flex-shrink: 0;
@@ -5431,6 +5600,35 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: #e0e7ff;
   border-color: #2563eb;
   color: #2563eb;
+  outline: none;
+}
+
+/* UC14b-only: quick chat result vs. full intent-binding page. Same shape as
+   the "i" explain button — sits between the title and it. "Q" (default) =
+   filled/active; "F" = outline, matching aria-pressed. */
+.ba-demo-steps-popout__rar-toggle {
+  flex: 0 0 auto;
+  width: 26px;
+  height: auto;
+  align-self: stretch;
+  border: 1.5px solid #7c3aed;
+  border-left: none;
+  background: transparent;
+  color: #7c3aed;
+  font: 700 11px/1 ui-sans-serif, system-ui, sans-serif;
+  cursor: pointer;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ba-demo-steps-popout__rar-toggle[aria-pressed="true"] {
+  background: #7c3aed;
+  color: #fff;
+}
+.ba-demo-steps-popout__rar-toggle:hover,
+.ba-demo-steps-popout__rar-toggle:focus-visible {
+  border-color: #6d28d9;
   outline: none;
 }
 

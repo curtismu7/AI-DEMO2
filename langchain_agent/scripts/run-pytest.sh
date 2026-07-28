@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# langchain_agent/scripts/run-pytest.sh — Python tests with local venv (Python 3.12+ recommended).
+# langchain_agent/scripts/run-pytest.sh — Python tests with local venv (Python 3.11, matches Dockerfile).
 # With no arguments: runs a **stable** subset (fast, expected green).
 # With arguments: forwards to pytest (e.g. `bash scripts/run-pytest.sh tests/` for full suite).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-PY="${PYTHON:-python3.12}"
+PY="${PYTHON:-python3.11}"
 if ! command -v "$PY" >/dev/null 2>&1; then PY="python3"; fi
 if [ ! -d .venv ]; then
   "$PY" -m venv .venv

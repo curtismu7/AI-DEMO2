@@ -1,9 +1,9 @@
 // AgentGatewayLogPanel.jsx
 //
-// Live log window for the Real Agent Gateway (PingGateway / IG). Two views:
+// Live log window for the Real Agent Gateway. Two views:
 //   1. Recent decisions — parsed from the gateway's X-Gw-Audit-Trail (why a call
 //      was PERMITted / DENYed, incl. real PingOne Authorize deny statements).
-//   2. Raw container logs — the IG stdout (introspection, [P1AZ] REQUEST/RESPONSE/
+//   2. Raw container logs — the Agent Gateway stdout (introspection, [P1AZ] REQUEST/RESPONSE/
 //      DECISION, token exchange), read by the BFF over the docker socket.
 //
 // Backend (any signed-in user): GET /api/admin/agent-gateway/decisions,
@@ -93,11 +93,11 @@ export default function AgentGatewayLogPanel() {
     <div className="mgc-section">
       <CapabilityCallout
         capability={AGENT_GATEWAY_CAPABILITIES.find((c) => c.id === 'rate-limiting')}
-        to="/pinggateway-inspector?subtab=capabilities"
+        to="/agent-gateway-inspector?subtab=capabilities"
       />
       <h4>Real Agent Gateway logs</h4>
       <p className="mgc-field-hint">
-        Live view of the PingGateway (IG) container: recent authorize decisions and the
+        Live view of the Agent Gateway container: recent authorize decisions and the
         raw gateway log (introspection, <code>[P1AZ]</code> decision calls, token exchange).
         Read by the BFF over the docker socket.
       </p>

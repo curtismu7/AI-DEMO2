@@ -37,8 +37,9 @@
 const scopeTopology = require('../scopeTopology');
 const pingOneUserLookup = require('../pingOneUserLookup');
 const ruleStore = require('../ruleStore');
-const { setDecisionContext } = require('../correlationContext');
+const { setDecisionContext, getDecisionContext } = require('../correlationContext');
 const { log, warn, auditDecision } = require('../logger');
+const { emitHop } = require('../transactionHop');
 
 // Rule 2 (actor identity), Rule 4 (HITL threshold), the tool-discovery decision, and the
 // scope->tool / write-tool classification are EDITABLE at runtime via ruleStore (admin
@@ -126,6 +127,7 @@ const DENY_CODE_BY_REASON_PREFIX = {
   amount_exceeds_ceiling: 'transaction-denied',
   tier_tool_not_allowed: 'mcp-tier-tool-not-allowed',
   tier_amount_exceeded: 'mcp-tier-amount-exceeded',
+  invalid_kid: 'mcp-invalid-kid',
 };
 // Every deny without a specific cloud rule maps to the shared MCP deny statement
 // (the cloud snapshot multi-parents this one across all seven MCP deny rules).
@@ -278,6 +280,35 @@ module.exports = async function decisionHandler(req, res) {
   if (!ClientId || !asStr(ClientId).trim()) {
     warn(`[AuthzServer/decision] DENY — missing sub`);
     return deny(res, 'missing_sub: token must carry a non-empty sub claim');
+  }
+
+  // ── Rule 0a-2: signing-key identity ───────────────────────────────────────
+  // Parity with the cloud rule "MCP Deny — Invalid Signing Key"
+  // (snapshots/gen-authorize-snapshot.js, statement mcp-invalid-kid) and with
+  // simulatedAuthorizeService's invalid_kid guard.
+  //
+  // Two wire shapes reach this PDP and BOTH must be understood:
+  //   BFF     → JSON boolean  false   (evaluateMcpToolDelegation sends booleans)
+  //   gateway → string       'false'  (buildAuthorizeParameters is
+  //                                    Record<string,string>; cf. HitlApproved)
+  // Reading only one shape silently ignores the other caller — a false green.
+  //
+  // ONLY those two values deny. TokenKidKnown is a caller-resolved tri-state and
+  // the caller OMITS it when membership is unknown (no kid, JWKS unreachable, or
+  // a token from an issuer whose keyset this PDP has no business judging).
+  // Absent MUST stay inert — the cloud attribute defaults TRUE for the same
+  // reason — so this deliberately does NOT test falsiness: '' and undefined are
+  // "unknown", not "unpublished".
+  //
+  // Key-IDENTITY check, not signature verification.
+  const tokenKidKnownDenies = params.TokenKidKnown === false
+    || params.TokenKidKnown === 'false';
+  if (tokenKidKnownDenies) {
+    warn(`[AuthzServer/decision] DENY — invalid_kid: kid "${asStr(params.TokenKid)}" is not published in the issuer JWKS`);
+    return deny(res,
+      `invalid_kid: the token header names signing key "${asStr(params.TokenKid)}" which is not published in the ` +
+      `issuer's JWKS. Key-identity check, not signature verification.`,
+    );
   }
 
   // ── Rule 0b: aud must include the gateway resource URI ────────────────────
@@ -499,6 +530,10 @@ module.exports = async function decisionHandler(req, res) {
   // decides over the act chain" semantic; it REPLACES the may_act check below for
   // these tools (A2A intentionally carries no may_act).
   const a2aDelegated = scopeTopology.isA2aDelegatedTool(ToolName);
+  // Set only after Rule 1c has verified BOTH the chain depth and that the nested
+  // generalist is the registered AI Agent. Rule 4 keys the consent waiver off
+  // this, so the waiver can never apply to an unverified or forged chain.
+  let a2aDelegationVerified = false;
   if (a2aDelegated) {
     const depth = parseInt(ActChainDepth, 10);
     const chainDepth = Number.isNaN(depth) ? 0 : depth;
@@ -511,6 +546,7 @@ module.exports = async function decisionHandler(req, res) {
       warn(`[AuthzServer/decision] DENY — invalid_a2a_generalist: nested act.sub "${NestedActClientId}" is not the registered AI Agent "${authorizedGeneralist}"`);
       return deny(res, `invalid_a2a_generalist: nested act.sub "${NestedActClientId}" is not the authorized generalist`);
     }
+    a2aDelegationVerified = true;
     log(`[AuthzServer/decision] A2A OK — "${ToolName}" reached via specialist delegation (depth ${chainDepth}, generalist ${NestedActClientId})`);
   }
 
@@ -645,7 +681,22 @@ module.exports = async function decisionHandler(req, res) {
   if (skipPerToolScopeCheck) {
     log(`[AuthzServer/decision] Rule 3 bypass — gateway-hop scope only, no per-tool scopes to enforce (tool="${ToolName}")`);
   }
-  if (!skipPerToolScopeCheck && requiredScopes.length > 0) {
+  // An A2A specialist presents the tool's LEAST-PRIVILEGE delegated scope
+  // (records:read) rather than its generic requiredScopes (read) — that
+  // narrowing is the point of the A2A demo, not a defect. Rule 3 only knew
+  // requiredScopes, so it denied every delegated call with
+  // "insufficient_scope: missing read" AFTER both exchanges had succeeded: the
+  // token was right, the act chain was depth 2, and the policy rejected it on a
+  // scope NAME. Accept the declared delegated scope as satisfying the
+  // requirement; a tool with no a2aDelegatedScope is unaffected.
+  const delegatedScope = scopeTopology.a2aDelegatedScope
+    ? scopeTopology.a2aDelegatedScope(ToolName)
+    : null;
+  const satisfiedByDelegatedScope = !!delegatedScope && grantedScopes.has(delegatedScope);
+  if (satisfiedByDelegatedScope) {
+    log(`[AuthzServer/decision] Rule 3 — A2A delegated scope "${delegatedScope}" satisfies ${ToolName} (requiredScopes: ${requiredScopes.join(', ')})`);
+  }
+  if (!skipPerToolScopeCheck && !satisfiedByDelegatedScope && requiredScopes.length > 0) {
     const missing = requiredScopes.filter(s => !grantedScopes.has(s));
     if (missing.length > 0) {
       warn(`[AuthzServer/decision] DENY — missing scopes: ${missing.join(', ')}`);
@@ -833,9 +884,29 @@ module.exports = async function decisionHandler(req, res) {
     //     can NEVER satisfy MFA (IMP-3), so it is NOT guarded by hitlApproved.
     //   - consent tool: HITL_CONSENT, dischargeable by a verified receipt.
     const declaresStepUp = !hasAmount && scopeTopology.isStepUpTool(ToolName) && !acrStrong;
+    // A verified A2A delegation is NOT held for consent.
+    //
+    // Rule 1c has already proved the specialist is acting under a user-bound
+    // chain (act:{specialist -> generalist}, depth >= 2) whose nested generalist
+    // is the REGISTERED AI Agent, for exactly this tool. That delegation is the
+    // user's authorization for this specialist to act; a second human prompt adds
+    // no control and stopped UC2 from ever completing — every delegation
+    // dead-ended at INDETERMINATE/HITL_REQUIRED after both token exchanges had
+    // already succeeded. Consent has its own use case (UC8).
+    //
+    // Deliberately narrow:
+    //   * STEP_UP above is untouched — a delegation can never satisfy MFA.
+    //   * A NON-delegated call to the same tool still requires consent, so the
+    //     control is not removed from the tool, only satisfied by the chain.
+    //   * Keyed off a2aDelegationVerified, never off the tool name alone, so an
+    //     unverified or forged chain gets no waiver.
+    if (a2aDelegationVerified) {
+      log(`[AuthzServer/decision] Rule 4 — verified A2A delegation satisfies consent for "${ToolName}"`);
+    }
     const declaresConsent =
       !hasAmount && !scopeTopology.isStepUpTool(ToolName) &&
-      ruleStore.hasChallengeType(ToolName) && !acrStrong && !hitlApproved;
+      ruleStore.hasChallengeType(ToolName) && !acrStrong && !hitlApproved
+      && !a2aDelegationVerified;
     if (overStepUp || declaresStepUp) {
       log(`[AuthzServer/decision] INDETERMINATE — STEP_UP: "${ToolName}" amount=$${amount} declaresStepUp=${declaresStepUp}`);
       return indeterminate(res, 'STEP_UP', 'step-up-required');
@@ -899,6 +970,21 @@ function acrLooksStrong(acr) {
   return s.includes('mfa') || s.includes('multi') || s.includes('fido') || s.includes('passkey');
 }
 
+// Every decision path funnels through these four helpers, so emitting here
+// gives complete coverage. Early DENY guards return before setDecisionContext
+// runs, so their hops carry null tool/sub/actor — that gap is real and must
+// stay visible rather than being back-filled with guesses.
+function _emitDecisionHop(outcome, reason) {
+  const ctx = getDecisionContext();
+  emitHop({
+    phase: 'authz.decision',
+    op: ctx.tool || null,
+    identity: { sub: ctx.sub || null, act: ctx.actor ? [ctx.actor] : [] },
+    decision: { outcome, by: 'mock', reason: reason || null },
+    status: 'ok',
+  });
+}
+
 /**
  * Build the cloud-shaped `statements` array for a decision.
  *
@@ -918,6 +1004,8 @@ function denyCodeFor(reason) {
 }
 
 function permit(res, reason) {
+  auditDecision('PERMIT', reason);
+  _emitDecisionHop('permit', reason);
   res.json({
     decision: 'PERMIT', reason,
     statements: statementsFor('mcp-tool-authorized'),
@@ -927,6 +1015,8 @@ function permit(res, reason) {
 }
 
 function permitWithAdvice(res, reason, advice) {
+  auditDecision('PERMIT', reason);
+  _emitDecisionHop('permit', reason);
   res.json({
     decision: 'PERMIT', reason, advice,
     statements: statementsFor('mcp-tool-authorized'),
@@ -937,6 +1027,7 @@ function permitWithAdvice(res, reason, advice) {
 
 function deny(res, reason, code) {
   auditDecision('DENY', reason);
+  _emitDecisionHop('deny', reason);
   res.json({
     decision: 'DENY', reason,
     statements: statementsFor(code || denyCodeFor(reason)),
@@ -947,6 +1038,7 @@ function deny(res, reason, code) {
 
 function indeterminate(res, reason, code) {
   auditDecision('INDETERMINATE', reason);
+  _emitDecisionHop('n/a', reason);
   res.json({
     decision: 'INDETERMINATE', reason,
     statements: statementsFor(code),

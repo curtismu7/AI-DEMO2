@@ -1,0 +1,12 @@
+{
+  "vertical": "investment",
+  "useCaseId": "weather-mcp-texas-deny",
+  "ucId": "UC31",
+  "trigger": "what's the weather in Miami",
+  "expectedOutcome": "DENY",
+  "capturedAt": "2026-07-27T00:29:10.183Z",
+  "seedHash": null,
+  "reply": "❌ Agent Gateway: weather scope restricted to Texas (demo policy) — city not recognized as Texas",
+  "agentPath": null,
+  "tokenEventCount": 16
+}

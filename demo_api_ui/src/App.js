@@ -119,6 +119,10 @@ import AdminThemesPage from "./pages/AdminThemesPage";
 import AiControlPlanePage from "./pages/AiControlPlanePage";
 import CheckPage from "./pages/CheckPage";
 import TracingPage from "./pages/TracingPage";
+import TransactionTracePage from "./pages/TransactionTracePage";
+import FootprintPicksPage from "./pages/FootprintPicksPage";
+import FootprintMockGalleryPage from "./pages/FootprintMockGalleryPage";
+import FootprintLiveShellPage from "./pages/FootprintLiveShellPage";
 import TelemetryPage from "./pages/TelemetryPage";
 import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
@@ -504,7 +508,7 @@ function AppWithAuth() {
                 <Route
                   path="/agent-gateway-capabilities"
                   element={
-                    <Navigate to="/pinggateway-inspector?subtab=capabilities" replace />
+                    <Navigate to="/agent-gateway-inspector?subtab=capabilities" replace />
                   }
                 />
                 <Route
@@ -532,11 +536,17 @@ function AppWithAuth() {
                 <Route
                   path="/pinggateway-test"
                   element={
-                    <Navigate to="/pinggateway-inspector?subtab=tester" replace />
+                    <Navigate to="/agent-gateway-inspector?subtab=tester" replace />
                   }
                 />
                 <Route
                   path="/pinggateway-inspector"
+                  element={
+                    <Navigate to="/agent-gateway-inspector" replace />
+                  }
+                />
+                <Route
+                  path="/agent-gateway-inspector"
                   element={
                     <McpGatewayConfigRoute user={user} logout={logout} />
                   }
@@ -636,6 +646,63 @@ function AppWithAuth() {
                           <TracingPage />
                         </main>
                       </>
+                    ) : (
+                      <Navigate to="/" replace />
+                    )
+                  }
+                />
+                <Route
+                  path="/transaction-trace"
+                  element={
+                    loading ? null : user ? (
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <TransactionTracePage />
+                        </main>
+                      </>
+                    ) : (
+                      <Navigate to="/" replace />
+                    )
+                  }
+                />
+                {/* AI footprint costume-shell picker — SE tool, any logged-in user */}
+                <Route
+                  path="/demo/footprint-picks"
+                  element={
+                    loading ? null : user ? (
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <FootprintPicksPage />
+                        </main>
+                      </>
+                    ) : (
+                      <Navigate to="/" replace />
+                    )
+                  }
+                />
+                <Route
+                  path="/demo/footprint-mocks"
+                  element={
+                    loading ? null : user ? (
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <FootprintMockGalleryPage />
+                        </main>
+                      </>
+                    ) : (
+                      <Navigate to="/" replace />
+                    )
+                  }
+                />
+                {/* Live costume shell — one route per catalog entry (mockSelection.MOCK_CATALOG[*].route) */}
+                <Route
+                  path="/demo/:shellSlug"
+                  element={
+                    loading ? null : user ? (
+                      <FootprintLiveShellPage />
                     ) : (
                       <Navigate to="/" replace />
                     )
@@ -790,18 +857,16 @@ function AppWithAuth() {
                 <Route
                   path="/dashboard"
                   element={
-                    loading ? null : (
-                      <>
-                        <TopNav user={user} onLogout={logout} />
-                        <main className="main-content">
-                          {user?.role === "admin" ? (
-                            <AdminBlockedDashboard user={user} onLogout={logout} />
-                          ) : (
-                            <DashboardContent user={user} logout={logout} />
-                          )}
-                        </main>
-                      </>
-                    )
+                    <>
+                      <TopNav user={user} onLogout={logout} />
+                      <main className="main-content">
+                        {loading ? null : user?.role === "admin" ? (
+                          <AdminBlockedDashboard user={user} onLogout={logout} />
+                        ) : (
+                          <DashboardContent user={user} logout={logout} />
+                        )}
+                      </main>
+                    </>
                   }
                 />
                 {/* /login is not a real route — redirect to home so stale links or misdirected post-logout URIs land cleanly */}

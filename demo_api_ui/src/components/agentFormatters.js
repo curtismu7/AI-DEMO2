@@ -208,7 +208,6 @@ export function buildTokenEventMsg(tokenEvents, { localFallback = false } = {}) 
   const required = tokenEvents.find((e) => e.id === "exchange-required");
   const badScopes = tokenEvents.find((e) => e.id === "user-scopes-insufficient");
   const failed = tokenEvents.find((e) => e.id === "exchange-failed");
-  const userTokEv = tokenEvents.find((e) => e.id === "user-token");
   const JWKS_VER_IDS = new Set([
     "exchanged-token-verified", "agent-actor-token-verified",
     "two-ex-agent-actor-verified", "two-ex-exchange1-verified",
@@ -230,13 +229,6 @@ export function buildTokenEventMsg(tokenEvents, { localFallback = false } = {}) 
         : exchanged.audExpected !== undefined
           ? `❌ RFC 8707  Resource Indicator    aud mismatch — got "${exchanged.audActual}" expected "${exchanged.audExpected}"`
           : `✅ RFC 8707  Resource Indicator    aud: ${exchanged.audienceNarrowed || (Array.isArray(exchanged.claims?.aud) ? exchanged.claims.aud.join(", ") : exchanged.claims?.aud) || "—"}`;
-    const mayActStatus = !userTokEv
-      ? "⚠️ not available"
-      : userTokEv.mayActPresent && userTokEv.mayActValid
-        ? `✅ valid — ${userTokEv.mayActDetails || "delegation authorised"}`
-        : userTokEv.mayActPresent && !userTokEv.mayActValid
-          ? `❌ mismatch — ${userTokEv.mayActDetails || "client_id does not match BFF"}`
-          : "⚠️ absent from user token";
     const actStatus = exchanged.actPresent
       ? `✅ BFF confirmed — ${exchanged.actDetails || "delegation proof present"}`
       : "⚠️ subject-only exchange (no delegation proof)";
@@ -248,7 +240,6 @@ export function buildTokenEventMsg(tokenEvents, { localFallback = false } = {}) 
       jwksLine,
       audLine,
       "",
-      `may_act:  ${mayActStatus}`,
       `act:      ${actStatus}`,
       `aud:      ${exchanged.audienceNarrowed || (Array.isArray(exchanged.claims?.aud) ? exchanged.claims.aud.join(', ') : exchanged.claims?.aud) || "—"}`,
       `scope:    ${exchanged.scopeNarrowed || exchanged.claims?.scope || "—"} (narrowed)`,
@@ -289,9 +280,7 @@ export function buildTokenEventMsg(tokenEvents, { localFallback = false } = {}) 
     return [
       `❌ Token Exchange (RFC 8693) failed: ${failed.error || "unknown error"}`,
       "",
-      userTokEv?.mayActPresent
-        ? '   may_act was present — check that:\n   • PingOne has Token Exchange grant enabled on the admin OAuth app\n   • Audience policy allows "demo_mcp_server"\n   • may_act.client_id matches the BFF client'
-        : "   may_act was absent — this is likely the cause.\n   Go to /demo-data → Enable may_act → sign out and sign in again.",
+      "   Check that:\n   • PingOne has Token Exchange grant enabled on the admin OAuth app\n   • Audience policy allows \"demo_mcp_server\"\n   • The delegated token carries a valid act claim for this agent",
     ].join("\n");
   }
   return null;

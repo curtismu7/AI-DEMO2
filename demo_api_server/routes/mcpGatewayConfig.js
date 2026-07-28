@@ -934,4 +934,10 @@ router.post('/test/burst', express.json(), async (req, res) => {
 
 router.pushGatewayAdminConfig = pushGatewayAdminConfig;
 router.fetchGatewayLiveConfig = fetchGatewayLiveConfig;
+// Default export stays the router so every existing `require(...)` mount keeps
+// working unchanged. probeGatewayHealth is attached as a property so
+// checks/gatewayPostureCheck can read the gateway's self-reported authz posture
+// without a second copy of the probe — it is read-only (GET /health decides
+// nothing) and this is the only place that knows how to reach the gateway.
 module.exports = router;
+module.exports.probeGatewayHealth = probeGatewayHealth;

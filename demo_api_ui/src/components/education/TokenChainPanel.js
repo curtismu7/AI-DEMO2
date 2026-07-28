@@ -2,7 +2,8 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useTokenChainOptional } from '../../context/TokenChainContext';
 import { useProofOfEnforcement } from '../../context/ProofOfEnforcementContext';
-import JsonHighlight from '../shared/JsonHighlight';
+import InspectorTabs from '../shared/InspectorTabs';
+import JsonView, { JSON_VIEW_TABS } from '../shared/JsonView';
 import './TokenChainPanel.css';
 
 /**
@@ -118,6 +119,7 @@ export default function TokenChainPanel() {
   const [expandedId, setExpandedId] = useState(null);
   const [expandedToolId, setExpandedToolId] = useState(null);
   const [copyFlash, setCopyFlash] = useState(null);
+  const [jsonMode, setJsonMode] = useState('json');
   const tokenChain = useTokenChainOptional();
   useAgentCCTokenPrefetch();
   const mcpToolCalls = tokenChain?.mcpToolCalls || [];
@@ -257,7 +259,8 @@ export default function TokenChainPanel() {
                   {expanded && (
                     <div className="token-chain-detail">
                       <p style={{ margin: 0 }}>{step.summary}</p>
-                      <pre><JsonHighlight value={step.payloadPreview} /></pre>
+                      <InspectorTabs tabs={JSON_VIEW_TABS} activeKey={jsonMode} onChange={setJsonMode} />
+                      <pre><JsonView mode={jsonMode} value={step.payloadPreview} crackHeight={200} /></pre>
                       <p className="token-chain-hint">
                         Click the row again to collapse. Live access tokens are not stored in the
                         browser in this app.

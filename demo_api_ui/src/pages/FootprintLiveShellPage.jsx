@@ -4,7 +4,9 @@ import { useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { FootprintChrome } from "../components/aiFootprintMocks/ChromeFrames";
 import { MOCK_CATALOG, readMockSelection } from "../components/aiFootprintMocks/mockSelection";
+import { FootprintThemeToggle } from "../components/aiFootprintMocks/FootprintThemeToggle";
 import { useAgentSurfaceHost } from "../hooks/useAgentSurfaceHost";
+import { useFootprintTheme } from "../hooks/useFootprintTheme";
 import "./FootprintMockGalleryPage.css";
 
 const PATH_TO_CATEGORY = {
@@ -20,6 +22,7 @@ const PATH_TO_CATEGORY = {
 export default function FootprintLiveShellPage({ category: categoryProp } = {}) {
   const { shellSlug } = useParams();
   const navigate = useNavigate();
+  const [theme, toggleTheme] = useFootprintTheme();
   const category = categoryProp || PATH_TO_CATEGORY[shellSlug] || "vscode";
   const hostRef = useAgentSurfaceHost();
 
@@ -31,7 +34,8 @@ export default function FootprintLiveShellPage({ category: categoryProp } = {}) 
   }, [category]);
 
   return (
-    <div className="afm-live-shell" data-testid={`footprint-live-${category}`}>
+    <div className="afm-live-shell" data-testid={`footprint-live-${category}`} data-theme={theme}>
+      <FootprintThemeToggle theme={theme} onToggle={toggleTheme} />
       <FootprintChrome
         category={category}
         variant={variant}

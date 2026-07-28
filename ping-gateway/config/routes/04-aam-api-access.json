@@ -1,0 +1,74 @@
+{
+  "comment": "PingOne Authorize API Access Management (AAM) route — the stock PingGateway integration from https://docs.pingidentity.com/pinggateway/2026/pingone/aam.html, which this repo did not use anywhere. Distinct from the /mcp routes: those call the P1AZ *Decision Endpoints* API from p1az-decision.groovy with MCP-aware inputs (tool name, buffered arguments, DecisionContext, aud sets, RAR amount). AAM is coarse-grained by contrast — the built-in PingAuthorizeFilter posts only method/path/headers/client-IP to the PingOne Authorize Sideband API, which matches them against an API Service's operations and returns allow/deny. Both capabilities therefore run side by side rather than one replacing the other. The route proxies to demo_mortgage_service's unauthenticated /health so a PERMIT is observable without introducing another credential; only the AAM verdict is being demonstrated. Condition is gated on PG_AAM_SERVICE_URL: with the console side unprovisioned no route matches and /aam 404s, instead of the filter erroring on every request.",
+  "name": "aam-api-access",
+  "heap": [
+    {
+      "comment": "admin.json sets streamingEnabled:true globally, so entities are streams and reading one from a ScriptableFilter blocks a Vert.x event-loop thread ('Thread blocked', request never completes). The /mcp routes avoid this because McpValidationFilter buffers first; this route had no equivalent. CaptureDecorator with captureEntity:true is IG's supported way to force materialization — per the reference, it 'interrupts streaming for the captured request or response until the whole entity is captured'. Applied ONLY to this route's sideband chain, so /mcp streaming behaviour is untouched. masks keeps the credential and bearer out of the capture log; the Authorization value also appears INSIDE the JSON body, which masks cannot reach — agentGatewayLogs.js redacts bearer patterns when surfacing logs to the UI.",
+      "name": "AamEntityCapture",
+      "type": "CaptureDecorator",
+      "config": {
+        "captureEntity": true,
+        "captureContext": false,
+        "maxEntityLength": 65536,
+        "masks": { "headers": ["Authorization", "CLIENT-TOKEN"] }
+      }
+    }
+  ],
+  "condition": "${not empty env['PG_AAM_SERVICE_URL'] and find(request.uri.path, '^/aam')}",
+  "handler": {
+    "type": "Chain",
+    "config": {
+      "filters": [
+        {
+          "comment": "WRAPS AamDecision so the trail is stamped on both outcomes. On a deny PingAuthorizeFilter returns its own 403 without calling downstream filters, so a stamp mounted AFTER it would never run on the case most worth tracing. Reads attributes['aamTrail'] set by aam-sideband-capture.groovy inside the sidebandHandler below.",
+          "name": "AamTrailStamp",
+          "type": "ScriptableFilter",
+          "config": { "type": "application/x-groovy", "file": "aam-trail-stamp.groovy" }
+        },
+        {
+          "comment": "Runs BEFORE the path rewrite so the Sideband API sees the client-facing URL. The API Service in the PingOne console registers its base URL and operation paths against that URL (/aam/health), not the rewritten backend path. gatewayServiceUri = Authorization > API Gateways > Service URL, supplied as the configuration token pg.aam.service.url, which resolves from env PG_AAM_SERVICE_URL (dots to underscores, uppercased). It is NOT a ${env[...]} expression: despite the reference doc typing this attribute as a configuration expression, IG hands the raw string to java.net.URI, so an expression fails route build with 'Illegal character in path at index 1' (confirmed live). Note the token resolver scans every string in this file, comments included, so do not write a bare token-open sequence in prose here — an empty key fails route build with 'key can't be empty'. The .invalid default only keeps route loading valid when unconfigured — the route condition already stops it matching in that state. gatewayCredentialSecretId resolves through the global SecretsStore, a SystemAndEnvSecretStore with format PLAIN, so AAM_GATEWAY_SECRET holds the API gateway credential verbatim (the Ping doc's base64 step applies to the default base64 format, not PLAIN). No accessToken expression: the filter takes the bearer from the request's Authorization header, which is what an API client presents.",
+          "name": "AamDecision",
+          "type": "PingAuthorizeFilter",
+          "config": {
+            "gatewayServiceUri": "&{pg.aam.service.url|https://aam-not-configured.invalid}",
+            "secretsProvider": "SecretsStore",
+            "gatewayCredentialSecretId": "aam.gateway.secret",
+            "sidebandHandler": {
+              "comment": "The Sideband client handler is a Handler reference we own, which makes it the one place that can both retarget the call per request and observe its JSON. gatewayServiceUri above cannot retarget: IG resolves it once at config load.",
+              "type": "Chain",
+              "AamEntityCapture": "all",
+              "config": {
+                "filters": [
+                  {
+                    "name": "AamSidebandCapture",
+                    "type": "ScriptableFilter",
+                    "config": { "type": "application/x-groovy", "file": "aam-sideband-capture.groovy" }
+                  }
+                ],
+                "handler": {
+                  "comment": "Decorated separately from the Chain: the Chain's capture materialises the REQUEST before AamSidebandCapture reads it, while this one materialises the RESPONSE before that filter's thenOnResult runs. Decorating only one leaves the other side still streaming, and the read blocks again.",
+                  "type": "ClientHandler",
+                  "AamEntityCapture": "all",
+                  "config": {}
+                }
+              }
+            }
+          }
+        },
+        {
+          "comment": "Strips the /aam demo prefix so the backend sees its own path. Mapped explicitly rather than /aam -> / because UriPathRewriteFilter strips trailing slashes from path values.",
+          "name": "StripAamPrefix",
+          "type": "UriPathRewriteFilter",
+          "config": {
+            "mappings": { "/aam/health": "/health" }
+          }
+        }
+      ],
+      "handler": {
+        "type": "ReverseProxyHandler",
+        "baseURI": "${empty env['PG_MORTGAGE_BACKEND_URL'] ? 'http://mortgage-service:8082' : env['PG_MORTGAGE_BACKEND_URL']}",
+        "config": {}
+      }
+    }
+  }
+}

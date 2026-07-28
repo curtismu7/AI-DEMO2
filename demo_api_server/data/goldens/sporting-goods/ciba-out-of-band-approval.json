@@ -1,0 +1,12 @@
+{
+  "vertical": "sporting-goods",
+  "useCaseId": "ciba-out-of-band-approval",
+  "ucId": "UC22",
+  "trigger": "extend my rental $150",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-27T00:28:21.727Z",
+  "seedHash": "c48bf4072b509915",
+  "reply": "PingOne Authorize requires additional authentication before MCP tools can run.",
+  "agentPath": null,
+  "tokenEventCount": 13
+}

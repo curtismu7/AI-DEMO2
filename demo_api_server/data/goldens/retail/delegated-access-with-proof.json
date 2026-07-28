@@ -1,0 +1,12 @@
+{
+  "vertical": "retail",
+  "useCaseId": "delegated-access-with-proof",
+  "ucId": "UC1",
+  "trigger": "list my orders",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-27T00:27:06.336Z",
+  "seedHash": "6a8345537e56d245",
+  "reply": "Here are your Activity (6 total).",
+  "agentPath": null,
+  "tokenEventCount": 19
+}

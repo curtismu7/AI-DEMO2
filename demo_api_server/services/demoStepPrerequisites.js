@@ -23,14 +23,18 @@ const A2A_USE_CASE_IDS = new Set([
 ]);
 
 /**
- * Flags that must stay ON for any MCP tool chip. When both are off, Exchange #2
- * requests scopes/audiences across multiple PingOne resources and fails with
- * invalid_scope ("May not request scopes for multiple resources"), which the
- * agent surfaces as the opaque "That step couldn't be completed" fallback.
+ * Flags that must stay ON for any MCP tool chip.
+ *
+ * This used to also list ff_gateway_brokered_exchange. That flag was removed:
+ * its OFF path made Exchange #2 request tool scopes spanning multiple PingOne
+ * resources, which PingOne rejects outright —
+ *   invalid_scope: "May not request scopes for multiple resources"
+ * — surfacing as the opaque "That step couldn't be completed". Gateway-brokered
+ * is now the only path, so there is nothing left to arm. See
+ * docs/dual-exchange-broker.md.
  */
 const MCP_GATEWAY_RUNTIME_FLAGS = [
   'ff_mcp_gateway_pinggateway',
-  'ff_gateway_brokered_exchange',
 ];
 
 /**

@@ -1,0 +1,93 @@
+/* PreflightModal — demo-readiness view over the /api/check registry.
+   Solid, high-contrast text only: REGRESSION_PLAN §0 forbids muted grey hint
+   text in modals, and this one is read under stage lighting minutes before a
+   demo. Status is carried by an icon AND a border colour, never colour alone. */
+
+.pf-wrap {
+  padding: 4px 2px 8px;
+  color: #12263a;
+}
+
+.pf-verdict {
+  font-size: 15px;
+  font-weight: 700;
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  border: 1px solid transparent;
+}
+.pf-verdict-pass { background: #e6f4ea; color: #0b6b23; border-color: #9ad3ae; }
+.pf-verdict-warn { background: #fdf3e2; color: #7a4a00; border-color: #e8c07a; }
+.pf-verdict-fail { background: #fdeaea; color: #8a1c1c; border-color: #e6a1a1; }
+.pf-verdict-run  { background: #eef2f7; color: #26415e; border-color: #b9c7d6; }
+
+.pf-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.pf-btn {
+  font: inherit;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 5px;
+  border: 1px solid #26415e;
+  background: #26415e;
+  color: #fff;
+  cursor: pointer;
+}
+.pf-btn:hover:not(:disabled) { background: #1b2f45; }
+.pf-btn:disabled { opacity: 0.65; cursor: default; }
+
+.pf-ranat { font-size: 12px; color: #3d5a75; }
+
+.pf-row {
+  border: 1px solid #d5dde5;
+  border-left-width: 4px;
+  border-radius: 5px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: #fff;
+}
+.pf-row.pf-pass { border-left-color: #2e9e5b; }
+.pf-row.pf-warn { border-left-color: #d99017; }
+.pf-row.pf-fail { border-left-color: #c62828; }
+
+.pf-row-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.pf-icon { font-size: 14px; }
+.pf-name { font-weight: 700; color: #12263a; }
+.pf-cat {
+  font-size: 11px;
+  font-weight: 600;
+  color: #26415e;
+  background: #eef2f7;
+  border-radius: 3px;
+  padding: 1px 6px;
+}
+
+.pf-detail {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #12263a;
+  overflow-wrap: anywhere;
+}
+
+/* The fix line is the point of a failed row — never de-emphasised. */
+.pf-next {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #12263a;
+  background: #f4f7fa;
+  border-radius: 4px;
+  padding: 6px 8px;
+  overflow-wrap: anywhere;
+}

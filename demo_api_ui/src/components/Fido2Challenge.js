@@ -23,16 +23,22 @@ import {
  *   onSuccess - called when assertion is COMPLETED
  *   onCancel  - called when user cancels
  *   onError   - called with error message string on failure
+ *   onRegisterPasskey - optional; when provided, a NotAllowedError (no passkey
+ *                       for this site on THIS device, or dismissed prompt)
+ *                       offers local registration inline instead of failing out
  */
-export default function Fido2Challenge({ daId, deviceId, onSuccess, onCancel, onError }) {
+export default function Fido2Challenge({ daId, deviceId, onSuccess, onCancel, onError, onRegisterPasskey }) {
   const [status, setStatus] = useState('starting'); // 'starting' | 'waiting' | 'error'
   const [errorMsg, setErrorMsg] = useState(null);
+  const [canRegister, setCanRegister] = useState(false);
 
   // Use refs to always call the latest callback without re-running the effect
   const onSuccessRef = React.useRef(onSuccess);
   const onErrorRef = React.useRef(onError);
+  const onRegisterPasskeyRef = React.useRef(onRegisterPasskey);
   onSuccessRef.current = onSuccess;
   onErrorRef.current = onError;
+  onRegisterPasskeyRef.current = onRegisterPasskey;
 
   useEffect(() => {
     if (!daId || !deviceId) return;
@@ -82,6 +88,16 @@ export default function Fido2Challenge({ daId, deviceId, onSuccess, onCancel, on
       } catch (err) {
         if (cancelled) return;
         let msg;
+        // NotAllowedError means the browser found no passkey for this site on
+        // THIS device (the credential may live on a phone), or the prompt was
+        // dismissed. Registering locally is the way forward, so keep this
+        // overlay open and offer it — calling onError would close the modal.
+        if (err.name === 'NotAllowedError' && onRegisterPasskeyRef.current) {
+          setErrorMsg('No passkey for this site was found on this device, or the prompt was dismissed.');
+          setCanRegister(true);
+          setStatus('error');
+          return;
+        }
         if (err.name === 'NotAllowedError') {
           msg = 'Passkey authentication was cancelled or timed out.';
         } else if (err.name === 'SecurityError') {
@@ -121,13 +137,31 @@ export default function Fido2Challenge({ daId, deviceId, onSuccess, onCancel, on
           {status === 'error' && (
             <>
               <p className="otp-step-up-modal__error" style={{ textAlign: 'left' }}>{errorMsg}</p>
-              <p className="otp-step-up-modal__hint">
-                If you do not have a passkey enrolled, cancel and choose a different verification method.
-              </p>
+              {canRegister ? (
+                <p className="otp-step-up-modal__lead" style={{ textAlign: 'left' }}>
+                  If your passkey is saved on another device, retry and scan the QR code from
+                  the browser prompt. Otherwise, register one here to use Touch ID, Face ID, or
+                  a security key on this device.
+                </p>
+              ) : (
+                <p className="otp-step-up-modal__hint">
+                  If you do not have a passkey enrolled, cancel and choose a different verification method.
+                </p>
+              )}
             </>
           )}
         </div>
         <div className="otp-step-up-modal__actions" style={{ justifyContent: 'center' }}>
+          {canRegister && (
+            <button
+              type="button"
+              className="otp-step-up-modal__btn-primary"
+              onClick={onRegisterPasskey}
+              data-testid="fido2-register-passkey-here"
+            >
+              Register a passkey on this device
+            </button>
+          )}
           <button className="otp-step-up-modal__btn-ghost" onClick={onCancel}>Cancel</button>
         </div>
       </div>

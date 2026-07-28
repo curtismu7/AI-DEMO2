@@ -321,6 +321,15 @@ async function executeBffToolWithToken({ name, args, req = null, tokenEvents = [
         correlationId: req?.correlationId,
       };
   const { flowTraceId, deps: callDeps } = bindTraceEmit(req, name);
+
+  // Same useCaseId/vertical resolution as executeBffTool. Without this, no
+  // event in the whole A2A delegation flow ever carries useCaseId, so the
+  // UI's ProofStrip (firstUseCaseId) can never find UC2's catalog entry and
+  // the Intent/Result/Used box never renders for a delegated specialist call.
+  const clientId = req?.body?.useCaseId;
+  const useCaseId = (clientId && isValidUseCaseId(clientId)) ? clientId : deriveUseCaseId(name, args);
+  const vertical = req?.body?.vertical;
+
   const ctx = {
     tool: name,
     params: args || {},
@@ -330,6 +339,8 @@ async function executeBffToolWithToken({ name, args, req = null, tokenEvents = [
     deps: callDeps,
     suppliedToken,
     suppliedUserSub,
+    useCaseId,
+    vertical,
     // A2A specialist calls carry a pre-minted nested-act token. The gateway
     // runs its own PingOne Authorize evaluation on that token — the BFF-side
     // evaluateMcpFirstToolGate is redundant and may DENY because the policy
@@ -337,9 +348,14 @@ async function executeBffToolWithToken({ name, args, req = null, tokenEvents = [
     skipBffAuthorize: true,
   };
   const outcome = await runMcpToolPipeline(ctx);
+
   if (Array.isArray(outcome.tokenEvents)) {
+    stampUseCaseId(outcome.tokenEvents, useCaseId);
+    stampVertical(outcome.tokenEvents, vertical);
     for (const ev of outcome.tokenEvents) { if (!tokenEvents.includes(ev)) tokenEvents.push(ev); }
   } else if (outcome.body && Array.isArray(outcome.body.tokenEvents)) {
+    stampUseCaseId(outcome.body.tokenEvents, useCaseId);
+    stampVertical(outcome.body.tokenEvents, vertical);
     for (const ev of outcome.body.tokenEvents) { if (!tokenEvents.includes(ev)) tokenEvents.push(ev); }
   }
   if (outcome.kind === 'result') {

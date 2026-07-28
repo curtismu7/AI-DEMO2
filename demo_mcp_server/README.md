@@ -86,7 +86,7 @@ tests/
 - BankingAPIError handling
 
 ### Configuration (`src/interfaces/config.ts`)
-- BankingMCPServerConfig for complete server setup
+- DemoMCPServerConfig for complete server setup
 - Environment variable definitions
 - Default configuration values
 

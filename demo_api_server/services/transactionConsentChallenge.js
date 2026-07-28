@@ -50,6 +50,24 @@ const CONFIRMED_TTL_MS = 5 * 60 * 1000;
 const MAX_PENDING_PER_SESSION = 8;
 const OTP_TTL_MS = 5 * 60 * 1000;   // 5 minutes to enter OTP
 const OTP_MAX_ATTEMPTS = 3;          // lock after 3 wrong codes
+const HITL_CREDIT_TTL_MS = 5 * 60 * 1000; // matches routes/ciba.js's STEP_UP_TTL_MS
+
+/**
+ * Mints the same session-level HITL credit CIBA out-of-band approval grants
+ * (services/hitlCredit.js) once an in-page consent challenge (consent-only,
+ * OTP, PingOne MFA, or Recognize) reaches its terminal 'confirmed' state.
+ *
+ * Until this existed, only routes/ciba.js ever wrote req.session.hitlVerified
+ * — so a user who satisfied THIS consent flow still had no credit, and the
+ * isRefire retry that follows re-tripped the MCP gateway's and REST route's
+ * own independent HITL gates (mcpToolAuthorizationService.js, routes/
+ * transactions.js), showing a second, redundant consent prompt for the exact
+ * approval the user just gave.
+ */
+function _grantHitlCredit(req, ch) {
+  req.session.hitlVerified = Date.now() + HITL_CREDIT_TTL_MS;
+  req.session.hitlApprovedAmount = ch.snapshot?.amount ?? null;
+}
 
 /**
  * Classify a PingOne MFA-initiation failure into a route result.
@@ -367,6 +385,7 @@ async function confirmChallenge(req, challengeId, opts = {}) {
     ch.status          = 'confirmed';
     ch.confirmedAt      = now;
     ch.confirmExpiresAt = now + CONFIRMED_TTL_MS;
+    _grantHitlCredit(req, ch);
     console.log(`[ConsentChallenge] consent-only (amount ${ch.snapshot.amount} < step-up ${getStepUpThreshold()}) — confirmed without OTP/MFA challenge=${challengeId.slice(0, 8)}… user=${req.user.id}`);
     return { ok: true, challengeId, consentOnly: true, confirmExpiresAt: ch.confirmExpiresAt };
   }
@@ -612,6 +631,7 @@ function verifyOtp(req, challengeId, otpCode) {
   ch.status          = 'confirmed';
   ch.confirmedAt     = now;
   ch.confirmExpiresAt = now + CONFIRMED_TTL_MS;
+  _grantHitlCredit(req, ch);
   // Clear sensitive OTP fields
   delete ch.otpHash;
   delete ch.otpSalt;
@@ -704,6 +724,7 @@ async function verifyMfa(req, challengeId, params, origin) {
   ch.status           = 'confirmed';
   ch.confirmedAt      = now;
   ch.confirmExpiresAt = now + CONFIRMED_TTL_MS;
+  _grantHitlCredit(req, ch);
   delete ch.otpHash;
   delete ch.otpSalt;
   delete ch.otpExpiresAt;
@@ -800,6 +821,7 @@ async function verifyRecognize(req, challengeId, sdkResult) {
   ch.status           = 'confirmed';
   ch.confirmedAt      = Date.now();
   ch.confirmExpiresAt = Date.now() + CONFIRMED_TTL_MS;
+  _grantHitlCredit(req, ch);
   console.log(`[ConsentChallenge] Recognize verified challenge=${challengeId.slice(0, 8)}… user=${req.user.id}`);
   return { ok: true };
 }

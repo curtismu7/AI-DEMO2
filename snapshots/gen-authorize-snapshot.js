@@ -51,6 +51,8 @@ const ATTR = {
   Amount: '12345678-0001-4321-abcd-000000000001',
   UserId: '12345678-0003-4321-abcd-000000000003',
   ToolName: '12345678-0008-4321-abcd-000000000008',
+  ActClientId: '12345678-0010-4321-abcd-000000000010',
+  ActChainDepth: '12345678-0014-4321-abcd-000000000014',
   HitlApproved: '12345678-0013-4321-abcd-000000000013',
   DecisionContext: '12345678-0007-4321-abcd-000000000007',
   TokenAudience: '12345678-0009-4321-abcd-000000000009',
@@ -68,12 +70,35 @@ const ATTR = {
   IntentMatchesTool: '12345678-0022-4321-abcd-000000000022',
   IntentTokenError: '12345678-0023-4321-abcd-000000000023',
   UserRole: '12345678-0024-4321-abcd-000000000024',
+  // BFF-pre-resolved JWKS membership of the token's header kid. BOOLEAN with
+  // defaultValue TRUE — the inert side. The BFF OMITS this key when membership
+  // is unknown (no kid, or the JWKS fetch failed), so an absent value MUST NOT
+  // deny; defaulting false would deny every call that omits it, including
+  // during a PingOne JWKS outage. Same fail-open default as InRequiredGroup.
+  TokenKidKnown: '12345678-0027-4321-abcd-000000000027',
+  // The kid string itself. Reportable input only — no rule branches on it; it
+  // exists so the deny payload and the recent-decisions log can name the key.
+  // Default '' (absent), matching TokenAudActual / ResourceOwnerId.
+  TokenKid: '12345678-0028-4321-abcd-000000000028',
 };
-// The two accepted gateway identities (step 0) are read from these SoT resource
+// The accepted gateway identities (step 0) are read from these SoT resource
 // entries — the same identities the runtime accepts (PG_GATEWAY_RESOURCE_URI +
 // PG_GATEWAY_RESOURCE_ID; groovy p1az-decision.groovy acceptedAuds). Never
 // hardcode the URIs here (REGRESSION_PLAN §3).
-const GATEWAY_RESOURCE_NAMES = ['Super Banking MCP Gateway', 'Super Banking PingGateway MCP'];
+//
+// The A2A gateway MUST be in this list. Its resource was added to the SoT after
+// this constant was written, so the generated snapshot accepted only two of the
+// three identities the runtime accepts (MCP_GW_RESOURCE_URI carries all three).
+// Importing that snapshot made HasValidMcpAudience false for every A2A token —
+// and rule 45678901-0004 denies NOT that condition — so ALL A2A TRAFFIC WOULD
+// HAVE BEEN DENIED, with the same all-or-nothing shape as the step-0 blocker
+// this reconcile pass exists to prevent. Adding a gateway resource to the SoT
+// means adding it here; snapshotAudienceParity.test.js now fails if it does not.
+const GATEWAY_RESOURCE_NAMES = [
+  'Super Banking MCP Gateway',
+  'Super Banking PingGateway MCP',
+  'Super Banking A2A MCP Gateway',
+];
 // D-05 anti-bypass blacklist — parity with demo_authz_server/scopeTopology.js
 // upstreamAudiences(): the SoT upstream resources plus the banking RS (env-driven
 // with the same default), minus the gateway's own URI.
@@ -87,7 +112,9 @@ const BANKING_RS_URI_DEFAULT = 'https://banking-resource-server.ping.demo';
 // unconditional PERMIT — no MCP delegation rule ever ran for tool discovery.
 const MCP_DECISION_CONTEXTS = ['McpFirstTool', 'McpToolCall', 'McpToolsList', 'McpRequest'];
 const COND = {
+  HasValidActorChain: '23456789-0009-4321-abcd-000000000009',
   HasMFAAuthentication: '23456789-0003-4321-abcd-000000000003',
+  RequiresA2aDelegation: '23456789-0011-4321-abcd-000000000011',
   HasValidMcpAudience: '23456789-0007-4321-abcd-000000000007',
   RequiresHitlConsent: '23456789-0010-4321-abcd-000000000010',
   RequiresMcpStepUp: '23456789-0013-4321-abcd-000000000013',
@@ -102,8 +129,10 @@ const COND = {
   IntentToolMismatch: '23456789-0024-4321-abcd-000000000024',
   AdminRoleOnWriteTool: '23456789-0025-4321-abcd-000000000025',
   TokenAudTargetsUpstream: '23456789-0026-4321-abcd-000000000026',
+  TokenKidUnpublished: '23456789-0027-4321-abcd-000000000027',
 };
 const STMT = {
+  a2aDelegationRequired: '34567890-0010-4321-abcd-000000000010',   // code mcp-invalid-a2a-generalist (shared)
   stepUp: '34567890-0003-4321-abcd-000000000003',           // step-up-required (reused)
   mcpSharedDeny: '34567890-0004-4321-abcd-000000000004',    // mcp-authorization-denied (shared, reused)
   hitl: '34567890-0009-4321-abcd-000000000009',             // HITL (reused)
@@ -119,6 +148,7 @@ const STMT = {
   intentMismatch: '34567890-0019-4321-abcd-000000000019',
   rarAmountExceeded: '34567890-0020-4321-abcd-000000000020', // rar_amount_exceeded (DENY)
   adminRole: '34567890-0022-4321-abcd-000000000022',         // NOT -0021 (retired)
+  invalidKid: '34567890-0027-4321-abcd-000000000027',        // mcp-invalid-kid (DENY)
 };
 const RULE = {
   mcpHitl: '45678901-0008-4321-abcd-000000000008',          // existing (generalized)
@@ -137,6 +167,7 @@ const RULE = {
   mcpDenyIntentInvalid: '45678901-0018-4321-abcd-000000000018',
   mcpDenyIntentMismatch: '45678901-0019-4321-abcd-000000000019',
   mcpDenyAdminRole: '45678901-0022-4321-abcd-000000000022',  // NOT -0021 (retired)
+  mcpDenyInvalidKid: '45678901-0027-4321-abcd-000000000027',
 };
 const POLICY = { transaction: '56789012-0001-4321-abcd-000000000001', mcp: '56789012-0002-4321-abcd-000000000002' };
 const CONFIRM_USD = '250';
@@ -198,14 +229,18 @@ function deriveSot(sot) {
   const consent = [];
   const stepUp = [];
   const writeTools = [];
+  const a2aDelegated = [];
   for (const [name, meta] of Object.entries(tools)) {
     if (!meta || typeof meta !== 'object') continue;
     if (meta.challengeType === 'consent') consent.push(name);
     else if (meta.challengeType === 'step_up') stepUp.push(name);
     // Same derivation as demo_authz_server/scopeTopology.js isWriteTool().
     if ((meta.requiredScopes || []).includes('write')) writeTools.push(name);
+    // UC2: tools reachable ONLY through a specialist delegation. Same flag the
+    // mock reads via scopeTopology.isA2aDelegatedTool().
+    if (meta.a2aDelegated === true) a2aDelegated.push(name);
   }
-  consent.sort(); stepUp.sort(); writeTools.sort();
+  consent.sort(); stepUp.sort(); writeTools.sort(); a2aDelegated.sort();
   // Step 0 — the accepted gateway identities, by resource NAME. A missing entry
   // must abort generation: emitting a partial OR would silently deny one
   // gateway's entire traffic on import.
@@ -231,14 +266,14 @@ function deriveSot(sot) {
     ...UPSTREAM_RESOURCE_NAMES.map((name) => requireUri(name, 'the D-05 upstream audience blacklist')),
     process.env.BANKING_RESOURCE_SERVER_RESOURCE_URI || BANKING_RS_URI_DEFAULT,
   ].filter((u) => u && u !== gatewayUri);
-  return { consent, stepUp, writeTools, acceptedGatewayAudiences, upstreamAudiences };
+  return { consent, stepUp, writeTools, a2aDelegated, acceptedGatewayAudiences, upstreamAudiences };
 }
 
 function loadSot() {
   return deriveSot(JSON.parse(fs.readFileSync(SOT, 'utf8')));
 }
 
-function reconcile(snap, { consent, stepUp, writeTools, acceptedGatewayAudiences, upstreamAudiences }) {
+function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGatewayAudiences, upstreamAudiences }) {
   const byId = new Map(snap.map((o) => [o.id, o]));
   const sepIdx = snap.findIndex((o) => o.type === 'SnapshotPackageFile$PackageSeparator');
 
@@ -271,6 +306,145 @@ function reconcile(snap, { consent, stepUp, writeTools, acceptedGatewayAudiences
     toolOr(consent),
     { comparison: { left: { attribute: { id: ATTR.HitlApproved } }, op: 'NotEquals', right: { constant: { value: true } } } },
   ] } };
+
+  // 1b) RequiresA2aDelegation — the UC2 control, and it was BACKWARDS.
+  //
+  // As inherited this condition was `ActChainDepth GreaterThan "1"`, attached to
+  // a conditionalDenyElsePermit rule. Read it literally: DENY when the chain is
+  // two-hop. That denies the CORRECT specialist delegation and permits the
+  // generalist acting alone — the exact case UC2 exists to block, inverted.
+  //
+  // It never fired, which is the only reason A2A works: probed live 2026-07-27
+  // against the imported policy, depth 1, 2 and 5 all PERMIT with valid actor
+  // ids, and the rule sits at index 3 of a DenyOverrides policy so ordering
+  // cannot explain it. So the rule is inert AND wrong — harmless today, but a
+  // landmine: any future import that made it evaluate would break every A2A
+  // demo while looking like enforcement.
+  //
+  // Correct semantics, matching mock Rule 1c's depth half: DENY when an
+  // a2aDelegated tool is called WITHOUT a two-hop chain. The tool list comes
+  // from scope-topology.json (a2aDelegated), never hand-typed, so adding a
+  // specialist tool cannot silently leave it ungated. The constant is a NUMBER
+  // to match ActChainDepth's valueType (NUMBER, defaultValue 0) rather than the
+  // quoted "1" it carried.
+  //
+  // The generalist half of Rule 1c (nested act.sub must be the registered agent)
+  // is already enforced live by "MCP Deny — Invalid Actor Chain", so this rule
+  // deliberately covers depth only.
+  const a2aCond = byId.get(COND.RequiresA2aDelegation);
+  if (a2aCond) {
+    a2aCond.name = 'RequiresA2aDelegation';
+    a2aCond.fullName = 'RequiresA2aDelegation';
+    a2aCond.description =
+      `ToolName is one of the A2A-delegated tools (${a2aDelegated.join(', ')}) AND ActChainDepth < 2, ` +
+      `i.e. NOT(ActChainDepth > 1) — the caller is not a specialist acting under a two-hop act chain. ` +
+      `Fires the delegation-required DENY. ` +
+      `Generated from scope-topology.json (a2aDelegated) — do not hand-edit.`;
+    // depth < 2 expressed as NOT(depth > 1), and the constant is the STRING "1".
+    //
+    // Both deliberate. A survey of the whole snapshot: 162 string constants, 2
+    // booleans, and — before this — ZERO numbers; `GreaterThan` appears 7 times,
+    // `LessThan` zero. The first draft used `LessThan` with a numeric 2, which
+    // introduced an untested operator AND an untested value type in one line.
+    //
+    // I had reasoned "ActChainDepth's valueType is NUMBER, so send a number",
+    // but the live policy contradicts that: `Amount GreaterThan "2000"` is a
+    // STRING constant and demonstrably denies a 5000 transfer. So string
+    // constants are the proven form for numeric comparisons in this DSL, and
+    // GreaterThan is the proven operator. Using only constructs this file
+    // already exercises removes the import as a variable.
+    a2aCond.condition = { and: { conditions: [
+      toolOr(a2aDelegated),
+      { not: { condition: {
+        comparison: { left: { attribute: { id: ATTR.ActChainDepth } }, op: 'GreaterThan', right: { constant: { value: '1' } } },
+      } } },
+    ] } };
+  }
+
+  // 1c) The DENY message must describe what the rule now tests.
+  //
+  // The rule fires on a SHALLOW chain (no delegation), but its statement still
+  // read "nested generalist '<id>' is not the registered AI Agent" — the reason
+  // for a DIFFERENT rule. Left alone, the demo denies correctly and then explains
+  // the denial wrongly on screen, which is worse than a wrong verdict because it
+  // is not visibly wrong.
+  //
+  // The CODE stays mcp-invalid-a2a-generalist: DENY_CODE_BY_REASON_PREFIX in
+  // demo_authz_server/routes/decision.js deliberately maps BOTH
+  // a2a_delegation_required and invalid_a2a_generalist onto it, so consumers
+  // already treat one code as covering both halves of mock Rule 1c. Changing it
+  // would break that mapping for no gain.
+  const a2aStmt = byId.get(STMT.a2aDelegationRequired);
+  if (a2aStmt) {
+    a2aStmt.name = 'MCP Denied — A2A Delegation Required';
+    a2aStmt.description =
+      'Returned when an A2A-delegated tool is called without a two-hop act chain — the generalist '
+      + 'acting alone, or no delegation at all. PingOne Authorize validates the RFC 8693 chain depth, '
+      + 'not just the immediate actor.';
+    a2aStmt.payload = JSON.stringify({
+      denied: true,
+      reason: 'a2a-delegation-required',
+      message:
+        'A2A delegation is required for this tool: the call did not arrive through a two-hop act '
+        + 'chain (specialist delegated by the generalist). The generalist acting alone is denied.',
+    });
+  }
+
+  // 1d) HasValidActorChain — the A2A specialists were never added to it.
+  //
+  // The condition is an OR of `ActClientId Equals <registered actor>`. It
+  // carried 7 ids; the tenant has 9 A2A specialists. The four missing
+  // (tax, finaid, supplier, holdings) map EXACTLY to the four verticals that
+  // failed verify:a2a-policy with depth2=DENY after the policy import —
+  // government, university, manufacturing, investment. They were denied by THIS
+  // rule (mcp-invalid-actor), not by the delegation-depth rule, so a correct
+  // two-hop chain was rejected for having an unrecognised specialist.
+  //
+  // UNION, never replace. The client ids live only in demo_api_server/.env,
+  // which is gitignored — so a checkout without it (CI, a fresh clone, another
+  // worktree) must not be able to SHRINK the list and silently un-register a
+  // specialist. Ids already in the snapshot are always kept; env only adds.
+  // That also keeps `--check` deterministic: a machine with no .env regenerates
+  // byte-identical output instead of failing the drift gate.
+  const actorCond = byId.get(COND.HasValidActorChain);
+  if (actorCond) {
+    const existing = [];
+    const collect = (n) => {
+      if (!n || typeof n !== 'object') return;
+      const v = n.comparison && n.comparison.right && n.comparison.right.constant;
+      if (v && typeof v.value === 'string') existing.push(v.value);
+      Object.values(n).forEach(collect);
+    };
+    collect(actorCond.condition);
+
+    const fromEnv = Object.keys(process.env)
+      .filter((k) => /^PINGONE_A2A_[A-Z0-9]+_AGENT_CLIENT_ID$/.test(k))
+      .map((k) => (process.env[k] || '').trim())
+      .filter(Boolean);
+
+    const actors = [...new Set([...existing, ...fromEnv])].sort();
+    if (actors.length > existing.length) {
+      console.log(`  actor chain: +${actors.length - existing.length} specialist id(s) from env`);
+    }
+    actorCond.description =
+      `ActClientId is one of the registered chain identities (${actors.length}): the MCP Token `
+      + `Exchanger, the AI Agent, and each A2A specialist. A two-hop chain whose specialist is not `
+      + `listed here is denied as an invalid actor, regardless of chain depth. Union of the ids `
+      + `already in the snapshot and PINGONE_A2A_*_AGENT_CLIENT_ID — never shrinks.`;
+    // The RULE description is what a reader sees in the policy UI. It said
+    // "any of the 5 A2A specialist agents" while the list held 7 and the tenant
+    // had 9 — a stale count is how nobody noticed four specialists were absent.
+    const actorRule = byId.get('45678901-0006-4321-abcd-000000000006');
+    if (actorRule) {
+      actorRule.description =
+        `DENY when ActClientId is not one of the ${actors.length} registered chain identities `
+        + `(the MCP Token Exchanger, the AI Agent, and each A2A specialist). Validates the RFC 8693 `
+        + `delegation chain has a known registered actor. Generated — do not hand-edit the list.`;
+    }
+    actorCond.condition = { or: { conditions: actors.map((id) => ({
+      comparison: { left: { attribute: { id: ATTR.ActClientId } }, op: 'Equals', right: { constant: { value: id } } },
+    })) } };
+  }
 
   // 2) Ensure RequiresMcpStepUp condition (step_up tool list AND no MFA yet).
   const stepUpCond = {
@@ -505,9 +679,48 @@ function reconcile(snap, { consent, stepUp, writeTools, acceptedGatewayAudiences
     'DENY when UserRole=admin invokes a customer write tool (AdminRoleOnWriteTool, generated from scope-topology.json). Mirrors mock Rule 2.95 / requireNotAdmin. Restriction only — no admin permit branch exists.',
     COND.AdminRoleOnWriteTool, STMT.adminRole), beforeFirstPolicyIdx);
 
+  // 8f) Signing-key identity (mock deny_reason invalid_kid). The BFF resolves
+  // the token header's kid against the live PingOne JWKS and forwards the
+  // result as TokenKidKnown; this rule is what turns that input into a DENY.
+  //
+  // This is a key-IDENTITY check, NOT signature verification — it detects a
+  // token whose header names a signing key the issuer does not publish. Do not
+  // reword the payload to claim the signature was checked.
+  //
+  // Fail-open by construction: the BFF omits TokenKidKnown when membership is
+  // unknown (no kid in the header, or the JWKS fetch failed), and the attribute
+  // defaults TRUE, so the condition below is false and this rule stays inert.
+  // Only an explicit false — a resolved, unpublished kid — denies. Same shape
+  // as GroupMembershipFailed (InRequiredGroup Equals false on a BOOLEAN that
+  // defaults true); no new operator/valueType combination is introduced (#1009).
+  upsert(requestAttr(ATTR.TokenKidKnown, 'TokenKidKnown', 'BOOLEAN', true,
+    'BFF-pre-resolved JWKS membership of the presented token header kid. true = the kid is published in the ' +
+    "issuer's JWKS; false = it is not. The BFF OMITS this key when it cannot resolve membership, and the default " +
+    'is TRUE so an absent value never denies — a JWKS outage degrades this check instead of denying every call. ' +
+    'Pre-resolved BFF-side because this DSL cannot fetch a JWKS (same reason as InRequiredGroup).'), afterLastAttrIdx);
+  upsert(requestAttr(ATTR.TokenKid, 'TokenKid', 'STRING', '',
+    'The kid from the presented token header. Reportable input only — no rule branches on it; TokenKidUnpublished ' +
+    "reads TokenKidKnown. Present so the deny payload and PingOne's recent-decisions log can name the key. " +
+    "Default '' when the header carries no kid."), afterLastAttrIdx);
+  upsert(conditionDef(COND.TokenKidUnpublished, 'TokenKidUnpublished',
+    'TokenKidKnown = false — the token header names a signing key the issuer does not publish. Absent/unknown ' +
+    '(attribute default true) does NOT match, so the rule is inert unless the BFF positively resolved the kid ' +
+    'as unpublished. Key-identity check only; signature verification happens at authentication.',
+    { comparison: { left: { attribute: { id: ATTR.TokenKidKnown } }, op: 'Equals', right: { constant: { value: false } } } }),
+  beforeSepIdx);
+  upsert(denyStatement(STMT.invalidKid, 'MCP Denied — Invalid Signing Key', 'mcp-invalid-kid',
+    'Signing-key identity (invalid_kid): the token header names a kid that is not published in the issuer JWKS. ' +
+    'Mirrors the simulated engine deny_reason invalid_kid. Not a signature-verification failure.',
+    `{"denied": true, "reason": "invalid_kid", "message": "The token header names signing key '{{${ATTR.TokenKid}}}' which is not published in the issuer's JWKS. This is a key-identity check, not signature verification.", "kid": "{{${ATTR.TokenKid}}}", "toolName": "{{${ATTR.ToolName}}}"}`), beforeFirstPolicyIdx);
+  upsert(denyRule(RULE.mcpDenyInvalidKid, 'MCP Deny — Invalid Signing Key',
+    'DENY when the BFF resolved the token header kid as absent from the issuer JWKS (TokenKidUnpublished). ' +
+    'Inert when TokenKidKnown is omitted — unknown is not "verified absent".',
+    COND.TokenKidUnpublished, STMT.invalidKid), beforeFirstPolicyIdx);
+
   for (const ruleId of [
     RULE.mcpDenyUpstreamAud, RULE.mcpDenyResourceOwner,
     RULE.mcpDenyIntentInvalid, RULE.mcpDenyIntentMismatch, RULE.mcpDenyAdminRole,
+    RULE.mcpDenyInvalidKid,
   ]) {
     addChild(POLICY.mcp, ruleId, RULE.mcpPermitValid);
   }

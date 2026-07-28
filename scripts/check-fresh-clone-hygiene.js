@@ -273,6 +273,52 @@ for (const [file, label] of [['docker-compose.yml', 'docker'], ['k8s/02-configma
   }
 }
 
+// ── Ch8: a compose `environment:` entry must not SHADOW its service's env_file ──
+// Compose `environment:` overrides `env_file`. So `FOO: "${FOO:-}"`, written to
+// make a setting configurable, sets FOO to the EMPTY STRING whenever the shell /
+// project .env does not define it — blanking a real value the service's env_file
+// supplied, and silently disabling whatever reads it.
+//
+// Not hypothetical: PR #911 added PINGONE_MCP_EXCHANGER_CLIENT_ID/_SECRET under
+// mcp-server's `environment:` with :- defaults. The secret is defined in
+// demo_mcp_server/.env and had been reaching the container as len=64; afterwards
+// it arrived len=0, leaving the Step 9 gate unresolvable. Fixed in #914.
+//
+// The rule is deliberately independent of the env_file's CONTENTS. .env files are
+// gitignored, so on a fresh clone — the case this whole script exists for — they
+// are absent and a contents-based check silently passes. (The first version of
+// this check did exactly that and failed its own revert-to-RED.) Instead: if a
+// service declares an env_file at all, it must not also declare an empty-default
+// environment: entry, because adding that key to the env_file later would then
+// silently break it.
+{
+  const composeLines = read('docker-compose.yml').split('\n');
+  let svc = null;
+  const services = {};
+  for (const line of composeLines) {
+    const svcMatch = line.match(/^ {2}([a-z0-9_-]+):\s*$/);
+    if (svcMatch) { svc = svcMatch[1]; services[svc] = { empties: [], envFiles: [] }; continue; }
+    if (!svc) continue;
+    // both supported shapes: "- path: ./x/.env" and "- ./x/.env"
+    const ef = line.match(/^\s+-\s+path:\s*(\S+)\s*$/) || line.match(/^\s+-\s+(\.\/\S+\.env)\s*$/);
+    if (ef) services[svc].envFiles.push(ef[1].replace(/['"]/g, ''));
+    const empty = line.match(/^ {6}([A-Z0-9_]+):\s*"?\$\{[A-Z0-9_]+:-\}"?\s*$/);
+    if (empty) services[svc].empties.push(empty[1]);
+  }
+  for (const [name, info] of Object.entries(services)) {
+    if (!info.envFiles.length) continue; // nothing to shadow
+    for (const key of info.empties) {
+      fail(
+        'compose-env-shadow',
+        `docker-compose.yml: service "${name}" declares ${key}: "\${${key}:-}" under environment: ` +
+        `while also using env_file (${info.envFiles.join(', ')}). environment: OVERRIDES env_file, so ` +
+        `this blanks ${key} whenever the shell/project .env does not set it. Remove the environment: ` +
+        `entry and let env_file supply it (see PR #914).`,
+      );
+    }
+  }
+}
+
 // ── Report ──
 if (fails.length) {
   console.error('✗ fresh-clone hygiene FAILED:\n');

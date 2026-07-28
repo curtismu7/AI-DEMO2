@@ -49,6 +49,13 @@ app.post('/as/token', wrap(require('./routes/token')));
 app.post('/as/introspect', wrap(require('./routes/introspect')));
 app.post('/governance/pap/alpha/policy/:workerId/decision', wrap(require('./routes/decision')));
 app.get('/rules', wrap(require('./routes/rules')));
+// PingOne Authorize Sideband API (mock) — the AAM counterpart to the decision
+// endpoint above. PingGateway targets this when the BFF sends X-Authz-Simulated.
+app.post('/sideband/request', wrap(require('./routes/sideband')));
+// The response leg, reached only on ALLOW — the gateway posts the backend's
+// answer here for possible rewriting. Without it the allow path 404s while deny
+// keeps working.
+app.post('/sideband/response', wrap(require('./routes/sideband').sidebandResponse));
 
 // Editable rule overrides (admin round-trip editor; env-gated X-Authz-Admin-Token guard).
 const { putHandler: rulesPutHandler, resetHandler: rulesResetHandler } = require('./routes/rulesWrite');

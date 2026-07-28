@@ -92,7 +92,7 @@ export default function UserMenu({ user, onLogout, isAdminView = false, onSwitch
             </button>
           </div>
 
-          {user?.role === 'admin' && onSwitchView && (
+          {onSwitchView && (
             <button
               className="user-menu-item"
               type="button"

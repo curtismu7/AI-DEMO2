@@ -26,7 +26,10 @@ function performHealthCheck(url, timeout = TIMEOUT) {
       timeout: timeout,
       headers: {
         'User-Agent': 'Banking-MCP-Server-Health-Check/1.0'
-      }
+      },
+      // The server cert is self-signed and regenerated on every start, so there
+      // is nothing stable to verify against. This is a loopback liveness probe.
+      rejectUnauthorized: false
     };
 
     const req = client.request(options, (res) => {
@@ -71,7 +74,11 @@ async function main() {
   const port = args[1] || DEFAULT_PORT;
   const endpoint = args[2] || HEALTH_ENDPOINT;
   
-  const url = `http://${host}:${port}${endpoint}`;
+  // Scheme must follow MCP_MTLS_ENABLED: with mTLS on the server speaks TLS on
+  // this same port, and probing it with plain http fails as 'socket hang up',
+  // which marked the container unhealthy while it was serving fine.
+  const scheme = process.env.MCP_MTLS_ENABLED === 'true' ? 'https' : 'http';
+  const url = `${scheme}://${host}:${port}${endpoint}`;
   
   console.log(`Performing health check on: ${url}`);
   console.log(`Timeout: ${TIMEOUT}ms`);

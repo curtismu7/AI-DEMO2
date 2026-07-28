@@ -9,8 +9,8 @@ dotenv.config();
 
 import { loadConfiguration, validateConfiguration, ConfigurationError } from './config';
 import { loadVaultIntoEnv } from './vault';
-import { BankingMCPServerConfig } from './interfaces';
-import { BankingMCPServer } from './server/BankingMCPServer';
+import { DemoMCPServerConfig } from './interfaces';
+import { DemoMCPServer } from './server/DemoMCPServer';
 import { BankingAuthenticationManager } from './auth/BankingAuthenticationManager';
 import { BankingSessionManager } from './storage/BankingSessionManager';
 import { BankingToolProvider } from './tools/BankingToolProvider';
@@ -24,7 +24,7 @@ export * from './config';
 
 // Export specific interfaces to avoid conflicts
 export type { 
-  BankingMCPServerConfig,
+  DemoMCPServerConfig,
   EnvironmentVariables,
   DEFAULT_CONFIG
 } from './interfaces';
@@ -41,9 +41,9 @@ export {
 } from './config';
 
 // Export the main server class
-export { BankingMCPServer } from './server/BankingMCPServer';
+export { DemoMCPServer } from './server/DemoMCPServer';
 
-let server: BankingMCPServer | null = null;
+let server: DemoMCPServer | null = null;
 
 async function main(): Promise<void> {
   try {
@@ -69,7 +69,7 @@ async function main(): Promise<void> {
     }
 
     // Load and validate configuration
-    const config: BankingMCPServerConfig = loadConfiguration();
+    const config: DemoMCPServerConfig = loadConfiguration();
     validateConfiguration(config);
     
     console.log(`Server configured to run on ${config.server.host}:${config.server.port}`);
@@ -107,7 +107,15 @@ async function main(): Promise<void> {
     // The exchanger client is the same MCP exchanger app used by the BFF (d3f8fead).
     // Gated: if neither env var is set, tokenExchangeService is undefined and
     // TokenResolver falls back to agent-passthrough (backward compat / direct WS mode).
-    const tokenExchangerClientId = process.env.PINGONE_MCP_EXCHANGER_CLIENT_ID || process.env.AGENT_OAUTH_CLIENT_ID;
+    // PINGONE_TOKEN_EXCHANGER_CLIENT_ID is the name the environment actually
+    // supplies (demo_api_server/.env). The secret arrives as
+    // PINGONE_MCP_EXCHANGER_CLIENT_SECRET, so the pair was split across two
+    // naming conventions and this gate never resolved — tokenExchangeService
+    // stayed undefined and TokenResolver silently fell back to
+    // agent-passthrough, so Step 9 had never run once.
+    const tokenExchangerClientId = process.env.PINGONE_MCP_EXCHANGER_CLIENT_ID
+      || process.env.PINGONE_TOKEN_EXCHANGER_CLIENT_ID
+      || process.env.AGENT_OAUTH_CLIENT_ID;
     const tokenExchangerClientSecret = process.env.PINGONE_MCP_EXCHANGER_CLIENT_SECRET || process.env.AGENT_OAUTH_CLIENT_SECRET;
     const bankingApiResourceUri = process.env.BANKING_API_RESOURCE_URI;
     if (tokenExchangerClientId && tokenExchangerClientSecret && bankingApiResourceUri) {
@@ -138,7 +146,7 @@ async function main(): Promise<void> {
       enableLogging: config.logging.level === 'DEBUG'
     };
     
-    server = new BankingMCPServer(serverConfig, authManager, sessionManager, toolProvider);
+    server = new DemoMCPServer(serverConfig, authManager, sessionManager, toolProvider);
     
     console.log('Starting MCP server...');
     await server.startServer();

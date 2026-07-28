@@ -1,0 +1,12 @@
+{
+  "vertical": "investment",
+  "useCaseId": "a2a-delegation",
+  "ucId": "UC2",
+  "trigger": "show my sensitive holdings",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-27T00:28:46.785Z",
+  "seedHash": null,
+  "reply": "Here are your sensitive holdings.",
+  "agentPath": null,
+  "tokenEventCount": 19
+}

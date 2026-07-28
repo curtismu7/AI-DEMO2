@@ -7,6 +7,7 @@ import { MCP_STEP_IDS, buildRunStory } from "../services/tokenChainTrace/buildTr
 import { resolveInspectClaims } from "../services/tokenChainTrace/resolveInspectClaims";
 import { isFlagOn, shouldShowTrustTab } from "../utils/tokenChainTrust";
 import { useTokenChainOptional } from "../context/TokenChainContext";
+import { useProofOfEnforcementOptional } from "../context/ProofOfEnforcementContext";
 import TraceStepCard from "./TraceStepCard";
 import TraceTokenSummary from "./TraceTokenSummary";
 import TraceMcpPanel from "./TraceMcpPanel";
@@ -81,6 +82,9 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
   const [trustFlags, setTrustFlags] = useState({ ffDpop: false, ffRar: false });
   const [zoom, setZoom] = useState(readStoredZoom);
   const tokenChain = useTokenChainOptional();
+  // Names the running use case in each step's pop-out. Optional: several rail
+  // mounts (Monitoring routes, standalone pages) sit outside the Proof provider.
+  const proofUseCase = useProofOfEnforcementOptional()?.verdict || null;
 
   // Presenter text size — scales the whole rail so text, padding and dots stay
   // proportioned. Persisted so a projector setup survives a reload.
@@ -203,6 +207,11 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
           onClick={() => setTab("chain")}>
           Token Chain
         </button>
+        <button type="button" role="tab" aria-selected={tab === "tokens"}
+          className={`tctr-tab${tab === "tokens" ? " tctr-tab--active" : ""}`}
+          onClick={() => setTab("tokens")}>
+          Tokens
+        </button>
         <button type="button" role="tab" aria-selected={tab === "mcp"}
           className={`tctr-tab${tab === "mcp" ? " tctr-tab--active" : ""}`}
           onClick={() => setTab("mcp")}>
@@ -239,7 +248,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
           </div>
 
           {steps.map((step) => (
-            <TraceStepCard key={step.id} step={step} onInspect={onInspect} />
+            <TraceStepCard key={step.id} step={step} onInspect={onInspect} useCase={proofUseCase} />
           ))}
 
           <TraceTokenSummary tokenEvents={trace.tokenEvents} onInspect={onInspect} />
@@ -259,10 +268,12 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
             </div>
           </details>
         </>
+      ) : tab === "tokens" ? (
+        <TraceTokenSummary tokenEvents={trace.tokenEvents} onInspect={onInspect} standalone />
       ) : tab === "trust" ? (
         <TraceTrustPanel events={trace.tokenEvents} />
       ) : (
-        <TraceMcpPanel steps={steps} trace={trace} onInspect={onInspect} />
+        <TraceMcpPanel steps={steps} trace={trace} onInspect={onInspect} useCase={proofUseCase} />
       )}
 
       <ClaimDetailsModal isOpen={!!inspectType} tokenType={inspectType || "user"}

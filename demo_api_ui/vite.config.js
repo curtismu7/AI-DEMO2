@@ -214,6 +214,9 @@ export default defineConfig(({ mode }) => {
       setupFiles: ['./src/setupTests.js'],
       css: true,
       testTimeout: 30000,
+      // Pin the test process to UTC so date/time formatting assertions are
+      // deterministic across machines and CI runners regardless of local TZ.
+      env: { TZ: 'UTC' },
       exclude: [
         '**/node_modules/**',
         '**/dist/**',

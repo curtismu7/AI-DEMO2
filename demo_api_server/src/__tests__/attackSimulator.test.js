@@ -14,7 +14,55 @@
 const realApi = process.env.ATTACK_SIM_REAL_API === 'true';
 const describeIf = realApi ? describe : describe.skip;
 
-const { runAttackSim } = require('../../services/attackSimulatorService');
+const { runAttackSim, __test } = require('../../services/attackSimulatorService');
+const { _resolveForeignAccountId } = __test;
+
+// UC10 cross-owner-account regression (2026-07-27): a hardcoded
+// FOREIGN_ACCOUNT_ID drifted stale the moment the demo dataset was reseeded
+// (dataStore.getAccountById returned undefined for it), and the sim silently
+// reported status:200/errorCode:'unexpected_permit' — a FALSE claim that
+// resource-ownership enforcement was broken. Live-verified the real
+// data-plane gate (routes/accounts.js :id/balance) correctly 403s a genuine
+// foreign account; the bug was only in this sim's fixture resolution.
+describe('AttackSimulator — _resolveForeignAccountId (no creds needed)', () => {
+  const fakeStore = (accounts) => ({ getAllAccounts: () => accounts });
+
+  test('picks a banking-type account belonging to a different user', () => {
+    const store = fakeStore([
+      { id: 'a1', userId: 'me', accountType: 'CHECKING' },
+      { id: 'a2', userId: 'someone-else', accountType: 'SAVINGS' },
+      { id: 'a3', userId: 'someone-else', accountType: 'HSA' },
+    ]);
+    const foreign = _resolveForeignAccountId(store, 'me');
+    expect(foreign.id).toBe('a2');
+  });
+
+  test('falls back to any other user account when no banking type exists', () => {
+    const store = fakeStore([
+      { id: 'a1', userId: 'me', accountType: 'CHECKING' },
+      { id: 'a2', userId: 'someone-else', accountType: 'HSA' },
+    ]);
+    const foreign = _resolveForeignAccountId(store, 'me');
+    expect(foreign.id).toBe('a2');
+  });
+
+  test('returns null when every account belongs to the calling user', () => {
+    const store = fakeStore([{ id: 'a1', userId: 'me', accountType: 'CHECKING' }]);
+    expect(_resolveForeignAccountId(store, 'me')).toBeNull();
+  });
+
+  test('never resolves the stale hardcoded id "3" — the account it referenced no longer exists', () => {
+    // Regression pin: '3' was the OLD constant. A fixed dataset with no
+    // account literally named "3" (the modern id scheme is UUID/prefixed
+    // strings) must not accidentally resolve back to it.
+    const store = fakeStore([
+      { id: 'chk-abc123', userId: 'someone-else', accountType: 'CHECKING' },
+    ]);
+    const foreign = _resolveForeignAccountId(store, 'me');
+    expect(foreign.id).not.toBe('3');
+    expect(foreign.id).toBe('chk-abc123');
+  });
+});
 
 /**
  * Build a synthetic session-like req with a real access token from env.

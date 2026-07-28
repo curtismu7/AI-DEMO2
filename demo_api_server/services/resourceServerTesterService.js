@@ -21,6 +21,7 @@ const https = require('https');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const jwksService = require('./jwksService');
+const oauthEndpointResolver = require('./oauthEndpointResolver');
 const tokenIntrospectionService = require('./tokenIntrospectionService');
 const { getBffResourceAudience, getInFlowResourceAudience } = require('../config/resourceAudience');
 // Required as a namespace and accessed at call time — destructuring at load time can
@@ -88,7 +89,7 @@ function safeDecode(token) {
  * @param {object} claims
  * @param {'login'|'inflow'} [profile]
  */
-function policyRules(claims, profile = 'login') {
+function policyRules(claims, profile = 'login', { issOptional = false } = {}) {
   const now = Math.floor(Date.now() / 1000);
   const { targetAud, requiredScopes, audEnvHint } = policyTargetFor(profile);
   const auds = claims.aud ? (Array.isArray(claims.aud) ? claims.aud : [claims.aud]) : [];
@@ -107,6 +108,33 @@ function policyRules(claims, profile = 'login') {
   if (claims.nbf !== undefined) {
     const ok = claims.nbf <= now;
     rules.push({ name: 'nbf', pass: ok, detail: ok ? 'not-before satisfied' : `not valid for ${claims.nbf - now}s` });
+  }
+
+  // iss — RFC 7519 §4.1.1. A correctly-signed token from the wrong issuer is
+  // still the wrong token, so this is its own row rather than folded into the
+  // signature rule above (that one is deliberately signature-only).
+  //
+  // `issOptional` is set on the RFC 7662 introspection path, where claims are
+  // synthesised from the introspection response rather than read off a JWT. An
+  // introspection response need not carry `iss`, and there the AS has already
+  // asserted the token is active — a stronger statement than a string compare.
+  // Absent `iss` there means "not applicable", so the row is omitted rather
+  // than failed. On the JWT path a missing `iss` is a real defect and fails.
+  const expectedIss = oauthEndpointResolver.getIssuer();
+  const issApplicable = !issOptional || claims.iss !== undefined;
+  if (issApplicable) {
+    if (!expectedIss) {
+      rules.push({ name: 'iss', pass: false, detail: 'issuer not configured (oauth_issuer / OAUTH_ISSUER)' });
+    } else {
+      const ok = claims.iss === expectedIss;
+      rules.push({
+        name: 'iss',
+        pass: ok,
+        detail: ok
+          ? `matches ${expectedIss}`
+          : `token iss=${claims.iss || 'none'}, expected ${expectedIss}`,
+      });
+    }
   }
 
   // aud
@@ -154,6 +182,10 @@ async function introspectOpaque(token) {
   const claims = {
     sub: intro.sub || undefined,
     aud: intro.aud || undefined,
+    // RFC 7662 §2.2 lists `iss` as an optional response field. Carried through
+    // when the AS returns it so the iss rule still runs on this path; when it
+    // is absent the rule is skipped (issOptional below), not failed.
+    iss: intro.iss || undefined,
     scope: Array.isArray(intro.scopes) ? intro.scopes.join(' ') : undefined,
     exp: intro.exp || undefined,
     iat: intro.iat || undefined,
@@ -161,7 +193,9 @@ async function introspectOpaque(token) {
   };
   const rules = [
     { name: 'introspection', pass: !!intro.valid, detail: intro.valid ? 'PingOne reports the token is active (RFC 7662)' : 'PingOne reports the token is inactive or unknown' },
-    ...policyRules(claims, 'login'),
+    // Introspection path: claims are synthesised from the RFC 7662 response,
+    // which need not carry `iss` — see the iss rule in policyRules.
+    ...policyRules(claims, 'login', { issOptional: true }),
   ];
   const decision = rules.every((r) => r.pass) ? 'PERMIT' : 'REJECT';
   return { decision, rules, claims, method: 'introspection' };
@@ -323,7 +357,9 @@ async function resolveTokenAsync(body, req) {
   }
 
   const scopes = ['mcp:invoke', 'openid', 'profile'];
-  const vertical = session.activeVertical || 'banking';
+  // Session key is `active_vertical`, not `activeVertical` — the camelCase read
+  // matched nothing, so the tester always minted a banking-scoped token.
+  const vertical = session.active_vertical || 'banking';
   const cached = agentTokenCache.get(session, vertical, scopes);
   if (cached && cached.access_token) {
     return { token: cached.access_token, source: 'session:mcp' };

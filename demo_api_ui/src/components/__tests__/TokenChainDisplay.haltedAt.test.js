@@ -144,6 +144,38 @@ describe("TokenChainDisplay — isHaltedAt (production function)", () => {
     // undefined → key="" → not in STATUS_VISUAL → { bucket:"failed" } → halt
     expect(isHaltedAt(events, 0)).toBe(true);
   });
+
+  // ── recovered failures are not halts ───────────────────────────────────────
+
+  it("{ status:'failed', recovered:true } at non-last index is NOT the halt point", () => {
+    // The BFF marks a failure it fell back from (tools/list → local catalog) as
+    // recovered. The run continued, so later steps really did execute and must
+    // not be ghosted as "did not run".
+    const events = [
+      { label: "MCP tools/list — Agent Gateway", status: "failed", recovered: true },
+      { label: "PingOne Authorize", status: "denied" },
+    ];
+    expect(isHaltedAt(events, 0)).toBe(false);
+  });
+
+  it("a recovered failure does not mask the real halt later in the chain", () => {
+    const events = [
+      { label: "MCP tools/list — Agent Gateway", status: "failed", recovered: true },
+      { label: "PingOne Authorize", status: "denied" },
+      { label: "MCP server — tool executes", status: "waiting" },
+    ];
+    expect(isHaltedAt(events, 0)).toBe(false);
+    expect(isHaltedAt(events, 1)).toBe(true);
+  });
+
+  it("explicit isHaltedStep=true still wins over recovered=true", () => {
+    // The attack-simulator's explicit halt marker is authoritative.
+    const events = [
+      { status: "failed", recovered: true, isHaltedStep: true },
+      { status: "waiting" },
+    ];
+    expect(isHaltedAt(events, 0)).toBe(true);
+  });
 });
 
 describe("resolveStatusVisual — unknown status falls to failed bucket", () => {

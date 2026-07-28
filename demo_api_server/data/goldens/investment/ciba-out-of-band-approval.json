@@ -1,0 +1,12 @@
+{
+  "vertical": "investment",
+  "useCaseId": "ciba-out-of-band-approval",
+  "ucId": "UC22",
+  "trigger": "execute a large trade of $150",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-27T00:29:08.349Z",
+  "seedHash": null,
+  "reply": "PingOne Authorize requires additional authentication before MCP tools can run.",
+  "agentPath": null,
+  "tokenEventCount": 13
+}

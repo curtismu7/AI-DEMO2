@@ -147,9 +147,11 @@ if something the shell doesn't cover comes up, extend `InspectorShell.css`
 
 ## Existing examples to model from
 
-- `demo_api_ui/src/components/PingOneAuthorizePage.jsx` — 5 output tabs
-  (Decision, Response, Request, Policy, Headers), `fullHeight={true}` (own
-  route).
+- `demo_api_ui/src/components/PingOneAuthorizePage.jsx` — the shell instance
+  lives in the page's `EvaluatePanel`, embedded under an endpoint picker
+  (`fullHeight={false}`), with 4 output tabs (Decision, Response, Request,
+  Form) plus a `BulkDecisionPanel` sibling shell for the "Bulk Decisions" tab
+  (Results, Response, Request, JSON).
 - `demo_api_ui/src/components/AgentGatewayTester.jsx` — `fullHeight={false}`
   (embedded in `McpGatewayConfig.jsx`'s tester tab).
 - `demo_api_ui/src/components/McpInspectorPage.jsx` — the `.source-switcher`

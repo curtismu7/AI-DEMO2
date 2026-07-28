@@ -1,0 +1,12 @@
+{
+  "vertical": "workforce",
+  "useCaseId": "ciba-out-of-band-approval",
+  "ucId": "UC22",
+  "trigger": "submit a $150 expense",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-27T00:28:03.944Z",
+  "seedHash": "53b2bac25e5daf21",
+  "reply": "PingOne Authorize requires additional authentication before MCP tools can run.",
+  "agentPath": null,
+  "tokenEventCount": 13
+}

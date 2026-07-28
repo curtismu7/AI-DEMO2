@@ -740,7 +740,28 @@ if (outcome == 'PERMIT') {
     // the old as-AsyncFunction coercion threw MissingMethodException at runtime.
     def p = next.handle(context, request)
     p.thenOnResult({ chainResp ->
-        chainResp.headers.put('X-Gw-Audit-Trail', [auditTrailJson])
+        // Serialize INSIDE the callback so the trail can carry results produced
+        // by downstream scripts. olb-token-exchange.groovy sets
+        // attributes['mtlsResult'] when it actually performs the gateway → MCP
+        // server call, so the token chain reports a real handshake rather than
+        // the mere presence of config. Without this the BFF's gw-mtls event
+        // (mcpToolPipeline, "if (gwAuditTrail.mtls)") never fires and mTLS is
+        // enforced but invisible.
+        //
+        // FAIL-SAFE: any error here falls back to the trail built before the
+        // downstream call — exactly the previous behaviour. Losing this header
+        // costs the token chain its gw-* events, so it must never throw.
+        def finalJson = auditTrailJson
+        try {
+            def mtlsRes = attributes['mtlsResult']
+            if (mtlsRes != null) {
+                finalJson = JsonOutput.toJson(auditTrail + [mtls: mtlsRes])
+            }
+        } catch (Exception e) {
+            logger.warn('[P1AZDecision] could not attach mtls to audit trail (' +
+                e.message + ') — emitting the pre-call trail')
+        }
+        chainResp.headers.put('X-Gw-Audit-Trail', [finalJson])
     } as ResultHandler)
     return p
 }

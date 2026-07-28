@@ -1,35 +1,5 @@
 /* banking_api_ui/src/components/TransactionConsentPage.css */
 
-.transaction-consent-popup-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 100070;
-  background: rgba(15, 23, 42, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-}
-
-.transaction-consent-popup {
-  max-width: 28rem;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  background: #fff;
-  border-radius: 12px;
-  padding: 1.5rem 1.75rem;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  border: 1px solid #dddddd;
-}
-
-.transaction-consent-popup__title {
-  margin: 0 0 0.5rem;
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #0f172a;
-}
-
 .transaction-consent-popup__lead {
   margin: 0 0 0.75rem;
   font-size: 0.82rem;
@@ -37,112 +7,20 @@
   color: #64748b;
 }
 
-.transaction-consent-popup__learn {
-  margin: 0 0 1rem;
-}
-
-/* ── Draggable-panel header controls (pop-out / close) ───────────────────── */
-
-.drp-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.drp-header--static {
-  cursor: default;
-}
-
-.drp-header__controls {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex-shrink: 0;
-}
-
-.drp-header__btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  border: none;
-  background: rgba(31, 41, 55, 0.08);
-  color: #1f2937;
-  font-size: 13px;
-  line-height: 1;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.drp-header__btn:hover {
-  background: rgba(31, 41, 55, 0.18);
-}
-
-/* ── Pop-out window layout + placeholder shown in the original window ────── */
-
-.drp-popout-layout {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-}
-
-.drp-popout-body {
+.drp-body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 1.5rem 1.75rem;
-}
-
-.drp-popout-placeholder {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 100071;
-  background: #f9fafb;
-  border: 2px dashed #9ca3af;
-  border-radius: 8px;
-  padding: 10px 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  color: #1f2937;
-}
-
-.drp-popout-placeholder__btn {
-  background: #e5e7eb;
-  border: 1px solid #d1d5db;
-  border-radius: 5px;
-  color: #1f2937;
-  padding: 3px 10px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.drp-popout-placeholder__btn:hover {
-  background: #d1d5db;
-}
-
-.transaction-consent-learn-btn--dark {
-  background: var(--brand-navy);
-  border: 1px solid var(--brand-navy);
-  color: #fff;
-}
-
-.transaction-consent-learn-btn--dark:hover {
-  background: var(--brand-navy);
+  padding: 10px 14px 14px;
 }
 
 .transaction-consent-card--in-popup {
   max-width: none;
-  margin: 0;
+  margin: 0.5rem 0 0;
   box-shadow: none;
-  border: 1px solid #dddddd;
-  padding: 0.85rem 1rem;
+  border: none;
+  background: none;
+  padding: 0;
 }
 
 .hitl-consent-banner {
@@ -217,21 +95,6 @@
   margin: 0.75rem 0 0;
 }
 
-.transaction-consent-learn-btn {
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  color: #fff;
-  font-size: 0.9rem;
-  font-weight: 600;
-  padding: 0.4rem 0.85rem;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.transaction-consent-learn-btn:hover {
-  background: rgba(255, 255, 255, 0.28);
-}
-
 .transaction-consent-card__loading {
   padding: 1rem 0;
   color: #666666;
@@ -262,31 +125,40 @@
   border: 1px solid #dddddd;
 }
 
-.transaction-consent-card__h2 {
-  margin: 0 0 0.6rem;
-  font-size: 1rem;
-  font-weight: 700;
-  color: #0f172a;
+.transaction-consent-card__kv {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 0.65rem;
+  font-size: 0.85rem;
 }
 
-.transaction-consent-card__summary {
-  margin: 0 0 0.75rem;
-  padding-left: 1.25rem;
+.transaction-consent-card__kv td {
+  padding: 0.35rem 0;
+  vertical-align: top;
   color: var(--brand-dark-gray);
-  line-height: 1.55;
-  font-size: 1rem;
 }
 
-.transaction-consent-card__summary li {
-  margin-bottom: 0.25rem;
+.transaction-consent-card__kv tr + tr td {
+  border-top: 1px solid #e5e7eb;
+}
+
+.transaction-consent-card__kv td:first-child {
+  color: #64748b;
+  width: 34%;
+}
+
+.transaction-consent-card__kv td:last-child {
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .transaction-consent-card__legal {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: #64748b;
   line-height: 1.45;
-  margin-bottom: 1.25rem;
-  padding: 0.6rem 0.85rem;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0.7rem;
   background: linear-gradient(180deg, #fbfcfe 0%, var(--brand-light-gray) 100%);
   border-radius: 8px;
   border: 1px solid #dddddd;
@@ -304,11 +176,11 @@
   column-gap: 14px;
   gap: 14px;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.85rem;
   color: var(--brand-dark-gray);
-  line-height: 1.45;
-  margin-bottom: 0.75rem;
-  padding: 0.75rem;
+  line-height: 1.4;
+  margin-bottom: 0.65rem;
+  padding: 0.6rem 0.7rem;
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   border-radius: 8px;
   border: 1px solid #e2e8f0;
@@ -346,9 +218,9 @@ body .transaction-consent-card__check input[type="checkbox"] {
 .transaction-consent-card__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.6rem;
   justify-content: flex-end;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .transaction-consent-btn {
@@ -366,18 +238,18 @@ body .transaction-consent-card__check input[type="checkbox"] {
 }
 
 .transaction-consent-btn--ghost {
-  background: linear-gradient(135deg, #dc2626, #991b1b);
-  border-color: transparent;
-  color: #fff;
+  background: #fff;
+  border-color: var(--app-primary-red-border);
+  color: var(--app-primary-red);
 }
 
 .transaction-consent-rfc-note {
-  margin-top: 1.75rem;
+  margin-top: 0.5rem;
   padding: 0.4rem 0.65rem;
   background: #eff6ff;
   border: 1px solid #bfdbfe;
   border-radius: 8px;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: #1e40af;
   line-height: 1.45;
 }
@@ -389,7 +261,9 @@ body .transaction-consent-card__check input[type="checkbox"] {
 }
 
 .transaction-consent-btn--ghost:hover:not(:disabled) {
-  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  background: #fef2f2;
+  border-color: var(--app-primary-red);
+  color: var(--app-primary-red-hover);
 }
 
 .transaction-consent-btn--primary {

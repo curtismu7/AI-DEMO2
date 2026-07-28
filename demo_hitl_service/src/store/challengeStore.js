@@ -4,7 +4,8 @@
  * In-memory HITL challenge store.
  *
  * Keyed by challengeId (UUID). Each entry:
- *   { id, tool, userId, agentId, context, status, createdAt, expiresAt, resolvedAt, decision }
+ *   { id, tool, userId, agentId, context, correlationId, status,
+ *     createdAt, expiresAt, resolvedAt, decision }
  *
  * Status lifecycle:  pending → approved | denied | expired
  *
@@ -32,7 +33,7 @@ function _pruneExpired() {
   }
 }
 
-function create({ tool, userId, agentId, context }) {
+function create({ tool, userId, agentId, context, correlationId }) {
   _pruneExpired();
   if (_store.size >= MAX_CHALLENGES) {
     throw new Error('Challenge store at capacity');
@@ -45,6 +46,9 @@ function create({ tool, userId, agentId, context }) {
     userId: userId || null,
     agentId: agentId || null,
     context: context || {},
+    // Joins this consent to its transaction. The gateway has always sent it
+    // (hitlClient.ts) — it used to be dropped here.
+    correlationId: correlationId || null,
     status: 'pending',
     createdAt: now,
     expiresAt: now + CHALLENGE_TTL_MS,

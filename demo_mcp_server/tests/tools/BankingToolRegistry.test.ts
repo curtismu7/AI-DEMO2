@@ -235,6 +235,12 @@ describe('BankingToolRegistry', () => {
     // A default empty schema ({ properties:{}, additionalProperties:false }) makes
     // the provider reject every argument ("Additional property not allowed"), so
     // the tool runs with no args and returns an empty result (the "{}" card bug).
+    // Assert on `properties`, NOT `required`. The bug this guards against is the
+    // empty default schema (properties:{}) — that is what makes the provider
+    // reject every argument. `required: []` is intentional and comes straight
+    // from the source of truth (demo_api_server/config/verticals/*/tools.js):
+    // the agent is allowed to call these with partial args. Asserting `required`
+    // here contradicted every one of those declarations.
     it('parameterized vertical tools declare their params (not the empty default)', () => {
       const expected: Record<string, string[]> = {
         book_appointment: ['provider', 'when'],
@@ -246,11 +252,14 @@ describe('BankingToolRegistry', () => {
         gear_order_status: ['orderId'],
         extend_rental: ['rentalId'],
       };
-      for (const [name, required] of Object.entries(expected)) {
+      for (const [name, params] of Object.entries(expected)) {
         const tool = BankingToolRegistry.getTool(name);
         expect(tool).toBeDefined();
-        expect(tool?.inputSchema.required).toEqual(required);
-        for (const key of required) {
+        // Non-empty properties is the real invariant — an empty default schema
+        // makes every arg "Additional property not allowed" and the tool returns
+        // the empty "{}" card.
+        expect(Object.keys(tool?.inputSchema.properties ?? {}).length).toBeGreaterThan(0);
+        for (const key of params) {
           expect(tool?.inputSchema.properties?.[key]).toBeDefined();
         }
       }

@@ -103,10 +103,37 @@ async function getPublicKey(kid) {
   return keys.values().next().value || null;
 }
 
+/**
+ * Exact JWKS membership test for a kid. Distinct from getPublicKey, which
+ * deliberately falls back to the first signature key and therefore can never
+ * report a kid as absent.
+ *
+ * @param {string|null} kid
+ * @returns {Promise<boolean|null>} true = published, false = not published,
+ *   null = unknown (no kid, or JWKS unavailable)
+ */
+async function hasKid(kid) {
+  if (!kid) return null;
+  const keys = await getKeys();
+  if (!keys || keys.size === 0) return null;   // unavailable → unknown
+  if (keys.has(kid)) return true;
+  // Absent from the cached keyset — refresh once before concluding false, in
+  // case PingOne rotated signing keys since the cache was built. getKeys()
+  // returns a STALE cache on network failure, so without this a legitimately
+  // rotated key would be reported as forged.
+  try {
+    _cachedKeys = await _fetchAndBuildKeyMap();
+    _cacheExpiry = Date.now() + CACHE_MAX_AGE_MS;
+    return !!_cachedKeys?.has(kid);
+  } catch (_) {
+    return null;                                // unresolvable → unknown
+  }
+}
+
 /** Force-invalidate the cache (for testing or after key rotation). */
 function clearCache() {
   _cachedKeys = null;
   _cacheExpiry = 0;
 }
 
-module.exports = { getKeys, getPublicKey, clearCache };
+module.exports = { getKeys, getPublicKey, hasKid, clearCache };

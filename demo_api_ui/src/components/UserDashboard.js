@@ -657,7 +657,7 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
     }
     if (st.consentDeclined) {
       notifyInfo(
-        "You declined high-value consent. The AI banking assistant stays disabled until you sign out and sign in again.",
+        "You declined high-value consent. The AI banking assistant is paused — dismiss the decline notice to keep using it.",
       );
       navigate(
         { pathname: location.pathname, search: location.search },
@@ -2962,7 +2962,7 @@ const UserDashboard = ({ user: propUser, onLogout }) => {
             setConsentChallengeId(null);
             setAgentHitlAutoConfirm(false);
             notifyInfo(
-              "You declined high-value consent. The AI banking assistant stays disabled until you sign out and sign in again.",
+              "You declined high-value consent. The AI banking assistant is paused — dismiss the decline notice to keep using it.",
             );
           }}
         />

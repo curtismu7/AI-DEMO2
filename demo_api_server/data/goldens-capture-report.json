@@ -1,0 +1,70 @@
+{
+  "capturedAt": "2026-07-27T00:29:10.199Z",
+  "captured": 93,
+  "skipped": 7,
+  "byReason": {
+    "unhealthy_result": {
+      "count": 7,
+      "pairs": [
+        "government/a2a-delegation",
+        "healthcare/a2a-delegation",
+        "manufacturing/a2a-delegation",
+        "retail/a2a-delegation",
+        "sporting-goods/a2a-delegation",
+        "university/a2a-delegation",
+        "workforce/a2a-delegation"
+      ]
+    }
+  },
+  "skips": [
+    {
+      "vertical": "healthcare",
+      "useCaseId": "a2a-delegation",
+      "ucId": "UC2",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ Token exchange failed for 74d7fafe-67be-452c-9d29-0b54ba59eef8: Request failed: At least one scope must be granted (Correlation ID: 63f03c34-52cf-4cf9-8342-d3"
+    },
+    {
+      "vertical": "retail",
+      "useCaseId": "a2a-delegation",
+      "ucId": "UC2",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ Delegated to Purchase History Specialist, but sensitive_order_history failed: mcp_error."
+    },
+    {
+      "vertical": "government",
+      "useCaseId": "a2a-delegation",
+      "ucId": "UC2",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ Token exchange failed for 9fb0efa4-bf04-4f18-b442-70c9b32e684c: Request failed: At least one scope must be granted (Correlation ID: b8c4f64a-8ecb-47d7-bade-73"
+    },
+    {
+      "vertical": "university",
+      "useCaseId": "a2a-delegation",
+      "ucId": "UC2",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ Token exchange failed for a1dc8b3d-df50-4b57-9c4a-4c34095bea5a: Request failed: At least one scope must be granted (Correlation ID: 2545141f-831c-447b-937b-72"
+    },
+    {
+      "vertical": "workforce",
+      "useCaseId": "a2a-delegation",
+      "ucId": "UC2",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ Delegated to Payroll Specialist, but sensitive_payroll_details failed: mcp_error."
+    },
+    {
+      "vertical": "sporting-goods",
+      "useCaseId": "a2a-delegation",
+      "ucId": "UC2",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ Delegated to Membership Specialist, but sensitive_membership_details failed: mcp_error."
+    },
+    {
+      "vertical": "manufacturing",
+      "useCaseId": "a2a-delegation",
+      "ucId": "UC2",
+      "reason": "unhealthy_result",
+      "detail": "HTTP 200: ❌ Token exchange failed for f1ed734a-08d5-4a15-bff7-a84852c1cffd: Request failed: At least one scope must be granted (Correlation ID: 57c81ccf-a19b-45c8-91b8-5c"
+    }
+  ]
+}

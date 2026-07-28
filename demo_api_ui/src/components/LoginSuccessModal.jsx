@@ -40,7 +40,7 @@ export default function LoginSuccessModal({ user, isOpen, onClose, onDontShowAga
         />
         Don't show again
       </label>
-      <button type="button" className="lsm-continue" onClick={handleContinue}>
+      <button type="button" className="btn btn-primary" onClick={handleContinue}>
         Continue to dashboard
       </button>
     </>

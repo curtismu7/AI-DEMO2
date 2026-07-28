@@ -265,6 +265,10 @@ services:
       dockerfile: demo_api_ui/Dockerfile
       args:
         GIT_SHA: ${GIT_SHA:-unknown}
+        # Read from the ROOT .env. Build-time, not runtime: the production stage
+        # is static nginx, so Vite must inline the value during `npm run build`.
+        REACT_APP_POSTHOG_KEY: ${REACT_APP_POSTHOG_KEY:-}
+        REACT_APP_POSTHOG_HOST: ${REACT_APP_POSTHOG_HOST:-}
     container_name: ai-demo-ui
     ports:
       # Container listens on 4000 in both modes — nginx (production stage,
@@ -297,6 +301,11 @@ services:
       NODE_ENV: production
       MCP_SERVER_HOST: "0.0.0.0"
       MCP_SERVER_PORT: "8080"
+      # Opt-in TLS+ALPN listener for real HTTP/2 to the BFF's http2McpBridge.js.
+      # Default off: when unset, no second port is bound, no cert is generated,
+      # and the plain ws:// listener on MCP_SERVER_PORT is completely unaffected.
+      MCP_TLS_ENABLED: "${MCP_TLS_ENABLED:-false}"
+      MCP_TLS_PORT: "8443"
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
       OTEL_SERVICE_NAME: "mcp-server"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
@@ -309,16 +318,46 @@ services:
       # comma-separated list; mcpgateway.ping.demo is kept as a transitional second entry
       # so tokens from callers still on the old forward-unchanged contract keep validating.
       MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
+      # mTLS on the PingGateway -> MCP server hop. When true the server serves
+      # HTTPS (self-signed, regenerated each start) and REQUIRES a client cert
+      # whose SHA-256 matches MCP_MTLS_GATEWAY_CERT_PATH. PingGateway presents it
+      # from PG_MTLS_KEYSTORE_PATH — the two must move together: flipping this
+      # alone rejects every gateway call with "no client certificate presented".
+      MCP_MTLS_ENABLED: "${MCP_MTLS_ENABLED:-true}"
+      MCP_MTLS_GATEWAY_CERT_PATH: "/certs/gw-mtls/gw-client.crt"
+      # Step 9 (RFC 8693): the MCP server exchanges the gateway-scoped token for a
+      # Demo API (enduser.ping.demo) resource-scoped one before calling the Banking
+      # API — the MCP-spec hop. Uses a DEDICATED PingOne app, not the shared
+      # exchanger: PingOne forbids one app holding two scopes of the same NAME
+      # across resource grants, so "Demo AI App - Token Exchanger" (read/write on
+      # Demo MCP Server) can never also hold them on Demo API.
+      #
+      # Its three settings are NOT declared here on purpose:
+      #   PINGONE_MCP_EXCHANGER_CLIENT_ID / _SECRET / BANKING_API_RESOURCE_URI
+      # They come from this service's env_file (demo_mcp_server/.env). A compose
+      # `environment:` entry OVERRIDES env_file, so declaring them here with a
+      # "${VAR:-}" default blanked the real secret that env_file already supplied
+      # — the gate then silently fell back to agent-passthrough. Set or comment
+      # BANKING_API_RESOURCE_URI in demo_mcp_server/.env to switch Step 9 on/off.
       # RAG code-search service — the code_search/get_code/list_codebases tool
       # handlers call this over compose DNS.
       MCP_CODE_SEARCH_URL: "http://demo-mcp-code-search:8095"
       # Parity with mcp-gateway: allow BFF TraT simulation header in demo compose.
       ALLOW_UNSIGNED_TRAT_CONTEXT: ${ALLOW_UNSIGNED_TRAT_CONTEXT:-true}
+      BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
+      # mkcert CA so the emitter's HTTPS POST to the BFF can verify its leaf cert.
+      # Without it every hop fails UNABLE_TO_VERIFY_LEAF_SIGNATURE and is silently
+      # swallowed by the fire-and-forget .catch() -- an invisible, empty chain.
+      NODE_EXTRA_CA_CERTS: /certs/ca-bundle-with-mkcert.pem
     env_file:
       - path: ./demo_mcp_server/.env
         required: false   # copy demo_mcp_server/.env.example if you need overrides
     volumes:
       - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
+      # Gateway client cert for the mTLS pin. certs/ is gitignored; generate via
+      # scripts/ensure-gateway-mtls-certs.sh. Read-only, public cert only.
+      # Dir mount, not a single file -- a single-file bind pins the inode.
+      - ./certs:/certs:ro
     networks:
       - ai-demo
     healthcheck:
@@ -422,7 +461,15 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
       OTEL_SERVICE_NAME: "mcp-gateway"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
-      MCP_GW_OLB_WS_URL: "ws://mcp-server:8080"
+      # wss + client cert: mcp-server runs MCP_MTLS_ENABLED=true (#906), so its
+      # :8080 is TLS and pins certs/gw-mtls/gw-client.crt. Plain ws:// (or the
+      # http:// upstream derived from it) dies at the TLS handshake — every
+      # olb-routed A2A sensitive_* tools/call was a 502 "upstream_unavailable".
+      # If you disable mcp-server mTLS, flip this back to ws:// and drop the
+      # two *_CLIENT_*_PATH vars below.
+      MCP_GW_OLB_WS_URL: "wss://mcp-server:8080"
+      MCP_GW_UPSTREAM_CLIENT_CERT_PATH: "/certs/gw-mtls/gw-client.crt"
+      MCP_GW_UPSTREAM_CLIENT_KEY_PATH: "/certs/gw-mtls/gw-client.key"
       MCP_GW_INVEST_WS_URL: "ws://mcp-invest:8081"
       MCP_GW_JWTVERIFIER_HTTP_URL: "http://mcp-jwt-verifier:8083"
       MCP_JWTVERIFIER_RESOURCE_URI: "mcp-jwt-verifier.ping.demo"
@@ -443,25 +490,63 @@ services:
       PINGAUTHORIZE_MOCK_BASE: "http://authz-server:9001"
       PINGAUTHORIZE_WORKER_ID: "mcp-gateway"
       MCP_GW_P1AZ_ENABLED: "true"
-      GW_INTROSPECTION_ENDPOINT: "http://authz-server:9001/as/introspect"
+      # Token validation on this gateway is JWKS, not introspection.
+      #
+      # RFC 7662 introspection CANNOT work here, and three reverts were spent
+      # discovering that. PingOne scopes introspection to the ISSUING client.
+      # This gateway serves the A2A path only, and those tokens are minted by
+      # FIVE different specialist clients — probed live 2026-07-27, a specialist
+      # token introspected by the Token Exchanger (f4dd707d, the gateway's
+      # introspection identity) returns active:false, while the specialist
+      # introspecting its own returns active:true. So no single
+      # GW_INTROSPECTION_CLIENT_ID can ever cover them: pointing this at real
+      # PingOne blocks every A2A call at the first filter. It is the wrong
+      # mechanism for a multi-issuer resource server, not a permission gap.
+      #
+      # JWKS verifies anything PingOne signed regardless of issuer. Confirmed
+      # active on this path: a forged token is rejected with "no kid header and
+      # the JWKS exposes 4 keys" — the gateway really fetched PingOne's keys.
+      #
+      # Real introspection still runs where it CAN: PingGateway/IG serves the
+      # main path, where tokens ARE minted by f4dd707d, and introspects against
+      # real PingOne. Both mechanisms are live, each where it works.
+      #
+      # A skipped introspection audits as filterChain TokenIntrospection=skipped
+      # and audit.introspection=null — never "passed". A check that did not run
+      # must never read as a check that succeeded.
+      GW_INTROSPECTION_ENABLED: "false"
       # This stack has never configured PINGONE_JWKS_ENDPOINT, so the gateway has
       # always run decode-only (no signature verification). That used to be silent;
       # it now requires this explicit opt-in and is reported in the failOpen list of
       # GET /health. Closing it means pointing the gateway at real PingOne JWKS —
       # which needs a live check first, because demo tokens introspect against the
       # mock authz-server and some are minted HS256 locally.
-      MCP_GW_ALLOW_UNVERIFIED_TOKENS: "true"
+      # false, now that JWKS verification is real.
+      #
+      # This does not change today's behaviour: the flag is only consulted when
+      # NO JWKS endpoint is configured, and one is. What it changes is the
+      # FAILURE mode. If JWKS ever stops resolving — key rotation, a network
+      # partition, someone renaming the var again — "true" silently degrades the
+      # gateway to decode-only and it accepts forged tokens. "false" makes it
+      # REFUSE instead. A loud failure beats a silent bypass.
+      MCP_GW_ALLOW_UNVERIFIED_TOKENS: "false"
       MORTGAGE_SERVICE_URL: "http://mortgage-service:8082"   # api-key dispatch backend (mortgage + invest routes)
       # Must match mortgage-service MORTGAGE_SERVICE_API_KEY (no committed demo default).
       DEMO_MORTGAGE_SERVICE_KEY: ${MORTGAGE_SERVICE_API_KEY:-mortgage-compose-dev-key}
       # TraT simulation: BFF forwards unsigned X-TraT-Context when PingOne does not
       # embed TraT claims. Opt-in for demo compose; leave unset in production-like envs.
       ALLOW_UNSIGNED_TRAT_CONTEXT: ${ALLOW_UNSIGNED_TRAT_CONTEXT:-true}
+      BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
+      # mkcert CA so the emitter's HTTPS POST to the BFF can verify its leaf cert.
+      # Without it every hop fails UNABLE_TO_VERIFY_LEAF_SIGNATURE and is silently
+      # swallowed by the fire-and-forget .catch() -- an invisible, empty chain.
+      NODE_EXTRA_CA_CERTS: /certs/ca-bundle-with-mkcert.pem
     env_file:
       - path: ./demo_mcp_gateway/.env
         required: false
     volumes:
       - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
+      - ./certs:/certs:ro  # dir mount, not a single file -- a single-file bind pins the inode
     networks:
       - ai-demo
     depends_on:
@@ -502,11 +587,17 @@ services:
       # this as a minimum capability class (per-agent routing, swap mode).
       LLAMACPP_MODEL: "gpt-oss-20b"
       MLX_LM_BASE_URL: "http://host.docker.internal:8098"
+      BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
+      # mkcert CA so the emitter's HTTPS POST to the BFF can verify its leaf cert.
+      # Without it every hop fails UNABLE_TO_VERIFY_LEAF_SIGNATURE and is silently
+      # swallowed by the fire-and-forget .catch() -- an invisible, empty chain.
+      NODE_EXTRA_CA_CERTS: /certs/ca-bundle-with-mkcert.pem
     env_file:
       - path: ./demo_agent_service/.env
         required: false
     volumes:
       - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
+      - ./certs:/certs:ro  # dir mount, not a single file -- a single-file bind pins the inode
     networks:
       - ai-demo
     depends_on:
@@ -534,11 +625,17 @@ services:
       OTEL_SERVICE_NAME: "hitl-service"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
       HITL_ALLOWED_ORIGINS: "http://api-server:3001,http://localhost:4000,https://local.ping-devops.com:4000,https://api.ping.demo:4000,https://api.ping.demo:3001"
+      BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
+      # mkcert CA so the emitter's HTTPS POST to the BFF can verify its leaf cert.
+      # Without it every hop fails UNABLE_TO_VERIFY_LEAF_SIGNATURE and is silently
+      # swallowed by the fire-and-forget .catch() -- an invisible, empty chain.
+      NODE_EXTRA_CA_CERTS: /certs/ca-bundle-with-mkcert.pem
     env_file:
       - path: ./demo_hitl_service/.env
         required: false
     volumes:
       - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
+      - ./certs:/certs:ro  # dir mount, not a single file -- a single-file bind pins the inode
     networks:
       - ai-demo
     restart: unless-stopped
@@ -705,6 +802,11 @@ services:
       # (aud https://api.ping.demo:3036/mcp) is denied with invalid_aud. Also
       # includes the A2A specialists' dedicated Exchange #2 audience.
       MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo"
+      BFF_TRANSACTION_HOP_URL: "https://demo-api-server:3001/internal/transaction-hop"
+      # mkcert CA so the emitter's HTTPS POST to the BFF can verify its leaf cert.
+      # Without it every hop fails UNABLE_TO_VERIFY_LEAF_SIGNATURE and is silently
+      # swallowed by the fire-and-forget .catch() -- an invisible, empty chain.
+      NODE_EXTRA_CA_CERTS: /certs/ca-bundle-with-mkcert.pem
     env_file:
       - path: ./demo_mcp_gateway/.env
         required: false
@@ -718,6 +820,7 @@ services:
         required: false
     volumes:
       - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
+      - ./certs:/certs:ro  # dir mount, not a single file -- a single-file bind pins the inode
     networks:
       - ai-demo
     restart: unless-stopped
@@ -914,7 +1017,12 @@ services:
     environment:
       # In-stack overrides (env block wins over env_file): reach backends + the mock
       # authz server by compose service DNS, not host.docker.internal.
-      PG_OLB_BACKEND_URL: "http://mcp-server:8080"
+      # https when mTLS is on (mcp-server serves TLS on the SAME port); http otherwise.
+      PG_OLB_BACKEND_URL: "${PG_OLB_BACKEND_URL:-https://mcp-server:8080}"
+      # Client cert IG presents to the MCP server. certs/ is already mounted at
+      # /certs on this service. Empty => plaintext, unchanged behaviour.
+      PG_MTLS_KEYSTORE_PATH: "${PG_MTLS_KEYSTORE_PATH:-/certs/gw-mtls/gw-client.p12}"
+      PG_MTLS_KEYSTORE_PASSWORD: "${PG_MTLS_KEYSTORE_PASSWORD:-changeit}"
       PG_INVEST_BACKEND_URL: "http://mcp-invest:8081"
       PG_WEATHER_BACKEND_URL: "http://mcp-weather:8896"
       PG_BRAVE_BACKEND_URL: "http://mcp-brave:8897"

@@ -47,9 +47,74 @@ def httpPostForm = { String url, String reqBody ->
 }
 
 // ── Blocking HTTP helper (JSON, returns response headers too) ─────────────────
+// ── mTLS to the MCP server ────────────────────────────────────────────────────
+// demo_mcp_server implements the server half already: with MCP_MTLS_ENABLED=true
+// it serves HTTPS and pins THIS gateway's client cert by SHA-256 fingerprint
+// (src/auth/mtlsMiddleware.ts). The client half was missing — IG presented no
+// cert, so the hop ran as plain http://mcp-server:8080 and mTLS could never be
+// switched on without every call failing "no client certificate presented".
+//
+// Built once per script evaluation and reused. Two deliberate choices:
+//  * Client auth comes from a PKCS#12 keystore (scripts/ensure-gateway-mtls-certs.sh).
+//  * The SERVER side is trust-all. demo_mcp_server generates a fresh self-signed
+//    server cert on every start (DemoMCPServer ~L127), so pinning it is
+//    impossible. The property being demonstrated is CLIENT authentication; the
+//    channel is container-to-container on a private Docker network.
+def mtlsKeystore = System.getenv('PG_MTLS_KEYSTORE_PATH') ?: ''
+def mtlsPassword = System.getenv('PG_MTLS_KEYSTORE_PASSWORD') ?: 'changeit'
+def mtlsFactory = null
+if (mtlsKeystore && new File(mtlsKeystore).exists()) {
+    try {
+        def ks = java.security.KeyStore.getInstance('PKCS12')
+        new File(mtlsKeystore).withInputStream { ks.load(it, mtlsPassword.toCharArray()) }
+        def kmf = javax.net.ssl.KeyManagerFactory.getInstance(
+            javax.net.ssl.KeyManagerFactory.getDefaultAlgorithm())
+        kmf.init(ks, mtlsPassword.toCharArray())
+        def trustAll = [ new javax.net.ssl.X509TrustManager() {
+            void checkClientTrusted(java.security.cert.X509Certificate[] c, String a) {}
+            void checkServerTrusted(java.security.cert.X509Certificate[] c, String a) {}
+            java.security.cert.X509Certificate[] getAcceptedIssuers() { return new java.security.cert.X509Certificate[0] }
+        } ] as javax.net.ssl.TrustManager[]
+        def ctx = javax.net.ssl.SSLContext.getInstance('TLS')
+        ctx.init(kmf.getKeyManagers(), trustAll, new java.security.SecureRandom())
+        mtlsFactory = ctx.getSocketFactory()
+        // Subject of the cert we will actually present — read from the keystore
+        // rather than hardcoded, so a rotated cert shows its real subject.
+        def mtlsSubject = null
+        try {
+            def alias = ks.aliases().find { ks.isKeyEntry(it) }
+            mtlsSubject = alias ? ks.getCertificate(alias)?.getSubjectX500Principal()?.getName() : null
+        } catch (Exception ignored) { }
+        attributes['mtlsResult'] = [enabled: true, subject: mtlsSubject, keystore: mtlsKeystore]
+        logger.info('[OlbExchange] mTLS client keystore loaded from ' + mtlsKeystore +
+            (mtlsSubject ? ' subject=' + mtlsSubject : ''))
+    } catch (Exception e) {
+        // Do NOT fall back to plaintext silently: if mTLS was configured and the
+        // keystore is broken, the operator needs to see it rather than discover
+        // the hop quietly downgraded.
+        logger.error('[OlbExchange] mTLS keystore load FAILED (' + e.message +
+            ') — https calls to the MCP server will fail the client-cert check')
+    }
+} else if (mtlsKeystore) {
+    logger.error('[OlbExchange] PG_MTLS_KEYSTORE_PATH set to ' + mtlsKeystore +
+        ' but no such file — run scripts/ensure-gateway-mtls-certs.sh')
+}
+if (attributes['mtlsResult'] == null) {
+    // Not configured (or the keystore failed to load). Reported explicitly so the
+    // token chain can distinguish "mTLS off" from "no information", rather than
+    // silently omitting the hop.
+    attributes['mtlsResult'] = [enabled: false, subject: null, keystore: mtlsKeystore ?: null]
+}
+
 def httpPostJson = { String url, String jsonBody, Map hdrs ->
     try {
         def conn = new URL(url).openConnection() as java.net.HttpURLConnection
+        // Attach client cert + trust-all on https. CN is banking-mcp-server while
+        // the host is mcp-server, so the default hostname verifier would reject.
+        if (conn instanceof javax.net.ssl.HttpsURLConnection && mtlsFactory != null) {
+            conn.setSSLSocketFactory(mtlsFactory)
+            conn.setHostnameVerifier({ String h, javax.net.ssl.SSLSession sess -> true })
+        }
         conn.requestMethod = 'POST'
         conn.doOutput = true
         conn.connectTimeout = 5000
@@ -78,38 +143,18 @@ if (!subjectToken) {
     return Promises.newResultPromise(r)
 }
 
-// ── BFF-brokered exchange skip (ff_gateway_brokered_exchange=false) ───────────
-// When the BFF owns the final RFC 8693 hop it has already minted the
-// mcp-server-audience (mcpserver.ping.demo) token and signals it via
-// X-BFF-Exchanged. In that mode the IG must NOT exchange again — forward the
-// delegated token as-is. Absent header => gateway-brokered (default): exchange below.
-//
-// TRUSTED-CALLER GATE: this header suppresses Exchange #3, so an ungated version let
-// ANY caller reaching the IG host port (3036) forward its inbound gateway-audience
-// token straight to the MCP server instead of a properly re-scoped one. Its sibling
-// headers (X-Authz-Simulated / X-Act-Client-Id) are already secret-gated in
-// p1az-decision.groovy:71-77 — apply the same BFF_INTERNAL_SECRET check here.
-// The real BFF always sends x-internal-gateway-secret alongside this header
-// (mcpGatewayClient.js:209 and :225 are in the same block), so bff-brokered mode is
-// unaffected; an untrusted caller falls through to the normal gateway-brokered exchange.
-def teInternalSecret  = System.getenv('BFF_INTERNAL_SECRET') ?: ''
-def tePresentedSecret = request.headers.getFirst('x-internal-gateway-secret') ?: ''
-def teTrustedCaller   = false
-if (teInternalSecret && tePresentedSecret) {
-    teTrustedCaller = java.security.MessageDigest.isEqual(
-        teInternalSecret.getBytes('UTF-8'), tePresentedSecret.getBytes('UTF-8'))
-}
-def bffExchangedHeader = (request.headers.getFirst('X-BFF-Exchanged') ?: '').equalsIgnoreCase('true')
-if (bffExchangedHeader && !teTrustedCaller) {
-    logger.warn('[OlbExchange] X-BFF-Exchanged presented without a valid ' +
-        'x-internal-gateway-secret — ignoring and performing Exchange #3')
-}
-def bffExchanged = bffExchangedHeader && teTrustedCaller
+// Exchange #3 is unconditional. It used to be skippable via an X-BFF-Exchanged
+// request header (ff_gateway_brokered_exchange=false), letting the BFF own the
+// final RFC 8693 hop. That flag was removed: its OFF path made the BFF's
+// Exchange #2 request tool scopes spanning multiple PingOne resources, which
+// PingOne rejects with
+//   invalid_scope: "May not request scopes for multiple resources"
+// so bff-brokered mode could never actually work. Dropping the header also
+// removes an attack surface: it suppressed Exchange #3, so an ungated version
+// let any caller reaching :3036 forward its inbound gateway-audience token
+// straight to the MCP server instead of a properly re-scoped one.
+// See docs/dual-exchange-broker.md.
 def issuedToken
-if (bffExchanged) {
-    logger.info('[OlbExchange] X-BFF-Exchanged=true — skipping Exchange #3; forwarding BFF-delegated token')
-    issuedToken = subjectToken
-} else {
 
 // ── Exchange #3: get OLB token from PingOne ───────────────────────────────────
 // RFC 8707: PingOne requires `resource=` to narrow to ONE resource server when
@@ -168,7 +213,6 @@ if (!issuedToken) {
 }
 logger.info('[OlbExchange] Exchange #3 succeeded — token_type=' + (exchangeParsed?.token_type ?: '?'))
 
-} // end gateway-brokered exchange (else bffExchanged)
 
 // ── MCP session: send initialize to get Mcp-Session-Id ───────────────────────
 def initHdrs = [

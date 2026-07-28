@@ -254,7 +254,7 @@ export default function UseCaseExplainModal({ uc, open, onClose, a2aTokenEvents 
             <SectionHead num={6}>
               <span className="ucem__pp ucem__pp--gw">
                 <PingDot />
-                PingGateway
+                Agent Gateway
               </span>
               {' '}routes and checks
             </SectionHead>

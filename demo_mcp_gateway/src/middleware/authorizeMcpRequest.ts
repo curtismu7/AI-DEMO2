@@ -628,12 +628,12 @@ export function buildAuthorizeMcpRequest(
       return;
     }
     if (!xIntentToken) {
-      console.log(`[GW] Intent Token: absent — tool: ${toolName}`);
+      teachLog.info(`[GW] Intent Token: absent — tool: ${toolName}`);
     } else if (intentValidation && !intentValidation.valid) {
-      console.warn(`[GW] Intent Token: INVALID (${intentValidation.error}) — tool: ${toolName}`);
+      teachLog.warn(`[GW] Intent Token: INVALID (${intentValidation.error}) — tool: ${toolName}`);
     } else if (intentValidation?.valid) {
       const permitted = intentValidation.toolPermitted ? 'permitted' : 'not in permitted_tools';
-      console.log(`[GW] Intent Token: valid=true intent=${intentValidation.payload?.intent} confidence=${intentValidation.payload?.confidence} ${permitted} tool=${toolName}`);
+      teachLog.info(`[GW] Intent Token: valid=true intent=${intentValidation.payload?.intent} confidence=${intentValidation.payload?.confidence} ${permitted} tool=${toolName}`);
     }
 
     // ── Step 2c: bridge actor identity from BFF headers (HTTP parity with the WS path) ──
@@ -725,7 +725,7 @@ export function buildAuthorizeMcpRequest(
         _dpopVerified = true;
         teachLog.info('[GW] DPoP proof verified', { jkt: _v.jkt });
       } else {
-        console.warn(`[GW] DPoP proof verification failed: ${_v.reason} (tool: ${toolName})`);
+        teachLog.warn(`[GW] DPoP proof verification failed: ${_v.reason} (tool: ${toolName})`);
         if (_requireDpop) {
           setAuditHeader(res);
           res.writeHead(401, { 'Content-Type': 'application/json', 'WWW-Authenticate': 'DPoP' });
@@ -792,7 +792,7 @@ export function buildAuthorizeMcpRequest(
       const _r = enforceRarSubset(toolName ?? '', toolArgs as RarToolArgs, _rarDetails);
       if (!_r.ok) {
         _audCtx.rar = `violation: ${_r.reason}`;
-        console.warn(`[GW] RAR intent violation: ${_r.reason} (tool: ${toolName})`);
+        teachLog.warn(`[GW] RAR intent violation: ${_r.reason} (tool: ${toolName})`);
         setAuditHeader(res);
         res.writeHead(403, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'rar_intent_violation', message: _r.reason }));
@@ -925,7 +925,7 @@ export function buildAuthorizeMcpRequest(
             challengeId = challenge.challengeId;
             expiresAt = challenge.expiresAt;
           } catch (hitlErr) {
-            console.error('[GW] HTTP path failed to create HITL challenge:', hitlErr);
+            teachLog.error('[GW] HTTP path failed to create HITL challenge', hitlErr);
           }
         }
         res.end(JSON.stringify({

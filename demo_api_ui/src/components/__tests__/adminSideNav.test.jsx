@@ -91,6 +91,13 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(screen.getByText("Monitoring")).toBeTruthy();
   });
 
+  it("searching \"authorize\" still surfaces the renamed P1AZ Inspector item", () => {
+    renderNav();
+    const input = screen.getByLabelText(/search navigation/i);
+    fireEvent.change(input, { target: { value: "authorize" } });
+    expect(screen.getAllByText("P1AZ Inspector").length).toBeGreaterThan(0);
+  });
+
   it("shows an empty state when nothing matches", () => {
     renderNav();
     const input = screen.getByLabelText(/search navigation/i);

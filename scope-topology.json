@@ -11,10 +11,10 @@
   },
   "provisioning": {
     "appPrefix": "Demo AI App",
-    "resourceNames": { "Super Banking API": "Demo API", "Super Banking MCP Server": "Demo MCP Server", "Super Banking MCP Invest": "Demo MCP Invest", "Super Banking MCP JWT Verifier": "Demo MCP JWT Verifier", "Super Banking MCP Gateway": "Demo MCP Gateway", "Super Banking Agent Gateway": "Demo Agent Gateway", "Super Banking A2A Intermediate": "Demo A2A Intermediate", "Super Banking A2A Intermediate - Investment Advisor": "Super Banking A2A Intermediate - Investment Advisor", "Super Banking A2A Intermediate - Records Specialist": "Super Banking A2A Intermediate - Records Specialist", "Super Banking A2A Intermediate - Purchase History Specialist": "Super Banking A2A Intermediate - Purchase History Specialist", "Super Banking A2A Intermediate - Membership Specialist": "Super Banking A2A Intermediate - Membership Specialist", "Super Banking A2A Intermediate - Payroll Specialist": "Super Banking A2A Intermediate - Payroll Specialist", "Super Banking A2A Intermediate - Tax Records Specialist": "Super Banking A2A Intermediate - Tax Records Specialist", "Super Banking A2A Intermediate - Financial Aid Specialist": "Super Banking A2A Intermediate - Financial Aid Specialist", "Super Banking A2A Intermediate - Supplier Contract Specialist": "Super Banking A2A Intermediate - Supplier Contract Specialist", "Super Banking A2A MCP Gateway": "Super Banking A2A MCP Gateway", "Super Banking PingGateway MCP": "Demo PingGateway MCP" },
-    "appNames": { "Super Banking User App": "Demo AI App - User Login", "Super Banking Admin App": "Demo AI App - Admin Login", "Super Banking MCP Server": "Demo AI App - MCP Server Client", "Super Banking MCP Gateway": "Demo AI App - MCP Gateway", "Super Banking MCP Exchanger": "Demo AI App - Token Exchanger", "Super Banking AI Agent": "Demo AI App - AI Agent Actor", "Super Banking Agent": "Demo AI App - Agent Actor", "Super Banking Worker": "Demo AI App - Introspection Worker", "Super Banking Investment Advisor Agent": "Demo AI App - Investment Advisor Agent", "Super Banking Records Specialist Agent": "Demo AI App - Records Specialist Agent", "Super Banking Purchase Specialist Agent": "Demo AI App - Purchase Specialist Agent", "Super Banking Membership Specialist Agent": "Demo AI App - Membership Specialist Agent", "Super Banking Payroll Specialist Agent": "Demo AI App - Payroll Specialist Agent", "Super Banking Tax Records Specialist Agent": "Demo AI App - Tax Records Specialist Agent", "Super Banking Financial Aid Specialist Agent": "Demo AI App - Financial Aid Specialist Agent", "Super Banking Supplier Contract Specialist Agent": "Demo AI App - Supplier Contract Specialist Agent" }
+    "resourceNames": { "Super Banking API": "Demo API", "Super Banking MCP Server": "Demo MCP Server", "Super Banking MCP Invest": "Demo MCP Invest", "Super Banking MCP JWT Verifier": "Demo MCP JWT Verifier", "Super Banking MCP Gateway": "Demo MCP Gateway", "Super Banking Agent Gateway": "Demo Agent Gateway", "Super Banking A2A Intermediate": "Demo A2A Intermediate", "Super Banking A2A Intermediate - Investment Advisor": "Super Banking A2A Intermediate - Investment Advisor", "Super Banking A2A Intermediate - Records Specialist": "Super Banking A2A Intermediate - Records Specialist", "Super Banking A2A Intermediate - Purchase History Specialist": "Super Banking A2A Intermediate - Purchase History Specialist", "Super Banking A2A Intermediate - Membership Specialist": "Super Banking A2A Intermediate - Membership Specialist", "Super Banking A2A Intermediate - Payroll Specialist": "Super Banking A2A Intermediate - Payroll Specialist", "Super Banking A2A Intermediate - Tax Records Specialist": "Super Banking A2A Intermediate - Tax Records Specialist", "Super Banking A2A Intermediate - Financial Aid Specialist": "Super Banking A2A Intermediate - Financial Aid Specialist", "Super Banking A2A Intermediate - Supplier Contract Specialist": "Super Banking A2A Intermediate - Supplier Contract Specialist", "Super Banking A2A Intermediate - Holdings Specialist": "Super Banking A2A Intermediate - Holdings Specialist", "Super Banking A2A MCP Gateway": "Super Banking A2A MCP Gateway", "Super Banking PingGateway MCP": "Demo PingGateway MCP" },
+    "appNames": { "Super Banking User App": "Demo AI App - User Login", "Super Banking Admin App": "Demo AI App - Admin Login", "Super Banking MCP Server": "Demo AI App - MCP Server Client", "Super Banking MCP Gateway": "Demo AI App - MCP Gateway", "Super Banking MCP Exchanger": "Demo AI App - Token Exchanger", "Super Banking AI Agent": "Demo AI App - AI Agent Actor", "Super Banking Agent": "Demo AI App - Agent Actor", "Super Banking Worker": "Demo AI App - Introspection Worker", "Super Banking Investment Advisor Agent": "Demo AI App - Investment Advisor Agent", "Super Banking Records Specialist Agent": "Demo AI App - Records Specialist Agent", "Super Banking Purchase Specialist Agent": "Demo AI App - Purchase Specialist Agent", "Super Banking Membership Specialist Agent": "Demo AI App - Membership Specialist Agent", "Super Banking Payroll Specialist Agent": "Demo AI App - Payroll Specialist Agent", "Super Banking Tax Records Specialist Agent": "Demo AI App - Tax Records Specialist Agent", "Super Banking Financial Aid Specialist Agent": "Demo AI App - Financial Aid Specialist Agent", "Super Banking Supplier Contract Specialist Agent": "Demo AI App - Supplier Contract Specialist Agent", "Super Banking Holdings Specialist Agent": "Demo AI App - Holdings Specialist Agent" }
   },
-  "aliases": { "banking:mcp:invoke": "mcp:invoke", "gateway:mcp:invoke": "mcp:invoke", "server:mcp:invoke": "mcp:invoke", "ai:agent": "ai:agent:read" },
+  "aliases": { "banking:mcp:invoke": "mcp:invoke", "gateway:mcp:invoke": "mcp:invoke", "server:mcp:invoke": "mcp:invoke", "pinggateway:invoke": "mcp:invoke", "ai:agent": "ai:agent:read" },
   "scopes": {
     "read": { "description": "Read accounts, balances, transactions", "riskLevel": "low", "resource": "Super Banking API", "category": "data" },
     "write": { "description": "Write operations (deposit/withdrawal/transfer)", "riskLevel": "high", "resource": "Super Banking API", "category": "data" },
@@ -127,7 +127,7 @@
     },
     "Super Banking A2A MCP Gateway": {
       "uri": "mcpgateway-a2a.ping.demo",
-      "scopes": ["read", "invest:read", "holdings:read"]
+      "scopes": ["read", "invest:read", "holdings:read", "records:read", "tax:read", "finaid:read", "supplier:read"]
     },
     "Super Banking PingGateway MCP": {
       "uri": "https://api.ping.demo:3036/mcp",
@@ -175,7 +175,7 @@
     "Super Banking Records Specialist Agent": {
       "type": "WEB_APP",
       "grantTypes": ["client_credentials", "token_exchange"],
-      "grantedScopes": ["read"]
+      "grantedScopes": ["read", "records:read"]
     },
     "Super Banking Purchase Specialist Agent": {
       "type": "WEB_APP",
@@ -195,17 +195,22 @@
     "Super Banking Tax Records Specialist Agent": {
       "type": "WEB_APP",
       "grantTypes": ["client_credentials", "token_exchange"],
-      "grantedScopes": ["read"]
+      "grantedScopes": ["read", "tax:read"]
     },
     "Super Banking Financial Aid Specialist Agent": {
       "type": "WEB_APP",
       "grantTypes": ["client_credentials", "token_exchange"],
-      "grantedScopes": ["read"]
+      "grantedScopes": ["read", "finaid:read"]
     },
     "Super Banking Supplier Contract Specialist Agent": {
       "type": "WEB_APP",
       "grantTypes": ["client_credentials", "token_exchange"],
-      "grantedScopes": ["read"]
+      "grantedScopes": ["read", "supplier:read"]
+    },
+    "Super Banking Holdings Specialist Agent": {
+      "type": "WEB_APP",
+      "grantTypes": ["client_credentials", "token_exchange"],
+      "grantedScopes": ["read", "holdings:read"]
     },
     "Super Banking Agent": {
       "type": "WORKER",
@@ -1209,6 +1214,7 @@
     },
     "sensitive_investment_holdings": {
       "requiredScopes": ["read"],
+      "a2aDelegatedScope": "holdings:read",
       "surface": "gateway",
       "challengeType": "consent",
       "a2aDelegated": true,

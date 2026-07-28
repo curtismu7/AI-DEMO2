@@ -369,6 +369,7 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
       if (subject) {
         const fakeAccessToken = jwt.sign({ sub: subject, scope: pending.scope }, 'ciba-simulated-local-only');
         trackTokenEvent({
+          id: 'ciba-poll',
           eventType: 'auth',
           token: fakeAccessToken,
           userId: subject,
@@ -422,6 +423,7 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
       const claims = jwt.decode(tokens.access_token) || {};
       if (claims.sub) {
         trackTokenEvent({
+          id: 'ciba-poll',
           eventType: 'auth',
           token: tokens.access_token,
           userId: claims.sub,

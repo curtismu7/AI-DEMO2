@@ -120,8 +120,9 @@ ping_delete() {
 
 log "Wiping applications"
 
-# Name prefixes to delete (matches "Demo AI App - *" and legacy "Demo *")
-APP_PREFIXES=("Demo AI App -" "Demo Admin App" "Demo User App" "Demo MCP" "Demo Agent" "Demo Worker" "Demo ")
+# Name prefixes to delete (matches "Demo AI App - *", legacy "Demo *", and the
+# A2A specialist app provisioned before the Demo rename)
+APP_PREFIXES=("Demo AI App -" "Demo Admin App" "Demo User App" "Demo MCP" "Demo Agent" "Demo Worker" "Demo " "Super Banking Holdings Specialist Agent")
 
 APPS_JSON=$(ping_get "/applications?limit=100") || {
   err "Failed to list applications"
@@ -157,8 +158,20 @@ fi
 
 log "Wiping resource servers"
 
-# Exact names bootstrap creates
-RESOURCE_NAMES=("Demo API" "Demo MCP Server" "Demo MCP Gateway" "Demo Agent Gateway")
+# Exact names bootstrap creates (see scope-topology.json provisioning.resourceNames;
+# the A2A resources are self-mapped and keep their "Super Banking" names live)
+RESOURCE_NAMES=("Demo API" "Demo MCP Server" "Demo MCP Gateway" "Demo Agent Gateway"
+  "Demo MCP Invest" "Demo MCP JWT Verifier" "Demo PingGateway MCP" "Demo A2A Intermediate"
+  "Super Banking A2A Intermediate - Investment Advisor"
+  "Super Banking A2A Intermediate - Records Specialist"
+  "Super Banking A2A Intermediate - Purchase History Specialist"
+  "Super Banking A2A Intermediate - Membership Specialist"
+  "Super Banking A2A Intermediate - Payroll Specialist"
+  "Super Banking A2A Intermediate - Tax Records Specialist"
+  "Super Banking A2A Intermediate - Financial Aid Specialist"
+  "Super Banking A2A Intermediate - Supplier Contract Specialist"
+  "Super Banking A2A Intermediate - Holdings Specialist"
+  "Super Banking A2A MCP Gateway")
 
 RESOURCES_JSON=$(ping_get "/resources?limit=100") || {
   err "Failed to list resource servers"

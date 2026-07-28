@@ -79,7 +79,12 @@ describe('stepVerificationExpectations', () => {
 
   test('loadGoldenByUcId returns gate education replies for UC6/7/8', () => {
     expect(loadGoldenByUcId('banking', 'UC8')?.reply).toMatch(/human approval/i);
-    expect(loadGoldenByUcId('banking', 'UC7')?.reply).toMatch(/step-up/i);
+    // Accept either wording. The previous golden was captured in SIMULATED
+    // education mode ("Simulated authorization policy requires step-up ...
+    // (education mode)"); a real PingOne Authorize run says "requires additional
+    // authentication before MCP tools can run". The real one is the better
+    // golden, so the assertion tracks the GATE, not one path's phrasing.
+    expect(loadGoldenByUcId('banking', 'UC7')?.reply).toMatch(/step-up|additional authentication/i);
     expect(loadGoldenByUcId('banking', 'UC6')?.reply).toMatch(/denied/i);
   });
 

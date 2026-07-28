@@ -5,6 +5,7 @@
  */
 
 import { BankingAPIClient } from '../../src/banking/BankingAPIClient';
+import { makeAgentJwt } from '../helpers/agentJwt';
 import { BankingToolProvider } from '../../src/tools/BankingToolProvider';
 import { BankingAuthenticationManager } from '../../src/auth/BankingAuthenticationManager';
 import { BankingSessionManager } from '../../src/storage/BankingSessionManager';
@@ -153,18 +154,8 @@ describe('Banking Operations Integration Tests', () => {
     bankingClient.resetCircuitBreaker();
 
     // Create a fresh test session for each test
-    const testAgentToken = 'test-agent-token-' + Date.now();
+    const testAgentToken = makeAgentJwt({ client_id: 'test-client-id', scope: 'read write' });
     
-    // Mock agent token validation
-    mockedAxios.post.mockResolvedValueOnce({
-      data: {
-        active: true,
-        client_id: 'test-client-id',
-        scope: 'read write',
-        exp: Math.floor(Date.now() / 1000) + 3600
-      }
-    });
-
     await authManager.validateAgentToken(testAgentToken);
     testSession = await sessionManager.createSession(testAgentToken);
     await sessionManager.associateUserTokens(testSession.sessionId, testUserTokens);
@@ -599,7 +590,7 @@ describe('Banking Operations Integration Tests', () => {
 
     it('should handle user authorization required scenario', async () => {
       // Arrange - Create session without user tokens
-      const testAgentTokenNoUser = 'test-agent-token-no-user';
+      const testAgentTokenNoUser = makeAgentJwt({ sub: 'no-user', client_id: 'test-client-id', scope: 'read write' });
       
       mockedAxios.post.mockResolvedValueOnce({
         data: {
@@ -840,7 +831,7 @@ describe('Banking Operations Integration Tests', () => {
 
     it('should track authorization challenge activity', async () => {
       // Same hook-bypass as the previous test: emit the activity event directly.
-      const testAgentTokenNoUser = 'test-agent-token-no-user-activity';
+      const testAgentTokenNoUser = makeAgentJwt({ sub: 'no-user-activity', client_id: 'test-client-id', scope: 'read write' });
 
       mockedAxios.post.mockResolvedValueOnce({
         data: {

@@ -5,6 +5,7 @@
 
 const path = require('path');
 const https = require('https');
+const { mainCheckoutPath } = require('./repoRoots');
 
 async function restoreBankingVertical() {
   try {
@@ -13,11 +14,13 @@ async function restoreBankingVertical() {
     });
   } catch (_) { /* optional */ }
 
-  // Prefer main-checkout .env when running from a worktree.
+  // Prefer main-checkout .env when running from a worktree (.env is gitignored,
+  // so no worktree has one). Derived, not hardcoded — the old absolute path
+  // named a user that does not exist, and dotenv reports "injected env (0)"
+  // rather than throwing, so it failed silently.
   try {
-    require('dotenv').config({
-      path: '/Users/curtismuir/Development/AI-DEMO2/demo_api_server/.env',
-    });
+    const envPath = mainCheckoutPath('demo_api_server', '.env');
+    if (envPath) require('dotenv').config({ path: envPath });
   } catch (_) { /* optional */ }
 
   process.env.DEMO_ADMIN_USERNAME =
@@ -27,8 +30,8 @@ async function restoreBankingVertical() {
 
   const sessionPathCandidates = [
     path.resolve(__dirname, '../../../../../demo_api_server/tests/real/helpers/session.js'),
-    '/Users/curtismuir/Development/AI-DEMO2/demo_api_server/tests/real/helpers/session.js',
-  ];
+    mainCheckoutPath('demo_api_server', 'tests', 'real', 'helpers', 'session.js'),
+  ].filter(Boolean);
   const sessionPath = sessionPathCandidates.find((p) => {
     try { return require('fs').existsSync(p); } catch (_) { return false; }
   });

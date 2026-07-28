@@ -62,7 +62,7 @@ test.describe('Transaction HITL consent (real login)', () => {
     );
 
     const dialog = page.locator('.transaction-consent-popup');
-    await expect(dialog.getByText('Transaction summary')).toBeVisible({ timeout: 15000 });
+    await expect(dialog.getByText('Transfer')).toBeVisible({ timeout: 15000 });
     await shot(page, '02-consent-modal-open');
 
     await dialog.getByRole('checkbox').check();
@@ -101,7 +101,7 @@ test.describe('Transaction HITL consent (real login)', () => {
     await shot(page, '10-after-transfer-submit');
 
     const dialog = page.locator('.transaction-consent-popup');
-    await expect(dialog.getByText('Transaction summary')).toBeVisible({ timeout: 15000 });
+    await expect(dialog.getByText('Transfer')).toBeVisible({ timeout: 15000 });
     await shot(page, '11-dashboard-consent-modal');
 
     await dialog.getByRole('checkbox').check();

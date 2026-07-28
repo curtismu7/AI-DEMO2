@@ -98,16 +98,20 @@ beforeEach(() => {
   bffAxios.get.mockResolvedValue({ data: {} });
 });
 
-test('renders the policy tree in the left column with the rule count', async () => {
+test('renders the policy tree in the left column with the rule count, collapsed by default', async () => {
   renderPanel();
-  expect(await screen.findByText('Deny threshold')).toBeInTheDocument();
-  expect(screen.getByText('Transaction Authorization')).toBeInTheDocument();
+  expect(await screen.findByText('Banking Authorization')).toBeInTheDocument();
   expect(screen.getByText(/2 rules/)).toBeInTheDocument();
+  expect(screen.queryByText('Transaction Authorization')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /Banking Authorization/ }));
+  expect(screen.getByText('Transaction Authorization')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /Transaction Authorization/ }));
+  expect(screen.getByText('Deny threshold')).toBeInTheDocument();
 });
 
 test('policy search filters the tree by name or description and highlights matches', async () => {
   renderPanel();
-  expect(await screen.findByText('Deny threshold')).toBeInTheDocument();
+  expect(await screen.findByText('Banking Authorization')).toBeInTheDocument();
   const search = screen.getByRole('searchbox', { name: /Search authorization policies/i });
   fireEvent.change(search, { target: { value: 'McpFirstTool' } });
   expect(screen.getByText('MCP Delegation')).toBeInTheDocument();
@@ -119,7 +123,7 @@ test('policy search filters the tree by name or description and highlights match
 
 test('policy search with no hits shows an empty message', async () => {
   renderPanel();
-  await screen.findByText('Deny threshold');
+  await screen.findByText('Banking Authorization');
   fireEvent.change(screen.getByRole('searchbox', { name: /Search authorization policies/i }), {
     target: { value: 'zz-no-such-policy' },
   });
@@ -155,6 +159,9 @@ test('shows an error message in the left column when policies fail to load', () 
 test('clicking a rule\'s Trigger button calls onTestRule with that rule\'s trigger test case', async () => {
   const onTestRule = vi.fn();
   renderPanel({ onTestRule });
+  await screen.findByText('Banking Authorization');
+  fireEvent.click(screen.getByRole('button', { name: /Banking Authorization/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Transaction Authorization/ }));
   await screen.findByText('Deny threshold');
   // First Trigger belongs to Deny threshold (transaction branch listed before MCP).
   fireEvent.click(screen.getAllByRole('button', { name: 'Trigger →' })[0]);
@@ -267,6 +274,9 @@ describe('PingOneAuthorizePage (full page wiring)', () => {
 
   test('clicking Trigger on a rule (now inside the shell) round-trips through the parent\'s pendingTest state into the middle form', async () => {
     render(<PingOneAuthorizePage />);
+    await screen.findByText('Banking Authorization');
+    fireEvent.click(screen.getByRole('button', { name: /Banking Authorization/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Transaction Authorization/ }));
     await screen.findByText('Deny threshold');
     fireEvent.click(screen.getAllByRole('button', { name: 'Trigger →' })[0]);
     // pendingTest's preset is 'transaction' and its Amount is 50000 (ONE_POLICY's trigger case) —

@@ -120,7 +120,6 @@ async function setDemoRuntimeFlags(api, { heuristic = true } = {}) {
         ff_heuristic_enabled: heuristic,
         // Without these, Exchange #2 hits PingOne invalid_scope and every chip fails.
         ff_mcp_gateway_pinggateway: true,
-        ff_gateway_brokered_exchange: true,
       },
     },
   });

@@ -5,6 +5,7 @@ const mcpToolAuditStore = require('./mcpToolAuditStore');
 const configStore = require('./configStore');
 const fs = require('fs');
 const path = require('path');
+const { getCorrelationId } = require('../utils/correlationContext');
 
 // In-memory storage for token events (in production, this would be persisted)
 const tokenEvents = new Map();
@@ -87,6 +88,7 @@ function extractJwtClaims(token) {
 
 async function trackTokenEvent(eventData) {
   const {
+    id,
     eventType,
     token,
     description,
@@ -107,7 +109,15 @@ async function trackTokenEvent(eventData) {
         || (claims.sub && claims.act ? 'exchanged_token' : (claims.sub ? 'user_token' : 'unknown')));
 
   const event = {
-    id: crypto.randomUUID(),
+    // Fixed step-name ids (e.g. 'ciba-poll') let the client rail's
+    // evidence.tokenChain matcher find this event by id, the same convention
+    // buildTokenEvent() uses for sim-* attack steps. Falls back to a UUID for
+    // every existing caller that doesn't pass one.
+    id: id || crypto.randomUUID(),
+    // Read from AsyncLocalStorage so every existing call site gains transaction
+    // attribution with no change — routes/oauth.js and services/oauthService.js
+    // are REGRESSION_PLAN §1 protected and must not be edited.
+    correlationId: getCorrelationId() || null,
     timestamp: new Date().toISOString(),
     eventType,
     tokenType,

@@ -57,6 +57,7 @@ export default function FloatingPanel({
   minWidth = 280,
   minHeight = 200,
   onClose = null,
+  ...rest
 }) {
   const [pos, setPos] = useState({ x: defaultX, y: defaultY });
   const [size, setSize] = useState({ w: defaultWidth, h: defaultHeight });
@@ -229,6 +230,7 @@ export default function FloatingPanel({
     <div
       ref={panelRef}
       className={`fp-panel ${className} ${isDragging ? 'fp-dragging' : ''} ${isCollapsed ? 'fp-collapsed' : ''}`}
+      {...rest}
       style={{
         position: 'fixed',
         ...(bottomDock && isCollapsed

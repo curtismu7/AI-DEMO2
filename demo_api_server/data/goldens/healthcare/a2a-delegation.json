@@ -1,0 +1,12 @@
+{
+  "vertical": "healthcare",
+  "useCaseId": "a2a-delegation",
+  "ucId": "UC2",
+  "trigger": "show my sensitive patient records",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-27T21:19:07.409Z",
+  "seedHash": "956244bc8453547f",
+  "reply": "Delegation complete — Records Specialist retrieved sensitive patient records on your behalf (act-chain depth 2).",
+  "agentPath": null,
+  "tokenEventCount": 14
+}

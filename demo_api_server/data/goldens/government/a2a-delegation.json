@@ -1,0 +1,12 @@
+{
+  "vertical": "government",
+  "useCaseId": "a2a-delegation",
+  "ucId": "UC2",
+  "trigger": "show my sensitive tax record",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-27T21:20:42.342Z",
+  "seedHash": "883b08745d6e1401",
+  "reply": "Delegation complete — Tax Records Specialist retrieved sensitive tax record on your behalf (act-chain depth 2).",
+  "agentPath": null,
+  "tokenEventCount": 14
+}

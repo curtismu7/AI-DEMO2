@@ -1,0 +1,12 @@
+{
+  "vertical": "government",
+  "useCaseId": "ai-spot-unusual-patterns",
+  "ucId": "UC34",
+  "trigger": "Check for unusual patterns in my recent activity",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-27T00:27:25.373Z",
+  "seedHash": "883b08745d6e1401",
+  "reply": "Here are your filings.",
+  "agentPath": null,
+  "tokenEventCount": 19
+}

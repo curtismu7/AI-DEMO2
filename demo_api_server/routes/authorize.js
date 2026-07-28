@@ -3,6 +3,8 @@
 //   GET  /api/authorize/decision-endpoints        — list all endpoints in the environment
 //   GET  /api/authorize/recent-decisions          — last N decisions for the configured endpoint
 //   POST /api/authorize/bootstrap-demo-endpoints  — worker token → create/reuse demo decision endpoints + save config
+//   POST /api/authorize/evaluate-endpoint-bulk    — up to 20 decision requests in one PingOne bulk call
+//   POST /api/authorize/pre-flight-bulk           — advisory batch pre-flight (ff_authorize_bulk_preflight)
 
 'use strict';
 
@@ -20,6 +22,7 @@ const {
   provisionDemoDecisionEndpoints,
   evaluateTransaction: evaluatePingOneTransaction,
   evaluateDecisionEndpoint,
+  evaluateDecisionEndpointBulk,
   setEndpointRecording,
   warmup,
   checkPolicyReadiness,
@@ -760,10 +763,10 @@ function _requireWorker(res) {
 
 /**
  * POST /api/authorize/evaluate-endpoint
- * Admin-only. Send an arbitrary Trust Framework parameters object to ANY
- * decision endpoint in the environment and return the live PingOne verdict.
- * Powers the Live Policy Console — always calls real PingOne (no simulated
- * fallback). Body: { endpointId: string, parameters: object }
+ * Any authenticated user. Send an arbitrary Trust Framework parameters object
+ * to ANY decision endpoint in the environment and return the live PingOne
+ * verdict. Powers the Live Policy Console — always calls real PingOne (no
+ * simulated fallback). Body: { endpointId: string, parameters: object }
  */
 router.post('/evaluate-endpoint', authenticateToken, async (req, res) => {
   if (!_requireWorker(res)) return;
@@ -807,6 +810,69 @@ router.post('/evaluate-endpoint', authenticateToken, async (req, res) => {
 });
 
 /**
+ * POST /api/authorize/evaluate-endpoint-bulk
+ * Any authenticated user. Send up to 20 Trust Framework parameter objects to
+ * ONE decision endpoint in a single PingOne Authorize bulk decision request
+ * and return the live per-item verdicts. Sibling of /evaluate-endpoint — same
+ * worker gate, same live-only behaviour (no simulated fallback).
+ * Body: { endpointId: string, sharedParameters?: object, decisionRequests: [{ label?: string, parameters: object }], chunk?: boolean, useCaseId?: string }
+ */
+router.post('/evaluate-endpoint-bulk', authenticateToken, async (req, res) => {
+  if (!_requireWorker(res)) return;
+
+  const { endpointId, sharedParameters, decisionRequests, chunk } = req.body || {};
+  const useCaseId = req.body?.useCaseId || '';
+  if (!endpointId) {
+    return res.status(400).json({ error: 'endpointId is required' });
+  }
+  if (!Array.isArray(decisionRequests) || decisionRequests.length === 0) {
+    return res.status(400).json({ error: 'decisionRequests must be a non-empty array' });
+  }
+  for (const item of decisionRequests) {
+    if (!item || typeof item.parameters !== 'object' || Array.isArray(item.parameters)) {
+      return res.status(400).json({ error: 'each decisionRequests[].parameters must be an object' });
+    }
+  }
+  if (decisionRequests.length > 20 && chunk !== true) {
+    return res.status(400).json({ error: 'decisionRequests exceeds the 20-item bulk limit; pass chunk:true to auto-chunk across multiple PingOne calls' });
+  }
+  if (sharedParameters !== undefined && (typeof sharedParameters !== 'object' || Array.isArray(sharedParameters))) {
+    return res.status(400).json({ error: 'sharedParameters must be an object' });
+  }
+
+  // label is UI-only — stripped before the PingOne call, re-attached to results by index.
+  const labels = decisionRequests.map((item) => item.label ?? null);
+  const parametersList = decisionRequests.map((item) => item.parameters);
+
+  try {
+    const result = await evaluateDecisionEndpointBulk(endpointId, parametersList, sharedParameters);
+    const results = result.results.map((r) => ({ ...r, label: labels[r.index] ?? null }));
+    logEvent('authorize', result.summary.errors > 0 ? 'warning' : 'info',
+      `Authorize [console] bulk decision — endpoint ${endpointId} (${result.summary.successful}/${result.summary.requested})`,
+      { tag: 'authorize/bulk',
+        metadata: { engine: 'pingone', console: true, bulk: true, endpointId, count: decisionRequests.length, correlationIds: result.correlationIds, summary: result.summary, ...(useCaseId ? { useCaseId } : {}) } });
+    return res.json({
+      ok: true,
+      correlationId: result.correlationIds[0] || null,
+      correlationIds: result.correlationIds,
+      summary: result.summary,
+      results,
+      endpointId,
+      pingoneRequest: result._debug?.request,
+      pingoneResponse: result._debug?.response,
+    });
+  } catch (err) {
+    console.error('[authorize/evaluate-endpoint-bulk] Error:', err.message);
+    logEvent('authorize', 'error', `Authorize console bulk evaluation error: ${err.message}`,
+      { tag: 'authorize/error', metadata: { console: true, bulk: true, endpointId, error: err.message, ...(useCaseId ? { useCaseId } : {}) } });
+    if (err.code === 'bulk_limit_exceeded') {
+      return res.status(400).json({ ok: false, error: 'bulk_limit_exceeded', message: err.message });
+    }
+    return res.status(502).json({ ok: false, error: 'pingone_evaluation_failed', message: err.message });
+  }
+});
+
+/**
  * GET /api/authorize/mcp-console-defaults
  * Returns config-sourced defaults for the Live Policy Console's "MCP First Tool"
  * preset so a default Evaluate mirrors the real pipeline (a PERMIT) instead of
@@ -830,8 +896,8 @@ router.get('/mcp-console-defaults', authenticateToken, (_req, res) => {
 
 /**
  * POST /api/authorize/endpoints/:id/recording
- * Admin-only. Enable (default) or disable recent-decision recording on a
- * decision endpoint so the Recent Decisions list can populate.
+ * Any authenticated user. Enable (default) or disable recent-decision
+ * recording on a decision endpoint so the Recent Decisions list can populate.
  * Body: { enabled?: boolean }  (defaults to true)
  */
 router.post('/endpoints/:id/recording', authenticateToken, async (req, res) => {
@@ -1056,6 +1122,54 @@ router.post('/pre-flight', authenticateToken, express.json(), async (req, res) =
   } catch (err) {
     console.error('[authorize/pre-flight] Unexpected error for tool=%s: %s', tool, err.message);
     return res.status(500).json({ error: 'preflight_error', message: err.message });
+  }
+});
+
+/**
+ * POST /api/authorize/pre-flight-bulk
+ * Batch, ADVISORY sibling of /pre-flight — narrows which of several tools to
+ * offer/grey out in one round trip. Never grants a call and mints no HITL
+ * challenge (see agentPreflightService.evaluateBatch doc comment); the real
+ * gate still runs unchanged when the agent actually invokes a tool. Gated by
+ * ff_authorize_bulk_preflight (default off) — 404 when the flag is off, so
+ * this ships inert until explicitly enabled.
+ *
+ * Body: { tools: [{ tool: string, params?: object }] }
+ * Response: { ok, results?: [...], reason? } — see evaluateBatch's JSDoc.
+ */
+router.post('/pre-flight-bulk', authenticateToken, express.json(), async (req, res) => {
+  if (configStore.getEffective('ff_authorize_bulk_preflight') !== 'true') {
+    return res.status(404).json({ error: 'not_found' });
+  }
+
+  const { tools } = req.body || {};
+  if (!Array.isArray(tools) || tools.length === 0) {
+    return res.status(400).json({ error: 'tools_required', message: 'tools must be a non-empty array' });
+  }
+  for (const item of tools) {
+    if (!item || typeof item.tool !== 'string' || !item.tool.trim()) {
+      return res.status(400).json({ error: 'tool_required', message: 'each tools[].tool must be a non-empty string' });
+    }
+    if (item.tool.length > 128) {
+      return res.status(400).json({ error: 'tool_too_long', message: 'tool name exceeds 128 characters' });
+    }
+    if (item.params !== undefined && (typeof item.params !== 'object' || Array.isArray(item.params))) {
+      return res.status(400).json({ error: 'params_invalid', message: 'each tools[].params must be an object when provided' });
+    }
+  }
+
+  try {
+    const result = await agentPreflightService.evaluateBatch({
+      req,
+      tools: tools.map((t) => ({ tool: t.tool.trim(), params: t.params || {} })),
+    });
+    if (!result.ok) {
+      return res.status(502).json(result);
+    }
+    return res.json(result);
+  } catch (err) {
+    console.error('[authorize/pre-flight-bulk] Unexpected error: %s', err.message);
+    return res.status(500).json({ error: 'preflight_bulk_error', message: err.message });
   }
 });
 

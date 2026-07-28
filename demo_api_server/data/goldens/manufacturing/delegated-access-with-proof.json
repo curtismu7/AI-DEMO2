@@ -4,9 +4,9 @@
   "ucId": "UC1",
   "trigger": "show my work orders",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-18T13:59:08.909Z",
+  "capturedAt": "2026-07-27T00:28:26.395Z",
   "seedHash": "dcba7c79003a5241",
   "reply": "Here are your work orders.",
   "agentPath": null,
-  "tokenEventCount": 18
+  "tokenEventCount": 19
 }

@@ -84,6 +84,11 @@ const AgentUiModeContext = createContext({
   setWebMcpLastResult: () => {},
   surfaceHostEl: null,
   setSurfaceHostEl: () => {},
+  // Registered by a host page that wants the agent's header control row rendered
+  // outside the agent column (see LiveUseCaseWorkbenchPage). Null everywhere else,
+  // which keeps every other surface on the inline header.
+  toolbarHostEl: null,
+  setToolbarHostEl: () => {},
   // ff_agent_clinical_split: TalkPane sets true on mount so App.js renders
   // BankingAgent with mode="inline" + splitColumnChrome (existing
   // .ba-mode-inline styles); cleared on unmount so the legacy floating dock
@@ -101,6 +106,7 @@ export function AgentUiModeProvider({ children }) {
   const [state, setState] = useState(() => readState());
   const [webMcpLastResult, setWebMcpLastResult] = useState(null);
   const [surfaceHostEl, setSurfaceHostEl] = useState(null);
+  const [toolbarHostEl, setToolbarHostEl] = useState(null);
 
   // clinicalSplit is registered by TalkPane (setClinicalSplit(true) on mount,
   // setClinicalSplit(false) on unmount). Ownership-safe via a ref-count: React
@@ -174,12 +180,14 @@ export function AgentUiModeProvider({ children }) {
       setWebMcpLastResult,
       surfaceHostEl,
       setSurfaceHostEl,
+      toolbarHostEl,
+      setToolbarHostEl,
       clinicalSplit,
       setClinicalSplit,
     }),
     // useState setters are stable refs (excluded); setClinicalSplit is a stable
     // useCallback([]) but listed to satisfy react-hooks/exhaustive-deps.
-    [state.placement, state.fab, state.mode, setAgentUi, webMcpLastResult, surfaceHostEl, clinicalSplit, setClinicalSplit]
+    [state.placement, state.fab, state.mode, setAgentUi, webMcpLastResult, surfaceHostEl, toolbarHostEl, clinicalSplit, setClinicalSplit]
   );
 
   return (

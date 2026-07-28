@@ -106,7 +106,7 @@ const DEMO_MAP = [
   { uc: "UC7, UC8", threats: "T10", control: "Step-up MFA and human-in-the-loop consent for high-value actions.", to: "/pingone-authorize" },
   { uc: "UC10, UC11, UC13", threats: "T3, T9, T13", control: "Confused-deputy, bad-client, and rogue-actor-injection rejected at the gateway.", to: "/mcp-inspector" },
   { uc: "UC12, UC17", threats: "T9, T3", control: "Token theft/replay defense (audience binding, DPoP, introspection) + short-lived JIT credentials.", to: "/actor-token-education" },
-  { uc: "UC18", threats: "T4", control: "Rate-limit / resource-overload defense at the agent gateway.", to: "/pinggateway-inspector?subtab=capabilities" },
+  { uc: "UC18", threats: "T4", control: "Rate-limit / resource-overload defense at the agent gateway.", to: "/agent-gateway-inspector?subtab=capabilities" },
 ];
 
 export default function OwaspLearnerPage() {

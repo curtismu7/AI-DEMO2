@@ -82,7 +82,7 @@ Comprehensive breakdown of all **13 services** (Node.js, TypeScript, and Python)
 - Shares token validation patterns with gateway
 
 **Key Files:**
-- `src/server/BankingMCPServer.ts` — main server
+- `src/server/DemoMCPServer.ts` — main server
 - `src/tools/BankingToolRegistry.ts` — static map of tools
 - `src/tools/BankingToolProvider.ts` — tool execution logic
 - `src/banking/BankingAPIClient.ts` — calls to BFF

@@ -336,6 +336,12 @@
   color: var(--color-text-secondary, #9ca3af);
 }
 
+.uc-card__hint {
+  font-size: 0.78rem;
+  color: var(--color-text-secondary, #9ca3af);
+  margin: 0.25rem 0 0;
+}
+
 /* ── Attack sim result ─────────────────────────────────────────────────── */
 
 .uc-sim-result {

@@ -12,6 +12,9 @@
 #                             vertical manifest (anonymous; provider:'heuristic') —
 #                             asserts each resolves to a non-none intent and, when the
 #                             chip declares a tool, to that action.
+#   6. Demo feature flags     gen-demo-flag-map.js --live — fails only when an AMBIENT
+#                             flag is wrong (ff_use_cases_launcher, ff_heuristic_enabled).
+#                             Per-step flags off is fine: they arm when the step runs.
 #
 #   PREFLIGHT_BASE_URL   default https://api.ping.demo:3001 (mkcert TLS → curl -k)
 #
@@ -42,10 +45,21 @@ read_lines() {
 }
 
 # ── 1. BFF liveness ──────────────────────────────────────────────────────────
-if jget "${BASE}/api/healthz" | grep -q '"status"'; then
+# node --watch (demo_api_server) briefly drops its listener on every hot-reload
+# restart (~1-2s). A single curl mid-restart would false-fail the whole run, so
+# retry a few times before declaring the stack down.
+bff_ok=0
+for attempt in 1 2 3; do
+  if jget "${BASE}/api/healthz" | grep -q '"status"'; then
+    bff_ok=1
+    break
+  fi
+  [[ $attempt -lt 3 ]] && sleep 1
+done
+if [[ $bff_ok -eq 1 ]]; then
   row OK "BFF liveness" "${BASE}/api/healthz"
 else
-  row FAIL "BFF liveness" "unreachable at ${BASE} — is the stack running?"
+  row FAIL "BFF liveness" "unreachable at ${BASE} after 3 attempts — is the stack running?"
   # Without the BFF nothing else can run; print and bail.
 fi
 
@@ -110,7 +124,15 @@ else
 fi
 
 # ── 5. Chip replay (anonymous, heuristic provider) ───────────────────────────
-CHIP_RESULTS="$(BASE="$BASE" ROOT="$ROOT" python3 - <<'PYEOF'
+# CLIENT_DISPATCHED_ACTIONS comes from the module that already owns it and is
+# already test-gated. Do not retype the list here — a second copy is how the
+# requiredDemoFlags mirror drifted and took 22 use cases down (#886).
+CLIENT_DISPATCHED="$(node -e '
+const { CLIENT_DISPATCHED_ACTIONS } = require(process.argv[1] + "/demo_api_server/scripts/useCaseSweepCauses.js");
+process.stdout.write(JSON.stringify([...CLIENT_DISPATCHED_ACTIONS]));
+' "$ROOT" 2>/dev/null || echo '[]')"
+
+CHIP_RESULTS="$(BASE="$BASE" ROOT="$ROOT" CLIENT_DISPATCHED="$CLIENT_DISPATCHED" python3 - <<'PYEOF'
 import json, os, glob, subprocess
 
 base = os.environ["BASE"]
@@ -118,6 +140,29 @@ root = os.environ["ROOT"]
 per_vertical = {}
 failures = []
 warnings = []
+
+# Actions the BFF deliberately does NOT dispatch — dispatchBankingAction returns
+# null and the UI switch handles them. Their chips are real, but this check
+# replays through the API, so it does not prove those paths. Counted and
+# reported rather than scored, so a green table never implies they were tested.
+try:
+    client_dispatched = set(json.loads(os.environ.get("CLIENT_DISPATCHED") or "[]"))
+except Exception:
+    client_dispatched = set()
+if not client_dispatched:
+    failures.append("could not load CLIENT_DISPATCHED_ACTIONS from useCaseSweepCauses.js")
+client_dispatched_count = 0
+
+# Every chip tool field must name a real tool. This is the assertion the old
+# action-vs-tool comparison was groping at: it catches a typo or a tool removed
+# from topology, and it is clean today (0 of 67), so a hit is a genuine defect.
+try:
+    _topo = json.load(open(os.path.join(root, "scope-topology.json"))).get("tools") or {}
+    topology_tools = set(_topo) if isinstance(_topo, dict) else {
+        t.get("name") for t in _topo if isinstance(t, dict)}
+except Exception as e:
+    topology_tools = set()
+    failures.append(f"could not read scope-topology.json tools ({e})")
 
 for mpath in sorted(glob.glob(os.path.join(root, "demo_api_server/config/verticals/*/manifest.json"))):
     vertical = os.path.basename(os.path.dirname(mpath))
@@ -159,23 +204,27 @@ for mpath in sorted(glob.glob(os.path.join(root, "demo_api_server/config/vertica
         tool = chip.get("tool")
         if not ok:
             failures.append(f"{vertical}/{cid} {cmsg!r}: kind={kind}")
-        elif tool and action and action != tool:
-            # DOWNGRADED (not a failure): the heuristic router internal dispatch
-            # keys (e.g. accounts, vertical_feature_demo, call_pingone_tool) are a
-            # deliberately distinct namespace from the manifest tool field, which
-            # names the formal MCP/LLM-mode tool (e.g. get_my_accounts,
-            # call_pingone_operation) used in direct/LLM modes. Confirmed against
-            # demo_api_server/services/nlIntentParser.js and the pingone-admin
-            # manifest -- see task-4-report.md. kind resolved correctly, so this
-            # chip is still counted OK; the mismatch is surfaced as a warning note.
-            warnings.append(f"{vertical}/{cid} {cmsg!r}: action differs from manifest: got {action}, manifest says {tool}")
+        if action and action in client_dispatched:
+            client_dispatched_count += 1
+        # NOT compared: action against tool. The heuristic router internal
+        # dispatch keys (accounts, vertical_feature_demo, transfer_600_test) are a
+        # deliberately distinct namespace from the manifest tool field, which
+        # names the formal MCP tool used in direct/LLM modes (get_my_accounts,
+        # show_permit, create_transfer). Comparing them has no true-positive
+        # capability by construction, and it fired on 28 of 28 mismatches — every
+        # one correct behaviour. Twenty-eight false alarms in the tool you run
+        # before going on stage is how a real one gets skimmed past.
+        if tool and topology_tools and tool not in topology_tools:
+            failures.append(f"{vertical}/{cid}: tool {tool!r} is not in scope-topology.json")
+            ok = False
         pv = per_vertical.setdefault(vertical, [0, 0])
         if ok:
             pv[0] += 1
         else:
             pv[1] += 1
 
-print(json.dumps({"per_vertical": per_vertical, "failures": failures, "warnings": warnings}))
+print(json.dumps({"per_vertical": per_vertical, "failures": failures, "warnings": warnings,
+                  "client_dispatched": client_dispatched_count}))
 PYEOF
 )"
 chip_rows=()
@@ -189,10 +238,14 @@ total_ok=0; total_fail=0
 for v,(ok,fail) in sorted(d["per_vertical"].items()):
     total_ok+=ok; total_fail+=fail
     print(("OK" if fail==0 else "FAIL")+f"|chips {v}|{ok} ok, {fail} failed")
-print(("OK" if total_fail==0 else "FAIL")+f"|chip replay total|{total_ok} ok, {total_fail} failed")
-for f in d["failures"][:20]:
+cd_n=d.get("client_dispatched",0)
+suffix=f"; {cd_n} client-dispatched (UI path, not proven here)" if cd_n else ""
+print(("OK" if total_fail==0 else "FAIL")+f"|chip replay total|{total_ok} ok, {total_fail} failed{suffix}")
+# Print every failure/warning. The previous [:20] cap silently dropped the rest,
+# which reads as "that was all of them".
+for f in d["failures"]:
     print(f"FAIL|  detail|{f}")
-for w in d["warnings"][:20]:
+for w in d["warnings"]:
     print(f"WARN|  detail|{w}")
 ' <<< "$CHIP_RESULTS"
 for r in "${chip_rows[@]}"; do
@@ -205,7 +258,204 @@ for r in "${chip_rows[@]}"; do
   fi
 done
 
-# ── 6. Deep pipeline replay (optional: --deep) ───────────────────────────────
+# ── 6. UI dispatch coverage (static — no stack needed) ───────────────────────
+# Check 5 replays chips through the API, which by construction cannot prove the
+# ~20 client-dispatched ones: the BFF returns null for those and the UI switch
+# handles them in the browser. This check proves statically what that replay
+# cannot, so those chips stop being a blind spot:
+#
+#   1. every client-dispatched action still has a handler in AIAgent.js
+#   2. every vertical with a feature chip declares featurePage.mcpTool
+#   3. that mcpTool equals the chip declared tool
+#   4. that mcpTool is a real tool in scope-topology.json
+#
+# (2) is the sharp one. vertical_feature_demo does NOT call the chip tool field.
+# It calls featurePage.mcpTool, defaulting to show_mortgage when absent — so a
+# vertical missing that field silently serves BANKING MORTGAGE DATA on, say, the
+# government vertical. HTTP 200, wrong data, no error anywhere.
+# Clean today (8 of 8 verticals agree), so a red row here is a real defect.
+UIDISPATCH="$(ROOT="$ROOT" CLIENT_DISPATCHED="$CLIENT_DISPATCHED" python3 - <<'PYEOF'
+import json, os, glob, re
+
+root = os.environ["ROOT"]
+failures = []
+try:
+    actions = set(json.loads(os.environ.get("CLIENT_DISPATCHED") or "[]"))
+except Exception:
+    actions = set()
+
+try:
+    src = open(os.path.join(root, "demo_api_ui/src/components/AIAgent.js"),
+               encoding="utf-8").read()
+except Exception as e:
+    src = ""
+    failures.append(f"could not read AIAgent.js ({e})")
+
+# Handlers appear in three forms; all three are real dispatch, none is preferred.
+handled = 0
+for a in sorted(actions):
+    if not src:
+        break
+    pat = r'case\s+"%s"|action\s*===\s*"%s"|action\.id\s*===\s*"%s"' % (a, a, a)
+    if re.search(pat, src):
+        handled += 1
+    else:
+        failures.append(f"action {a} is client-dispatched but has no handler in AIAgent.js")
+
+try:
+    topo = json.load(open(os.path.join(root, "scope-topology.json"))).get("tools") or {}
+    topology_tools = set(topo) if isinstance(topo, dict) else {
+        t.get("name") for t in topo if isinstance(t, dict)}
+except Exception as e:
+    topology_tools = set()
+    failures.append(f"could not read scope-topology.json tools ({e})")
+
+feature_ok = 0
+for mpath in sorted(glob.glob(os.path.join(root, "demo_api_server/config/verticals/*/manifest.json"))):
+    vertical = os.path.basename(os.path.dirname(mpath))
+    try:
+        manifest = json.load(open(mpath))
+    except Exception:
+        continue
+    chips = [c for c in (((manifest.get("dashboard") or {}).get("chips10")) or [])
+             if str(c.get("id") or "").endswith("-feature")]
+    if not chips:
+        continue
+    mcp_tool = (manifest.get("featurePage") or {}).get("mcpTool")
+    for chip in chips:
+        declared = chip.get("tool")
+        if not mcp_tool:
+            failures.append(
+                f"{vertical}: featurePage.mcpTool missing — {chip.get('id')} would "
+                f"silently call show_mortgage (banking data on {vertical})")
+        elif declared and mcp_tool != declared:
+            failures.append(
+                f"{vertical}/{chip.get('id')}: featurePage.mcpTool={mcp_tool} but "
+                f"chip tool={declared} — the UI calls the former, the catalog claims the latter")
+        elif topology_tools and mcp_tool not in topology_tools:
+            failures.append(f"{vertical}: featurePage.mcpTool {mcp_tool} is not in scope-topology.json")
+        else:
+            feature_ok += 1
+
+print(json.dumps({"handled": handled, "actions": len(actions),
+                  "feature_ok": feature_ok, "failures": failures}))
+PYEOF
+)"
+ui_rows=()
+read_lines ui_rows python3 -c '
+import json,sys
+try:
+    d=json.load(sys.stdin)
+except Exception:
+    print("FAIL|ui dispatch|aggregator crashed — see script output"); raise SystemExit
+f=d["failures"]; h=d["handled"]; n=d["actions"]; fo=d["feature_ok"]
+print(("OK" if not f else "FAIL")+f"|ui dispatch|{h}/{n} client-dispatched actions have a UI handler")
+print(("OK" if not f else "FAIL")+f"|feature tool wiring|{fo} vertical(s): featurePage.mcpTool == chip tool, in topology")
+for x in f:
+    print(f"FAIL|  detail|{x}")
+' <<< "$UIDISPATCH"
+for r in "${ui_rows[@]}"; do
+  IFS='|' read -r st name detail <<< "$r"
+  if [[ "$name" == "  detail" ]]; then
+    ROWS+=("$st|$name|$detail")
+  else
+    row "$st" "$name" "$detail"
+  fi
+done
+
+# ── 7. Demo feature flags ────────────────────────────────────────────────────
+# Shells out to gen-demo-flag-map.js --live rather than re-reading the flags
+# here. One implementation, one set of rules about which flags matter — a second
+# copy is exactly how the requiredDemoFlags mirror drifted and took 22 use cases
+# down (#886).
+#
+# It exits non-zero ONLY for AMBIENT flags (ff_use_cases_launcher,
+# ff_heuristic_enabled) — the ones nothing arms for you. Per-step flags reading
+# off is expected: /api/use-cases/demo/run arms them when the step executes, so
+# failing on those would cry wolf on every run.
+FLAGMAP_OUT="$(node "$ROOT/scripts/gen-demo-flag-map.js" --live --base "$BASE" 2>&1)"
+FLAGMAP_RC=$?
+FLAG_OFF_COUNT="$(printf '%s\n' "$FLAGMAP_OUT" | grep -c 'off ff_' 2>/dev/null || true)"
+if [[ "$FLAGMAP_RC" -eq 0 ]]; then
+  row OK "demo flags" "ambient OK; ${FLAG_OFF_COUNT:-0} per-step flag(s) off (armed on run)"
+elif [[ "$FLAGMAP_RC" -eq 1 ]]; then
+  BADFLAGS="$(printf '%s\n' "$FLAGMAP_OUT" | grep '!! ' | awk '{print $3}' | paste -sd, - 2>/dev/null)"
+  row FAIL "demo flags" "ambient flag(s) wrong: ${BADFLAGS:-see npm run demo:flag-map:live}"
+else
+  row FAIL "demo flags" "could not read flags — $(printf '%s' "$FLAGMAP_OUT" | tail -1 | cut -c1-70)"
+fi
+
+# ── 8. Container/repo drift ──────────────────────────────────────────────────
+# Does the code RUNNING match the code you have? Every other check here talks to
+# the stack, so a container serving a stale build passes all of them while
+# demoing something you cannot reproduce from the repo.
+#
+# This is not hypothetical. Both happened on 2026-07-26:
+#
+#   mcp-weather   get_weather -> get_current_conditions bridge merged 07-22.
+#                 Image built 07-26 STILL lacked it — Docker's layer cache
+#                 served a stale COPY. host 182 lines / container 167.
+#                 The weather demo failed in all 9 verticals with the fix
+#                 sitting merged on main.
+#   authz-server  code is BAKED (no bind mount), so `docker restart` cannot
+#                 pick up a change; it needs a rebuild.
+#
+# Neither is visible to a unit test — the code is right, the artifact is not.
+# Checks a distinctive line per service, so it fails on the specific drift
+# rather than on a version string nobody updates.
+drift=()
+# Containers mount code differently — some bake it at /app, some bind-mount the
+# checkout at /repo. Probe both and FAIL LOUDLY when neither exists: a check
+# pointed at a missing file greps nothing, reports no drift, and is worse than
+# no check at all.
+check_drift() {  # <container> <container-path-csv> <repo-path> <needle>
+  local c="$1" cpaths="$2" rpath="$3" needle="$4"
+  docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$c" || return 0
+  local want have found p
+  # grep -c prints 0 AND exits 1 when there are no matches, so `|| echo 0`
+  # appends a SECOND zero and the value becomes "0\n0" — which makes every
+  # later [[ -eq ]] error out and silently skip the drift branch. head -1 keeps
+  # it a single integer; `|| true` stops the non-zero exit from tripping set -e.
+  want="$( { grep -c -- "$needle" "$ROOT/$rpath" 2>/dev/null || true; } | head -1 )"
+  [[ "$want" -eq 0 ]] && return 0   # needle gone from the repo — nothing to assert
+  found=""
+  IFS=',' read -ra _paths <<< "$cpaths"
+  for p in "${_paths[@]}"; do
+    if docker exec "$c" sh -c "[ -f '$p' ]" 2>/dev/null; then found="$p"; break; fi
+  done
+  if [[ -z "$found" ]]; then
+    drift+=("$c(path?)")
+    return 0
+  fi
+  have="$(docker exec "$c" sh -c "grep -c -- '$needle' '$found' 2>/dev/null || true" 2>/dev/null | tr -d '\r' | head -1)"
+  [[ -z "$have" ]] && have=0
+  # Only the direction that matters: repo has it, running container does not.
+  [[ "$have" -eq 0 ]] && drift+=("$c")
+}
+check_drift ai-demo-mcp-weather  "/app/server.js,/repo/demo_mcp_weather/server.js" \
+  demo_mcp_weather/server.js "get_current_conditions"
+check_drift ai-demo-authz-server "/repo/demo_authz_server/routes/decision.js,/app/routes/decision.js" \
+  demo_authz_server/routes/decision.js "a2aDelegatedScope"
+check_drift ai-demo-api-server   "/app/services/demoAgentLangGraphService.js,/repo/demo_api_server/services/demoAgentLangGraphService.js" \
+  demo_api_server/services/demoAgentLangGraphService.js "stripChainFieldsForModel"
+# mcp-server / mcp-gateway are TypeScript, baked (no bind mount) — the exact
+# shape of the 2026-07-27 A2A outage: three merged fixes (#1029 gateway mTLS,
+# #1030/#1031 scope-topology acceptance) each needed a rebuild + recreate, not
+# a restart, and neither container was drift-checked, so a forgotten rebuild
+# on either would have shipped silently while every other check stayed green.
+# Needle is checked against the .ts SOURCE (dist/ is gitignored build output,
+# not committed) — check_drift's plain grep doesn't care about extension.
+check_drift ai-demo-mcp-server    "/app/dist/tools/handlers/verticalTools.generated.js" \
+  demo_mcp_server/src/tools/handlers/verticalTools.generated.ts "a2aDelegatedScope"
+check_drift ai-demo-mcp-gateway   "/repo/demo_mcp_gateway/dist/server/GatewayServer.js" \
+  demo_mcp_gateway/src/server/GatewayServer.ts "upstreamHttpsAgent"
+if [[ ${#drift[@]} -eq 0 ]]; then
+  row OK "container drift" "running code matches the repo"
+else
+  row FAIL "container drift" "stale build: ${drift[*]} — rebuild (docker compose build --no-cache <svc>)"
+fi
+
+# ── 7. Deep pipeline replay (optional: --deep) ───────────────────────────────
 # Reuses the existing real-test machinery: scripts/run-real-tests.sh loads
 # PingOne creds from demo_api_server/.env, logs in headlessly, and replays every
 # `both` chip through the FULL authenticated RFC 8693 pipeline

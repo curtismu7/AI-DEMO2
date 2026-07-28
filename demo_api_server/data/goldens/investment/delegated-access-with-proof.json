@@ -4,9 +4,9 @@
   "ucId": "UC1",
   "trigger": "show my portfolios",
   "expectedOutcome": "PERMIT",
-  "capturedAt": "2026-07-18T13:59:14.578Z",
+  "capturedAt": "2026-07-27T00:28:43.498Z",
   "seedHash": null,
   "reply": "Here are your portfolios.",
   "agentPath": null,
-  "tokenEventCount": 18
+  "tokenEventCount": 19
 }

@@ -59,43 +59,14 @@ describe('apiClient session OAuth', () => {
     jest.restoreAllMocks();
   });
 
-  it('getTokenFromSession returns accessToken from user status', async () => {
-    sharedGet.mockResolvedValueOnce({
-      data: {
-        authenticated: true,
-        accessToken: 'oauth-access-token-123',
-        tokenType: 'Bearer',
-        expiresAt: Date.now() + 3600000,
-        user: { id: 'u1', username: 'u', email: 'u@test.com' },
-      },
-    });
-
+  // getTokenFromSession is a BFF-pattern holdover: the server holds the access
+  // token and the client never sees it, so this always resolves null without
+  // hitting the network (see apiClient.js).
+  it('getTokenFromSession always returns null and makes no request', async () => {
     const token = await apiClient.getTokenFromSession();
 
-    expect(token).toBe('oauth-access-token-123');
-    expect(sharedGet).toHaveBeenCalledWith('/api/auth/oauth/user/status');
-  });
-
-  it('getTokenFromSession falls back to admin status when user is not authenticated', async () => {
-    sharedGet
-      .mockResolvedValueOnce({
-        data: { authenticated: false },
-      })
-      .mockResolvedValueOnce({
-        data: {
-          authenticated: true,
-          accessToken: 'admin-token',
-          tokenType: 'Bearer',
-          expiresAt: Date.now() + 3600000,
-          user: { id: 'a1', username: 'admin', role: 'admin' },
-        },
-      });
-
-    const token = await apiClient.getTokenFromSession();
-
-    expect(token).toBe('admin-token');
-    expect(sharedGet).toHaveBeenCalledWith('/api/auth/oauth/user/status');
-    expect(sharedGet).toHaveBeenCalledWith('/api/auth/oauth/status');
+    expect(token).toBeNull();
+    expect(sharedGet).not.toHaveBeenCalled();
   });
 
   it('request interceptor adds Bearer when getValidToken resolves', async () => {

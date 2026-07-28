@@ -183,6 +183,7 @@ describe('verifyHitlReceipt — CR-01 caller/agent/tool binding', () => {
   test('same-amount recipient swap — rejected', () => {
     const result = verifyHitlReceipt(
       makeApproved({
+        tool: 'create_transfer',
         context: { amount: 250, to_account_id: 'payee-a', from_account_id: 'src-1' },
       } as Partial<HitlChallenge>),
       'user-a',

@@ -19,7 +19,11 @@ jest.mock('../../services/bffMcpToolExecutor', () => ({
 }));
 
 jest.mock('../../data/store', () => ({
-  getAccountById: jest.fn(() => ({ id: '3', userId: '2' })),
+  // _resolveForeignAccountId reads getAllAccounts() and picks the first
+  // banking-type account owned by someone other than the calling user
+  // (makeReq()'s sub is 'user-1') — not a hardcoded id lookup, so a fixed
+  // demo dataset reseed can't silently make this account stop existing.
+  getAllAccounts: jest.fn(() => [{ id: '3', userId: '2', accountType: 'CHECKING' }]),
 }));
 
 const { buildTokenEvent, buildGwAuthorizeEventExtra } = require('../../services/agentMcpTokenService');

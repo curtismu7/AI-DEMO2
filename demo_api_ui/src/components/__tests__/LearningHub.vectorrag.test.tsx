@@ -4,6 +4,7 @@ import LearningHub from "../LearningHub";
 
 vi.mock("../../context/EducationUIContext", () => ({
   useEducationUI: () => ({ open: vi.fn() }),
+  useEducationUIOptional: () => ({ open: vi.fn() }),
 }));
 vi.mock("../../context/DemoTourContext", () => ({
   useDemoTour: () => ({ start: vi.fn() }),

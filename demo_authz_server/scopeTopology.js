@@ -70,6 +70,27 @@ function isA2aDelegatedTool(toolName) {
 }
 
 /**
+ * The tool's A2A least-privilege scope, when scope-topology.json declares one.
+ *
+ * A2A specialists deliberately present a NARROWER scope than the tool's generic
+ * requiredScopes — `records:read` instead of `read` — so the Exchange #2 token
+ * carries least privilege (see deriveSpecialistScopes in a2aDelegationService,
+ * whose tests encode "least privilege instead of the generic read"). Rule 3
+ * only knew requiredScopes, so it denied every A2A call with
+ * "insufficient_scope: missing read" AFTER both exchanges had succeeded — the
+ * delegation chain worked and the policy rejected it on a scope NAME.
+ *
+ * @param {string} toolName
+ * @returns {string|null}
+ */
+function a2aDelegatedScope(toolName) {
+  if (!toolName) return null;
+  const entry = tools[toolName];
+  const scope = entry && entry.a2aDelegatedScope;
+  return typeof scope === 'string' && scope ? scope : null;
+}
+
+/**
  * Returns true when the tool requires agent mediation (an `act` claim).
  * Used by the UC16 impersonation-block rule: tools with this flag DENY
  * when no `act` is present and ff_require_act_for_agent_tools is ON.
@@ -126,6 +147,7 @@ module.exports = {
   isStepUpTool,
   hasChallengeType,
   isA2aDelegatedTool,
+  a2aDelegatedScope,
   isAgentMediatedTool,
   gatewayAudience,
   upstreamAudiences,

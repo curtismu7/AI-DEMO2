@@ -4,9 +4,9 @@
   "ucId": "UC7",
   "trigger": "pay my $600 bill",
   "expectedOutcome": "STEP_UP",
-  "capturedAt": "2026-07-17T15:13:03.686Z",
+  "capturedAt": "2026-07-27T00:26:55.157Z",
   "seedHash": "956244bc8453547f",
-  "reply": "Simulated authorization policy requires step-up before MCP tools (education mode).",
+  "reply": "PingOne Authorize requires additional authentication before MCP tools can run.",
   "agentPath": null,
   "tokenEventCount": 13
 }

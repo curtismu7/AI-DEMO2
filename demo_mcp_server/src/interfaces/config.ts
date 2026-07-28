@@ -25,7 +25,7 @@ export interface LoggingConfig {
   securityLogPath: string;
 }
 
-export interface BankingMCPServerConfig {
+export interface DemoMCPServerConfig {
   server: ServerConfig;
   pingone: PingOneConfig;
   bankingApi: BankingAPIConfig;
@@ -103,7 +103,7 @@ export interface EnvironmentVariables {
   SECURITY_LOG_PATH?: string;
 }
 
-export const DEFAULT_CONFIG: Omit<BankingMCPServerConfig, 'pingone'> = {
+export const DEFAULT_CONFIG: Omit<DemoMCPServerConfig, 'pingone'> = {
   server: {
     host: '0.0.0.0',
     port: 8081,

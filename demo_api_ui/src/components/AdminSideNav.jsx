@@ -149,14 +149,14 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "ai-agents", paths: ["/ai-control-plane", "/agent", "/copilot", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
   { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client"] },
   { id: "banking-mcp", paths: ["/webmcp", "/ping-ai-test-lab"] },
-  { id: "banking-mcp-gateways", paths: ["/pinggateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security", "/agent-gateway-capabilities"] },
+  { id: "banking-mcp-gateways", paths: ["/agent-gateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security", "/agent-gateway-capabilities"] },
   { id: "pingone-demo-apps", paths: ["/self-service", "/pingone-test", "/mfa-test", "/token-exchange-tester", "/oauth-academy", "/oas-demo", "/privilege-demo", "/sdk-login"] },
   { id: "delegation-consent", paths: ["/transaction-consent", "/actor-token-education"] },
   { id: "authorize", paths: ["/pingone-authorize", "/pingone-authorize-capabilities", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
   { id: "users-accounts", paths: ["/users", "/accounts", "/transactions"] },
   { id: "industry-verticals", paths: ["/admin/banking", "/admin/healthcare", "/admin/retail", "/admin/sporting-goods", "/admin/workforce", "/admin/verticals", "/path/mortgage"] },
   { id: "monitoring", paths: ["/audit", "/monitoring", "/reports", "/error-audit"] },
-  { id: "telemetry", paths: ["/tracing", "/telemetry", "/check"] },
+  { id: "telemetry", paths: ["/tracing", "/telemetry", "/transaction-trace", "/check"] },
   { id: "agent-studio-preview", paths: ["/agent-studio-preview", "/iga-for-ai", "/discovery-preview", "/privileges-gateway-preview", "/platform-gaps"] },
   { id: "learn-present", paths: ["/learning", "/agentic-trust", "/agent-guardrails", "/owasp", "/llama-vscode-guide"] },
   { id: "tests", paths: ["/resource-server", "/resource-server-cc"] },
@@ -442,6 +442,8 @@ export default function AdminSideNav({ user }) {
     { label: "Themes", path: "/themes", icon: "cfg" },
     { label: "Use Cases", path: "/use-cases", icon: "demo" },
     { label: "Use Cases (Live)", path: "/use-cases/live", icon: "demo" },
+    { label: "AI Footprint", path: "/demo/footprint-picks", icon: "demo" },
+    { label: "Footprint Gallery", path: "/demo/footprint-mocks", icon: "demo" },
     {
       label: "Demo Script",
       icon: "demo",
@@ -495,6 +497,15 @@ export default function AdminSideNav({ user }) {
       ],
     },
     {
+      label: "Inspectors",
+      icon: "dbg",
+      children: [
+        { label: "MCP Inspector", path: "/pingone-mcp-inspector", icon: "dbg" },
+        { label: "Agent Gateway Inspector", path: "/agent-gateway-inspector", icon: "rte" },
+        { label: "P1AZ Inspector", path: "/pingone-authorize", icon: "pol", searchAlias: "PingOne Authorize" },
+      ],
+    },
+    {
       label: "PingOne MCP",
       icon: "mcp",
       highlight: true,
@@ -519,8 +530,8 @@ export default function AdminSideNav({ user }) {
         },
         { label: "Web MCP", path: "/webmcp", icon: "web" },
         {
-          label: "PingGateway Inspector",
-          path: "/pinggateway-inspector",
+          label: "Agent Gateway Inspector",
+          path: "/agent-gateway-inspector",
           icon: "rte",
         },
         { label: "Capability Tour", path: "/agent-gateway-capabilities", icon: "shld" },
@@ -595,7 +606,7 @@ export default function AdminSideNav({ user }) {
       label: "Authorize",
       icon: "pol",
       children: [
-        { label: "PingOne Authorize", path: "/pingone-authorize", icon: "pol" },
+        { label: "P1AZ Inspector", path: "/pingone-authorize", icon: "pol", searchAlias: "PingOne Authorize" },
         { label: "Authorize Capabilities", path: "/pingone-authorize-capabilities", icon: "pol" },
         {
           label: "Policy Decision Trace",
@@ -777,6 +788,7 @@ export default function AdminSideNav({ user }) {
       children: [
         { label: "Service Graph", path: "/telemetry", icon: "log" },
         { label: "Tracing", path: "/tracing", icon: "log" },
+        { label: "Transaction Trace", path: "/transaction-trace", icon: "log" },
         { label: "Health Check", path: "/check", icon: "clk" },
       ],
     },
@@ -892,20 +904,24 @@ export default function AdminSideNav({ user }) {
     .filter((item) => !item.customerOnly || !isAdmin)
     .filter((item) => item.label === "Demo Config" || !hiddenNavLabels.includes(item.label));
 
-  // Live filter: match by label across top-level items and their children. A
-  // group is kept if its own label matches (all children shown) or if any child
-  // matches (only matching children shown). Empty query = show everything.
+  // Live filter: match by label (or an item's optional search alias, for
+  // renamed items whose old/product name should still surface them — e.g.
+  // "P1AZ Inspector" via "authorize") across top-level items and their
+  // children. A group is kept if its own label/alias matches (all children
+  // shown) or if any child matches (only matching children shown). Empty
+  // query = show everything.
   const navQuery = navFilter.trim().toLowerCase();
-  const labelMatches = (label) =>
-    String(label || "").toLowerCase().includes(navQuery);
+  const itemMatches = (item) =>
+    String(item?.label || "").toLowerCase().includes(navQuery) ||
+    String(item?.searchAlias || "").toLowerCase().includes(navQuery);
   const filterNavItem = (item) => {
     if (!navQuery) return item;
     if (item.children?.length) {
-      if (labelMatches(item.label)) return item;
-      const kids = item.children.filter((c) => labelMatches(c.label));
+      if (itemMatches(item)) return item;
+      const kids = item.children.filter((c) => itemMatches(c));
       return kids.length ? { ...item, children: kids } : null;
     }
-    return labelMatches(item.label) ? item : null;
+    return itemMatches(item) ? item : null;
   };
   const visibleNavItems = navQuery
     ? navItems.map(filterNavItem).filter(Boolean)

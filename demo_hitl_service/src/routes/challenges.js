@@ -14,6 +14,7 @@ const router = express.Router();
 const store = require('../store/challengeStore');
 const { notifyUser } = require('../notifier');
 const { teachLog } = require('../teachLogger');
+const { emitHop } = require('../transactionHop');
 
 const HITL_INTERNAL_SECRET = process.env.HITL_INTERNAL_SECRET || '';
 
@@ -42,7 +43,7 @@ function requireSecret(req, res, next) {
 // Body: { tool, userId, agentId, userEmail?, context? }
 // Called by MCP Gateway when PingAuthorize returns INDETERMINATE/HITL obligation
 router.post('/', requireSecret, async (req, res) => {
-  const { tool, userId, agentId, userEmail, context } = req.body || {};
+  const { tool, userId, agentId, userEmail, context, correlationId } = req.body || {};
 
   if (!tool) {
     return res.status(400).json({ error: 'tool is required' });
@@ -50,7 +51,7 @@ router.post('/', requireSecret, async (req, res) => {
 
   let challenge;
   try {
-    challenge = store.create({ tool, userId, agentId, context });
+    challenge = store.create({ tool, userId, agentId, context, correlationId });
   } catch (err) {
     return res.status(503).json({ error: err.message });
   }
@@ -113,6 +114,31 @@ router.post('/:id/respond', requireSecret, (req, res) => {
   }
 
   if (!challenge) return res.status(404).json({ error: 'Challenge not found' });
+
+  // params carries the consented arguments — INV-7 compares them against the
+  // arguments the tool actually executed with.
+  //
+  // Only emit when the challenge itself carries a correlationId. Do NOT let
+  // emitHop() fall back to the per-request ALS id: correlationMiddleware
+  // fabricates a fresh random UUID for every request that doesn't supply one
+  // (see correlationMiddleware.js), so a challenge created without a
+  // correlationId would otherwise emit a hop stamped with an unrelated,
+  // fabricated id — an orphan single-hop transaction record in the UI.
+  if (challenge.correlationId) {
+    emitHop({
+      phase: 'hitl.consent',
+      op: challenge.tool,
+      correlationId: challenge.correlationId,
+      identity: { sub: challenge.userId || null, act: challenge.agentId ? [challenge.agentId] : [] },
+      decision: {
+        outcome: challenge.decision === 'approved' ? 'permit' : 'deny',
+        by: 'gateway',
+        reason: `hitl_${challenge.decision}`,
+      },
+      params: challenge.context || {},
+      status: 'ok',
+    });
+  }
 
   res.json({
     challengeId: challenge.id,

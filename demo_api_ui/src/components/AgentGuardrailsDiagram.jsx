@@ -68,7 +68,7 @@ const CARDS = [
     key: "gateway",
     lane: "runtime",
     kind: "runtime",
-    title: "Agent Gateway / Ping Gateway",
+    title: "Agent Gateway",
     body: "Sits in front of MCP servers, APIs, and tools to validate requests, enforce least privilege, centralize runtime control, and surface newly observed agents so they can be added into Governance for AI.",
     tags: [
       { label: "PEP", kind: "runtime" },

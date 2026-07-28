@@ -1,0 +1,12 @@
+{
+  "vertical": "workforce",
+  "useCaseId": "a2a-delegation",
+  "ucId": "UC2",
+  "trigger": "show my sensitive payroll details",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-27T21:24:26.976Z",
+  "seedHash": "53b2bac25e5daf21",
+  "reply": "Delegation complete — Payroll Specialist retrieved sensitive payroll details on your behalf (act-chain depth 2).",
+  "agentPath": null,
+  "tokenEventCount": 14
+}

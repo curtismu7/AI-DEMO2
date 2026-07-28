@@ -1,0 +1,12 @@
+{
+  "vertical": "banking",
+  "useCaseId": "delegated-access-with-proof",
+  "ucId": "UC1",
+  "trigger": "show my balance",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-27T00:25:45.602Z",
+  "seedHash": null,
+  "reply": "Your balances:\n\n• **checking** (****3896) — **$4550.00** USD\n\n• **savings** (****3896) — **$5450.00** USD\n\n• **loan** (****3896) — **$-12000.00** USD\n\n• **credit_card** (****3896) — **$-1850.00** USD",
+  "agentPath": null,
+  "tokenEventCount": 19
+}

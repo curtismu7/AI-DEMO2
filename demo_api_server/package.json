@@ -52,7 +52,6 @@
     "pingone:provision-groups": "node scripts/provisionVerticalGroups.js",
     "pingone:bootstrap:ci": "node scripts/bootstrapPingOne.js --non-interactive",
     "pingone:setup:trat": "node scripts/setupTratClaims.js",
-    "pingone:cleanup": "node scripts/cleanupPingOneApps.js",
     "scopes:doc": "node scripts/generate-scope-doc.js",
     "scopes:check": "node ../scripts/gen-scope-topology.js check",
     "scopes:gen": "node ../scripts/gen-scope-topology.js generate",
@@ -85,7 +84,9 @@
     "build": "echo 'API server - no build required'",
     "install-client": "cd ../demo_api_ui && npm install",
     "heroku-postbuild": "npm run install-client && npm run build",
-    "lint": "biome lint ."
+    "lint": "biome lint .",
+    "verify:a2a-policy": "node scripts/verifyA2aDelegationPolicy.js",
+    "verify:authorize-parity": "node scripts/verifyAuthorizeCloudParity.js"
   },
   "dependencies": {
     "@a2a-js/sdk": "^1.0.0",

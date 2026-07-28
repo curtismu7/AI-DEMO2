@@ -155,4 +155,86 @@ describe('InspectorShell', () => {
       '320px 6px 380px 6px 1fr',
     );
   });
+
+  it('renders a left-collapse toggle button only when a left prop is provided', () => {
+    const { rerender } = render(<InspectorShell title="X" left={<div>tools</div>} />);
+    expect(screen.getByRole('button', { name: 'Hide tools' })).toBeInTheDocument();
+
+    rerender(<InspectorShell title="X" />);
+    expect(screen.queryByRole('button', { name: /tools/i })).toBeNull();
+  });
+
+  it('toggles the button label and aria-expanded when clicked', () => {
+    render(<InspectorShell title="X" left={<div>tools</div>} />);
+    const button = screen.getByRole('button', { name: 'Hide tools' });
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.click(button);
+    expect(screen.getByRole('button', { name: 'Show tools' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show tools' }));
+    expect(screen.getByRole('button', { name: 'Hide tools' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+  });
+
+  it('persists the collapsed state to its own localStorage key, independent of widths', () => {
+    const { unmount } = render(<InspectorShell title="X" left={<div>tools</div>} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Hide tools' }));
+
+    expect(window.localStorage.getItem('inspector-shell-left-collapsed')).toBe('true');
+    expect(window.localStorage.getItem('inspector-shell-panel-widths')).toBeNull();
+
+    unmount();
+    render(<InspectorShell title="X" left={<div>tools</div>} />);
+    expect(screen.getByRole('button', { name: 'Show tools' })).toBeInTheDocument();
+  });
+
+  it('zeroes the left column and its handle track when collapsed, and restores a dragged width on expand', () => {
+    const { container } = render(<InspectorShell title="X" left={<div>tools</div>} />);
+    const [leftHandle] = container.querySelectorAll('.inspector-shell-resize-handle');
+    const grid = container.querySelector('.inspector-shell-grid');
+
+    fireEvent.mouseDown(leftHandle, { clientX: 240 });
+    fireEvent.mouseMove(document, { clientX: 300 });
+    fireEvent.mouseUp(document);
+    expect(grid.style.gridTemplateColumns).toBe('300px 6px 380px 6px 1fr');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide tools' }));
+    expect(grid.style.gridTemplateColumns).toBe('0px 0px 380px 6px 1fr');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show tools' }));
+    expect(grid.style.gridTemplateColumns).toBe('300px 6px 380px 6px 1fr');
+  });
+
+  it('hides the left column from assistive tech and applies the collapsed modifier class, without unmounting its content', () => {
+    const { container } = render(
+      <InspectorShell title="X" left={<div data-testid="left-content">tools</div>} />,
+    );
+    const leftCol = container.querySelector('.inspector-shell-col-left');
+    expect(leftCol).not.toHaveClass('inspector-shell-col-left--collapsed');
+    expect(leftCol).not.toHaveAttribute('aria-hidden');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide tools' }));
+
+    expect(leftCol).toHaveClass('inspector-shell-col-left--collapsed');
+    expect(leftCol).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByTestId('left-content')).toBeInTheDocument();
+  });
+
+  it('marks the left resize handle inert while collapsed without removing it from the DOM', () => {
+    const { container } = render(<InspectorShell title="X" left={<div>tools</div>} />);
+    const [leftHandle] = container.querySelectorAll('.inspector-shell-resize-handle');
+    expect(leftHandle).not.toHaveAttribute('aria-hidden');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide tools' }));
+
+    expect(container.querySelectorAll('.inspector-shell-resize-handle')).toHaveLength(2);
+    expect(leftHandle).toHaveAttribute('aria-hidden', 'true');
+    expect(leftHandle).toHaveStyle({ pointerEvents: 'none' });
+  });
 });

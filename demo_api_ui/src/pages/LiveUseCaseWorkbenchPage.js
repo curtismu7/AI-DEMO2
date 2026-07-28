@@ -8,7 +8,11 @@ import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import { useVertical } from '../vertical/useVertical';
 import VerticalSwitcher from '../components/VerticalSwitcher';
+import UseCaseProofHeader from '../components/UseCaseProofHeader';
+import { findBeat } from '../components/demoScript';
+import VerdictPair from '../components/VerdictPair';
 import { useAgentUiMode } from '../context/AgentUiModeContext';
+import { useProofOfEnforcement } from '../context/ProofOfEnforcementContext';
 import TokenChainTraceRail from '../components/TokenChainTraceRail';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import { buildSimRailEvents } from '../services/tokenChainTrace/simTraceAdapter';
@@ -72,6 +76,8 @@ const TRACK_LABELS = {
   attacks: 'Attacks — blocked by PingOne',
 };
 
+const DRAWER_CLOSED_KEY = 'luw_demo_script_collapsed';
+
 const DEMO_ID_SET = new Set([
   ...DEMO_PRIMARY_USE_CASE_IDS,
   ...DEMO_ADVANCED_USE_CASE_IDS,
@@ -123,10 +129,88 @@ export default function LiveUseCaseWorkbenchPage() {
   const [query, setQuery] = useState('');
   const [runState, setRunState] = useState(null); // { id, state: 'running'|'error'|'done', msg? }
   const [selectedId, setSelectedId] = useState(null);
-  const [glancePolicy, setGlancePolicy] = useState('—');
   const [glanceChecking, setGlanceChecking] = useState('$4,820.00');
   const [glanceRecent, setGlanceRecent] = useState('—');
+  const { verdict } = useProofOfEnforcement();
+  const [authorizeSeen, setAuthorizeSeen] = useState(null);
+  const selectedUc = useCases.find((u) => u.id === selectedId) || null;
+  // The global trace store (and the verdict derived from it) isn't scoped to
+  // a selection — switching to a DIFFERENT card must not keep showing the
+  // PREVIOUS use case's result as if it belonged to the new one. Only
+  // suppress the verdict when a selection exists and disagrees with it;
+  // with nothing selected yet there is no "wrong" card to protect against.
+  const verdictForSelection =
+    verdict && selectedUc && verdict.useCaseId !== selectedUc.useCaseId ? null : verdict;
 
+  // The observed decision, read straight off the token-chain trace. Never
+  // derived from uc.expectedOutcome — that was the bug this replaces.
+  useEffect(() => tokenChainTraceStore.subscribe((snap) => {
+    const az = snap?.trace?.authorize;
+    setAuthorizeSeen(az ? (az.outcome || az.decision || null) : null);
+  }), []);
+
+  const running = runState?.state === 'running';
+  // The rail owns the room once a verdict settles, and keeps it until the next
+  // run starts. Emphasis is visual only — DOM focus is never moved.
+  const railFocus = !running && Boolean(verdictForSelection?.state);
+  const verdictMatched = verdictForSelection?.state === 'verified' || verdictForSelection?.state === 'denied-as-expected';
+  const announcement = railFocus
+    ? `Run complete. ${verdictMatched ? 'Outcome matched.' : 'Outcome not proven.'}`
+    : '';
+
+  // Bring the authorize decision into view and pulse it — the rail is the proof,
+  // so the eye should land on the step that decided the outcome. Purely additive:
+  // no rail content is hidden, collapsed, or reordered.
+  useEffect(() => {
+    if (!railFocus) return undefined;
+    const card = document.querySelector('[data-step-id="authorize"]');
+    if (!card) return undefined;
+    card.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+    card.classList.add('luw-step-pulse');
+    const t = setTimeout(() => card.classList.remove('luw-step-pulse'), 2400);
+    return () => clearTimeout(t);
+  }, [railFocus]);
+
+  const [drawerOpen, setDrawerOpen] = useState(() => {
+    try {
+      return localStorage.getItem(DRAWER_CLOSED_KEY) !== '1';
+    } catch {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(DRAWER_CLOSED_KEY, drawerOpen ? '0' : '1');
+    } catch {
+      /* ignore */
+    }
+  }, [drawerOpen]);
+
+  const edgeTabRef = useRef(null);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+
+  // Return focus to the edge tab whenever the drawer closes, but not on the
+  // initial mount (a persisted closed preference shouldn't steal focus from
+  // wherever the page load put it).
+  const skipFocusReturnRef = useRef(true);
+  useEffect(() => {
+    if (skipFocusReturnRef.current) {
+      skipFocusReturnRef.current = false;
+      return;
+    }
+    if (!drawerOpen) edgeTabRef.current?.focus();
+  }, [drawerOpen]);
+
+  // Escape closes the slide-over, matching the ← toggle.
+  useEffect(() => {
+    if (!drawerOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') closeDrawer(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [drawerOpen, closeDrawer]);
+
+  const { setSurfaceHostEl, setToolbarHostEl } = useAgentUiMode();
   const [drawerW, setDrawerW] = useState(() => readStoredWidth(DRAWER_KEY, DRAWER_DEFAULT));
   const [agentW, setAgentW] = useState(() => readStoredWidth(AGENT_KEY, null));
   const bodyRef = useRef(null);
@@ -165,14 +249,22 @@ export default function LiveUseCaseWorkbenchPage() {
     setAgentW(Math.min(max, Math.max(PANE_MIN, Math.round(clientX - rect.left))));
   }, []);
 
-  const { setSurfaceHostEl } = useAgentUiMode();
   const [agentHostEl, setAgentHostEl] = useState(null);
   const agentHostRef = useCallback((node) => setAgentHostEl(node), []);
+  const [toolbarHostEl, setToolbarHostElNode] = useState(null);
+  const toolbarHostRef = useCallback((node) => setToolbarHostElNode(node), []);
 
   useEffect(() => {
     setSurfaceHostEl(agentHostEl);
     return () => setSurfaceHostEl((cur) => (cur === agentHostEl ? null : cur));
   }, [agentHostEl, setSurfaceHostEl]);
+
+  // The agent's header control row portals here so it spans the full page width
+  // instead of wrapping into six rows inside the middle column.
+  useEffect(() => {
+    setToolbarHostEl(toolbarHostEl);
+    return () => setToolbarHostEl((cur) => (cur === toolbarHostEl ? null : cur));
+  }, [toolbarHostEl, setToolbarHostEl]);
 
   useEffect(() => {
     let cancelled = false;
@@ -205,7 +297,6 @@ export default function LiveUseCaseWorkbenchPage() {
       .then(({ data }) => apiClient.post('/api/verticals/active', { id: vertical }).then(() => data))
       .then((data) => {
         setRunState({ id: uc.id, state: 'done' });
-        setGlancePolicy(policyLabel(uc.expectedOutcome));
         if (String(uc.expectedOutcome || '').toUpperCase().includes('HITL')
           || /transfer/i.test(data.triggerText || '')) {
           setGlanceChecking('$4,570.00');
@@ -227,7 +318,6 @@ export default function LiveUseCaseWorkbenchPage() {
     apiClient.post('/api/demo/attack-sim/run', { sim: uc.trigger.sim })
       .then(({ data }) => {
         setRunState({ id: uc.id, state: 'done' });
-        setGlancePolicy('DENY');
         const isDeny = typeof data?.status !== 'number' || data.status >= 400;
         // Same rail-feed wiring as AIAgent's own attack-sim handler (AIAgent.js) —
         // buildSimRailEvents remaps sim-* ids onto the full-pipeline steps
@@ -336,6 +426,17 @@ export default function LiveUseCaseWorkbenchPage() {
     [useCases, query],
   );
 
+  const selectedBeat = findBeat(selectedId);
+
+  // Mirror selection to the teleprompter (in-page modal or 2nd-screen pop-out)
+  // over the same channel it already uses to send us `run` messages.
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined' || !selectedId) return undefined;
+    const channel = new BroadcastChannel('demo-script');
+    channel.postMessage({ type: 'select', ucId: selectedId });
+    return () => channel.close();
+  }, [selectedId]);
+
   /**
    * Render a Mock A–style use-case card.
    * @param {object} uc
@@ -418,15 +519,36 @@ export default function LiveUseCaseWorkbenchPage() {
         <p className="luw-topbar__title">Use Cases</p>
         <span className="luw-topbar__crumb">/ Live Workbench</span>
         <div className="luw-topbar__vertical"><VerticalSwitcher /></div>
+        <div className="luw-topbar__agent-tools" ref={toolbarHostRef} />
       </div>
 
       <div
-        className="luw-body"
+        className={`luw-body${drawerOpen ? '' : ' luw-body--drawer-closed'}`}
         ref={bodyRef}
         style={{ '--luw-drawer-w': `${drawerW}px` }}
       >
+        <button
+          type="button"
+          ref={edgeTabRef}
+          className="luw-drawer-tab"
+          onClick={() => setDrawerOpen(true)}
+          aria-label="Open demo script"
+          title="Open demo script"
+        >
+          Demo script <span aria-hidden="true">→</span>
+        </button>
         <nav className="luw-drawer" aria-label="Use case launcher">
           <div className="luw-drawer__head">
+            <button
+              type="button"
+              className="luw-drawer__toggle"
+              onClick={closeDrawer}
+              aria-expanded={drawerOpen}
+              aria-label="Close demo script"
+              title="Close"
+            >
+              ←
+            </button>
             <h1 className="luw-drawer__title">Demo script</h1>
             <p className="luw-drawer__sub">Pick a step — agent runs on the right</p>
           </div>
@@ -504,7 +626,12 @@ export default function LiveUseCaseWorkbenchPage() {
 
         <section className="luw-main" aria-label="Live run">
           <div className="luw-main__stage">
-            <div className="luw-run-layout" ref={runLayoutRef}>
+            <UseCaseProofHeader uc={selectedUc} beat={selectedBeat} />
+            <p className="luw-sr-only" aria-live="polite">{announcement}</p>
+            <div
+              className={`luw-run-layout${railFocus ? ' luw-run-layout--rail-focus' : ''}`}
+              ref={runLayoutRef}
+            >
               <div
                 id="luw-agent-host"
                 className="luw-agent-host"
@@ -532,6 +659,11 @@ export default function LiveUseCaseWorkbenchPage() {
                 }}
               />
               <div className="luw-rail-host">
+                {railFocus && (
+                  <div className="luw-rail-verdict" data-testid="rail-verdict">
+                    {verdictForSelection?.state === 'incomplete' ? 'Unproven' : (authorizeSeen || '—')}
+                  </div>
+                )}
                 <TokenChainTraceRail />
               </div>
             </div>
@@ -542,8 +674,13 @@ export default function LiveUseCaseWorkbenchPage() {
               <span className="luw-glance__value">{glanceChecking}</span>
             </div>
             <div className="luw-glance__cell">
-              <span className="luw-glance__label">Policy</span>
-              <span className="luw-glance__value">{glancePolicy}</span>
+              <span className="luw-glance__label">Verdict</span>
+              <VerdictPair
+                expected={policyLabel(selectedUc?.expectedOutcome)}
+                actual={verdictForSelection ? authorizeSeen : null}
+                state={verdictForSelection?.state || null}
+                running={runState?.state === 'running'}
+              />
             </div>
             <div className="luw-glance__cell">
               <span className="luw-glance__label">Recent</span>

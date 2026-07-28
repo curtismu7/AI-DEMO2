@@ -8,6 +8,8 @@ import {
   readMockSelection,
   writeMockSelection,
 } from "../components/aiFootprintMocks/mockSelection";
+import { useFootprintTheme } from "../hooks/useFootprintTheme";
+import { FootprintThemeToggle } from "../components/aiFootprintMocks/FootprintThemeToggle";
 import "./FootprintMockGalleryPage.css";
 
 const CATEGORIES = /** @type {const} */ (["coding", "vscode", "chatgpt", "saas"]);
@@ -17,6 +19,7 @@ const CATEGORIES = /** @type {const} */ (["coding", "vscode", "chatgpt", "saas"]
  * ?view=picks — only the four locked/selected costumes (for tweak review).
  */
 export default function FootprintMockGalleryPage() {
+  const [theme, toggleTheme] = useFootprintTheme();
   const [searchParams, setSearchParams] = useSearchParams();
   const picksOnly = searchParams.get("view") === "picks";
   const [selection, setSelection] = useState(() => {
@@ -52,9 +55,13 @@ export default function FootprintMockGalleryPage() {
       className={`afm-gallery${picksOnly ? " afm-gallery--picks" : ""}`}
       data-testid="footprint-mock-gallery"
       data-view={picksOnly ? "picks" : "all"}
+      data-theme={theme}
     >
       <header className="afm-gallery-head">
-        <h1>{picksOnly ? "Your selected costumes" : "AI footprint mock picker"}</h1>
+        <div className="afm-gallery-headrow">
+          <h1>{picksOnly ? "Your selected costumes" : "AI footprint mock picker"}</h1>
+          <FootprintThemeToggle theme={theme} onToggle={toggleTheme} />
+        </div>
         <p>
           {picksOnly
             ? "Only the four picks you locked. Open live to rehearse, or switch to all variants to change a pick."

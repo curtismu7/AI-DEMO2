@@ -6,9 +6,17 @@ import { buildTraceSteps } from "./buildTraceSteps";
 import { agentFlowDiagram } from "../agentFlowDiagramService";
 
 const EMPTY_TRACE = () => ({
+  // Identifies THIS run. Consumers that render per-run evidence (ProofStrip via
+  // ProofOfEnforcementContext) key on it so a later run cannot repaint an older
+  // one's result. A counter, not startedAt — two runs can share a millisecond.
+  runId: null,
   startedAt: null, prompt: null, routingMode: null, routingDetail: null,
   llmDetail: null, llmReply: null,
   phases: [], tokenEvents: [], mcpResult: null, authorize: null, outcome: null,
+  // 'declined' once the human refuses a step-up / HITL approval gate. Without
+  // it the trace ends at authorize.outcome === 'STEP_UP' and the Proof verdict
+  // cannot tell "gate fired, human approved" from "gate fired, human refused".
+  approvalOutcome: null,
 });
 
 // Session-scoped evidence (the sign-in token) outlives any single tool call —
@@ -17,6 +25,7 @@ const EMPTY_TRACE = () => ({
 const SESSION_EVENT_IDS = ["user-token", "session-token-introspection", "user-token-introspection"];
 
 let trace = EMPTY_TRACE();
+let runSeq = 0;
 const listeners = new Set();
 
 function emit() {
@@ -30,6 +39,9 @@ function getState() {
 
 function ensureTrace() {
   if (trace.startedAt == null) trace.startedAt = Date.now();
+  // Evidence can arrive without a beginTrace (passive listeners); that is still
+  // a run and still needs an id, or its verdict has nowhere to be filed.
+  if (trace.runId == null) trace.runId = ++runSeq;
 }
 
 export const tokenChainTraceStore = {
@@ -50,6 +62,7 @@ export const tokenChainTraceStore = {
       });
     trace = EMPTY_TRACE();
     trace.startedAt = Date.now();
+    trace.runId = ++runSeq;
     trace.prompt = prompt ? { message: String(prompt) } : null;
     trace.tokenEvents = sessionEvents;
     try {
@@ -142,6 +155,12 @@ export const tokenChainTraceStore = {
       denied: Boolean(payload.denied),
     };
     trace.mcpResult = next;
+    emit();
+  },
+  /** The human refused a step-up / HITL approval gate — nothing was executed. */
+  ingestApprovalDeclined() {
+    ensureTrace();
+    trace.approvalOutcome = "declined";
     emit();
   },
   completeTrace(ok) { trace.outcome = ok ? "ok" : "error"; emit(); },

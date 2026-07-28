@@ -44,7 +44,20 @@ const SERVER_INVENTORY = [
   {
     key: 'mcp-server', name: 'MCP Server (OLB)', container: 'ai-demo-mcp-server',
     hostPort: 8080, internalPort: 8080, lang: 'Node (WebSocket)', category: 'mcp', sourceDir: 'demo_mcp_server', probe: true,
-    candidates: candidates(normalizeWs(env('MCP_SERVER_URL')), 'http://mcp-server:8080', 'http://localhost:8080'),
+    // Scheme FOLLOWS MCP_MTLS_ENABLED. Since mTLS became the default the server
+    // serves HTTPS on 8080, so the old http:// candidates got ECONNREFUSED and
+    // /check reported a healthy, working MCP server as DOWN on every run —
+    // a false red on the demo-readiness screen. Verified live:
+    //   http://mcp-server:8080/health  -> refused
+    //   https://mcp-server:8080/health -> 200
+    // Both schemes stay in the list so a non-mTLS stack still probes clean; the
+    // probe already ignores self-signed certs (rejectUnauthorized: false).
+    candidates: candidates(
+      normalizeWs(env('MCP_SERVER_URL')),
+      ...(/^(1|true|yes|on)$/i.test(String(env('MCP_MTLS_ENABLED') || ''))
+        ? ['https://mcp-server:8080', 'https://localhost:8080', 'http://mcp-server:8080', 'http://localhost:8080']
+        : ['http://mcp-server:8080', 'http://localhost:8080', 'https://mcp-server:8080', 'https://localhost:8080']),
+    ),
     purpose: 'Primary MCP server — online-banking tools over WebSocket.',
   },
   {

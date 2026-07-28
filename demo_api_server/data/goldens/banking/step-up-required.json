@@ -4,9 +4,9 @@
   "ucId": "UC7",
   "trigger": "transfer $600 from checking to savings",
   "expectedOutcome": "STEP_UP",
-  "capturedAt": "2026-07-17T15:12:56.264Z",
+  "capturedAt": "2026-07-27T00:26:40.372Z",
   "seedHash": null,
-  "reply": "Simulated authorization policy requires step-up before MCP tools (education mode).",
+  "reply": "PingOne Authorize requires additional authentication before MCP tools can run.",
   "agentPath": null,
   "tokenEventCount": 13
 }

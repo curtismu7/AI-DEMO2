@@ -15,10 +15,27 @@
  */
 
 const configStore = require('./configStore');
-const { evaluateMcpFirstToolGate } = require('./mcpToolAuthorizationService');
+const {
+  evaluateMcpFirstToolGate,
+  decodeMcpTokenFacts,
+  resolveAmountForPolicy,
+  resolveResourceOwnerId,
+  resolveExpectedMcpResourceUri,
+  WRITE_TOOL_TYPE_MAP,
+} = require('./mcpToolAuthorizationService');
+const {
+  buildMcpDelegationParameters,
+  evaluateDecisionEndpointBulk,
+  getMcpDecisionEndpointId,
+  isMcpDelegationDecisionReady,
+} = require('./pingOneAuthorizeService');
+const simulatedAuthorizeService = require('./simulatedAuthorizeService');
+const groupPolicy = require('./groupPolicy');
+const { verticalManifest } = require('./verticalManifest');
 const hitlServiceClient = require('./hitlServiceClient');
-// agentMcpTokenService is required lazily inside evaluate() so that Jest's resetModules()
-// in afterEach does not stale the mock reference when a test re-requires the module.
+// agentMcpTokenService is required lazily inside evaluate()/evaluateBatch() so that
+// Jest's resetModules() in afterEach does not stale the mock reference when a test
+// re-requires the module.
 
 /**
  * Evaluate authorization for a tool call before execution.
@@ -230,4 +247,158 @@ async function evaluate({ req, tool, params = {}, hitlChallengeId = null }) {
   return { decision: 'PERMIT', fallback: true, reason: 'unexpected_gate_result', tokenEvents };
 }
 
-module.exports = { evaluate };
+/**
+ * Batch, ADVISORY pre-flight for a list of tools — never grants a call, never
+ * mints a HITL challenge, never consumes a step-up/HITL session credit.
+ * Narrows which tools to offer/grey out in one round trip instead of one
+ * evaluate() call per tool. The real gate (evaluateMcpFirstToolGate, run
+ * again on the actual tool invocation) is the only call that can PERMIT —
+ * see planning/PLAN-p1az-bulk-decision-requests.md "Hard constraint" for why.
+ *
+ * Resolves the MCP access token ONCE (the expensive RFC 8693 exchange), then
+ * builds each tool's Trust Framework parameters via buildMcpDelegationParameters
+ * — the SAME builder the real-time gate uses (Part 4a extraction) — before one
+ * evaluateDecisionEndpointBulk call. RAR attributes (RarMaxAmount /
+ * RarPermittedPayees / ToAccountId) are intentionally omitted from every item:
+ * the one resolved token is not bound to any single tool's amount/payee, so
+ * forwarding it for a different tool in the batch would be wrong in the
+ * PERMISSIVE direction. Group policy is resolved once (user-specific) but
+ * RequiredGroup / InRequiredGroup stay per-tool (tool-specific).
+ *
+ * No simulated-engine path — the bulk decision API has no mock/simulated
+ * counterpart in this repo (see plan). When ff_authorize_simulated is on, or
+ * the MCP decision endpoint isn't configured, this returns ok:false with a
+ * reason instead of silently calling live PingOne or fabricating a verdict.
+ *
+ * @param {object} opts
+ * @param {import('express').Request} opts.req
+ * @param {Array<{ tool: string, params?: object }>} opts.tools
+ * @returns {Promise<
+ *   | { ok: true, results: Array<{ tool, decision: 'PERMIT'|'DENY'|'HITL'|'STEP_UP', advisory: true, decisionId?, reason?, nextStep? }>, tokenEvents: Array }
+ *   | { ok: false, reason: string, results: [], tokenEvents: Array }
+ * >}
+ */
+async function evaluateBatch({ req, tools }) {
+  if (!Array.isArray(tools) || tools.length === 0) {
+    return { ok: true, results: [], tokenEvents: [] };
+  }
+
+  if (simulatedAuthorizeService.isSimulatedModeEnabled(configStore)) {
+    return { ok: false, reason: 'simulated_mode_not_supported', results: [], tokenEvents: [] };
+  }
+
+  const endpointId = getMcpDecisionEndpointId();
+  if (!isMcpDelegationDecisionReady() || !endpointId) {
+    return { ok: false, reason: 'authorize_not_configured', results: [], tokenEvents: [] };
+  }
+
+  // Lazy-require: see the file-top comment — Jest's resetModules() staled this
+  // mock reference when captured at module-load time.
+  const { resolveMcpAccessTokenWithEvents } = require('./agentMcpTokenService');
+
+  let agentToken = null;
+  let userSub = null;
+  let tokenEvents = [];
+  try {
+    const resolved = await resolveMcpAccessTokenWithEvents(req, tools[0].tool);
+    agentToken = resolved.token;
+    userSub = resolved.userSub || null;
+    tokenEvents = resolved.tokenEvents || [];
+  } catch (err) {
+    console.warn('[AgentPreflight] evaluateBatch token exchange failed: %s', err.message);
+    return { ok: false, reason: 'token_exchange_failed', results: [], tokenEvents };
+  }
+  if (!agentToken) {
+    return { ok: false, reason: 'no_agent_token', results: [], tokenEvents };
+  }
+
+  const userAcr = req.session?.user?.acr;
+  const activeVerticalId = verticalManifest.resolver.activeIdFor(req) || 'banking';
+  const facts = await decodeMcpTokenFacts({ req, agentToken, userSub });
+  const mcpResourceUri = resolveExpectedMcpResourceUri();
+
+  let userGroups = null;
+  let userTier = null;
+  const groupPolicyEnabled = groupPolicy.isEnabled(configStore);
+  if (groupPolicyEnabled) {
+    userGroups = await groupPolicy.groupsForUser(
+      req.session?.user?.username,
+      activeVerticalId,
+      { pingOneUserId: facts.subjectId || req.session?.user?.oauthId || req.session?.user?.sub || null },
+    );
+    userTier = groupPolicy.resolveUserTier(userGroups, activeVerticalId);
+  }
+
+  const items = tools.map(({ tool, params }) => {
+    const transactionType = WRITE_TOOL_TYPE_MAP[tool] || null;
+    const recordAmount = resolveAmountForPolicy(tool, params, activeVerticalId, facts.subjectId);
+    const amount = transactionType && params
+      ? (recordAmount !== null ? recordAmount : parseFloat(params.amount || 0))
+      : null;
+    const resourceOwnerId = resolveResourceOwnerId(tool, params);
+    const requiredGroup = groupPolicyEnabled ? groupPolicy.requiredGroupForTool(tool, activeVerticalId) : null;
+    const inRequiredGroup = requiredGroup && userGroups ? userGroups.includes(requiredGroup) : null;
+
+    return {
+      tool,
+      parameters: buildMcpDelegationParameters({
+        userId: facts.subjectId,
+        toolName: tool,
+        tokenAudience: facts.tokenAudience,
+        actClientId: facts.actClientId,
+        nestedActClientId: facts.nestedActClientId,
+        mcpResourceUri,
+        acr: userAcr,
+        transactionType,
+        hitlApproved: false,
+        hitlChallengeId: null,
+        requiredGroup,
+        userGroups,
+        userTier,
+        inRequiredGroup,
+        amount,
+        resourceOwnerId,
+        rarMaxAmount: null,
+        rarPermittedPayees: null,
+        toAccountId: null,
+        verticalId: activeVerticalId,
+        clientId: facts.subjectId || null,
+        mayActSub: facts.mayActSub,
+        tokenScopes: facts.tokenScopes,
+        tokenExp: facts.tokenExp,
+        tokenIat: facts.tokenIat,
+        tokenNbf: facts.tokenNbf,
+        tokenIss: facts.tokenIss,
+        tokenKid: facts.tokenKid,
+        tokenKidKnown: facts.tokenKidKnown,
+        userRole: facts.userRole,
+      }),
+    };
+  });
+
+  let bulk;
+  try {
+    bulk = await evaluateDecisionEndpointBulk(endpointId, items.map((i) => i.parameters));
+  } catch (err) {
+    console.error('[AgentPreflight] evaluateBatch bulk call failed: %s', err.message);
+    return { ok: false, reason: 'authorize_unavailable', results: [], tokenEvents };
+  }
+
+  const results = bulk.results.map((r, i) => {
+    const { tool } = items[i];
+    if (r.decision === 'DENY') {
+      return { tool, decision: 'DENY', advisory: true, decisionId: r.decisionId, reason: r.reason || null };
+    }
+    if (r.stepUpRequired) {
+      return { tool, decision: 'STEP_UP', advisory: true, decisionId: r.decisionId, nextStep: 'preflight' };
+    }
+    if (r.hitlRequired) {
+      return { tool, decision: 'HITL', advisory: true, decisionId: r.decisionId, nextStep: 'preflight' };
+    }
+    return { tool, decision: 'PERMIT', advisory: true, decisionId: r.decisionId };
+  });
+
+  return { ok: true, results, tokenEvents };
+}
+
+module.exports = { evaluate, evaluateBatch };

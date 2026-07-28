@@ -4,7 +4,7 @@
  */
 
 const request = require('supertest');
-const { BankingMCPServer } = require('../src/server/BankingMCPServer');
+const { DemoMCPServer } = require('../src/server/DemoMCPServer');
 const { MCPErrorCode } = require('../src/interfaces/mcp');
 
 describe('MCP Spec Error Code Compliance Tests', () => {
@@ -21,7 +21,7 @@ describe('MCP Spec Error Code Compliance Tests', () => {
       resourceUrl: 'mcpserver.ping.demo'
     };
     
-    server = new BankingMCPServer(config);
+    server = new DemoMCPServer(config);
     app = server.createExpressApp();
   });
 
@@ -493,7 +493,7 @@ describe('MCP Spec Compliance Score Calculation', () => {
  */
 async function calculateComplianceScore() {
   const request = require('supertest');
-  const { BankingMCPServer } = require('../src/server/BankingMCPServer');
+  const { DemoMCPServer } = require('../src/server/DemoMCPServer');
   
   const config = {
     host: 'localhost',
@@ -503,7 +503,7 @@ async function calculateComplianceScore() {
     resourceUrl: 'mcpserver.ping.demo'
   };
   
-  const server = new BankingMCPServer(config);
+  const server = new DemoMCPServer(config);
   const app = server.createExpressApp();
   
   try {

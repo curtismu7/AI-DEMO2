@@ -79,6 +79,20 @@ const FLAG_REGISTRY = [
     defaultValue: false,
     docsUrl:      'https://docs.pingidentity.com/pingone/authorization_using_pingone_authorize/p1az_overview.html',
   },
+  {
+    id:           'ff_authorize_bulk_preflight',
+    name:         'Authorize — Bulk pre-flight (advisory)',
+    category:     'PingOne Authorize',
+    description:
+      'Enables POST /api/authorize/pre-flight-bulk — resolves one MCP token, evaluates several tools in one PingOne ' +
+      '**bulk decision** call (up to 20/call, RFC-shaped by decisionEndpoints bulk media type), and returns a ' +
+      'PERMIT/DENY/HITL/STEP_UP verdict per tool. Advisory only: narrows which tools to offer, never grants a call ' +
+      'and mints no HITL challenge — evaluateMcpFirstToolGate still runs unchanged on the actual tool invocation.',
+    impact:       'OFF = the route 404s. ON = agents/UI can pre-flight a whole tool list in one round trip instead of one call per tool.',
+    type:         'boolean',
+    defaultValue: false,
+    docsUrl:      'https://developer.pingidentity.com/pingone-api/authorize/authorization-decisions/decision-evaluation/execute-a-bulk-decision-request.html',
+  },
 
   // ── Step-Up Auth ───────────────────────────────────────────────────────────
   {
@@ -150,6 +164,19 @@ const FLAG_REGISTRY = [
       'Change takes effect after container reconciliation: run `./run-docker.sh demo-sync` ' +
       '(Docker) to start/stop Jaeger and recreate the instrumented services.',
     impact:       'ON = services export spans to Jaeger and the Tracing page shows call paths. OFF = Jaeger is stopped and services boot with tracing disabled.',
+    type:         'boolean',
+    defaultValue: true,
+  },
+  {
+    id:           'ff_transaction_ledger',
+    name:         'Transaction Chain of Custody',
+    category:     'Observability',
+    description:
+      'Record every hop of an agent turn — UI request, token exchange, gateway authorization, ' +
+      'authz decision, HITL consent, MCP tool call, response — into a durable per-transaction ledger, ' +
+      'then check identity invariants over it and corroborate it against independently written audit sinks. ' +
+      'Viewable at Telemetry → Transaction Trace.',
+    impact:       'ON = services emit hops and the Transaction Trace page shows the chain of custody with a PASS/FAIL verdict. OFF = no hops are recorded and the page reports the feature is disabled.',
     type:         'boolean',
     defaultValue: true,
   },
@@ -563,6 +590,20 @@ const FLAG_REGISTRY = [
     defaultValue: true,
   },
   {
+    id:           'ff_preflight_modal',
+    name:         'Preflight Modal',
+    category:     'UI / Dashboard',
+    description:
+      'Adds a "Preflight" button that opens a modal running the /api/check registry — the same checks ' +
+      'scripts/preflight-demo.sh runs from the terminal, including container/repo drift and ' +
+      'client-dispatched chip wiring.',
+    impact:
+      'OFF (default) = no button; /check is still reachable directly. ON = one-click demo-prep view ' +
+      'with a single verdict, so you are not reading a terminal 10 minutes before showtime.',
+    type:         'boolean',
+    defaultValue: false,
+  },
+  {
     id:           'ff_use_cases_launcher',
     name:         'Use-Case Launcher',
     category:     'UI / Dashboard',
@@ -596,15 +637,10 @@ const FLAG_REGISTRY = [
     category:     'UI / Dashboard',
     description:
       'Selects which agent framework handles POST /api/agent/run requests. ' +
-      '**langchain** (default) — LangChain agent on port 8889. ' +
-      '**openai_agents** — OpenAI Agents SDK on port 8891. ' +
-      '**mastra** — Mastra agent on port 8892. ' +
-      '**pydantic_ai** — Pydantic AI agent on port 8893.',
-    impact:
-      'Changes take effect immediately — no restart required. ' +
-      'Only switch to a framework whose service is running.',
+      '**langchain** — LangChain agent on port 8889, the only supported framework.',
+    impact: 'Changes take effect immediately — no restart required.',
     type:         'enum',
-    options:      ['langchain', 'openai_agents', 'mastra', 'pydantic_ai'],
+    options:      ['langchain'],
     defaultValue: 'langchain',
   },
   {
@@ -757,26 +793,6 @@ const FLAG_REGISTRY = [
     defaultValue: false,
   },
   {
-    id:           'ff_gateway_brokered_exchange',
-    name:         'Gateway-Brokered Final Token Exchange',
-    category:     'MCP / Agent',
-    description:
-      'Chooses **who performs the final RFC 8693 delegation exchange** to the backend MCP-server audience ' +
-      '(`mcpserver.ping.demo`) when routing through the **PingOne Agent Gateway** (ff_mcp_gateway_pinggateway ON). ' +
-      'When **ON (gateway-brokered)**, the BFF stops its delegation chain at the coarse gateway audience ' +
-      '(`gateway:mcp:invoke`) and the **IG runs olb-token-exchange.groovy** to mint the backend token at the edge ' +
-      '(token-exchange-at-the-gateway / phantom-token pattern). When **OFF (bff-brokered)**, the **BFF** completes ' +
-      'the exchange to the mcp-server audience itself and sends the already-delegated token; the IG then skips its ' +
-      'exchange (signaled by the X-BFF-Exchanged request header). Only takes effect while ff_mcp_gateway_pinggateway ' +
-      'is ON; with the Demo Agent Gateway the BFF always brokers.',
-    impact:
-      'ON (default) = the IG is the token broker; exchange credentials + the final hop live at the gateway edge. ' +
-      'OFF = the BFF is the token broker (it has the richest user+agent delegation context); the IG only validates ' +
-      'and proxies. Use this toggle to demonstrate both delegation-ownership architectures side by side.',
-    type:         'boolean',
-    defaultValue: true,
-  },
-  {
     id:           'ff_mcp_gateway_jwks',
     name:         'Local JWKS Token Validation (PingOne Agent Gateway)',
     category:     'MCP / Agent',
@@ -920,7 +936,6 @@ function resolveFlag(flag) {
 // in configStore's fallback map belong here.
 const PINNED_ENV_ALIASES = {
   ff_mcp_gateway_pinggateway: 'FF_MCP_GATEWAY_PINGGATEWAY',
-  ff_gateway_brokered_exchange: 'FF_GATEWAY_BROKERED_EXCHANGE',
   ff_mcp_gateway_jwks:        'FF_MCP_GATEWAY_JWKS',
   ff_enterprise_managed_mcp_auth: 'FF_ENTERPRISE_MANAGED_MCP_AUTH',
   ff_authorize_simulated:     'FF_AUTHORIZE_SIMULATED',

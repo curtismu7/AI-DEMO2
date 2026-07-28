@@ -4,9 +4,9 @@
   "ucId": "UC8",
   "trigger": "transfer $300 from checking to savings",
   "expectedOutcome": "HITL_REQUIRED",
-  "capturedAt": "2026-07-17T15:12:58.303Z",
+  "capturedAt": "2026-07-27T00:26:42.461Z",
   "seedHash": null,
-  "reply": "Simulated authorization policy requires human approval before MCP tools (education mode).",
+  "reply": "PingOne Authorize requires human approval before MCP tools can run.",
   "agentPath": null,
   "tokenEventCount": 13
 }

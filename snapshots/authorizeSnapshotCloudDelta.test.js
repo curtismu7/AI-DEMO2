@@ -60,10 +60,24 @@ test('step 0: HasValidMcpAudience is an OR of TokenAudience Equals <SoT gateway 
   const expected = [
     sotResources['Super Banking MCP Gateway'].uri,
     sotResources['Super Banking PingGateway MCP'].uri,
+    sotResources['Super Banking A2A MCP Gateway'].uri,
   ];
-  // Literal pin: these are the two identities the runtime accepts
-  // (PG_GATEWAY_RESOURCE_URI + PG_GATEWAY_RESOURCE_ID / groovy acceptedAuds).
-  assert.deepStrictEqual(expected, ['mcpgateway.ping.demo', 'https://api.ping.demo:3036/mcp']);
+  // Literal pin: the identities the runtime accepts — MCP_GW_RESOURCE_URI on the
+  // Node gateway carries exactly these three (groovy acceptedAuds mirrors them).
+  //
+  // The A2A entry was MISSING here and in GATEWAY_RESOURCE_NAMES. Its resource
+  // was added to the SoT after both were written, so the generated snapshot
+  // accepted 2 of the 3 identities the runtime accepts. Importing it would have
+  // made HasValidMcpAudience false for every A2A token — and rule
+  // 45678901-0004 denies NOT that condition — so ALL A2A TRAFFIC WOULD HAVE
+  // BEEN DENIED. Same all-or-nothing shape as the step-0 blocker above, which
+  // is why this list is pinned against the runtime and not just derived: a
+  // derivation that silently drops a resource looks correct.
+  assert.deepStrictEqual(expected, [
+    'mcpgateway.ping.demo',
+    'https://api.ping.demo:3036/mcp',
+    'mcpgateway-a2a.ping.demo',
+  ]);
 
   const branches = cond.condition.or.conditions;
   assert.deepStrictEqual(
@@ -74,6 +88,102 @@ test('step 0: HasValidMcpAudience is an OR of TokenAudience Equals <SoT gateway 
   for (const c of branches) {
     assert.strictEqual(c.comparison.left.attribute.id, ATTR.TokenAudience);
     assert.strictEqual(c.comparison.op, 'Equals');
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UC2 — A2A delegation depth. This rule shipped INVERTED.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('a2a: RequiresA2aDelegation denies a SHALLOW chain, never a valid two-hop one', () => {
+  const cond = findById(reconciled(), COND.RequiresA2aDelegation);
+  assert.ok(cond, 'RequiresA2aDelegation must exist');
+
+  // depth < 2 is expressed as NOT(depth > 1): the bare comparison keeps the
+  // inherited `GreaterThan "1"` and the NOT wrapper is what inverts it.
+  const negated = cond.condition.and.conditions.find((c) => c.not);
+  assert.ok(negated, 'the depth test must be NEGATED — an un-negated GreaterThan denies the CORRECT two-hop chain');
+
+  const depth = negated.not.condition.comparison;
+  assert.strictEqual(depth.left.attribute.id, ATTR.ActChainDepth);
+  assert.strictEqual(depth.op, 'GreaterThan');
+  assert.strictEqual(depth.right.constant.value, '1');
+  // STRING, not a number. The whole snapshot is 163 string constants, 2 booleans
+  // and zero numbers; `Amount GreaterThan "2000"` is a string and demonstrably
+  // denies a 5000 transfer live. A first draft used `LessThan` with a numeric 2,
+  // introducing an untested operator AND value type at once.
+  assert.strictEqual(typeof depth.right.constant.value, 'string');
+});
+
+test('a2a: the depth test uses only operators this snapshot already exercises', () => {
+  // Guards the class of bug above rather than the one instance: an operator or
+  // value type that appears exactly once is unproven against the live DSL, and
+  // the import is the last place to discover that.
+  const snap = reconciled();
+  const ops = new Set();
+  const valueTypes = new Set();
+  const visit = (n) => {
+    if (!n || typeof n !== 'object') return;
+    if (n.comparison) {
+      ops.add(n.comparison.op);
+      const c = n.comparison.right?.constant;
+      if (c && 'value' in c) valueTypes.add(typeof c.value);
+    }
+    for (const v of Object.values(n)) visit(v);
+  };
+  snap.forEach(visit);
+  assert.ok(!ops.has('LessThan'), 'LessThan is not used anywhere else in this snapshot');
+  assert.ok(!valueTypes.has('number'), 'numeric constants are unprecedented here — use the quoted form');
+});
+
+test('a2a: the gated tool list comes from scope-topology a2aDelegated, not hand-typed', () => {
+  const cond = findById(reconciled(), COND.RequiresA2aDelegation);
+  const tools = comparisons(cond.condition)
+    .filter((c) => c.left?.attribute?.id === ATTR.ToolName)
+    .map((c) => c.right.constant.value)
+    .sort();
+  const expected = Object.entries(readSot().tools)
+    .filter(([, m]) => m && m.a2aDelegated === true)
+    .map(([n]) => n)
+    .sort();
+  assert.ok(expected.length > 0, 'SoT must declare a2aDelegated tools');
+  assert.deepStrictEqual(tools, expected,
+    'adding a specialist tool to the SoT must gate it here automatically');
+});
+
+test('actor chain: every A2A specialist in the env is a registered actor', () => {
+  // The four specialists missing from this list (tax, finaid, supplier,
+  // holdings) mapped EXACTLY to the four verticals that failed
+  // verify:a2a-policy with depth2=DENY after the policy import. They were
+  // rejected by THIS rule as mcp-invalid-actor — a correct two-hop chain denied
+  // for having an unrecognised specialist, which reads like a delegation
+  // failure and is not one.
+  const cond = findById(reconciled(), COND.HasValidActorChain);
+  assert.ok(cond, 'HasValidActorChain must exist');
+  const registered = comparisons(cond.condition).map((c) => c.right.constant.value);
+
+  const fromEnv = Object.keys(process.env)
+    .filter((k) => /^PINGONE_A2A_[A-Z0-9]+_AGENT_CLIENT_ID$/.test(k))
+    .map((k) => (process.env[k] || '').trim())
+    .filter(Boolean);
+  // Skips rather than fails without .env — gitignored, so CI has no ids to check.
+  for (const id of fromEnv) {
+    assert.ok(registered.includes(id), `specialist ${id} is not a registered actor`);
+  }
+});
+
+test('actor chain: the list can only grow — regeneration never drops an id', () => {
+  // The union is what makes this safe to regenerate anywhere. A checkout with
+  // no .env (CI, fresh clone, worktree) must not shrink the allowlist and
+  // silently un-register a specialist that IS provisioned in the tenant.
+  const committed = comparisons(findById(readSnapshot(), 'HasValidActorChain')
+    ? findById(readSnapshot(), 'HasValidActorChain').condition
+    : findById(reconciled(), COND.HasValidActorChain).condition)
+    .map((c) => c.right.constant.value);
+  const after = comparisons(findById(reconciled(), COND.HasValidActorChain).condition)
+    .map((c) => c.right.constant.value);
+  for (const id of committed) {
+    assert.ok(after.includes(id), `regeneration dropped registered actor ${id}`);
   }
 });
 
@@ -353,12 +463,73 @@ test('3g: UserRole is a RESTRICTION only — no permit branch consumes it', () =
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Signing-key identity (mcp-invalid-kid)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('kid: TokenKidKnown defaults TRUE so an omitted value can never deny', () => {
+  const attr = findById(reconciled(), ATTR.TokenKidKnown);
+  assert.strictEqual(attr.valueType, 'BOOLEAN');
+  // This is the whole fail-open contract. The BFF OMITS TokenKidKnown when it
+  // cannot resolve membership (no kid, or the JWKS fetch failed). A false
+  // default would make every such request match TokenKidUnpublished and DENY —
+  // turning a PingOne JWKS outage into a demo-wide outage.
+  assert.strictEqual(attr.defaultValue, true,
+    'defaultValue MUST be true — an absent TokenKidKnown means "unknown", never "verified absent"');
+});
+
+test('kid: the deny condition matches only an explicit false', () => {
+  const cond = findById(reconciled(), COND.TokenKidUnpublished);
+  assert.deepStrictEqual(cond.condition, {
+    comparison: {
+      left: { attribute: { id: ATTR.TokenKidKnown } },
+      op: 'Equals',
+      right: { constant: { value: false } },
+    },
+  });
+  // Equals-false on a BOOLEAN is the shape GroupMembershipFailed already uses
+  // (InRequiredGroup). No new operator/valueType combination is introduced —
+  // #1009 shipped a depth fix using an operator and value type this DSL had
+  // never exercised, and it silently did not evaluate.
+  const snap = reconciled();
+  const booleanIds = new Set(snap
+    .filter((o) => o.type === 'ATTRIBUTE' && o.valueType === 'BOOLEAN')
+    .map((o) => o.id));
+  const opsOnBooleans = new Set();
+  const walk = (node) => {
+    if (Array.isArray(node)) { node.forEach(walk); return; }
+    if (!node || typeof node !== 'object') return;
+    const c = node.comparison;
+    if (c && booleanIds.has(c.left?.attribute?.id)) opsOnBooleans.add(c.op);
+    Object.values(node).forEach(walk);
+  };
+  walk(snap);
+  assert.ok(opsOnBooleans.has('Equals'),
+    'Equals-on-BOOLEAN must remain an operator/valueType combination this snapshot actually exercises (#1009)');
+});
+
+test('kid: exactly one rule carries the invalid-kid statement, as a conditional deny', () => {
+  const snap = reconciled();
+  const stmt = findById(snap, STMT.invalidKid);
+  assert.strictEqual(stmt.code, 'mcp-invalid-kid');
+  assert.strictEqual(stmt.appliesTo, 'DENY');
+  // The payload must not claim a signature was verified — this rule only knows
+  // that the named key is unpublished.
+  assert.ok(!/signature (was )?(verified|valid)/i.test(stmt.payload),
+    'payload must not claim signature verification');
+
+  const rulesUsingCond = snap.filter((o) => o.type === 'Rule'
+    && JSON.stringify(o).includes(COND.TokenKidUnpublished));
+  assert.deepStrictEqual(rulesUsingCond.map((o) => o.id), [RULE.mcpDenyInvalidKid]);
+  assert.strictEqual(rulesUsingCond[0].effectSettings.type, 'conditionalDenyElsePermit');
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Structure — exactly the intended delta, idempotent, committed
 // ─────────────────────────────────────────────────────────────────────────────
 
-test('structure: the committed snapshot carries all 25 new objects (98 total) and is reconciled', () => {
+test('structure: the committed snapshot carries all 30 new objects (103 total) and is reconciled', () => {
   const committed = readSnapshot();
-  assert.strictEqual(committed.length, 98, '73 pre-delta objects + 7 attrs + 6 conds + 6 stmts + 6 rules');
+  assert.strictEqual(committed.length, 103, '73 pre-delta objects + 9 attrs + 7 conds + 7 stmts + 7 rules');
   assert.deepStrictEqual(reconcile(clone(committed), loadSot()), committed,
     'committed snapshot is out of date — run: node snapshots/gen-authorize-snapshot.js');
 
@@ -371,19 +542,23 @@ test('structure: the committed snapshot carries all 25 new objects (98 total) an
     STMT.intentInvalid, STMT.intentMismatch, STMT.adminRole,
     RULE.mcpDenyUpstreamAud, RULE.mcpDenyResourceOwner, RULE.rarAmountExceeded,
     RULE.mcpDenyIntentInvalid, RULE.mcpDenyIntentMismatch, RULE.mcpDenyAdminRole,
+    // Signing-key identity (mcp-invalid-kid).
+    ATTR.TokenKidKnown, ATTR.TokenKid, COND.TokenKidUnpublished,
+    STMT.invalidKid, RULE.mcpDenyInvalidKid,
   ];
-  assert.strictEqual(new Set(newIds).size, 25, 'the 25 new ids must be distinct');
+  assert.strictEqual(new Set(newIds).size, 30, 'the 30 new ids must be distinct');
   for (const id of newIds) assert.ok(findById(committed, id), `committed snapshot must contain ${id}`);
 });
 
-test('structure: all six deny rules run before the MCP catch-all permit, in order', () => {
+test('structure: all seven deny rules run before the MCP catch-all permit, in order', () => {
   const mcpPolicy = findById(reconciled(), '56789012-0002-4321-abcd-000000000002');
   const childIds = mcpPolicy.children.map((c) => c.id);
   // The RAR deny landed first (on main, #611) so it sits ahead of the five
-  // round-3 denies added after it.
+  // round-3 denies added after it; the signing-key deny landed last.
   const denies = [
     RULE.rarAmountExceeded, RULE.mcpDenyUpstreamAud, RULE.mcpDenyResourceOwner,
     RULE.mcpDenyIntentInvalid, RULE.mcpDenyIntentMismatch, RULE.mcpDenyAdminRole,
+    RULE.mcpDenyInvalidKid,
   ];
   const permitIdx = childIds.indexOf(RULE.mcpPermitValid);
   assert.strictEqual(permitIdx, childIds.length - 1, 'the catch-all permit stays last');

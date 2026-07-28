@@ -3,9 +3,23 @@ const http = require('http');
 const https = require('https');
 const { URL } = require('url');
 
-function callPingGateway(method, path, body = null) {
+function callPingGateway(method, path, body = null, extra) {
+  const token = extra && extra.token;
   return new Promise((resolve, reject) => {
-    const gwUrl = process.env.PINGGATEWAY_URL || 'https://localhost:3036';
+    // MCP_PINGGATEWAY_URL is the canonical name — it is what docker-compose
+    // sets, what configStore maps to mcp_pinggateway_url, and what
+    // mcpGatewayClient / agentMcpTokenService read. This file read the ORPHAN
+    // name PINGGATEWAY_URL, which nothing writes, so it silently fell back to
+    // https://localhost:3036 — inside the BFF container that is the BFF itself,
+    // and 3036 is the HOST port anyway (PingGateway listens on 8080 in-network).
+    // Result: gateway.real_path failed ECONNREFUSED on every run while
+    // PingGateway was up and reachable at http://ping-gateway:8080.
+    // Same class as the compose environment/env_file trap: reading a name
+    // nothing writes.
+    const gwUrl = process.env.PINGGATEWAY_URL
+      || process.env.MCP_PINGGATEWAY_URL
+      || (() => { try { return require('./configStore').getEffective('mcp_pinggateway_url'); } catch (_) { return null; } })()
+      || 'https://localhost:3036';
     const url = new URL(path, gwUrl);
     const isHttps = url.protocol === 'https:';
     const transport = isHttps ? https : http;
@@ -17,7 +31,13 @@ function callPingGateway(method, path, body = null) {
       method,
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         ...(body ? { 'Content-Length': Buffer.byteLength(JSON.stringify(body)) } : {}),
+        // Caller-supplied last so it can set what only it knows — /mcp needs
+        // the streamable-HTTP Accept or the transport answers 406 before the
+        // request reaches any tool. Not defaulted here: this client also talks
+        // to plain-JSON endpoints that must not advertise text/event-stream.
+        ...((extra && extra.headers) || {}),
       },
       timeout: 10000,
       ...(isHttps && process.env.NODE_ENV !== 'production' ? { rejectUnauthorized: false } : {}),

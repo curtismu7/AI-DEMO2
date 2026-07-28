@@ -131,13 +131,23 @@ const FRAMEWORK_PORTS = {
   pydantic_ai:   8893,
 };
 
+// Each framework runs in its own container with its own docker-network name
+// (see data/serverInventory.js) — only langchain's honors AGENT_SERVICE_HOST,
+// its original (pre-multi-framework) override knob. Any other framework
+// pinned to that same hostname reaches langchain-agent's container, which
+// doesn't listen on that framework's port — connection refused.
+const FRAMEWORK_HOSTS = {
+  langchain:     process.env.AGENT_SERVICE_HOST || 'langchain-agent',
+  openai_agents: 'openai-agent',
+  mastra:        'mastra-agent',
+  pydantic_ai:   'pydantic-agent',
+};
+
 function resolveAgentTarget() {
   const framework = configStore.getEffective('llm_framework') || 'langchain';
   const port = FRAMEWORK_PORTS[framework] ?? FRAMEWORK_PORTS.langchain;
-  return {
-    hostname: process.env.AGENT_SERVICE_HOST || 'langchain-agent',
-    port,
-  };
+  const hostname = FRAMEWORK_HOSTS[framework] ?? FRAMEWORK_HOSTS.langchain;
+  return { hostname, port };
 }
 
 function getInternalSecret() {
@@ -150,6 +160,15 @@ function resolveAgentRunTools(currentTools, activeId) {
   return verticalDispatch.hasPlugin(activeId)
     ? verticalDispatch.toolSchemasFor(activeId, () => currentTools)
     : currentTools;
+}
+
+// Flag token events for a failure the run recovered from (tool discovery fell
+// back to the local catalog and the run continued). The Token Chain halt
+// heuristic treats the first red event as the halt point and ghosts every step
+// after it as "did not run" — steps that in fact executed. `recovered` keeps
+// the event red while telling that heuristic to look further down the chain.
+function markRecovered(tokenEvents) {
+  return (tokenEvents || []).map((ev) => ({ ...ev, recovered: true }));
 }
 
 // ---------------------------------------------------------------------------
@@ -295,8 +314,10 @@ router.post('/run', async (req, res) => {
       } catch (toolsErr) {
         console.warn('[agentRun] Gateway tools failed, falling back to local catalog:', toolsErr.message);
         toolsResult = { tools: agentGatewayClient.getLocalToolsCatalog(), tokenEvents: [] };
-        // Append any token events from the failed tools request
-        initialTokenEvents = [...initialTokenEvents, ...(toolsErr.tokenEvents || [])];
+        // Append any token events from the failed tools request, marked
+        // `recovered` — the run continues on the local catalog, so this is not
+        // the point the chain halted.
+        initialTokenEvents = [...initialTokenEvents, ...markRecovered(toolsErr.tokenEvents)];
       }
     } else {
       toolsResult = { tools: agentGatewayClient.getLocalToolsCatalog(), tokenEvents: [] };
@@ -560,8 +581,10 @@ module.exports = router;
 // Exported for the framework-routing test so it asserts against the actual
 // constants instead of a re-declared copy that can silently drift.
 module.exports.FRAMEWORK_PORTS = FRAMEWORK_PORTS;
+module.exports.FRAMEWORK_HOSTS = FRAMEWORK_HOSTS;
 module.exports.__test = {
   resolveAgentRunTools,
+  markRecovered,
   _recordTraceEvents,
   _ensureHitlConsentSubscription,
   _cleanupHitlConsentSubscription,

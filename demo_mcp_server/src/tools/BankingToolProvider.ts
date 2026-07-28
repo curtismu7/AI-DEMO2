@@ -120,10 +120,18 @@ export class BankingToolProvider {
       // - session path: run the challenge handler against session user tokens.
       if (tool.requiresUserAuth && tool.requiredScopes.length > 0) {
         if (agentToken) {
-          const hasScopes = await this.authManager.validateTokenScopes(agentToken, tool.requiredScopes);
+          // A2A-delegated tools: PingOne scope-name uniqueness forces the
+          // specialist's Exchange #2 bearer to carry the per-vertical scope
+          // (scope-topology a2aDelegatedScope — records:read, tax:read, …)
+          // INSTEAD of the coarse 'read'. Accept either; both absent fails closed.
+          const delegatedScope = (tool as { a2aDelegatedScope?: string }).a2aDelegatedScope;
+          const hasScopes =
+            (await this.authManager.validateTokenScopes(agentToken, tool.requiredScopes)) ||
+            (!!delegatedScope &&
+              (await this.authManager.validateTokenScopes(agentToken, [delegatedScope])));
           if (!hasScopes) {
             this.logger.warn(
-              `[BankingToolProvider] agentToken missing required scopes for ${toolName}: [${tool.requiredScopes.join(', ')}]`
+              `[BankingToolProvider] agentToken missing required scopes for ${toolName}: [${tool.requiredScopes.join(', ')}]${delegatedScope ? ` (a2aDelegatedScope alternative '${delegatedScope}' also absent)` : ''}`
             );
             return this.createErrorResult(
               `Insufficient scope. Required: ${tool.requiredScopes.join(', ')}`,

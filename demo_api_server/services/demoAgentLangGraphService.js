@@ -5,6 +5,76 @@
  */
 
 const { getBankingToolDefinitions, MAX_TOOL_ITERATIONS } = require('./agentBuilder');
+const { READ_PRIMARY_TOOL_BY_VERTICAL } = require('../config/useCases');
+
+/**
+ * UC34-class "reason over my recent activity" prompts. Narrow on purpose: it
+ * only pre-fetches when the ask is explicitly about reviewing past activity, so
+ * ordinary questions still let the model choose its own tools.
+ */
+const ACTIVITY_ANALYSIS_RE = /\b(unusual|suspicious|anomal\w*|irregular|out of the ordinary)\b[\s\S]{0,60}\b(activity|transactions?|charges?|spending|orders?|claims?|records?)\b/i;
+
+/** Rows to hand the model. Enough to spot an outlier, small enough to reason over. */
+const ACTIVITY_ROWS_FOR_PROMPT = 25;
+
+/**
+ * Render a tool's activity payload as a compact table.
+ *
+ * Raw output is ~141 rows of verbose JSON (uuids, null account ids, ISO stamps,
+ * "CHECKING - undefined"). With LLAMACPP_MAX_TOKENS frozen at 2560 that alone
+ * can consume the answer budget, and the model responded "unable to retrieve"
+ * even though the rows were right there. Strip to the fields an anomaly check
+ * needs and cap the count.
+ *
+ * @param {string|object} raw tool result (JSON string or object)
+ * @returns {string} compact text, or '' when there is nothing usable
+ */
+function compactActivityForPrompt(raw) {
+  let parsed = raw;
+  if (typeof raw === 'string') {
+    try { parsed = JSON.parse(raw); } catch (_) { return String(raw).slice(0, 2000); }
+  }
+  if (!parsed || typeof parsed !== 'object') return '';
+  // Unwrap the MCP envelope FIRST. executeBffTool returns
+  // {content:[{type:'text',text:'<json>'}]}, so the real payload is a JSON
+  // string one level down. Without this, `content` looks like the row array and
+  // every row renders as empty cells — which is exactly what the model saw when
+  // it kept answering "I don't have access to your recent transaction history"
+  // while toolsCalled showed the fetch had succeeded.
+  const envelopeText = Array.isArray(parsed.content)
+    && parsed.content.find((c) => c && typeof c.text === 'string')?.text;
+  if (envelopeText) {
+    try { parsed = JSON.parse(envelopeText); } catch (_) { return envelopeText.slice(0, 2000); }
+  }
+  if (!parsed || typeof parsed !== 'object') return '';
+  // Tool payloads nest differently per vertical, so the array has to be found
+  // rather than addressed. Name-match FIRST: "the first array of objects" alone
+  // picked up tokenEvents that ride along in the same payload, and the model
+  // dutifully analysed token lifecycle states — "17 active, 2 exchanged, 1
+  // permit" — as if they were the user's spending. A confident answer about the
+  // wrong array is worse than a refusal, because nothing about it looks wrong.
+  const ACTIVITY_KEY_RE = /transaction|order|record|claim|activit|purchase|payment|item|appointment|enrollment/i;
+  const NON_ACTIVITY_KEY_RE = /token|event|scope|audit|trace|chain|step/i;
+  const pools = [parsed, parsed.result, parsed.data].filter((p) => p && typeof p === 'object');
+  const isRowArray = (v) => Array.isArray(v) && v.length && typeof v[0] === 'object';
+  let rows = null;
+  for (const pool of pools) {
+    if (Array.isArray(pool)) { rows = pool; break; }
+    const entries = Object.entries(pool).filter(([, v]) => isRowArray(v));
+    const named = entries.find(([k]) => ACTIVITY_KEY_RE.test(k) && !NON_ACTIVITY_KEY_RE.test(k));
+    if (named) { rows = named[1]; break; }
+    const other = entries.find(([k]) => !NON_ACTIVITY_KEY_RE.test(k));
+    if (other) { rows = other[1]; break; }
+  }
+  if (!rows || !rows.length) return '';
+  const pick = (r) => [
+    String(r.date || r.createdAt || r.timestamp || '').slice(0, 10),
+    r.type || r.status || '',
+    r.amount != null ? r.amount : '',
+    String(r.description || r.name || r.title || '').slice(0, 48),
+  ].join(' | ');
+  return rows.slice(0, ACTIVITY_ROWS_FOR_PROMPT).map(pick).join('\n');
+}
 const { executeBffTool, executeBffToolWithToken } = require('./bffMcpToolExecutor');
 const { searchPublicBranches, formatBranchCatalogReply } = require('../data/publicBranchCatalog');
 const { buildPublicCatalogTokenEvents } = require('./publicCatalogTokenEvents');
@@ -27,6 +97,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { logDelegationEvent } = require('../middleware/delegationAuditLogger');
 const { verticalManifest } = require('./verticalManifest');
+const verticalAccountSnapshots = require('./verticalAccountSnapshots');
 const verticalDispatch = require('./verticalDispatch');
 const { injectKnowledge } = require('./knowledgePromptInjector');
 const { recordToolCall: recordMcpToolCall } = require('./mcpToolAuditStore');
@@ -115,7 +186,10 @@ async function ensureAccountsForVertical(userId, verticalId) {
   if (!expectedPrimary) return;
   const primary = (accounts[0]?.accountType || '').toLowerCase();
   if (accounts.length > 0 && primary === expectedPrimary) return;
-  await dataStore.reseedUserForVertical(userId, verticalId);
+  // Snapshot the outgoing vertical and restore the incoming one rather than
+  // reseeding blind — a bare reseed here wiped accounts AND transactions for a
+  // user whose agent call happened to land under a different vertical.
+  await verticalAccountSnapshots.switchUserVertical(userId, verticalId);
 }
 
 /**
@@ -687,6 +761,54 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
       suppliedUserSub: result.userSub,
     });
     ({ result: toolResult } = parseToolResult(raw, { site: `a2a:${result.tool}` }));
+
+    // The gateway AUTHORIZES, but it cannot always SERVE.
+    //
+    // Only banking's OLB tools sit behind the gateway's backend. Every other
+    // vertical's specialist tool (sensitive_patient_records, sensitive_tax_record,
+    // sensitive_payroll_details, ...) is implemented in this process by the
+    // vertical plugin — config/verticals/<v>/tools.js. So the A2A call ran the
+    // full chain, PingOne Authorize PERMITted it, and then the gateway had
+    // nothing to forward to:
+    //
+    //     P1AZDecision    -> forwarded (PERMIT)
+    //     BackendExchange -> skipped     backend: null
+    //     -> Gateway upstream error (HTTP 502)
+    //
+    // Authorization succeeded; only delivery failed. The BFF is the resource
+    // server for these tools, so run it here — the decision has already been
+    // made by the gateway, and this does not bypass it.
+    //
+    // Deliberately narrow: only after a transport/upstream failure (never after
+    // a DENY or a challenge, which are real answers), and only when the active
+    // vertical's plugin actually owns the tool.
+    const failedUpstream = toolResult && typeof toolResult === 'object'
+      && ['mcp_error', 'gateway_error', 'mcp_unreachable'].includes(toolResult.error);
+    if (failedUpstream) {
+      const ownsTool = (() => {
+        try {
+          const schemas = verticalDispatch.toolSchemasFor(activeId, { isAdmin: false }, () => []) || [];
+          return schemas.some((t) => (t && (t.name || (t.function && t.function.name))) === result.tool);
+        } catch (_) { return false; }
+      })();
+      if (ownsTool) {
+        try {
+          // userId is not a parameter of this function; derive it the same way
+          // the rest of the file does, falling back to the delegation subject.
+          const localUserId = req?.session?.user?.id || result.userSub || 'anon';
+          const localRaw = await resolveExecuteTool(activeId, {
+            userId: localUserId, userToken: null, req, tokenEvents: events, sessionId: sessionId || req?.sessionID || '', isAdmin: false,
+          })(result.tool, toolArgs);
+          const { result: localResult } = parseToolResult(localRaw, { site: `a2a-local:${result.tool}` });
+          if (localResult && !(typeof localResult === 'object' && 'error' in localResult)) {
+            console.log('[executeA2aDelegation] %s authorized at the gateway, served locally (no gateway backend for this vertical)', result.tool);
+            toolResult = localResult;
+          }
+        } catch (localErr) {
+          console.warn('[executeA2aDelegation] local execution of %s failed: %s', result.tool, localErr?.message);
+        }
+      }
+    }
   }
 
   // "Delegated" only means the nested-act token was minted — it is NOT proof the
@@ -702,16 +824,27 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
     delegated: true,
     specialist: result.specialist,
     vertical: result.vertical,
+    specialistVertical: result.specialistVertical,
     tool: result.tool,
     actChainDepth: result.actChainDepth,
     scopes: result.scopes,
     result: toolResult,
     toolError: toolError || null,
     render: !toolError && result.tool ? A2A_TOOL_RENDER[result.tool] || null : null,
-    note:
-      `Delegated to the ${result.specialist}. A nested act chain ` +
-      `(act:{${result.specialist} → generalist}) bound to the user was minted, and ` +
-      `PingOne Authorize permitted the specialist to run ${result.tool}.`,
+    // The note must not claim more than happened. It previously asserted
+    // "PingOne Authorize permitted the specialist to run X" UNCONDITIONALLY —
+    // including when the tool call had just failed, which is exactly the
+    // sentence a presenter reads aloud. Delegation (minting the nested-act
+    // token) and authorization (the tool actually running) are separate facts,
+    // and toolError already tracks the second one.
+    note: toolError
+      ? `Delegated to the ${result.specialist} — a nested act chain `
+        + `(act:{${result.specialist} → generalist}) bound to the user was minted. `
+        + `The specialist's ${result.tool} call did NOT succeed (${toolError}), so this is `
+        + 'not a completed authorization.'
+      : `Delegated to the ${result.specialist}. A nested act chain `
+        + `(act:{${result.specialist} → generalist}) bound to the user was minted, and `
+        + `the authorization policy permitted the specialist to run ${result.tool}.`,
   });
 }
 
@@ -728,9 +861,10 @@ function buildA2aReplyEnvelope(a2aResult, tokenEvents) {
   // so portfolio_summary (an investment-only key) would resolve to null there.
   // Embedding the descriptor in the response lets the UI use it directly.
   let renderDescriptor = null;
-  if (toolOk && a2aResult.render && a2aResult.vertical) {
+  const descriptorVertical = a2aResult.specialistVertical || a2aResult.vertical;
+  if (toolOk && a2aResult.render && descriptorVertical) {
     try {
-      const entry = verticalManifest.loader.get(a2aResult.vertical);
+      const entry = verticalManifest.loader.get(descriptorVertical);
       renderDescriptor = entry?.manifest?.render?.[a2aResult.render] || null;
     } catch (_) { /* best-effort — missing descriptor just hides the card */ }
   }
@@ -759,10 +893,60 @@ function buildA2aReplyEnvelope(a2aResult, tokenEvents) {
 // Plugin-first executeTool. Returns a function with the reason-loop signature
 // (name, args) => Promise<string>. Plugin results are JSON-stringified so the
 // reason loop sees a string, matching executeBffTool's contract.
-function resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, sessionId, isAdmin = false }) {
+/**
+ * Strip token-chain plumbing from a tool result before the MODEL sees it.
+ *
+ * dispatchBankingAction returns the full agent-response envelope — reply,
+ * success, toolsCalled, tokensUsed AND tokenEvents. runReasonLoop pushes that
+ * whole object into the conversation as the tool message, so the model receives
+ * a 13-element tokenEvents array alongside 5 transactions and cannot tell which
+ * is the user's data. Live, it picked the wrong one and produced a confident,
+ * well-formatted table of token lifecycle states — "17 active, 2 exchanged,
+ * 1 permit" — presented as the user's spending.
+ *
+ * Events are merged into the caller's collector first, so the Token Chain panel
+ * still sees everything; only the model's copy is trimmed.
+ *
+ * @param {*} out raw tool result
+ * @param {Array} collector ctx.tokenEvents to merge into (may be undefined)
+ * @returns {*} the result without token-chain fields
+ */
+function stripChainFieldsForModel(out, collector) {
+  if (!out || typeof out !== 'object' || Array.isArray(out)) return out;
+  const { tokenEvents: evs, tokensUsed, agentConfigured, ...rest } = out;
+  if (Array.isArray(evs) && Array.isArray(collector)) collector.push(...evs);
+  return rest;
+}
+
+function resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, sessionId, isAdmin = false, a2aResultRef }) {
   return async (name, args) => {
     if (name === 'delegate_to_specialist') {
-      return executeA2aDelegation(activeId, args, { req, tokenEvents, sessionId });
+      const json = await executeA2aDelegation(activeId, args, { req, tokenEvents, sessionId });
+      // Captured so the reason-loop caller can replace the model's own phrasing
+      // with the same deterministic reply/card the non-LLM dispatch path uses
+      // (buildA2aReplyEnvelope) — see the loopResult.ok branch below.
+      if (a2aResultRef) {
+        try { a2aResultRef.current = JSON.parse(json); } catch (_) { /* leave unset */ }
+      }
+      return json;
+    }
+    // A2A fast-path for a DIRECT model tool call. The model is handed the full
+    // plugin tool list (incl. a2aDelegated tools like sensitive_patient_records)
+    // and may call one directly instead of emitting delegate_to_specialist —
+    // direct execution hits the McpFirstTool DENY (a2a-delegation-required) and
+    // that DENY becomes the final chat reply. Same guard as
+    // dispatchVerticalIntent's heuristic path (line ~1117): route through the
+    // RFC 8693 nested-act delegation service instead, and reuse a2aResultRef so
+    // the reason-loop caller renders the same clean card delegate_to_specialist
+    // produces (buildA2aReplyEnvelope), not the model's own DENY narration.
+    const { isA2aDelegatedTool } = require('./scopeTopology');
+    const { isA2aEnabled } = require('./a2aDelegationService');
+    if (isA2aEnabled() && isA2aDelegatedTool(name)) {
+      const json = await executeA2aDelegation(activeId, { tool: name, args }, { req, tokenEvents, sessionId });
+      if (a2aResultRef) {
+        try { a2aResultRef.current = JSON.parse(json); } catch (_) { /* leave unset */ }
+      }
+      return json;
     }
     if (verticalDispatch.isPluginToolName(name)) {
       return executeBffTool({
@@ -779,7 +963,7 @@ function resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, ses
       activeId, name, args, { userId, userToken, req, tokenEvents, sessionId, isAdmin },
       (n, a) => executeBffTool({ name: n, args: a, userId, userToken, req, tokenEvents, sessionId }),
     );
-    return typeof out === 'string' ? out : JSON.stringify(out);
+    return typeof out === 'string' ? out : JSON.stringify(stripChainFieldsForModel(out, tokenEvents));
   };
 }
 
@@ -1592,6 +1776,56 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     const historyMessages = conversationStore.getHistory(userId, verticalForHistory) || [];
     const messages = [...historyMessages, { role: 'user', content: message }];
 
+    const a2aResultRef = { current: null };
+    const executeTool = resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, sessionId, isAdmin: isAdminUser, a2aResultRef });
+
+    // UC34 activity-analysis pre-fetch. Same precedent as the UC30
+    // weatherShowcase gate above: the model IS handed the right tool (banking
+    // gets 11, including get_my_transactions) and IS a capable tier (proxy logs
+    // show gpt-oss-20b, class 1) — it just does not emit a tool_call for "spot
+    // unusual patterns", and answers "I'm currently unable to retrieve your
+    // transaction history" with nothing dispatched.
+    //
+    // That makes UC34's catalog claim false: it promises every underlying tool
+    // call runs the identical RFC 8693 -> gateway -> Authorize legs, and
+    // declares tool-dispatched evidence. Fetching the activity through the SAME
+    // governed executor the loop would have used makes the claim true and emits
+    // the evidence, instead of leaving the model to decide whether the demo works.
+    const preToolsCalled = [];
+    if (ACTIVITY_ANALYSIS_RE.test(String(message || ''))) {
+      const activityTool = READ_PRIMARY_TOOL_BY_VERTICAL[activeId] || 'get_my_transactions';
+      try {
+        const activity = await executeTool(activityTool, {});
+        const compact = compactActivityForPrompt(activity);
+        // Diagnostic: what the model is actually handed. Five successive fixes to
+        // this path were each verified by reading the model's ANSWER, which
+        // cannot distinguish "wrong data injected" from "right data ignored".
+        // One line here settles it directly.
+        console.log('[activity-prefetch] tool=%s rawKeys=%s rows=%d preview=%j',
+          activityTool,
+          (activity && typeof activity === 'object' && !Array.isArray(activity))
+            ? Object.keys(activity).join(',')
+            : typeof activity,
+          compact ? compact.split('\n').length : 0,
+          String(compact || '').slice(0, 160));
+        if (compact) {
+          // Appended to the USER turn, not inserted as a mid-conversation system
+          // message: a second system message is merged or dropped depending on
+          // provider, and the first attempt proved it — the tool ran, real rows
+          // came back, and the model still answered "unable to retrieve".
+          const last = messages[messages.length - 1];
+          messages[messages.length - 1] = {
+            ...last,
+            content: `${last.content}\n\nHere is my recent activity, already retrieved for you via ${activityTool}. Analyse THIS data and name anything unusual. Do not say you cannot retrieve it, and do not ask me to paste it.\n\n${compact}`,
+          };
+          preToolsCalled.push(activityTool);
+        }
+      } catch (e) {
+        // Non-fatal: the model still answers, just without grounded data.
+        console.warn('[processAgentMessage] activity pre-fetch failed (non-fatal): %s', e?.message);
+      }
+    }
+
     const loopResult = await runReasonLoop({
       messages,
       tools: toolSchemas,
@@ -1601,7 +1835,7 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
       helixConfig: extractHelixConfig(langchainConfig),
       anthropicApiKey: process.env.ANTHROPIC_API_KEY,
       maxIterations: MAX_TOOL_ITERATIONS,
-      executeTool: resolveExecuteTool(activeId, { userId, userToken, req, tokenEvents, sessionId, isAdmin: isAdminUser }),
+      executeTool,
     });
 
     console.log('[processAgentMessage] Reason loop completed');
@@ -1618,15 +1852,26 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     if (loopResult.ok) {
       appEventService.logEvent('agent_prompt', 'info', `LLM response: ${String(loopResult.answer || '')}`,
         { tag: 'agent_prompt/llm_complete', metadata: { userId, response: String(loopResult.answer || ''), model: model || undefined } });
+      // delegate_to_specialist ran this turn: the model was handed the raw A2A
+      // JSON as its tool result and tends to paste it back verbatim instead of
+      // summarizing (small local models especially). Replace its answer with the
+      // same deterministic reply/card buildA2aReplyEnvelope gives the non-LLM
+      // dispatch path, so UC2 renders identically to a chip-driven delegation.
+      const a2aDisplay = a2aResultRef.current ? buildA2aReplyEnvelope(a2aResultRef.current, tokenEvents) : null;
       return {
-        reply: loopResult.answer,
+        reply: a2aDisplay ? a2aDisplay.reply : loopResult.answer,
         success: true,
-        toolsCalled: [],
+        // Was hardcoded []. Tools DO run on this path (the loop executes
+        // data.type === 'tool_calls' via executeTool), so reporting none made
+        // 'tool-dispatched' evidence unmatchable for every LLM-path use case —
+        // scoreDelegatedAccessInvoke keys on body.toolsCalled.length > 0.
+        toolsCalled: [...preToolsCalled, ...(Array.isArray(loopResult.toolsCalled) ? loopResult.toolsCalled : [])],
         inputTokens: loopResult.inputTokens ?? 0,
         outputTokens: loopResult.outputTokens ?? 0,
         requiresConsent: false,
         agentConfigured: true,
         tokenEvents: tokenEvents || [],
+        ...(a2aDisplay?.verticalResult ? { verticalResult: a2aDisplay.verticalResult } : {}),
       };
     }
     // Loop guard tripped: a tool returned a terminal signal (e.g. admin token on
@@ -1775,5 +2020,8 @@ module.exports = {
   processAgentMessage,
   dispatchBankingAction,
   dispatchVerticalIntent,
+  // Public for routes/agentTool.js — external LLM agents' tool callback runs
+  // the same A2A fast-path as dispatchVerticalIntent for a2aDelegated tools.
+  executeA2aDelegation,
   __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation, normalizeVerticalToolArgs, applyAdminCustomerContext },
 };

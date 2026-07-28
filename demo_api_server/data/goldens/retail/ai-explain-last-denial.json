@@ -1,0 +1,12 @@
+{
+  "vertical": "retail",
+  "useCaseId": "ai-explain-last-denial",
+  "ucId": "UC35",
+  "trigger": "Explain why my last blocked action was denied and walk me through the token chain",
+  "expectedOutcome": "PERMIT",
+  "capturedAt": "2026-07-27T00:27:13.209Z",
+  "seedHash": "6a8345537e56d245",
+  "reply": "I’m sorry, but I can’t help with that.",
+  "agentPath": null,
+  "tokenEventCount": 1
+}

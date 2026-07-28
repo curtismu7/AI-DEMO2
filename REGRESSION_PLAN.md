@@ -102,6 +102,759 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-28 — Simple Stepper blamed a recovered tools/list failure for the halt and ghosted 13 steps that ran
+
+**Files changed:** `demo_api_server/routes/agentRun.js` (new `markRecovered`,
+exported on `__test`), `demo_api_server/tests/agentRun.recoveredToolsList.test.js`,
+`demo_api_ui/src/components/TokenChainDisplay.js` (`isHaltedAt`),
+`demo_api_ui/src/components/__tests__/TokenChainDisplay.haltedAt.test.js`.
+
+**What was broken:** `agentRun` still calls the legacy HTTP
+`agentGatewayClient.getAvailableTools()`, which posts to `<AGENT_GATEWAY_URL>/tools/list`.
+That path is superseded by `listAvailableTools()` (WS through the gateway) and
+nothing in the stack serves it — `AGENT_GATEWAY_URL` is unset, so the request hits
+`http://localhost:8080` inside the BFF container and is refused on every run
+(13 occurrences in 6h of logs). The run recovers: it falls back to the local tool
+catalog and continues. But the `status:'failed'` event was merged into the token
+chain unmarked, and `isHaltedAt`'s fallback ("first failed-bucket event that isn't
+last is the halt") latched onto it. Simple Stepper then rendered rows 8-20 as
+"— did not run" for a `checkout $2500` run in which those steps demonstrably ran
+(actor token issued, JWKS verified, both exchanges completed, both P1AZ decision
+endpoints called). The real halt — `Transaction Denied: amount $2500 exceeds the
+maximum permitted limit of $2,000` — was correctly shown by the Token Chain
+pipeline view, which builds from `buildTraceSteps.js`, not from raw events.
+
+**What was fixed:** the recovery site marks the failure's events `recovered: true`;
+`isHaltedAt` returns false for them. The step stays red (it did fail) but the halt
+marker moves to the real stopping point and later steps keep their own status.
+
+**Do not break:** `isHaltedStep === true` still wins over `recovered` — the A6
+attack-simulator's explicit halt marker is authoritative. `recovered` must not be
+set anywhere the run actually stops; it means "the server continued past this".
+Do not "fix" this by pointing `AGENT_GATEWAY_URL` at a service — that revives a
+deliberately abandoned path that bypasses the gateway's Authorize tool filtering.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/agentRun --testPathIgnorePatterns="/node_modules/" --forceExit`
+(29 passed) and `cd demo_api_ui && npm run test:unit && npm run build`.
+End-to-end (after merge + `docker restart ai-demo-api-server`): a `checkout
+headphones for $2500` run must show Simple Stepper halting at the Authorize step,
+with the tools/list row red but the rows after it keeping their real statuses.
+### 2026-07-28 — Every rendered ProofStrip repainted with the newest run's verdict
+
+**Files changed:** `demo_api_ui/src/services/tokenChainTrace/tokenChainTraceStore.js`
+(traces carry a `runId`), `demo_api_ui/src/context/ProofOfEnforcementContext.js`
+(verdicts stored per run, `verdictFor(runId)` replaces the `history` array),
+`demo_api_ui/src/components/ProofStrip.jsx` (`runId` prop),
+`demo_api_ui/src/components/AIAgent.js` (`addMessage` stamps `proofRunId` on
+assistant bubbles; one strip per run, on that run's last bubble), plus unit
+tests in both `__tests__` dirs.
+
+**What was broken:** ProofStrip instances were selected by POSITION —
+`<ProofStrip rank={assistantRankFromEnd} />` — and read live global state:
+rank 0 took the current `verdict`, rank 1 indexed a `history` array. That
+array was appended once per trace-store EMIT (beginTrace, every
+`ingestTokenEvent`, `ingestAuthorize`, `completeTrace`), so a single run
+produced ~6 entries and `history[1]` was the SAME run one event earlier, not
+the previous run. Consequences: a run that emitted two assistant bubbles (e.g.
+"Running Demo step 1…" + the reply) rendered its result twice, and starting
+any new run repainted every visible strip with the new run's state — a green
+UC1 "Verified" strip turned yellow "Incomplete" the moment UC14 ran.
+
+**What was fixed:** `beginTrace` stamps a monotonic `runId` (a counter, not
+`startedAt` — two runs can share a millisecond). The provider files each
+verdict under its run and replaces rather than appends, keeping the last 20
+runs. `addMessage` captures the in-flight `runId` on assistant messages;
+render shows one strip per run, on that run's last bubble, resolved via
+`verdictFor(msg.proofRunId)`.
+
+**Do not break:** `verdict` (latest run) is still what `VerifiedBanner`,
+`TokenChainPanel` and `LiveUseCaseWorkbenchPage` read — unchanged. `ProofStrip`
+with no `runId` still renders that latest verdict. Do not reintroduce
+positional/rank lookup: assistant-message index does not map to runs.
+
+**Verify:** `cd demo_api_ui && npm run test:unit && npm run build`. The pinning
+test is "a later run does not repaint an earlier run's verdict"
+(`src/context/__tests__/ProofOfEnforcementContext.test.js`) — collapsing the
+key in `recompute` back to a constant makes it fail.
+### 2026-07-28 — `/use-cases/live` Token Chain clipped; stage stacking used a viewport breakpoint
+
+**Files changed:** `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.css` only.
+
+**What was broken:** stacking was gated on `@media (max-width: 1200px)` — a
+*viewport* measure — while the stage's real width is `viewport − 310px sidebar −
+240..640px drawer column − 7px handle`. At a 1280px viewport with the drawer open
+the stage had 612px but needed 710px, so `.luw-main__stage` (default
+`min-width: auto`) overflowed 63px past the viewport and `.App{overflow-x:clip}`
+cut the Token Chain off with no scrollbar. The related dead-grey-band defect
+(`.luw-main` at `grid-column: -1`, a grid *line* rather than a track, which put
+it in an implicit content-sized column) was fixed separately on main by #1067
+placing `.luw-main` at `-2 / -1`; that placement is kept here unchanged.
+
+**What was fixed:** `min-width: 0` added to `.luw-main__stage` and
+`.luw-run-layout` so they can shrink. The 1200px media query became
+`@container luw-main (max-width: 780px)` (`.luw-main` carries
+`container-type: inline-size`), and `.luw-run-layout` now wraps with a 320px
+floor on both panes as the non-container-query fallback. The `≤860px` media
+query states `.luw-main { grid-column: 1 }` explicitly, where the drawer is back
+in flow.
+
+**Do not break:** `.luw-main` placement stays `-2 / -1` (see #1067) — never
+`grid-column: -1`, which is a line, not a track. Stage stacking must stay
+container-queried; a viewport breakpoint cannot see the sidebar or the
+presenter-dragged drawer width.
+
+**Verify:** `cd demo_api_ui && npm run test:unit && npm run build`. The pixel
+measurements originally recorded here (stage 428px at 1400px/640px drawer; panes
+951px + 1143px at 2498px) were taken against an earlier `grid-column: 3` variant
+of this fix, not the shipped `-2 / -1` placement — re-measure live rather than
+treating them as current baselines.
+
+
+### 2026-07-28 — Attack sims denied at the PingGateway perimeter, then relabeled as policy denials (UC14 false pass)
+
+**Files changed:** `demo_api_server/services/attackSimulatorService.js`
+(new `_gatewayExchangeTarget`, used by `_exchangeGatewayToken`),
+`demo_api_server/services/agentMcpTokenService.js` (exports
+`firstHttpResourceUri`), `demo_api_server/tests/attackSimExchangerParity.test.js`.
+
+**What was broken:** with `ff_mcp_gateway_pinggateway=true`, the sims exchanged
+the user token for tool scopes (`read write transfer`) against
+`mcpgateway.ping.demo`. PingGateway's McpProtectionFilter requires the coarse
+`gateway:mcp:invoke` scope and an aud exactly matching its resourceId, so it
+refused the call at the perimeter:
+
+```text
+[GW→PingGateway] RESPONSE: status=403
+www-authenticate: Bearer error="insufficient_scope", scope="gateway:mcp:invoke"
+```
+
+`_denyFromGateway` then overwrote that generic 403 with each sim's own canonical
+code. UC14 reported `rar_amount_exceeded` and printed "PingOne Authorize DENY —
+transfer exceeds the granted RAR authorization_details cap (RFC 9396)" — from
+the hardcoded `CANONICAL_DENY_REASON` map — for a run in which PingOne Authorize
+was never consulted. Right verdict, wrong reason. Because no Authorize decision
+existed, no `authorize` node was attached, so ProofStrip correctly reported
+"Unproven / Waiting on authorize-decision" and the rail read "This run stopped
+with an error". Measured live: `rar-exceeded` → `authorize: False`, while
+`rogue-actor` and `cross-owner-account` → `authorize: True` (those reach P1AZ
+through the BFF preflight, not the gateway).
+
+**What was fixed:** `_gatewayExchangeTarget` mirrors the production Exchange #2
+recipe in `agentMcpTokenService` — behind PingGateway, mint the coarse invoke
+scope for the PingGateway resource URI passed as a ONE-ELEMENT ARRAY (PingOne
+honors RFC 8707 `resource=` and silently ignores `audience=`; a string maps to
+the latter). Flag off, the Node-gateway audience and tool scopes are unchanged.
+
+**Do not break:** the sims must keep using the same audience AND scope recipe as
+the real chip flow. A sim that mints tool scopes behind PingGateway is refused
+before any policy runs, and the canonical-code relabeling hides it — the sim
+still "passes". This is the scope sibling of the 2026-07-10 audience-drift bug;
+both guards live in `tests/attackSimExchangerParity.test.js`.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/attackSimExchangerParity.test.js --testPathIgnorePatterns="/node_modules/" --forceExit`.
+End-to-end (requires this code running in the stack, i.e. after merge +
+`docker restart demo-api-server`): `POST /api/demo/attack-sim/run {"sim":"rar-exceeded"}`
+must return `authorize: true` with a PingOne Authorize RarMaxAmount decision,
+and `/use-cases/live` UC14 must show ProofStrip "Verified (as expected)".
+
+### 2026-07-27 — MCP first-tool gate opted out of CIBA HITL amount-binding (escalation via bearer receipt)
+
+**Files changed:** `demo_api_server/services/mcpToolAuthorizationService.js`,
+`demo_api_server/services/hitlCredit.js`,
+`demo_api_server/src/__tests__/mcpToolAuthorization.hitlAmountBind.test.js` (new),
+`demo_api_server/src/__tests__/hitlCredit.test.js`.
+
+**What was broken:** `#883` amount-bound `hitlCredit.isFresh(session, { amount })` on
+the REST path (`routes/transactions.js`), but the MCP first-tool gate called
+`isFresh(req.session)` with no amount — the documented "opt out". For write tools
+the gate already had `toolAmount`, then minted a `cibaTransactionReceipt` keyed by
+that **request** amount. Trigger: CIBA-approve $50 → agent retries
+`create_transfer` $300 → MCP gate discharged HITL unbound, recorded a $300
+receipt → bearer `/api/transactions` consumed it and completed the larger write.
+The amount-binding invariant from `#883` was bypassed on the agent/MCP path.
+
+**What was fixed:** Pass `{ amount: toolAmount }` into `isFresh` when the write tool
+carries a finite amount; only record a bearer receipt after that amount-bound check
+passes. Non-write tools (no amount) still omit amount for tool-level HITL consent.
+
+**Do not break:** DENY > STEP_UP > HITL precedence; unbound credit when
+`hitlApprovedAmount` is null; REST path amount binding; consume-on-use at the HITL
+gate site; receipt mechanism when request amount ≤ approved.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+src/__tests__/mcpToolAuthorization.hitlAmountBind.test.js
+src/__tests__/hitlCredit.test.js
+--testPathIgnorePatterns="/node_modules/|/tests/real/" --forceExit` (11/11).
+### 2026-07-27 — RAR demo (UC14b/UC14): quick chat result toggle + fail chip + full request/response in the Token Chain
+
+**Files changed:** `demo_api_ui/src/config/demoUseCaseSteps.js` (UC14 added
+to `DEMO_PRIMARY_USE_CASE_IDS`, now 20 steps), `demo_api_ui/src/components/DemoStepsDropdown.jsx`
+(UC14b-only "Q"/"F" toggle, persisted via `rar_intent_quick_result`),
+`demo_api_ui/src/components/AIAgent.js` (`handleDemoStepSelect` "link" branch
+grows a quick-result path for UC14b), `demo_api_ui/src/components/AIAgent.css`
+(`.ba-demo-steps-popout__rar-toggle`), `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`
+("intent-binding" step gains `request`/`response` JSON blocks),
+`demo_api_server/services/attackSimulatorService.js` (`_runRarPermit`'s
+`intent-binding-verified` event and `_runRarExceeded`'s `sim-rar-grant` event
+now carry the real `create_transfer` request/response payloads).
+
+**Not a bug fix** — a feature addition, logged here (not just in a PR
+description) because it touches the intent-binding/Token-Chain routing that
+has 3 prior entries in this log (2026-07-18 ×2, 2026-07-21) for exactly this
+code path.
+
+**What was added:** UC14b ("PAR intent verified") previously only navigated
+away to `/intent-binding-learning` when run from the AI Agent's Demo Steps
+dropdown — no inline result, no request/response evidence anywhere. UC14
+("PAR intent violation", the DENY counterpart) existed in the backend catalog
+but was never listed in `DEMO_PRIMARY_USE_CASE_IDS`, so it never appeared in
+that dropdown at all. Now: UC14b has a toggle between the original full-page
+behavior and a new "quick result" mode that runs `POST
+/api/demo/intent-binding/run` inline (same chat + Token Chain wiring the
+`trigger.type === "attack"` branch already used) with no navigation; UC14 is
+a visible sibling row using its existing attack-sim path unchanged. The
+"Intent Binding Check" Token Chain step (pre-existing, `buildTraceSteps.js`)
+now renders the real `create_transfer` request and its response/deny detail
+as JSON, via the same `detail.request`/`detail.response` mechanism the
+`gateway` step already uses — no new step type.
+
+**Do not break:** `_denyFromGateway` / `_authorizeFromGatewayError` were NOT
+touched (shared by the other 7 attack sims, explicitly protected in this
+log's 2026-07-18 entry below). The DENY-side request block is sourced from
+the sibling `sim-rar-grant` event — `buildSimRailEvents` (simTraceAdapter.js)
+renames that event to `rar-authorization` on the attack-sim path, so the
+lookup in `buildTraceSteps.js` matches BOTH ids; matching only the raw id
+would silently drop the request block for every UC14 run through the Demo
+Steps dropdown / `/use-cases/live` attack-sim path. `LiveUseCaseWorkbenchPage.js`'s
+own UC14/UC14b cards (`/use-cases/live`) and `IntentBindingLearningPage.js`
+itself are untouched — this only changes the AI Agent chrome's Demo Steps
+dropdown. A `data-testid` on a new UC14b-only button must NOT start with
+`demo-step-` — it collides with the `/^demo-step-/` row-enumeration regex
+several tests use (hit and fixed live during this change; landed as
+`uc14b-result-toggle`).
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+src/__tests__/attackSimulator.authorizeEvidence.test.js
+src/__tests__/attackSimulator.test.js --forceExit` (25 passed, 2 pending
+[live-API-gated]); `cd demo_api_ui && CI=true npm run test:unit` (282 files,
+2389 passed); `cd demo_api_ui && npm run build` (exit 0). Not yet
+live-verified in a browser — the running Docker stack bind-mounts the main
+checkout, not this worktree (see `project-docker-serves-main-checkout`);
+needs an isolated worktree-pointed stack to click through.
+
+### 2026-07-27 — In-page HITL consent never discharged the MCP-gateway/REST HITL gate, so a second consent prompt appeared after the first
+
+**Files changed:** `demo_api_server/services/transactionConsentChallenge.js`,
+`demo_api_ui/src/components/AIAgent.js` (unrelated ProofStrip fix, same session
+— see next entry), `demo_api_ui/src/pages/CibaApprovalPage.js` (unrelated
+phone-frame styling, same session).
+
+**What was broken:** `services/hitlCredit.js`'s session credit
+(`req.session.hitlVerified` / `hitlApprovedAmount`) is what
+`mcpToolAuthorizationService.js` (MCP gateway path) and
+`routes/transactions.js` (REST `POST /transactions`, line ~609) both read to
+skip their own independent HITL gate on the `isRefire` retry that follows any
+consent. Until this fix, **only `routes/ciba.js`** (CIBA out-of-band approval)
+ever wrote that credit. A user who satisfied the in-page
+`TransactionConsentModal` instead (consent-only, OTP, PingOne MFA, or
+Recognize — any of `transactionConsentChallenge.js`'s four confirm paths)
+got no credit at all, so the `isRefire` retry re-tripped the exact same HITL
+gate and opened a second, redundant consent challenge for the transaction
+they'd just approved. Live-reproduced on UC22 (banking, $150 transfer,
+consent-only tier): `[BFF→P1AZ]` showed `McpFirstTool` PERMIT+HITL, then a
+`transactionConsentChallenge` create+confirm round (`Acr: Agent-Consent-Login`)
+— and a second identical round on retry, since `mcpToolAuthorizationService.js`
+still saw `hitlAlreadyVerified: false`.
+
+**What was fixed:** added `_grantHitlCredit(req, ch)` to
+`transactionConsentChallenge.js` — the same stamp `routes/ciba.js` already
+performs on CIBA approval (`hitlVerified` + amount-bound
+`hitlApprovedAmount`) — called at all four places a challenge reaches
+`status: 'confirmed'`: the consent-only branch of `confirmChallenge`,
+`verifyOtp`, `verifyMfa`, and `verifyRecognize`.
+
+**Do not break:** `_grantHitlCredit` only WRITES the credit; it does not
+change any existing read/consume site (`mcpToolAuthorizationService.js`'s
+`hitlAlreadyVerified`, `routes/transactions.js` line 609's amount-bound
+`isFresh` check, or `hitlCredit.consume()`'s single-use semantics) — a
+credit minted here is spent exactly like a CIBA-minted one. Do not add an
+amount-unbound stamp here without a reason; `ch.snapshot.amount` is always
+available on a real challenge, so binding it is strictly safer than CIBA's
+`pending.amount ?? null` fallback.
+
+**Verify:** `CI=true npx jest src/__tests__/transactionConsentChallenge.test.js
+src/__tests__/transaction-flows.test.js src/__tests__/transactions.authorization.test.js
+src/__tests__/transferHitlIntegration.test.js src/__tests__/hitlRoute.integration.test.js
+src/__tests__/hitlRoute.regression.test.js src/__tests__/hitlPingOneMfa.integration.test.js
+src/__tests__/recognizeConsent.regression.test.js src/__tests__/step-up-gate.test.js
+src/__tests__/ciba.test.js src/__tests__/cibaService.test.js src/__tests__/mcpToolAuthorizationService.test.js
+src/__tests__/mcpToolAuthorization.amountFromRecord.test.js --testPathIgnorePatterns="/node_modules/"`
+(11+2 suites, 255 tests, all pass); `CI=true npm run test:unit` (91 pass).
+Not yet re-verified live end-to-end (the live repro that found this logged
+the demo account out mid-session — see the ciba-poll entry below for that
+same-session hazard).
+
+### 2026-07-27 — ProofStrip showed "Incomplete — Waiting on ciba-poll" forever after a CIBA-approved resume
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`
+(`pollCibaThenResumeNl`), `demo_api_ui/src/pages/CibaApprovalPage.js`,
+`demo_api_ui/src/pages/CibaApprovalPage.css` (new).
+
+**What was broken:** `routes/ciba.js` stamps CIBA approval with a
+`ciba-poll` token-chain event, but that event lives in
+`services/tokenChainService.js`'s per-user store, which
+`routes/agentInvokeRoute.js` never re-reads into a response's `tokenEvents`
+(`req.tokenEvents` is built fresh per request). The resumed
+`sendAgentMessage()` call also calls `tokenChainTraceStore.beginTrace()` at
+its start, which only carries forward session-scoped events
+(`user-token` etc.) — not `ciba-poll`. So the client-side trace ProofStrip
+reads from never contains `ciba-poll`, and `computeVerdict()`
+(`ProofOfEnforcementContext.js`) always reports it as a missing step —
+"Incomplete" regardless of whether the underlying transfer actually
+succeeded.
+
+**What was fixed:** `pollCibaThenResumeNl`'s approved branch now calls
+`tokenChainTraceStore.ingestTokenEvent({id: 'ciba-poll', ...})` itself,
+right after the resumed `sendAgentMessage()` call (i.e. after that call's own
+`beginTrace()` has already run), so the event lands in the trace this
+resumed turn is building instead of the one that just got discarded. Also
+restyled `CibaApprovalPage.js`'s popup as a phone frame (notch, rounded
+bezel, home-indicator, portrait 320×600 via a new `className="ciba-phone-
+modal"` on `DraggableModal`) and widened the three `window.open()` popup
+calls in `AIAgent.js` to 440×760 so it isn't clipped.
+
+**Do not break:** the `ciba-poll` event this stamps is a client-side display
+marker only — it carries no real token/claims (see `routes/ciba.js`'s own
+comment on why a fake token in this position is safe: never stored in
+`req.session.oauthTokens`). Don't confuse it with the real server-recorded
+event of the same id in `tokenChainService.js`; they're for different
+consumers. The phone-frame CSS targets `.ciba-phone-modal` only —
+`DraggableModal`'s own drag/resize/close/pop-out behavior is untouched.
+
+**Verify:** `demo_api_ui` vitest — 281 files / 2383 tests pass (including
+`AIAgent.cibaStepUp.test.js` and both `CibaApprovalPage.test.js`/`.test.jsx`);
+`npm run build` exits 0. Not yet visually confirmed live in a browser — the
+live repro session hit the shared-demo-account single-session hazard before
+this could be checked; the phone-frame CSS and the ciba-poll ingest are
+build/unit-verified only.
+
+### 2026-07-27 — PingOne Authorize API Access Management (AAM) had no trace, no simulated mode, and no flag
+
+**Files changed:** `ping-gateway/config/routes/04-aam-api-access.json`,
+`ping-gateway/scripts/groovy/aam-sideband-capture.groovy` (new),
+`ping-gateway/scripts/groovy/aam-trail-stamp.groovy` (new),
+`demo_authz_server/routes/sideband.js` (new), `demo_authz_server/index.js`,
+`demo_api_server/routes/aamProbe.js` (new),
+`demo_api_server/services/mcpGatewayClient.js`,
+`demo_api_server/services/configStore.js`,
+`demo_api_ui/src/components/TokenChainDisplay.js`,
+`ping-gateway/README.md`.
+
+**What was broken:** PR #1025 added the stock `PingAuthorizeFilter` on a
+new `/aam` route (a second, coarse-grained PingOne Authorize capability
+alongside the existing `p1az-decision.groovy` decision-endpoint path). It
+enforced correctly but was invisible: `PingAuthorizeFilter` consumes the
+Sideband request/response internally and exposes only 200/403, so nothing
+reached the token chain. It also had no mock backend (undemoable without a
+live PingOne environment) and no way to turn it off.
+
+**What was fixed:** `sidebandHandler` — a `PingAuthorizeFilter` config
+property typed as a Handler reference we own — hosts
+`aam-sideband-capture.groovy`, which retargets the call (real PingOne vs
+`demo_authz_server`'s new `/sideband/request` + `/sideband/response` mock,
+switched by `X-Authz-Simulated`, same pattern as `P1AZ_MOCK_BASE` /
+`P1AZ_REAL_BASE`) and captures the exchange with `Authorization` redacted at
+capture. `aam-trail-stamp.groovy` wraps `PingAuthorizeFilter` (not follows
+it — a deny short-circuits downstream filters) and stamps
+`X-Gw-Audit-Trail` with an `aam` section, reusing the existing header
+`p1az-decision.groovy` already populates. `GET /api/aam/probe` is the only
+new BFF surface: `/aam` is called directly by clients, so without it
+nothing in the BFF ever sees the trail. The UI renders a `gw-aam` event in
+`TokenChainDisplay.js` alongside `gw-authorize`, not instead of it — AAM
+sees only method/path/headers/client IP, the fine-grained per-tool
+decision still runs behind it. `ff_aam` (default `true`) gates whether AAM
+runs at all.
+
+Two IG-specific traps, both now documented in the route/script comments and
+the design spec: `streamingEnabled: true` (global) means reading the
+Sideband entity from a `ScriptableFilter` blocks a Vert.x event-loop thread
+— the request hangs (curl exit 28) rather than failing fast — fixed with a
+`CaptureDecorator` scoped to this route only (`/mcp` untouched). And the
+Sideband API has two endpoints: `/sideband/request` decides, and on
+**allow only** the gateway posts the backend's answer to
+`/sideband/response`; a mock missing that leg produces a 404 "from the
+Sideband API" on allow while deny keeps working.
+
+**Do not break:** No existing route, heap object, or `p1az-decision.groovy`
+line is modified — AAM is additive. The `/mcp` routes keep enforcing
+through the decision-endpoint path regardless of `ff_aam`.
+
+**Verify:** Live against real PingOne (env `01d89b06`), isolated container,
+running stack never repointed: DENY (`decision=DENY backend=real`,
+`response_code "401"`) and, via the mock, both PERMIT (`200`,
+`{"service":"banking_mortgage_service"}`) and DENY (`403`) with the
+Sideband JSON captured and `Authorization: <redacted>`; 11/11 routes load,
+0 build errors, 0 `Thread blocked`; `/health` 200 and `/mcp` no-token 401
+unchanged. `demo_authz_server` sideband 9/9 (211/217 full suite — the 6
+failures are a strict subset of 14 failing on a clean `origin/main`
+baseline). `aamProbe` 8/8, `ffAam` 4/4, `gw-aam` chain 9/9.
+`npm run topology:verify` PASSED; UI `test:unit` 278 files / 2365 passed;
+`npm run build` exit 0.
+
+### 2026-07-27 — Landing page "Use Cases" button sent signed-out visitors through the admin login, landing them on the admin dashboard instead of the customer use-cases page
+
+**Files changed:** `demo_api_ui/src/components/LandingPage.js`.
+
+**What was broken:** the 2026-07-26 fix to `handleUseCases` (see below) made it
+"mirror `handleAdminDashboard`" — but `handleAdminDashboard`'s redirect target,
+`/api/auth/oauth/login`, is the **admin** OAuth route (`routes/oauth.js`). A
+signed-out visitor clicking "Use Cases" authenticated through the admin flow,
+then landed on the admin `Dashboard` (root `/` renders `Dashboard` when
+`user?.role === "admin"`) instead of `/use-cases/live`. `handleAdminDashboard`
+using that route is correct; `handleUseCases` copying it was not.
+
+**What was fixed:** `handleUseCases`'s signed-out branch now hits the
+end-user OAuth route with a return path — `/api/auth/oauth/user/login?return_to=/use-cases/live`
+— matching the existing `return_to` convention used by
+`PingOneTestPage.jsx`/`TokenExchangeTesterPage.jsx`. `routes/oauthUser.js`
+already supports `return_to` (`sanitizePostLoginReturnPath`); no server change
+needed.
+
+**Do not break:** don't point `handleUseCases`'s signed-out branch back at
+`/api/auth/oauth/login` (admin route) — that reintroduces this bug. Don't
+change `handleAdminDashboard`, which correctly uses the admin route.
+`handleCustomerDashboard` has its own unrelated unconditional-`navigate` shape
+(noted in the 2026-07-26 entry below) — still out of scope here.
+
+**Verify:** `cd demo_api_ui && npm run build` (0). Live: signed out, click
+"Use Cases" → PingOne end-user `/signon` → after login, lands on
+`/use-cases/live`, not `/` or the admin dashboard.
+
+### 2026-07-27 — Token Chain step card: "More Education" on the Agent Gateway hop opened P1AZ, and its actions did not read as clickable
+
+**Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`,
+`demo_api_ui/src/components/TokenChainTraceRail.css`,
+`demo_api_ui/src/components/TraceStepCard.jsx`,
+`demo_api_ui/src/components/PingOneAuthorizePage.jsx`,
+`demo_api_ui/src/components/AgentGatewayTester.jsx`,
+`demo_api_ui/src/services/inspectorReplay.js` (new), plus
+`src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`.
+
+**What was broken:** the `gateway` step's `moreDetail.href` was the same literal
+`/pingone-authorize` as the `authorize` step's, so "More Education" on the Agent
+Gateway hop landed on the P1AZ page instead of the gateway inspector — and the
+old assertion in `buildTraceSteps.test.js` pinned that wrong value, so the bug
+was test-protected. Separately, `.tctr-inspect` rendered every step action
+(including the "Pop out full detail" button) at 11px with
+`text-decoration: none`, so nothing on the card read as clickable.
+
+**What was fixed:** gateway `moreDetail.href` → `/pinggateway-inspector`;
+`.tctr .tctr-inspect` → 13px, underlined with a hover/focus state. Added a replay
+path: `buildTraceSteps` now emits `detail.replay` on the `authorize` step (the
+actual P1AZ decision parameters) and the `gateway` step (the actual MCP tool +
+arguments from `mcpResult.requestJson`); `TraceStepCard` renders a separate
+"→ Replay in …" button that stashes the payload via `services/inspectorReplay.js`
+(`?replay=<id>` in the URL) and opens the inspector, which consumes it once and
+re-runs the call.
+
+Three further defects were found only by driving the real browser — all three
+looked correct in unit tests and in the served CSS/JS:
+
+1. **The font-size never applied to the buttons.** PingOne's `end-user-nano`
+   sheet ships `.end-user-nano button { font-size: inherit }`; `(0,1,1)` beats a
+   lone `.tctr-inspect`, so every button action inherited the 12px step body
+   while only the `<a>` variants took our size. Hence the `.tctr` scope.
+2. **The handoff never arrived.** It used `sessionStorage`, but the inspector
+   opens via `window.open(..., "noopener")` and a noopener context starts with a
+   **fresh sessionStorage** — the tester loaded on the right tab and sat on
+   "Select a tool from the tree". Now `localStorage` + an age sweep.
+3. **The P1AZ hand-off was consumed and thrown away.** Reading the one-shot
+   payload on mount and parking it in state lost it whenever the route remounted
+   before the endpoint list arrived; and `EvaluatePanel`'s endpoint-change reset
+   fires *again* once `autoPreset` settles, wiping the staged `pendingTest`.
+   Now consumed only when `selectedId` is set, and guarded by `replayPendingRef`
+   until the evaluation reports back through `onEvaluated`.
+
+**Do not break:** `consumeReplay` must stay one-shot (it deletes the key on
+read) — a page refresh must not re-fire a live gateway tool call. Keep the
+storage as `localStorage`, keep the `.tctr` scope on the action styles, keep the
+P1AZ consume gated on `selectedId`, and keep `replayPendingRef` guarding
+`clearPendingTest`. Keep the two `moreDetail.href` values distinct — a shared
+constant would re-create the original bug.
+
+**Verify:** `cd demo_api_ui && npm run test:unit` (2357 pass, 24 skipped; the 1
+failure is a pre-existing `TransactionConsentModal.declineScope` flake under
+full-suite parallelism — passes in isolation) and `npm run build` (exit 0).
+Live: `PLAYWRIGHT_BASE_URL=https://local.ping-devops.com:4444 npx playwright test
+tests/e2e/tokenchain-replay.real.spec.js --config=playwright.real.config.js`
+— 5 passed against the running stack.
+Revert-to-RED: restore `/pingone-authorize` on the gateway step and
+`buildTraceSteps.test.js` "gw-authorize parameters + rawResponse render full
+request/response and moreDetail link" fails.
+
+### 2026-07-27 — Scope audit: Holdings A2A chain half-wired; SSOT under-documented live A2A gateway scopes; non-canonical scope spellings in enforcement/metadata
+
+**Files changed:** `scope-topology.json`, `docs/scope-topology.md` (regenerated),
+`demo_api_server/services/configStore.js`, `demo_api_server/routes/pingoneTestRoutes.js`,
+`demo_api_server/scripts/bootstrapPingOne.js`, `demo_api_server/package.json`,
+`demo_api_server/src/__tests__/scopeTopology.regression.test.js`,
+`demo_mcp_gateway/src/server/GatewayServer.ts`, `demo_mcp_server/src/server/HttpMCPTransport.ts`,
+`scripts/rebuild-pingone.sh`; deleted `demo_api_server/services/oauthScopeValidator.js` (zero consumers),
+`scripts/fix-pingone-scopes.{sh,py}` + `demo_api_server/scripts/cleanupPingOneApps.js` (stale pre-rename
+name lists; the fix scripts wrote legacy `banking:*` scopes).
+
+**What was broken:** `sensitive_investment_holdings` had no `a2aDelegatedScope`, the Holdings
+Specialist resource was missing from `provisioning.resourceNames`, and the SSOT's A2A MCP Gateway
+resource omitted the four delegated scopes (`records:read`, `tax:read`, `finaid:read`, `supplier:read`)
+that live PingOne actually carries — so the manifest was wrong in both directions and the live tenant
+is still missing `holdings:read` + the Holdings app rename. The enduser RFC 8707 allowlist in
+`configStore.buildAllowedScopesByAudience` listed only flat legacy names (`admin`, `sensitive`,
+`ai:agent`) — canonical `admin:*`/`sensitive:read`/`ai:agent:read` were silently stripped on narrowing.
+`mcp_pinggateway_url` default pointed at the OrbStack-reserved port `:3006`. `pingoneTestRoutes`
+defaulted `ENDUSER_AUDIENCE` to `agentgateway.ping.demo`.
+
+**What was fixed:** SSOT documents the verified live truth (A2A gateway scopes, specialist
+`grantedScopes` incl. `holdings:read`, Holdings rename-map entry, `pinggateway:invoke` alias);
+allowlist edits are ADDITIVE (flat legacy names retained — UI `DEFAULT_AGENT_MCP_ALLOWED_SCOPES`
+still sends them); gateway/mcp-server scope metadata unified to canonical spellings; recreate/wipe
+name lists now cover all A2A apps+resources. Five new gate tests (audit hardening block) —
+revert-to-RED verified: restoring the old SSOT fails 2 of them.
+
+**Do not break:** keep the flat legacy scope names in the enduser allowlist alongside canonical ones;
+`a2aDelegatedScope` values must stay present on the `Super Banking A2A MCP Gateway` resource scopes;
+never collapse A2A specialist scopes to bare `read`.
+
+**Verify:** `npm run topology:verify` (exit 0) · `cd demo_api_server && CI=true npm run test:unit`
+(91/91) · after live provisioning: `npm run verify:scopes -- --manifest-diff` must be clean.
+
+### 2026-07-27 — Gateway's 401 crashed into a 500 once signature verification was switched on
+
+**Files changed:** `demo_mcp_gateway/src/server/GatewayServer.ts`,
+`demo_mcp_gateway/tests/wwwAuthenticateHeaderSafety.test.ts` (new).
+
+**What was broken:** `sendUnauthorized` folded quotes but not control
+characters. Validator messages are multi-line (`tokenValidator.ts` builds
+multi-line templates; jose/jsonwebtoken embed newlines in signature errors), so
+`res.writeHead` threw `ERR_INVALID_CHAR` and a correct 401 surfaced to the
+client as a 500 `internal_server_error` — losing both the status and the
+`resource_metadata` hint RFC 9728 discovery depends on. MCP clients that
+re-authenticate on 401 see a server error instead.
+
+This was unreachable while the gateway accepted every token: it ran decode-only
+because `tokenValidator.ts` read `PINGONE_JWKS_ENDPOINT` while the stack only
+ever set `PINGONE_JWKS_URI`. **#1012 fixed that name mismatch** (accepting
+`PINGONE_JWKS_URI` as an alias), which turns signature verification on — and
+makes this crash reachable in the running stack. Found by enabling JWKS against
+live PingOne via a throwaway compose overlay: a forged HS256 token carrying
+correct `iss`/`aud`/`scope` was correctly rejected, then the 401 crashed on the
+way out and the client got `{"error":"internal_server_error"}`.
+
+**What was fixed:** header descriptions now go through the exported
+`sanitizeHeaderDescription` — strips CR/LF/tab and non-ASCII, folds quotes so
+the message cannot break out of its auth-param, caps at 300 chars.
+
+**Do not break:** keep `sanitizeHeaderDescription` between any validator
+message and a header value. The test imports the real exported function rather
+than a copy, so it cannot pass while production drifts. No compose change is
+needed for JWKS after #1012 — the alias resolves the already-present
+`PINGONE_JWKS_URI`; do not re-add a `PINGONE_JWKS_ENDPOINT` line.
+
+**Verify:** `cd demo_mcp_gateway && npm run build` (exit 0) and `npm test` —
+failures byte-identical to an untouched main checkout, plus 6 new passing
+(`tests/vault.test.ts` additionally needs `demo_api_server/node_modules`
+symlinked inside a worktree or it fails to run on missing `argon2`).
+Revert-to-RED: drop the control-character strips from
+`sanitizeHeaderDescription` and 3 of the 6 header tests fail.
+NOT verified live: that the rejection now returns a clean 401 rather than 500 —
+that needs a gateway image rebuild, since the gateway bakes its code.
+
+### 2026-07-27 — ProofStrip claimed "then permitted" after the user declined the step-up gate
+
+**Files changed:** `demo_api_ui/src/context/ProofOfEnforcementContext.js`,
+`demo_api_ui/src/services/tokenChainTrace/tokenChainTraceStore.js`,
+`demo_api_ui/src/components/TransactionConsentModal.tsx`, plus tests in
+`src/context/__tests__/ProofOfEnforcementContext.test.js` and
+`src/components/__tests__/TransactionConsentModal.declineScope.test.jsx`.
+
+**What was broken:** Declining a high-value transfer rendered a green
+ProofStrip reading "Step-up MFA required as expected — then permitted", right
+below the chat's own "Transaction declined. The transaction was not completed."
+The decline was never recorded anywhere the verdict could see: the trace ended
+at `authorize.outcome === 'STEP_UP'`, `computeVerdict` scored that as the
+expected gate, and "then permitted" was a hardcoded literal — an assumption, not
+an observation.
+
+**What was fixed:** `tokenChainTraceStore` gained `approvalOutcome` +
+`ingestApprovalDeclined()`; `TransactionConsentModal.handleDenialConfirm` calls
+it (one site — every parent routes its decline through there); `computeVerdict`
+reports "you declined, so the transaction was not completed" for a declined
+STEP_UP / HITL_REQUIRED gate.
+
+**Do not break:** The state stays `denied-as-expected` (green ✅) — enforcement
+did its job, the gate held. Only the result wording changes. An approved gate
+must still read "then permitted" (pinned by test).
+
+**Verify:** `cd demo_api_ui && npx vitest run
+src/context/__tests__/ProofOfEnforcementContext.test.js
+src/components/__tests__/TransactionConsentModal.declineScope.test.jsx`
+
+### 2026-07-27 — Passkey step-up dead-ended when the credential lived on another device; SMS had no registration path on the dashboard
+
+**Files changed:** `demo_api_ui/src/components/OtpStepUpModal.js`,
+`demo_api_ui/src/components/Fido2Challenge.js`,
+`demo_api_ui/src/components/UserDashboardPing2026.js`,
+`demo_api_ui/src/components/__tests__/OtpStepUpModal.fidoAssertion.test.jsx`,
+`demo_api_ui/src/components/__tests__/Fido2Challenge.registerOffer.test.jsx` (new).
+
+**What was broken:** A FIDO2 device on the PingOne **account** does not mean the
+credential exists on **this** device — a passkey saved to a phone reports the
+same `NotAllowedError`. Both step-up surfaces treated that as terminal:
+`OtpStepUpModal`'s recovery branch was gated on `!fidoEnrolled` (false whenever
+any FIDO2 device is registered), so it fell through to "Passkey verification
+failed. Try another method."; `Fido2Challenge` reported "cancelled or timed
+out" and called `onError`, which the dashboard uses to close the overlay.
+Separately the dashboard's Set Up MFA modal offered only Email OTP and Passkey —
+there was no way to register SMS from it, though `/enroll/sms-init` and
+`/enroll/sms-complete` already existed.
+
+**What was fixed:** `NotAllowedError` (or "No credential") now routes to a
+`passkey-register-offer` step in `OtpStepUpModal` regardless of `fidoEnrolled`,
+offering local registration plus "Choose another method". `Fido2Challenge`
+takes an optional `onRegisterPasskey`; when supplied it renders the offer
+inline and **returns without calling `onError`** (calling it would close the
+overlay and destroy the offer) — without the prop the old fail-out is
+unchanged. The dashboard passes that prop to reopen its enroll modal, which now
+also carries an SMS phone → activation-code sub-flow.
+
+**Do not break:** `Fido2Challenge` must not call `onError` on the
+offer-registration path — the dashboard's `onError` unmounts the component.
+Keep the `onRegisterPasskey`-absent branch failing out as before; a test covers
+that control. Do not restore the `!fidoEnrolled` gate: it is precisely what made
+a cross-device passkey unrecoverable.
+
+**Verify:** `cd demo_api_ui && npm run test:unit` (2345 pass; the 1
+`adminSideNav.test.jsx` failure is pre-existing and reproduces on an untouched
+main checkout) and `npm run build` (exit 0). `npx biome check` on the three
+changed components reports 60 errors / 15 warnings — byte-identical to `HEAD`,
+so no new lint debt. Revert-to-RED verified for both behaviors: restoring the
+`!fidoEnrolled` gate fails the OtpStepUpModal offer test, and disabling the
+`Fido2Challenge` branch fails its offer test while the control test stays green.
+SMS enrollment was verified live against PingOne with a real number:
+`/enroll/sms-init` returned `status: "ACTIVE"` immediately (worker-token enroll),
+so in this environment the `ACTIVE`/`ENABLED` short-circuit is the path that runs
+and no activation code is issued. The phone → activation-code sub-step is the
+fallback for environments where PingOne returns an activation-required status;
+that branch is not exercised here. Test device was deleted afterwards (204).
+
+### 2026-07-27 — Step-up passkey (FIDO2) verification never reached the browser: options decoder rejected PingOne's real byte-array shape
+
+**Files changed:** `demo_api_ui/src/components/OtpStepUpModal.js`,
+`demo_api_ui/src/components/__tests__/OtpStepUpModal.fidoAssertion.test.jsx` (new).
+
+**What was broken:** `handleFidoAssertion` decoded the WebAuthn challenge with
+its own local `b64ToBytes`, which threw `Invalid base64url string` on anything
+that is not a string. Live PingOne (env 01d89b06) returns
+`publicKeyCredentialRequestOptions` as a JSON **string** whose `challenge` and
+`allowCredentials[].id` are signed **byte arrays** — captured live as
+`challengeType: "array(32)"`. So the step-up passkey path threw before
+`navigator.credentials.get()` was ever called, and the catch reported the
+generic "Passkey verification failed. Try another method." The recovery branch
+did not fire either: it is gated on `!fidoEnrolled`, which is false whenever the
+user already has a FIDO2 device registered server-side.
+
+**What was fixed:** `handleFidoAssertion` now calls
+`normalizePublicKeyRequestOptions` from `utils/passkeyCeremony` — the same
+array-tolerant helper `Fido2Challenge.js` already uses on the live-proven
+dashboard path — which JSON-parses the string form and decodes both base64url
+and signed-byte-array shapes. The local duplicate decoder was removed.
+
+**Do not break:** the outgoing assertion encoding stays **base64url with no
+`origin` field**. That shape was live-verified end-to-end against PingOne
+(`status: "COMPLETED"`, `completed: true`); do not "align" it with
+`formatPublicKeyCredentialAssertion`'s standard-base64 + `origin` shape without
+re-testing, as the two paths legitimately differ. Only the *decode* was wrong.
+
+**Verify:** `cd demo_api_ui && npm run test:unit` (2342 pass; the 1
+`adminSideNav.test.jsx` failure is pre-existing and reproduces on an untouched
+main checkout) and `npm run build` (exit 0). Revert-to-RED: restore
+`OtpStepUpModal.js` from `HEAD` and
+`OtpStepUpModal.fidoAssertion.test.jsx` fails with the exact defect —
+`Error: Invalid base64url string`, `navigator.credentials.get` never called.
+
+### 2026-07-27 — Declining MFA left the agent dead-ended: only a browser reload restored it
+
+**Files changed:** `demo_api_ui/src/components/TransactionConsentModal.tsx`,
+`demo_api_ui/src/components/AIAgent.js`, `demo_api_ui/src/components/AIAgent.css`,
+`demo_api_ui/src/services/agentAccessConsent.js`,
+`demo_api_ui/src/components/UserDashboard.js`,
+`demo_api_ui/src/components/UserDashboardPing2026.js`,
+`demo_api_ui/src/components/__tests__/AIAgent.chips.test.js`,
+`demo_api_ui/src/components/__tests__/UserDashboardPing2026.test.js` (canary
+re-baseline), plus new `AIAgent.consentDeclineDismiss.test.js` and
+`TransactionConsentModal.declineScope.test.jsx`.
+
+**What was broken:** Two faults compounded. (1) `handleCancelClick` opened the
+"Confirm decline" dialog from ANY step — the modal's titlebar `✕`, Escape and
+backdrop route through it — so walking away from an expired OTP counted as
+declining high-value consent. (2) Confirming set
+`banking_agent_blocked_consent_decline` in `localStorage`, which disabled the
+chat input, chips and every action except logout, with no in-app way to clear
+it: the only clears were sign-out/sign-in or a successful consent (unreachable —
+the agent was disabled). A browser reload also cleared it, because `AIAgent`'s
+mount effect and `checkSelfAuth` call `setAgentBlockedByConsentDecline(false)`
+unconditionally — so the "not available for this session" copy was never true.
+
+**What was fixed:** Cancelling once identity proof has started (MFA / OTP /
+contact / enrollment sub-steps) now just aborts the transaction via `onClose` —
+only the consent review step can decline. The decline notice moved from a
+permanent `.ba-consent-denied-banner` flex child of `.ba-body` into a
+`DraggableModal` portal whose dismiss (button, `✕`, Escape) clears the block, so
+the agent is usable again without signing out. Decline copy updated in both
+dashboards and `AGENT_CONSENT_BLOCK_USER_MESSAGE` to match.
+
+**Do not break:** Declining at the review step must still deny the transaction
+and set the block (the HITL teaching moment). Server-side 428 enforcement in
+`services/transactionConsentChallenge.js` / `routes/transactions.js` is
+unchanged and must stay that way. The approve path (Agree & continue → confirm →
+MFA → OTP → verify) is untouched.
+
+**Verify:** `cd demo_api_ui && npx vitest run
+src/components/__tests__/TransactionConsentModal.declineScope.test.jsx
+src/components/__tests__/AIAgent.consentDeclineDismiss.test.js` then
+`npm run test:unit && npm run build`.
+
+### 2026-07-27 — Inspector "Form" output tab unreadable on MCP Inspector and PingGateway Inspector; PingOne Authorize had no Form tab
+
+**Files changed:** `demo_api_ui/src/components/McpInspectorPage.jsx`,
+`demo_api_ui/src/components/AgentGatewayTester.jsx`,
+`demo_api_ui/src/components/PingOneAuthorizePage.jsx`.
+
+**What was broken:** The Form output tab (all four `McpInspectorPage`
+sources, plus `AgentGatewayTester`'s Tester tab) rendered `JsonFormView` —
+a flex-row label/value layout with its own font — inside
+`<pre className="inspector-shell-output-code">`, a wrapper built for raw
+JSON text (monospace font, `white-space: pre-wrap`, code-box padding/
+border/background). Every inherited property leaked onto the form's
+labels and rows, so the Form tab rendered as cramped monospace text
+instead of the intended label/value layout. `pingone-authorize` had no
+Form tab at all.
+
+**What was fixed:** Form tab now renders `JsonFormView` directly in
+`.inspector-shell-output-body`, outside the `<pre>` — the other output
+tabs (Response/Request/History/Result/Audit/Authorize/McpAudit) still
+render inside `<pre className="inspector-shell-output-code">` unchanged.
+Added a matching Form tab to `PingOneAuthorizePage`'s EvaluatePanel
+(Decision/Response/Request/Form), reusing `lastTrace.response`.
+
+**Do not break:** Non-form output tabs must keep rendering inside
+`inspector-shell-output-code` (JSON-highlight styling depends on it) —
+only the Form branch moves outside.
+
+**Verify:** `cd demo_api_ui && npm run build` (exit 0); Form tab on
+`/pingone-mcp-inspector` (all 4 sources), `/pinggateway-inspector?subtab=tester`,
+and `/pingone-authorize` renders as label/value rows, not a monospace
+code block.
+
 ### 2026-07-26 — Manager CIBA poll unbound from auth_req_id (cross-request approval)
 
 **Files changed:** `demo_api_server/routes/ciba.js`,
@@ -127,6 +880,184 @@ manager-approval poll branch treats a status decision as pending unless
 src/__tests__/ciba.managerApproval.test.js tests/delegationApproval.test.js
 --testPathIgnorePatterns="/node_modules/"`.
 
+### 2026-07-26 — Live Workbench control bar ate 280-350px of vertical space on short/small monitors, squeezing Demo script/Chat/Token Chain to a sliver
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/AIAgent.css`,
+`demo_api_ui/src/components/AgentModeSelector.css`,
+`demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.css`.
+
+**What was broken:** The split-column control bar (`.ba-hg` groups:
+Configuration / Demo controls / Inspectors / Session) rendered four
+full-width, generously-padded stacked boxes unconditionally — costing
+~280-350px of vertical chrome on any monitor. On a short browser window
+(~735px tall, a real small/non-maximized-monitor case) that left only
+~200-300px for the entire Demo script + Chat + Token Chain row, reading as
+tiny/cramped with `.luw-main`'s grey background dominating. Collapsing the
+left icon rail (horizontal chrome) did nothing, since the constraint was
+vertical. Live-measured breakdown of the excess: `ScopePicker.jsx` always
+rendered a `<p className="scope-picker__hint">` duplicating the exact text
+already in its own `title` tooltip (~59px for nothing); `AgentModeSelector`'s
+`.ams--compact` variant had more internal padding than its compact intent
+implied; `.ba-hg`/`.luw-topbar` padding and gaps were sized for a full
+settings page, not a toolbar.
+
+**What was fixed:** Merged the Inspectors and Session groups into one row
+(Inspector buttons stay gated inside `{splitChrome && ...}`, never leaking
+into the floating/flat widget mode), dropped the redundant "Demo controls"
+label, and moved group labels inline (`.ba-hg-label` from `flex: 1 1 100%`
+to `flex: 0 0 auto`). Hid `ScopePicker`'s duplicate hint paragraph when
+rendered inside `.ba-hg` (info still available via the existing `title`
+tooltip — same "hide long hint" pattern already used for
+`.ba-agent-popout-hdr`). Trimmed `.ams--compact` padding/select height
+(compact-mode only; the non-compact/full-settings usage is untouched).
+Tightened `.ba-hg`/`.ba-hg--demo` padding and `.luw-topbar`/
+`.luw-topbar__agent-tools` gaps.
+
+**Do not break:** Inspector buttons (`MCP Inspector`/`P1AZ Inspector`/
+`Agent Gateway Inspector`) must stay inside the `{splitChrome && (...)}`
+guard — they were never meant to render in the floating/flat widget mode,
+only in the Live Workbench's split-column header. `.ba-agent-popout-hdr`'s
+existing scope-picker overrides are untouched (separate context, different
+background color). `AgentModeSelector`'s base (non-`--compact`) styles are
+untouched — the trims are scoped under `.ams--compact` only.
+
+**Verify:** `cd demo_api_ui && npm run build` (0). Live-measured via a
+worktree dev server (`demo_api_ui/CLAUDE.md`-adjacent recipe: symlink
+`node_modules`/`certs`, `.env` with `REACT_APP_API_*`, serve on a spare
+port, browse `https://local.ping-devops.com:<port>` to reuse the BFF
+session): `.luw-topbar` height went from ~282px (no-wrap best case) to
+~154px at full width, and from ~348px to ~188px at a constrained
+1450×735px window. `npm run test:unit` has 49 pre-existing failures
+unrelated to this change (missing context providers, router-outside-
+`<Router>`, monospace/markdown regressions elsewhere) — confirmed none
+touch `AIAgent.js`/`.css`, `AgentModeSelector`, or
+`LiveUseCaseWorkbenchPage.js` (the latter untouched by this diff).
+
+### 2026-07-26 — /dashboard TopNav hidden until auth resolved; TopNav session actions clipped off-canvas at 769-1350px
+
+**Files changed:** `demo_api_ui/src/App.js`, `demo_api_ui/src/components/TopNav.css`,
+`demo_api_ui/src/components/UserMenu.js`.
+
+**What was broken:** (1) The `/dashboard` route wrapped the entire element —
+`TopNav` included — in `loading ? null : (...)`, so the nav bar didn't render
+until the auth check round-trip finished, even though `/dashboard` itself
+needs no auth (guests see demo data; the comment on that route says so).
+(2) `.topnav-right`'s children — `.topnav-right-scroll` (search/session
+controls, meant to shrink/scroll) and `.topnav-session-actions` +
+`.user-menu` (`flex-shrink: 0`, "always visible" per the existing comment
+protecting a prior "no way to logout" fix) — have no working responsive
+path between the (dead, unused) 768px hamburger breakpoint and ~1350px,
+where the content naturally fits. Below that, nothing shrinks, so
+`.topnav-session-actions`/`.user-menu` spill past the viewport and get
+invisibly clipped by an ancestor's overflow-x:clip. Reproduced live at
+1000-1250px on both `/dashboard` and `/use-cases/live` (page-agnostic, not
+specific to either route) — `Sign Out` and the user-menu avatar become
+unreachable. Two exploratory CSS-only fixes (`min-width`/`flex-shrink`
+tweaks on `.topnav-right`) each just moved the collapse elsewhere; reverted
+both — see history if revisiting.
+
+**What was fixed:** (1) Moved the `loading` gate in the `/dashboard` route
+down to only wrap the main content, so `TopNav` renders immediately.
+(2) `UserMenu`'s dropdown already had a working, always-reachable Sign Out
+and role-switch — but the switch entry was gated to `user?.role === 'admin'`
+only, so customers had no fallback. Removed that gate (`onSwitchView &&`
+instead of `user?.role === 'admin' && onSwitchView &&`) so it shows for any
+role. Then hid the wide `.topnav-session-actions` text-button pair below
+1350px (`@media (max-width: 1350px)`, placed *after* the base
+`.topnav-session-actions` rule — an earlier draft put it before, which lost
+to source order) since `UserMenu` now fully covers the same actions.
+
+**Do not break:** Don't remove the `user?.role === 'admin'` intent entirely
+from `UserMenu` — only the *gate* on showing the switch button changed; the
+label logic (`isAdminView ? 'Switch to Customer View' : 'Switch to Admin
+View'`) already handled both roles correctly and was untouched. Don't
+re-add `min-width: 0` to `.topnav-right` or set `flex-shrink: 0` there —
+both were tried live and each re-broke it a different way (collapse
+Sign Out to nothing, or make the whole cluster refuse to shrink and
+overflow anyway). The true mobile breakpoint (≲860px) still has a
+separate, pre-existing, unaddressed gap: the admin sidebar itself doesn't
+collapse, so TopNav clipping persists there too — that's out of scope for
+this fix, don't assume it's covered.
+
+**Verify:** `cd demo_api_ui && npm run build` (0). Live: at 1000-1250px,
+`.topnav-session-actions` computed `display: none`, `.user-menu`'s
+`getBoundingClientRect().right` stays inside the viewport; opening the user
+menu shows both "Switch to Admin/Customer View" (any role) and "Sign Out".
+Above 1350px the full-text buttons return with no clipping (no regression).
+
+### 2026-07-26 — Landing page "Use Cases" silently no-op'd for signed-out visitors, and the header overflowed instead of wrapping
+
+**Files changed:** `demo_api_ui/src/components/LandingPage.js`,
+`demo_api_ui/src/components/LandingPage.css`.
+
+**What was broken:** Two independent home-page defects, both reproduced live
+against the running stack. (1) `handleUseCases` always called
+`navigate("/use-cases/live")`; that route's guard in `App.js`
+(`user && appFlags.showUseCaseLauncher ? ... : <Navigate to="/" replace />`)
+silently bounced signed-out visitors straight back to `/` with zero feedback —
+the button looked completely dead. `handleAdminDashboard` already had the
+correct pattern (kick off `/api/auth/oauth/login` when there's no `user`) but
+`handleUseCases` never got it. (2) `.landing-header-actions` (the logged-out
+header's button row) had `flex-shrink: 0` and no `flex-wrap`, so at narrow
+viewports the 4 nowrap buttons (471px) exceeded the viewport and got clipped
+inside the sticky header instead of reflowing — "Use Cases" and "Setup"
+disappeared off the edge on resize.
+
+**What was fixed:** `handleUseCases` now checks `user` and redirects to
+`/api/auth/oauth/login` when signed out, mirroring `handleAdminDashboard`.
+`.landing-header-actions` gained `flex-wrap: wrap`, matching the existing
+`.landing-hero-actions` rule.
+
+**Do not break:** Don't revert `handleUseCases` to an unconditional `navigate`
+— that reintroduces the silent bounce-back for anonymous visitors.
+`handleCustomerDashboard` has the same latent unconditional-`navigate` shape
+but was out of scope for this report — do not assume it's fixed too.
+
+**Verify:** `cd demo_api_ui && npm run build` (0). Live: at width 390 the
+header actions row wraps onto its own line instead of clipping
+(`.landing-header-actions` scrollWidth/clientWidth both fit within the
+viewport, `flexWrap: wrap`); clicking "Use Cases" while signed out navigates
+to the PingOne `/signon` URL instead of silently returning to `/`.
+
+### 2026-07-26 — A vertical mismatch silently destroyed a user's accounts AND transaction history
+
+**Files changed:** `demo_api_server/services/verticalAccountSnapshots.js` (new),
+`demo_api_server/data/store.js`, `demo_api_server/routes/accounts.js`,
+`demo_api_server/services/demoAgentLangGraphService.js`,
+`demo_api_server/src/__tests__/verticalAccountSnapshots.test.js` (new).
+
+**What was broken:** Two sites reacted to a vertical mismatch by calling
+`dataStore.reseedUserForVertical()` — `routes/accounts.js` on an account read and
+`demoAgentLangGraphService.ensureAccountsForVertical()` on an agent dispatch. That
+function deletes **every account and every transaction** for the user, reseeds from the
+target vertical's profile, and `persistAllData()`. So an SE who had built up demo state
+mid-demo — transfers, HITL approvals, step-ups — lost all of it the moment anything
+touched accounts under a different vertical. HTTP 200, no error, no warning. It was also
+irreversible: `demoScenarioStore` held a single `accountSnapshot` slot per user, so the
+switch overwrote the only copy of what was there before.
+
+**What was fixed:** Reseeding is *also* how vertical switching works (you cannot show
+healthcare with banking accounts), so the fix makes the switch lossless rather than
+blocking it. `switchUserVertical()` snapshots the outgoing vertical's accounts +
+transactions under a per-vertical key (`verticalSnapshots[<id>]`), restores the incoming
+vertical's snapshot when one exists, and reseeds **only** when that vertical has never
+been visited. `currentSeededVertical` records which vertical the live rows belong to.
+Both call sites now go through it. The wipe itself was extracted to
+`dataStore.purgeUserFinancialData()` so restore and reseed share one implementation of
+the transaction-reference sweep.
+
+**Do not break:** Do not restore a snapshot without purging first — restoring on top of
+another vertical's rows produces the mixed-vertical state this path exists to prevent.
+Do not snapshot when the outgoing vertical is unknown (cold session): the rows are
+unattributable and filing them under the target corrupts that target's snapshot. Do not
+write an empty snapshot over a real one. The legacy single-slot `accountSnapshot` is
+still read by `restoreAccountsFromSnapshot` for cold-start recovery — leave it alone.
+
+**Verify:** `CI=true npx jest src/__tests__/verticalAccountSnapshots.test.js` (8 pass).
+Disable the restore branch in `switchUserVertical` and the "switching back RESTORES
+accounts and transactions" test must fail — that is the proof the round trip is lossless
+rather than merely non-throwing.
 ### 2026-07-26 — Chip path opened the MFA modal for CIBA-required step-up (CIBA bypass)
 
 **Files changed:** `demo_api_ui/src/services/demoAgentService.js`,
