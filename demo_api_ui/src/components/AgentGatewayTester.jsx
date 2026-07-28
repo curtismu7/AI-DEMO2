@@ -87,20 +87,76 @@ const ARG_PLACEHOLDER_BY_TYPE = {
   object: {},
 };
 
-const ACCOUNT_ID_PATTERN = /_?account_id$/i;
 const CAPTURED_VALUES_LIMIT = 20;
 
-/** {label, value} for each id-bearing account in a tool result's `accounts` array. */
-function extractCapturedValues(result) {
-  const accounts = result && Array.isArray(result.accounts) ? result.accounts : [];
-  return accounts
-    .filter((a) => a && a.id)
-    .map((a) => {
-      const digits = String(a.accountNumber || a.accountNumberFull || '').replace(/\D/g, '');
-      const last4 = digits.slice(-4);
-      const descriptor = a.accountType || a.name || 'account';
-      return { label: last4 ? `${descriptor} …${last4}` : descriptor, value: a.id };
-    });
+const DESCRIPTOR_FIELDS = ['accountType', 'name', 'product', 'provider', 'course', 'description', 'status'];
+
+/** Label like "checking …9876" or "Widget …rd-1" for a captured id-bearing item. */
+function labelFor(item, family) {
+  const digitsSource = item.accountNumber || item.accountNumberFull || item.id;
+  const digits = String(digitsSource).replace(/\D/g, '');
+  const tail = digits.length >= 4 ? digits.slice(-4) : String(item.id).slice(-4);
+  const descriptor = DESCRIPTOR_FIELDS.map((f) => item[f]).find((v) => typeof v === 'string' && v) || family;
+  return tail ? `${descriptor} …${tail}` : descriptor;
+}
+
+/** "accounts" -> "account", "maintenanceTickets" -> "maintenanceTicket", "policies" -> "policy". */
+function singularizeFamily(key) {
+  if (/ies$/i.test(key)) return `${key.slice(0, -3)}y`;
+  if (/s$/i.test(key) && !/ss$/i.test(key)) return key.slice(0, -1);
+  return key;
+}
+
+/** Scan an object's own array-valued properties for id-bearing items; tag each by container key. */
+function scanArrayFamilies(container) {
+  const out = [];
+  if (!container || typeof container !== 'object') return out;
+  for (const [key, val] of Object.entries(container)) {
+    if (!Array.isArray(val) || !val.length) continue;
+    const items = val.filter((v) => v && typeof v === 'object' && v.id);
+    if (!items.length) continue;
+    const family = singularizeFamily(key).toLowerCase();
+    for (const item of items) out.push({ family, label: labelFor(item, family), value: item.id });
+  }
+  return out;
+}
+
+/**
+ * Tools whose response is a single new record under a generic key, so the
+ * family can't be inferred from the key name alone (it's always bare "data",
+ * or for these pre-existing banking write tools, a fixed transaction field).
+ */
+const SINGLE_RECORD_PRODUCERS = {
+  checkout: [{ path: 'data', family: 'order' }],
+  book_appointment: [{ path: 'data', family: 'appointment' }],
+  register_course: [{ path: 'data', family: 'enrollment' }],
+  submit_expense: [{ path: 'data', family: 'expense' }],
+  create_deposit: [{ path: 'transaction', family: 'transaction' }],
+  create_withdrawal: [{ path: 'transaction', family: 'transaction' }],
+  create_transfer: [
+    { path: 'withdrawalTransaction', family: 'transaction' },
+    { path: 'depositTransaction', family: 'transaction' },
+  ],
+};
+
+/** {family, label, value} for every id-bearing item found in a tool result. */
+function extractCapturedValues(toolName, result) {
+  if (!result || typeof result !== 'object') return [];
+  const out = [];
+  const producers = SINGLE_RECORD_PRODUCERS[toolName];
+  if (producers) {
+    for (const { path, family } of producers) {
+      const item = result[path];
+      if (item && typeof item === 'object' && item.id) {
+        out.push({ family, label: labelFor(item, family), value: item.id });
+      }
+    }
+  }
+  out.push(...scanArrayFamilies(result));
+  if (result.data && typeof result.data === 'object' && !Array.isArray(result.data)) {
+    out.push(...scanArrayFamilies(result.data));
+  }
+  return out;
 }
 
 /** Fresh entries first, deduped by value against the existing list, capped. */
@@ -110,19 +166,62 @@ function mergeCapturedValues(existing, fresh) {
   return merged.slice(0, CAPTURED_VALUES_LIMIT);
 }
 
-/** Template args for a tool's required inputSchema properties; account_id-like keys autofill from the most recent captured value. */
+const DIRECTION_PREFIX = /^(from|to)_?/i;
+
+/** "account_id"/"from_account_id" -> "account"; "accountId"/"orderId" -> "account"/"order". */
+function familyFromKey(key) {
+  let m = key.match(/^(.+)_[Ii]d$/);
+  if (!m) m = key.match(/^(.+)Id$/); // camelCase only — capital "I" avoids false hits like "valid"/"paid"
+  if (!m || !m[1]) return null;
+  return m[1].replace(DIRECTION_PREFIX, '').replace(/_/g, '').toLowerCase();
+}
+
+// Bare-"id" vertical tools (mostly the government pack) carry no family hint
+// in the param name, so it's derived from the tool name's own entity noun.
+const VERB_PREFIXES = new Set([
+  'cancel', 'close', 'approve', 'reject', 'renew', 'dispute', 'submit', 'schedule',
+  'reschedule', 'void', 'reopen', 'flag', 'complete', 'release', 'put', 'escalate', 'expedite',
+]);
+
+function familyFromToolName(toolName) {
+  if (!toolName) return null;
+  const parts = toolName.split('_').filter(Boolean);
+  if (parts.length > 1 && VERB_PREFIXES.has(parts[0])) parts.shift();
+  return parts.join('').toLowerCase() || null;
+}
+
+function idFamilyForProperty(toolName, key) {
+  if (/^id$/i.test(key)) return familyFromToolName(toolName);
+  return familyFromKey(key);
+}
+
+function familiesMatch(a, b) {
+  if (!a || !b) return false;
+  return a === b || a.includes(b) || b.includes(a);
+}
+
+/** Most recent captured value whose family matches this schema property, if any. */
+function bestCapturedMatch(toolName, key, capturedValues) {
+  const wanted = idFamilyForProperty(toolName, key);
+  if (!wanted) return null;
+  return capturedValues.find((c) => familiesMatch(wanted, c.family)) || null;
+}
+
+/** Template args for a tool's inputSchema: required properties always present (captured-value-filled where a family matches, else type placeholder); optional properties included only when a captured value matches. */
 const buildArgsTemplate = (tool, capturedValues = []) => {
+  const properties = tool?.inputSchema?.properties || {};
   const required = tool?.inputSchema?.required || [];
-  if (!required.length) return '{}';
   const template = {};
-  const latestId = capturedValues[0]?.value;
   for (const key of required) {
-    if (latestId && ACCOUNT_ID_PATTERN.test(key)) {
-      template[key] = latestId;
-      continue;
-    }
-    const propType = tool.inputSchema.properties?.[key]?.type;
+    const match = bestCapturedMatch(tool?.name, key, capturedValues);
+    if (match) { template[key] = match.value; continue; }
+    const propType = properties[key]?.type;
     template[key] = propType in ARG_PLACEHOLDER_BY_TYPE ? ARG_PLACEHOLDER_BY_TYPE[propType] : '';
+  }
+  for (const key of Object.keys(properties)) {
+    if (key in template) continue;
+    const match = bestCapturedMatch(tool?.name, key, capturedValues);
+    if (match) template[key] = match.value;
   }
   return JSON.stringify(template, null, 2);
 };
@@ -310,7 +409,7 @@ export default function AgentGatewayTester() {
       const { data } = await apiClient.post('/api/mcp-gateway/test', { tool: selectedTool.name, args });
       setResp(data);
       setOutputTab('result');
-      const fresh = extractCapturedValues(data?.result ?? data?.rpcData);
+      const fresh = extractCapturedValues(selectedTool.name, data?.result ?? data?.rpcData);
       if (fresh.length) setCapturedValues((prev) => mergeCapturedValues(prev, fresh));
     } catch (e) {
       setResp({ clientError: formatAxiosError(e, 'Request failed') });
@@ -400,21 +499,12 @@ export default function AgentGatewayTester() {
         setChainResults([...results]);
         break;
       }
-      // buildArgsTemplate only prefills required properties; account_id-like
-      // *optional* filters (e.g. get_sensitive_account_details) still need the
-      // chain to carry the id forward, so fill any unset schema property here.
-      const latestId = liveCaptured[0]?.value;
-      if (latestId) {
-        for (const key of Object.keys(tool.inputSchema?.properties || {})) {
-          if (ACCOUNT_ID_PATTERN.test(key) && !(key in args)) args[key] = latestId;
-        }
-      }
       try {
         const { data } = await apiClient.post('/api/mcp-gateway/test', { tool: toolName, args });
         const ok = !data.clientError && data.ok !== false && data.result?.ok !== false;
         results.push({ tool: toolName, ok, data });
         setChainResults([...results]);
-        const fresh = extractCapturedValues(data?.result ?? data?.rpcData);
+        const fresh = extractCapturedValues(toolName, data?.result ?? data?.rpcData);
         if (fresh.length) {
           liveCaptured = mergeCapturedValues(liveCaptured, fresh);
           setCapturedValues(liveCaptured);
@@ -684,11 +774,14 @@ export default function AgentGatewayTester() {
                     onChange={(e) => {
                       const val = e.target.value;
                       if (!val) return;
+                      const entry = capturedValues.find((c) => c.value === val);
+                      if (!entry) return;
                       try {
                         const parsed = argsText.trim() ? JSON.parse(argsText) : {};
-                        const key =
-                          Object.keys(parsed).find((k) => ACCOUNT_ID_PATTERN.test(k)) ||
-                          (selectedTool?.inputSchema?.required || []).find((k) => ACCOUNT_ID_PATTERN.test(k));
+                        const schemaKeys = Object.keys(selectedTool?.inputSchema?.properties || {});
+                        const key = [...Object.keys(parsed), ...schemaKeys].find(
+                          (k) => familiesMatch(idFamilyForProperty(selectedTool?.name, k), entry.family),
+                        );
                         if (key) {
                           parsed[key] = val;
                           setArgsText(JSON.stringify(parsed, null, 2));
