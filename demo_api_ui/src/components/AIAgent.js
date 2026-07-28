@@ -4216,7 +4216,7 @@ export default function BankingAgent({
             const cibaTab = window.open(
               "",
               "ciba-approve",
-              "popup=yes,width=400,height=380,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
+              "popup=yes,width=440,height=760,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
             );
             try {
               const apiBase = process.env.REACT_APP_API_URL || "";
@@ -4898,7 +4898,7 @@ export default function BankingAgent({
           const cibaTab = window.open(
             "",
             "ciba-approve",
-            "popup=yes,width=440,height=720,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
+            "popup=yes,width=440,height=760,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
           );
           try {
             const apiBase = process.env.REACT_APP_API_URL || "";
@@ -7388,7 +7388,7 @@ export default function BankingAgent({
       const cibaTab = window.open(
         "",
         "ciba-approve",
-        "popup=yes,width=400,height=380,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
+        "popup=yes,width=440,height=760,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
       );
       try {
         const apiBase = process.env.REACT_APP_API_URL || "";
@@ -7677,6 +7677,21 @@ export default function BankingAgent({
             vertical: effectiveVerticalId,
             useCaseId,
             forceHeuristic: !!useCaseId,
+          });
+          // sendAgentMessage's own beginTrace() (fired at the top of that call,
+          // to clear the prior turn's trace) wipes the 'ciba-poll' event the
+          // server recorded during polling -- that event lives in a separate
+          // server-side store (services/tokenChainService.js) that the resumed
+          // /api/agent/invoke response never re-includes. Re-stamp it into the
+          // trace this resumed call just started, so the ProofStrip evidence
+          // chain (which requires 'ciba-poll') can actually complete instead of
+          // reading "Incomplete -- Waiting on ciba-poll" forever.
+          tokenChainTraceStore.ingestTokenEvent({
+            id: "ciba-poll",
+            eventType: "auth",
+            timestamp: new Date().toISOString(),
+            description: "CIBA backchannel step-up approved (out-of-band)",
+            additionalData: { grantedVia: "ciba" },
           });
           await handleNlResumeResponse(response, text, useCaseId);
         } catch (e) {
