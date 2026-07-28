@@ -87,6 +87,37 @@
   color: #fecaca;
 }
 
+.ftcp-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid #e5e7eb;
+  background: #fafafa;
+  flex-shrink: 0;
+}
+
+.ftcp-tab {
+  flex: 1;
+  padding: 0.625rem 0.75rem;
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #64748b;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+}
+
+.ftcp-tab:hover {
+  color: #334155;
+}
+
+.ftcp-tab--active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+  background: #fff;
+}
+
 .ftcp-body {
   flex: 1;
   overflow-y: auto;

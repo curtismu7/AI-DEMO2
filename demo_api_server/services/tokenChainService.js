@@ -280,6 +280,7 @@ function normalizeMCPEvent(event) {
     requestJson: event.details?.request || null,
     resultJson: event.details?.result?.resultJson || null,
     resultSummary: event.details?.result?.summary || null,
+    recovered: event.details?.recovered || false,
   };
 }
 
