@@ -102,6 +102,44 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-28 — `/use-cases/live` did not respond to browser width (dead grey band + clipped Token Chain)
+
+**Files changed:** `demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.css` only.
+
+**What was broken:** `.luw-main` used `grid-column: -1`. `-1` is the last
+explicit grid *line*, not the last column, so a span-1 item starting there lands
+in an **implicit 4th column** that is auto-sized (content-driven). Live at a
+2498px viewport the grid computed as `336px 7px 226.938px 1603.06px` — the `1fr`
+track sat empty as a grey band between the Demo script drawer and the stage, and
+the stage sized itself to its content rather than to the window, so resizing the
+browser only resized the empty filler. Second, stacking was gated on
+`@media (max-width: 1200px)` — a *viewport* measure — while the stage's real
+width is `viewport − 310px sidebar − 240..640px drawer column − 7px handle`. At a
+1280px viewport with the drawer open the stage had 612px but needed 710px, so
+`.luw-main__stage` (default `min-width: auto`) overflowed 63px past the viewport
+and `.App{overflow-x:clip}` cut the Token Chain off with no scrollbar.
+
+**What was fixed:** `.luw-main` is placed in column 3 explicitly, and
+`.luw-body--drawer-closed` collapses to `0 0 1fr` so the track count stays 3 in
+both drawer states. `min-width: 0` added to `.luw-main__stage` and
+`.luw-run-layout` so they can shrink. The 1200px media query became
+`@container luw-main (max-width: 780px)` (`.luw-main` carries
+`container-type: inline-size`), and `.luw-run-layout` now wraps with a 320px
+floor on both panes as the non-container-query fallback. The `≤860px` media
+query re-places `.luw-main` in column 1, where the drawer is back in flow.
+
+**Do not break:** the grid must keep 3 tracks in every drawer state — any state
+with fewer columns puts `.luw-main` back in an implicit content-sized track and
+the page stops tracking the window. Never restore `grid-column: -1` here.
+Stage stacking must stay container-queried; a viewport breakpoint cannot see the
+sidebar or the presenter-dragged drawer width.
+
+**Verify:** at a 1400px viewport with `--luw-drawer-w: 640px` the panes stack and
+the split handle hides (stage 428px, `scrollWidth` 428 — no overflow); at 1300px
+with the drawer open, stage 632px, both panes 592px stacked; at 2498px the panes
+sit side by side (951px + 1143px) with no grey band and `scrollWidth` 2173px.
+`cd demo_api_ui && npm run test:unit && npm run build`.
+
 ### 2026-07-27 — RAR demo (UC14b/UC14): quick chat result toggle + fail chip + full request/response in the Token Chain
 
 **Files changed:** `demo_api_ui/src/config/demoUseCaseSteps.js` (UC14 added
