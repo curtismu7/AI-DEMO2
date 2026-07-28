@@ -14,7 +14,6 @@ import { useTokenChainOptional } from "../context/TokenChainContext";
 import { useAgentUiMode } from "../context/AgentUiModeContext";
 import { useEventStream } from "../context/EventStreamContext";
 import TokenChainModal from "./TokenChainModal";
-import SimpleStepperBar from './SimpleStepperBar';
 import ReasoningPanel from './ReasoningPanel';
 import ConversationSummaryPanel from './ConversationSummaryPanel';
 import ProofStrip from './ProofStrip';
@@ -9666,8 +9665,6 @@ export default function BankingAgent({
               </div>
             )}
             <div className="ba-right-col">
-              {/* Simple Stepper — compact bar + pop-out step table */}
-              <SimpleStepperBar />
               {/* Live agent reasoning visibility (renders only while a run reports a phase) */}
               {aguiEnabled && <ReasoningPanel reasoningState={aguiState.reasoningState} />}
               {/* Earlier-in-this-conversation summaries (renders only when summaries exist) */}
