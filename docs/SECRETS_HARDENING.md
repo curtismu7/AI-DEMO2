@@ -65,12 +65,23 @@ docker compose up
 ### Install Sealed-Secrets Controller
 Encrypts K8s secrets at rest in etcd (not just base64-encoded). Controller auto-decrypts for pods.
 
+Prerequisites:
 ```bash
+# Install kubeseal CLI
+brew install kubeseal
+```
+
+Deploy:
+```bash
+# Create namespace if not already done
+kubectl apply -f k8s/01-namespace.yaml
+
 # Apply sealed-secrets controller (one-time setup)
 kubectl apply -f k8s/00-sealed-secrets-install.yaml
 
-# Verify it's running
-kubectl get deploy -n kube-system sealed-secrets-controller
+# Verify it's running in ai-demo namespace
+kubectl get deploy -n ai-demo sealed-secrets-controller
+kubectl wait --for=condition=available --timeout=60s deployment/sealed-secrets-controller -n ai-demo
 ```
 
 ### Seal Secrets Before Commit
