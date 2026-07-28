@@ -1834,7 +1834,12 @@ async function _runImpersonationNoAct(subjectToken, useCaseId, tokenChainEvents)
   }
 
   try {
-    await callToolViaGateway(null, exchanged.token, 'create_transfer', IMPERSONATION_TRANSFER_ARGS);
+    // omitActorBridge: without it the BFF stamps a valid, allowlisted X-Act-Client-Id
+    // on every gateway call, so the act-less token is upgraded into a well-formed
+    // delegated call and PERMITs — the impersonation never reaches the control.
+    await callToolViaGateway(null, exchanged.token, 'create_transfer', IMPERSONATION_TRANSFER_ARGS, {
+      omitActorBridge: true,
+    });
     tokenChainEvents.push(buildTokenEvent(
       'sim-gateway-unexpected-permit',
       'Gateway PERMIT (unexpected)',
