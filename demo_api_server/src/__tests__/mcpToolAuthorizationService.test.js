@@ -50,6 +50,7 @@ const {
   evaluateMcpFirstToolGate,
   getMcpFirstToolGateStatus,
   nestedActIdFromClaim,
+  _applyTransactionPolicy,
 } = require('../../services/mcpToolAuthorizationService');
 
 function jwtWithPayload(payload) {
@@ -144,6 +145,16 @@ describe('mcpToolAuthorizationService', () => {
         expect(r.block.body.error).toBe('mcp_authorization_denied');
         expect(r.block.body.decisionId).toBe('limit-1');
         expect(r.block.body.decisionContext).toBe('McpFirstTool');
+        expect(r.block.body.gateEvaluation).toEqual({
+          decision: 'PERMIT', decisionId: 'gate-1',
+          raw: { decision: 'PERMIT', statements: [{ code: 'HITL' }, { code: 'mcp-tool-authorized' }] },
+          request: { method: 'POST', url: 'https://example/mcp' },
+          response: { decision: 'PERMIT', statements: [{ code: 'HITL' }, { code: 'mcp-tool-authorized' }] },
+        });
+        expect(r.block.body.secondaryEvaluation).toEqual({
+          source: 'transaction-policy', decision: 'DENY', decisionId: 'limit-1',
+          raw: { decision: 'DENY', reason: 'amount over limit', statements: [] },
+        });
       });
 
       it('a transaction-policy STEP_UP obligation upgrades the gate HITL to step-up', async () => {
@@ -179,6 +190,88 @@ describe('mcpToolAuthorizationService', () => {
         const r = await call({ amount: 2500 });
         expect(r.block.body.error).toBe('mcp_authorization_denied');
         expect(r.block.body.decisionContext).toBe('McpFirstTool');
+      });
+    });
+
+    describe('_applyTransactionPolicy — preserves gate + secondary decisions', () => {
+      const GATE_PERMIT_HITL = {
+        decision: 'PERMIT', hitlRequired: true, decisionId: 'gate-1',
+        raw: { decision: 'PERMIT' },
+        _debug: { request: { method: 'POST', url: 'https://example/mcp' }, response: { decision: 'PERMIT' } },
+      };
+
+      it('DENY override carries both gateEvaluation and secondaryEvaluation', async () => {
+        pingOneAuthorizeService.evaluateTransaction.mockResolvedValue({
+          decision: 'DENY', decisionId: 'limit-1', raw: { decision: 'DENY', reason: 'amount over limit' },
+        });
+        const r = await _applyTransactionPolicy({ ...GATE_PERMIT_HITL }, {
+          amount: 2500, transactionType: 'transfer', userId: 'u1', acr: null,
+        });
+        expect(r.decision).toBe('DENY'); // existing merged behavior unchanged
+        expect(r.gateEvaluation).toEqual({
+          decision: 'PERMIT', decisionId: 'gate-1', raw: { decision: 'PERMIT' },
+          request: { method: 'POST', url: 'https://example/mcp' }, response: { decision: 'PERMIT' },
+        });
+        expect(r.secondaryEvaluation).toEqual({
+          source: 'transaction-policy', decision: 'DENY', decisionId: 'limit-1',
+          raw: { decision: 'DENY', reason: 'amount over limit' },
+        });
+      });
+
+      it('step-up override carries both evaluations', async () => {
+        pingOneAuthorizeService.evaluateTransaction.mockResolvedValue({
+          decision: 'PERMIT', stepUpRequired: true, decisionId: 'limit-2',
+        });
+        const r = await _applyTransactionPolicy({ ...GATE_PERMIT_HITL }, {
+          amount: 600, transactionType: 'transfer', userId: 'u1', acr: null,
+        });
+        expect(r.stepUpRequired).toBe(true);
+        expect(r.gateEvaluation.decisionId).toBe('gate-1');
+        expect(r.secondaryEvaluation).toEqual({
+          source: 'transaction-policy', decision: 'STEP_UP', decisionId: 'limit-2', raw: null,
+        });
+      });
+
+      it('promoted HITL/consent override carries both evaluations', async () => {
+        pingOneAuthorizeService.evaluateTransaction.mockResolvedValue({
+          decision: 'PERMIT', consentRequired: true, decisionId: 'limit-3',
+        });
+        const r = await _applyTransactionPolicy(
+          { decision: 'PERMIT', hitlRequired: false, decisionId: 'gate-2' },
+          { amount: 300, transactionType: 'transfer', userId: 'u1', acr: null },
+        );
+        expect(r.hitlRequired).toBe(true);
+        expect(r.secondaryEvaluation).toEqual({
+          source: 'transaction-policy', decision: 'HITL_REQUIRED', decisionId: 'limit-3', raw: null,
+        });
+      });
+
+      it('bare PERMIT from the transaction consult attaches neither field', async () => {
+        pingOneAuthorizeService.evaluateTransaction.mockResolvedValue({ decision: 'PERMIT' });
+        const r = await _applyTransactionPolicy({ ...GATE_PERMIT_HITL }, {
+          amount: 300, transactionType: 'transfer', userId: 'u1', acr: null,
+        });
+        expect(r.secondaryEvaluation).toBeUndefined();
+        expect(r.gateEvaluation).toBeUndefined();
+      });
+
+      it('gate already DENY short-circuits before the consult — neither field attached', async () => {
+        const r = await _applyTransactionPolicy(
+          { decision: 'DENY', decisionId: 'gate-deny' },
+          { amount: 2500, transactionType: 'transfer', userId: 'u1', acr: null },
+        );
+        expect(pingOneAuthorizeService.evaluateTransaction).not.toHaveBeenCalled();
+        expect(r.secondaryEvaluation).toBeUndefined();
+      });
+
+      it('local-amount-fallback DENY (transaction consult errors) also attaches both evaluations', async () => {
+        pingOneAuthorizeService.evaluateTransaction.mockRejectedValue(new Error('p1az down'));
+        const r = await _applyTransactionPolicy({ ...GATE_PERMIT_HITL }, {
+          amount: 2500, transactionType: 'transfer', userId: 'u1', acr: null,
+        });
+        expect(r.decision).toBe('DENY');
+        expect(r.gateEvaluation.decisionId).toBe('gate-1');
+        expect(r.secondaryEvaluation).toMatchObject({ source: 'transaction-policy-fallback', decision: 'DENY' });
       });
     });
 
