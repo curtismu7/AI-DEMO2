@@ -21,13 +21,25 @@ import {
   BX_UC_PROGRESS_EVENT,
 } from '../utils/useCaseDemoProgress';
 
+const RAR_QUICK_RESULT_KEY = 'rar_intent_quick_result';
+
+/** UC14b's toggle: quick chat result (default) vs. the full /intent-binding-learning page. */
+function readRarQuickResult() {
+  try {
+    const v = window.localStorage.getItem(RAR_QUICK_RESULT_KEY);
+    return v === null ? true : v === 'true';
+  } catch {
+    return true;
+  }
+}
+
 /**
  * @param {object} props
  * @param {string} [props.vertical]
  * @param {boolean} [props.disabled]
  * @param {boolean} [props.open]
  * @param {(open: boolean) => void} props.onOpenChange
- * @param {(uc: object, stepNumber: number) => void} props.onSelect
+ * @param {(uc: object, stepNumber: number, opts?: {quickResult?: boolean}) => void} props.onSelect
  */
 export default function DemoStepsDropdown({
   vertical = 'banking',
@@ -40,6 +52,7 @@ export default function DemoStepsDropdown({
   const panelPosRef = useRef({ x: 0, y: 0 });
   const [primarySteps, setPrimarySteps] = useState([]);
   const [advancedSteps, setAdvancedSteps] = useState([]);
+  const [rarQuickResult, setRarQuickResult] = useState(readRarQuickResult);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -116,8 +129,17 @@ export default function DemoStepsDropdown({
   /** Run a demo step and refresh checkmarks. */
   function handleSelect(uc, stepNumber) {
     onOpenChange(false);
-    onSelect(uc, stepNumber);
+    onSelect(uc, stepNumber, uc.id === 'UC14b' ? { quickResult: rarQuickResult } : undefined);
     setTick((n) => n + 1);
+  }
+
+  /** Flip UC14b's "open full page" vs "quick chat result" toggle; persists across sessions. */
+  function handleRarQuickResultToggle() {
+    setRarQuickResult((prev) => {
+      const next = !prev;
+      try { window.localStorage.setItem(RAR_QUICK_RESULT_KEY, String(next)); } catch { /* private mode */ }
+      return next;
+    });
   }
 
   /**
@@ -202,6 +224,23 @@ export default function DemoStepsDropdown({
           <span className="ba-demo-steps-popout__id">{uc.id}</span>
           <span className="banking-chips-dropdown__chip-name">{uc.title}</span>
         </button>
+        {uc.id === 'UC14b' && (
+          <button
+            type="button"
+            className="ba-demo-steps-popout__rar-toggle"
+            onClick={(e) => { e.stopPropagation(); handleRarQuickResultToggle(); }}
+            aria-pressed={rarQuickResult}
+            aria-label={rarQuickResult
+              ? 'Result mode: quick chat reply. Click to switch to the full intent-binding page.'
+              : 'Result mode: full intent-binding page. Click to switch to a quick chat reply.'}
+            title={rarQuickResult
+              ? 'Quick result — click to open the full intent-binding page instead'
+              : 'Full page — click to switch to a quick chat result instead'}
+            data-testid="uc14b-result-toggle"
+          >
+            {rarQuickResult ? 'Q' : 'F'}
+          </button>
+        )}
         <button
           type="button"
           className="ba-demo-steps-popout__explain"

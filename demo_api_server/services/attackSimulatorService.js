@@ -1393,7 +1393,10 @@ async function _runRarExceeded(subjectToken, useCaseId, tokenChainEvents, req, a
     null,
     `Attested authorization_details cap the transfer at $${grantedAmount}. ` +
     `Attack attempts create_transfer for $${finalAttackAmount}.`,
-    { authorization_details: rarDetails },
+    {
+      authorization_details: rarDetails,
+      request: { tool: 'create_transfer', params: { amount: finalAttackAmount, from_account_id: 'sim-acc-002', to_account_id: 'sim-acc-001' } },
+    },
   ));
 
   try {
@@ -1603,7 +1606,11 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
     null,
     `PERMIT: requested $${amount} is within the RAR authorization_details cap of $${grantedAmount}. ` +
     'PingGateway forwarded the grant; PingOne Authorize confirmed the transfer matches the declared intent.',
-    { authorization_details: rarDetails, requestedAmount: amount, grantedAmount },
+    {
+      authorization_details: rarDetails, requestedAmount: amount, grantedAmount,
+      request: { tool: 'create_transfer', params: { amount, from_account_id: fromAccountId, to_account_id: toAccountId } },
+      response: transferRpc,
+    },
   ));
   stampUseCaseId(tokenChainEvents, useCaseId);
   return { sim, useCaseId, status: 200, errorCode: null, reason: 'PERMIT — within granted RAR cap', tokenChainEvents };

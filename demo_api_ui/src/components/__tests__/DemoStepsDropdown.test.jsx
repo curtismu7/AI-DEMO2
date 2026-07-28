@@ -52,7 +52,7 @@ describe('DemoStepsDropdown', () => {
     );
     await waitFor(() => expect(screen.getByTestId('demo-steps-popout')).toBeInTheDocument());
 
-    // All 19 steps show at once — the primary/advanced split was flattened
+    // All 20 steps show at once — the primary/advanced split was flattened
     // to a single 5-column grid (#826); nothing is gated behind a toggle.
     const items = screen.getAllByTestId(/^demo-step-/);
     expect(items.map((el) => el.getAttribute('data-testid'))).toEqual(
@@ -62,10 +62,10 @@ describe('DemoStepsDropdown', () => {
       'aria-label',
       'Explain step 1: UC1 — Title for UC1',
     );
-    // UC2 is the 7th id in walkthrough order
+    // UC2 is the 8th id in walkthrough order
     expect(screen.getByTestId('demo-explain-UC2')).toHaveAttribute(
       'aria-label',
-      'Explain step 7: UC2 — Title for UC2',
+      'Explain step 8: UC2 — Title for UC2',
     );
   });
 
@@ -365,7 +365,7 @@ describe('DemoStepsDropdown — step rail numbering', () => {
     apiClient.get.mockResolvedValue({ data: { useCases: CATALOG } });
   });
 
-  it('numbers the full list 1–19 in walkthrough order', async () => {
+  it('numbers the full list 1–20 in walkthrough order', async () => {
     render(
       <DemoStepsDropdown
         open
@@ -385,15 +385,15 @@ describe('DemoStepsDropdown — step rail numbering', () => {
     );
     expect(screen.getByTestId('demo-explain-UC6')).toHaveAttribute(
       'aria-label',
-      'Explain step 6: UC6 — Title for UC6',
+      'Explain step 7: UC6 — Title for UC6',
     );
     expect(screen.getByTestId('demo-explain-UC2')).toHaveAttribute(
       'aria-label',
-      'Explain step 7: UC2 — Title for UC2',
+      'Explain step 8: UC2 — Title for UC2',
     );
     expect(screen.getByTestId('demo-explain-UC32')).toHaveAttribute(
       'aria-label',
-      'Explain step 19: UC32 — Title for UC32',
+      'Explain step 20: UC32 — Title for UC32',
     );
   });
 });
