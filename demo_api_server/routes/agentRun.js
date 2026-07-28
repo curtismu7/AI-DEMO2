@@ -162,6 +162,15 @@ function resolveAgentRunTools(currentTools, activeId) {
     : currentTools;
 }
 
+// Flag token events for a failure the run recovered from (tool discovery fell
+// back to the local catalog and the run continued). The Token Chain halt
+// heuristic treats the first red event as the halt point and ghosts every step
+// after it as "did not run" — steps that in fact executed. `recovered` keeps
+// the event red while telling that heuristic to look further down the chain.
+function markRecovered(tokenEvents) {
+  return (tokenEvents || []).map((ev) => ({ ...ev, recovered: true }));
+}
+
 // ---------------------------------------------------------------------------
 // POST /api/agent/run
 // ---------------------------------------------------------------------------
@@ -305,8 +314,10 @@ router.post('/run', async (req, res) => {
       } catch (toolsErr) {
         console.warn('[agentRun] Gateway tools failed, falling back to local catalog:', toolsErr.message);
         toolsResult = { tools: agentGatewayClient.getLocalToolsCatalog(), tokenEvents: [] };
-        // Append any token events from the failed tools request
-        initialTokenEvents = [...initialTokenEvents, ...(toolsErr.tokenEvents || [])];
+        // Append any token events from the failed tools request, marked
+        // `recovered` — the run continues on the local catalog, so this is not
+        // the point the chain halted.
+        initialTokenEvents = [...initialTokenEvents, ...markRecovered(toolsErr.tokenEvents)];
       }
     } else {
       toolsResult = { tools: agentGatewayClient.getLocalToolsCatalog(), tokenEvents: [] };
@@ -573,6 +584,7 @@ module.exports.FRAMEWORK_PORTS = FRAMEWORK_PORTS;
 module.exports.FRAMEWORK_HOSTS = FRAMEWORK_HOSTS;
 module.exports.__test = {
   resolveAgentRunTools,
+  markRecovered,
   _recordTraceEvents,
   _ensureHitlConsentSubscription,
   _cleanupHitlConsentSubscription,
