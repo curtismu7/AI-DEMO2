@@ -20,8 +20,11 @@ function writeEnv(contents) {
 }
 
 describe('ensure-service-keys readEnvValue', () => {
+  // Fixture value only — must never be a real credential. It previously used the
+  // live demo password, which is also VAULT_PASSWORD, publishing it in a PUBLIC repo.
+  // The '&' is retained because the original bug involved shell-special characters.
   test('strips surrounding double quotes (the vault-password bug)', () => {
-    expect(readEnvValue(writeEnv('VAULT_PASSWORD="Sluggers7&"\n'), 'VAULT_PASSWORD')).toBe('Sluggers7&');
+    expect(readEnvValue(writeEnv('VAULT_PASSWORD="fixture-only-pw&"\n'), 'VAULT_PASSWORD')).toBe('fixture-only-pw&');
   });
 
   test('strips surrounding single quotes', () => {
@@ -29,7 +32,7 @@ describe('ensure-service-keys readEnvValue', () => {
   });
 
   test('leaves an unquoted value untouched', () => {
-    expect(readEnvValue(writeEnv('KEY=Sluggers7&\n'), 'KEY')).toBe('Sluggers7&');
+    expect(readEnvValue(writeEnv('KEY=fixture-only-pw&\n'), 'KEY')).toBe('fixture-only-pw&');
   });
 
   test('does NOT strip an unmatched leading quote', () => {

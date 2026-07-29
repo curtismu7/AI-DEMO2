@@ -209,7 +209,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"username\": \"enterle_agnès\",\n    \"password\": \"Project7&\"\n}",
+              "raw": "{\n    \"username\": \"enterle_agnès\",\n    \"password\": \"{{newPassword}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -399,7 +399,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"currentPassword\": \"Sluggers7&\",\n    \"newPassword\": \"Project7&\"\n}"
+              "raw": "{\n    \"currentPassword\": \"{{currentPassword}}\",\n    \"newPassword\": \"{{newPassword}}\"\n}"
             },
             "url": {
               "raw": "{{authPath}}/{{envID}}/flows/{{flowID}}",
@@ -438,7 +438,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"currentPassword\": \"Sluggers7&\",\n    \"newPassword\": \"Project7&\"\n}",
+              "raw": "{\n    \"currentPassword\": \"{{currentPassword}}\",\n    \"newPassword\": \"{{newPassword}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -786,7 +786,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"currentPassword\": \"Sluggers7&\",\n    \"newPassword\": \"Project7&\"\n}",
+              "raw": "{\n    \"currentPassword\": \"{{currentPassword}}\",\n    \"newPassword\": \"{{newPassword}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -961,7 +961,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"username\": \"enterle_agnès\",\n    \"password\": \"Sluggers7&\"\n}"
+              "raw": "{\n    \"username\": \"enterle_agnès\",\n    \"password\": \"{{currentPassword}}\"\n}"
             },
             "url": {
               "raw": "https://auth.pingone.com/{{envID}}/as/resume?flowId={{flowID}}",
@@ -1148,7 +1148,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"currentPassword\": \"Sluggers7&\",\n    \"newPassword\": \"Project7&\"\n}",
+              "raw": "{\n    \"currentPassword\": \"{{currentPassword}}\",\n    \"newPassword\": \"{{newPassword}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

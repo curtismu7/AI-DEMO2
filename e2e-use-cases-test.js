@@ -14,9 +14,16 @@ const { chromium } = require('playwright');
 const BASE_URL = 'https://api.ping.demo:4000';
 const USER_LOGIN = 'https://api.ping.demo:3001/api/auth/oauth/user/login';
 
-// Test credentials (from .env or hardcoded for demo)
+// Test credentials — supplied by the environment, never hardcoded.
+// This file previously carried the demo password as a literal fallback. That same
+// string is also VAULT_PASSWORD, so publishing it here in a PUBLIC repo made the
+// encrypted secrets.vault trivially decryptable. No fallback: fail loudly instead.
 const TEST_USER = process.env.PINGONE_TEST_USER || 'demoUser';
-const TEST_PASSWORD = process.env.PINGONE_TEST_PASSWORD || 'Sluggers7&';
+const TEST_PASSWORD = process.env.PINGONE_TEST_PASSWORD;
+if (!TEST_PASSWORD) {
+  console.error('PINGONE_TEST_PASSWORD is not set — export it before running this script.');
+  process.exit(1);
+}
 
 async function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
