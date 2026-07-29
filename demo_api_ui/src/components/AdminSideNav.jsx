@@ -433,6 +433,7 @@ export default function AdminSideNav({ user }) {
   const allNavItems = [
     { label: "Home", path: "/", icon: "~" },
     { label: "Dashboard", path: "/dashboard", icon: "≡" },
+    { label: "Protocol Playground", path: "/protocol-playground", icon: "dbg" },
     {
       label: "Agent Lifecycle",
       path: "/agent-lifecycle",
