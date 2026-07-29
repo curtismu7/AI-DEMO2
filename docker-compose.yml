@@ -108,6 +108,11 @@ services:
       # so this value wins over persisted toggles; flip here to change the default.
       # Internal service DNS (OrbStack reserves host 3006; PingGateway's host port is 3036).
       MCP_PINGGATEWAY_URL: "http://ping-gateway:8080"
+      # Default MCP endpoint offered by the /privilege-mcp-client page. The
+      # ping-mcpgw service carries local.ping-devops.com as a network alias, so
+      # this one URL is correct for both the browser and this container's own
+      # server-side relay.
+      PRIVILEGE_MCPGW_URL: "https://local.ping-devops.com:8623/mcp"
       # Agent Gateway + Authorize engine toggles live in admin Quick Flags (not pinned
       # here) so operators can switch demo vs real without rebuilding. After flipping,
       # run `./run-docker.sh demo-sync` (or restart the stack) to start/stop the
@@ -1086,6 +1091,44 @@ services:
       authz-server:
         condition: service_started
         required: false   # demo-auth profile — mock Authorize when ff_authorize_simulated is ON
+    restart: unless-stopped
+
+  # ── PingOne Privilege MCPGW (commercial) ───────────────────────────────────
+  # Inline MCP security gateway: just-in-time least-privilege plus full session
+  # recording. Policy is authored in the PingOne Privilege console, NOT in this
+  # repo — the deliberate contrast with ping-gateway above, whose policy lives
+  # in ping-gateway/config/routes/.
+  #
+  # MCPGW_IMAGE comes from the Privilege console gateway wizard
+  # (Privilege > Cloud > Gateways > Add New > Add via Wizard). No default on
+  # purpose: an unset value must fail the compose run, not pull something wrong.
+  ping-mcpgw:
+    profiles: ["mcpgw"]
+    image: ${MCPGW_IMAGE:?set MCPGW_IMAGE from the PingOne Privilege gateway wizard}
+    container_name: ai-demo-ping-mcpgw
+    ports:
+      - "8623:8623"
+    volumes:
+      # Vendor doc: pingone.env is READ AS A FILE at this path, not injected as
+      # env vars. Directory mount (not per-file) — per-file bind mounts are
+      # mis-detected when the host file is replaced, same lesson as the
+      # ping-gateway config mount above.
+      - ./ping-mcpgw/config:/var/lib/procyon/config:ro
+      # Reuse the existing mkcert pair rather than duplicating a private key.
+      # Per-file here because the vendor expects these exact filenames; the
+      # certs are stable until Oct 2028 so the replace-hazard does not apply.
+      - ./certs/api.ping.demo+2.pem:/var/lib/procyon/ssl/mcpgw-cert.pem:ro
+      - ./certs/api.ping.demo+2-key.pem:/var/lib/procyon/ssl/mcpgw-key.pem:ro
+    networks:
+      ai-demo:
+        # Cert-valid alias. certs/api.ping.demo+2.pem covers
+        # local.ping-devops.com, so the BFF's server-side fetch verifies TLS
+        # normally, while the browser reaches the same URL via /etc/hosts and
+        # the published port. One URL string, correct for both callers.
+        aliases:
+          - local.ping-devops.com
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
   # ── RAG Code Search Services ──────────────────────────────────────────────
