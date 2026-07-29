@@ -23,16 +23,6 @@ spec:
   - host: ai-demo.ping-devops.com
     http:
       paths:
-      # demo-mcpgw (PingGateway MCPGW image) must come before the / catch-all
-      # so nginx selects the longer prefix match. The IG route strips /mcp
-      # internally via UriPathRewriteFilter before proxying to mcp-server:8080.
-      - path: /mcp
-        pathType: Prefix
-        backend:
-          service:
-            name: demo-mcpgw
-            port:
-              number: 8080
       - path: /
         pathType: Prefix
         backend:
@@ -40,3 +30,38 @@ spec:
             name: frontend
             port:
               number: 4000
+---
+# Separate Ingress object, same host. rewrite-target is an Ingress-LEVEL
+# annotation: putting it on ai-demo-ingress above would also rewrite the "/"
+# frontend rule and break the app. Kubernetes allows multiple Ingress objects
+# per host and nginx merges them.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-demo-mcpgw-ingress
+  namespace: <<NAMESPACE>>
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # Strip the /mcpgw prefix so the container sees /mcp, not /mcpgw/mcp.
+    # pathType: Prefix forwards the FULL path, so without this it 404s.
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    # MCPGW terminates TLS itself locally; in-cluster nginx terminates instead
+    # and proxies plain HTTP. Flip to HTTPS here if the container requires it.
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+spec:
+  ingressClassName: nginx-public
+  rules:
+  - host: ai-demo.ping-devops.com
+    http:
+      paths:
+      - path: /mcpgw(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: ping-mcpgw
+            port:
+              number: 8623
