@@ -102,6 +102,41 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-28 — every AG-UI tool result was captured as a Python repr, so nothing could parse it
+
+**Files changed:** `langchain_agent/src/api/message_processor.py` (`_tool_result_text`
+and the `on_tool_end` capture site),
+`langchain_agent/tests/test_hitl_interrupt_extraction.py`.
+
+**What was broken:** the interrupt fix directly below shipped, deployed, and did
+nothing — the typed path still looped, and `[AG-UI] turn interrupted for human
+approval` never once logged while `demo_hitl_service` recorded three real challenges
+in the same window. The turn-end scan was correct; its input was not. LangGraph's
+`ToolNode` hands `on_tool_end` a `ToolMessage`, not the tool's raw return, and the
+capture recorded `str(output)` — a repr:
+`content='{"hitlRequired": true, ...}' name='checkout' tool_call_id='tc1'`.
+`"hitlRequired"` IS in that string, so the substring guard passed and `json.loads`
+then threw, and every gate fell through to `None`. `_extract_policy_denial` masked
+the same defect for however long it has existed: it falls back to a generic sentence
+when parsing fails, so denials had been silently serving "The request was denied by
+an authorization policy." instead of the BFF's actual reason.
+
+**What was fixed:** `_tool_result_text(output)` unwraps `.content` when present and
+falls back to `str(output)`, applied at the single capture site. Both extractors —
+and the grounding guardrail, which reads the same records — now see real JSON.
+
+**Do not break:** the capture site is the ONLY place these results enter; normalize
+there, not in each consumer. Do not "simplify" `_extract_hitl_interrupt` to match
+`_extract_policy_denial`'s parse-failure fallback — that fallback is precisely what
+hid this bug for so long.
+
+**Verify:** `cd langchain_agent && .venv/bin/python -m pytest tests/ -q` (822 passed).
+The unit tests that build `SimpleNamespace(result=...)` records by hand pass either
+way — that is why this survived a green suite. The tests that pin it construct a real
+`ToolMessage` and run it through `_tool_result_text`. End-to-end requires
+`docker compose build langchain-agent` (Python, no src mount).
+
+
 ### 2026-07-28 — a typed free-text approval gate created a challenge no modal ever showed
 
 **Files changed:** `langchain_agent/src/agui/event_types.py` (`RunFinished.outcome`),
