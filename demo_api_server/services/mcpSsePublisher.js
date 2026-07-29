@@ -16,8 +16,15 @@ const { buildSsePayload } = require('./sseCorrelation');
  * @param {number}  opts.durationMs
  * @param {boolean} opts.isDelegated
  * @param {object}  [opts.requestJson]  original tool params (pre-HITL-strip snapshot)
+ * @param {object}  [opts.mcpAuthorizeEvaluation] singular authorize decision, when the
+ *   gate ran on this call — same shape callMcpTool's response body already carries.
+ * @param {object[]} [opts.mcpAuthorizeEvaluations] ordered [gate, secondary] pair, only
+ *   present when a Transaction/Amount policy decision also fired (PR #1070).
  */
-function publishMcpResultToSse(flowTraceId, { tool, result, durationMs, isDelegated, requestJson, denied }) {
+function publishMcpResultToSse(flowTraceId, {
+  tool, result, durationMs, isDelegated, requestJson, denied,
+  mcpAuthorizeEvaluation, mcpAuthorizeEvaluations,
+}) {
   if (!flowTraceId) return;
   const success = !denied && result && !result.isError && !result.error;
   const toolResultJson = result?.content
@@ -35,6 +42,8 @@ function publishMcpResultToSse(flowTraceId, { tool, result, durationMs, isDelega
     result: toolResultJson,
     requestJson: requestJson ?? null,
     timestamp: new Date().toISOString(),
+    ...(mcpAuthorizeEvaluation ? { mcpAuthorizeEvaluation } : {}),
+    ...(mcpAuthorizeEvaluations ? { mcpAuthorizeEvaluations } : {}),
   }));
 }
 
