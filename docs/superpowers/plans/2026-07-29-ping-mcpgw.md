@@ -61,7 +61,7 @@ The `/privilege-mcp-client` page reads its config from the BFF. Seeding the defa
 
 Why this test works: `server.js:470` applies `express-session` globally, and supertest sends no cookie, so every request gets a fresh `sessionID`. `getClientSession()` therefore builds a new config object per request, reading `process.env` at that moment. Both branches are testable in one file with no module cache tricks.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `demo_api_server/tests/routes/privilegeMcpClient.state.test.js`:
 
@@ -95,7 +95,7 @@ describe('GET /api/privilege-mcp/state — mcpUrl default', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 ```bash
 cd demo_api_server && CI=true npx jest tests/routes/privilegeMcpClient.state.test.js --forceExit
@@ -103,7 +103,7 @@ cd demo_api_server && CI=true npx jest tests/routes/privilegeMcpClient.state.tes
 
 Expected: the first test FAILS with `Expected: "https://local.ping-devops.com:8623/mcp"` / `Received: ""`. The second test passes already — that is correct, it is the regression guard.
 
-- [ ] **Step 3: Make the change**
+- [x] **Step 3: Make the change**
 
 In `demo_api_server/routes/privilegeMcpClient.js`, line 19, inside the `config` object literal:
 
@@ -117,7 +117,7 @@ replacing:
         mcpUrl: '',
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 ```bash
 cd demo_api_server && CI=true npx jest tests/routes/privilegeMcpClient.state.test.js --forceExit
@@ -125,7 +125,7 @@ cd demo_api_server && CI=true npx jest tests/routes/privilegeMcpClient.state.tes
 
 Expected: 2 passed.
 
-- [ ] **Step 5: Run the wider unit suite for regressions**
+- [x] **Step 5: Run the wider unit suite for regressions**
 
 ```bash
 cd demo_api_server && CI=true npm run test:unit
@@ -133,7 +133,7 @@ cd demo_api_server && CI=true npm run test:unit
 
 Expected: same pass/fail set as before the change. Paste the summary line.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add demo_api_server/routes/privilegeMcpClient.js \
@@ -153,7 +153,7 @@ git commit -m "feat(privilege-mcp): seed client mcpUrl default from PRIVILEGE_MC
 - Consumes: `PRIVILEGE_MCPGW_URL` from Task 1.
 - Produces: compose service `ping-mcpgw`, container `ai-demo-ping-mcpgw`, profile `mcpgw`, optional group `mcpgw`. Task 3 mirrors the env values into k8s.
 
-- [ ] **Step 1: Add the service to `docker-compose.yml`**
+- [x] **Step 1: Add the service to `docker-compose.yml`**
 
 Insert after the `ping-gateway` service block (before `weaviate` at ~line 1092), matching the two-space service indentation used throughout:
 
@@ -197,7 +197,7 @@ Insert after the `ping-gateway` service block (before `weaviate` at ~line 1092),
     restart: unless-stopped
 ```
 
-- [ ] **Step 2: Add the BFF env var**
+- [x] **Step 2: Add the BFF env var**
 
 In the `demo-api-server` service's `environment:` block in `docker-compose.yml`, add:
 
@@ -206,7 +206,7 @@ In the `demo-api-server` service's `environment:` block in `docker-compose.yml`,
       PRIVILEGE_MCPGW_URL: "https://local.ping-devops.com:8623/mcp"
 ```
 
-- [ ] **Step 3: Register the optional group in `run-docker.sh`**
+- [x] **Step 3: Register the optional group in `run-docker.sh`**
 
 Four edits.
 
@@ -236,7 +236,7 @@ In `_optional_group_desc()`, add:
     mcpgw)     echo "PingOne Privilege MCPGW (JIT least-privilege + session recording)" ;;
 ```
 
-- [ ] **Step 4: Verify the compose file parses and fails correctly without the image**
+- [x] **Step 4: Verify the compose file parses and fails correctly without the image**
 
 ```bash
 env -u MCPGW_IMAGE docker compose --profile mcpgw config >/dev/null
@@ -244,7 +244,7 @@ env -u MCPGW_IMAGE docker compose --profile mcpgw config >/dev/null
 
 Expected: non-zero exit, with `set MCPGW_IMAGE from the PingOne Privilege gateway wizard` in stderr.
 
-- [ ] **Step 5: Verify it resolves with the image set**
+- [x] **Step 5: Verify it resolves with the image set**
 
 ```bash
 MCPGW_IMAGE=placeholder/mcpgw:test docker compose --profile mcpgw config | grep -A3 'ping-mcpgw:'
@@ -252,7 +252,7 @@ MCPGW_IMAGE=placeholder/mcpgw:test docker compose --profile mcpgw config | grep 
 
 Expected: exit 0, and the rendered service shows `image: placeholder/mcpgw:test`.
 
-- [ ] **Step 6: Verify the default stack is unaffected**
+- [x] **Step 6: Verify the default stack is unaffected**
 
 ```bash
 docker compose config --services | grep -c ping-mcpgw
@@ -260,7 +260,7 @@ docker compose config --services | grep -c ping-mcpgw
 
 Expected: `0` — the service is profile-gated and must not appear in the default service list.
 
-- [ ] **Step 7: Verify the run-docker.sh group resolves**
+- [x] **Step 7: Verify the run-docker.sh group resolves**
 
 ```bash
 bash -c 'source ./run-docker.sh 2>/dev/null; _optional_group_services mcpgw' 2>/dev/null || \
@@ -269,7 +269,7 @@ bash -c 'source ./run-docker.sh 2>/dev/null; _optional_group_services mcpgw' 2>/
 
 Expected: `ping-mcpgw` printed, or (if sourcing is not safe) the grep shows all five `mcpgw` lines added above.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add docker-compose.yml run-docker.sh
@@ -293,7 +293,7 @@ Mirrors `k8s/74-demo-mcpgw-deployment.yaml`, which is the direct analogue for na
 
 `sessionAffinity: ClientIP` is copied deliberately: MCP sessions are stateful via `Mcp-Session-Id`, so each client must pin to one pod.
 
-- [ ] **Step 1: Create the manifest**
+- [x] **Step 1: Create the manifest**
 
 Create `k8s/75-ping-mcpgw-deployment.yaml`:
 
@@ -408,7 +408,7 @@ spec:
 
 `MCPGW_IMAGE_PLACEHOLDER` is the one intentional placeholder in this plan. It is the wizard-supplied value and cannot be known until the console step runs. Step 4 asserts it is still present so nobody deploys it by accident.
 
-- [ ] **Step 2: Add the apply line to `k8s/deploy.sh`**
+- [x] **Step 2: Add the apply line to `k8s/deploy.sh`**
 
 Immediately after the existing `71-ping-gateway-deployment.yaml` line:
 
@@ -416,7 +416,7 @@ Immediately after the existing `71-ping-gateway-deployment.yaml` line:
   kubectl apply -f "$SCRIPT_DIR/75-ping-mcpgw-deployment.yaml"   # PingOne Privilege MCPGW
 ```
 
-- [ ] **Step 3: Add the secret to `k8s/create-secrets.sh`**
+- [x] **Step 3: Add the secret to `k8s/create-secrets.sh`**
 
 **Do not use `secret_from_envfile` here.** That helper turns each line into a separate `--from-literal` key, which produces env vars. MCPGW needs the file itself, so the secret must carry one key whose value is the whole file.
 
@@ -438,7 +438,7 @@ fi
 
 The guard mirrors `secret_from_envfile`'s own behaviour, so this stays safe on machines that have not done the console setup.
 
-- [ ] **Step 4: Verify the manifest is valid and still un-deployable**
+- [x] **Step 4: Verify the manifest is valid and still un-deployable**
 
 ```bash
 kubectl apply --dry-run=client -f k8s/75-ping-mcpgw-deployment.yaml
@@ -449,7 +449,7 @@ Expected: the dry-run reports `deployment.apps/ping-mcpgw created (dry run)` and
 
 If no cluster is reachable, use `kubectl apply --dry-run=client --validate=false -f ...`, which still parses the YAML.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add k8s/75-ping-mcpgw-deployment.yaml k8s/deploy.sh k8s/create-secrets.sh
@@ -469,7 +469,7 @@ git commit -m "feat(ping-mcpgw): add k8s deployment, service, and OIDC secret wi
 
 The critical constraint: `rewrite-target` is an **Ingress-level** annotation. Putting it on `ai-demo-ingress` would rewrite the `/` frontend rule and take the whole app down. MCPGW therefore gets its own Ingress object. `k8s/aws/deploy.sh:220` pipes this file through `sed | kubectl apply -f -`, which handles multi-document YAML, so the second document inherits the `<<NAMESPACE>>` substitution.
 
-- [ ] **Step 1: Delete the dead `/mcp` rule**
+- [x] **Step 1: Delete the dead `/mcp` rule**
 
 In `k8s/aws/se-ingress.yaml`, remove this block and its preceding comment (lines 26-34):
 
@@ -488,7 +488,7 @@ In `k8s/aws/se-ingress.yaml`, remove this block and its preceding comment (lines
 
 It points at a Deployment (`74-demo-mcpgw-deployment.yaml`) that `k8s/deploy.sh` never applies, so the path 503s today.
 
-- [ ] **Step 2: Append the second Ingress document**
+- [x] **Step 2: Append the second Ingress document**
 
 At the end of `k8s/aws/se-ingress.yaml`:
 
@@ -530,7 +530,7 @@ spec:
               number: 8623
 ```
 
-- [ ] **Step 3: Verify both documents parse and the frontend rule is untouched**
+- [x] **Step 3: Verify both documents parse and the frontend rule is untouched**
 
 ```bash
 sed 's|<<NAMESPACE>>|ai-demo|g' k8s/aws/se-ingress.yaml | kubectl apply --dry-run=client -f -
@@ -538,7 +538,7 @@ sed 's|<<NAMESPACE>>|ai-demo|g' k8s/aws/se-ingress.yaml | kubectl apply --dry-ru
 
 Expected: two lines, `ingress.networking.k8s.io/ai-demo-ingress created (dry run)` and `ingress.networking.k8s.io/ai-demo-mcpgw-ingress created (dry run)`.
 
-- [ ] **Step 4: Assert the rewrite did not leak onto the frontend Ingress**
+- [x] **Step 4: Assert the rewrite did not leak onto the frontend Ingress**
 
 ```bash
 sed 's|<<NAMESPACE>>|ai-demo|g' k8s/aws/se-ingress.yaml \
@@ -548,7 +548,7 @@ sed 's|<<NAMESPACE>>|ai-demo|g' k8s/aws/se-ingress.yaml \
 
 Expected: `rewrite-target` appears exactly once, and only after `name: ai-demo-mcpgw-ingress`. If it appears near `ai-demo-ingress`, stop — that configuration breaks the whole app on deploy.
 
-- [ ] **Step 5: Assert no backend lacks a Deployment**
+- [x] **Step 5: Assert no backend lacks a Deployment**
 
 ```bash
 grep -A3 'backend:' k8s/aws/se-ingress.yaml | grep 'name:'
@@ -556,7 +556,7 @@ grep -A3 'backend:' k8s/aws/se-ingress.yaml | grep 'name:'
 
 Expected: only `frontend` and `ping-mcpgw`. `demo-mcpgw` must be gone.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add k8s/aws/se-ingress.yaml
@@ -576,7 +576,7 @@ git commit -m "feat(ping-mcpgw): route /mcpgw on the SE host, drop dead /mcp rul
 - Consumes: every decision from Tasks 1-4.
 - Produces: nothing consumed by later tasks.
 
-- [ ] **Step 1: Rewrite `ping-mcpgw/README.md`**
+- [x] **Step 1: Rewrite `ping-mcpgw/README.md`**
 
 Replace the "Quick start", "Install TLS certificates", and "Directory layout" sections so they describe what was actually built. The corrections:
 
@@ -589,7 +589,7 @@ Replace the "Quick start", "Install TLS certificates", and "Directory layout" se
 
 Add a prerequisites note stating plainly that the deny policy and session recording are configured in the PingOne Privilege console, so a green test suite does not mean the demo works.
 
-- [ ] **Step 2: Update `ping-mcpgw/config/pingone.env.example`**
+- [x] **Step 2: Update `ping-mcpgw/config/pingone.env.example`**
 
 Replace the placeholder `SERVER_URL` line with both concrete values:
 
@@ -601,7 +601,7 @@ SERVER_URL=https://local.ping-devops.com:8623
 # SERVER_URL=https://ai-demo.ping-devops.com/mcpgw
 ```
 
-- [ ] **Step 3: Add the CHANGELOG entry**
+- [x] **Step 3: Add the CHANGELOG entry**
 
 Under the current unreleased "Added" section, matching the existing bold-lead-in style:
 
@@ -609,7 +609,7 @@ Under the current unreleased "Added" section, matching the existing bold-lead-in
 - **PingOne Privilege MCPGW wired into the stack** — `ping-mcpgw/` becomes a real service instead of a README. Profile-gated compose service `ping-mcpgw` on `https://local.ping-devops.com:8623` (compose network alias makes one cert-valid URL work for both the browser and the BFF's server-side relay), plus `k8s/75-ping-mcpgw-deployment.yaml` reachable at `https://ai-demo.ping-devops.com/mcpgw` through a second, separately-annotated Ingress object. The existing `/privilege-mcp-client` page needs no change: its default endpoint now comes from `PRIVILEGE_MCPGW_URL`. Also removes the dead `/mcp` ingress rule, whose backend Deployment was never applied by `k8s/deploy.sh`. Policy and session recording are configured in the PingOne Privilege console, not in this repo. `docker-compose.yml`, `run-docker.sh`, `k8s/{75-ping-mcpgw-deployment.yaml,deploy.sh,create-secrets.sh,aws/se-ingress.yaml}`, `demo_api_server/routes/privilegeMcpClient.js`, `ping-mcpgw/{README.md,config/pingone.env.example}`.
 ```
 
-- [ ] **Step 4: Verify the emoji allowlist**
+- [x] **Step 4: Verify the emoji allowlist**
 
 ```bash
 grep -nP '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]' ping-mcpgw/README.md CHANGELOG.md \
@@ -618,7 +618,7 @@ grep -nP '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]' ping-mcpgw/README.md CHANGELOG
 
 Expected: `allowlist clean`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add ping-mcpgw/README.md ping-mcpgw/config/pingone.env.example CHANGELOG.md
@@ -632,11 +632,11 @@ git commit -m "docs(ping-mcpgw): document the real setup, hostnames, and console
 **Files:**
 - Modify: `docs/superpowers/specs/2026-07-29-ping-mcpgw-design.md`
 
-- [ ] **Step 1: Correct the spec's §5 config-flow diagram**
+- [x] **Step 1: Correct the spec's §5 config-flow diagram**
 
 The spec shows `env_file:` delivering the OIDC values. Replace that arrow with the directory mount to `/var/lib/procyon/config`, and add a sentence noting the vendor reads the file directly. Keep the "env_file only, never environment" warning as a general repo rule but mark it not-applicable to this service.
 
-- [ ] **Step 2: Run the BFF suite**
+- [x] **Step 2: Run the BFF suite**
 
 ```bash
 cd demo_api_server && CI=true npm test -- --forceExit
@@ -644,7 +644,7 @@ cd demo_api_server && CI=true npm test -- --forceExit
 
 Expected: green. Paste the summary line — this is the evidence required before claiming done.
 
-- [ ] **Step 3: Confirm no generated artifacts were staged**
+- [x] **Step 3: Confirm no generated artifacts were staged**
 
 ```bash
 git status --short | grep -E 'data/(step-verification|goldens)' || echo "no generated artifacts staged"
@@ -652,7 +652,7 @@ git status --short | grep -E 'data/(step-verification|goldens)' || echo "no gene
 
 Expected: `no generated artifacts staged`. The BFF suite rewrites hundreds of files under `demo_api_server/data/`; none belong in this branch.
 
-- [ ] **Step 4: Confirm the whole diff is intentional**
+- [x] **Step 4: Confirm the whole diff is intentional**
 
 ```bash
 git diff origin/main --stat
@@ -660,7 +660,7 @@ git diff origin/main --stat
 
 Expected: exactly the 11 files from the File Structure table plus the two spec/plan docs. Anything else is drive-by and must be reverted.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/superpowers/specs/2026-07-29-ping-mcpgw-design.md
