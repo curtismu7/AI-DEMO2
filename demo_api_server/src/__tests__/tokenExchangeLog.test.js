@@ -126,7 +126,7 @@ describe('GET /api/token-exchanges', () => {
     }
   });
 
-  it('returns only the caller's session entries', async () => {
+  it('returns only the caller session entries', async () => {
     const appA = buildApp('sess-a');
     const appB = buildApp('sess-b');
 
