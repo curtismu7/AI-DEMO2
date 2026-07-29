@@ -47,6 +47,23 @@ _POLICY_DENY_CODES = (
 )
 
 
+def _tool_result_text(output) -> str:
+    """The tool's own result string, unwrapped from whatever the event stream
+    delivered it in.
+
+    LangGraph's ToolNode hands ``on_tool_end`` a ToolMessage, not the tool's raw
+    return, so ``str(output)`` yields a repr — ``content='{"...}' name='checkout'
+    tool_call_id='tc1'`` — whose JSON never parses. Every consumer below reads
+    these results as JSON, so capturing the repr silently disabled all of them:
+    the HITL gate returned None and became LLM narration, and policy denials
+    fell back to their generic sentence instead of the BFF's real reason.
+    """
+    content = getattr(output, "content", None)
+    if isinstance(content, str):
+        return content
+    return str(output or "")
+
+
 def _extract_policy_denial(tool_calls) -> Optional[str]:
     """Return a human-readable reason if any tool result this turn was an
     authorization / gateway policy denial, else None. The BFF returns the denied
@@ -1242,7 +1259,11 @@ class MessageProcessor:
                 pending = pending_tool_calls.pop(tool_call_id, None)
                 if pending is not None:
                     turn_tool_calls.append(
-                        ToolCallRecord(name=pending["name"], args=pending["args"], result=str(output))
+                        ToolCallRecord(
+                            name=pending["name"],
+                            args=pending["args"],
+                            result=_tool_result_text(output),
+                        )
                     )
                 await emitter.on_tool_end(output, tool_call_id=tool_call_id)
 

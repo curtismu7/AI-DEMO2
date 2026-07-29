@@ -14,7 +14,13 @@ tool-result list for authorization codes.
 import json
 from types import SimpleNamespace
 
-from src.api.message_processor import _extract_hitl_interrupt
+from langchain_core.messages import ToolMessage
+
+from src.api.message_processor import (
+    _extract_hitl_interrupt,
+    _extract_policy_denial,
+    _tool_result_text,
+)
 
 
 def _rec(result):
@@ -72,3 +78,43 @@ def test_first_hitl_result_wins_when_several_tools_ran():
 
 def test_survives_a_non_json_result():
     assert _extract_hitl_interrupt([_rec("<html>502</html>")]) is None
+
+
+# ── How the result is captured off the event stream ──────────────────────────
+# The extractor above was correct and still did nothing in production: LangGraph's
+# ToolNode hands on_tool_end a ToolMessage, not the tool's raw return, and the
+# capture site recorded str(output) — a repr:
+#     content='{"hitlRequired": true, ...}' name='checkout' tool_call_id='tc1'
+# "hitlRequired" IS in that string, so the substring guard passed and json.loads
+# then threw, and every gate fell through to None. _extract_policy_denial hid the
+# same defect because it falls back to a generic sentence when parsing fails.
+
+
+def _tool_message(payload):
+    return ToolMessage(content=json.dumps(payload), tool_call_id="tc1", name="checkout")
+
+
+def test_toolmessage_output_is_unwrapped_to_its_content():
+    msg = _tool_message({"hitlRequired": True, "interruptId": "c9"})
+    assert json.loads(_tool_result_text(msg))["interruptId"] == "c9"
+
+
+def test_a_raw_string_output_is_passed_through_unchanged():
+    assert _tool_result_text('{"balance": 100}') == '{"balance": 100}'
+    assert _tool_result_text(None) == ""
+
+
+def test_the_interrupt_survives_the_real_capture_path():
+    """End to end over the shape the event stream actually produces."""
+    msg = _tool_message({"hitlRequired": True, "interruptId": "c9", "tool": "checkout"})
+    got = _extract_hitl_interrupt([SimpleNamespace(result=_tool_result_text(msg))])
+    assert got is not None
+    assert got["interruptId"] == "c9"
+
+
+def test_a_denial_captured_the_same_way_keeps_its_specific_message():
+    """Regression the generic fallback was masking: the BFF's real reason was
+    being replaced by "denied by an authorization policy" on every denial."""
+    msg = _tool_message({"error": "transaction_denied", "message": "Amount exceeds the $2000 limit"})
+    got = _extract_policy_denial([SimpleNamespace(result=_tool_result_text(msg))])
+    assert got == "Amount exceeds the $2000 limit"
