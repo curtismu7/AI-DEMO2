@@ -182,6 +182,13 @@ async function main() {
   const APP_TARGETS = {
     mcpGateway:   appNames['Super Banking MCP Gateway'],
     mcpExchanger: appNames['Super Banking MCP Exchanger'],
+    // Step 9 (backend exchange to the banking API) needs its OWN client. The
+    // mcpExchanger entry above maps to the Token Exchanger, which holds grants on
+    // the MCP/gateway resources but NOT on Demo API (enduser.ping.demo) -- so the
+    // Step 9 exchange it was falling back to could never mint a token for that
+    // audience. Keep the two separate; do not fold this into mcpExchanger, which
+    // also feeds PINGONE_TOKEN_EXCHANGER_* / GW_INTROSPECTION_* / PINGONE_CLIENT_*.
+    step9Exchanger: appNames['Super Banking Step 9 Exchanger'],
     mcpServer:    appNames['Super Banking MCP Server'],
     aiAgent:      appNames['Super Banking AI Agent'],
     agent:        appNames['Super Banking Agent'],
@@ -209,11 +216,13 @@ async function main() {
     mcpExchangerSecret,
     aiAgentSecret,
     agentSecret,
+    step9ExchangerSecret,
   ] = await Promise.all([
     secret('mcpGateway'),
     secret('mcpExchanger'),
     secret('aiAgent'),
     secret('agent'),
+    secret('step9Exchanger'),
   ]);
 
   // Convenience: fall back to whatever bootstrap already wrote to api_server .env
@@ -228,6 +237,10 @@ async function main() {
     aiAgentSecret:          aiAgentSecret                 || fb('PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET'),
     agentClientId:          apps.agent?.clientId          || fb('AGENT_CLIENT_ID'),
     agentSecret:            agentSecret                   || fb('AGENT_CLIENT_SECRET'),
+    // Step 9 backend exchange. Falls back to the Token Exchanger only so an
+    // environment without the dedicated app keeps its previous behaviour.
+    step9ExchangerClientId: apps.step9Exchanger?.clientId || fb('PINGONE_MCP_EXCHANGER_CLIENT_ID'),
+    step9ExchangerSecret:   step9ExchangerSecret          || fb('PINGONE_MCP_EXCHANGER_CLIENT_SECRET'),
   };
 
   // Shared vars that every service gets (read from api_server .env — bootstrap writes these)
@@ -236,8 +249,18 @@ async function main() {
     PINGONE_REGION:           region,
     PINGONE_JWKS_URI:         fb('PINGONE_JWKS_URI') || `${asBase}/jwks`,
     ENDUSER_AUDIENCE:         fb('ENDUSER_AUDIENCE') || 'enduser.ping.demo',
+    // Same value under the name demo_mcp_server actually reads. Its Step 9 gate is
+    // `if (clientId && clientSecret && bankingApiResourceUri)` where
+    // bankingApiResourceUri = process.env.BANKING_API_RESOURCE_URI -- a name this
+    // generator never emitted, so the gate could not pass even with a valid client
+    // pair. Keep both: ENDUSER_AUDIENCE is the name other services read.
+    BANKING_API_RESOURCE_URI: fb('BANKING_API_RESOURCE_URI') || fb('ENDUSER_AUDIENCE') || 'enduser.ping.demo',
     MCP_RESOURCE_URI:         fb('MCP_RESOURCE_URI') || 'mcpserver.ping.demo,mcpgateway.ping.demo',
-    MCP_SERVER_RESOURCE_URI:  fb('MCP_SERVER_RESOURCE_URI') || 'mcpserver.ping.demo,mcpgateway.ping.demo',
+    // PINGONE_RESOURCE_MCP_SERVER_URI first — same precedence as configStore's
+    // pingone_resource_mcp_server_uri entry. A stale MCP_SERVER_RESOURCE_URI set
+    // to the GATEWAY host would otherwise propagate to every service and defeat
+    // the D-05 upstream-audience contract in demo_mcp_server.
+    MCP_SERVER_RESOURCE_URI:  fb('PINGONE_RESOURCE_MCP_SERVER_URI') || fb('MCP_SERVER_RESOURCE_URI') || 'mcpserver.ping.demo,mcpgateway.ping.demo',
     MCP_GW_RESOURCE_URI:      fb('MCP_GW_RESOURCE_URI') || 'mcpgateway.ping.demo',
     MCP_GW_TOKEN_ENDPOINT_AUTH_METHOD: fb('MCP_GW_TOKEN_ENDPOINT_AUTH_METHOD') || 'post',
     MCP_GW_PASSTHROUGH_TO_MCP_SERVER: fb('MCP_GW_PASSTHROUGH_TO_MCP_SERVER') || 'true',
@@ -256,6 +279,9 @@ async function main() {
       const base = String(fb('PUBLIC_APP_URL') || fb('PINGONE_PUBLIC_APP_URL') || '').replace(/\/+$/, '');
       return base ? `${base}/api/auth/oauth/ai-agent-placeholder-callback` : '';
     })(),
+    // Main agent app credentials (Task 2: renamed AGENT_CLIENT_ID → PINGONE_AGENT_CLIENT_ID)
+    PINGONE_AGENT_CLIENT_ID:               creds.agentClientId,
+    PINGONE_AGENT_CLIENT_SECRET:           creds.agentSecret,
     OAUTH_PAR_ENDPOINT: fb('OAUTH_PAR_ENDPOINT') || fb('PINGONE_PAR_ENDPOINT') || `${asBase}/par`,
     PINGONE_TOKEN_EXCHANGER_CLIENT_ID:    creds.mcpExchangerClientId,
     PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET: creds.mcpExchangerSecret,
@@ -291,8 +317,21 @@ async function main() {
     PINGONE_TOKEN_ENDPOINT:          `${asBase}/token`,
     GW_INTROSPECTION_CLIENT_ID:      creds.mcpExchangerClientId,
     GW_INTROSPECTION_CLIENT_SECRET:  creds.mcpExchangerSecret,
-    PINGONE_MCP_EXCHANGER_CLIENT_SECRET: creds.mcpExchangerSecret,
-    ENCRYPTION_KEY:                  fb('BFF_INTERNAL_SECRET').slice(0, 32) || 'demo-encryption-key-32chars-paddd',
+    // Step 9 backend exchange (demo_mcp_server/src/index.ts). Both halves must come
+    // from the SAME app: the ID was never emitted before, so index.ts fell through to
+    // PINGONE_TOKEN_EXCHANGER_CLIENT_ID -- a client with no grant on Demo API
+    // (enduser.ping.demo), the very audience Step 9 requests. Hence "Step 9 had never
+    // run once" in that file's comment.
+    PINGONE_MCP_EXCHANGER_CLIENT_ID:     creds.step9ExchangerClientId,
+    PINGONE_MCP_EXCHANGER_CLIENT_SECRET: creds.step9ExchangerSecret,
+    // Independent key, NOT derived from BFF_INTERNAL_SECRET. This key encrypts
+    // persisted tokens at rest (EncryptedTokenStorage / EncryptionUtils), so
+    // deriving it from the BFF HMAC secret meant one compromised value exposed
+    // both. Set MCP_SERVER_ENCRYPTION_KEY in demo_api_server/.env; the derived
+    // value remains only as a back-compat fallback for envs that never set it.
+    // NOTE: changing this orphans any existing *.enc token storage — re-encrypt
+    // or purge the store before rotating it on a populated deployment.
+    ENCRYPTION_KEY:                  fb('MCP_SERVER_ENCRYPTION_KEY') || fb('BFF_INTERNAL_SECRET').slice(0, 32) || 'demo-encryption-key-32chars-paddd',
     DEMO_API_BASE_URL:               'http://api-server:3001',
   });
   console.log('[refresh-envs] Wrote demo_mcp_server/.env');
@@ -315,8 +354,8 @@ async function main() {
   writeEnvFile(path.join(ROOT, 'demo_agent_service', '.env'), {
     ...shared,
     PINGONE_TOKEN_ENDPOINT: `${asBase}/token`,
-    AGENT_CLIENT_ID:        creds.agentClientId,
-    AGENT_CLIENT_SECRET:    creds.agentSecret,
+    PINGONE_AGENT_CLIENT_ID:        creds.agentClientId,
+    PINGONE_AGENT_CLIENT_SECRET:    creds.agentSecret,
     LLM_PROVIDER:           fb('LLM_PROVIDER') || 'helix',
     LLAMACPP_BASE_URL:      fb('LLAMACPP_BASE_URL'),
     OLLAMA_BASE_URL:        fb('OLLAMA_BASE_URL'),
@@ -340,7 +379,9 @@ async function main() {
     PINGONE_AUTHORIZATION_ENDPOINT:        `${asBase}/authorize`,
     PINGONE_CLIENT_REGISTRATION_ENDPOINT:  `${asBase}/register`,
     PINGONE_REDIRECT_URI:                  `${clientUrl}/auth/callback`,
-    ENCRYPTION_MASTER_KEY:                 fb('BFF_INTERNAL_SECRET').slice(0, 32) || 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    // Independent key — see the MCP_SERVER_ENCRYPTION_KEY note above. Set
+    // LANGCHAIN_ENCRYPTION_MASTER_KEY in demo_api_server/.env.
+    ENCRYPTION_MASTER_KEY:                 fb('LANGCHAIN_ENCRYPTION_MASTER_KEY') || fb('BFF_INTERNAL_SECRET').slice(0, 32) || 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     ENCRYPTION_SALT:                       'bbbbbbbbbbbbbbbb',
     BFF_BASE_URL:                          'http://api-server:3001',
     BFF_INTERNAL_TOOL_URL:                 'http://api-server:3001/internal/agent-tool',
@@ -373,7 +414,7 @@ async function main() {
     ...shared,
     PINGONE_TOKEN_ENDPOINT:      `${asBase}/token`,
     PINGONE_AUTHORIZATION_ENDPOINT: `${asBase}/authorize`,
-    MCP_SERVER_RESOURCE_URI:     fb('MCP_SERVER_RESOURCE_URI') || 'mcpserver.ping.demo',
+    MCP_SERVER_RESOURCE_URI:     fb('PINGONE_RESOURCE_MCP_SERVER_URI') || fb('MCP_SERVER_RESOURCE_URI') || 'mcpserver.ping.demo',
     MCP_INVEST_AUDIENCE:         fb('MCP_INVEST_AUDIENCE') || 'mcp-invest.ping.demo',
   });
   console.log('[refresh-envs] Wrote demo_mcp_invest/.env');
@@ -480,14 +521,19 @@ async function main() {
     BFF_VAULT_KEY_URL:              'https://api.ping.demo:3001/internal/vault/service-key',
     PG_MORTGAGE_BACKEND_URL:        'http://mortgage-service:8082',
     // PingGateway Groovy P1AZ filter — mirrors BFF PingOne Authorize (real backend).
-    // P1AZ_WORKER_ID is the MCP decision endpoint (same as authorize_mcp_decision_endpoint_id).
+    // P1AZ_DECISION_ENDPOINT_ID is the MCP decision endpoint (same as
+    // authorize_mcp_decision_endpoint_id). It is NOT a worker — the worker is
+    // P1AZ_WORKER_CLIENT_ID below. The old P1AZ_WORKER_ID name is still emitted
+    // for one release so an IG container running pre-rename Groovy keeps working.
     P1AZ_REAL_BASE:                 `https://api.pingone.${region}/v1/environments/${envId}`,
+    P1AZ_DECISION_ENDPOINT_ID:      fb('PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID')
+                                      || fb('PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID')
+                                      || fb('PINGAUTHORIZE_WORKER_ID'),
     P1AZ_WORKER_ID:                 fb('PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID')
                                       || fb('PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID')
                                       || fb('PINGAUTHORIZE_WORKER_ID'),
     P1AZ_WORKER_CLIENT_ID:          fb('PINGONE_AUTHORIZE_WORKER_CLIENT_ID') || fb('PINGONE_WORKER_CLIENT_ID'),
     P1AZ_WORKER_CLIENT_SECRET:    fb('PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET') || fb('PINGONE_WORKER_CLIENT_SECRET'),
-    PINGONE_TOKEN_ENDPOINT:         `${asBase}/token`,
     // ping-gateway/config/routes/03-mcp-delegation.json (Phase 2 RFC 8693
     // delegation demo route) needs these two for DelegationProtection's
     // resourceId and DelegationResourceServerFilter's scopes — without them

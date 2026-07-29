@@ -109,9 +109,9 @@ const PIPELINE_ROUTED_SIMS = new Set(['rogue-actor', 'cross-owner-account']);
  */
 function _gatewayAud() {
   return (
-    configStore.getEffective('pingone_resource_mcp_gateway_uri') ||
-    process.env.MCP_GW_RESOURCE_URI ||
     process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI ||
+    configStore.getEffective('pingone_resource_mcp_gateway_uri') ||
+    configStore.getEffective('mcp_gw_resource_uri') ||
     ''
   );
 }
@@ -370,8 +370,8 @@ function _gatewayExchangeTarget(toolScopes) {
   const pgAud =
     firstHttpResourceUri(process.env.PINGONE_RESOURCE_PINGGATEWAY_URI) ||
     firstHttpResourceUri(configStore.getEffective('pingone_resource_pinggateway_uri')) ||
-    firstHttpResourceUri(process.env.MCP_GW_RESOURCE_URI) ||
-    firstHttpResourceUri(configStore.getEffective('mcp_gw_resource_uri'));
+    firstHttpResourceUri(process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI) ||
+    firstHttpResourceUri(configStore.getEffective('pingone_resource_mcp_gateway_uri'));
   if (!pgAud) return { audience: _gatewayAud(), scopes: toolScopes, viaPingGateway };
   const invokeScope =
     configStore.getEffective('gateway_mcp_invoke_scope') ||
@@ -1783,6 +1783,18 @@ async function _runTamperedIntentToken(subjectToken, useCaseId, tokenChainEvents
 /**
  * UC16 impersonation-no-act: gateway token without act claim on an agent-mediated tool.
  */
+// UC16's tool call. `from_account_id` is REQUIRED by the gateway's spec-§2 arg
+// schema (mcp-tool-schemas.json) — omitting it 400s at schema validation with
+// `-32602 Invalid arguments`, BEFORE PingOne Authorize sees the call at all, and
+// _denyFromGateway then relabels that 400 as a policy denial. Same trap
+// _runRarExceeded documents. Validated against the schema in
+// tests/attackSimToolArgs.test.js.
+const IMPERSONATION_TRANSFER_ARGS = Object.freeze({
+  amount: 1,
+  from_account_id: 'sim-acc-002',
+  to_account_id: 'sim-acc-001',
+});
+
 async function _runImpersonationNoAct(subjectToken, useCaseId, tokenChainEvents) {
   const sim = 'impersonation-no-act';
 
@@ -1822,9 +1834,11 @@ async function _runImpersonationNoAct(subjectToken, useCaseId, tokenChainEvents)
   }
 
   try {
-    await callToolViaGateway(null, exchanged.token, 'create_transfer', {
-      amount: 1,
-      to_account_id: 'sim-acc-001',
+    // omitActorBridge: without it the BFF stamps a valid, allowlisted X-Act-Client-Id
+    // on every gateway call, so the act-less token is upgraded into a well-formed
+    // delegated call and PERMITs — the impersonation never reaches the control.
+    await callToolViaGateway(null, exchanged.token, 'create_transfer', IMPERSONATION_TRANSFER_ARGS, {
+      omitActorBridge: true,
     });
     tokenChainEvents.push(buildTokenEvent(
       'sim-gateway-unexpected-permit',
@@ -1840,14 +1854,19 @@ async function _runImpersonationNoAct(subjectToken, useCaseId, tokenChainEvents)
       tokenChainEvents,
     };
   } catch (err) {
+    // 403, not 401: the act-less token is a VALID bearer, so it clears the
+    // gateway perimeter and is refused by PingOne Authorize (HasValidActorChain
+    // sees an empty ActClientId). Verified live — the gateway returns 403 with a
+    // real `authorize: {decision: DENY, backend: real}` audit trail. Claiming 401
+    // described a token-validation failure that never happens on this path.
     return _denyFromGateway(
-      sim, useCaseId, tokenChainEvents, err, 401, 'missing_act',
-      'Gateway DENY (missing_act)',
+      sim, useCaseId, tokenChainEvents, err, 403, 'missing_act',
+      'Authorize DENY (missing_act)',
     );
   }
 }
 
 module.exports = {
   runAttackSim, runIntentBindingDemo, _exchangeSimToken,
-  __test: { _resolveForeignAccountId, _gatewayExchangeTarget },
+  __test: { _resolveForeignAccountId, _gatewayExchangeTarget, IMPERSONATION_TRANSFER_ARGS },
 };

@@ -39,7 +39,9 @@ describe('hitlCredit.isFresh', () => {
     expect(hitlCredit.isFresh(s, { amount: 51 })).toBe(false);
   });
 
-  test('bound credit + caller omits amount (MCP tool gate) → opts out of binding, fresh', () => {
+  test('bound credit + caller omits amount → opts out of binding, fresh (non-write tools only)', () => {
+    // Write tools must pass { amount } — see mcpToolAuthorizationService.
+    // Omitting amount is only for non-amount HITL consumers.
     const s = { hitlVerified: future(), hitlApprovedAmount: 50 };
     expect(hitlCredit.isFresh(s)).toBe(true);
   });

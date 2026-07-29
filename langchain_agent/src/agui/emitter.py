@@ -70,6 +70,27 @@ class AGUIEventEmitter:
         self._terminated = True
         await self._emit(RunFinished(run_id=self._run_id, thread_id=self._thread_id))
 
+    async def on_hitl_interrupt(self, interrupt: dict) -> None:
+        """Terminate the run because a tool needs human approval.
+
+        The BFF's /internal/agent-tool already normalizes a 428 gate into
+        ``result.hitlRequired`` + ``interruptId``, but nothing downstream acted
+        on it: the result went back to the LLM, which narrated "pending
+        approval" while the challenge sat unapproved because no modal ever
+        opened. The UI's only trigger is a RUN_FINISHED whose outcome is an
+        interrupt, so emit exactly that and mark the stream terminated — same
+        contract as on_error, so the /run handler's trailing on_run_end() can't
+        append an outcome-less RUN_FINISHED that would clear hitlPending.
+        """
+        if self._terminated:
+            return
+        self._terminated = True
+        await self._emit(RunFinished(
+            run_id=self._run_id,
+            thread_id=self._thread_id,
+            outcome={"type": "interrupt", "interrupts": [interrupt]},
+        ))
+
     async def on_llm_start(self) -> None:
         self._current_message_id = f"msg_{uuid.uuid4().hex[:12]}"
         await self._emit(TextMessageStart(message_id=self._current_message_id))

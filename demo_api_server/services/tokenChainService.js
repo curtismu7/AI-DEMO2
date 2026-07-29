@@ -280,6 +280,7 @@ function normalizeMCPEvent(event) {
     requestJson: event.details?.request || null,
     resultJson: event.details?.result?.resultJson || null,
     resultSummary: event.details?.result?.summary || null,
+    recovered: event.details?.recovered || false,
   };
 }
 
@@ -308,7 +309,30 @@ async function getMCPToolCalls(userId, req = null) {
       // No MCP server configured — return local-only events without attempting remote fetch
       return mergeMcpToolCallEvents(userId, []);
     }
-    const mcpHttpBase = mcpWsUrl.replace(/^ws(s?):/, 'http$1:');
+    // ws:// → http://, wss:// → https://. When MCP_MTLS_ENABLED the MCP server
+    // serves HTTPS on that same port, so a ws:// URL must still map to https://.
+    const mtlsOn = String(process.env.MCP_MTLS_ENABLED || '').toLowerCase() === 'true';
+    const mcpHttpBase = mtlsOn
+      ? mcpWsUrl.replace(/^wss?:/, 'https:')
+      : mcpWsUrl.replace(/^ws(s?):/, 'http$1:');
+
+    // Under mTLS the server also REQUIRES a client cert whose SHA-256 matches
+    // MCP_MTLS_GATEWAY_CERT_PATH. That cert belongs to PingGateway; the BFF has no
+    // equivalent, so this fetch cannot succeed and every /api/token-chain poll was
+    // logging "getMCPToolCalls error: fetch failed" while the Token Chain panel
+    // silently rendered "MCP 0" — indistinguishable from "no tool calls happened".
+    // Skip deliberately and say so once, instead of failing noisily every poll.
+    if (mtlsOn && !process.env.MCP_AUDIT_CLIENT_CERT_PATH) {
+      if (!getMCPToolCalls._mtlsSkipLogged) {
+        getMCPToolCalls._mtlsSkipLogged = true;
+        console.warn(
+          '[tokenChainService] MCP /audit skipped: MCP_MTLS_ENABLED=true and no ' +
+          'MCP_AUDIT_CLIENT_CERT_PATH for the BFF — Token Chain shows locally-known ' +
+          'MCP events only. Set MCP_AUDIT_CLIENT_CERT_PATH to re-enable the remote fetch.',
+        );
+      }
+      return mergeMcpToolCallEvents(userId, []);
+    }
     // The MCP /audit endpoint requires a live agent bearer (validateAgentToken).
     // A static MCP_AGENT_TOKEN would expire, so when it is unset and we have a
     // request, reuse a session-cached agent client-credentials token (the same

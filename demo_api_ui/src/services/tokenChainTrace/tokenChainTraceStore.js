@@ -12,7 +12,7 @@ const EMPTY_TRACE = () => ({
   runId: null,
   startedAt: null, prompt: null, routingMode: null, routingDetail: null,
   llmDetail: null, llmReply: null,
-  phases: [], tokenEvents: [], mcpResult: null, authorize: null, outcome: null,
+  phases: [], tokenEvents: [], mcpResult: null, authorize: null, authorizeEvaluations: null, outcome: null,
   // 'declined' once the human refuses a step-up / HITL approval gate. Without
   // it the trace ends at authorize.outcome === 'STEP_UP' and the Proof verdict
   // cannot tell "gate fired, human approved" from "gate fired, human refused".
@@ -27,6 +27,32 @@ const SESSION_EVENT_IDS = ["user-token", "session-token-introspection", "user-to
 let trace = EMPTY_TRACE();
 let runSeq = 0;
 const listeners = new Set();
+
+const GATE_OUTCOMES = new Set(["STEP_UP", "HITL_REQUIRED"]);
+
+/**
+ * The gate this run is about to hand to its resume, or null.
+ *
+ * A step-up resume re-enters sendAgentMessage, whose beginTrace() would drop
+ * the STEP_UP outcome — leaving the retry with a bare PERMIT that ProofStrip
+ * scores as "Mismatch" (UC7). HITL never hit this because its retry stays
+ * inside one trace.
+ *
+ * Two guards keep the carry-over from becoming sticky:
+ *  - `priorGate` absent — a gate already carried once has it set, so a gate is
+ *    handed on exactly once and the third run is scored on its own decision.
+ *  - the resume replays the identical prompt, which is what separates it from
+ *    the user simply asking something else next.
+ */
+function gateToCarry(from, nextPrompt) {
+  if (!from || !from.authorize || nextPrompt == null) return null;
+  const { outcome, priorGate } = from.authorize;
+  if (!GATE_OUTCOMES.has(outcome) || priorGate) return null;
+  // Declined: the human refused, so nothing was permitted and there is no gate
+  // to discharge.
+  if (from.approvalOutcome === "declined") return null;
+  return from.prompt?.message === String(nextPrompt) ? outcome : null;
+}
 
 function emit() {
   const snap = getState();
@@ -60,11 +86,14 @@ export const tokenChainTraceStore = {
         const { useCaseId: _uc, ...rest } = e;
         return rest;
       });
+    const carried = gateToCarry(trace, prompt);
+
     trace = EMPTY_TRACE();
     trace.startedAt = Date.now();
     trace.runId = ++runSeq;
     trace.prompt = prompt ? { message: String(prompt) } : null;
     trace.tokenEvents = sessionEvents;
+    if (carried) trace.authorize = { outcome: carried, priorGate: carried };
     try {
       agentFlowDiagram.clearServerEvents();
     } catch { /* display-only */ }
@@ -131,6 +160,12 @@ export const tokenChainTraceStore = {
     }
     emit();
   },
+  ingestAuthorizeEvaluations(list) {
+    if (!Array.isArray(list) || !list.length) return;
+    ensureTrace();
+    trace.authorizeEvaluations = list;
+    emit();
+  },
   ingestLlmDetail(value) {
     if (!value) return;
     ensureTrace();
@@ -183,6 +218,13 @@ agentFlowDiagram.subscribe((snap) => {
 });
 if (typeof window !== "undefined") {
   window.addEventListener("mcp-tool-result-sse", (e) => {
-    if (e && e.detail) tokenChainTraceStore.ingestMcpResult(e.detail);
+    if (!e || !e.detail) return;
+    tokenChainTraceStore.ingestMcpResult(e.detail);
+    if (e.detail.mcpAuthorizeEvaluation) {
+      tokenChainTraceStore.ingestAuthorize(e.detail.mcpAuthorizeEvaluation);
+    }
+    if (e.detail.mcpAuthorizeEvaluations) {
+      tokenChainTraceStore.ingestAuthorizeEvaluations(e.detail.mcpAuthorizeEvaluations);
+    }
   });
 }

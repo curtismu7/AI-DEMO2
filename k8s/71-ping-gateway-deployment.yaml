@@ -78,7 +78,7 @@ spec:
         # exists for the Groovy http client inside IG.
         - name: P1AZ_MOCK_BASE
           value: "http://127.0.0.1:9001"
-        # P1AZ_WORKER_ID comes from ping-gateway-secrets (real decision endpoint UUID).
+        # P1AZ_DECISION_ENDPOINT_ID comes from ping-gateway-secrets (real decision endpoint UUID).
         # Do NOT hardcode "mcp-policy" here — that mock policy slug 404s against real
         # PingOne .../decisionEndpoints/{id} and returns INVALID_REQUEST (HTTP 400).
         - name: PG_GATEWAY_RESOURCE_URI

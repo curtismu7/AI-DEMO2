@@ -287,7 +287,7 @@ describe('environment agents (picker)', () => {
       PINGONE_ENVIRONMENT_ID: 'env-123',
       PINGONE_REGION: 'com',
       PUBLIC_APP_URL: 'https://demo-api-server:3001',
-      AGENT_CLIENT_ID: 'a-demo',
+      PINGONE_AGENT_CLIENT_ID: 'a-demo',
     })[key]);
     mockGet({ '/applications': APPS });
     const agents = await svc.listEnvironmentAgents();

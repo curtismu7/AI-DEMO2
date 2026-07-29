@@ -52,10 +52,10 @@ const { emitHop } = require('../transactionHop');
 // Env override first (deployment can pin it), else the SoT (scope-topology.json
 // gateway resource uri), else the canonical demo literal as a last resort.
 // Comma-separated list is supported so Path B (dual_token) can land on the Node
-// gateway with a PingGateway-minted aud while MCP_GW_RESOURCE_URI lists both.
-const EXPECTED_AUD_RAW = process.env.MCP_GATEWAY_RESOURCE_URI ||
+// gateway with a PingGateway-minted aud while PINGONE_RESOURCE_MCP_GATEWAY_URI lists both.
+const EXPECTED_AUD_RAW = process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI ||
+  process.env.MCP_GATEWAY_RESOURCE_URI ||
   process.env.MCP_GW_RESOURCE_URI ||
-  process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI ||
   scopeTopology.gatewayAudience() ||
   'mcpgateway.ping.demo';
 const EXPECTED_AUDS = String(EXPECTED_AUD_RAW)

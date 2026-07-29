@@ -231,6 +231,18 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
     req._mcpAuthorizeEvaluation = _authEval;
   }
 
+  // Same stash, for the plural (2-decision) array — see the identical comment
+  // above. Without this, a run that hits both the McpFirstTool gate and the
+  // Transaction/Amount policy override on the agent path never surfaces its
+  // second card: the plural field would exist on the pipeline outcome but
+  // never reach req, so agentInvokeRoute has nothing to copy onto the response.
+  const _authEvals = outcome.mcpAuthorizeEvaluations
+      || (outcome.body && outcome.body.mcpAuthorizeEvaluations)
+      || null;
+  if (_authEvals && req && typeof req === 'object') {
+    req._mcpAuthorizeEvaluations = _authEvals;
+  }
+
   // Merge any token events the pipeline produced into the caller's tokenEvents array.
   // stampUseCaseId never overwrites an existing tag.
   if (Array.isArray(outcome.tokenEvents)) {

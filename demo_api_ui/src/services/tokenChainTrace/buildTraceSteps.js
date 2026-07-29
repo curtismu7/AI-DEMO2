@@ -199,6 +199,7 @@ const STEP_SPEC = {
 // name — surface what it actually gates instead of the raw code.
 const DECISION_CONTEXT_LABELS = {
   McpFirstTool: "MCP tool-call check",
+  TransactionAmount: "Amount / transaction policy check",
 };
 const friendlyDecisionContext = (ctx) => (ctx && DECISION_CONTEXT_LABELS[ctx]) || ctx;
 
@@ -232,6 +233,49 @@ function buildAuthorizeReplay(azEval, azRequestPayload) {
     label: "Replay in P1AZ Evaluate",
     parameters: params,
     endpointId: azEval?.endpointId || null,
+  };
+}
+
+/** Build the why/request/response/decision/kv/replay detail for ONE authorize
+ * card from a resolved evaluation object (`{decision, decisionId, engine,
+ * decisionContext, request, response, source}`). Shared by the single-decision
+ * path (fed the rich `azEval`) and the multi-decision path (fed each raw entry
+ * off `trace.authorizeEvaluations`) so both render identically. */
+function buildAuthorizeDetail(evalObj) {
+  const decision = evalObj.decision != null ? String(evalObj.decision).toUpperCase() : "";
+  const isDeny = decision === "DENY";
+  const isChallenge = decision === "INDETERMINATE" || decision === "STEP_UP" || decision === "HITL_REQUIRED";
+  const requestPayload = evalObj.request
+    ? ((evalObj.request.body && evalObj.request.body.parameters)
+        || evalObj.request.parameters
+        || evalObj.request.body
+        || evalObj.request)
+    : null;
+  const responseBody = evalObj.response || evalObj.raw || null;
+  const why = isChallenge
+    ? `Authorize returned ${evalObj.decision || "INDETERMINATE"} — the human must approve before the tool proceeds.`
+    : isDeny
+      ? `Authorize denied this action (${evalObj.engine || "policy"}) — the tool call is blocked.`
+      : `Authorize returned ${evalObj.decision || "PERMIT"}`
+        + (evalObj.decisionContext ? ` for the ${friendlyDecisionContext(evalObj.decisionContext)}` : "")
+        + (evalObj.source === "gw-authorize" ? " at the Agent Gateway hop." : " before the tool ran.");
+  return {
+    why,
+    request: requestPayload
+      ? { title: "Decision request (actual)",
+          text: `${(evalObj.request && evalObj.request.method) || "POST"} ${(evalObj.request && evalObj.request.url) || ""}\n${asJson(requestPayload)}` }
+      : undefined,
+    response: responseBody
+      ? { title: "Decision response (raw)", text: asJson(responseBody) } : undefined,
+    decision: { outcome: evalObj.decision || "INDETERMINATE",
+      label: `${evalObj.decision || "INDETERMINATE"} — ${evalObj.engine || "?"}${evalObj.decisionContext ? ` (${friendlyDecisionContext(evalObj.decisionContext)})` : ""}` },
+    kv: [
+      ["engine", String(evalObj.engine || "")],
+      ["decision id", String(evalObj.decisionId || "")],
+      evalObj.source === "gw-authorize" ? ["evidence", "from gw-authorize (gateway hop)"] : null,
+    ].filter((row) => row && row[1]),
+    moreDetail: { edu: EDU.PINGONE_AUTHORIZE, label: "Learn: PingOne Authorize" },
+    replay: buildAuthorizeReplay(evalObj, requestPayload),
   };
 }
 
@@ -340,7 +384,7 @@ export function buildRunStory(trace, steps) {
 }
 
 export function buildTraceSteps(trace) {
-  const { prompt, routingMode, routingDetail, llmDetail, llmReply, phases, tokenEvents, mcpResult, authorize, outcome } = trace;
+  const { prompt, routingMode, routingDetail, llmDetail, llmReply, phases, tokenEvents, mcpResult, authorize, authorizeEvaluations, outcome } = trace;
   const isHeuristic = routingMode === "heuristic";
   // Once the trace has a terminal outcome, any step that's still evidence-free
   // is no longer "still coming" — it was genuinely never part of this run's
@@ -541,25 +585,50 @@ export function buildTraceSteps(trace) {
           + (azEval.decisionContext ? ` for the ${friendlyDecisionContext(azEval.decisionContext)}` : "")
           + (azEval.source === "gw-authorize" ? " at the Agent Gateway hop." : " before the tool ran."))
     : undefined;
-  steps.push(makeStep("authorize", azStatus,
-    azEval ? {
-      why: authorizeWhy,
-      request: azRequestPayload || azEval.request
-        ? { title: "Decision request (actual)",
-            text: `${(azEval.request && azEval.request.method) || "POST"} ${(azEval.request && azEval.request.url) || ""}\n${asJson(azRequestPayload || azEval.request)}` }
-        : undefined,
-      response: azEval.response
-        ? { title: "Decision response (raw)", text: asJson(azEval.response) } : undefined,
-      decision: { outcome: azEval.decision || "INDETERMINATE",
-        label: `${azEval.decision || "INDETERMINATE"} — ${azEval.engine || "?"}${azEval.decisionContext ? ` (${friendlyDecisionContext(azEval.decisionContext)})` : ""}` },
-      kv: [
-        ["engine", String(azEval.engine || "")],
-        ["decision id", String(azEval.decisionId || "")],
-        azEval.source === "gw-authorize" ? ["evidence", "from gw-authorize (gateway hop)"] : null,
-      ].filter((row) => row && row[1]),
-      moreDetail: { edu: EDU.PINGONE_AUTHORIZE, label: "Learn: PingOne Authorize" },
-      replay: buildAuthorizeReplay(azEval, azRequestPayload),
-    } : {}));
+  if (Array.isArray(authorizeEvaluations) && authorizeEvaluations.length) {
+    // Multi-decision run (e.g. McpFirstTool gate PERMIT + Transaction/Amount
+    // policy DENY) — one card per decision, in execution order.
+    authorizeEvaluations.forEach((evalObj, idx) => {
+      const decision = evalObj && evalObj.decision != null ? String(evalObj.decision).toUpperCase() : "";
+      // A challenge-type decision (STEP_UP/HITL_REQUIRED/INDETERMINATE) is only
+      // "active" (awaiting human approval) while the run is still in flight.
+      // Once the trace has completed (outcome 'ok'/'error'), the challenge was
+      // already satisfied earlier in the session (stepUpAlreadyVerified /
+      // hitlAlreadyVerified) — render it as done, same as the single-decision
+      // path already does via `traceComplete`, so a finished run never shows a
+      // stale "must approve" card.
+      const status = decision === "DENY" ? "error"
+        : (decision === "INDETERMINATE" || decision === "STEP_UP" || decision === "HITL_REQUIRED")
+          ? (traceComplete ? "done" : "active")
+        : "done";
+      const step = makeStep("authorize", status, evalObj ? buildAuthorizeDetail(evalObj) : {});
+      step.id = idx === 0 ? "authorize" : `authorize:${idx + 1}`;
+      step.baseId = "authorize";
+      steps.push(step);
+    });
+  } else {
+    const step = makeStep("authorize", azStatus,
+      azEval ? {
+        why: authorizeWhy,
+        request: azRequestPayload || azEval.request
+          ? { title: "Decision request (actual)",
+              text: `${(azEval.request && azEval.request.method) || "POST"} ${(azEval.request && azEval.request.url) || ""}\n${asJson(azRequestPayload || azEval.request)}` }
+          : undefined,
+        response: azEval.response
+          ? { title: "Decision response (raw)", text: asJson(azEval.response) } : undefined,
+        decision: { outcome: azEval.decision || "INDETERMINATE",
+          label: `${azEval.decision || "INDETERMINATE"} — ${azEval.engine || "?"}${azEval.decisionContext ? ` (${friendlyDecisionContext(azEval.decisionContext)})` : ""}` },
+        kv: [
+          ["engine", String(azEval.engine || "")],
+          ["decision id", String(azEval.decisionId || "")],
+          azEval.source === "gw-authorize" ? ["evidence", "from gw-authorize (gateway hop)"] : null,
+        ].filter((row) => row && row[1]),
+        moreDetail: { edu: EDU.PINGONE_AUTHORIZE, label: "Learn: PingOne Authorize" },
+        replay: buildAuthorizeReplay(azEval, azRequestPayload),
+      } : {});
+    step.baseId = "authorize";
+    steps.push(step);
+  }
 
   // 7a. step-up (conditional) — omitted mid-flight so it doesn't sit "pending"
   // for runs that will never need it; once the trace completes without a

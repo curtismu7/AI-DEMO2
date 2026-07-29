@@ -32,7 +32,7 @@ const BFF_RESOURCE_URI =
 // /api/path/vertical-tool callback route only. The MCP server calls back to
 // the BFF with the gateway-audience token (aud=mcpgateway.ping.demo) after the
 // gateway's Authorization Server has already made the PERMIT decision.
-const MCP_GW_RESOURCE_URI = process.env.MCP_GW_RESOURCE_URI || 'mcpgateway.ping.demo';
+const MCP_GW_RESOURCE_URI = process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI || 'mcpgateway.ping.demo';
 // PingGateway resource URI (RFC 8707) — accepted alongside MCP_GW_RESOURCE_URI on
 // MCP callback / Path B identity routes when ff_mcp_gateway_pinggateway is ON.
 const PINGGATEWAY_RESOURCE_URI =
@@ -46,12 +46,12 @@ const PINGGATEWAY_RESOURCE_URI =
 const ENDUSER_AUDIENCE  = process.env.ENDUSER_AUDIENCE  || BFF_RESOURCE_URI;
 const AI_AGENT_AUDIENCE = process.env.AI_AGENT_AUDIENCE || null;
 // MCP / gateway resource URIs — for reference only (these tokens never arrive at the BFF).
-const MCP_RESOURCE_URI  = process.env.PINGONE_RESOURCE_MCP_SERVER_URI || process.env.MCP_RESOURCE_URI || null;
+const MCP_RESOURCE_URI  = process.env.PINGONE_RESOURCE_MCP_SERVER_URI || null;
 const BANKING_API_RESOURCE_URI = process.env.BANKING_API_RESOURCE_URI || null;
 const MCP_GATEWAY_RESOURCE_URI = process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI || null;
 // mcp-invest backend resource URI — tokens minted for this audience arrive on the
 // investment BFF callback route (A2A nested-act chain, gateway Exchange #3 target).
-const MCP_INVEST_AUDIENCE = process.env.MCP_INVEST_AUDIENCE || null;
+const MCP_INVEST_AUDIENCE = process.env.PINGONE_RESOURCE_MCP_INVEST_URI || null;
 const AI_AGENT_SCOPE = process.env.AI_AGENT_SCOPE || 'ai_agent';
 const DEFAULT_USER_TYPE = process.env.DEFAULT_USER_TYPE || 'customer';
 

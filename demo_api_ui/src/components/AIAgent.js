@@ -14,7 +14,6 @@ import { useTokenChainOptional } from "../context/TokenChainContext";
 import { useAgentUiMode } from "../context/AgentUiModeContext";
 import { useEventStream } from "../context/EventStreamContext";
 import TokenChainModal from "./TokenChainModal";
-import SimpleStepperBar from './SimpleStepperBar';
 import ReasoningPanel from './ReasoningPanel';
 import ConversationSummaryPanel from './ConversationSummaryPanel';
 import ProofStrip from './ProofStrip';
@@ -2209,13 +2208,8 @@ export default function BankingAgent({
     if (!interrupt) return;
     setAguiHitlPending(null);
 
-    // Initiate OTP (non-fatal — OTP modal still shows even if this fails)
-    try {
-      await initiateStepUpOtp();
-    } catch (_) { /* non-fatal */ }
-
-    // Post-OTP callback: signal consent via pub/sub, then resume the AG-UI agent
-    pendingStepUpCallbackRef.current = async () => {
+    // Signal consent via pub/sub, then resume the AG-UI agent.
+    const consentAndResume = async () => {
       try {
         await submitConsent(true);
       } catch (err) {
@@ -2240,6 +2234,21 @@ export default function BankingAgent({
       }).finally(() => setNlLoading(false));
     };
 
+    // Consent IS the gate — same rule as the chip path (see handleHitlConfirm).
+    // The interrupt carries `stepUp` from the BFF's gate normalization
+    // (routes/agentTool.js), so only a real step-up verifies identity first;
+    // a consent-only gate that also demanded an emailed code was asking for MFA
+    // PingOne Authorize never required.
+    if (!interrupt.stepUp) {
+      await consentAndResume();
+      return;
+    }
+
+    // Initiate OTP (non-fatal — OTP modal still shows even if this fails)
+    try {
+      await initiateStepUpOtp();
+    } catch (_) { /* non-fatal */ }
+    pendingStepUpCallbackRef.current = consentAndResume;
     openStepUpModal("Verify your identity to approve this agent action");
   }, [aguiHitlPending, aguiRun, aguiState.messages, submitConsent, activeLlmProvider, agentProviderMode, openStepUpModal]);
 
@@ -6199,6 +6208,9 @@ export default function BankingAgent({
               !!response.step_up_required;
             setHitlPendingIntent({
               isVerticalConsent: true,
+              // Consent and step-up share this branch; only a real step-up may
+              // pre-chain an OTP on approve (see handleHitlConfirm).
+              isStepUp,
               verticalMessage: agentMessage,
               verticalOpts,
               // challengeId issued by the BFF (pre-flight or gateway). On approve we
@@ -7591,6 +7603,9 @@ export default function BankingAgent({
             !!response.step_up_required;
           setHitlPendingIntent({
             isVerticalConsent: true,
+            // Consent and step-up share this branch; only a real step-up may
+            // pre-chain an OTP on approve (see handleHitlConfirm).
+            isStepUp,
             verticalMessage: text,
             // Retry opts must NOT carry the aborted-by-now signal.
             verticalOpts: { vertical: effectiveVerticalId, useCaseId, forceHeuristic: !!useCaseId },
@@ -8332,18 +8347,14 @@ export default function BankingAgent({
                   // Flow: consent approved → initiate OTP email → show OTP modal → callback executes tool
                   if (hitlPendingIntent.isVerticalConsent) {
                     const { verticalMessage, verticalOpts, intentPayload, hitlChallengeId: verticalChallengeId } = hitlPendingIntent;
+                    const verticalIsStepUp = !!hitlPendingIntent.isStepUp;
                     setHitlPendingIntent(null);
 
-                    // Initiate OTP — sends to user's email/SMS (non-fatal if Notifications unconfigured)
-                    try {
-                      await initiateStepUpOtp();
-                    } catch (_) { /* non-fatal */ }
-
-                    // Post-OTP callback: approve the HITL challenge, then retry the
-                    // vertical tool carrying the challenge id. Approving records the
-                    // receipt in demo_hitl_service; the retry's hitlChallengeId makes
-                    // the BFF pre-flight AND the gateway verify that receipt and PERMIT.
-                    pendingStepUpCallbackRef.current = async () => {
+                    // Approve the HITL challenge, then retry the vertical tool
+                    // carrying the challenge id. Approving records the receipt in
+                    // demo_hitl_service; the retry's hitlChallengeId makes the BFF
+                    // pre-flight AND the gateway verify that receipt and PERMIT.
+                    const approveAndRetry = async () => {
                       setNlLoading(true);
                       try {
                         if (verticalChallengeId) {
@@ -8383,6 +8394,26 @@ export default function BankingAgent({
                         setNlLoading(false);
                       }
                     };
+
+                    // Consent IS the gate — approve and retry, exactly like the
+                    // isMcpHitl branch above. Pre-chaining an OTP here made every
+                    // consent-only vertical write (UC8 retail $300 checkout,
+                    // healthcare pay_bill) demand MFA that PingOne Authorize never
+                    // asked for: $300 sits below the step-up band, so the decision
+                    // carried Transaction Consent Required and nothing else. If the
+                    // retry does need step-up, it returns its OWN 428 and the
+                    // response handler opens the device-list modal then.
+                    if (!verticalIsStepUp) {
+                      await approveAndRetry();
+                      return;
+                    }
+
+                    // A genuine vertical step-up (UC7): verify identity first, then
+                    // approve + retry from the OTP callback.
+                    try {
+                      await initiateStepUpOtp();
+                    } catch (_) { /* non-fatal */ }
+                    pendingStepUpCallbackRef.current = approveAndRetry;
 
                     const actionLabel = intentPayload?.description || "this action";
                     openStepUpModal(
@@ -9666,8 +9697,6 @@ export default function BankingAgent({
               </div>
             )}
             <div className="ba-right-col">
-              {/* Simple Stepper — compact bar + pop-out step table */}
-              <SimpleStepperBar />
               {/* Live agent reasoning visibility (renders only while a run reports a phase) */}
               {aguiEnabled && <ReasoningPanel reasoningState={aguiState.reasoningState} />}
               {/* Earlier-in-this-conversation summaries (renders only when summaries exist) */}

@@ -86,8 +86,15 @@ demo_api_server/logs/
 # state (Authorization headers etc.). Seed data lives in the tracked
 # bootstrapData.json; store.js falls back to it when runtimeData.json is absent.
 demo_api_server/data/runtimeData.json
-# LMDB lock file (runtime only; the DB itself is seed data and stays tracked)
+# LMDB runtime store — lock file AND the DB itself.
+# The DB was previously tracked as seed data. It is not needed for that:
+# bankingDb.js seeds from data/store.js whenever the store is empty
+# (`if (!hasData) _seed()`), so a fresh clone builds its own.
+# Tracking it was actively harmful — the running BFF bind-mounts and writes
+# this file, so it showed as permanently dirty, and every sync-main-checkout
+# run stashed it, reverting live demo state and stranding it in a stash.
 demo_api_server/data/persistent/lmdb/lock.mdb
+demo_api_server/data/persistent/lmdb/data.mdb
 # Per-machine MCP client config — holds machine-specific paths and must never
 # hold credentials. Copy .air/mcp.json.example to .air/mcp.json to set up.
 .air/mcp.json
@@ -122,3 +129,13 @@ demo_api_server/data/persistent/lmdb/lock.mdb
 /restrictions.yaml
 /content-api.zip
 /out.txt
+
+# Encrypted credential vault — NEVER commit. This repo is PUBLIC, and the vault's
+# AES-256-GCM ciphertext is only as strong as VAULT_PASSWORD, which is currently the
+# same string as the demo account password and appears in cleartext in tracked files
+# (e2e-use-cases-test.js, tests/scripts/ensure-service-keys.readEnvValue.test.js).
+# Committing the vault therefore publishes every credential inside it. Keep the file
+# local: vaultLoader treats a missing vault as a clean no-op ('no_vault_file') and
+# falls back to .env / process.env, and run-docker.sh handles its absence explicitly.
+/secrets.vault
+/secrets.vault.audit.log

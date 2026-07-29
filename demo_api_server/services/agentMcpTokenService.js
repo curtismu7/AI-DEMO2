@@ -2326,6 +2326,8 @@ async function _performTwoExchangeDelegation(
   const pingGatewayUriAud =
     firstHttpResourceUri(process.env.PINGONE_RESOURCE_PINGGATEWAY_URI) ||
     firstHttpResourceUri(configStore.getEffective('pingone_resource_pinggateway_uri')) ||
+    firstHttpResourceUri(process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI) ||
+    firstHttpResourceUri(configStore.getEffective('pingone_resource_mcp_gateway_uri')) ||
     firstHttpResourceUri(process.env.MCP_GW_RESOURCE_URI) ||
     firstHttpResourceUri(configStore.getEffective('mcp_gw_resource_uri'));
   const pingGatewayResourceAud = usePingGatewayForExchange

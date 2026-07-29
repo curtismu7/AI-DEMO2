@@ -47,6 +47,23 @@ _POLICY_DENY_CODES = (
 )
 
 
+def _tool_result_text(output) -> str:
+    """The tool's own result string, unwrapped from whatever the event stream
+    delivered it in.
+
+    LangGraph's ToolNode hands ``on_tool_end`` a ToolMessage, not the tool's raw
+    return, so ``str(output)`` yields a repr — ``content='{"...}' name='checkout'
+    tool_call_id='tc1'`` — whose JSON never parses. Every consumer below reads
+    these results as JSON, so capturing the repr silently disabled all of them:
+    the HITL gate returned None and became LLM narration, and policy denials
+    fell back to their generic sentence instead of the BFF's real reason.
+    """
+    content = getattr(output, "content", None)
+    if isinstance(content, str):
+        return content
+    return str(output or "")
+
+
 def _extract_policy_denial(tool_calls) -> Optional[str]:
     """Return a human-readable reason if any tool result this turn was an
     authorization / gateway policy denial, else None. The BFF returns the denied
@@ -65,6 +82,31 @@ def _extract_policy_denial(tool_calls) -> Optional[str]:
         except (ValueError, TypeError):
             pass
         return "The request was denied by an authorization policy."
+    return None
+
+
+def _extract_hitl_interrupt(tool_calls) -> Optional[dict]:
+    """Return the interrupt payload if a tool this turn needs human approval.
+
+    The BFF normalizes a 428 approval gate into ``result.hitlRequired`` +
+    ``interruptId`` (routes/agentTool.js). A gate is a PAUSE, not a failure, so
+    it must end the turn as an AG-UI interrupt rather than becoming another
+    observation for the LLM to narrate — otherwise the challenge is created and
+    nobody is ever shown a modal to approve it.
+
+    Deliberately distinct from _extract_policy_denial: a DENY is terminal and
+    keeps its deterministic notice; only an approval gate pauses the run.
+    """
+    for rec in tool_calls or []:
+        result = str(getattr(rec, "result", "") or "")
+        if "hitlRequired" not in result:
+            continue
+        try:
+            data = json.loads(result)
+        except (ValueError, TypeError):
+            continue
+        if isinstance(data, dict) and data.get("hitlRequired"):
+            return data
     return None
 
 
@@ -1217,7 +1259,11 @@ class MessageProcessor:
                 pending = pending_tool_calls.pop(tool_call_id, None)
                 if pending is not None:
                     turn_tool_calls.append(
-                        ToolCallRecord(name=pending["name"], args=pending["args"], result=str(output))
+                        ToolCallRecord(
+                            name=pending["name"],
+                            args=pending["args"],
+                            result=_tool_result_text(output),
+                        )
                     )
                 await emitter.on_tool_end(output, tool_call_id=tool_call_id)
 
@@ -1232,6 +1278,20 @@ class MessageProcessor:
         # 4. Close the LLM message if it was still open at stream end.
         if llm_streaming:
             await emitter.on_llm_end()
+
+        # An approval gate ends the turn as an interrupt. The model has already
+        # said its piece above (usually "I've submitted the request"), but the
+        # run must STOP here rather than fall through to a plain RUN_FINISHED —
+        # that is the only event the SPA turns into a consent modal, and without
+        # it the challenge is created and never approvable.
+        _interrupt = _extract_hitl_interrupt(turn_tool_calls)
+        if _interrupt:
+            logger.info(
+                "[AG-UI] turn interrupted for human approval (tool=%s challenge=%s)",
+                _interrupt.get("tool"), _interrupt.get("interruptId"),
+            )
+            await emitter.on_hitl_interrupt(_interrupt)
+            return  # on_hitl_interrupt emits the terminal RUN_FINISHED
 
         # Deterministic policy-denial fallback: if a tool was blocked by an
         # authorization / gateway policy but the model's reply never surfaced it

@@ -287,6 +287,33 @@ function resolveStepUpMethod(useCaseId) {
 }
 
 /**
+ * Attach the gate's own (pre-override) decision plus the override source's
+ * decision onto a Transaction/local-fallback override result, so the Token
+ * Chain can render both instead of only the merged/overridden object. Only
+ * called from override branches — a bare-PERMIT / no-override return stays
+ * unchanged and carries neither key.
+ * @param {object} overridden - the return value with fields already overridden
+ * @param {object} gateR - the ORIGINAL r, before this override. This file
+ *   never mutates r in place (only spreads it), so gateR is still the gate's
+ *   own decision at every call site below.
+ * @param {{source: string, decision: string, decisionId?: string|null, raw?: object|null}} secondary
+ * @returns {object}
+ */
+function withGateAndSecondaryEvaluation(overridden, gateR, secondary) {
+  return {
+    ...overridden,
+    gateEvaluation: {
+      decision: gateR.decision,
+      decisionId: gateR.decisionId || null,
+      raw: gateR.raw || null,
+      request: gateR._debug?.request || null,
+      response: gateR._debug?.response || gateR.raw || null,
+    },
+    secondaryEvaluation: secondary,
+  };
+}
+
+/**
  * Local amount-limit overlay used when the live Transaction decision endpoint
  * is unreachable (e.g. PingOne 429 REQUEST_LIMITED). Mirrors the MCP simulated
  * amount ladder (deny / step-up / confirm) so UC6–UC8 still fire when the MCP
@@ -297,7 +324,7 @@ function resolveStepUpMethod(useCaseId) {
  * @param {{amount: number, acr?: string}} opts
  * @returns {object} r, possibly upgraded
  */
-function _localAmountLimitFallback(r, { amount, acr }) {
+function _localAmountLimitFallback(r, { amount, acr, hitlSatisfied = false }) {
   const denyAmount = simulatedAuthorizeService.getDenyAmountUsd();
   const stepUpAmount = simulatedAuthorizeService.getStepUpAmountUsd();
   const confirmAmount = simulatedAuthorizeService.getConfirmAmountUsd();
@@ -305,7 +332,7 @@ function _localAmountLimitFallback(r, { amount, acr }) {
     && /multi.?factor|mfa|aal2|Multi_Factor/i.test(acr);
 
   if (amount > denyAmount) {
-    return {
+    return withGateAndSecondaryEvaluation({
       ...r,
       decision: 'DENY',
       transactionPolicyDenied: true,
@@ -316,23 +343,35 @@ function _localAmountLimitFallback(r, { amount, acr }) {
         reason: `Local amount fallback DENY: $${amount} exceeds deny limit $${denyAmount} (Transaction endpoint unavailable).`,
         engine: 'local-amount-fallback',
       },
-    };
+    }, r, {
+      source: 'transaction-policy-fallback', decision: 'DENY', decisionId: null,
+      raw: { engine: 'local-amount-fallback', reason: `$${amount} exceeds deny limit $${denyAmount}` },
+    });
   }
   if (amount >= stepUpAmount && !acrStrong) {
-    return {
+    return withGateAndSecondaryEvaluation({
       ...r,
       stepUpRequired: true,
       transactionPolicyStepUp: true,
       transactionPolicyFallback: true,
-    };
+    }, r, {
+      source: 'transaction-policy-fallback', decision: 'STEP_UP', decisionId: null,
+      raw: { engine: 'local-amount-fallback', reason: `$${amount} at/above step-up limit $${stepUpAmount}` },
+    });
   }
-  if (amount >= confirmAmount && !acrStrong) {
-    return {
+  // The confirm band is a HITL gate — do not re-raise it on a call the human has
+  // already approved. DENY and step-up above are unconditional: DENY always wins,
+  // and a discharged step-up is cleared downstream by stepUpAlreadyVerified.
+  if (amount >= confirmAmount && !acrStrong && !hitlSatisfied) {
+    return withGateAndSecondaryEvaluation({
       ...r,
       hitlRequired: true,
       transactionPolicyHitl: true,
       transactionPolicyFallback: true,
-    };
+    }, r, {
+      source: 'transaction-policy-fallback', decision: 'HITL_REQUIRED', decisionId: null,
+      raw: { engine: 'local-amount-fallback', reason: `$${amount} at/above confirm limit $${confirmAmount}` },
+    });
   }
   return r;
 }
@@ -364,7 +403,10 @@ function _localAmountLimitFallback(r, { amount, acr }) {
  * @param {{amount: number|null, transactionType: string|null, userId: string, acr: string}} opts
  * @returns {Promise<object>} r, possibly upgraded to DENY or STEP_UP
  */
-async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr, useCaseId }) {
+async function _applyTransactionPolicy(
+  r,
+  { amount, transactionType, userId, acr, useCaseId, hitlSatisfied = false },
+) {
   // Explicit step-up trigger: a use case may DECLARE its step-up method in the
   // catalog — 'ciba' (UC22, out-of-band) or 'p1mfa' (UC7, device-list MFA).
   // Forcing stepUpRequired makes mapLivePingOneResult emit mcp_step_up_required
@@ -386,7 +428,7 @@ async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr
       userId, amount, type: transactionType, acr,
     });
     if (t && t.decision === 'DENY') {
-      return {
+      return withGateAndSecondaryEvaluation({
         ...r,
         decision: 'DENY',
         // Surface the limit policy's own decision id/response so the Token Chain
@@ -394,38 +436,49 @@ async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr
         decisionId: t.decisionId || r.decisionId,
         raw: t.raw || r.raw,
         transactionPolicyDenied: true,
-      };
+      }, r, { source: 'transaction-policy', decision: 'DENY', decisionId: t.decisionId || null, raw: t.raw || null });
     }
     if (forceStepUp || (t && t.stepUpRequired)) {
       // Step-up outranks HITL. Setting stepUpRequired makes mapLivePingOneResult
       // take its step-up branch (checked before HITL) — a 428 mcp_step_up_required.
       // Clear hitlRequired so the gate's HITL obligation doesn't bleed through.
-      return {
+      return withGateAndSecondaryEvaluation({
         ...r,
         stepUpRequired: true,
         hitlRequired: false,
         decisionId: t?.decisionId || r.decisionId,
         raw: t?.raw || r.raw,
         transactionPolicyStepUp: true,
-      };
+      }, r, { source: 'transaction-policy', decision: 'STEP_UP', decisionId: t?.decisionId || null, raw: t?.raw || null });
     }
     // Promote Transaction-policy HITL/consent onto the MCP gate. The gate itself
     // often PERMITs vertical writes (pay_bill, checkout, …) with no obligation;
     // without this, UC8 ($300) executed and ProofStrip showed authorize mismatch.
-    if (t && (t.consentRequired || t.hitlRequired)) {
-      return {
+    //
+    // Not on a call the human has ALREADY approved. The Transaction endpoint is
+    // never told about the HITL receipt (its params are amount/type/user only),
+    // so it keeps answering "Transaction Consent Required" on the retry. Promoting
+    // that made the receipt-rejected branch in mapLivePingOneResult 403 the very
+    // call the human had just authorized — the gate accusing itself of
+    // misconfiguration over an obligation this overlay re-added.
+    if (!hitlSatisfied && t && (t.consentRequired || t.hitlRequired)) {
+      return withGateAndSecondaryEvaluation({
         ...r,
         hitlRequired: true,
         decisionId: t.decisionId || r.decisionId,
         raw: t.raw || r.raw,
         transactionPolicyHitl: true,
-      };
+      }, r, { source: 'transaction-policy', decision: 'HITL_REQUIRED', decisionId: t.decisionId || null, raw: t.raw || null });
     }
   } catch (err) {
     // A declared step-up method is gated by the useCaseId, not the amount — it
     // must still route to step-up even if the amount-limit consult errors.
     if (forceStepUp) {
-      return { ...r, stepUpRequired: true, hitlRequired: false, transactionPolicyStepUp: true };
+      return withGateAndSecondaryEvaluation(
+        { ...r, stepUpRequired: true, hitlRequired: false, transactionPolicyStepUp: true },
+        r,
+        { source: 'transaction-policy', decision: 'STEP_UP', decisionId: null, raw: null },
+      );
     }
     // Live MCP first-tool policy often PERMITs without amount obligations. The
     // Transaction endpoint is what enforces $2500 DENY / $600 step-up / $300
@@ -436,14 +489,17 @@ async function _applyTransactionPolicy(r, { amount, transactionType, userId, acr
       '[mcpAuthz] transaction policy consult failed — applying local amount fallback:',
       err.message,
     );
-    return _localAmountLimitFallback(r, { amount, acr });
+    return _localAmountLimitFallback(r, { amount, acr, hitlSatisfied });
   }
   // Local amount-band fallback when Transaction consult returned bare PERMIT (no
   // DENY/step-up/HITL). Live P1AZ Transaction endpoint may PERMIT without any
   // gate for agent vertical writes; the amount ladder still applies so UC6/7/8
   // fire correctly even when the Transaction endpoint does not enforce them.
+  // _localAmountLimitFallback now attaches gateEvaluation/secondaryEvaluation on
+  // its own override branches, so bare PERMIT results with no amount-ladder trigger
+  // will still have those fields undefined (no override happened).
   if (!forceStepUp && Number.isFinite(amount) && amount > 0) {
-    return _localAmountLimitFallback(r, { amount, acr });
+    return _localAmountLimitFallback(r, { amount, acr, hitlSatisfied });
   }
   return r;
 }
@@ -708,7 +764,19 @@ async function buildMcpFirstToolGateInputs({ req, tool, agentToken, userSub, use
   // otherwise a checkout/transfer that trips both step-up AND HITL (e.g. UC22)
   // clears step-up on retry but 428s forever on the untouched HITL statement.
   // Single-use, same pattern as stepUpAlreadyVerified above.
-  const hitlAlreadyVerified = hitlCredit.isFresh(req.session);
+  //
+  // Amount-bound: when this call carries a transfer amount, pass it so a CIBA
+  // credit minted for $50 cannot discharge a $5000 retry. Omitting amount here
+  // used to opt out of binding, then record a receipt keyed by the REQUEST
+  // amount — the bearer /api/transactions path consumed that receipt and the
+  // larger write went through. Non-write tools (toolAmount null) still omit
+  // amount and keep the unbound discharge for tool-level HITL consent.
+  const hitlAlreadyVerified = hitlCredit.isFresh(
+    req.session,
+    toolAmount != null && Number.isFinite(Number(toolAmount))
+      ? { amount: toolAmount }
+      : {},
+  );
   if (hitlAlreadyVerified) {
     // Consume-on-use (services/hitlCredit.js): the credit is spent below at the
     // HITL-gate site it actually suppresses, NOT here — so an unrelated tool
@@ -720,6 +788,8 @@ async function buildMcpFirstToolGateInputs({ req, tool, agentToken, userSub, use
     // OWN session-based hitlVerified check can never see this approval.
     // Stash a short-lived receipt keyed by (userId, tool, amount) so it can
     // look the approval up without a session. See cibaTransactionReceipt.js.
+    // Only record AFTER amount-bound isFresh — never mint a receipt for an
+    // amount the CIBA credit did not cover.
     if (transactionType && toolAmount != null) {
       cibaTransactionReceipt.record(policyUserId, tool, toolAmount);
     }
@@ -959,6 +1029,8 @@ async function evaluateMcpFirstToolGate(opts) {
             deny_parameters: r.raw?.parameters || null,
             authorize_request: r._debug?.request || null,
             authorize_response: r._debug?.response || r.raw || null,
+            gateEvaluation: r.gateEvaluation || null,
+            secondaryEvaluation: r.secondaryEvaluation || null,
             ...autoDisabled,
           },
         },
@@ -981,6 +1053,8 @@ async function evaluateMcpFirstToolGate(opts) {
             // device picker (SMS / email / passkey). Omitting the field left it
             // undefined, so every agent step-up fell back to stub OTP-only.
             step_up_method: resolveStepUpMethod(useCaseId),
+            gateEvaluation: r.gateEvaluation || null,
+            secondaryEvaluation: r.secondaryEvaluation || null,
             ...autoDisabled,
           },
         },
@@ -999,6 +1073,8 @@ async function evaluateMcpFirstToolGate(opts) {
             authorize_engine: 'pingone',
             decisionContext: 'McpFirstTool',
             decisionId: r.decisionId,
+            gateEvaluation: r.gateEvaluation || null,
+            secondaryEvaluation: r.secondaryEvaluation || null,
             ...autoDisabled,
           },
         },
@@ -1020,6 +1096,8 @@ async function evaluateMcpFirstToolGate(opts) {
             authorize_engine: 'pingone',
             decisionContext: 'McpFirstTool',
             decisionId: r.decisionId,
+            gateEvaluation: r.gateEvaluation || null,
+            secondaryEvaluation: r.secondaryEvaluation || null,
             ...autoDisabled,
           },
         },
@@ -1037,6 +1115,8 @@ async function evaluateMcpFirstToolGate(opts) {
         decisionContext: 'McpFirstTool',
         request: r._debug?.request || null,
         response: r._debug?.response || r.raw || null,
+        gateEvaluation: r.gateEvaluation || null,
+        secondaryEvaluation: r.secondaryEvaluation || null,
         ...autoDisabled,
       },
     };
@@ -1177,6 +1257,7 @@ async function evaluateMcpFirstToolGate(opts) {
     const r = await pingOneAuthorizeService.evaluateMcpToolDelegation(liveDelegationArgs);
     return mapLivePingOneResult(await _applyTransactionPolicy(r, {
       amount: toolAmount, transactionType, userId: policyUserId || subjectId, acr: userAcr, useCaseId,
+      hitlSatisfied: hitlApproved || hitlAlreadyVerified,
     }));
   } catch (err) {
     if (USE_SIMULATED) {

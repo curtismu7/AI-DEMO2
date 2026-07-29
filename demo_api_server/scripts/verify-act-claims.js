@@ -51,7 +51,7 @@ async function verifyActClaims() {
   console.log('\n=== PingOne act Claim Verification ===\n');
 
   // Check environment configuration
-  const mcpResourceUri = process.env.PINGONE_RESOURCE_MCP_SERVER_URI || process.env.MCP_RESOURCE_URI;
+  const mcpResourceUri = process.env.PINGONE_RESOURCE_MCP_SERVER_URI;
   const useActor = process.env.USE_AGENT_ACTOR_FOR_MCP === 'true';
 
   console.log('Configuration:');

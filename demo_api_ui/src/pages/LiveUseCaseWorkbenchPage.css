@@ -324,7 +324,12 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 }
 /* Host must be a bounded flex column so portaled .ba-mode-inline (height:100%) fills it */
 .luw-agent-host {
-  flex: 1 1 420px;
+  /* Basis is the 320px FLOOR, not a preferred width. flex-wrap breaks the line
+     when the BASES no longer fit — it never shrinks first — so a 420px basis
+     next to the rail's 480px wrapped the panes at ~940px of stage, long before
+     the 780px container query meant to stack them. Grow (1 vs 1.25) still sets
+     the resting proportions, so the wide layout is unchanged. */
+  flex: 1 1 320px;
   min-width: 320px;
   min-height: 0;
   display: flex;
@@ -332,7 +337,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   overflow: hidden;
 }
 .luw-rail-host {
-  flex: 1.25 1 480px;
+  flex: 1.25 1 320px;
   min-width: 320px;
   min-height: 0;
   display: flex;
@@ -406,11 +411,13 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
    scrim, which reads as a hang on a projector, and never hiding rail detail. */
 .luw-rail-host { transition: flex-grow 260ms ease, flex-basis 260ms ease, box-shadow 260ms ease; }
 
-/* Resting state is `flex: 1.25 1 480px`. Focus only ever GROWS the rail — keep
+/* Resting state is `flex: 1.25 1 320px`. Focus only ever GROWS the rail — keep
    grow/shrink live so it stays responsive; a rigid `flex: 0 0 <n>` here can end
-   up narrower than the resting state at some widths. */
+   up narrower than the resting state at some widths. Basis stays at the 320px
+   floor for the same reason as the resting state: a larger basis wraps the panes
+   early instead of letting grow do the work. Emphasis comes from grow (2.2). */
 .luw-run-layout--rail-focus .luw-rail-host {
-  flex: 2.2 1 640px;
+  flex: 2.2 1 320px;
   box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.28);
 }
 

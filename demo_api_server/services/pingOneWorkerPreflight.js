@@ -62,6 +62,18 @@ function classifyTokenError(err) {
  * @returns {Promise<{ ok:boolean, code:string, message:string, skipped?:boolean, fatal?:boolean }>}
  */
 async function runWorkerTokenPreflight() {
+  // configStore may still be loading when server.js calls this at boot: the LMDB
+  // sync and vault load run concurrently with startup. Resolving the worker
+  // credential mid-sync picked up a stale/empty secret and produced a spurious
+  // `invalid_client` verdict on almost every boot, while the SAME credential
+  // authenticated fine seconds later — training operators to ignore a check whose
+  // whole purpose is to be believed. ensureInitialized() is idempotent.
+  try {
+    if (typeof configStore.ensureInitialized === 'function') {
+      await configStore.ensureInitialized();
+    }
+  } catch (_) { /* fall through — the check below reports the real verdict */ }
+
   if (flag('pingone_worker_preflight', 'true') === 'false') {
     return { ok: true, code: 'disabled', message: 'preflight disabled', skipped: true };
   }

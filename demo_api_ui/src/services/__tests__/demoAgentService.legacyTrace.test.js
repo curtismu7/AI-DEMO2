@@ -103,3 +103,19 @@ test("a failed agent run synthesizes an error mcpResult for TraceRail", () => {
   expect(mcp.status).toBe("error");
   expect(mcp.detail.why).toMatch(/get_weather|mcp_error/i);
 });
+
+test("ingestLegacyRunTrace forwards mcpAuthorizeEvaluations to the store", () => {
+  const evaluations = [
+    { decision: "PERMIT", decisionId: "gate-1", decisionContext: "McpFirstTool" },
+    { decision: "DENY", decisionId: "limit-1", decisionContext: "TransactionAmount" },
+  ];
+  ingestLegacyRunTrace({
+    agentPath: "llm",
+    reply: "Transfer failed.",
+    success: false,
+    mcpAuthorizeEvaluation: { decision: "DENY", decisionId: "limit-1" },
+    mcpAuthorizeEvaluations: evaluations,
+  });
+  const { trace } = tokenChainTraceStore.getState();
+  expect(trace.authorizeEvaluations).toEqual(evaluations);
+});

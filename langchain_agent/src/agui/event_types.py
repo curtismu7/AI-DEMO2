@@ -35,10 +35,19 @@ class RunStarted:
 class RunFinished:
     run_id: str
     thread_id: str
+    # Present only when the run stopped for a reason the client must act on —
+    # today that is {"type": "interrupt", "interrupts": [...]}, which is what
+    # opens the HITL consent modal (useAgentState.js RUN_FINISHED handler).
+    # A normal run leaves this None and the key is omitted entirely: the same
+    # handler clears hitlPending on any outcome-less RUN_FINISHED.
+    outcome: Optional[Dict[str, Any]] = None
     type: str = field(default="RUN_FINISHED", init=False)
 
     def to_dict(self) -> Dict[str, Any]:
-        return {"type": self.type, "runId": self.run_id, "threadId": self.thread_id}
+        d: Dict[str, Any] = {"type": self.type, "runId": self.run_id, "threadId": self.thread_id}
+        if self.outcome is not None:
+            d["outcome"] = self.outcome
+        return d
 
 
 @dataclass
