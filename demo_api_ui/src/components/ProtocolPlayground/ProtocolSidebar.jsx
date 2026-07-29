@@ -1,8 +1,19 @@
 import React from 'react';
 
+/**
+ * ProtocolSidebar — protocol list navigator
+ *
+ * @param {string[]} protocols - array of protocol IDs
+ * @param {string} selectedProtocol - currently selected protocol ID
+ * @param {function} onSelectProtocol - callback(id) when protocol clicked
+ */
 export default function ProtocolSidebar({ protocols, selectedProtocol, onSelectProtocol }) {
+  if (!protocols || !Array.isArray(protocols)) {
+    return null;
+  }
+
   return (
-    <div className="sidebar-protocols">
+    <>
       <h3 className="sidebar-title">Protocols</h3>
       <nav className="protocol-list">
         {protocols.map(id => (
@@ -16,6 +27,6 @@ export default function ProtocolSidebar({ protocols, selectedProtocol, onSelectP
           </button>
         ))}
       </nav>
-    </div>
+    </>
   );
 }

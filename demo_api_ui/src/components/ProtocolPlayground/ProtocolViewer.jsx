@@ -1,28 +1,73 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import SequenceDiagram from './SequenceDiagram';
 import ActivityPanel from './ActivityPanel';
 import ExecutionControls from './ExecutionControls';
 import ExecutionEngine from '../../services/executionEngine';
 
+/**
+ * ProtocolViewer — main content area for protocol execution
+ *
+ * @param {object} flowSpec - protocol flow specification { id, name, description, steps, actors }
+ * @param {object} executionState - current execution state { currentStep, results, error }
+ * @param {function} onExecutionStateChange - callback(state) when execution state changes
+ */
 export default function ProtocolViewer({ flowSpec, executionState, onExecutionStateChange }) {
-  const [engine] = useState(() => new ExecutionEngine(flowSpec));
+  const [engine, setEngine] = useState(null);
+
+  // Recreate engine when flowSpec changes
+  useEffect(() => {
+    if (flowSpec) {
+      setEngine(new ExecutionEngine(flowSpec));
+    }
+  }, [flowSpec]);
+
+  // Validate required props
+  if (!flowSpec || !executionState || !onExecutionStateChange) {
+    return null;
+  }
+
+  if (!engine) {
+    return null;
+  }
 
   const handleExecute = async () => {
-    const result = await engine.executeAll();
-    onExecutionStateChange(engine.getState());
+    try {
+      await engine.executeAll();
+      onExecutionStateChange(engine.getState());
+    } catch (err) {
+      onExecutionStateChange({
+        ...engine.getState(),
+        error: err.message || 'Execution failed'
+      });
+    }
   };
 
   const handleStep = async () => {
-    const nextStep = flowSpec.steps[executionState.results.length];
-    if (nextStep) {
-      await engine.executeStep(nextStep.id);
-      onExecutionStateChange(engine.getState());
+    try {
+      const nextStep = flowSpec.steps[executionState.results.length];
+      if (nextStep) {
+        await engine.executeStep(nextStep.id);
+        onExecutionStateChange(engine.getState());
+      }
+    } catch (err) {
+      onExecutionStateChange({
+        ...engine.getState(),
+        error: err.message || 'Step execution failed'
+      });
     }
   };
 
   const handleReset = () => {
-    engine.reset();
-    onExecutionStateChange(engine.getState());
+    try {
+      engine.reset();
+      onExecutionStateChange(engine.getState());
+    } catch (err) {
+      onExecutionStateChange({
+        currentStep: null,
+        results: [],
+        error: err.message || 'Reset failed'
+      });
+    }
   };
 
   return (
