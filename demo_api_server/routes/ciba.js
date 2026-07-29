@@ -76,12 +76,20 @@ router.get('/status', (req, res) => {
 // ---------------------------------------------------------------------------
 
 /**
+ * Initiate a CIBA (Client-Initiated Backchannel Authentication) request for human approval.
+ * Client initiates a transfer that requires human review via separate device or email.
+ *
  * Body: {
  *   scope?:           default includes offline_access when omitted (PingOne must allow it for refresh_token)
  *   binding_message?: 'Approve $500 transfer'   — shown in email or push (PingOne / DaVinci)
  *   acr_values?:      'Multi_factor'             — for step-up auth
  *   login_hint?:      'user@example.com'         — override from session email
  * }
+ *
+ * @flow ciba-hitl
+ * @actor client-app
+ * @to human-approver
+ * @step 1
  */
 router.post('/initiate', authenticateToken, async (req, res) => {
   if (!_cibaEnabled(res)) return;
@@ -472,6 +480,15 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
 // call resolves it exactly as a timed auto-approve would.
 // ---------------------------------------------------------------------------
 
+/**
+ * Approve a pending transfer after human review via CIBA/HITL.
+ * Human approver grants permission for the client-initiated transfer.
+ *
+ * @flow ciba-hitl
+ * @actor human-approver
+ * @to client-app
+ * @step 2
+ */
 router.post('/approve-now/:authReqId', authenticateToken, (req, res) => {
   const { authReqId } = req.params;
   const pending = req.session.cibaRequests?.[authReqId];

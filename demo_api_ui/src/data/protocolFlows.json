@@ -1,0 +1,146 @@
+{
+  "ciba-hitl": {
+    "id": "ciba-hitl",
+    "name": "Ciba Hitl",
+    "description": "Protocol flow: ciba-hitl",
+    "actors": [
+      "client-app",
+      "human-approver"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "actor": "client-app",
+        "fromActor": "client-app",
+        "toActor": "human-approver",
+        "action": "POST /api/auth/ciba/initiate",
+        "label": "POST /api/auth/ciba/initiate",
+        "method": "POST",
+        "endpoint": "/api/auth/ciba/initiate",
+        "step": 1,
+        "expected": {}
+      },
+      {
+        "id": "step-2",
+        "actor": "human-approver",
+        "fromActor": "human-approver",
+        "toActor": "client-app",
+        "action": "POST /api/auth/ciba/approve-now/:authReqId",
+        "label": "POST /api/auth/ciba/approve-now/:authReqId",
+        "method": "POST",
+        "endpoint": "/api/auth/ciba/approve-now/:authReqId",
+        "step": 2,
+        "expected": {}
+      }
+    ],
+    "branches": []
+  },
+  "dpop": {
+    "id": "dpop",
+    "name": "Dpop",
+    "description": "Protocol flow: dpop",
+    "actors": [
+      "client-app",
+      "gateway"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "actor": "client-app",
+        "fromActor": "client-app",
+        "toActor": "gateway",
+        "action": "POST /api/auth/oauth/token",
+        "label": "POST /api/auth/oauth/token",
+        "method": "POST",
+        "endpoint": "/api/auth/oauth/token",
+        "step": 1,
+        "expected": {}
+      },
+      {
+        "id": "step-2",
+        "actor": "gateway",
+        "fromActor": "gateway",
+        "toActor": "client-app",
+        "action": "POST /api/auth/gateway/verify-dpop",
+        "label": "POST /api/auth/gateway/verify-dpop",
+        "method": "POST",
+        "endpoint": "/api/auth/gateway/verify-dpop",
+        "step": 2,
+        "expected": {}
+      }
+    ],
+    "branches": []
+  },
+  "rfc8693-token-exchange": {
+    "id": "rfc8693-token-exchange",
+    "name": "Rfc8693 Token Exchange",
+    "description": "Protocol flow: rfc8693-token-exchange",
+    "actors": [
+      "client-app",
+      "token-exchanger"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "actor": "client-app",
+        "fromActor": "client-app",
+        "toActor": "token-exchanger",
+        "action": "POST /api/oauth/token/token",
+        "label": "POST /api/oauth/token/token",
+        "method": "POST",
+        "endpoint": "/api/oauth/token/token",
+        "step": 1,
+        "expected": {}
+      },
+      {
+        "id": "step-2",
+        "actor": "token-exchanger",
+        "fromActor": "token-exchanger",
+        "toActor": "client-app",
+        "action": "POST /api/oauth/token/introspect",
+        "label": "POST /api/oauth/token/introspect",
+        "method": "POST",
+        "endpoint": "/api/oauth/token/introspect",
+        "step": 2,
+        "expected": {}
+      }
+    ],
+    "branches": []
+  },
+  "par": {
+    "id": "par",
+    "name": "Par",
+    "description": "Protocol flow: par",
+    "actors": [
+      "client-app",
+      "auth-server"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "actor": "client-app",
+        "fromActor": "client-app",
+        "toActor": "auth-server",
+        "action": "POST /api/auth/par",
+        "label": "POST /api/auth/par",
+        "method": "POST",
+        "endpoint": "/api/auth/par",
+        "step": 1,
+        "expected": {}
+      },
+      {
+        "id": "step-2",
+        "actor": "auth-server",
+        "fromActor": "auth-server",
+        "toActor": "client-app",
+        "action": "GET /api/auth/authorize",
+        "label": "GET /api/auth/authorize",
+        "method": "GET",
+        "endpoint": "/api/auth/authorize",
+        "step": 2,
+        "expected": {}
+      }
+    ],
+    "branches": []
+  }
+}
