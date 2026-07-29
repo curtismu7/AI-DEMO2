@@ -73,14 +73,14 @@ CORE_SERVICES=(
 )
 
 # Optional groups — start on demand via `./run-docker.sh optional start <group>`.
-OPTIONAL_GROUP_NAMES=(rag agents tracing demo-auth)
+OPTIONAL_GROUP_NAMES=(rag agents tracing demo-auth mcpgw)
 
 # Also brought up on every `start` / `restart` / `build` (core stack). Still
 # stoppable with `./run-docker.sh optional stop rag` without tearing down core.
 DEFAULT_OPTIONAL_GROUPS=(rag)
 
 # Compose profiles matching OPTIONAL_GROUP_NAMES (also used for `start full`).
-FULL_STACK_PROFILE_ARGS=(--profile rag --profile agents --profile tracing --profile demo-auth)
+FULL_STACK_PROFILE_ARGS=(--profile rag --profile agents --profile tracing --profile demo-auth --profile mcpgw)
 
 # Return compose profile name(s) for an optional group (or `all`).
 _optional_group_profiles() {
@@ -89,7 +89,8 @@ _optional_group_profiles() {
     agents)    echo "agents" ;;
     tracing)   echo "tracing" ;;
     demo-auth) echo "demo-auth" ;;
-    all)       echo "rag agents tracing demo-auth" ;;
+    mcpgw)     echo "mcpgw" ;;
+    all)       echo "rag agents tracing demo-auth mcpgw" ;;
     *) return 1 ;;
   esac
 }
@@ -112,6 +113,7 @@ _optional_group_services() {
     agents)    echo "openai-agent mastra-agent pydantic-agent" ;;
     tracing)   echo "jaeger" ;;
     demo-auth) echo "authz-server mcp-gateway mcp-jwt-verifier" ;;
+    mcpgw)     echo "ping-mcpgw" ;;
     all)
       local g svc out=""
       for g in "${OPTIONAL_GROUP_NAMES[@]}"; do
@@ -131,6 +133,7 @@ _optional_group_desc() {
     agents)    echo "Alternate agent frameworks (OpenAI / Mastra / Pydantic)" ;;
     tracing)   echo "Jaeger OTLP tracing backend" ;;
     demo-auth) echo "Demo Authorize AS + Demo Agent Gateway (Node mcp-gateway)" ;;
+    mcpgw)     echo "PingOne Privilege MCPGW (JIT least-privilege + session recording)" ;;
     all)       echo "Every optional group" ;;
     *)         echo "Unknown group" ;;
   esac

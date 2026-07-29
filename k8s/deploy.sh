@@ -102,6 +102,7 @@ deploy() {
   # Gateway + agent runtimes (mcp-gateway starts at replicas:0; demo-sync scales it)
   kubectl apply -f "$SCRIPT_DIR/60-mcp-gateway-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/71-ping-gateway-deployment.yaml"   # real PingGateway (IG)
+  kubectl apply -f "$SCRIPT_DIR/75-ping-mcpgw-deployment.yaml"     # PingOne Privilege MCPGW
   kubectl apply -f "$SCRIPT_DIR/68-mcp-proxy-deployment.yaml"      # scaled by demo-sync
   kubectl apply -f "$SCRIPT_DIR/61-agent-service-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/40-agent-service-deployment.yaml"   # langchain agent
