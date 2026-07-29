@@ -6,6 +6,7 @@
 // Phase266ArchitecturePage.jsx.
 import React, { useEffect, useRef, useState } from "react";
 import mermaid from "mermaid";
+import DiagramExportBar from "./DiagramExportBar";
 import "./AgentOnboardingMermaidPage.css";
 
 const ICON = (name, alt) =>
@@ -85,10 +86,13 @@ const LEGEND = [
 
 export default function AgentOnboardingMermaidPage() {
   const containerRef = useRef(null);
+  const [source, setSource] = useState(MERMAID_SOURCE);
   const [renderError, setRenderError] = useState(null);
+  const renderIdRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
+    setRenderError(null);
     mermaid.initialize({
       startOnLoad: false,
       theme: "dark",
@@ -98,7 +102,8 @@ export default function AgentOnboardingMermaidPage() {
 
     async function render() {
       try {
-        const { svg } = await mermaid.render("agent-onboarding-mermaid-svg", MERMAID_SOURCE);
+        const id = `agent-onboarding-mermaid-svg-${++renderIdRef.current}`;
+        const { svg } = await mermaid.render(id, source);
         if (!cancelled && containerRef.current) {
           containerRef.current.innerHTML = svg;
         }
@@ -112,7 +117,7 @@ export default function AgentOnboardingMermaidPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [source]);
 
   return (
     <div className="aom-page">
@@ -124,6 +129,12 @@ export default function AgentOnboardingMermaidPage() {
           auto-layout engine — real directional arrows between nodes.
         </p>
       </div>
+
+      <DiagramExportBar
+        source={source}
+        sourceFilename="agent-onboarding.mmd"
+        onSourceChange={setSource}
+      />
 
       <div className="aom-panel">
         {renderError ? (

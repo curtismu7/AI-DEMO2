@@ -12,6 +12,7 @@
 import { useEffect, useRef, useState } from "react";
 import mermaid from "mermaid";
 import { PathFilterBar } from "./diagram";
+import DiagramExportBar from "./DiagramExportBar";
 import "./Phase266ArchitecturePage.css";
 
 // Module-level paths constant — consumed by the shared PathFilterBar component
@@ -168,11 +169,14 @@ const SPEC_HOPS = [
 
 export default function Phase266ArchitecturePage() {
   const containerRef = useRef(null);
+  const [source, setSource] = useState(MERMAID_SOURCE);
   const [renderError, setRenderError] = useState(null);
   const [selectedPath, setSelectedPath] = useState(null);
+  const renderIdRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
+    setRenderError(null);
     mermaid.initialize({
       startOnLoad: false,
       theme: "default",
@@ -182,10 +186,8 @@ export default function Phase266ArchitecturePage() {
 
     async function render() {
       try {
-        const { svg } = await mermaid.render(
-          "phase266-architecture-svg",
-          MERMAID_SOURCE,
-        );
+        const id = `phase266-architecture-svg-${++renderIdRef.current}`;
+        const { svg } = await mermaid.render(id, source);
         if (!cancelled && containerRef.current) {
           containerRef.current.innerHTML = svg;
           tagPathNodes(containerRef.current);
@@ -200,7 +202,7 @@ export default function Phase266ArchitecturePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [source]);
 
   const wrapperClass = [
     "p266-arch-diagram-wrapper",
@@ -227,6 +229,12 @@ export default function Phase266ArchitecturePage() {
       </header>
 
       <PathFilterBar paths={P266_PATHS} selectedPath={selectedPath} onSelect={setSelectedPath} className="p266-filter-bar" />
+
+      <DiagramExportBar
+        source={source}
+        sourceFilename="phase266-architecture.mmd"
+        onSourceChange={(s) => { setSource(s); setSelectedPath(null); }}
+      />
 
       <section
         className={wrapperClass}
