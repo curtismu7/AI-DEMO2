@@ -129,3 +129,13 @@ demo_api_server/data/persistent/lmdb/data.mdb
 /restrictions.yaml
 /content-api.zip
 /out.txt
+
+# Encrypted credential vault — NEVER commit. This repo is PUBLIC, and the vault's
+# AES-256-GCM ciphertext is only as strong as VAULT_PASSWORD, which is currently the
+# same string as the demo account password and appears in cleartext in tracked files
+# (e2e-use-cases-test.js, tests/scripts/ensure-service-keys.readEnvValue.test.js).
+# Committing the vault therefore publishes every credential inside it. Keep the file
+# local: vaultLoader treats a missing vault as a clean no-op ('no_vault_file') and
+# falls back to .env / process.env, and run-docker.sh handles its absence explicitly.
+/secrets.vault
+/secrets.vault.audit.log
