@@ -94,8 +94,12 @@ function extractRequestMetadata(req, res, next) {
 }
 
 /**
- * POST /api/oauth/token
- * OAuth 2.0 token endpoint - RFC 6749 compliant
+ * Exchange delegated token via RFC 8693 token exchange.
+ * Client sends a subject token (typically an ID token) and requests an access token.
+ *
+ * @flow rfc8693-token-exchange
+ * @actor client-app
+ * @step 1
  */
 router.post('/token', extractClientCredentials, extractRequestMetadata, async (req, res, next) => {
   try {
@@ -145,8 +149,12 @@ router.post('/token', extractClientCredentials, extractRequestMetadata, async (r
 });
 
 /**
- * POST /api/oauth/introspect
- * Token introspection endpoint - RFC 7662 compliant
+ * Validate and introspect delegated token via RFC 8693.
+ * Token exchanger verifies the subject token and returns token details.
+ *
+ * @flow rfc8693-token-exchange
+ * @actor token-exchanger
+ * @step 2
  */
 router.post('/introspect', extractRequestMetadata, (req, res, next) => {
   try {

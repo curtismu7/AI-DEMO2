@@ -1,0 +1,106 @@
+{
+  "ciba-hitl": {
+    "id": "ciba-hitl",
+    "name": "Ciba Hitl",
+    "description": "Protocol flow: ciba-hitl",
+    "actors": [
+      "client-app",
+      "human-approver"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "actor": "client-app",
+        "action": "Step 1",
+        "step": 1,
+        "expected": {}
+      },
+      {
+        "id": "step-2",
+        "actor": "human-approver",
+        "action": "Step 2",
+        "step": 2,
+        "expected": {}
+      }
+    ],
+    "branches": []
+  },
+  "dpop": {
+    "id": "dpop",
+    "name": "Dpop",
+    "description": "Protocol flow: dpop",
+    "actors": [
+      "client-app",
+      "gateway"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "actor": "client-app",
+        "action": "Step 1",
+        "step": 1,
+        "expected": {}
+      },
+      {
+        "id": "step-2",
+        "actor": "gateway",
+        "action": "Step 2",
+        "step": 2,
+        "expected": {}
+      }
+    ],
+    "branches": []
+  },
+  "rfc8693-token-exchange": {
+    "id": "rfc8693-token-exchange",
+    "name": "Rfc8693 Token Exchange",
+    "description": "Protocol flow: rfc8693-token-exchange",
+    "actors": [
+      "client-app",
+      "token-exchanger"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "actor": "client-app",
+        "action": "Step 1",
+        "step": 1,
+        "expected": {}
+      },
+      {
+        "id": "step-2",
+        "actor": "token-exchanger",
+        "action": "Step 2",
+        "step": 2,
+        "expected": {}
+      }
+    ],
+    "branches": []
+  },
+  "par": {
+    "id": "par",
+    "name": "Par",
+    "description": "Protocol flow: par",
+    "actors": [
+      "client-app",
+      "auth-server"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "actor": "client-app",
+        "action": "Step 1",
+        "step": 1,
+        "expected": {}
+      },
+      {
+        "id": "step-2",
+        "actor": "auth-server",
+        "action": "Step 2",
+        "step": 2,
+        "expected": {}
+      }
+    ],
+    "branches": []
+  }
+}

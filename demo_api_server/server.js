@@ -182,6 +182,8 @@ const migrationRoutes = require('./routes/migration');
 const securityMonitoringRoutes = require('./routes/securityMonitoring');
 const oauthClientsRoutes = require('./routes/oauthClients');
 const oauthTokenRoutes = require('./routes/oauthToken');
+const parRequestRoutes = require('./routes/parRequest');
+const dpopRequestRoutes = require('./routes/dpopRequest');
 const {
     getOAuthRedirectDebugInfo,
     getFrontendOrigin
@@ -1067,6 +1069,8 @@ app.use('/api/auth/oauth', oauthRoutes);
 app.use('/api/auth/oauth/user', oauthUserRoutes);
 registerCallbacks(app, oauthRoutes, oauthUserRoutes, authLimiter);
 app.use('/api/auth/ciba', cibaRoutes);
+app.use('/api/auth', parRequestRoutes);
+app.use('/api/auth', dpopRequestRoutes);
 app.use('/api/auth/mfa', mfaRoutes);
 app.use('/api/recognize', recognizeRoutes);
 app.use('/api/mfa/test', mfaTestRoutes);
