@@ -1237,6 +1237,7 @@ app.get('/api/app-events/stream', (req, res) => {
 // Register before the authenticateToken block so customers with a valid session can access it.
 app.get('/api/tokens/agent-cc-preview', requireSession, tokenRoutes.agentCcPreviewHandler);
 app.use('/api/tokens', authenticateToken, tokenRoutes);
+app.use('/api/token-exchanges', require('./routes/tokenExchanges'));
 app.use('/api/users', authenticateToken, userRoutes);
 app.use('/api/self-service/users', authenticateToken, selfServiceUsersRoutes);
 app.use('/api/reports', reportsRoutes);
