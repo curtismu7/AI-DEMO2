@@ -5,6 +5,7 @@ import { useAgentUiMode } from '../context/AgentUiModeContext';
 import { useVertical } from '../vertical/useVertical';
 import { isEmbeddedAgentDockRoute } from '../utils/embeddedAgentFabVisibility';
 import { resolveEmbeddedFocus } from './demoAgentSafety';
+import TokenExchangeModal from './TokenExchangeModal';
 
 const HEIGHT_KEY = 'embedded_agent_dock_height_px';
 const COLLAPSE_KEY = 'embedded_agent_dock_collapsed';
@@ -49,6 +50,7 @@ export default function EmbeddedAgentDock({ user, agentPlacement }) {
   const identity = pageManifest?.identity;
   const [hostEl, setHostEl] = useState(null);
   const [frameworkLabel, setFrameworkLabel] = useState(null);
+  const [exchangeModalOpen, setExchangeModalOpen] = useState(false);
 
   // Vertical-aware title — Care Connect → "Care Assistant", banking → "banking
   // assistant", retail → fall back to identity.displayName. Config-page title
@@ -173,6 +175,11 @@ export default function EmbeddedAgentDock({ user, agentPlacement }) {
   const isConfigPage = resolveEmbeddedFocus(pathname) === 'config';
 
   const dockNode = (
+    <>
+      <TokenExchangeModal
+        isOpen={exchangeModalOpen}
+        onClose={() => setExchangeModalOpen(false)}
+      />
     <div
       className={`global-embedded-agent-dock-wrap refined-dock rd2-dock${collapsed ? ' global-embedded-agent-dock-wrap--collapsed' : ''}`}
       role="region"
@@ -216,6 +223,15 @@ export default function EmbeddedAgentDock({ user, agentPlacement }) {
           <button
             type="button"
             className="embedded-dock-graph-link-btn"
+            onClick={() => setExchangeModalOpen(true)}
+            title="View token exchanges"
+            aria-label="View token exchanges"
+          >
+            Token Exchanges
+          </button>
+          <button
+            type="button"
+            className="embedded-dock-graph-link-btn"
             onClick={() => navigate('/telemetry')}
             title="View system graph"
             aria-label="View system graph"
@@ -250,7 +266,8 @@ export default function EmbeddedAgentDock({ user, agentPlacement }) {
           ref={hostRefCb}
         />
       </div>
-    </div>
+      </div>
+    </>
   );
 
   return dockNode;
