@@ -61,7 +61,8 @@ if (method == 'tools/call') {
         return rpcError(id, -32602, 'Invalid params: params.arguments must be an object', null)
     }
     args = new LinkedHashMap(args)
-    args.remove('_hitl_challenge_id') // gateway-internal HITL retry marker
+    // gateway-internal HITL retry marker
+    def hadHitlMarker = args.remove('_hitl_challenge_id') != null
 
     def artifact = new JsonSlurper().parse(new File(SCHEMAS_PATH))
     def entry = artifact.tools[params.name]
@@ -84,6 +85,18 @@ if (method == 'tools/call') {
     }
     if (!errors.isEmpty()) {
         return rpcError(id, -32602, "Invalid arguments for tool ${params.name}", [validationErrors: errors])
+    }
+
+    // Removing the marker above only cleaned THIS filter's copy — the original
+    // entity still carried it downstream, and the MCP server validates tool
+    // arguments against the same additionalProperties:false schema, so it
+    // answered "Invalid parameters: Additional property not allowed:
+    // _hitl_challenge_id" (surfaced as 502 backend_execution_failed). Forward
+    // the cleaned arguments, matching the Node gateway (authorizeMcpRequest.ts
+    // WR-03, index.ts).
+    if (hadHitlMarker) {
+        params.arguments = args
+        request.entity.setString(JsonOutput.toJson(body))
     }
 }
 
