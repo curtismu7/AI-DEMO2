@@ -5,6 +5,9 @@ import ProtocolViewer from './ProtocolViewer';
 import './ProtocolPlayground.css';
 
 const ProtocolPlayground = () => {
+  // Convert protocolFlows object to array of protocol objects
+  const protocolArray = Object.values(protocolFlows || {});
+
   const [selectedProtocol, setSelectedProtocol] = useState(null);
   const [executionState, setExecutionState] = useState({
     currentStep: 0,
@@ -15,14 +18,17 @@ const ProtocolPlayground = () => {
 
   // Set first protocol as default on mount
   useEffect(() => {
-    if (protocolFlows && protocolFlows.length > 0) {
-      setSelectedProtocol(protocolFlows[0]);
+    if (protocolArray && protocolArray.length > 0) {
+      setSelectedProtocol(protocolArray[0]);
     }
-  }, []);
+  }, [protocolArray]);
 
-  // Handle protocol selection
-  const handleProtocolSelect = (protocol) => {
-    setSelectedProtocol(protocol);
+  // Handle protocol selection - convert ID back to protocol object
+  const handleProtocolSelect = (protocolId) => {
+    const protocol = protocolArray.find(p => p.id === protocolId);
+    if (protocol) {
+      setSelectedProtocol(protocol);
+    }
     // Reset execution state when switching protocols
     setExecutionState({
       currentStep: 0,
@@ -45,8 +51,8 @@ const ProtocolPlayground = () => {
       <div className="protocol-playground__container">
         <aside className="protocol-playground__sidebar">
           <ProtocolSidebar
-            protocols={protocolFlows || []}
-            selectedProtocol={selectedProtocol}
+            protocols={protocolArray.map(p => p.id)}
+            selectedProtocol={selectedProtocol?.id}
             onProtocolSelect={handleProtocolSelect}
           />
         </aside>
