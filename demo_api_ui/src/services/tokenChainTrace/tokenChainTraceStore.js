@@ -12,7 +12,7 @@ const EMPTY_TRACE = () => ({
   runId: null,
   startedAt: null, prompt: null, routingMode: null, routingDetail: null,
   llmDetail: null, llmReply: null,
-  phases: [], tokenEvents: [], mcpResult: null, authorize: null, outcome: null,
+  phases: [], tokenEvents: [], mcpResult: null, authorize: null, authorizeEvaluations: null, outcome: null,
   // 'declined' once the human refuses a step-up / HITL approval gate. Without
   // it the trace ends at authorize.outcome === 'STEP_UP' and the Proof verdict
   // cannot tell "gate fired, human approved" from "gate fired, human refused".
@@ -160,6 +160,12 @@ export const tokenChainTraceStore = {
     }
     emit();
   },
+  ingestAuthorizeEvaluations(list) {
+    if (!Array.isArray(list) || !list.length) return;
+    ensureTrace();
+    trace.authorizeEvaluations = list;
+    emit();
+  },
   ingestLlmDetail(value) {
     if (!value) return;
     ensureTrace();
@@ -212,6 +218,13 @@ agentFlowDiagram.subscribe((snap) => {
 });
 if (typeof window !== "undefined") {
   window.addEventListener("mcp-tool-result-sse", (e) => {
-    if (e && e.detail) tokenChainTraceStore.ingestMcpResult(e.detail);
+    if (!e || !e.detail) return;
+    tokenChainTraceStore.ingestMcpResult(e.detail);
+    if (e.detail.mcpAuthorizeEvaluation) {
+      tokenChainTraceStore.ingestAuthorize(e.detail.mcpAuthorizeEvaluation);
+    }
+    if (e.detail.mcpAuthorizeEvaluations) {
+      tokenChainTraceStore.ingestAuthorizeEvaluations(e.detail.mcpAuthorizeEvaluations);
+    }
   });
 }

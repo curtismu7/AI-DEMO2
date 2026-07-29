@@ -104,6 +104,51 @@ test("reset clears everything including sign-in token (full demo wipe)", () => {
   expect(trace.outcome).toBeNull();
 });
 
+test("ingestAuthorizeEvaluations stores the ordered decision list", () => {
+  const list = [
+    { decision: "PERMIT", decisionId: "gate-1", decisionContext: "McpFirstTool" },
+    { decision: "DENY", decisionId: "limit-1", decisionContext: "TransactionAmount" },
+  ];
+  tokenChainTraceStore.ingestAuthorizeEvaluations(list);
+  expect(tokenChainTraceStore.getState().trace.authorizeEvaluations).toEqual(list);
+});
+
+test("ingestAuthorizeEvaluations ignores empty/non-array input", () => {
+  tokenChainTraceStore.ingestAuthorizeEvaluations([]);
+  expect(tokenChainTraceStore.getState().trace.authorizeEvaluations).toBeNull();
+  tokenChainTraceStore.ingestAuthorizeEvaluations(undefined);
+  expect(tokenChainTraceStore.getState().trace.authorizeEvaluations).toBeNull();
+});
+
+test("mcp-tool-result-sse window event ingests a singular authorize evaluation", () => {
+  window.dispatchEvent(new CustomEvent("mcp-tool-result-sse", {
+    detail: {
+      type: "mcp-result", tool: "get_my_accounts",
+      mcpAuthorizeEvaluation: { decision: "PERMIT", decisionId: "gate-1" },
+    },
+  }));
+  expect(tokenChainTraceStore.getState().trace.authorize).toEqual({ decision: "PERMIT", decisionId: "gate-1" });
+});
+
+test("mcp-tool-result-sse window event ingests a plural authorize evaluations array", () => {
+  const evaluations = [
+    { decision: "PERMIT", decisionId: "gate-1", decisionContext: "McpFirstTool" },
+    { decision: "DENY", decisionId: "limit-1", decisionContext: "TransactionAmount" },
+  ];
+  window.dispatchEvent(new CustomEvent("mcp-tool-result-sse", {
+    detail: { type: "mcp-result", tool: "create_transfer", mcpAuthorizeEvaluations: evaluations },
+  }));
+  expect(tokenChainTraceStore.getState().trace.authorizeEvaluations).toEqual(evaluations);
+});
+
+test("mcp-tool-result-sse window event without authorize fields does not touch trace.authorize", () => {
+  tokenChainTraceStore.ingestAuthorize({ decision: "DENY", decisionId: "prior" });
+  window.dispatchEvent(new CustomEvent("mcp-tool-result-sse", {
+    detail: { type: "mcp-result", tool: "get_my_accounts" },
+  }));
+  expect(tokenChainTraceStore.getState().trace.authorize).toEqual({ decision: "DENY", decisionId: "prior" });
+});
+
 // ── Approval-gate carry-over across a resume ────────────────────────────────
 // A step-up resume re-enters sendAgentMessage, whose beginTrace() wipes
 // trace.authorize — taking the STEP_UP outcome with it. The retry then records

@@ -6,6 +6,7 @@ import ArchitectureTabsPanel from "../components/ArchitectureTabsPanel";
 import ArchitectureTokenFlowPage from "../components/ArchitectureTokenFlowPage";
 import Phase266ArchitecturePage from "../components/Phase266ArchitecturePage";
 import ArchitectureCanvasPage from "../components/ArchitectureCanvasPage";
+import TokenChainArchitecturePage from "../components/TokenChainArchitecturePage";
 
 // /architecture/* sub-routes
 //
@@ -21,6 +22,7 @@ export default function EducationRoutes({ user, logout }) {
         <Route path="system" element={<ArchitectureTabsPanel user={user} />} />
         <Route path="overview" element={<ArchitectureOverviewPage user={user} />} />
         <Route path="token-flow" element={<ArchitectureTokenFlowPage user={user} />} />
+        <Route path="token-chain" element={<TokenChainArchitecturePage user={user} />} />
         <Route path="flow" element={<ArchitectureFlowPage user={user} />} />
         <Route path="phase-266" element={<Phase266ArchitecturePage />} />
         <Route path="canvas" element={<ArchitectureCanvasPage />} />
