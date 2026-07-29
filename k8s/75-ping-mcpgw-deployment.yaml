@@ -1,0 +1,107 @@
+---
+# ping-mcpgw: PingOne Privilege MCPGW (commercial) fronting mcp-server.
+# Policy and session recording are configured in the PingOne Privilege console,
+# not in this repo. OIDC values come from ping-mcpgw/config/pingone.env via the
+# ping-mcpgw-secrets secret (created by create-secrets.sh).
+# Exposed externally at https://ai-demo.ping-devops.com/mcpgw via se-ingress.yaml.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ping-mcpgw
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: ping-mcpgw
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ai-demo
+      component: ping-mcpgw
+  template:
+    metadata:
+      labels:
+        app: ai-demo
+        component: ping-mcpgw
+    spec:
+      containers:
+      - name: ping-mcpgw
+        # Replace with the image URI from the Privilege gateway wizard.
+        image: MCPGW_IMAGE_PLACEHOLDER
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8623
+          name: https
+        volumeMounts:
+        # The vendor reads pingone.env as a FILE at this path — not as injected
+        # env vars. This mirrors the Compose bind mount in docker-compose.yml.
+        # SERVER_URL lives inside that file and differs per environment (see
+        # the design spec §5); the MCP backend URL is set on the console's MCP
+        # Server tile, not here.
+        - name: pingone-config
+          mountPath: /var/lib/procyon/config
+          readOnly: true
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        startupProbe:
+          tcpSocket:
+            port: 8623
+          failureThreshold: 30
+          periodSeconds: 2
+          timeoutSeconds: 2
+        livenessProbe:
+          tcpSocket:
+            port: 8623
+          periodSeconds: 60
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 8623
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+      volumes:
+      - name: pingone-config
+        secret:
+          secretName: ping-mcpgw-secrets
+          items:
+          - key: pingone.env
+            path: pingone.env
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ping-mcpgw
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: ping-mcpgw
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8623
+    targetPort: 8623
+    protocol: TCP
+    name: https
+  # MCP sessions are stateful (Mcp-Session-Id). Pin each client to the same
+  # pod for the session lifetime.
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 3600
+  selector:
+    app: ai-demo
+    component: ping-mcpgw
