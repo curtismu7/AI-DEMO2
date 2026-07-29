@@ -50,3 +50,49 @@ async def test_on_tool_start_and_end_emits_tool_events(emitter):
     start = next(e for e in emitter._sink_list if e["type"] == "TOOL_CALL_START")
     assert start["toolCallName"] == "get_accounts"
     assert start["toolCallId"] == "tc_abc"
+
+
+@pytest.mark.asyncio
+async def test_hitl_interrupt_terminates_the_run_with_an_interrupt_outcome(emitter):
+    """The UI opens its consent modal only on RUN_FINISHED whose outcome is an
+    interrupt (useAgentState.js). Without an outcome field that trigger is
+    unreachable, so a typed free-text prompt that hits the HITL gate created a
+    challenge nobody could approve — the LLM just narrated "pending approval"."""
+    await emitter.on_run_start()
+    await emitter.on_hitl_interrupt({
+        "interruptId": "c1",
+        "consentId": "c1",
+        "tool": "checkout",
+        "reason": "consent",
+        "message": "Human approval is required.",
+    })
+
+    finished = [e for e in emitter._sink_list if e["type"] == "RUN_FINISHED"]
+    assert len(finished) == 1
+    assert finished[0]["outcome"]["type"] == "interrupt"
+    assert finished[0]["outcome"]["interrupts"][0]["consentId"] == "c1"
+
+
+@pytest.mark.asyncio
+async def test_hitl_interrupt_suppresses_a_trailing_plain_run_finished(emitter):
+    """on_run_end() still runs in the /run handler's finally block; it must not
+    append a second, outcome-less RUN_FINISHED that clears hitlPending."""
+    await emitter.on_run_start()
+    await emitter.on_hitl_interrupt({"interruptId": "c1", "tool": "checkout"})
+    await emitter.on_run_end()
+
+    finished = [e for e in emitter._sink_list if e["type"] == "RUN_FINISHED"]
+    assert len(finished) == 1
+    assert "outcome" in finished[0]
+
+
+@pytest.mark.asyncio
+async def test_plain_run_end_carries_no_outcome(emitter):
+    """A normal run must stay outcome-less — useAgentState clears hitlPending on
+    any RUN_FINISHED that is not an interrupt, and that behavior is relied upon."""
+    await emitter.on_run_start()
+    await emitter.on_run_end()
+
+    finished = [e for e in emitter._sink_list if e["type"] == "RUN_FINISHED"]
+    assert len(finished) == 1
+    assert "outcome" not in finished[0]
