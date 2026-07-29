@@ -210,7 +210,7 @@ describe('GET /config — derived fields', () => {
         expect(res.status).toBe(200);
         expect(res.body.envVars.required.MCP_GW_CLIENT_ID).toBe('••••');
         expect(res.body.envVars.required.MCP_GW_CLIENT_SECRET).toBe('••••');
-        expect(res.body.envVars.required.MCP_GW_RESOURCE_URI).toBe('••••');
+        expect(res.body.envVars.required.PINGONE_RESOURCE_MCP_GATEWAY_URI).toBe('••••');
         expect(res.body.envVars.required.PINGONE_TOKEN_ENDPOINT).toBe('••••');
         expect(res.body.envVars.required.MCP_OLB_RESOURCE_URI).toBe('••••');
     });

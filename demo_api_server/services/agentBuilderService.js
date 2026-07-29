@@ -203,7 +203,7 @@ async function deleteAgentForUser(user) {
 
 // Known demo agent clients shown in the picker even when their app type
 // isn't AI_AGENT (the env's working agent identities predate the type).
-const KNOWN_AGENT_CLIENT_KEYS = ['AGENT_CLIENT_ID', 'PINGONE_AI_AGENT_CLIENT_ID'];
+const KNOWN_AGENT_CLIENT_KEYS = ['PINGONE_AGENT_CLIENT_ID', 'PINGONE_AI_AGENT_CLIENT_ID'];
 
 /** Reference agents already in the environment: every AI_AGENT-typed app
  *  plus the demo's known agent clients. Read-only; used by the picker. */

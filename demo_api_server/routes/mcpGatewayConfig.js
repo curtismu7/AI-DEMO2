@@ -332,7 +332,7 @@ router.get('/config', async (req, res) => {
 
     const cfg = {
         // Mock gateway fields
-        gatewayResourceUri:    process.env.MCP_GW_RESOURCE_URI     || configStore.getEffective('pingone_resource_mcp_gateway_uri') || '',
+        gatewayResourceUri:    process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI || configStore.getEffective('pingone_resource_mcp_gateway_uri') || '',
         upstreamMcpUrl:        process.env.MCP_OLB_WS_URL           || configStore.getEffective('mcp_server_url') || 'http://localhost:8000',
         mcpOlbResourceUri:     process.env.MCP_OLB_RESOURCE_URI    || '',
         mcpInvestWsUrl:        process.env.MCP_INVEST_WS_URL        || '',
@@ -344,8 +344,8 @@ router.get('/config', async (req, res) => {
         // Real PingGateway 2025.11.1 mcp.json fields
         pingOneEnvUrl:    `https://auth.pingone.${region}/${envId}`,
         pingOneResourceId: process.env.MCP_GW_CLIENT_ID             || configStore.getEffective('mcp_gw_client_id') || '<PingOne test resource ID>',
-        gatewayPublicUrl:  process.env.MCP_GW_RESOURCE_URI
-            ? process.env.MCP_GW_RESOURCE_URI.replace(/\/mcp$/, '')
+        gatewayPublicUrl:  process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI
+            ? process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI.replace(/\/mcp$/, '')
             : configStore.getEffective('mcp_gw_public_url') || 'https://ig.example.com:8443',
         mcpScope: configStore.getEffective('mcp_scope') || 'mcp:invoke',
     };
@@ -389,11 +389,11 @@ router.get('/config', async (req, res) => {
         config: cfg,
         envVars: {
             required: {
-                MCP_GW_RESOURCE_URI: maskSet(
-                    process.env.MCP_GW_RESOURCE_URI,
+                PINGONE_RESOURCE_MCP_GATEWAY_URI: maskSet(
+                    process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI,
                     demoLive?.gatewayResourceUri,
-                    configStore.getEffective('mcp_gw_resource_uri'),
                     configStore.getEffective('pingone_resource_mcp_gateway_uri'),
+                    configStore.getEffective('mcp_gw_resource_uri'),
                 ),
                 MCP_GW_CLIENT_ID: maskSet(
                     process.env.MCP_GW_CLIENT_ID,

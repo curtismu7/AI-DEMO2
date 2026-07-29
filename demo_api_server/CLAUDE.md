@@ -22,6 +22,10 @@ tests/        jest specs — put new specs here (__tests__/ is legacy, 1 file)
 data/         LMDB + JSON fixtures — generated; regenerate, never hand-edit
 ```
 
+## Environment Setup
+
+See **[docs/ENV.md](../../docs/ENV.md)** for the canonical reference of all PingOne app → env var mappings, resource URI configurations, and instructions for adding new apps.
+
 ## Verify before claiming done
 
 ```bash

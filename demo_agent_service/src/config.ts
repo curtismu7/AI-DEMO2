@@ -85,7 +85,7 @@ export function loadConfig(): AgentConfig {
     tokenEndpoint: resolveTokenEndpoint(),
     bffToolUrl: optional('BFF_TOOL_URL', ''),
     mcpGatewayWsUrl: optional('MCP_GATEWAY_WS_URL', 'ws://localhost:3005'),
-    mcpGatewayResourceUri: optional('MCP_GW_RESOURCE_URI', ''),
+    mcpGatewayResourceUri: optional('PINGONE_RESOURCE_MCP_GATEWAY_URI', optional('MCP_GW_RESOURCE_URI', '')),
     llmProvider: llmProviderRaw as AgentConfig['llmProvider'],
     llmApiKey: optional('LLM_API_KEY', ''),
     llmModel: optional('LLM_MODEL', 'claude-sonnet-4.6'),

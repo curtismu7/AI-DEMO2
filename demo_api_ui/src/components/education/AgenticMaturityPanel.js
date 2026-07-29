@@ -497,8 +497,8 @@ const tabs = [
 const exchanged = await pingoneTokenExchange({
   subject_token:       userAccessToken,
   subject_token_type:  'urn:ietf:params:oauth:token-type:access_token',
-  client_id:           AGENT_CLIENT_ID,
-  client_secret:       AGENT_CLIENT_SECRET,
+  client_id:           PINGONE_AGENT_CLIENT_ID,
+  client_secret:       PINGONE_AGENT_CLIENT_SECRET,
   audience:            MCP_SERVER_RESOURCE_URI,
   scope:               toolScope,   // e.g. 'read' only
 });

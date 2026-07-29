@@ -91,6 +91,7 @@ const _SECRET_KEYS_RAW = [
   'PINGONE_SESSION_SECRET',
   'PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET',
   'PINGONE_MANAGEMENT_CLIENT_SECRET',
+  'PINGONE_AGENT_CLIENT_ID',
   'PINGONE_AGENT_CLIENT_SECRET',
   'PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET',
   'PINGONE_A2A_INVESTMENT_AGENT_CLIENT_SECRET',
@@ -1162,6 +1163,9 @@ class ConfigStore {
       pingone_ai_agent_actor_client_secret:  ['PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET', 'PINGONE_AI_AGENT_CLIENT_SECRET', 'AI_AGENT_CLIENT_SECRET'],
       pingone_par_endpoint:                  ['PINGONE_PAR_ENDPOINT'],
       pingone_ai_agent_actor_redirect_uri:   ['PINGONE_AI_AGENT_ACTOR_REDIRECT_URI'],
+      // Current main agent app — mapped from refresh-service-envs.js provisioning.
+      pingone_agent_client_id:       ['PINGONE_AGENT_CLIENT_ID', 'AGENT_CLIENT_ID'],
+      pingone_agent_client_secret:   ['PINGONE_AGENT_CLIENT_SECRET', 'AGENT_CLIENT_SECRET'],
       pingone_token_exchanger_client_id:     ['PINGONE_TOKEN_EXCHANGER_CLIENT_ID', 'PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID', 'PINGONE_MCP_EXCHANGER_CLIENT_ID', 'AGENT_OAUTH_CLIENT_ID'],
       pingone_token_exchanger_client_secret: ['PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET', 'PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_SECRET', 'PINGONE_MCP_EXCHANGER_CLIENT_SECRET', 'AGENT_OAUTH_CLIENT_SECRET'],
       pingone_mcp_gateway_client_id:         ['PINGONE_MCP_GATEWAY_CLIENT_ID', 'MCP_GW_CLIENT_ID'],
@@ -1193,15 +1197,15 @@ class ConfigStore {
       pingone_holdings_agent_client_secret:   ['PINGONE_A2A_HOLDINGS_AGENT_CLIENT_SECRET'],
       // Per-specialist A2A intermediate audiences (RFC 8707 — one resource per
       // specialist, not one shared across all of them; see a2aSpecialists.js).
-      a2a_intermediate_audience_investment:   ['A2A_INTERMEDIATE_AUDIENCE_INVESTMENT'],
-      a2a_intermediate_audience_records:      ['A2A_INTERMEDIATE_AUDIENCE_RECORDS'],
-      a2a_intermediate_audience_purchase:     ['A2A_INTERMEDIATE_AUDIENCE_PURCHASE'],
-      a2a_intermediate_audience_membership:   ['A2A_INTERMEDIATE_AUDIENCE_MEMBERSHIP'],
-      a2a_intermediate_audience_payroll:      ['A2A_INTERMEDIATE_AUDIENCE_PAYROLL'],
-      a2a_intermediate_audience_tax:          ['A2A_INTERMEDIATE_AUDIENCE_TAX'],
-      a2a_intermediate_audience_finaid:       ['A2A_INTERMEDIATE_AUDIENCE_FINAID'],
-      a2a_intermediate_audience_supplier:     ['A2A_INTERMEDIATE_AUDIENCE_SUPPLIER'],
-      a2a_intermediate_audience_holdings:     ['A2A_INTERMEDIATE_AUDIENCE_HOLDINGS'],
+      a2a_intermediate_audience_investment:   ['PINGONE_RESOURCE_A2A_INTERMEDIATE_INVESTMENT_URI', 'A2A_INTERMEDIATE_AUDIENCE_INVESTMENT'],
+      a2a_intermediate_audience_records:      ['PINGONE_RESOURCE_A2A_INTERMEDIATE_RECORDS_URI', 'A2A_INTERMEDIATE_AUDIENCE_RECORDS'],
+      a2a_intermediate_audience_purchase:     ['PINGONE_RESOURCE_A2A_INTERMEDIATE_PURCHASE_URI', 'A2A_INTERMEDIATE_AUDIENCE_PURCHASE'],
+      a2a_intermediate_audience_membership:   ['PINGONE_RESOURCE_A2A_INTERMEDIATE_MEMBERSHIP_URI', 'A2A_INTERMEDIATE_AUDIENCE_MEMBERSHIP'],
+      a2a_intermediate_audience_payroll:      ['PINGONE_RESOURCE_A2A_INTERMEDIATE_PAYROLL_URI', 'A2A_INTERMEDIATE_AUDIENCE_PAYROLL'],
+      a2a_intermediate_audience_tax:          ['PINGONE_RESOURCE_A2A_INTERMEDIATE_TAX_URI', 'A2A_INTERMEDIATE_AUDIENCE_TAX'],
+      a2a_intermediate_audience_finaid:       ['PINGONE_RESOURCE_A2A_INTERMEDIATE_FINAID_URI', 'A2A_INTERMEDIATE_AUDIENCE_FINAID'],
+      a2a_intermediate_audience_supplier:     ['PINGONE_RESOURCE_A2A_INTERMEDIATE_SUPPLIER_URI', 'A2A_INTERMEDIATE_AUDIENCE_SUPPLIER'],
+      a2a_intermediate_audience_holdings:     ['PINGONE_RESOURCE_A2A_INTERMEDIATE_HOLDINGS_URI', 'A2A_INTERMEDIATE_AUDIENCE_HOLDINGS'],
       // A2A specialists' Exchange #2 (final) destination — separate from
       // pingone_resource_mcp_gateway_uri so its nested-act composer SPEL never
       // touches the non-A2A two-exchange flow (see pingoneProvisionService.js
@@ -1212,16 +1216,15 @@ class ConfigStore {
       a2a_intermediate_scope:                 ['A2A_INTERMEDIATE_SCOPE'],
       a2a_invest_scope:                       ['A2A_INVEST_SCOPE'],
       // Two-exchange audiences: intermediate (Exchange #1 result) and final (Exchange #2 result).
-      // Fall back to PINGONE_RESOURCE_AGENT_GATEWAY_URI / MCP_RESOURCE_URI when the explicit
-      // vars are absent — keeps single-resource deployments working without extra env config.
+      // Fall back to PINGONE_RESOURCE_AGENT_GATEWAY_URI when the explicit vars are absent.
       ai_agent_intermediate_audience:     ['AI_AGENT_INTERMEDIATE_AUDIENCE', 'PINGONE_RESOURCE_AGENT_GATEWAY_URI'],
-      pingone_resource_two_exchange_uri:  ['PINGONE_RESOURCE_TWO_EXCHANGE_URI', 'MCP_RESOURCE_URI', 'PINGONE_RESOURCE_MCP_SERVER_URI'],
-      pingone_resource_mcp_gateway_uri: ['PINGONE_RESOURCE_MCP_GATEWAY_URI', 'MCP_GATEWAY_AUDIENCE', 'MCP_GW_RESOURCE_URI'],
+      pingone_resource_two_exchange_uri:  ['PINGONE_RESOURCE_MCP_GATEWAY_URI', 'PINGONE_RESOURCE_TWO_EXCHANGE_URI', 'MCP_RESOURCE_URI', 'MCP_SERVER_RESOURCE_URI'],
+      pingone_resource_mcp_gateway_uri: ['PINGONE_RESOURCE_MCP_GATEWAY_URI', 'MCP_GW_RESOURCE_URI', 'MCP_GATEWAY_AUDIENCE', 'MCP_RESOURCE_URI'],
       // MCP Gateway delegated-exchange app credentials (direct MCP_GW_* names —
       // previously only read via direct process.env in gateway token glue)
       mcp_gw_client_id:                 ['PINGONE_MCP_GATEWAY_CLIENT_ID', 'MCP_GW_CLIENT_ID'],
       mcp_gw_client_secret:             ['PINGONE_MCP_GATEWAY_CLIENT_SECRET', 'MCP_GW_CLIENT_SECRET'],
-      mcp_gw_resource_uri:              ['MCP_GW_RESOURCE_URI', 'PINGONE_RESOURCE_MCP_GATEWAY_URI'],
+      mcp_gw_resource_uri:              ['PINGONE_RESOURCE_MCP_GATEWAY_URI', 'MCP_GW_RESOURCE_URI'],
       mcp_gw_token_endpoint_auth_method:      ['MCP_GW_TOKEN_ENDPOINT_AUTH_METHOD'],
       mcp_gw_passthrough_to_mcp_server:       ['MCP_GW_PASSTHROUGH_TO_MCP_SERVER'],
       gateway_health_probe_insecure:           ['GATEWAY_HEALTH_PROBE_INSECURE'],
@@ -2199,6 +2202,7 @@ function detectRotatedCredentials() {
     ['pingone_user_client_secret',               'PINGONE_USER_CLIENT_SECRET'],
     ['pingone_authorize_worker_client_secret',   'PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET'],
     ['pingone_management_client_secret',         'PINGONE_MANAGEMENT_CLIENT_SECRET'],
+    ['pingone_agent_client_id',                  'PINGONE_AGENT_CLIENT_ID'],
     ['pingone_agent_client_secret',              'PINGONE_AGENT_CLIENT_SECRET'],
     ['pingone_a2a_investment_agent_client_secret', 'PINGONE_A2A_INVESTMENT_AGENT_CLIENT_SECRET'],
     ['pingone_a2a_records_agent_client_secret',  'PINGONE_A2A_RECORDS_AGENT_CLIENT_SECRET'],
