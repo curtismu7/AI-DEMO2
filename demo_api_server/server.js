@@ -171,6 +171,7 @@ const logsRoutes = require('./routes/logs');
 const delegationRoutes = require('./routes/delegation');
 const agentAuthorizationRoutes = require('./routes/agentAuthorization');
 const tokenChainRoutes = require('./routes/tokenChain');
+const tokenExchangeLogRouter = require('./routes/tokenExchangeLog');
 const {
     router: clientRegistrationRoutes,
     wellKnownHandler,
@@ -1320,6 +1321,7 @@ app.use('/api/oauth/jwks', require('./routes/oauthJwks'));
 app.use('/api/delegation', authenticateToken, delegationRoutes);
 app.use('/api/agent-authorization', authenticateToken, agentAuthorizationRoutes);
 app.use('/api/token-chain', authenticateToken, tokenChainRoutes);
+app.use('/api/token-exchanges', tokenExchangeLogRouter);
 // Transaction chain of custody — read side. Any logged-in user, matching the
 // accessibility of its Telemetry sibling (the Tracing page).
 app.use('/api/transaction-trace', authenticateToken, require('./routes/transactionTrace'));
