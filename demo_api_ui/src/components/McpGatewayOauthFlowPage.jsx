@@ -5,6 +5,7 @@
 // AgentOnboardingMermaidPage.jsx.
 import React, { useEffect, useRef, useState } from "react";
 import mermaid from "mermaid";
+import DiagramExportBar from "./DiagramExportBar";
 import "./McpGatewayOauthFlowPage.css";
 
 const MERMAID_SOURCE = `sequenceDiagram
@@ -114,10 +115,13 @@ const NOTES = [
 
 export default function McpGatewayOauthFlowPage() {
   const containerRef = useRef(null);
+  const [source, setSource] = useState(MERMAID_SOURCE);
   const [renderError, setRenderError] = useState(null);
+  const renderIdRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
+    setRenderError(null);
     mermaid.initialize({
       startOnLoad: false,
       theme: "dark",
@@ -127,7 +131,8 @@ export default function McpGatewayOauthFlowPage() {
 
     async function render() {
       try {
-        const { svg } = await mermaid.render("mcp-gateway-oauth-flow-svg", MERMAID_SOURCE);
+        const id = `mcp-gateway-oauth-flow-svg-${++renderIdRef.current}`;
+        const { svg } = await mermaid.render(id, source);
         if (!cancelled && containerRef.current) {
           containerRef.current.innerHTML = svg;
         }
@@ -141,7 +146,7 @@ export default function McpGatewayOauthFlowPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [source]);
 
   return (
     <div className="mgof-page">
@@ -160,6 +165,12 @@ export default function McpGatewayOauthFlowPage() {
         <span className="mgof-key-entry mgof-key-delta">&Delta; diverges from the reference diagram</span>
         <span className="mgof-key-entry mgof-key-plus">+ step the reference diagram doesn't have</span>
       </div>
+
+      <DiagramExportBar
+        source={source}
+        sourceFilename="mcp-gateway-oauth-flow.mmd"
+        onSourceChange={setSource}
+      />
 
       <div className="mgof-panel">
         {renderError ? (
