@@ -99,15 +99,17 @@ function buildFlowSpecs(routes) {
       flows[flowId].actors.push(actor);
     }
 
-    // Add step
+    // Add step (deduplicate by step number)
     if (step !== undefined && !isNaN(step) && actor) {
-      flows[flowId].steps.push({
-        id: `step-${step}`,
-        actor,
-        action: `Step ${step}`,
-        step,
-        expected: expects ? safeParseJson(expects) : {}
-      });
+      if (!flows[flowId].steps.some(s => s.step === step)) {
+        flows[flowId].steps.push({
+          id: `step-${step}`,
+          actor,
+          action: `Step ${step}`,
+          step,
+          expected: expects ? safeParseJson(expects) : {}
+        });
+      }
     }
 
     // Add branches
@@ -156,6 +158,7 @@ async function main() {
   const routes = scanRoutesDir();
   const flows = buildFlowSpecs(routes);
 
+  fs.mkdirSync(path.dirname(OUTPUT_FILE), { recursive: true });
   fs.writeFileSync(OUTPUT_FILE, JSON.stringify(flows, null, 2));
   console.log(`✅ Generated ${Object.keys(flows).length} protocol flows → ${OUTPUT_FILE}`);
 }
