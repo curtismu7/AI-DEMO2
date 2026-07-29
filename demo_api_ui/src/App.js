@@ -166,6 +166,7 @@ import PublicRoutes, {
   UseCasesPageRoute,
 } from "./routes/PublicRoutes";
 import RequireAdminLogin from "./routes/RequireAdminLogin";
+import { ProtocolPlaygroundPageRoute } from "./routes/ProtocolPlaygroundRoutes";
 import { monitorApiHealth } from "./services/bankingRestartNotificationService";
 import {
   isBankingAgentDashboardRoute,
@@ -805,6 +806,12 @@ function AppWithAuth() {
                     ) : (
                       <Navigate to="/" replace />
                     )
+                  }
+                />
+                <Route
+                  path="/protocol-playground"
+                  element={
+                    <ProtocolPlaygroundPageRoute user={user} logout={logout} />
                   }
                 />
                 {/* Monitoring outer routes — explicit so customers navigating from /dashboard don't hit
