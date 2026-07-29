@@ -14,6 +14,7 @@ const router = express.Router();
  *
  * @flow par
  * @actor client-app
+ * @to auth-server
  * @step 1
  */
 router.post('/par', express.json(), (req, res) => {
@@ -50,6 +51,7 @@ router.post('/par', express.json(), (req, res) => {
  *
  * @flow par
  * @actor auth-server
+ * @to client-app
  * @step 2
  */
 router.get('/authorize', (req, res) => {

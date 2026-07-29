@@ -4,10 +4,11 @@ const fs = require('fs');
 const path = require('path');
 
 const ROUTES_DIR = path.join(__dirname, '../routes');
+const SERVER_FILE = path.join(__dirname, '../server.js');
 const OUTPUT_FILE = path.join(__dirname, '../../demo_api_ui/src/data/protocolFlows.json');
 
 /**
- * Parse JSDoc comments for @flow, @actor, @step, @expects, @branch tags
+ * Parse JSDoc comments for @flow, @actor, @to, @step, @expects, @branch tags
  */
 function parseFlowAnnotation(jsdocComment) {
   const lines = jsdocComment.split('\n');
@@ -22,6 +23,8 @@ function parseFlowAnnotation(jsdocComment) {
       result.flowId = value.trim();
     } else if (tag === 'actor') {
       result.actor = value.trim();
+    } else if (tag === 'to') {
+      result.toActor = value.trim();
     } else if (tag === 'step') {
       result.step = parseInt(value.trim(), 10);
     } else if (tag === 'expects') {
@@ -36,7 +39,8 @@ function parseFlowAnnotation(jsdocComment) {
 }
 
 /**
- * Extract all JSDoc comments from file content
+ * Extract JSDoc comments plus the source that follows each one, so the route
+ * call a comment documents can be read off the same scan.
  */
 function extractJSDocComments(fileContent) {
   const regex = /\/\*\*\s*([\s\S]*?)\*\//g;
@@ -44,10 +48,46 @@ function extractJSDocComments(fileContent) {
   let match;
 
   while ((match = regex.exec(fileContent)) !== null) {
-    comments.push(match[1]);
+    comments.push({ body: match[1], following: fileContent.slice(regex.lastIndex, regex.lastIndex + 400) });
   }
 
   return comments;
+}
+
+/**
+ * Read the `router.<method>('<path>'` call a JSDoc block documents.
+ * Returns null when the comment does not sit directly above a route.
+ */
+function parseRouteCall(followingSource) {
+  const match = followingSource.match(/^\s*router\.(get|post|put|patch|delete)\(\s*['"]([^'"]+)['"]/);
+  if (!match) return null;
+  return { method: match[1].toUpperCase(), routePath: match[2] };
+}
+
+/**
+ * Map each route file to the path prefix server.js mounts it under, so
+ * generated endpoints are the URLs the app actually serves.
+ */
+function resolveMountPrefixes() {
+  const prefixes = {};
+  if (!fs.existsSync(SERVER_FILE)) return prefixes;
+
+  const content = fs.readFileSync(SERVER_FILE, 'utf8');
+  const varToFile = {};
+
+  const requireRegex = /const\s+(\w+)\s*=\s*require\(['"]\.\/routes\/([\w-]+)['"]\)/g;
+  let match;
+  while ((match = requireRegex.exec(content)) !== null) {
+    varToFile[match[1]] = `${match[2]}.js`;
+  }
+
+  const useRegex = /app\.use\(\s*['"]([^'"]+)['"]\s*,\s*(\w+)\s*\)/g;
+  while ((match = useRegex.exec(content)) !== null) {
+    const file = varToFile[match[2]];
+    if (file && !prefixes[file]) prefixes[file] = match[1];
+  }
+
+  return prefixes;
 }
 
 /**
@@ -55,6 +95,7 @@ function extractJSDocComments(fileContent) {
  */
 function scanRoutesDir() {
   const routes = [];
+  const prefixes = resolveMountPrefixes();
   const files = fs.readdirSync(ROUTES_DIR);
 
   for (const file of files) {
@@ -64,14 +105,28 @@ function scanRoutesDir() {
 
     const jsdocs = extractJSDocComments(content);
     for (const doc of jsdocs) {
-      const annotation = parseFlowAnnotation(doc);
-      if (annotation.flowId) {
-        routes.push({ file, annotation });
+      const annotation = parseFlowAnnotation(doc.body);
+      if (!annotation.flowId) continue;
+
+      const call = parseRouteCall(doc.following);
+      if (call) {
+        annotation.method = call.method;
+        annotation.endpoint = joinPath(prefixes[file] || '', call.routePath);
       }
+      routes.push({ file, annotation });
     }
   }
 
   return routes;
+}
+
+/**
+ * Join a mount prefix and a route path into one URL path.
+ */
+function joinPath(prefix, routePath) {
+  const left = prefix.replace(/\/$/, '');
+  const right = routePath.startsWith('/') ? routePath : `/${routePath}`;
+  return `${left}${right}` || '/';
 }
 
 /**
@@ -80,8 +135,8 @@ function scanRoutesDir() {
 function buildFlowSpecs(routes) {
   const flows = {};
 
-  for (const { file, annotation } of routes) {
-    const { flowId, actor, step, expects, branches } = annotation;
+  for (const { annotation } of routes) {
+    const { flowId, actor, toActor, step, expects, branches, method, endpoint } = annotation;
 
     if (!flows[flowId]) {
       flows[flowId] = {
@@ -94,18 +149,27 @@ function buildFlowSpecs(routes) {
       };
     }
 
-    // Add actor if new
-    if (actor && !flows[flowId].actors.includes(actor)) {
-      flows[flowId].actors.push(actor);
+    // Add actors in the order they appear (source first, then target)
+    for (const name of [actor, toActor]) {
+      if (name && !flows[flowId].actors.includes(name)) {
+        flows[flowId].actors.push(name);
+      }
     }
 
     // Add step (deduplicate by step number)
-    if (step !== undefined && !isNaN(step) && actor) {
+    if (step !== undefined && !Number.isNaN(step) && actor) {
       if (!flows[flowId].steps.some(s => s.step === step)) {
+        const target = toActor || actor;
+        const action = method && endpoint ? `${method} ${endpoint}` : `Step ${step}`;
         flows[flowId].steps.push({
           id: `step-${step}`,
           actor,
-          action: `Step ${step}`,
+          fromActor: actor,
+          toActor: target,
+          action,
+          label: action,
+          method: method || null,
+          endpoint: endpoint || null,
           step,
           expected: expects ? safeParseJson(expects) : {}
         });

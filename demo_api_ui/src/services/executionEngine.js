@@ -129,12 +129,15 @@ class ExecutionEngine {
         if (this.flowSpec.stopOnError) {
           throw err;
         }
-        // Record failure but continue
-        results.push({
+        // Record failure but continue — state carries it so the activity log
+        // shows failed steps instead of silently skipping them.
+        const failure = {
           stepId: step.id,
           error: err.message,
           timestamp: new Date().toISOString()
-        });
+        };
+        this.state.results.push(failure);
+        results.push(failure);
       }
     }
 

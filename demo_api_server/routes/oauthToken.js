@@ -99,6 +99,7 @@ function extractRequestMetadata(req, res, next) {
  *
  * @flow rfc8693-token-exchange
  * @actor client-app
+ * @to token-exchanger
  * @step 1
  */
 router.post('/token', extractClientCredentials, extractRequestMetadata, async (req, res, next) => {
@@ -154,6 +155,7 @@ router.post('/token', extractClientCredentials, extractRequestMetadata, async (r
  *
  * @flow rfc8693-token-exchange
  * @actor token-exchanger
+ * @to client-app
  * @step 2
  */
 router.post('/introspect', extractRequestMetadata, (req, res, next) => {

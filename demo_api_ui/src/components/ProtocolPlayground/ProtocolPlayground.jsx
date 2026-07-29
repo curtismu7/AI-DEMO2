@@ -1,20 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import protocolFlows from '../../data/protocolFlows.json';
 import ProtocolSidebar from './ProtocolSidebar';
 import ProtocolViewer from './ProtocolViewer';
 import './ProtocolPlayground.css';
 
+/** Shape ExecutionEngine.getState() returns — the viewer and activity panel read it directly. */
+const EMPTY_EXECUTION_STATE = {
+  currentStep: null,
+  results: [],
+  error: null,
+};
+
 const ProtocolPlayground = () => {
   // Convert protocolFlows object to array of protocol objects
-  const protocolArray = Object.values(protocolFlows || {});
+  const protocolArray = useMemo(() => Object.values(protocolFlows || {}), []);
 
   const [selectedProtocol, setSelectedProtocol] = useState(null);
-  const [executionState, setExecutionState] = useState({
-    currentStep: 0,
-    isPlaying: false,
-    completedSteps: [],
-    error: null,
-  });
+  const [executionState, setExecutionState] = useState(EMPTY_EXECUTION_STATE);
 
   // Set first protocol as default on mount
   useEffect(() => {
@@ -30,12 +32,7 @@ const ProtocolPlayground = () => {
       setSelectedProtocol(protocol);
     }
     // Reset execution state when switching protocols
-    setExecutionState({
-      currentStep: 0,
-      isPlaying: false,
-      completedSteps: [],
-      error: null,
-    });
+    setExecutionState(EMPTY_EXECUTION_STATE);
   };
 
   // Handle execution state updates
@@ -53,14 +50,14 @@ const ProtocolPlayground = () => {
           <ProtocolSidebar
             protocols={protocolArray.map(p => p.id)}
             selectedProtocol={selectedProtocol?.id}
-            onProtocolSelect={handleProtocolSelect}
+            onSelectProtocol={handleProtocolSelect}
           />
         </aside>
 
         <main className="protocol-playground__viewer">
           {selectedProtocol ? (
             <ProtocolViewer
-              protocol={selectedProtocol}
+              flowSpec={selectedProtocol}
               executionState={executionState}
               onExecutionStateChange={handleExecutionStateChange}
             />

@@ -14,6 +14,7 @@ const router = express.Router();
  *
  * @flow dpop
  * @actor client-app
+ * @to gateway
  * @step 1
  */
 router.post('/oauth/token', express.json(), (req, res) => {
@@ -59,6 +60,7 @@ router.post('/oauth/token', express.json(), (req, res) => {
  *
  * @flow dpop
  * @actor gateway
+ * @to client-app
  * @step 2
  */
 router.post('/gateway/verify-dpop', express.json(), (req, res) => {

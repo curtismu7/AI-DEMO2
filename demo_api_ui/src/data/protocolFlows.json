@@ -11,14 +11,24 @@
       {
         "id": "step-1",
         "actor": "client-app",
-        "action": "Step 1",
+        "fromActor": "client-app",
+        "toActor": "human-approver",
+        "action": "POST /api/auth/ciba/initiate",
+        "label": "POST /api/auth/ciba/initiate",
+        "method": "POST",
+        "endpoint": "/api/auth/ciba/initiate",
         "step": 1,
         "expected": {}
       },
       {
         "id": "step-2",
         "actor": "human-approver",
-        "action": "Step 2",
+        "fromActor": "human-approver",
+        "toActor": "client-app",
+        "action": "POST /api/auth/ciba/approve-now/:authReqId",
+        "label": "POST /api/auth/ciba/approve-now/:authReqId",
+        "method": "POST",
+        "endpoint": "/api/auth/ciba/approve-now/:authReqId",
         "step": 2,
         "expected": {}
       }
@@ -37,14 +47,24 @@
       {
         "id": "step-1",
         "actor": "client-app",
-        "action": "Step 1",
+        "fromActor": "client-app",
+        "toActor": "gateway",
+        "action": "POST /api/auth/oauth/token",
+        "label": "POST /api/auth/oauth/token",
+        "method": "POST",
+        "endpoint": "/api/auth/oauth/token",
         "step": 1,
         "expected": {}
       },
       {
         "id": "step-2",
         "actor": "gateway",
-        "action": "Step 2",
+        "fromActor": "gateway",
+        "toActor": "client-app",
+        "action": "POST /api/auth/gateway/verify-dpop",
+        "label": "POST /api/auth/gateway/verify-dpop",
+        "method": "POST",
+        "endpoint": "/api/auth/gateway/verify-dpop",
         "step": 2,
         "expected": {}
       }
@@ -63,14 +83,24 @@
       {
         "id": "step-1",
         "actor": "client-app",
-        "action": "Step 1",
+        "fromActor": "client-app",
+        "toActor": "token-exchanger",
+        "action": "POST /api/oauth/token/token",
+        "label": "POST /api/oauth/token/token",
+        "method": "POST",
+        "endpoint": "/api/oauth/token/token",
         "step": 1,
         "expected": {}
       },
       {
         "id": "step-2",
         "actor": "token-exchanger",
-        "action": "Step 2",
+        "fromActor": "token-exchanger",
+        "toActor": "client-app",
+        "action": "POST /api/oauth/token/introspect",
+        "label": "POST /api/oauth/token/introspect",
+        "method": "POST",
+        "endpoint": "/api/oauth/token/introspect",
         "step": 2,
         "expected": {}
       }
@@ -89,14 +119,24 @@
       {
         "id": "step-1",
         "actor": "client-app",
-        "action": "Step 1",
+        "fromActor": "client-app",
+        "toActor": "auth-server",
+        "action": "POST /api/auth/par",
+        "label": "POST /api/auth/par",
+        "method": "POST",
+        "endpoint": "/api/auth/par",
         "step": 1,
         "expected": {}
       },
       {
         "id": "step-2",
         "actor": "auth-server",
-        "action": "Step 2",
+        "fromActor": "auth-server",
+        "toActor": "client-app",
+        "action": "GET /api/auth/authorize",
+        "label": "GET /api/auth/authorize",
+        "method": "GET",
+        "endpoint": "/api/auth/authorize",
         "step": 2,
         "expected": {}
       }

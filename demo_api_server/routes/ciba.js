@@ -88,6 +88,7 @@ router.get('/status', (req, res) => {
  *
  * @flow ciba-hitl
  * @actor client-app
+ * @to human-approver
  * @step 1
  */
 router.post('/initiate', authenticateToken, async (req, res) => {
@@ -485,6 +486,7 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
  *
  * @flow ciba-hitl
  * @actor human-approver
+ * @to client-app
  * @step 2
  */
 router.post('/approve-now/:authReqId', authenticateToken, (req, res) => {
