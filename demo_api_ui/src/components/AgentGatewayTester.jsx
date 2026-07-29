@@ -139,6 +139,23 @@ const SINGLE_RECORD_PRODUCERS = {
   ],
 };
 
+/**
+ * extractCapturedValues needs the actual tool payload, but a live gateway
+ * response is the raw MCP envelope ({ content: [{ type: "text", text:
+ * "<JSON string>" }] }) — the payload is JSON-encoded inside content[0].text,
+ * not a top-level property. Decode it the same way the Result tab does, then
+ * unwrap the envelope. Falls through unchanged for shapes that are already
+ * the bare payload (e.g. non-envelope responses, or test mocks that skip it).
+ */
+function unwrapMcpResult(result) {
+  const decoded = decodeMcpTextContent(result);
+  if (decoded && typeof decoded === 'object' && Array.isArray(decoded.content)) {
+    const textPart = decoded.content.find((p) => p && p.type === 'text');
+    if (textPart && typeof textPart.text === 'object') return textPart.text;
+  }
+  return decoded;
+}
+
 /** {family, label, value} for every id-bearing item found in a tool result. */
 function extractCapturedValues(toolName, result) {
   if (!result || typeof result !== 'object') return [];
@@ -195,15 +212,33 @@ function idFamilyForProperty(toolName, key) {
   return familyFromKey(key);
 }
 
+// Aliases a param-derived family to a differently-derived family that refers
+// to the same data, for cases with no substring relationship between the two
+// strings — e.g. "poId" -> "po", but view_purchase_orders' response array key
+// "purchaseOrders" singularizes to "purchaseorder".
+const FAMILY_ALIASES = { po: 'purchaseorder' };
+
 function familiesMatch(a, b) {
   if (!a || !b) return false;
-  return a === b || a.includes(b) || b.includes(a);
+  if (a === b || a.includes(b) || b.includes(a)) return true;
+  const aliasA = FAMILY_ALIASES[a];
+  if (aliasA && (aliasA === b || aliasA.includes(b) || b.includes(aliasA))) return true;
+  const aliasB = FAMILY_ALIASES[b];
+  if (aliasB && (aliasB === a || aliasB.includes(a) || a.includes(aliasB))) return true;
+  return false;
 }
 
-/** Most recent captured value whose family matches this schema property, if any. */
+/**
+ * Best captured value for this schema property: an exact family match wins
+ * (most recent among exact matches), even over a more-recently-captured
+ * substring/alias match. Falls back to the substring/alias match only when
+ * no exact match exists.
+ */
 function bestCapturedMatch(toolName, key, capturedValues) {
   const wanted = idFamilyForProperty(toolName, key);
   if (!wanted) return null;
+  const exact = capturedValues.find((c) => c.family === wanted);
+  if (exact) return exact;
   return capturedValues.find((c) => familiesMatch(wanted, c.family)) || null;
 }
 
@@ -409,7 +444,7 @@ export default function AgentGatewayTester() {
       const { data } = await apiClient.post('/api/mcp-gateway/test', { tool: selectedTool.name, args });
       setResp(data);
       setOutputTab('result');
-      const fresh = extractCapturedValues(selectedTool.name, data?.result ?? data?.rpcData);
+      const fresh = extractCapturedValues(selectedTool.name, unwrapMcpResult(data?.result ?? data?.rpcData));
       if (fresh.length) setCapturedValues((prev) => mergeCapturedValues(prev, fresh));
     } catch (e) {
       setResp({ clientError: formatAxiosError(e, 'Request failed') });
@@ -504,7 +539,7 @@ export default function AgentGatewayTester() {
         const ok = !data.clientError && data.ok !== false && data.result?.ok !== false;
         results.push({ tool: toolName, ok, data });
         setChainResults([...results]);
-        const fresh = extractCapturedValues(toolName, data?.result ?? data?.rpcData);
+        const fresh = extractCapturedValues(toolName, unwrapMcpResult(data?.result ?? data?.rpcData));
         if (fresh.length) {
           liveCaptured = mergeCapturedValues(liveCaptured, fresh);
           setCapturedValues(liveCaptured);

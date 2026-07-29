@@ -405,3 +405,112 @@ test('an id-shaped param with no captured match falls back to the empty placehol
   fireEvent.click(await screen.findByText('get_customer_profile'));
   expect(screen.getByRole('textbox')).toHaveValue(JSON.stringify({ userId: '' }, null, 2));
 });
+
+// Fix 1: production responses are the raw MCP envelope — the payload is a
+// JSON string nested inside content[0].text, not a top-level property of
+// `result`. Every test above mocks the already-decoded payload; this one
+// uses the real envelope shape to prove capture/autofill still works once
+// it's unwrapped.
+test('captures a value from a real MCP envelope response (content[0].text as a JSON string)', async () => {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp-gateway/active') return Promise.resolve({ data: ACTIVE_GATEWAY });
+    if (url === '/api/mcp/inspector/tools') return Promise.resolve({
+      data: {
+        tools: [
+          { name: 'get_my_accounts', description: 'List accounts.', inputSchema: { type: 'object', properties: {}, required: [] } },
+          { name: 'get_account_balance', description: 'Get balance.', inputSchema: { type: 'object', properties: { account_id: { type: 'string' } }, required: ['account_id'] } },
+        ],
+        _source: 'live',
+      },
+    });
+    return Promise.resolve({ data: {} });
+  });
+  apiClient.post.mockResolvedValueOnce({
+    data: {
+      ok: true,
+      result: {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: true,
+            accounts: [{ id: 'acct-envelope-1', accountType: 'checking', accountNumber: '****4444' }],
+          }),
+        }],
+        isError: false,
+      },
+      durationMs: 9,
+    },
+  });
+  render(<AgentGatewayTester />);
+  fireEvent.click(await screen.findByText('get_my_accounts'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await screen.findByText('200 OK');
+
+  fireEvent.click(screen.getByText('get_account_balance'));
+  expect(screen.getByRole('textbox')).toHaveValue(JSON.stringify({ account_id: 'acct-envelope-1' }, null, 2));
+});
+
+// Fix 3: a "poId" param wants family "po", but view_purchase_orders' response
+// array key "purchaseOrders" singularizes to "purchaseorder" — no substring
+// relationship without the FAMILY_ALIASES entry.
+test('a poId param autofills from a captured purchaseOrders[] id via the family alias', async () => {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp-gateway/active') return Promise.resolve({ data: ACTIVE_GATEWAY });
+    if (url === '/api/mcp/inspector/tools') return Promise.resolve({
+      data: {
+        tools: [
+          { name: 'view_purchase_orders', description: 'List purchase orders.', inputSchema: { type: 'object', properties: {}, required: [] } },
+          { name: 'void_purchase_order', description: 'Void a purchase order by poId.', inputSchema: { type: 'object', properties: { poId: { type: 'string' } }, required: ['poId'] } },
+        ],
+        _source: 'live',
+      },
+    });
+    return Promise.resolve({ data: {} });
+  });
+  apiClient.post.mockResolvedValueOnce({
+    data: { ok: true, result: { success: true, purchaseOrders: [{ id: 'PO-6001', supplier: 'MetalSupply Co.', status: 'Pending Approval' }] }, durationMs: 5 },
+  });
+  render(<AgentGatewayTester />);
+  fireEvent.click(await screen.findByText('view_purchase_orders'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await screen.findByText('200 OK');
+
+  fireEvent.click(screen.getByText('void_purchase_order'));
+  expect(screen.getByRole('textbox')).toHaveValue(JSON.stringify({ poId: 'PO-6001' }, null, 2));
+});
+
+// Fix 4: bestCapturedMatch must prefer an exact family match over a
+// substring match, even when the substring match was captured more recently.
+test('an exact family match wins over a more-recently-captured substring match', async () => {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp-gateway/active') return Promise.resolve({ data: ACTIVE_GATEWAY });
+    if (url === '/api/mcp/inspector/tools') return Promise.resolve({
+      data: {
+        tools: [
+          { name: 'get_my_accounts', description: 'List accounts.', inputSchema: { type: 'object', properties: {}, required: [] } },
+          { name: 'list_savings_accounts', description: 'List savings accounts.', inputSchema: { type: 'object', properties: {}, required: [] } },
+          { name: 'get_account_balance', description: 'Get balance.', inputSchema: { type: 'object', properties: { account_id: { type: 'string' } }, required: ['account_id'] } },
+        ],
+        _source: 'live',
+      },
+    });
+    return Promise.resolve({ data: {} });
+  });
+  apiClient.post
+    // Captured first (older): exact family "account".
+    .mockResolvedValueOnce({ data: { ok: true, result: { success: true, accounts: [{ id: 'acct-old', accountType: 'checking' }] }, durationMs: 5 } })
+    // Captured second (more recent): family "savingsaccount" — substring match only.
+    .mockResolvedValueOnce({ data: { ok: true, result: { success: true, savingsAccounts: [{ id: 'acct-new', accountType: 'savings' }] }, durationMs: 5 } });
+
+  render(<AgentGatewayTester />);
+  fireEvent.click(await screen.findByText('get_my_accounts'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await screen.findByText('200 OK');
+
+  fireEvent.click(screen.getByText('list_savings_accounts'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await screen.findByText('200 OK');
+
+  fireEvent.click(screen.getByText('get_account_balance'));
+  expect(screen.getByRole('textbox')).toHaveValue(JSON.stringify({ account_id: 'acct-old' }, null, 2));
+});
