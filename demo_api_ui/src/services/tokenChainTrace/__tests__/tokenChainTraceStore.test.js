@@ -104,6 +104,22 @@ test("reset clears everything including sign-in token (full demo wipe)", () => {
   expect(trace.outcome).toBeNull();
 });
 
+test("ingestAuthorizeEvaluations stores the ordered decision list", () => {
+  const list = [
+    { decision: "PERMIT", decisionId: "gate-1", decisionContext: "McpFirstTool" },
+    { decision: "DENY", decisionId: "limit-1", decisionContext: "TransactionAmount" },
+  ];
+  tokenChainTraceStore.ingestAuthorizeEvaluations(list);
+  expect(tokenChainTraceStore.getState().trace.authorizeEvaluations).toEqual(list);
+});
+
+test("ingestAuthorizeEvaluations ignores empty/non-array input", () => {
+  tokenChainTraceStore.ingestAuthorizeEvaluations([]);
+  expect(tokenChainTraceStore.getState().trace.authorizeEvaluations).toBeNull();
+  tokenChainTraceStore.ingestAuthorizeEvaluations(undefined);
+  expect(tokenChainTraceStore.getState().trace.authorizeEvaluations).toBeNull();
+});
+
 // ── Approval-gate carry-over across a resume ────────────────────────────────
 // A step-up resume re-enters sendAgentMessage, whose beginTrace() wipes
 // trace.authorize — taking the STEP_UP outcome with it. The retry then records

@@ -15,6 +15,21 @@ function resolveAuditUserId(req, userSub) {
 }
 
 /**
+ * The Transaction/Amount secondary decision is either a real live PingOne
+ * Transaction-endpoint decision (`source: 'transaction-policy'`) or a LOCAL
+ * amount-ladder decision synthesized by mcpToolAuthorizationService.js's
+ * `_localAmountLimitFallback` when that endpoint errored/was unreachable
+ * (`source: 'transaction-policy-fallback'`) — never a PingOne decision.
+ * Label the card's engine accordingly so it never claims PingOne decided
+ * something it never saw.
+ */
+function secondaryEvaluationEngine(secondaryEvaluation) {
+  return secondaryEvaluation && secondaryEvaluation.source === 'transaction-policy-fallback'
+    ? 'local-amount-fallback'
+    : 'pingone';
+}
+
+/**
  * runMcpToolPipeline — pure orchestration of a BFF MCP tool call (ADR-0004).
  * Returns a discriminated Outcome; never touches Express res/req response APIs.
  * Built up path-by-path under characterization tests.
@@ -484,6 +499,12 @@ async function runMcpToolPipeline(ctx) {
                     ...(ctx.useCaseId ? { useCaseId: ctx.useCaseId } : {}),
                     ...(ctx.vertical ? { vertical: ctx.vertical } : {}),
                 },
+                ...(mcpAuthz.block.body.gateEvaluation && mcpAuthz.block.body.secondaryEvaluation ? {
+                    mcpAuthorizeEvaluations: [
+                        { ...mcpAuthz.block.body.gateEvaluation, engine: 'pingone', decisionContext: 'McpFirstTool' },
+                        { ...mcpAuthz.block.body.secondaryEvaluation, engine: secondaryEvaluationEngine(mcpAuthz.block.body.secondaryEvaluation), decisionContext: 'TransactionAmount' },
+                    ],
+                } : {}),
             } };
         }
         if (mcpAuthz.ran && mcpAuthz.simulatedError) {
@@ -993,7 +1014,14 @@ async function runMcpToolPipeline(ctx) {
             activeProvider
         };
         if (mcpAuthorizeEvaluationThisRequest) {
-            out.mcpAuthorizeEvaluation = mcpAuthorizeEvaluationThisRequest;
+            const { gateEvaluation: _ge, secondaryEvaluation: _se, ...singularEvaluation } = mcpAuthorizeEvaluationThisRequest;
+            out.mcpAuthorizeEvaluation = singularEvaluation;
+            if (_ge && _se) {
+                out.mcpAuthorizeEvaluations = [
+                    { ..._ge, engine: 'pingone', decisionContext: 'McpFirstTool' },
+                    { ..._se, engine: secondaryEvaluationEngine(_se), decisionContext: 'TransactionAmount' },
+                ];
+            }
         }
 
         // Stream response when using HTTP/2 transport (client detects via Content-Type)
