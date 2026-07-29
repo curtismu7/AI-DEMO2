@@ -90,7 +90,7 @@ function buildHealthcareTools(store) {
         return { result: bill, render: 'pay_bill' };
       }
       case 'cancel_appointment': {
-        const appt = store.cancelAppointment(userId, (params && (params.appointmentId || params.recordId)));
+        const appt = store.cancelAppointment(userId, (params && (params.appointmentId || params.recordId || params.id)));
         if (!appt) return { result: { error: 'appointment not found' }, render: 'text' };
         return { result: appt, render: 'cancel_appointment' };
       }

@@ -281,3 +281,236 @@ test('Run chain shows step 3 as error when result has ok:false (consent-required
   const step2Element = screen.getByText('2. get_account_balance').parentElement;
   expect(step2Element).toHaveTextContent('OK');
 });
+
+test('running get_my_transactions captures the transaction id and autofills it into a consumer tool', async () => {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp-gateway/active') return Promise.resolve({ data: ACTIVE_GATEWAY });
+    if (url === '/api/mcp/inspector/tools') return Promise.resolve({
+      data: {
+        tools: [
+          { name: 'get_my_transactions', description: 'List transactions.', inputSchema: { type: 'object', properties: {}, required: [] } },
+          { name: 'get_transaction_detail', description: 'Get one transaction.', inputSchema: { type: 'object', properties: { transaction_id: { type: 'string' } }, required: ['transaction_id'] } },
+        ],
+        _source: 'live',
+      },
+    });
+    return Promise.resolve({ data: {} });
+  });
+  apiClient.post.mockResolvedValueOnce({
+    data: { ok: true, result: { success: true, transactions: [{ id: 'txn-1', fromAccountId: 'acct-1', toAccountId: 'acct-2' }] }, durationMs: 8 },
+  });
+  render(<AgentGatewayTester />);
+  fireEvent.click(await screen.findByText('get_my_transactions'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await screen.findByText('200 OK');
+
+  fireEvent.click(screen.getByText('get_transaction_detail'));
+  expect(screen.getByRole('textbox')).toHaveValue(JSON.stringify({ transaction_id: 'txn-1' }, null, 2));
+});
+
+test('a bare "id" param derives its family from the tool name, not a more-recently captured unrelated family', async () => {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp-gateway/active') return Promise.resolve({ data: ACTIVE_GATEWAY });
+    if (url === '/api/mcp/inspector/tools') return Promise.resolve({
+      data: {
+        tools: [
+          { name: 'view_permits', description: 'List permits.', inputSchema: { type: 'object', properties: {}, required: [] } },
+          { name: 'checkout', description: 'Place an order.', inputSchema: { type: 'object', properties: { product: { type: 'string' }, amount: { type: 'number' } }, required: ['product', 'amount'] } },
+          { name: 'cancel_permit', description: 'Cancel a permit.', inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
+        ],
+        _source: 'live',
+      },
+    });
+    return Promise.resolve({ data: {} });
+  });
+  apiClient.post
+    .mockResolvedValueOnce({ data: { ok: true, result: { success: true, data: { permits: [{ id: 'permit-9', status: 'Active' }] } }, durationMs: 5 } })
+    .mockResolvedValueOnce({ data: { ok: true, result: { success: true, data: { id: 'ord-1', product: 'Widget', status: 'Processing' } }, durationMs: 5 } });
+
+  render(<AgentGatewayTester />);
+  fireEvent.click(await screen.findByText('view_permits'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await screen.findByText('200 OK');
+
+  fireEvent.click(screen.getByText('checkout'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await screen.findByText('200 OK');
+
+  fireEvent.click(screen.getByText('cancel_permit'));
+  expect(screen.getByRole('textbox')).toHaveValue(JSON.stringify({ id: 'permit-9' }, null, 2));
+});
+
+test('the captured-values dropdown patches the matching family\'s key, not an unrelated id param', async () => {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp-gateway/active') return Promise.resolve({ data: ACTIVE_GATEWAY });
+    if (url === '/api/mcp/inspector/tools') return Promise.resolve({
+      data: {
+        tools: [
+          { name: 'get_my_accounts', description: 'List accounts.', inputSchema: { type: 'object', properties: {}, required: [] } },
+          { name: 'lookup_customer', description: 'Find a customer.', inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } },
+          {
+            name: 'get_customer_accounts',
+            description: 'Admin: accounts for a customer.',
+            inputSchema: { type: 'object', properties: { userId: { type: 'string' }, account_id: { type: 'string' } }, required: ['userId', 'account_id'] },
+          },
+        ],
+        _source: 'live',
+      },
+    });
+    return Promise.resolve({ data: {} });
+  });
+  apiClient.post
+    .mockResolvedValueOnce({
+      data: {
+        ok: true,
+        result: {
+          success: true,
+          accounts: [
+            { id: 'acct-checking', accountType: 'checking', accountNumber: '****1111' },
+            { id: 'acct-savings', accountType: 'savings', accountNumber: '****2222' },
+          ],
+        },
+        durationMs: 5,
+      },
+    })
+    .mockResolvedValueOnce({ data: { ok: true, result: { success: true, users: [{ id: 'user-1', name: 'Jane Doe' }] }, durationMs: 5 } });
+
+  render(<AgentGatewayTester />);
+  fireEvent.click(await screen.findByText('get_my_accounts'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await screen.findByText('200 OK');
+
+  fireEvent.click(screen.getByText('lookup_customer'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await screen.findByText('200 OK');
+
+  fireEvent.click(screen.getByText('get_customer_accounts'));
+  expect(screen.getByRole('textbox')).toHaveValue(JSON.stringify({ userId: 'user-1', account_id: 'acct-checking' }, null, 2));
+
+  fireEvent.change(screen.getByLabelText('Insert captured value'), { target: { value: 'acct-savings' } });
+  const parsed = JSON.parse(screen.getByRole('textbox').value);
+  expect(parsed.account_id).toBe('acct-savings');
+  expect(parsed.userId).toBe('user-1');
+});
+
+test('an id-shaped param with no captured match falls back to the empty placeholder', async () => {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp-gateway/active') return Promise.resolve({ data: ACTIVE_GATEWAY });
+    if (url === '/api/mcp/inspector/tools') return Promise.resolve({
+      data: { tools: [{ name: 'get_customer_profile', description: 'Admin: customer profile.', inputSchema: { type: 'object', properties: { userId: { type: 'string' } }, required: ['userId'] } }], _source: 'live' },
+    });
+    return Promise.resolve({ data: {} });
+  });
+  render(<AgentGatewayTester />);
+  fireEvent.click(await screen.findByText('get_customer_profile'));
+  expect(screen.getByRole('textbox')).toHaveValue(JSON.stringify({ userId: '' }, null, 2));
+});
+
+// Fix 1: production responses are the raw MCP envelope — the payload is a
+// JSON string nested inside content[0].text, not a top-level property of
+// `result`. Every test above mocks the already-decoded payload; this one
+// uses the real envelope shape to prove capture/autofill still works once
+// it's unwrapped.
+test('captures a value from a real MCP envelope response (content[0].text as a JSON string)', async () => {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp-gateway/active') return Promise.resolve({ data: ACTIVE_GATEWAY });
+    if (url === '/api/mcp/inspector/tools') return Promise.resolve({
+      data: {
+        tools: [
+          { name: 'get_my_accounts', description: 'List accounts.', inputSchema: { type: 'object', properties: {}, required: [] } },
+          { name: 'get_account_balance', description: 'Get balance.', inputSchema: { type: 'object', properties: { account_id: { type: 'string' } }, required: ['account_id'] } },
+        ],
+        _source: 'live',
+      },
+    });
+    return Promise.resolve({ data: {} });
+  });
+  apiClient.post.mockResolvedValueOnce({
+    data: {
+      ok: true,
+      result: {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: true,
+            accounts: [{ id: 'acct-envelope-1', accountType: 'checking', accountNumber: '****4444' }],
+          }),
+        }],
+        isError: false,
+      },
+      durationMs: 9,
+    },
+  });
+  render(<AgentGatewayTester />);
+  fireEvent.click(await screen.findByText('get_my_accounts'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await screen.findByText('200 OK');
+
+  fireEvent.click(screen.getByText('get_account_balance'));
+  expect(screen.getByRole('textbox')).toHaveValue(JSON.stringify({ account_id: 'acct-envelope-1' }, null, 2));
+});
+
+// Fix 3: a "poId" param wants family "po", but view_purchase_orders' response
+// array key "purchaseOrders" singularizes to "purchaseorder" — no substring
+// relationship without the FAMILY_ALIASES entry.
+test('a poId param autofills from a captured purchaseOrders[] id via the family alias', async () => {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp-gateway/active') return Promise.resolve({ data: ACTIVE_GATEWAY });
+    if (url === '/api/mcp/inspector/tools') return Promise.resolve({
+      data: {
+        tools: [
+          { name: 'view_purchase_orders', description: 'List purchase orders.', inputSchema: { type: 'object', properties: {}, required: [] } },
+          { name: 'void_purchase_order', description: 'Void a purchase order by poId.', inputSchema: { type: 'object', properties: { poId: { type: 'string' } }, required: ['poId'] } },
+        ],
+        _source: 'live',
+      },
+    });
+    return Promise.resolve({ data: {} });
+  });
+  apiClient.post.mockResolvedValueOnce({
+    data: { ok: true, result: { success: true, purchaseOrders: [{ id: 'PO-6001', supplier: 'MetalSupply Co.', status: 'Pending Approval' }] }, durationMs: 5 },
+  });
+  render(<AgentGatewayTester />);
+  fireEvent.click(await screen.findByText('view_purchase_orders'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await screen.findByText('200 OK');
+
+  fireEvent.click(screen.getByText('void_purchase_order'));
+  expect(screen.getByRole('textbox')).toHaveValue(JSON.stringify({ poId: 'PO-6001' }, null, 2));
+});
+
+// Fix 4: bestCapturedMatch must prefer an exact family match over a
+// substring match, even when the substring match was captured more recently.
+test('an exact family match wins over a more-recently-captured substring match', async () => {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp-gateway/active') return Promise.resolve({ data: ACTIVE_GATEWAY });
+    if (url === '/api/mcp/inspector/tools') return Promise.resolve({
+      data: {
+        tools: [
+          { name: 'get_my_accounts', description: 'List accounts.', inputSchema: { type: 'object', properties: {}, required: [] } },
+          { name: 'list_savings_accounts', description: 'List savings accounts.', inputSchema: { type: 'object', properties: {}, required: [] } },
+          { name: 'get_account_balance', description: 'Get balance.', inputSchema: { type: 'object', properties: { account_id: { type: 'string' } }, required: ['account_id'] } },
+        ],
+        _source: 'live',
+      },
+    });
+    return Promise.resolve({ data: {} });
+  });
+  apiClient.post
+    // Captured first (older): exact family "account".
+    .mockResolvedValueOnce({ data: { ok: true, result: { success: true, accounts: [{ id: 'acct-old', accountType: 'checking' }] }, durationMs: 5 } })
+    // Captured second (more recent): family "savingsaccount" — substring match only.
+    .mockResolvedValueOnce({ data: { ok: true, result: { success: true, savingsAccounts: [{ id: 'acct-new', accountType: 'savings' }] }, durationMs: 5 } });
+
+  render(<AgentGatewayTester />);
+  fireEvent.click(await screen.findByText('get_my_accounts'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await screen.findByText('200 OK');
+
+  fireEvent.click(screen.getByText('list_savings_accounts'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Execute' })[0]);
+  await screen.findByText('200 OK');
+
+  fireEvent.click(screen.getByText('get_account_balance'));
+  expect(screen.getByRole('textbox')).toHaveValue(JSON.stringify({ account_id: 'acct-old' }, null, 2));
+});

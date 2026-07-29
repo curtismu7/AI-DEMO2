@@ -48,4 +48,11 @@ describe('healthcare tools', () => {
     const out = await execute('not_a_tool', {}, { userId: 'u' });
     expect(out.result.error).toMatch(/unknown tool/i);
   });
+
+  it('cancel_appointment accepts a bare "id" param (regression: handler previously only read appointmentId/recordId)', async () => {
+    const apptId = store.get('u').appointments[0].id;
+    const out = await execute('cancel_appointment', { id: apptId }, { userId: 'u' });
+    expect(out.result.status).toBe('Cancelled');
+    expect(out.render).toBe('cancel_appointment');
+  });
 });
