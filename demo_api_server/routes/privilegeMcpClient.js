@@ -16,7 +16,7 @@ function getClientSession(req) {
   if (!clientSessions.has(sid)) {
     clientSessions.set(sid, {
       config: {
-        mcpUrl: '',
+        mcpUrl: process.env.PRIVILEGE_MCPGW_URL || '',
         clientId: '',
         scopes: 'openid profile email',
         llmUrl: 'http://127.0.0.1:11434',
