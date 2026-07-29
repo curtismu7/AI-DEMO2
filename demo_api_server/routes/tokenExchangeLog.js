@@ -13,7 +13,8 @@ function hashToken(token) {
 
 router.post('/log', (req, res) => {
   try {
-    const { timestamp, exchangeType, subjectToken, resultToken, metadata, sessionId } = req.body;
+    const { timestamp, exchangeType, subjectToken, resultToken, metadata } = req.body;
+    const sessionId = req.session?.id;  // Get from session, not request body
 
     // Validate required fields
     if (!timestamp || !exchangeType || !sessionId) {
@@ -47,6 +48,12 @@ router.post('/log', (req, res) => {
 
 router.get('/', (req, res) => {
   try {
+    // Enforce session validation — mandatory
+    const currentSessionId = req.session?.id;
+    if (!currentSessionId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
     const limit = parseInt(req.query.limit) || 50;
     const offset = parseInt(req.query.offset) || 0;
     const type = req.query.type;
@@ -64,8 +71,8 @@ router.get('/', (req, res) => {
     for (const line of lines) {
       try {
         const entry = JSON.parse(line);
-        // Filter by session if session middleware is available
-        if (req.session && req.session.id && entry.sessionId !== req.session.id) {
+        // Filter by session — only return entries from the current session
+        if (entry.sessionId !== currentSessionId) {
           continue;
         }
         entries.push(entry);
