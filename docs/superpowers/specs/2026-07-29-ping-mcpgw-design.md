@@ -44,7 +44,7 @@ SSE event log. The gap is purely the gateway it points at.
 Deployment (`k8s/74-demo-mcpgw-deployment.yaml`) is **never applied** by
 `k8s/deploy.sh` — that file is not in deploy.sh's explicit apply list. The path
 503s today. Decision: **delete the dead rule** in the same edit that adds the
-MCPGW host. `demo_mcpgw/` itself stays on disk, unwired, untouched.
+MCPGW Ingress. `demo_mcpgw/` itself stays on disk, unwired, untouched.
 
 ### Not to be confused with
 
@@ -61,7 +61,7 @@ MCPGW host. `demo_mcpgw/` itself stays on disk, unwired, untouched.
 | Privilege tenant + wizard image | available |
 | demo story | denial **and** session recording, one flow |
 | deploy targets | local Compose and SE cluster together |
-| AWS exposure | own subdomain via nginx ingress |
+| AWS exposure | `/mcpgw` path prefix on the existing `ai-demo.ping-devops.com`, via a second Ingress object with a scoped `rewrite-target` |
 | local hostname | `local.ping-devops.com:8623` — same host as the app, different port |
 | client surface | preconfigure the existing page; no new UI |
 | dead `/mcp` ingress rule | remove |
@@ -149,23 +149,51 @@ Port 8623 is free and collides with none of the 26 published ports in
 
 ### AWS
 
+Everything stays on the existing host. No new DNS name.
+
 ```
-https://mcpgw.ping-devops.com   ──nginx ingress (TLS terminates here)──▶ ping-mcpgw :8623
-https://ai-demo.ping-devops.com ──────────────────────────────────────▶ frontend :4000
+https://ai-demo.ping-devops.com/mcpgw/…  ──nginx──▶ [strip /mcpgw] ──▶ ping-mcpgw :8623
+https://ai-demo.ping-devops.com/         ──nginx──────────────────────▶ frontend  :4000
 ```
 
-A separate host rule rather than a path prefix, because MCPGW's callback is at
-root `/callback` and ingress cannot port-split. The exact hostname
-`mcpgw.ping-devops.com` assumes the SE cluster's external-dns will grant it;
-confirm before implementing.
+`pathType: Prefix` forwards the **full** path, so `/mcpgw/mcp` would reach the
+container as `/mcpgw/mcp` and 404. The prefix must be stripped:
 
-Consequences of local and AWS differing:
+```yaml
+nginx.ingress.kubernetes.io/rewrite-target: /$2
+nginx.ingress.kubernetes.io/use-regex: "true"
+# path: /mcpgw(/|$)(.*)   pathType: ImplementationSpecific
+```
 
-- The MCPGW Agentic App registers **two** redirect URIs.
+#### This requires a second Ingress object, not a second rule
+
+`rewrite-target` is an **Ingress-level** annotation — it applies to every path in
+the object that carries it. Adding it to the existing `ai-demo-ingress` would
+also rewrite the `/` rule and break the frontend. So MCPGW gets its own Ingress
+resource on the same host, with the annotations scoped to it. Kubernetes permits
+multiple Ingress objects per host and nginx merges them.
+
+`k8s/aws/deploy.sh:220` applies `se-ingress.yaml` through
+`sed 's|<<NAMESPACE>>|$NS|g' | kubectl apply -f -`, which handles multi-document
+YAML. The second Ingress therefore lives as another `---` document in that same
+file and inherits the namespace substitution for free.
+
+There is no `rewrite-target` anywhere in `k8s/` today, so this is the first — no
+in-repo example to copy. The old `/mcp` rule needed none: it passed the full path
+through and let IG strip it internally via `UriPathRewriteFilter`.
+
+#### Consequences of local and AWS differing
+
+- Local reaches MCPGW at a **port**, AWS at a **path**. Two `SERVER_URL` values,
+  two `PRIVILEGE_MCPGW_URL` values (§5), and two redirect URIs on the one
+  Agentic App.
 - On AWS nginx terminates TLS, so the container's own cert is unused there;
   locally the container terminates its own TLS. Same image, two TLS postures —
   a likely source of "works locally, 502 on AWS". TLS config stays in one env
   block so flipping it is a one-line change.
+- The path approach depends on the **bearer-only** assumption below. If MCPGW
+  insists on its own browser login, its `/callback` must also survive the
+  rewrite, and the open risk stops being local-only.
 
 ### Open risk: two OIDC surfaces
 
@@ -192,6 +220,11 @@ valid), the fallbacks in preference order are:
 
 None of these are scoped here. Hitting this means a new round of design.
 
+This risk now gates **AWS as well as local**. The `/mcpgw` path approach assumes
+bearer-only auth, so MCPGW's own `/callback` never fires. If it does fire, that
+callback has to survive the nginx rewrite and match a registered redirect URI —
+a second problem stacked on the first.
+
 ---
 
 ## 4. File inventory
@@ -204,7 +237,7 @@ out of REGRESSION_PLAN §0 UI rules and off the vitest/build gate.
 
 | file | contents |
 |---|---|
-| `k8s/75-ping-mcpgw-deployment.yaml` | Deployment + ClusterIP Service on 8623, `envFrom` the OIDC secret |
+| `k8s/75-ping-mcpgw-deployment.yaml` | Deployment + ClusterIP Service on 8623, `envFrom` the OIDC secret. Ingress lives in `se-ingress.yaml`, not here, so it picks up the namespace substitution. Mirror `74-demo-mcpgw-deployment.yaml` for namespace/label conventions — it is the direct analogue |
 | `docs/superpowers/specs/2026-07-29-ping-mcpgw-design.md` | this document |
 
 ### Modified (9)
@@ -213,7 +246,7 @@ out of REGRESSION_PLAN §0 UI rules and off the vitest/build gate.
 |---|---|
 | `docker-compose.yml` | `ping-mcpgw` service — profile `mcpgw`, network alias `local.ping-devops.com`, `8623:8623`, read-only `./certs` directory mount, `env_file: ping-mcpgw/config/pingone.env`, `image: ${MCPGW_IMAGE:?...}`. Plus `PRIVILEGE_MCPGW_URL` on `demo-api-server` |
 | `run-docker.sh` | four spots — `OPTIONAL_GROUP_NAMES`, `FULL_STACK_PROFILE_ARGS`, `_optional_group_profiles` (own case and `all`), `_optional_group_services` |
-| `k8s/aws/se-ingress.yaml` | add the `mcpgw.ping-devops.com` host rule; delete the dead `/mcp` block |
+| `k8s/aws/se-ingress.yaml` | delete the dead `/mcp` block from `ai-demo-ingress`; append a second `---` Ingress document (`ai-demo-mcpgw-ingress`) on the same host with `rewrite-target` + `use-regex` scoped to it |
 | `k8s/deploy.sh` | one `kubectl apply` line for the new manifest |
 | `k8s/create-secrets.sh` | create the OIDC secret from `ping-mcpgw/config/pingone.env` |
 | `demo_api_server/routes/privilegeMcpClient.js` | line 19: `mcpUrl: ''` becomes `process.env.PRIVILEGE_MCPGW_URL \|\| ''` |
@@ -273,8 +306,16 @@ Values that differ by environment:
 
 | | local | AWS |
 |---|---|---|
-| `SERVER_URL` | `https://local.ping-devops.com:8623` | `https://mcpgw.ping-devops.com` |
-| `PRIVILEGE_MCPGW_URL` (BFF) | `https://local.ping-devops.com:8623/mcp` | `https://mcpgw.ping-devops.com/mcp` |
+| `SERVER_URL` | `https://local.ping-devops.com:8623` | `https://ai-demo.ping-devops.com/mcpgw` |
+| `PRIVILEGE_MCPGW_URL` (BFF) | `https://local.ping-devops.com:8623/mcp` | `https://ai-demo.ping-devops.com/mcpgw/mcp` |
+| redirect URI (only if MCPGW's own login is used) | `https://local.ping-devops.com:8623/callback` | `https://ai-demo.ping-devops.com/mcpgw/callback` |
+
+Note the asymmetry: locally the container sees the path it is given, because the
+port carries the routing. On AWS nginx strips `/mcpgw` first, so the container
+sees `/mcp` either way. `SERVER_URL` still carries the prefix on AWS because it
+is what MCPGW advertises to clients, not what it listens on — if MCPGW instead
+derives advertised URLs from the inbound Host and path, this value is wrong and
+the rewrite needs revisiting.
 
 ### Secret hygiene
 
@@ -305,7 +346,7 @@ External to the repo. Ordered — later steps consume earlier outputs.
 3. **MCP Server tile** — MCP Server URL `http://mcp-server:8080/mcp`, bound to
    the mesh cluster from step 2. Frontend URL is per environment:
    `https://local.ping-devops.com:8623` locally,
-   `https://mcpgw.ping-devops.com` on the SE cluster. If one tile cannot hold
+   `https://ai-demo.ping-devops.com/mcpgw` on the SE cluster. If one tile cannot hold
    both, register two.
 4. **Tool policy producing a DENY** — the first half of the demo.
 5. **Session recording enabled** — the second half.
@@ -342,7 +383,9 @@ from the repo.
 - `tools/list` through MCPGW returns `mcp-server`'s banking tools
 - a policy-blocked tool call returns a deny the client page renders
 - that session appears in the Privilege console recording view
-- both repeat against `mcpgw.ping-devops.com`
+- both repeat against `https://ai-demo.ping-devops.com/mcpgw`
+- `https://ai-demo.ping-devops.com/` still serves the frontend unchanged —
+  proof the `rewrite-target` stayed scoped to the second Ingress object
 
 ### Tests
 
@@ -361,6 +404,9 @@ without the image.
 | MCPGW up, auth fails, credentials look empty | OIDC keys listed under `environment:` as well as `env_file` |
 | 401 at `/mcp` with an otherwise valid PingOne token | the §3 open risk — MCPGW wants its own login, not the client page's bearer |
 | 502 on AWS only | nginx terminated TLS; the container still expects HTTPS |
+| 404 at `/mcpgw/mcp` on AWS, works locally | `rewrite-target` missing or its regex not capturing — the container is seeing `/mcpgw/mcp` instead of `/mcp` |
+| the whole app breaks on AWS after deploy | `rewrite-target` landed on `ai-demo-ingress` instead of its own Ingress object, rewriting the `/` frontend rule too |
+| MCPGW returns links pointing at `/mcp` without the prefix | MCPGW derives advertised URLs from the inbound request rather than `SERVER_URL` |
 | container pulls something unexpected | `MCPGW_IMAGE` set to a stale wizard value |
 
 ---
