@@ -103,6 +103,8 @@ const BRAVE_TOOLS = new Set([
  * @param {object} [opts]
  * @param {string} [opts.correlationId]  Forwarded as JSON-RPC id for tracing
  * @param {string} [opts.sessionId]      Forwarded as mcp-session-id header if present
+ * @param {boolean} [opts.omitActorBridge] Demo-only (UC16): skip the X-Act-Client-Id /
+ *   X-May-Act-Sub bridge so the call presents NO delegation evidence at all
  * @returns {Promise<any>}  The JSON-RPC result value
  *
  * @throws {Error} with `.code` and `.httpStatus` for 401/403/5xx
@@ -229,7 +231,15 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // Bridge the actor delegation (X-Act-Client-Id / X-May-Act-Sub) so the gateway's
     // Authorize decision can enforce the actor chain on the HTTP transport (PingOne
     // can't emit `act` on exchanged tokens). Shared with the WS client.
-    Object.assign(headers, require('./mcpActorBridge').buildActorBridgeHeaders());
+    //
+    // UC16 (impersonation-no-act) is the one caller that must NOT get this: the bridge
+    // supplies a valid, allowlisted ActClientId even when the token carries no `act`,
+    // so the impersonation attempt was silently upgraded into a well-formed delegated
+    // call and PERMITted. Skipping it is what lets an act-less call reach Authorize with
+    // an empty actor and be denied by HasValidActorChain.
+    if (!opts.omitActorBridge) {
+        Object.assign(headers, require('./mcpActorBridge').buildActorBridgeHeaders());
+    }
 
     // Security Showcase — confused-deputy demo. When the caller passes a rogue,
     // non-allowlisted actor client_id, override the bridged X-Act-Client-Id so the

@@ -148,3 +148,68 @@ test("mcp-tool-result-sse window event without authorize fields does not touch t
   }));
   expect(tokenChainTraceStore.getState().trace.authorize).toEqual({ decision: "DENY", decisionId: "prior" });
 });
+
+// ── Approval-gate carry-over across a resume ────────────────────────────────
+// A step-up resume re-enters sendAgentMessage, whose beginTrace() wipes
+// trace.authorize — taking the STEP_UP outcome with it. The retry then records
+// a bare PERMIT and ProofStrip scores UC7 as "Mismatch". HITL never hit this
+// because its retry does not cross a beginTrace.
+
+test("beginTrace carries an unfulfilled STEP_UP gate into the resume of the same prompt", () => {
+  tokenChainTraceStore.beginTrace({ prompt: "checkout headphones for $600" });
+  tokenChainTraceStore.ingestAuthorize({ decision: "INDETERMINATE", outcome: "STEP_UP" });
+  // MFA satisfied → the resume replays the identical prompt.
+  tokenChainTraceStore.beginTrace({ prompt: "checkout headphones for $600" });
+  tokenChainTraceStore.ingestAuthorize({ decision: "PERMIT" });
+  const { authorize } = tokenChainTraceStore.getState().trace;
+  expect(authorize.decision).toBe("PERMIT");
+  expect(authorize.outcome).toBe("STEP_UP");
+  expect(authorize.priorGate).toBe("STEP_UP");
+});
+
+test("carries an unfulfilled HITL_REQUIRED gate the same way", () => {
+  tokenChainTraceStore.beginTrace({ prompt: "checkout headphones for $300" });
+  tokenChainTraceStore.ingestAuthorize({ decision: "INDETERMINATE", outcome: "HITL_REQUIRED" });
+  tokenChainTraceStore.beginTrace({ prompt: "checkout headphones for $300" });
+  tokenChainTraceStore.ingestAuthorize({ decision: "PERMIT" });
+  expect(tokenChainTraceStore.getState().trace.authorize.outcome).toBe("HITL_REQUIRED");
+});
+
+test("a DIFFERENT prompt does not inherit the previous run's gate", () => {
+  tokenChainTraceStore.beginTrace({ prompt: "checkout headphones for $600" });
+  tokenChainTraceStore.ingestAuthorize({ decision: "INDETERMINATE", outcome: "STEP_UP" });
+  tokenChainTraceStore.beginTrace({ prompt: "show my accounts" });
+  tokenChainTraceStore.ingestAuthorize({ decision: "PERMIT" });
+  const { authorize } = tokenChainTraceStore.getState().trace;
+  expect(authorize.outcome).toBeUndefined();
+  expect(authorize.priorGate).toBeUndefined();
+});
+
+test("a declined gate is NOT carried — the human refused, nothing was permitted", () => {
+  tokenChainTraceStore.beginTrace({ prompt: "checkout headphones for $600" });
+  tokenChainTraceStore.ingestAuthorize({ decision: "INDETERMINATE", outcome: "STEP_UP" });
+  tokenChainTraceStore.ingestApprovalDeclined();
+  tokenChainTraceStore.beginTrace({ prompt: "checkout headphones for $600" });
+  tokenChainTraceStore.ingestAuthorize({ decision: "PERMIT" });
+  expect(tokenChainTraceStore.getState().trace.authorize.outcome).toBeUndefined();
+});
+
+test("the gate is carried once, not forever", () => {
+  tokenChainTraceStore.beginTrace({ prompt: "checkout headphones for $600" });
+  tokenChainTraceStore.ingestAuthorize({ decision: "INDETERMINATE", outcome: "STEP_UP" });
+  tokenChainTraceStore.beginTrace({ prompt: "checkout headphones for $600" });
+  tokenChainTraceStore.ingestAuthorize({ decision: "PERMIT" });
+  // Third run of the same prompt: the gate was already discharged, so this run
+  // must be scored on its own PERMIT.
+  tokenChainTraceStore.beginTrace({ prompt: "checkout headphones for $600" });
+  tokenChainTraceStore.ingestAuthorize({ decision: "PERMIT" });
+  expect(tokenChainTraceStore.getState().trace.authorize.outcome).toBeUndefined();
+});
+
+test("a DENY is never carried forward as a gate", () => {
+  tokenChainTraceStore.beginTrace({ prompt: "checkout headphones for $2500" });
+  tokenChainTraceStore.ingestAuthorize({ decision: "DENY", outcome: "DENY" });
+  tokenChainTraceStore.beginTrace({ prompt: "checkout headphones for $2500" });
+  tokenChainTraceStore.ingestAuthorize({ decision: "PERMIT" });
+  expect(tokenChainTraceStore.getState().trace.authorize.outcome).toBeUndefined();
+});

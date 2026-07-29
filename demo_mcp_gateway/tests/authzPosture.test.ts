@@ -147,13 +147,21 @@ describe('C3 — failOpen names every active bypass', () => {
   });
 
   test('unverified tokens accepted (no JWKS, STRICT_AUTH off, opt-in on)', () => {
+    // PINGONE_JWKS_URI is the alias the gateway container actually sets (see
+    // tokenValidator.ts) and the code treats ENDPOINT/URI as equivalent — a
+    // "no JWKS" scenario must clear both, or a real URI inherited from the
+    // process env (e.g. this repo's demo_mcp_gateway/.env, a worktree-shared
+    // symlink) leaves JWKS configured and this test constructs a config that
+    // does not exist.
     delete process.env.PINGONE_JWKS_ENDPOINT;
+    delete process.env.PINGONE_JWKS_URI;
     process.env.MCP_GW_ALLOW_UNVERIFIED_TOKENS = 'true';
     expect(buildAuthzHealth(cfg()).failOpen).toContain('MCP_GW_ALLOW_UNVERIFIED_TOKENS');
   });
 
   test('no JWKS but STRICT_AUTH=true is NOT a bypass', () => {
     delete process.env.PINGONE_JWKS_ENDPOINT;
+    delete process.env.PINGONE_JWKS_URI;
     process.env.MCP_GW_ALLOW_UNVERIFIED_TOKENS = 'true';
     process.env.STRICT_AUTH = 'true';
     expect(buildAuthzHealth(cfg()).failOpen).not.toContain('MCP_GW_ALLOW_UNVERIFIED_TOKENS');

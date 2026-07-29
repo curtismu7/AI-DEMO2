@@ -18,7 +18,7 @@ import org.forgerock.util.promise.Promises
 
 def required = [
     P1AZ_REAL_BASE           : System.getenv('P1AZ_REAL_BASE'),
-    P1AZ_WORKER_ID            : System.getenv('P1AZ_WORKER_ID'),
+    P1AZ_DECISION_ENDPOINT_ID : System.getenv('P1AZ_DECISION_ENDPOINT_ID') ?: System.getenv('P1AZ_WORKER_ID'),
     PINGONE_TOKEN_ENDPOINT    : System.getenv('PINGONE_TOKEN_ENDPOINT'),
     P1AZ_WORKER_CLIENT_ID     : System.getenv('P1AZ_WORKER_CLIENT_ID'),
     P1AZ_WORKER_CLIENT_SECRET : System.getenv('P1AZ_WORKER_CLIENT_SECRET'),

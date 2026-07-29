@@ -8,7 +8,7 @@ import TraceTokenSummary from "./TraceTokenSummary";
 import JsonHighlight from "./shared/JsonHighlight";
 import { MCP_STEP_IDS } from "../services/tokenChainTrace/buildTraceSteps";
 
-export default function TraceMcpPanel({ steps, trace, onInspect }) {
+export default function TraceMcpPanel({ steps, trace, onInspect, useCase = null }) {
   const mcpSteps = MCP_STEP_IDS
     .map((id) => (steps || []).find((s) => s.id === id))
     .filter(Boolean);
@@ -58,7 +58,7 @@ export default function TraceMcpPanel({ steps, trace, onInspect }) {
 
       <div className="tctr-sec-label">MCP pipeline steps</div>
       {mcpSteps.map((step) => (
-        <TraceStepCard key={step.id} step={step} onInspect={onInspect} defaultOpen />
+        <TraceStepCard key={step.id} step={step} onInspect={onInspect} defaultOpen useCase={useCase} />
       ))}
     </div>
   );

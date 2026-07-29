@@ -144,8 +144,18 @@ module.exports = async function importSnapshot(req, res) {
     //   2. a wrong/partial constant set — a dropped identity denies that
     //      gateway wholesale, a foreign one admits nobody real.
     // Lookup is by NAME (like the challenge conditions): a rename or delete
-    // reads as missing and blocks too.
-    const GATEWAY_RESOURCE_NAMES = ['Super Banking MCP Gateway', 'Super Banking PingGateway MCP'];
+    // reads as missing and blocks too. Must list every accepted gateway
+    // identity in scope-topology.json's resources — the A2A gateway
+    // (mcpgateway-a2a.ping.demo) is a real, distinct accepted audience
+    // alongside the primary MCP and PingGateway ones; omitting it here made
+    // this check compare the SoT's 2 known audiences against the tracked
+    // snapshot's real 3, reporting a false mcp_audience_mismatch on every
+    // snapshot that correctly includes A2A.
+    const GATEWAY_RESOURCE_NAMES = [
+      'Super Banking MCP Gateway',
+      'Super Banking PingGateway MCP',
+      'Super Banking A2A MCP Gateway',
+    ];
     const sotGatewayAuds = GATEWAY_RESOURCE_NAMES
       .map((n) => manifest.resources && manifest.resources[n] && manifest.resources[n].uri)
       .filter(Boolean)

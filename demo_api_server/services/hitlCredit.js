@@ -14,8 +14,10 @@
 //   - Amount-bound: a credit minted for a specific amount only discharges consent
 //     for a transfer at or below that amount, so approving a small transfer cannot
 //     silently authorize a larger unrelated one. A null approved amount is unbound
-//     (legacy behavior); a caller that supplies no amount (the MCP tool gate, which
-//     has no transfer amount) also opts out of the amount check.
+//     (legacy behavior). Callers that have a transfer amount MUST pass it —
+//     mcpToolAuthorizationService does for write tools. Omitting amount opts out
+//     of the check and is only correct for non-amount consumers (tool-level HITL
+//     with no dollar figure).
 //   - Consume-on-use: callers read isFresh() first and call consume() ONLY when the
 //     credit actually discharged a gate this request. An unrelated request therefore
 //     never burns the credit, which prevents cross-consumer starvation between the
@@ -24,8 +26,8 @@
 
 /**
  * @param {object|undefined} session - req.session
- * @param {{ amount?: number }} [opts] - transfer amount for amount-binding; omit to
- *   opt out of the amount check (unbound consumers such as the MCP tool gate).
+ * @param {{ amount?: number }} [opts] - transfer amount for amount-binding; omit only
+ *   when the caller has no amount (non-write MCP tools). Write tools must pass amount.
  * @returns {boolean} true when a live credit applies to this request.
  */
 function isFresh(session, { amount } = {}) {

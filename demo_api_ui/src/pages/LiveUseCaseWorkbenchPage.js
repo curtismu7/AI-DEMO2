@@ -202,7 +202,7 @@ export default function LiveUseCaseWorkbenchPage() {
     if (!drawerOpen) edgeTabRef.current?.focus();
   }, [drawerOpen]);
 
-  // Escape closes the slide-over, matching the scrim click.
+  // Escape closes the slide-over, matching the ← toggle.
   useEffect(() => {
     if (!drawerOpen) return undefined;
     const onKey = (e) => { if (e.key === 'Escape') closeDrawer(); };
@@ -537,11 +537,6 @@ export default function LiveUseCaseWorkbenchPage() {
         >
           Demo script <span aria-hidden="true">→</span>
         </button>
-        <div
-          className="luw-drawer__scrim"
-          onClick={closeDrawer}
-          aria-hidden="true"
-        />
         <nav className="luw-drawer" aria-label="Use case launcher">
           <div className="luw-drawer__head">
             <button

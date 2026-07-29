@@ -64,3 +64,81 @@ describe('attack-sim token exchange — exchanger-app parity (anti-drift guard)'
     expect(token).toBe('exchanged.plain');
   });
 });
+
+/**
+ * Sibling of the audience guard above: SCOPE drift.
+ *
+ * ROOT CAUSE this guards (2026-07-28): with PingGateway as the active PEP, the
+ * sims exchanged for tool scopes (`read write transfer`) against
+ * mcpgateway.ping.demo. PingGateway's McpProtectionFilter wants the coarse
+ * `gateway:mcp:invoke` scope and an aud exactly matching its resourceId, so it
+ * refused every sim call at the perimeter:
+ *
+ *   [GW→PingGateway] RESPONSE: status=403
+ *   www-authenticate: Bearer error="insufficient_scope", scope="gateway:mcp:invoke"
+ *
+ * _denyFromGateway then overwrote that generic 403 with each sim's own canonical
+ * code, so UC14 reported `rar_amount_exceeded` and the narrative "PingOne
+ * Authorize DENY — transfer exceeds the granted RAR cap" for a run in which
+ * PingOne Authorize was never consulted. Right verdict, wrong reason, and no
+ * authorize record for the UI to prove it with (ProofStrip: "Unproven").
+ *
+ * Mirrors agentMcpTokenService's Exchange #2 recipe (usePingGatewayForExchange).
+ */
+describe('attack-sim token exchange — PingGateway scope/audience parity', () => {
+  const { _gatewayExchangeTarget } = require('../services/attackSimulatorService').__test;
+
+  const withConfig = (map) => configStore.getEffective.mockImplementation((k) => map[k]);
+
+  beforeEach(() => jest.clearAllMocks());
+
+  test('behind PingGateway: coarse invoke scope + the PG resource as a one-element array', () => {
+    withConfig({
+      ff_mcp_gateway_pinggateway: 'true',
+      pingone_resource_pinggateway_uri: 'https://api.ping.demo:3036/mcp',
+    });
+
+    const t = _gatewayExchangeTarget(['read', 'write', 'transfer']);
+
+    expect(t.viaPingGateway).toBe(true);
+    // Array, not string: PingOne honors RFC 8707 `resource=` and silently
+    // ignores `audience=`, and a string maps to the latter.
+    expect(t.audience).toEqual(['https://api.ping.demo:3036/mcp']);
+    expect(t.scopes).toEqual(['gateway:mcp:invoke']);
+  });
+
+  test('honors an operator override of the invoke scope name', () => {
+    withConfig({
+      ff_mcp_gateway_pinggateway: 'true',
+      pingone_resource_pinggateway_uri: 'https://api.ping.demo:3036/mcp',
+      gateway_mcp_invoke_scope: 'gw:custom:invoke',
+    });
+
+    expect(_gatewayExchangeTarget(['read']).scopes).toEqual(['gw:custom:invoke']);
+  });
+
+  test('Node gateway (flag off): tool scopes and the mcpgateway audience are unchanged', () => {
+    withConfig({
+      ff_mcp_gateway_pinggateway: 'false',
+      pingone_resource_mcp_gateway_uri: 'mcpgateway.ping.demo',
+    });
+
+    const t = _gatewayExchangeTarget(['read', 'write', 'transfer']);
+
+    expect(t.viaPingGateway).toBe(false);
+    expect(t.audience).toBe('mcpgateway.ping.demo');
+    expect(t.scopes).toEqual(['read', 'write', 'transfer']);
+  });
+
+  test('PingGateway on but no PG resource configured: falls back rather than minting an unusable aud', () => {
+    withConfig({
+      ff_mcp_gateway_pinggateway: 'true',
+      pingone_resource_mcp_gateway_uri: 'mcpgateway.ping.demo',
+    });
+
+    const t = _gatewayExchangeTarget(['read']);
+
+    expect(t.audience).toBe('mcpgateway.ping.demo');
+    expect(t.scopes).toEqual(['read']);
+  });
+});

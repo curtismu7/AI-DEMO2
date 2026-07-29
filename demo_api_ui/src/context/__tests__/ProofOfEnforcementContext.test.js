@@ -216,6 +216,59 @@ test('session-only sticky useCaseId yields no verdict until call-scoped evidence
   await waitFor(() => expect(getByTestId('verdict').textContent).toBe('none'));
 });
 
+// Regression: every rendered ProofStrip used to read either the live `verdict`
+// or a positional slot in an append-only history that got one entry per store
+// EMIT, not per run. A second run therefore repainted the first run's strip
+// with its own result (a green UC1 strip turned yellow when UC14 ran next).
+// verdictFor(runId) must keep each run's verdict pinned to that run.
+test('a later run does not repaint an earlier run\'s verdict', async () => {
+  const captured = { first: null, second: null };
+  function RunProbe() {
+    const { verdictFor } = useProofOfEnforcement();
+    const one = verdictFor(captured.first);
+    const two = verdictFor(captured.second);
+    return (
+      <div>
+        <div data-testid="run1">{one ? `${one.useCaseId}:${one.state}` : 'none'}</div>
+        <div data-testid="run2">{two ? `${two.useCaseId}:${two.state}` : 'none'}</div>
+      </div>
+    );
+  }
+
+  const { getByTestId } = render(
+    <ProofOfEnforcementProvider vertical="banking">
+      <RunProbe />
+    </ProofOfEnforcementProvider>,
+  );
+  await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+
+  act(() => {
+    tokenChainTraceStore.beginTrace({ prompt: 'show my balance' });
+    captured.first = tokenChainTraceStore.getState().trace.runId;
+    tokenChainTraceStore.ingestTokenEvents([
+      { id: 'user-token', useCaseId: 'delegated-access-with-proof', vertical: 'banking' },
+      { id: 'two-ex-exchange1', exchangeStep: '1-exchange', useCaseId: 'delegated-access-with-proof', vertical: 'banking' },
+    ]);
+    tokenChainTraceStore.ingestAuthorize({ decisionId: 'r1', decision: 'PERMIT', useCaseId: 'delegated-access-with-proof', vertical: 'banking' });
+    tokenChainTraceStore.ingestMcpResult({ toolName: 'get_account_balance', status: 'success' });
+  });
+  await waitFor(() => expect(getByTestId('run1').textContent).toBe('delegated-access-with-proof:verified'));
+
+  // Second run reaches no authorize decision — the shape that renders
+  // "Incomplete — Waiting on authorize-decision".
+  act(() => {
+    tokenChainTraceStore.beginTrace({ prompt: 'attack sim: rar-exceeded' });
+    captured.second = tokenChainTraceStore.getState().trace.runId;
+    tokenChainTraceStore.ingestTokenEvents([
+      { id: 'user-token', useCaseId: 'delegated-access-with-proof', vertical: 'banking' },
+      { id: 'two-ex-exchange1', exchangeStep: '1-exchange', useCaseId: 'delegated-access-with-proof', vertical: 'banking' },
+    ]);
+  });
+  await waitFor(() => expect(getByTestId('run2').textContent).toBe('delegated-access-with-proof:incomplete'));
+  expect(captured.second).not.toBe(captured.first);
+  expect(getByTestId('run1').textContent).toBe('delegated-access-with-proof:verified');
+});
+
 // Regression: gateway-level attack sims (aud/scope denies) are blocked BEFORE
 // PingOne Authorize runs, so they never produce an 'authorize-decision'. UC5/UC11/UC12
 // used to declare it as required evidence, which made computeVerdict short-circuit to

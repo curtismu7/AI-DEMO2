@@ -68,4 +68,80 @@ describe('A2A execution wiring (Slice 3b)', () => {
     expect(parsed.error).toMatch(/disabled/);
     expect(executor.executeBffToolWithToken).not.toHaveBeenCalled();
   });
+
+  it('resolves the verticalResult render descriptor from the SPECIALIST vertical, not the delegating one', async () => {
+    // banking's manifest has no 'portfolio_summary' render key (that key only
+    // exists in investment's) — delegateToSpecialist reports vertical:'banking'
+    // (who delegated) alongside specialistVertical:'investment' (who owns the
+    // tool + its render descriptor). Regression: looking the descriptor up
+    // under `vertical` instead of `specialistVertical` resolves to null, and
+    // the UI falls back to a raw JSON dump instead of the formatted card.
+    a2a.delegateToSpecialist.mockImplementation((_req, opts) => Promise.resolve({
+      token: 'NESTED.ACT.TOKEN',
+      userSub: 'user',
+      vertical: opts.vertical,
+      specialistVertical: 'investment',
+      specialist: 'Investment Advisor',
+      tool: 'get_portfolio_summary',
+      scopes: ['invest:read'],
+      actChainDepth: 2,
+    }));
+    // The descriptor lookup reads verticalManifest.loader's cache, which is only
+    // populated by init() (normally called once at server startup).
+    require('../../services/verticalManifest').verticalManifest.init();
+    const heuristic = { vertical: 'banking', action: 'delegate_to_specialist', params: {} };
+    const out = await svc.__test.dispatchVerticalIntent(heuristic, {
+      userId: 'u1', userToken: 't', req: { sessionID: 's1' }, tokenEvents: [], sessionId: 's1',
+    });
+
+    expect(out.verticalResult).toBeTruthy();
+    expect(out.verticalResult.render).toBe('portfolio_summary');
+    expect(out.verticalResult.descriptor).toBeTruthy();
+    expect(out.verticalResult.descriptor.type).toBe('fieldList');
+  });
+
+  it('serves locally after gateway upstream error without re-entering A2A', async () => {
+    // #986 local-serve path: gateway AUTHORIZES then returns 502 (no backend for
+    // the vertical plugin tool). After #1042, resolveExecuteTool's A2A fast-path
+    // re-entered executeA2aDelegation for every isA2aDelegatedTool name — infinite
+    // recursion / process crash on the exact failure this path exists to handle.
+    // Delivery must call executeToolFor directly and mint the nested-act token once.
+    const verticalDispatch = require('../../services/verticalDispatch');
+    a2a.delegateToSpecialist.mockImplementation((_req, opts) => Promise.resolve({
+      token: 'NESTED.ACT.TOKEN',
+      userSub: 'user',
+      vertical: opts.vertical,
+      specialist: 'Records Specialist',
+      tool: 'sensitive_patient_records',
+      scopes: ['records:read'],
+      actChainDepth: 2,
+    }));
+    executor.executeBffToolWithToken.mockResolvedValueOnce(
+      JSON.stringify({ error: 'gateway_error', message: 'Gateway upstream error (HTTP 502)' }),
+    );
+    const schemasSpy = jest.spyOn(verticalDispatch, 'toolSchemasFor').mockReturnValue([
+      { name: 'sensitive_patient_records' },
+    ]);
+    const execSpy = jest.spyOn(verticalDispatch, 'executeToolFor').mockResolvedValue({
+      result: { records: [{ id: 'r1' }] },
+      render: 'list',
+    });
+
+    const out = await svc.__test.executeA2aDelegation(
+      'healthcare',
+      { tool: 'sensitive_patient_records' },
+      { req: { sessionID: 's1', session: { user: { id: 'u1' } } }, tokenEvents: [], sessionId: 's1' },
+    );
+    const parsed = JSON.parse(out);
+
+    expect(a2a.delegateToSpecialist).toHaveBeenCalledTimes(1);
+    expect(executor.executeBffToolWithToken).toHaveBeenCalledTimes(1);
+    expect(execSpy).toHaveBeenCalledTimes(1);
+    expect(parsed.delegated).toBe(true);
+    expect(parsed.toolError).toBeNull();
+    expect(parsed.result).toEqual({ records: [{ id: 'r1' }] });
+
+    schemasSpy.mockRestore();
+    execSpy.mockRestore();
+  });
 });
