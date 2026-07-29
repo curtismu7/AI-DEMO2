@@ -1,0 +1,401 @@
+/* demo_api_ui/src/components/ProtocolPlayground/ProtocolPlayground.css */
+
+.protocol-playground {
+  display: flex;
+  width: 100%;
+  height: calc(100vh - 60px);
+  background: #0a0a0a;
+  color: #e0e0e0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.protocol-sidebar {
+  width: 220px;
+  background: #1a1a1a;
+  border-right: 1px solid #333;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.protocol-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.protocol-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #666;
+  font-size: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .protocol-playground {
+    background: #0a0a0a;
+    color: #e0e0e0;
+  }
+
+  .protocol-sidebar {
+    background: #1a1a1a;
+    border-right-color: #333;
+  }
+}
+
+/* Sidebar Protocol List */
+
+.sidebar-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #888;
+  margin: 0 0 12px;
+}
+
+.protocol-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.protocol-item {
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #aaa;
+  font-size: 13px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.protocol-item:hover {
+  background: #2a2a2a;
+  color: #ddd;
+}
+
+.protocol-item.active {
+  background: #3a5a7a;
+  color: #fff;
+  border-color: #5a7aaa;
+}
+
+/* Protocol Viewer */
+
+.protocol-viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.viewer-header {
+  padding: 20px;
+  border-bottom: 1px solid #333;
+}
+
+.viewer-header h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  color: #fff;
+}
+
+.viewer-description {
+  margin: 0;
+  font-size: 13px;
+  color: #888;
+}
+
+.viewer-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 12px;
+  padding: 12px;
+  overflow: hidden;
+}
+
+.diagram-section {
+  display: flex;
+  flex-direction: column;
+  background: #0f0f0f;
+  border: 1px solid #333;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.activity-section {
+  background: #0f0f0f;
+  border: 1px solid #333;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sequence Diagram */
+
+.sequence-diagram-container {
+  flex: 1;
+  overflow: auto;
+  background: #0a0a0a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+}
+
+.sequence-diagram-container svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Execution Controls */
+
+.execution-controls {
+  padding: 12px;
+  background: #111;
+  border-top: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.controls-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.progress-text {
+  color: #888;
+  min-width: 80px;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 6px;
+  background: #222;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4a7a2a, #7abb4a);
+  transition: width 0.3s ease;
+}
+
+.controls-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: #3a5a7a;
+  color: #fff;
+  border: 1px solid #5a7aaa;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #4a6a8a;
+}
+
+.btn-default {
+  background: #222;
+  color: #aaa;
+  border: 1px solid #333;
+}
+
+.btn-default:hover:not(:disabled) {
+  background: #2a2a2a;
+  color: #ddd;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Activity Panel */
+
+.activity-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.activity-header {
+  padding: 12px;
+  border-bottom: 1px solid #333;
+  background: #111;
+}
+
+.activity-header h4 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #aaa;
+}
+
+.activity-error {
+  padding: 8px 12px;
+  background: #4a2a2a;
+  border: 1px solid #8a4a4a;
+  color: #ff9999;
+  font-size: 12px;
+}
+
+.activity-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+  border-bottom: 1px solid #333;
+}
+
+.activity-empty {
+  padding: 20px;
+  text-align: center;
+  color: #666;
+  font-size: 12px;
+}
+
+.activity-entry {
+  padding: 8px 12px;
+  border-bottom: 1px solid #1a1a1a;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.activity-entry:hover {
+  background: #1a1a1a;
+}
+
+.entry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.entry-step {
+  font-size: 11px;
+  font-weight: 600;
+  color: #7abb4a;
+}
+
+.entry-status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+
+.entry-status.status-ok {
+  background: #2a4a2a;
+  color: #7abb4a;
+}
+
+.entry-status.status-error {
+  background: #4a2a2a;
+  color: #ff9999;
+}
+
+.entry-method {
+  font-size: 11px;
+  color: #888;
+  font-family: monospace;
+}
+
+.activity-details {
+  padding: 12px;
+  border-top: 1px solid #333;
+  overflow-y: auto;
+  max-height: 40%;
+}
+
+.details-section {
+  margin-bottom: 12px;
+}
+
+.details-section h5 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #aaa;
+  text-transform: uppercase;
+}
+
+.details-json {
+  margin: 0;
+  padding: 8px;
+  background: #0a0a0a;
+  border: 1px solid #333;
+  border-radius: 2px;
+  font-size: 10px;
+  color: #7abb4a;
+  overflow-x: auto;
+  max-height: 150px;
+}
+
+/* Token Inspector */
+
+.token-inspector {
+  margin-top: 12px;
+  padding: 10px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 4px;
+}
+
+.token-inspector h5 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #aaa;
+  text-transform: uppercase;
+}
+
+.token-claims {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.claim {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.claim-label {
+  color: #888;
+  font-weight: 600;
+  min-width: 70px;
+}
+
+.claim-value {
+  color: #7abb4a;
+  font-family: monospace;
+  word-break: break-all;
+}
