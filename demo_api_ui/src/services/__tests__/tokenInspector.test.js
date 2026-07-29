@@ -42,7 +42,7 @@ describe('tokenInspector', () => {
       const result = decodeJWT(validToken);
       expect(result.header.alg).toBe('HS256');
       expect(result.header.typ).toBe('JWT');
-      expect(result.signature).toBe('TEST');
+      expect(result.signature).toBe('TEST_SIGNATURE');
     });
   });
 
