@@ -11,10 +11,19 @@ function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
+/**
+ * Resolve the express-session id. Prefer sessionID (always set by
+ * express-session); fall back to session.id for stores that mirror it.
+ * Never trust a client-supplied sessionId from the request body.
+ */
+function resolveSessionId(req) {
+  return req.sessionID || req.session?.id || null;
+}
+
 router.post('/log', (req, res) => {
   try {
     const { timestamp, exchangeType, subjectToken, resultToken, metadata } = req.body;
-    const sessionId = req.session?.id;  // Get from session, not request body
+    const sessionId = resolveSessionId(req);
 
     // Validate required fields
     if (!timestamp || !exchangeType || !sessionId) {
@@ -49,7 +58,7 @@ router.post('/log', (req, res) => {
 router.get('/', (req, res) => {
   try {
     // Enforce session validation — mandatory
-    const currentSessionId = req.session?.id;
+    const currentSessionId = resolveSessionId(req);
     if (!currentSessionId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }

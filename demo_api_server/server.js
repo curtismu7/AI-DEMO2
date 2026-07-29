@@ -1237,7 +1237,10 @@ app.get('/api/app-events/stream', (req, res) => {
 // Register before the authenticateToken block so customers with a valid session can access it.
 app.get('/api/tokens/agent-cc-preview', requireSession, tokenRoutes.agentCcPreviewHandler);
 app.use('/api/tokens', authenticateToken, tokenRoutes);
-app.use('/api/token-exchanges', require('./routes/tokenExchanges'));
+// /api/token-exchanges is mounted once below with authenticateToken +
+// tokenExchangeLogRouter (hashes tokens, session-scopes reads). Do NOT add an
+// unauthenticated mount here — a prior dual-mount shadowed the secure router
+// and returned cleartext JWTs to any caller.
 app.use('/api/users', authenticateToken, userRoutes);
 app.use('/api/self-service/users', authenticateToken, selfServiceUsersRoutes);
 app.use('/api/reports', reportsRoutes);
