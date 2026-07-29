@@ -53,6 +53,7 @@
     "pingone:bootstrap:ci": "node scripts/bootstrapPingOne.js --non-interactive",
     "pingone:setup:trat": "node scripts/setupTratClaims.js",
     "scopes:doc": "node scripts/generate-scope-doc.js",
+    "protocols:gen": "node scripts/generateProtocolFlows.js",
     "scopes:check": "node ../scripts/gen-scope-topology.js check",
     "scopes:gen": "node ../scripts/gen-scope-topology.js generate",
     "feature-data:gen": "node ../scripts/gen-feature-data.js generate",
