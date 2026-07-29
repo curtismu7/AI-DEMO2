@@ -171,6 +171,7 @@ const logsRoutes = require('./routes/logs');
 const delegationRoutes = require('./routes/delegation');
 const agentAuthorizationRoutes = require('./routes/agentAuthorization');
 const tokenChainRoutes = require('./routes/tokenChain');
+const tokenExchangeLogRouter = require('./routes/tokenExchangeLog');
 const {
     router: clientRegistrationRoutes,
     wellKnownHandler,
@@ -1236,6 +1237,7 @@ app.get('/api/app-events/stream', (req, res) => {
 // Register before the authenticateToken block so customers with a valid session can access it.
 app.get('/api/tokens/agent-cc-preview', requireSession, tokenRoutes.agentCcPreviewHandler);
 app.use('/api/tokens', authenticateToken, tokenRoutes);
+app.use('/api/token-exchanges', require('./routes/tokenExchanges'));
 app.use('/api/users', authenticateToken, userRoutes);
 app.use('/api/self-service/users', authenticateToken, selfServiceUsersRoutes);
 app.use('/api/reports', reportsRoutes);
@@ -1320,6 +1322,7 @@ app.use('/api/oauth/jwks', require('./routes/oauthJwks'));
 app.use('/api/delegation', authenticateToken, delegationRoutes);
 app.use('/api/agent-authorization', authenticateToken, agentAuthorizationRoutes);
 app.use('/api/token-chain', authenticateToken, tokenChainRoutes);
+app.use('/api/token-exchanges', authenticateToken, tokenExchangeLogRouter);
 // Transaction chain of custody — read side. Any logged-in user, matching the
 // accessibility of its Telemetry sibling (the Tracing page).
 app.use('/api/transaction-trace', authenticateToken, require('./routes/transactionTrace'));

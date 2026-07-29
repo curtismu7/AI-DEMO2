@@ -123,9 +123,43 @@ function SectionLabel({ children, bg = '#1e3a5f', border = '#3b82f6', color = '#
   );
 }
 
+// ─── Flow Variants ────────────────────────────────────────────────────────────
+
+function PersonToMcpFlow({ Actor, Arrow, Row }) {
+  return (
+    <Row>
+      <Actor icon="👤" label="Person" />
+      <Arrow label="Subject Token" />
+      <Actor icon="🔧" label="MCP Server" color="#3b82f6" border="#1d4ed8" />
+      <Arrow label="MCP Token" dir="left" dashed />
+    </Row>
+  );
+}
+
+function AgentToA2aFlow({ Actor, Arrow, Row }) {
+  return (
+    <Row>
+      <Actor icon="🤖" label="Agent" />
+      <Arrow label="Delegation" />
+      <Actor icon="🤖" label="Specialist" color="#8b5cf6" border="#6d28d9" />
+      <Arrow label="Delegated Token" dir="left" dashed />
+    </Row>
+  );
+}
+
+function IntrospectionFlow({ Actor, Arrow, Row }) {
+  return (
+    <Row>
+      <Actor icon="🔍" label="Validator" />
+      <Arrow label="Token" />
+      <Actor icon="✓" label="Valid" color="#10b981" border="#059669" />
+    </Row>
+  );
+}
+
 // ─── Main diagram ─────────────────────────────────────────────────────────────
 
-export default function TokenExchangeDiagram() {
+export default function TokenExchangeDiagram({ exchangeType = 'person-to-agent' }) {
   // Colour palette
   const C = {
     user:    { bg: '#0f2744', border: '#3b82f6', text: '#93c5fd' },
@@ -139,6 +173,146 @@ export default function TokenExchangeDiagram() {
     cc2:     { bg: '#1a1330', border: '#6d28d9', text: '#a78bfa' },  // MCP Exchanger CC
   };
 
+  const renderDiagram = () => {
+    switch (exchangeType) {
+      case 'person-to-mcp':
+        return <PersonToMcpFlow Actor={Actor} Arrow={Arrow} Row={Row} />;
+      case 'agent-to-a2a':
+        return <AgentToA2aFlow Actor={Actor} Arrow={Arrow} Row={Row} />;
+      case 'introspection':
+        return <IntrospectionFlow Actor={Actor} Arrow={Arrow} Row={Row} />;
+      default:
+        return (
+          <>
+            {/* ── Security banner ── */}
+            <div style={{
+              background: '#14532d', border: '1px solid #16a34a', borderRadius: 6,
+              padding: '8px 14px', marginBottom: 20, color: '#86efac',
+              fontSize: '0.73rem', fontWeight: 600, display: 'flex', gap: 8, alignItems: 'flex-start',
+            }}>
+              <span>🔒</span>
+              <span>Raw tokens stay server-side. Only decoded claims reach the browser. <code style={{ fontWeight: 400, color: '#4ade80' }}>sub</code> is preserved end-to-end through every exchange.</span>
+            </div>
+
+            {/* ═══════════════════════════════════════════ */}
+            {/* PHASE 0: LOGIN                              */}
+            {/* ═══════════════════════════════════════════ */}
+            <SectionLabel bg={C.user.bg} border={C.user.border} color={C.user.text}>① Login — Authorization Code + PKCE</SectionLabel>
+            <Row mt={4}>
+              <Actor icon="👤" label="User Browser"                                       color={C.user.bg}  border={C.user.border} />
+              <Arrow label="GET /api/auth/oauth/user/login" sublabel="→ PingOne /authorize + PKCE code_challenge" color={C.user.border} />
+              <Actor icon="🏦" label="BFF" sublabel="demo_api_server"                     color={C.bff.bg}   border={C.bff.border}  />
+              <Arrow label="Auth Code + POST /as/token" sublabel="PingOne issues tokens" color={C.ping.border} />
+              <Actor icon="🔐" label="PingOne AS" sublabel="Authorization Server"          color={C.ping.bg}  border={C.ping.border} />
+            </Row>
+
+            <VSpacer left={166} color={C.tok1.border} />
+
+            {/* User AT card */}
+            <div style={{ marginLeft: 0, marginBottom: 4, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <TokenBadge
+                label="① User Access Token  (stored in BFF session)"
+                color={C.tok1.bg} border={C.tok1.border} accent={C.tok1.text}
+                claims={[
+                  ['sub',      '<user-id>  ← never changes'],
+                  ['aud',      'agentgateway.ping.demo'],
+                  ['scope',    'openid profile email offline_access read write ai:agent'],
+                  ['may_act',  '{ "sub": "<ai-agent-client-id>" }  ← pre-approval for token exchange'],
+                ]}
+              />
+            </div>
+
+            {/* ═══════════════════════════════════════════ */}
+            {/* PHASE 1: SINGLE RFC 8693 EXCHANGE           */}
+            {/* ═══════════════════════════════════════════ */}
+            <div style={{ marginTop: 20 }}>
+              <SectionLabel bg={C.cc1.bg} border={C.cc1.border} color={C.cc1.text}>② Exchange — User AT → Exchanged MCP Token (RFC 8693 §3)</SectionLabel>
+            </div>
+
+            {/* Actor CC token */}
+            <div style={{ display: 'flex', gap: 12, marginTop: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+              <TokenBadge
+                label="AI Agent CC Token  (actor_token)"
+                color={C.cc1.bg} border={C.cc1.border} accent={C.cc1.text}
+                claims={[
+                  ['grant',  'client_credentials'],
+                  ['aud',    'agentgateway.ping.demo'],
+                  ['client', 'AGENT_OAUTH_CLIENT_ID'],
+                ]}
+              />
+            </div>
+
+            <Row mt={4}>
+              <Actor icon="🏦" label="BFF" sublabel="subject_token = User AT&#10;actor_token = AI Agent CC Token"  color={C.bff.bg}  border={C.bff.border} width={170} />
+              <Arrow label="POST /as/token  RFC 8693" sublabel="grant_type=token-exchange  USE_AGENT_ACTOR_FOR_MCP=true" color={C.ping.border} />
+              <Actor icon="🔐" label="PingOne AS" sublabel="validates may_act.sub matches actor_token.sub" color={C.ping.bg} border={C.ping.border} />
+            </Row>
+
+            <VSpacer left={86} color={C.tok3.border} />
+
+            {/* Exchanged MCP token */}
+            <div style={{ display: 'flex', gap: 12, marginBottom: 4, flexWrap: 'wrap' }}>
+              <TokenBadge
+                label="② Exchanged MCP Token  (Bearer forwarded through gateway)"
+                color={C.tok3.bg} border={C.tok3.border} accent={C.tok3.text}
+                claims={[
+                  ['sub',   '<user-id>  ← preserved end-to-end ✓'],
+                  ['aud',   '<PINGONE_RESOURCE_MCP_GATEWAY_URI>'],
+                  ['scope', 'read  write  (OIDC claims removed)'],
+                  ['act',   '{ "sub": "<ai-agent-client-id>" }  ← single-level delegation ✓'],
+                ]}
+              />
+            </div>
+
+            {/* ═══════════════════════════════════════════ */}
+            {/* PHASE 2: GATEWAY + MCP SERVER               */}
+            {/* ═══════════════════════════════════════════ */}
+            <div style={{ marginTop: 20 }}>
+              <SectionLabel bg={C.mcp.bg} border={C.mcp.border} color={C.mcp.text}>③ MCP Gateway → MCP Server → Banking API</SectionLabel>
+            </div>
+
+            <Row mt={6}>
+              <Actor icon="🏦" label="BFF"                                                  color={C.bff.bg}  border={C.bff.border} />
+              <Arrow label="Bearer: Exchanged MCP Token" sublabel="callToolViaGateway" color={C.tok3.border} />
+              <Actor icon="🛡" label="MCP Gateway" sublabel="demo_mcp_gateway :3005&#10;introspect→policy→Authorize" color={C.mcp.bg}  border={C.mcp.border} width={160} />
+              <Arrow label="Forward token unchanged" sublabel="PERMIT → forward as-is" color={C.mcp.border} />
+              <Actor icon="🤖" label="MCP Server" sublabel="demo_mcp_server :8080"          color={C.mcp.bg}  border={C.mcp.border} />
+              <Arrow label="Banking API call" sublabel="aud ✓  scope ✓  act ✓"            color={C.mcp.border} />
+              <Actor icon="💳" label="Banking API" sublabel="resource-server.pingdemo.com" color={C.mcp.bg}  border={C.mcp.border} />
+            </Row>
+
+            <VSpacer left={166} color="#475569" />
+
+            <Row mt={0}>
+              <Actor icon="🏦" label="BFF"                                                  color={C.bff.bg}  border={C.bff.border} />
+              <Arrow label="decoded claims only" sublabel="no raw tokens" color="#475569" dir="left" dashed />
+              <Actor icon="👤" label="User Browser" sublabel="token viewer / agent chat"   color={C.user.bg} border={C.user.border} />
+            </Row>
+
+            {/* ── legend ── */}
+            <div style={{
+              marginTop: 24, borderTop: '1px solid #1e293b', paddingTop: 12,
+              display: 'flex', flexWrap: 'wrap', gap: '6px 20px', fontSize: '0.65rem', color: '#374151',
+            }}>
+              {[
+                [C.tok1.border,  'User Access Token'],
+                [C.tok3.border,  'Exchanged MCP Token'],
+                [C.cc1.border,   'AI Agent CC Token (actor)'],
+                [C.mcp.border,   'MCP Gateway / MCP Server'],
+                [C.ping.border,  'PingOne AS'],
+              ].map(([color, label]) => (
+                <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: color }} />
+                  {label}
+                </span>
+              ))}
+              <span style={{ marginLeft: 'auto', color: '#334155' }}>RFC 8693 §3 sub · §4.1 act · §4.4 may_act</span>
+            </div>
+          </>
+        );
+    }
+  };
+
   return (
     <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 8 }}>
       <div style={{
@@ -150,132 +324,7 @@ export default function TokenExchangeDiagram() {
         minWidth: 700,
         boxSizing: 'border-box',
       }}>
-
-        {/* ── Security banner ── */}
-        <div style={{
-          background: '#14532d', border: '1px solid #16a34a', borderRadius: 6,
-          padding: '8px 14px', marginBottom: 20, color: '#86efac',
-          fontSize: '0.73rem', fontWeight: 600, display: 'flex', gap: 8, alignItems: 'flex-start',
-        }}>
-          <span>🔒</span>
-          <span>Raw tokens stay server-side. Only decoded claims reach the browser. <code style={{ fontWeight: 400, color: '#4ade80' }}>sub</code> is preserved end-to-end through every exchange.</span>
-        </div>
-
-        {/* ═══════════════════════════════════════════ */}
-        {/* PHASE 0: LOGIN                              */}
-        {/* ═══════════════════════════════════════════ */}
-        <SectionLabel bg={C.user.bg} border={C.user.border} color={C.user.text}>① Login — Authorization Code + PKCE</SectionLabel>
-        <Row mt={4}>
-          <Actor icon="👤" label="User Browser"                                       color={C.user.bg}  border={C.user.border} />
-          <Arrow label="GET /api/auth/oauth/user/login" sublabel="→ PingOne /authorize + PKCE code_challenge" color={C.user.border} />
-          <Actor icon="🏦" label="BFF" sublabel="demo_api_server"                     color={C.bff.bg}   border={C.bff.border}  />
-          <Arrow label="Auth Code + POST /as/token" sublabel="PingOne issues tokens" color={C.ping.border} />
-          <Actor icon="🔐" label="PingOne AS" sublabel="Authorization Server"          color={C.ping.bg}  border={C.ping.border} />
-        </Row>
-
-        <VSpacer left={166} color={C.tok1.border} />
-
-        {/* User AT card */}
-        <div style={{ marginLeft: 0, marginBottom: 4, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <TokenBadge
-            label="① User Access Token  (stored in BFF session)"
-            color={C.tok1.bg} border={C.tok1.border} accent={C.tok1.text}
-            claims={[
-              ['sub',      '<user-id>  ← never changes'],
-              ['aud',      'agentgateway.ping.demo'],
-              ['scope',    'openid profile email offline_access read write ai:agent'],
-              ['may_act',  '{ "sub": "<ai-agent-client-id>" }  ← pre-approval for token exchange'],
-            ]}
-          />
-        </div>
-
-        {/* ═══════════════════════════════════════════ */}
-        {/* PHASE 1: SINGLE RFC 8693 EXCHANGE           */}
-        {/* ═══════════════════════════════════════════ */}
-        <div style={{ marginTop: 20 }}>
-          <SectionLabel bg={C.cc1.bg} border={C.cc1.border} color={C.cc1.text}>② Exchange — User AT → Exchanged MCP Token (RFC 8693 §3)</SectionLabel>
-        </div>
-
-        {/* Actor CC token */}
-        <div style={{ display: 'flex', gap: 12, marginTop: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-          <TokenBadge
-            label="AI Agent CC Token  (actor_token)"
-            color={C.cc1.bg} border={C.cc1.border} accent={C.cc1.text}
-            claims={[
-              ['grant',  'client_credentials'],
-              ['aud',    'agentgateway.ping.demo'],
-              ['client', 'AGENT_OAUTH_CLIENT_ID'],
-            ]}
-          />
-        </div>
-
-        <Row mt={4}>
-          <Actor icon="🏦" label="BFF" sublabel="subject_token = User AT&#10;actor_token = AI Agent CC Token"  color={C.bff.bg}  border={C.bff.border} width={170} />
-          <Arrow label="POST /as/token  RFC 8693" sublabel="grant_type=token-exchange  USE_AGENT_ACTOR_FOR_MCP=true" color={C.ping.border} />
-          <Actor icon="🔐" label="PingOne AS" sublabel="validates may_act.sub matches actor_token.sub" color={C.ping.bg} border={C.ping.border} />
-        </Row>
-
-        <VSpacer left={86} color={C.tok3.border} />
-
-        {/* Exchanged MCP token */}
-        <div style={{ display: 'flex', gap: 12, marginBottom: 4, flexWrap: 'wrap' }}>
-          <TokenBadge
-            label="② Exchanged MCP Token  (Bearer forwarded through gateway)"
-            color={C.tok3.bg} border={C.tok3.border} accent={C.tok3.text}
-            claims={[
-              ['sub',   '<user-id>  ← preserved end-to-end ✓'],
-              ['aud',   '<PINGONE_RESOURCE_MCP_GATEWAY_URI>'],
-              ['scope', 'read  write  (OIDC claims removed)'],
-              ['act',   '{ "sub": "<ai-agent-client-id>" }  ← single-level delegation ✓'],
-            ]}
-          />
-        </div>
-
-        {/* ═══════════════════════════════════════════ */}
-        {/* PHASE 2: GATEWAY + MCP SERVER               */}
-        {/* ═══════════════════════════════════════════ */}
-        <div style={{ marginTop: 20 }}>
-          <SectionLabel bg={C.mcp.bg} border={C.mcp.border} color={C.mcp.text}>③ MCP Gateway → MCP Server → Banking API</SectionLabel>
-        </div>
-
-        <Row mt={6}>
-          <Actor icon="🏦" label="BFF"                                                  color={C.bff.bg}  border={C.bff.border} />
-          <Arrow label="Bearer: Exchanged MCP Token" sublabel="callToolViaGateway" color={C.tok3.border} />
-          <Actor icon="🛡" label="MCP Gateway" sublabel="demo_mcp_gateway :3005&#10;introspect→policy→Authorize" color={C.mcp.bg}  border={C.mcp.border} width={160} />
-          <Arrow label="Forward token unchanged" sublabel="PERMIT → forward as-is" color={C.mcp.border} />
-          <Actor icon="🤖" label="MCP Server" sublabel="demo_mcp_server :8080"          color={C.mcp.bg}  border={C.mcp.border} />
-          <Arrow label="Banking API call" sublabel="aud ✓  scope ✓  act ✓"            color={C.mcp.border} />
-          <Actor icon="💳" label="Banking API" sublabel="resource-server.pingdemo.com" color={C.mcp.bg}  border={C.mcp.border} />
-        </Row>
-
-        <VSpacer left={166} color="#475569" />
-
-        <Row mt={0}>
-          <Actor icon="🏦" label="BFF"                                                  color={C.bff.bg}  border={C.bff.border} />
-          <Arrow label="decoded claims only" sublabel="no raw tokens" color="#475569" dir="left" dashed />
-          <Actor icon="👤" label="User Browser" sublabel="token viewer / agent chat"   color={C.user.bg} border={C.user.border} />
-        </Row>
-
-        {/* ── legend ── */}
-        <div style={{
-          marginTop: 24, borderTop: '1px solid #1e293b', paddingTop: 12,
-          display: 'flex', flexWrap: 'wrap', gap: '6px 20px', fontSize: '0.65rem', color: '#374151',
-        }}>
-          {[
-            [C.tok1.border,  'User Access Token'],
-            [C.tok3.border,  'Exchanged MCP Token'],
-            [C.cc1.border,   'AI Agent CC Token (actor)'],
-            [C.mcp.border,   'MCP Gateway / MCP Server'],
-            [C.ping.border,  'PingOne AS'],
-          ].map(([color, label]) => (
-            <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: color }} />
-              {label}
-            </span>
-          ))}
-          <span style={{ marginLeft: 'auto', color: '#334155' }}>RFC 8693 §3 sub · §4.1 act · §4.4 may_act</span>
-        </div>
-
+        {renderDiagram()}
       </div>
     </div>
   );
