@@ -188,27 +188,45 @@ async function executeTool(
   let callTokenEvents: TokenEvent[] = [];
 
   try {
+    const rpcRequest = {
+      jsonrpc: '2.0' as const,
+      id,
+      method: 'tools/call',
+      params: {
+        name: toolName,
+        arguments: toolArgs,
+        sessionId,
+      },
+    };
     const resp = await fetch(bffToolUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-internal-gateway-secret': internalSecret,
       },
-      body: JSON.stringify({ tool: toolName, args: toolArgs, sessionId }),
-      // Bound the BFF tool call so a hung/slow tool can't hold the SSE stream open
-      // forever — a timeout surfaces as a tool error the reasoning loop can recover from.
+      body: JSON.stringify(rpcRequest),
       signal: AbortSignal.timeout(30000),
     });
     if (!resp.ok) {
       throw new Error(`BFF tool call failed: ${resp.status} ${resp.statusText}`);
     }
-    const data = (await resp.json()) as Record<string, unknown>;
-    result = data.result ?? data;
-    if (data.authorizeDecision) {
-      authorizeDecision = data.authorizeDecision as AuthorizeDecision;
-    }
-    if (Array.isArray(data.tokenEvents)) {
-      callTokenEvents = data.tokenEvents as TokenEvent[];
+    const rpcResponse = (await resp.json()) as Record<string, unknown>;
+
+    // Handle JSON-RPC 2.0 response format
+    if (rpcResponse.error) {
+      const err = rpcResponse.error as Record<string, unknown>;
+      result = { error: err.message || 'Unknown JSON-RPC error', code: err.code };
+    } else if (rpcResponse.result) {
+      const resultData = rpcResponse.result as Record<string, unknown>;
+      result = resultData.result ?? resultData;
+      if (resultData.authorizeDecision) {
+        authorizeDecision = resultData.authorizeDecision as AuthorizeDecision;
+      }
+      if (Array.isArray(resultData.tokenEvents)) {
+        callTokenEvents = resultData.tokenEvents as TokenEvent[];
+      }
+    } else {
+      result = rpcResponse;
     }
   } catch (err) {
     result = { error: String(err), tool: toolName };

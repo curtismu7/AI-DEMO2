@@ -2035,6 +2035,163 @@ app.post('/api/mcp/tool', express.json(), requireSession, async (req, res, next)
   }
 });
 
+// POST /api/rpc — JSON-RPC 2.0 interface for agent tool calls
+app.post('/api/rpc', express.json(), requireSession, async (req, res) => {
+  try {
+    const { jsonrpc, id, method, params } = req.body;
+
+    // Validate JSON-RPC 2.0 format
+    if (jsonrpc !== '2.0') {
+      return res.status(400).json({
+        jsonrpc: '2.0',
+        id,
+        error: {
+          code: -32600,
+          message: 'Invalid Request',
+          data: 'jsonrpc field must be "2.0"'
+        }
+      });
+    }
+
+    if (typeof method !== 'string') {
+      return res.status(400).json({
+        jsonrpc: '2.0',
+        id,
+        error: {
+          code: -32600,
+          message: 'Invalid Request',
+          data: 'method field is required and must be a string'
+        }
+      });
+    }
+
+    // Only support tools/call method
+    if (method !== 'tools/call') {
+      return res.status(400).json({
+        jsonrpc: '2.0',
+        id,
+        error: {
+          code: -32601,
+          message: 'Method not found'
+        }
+      });
+    }
+
+    // Extract tool name and arguments from params
+    const { name: toolName, arguments: toolArgs, useCaseId, vertical } = params || {};
+
+    if (typeof toolName !== 'string') {
+      return res.status(400).json({
+        jsonrpc: '2.0',
+        id,
+        error: {
+          code: -32602,
+          message: 'Invalid params',
+          data: 'name field is required and must be a string'
+        }
+      });
+    }
+
+    // Scrub JWTs from response (same pattern as /api/mcp/tool)
+    const _origJson = res.json.bind(res);
+    res.json = (body) => _origJson(scrubRawJwts(body));
+
+    // Build context for pipeline (reuse existing tool execution logic)
+    const startTime = Date.now();
+    const ctx = {
+      tool: toolName,
+      params: toolArgs,
+      flowTraceId: null,
+      startTime,
+      req,
+      useCaseId: useCaseId || '',
+      vertical: vertical || req.body?.vertical,
+      deps: {
+        resolveMcpAccessTokenWithEvents,
+        evaluateMcpFirstToolGate: (a) => mcpToolAuthorizationService.evaluateMcpFirstToolGate(a),
+        introspectToken: (token) => {
+          const issuerClientId = _decodeJwtClaims(token)?.claims?.client_id;
+          if (issuerClientId
+            && issuerClientId === process.env.PINGONE_USER_CLIENT_ID
+            && process.env.PINGONE_USER_CLIENT_SECRET) {
+            return introspectToken(token, {
+              clientId: process.env.PINGONE_USER_CLIENT_ID,
+              clientSecret: process.env.PINGONE_USER_CLIENT_SECRET,
+              authMethod: 'post',
+            });
+          }
+          return introspectToken(token);
+        },
+        getSessionAccessToken,
+        callToolLocal,
+        mcpCallTool,
+        callToolViaGateway: (url, tok, t, p, o) => mcpGatewayClient.callToolViaResolvedGateway(url, tok, t, p, o),
+        http2Bridge: http2McpBridge,
+        pingoneAdapter: mcpPingOneHttpAdapter,
+        buildTokenEvent,
+        mcpNoBearerResponse,
+        createPendingDecision: _createPendingDecision,
+        createHitlChallenge: (payload, corr) => _hitlServiceClient.createChallenge(payload, corr),
+        decodeAgentId: (tok) => {
+          const act = _decodeJwtClaims(tok)?.claims?.act;
+          return act && typeof act === 'object'
+            ? String(act.client_id || act.sub || '') || undefined
+            : undefined;
+        },
+        recordMcpToolCall,
+        recordComplianceAudit: _recordComplianceAudit,
+        publishMcpResultToSse: (id, a) => publishMcpResultToSse(id, a),
+        publishTokenEventsToSse: (id, evs) => publishTokenEventsToSse(id, evs),
+        appEventLog: (cat, lvl, msg, meta) => appEventService.logEvent(cat, lvl, msg, meta),
+        emit: () => {},
+        config: {
+          introspectionConfigured: !!process.env.PINGONE_INTROSPECTION_ENDPOINT,
+          useGateway: !!((process.env.MCP_GATEWAY_HTTP_URL || configStore.getEffective('mcp_gateway_http_url'))),
+          gatewayHttpUrl: null,
+          mcpUrl: getMcpServerUrl(),
+          mcpServerUrlEnv: process.env.MCP_SERVER_URL,
+          useHttp2: !((process.env.MCP_GATEWAY_HTTP_URL || configStore.getEffective('mcp_gateway_http_url'))) && (() => { const u = getMcpServerUrl(); return u.startsWith('http://') || u.startsWith('https://'); })(),
+          pingoneAdminEnabled: configStore.get('mcp_use_pingone_server') === 'true',
+          pingoneAdminTools: pingoneAdminToolMatcher,
+        },
+      },
+    };
+
+    // Execute tool via existing pipeline
+    const outcome = await runMcpToolPipeline(ctx);
+
+    // Wrap result in JSON-RPC 2.0 response
+    if (outcome.statusCode >= 400) {
+      return res.status(outcome.statusCode).json({
+        jsonrpc: '2.0',
+        id,
+        error: {
+          code: outcome.statusCode,
+          message: outcome.body?.error || 'Tool execution failed',
+          data: outcome.body
+        }
+      });
+    }
+
+    return res.status(200).json({
+      jsonrpc: '2.0',
+      id,
+      result: outcome.body
+    });
+  } catch (err) {
+    const id = req.body?.id;
+    return res.status(500).json({
+      jsonrpc: '2.0',
+      id,
+      error: {
+        code: -32603,
+        message: 'Internal error',
+        data: process.env.NODE_ENV === 'development' ? err.message : undefined
+      }
+    });
+  }
+});
+
 // ── Static file serving ──────────────────────────────────────────────────────
 // Express serves the React build directly.
 {
