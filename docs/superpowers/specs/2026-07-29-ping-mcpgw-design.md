@@ -271,35 +271,55 @@ docker-compose.yml            image: ${MCPGW_IMAGE:?set MCPGW_IMAGE from the Pri
                                   │
 ping-mcpgw/config/pingone.env     SERVER_URL, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET,
                                   OIDC_AUTH_URL, OIDC_TOKEN_URL, OIDC_USER_URL, OIDC_SCOPES
-                                  │ env_file:   — NOT environment:
+                                  │ read-only DIRECTORY mount of ping-mcpgw/config
+                                  │ ──▶ /var/lib/procyon/config  — NOT env_file:,
+                                  │     NOT environment:
                               ping-mcpgw container
 
-./certs  ──read-only directory mount──▶  container cert path
+certs/api.ping.demo+2{,-key}.pem  ──read-only file mounts──▶  /var/lib/procyon/ssl/mcpgw-{cert,key}.pem
 ```
 
 `${MCPGW_IMAGE:?...}` carries no default on purpose: an unset value fails Compose
 loudly instead of silently pulling something wrong.
 
-### Hard rule: `env_file` only, never `environment`
+### Corrected: the OIDC file is mounted, not injected
+
+An earlier draft of this spec routed the OIDC values through Compose `env_file:`.
+The vendor's own `pingone.env.example` header says otherwise — *"This file is
+mounted into the container at `/var/lib/procyon/config/pingone.env`"* — so MCPGW
+**reads the file directly** and never sees the values as environment variables.
+`ping-mcpgw/config` is therefore bind-mounted as a directory (per-file mounts are
+mis-detected on host-file replace, the hazard this compose file already documents
+for the IG service).
+
+The repo's general rule below still holds everywhere else; it is simply
+**not applicable to this service**, because this service uses neither mechanism.
+
+### Repo rule (not applicable here): `env_file` only, never `environment`
 
 A key listed under `environment:` as `FOO: "${FOO:-}"` **overrides and blanks**
-the same key supplied via `env_file`. This repo has been bitten by it before. The
-OIDC keys go in `env_file` only. Listing them in both places yields an MCPGW that
-starts cleanly and then fails auth with empty credentials — an expensive thing to
-debug from the symptom.
+the same key supplied via `env_file`. This repo has been bitten by it before. For
+services that do use env injection, the keys go in `env_file` only — listing them
+in both places yields a service that starts cleanly and then fails auth with empty
+credentials, an expensive thing to debug from the symptom.
 
 ### Certs: mount, never copy
 
-Read-only **directory** mount of `./certs`, not per-file mounts. Two reasons:
-no second copy of a private key to keep in sync or rotate, and per-file bind
-mounts are mis-detected on host-file replace — a hazard this compose file already
-documents for the IG service. `ping-mcpgw/ssl/` stays in the `.gitignore` as a
-harmless leftover should anyone later want a dedicated cert.
+Read-only mounts of the existing `certs/api.ping.demo+2.pem` pair — no second
+copy of a private key to keep in sync or rotate. These are **per-file** mounts
+because the vendor expects the exact filenames `mcpgw-cert.pem` / `mcpgw-key.pem`
+under `/var/lib/procyon/ssl/`; the replace-hazard that argues for directory mounts
+elsewhere does not apply, since this pair is stable until Oct 2028. The cert
+already covers `local.ping-devops.com`. `ping-mcpgw/ssl/` stays in the
+`.gitignore` as a harmless leftover should anyone later want a dedicated cert.
 
 ### AWS
 
 The same `pingone.env` on the operator's machine becomes a k8s Secret via
-`create-secrets.sh`; the Deployment consumes it with `envFrom`. Credentials never
+`create-secrets.sh` — one key (`pingone.env`) holding the whole file, built with
+`--from-file`, **not** the `secret_from_envfile` helper (which would produce one
+key per variable, i.e. env vars). The Deployment mounts that secret as a file at
+`/var/lib/procyon/config`, mirroring the Compose bind mount. Credentials never
 appear in `75-ping-mcpgw-deployment.yaml`, which is committed.
 
 Values that differ by environment:
