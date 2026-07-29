@@ -31,6 +31,14 @@ jest.mock('../../services/agentMcpTokenService', () => {
 // Mock configStore so any transitive read is inert (the service no longer reads it directly).
 jest.mock('../../services/configStore', () => ({ getEffective: () => undefined }));
 
+// Issuer resolution for the `iss` policy rule (RFC 7519 §4.1.1). Mocked so the
+// rule is deterministic — with the configStore mock above, the real resolver
+// would report "not configured" and fail every decision.
+const TEST_ISSUER = 'https://auth.pingone.com/env-123/as';
+jest.mock('../../services/oauthEndpointResolver', () => ({
+  getIssuer: () => 'https://auth.pingone.com/env-123/as',
+}));
+
 // Mock jwksService — getPublicKey returns our test public key.
 jest.mock('../../services/jwksService', () => ({ getPublicKey: jest.fn() }));
 
@@ -52,6 +60,7 @@ function sign(claims, opts = {}) {
 const baseClaims = () => ({
   sub: 'user-1',
   aud: TARGET_AUD,
+  iss: TEST_ISSUER,
   scope: 'openid read',
   exp: Math.floor(Date.now() / 1000) + 3600,
   iat: Math.floor(Date.now() / 1000),
@@ -85,6 +94,29 @@ describe('validate', () => {
     const res = await tester.validate(sign({ ...baseClaims(), aud: 'https://other/rs' }));
     expect(res.decision).toBe('REJECT');
     expect(res.rules.find((r) => r.name === 'aud').pass).toBe(false);
+  });
+
+  // iss — RFC 7519 §4.1.1. Its own rule row, not folded into `signature`: a
+  // correctly-signed token from the wrong issuer must read as an issuer
+  // failure, not a broken signature.
+  test('REJECT for a wrong-issuer token, and the signature rule still passes', async () => {
+    const res = await tester.validate(sign({ ...baseClaims(), iss: 'https://evil.example/as' }));
+    expect(res.decision).toBe('REJECT');
+    expect(res.rules.find((r) => r.name === 'iss').pass).toBe(false);
+    expect(res.rules.find((r) => r.name === 'signature').pass).toBe(true);
+  });
+
+  test('REJECT for a token with no iss claim', async () => {
+    const claims = baseClaims();
+    delete claims.iss;
+    const res = await tester.validate(sign(claims));
+    expect(res.decision).toBe('REJECT');
+    expect(res.rules.find((r) => r.name === 'iss').pass).toBe(false);
+  });
+
+  test('the iss rule passes for a correctly-issued token', async () => {
+    const res = await tester.validate(sign(baseClaims()));
+    expect(res.rules.find((r) => r.name === 'iss').pass).toBe(true);
   });
 
   test('REJECT for a missing-scope token', async () => {

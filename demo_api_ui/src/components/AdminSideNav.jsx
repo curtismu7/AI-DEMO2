@@ -508,7 +508,6 @@ export default function AdminSideNav({ user }) {
     {
       label: "PingOne MCP",
       icon: "mcp",
-      highlight: true,
       children: [
         {
           label: "MCP Inspector",
@@ -809,6 +808,11 @@ export default function AdminSideNav({ user }) {
         {
           label: "Token Flow (Interactive)",
           path: "/architecture/token-flow",
+          icon: "lnk",
+        },
+        {
+          label: "Token Chain Architecture",
+          path: "/architecture/token-chain",
           icon: "lnk",
         },
         { label: "Interactive Flow", path: "/architecture/flow", icon: ">" },

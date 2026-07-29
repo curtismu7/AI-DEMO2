@@ -6,7 +6,7 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "create_transfer",
-  "checkedAt": "2026-07-26",
+  "checkedAt": "2026-07-28",
   "requiredFlags": [
     "ff_rar",
     "ff_mcp_gateway_pinggateway"

@@ -5,6 +5,7 @@ import { useDraggablePanel } from '../hooks/useDraggablePanel';
 import { useTokenChainOptional } from '../context/TokenChainContext';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import TokenChainTraceRail from './TokenChainTraceRail';
+import StepsTabContent from './StepsTabContent';
 import '../styles/draggablePanel.css';
 import './FloatingTokenChainPanel.css';
 
@@ -16,6 +17,7 @@ import './FloatingTokenChainPanel.css';
  */
 export default function FloatingTokenChainPanel({ isOpen, onClose }) {
   const [minimized, setMinimized] = useState(false);
+  const [activeTab, setActiveTab] = useState('chain');
   const tokenChain = useTokenChainOptional();
 
   /** Clear TraceRail + live events so presenters can reset between demo runs. */
@@ -84,10 +86,31 @@ export default function FloatingTokenChainPanel({ isOpen, onClose }) {
         </div>
       </div>
 
+      {/* Tab bar */}
+      {!minimized && (
+        <div className="ftcp-tabs">
+          <button
+            type="button"
+            className={`ftcp-tab ${activeTab === 'chain' ? 'ftcp-tab--active' : ''}`}
+            onClick={() => setActiveTab('chain')}
+          >
+            Full Chain
+          </button>
+          <button
+            type="button"
+            className={`ftcp-tab ${activeTab === 'steps' ? 'ftcp-tab--active' : ''}`}
+            onClick={() => setActiveTab('steps')}
+          >
+            Steps ({tokenChain?.events?.length || 0})
+          </button>
+        </div>
+      )}
+
       {/* Scrollable body */}
       {!minimized && (
         <div className="ftcp-body">
-          <TokenChainTraceRail />
+          {activeTab === 'chain' && <TokenChainTraceRail />}
+          {activeTab === 'steps' && <StepsTabContent />}
         </div>
       )}
 

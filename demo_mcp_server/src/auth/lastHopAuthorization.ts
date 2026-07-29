@@ -69,10 +69,13 @@ export function enforceUpstreamContract(
     );
   }
 
-  // Rule 2: upstream audience must match
-  if (options.upstreamAudience && !audValues.includes(options.upstreamAudience)) {
+  // Rule 2: upstream audience must match. Accepts a list because
+  // MCP_SERVER_RESOURCE_URI may be a comma-separated set of accepted audiences
+  // (see refresh-service-envs.js) — any one of them satisfies the contract.
+  const expected = normalizeAudienceList(options.upstreamAudience);
+  if (expected.length && !expected.some((a) => audValues.includes(a))) {
     errors.push(
-      `Upstream aud mismatch: expected "${options.upstreamAudience}", ` +
+      `Upstream aud mismatch: expected "${expected.join('" or "')}", ` +
       `got [${audValues.join(', ')}]`,
     );
   }
@@ -86,12 +89,25 @@ export function enforceUpstreamContract(
  */
 export function resolveUpstreamAudiences(): { upstreamAudience?: string; gatewayAudience?: string } {
   return {
+    // PINGONE_RESOURCE_MCP_SERVER_URI first, then MCP_SERVER_RESOURCE_URI — the
+    // same precedence configStore.js uses (see its pingone_resource_mcp_server_uri
+    // entry), so a stale MCP_SERVER_RESOURCE_URI=<gateway host> cannot shadow the
+    // real server audience. The three names below it are legacy and unset in every
+    // .env in this repo; they are kept only so an explicit override still wins.
     upstreamAudience:
+      process.env.PINGONE_RESOURCE_MCP_SERVER_URI ||
+      process.env.MCP_SERVER_RESOURCE_URI ||
       process.env.MCP_UPSTREAM_RESOURCE_URI ||
       process.env.MCP_AUDIENCE ||
       process.env.PINGONE_RESOURCE_MCP_URI,
     gatewayAudience: process.env.MCP_GW_RESOURCE_URI,
   };
+}
+
+/** Split a possibly comma-separated audience setting into distinct values. */
+function normalizeAudienceList(value?: string): string[] {
+  if (!value) return [];
+  return value.split(',').map((v) => v.trim()).filter(Boolean);
 }
 
 export interface LastHopResult {

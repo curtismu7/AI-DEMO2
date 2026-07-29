@@ -20,14 +20,26 @@ export function getJose(): Promise<JoseModule> {
 
 /**
  * Resolve PingOne's JWKS endpoint from env. Precedence:
- *   PINGONE_JWKS_URI  →  PINGONE_ISSUER + /jwks  →  PINGONE_BASE_URL + /jwks
+ *   PINGONE_JWKS_URI  →  PINGONE_ISSUER + /jwks  →  PINGONE_BASE_URL + [/as]/jwks
  * Returns null when none is configured.
+ *
+ * PingOne serves JWKS under the authorization-server path, `<env>/as/jwks`. The
+ * two base vars disagree about whether they already carry that segment —
+ * demo_mcp_server's PINGONE_BASE_URL is the bare issuer (`.../<envId>`) while
+ * langchain_agent's is the AS base (`.../<envId>/as`) — so append `/as` only when
+ * it is absent. Getting this wrong is silent: an unreachable JWKS URL makes
+ * TokenIntrospector log "signature NOT verified" and continue (fail-open).
  */
+function jwksFromBase(base: string): string {
+  const trimmed = base.replace(/\/+$/, '');
+  return trimmed.endsWith('/as') ? `${trimmed}/jwks` : `${trimmed}/as/jwks`;
+}
+
 export function resolveJwksUri(): string | null {
   return (
     process.env.PINGONE_JWKS_URI ||
     (process.env.PINGONE_ISSUER ? `${process.env.PINGONE_ISSUER}/jwks` : null) ||
-    (process.env.PINGONE_BASE_URL ? `${process.env.PINGONE_BASE_URL}/jwks` : null)
+    (process.env.PINGONE_BASE_URL ? jwksFromBase(process.env.PINGONE_BASE_URL) : null)
   );
 }
 

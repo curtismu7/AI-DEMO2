@@ -13,28 +13,42 @@
  * data-plane gate was (and always had been) correctly denying it. Fixed in
  * attackSimulatorService.js's _resolveForeignAccountId.
  *
- * This suite asserts the ONE invariant every attack sim must hold, live,
- * regardless of which specific denial code/status it reports: the attack
- * must never be reported as an unchallenged PERMIT, and the pipeline must
- * have genuinely run (tokenChainEvents non-empty). Exact status/errorCode
- * per sim is documented below from a live run (2026-07-27) for reference,
- * not asserted — several sims' internal error taxonomy (e.g. rar-exceeded /
- * impersonation-no-act reporting 502/invalid_scope rather than the 403
- * their own code comments describe) may be worth a follow-up audit, but
- * pinning those exact values here would make this suite as brittle as the
- * bug it exists to catch.
+ * This suite asserts the invariants every attack sim must hold, live,
+ * regardless of which specific denial code it reports: the attack must never
+ * be reported as an unchallenged PERMIT, the pipeline must have genuinely run
+ * (tokenChainEvents non-empty), and the denial must come from the SECURITY
+ * tier, not the infrastructure tier — see DENIAL_STATUSES below.
  *
- * Live-observed 2026-07-27 (ff_a2a_delegation / ff_hitl_enabled on):
- *   insufficient-scope     403 insufficient_scope
+ * Why the tier check exists (added 2026-07-28): the 502s previously recorded
+ * here as the expected taxonomy for rar-exceeded / impersonation-no-act were
+ * never a taxonomy quirk — they were the sims failing at RFC 8693 token
+ * exchange and never reaching the control they exist to prove. Root cause was
+ * PingOne provisioning drift: fixing a scope-name collision by removing
+ * read/write from the Token Exchanger's Demo MCP Server grant left ZERO
+ * grantable source for those scopes, because the Demo MCP Gateway grant never
+ * carried them either. Every sim requesting base read/write then died with
+ * "At least one scope must be granted". Repaired by granting read/write on the
+ * Gateway resource (the correct audience), which keeps the collision fixed.
+ *
+ * This suite stayed GREEN through that entire outage, because a 502 is not an
+ * unexpected_permit. That is the hole DENIAL_STATUSES closes: a sim that dies
+ * at the exchange/config layer tested nothing, and must fail loudly rather
+ * than masquerade as a successful defense. Exact per-sim error CODES are still
+ * not asserted — pinning those would make this suite as brittle as the bug it
+ * exists to catch — but the tier is now a hard gate.
+ *
+ * Live-verified 2026-07-28 (ff_a2a_delegation / ff_hitl_enabled on), all ten
+ * denying at the security tier with zero 5xx:
+ *   insufficient-scope      403 insufficient_scope
  *   wrong-aud               401 invalid_aud
- *   cross-owner-account     403 resource_owner_mismatch | mcp_authorization_denied (post-fix)
+ *   cross-owner-account     403 mcp_authorization_denied
  *   replayed-token          401 invalid_aud
  *   rogue-actor             403 mcp_invalid_actor
- *   rar-exceeded            502 invalid_scope
+ *   rar-exceeded            403 rar_amount_exceeded
  *   tampered-intent-token   401 invalid_signature
- *   impersonation-no-act    502 invalid_scope
+ *   impersonation-no-act    401 missing_act
  *   rate-limit-burst        403 gateway_policy_denied
- *   introspection-down      502 gateway_push_failed
+ *   introspection-down      403 gateway_policy_denied
  */
 
 const { createBffClient } = require('../helpers/bffClient');
@@ -53,6 +67,16 @@ const VALID_SIMS = [
 ];
 
 const NEVER_ERROR_CODES = new Set(['unexpected_permit', 'unknown_sim', 'sim_execution_failed']);
+
+/**
+ * A genuine security denial is always 401 (token/identity rejected) or 403
+ * (policy denied). Anything else — 502 exchange_failed, 502 gateway_push_failed,
+ * 503 gateway_not_configured — means the sim broke before reaching its control.
+ * Asserted as a tier rather than a per-sim code list because the exchange
+ * failures surface PingOne's own dynamic `pingoneError` values (invalid_scope,
+ * invalid_grant, ...), which cannot be enumerated ahead of time.
+ */
+const DENIAL_STATUSES = [401, 403];
 
 describe('Attack Simulator UCs — every sim reports a real denial, not unexpected_permit (real)', () => {
   let client;
@@ -86,6 +110,17 @@ describe('Attack Simulator UCs — every sim reports a real denial, not unexpect
       expect(NEVER_ERROR_CODES.has(body.errorCode)).toBe(false);
       expect(Array.isArray(body.tokenChainEvents)).toBe(true);
       expect(body.tokenChainEvents.length).toBeGreaterThan(0);
+
+      // A 5xx here means the sim died at token exchange / gateway config and
+      // never exercised its security control — a silent false PASS, since an
+      // infrastructure failure is not an unexpected_permit. Compared as a
+      // labelled string so the failure message carries the diagnostic detail
+      // (PingOne's "At least one scope must be granted" lives in `reason`,
+      // not in errorCode).
+      const tier = DENIAL_STATUSES.includes(body.status)
+        ? 'security'
+        : `infrastructure (${body.status} ${body.errorCode}: ${body.reason})`;
+      expect(tier).toBe('security');
       // A pass-through 200 with no denial code is the exact shape of the
       // cross-owner-account bug this suite exists to catch, regardless of
       // which sim produces it.

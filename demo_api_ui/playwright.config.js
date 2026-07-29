@@ -35,6 +35,30 @@
 
 const { defineConfig, devices } = require('@playwright/test');
 
+// Load tests/e2e/.env.e2e into process.env before any spec is collected.
+// The *.real.spec.js suites gate on requireRealLoginEnv() (E2E_CUSTOMER_USERNAME /
+// E2E_CUSTOMER_PASSWORD). Nothing loaded this file, so running them directly
+// reported "PASS (0) FAIL (0) skipped (5)" and exited 0 — a green run that tested
+// nothing, which is worse than a red one. Existing process.env always wins so CI
+// and one-off overrides are unaffected.
+(() => {
+  const fs = require('fs');
+  const path = require('path');
+  const envFile = path.join(__dirname, 'tests', 'e2e', '.env.e2e');
+  if (!fs.existsSync(envFile)) return;
+  for (const raw of fs.readFileSync(envFile, 'utf8').split('\n')) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+    const eq = line.indexOf('=');
+    if (eq < 1) continue;
+    const key = line.slice(0, eq).trim();
+    if (process.env[key] !== undefined) continue; // never override a real env var
+    let val = line.slice(eq + 1).trim();
+    if (/^".*"$/.test(val) || /^'.*'$/.test(val)) val = val.slice(1, -1);
+    process.env[key] = val;
+  }
+})();
+
 const UI_PORT = process.env.BANKING_UI_PORT || '3000';
 /** Use 127.0.0.1 so webServer health checks match CRA bind (avoids ::1 vs IPv4 mismatch). */
 const LOCAL_UI_BASE = `http://127.0.0.1:${UI_PORT}`;

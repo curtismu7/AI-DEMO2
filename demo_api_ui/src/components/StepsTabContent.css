@@ -1,0 +1,114 @@
+/* StepsTabContent — table view within FloatingTokenChainPanel
+   Namespace: stc- (Steps Tab Content)
+   Adapted from SimpleStepperPanel for use as a tab. */
+
+.stc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: #1e293b;
+}
+
+.stc-table thead th {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  text-align: left;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #64748b;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  z-index: 1;
+}
+
+.stc-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.stc-num {
+  color: #64748b;
+  font-size: 12px;
+  width: 34px;
+  font-weight: 600;
+}
+
+.stc-step {
+  line-height: 1.35;
+}
+
+.stc-product {
+  white-space: nowrap;
+}
+
+.stc-status {
+  width: 110px;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.stc-st--ok {
+  color: #16a34a;
+}
+
+.stc-st--halt {
+  color: #dc2626;
+  font-size: 12px;
+}
+
+.stc-st--skip {
+  color: #94a3b8;
+}
+
+.stc-st--acquiring {
+  color: #1d4ed8;
+  font-size: 12px;
+}
+
+.stc-st--waiting {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.stc-st--failed {
+  color: #dc2626;
+  font-size: 12px;
+}
+
+.stc-st--notinpath {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.stc-row--notinpath .stc-step {
+  color: #94a3b8;
+  text-decoration: line-through;
+  text-decoration-thickness: 1.2px;
+}
+
+.stc-row--halted td {
+  background: #fef2f2;
+}
+
+.stc-row--halted .stc-step {
+  color: #991b1b;
+  font-weight: 600;
+}
+
+.stc-row--ghost td {
+  opacity: 0.45;
+}
+
+.stc-row--ghost .stc-step {
+  font-style: italic;
+}
+
+.stc-empty {
+  font-size: 12px;
+  color: #94a3b8;
+  font-style: italic;
+  padding: 16px;
+}
