@@ -1246,7 +1246,7 @@ services:
       WEAVIATE_GRPC_PORT: "50051"
       EMBEDDING_URL: http://embeddings:8080
       EMBEDDING_MODEL: nomic-embed-text-v1.5
-      LLAMACPP_BASE_URL: http://llm-proxy:8090
+      LLAMACPP_BASE_URL: http://host.docker.internal:8090
       AGENT_MAX_TOOL_CALLS: "4"
     networks:
       - ai-demo
@@ -1254,8 +1254,6 @@ services:
       weaviate:
         condition: service_healthy
       embeddings:
-        condition: service_started
-      llm-proxy:
         condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8894/health')\" || exit 1"]
