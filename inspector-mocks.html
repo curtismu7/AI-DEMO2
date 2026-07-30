@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Inspector Mocks</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #0d1117;
+      color: #c9d1d9;
+      padding: 40px;
+      display: flex;
+      gap: 40px;
+      justify-content: center;
+    }
+    .mock-container {
+      background-color: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      width: 350px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+    h2.option-title {
+      text-align: center;
+      color: #8b949e;
+      font-size: 16px;
+      margin-top: 0;
+      margin-bottom: 20px;
+      border-bottom: 1px solid #30363d;
+      padding-bottom: 10px;
+    }
+    .bg-dark {
+      background-color: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 12px;
+      margin: 10px 0;
+    }
+    h3, h4 { margin-top: 0; color: #c9d1d9; }
+    h3 { font-size: 18px; margin-bottom: 4px; }
+    h4 { font-size: 14px; margin-bottom: 8px; }
+    .subtitle { font-size: 12px; color: #8b949e; margin-top: 0; }
+    p { font-size: 13px; line-height: 1.5; margin: 0 0 10px 0; color: #8b949e; }
+    
+    /* Option 1 Specific */
+    .header-card { padding-left: 12px; margin-bottom: 16px; border-left: 4px solid #a78bfa; }
+    .connection-list { padding-left: 20px; font-size: 13px; font-family: monospace; color: #8b949e; }
+    .connection-list li { margin-bottom: 4px; }
+    .spec-text { font-family: monospace; }
+    
+    /* Option 2 Specific */
+    .mini-diagram { display: flex; align-items: center; justify-content: space-between; font-size: 11px; margin-bottom: 16px; }
+    .text-gray { color: #8b949e; }
+    .text-purple { color: #a78bfa; }
+    .arrow { color: #30363d; font-weight: bold; }
+    .border { border: 1px solid #a78bfa; border-radius: 4px; }
+    
+    /* Tabs */
+    .tabs, .sub-tabs { display: flex; gap: 8px; border-bottom: 1px solid #30363d; margin-bottom: 12px; }
+    .tabs button, .sub-tabs button {
+      background: none; border: none; color: #8b949e; padding: 6px 12px; cursor: pointer; font-size: 12px; border-bottom: 2px solid transparent;
+    }
+    .tabs button.active, .sub-tabs button.active {
+      color: #c9d1d9; border-bottom-color: #a78bfa;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Option 1 -->
+  <div class="mock-container">
+    <h2 class="option-title">Option 1: Split Knowledge</h2>
+    <div class="inspector-details-view">
+      <div class="header-card">
+        <h3>👤 Agent Service</h3>
+        <p class="subtitle">LLM reasoning & tool catalog</p>
+      </div>
+
+      <div class="info-section">
+        <h4>⚙️ How it Works</h4>
+        <div class="bg-dark">
+          <p>The Agent Service receives the user prompt and acts as the orchestrator. It prepares the context, loads the tool catalog, and structures the system prompt to enforce guardrails before calling the LLM.</p>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <h4>🔗 How it Communicates</h4>
+        <ul class="connection-list">
+          <li><strong>Receives:</strong> Chatbot</li>
+          <li><strong>Talks to:</strong> LLM</li>
+          <li><strong>Sends to:</strong> BFF Exchange</li>
+        </ul>
+      </div>
+
+      <div class="info-section mt-3">
+        <h4>📜 Specifications</h4>
+        <div class="bg-dark">
+          <p class="spec-text">Requires valid session;<br/>enforces prompt boundaries.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Option 2 -->
+  <div class="mock-container">
+    <h2 class="option-title">Option 2: Interaction Map</h2>
+    <div class="inspector-details-view">
+      <h3>👤 Agent Service</h3>
+      <p class="subtitle" style="margin-bottom: 16px;">LLM reasoning & tool catalog</p>
+      
+      <!-- Mini Interaction Map -->
+      <div class="mini-diagram bg-dark">
+          <span class="text-gray">[CH] Chatbot</span> 
+          <span class="arrow"> ➔ </span> 
+          <span class="text-purple border p-1 opacity-100"><strong>[👤] Agent</strong></span>
+          <span class="arrow"> ➔ </span> 
+          <span class="text-gray">[ML] LLM</span>
+      </div>
+
+      <div class="tabs">
+        <button class="active">Overview</button>
+        <button>Data Contract</button>
+      </div>
+
+      <div class="tab-content">
+        <p><strong>Role:</strong> Orchestrates the AI flow. It takes the inbound Chatbot request and prepares it for the LLM.</p>
+        <p style="margin-top:10px;"><strong>Interaction:</strong> It passes the user intent to the LLM along with the permitted tool catalog. Once the LLM decides on an action, the Agent requests an RFC 8693 Token Exchange.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Option 3 -->
+  <div class="mock-container">
+    <h2 class="option-title">Option 3: Integrated Tabs</h2>
+    <div class="inspector-details-view">
+      <h3>👤 Agent Service</h3>
+      <p class="subtitle" style="margin-bottom:16px">LLM reasoning & tool catalog</p>
+      
+      <div class="sub-tabs">
+        <button class="active">Narrative & Role</button>
+        <button>Flow</button>
+        <button>Rules</button>
+      </div>
+
+      <div class="sub-tab-content bg-dark">
+        <h4>The Role of the Agent</h4>
+        <p>The Agent Service receives the incoming request...</p>
+        <br/>
+        <h4>Why is it here?</h4>
+        <p>To enforce safe routing and prevent direct LLM execution without constraint verification.</p>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

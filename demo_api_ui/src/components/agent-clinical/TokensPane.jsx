@@ -44,7 +44,7 @@ export default function TokensPane() {
 
 // ── Simple: classic #/Step/Product/Status table ───────────────────────────
 
-function SimpleStepper({ events }) {
+export function SimpleStepper({ events }) {
   if (!events.length) {
     return <div className="tp-empty">No token events yet.</div>;
   }
@@ -104,7 +104,7 @@ function SimpleRow({ event, index, halted, didNotRun }) {
 
 // ── Detailed: same table, each row expands to show claims + narrative ─────
 
-function DetailedStepper({ events }) {
+export function DetailedStepper({ events }) {
   const [openIdx, setOpenIdx] = useState(null);
 
   if (!events.length) {
