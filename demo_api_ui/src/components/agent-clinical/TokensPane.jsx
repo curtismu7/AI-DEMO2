@@ -64,7 +64,7 @@ function SimpleStepper({ events }) {
       <tbody>
         {events.map((ev, i) => (
           <SimpleRow
-            key={ev.id ? `${ev.id}-${i}` : `noid-${i}`}
+            key={ev.id || `idx-${i}`}
             event={ev}
             index={i}
             halted={haltedIdx === i}
@@ -127,7 +127,7 @@ function DetailedStepper({ events }) {
       <tbody>
         {events.map((ev, i) => (
           <DetailedRows
-            key={ev.id ? `${ev.id}-${i}` : `noid-${i}`}
+            key={ev.id || `idx-${i}`}
             event={ev}
             index={i}
             halted={haltedIdx === i}
@@ -145,8 +145,15 @@ function DetailedRows({ event, index, halted, didNotRun, open, onToggle }) {
   const { bucket, label: statusLabel } = resolveStatusVisual(event.status);
   const label = event.label || event.id || 'Step';
   const product = productForEvent(event);
-  const hasClaims = event.claims && Object.keys(event.claims).length > 0;
+  const hasClaims = event.claims && typeof event.claims === 'object' && Object.keys(event.claims).length > 0;
   const canExpand = hasClaims || event.narrative || event.why;
+
+  const handleKeyDown = (e) => {
+    if (canExpand && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      onToggle();
+    }
+  };
 
   let rowCls = '';
   if (halted)                      rowCls = 'tp-row--halted';
@@ -163,7 +170,11 @@ function DetailedRows({ event, index, halted, didNotRun, open, onToggle }) {
     <>
       <tr
         className={`${rowCls}${canExpand ? ' tp-row--expandable' : ''}${open ? ' tp-row--open' : ''}`}
+        role={canExpand ? 'button' : undefined}
+        tabIndex={canExpand ? 0 : undefined}
         onClick={canExpand ? onToggle : undefined}
+        onKeyDown={handleKeyDown}
+        aria-expanded={canExpand ? open : undefined}
       >
         <td className="tp-col-num">{index + 1}</td>
         <td className="tp-col-chevron">
