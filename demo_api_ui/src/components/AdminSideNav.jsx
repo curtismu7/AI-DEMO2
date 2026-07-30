@@ -215,11 +215,6 @@ export default function AdminSideNav({ user }) {
       .then((data) => setHiddenNavLabels(data.hiddenLabels || []))
       .catch(() => setHiddenNavLabels([]));
   }, [user]);
-  // Clear custLoading once the route change completes (non-admin navigate case).
-  useEffect(() => {
-    setCustLoading(false);
-  }, [location.pathname]);
-
   // Refetch on 'nav-config-changed' (Demo Config save/apply) so the sidebar
   // updates without a full page reload; also callable via the refresh button.
   useEffect(() => {
@@ -1315,7 +1310,7 @@ export default function AdminSideNav({ user }) {
             disabled={custLoading}
             onClick={() => {
               if (!isAdmin) {
-                setCustLoading(true);
+                spinner.show('Loading customer dashboard\u2026', '/dashboard');
                 navigate("/dashboard");
                 return;
               }
