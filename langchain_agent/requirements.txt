@@ -17,6 +17,7 @@ cryptography>=41.0.0
 PyJWT[crypto]>=2.8.0  # Path A: PingOne JWKS access-token validation (token_validator.py)
 python-dotenv>=1.0.0
 guardrails-ai==0.10.2
+pydantic-ai==1.107.0    # Code Explorer agent (replaces LangChain ReAct for codegraph)
 
 # Development dependencies
 pytest>=7.0.0
