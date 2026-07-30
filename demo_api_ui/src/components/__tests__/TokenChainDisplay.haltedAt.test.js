@@ -2,7 +2,7 @@
 // TDD: Task A4-T1 — isHaltedAt helper + halted-step card modifier
 //
 // Tests exercise the PRODUCTION isHaltedAt and resolveStatusVisual exported
-// from TokenChainDisplay.js (named exports, @visibleForTesting). The previous
+// from TokenChainDisplay.jsx (named exports, @visibleForTesting). The previous
 // inline re-implementation is removed; any logic bug in the real function now
 // causes failures here.
 
@@ -35,7 +35,7 @@ vi.mock("../TokenChainDisplay.css", () => ({}), { virtual: true });
 
 // ── Import PRODUCTION helpers ─────────────────────────────────────────────────
 // These are the real exported functions from the shipped module, not copies.
-import { isHaltedAt, resolveStatusVisual } from "../TokenChainDisplay.js";
+import { isHaltedAt, resolveStatusVisual } from "../TokenChainDisplay.jsx";
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 

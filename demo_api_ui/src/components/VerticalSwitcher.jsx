@@ -1,7 +1,6 @@
-// banking_api_ui/src/components/VerticalSwitcher.js
-import React, { useState, useEffect } from 'react';
+// banking_api_ui/src/components/VerticalSwitcher.jsx
+import { useState, useEffect } from 'react';
 import { useVertical } from '../vertical/useVertical';
-import { requestSilentReauth } from '../utils/authUi';
 import ThemeZonePanel from './ThemeZonePanel';
 import './VerticalSwitcher.css';
 
@@ -42,9 +41,7 @@ export default function VerticalSwitcher({ variant = 'nav' }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id }),
       });
-      // The active vertical is now set server-side; mint a fresh token so it
-      // carries the new vertical's featureScope (silent SSO — navigates away).
-      requestSilentReauth();
+      setSwitching(false);
     } catch {
       setSwitching(false);
     }
@@ -74,7 +71,10 @@ export default function VerticalSwitcher({ variant = 'nav' }) {
                 <span
                   className="vertical-switcher__dot"
                   style={{ background: primaryColor }}
-                />
+                  aria-hidden="true"
+                >
+                  {' '}
+                </span>
                 <span className="vertical-switcher__label">{v.displayName}</span>
                 {variant === 'config' && (
                   <span className="vertical-switcher__tagline">{v.tagline}</span>
