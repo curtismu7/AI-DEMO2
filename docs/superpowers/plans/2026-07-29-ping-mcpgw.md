@@ -18,7 +18,12 @@ Design spec: [`docs/superpowers/specs/2026-07-29-ping-mcpgw-design.md`](../specs
 - BFF error responses use `{ error }`, never `{ message }`.
 - BFF is CommonJS (`require`), Node >= 22.
 - Emoji allowlist (REGRESSION_PLAN §0): `⚠️` `✅` `❌` `🔐` `✕` `✓` `👤` `🔑` `🪟` `📚`. Nothing else.
-- `MCPGW_IMAGE` has no default anywhere. An unset value must fail loudly.
+- `MCPGW_IMAGE` must resolve to a sentinel naming its own fix, never `${VAR:?...}`.
+  **Corrected after shipping:** this plan originally required the required-variable
+  form. Compose interpolates the whole file before selecting services, so it broke
+  `docker compose up -d demo-api-server` and every other compose command even
+  though `ping-mcpgw` is profile-gated. Fixed on `worktree-mcpgw-image-interp`;
+  `scripts/check-fresh-clone-hygiene.js` Check 6b now blocks the form.
 - Never commit `ping-mcpgw/config/pingone.env`, root `.env`, or anything under `certs/`. All three are already gitignored and `.husky/pre-commit` blocks them.
 - Do not rotate any PingOne secret. Use existing provisioned values as-is.
 
@@ -236,13 +241,15 @@ In `_optional_group_desc()`, add:
     mcpgw)     echo "PingOne Privilege MCPGW (JIT least-privilege + session recording)" ;;
 ```
 
-- [x] **Step 4: Verify the compose file parses and fails correctly without the image**
+- [x] **Step 4: Verify the compose file resolves without the image**
 
 ```bash
-env -u MCPGW_IMAGE docker compose --profile mcpgw config >/dev/null
+env -u MCPGW_IMAGE docker compose --profile mcpgw config | grep 'image: set-MCPGW_IMAGE'
 ```
 
-Expected: non-zero exit, with `set MCPGW_IMAGE from the PingOne Privilege gateway wizard` in stderr.
+Expected: exit 0, rendering the sentinel image name. **Corrected after shipping:**
+this step originally expected a non-zero exit from the `${VAR:?...}` form, which
+is what broke every other compose command — see the Global Constraints note.
 
 - [x] **Step 5: Verify it resolves with the image set**
 
@@ -255,10 +262,14 @@ Expected: exit 0, and the rendered service shows `image: placeholder/mcpgw:test`
 - [x] **Step 6: Verify the default stack is unaffected**
 
 ```bash
+docker compose config --services   # exit code MUST be 0
 docker compose config --services | grep -c ping-mcpgw
 ```
 
-Expected: `0` — the service is profile-gated and must not appear in the default service list.
+Expected: exit 0 from the first command, then `0` from the grep. **Check the exit
+code, not just the count:** as originally written (`2>/dev/null | grep -c`) this
+step printed `0` because compose had *failed* and emitted nothing — a vacuous pass
+that hid the interpolation break for a whole PR.
 
 - [x] **Step 7: Verify the run-docker.sh group resolves**
 

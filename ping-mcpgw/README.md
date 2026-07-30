@@ -94,10 +94,17 @@ automatically:
 MCPGW_IMAGE=<image URI from the Privilege gateway wizard>
 ```
 
-There is deliberately no default. An unset `MCPGW_IMAGE` fails the Compose run
-with `set MCPGW_IMAGE from the PingOne Privilege gateway wizard` rather than
-silently pulling something wrong. For Kubernetes, replace
-`MCPGW_IMAGE_PLACEHOLDER` in `k8s/75-ping-mcpgw-deployment.yaml` with the same URI.
+Unset, the image resolves to the sentinel
+`set-MCPGW_IMAGE-from-the-pingone-privilege-gateway-wizard`, so starting the
+`mcpgw` group fails at pull time with the fix named in the error rather than
+silently pulling something wrong. The sentinel is deliberate and must not become
+`${MCPGW_IMAGE:?...}`: Compose interpolates the entire file before it selects
+services, so a required-variable marker breaks **every** compose command —
+`docker compose up -d demo-api-server` included — even though this service is
+profile-gated. `scripts/check-fresh-clone-hygiene.js` enforces that.
+
+For Kubernetes, replace `MCPGW_IMAGE_PLACEHOLDER` in
+`k8s/75-ping-mcpgw-deployment.yaml` with the same URI.
 
 ### 6. Attach an MCP Server application
 
