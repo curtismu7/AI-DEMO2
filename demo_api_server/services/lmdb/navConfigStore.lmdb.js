@@ -102,11 +102,17 @@ const DEFAULT_HIDDEN_LABELS = ['Use Cases'];
 
 function getUserPrefs(userId) {
   const v = _db().get(`userPrefs:${userId}`);
-  return v || { hiddenLabels: DEFAULT_HIDDEN_LABELS, activeConfigId: null, updatedAt: null };
+  return v || { hiddenLabels: DEFAULT_HIDDEN_LABELS, activeConfigId: null, navOrder: null, updatedAt: null };
 }
 
-function setUserPrefs(userId, hiddenLabels, activeConfigId) {
-  const prefs = { hiddenLabels, activeConfigId: activeConfigId || null, updatedAt: Date.now() };
+function setUserPrefs(userId, hiddenLabels, activeConfigId, navOrder) {
+  const existing = getUserPrefs(userId);
+  const prefs = {
+    hiddenLabels,
+    activeConfigId: activeConfigId || null,
+    navOrder: Array.isArray(navOrder) ? navOrder : (existing.navOrder || null),
+    updatedAt: Date.now(),
+  };
   _db().putSync(`userPrefs:${userId}`, prefs);
   return prefs;
 }
