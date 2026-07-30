@@ -171,8 +171,14 @@ const S = {
     color: /DENY/.test(effect || '') ? '#991b1b' : '#166534',
   }),
   polDisabled: { fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '20px', background: '#f3f4f6', color: '#6b7280' },
-  polTestActions: { display: 'flex', gap: '10px', marginTop: '6px' },
-  polTestBtn: { background: 'none', border: 'none', padding: 0, fontSize: '11px', fontWeight: 600, color: '#1d4ed8', cursor: 'pointer', textDecoration: 'underline' },
+  polTestLabel: { marginTop: '8px', marginBottom: '6px', fontSize: '10px', fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: '#334155' },
+  polTestActions: { display: 'flex', gap: '10px', marginTop: '2px', flexWrap: 'wrap' },
+  polTestBtnBase: {
+    border: '1px solid', borderRadius: '10px', padding: '8px 12px', fontSize: '12px', fontWeight: 700,
+    cursor: 'pointer', lineHeight: 1.2, background: '#ffffff', minWidth: '112px', boxShadow: '0 1px 2px rgba(15, 23, 42, 0.08)',
+  },
+  polTestBtnTrigger: { borderColor: '#0369a1', color: '#0c4a6e', background: '#e0f2fe' },
+  polTestBtnAvoid: { borderColor: '#166534', color: '#14532d', background: '#dcfce7' },
   polSearchWrap: { padding: '8px 12px 0' },
   polSearch: {
     padding: '7px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '12px',
@@ -216,6 +222,20 @@ function displayDecision(r) {
   if (r.stepUpRequired) return 'STEP_UP';
   if (r.consentRequired || r.hitlRequired) return 'CONSENT';
   return r.decision;
+}
+
+const POLICY_TRACE_LAST_RUN_KEY = 'policyDecisionTrace.lastRun';
+const POLICY_TRACE_MAX_STORED_CHARS = 500_000;
+
+function persistPolicyTraceLastRun(policies, result) {
+  if (!Array.isArray(policies) || policies.length === 0 || !result) return;
+  try {
+    const payload = JSON.stringify({ policies, result, savedAt: Date.now() });
+    if (payload.length > POLICY_TRACE_MAX_STORED_CHARS) return;
+    localStorage.setItem(POLICY_TRACE_LAST_RUN_KEY, payload);
+  } catch {
+    // Storage unavailable/quota exceeded.
+  }
 }
 
 const DECISION_ICON = { PERMIT: '✅', DENY: '❌', INDETERMINATE: '⚠️', STEP_UP: '⚠️', CONSENT: '⚠️' };
@@ -439,6 +459,7 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
       const elapsed = Date.now() - started;
       setLastParameters(parameters);
       setResult({ ...res.data, elapsedMs: elapsed });
+      persistPolicyTraceLastRun(policies, { ...res.data, elapsedMs: elapsed });
       setLastTrace({
         request: authorizeRequestPayload(res.data, endpointId, parameters),
         response: authorizeResponsePayload(res.data),
@@ -804,10 +825,25 @@ function PolicyNode({ node, onTestRule, query }) {
         {node.description && <span style={S.polInfoIcon} title={node.description}>i</span>}
       </div>
       {node.kind === 'RULE' && node.testCases && (
-        <div style={S.polTestActions}>
-          <button style={S.polTestBtn} onClick={() => onTestRule({ ruleName: node.name, case: 'trigger', ...node.testCases.trigger })}>Trigger →</button>
-          <button style={S.polTestBtn} onClick={() => onTestRule({ ruleName: node.name, case: 'avoid', ...node.testCases.avoid })}>Avoid →</button>
-        </div>
+        <>
+          <div style={S.polTestLabel}>Quick tests</div>
+          <div style={S.polTestActions}>
+            <button
+              type="button"
+              style={{ ...S.polTestBtnBase, ...S.polTestBtnTrigger }}
+              onClick={() => onTestRule({ ruleName: node.name, case: 'trigger', ...node.testCases.trigger })}
+            >
+              Trigger test
+            </button>
+            <button
+              type="button"
+              style={{ ...S.polTestBtnBase, ...S.polTestBtnAvoid }}
+              onClick={() => onTestRule({ ruleName: node.name, case: 'avoid', ...node.testCases.avoid })}
+            >
+              Avoid test
+            </button>
+          </div>
+        </>
       )}
       {showChildren && (
         <div style={S.polChildren}>
