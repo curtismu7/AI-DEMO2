@@ -1,21 +1,38 @@
 // demo_api_ui/src/components/TraceTrustPanel.jsx
-// DPoP + RAR trust posture for TokenChainTraceRail (current-call story).
+// Token Exchange, DPoP + RAR trust posture for TokenChainTraceRail (current-call story).
 import React from "react";
 import { deriveTrustPosture } from "../utils/tokenChainTrust";
 
 /**
- * Renders sender-constraint (DPoP) and intent-binding (RAR) posture.
+ * Renders sender-constraint (DPoP), intent-binding (RAR), and token exchange posture.
  * @param {{ events?: Array<object>|null }} props
  */
 export default function TraceTrustPanel({ events = null }) {
-  const { jkt, details, dpopBound, rarScoped } = deriveTrustPosture(events);
+  const { jkt, details, dpopBound, rarScoped, exchanged, exchangeAudience } = deriveTrustPosture(events);
 
   return (
     <div className="tctr-trust" data-testid="trace-trust-panel">
       <p>
-        Why this call can be trusted — sender-constraint (DPoP) and intent (RAR)
+        Why this call can be trusted — token exchange, sender-constraint (DPoP), and intent (RAR)
         posture for the current chain.
       </p>
+      <div className={`tctr-trust__row ${exchanged ? "tctr-trust__row--ok" : "tctr-trust__row--off"}`}>
+        <span className="tctr-trust__badge">{exchanged ? "EXCHANGED" : "direct"}</span>
+        <div>
+          <strong>Token Exchange (RFC 8693)</strong>
+          {exchanged ? (
+            <div>
+              Delegated token exchanged for targeted audience token. The active token
+              was minted specifically for <code>{exchangeAudience || "the agent"}</code>, ensuring
+              least privilege and preventing reuse at other endpoints.
+            </div>
+          ) : (
+            <div>
+              Direct subject token in use without explicit audience exchange.
+            </div>
+          )}
+        </div>
+      </div>
       <div className={`tctr-trust__row ${dpopBound ? "tctr-trust__row--ok" : "tctr-trust__row--off"}`}>
         <span className="tctr-trust__badge">{dpopBound ? "BOUND" : "not set"}</span>
         <div>
