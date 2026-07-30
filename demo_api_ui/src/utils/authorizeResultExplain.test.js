@@ -7,12 +7,12 @@ import {
 
 const MOCK_POLICIES = [{
   kind: 'POLICY_SET',
-  name: 'Super Banking Policies',
+  name: 'AI Demo Policies',
   algorithm: 'DenyOverrides',
   children: [{
     kind: 'POLICY',
-    name: 'Super Banking Transaction Authorization',
-    description: 'Authorizes banking transactions by amount, type, and ACR.',
+    name: 'AI Demo Transaction Authorization',
+    description: 'Authorizes AI Demo transaction requests by amount, type, and ACR.',
     algorithm: 'DenyOverrides',
     children: [{
       kind: 'RULE',
@@ -34,8 +34,8 @@ describe('explainAuthorizeResult — transaction', () => {
     });
     expect(r.headline).toMatch(/DENY/i);
     expect(r.ruleLikely).toBe('Deny Large Transactions');
-    expect(r.policyName).toBe('Super Banking Transaction Authorization');
-    expect(r.policyDescription).toMatch(/banking transactions/i);
+    expect(r.policyName).toBe('AI Demo Transaction Authorization');
+    expect(r.policyDescription).toContain('AI Demo transaction requests');
     expect(r.ruleName).toBe('Deny Large Transactions');
     expect(r.ruleDescription).toMatch(/\$2,000/);
     expect(r.reasons.some((x) => x.includes(TX_DENY_USD.toLocaleString()))).toBe(true);
@@ -67,7 +67,7 @@ describe('explainAuthorizeResult — transaction', () => {
 describe('resolvePolicyContext', () => {
   it('picks transaction policy and matching rule from tree', () => {
     const ctx = resolvePolicyContext(MOCK_POLICIES, { isMcp: false, ruleLikely: 'Deny Large Transactions' });
-    expect(ctx.policyName).toBe('Super Banking Transaction Authorization');
+    expect(ctx.policyName).toBe('AI Demo Transaction Authorization');
     expect(ctx.ruleName).toBe('Deny Large Transactions');
   });
 });

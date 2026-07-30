@@ -36,9 +36,9 @@ curl -sf -X POST "https://auth.pingone.com/${ENV_ID}/as/token" \
 
 | Object | ID | Name |
 |--------|-----|------|
-| PolicySet | `56789012-0003-4321-abcd-000000000003` | Super Banking Policies |
-| Policy | `56789012-0001-4321-abcd-000000000001` | Super Banking Transaction Authorization |
-| Policy | `56789012-0002-4321-abcd-000000000002` | Super Banking MCP Delegation Authorization |
+| PolicySet | `56789012-0003-4321-abcd-000000000003` | AI Demo Policies |
+| Policy | `56789012-0001-4321-abcd-000000000001` | AI Demo Transaction Authorization |
+| Policy | `56789012-0002-4321-abcd-000000000002` | AI Demo MCP Delegation Authorization |
 
 Decision endpoints (look up via API — IDs change per environment):
 ```bash
@@ -149,7 +149,7 @@ These cannot be encoded in the snapshot:
 BFF actor client ID is from `demo_api_server/.env` → look for `PINGONE_AI_AGENT_ACTOR_CLIENT_ID` (the BFF actor client whose `act.client_id` becomes `ActClientId`).
 
 ### 2. Wire decision endpoint to policy set
-The decision endpoint must point to the `Super Banking Policies` policy set (`56789012-0003-...`):
+The decision endpoint must point to the `AI Demo Policies` policy set (`56789012-0003-...`):
 ```bash
 curl -s -H "Authorization: Bearer $TOKEN" \
   "${API_BASE}/decisionEndpoints/f6752166-f78b-44db-a064-ead8f6a83142"

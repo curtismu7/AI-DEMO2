@@ -25,10 +25,10 @@ Use this table as your single source of truth when filling in PingOne forms and 
 | Item | Field | Exact value |
 |------|-------|-------------|
 | Authorize Worker App | Name | `Super Banking Authorize Worker` |
-| Transaction Policy | Name | `Super Banking Transaction Authorization` |
-| MCP Delegation Policy | Name | `Super Banking MCP Delegation` |
-| Transaction Decision Endpoint | Name | `Super Banking Transaction Authorization Endpoint` |
-| MCP Decision Endpoint | Name | `Super Banking MCP Delegation Endpoint` |
+| Transaction Policy | Name | `AI Demo Transaction Authorization` |
+| MCP Delegation Policy | Name | `AI Demo MCP Delegation Authorization` |
+| Transaction Decision Endpoint | Name | `AI Demo Transaction Authorization Endpoint` |
+| MCP Decision Endpoint | Name | `AI Demo MCP Delegation Authorization Endpoint` |
 | Env var — Worker Client ID | `PINGONE_AUTHORIZE_WORKER_CLIENT_ID` | `<client ID of Super Banking Authorize Worker>` |
 | Env var — Worker Client Secret | `PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET` | `<client secret of Super Banking Authorize Worker>` |
 | Env var — Transaction Endpoint ID | `PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID` | `<decision endpoint ID — copy from PingOne after Step 5a>` |
@@ -119,8 +119,8 @@ These attributes are sent on the first MCP tool call per user session.
 
 | Field | Type in |
 |-------|---------|
-| **Policy name** | `Super Banking Transaction Authorization` |
-| **Description** | `Evaluates Super Banking banking transaction requests. Returns PERMIT for allowed transactions, DENY for rejected ones, and a step-up MFA obligation (HTTP 428) when stronger authentication is required before the transaction can proceed.` |
+| **Policy name** | `AI Demo Transaction Authorization` |
+| **Description** | `Evaluates AI Demo transaction requests. Returns PERMIT for allowed transactions, DENY for rejected ones, and a step-up MFA obligation (HTTP 428) when stronger authentication is required before the transaction can proceed.` |
 
 **Reference policy rules** — implement these conditions in the PingOne Authorize policy editor using the Trust Framework attributes from Step 2a:
 
@@ -145,8 +145,8 @@ Only required if you are enabling the MCP first-tool gate (`ff_authorize_mcp_fir
 
 | Field | Type in |
 |-------|---------|
-| **Policy name** | `Super Banking MCP Delegation` |
-| **Description** | `Evaluates MCP tool delegation requests for Super Banking. Validates the actor chain (ActClientId, NestedActClientId) and the token audience before allowing the Super Banking AI Agent to execute MCP tools on behalf of a user.` |
+| **Policy name** | `AI Demo MCP Delegation Authorization` |
+| **Description** | `Evaluates MCP tool delegation requests for AI Demo. Validates the actor chain (ActClientId, NestedActClientId) and the token audience before allowing the AI Demo AI Agent to execute MCP tools on behalf of a user.` |
 
 **Reference policy rules** — implement using Trust Framework attributes from Step 2b:
 
@@ -167,9 +167,9 @@ Only required if you are enabling the MCP first-tool gate (`ff_authorize_mcp_fir
 
 | Field | Type in |
 |-------|---------|
-| **Name** | `Super Banking Transaction Authorization Endpoint` |
-| **Description** | `Decision endpoint for Super Banking transaction authorization. Called by the BFF on every transfer and withdrawal request. Evaluates the Super Banking Transaction Authorization policy.` |
-| **Policy** | Select `Super Banking Transaction Authorization` |
+| **Name** | `AI Demo Transaction Authorization Endpoint` |
+| **Description** | `Decision endpoint for AI Demo transaction authorization. Called by the BFF on every transfer and withdrawal request. Evaluates the AI Demo Transaction Authorization policy.` |
+| **Policy** | Select `AI Demo Transaction Authorization` |
 | **Record recent requests** | ✅ Enable *(allows admin monitoring and demo playback)* |
 
 Click **Save**, then copy the **Decision Endpoint ID** — this becomes `PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID`.
@@ -182,9 +182,9 @@ Click **Save**, then copy the **Decision Endpoint ID** — this becomes `PINGONE
 
 | Field | Type in |
 |-------|---------|
-| **Name** | `Super Banking MCP Delegation Endpoint` |
-| **Description** | `Decision endpoint for Super Banking MCP first-tool delegation authorization. Called by the BFF on the first MCP tool invocation per user session. Evaluates the Super Banking MCP Delegation policy.` |
-| **Policy** | Select `Super Banking MCP Delegation` |
+| **Name** | `AI Demo MCP Delegation Authorization Endpoint` |
+| **Description** | `Decision endpoint for AI Demo MCP first-tool delegation authorization. Called by the BFF on the first MCP tool invocation per user session. Evaluates the AI Demo MCP Delegation Authorization policy.` |
+| **Policy** | Select `AI Demo MCP Delegation Authorization` |
 | **Record recent requests** | ✅ Enable |
 
 Click **Save**, then copy the **Decision Endpoint ID** — this becomes `PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID`.
@@ -303,7 +303,7 @@ The MCP delegation policy should validate that `TokenAudience` equals the expect
 | `TokenAudience` does not match | *(mismatch)* | DENY (token was issued for a different audience) |
 
 **Steps in PingOne Authorize:**
-1. Open your `Super Banking MCP Delegation` policy (or the policy linked to your MCP decision endpoint).
+1. Open your `AI Demo MCP Delegation Authorization` policy (or the policy linked to your MCP decision endpoint).
 2. In the Trust Framework attribute rules, add a condition:
    - Attribute name: `TokenAudience`
    - Operator: `equals`
