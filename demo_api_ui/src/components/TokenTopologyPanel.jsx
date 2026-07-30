@@ -16,11 +16,14 @@ function str(v) {
 }
 
 const NODES = [
-  { id: 'signin',    icon: '🔐', name: 'PingOne AS',       lane: 'PINGONE',  connLabel: null,              desc: 'OIDC Auth Code + PKCE' },
-  { id: 'exchange',  icon: 'TX', name: 'BFF Token Exchange', lane: 'BFF',     connLabel: 'user token',      desc: 'RFC 8693 subject + actor' },
+  { id: 'signin',    icon: '🔐', name: 'PingOne AS',        lane: 'PINGONE',  connLabel: null,         desc: 'OIDC Auth Code + PKCE' },
+  { id: 'prompt',    icon: 'CH', name: 'Chatbot',           lane: 'CHAT',     connLabel: null,         desc: 'Browser → BFF message' },
+  { id: 'agent',     icon: '👤', name: 'Agent Service',     lane: 'AGENT',    connLabel: 'request',    desc: 'LLM reasoning & tool catalog' },
+  { id: 'llm',       icon: 'ML', name: 'LLM Model',         lane: 'LLM',      connLabel: 'reasoning',  desc: 'Tool choice & reasoning' },
+  { id: 'exchange',  icon: 'TX', name: 'BFF Token Exchange', lane: 'BFF',     connLabel: 'user token', desc: 'RFC 8693 subject + actor' },
   { id: 'authorize', icon: 'AZ', name: 'PingOne Authorize', lane: 'AUTHZ',   connLabel: 'delegated token', desc: 'Policy decision point' },
-  { id: 'gateway',   icon: 'GW', name: 'Agent Gateway',     lane: 'GATEWAY', connLabel: 'decision',        desc: 'Token validation + routing' },
-  { id: 'mcp',       icon: 'M',  name: 'MCP Server',        lane: 'MCP',     connLabel: 'validated',       desc: 'Tool execution' },
+  { id: 'gateway',   icon: 'GW', name: 'Agent Gateway',     lane: 'GATEWAY', connLabel: 'decision',   desc: 'Token validation + routing' },
+  { id: 'mcp',       icon: 'M',  name: 'MCP Server',        lane: 'MCP',     connLabel: 'validated',  desc: 'Tool execution' },
 ];
 
 function claimsFromStep(step, options = {}) {
@@ -172,6 +175,13 @@ function Inspector({ step, onClose }) {
   const statements = detail.statements || detail.decision?.statements;
   const request = detail.request;
   const response = detail.response;
+  const spec = detail.spec || {};
+
+  // Build the Interaction Map sequence
+  const activeNodeIdx = NODES.findIndex(n => n.id === step.id);
+  const activeNode = NODES[activeNodeIdx];
+  const prevNode = activeNodeIdx > 0 ? NODES[activeNodeIdx - 1] : null;
+  const nextNode = activeNodeIdx < NODES.length - 1 ? NODES[activeNodeIdx + 1] : null;
 
   return (
     <div className="ttp-insp">
@@ -180,8 +190,25 @@ function Inspector({ step, onClose }) {
         <span className="ttp-insp-title">{str(step.title)}</span>
         <button className="ttp-insp-close" onClick={onClose}>✕</button>
       </div>
+
+      {/* Mini Interaction Map */}
+      <div className="ttp-insp-interaction-map" style={{ padding: '12px 14px', background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid #30363d', fontSize: '11px', textAlign: 'center', marginBottom: '8px' }}>
+        {prevNode && (
+          <><span style={{ color: '#8b949e' }}>[{prevNode.icon}] {prevNode.name}</span> <span style={{ fontWeight: 'bold', margin: '0 4px' }}>➔</span> </>
+        )}
+        <span style={{ color: '#a78bfa', border: '1px solid #a78bfa', borderRadius: '4px', padding: '2px 6px', fontWeight: 'bold' }}>
+          [{activeNode?.icon}] {activeNode?.name || 'Current'}
+        </span>
+        {nextNode && (
+          <> <span style={{ fontWeight: 'bold', margin: '0 4px' }}>➔</span> <span style={{ color: '#8b949e' }}>[{nextNode.icon}] {nextNode.name}</span></>
+        )}
+      </div>
+
       <div className="ttp-insp-tabs">
         <button className={`ttp-itab${tab === 'details' ? ' active' : ''}`} onClick={() => setTab('details')}>Details</button>
+        {(spec.mandate || spec.why) && (
+          <button className={`ttp-itab${tab === 'overview' ? ' active' : ''}`} onClick={() => setTab('overview')}>Overview</button>
+        )}
         {claims && <button className={`ttp-itab${tab === 'claims' ? ' active' : ''}`} onClick={() => setTab('claims')}>Claims</button>}
         {(request || response) && <button className={`ttp-itab${tab === 'request' ? ' active' : ''}`} onClick={() => setTab('request')}>Request</button>}
         {step.detail && <button className={`ttp-itab${tab === 'raw' ? ' active' : ''}`} onClick={() => setTab('raw')}>Raw</button>}
@@ -231,6 +258,28 @@ function Inspector({ step, onClose }) {
             )}
             {!narrative && !detail.decision && !statements && (
               <div className="ttp-detail-text muted">Waiting for details...</div>
+            )}
+          </div>
+        )}
+        {tab === 'overview' && (spec.mandate || spec.why) && (
+          <div className="ttp-detail-view">
+            {spec.mandate && (
+              <div className="ttp-detail-section">
+                 <div className="ttp-detail-label">Role / Mandate</div>
+                 <div className="ttp-detail-text" style={{ fontSize: '13px', lineHeight: 1.5, color: '#c9d1d9' }}>{str(spec.mandate)}</div>
+              </div>
+            )}
+            {spec.why && (
+              <div className="ttp-detail-section">
+                 <div className="ttp-detail-label">Interaction / Why</div>
+                 <div className="ttp-detail-text" style={{ fontSize: '13px', lineHeight: 1.5, color: '#c9d1d9' }}>{str(spec.why)}</div>
+              </div>
+            )}
+            {spec.failure && (
+              <div className="ttp-detail-section" style={{ borderLeft: '3px solid #f87171', paddingLeft: '8px', marginTop: '16px' }}>
+                 <div className="ttp-detail-label" style={{ color: '#f87171', marginBottom: '4px' }}>Failure Mode</div>
+                 <div className="ttp-detail-text" style={{ fontSize: '12px', color: '#8b949e', lineHeight: 1.4 }}>{str(spec.failure)}</div>
+              </div>
             )}
           </div>
         )}
