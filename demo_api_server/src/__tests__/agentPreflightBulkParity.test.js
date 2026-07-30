@@ -105,6 +105,7 @@ describe('buildMcpDelegationParameters — contract', () => {
       ActClientId: 'agent-client-1',
       NestedActClientId: '',
       ActChainDepth: 1,
+      CallerType: 'agent',
       McpResourceUri: 'mcpgateway.ping.demo',
       ClientId: 'user-1',
       MayActSub: 'agent-client-1',
@@ -138,9 +139,14 @@ describe('buildMcpDelegationParameters — contract', () => {
       userId: 'u', toolName: 't', actClientId: 'a1', nestedActClientId: 'a2',
     });
     expect(withNested.ActChainDepth).toBe(2);
+    expect(withNested.CallerType).toBe('agent_a2a');
+
+    const withOne = svc.buildMcpDelegationParameters({ userId: 'u', toolName: 't', actClientId: 'a1' });
+    expect(withOne.CallerType).toBe('agent');
 
     const withNone = svc.buildMcpDelegationParameters({ userId: 'u', toolName: 't' });
     expect(withNone.ActChainDepth).toBe(0);
+    expect(withNone.CallerType).toBe('human');
   });
 
   test('C1 rule 3 — an absent optional value is OMITTED, not sent as null/undefined', () => {
