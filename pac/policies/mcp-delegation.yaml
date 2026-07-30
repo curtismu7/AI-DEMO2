@@ -1,0 +1,577 @@
+# Super Banking MCP Delegation Authorization — Policy as Code source of truth.
+#
+# Deployed alongside transaction-authorization.yaml to the "Super Banking Demo -
+# Policy as Code" endpoint (ad5fc1d4-…). pac deploy replaces the full package.
+#
+# Mirror of the "Super Banking MCP Delegation Authorization" policy in the
+# snapshot. The console-authored MCP first-tool endpoint (1f9e9c71-…) is NOT
+# touched here.
+#
+# This policy validates the RFC 8693 actor delegation chain on every MCP call:
+#   1. Token audience must target the gateway (not an upstream/backend resource)
+#   2. UserId must be present and not the sentinel "none"
+#   3. ActClientId must be a registered actor in the chain
+#   4. A2A two-hop chains must show the known generalist as the nested actor
+#   5. Consent-gated tools require HITL approval (or a verified receipt)
+#   6. Step-up-gated tools require MFA
+#   7. Tier checks (UC21), group checks (UC9), and misc security rules
+#
+# Combining algorithm: deny-overrides — any DENY wins.
+# Guard: only evaluated when DecisionContext is one of the MCP context values.
+
+# ---------------------------
+# TRUST FRAMEWORK
+# ---------------------------
+attributes:
+
+  attribute Request.DecisionContext string:
+    description: "Identifies the type of request; MCP values route here"
+    default: "none"
+    resolve: request DecisionContext
+
+  attribute Request.TokenAudience string:
+    description: "aud claim of the presented MCP access token"
+    default: "none"
+    resolve: request TokenAudience
+
+  attribute Request.TokenAudActual string:
+    description: "Actual aud from introspection; used for D-05 anti-bypass check"
+    default: ""
+    resolve: request TokenAudActual
+
+  attribute Request.UserId string:
+    description: "PingOne user id (sub) from the token delegation chain"
+    default: "none"
+    resolve: request UserId
+
+  attribute Request.ActClientId string:
+    description: "act.client_id — the immediate actor in the RFC 8693 chain"
+    default: "none"
+    resolve: request ActClientId
+
+  attribute Request.NestedActClientId string:
+    description: "act.act.client_id — the upstream agent in a two-hop A2A chain"
+    default: "none"
+    resolve: request NestedActClientId
+
+  attribute Request.ActChainDepth number:
+    description: "RFC 8693 act chain depth: 0=no delegation, 1=single-hop, 2=A2A"
+    default: 0
+    resolve: request ActChainDepth
+
+  attribute Request.ToolName string:
+    description: "Name of the MCP tool being invoked (e.g. banking_transfer_funds)"
+    default: "none"
+    resolve: request ToolName
+
+  attribute Request.HitlApproved boolean:
+    description: "True when the BFF verified an approved HITL receipt for this call"
+    default: false
+    resolve: request HitlApproved
+
+  attribute Request.Acr string:
+    description: "ACR level already met by the user (e.g. Multi_Factor)"
+    default: "none"
+    resolve: request Acr
+
+  attribute Request.UserTier string:
+    description: "UC21 entitlement tier: PrivateBanking or Standard (default none = inert)"
+    default: "none"
+    resolve: request UserTier
+
+  attribute Request.RequiredGroup string:
+    description: "UC9 — group the tool requires, or none if unrestricted"
+    default: "none"
+    resolve: request RequiredGroup
+
+  attribute Request.InRequiredGroup boolean:
+    description: "UC9 — BFF-resolved: does the user belong to RequiredGroup?"
+    default: true
+    resolve: request InRequiredGroup
+
+  attribute Request.Amount number:
+    description: "Transaction amount for RAR ceiling and tier cap checks"
+    default: 0
+    resolve: request Amount
+
+  attribute Request.RarMaxAmount number:
+    description: "RFC 9396 RAR granted amount ceiling; 0 means absent/not applicable"
+    default: 0
+    resolve: request RarMaxAmount
+
+  attribute Request.ResourceOwnerId string:
+    description: "PingOne user id that owns the target resource; empty = unknown/not applicable"
+    default: ""
+    resolve: request ResourceOwnerId
+
+  attribute Request.IntentTokenValid string:
+    description: "'true' | 'false' | '' — gateway validated a presented intent token"
+    default: ""
+    resolve: request IntentTokenValid
+
+  attribute Request.IntentMatchesTool string:
+    description: "'true' | 'false' | '' — invoked tool is in the intent token permitted_tools"
+    default: ""
+    resolve: request IntentMatchesTool
+
+  attribute Request.IntentTokenError string:
+    description: "Why intent validation failed: malformed, invalid_signature, malformed_payload, expired, ..."
+    default: ""
+    resolve: request IntentTokenError
+
+  attribute Request.UserRole string:
+    description: "Caller role: 'admin' | 'customer' | 'none' (default). Restriction only."
+    default: "none"
+    resolve: request UserRole
+
+  attribute Request.TokenKidKnown boolean:
+    description: "BFF-resolved: is the token header kid published in the issuer JWKS? Default true = inert when absent"
+    default: true
+    resolve: request TokenKidKnown
+
+  attribute Request.TokenKid string:
+    description: "kid from the presented token header; reportable only"
+    default: ""
+    resolve: request TokenKid
+
+# ---------------------------
+# POLICY
+# ---------------------------
+policyset SuperBankingMcpPolicies evaluate deny-overrides:
+  description: "Root policy set for MCP delegation checks"
+
+  policy McpDelegationAuthorization evaluate deny-overrides:
+    description: "Validates RFC 8693 delegation chain and per-tool gates for MCP calls"
+
+    # Guard: only evaluate for MCP context requests
+    when: Request.DecisionContext == "McpFirstTool"
+      or Request.DecisionContext == "McpToolCall"
+      or Request.DecisionContext == "McpToolsList"
+      or Request.DecisionContext == "McpRequest"
+
+    # -----------------------------------------------------------------------
+    # D-05 anti-bypass: token targets an upstream backend, not the gateway
+    # -----------------------------------------------------------------------
+    rule DenyAudienceTargetsUpstream deny:
+      obligation:
+        code: mcp-bypass-attempt
+        payload: "Token aud targets an upstream resource behind the gateway (D-05 bypass attempt)."
+      - Request.TokenAudActual in ("mcpserver.ping.demo", "mcp-invest.ping.demo", "https://banking-resource-server.ping.demo")
+
+    # -----------------------------------------------------------------------
+    # Audience validation: token must be for one of the registered MCP gateways
+    # -----------------------------------------------------------------------
+    rule DenyInvalidTokenAudience deny:
+      obligation:
+        code: mcp-invalid-audience
+        payload: "Token audience does not match any accepted MCP gateway resource URI."
+      - Request.TokenAudience != "mcpgateway.ping.demo"
+      - Request.TokenAudience != "https://api.ping.demo:3036/mcp"
+      - Request.TokenAudience != "mcpgateway-a2a.ping.demo"
+
+    # -----------------------------------------------------------------------
+    # User identity: UserId must be present
+    # -----------------------------------------------------------------------
+    rule DenyMissingUserId deny:
+      obligation:
+        code: mcp-missing-user-id
+        payload: "No user identity in the MCP token delegation chain. UserId is required."
+      - Request.UserId == "none"
+
+    # -----------------------------------------------------------------------
+    # Invalid signing key: kid not published in issuer JWKS
+    # -----------------------------------------------------------------------
+    rule DenyInvalidSigningKey deny:
+      obligation:
+        code: mcp-invalid-kid
+        payload: "Token header names a signing key not published in the issuer JWKS."
+      - Request.TokenKidKnown == false
+
+    # -----------------------------------------------------------------------
+    # Actor chain: ActClientId must be a registered chain identity
+    # (MCP Token Exchanger, AI Agent generalist, or A2A specialist)
+    # -----------------------------------------------------------------------
+    rule DenyInvalidActorChain deny:
+      obligation:
+        code: mcp-invalid-actor
+        payload: "ActClientId is not a registered actor in the RFC 8693 delegation chain."
+      - Request.ActClientId != "0bba2bb8-896b-42ae-bb56-503d3c75f82e"
+      - Request.ActClientId != "12651b1e-f61d-46aa-9ab9-760da3a761cd"
+      - Request.ActClientId != "5a5d730f-864c-46b4-a651-53516a6f709c"
+      - Request.ActClientId != "71e878ea-2d79-4760-b570-66f00cbeffe7"
+      - Request.ActClientId != "74d7fafe-67be-452c-9d29-0b54ba59eef8"
+      - Request.ActClientId != "9283be7f-0835-4332-9dca-33236307c79e"
+      - Request.ActClientId != "9fb0efa4-bf04-4f18-b442-70c9b32e684c"
+      - Request.ActClientId != "a1dc8b3d-df50-4b57-9c4a-4c34095bea5a"
+
+    # -----------------------------------------------------------------------
+    # A2A generalist: two-hop chains must have the registered AI Agent as the
+    # nested actor (NestedActClientId); a specialist delegated by an unknown
+    # caller is denied even if the specialist itself is registered
+    # -----------------------------------------------------------------------
+    rule DenyInvalidA2aGeneralist deny:
+      obligation:
+        code: mcp-invalid-a2a-generalist
+        payload: "A2A two-hop chain present but NestedActClientId is not the registered AI Agent generalist."
+      - Request.ActChainDepth > 1
+      - Request.NestedActClientId != "71e878ea-2d79-4760-b570-66f00cbeffe7"
+
+    # -----------------------------------------------------------------------
+    # A2A delegation required: A2A-only tools called without a two-hop chain
+    # -----------------------------------------------------------------------
+    rule DenyA2aDelegationRequired deny:
+      obligation:
+        code: mcp-invalid-a2a-generalist
+        payload: "A2A delegation is required for this tool. The generalist acting alone is denied."
+      - Request.ToolName in ("get_investment_accounts", "get_investment_balance",
+          "get_investment_transactions", "get_portfolio_summary",
+          "sensitive_investment_holdings", "sensitive_membership_details",
+          "sensitive_order_history", "sensitive_patient_records",
+          "sensitive_payroll_details", "sensitive_student_finance",
+          "sensitive_supplier_contract", "sensitive_tax_record")
+      - Request.ActChainDepth < 2
+
+    # -----------------------------------------------------------------------
+    # Resource owner mismatch (NNP-3 / UC10): target resource belongs to
+    # a different user (account-takeover pattern)
+    # -----------------------------------------------------------------------
+    rule DenyResourceOwnerMismatch deny:
+      obligation:
+        code: mcp-resource-owner-mismatch
+        payload: "Target resource belongs to a different user than the requester."
+      - Request.ResourceOwnerId != ""
+      - Request.ResourceOwnerId != Request.UserId
+
+    # -----------------------------------------------------------------------
+    # RAR ceiling (NNP-1): Amount exceeds the RFC 9396 RAR granted maximum
+    # -----------------------------------------------------------------------
+    rule DenyRarAmountOverage deny:
+      obligation:
+        code: rar_amount_exceeded
+        payload: "Requested amount exceeds the RFC 9396 RAR granted ceiling."
+      - Request.RarMaxAmount > 0
+      - Request.Amount > Request.RarMaxAmount
+
+    # -----------------------------------------------------------------------
+    # Admin role restriction (Rule 2.95): admin sessions cannot drive
+    # customer write tools
+    # -----------------------------------------------------------------------
+    rule DenyAdminRoleOnWriteTool deny:
+      obligation:
+        code: mcp-admin-role-not-permitted
+        payload: "Admin sessions cannot invoke customer write tools."
+      - Request.UserRole == "admin"
+      - Request.ToolName in ("accept_financial_aid", "add_to_wishlist", "apply_scholarship",
+          "approve_inspection", "approve_purchase_order", "book_appointment",
+          "buy_security", "cancel_appointment", "cancel_order", "cancel_reservation",
+          "cash_out_store_credit", "checkout", "claim_reward",
+          "close_account", "create_deposit", "create_transfer", "create_withdrawal",
+          "dispute_charge", "enroll_in_benefit", "extend_rental",
+          "large_trade", "pay_bill", "place_order", "process_return",
+          "release_record", "release_records", "release_transcript",
+          "release_work_order", "remove_from_wishlist", "renew_membership",
+          "request_time_off", "sell_security", "send_message",
+          "set_price_alert", "submit_expense", "transfer_membership",
+          "update_portfolio", "update_preferences", "withdraw")
+
+    # -----------------------------------------------------------------------
+    # Intent token tampered (Rule 4a): IntentTokenValid=false with a tamper
+    # class error (malformed / invalid_signature / malformed_payload)
+    # -----------------------------------------------------------------------
+    rule DenyIntentTokenTampered deny:
+      obligation:
+        code: mcp-intent-invalid
+        payload: "Presented intent token failed validation with a tamper-class error."
+      - Request.IntentTokenValid == "false"
+      - Request.IntentTokenError in ("malformed", "invalid_signature", "malformed_payload")
+
+    # -----------------------------------------------------------------------
+    # Intent tool mismatch (Rule 4b): valid intent token but tool not in
+    # permitted_tools
+    # -----------------------------------------------------------------------
+    rule DenyIntentToolMismatch deny:
+      obligation:
+        code: mcp-intent-mismatch
+        payload: "Invoked tool is not in the validated intent token's permitted_tools."
+      - Request.IntentTokenValid == "true"
+      - Request.IntentMatchesTool == "false"
+
+    # -----------------------------------------------------------------------
+    # UC21 tier checks
+    # -----------------------------------------------------------------------
+    rule DenyTierToolNotAllowed deny:
+      obligation:
+        code: mcp-tier-tool-not-allowed
+        payload: "UC21: tool restricted to PrivateBanking tier."
+      - Request.UserTier == "Standard"
+      - Request.ToolName in ("create_withdrawal", "withdraw")
+
+    rule DenyTierAmountExceeded deny:
+      obligation:
+        code: mcp-tier-amount-exceeded
+        payload: "UC21: amount exceeds the tier ceiling (Standard $2,000 / PrivateBanking $50,000)."
+      # Standard tier: amount > 2000
+      - Request.UserTier == "Standard" and Request.Amount > 2000
+
+    rule DenyPrivateBankingAmountExceeded deny:
+      obligation:
+        code: mcp-tier-amount-exceeded
+        payload: "UC21: amount exceeds the PrivateBanking tier ceiling of $50,000."
+      - Request.UserTier == "PrivateBanking" and Request.Amount > 50000
+
+    # -----------------------------------------------------------------------
+    # UC9 group membership check
+    # -----------------------------------------------------------------------
+    rule DenyGroupMembershipFailed deny:
+      obligation:
+        code: mcp-user-not-in-group
+        payload: "Group membership check failed — user is not in the required group."
+      - Request.RequiredGroup != "none"
+      - Request.InRequiredGroup == false
+
+    # -----------------------------------------------------------------------
+    # HITL consent gate: consent-required tools without a verified receipt
+    # -----------------------------------------------------------------------
+    rule RequireHitlConsent permit:
+      obligation:
+        code: HITL
+        payload: '{"hitlRequired": true}'
+      - Request.ToolName in ("book_appointment", "checkout", "create_transfer",
+          "extend_rental", "get_sensitive_account_details", "request_time_off",
+          "sensitive_holdings", "sensitive_investment_holdings",
+          "sensitive_membership_details", "sensitive_order_history",
+          "sensitive_patient_records", "sensitive_payroll_details",
+          "sensitive_student_finance", "sensitive_supplier_contract",
+          "sensitive_tax_record")
+      - Request.HitlApproved == false
+
+    # -----------------------------------------------------------------------
+    # Step-up gate: step-up-gated tools without MFA
+    # -----------------------------------------------------------------------
+    rule RequireMcpStepUp permit:
+      obligation:
+        code: step-up-required
+        payload: '{"stepUpRequired": true, "requiredAcr": "Multi_Factor"}'
+      - Request.ToolName in ("cash_out_store_credit", "create_deposit",
+          "create_withdrawal", "large_trade", "release_record", "release_records",
+          "release_transcript", "release_work_order", "submit_expense",
+          "transfer_membership")
+      - Request.Acr != "Multi_Factor"
+
+    # -----------------------------------------------------------------------
+    # Permit: all checks above passed
+    # -----------------------------------------------------------------------
+    rule McpPermitValidToolInvocation permit
+
+# ---------------------------
+# TESTS
+# ---------------------------
+tests:
+  test 'Permit valid single-hop MCP tool call':
+    request:
+      attributes:
+        DecisionContext: "McpToolCall"
+        TokenAudience: "mcpgateway.ping.demo"
+        UserId: "user-abc-123"
+        ActClientId: "0bba2bb8-896b-42ae-bb56-503d3c75f82e"
+        ToolName: "banking_get_accounts"
+        HitlApproved: false
+        Acr: "Multi_Factor"
+        UserTier: "none"
+        RequiredGroup: "none"
+        InRequiredGroup: true
+        ActChainDepth: "1"
+        RarMaxAmount: "0"
+        Amount: "0"
+        ResourceOwnerId: ""
+        IntentTokenValid: ""
+        IntentMatchesTool: ""
+        IntentTokenError: ""
+        UserRole: "none"
+        TokenKidKnown: true
+        TokenAudActual: "mcpgateway.ping.demo"
+    expect:
+      decision: permit
+
+  test 'Deny invalid token audience':
+    request:
+      attributes:
+        DecisionContext: "McpToolCall"
+        TokenAudience: "unknown-resource.example.com"
+        UserId: "user-abc-123"
+        ActClientId: "0bba2bb8-896b-42ae-bb56-503d3c75f82e"
+        ToolName: "banking_get_accounts"
+        HitlApproved: false
+        Acr: "Multi_Factor"
+        UserTier: "none"
+        RequiredGroup: "none"
+        InRequiredGroup: true
+        ActChainDepth: "1"
+        RarMaxAmount: "0"
+        Amount: "0"
+        ResourceOwnerId: ""
+        IntentTokenValid: ""
+        IntentMatchesTool: ""
+        IntentTokenError: ""
+        UserRole: "none"
+        TokenKidKnown: true
+        TokenAudActual: "unknown-resource.example.com"
+    expect:
+      decision: deny
+
+  test 'Deny missing user id':
+    request:
+      attributes:
+        DecisionContext: "McpToolCall"
+        TokenAudience: "mcpgateway.ping.demo"
+        UserId: "none"
+        ActClientId: "0bba2bb8-896b-42ae-bb56-503d3c75f82e"
+        ToolName: "banking_get_accounts"
+        HitlApproved: false
+        Acr: "Multi_Factor"
+        UserTier: "none"
+        RequiredGroup: "none"
+        InRequiredGroup: true
+        ActChainDepth: "1"
+        RarMaxAmount: "0"
+        Amount: "0"
+        ResourceOwnerId: ""
+        IntentTokenValid: ""
+        IntentMatchesTool: ""
+        IntentTokenError: ""
+        UserRole: "none"
+        TokenKidKnown: true
+        TokenAudActual: "mcpgateway.ping.demo"
+    expect:
+      decision: deny
+
+  test 'Deny invalid actor chain':
+    request:
+      attributes:
+        DecisionContext: "McpToolCall"
+        TokenAudience: "mcpgateway.ping.demo"
+        UserId: "user-abc-123"
+        ActClientId: "not-a-registered-client-id"
+        ToolName: "banking_get_accounts"
+        HitlApproved: false
+        Acr: "Multi_Factor"
+        UserTier: "none"
+        RequiredGroup: "none"
+        InRequiredGroup: true
+        ActChainDepth: "1"
+        RarMaxAmount: "0"
+        Amount: "0"
+        ResourceOwnerId: ""
+        IntentTokenValid: ""
+        IntentMatchesTool: ""
+        IntentTokenError: ""
+        UserRole: "none"
+        TokenKidKnown: true
+        TokenAudActual: "mcpgateway.ping.demo"
+    expect:
+      decision: deny
+
+  test 'Deny A2A call without two-hop chain (delegation required)':
+    request:
+      attributes:
+        DecisionContext: "McpToolCall"
+        TokenAudience: "mcpgateway.ping.demo"
+        UserId: "user-abc-123"
+        ActClientId: "71e878ea-2d79-4760-b570-66f00cbeffe7"
+        ToolName: "get_investment_accounts"
+        HitlApproved: false
+        Acr: "Multi_Factor"
+        UserTier: "none"
+        RequiredGroup: "none"
+        InRequiredGroup: true
+        ActChainDepth: "1"
+        NestedActClientId: "none"
+        RarMaxAmount: "0"
+        Amount: "0"
+        ResourceOwnerId: ""
+        IntentTokenValid: ""
+        IntentMatchesTool: ""
+        IntentTokenError: ""
+        UserRole: "none"
+        TokenKidKnown: true
+        TokenAudActual: "mcpgateway.ping.demo"
+    expect:
+      decision: deny
+
+  test 'Permit HITL consent tool when HitlApproved is true':
+    request:
+      attributes:
+        DecisionContext: "McpToolCall"
+        TokenAudience: "mcpgateway.ping.demo"
+        UserId: "user-abc-123"
+        ActClientId: "0bba2bb8-896b-42ae-bb56-503d3c75f82e"
+        ToolName: "create_transfer"
+        HitlApproved: true
+        Acr: "Multi_Factor"
+        UserTier: "none"
+        RequiredGroup: "none"
+        InRequiredGroup: true
+        ActChainDepth: "1"
+        RarMaxAmount: "0"
+        Amount: "0"
+        ResourceOwnerId: ""
+        IntentTokenValid: ""
+        IntentMatchesTool: ""
+        IntentTokenError: ""
+        UserRole: "none"
+        TokenKidKnown: true
+        TokenAudActual: "mcpgateway.ping.demo"
+    expect:
+      decision: permit
+
+  test 'Deny D-05 bypass attempt (token targets upstream)':
+    request:
+      attributes:
+        DecisionContext: "McpToolCall"
+        TokenAudience: "mcpgateway.ping.demo"
+        TokenAudActual: "mcpserver.ping.demo"
+        UserId: "user-abc-123"
+        ActClientId: "0bba2bb8-896b-42ae-bb56-503d3c75f82e"
+        ToolName: "banking_get_accounts"
+        HitlApproved: false
+        Acr: "Multi_Factor"
+        UserTier: "none"
+        RequiredGroup: "none"
+        InRequiredGroup: true
+        ActChainDepth: "1"
+        RarMaxAmount: "0"
+        Amount: "0"
+        ResourceOwnerId: ""
+        IntentTokenValid: ""
+        IntentMatchesTool: ""
+        IntentTokenError: ""
+        UserRole: "none"
+        TokenKidKnown: true
+    expect:
+      decision: deny
+
+  test 'Deny UC21 tier tool not allowed (Standard user, withdrawal)':
+    request:
+      attributes:
+        DecisionContext: "McpToolCall"
+        TokenAudience: "mcpgateway.ping.demo"
+        TokenAudActual: "mcpgateway.ping.demo"
+        UserId: "user-abc-123"
+        ActClientId: "0bba2bb8-896b-42ae-bb56-503d3c75f82e"
+        ToolName: "create_withdrawal"
+        HitlApproved: false
+        Acr: "Multi_Factor"
+        UserTier: "Standard"
+        RequiredGroup: "none"
+        InRequiredGroup: true
+        ActChainDepth: "1"
+        RarMaxAmount: "0"
+        Amount: "100"
+        ResourceOwnerId: ""
+        IntentTokenValid: ""
+        IntentMatchesTool: ""
+        IntentTokenError: ""
+        UserRole: "none"
+        TokenKidKnown: true
+    expect:
+      decision: deny
