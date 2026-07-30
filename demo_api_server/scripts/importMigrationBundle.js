@@ -212,6 +212,10 @@ Other recipes you could run instead (Ctrl-C now and pick one):
 // is true on macOS even with no controlling terminal — and in that state,
 // opening it throws ENXIO. Probe the open here so callers don't crash.
 function isInteractiveStdin() {
+  if (process.env.JEST_WORKER_ID) return false;
+  if (process.env.CI) return false;
+  if (process.env.NONINTERACTIVE === '1') return false;
+  if (process.env.BANKING_IMPORT_NO_PROMPT === '1') return false;
   if (process.stdin.isTTY) return true;
   try {
     const fd = fs.openSync('/dev/tty', 'r');
