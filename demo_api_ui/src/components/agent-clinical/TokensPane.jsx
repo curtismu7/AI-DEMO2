@@ -6,6 +6,7 @@ import { productForEvent } from '../../utils/pingProducts';
 import './TokensPane.css';
 
 // Namespace: tp-  (no overlap with sstp- / tcd- / ac-)
+
 export default function TokensPane() {
   const [subTab, setSubTab] = useState('simple');
   const ctx = useTokenChainOptional();
@@ -63,7 +64,7 @@ function SimpleStepper({ events }) {
       <tbody>
         {events.map((ev, i) => (
           <SimpleRow
-            key={ev.id ? `${ev.id}-${i}` : `noid-${i}`}
+            key={ev.id || `idx-${i}`}
             event={ev}
             index={i}
             halted={haltedIdx === i}
@@ -81,15 +82,15 @@ function SimpleRow({ event, index, halted, didNotRun }) {
   const product = productForEvent(event);
 
   let rowCls = '';
-  if (halted)                      rowCls = 'tp-row--halted';
-  else if (didNotRun)              rowCls = 'tp-row--ghost';
-  else if (bucket === 'notinpath') rowCls = 'tp-row--notinpath';
+  if (halted)                          rowCls = 'tp-row--halted';
+  else if (didNotRun)                  rowCls = 'tp-row--ghost';
+  else if (bucket === 'notinpath')     rowCls = 'tp-row--notinpath';
 
   let statusEl;
-  if (didNotRun)             statusEl = <span className="tp-st tp-st--skip">— did not run</span>;
-  else if (halted)           statusEl = <span className="tp-st tp-st--halt">✕ {event.errorCode || 'halted'}</span>;
+  if (didNotRun)       statusEl = <span className="tp-st tp-st--skip">— did not run</span>;
+  else if (halted)     statusEl = <span className="tp-st tp-st--halt">✕ {event.errorCode || 'halted'}</span>;
   else if (bucket === 'success') statusEl = <span className="tp-st tp-st--ok" aria-label="Success">✓</span>;
-  else                       statusEl = <span className={`tp-st tp-st--${bucket}`}>{statusLabel}</span>;
+  else                 statusEl = <span className={`tp-st tp-st--${bucket}`}>{statusLabel}</span>;
 
   return (
     <tr className={rowCls}>
@@ -101,7 +102,7 @@ function SimpleRow({ event, index, halted, didNotRun }) {
   );
 }
 
-// ── Detailed: same table, each row expands to show claims + narrative ──────
+// ── Detailed: same table, each row expands to show claims + narrative ─────
 
 function DetailedStepper({ events }) {
   const [openIdx, setOpenIdx] = useState(null);
@@ -117,7 +118,7 @@ function DetailedStepper({ events }) {
       <thead>
         <tr>
           <th scope="col">#</th>
-          <th scope="col" style={{ width: 20 }} />
+          <th scope="col" style={{ width: 20 }} />{/* expand chevron */}
           <th scope="col">Step</th>
           <th scope="col">Product</th>
           <th scope="col">Status</th>
@@ -126,7 +127,7 @@ function DetailedStepper({ events }) {
       <tbody>
         {events.map((ev, i) => (
           <DetailedRows
-            key={ev.id ? `${ev.id}-${i}` : `noid-${i}`}
+            key={ev.id || `idx-${i}`}
             event={ev}
             index={i}
             halted={haltedIdx === i}
@@ -144,8 +145,15 @@ function DetailedRows({ event, index, halted, didNotRun, open, onToggle }) {
   const { bucket, label: statusLabel } = resolveStatusVisual(event.status);
   const label = event.label || event.id || 'Step';
   const product = productForEvent(event);
-  const hasClaims = event.claims && Object.keys(event.claims).length > 0;
+  const hasClaims = event.claims && typeof event.claims === 'object' && Object.keys(event.claims).length > 0;
   const canExpand = hasClaims || event.narrative || event.why;
+
+  const handleKeyDown = (e) => {
+    if (canExpand && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      onToggle();
+    }
+  };
 
   let rowCls = '';
   if (halted)                      rowCls = 'tp-row--halted';
@@ -162,7 +170,11 @@ function DetailedRows({ event, index, halted, didNotRun, open, onToggle }) {
     <>
       <tr
         className={`${rowCls}${canExpand ? ' tp-row--expandable' : ''}${open ? ' tp-row--open' : ''}`}
+        role={canExpand ? 'button' : undefined}
+        tabIndex={canExpand ? 0 : undefined}
         onClick={canExpand ? onToggle : undefined}
+        onKeyDown={handleKeyDown}
+        aria-expanded={canExpand ? open : undefined}
       >
         <td className="tp-col-num">{index + 1}</td>
         <td className="tp-col-chevron">
@@ -174,7 +186,8 @@ function DetailedRows({ event, index, halted, didNotRun, open, onToggle }) {
       </tr>
       {open && canExpand && (
         <tr className="tp-row--detail">
-          <td /><td />
+          <td />
+          <td />
           <td colSpan={3}>
             <div className="tp-detail">
               {(event.narrative || event.why) && (
