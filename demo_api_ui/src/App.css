@@ -665,8 +665,8 @@
 .App.end-user-nano a.dashboard-toolbar-btn:hover,
 .App.end-user-nano a.dashboard-toolbar-btn:focus-visible,
 .App.end-user-nano a.dashboard-toolbar-btn:active {
-  color: #fff !important;
-  -webkit-text-fill-color: #fff !important;
+  color: var(--app-primary-btn-text, #fff) !important;
+  -webkit-text-fill-color: var(--app-primary-btn-text, #fff) !important;
   text-decoration: none !important;
 }
 
@@ -675,8 +675,8 @@
 .App.end-user-nano a.app-page-toolbar-btn:hover,
 .App.end-user-nano a.app-page-toolbar-btn:focus-visible,
 .App.end-user-nano a.app-page-toolbar-btn:active {
-  color: #fff !important;
-  -webkit-text-fill-color: #fff !important;
+  color: var(--app-primary-btn-text, #fff) !important;
+  -webkit-text-fill-color: var(--app-primary-btn-text, #fff) !important;
   text-decoration: none !important;
 }
 
@@ -686,8 +686,8 @@
 .App.end-user-nano button.app-page-toolbar-btn:focus,
 .App.end-user-nano button.app-page-toolbar-btn:focus-visible,
 .App.end-user-nano button.app-page-toolbar-btn:active {
-  color: #fff !important;
-  -webkit-text-fill-color: #fff !important;
+  color: var(--app-primary-btn-text, #fff) !important;
+  -webkit-text-fill-color: var(--app-primary-btn-text, #fff) !important;
 }
 
 .App.end-user-nano a.log-page-nav-btn,

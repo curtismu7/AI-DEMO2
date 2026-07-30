@@ -197,6 +197,25 @@ export default function LandingPage({ user, hasTopNav }) {
           </div>
         </section>
 
+        {/* Identity Evolution Callout */}
+        <section className="landing-callout" aria-label="Identity evolution">
+          <div className="landing-callout-content">
+            <p className="landing-callout-lead">
+              The identity stack is evolving from <em>"Who are you?"</em> to{" "}
+              <em>"What is this agent authorized to do?"</em>
+            </p>
+            <p className="landing-callout-body">
+              At Ping Identity, we're introducing new capabilities to help
+              organizations govern AI agents, enable trusted access, and operate
+              identity at AI speed.
+            </p>
+            <p className="landing-callout-body">
+              No parallel identity stacks. No secret sprawl. Just a unified
+              identity control plane built for the agentic enterprise.
+            </p>
+          </div>
+        </section>
+
         {/* Features Section */}
         <section className="landing-features">
           <div className="landing-features-heading">

@@ -25,7 +25,7 @@
       "--brand-dashboard-header-text": "#FFFFFF",
       "--brand-topnav-bg-start": "#1D1D1B",
       "--brand-topnav-bg-end": "#2d2d2b",
-      "--brand-topnav-text": "#1D1D1B"
+      "--brand-topnav-text": "#FFFFFF"
     }
   },
   "terminology": {
