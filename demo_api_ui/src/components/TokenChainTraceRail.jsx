@@ -12,6 +12,7 @@ import TraceStepCard from "./TraceStepCard";
 import TraceTokenSummary from "./TraceTokenSummary";
 import TraceMcpPanel from "./TraceMcpPanel";
 import TraceTrustPanel from "./TraceTrustPanel";
+import { SimpleStepper, DetailedStepper } from "./agent-clinical/TokensPane";
 import ClaimDetailsModal from "./ClaimDetailsModal";
 import TokenLegendModal from "./TokenLegendModal";
 import "./TokenChainTraceRail.css";
@@ -224,6 +225,16 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
             Trust
           </button>
         )}
+        <button type="button" role="tab" aria-selected={tab === "simple"}
+          className={`tctr-tab${tab === "simple" ? " tctr-tab--active" : ""}`}
+          onClick={() => setTab("simple")}>
+          Simple
+        </button>
+        <button type="button" role="tab" aria-selected={tab === "detailed"}
+          className={`tctr-tab${tab === "detailed" ? " tctr-tab--active" : ""}`}
+          onClick={() => setTab("detailed")}>
+          Detailed
+        </button>
       </div>
 
       {tab === "chain" ? (
@@ -272,6 +283,10 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false }) {
         <TraceTokenSummary tokenEvents={trace.tokenEvents} onInspect={onInspect} standalone />
       ) : tab === "trust" ? (
         <TraceTrustPanel events={trace.tokenEvents} />
+      ) : tab === "simple" ? (
+        <SimpleStepper events={tokenChain?.events ?? []} />
+      ) : tab === "detailed" ? (
+        <DetailedStepper events={tokenChain?.events ?? []} />
       ) : (
         <TraceMcpPanel steps={steps} trace={trace} onInspect={onInspect} useCase={proofUseCase} />
       )}
