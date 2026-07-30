@@ -26,16 +26,25 @@ policyset SuperBankingPolicies evaluate deny-overrides:
 
     # Rule 1: hard deny — amount exceeds $2,000 unconditionally
     rule DenyLargeTransactions deny:
+      obligation:
+        code: transaction-denied
+        payload: "Transaction denied: amount exceeds the $2,000 limit."
       - Request.Amount > 2000
 
     # Rule 2: step-up — amount > $500, transfer/withdrawal, and no MFA yet
     rule RequireStepUpMfa permit:
+      obligation:
+        code: step-up-required
+        payload: '{"stepUpRequired": true, "requiredAcr": "Multi_Factor"}'
       - Request.Amount > 500
       - Request.TransactionType in ("transfer", "withdrawal")
       - Request.Acr != "Multi_Factor"
 
     # Rule 3: consent — amount > $250 (step-up and deny take precedence via deny-overrides)
     rule RequireConsent permit:
+      obligation:
+        code: HITL_CONSENT
+        payload: '{"consentRequired": true}'
       - Request.Amount > 250
 
     # Rule 4: permit — all other transactions (amount ≤ $500, or MFA already met,

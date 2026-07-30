@@ -1098,8 +1098,10 @@
   border-radius: var(--rd2-r-md, 8px);
   padding: 0;
   box-shadow: 0 20px 60px rgba(0, 0, 0, .2);
-  max-width: 420px;
+  max-width: 680px;
   width: 100%;
+  max-height: 92vh;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
 }
