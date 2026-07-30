@@ -8112,6 +8112,15 @@ export default function BankingAgent({
                 >
                   Guide
                 </button>
+                {/* Demo Script shortcut — opens the 15-min teleprompter without requiring sidebar nav */}
+                <button
+                  type="button"
+                  className="ba-actions-trigger"
+                  title="Open 15-Min Security Demo Script (teleprompter)"
+                  onClick={() => window.dispatchEvent(new CustomEvent("demo-script-toggle"))}
+                >
+                  Script
+                </button>
                 </div>
                 <div className={splitChrome ? "ba-hg ba-hg--demo" : "ba-hg--flat"}>
                 {/* Demo steps — same scripted list as /use-cases Demo section */}
