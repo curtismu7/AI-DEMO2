@@ -1,212 +1,208 @@
-/* TokensPane — sub-tab UI (Simple vs Detailed stepper views) */
+/* TokensPane — Simple + Detailed stepper tabs. Namespace: tp- */
 
-.ac-tokens-tabs {
+.tp-wrap {
   display: flex;
-  gap: 0.5rem;
-  padding: 1rem;
-  border-bottom: 1px solid var(--color-border, #e0e0e0);
-  background: var(--color-bg-secondary, #fafafa);
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: #fff;
 }
 
-.ac-tokens-tab {
-  padding: 0.5rem 1rem;
-  border: none;
-  background: transparent;
-  color: var(--color-text-secondary, #666);
+.tp-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  flex-shrink: 0;
+}
+
+.tp-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 14px;
+  font-size: 12px;
   font-weight: 500;
-  cursor: pointer;
-  transition: color 0.2s, border-color 0.2s;
+  color: #94a3b8;
+  background: none;
+  border: none;
   border-bottom: 2px solid transparent;
+  position: relative;
+  top: 1px;
+  cursor: pointer;
+  transition: color .1s, border-color .1s;
 }
 
-.ac-tokens-tab:hover {
-  color: var(--color-text, #333);
-}
+.tp-tab:hover { color: #475569; }
 
-.ac-tokens-tab--active {
-  color: var(--color-text, #333);
-  border-bottom-color: var(--color-brand, #0066cc);
-}
-
-/* Simple stepper table */
-.ac-tokens-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-
-.ac-tokens-table thead {
-  background: var(--color-bg-tertiary, #f5f5f5);
+.tp-tab--active {
+  color: #1e293b;
+  border-bottom-color: #2563eb;
   font-weight: 600;
 }
 
-.ac-tokens-table th {
-  padding: 0.75rem;
-  text-align: left;
-  border-bottom: 1px solid var(--color-border, #e0e0e0);
-}
-
-.ac-tokens-table td {
-  padding: 0.75rem;
-  border-bottom: 1px solid var(--color-border-light, #f0f0f0);
-}
-
-.ac-tokens-table tbody tr:last-child td {
-  border-bottom: 1px solid var(--color-border, #e0e0e0);
-}
-
-.ac-tokens-table tbody tr:hover {
-  background: var(--color-bg-hover, #f9f9f9);
-}
-
-.ac-tokens-num {
-  width: 3rem;
-  text-align: center;
-  color: var(--color-text-secondary, #999);
-}
-
-.ac-tokens-step {
-  font-weight: 500;
-  color: var(--color-text, #333);
-}
-
-.ac-tokens-product {
+.tp-tab-cnt {
+  background: #e2e8f0;
+  color: #475569;
+  border-radius: 99px;
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  line-height: 16px;
+  min-width: 16px;
   text-align: center;
 }
 
-.ac-tokens-status {
-  text-align: right;
-  font-size: 0.85rem;
+.tp-tab--active .tp-tab-cnt {
+  background: #dbeafe;
+  color: #2563eb;
 }
 
-.ac-tokens-st {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.ac-tokens-st--ok {
-  color: var(--color-success, #28a745);
-}
-
-.ac-tokens-st--halt {
-  color: var(--color-danger, #dc3545);
-}
-
-.ac-tokens-st--skip {
-  color: var(--color-text-secondary, #999);
-}
-
-.ac-tokens-row--halted {
-  background: var(--color-danger-bg, #fff5f5);
-}
-
-.ac-tokens-row--ghost {
-  opacity: 0.5;
-  color: var(--color-text-secondary, #999);
-}
-
-.ac-tokens-row--notinpath {
-  opacity: 0.6;
-}
-
-/* Detailed stepper cards */
-.ac-tokens-detailed {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding: 1rem;
-  max-height: 70vh;
+.tp-body {
+  flex: 1;
   overflow-y: auto;
 }
 
-.ac-tokens-card {
-  padding: 1rem;
-  border: 1px solid var(--color-border, #e0e0e0);
-  border-radius: 6px;
-  background: var(--color-bg, #fff);
-  transition: border-color 0.2s, background-color 0.2s;
+/* ── Table ── */
+.tp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  color: #1e293b;
 }
 
-.ac-tokens-card:hover {
-  border-color: var(--color-border-hover, #d0d0d0);
-  background: var(--color-bg-hover, #fafafa);
+.tp-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.ac-tokens-card-header {
+.tp-table th {
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.tp-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.tp-table tbody tr:hover td { background: #f8fafc; }
+
+/* Row states */
+.tp-row--halted td { background: #fef2f2; }
+.tp-row--halted .tp-col-step { color: #991b1b; font-weight: 600; }
+
+.tp-row--ghost td { opacity: .45; }
+.tp-row--ghost .tp-col-step { font-style: italic; }
+
+.tp-row--notinpath .tp-col-step {
+  color: #94a3b8;
+  text-decoration: line-through;
+  text-decoration-thickness: 1.2px;
+}
+
+.tp-row--expandable { cursor: pointer; }
+.tp-row--open td { background: #f8fafc; }
+
+/* ── Columns ── */
+.tp-col-num {
+  color: #94a3b8;
+  font-size: 11.5px;
+  width: 32px;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.tp-col-chevron {
+  width: 20px;
+  padding: 8px 4px 8px 12px !important;
+}
+
+.tp-col-step { line-height: 1.35; }
+.tp-col-product { width: 110px; }
+.tp-col-status { width: 110px; white-space: nowrap; font-weight: 600; }
+
+.tp-chevron { color: #94a3b8; font-size: 10px; transition: color .1s; }
+.tp-row--open .tp-chevron,
+.tp-row--expandable:hover .tp-chevron { color: #2563eb; }
+
+/* ── Status text ── */
+.tp-st { font-size: 12.5px; }
+.tp-st--ok   { color: #16a34a; }
+.tp-st--halt { color: #dc2626; font-size: 12px; }
+.tp-st--skip { color: #94a3b8; }
+.tp-st--acquiring { color: #1d4ed8; font-size: 12px; }
+.tp-st--waiting   { color: #64748b; font-size: 12px; }
+.tp-st--failed    { color: #dc2626; font-size: 12px; }
+.tp-st--notinpath { color: #94a3b8; font-size: 12px; }
+
+/* ── Expand detail row ── */
+.tp-row--detail td {
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0 12px 10px 0;
+}
+
+.tp-detail {
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 0.75rem;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
 }
 
-.ac-tokens-card-num {
-  font-size: 0.85rem;
-  color: var(--color-text-secondary, #999);
-  font-weight: 500;
-  min-width: 4rem;
+.tp-detail-narrative {
+  font-size: 11.5px;
+  color: #64748b;
+  line-height: 1.55;
 }
 
-.ac-tokens-card-title {
-  margin: 0;
-  font-size: 1rem;
+.tp-claims {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 11px;
+}
+
+.tp-claim-row {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.tp-claim-row:last-child { border-bottom: none; }
+
+.tp-claim-k {
+  padding: 4px 8px;
+  color: #1d4ed8;
   font-weight: 600;
-  color: var(--color-text, #333);
-  flex: 1;
+  border-right: 1px solid #f1f5f9;
+  background: #fafafa;
+  word-break: break-all;
 }
 
-.ac-tokens-card-status {
-  font-size: 0.85rem;
-  font-weight: 500;
-  margin-bottom: 0.75rem;
-  padding: 0.5rem 0;
+.tp-claim-v {
+  padding: 4px 8px;
+  color: #1e293b;
+  word-break: break-all;
+  white-space: pre-wrap;
 }
 
-.ac-tokens-card--ok .ac-tokens-card-status {
-  color: var(--color-success, #28a745);
-}
-
-.ac-tokens-card--halt .ac-tokens-card-status {
-  color: var(--color-danger, #dc3545);
-}
-
-.ac-tokens-card--ghost .ac-tokens-card-status {
-  color: var(--color-text-secondary, #999);
-}
-
-.ac-tokens-card--halted {
-  border-color: var(--color-danger, #dc3545);
-  background: var(--color-danger-bg, #fff5f5);
-}
-
-.ac-tokens-card--ghost {
-  opacity: 0.6;
-}
-
-.ac-tokens-card--notinpath {
-  opacity: 0.7;
-  background: var(--color-bg-tertiary, #f5f5f5);
-}
-
-.ac-tokens-card-details {
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--color-border-light, #f0f0f0);
-}
-
-.ac-tokens-card-details pre {
-  margin: 0;
-  padding: 0.75rem;
-  background: var(--color-bg-code, #f5f5f5);
-  border-radius: 4px;
-  font-size: 0.75rem;
-  overflow-x: auto;
-  color: var(--color-text-secondary, #666);
-  line-height: 1.4;
-}
-
-.ac-tokens-empty {
-  padding: 2rem 1rem;
-  text-align: center;
-  color: var(--color-text-secondary, #999);
+.tp-empty {
+  font-size: 12px;
+  color: #94a3b8;
+  font-style: italic;
+  padding: 16px;
 }

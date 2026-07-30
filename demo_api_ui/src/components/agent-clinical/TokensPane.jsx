@@ -5,67 +5,53 @@ import { useTokenChainOptional } from '../../context/TokenChainContext';
 import { productForEvent } from '../../utils/pingProducts';
 import './TokensPane.css';
 
-/**
- * TokensPane — full token chain inspector under the Tokens tab.
- *
- * Two sub-tabs:
- * - Simple: compact table of token chain steps
- * - Detailed: expanded 20-step view with token details
- *
- * Both mount TokenChainTraceRail or expanded stepper views
- * embedded in the clinical agent context.
- */
+// Namespace: tp-  (no overlap with sstp- / tcd- / ac-)
 export default function TokensPane() {
   const [subTab, setSubTab] = useState('simple');
   const ctx = useTokenChainOptional();
+  const events = ctx?.events ?? [];
 
   return (
-    <div className="ac-tokens">
-      <header className="ac-tokens-head">
-        <div className="ac-eyebrow ac-eyebrow--small">Tokens · chain</div>
-        <h1 className="ac-tokens-h1">
-          Every token, <i>traced</i>
-        </h1>
-        <p className="ac-tokens-sub">
-          The full RFC 8693 exchange chain for this session — request flow,
-          steps, and token details.
-        </p>
-      </header>
-
-      <div className="ac-tokens-tabs">
+    <div className="tp-wrap">
+      <div className="tp-tabs">
         <button
-          className={`ac-tokens-tab ${subTab === 'simple' ? 'ac-tokens-tab--active' : ''}`}
+          className={`tp-tab${subTab === 'simple' ? ' tp-tab--active' : ''}`}
           onClick={() => setSubTab('simple')}
           type="button"
         >
           Simple
+          {events.length > 0 && <span className="tp-tab-cnt">{events.length}</span>}
         </button>
         <button
-          className={`ac-tokens-tab ${subTab === 'detailed' ? 'ac-tokens-tab--active' : ''}`}
+          className={`tp-tab${subTab === 'detailed' ? ' tp-tab--active' : ''}`}
           onClick={() => setSubTab('detailed')}
           type="button"
         >
           Detailed
+          {events.length > 0 && <span className="tp-tab-cnt">{events.length}</span>}
         </button>
       </div>
 
-      <div className="ac-tokens-body">
-        {subTab === 'simple' && <SimpleStepper events={ctx?.events ?? []} />}
-        {subTab === 'detailed' && <DetailedStepper events={ctx?.events ?? []} />}
+      <div className="tp-body">
+        {subTab === 'simple'
+          ? <SimpleStepper events={events} />
+          : <DetailedStepper events={events} />}
       </div>
     </div>
   );
 }
 
+// ── Simple: classic #/Step/Product/Status table ───────────────────────────
+
 function SimpleStepper({ events }) {
   if (!events.length) {
-    return <div className="ac-tokens-empty">No token events yet.</div>;
+    return <div className="tp-empty">No token events yet.</div>;
   }
 
   const haltedIdx = events.findIndex((ev, i) => isHaltedAt(events, i));
 
   return (
-    <table className="ac-tokens-table">
+    <table className="tp-table">
       <thead>
         <tr>
           <th scope="col">#</th>
@@ -76,8 +62,8 @@ function SimpleStepper({ events }) {
       </thead>
       <tbody>
         {events.map((ev, i) => (
-          <SimpleStepRow
-            key={ev.id ? `${ev.id}-${i}` : `no-id-${i}`}
+          <SimpleRow
+            key={ev.id ? `${ev.id}-${i}` : `noid-${i}`}
             event={ev}
             index={i}
             halted={haltedIdx === i}
@@ -89,94 +75,127 @@ function SimpleStepper({ events }) {
   );
 }
 
-function SimpleStepRow({ event, index, halted, didNotRun }) {
+function SimpleRow({ event, index, halted, didNotRun }) {
   const { bucket, label: statusLabel } = resolveStatusVisual(event.status);
   const label = event.label || event.id || 'Step';
   const product = productForEvent(event);
 
-  let rowClass = '';
-  if (halted) rowClass = 'ac-tokens-row--halted';
-  else if (didNotRun) rowClass = 'ac-tokens-row--ghost';
-  else if (bucket === 'notinpath') rowClass = 'ac-tokens-row--notinpath';
+  let rowCls = '';
+  if (halted)                      rowCls = 'tp-row--halted';
+  else if (didNotRun)              rowCls = 'tp-row--ghost';
+  else if (bucket === 'notinpath') rowCls = 'tp-row--notinpath';
 
-  let statusCell;
-  if (didNotRun) {
-    statusCell = <span className="ac-tokens-st ac-tokens-st--skip">— did not run</span>;
-  } else if (halted) {
-    statusCell = <span className="ac-tokens-st ac-tokens-st--halt">✕ {event.errorCode || 'halted'}</span>;
-  } else if (bucket === 'success') {
-    statusCell = <span className="ac-tokens-st ac-tokens-st--ok" aria-label="Success">✓</span>;
-  } else {
-    statusCell = <span className={`ac-tokens-st ac-tokens-st--${bucket}`}>{statusLabel}</span>;
-  }
+  let statusEl;
+  if (didNotRun)             statusEl = <span className="tp-st tp-st--skip">— did not run</span>;
+  else if (halted)           statusEl = <span className="tp-st tp-st--halt">✕ {event.errorCode || 'halted'}</span>;
+  else if (bucket === 'success') statusEl = <span className="tp-st tp-st--ok" aria-label="Success">✓</span>;
+  else                       statusEl = <span className={`tp-st tp-st--${bucket}`}>{statusLabel}</span>;
 
   return (
-    <tr className={rowClass}>
-      <td className="ac-tokens-num">{index + 1}</td>
-      <td className="ac-tokens-step">{label}</td>
-      <td className="ac-tokens-product">{product ? <PingProductChip product={product} size="xs" /> : null}</td>
-      <td className="ac-tokens-status">{statusCell}</td>
+    <tr className={rowCls}>
+      <td className="tp-col-num">{index + 1}</td>
+      <td className="tp-col-step">{label}</td>
+      <td className="tp-col-product">{product ? <PingProductChip product={product} size="xs" /> : null}</td>
+      <td className="tp-col-status">{statusEl}</td>
     </tr>
   );
 }
 
+// ── Detailed: same table, each row expands to show claims + narrative ──────
+
 function DetailedStepper({ events }) {
+  const [openIdx, setOpenIdx] = useState(null);
+
   if (!events.length) {
-    return <div className="ac-tokens-empty">No token events yet.</div>;
+    return <div className="tp-empty">No token events yet.</div>;
   }
 
   const haltedIdx = events.findIndex((ev, i) => isHaltedAt(events, i));
 
   return (
-    <div className="ac-tokens-detailed">
-      {events.map((ev, i) => (
-        <DetailedStepCard
-          key={ev.id ? `${ev.id}-${i}` : `no-id-${i}`}
-          event={ev}
-          index={i}
-          halted={haltedIdx === i}
-          didNotRun={haltedIdx !== -1 && i > haltedIdx}
-        />
-      ))}
-    </div>
+    <table className="tp-table">
+      <thead>
+        <tr>
+          <th scope="col">#</th>
+          <th scope="col" style={{ width: 20 }} />
+          <th scope="col">Step</th>
+          <th scope="col">Product</th>
+          <th scope="col">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {events.map((ev, i) => (
+          <DetailedRows
+            key={ev.id ? `${ev.id}-${i}` : `noid-${i}`}
+            event={ev}
+            index={i}
+            halted={haltedIdx === i}
+            didNotRun={haltedIdx !== -1 && i > haltedIdx}
+            open={openIdx === i}
+            onToggle={() => setOpenIdx(openIdx === i ? null : i)}
+          />
+        ))}
+      </tbody>
+    </table>
   );
 }
 
-function DetailedStepCard({ event, index, halted, didNotRun }) {
+function DetailedRows({ event, index, halted, didNotRun, open, onToggle }) {
   const { bucket, label: statusLabel } = resolveStatusVisual(event.status);
   const label = event.label || event.id || 'Step';
   const product = productForEvent(event);
+  const hasClaims = event.claims && Object.keys(event.claims).length > 0;
+  const canExpand = hasClaims || event.narrative || event.why;
 
-  let statusClass = '';
-  if (halted) statusClass = 'ac-tokens-card--halted';
-  else if (didNotRun) statusClass = 'ac-tokens-card--ghost';
-  else if (bucket === 'notinpath') statusClass = 'ac-tokens-card--notinpath';
-  else if (bucket === 'success') statusClass = 'ac-tokens-card--ok';
+  let rowCls = '';
+  if (halted)                      rowCls = 'tp-row--halted';
+  else if (didNotRun)              rowCls = 'tp-row--ghost';
+  else if (bucket === 'notinpath') rowCls = 'tp-row--notinpath';
 
-  let statusDisplay;
-  if (didNotRun) {
-    statusDisplay = '— did not run';
-  } else if (halted) {
-    statusDisplay = `✕ ${event.errorCode || 'halted'}`;
-  } else if (bucket === 'success') {
-    statusDisplay = '✓ Success';
-  } else {
-    statusDisplay = statusLabel;
-  }
+  let statusEl;
+  if (didNotRun)             statusEl = <span className="tp-st tp-st--skip">— did not run</span>;
+  else if (halted)           statusEl = <span className="tp-st tp-st--halt">✕ {event.errorCode || 'halted'}</span>;
+  else if (bucket === 'success') statusEl = <span className="tp-st tp-st--ok" aria-label="Success">✓</span>;
+  else                       statusEl = <span className={`tp-st tp-st--${bucket}`}>{statusLabel}</span>;
 
   return (
-    <div className={`ac-tokens-card ${statusClass}`}>
-      <div className="ac-tokens-card-header">
-        <span className="ac-tokens-card-num">Step {index + 1}</span>
-        <h3 className="ac-tokens-card-title">{label}</h3>
-        {product && <PingProductChip product={product} size="sm" />}
-      </div>
-      <div className="ac-tokens-card-status">{statusDisplay}</div>
-      {event.details && (
-        <div className="ac-tokens-card-details">
-          <pre>{JSON.stringify(event.details, null, 2)}</pre>
-        </div>
+    <>
+      <tr
+        className={`${rowCls}${canExpand ? ' tp-row--expandable' : ''}${open ? ' tp-row--open' : ''}`}
+        onClick={canExpand ? onToggle : undefined}
+      >
+        <td className="tp-col-num">{index + 1}</td>
+        <td className="tp-col-chevron">
+          {canExpand && <span className="tp-chevron" aria-hidden>{open ? '▾' : '▸'}</span>}
+        </td>
+        <td className="tp-col-step">{label}</td>
+        <td className="tp-col-product">{product ? <PingProductChip product={product} size="xs" /> : null}</td>
+        <td className="tp-col-status">{statusEl}</td>
+      </tr>
+      {open && canExpand && (
+        <tr className="tp-row--detail">
+          <td /><td />
+          <td colSpan={3}>
+            <div className="tp-detail">
+              {(event.narrative || event.why) && (
+                <p className="tp-detail-narrative">{event.narrative || event.why}</p>
+              )}
+              {hasClaims && (
+                <div className="tp-claims">
+                  {Object.entries(event.claims).map(([k, v]) => (
+                    <div key={k} className="tp-claim-row">
+                      <span className="tp-claim-k">{k}</span>
+                      <span className="tp-claim-v">
+                        {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </td>
+        </tr>
       )}
-    </div>
+    </>
   );
 }
