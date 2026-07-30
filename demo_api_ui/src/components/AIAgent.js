@@ -15,6 +15,7 @@ import { useAgentUiMode } from "../context/AgentUiModeContext";
 import { useEventStream } from "../context/EventStreamContext";
 import TokenChainModal from "./TokenChainModal";
 import TokenFlowDetailModal from "./TokenFlowDetailModal";
+import TokenTopologyPanel from "./TokenTopologyPanel";
 import ReasoningPanel from './ReasoningPanel';
 import ConversationSummaryPanel from './ConversationSummaryPanel';
 import ProofStrip from './ProofStrip';
@@ -696,6 +697,7 @@ export default function BankingAgent({
 
   /** Token chain visibility — always starts hidden on page load (not persisted). */
   const [showTokenChain, setShowTokenChain] = useState(false);
+  const [showTokenTopology, setShowTokenTopology] = useState(false);
 
   const [tokenChainWidth] = useState(() => {
     try {
@@ -8103,6 +8105,14 @@ export default function BankingAgent({
                 >
                   Flow Detail
                 </button>
+                <button
+                  type="button"
+                  className={`ba-actions-trigger${showTokenTopology ? " active" : ""}`}
+                  title="Real-time token topology — RFC 8693 delegation chain"
+                  onClick={() => setShowTokenTopology(v => !v)}
+                >
+                  Topology
+                </button>
                 {/* Demo Guide trigger — visible to all users */}
                 <button
                   type="button"
@@ -10271,6 +10281,10 @@ export default function BankingAgent({
       <TokenFlowDetailModal
         isOpen={showTokenChain}
         onClose={() => setShowTokenChain(false)}
+      />
+      <TokenTopologyPanel
+        isOpen={showTokenTopology}
+        onClose={() => setShowTokenTopology(false)}
       />
       {showLoginModal && (
         <QuickLoginModal pathname={window.location.pathname} onClose={() => setShowLoginModal(false)} />
