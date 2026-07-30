@@ -25,20 +25,25 @@ router.get('/', (req, res) => {
   res.json({
     hiddenLabels: flagOn ? prefs.hiddenLabels : [],
     activeConfigId: prefs.activeConfigId,
+    navOrder: prefs.navOrder || null,
     flagOn,
   });
 });
 
 router.put('/', (req, res) => {
-  const { hiddenLabels, activeConfigId } = req.body || {};
+  const { hiddenLabels, activeConfigId, navOrder } = req.body || {};
   if (!Array.isArray(hiddenLabels)) {
     return res.status(400).json({ error: 'hiddenLabels must be an array' });
   }
-  const prefs = navConfigStore.setUserPrefs(req.user.id, hiddenLabels, activeConfigId || null);
+  if (navOrder !== undefined && navOrder !== null && !Array.isArray(navOrder)) {
+    return res.status(400).json({ error: 'navOrder must be an array or null' });
+  }
+  const prefs = navConfigStore.setUserPrefs(req.user.id, hiddenLabels, activeConfigId || null, navOrder);
   const flagOn = isFlagOn();
   res.json({
     hiddenLabels: flagOn ? prefs.hiddenLabels : [],
     activeConfigId: prefs.activeConfigId,
+    navOrder: prefs.navOrder || null,
     flagOn,
   });
 });
