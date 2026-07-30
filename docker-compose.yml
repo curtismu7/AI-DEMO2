@@ -1106,11 +1106,15 @@ services:
   # in ping-gateway/config/routes/.
   #
   # MCPGW_IMAGE comes from the Privilege console gateway wizard
-  # (Privilege > Cloud > Gateways > Add New > Add via Wizard). No default on
-  # purpose: an unset value must fail the compose run, not pull something wrong.
+  # (Privilege > Cloud > Gateways > Add New > Add via Wizard). The default is a
+  # sentinel that names its own fix, NOT `${MCPGW_IMAGE:?...}`: Compose
+  # interpolates the whole file before selecting services, so a required-variable
+  # marker here fails EVERY compose command (`up -d demo-api-server` included),
+  # even though this service is profile-gated. With the sentinel, only an actual
+  # `mcpgw` start fails, at pull time, with the image name stating what to set.
   ping-mcpgw:
     profiles: ["mcpgw"]
-    image: ${MCPGW_IMAGE:?set MCPGW_IMAGE from the PingOne Privilege gateway wizard}
+    image: ${MCPGW_IMAGE:-set-MCPGW_IMAGE-from-the-pingone-privilege-gateway-wizard}
     container_name: ai-demo-ping-mcpgw
     ports:
       - "8623:8623"

@@ -267,7 +267,7 @@ out of REGRESSION_PLAN §0 UI rules and off the vitest/build gate.
 ```
 root .env                     MCPGW_IMAGE=<from the Privilege gateway wizard>
                                   │ compose auto-reads root .env
-docker-compose.yml            image: ${MCPGW_IMAGE:?set MCPGW_IMAGE from the Privilege gateway wizard}
+docker-compose.yml            image: ${MCPGW_IMAGE:-set-MCPGW_IMAGE-from-the-pingone-privilege-gateway-wizard}
                                   │
 ping-mcpgw/config/pingone.env     SERVER_URL, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET,
                                   OIDC_AUTH_URL, OIDC_TOKEN_URL, OIDC_USER_URL, OIDC_SCOPES
@@ -279,8 +279,16 @@ ping-mcpgw/config/pingone.env     SERVER_URL, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET
 certs/api.ping.demo+2{,-key}.pem  ──read-only file mounts──▶  /var/lib/procyon/ssl/mcpgw-{cert,key}.pem
 ```
 
-`${MCPGW_IMAGE:?...}` carries no default on purpose: an unset value fails Compose
-loudly instead of silently pulling something wrong.
+The default is a **sentinel that names its own fix**, not `${MCPGW_IMAGE:?...}`.
+An earlier version of this design used the required-variable form to fail loudly,
+and it failed too loudly: Compose interpolates the whole file before selecting
+services, so it broke every compose command in the repo — including
+`docker compose up -d demo-api-server` — even with `ping-mcpgw` profile-gated and
+unselected. With the sentinel, only an actual `mcpgw` start fails, at pull time,
+with the required action in the image name.
+
+`scripts/check-fresh-clone-hygiene.js` (Check 6b) now rejects
+`${VAR:?...}`/`${VAR?...}` anywhere in `docker-compose.yml`.
 
 ### Corrected: the OIDC file is mounted, not injected
 

@@ -124,6 +124,27 @@ if (fs.existsSync(path.join(ROOT, '.mcp.json'))) {
   }
 }
 
+// ── Check 6b: no ${VAR:?...} / ${VAR?...} "required variable" interpolation ──
+// Compose interpolates the WHOLE file before it selects services, so one
+// required-variable marker fails EVERY compose command — including
+// `docker compose up -d demo-api-server`, and even when the variable belongs to
+// a profile-gated service nobody asked for. Shipped once (MCPGW_IMAGE, #1111)
+// and broke the default stack. Use `${VAR:-<sentinel naming the fix>}` so the
+// failure lands on the service that actually needs it.
+{
+  // Comment lines only DOCUMENT the banned form (including in this repo, right
+  // above ping-mcpgw's image:) — match real YAML lines, same as Check 7.
+  const text = read('docker-compose.yml')
+    .split('\n')
+    .filter((l) => !/^\s*#/.test(l))
+    .join('\n');
+  const required = [...new Set(text.match(/\$\{[A-Za-z_][A-Za-z0-9_]*:?\?[^}]*\}/g) || [])]
+    .map((m) => m.replace(/\?.*/, '?...}'));
+  if (required.length) {
+    fail('compose-vars', `docker-compose.yml uses required-variable interpolation: ${required.join(', ')} — this fails every compose command project-wide, not just the owning service. Use \${VAR:-sentinel} instead`);
+  }
+}
+
 // ── Check 7: sessions survive restarts in every deploy path ──
 // The BFF wipes all persisted sessions on boot unless CLEAR_SESSIONS_ON_BOOT
 // is "false" (server.js). A pod restart/redeploy or compose recreate is a
