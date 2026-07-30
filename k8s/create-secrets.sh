@@ -338,6 +338,19 @@ secret_from_envfile gateway-secrets   "$ASSET_ROOT/demo_mcp_gateway/.env"   # MC
 secret_from_envfile agent-secrets        "$ASSET_ROOT/demo_agent_service/.env" # Agent service
 secret_from_envfile ping-gateway-secrets "$ASSET_ROOT/ping-gateway/.env"        # PingGateway (IG)
 
+# Privilege MCPGW: the vendor reads pingone.env as a FILE, so this secret holds
+# the whole file under one key rather than one key per variable (which is what
+# secret_from_envfile would produce, and would arrive as env vars instead).
+if [ -f "$ASSET_ROOT/ping-mcpgw/config/pingone.env" ]; then
+  kubectl create secret generic ping-mcpgw-secrets \
+    --namespace="$NS" \
+    --from-file=pingone.env="$ASSET_ROOT/ping-mcpgw/config/pingone.env" \
+    --dry-run=client -o yaml | kubectl apply -f -
+  info "  ping-mcpgw-secrets applied (pingone.env from ping-mcpgw/config/)"
+else
+  warn "  ping-mcpgw/config/pingone.env not found — skipping secret ping-mcpgw-secrets"
+fi
+
 # ── PingGateway config (ConfigMap from source files — single source of truth) ──
 # ping-gateway/config/ and ping-gateway/scripts/groovy/ are the canonical
 # config files; the ConfigMap is generated here so k8s and Docker use the

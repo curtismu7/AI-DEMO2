@@ -55,7 +55,21 @@ function getMcpServerUrl() {
   // env→LMDB seed is async, so resolving via getEffective ALONE can return the
   // committed localhost default during the cold-start window and dial the wrong
   // host. The configmap/env value (e.g. ws://mcp-server:8080) must win.
-  return process.env.MCP_SERVER_URL || configStore.getEffective('mcp_server_url') || 'ws://localhost:8080';
+  const url = process.env.MCP_SERVER_URL || configStore.getEffective('mcp_server_url') || 'ws://localhost:8080';
+  // MCP_MTLS_ENABLED=true (compose default since #910) makes mcp-server serve
+  // TLS on MCP_SERVER_PORT, so a ws:// URL lands in a TLS listener and the
+  // server destroys the socket — "socket hang up". #910 fixed that for
+  // scripts/health-check.js by deriving the scheme from the same flag; this
+  // client was missed, which killed the MCP Inspector's direct discovery path.
+  // The WS upgrade itself is exempt from the client-cert check (the mTLS
+  // verifier runs in the HTTP request handler only), so TLS alone is enough.
+  if (isMcpMtlsEnabled() && url.startsWith('ws://')) return `wss://${url.slice('ws://'.length)}`;
+  return url;
+}
+
+/** True when mcp-server serves TLS on MCP_SERVER_PORT (its mTLS listener). */
+function isMcpMtlsEnabled() {
+  return process.env.MCP_MTLS_ENABLED === 'true';
 }
 
 /**
@@ -215,10 +229,15 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
         // Controlled by GATEWAY_HEALTH_PROBE_INSECURE (reuses the same dev flag
         // used for the health probe). The ws library takes (url, protocols, options)
         // so pass [] as protocols and the tls options as the third argument.
+        // mcp-server's mTLS listener presents a self-signed cert regenerated on
+        // every start (#910) — there is nothing stable to verify against, so
+        // skip verification for it exactly as scripts/health-check.js does.
+        const isMcpMtlsListener = isMcpMtlsEnabled() && mcpUrl === getMcpServerUrl();
         const wsTlsOpts =
           mcpUrl.startsWith('wss://') &&
-          configStore.getEffective('gateway_health_probe_insecure') === 'true' &&
-          process.env.NODE_ENV !== 'production'
+          (isMcpMtlsListener ||
+            (configStore.getEffective('gateway_health_probe_insecure') === 'true' &&
+              process.env.NODE_ENV !== 'production'))
             ? { rejectUnauthorized: false }
             : {};
         // X-Active-Vertical: server-to-server hint so the gateway can scope

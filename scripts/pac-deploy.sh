@@ -14,7 +14,7 @@ set -euo pipefail
 # shellcheck source=scripts/pac-common.sh
 source "$(cd "$(dirname "$0")" && pwd)/pac-common.sh"
 
-POLICY="${1:-$ROOT/pac/policies/amount-gate.yaml}"
+POLICY="${1:-$ROOT/pac/policies/transaction-authorization.yaml}"
 
 pac_setup
 

@@ -1,0 +1,303 @@
+# Side nav items — top to bottom
+# Edit labels freely. Do not change path/action/icon values unless intentional.
+# Groups with children are collapsible sections in the nav.
+# Notes:
+#   adminOnly: true  — item shows for admins only (non-admins see it with a badge)
+#   customerOnly: true — item hidden for admin view (only visible in customer/user view)
+#   (MM)   = Mermaid diagram (editable source via Download/Upload .mmd)
+#   (Node) = React/canvas/HTML diagram
+
+- label: Home
+  path: /
+
+- label: Dashboard
+  path: /dashboard
+
+- label: Protocol Playground
+  path: /protocol-playground
+
+- label: Agent Lifecycle
+  path: /agent-lifecycle
+  customerOnly: true
+
+- label: Themes
+  path: /themes
+
+- label: Use Cases
+  path: /use-cases
+
+- label: Use Cases (Live)
+  path: /use-cases/live
+
+- label: AI Footprint
+  path: /demo/footprint-picks
+
+- label: Footprint Gallery
+  path: /demo/footprint-mocks
+
+- label: Demo Script
+  action: dispatch(demo-script-toggle)
+
+- label: Demo Config
+  path: /demo-config
+
+- label: Family Delegation
+  path: /delegation
+
+- label: AI Agents
+  children:
+    - label: AI Control Plane
+      path: /ai-control-plane
+    - label: Copilot
+      path: /copilot
+    - label: PingOne Agent Builder
+      path: /agent-builder
+    - label: Agent Flow Inspector
+      path: /agent-flow-inspector
+    - label: LangChain Agent
+      path: /langchain
+    - label: Ungoverned Agent
+      path: /ungoverned-agent
+
+- label: Inspectors
+  children:
+    - label: MCP Inspector
+      path: /pingone-mcp-inspector
+    - label: Agent Gateway Inspector
+      path: /agent-gateway-inspector
+    - label: P1AZ Inspector
+      path: /pingone-authorize
+
+- label: PingOne MCP
+  children:
+    - label: MCP Inspector
+      path: /pingone-mcp-inspector
+    - label: PingOne MCP Setup
+      path: /pingone-setup
+    - label: Privilege MCP Client
+      path: /privilege-mcp-client
+
+- label: MCP & Gateways
+  children:
+    - label: Ping AI Test Lab
+      path: /ping-ai-test-lab
+    - label: Web MCP
+      path: /webmcp
+    - label: Agent Gateway Inspector
+      path: /agent-gateway-inspector
+    - label: Capability Tour
+      path: /agent-gateway-capabilities
+    - label: Weather MCP
+      action: run-use-case(weather-mcp-texas-permit)
+
+- label: PingOne Demo Apps
+  children:
+    - label: Self-Service Registration
+      path: /self-service
+    - label: PingOne Test
+      path: /pingone-test
+    - label: MFA Test
+      path: /mfa-test
+    - label: Token Exchange Tester
+      path: /token-exchange-tester
+    - label: OAuth Academy
+      path: /oauth-academy
+    - label: OAS Demo
+      path: /oas-demo
+    - label: Privilege Demo
+      path: /privilege-demo
+    - label: SDK Login
+      path: /sdk-login
+
+- label: Delegation & Consent
+  children:
+    - label: Transaction Consent
+      path: /transaction-consent
+    - label: Actor Token Education
+      path: /actor-token-education
+
+- label: Authorize
+  children:
+    - label: P1AZ Inspector
+      path: /pingone-authorize
+    - label: Authorize Capabilities
+      path: /pingone-authorize-capabilities
+    - label: Policy Decision Trace
+      path: /policy-decision-trace
+    - label: Scope Audit
+      path: /scope-audit
+      adminOnly: true
+    - label: Scope Reference
+      path: /scope-reference
+    - label: Snapshot Import
+      path: /snapshot-import
+    - label: PingCLI Demo
+      path: /pingcli
+
+- label: OAuth & Identity
+  children:
+    - label: Security Settings
+      path: /settings
+      adminOnly: true
+    - label: OAuth Debug
+      path: /oauth-debug-logs
+      adminOnly: true
+    - label: CIMD Simulation
+      path: /client-registration
+      adminOnly: true
+
+- label: Industry Verticals
+  children:
+    - label: Banking Ops
+      path: /admin/banking
+    - label: Healthcare Ops
+      path: /admin/healthcare
+    - label: Retail Ops
+      path: /admin/retail
+    - label: Sporting Goods Ops
+      path: /admin/sporting-goods
+    - label: Workforce Ops
+      path: /admin/workforce
+    - label: Vertical Editor
+      path: /admin/verticals
+      adminOnly: true
+    - label: Mortgage Path
+      path: /path/mortgage
+
+- label: Users & Accounts
+  adminOnly: true
+  children:
+    - label: Users
+      path: /users
+    - label: Accounts
+      path: /accounts
+    - label: Transactions
+      path: /transactions
+
+- label: AI Attack Demos
+  children:
+    - label: Prompt Injection
+      action: openEdu(AI_ATTACKS, prompt-injection)
+    - label: HITL Bypass
+      action: openEdu(AI_ATTACKS, hitl-bypass)
+    - label: Indirect Injection
+      action: openEdu(AI_ATTACKS, indirect-injection)
+    - label: Unauthorized Commitments
+      action: openEdu(AI_ATTACKS, unauthorized-commitments)
+    - label: Scope Abuse
+      action: openEdu(AI_ATTACKS, scope-abuse)
+    - label: Intent Bypass
+      action: openEdu(AI_ATTACKS, intent-bypass)
+
+- label: Monitoring
+  children:
+    - label: Audit Trail
+      path: /audit
+      adminOnly: true
+    - label: Learning Log
+      action: open-window(/logs?mode=learn)
+    - label: Activity Log
+      path: /monitoring/activity-log
+    - label: Run Reports
+      path: /reports
+    - label: Error Audit Log
+      path: /error-audit
+      adminOnly: true
+
+- label: Telemetry
+  children:
+    - label: Service Graph
+      path: /telemetry
+    - label: Tracing
+      path: /tracing
+    - label: Transaction Trace
+      path: /transaction-trace
+    - label: Health Check
+      path: /check
+
+- label: Diagrams
+  children:
+    - label: System Diagram (Node)
+      path: /architecture/system
+    - label: Overview Diagram (Node)
+      path: /architecture/overview
+    - label: Token Flow (Interactive) (Node)
+      path: /architecture/token-flow
+    - label: Token Chain Architecture (Node)
+      path: /architecture/token-chain
+    - label: Interactive Flow (Node)
+      path: /architecture/flow
+    - label: Phase 266 — 3 Paths (MM)
+      path: /architecture/phase-266
+    - label: Sequence Diagram (Node)
+      path: /sequence-diagram
+    - label: Canvas Diagram (Node)
+      path: /architecture/canvas
+    - label: Agent Onboarding Flow (Node)
+      path: /agent-onboarding-flow
+    - label: Agent Onboarding Flow Subway (Node)
+      path: /agent-onboarding-flow-subway
+    - label: Agent Onboarding Flow (MM)
+      path: /agent-onboarding-flow-mermaid
+    - label: MCP Gateway OAuth Flow (MM)
+      path: /mcp-gateway-oauth-flow
+
+- label: Agent Studio (Preview)
+  children:
+    - label: Agent Studio
+      path: /agent-studio-preview
+    - label: IGA for AI
+      path: /iga-for-ai
+    - label: Discovery
+      path: /discovery-preview
+    - label: Privileges Gateway
+      path: /privileges-gateway-preview
+    - label: Platform Gaps
+      path: /platform-gaps
+
+- label: Learn & Present
+  children:
+    - label: Learning Hub
+      path: /learning
+    - label: Agentic Trust
+      path: /agentic-trust
+    - label: Agent Guardrails
+      path: /agent-guardrails
+    - label: OWASP Agent Risks
+      path: /owasp
+    - label: llama-vscode Guide
+      path: /llama-vscode-guide
+
+- label: Developer Tools
+  children:
+    - label: Code Explorer
+      path: /code-explorer
+    - label: Code Search
+      path: /code-search
+    - label: Graphify
+      path: /graphify
+    - label: Mgmt API Runner
+      path: /mgmt-api
+
+- label: System Tools
+  adminOnly: true
+  children:
+    - label: Feature Flags
+      path: /configure?tab=feature-flags
+    - label: LLM Config
+      path: /llm-config
+    - label: App Configuration
+      path: /configure
+    - label: OAuth Debug
+      path: /configure?tab=debug
+    - label: Postman Collections
+      path: /postman
+    - label: Vault
+      path: /admin/vault
+
+- label: Integration Tests
+  children:
+    - label: OIDC Resource Server
+      path: /resource-server
+    - label: CC Resource Server
+      path: /resource-server-cc

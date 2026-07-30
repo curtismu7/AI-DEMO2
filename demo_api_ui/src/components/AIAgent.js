@@ -14,6 +14,7 @@ import { useTokenChainOptional } from "../context/TokenChainContext";
 import { useAgentUiMode } from "../context/AgentUiModeContext";
 import { useEventStream } from "../context/EventStreamContext";
 import TokenChainModal from "./TokenChainModal";
+import TokenFlowDetailModal from "./TokenFlowDetailModal";
 import ReasoningPanel from './ReasoningPanel';
 import ConversationSummaryPanel from './ConversationSummaryPanel';
 import ProofStrip from './ProofStrip';
@@ -8093,16 +8094,15 @@ export default function BankingAgent({
                     Side panel
                   </Check>
                 )}
-                {/* Token Chain floating panel toggle — non-blocking, agent stays usable */}
-                <Check
-                  variant="switch"
-                  className="ba-header-toggle-label"
-                  checked={showTokenChain}
-                  onChange={(e) => setShowTokenChain(e.target.checked)}
-                  title="View Token Chain — RFC 8693 token exchange and authorization decisions (floating panel, agent stays usable)"
+                {/* Flow Detail modal button */}
+                <button
+                  type="button"
+                  className={`ba-actions-trigger${showTokenChain ? " active" : ""}`}
+                  title="View token exchange and authorization decisions (RFC 8693)"
+                  onClick={() => setShowTokenChain(v => !v)}
                 >
-                  Token Chain
-                </Check>
+                  Flow Detail
+                </button>
                 {/* Demo Guide trigger — visible to all users */}
                 <button
                   type="button"
@@ -8145,7 +8145,13 @@ export default function BankingAgent({
                     <button
                       type="button"
                       className="ba-insp-btn ba-insp-btn--mcp"
-                      onClick={() => navigate("/pingone-mcp-inspector?source=banking")}
+                      onClick={() => {
+                        if (!effectiveVerticalId) {
+                          setTxErrorModal({ title: 'MCP Inspector', message: 'No active vertical — cannot determine inspector source.' });
+                          return;
+                        }
+                        navigate(`/pingone-mcp-inspector?source=${effectiveVerticalId}`);
+                      }}
                       title="Open the MCP Inspector"
                     >
                       MCP Inspector
@@ -10253,7 +10259,7 @@ export default function BankingAgent({
           )}
         </div>
       )}
-      <TokenChainModal
+      <TokenFlowDetailModal
         isOpen={showTokenChain}
         onClose={() => setShowTokenChain(false)}
       />

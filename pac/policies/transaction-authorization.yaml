@@ -1,0 +1,159 @@
+# Super Banking Transaction Authorization — Policy as Code source of truth.
+#
+# Deployed by scripts/pac-deploy.sh to the "Super Banking Demo - Policy as Code"
+# decision endpoint alongside mcp-delegation.yaml. Both live on the same PaC
+# endpoint (ad5fc1d4-…); pac deploy replaces the whole package each run.
+#
+# Mirror of the "Super Banking Transaction Authorization" policy in the snapshot.
+# The console-authored Transactions endpoint (c9e87348-…) is NOT touched here.
+#
+# Combining algorithm: deny-overrides — any DENY wins.
+# Guard condition: only evaluated when DecisionContext is NOT one of the MCP
+# context values (McpFirstTool / McpToolCall / McpToolsList / McpRequest); those
+# route to the MCP Delegation policy instead.
+
+policyset SuperBankingPolicies evaluate deny-overrides:
+  description: "Root policy set — routes to transaction or MCP policy based on DecisionContext"
+
+  policy TransactionAuthorization evaluate deny-overrides:
+    description: "Authorize banking transactions by amount, type, and MFA level"
+
+    # Guard: skip when this is an MCP call (those go to mcp-delegation.yaml)
+    when: Request.DecisionContext != "McpFirstTool"
+      and Request.DecisionContext != "McpToolCall"
+      and Request.DecisionContext != "McpToolsList"
+      and Request.DecisionContext != "McpRequest"
+
+    # Rule 1: hard deny — amount exceeds $2,000 unconditionally
+    rule DenyLargeTransactions deny:
+      obligation:
+        code: transaction-denied
+        payload: "Transaction denied: amount exceeds the $2,000 limit."
+      - Request.Amount > 2000
+
+    # Rule 2: step-up — amount > $500, transfer/withdrawal, and no MFA yet
+    rule RequireStepUpMfa permit:
+      obligation:
+        code: step-up-required
+        payload: '{"stepUpRequired": true, "requiredAcr": "Multi_Factor"}'
+      - Request.Amount > 500
+      - Request.TransactionType in ("transfer", "withdrawal")
+      - Request.Acr != "Multi_Factor"
+
+    # Rule 3: consent — amount > $250 (step-up and deny take precedence via deny-overrides)
+    rule RequireConsent permit:
+      obligation:
+        code: HITL_CONSENT
+        payload: '{"consentRequired": true}'
+      - Request.Amount > 250
+
+    # Rule 4: permit — all other transactions (amount ≤ $500, or MFA already met,
+    #          or deposit regardless of amount)
+    rule PermitStandardTransactions permit
+
+# ---------------------------
+# TRUST FRAMEWORK
+# ---------------------------
+attributes:
+
+  attribute Request.Amount number:
+    description: "Transaction amount in US dollars"
+    resolve: request Amount
+
+  attribute Request.TransactionType string:
+    description: "One of: transfer, withdrawal, deposit"
+    resolve: request TransactionType
+
+  attribute Request.Acr string:
+    description: "ACR level the user has already met (e.g. Multi_Factor)"
+    default: "none"
+    resolve: request Acr
+
+  attribute Request.DecisionContext string:
+    description: "Identifies the type of request; MCP values route to the MCP policy"
+    default: "none"
+    resolve: request DecisionContext
+
+# ---------------------------
+# TESTS
+# ---------------------------
+tests:
+  test 'Deny amount over the $2,000 limit':
+    request:
+      attributes:
+        Amount: "2500"
+        TransactionType: "transfer"
+        Acr: "Multi_Factor"
+        DecisionContext: "none"
+    expect:
+      decision: deny
+
+  test 'Deny amount exactly $2,001 regardless of MFA':
+    request:
+      attributes:
+        Amount: "2001"
+        TransactionType: "deposit"
+        Acr: "Multi_Factor"
+        DecisionContext: "none"
+    expect:
+      decision: deny
+
+  test 'Require step-up for high-value transfer without MFA':
+    request:
+      attributes:
+        Amount: "1000"
+        TransactionType: "transfer"
+        Acr: "none"
+        DecisionContext: "none"
+    expect:
+      decision: permit
+
+  test 'Require step-up for high-value withdrawal without MFA':
+    request:
+      attributes:
+        Amount: "600"
+        TransactionType: "withdrawal"
+        Acr: "Password"
+        DecisionContext: "none"
+    expect:
+      decision: permit
+
+  test 'Permit high-value transfer when MFA already met':
+    request:
+      attributes:
+        Amount: "1500"
+        TransactionType: "transfer"
+        Acr: "Multi_Factor"
+        DecisionContext: "none"
+    expect:
+      decision: permit
+
+  test 'Require consent for mid-value transaction ($300)':
+    request:
+      attributes:
+        Amount: "300"
+        TransactionType: "deposit"
+        Acr: "none"
+        DecisionContext: "none"
+    expect:
+      decision: permit
+
+  test 'Permit small deposit under consent threshold':
+    request:
+      attributes:
+        Amount: "50"
+        TransactionType: "deposit"
+        Acr: "none"
+        DecisionContext: "none"
+    expect:
+      decision: permit
+
+  test 'Deposit at $2,000 exactly - denied (boundary)':
+    request:
+      attributes:
+        Amount: "2000"
+        TransactionType: "deposit"
+        Acr: "none"
+        DecisionContext: "none"
+    expect:
+      decision: permit

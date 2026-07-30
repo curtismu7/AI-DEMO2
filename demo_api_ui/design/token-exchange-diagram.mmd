@@ -1,0 +1,73 @@
+%%{init: {"theme": "dark", "flowchart": {"htmlLabels": true, "useMaxWidth": true, "curve": "basis"}}}%%
+flowchart LR
+    subgraph P1["🔐 PingOne Authorization Server"]
+        UT["User Token · RS256
+        ─────────────────────────
+        sub    u5f3a8c1d-9e2b-4a7f
+        iss    auth.pingone.com/env-abc/as
+        aud    api-server
+        scope  openid profile accounts:read
+        iat    2026-07-29 09:41:40
+        exp    2026-07-29 10:41:40"]
+    end
+
+    subgraph BFF["BFF — RFC 8693 Token Exchange"]
+        direction TB
+        AT["Agent Token · client_credentials
+        ─────────────────────────
+        sub        bff-agent-client
+        iss        auth.pingone.com/env-abc/as
+        aud        api-server
+        scope      agent:act
+        client_id  bff-agent-client"]
+
+        EX["⇄ Token Exchange Request
+        ─────────────────────────
+        grant_type   urn:ietf:params:oauth:grant-type:token-exchange
+        audience     mcp-server
+        scope        gateway:mcp:invoke
+        actor_token  bff-agent-client CC token"]
+
+        DT["Delegated Token · RS256 · ISSUED
+        ─────────────────────────
+        sub        u5f3a8c1d-9e2b-4a7f
+        iss        auth.pingone.com/env-abc/as
+        aud        mcp-server  --- narrowed from api-server
+        scope      gateway:mcp:invoke  --- narrowed
+        act.sub    bff-agent-client  --- NEW delegation proof
+        client_id  bff-agent-client
+        exp        2026-07-29 10:41:40"]
+    end
+
+    subgraph GW["🛡 Ping Agent Gateway"]
+        TV["Token Validated
+        ─────────────────────────
+        sub    u5f3a8c1d ✓ user identity confirmed
+        act    bff-agent-client ✓ delegation chain
+        aud    mcp-server ✓ audience bound
+        scope  gateway:mcp:invoke ✓ permitted
+        sig    RS256 ✓ signature verified"]
+    end
+
+    subgraph MCP["⚙ MCP Server"]
+        TC["Tool Executes
+        ─────────────────────────
+        tool    get_balance
+        user    u5f3a8c1d resolved from sub
+        actor   bff-agent-client from act claim
+        scope   enforced at gateway
+        result  balance USD 4230.00"]
+    end
+
+    UT -->|subject_token| EX
+    AT -->|actor_token| EX
+    EX -->|issued delegated token| DT
+    DT --> TV
+    TV --> TC
+
+    style UT fill:#0f2744,color:#93c5fd,stroke:#3b82f6,stroke-width:1px
+    style AT fill:#1e1b3a,color:#c4b5fd,stroke:#7c3aed,stroke-width:1px
+    style EX fill:#2a1a00,color:#fbbf24,stroke:#d97706,stroke-width:2px
+    style DT fill:#0f2a1a,color:#6ee7b7,stroke:#10b981,stroke-width:2px
+    style TV fill:#0a1f0a,color:#86efac,stroke:#16a34a,stroke-width:1px
+    style TC fill:#0a1f0a,color:#86efac,stroke:#16a34a,stroke-width:1px

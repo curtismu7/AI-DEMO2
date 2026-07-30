@@ -95,6 +95,12 @@ services:
       SSL_KEY_FILE:  "/certs/api.ping.demo+2-key.pem"
       # Container-to-container MCP (plain HTTP — internal network only)
       MCP_SERVER_URL: "ws://mcp-server:8080"
+      # Must track the mcp-server service's own MCP_MTLS_ENABLED (same default and
+      # expansion). When it is true the server serves TLS on MCP_SERVER_PORT, so
+      # the BFF's direct WS client has to dial wss:// — plaintext ws:// into that
+      # listener dies with "socket hang up" and the MCP Inspector falls back to
+      # the local catalog. mcpWebSocketClient.getMcpServerUrl() reads this flag.
+      MCP_MTLS_ENABLED: "${MCP_MTLS_ENABLED:-true}"
       # Route BFF tool calls through the active MCP gateway. Core stack default is
       # real PingGateway (ping-gateway:8080); run-docker.sh demo-sync recreates the
       # BFF with mcp-gateway:3005 when Quick Flags select the demo Node gateway.
@@ -108,6 +114,11 @@ services:
       # so this value wins over persisted toggles; flip here to change the default.
       # Internal service DNS (OrbStack reserves host 3006; PingGateway's host port is 3036).
       MCP_PINGGATEWAY_URL: "http://ping-gateway:8080"
+      # Default MCP endpoint offered by the /privilege-mcp-client page. The
+      # ping-mcpgw service carries local.ping-devops.com as a network alias, so
+      # this one URL is correct for both the browser and this container's own
+      # server-side relay.
+      PRIVILEGE_MCPGW_URL: "https://local.ping-devops.com:8623/mcp"
       # Agent Gateway + Authorize engine toggles live in admin Quick Flags (not pinned
       # here) so operators can switch demo vs real without rebuilding. After flipping,
       # run `./run-docker.sh demo-sync` (or restart the stack) to start/stop the
@@ -1088,6 +1099,48 @@ services:
         required: false   # demo-auth profile — mock Authorize when ff_authorize_simulated is ON
     restart: unless-stopped
 
+  # ── PingOne Privilege MCPGW (commercial) ───────────────────────────────────
+  # Inline MCP security gateway: just-in-time least-privilege plus full session
+  # recording. Policy is authored in the PingOne Privilege console, NOT in this
+  # repo — the deliberate contrast with ping-gateway above, whose policy lives
+  # in ping-gateway/config/routes/.
+  #
+  # MCPGW_IMAGE comes from the Privilege console gateway wizard
+  # (Privilege > Cloud > Gateways > Add New > Add via Wizard). The default is a
+  # sentinel that names its own fix, NOT `${MCPGW_IMAGE:?...}`: Compose
+  # interpolates the whole file before selecting services, so a required-variable
+  # marker here fails EVERY compose command (`up -d demo-api-server` included),
+  # even though this service is profile-gated. With the sentinel, only an actual
+  # `mcpgw` start fails, at pull time, with the image name stating what to set.
+  ping-mcpgw:
+    profiles: ["mcpgw"]
+    image: ${MCPGW_IMAGE:-set-MCPGW_IMAGE-from-the-pingone-privilege-gateway-wizard}
+    container_name: ai-demo-ping-mcpgw
+    ports:
+      - "8623:8623"
+    volumes:
+      # Vendor doc: pingone.env is READ AS A FILE at this path, not injected as
+      # env vars. Directory mount (not per-file) — per-file bind mounts are
+      # mis-detected when the host file is replaced, same lesson as the
+      # ping-gateway config mount above.
+      - ./ping-mcpgw/config:/var/lib/procyon/config:ro
+      # Reuse the existing mkcert pair rather than duplicating a private key.
+      # Per-file here because the vendor expects these exact filenames; the
+      # certs are stable until Oct 2028 so the replace-hazard does not apply.
+      - ./certs/api.ping.demo+2.pem:/var/lib/procyon/ssl/mcpgw-cert.pem:ro
+      - ./certs/api.ping.demo+2-key.pem:/var/lib/procyon/ssl/mcpgw-key.pem:ro
+    networks:
+      ai-demo:
+        # Cert-valid alias. certs/api.ping.demo+2.pem covers
+        # local.ping-devops.com, so the BFF's server-side fetch verifies TLS
+        # normally, while the browser reaches the same URL via /etc/hosts and
+        # the published port. One URL string, correct for both callers.
+        aliases:
+          - local.ping-devops.com
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
   # ── RAG Code Search Services ──────────────────────────────────────────────
   weaviate:
     profiles: ["rag"]
@@ -1203,7 +1256,7 @@ services:
       WEAVIATE_GRPC_PORT: "50051"
       EMBEDDING_URL: http://embeddings:8080
       EMBEDDING_MODEL: nomic-embed-text-v1.5
-      LLAMACPP_BASE_URL: http://llm-proxy:8090
+      LLAMACPP_BASE_URL: http://host.docker.internal:8090
       AGENT_MAX_TOOL_CALLS: "4"
     networks:
       - ai-demo
@@ -1211,8 +1264,6 @@ services:
       weaviate:
         condition: service_healthy
       embeddings:
-        condition: service_started
-      llm-proxy:
         condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8894/health')\" || exit 1"]

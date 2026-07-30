@@ -1,10 +1,12 @@
 // banking_api_ui/src/components/EmbeddedAgentDock.js
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { FootprintChrome } from './aiFootprintMocks/ChromeFrames';
 import { useAgentUiMode } from '../context/AgentUiModeContext';
+import { useFootprintAutoDetect } from '../hooks/useFootprintAutoDetect';
 import { useVertical } from '../vertical/useVertical';
-import { isEmbeddedAgentDockRoute } from '../utils/embeddedAgentFabVisibility';
 import { resolveEmbeddedFocus } from './demoAgentSafety';
+import { isEmbeddedAgentDockRoute } from '../utils/embeddedAgentFabVisibility';
 import TokenExchangeModal from './TokenExchangeModal';
 
 const HEIGHT_KEY = 'embedded_agent_dock_height_px';
@@ -50,6 +52,10 @@ export default function EmbeddedAgentDock({ user, agentPlacement }) {
   const identity = pageManifest?.identity;
   const [hostEl, setHostEl] = useState(null);
   const [frameworkLabel, setFrameworkLabel] = useState(null);
+  const { category: fpCategory, variant: fpVariant } = useFootprintAutoDetect();
+  const [exchangeModalOpen, setExchangeModalOpen] = useState(false);
+  const { category: fpCategory, variant: fpVariant } = useFootprintAutoDetect();
+  const { category: fpCategory, variant: fpVariant } = useFootprintAutoDetect();
   const [exchangeModalOpen, setExchangeModalOpen] = useState(false);
 
   // Vertical-aware title — Care Connect → "Care Assistant", banking → "banking
@@ -261,9 +267,11 @@ export default function EmbeddedAgentDock({ user, agentPlacement }) {
         }`}
         style={{ '--embedded-dock-height': `${Math.round(dockHeight)}px` }}
       >
-        <div
-          className="embedded-agent-dock-host"
-          ref={hostRefCb}
+        <FootprintChrome
+          category={fpCategory}
+          variant={fpVariant}
+          hostRef={hostRefCb}
+          preview={false}
         />
       </div>
       </div>

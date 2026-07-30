@@ -102,6 +102,32 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-29 — Unauthenticated `/api/token-exchanges` returned cleartext JWTs
+
+**Files changed:** `demo_api_server/server.js` (removed insecure dual-mount),
+deleted `demo_api_server/routes/tokenExchanges.js`,
+`demo_api_server/routes/tokenExchangeLog.js` (`resolveSessionId`),
+`demo_api_server/src/__tests__/tokenExchangeLog.test.js`.
+
+**What was broken:** #1105 mounted two routers on `/api/token-exchanges`. The
+first (`routes/tokenExchanges.js`) had **no** `authenticateToken`, stored
+`subjectToken` / `resultToken` in a process-global array in cleartext, and
+returned the entire log on GET. Express matched that router first, so the
+second mount (`authenticateToken` + `tokenExchangeLogRouter`, which hashes
+tokens and session-scopes reads) was dead code. Any unauthenticated caller
+could `GET /api/token-exchanges` and harvest every JWT the demo had logged —
+and `POST` accepted forged session ids from the body.
+
+**What was fixed:** removed the cleartext router and its mount. The sole
+handler is `authenticateToken` → `tokenExchangeLogRouter`. Session binding
+uses `req.sessionID || req.session?.id` (never the request body).
+
+**Do not break:** do not remount `/api/token-exchanges` without
+`authenticateToken`; never persist cleartext access tokens in the audit log.
+
+**Verify:** `CI=true npx jest src/__tests__/tokenExchangeLog.test.js
+--testPathIgnorePatterns="/node_modules/" --forceExit`
+
 ### 2026-07-28 — Simple Stepper blamed a recovered tools/list failure for the halt and ghosted 13 steps that ran
 
 **Files changed:** `demo_api_server/routes/agentRun.js` (new `markRecovered`,
