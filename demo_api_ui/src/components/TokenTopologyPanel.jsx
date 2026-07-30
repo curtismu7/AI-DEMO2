@@ -31,7 +31,7 @@ function claimsFromStep(step) {
     if (dec.outcome) rows.push({ k: 'decision', v: String(dec.outcome).toUpperCase(), cls: dec.outcome === 'PERMIT' || dec.outcome === 'done' ? 'ok' : 'warn' });
     if (dec.decisionId) rows.push({ k: 'decision_id', v: dec.decisionId, cls: '' });
     if (dec.engine)     rows.push({ k: 'engine', v: dec.engine, cls: '' });
-    if (dec.why)        rows.push({ k: 'reason', v: dec.why.slice(0, 80), cls: '' });
+    if (dec.why)        rows.push({ k: 'reason', v: typeof dec.why === 'object' ? JSON.stringify(dec.why) : String(dec.why).slice(0, 80), cls: '' });
     return rows.length ? rows : null;
   }
   if (d.kv?.length) {
@@ -102,7 +102,8 @@ function Inspector({ step, onClose }) {
 
   const claims   = claimsFromStep(step);
   const rfcs     = step.detail?.rfcs || step.rfcs || [];
-  const narrative = step.detail?.narrative || '';
+  const rawNar    = step.detail?.narrative || '';
+  const narrative = typeof rawNar === 'object' ? (rawNar?.message ?? JSON.stringify(rawNar)) : String(rawNar || '');
   const actClaim  = step.id === 'exchange' && step.detail?.claims?.act;
 
   return (
@@ -142,7 +143,7 @@ function Inspector({ step, onClose }) {
         {tab === 'why' && (
           <div className="ttp-narrative">
             <div className="ttp-nar-title">{step.title}</div>
-            {narrative || step.detail?.why || 'No narrative available.'}
+            {narrative || (typeof step.detail?.why === 'object' ? JSON.stringify(step.detail.why) : step.detail?.why) || 'No narrative available.'}
           </div>
         )}
       </div>
