@@ -95,6 +95,12 @@ services:
       SSL_KEY_FILE:  "/certs/api.ping.demo+2-key.pem"
       # Container-to-container MCP (plain HTTP — internal network only)
       MCP_SERVER_URL: "ws://mcp-server:8080"
+      # Must track the mcp-server service's own MCP_MTLS_ENABLED (same default and
+      # expansion). When it is true the server serves TLS on MCP_SERVER_PORT, so
+      # the BFF's direct WS client has to dial wss:// — plaintext ws:// into that
+      # listener dies with "socket hang up" and the MCP Inspector falls back to
+      # the local catalog. mcpWebSocketClient.getMcpServerUrl() reads this flag.
+      MCP_MTLS_ENABLED: "${MCP_MTLS_ENABLED:-true}"
       # Route BFF tool calls through the active MCP gateway. Core stack default is
       # real PingGateway (ping-gateway:8080); run-docker.sh demo-sync recreates the
       # BFF with mcp-gateway:3005 when Quick Flags select the demo Node gateway.
