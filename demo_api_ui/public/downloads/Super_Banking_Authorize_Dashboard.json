@@ -12,7 +12,7 @@
   "currentVersion": 151,
   "customerId": "8b37902a4f69bb60cbfc6cff61a23dc4",
   "deployedDate": 1773802534457,
-  "description": "DaVinci flow for the Super Banking transaction authorization demo. Collects transaction amount and type, authenticates the user via PingOne SSO, calls PingOne Authorize with Super Banking policy parameters (Amount, TransactionType, UserId, Acr, Timestamp), then displays the PERMIT/DENY/STEP-UP decision.",
+  "description": "DaVinci flow for the AI Demo transaction authorization demo. Collects transaction amount and type, authenticates the user via PingOne SSO, calls PingOne Authorize with AI Demo policy parameters (Amount, TransactionType, UserId, Acr, Timestamp), then displays the PERMIT/DENY/STEP-UP decision.",
   "flowStatus": "enabled",
   "isOutputSchemaSaved": false,
   "name": "Super Banking Authorize Dashboard",
@@ -176,7 +176,7 @@
                 "value": "[{\"children\": [{\"text\": \"Super Banking Authorization\"}]}]"
               },
               "nodeDescription": {
-                "value": "Super Banking transaction authorization demo landing page"
+                "value": "AI Demo transaction authorization demo landing page"
               },
               "continueButtonLabel": {
                 "value": "[\n  {\n    \"children\": [\n      {\n        \"text\": \"Submit\"\n      }\n    ]\n  }\n]"
