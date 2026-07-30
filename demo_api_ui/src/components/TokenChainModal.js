@@ -54,6 +54,8 @@ export default function TokenChainModal({ isOpen, onClose }) {
       defaultWidth={700}
       defaultHeight={720}
       storageKey="ba-token-chain-modal"
+      singletonKey="ba-token-chain-modal"
+      autoPopOut
       footer={null}
       closeOnPopout
       noBackdrop

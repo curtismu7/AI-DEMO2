@@ -14,6 +14,7 @@ import ConfirmModal from "./ConfirmModal";
 import ControlPlaneIntroModal from "./ControlPlaneIntroModal";
 import { EDU } from "./education/educationIds";
 import KillSwitchConfirmModal from "./KillSwitchConfirmModal";
+import { PAC_EDITOR_URL } from "./pacEditorStatus";
 import "./adminSkinPing2026.css";
 import { HiOutlineUsers } from "react-icons/hi";
 import {
@@ -142,6 +143,7 @@ const MAX_WIDTH = 520;
 // Namespaced by role so admin and customer keep independent expansion state
 // (deliberate UX: switching roles restores that role's own open group).
 const EXPANDED_SECTIONS_KEY_BASE = "adminSideNav.expandedSections";
+const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "local.ping-devops.com"]);
 
 // Auto-expand table: the group containing the current route opens on first
 // load when nothing is saved. Ids must equal slugify(<group label>) from
@@ -195,6 +197,8 @@ const slugify = (label) =>
     .replace(/^-|-$/g, "");
 const sectionIdOf = (item, index) =>
   item.id || slugify(item.label) || `i${index}`;
+const isLocalHost = () =>
+  typeof window !== "undefined" && LOCAL_HOSTNAMES.has(window.location.hostname);
 
 export default function AdminSideNav({ user }) {
   const location = useLocation();
@@ -205,6 +209,7 @@ export default function AdminSideNav({ user }) {
   const [hiddenNavLabels, setHiddenNavLabels] = useState([]);
   const [custLoading, setCustLoading] = useState(false);
   const isResizing = useRef(false);
+  const showPacEditorLink = isLocalHost();
 
   // Per-user sidebar customization (Demo Config page). Returns [] when
   // ff_sidebar_customization is OFF or the request fails — full nav either way.
@@ -609,6 +614,14 @@ export default function AdminSideNav({ user }) {
       icon: "pol",
       children: [
         { label: "P1AZ Inspector", path: "/pingone-authorize", icon: "pol", searchAlias: "PingOne Authorize" },
+        ...(showPacEditorLink
+          ? [{
+              label: "PAC Editor",
+              icon: "edt",
+              searchAlias: "Policy as Code",
+              action: () => window.open(PAC_EDITOR_URL, "_blank", "noopener,noreferrer"),
+            }]
+          : []),
         { label: "Authorize Capabilities", path: "/pingone-authorize-capabilities", icon: "pol" },
         {
           label: "Policy Decision Trace",
