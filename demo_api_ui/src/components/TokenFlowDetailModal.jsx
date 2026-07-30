@@ -61,6 +61,27 @@ function buildClaims(step) {
       k, v: typeof v === 'object' ? JSON.stringify(v) : String(v), cls: '',
     }));
   }
+  // Any step with a claims object
+  if (d.claims && Object.keys(d.claims).length) {
+    return Object.entries(d.claims).slice(0, 10).map(([k, v]) => ({
+      k, v: typeof v === 'object' ? JSON.stringify(v) : String(v),
+      cls: k === 'scope' ? 'hi' : k === 'act' || k === 'may_act' ? 'ok' : k === 'aud' ? 'aud' : '',
+    }));
+  }
+  // Any step with kv pairs (gateway, mcp, etc.)
+  if (d.kv?.length) {
+    return d.kv.slice(0, 10).map(([k, v]) => ({
+      k, v: typeof v === 'object' ? JSON.stringify(v) : String(v), cls: '',
+    }));
+  }
+  // Gateway: synthesize from trace event detail
+  if (d.tokenId || d.tool || d.result) {
+    const rows = [];
+    if (d.tokenId) rows.push({ k: 'token_id', v: d.tokenId, cls: '' });
+    if (d.tool)    rows.push({ k: 'tool', v: String(d.tool), cls: '' });
+    if (d.result)  rows.push({ k: 'result', v: String(d.result).slice(0, 60), cls: '' });
+    if (rows.length) return rows;
+  }
   return null;
 }
 
@@ -243,6 +264,205 @@ function Inspector({ step, onClose }) {
   );
 }
 
+// ── Scope Funnel ──────────────────────────────────────────────────────────
+
+function ScopeFunnel({ steps, trace }) {
+  const findEv = (...ids) => (trace?.tokenEvents || []).find(e => e && ids.includes(e.id));
+  const userTok  = findEv('user-token');
+  const delegTok = findEv('exchanged-token', 'two-ex-final-token');
+  const exchStep  = steps.find(s => s.id === 'exchange');
+  const azSteps   = steps.filter(s => s.id === 'authorize');
+
+  if (!exchStep && !userTok) return null;
+
+  const userScopes  = userTok?.claims?.scope ? String(userTok.claims.scope).split(/\s+/) : ['openid', 'accounts.read'];
+  const delegScopes = delegTok?.claims?.scope ? String(delegTok.claims.scope).split(/\s+/) : exchStep ? ['gateway:mcp:invoke'] : [];
+  const actClaim    = delegTok?.claims?.act?.sub ?? delegTok?.claims?.act;
+  const exchAud     = delegTok?.claims?.aud || exchStep?.detail?.claims?.aud || 'mcp-server';
+
+  const azDeny = azSteps.find(s => {
+    const dec = s.detail?.decision?.outcome;
+    return dec === 'DENY' || dec === 'INDETERMINATE' || s.status === 'error';
+  });
+  const azPermit = azSteps.find(s => {
+    const dec = s.detail?.decision?.outcome;
+    return dec === 'PERMIT' || dec === 'done';
+  });
+
+  return (
+    <div className="tfd-funnel">
+      <div className="tfd-funnel-label">Scope · narrowing per RFC 8707 + RFC 8693</div>
+      <div className="tfd-funnel-row">
+
+        {/* User Token */}
+        <div className="tfd-fhop">
+          <div className="tfd-fhop-head">
+            <span className="tfd-fhop-icon">👤</span>
+            <span className="tfd-fhop-name">User Token</span>
+            <span className="tfd-fhop-sub">PKCE · RS256</span>
+          </div>
+          <div className="tfd-fscopes">
+            {userScopes.map(s => (
+              <span key={s} className="tfd-fscope tfd-fscope--kept">✓ {s}</span>
+            ))}
+          </div>
+        </div>
+
+        <span className="tfd-farrow">→</span>
+
+        {/* RFC 8693 Exchange */}
+        <div className="tfd-fhop tfd-fhop--exchange">
+          <div className="tfd-fhop-head">
+            <span className="tfd-fhop-icon">🔄</span>
+            <span className="tfd-fhop-name">RFC 8693 Exchange</span>
+            {actClaim && <span className="tfd-fhop-sub">act: {String(actClaim).slice(0, 20)}</span>}
+          </div>
+          <div className="tfd-fscopes">
+            <span className="tfd-fscope tfd-fscope--narrowed">→ {delegScopes[0] || 'gateway:mcp:invoke'}</span>
+            {exchAud && <span className="tfd-fscope tfd-fscope--narrowed">→ aud: {String(exchAud).replace('https://', '')}</span>}
+          </div>
+        </div>
+
+        <span className="tfd-farrow">→</span>
+
+        {/* Delegated Token */}
+        <div className="tfd-fhop tfd-fhop--issued">
+          <div className="tfd-fhop-head">
+            <span className="tfd-fhop-icon">🎫</span>
+            <span className="tfd-fhop-name">Delegated Token</span>
+            <span className="tfd-fhop-sub">issued · narrowed</span>
+          </div>
+          <div className="tfd-fscopes">
+            {delegScopes.map(s => <span key={s} className="tfd-fscope tfd-fscope--kept">✓ {s}</span>)}
+            {userScopes.filter(s => !delegScopes.includes(s)).slice(0, 3).map(s => (
+              <span key={s} className="tfd-fscope tfd-fscope--dropped">✗ {s}</span>
+            ))}
+          </div>
+        </div>
+
+        {(azPermit || azDeny) && <span className="tfd-farrow">→</span>}
+
+        {/* Authorize */}
+        {(azPermit || azDeny) && (
+          <div className={`tfd-fhop${azDeny ? ' tfd-fhop--deny' : ' tfd-fhop--permit'}`}>
+            <div className="tfd-fhop-head">
+              <span className="tfd-fhop-icon">{azDeny ? '⚡' : '✅'}</span>
+              <span className="tfd-fhop-name">PingOne Authorize</span>
+              <span className="tfd-fhop-sub" style={{ color: azDeny ? 'var(--tfd-danger, #f85149)' : 'var(--tfd-success, #3fb950)' }}>
+                {azDeny ? 'DENY' : 'PERMIT'}
+              </span>
+            </div>
+            {azDeny && (
+              <div className="tfd-fscopes">
+                <span className="tfd-fscope tfd-fscope--blocked">✕ {azDeny.detail?.decision?.decisionContext || 'action blocked'}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {actClaim && (
+        <div className="tfd-act-callout">
+          ✅ <strong>act</strong> · {String(actClaim)} acts FOR user — RFC 8693 §4.1
+          <span className="tfd-rfc-pill" style={{ marginLeft: 'auto' }}>RFC 8693</span>
+          <span className="tfd-rfc-pill">RFC 8707</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Topology View ──────────────────────────────────────────────────────────
+
+const TOPO_NODES = [
+  { id: 'signin',     icon: '🔐', name: 'PingOne AS',   lane: 'PINGONE',  badgeCls: 'tfd-badge-PINGONE' },
+  { id: 'exchange',   icon: '🔄', name: 'BFF Exchange', lane: 'BFF',      badgeCls: 'tfd-badge-BFF',    label: 'delegated token' },
+  { id: 'authorize',  icon: '⚡', name: 'P1 Authorize', lane: 'AUTHZ',    badgeCls: 'tfd-badge-AUTHZ',  label: 'decision' },
+  { id: 'gateway',    icon: '🛡', name: 'Gateway',      lane: 'GATEWAY',  badgeCls: 'tfd-badge-GATEWAY', label: 'validated' },
+  { id: 'mcp',        icon: '🔧', name: 'MCP Server',   lane: 'MCP',      badgeCls: 'tfd-badge-MCP',    label: 'tool call' },
+];
+
+function TopoNodeClaims({ step, trace }) {
+  const findEv = (...ids) => (trace?.tokenEvents || []).find(e => e && ids.includes(e.id));
+  if (!step) return null;
+  const claims = buildClaims(step);
+  if (!claims?.length) {
+    // fallback: show narrative snippet
+    const nar = step.detail?.narrative;
+    if (!nar) return null;
+    return <div style={{ fontSize: 10, color: 'var(--text-muted, #8b949e)', fontStyle: 'italic', marginTop: 4, lineHeight: 1.4 }}>{nar.slice(0, 80)}…</div>;
+  }
+  return (
+    <div className="tfd-topo-claims">
+      {claims.slice(0, 4).map(({ k, v, cls }) => (
+        <div key={k} className="tfd-topo-claim">
+          <span className="tfd-topo-ck">{k}</span>
+          <span className={`tfd-topo-cv${cls ? ' ' + cls : ''}`}>{String(v).slice(0, 24)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TopologyView({ steps, trace, onSelectStep }) {
+  const [expandedId, setExpandedId] = useState(null);
+
+  const toggle = (nodeId, step) => {
+    if (expandedId === nodeId) {
+      setExpandedId(null);
+    } else {
+      setExpandedId(nodeId);
+      if (step && onSelectStep) onSelectStep(step);
+    }
+  };
+
+  return (
+    <div className="tfd-topo">
+      <div className="tfd-topo-label">Security topology — click a node to inspect · RFC 8693 delegation chain</div>
+      <div className="tfd-topo-row">
+        {TOPO_NODES.map((node, i) => {
+          const step = steps.find(s => s.id === node.id);
+          const status = step?.status || 'notinpath';
+          const blocked = status === 'notinpath' || (i > 0 && steps.find(s => s.id === TOPO_NODES[i-1]?.id)?.status === 'error');
+          const isError = status === 'error';
+          const isDone  = status === 'done';
+          const expanded = expandedId === node.id;
+
+          return (
+            <React.Fragment key={node.id}>
+              {i > 0 && (
+                <div className={`tfd-topo-conn${blocked ? ' tfd-topo-conn--blocked' : ''}`}>
+                  <div className="tfd-topo-line"></div>
+                  <span className="tfd-topo-arrowhead">▶</span>
+                  {node.label && <div className="tfd-topo-conn-label">{node.label}</div>}
+                </div>
+              )}
+              <div
+                className={`tfd-topo-node${expanded ? ' expanded' : ''}${isError ? ' error' : ''}${blocked ? ' pending' : ''}`}
+                onClick={() => !blocked && toggle(node.id, step)}
+              >
+                <div className={`tfd-topo-box${expanded ? ' active' : ''}${isError ? ' error' : ''}${blocked ? ' pending' : ''}`}>
+                  <div className="tfd-topo-status">
+                    {isDone ? <span style={{ color: 'var(--tfd-success, #3fb950)' }}>✓</span>
+                      : isError ? <span style={{ color: 'var(--tfd-danger, #f85149)', fontWeight: 700 }}>✕</span>
+                      : <span style={{ color: 'var(--text-muted, #6e7681)' }}>—</span>}
+                  </div>
+                  <div className="tfd-topo-icon">{node.icon}</div>
+                  <div className="tfd-topo-name">{node.name}</div>
+                  <span className={`tfd-step-badge ${node.badgeCls}`}>{node.lane}</span>
+                </div>
+                {expanded && step && (
+                  <TopoNodeClaims step={step} trace={trace} />
+                )}
+              </div>
+            </React.Fragment>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 
 export default function TokenFlowDetailModal({ isOpen, onClose }) {
@@ -251,6 +471,7 @@ export default function TokenFlowDetailModal({ isOpen, onClose }) {
   const [selectedStep, setSelectedStep] = useState(null);
   const [inspOpen, setInspOpen] = useState(false);
   const [footerOpen, setFooterOpen] = useState(null);
+  const [darkMode, setDarkMode] = useState(true);
 
   useEffect(() => {
     return tokenChainTraceStore.subscribe(setStoreState);
@@ -294,7 +515,7 @@ export default function TokenFlowDetailModal({ isOpen, onClose }) {
       minWidth={480}
       minHeight={360}
     >
-      <div className="tfd-root">
+      <div className={`tfd-root${darkMode ? '' : ' tfd-light'}`}>
 
         {/* View tabs */}
         <div className="tfd-tabs">
@@ -306,10 +527,23 @@ export default function TokenFlowDetailModal({ isOpen, onClose }) {
             <span className="tfd-badge">{steps.length}</span>
           </button>
           <button
+            className={`tfd-tab${view === 'topology' ? ' active' : ''}`}
+            onClick={() => setView('topology')}
+          >
+            Topology
+          </button>
+          <button
             className={`tfd-tab${view === 'detailed' ? ' active' : ''}`}
             onClick={() => setView('detailed')}
           >
             Detailed
+          </button>
+          <button
+            className="tfd-theme-btn"
+            onClick={() => setDarkMode(d => !d)}
+            title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {darkMode ? '☀' : '🌙'}
           </button>
         </div>
 
@@ -357,6 +591,16 @@ export default function TokenFlowDetailModal({ isOpen, onClose }) {
                 {doneCount} done{errorCount > 0 ? ` · ${errorCount} failed` : ''} · {steps.length} steps
               </span>
             </div>
+
+            {/* Scope funnel — only on Pipeline tab when exchange has run */}
+            {view === 'simple' && (
+              <ScopeFunnel steps={steps} trace={trace} />
+            )}
+
+            {/* Topology view */}
+            {view === 'topology' && (
+              <TopologyView steps={steps} trace={trace} onSelectStep={selectStep} />
+            )}
 
             {/* Steps */}
             <div className="tfd-steps">
