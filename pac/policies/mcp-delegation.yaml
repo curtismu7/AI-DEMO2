@@ -153,18 +153,12 @@ policyset SuperBankingMcpPolicies evaluate deny-overrides:
     # D-05 anti-bypass: token targets an upstream backend, not the gateway
     # -----------------------------------------------------------------------
     rule DenyAudienceTargetsUpstream deny:
-      obligation:
-        code: mcp-bypass-attempt
-        payload: "Token aud targets an upstream resource behind the gateway (D-05 bypass attempt)."
       - Request.TokenAudActual in ("mcpserver.ping.demo", "mcp-invest.ping.demo", "https://banking-resource-server.ping.demo")
 
     # -----------------------------------------------------------------------
     # Audience validation: token must be for one of the registered MCP gateways
     # -----------------------------------------------------------------------
     rule DenyInvalidTokenAudience deny:
-      obligation:
-        code: mcp-invalid-audience
-        payload: "Token audience does not match any accepted MCP gateway resource URI."
       - Request.TokenAudience != "mcpgateway.ping.demo"
       - Request.TokenAudience != "https://api.ping.demo:3036/mcp"
       - Request.TokenAudience != "mcpgateway-a2a.ping.demo"
@@ -173,18 +167,12 @@ policyset SuperBankingMcpPolicies evaluate deny-overrides:
     # User identity: UserId must be present
     # -----------------------------------------------------------------------
     rule DenyMissingUserId deny:
-      obligation:
-        code: mcp-missing-user-id
-        payload: "No user identity in the MCP token delegation chain. UserId is required."
       - Request.UserId == "none"
 
     # -----------------------------------------------------------------------
     # Invalid signing key: kid not published in issuer JWKS
     # -----------------------------------------------------------------------
     rule DenyInvalidSigningKey deny:
-      obligation:
-        code: mcp-invalid-kid
-        payload: "Token header names a signing key not published in the issuer JWKS."
       - Request.TokenKidKnown == false
 
     # -----------------------------------------------------------------------
@@ -192,9 +180,6 @@ policyset SuperBankingMcpPolicies evaluate deny-overrides:
     # (MCP Token Exchanger, AI Agent generalist, or A2A specialist)
     # -----------------------------------------------------------------------
     rule DenyInvalidActorChain deny:
-      obligation:
-        code: mcp-invalid-actor
-        payload: "ActClientId is not a registered actor in the RFC 8693 delegation chain."
       - Request.ActClientId != "0bba2bb8-896b-42ae-bb56-503d3c75f82e"
       - Request.ActClientId != "12651b1e-f61d-46aa-9ab9-760da3a761cd"
       - Request.ActClientId != "5a5d730f-864c-46b4-a651-53516a6f709c"
@@ -210,9 +195,6 @@ policyset SuperBankingMcpPolicies evaluate deny-overrides:
     # caller is denied even if the specialist itself is registered
     # -----------------------------------------------------------------------
     rule DenyInvalidA2aGeneralist deny:
-      obligation:
-        code: mcp-invalid-a2a-generalist
-        payload: "A2A two-hop chain present but NestedActClientId is not the registered AI Agent generalist."
       - Request.ActChainDepth > 1
       - Request.NestedActClientId != "71e878ea-2d79-4760-b570-66f00cbeffe7"
 
@@ -220,9 +202,6 @@ policyset SuperBankingMcpPolicies evaluate deny-overrides:
     # A2A delegation required: A2A-only tools called without a two-hop chain
     # -----------------------------------------------------------------------
     rule DenyA2aDelegationRequired deny:
-      obligation:
-        code: mcp-invalid-a2a-generalist
-        payload: "A2A delegation is required for this tool. The generalist acting alone is denied."
       - Request.ToolName in ("get_investment_accounts", "get_investment_balance",
           "get_investment_transactions", "get_portfolio_summary",
           "sensitive_investment_holdings", "sensitive_membership_details",
@@ -236,9 +215,6 @@ policyset SuperBankingMcpPolicies evaluate deny-overrides:
     # a different user (account-takeover pattern)
     # -----------------------------------------------------------------------
     rule DenyResourceOwnerMismatch deny:
-      obligation:
-        code: mcp-resource-owner-mismatch
-        payload: "Target resource belongs to a different user than the requester."
       - Request.ResourceOwnerId != ""
       - Request.ResourceOwnerId != Request.UserId
 
@@ -246,9 +222,6 @@ policyset SuperBankingMcpPolicies evaluate deny-overrides:
     # RAR ceiling (NNP-1): Amount exceeds the RFC 9396 RAR granted maximum
     # -----------------------------------------------------------------------
     rule DenyRarAmountOverage deny:
-      obligation:
-        code: rar_amount_exceeded
-        payload: "Requested amount exceeds the RFC 9396 RAR granted ceiling."
       - Request.RarMaxAmount > 0
       - Request.Amount > Request.RarMaxAmount
 
@@ -257,9 +230,6 @@ policyset SuperBankingMcpPolicies evaluate deny-overrides:
     # customer write tools
     # -----------------------------------------------------------------------
     rule DenyAdminRoleOnWriteTool deny:
-      obligation:
-        code: mcp-admin-role-not-permitted
-        payload: "Admin sessions cannot invoke customer write tools."
       - Request.UserRole == "admin"
       - Request.ToolName in ("accept_financial_aid", "add_to_wishlist", "apply_scholarship",
           "approve_inspection", "approve_purchase_order", "book_appointment",
@@ -279,9 +249,6 @@ policyset SuperBankingMcpPolicies evaluate deny-overrides:
     # class error (malformed / invalid_signature / malformed_payload)
     # -----------------------------------------------------------------------
     rule DenyIntentTokenTampered deny:
-      obligation:
-        code: mcp-intent-invalid
-        payload: "Presented intent token failed validation with a tamper-class error."
       - Request.IntentTokenValid == "false"
       - Request.IntentTokenError in ("malformed", "invalid_signature", "malformed_payload")
 
@@ -290,9 +257,6 @@ policyset SuperBankingMcpPolicies evaluate deny-overrides:
     # permitted_tools
     # -----------------------------------------------------------------------
     rule DenyIntentToolMismatch deny:
-      obligation:
-        code: mcp-intent-mismatch
-        payload: "Invoked tool is not in the validated intent token's permitted_tools."
       - Request.IntentTokenValid == "true"
       - Request.IntentMatchesTool == "false"
 
@@ -300,32 +264,20 @@ policyset SuperBankingMcpPolicies evaluate deny-overrides:
     # UC21 tier checks
     # -----------------------------------------------------------------------
     rule DenyTierToolNotAllowed deny:
-      obligation:
-        code: mcp-tier-tool-not-allowed
-        payload: "UC21: tool restricted to PrivateBanking tier."
       - Request.UserTier == "Standard"
       - Request.ToolName in ("create_withdrawal", "withdraw")
 
     rule DenyTierAmountExceeded deny:
-      obligation:
-        code: mcp-tier-amount-exceeded
-        payload: "UC21: amount exceeds the tier ceiling (Standard $2,000 / PrivateBanking $50,000)."
       # Standard tier: amount > 2000
       - Request.UserTier == "Standard" and Request.Amount > 2000
 
     rule DenyPrivateBankingAmountExceeded deny:
-      obligation:
-        code: mcp-tier-amount-exceeded
-        payload: "UC21: amount exceeds the PrivateBanking tier ceiling of $50,000."
       - Request.UserTier == "PrivateBanking" and Request.Amount > 50000
 
     # -----------------------------------------------------------------------
     # UC9 group membership check
     # -----------------------------------------------------------------------
     rule DenyGroupMembershipFailed deny:
-      obligation:
-        code: mcp-user-not-in-group
-        payload: "Group membership check failed — user is not in the required group."
       - Request.RequiredGroup != "none"
       - Request.InRequiredGroup == false
 
@@ -333,9 +285,6 @@ policyset SuperBankingMcpPolicies evaluate deny-overrides:
     # HITL consent gate: consent-required tools without a verified receipt
     # -----------------------------------------------------------------------
     rule RequireHitlConsent permit:
-      obligation:
-        code: HITL
-        payload: '{"hitlRequired": true}'
       - Request.ToolName in ("book_appointment", "checkout", "create_transfer",
           "extend_rental", "get_sensitive_account_details", "request_time_off",
           "sensitive_holdings", "sensitive_investment_holdings",
@@ -349,9 +298,6 @@ policyset SuperBankingMcpPolicies evaluate deny-overrides:
     # Step-up gate: step-up-gated tools without MFA
     # -----------------------------------------------------------------------
     rule RequireMcpStepUp permit:
-      obligation:
-        code: step-up-required
-        payload: '{"stepUpRequired": true, "requiredAcr": "Multi_Factor"}'
       - Request.ToolName in ("cash_out_store_credit", "create_deposit",
           "create_withdrawal", "large_trade", "release_record", "release_records",
           "release_transcript", "release_work_order", "submit_expense",
