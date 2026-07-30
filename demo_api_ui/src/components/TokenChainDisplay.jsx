@@ -1,4 +1,4 @@
-// banking_api_ui/src/components/TokenChainDisplay.js
+// banking_api_ui/src/components/TokenChainDisplay.jsx
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import ReactDOM from "react-dom";
 import { useTokenChainOptional } from "../context/TokenChainContext";
@@ -62,19 +62,19 @@ function RfcRef({ rfc, className = "tcd-edu-ref" }) {
       const url = RFC_URLS[num];
       const label = `${rfcPrefix}${rest}`;
       nodes.push(
-        url ? (
-          <a
-            key={part}
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="tcd-rfc-ref-link"
-          >
-            {label}
-          </a>
-        ) : (
-          <span key={part}>{label}</span>
-        ),
+        url
+          ? React.createElement(
+              "a",
+              {
+                key: part,
+                href: url,
+                target: "_blank",
+                rel: "noopener noreferrer",
+                className: "tcd-rfc-ref-link",
+              },
+              label,
+            )
+          : React.createElement("span", { key: part }, label),
       );
     } else {
       nodes.push(<span key={part}>{part}</span>);
@@ -1365,7 +1365,7 @@ function McpToolBox({ event }) {
             </p>
             <ul className="tcd-edu-checklist">
               {toolName && <li><span className="tcd-edu-check-lbl">Tool:</span><span><code>{toolName}</code></span></li>}
-              {toolArgs && <li><span className="tcd-edu-check-lbl">Args:</span><span>{toolArgs.length ? toolArgs.map((k, i) => <code key={i}>{k}</code>).reduce((a, b) => [a, ', ', b]) : '(none)'}</span></li>}
+              {toolArgs && <li><span className="tcd-edu-check-lbl">Args:</span><span>{toolArgs.length ? toolArgs.map((k) => <code key={String(k)}>{k}</code>).reduce((a, b) => [a, ', ', b]) : '(none)'}</span></li>}
               {routedVia && <li><span className="tcd-edu-check-lbl">Route:</span><span>{routedVia === 'gateway' ? 'Ping Agent Gateway (HTTP)' : 'Direct WebSocket'}</span></li>}
             </ul>
           </>
@@ -1732,7 +1732,7 @@ function A2aChainOverview({ chainEvents }) {
                 <li><span className="tcd-edu-check-lbl">Tool:</span><span><code>{detail.tool}</code></span></li>
               )}
             </ul>
-            <pre className="tcd-a2a-diagram" aria-label="A2A sequence diagram">
+            <pre className="tcd-a2a-diagram">
               {detail.diagramLines.join('\n')}
             </pre>
 
@@ -2863,9 +2863,9 @@ function ClaimsStrip({ event, hints }) {
               {String(r.val)
                 .split(/\s+/)
                 .filter(Boolean)
-                .map((s, i) => (
+                .map((s) => (
                   <span
-                    key={i}
+                    key={`${s}-${r.injectedScopeNames.includes(s) ? "injected" : "real"}`}
                     className={
                       r.injectedScopeNames.includes(s)
                         ? "tcd-scope-badge tcd-scope-badge--injected"
@@ -2922,7 +2922,7 @@ const STEP_SUB_LABELS = {
 
 /** Check if this event is part of an A2A delegation chain. */
 function isA2aEvent(eventId) {
-  return eventId && eventId.startsWith('a2a-');
+  return eventId?.startsWith('a2a-');
 }
 
 function getStepSubLabel(eventId) {
@@ -3370,7 +3370,7 @@ function EventRow({
     (event.tokenType === "user_token" ||
       event.eventType === "auth" ||
       event.id === "user-token" ||
-      (event.id && event.id.startsWith("synthetic-session")))
+      event.id?.startsWith("synthetic-session"))
       ? { text: "\u{1F52C} PingOne verified", cls: "ok" }
       : null;
   // aud hint — only on tokens where we have explicit validation data
@@ -3509,11 +3509,11 @@ function EventRow({
 
           {/* "What changed" diff — promoted to first detail so learners see the effect immediately */}
           {changeDiff.length > 0 && (
-            <div className="tcd-event-diff" aria-label="What this step changed">
+            <div className="tcd-event-diff">
               <span className="tcd-event-diff-title">What changed</span>
-              {changeDiff.map((c, ci) => (
+              {changeDiff.map((c) => (
                 <div
-                  key={ci}
+                  key={`${c.kind}-${c.label}-${c.from || ""}-${c.to || ""}-${c.added?.join("|") || ""}-${c.removed?.join("|") || ""}`}
                   className={`tcd-event-diff-row tcd-event-diff-row--${c.kind}`}
                 >
                   <span className="tcd-event-diff-label">{c.label}</span>
@@ -3619,11 +3619,11 @@ function EventRow({
             <StatusBadge status={event.status} />
           </div>
           {changeDiff.length > 0 && (
-            <div className="tcd-event-diff" aria-label="What this step changed">
+            <div className="tcd-event-diff">
               <span className="tcd-event-diff-title">What changed</span>
-              {changeDiff.map((c, ci) => (
+              {changeDiff.map((c) => (
                 <div
-                  key={ci}
+                  key={`${c.kind}-${c.label}-${c.from || ""}-${c.to || ""}-${c.added?.join("|") || ""}-${c.removed?.join("|") || ""}`}
                   className={`tcd-event-diff-row tcd-event-diff-row--${c.kind}`}
                 >
                   <span className="tcd-event-diff-label">{c.label}</span>
@@ -3834,14 +3834,12 @@ function HistoryEntry({ entry }) {
   const statusIcon =
     errors > 0 ? "✗" : successes === total && total > 0 ? "✓" : "~";
   return (
-    <div
-      className="tcd-hist-entry"
-      style={{ cursor: "pointer" }}
-      onClick={() => setExpanded((e) => !e)}
-    >
-      <div
+    <div className="tcd-hist-entry">
+      <button
+        type="button"
         className="tcd-hist-head tcd-hist-head--static"
         style={{ userSelect: "none" }}
+        onClick={() => setExpanded((e) => !e)}
       >
         <span style={{ marginRight: 6, fontSize: "0.75rem", color: "#374151" }}>
           {expanded ? "▼" : "▶"}
@@ -3856,7 +3854,7 @@ function HistoryEntry({ entry }) {
           </span>
         </span>
         <span className="tcd-hist-ts">{ts}</span>
-      </div>
+      </button>
       {expanded && (
         <div
           style={{
@@ -3895,7 +3893,7 @@ function HistoryEntry({ entry }) {
                 : null;
               return (
                 <div
-                  key={i}
+                  key={`${ev.id || ev.label || "event"}-${ev.status || "unknown"}-${ev.claims?.sub || ""}-${ev.claims?.aud || ""}-${ev.claims?.scope || ""}`}
                   style={{
                     display: "flex",
                     alignItems: "flex-start",
@@ -4115,12 +4113,22 @@ function saveWalkPrefs(enabled, speed) {
 // appears (manual "i" click or walk-through) once the user opts in. The choice
 // persists so the demo remembers it.
 const EXPLAINERS_STORAGE_KEY = "tcd-explainers";
+const THEME_STORAGE_KEY = "tcd-theme";
 
 function loadExplainersPref() {
   try {
     return localStorage.getItem(EXPLAINERS_STORAGE_KEY) === "true";
   } catch (_e) {
     return false;
+  }
+}
+
+function loadThemePref() {
+  try {
+    const v = localStorage.getItem(THEME_STORAGE_KEY);
+    return v === "dark" ? "dark" : "light";
+  } catch (_e) {
+    return "light";
   }
 }
 
@@ -4308,6 +4316,7 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
   // Master switch for the What/Why/Value popout — off by default so it never
   // appears unbidden. Gates both the manual "i" buttons and the walk-through.
   const [explainersOn, setExplainersOn] = useState(() => loadExplainersPref());
+  const [theme, setTheme] = useState(() => loadThemePref());
   // Walk-through only drives the popout while explainers are enabled.
   const walkActive = explainersOn && walkEnabled;
 
@@ -4671,13 +4680,27 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
     setSpotIndex((i) => Math.min(stepCount - 1, i + 1));
   }, [stepCount]);
 
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  }, []);
+
   return (
     <>
-      <div className="tcd-root">
+      <div className="tcd-root" data-theme={theme}>
         {hideHeader && ctx?.clearEvents && (
           <div className="tcd-header tcd-header--compact">
             <div className="tcd-header-title-row">
               <div className="tcd-header-title">Token Chain</div>
+              <button
+                type="button"
+                className="tcd-theme-btn"
+                onClick={toggleTheme}
+                aria-pressed={theme === "dark"}
+                title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+                aria-label="Toggle token chain theme"
+              >
+                {theme === "dark" ? "Light" : "Dark"}
+              </button>
               <button
                 type="button"
                 className="tcd-clear-btn"
@@ -4733,6 +4756,16 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
                   />
                 )}
               </div>
+              <button
+                type="button"
+                className="tcd-theme-btn"
+                onClick={toggleTheme}
+                aria-pressed={theme === "dark"}
+                title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+                aria-label="Toggle token chain theme"
+              >
+                {theme === "dark" ? "Light" : "Dark"}
+              </button>
               {ctx?.clearEvents && (
                 <button
                   type="button"
@@ -4849,7 +4882,7 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
                     className={`tcd-walk__switch${explainersOn ? " is-on" : ""}`}
                     onClick={handleToggleExplainers}
                     title="Show the What / Why / Value popout for each step (off by default)"
-                  />
+                  ></button>
                 </div>
                 {explainersOn && currentEventsWithCc.length > 1 && (
                   <>
@@ -4862,7 +4895,7 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
                         className={`tcd-walk__switch${walkEnabled ? " is-on" : ""}`}
                         onClick={handleToggleWalk}
                         title="Highlight one step at a time with a plain-English explainer"
-                      />
+                      ></button>
                     </div>
                     <div className={`tcd-walk__group${walkEnabled ? "" : " is-disabled"}`}>
                       <span className="tcd-walk__label">Speed</span>
@@ -4993,10 +5026,9 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
                 sessionPreviewFetched) &&
                 currentEventsWithCc.map((ev, i) => (
                   <EventRow
-                    // Include index — event ids are NOT guaranteed unique
-                    // (2-exchange paths can emit repeated ids); keying on id
-                    // alone would collapse/drop a real step via React reconcile.
-                    key={`${ev.id}-${i}`}
+                    // Event IDs can repeat in two-exchange flows, so include
+                    // stable claim/state fields to avoid collapsing entries.
+                    key={`${ev.id || ev.label || "event"}-${ev.status || "unknown"}-${ev.claims?.sub || ""}-${ev.claims?.aud || ""}-${ev.claims?.scope || ""}-${ev.exchangeMethod || ""}-${ev.timestamp || ""}`}
                     event={ev}
                     prevEvent={currentEventsWithCc[i - 1]}
                     isLast={i === currentEventsWithCc.length - 1}
@@ -5058,9 +5090,9 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
                     </button>
                   </div>
                 )}
-                {ctx.mcpToolCalls.map((toolCall, i) => (
+                {ctx.mcpToolCalls.map((toolCall) => (
                 <div
-                  key={`${toolCall.timestamp}-${toolCall.toolName}-${i}`}
+                  key={`${toolCall.timestamp || ""}-${toolCall.toolName || ""}-${toolCall.status || ""}-${toolCall.duration || ""}`}
                   className="tcd-mcp-result-card"
                 >
                   <div className="tcd-mcp-result-header">
