@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import DraggableModal from './DraggableModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import { buildRunStory } from '../services/tokenChainTrace/buildTraceSteps';
@@ -39,7 +39,7 @@ function buildClaims(step) {
   const d = step.detail || {};
   // Token exchange step: show token claims
   if (step.id === 'exchange' && d.claims) {
-    return Object.entries(d.claims).slice(0, 10).map(([k, v]) => ({
+    return Object.entries(d.claims).map(([k, v]) => ({
       k, v: typeof v === 'object' ? JSON.stringify(v) : String(v),
       cls: k === 'scope' ? 'hi' : k === 'act' || k === 'may_act' ? 'ok' : k === 'aud' ? 'aud' : '',
     }));
@@ -52,25 +52,25 @@ function buildClaims(step) {
     if (dec.decisionId) rows.push({ k: 'decision_id', v: dec.decisionId });
     if (dec.engine) rows.push({ k: 'engine', v: dec.engine });
     if (dec.decisionContext) rows.push({ k: 'context', v: dec.decisionContext });
-    if (dec.why) rows.push({ k: 'reason', v: dec.why.slice(0, 80) });
+    if (dec.why) rows.push({ k: 'reason', v: dec.why });
     return rows;
   }
   // Sign-in: show user token claims
   if (step.id === 'signin' && d.claims) {
-    return Object.entries(d.claims).slice(0, 8).map(([k, v]) => ({
+    return Object.entries(d.claims).map(([k, v]) => ({
       k, v: typeof v === 'object' ? JSON.stringify(v) : String(v), cls: '',
     }));
   }
   // Any step with a claims object
   if (d.claims && Object.keys(d.claims).length) {
-    return Object.entries(d.claims).slice(0, 10).map(([k, v]) => ({
+    return Object.entries(d.claims).map(([k, v]) => ({
       k, v: typeof v === 'object' ? JSON.stringify(v) : String(v),
       cls: k === 'scope' ? 'hi' : k === 'act' || k === 'may_act' ? 'ok' : k === 'aud' ? 'aud' : '',
     }));
   }
   // Any step with kv pairs (gateway, mcp, etc.)
   if (d.kv?.length) {
-    return d.kv.slice(0, 10).map(([k, v]) => ({
+    return d.kv.map(([k, v]) => ({
       k, v: typeof v === 'object' ? JSON.stringify(v) : String(v), cls: '',
     }));
   }
@@ -184,6 +184,7 @@ function Inspector({ step, onClose }) {
         {claims && <button className={`tfd-insp-tab${tab==='claims'?' active':''}`} onClick={() => setTab('claims')}>Claims</button>}
         <button className={`tfd-insp-tab${tab==='narrative'?' active':''}`} onClick={() => setTab('narrative')}>Why</button>
         {spec && <button className={`tfd-insp-tab${tab==='spec'?' active':''}`} onClick={() => setTab('spec')}>RFC</button>}
+        {step.detail && <button className={`tfd-insp-tab${tab==='raw'?' active':''}`} onClick={() => setTab('raw')}>Raw</button>}
       </div>
       <div className="tfd-insp-body">
         {tab === 'claims' && claims && (
@@ -259,6 +260,13 @@ function Inspector({ step, onClose }) {
             )}
           </>
         )}
+
+        {tab === 'raw' && step.detail && (
+          <>
+            <div className="tfd-insp-section">Raw Step Detail</div>
+            <pre className="tfd-json-pre">{JSON.stringify(step.detail, null, 2)}</pre>
+          </>
+        )}
       </div>
     </>
   );
@@ -313,7 +321,7 @@ function ScopeFunnel({ steps, trace }) {
         {/* RFC 8693 Exchange */}
         <div className="tfd-fhop tfd-fhop--exchange">
           <div className="tfd-fhop-head">
-            <span className="tfd-fhop-icon">🔄</span>
+            <span className="tfd-fhop-icon">TX</span>
             <span className="tfd-fhop-name">RFC 8693 Exchange</span>
             {actClaim && <span className="tfd-fhop-sub">act: {String(actClaim).slice(0, 20)}</span>}
           </div>
@@ -328,14 +336,14 @@ function ScopeFunnel({ steps, trace }) {
         {/* Delegated Token */}
         <div className="tfd-fhop tfd-fhop--issued">
           <div className="tfd-fhop-head">
-            <span className="tfd-fhop-icon">🎫</span>
+            <span className="tfd-fhop-icon">🔑</span>
             <span className="tfd-fhop-name">Delegated Token</span>
             <span className="tfd-fhop-sub">issued · narrowed</span>
           </div>
           <div className="tfd-fscopes">
             {delegScopes.map(s => <span key={s} className="tfd-fscope tfd-fscope--kept">✓ {s}</span>)}
             {userScopes.filter(s => !delegScopes.includes(s)).slice(0, 3).map(s => (
-              <span key={s} className="tfd-fscope tfd-fscope--dropped">✗ {s}</span>
+              <span key={s} className="tfd-fscope tfd-fscope--dropped">❌ {s}</span>
             ))}
           </div>
         </div>
@@ -346,7 +354,7 @@ function ScopeFunnel({ steps, trace }) {
         {(azPermit || azDeny) && (
           <div className={`tfd-fhop${azDeny ? ' tfd-fhop--deny' : ' tfd-fhop--permit'}`}>
             <div className="tfd-fhop-head">
-              <span className="tfd-fhop-icon">{azDeny ? '⚡' : '✅'}</span>
+              <span className="tfd-fhop-icon">{azDeny ? '❌' : '✅'}</span>
               <span className="tfd-fhop-name">PingOne Authorize</span>
               <span className="tfd-fhop-sub" style={{ color: azDeny ? 'var(--tfd-danger, #f85149)' : 'var(--tfd-success, #3fb950)' }}>
                 {azDeny ? 'DENY' : 'PERMIT'}
@@ -376,10 +384,10 @@ function ScopeFunnel({ steps, trace }) {
 
 const TOPO_NODES = [
   { id: 'signin',     icon: '🔐', name: 'PingOne AS',   lane: 'PINGONE',  badgeCls: 'tfd-badge-PINGONE' },
-  { id: 'exchange',   icon: '🔄', name: 'BFF Exchange', lane: 'BFF',      badgeCls: 'tfd-badge-BFF',    label: 'delegated token' },
-  { id: 'authorize',  icon: '⚡', name: 'P1 Authorize', lane: 'AUTHZ',    badgeCls: 'tfd-badge-AUTHZ',  label: 'decision' },
-  { id: 'gateway',    icon: '🛡', name: 'Gateway',      lane: 'GATEWAY',  badgeCls: 'tfd-badge-GATEWAY', label: 'validated' },
-  { id: 'mcp',        icon: '🔧', name: 'MCP Server',   lane: 'MCP',      badgeCls: 'tfd-badge-MCP',    label: 'tool call' },
+  { id: 'exchange',   icon: 'TX', name: 'BFF Exchange', lane: 'BFF',      badgeCls: 'tfd-badge-BFF',    label: 'delegated token' },
+  { id: 'authorize',  icon: 'AZ', name: 'P1 Authorize', lane: 'AUTHZ',    badgeCls: 'tfd-badge-AUTHZ',  label: 'decision' },
+  { id: 'gateway',    icon: 'GW', name: 'Gateway',      lane: 'GATEWAY',  badgeCls: 'tfd-badge-GATEWAY', label: 'validated' },
+  { id: 'mcp',        icon: 'M',  name: 'MCP Server',   lane: 'MCP',      badgeCls: 'tfd-badge-MCP',    label: 'tool call' },
 ];
 
 function TopoNodeClaims({ step, trace }) {
@@ -463,6 +471,290 @@ function TopologyView({ steps, trace, onSelectStep }) {
   );
 }
 
+function collectTokenData(steps, trace) {
+  const findEv = (...ids) => (trace?.tokenEvents || []).find(e => e && ids.includes(e.id));
+  const userTok = findEv('user-token');
+  const delegTok = findEv('exchanged-token', 'two-ex-final-token');
+  const exchStep = steps.find(s => s.id === 'exchange');
+  const azStep = steps.find(s => s.id === 'authorize');
+  const gwStep = steps.find(s => s.id === 'gateway');
+
+  const userScopes = userTok?.claims?.scope
+    ? String(userTok.claims.scope).split(/\s+/).filter(Boolean)
+    : [];
+  const delegatedScopes = delegTok?.claims?.scope
+    ? String(delegTok.claims.scope).split(/\s+/).filter(Boolean)
+    : exchStep?.detail?.claims?.scope
+      ? String(exchStep.detail.claims.scope).split(/\s+/).filter(Boolean)
+      : [];
+
+  const delegatedAud = delegTok?.claims?.aud
+    || exchStep?.detail?.claims?.aud
+    || exchStep?.detail?.claims?.audience
+    || '';
+  const actClaim = delegTok?.claims?.act?.sub
+    || delegTok?.claims?.act
+    || exchStep?.detail?.claims?.act?.sub
+    || exchStep?.detail?.claims?.act
+    || '';
+
+  const decision = azStep?.detail?.decision?.outcome || azStep?.detail?.outcome || '';
+  const decisionReason = azStep?.detail?.decision?.why || azStep?.detail?.why || '';
+
+  return {
+    userScopes,
+    delegatedScopes,
+    delegatedAud,
+    actClaim,
+    decision,
+    decisionReason,
+    azStep,
+    gwStep,
+  };
+}
+
+function securityGuards(steps, trace) {
+  const d = collectTokenData(steps, trace);
+  const loweredAud = String(d.delegatedAud || '').toLowerCase();
+  const audLooksGateway = loweredAud.includes('mcp') || loweredAud.includes('gateway');
+  const leastPrivilege = d.userScopes.length > 0 && d.delegatedScopes.length > 0
+    ? d.delegatedScopes.length <= d.userScopes.length
+    : d.delegatedScopes.length > 0;
+  const decisionKnown = d.decision === 'PERMIT' || d.decision === 'DENY' || d.decision === 'INDETERMINATE';
+  const gatewayKnown = d.gwStep?.status === 'done' || d.gwStep?.status === 'error';
+
+  return [
+    {
+      id: 'aud',
+      title: 'Audience Bound',
+      ok: !!d.delegatedAud && audLooksGateway,
+      detail: d.delegatedAud ? `aud=${d.delegatedAud}` : 'Delegated audience not captured yet',
+    },
+    {
+      id: 'scope',
+      title: 'Least Privilege Scopes',
+      ok: leastPrivilege,
+      detail: d.delegatedScopes.length
+        ? `scopes=${d.delegatedScopes.join(' ')}`
+        : 'Delegated scopes not captured yet',
+    },
+    {
+      id: 'act',
+      title: 'Delegation Provenance',
+      ok: !!d.actClaim,
+      detail: d.actClaim ? `act=${String(d.actClaim)}` : 'No act claim captured',
+    },
+    {
+      id: 'authz',
+      title: 'Policy Decision',
+      ok: d.decision === 'PERMIT',
+      detail: decisionKnown ? `decision=${d.decision}` : 'Authorize decision pending',
+    },
+    {
+      id: 'gw',
+      title: 'Gateway Enforcement',
+      ok: d.gwStep?.status === 'done',
+      detail: gatewayKnown ? `gateway=${d.gwStep.status}` : 'Gateway step pending',
+    },
+  ];
+}
+
+function deriveCrossAppContext(steps, trace) {
+  const eventWithVertical = (trace?.tokenEvents || []).find(e => e && e.vertical);
+  const verticalRaw = eventWithVertical?.vertical || trace?.vertical || '';
+  const verticalKey = String(verticalRaw || '').trim().toLowerCase();
+
+  const verticalLabelMap = {
+    banking: 'banking',
+    healthcare: 'healthcare',
+    retail: 'retail',
+    manufacturing: 'manufacturing',
+    university: 'university',
+    government: 'government',
+    investment: 'investment',
+  };
+  const verticalLabel = verticalLabelMap[verticalKey] || (verticalKey ? `${verticalKey} domain` : 'this domain');
+
+  const mcpTool = trace?.mcpResult?.tool || trace?.mcpResult?.toolName || '';
+  const routeTool = trace?.routingDetail?.action || '';
+  const stepTool = steps.find(s => s.id === 'gateway')?.detail?.tool || '';
+  const toolName = String(mcpTool || routeTool || stepTool || '').trim();
+  const actionLabel = toolName ? toolName.replace(/_/g, ' ') : 'requested action';
+
+  return { verticalLabel, actionLabel, hasVertical: Boolean(verticalKey), hasTool: Boolean(toolName) };
+}
+
+function CrossAppView({ steps, trace, onSelectStep }) {
+  const d = collectTokenData(steps, trace);
+  const guards = securityGuards(steps, trace);
+  const ctx = deriveCrossAppContext(steps, trace);
+
+  const hops = [
+    {
+      id: 'signin',
+      title: 'User Sign-in',
+      check: 'Identity verified by PingOne and token kept server-side by the BFF.',
+      proof: d.userScopes.length ? `user scopes: ${d.userScopes.join(' ')}` : 'Waiting for user token scopes',
+    },
+    {
+      id: 'exchange',
+      title: 'Delegated Token Exchange',
+      check: `A delegated token is minted for ${ctx.actionLabel} instead of reusing the full user token.`,
+      proof: d.delegatedAud
+        ? `delegated audience: ${d.delegatedAud}`
+        : 'Waiting for delegated audience',
+    },
+    {
+      id: 'authorize',
+      title: 'Policy Decision',
+      check: 'Policy evaluates user, actor, tool, scope, and risk before tool execution.',
+      proof: d.decision ? `decision: ${d.decision}` : 'Waiting for Authorize decision',
+    },
+    {
+      id: 'gateway',
+      title: 'Gateway Scope Enforcement',
+      check: 'Gateway blocks calls with wrong audience or insufficient scope.',
+      proof: d.gwStep?.status ? `gateway status: ${d.gwStep.status}` : 'Waiting for gateway status',
+    },
+    {
+      id: 'mcp',
+      title: 'Tool Execution',
+      check: `Only the ${ctx.hasTool ? ctx.actionLabel : 'requested tool'} call executes with the narrowed delegated token.`,
+      proof: d.delegatedScopes.length
+        ? `allowed scopes: ${d.delegatedScopes.join(' ')}`
+        : 'No delegated scopes captured yet',
+    },
+  ];
+
+  const checked = guards.filter(g => g.ok).length;
+  const denied = d.decision === 'DENY' || d.decision === 'INDETERMINATE';
+  const removedScopes = d.userScopes.filter(s => !d.delegatedScopes.includes(s));
+
+  return (
+    <div className="tfd-crossapp">
+      <div className={`tfd-x-blast${denied ? ' deny' : ''}`}>
+        <div className="tfd-x-blast-title">Cross-App Protection Envelope</div>
+        <div className="tfd-x-blast-copy">
+          {`This ${ctx.verticalLabel} run is restricted to the delegated audience and least-privilege scopes for ${ctx.actionLabel}.`}
+        </div>
+        <div className="tfd-x-blast-rows">
+          <div className="tfd-x-blast-row">
+            <span>Allowed in this run</span>
+            <strong>{d.delegatedScopes.length ? d.delegatedScopes.join(' ') : 'pending'}</strong>
+          </div>
+          <div className="tfd-x-blast-row">
+            <span>Blocked outside scope</span>
+            <strong>{removedScopes.length ? removedScopes.slice(0, 5).join(' ') : 'none observed'}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="tfd-x-guards">
+        {guards.map((g) => (
+          <div key={g.id} className={`tfd-x-guard${g.ok ? ' ok' : ''}`}>
+            <div className="tfd-x-guard-title">{g.ok ? '✓' : '✕'} {g.title}</div>
+            <div className="tfd-x-guard-detail">{g.detail}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="tfd-x-hops">
+        {hops.map((hop, idx) => {
+          const step = steps.find(s => s.id === hop.id);
+          const status = step?.status || 'pending';
+          return (
+            <button
+              key={hop.id}
+              type="button"
+              className={`tfd-x-hop ${status}`}
+              onClick={() => step && onSelectStep(step)}
+              disabled={!step}
+            >
+              <div className="tfd-x-hop-top">
+                <span className="tfd-x-hop-num">{idx + 1}</span>
+                <span className="tfd-x-hop-title">{hop.title}</span>
+                <span className="tfd-x-hop-status">{status}</span>
+              </div>
+              <div className="tfd-x-hop-check">{hop.check}</div>
+              <div className="tfd-x-hop-proof">Proof: {hop.proof}</div>
+              {hop.id === 'authorize' && d.decisionReason && (
+                <div className="tfd-x-hop-proof">Reason: {String(d.decisionReason).slice(0, 90)}</div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className={`tfd-x-receipt${denied ? ' deny' : ''}`}>
+        <div className="tfd-x-receipt-title">Trust Receipt</div>
+        <div className="tfd-x-receipt-row"><span>Checks passed</span><strong>{checked}/{guards.length}</strong></div>
+        <div className="tfd-x-receipt-row"><span>Decision</span><strong>{d.decision || 'pending'}</strong></div>
+        <div className="tfd-x-receipt-row"><span>Audience</span><strong>{d.delegatedAud || 'pending'}</strong></div>
+      </div>
+    </div>
+  );
+}
+
+function LeastAgencyView({ steps, trace, onSelectStep }) {
+  const d = collectTokenData(steps, trace);
+  const guards = securityGuards(steps, trace);
+  const removedScopes = d.userScopes.filter(s => !d.delegatedScopes.includes(s));
+  const decisionText = d.decision || 'pending';
+
+  const focusRows = [
+    { id: 'scope-drop', label: 'Scopes Removed', value: removedScopes.length ? removedScopes.join(' ') : 'none captured' },
+    { id: 'scope-allow', label: 'Scopes Allowed', value: d.delegatedScopes.length ? d.delegatedScopes.join(' ') : 'pending' },
+    { id: 'aud', label: 'Audience Bound', value: d.delegatedAud || 'pending' },
+    { id: 'act', label: 'Actor Proof', value: d.actClaim || 'pending' },
+    { id: 'decision', label: 'Policy Decision', value: decisionText },
+  ];
+
+  return (
+    <div className="tfd-least">
+      <div className="tfd-least-head">
+        <div className="tfd-least-title">Least Agency Controls</div>
+        <div className="tfd-least-sub">Only the minimum audience and scopes flow to the tool call path.</div>
+      </div>
+
+      <div className="tfd-least-grid">
+        {focusRows.map((row) => (
+          <div key={row.id} className="tfd-least-card">
+            <div className="tfd-least-label">{row.label}</div>
+            <div className="tfd-least-value">{row.value}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="tfd-least-guards">
+        {guards.map((g) => (
+          <button
+            key={g.id}
+            type="button"
+            className={`tfd-least-guard${g.ok ? ' ok' : ''}`}
+            onClick={() => {
+              if (g.id === 'authz') {
+                const step = steps.find((s) => s.id === 'authorize');
+                if (step) onSelectStep(step);
+              }
+              if (g.id === 'gw') {
+                const step = steps.find((s) => s.id === 'gateway');
+                if (step) onSelectStep(step);
+              }
+              if (g.id === 'act' || g.id === 'scope' || g.id === 'aud') {
+                const step = steps.find((s) => s.id === 'exchange');
+                if (step) onSelectStep(step);
+              }
+            }}
+          >
+            <span className="tfd-least-guard-title">{g.ok ? '✓' : '⚠️'} {g.title}</span>
+            <span className="tfd-least-guard-detail">{g.detail}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 
 export default function TokenFlowDetailModal({ isOpen, onClose }) {
@@ -470,8 +762,28 @@ export default function TokenFlowDetailModal({ isOpen, onClose }) {
   const [view, setView] = useState('simple');
   const [selectedStep, setSelectedStep] = useState(null);
   const [inspOpen, setInspOpen] = useState(false);
+  const [inspWidth, setInspWidth] = useState(420);
   const [footerOpen, setFooterOpen] = useState(null);
   const [darkMode, setDarkMode] = useState(true);
+  const dragging = useRef(false);
+
+  const handleResizeStart = useCallback((e) => {
+    e.preventDefault();
+    dragging.current = true;
+    const startX = e.clientX;
+    const startW = inspWidth;
+    const onMove = (ev) => {
+      const delta = startX - ev.clientX;
+      setInspWidth(Math.max(300, Math.min(760, startW + delta)));
+    };
+    const onUp = () => {
+      dragging.current = false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [inspWidth]);
 
   useEffect(() => {
     return tokenChainTraceStore.subscribe(setStoreState);
@@ -509,6 +821,8 @@ export default function TokenFlowDetailModal({ isOpen, onClose }) {
       defaultWidth={860}
       defaultHeight={680}
       storageKey="ba-flow-detail-modal"
+      singletonKey="ba-flow-detail-modal"
+      autoPopOut
       footer={null}
       noBackdrop
       zIndex={10000}
@@ -539,12 +853,35 @@ export default function TokenFlowDetailModal({ isOpen, onClose }) {
             Detailed
           </button>
           <button
-            className="tfd-theme-btn"
-            onClick={() => setDarkMode(d => !d)}
-            title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            className={`tfd-tab${view === 'crossapp' ? ' active' : ''}`}
+            onClick={() => setView('crossapp')}
           >
-            {darkMode ? '☀' : '🌙'}
+            Cross-App
           </button>
+          <button
+            className={`tfd-tab${view === 'leastagency' ? ' active' : ''}`}
+            onClick={() => setView('leastagency')}
+          >
+            Least Agency
+          </button>
+          <div className="tfd-theme-switch" role="group" aria-label="Theme mode">
+            <button
+              className={`tfd-theme-opt${!darkMode ? ' active' : ''}`}
+              onClick={() => setDarkMode(false)}
+              title="Use light mode"
+              aria-pressed={!darkMode}
+            >
+              Light {!darkMode ? '✓' : ''}
+            </button>
+            <button
+              className={`tfd-theme-opt${darkMode ? ' active' : ''}`}
+              onClick={() => setDarkMode(true)}
+              title="Use dark mode"
+              aria-pressed={darkMode}
+            >
+              Dark {darkMode ? '✓' : ''}
+            </button>
+          </div>
         </div>
 
         {/* Body */}
@@ -602,6 +939,14 @@ export default function TokenFlowDetailModal({ isOpen, onClose }) {
               <TopologyView steps={steps} trace={trace} onSelectStep={selectStep} />
             )}
 
+            {view === 'crossapp' && (
+              <CrossAppView steps={steps} trace={trace} onSelectStep={selectStep} />
+            )}
+
+            {view === 'leastagency' && (
+              <LeastAgencyView steps={steps} trace={trace} onSelectStep={selectStep} />
+            )}
+
             {/* Steps */}
             <div className="tfd-steps">
               {view === 'simple'
@@ -614,7 +959,9 @@ export default function TokenFlowDetailModal({ isOpen, onClose }) {
                       onClick={() => selectStep(step)}
                     />
                   ))
-                : steps.map((step, i) => (
+                : view === 'crossapp' || view === 'leastagency'
+                  ? null
+                  : steps.map((step, i) => (
                     <DetailCard
                       key={step.id + i}
                       step={step}
@@ -667,8 +1014,10 @@ export default function TokenFlowDetailModal({ isOpen, onClose }) {
             </div>
           </div>
 
+          {inspOpen && <div className="tfd-body-resizer" onMouseDown={handleResizeStart} />}
+
           {/* Inspector */}
-          <div className={`tfd-inspector${inspOpen ? '' : ' closed'}`}>
+          <div className={`tfd-inspector${inspOpen ? '' : ' closed'}`} style={inspOpen ? { width: inspWidth } : undefined}>
             <Inspector step={selectedStep} onClose={closeInspector} />
           </div>
 

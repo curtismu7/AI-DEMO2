@@ -3,6 +3,14 @@ import ReactDOM, { createPortal } from "react-dom";
 import { useDraggablePanel } from "../hooks/useDraggablePanel";
 import "./DraggableModal.css";
 
+function getSingletonRegistry() {
+  if (typeof window === "undefined") return null;
+  if (!window.__dmSingletonRegistry) {
+    window.__dmSingletonRegistry = new Map();
+  }
+  return window.__dmSingletonRegistry;
+}
+
 function PopOutPortal({ win, children }) {
   const [container] = useState(() => win.document.getElementById("dm-root"));
   if (!container) return null;
@@ -41,6 +49,9 @@ function PopOutPortal({ win, children }) {
  *   zIndex        number (default 9999)
  *   backdropClose boolean (default false)
  *   closeLabel    string  (default 'Close')
+ *   singletonKey  string | null (default null)
+ *                   If set, only one open modal instance with this key is allowed.
+ *   autoPopOut    boolean (default false)
  */
 export default function DraggableModal({
   isOpen,
@@ -61,8 +72,11 @@ export default function DraggableModal({
   noBackdrop = false,
   closeLabel = "Close",
   closeOnPopout = false,
+  singletonKey = null,
+  autoPopOut = false,
 }) {
   const [popoutWin, setPopoutWin] = useState(null);
+  const [instanceId] = useState(() => `dm_${Math.random().toString(36).slice(2)}`);
 
   const initialPos = useCallback(
     () => ({
@@ -148,6 +162,31 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
     document.addEventListener("keydown", h);
     return () => document.removeEventListener("keydown", h);
   }, [isOpen, onClose]);
+
+  // Enforce single open modal per key (prevents stacked duplicate windows).
+  useEffect(() => {
+    if (!singletonKey || !isOpen || !onClose) return;
+    const registry = getSingletonRegistry();
+    if (!registry) return;
+
+    const owner = registry.get(singletonKey);
+    if (owner && owner !== instanceId) {
+      onClose();
+      return;
+    }
+
+    registry.set(singletonKey, instanceId);
+    return () => {
+      const current = registry.get(singletonKey);
+      if (current === instanceId) registry.delete(singletonKey);
+    };
+  }, [singletonKey, isOpen, onClose, instanceId]);
+
+  // Optional auto-popout behavior.
+  useEffect(() => {
+    if (!isOpen || !autoPopOut || isPoppedOut) return;
+    handlePopOut();
+  }, [isOpen, autoPopOut, isPoppedOut, handlePopOut]);
 
   if (!isOpen && !isPoppedOut) return null;
 
