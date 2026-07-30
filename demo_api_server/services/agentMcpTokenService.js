@@ -2351,6 +2351,14 @@ async function _performTwoExchangeDelegation(
     ? [finalAudTarget]
     : finalAudTarget;
   const finalAudDisplay = Array.isArray(finalAudiences) ? JSON.stringify(finalAudiences) : finalAudiences;
+  // Direct-WS callers (Banking Inspector) intentionally request a coarse
+  // server invoke scope so direct MCP server calls fail as explicit
+  // insufficient_scope instead of a transport-level audience mismatch close.
+  const directServerInvokeScope =
+    configStore.getEffective('server_mcp_invoke_scope') || 'server:mcp:invoke';
+  const exchange2RequestedScopes = opts.forceDirectMcpAudience
+    ? [directServerInvokeScope]
+    : effectiveToolScopes;
 
   tokenEvents.push(buildTokenEvent(
     'two-ex-exchange2-in-progress',
@@ -2361,7 +2369,7 @@ async function _performTwoExchangeDelegation(
       `subject=Agent Exchanged Token (act.sub must equal actor_token.aud[0]=${mcpExchangerClient}), ` +
       `audience=${finalAudDisplay} (RFC 8707 multi-resource). act expression forwards act.sub from Agent Exchanged Token.`,
     { rfc: 'RFC 8693 + RFC 8707', exchangeStep: '2-exchange',
-      exchangeRequest: { exchanger: mcpExchangerClient, audience: finalAudDisplay, scope: effectiveToolScopes.join(' ') } }
+      exchangeRequest: { exchanger: mcpExchangerClient, audience: finalAudDisplay, scope: exchange2RequestedScopes.join(' ') } }
   ));
 
   let finalToken;
@@ -2380,7 +2388,7 @@ async function _performTwoExchangeDelegation(
     const gatewayInvokeScope = configStore.getEffective('gateway_mcp_invoke_scope')
       || configStore.getEffective('pinggateway_invoke_scope')
       || 'gateway:mcp:invoke';
-    const ex2Scopes = usePingGatewayForExchange ? [gatewayInvokeScope] : effectiveToolScopes;
+    const ex2Scopes = usePingGatewayForExchange ? [gatewayInvokeScope] : exchange2RequestedScopes;
     finalToken = await oauthService.performTokenExchangeAs(
       agentExchangedToken, mcpActorToken, mcpExchangerClient, mcpExchangerSecret, finalAudiences, ex2Scopes, mcpExchangerAuthMethod
     );
