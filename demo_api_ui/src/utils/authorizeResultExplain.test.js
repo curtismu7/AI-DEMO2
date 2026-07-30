@@ -12,7 +12,7 @@ const MOCK_POLICIES = [{
   children: [{
     kind: 'POLICY',
     name: 'AI Demo Transaction Authorization',
-    description: 'Authorizes banking transactions by amount, type, and ACR.',
+    description: 'Authorizes AI Demo banking transactions by amount, type, and ACR.',
     algorithm: 'DenyOverrides',
     children: [{
       kind: 'RULE',
@@ -35,7 +35,7 @@ describe('explainAuthorizeResult — transaction', () => {
     expect(r.headline).toMatch(/DENY/i);
     expect(r.ruleLikely).toBe('Deny Large Transactions');
     expect(r.policyName).toBe('AI Demo Transaction Authorization');
-    expect(r.policyDescription).toMatch(/banking transactions/i);
+    expect(r.policyDescription).toMatch(/AI Demo banking transactions/i);
     expect(r.ruleName).toBe('Deny Large Transactions');
     expect(r.ruleDescription).toMatch(/\$2,000/);
     expect(r.reasons.some((x) => x.includes(TX_DENY_USD.toLocaleString()))).toBe(true);

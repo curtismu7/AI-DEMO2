@@ -12,10 +12,10 @@
   "currentVersion": 1,
   "customerId": "8b37902a4f69bb60cbfc6cff61a23dc4",
   "deployedDate": 1776902400000,
-  "description": "Super Banking transaction authorization flow. Collects transaction details (Amount, TransactionType, Username), looks up the user in PingOne SSO, then evaluates the request against the Super Banking Transaction Authorization policy in PingOne Authorize. Routes to PERMIT, DENY, or STEP_UP (step-up MFA obligation) based on the policy decision. Policy rules: DENY if Amount > $50,000; STEP_UP obligation if Amount > $10,000 and no MFA ACR for transfers/withdrawals; PERMIT otherwise. After import, configure the Decision Router evaluator (node: ox7sf2dn1e) with three branches: condition local.bi4gt8mp5c.payload.status=DENY routes to Transaction Denied; condition local.tz9kv6uh3b.payload.output.stepUpRequired=true routes to Step-Up Required; default routes to Transaction Authorized.",
+  "description": "AI Demo transaction authorization flow. Collects transaction details (Amount, TransactionType, Username), looks up the user in PingOne SSO, then evaluates the request against the AI Demo Transaction Authorization policy in PingOne Authorize. Routes to PERMIT, DENY, or STEP_UP (step-up MFA obligation) based on the policy decision. Policy rules: DENY if Amount > $50,000; STEP_UP obligation if Amount > $10,000 and no MFA ACR for transfers/withdrawals; PERMIT otherwise. After import, configure the Decision Router evaluator (node: ox7sf2dn1e) with three branches: condition local.bi4gt8mp5c.payload.status=DENY routes to Transaction Denied; condition local.tz9kv6uh3b.payload.output.stepUpRequired=true routes to Step-Up Required; default routes to Transaction Authorized.",
   "flowStatus": "enabled",
   "isOutputSchemaSaved": false,
-  "name": "Super Banking Transaction Authorization",
+  "name": "AI Demo Transaction Authorization",
   "publishedVersion": 1,
   "settings": {
     "csp": "worker-src 'self' blob:; script-src 'self' https://cdn.jsdelivr.net https://code.jquery.com https://devsdk.singularkey.com http://cdnjs.cloudflare.com 'unsafe-inline' 'unsafe-eval';",
