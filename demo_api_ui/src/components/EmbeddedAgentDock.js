@@ -54,9 +54,6 @@ export default function EmbeddedAgentDock({ user, agentPlacement }) {
   const [frameworkLabel, setFrameworkLabel] = useState(null);
   const { category: fpCategory, variant: fpVariant } = useFootprintAutoDetect();
   const [exchangeModalOpen, setExchangeModalOpen] = useState(false);
-  const { category: fpCategory, variant: fpVariant } = useFootprintAutoDetect();
-  const { category: fpCategory, variant: fpVariant } = useFootprintAutoDetect();
-  const [exchangeModalOpen, setExchangeModalOpen] = useState(false);
 
   // Vertical-aware title — Care Connect → "Care Assistant", banking → "banking
   // assistant", retail → fall back to identity.displayName. Config-page title
