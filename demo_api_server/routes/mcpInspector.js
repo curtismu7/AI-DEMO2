@@ -497,9 +497,10 @@ router.get('/tools', async (req, res) => {
       // Discovery is read-only metadata — any token-resolve failure (exchange
       // scope policy, invalid_grant, delegation_chain_broken, …) falls back to
       // the local catalog so the AI Demo / Custom tabs still list tools.
+      const resolvedErrCode = err.error || err.code || err.httpStatus || 'unknown';
       console.warn(
         '[MCP Inspector] token resolve failed (%s HTTP %s): %s — using local catalog',
-        err.code,
+        resolvedErrCode,
         err.httpStatus,
         err.message
       );
@@ -507,10 +508,10 @@ router.get('/tools', async (req, res) => {
         traceId,
         'token_resolve',
         'Token resolution failed — using local catalog',
-        err.message || `code=${err.code || 'unknown'}`,
+        err.message || `code=${resolvedErrCode}`,
         'warning'
       );
-      return respondLocalCatalog(`token_resolve_failed_${err.code || err.httpStatus || 'unknown'}`);
+      return respondLocalCatalog(`token_resolve_failed_${resolvedErrCode}`);
     }
     if (!agentToken) {
       return respondLocalCatalog('token_resolution_yielded_null');
