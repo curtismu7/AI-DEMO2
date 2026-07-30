@@ -43,6 +43,8 @@ export interface ConnectionInfo {
   messageCount: number;
   /** SHOULD (spec lifecycle): set to true when client sends notifications/initialized. */
   initialized?: boolean;
+  _keepaliveInterval?: NodeJS.Timeout;
+  _idleCheckInterval?: NodeJS.Timeout;
 }
 
 export interface ServerStats {
@@ -471,6 +473,14 @@ export class DemoMCPServer extends EventEmitter {
     }
 
     try {
+      // Clean up keepalive and idle check intervals
+      if (connection._keepaliveInterval) {
+        clearInterval(connection._keepaliveInterval);
+      }
+      if (connection._idleCheckInterval) {
+        clearInterval(connection._idleCheckInterval);
+      }
+
       // Close WebSocket if still open
       if (connection.ws.readyState === WebSocket.OPEN) {
         connection.ws.close(code, reason);
@@ -616,6 +626,42 @@ export class DemoMCPServer extends EventEmitter {
         connection.lastActivity = new Date();
       }
     });
+
+    // Keepalive: ping every 30s to detect dead connections
+    const keepaliveInterval = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.ping((err) => {
+          if (err) {
+            console.error(`[DemoMCPServer] Ping error for ${connectionId}:`, err);
+          }
+        });
+      } else {
+        clearInterval(keepaliveInterval);
+      }
+    }, 30000);
+
+    // Idle timeout: close connections idle > 60s (no message activity)
+    const idleCheckInterval = setInterval(async () => {
+      const connection = this.connections.get(connectionId);
+      if (connection) {
+        const idleMs = Date.now() - connection.lastActivity.getTime();
+        const idleThresholdMs = 60000; // 60 seconds
+        if (idleMs > idleThresholdMs && ws.readyState === WebSocket.OPEN) {
+          console.warn(`[DemoMCPServer] Closing idle connection ${connectionId} (idle ${Math.round(idleMs / 1000)}s)`);
+          await this.closeConnection(connectionId, 1000, 'Connection idle timeout');
+          clearInterval(idleCheckInterval);
+        }
+      } else {
+        clearInterval(idleCheckInterval);
+      }
+    }, 15000); // Check every 15s
+
+    // Store interval IDs for cleanup on connection close
+    const connection = this.connections.get(connectionId);
+    if (connection) {
+      connection._keepaliveInterval = keepaliveInterval;
+      connection._idleCheckInterval = idleCheckInterval;
+    }
   }
 
   /**
