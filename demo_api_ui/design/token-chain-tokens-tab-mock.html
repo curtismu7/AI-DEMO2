@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Mock — FloatingTokenChainPanel · Full Chain / Simple / Detailed tabs</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #1a1f2e;
+  --bg2:       #1e2536;
+  --bg3:       #252d40;
+  --bg4:       #2c3550;
+  --border:    #2e3750;
+  --border2:   #374263;
+  --text:      #e2e8f8;
+  --text2:     #8895b3;
+  --text3:     #5a6480;
+  --brand:     #4f8ef7;
+  --brand-dim: rgba(79,142,247,.12);
+  --success:   #22c55e;
+  --danger:    #ef4444;
+  --warn:      #f59e0b;
+  --mono:      'JetBrains Mono', 'Fira Code', monospace;
+  --sans:      'Inter', system-ui, sans-serif;
+  --c-pingone:  #f472b6;
+  --c-bff:      #94a3b8;
+  --c-authz:    #fb923c;
+  --c-heur:     #fb923c;
+  --c-gateway:  #34d399;
+  --c-mcp:      #f59e0b;
+  --c-api:      #94a3b8;
+  --c-agent:    #a78bfa;
+  --c-chat:     #60a5fa;
+}
+
+html, body { background: #0b0f1c; font-family: var(--sans); font-size: 13px; color: var(--text); line-height: 1.4; height: 100%; }
+
+.page { display: grid; grid-template-columns: 260px 1fr; gap: 0; height: 100vh; overflow: hidden; }
+
+/* ── Left annotation rail ── */
+.annot-col { background: #0e1220; border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; padding: 20px 16px; }
+.annot-title { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; color: var(--text3); font-weight: 700; margin-bottom: 16px; }
+.annot-section { margin-bottom: 20px; }
+.annot-section h3 { font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
+.annot-section h3 .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.dot-green  { background: #22c55e; }
+.dot-amber  { background: #f59e0b; }
+.dot-blue   { background: #4f8ef7; }
+.dot-purple { background: #a78bfa; }
+.annot-section p { font-size: 11px; color: var(--text3); line-height: 1.6; margin-bottom: 4px; }
+.annot-section code { font-family: var(--mono); font-size: 10px; background: var(--bg3); padding: 1px 4px; border-radius: 3px; color: var(--brand); }
+.annot-divider { height: 1px; background: var(--border); margin: 12px 0; }
+
+.tab-legend { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.tl-row { display: flex; align-items: flex-start; gap: 6px; font-size: 11px; color: var(--text3); line-height: 1.5; }
+.tl-chip { font-size: 9.5px; font-weight: 600; padding: 1px 7px; border-radius: 4px; white-space: nowrap; flex-shrink: 0; }
+.tl-existing { background: var(--bg3); color: var(--text2); border: 1px solid var(--border2); }
+.tl-new      { background: rgba(34,197,94,.08); color: #4ade80; border: 1px solid rgba(34,197,94,.25); }
+
+/* ── Right column ── */
+.panel-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 24px 20px; gap: 14px; overflow-y: auto; background: #0f1320; }
+.panel-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: 100%; max-width: 1100px; align-items: start; }
+.ctx-label { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--text3); font-weight: 600; display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+
+/* ── Floating panel chrome ── */
+.fp { background: var(--bg2); border: 1px solid var(--border2); border-radius: 10px; box-shadow: 0 20px 60px rgba(0,0,0,.6); display: flex; flex-direction: column; overflow: hidden; width: 100%; }
+.fp.tall { height: 560px; }
+
+.fp-header { background: var(--bg3); border-bottom: 1px solid var(--border); padding: 8px 12px; display: flex; align-items: center; gap: 8px; cursor: grab; flex-shrink: 0; user-select: none; }
+.fp-title { font-size: 12px; font-weight: 600; color: var(--text); flex: 1; }
+.fp-step-count { font-size: 10px; font-family: var(--mono); color: var(--text3); background: var(--bg4); border: 1px solid var(--border); border-radius: 8px; padding: 1px 7px; }
+.fp-controls { display: flex; gap: 3px; }
+.fp-btn { width: 24px; height: 24px; border: 1px solid var(--border2); background: var(--bg4); color: var(--text2); border-radius: 4px; cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center; transition: background .1s, color .1s; }
+.fp-btn:hover { background: var(--border); color: var(--text); }
+.fp-btn--clear { font-size: 10px; padding: 0 6px; width: auto; color: var(--text3); }
+.fp-btn--clear:hover { color: var(--warn); border-color: var(--warn); }
+.fp-btn--close:hover { background: rgba(239,68,68,.12); color: var(--danger); border-color: var(--danger); }
+
+.fp-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); background: var(--bg3); padding: 0 12px; flex-shrink: 0; }
+.fp-tab { padding: 7px 12px; font-size: 11.5px; font-weight: 500; color: var(--text3); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; position: relative; top: 1px; transition: color .1s, border-color .1s; font-family: var(--sans); white-space: nowrap; }
+.fp-tab:hover { color: var(--text2); }
+.fp-tab.active { color: var(--brand); border-bottom-color: var(--brand); }
+.fp-tab .cnt { margin-left: 4px; font-family: var(--mono); font-size: 9.5px; background: var(--bg4); border: 1px solid var(--border2); border-radius: 8px; padding: 0 5px; color: var(--text3); }
+.fp-tab.active .cnt { background: var(--brand-dim); color: var(--brand); border-color: rgba(79,142,247,.3); }
+
+.fp-body { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+
+/* ── SIMPLE TAB — table ── */
+.simple-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.simple-table thead { position: sticky; top: 0; z-index: 1; }
+.simple-table th { background: var(--bg3); border-bottom: 1px solid var(--border2); padding: 6px 10px; font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--text3); font-weight: 700; text-align: left; }
+.simple-table th:first-child { width: 32px; text-align: center; }
+.simple-table th:nth-child(3) { width: 110px; }
+.simple-table th:last-child { width: 80px; }
+.simple-table td { padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.simple-table td:first-child { text-align: center; font-family: var(--mono); font-size: 10px; color: var(--text3); font-weight: 600; }
+.st-row:hover td { background: var(--bg3); cursor: pointer; }
+.st-row--halted td { background: rgba(239,68,68,.04); }
+.st-row--halted td:first-child { border-left: 2px solid var(--danger); padding-left: 8px; }
+.st-row--ghost td { opacity: .38; }
+.st-row--notinpath .st-step-label { text-decoration: line-through; color: var(--text3); }
+.st-row--notinpath td { opacity: .4; }
+.st-step-label { color: var(--text); font-weight: 500; }
+
+.prod-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 9.5px; font-weight: 700; letter-spacing: .05em; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+.chip-pingone { color: var(--c-pingone); background: rgba(244,114,182,.08); border: 1px solid rgba(244,114,182,.2); }
+.chip-bff     { color: var(--c-bff);     background: rgba(148,163,184,.08); border: 1px solid rgba(148,163,184,.2); }
+.chip-authz   { color: var(--c-authz);   background: rgba(251,146,60,.08);  border: 1px solid rgba(251,146,60,.2); }
+.chip-heur    { color: var(--c-heur);    background: rgba(251,146,60,.08);  border: 1px solid rgba(251,146,60,.2); }
+.chip-gateway { color: var(--c-gateway); background: rgba(52,211,153,.08);  border: 1px solid rgba(52,211,153,.2); }
+.chip-mcp     { color: var(--c-mcp);     background: rgba(245,158,11,.08);  border: 1px solid rgba(245,158,11,.2); }
+.chip-api     { color: var(--c-api);     background: rgba(148,163,184,.08); border: 1px solid rgba(148,163,184,.2); }
+.chip-agent   { color: var(--c-agent);   background: rgba(167,139,250,.08); border: 1px solid rgba(167,139,250,.2); }
+
+.st-ok   { color: var(--success); font-weight: 600; }
+.st-halt { color: var(--danger);  font-weight: 600; font-size: 11px; font-family: var(--mono); }
+.st-skip { color: var(--text3);   font-size: 11px; }
+
+/* ── DETAILED TAB — per-step cards ── */
+.det-card { border-bottom: 1px solid var(--border); border-left: 3px solid transparent; transition: background .1s; }
+.det-card:last-child { border-bottom: none; }
+.det-card--ok   { border-left-color: var(--success); }
+.det-card--fail { border-left-color: var(--danger); background: rgba(239,68,68,.03); }
+.det-card--ghost { opacity: .32; pointer-events: none; }
+.det-card--skip { border-left-color: var(--border2); opacity: .45; }
+.det-card:not(.det-card--ghost):not(.det-card--skip):hover { background: var(--bg3); cursor: pointer; }
+
+.det-head { display: flex; align-items: flex-start; gap: 10px; padding: 9px 12px 7px; }
+.det-num { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; margin-top: 1px; font-family: var(--mono); }
+.det-num--ok   { background: rgba(34,197,94,.12);  color: var(--success); }
+.det-num--fail { background: rgba(239,68,68,.12);  color: var(--danger); }
+.det-num--skip { background: var(--bg4);           color: var(--text3); }
+
+.det-info { flex: 1; min-width: 0; }
+.det-label { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.det-label.strikethrough { text-decoration: line-through; color: var(--text3); }
+.det-meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+
+.det-status { font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 4px; }
+.ds-ok   { background: rgba(34,197,94,.1);  color: var(--success); border: 1px solid rgba(34,197,94,.25); }
+.ds-fail { background: rgba(239,68,68,.1);  color: var(--danger);  border: 1px solid rgba(239,68,68,.25); }
+.ds-skip { background: var(--bg4);          color: var(--text3);   border: 1px solid var(--border2); }
+
+.rfc-pill { font-size: 9.5px; background: var(--brand-dim); color: var(--brand); border-radius: 4px; padding: 1px 5px; font-family: var(--mono); white-space: nowrap; }
+
+.det-claims { margin: 0 12px 8px 42px; background: var(--bg); border: 1px solid var(--border); border-radius: 5px; overflow: hidden; }
+.dc-row { display: grid; grid-template-columns: 80px 1fr; border-bottom: 1px solid var(--border); font-family: var(--mono); font-size: 11px; }
+.dc-row:last-child { border-bottom: none; }
+.dc-k { padding: 4px 8px; color: var(--brand); font-weight: 500; border-right: 1px solid var(--border); background: var(--bg3); white-space: nowrap; }
+.dc-v { padding: 4px 8px; color: var(--text2); word-break: break-all; }
+.dc-v--scope { color: #a78bfa; }
+.dc-v--act   { color: var(--success); }
+.dc-v--aud   { color: var(--c-gateway); }
+
+.det-narrative { margin: 0 12px 8px 42px; font-size: 11px; color: var(--text3); line-height: 1.55; }
+.det-error { margin: 0 12px 8px 42px; font-size: 11px; color: #fca5a5; background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); border-radius: 4px; padding: 6px 8px; font-family: var(--mono); }
+
+.err-banner { margin: 8px 10px; padding: 8px 10px; background: rgba(239,68,68,.07); border: 1px solid rgba(239,68,68,.2); border-radius: 6px; font-size: 11px; color: #fca5a5; line-height: 1.55; flex-shrink: 0; }
+.err-banner strong { color: var(--danger); display: block; margin-bottom: 3px; }
+
+.chain-placeholder { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--text3); padding: 20px; text-align: center; }
+.chain-placeholder .lbl { font-size: 11px; color: var(--text3); max-width: 240px; line-height: 1.6; }
+
+.new-badge { font-size: 8px; font-weight: 700; background: rgba(34,197,94,.12); color: #4ade80; border: 1px solid rgba(34,197,94,.25); border-radius: 3px; padding: 0 4px; letter-spacing: .05em; }
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── Left annotation ── -->
+  <div class="annot-col">
+    <div class="annot-title">Plan — what changes</div>
+
+    <div class="annot-section">
+      <h3><div class="dot dot-blue"></div> Tab bar changes</h3>
+      <div class="tab-legend">
+        <div class="tl-row"><span class="tl-chip tl-existing">Full Chain</span> Existing — TokenChainTraceRail, no change</div>
+        <div class="tl-row"><span class="tl-chip tl-existing">Simple</span> Rename "Steps" → "Simple". Same StepsTabContent. No logic change.</div>
+        <div class="tl-row"><span class="tl-chip tl-new">Detailed NEW</span> New tab — per-step cards with claims, RFC pills, narratives</div>
+      </div>
+    </div>
+
+    <div class="annot-divider"></div>
+
+    <div class="annot-section">
+      <h3><div class="dot dot-green"></div> Simple tab</h3>
+      <p>4-column table — same as <code>SimpleStepperPanel</code>:</p>
+      <div style="margin-top:6px;display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--text3)">
+        <span><code>#</code> step number</span>
+        <span><code>Step</code> event label</span>
+        <span><code>Product</code> PingProductChip</span>
+        <span><code>Status</code> ✓ / ✕ code / — did not run</span>
+      </div>
+    </div>
+
+    <div class="annot-divider"></div>
+
+    <div class="annot-section">
+      <h3><div class="dot dot-amber"></div> Detailed tab</h3>
+      <p>One card per step. Per card:</p>
+      <div style="margin-top:6px;display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--text3)">
+        <span>Numbered circle + label + product chip</span>
+        <span>Status badge (coloured)</span>
+        <span>RFC pill(s) from <code>ev.rfc</code></span>
+        <span>JWT claims: sub / iss / aud / scope / act / cnf</span>
+        <span>Plain-text narrative</span>
+        <span>Error box if halted</span>
+        <span>Ghost / dimmed if did-not-run</span>
+      </div>
+    </div>
+
+    <div class="annot-divider"></div>
+
+    <div class="annot-section">
+      <h3><div class="dot dot-purple"></div> New files</h3>
+      <p><code>DetailedStepsTabContent.js</code></p>
+      <p><code>DetailedStepsTabContent.css</code></p>
+      <p style="margin-top:8px"><strong style="color:var(--text2)">Changed:</strong></p>
+      <p><code>FloatingTokenChainPanel.js</code> — rename "Steps"→"Simple", add Detailed tab</p>
+      <p style="margin-top:8px"><strong style="color:var(--text2)">Untouched:</strong></p>
+      <p><code>StepsTabContent.js</code></p>
+      <p><code>TokenChainTraceRail</code></p>
+      <p><code>SimpleStepperPanel.js</code></p>
+    </div>
+  </div>
+
+  <!-- ── Right panels ── -->
+  <div class="panel-col">
+    <div class="panel-row">
+
+      <!-- Simple tab active -->
+      <div>
+        <div class="ctx-label">
+          <div class="dot dot-green"></div>
+          <strong style="color:var(--text2)">Simple tab</strong>
+          &nbsp;<span style="font-size:9px">(rename of "Steps" — no logic change)</span>
+        </div>
+        <div class="fp tall">
+          <div class="fp-header">
+            <span style="color:var(--brand);font-size:14px">⊕</span>
+            <span class="fp-title">Token Chain — RFC 8693</span>
+            <span class="fp-step-count">13 steps</span>
+            <div class="fp-controls">
+              <button class="fp-btn fp-btn--clear">Clear</button>
+              <button class="fp-btn">▾</button>
+              <button class="fp-btn fp-btn--close">✕</button>
+            </div>
+          </div>
+          <div class="fp-tabs" id="tabs-A">
+            <button class="fp-tab" onclick="switchTab('A','chain',this)">Full Chain</button>
+            <button class="fp-tab active" onclick="switchTab('A','simple',this)">Simple <span class="cnt">13</span></button>
+            <button class="fp-tab" onclick="switchTab('A','detailed',this)">Detailed <span class="cnt"><span class="new-badge">NEW</span></span></button>
+          </div>
+          <div class="fp-body" id="body-A-chain" style="display:none">
+            <div class="chain-placeholder">
+              <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#374263" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8l4 4-4 4"/></svg>
+              <div class="lbl">Full Chain tab — existing <code>TokenChainTraceRail</code> is unchanged. No edits needed.</div>
+            </div>
+          </div>
+          <div class="fp-body" id="body-A-simple">
+            <div class="err-banner">
+              <strong>✕ Run stopped at step 8 — "PingOne Authorize — DENY"</strong>
+              Steps after the halt are shown as "did not run."
+            </div>
+            <table class="simple-table" id="simple-A"></table>
+          </div>
+          <div class="fp-body" id="body-A-detailed" style="display:none">
+            <div id="det-A"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detailed tab active -->
+      <div>
+        <div class="ctx-label">
+          <div class="dot dot-amber"></div>
+          <strong style="color:var(--text2)">Detailed tab</strong>
+          <span class="new-badge" style="font-size:9px">NEW</span>
+        </div>
+        <div class="fp tall">
+          <div class="fp-header">
+            <span style="color:var(--brand);font-size:14px">⊕</span>
+            <span class="fp-title">Token Chain — RFC 8693</span>
+            <span class="fp-step-count">13 steps</span>
+            <div class="fp-controls">
+              <button class="fp-btn fp-btn--clear">Clear</button>
+              <button class="fp-btn">▾</button>
+              <button class="fp-btn fp-btn--close">✕</button>
+            </div>
+          </div>
+          <div class="fp-tabs" id="tabs-B">
+            <button class="fp-tab" onclick="switchTab('B','chain',this)">Full Chain</button>
+            <button class="fp-tab" onclick="switchTab('B','simple',this)">Simple <span class="cnt">13</span></button>
+            <button class="fp-tab active" onclick="switchTab('B','detailed',this)">Detailed <span class="cnt"><span class="new-badge">NEW</span></span></button>
+          </div>
+          <div class="fp-body" id="body-B-chain" style="display:none">
+            <div class="chain-placeholder">
+              <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#374263" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8l4 4-4 4"/></svg>
+              <div class="lbl">Full Chain tab — existing TokenChainTraceRail unchanged.</div>
+            </div>
+          </div>
+          <div class="fp-body" id="body-B-simple" style="display:none">
+            <table class="simple-table" id="simple-B"></table>
+          </div>
+          <div class="fp-body" id="body-B-detailed">
+            <div id="det-B"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const STEPS = [
+  { id:'signin',       label:'Sign-in — User Token acquired',          product:'pingone', chip:'chip-pingone',
+    status:'ok', rfc:'RFC 6749 · RFC 7636',
+    claims:{ sub:'u5f3a8c1d-9e2b', iss:'https://auth.pingone.com/env-abc/as', aud:'banking-bff', scope:'openid profile email' },
+    narrative:'User authenticated via Authorization Code + PKCE. BFF receives the code and exchanges for tokens server-side. The access token never reaches the browser.' },
+  { id:'introspect',   label:'Session token introspection',             product:'pingone', chip:'chip-pingone',
+    status:'ok', rfc:'RFC 7662',
+    claims:{ active:'true', sub:'u5f3a8c1d-9e2b', scope:'openid profile email', client_id:'banking-bff' },
+    narrative:'BFF introspects the session token on every request to confirm it is still active.' },
+  { id:'prompt',       label:'Chatbot — prompt sent',                   product:'bff', chip:'chip-bff',
+    status:'ok',
+    narrative:'Browser sends only the chat message. No tokens leave the server. The session cookie identifies the user.' },
+  { id:'agent',        label:'Agent service receives request',          product:'agent', chip:'chip-agent',
+    status:'ok',
+    narrative:'BFF forwards to the agent service with the hashed session ID. Conversation history is loaded from the store.' },
+  { id:'heur',         label:'Heuristics — intent match',               product:'heur', chip:'chip-heur',
+    status:'ok',
+    narrative:'Heuristics matched intent "check balance" and selected tool get_balance. No LLM call needed for this run.' },
+  { id:'agent-token',  label:'Agent identity token (client_credentials)',product:'bff', chip:'chip-bff',
+    status:'ok', rfc:'RFC 6749 §4.4',
+    claims:{ sub:'bff-agent-client', iss:'https://auth.pingone.com/env-abc/as', scope:'agent:operate', client_id:'bff-agent-client' },
+    narrative:'BFF obtains its own client_credentials token — the agent\'s own identity, separate from the human user.' },
+  { id:'exchange',     label:'Token exchange — RFC 8693 delegation',    product:'bff', chip:'chip-bff',
+    status:'ok', rfc:'RFC 8693 · RFC 8707',
+    claims:{ sub:'u5f3a8c1d-9e2b', iss:'https://auth.pingone.com/env-abc/as', aud:'mcp-server', scope:'gateway:mcp:invoke', act:'{ "sub": "bff-agent-client" }' },
+    narrative:'BFF exchanges user token + agent actor token → one delegated MCP token. The act claim proves the agent acts on behalf of this user. Scope narrows to only what the MCP tool needs.' },
+  { id:'authorize',    label:'PingOne Authorize — DENY',                product:'authz', chip:'chip-authz',
+    status:'fail', isHalt:true, errorCode:'ACTION_BLOCKED', rfc:'RFC 9396',
+    claims:{ sub:'u5f3a8c1d-9e2b', action:'pingone', resource:'mcp-tool' },
+    narrative:'Policy evaluated: DENY. The action "pingone" is blocked for this token scope combination. Tool call stops here.' },
+  { id:'gateway',       label:'Agent Gateway — token validated',        product:'gateway', chip:'chip-gateway', status:'notinpath' },
+  { id:'gw-introspect', label:'Gateway — introspect delegated token',   product:'gateway', chip:'chip-gateway', status:'notinpath' },
+  { id:'mcp',           label:'MCP server — tool executes',             product:'mcp',     chip:'chip-mcp',     status:'notinpath' },
+  { id:'api',           label:'Resource server — API call',             product:'api',     chip:'chip-api',     status:'notinpath' },
+  { id:'reply',         label:'Heuristics composes reply',              product:'heur',    chip:'chip-heur',
+    status:'ok',
+    narrative:'Heuristics composed the reply from the policy denial result.' },
+];
+
+const HALT_IDX = STEPS.findIndex(s => s.isHalt);
+
+function claimValClass(key) {
+  if (key === 'scope') return 'dc-v dc-v--scope';
+  if (key === 'act')   return 'dc-v dc-v--act';
+  if (key === 'aud')   return 'dc-v dc-v--aud';
+  return 'dc-v';
+}
+
+function buildSimpleTable(el) {
+  el.innerHTML = `<thead><tr>
+    <th scope="col">#</th>
+    <th scope="col">Step</th>
+    <th scope="col">Product</th>
+    <th scope="col">Status</th>
+  </tr></thead><tbody></tbody>`;
+  const tbody = el.querySelector('tbody');
+  STEPS.forEach((s, i) => {
+    const notInPath = s.status === 'notinpath';
+    const didNotRun = HALT_IDX !== -1 && i > HALT_IDX && !s.isHalt;
+    const halted    = !!s.isHalt;
+    let cls = 'st-row';
+    if (halted)    cls += ' st-row--halted';
+    if (didNotRun) cls += ' st-row--ghost';
+    if (notInPath) cls += ' st-row--notinpath';
+    let st;
+    if (didNotRun)      st = `<span class="st-skip">— did not run</span>`;
+    else if (halted)    st = `<span class="st-halt">✕ ${s.errorCode || 'halted'}</span>`;
+    else if (s.status==='ok') st = `<span class="st-ok">✓</span>`;
+    else                st = `<span class="st-skip">${s.status}</span>`;
+    const lbl = (s.product||'').replace('heur','HEUR').replace('pingone','PINGONE').replace('bff','BFF')
+                               .replace('agent','AGENT').replace('authz','AUTHZ').replace('gateway','GATEWAY')
+                               .replace('mcp','MCP').replace('api','API');
+    const chip = s.product ? `<span class="prod-chip ${s.chip}">${lbl}</span>` : '';
+    const tr = document.createElement('tr');
+    tr.className = cls;
+    tr.innerHTML = `<td>${i+1}</td><td><span class="st-step-label">${s.label}</span></td><td>${chip}</td><td>${st}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function buildDetailedCards(container) {
+  container.innerHTML = '';
+  const banner = document.createElement('div');
+  banner.className = 'err-banner';
+  banner.innerHTML = '<strong>✕ Run stopped at step 8 — "PingOne Authorize — DENY"</strong>Steps after the halt did not run.';
+  container.appendChild(banner);
+
+  STEPS.forEach((s, i) => {
+    const notInPath = s.status === 'notinpath';
+    const didNotRun = HALT_IDX !== -1 && i > HALT_IDX && !s.isHalt;
+    const halted    = !!s.isHalt;
+
+    let cardCls = 'det-card', numCls = 'det-num', stCls, stLbl;
+    if (halted)       { cardCls += ' det-card--fail'; numCls += ' det-num--fail'; stCls = 'det-status ds-fail'; stLbl = `✕ ${s.errorCode||'Halted'}`; }
+    else if (didNotRun){ cardCls += ' det-card--ghost'; numCls += ' det-num--skip'; stCls = 'det-status ds-skip'; stLbl = '— did not run'; }
+    else if (notInPath){ cardCls += ' det-card--skip';  numCls += ' det-num--skip'; stCls = 'det-status ds-skip'; stLbl = 'Not in path'; }
+    else               { cardCls += ' det-card--ok';   numCls += ' det-num--ok';   stCls = 'det-status ds-ok';   stLbl = '✓ Success'; }
+
+    const lblCls   = notInPath ? 'det-label strikethrough' : 'det-label';
+    const prodLabel= (s.product||'').replace('heur','HEUR').replace('pingone','PINGONE').replace('bff','BFF')
+                                    .replace('agent','AGENT').replace('authz','AUTHZ').replace('gateway','GATEWAY')
+                                    .replace('mcp','MCP').replace('api','API');
+    const chipHtml = s.product ? `<span class="prod-chip ${s.chip}">${prodLabel}</span>` : '';
+    const rfcHtml  = s.rfc ? s.rfc.split(' · ').map(r=>`<span class="rfc-pill">${r}</span>`).join('') : '';
+
+    let claimsHtml = '';
+    if (s.claims && !didNotRun && !notInPath) {
+      claimsHtml = '<div class="det-claims">' +
+        Object.entries(s.claims).map(([k,v])=>
+          `<div class="dc-row"><span class="dc-k">${k}</span><span class="${claimValClass(k)}">${v}</span></div>`
+        ).join('') + '</div>';
+    }
+    const narHtml  = (s.narrative && !didNotRun && !notInPath) ? `<div class="det-narrative">${s.narrative}</div>` : '';
+    const errHtml  = halted ? `<div class="det-error">DENY — ${s.errorCode}: action "${s.claims?.action||'call'}" blocked by policy</div>` : '';
+
+    const card = document.createElement('div');
+    card.className = cardCls;
+    card.innerHTML = `
+      <div class="det-head">
+        <div class="${numCls}">${i+1}</div>
+        <div class="det-info">
+          <div class="${lblCls}">${s.label}</div>
+          <div class="det-meta">${chipHtml}<span class="${stCls}">${stLbl}</span>${rfcHtml}</div>
+        </div>
+      </div>
+      ${claimsHtml}${narHtml}${errHtml}`;
+    container.appendChild(card);
+  });
+}
+
+function switchTab(panel, tab, btn) {
+  ['chain','simple','detailed'].forEach(t => {
+    const el = document.getElementById(`body-${panel}-${t}`);
+    if (el) el.style.display = (t===tab) ? '' : 'none';
+  });
+  document.getElementById(`tabs-${panel}`).querySelectorAll('.fp-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  buildSimpleTable(document.getElementById('simple-A'));
+  buildSimpleTable(document.getElementById('simple-B'));
+  buildDetailedCards(document.getElementById('det-A'));
+  buildDetailedCards(document.getElementById('det-B'));
+});
+</script>
+</body>
+</html>
