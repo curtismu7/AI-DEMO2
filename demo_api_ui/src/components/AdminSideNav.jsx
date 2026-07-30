@@ -5,7 +5,8 @@ import { useEducationUI } from "../context/EducationUIContext";
 import apiClient from "../services/apiClient";
 import { persistAgentUi } from "../services/demoScenarioService";
 import { performLogout } from "../services/logout";
-import { navigateToCustomerOAuthLogin, requestSilentReauth } from "../utils/authUi";
+import { spinner } from "../services/spinnerService";
+import { navigateToCustomerOAuthLogin } from "../utils/authUi";
 import { setDashboardLayout } from "../utils/dashboardLayout";
 import { startRoleSwitch } from "../utils/roleSwitch";
 import { useVertical } from "../vertical/useVertical";
@@ -206,6 +207,7 @@ export default function AdminSideNav({ user }) {
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_WIDTH);
   const [navFilter, setNavFilter] = useState("");
   const [hiddenNavLabels, setHiddenNavLabels] = useState([]);
+  const [custLoading, setCustLoading] = useState(false);
   const isResizing = useRef(false);
   const showPacEditorLink = isLocalHost();
 
@@ -380,8 +382,8 @@ export default function AdminSideNav({ user }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id }),
         });
-        // Fresh token so it carries the new vertical's featureScope (silent SSO).
-        requestSilentReauth();
+        // Keep the existing auth session; VerticalProvider will refetch via SSE.
+        setSwitchingVertical(false);
       } catch {
         setSwitchingVertical(false);
       }
@@ -1318,11 +1320,15 @@ export default function AdminSideNav({ user }) {
             type="button"
             className={`admin-side-nav__quick-link${location.pathname === "/dashboard" ? " admin-side-nav__quick-link--active" : ""}`}
             title="Customer View"
+            disabled={custLoading}
             onClick={() => {
               if (!isAdmin) {
+                spinner.show('Loading customer dashboard\u2026', '/dashboard');
                 navigate("/dashboard");
                 return;
               }
+              setCustLoading(true);
+              spinner.show('Loading customer dashboard\u2026', '/dashboard');
               fetch("/api/auth/switch", {
                 method: "POST",
                 credentials: "include",
@@ -1333,12 +1339,18 @@ export default function AdminSideNav({ user }) {
                 .then(({ redirectUrl }) => {
                   window.location.href = redirectUrl;
                 })
-                .catch((e) =>
-                  console.error("[QuickNav] switch failed:", e.message),
-                );
+                .catch((e) => {
+                  console.error("[QuickNav] switch failed:", e.message);
+                  setCustLoading(false);
+                  spinner.hide();
+                });
             }}
           >
-            {collapsed ? "C" : "Cust"}
+            {custLoading ? (
+              <span className="admin-side-nav__quick-link-spinner" aria-label="Loading" />
+            ) : (
+              collapsed ? "C" : "Cust"
+            )}
           </button>
           <button
             type="button"

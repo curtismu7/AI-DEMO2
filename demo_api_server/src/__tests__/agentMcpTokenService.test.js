@@ -1108,7 +1108,8 @@ describe('resolveMcpAccessTokenWithEvents — 2-exchange delegation (ff_two_exch
       const exchange2Audience = mockPerformTokenExchangeAs.mock.calls[1][4];
       const exchange2Scopes = mockPerformTokenExchangeAs.mock.calls[1][5];
       expect(exchange2Audience).not.toEqual([pingGatewayAud]);
-      expect(exchange2Audience).toBe(TWO_EX_MCP_RESOURCE);
+      // Passed as array so PingOne uses resource= (not audience=) and actually mints the aud
+      expect(exchange2Audience).toEqual([TWO_EX_MCP_RESOURCE]);
       expect(exchange2Scopes).toEqual(['server:mcp:invoke']);
     });
   });

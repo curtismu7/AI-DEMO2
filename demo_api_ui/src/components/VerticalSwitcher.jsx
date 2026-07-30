@@ -1,4 +1,4 @@
-// banking_api_ui/src/components/VerticalSwitcher.js
+// banking_api_ui/src/components/VerticalSwitcher.jsx
 import { useState, useEffect } from 'react';
 import { useVertical } from '../vertical/useVertical';
 import ThemeZonePanel from './ThemeZonePanel';
@@ -82,7 +82,13 @@ export default function VerticalSwitcher({ variant = 'nav' }) {
                 disabled={switching}
                 style={activeStyle}
               >
-                <span className="vertical-switcher__dot" style={{ background: primaryColor }}></span>
+                <span
+                  className="vertical-switcher__dot"
+                  style={{ background: primaryColor }}
+                  aria-hidden="true"
+                >
+                  {' '}
+                </span>
                 <span className="vertical-switcher__label">{v.displayName}</span>
                 {variant === 'config' && (
                   <span className="vertical-switcher__tagline">{v.tagline}</span>

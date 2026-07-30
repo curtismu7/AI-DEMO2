@@ -94,6 +94,7 @@ function renderPanel(props = {}) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  localStorage.clear();
   // EvaluatePanel fetches MCP-console defaults once on mount regardless of preset.
   bffAxios.get.mockResolvedValue({ data: {} });
 });
@@ -164,7 +165,7 @@ test('clicking a rule\'s Trigger button calls onTestRule with that rule\'s trigg
   fireEvent.click(screen.getByRole('button', { name: /Transaction Authorization/ }));
   await screen.findByText('Deny threshold');
   // First Trigger belongs to Deny threshold (transaction branch listed before MCP).
-  fireEvent.click(screen.getAllByRole('button', { name: 'Trigger →' })[0]);
+  fireEvent.click(screen.getAllByRole('button', { name: 'Trigger test' })[0]);
   expect(onTestRule).toHaveBeenCalledWith({
     ruleName: 'Deny threshold',
     case: 'trigger',
@@ -232,6 +233,22 @@ test('the "Open policy decision trace" button navigates to /policy-decision-trac
   );
 });
 
+test('successful evaluation persists trace payload for the Open Trace page fallback', async () => {
+  bffAxios.post.mockResolvedValueOnce({
+    data: { decision: 'PERMIT', engine: 'simulated', decisionId: 'dec-1', path: '/decide' },
+  });
+  renderPanel();
+  fireEvent.click(screen.getByRole('button', { name: /Evaluate \(live\)/ }));
+  await screen.findByText(/PERMIT/);
+
+  const raw = localStorage.getItem('policyDecisionTrace.lastRun');
+  expect(raw).toBeTruthy();
+  const parsed = JSON.parse(raw);
+  expect(parsed.policies).toEqual(ONE_POLICY);
+  expect(parsed.result.decision).toBe('PERMIT');
+  expect(typeof parsed.savedAt).toBe('number');
+});
+
 const LIVE_POLICY_RESPONSE = {
   endpoints: [{ id: 'ep-1', name: 'Transaction Auth', recordRecentRequests: false }],
   transactionEndpointId: 'ep-1',
@@ -278,7 +295,7 @@ describe('PingOneAuthorizePage (full page wiring)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Banking Authorization/ }));
     fireEvent.click(screen.getByRole('button', { name: /Transaction Authorization/ }));
     await screen.findByText('Deny threshold');
-    fireEvent.click(screen.getAllByRole('button', { name: 'Trigger →' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Trigger test' })[0]);
     // pendingTest's preset is 'transaction' and its Amount is 50000 (ONE_POLICY's trigger case) —
     // confirms the parent's handleTestRule -> pendingTest -> EvaluatePanel's pendingTest-effect
     // chain still runs end-to-end through the new prop wiring.

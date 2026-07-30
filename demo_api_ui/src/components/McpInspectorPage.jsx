@@ -125,6 +125,15 @@ const pingoneGroupKey = (name) => {
   return 'Other';
 };
 
+// Within large PingOne groups, divide tools into Read vs Write subgroups
+const pingoneSubgroupKey = (name) => {
+  const lower = name.toLowerCase();
+  if (/^(get|list|read|check|find|search|fetch)/.test(lower)) return 'Read';
+  return 'Write';
+};
+
+const PINGONE_SUBGROUP_ORDER = ['Read', 'Write'];
+
 const PINGONE_GROUP_ORDER = ['Environments', 'Users', 'Applications', 'Populations', 'DaVinci', 'Other'];
 
 const pingoneToolDot = (name) => {
@@ -426,6 +435,8 @@ function useBankingSource() {
         <strong>Local catalog.</strong>{' '}
         {toolsSourceInfo.reason === 'no_mcp_bearer_cookie_only_or_missing_token'
           ? 'Sign out and sign in again so the BFF has a real OAuth access token — cookie-only sessions cannot reach the live MCP server.'
+          : toolsSourceInfo.reason === 'token_resolve_failed_delegation_chain_broken'
+          ? 'Token exchange failed (delegation chain). The MCP server resource URI or actor client may not be configured — execute still runs against the local handler when you are signed in.'
           : `Discovery fell back in-process (${toolsSourceInfo.reason || 'unknown'}). Execute still runs against the local handler when you are signed in.`}
       </div>
     ) : null,
@@ -585,6 +596,7 @@ function usePingOneSource() {
   const [lastCall, setLastCall] = useState(null);
   const [formError, setFormError] = useState(null);
   const [outputTab, setOutputTab] = useState('response');
+  const [collapsedGroups, setCollapsedGroups] = useState({});
 
   const [authRequired, setAuthRequired] = useState(false);
 
@@ -620,11 +632,23 @@ function usePingOneSource() {
     const groups = {};
     for (const t of filtered) {
       const g = pingoneGroupKey(t.name);
-      if (!groups[g]) groups[g] = [];
-      groups[g].push(t);
+      if (!groups[g]) groups[g] = {};
+      const sg = pingoneSubgroupKey(t.name);
+      if (!groups[g][sg]) groups[g][sg] = [];
+      groups[g][sg].push(t);
     }
-    return PINGONE_GROUP_ORDER.filter((g) => groups[g]?.length).map((g) => ({ label: g, tools: groups[g] }));
+    return PINGONE_GROUP_ORDER.filter((g) => groups[g] && Object.keys(groups[g]).length).map((g) => ({
+      label: g,
+      subgroups: PINGONE_SUBGROUP_ORDER
+        .filter((sg) => groups[g][sg]?.length)
+        .map((sg) => ({ label: sg, tools: groups[g][sg] })),
+      total: Object.values(groups[g]).reduce((n, arr) => n + arr.length, 0),
+    }));
   }, [tools, toolSearch]);
+
+  const toggleGroup = useCallback((label) => {
+    setCollapsedGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+  }, []);
 
   const toggleLiveQuery = useCallback(async () => {
     setToggling(true);
@@ -726,21 +750,41 @@ function usePingOneSource() {
           />
         </div>
         <div className="inspector-shell-tree-body">
-          {groupedTools.map((group) => (
-            <div key={group.label}>
-              <div className="inspector-shell-tree-group__label">{group.label} ({group.tools.length})</div>
-              {group.tools.map((t) => (
-                <InspectorListItem
-                  key={t.name}
-                  label={t.name}
-                  active={selectedTool?.name === t.name}
-                  dot={pingoneToolDot(t.name)}
-                  badges={pingoneToolDot(t.name) === 'write' ? ['write'] : []}
-                  onClick={() => selectTool(t)}
-                />
-              ))}
-            </div>
-          ))}
+          {groupedTools.map((group) => {
+            const isCollapsed = !!collapsedGroups[group.label];
+            const hasSubs = group.subgroups.length > 1;
+            return (
+              <div key={group.label}>
+                <div
+                  className="inspector-shell-tree-group__label"
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                  onClick={() => toggleGroup(group.label)}
+                >
+                  <span style={{ marginRight: 6, opacity: 0.6, fontSize: 10 }}>{isCollapsed ? '▶' : '▼'}</span>
+                  {group.label} ({group.total})
+                </div>
+                {!isCollapsed && group.subgroups.map((sg) => (
+                  <div key={sg.label}>
+                    {hasSubs && (
+                      <div style={{ padding: '2px 16px 2px 24px', fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
+                        {sg.label}
+                      </div>
+                    )}
+                    {sg.tools.map((t) => (
+                      <InspectorListItem
+                        key={t.name}
+                        label={t.name}
+                        active={selectedTool?.name === t.name}
+                        dot={pingoneToolDot(t.name)}
+                        badges={pingoneToolDot(t.name) === 'write' ? ['write'] : []}
+                        onClick={() => selectTool(t)}
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
           {groupedTools.length === 0 && (
             <div style={{ padding: '20px 16px', color: '#64748b', fontSize: 13 }}>
               {tools.length === 0
@@ -1512,7 +1556,14 @@ function useCustomServerSource() {
 export default function McpInspectorPage() {
   const [searchParams] = useSearchParams();
   const requestedSource = searchParams.get('source');
-  const initialSource = SOURCES.some((s) => s.key === requestedSource) ? requestedSource : 'pingone';
+  // Vertical IDs from the agent (retail, healthcare, government, …) are not
+  // source keys — map them to banking (AI Demo MCP) since that server handles
+  // all verticals. Only fall back to pingone when no source is given.
+  const initialSource = SOURCES.some((s) => s.key === requestedSource)
+    ? requestedSource
+    : requestedSource
+      ? 'banking'
+      : 'pingone';
   const [activeSource, setActiveSource] = useState(initialSource);
   const banking = useBankingSource();
   const pingone = usePingOneSource();

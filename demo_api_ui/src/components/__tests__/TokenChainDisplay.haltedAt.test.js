@@ -2,12 +2,15 @@
 // TDD: Task A4-T1 — isHaltedAt helper + halted-step card modifier
 //
 // Tests exercise the PRODUCTION isHaltedAt and resolveStatusVisual exported
-// from TokenChainDisplay.js (named exports, @visibleForTesting). The previous
+// from TokenChainDisplay.jsx (named exports, @visibleForTesting). The previous
 // inline re-implementation is removed; any logic bug in the real function now
 // causes failures here.
 
+import { describe, expect, it, vi } from "vitest";
+import { isHaltedAt, resolveStatusVisual } from "../TokenChainDisplay.jsx";
+
 // ── Mocks (must be declared before any import that transitively loads the
-//    component, so vitest hoisting picks them up first) ─────────────────────
+//    component in runtime; Vitest hoists these mocks) ───────────────────────
 
 vi.mock("../../context/TokenChainContext", () => ({
   useTokenChainOptional: () => null,
@@ -32,10 +35,6 @@ vi.mock("../shared/JsonField", () => ({ default: () => null }));
 vi.mock("../../utils/educationalPages", () => ({ isEducationalPath: () => false }));
 vi.mock("../../../TokenChainDisplay.css", () => ({}), { virtual: true });
 vi.mock("../TokenChainDisplay.css", () => ({}), { virtual: true });
-
-// ── Import PRODUCTION helpers ─────────────────────────────────────────────────
-// These are the real exported functions from the shipped module, not copies.
-import { isHaltedAt, resolveStatusVisual } from "../TokenChainDisplay.js";
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 

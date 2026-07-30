@@ -369,11 +369,6 @@
   background: #f8fafc;
   box-shadow: none;
 }
-.tcd-event.notinpath .tcd-event-label {
-  text-decoration: line-through;
-  text-decoration-thickness: 1.5px;
-  color: #64748b;
-}
 
 .tcd-event.failed {
   border-color: #da1e28;
@@ -460,17 +455,14 @@
   width: 100%;
 }
 
-.tcd-event-meta-row .tcd-event-rfc {
-  flex: 1 1 12rem;
-  margin-right: auto;
-  min-width: 0;
-}
-
 .tcd-event-meta-row--no-rfc {
   justify-content: flex-end;
 }
 
-.tcd-event-rfc {
+.tcd-event-meta-row .tcd-event-rfc {
+  flex: 1 1 12rem;
+  margin-right: auto;
+  min-width: 0;
   display: block;
   font-size: 0.8125rem;
   font-weight: 600;
@@ -890,7 +882,7 @@
   background: rgba(0, 0, 0, 0.05);
   padding: 3px 6px;
   border-radius: 4px;
-  margin: 4px 0 0 !important;
+  margin: 4px 0 0;
   word-break: break-all;
 }
 
@@ -943,7 +935,7 @@
 .tcd-edu-steps {
   margin-top: 4px;
 }
-.tcd-edu-steps strong {
+.tcd-edu-box .tcd-edu-body .tcd-edu-steps strong {
   display: block;
   margin-bottom: 3px;
   font-size: 12.5px;
@@ -961,7 +953,7 @@
   color: #991b1b;
   font-weight: 600;
   font-size: 13px;
-  margin-bottom: 8px !important;
+  margin-bottom: 8px;
 }
 
 /* ─── Trust tab (DPoP / RAR posture summary) ────────────────────────────── */
@@ -1026,7 +1018,7 @@
   color: #6b7280;
 }
 
-.tcd-trust__row strong {
+.tcd-root .tcd-trust .tcd-trust__row strong {
   display: block;
   margin-bottom: 3px;
   font-size: var(--tcd-size-body);
@@ -1049,8 +1041,8 @@
 
 .tcd-edu-checklist {
   list-style: none;
-  padding-left: 0 !important;
-  margin: 0 !important;
+  padding-left: 0;
+  margin: 0;
 }
 
 .tcd-edu-checklist li {
@@ -1561,8 +1553,14 @@ pre.tcd-jwt-dump.jh-dark {
   gap: 6px;
 }
 
-.tcd-event-label {
+.tcd-event-title-row .tcd-event-label {
   flex: 1;
+}
+
+.tcd-event.notinpath .tcd-event-label {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  color: #64748b;
 }
 
 /* ─── "Token Details" button row — below the claims strip ───────────────── */
@@ -2340,7 +2338,7 @@ pre.tcd-jwt-dump.jh-dark {
    "a new card starts here" marker. Sits flush on the card (no bottom gap,
    rounded top corners only); the margin-top creates breathing room from the
    preceding connector so consecutive cards read as separate units. */
-.tcd-path-badge {
+.tcd-root .tcd-path-badge {
   display: block;
   box-sizing: border-box;
   width: 100%;
