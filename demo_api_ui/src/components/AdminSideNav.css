@@ -166,6 +166,25 @@
   box-shadow: 0 2px 6px rgba(41, 128, 185, 0.5);
 }
 
+.admin-side-nav__quick-link:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.admin-side-nav__quick-link-spinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: sidenav-spin 0.7s linear infinite;
+}
+
+@keyframes sidenav-spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Nav search box — colors come from the --sidenav-filter-* variables
    declared on .admin-side-nav above. Refresh icon sits beside the field. */
 .admin-side-nav__filter-row {

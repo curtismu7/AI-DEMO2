@@ -2065,7 +2065,11 @@ async function _performTwoExchangeDelegation(
   const intermediateAud       = configResult.audiences.intermediateAud;
   const mcpGatewayAud         = configResult.audiences.mcpGatewayAud;
   const mcpServerAudForFallback = configStore.getEffective('pingone_resource_mcp_server_uri') || process.env.PINGONE_RESOURCE_MCP_SERVER_URI || '';
-  const twoExFinalAud         = await _resolveFinalMcpAudience(configResult.audiences.finalAud, mcpServerAudForFallback);
+  // forceDirectMcpAudience: caller dials the MCP server directly — skip the gateway
+  // health probe entirely and target the MCP server audience, not the gateway audience.
+  const twoExFinalAud = opts.forceDirectMcpAudience
+    ? mcpServerAudForFallback
+    : await _resolveFinalMcpAudience(configResult.audiences.finalAud, mcpServerAudForFallback);
   const aiAgentClientSecret   = configStore.getEffective('pingone_ai_agent_client_secret') || process.env.PINGONE_AI_AGENT_CLIENT_SECRET || process.env.AI_AGENT_CLIENT_SECRET;
   const mcpExchangerSecret    = configStore.getEffective('pingone_mcp_token_exchanger_client_secret');
   // ARCHITECTURE TRUTH: all PingOne client connections use client_secret_post.
@@ -2347,7 +2351,9 @@ async function _performTwoExchangeDelegation(
   // invalid_scope ("May not request scopes for multiple resources") and the
   // UI collapses that into the opaque demo-step failure sentence. When the
   // PingGateway broker path is off, mint for a single final audience only.
-  const finalAudiences = usePingGatewayForExchange
+  // PingOne silently ignores audience= (string) but respects resource= (array).
+  // forceDirectMcpAudience callers use resource= too so the aud claim is actually minted.
+  const finalAudiences = (usePingGatewayForExchange || opts.forceDirectMcpAudience)
     ? [finalAudTarget]
     : finalAudTarget;
   const finalAudDisplay = Array.isArray(finalAudiences) ? JSON.stringify(finalAudiences) : finalAudiences;
