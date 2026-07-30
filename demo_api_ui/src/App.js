@@ -55,6 +55,7 @@ import DemoConfigPage from "./components/DemoConfigPage";
 import FeatureFlagsPage from "./components/FeatureFlagsPage";
 import Footer from "./components/Footer";
 import FloatingTokenChainPanel from "./components/FloatingTokenChainPanel";
+import TokenTopologyPanel from "./components/TokenTopologyPanel";
 import HealthcareAdminOps from "./components/HealthcareAdminOps";
 import LandingPage from "./components/LandingPage";
 import LearningHub from "./components/LearningHub";
@@ -278,6 +279,12 @@ function AppWithAuth() {
   const [logViewerOpen, setLogViewerOpen] = useState(false);
   const [credentialsModal, setCredentialsModal] = useState(null);
   const [showTokenChain, setShowTokenChain] = useState(false);
+  const [showTokenTopology, setShowTokenTopology] = useState(false);
+  useEffect(() => {
+    const onOpen = () => setShowTokenTopology(true);
+    window.addEventListener('token-topology-open', onOpen);
+    return () => window.removeEventListener('token-topology-open', onOpen);
+  }, []);
 
   // Post-login success modal. `?oauth=success` is captured on the first render
   // — before useOAuthUrlCleanup strips it — so the modal opens exactly once
@@ -1431,6 +1438,10 @@ function AppWithAuth() {
                   onClose={() => setShowTokenChain(false)}
                 />
               )}
+              <TokenTopologyPanel
+                isOpen={showTokenTopology}
+                onClose={() => setShowTokenTopology(false)}
+              />
               <LogViewer
                 isOpen={logViewerOpen}
                 onClose={() => setLogViewerOpen(false)}
