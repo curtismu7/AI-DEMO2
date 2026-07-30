@@ -288,6 +288,7 @@ describe("CSS/JS monospace regression", () => {
         f.includes("LearningLogLearnPane.css") ||        // correlation id display (intentional)
         f.includes("McpGatewayOauthFlowPage.css") ||     // OAuth flow code/token display (intentional)
         f.includes("TokenSecurityTester.css") ||         // security tester tree/token display (intentional)
+        f.includes("TokenTopologyPanel.css") ||          // lane identifier display (intentional)
         f.includes("UnifiedTokenFlowInspector.css") ||   // token inspector code/JSON display (intentional)
         f.includes("aiFootprintMocks/chrome.css") ||     // mock code-editor/terminal chrome display (intentional)
         f.includes("shared/InspectorShell.css") ||       // shared inspector template code display (intentional)

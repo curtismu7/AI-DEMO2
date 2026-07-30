@@ -8,14 +8,15 @@ const EMPTY_TRACE = {
 };
 
 describe("buildTraceSteps — empty trace", () => {
-  test("returns the 12 happy-path steps (intent-binding omitted mid-flight), all pending", () => {
+  test("returns the 13 happy-path steps (intent-binding omitted mid-flight), all pending", () => {
     const steps = buildTraceSteps(EMPTY_TRACE);
     expect(steps.map((s) => s.id)).toEqual([
-      "signin", "prompt", "agent", "llm", "agent-token", "exchange",
+      "website", "signin", "prompt", "agent", "llm", "agent-token", "exchange",
       "authorize", "gateway", "api-key-swap", "mcp", "api", "reply",
     ]);
-    expect(steps.every((s) => s.status === "pending")).toBe(true);
-    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12]);
+    expect(steps[0].status).toBe("done"); // website is inherently done
+    expect(steps.slice(1).every((s) => s.status === "pending")).toBe(true);
+    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12,13]);
   });
 });
 

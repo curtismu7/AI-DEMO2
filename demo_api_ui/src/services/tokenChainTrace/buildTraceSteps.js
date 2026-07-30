@@ -4,7 +4,7 @@
 import { EDU } from "../../components/education/educationIds";
 
 export const LANES = {
-  signin: "PINGONE", prompt: "CHAT", agent: "AGENT", llm: "LLM",
+  website: "BROWSER", signin: "PINGONE", prompt: "CHAT", agent: "AGENT", llm: "LLM",
   "agent-token": "BFF", exchange: "BFF", authorize: "AUTHZ", stepup: "AUTHZ",
   "intent-binding": "AUTHZ",
   gateway: "GATEWAY", "api-key-swap": "GATEWAY", mcp: "MCP", api: "API", reply: "LLM",
@@ -17,6 +17,7 @@ export const LANES = {
 export const MCP_STEP_IDS = ["exchange", "gateway", "api-key-swap", "mcp", "api"];
 
 const TITLES = {
+  website: "Website — browser / UI app",
   signin: "Sign-in — User Token acquired",
   prompt: "Chatbot — prompt sent",
   agent: "Agent service receives request",
@@ -38,6 +39,7 @@ const TITLES = {
 // request / response / claims are layered on top by buildTraceSteps whenever
 // the matching trace evidence exists.
 const NARRATIVES = {
+  website: "The browser hosts the UI and never holds a bearer token. It relies on the secure, HttpOnly session cookie from the BFF.",
   signin: "User authenticated via OIDC Authorization Code + PKCE. The BFF holds the User Token server-side — it never reaches the browser.",
   prompt: "The browser sends only the message — no tokens; the session cookie identifies the user to the BFF.",
   agent: "BFF forwards to the agent. The agent loads conversation history and the gateway tool catalog (with required scopes), then prepares the LLM call.",
@@ -74,6 +76,12 @@ const STEP_RFCS = {
 // so explicitly rather than being omitted, because "no spec here" is itself the
 // teaching point (the LLM hop, the credential swap).
 const STEP_SPEC = {
+  website: {
+    refs: [],
+    mandate: "No specification governs the browser itself. But OIDC Core §3.1.3 and RFC 7636 PKCE mandate that confidential clients (the BFF) hold tokens server-side, never in the browser.",
+    why: "The UI is a public client and deliberately holds no bearer token. Every request carries only the session cookie; the BFF re-establishes identity from it and manages all tokens server-side.",
+    failure: "Handing the browser a bearer token makes it an exfiltration target. Any XSS foothold then leaks the user's token to an attacker, bypassing the entire delegation chain below.",
+  },
   signin: {
     refs: [
       { label: "RFC 6749 §4.1", title: "Authorization Code Grant", href: "https://www.rfc-editor.org/rfc/rfc6749#section-4.1" },
@@ -392,6 +400,9 @@ export function buildTraceSteps(trace) {
   // swap, no step-up demanded). Mirrors TokenChainDisplay's notinpath bucket.
   const traceComplete = outcome === "ok" || outcome === "error";
   const steps = [];
+
+  // 0. Website (Browser) — always considered active/done
+  steps.push(makeStep("website", "done", { narrative: "Browser securely sending requests over HTTP-only session cookie API." }));
 
   // 1. signin — evidence: user-token / session-token-introspection events
   const userTok = findEvent(tokenEvents, "user-token") ||
