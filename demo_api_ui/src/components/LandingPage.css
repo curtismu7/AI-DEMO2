@@ -583,6 +583,55 @@
   box-shadow: var(--rd2-shadow-2, 0 2px 6px rgba(0,0,0,.1)) !important;
 }
 
+/* V2: Identity evolution callout */
+.landing-callout {
+  padding: 64px 32px;
+  background: var(--rd2-accent, #1b3a6b);
+  color: #ffffff;
+  text-align: center;
+}
+
+.landing-callout-content {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.landing-callout-lead {
+  font-family: var(--rd2-font-display, "Fraunces", serif);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  margin: 0 0 24px;
+}
+
+.landing-callout-lead em {
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.landing-callout-body {
+  font-family: var(--rd2-font-body, "Inter", ui-sans-serif, sans-serif);
+  font-size: 16px;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.82);
+  margin: 0 0 12px;
+}
+
+.landing-callout-body:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 640px) {
+  .landing-callout {
+    padding: 48px 24px;
+  }
+  .landing-callout-lead {
+    font-size: 20px;
+  }
+}
+
 /* V2: Feature grid with warm background */
 [data-rd-v2] .landing-features {
   background: transparent !important;

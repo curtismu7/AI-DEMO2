@@ -583,7 +583,7 @@
     var(--app-primary-red-mid) 0%,
     var(--app-primary-red) 100%
   );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
   border-color: var(--app-primary-red-border);
 }
 
@@ -594,7 +594,7 @@
     var(--app-primary-red-hover) 100%
   );
   border-color: var(--app-primary-red-hover);
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
 }
 
 .dashboard-toolbar-btn--signin {
@@ -605,7 +605,7 @@
   );
   border: 1px solid var(--app-primary-red-border);
   box-shadow: 0 1px 3px rgba(127, 29, 29, 0.22);
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
 }
 
 .dashboard-toolbar-btn--signin:hover {
@@ -615,7 +615,7 @@
     var(--app-primary-red-hover) 100%
   );
   border-color: var(--app-primary-red-hover);
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
   box-shadow: 0 2px 8px rgba(127, 29, 29, 0.3);
 }
 
@@ -623,7 +623,7 @@
   position: relative;
   padding: 9px 12px;
   min-width: 40px;
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
 }
 
 .dashboard-toolbar-btn--icon svg {
@@ -868,7 +868,7 @@
   padding: 8px 16px;
   font-size: 0.875rem;
   font-weight: 600;
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
   background: linear-gradient(
     180deg,
     var(--app-primary-red-mid) 0%,
@@ -893,14 +893,14 @@
   );
   border-color: var(--app-primary-red-hover);
   box-shadow: 0 2px 6px rgba(127, 29, 29, 0.28);
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
 }
 
 .dashboard-edu-btn {
   padding: 8px 12px;
   font-size: 0.875rem;
   font-weight: 600;
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
   background: linear-gradient(
     180deg,
     var(--app-primary-red-mid) 0%,
@@ -918,7 +918,7 @@
     var(--app-primary-red) 0%,
     var(--app-primary-red-hover) 100%
   );
-  color: #fff;
+  color: var(--app-primary-btn-text, #fff);
 }
 
 .token-payload-heading {
