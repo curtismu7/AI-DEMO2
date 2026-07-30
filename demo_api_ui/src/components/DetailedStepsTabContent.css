@@ -1,0 +1,172 @@
+/* DetailedStepsTabContent — per-step expanded cards within FloatingTokenChainPanel
+   Namespace: dstc- (Detailed Steps Tab Content)
+   Light theme to match StepsTabContent and FloatingTokenChainPanel. */
+
+.dstc-empty {
+  padding: 1.5rem 1rem;
+  font-size: 0.8125rem;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.dstc-card {
+  border-bottom: 1px solid #f1f5f9;
+  border-left: 3px solid transparent;
+  transition: background 0.1s;
+}
+
+.dstc-card:last-child {
+  border-bottom: none;
+}
+
+.dstc-card--ok {
+  border-left-color: #16a34a;
+}
+
+.dstc-card--fail {
+  border-left-color: #dc2626;
+  background: rgba(239, 68, 68, 0.03);
+}
+
+.dstc-card--skip {
+  border-left-color: #e2e8f0;
+  opacity: 0.5;
+}
+
+.dstc-card--ghost {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.dstc-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 12px 7px;
+}
+
+.dstc-num {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
+  font-family: ui-monospace, 'Fira Code', monospace;
+}
+
+.dstc-num--ok   { background: #dcfce7; color: #16a34a; }
+.dstc-num--fail { background: #fee2e2; color: #dc2626; }
+.dstc-num--skip { background: #f1f5f9; color: #94a3b8; }
+
+.dstc-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.dstc-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dstc-label--strikethrough {
+  text-decoration: line-through;
+  color: #94a3b8;
+}
+
+.dstc-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.dstc-status {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.dstc-status--ok   { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; }
+.dstc-status--fail { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+.dstc-status--skip { background: #f1f5f9; color: #94a3b8; border: 1px solid #e2e8f0; }
+.dstc-status--wait { background: #fef9c3; color: #a16207; border: 1px solid #fde68a; }
+
+.dstc-rfc-pill {
+  font-size: 9.5px;
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: ui-monospace, 'Fira Code', monospace;
+  white-space: nowrap;
+}
+
+/* Claims table */
+.dstc-claims {
+  margin: 0 12px 8px 40px;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  overflow: hidden;
+  font-family: ui-monospace, 'Fira Code', monospace;
+  font-size: 11px;
+}
+
+.dstc-claim-row {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.dstc-claim-row:last-child {
+  border-bottom: none;
+}
+
+.dstc-claim-k {
+  padding: 4px 8px;
+  color: #2563eb;
+  font-weight: 500;
+  border-right: 1px solid #f1f5f9;
+  background: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dstc-claim-v {
+  padding: 4px 8px;
+  color: #475569;
+  word-break: break-all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dstc-claim-v--scope { color: #7c3aed; }
+.dstc-claim-v--act   { color: #16a34a; }
+.dstc-claim-v--aud   { color: #0891b2; }
+.dstc-claim-v--cnf   { color: #b45309; }
+
+/* Error box shown on halted step */
+.dstc-error {
+  margin: 0 12px 8px 40px;
+  font-size: 11px;
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-family: ui-monospace, 'Fira Code', monospace;
+}

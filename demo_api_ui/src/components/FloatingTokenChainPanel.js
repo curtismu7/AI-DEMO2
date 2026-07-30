@@ -6,6 +6,8 @@ import { useTokenChainOptional } from '../context/TokenChainContext';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import TokenChainTraceRail from './TokenChainTraceRail';
 import StepsTabContent from './StepsTabContent';
+import DetailedStepsTabContent from './DetailedStepsTabContent';
+import TokenExchangeDiagram from './TokenExchangeDiagram';
 import '../styles/draggablePanel.css';
 import './FloatingTokenChainPanel.css';
 
@@ -98,10 +100,24 @@ export default function FloatingTokenChainPanel({ isOpen, onClose }) {
           </button>
           <button
             type="button"
-            className={`ftcp-tab ${activeTab === 'steps' ? 'ftcp-tab--active' : ''}`}
-            onClick={() => setActiveTab('steps')}
+            className={`ftcp-tab ${activeTab === 'simple' ? 'ftcp-tab--active' : ''}`}
+            onClick={() => setActiveTab('simple')}
           >
-            Steps ({tokenChain?.events?.length || 0})
+            Simple ({tokenChain?.events?.length || 0})
+          </button>
+          <button
+            type="button"
+            className={`ftcp-tab ${activeTab === 'detailed' ? 'ftcp-tab--active' : ''}`}
+            onClick={() => setActiveTab('detailed')}
+          >
+            Detailed
+          </button>
+          <button
+            type="button"
+            className={`ftcp-tab ${activeTab === 'diagram' ? 'ftcp-tab--active' : ''}`}
+            onClick={() => setActiveTab('diagram')}
+          >
+            Diagram
           </button>
         </div>
       )}
@@ -110,7 +126,9 @@ export default function FloatingTokenChainPanel({ isOpen, onClose }) {
       {!minimized && (
         <div className="ftcp-body">
           {activeTab === 'chain' && <TokenChainTraceRail />}
-          {activeTab === 'steps' && <StepsTabContent />}
+          {activeTab === 'simple' && <StepsTabContent />}
+          {activeTab === 'detailed' && <DetailedStepsTabContent />}
+          {activeTab === 'diagram' && <TokenExchangeDiagram />}
         </div>
       )}
 
