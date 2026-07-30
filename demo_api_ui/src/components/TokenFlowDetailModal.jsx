@@ -864,24 +864,14 @@ export default function TokenFlowDetailModal({ isOpen, onClose }) {
           >
             Least Agency
           </button>
-          <div className="tfd-theme-switch" role="group" aria-label="Theme mode">
-            <button
-              className={`tfd-theme-opt${!darkMode ? ' active' : ''}`}
-              onClick={() => setDarkMode(false)}
-              title="Use light mode"
-              aria-pressed={!darkMode}
-            >
-              Light {!darkMode ? '✓' : ''}
-            </button>
-            <button
-              className={`tfd-theme-opt${darkMode ? ' active' : ''}`}
-              onClick={() => setDarkMode(true)}
-              title="Use dark mode"
-              aria-pressed={darkMode}
-            >
-              Dark {darkMode ? '✓' : ''}
-            </button>
-          </div>
+          <button
+            className="tfd-tab"
+            onClick={() => setDarkMode(d => !d)}
+            title="Toggle light/dark"
+            style={{ marginLeft: 'auto', background: 'transparent', width: 'auto', minWidth: 32, padding: '0 8px', fontSize: 16 }}
+          >
+            {darkMode ? '◐' : '☾'}
+          </button>
         </div>
 
         {/* Body */}
