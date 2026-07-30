@@ -16,7 +16,8 @@ function str(v) {
 }
 
 const NODES = [
-  { id: 'signin',    icon: '🔐', name: 'PingOne AS',        lane: 'PINGONE',  connLabel: null,         desc: 'OIDC Auth Code + PKCE' },
+  { id: 'website',   icon: '🪟', name: 'Website',           lane: 'BROWSER',  connLabel: null,         desc: 'Browser / UI App' },
+  { id: 'signin',    icon: '🔐', name: 'PingOne AS',        lane: 'PINGONE',  connLabel: 'auth code',  desc: 'OIDC Auth Code + PKCE' },
   { id: 'prompt',    icon: 'CH', name: 'Chatbot',           lane: 'CHAT',     connLabel: null,         desc: 'Browser → BFF message' },
   { id: 'agent',     icon: '👤', name: 'Agent Service',     lane: 'AGENT',    connLabel: 'request',    desc: 'LLM reasoning & tool catalog' },
   { id: 'llm',       icon: 'ML', name: 'LLM Model',         lane: 'LLM',      connLabel: 'reasoning',  desc: 'Tool choice & reasoning' },
