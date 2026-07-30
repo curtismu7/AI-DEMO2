@@ -904,9 +904,198 @@ export const DEMO_SCENARIOS = [
       },
     ],
   },
+  // ── 15-Min Security Demo acts ────────────────────────────────────────────
+  {
+    id: "security-demo-act1",
+    title: "Act 1 — Who is the agent? (~4 min)",
+    description: "Identity, delegation, and trust across hops. Run UC1 → UC2 → UC24 top to bottom.",
+    applicableSteps: [
+      "agent-llm-reasoning",
+      "agent-token-init",
+      "olb-resource-token",
+      "claim-diagnostics",
+    ],
+    steps: [
+      {
+        action: "Step 1 · `show my balance` (UC1)",
+        prompt: "show my balance",
+        explanation:
+          "Agent reads the user's balance on their behalf — the baseline delegated call. Confirm real balance appears; token-chain rail shows first exchange + act claim.",
+        watch: [
+          "Token Chain: first exchange visible, act claim present",
+          "Say: No password handed over. The agent got a token that says it acts for me — the act claim. Every step is attributable to me.",
+        ],
+      },
+      {
+        action: "Step 2 · `hand off to a specialist` (UC2 — A2A)",
+        prompt: "hand off to a specialist",
+        explanation:
+          "Generalist agent delegates to a specialist agent — a second hop. Token chain nests a second act claim; scope narrows at each hop.",
+        watch: [
+          "Rail: nested act chain — user, then Agent 1, then Agent 2",
+          "Each hop gets less scope, not more",
+          "Say: Agent 2 acts for Agent 1, which acts for me. The whole delegation is provable.",
+        ],
+      },
+      {
+        action: "Step 3 · `what branches are near me` (UC24) — trim if tight",
+        prompt: "what branches are near me",
+        explanation:
+          "Agent answers from public branch data (Austin, Dallas, Houston, Miami, Denver) — no user token, no privilege escalation.",
+        watch: [
+          "PERMIT, no token exchange",
+          "Say: Public data — zero token exchange. The agent escalates privilege only when it must.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "security-demo-act2",
+    title: "Act 2 — Policy and intent decide (~6 min)",
+    description: "Policy enforcement, PAR intent binding, and egress control. UC6 → UC8 → UC14b → UC14 → UC31.",
+    applicableSteps: [
+      "agent-llm-reasoning",
+      "agent-token-init",
+      "olb-resource-token",
+      "gw-scope-map",
+      "gw-denial-metadata",
+      "gw-hitl-challenge-type",
+      "ui-gateway-consent",
+      "ui-auto-refire",
+      "bff-intent-token",
+      "claim-diagnostics",
+    ],
+    steps: [
+      {
+        action: "Step 4 · type `transfer $2500 from checking to savings` (UC6)",
+        prompt: "transfer $2500 from checking to savings",
+        explanation:
+          "Agent attempts a transfer over the policy ceiling — PingOne Authorize decides, not the agent. Expect DENY.",
+        watch: [
+          "DENY — over the ceiling",
+          "Say: $2500. PingOne Authorize returns DENY before the transfer runs. The agent can't argue.",
+        ],
+      },
+      {
+        action: "Step 5 · type `transfer $300 from checking to savings` (UC8)",
+        prompt: "transfer $300 from checking to savings",
+        explanation:
+          "Same transfer, under the ceiling but over the auto-approve line — a human must consent.",
+        watch: [
+          "HITL_REQUIRED — agent pauses",
+          "Say: $300 — the agent pauses and waits for a human to approve. It cannot complete this alone.",
+        ],
+      },
+      {
+        action: "Step 6 · card 'PAR intent verified' (UC14b) — click Open page, run a within-cap transfer",
+        prompt: "(open UC14b card, then run a within-cap transfer on the intent-binding page)",
+        explanation:
+          "Agent pushes its intent (amount, payee) to PingOne as a PAR, then transfers within that cap. PERMIT; token chain shows Intent Verified — the request_uri binds the transfer to its amount cap.",
+        watch: [
+          "PERMIT; Intent Token card in token chain",
+          "Say: Before it acts, the agent pushes its intent to PingOne as a Pushed Authorization Request. Within the cap: Authorize verifies and PERMITs. The agent can only do what the user pre-approved.",
+        ],
+      },
+      {
+        action: "Step 7 · card 'PAR intent violation' (UC14) — click Run sim",
+        prompt: "(click Run sim on UC14 card)",
+        explanation:
+          "Same PAR grant, but the agent now asks for more than it pushed — intent is a contract. DENY; Authorize rejects the over-cap request.",
+        watch: [
+          "DENY; Authorize rejects over-cap request",
+          "Say: Same PAR grant, but now the agent asks for more than it pushed. PingOne Authorize compares the live request to the bound intent and DENYs. Intent is a contract.",
+        ],
+      },
+      {
+        action: "Step 8 · `what's the weather in Miami` (UC31)",
+        prompt: "what's the weather in Miami",
+        explanation:
+          "Agent calls a third-party weather MCP. Miami is out of policy — the gateway kills the call before the third party ever sees it. Egress control on tool calls.",
+        watch: [
+          "Gateway DENY",
+          "Say: Miami is out of policy — the gateway kills the call before the third party sees it. Egress control on tool calls.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "security-demo-act3",
+    title: "Act 3 — Attacker fails (~3 min)",
+    description: "Two attack simulations: token replay (UC12) and scope escalation (UC5).",
+    applicableSteps: [
+      "agent-llm-reasoning",
+      "agent-token-init",
+      "gw-denial-metadata",
+      "agent-error-propagation",
+      "claim-diagnostics",
+    ],
+    steps: [
+      {
+        action: "Step 9 · card 'DPoP / replay defense' (UC12) — click Run sim",
+        prompt: "(click Run sim on UC12 card)",
+        explanation:
+          "Attacker steals the user's token and replays it straight at the backend, skipping the gateway. DENY 401 — the token is audience-bound, worthless anywhere but where it was minted.",
+        watch: [
+          "Rail: sim-replay-start → sim-gateway-deny, DENY 401 (audience binding)",
+          "Say: Steal the user's token, replay it straight at the backend, skip the gateway. DENY. A stolen token is a dead token.",
+        ],
+      },
+      {
+        action: "Step 10 · card 'Insufficient scope' (UC5) — click Run sim",
+        prompt: "(click Run sim on UC5 card)",
+        explanation:
+          "An MCP server reaches for a tool it was never scoped for — scope is a hard ceiling, not a suggestion.",
+        watch: [
+          "Glance DENY; rail DENY 403 (MCP scope)",
+          "Say: An MCP server reaches for a tool it was never scoped for. DENY, 403, at the gateway. Scope is a hard ceiling. The agent can't grant itself more.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "security-demo-closer",
+    title: "Close — Kill Switch (~1.5 min)",
+    description: "Navigate to AI Control Plane and revoke the agent instance. The forced logout IS the payoff.",
+    applicableSteps: [],
+    steps: [
+      {
+        action: "Navigate to AI Control Plane",
+        prompt: "Left nav: AI Control Plane",
+        explanation:
+          "Use Instance scope (the default) — it self-recovers and is safe for the shared env. Do NOT use 'full' scope (disables the PingOne app for every user). Do NOT re-run a step afterward.",
+        watch: [
+          "⚠️ Instance scope only — NOT full scope",
+        ],
+      },
+      {
+        action: "On the LIVE row, click the red STOP button",
+        prompt: "Confirm Stop Agent (keep scope: Instance, pick a reason)",
+        explanation:
+          "Row flips to REVOKED with an ALL AI ACTIVITY HALTED card; the kill destroys the session so you are force-logged-out to sign-in. The forced logout IS the payoff.",
+        watch: [
+          "Row flips to REVOKED",
+          "ALL AI ACTIVITY HALTED card appears",
+          "You are force-logged-out — the whole surface goes dark",
+          "Say: Everything you saw was attributable to the user — provable at decision time. So when an agent goes bad, you don't negotiate with it. One switch. (click Confirm) It's done. The agent that moved money a minute ago no longer exists.",
+        ],
+      },
+    ],
+  },
 ];
 
 const PRESENTER_FLOWS = [
+  {
+    id: "security-demo",
+    label: "15-Min Security Demo",
+    duration: "15 min",
+    audience: "Security leaders",
+    scenarios: [
+      "security-demo-act1",
+      "security-demo-act2",
+      "security-demo-act3",
+      "security-demo-closer",
+    ],
+  },
   {
     id: "quick-win",
     label: "Quick Win",
