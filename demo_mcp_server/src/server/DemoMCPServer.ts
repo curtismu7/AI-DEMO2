@@ -630,7 +630,7 @@ export class DemoMCPServer extends EventEmitter {
     // Keepalive: ping every 30s to detect dead connections
     const keepaliveInterval = setInterval(() => {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.ping((err) => {
+        ws.ping((err?: Error) => {
           if (err) {
             console.error(`[DemoMCPServer] Ping error for ${connectionId}:`, err);
           }

@@ -98,6 +98,19 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(screen.getAllByText("P1AZ Inspector").length).toBeGreaterThan(0);
   });
 
+  it("shows a local-only PAC Editor item under Authorize and opens the PAC editor", () => {
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    renderNav();
+    fireEvent.click(screen.getByRole("button", { name: /^Authorize/ }));
+    fireEvent.click(screen.getByRole("button", { name: "PAC Editor" }));
+    expect(openSpy).toHaveBeenCalledWith(
+      "http://127.0.0.1:9099",
+      "_blank",
+      "noopener,noreferrer",
+    );
+    openSpy.mockRestore();
+  });
+
   it("shows an empty state when nothing matches", () => {
     renderNav();
     const input = screen.getByLabelText(/search navigation/i);
