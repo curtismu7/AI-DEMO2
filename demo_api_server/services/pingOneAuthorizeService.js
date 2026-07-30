@@ -744,6 +744,8 @@ function buildMcpDelegationParameters({
     ActClientId: actClientId || '',          // from act.client_id || act.sub
     NestedActClientId: nestedActClientId || '', // from act.act.client_id || act.act.sub
     ActChainDepth: actChainDepth,
+    // Derived string so policies can key on caller type without evaluating ActClientId emptiness.
+    CallerType: actChainDepth === 0 ? 'human' : actChainDepth === 1 ? 'agent' : 'agent_a2a',
     // Expected MCP resource URI from config. Reachably empty since
     // resolveExpectedMcpResourceUri() stopped inventing a host, so the same C1
     // rule applies: omit rather than send ''.

@@ -1,27 +1,25 @@
-"""Code Explorer agent — ReAct when tools work; retrieve-then-answer for all LLMs."""
+"""Code Explorer — pydantic-ai ReAct agent backed by the local llm-proxy (llama / omlx)."""
 
 from __future__ import annotations
 
+import json
 import logging
 import os
-import urllib.request
+import re
 from dataclasses import dataclass
-from typing import Any, AsyncGenerator, Literal, Optional
+from typing import Any, AsyncGenerator, Optional
 
-from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
-from langgraph.prebuilt import create_react_agent
+from pydantic_ai import Agent
+from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.messages import ModelRequest, ModelResponse, UserPromptPart, TextPart
+from pydantic_ai.settings import ModelSettings
 
-from src.codegraph.tools import get_codegraph_tools
-from src.codegraph.llm_target import proxy_base_url, resolve_llamacpp_target
-from src.codegraph.retrieve import gather_context
-from src.agent.llm_factory import get_llm
+from src.codegraph import db, repo
 
 logger = logging.getLogger(__name__)
 
-Mode = Literal["react", "retrieve"]
-
-# SSE comment interval while waiting on a slow LLM (proxies/ALBs idle-close).
+# SSE keepalive interval so proxies/ALBs don't idle-close during slow LLM warmup.
 KEEPALIVE_SECONDS = 10.0
 
 SYSTEM_PROMPT = """You are a code navigator for the AI-Demo repository — a multi-vertical AI agent \
@@ -45,237 +43,204 @@ structure ("what calls X", "what does X call") when the question is about flow.
 Always cite file:line references. Keep answers focused and concrete. If grep \
 finds nothing, try a synonym or a broader pattern before giving up."""
 
-RETRIEVE_SYSTEM = """You are a code navigator for the AI-Demo repository (PingOne / MCP / LangChain demo).
-Answer ONLY from the CONTEXT pack below — do not invent files or APIs that are not present.
-Cite file:line references from the excerpts. Keep answers focused and concrete.
-If the context is insufficient, say what is missing instead of guessing."""
+# ── Tool constants ────────────────────────────────────────────────────────────
 
-# Providers whose native tool-calling is reliable enough for create_react_agent.
-_REACT_PROVIDERS = frozenset({
-    "anthropic",
-    "anthropic-lmstudio",
-    "groq",
-    "google",
-})
+_TRUNCATE_AT = 3970
+_TRUNCATE_SUFFIX = "\n... (truncated)"
+_READ_MAX_CHARS = 8000
+_GREP_MAX_PER_FILE = 2
+_GREP_MAX_FILES = 40
+_GREP_MAX_CHARS = 6000
 
 
-def _llamacpp_reachable(base_url: str) -> bool:
+def _fmt(rows: list[dict], *, call_line: bool = False) -> str:
+    if not rows:
+        return "No results found."
+    parts = []
+    for row in rows:
+        entry = (
+            f"{row.get('name', '')} ({row.get('kind', '')}) — "
+            f"{row.get('file_path', '')}:{row.get('start_line', '')}"
+        )
+        if call_line:
+            entry += f" (calls at line {row.get('call_line', '')})"
+        parts.append(entry)
+    result = "\n".join(parts)
+    if len(result) > 4000:
+        result = result[:_TRUNCATE_AT] + _TRUNCATE_SUFFIX
+    return result
+
+
+# ── Tool implementations (plain functions — no RunContext needed) ─────────────
+
+def grep(pattern: str) -> str:
+    """Search the repo source with a regular expression; returns matching lines as 'file:line: text'. \
+Use this first to locate code by identifier name, route string, or config key."""
     try:
-        urllib.request.urlopen(base_url.rstrip("/") + "/health", timeout=2)
-        return True
-    except Exception:
-        return False
+        rx = re.compile(pattern, re.IGNORECASE)
+    except re.error as exc:
+        return f"Invalid regex: {exc}"
+    root = repo.repo_src_root()
+    lines: list[str] = []
+    files_matched = 0
+    for path in repo.iter_source_files(root):
+        if files_matched >= _GREP_MAX_FILES:
+            break
+        try:
+            rel = path.relative_to(root).as_posix()
+        except ValueError:
+            continue
+        file_hits: list[str] = []
+        if rx.search(rel):
+            file_hits.append(f"{rel}:0: (filename match)")
+        try:
+            with path.open(encoding="utf-8", errors="replace") as fh:
+                for n, line in enumerate(fh, 1):
+                    if rx.search(line):
+                        file_hits.append(f"{rel}:{n}: {line.rstrip()}")
+                        if len(file_hits) >= _GREP_MAX_PER_FILE + 1:
+                            break
+        except OSError:
+            continue
+        if file_hits:
+            lines.extend(file_hits)
+            files_matched += 1
+    if not lines:
+        return "No matches found."
+    result = "\n".join(lines)
+    if len(result) > _GREP_MAX_CHARS:
+        result = result[:_GREP_MAX_CHARS - len(_TRUNCATE_SUFFIX)] + _TRUNCATE_SUFFIX
+    return result
 
 
-def _helix_configured() -> bool:
-    return bool(
-        os.getenv("HELIX_ENVIRONMENT_ID") and os.getenv("HELIX_PROMPT_FIELD_ID")
-    )
+def read_file(path: str) -> str:
+    """Read actual source of a repo file. Input: repo-relative path, optionally with \
+line range as 'path:start:end' e.g. 'demo_api_server/services/mcpGatewayClient.js:140:175'. \
+Use after grep or codegraph_search gives you a file:line."""
+    spec = path.strip()
+    start = end = None
+    m = re.match(r"^(.*?):(\d+):(\d+)$", spec)
+    if m:
+        spec, start, end = m.group(1), int(m.group(2)), int(m.group(3))
+    target = repo.resolve_in_root(spec)
+    if target is None:
+        return f"File not found or outside repo: {spec}"
+    raw = target.read_text(encoding="utf-8", errors="replace").splitlines()
+    if start is not None:
+        s = max(1, start)
+        e = min(len(raw), end)
+        window, offset = raw[s - 1:e], s
+    else:
+        window, offset = raw, 1
+    numbered = "\n".join(f"{offset + i}\t{ln}" for i, ln in enumerate(window))
+    if len(numbered) > _READ_MAX_CHARS:
+        numbered = numbered[:_READ_MAX_CHARS - len(_TRUNCATE_SUFFIX)] + _TRUNCATE_SUFFIX
+    return numbered or "(empty file)"
 
+
+def codegraph_search(term: str) -> str:
+    """Search for a code symbol by name; returns qualified names and file:line locations."""
+    return _fmt(db.search(term))
+
+
+def codegraph_callers(symbol: str) -> str:
+    """Find all code locations that call a given symbol. Input: exact symbol name."""
+    return _fmt(db.callers(symbol), call_line=True)
+
+
+def codegraph_callees(symbol: str) -> str:
+    """Find all symbols called by a given function. Input: exact symbol name."""
+    return _fmt(db.callees(symbol), call_line=True)
+
+
+# ── Model selection ───────────────────────────────────────────────────────────
 
 def _anthropic_configured() -> bool:
     key = (os.getenv("ANTHROPIC_API_KEY") or "").strip()
-    if not key or key in {"sk-ant-api03-placeholder", "test-key", "changeme"}:
-        return False
-    return key.startswith("sk-ant-")
+    return bool(key) and key not in {"sk-ant-api03-placeholder", "test-key", "changeme"} and key.startswith("sk-ant-")
 
 
-def _resolve_provider() -> str:
-    """Probe-based provider resolution (explicit env wins when reachable)."""
-    llamacpp_url = proxy_base_url()
-    explicit = os.getenv("CODEGRAPH_LLM_PROVIDER", "").strip().lower()
-    if explicit and explicit not in {"auto", "default"}:
-        if explicit == "llamacpp" and not _llamacpp_reachable(llamacpp_url):
-            logger.warning(
-                "CodeGraph LLM: CODEGRAPH_LLM_PROVIDER=llamacpp but %s unreachable — falling through",
-                llamacpp_url,
-            )
-        else:
-            logger.info("CodeGraph LLM: using explicit CODEGRAPH_LLM_PROVIDER=%s", explicit)
-            return explicit
-
-    if _llamacpp_reachable(llamacpp_url):
-        logger.info("CodeGraph LLM: llm-proxy reachable at %s — using llamacpp", llamacpp_url)
-        return "llamacpp"
-
+def _resolve_model():
+    """Pick model: Anthropic if key is present, else the local llm-proxy (llama / omlx)."""
     if _anthropic_configured():
-        logger.info("CodeGraph LLM: local proxy down; Anthropic key present — using anthropic")
-        return "anthropic"
-
-    if _helix_configured():
-        logger.info("CodeGraph LLM: falling back to helix")
-        return "helix"
-
-    logger.warning("CodeGraph LLM: falling back to lmstudio")
-    return "lmstudio"
-
-
-def _resolve_mode(provider: str) -> Mode:
-    """Choose ReAct vs retrieve-then-answer.
-
-    Override with CODEGRAPH_AGENT_MODE=react|retrieve|auto.
-    Default auto: ReAct only for providers with reliable native tool-calling;
-    everyone else (Helix, llama.cpp, LM Studio) uses retrieve-then-answer so
-    Code Explorer works on all configured LLMs.
-    """
-    raw = (os.getenv("CODEGRAPH_AGENT_MODE") or "auto").strip().lower()
-    if raw in {"react", "retrieve"}:
-        return raw  # type: ignore[return-value]
-    if provider in _REACT_PROVIDERS:
-        return "react"
-    return "retrieve"
-
-
-def _build_llm(provider: str, api_key: str) -> BaseChatModel:
-    model_override = os.getenv("CODEGRAPH_MODEL") or None
-    llamacpp_base = proxy_base_url()
-    llamacpp_model = os.getenv("LLAMACPP_MODEL", "phi-4-mini-instruct")
-
-    if provider == "llamacpp":
-        base, model, reason = resolve_llamacpp_target()
-        llamacpp_base = base
-        if model:
-            model_override = model
-            llamacpp_model = model
-        logger.info("CodeGraph LLM target: %s", reason)
-    elif provider == "anthropic":
-        if model_override and not model_override.lower().startswith("claude"):
-            model_override = None
-    elif provider not in {"lmstudio", "anthropic-lmstudio", "groq", "google"}:
-        model_override = None
-
-    return get_llm(
-        provider=provider,
-        model=model_override,
-        api_key=api_key,
-        llamacpp_base_url=llamacpp_base,
-        llamacpp_model=llamacpp_model,
-        lmstudio_base_url=os.getenv("LMSTUDIO_BASE_URL", "http://localhost:1234/v1"),
-        helix_base_url=os.getenv("HELIX_BASE_URL", ""),
-        helix_api_key=os.getenv("HELIX_API_KEY", ""),
-        helix_environment_id=os.getenv("HELIX_ENVIRONMENT_ID", ""),
-        helix_agent_id=os.getenv("HELIX_AGENT_ID", ""),
-        helix_prompt_field_id=os.getenv("HELIX_PROMPT_FIELD_ID", ""),
+        from pydantic_ai.models.anthropic import AnthropicModel
+        from pydantic_ai.providers.anthropic import AnthropicProvider
+        key = os.getenv("ANTHROPIC_API_KEY", "")
+        model_name = os.getenv("CODEGRAPH_MODEL", "claude-haiku-4-5")
+        if not model_name.startswith("claude"):
+            model_name = "claude-haiku-4-5"
+        logger.info("CodeGraph LLM: Anthropic %s", model_name)
+        return AnthropicModel(model_name, provider=AnthropicProvider(api_key=key or None))
+    # Default: local llm-proxy at :8090 routes to llama.cpp (Linux/x86) or omlx (Apple Silicon).
+    base_url = (
+        os.getenv("CODEGRAPH_LLAMACPP_BASE_URL")
+        or os.getenv("LLAMACPP_BASE_URL")
+        or "http://host.docker.internal:8090/v1"
+    )
+    model_name = os.getenv("LLAMACPP_MODEL", "gpt-oss-20b")
+    logger.info("CodeGraph LLM: llm-proxy %s at %s", model_name, base_url)
+    return OpenAIModel(
+        model_name=model_name,
+        provider=OpenAIProvider(base_url=base_url, api_key="llama-cpp"),
     )
 
 
-def _last_user_text(messages: list[BaseMessage]) -> str:
-    for msg in reversed(messages):
-        if isinstance(msg, HumanMessage):
-            content = msg.content
-            return content if isinstance(content, str) else str(content)
-    return ""
+# ── Agent + runner ────────────────────────────────────────────────────────────
+
+def _build_agent() -> Agent:
+    model = _resolve_model()
+    agent = Agent(
+        model,
+        system_prompt=SYSTEM_PROMPT,
+        tools=[grep, read_file, codegraph_search, codegraph_callers, codegraph_callees],
+        defer_model_check=True,
+    )
+    return agent
 
 
-def _chunk_text(content: Any) -> str:
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        parts = []
-        for block in content:
-            if isinstance(block, dict) and block.get("type") == "text":
-                parts.append(block.get("text") or "")
-            elif isinstance(block, str):
-                parts.append(block)
-        return "".join(parts)
-    return ""
+def _to_msg_history(history: list[dict]) -> list:
+    """Convert [{role, content}] dicts to pydantic-ai ModelMessage objects."""
+    msgs = []
+    for entry in history:
+        content = entry.get("content", "") or ""
+        if not content:
+            continue
+        if entry.get("role") == "assistant":
+            msgs.append(ModelResponse(parts=[TextPart(content=content)]))
+        else:
+            msgs.append(ModelRequest(parts=[UserPromptPart(content=content)]))
+    return msgs
 
 
 @dataclass
 class CodegraphRunner:
-    """Unified stream surface for ReAct and retrieve-then-answer modes."""
+    agent: Agent
 
-    mode: Mode
-    provider: str
-    llm: BaseChatModel
-    graph: Optional[Any] = None
-
-    async def astream_sse(self, messages: list[BaseMessage]) -> AsyncGenerator[str, None]:
-        import json
-
-        yield f"data: {json.dumps({'type': 'status', 'text': 'Searching the codebase…'})}\n\n"
-        try:
-            if self.mode == "react" and self.graph is not None:
-                async for frame in self._stream_react(messages):
-                    yield frame
-            else:
-                async for frame in self._stream_retrieve(messages):
-                    yield frame
-        except Exception as exc:
-            logger.error("CodeGraph stream error: %s", exc)
-            yield f"data: {json.dumps({'type': 'error', 'text': str(exc) or type(exc).__name__})}\n\n"
-        finally:
-            yield f"data: {json.dumps({'type': 'done'})}\n\n"
-
-    async def _stream_react(self, messages: list[BaseMessage]) -> AsyncGenerator[str, None]:
-        import json
-        from langchain_core.messages import AIMessageChunk
-
-        async for msg, _metadata in self.graph.astream(
-            {"messages": messages}, stream_mode="messages"
-        ):
-            if not isinstance(msg, AIMessageChunk):
-                yield f"data: {json.dumps({'type': 'status', 'text': 'Reading the code…'})}\n\n"
-                continue
-            text = _chunk_text(getattr(msg, "content", ""))
-            if text:
-                yield f"data: {json.dumps({'type': 'token', 'text': text})}\n\n"
-
-    async def _stream_retrieve(self, messages: list[BaseMessage]) -> AsyncGenerator[str, None]:
+    async def astream_sse(self, question: str, history: list[dict]) -> AsyncGenerator[str, None]:
         import asyncio
-        import json
 
-        question = _last_user_text(messages)
-        context = await asyncio.to_thread(gather_context, question)
-        yield f"data: {json.dumps({'type': 'status', 'text': 'Reading the code…'})}\n\n"
-
-        history: list[BaseMessage] = []
-        for msg in messages[:-1]:
-            if isinstance(msg, (HumanMessage, AIMessage, SystemMessage)):
-                history.append(msg)
-
-        synth = [
-            SystemMessage(content=RETRIEVE_SYSTEM),
-            *history,
-            HumanMessage(
-                content=(
-                    f"CONTEXT:\n{context}\n\n"
-                    f"QUESTION: {question}\n\n"
-                    "Answer using only the context. Cite file:line."
-                )
-            ),
-        ]
-
-        # Stream tokens with SSE comment keepalives so proxies/ALBs do not idle-
-        # close the connection while a slow local LLM warms up (browser then
-        # shows a network error). Comment frames are ignored by the UI parser.
+        yield f"data: {json.dumps({'type': 'status', 'text': 'Searching the codebase\u2026'})}\n\n"
+        msg_history = _to_msg_history(history)
         queue: asyncio.Queue = asyncio.Queue()
 
         async def _produce() -> None:
-            streamed = False
             try:
-                async for chunk in self.llm.astream(synth):
-                    text = _chunk_text(getattr(chunk, "content", ""))
-                    if text:
-                        streamed = True
-                        await queue.put(("token", text))
+                async with self.agent.run_stream(
+                    question,
+                    message_history=msg_history or None,
+                    model_settings=ModelSettings(timeout=120.0),
+                ) as result:
+                    first_token = True
+                    async for delta in result.stream_text(delta=True):
+                        if first_token:
+                            await queue.put(("status", "Reading the code\u2026"))
+                            first_token = False
+                        await queue.put(("token", delta))
             except Exception as exc:
-                logger.info("CodeGraph retrieve astream unavailable (%s) — using invoke", exc)
-
-            if not streamed:
-                try:
-                    result = await self.llm.ainvoke(synth)
-                    text = _chunk_text(getattr(result, "content", ""))
-                    if text:
-                        await queue.put(("token", text))
-                    else:
-                        await queue.put((
-                            "error",
-                            "LLM returned an empty answer. Try again or switch CODEGRAPH_LLM_PROVIDER.",
-                        ))
-                except Exception as exc:
-                    await queue.put(("error", str(exc) or type(exc).__name__))
-            await queue.put(("done", None))
+                logger.error("CodeGraph stream error: %s", exc)
+                await queue.put(("error", str(exc) or type(exc).__name__))
+            finally:
+                await queue.put(("done", None))
 
         producer = asyncio.create_task(_produce())
         try:
@@ -287,11 +252,15 @@ class CodegraphRunner:
                     continue
                 if kind == "token":
                     yield f"data: {json.dumps({'type': 'token', 'text': payload})}\n\n"
+                elif kind == "status":
+                    yield f"data: {json.dumps({'type': 'status', 'text': payload})}\n\n"
                 elif kind == "error":
                     yield f"data: {json.dumps({'type': 'error', 'text': payload})}\n\n"
+                    break
                 elif kind == "done":
                     break
         finally:
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
             if not producer.done():
                 producer.cancel()
                 try:
@@ -300,21 +269,8 @@ class CodegraphRunner:
                     pass
 
 
-def create_codegraph_agent(api_key: str) -> CodegraphRunner:
-    """Build a Code Explorer runner for the configured LLM provider."""
-    provider = _resolve_provider()
-    mode = _resolve_mode(provider)
-    llm = _build_llm(provider, api_key)
-    graph = None
-    if mode == "react":
-        try:
-            graph = create_react_agent(llm, get_codegraph_tools(), prompt=SYSTEM_PROMPT)
-        except Exception as exc:
-            logger.warning(
-                "CodeGraph ReAct build failed for %s (%s) — falling back to retrieve",
-                provider, exc,
-            )
-            mode = "retrieve"
-            graph = None
-    logger.info("CodeGraph runner: provider=%s mode=%s", provider, mode)
-    return CodegraphRunner(mode=mode, provider=provider, llm=llm, graph=graph)
+def create_codegraph_agent() -> CodegraphRunner:
+    """Build a Code Explorer runner."""
+    agent = _build_agent()
+    return CodegraphRunner(agent=agent)
+

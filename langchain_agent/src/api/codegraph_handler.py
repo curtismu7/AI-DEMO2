@@ -12,8 +12,6 @@ import time
 from fastapi import APIRouter, Response
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse, StreamingResponse
-from langchain_core.messages import HumanMessage, AIMessage
-
 from codegraph.agent import create_codegraph_agent
 from codegraph.db import CODEGRAPH_DB_PATH
 from codegraph.ensure_index import (
@@ -51,37 +49,14 @@ def _index_available() -> bool:
     return inspect_demo_index(query_db_path(), repo_root=repo_src_root()).get("ok", False)
 
 
-def _agent_cache_key() -> tuple:
-    """Rebuild when provider/mode pin or healthy proxy tier changes."""
-    from codegraph.llm_target import resolve_llamacpp_target
-    provider = (os.getenv("CODEGRAPH_LLM_PROVIDER") or "auto").strip().lower()
-    mode = (os.getenv("CODEGRAPH_AGENT_MODE") or "auto").strip().lower()
-    base, model, _ = resolve_llamacpp_target()
-    return (provider, mode, base, model)
-
-
 def _get_runner():
     global _runner_cache, _runner_cache_key
-    key = _agent_cache_key()
+    # Rebuild when the Anthropic key or llm-proxy model env changes.
+    key = (os.getenv("ANTHROPIC_API_KEY", ""), os.getenv("LLAMACPP_MODEL", ""), os.getenv("LLAMACPP_BASE_URL", ""))
     if _runner_cache is None or _runner_cache_key != key:
-        api_key = os.getenv("ANTHROPIC_API_KEY", "")
-        _runner_cache = create_codegraph_agent(api_key=api_key)
+        _runner_cache = create_codegraph_agent()
         _runner_cache_key = key
     return _runner_cache
-
-
-def _build_messages(question: str, history: list[dict]) -> list:
-    """Convert history + question into LangChain message objects."""
-    messages = []
-    for entry in history:
-        role = entry.get("role", "")
-        content = entry.get("content", "")
-        if role == "user":
-            messages.append(HumanMessage(content=content))
-        elif role == "assistant":
-            messages.append(AIMessage(content=content))
-    messages.append(HumanMessage(content=question))
-    return messages
 
 
 @router.post("/query")
@@ -113,10 +88,8 @@ async def codegraph_query(request: Request) -> Response:
     if problems:
         return JSONResponse({"error": "; ".join(problems)}, status_code=503)
 
-    messages = _build_messages(question, history)
-
     return StreamingResponse(
-        runner.astream_sse(messages),
+        runner.astream_sse(question, history),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
