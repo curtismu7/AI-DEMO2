@@ -1824,6 +1824,8 @@ function AuthorizeDecisionEduBox({ event }) {
   const azParams = readAuthorizeParameters(event);
   const tokenKid = azParams?.TokenKid ?? null;
   const tokenKidKnown = azParams?.TokenKidKnown;
+  const callerType = azParams?.CallerType ?? (azParams?.ActClientId ? 'agent' : azParams?.ActChainDepth > 0 ? 'agent' : null);
+  const actClientIdDisplay = azParams?.ActClientId || null;
   const isPermit = !isPending && decision === "PERMIT";
   const isDeny = !isPending && decision === "DENY";
   return (
@@ -1874,6 +1876,18 @@ function AuthorizeDecisionEduBox({ event }) {
               }
             </span>
           </li>
+          {callerType && (
+            <li>
+              <span className="tcd-edu-check-lbl">Caller:</span>
+              <span className={callerType === 'human' ? '' : 'tcd-ok-text'}>
+                {callerType === 'human'
+                  ? 'Human (direct — no act claim)'
+                  : callerType === 'agent_a2a'
+                    ? <>Agent-to-Agent chain — <code>{actClientIdDisplay}</code> (RFC 8693 nested act)</>
+                    : <>Agent — <code>{actClientIdDisplay}</code> acting on behalf of user (RFC 8693 act)</> }
+              </span>
+            </li>
+          )}
           {path && (
             <li>
               <span className="tcd-edu-check-lbl">Path:</span>
@@ -2103,6 +2117,9 @@ function GwAuthorizeEduBox({ event }) {
   const decision = rawDecision || "PERMIT";
   const isPermit = !isPending && decision === "PERMIT";
   const isDeny = !isPending && decision === "DENY";
+  const gwParams = event.parameters || event.authorizeRequest?.parameters || null;
+  const gwCallerType = gwParams?.CallerType ?? (gwParams?.ActClientId ? 'agent' : gwParams?.ActChainDepth > 0 ? 'agent' : null);
+  const gwActClientId = gwParams?.ActClientId || null;
   const backend = event.backend || null;
   const url = event.url || null;
   const tool = event.tool || null;
@@ -2148,6 +2165,18 @@ function GwAuthorizeEduBox({ event }) {
               }
             </span>
           </li>
+          {gwCallerType && (
+            <li>
+              <span className="tcd-edu-check-lbl">Caller:</span>
+              <span className={gwCallerType === 'human' ? '' : 'tcd-ok-text'}>
+                {gwCallerType === 'human'
+                  ? 'Human (direct — no act claim)'
+                  : gwCallerType === 'agent_a2a'
+                    ? <>Agent-to-Agent chain — <code>{gwActClientId}</code> (RFC 8693 nested act)</>
+                    : <>Agent — <code>{gwActClientId}</code> acting on behalf of user (RFC 8693 act)</> }
+              </span>
+            </li>
+          )}
           {backend && (
             <li>
               <span className="tcd-edu-check-lbl">Backend:</span>
