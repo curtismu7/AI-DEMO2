@@ -102,6 +102,30 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-07-30 — AG-UI agent tool calls 400'd after JSON-RPC wire mismatch (#1108)
+
+**Files changed:** `demo_agent_service/src/agentRunHandler.ts`,
+`demo_agent_service/tests/agentRunHandler.bffToolWire.test.ts`,
+`demo_api_server/tests/agentTool.wireContract.regression.test.js`.
+
+**What was broken:** #1108 changed `executeTool` to POST MCP/JSON-RPC
+`{ jsonrpc:'2.0', method:'tools/call', params:{ name, arguments, sessionId } }`
+while `BFF_TOOL_URL` still points at `/internal/agent-tool`, which requires
+top-level `{ tool, args, sessionId }`. Every AG-UI tool call got
+`400 tool_required` (and would have dropped `tokenEvents` even if the body
+had been adapted). The new `/api/rpc` sibling uses `requireSession` and is
+not what agents call.
+
+**What was fixed:** restored the `{ tool, args, sessionId }` request body and
+`{ result, tokenEvents }` unwrap. Canaries lock both sides of the contract.
+
+**Do not break:** do not send JSON-RPC to `/internal/agent-tool`; keep
+`BFF_TOOL_URL` on that route (or teach the route and the client together).
+
+**Verify:**
+`cd demo_agent_service && npx jest --forceExit --testPathPattern=agentRunHandler.bffToolWire`
+`cd demo_api_server && CI=true npx jest tests/agentTool.wireContract.regression.test.js --forceExit --testPathIgnorePatterns="/node_modules/"`
+
 ### 2026-07-29 — Unauthenticated `/api/token-exchanges` returned cleartext JWTs
 
 **Files changed:** `demo_api_server/server.js` (removed insecure dual-mount),
