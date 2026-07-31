@@ -40,6 +40,7 @@ export default function PrivilegeMcpClientPage() {
   const [toolResult, setToolResult] = useState('');
   const [rawRpc, setRawRpc] = useState('{\n  "jsonrpc": "2.0",\n  "id": 1,\n  "method": "tools/list",\n  "params": {}\n}');
   const [rawRpcResult, setRawRpcResult] = useState('');
+  const [showBlockedModal, setShowBlockedModal] = useState(false);
   const chatEndRef = useRef(null);
   const eventsRef = useRef(null);
 
@@ -131,6 +132,9 @@ export default function PrivilegeMcpClientPage() {
     } catch (err) {
       setAuthenticated(false);
       setTools([]);
+      if (err.message?.toLowerCase().includes('not authorized')) {
+        setShowBlockedModal(true);
+      }
       if (!silent) appendChat('system', `Refresh failed: ${err.message}`);
     }
   };
@@ -186,6 +190,15 @@ export default function PrivilegeMcpClientPage() {
 
   return (
     <div className="pmc-page">
+      {showBlockedModal && (
+        <div className="pmc-modal-overlay" onClick={() => setShowBlockedModal(false)}>
+          <div className="pmc-modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Access Denied</h2>
+            <p>User blocked — please request access from your Privilege Cloud administrator.</p>
+            <button className="pmc-btn pmc-btn--primary" onClick={() => setShowBlockedModal(false)}>Dismiss</button>
+          </div>
+        </div>
+      )}
       <header className="pmc-topbar">
         <div>
           <h1>PingOne Privilege MCP Client</h1>

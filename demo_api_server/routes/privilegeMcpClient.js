@@ -17,7 +17,7 @@ function getClientSession(req) {
     clientSessions.set(sid, {
       config: {
         mcpUrl: process.env.PRIVILEGE_MCPGW_URL || '',
-        clientId: '',
+        clientId: process.env.PINGONE_MCP_GATEWAY_CLIENT_ID || '',
         scopes: 'openid profile email',
         llmUrl: 'http://127.0.0.1:11434',
         llmModel: 'llama3.2:1b',
@@ -103,6 +103,11 @@ async function fetchMcp(session, pathname, body, withAuth = true) {
   if (session.mcpSession.sessionId) {
     headers['MCP-Session-Id'] = session.mcpSession.sessionId;
   }
+  // Privilege Cloud requires x-procyon-session-id on every request
+  if (targetUrl.hostname === 'privilege.pingone.com') {
+    headers['x-procyon-session-id'] = session.config._procyonSessionId ||
+      (session.config._procyonSessionId = crypto.randomUUID());
+  }
 
   emitEvent('relay', { direction: 'client->mcp', method: 'POST', url: targetUrl.toString(), body });
 
@@ -163,7 +168,13 @@ function resetMcpState(session) {
 }
 
 async function discoverAuth(session) {
-  const response = await fetch(session.config.mcpUrl, { method: 'GET' });
+  const discoverHeaders = {};
+  const mcpUrlParsed = new URL(session.config.mcpUrl);
+  if (mcpUrlParsed.hostname === 'privilege.pingone.com') {
+    discoverHeaders['x-procyon-session-id'] = session.config._procyonSessionId ||
+      (session.config._procyonSessionId = crypto.randomUUID());
+  }
+  const response = await fetch(session.config.mcpUrl, { method: 'GET', headers: discoverHeaders });
   const bodyText = await response.text();
   let body;
   try { body = JSON.parse(bodyText); } catch { body = {}; }
@@ -179,7 +190,11 @@ async function discoverAuth(session) {
   try {
     const mcpUrl = new URL(session.config.mcpUrl);
     const envMatch = mcpUrl.pathname.match(/\/v1\/environments\/([0-9a-fA-F-]{36})\/mcp\/?$/);
-    const envId = envMatch?.[1];
+    let envId = envMatch?.[1];
+    // Privilege Cloud uses PingOne OIDC but doesn't expose env ID in the URL
+    if (!envId && mcpUrl.hostname === 'privilege.pingone.com') {
+      envId = process.env.PINGONE_ENVIRONMENT_ID;
+    }
     const authHost = mcpUrl.host.startsWith('api.') ? mcpUrl.host.replace(/^api\./, 'auth.') : 'auth.pingone.com';
     if (envId) {
       const wellKnownUrl = `https://${authHost}/${envId}/as/.well-known/openid-configuration`;
@@ -231,9 +246,9 @@ router.post('/auth/start', express.json(), async (req, res) => {
     const challenge = sha256Base64Url(verifier);
     const oauthState = randomString(24);
 
-    // Build callback URL relative to BFF host
-    const host = req.get('host') || 'localhost:3005';
-    const protocol = req.get('x-forwarded-proto') || req.protocol || 'http';
+    // Build callback URL relative to the externally-visible host
+    const host = req.get('x-forwarded-host') || process.env.PRIVILEGE_MCP_CALLBACK_HOST || 'local.ping-devops.com:4000';
+    const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
     const redirectUri = `${protocol}://${host}/api/privilege-mcp/auth/callback`;
 
     const authUrl = new URL(authorizationUri);
@@ -278,6 +293,7 @@ router.get('/auth/callback', async (req, res) => {
       code,
       redirect_uri: session.pendingAuth.redirectUri,
       client_id: session.config.clientId,
+      client_secret: process.env.PINGONE_MCP_GATEWAY_CLIENT_SECRET || '',
       code_verifier: session.pendingAuth.verifier,
     });
 
@@ -382,8 +398,8 @@ router.post('/chat', express.json(), async (req, res) => {
       const verifier = randomString(48);
       const challenge = sha256Base64Url(verifier);
       const oauthState = randomString(24);
-      const host = req.get('host') || 'localhost:3005';
-      const protocol = req.get('x-forwarded-proto') || req.protocol || 'http';
+      const host = req.get('x-forwarded-host') || process.env.PRIVILEGE_MCP_CALLBACK_HOST || 'local.ping-devops.com:4000';
+      const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
       const redirectUri = `${protocol}://${host}/api/privilege-mcp/auth/callback`;
       const authUrl = new URL(authorizationUri);
       authUrl.searchParams.set('client_id', session.config.clientId);
