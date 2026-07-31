@@ -46,8 +46,6 @@ metadata:
     # pathType: Prefix forwards the FULL path, so without this it 404s.
     nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /$2
-    # MCPGW terminates TLS itself locally; in-cluster nginx terminates instead
-    # and proxies plain HTTP. Flip to HTTPS here if the container requires it.
     nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
     nginx.ingress.kubernetes.io/proxy-buffering: "off"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
@@ -64,4 +62,4 @@ spec:
           service:
             name: ping-mcpgw
             port:
-              number: 8623
+              number: 8680

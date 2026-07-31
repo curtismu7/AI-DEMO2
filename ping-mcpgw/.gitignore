@@ -1,6 +1,10 @@
 # Real OIDC config — contains client secret; keep example committed, ignore real file
 config/pingone.env
 
+# Privilege proxy token from the gateway wizard — never commit
+config/proxy-token
+config/proxy-token.env
+
 # TLS certs — *.pem is also caught by the repo-root rule but be explicit
 ssl/
 !ssl/.gitkeep

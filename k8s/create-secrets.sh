@@ -338,17 +338,16 @@ secret_from_envfile gateway-secrets   "$ASSET_ROOT/demo_mcp_gateway/.env"   # MC
 secret_from_envfile agent-secrets        "$ASSET_ROOT/demo_agent_service/.env" # Agent service
 secret_from_envfile ping-gateway-secrets "$ASSET_ROOT/ping-gateway/.env"        # PingGateway (IG)
 
-# Privilege MCPGW: the vendor reads pingone.env as a FILE, so this secret holds
-# the whole file under one key rather than one key per variable (which is what
-# secret_from_envfile would produce, and would arrive as env vars instead).
-if [ -f "$ASSET_ROOT/ping-mcpgw/config/pingone.env" ]; then
+# Privilege proxy: ENV_PROXY_TOKEN from the gateway wizard, stored in
+# ping-mcpgw/config/proxy-token (one line, the raw JWT).
+if [ -f "$ASSET_ROOT/ping-mcpgw/config/proxy-token" ]; then
   kubectl create secret generic ping-mcpgw-secrets \
     --namespace="$NS" \
-    --from-file=pingone.env="$ASSET_ROOT/ping-mcpgw/config/pingone.env" \
+    --from-file=ENV_PROXY_TOKEN="$ASSET_ROOT/ping-mcpgw/config/proxy-token" \
     --dry-run=client -o yaml | kubectl apply -f -
-  info "  ping-mcpgw-secrets applied (pingone.env from ping-mcpgw/config/)"
+  info "  ping-mcpgw-secrets applied (ENV_PROXY_TOKEN from ping-mcpgw/config/proxy-token)"
 else
-  warn "  ping-mcpgw/config/pingone.env not found — skipping secret ping-mcpgw-secrets"
+  warn "  ping-mcpgw/config/proxy-token not found — skipping secret ping-mcpgw-secrets"
 fi
 
 # ── PingGateway config (ConfigMap from source files — single source of truth) ──
