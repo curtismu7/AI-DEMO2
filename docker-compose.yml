@@ -406,7 +406,6 @@ services:
       # CodeGraph Explorer LLM — priority: Anthropic > Groq > local llama
       LLAMACPP_BASE_URL: "http://host.docker.internal:8090"
       LLAMACPP_MODEL: "gpt-oss-20b"
-      GROQ_API_KEY: "${GROQ_API_KEY:-}"
       GROQ_MODEL: "${GROQ_MODEL:-llama-3.3-70b-versatile}"
       # Code Explorer "Refresh index" reads live source + writes the rebuilt DB
       # under the bind-mounted repo (see volumes below). Pointing both at the live
@@ -1099,41 +1098,25 @@ services:
     restart: unless-stopped
 
   # ── PingOne Privilege MCPGW (commercial) ───────────────────────────────────
-  # Inline MCP security gateway: just-in-time least-privilege plus full session
+  # PingOne Privilege proxy: just-in-time least-privilege plus full session
   # recording. Policy is authored in the PingOne Privilege console, NOT in this
-  # repo — the deliberate contrast with ping-gateway above, whose policy lives
-  # in ping-gateway/config/routes/.
-  #
-  # MCPGW_IMAGE comes from the Privilege console gateway wizard
-  # (Privilege > Cloud > Gateways > Add New > Add via Wizard). The default is a
-  # sentinel that names its own fix, NOT `${MCPGW_IMAGE:?...}`: Compose
-  # interpolates the whole file before selecting services, so a required-variable
-  # marker here fails EVERY compose command (`up -d demo-api-server` included),
-  # even though this service is profile-gated. With the sentinel, only an actual
-  # `mcpgw` start fails, at pull time, with the image name stating what to set.
+  # repo. ENV_PROXY_TOKEN comes from the gateway wizard; store the JWT in
+  # ping-mcpgw/config/proxy-token (gitignored).
   ping-mcpgw:
     profiles: ["mcpgw"]
-    image: ${MCPGW_IMAGE:-set-MCPGW_IMAGE-from-the-pingone-privilege-gateway-wizard}
+    image: public.ecr.aws/s7q1z8z4/privilege-proxy
     container_name: ai-demo-ping-mcpgw
+    command: /procyon/bin/cyonproxy -hostname local.ping-devops.com -listen :8680
     ports:
-      - "8623:8623"
+      - "8680:8680"
     volumes:
-      # Vendor doc: pingone.env is READ AS A FILE at this path, not injected as
-      # env vars. Directory mount (not per-file) — per-file bind mounts are
-      # mis-detected when the host file is replaced, same lesson as the
-      # ping-gateway config mount above.
-      - ./ping-mcpgw/config:/var/lib/procyon/config:ro
-      # Reuse the existing mkcert pair rather than duplicating a private key.
-      # Per-file here because the vendor expects these exact filenames; the
-      # certs are stable until Oct 2028 so the replace-hazard does not apply.
-      - ./certs/api.ping.demo+2.pem:/var/lib/procyon/ssl/mcpgw-cert.pem:ro
-      - ./certs/api.ping.demo+2-key.pem:/var/lib/procyon/ssl/mcpgw-key.pem:ro
+      - ./ping-mcpgw/config/proxy-token:/procyon/ssl/proxy-token.data
+      - ./certs/api.ping.demo+2.pem:/procyon/ssl/mcpgw-cert.pem:ro
+      - ./certs/api.ping.demo+2-key.pem:/procyon/ssl/mcpgw-key.pem:ro
+      - mcpgw-logs:/var/log/procyon
+      - mcpgw-recordings:/procyon/recordings
     networks:
       ai-demo:
-        # Cert-valid alias. certs/api.ping.demo+2.pem covers
-        # local.ping-devops.com, so the BFF's server-side fetch verifies TLS
-        # normally, while the browser reaches the same URL via /etc/hosts and
-        # the published port. One URL string, correct for both callers.
         aliases:
           - local.ping-devops.com
     extra_hosts:
@@ -1370,3 +1353,6 @@ volumes:
   # RAG Code Search volumes
   weaviate-data:
   embed-models:
+  # Privilege proxy ephemeral data
+  mcpgw-logs:
+  mcpgw-recordings:

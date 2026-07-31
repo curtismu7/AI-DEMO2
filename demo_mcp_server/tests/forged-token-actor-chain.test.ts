@@ -226,6 +226,36 @@ describe('forged token vs the F10 actor allow-list — HTTP POST /mcp', () => {
     });
   }
 
+  /** Establish a session via unauthenticated initialize and return the session id. */
+  async function establishSession(): Promise<string> {
+    const mock = makeResponse();
+    await transport.handleRequest(
+      makeRequest({
+        body: JSON.stringify({
+          id: 'init-s',
+          method: 'initialize',
+          params: { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 't', version: '1' } },
+        }),
+        headers: {},
+      }),
+      mock.res,
+      '/mcp',
+    );
+    return mock.headers['mcp-session-id'];
+  }
+
+  /** Build a tools/call request — fails at auth (step 2) before session lookup (step 5). */
+  function toolsCall(token: string, sessionId = 'dummy') {
+    return makeRequest({
+      body: JSON.stringify({ id: 'call-1', method: 'tools/call', params: { name: 'get_balance', arguments: {} } }),
+      headers: {
+        authorization: `Bearer ${token}`,
+        'mcp-session-id': sessionId,
+        'mcp-protocol-version': '2025-11-25',
+      },
+    });
+  }
+
   describe('no JWKS configured — the signature CANNOT be verified', () => {
     beforeEach(() => {
       // The deployed demo posture: demo_mcp_server has no JWKS endpoint set, so
@@ -237,18 +267,16 @@ describe('forged token vs the F10 actor allow-list — HTTP POST /mcp', () => {
 
     it('REJECTS an alg:none token that names a whitelisted actor', async () => {
       const mock = makeResponse();
-      await transport.handleRequest(initialize(algNoneToken()), mock.res, '/mcp');
+      await transport.handleRequest(toolsCall(algNoneToken()), mock.res, '/mcp');
 
       expect(mock.statusCode).toBe(401);
       expect(mock.body).toMatch(/verif/i);
     });
 
     it('REJECTS an unsigned token even when its act.client_id is exactly the allow-listed id', async () => {
-      // Same forgery, stated as the allow-list bypass it is: the attacker copies
-      // the gateway's client_id into a token he minted himself.
       const mock = makeResponse();
       await transport.handleRequest(
-        initialize(`${b64({ alg: 'none' })}.${b64(whitelistedActorClaims())}.forged`),
+        toolsCall(`${b64({ alg: 'none' })}.${b64(whitelistedActorClaims())}.forged`),
         mock.res,
         '/mcp',
       );
@@ -258,7 +286,7 @@ describe('forged token vs the F10 actor allow-list — HTTP POST /mcp', () => {
 
     it('does not create a banking session for a forged token', async () => {
       const mock = makeResponse();
-      await transport.handleRequest(initialize(algNoneToken()), mock.res, '/mcp');
+      await transport.handleRequest(toolsCall(algNoneToken()), mock.res, '/mcp');
 
       expect(mockSessionManager.createSession).not.toHaveBeenCalled();
     });
@@ -282,32 +310,36 @@ describe('forged token vs the F10 actor allow-list — HTTP POST /mcp', () => {
     });
 
     it('ACCEPTS a correctly signed token whose actor is allow-listed', async () => {
+      const sessionId = await establishSession();
+      mockHandler.handleMessage = jest.fn().mockResolvedValue({
+        id: 'call-1',
+        result: { content: [{ type: 'text', text: 'ok' }] },
+      });
+
       const mock = makeResponse();
-      await transport.handleRequest(initialize(signedToken(mockSigningKey)), mock.res, '/mcp');
+      await transport.handleRequest(toolsCall(signedToken(mockSigningKey), sessionId), mock.res, '/mcp');
 
       expect(mock.statusCode).toBe(200);
     });
 
     it('REJECTS a valid-shaped token signed with the WRONG key', async () => {
       const mock = makeResponse();
-      await transport.handleRequest(initialize(signedToken('attacker-key')), mock.res, '/mcp');
+      await transport.handleRequest(toolsCall(signedToken('attacker-key')), mock.res, '/mcp');
 
       expect(mock.statusCode).toBe(401);
     });
 
     it('REJECTS an alg:none token', async () => {
       const mock = makeResponse();
-      await transport.handleRequest(initialize(algNoneToken()), mock.res, '/mcp');
+      await transport.handleRequest(toolsCall(algNoneToken()), mock.res, '/mcp');
 
       expect(mock.statusCode).toBe(401);
     });
 
     it('REJECTS a correctly signed token whose actor is NOT allow-listed', async () => {
-      // Proves the allow-list still does its job once claims are trustworthy —
-      // a real signature is necessary, not sufficient.
       const mock = makeResponse();
       await transport.handleRequest(
-        initialize(signedToken(mockSigningKey, whitelistedActorClaims({ act: { client_id: 'rogue-agent' } }))),
+        toolsCall(signedToken(mockSigningKey, whitelistedActorClaims({ act: { client_id: 'rogue-agent' } }))),
         mock.res,
         '/mcp',
       );

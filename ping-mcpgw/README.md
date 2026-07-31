@@ -1,15 +1,15 @@
 # PingOne Privilege MCP Gateway (MCPGW)
 
-Runs the PingOne Privilege MCPGW container — an inline MCP security gateway that
+Runs the PingOne Privilege proxy container — an inline MCP security gateway that
 enforces just-in-time, least-privilege access and full session auditing for MCP servers.
 It fronts the unchanged `mcp-server`; the `/privilege-mcp-client` page in the demo UI
 is the client that drives it.
 
-Port `8623`. Compose profile: `mcpgw`. Optional group: `mcpgw`.
+Port `8680`. Compose profile: `mcpgw`. Image: `public.ecr.aws/s7q1z8z4/privilege-proxy`.
 
 | | URL |
 |---|---|
-| Local (Docker Compose) | `https://local.ping-devops.com:8623` |
+| Local (Docker Compose) | `https://local.ping-devops.com:8680` |
 | SE cluster (AWS) | `https://ai-demo.ping-devops.com/mcpgw` |
 
 ## Prerequisite that no test can cover
@@ -23,59 +23,53 @@ judging whether the demo works.
 ## Quick start
 
 ```sh
-# Start the MCPGW alongside the core stack (needs MCPGW_IMAGE — see step 5)
-./run-docker.sh optional start mcpgw
+# Start the MCPGW alongside the core stack
+docker compose --profile mcpgw up -d ping-mcpgw
 ```
 
 Stop it again without touching the core stack:
 
 ```sh
-./run-docker.sh optional stop mcpgw
+docker compose --profile mcpgw stop ping-mcpgw
 ```
 
 ## Setup steps
 
-### 1. Create the MCPGW application in PingOne
+### 1. Register the gateway in PingOne Privilege
 
-1. PingOne admin console → **AI Security > Agentic Apps** → add a new agent named `MCPGW`.
-2. Toggle the application on.
-3. In **Configuration**, register **both** Redirect URIs on this one application —
-   local and SE cluster point at the same PingOne app:
-   - `https://local.ping-devops.com:8623/callback`
-   - `https://ai-demo.ping-devops.com/mcpgw/callback`
-4. In **Resources**, add scopes: `openid`, `email`, `profile`.
-5. Save and copy the **Client ID** and **Client Secret**.
+1. PingOne Privilege console → **Cloud > Gateways** → **Add New > Add via Docker**.
+2. Enter **Proxy Cluster Name** (e.g. `ai-demo-se`) and **FQDN / Host IP**: `local.ping-devops.com`.
+3. The wizard shows a `docker run` command containing `ENV_PROXY_TOKEN=eyJ...`.
+4. Extract the token value and save it:
+   ```sh
+   printf '%s' 'eyJ...<full JWT>' > ping-mcpgw/config/proxy-token
+   ```
+   This file is gitignored and must never be committed.
 
-### 2. Register the gateway in PingOne Privilege
+### 2. Configure the MCP application (wizard MCP Config step)
 
-1. PingOne Privilege admin console → **Cloud > Gateways** → **Add New > Add via Wizard**.
-2. Follow the wizard: provide a **Proxy Cluster Name** and **FQDN / Host IP**.
-3. The wizard generates a Docker run command — the image tag it provides is what you
-   set as `MCPGW_IMAGE` (step 5).
+If using the full wizard (Add via Wizard), fill in the MCP Config step:
 
-### 3. Configure the OIDC environment file
+| Field | Value |
+|---|---|
+| Gateway URL | `https://local.ping-devops.com:8680` |
+| Cert Path | `/procyon/ssl` |
+| Client ID | Use `PINGONE_MCP_GATEWAY_CLIENT_ID` from `demo_api_server/.env` |
+| Client Secret | Use `PINGONE_MCP_GATEWAY_CLIENT_SECRET` from `demo_api_server/.env` |
+| Auth URL | `https://auth.pingone.com/<env-id>/as/authorize` |
+| Token URL | `https://auth.pingone.com/<env-id>/as/token` |
+| User Info URL | `https://auth.pingone.com/<env-id>/as/userinfo` |
+| UserID Claim | `sub` |
 
-```sh
-cp ping-mcpgw/config/pingone.env.example ping-mcpgw/config/pingone.env
-# Edit pingone.env — fill in OIDC_CLIENT_ID, OIDC_CLIENT_SECRET, <env-id>, SERVER_URL
-```
+Replace `<env-id>` with `PINGONE_ENVIRONMENT_ID` from `demo_api_server/.env`.
 
-`ping-mcpgw/config/` is mounted read-only into the container at
-`/var/lib/procyon/config`. The vendor reads `pingone.env` **as a file** at that
-path — the values are not injected as environment variables, so do not also list
-them under `environment:` in `docker-compose.yml`.
+### 3. TLS certificates — nothing to generate
 
-On the SE cluster the same file becomes the `ping-mcpgw-secrets` Kubernetes secret
-(one key, the whole file) via `k8s/create-secrets.sh`, mounted at the same path.
-`pingone.env` is gitignored and must never be committed.
-
-### 4. TLS certificates — nothing to generate
-
-The existing repo cert pair is mounted straight into the container:
+The existing repo cert pair is mounted into the container:
 
 ```
-certs/api.ping.demo+2.pem      → /var/lib/procyon/ssl/mcpgw-cert.pem
-certs/api.ping.demo+2-key.pem  → /var/lib/procyon/ssl/mcpgw-key.pem
+certs/api.ping.demo+2.pem      → /procyon/ssl/mcpgw-cert.pem
+certs/api.ping.demo+2-key.pem  → /procyon/ssl/mcpgw-key.pem
 ```
 
 That cert already covers `local.ping-devops.com` and is valid until Oct 2028, so no
@@ -84,48 +78,36 @@ the service also carries a network alias of `local.ping-devops.com`, which is wh
 makes one cert-valid URL work for both the browser (via `/etc/hosts` and the
 published port) and the BFF's server-side relay (via compose DNS).
 
-### 5. Set the image (from the Privilege wizard)
+### 4. Attach an MCP Server application
 
-Put the wizard-provided image URI in the **root `.env`**, which Compose reads
-automatically:
-
-```sh
-# in /.env
-MCPGW_IMAGE=<image URI from the Privilege gateway wizard>
-```
-
-Unset, the image resolves to the sentinel
-`set-MCPGW_IMAGE-from-the-pingone-privilege-gateway-wizard`, so starting the
-`mcpgw` group fails at pull time with the fix named in the error rather than
-silently pulling something wrong. The sentinel is deliberate and must not become
-`${MCPGW_IMAGE:?...}`: Compose interpolates the entire file before it selects
-services, so a required-variable marker breaks **every** compose command —
-`docker compose up -d demo-api-server` included — even though this service is
-profile-gated. `scripts/check-fresh-clone-hygiene.js` enforces that.
-
-For Kubernetes, replace `MCPGW_IMAGE_PLACEHOLDER` in
-`k8s/75-ping-mcpgw-deployment.yaml` with the same URI.
-
-### 6. Attach an MCP Server application
-
-1. PingOne Privilege admin console → **AI Security > Agentic Apps** → **Add Application**.
+1. PingOne Privilege console → **AI Security > Agentic Apps** → **Add Application**.
 2. Select the **MCP Server** tile → **Integrate**.
 3. Set:
-   - **Frontend URL**: `https://local.ping-devops.com:8623` (or
+   - **Frontend URL**: `https://local.ping-devops.com:8680` (or
      `https://ai-demo.ping-devops.com/mcpgw` for the SE cluster)
    - **MCP Server URL**: `http://mcp-server:8080/mcp` (internal service DNS — same
      name in Compose and Kubernetes)
-4. In **Mesh Cluster**, select the gateway you registered in step 2.
+4. In **Mesh Cluster**, select the gateway you registered in step 1.
 5. Configure tool/prompt/resource policy and bind to PingOne identities. Author the
    rule that produces the DENY here, and enable session recording.
+
+## Key facts
+
+- **Image**: `public.ecr.aws/s7q1z8z4/privilege-proxy` (hardcoded, not configurable)
+- **Binary**: `/procyon/bin/cyonproxy -hostname <fqdn> -listen :8680`
+- **Token**: `ENV_PROXY_TOKEN` env var, or file at `/procyon/ssl/proxy-token.data` (file preferred — the proxy writes back to it)
+- **Proxy phones home** outbound to `grpc.privilege.pingone.com:443` — no inbound firewall holes needed
+- **Default listen port**: `:8680` (flag `-listen`)
+- **Token expiry**: ~1 year from wizard creation; decode the JWT `exp` claim to check
 
 ## Directory layout
 
 ```
 ping-mcpgw/
   config/
-    pingone.env          ← gitignored — your real OIDC credentials
-    pingone.env.example  ← committed template
+    proxy-token          ← gitignored — JWT from the Privilege gateway wizard
+    proxy-token.env      ← gitignored — ENV_PROXY_TOKEN=<jwt> for env_file use
+    pingone.env.example  ← committed template (legacy OIDC approach)
   README.md
   .gitignore
 ```
@@ -134,9 +116,8 @@ ping-mcpgw/
 
 | file | what it does |
 |---|---|
-| `docker-compose.yml` | `ping-mcpgw` service (profile `mcpgw`), plus `PRIVILEGE_MCPGW_URL` on the BFF |
-| `run-docker.sh` | registers `mcpgw` as an optional group |
-| `k8s/75-ping-mcpgw-deployment.yaml` | Deployment + ClusterIP Service on 8623 |
-| `k8s/create-secrets.sh` | builds `ping-mcpgw-secrets` from `config/pingone.env` |
-| `k8s/aws/se-ingress.yaml` | second Ingress object serving `/mcpgw` on the SE host |
+| `docker-compose.yml` | `ping-mcpgw` service (profile `mcpgw`), mounts proxy-token as `/procyon/ssl/proxy-token.data` |
+| `k8s/75-ping-mcpgw-deployment.yaml` | Deployment + ClusterIP Service on 8680, token from `ping-mcpgw-secrets` |
+| `k8s/create-secrets.sh` | builds `ping-mcpgw-secrets` from `config/proxy-token` |
+| `k8s/aws/se-ingress.yaml` | Ingress serving `/mcpgw` on the SE host, backend port 8680 |
 | `demo_api_server/routes/privilegeMcpClient.js` | seeds the client page's default MCP URL from `PRIVILEGE_MCPGW_URL` |

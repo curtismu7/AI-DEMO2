@@ -435,13 +435,28 @@ export class HttpMCPTransport {
 
     const isNotification = message.id === undefined;
     const isInitialize = message.method === 'initialize';
+    const isDiscovery = isInitialize || message.method === 'tools/list';
 
-    // 2. Bearer token — required on EVERY request, including notifications.
-    // (Auth runs before notification routing so an unauthenticated notification
-    // can never reach the message handler.)
-    const authed = await this.authenticateBearer(req, res);
-    if (!authed) return;
-    const { token: bearerToken, tokenInfo } = authed;
+    // 2. Bearer token — required on every request except discovery methods
+    // (initialize, tools/list). These are unauthenticated so MCP clients and
+    // gateways (e.g. PingOne Privilege) can discover capabilities before auth.
+    let bearerToken: string | undefined;
+    let tokenInfo: Awaited<ReturnType<typeof this.authManager.validateAgentToken>> | undefined;
+    if (!isDiscovery) {
+      const authed = await this.authenticateBearer(req, res);
+      if (!authed) return;
+      bearerToken = authed.token;
+      tokenInfo = authed.tokenInfo;
+    } else {
+      // Opportunistic: use the token if supplied, but don't reject without one.
+      const optionalBearer = this.extractBearer(req);
+      if (optionalBearer) {
+        try {
+          tokenInfo = await this.authManager.validateAgentToken(optionalBearer);
+          bearerToken = optionalBearer;
+        } catch { /* proceed unauthenticated */ }
+      }
+    }
 
     // 3. Notifications — route and return 202 (no response body per spec §2.1)
     if (isNotification) {
@@ -452,6 +467,10 @@ export class HttpMCPTransport {
       return;
     }
 
+    // 3a–3b: Security checks (TraT, upstream contract, delegation chain) only
+    // apply to authenticated requests — discovery is unauthenticated.
+    if (!isDiscovery) {
+
     // 3a. TraT claim extraction — when MCP_TRAT_MODE_ENABLED is set, extract the
     // TraT context and BIND it to the request. A transaction token names the tool
     // it was issued for (reqctx.tool); replaying it against a different tool would
@@ -459,7 +478,7 @@ export class HttpMCPTransport {
     const tratMode = process.env.MCP_TRAT_MODE_ENABLED === 'true';
     if (tratMode) {
       const xTratContext = req.headers['x-trat-context'] as string | undefined;
-      const tratClaims = extractTratClaims(bearerToken, xTratContext, true);
+      const tratClaims = extractTratClaims(bearerToken!, xTratContext, true);
       if (tratClaims) {
         console.log(`[HttpMCPTransport][TraT] Claims extracted — tool=${tratClaims.reqctx.tool} purp=${tratClaims.purp} sim=${tratClaims.trat_sim ?? false}`);
         if (message.method === 'tools/call') {
@@ -491,7 +510,7 @@ export class HttpMCPTransport {
     // verified. Both checks below are authorization decisions read out of the
     // token's own claims, so an unverified token must not supply them: it is
     // attacker-authored and can assert any aud or actor it likes.
-    const claims = tokenInfo.verifiedClaims ?? {};
+    const claims = tokenInfo!.verifiedClaims ?? {};
     const contractCheck = enforceUpstreamContract(claims, resolveUpstreamAudiences());
     if (!contractCheck.valid) {
       this.sendUnauthorized(res, `Gateway next-hop contract violation: ${contractCheck.errors[0]}`);
@@ -505,7 +524,7 @@ export class HttpMCPTransport {
     // from a PERMIT.
     const actorCheck = verifyActorChain(claims, {
       allowedActors: parseAllowedActors(process.env.MCP_ALLOWED_ACTORS),
-      signatureVerified: tokenInfo.signatureVerified === true,
+      signatureVerified: tokenInfo!.signatureVerified === true,
     });
     if (!actorCheck.ran) {
       console.warn(`[HttpMCPTransport][F10] actor chain gate skipped — ran=false skipReason="${actorCheck.skipReason}"`);
@@ -514,6 +533,8 @@ export class HttpMCPTransport {
       this.sendUnauthorized(res, `Delegation chain rejected: ${actorCheck.errors[0]}`);
       return;
     }
+
+    } // end !isDiscovery security checks
 
     // 4. MCP-Protocol-Version header — required on non-initialize requests, and
     // its VALUE must be one this server supports (presence alone is insufficient).
@@ -542,14 +563,14 @@ export class HttpMCPTransport {
       // Evict idle-expired sessions before creating a new one (bounds the map).
       await this.sweepExpiredSessions();
       // Create a new banking session and issue a fresh MCP-Session-Id
-      const bankingSession = await this.sessionManager.createSession(bearerToken);
+      const bankingSession = await this.sessionManager.createSession(bearerToken ?? '');
       mcpSessionId = randomUUID();
       const now = new Date();
       // Detect protocol version for this session (defaults to latest supported if not specified)
       const detectedVersion = detectProtocolVersion(req.headers);
       httpSession = {
         bankingSessionId: bankingSession.sessionId,
-        agentToken: bearerToken,
+        agentToken: bearerToken ?? '',
         protocolVersion: detectedVersion ?? MCP_LATEST_PROTOCOL_VERSION,
         createdAt: now,
         lastAccessedAt: now,
