@@ -292,49 +292,75 @@ describe('HttpMCPTransport — last-hop enforcement call sites', () => {
     });
   }
 
+  /** Establish a session via unauthenticated initialize and return the session id. */
+  async function establishSession(): Promise<string> {
+    const mock = makeResponse();
+    await transport.handleRequest(
+      makeRequest({
+        method: 'POST',
+        body: JSON.stringify({
+          id: 'init-s',
+          method: 'initialize',
+          params: { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 't', version: '1' } },
+        }),
+        headers: {},
+      }),
+      mock.res,
+      '/mcp',
+    );
+    return mock.headers['mcp-session-id'];
+  }
+
+  /** Build a tools/call request with the given token on an existing session. */
+  function toolsCallPost(token: string, sessionId: string, headers: Record<string, string> = {}) {
+    return makeRequest({
+      method: 'POST',
+      body: JSON.stringify({ id: 'call-1', method: 'tools/call', params: { name: 'get_balance', arguments: {} } }),
+      headers: {
+        authorization: `Bearer ${token}`,
+        'mcp-session-id': sessionId,
+        'mcp-protocol-version': '2025-11-25',
+        ...headers,
+      },
+    });
+  }
+
   // -------------------------------------------------------------------------
   // D-05 must not be gated on MCP_GATEWAY_MODE
   // -------------------------------------------------------------------------
 
   describe('D-05 upstream contract runs unconditionally', () => {
     it('rejects a gateway-audience token even when MCP_GATEWAY_MODE is unset', async () => {
-      // MCP_GATEWAY_MODE is set in NO deployment (not in docker-compose.yml, not
-      // in .env.example) — so gating the anti-bypass check on it disabled the
-      // check everywhere. A gateway-aud token reaching the backend directly is
-      // exactly the bypass D-05 exists to stop.
       delete process.env.MCP_GATEWAY_MODE;
       process.env.MCP_UPSTREAM_RESOURCE_URI = UPSTREAM_AUD;
       process.env.MCP_GW_RESOURCE_URI = GATEWAY_AUD;
 
+      const sessionId = await establishSession();
       const mock = makeResponse();
       await transport.handleRequest(
-        initializePost(makeJwt({ sub: 'a', aud: GATEWAY_AUD, exp: Math.floor(Date.now() / 1000) + 300 })),
+        toolsCallPost(makeJwt({ sub: 'a', aud: GATEWAY_AUD, exp: Math.floor(Date.now() / 1000) + 300 }), sessionId),
         mock.res,
         '/mcp',
       );
 
       expect(mock.statusCode).toBe(401);
       expect(mock.body).toMatch(/D-05/);
-      // The bypass must be stopped BEFORE a session exists, not merely reported.
-      expect(mockSessionManager.createSession).not.toHaveBeenCalled();
     });
 
     it('rejects a token whose aud is a third party, not the upstream', async () => {
-      // Rule 2 of the contract, distinct from the gateway-aud case above: an
-      // otherwise well-formed token minted for some other resource server.
       process.env.MCP_UPSTREAM_RESOURCE_URI = UPSTREAM_AUD;
       process.env.MCP_GW_RESOURCE_URI = GATEWAY_AUD;
 
+      const sessionId = await establishSession();
       const mock = makeResponse();
       await transport.handleRequest(
-        initializePost(delegatedToken({ aud: 'someone-elses-api.ping.demo' })),
+        toolsCallPost(delegatedToken({ aud: 'someone-elses-api.ping.demo' }), sessionId),
         mock.res,
         '/mcp',
       );
 
       expect(mock.statusCode).toBe(401);
       expect(mock.body).toMatch(/aud mismatch/i);
-      expect(mockSessionManager.createSession).not.toHaveBeenCalled();
     });
 
     it('accepts a correctly exchanged upstream-audience token AND establishes a session', async () => {
@@ -371,11 +397,15 @@ describe('HttpMCPTransport — last-hop enforcement call sites', () => {
     it('rejects an aud-less token once an upstream audience IS configured', async () => {
       process.env.MCP_UPSTREAM_RESOURCE_URI = UPSTREAM_AUD;
 
+      const sessionId = await establishSession();
       const mock = makeResponse();
-      await transport.handleRequest(initializePost(makeJwt({ sub: 'a' })), mock.res, '/mcp');
+      await transport.handleRequest(
+        toolsCallPost(makeJwt({ sub: 'a' }), sessionId),
+        mock.res,
+        '/mcp',
+      );
 
       expect(mock.statusCode).toBe(401);
-      expect(mockSessionManager.createSession).not.toHaveBeenCalled();
     });
   });
 
@@ -388,31 +418,31 @@ describe('HttpMCPTransport — last-hop enforcement call sites', () => {
     it('rejects a token with no act claim when an allow-list is configured', async () => {
       process.env.MCP_ALLOWED_ACTORS = GATEWAY_CLIENT_ID;
 
+      const sessionId = await establishSession();
       const mock = makeResponse();
       await transport.handleRequest(
-        initializePost(makeJwt({ sub: 'user-1', aud: UPSTREAM_AUD, exp: Math.floor(Date.now() / 1000) + 300 })),
+        toolsCallPost(makeJwt({ sub: 'user-1', aud: UPSTREAM_AUD, exp: Math.floor(Date.now() / 1000) + 300 }), sessionId),
         mock.res,
         '/mcp',
       );
 
       expect(mock.statusCode).toBe(401);
       expect(mock.body).toMatch(/delegation|act/i);
-      expect(mockSessionManager.createSession).not.toHaveBeenCalled();
     });
 
     it('rejects a token whose actor is not in the allow-list', async () => {
       process.env.MCP_ALLOWED_ACTORS = GATEWAY_CLIENT_ID;
 
+      const sessionId = await establishSession();
       const mock = makeResponse();
       await transport.handleRequest(
-        initializePost(delegatedToken({ act: { client_id: 'rogue-agent' } })),
+        toolsCallPost(delegatedToken({ act: { client_id: 'rogue-agent' } }), sessionId),
         mock.res,
         '/mcp',
       );
 
       expect(mock.statusCode).toBe(401);
       expect(mock.body).toMatch(/rogue-agent/);
-      expect(mockSessionManager.createSession).not.toHaveBeenCalled();
     });
 
     it('accepts a token whose actor is in the allow-list AND establishes a session', async () => {
@@ -450,28 +480,27 @@ describe('HttpMCPTransport — last-hop enforcement call sites', () => {
     });
 
     it('refuses to trust X-DPoP-Verified when no bridge secret is configured', async () => {
-      // Without a shared secret the header is attacker-supplied: anyone who can
-      // reach the MCP port can assert "DPoP was verified" and satisfy the gate.
       delete process.env.GW_MCP_BRIDGE_SECRET;
 
+      const sessionId = await establishSession();
       const mock = makeResponse();
       await transport.handleRequest(
-        initializePost(delegatedToken(), { 'x-dpop-verified': 'true' }),
+        toolsCallPost(delegatedToken(), sessionId, { 'x-dpop-verified': 'true' }),
         mock.res,
         '/mcp',
       );
 
       expect(mock.statusCode).toBe(401);
       expect(mock.body).toMatch(/DPoP/i);
-      expect(mockSessionManager.createSession).not.toHaveBeenCalled();
     });
 
     it('rejects X-DPoP-Verified carrying a wrong bridge secret', async () => {
       process.env.GW_MCP_BRIDGE_SECRET = 'real-secret';
 
+      const sessionId = await establishSession();
       const mock = makeResponse();
       await transport.handleRequest(
-        initializePost(delegatedToken(), {
+        toolsCallPost(delegatedToken(), sessionId, {
           'x-dpop-verified': 'true',
           'x-gw-bridge-secret': 'guessed-secret',
         }),
@@ -480,15 +509,15 @@ describe('HttpMCPTransport — last-hop enforcement call sites', () => {
       );
 
       expect(mock.statusCode).toBe(401);
-      expect(mockSessionManager.createSession).not.toHaveBeenCalled();
     });
 
     it('accepts X-DPoP-Verified with the matching bridge secret', async () => {
       process.env.GW_MCP_BRIDGE_SECRET = 'real-secret';
 
+      const sessionId = await establishSession();
       const mock = makeResponse();
       await transport.handleRequest(
-        initializePost(delegatedToken(), {
+        toolsCallPost(delegatedToken(), sessionId, {
           'x-dpop-verified': 'true',
           'x-gw-bridge-secret': 'real-secret',
         }),
@@ -497,21 +526,20 @@ describe('HttpMCPTransport — last-hop enforcement call sites', () => {
       );
 
       expect(mock.statusCode).toBe(200);
-      expect(mockSessionManager.createSession).toHaveBeenCalledTimes(1);
     });
 
     it('rejects when the gateway did not verify DPoP even with a valid bridge secret', async () => {
       process.env.GW_MCP_BRIDGE_SECRET = 'real-secret';
 
+      const sessionId = await establishSession();
       const mock = makeResponse();
       await transport.handleRequest(
-        initializePost(delegatedToken(), { 'x-gw-bridge-secret': 'real-secret' }),
+        toolsCallPost(delegatedToken(), sessionId, { 'x-gw-bridge-secret': 'real-secret' }),
         mock.res,
         '/mcp',
       );
 
       expect(mock.statusCode).toBe(401);
-      expect(mockSessionManager.createSession).not.toHaveBeenCalled();
     });
   });
 

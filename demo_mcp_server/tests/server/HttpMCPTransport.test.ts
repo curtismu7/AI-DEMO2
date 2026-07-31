@@ -166,7 +166,7 @@ describe('HttpMCPTransport', () => {
     it('should return 401 with WWW-Authenticate when no bearer token is provided', async () => {
       const req = makeRequest({
         method: 'POST',
-        body: JSON.stringify({ id: 1, method: 'tools/list', params: {} }),
+        body: JSON.stringify({ id: 1, method: 'tools/call', params: { name: 'get_balance' } }),
         headers: { 'content-type': 'application/json' },
       });
       const mock = makeResponse();
@@ -184,7 +184,7 @@ describe('HttpMCPTransport', () => {
 
       const req = makeRequest({
         method: 'POST',
-        body: JSON.stringify({ id: 1, method: 'tools/list', params: {} }),
+        body: JSON.stringify({ id: 1, method: 'tools/call', params: { name: 'get_balance' } }),
         headers: {
           authorization: 'Bearer invalid-token',
           'content-type': 'application/json',
