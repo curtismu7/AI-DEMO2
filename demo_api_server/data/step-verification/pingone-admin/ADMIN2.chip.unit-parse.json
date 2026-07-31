@@ -6,6 +6,6 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "call_pingone_tool",
-  "checkedAt": "2026-07-30",
-  "verifiedBy": "nlIntentParser pingone-admin heuristics → getUser"
+  "checkedAt": "2026-07-31",
+  "verifiedBy": "nlIntentParser pingone-admin heuristics → listUsers"
 }

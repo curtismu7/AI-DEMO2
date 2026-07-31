@@ -60,7 +60,7 @@ test('list_pingone_tools falls back to labeled core list on adapter failure', as
   const { result, render } = await plugin.executeTool('list_pingone_tools', {}, {});
   expect(render).toBe('list_pingone_tools');
   expect(result.tools.map((t) => t.name)).toEqual(
-    ['listUsers', 'getUser', 'createUser', 'listApplications', 'getEnvironment']
+    ['listUsers', 'getUser', 'listGroups', 'listApplications', 'getEnvironment']
   );
   expect(result.source).toBe('mock — PingOne MCP unavailable: PingOne MCP HTTP 401');
 });
@@ -91,7 +91,7 @@ test('call_pingone_tool falls back to labeled mock for known tool on transport f
 
 test('call_pingone_tool returns labeled unavailable for unknown tool on transport failure', async () => {
   adapter.callTool.mockRejectedValue(httpErr('PingOne MCP HTTP 503'));
-  const { result } = await plugin.executeTool('call_pingone_tool', { name: 'listGroups' }, {});
+  const { result } = await plugin.executeTool('call_pingone_tool', { name: 'someObscureTool' }, {});
   expect(result.responseSummary).toMatch(/unavailable/i);
   expect(result.source).toBe('mock — PingOne MCP unavailable: PingOne MCP HTTP 503');
 });
@@ -99,26 +99,8 @@ test('call_pingone_tool returns labeled unavailable for unknown tool on transpor
 test('call_pingone_tool renders a JSON-RPC (validation) error as a live response', async () => {
   const rpcErr = Object.assign(new Error('INVALID_DATA: username required'), { code: 'pingone_mcp_rpc_error' });
   adapter.callTool.mockRejectedValue(rpcErr);
-  const { result } = await plugin.executeTool('call_pingone_tool', { name: 'createUser', arguments: { username: 'x' } }, {});
+  const { result } = await plugin.executeTool('call_pingone_tool', { name: 'listUsers', arguments: {} }, {});
   expect(result.responseSummary).toContain('INVALID_DATA');
-  expect(result.source).toBe('live — hosted PingOne MCP');
-});
-
-test('call_pingone_tool createUser fills defaults and resolves default population when required', async () => {
-  adapter.listTools.mockResolvedValue([
-    { name: 'createUser', description: '', inputSchema: { type: 'object', required: ['username', 'populationId'] } },
-  ]);
-  adapter.callTool.mockImplementation((name) => {
-    if (name === 'listPopulations') {
-      return Promise.resolve(mcpJson({ _embedded: { populations: [{ id: 'pop-1', default: true }] } }));
-    }
-    return Promise.resolve(mcpJson({ id: 'u-9', username: 'demo.user.123456' }));
-  });
-  const { result } = await plugin.executeTool('call_pingone_tool', { name: 'createUser' }, {});
-  const createCall = adapter.callTool.mock.calls.find(([n]) => n === 'createUser');
-  expect(createCall[1].username).toMatch(/^demo\.user\.\d+$/);
-  expect(createCall[1].email).toMatch(/^demo\.user\.\d+@example\.com$/);
-  expect(createCall[1].populationId).toBe('pop-1');
   expect(result.source).toBe('live — hosted PingOne MCP');
 });
 
@@ -151,10 +133,10 @@ describe('heuristics resolve chip phrasing to live tools', () => {
     expect(h.defaultParams).toEqual({ name: 'listUsers' });
   });
 
-  test('create user maps to call_pingone_tool createUser', () => {
-    const h = resolve('Create a demo user in my environment');
+  test('list groups maps to call_pingone_tool listGroups', () => {
+    const h = resolve('List the groups in my PingOne environment');
     expect(h.action).toBe('call_pingone_tool');
-    expect(h.defaultParams).toEqual({ name: 'createUser' });
+    expect(h.defaultParams).toEqual({ name: 'listGroups' });
   });
 
   test('list applications maps to call_pingone_tool listApplications', () => {
