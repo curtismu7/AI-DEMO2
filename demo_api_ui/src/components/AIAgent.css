@@ -2825,7 +2825,8 @@ body > .banking-agent-float-root .banking-agent-panel {
   max-height: min(85vh, 720px);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   box-sizing: border-box;
   border-top: 1px solid #d1d5db;
   border-left: none;
@@ -2867,7 +2868,8 @@ body > .banking-agent-float-root .banking-agent-panel {
   flex-direction: column-reverse; /* ba-left-col (DOM-first) lands at bottom; ba-right-col fills top */
   flex: 1 1 0%;
   min-height: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .banking-agent-panel.ba-mode-inline.ba-embedded-bottom-dock .ba-right-col {
