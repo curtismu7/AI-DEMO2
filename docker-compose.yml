@@ -159,8 +159,9 @@ services:
       # Pin MCP audiences so stale demo_api_server/.env cannot fail startupConfigGuard.
       # Both keys map to the mcpServer role and MUST include mcpserver.ping.demo
       # (see startupConfigGuard.js + scope-topology.json).
-      MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
-      MCP_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
+      # https://api.pingone.com accepted for PingOne Privilege proxy client_credentials tokens.
+      MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo,https://api.pingone.com"
+      MCP_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo,https://api.pingone.com"
       # Accept Node-gateway + PingGateway audiences (Path B dual_token when IG mode is ON),
       # plus the A2A specialists' dedicated Exchange #2 audience (see
       # a2aDelegationService.js resolveA2aConfig / pingoneProvisionService.js Step 37a-A2A) —
@@ -328,7 +329,8 @@ services:
       # MCP server tokens carry aud=mcpserver.ping.demo. MCP_SERVER_RESOURCE_URI accepts a
       # comma-separated list; mcpgateway.ping.demo is kept as a transitional second entry
       # so tokens from callers still on the old forward-unchanged contract keep validating.
-      MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
+      # https://api.pingone.com accepted for PingOne Privilege proxy client_credentials tokens.
+      MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo,https://api.pingone.com"
       # mTLS on the PingGateway -> MCP server hop. When true the server serves
       # HTTPS (self-signed, regenerated each start) and REQUIRES a client cert
       # whose SHA-256 matches MCP_MTLS_GATEWAY_CERT_PATH. PingGateway presents it
