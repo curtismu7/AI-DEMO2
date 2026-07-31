@@ -22,6 +22,7 @@
 import { useRef, useState, useCallback } from 'react';
 import { openMcpFlowSse } from '../services/mcpFlowSseClient';
 import { agentFlowDiagram } from '../services/agentFlowDiagramService';
+import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 
 const ENDPOINT = '/api/agent/run';
 
@@ -143,6 +144,16 @@ export function useAgentRun({
         ? crypto.randomUUID()
         : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
     const closeSse = openMcpFlowSse(flowTraceId, (data) => {
+      // Token events from the BFF pipeline (exchange, gateway, authorize, MCP).
+      // Without this the AG-UI path drops pipeline evidence and the Token Flow
+      // Detail modal stays on "waiting…" with no exchange/gateway/MCP steps.
+      if (data && data.type === 'token-event') {
+        try {
+          const tokenEvent = { ...data };
+          delete tokenEvent.type;
+          tokenChainTraceStore.ingestTokenEvent(tokenEvent);
+        } catch (_) { /* display-only */ }
+      }
       // MCP tool result — same event demoAgentService dispatches on the chip
       // path; tokenChainTraceStore listens for it to fill the MCP/API steps.
       if (data && data.type === 'mcp-result') {
