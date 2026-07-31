@@ -104,10 +104,13 @@ const CodeExplorerPage = () => {
             stopSpinner();
             setMessages(prev => {
               const updated = [...prev];
-              updated[updated.length - 1] = {
-                ...updated[updated.length - 1],
-                content: updated[updated.length - 1].content + data.text,
-              };
+              const lastIdx = updated.length - 1;
+              if (lastIdx >= 0 && updated[lastIdx]) {
+                updated[lastIdx] = {
+                  ...updated[lastIdx],
+                  content: (updated[lastIdx].content || '') + (data.text || ''),
+                };
+              }
               return updated;
             });
           } else if (data.type === 'status') {
