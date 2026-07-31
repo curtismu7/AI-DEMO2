@@ -315,7 +315,7 @@
   flex-direction: column;
   padding: 0;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow: clip;
 }
 
 /* Right-edge drag handle — agent column sits left of banking/token */
@@ -323,10 +323,10 @@
   position: absolute;
   top: 0;
   right: 0;
-  width: 5px;
+  width: 8px;
   height: 100%;
   cursor: col-resize;
-  z-index: 4;
+  z-index: 10;
   background: transparent;
   transition: background 0.15s;
 }

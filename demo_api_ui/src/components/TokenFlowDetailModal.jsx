@@ -822,7 +822,6 @@ export default function TokenFlowDetailModal({ isOpen, onClose }) {
       defaultHeight={680}
       storageKey="ba-flow-detail-modal"
       singletonKey="ba-flow-detail-modal"
-      autoPopOut
       footer={null}
       noBackdrop
       zIndex={10000}

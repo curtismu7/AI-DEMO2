@@ -20,8 +20,38 @@ const CodeExplorerPage = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isReindexing, setIsReindexing] = useState(false);
   const [reindexStatus, setReindexStatus] = useState('');
+  // 'checking' | 'starting' | 'ready' | 'error'
+  const [serviceState, setServiceState] = useState('checking');
   const messagesEndRef = useRef(null);
   const abortRef = useRef(null);
+  const pollRef = useRef(null);
+
+  // Probe the backend on mount; auto-wake triggers server-side if needed.
+  useEffect(() => {
+    let cancelled = false;
+    const probe = async () => {
+      try {
+        const r = await fetch('/api/codegraph/status');
+        if (cancelled) return;
+        const data = await r.json();
+        if (data.ready) {
+          setServiceState('ready');
+          clearInterval(pollRef.current);
+        } else {
+          setServiceState(data.starting ? 'starting' : 'starting');
+        }
+      } catch {
+        if (!cancelled) setServiceState('starting');
+      }
+    };
+    probe();
+    // Poll every 4 s until ready
+    pollRef.current = setInterval(probe, 4000);
+    return () => {
+      cancelled = true;
+      clearInterval(pollRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -29,6 +59,23 @@ const CodeExplorerPage = () => {
       container.scrollTop = container.scrollHeight;
     }
   }, [messages]);
+
+  // Show startup overlay while service wakes
+  if (serviceState === 'checking' || serviceState === 'starting') {
+    return (
+      <div className="cex-wake-overlay">
+        <div className="cex-wake-card">
+          <div className="cex-wake-spinner" aria-hidden="true" />
+          <div className="cex-wake-title">Starting Code Explorer</div>
+          <div className="cex-wake-sub">
+            {serviceState === 'checking'
+              ? 'Checking service…'
+              : 'Spinning up the code search service — this takes ~20 s the first time.'}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const sendQuestion = async (question) => {
     if (!question.trim() || isStreaming) return;

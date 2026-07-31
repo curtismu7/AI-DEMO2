@@ -30,6 +30,8 @@ function publishMcpResultToSse(flowTraceId, {
   const toolResultJson = result?.content
     ? result.content.slice(0, 10)          // cap size for SSE payload
     : result != null ? result : null;
+  // Forward _meta so the Token Chain can identify which backend service ran.
+  const meta = result?._meta || null;
   mcpFlowSseHub.publish(flowTraceId, buildSsePayload('mcp-result', {
     toolName: tool,
     tool,
@@ -42,6 +44,7 @@ function publishMcpResultToSse(flowTraceId, {
     result: toolResultJson,
     requestJson: requestJson ?? null,
     timestamp: new Date().toISOString(),
+    ...(meta ? { _meta: meta } : {}),
     ...(mcpAuthorizeEvaluation ? { mcpAuthorizeEvaluation } : {}),
     ...(mcpAuthorizeEvaluations ? { mcpAuthorizeEvaluations } : {}),
   }));

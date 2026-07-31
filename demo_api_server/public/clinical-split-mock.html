@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Mock — Clinical Split Dashboard (ff_agent_clinical_split ON)</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Crimson+Pro:ital,wght@0,500;1,400&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --ac-bg:        #ffffff;
+  --ac-bg-2:      #f4f6f9;
+  --ac-bg-3:      #e8edf3;
+  --ac-ink:       #0e1a2b;
+  --ac-ink-2:     #2c3a52;
+  --ac-rule:      #d8dee8;
+  --ac-muted:     #6b7689;
+  --ac-muted-2:   #93a0b3;
+  --ac-teal:      #0d6760;
+  --ac-teal-soft: #d8eceb;
+  --ac-teal-tint: #ecf6f5;
+  --ac-gold:      #a87317;
+  --ac-gold-soft: #f7eccf;
+  --ac-rose:      #a13348;
+  --ac-rose-soft: #f5dde2;
+}
+
+html, body { height: 100%; font-family: 'Inter', system-ui, sans-serif; font-size: 13px; color: var(--ac-ink); background: var(--ac-bg); }
+
+/* ── Shell: 44px rail + pane ── */
+.ac-shell {
+  display: grid;
+  grid-template-rows: 44px 1fr;
+  height: 100vh;
+}
+
+/* ── Rail ── */
+.ac-rail {
+  height: 44px;
+  display: grid;
+  grid-template-columns: 220px 1fr auto;
+  align-items: center;
+  padding: 0 14px 0 18px;
+  border-bottom: 1px solid var(--ac-rule);
+  background: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.ac-brand {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-weight: 500;
+  font-size: 19px;
+  letter-spacing: -0.01em;
+}
+.ac-brand em { font-style: italic; color: var(--ac-teal); font-weight: 400; }
+
+.ac-tabs { display: flex; gap: 2px; }
+
+.ac-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 13px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ac-muted);
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .1s, color .1s;
+  font-family: 'Inter', sans-serif;
+}
+.ac-tab:hover { background: var(--ac-bg-2); color: var(--ac-ink-2); }
+.ac-tab--on { background: var(--ac-teal-soft); color: var(--ac-teal); font-weight: 600; }
+.ac-tab-glyph { font-size: 11px; }
+.ac-tab kbd {
+  font-size: 9px;
+  background: var(--ac-bg-3);
+  color: var(--ac-muted-2);
+  border: 1px solid var(--ac-rule);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-family: 'SFMono-Regular', monospace;
+  margin-left: 2px;
+}
+.ac-tab--on kbd { background: var(--ac-teal-tint); color: var(--ac-teal); border-color: var(--ac-teal-soft); }
+
+.ac-rail-right { display: flex; align-items: center; gap: 8px; }
+.ac-session {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .07em;
+  color: var(--ac-muted);
+  text-transform: uppercase;
+}
+.ac-session-led {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 5px #22c55e;
+  animation: blink 2s ease infinite;
+}
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:.3} }
+
+.ac-icn {
+  width: 28px; height: 28px;
+  border: none; background: none;
+  color: var(--ac-muted);
+  font-size: 15px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background .1s, color .1s;
+  display: flex; align-items: center; justify-content: center;
+}
+.ac-icn:hover { background: var(--ac-bg-2); color: var(--ac-ink); }
+
+.ac-avatar {
+  width: 28px; height: 28px;
+  background: var(--ac-teal);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+
+/* ── Pane ── */
+.ac-pane { overflow: hidden; display: flex; flex-direction: column; background: var(--ac-bg-2); }
+
+/* ════════════════════════════════════
+   TALK PANE
+════════════════════════════════════ */
+.talk-pane {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  height: 100%;
+  overflow: hidden;
+}
+
+.talk-chat {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--ac-rule);
+  background: #fff;
+  overflow: hidden;
+}
+
+.chat-history {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 20px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.chat-msg { display: flex; gap: 10px; }
+.chat-msg.user { flex-direction: row-reverse; }
+.chat-msg.user .msg-bubble { background: var(--ac-teal); color: #fff; border-radius: 14px 14px 4px 14px; }
+.msg-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-top: 2px;
+}
+.msg-avatar.agent { background: var(--ac-teal-soft); color: var(--ac-teal); }
+.msg-avatar.user  { background: #e2e8f0; color: #475569; }
+.msg-bubble {
+  max-width: 380px;
+  background: var(--ac-bg-2);
+  border-radius: 14px 14px 14px 4px;
+  padding: 9px 13px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ac-ink);
+}
+.msg-tool-call {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin: 4px 0 0;
+  background: var(--ac-gold-soft);
+  color: var(--ac-gold);
+  border: 1px solid #e8c97a;
+  border-radius: 5px;
+  padding: 2px 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', monospace;
+}
+
+.chat-input-row {
+  border-top: 1px solid var(--ac-rule);
+  padding: 10px 14px;
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  background: #fff;
+}
+.chat-input {
+  flex: 1;
+  border: 1px solid var(--ac-rule);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  font-family: 'Inter', sans-serif;
+  color: var(--ac-ink);
+  resize: none;
+  outline: none;
+  height: 38px;
+}
+.chat-input:focus { border-color: var(--ac-teal); }
+.chat-send {
+  height: 38px; width: 38px;
+  background: var(--ac-teal);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background .1s;
+  display: flex; align-items: center; justify-content: center;
+}
+.chat-send:hover { background: var(--ac-teal-2); }
+
+/* Right: Token Audit Timeline strip */
+.talk-timeline {
+  background: var(--ac-bg-2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.timeline-head {
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--ac-rule);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--ac-muted);
+  font-weight: 700;
+  background: #fff;
+}
+.timeline-body { flex: 1; overflow-y: auto; padding: 8px 0; }
+
+.tl-event {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 14px;
+  cursor: default;
+  transition: background .1s;
+}
+.tl-event:hover { background: #fff; }
+.tl-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+.tl-dot.ok   { background: #22c55e; }
+.tl-dot.fail { background: #ef4444; }
+.tl-dot.warn { background: #f59e0b; }
+.tl-dot.info { background: #94a3b8; }
+.tl-label { font-size: 11.5px; color: var(--ac-ink-2); line-height: 1.4; }
+.tl-label small { display: block; font-size: 10px; color: var(--ac-muted-2); }
+
+/* ════════════════════════════════════
+   TOKENS PANE (the new Simple/Detailed tabs)
+════════════════════════════════════ */
+.tp-wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: #fff;
+}
+.tp-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  flex-shrink: 0;
+}
+.tp-tab {
+  display: flex; align-items: center; gap: 5px;
+  padding: 8px 14px;
+  font-size: 12px; font-weight: 500; color: #94a3b8;
+  background: none; border: none;
+  border-bottom: 2px solid transparent;
+  position: relative; top: 1px;
+  cursor: pointer;
+  transition: color .1s, border-color .1s;
+  font-family: 'Inter', sans-serif;
+}
+.tp-tab:hover { color: #475569; }
+.tp-tab--active { color: #1e293b; border-bottom-color: #2563eb; font-weight: 600; }
+.tp-tab-cnt {
+  background: #e2e8f0; color: #475569;
+  border-radius: 99px; padding: 0 6px;
+  font-size: 10px; font-weight: 700; font-family: monospace;
+  line-height: 16px;
+}
+.tp-tab--active .tp-tab-cnt { background: #dbeafe; color: #2563eb; }
+.tp-body { flex: 1; overflow-y: auto; }
+.tp-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.tp-table thead { position: sticky; top: 0; z-index: 1; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+.tp-table th { padding: 8px 12px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: #64748b; font-weight: 700; }
+.tp-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.tp-table tbody tr:hover td { background: #f8fafc; }
+.tp-row--halted td { background: #fef2f2; }
+.tp-row--halted .tp-col-step { color: #991b1b; font-weight: 600; }
+.tp-row--ghost td { opacity: .45; }
+.tp-row--ghost .tp-col-step { font-style: italic; }
+.tp-row--notinpath .tp-col-step { color: #94a3b8; text-decoration: line-through; }
+.tp-row--expandable { cursor: pointer; }
+.tp-row--open td { background: #f8fafc; }
+.tp-col-num { color: #94a3b8; font-size: 11.5px; width: 32px; font-family: monospace; }
+.tp-col-chevron { width: 20px; padding: 8px 4px 8px 12px !important; }
+.tp-col-step { line-height: 1.35; }
+.tp-col-product { width: 110px; }
+.tp-col-status { width: 110px; white-space: nowrap; font-weight: 600; }
+.tp-chevron { color: #94a3b8; font-size: 10px; }
+.tp-row--open .tp-chevron { color: #2563eb; }
+.tp-st-ok   { color: #16a34a; }
+.tp-st-halt { color: #dc2626; font-size: 12px; }
+.tp-st-skip { color: #94a3b8; }
+.tp-row--detail td { background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 0 12px 10px 0; }
+.tp-detail { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+.tp-detail-narrative { font-size: 11.5px; color: #64748b; line-height: 1.55; }
+.tp-claims { background: #fff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; font-family: monospace; font-size: 11px; }
+.tp-claim-row { display: grid; grid-template-columns: 100px 1fr; border-bottom: 1px solid #f1f5f9; }
+.tp-claim-row:last-child { border-bottom: none; }
+.tp-claim-k { padding: 4px 8px; color: #1d4ed8; font-weight: 600; border-right: 1px solid #f1f5f9; background: #fafafa; }
+.tp-claim-v { padding: 4px 8px; color: #1e293b; word-break: break-all; }
+
+/* product chips */
+.chip { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 99px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.chip-p1  { background: #fdf2f8; color: #be185d; border: 1px solid #fbcfe8; }
+.chip-bff { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
+.chip-az  { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+.chip-gw  { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+.chip-mcp { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+.chip-he  { background: #fefce8; color: #a16207; border: 1px solid #fef08a; }
+
+/* ════════════════════════════════════
+   OTHER PANE STUBS
+════════════════════════════════════ */
+.pane-stub {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 10px;
+  color: var(--ac-muted);
+  background: #fff;
+}
+.pane-stub .stub-icon { font-size: 32px; opacity: .3; }
+.pane-stub p { font-size: 12px; text-align: center; max-width: 260px; line-height: 1.6; }
+.pane-stub code { font-family: monospace; background: var(--ac-bg-2); padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+
+/* ── Flag callout at top ── */
+.flag-callout {
+  background: #fefce8;
+  border-bottom: 1px solid #fde68a;
+  padding: 6px 18px;
+  font-size: 11.5px;
+  color: #713f12;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.flag-callout strong { font-weight: 700; }
+.flag-on {
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  color: #15803d;
+  border-radius: 4px;
+  padding: 1px 7px;
+  font-size: 10.5px;
+  font-weight: 700;
+  font-family: monospace;
+}
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- Feature flag callout -->
+<div class="flag-callout">
+  <span>⚙</span>
+  <span><strong>ff_agent_clinical_split</strong> <span class="flag-on">ON</span> — this is the layout that activates. Go to <strong>/config → Feature Flags</strong> to enable it.</span>
+</div>
+
+<div class="ac-shell" style="height: calc(100vh - 33px)">
+
+  <!-- ── 44px Rail ── -->
+  <div class="ac-rail">
+    <div class="ac-brand">Super<em>Banking</em></div>
+
+    <div class="ac-tabs" role="tablist">
+      <button class="ac-tab" onclick="switchTab('talk',this)" type="button">
+        <span class="ac-tab-glyph">▣</span> Talk <kbd>1</kbd>
+      </button>
+      <button class="ac-tab" onclick="switchTab('inspect',this)" type="button">
+        <span class="ac-tab-glyph">◇</span> Inspect <kbd>2</kbd>
+      </button>
+      <button class="ac-tab ac-tab--on" id="tab-tokens" onclick="switchTab('tokens',this)" type="button">
+        <span class="ac-tab-glyph">◉</span> Tokens <kbd>3</kbd>
+      </button>
+      <button class="ac-tab" onclick="switchTab('configure',this)" type="button">
+        <span class="ac-tab-glyph">⊞</span> Configure <kbd>4</kbd>
+      </button>
+    </div>
+
+    <div class="ac-rail-right">
+      <span class="ac-session"><span class="ac-session-led"></span>SESSION · 04:23</span>
+      <button class="ac-icn" title="Search">⌕</button>
+      <span class="ac-avatar">JD</span>
+    </div>
+  </div>
+
+  <!-- ── Pane ── -->
+  <main class="ac-pane" id="pane">
+
+    <!-- TALK PANE (hidden by default in this mock — click "Talk" to show) -->
+    <div id="pane-talk" style="display:none; height:100%">
+      <div class="talk-pane">
+        <div class="talk-chat">
+          <div class="chat-history">
+            <div class="chat-msg">
+              <div class="msg-avatar agent">AI</div>
+              <div class="msg-bubble">Hello! I'm your Super Banking assistant. How can I help you today?</div>
+            </div>
+            <div class="chat-msg user">
+              <div class="msg-avatar user">JD</div>
+              <div class="msg-bubble">What's my checking balance?</div>
+            </div>
+            <div class="chat-msg">
+              <div class="msg-avatar agent">AI</div>
+              <div class="msg-bubble">
+                Let me check that for you.
+                <div><span class="msg-tool-call">⚙ get_balance · checking</span></div>
+              </div>
+            </div>
+            <div class="chat-msg">
+              <div class="msg-avatar agent">AI</div>
+              <div class="msg-bubble">Your checking account (****4821) balance is <strong>$12,450.00</strong>.</div>
+            </div>
+          </div>
+          <div class="chat-input-row">
+            <textarea class="chat-input" placeholder="Ask anything about your account…"></textarea>
+            <button class="chat-send">↑</button>
+          </div>
+        </div>
+        <div class="talk-timeline">
+          <div class="timeline-head">Token Audit Timeline</div>
+          <div class="timeline-body">
+            <div class="tl-event"><div class="tl-dot ok"></div><div class="tl-label">Sign-in — User Token<small>PINGONE</small></div></div>
+            <div class="tl-event"><div class="tl-dot ok"></div><div class="tl-label">Token exchange — delegation<small>BFF · RFC 8693</small></div></div>
+            <div class="tl-event"><div class="tl-dot ok"></div><div class="tl-label">PingOne Authorize — PERMIT<small>AUTHZ</small></div></div>
+            <div class="tl-event"><div class="tl-dot ok"></div><div class="tl-label">MCP server — tool executes<small>MCP</small></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INSPECT PANE stub -->
+    <div id="pane-inspect" style="display:none; height:100%">
+      <div class="pane-stub">
+        <div class="stub-icon">◇</div>
+        <strong>Inspect</strong>
+        <p>Live activity log — MCP tool calls, gateway decisions, authorize results. Press <kbd>2</kbd> to open.</p>
+      </div>
+    </div>
+
+    <!-- TOKENS PANE — the actual Simple / Detailed tabs ← THIS IS WHAT'S NEW -->
+    <div id="pane-tokens" style="height:100%">
+      <div class="tp-wrap">
+        <div class="tp-tabs">
+          <button class="tp-tab tp-tab--active" id="btn-simple" onclick="tpTab('simple')" type="button">
+            Simple <span class="tp-tab-cnt">9</span>
+          </button>
+          <button class="tp-tab" id="btn-detailed" onclick="tpTab('detailed')" type="button">
+            Detailed <span class="tp-tab-cnt">9</span>
+          </button>
+        </div>
+        <div class="tp-body">
+
+          <!-- SIMPLE VIEW -->
+          <div id="view-simple">
+            <table class="tp-table">
+              <thead><tr><th>#</th><th>Step</th><th>Product</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td class="tp-col-num">1</td><td class="tp-col-step">Sign-in — User Token acquired</td><td><span class="chip chip-p1">PingOne</span></td><td class="tp-col-status"><span class="tp-st-ok">✓</span></td></tr>
+                <tr><td class="tp-col-num">2</td><td class="tp-col-step">Chatbot — prompt sent</td><td><span class="chip" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe">Chat</span></td><td class="tp-col-status"><span class="tp-st-ok">✓</span></td></tr>
+                <tr><td class="tp-col-num">3</td><td class="tp-col-step">Agent service receives request</td><td><span class="chip" style="background:#f5f3ff;color:#6d28d9;border:1px solid #ddd6fe">Agent</span></td><td class="tp-col-status"><span class="tp-st-ok">✓</span></td></tr>
+                <tr><td class="tp-col-num">4</td><td class="tp-col-step">Heuristics — intent match &amp; tool choice</td><td><span class="chip chip-he">Heuristics</span></td><td class="tp-col-status"><span class="tp-st-ok">✓</span></td></tr>
+                <tr><td class="tp-col-num">5</td><td class="tp-col-step">Agent identity token</td><td><span class="chip chip-bff">BFF</span></td><td class="tp-col-status"><span class="tp-st-ok">✓</span></td></tr>
+                <tr><td class="tp-col-num">6</td><td class="tp-col-step">Token exchange — delegation</td><td><span class="chip chip-bff">BFF</span></td><td class="tp-col-status"><span class="tp-st-ok">✓</span></td></tr>
+                <tr class="tp-row--halted"><td class="tp-col-num">7</td><td class="tp-col-step">PingOne Authorize — policy decision</td><td><span class="chip chip-az">Authz</span></td><td class="tp-col-status"><span class="tp-st-halt">✕ DENY</span></td></tr>
+                <tr class="tp-row--ghost"><td class="tp-col-num">8</td><td class="tp-col-step tp-row--notinpath">Agent Gateway — token validated</td><td><span class="chip chip-gw">Gateway</span></td><td class="tp-col-status"><span class="tp-st-skip">— did not run</span></td></tr>
+                <tr class="tp-row--ghost"><td class="tp-col-num">9</td><td class="tp-col-step tp-row--notinpath">MCP server — tool executes</td><td><span class="chip chip-mcp">MCP</span></td><td class="tp-col-status"><span class="tp-st-skip">— did not run</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- DETAILED VIEW (hidden) -->
+          <div id="view-detailed" style="display:none">
+            <table class="tp-table">
+              <thead><tr><th>#</th><th style="width:20px"></th><th>Step</th><th>Product</th><th>Status</th></tr></thead>
+              <tbody id="detail-tbody"></tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- CONFIGURE PANE stub -->
+    <div id="pane-configure" style="display:none; height:100%">
+      <div class="pane-stub">
+        <div class="stub-icon">⊞</div>
+        <strong>Configure</strong>
+        <p>Feature flags, authorize rules, runtime status, token exchange mode. Press <kbd>4</kbd> to open.</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ── Tab switching (rail: Talk / Inspect / Tokens / Configure) ──────────────
+const PANES = { talk:'pane-talk', inspect:'pane-inspect', tokens:'pane-tokens', configure:'pane-configure' };
+
+function switchTab(name, btn) {
+  Object.values(PANES).forEach(id => { const el = document.getElementById(id); if(el) el.style.display='none'; });
+  document.querySelectorAll('.ac-tab').forEach(b => b.classList.remove('ac-tab--on'));
+  const pane = document.getElementById(PANES[name]);
+  if (pane) pane.style.display = '';
+  if (btn) btn.classList.add('ac-tab--on');
+}
+
+// ── Sub-tab switching (Simple / Detailed inside Tokens pane) ──────────────
+function tpTab(which) {
+  document.getElementById('view-simple').style.display   = which === 'simple'   ? '' : 'none';
+  document.getElementById('view-detailed').style.display = which === 'detailed' ? '' : 'none';
+  document.getElementById('btn-simple').className   = 'tp-tab' + (which === 'simple'   ? ' tp-tab--active' : '');
+  document.getElementById('btn-detailed').className = 'tp-tab' + (which === 'detailed' ? ' tp-tab--active' : '');
+}
+
+// ── Build Detailed rows ────────────────────────────────────────────────────
+const STEPS = [
+  { n:1, label:'Sign-in — User Token acquired',    chip:'chip-p1',  prod:'PingOne',   st:'ok',   claims:{sub:'u5f3a…',aud:'bff-client',scope:'openid read write'}, narrative:'User authenticated via OIDC + PKCE. Token stored server-side in the BFF.' },
+  { n:2, label:'Chatbot — prompt sent',             chip:'',         prod:'Chat',      st:'ok',   claims:{message:'"What is my balance?"',session:'cookie only'}, narrative:'No token in the browser — only a session cookie.' },
+  { n:3, label:'Agent service receives request',    chip:'',         prod:'Agent',     st:'ok',   claims:{tools:'get_balance, transfer_funds'}, narrative:'Loads tool catalog from gateway.' },
+  { n:4, label:'Heuristics — intent & tool choice', chip:'chip-he',  prod:'Heuristics',st:'ok',   claims:{intent:'balance_inquiry',tool:'get_balance'}, narrative:'No LLM call needed — heuristics matched directly.' },
+  { n:5, label:'Agent identity token',              chip:'chip-bff', prod:'BFF',       st:'ok',   claims:{grant_type:'client_credentials',client_id:'bff-agent-client',scope:'agent:act'}, narrative:'BFF obtains its own identity token (actor token for delegation).' },
+  { n:6, label:'Token exchange — delegation',       chip:'chip-bff', prod:'BFF',       st:'ok',   claims:{sub:'u5f3a…',aud:'mcp-server',scope:'gateway:mcp:invoke',act:'{ sub:"bff-agent-client" }'}, narrative:'RFC 8693 — user token + agent actor → delegated MCP token. Audience narrowed to mcp-server.' },
+  { n:7, label:'PingOne Authorize — policy decision',chip:'chip-az', prod:'Authz',    st:'halt', claims:{decision:'DENY',reason:'transfer blocked by policy',tool:'transfer_funds',amount:'$2500'}, narrative:'Authorize returned DENY — amount exceeds policy ceiling.' },
+  { n:8, label:'Agent Gateway — token validated',   chip:'chip-gw',  prod:'Gateway',   st:'ghost',claims:{}, narrative:'Not in path — gateway was not reached.' },
+  { n:9, label:'MCP server — tool executes',        chip:'chip-mcp', prod:'MCP',       st:'ghost',claims:{}, narrative:'Not in path — call was blocked before this step.' },
+];
+
+let openRow = null;
+const tbody = document.getElementById('detail-tbody');
+STEPS.forEach((s, i) => {
+  const hasClaims = Object.keys(s.claims).length > 0;
+
+  const mainTr = document.createElement('tr');
+  const isHalt = s.st === 'halt';
+  const isGhost = s.st === 'ghost';
+  mainTr.className = (isHalt ? 'tp-row--halted ' : '') + (isGhost ? 'tp-row--ghost ' : '') + (hasClaims ? 'tp-row--expandable' : '');
+
+  const chipHtml = s.chip
+    ? `<span class="chip ${s.chip}">${s.prod}</span>`
+    : `<span class="chip chip-bff">${s.prod}</span>`;
+
+  const statusHtml = isHalt
+    ? `<span class="tp-st-halt">✕ halted</span>`
+    : isGhost
+      ? `<span class="tp-st-skip">— did not run</span>`
+      : `<span class="tp-st-ok">✓</span>`;
+
+  mainTr.innerHTML = `
+    <td class="tp-col-num">${s.n}</td>
+    <td class="tp-col-chevron">${hasClaims ? '<span class="tp-chevron">▸</span>' : ''}</td>
+    <td class="tp-col-step">${s.label}</td>
+    <td class="tp-col-product">${chipHtml}</td>
+    <td class="tp-col-status">${statusHtml}</td>
+  `;
+
+  const detailTr = document.createElement('tr');
+  detailTr.className = 'tp-row--detail';
+  detailTr.style.display = 'none';
+  detailTr.innerHTML = `<td></td><td></td><td colspan="3"><div class="tp-detail">
+    ${s.narrative ? `<p class="tp-detail-narrative">${s.narrative}</p>` : ''}
+    ${hasClaims ? `<div class="tp-claims">${Object.entries(s.claims).map(([k,v])=>`<div class="tp-claim-row"><span class="tp-claim-k">${k}</span><span class="tp-claim-v">${v}</span></div>`).join('')}</div>` : ''}
+  </div></td>`;
+
+  if (hasClaims) {
+    mainTr.addEventListener('click', () => {
+      const isOpen = detailTr.style.display !== 'none';
+      if (openRow && openRow !== detailTr) openRow.style.display = 'none';
+      detailTr.style.display = isOpen ? 'none' : '';
+      openRow = isOpen ? null : detailTr;
+      mainTr.querySelector('.tp-chevron').textContent = isOpen ? '▸' : '▾';
+    });
+  }
+
+  tbody.appendChild(mainTr);
+  tbody.appendChild(detailTr);
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  const t = e.target?.tagName;
+  if (t === 'INPUT' || t === 'TEXTAREA') return;
+  const btn = document.querySelectorAll('.ac-tab')[{1:0,2:1,3:2,4:3}[e.key]];
+  if (btn) btn.click();
+});
+</script>
+</body>
+</html>

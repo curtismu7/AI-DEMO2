@@ -223,6 +223,22 @@ const findPhase = (phases, name) => phases.find((p) => p && p.phase === name) ||
 const claimsBlock = (title, claims) =>
   claims && Object.keys(claims).length ? { title, text: asJson(claims) } : undefined;
 
+// Resolve a human-readable backend service label from tool name + _meta.
+const TOOL_BACKEND_MAP = {
+  show_mortgage: { label: "Mortgage Service", lane: "MORTGAGE" },
+  show_investment: { label: "Invest Service", lane: "INVEST" },
+  get_investment_balance: { label: "Invest MCP Server", lane: "INVEST" },
+  get_investment_accounts: { label: "Invest MCP Server", lane: "INVEST" },
+  get_investment_transactions: { label: "Invest MCP Server", lane: "INVEST" },
+  get_portfolio_summary: { label: "Invest MCP Server", lane: "INVEST" },
+};
+function resolveBackendLabel(toolName, meta) {
+  const mapped = toolName && TOOL_BACKEND_MAP[toolName];
+  if (mapped) return mapped;
+  if (meta?.backend) return { label: meta.backend, lane: "API" };
+  return null;
+}
+
 // --- replay payloads -------------------------------------------------------
 // A step can carry a `replay` descriptor: enough of THIS run's actual request
 // to re-issue it in the matching inspector page. Consumed by TraceStepCard,
@@ -841,7 +857,8 @@ export function buildTraceSteps(trace) {
     } : {}));
   const apiMeta = apiMetaEarly;
   const apiKeyCall = apiMeta.credentialPath === "api_key" || apiKeyPath;
-  steps.push(makeStep("api", authorizeFailed ? "notinpath" : (mcpDone && mcpResult) || apiKeyCall ? "done" : traceComplete ? "notinpath" : "pending",
+  const backendInfo = resolveBackendLabel(mcpResult?.tool || mcpResult?.toolName, apiMeta);
+  const apiStep = makeStep("api", authorizeFailed ? "notinpath" : (mcpDone && mcpResult) || apiKeyCall ? "done" : traceComplete ? "notinpath" : "pending",
     mcpResult && (mcpResult.result || apiKeyCall) ? {
       narrative: apiKeyCall
         ? "Backend call after credential swap — X-API-Key + X-User-Sub (no OAuth bearer on the wire)."
@@ -850,11 +867,17 @@ export function buildTraceSteps(trace) {
           : "The actual resource-server call made with the delegated bearer token.",
       response: mcpResult.result ? { title: "API result", text: asJson(mcpResult.result) } : undefined,
       kv: [
+        backendInfo ? ["service", backendInfo.label] : null,
         apiKeyCall && apiMeta.apiCall ? ["api call", apiMeta.apiCall] : null,
         apiKeyCall && apiMeta.apiKeyMaskedLast4 ? ["service key", `••••${apiMeta.apiKeyMaskedLast4}`] : null,
         evtBackend ? ["backend", evtBackend.label] : null,
       ].filter(Boolean),
-    } : {}));
+    } : {});
+  if (backendInfo) {
+    apiStep.title = `${backendInfo.label} — resource server`;
+    apiStep.lane = backendInfo.lane;
+  }
+  steps.push(apiStep);
 
   // 11. reply — heuristics compose from the tool result (no LLM); chip paths
   // often have mcpResult but no llmReply, so either evidence marks the step done.

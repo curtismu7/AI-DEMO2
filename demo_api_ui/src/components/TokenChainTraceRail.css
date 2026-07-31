@@ -131,6 +131,8 @@
 .tctr-lane--gateway { background: #cffafe; color: #0e7490; }
 .tctr-lane--mcp { background: #d1fae5; color: #047857; }
 .tctr-lane--api { background: #fee2e2; color: #b91c1c; }
+.tctr-lane--mortgage { background: #fde68a; color: #78350f; }
+.tctr-lane--invest { background: #a7f3d0; color: #065f46; }
 
 .tctr-step-body {
   padding: 10px 12px 12px 24px; font-size: 12px; color: #334155;

@@ -87,4 +87,40 @@ function codegraphReindexProxy(req, res) {
   });
 }
 
-module.exports = { codegraphProxy, codegraphReindexProxy };
+// ── Status + wake ─────────────────────────────────────────────────────────
+
+const { spawn } = require('child_process');
+const path = require('path');
+
+// Track in-progress wake attempts so concurrent polls don't spawn duplicates.
+let _wakeInProgress = false;
+
+/** GET /api/codegraph/status — returns {ready, starting} without auth */
+function codegraphStatus(req, res) {
+  const parsedUrl = new URL(LANGCHAIN_AGENT_URL);
+  const probe = http.get(
+    { hostname: parsedUrl.hostname, port: parsedUrl.port || 8888, path: '/health', timeout: 3000 },
+    (r) => {
+      r.resume(); // drain
+      res.json({ ready: r.statusCode < 500, starting: _wakeInProgress });
+    },
+  );
+  probe.on('error', () => {
+    // Not reachable — try to wake it
+    if (!_wakeInProgress) {
+      _wakeInProgress = true;
+      const repoRoot = path.resolve(__dirname, '../../..');
+      const child = spawn(
+        'docker', ['compose', '--profile', 'agents', 'up', '-d', 'langchain-agent'],
+        { cwd: repoRoot, detached: true, stdio: 'ignore' },
+      );
+      child.unref();
+      // Clear the flag after 120 s regardless of outcome
+      setTimeout(() => { _wakeInProgress = false; }, 120_000);
+    }
+    res.json({ ready: false, starting: _wakeInProgress });
+  });
+  probe.on('timeout', () => { probe.destroy(); });
+}
+
+module.exports = { codegraphProxy, codegraphReindexProxy, codegraphStatus };

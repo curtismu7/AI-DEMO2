@@ -1107,9 +1107,10 @@ app.use('/api', intentAuthRoutes);
 app.use('/api', delegationGate, agentInvokeRoutes);
 app.use('/api/agent', delegationGate, transactionTurnMiddleware, agentRunRoutes); // AG-UI Step 2: /api/agent/run
 app.use('/api/agent/langchain', delegationGate, require('./routes/agentLangchainRunRoute')); // AG-UI Phase 2.3: LangChain /run
-const { codegraphProxy, codegraphReindexProxy } = require('./routes/codegraphProxy');
+const { codegraphProxy, codegraphReindexProxy, codegraphStatus } = require('./routes/codegraphProxy');
 app.post('/api/codegraph/query', codegraphProxy);
 app.post('/api/codegraph/reindex', codegraphReindexProxy);
+app.get('/api/codegraph/status', codegraphStatus); // no auth — probe + auto-wake
 app.use('/api/agent', require('./routes/agentConsentRoute')); // AG-UI Phase 4.1: HITL consent
 app.use('/api/langchain', langchainConfigRoutes);
 app.use('/api/langchain/lmstudio', lmstudioRoutes);

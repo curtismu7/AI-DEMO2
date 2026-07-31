@@ -16,18 +16,18 @@ const ADMIN_DEMO_STEPS = [
   },
   {
     id: 'ADMIN2',
-    title: 'Look up a user',
-    trigger: { type: 'chip', text: 'Look up the user demouser' },
+    title: 'List users',
+    trigger: { type: 'chip', text: 'List the users in my PingOne environment' },
   },
   {
     id: 'ADMIN3',
-    title: 'List populations',
-    trigger: { type: 'chip', text: 'List populations in this environment' },
+    title: 'List groups',
+    trigger: { type: 'chip', text: 'List the groups in my PingOne environment' },
   },
   {
     id: 'ADMIN4',
-    title: 'Reset a password',
-    trigger: { type: 'chip', text: 'Reset the password for demouser' },
+    title: 'Get environment',
+    trigger: { type: 'chip', text: 'Get the details of my PingOne environment' },
   },
 ];
 

@@ -6,6 +6,6 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "create_transfer",
-  "checkedAt": "2026-07-30",
+  "checkedAt": "2026-07-31",
   "verifiedBy": "simulated-path DENY-before-stepUp ordering fix (e90262f9)"
 }
