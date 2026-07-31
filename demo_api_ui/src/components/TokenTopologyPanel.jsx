@@ -120,17 +120,17 @@ function NodeBox({ node, step, selected, onClick, animateIn }) {
   const isErr = st === 'error';
   const isPend = st === 'pending';
 
-  const statusMark = isOk ? '✓' : isErr ? '✕' : isPend ? '' : '—';
+  const statusMark = isOk ? '✓' : isErr ? 'DENIED' : isPend ? '' : '—';
   const statusCls = isOk ? 'ok' : isErr ? 'err' : isPend ? 'pend' : 'nd';
 
   const claims = claimsFromStep(step, { truncateReason: true });
 
   return (
     <div
-      className={`ttp-node${selected ? ' selected' : ''}${isErr ? ' error' : ''}${animateIn ? ' animate-in' : ''}`}
+      className={`ttp-node${selected ? ' selected' : ''}${animateIn ? ' animate-in' : ''}`}
       onClick={onClick}
     >
-      <div className={`ttp-box${selected ? ' active' : ''}${isErr ? ' error' : ''}${isPend ? ' pulsing' : ''}`}>
+      <div className={`ttp-box${selected ? ' active' : ''}${isPend ? ' pulsing' : ''}`}>
         <div className={`ttp-status ${statusCls}`}>
           {isPend ? <span className="ttp-pulse-dot" /> : statusMark}
         </div>
