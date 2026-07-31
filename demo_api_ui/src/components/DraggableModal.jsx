@@ -11,10 +11,34 @@ function getSingletonRegistry() {
   return window.__dmSingletonRegistry;
 }
 
+// Separate React root in the popup window so DOM events fire through their own
+// event-delegation tree. createPortal alone breaks because events in a foreign
+// window never reach the parent window's React root.
 function PopOutPortal({ win, children }) {
-  const [container] = useState(() => win.document.getElementById("dm-root"));
-  if (!container) return null;
-  return createPortal(children, container);
+  const rootRef = React.useRef(null);
+  const containerRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const container = win.document.getElementById("dm-root");
+    if (!container) return;
+    containerRef.current = container;
+    const root = ReactDOM.createRoot(container);
+    rootRef.current = root;
+    root.render(children);
+    return () => {
+      rootRef.current = null;
+      containerRef.current = null;
+      // Defer unmount so React doesn't unmount during a commit
+      setTimeout(() => { try { root.unmount(); } catch (_) {} }, 0);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [win]);
+
+  React.useEffect(() => {
+    if (rootRef.current) rootRef.current.render(children);
+  }, [children]);
+
+  return null;
 }
 
 /**
