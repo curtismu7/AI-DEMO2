@@ -139,3 +139,6 @@ demo_api_server/data/persistent/lmdb/data.mdb
 # falls back to .env / process.env, and run-docker.sh handles its absence explicitly.
 /secrets.vault
 /secrets.vault.audit.log
+
+# Privilege proxy enrollment token (contains tenant secrets)
+ping-mcpgw/config/proxy-token

@@ -1109,6 +1109,15 @@ cmd_optional_start() {
     warn "RAG embeddings warm up on first request — Code Search may 503 for ~30s."
     warn "Weaviate needs a healthy leader after first start; retry index/search if you see 500."
   fi
+
+  if [[ " ${groups[*]} " == *" mcpgw "* ]] || [[ " ${groups[*]} " == *" all "* ]]; then
+    local token_file="${BASEDIR}/ping-mcpgw/config/proxy-token"
+    if [[ -z "${PRIVILEGE_PROXY_TOKEN:-}" && ! -f "${token_file}" ]]; then
+      warn "Privilege proxy has no enrollment token."
+      warn "  Set PRIVILEGE_PROXY_TOKEN env or create ${token_file}"
+      warn "  (Get the JWT from Privilege Cloud → Gateway wizard)"
+    fi
+  fi
   echo ""
   print_status_table
   echo ""

@@ -118,7 +118,8 @@ services:
       # ping-mcpgw service carries local.ping-devops.com as a network alias, so
       # this one URL is correct for both the browser and this container's own
       # server-side relay.
-      PRIVILEGE_MCPGW_URL: "https://local.ping-devops.com:8623/mcp"
+      PRIVILEGE_MCPGW_URL: "https://privilege.pingone.com/api/mcp"
+      PINGONE_MCP_GATEWAY_CLIENT_ID: "6586d3de-b916-454c-84e5-6d21b572a534"
       # Agent Gateway + Authorize engine toggles live in admin Quick Flags (not pinned
       # here) so operators can switch demo vs real without rebuilding. After flipping,
       # run `./run-docker.sh demo-sync` (or restart the stack) to start/stop the
@@ -1109,12 +1110,15 @@ services:
     image: public.ecr.aws/s7q1z8z4/privilege-proxy
     container_name: ai-demo-ping-mcpgw
     command: /procyon/bin/cyonproxy -hostname local.ping-devops.com -listen :8680
+    environment:
+      ENV_PROXY_TOKEN: "${PRIVILEGE_PROXY_TOKEN:-}"
     ports:
       - "8680:8680"
+      - "8620:8620"
+      - "8690:8690"
     volumes:
-      - ./ping-mcpgw/config/proxy-token:/procyon/ssl/proxy-token.data
-      - ./certs/api.ping.demo+2.pem:/procyon/ssl/mcpgw-cert.pem:ro
-      - ./certs/api.ping.demo+2-key.pem:/procyon/ssl/mcpgw-key.pem:ro
+      - ./ping-mcpgw/config/proxy-token:/procyon/ssl/proxy-token.data:ro
+      - mcpgw-ssl:/procyon/ssl
       - mcpgw-logs:/var/log/procyon
       - mcpgw-recordings:/procyon/recordings
     networks:
@@ -1356,5 +1360,6 @@ volumes:
   weaviate-data:
   embed-models:
   # Privilege proxy ephemeral data
+  mcpgw-ssl:
   mcpgw-logs:
   mcpgw-recordings:

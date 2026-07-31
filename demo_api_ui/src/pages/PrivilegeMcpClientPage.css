@@ -287,3 +287,33 @@ select.pmc-input {
 .pmc-sidebar {
   overflow-y: auto;
 }
+
+.pmc-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pmc-modal {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  padding: 32px;
+  max-width: 420px;
+  text-align: center;
+}
+
+.pmc-modal h2 {
+  color: #f85149;
+  margin: 0 0 12px;
+}
+
+.pmc-modal p {
+  color: #e6edf3;
+  margin: 0 0 24px;
+  line-height: 1.5;
+}
