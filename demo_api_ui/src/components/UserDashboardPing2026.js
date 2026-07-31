@@ -3449,16 +3449,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     </>
   );
 
-  if (loading) {
-    return (
-      <div className="customer-skin-p1 user-dashboard">
-        <div className="loading" role="status" aria-live="polite">
-          Loading your account information…
-        </div>
-      </div>
-    );
-  }
-
   // ff_agent_clinical_split — render the 2B-refined clinical split instead of
   // the legacy split3 chrome. The clinical layout owns the whole dashboard
   // area when on; legacy chrome remains unchanged when off.
