@@ -590,13 +590,24 @@ export class HttpMCPTransport {
       mcpSessionId = incomingSessionId;
       httpSession = existing;
       httpSession.lastAccessedAt = new Date();
+      // Discovery initialize may create a session with no bearer. Subsequent
+      // authenticated calls must bind the validated request bearer into the
+      // session so tool execution / scope checks see the real token — not the
+      // empty string stored at unauthenticated initialize (#1166 Privilege path).
+      if (bearerToken) {
+        httpSession.agentToken = bearerToken;
+      }
       // Log protocol version for non-initialize requests (for observability)
       console.log(`[HttpMCPTransport] Request on session ${mcpSessionId} using protocol ${httpSession.protocolVersion}`);
     }
 
     // 6. Build MCPMessageHandler context, reusing the existing banking session
     const bankingSession = (await this.sessionManager.getSession(httpSession.bankingSessionId)) ?? undefined;
-    const context = this.makeContext(mcpSessionId, bankingSession, httpSession.agentToken);
+    const context = this.makeContext(
+      mcpSessionId,
+      bankingSession,
+      bearerToken ?? (httpSession.agentToken || undefined),
+    );
 
     // 7. Route message — wrapped in ALS correlation scope so all downstream
     // teachLog.step calls (TokenIntrospector etc.) inherit correlation_id automatically.
