@@ -4,7 +4,7 @@ const { getMockResponse } = require('../../../services/oasDiscovery');
 
 // Hosted-MCP tool names that have offline mock payloads in oasDiscovery.
 // The labeled mock fallback only has data for these five.
-const CORE_TOOLS = ['listUsers', 'getUser', 'createUser', 'listApplications', 'getEnvironment'];
+const CORE_TOOLS = ['listUsers', 'getUser', 'listGroups', 'listApplications', 'getEnvironment'];
 
 const LIVE_SOURCE = 'live — hosted PingOne MCP';
 const mockSource = (reason) => `mock — PingOne MCP unavailable: ${reason}`;
@@ -60,8 +60,8 @@ function summaryForResponse(tool, data) {
       case 'listApplications':
         if (Array.isArray(data?._embedded?.applications)) return `${data._embedded.applications.length} applications found`;
         break;
-      case 'createUser':
-        if (data?.username) return `User ${data.username} created (id: ${data.id})`;
+      case 'listGroups':
+        if (Array.isArray(data?._embedded?.groups)) return `${data._embedded.groups.length} groups found`;
         break;
       case 'getUser':
         if (data?.username) return `User: ${data.username}${data.email ? ` (${data.email})` : ''}`;
@@ -74,41 +74,6 @@ function summaryForResponse(tool, data) {
   } catch (_) {
     return String(data).slice(0, 200);
   }
-}
-
-let _defaultPopulationId = null;
-async function resolveDefaultPopulationId() {
-  if (_defaultPopulationId) return _defaultPopulationId;
-  const data = parseMcpResult(await adapter.callTool('listPopulations', {}));
-  const pops = data?._embedded?.populations || [];
-  const def = pops.find((p) => p.default) || pops[0];
-  if (def) _defaultPopulationId = def.id;
-  return _defaultPopulationId;
-}
-
-// Fill demo-safe defaults for a real createUser write. populationId is only
-// resolved when the live inputSchema marks it required.
-async function withCreateUserDefaults(args) {
-  const out = { ...(args || {}) };
-  if (!out.username) {
-    const suffix = String(Date.now()).slice(-6);
-    out.username = `demo.user.${suffix}`;
-    if (!out.email) out.email = `demo.user.${suffix}@example.com`;
-  } else if (!out.email) {
-    out.email = `${out.username}@example.com`;
-  }
-  if (!out.populationId) {
-    try {
-      const live = await adapter.listTools();
-      const def = live.find((t) => t.name === 'createUser');
-      const required = Array.isArray(def?.inputSchema?.required) ? def.inputSchema.required : [];
-      if (required.includes('populationId')) {
-        const popId = await resolveDefaultPopulationId();
-        if (popId) out.populationId = popId;
-      }
-    } catch (_) { /* schema lookup is best-effort; the live call surfaces any gap */ }
-  }
-  return out;
 }
 
 async function listPingOneTools(params) {
@@ -138,9 +103,8 @@ async function callPingOneTool(params) {
   if (!name) {
     return { result: { error: 'name is required. Call list_pingone_tools to see valid tool names.' }, render: 'text' };
   }
-  let args = params?.arguments || {};
+  const args = params?.arguments || {};
   try {
-    if (name === 'createUser') args = await withCreateUserDefaults(args);
     const data = parseMcpResult(await adapter.callTool(name, args));
     return {
       result: { tool: name, responseSummary: summaryForResponse(name, data), source: LIVE_SOURCE },

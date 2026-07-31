@@ -3,7 +3,7 @@
     "id": "token-event-1",
     "userId": "persist-test-user",
     "type": "TOKEN_EXCHANGE",
-    "timestamp": 1785425549860,
+    "timestamp": 1785456472084,
     "tokenSub": "test-subject",
     "scope": "banking",
     "success": true

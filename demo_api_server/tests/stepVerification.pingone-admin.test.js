@@ -18,9 +18,9 @@ const VERTICAL = 'pingone-admin';
 /** Expected parse result for each ADMIN chip. */
 const ADMIN_PARSE_EXPECT = {
   ADMIN1: { action: 'call_pingone_tool', toolName: 'listApplications' },
-  ADMIN2: { action: 'call_pingone_tool', toolName: 'getUser' },
-  ADMIN3: { action: 'call_pingone_tool', toolName: 'listPopulations' },
-  ADMIN4: { action: 'call_pingone_tool', toolName: 'resetPassword' },
+  ADMIN2: { action: 'call_pingone_tool', toolName: 'listUsers' },
+  ADMIN3: { action: 'call_pingone_tool', toolName: 'listGroups' },
+  ADMIN4: { action: 'call_pingone_tool', toolName: 'getEnvironment' },
 };
 
 describe('step verification — pingone-admin catalog', () => {

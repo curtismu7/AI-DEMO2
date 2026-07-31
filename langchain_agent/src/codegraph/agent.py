@@ -160,8 +160,13 @@ def _anthropic_configured() -> bool:
     return bool(key) and key not in {"sk-ant-api03-placeholder", "test-key", "changeme"} and key.startswith("sk-ant-")
 
 
+def _groq_configured() -> bool:
+    key = (os.getenv("GROQ_API_KEY") or "").strip()
+    return bool(key) and key.startswith("gsk_")
+
+
 def _resolve_model():
-    """Pick model: Anthropic if key is present, else the local llm-proxy (llama / omlx)."""
+    """Pick model: Anthropic > Groq > local llm-proxy (llama/omlx)."""
     if _anthropic_configured():
         from pydantic_ai.models.anthropic import AnthropicModel
         from pydantic_ai.providers.anthropic import AnthropicProvider
@@ -171,7 +176,20 @@ def _resolve_model():
             model_name = "claude-haiku-4-5"
         logger.info("CodeGraph LLM: Anthropic %s", model_name)
         return AnthropicModel(model_name, provider=AnthropicProvider(api_key=key or None))
-    # Default: local llm-proxy at :8090 routes to llama.cpp (Linux/x86) or omlx (Apple Silicon).
+
+    if _groq_configured():
+        key = os.getenv("GROQ_API_KEY", "")
+        model_name = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+        logger.info("CodeGraph LLM: Groq %s", model_name)
+        return OpenAIModel(
+            model_name=model_name,
+            provider=OpenAIProvider(
+                base_url="https://api.groq.com/openai/v1",
+                api_key=key,
+            ),
+        )
+
+    # Fallback: local llm-proxy at :8090 routes to llama.cpp (Linux/x86) or omlx (Apple Silicon).
     base_url = (
         os.getenv("CODEGRAPH_LLAMACPP_BASE_URL")
         or os.getenv("LLAMACPP_BASE_URL")
@@ -228,7 +246,10 @@ class CodegraphRunner:
                 async with self.agent.run_stream(
                     question,
                     message_history=msg_history or None,
-                    model_settings=ModelSettings(timeout=120.0),
+                    model_settings=ModelSettings(
+                        timeout=120.0,
+                        temperature=0.0,
+                    ),
                 ) as result:
                     first_token = True
                     async for delta in result.stream_text(delta=True):

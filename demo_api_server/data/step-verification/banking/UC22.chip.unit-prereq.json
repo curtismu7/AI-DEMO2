@@ -6,7 +6,7 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "create_transfer",
-  "checkedAt": "2026-07-30",
+  "checkedAt": "2026-07-31",
   "requiredFlags": [
     "ciba_enabled",
     "ff_mcp_gateway_pinggateway"
