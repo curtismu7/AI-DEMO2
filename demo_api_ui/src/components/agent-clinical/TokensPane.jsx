@@ -102,11 +102,9 @@ function SimpleRow({ event, index, halted, didNotRun }) {
   );
 }
 
-// ── Detailed: same table, each row expands to show claims + narrative ─────
+// ── Detailed: card-per-step with claims, RFC pills, narratives ────────────
 
 export function DetailedStepper({ events }) {
-  const [openIdx, setOpenIdx] = useState(null);
-
   if (!events.length) {
     return <div className="tp-empty">No token events yet.</div>;
   }
@@ -114,101 +112,99 @@ export function DetailedStepper({ events }) {
   const haltedIdx = events.findIndex((ev, i) => isHaltedAt(events, i));
 
   return (
-    <table className="tp-table">
-      <thead>
-        <tr>
-          <th scope="col">#</th>
-          <th scope="col" style={{ width: 20 }} />{/* expand chevron */}
-          <th scope="col">Step</th>
-          <th scope="col">Product</th>
-          <th scope="col">Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        {events.map((ev, i) => (
-          <DetailedRows
-            key={ev.id || `idx-${i}`}
-            event={ev}
-            index={i}
-            halted={haltedIdx === i}
-            didNotRun={haltedIdx !== -1 && i > haltedIdx}
-            open={openIdx === i}
-            onToggle={() => setOpenIdx(openIdx === i ? null : i)}
-          />
-        ))}
-      </tbody>
-    </table>
+    <div className="tp-det">
+      {haltedIdx !== -1 && (
+        <div className="tp-det-banner">
+          <strong>✕ Run stopped at step {haltedIdx + 1} — &ldquo;{events[haltedIdx].label || events[haltedIdx].id}&rdquo;</strong>
+          {' '}Steps after the halt did not run.
+        </div>
+      )}
+      {events.map((ev, i) => (
+        <DetailedCard
+          key={ev.id || `idx-${i}`}
+          event={ev}
+          index={i}
+          halted={haltedIdx === i}
+          didNotRun={haltedIdx !== -1 && i > haltedIdx}
+        />
+      ))}
+    </div>
   );
 }
 
-function DetailedRows({ event, index, halted, didNotRun, open, onToggle }) {
-  const { bucket, label: statusLabel } = resolveStatusVisual(event.status);
+function DetailedCard({ event, index, halted, didNotRun }) {
+  const { bucket } = resolveStatusVisual(event.status);
   const label = event.label || event.id || 'Step';
   const product = productForEvent(event);
   const hasClaims = event.claims && typeof event.claims === 'object' && Object.keys(event.claims).length > 0;
-  const canExpand = hasClaims || event.narrative || event.why;
+  const notInPath = bucket === 'notinpath';
 
-  const handleKeyDown = (e) => {
-    if (canExpand && (e.key === 'Enter' || e.key === ' ')) {
-      e.preventDefault();
-      onToggle();
-    }
-  };
+  let cardCls = 'tp-det-card';
+  let numCls = 'tp-det-num';
+  let statusCls = 'tp-det-status';
+  let statusLabel;
 
-  let rowCls = '';
-  if (halted)                      rowCls = 'tp-row--halted';
-  else if (didNotRun)              rowCls = 'tp-row--ghost';
-  else if (bucket === 'notinpath') rowCls = 'tp-row--notinpath';
+  if (halted) {
+    cardCls += ' tp-det-card--fail';
+    numCls += ' tp-det-num--fail';
+    statusCls += ' tp-det-status--fail';
+    statusLabel = `✕ ${event.errorCode || 'Halted'}`;
+  } else if (didNotRun) {
+    cardCls += ' tp-det-card--ghost';
+    numCls += ' tp-det-num--skip';
+    statusCls += ' tp-det-status--skip';
+    statusLabel = '— did not run';
+  } else if (notInPath) {
+    cardCls += ' tp-det-card--skip';
+    numCls += ' tp-det-num--skip';
+    statusCls += ' tp-det-status--skip';
+    statusLabel = 'Not in path';
+  } else {
+    cardCls += ' tp-det-card--ok';
+    numCls += ' tp-det-num--ok';
+    statusCls += ' tp-det-status--ok';
+    statusLabel = '✓ Success';
+  }
 
-  let statusEl;
-  if (didNotRun)             statusEl = <span className="tp-st tp-st--skip">— did not run</span>;
-  else if (halted)           statusEl = <span className="tp-st tp-st--halt">✕ {event.errorCode || 'halted'}</span>;
-  else if (bucket === 'success') statusEl = <span className="tp-st tp-st--ok" aria-label="Success">✓</span>;
-  else                       statusEl = <span className={`tp-st tp-st--${bucket}`}>{statusLabel}</span>;
+  const rfcPills = event.rfc
+    ? String(event.rfc).split(/\s*·\s*/).map((r) => (
+        <span key={r} className="tp-det-rfc">{r}</span>
+      ))
+    : null;
 
   return (
-    <>
-      <tr
-        className={`${rowCls}${canExpand ? ' tp-row--expandable' : ''}${open ? ' tp-row--open' : ''}`}
-        role={canExpand ? 'button' : undefined}
-        tabIndex={canExpand ? 0 : undefined}
-        onClick={canExpand ? onToggle : undefined}
-        onKeyDown={handleKeyDown}
-        aria-expanded={canExpand ? open : undefined}
-      >
-        <td className="tp-col-num">{index + 1}</td>
-        <td className="tp-col-chevron">
-          {canExpand && <span className="tp-chevron" aria-hidden>{open ? '▾' : '▸'}</span>}
-        </td>
-        <td className="tp-col-step">{label}</td>
-        <td className="tp-col-product">{product ? <PingProductChip product={product} size="xs" /> : null}</td>
-        <td className="tp-col-status">{statusEl}</td>
-      </tr>
-      {open && canExpand && (
-        <tr className="tp-row--detail">
-          <td />
-          <td />
-          <td colSpan={3}>
-            <div className="tp-detail">
-              {(event.narrative || event.why) && (
-                <p className="tp-detail-narrative">{event.narrative || event.why}</p>
-              )}
-              {hasClaims && (
-                <div className="tp-claims">
-                  {Object.entries(event.claims).map(([k, v]) => (
-                    <div key={k} className="tp-claim-row">
-                      <span className="tp-claim-k">{k}</span>
-                      <span className="tp-claim-v">
-                        {typeof v === 'object' ? JSON.stringify(v) : String(v)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
+    <div className={cardCls}>
+      <div className="tp-det-head">
+        <div className={numCls}>{index + 1}</div>
+        <div className="tp-det-info">
+          <div className={notInPath ? 'tp-det-label tp-det-label--strike' : 'tp-det-label'}>{label}</div>
+          <div className="tp-det-meta">
+            {product && <PingProductChip product={product} size="xs" />}
+            <span className={statusCls}>{statusLabel}</span>
+            {rfcPills}
+          </div>
+        </div>
+      </div>
+      {hasClaims && !didNotRun && !notInPath && (
+        <div className="tp-det-claims">
+          {Object.entries(event.claims).map(([k, v]) => (
+            <div key={k} className="tp-det-claim-row">
+              <span className="tp-det-claim-k">{k}</span>
+              <span className={`tp-det-claim-v${k === 'scope' ? ' tp-det-claim-v--scope' : ''}${k === 'act' ? ' tp-det-claim-v--act' : ''}${k === 'aud' ? ' tp-det-claim-v--aud' : ''}`}>
+                {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+              </span>
             </div>
-          </td>
-        </tr>
+          ))}
+        </div>
       )}
-    </>
+      {(event.narrative || event.why) && !didNotRun && !notInPath && (
+        <p className="tp-det-narrative">{event.narrative || event.why}</p>
+      )}
+      {halted && (
+        <div className="tp-det-error">
+          DENY — {event.errorCode || 'BLOCKED'}: action blocked by policy
+        </div>
+      )}
+    </div>
   );
 }
