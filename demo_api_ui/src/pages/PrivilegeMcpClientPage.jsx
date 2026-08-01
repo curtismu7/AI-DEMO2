@@ -51,6 +51,7 @@ export default function PrivilegeMcpClientPage() {
   const [rawRpc, setRawRpc] = useState('{\n  "jsonrpc": "2.0",\n  "id": 1,\n  "method": "tools/list",\n  "params": {}\n}');
   const [rawRpcResult, setRawRpcResult] = useState('');
   const [showBlockedModal, setShowBlockedModal] = useState(false);
+  const [showFlowModal, setShowFlowModal] = useState(false);
   const [activeTab, setActiveTab] = useState('chat');
   const [terminalTab, setTerminalTab] = useState('events');
   const chatEndRef = useRef(null);
@@ -203,6 +204,149 @@ export default function PrivilegeMcpClientPage() {
         </div>
       )}
 
+      {/* Flow Topology Modal */}
+      {showFlowModal && (
+        <div className="cur-modal-overlay" onClick={() => setShowFlowModal(false)}>
+          <div className="cur-flow-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="cur-flow-header">
+              <span className="cur-flow-title">Privilege MCP — Request Flow</span>
+              <button className="cur-flow-close" onClick={() => setShowFlowModal(false)}>&#x2715;</button>
+            </div>
+            <div className="cur-flow-body">
+              <div className="cur-flow-label">END-TO-END DELEGATION CHAIN</div>
+              <div className="cur-flow-row">
+                {/* Node 1: Browser / Cursor IDE */}
+                <div className="cur-flow-node">
+                  <div className="cur-flow-box cur-flow-box--browser">
+                    <span className="cur-flow-icon">&#x1F5A5;</span>
+                    <span className="cur-flow-name">Browser</span>
+                    <span className="cur-flow-sub">Cursor IDE Client</span>
+                  </div>
+                  <div className="cur-flow-claims">
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">action</span><span className="cur-flow-cv">OIDC login (PKCE)</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">scopes</span><span className="cur-flow-cv cur-flow-cv--hi">openid profile email</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">grant</span><span className="cur-flow-cv">authorization_code</span></div>
+                  </div>
+                </div>
+
+                <div className="cur-flow-conn">
+                  <div className="cur-flow-line" /><span className="cur-flow-arrow">&#x25B6;</span>
+                  <span className="cur-flow-conn-label">PingOne token</span>
+                </div>
+
+                {/* Node 2: BFF */}
+                <div className="cur-flow-node">
+                  <div className="cur-flow-box cur-flow-box--bff">
+                    <span className="cur-flow-icon">&#x2699;</span>
+                    <span className="cur-flow-name">BFF Relay</span>
+                    <span className="cur-flow-sub">privilegeMcpClient.js</span>
+                  </div>
+                  <div className="cur-flow-claims">
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">stores</span><span className="cur-flow-cv">access_token (session)</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">adds</span><span className="cur-flow-cv cur-flow-cv--ok">x-procyon-session-id</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">relay</span><span className="cur-flow-cv">JSON-RPC → MCP GW</span></div>
+                  </div>
+                </div>
+
+                <div className="cur-flow-conn">
+                  <div className="cur-flow-line" /><span className="cur-flow-arrow">&#x25B6;</span>
+                  <span className="cur-flow-conn-label">Bearer + headers</span>
+                </div>
+
+                {/* Node 3: Privilege Proxy */}
+                <div className="cur-flow-node">
+                  <div className="cur-flow-box cur-flow-box--privilege">
+                    <span className="cur-flow-icon">&#x1F6E1;</span>
+                    <span className="cur-flow-name">Privilege Proxy</span>
+                    <span className="cur-flow-sub">PingOne Privilege Cloud</span>
+                  </div>
+                  <div className="cur-flow-claims">
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">validates</span><span className="cur-flow-cv">JWT signature (JWKS)</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">enforces</span><span className="cur-flow-cv cur-flow-cv--ok">tool-level policy</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">upstream</span><span className="cur-flow-cv">OAuth or Static Token</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">frontend</span><span className="cur-flow-cv cur-flow-cv--aud">{config.mcpUrl?.split('/')[2]?.split(':')[0]?.slice(0, 24) || 'privilege.pingone.com'}</span></div>
+                  </div>
+                </div>
+
+                <div className="cur-flow-conn">
+                  <div className="cur-flow-line" /><span className="cur-flow-arrow">&#x25B6;</span>
+                  <span className="cur-flow-conn-label">forward RPC</span>
+                </div>
+
+                {/* Node 4: Demo MCP Server */}
+                <div className="cur-flow-node">
+                  <div className="cur-flow-box cur-flow-box--mcp">
+                    <span className="cur-flow-icon">&#x1F527;</span>
+                    <span className="cur-flow-name">Demo MCP Server</span>
+                    <span className="cur-flow-sub">:8080/mcp</span>
+                  </div>
+                  <div className="cur-flow-claims">
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">discovery</span><span className="cur-flow-cv">unauthenticated</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">tools/call</span><span className="cur-flow-cv cur-flow-cv--hi">bearer required</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">scopes</span><span className="cur-flow-cv cur-flow-cv--ok">accounts:read txn:read txn:write sensitive:read</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">exchange</span><span className="cur-flow-cv">RFC 8693 per tool</span></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Auth flow section */}
+              <div className="cur-flow-label" style={{ marginTop: 20 }}>OAUTH AUTHENTICATION</div>
+              <div className="cur-flow-row">
+                <div className="cur-flow-node">
+                  <div className="cur-flow-box cur-flow-box--auth">
+                    <span className="cur-flow-icon">&#x1F511;</span>
+                    <span className="cur-flow-name">PingOne AS</span>
+                    <span className="cur-flow-sub">auth.pingone.com</span>
+                  </div>
+                  <div className="cur-flow-claims">
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">env</span><span className="cur-flow-cv cur-flow-cv--aud">{config.clientId?.slice(0, 8) || '...'}</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">PKCE</span><span className="cur-flow-cv cur-flow-cv--ok">S256 required</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">method</span><span className="cur-flow-cv">client_secret_post</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">callback</span><span className="cur-flow-cv">/api/privilege-mcp/auth/callback</span></div>
+                  </div>
+                </div>
+
+                <div className="cur-flow-conn">
+                  <div className="cur-flow-line" /><span className="cur-flow-arrow">&#x25B6;</span>
+                  <span className="cur-flow-conn-label">issues JWT</span>
+                </div>
+
+                <div className="cur-flow-node">
+                  <div className="cur-flow-box cur-flow-box--token">
+                    <span className="cur-flow-icon">&#x1F4DC;</span>
+                    <span className="cur-flow-name">Access Token</span>
+                    <span className="cur-flow-sub">RS256 / kid: default</span>
+                  </div>
+                  <div className="cur-flow-claims">
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">iss</span><span className="cur-flow-cv">auth.pingone.com/{'{env}'}</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">aud</span><span className="cur-flow-cv cur-flow-cv--aud">{config.clientId?.slice(0, 12) || 'client_id'}...</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">scope</span><span className="cur-flow-cv cur-flow-cv--hi">{grantedScopes.join(' ') || 'openid profile email'}</span></div>
+                  </div>
+                </div>
+
+                <div className="cur-flow-conn">
+                  <div className="cur-flow-line" /><span className="cur-flow-arrow">&#x25B6;</span>
+                  <span className="cur-flow-conn-label">Bearer</span>
+                </div>
+
+                <div className="cur-flow-node">
+                  <div className="cur-flow-box cur-flow-box--privilege">
+                    <span className="cur-flow-icon">&#x1F6E1;</span>
+                    <span className="cur-flow-name">Privilege Proxy</span>
+                    <span className="cur-flow-sub">validates via JWKS</span>
+                  </div>
+                  <div className="cur-flow-claims">
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">jwks</span><span className="cur-flow-cv">auth.pingone.com/{'{env}'}/as/jwks</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">kid</span><span className="cur-flow-cv cur-flow-cv--ok">matched from JWKS</span></div>
+                    <div className="cur-flow-claim"><span className="cur-flow-ck">policy</span><span className="cur-flow-cv">tool access per user</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Title bar */}
       <header className="cur-titlebar">
         <div className="cur-titlebar-left">
@@ -220,6 +364,7 @@ export default function PrivilegeMcpClientPage() {
           </div>
         </div>
         <div className="cur-titlebar-right">
+          <button className="cur-flow-trigger" onClick={() => setShowFlowModal(true)}>Flow</button>
           {config.llmModel && <span className="cur-model-badge">{config.llmModel}</span>}
         </div>
       </header>
