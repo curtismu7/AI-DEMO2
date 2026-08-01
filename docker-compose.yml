@@ -122,6 +122,8 @@ services:
       PRIVILEGE_SSO_ENV_ID: "01d89b06-66d5-430e-9f28-65636843788b"
       PRIVILEGE_SSO_CLIENT_ID: "6586d3de-b916-454c-84e5-6d21b572a534"
       PRIVILEGE_SSO_CLIENT_SECRET: "jGVDouSatx~uDxOeYC-TjY5qzPFnVUid21JjjDvGn7JZAM0zVqIBSlK_U_tdRAxJ"
+      PRIVILEGE_LOGIN_HINT: "cmuir+ssoEndUser@pingone.com"
+      MCPGW_CONFIG_PATH: "/app/mcpgw-config"
       PINGONE_MCP_GATEWAY_CLIENT_ID: "6586d3de-b916-454c-84e5-6d21b572a534"
       # Agent Gateway + Authorize engine toggles live in admin Quick Flags (not pinned
       # here) so operators can switch demo vs real without rebuilding. After flipping,
@@ -219,6 +221,7 @@ services:
       # IG picks up routes/*.json via its ~10s directory watcher, config/admin need a
       # restart.
       - ./ping-gateway/config:/app/gateway-config
+      - ./ping-mcpgw/config:/app/mcpgw-config
       # scope-topology.json (configStore + scopeTopology SSOT) is read via
       # SCOPE_TOPOLOGY_PATH=/repo/scope-topology.json. Mounting the repo root as a
       # DIRECTORY — rather than the single file — is deliberate: a single-file

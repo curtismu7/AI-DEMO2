@@ -58,6 +58,8 @@ export default function PrivilegeMcpClientPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [activeTab, setActiveTab] = useState('chat');
   const [terminalTab, setTerminalTab] = useState('events');
+  const [envVars, setEnvVars] = useState(null);
+  const [envDirty, setEnvDirty] = useState(false);
   const chatEndRef = useRef(null);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages]);
@@ -78,8 +80,8 @@ export default function PrivilegeMcpClientPage() {
       setUser(s.user || null);
       if (s.oauth?.scope) setGrantedScopes(s.oauth.scope.split(' ').filter(Boolean));
       setTools(s.tools || []);
-      // Auto-discover tools if authenticated via main app session
-      if (s.mainAppAuthenticated && s.oauth?.authenticated && (!s.tools || s.tools.length === 0)) {
+      // Auto-discover tools only after Privilege auth completes
+      if (s.oauth?.authenticated && (!s.tools || s.tools.length === 0)) {
         refreshTools(true);
       }
     }).catch(() => {});
@@ -124,12 +126,29 @@ export default function PrivilegeMcpClientPage() {
     }
   };
 
+  const loadEnv = async () => {
+    try {
+      const data = await api('/env');
+      setEnvVars(data.vars || {});
+      setEnvDirty(false);
+    } catch { setEnvVars({}); }
+  };
+
+  const saveEnv = async () => {
+    try {
+      await api('/env', { method: 'PUT', body: { vars: envVars } });
+      setEnvDirty(false);
+      appendChat('system', 'Gateway .env saved. Restart mcpgw container to apply.');
+    } catch (err) {
+      appendChat('system', `Env save failed: ${err.message}`);
+    }
+  };
+
   const startAuth = async () => {
     try {
       await api('/config', { method: 'POST', body: config });
       const data = await api('/auth/start', { method: 'POST' });
-      window.open(data.authUrl, '_blank', 'noopener,noreferrer');
-      appendChat('system', 'OAuth started — complete login in the opened tab.');
+      window.location.href = data.authUrl;
     } catch (err) {
       appendChat('system', `OAuth start failed: ${err.message}`);
     }
@@ -392,6 +411,25 @@ export default function PrivilegeMcpClientPage() {
                   <input className="cur-input" value={config.llmModel} onChange={(e) => setConfig({ ...config, llmModel: e.target.value })} />
                 </label>
               </div>
+              <div className="cur-settings-section">
+                <h4 className="cur-settings-section-title">Privilege Gateway .env</h4>
+                {envVars === null ? (
+                  <button className="cur-btn" onClick={loadEnv}>Load pingone.env</button>
+                ) : (
+                  <>
+                    {['SERVER_URL', 'OIDC_CLIENT_ID', 'OIDC_CLIENT_SECRET', 'OIDC_AUTH_URL', 'OIDC_TOKEN_URL', 'OIDC_USER_URL', 'OIDC_SCOPES'].map((key) => (
+                      <label className="cur-field" key={key}>
+                        <span className="cur-field-label">{key}</span>
+                        <input className="cur-input" value={envVars[key] || ''} onChange={(e) => { setEnvVars({ ...envVars, [key]: e.target.value }); setEnvDirty(true); }} />
+                      </label>
+                    ))}
+                    <div className="cur-btn-row" style={{ marginTop: 8 }}>
+                      <button className="cur-btn cur-btn--primary" onClick={saveEnv} disabled={!envDirty}>Save .env</button>
+                      <button className="cur-btn" onClick={loadEnv}>Reload</button>
+                    </div>
+                  </>
+                )}
+              </div>
               <div className="cur-btn-row" style={{ marginTop: 16 }}>
                 <button className="cur-btn cur-btn--primary" onClick={() => { saveConfig(); setShowSettings(false); }}>Save</button>
                 <button className="cur-btn" onClick={() => setShowSettings(false)}>Cancel</button>
@@ -445,14 +483,14 @@ export default function PrivilegeMcpClientPage() {
             <span className="cur-sidebar-title">CONNECTION</span>
           </div>
           <div className="cur-sidebar-content">
-            {(authenticated || mainAppAuthenticated) ? (
+            {authenticated ? (
               <div className="cur-auth-status">
                 <span className="cur-auth-badge cur-auth-badge--ok">Authenticated</span>
                 {user?.email && <span className="cur-auth-user">{user.email}</span>}
               </div>
             ) : (
               <div className="cur-btn-row">
-                <button className="cur-btn cur-btn--primary" onClick={startAuth}>Sign In</button>
+                <button className="cur-btn cur-btn--primary" onClick={startAuth}>Sign In with Privilege</button>
               </div>
             )}
 
