@@ -1272,7 +1272,8 @@ router.post('/verify-otp', async (req, res) => {
 /**
  * Update user preference to hide/show the success screen on login
  */
-router.post('/user/success-screen-preference', (req, res) => {
+// Router is mounted at /api/auth/oauth/user, so this path must not repeat "user".
+router.post('/success-screen-preference', (req, res) => {
   try {
     if (!req.session?.user?.id) {
       return res.status(401).json({ error: 'not_authenticated' });
