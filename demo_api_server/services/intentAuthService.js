@@ -87,6 +87,10 @@ async function evaluateIntentAuthorization(intentContext) {
     'view_balance', 'view_accounts', 'view_transactions', 'view_records',
     'view_coverage', 'list_appointments', 'list_orders', 'pto_balance',
     'view_benefits', 'list_gear',
+    // UC1 primary read per vertical — these four shipped after this set was
+    // written, so their read chips fell through to the conservative-consent
+    // fallback and returned 428.
+    'view_permits', 'view_courses', 'view_work_orders', 'view_portfolios',
   ]);
   if (READ_ONLY_INTENTS.has(normalizedIntent)) {
     return {
