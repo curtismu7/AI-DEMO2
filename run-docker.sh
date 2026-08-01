@@ -60,7 +60,41 @@ export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-ai-demo}"
 # BFF) when it's present. Passing -f explicitly disables Compose's implicit
 # docker-compose.override.yml merge, so we add it back here. Set PROD_MODE=1 to
 # run the nginx production build instead (skips the override).
-COMPOSE_FILES=(-f "${COMPOSE_FILE}")
+# Compose resolves `env_file:` and relative bind mounts against the PROJECT
+# DIRECTORY, which defaults to the directory holding the compose file. A git
+# worktree carries no gitignored files, so every service's .env is absent there
+# — and because each `env_file:` entry is `required: false`, Compose skips it
+# silently and the service dies later on a missing variable instead of failing
+# at startup. Observed 2026-08-01 with the stack launched from a worktree:
+# agent-service logged `injected env (0) from .env` then
+# `Missing required env var: PINGONE_TOKEN_ENDPOINT`; mcp-jwt-verifier died on
+# `KeyError: 'PINGONE_JWKS_URI'`; langchain-agent hit `STARTUP BLOCKED`; and
+# ping-gateway came up "healthy" with none of its 22 vars, including
+# PG_OLB_SCOPE (the documented cause of write-path 502s).
+#
+# Pin the project directory to the main checkout so the real .env files always
+# resolve. This matches how the containers already behave — their bind mounts
+# serve the main checkout, not a worktree. Set ALLOW_WORKTREE_PROJECT_DIR=1 to
+# opt out (e.g. deliberately testing a worktree's own compose file).
+COMPOSE_PROJECT_DIR_ARGS=()
+_git_common_dir="$(git -C "${BASEDIR}" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+if [[ -n "${_git_common_dir}" ]]; then
+  MAIN_CHECKOUT="$(cd "$(dirname "${_git_common_dir}")" && pwd)"
+  if [[ "${MAIN_CHECKOUT}" != "${BASEDIR}" && "${ALLOW_WORKTREE_PROJECT_DIR:-0}" != "1" ]]; then
+    echo "⚠️  Launched from a worktree — pinning the Compose project directory to the main checkout:"
+    echo "      worktree:       ${BASEDIR}"
+    echo "      project dir:    ${MAIN_CHECKOUT}"
+    echo "    A worktree has no gitignored .env files; without this every service"
+    echo "    would start env-starved. Set ALLOW_WORKTREE_PROJECT_DIR=1 to override."
+    COMPOSE_FILE="${MAIN_CHECKOUT}/docker-compose.yml"
+    OVERRIDE_FILE="${MAIN_CHECKOUT}/docker-compose.override.yml"
+    COMPOSE_PROJECT_DIR_ARGS=(--project-directory "${MAIN_CHECKOUT}")
+  fi
+fi
+
+# `${a[@]+"${a[@]}"}` — bash 3.2 (the macOS system bash) treats an empty array
+# splat as an unbound variable under `set -u`; this form expands to nothing.
+COMPOSE_FILES=(${COMPOSE_PROJECT_DIR_ARGS[@]+"${COMPOSE_PROJECT_DIR_ARGS[@]}"} -f "${COMPOSE_FILE}")
 if [[ "${PROD_MODE:-0}" != "1" && -f "${OVERRIDE_FILE}" ]]; then
   COMPOSE_FILES+=(-f "${OVERRIDE_FILE}")
 fi
