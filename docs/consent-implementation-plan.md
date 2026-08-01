@@ -1,7 +1,52 @@
 # Super Banking — Agent Consent Implementation Plan
 
 _Implements the consent pattern from "Securing AI Agents with PingOne using Delegation and Least Privilege"_
-_Last updated: 2026-03-27_
+_Last updated: 2026-08-01_
+
+---
+
+## ⚠️ Status — the `acr` gate below is SUPERSEDED (read before implementing)
+
+**The code changes in this document are historical.** Changes 1–3 describe gating the
+token exchange on `acr === AGENT_CONSENT_ACR`. That design shipped and was then
+**removed**, because a missing `acr` left the agent permanently blocked
+(`REGRESSION_LOG.md` § 2026-03-27, line ~1354).
+
+What is true today (verified against source 2026-08-01):
+
+| This document says | Actual behaviour |
+|---|---|
+| Exchange gated on `acr` matching `AGENT_CONSENT_ACR` | **No agent-consent gate remains.** No `AGENT_CONSENT_REQUIRED` throw exists anywhere in `demo_api_server/` |
+| `AGENT_CONSENT_ACR` env var | Unused. Do not set it |
+| `GET /consent-url` returns a PingOne authorize URL | Deprecated stub returning `{ deprecated: true, useInAppConsent: true }` — `routes/oauthUser.js` |
+| Consent blocks the agent | `req.session.agentConsentGiven` is a **status flag only** — surfaced as `consentGiven` on `GET /api/auth/oauth/user/status` (`routes/oauthUser.js`) for the UI to read |
+
+`agentConsentGiven` is set by `POST /consent` (the in-app modal), cleared by the revoke
+route, and **auto-granted** without user interaction in enterprise-managed mode
+(`services/enterpriseMcpPolicyService.js`, `services/agentMcpTokenService.js`).
+
+The `CHANGELOG.md` entry for this change says the gate "now checks
+`req.session.agentConsentGiven === true`". That is no longer accurate — the check was
+later dropped. Consent enforcement that _does_ run today is a separate mechanism (HITL
+challenge, `services/sensitiveDataService.js`, `services/intentAuthService.js`), not the
+agent-consent agreement.
+
+### The PingOne agreement is live, but decorative
+
+The **PingOne configuration** section below (agreement `Agent Consent`, policy
+`Agent-Consent-Login`, attached to the user OIDC Web App) **was provisioned by hand**
+in env `01d89b06` — the checklist boxes at the foot of this document were never ticked,
+so treat every value here as unverified against the live environment.
+
+That screen still renders at login. Nothing in the demo reads it. It exists to tell the
+delegation story visually; the in-app consent modal is the real gate.
+
+**Decision 2026-08-01:** keep it decorative, and shorten its reconsent period to 1 day
+so it fires on the first login of each demo day. PingOne stores a per-user consent
+record and skips the Agreement action while that record is current — which is why only
+brand-new users see it today. **Not yet applied** — needs a PingOne console/API change,
+no code change in this repo. A truly every-login prompt is not possible with Agreements
+(a DaVinci flow screen stores no consent record and would be needed instead).
 
 ---
 
