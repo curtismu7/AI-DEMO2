@@ -170,6 +170,7 @@ import {
   verticalSuggestionChips,
   HitlChipMark,
 } from "./agentChrome";
+import { useResourceServerInterstitial } from "./ResourceServerInterstitial";
 
 // Phase 266 H2 audit: TokenChain credentialPath stamping origins per setTokenEvents call:
 //   line 3433 (scopeTestRes.tokenEvents)  — origin: scope-test path via callMcpTool; credentialPath: oauth_bearer (default; stamped by bankingAgentService)
@@ -312,6 +313,7 @@ export default function BankingAgent({
   // Always start collapsed on page load — never restore open state from localStorage.
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showResourceServerInterstitial, resourceServerInterstitialEl] = useResourceServerInterstitial();
   /** Discovery popout — "All actions" overlay. */
   const [showDiscovery, setShowDiscovery] = useState(false);
   /** Demo steps popout — same list as /use-cases Demo section. */
@@ -1101,6 +1103,16 @@ export default function BankingAgent({
     window.addEventListener('banking-attack-demo', handler);
     return () => window.removeEventListener('banking-attack-demo', handler);
   }, [tokenChain]);
+
+  // Show resource server interstitial when a tool call is dispatched
+  useEffect(() => {
+    const handler = (e) => {
+      const tool = e.detail?.tool;
+      if (tool) showResourceServerInterstitial(tool);
+    };
+    window.addEventListener('mcp-resource-server-route', handler);
+    return () => window.removeEventListener('mcp-resource-server-route', handler);
+  }, [showResourceServerInterstitial]);
 
   // Bridge for the AI Attacks learning drawer's "Run this attack" buttons.
   // Reassigned on every render so the window listeners below always invoke the
@@ -10300,7 +10312,7 @@ export default function BankingAgent({
 
   // Inline/embed stays in React tree; float mounts on body so position:fixed is never trapped
   // by .App / shell overflow or theme transforms, and works the same on /logs and app routes.
-  if (surfaceHostEl) return createPortal(floatShell, surfaceHostEl);
-  if (isInline) return <>{floatShell}</>;
-  return createPortal(floatShell, document.body);
+  if (surfaceHostEl) return <>{resourceServerInterstitialEl}{createPortal(floatShell, surfaceHostEl)}</>;
+  if (isInline) return <>{resourceServerInterstitialEl}{floatShell}</>;
+  return <>{resourceServerInterstitialEl}{createPortal(floatShell, document.body)}</>;
 }

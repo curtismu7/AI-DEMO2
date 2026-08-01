@@ -191,6 +191,8 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
   const _exchangeId = addMilestone("Token Exchange", "exchange_start", {});
   updateMilestoneStatus(_exchangeId, "active");
   // ────────────────────────────────────────────────────────────────────────────
+  // Notify UI about which resource server this tool targets
+  window.dispatchEvent(new CustomEvent("mcp-resource-server-route", { detail: { tool } }));
   try {
     agentFlowDiagram.startMcpToolCall(tool);
     log.debug("Flow diagram started");
