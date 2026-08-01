@@ -105,6 +105,24 @@ export interface GatewayConfig {
    */
   authorizedActorClientId: string;
   /**
+   * Every client id allowed to appear as the depth-1 actor — the registered
+   * delegation chain, not just the exchanger. The authored PDP policy
+   * (`HasValidActorChain` in the P1AZ snapshot) is a disjunction over the
+   * exchanger, the AI Agent actor and each A2A specialist; comparing against
+   * `authorizedActorClientId` alone made the PEP stricter than the PDP it is
+   * documented to mirror, and rejected the AI Agent actor that tool discovery
+   * legitimately presents.
+   *
+   * Sourced from PINGONE_TOKEN_EXCHANGER_CLIENT_ID + PINGONE_AI_AGENT_ACTOR_CLIENT_ID,
+   * plus an optional comma-separated GATEWAY_ADDITIONAL_ACTOR_CLIENT_IDS so a new
+   * chain identity can be registered without a code change. Empty ⇒ validation is
+   * skipped, exactly as before (dev / no-actor mode).
+   *
+   * Optional so the many hand-built GatewayConfig fixtures stay valid; when
+   * absent the policy falls back to `authorizedActorClientId` exactly as before.
+   */
+  authorizedActorClientIds?: string[];
+  /**
    * UC16 — Impersonation block: when true, tool calls to agent-mediated operations
    * (tools flagged requiresAgentMediation in scope-topology.json) are DENIED if the
    * bearer token carries no `act` claim. An act-less token erases the agent identity.
@@ -318,6 +336,15 @@ export function loadConfig(): GatewayConfig {
     authorizedActorClientId: optional('PINGONE_TOKEN_EXCHANGER_CLIENT_ID',
       optional('PINGONE_MCP_EXCHANGER_CLIENT_ID',
         optional('AGENT_OAUTH_CLIENT_ID', ''))),
+    // The full registered chain (see the interface docs). Deduped, blanks dropped,
+    // so an unset env var never widens the list to "everything".
+    authorizedActorClientIds: Array.from(new Set([
+      optional('PINGONE_TOKEN_EXCHANGER_CLIENT_ID',
+        optional('PINGONE_MCP_EXCHANGER_CLIENT_ID',
+          optional('AGENT_OAUTH_CLIENT_ID', ''))),
+      optional('PINGONE_AI_AGENT_ACTOR_CLIENT_ID', ''),
+      ...optional('GATEWAY_ADDITIONAL_ACTOR_CLIENT_IDS', '').split(','),
+    ].map((s) => s.trim()).filter(Boolean))),
     requireActForAgentTools: process.env.REQUIRE_ACT_FOR_AGENT_TOOLS === 'true',
     intentTokenRequired: process.env.INTENT_TOKEN_REQUIRED === 'true',
     requireRarIntent: process.env.REQUIRE_RAR_INTENT === 'true',

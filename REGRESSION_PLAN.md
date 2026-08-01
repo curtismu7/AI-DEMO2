@@ -102,6 +102,57 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-01 — Gateway actor allow-list was narrower than the policy it mirrors
+
+**Files changed:** `demo_mcp_gateway/src/auth/toolScopes.ts`,
+`demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts`,
+`demo_mcp_gateway/src/config.ts`,
+`demo_mcp_gateway/tests/gatewayTokenPolicy.test.ts`.
+
+**What was broken:** `validateActClaim` compared `act.sub` for equality against a
+single id (`PINGONE_TOKEN_EXCHANGER_CLIENT_ID`), while its own doc comment says it
+"mirrors the check a live PingOne Authorize policy would perform via the
+`ActClientId` parameter". The authored policy — `HasValidActorChain` in
+`snapshots/Super_Banking_Transaction_Authorization_P1AZ.snapshot.json` — is a
+disjunction over ELEVEN registered identities: "the MCP Token Exchanger, the AI
+Agent, and each A2A specialist". So the PEP rejected an actor the PDP explicitly
+permits. Every `/agent/init` in every vertical logged
+
+```
+[agentToolsResolver] tool discovery failed after 3 attempts (vertical=...)
+  — degrading to local catalog: Unauthorized delegation actor: act.sub
+  "71e878ea-…" is not the authorized actor "f4dd707d-…"
+```
+
+and fell back to a local catalog with every tool marked permitted, so
+Authorize-filtered chip affordance silently stopped rendering. Fidelity, not
+security: each `tools/call` still went through the per-call decision, which fails
+closed. The bug was unreachable until #1184 fixed the discovery WebSocket URL —
+before that the handshake 404'd against PingGateway before any token was presented.
+The depth >= 2 A2A exemption already in this function is evidence the allow-list
+was known to be too narrow; depth 1 never got the same treatment.
+
+**What was fixed:** `validateActClaim` accepts a registered chain
+(`string | readonly string[]`, a bare string still works). `config.authorizedActorClientIds`
+is built from `PINGONE_TOKEN_EXCHANGER_CLIENT_ID` + `PINGONE_AI_AGENT_ACTOR_CLIENT_ID`
+plus an optional comma-separated `GATEWAY_ADDITIONAL_ACTOR_CLIENT_IDS`, deduped with
+blanks dropped so an unset var never widens the list to "everything". The field is
+optional so the hand-built `GatewayConfig` fixtures stay valid and absent ⇒ previous
+single-id behaviour.
+
+**Do not break:** the widening must never admit an unregistered actor — UC13's
+confused-deputy showcase depends on `attackSimulatorService.ROGUE_ACTOR_CLIENT_ID`
+(`rogue-agent-9f2a-not-allowlisted`) staying a DENY; ACT-11 pins it. Keep the
+empty-allow-list skip (dev / no-actor mode) and the empty-`act.sub` skip (simple
+exchange). Native-over-header actor precedence and the `X-Demo-Force-Actor` trust
+gate are untouched by this change.
+
+**Verify:** `cd demo_mcp_gateway && npm run build` (tsc, exit 0) and
+`CI=true npx jest --testPathIgnorePatterns="/node_modules/"` (60 suites, 473 passed);
+`cd demo_api_server && CI=true npx jest src/__tests__/attackSimulator.authorizeEvidence.test.js src/__tests__/mcpToolPipeline.confusedDeputy.test.js src/__tests__/bffMcpToolExecutor.runPipelineForSim.test.js --testPathIgnorePatterns="/node_modules/"` (12 passed);
+`cd demo_authz_server && node --test decision.confused-deputy.test.js decision.mockCloudParity.test.js` (20 passed).
+**mcp-gateway has no src mount — rebuild it (`docker compose build mcp-gateway && docker compose up -d mcp-gateway`) or the running stack keeps the old image.**
+
 ### 2026-07-30 — AG-UI agent tool calls 400'd after JSON-RPC wire mismatch (#1108)
 
 **Files changed:** `demo_agent_service/src/agentRunHandler.ts`,
