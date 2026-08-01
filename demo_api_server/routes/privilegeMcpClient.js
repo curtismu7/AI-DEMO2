@@ -17,7 +17,7 @@ function getClientSession(req) {
     clientSessions.set(sid, {
       config: {
         mcpUrl: process.env.PRIVILEGE_MCPGW_URL || '',
-        clientId: process.env.PINGONE_MCP_GATEWAY_CLIENT_ID || '',
+        clientId: process.env.PRIVILEGE_SSO_CLIENT_ID || process.env.PINGONE_MCP_GATEWAY_CLIENT_ID || '',
         scopes: 'openid profile email',
         llmUrl: 'http://127.0.0.1:11434',
         llmModel: 'llama3.2:1b',
@@ -104,7 +104,7 @@ async function fetchMcp(session, pathname, body, withAuth = true) {
     headers['MCP-Session-Id'] = session.mcpSession.sessionId;
   }
   // Privilege Cloud requires x-procyon-session-id on every request
-  if (targetUrl.hostname === 'privilege.pingone.com') {
+  if (targetUrl.hostname === 'privilege.pingone.com' || targetUrl.hostname.endsWith('.applications.privilege.pingone.com')) {
     headers['x-procyon-session-id'] = session.config._procyonSessionId ||
       (session.config._procyonSessionId = crypto.randomUUID());
   }
@@ -170,7 +170,7 @@ function resetMcpState(session) {
 async function discoverAuth(session) {
   const discoverHeaders = {};
   const mcpUrlParsed = new URL(session.config.mcpUrl);
-  if (mcpUrlParsed.hostname === 'privilege.pingone.com') {
+  if (mcpUrlParsed.hostname === 'privilege.pingone.com' || mcpUrlParsed.hostname.endsWith('.applications.privilege.pingone.com')) {
     discoverHeaders['x-procyon-session-id'] = session.config._procyonSessionId ||
       (session.config._procyonSessionId = crypto.randomUUID());
   }
@@ -191,9 +191,9 @@ async function discoverAuth(session) {
     const mcpUrl = new URL(session.config.mcpUrl);
     const envMatch = mcpUrl.pathname.match(/\/v1\/environments\/([0-9a-fA-F-]{36})\/mcp\/?$/);
     let envId = envMatch?.[1];
-    // Privilege Cloud uses PingOne OIDC but doesn't expose env ID in the URL
-    if (!envId && mcpUrl.hostname === 'privilege.pingone.com') {
-      envId = process.env.PINGONE_ENVIRONMENT_ID;
+    // Privilege Cloud authenticates via its own SSO PingOne environment
+    if (!envId && (mcpUrl.hostname === 'privilege.pingone.com' || mcpUrl.hostname.endsWith('.applications.privilege.pingone.com'))) {
+      envId = process.env.PRIVILEGE_SSO_ENV_ID || process.env.PINGONE_ENVIRONMENT_ID;
     }
     const authHost = mcpUrl.host.startsWith('api.') ? mcpUrl.host.replace(/^api\./, 'auth.') : 'auth.pingone.com';
     if (envId) {
@@ -220,7 +220,7 @@ router.get('/state', (req, res) => {
   const session = getClientSession(req);
   res.json({
     config: session.config,
-    oauth: { authenticated: Boolean(session.oauth.accessToken), expiresAt: session.oauth.expiresAt },
+    oauth: { authenticated: Boolean(session.oauth.accessToken), expiresAt: session.oauth.expiresAt, scope: session.oauth.scope || '' },
     tools: session.tools,
   });
 });
@@ -261,6 +261,8 @@ router.post('/auth/start', express.json(), async (req, res) => {
     authUrl.searchParams.set('state', oauthState);
 
     session.pendingAuth = { oauthState, verifier, tokenUri, redirectUri };
+    // Force express-session to persist so connect.sid cookie survives the redirect
+    req.session.privilegeOAuthStarted = true;
     emitEvent('oauth', { phase: 'start', authorizationUri, tokenUri, authUrl: authUrl.toString() });
     res.json({ authUrl: authUrl.toString() });
   } catch (err) {
@@ -292,14 +294,17 @@ router.get('/auth/callback', async (req, res) => {
       grant_type: 'authorization_code',
       code,
       redirect_uri: session.pendingAuth.redirectUri,
-      client_id: session.config.clientId,
-      client_secret: process.env.PINGONE_MCP_GATEWAY_CLIENT_SECRET || '',
       code_verifier: session.pendingAuth.verifier,
     });
+    const tokenHeaders = { 'Content-Type': 'application/x-www-form-urlencoded' };
+    // PingOne app uses client_secret_post — always send credentials in the body
+    tokenBody.set('client_id', session.config.clientId);
+    const clientSecret = process.env.PRIVILEGE_SSO_CLIENT_SECRET || process.env.PINGONE_MCP_GATEWAY_CLIENT_SECRET || '';
+    if (clientSecret) tokenBody.set('client_secret', clientSecret);
 
     const tokenResponse = await fetch(session.pendingAuth.tokenUri, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: tokenHeaders,
       body: tokenBody,
     });
     const tokenText = await tokenResponse.text();
@@ -310,6 +315,7 @@ router.get('/auth/callback', async (req, res) => {
     session.oauth.accessToken = tokenData.access_token;
     session.oauth.refreshToken = tokenData.refresh_token || null;
     session.oauth.expiresAt = tokenData.expires_in ? Date.now() + tokenData.expires_in * 1000 : null;
+    session.oauth.scope = tokenData.scope || session.config.scopes || '';
     session.pendingAuth = null;
     resetMcpState(session);
 

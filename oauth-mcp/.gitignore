@@ -1,0 +1,8 @@
+# Encrypted MCP session tokens — runtime state, never commit
+dev-data/tokens/*.enc
+
+# Compiled output
+dist/
+
+# Dependencies
+node_modules/

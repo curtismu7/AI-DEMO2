@@ -1088,8 +1088,8 @@ app.use('/api/test/token-validation', testTokenScenariosRoutes); // UI TokenSecu
 app.use('/api/demo-agent', demoAgentNlRoutes);
 // Authenticated agent routes: /init, /message, /consent — require OAuth session.
 app.use('/api/demo-agent', transactionTurnMiddleware, demoAgentRoutes);
-// Admin agent: isolated stack for administrative operations
-app.use('/api/admin-agent', authenticateToken, requireAdmin, adminAgentRoutes);
+// Admin agent: PingOne MCP explorer — any authenticated user
+app.use('/api/admin-agent', authenticateToken, adminAgentRoutes);
 app.use('/api/ops-agent', authenticateToken, opsAgentRoutes);
 // A2A Orchestrator: delegation decision and specialist routing
 app.use('/api/a2a', authenticateToken, a2aAgentRoutes);

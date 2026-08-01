@@ -7,14 +7,46 @@ Privilege MCP Client UI page, or the K8s deployment.
 ## Architecture
 
 ```
-Browser → BFF (privilegeMcpClient.js) → Privilege Proxy (:8680)
+Browser → BFF (privilegeMcpClient.js) → privilege.pingone.com/api/mcp
                                               ↕ gRPC tunnel
-                                     grpc.privilege.pingone.com:443
+                      Privilege Proxy (:8680) → MCP Server (:8080/mcp)
+                            ↕ outbound gRPC
+                   grpc.privilege.pingone.com:443
 ```
 
-The proxy connects **outbound** to the Privilege Cloud controller on start.
-It does NOT need inbound connectivity from the internet — only outbound TLS to
-`grpc.privilege.pingone.com:443`.
+PingOne Privilege acts as a **proxy gateway** between AI clients and the internal
+MCP server. It manages access tokens from the IdP at runtime so the AI client is
+never affected. The proxy connects **outbound** to the Privilege Cloud controller
+— no inbound connectivity needed.
+
+### How the pieces relate (Privilege console)
+
+| Console section | Purpose |
+|-----------------|---------|
+| **Gateways** | Manage proxy infrastructure (clusters, nodes, enrollment tokens) |
+| **Agentic Apps → MCP Servers** | Register which MCP server the gateway protects; set upstream auth mode |
+| **Policies / Configure MCP Access** | Grant users access to specific tools (requires discovery first) |
+
+These are **separate entities** linked via the "Mesh Cluster" dropdown on the MCP App.
+
+### Upstream auth modes (MCP Application → Auth Mode)
+
+| Mode | When to use |
+|------|-------------|
+| **Static Token** | MCP server expects a fixed Bearer token (or no auth) |
+| **OAuth (Pre-Register)** | MCP server protected by an IdP; you provide client_id/secret/endpoints |
+| **OAuth (DCR)** | Privilege registers itself as an OAuth client at runtime (RFC 7591) |
+
+Our MCP server uses mTLS for gateway auth (not OAuth bearer). Set mTLS to false
+when Privilege is the gateway — Privilege IS the security boundary. Use **Static
+Token** with no token value, or OAuth if the MCP server validates bearers.
+
+### Tool discovery prerequisite
+
+Before policies can be created, Privilege must discover the MCP server's tools.
+This requires the proxy to successfully call `POST /mcp` on the upstream server
+and get an `initialize` + `tools/list` response. If mTLS blocks the connection,
+discovery fails with "No Tools, Prompts, or Resources Discovered."
 
 ## Key identifiers
 
@@ -147,7 +179,26 @@ docker run -d --name ai-demo-ping-mcpgw \
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | Proxy exits immediately, no logs | Missing/invalid `proxy-config.data` and no `ENV_PROXY_TOKEN` | Provide enrollment token |
-| 401 "User is not authorized" from MCP | No Privilege policy assigned to user | Assign policy in Privilege console |
+| "not found" on enrollment (500) | Token references a deleted/different node | Get fresh token from Gateways → Add Node |
+| "No Tools, Prompts, or Resources Discovered" in console | Proxy can't reach MCP server (mTLS blocks, wrong URL, wrong port) | Set `MCP_MTLS_ENABLED=false` on MCP server; ensure URL is `http://localhost:8080/mcp` |
+| 401 "User is not authorized" from MCP | User has no Privilege policy for the MCP app | Assign policy in Privilege console (requires discovery first) |
 | 401 "Unsupported authentication method" on token exchange | Missing `client_secret` in POST body | Ensure `PINGONE_MCP_GATEWAY_CLIENT_SECRET` is set |
 | redirect_uri mismatch | BFF detects wrong host (Docker internal hostname) | Set `PRIVILEGE_MCP_CALLBACK_HOST` or ensure `x-forwarded-host` passes through |
 | Session not persisting between requests | Session cookie not sent / saveUninitialized | Use browser (cookies auto-sent), or pass `Cookie` header in curl |
+| curl to MCP server gets "Empty reply" | mTLS enabled — server drops non-cert connections | Disable mTLS or provide gateway client cert |
+
+## mTLS and Privilege proxy coexistence
+
+The demo MCP server has `MCP_MTLS_ENABLED` which enforces gateway client certs on
+the HTTP transport (`POST /mcp`). When Privilege proxy is the gateway, disable
+mTLS on the MCP server — Privilege enforces policy at its layer instead:
+
+```bash
+# docker-compose.yml or docker exec:
+MCP_MTLS_ENABLED=false
+```
+
+The existing `demo_mcp_gateway` (PingGateway) uses mTLS with its own cert at
+`/certs/gw-mtls/gw-client.crt`. These are independent paths — both can coexist
+if mTLS is left enabled and you add the Privilege proxy's cert to the trust store,
+but for simplicity the demo disables mTLS when using Privilege.

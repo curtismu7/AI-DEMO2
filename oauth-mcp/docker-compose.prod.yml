@@ -1,0 +1,67 @@
+# Docker Compose for Production Environment
+version: '3.8'
+
+services:
+  banking-mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: banking-mcp-server-prod
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - .env.production
+    volumes:
+      # Persistent data storage
+      - banking-data:/app/data
+      - banking-logs:/app/logs
+    restart: always
+    healthcheck:
+      test: ["CMD", "node", "scripts/health-check.js", "localhost", "8080", "/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - banking-network
+
+  # Optional: Add production services like monitoring, load balancer, etc.
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: banking-nginx-prod
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./ssl:/etc/nginx/ssl:ro
+  #   depends_on:
+  #     - banking-mcp-server
+  #   networks:
+  #     - banking-network
+
+networks:
+  banking-network:
+    driver: bridge
+
+volumes:
+  banking-data:
+    driver: local
+  banking-logs:
+    driver: local

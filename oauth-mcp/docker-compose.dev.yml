@@ -1,0 +1,50 @@
+# Docker Compose for Development Environment
+version: '3.8'
+
+services:
+  banking-mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: banking-mcp-server-dev
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=development
+    env_file:
+      - .env.development
+    volumes:
+      # Mount source code for development
+      - ./src:/app/src:ro
+      - ./tests:/app/tests:ro
+      # Mount data and logs for persistence
+      - ./dev-data:/app/dev-data
+      - ./dev-logs:/app/dev-logs
+    command: npm run dev
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "scripts/health-check.js", "localhost", "8080", "/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - banking-network
+
+  # Optional: Add a development database or other services here
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: banking-redis-dev
+  #   ports:
+  #     - "6379:6379"
+  #   networks:
+  #     - banking-network
+
+networks:
+  banking-network:
+    driver: bridge
+
+volumes:
+  dev-data:
+  dev-logs:
