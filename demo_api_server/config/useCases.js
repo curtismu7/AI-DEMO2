@@ -1441,6 +1441,22 @@ function deepFreeze(o) {
 
 const USE_CASES = Object.freeze(RAW_USE_CASES.map(deepFreeze));
 
+// Tool→resource-server routing (mirrors demo_mcp_gateway disposition logic)
+const INVEST_TOOLS = new Set([
+  'get_investment_accounts', 'get_investment_balance',
+  'get_investment_transactions', 'get_portfolio_summary',
+]);
+const APIKEY_TOOLS = new Set([
+  'show_mortgage', 'show_investment', 'show_large_purchase', 'show_health_record',
+  'show_gear_order', 'show_expense_report', 'show_permit', 'show_enrollment', 'show_work_order',
+]);
+function resolveResourceServer(tool) {
+  if (!tool) return null;
+  if (INVEST_TOOLS.has(tool)) return { id: 'invest', name: 'MCP Invest', port: 8081 };
+  if (APIKEY_TOOLS.has(tool)) return { id: 'apikey', name: 'Mortgage Service', port: 8082 };
+  return { id: 'olb', name: 'MCP Server (OLB)', port: 8080 };
+}
+
 /** Exact-id lookup. @returns {UseCase|undefined} */
 function getUseCase(id) {
   return USE_CASES.find((u) => u.id === id);
@@ -1451,9 +1467,8 @@ function resolveUseCase(id, vertical) {
   const base = getUseCase(id);
   if (!base) return undefined;
   if (!vertical || vertical === 'banking' || !base.perVertical || !base.perVertical[vertical]) {
-    // Strip internal-only fields (perVertical map, match routing bands) from served entries.
     const { perVertical, match, ...rest } = base;
-    return rest;
+    return { ...rest, resourceServer: resolveResourceServer(rest.primaryTool) };
   }
   const ov = base.perVertical[vertical];
   const merged = {
@@ -1462,7 +1477,7 @@ function resolveUseCase(id, vertical) {
     trigger: ov.trigger ? { ...base.trigger, ...ov.trigger } : base.trigger,
   };
   const { perVertical, match, ...rest } = merged;
-  return rest;
+  return { ...rest, resourceServer: resolveResourceServer(rest.primaryTool) };
 }
 
 /** All catalog entries resolved for a vertical. @returns {UseCase[]} */

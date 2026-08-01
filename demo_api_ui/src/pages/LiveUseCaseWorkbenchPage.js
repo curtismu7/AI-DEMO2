@@ -482,7 +482,18 @@ export default function LiveUseCaseWorkbenchPage() {
         }}
       >
         <p className="luw-card__title">{title}</p>
-        <p className="luw-card__meta">{meta}</p>
+        <p className="luw-card__meta">
+          {meta}
+          {uc.resourceServer && (
+            <span
+              className="luw-card__rs-badge"
+              data-rs={uc.resourceServer.id}
+              title={`${uc.resourceServer.name} :${uc.resourceServer.port}`}
+            >
+              {uc.resourceServer.name} :{uc.resourceServer.port}
+            </span>
+          )}
+        </p>
         {beat?.what && (
           <p className="luw-card__what">{beat.what}</p>
         )}

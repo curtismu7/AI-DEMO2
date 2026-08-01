@@ -5270,6 +5270,29 @@ body > .banking-agent-float-root .banking-agent-panel {
   padding: 1px 6px;
 }
 
+.ba-demo-steps-popout__rs-badge {
+  display: inline-flex;
+  align-self: flex-start;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: monospace;
+  border-radius: 3px;
+  padding: 1px 5px;
+  margin-left: auto;
+}
+.ba-demo-steps-popout__rs-badge[data-rs="olb"] {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+.ba-demo-steps-popout__rs-badge[data-rs="invest"] {
+  color: #047857;
+  background: #d1fae5;
+}
+.ba-demo-steps-popout__rs-badge[data-rs="apikey"] {
+  color: #92400e;
+  background: #fef3c7;
+}
+
 .ba-demo-steps-popout__check {
   border-color: #16a34a;
   background: #16a34a;
