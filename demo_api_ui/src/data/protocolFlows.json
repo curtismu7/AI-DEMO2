@@ -1,10 +1,11 @@
 {
   "ciba-hitl": {
     "id": "ciba-hitl",
-    "name": "Ciba Hitl",
-    "description": "Protocol flow: ciba-hitl",
+    "name": "CIBA Human-in-the-Loop",
+    "description": "Client-Initiated Backchannel Authentication with human approval",
     "actors": [
       "client-app",
+      "auth-server",
       "human-approver"
     ],
     "steps": [
@@ -12,24 +13,38 @@
         "id": "step-1",
         "actor": "client-app",
         "fromActor": "client-app",
-        "toActor": "human-approver",
+        "toActor": "auth-server",
         "action": "POST /api/auth/ciba/initiate",
         "label": "POST /api/auth/ciba/initiate",
         "method": "POST",
         "endpoint": "/api/auth/ciba/initiate",
+        "body": { "binding_message": "Approve transfer" },
         "step": 1,
+        "responseMap": { "authReqId": "auth_req_id" },
         "expected": {}
       },
       {
         "id": "step-2",
         "actor": "human-approver",
         "fromActor": "human-approver",
-        "toActor": "client-app",
+        "toActor": "auth-server",
         "action": "POST /api/auth/ciba/approve-now/:authReqId",
         "label": "POST /api/auth/ciba/approve-now/:authReqId",
         "method": "POST",
         "endpoint": "/api/auth/ciba/approve-now/:authReqId",
         "step": 2,
+        "expected": {}
+      },
+      {
+        "id": "step-3",
+        "actor": "client-app",
+        "fromActor": "client-app",
+        "toActor": "auth-server",
+        "action": "GET /api/auth/ciba/poll/:authReqId",
+        "label": "GET /api/auth/ciba/poll/:authReqId",
+        "method": "GET",
+        "endpoint": "/api/auth/ciba/poll/:authReqId",
+        "step": 3,
         "expected": {}
       }
     ],
