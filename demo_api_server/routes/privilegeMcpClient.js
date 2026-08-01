@@ -15,6 +15,7 @@ function getClientSession(req) {
   const sid = req.sessionID || req.session?.id || 'default';
   if (!clientSessions.has(sid)) {
     clientSessions.set(sid, {
+      _sid: sid,
       config: {
         mcpUrl: process.env.PRIVILEGE_MCPGW_URL || '',
         clientId: process.env.PRIVILEGE_SSO_CLIENT_ID || process.env.PINGONE_MCP_GATEWAY_CLIENT_ID || '',
@@ -28,30 +29,54 @@ function getClientSession(req) {
       pendingAuth: null,
     });
   }
-  return clientSessions.get(sid);
+  const session = clientSessions.get(sid);
+  session._sid = sid;
+  return session;
 }
 
 // ---------------------------------------------------------------------------
-// SSE event stream for live relay
+// SSE event stream for live relay — scoped per express session so one browser
+// never receives another session's MCP relay bodies / tool results.
 // ---------------------------------------------------------------------------
-const sseClients = new Set();
+const sseClients = new Map(); // sid -> Set<ServerResponse>
 
-function emitEvent(type, payload) {
+/**
+ * Emit an SSE event only to listeners for this BFF session.
+ * @param {{ _sid?: string }|string|null} sessionOrSid
+ * @param {string} type
+ * @param {object} payload
+ */
+function emitEvent(sessionOrSid, type, payload) {
+  const sid = typeof sessionOrSid === 'string'
+    ? sessionOrSid
+    : (sessionOrSid && sessionOrSid._sid);
+  if (!sid) return;
+  const clients = sseClients.get(sid);
+  if (!clients || clients.size === 0) return;
   const msg = `event: ${type}\ndata: ${JSON.stringify({ ts: new Date().toISOString(), ...payload })}\n\n`;
-  for (const client of sseClients) {
+  for (const client of clients) {
     client.write(msg);
   }
 }
 
 router.get('/events', (req, res) => {
+  const sid = req.sessionID || req.session?.id || 'default';
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     Connection: 'keep-alive',
     'Cache-Control': 'no-cache',
   });
   res.write('\n');
-  sseClients.add(res);
-  req.on('close', () => sseClients.delete(res));
+  let clients = sseClients.get(sid);
+  if (!clients) {
+    clients = new Set();
+    sseClients.set(sid, clients);
+  }
+  clients.add(res);
+  req.on('close', () => {
+    clients.delete(res);
+    if (clients.size === 0) sseClients.delete(sid);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -109,7 +134,7 @@ async function fetchMcp(session, pathname, body, withAuth = true) {
       (session.config._procyonSessionId = crypto.randomUUID());
   }
 
-  emitEvent('relay', { direction: 'client->mcp', method: 'POST', url: targetUrl.toString(), body });
+  emitEvent(session, 'relay', { direction: 'client->mcp', method: 'POST', url: targetUrl.toString(), body });
 
   const response = await fetch(targetUrl, { method: 'POST', headers, body: JSON.stringify(body) });
   const text = await response.text();
@@ -118,10 +143,10 @@ async function fetchMcp(session, pathname, body, withAuth = true) {
   const responseSessionId = response.headers.get('mcp-session-id') || response.headers.get('MCP-Session-Id');
   if (responseSessionId && responseSessionId !== session.mcpSession.sessionId) {
     session.mcpSession.sessionId = responseSessionId;
-    emitEvent('mcp', { phase: 'session_attached', sessionId: responseSessionId });
+    emitEvent(session, 'mcp', { phase: 'session_attached', sessionId: responseSessionId });
   }
 
-  emitEvent('relay', {
+  emitEvent(session, 'relay', {
     direction: 'mcp->client',
     status: response.status,
     headers: { 'www-authenticate': response.headers.get('www-authenticate'), 'mcp-session-id': responseSessionId },
@@ -157,7 +182,7 @@ async function ensureMcpSessionInitialized(session) {
 
   session.mcpSession.initialized = true;
   session.mcpSession.protocolVersion = serverProtocol;
-  emitEvent('mcp', { phase: 'initialized', protocolVersion: serverProtocol });
+  emitEvent(session, 'mcp', { phase: 'initialized', protocolVersion: serverProtocol });
 }
 
 function resetMcpState(session) {
@@ -230,7 +255,7 @@ router.post('/config', express.json(), (req, res) => {
   const session = getClientSession(req);
   session.config = { ...session.config, ...req.body };
   resetMcpState(session);
-  emitEvent('config', { config: session.config });
+  emitEvent(session, 'config', { config: session.config });
   res.json({ ok: true, config: session.config });
 });
 
@@ -263,10 +288,10 @@ router.post('/auth/start', express.json(), async (req, res) => {
     session.pendingAuth = { oauthState, verifier, tokenUri, redirectUri };
     // Force express-session to persist so connect.sid cookie survives the redirect
     req.session.privilegeOAuthStarted = true;
-    emitEvent('oauth', { phase: 'start', authorizationUri, tokenUri, authUrl: authUrl.toString() });
+    emitEvent(session, 'oauth', { phase: 'start', authorizationUri, tokenUri, authUrl: authUrl.toString() });
     res.json({ authUrl: authUrl.toString() });
   } catch (err) {
-    emitEvent('error', { scope: 'oauth_start', message: err.message });
+    emitEvent(session, 'error', { scope: 'oauth_start', message: err.message });
     res.status(500).json({ error: err.message });
   }
 });
@@ -283,7 +308,7 @@ router.get('/auth/callback', async (req, res) => {
     const { code, state: incomingState, error, error_description } = req.query;
     if (error) {
       const reason = error_description ? `${error}: ${error_description}` : error;
-      emitEvent('oauth', { phase: 'callback_error', error: reason });
+      emitEvent(session, 'oauth', { phase: 'callback_error', error: reason });
       return redirectWithError(reason);
     }
     if (!session.pendingAuth || incomingState !== session.pendingAuth.oauthState) {
@@ -319,10 +344,10 @@ router.get('/auth/callback', async (req, res) => {
     session.pendingAuth = null;
     resetMcpState(session);
 
-    emitEvent('oauth', { phase: 'token_success', expiresIn: tokenData.expires_in || null });
+    emitEvent(session, 'oauth', { phase: 'token_success', expiresIn: tokenData.expires_in || null });
     res.redirect('/privilege-mcp-client?auth=success');
   } catch (err) {
-    emitEvent('error', { scope: 'oauth_callback', message: err.message });
+    emitEvent(session, 'error', { scope: 'oauth_callback', message: err.message });
     redirectWithError(err.message);
   }
 });
@@ -347,7 +372,7 @@ router.post('/tools/list', express.json(), async (req, res) => {
     res.json({ tools: session.tools });
   } catch (err) {
     resetMcpState(session);
-    emitEvent('error', { scope: 'tools_list', message: err.message });
+    emitEvent(session, 'error', { scope: 'tools_list', message: err.message });
     res.status(500).json({ error: err.message });
   }
 });
@@ -362,7 +387,7 @@ router.post('/tools/call', express.json(), async (req, res) => {
     const data = await fetchMcp(session, null, rpc, true);
     res.json(data);
   } catch (err) {
-    emitEvent('error', { scope: 'tools_call', message: err.message });
+    emitEvent(session, 'error', { scope: 'tools_call', message: err.message });
     res.status(500).json({ error: err.message });
   }
 });
@@ -380,7 +405,7 @@ router.post('/rpc', express.json(), async (req, res) => {
     res.json(data);
   } catch (err) {
     if (err.message.includes('401') || err.message.includes('502')) resetMcpState(session);
-    emitEvent('error', { scope: 'raw_rpc', message: err.message });
+    emitEvent(session, 'error', { scope: 'raw_rpc', message: err.message });
     res.status(500).json({ error: err.message });
   }
 });
@@ -465,7 +490,7 @@ router.post('/chat', express.json(), async (req, res) => {
     });
   } catch (err) {
     if (err.message.includes('401') || err.message.includes('502')) resetMcpState(session);
-    emitEvent('error', { scope: 'demo_chat', message: err.message });
+    emitEvent(session, 'error', { scope: 'demo_chat', message: err.message });
     res.status(500).json({ error: err.message });
   }
 });
@@ -483,3 +508,25 @@ function parseLlmJson(raw) {
 }
 
 module.exports = router;
+/** Test hooks — session-scoped SSE isolation canary. */
+module.exports.__test = {
+  emitEvent,
+  getClientSession,
+  /** @param {string} sid @param {{ write: Function }} res */
+  subscribeSse(sid, res) {
+    let clients = sseClients.get(sid);
+    if (!clients) {
+      clients = new Set();
+      sseClients.set(sid, clients);
+    }
+    clients.add(res);
+    return () => {
+      clients.delete(res);
+      if (clients.size === 0) sseClients.delete(sid);
+    };
+  },
+  reset() {
+    clientSessions.clear();
+    sseClients.clear();
+  },
+};
