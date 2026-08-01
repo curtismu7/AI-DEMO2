@@ -161,8 +161,8 @@ export const spinner = {
    * @param {string} [url]
    */
   increment(method = 'GET', url = '') {
-    // Skip spinner entirely for high-frequency / background routes
-    if (isSilentUrl(url)) return;
+    // Spinner overlay disabled — too distracting on the dashboard
+    return;
 
     _pending++;
     // Cancel any pending hide from a previous cycle
@@ -212,12 +212,8 @@ export const spinner = {
    * @param {string} [sub] - shown as endpoint line (optional)
    */
   show(message, sub) {
-    _pending++;
-    if (_hideTimer) { clearTimeout(_hideTimer); _hideTimer = null; }
-    const color = pick(SPINNER_COLORS);
-    const msg   = message || pick(SPINNER_QUIPS);
-    if (_showTimer) { clearTimeout(_showTimer); _showTimer = null; }
-    show(msg, color, sub || null);
+    // Spinner overlay disabled
+    return;
   },
 
   /** Manual hide — mirrors decrement but always fast */
