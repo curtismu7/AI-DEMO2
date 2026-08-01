@@ -4833,6 +4833,52 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-hg--flat {
   display: contents;
 }
+
+/* Collapsible Configuration group — the label doubles as the disclosure button.
+   Collapsed hides every sibling but the button, so the group shrinks to one row
+   and the transcript keeps the space. Children stay in the DOM (display:none,
+   not unmounted) so toggling cannot reset in-flight agent state. */
+.ba-hg-label--toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 4px;
+  margin: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.ba-hg-label--toggle:hover {
+  background: var(--ba-surface, #f1f5f9);
+  color: var(--ba-text, #0f172a);
+}
+
+.ba-hg-label__chev {
+  font-size: 13px;
+  line-height: 1;
+}
+
+/* `display: contents` keeps the controls as direct flex children of .ba-hg when
+   open, so the expanded layout is byte-identical to before this wrapper existed.
+   Collapsed, `display: none` on the wrapper drops the whole subtree — which is
+   what makes this work without !important: .ctl-check carries
+   `display: inline-flex !important` (Check.css, to beat a global
+   label{display:block}) and would survive a display:none aimed at it directly. */
+.ba-hg-body {
+  display: contents;
+}
+
+.ba-hg--collapsed .ba-hg-body {
+  display: none;
+}
 /* .ba-hg--demo no longer centers its own row — Demo Steps/Live Use Cases now
    share a row with Inspectors/Session, left-aligned like every other group.
    The class stays on the wrapper only so .ba-demo-steps-trigger below keeps

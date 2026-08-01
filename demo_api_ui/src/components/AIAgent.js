@@ -589,6 +589,16 @@ export default function BankingAgent({
       return false;
     }
   });
+  // Split-column Configuration group starts collapsed: expanded it costs ~250px
+  // of header, which on a short viewport leaves the transcript a ~60px sliver.
+  // Opening it is remembered, so a demo that needs the controls keeps them.
+  const [configGroupOpen, setConfigGroupOpen] = useState(() => {
+    try {
+      return localStorage.getItem("ba_config_group_open") === "1";
+    } catch {
+      return false;
+    }
+  });
   const [showLoginModal, setShowLoginModal] = useState(false);
   // MCP Elicitation (form mode + URL mode input requests)
   const {
@@ -643,6 +653,15 @@ export default function BankingAgent({
       advanced: false,
     };
   });
+
+  /** Persist the Configuration group's open/closed state to localStorage. */
+  useEffect(() => {
+    try {
+      localStorage.setItem("ba_config_group_open", configGroupOpen ? "1" : "0");
+    } catch (e) {
+      console.warn("Failed to save ba_config_group_open to localStorage:", e);
+    }
+  }, [configGroupOpen]);
 
   /** Persist chipGroupsState changes to localStorage. */
   useEffect(() => {
@@ -8014,8 +8033,31 @@ export default function BankingAgent({
               )}
               <MaybePortal target={toolbarHostEl}>
               <div className="ba-header-tools">
-                <div className={splitChrome ? "ba-hg" : "ba-hg--flat"}>
-                {splitChrome && <span className="ba-hg-label">Configuration</span>}
+                <div
+                  className={
+                    splitChrome
+                      ? `ba-hg ba-hg--collapsible${configGroupOpen ? "" : " ba-hg--collapsed"}`
+                      : "ba-hg--flat"
+                  }
+                >
+                {/* Collapsed by default so the transcript keeps the vertical space.
+                    Controls below stay mounted (hidden via CSS, not unmounted) so
+                    toggling never resets in-flight agent state. */}
+                {splitChrome && (
+                  <button
+                    type="button"
+                    className="ba-hg-label ba-hg-label--toggle"
+                    aria-expanded={configGroupOpen}
+                    title={configGroupOpen ? "Hide agent configuration" : "Show agent configuration"}
+                    onClick={() => setConfigGroupOpen((open) => !open)}
+                  >
+                    <span className="ba-hg-label__chev" aria-hidden>
+                      {configGroupOpen ? "▾" : "▸"}
+                    </span>
+                    Configuration
+                  </button>
+                )}
+                <div className="ba-hg-body">
                 {/* Five-mode agent provider selector — leftmost, shared SSOT with /config */}
                 <AgentModeSelector
                   compact
@@ -8142,6 +8184,7 @@ export default function BankingAgent({
                 >
                   Script
                 </button>
+                </div>
                 </div>
                 <div className={splitChrome ? "ba-hg ba-hg--demo" : "ba-hg--flat"}>
                 {/* Demo steps — same scripted list as /use-cases Demo section */}
