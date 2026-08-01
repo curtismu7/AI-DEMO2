@@ -304,7 +304,7 @@ services:
   # ── MCP Server (WebSocket — plain HTTP, internal only) ───────────────────────
   mcp-server:
     build:
-      context: ./demo_mcp_server
+      context: ./oauth-mcp
       dockerfile: Dockerfile
       args:
         GIT_SHA: ${GIT_SHA:-unknown}
