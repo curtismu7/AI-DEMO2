@@ -75,6 +75,15 @@ const INTENT_TO_PERMITTED_TOOLS = {
   request_time_off:         ['request_time_off', 'pto_balance'],
   // Mortgage
   view_mortgage:            ['show_mortgage'],
+  // University
+  view_courses:             ['view_courses', 'view_standing', 'view_enrollment_history'],
+  view_standing:            ['view_standing', 'view_courses'],
+  view_enrollment_history:  ['view_enrollment_history', 'view_courses'],
+  register_course:          ['register_course', 'view_courses'],
+  release_transcript:       ['release_transcript', 'view_courses'],
+  view_financial_aid:       ['view_financial_aid', 'view_billing'],
+  view_billing:             ['view_billing', 'view_financial_aid'],
+  view_degree_audit:        ['view_degree_audit', 'view_courses'],
   // Code search (cross-vertical, read-only)
   code_search:              ['code_search', 'get_code', 'list_codebases'],
   get_code:                 ['get_code', 'code_search'],
@@ -97,6 +106,11 @@ const READ_ONLY_TOOLS = [
   'view_benefits', 'pto_balance', 'list_expenses', 'show_expense_report',
   // Mortgage
   'show_mortgage',
+  // University
+  'view_courses', 'view_standing', 'view_enrollment_history',
+  'view_financial_aid', 'view_billing', 'view_holds', 'view_degree_audit',
+  'view_housing', 'view_dining', 'view_exam_schedule', 'view_parking',
+  'view_library', 'view_scholarships', 'view_advisors',
   // Code search (cross-vertical, read-only)
   'code_search', 'get_code', 'list_codebases',
 ];
@@ -116,6 +130,18 @@ const READ_ONLY_TOOLS_BY_VERTICAL = {
   'sporting-goods': ['list_gear', 'list_rentals', 'gear_order_status', 'loyalty_balance', 'show_gear_order', 'sequential_think'],
   workforce: ['view_benefits', 'pto_balance', 'list_expenses', 'show_expense_report', 'sequential_think'],
   mortgage: ['show_mortgage', 'sequential_think'],
+  university: [
+    'view_courses', 'view_standing', 'view_enrollment_history',
+    'view_financial_aid', 'view_billing', 'view_holds', 'view_degree_audit',
+    'view_housing', 'view_dining', 'view_exam_schedule', 'view_parking',
+    'view_library', 'view_scholarships', 'view_advisors', 'sequential_think',
+  ],
+  manufacturing: [
+    'view_work_orders', 'view_inventory', 'view_production_history',
+    'view_machines', 'view_machine_utilization', 'view_quality_inspections',
+    'view_shipments', 'view_purchase_orders', 'view_maintenance_tickets',
+    'view_defects', 'view_scrap_report', 'view_supplier_scorecard', 'sequential_think',
+  ],
 };
 
 function permittedToolsForIntent(intent, vertical) {
