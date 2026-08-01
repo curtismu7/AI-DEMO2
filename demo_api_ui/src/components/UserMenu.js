@@ -1,18 +1,28 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MdPerson, MdSettings, MdNotifications, MdLogout, MdLogin, MdArrowDropDown } from 'react-icons/md';
+import { useNavigate } from 'react-router-dom';
 import './UserMenu.css';
+import NotificationsPanel from './NotificationsPanel';
 import { navigateToCustomerOAuthLogin } from '../utils/authUi';
 import { useSessionToken } from '../context/SessionTokenContext';
 
 export default function UserMenu({ user, onLogout, isAdminView = false, onSwitchView }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [view, setView] = useState('menu');
   const menuRef = useRef(null);
+  const navigate = useNavigate();
   const { hasActiveToken } = useSessionToken();
+
+  const closeMenu = () => {
+    setIsOpen(false);
+    setView('menu');
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setIsOpen(false);
+        setView('menu');
       }
     };
 
@@ -21,14 +31,22 @@ export default function UserMenu({ user, onLogout, isAdminView = false, onSwitch
   }, []);
 
   const handleLogout = () => {
-    setIsOpen(false);
+    closeMenu();
     onLogout();
   };
 
   const handleLogin = () => {
-    setIsOpen(false);
+    closeMenu();
     navigateToCustomerOAuthLogin();
   };
+
+  const goTo = (path) => {
+    closeMenu();
+    navigate(path);
+  };
+
+  // /settings is admin-gated (RequireAdminLogin); /security is the customer surface.
+  const settingsPath = isAdminView ? '/settings' : '/security';
 
   return (
     <div className="user-menu" ref={menuRef}>
@@ -49,7 +67,16 @@ export default function UserMenu({ user, onLogout, isAdminView = false, onSwitch
         <MdArrowDropDown className="user-menu-dropdown-icon" />
       </button>
 
-      {isOpen && (
+      {isOpen && view === 'notifications' && (
+        <div className="user-menu-dropdown">
+          <NotificationsPanel
+            prefs={user?.notificationPrefs}
+            onBack={() => setView('menu')}
+          />
+        </div>
+      )}
+
+      {isOpen && view === 'menu' && (
         <div className="user-menu-dropdown">
           <div className="user-menu-header">
             <div className="user-menu-avatar user-menu-avatar-large">
@@ -77,16 +104,15 @@ export default function UserMenu({ user, onLogout, isAdminView = false, onSwitch
           <div className="user-menu-divider"></div>
 
           <div className="user-menu-items">
-            <button className="user-menu-item" type="button">
+            <button className="user-menu-item" type="button" onClick={() => goTo('/profile')}>
               <MdPerson className="user-menu-item-icon" />
               <span>Profile</span>
             </button>
-            <button className="user-menu-item" type="button">
+            <button className="user-menu-item" type="button" onClick={() => setView('notifications')}>
               <MdNotifications className="user-menu-item-icon" />
               <span>Notifications</span>
-              <span className="user-menu-badge">3</span>
             </button>
-            <button className="user-menu-item" type="button">
+            <button className="user-menu-item" type="button" onClick={() => goTo(settingsPath)}>
               <MdSettings className="user-menu-item-icon" />
               <span>Settings</span>
             </button>
