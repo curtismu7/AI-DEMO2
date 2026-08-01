@@ -289,6 +289,24 @@ function extractIntentAndConfidence(message) {
       confidence: 0.6,
     };
 
+  // Investment intents
+  if (/\b(portfolio|portfolios|investments?|wealth)\b/.test(t))
+    return { intent: "view_portfolios", toolName: "view_portfolios", confidence: 0.85 };
+  if (/\b(holdings?|positions?|securities)\b/.test(t))
+    return { intent: "view_holdings", toolName: "view_holdings", confidence: 0.85 };
+  if (/\b(trades?|trade history|trading)\b/.test(t))
+    return { intent: "view_trades", toolName: "view_trades", confidence: 0.8 };
+
+  // Government intents
+  if (/\b(permits?|building permit|zoning permit)\b/.test(t))
+    return { intent: "view_permits", toolName: "view_permits", confidence: 0.85 };
+  if (/\b(filings?|file|filed)\b/.test(t))
+    return { intent: "view_filings", toolName: "view_filings", confidence: 0.8 };
+  if (/\b(violations?|code violation)\b/.test(t))
+    return { intent: "view_permits", toolName: "view_permits", confidence: 0.8 };
+  if (/\b(fees?|pay fee|assessment)\b/.test(t))
+    return { intent: "view_fees", toolName: "view_fees", confidence: 0.8 };
+
   // Unknown/ambiguous intent
   return { intent: "unknown", toolName: null, confidence: 0.3 };
 }

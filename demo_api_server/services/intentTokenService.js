@@ -52,6 +52,9 @@ const INTENT_TO_PERMITTED_TOOLS = {
   request_waiver:           ['request_fee_waiver'],
   // Investment
   view_investments:         ['get_investment_accounts', 'get_investment_balance', 'get_portfolio_summary', 'get_investment_transactions'],
+  view_portfolios:          ['view_portfolios', 'view_holdings', 'view_portfolio_value', 'view_trades', 'view_dividends'],
+  view_holdings:            ['view_holdings', 'view_portfolios', 'view_portfolio_value'],
+  view_trades:              ['view_trades', 'view_holdings', 'view_portfolios'],
   // Healthcare
   view_records:             ['view_records', 'view_coverage', 'show_health_record'],
   view_coverage:            ['view_coverage', 'view_records', 'show_health_record'],
@@ -84,6 +87,13 @@ const INTENT_TO_PERMITTED_TOOLS = {
   view_financial_aid:       ['view_financial_aid', 'view_billing'],
   view_billing:             ['view_billing', 'view_financial_aid'],
   view_degree_audit:        ['view_degree_audit', 'view_courses'],
+  // Government
+  view_permits:             ['view_permits', 'view_fees', 'view_filings', 'view_inspections'],
+  view_fees:                ['view_fees', 'view_permits'],
+  view_filings:             ['view_filings', 'view_permits'],
+  pay_fee:                  ['pay_fee', 'view_fees', 'view_permits'],
+  sensitive_tax_record:     ['sensitive_tax_record', 'view_permits'],
+  release_record:           ['release_record', 'view_permits'],
   // Code search (cross-vertical, read-only)
   code_search:              ['code_search', 'get_code', 'list_codebases'],
   get_code:                 ['get_code', 'code_search'],
@@ -106,6 +116,11 @@ const READ_ONLY_TOOLS = [
   'view_benefits', 'pto_balance', 'list_expenses', 'show_expense_report',
   // Mortgage
   'show_mortgage',
+  // Government
+  'view_permits', 'view_fees', 'view_filings', 'view_inspections', 'view_violations',
+  'view_business_licenses', 'view_appointments', 'view_tax_assessments',
+  'view_records_requests', 'view_complaints', 'view_documents', 'view_payment_history',
+  'view_zoning_info', 'view_notifications',
   // University
   'view_courses', 'view_standing', 'view_enrollment_history',
   'view_financial_aid', 'view_billing', 'view_holds', 'view_degree_audit',
@@ -130,11 +145,21 @@ const READ_ONLY_TOOLS_BY_VERTICAL = {
   'sporting-goods': ['list_gear', 'list_rentals', 'gear_order_status', 'loyalty_balance', 'show_gear_order', 'sequential_think'],
   workforce: ['view_benefits', 'pto_balance', 'list_expenses', 'show_expense_report', 'sequential_think'],
   mortgage: ['show_mortgage', 'sequential_think'],
+  government: [
+    'view_permits', 'view_fees', 'view_filings', 'view_inspections', 'view_violations',
+    'view_business_licenses', 'view_appointments', 'view_tax_assessments',
+    'view_records_requests', 'view_complaints', 'view_documents', 'view_payment_history',
+    'view_zoning_info', 'view_notifications', 'sequential_think',
+  ],
   university: [
     'view_courses', 'view_standing', 'view_enrollment_history',
     'view_financial_aid', 'view_billing', 'view_holds', 'view_degree_audit',
     'view_housing', 'view_dining', 'view_exam_schedule', 'view_parking',
     'view_library', 'view_scholarships', 'view_advisors', 'sequential_think',
+  ],
+  investment: [
+    'view_portfolios', 'view_holdings', 'view_trades', 'view_dividends',
+    'view_portfolio_value', 'sequential_think',
   ],
   manufacturing: [
     'view_work_orders', 'view_inventory', 'view_production_history',
