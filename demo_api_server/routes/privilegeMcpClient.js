@@ -5,6 +5,8 @@
 const express = require('express');
 const crypto = require('crypto');
 const router = express.Router();
+const oauthService = require('../services/oauthService');
+const configStore = require('../services/configStore');
 
 // ---------------------------------------------------------------------------
 // In-memory per-session state (keyed by express session id)
@@ -28,7 +30,34 @@ function getClientSession(req) {
       pendingAuth: null,
     });
   }
-  return clientSessions.get(sid);
+  const session = clientSessions.get(sid);
+  // Inherit token from the main app's PingOne session if available
+  const mainToken = req.session?.oauthTokens?.accessToken;
+  if (mainToken && mainToken !== session.oauth._originalMainToken) {
+    session.oauth._originalMainToken = mainToken;
+    session.oauth.accessToken = null; // force re-exchange
+    session.oauth.expiresAt = req.session.oauthTokens.expiresAt || null;
+    session.oauth.refreshToken = req.session.oauthTokens.refreshToken || null;
+    session.oauth.scope = req.session.oauthTokens.scope || '';
+  }
+  return session;
+}
+
+// Exchange the user's SSO token for one with aud=mcpserver.ping.demo
+async function ensureExchangedToken(session) {
+  if (session.oauth.accessToken) return;
+  const subjectToken = session.oauth._originalMainToken;
+  if (!subjectToken || subjectToken === '_cookie_session') return;
+  const audience = configStore.getEffective('pingone_resource_mcp_server_uri') || 'mcpserver.ping.demo';
+  try {
+    const exchanged = await oauthService.performTokenExchange(subjectToken, audience, 'mcp:invoke');
+    session.oauth.accessToken = exchanged;
+    emitEvent('auth', { phase: 'token_exchanged', audience });
+  } catch (err) {
+    console.error('[PrivilegeMCP] Token exchange failed:', err.message);
+    // Fall back to original token — MCP server may still accept it
+    session.oauth.accessToken = subjectToken;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -139,6 +168,7 @@ async function fetchMcp(session, pathname, body, withAuth = true) {
 
 async function ensureMcpSessionInitialized(session) {
   if (session.mcpSession.initialized) return;
+  await ensureExchangedToken(session);
 
   const initRpc = {
     jsonrpc: '2.0',
@@ -218,9 +248,12 @@ async function discoverAuth(session) {
 // GET /state — current session state
 router.get('/state', (req, res) => {
   const session = getClientSession(req);
+  const mainAppAuth = Boolean(req.session?.oauthTokens?.accessToken);
   res.json({
     config: session.config,
     oauth: { authenticated: Boolean(session.oauth.accessToken), expiresAt: session.oauth.expiresAt, scope: session.oauth.scope || '' },
+    mainAppAuthenticated: mainAppAuth,
+    user: req.session?.user || null,
     tools: session.tools,
   });
 });

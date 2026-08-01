@@ -7,11 +7,15 @@ Privilege MCP Client UI page, or the K8s deployment.
 ## Architecture
 
 ```
-Browser → BFF (privilegeMcpClient.js) → privilege.pingone.com/api/mcp
-                                              ↕ gRPC tunnel
-                      Privilege Proxy (:8680) → MCP Server (:8080/mcp)
-                            ↕ outbound gRPC
-                   grpc.privilege.pingone.com:443
+Browser → BFF (privilegeMcpClient.js) → https://host.docker.internal:8080/mcp
+                                         (local MCP server, self-signed TLS)
+
+Future (when Privilege OIDC JWKS is fixed):
+Browser → BFF → privilege.pingone.com/api/mcp
+                      ↕ gRPC tunnel
+  Privilege Proxy (:8680) → MCP Server (:8080/mcp)
+                      ↕ outbound gRPC
+             grpc.privilege.pingone.com:443
 ```
 
 PingOne Privilege acts as a **proxy gateway** between AI clients and the internal
@@ -59,7 +63,8 @@ discovery fails with "No Tools, Prompts, or Resources Discovered."
 | Proxy Binary | `/procyon/bin/cyonproxy` |
 | Cluster ID | `ai-demo-se` |
 | Cluster Name | `cmuir-mcpgw` |
-| MCP endpoint | `https://privilege.pingone.com/api/mcp` |
+| MCP endpoint (current) | `https://host.docker.internal:8080/mcp` (local MCP server) |
+| MCP endpoint (Privilege proxy) | `https://privilege.pingone.com/api/mcp` (disabled — IssuerPublicKey empty) |
 | gRPC controller | `grpc.privilege.pingone.com:443` |
 | End user | `cmuir+ssoEndUser@pingone.com` |
 | Token file | `ping-mcpgw/config/proxy-token` (gitignored) |
@@ -141,7 +146,7 @@ Route prefix: `/api/privilege-mcp/`
 
 | Var | Purpose |
 |-----|---------|
-| `PRIVILEGE_MCPGW_URL` | Proxy MCP endpoint, e.g. `https://privilege.pingone.com/api/mcp` |
+| `PRIVILEGE_MCPGW_URL` | MCP endpoint — currently `https://host.docker.internal:8080/mcp` (local); when Privilege JWKS works: `https://privilege.pingone.com/api/mcp` |
 | `PINGONE_MCP_GATEWAY_CLIENT_ID` | OIDC client for auth_code flow |
 | `PINGONE_MCP_GATEWAY_CLIENT_SECRET` | Client secret (CLIENT_SECRET_POST) |
 | `PINGONE_ENVIRONMENT_ID` | PingOne env for well-known discovery fallback |
@@ -195,7 +200,7 @@ docker run -d --name ai-demo-ping-mcpgw \
 | Proxy exits immediately, no logs | Missing/invalid `proxy-config.data` and no `ENV_PROXY_TOKEN` | Provide enrollment token |
 | "not found" on enrollment (500) | Token's `nodeId` was deleted from the gateway in the Privilege console | Go to console → Gateways → Add Node to generate a token for a *new* node; if the gateway itself is gone, recreate it |
 | Proxy starts then drops with `token expired` or silent reconnect loop | `ENV_PROXY_TOKEN` JWT `exp` claim is in the past | Get a fresh token from the console (see below) |
-| "No Tools, Prompts, or Resources Discovered" in console | Proxy can't reach MCP server (mTLS blocks, wrong URL, wrong port) | Set `MCP_MTLS_ENABLED=false` on MCP server; ensure URL is `http://mcp-server:8080/mcp` |
+| "No Tools, Prompts, or Resources Discovered" in console | Proxy can't reach MCP server (mTLS blocks, wrong URL, wrong port) | Set `MCP_MTLS_ENABLED=false` on MCP server; ensure URL is `https://host.docker.internal:8080/mcp` |
 | 401 "User is not authorized" from MCP | User has no Privilege policy for the MCP app | Assign policy in Privilege console (requires discovery first) |
 | 401 "Unsupported authentication method" on token exchange | Missing `client_secret` in POST body | Ensure `PINGONE_MCP_GATEWAY_CLIENT_SECRET` is set |
 | redirect_uri mismatch | BFF detects wrong host (Docker internal hostname) | Set `PRIVILEGE_MCP_CALLBACK_HOST` or ensure `x-forwarded-host` passes through |
@@ -254,7 +259,7 @@ token — the volume state is sufficient. Only clear the volume if re-enrolling.
 4. **Verify enrollment**: `docker logs ai-demo-ping-mcpgw 2>&1 | tail -10`
 5. **Register MCP App** in console: AI Security → Agentic Apps → Add Application → MCP Server
    - Frontend URL: `https://local.ping-devops.com:8680`
-   - MCP Server URL: `http://mcp-server:8080/mcp`
+   - MCP Server URL: `https://host.docker.internal:8080/mcp`
    - Mesh Cluster: select your gateway
 6. **Discover tools**: wait ~30s after MCP app creation, check console for discovered tools
 7. **Create policy**: assign user `cmuir+ssoEndUser@pingone.com` a policy granting tool access

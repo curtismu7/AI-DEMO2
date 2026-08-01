@@ -39,6 +39,8 @@ export default function PrivilegeMcpClientPage() {
   const [searchParams] = useSearchParams();
   const [config, setConfig] = useState({ mcpUrl: '', clientId: '', scopes: 'openid profile email', llmUrl: 'http://127.0.0.1:11434', llmModel: 'llama3.2:1b' });
   const [authenticated, setAuthenticated] = useState(false);
+  const [mainAppAuthenticated, setMainAppAuthenticated] = useState(false);
+  const [user, setUser] = useState(null);
   const [grantedScopes, setGrantedScopes] = useState([]);
   const [tools, setTools] = useState([]);
   const [chatMessages, setChatMessages] = useState([]);
@@ -52,6 +54,7 @@ export default function PrivilegeMcpClientPage() {
   const [rawRpcResult, setRawRpcResult] = useState('');
   const [showBlockedModal, setShowBlockedModal] = useState(false);
   const [showFlowModal, setShowFlowModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [activeTab, setActiveTab] = useState('chat');
   const [terminalTab, setTerminalTab] = useState('events');
   const chatEndRef = useRef(null);
@@ -70,8 +73,14 @@ export default function PrivilegeMcpClientPage() {
     api('/state').then((s) => {
       setConfig(s.config || config);
       setAuthenticated(Boolean(s.oauth?.authenticated));
+      setMainAppAuthenticated(Boolean(s.mainAppAuthenticated));
+      setUser(s.user || null);
       if (s.oauth?.scope) setGrantedScopes(s.oauth.scope.split(' ').filter(Boolean));
       setTools(s.tools || []);
+      // Auto-discover tools if authenticated via main app session
+      if (s.mainAppAuthenticated && s.oauth?.authenticated && (!s.tools || s.tools.length === 0)) {
+        refreshTools(true);
+      }
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -347,6 +356,50 @@ export default function PrivilegeMcpClientPage() {
         </div>
       )}
 
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="cur-modal-overlay" onClick={() => setShowSettings(false)}>
+          <div className="cur-settings-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="cur-flow-header">
+              <span className="cur-flow-title">&#x2699; Settings</span>
+              <button className="cur-flow-close" onClick={() => setShowSettings(false)}>&#x2715;</button>
+            </div>
+            <div className="cur-settings-body">
+              <div className="cur-settings-section">
+                <h4 className="cur-settings-section-title">MCP Connection</h4>
+                <label className="cur-field">
+                  <span className="cur-field-label">MCP Gateway URL</span>
+                  <input className="cur-input" value={config.mcpUrl} onChange={(e) => setConfig({ ...config, mcpUrl: e.target.value })} placeholder="https://mcpgw.example.com/mcp" />
+                </label>
+                <label className="cur-field">
+                  <span className="cur-field-label">OAuth Client ID</span>
+                  <input className="cur-input" value={config.clientId} onChange={(e) => setConfig({ ...config, clientId: e.target.value })} />
+                </label>
+                <label className="cur-field">
+                  <span className="cur-field-label">Requested Scopes</span>
+                  <input className="cur-input" value={config.scopes} onChange={(e) => setConfig({ ...config, scopes: e.target.value })} />
+                </label>
+              </div>
+              <div className="cur-settings-section">
+                <h4 className="cur-settings-section-title">Local LLM</h4>
+                <label className="cur-field">
+                  <span className="cur-field-label">Ollama URL</span>
+                  <input className="cur-input" value={config.llmUrl} onChange={(e) => setConfig({ ...config, llmUrl: e.target.value })} />
+                </label>
+                <label className="cur-field">
+                  <span className="cur-field-label">Model</span>
+                  <input className="cur-input" value={config.llmModel} onChange={(e) => setConfig({ ...config, llmModel: e.target.value })} />
+                </label>
+              </div>
+              <div className="cur-btn-row" style={{ marginTop: 16 }}>
+                <button className="cur-btn cur-btn--primary" onClick={() => { saveConfig(); setShowSettings(false); }}>Save</button>
+                <button className="cur-btn" onClick={() => setShowSettings(false)}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Title bar */}
       <header className="cur-titlebar">
         <div className="cur-titlebar-left">
@@ -358,12 +411,13 @@ export default function PrivilegeMcpClientPage() {
           <span className="cur-titlebar-title">Privilege MCP Client — PingOne</span>
         </div>
         <div className="cur-titlebar-center">
-          <div className={`cur-status ${authenticated ? 'cur-status--ok' : ''}`}>
+          <div className={`cur-status ${(authenticated || mainAppAuthenticated) ? 'cur-status--ok' : ''}`}>
             <span className="cur-status-dot" />
-            {authenticated ? 'Connected' : 'Disconnected'}
+            {(authenticated || mainAppAuthenticated) ? 'Connected' : 'Disconnected'}
           </div>
         </div>
         <div className="cur-titlebar-right">
+          <button className="cur-flow-trigger" onClick={() => setShowSettings(true)} title="Settings">&#x2699;</button>
           <button className="cur-flow-trigger" onClick={() => setShowFlowModal(true)}>Flow</button>
           {config.llmModel && <span className="cur-model-badge">{config.llmModel}</span>}
         </div>
@@ -389,37 +443,16 @@ export default function PrivilegeMcpClientPage() {
             <span className="cur-sidebar-title">CONNECTION</span>
           </div>
           <div className="cur-sidebar-content">
-            <label className="cur-field">
-              <span className="cur-field-label">MCP Gateway URL</span>
-              <input className="cur-input" value={config.mcpUrl} onChange={(e) => setConfig({ ...config, mcpUrl: e.target.value })} placeholder="https://mcpgw.example.com/mcp" />
-            </label>
-            <label className="cur-field">
-              <span className="cur-field-label">OAuth Client ID</span>
-              <input className="cur-input" value={config.clientId} onChange={(e) => setConfig({ ...config, clientId: e.target.value })} />
-            </label>
-            <label className="cur-field">
-              <span className="cur-field-label">Requested Scopes</span>
-              <input className="cur-input" value={config.scopes} onChange={(e) => setConfig({ ...config, scopes: e.target.value })} />
-            </label>
-
-            <div className="cur-sidebar-divider" />
-
-            <div className="cur-sidebar-header">
-              <span className="cur-sidebar-title">LOCAL LLM</span>
-            </div>
-            <label className="cur-field">
-              <span className="cur-field-label">Ollama URL</span>
-              <input className="cur-input" value={config.llmUrl} onChange={(e) => setConfig({ ...config, llmUrl: e.target.value })} />
-            </label>
-            <label className="cur-field">
-              <span className="cur-field-label">Model</span>
-              <input className="cur-input" value={config.llmModel} onChange={(e) => setConfig({ ...config, llmModel: e.target.value })} />
-            </label>
-
-            <div className="cur-btn-row">
-              <button className="cur-btn" onClick={saveConfig}>Save</button>
-              <button className="cur-btn cur-btn--primary" onClick={startAuth}>Sign In</button>
-            </div>
+            {(authenticated || mainAppAuthenticated) ? (
+              <div className="cur-auth-status">
+                <span className="cur-auth-badge cur-auth-badge--ok">Authenticated</span>
+                {user?.email && <span className="cur-auth-user">{user.email}</span>}
+              </div>
+            ) : (
+              <div className="cur-btn-row">
+                <button className="cur-btn cur-btn--primary" onClick={startAuth}>Sign In</button>
+              </div>
+            )}
 
             {grantedScopes.length > 0 && (
               <div className="cur-scopes-section">
@@ -454,7 +487,7 @@ export default function PrivilegeMcpClientPage() {
             ) : (
               <div className="cur-empty-state">No tools discovered yet</div>
             )}
-            <button className="cur-btn cur-btn--ghost" onClick={() => refreshTools(false)}>Refresh Tools</button>
+            <button className="cur-btn cur-btn--primary cur-btn--refresh" onClick={() => refreshTools(false)}>Refresh Tools</button>
           </div>
         </aside>
 
@@ -615,7 +648,7 @@ export default function PrivilegeMcpClientPage() {
         </div>
         <div className="cur-statusbar-right">
           <span className="cur-statusbar-item">{config.llmModel || 'No LLM'}</span>
-          <span className="cur-statusbar-item">{authenticated ? 'Authenticated' : 'Not signed in'}</span>
+          <span className="cur-statusbar-item">{(authenticated || mainAppAuthenticated) ? 'Authenticated' : 'Not signed in'}</span>
         </div>
       </footer>
     </div>
