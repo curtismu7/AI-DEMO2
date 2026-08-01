@@ -440,7 +440,14 @@ export default function AdminSideNav({ user }) {
   const allNavItems = [
     { label: "Home", path: "/", icon: "~" },
     { label: "Dashboard", path: "/dashboard", icon: "≡" },
-    { label: "Protocol Playground", path: "/protocol-playground", icon: "dbg" },
+    {
+      label: "Privilege MCP",
+      icon: "shld",
+      children: [
+        { label: "Protocol Playground", path: "/protocol-playground", icon: "dbg" },
+        { label: "Privilege MCP Client", path: "/privilege-mcp-client", icon: "shld" },
+      ],
+    },
     {
       label: "Agent Lifecycle",
       path: "/agent-lifecycle",
@@ -523,7 +530,6 @@ export default function AdminSideNav({ user }) {
           icon: "dbg",
         },
         { label: "PingOne MCP Setup", path: "/pingone-setup", icon: "cfg" },
-        { label: "Privilege MCP Client", path: "/privilege-mcp-client", icon: "shld" },
       ],
     },
     {
