@@ -8,12 +8,23 @@ class ExecutionEngine {
     this.state = {
       currentStep: null,
       results: [],
-      error: null
+      error: null,
+      context: {}
     };
     this.client = axios.create({
       baseURL: bffBaseUrl,
       timeout: 10000,
       withCredentials: true,
+    });
+  }
+
+  /**
+   * Interpolate :param placeholders in a URL using accumulated response context.
+   */
+  _interpolateUrl(url) {
+    return url.replace(/:([a-zA-Z_][a-zA-Z0-9_]*)/g, (match, key) => {
+      const val = this.state.context[key];
+      return val != null ? encodeURIComponent(val) : match;
     });
   }
 
@@ -33,9 +44,9 @@ class ExecutionEngine {
       this.state.currentStep = stepId;
       this.state.error = null;
 
-      // Build request
+      // Build request — interpolate path params from prior responses
       const method = (step.method || 'GET').toUpperCase();
-      const url = step.endpoint || step.url;
+      const url = this._interpolateUrl(step.endpoint || step.url);
       const data = step.body || null;
 
       // Prepare request config
@@ -98,6 +109,16 @@ class ExecutionEngine {
       };
 
       this.state.results.push(result);
+
+      // Capture mapped response fields into context for downstream steps
+      if (step.responseMap && response.data) {
+        for (const [contextKey, responseKey] of Object.entries(step.responseMap)) {
+          if (response.data[responseKey] != null) {
+            this.state.context[contextKey] = response.data[responseKey];
+          }
+        }
+      }
+
       return result;
     } catch (err) {
       this.state.error = {
@@ -151,7 +172,8 @@ class ExecutionEngine {
     this.state = {
       currentStep: null,
       results: [],
-      error: null
+      error: null,
+      context: {}
     };
   }
 
