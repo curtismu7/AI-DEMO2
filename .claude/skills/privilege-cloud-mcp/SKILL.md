@@ -1,27 +1,43 @@
-# Privilege Cloud MCP — Proxy & OIDC Integration
+# Privilege Cloud MCP — Gateway Integration
 
 Use when troubleshooting, configuring, or extending the PingOne Privilege Cloud
-MCP integration: the privilege proxy container, the BFF OIDC relay, the
+MCP integration: the Privilege Gateway, the BFF MCP client relay, the
 Privilege MCP Client UI page, or the K8s deployment.
 
 ## Architecture
 
 ```
-Browser → BFF (privilegeMcpClient.js) → https://host.docker.internal:8080/mcp
-                                         (local MCP server, self-signed TLS)
-
-Future (when Privilege OIDC JWKS is fixed):
-Browser → BFF → privilege.pingone.com/api/mcp
-                      ↕ gRPC tunnel
-  Privilege Proxy (:8680) → MCP Server (:8080/mcp)
-                      ↕ outbound gRPC
-             grpc.privilege.pingone.com:443
+Browser → BFF (privilegeMcpClient.js) → Privilege Gateway (MCP server)
+                                              ↓
+                                     Our backend MCP server
 ```
 
-PingOne Privilege acts as a **proxy gateway** between AI clients and the internal
-MCP server. It manages access tokens from the IdP at runtime so the AI client is
-never affected. The proxy connects **outbound** to the Privilege Cloud controller
-— no inbound connectivity needed.
+**Our app is the MCP client. Privilege Gateway is the MCP server.**
+The gateway handles communication with our backend MCP server — our app only
+knows about the gateway endpoint. The gateway validates the user's PingOne token,
+applies tool-level access policies, then proxies allowed calls to the backend.
+
+No token exchange needed — the BFF forwards the user's PingOne SSO token directly.
+
+### Two deployment paths
+
+| Path | Endpoint | Status |
+|------|----------|--------|
+| **Cloud API** (recommended) | `https://privilege.pingone.com/api/mcp` | Working — requires `x-procyon-session-id` header + Bearer token |
+| **Local proxy** | `https://mypingone-app-default.applications.privilege.pingone.com:8643/mcp` | BLOCKED — `IssuerPublicKey:[]` means proxy can't validate ANY JWT locally |
+
+The Cloud API path routes through Privilege's cloud infrastructure — the local
+proxy's OIDC validation is bypassed. Use Cloud API until Privilege pushes JWKS
+keys to the local proxy controller.
+
+### Headers required by Cloud API
+
+| Header | When | Value |
+|--------|------|-------|
+| `Authorization` | Always | `Bearer <user's PingOne SSO token>` |
+| `x-procyon-session-id` | Always | Unique session UUID (generated per-session in BFF) |
+| `mcp-protocol-version` | Non-initialize requests | `2024-11-05` |
+| `Content-Type` | Always | `application/json` |
 
 ### How the pieces relate (Privilege console)
 
@@ -63,8 +79,8 @@ discovery fails with "No Tools, Prompts, or Resources Discovered."
 | Proxy Binary | `/procyon/bin/cyonproxy` |
 | Cluster ID | `ai-demo-se` |
 | Cluster Name | `cmuir-mcpgw` |
-| MCP endpoint (current) | `https://host.docker.internal:8080/mcp` (local MCP server) |
-| MCP endpoint (Privilege proxy) | `https://privilege.pingone.com/api/mcp` (disabled — IssuerPublicKey empty) |
+| MCP endpoint (Cloud API) | `https://privilege.pingone.com/api/mcp` |
+| MCP endpoint (Local proxy) | `https://mypingone-app-default.applications.privilege.pingone.com:8643/mcp` (BLOCKED — IssuerPublicKey:[]) |
 | gRPC controller | `grpc.privilege.pingone.com:443` |
 | End user | `cmuir+ssoEndUser@pingone.com` |
 | Token file | `ping-mcpgw/config/proxy-token` (gitignored) |
@@ -73,13 +89,27 @@ discovery fails with "No Tools, Prompts, or Resources Discovered."
 ### Current token status
 
 The enrollment token in `ping-mcpgw/config/proxy-token` **expired 2026-07-31**.
-A fresh token was obtained 2026-08-01 but enrollment returned **500 "not found"**
-— the node (`affdbc0f-8f89-4e48-95b4-63e81359e0fc`) was deleted on the Privilege
-side. Must create a new node in the console before the proxy will enroll.
+A fresh token was obtained 2026-08-01 and enrollment succeeded. Node ID:
+`271b827f-b6ea-4bef-80fc-604ca1121ce7`, cluster: `ai-demo-se`.
 
 See **[ping-mcpgw/RENEW-TOKEN.md](../../ping-mcpgw/RENEW-TOKEN.md)** for the
-full step-by-step renewal procedure, including the "not found" and "Unauthorized"
-discovery errors and their fixes.
+full step-by-step renewal procedure.
+
+### MCP server requirements for Privilege gateway
+
+The backend MCP server must be configured to accept connections from the Privilege
+gateway. Key settings in `docker-compose.yml`:
+
+| Setting | Value | Why |
+|---------|-------|-----|
+| `MCP_MTLS_ENABLED` | `"false"` | Privilege connects via plain HTTP; mTLS blocks it |
+| `NODE_ENV` | `development` | Needed for SKIP_TOKEN_SIGNATURE_VALIDATION |
+| `SKIP_TOKEN_SIGNATURE_VALIDATION` | `true` | Gateway may send its own tokens |
+| `ALLOW_JWKS_FAILOPEN` | `true` | Graceful degradation if JWKS unreachable |
+| `tmpfs: /app/dev-data` | (volume config) | Dev mode needs writable session dir; container runs as uid 1001 |
+
+The `PRIVILEGE_MCPGW_URL` env var on the BFF (`demo-api-server`) points to the
+gateway: `https://privilege.pingone.com/api/mcp`
 
 ## Proxy enrollment
 
@@ -133,37 +163,25 @@ docker logs ai-demo-ping-mcpgw 2>&1 | grep -i "enrolled\|connected\|ready"
 | 8620 | Agentless API |
 | 8690 | Medusa gRPC tunnel |
 
-## BFF OIDC flow (privilegeMcpClient.js)
+## BFF MCP client (privilegeMcpClient.js)
 
 Route prefix: `/api/privilege-mcp/`
 
-1. `GET /auth/discover` — fetches PingOne OIDC well-known, adds `x-procyon-session-id`
-2. `GET /auth/start` — generates PKCE, redirects to PingOne `/authorize`
-3. `GET /auth/callback` — exchanges code for tokens (CLIENT_SECRET_POST + PKCE)
-4. `POST /mcp/message` — relays JSON-RPC to `PRIVILEGE_MCPGW_URL` with Bearer token + `x-procyon-session-id`
+The BFF is a simple MCP client relay. It forwards the user's PingOne SSO token
+(obtained from the main app login) directly to the Privilege Gateway as a Bearer
+token. No token exchange, no separate OAuth flow for this page.
+
+1. `GET /state` — returns session state (token presence, tools, config)
+2. `POST /tools/list` — initializes MCP session + discovers tools from Privilege Gateway
+3. `POST /tools/call` — invokes a tool via the gateway
+4. `POST /rpc` — raw JSON-RPC passthrough
 
 ### Required env vars (BFF / docker-compose.yml)
 
 | Var | Purpose |
 |-----|---------|
-| `PRIVILEGE_MCPGW_URL` | MCP endpoint — currently `https://host.docker.internal:8080/mcp` (local); when Privilege JWKS works: `https://privilege.pingone.com/api/mcp` |
-| `PINGONE_MCP_GATEWAY_CLIENT_ID` | OIDC client for auth_code flow |
-| `PINGONE_MCP_GATEWAY_CLIENT_SECRET` | Client secret (CLIENT_SECRET_POST) |
-| `PINGONE_ENVIRONMENT_ID` | PingOne env for well-known discovery fallback |
-| `PRIVILEGE_MCP_CALLBACK_HOST` | Optional — override callback hostname |
-
-### Required OIDC client config (PingOne)
-
-- Grant types: AUTHORIZATION_CODE, TOKEN_EXCHANGE, CLIENT_CREDENTIALS
-- PKCE: S256_REQUIRED
-- Token auth method: CLIENT_SECRET_POST
-- Redirect URI: `https://local.ping-devops.com:4000/api/privilege-mcp/auth/callback`
-
-### Required headers for Privilege MCP
-
-When the target host is `privilege.pingone.com`, the BFF adds:
-- `Authorization: Bearer <access_token>`
-- `x-procyon-session-id: <uuid>` (per-session, stored on req.session)
+| `PRIVILEGE_MCPGW_URL` | Privilege Gateway MCP endpoint: `https://mypingone-app-default.applications.privilege.pingone.com:8643/mcp` |
+| `PINGONE_ENVIRONMENT_ID` | PingOne env (for fallback OIDC discovery if needed) |
 
 ## UI — PrivilegeMcpClientPage
 
@@ -207,6 +225,10 @@ docker run -d --name ai-demo-ping-mcpgw \
 | Session not persisting between requests | Session cookie not sent / saveUninitialized | Use browser (cookies auto-sent), or pass `Cookie` header in curl |
 | curl to MCP server gets "Empty reply" | mTLS enabled — server drops non-cert connections | Disable mTLS or provide gateway client cert |
 | gRPC `UNAVAILABLE` / proxy silent hang | Firewall blocking outbound to `grpc.privilege.pingone.com:443` | Allow outbound 443; no inbound holes needed |
+| `IssuerPublicKey:[]` in proxy logs | Controller never pushes JWKS keys to the local proxy | Use Cloud API path (`privilege.pingone.com/api/mcp`) instead of local proxy endpoint |
+| Server crash: `EACCES: permission denied, mkdir './dev-data'` | Dev mode needs writable dir but container runs as non-root (uid 1001) | Add `tmpfs: /app/dev-data:uid=1001,gid=1001` to docker-compose.yml |
+| Server crash: `Configuration validation failed` | `SKIP_TOKEN_SIGNATURE_VALIDATION=true` forbidden outside development | Set `NODE_ENV: development` in docker-compose.yml for the mcp-server service |
+| Cloud API 400: "mcp-protocol-version header is required" | Non-initialize requests need protocol version header | BFF's fetchMcp adds `mcp-protocol-version: 2024-11-05` for non-initialize requests |
 | Discovery succeeds but tool calls return empty | MCP server behind PingGateway, not directly reachable | MCP App config → set MCP Server URL to the **internal** URL (`http://mcp-server:8080/mcp`), not the gateway URL |
 
 ## Token expiration and renewal

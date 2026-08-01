@@ -1,7 +1,7 @@
 // demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx
 // Cursor-IDE-styled MCP client for PingOne Privilege MCP Gateway.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import './PrivilegeMcpClientPage.css';
 
 const API_BASE = '/api/privilege-mcp';
@@ -37,6 +37,7 @@ function scopeColor(scope) {
 
 export default function PrivilegeMcpClientPage() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [config, setConfig] = useState({ mcpUrl: '', clientId: '', scopes: 'openid profile email', llmUrl: 'http://127.0.0.1:11434', llmModel: 'llama3.2:1b' });
   const [authenticated, setAuthenticated] = useState(false);
   const [mainAppAuthenticated, setMainAppAuthenticated] = useState(false);
@@ -417,6 +418,7 @@ export default function PrivilegeMcpClientPage() {
           </div>
         </div>
         <div className="cur-titlebar-right">
+          <button className="cur-flow-trigger" onClick={() => navigate('/privilege-mcp-learning')} title="Learning Guide">Guide</button>
           <button className="cur-flow-trigger" onClick={() => setShowSettings(true)} title="Settings">&#x2699;</button>
           <button className="cur-flow-trigger" onClick={() => setShowFlowModal(true)}>Flow</button>
           {config.llmModel && <span className="cur-model-badge">{config.llmModel}</span>}

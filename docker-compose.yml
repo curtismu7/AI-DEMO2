@@ -118,7 +118,7 @@ services:
       MCP_PINGGATEWAY_URL: "http://ping-gateway:8080"
       # Default MCP endpoint offered by the /privilege-mcp-client page.
       # host.docker.internal resolves to the host machine's local MCP server (self-signed TLS).
-      PRIVILEGE_MCPGW_URL: "https://host.docker.internal:8080/mcp"
+      PRIVILEGE_MCPGW_URL: "https://privilege.pingone.com/api/mcp"
       PRIVILEGE_SSO_ENV_ID: "01d89b06-66d5-430e-9f28-65636843788b"
       PRIVILEGE_SSO_CLIENT_ID: "6586d3de-b916-454c-84e5-6d21b572a534"
       PRIVILEGE_SSO_CLIENT_SECRET: "jGVDouSatx~uDxOeYC-TjY5qzPFnVUid21JjjDvGn7JZAM0zVqIBSlK_U_tdRAxJ"
@@ -314,7 +314,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       MCP_SERVER_HOST: "0.0.0.0"
       MCP_SERVER_PORT: "8080"
       # Opt-in TLS+ALPN listener for real HTTP/2 to the BFF's http2McpBridge.js.
@@ -340,7 +340,7 @@ services:
       # whose SHA-256 matches MCP_MTLS_GATEWAY_CERT_PATH. PingGateway presents it
       # from PG_MTLS_KEYSTORE_PATH — the two must move together: flipping this
       # alone rejects every gateway call with "no client certificate presented".
-      MCP_MTLS_ENABLED: "${MCP_MTLS_ENABLED:-true}"
+      MCP_MTLS_ENABLED: "false"
       MCP_MTLS_GATEWAY_CERT_PATH: "/certs/gw-mtls/gw-client.crt"
       # Step 9 (RFC 8693): the MCP server exchanges the gateway-scoped token for a
       # Demo API (enduser.ping.demo) resource-scoped one before calling the Banking
@@ -375,6 +375,8 @@ services:
       # scripts/ensure-gateway-mtls-certs.sh. Read-only, public cert only.
       # Dir mount, not a single file -- a single-file bind pins the inode.
       - ./certs:/certs:ro
+    tmpfs:
+      - /app/dev-data:uid=1001,gid=1001  # writable for dev-mode session data
     networks:
       - ai-demo
     healthcheck:
