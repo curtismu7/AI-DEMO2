@@ -1,27 +1,23 @@
-# Privilege Cloud MCP — Proxy & OIDC Integration
+# Privilege Cloud MCP — Gateway Integration
 
 Use when troubleshooting, configuring, or extending the PingOne Privilege Cloud
-MCP integration: the privilege proxy container, the BFF OIDC relay, the
+MCP integration: the Privilege Gateway, the BFF MCP client relay, the
 Privilege MCP Client UI page, or the K8s deployment.
 
 ## Architecture
 
 ```
-Browser → BFF (privilegeMcpClient.js) → https://host.docker.internal:8080/mcp
-                                         (local MCP server, self-signed TLS)
-
-Future (when Privilege OIDC JWKS is fixed):
-Browser → BFF → privilege.pingone.com/api/mcp
-                      ↕ gRPC tunnel
-  Privilege Proxy (:8680) → MCP Server (:8080/mcp)
-                      ↕ outbound gRPC
-             grpc.privilege.pingone.com:443
+Browser → BFF (privilegeMcpClient.js) → Privilege Gateway (MCP server)
+                                              ↓
+                                     Our backend MCP server
 ```
 
-PingOne Privilege acts as a **proxy gateway** between AI clients and the internal
-MCP server. It manages access tokens from the IdP at runtime so the AI client is
-never affected. The proxy connects **outbound** to the Privilege Cloud controller
-— no inbound connectivity needed.
+**Our app is the MCP client. Privilege Gateway is the MCP server.**
+The gateway handles communication with our backend MCP server — our app only
+knows about the gateway endpoint. The gateway validates the user's PingOne token,
+applies tool-level access policies, then proxies allowed calls to the backend.
+
+No token exchange needed — the BFF forwards the user's PingOne SSO token directly.
 
 ### How the pieces relate (Privilege console)
 
@@ -63,8 +59,7 @@ discovery fails with "No Tools, Prompts, or Resources Discovered."
 | Proxy Binary | `/procyon/bin/cyonproxy` |
 | Cluster ID | `ai-demo-se` |
 | Cluster Name | `cmuir-mcpgw` |
-| MCP endpoint (current) | `https://host.docker.internal:8080/mcp` (local MCP server) |
-| MCP endpoint (Privilege proxy) | `https://privilege.pingone.com/api/mcp` (disabled — IssuerPublicKey empty) |
+| MCP endpoint (Privilege Gateway) | `https://mypingone-app-default.applications.privilege.pingone.com:8643/mcp` |
 | gRPC controller | `grpc.privilege.pingone.com:443` |
 | End user | `cmuir+ssoEndUser@pingone.com` |
 | Token file | `ping-mcpgw/config/proxy-token` (gitignored) |
@@ -133,37 +128,25 @@ docker logs ai-demo-ping-mcpgw 2>&1 | grep -i "enrolled\|connected\|ready"
 | 8620 | Agentless API |
 | 8690 | Medusa gRPC tunnel |
 
-## BFF OIDC flow (privilegeMcpClient.js)
+## BFF MCP client (privilegeMcpClient.js)
 
 Route prefix: `/api/privilege-mcp/`
 
-1. `GET /auth/discover` — fetches PingOne OIDC well-known, adds `x-procyon-session-id`
-2. `GET /auth/start` — generates PKCE, redirects to PingOne `/authorize`
-3. `GET /auth/callback` — exchanges code for tokens (CLIENT_SECRET_POST + PKCE)
-4. `POST /mcp/message` — relays JSON-RPC to `PRIVILEGE_MCPGW_URL` with Bearer token + `x-procyon-session-id`
+The BFF is a simple MCP client relay. It forwards the user's PingOne SSO token
+(obtained from the main app login) directly to the Privilege Gateway as a Bearer
+token. No token exchange, no separate OAuth flow for this page.
+
+1. `GET /state` — returns session state (token presence, tools, config)
+2. `POST /tools/list` — initializes MCP session + discovers tools from Privilege Gateway
+3. `POST /tools/call` — invokes a tool via the gateway
+4. `POST /rpc` — raw JSON-RPC passthrough
 
 ### Required env vars (BFF / docker-compose.yml)
 
 | Var | Purpose |
 |-----|---------|
-| `PRIVILEGE_MCPGW_URL` | MCP endpoint — currently `https://host.docker.internal:8080/mcp` (local); when Privilege JWKS works: `https://privilege.pingone.com/api/mcp` |
-| `PINGONE_MCP_GATEWAY_CLIENT_ID` | OIDC client for auth_code flow |
-| `PINGONE_MCP_GATEWAY_CLIENT_SECRET` | Client secret (CLIENT_SECRET_POST) |
-| `PINGONE_ENVIRONMENT_ID` | PingOne env for well-known discovery fallback |
-| `PRIVILEGE_MCP_CALLBACK_HOST` | Optional — override callback hostname |
-
-### Required OIDC client config (PingOne)
-
-- Grant types: AUTHORIZATION_CODE, TOKEN_EXCHANGE, CLIENT_CREDENTIALS
-- PKCE: S256_REQUIRED
-- Token auth method: CLIENT_SECRET_POST
-- Redirect URI: `https://local.ping-devops.com:4000/api/privilege-mcp/auth/callback`
-
-### Required headers for Privilege MCP
-
-When the target host is `privilege.pingone.com`, the BFF adds:
-- `Authorization: Bearer <access_token>`
-- `x-procyon-session-id: <uuid>` (per-session, stored on req.session)
+| `PRIVILEGE_MCPGW_URL` | Privilege Gateway MCP endpoint: `https://mypingone-app-default.applications.privilege.pingone.com:8643/mcp` |
+| `PINGONE_ENVIRONMENT_ID` | PingOne env (for fallback OIDC discovery if needed) |
 
 ## UI — PrivilegeMcpClientPage
 

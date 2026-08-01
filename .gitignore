@@ -142,3 +142,7 @@ demo_api_server/data/persistent/lmdb/data.mdb
 
 # Privilege proxy enrollment token (contains tenant secrets)
 ping-mcpgw/config/proxy-token
+
+# Postman environments hold live client secrets in cleartext `value` fields. The
+# collections stay tracked — they only reference {{client_secret}}-style vars.
+**/*.postman_environment.json

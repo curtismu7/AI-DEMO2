@@ -5,8 +5,6 @@
 const express = require('express');
 const crypto = require('crypto');
 const router = express.Router();
-const oauthService = require('../services/oauthService');
-const configStore = require('../services/configStore');
 
 // ---------------------------------------------------------------------------
 // In-memory per-session state (keyed by express session id)
@@ -31,11 +29,10 @@ function getClientSession(req) {
     });
   }
   const session = clientSessions.get(sid);
-  // Inherit token from the main app's PingOne session if available
+  // Use the main app's PingOne token directly — Privilege Gateway validates it
   const mainToken = req.session?.oauthTokens?.accessToken;
-  if (mainToken && mainToken !== session.oauth._originalMainToken) {
-    session.oauth._originalMainToken = mainToken;
-    session.oauth.accessToken = null; // force re-exchange
+  if (mainToken) {
+    session.oauth.accessToken = mainToken;
     session.oauth.expiresAt = req.session.oauthTokens.expiresAt || null;
     session.oauth.refreshToken = req.session.oauthTokens.refreshToken || null;
     session.oauth.scope = req.session.oauthTokens.scope || '';
@@ -43,22 +40,7 @@ function getClientSession(req) {
   return session;
 }
 
-// Exchange the user's SSO token for one with aud=mcpserver.ping.demo
-async function ensureExchangedToken(session) {
-  if (session.oauth.accessToken) return;
-  const subjectToken = session.oauth._originalMainToken;
-  if (!subjectToken || subjectToken === '_cookie_session') return;
-  const audience = configStore.getEffective('pingone_resource_mcp_server_uri') || 'mcpserver.ping.demo';
-  try {
-    const exchanged = await oauthService.performTokenExchange(subjectToken, audience, 'mcp:invoke');
-    session.oauth.accessToken = exchanged;
-    emitEvent('auth', { phase: 'token_exchanged', audience });
-  } catch (err) {
-    console.error('[PrivilegeMCP] Token exchange failed:', err.message);
-    // Fall back to original token — MCP server may still accept it
-    session.oauth.accessToken = subjectToken;
-  }
-}
+
 
 // ---------------------------------------------------------------------------
 // SSE event stream for live relay
@@ -136,6 +118,10 @@ async function fetchMcp(session, pathname, body, withAuth = true) {
   if (targetUrl.hostname === 'privilege.pingone.com' || targetUrl.hostname.endsWith('.applications.privilege.pingone.com')) {
     headers['x-procyon-session-id'] = session.config._procyonSessionId ||
       (session.config._procyonSessionId = crypto.randomUUID());
+    // Privilege Cloud requires protocol version header on non-initialize requests
+    if (body?.method && body.method !== 'initialize') {
+      headers['mcp-protocol-version'] = session.mcpSession.protocolVersion || '2024-11-05';
+    }
   }
 
   emitEvent('relay', { direction: 'client->mcp', method: 'POST', url: targetUrl.toString(), body });
@@ -168,7 +154,6 @@ async function fetchMcp(session, pathname, body, withAuth = true) {
 
 async function ensureMcpSessionInitialized(session) {
   if (session.mcpSession.initialized) return;
-  await ensureExchangedToken(session);
 
   const initRpc = {
     jsonrpc: '2.0',
