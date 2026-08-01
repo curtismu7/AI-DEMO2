@@ -17,7 +17,8 @@ The gateway handles communication with our backend MCP server — our app only
 knows about the gateway endpoint. The gateway validates the user's PingOne token,
 applies tool-level access policies, then proxies allowed calls to the backend.
 
-No token exchange needed — the BFF forwards the user's PingOne SSO token directly.
+The BFF authenticates the user via a **separate OAuth flow** using the Privilege
+SSO client — the main banking app token has the wrong audience for Privilege Cloud.
 
 ### Two deployment paths
 
@@ -82,7 +83,7 @@ discovery fails with "No Tools, Prompts, or Resources Discovered."
 | MCP endpoint (Cloud API) | `https://privilege.pingone.com/api/mcp` |
 | MCP endpoint (Local proxy) | `https://mypingone-app-default.applications.privilege.pingone.com:8643/mcp` (BLOCKED — IssuerPublicKey:[]) |
 | gRPC controller | `grpc.privilege.pingone.com:443` |
-| End user | `cmuir+ssoEndUser@pingone.com` |
+| End user | `cmuir+ssoEndUser@pingone.com` / `Demo1234!` |
 | Token file | `ping-mcpgw/config/proxy-token` (gitignored) |
 | Guest agent env | `ping-mcpgw/config/guest-agent.env` (committed — non-secret config) |
 
@@ -167,21 +168,54 @@ docker logs ai-demo-ping-mcpgw 2>&1 | grep -i "enrolled\|connected\|ready"
 
 Route prefix: `/api/privilege-mcp/`
 
-The BFF is a simple MCP client relay. It forwards the user's PingOne SSO token
-(obtained from the main app login) directly to the Privilege Gateway as a Bearer
-token. No token exchange, no separate OAuth flow for this page.
+The BFF requires a **Privilege-specific OAuth token** — the main banking app's
+SSO token will NOT work (wrong audience). The user must authenticate via the
+Privilege SSO client (`6586d3de-b916-454c-84e5-6d21b572a534`) through the
+"Sign In with Privilege" button.
+
+### Auth flow
+
+PingOne token exchange (RFC 8693) does NOT work for OIDC app audiences — it only
+issues tokens for custom resources. The ONLY working path is authorization_code.
+
+1. User clicks "Sign In with Privilege" → `POST /auth/start`
+2. BFF discovers authorization/token URIs from PingOne OIDC metadata
+3. Builds authorize URL with `client_id`, PKCE S256, `login_hint` (`PRIVILEGE_LOGIN_HINT` env var)
+4. User authenticates in new tab → PingOne redirects to `/auth/callback`
+5. BFF exchanges code for token (client_secret_post + PKCE verifier)
+6. Token stored in privilege-specific session (NOT the main app session)
+7. Subsequent `tools/list` and `tools/call` use this token
+
+### Routes
 
 1. `GET /state` — returns session state (token presence, tools, config)
-2. `POST /tools/list` — initializes MCP session + discovers tools from Privilege Gateway
-3. `POST /tools/call` — invokes a tool via the gateway
-4. `POST /rpc` — raw JSON-RPC passthrough
+2. `POST /auth/start` — begins OAuth PKCE flow, returns `authUrl`
+3. `GET /auth/callback` — exchanges code for Privilege-specific token
+4. `POST /tools/list` — initializes MCP session + discovers tools from Privilege Gateway
+5. `POST /tools/call` — invokes a tool via the gateway
+6. `POST /rpc` — raw JSON-RPC passthrough
 
 ### Required env vars (BFF / docker-compose.yml)
 
 | Var | Purpose |
 |-----|---------|
-| `PRIVILEGE_MCPGW_URL` | Privilege Gateway MCP endpoint: `https://mypingone-app-default.applications.privilege.pingone.com:8643/mcp` |
-| `PINGONE_ENVIRONMENT_ID` | PingOne env (for fallback OIDC discovery if needed) |
+| `PRIVILEGE_MCPGW_URL` | Privilege Gateway MCP endpoint: `https://privilege.pingone.com/api/mcp` |
+| `PRIVILEGE_SSO_CLIENT_ID` | PingOne OIDC client for Privilege auth |
+| `PRIVILEGE_SSO_CLIENT_SECRET` | Client secret (client_secret_post for code exchange) |
+| `PRIVILEGE_SSO_ENV_ID` | PingOne env ID (for OIDC discovery fallback) |
+| `PRIVILEGE_LOGIN_HINT` | Email pre-filled in PingOne login (`cmuir+ssoEndUser@pingone.com`) |
+
+### PingOne OIDC app config (Privilege SSO client)
+
+| Setting | Value |
+|---------|-------|
+| App ID | `6586d3de-b916-454c-84e5-6d21b572a534` |
+| Name | Demo AI App - MCP Gateway |
+| Type | WEB_APP |
+| Grant Types | AUTHORIZATION_CODE, CLIENT_CREDENTIALS |
+| PKCE | S256_REQUIRED |
+| Token Endpoint Auth | CLIENT_SECRET_POST |
+| Redirect URI | `https://local.ping-devops.com:4000/api/privilege-mcp/auth/callback` |
 
 ## UI — PrivilegeMcpClientPage
 
@@ -230,6 +264,7 @@ docker run -d --name ai-demo-ping-mcpgw \
 | Server crash: `Configuration validation failed` | `SKIP_TOKEN_SIGNATURE_VALIDATION=true` forbidden outside development | Set `NODE_ENV: development` in docker-compose.yml for the mcp-server service |
 | Cloud API 400: "mcp-protocol-version header is required" | Non-initialize requests need protocol version header | BFF's fetchMcp adds `mcp-protocol-version: 2024-11-05` for non-initialize requests |
 | Discovery succeeds but tool calls return empty | MCP server behind PingGateway, not directly reachable | MCP App config → set MCP Server URL to the **internal** URL (`http://mcp-server:8080/mcp`), not the gateway URL |
+| 401 despite policy being set | Using main app's SSO token (wrong `aud` claim) | User must click "Sign In with Privilege" to get a token from the Privilege SSO client |
 
 ## Token expiration and renewal
 

@@ -29,14 +29,6 @@ function getClientSession(req) {
     });
   }
   const session = clientSessions.get(sid);
-  // Use the main app's PingOne token directly — Privilege Gateway validates it
-  const mainToken = req.session?.oauthTokens?.accessToken;
-  if (mainToken) {
-    session.oauth.accessToken = mainToken;
-    session.oauth.expiresAt = req.session.oauthTokens.expiresAt || null;
-    session.oauth.refreshToken = req.session.oauthTokens.refreshToken || null;
-    session.oauth.scope = req.session.oauthTokens.scope || '';
-  }
   return session;
 }
 
@@ -338,6 +330,9 @@ router.post('/auth/start', express.json(), async (req, res) => {
     authUrl.searchParams.set('scope', session.config.scopes);
     authUrl.searchParams.set('redirect_uri', redirectUri);
     authUrl.searchParams.set('state', oauthState);
+    // Use the Privilege-configured user (may differ from main app user)
+    const loginHint = process.env.PRIVILEGE_LOGIN_HINT || req.session?.user?.email;
+    if (loginHint) authUrl.searchParams.set('login_hint', loginHint);
 
     session.pendingAuth = { oauthState, verifier, tokenUri, redirectUri };
     // Force express-session to persist so connect.sid cookie survives the redirect
@@ -412,6 +407,7 @@ router.get('/auth/callback', async (req, res) => {
 router.post('/tools/list', express.json(), async (req, res) => {
   const session = getClientSession(req);
   try {
+    if (!session.oauth.accessToken) return res.status(401).json({ error: 'Not authenticated — click Sign In with Privilege.' });
     await ensureMcpSessionInitialized(session);
     const rpc = { jsonrpc: '2.0', id: Date.now(), method: 'tools/list', params: {} };
     let data;
@@ -437,6 +433,7 @@ router.post('/tools/list', express.json(), async (req, res) => {
 router.post('/tools/call', express.json(), async (req, res) => {
   const session = getClientSession(req);
   try {
+    if (!session.oauth.accessToken) return res.status(401).json({ error: 'Not authenticated.' });
     await ensureMcpSessionInitialized(session);
     const { name, arguments: args } = req.body || {};
     const rpc = { jsonrpc: '2.0', id: Date.now(), method: 'tools/call', params: { name, arguments: args || {} } };
@@ -452,6 +449,7 @@ router.post('/tools/call', express.json(), async (req, res) => {
 router.post('/rpc', express.json(), async (req, res) => {
   const session = getClientSession(req);
   try {
+    if (!session.oauth.accessToken) return res.status(401).json({ error: 'Not authenticated.' });
     const body = req.body || {};
     const method = body?.method || '';
     if (method && method !== 'initialize' && method !== 'notifications/initialized') {
@@ -562,5 +560,56 @@ function parseLlmJson(raw) {
   if (first >= 0 && last > first) { try { return JSON.parse(trimmed.slice(first, last + 1)); } catch { /* continue */ } }
   return {};
 }
+
+// ---------------------------------------------------------------------------
+// pingone.env settings (ping-mcpgw/config/pingone.env)
+// ---------------------------------------------------------------------------
+const fs = require('fs');
+const path = require('path');
+const PINGONE_ENV_PATH = process.env.MCPGW_CONFIG_PATH
+  ? path.join(process.env.MCPGW_CONFIG_PATH, 'pingone.env')
+  : path.resolve(__dirname, '../../ping-mcpgw/config/pingone.env');
+
+function parseDotenv(text) {
+  const vars = {};
+  for (const line of text.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx < 1) continue;
+    vars[trimmed.slice(0, eqIdx)] = trimmed.slice(eqIdx + 1);
+  }
+  return vars;
+}
+
+function serializeDotenv(vars) {
+  return Object.entries(vars).map(([k, v]) => `${k}=${v}`).join('\n') + '\n';
+}
+
+router.get('/env', (req, res) => {
+  try {
+    const text = fs.readFileSync(PINGONE_ENV_PATH, 'utf8');
+    res.json({ ok: true, vars: parseDotenv(text) });
+  } catch (err) {
+    if (err.code === 'ENOENT') return res.json({ ok: true, vars: {} });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/env', express.json(), (req, res) => {
+  try {
+    const vars = req.body?.vars;
+    if (!vars || typeof vars !== 'object') return res.status(400).json({ error: 'vars object required' });
+    // Only allow known keys
+    const allowed = ['SERVER_URL', 'OIDC_CLIENT_ID', 'OIDC_CLIENT_SECRET', 'OIDC_AUTH_URL', 'OIDC_TOKEN_URL', 'OIDC_USER_URL', 'OIDC_SCOPES'];
+    const filtered = {};
+    for (const key of allowed) { if (vars[key] !== undefined) filtered[key] = String(vars[key]); }
+    fs.mkdirSync(path.dirname(PINGONE_ENV_PATH), { recursive: true });
+    fs.writeFileSync(PINGONE_ENV_PATH, serializeDotenv(filtered), 'utf8');
+    res.json({ ok: true, vars: filtered });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 module.exports = router;
