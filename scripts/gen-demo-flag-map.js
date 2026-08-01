@@ -132,7 +132,7 @@ function build() {
   L.push('| `ff_heuristic_enabled` | ON | The routing floor. Off, chips go to the LLM and answer non-deterministically. |');
   L.push('| `NODE_ENV` | not `production` | Attack sims return 403 `not_available_in_production` — that is Act 3. |');
   L.push('| Sign-in host | `local.ping-devops.com:4000` | Passkey rp.id. On `api.ping.demo` the session cookie lands elsewhere and every call 401s. |');
-  L.push('| `MCP_MTLS_ENABLED` | `true` (default) | Gateway→MCP mTLS. Needs `certs/gw-mtls/` present — `run-docker.sh` generates it. |');
+  L.push('| `MCP_MTLS_ON` | unset (OFF today) | The ONE switch for gateway→MCP mTLS: sets the mcp-server listener, both gateways\' scheme (http/ws vs https/wss) and every client cert. `MCP_MTLS_ON=1` in the root `.env` turns it on — needs `certs/gw-mtls/` present, which `run-docker.sh` generates. Off while the Privilege MCP path needs a plaintext listener. |');
   L.push('| `BANKING_API_RESOURCE_URI` | `enduser.ping.demo` to show Step 9 | The MCP-spec hop. Set in `demo_mcp_server/.env`; empty disables it silently. |');
   L.push('');
   L.push('> **Rebuild `mcp-server` after pulling.** The mTLS-aware healthcheck lives in');
@@ -239,7 +239,8 @@ async function live(baseUrl) {
   console.log('  Not readable from here (check on the host running the stack):');
   console.log('      NODE_ENV must not be production   (attack sims 403 in prod — that is Act 3)');
   console.log('      sign in on local.ping-devops.com:4000   (passkey rp.id)');
-  console.log('      MCP_MTLS_ENABLED / BANKING_API_RESOURCE_URI   (demo_mcp_server/.env)');
+  console.log('      MCP_MTLS_ON   (root .env — one switch for the whole gateway->MCP mTLS hop)');
+  console.log('      BANKING_API_RESOURCE_URI   (demo_mcp_server/.env)');
   console.log('');
   console.log(problems
     ? '  ' + problems + ' ambient setting(s) need attention before presenting.'
