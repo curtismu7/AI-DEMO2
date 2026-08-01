@@ -1,8 +1,12 @@
 import axios from 'axios';
 import { decodeJWT } from './tokenInspector';
+import { resolveApiBaseUrl } from '../utils/resolveApiBaseUrl';
 
 class ExecutionEngine {
-  constructor(flowSpec, bffBaseUrl = 'https://api.ping.demo:3001') {
+  // Default to the same origin the page was served from. A hardcoded API host
+  // is a different site than the UI host, so the host-only session cookie is
+  // never sent and every authenticated step 401s.
+  constructor(flowSpec, bffBaseUrl = resolveApiBaseUrl()) {
     this.flowSpec = flowSpec;
     this.bffBaseUrl = bffBaseUrl;
     this.state = {

@@ -46,16 +46,19 @@ describe('ExecutionEngine', () => {
       expect(engine.bffBaseUrl).toBe('https://custom.url:3001');
     });
 
-    it('uses default BFF URL if not provided', () => {
+    it('defaults to the page origin so the session cookie is sent', () => {
       const engine = new ExecutionEngine(mockFlowSpec);
-      expect(engine.bffBaseUrl).toBe('https://api.ping.demo:3001');
+      // resolveApiBaseUrl() returns '' (same origin) when REACT_APP_API_URL is
+      // unset or points at the host the page is already served from
+      expect(engine.bffBaseUrl).toBe('');
     });
 
     it('initializes state correctly', () => {
       expect(engine.state).toEqual({
         currentStep: null,
         results: [],
-        error: null
+        error: null,
+        context: {}
       });
     });
   });
@@ -453,7 +456,8 @@ describe('ExecutionEngine', () => {
       expect(engine.state).toEqual({
         currentStep: null,
         results: [],
-        error: null
+        error: null,
+        context: {}
       });
     });
 
