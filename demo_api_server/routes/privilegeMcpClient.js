@@ -160,6 +160,11 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
   const headers = { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' };
   if (withAuth && session.oauth.accessToken) {
     headers.Authorization = `Bearer ${session.oauth.accessToken}`;
+    // Debug: decode token claims
+    try {
+      const payload = JSON.parse(Buffer.from(session.oauth.accessToken.split('.')[1], 'base64url').toString());
+      console.log('[privilege-mcp] Token sub:', payload.sub, 'aud:', payload.aud, 'scope:', payload.scope);
+    } catch {}
   }
   if (session.mcpSession.sessionId) {
     headers['MCP-Session-Id'] = session.mcpSession.sessionId;
@@ -194,6 +199,7 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
   });
 
   if (!response.ok) {
+    console.error('[privilege-mcp] Gateway error:', response.status, text.slice(0, 500));
     if (response.status === 401 && withAuth && allowRefreshRetry && await refreshAccessToken(session)) {
       return fetchMcp(session, pathname, body, withAuth, false);
     }
@@ -213,13 +219,13 @@ async function ensureMcpSessionInitialized(session) {
     id: Date.now(),
     method: 'initialize',
     params: {
-      protocolVersion: '2025-11-25',
+      protocolVersion: '2024-11-05',
       capabilities: {},
       clientInfo: { name: 'MCP Privilege Demo Client', version: '1.0.0' },
     },
   };
   const initResponse = await fetchMcp(session, null, initRpc, true);
-  const serverProtocol = initResponse?.result?.protocolVersion || '2025-11-25';
+  const serverProtocol = initResponse?.result?.protocolVersion || '2024-11-05';
 
   await fetchMcp(session, null, { jsonrpc: '2.0', method: 'notifications/initialized', params: {} }, true);
 

@@ -106,10 +106,11 @@ export default function PrivilegeMcpClientPage() {
     const reason = searchParams.get('reason');
     if (authResult === 'success') {
       appendChat('system', 'OAuth completed. Refreshing tools...');
-      refreshTools();
       api('/state').then((s) => {
+        if (s.oauth?.authenticated) setAuthenticated(true);
         if (s.oauth?.scope) setGrantedScopes(s.oauth.scope.split(' ').filter(Boolean));
       }).catch(() => {});
+      refreshTools();
     }
     if (authResult === 'error') {
       appendChat('system', `OAuth failed: ${reason ? decodeURIComponent(reason) : 'Unknown'}`);
@@ -162,7 +163,6 @@ export default function PrivilegeMcpClientPage() {
       setAuthenticated(true);
       if (!silent) appendChat('system', `Discovered ${nextTools.length} tools from MCP server.`);
     } catch (err) {
-      setAuthenticated(false);
       setTools([]);
       if (err.message?.toLowerCase().includes('not authorized')) {
         setShowBlockedModal(true);
@@ -228,7 +228,10 @@ export default function PrivilegeMcpClientPage() {
           <div className="cur-modal" onClick={(e) => e.stopPropagation()}>
             <h2>Access Denied</h2>
             <p>User blocked — please request access from your Privilege Cloud administrator.</p>
-            <button className="cur-btn cur-btn--primary" onClick={() => setShowBlockedModal(false)}>Dismiss</button>
+            <div className="cur-btn-row">
+              <button className="cur-btn" onClick={() => { setShowBlockedModal(false); refreshTools(); }}>Retry</button>
+              <button className="cur-btn cur-btn--primary" onClick={() => setShowBlockedModal(false)}>Dismiss</button>
+            </div>
           </div>
         </div>
       )}
@@ -487,6 +490,7 @@ export default function PrivilegeMcpClientPage() {
               <div className="cur-auth-status">
                 <span className="cur-auth-badge cur-auth-badge--ok">Authenticated</span>
                 {user?.email && <span className="cur-auth-user">{user.email}</span>}
+                <button className="cur-btn" onClick={() => refreshTools()} style={{ marginTop: 8 }}>Retry Tools</button>
               </div>
             ) : (
               <div className="cur-btn-row">
