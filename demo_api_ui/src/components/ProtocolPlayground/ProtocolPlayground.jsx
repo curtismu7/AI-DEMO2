@@ -17,6 +17,7 @@ const ProtocolPlayground = () => {
 
   const [selectedProtocol, setSelectedProtocol] = useState(null);
   const [executionState, setExecutionState] = useState(EMPTY_EXECUTION_STATE);
+  const [dark, setDark] = useState(false);
 
   // Set first protocol as default on mount
   useEffect(() => {
@@ -44,8 +45,11 @@ const ProtocolPlayground = () => {
   };
 
   return (
-    <div className="protocol-playground">
+    <div className={`protocol-playground${dark ? ' dark' : ''}`}>
       <div className="protocol-playground__container">
+        <button className="pp-theme-toggle" onClick={() => setDark(d => !d)}>
+          {dark ? 'Light' : 'Dark'}
+        </button>
         <aside className="protocol-playground__sidebar">
           <ProtocolSidebar
             protocols={protocolArray.map(p => p.id)}
