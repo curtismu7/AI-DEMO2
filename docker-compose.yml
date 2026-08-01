@@ -414,7 +414,9 @@ services:
       # CodeGraph Explorer LLM — priority: Anthropic > Groq > local llama
       LLAMACPP_BASE_URL: "http://host.docker.internal:8090"
       LLAMACPP_MODEL: "gpt-oss-20b"
-      GROQ_API_KEY: "${GROQ_API_KEY:-}"
+      # GROQ_API_KEY intentionally absent: environment: overrides env_file, so a
+      # "${GROQ_API_KEY:-}" entry here blanks the value langchain_agent/.env supplies
+      # whenever the shell does not set it. Let env_file own the key.
       GROQ_MODEL: "${GROQ_MODEL:-llama-3.3-70b-versatile}"
       # Code Explorer "Refresh index" reads live source + writes the rebuilt DB
       # under the bind-mounted repo (see volumes below). Pointing both at the live
