@@ -52,8 +52,8 @@
   },
   "dpop": {
     "id": "dpop",
-    "name": "Dpop",
-    "description": "Protocol flow: dpop",
+    "name": "DPoP Sender-Constrained Token",
+    "description": "RFC 9449 — a token bound to the client's key, then replayed at the gateway. The demo routes require the DPoP header to be present; they do not verify the proof signature.",
     "actors": [
       "client-app",
       "gateway"
@@ -65,10 +65,18 @@
         "fromActor": "client-app",
         "toActor": "gateway",
         "action": "POST /api/auth/oauth/token",
-        "label": "POST /api/auth/oauth/token",
+        "label": "Request a DPoP-bound token",
         "method": "POST",
         "endpoint": "/api/auth/oauth/token",
+        "headers": { "DPoP": "demo-proof-jwt-not-verified" },
+        "body": {
+          "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
+          "scope": "transfer:write",
+          "subject_token": "demo-subject-token",
+          "resource": "https://mcpgateway.ping.demo"
+        },
         "step": 1,
+        "responseMap": { "accessToken": "access_token" },
         "expected": {}
       },
       {
@@ -77,9 +85,11 @@
         "fromActor": "gateway",
         "toActor": "client-app",
         "action": "POST /api/auth/gateway/verify-dpop",
-        "label": "POST /api/auth/gateway/verify-dpop",
+        "label": "Gateway verifies the proof binding",
         "method": "POST",
         "endpoint": "/api/auth/gateway/verify-dpop",
+        "headers": { "DPoP": "demo-proof-jwt-not-verified" },
+        "body": { "access_token": ":accessToken" },
         "step": 2,
         "expected": {}
       }
@@ -88,8 +98,8 @@
   },
   "rfc8693-token-exchange": {
     "id": "rfc8693-token-exchange",
-    "name": "Rfc8693 Token Exchange",
-    "description": "Protocol flow: rfc8693-token-exchange",
+    "name": "RFC 8693 Token Exchange",
+    "description": "Real PingOne token exchange driven by the signed-in session token — Exchange #1 on its own, then the two-exchange agent chain.",
     "actors": [
       "client-app",
       "token-exchanger"
@@ -100,10 +110,15 @@
         "actor": "client-app",
         "fromActor": "client-app",
         "toActor": "token-exchanger",
-        "action": "POST /api/oauth/token/token",
-        "label": "POST /api/oauth/token/token",
+        "action": "POST /api/tokens/exchange-test (single)",
+        "label": "Exchange #1 — session token to mcpgateway.ping.demo",
         "method": "POST",
-        "endpoint": "/api/oauth/token/token",
+        "endpoint": "/api/tokens/exchange-test",
+        "body": {
+          "mode": "single",
+          "audience": "mcpgateway.ping.demo",
+          "scopes": ["read", "write"]
+        },
         "step": 1,
         "expected": {}
       },
@@ -112,10 +127,14 @@
         "actor": "token-exchanger",
         "fromActor": "token-exchanger",
         "toActor": "client-app",
-        "action": "POST /api/oauth/token/introspect",
-        "label": "POST /api/oauth/token/introspect",
+        "action": "POST /api/tokens/exchange-test (double)",
+        "label": "Two-exchange chain — user to agent to MCP resource",
         "method": "POST",
-        "endpoint": "/api/oauth/token/introspect",
+        "endpoint": "/api/tokens/exchange-test",
+        "body": {
+          "mode": "double",
+          "scopes": ["read", "write"]
+        },
         "step": 2,
         "expected": {}
       }
@@ -124,8 +143,8 @@
   },
   "par": {
     "id": "par",
-    "name": "Par",
-    "description": "Protocol flow: par",
+    "name": "PAR Intent Binding",
+    "description": "RFC 9126 — pushes authorization_details to the real PingOne as/par endpoint, then enforces the $100 declared-intent cap against the returned request_uri.",
     "actors": [
       "client-app",
       "auth-server"
@@ -136,22 +155,33 @@
         "actor": "client-app",
         "fromActor": "client-app",
         "toActor": "auth-server",
-        "action": "POST /api/auth/par",
-        "label": "POST /api/auth/par",
+        "action": "POST /api/demo/intent-binding/run ($80)",
+        "label": "Push $80 intent — within the declared cap",
         "method": "POST",
-        "endpoint": "/api/auth/par",
+        "endpoint": "/api/demo/intent-binding/run",
+        "body": {
+          "action": "permit",
+          "requestedAmount": 80,
+          "live": true
+        },
         "step": 1,
+        "responseMap": { "requestUri": "requestUri" },
         "expected": {}
       },
       {
         "id": "step-2",
-        "actor": "auth-server",
-        "fromActor": "auth-server",
-        "toActor": "client-app",
-        "action": "GET /api/auth/authorize",
-        "label": "GET /api/auth/authorize",
-        "method": "GET",
-        "endpoint": "/api/auth/authorize",
+        "actor": "client-app",
+        "fromActor": "client-app",
+        "toActor": "auth-server",
+        "action": "POST /api/demo/intent-binding/run ($500)",
+        "label": "Push $500 intent — exceeds the cap, expect DENY",
+        "method": "POST",
+        "endpoint": "/api/demo/intent-binding/run",
+        "body": {
+          "action": "permit",
+          "requestedAmount": 500,
+          "live": true
+        },
         "step": 2,
         "expected": {}
       }

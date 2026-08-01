@@ -490,6 +490,85 @@ describe('ExecutionEngine', () => {
     });
   });
 
+  describe('body interpolation', () => {
+    // dpop step 2 and the introspect step need a value produced by step 1 in the
+    // request BODY, not the URL — chaining flows depend on this.
+    const chainedFlow = {
+      steps: [
+        {
+          id: 'issue',
+          method: 'POST',
+          endpoint: '/api/auth/oauth/token',
+          body: { grant_type: 'token-exchange' },
+          responseMap: { accessToken: 'access_token' }
+        },
+        {
+          id: 'verify',
+          method: 'POST',
+          endpoint: '/api/auth/gateway/verify-dpop',
+          body: { access_token: ':accessToken', note: 'token :accessToken bound', nested: { list: [':accessToken'] } }
+        },
+        {
+          id: 'unknown-placeholder',
+          method: 'POST',
+          endpoint: '/api/auth/gateway/verify-dpop',
+          body: { access_token: ':neverSet' }
+        }
+      ],
+      stopOnError: false
+    };
+
+    function mockPost(post) {
+      vi.spyOn(axios, 'create').mockReturnValue({
+        get: vi.fn(),
+        post,
+        put: vi.fn(),
+        patch: vi.fn(),
+        delete: vi.fn()
+      });
+    }
+
+    it('substitutes a mapped response value into the next request body', async () => {
+      const post = vi.fn()
+        .mockResolvedValueOnce({ status: 200, statusText: 'OK', headers: {}, data: { access_token: 'tok-abc' } })
+        .mockResolvedValueOnce({ status: 200, statusText: 'OK', headers: {}, data: { valid: true } });
+      mockPost(post);
+
+      const chained = new ExecutionEngine(chainedFlow);
+      await chained.executeStep('issue');
+      await chained.executeStep('verify');
+
+      expect(post.mock.calls[1][1]).toEqual({
+        access_token: 'tok-abc',
+        note: 'token tok-abc bound',
+        nested: { list: ['tok-abc'] }
+      });
+    });
+
+    it('leaves the placeholder untouched when the context has no value', async () => {
+      const post = vi.fn().mockResolvedValue({ status: 200, statusText: 'OK', headers: {}, data: {} });
+      mockPost(post);
+
+      const chained = new ExecutionEngine(chainedFlow);
+      await chained.executeStep('unknown-placeholder');
+
+      expect(post.mock.calls[0][1]).toEqual({ access_token: ':neverSet' });
+    });
+
+    it('does not mutate the flow spec body', async () => {
+      const post = vi.fn()
+        .mockResolvedValueOnce({ status: 200, statusText: 'OK', headers: {}, data: { access_token: 'tok-abc' } })
+        .mockResolvedValueOnce({ status: 200, statusText: 'OK', headers: {}, data: {} });
+      mockPost(post);
+
+      const chained = new ExecutionEngine(chainedFlow);
+      await chained.executeStep('issue');
+      await chained.executeStep('verify');
+
+      expect(chainedFlow.steps[1].body.access_token).toBe(':accessToken');
+    });
+  });
+
   describe('getState', () => {
     it('returns a copy of state', async () => {
       const mockResponse = {
