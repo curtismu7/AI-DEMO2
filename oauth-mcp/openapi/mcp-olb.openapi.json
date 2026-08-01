@@ -1,0 +1,143 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MCP OLB Tool Scope Map",
+    "description": "OpenAPI representation of MCP tools and their required OAuth scopes. Used by PingAuthorize to enforce per-tool scope policy without hardcoding scope rules in the policy engine.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "https://api.ping.demo", "description": "Production mcp-olb" },
+    { "url": "http://localhost:8080", "description": "Local development" }
+  ],
+  "security": [
+    { "bearerAuth": [] }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "paths": {
+    "/tools/get_my_accounts": {
+      "post": {
+        "operationId": "get_my_accounts",
+        "summary": "List all accounts for the authenticated user",
+        "security": [{ "bearerAuth": ["banking:read"] }],
+        "x-mcp-tool": true,
+        "x-required-scopes": ["banking:read"],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "type": "object" } } }
+        },
+        "responses": { "200": { "description": "Account list" } }
+      }
+    },
+    "/tools/get_account_balance": {
+      "post": {
+        "operationId": "get_account_balance",
+        "summary": "Get balance for a specific account",
+        "security": [{ "bearerAuth": ["banking:read"] }],
+        "x-mcp-tool": true,
+        "x-required-scopes": ["banking:read"],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "type": "object", "required": ["account_id"], "properties": { "account_id": { "type": "string" } } } } }
+        },
+        "responses": { "200": { "description": "Balance" } }
+      }
+    },
+    "/tools/get_sensitive_account_details": {
+      "post": {
+        "operationId": "get_sensitive_account_details",
+        "summary": "Get full account details including account number",
+        "security": [{ "bearerAuth": ["banking:read"] }],
+        "x-mcp-tool": true,
+        "x-required-scopes": ["banking:read"],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "type": "object", "required": ["account_id"], "properties": { "account_id": { "type": "string" } } } } }
+        },
+        "responses": { "200": { "description": "Account details" } }
+      }
+    },
+    "/tools/get_my_transactions": {
+      "post": {
+        "operationId": "get_my_transactions",
+        "summary": "List recent transactions",
+        "security": [{ "bearerAuth": ["banking:read"] }],
+        "x-mcp-tool": true,
+        "x-required-scopes": ["banking:read"],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "type": "object" } } }
+        },
+        "responses": { "200": { "description": "Transaction list" } }
+      }
+    },
+    "/tools/create_deposit": {
+      "post": {
+        "operationId": "create_deposit",
+        "summary": "Create a deposit transaction",
+        "security": [{ "bearerAuth": ["banking:write"] }],
+        "x-mcp-tool": true,
+        "x-required-scopes": ["banking:write"],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "type": "object", "required": ["account_id", "amount"], "properties": { "account_id": { "type": "string" }, "amount": { "type": "number" } } } } }
+        },
+        "responses": { "200": { "description": "Transaction result" } }
+      }
+    },
+    "/tools/create_withdrawal": {
+      "post": {
+        "operationId": "create_withdrawal",
+        "summary": "Create a withdrawal transaction",
+        "security": [{ "bearerAuth": ["banking:write"] }],
+        "x-mcp-tool": true,
+        "x-required-scopes": ["banking:write"],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "type": "object", "required": ["account_id", "amount"], "properties": { "account_id": { "type": "string" }, "amount": { "type": "number" } } } } }
+        },
+        "responses": { "200": { "description": "Transaction result" } }
+      }
+    },
+    "/tools/create_transfer": {
+      "post": {
+        "operationId": "create_transfer",
+        "summary": "Transfer between accounts",
+        "security": [{ "bearerAuth": ["banking:write"] }],
+        "x-mcp-tool": true,
+        "x-required-scopes": ["banking:write"],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "type": "object", "required": ["from_account_id", "to_account_id", "amount"], "properties": { "from_account_id": { "type": "string" }, "to_account_id": { "type": "string" }, "amount": { "type": "number" } } } } }
+        },
+        "responses": { "200": { "description": "Transfer result" } }
+      }
+    },
+    "/tools/query_user_by_email": {
+      "post": {
+        "operationId": "query_user_by_email",
+        "summary": "Look up a user by email (agent use only)",
+        "security": [{ "bearerAuth": ["ai_agent"] }],
+        "x-mcp-tool": true,
+        "x-required-scopes": ["ai_agent"],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "type": "object", "required": ["email"], "properties": { "email": { "type": "string", "format": "email" } } } } }
+        },
+        "responses": { "200": { "description": "User info" } }
+      }
+    },
+    "/tools/sequential_think": {
+      "post": {
+        "operationId": "sequential_think",
+        "summary": "Internal agent reasoning tool (no banking data access)",
+        "security": [{ "bearerAuth": ["banking:read"] }],
+        "x-mcp-tool": true,
+        "x-required-scopes": ["banking:read"],
+        "requestBody": {
+          "content": { "application/json": { "schema": { "type": "object" } } }
+        },
+        "responses": { "200": { "description": "Reasoning result" } }
+      }
+    }
+  }
+}

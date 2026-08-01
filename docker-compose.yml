@@ -115,10 +115,11 @@ services:
       # Internal service DNS (OrbStack reserves host 3006; PingGateway's host port is 3036).
       MCP_PINGGATEWAY_URL: "http://ping-gateway:8080"
       # Default MCP endpoint offered by the /privilege-mcp-client page. The
-      # ping-mcpgw service carries local.ping-devops.com as a network alias, so
-      # this one URL is correct for both the browser and this container's own
-      # server-side relay.
-      PRIVILEGE_MCPGW_URL: "https://privilege.pingone.com/api/mcp"
+      # Privilege Cloud app-specific frontend (client-facing MCP endpoint)
+      PRIVILEGE_MCPGW_URL: "https://mypingone-app-default.applications.privilege.pingone.com:8643/mcp"
+      PRIVILEGE_SSO_ENV_ID: "01d89b06-66d5-430e-9f28-65636843788b"
+      PRIVILEGE_SSO_CLIENT_ID: "6586d3de-b916-454c-84e5-6d21b572a534"
+      PRIVILEGE_SSO_CLIENT_SECRET: "jGVDouSatx~uDxOeYC-TjY5qzPFnVUid21JjjDvGn7JZAM0zVqIBSlK_U_tdRAxJ"
       PINGONE_MCP_GATEWAY_CLIENT_ID: "6586d3de-b916-454c-84e5-6d21b572a534"
       # Agent Gateway + Authorize engine toggles live in admin Quick Flags (not pinned
       # here) so operators can switch demo vs real without rebuilding. After flipping,

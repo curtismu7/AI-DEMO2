@@ -1,5 +1,5 @@
 // demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx
-// Chat-first MCP client for PingOne Privilege MCP Gateway — integrated version.
+// Cursor-IDE-styled MCP client for PingOne Privilege MCP Gateway.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import './PrivilegeMcpClientPage.css';
@@ -26,13 +26,23 @@ function truncate(v, max = 240) {
   return v.length <= max ? v : `${v.slice(0, max)}... (+${v.length - max} chars)`;
 }
 
+function scopeColor(scope) {
+  if (scope.startsWith('mcp:')) return 'scope-mcp';
+  if (scope.startsWith('p1:')) return 'scope-p1';
+  if (scope === 'openid' || scope === 'profile' || scope === 'email') return 'scope-oidc';
+  if (scope.includes('read')) return 'scope-read';
+  if (scope.includes('write') || scope.includes('admin') || scope.includes('manage')) return 'scope-write';
+  return 'scope-default';
+}
+
 export default function PrivilegeMcpClientPage() {
   const [searchParams] = useSearchParams();
   const [config, setConfig] = useState({ mcpUrl: '', clientId: '', scopes: 'openid profile email', llmUrl: 'http://127.0.0.1:11434', llmModel: 'llama3.2:1b' });
   const [authenticated, setAuthenticated] = useState(false);
+  const [grantedScopes, setGrantedScopes] = useState([]);
   const [tools, setTools] = useState([]);
   const [chatMessages, setChatMessages] = useState([]);
-  const [chatInput, setChatInput] = useState('List available tools from the connected MCP server.');
+  const [chatInput, setChatInput] = useState('');
   const [thinking, setThinking] = useState(false);
   const [events, setEvents] = useState([]);
   const [selectedTool, setSelectedTool] = useState('');
@@ -41,13 +51,12 @@ export default function PrivilegeMcpClientPage() {
   const [rawRpc, setRawRpc] = useState('{\n  "jsonrpc": "2.0",\n  "id": 1,\n  "method": "tools/list",\n  "params": {}\n}');
   const [rawRpcResult, setRawRpcResult] = useState('');
   const [showBlockedModal, setShowBlockedModal] = useState(false);
+  const [activeTab, setActiveTab] = useState('chat');
+  const [terminalTab, setTerminalTab] = useState('events');
   const chatEndRef = useRef(null);
-  const eventsRef = useRef(null);
 
-  // scroll chat to bottom
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages]);
 
-  // append helpers
   const appendChat = useCallback((role, content, extra = null) => {
     setChatMessages((prev) => [...prev, { role, content, extra, ts: Date.now() }]);
   }, []);
@@ -56,17 +65,16 @@ export default function PrivilegeMcpClientPage() {
     setEvents((prev) => [entry, ...prev].slice(0, 200));
   }, []);
 
-  // Load initial state
   useEffect(() => {
     api('/state').then((s) => {
       setConfig(s.config || config);
       setAuthenticated(Boolean(s.oauth?.authenticated));
+      if (s.oauth?.scope) setGrantedScopes(s.oauth.scope.split(' ').filter(Boolean));
       setTools(s.tools || []);
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // SSE events
   useEffect(() => {
     const es = new EventSource(`${API_BASE}/events`, { withCredentials: true });
     const handler = (type) => (e) => {
@@ -80,13 +88,15 @@ export default function PrivilegeMcpClientPage() {
     return () => es.close();
   }, [appendEvent]);
 
-  // Check auth callback result from URL
   useEffect(() => {
     const authResult = searchParams.get('auth');
     const reason = searchParams.get('reason');
     if (authResult === 'success') {
       appendChat('system', 'OAuth completed. Refreshing tools...');
       refreshTools();
+      api('/state').then((s) => {
+        if (s.oauth?.scope) setGrantedScopes(s.oauth.scope.split(' ').filter(Boolean));
+      }).catch(() => {});
     }
     if (authResult === 'error') {
       appendChat('system', `OAuth failed: ${reason ? decodeURIComponent(reason) : 'Unknown'}`);
@@ -94,18 +104,10 @@ export default function PrivilegeMcpClientPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-refresh tools every 5s when authenticated
-  useEffect(() => {
-    if (!authenticated) return;
-    const interval = setInterval(() => { refreshTools(true); }, 5000);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authenticated]);
-
   const saveConfig = async () => {
     try {
       await api('/config', { method: 'POST', body: config });
-      appendChat('system', 'Config saved.');
+      appendChat('system', 'Configuration saved.');
     } catch (err) {
       appendChat('system', `Save failed: ${err.message}`);
     }
@@ -116,7 +118,7 @@ export default function PrivilegeMcpClientPage() {
       await api('/config', { method: 'POST', body: config });
       const data = await api('/auth/start', { method: 'POST' });
       window.open(data.authUrl, '_blank', 'noopener,noreferrer');
-      appendChat('system', 'OAuth started. Complete login in the opened tab.');
+      appendChat('system', 'OAuth started — complete login in the opened tab.');
     } catch (err) {
       appendChat('system', `OAuth start failed: ${err.message}`);
     }
@@ -128,7 +130,7 @@ export default function PrivilegeMcpClientPage() {
       const nextTools = data.tools || [];
       setTools(nextTools);
       setAuthenticated(true);
-      if (!silent) appendChat('system', `Tools refreshed (${nextTools.length} found).`);
+      if (!silent) appendChat('system', `Discovered ${nextTools.length} tools from MCP server.`);
     } catch (err) {
       setAuthenticated(false);
       setTools([]);
@@ -143,6 +145,7 @@ export default function PrivilegeMcpClientPage() {
     const prompt = chatInput.trim();
     if (!prompt) return;
     appendChat('user', prompt);
+    setChatInput('');
     setThinking(true);
     try {
       await api('/config', { method: 'POST', body: config });
@@ -189,116 +192,287 @@ export default function PrivilegeMcpClientPage() {
   };
 
   return (
-    <div className="pmc-page">
+    <div className="cur-ide">
       {showBlockedModal && (
-        <div className="pmc-modal-overlay" onClick={() => setShowBlockedModal(false)}>
-          <div className="pmc-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="cur-modal-overlay" onClick={() => setShowBlockedModal(false)}>
+          <div className="cur-modal" onClick={(e) => e.stopPropagation()}>
             <h2>Access Denied</h2>
             <p>User blocked — please request access from your Privilege Cloud administrator.</p>
-            <button className="pmc-btn pmc-btn--primary" onClick={() => setShowBlockedModal(false)}>Dismiss</button>
+            <button className="cur-btn cur-btn--primary" onClick={() => setShowBlockedModal(false)}>Dismiss</button>
           </div>
         </div>
       )}
-      <header className="pmc-topbar">
-        <div>
-          <h1>PingOne Privilege MCP Client</h1>
-          <p>Chat-first MCP demo with real-time protected tool visibility via PingOne Privilege Gateway.</p>
+
+      {/* Title bar */}
+      <header className="cur-titlebar">
+        <div className="cur-titlebar-left">
+          <div className="cur-traffic-lights">
+            <span className="cur-dot cur-dot--red" />
+            <span className="cur-dot cur-dot--yellow" />
+            <span className="cur-dot cur-dot--green" />
+          </div>
+          <span className="cur-titlebar-title">Privilege MCP Client — PingOne</span>
         </div>
-        <div className={`pmc-pill ${authenticated ? 'pmc-pill--connected' : ''}`}>
-          {authenticated ? 'Connected' : 'Not Authenticated'}
+        <div className="cur-titlebar-center">
+          <div className={`cur-status ${authenticated ? 'cur-status--ok' : ''}`}>
+            <span className="cur-status-dot" />
+            {authenticated ? 'Connected' : 'Disconnected'}
+          </div>
+        </div>
+        <div className="cur-titlebar-right">
+          {config.llmModel && <span className="cur-model-badge">{config.llmModel}</span>}
         </div>
       </header>
 
-      <main className="pmc-layout">
-        {/* LEFT — Config sidebar */}
-        <aside className="pmc-panel pmc-sidebar">
-          <h2>Connection</h2>
-          <label className="pmc-label">
-            MCP URL
-            <input className="pmc-input" value={config.mcpUrl} onChange={(e) => setConfig({ ...config, mcpUrl: e.target.value })} placeholder="https://mcpgw.example.com/mcp" />
-          </label>
-          <label className="pmc-label">
-            OAuth Client ID
-            <input className="pmc-input" value={config.clientId} onChange={(e) => setConfig({ ...config, clientId: e.target.value })} />
-          </label>
-          <label className="pmc-label">
-            Scopes
-            <input className="pmc-input" value={config.scopes} onChange={(e) => setConfig({ ...config, scopes: e.target.value })} />
-          </label>
-          <label className="pmc-label">
-            LLM URL (optional)
-            <input className="pmc-input" value={config.llmUrl} onChange={(e) => setConfig({ ...config, llmUrl: e.target.value })} />
-          </label>
-          <label className="pmc-label">
-            LLM Model (optional)
-            <input className="pmc-input" value={config.llmModel} onChange={(e) => setConfig({ ...config, llmModel: e.target.value })} />
-          </label>
-          <div className="pmc-buttons">
-            <button className="pmc-btn" onClick={saveConfig}>Save</button>
-            <button className="pmc-btn pmc-btn--primary" onClick={startAuth}>Sign In</button>
-          </div>
+      <div className="cur-body">
+        {/* Activity bar */}
+        <nav className="cur-activity-bar">
+          <button className={`cur-act-btn ${activeTab === 'chat' ? 'cur-act-btn--active' : ''}`} onClick={() => setActiveTab('chat')} title="Agent Chat">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </button>
+          <button className={`cur-act-btn ${activeTab === 'tools' ? 'cur-act-btn--active' : ''}`} onClick={() => setActiveTab('tools')} title="MCP Tools">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          </button>
+          <button className={`cur-act-btn ${activeTab === 'rpc' ? 'cur-act-btn--active' : ''}`} onClick={() => setActiveTab('rpc')} title="Raw RPC">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          </button>
+        </nav>
 
-          <h2>Available Tools ({tools.length})</h2>
-          <pre className="pmc-pre pmc-tools-summary">
-            {tools.length > 0 ? JSON.stringify(tools.map((t) => t.name), null, 2) : 'No tools discovered yet.'}
-          </pre>
-          <button className="pmc-btn" onClick={() => refreshTools(false)}>Refresh Now</button>
+        {/* Sidebar */}
+        <aside className="cur-sidebar">
+          <div className="cur-sidebar-header">
+            <span className="cur-sidebar-title">CONNECTION</span>
+          </div>
+          <div className="cur-sidebar-content">
+            <label className="cur-field">
+              <span className="cur-field-label">MCP Gateway URL</span>
+              <input className="cur-input" value={config.mcpUrl} onChange={(e) => setConfig({ ...config, mcpUrl: e.target.value })} placeholder="https://mcpgw.example.com/mcp" />
+            </label>
+            <label className="cur-field">
+              <span className="cur-field-label">OAuth Client ID</span>
+              <input className="cur-input" value={config.clientId} onChange={(e) => setConfig({ ...config, clientId: e.target.value })} />
+            </label>
+            <label className="cur-field">
+              <span className="cur-field-label">Requested Scopes</span>
+              <input className="cur-input" value={config.scopes} onChange={(e) => setConfig({ ...config, scopes: e.target.value })} />
+            </label>
+
+            <div className="cur-sidebar-divider" />
+
+            <div className="cur-sidebar-header">
+              <span className="cur-sidebar-title">LOCAL LLM</span>
+            </div>
+            <label className="cur-field">
+              <span className="cur-field-label">Ollama URL</span>
+              <input className="cur-input" value={config.llmUrl} onChange={(e) => setConfig({ ...config, llmUrl: e.target.value })} />
+            </label>
+            <label className="cur-field">
+              <span className="cur-field-label">Model</span>
+              <input className="cur-input" value={config.llmModel} onChange={(e) => setConfig({ ...config, llmModel: e.target.value })} />
+            </label>
+
+            <div className="cur-btn-row">
+              <button className="cur-btn" onClick={saveConfig}>Save</button>
+              <button className="cur-btn cur-btn--primary" onClick={startAuth}>Sign In</button>
+            </div>
+
+            {grantedScopes.length > 0 && (
+              <div className="cur-scopes-section">
+                <div className="cur-sidebar-header">
+                  <span className="cur-sidebar-title">GRANTED SCOPES</span>
+                  <span className="cur-scope-count">{grantedScopes.length}</span>
+                </div>
+                <div className="cur-scopes-grid">
+                  {grantedScopes.map((s) => (
+                    <span key={s} className={`cur-scope-pill ${scopeColor(s)}`}>{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="cur-sidebar-header" style={{ marginTop: 12 }}>
+              <span className="cur-sidebar-title">MCP TOOLS</span>
+              <span className="cur-scope-count">{tools.length}</span>
+            </div>
+            {tools.length > 0 ? (
+              <div className="cur-tools-list">
+                {tools.map((t) => (
+                  <div key={t.name} className="cur-tool-item" onClick={() => { setSelectedTool(t.name); setActiveTab('tools'); }}>
+                    <span className="cur-tool-icon">fn</span>
+                    <div className="cur-tool-info">
+                      <span className="cur-tool-name">{t.name}</span>
+                      {t.description && <span className="cur-tool-desc">{truncate(t.description, 60)}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="cur-empty-state">No tools discovered yet</div>
+            )}
+            <button className="cur-btn cur-btn--ghost" onClick={() => refreshTools(false)}>Refresh Tools</button>
+          </div>
         </aside>
 
-        {/* CENTER — Chat */}
-        <section className="pmc-panel pmc-chat-panel">
-          <div className="pmc-chat-messages">
-            {chatMessages.map((msg, i) => (
-              <div key={i} className={`pmc-bubble pmc-bubble--${msg.role}`}>
-                <span className="pmc-bubble-text">{msg.content}</span>
-                {msg.extra && (
-                  <pre className="pmc-bubble-meta">{typeof msg.extra === 'string' ? msg.extra : JSON.stringify(msg.extra, null, 2)}</pre>
+        {/* Main editor area */}
+        <main className="cur-main">
+          <div className="cur-tabs">
+            <button className={`cur-tab ${activeTab === 'chat' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('chat')}>Agent Chat</button>
+            <button className={`cur-tab ${activeTab === 'tools' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('tools')}>Tool Caller</button>
+            <button className={`cur-tab ${activeTab === 'rpc' ? 'cur-tab--active' : ''}`} onClick={() => setActiveTab('rpc')}>Raw RPC</button>
+          </div>
+
+          <div className="cur-editor-area">
+            {activeTab === 'chat' && (
+              <div className="cur-chat-panel">
+                <div className="cur-chat-messages">
+                  {chatMessages.length === 0 && (
+                    <div className="cur-chat-empty">
+                      <div className="cur-chat-empty-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                      </div>
+                      <p>Ask the agent to interact with MCP tools</p>
+                      <span className="cur-chat-hint">Try: "List available tools" or "What can you do?"</span>
+                    </div>
+                  )}
+                  {chatMessages.map((msg, i) => (
+                    <div key={i} className={`cur-msg cur-msg--${msg.role}`}>
+                      <div className="cur-msg-header">
+                        <span className="cur-msg-role">{msg.role === 'user' ? 'You' : msg.role === 'assistant' ? 'Agent' : 'System'}</span>
+                      </div>
+                      <div className="cur-msg-body">{msg.content}</div>
+                      {msg.extra && (
+                        <pre className="cur-msg-meta">{typeof msg.extra === 'string' ? msg.extra : JSON.stringify(msg.extra, null, 2)}</pre>
+                      )}
+                    </div>
+                  ))}
+                  {thinking && (
+                    <div className="cur-msg cur-msg--thinking">
+                      <div className="cur-thinking-dots"><span /><span /><span /></div>
+                      <span>Thinking...</span>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+                <div className="cur-composer">
+                  <textarea
+                    className="cur-composer-input"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); sendChat(); } }}
+                    placeholder="Ask the agent... (Cmd+Enter to send)"
+                    rows={2}
+                  />
+                  <button className="cur-composer-send" onClick={sendChat} disabled={thinking}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'tools' && (
+              <div className="cur-tools-panel">
+                <div className="cur-tools-header"><h3>Direct Tool Call</h3></div>
+                <label className="cur-field">
+                  <span className="cur-field-label">Tool</span>
+                  <select className="cur-input" value={selectedTool} onChange={(e) => setSelectedTool(e.target.value)}>
+                    <option value="">Select a tool...</option>
+                    {tools.map((t) => <option key={t.name} value={t.name}>{t.name} — {truncate(t.description || '', 60)}</option>)}
+                  </select>
+                </label>
+                <label className="cur-field">
+                  <span className="cur-field-label">Arguments (JSON)</span>
+                  <textarea className="cur-input cur-input--code" rows={5} value={toolArgs} onChange={(e) => setToolArgs(e.target.value)} placeholder='{"key": "value"}' />
+                </label>
+                <button className="cur-btn cur-btn--primary" onClick={callTool} disabled={!selectedTool}>Execute Tool</button>
+                {toolResult && (
+                  <div className="cur-result-block">
+                    <span className="cur-result-label">Result</span>
+                    <pre className="cur-code-output">{toolResult}</pre>
+                  </div>
                 )}
               </div>
-            ))}
-            {thinking && <div className="pmc-thinking">Thinking and checking tools...</div>}
-            <div ref={chatEndRef} />
+            )}
+
+            {activeTab === 'rpc' && (
+              <div className="cur-rpc-panel">
+                <div className="cur-tools-header"><h3>Raw MCP JSON-RPC</h3></div>
+                <label className="cur-field">
+                  <span className="cur-field-label">Request Body</span>
+                  <textarea className="cur-input cur-input--code" rows={8} value={rawRpc} onChange={(e) => setRawRpc(e.target.value)} />
+                </label>
+                <button className="cur-btn cur-btn--primary" onClick={sendRawRpcCall}>Send RPC</button>
+                {rawRpcResult && (
+                  <div className="cur-result-block">
+                    <span className="cur-result-label">Response</span>
+                    <pre className="cur-code-output">{rawRpcResult}</pre>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-          <div className="pmc-composer">
-            <textarea
-              className="pmc-input"
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); sendChat(); } }}
-              rows={3}
-            />
-            <button className="pmc-btn pmc-btn--primary" onClick={sendChat}>Send</button>
+
+          {/* Terminal panel */}
+          <div className="cur-terminal">
+            <div className="cur-terminal-tabs">
+              <button className={`cur-terminal-tab ${terminalTab === 'events' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('events')}>RELAY LOG</button>
+              <button className={`cur-terminal-tab ${terminalTab === 'scopes' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('scopes')}>SCOPES</button>
+            </div>
+            <div className="cur-terminal-content">
+              {terminalTab === 'events' && (
+                <div className="cur-terminal-log">
+                  {events.length === 0 && <span className="cur-terminal-empty">Waiting for events...</span>}
+                  {events.slice(0, 50).map((e, i) => (
+                    <div key={i} className={`cur-terminal-line cur-terminal-line--${e.type}`}>
+                      <span className="cur-terminal-ts">{e.ts?.slice(11, 19) || ''}</span>
+                      <span className={`cur-terminal-badge cur-terminal-badge--${e.type}`}>{e.type}</span>
+                      <span className="cur-terminal-msg">{JSON.stringify({ ...e, ts: undefined, type: undefined }, null, 0)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {terminalTab === 'scopes' && (
+                <div className="cur-terminal-scopes">
+                  {grantedScopes.length === 0 ? (
+                    <span className="cur-terminal-empty">No scopes granted yet — sign in first</span>
+                  ) : (
+                    <div className="cur-scopes-detail">
+                      <div className="cur-scopes-summary">
+                        <span className="cur-scopes-count-large">{grantedScopes.length}</span>
+                        <span className="cur-scopes-count-label">scopes granted</span>
+                      </div>
+                      <table className="cur-scopes-table">
+                        <thead><tr><th>Scope</th><th>Category</th></tr></thead>
+                        <tbody>
+                          {grantedScopes.map((s) => (
+                            <tr key={s}>
+                              <td><code className={`cur-scope-pill ${scopeColor(s)}`}>{s}</code></td>
+                              <td className="cur-scope-cat">
+                                {s.startsWith('mcp:') ? 'MCP' : s.startsWith('p1:') ? 'PingOne' : (s === 'openid' || s === 'profile' || s === 'email') ? 'OIDC' : s.includes('read') ? 'Read' : s.includes('write') || s.includes('admin') ? 'Write' : 'Custom'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-        </section>
+        </main>
+      </div>
 
-        {/* RIGHT — Inspector */}
-        <aside className="pmc-panel pmc-inspector">
-          <h2>Live Relay</h2>
-          <pre className="pmc-pre pmc-event-log" ref={eventsRef}>
-            {events.slice(0, 50).map((e, i) => (
-              <div key={i}>[{e.ts}] {JSON.stringify({ ...e, ts: undefined }, null, 0)}</div>
-            ))}
-          </pre>
-
-          <details className="pmc-details">
-            <summary>Advanced: Raw MCP + Tool Call</summary>
-
-            <h3>Raw MCP RPC</h3>
-            <textarea className="pmc-input" rows={5} value={rawRpc} onChange={(e) => setRawRpc(e.target.value)} />
-            <button className="pmc-btn" onClick={sendRawRpcCall}>Send RPC</button>
-            <pre className="pmc-pre">{rawRpcResult}</pre>
-
-            <h3>Direct Tool Call</h3>
-            <select className="pmc-input" value={selectedTool} onChange={(e) => setSelectedTool(e.target.value)}>
-              <option value="">Select a tool...</option>
-              {tools.map((t) => <option key={t.name} value={t.name}>{t.name} - {truncate(t.description || '', 60)}</option>)}
-            </select>
-            <textarea className="pmc-input" rows={3} value={toolArgs} onChange={(e) => setToolArgs(e.target.value)} placeholder='{"key": "value"}' />
-            <button className="pmc-btn" onClick={callTool}>Call Tool</button>
-            <pre className="pmc-pre">{toolResult}</pre>
-          </details>
-        </aside>
-      </main>
+      {/* Status bar */}
+      <footer className="cur-statusbar">
+        <div className="cur-statusbar-left">
+          <span className="cur-statusbar-item">MCP Protocol 2025-11-25</span>
+          <span className="cur-statusbar-item">{tools.length} tools</span>
+        </div>
+        <div className="cur-statusbar-right">
+          <span className="cur-statusbar-item">{config.llmModel || 'No LLM'}</span>
+          <span className="cur-statusbar-item">{authenticated ? 'Authenticated' : 'Not signed in'}</span>
+        </div>
+      </footer>
     </div>
   );
 }
