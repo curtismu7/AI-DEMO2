@@ -58,9 +58,23 @@ discovery fails with "No Tools, Prompts, or Resources Discovered."
 | Proxy Image | `public.ecr.aws/s7q1z8z4/privilege-proxy` |
 | Proxy Binary | `/procyon/bin/cyonproxy` |
 | Cluster ID | `ai-demo-se` |
+| Cluster Name | `cmuir-mcpgw` |
 | MCP endpoint | `https://privilege.pingone.com/api/mcp` |
 | gRPC controller | `grpc.privilege.pingone.com:443` |
 | End user | `cmuir+ssoEndUser@pingone.com` |
+| Token file | `ping-mcpgw/config/proxy-token` (gitignored) |
+| Guest agent env | `ping-mcpgw/config/guest-agent.env` (committed — non-secret config) |
+
+### Current token status
+
+The enrollment token in `ping-mcpgw/config/proxy-token` **expired 2026-07-31**.
+A fresh token was obtained 2026-08-01 but enrollment returned **500 "not found"**
+— the node (`affdbc0f-8f89-4e48-95b4-63e81359e0fc`) was deleted on the Privilege
+side. Must create a new node in the console before the proxy will enroll.
+
+See **[ping-mcpgw/RENEW-TOKEN.md](../../ping-mcpgw/RENEW-TOKEN.md)** for the
+full step-by-step renewal procedure, including the "not found" and "Unauthorized"
+discovery errors and their fixes.
 
 ## Proxy enrollment
 
@@ -179,13 +193,72 @@ docker run -d --name ai-demo-ping-mcpgw \
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | Proxy exits immediately, no logs | Missing/invalid `proxy-config.data` and no `ENV_PROXY_TOKEN` | Provide enrollment token |
-| "not found" on enrollment (500) | Token references a deleted/different node | Get fresh token from Gateways → Add Node |
-| "No Tools, Prompts, or Resources Discovered" in console | Proxy can't reach MCP server (mTLS blocks, wrong URL, wrong port) | Set `MCP_MTLS_ENABLED=false` on MCP server; ensure URL is `http://localhost:8080/mcp` |
+| "not found" on enrollment (500) | Token's `nodeId` was deleted from the gateway in the Privilege console | Go to console → Gateways → Add Node to generate a token for a *new* node; if the gateway itself is gone, recreate it |
+| Proxy starts then drops with `token expired` or silent reconnect loop | `ENV_PROXY_TOKEN` JWT `exp` claim is in the past | Get a fresh token from the console (see below) |
+| "No Tools, Prompts, or Resources Discovered" in console | Proxy can't reach MCP server (mTLS blocks, wrong URL, wrong port) | Set `MCP_MTLS_ENABLED=false` on MCP server; ensure URL is `http://mcp-server:8080/mcp` |
 | 401 "User is not authorized" from MCP | User has no Privilege policy for the MCP app | Assign policy in Privilege console (requires discovery first) |
 | 401 "Unsupported authentication method" on token exchange | Missing `client_secret` in POST body | Ensure `PINGONE_MCP_GATEWAY_CLIENT_SECRET` is set |
 | redirect_uri mismatch | BFF detects wrong host (Docker internal hostname) | Set `PRIVILEGE_MCP_CALLBACK_HOST` or ensure `x-forwarded-host` passes through |
 | Session not persisting between requests | Session cookie not sent / saveUninitialized | Use browser (cookies auto-sent), or pass `Cookie` header in curl |
 | curl to MCP server gets "Empty reply" | mTLS enabled — server drops non-cert connections | Disable mTLS or provide gateway client cert |
+| gRPC `UNAVAILABLE` / proxy silent hang | Firewall blocking outbound to `grpc.privilege.pingone.com:443` | Allow outbound 443; no inbound holes needed |
+| Discovery succeeds but tool calls return empty | MCP server behind PingGateway, not directly reachable | MCP App config → set MCP Server URL to the **internal** URL (`http://mcp-server:8080/mcp`), not the gateway URL |
+
+## Token expiration and renewal
+
+The enrollment token (`ENV_PROXY_TOKEN`) is a JWT issued by the Privilege console
+wizard. It typically expires **~24h after creation** (first enrollment) or **~1 year**
+for long-lived node tokens.
+
+### Check expiration
+```bash
+cat ping-mcpgw/config/proxy-token | cut -d. -f2 | base64 -d 2>/dev/null | python3 -c "
+import sys, json, datetime
+d = json.loads(sys.stdin.read())
+exp = datetime.datetime.fromtimestamp(d['exp'], tz=datetime.timezone.utc)
+now = datetime.datetime.now(tz=datetime.timezone.utc)
+status = 'EXPIRED' if now > exp else 'valid'
+print(f'{status} — expires {exp.isoformat()} ({"%.1f" % ((exp-now).total_seconds()/3600)}h from now)')
+"
+```
+
+### Renew an expired token
+1. PingOne Privilege console → **Cloud > Gateways** → select your gateway
+2. Click **Add Node** (or the refresh icon on an existing node row)
+3. Copy the new `ENV_PROXY_TOKEN=eyJ...` JWT
+4. Save locally:
+   ```bash
+   printf '%s' 'eyJ...<full JWT>' > ping-mcpgw/config/proxy-token
+   ```
+5. Clear stale enrollment state and restart:
+   ```bash
+   docker volume rm ai-demo2_mcpgw-ssl 2>/dev/null || true
+   export PRIVILEGE_PROXY_TOKEN="$(cat ping-mcpgw/config/proxy-token)"
+   ./run-docker.sh optional start mcpgw
+   ```
+6. Verify:
+   ```bash
+   docker logs ai-demo-ping-mcpgw 2>&1 | grep -iE "enrolled|connected|ready|error"
+   ```
+
+### After successful enrollment
+Once enrolled, the proxy persists its identity in the `mcpgw-ssl` Docker volume
+(`/procyon/ssl/proxy-config.data`). Subsequent container restarts do NOT need the
+token — the volume state is sufficient. Only clear the volume if re-enrolling.
+
+## Quick install checklist (fresh machine)
+
+1. **Get the enrollment token** from Privilege console (Gateway wizard → Add Node)
+2. **Save it**: `printf '%s' 'eyJ...' > ping-mcpgw/config/proxy-token`
+3. **Start**: `./run-docker.sh optional start mcpgw`
+4. **Verify enrollment**: `docker logs ai-demo-ping-mcpgw 2>&1 | tail -10`
+5. **Register MCP App** in console: AI Security → Agentic Apps → Add Application → MCP Server
+   - Frontend URL: `https://local.ping-devops.com:8680`
+   - MCP Server URL: `http://mcp-server:8080/mcp`
+   - Mesh Cluster: select your gateway
+6. **Discover tools**: wait ~30s after MCP app creation, check console for discovered tools
+7. **Create policy**: assign user `cmuir+ssoEndUser@pingone.com` a policy granting tool access
+8. **Test from UI**: navigate to `/privilege-mcp-client`, sign in, call a tool
 
 ## mTLS and Privilege proxy coexistence
 
@@ -202,3 +275,37 @@ The existing `demo_mcp_gateway` (PingGateway) uses mTLS with its own cert at
 `/certs/gw-mtls/gw-client.crt`. These are independent paths — both can coexist
 if mTLS is left enabled and you add the Privilege proxy's cert to the trust store,
 but for simplicity the demo disables mTLS when using Privilege.
+
+## Docker volume gotchas
+
+The compose service uses three named volumes:
+- `mcpgw-ssl` — persists enrollment state (`proxy-config.data`). **If this volume
+  contains stale state from a previous enrollment, re-enrollment with a new token
+  will silently fail.** Always `docker volume rm ai-demo2_mcpgw-ssl` before
+  re-enrolling.
+- `mcpgw-logs` — proxy diagnostic logs
+- `mcpgw-recordings` — session recordings (if enabled in console)
+
+The `proxy-token` file is bind-mounted read-only at `/procyon/ssl/proxy-token.data`.
+If both the bind-mount file AND the volume's `proxy-config.data` exist, the proxy
+prefers the persisted config (ignores the token file). This is by design — the
+token is only consumed on first boot.
+
+## guest-agent.env reference
+
+`ping-mcpgw/config/guest-agent.env` is the committed (non-secret) config used by
+the proxy's guest-agent mode. Key fields:
+
+| Field | Purpose |
+|-------|---------|
+| `Tenant` | Privilege tenant ID |
+| `APIKey` / `APISecret` | Guest agent API credentials (non-OIDC path) |
+| `CNTRLUrl` | Privilege control plane URL |
+| `ClusterName` | Must match the gateway name registered in console |
+| `HostIP` | FQDN the proxy advertises |
+| `NodeType` | `MCPGw` for MCP gateway mode |
+| `MCPGwServer` | Public URL of this proxy (`https://local.ping-devops.com:8680`) |
+| `MCPGwCertPath` | Path to TLS certs inside the container |
+| `OidcClientID/Secret` | PingOne OIDC app for user auth |
+| `OidcAuthURL/TokenURL/UserURL` | PingOne AS endpoints |
+| `OidcUserIDClaim` | Claim used to identify the user (`sub`) |
