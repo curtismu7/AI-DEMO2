@@ -151,6 +151,7 @@ import PublicRoutes, {
   LiveUseCaseWorkbenchPageRoute,
   MFATestPageRoute,
   OASDemoPageRoute,
+  PrivilegeMcpLearningPageRoute,
   OAuthAcademyPageRoute,
   OnboardingRoute,
   PrivilegeDemoPageRoute,
@@ -511,6 +512,12 @@ function AppWithAuth() {
                   path="/intent-binding-learning"
                   element={
                     <IntentBindingLearningPageRoute user={user} logout={logout} />
+                  }
+                />
+                <Route
+                  path="/privilege-mcp-learning"
+                  element={
+                    <PrivilegeMcpLearningPageRoute user={user} logout={logout} />
                   }
                 />
                 <Route
