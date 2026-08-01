@@ -22,7 +22,7 @@ function getClientSession(req) {
         llmUrl: 'http://127.0.0.1:11434',
         llmModel: 'llama3.2:1b',
       },
-      oauth: { accessToken: null, refreshToken: null, expiresAt: null },
+      oauth: { accessToken: null, refreshToken: null, expiresAt: null, tokenUri: null },
       tools: [],
       mcpSession: { initialized: false, protocolVersion: null, sessionId: null },
       pendingAuth: null,
@@ -90,8 +90,66 @@ function normalizeMcpFailure(status, text) {
   return `MCP request failed: ${status} ${snippet}`;
 }
 
-async function fetchMcp(session, pathname, body, withAuth = true) {
+// Refresh a little before expiry so an in-flight relay never races the clock
+const TOKEN_REFRESH_SKEW_MS = 60 * 1000;
+
+function accessTokenExpiring(session) {
+  if (!session.oauth.expiresAt) return false;
+  return Date.now() >= session.oauth.expiresAt - TOKEN_REFRESH_SKEW_MS;
+}
+
+// Exchange the stored refresh token for a new access token.
+// Returns false (and clears the session tokens) when refresh is unavailable or
+// rejected — callers then surface the original 401 and the UI asks for re-login.
+async function refreshAccessToken(session) {
+  if (!session.oauth.refreshToken || !session.oauth.tokenUri) return false;
+
+  const body = new URLSearchParams({
+    grant_type: 'refresh_token',
+    refresh_token: session.oauth.refreshToken,
+    client_id: session.config.clientId,
+  });
+  const clientSecret = process.env.PRIVILEGE_SSO_CLIENT_SECRET || process.env.PINGONE_MCP_GATEWAY_CLIENT_SECRET || '';
+  if (clientSecret) body.set('client_secret', clientSecret);
+
+  let response;
+  let data = {};
+  try {
+    response = await fetch(session.oauth.tokenUri, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+    const text = await response.text();
+    try { data = JSON.parse(text); } catch { data = {}; }
+  } catch (err) {
+    emitEvent('oauth', { phase: 'refresh_failed', error: err.message });
+    return false;
+  }
+
+  if (!response.ok || !data.access_token) {
+    session.oauth.accessToken = null;
+    session.oauth.refreshToken = null;
+    session.oauth.expiresAt = null;
+    emitEvent('oauth', { phase: 'refresh_failed', status: response.status });
+    return false;
+  }
+
+  session.oauth.accessToken = data.access_token;
+  // PingOne rotates refresh tokens when replay protection is on — keep the newest
+  if (data.refresh_token) session.oauth.refreshToken = data.refresh_token;
+  session.oauth.expiresAt = data.expires_in ? Date.now() + data.expires_in * 1000 : null;
+  if (data.scope) session.oauth.scope = data.scope;
+  emitEvent('oauth', { phase: 'refresh_success', expiresIn: data.expires_in || null });
+  return true;
+}
+
+async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRetry = true) {
   if (!session.config.mcpUrl) throw new Error('MCP URL is required');
+
+  if (withAuth && accessTokenExpiring(session)) {
+    await refreshAccessToken(session);
+  }
 
   const targetUrl = new URL(session.config.mcpUrl);
   if (pathname) targetUrl.pathname = pathname;
@@ -129,6 +187,9 @@ async function fetchMcp(session, pathname, body, withAuth = true) {
   });
 
   if (!response.ok) {
+    if (response.status === 401 && withAuth && allowRefreshRetry && await refreshAccessToken(session)) {
+      return fetchMcp(session, pathname, body, withAuth, false);
+    }
     throw new Error(normalizeMcpFailure(response.status, text));
   }
   if (parsed?.error) {
@@ -316,6 +377,8 @@ router.get('/auth/callback', async (req, res) => {
     session.oauth.refreshToken = tokenData.refresh_token || null;
     session.oauth.expiresAt = tokenData.expires_in ? Date.now() + tokenData.expires_in * 1000 : null;
     session.oauth.scope = tokenData.scope || session.config.scopes || '';
+    // Keep the token endpoint so refresh can run after pendingAuth is cleared
+    session.oauth.tokenUri = session.pendingAuth.tokenUri;
     session.pendingAuth = null;
     resetMcpState(session);
 
