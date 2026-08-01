@@ -6,7 +6,7 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "pay_fee",
-  "checkedAt": "2026-07-31",
+  "checkedAt": "2026-08-01",
   "requiredFlags": [
     "ff_authorize_group_policy",
     "ff_mcp_gateway_pinggateway"
