@@ -46,16 +46,19 @@ describe('ExecutionEngine', () => {
       expect(engine.bffBaseUrl).toBe('https://custom.url:3001');
     });
 
-    it('uses default BFF URL if not provided', () => {
+    it('defaults to the page origin so the session cookie is sent', () => {
       const engine = new ExecutionEngine(mockFlowSpec);
-      expect(engine.bffBaseUrl).toBe('https://api.ping.demo:3001');
+      // resolveApiBaseUrl() returns '' (same origin) when REACT_APP_API_URL is
+      // unset or points at the host the page is already served from
+      expect(engine.bffBaseUrl).toBe('');
     });
 
     it('initializes state correctly', () => {
       expect(engine.state).toEqual({
         currentStep: null,
         results: [],
-        error: null
+        error: null,
+        context: {}
       });
     });
   });
@@ -453,7 +456,8 @@ describe('ExecutionEngine', () => {
       expect(engine.state).toEqual({
         currentStep: null,
         results: [],
-        error: null
+        error: null,
+        context: {}
       });
     });
 
@@ -483,6 +487,85 @@ describe('ExecutionEngine', () => {
       engine.reset();
 
       expect(engine.state.error).toBeNull();
+    });
+  });
+
+  describe('body interpolation', () => {
+    // dpop step 2 and the introspect step need a value produced by step 1 in the
+    // request BODY, not the URL — chaining flows depend on this.
+    const chainedFlow = {
+      steps: [
+        {
+          id: 'issue',
+          method: 'POST',
+          endpoint: '/api/auth/oauth/token',
+          body: { grant_type: 'token-exchange' },
+          responseMap: { accessToken: 'access_token' }
+        },
+        {
+          id: 'verify',
+          method: 'POST',
+          endpoint: '/api/auth/gateway/verify-dpop',
+          body: { access_token: ':accessToken', note: 'token :accessToken bound', nested: { list: [':accessToken'] } }
+        },
+        {
+          id: 'unknown-placeholder',
+          method: 'POST',
+          endpoint: '/api/auth/gateway/verify-dpop',
+          body: { access_token: ':neverSet' }
+        }
+      ],
+      stopOnError: false
+    };
+
+    function mockPost(post) {
+      vi.spyOn(axios, 'create').mockReturnValue({
+        get: vi.fn(),
+        post,
+        put: vi.fn(),
+        patch: vi.fn(),
+        delete: vi.fn()
+      });
+    }
+
+    it('substitutes a mapped response value into the next request body', async () => {
+      const post = vi.fn()
+        .mockResolvedValueOnce({ status: 200, statusText: 'OK', headers: {}, data: { access_token: 'tok-abc' } })
+        .mockResolvedValueOnce({ status: 200, statusText: 'OK', headers: {}, data: { valid: true } });
+      mockPost(post);
+
+      const chained = new ExecutionEngine(chainedFlow);
+      await chained.executeStep('issue');
+      await chained.executeStep('verify');
+
+      expect(post.mock.calls[1][1]).toEqual({
+        access_token: 'tok-abc',
+        note: 'token tok-abc bound',
+        nested: { list: ['tok-abc'] }
+      });
+    });
+
+    it('leaves the placeholder untouched when the context has no value', async () => {
+      const post = vi.fn().mockResolvedValue({ status: 200, statusText: 'OK', headers: {}, data: {} });
+      mockPost(post);
+
+      const chained = new ExecutionEngine(chainedFlow);
+      await chained.executeStep('unknown-placeholder');
+
+      expect(post.mock.calls[0][1]).toEqual({ access_token: ':neverSet' });
+    });
+
+    it('does not mutate the flow spec body', async () => {
+      const post = vi.fn()
+        .mockResolvedValueOnce({ status: 200, statusText: 'OK', headers: {}, data: { access_token: 'tok-abc' } })
+        .mockResolvedValueOnce({ status: 200, statusText: 'OK', headers: {}, data: {} });
+      mockPost(post);
+
+      const chained = new ExecutionEngine(chainedFlow);
+      await chained.executeStep('issue');
+      await chained.executeStep('verify');
+
+      expect(chainedFlow.steps[1].body.access_token).toBe(':accessToken');
     });
   });
 

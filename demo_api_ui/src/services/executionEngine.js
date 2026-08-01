@@ -1,8 +1,12 @@
 import axios from 'axios';
 import { decodeJWT } from './tokenInspector';
+import { resolveApiBaseUrl } from '../utils/resolveApiBaseUrl';
 
 class ExecutionEngine {
-  constructor(flowSpec, bffBaseUrl = 'https://api.ping.demo:3001') {
+  // Default to the same origin the page was served from. A hardcoded API host
+  // is a different site than the UI host, so the host-only session cookie is
+  // never sent and every authenticated step 401s.
+  constructor(flowSpec, bffBaseUrl = resolveApiBaseUrl()) {
     this.flowSpec = flowSpec;
     this.bffBaseUrl = bffBaseUrl;
     this.state = {
@@ -29,6 +33,35 @@ class ExecutionEngine {
   }
 
   /**
+   * Interpolate :param placeholders inside a request body. A string that is
+   * exactly ":name" is replaced by the raw context value (so a token stays a
+   * token, not a URI-encoded string); placeholders embedded in longer strings
+   * are substituted textually. Objects and arrays are walked recursively.
+   */
+  _interpolateBody(value) {
+    if (typeof value === 'string') {
+      const whole = value.match(/^:([a-zA-Z_][a-zA-Z0-9_]*)$/);
+      if (whole) {
+        const val = this.state.context[whole[1]];
+        return val != null ? val : value;
+      }
+      return value.replace(/:([a-zA-Z_][a-zA-Z0-9_]*)/g, (match, key) => {
+        const val = this.state.context[key];
+        return val != null ? String(val) : match;
+      });
+    }
+    if (Array.isArray(value)) {
+      return value.map((item) => this._interpolateBody(item));
+    }
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(
+        Object.entries(value).map(([key, item]) => [key, this._interpolateBody(item)])
+      );
+    }
+    return value;
+  }
+
+  /**
    * Execute a single step by ID
    * @param {string} stepId - The ID of the step to execute
    * @returns {Promise<Object>} Result object with request, response, decodedToken
@@ -47,7 +80,7 @@ class ExecutionEngine {
       // Build request — interpolate path params from prior responses
       const method = (step.method || 'GET').toUpperCase();
       const url = this._interpolateUrl(step.endpoint || step.url);
-      const data = step.body || null;
+      const data = step.body ? this._interpolateBody(step.body) : null;
 
       // Prepare request config
       const config = {
