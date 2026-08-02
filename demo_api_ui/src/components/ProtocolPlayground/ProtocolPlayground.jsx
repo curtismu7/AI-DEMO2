@@ -92,6 +92,7 @@ const ProtocolPlayground = () => {
               flowSpec={selectedProtocol}
               executionState={executionState}
               onExecutionStateChange={handleExecutionStateChange}
+              dark={dark}
             />
           ) : (
             <div className="protocol-playground__empty-state">

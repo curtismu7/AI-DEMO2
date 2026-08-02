@@ -321,47 +321,49 @@
   margin-bottom: 3px;
 }
 
-/* --- Protocol hops (Token Topology visual language) --- */
+/* --- Mermaid diagrams --- */
 
-/* The node cards carry the Token Topology dark surface, so the panel around
-   them is dark too — light page chrome behind them left the card text, which
-   inherits its colour, invisible. */
-.pp-topology {
+.pp-diagrams {
   flex: 1;
   min-height: 300px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding: 18px;
+  gap: 16px;
+}
+
+.pp-mermaid {
+  margin: 0;
+  padding: 16px;
   border-radius: 8px;
-  background-color: #0d1117;
-  border: 1px solid #30363d;
-  color: #e6edf3;
+  background-color: var(--pp-bg-surface);
+  border: 1px solid var(--pp-border);
+}
+
+.pp-mermaid__caption {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pp-text-muted);
+  margin-bottom: 12px;
+}
+
+/* Mermaid emits a fixed-size SVG; wide flows scroll inside the figure rather
+   than widening the page. */
+.pp-mermaid__canvas {
   overflow-x: auto;
 }
 
-/* Centre the arrow between the two cards of a hop rather than top-aligning it */
-.pp-topology__hop {
-  align-items: center;
+.pp-mermaid__canvas svg {
+  max-width: 100%;
+  height: auto;
 }
 
-/* Endpoints are far longer than the topology panel's one-word connector
-   labels, so the run needs more room than the stock 30px line allows. */
-/* Fixed width keeps every target card on the same column, however long the
-   endpoint label is. */
-.pp-topology .ttp-conn {
-  padding-top: 0;
-  padding-inline: 6px;
-  width: 230px;
-}
-
-.pp-topology .ttp-line {
-  width: 72px;
-}
-
-.pp-topology .ttp-conn-label {
-  max-width: 200px;
-  word-break: break-word;
+.pp-mermaid__error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--pp-err-badge-text, #b91c1c);
 }
 
 /* --- Execution controls --- */

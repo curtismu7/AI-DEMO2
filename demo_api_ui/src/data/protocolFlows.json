@@ -25,9 +25,13 @@
         "label": "POST /api/auth/ciba/initiate",
         "method": "POST",
         "endpoint": "/api/auth/ciba/initiate",
-        "body": { "binding_message": "Approve transfer" },
+        "body": {
+          "binding_message": "Approve transfer"
+        },
         "step": 1,
-        "responseMap": { "authReqId": "auth_req_id" },
+        "responseMap": {
+          "authReqId": "auth_req_id"
+        },
         "expected": {}
       },
       {
@@ -82,7 +86,9 @@
         "label": "Request a DPoP-bound token",
         "method": "POST",
         "endpoint": "/api/auth/oauth/token",
-        "headers": { "DPoP": "demo-proof-jwt-not-verified" },
+        "headers": {
+          "DPoP": "demo-proof-jwt-not-verified"
+        },
         "body": {
           "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
           "scope": "transfer:write",
@@ -90,7 +96,9 @@
           "resource": "https://mcpgateway.ping.demo"
         },
         "step": 1,
-        "responseMap": { "accessToken": "access_token" },
+        "responseMap": {
+          "accessToken": "access_token"
+        },
         "expected": {}
       },
       {
@@ -102,8 +110,12 @@
         "label": "Gateway verifies the proof binding",
         "method": "POST",
         "endpoint": "/api/auth/gateway/verify-dpop",
-        "headers": { "DPoP": "demo-proof-jwt-not-verified" },
-        "body": { "access_token": ":accessToken" },
+        "headers": {
+          "DPoP": "demo-proof-jwt-not-verified"
+        },
+        "body": {
+          "access_token": ":accessToken"
+        },
         "step": 2,
         "expected": {}
       }
@@ -121,6 +133,7 @@
       "why": "Trades one token for another with a narrower audience and fewer scopes, and records the delegation in the act claim so the new token still says who the original subject was.",
       "ai": "This is what stops an agent from acting as itself with its own standing privileges. The user's token is exchanged for one that names the user as subject and the agent as actor, downscoped to the single call being made, so every downstream service can see who asked and who is carrying it out."
     },
+    "decisionDiagram": "flowchart LR\n    T[Delegated token arrives] --> V{Signature and audience valid}\n    V -- no --> R1[401 invalid_token]\n    V -- yes --> S{Scope covers this tool}\n    S -- no --> R2[403 insufficient_scope]\n    S -- yes --> C{act claim present}\n    C -- no --> R3[403 broken actor chain]\n    C -- yes --> AZ{PingOne Authorize}\n    AZ -- DENY --> R4[403 with reason]\n    AZ -- PERMIT --> OK[Tool executes]",
     "actors": [
       "client-app",
       "token-exchanger"
@@ -138,7 +151,10 @@
         "body": {
           "mode": "single",
           "audience": "mcpgateway.ping.demo",
-          "scopes": ["read", "write"]
+          "scopes": [
+            "read",
+            "write"
+          ]
         },
         "step": 1,
         "expected": {}
@@ -154,7 +170,10 @@
         "endpoint": "/api/tokens/exchange-test",
         "body": {
           "mode": "double",
-          "scopes": ["read", "write"]
+          "scopes": [
+            "read",
+            "write"
+          ]
         },
         "step": 2,
         "expected": {}
@@ -173,6 +192,7 @@
       "why": "The client pushes the authorization request to the server over a back channel first and gets back a short-lived request_uri to use instead. The parameters never ride in a browser URL, so they cannot be read or tampered with in transit.",
       "ai": "Intent binding. The agent declares what it intends to do — the action, the amount, the payee, carried as RFC 9396 authorization_details — before it does anything, and the authorization server holds that declaration. Policy then judges the stated intent, not just whether a token is valid."
     },
+    "decisionDiagram": "flowchart LR\n    I[Agent declares intent] --> P[Push authorization_details to as/par]\n    P --> U{request_uri returned}\n    U -- no --> E[Push failed - nothing authorised]\n    U -- yes --> CAP{Amount within declared cap}\n    CAP -- over cap --> D[DENY intent_exceeded]\n    CAP -- within cap --> OK[PERMIT - transfer proceeds]",
     "actors": [
       "client-app",
       "auth-server"
@@ -193,7 +213,9 @@
           "live": true
         },
         "step": 1,
-        "responseMap": { "requestUri": "requestUri" },
+        "responseMap": {
+          "requestUri": "requestUri"
+        },
         "expected": {}
       },
       {

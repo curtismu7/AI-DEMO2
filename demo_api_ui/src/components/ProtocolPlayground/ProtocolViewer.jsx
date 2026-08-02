@@ -12,7 +12,7 @@ import ExecutionEngine from '../../services/executionEngine';
  * @param {object} executionState - current execution state { currentStep, results, error }
  * @param {function} onExecutionStateChange - callback(state) when execution state changes
  */
-export default function ProtocolViewer({ flowSpec, executionState, onExecutionStateChange }) {
+export default function ProtocolViewer({ flowSpec, executionState, onExecutionStateChange, dark = false }) {
   const [engine, setEngine] = useState(null);
 
   // Recreate engine when flowSpec changes
@@ -85,6 +85,7 @@ export default function ProtocolViewer({ flowSpec, executionState, onExecutionSt
             flowSpec={flowSpec}
             currentStep={executionState.currentStep}
             results={executionState.results}
+            dark={dark}
           />
           <ExecutionControls
             onExecute={handleExecute}
