@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import SequenceDiagram from './SequenceDiagram';
 import ActivityPanel from './ActivityPanel';
 import ExecutionControls from './ExecutionControls';
+import ProtocolExplainer from './ProtocolExplainer';
 import ExecutionEngine from '../../services/executionEngine';
 
 /**
@@ -75,6 +76,7 @@ export default function ProtocolViewer({ flowSpec, executionState, onExecutionSt
       <div className="viewer-header">
         <h2>{flowSpec.name || flowSpec.id}</h2>
         <p className="viewer-description">{flowSpec.description || 'Protocol flow'}</p>
+        <ProtocolExplainer spec={flowSpec.spec} />
       </div>
 
       <div className="viewer-body">
