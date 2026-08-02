@@ -407,7 +407,12 @@ preflight_checks() {
   # shellcheck source=demo_llm_proxy/resolve-llm-backend.sh
   source "${BASEDIR}/demo_llm_proxy/resolve-llm-backend.sh"
   local llm_backend
-  llm_backend="$(resolve_llm_backend)"
+  # Called bare, not in $( ): a command substitution resolves in a subshell and
+  # LLM_BACKEND_RESOLVE_WARN dies with it, so every downgrade notice — an omlx
+  # or mlx request this platform cannot honor — was being swallowed.
+  # RESOLVED_LLM_BACKEND is exported by the resolver for exactly this.
+  resolve_llm_backend native >/dev/null
+  llm_backend="${RESOLVED_LLM_BACKEND}"
   if [[ -n "${LLM_BACKEND_RESOLVE_WARN:-}" ]]; then
     warn "${LLM_BACKEND_RESOLVE_WARN}"
   elif [[ -z "${LLM_BACKEND:-}" && "$llm_backend" == "omlx" ]]; then
