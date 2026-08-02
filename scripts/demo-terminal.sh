@@ -68,6 +68,172 @@ demo_err()  { echo -e "  ${RED}✗${RESET}  $*" >&2; }
 demo_info() { echo -e "${BLUE}${BOLD}[INFO]${RESET} $*"; }
 demo_success() { echo -e "${GREEN}${BOLD}[OK]${RESET} $*"; }
 
+# ── Host machine banner ──────────────────────────────────────────────────────
+# Reports what the launcher is running on, then suggests how to run the stack
+# on that hardware. Advisory only — nothing here changes what actually starts.
+# macOS bash 3.2 safe (no associative arrays, no ${var^^}); `set -u` safe.
+
+# Bytes -> "12.5" (one decimal GiB). Prints "?" for missing/garbage input.
+_demo_gb() {
+  awk -v b="${1:-0}" 'BEGIN { if (b + 0 <= 0) print "?"; else printf "%.1f", b / 1073741824 }'
+}
+
+# Keep only a non-negative integer; anything else becomes 0 (guards `[[ -lt ]]`).
+_demo_int() {
+  case "${1:-}" in
+    ''|*[!0-9]*) echo 0 ;;
+    *) echo "$1" ;;
+  esac
+}
+
+# Populates HOST_OS HOST_ARCH HOST_MODEL HOST_CPU HOST_CORES HOST_MEM_BYTES.
+demo_detect_host() {
+  if [[ -n "${HOST_DETECTED:-}" ]]; then return 0; fi
+  HOST_DETECTED=1
+  HOST_OS="$(uname -s 2>/dev/null || echo unknown)"
+  HOST_ARCH="$(uname -m 2>/dev/null || echo unknown)"
+  HOST_MODEL=""
+  HOST_CPU=""
+  HOST_CORES=""
+  HOST_MEM_BYTES=""
+
+  case "${HOST_OS}" in
+    Darwin)
+      HOST_MODEL="$(sysctl -n hw.model 2>/dev/null || true)"
+      HOST_CPU="$(sysctl -n machdep.cpu.brand_string 2>/dev/null || true)"
+      HOST_CORES="$(sysctl -n hw.ncpu 2>/dev/null || true)"
+      HOST_MEM_BYTES="$(sysctl -n hw.memsize 2>/dev/null || true)"
+      ;;
+    Linux)
+      if [[ -r /sys/devices/virtual/dmi/id/product_name ]]; then
+        HOST_MODEL="$(cat /sys/devices/virtual/dmi/id/product_name 2>/dev/null || true)"
+      fi
+      if [[ -r /proc/cpuinfo ]]; then
+        # x86 exposes "model name"; many ARM boards only expose "Hardware".
+        HOST_CPU="$(awk -F': +' '/^model name/ { print $2; exit } /^Hardware/ { print $2; exit }' /proc/cpuinfo 2>/dev/null || true)"
+      fi
+      HOST_CORES="$(nproc 2>/dev/null || true)"
+      if [[ -r /proc/meminfo ]]; then
+        # %.0f, not print or %d — mawk renders the product as 1.68e+10 with the
+        # default OFMT, and saturates it at 2^31 with %d.
+        HOST_MEM_BYTES="$(awk '/^MemTotal:/ { printf "%.0f", $2 * 1024; exit }' /proc/meminfo 2>/dev/null || true)"
+      fi
+      ;;
+  esac
+
+  [[ -n "${HOST_MODEL}" ]] || HOST_MODEL="unknown"
+  [[ -n "${HOST_CPU}" ]]   || HOST_CPU="unknown"
+  HOST_CORES="$(_demo_int "${HOST_CORES}")"
+  HOST_MEM_BYTES="$(_demo_int "${HOST_MEM_BYTES}")"
+  return 0
+}
+
+# Populates DOCKER_CPUS DOCKER_MEM_BYTES DOCKER_ENGINE. All zero/empty when the
+# daemon is unreachable — on macOS this VM ceiling, not host RAM, is the real
+# limit the Compose stack hits.
+demo_detect_docker() {
+  if [[ -n "${DOCKER_DETECTED:-}" ]]; then return 0; fi
+  DOCKER_DETECTED=1
+  DOCKER_CPUS=0
+  DOCKER_MEM_BYTES=0
+  DOCKER_ENGINE=""
+  command -v docker >/dev/null 2>&1 || return 0
+
+  local info rest
+  info="$(docker info --format '{{.NCPU}}|{{.MemTotal}}|{{.OperatingSystem}}' 2>/dev/null || true)"
+  [[ -n "${info}" ]] || return 0
+
+  DOCKER_CPUS="$(_demo_int "${info%%|*}")"
+  rest="${info#*|}"
+  DOCKER_MEM_BYTES="$(_demo_int "${rest%%|*}")"
+  DOCKER_ENGINE="${rest#*|}"
+  return 0
+}
+
+# demo_machine_banner <native|docker>
+demo_machine_banner() {
+  local mode="${1:-native}" budget_bytes budget_label
+  demo_detect_host
+  budget_bytes="${HOST_MEM_BYTES}"
+  budget_label="host RAM"
+
+  if [[ "${mode}" == "docker" ]]; then
+    demo_detect_docker
+    if [[ "${DOCKER_MEM_BYTES}" -gt 0 ]]; then
+      budget_bytes="${DOCKER_MEM_BYTES}"
+      budget_label="Docker memory"
+    fi
+  fi
+
+  echo ""
+  demo_box_open "${CYAN}" "MACHINE"
+  demo_box_row "${CYAN}" "$(printf '%-9s %s' 'Model' "${HOST_MODEL}  (${HOST_OS}/${HOST_ARCH})")"
+  demo_box_row "${CYAN}" "$(printf '%-9s %s' 'CPU' "${HOST_CPU} — ${HOST_CORES} cores")"
+  demo_box_row "${CYAN}" "$(printf '%-9s %s GB' 'Memory' "$(_demo_gb "${HOST_MEM_BYTES}")")"
+  if [[ "${mode}" == "docker" && "${DOCKER_MEM_BYTES:-0}" -gt 0 ]]; then
+    demo_box_row "${CYAN}" "$(printf '%-9s %s GB limit / %s CPUs  (%s)' \
+      'Docker' "$(_demo_gb "${DOCKER_MEM_BYTES}")" "${DOCKER_CPUS}" "${DOCKER_ENGINE}")"
+  fi
+  demo_box_close "${CYAN}"
+
+  demo_machine_advice "${mode}" "${budget_bytes}" "${budget_label}"
+  echo ""
+  return 0
+}
+
+# demo_machine_advice <mode> <budget_bytes> <budget_label>
+# Thresholds are sized against the Compose stack: 12 core services + the `rag`
+# group start by default; `start full` adds agents/tracing/demo-auth/mcpgw.
+demo_machine_advice() {
+  local mode="$1" bytes="$2" label="$3"
+  local gb8=8589934592 gb16=17179869184
+
+  echo ""
+  if [[ "${bytes}" -le 0 ]]; then
+    demo_warn "Could not read ${label} — skipping run suggestions."
+    return 0
+  fi
+
+  if [[ "${bytes}" -lt ${gb8} ]]; then
+    demo_warn "$(_demo_gb "${bytes}") GB ${label} — tight. Core services only."
+    if [[ "${mode}" == "docker" ]]; then
+      echo -e "       Run:    ${YELLOW}${BOLD}./run-docker.sh${RESET}  ${DIM}(lean core, the default)${RESET}"
+      echo -e "       Avoid:  ${DIM}./run-docker.sh start full${RESET}"
+      echo -e "       Tight:  ${DIM}./run-docker.sh optional stop rag${RESET}"
+    else
+      echo -e "       run.sh starts every service natively with no lean mode."
+      echo -e "       Prefer: ${YELLOW}${BOLD}./run-docker.sh${RESET}  ${DIM}(lean core + per-group stop)${RESET}"
+    fi
+  elif [[ "${bytes}" -lt ${gb16} ]]; then
+    demo_ok "$(_demo_gb "${bytes}") GB ${label} — core stack fits."
+    if [[ "${mode}" == "docker" ]]; then
+      echo -e "       Run:    ${YELLOW}${BOLD}./run-docker.sh${RESET}  ${DIM}(core + rag)${RESET}"
+      echo -e "       Avoid:  ${DIM}./run-docker.sh start full${RESET}  ${DIM}— adds agents/tracing/demo-auth/mcpgw${RESET}"
+    fi
+  else
+    demo_ok "$(_demo_gb "${bytes}") GB ${label} — full stack OK."
+    if [[ "${mode}" == "docker" ]]; then
+      echo -e "       Run:    ${YELLOW}${BOLD}./run-docker.sh${RESET}  ${DIM}or${RESET} ${YELLOW}${BOLD}./run-docker.sh start full${RESET}"
+    fi
+  fi
+
+  if [[ "${HOST_CORES}" -gt 0 && "${HOST_CORES}" -lt 4 ]]; then
+    demo_warn "${HOST_CORES} cores — image builds will be slow; skip ${DIM}build --no-cache${RESET} unless needed."
+  fi
+
+  if [[ "${HOST_OS}" == "Darwin" && "${HOST_ARCH}" == "arm64" ]]; then
+    demo_ok "Apple Silicon — ${YELLOW}${BOLD}LLM_BACKEND=omlx${RESET} keeps the model on Metal, out of the Docker VM."
+  else
+    demo_ok "No Metal backend — ${DIM}LLM_BACKEND=llamacpp${RESET} (default); expect a slower token rate."
+  fi
+
+  # A Docker ceiling far below host RAM is a settings problem, not a hardware one.
+  if [[ "${mode}" == "docker" && "${DOCKER_MEM_BYTES:-0}" -gt 0 && "${HOST_MEM_BYTES}" -gt $(( DOCKER_MEM_BYTES * 2 )) ]]; then
+    demo_warn "Docker is capped at $(_demo_gb "${DOCKER_MEM_BYTES}") GB of $(_demo_gb "${HOST_MEM_BYTES}") GB host RAM — raise it in Docker Desktop / OrbStack settings for more headroom."
+  fi
+  return 0
+}
+
 # K8 forward epilogue — full status panel after port-forwards bind.
 demo_k8_forward_epilogue() {
   local ns="${1:-ai-demo}"

@@ -1123,6 +1123,8 @@ esac
 # START SERVICES
 # ══════════════════════════════════════════════════════════════════════════════
 
+demo_machine_banner native
+
 preflight_checks
 
 # ── Auto-kill any existing Banking services before (re)starting ─────────────

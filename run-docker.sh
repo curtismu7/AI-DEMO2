@@ -1241,6 +1241,8 @@ cmd_start() {
     esac
   done
 
+  demo_machine_banner docker
+
   # Always stop first — clean slate
   cmd_stop
 
