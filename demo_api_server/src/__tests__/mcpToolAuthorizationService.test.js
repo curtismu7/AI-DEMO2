@@ -237,10 +237,15 @@ describe('mcpToolAuthorizationService', () => {
         expect(pingOneAuthorizeService.evaluateTransaction).not.toHaveBeenCalled();
       });
 
-      it('applies local amount DENY when the limit policy errors (UC6)', async () => {
+      it('blocks with authorization_unavailable when the limit policy errors', async () => {
+        // Was: "applies local amount DENY (UC6)". The BFF no longer re-derives
+        // the $2500 ceiling when the PDP cannot be reached — an unreachable
+        // policy is an infrastructure fault, not a policy denial, and calling it
+        // a DENY told the operator PingOne refused something it never saw.
         pingOneAuthorizeService.evaluateTransaction.mockRejectedValue(new Error('p1az down'));
         const r = await call({ amount: 2500 });
-        expect(r.block.body.error).toBe('mcp_authorization_denied');
+        expect(r.block.status).toBe(503);
+        expect(r.block.body.error).toBe('authorization_unavailable');
         expect(r.block.body.decisionContext).toBe('McpFirstTool');
       });
     });
@@ -316,14 +321,18 @@ describe('mcpToolAuthorizationService', () => {
         expect(r.secondaryEvaluation).toBeUndefined();
       });
 
-      it('local-amount-fallback DENY (transaction consult errors) also attaches both evaluations', async () => {
+      it('an errored transaction consult attaches both evaluations and marks the policy unavailable', async () => {
         pingOneAuthorizeService.evaluateTransaction.mockRejectedValue(new Error('p1az down'));
         const r = await _applyTransactionPolicy({ ...GATE_PERMIT_HITL }, {
           amount: 2500, transactionType: 'transfer', userId: 'u1', acr: null,
         });
-        expect(r.decision).toBe('DENY');
+        // The gate's own decision is left intact — the overlay reports that it
+        // could not reach its PDP instead of inventing a decision on top of it.
+        expect(r.transactionPolicyUnavailable).toBe(true);
         expect(r.gateEvaluation.decisionId).toBe('gate-1');
-        expect(r.secondaryEvaluation).toMatchObject({ source: 'transaction-policy-fallback', decision: 'DENY' });
+        expect(r.secondaryEvaluation).toMatchObject({
+          source: 'transaction-policy', decision: 'UNAVAILABLE',
+        });
       });
     });
 
