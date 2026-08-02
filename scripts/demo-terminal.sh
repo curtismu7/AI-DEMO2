@@ -150,6 +150,49 @@ demo_detect_docker() {
   return 0
 }
 
+# Which LLM backend will actually run, and how much the host must hold for it.
+#
+# Both backends load their weights on the HOST, never inside the Docker VM: the
+# llm-proxy container only routes to host.docker.internal (docker-compose.yml),
+# and llama-server runs as a host process on :8091/:8096. That makes model size
+# a constraint on host RAM and irrelevant to the Docker memory ceiling — the two
+# budgets are not interchangeable.
+# Populates LLM_EFFECTIVE and LLM_WEIGHTS_BYTES.
+demo_detect_llm() {
+  if [[ -n "${LLM_DETECTED:-}" ]]; then return 0; fi
+  LLM_DETECTED=1
+  LLM_EFFECTIVE=""
+  LLM_WEIGHTS_BYTES=0
+
+  local resolver="${BASEDIR:-.}/demo_llm_proxy/resolve-llm-backend.sh" dir
+  if [[ -f "${resolver}" ]]; then
+    # Reuse the launchers' own resolution rather than second-guessing it.
+    # shellcheck source=/dev/null
+    source "${resolver}" 2>/dev/null || true
+    LLM_EFFECTIVE="$(resolve_llm_backend 2>/dev/null || true)"
+  fi
+  if [[ -z "${LLM_EFFECTIVE}" ]]; then
+    if [[ "${HOST_OS}" == "Darwin" && "${HOST_ARCH}" == "arm64" ]]; then
+      LLM_EFFECTIVE="omlx"
+    else
+      LLM_EFFECTIVE="llamacpp"
+    fi
+  fi
+
+  # Resident tiers only (8091 + 8096). Filenames mirror demo_llm_proxy/
+  # download-models.sh; other GGUFs in the directory are not kept resident and
+  # would overstate the requirement.
+  dir="${MODELS_DIR:-${HOME}/models}"
+  if [[ -d "${dir}" ]]; then
+    LLM_WEIGHTS_BYTES="$(ls -l \
+      "${dir}/microsoft_Phi-4-mini-instruct-Q4_K_M.gguf" \
+      "${dir}/gpt-oss-20b-mxfp4.gguf" 2>/dev/null |
+      awk '{ s += $5 } END { printf "%.0f", s + 0 }')"
+    LLM_WEIGHTS_BYTES="$(_demo_int "${LLM_WEIGHTS_BYTES}")"
+  fi
+  return 0
+}
+
 # Which launchers this box can actually run. Specs alone are not enough: ./run.sh
 # needs a local Node + Python toolchain, and ./run-pingaws.sh needs cluster
 # credentials no amount of RAM substitutes for.
@@ -214,10 +257,10 @@ demo_detect_launchers() {
 # reason to recommend a launcher that will thrash.
 # demo_launcher_table <current mode: native|docker|cluster>
 demo_launcher_table() {
-  local current="${1:-}" best="" gb8=8589934592
+  local current="${1:-}" best="" docker_roomy=4294967296   # 4 GB — see demo_machine_advice
   demo_detect_launchers
 
-  if [[ "${LAUNCHER_DOCKER_OK}" -eq 1 && "${DOCKER_MEM_BYTES}" -ge ${gb8} ]]; then
+  if [[ "${LAUNCHER_DOCKER_OK}" -eq 1 && "${DOCKER_MEM_BYTES}" -ge ${docker_roomy} ]]; then
     best="docker"
   elif [[ "${LAUNCHER_DOCKER_OK}" -eq 1 && "${LAUNCHER_CLUSTER_OK}" -eq 1 ]]; then
     best="cluster"          # Docker works but is cramped — the cluster has room.
@@ -280,6 +323,7 @@ demo_machine_banner() {
   # Populated for every mode — the Docker ceiling is part of choosing a launcher,
   # not just part of running one.
   demo_detect_launchers
+  demo_detect_llm
 
   echo ""
   demo_box_open "${CYAN}" "MACHINE"
@@ -290,6 +334,12 @@ demo_machine_banner() {
     demo_box_row "${CYAN}" "$(printf '%-9s %s GB limit / %s CPUs  (%s)' \
       'Docker' "$(_demo_gb "${DOCKER_MEM_BYTES}")" "${DOCKER_CPUS}" "${DOCKER_ENGINE}")"
   fi
+  if [[ "${LLM_WEIGHTS_BYTES}" -gt 0 ]]; then
+    demo_box_row "${CYAN}" "$(printf '%-9s %s — %s GB of weights, on the host' \
+      'LLM' "${LLM_EFFECTIVE}" "$(_demo_gb "${LLM_WEIGHTS_BYTES}")")"
+  else
+    demo_box_row "${CYAN}" "$(printf '%-9s %s' 'LLM' "${LLM_EFFECTIVE}")"
+  fi
   demo_box_close "${CYAN}"
 
   demo_launcher_table "${mode}"
@@ -299,11 +349,27 @@ demo_machine_banner() {
 }
 
 # demo_machine_advice <mode> <budget_bytes> <budget_label>
-# Thresholds are sized against the Compose stack: 12 core services + the `rag`
-# group start by default; `start full` adds agents/tracing/demo-auth/mcpgw.
+#
+# Thresholds depend on what the budget has to cover, which is not the same for
+# the two modes:
+#
+#   docker  — services only. Measured at 1.5 GiB idle for the 14 containers of
+#             core + rag; `start full` adds agents/tracing/demo-auth/mcpgw. The
+#             model is NOT in here (see demo_detect_llm), so a few GB is plenty
+#             and the old 8/16 GB lines were wrong by roughly 4x.
+#   native  — the same services plus the host LLM tiers, so the model weights
+#             land inside this budget and the numbers stay high.
 demo_machine_advice() {
   local mode="$1" bytes="$2" label="$3"
-  local gb8=8589934592 gb16=17179869184
+  local tight roomy
+
+  if [[ "${mode}" == "docker" ]]; then
+    tight=2147483648            # 2 GB — below this, core + rag does not fit
+    roomy=4294967296            # 4 GB — enough headroom for `start full`
+  else
+    tight=8589934592            # 8 GB
+    roomy=17179869184           # 16 GB — services plus resident model weights
+  fi
 
   echo ""
 
@@ -322,7 +388,7 @@ demo_machine_advice() {
     return 0
   fi
 
-  if [[ "${bytes}" -lt ${gb8} ]]; then
+  if [[ "${bytes}" -lt ${tight} ]]; then
     demo_warn "$(_demo_gb "${bytes}") GB ${label} — tight. Core services only."
     if [[ "${mode}" == "docker" ]]; then
       echo -e "       Run:    ${YELLOW}${BOLD}./run-docker.sh${RESET}  ${DIM}(lean core, the default)${RESET}"
@@ -332,7 +398,7 @@ demo_machine_advice() {
       echo -e "       run.sh starts every service natively with no lean mode."
       echo -e "       Prefer: ${YELLOW}${BOLD}./run-docker.sh${RESET}  ${DIM}(lean core + per-group stop)${RESET}"
     fi
-  elif [[ "${bytes}" -lt ${gb16} ]]; then
+  elif [[ "${bytes}" -lt ${roomy} ]]; then
     demo_ok "$(_demo_gb "${bytes}") GB ${label} — core stack fits."
     if [[ "${mode}" == "docker" ]]; then
       echo -e "       Run:    ${YELLOW}${BOLD}./run-docker.sh${RESET}  ${DIM}(core + rag)${RESET}"
@@ -349,15 +415,28 @@ demo_machine_advice() {
     demo_warn "${HOST_CORES} cores — image builds will be slow; skip ${DIM}build --no-cache${RESET} unless needed."
   fi
 
+  # The weights load on the host under either backend, so this is a host-RAM
+  # check that holds whether you launch natively or through Compose. Two times
+  # the weight size leaves the page cache room to keep a model hot alongside
+  # everything else; below that the tiers start evicting each other.
+  if [[ "${LLM_WEIGHTS_BYTES}" -gt 0 && "${HOST_MEM_BYTES}" -gt 0 ]]; then
+    if [[ "${HOST_MEM_BYTES}" -lt $(( LLM_WEIGHTS_BYTES * 2 )) ]]; then
+      demo_warn "${LLM_EFFECTIVE} keeps $(_demo_gb "${LLM_WEIGHTS_BYTES}") GB of weights resident on a $(_demo_gb "${HOST_MEM_BYTES}") GB host — pin one tier with ${DIM}LLM_PROXY_RESIDENT_TIERS=8091${RESET} to stop the two evicting each other."
+    else
+      demo_ok "${LLM_EFFECTIVE} — $(_demo_gb "${LLM_WEIGHTS_BYTES}") GB of weights fit in $(_demo_gb "${HOST_MEM_BYTES}") GB of host RAM."
+    fi
+  fi
+
   if [[ "${HOST_OS}" == "Darwin" && "${HOST_ARCH}" == "arm64" ]]; then
-    demo_ok "Apple Silicon — ${YELLOW}${BOLD}LLM_BACKEND=omlx${RESET} keeps the model on Metal, out of the Docker VM."
+    demo_ok "Apple Silicon — ${YELLOW}${BOLD}LLM_BACKEND=omlx${RESET} runs the model on Metal (the default here)."
   else
     demo_ok "No Metal backend — ${DIM}LLM_BACKEND=llamacpp${RESET} (default); expect a slower token rate."
   fi
 
-  # A Docker ceiling far below host RAM is a settings problem, not a hardware one.
-  if [[ "${mode}" == "docker" && "${DOCKER_MEM_BYTES:-0}" -gt 0 && "${HOST_MEM_BYTES}" -gt $(( DOCKER_MEM_BYTES * 2 )) ]]; then
-    demo_warn "Docker is capped at $(_demo_gb "${DOCKER_MEM_BYTES}") GB of $(_demo_gb "${HOST_MEM_BYTES}") GB host RAM — raise it in Docker Desktop / OrbStack settings for more headroom."
+  # A Docker ceiling far below host RAM only matters if the stack needs it, and
+  # with the model on the host it mostly does not — so this is a note, not a warning.
+  if [[ "${mode}" == "docker" && "${DOCKER_MEM_BYTES:-0}" -gt 0 && "${DOCKER_MEM_BYTES}" -lt ${roomy} ]]; then
+    demo_warn "Docker is capped at $(_demo_gb "${DOCKER_MEM_BYTES}") GB of $(_demo_gb "${HOST_MEM_BYTES}") GB host RAM — raise it in Docker Desktop / OrbStack settings before running the full stack."
   fi
   return 0
 }
