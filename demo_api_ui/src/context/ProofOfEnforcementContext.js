@@ -110,12 +110,20 @@ export function computeVerdict(trace, catalogEntry) {
   const missingSteps = (evidence.tokenChain || []).filter((s) => !matchedSteps.includes(s));
 
   if (missingSteps.length > 0) {
+    // "Waiting" is only honest while the run is still in flight. completeTrace()
+    // stamps trace.outcome ('ok' | 'error') the moment the run ends, so an ended
+    // run with evidence still missing has FAILED before those steps, not stalled
+    // on them. Without this the two states rendered identically: during the
+    // gateway mTLS scheme break, PingOne Authorize returned PERMIT and the tool
+    // call died downstream, yet the strip read "Waiting on authorize-decision" —
+    // pointing at the one component that had actually answered.
+    const ended = trace.outcome === 'error';
     return {
       useCaseId, id: catalogEntry.id, title: catalogEntry.title,
       expectedOutcome: catalogEntry.expectedOutcome || null,
       state: 'incomplete', matchedSteps, missingSteps, vertical,
       intent, tool, mechanism,
-      resultText: `Waiting on ${missingSteps.join(', ')}`,
+      resultText: `${ended ? 'Run failed before' : 'Waiting on'} ${missingSteps.join(', ')}`,
     };
   }
 
