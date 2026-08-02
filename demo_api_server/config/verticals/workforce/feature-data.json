@@ -1,0 +1,21 @@
+{
+  "noun": "expense report",
+  "record": {
+    "expenseReport": {
+      "reportId": "EXP-2026-08-0033",
+      "employee": "Jordan A. Rivera",
+      "department": "Engineering",
+      "period": "July 2026",
+      "submittedDate": "2026-08-01",
+      "lineItems": [
+        { "category": "Travel", "description": "SFO → ORD round-trip", "amount": 482.00 },
+        { "category": "Lodging", "description": "Hilton Chicago (2 nights)", "amount": 378.00 },
+        { "category": "Meals", "description": "Client dinner — team of 4", "amount": 216.50 }
+      ],
+      "totalAmount": 1076.50,
+      "currency": "USD",
+      "approver": "M. Chen (Director, Engineering)",
+      "status": "Pending approval"
+    }
+  }
+}

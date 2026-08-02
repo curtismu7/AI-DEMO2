@@ -1,0 +1,19 @@
+{
+  "noun": "mortgage account",
+  "record": {
+    "mortgage": {
+      "loanId": "MTG-2024-77301",
+      "propertyAddress": "742 Evergreen Terrace, Springfield, IL 62704",
+      "propertyType": "Single-Family Residence",
+      "loanAmount": 385000.00,
+      "currentBalance": 341280.44,
+      "interestRate": "6.25% fixed",
+      "termYears": 30,
+      "monthlyPayment": 2370.82,
+      "escrowBalance": 4812.30,
+      "currency": "USD",
+      "nextPaymentDate": "2026-09-01",
+      "status": "Current — no delinquency"
+    }
+  }
+}

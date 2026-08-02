@@ -190,6 +190,12 @@ UC30 (weather permit), UC31 (weather deny), UC32 (live policy flip)
 | Intent token service | `demo_api_server/services/intentTokenService.js` |
 | Intent token validator (gateway) | `demo_mcp_gateway/src/intentTokenValidator.ts` |
 | RS interstitial component | `demo_api_ui/src/components/ResourceServerInterstitial.jsx` |
+| RS journey page (Alt B) | `demo_api_ui/src/pages/ResourceServerJourneyPage.jsx` |
+| RS journey CSS (light/dark) | `demo_api_ui/src/pages/ResourceServerJourneyPage.css` |
+| RS journey routes | `/rs/olb`, `/rs/invest`, `/rs/api` in `demo_api_ui/src/App.js` |
+| BFF vertical-record endpoint | `demo_api_server/routes/resourceServer.js` (`GET /vertical-record`) |
+| Feature data generator | `scripts/gen-feature-data.js` |
+| Generated feature records | `demo_mortgage_service/feature-records.generated.json` |
 
 ---
 
@@ -211,32 +217,56 @@ Feature flag: `ff_intent_token_enabled` (default on). Gateway enforcement: `INTE
 
 ## Resource Server Page Routing
 
-Three dedicated RS pages show tool results in a full UI experience (not just returning text to the agent chat). Each vertical should route at least one use case to an RS page.
+Three dedicated RS journey pages show tool results in a split-view UI (token/credential on the left, data on the right) with a light/dark mode toggle. Each vertical routes at least one use case to an RS page instead of returning text to the agent chat.
 
-### The 3 Resource Server Pages
+### The 3 Resource Server Journey Pages
 
-| RS Page | Route | Backend Service | Shows |
-|---------|-------|-----------------|-------|
-| **MCP Server (OLB)** | `/resource-server` | `demo_mcp_server` | Token claims, accounts, transactions — proves delegated access |
-| **MCP Resource Server** | `/resource-server` (invest tab) | `demo_mcp_invest` | Portfolio, holdings, investment transactions |
-| **API Resource Server** | `/resource-server` (apikey tab) | `demo_mortgage_service` | Vertical-specific records, API key swap proof |
+| RS Page | Route | Backend Service | Left Panel | Right Panel |
+|---------|-------|-----------------|------------|-------------|
+| **MCP Server (OLB)** | `/rs/olb` | `demo_mcp_server` | RFC 8693 exchanged token claims (sub, aud, scope, act) | Account list from banking DB |
+| **MCP Resource Server** | `/rs/invest` | `demo_mcp_invest` | RFC 8693 exchanged token claims (audience: mcp-invest.ping.demo) | Portfolio summary cards |
+| **API Resource Server** | `/rs/api` | `demo_mortgage_service` | Credential swap proof (Bearer → X-API-Key) | Vertical-specific record (9 verticals) |
 
 ### Vertical → RS Page Mapping
 
-Each vertical has at least 1 UC that navigates to a dedicated RS page (instead of returning to chat):
+| Vertical | Route | Trigger Tool | Record Data |
+|----------|-------|-------------|-------------|
+| Banking (OLB) | `/rs/olb?tool=get_my_accounts` | `get_my_accounts` | Accounts + balances |
+| Investment | `/rs/invest?tool=get_portfolio_summary` | `get_portfolio_summary` | Portfolio holdings |
+| Banking (Mortgage) | `/rs/api?tool=show_mortgage&vertical=mortgage` | `show_mortgage` | Loan details, payment schedule |
+| Healthcare | `/rs/api?tool=show_health_record&vertical=healthRecord` | `show_health_record` | Patient record, labs, medications |
+| Sporting Goods | `/rs/api?tool=show_gear_order&vertical=gearOrder` | `show_gear_order` | Gear order, shipping status |
+| Retail | `/rs/api?tool=show_large_purchase&vertical=largePurchase` | `show_large_purchase` | Purchase detail, warranty, delivery |
+| Workforce | `/rs/api?tool=show_expense_report&vertical=expenseReport` | `show_expense_report` | Expense line items, approval status |
+| Government | `/rs/api?tool=show_permit&vertical=permit` | `show_permit` | Permit record, inspection status |
+| University | `/rs/api?tool=show_enrollment&vertical=enrollment` | `show_enrollment` | Enrollment, GPA, tuition balance |
+| Manufacturing | `/rs/api?tool=show_work_order&vertical=workOrder` | `show_work_order` | Work order, production progress |
+| Investment (API) | `/rs/api?tool=show_investment&vertical=invest` | `show_investment` | Portfolio via API key path |
 
-| Vertical | RS Page Target | Trigger UC / Tool | What the page shows |
-|----------|---------------|-------------------|---------------------|
-| Banking | MCP Server (OLB) | UC1 / `get_my_accounts` | Account list + token claims |
-| Healthcare | API Resource Server | UC33-health / `show_health_record` | Patient record + API key proof |
-| Retail | API Resource Server | UC33-retail / `show_gear_order` | Order detail + gateway swap |
-| Government | API Resource Server | UC33-gov / `show_permit` | Permit record |
-| University | API Resource Server | UC33-edu / `show_enrollment` | Enrollment record |
-| Workforce | API Resource Server | UC33-work / `show_expense_report` | Expense report |
-| Sporting Goods | API Resource Server | UC33-sport / `show_gear_order` | Gear order |
-| Manufacturing | API Resource Server | UC33-mfg / `show_work_order` | Work order + supplier details |
-| Investment | MCP Resource Server | UC33-invest / `get_portfolio_summary` | Full portfolio view |
+### Feature Data Coverage
+
+All 9 API RS verticals have `feature-data.json` in `demo_api_server/config/verticals/<id>/`:
+
+`banking`, `healthcare`, `sporting-goods`, `retail`, `workforce`, `government`, `university`, `manufacturing`, `investment`
+
+Generated into `demo_mortgage_service/feature-records.generated.json` via `node scripts/gen-feature-data.js generate`.
+
+### Design
+
+- **Alt B split view**: token/credential on left, data on right (no timeline)
+- **Light/dark mode toggle**: persisted to `localStorage` (`rsj-theme`), CSS custom properties for all colors
+- **Per-RS badge colors**: OLB (blue), MCP RS (green), API RS (gold)
 
 ### Demo Point
 
-This proves that agentic tool calls can **navigate the user to a dedicated page** — not just return text to the chat. The RS page displays the resource server's response with full token inspection, showing exactly which RS processed the request and how the credential was presented.
+Agentic tool calls **navigate the user to a dedicated RS page** — not just return text to the chat. The RS page displays the resource server's response with full token inspection, showing exactly which RS processed the request and how the credential was presented.
+
+---
+
+## TODO
+
+- [ ] Wire `ResourceServerInterstitial` to navigate to `/rs/*` pages after countdown (useNavigate imported but not connected)
+- [ ] Docker service renames: `demo_mcp_invest` → `demo_mcp_resource_server`, `demo_mortgage_service` → `demo_api_resource_server`
+- [ ] Add per-vertical custom card layouts in RS page right panel (currently generic k/v renderer for all API RS verticals)
+- [ ] Add RS page links to the existing `/resource-server` page (cross-navigation)
+- [ ] E2E tests for RS page routing (navigate to `/rs/api?tool=show_mortgage`, verify data renders)

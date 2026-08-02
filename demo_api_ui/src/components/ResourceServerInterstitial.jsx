@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import './ResourceServerInterstitial.css';
 
 const SERVERS = {
@@ -51,6 +52,25 @@ export function resolveTargetServer(toolName) {
   return 'olb';
 }
 
+// Map tool → vertical query param for the API RS page
+const TOOL_TO_VERTICAL = {
+  show_mortgage: 'mortgage', show_health_record: 'healthRecord',
+  show_investment: 'invest', show_gear_order: 'gearOrder',
+  show_expense_report: 'expenseReport', show_permit: 'permit',
+  show_enrollment: 'enrollment', show_work_order: 'workOrder',
+  show_large_purchase: 'largePurchase',
+};
+
+export function buildRsRoute(toolName) {
+  const rs = resolveTargetServer(toolName);
+  if (rs === 'invest') return `/rs/invest?tool=${encodeURIComponent(toolName)}`;
+  if (rs === 'apikey') {
+    const v = TOOL_TO_VERTICAL[toolName] || '';
+    return `/rs/api?tool=${encodeURIComponent(toolName)}${v ? `&vertical=${v}` : ''}`;
+  }
+  return `/rs/olb?tool=${encodeURIComponent(toolName)}`;
+}
+
 export { SERVERS };
 
 function ServerNode({ server, isActive }) {
@@ -71,19 +91,19 @@ function ServerNode({ server, isActive }) {
  * Modal overlay that shows which resource server a tool call is routed to.
  * Auto-dismisses after a countdown (default 4s) or on click.
  */
-export default function ResourceServerInterstitial({ toolName, onDismiss }) {
+export default function ResourceServerInterstitial({ toolName, onDismiss, onNavigate }) {
   const [countdown, setCountdown] = useState(4);
   const targetId = resolveTargetServer(toolName);
   const target = SERVERS[targetId];
 
   useEffect(() => {
     if (countdown <= 0) {
-      onDismiss?.();
+      onNavigate?.();
       return;
     }
     const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
     return () => clearTimeout(t);
-  }, [countdown, onDismiss]);
+  }, [countdown, onNavigate]);
 
   return createPortal(
     <div className="rsi-overlay" onClick={onDismiss}>
@@ -164,8 +184,11 @@ export default function ResourceServerInterstitial({ toolName, onDismiss }) {
 
         <footer className="rsi-footer">
           <span className="rsi-countdown">Continuing in {countdown}s...</span>
-          <button className="rsi-continue-btn" onClick={onDismiss}>
-            Continue now
+          <button className="rsi-continue-btn" onClick={onNavigate}>
+            View Resource Server
+          </button>
+          <button className="rsi-skip-btn" onClick={onDismiss}>
+            Back to chat
           </button>
         </footer>
       </div>
@@ -180,6 +203,7 @@ export default function ResourceServerInterstitial({ toolName, onDismiss }) {
  */
 export function useResourceServerInterstitial() {
   const [interstitialTool, setInterstitialTool] = useState(null);
+  const navigate = useNavigate();
 
   const show = useCallback((toolName) => {
     setInterstitialTool(toolName);
@@ -189,8 +213,16 @@ export function useResourceServerInterstitial() {
     setInterstitialTool(null);
   }, []);
 
+  const navigateToRs = useCallback(() => {
+    if (interstitialTool) {
+      const route = buildRsRoute(interstitialTool);
+      setInterstitialTool(null);
+      navigate(route);
+    }
+  }, [interstitialTool, navigate]);
+
   const render = interstitialTool
-    ? <ResourceServerInterstitial toolName={interstitialTool} onDismiss={dismiss} />
+    ? <ResourceServerInterstitial toolName={interstitialTool} onDismiss={dismiss} onNavigate={navigateToRs} />
     : null;
 
   return [show, render];

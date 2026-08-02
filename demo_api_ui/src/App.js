@@ -75,6 +75,7 @@ import PolicyDecisionTracePage from "./components/PolicyDecisionTracePage";
 import PostmanCollectionsPage from "./components/PostmanCollectionsPage";
 import Profile from "./components/Profile";
 import ResourceServerPage from "./components/ResourceServerPage";
+import ResourceServerJourneyPage from "./pages/ResourceServerJourneyPage";
 import RetailAdminOps from "./components/RetailAdminOps";
 import ScopeAuditPage from "./components/ScopeAuditPage";
 import ScopeReferencePage from "./components/ScopeReferencePage";
@@ -1307,6 +1308,18 @@ function AppWithAuth() {
                             <Route
                               path="/resource-server"
                               element={<ResourceServerPage />}
+                            />
+                            <Route
+                              path="/rs/olb"
+                              element={<ResourceServerJourneyPage />}
+                            />
+                            <Route
+                              path="/rs/invest"
+                              element={<ResourceServerJourneyPage />}
+                            />
+                            <Route
+                              path="/rs/api"
+                              element={<ResourceServerJourneyPage />}
                             />
                             <Route
                               path="/resource-server-cc"

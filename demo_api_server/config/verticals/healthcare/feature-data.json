@@ -1,0 +1,19 @@
+{
+  "noun": "health record",
+  "record": {
+    "healthRecord": {
+      "patientId": "HLT-2026-40088",
+      "name": "Jordan A. Rivera",
+      "dateOfBirth": "1989-03-14",
+      "primaryProvider": "Dr. S. Nguyen (Internal Medicine)",
+      "lastVisitDate": "2026-06-18",
+      "nextAppointment": "2026-09-22",
+      "allergies": ["Penicillin", "Shellfish"],
+      "activeMedications": ["Lisinopril 10 mg daily", "Vitamin D 2000 IU daily"],
+      "recentLabDate": "2026-06-18",
+      "cholesterolTotal": 192,
+      "bloodPressure": "118/76",
+      "status": "Active — annual physical scheduled"
+    }
+  }
+}

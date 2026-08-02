@@ -295,3 +295,16 @@
 .rsi-continue-btn:hover {
   opacity: 0.85;
 }
+
+.rsi-skip-btn {
+  padding: 0.5rem 1.25rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #94a3b8;
+  background: transparent;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+.rsi-skip-btn:hover { color: #e2e8f0; border-color: #64748b; }
