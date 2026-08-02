@@ -352,7 +352,14 @@ router.get('/state', (req, res) => {
 // POST /config — save config
 router.post('/config', express.json(), (req, res) => {
   const session = getClientSession(req);
-  session.config = { ...session.config, ...req.body };
+  // The client posts its whole config object before /auth/start. Merging blanks
+  // wiped the env-seeded clientId/mcpUrl for the life of the session — one click
+  // made before the page's /state fetch resolved left "Client ID is required
+  // before auth start." stuck on every later attempt. Blank means "unchanged".
+  const patch = Object.fromEntries(
+    Object.entries(req.body || {}).filter(([, v]) => v !== undefined && v !== null && v !== ''),
+  );
+  session.config = { ...session.config, ...patch };
   resetMcpState(session);
   emitEvent('config', { config: session.config });
   res.json({ ok: true, config: session.config });
