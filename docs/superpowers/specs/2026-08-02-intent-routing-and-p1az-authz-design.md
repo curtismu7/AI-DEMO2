@@ -1,8 +1,25 @@
 # Intent routing stability + P1AZ authz relocation — design
 
 Date: 2026-08-02
-Status: approved design, not yet implemented
+Status: approved design; partially implemented — PR #1213 (Stage 1 changes 5+6),
+PR #1214 (silent banking fallbacks), PR #1215 (intent-topology generator+checker)
 Origin: a SpiceDB evaluation that concluded SpiceDB is the wrong tool
+
+## ⚠️ Corrections since first draft
+
+Implementation disproved several claims below. Each one is corrected in place and
+tagged `[CORRECTED]` where it sits, so a reader who acted on the first draft can
+see exactly what moved. Nothing was silently edited.
+
+| # | As first written | What implementation measured | Corrected at |
+|---|---|---|---|
+| 1 | 4 Helix guards to delete in `geminiNlIntent.js` | **3.** The fourth site is generic provider resolution and must stay | Stage 1, change 5 |
+| 2 | Overlay shadow ranked failure #3, a live defect | **Zero** instances exist. The check guards a hypothesis | Failure ranking; Stage 1, change 3 |
+| 3 | "19 of 20 mismatches were probe error", 25-vs-26 chip discrepancy | **26 blocking + 5 informational**, itemised | Stage 1, change 4 |
+| 4 | One lie in `catalog.test.js` | **Two.** `resolveActiveVerticalCtx()` is the second | "The test that lies" |
+| 5 | *(not in first draft)* | Six silent banking fallbacks — now fixed by #1214 | Stage 0 |
+| 6 | *(not in first draft)* | `a2a` intent missing in 3 of 9 Class A verticals | Stage 0 gap inventory |
+| 7 | `both` asserts heuristics **and** offered-to-LLM | Only the first half is asserted — 19 chips would fail the second wrongly | Stage 1 gate table |
 
 ## Problem
 
@@ -45,6 +62,33 @@ A chip routing to the **wrong** tool passes green. `pingone-admin` is in that
 list at line 191 while production skips heuristics for it entirely — those chips
 are tested on a path they never take.
 
+### `[CORRECTED]` There are two lies in that file, not one
+
+The second is the context the test feeds the parser. Line 218 sets the active
+vertical, then line 219 calls `resolveActiveVerticalCtx()` — with no `req`:
+
+```js
+verticalManifest.resolver.setActive(v);
+const ctx = resolveActiveVerticalCtx();
+const res = parseHeuristic(chip.message, v, ctx);
+```
+
+`resolveActiveVerticalCtx()` at `services/nlIntentParser.js:885-887` is
+`resolveVerticalCtx(sessionVerticalId(req) || "banking")`. With no request there
+is no session, so it resolves **banking** for every vertical, and
+`resolveVerticalCtx` returns `null` for banking at line 831. Measured: `retail`,
+`healthcare` and `oauth-teaching` all yield `null`. `setActive(v)` has no effect
+on the ctx at all.
+
+That matters because the parser's `llm`/`direct` guard at
+`nlIntentParser.js:1010-1032` reads `verticalCtx?.chips`. With `ctx === null` the
+chips array is empty, `nonHeuristicChipMessages.size` is 0, and the guard **never
+fires** in this test. The test therefore cannot detect the thing that guard
+exists to catch.
+
+Both lies have the same shape as the ledger's 446/446 `PASS`: green that checks
+less than it appears to.
+
 ## Why not SpiceDB
 
 SpiceDB is Zanzibar ReBAC. It answers *can subject S do permission P on resource
@@ -62,8 +106,25 @@ Ory Keto, Cedar and OPA.
 |---|---|---|
 | 1 | (a) wrong tool, silent — kills the "governed agent" premise | ❌ |
 | 2 | (c) heuristics vs LLM divergence | ❌ |
-| 3 | (d) overlay shadow via `mergeToolsByName` / `authzFor` | ❌ |
+| 3 | (d) overlay shadow via `mergeToolsByName` / `authzFor` — **see correction below** | ❌ |
 | 4 | (b) dead-end — loud, two tests already cover it | ✅ |
+
+`[CORRECTED]` **Row 3 was ranked as a live defect. It is not one — the count is
+zero.** Measured against the live plugins via
+`gen-intent-topology.js:410-437 collectOverlayInputs()`: `admin` contributes 8
+tools (`lookup_customer`, `get_customer_transactions`, `get_customer_profile`,
+`get_customer_accounts`, `freeze_account`, `adjust_balance`,
+`reset_customer_password`, `delete_customer`) and `a2a` contributes 1
+(`delegate_to_specialist`). None of the 9 collides with any base vertical's tool
+names, and the same holds for the authz keys — 0 collisions on both scans.
+
+So overlay shadowing is a **hypothesis the mechanism permits**, not a defect the
+repo has. `checkOverlayShadowing` (`gen-intent-topology.js:387-404`) is built and
+wired, and it will catch the first collision the day someone names an overlay
+tool after a vertical tool. It should be read as a standing guard, not as a fix.
+Row 3 keeps its position in the *mechanism* ranking — last-write-wins that
+reports nothing is still the riskiest of the four shapes — but it is not
+currently costing the demo anything.
 
 ---
 
@@ -137,7 +198,16 @@ Other Class A gaps:
 | `groups` block — sensitive tool ungated | government, investment, manufacturing, university |
 | `llm` chip | retail, sporting-goods |
 | `tiers` | all 8 except banking |
+| `a2a` intent — **added by correction** | retail, sporting-goods, workforce |
 | Chip count | 9–15, no two verticals agree |
+
+`[CORRECTED]` **The `a2a` row is new.** The first draft never counted A2A
+delegation as a parity dimension. `intent-topology.json` now derives it: the
+`a2a` intent exists in **6 of the 9** Class A verticals — banking, government,
+healthcare, investment, manufacturing, university — and is absent from **retail,
+sporting-goods and workforce**. It belongs in the Stage 0 fill-in job alongside
+the missing `llm` chips and `groups` blocks: A2A delegation is one of the demo's
+headline stories, and three customer verticals cannot tell it.
 
 Step-verification coverage (which use cases a vertical actually proves):
 
@@ -155,6 +225,46 @@ Step-verification coverage (which use cases a vertical actually proves):
 Structural keys missing: `delegation` and `featurePage` from all four Class B
 verticals; `identity` from admin and admin-console; `demoUsers` from
 pingone-admin.
+
+## `[CORRECTED]` Six silent banking fallbacks — found after this draft, fixed by #1214
+
+The first draft did not know about these. They are the sharpest possible
+violation of the parity contract this stage exists to enforce: a healthcare or
+investment session that failed to route was served **banking's** chips, silently,
+with no signal that a substitution had happened. "Every vertical behaves the same
+way" cannot be checked while a routing miss quietly becomes banking.
+
+Six sites, all now closed:
+
+| # | Site | What it did |
+|---|---|---|
+| 1 | `config/fallback-chips/loader.js` | returned `FALLBACK_CHIPS.banking` for any unknown vertical |
+| 2 | same file | `loadFallbackChips(verticalId = 'banking')` — the default parameter did it again for a missing arg |
+| 3 | `services/fallbackDataResolver.js` | `intent.vertical \|\| 'banking'` |
+| 4 | same file | the `catch` block resolved **every** thrown error to banking |
+| 5 | `FALLBACK_CHIPS` map | `healthcare` absent entirely, so it fell through to 1 |
+| 6 | `FALLBACK_CHIPS` map | `investment` absent entirely, same |
+
+**The replacement is Option A — a structured no-match.** `buildNoMatch()` returns
+one vertical or none, never a substitute: empty `chips`, the active `verticalId`,
+`noMatch: true`, `intentsConsidered`, suggestions drawn **only** from that
+vertical's own `dashboard.chips10`, and a human-readable message so text-only
+surfaces still degrade gracefully. `chips` stays empty on purpose — a caller that
+renders it cannot show another vertical's data.
+
+Current state: `loader.js:23-31` uses a `hasOwnProperty` guard and returns `null`;
+`fallbackDataResolver.js:78-104` resolves to one vertical or `buildNoMatch`;
+`healthcare.js` and `investment.js` now exist in the map at `loader.js:9-10`.
+
+`closestCandidate` is deliberately omitted. `parseForFallback` is an ordered regex
+cascade that returns a hit or nothing — there is no score, and inventing one would
+misrepresent the routing.
+
+**Approved plan: Option A first, then Option C, with A as C's floor.** Option C is
+grounded answers with per-claim source attribution. A ships now and is the
+guaranteed behaviour; C layers on top of it. When C cannot ground a claim it must
+fall back to A's structured no-match, never to a guess and never to another
+vertical — A is the floor, not a stepping stone to be removed.
 
 ## Use-case parity: coverage is nearly there, the proof is not
 
@@ -322,6 +432,20 @@ Agreement-or-abstain. Never disagree.
 house generator/checker pattern from `gen-scope-topology.js` and
 `gen-vertical-tools.js`. Wired into `verticals:check` and `hygiene:check`.
 
+`[CORRECTED]` Two notes on where it landed:
+
+- **It is the odd one out on location.** `verticals:gen` / `verticals:check`
+  (`demo_api_server/package.json:65-66`) chain three generators and every one of
+  them lives in the repo-root `scripts/`, referenced as `../scripts/`:
+  `gen-scope-topology.js`, `gen-feature-data.js`, `gen-vertical-tools.js`.
+  `intents:gen` / `intents:check` (`package.json:63-64`) point at a **local**
+  `scripts/gen-intent-topology.js`. Worth knowing before anyone goes looking for
+  it next to its siblings.
+- **It is not yet wired into any blocking gate.** Not `verticals:check`, not
+  `hygiene:check`. Deliberate: it reports 26 blocking gaps today, so wiring it in
+  now would make every gate red for reasons Stage 0 has not fixed yet. Wiring it
+  in is the last step of Stage 0/1, not the first.
+
 Emits `intent-topology.json`, one row per chip:
 
 ```
@@ -343,12 +467,69 @@ consumers. Divergence becomes structurally hard rather than merely detected.
    vertical-parameterized, not expressible as a flat map.
 3. **Two new checks** — phrase collision within a vertical, and overlay
    tool-name shadowing from `mergeToolsByName` / `authzFor`.
+
+   `[CORRECTED]` Both are built, and neither is finding what this draft expected.
+   Overlay shadowing measures **zero** — see the correction under *Failure
+   ranking*; it guards a hypothesis. Phrase collision finds **4**, all of them
+   `phrase_duplicate` (same phrase, *same* declared tool), which the checker
+   grades `warn` not `fail` at `gen-intent-topology.js:354-377`: `inv1`+`inv-direct`
+   on *"show my portfolios"*, `rt1`+`rt-direct` on *"list my orders"*,
+   `sg4`+`sg-direct` on *"order status"*, `wf3`+`wf-direct` on *"my expenses"*.
+   Every one is a vertical's `direct` demo chip reusing its `both` chip's exact
+   wording — an intentional alias, not ambiguous routing. **Zero** true
+   `phrase_collision` (same phrase, different tools) exists anywhere.
+
+   Read straight, that is the Stage 3 trigger firing negative: the collision count
+   this design said would decide whether to build a semantic router is
+   effectively 0.
 4. **Backfill the no-tool chips** that already resolve correctly but never
-   declared a tool (`ot1`–`ot10` → `explain_concept`, `rt5`/`rt9` →
-   `list_orders`, etc.). `oauth-teaching` is the bulk: all 12 of its chips.
-   Count is 25 by direct manifest parse against 26 in the original pass — a
-   one-chip discrepancy to reconcile during implementation, not to guess at now.
-5. **Delete 4 Helix guards** — `geminiNlIntent.js` lines 448, 490, 496, 511:
+   declared a tool. `oauth-teaching` is the bulk: all 12 of its chips.
+
+   `[CORRECTED]` **The "19 of 20 mismatches were probe error" framing and the
+   25-vs-26 discrepancy are both superseded.** The generator now measures it
+   directly instead of estimating: **26 blocking, 5 informational**, across 120
+   chips in 12 verticals. The gap list, verbatim from
+   `cd demo_api_server && npm run intents:check`:
+
+   | Vertical | Blocking | Chips |
+   |---|---|---|
+   | oauth-teaching | 12 | `ot1`–`ot12`, all `missing_declared_tool`, all `mode=both` |
+   | banking | 4 | `bk-a2a` `tool_mismatch`; `bk-bad-scope`, `bk-dpop`, `bk8` `missing_declared_tool` |
+   | retail | 4 | `rt5`, `rt8`, `rt9`, `rt10`, all `missing_declared_tool`, all `mode=both` |
+   | government | 1 | `gv6` (`llm`) |
+   | healthcare | 1 | `hc9` (`llm`) |
+   | investment | 1 | `inv-llm` (`llm`) |
+   | manufacturing | 1 | `mf6` (`llm`) |
+   | university | 1 | `un8` (`llm`) |
+   | workforce | 1 | `wf10` (`llm`) |
+
+   The one-chip discrepancy resolves: **25** chips declare no tool at all, and the
+   26th blocking gap is a different failure code — `bk-a2a`'s `tool_mismatch`. Both
+   counts were right about different things.
+
+   ⚠️ Note the three banking chips individually, because the shorthand "the
+   negative chips have no tool" is wrong in the details:
+   - `bk-dpop` is `mode=direct` and declares no `tool`, no `denyTool`.
+   - `bk-bad-scope` is **`mode=both`** — not `direct` — and also declares neither.
+     Its `useCaseId` is `insufficient-scope`; the design text above describes it
+     as resolving `test_wrong_scope`, but nothing in the manifest says so.
+   - `bk8` is `mode=llm` and declares no tool.
+
+   ⚠️ `bk-a2a` is the only true routing mismatch in the repo and it is **not** a
+   missing declaration: it declares `get_sensitive_account_details`, heuristics
+   resolve action `sensitive_account_details` → tool `sensitive_account_details`,
+   and **both tool names exist** on the banking plugin. One of the two is wrong;
+   which one is a decision for implementation, not a typo to patch blind.
+
+   Five informational (`warn`, non-blocking): the four `phrase_duplicate` aliases
+   listed under change 3, plus `pa1` `client_dispatched_unverifiable` —
+   `pingone-admin`'s `mcp_tools` action is UI-dispatched and maps to no BFF tool,
+   so its declared `list_pingone_tools` cannot be verified statically.
+
+   **Zero** were found for `unresolved`, `unreachable_tool`, `not_offered_to_llm`,
+   `overlay_tool_shadow`, `overlay_authz_shadow` and `feature_tool_disagreement`.
+   Six of the eleven failure codes the checker can emit have no instances at all.
+5. **Delete 3 Helix guards** — `geminiNlIntent.js`, landed in #1213:
 
    ```js
    if (llmProvider !== 'helix') {
@@ -365,9 +546,30 @@ consumers. Divergence becomes structurally hard rather than merely detected.
 
    `pingone-admin` is the extreme case of the governing invariant: a full
    heuristics path exists that production can never reach.
+
+   `[CORRECTED]` **This draft said four sites — 448, 490, 496 and 511. Only three
+   were locks.** The three removed were the guard itself (448) and the two
+   `provider !== 'pingone-admin'` bypasses (490, 496) that skipped the heuristic
+   short-circuit and the result cache.
+
+   **Site 511 must stay, and deleting it would break free text.** It now sits at
+   `geminiNlIntent.js:496` and reads:
+
+   ```js
+   const selectedProvider = (provider === 'auto' || provider === 'pingone-admin')
+     ? resolveLlmProvider(langchainConfig).provider
+     : provider;
+   ```
+
+   That is generic provider resolution, not a Helix pin. `pingone-admin` is a
+   **routing marker, not an LLM name** — remove it from that condition and
+   `selectedProvider` stays the literal string `'pingone-admin'`, which matches no
+   provider branch below, so free text in the vertical dead-ends at the
+   `kind: 'none'` fallback. Anyone reading the first draft as "delete all four"
+   would have traded a Helix lock for a silent dead end.
 6. **Fix `toolsCalled: []`** hardcoded at `bankingAgentLangGraphService.js:769`.
    `pingone-admin` reports zero tool calls even after calling five, so ProofStrip
-   and step-verification see nothing.
+   and step-verification see nothing. Landed in #1213.
 
 ## Gate: mode-appropriate, no exemptions
 
@@ -375,9 +577,41 @@ All 120 chips gated, none invisible. The assertion differs by mode:
 
 | mode | assertion |
 |---|---|
-| `both` | resolves via heuristics to its declared tool **and** that tool is offered to the LLM for that vertical |
+| `both` | resolves via heuristics to its declared tool ~~**and** that tool is offered to the LLM for that vertical~~ — **narrowed, see below** |
 | `direct` | its `tool` / `denyTool` exists and has a handler on the dispatch path it actually uses — extends `services/checks/uiDispatchCheck.js` rather than duplicating it |
 | `llm` | its tool appears in the schemas offered to the LLM |
+
+`[CORRECTED]` **The `both` row is implemented as the first half only.** The second
+half — "and that tool is offered to the LLM" — is **not** asserted; it is
+**recorded**, per cell, as `offeredToLlm` (`gen-intent-topology.js:276`). The
+`both` branch at `gen-intent-topology.js:320-338` checks heuristic resolution and
+nothing else.
+
+Asserting the second half would fail **19 chips wrongly.** Measured from
+`intent-topology.json`: 102 of the 120 chips are `mode=both`, and 19 of those
+carry a declared tool that is absent from the LLM schema set. All 19 are
+`clientDispatched: true`, and every one of the 19 tools is a **gateway** tool:
+
+- the nine `*-jwt` chips, all on `jwt_decode_full`
+- the eight `*-feature` chips — `gv`/`hc`/`inv`/`mf`/`rt`/`sg`/`un`/`wf` on
+  `show_permit`, `show_health_record`, `show_investment`, `show_work_order`,
+  `show_large_purchase`, `show_gear_order`, `show_enrollment`,
+  `show_expense_report`
+- `retail`'s `rt-invest` on `show_investment`, and banking's `bk7` on
+  `show_mortgage`
+
+These are dispatched by the UI, not chosen by the LLM. Their absence from the
+schema set is the design, so a check that failed them would be measuring the
+wrong thing — the same category of error as the "20 mismatches" that turned out
+to be `CLIENT_DISPATCHED_ACTIONS`.
+
+⚠️ **Open question, deliberately not answered here.** Recording `offeredToLlm`
+rather than asserting it leaves the real question open: *is abstention the correct
+LLM behaviour for these 19?* A user who free-types *"show my mortgage"* instead of
+clicking `bk7` reaches the LLM, which has no `show_mortgage` to offer. Whether
+that should resolve, abstain, or route to a client-dispatch hint is a product
+decision. The data to answer it is now in `intent-topology.json` per cell; the
+answer is not in this document.
 
 Literal "every chip must resolve through heuristics" was rejected for cause.
 `scripts/extractChips.js:18-22` documents that `bk-deny`'s *"show my health
@@ -399,6 +633,12 @@ proves LLM agreement would repeat the exact lie `catalog.test.js:223` tells toda
 containing `jwt_decode_demo`, `vertical_feature_demo`, `invest_demo`, `mcp_tools`.
 Those chips are dispatched by the UI, so their heuristic action never needs to
 equal a BFF tool name. The comparison was invalid.
+
+`[CORRECTED]` **Superseded as a count.** The reasoning above still holds — the
+generator honours `CLIENT_DISPATCHED_ACTIONS` and records those chips as
+unverifiable rather than failing them — but "20 mismatches, 19 of them probe
+error" is no longer the number anyone should quote. The measured figure is
+**26 blocking and 5 informational**, itemised under Stage 1 change 4.
 
 Real chip count is **120**, not the 399 first reported — the earlier count
 included every `id` field in the manifests, not just chips.
@@ -585,6 +825,12 @@ downgrade. Mitigation would be an exact-phrase index for the 120 canonical chips
 **Trigger to build it:** the phrase-collision count reported by
 `intent-topology.json`. Near zero means Stage 3 buys nondeterminism for nothing.
 Frequent collisions mean it has a case. Measure, do not guess.
+
+`[CORRECTED]` **The measurement now exists and the trigger has not fired.** True
+`phrase_collision` — one phrase, two different tools — measures **0**. The only
+four hits are `phrase_duplicate` (one phrase, the *same* tool), all of them a
+vertical's `direct` demo chip reusing its `both` chip's wording on purpose. On the
+rule this document set, Stage 3 does not have a case today.
 
 Also rejected: a runtime intent registry consulted by the parser instead of
 walking ordered regex. It genuinely fixes order-dependence in production, but
