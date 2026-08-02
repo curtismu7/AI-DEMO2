@@ -23,6 +23,209 @@ function ClaimRow({ k, v }) {
   );
 }
 
+const fmt$ = (n) => typeof n === 'number' ? `$${n.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : String(n ?? '—');
+const fmtPct = (n) => typeof n === 'number' ? `${n}%` : String(n ?? '—');
+
+function VerticalCards({ vertical, data }) {
+  if (!data) return null;
+  // Flatten: the BFF returns { vertical, noun, <key>: { ...fields } }
+  // Find the nested record object (first non-scalar, non-metadata key)
+  const rec = Object.entries(data).reduce((found, [k, v]) => {
+    if (found) return found;
+    if (k === 'vertical' || k === 'noun' || k === 'tool' || k === 'note') return null;
+    return typeof v === 'object' && v !== null && !Array.isArray(v) ? v : null;
+  }, null) || data;
+
+  switch (vertical) {
+    case 'mortgage': return <MortgageCard r={rec} />;
+    case 'healthRecord': return <HealthCard r={rec} />;
+    case 'gearOrder': return <ItemOrderCard r={rec} noun="Gear Order" />;
+    case 'largePurchase': return <ItemOrderCard r={rec} noun="Purchase" />;
+    case 'expenseReport': return <ExpenseCard r={rec} />;
+    case 'enrollment': return <EnrollmentCard r={rec} />;
+    case 'permit': return <PermitCard r={rec} />;
+    case 'workOrder': return <WorkOrderCard r={rec} />;
+    case 'invest': return <PortfolioCard r={rec} />;
+    default: return <GenericVerticalRows data={data} />;
+  }
+}
+
+function MortgageCard({ r }) {
+  return (
+    <div className="rsj-vcard">
+      <div className="rsj-vcard-header">{r.propertyAddress}</div>
+      <div className="rsj-vcard-sub">{r.propertyType} — {r.loanId}</div>
+      <div className="rsj-vcard-grid">
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Loan Amount</span><span className="rsj-vcard-stat-value">{fmt$(r.loanAmount)}</span></div>
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Balance</span><span className="rsj-vcard-stat-value rsj-vcard-stat-value--accent">{fmt$(r.currentBalance)}</span></div>
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Rate</span><span className="rsj-vcard-stat-value">{r.interestRate}</span></div>
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Monthly</span><span className="rsj-vcard-stat-value">{fmt$(r.monthlyPayment)}</span></div>
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Escrow</span><span className="rsj-vcard-stat-value">{fmt$(r.escrowBalance)}</span></div>
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Next Payment</span><span className="rsj-vcard-stat-value">{r.nextPaymentDate}</span></div>
+      </div>
+      <div className="rsj-vcard-status">{r.status}</div>
+    </div>
+  );
+}
+
+function HealthCard({ r }) {
+  return (
+    <div className="rsj-vcard">
+      <div className="rsj-vcard-header">{r.name}</div>
+      <div className="rsj-vcard-sub">Patient {r.patientId} — DOB {r.dateOfBirth}</div>
+      <div className="rsj-vcard-grid">
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Provider</span><span className="rsj-vcard-stat-value">{r.primaryProvider}</span></div>
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">BP</span><span className="rsj-vcard-stat-value">{r.bloodPressure}</span></div>
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Cholesterol</span><span className="rsj-vcard-stat-value">{r.cholesterolTotal}</span></div>
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Next Appt</span><span className="rsj-vcard-stat-value">{r.nextAppointment}</span></div>
+      </div>
+      {r.allergies?.length > 0 && <div className="rsj-vcard-tags">{r.allergies.map(a => <span key={a} className="rsj-vcard-tag rsj-vcard-tag--warn">{a}</span>)}</div>}
+      {r.activeMedications?.length > 0 && <div className="rsj-vcard-tags">{r.activeMedications.map(m => <span key={m} className="rsj-vcard-tag">{m}</span>)}</div>}
+      <div className="rsj-vcard-status">{r.status}</div>
+    </div>
+  );
+}
+
+function ItemOrderCard({ r, noun }) {
+  const items = r.items || [];
+  return (
+    <div className="rsj-vcard">
+      <div className="rsj-vcard-header">{noun} {r.orderId || r.purchaseId}</div>
+      <div className="rsj-vcard-sub">{r.customer}{r.purchaseDate ? ` — ${r.purchaseDate}` : ''}</div>
+      {items.length > 0 && (
+        <div className="rsj-vcard-table">
+          {items.map((it, i) => (
+            <div key={i} className="rsj-vcard-table-row">
+              <span className="rsj-vcard-table-name">{it.name || it.description}{it.size ? ` (${it.size})` : ''}</span>
+              <span className="rsj-vcard-table-val">{fmt$(it.price || it.amount)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {r.item && !items.length && <div className="rsj-vcard-sub">{r.item}</div>}
+      <div className="rsj-vcard-grid">
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Total</span><span className="rsj-vcard-stat-value rsj-vcard-stat-value--accent">{fmt$(r.total)}</span></div>
+        {r.shippingMethod && <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Shipping</span><span className="rsj-vcard-stat-value">{r.shippingMethod}</span></div>}
+        {r.estimatedDelivery && <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Delivery</span><span className="rsj-vcard-stat-value">{r.estimatedDelivery}</span></div>}
+        {r.warrantyExpires && <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Warranty</span><span className="rsj-vcard-stat-value">{r.warrantyExpires}</span></div>}
+        {r.paymentMethod && <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Payment</span><span className="rsj-vcard-stat-value">{r.paymentMethod}</span></div>}
+      </div>
+      <div className="rsj-vcard-status">{r.status || r.deliveryStatus}</div>
+    </div>
+  );
+}
+
+function ExpenseCard({ r }) {
+  const items = r.lineItems || [];
+  return (
+    <div className="rsj-vcard">
+      <div className="rsj-vcard-header">Expense Report {r.reportId}</div>
+      <div className="rsj-vcard-sub">{r.employee} — {r.department} — {r.period}</div>
+      {items.length > 0 && (
+        <div className="rsj-vcard-table">
+          {items.map((it, i) => (
+            <div key={i} className="rsj-vcard-table-row">
+              <span className="rsj-vcard-table-name">{it.category}: {it.description}</span>
+              <span className="rsj-vcard-table-val">{fmt$(it.amount)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="rsj-vcard-grid">
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Total</span><span className="rsj-vcard-stat-value rsj-vcard-stat-value--accent">{fmt$(r.totalAmount)}</span></div>
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Approver</span><span className="rsj-vcard-stat-value">{r.approver}</span></div>
+      </div>
+      <div className="rsj-vcard-status">{r.status}</div>
+    </div>
+  );
+}
+
+function EnrollmentCard({ r }) {
+  return (
+    <div className="rsj-vcard">
+      <div className="rsj-vcard-header">{r.program}</div>
+      <div className="rsj-vcard-sub">Student {r.studentId} — {r.term}</div>
+      <div className="rsj-vcard-grid">
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">GPA</span><span className="rsj-vcard-stat-value rsj-vcard-stat-value--accent">{r.gpa}</span></div>
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Credits</span><span className="rsj-vcard-stat-value">{r.creditsEarned} earned / {r.enrolledCredits} enrolled</span></div>
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Tuition</span><span className="rsj-vcard-stat-value">{fmt$(r.tuitionBalance)}</span></div>
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Standing</span><span className="rsj-vcard-stat-value">{r.standing}</span></div>
+      </div>
+      <div className="rsj-vcard-status">Holds: {r.holds || 'None'}</div>
+    </div>
+  );
+}
+
+function PermitCard({ r }) {
+  return (
+    <div className="rsj-vcard">
+      <div className="rsj-vcard-header">{r.permitType} Permit {r.permitId}</div>
+      <div className="rsj-vcard-sub">{r.subject} — {r.jurisdiction}</div>
+      <div className="rsj-vcard-grid">
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Issued</span><span className="rsj-vcard-stat-value">{r.issuedDate}</span></div>
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Expires</span><span className="rsj-vcard-stat-value">{r.expiresDate}</span></div>
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Fees Owed</span><span className="rsj-vcard-stat-value rsj-vcard-stat-value--accent">{fmt$(r.feesOwed)}</span></div>
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Inspector</span><span className="rsj-vcard-stat-value">{r.inspector}</span></div>
+      </div>
+      <div className="rsj-vcard-status">{r.status}</div>
+    </div>
+  );
+}
+
+function WorkOrderCard({ r }) {
+  const pct = r.quantity > 0 ? Math.round((r.completedQty / r.quantity) * 100) : 0;
+  return (
+    <div className="rsj-vcard">
+      <div className="rsj-vcard-header">Work Order {r.orderId}</div>
+      <div className="rsj-vcard-sub">{r.product} — {r.type} — {r.line}</div>
+      <div className="rsj-vcard-progress"><div className="rsj-vcard-progress-bar" style={{ width: `${pct}%` }} /><span className="rsj-vcard-progress-label">{r.completedQty}/{r.quantity} ({pct}%)</span></div>
+      <div className="rsj-vcard-grid">
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Value</span><span className="rsj-vcard-stat-value rsj-vcard-stat-value--accent">{fmt$(r.value)}</span></div>
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Due</span><span className="rsj-vcard-stat-value">{r.dueDate}</span></div>
+      </div>
+      <div className="rsj-vcard-status">{r.status}</div>
+    </div>
+  );
+}
+
+function PortfolioCard({ r }) {
+  const holdings = r.holdings || [];
+  return (
+    <div className="rsj-vcard">
+      <div className="rsj-vcard-header">Portfolio {r.portfolioId}</div>
+      <div className="rsj-vcard-sub">{r.holder} — {r.riskProfile}</div>
+      <div className="rsj-vcard-grid">
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Total Value</span><span className="rsj-vcard-stat-value rsj-vcard-stat-value--accent">{fmt$(r.totalValue)}</span></div>
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">Cash Sweep</span><span className="rsj-vcard-stat-value">{fmt$(r.cashSweep)}</span></div>
+        <div className="rsj-vcard-stat"><span className="rsj-vcard-stat-label">YTD Return</span><span className="rsj-vcard-stat-value rsj-vcard-stat-value--green">{fmtPct(r.ytdReturnPct)}</span></div>
+      </div>
+      {holdings.length > 0 && (
+        <div className="rsj-vcard-table">
+          {holdings.map((h, i) => (
+            <div key={i} className="rsj-vcard-table-row">
+              <span className="rsj-vcard-table-name"><strong>{h.symbol}</strong> {h.name}</span>
+              <span className="rsj-vcard-table-val">{fmt$(h.marketValue)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GenericVerticalRows({ data }) {
+  return (
+    <div className="rsj-vertical-data">
+      {Object.entries(data).filter(([k]) => !k.startsWith('_')).map(([k, v]) => (
+        <div key={k} className="rsj-vertical-row">
+          <span className="rsj-vertical-key">{k}</span>
+          <span className="rsj-vertical-val">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function ResourceServerJourneyPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -118,14 +321,7 @@ export default function ResourceServerJourneyPage() {
             {loading ? (
               <div className="rsj-loading">Loading...</div>
             ) : rsType === 'apikey' && verticalData ? (
-              <div className="rsj-vertical-data">
-                {Object.entries(verticalData).filter(([k]) => !k.startsWith('_')).map(([k, v]) => (
-                  <div key={k} className="rsj-vertical-row">
-                    <span className="rsj-vertical-key">{k}</span>
-                    <span className="rsj-vertical-val">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
-                  </div>
-                ))}
-              </div>
+              <VerticalCards vertical={vertical} data={verticalData} />
             ) : rsType === 'invest' ? (
               <div className="rsj-data-cards">
                 <div className="rsj-data-card"><div className="rsj-data-label">Portfolio</div><div className="rsj-data-value rsj-data-value--green">View returned</div></div>

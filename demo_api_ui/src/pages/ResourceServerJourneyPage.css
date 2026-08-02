@@ -166,6 +166,75 @@
 .rsj-vertical-key { color: var(--rsj-text-secondary); }
 .rsj-vertical-val { color: var(--rsj-text); font-weight: 500; }
 
+/* Vertical cards */
+.rsj-vcard {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.rsj-vcard-header {
+  font-size: 14px; font-weight: 700; color: var(--rsj-text);
+}
+.rsj-vcard-sub {
+  font-size: 11px; color: var(--rsj-text-secondary);
+}
+.rsj-vcard-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+}
+.rsj-vcard-stat {
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 6px 8px; background: var(--rsj-surface-inset);
+  border: 1px solid var(--rsj-border-subtle); border-radius: 5px;
+}
+.rsj-vcard-stat-label { font-size: 9px; color: var(--rsj-text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+.rsj-vcard-stat-value { font-size: 13px; font-weight: 600; color: var(--rsj-text); }
+.rsj-vcard-stat-value--accent { color: var(--rsj-blue); }
+.rsj-vcard-stat-value--green { color: var(--rsj-green); }
+.rsj-vcard-status {
+  font-size: 11px; color: var(--rsj-green); font-weight: 600;
+  padding: 4px 8px; background: var(--rsj-proof-bg);
+  border: 1px solid var(--rsj-proof-border); border-radius: 4px;
+  align-self: flex-start;
+}
+
+/* Table rows (line items, holdings) */
+.rsj-vcard-table {
+  display: flex; flex-direction: column; gap: 0;
+  border: 1px solid var(--rsj-border-subtle); border-radius: 5px;
+  overflow: hidden;
+}
+.rsj-vcard-table-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 5px 8px; font-size: 11px;
+  border-bottom: 1px solid var(--rsj-border-subtle);
+  background: var(--rsj-surface-inset);
+}
+.rsj-vcard-table-row:last-child { border-bottom: none; }
+.rsj-vcard-table-name { color: var(--rsj-text); flex: 1; }
+.rsj-vcard-table-val { color: var(--rsj-blue); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Tags (allergies, medications) */
+.rsj-vcard-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.rsj-vcard-tag {
+  font-size: 10px; padding: 2px 8px; border-radius: 10px;
+  background: var(--rsj-surface-inset); border: 1px solid var(--rsj-border-subtle);
+  color: var(--rsj-text-secondary);
+}
+.rsj-vcard-tag--warn { color: var(--rsj-gold); border-color: var(--rsj-gold); }
+
+/* Progress bar (work orders) */
+.rsj-vcard-progress {
+  position: relative; height: 18px;
+  background: var(--rsj-surface-inset); border: 1px solid var(--rsj-border-subtle);
+  border-radius: 9px; overflow: hidden;
+}
+.rsj-vcard-progress-bar {
+  height: 100%; background: var(--rsj-green); border-radius: 9px;
+  transition: width 0.3s ease;
+}
+.rsj-vcard-progress-label {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 600; color: var(--rsj-text);
+}
+
 /* Footer nav */
 .rsj-footer-nav { display: flex; gap: 10px; }
 .rsj-nav-btn {
@@ -179,4 +248,5 @@
 
 @media (max-width: 700px) {
   .rsj-split { grid-template-columns: 1fr; }
+  .rsj-vcard-grid { grid-template-columns: 1fr; }
 }
