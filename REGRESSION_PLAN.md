@@ -133,6 +133,65 @@ Do not "simplify" the merge back to `{ ...session.config, ...req.body }`.
 one-line merge restored, the new spec fails `Expected: "seeded-client-id"
 Received: ""`.
 
+### 2026-08-02 — The BFF still pre-empted the gateway, and PingGateway only gated on INDETERMINATE
+
+**Files changed:** `ping-gateway/scripts/groovy/p1az-decision.groovy`,
+`demo_api_server/services/mcpToolPipeline.js`,
+`demo_api_server/services/mcpGatewayClient.js`,
+`demo_api_server/services/mcpToolAuthorizationService.js`,
+`snapshots/gen-mcp-amount-bands-import.js` (new),
+`snapshots/mcp-amount-bands.import.snapshot.json` (new).
+
+**What was broken:** the previous entry moved HITL emission into PingGateway but
+left two holes. (1) The BFF's pre-flight still ran first on gateway-routed calls
+and returned before the gateway was ever reached, so the gateway's PDP call
+remained dead code for exactly the tools it was supposed to gate. (2) The Groovy
+branched only on `decision == 'INDETERMINATE'` — which is what the *mock* authz
+server returns. Live PingOne Authorize returns `decision: PERMIT` with the applied
+rule effects in `statements[]`, so against the cloud policy the gateway would have
+PERMITted and forwarded a call the PDP had attached a consent obligation to.
+Separately, the pipeline's `hitl_required` branch was nested inside an
+`err.code === 'gateway_policy_denied'` test while `mcpGatewayClient` throws HITL
+with `code: 'mcp_tool_error'` — that branch was unreachable, and the HITL body
+carried no `challengeId` for the agent to echo back.
+
+**What was fixed:** the BFF no longer pre-flights when the call is gateway-routed
+(`skipReason: 'gateway_authoritative'`, alongside the existing
+`a2a_supplied_token`); it forwards and relays. `_hitl_challenge_id` is
+deliberately left in `params` so the gateway — not the BFF — verifies and strips
+it. The Groovy now classifies `statements[]` with the same normalization and
+precedence as `authorizeObligations.js` (strip separators, uppercase,
+HITLCONSENT → consent, STEPUP → step-up, step-up outranks consent), so a live
+`PERMIT` + obligation gates exactly like the mock's `INDETERMINATE`, and a
+PERMIT carrying an unsatisfied obligation no longer forwards. Step-up gets its own
+428 (`step_up_required`), relayed by the BFF as the `mcp_step_up_required` +
+`step_up_method` envelope the agent's existing handler already understands —
+`step_up_method` stays BFF-resolved because the per-use-case method lives in a
+catalog the gateway cannot see. The 428 branches were hoisted above the
+`gateway_policy_denied` test so they are actually reachable, and the HITL body now
+carries `challengeId` / `challenge_type`.
+
+**Also added (not applied):** `snapshots/mcp-amount-bands.import.snapshot.json`,
+a generated P1AZ snapshot adding amount bands to the **MCP** decision endpoint.
+The gateway makes exactly one PDP call — to the MCP endpoint — but the amount
+bands live in the *Transaction* endpoint it never calls, and the MCP policy's own
+consent rule is keyed on "sensitive tools". Without this, every `create_transfer`
+would prompt for consent regardless of amount. Thresholds are **250 / 500 / 2000**
+to match the constants already in the environment, not the 300/600/2500 the
+deleted BFF ladder used; the demo amounts still land in the intended bands.
+
+**Do not break:** the skip is conditional on `useGateway` — a tool executed
+locally has no second PEP, and skipping there is fail-open. Statement
+classification must stay in sync with `services/authorizeObligations.js`; if the
+codes drift, a live obligation silently stops gating (there is no test that can
+catch that from the mock alone). Step-up must not be dischargeable by a HITL
+receipt, or vice versa — they are different mechanisms.
+
+**Verify:** `cd demo_api_server && CI=true npx jest --forceExit --maxWorkers=2`.
+Groovy parsed against the running IG's own Groovy 4.0.28.
+`node snapshots/gen-mcp-amount-bands-import.js` regenerates the import (fresh
+UUIDs each run — do not re-run once imported, or you create duplicate objects).
+
 ### 2026-08-02 — HITL consent (UC8) was decided by BFF code, and no gateway could emit a 428
 
 **Files changed:** `ping-gateway/scripts/groovy/p1az-decision.groovy`,

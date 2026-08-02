@@ -41,6 +41,12 @@ snapshots/*
 # fails loudly if the glob ever matches nothing again.
 !snapshots/authorizeSnapshotDrift.test.js
 !snapshots/authorizeSnapshotCloudDelta.test.js
+# Track the MCP amount-bands import and its generator for the same reason: the
+# gateway makes only the MCP decision-endpoint call, so these rules are what give
+# that endpoint an amount-aware gate. Ignored, they would silently never reach the
+# repo and the policy change would exist on one laptop only.
+!snapshots/gen-mcp-amount-bands-import.js
+!snapshots/mcp-amount-bands.import.snapshot.json
 certs/
 package-lock.json
 **/package-lock.json

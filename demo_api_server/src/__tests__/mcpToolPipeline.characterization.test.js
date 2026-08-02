@@ -490,17 +490,48 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
     expect(gwAzEvents.length).toBe(1);
   });
 
-  // Final whole-branch review follow-up: the DENY/block branch is NOT
-  // symmetric with the PERMIT branch above — it returns early (before any
-  // gateway call), so when useGateway=true there is no later
-  // gwAuditTrail.authorize push that could ever supply the card. The
-  // !useGateway guard on the block branch's push was copied from the PERMIT
-  // branch for the wrong reason: there is no double-push risk here because
-  // the gateway is never reached on a block. This must produce exactly one
-  // gw-authorize card with status 'deny', even with useGateway=true.
-  test('useGateway=true AND simulated engine DENY (gate block) → tokenEvents still carries a gw-authorize card (block branch never reaches the gateway)', async () => {
+  // Was: "useGateway=true AND simulated engine DENY (gate block) → gw-authorize
+  // card". That test pinned the BFF pre-flighting the decision even when the call
+  // was gateway-routed — which is exactly what made the BFF, not the gateway, the
+  // decision point. The gateway calls PingOne Authorize itself and answers 403 /
+  // 428, so the BFF must forward rather than decide.
+  test('useGateway=true → the BFF gate does NOT run; the gateway owns the decision', async () => {
     const deps = makeDeps();
     deps.config = { ...deps.config, useGateway: true, gatewayHttpUrl: 'http://gw' };
+    deps.evaluateMcpFirstToolGate = jest.fn(async () => {
+      throw new Error('gate must not be consulted for a gateway-routed call');
+    });
+    deps.callToolViaGateway = jest.fn(async () => ({
+      result: { content: [{ text: 'gw-ok' }] },
+      gwAuditTrail: { authorize: { decision: 'PERMIT', tool: 'get_my_accounts' } },
+    }));
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    expect(deps.evaluateMcpFirstToolGate).not.toHaveBeenCalled();
+    expect(deps.callToolViaGateway).toHaveBeenCalled();
+    expect(outcome.kind).toBe('result');
+  });
+
+  // Contract C4 — omission is not permission. A skipped gate must be visible in
+  // the response, never byte-identical to a run where it PERMITted.
+  test('useGateway=true → the authorize evaluation records the skip and its reason', async () => {
+    const deps = makeDeps();
+    deps.config = { ...deps.config, useGateway: true, gatewayHttpUrl: 'http://gw' };
+    deps.callToolViaGateway = jest.fn(async () => ({
+      result: { content: [{ text: 'gw-ok' }] },
+      gwAuditTrail: { authorize: { decision: 'PERMIT', tool: 'get_my_accounts' } },
+    }));
+    await runMcpToolPipeline(makeCtx({ deps }));
+    const skipEmit = deps.emit.mock.calls
+      .map(([e]) => e)
+      .find((e) => e && e.phase === 'authorize_gate_skipped');
+    expect(skipEmit).toMatchObject({ reason: 'gateway_authoritative' });
+  });
+
+  // The other half of the same contract: with NO gateway there is no second PEP,
+  // so the BFF gate must still run. Skipping there would be fail-open.
+  test('useGateway=false → the BFF gate still runs and can still block', async () => {
+    const deps = makeDeps();
+    deps.config = { ...deps.config, useGateway: false };
     deps.evaluateMcpFirstToolGate = jest.fn(async () => ({
       ran: true,
       block: {
@@ -509,10 +540,56 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
       },
     }));
     const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    expect(deps.evaluateMcpFirstToolGate).toHaveBeenCalled();
+    expect(outcome.kind).toBe('block');
+    expect(outcome.httpStatus).toBe(403);
     const gwAzEvents = outcome.body.tokenEvents.filter((e) => e.id === 'gw-authorize');
     expect(gwAzEvents.length).toBe(1);
     expect(gwAzEvents[0].status).toBe('deny');
-    expect(deps.callToolViaGateway).not.toHaveBeenCalled();
+  });
+
+  test('gateway 428 hitl_required → 428 carrying the challengeId the agent must echo back', async () => {
+    const deps = makeDeps();
+    deps.config = { ...deps.config, useGateway: true, gatewayHttpUrl: 'http://gw' };
+    deps.callToolViaGateway = jest.fn(async () => {
+      throw Object.assign(new Error('Human approval required'), {
+        code: 'mcp_tool_error',
+        httpStatus: 428,
+        gatewayErrorCode: 'hitl_required',
+        hitl: true,
+        rpcData: { hitl: true, challengeId: 'chal-77', challenge_type: 'consent' },
+      });
+    });
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    expect(outcome.kind).toBe('block');
+    expect(outcome.httpStatus).toBe(428);
+    // Without the id the consent modal has nothing to retry with, so an approval
+    // could never be spent — the gate would be unpassable rather than enforced.
+    expect(outcome.body).toMatchObject({
+      error: 'hitl_required', hitl: true, challengeId: 'chal-77', challenge_type: 'consent',
+    });
+  });
+
+  test('gateway 428 step_up_required → relayed as mcp_step_up_required with a step_up_method', async () => {
+    const deps = makeDeps();
+    deps.config = { ...deps.config, useGateway: true, gatewayHttpUrl: 'http://gw' };
+    deps.callToolViaGateway = jest.fn(async () => {
+      throw Object.assign(new Error('Step-up authentication required'), {
+        code: 'mcp_tool_error',
+        httpStatus: 428,
+        gatewayErrorCode: 'step_up_required',
+        stepUp: true,
+      });
+    });
+    const outcome = await runMcpToolPipeline(makeCtx({ deps }));
+    expect(outcome.kind).toBe('block');
+    expect(outcome.httpStatus).toBe(428);
+    // Same envelope the BFF's own gate emitted, so the agent's single step-up
+    // handler works whichever layer decided. step_up_method is resolved BFF-side:
+    // the per-use-case method lives in a catalog the gateway cannot see.
+    expect(outcome.body.error).toBe('mcp_step_up_required');
+    expect(typeof outcome.body.step_up_method).toBe('string');
+    expect(outcome.body.step_up_method.length).toBeGreaterThan(0);
   });
 
   test('HTTP/2 transport → result Outcome carries stream:true marker', async () => {

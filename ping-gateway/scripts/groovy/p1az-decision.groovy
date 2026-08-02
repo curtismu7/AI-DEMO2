@@ -369,6 +369,13 @@ def decisionContext = (mcpMethod == 'tools/call') ? 'McpToolCall'
 // log), so the PDP's per-vertical tools/list advice could never be computed.
 def vertical = request.headers.getFirst('X-Active-Vertical')
     ?: (request.headers.getFirst('X-Vertical') ?: '')
+// Use case: the business context the BFF initiated the call under, forwarded to
+// the PDP as UseCaseId so policy can gate on INTENT and not only on amount. The
+// CIBA demo is amount-independent by design (a $150 transfer), so with the BFF no
+// longer pre-flighting, this is the only signal that tells the PDP a decoupled
+// approval was intended. Policy uses it to REQUIRE a gate, never to waive one, so
+// an absent or forged value cannot weaken a decision — it can only fail to add one.
+def useCaseId = request.headers.getFirst('X-Use-Case-Id') ?: ''
 
 // CandidateTools (tools/list only): the per-tool list the PDP needs to return
 // DeniedTools advice — this is what drives chip greying. IG decides BEFORE proxying,
@@ -666,6 +673,7 @@ if (tokenAudience)   parameters.TokenAudience = tokenAudience
 def acr = (tokenInfo['acr'] ?: '') as String
 if (acr)             parameters.Acr = acr
 if (candidateTools)  parameters.CandidateTools = candidateTools
+if (useCaseId)       parameters.UseCaseId = useCaseId
 // Binding evidence — omitted when the transport did not verify it (C1).
 if (intentValid != null) {
     parameters.IntentTokenValid  = String.valueOf(intentValid)
@@ -779,7 +787,39 @@ try {
 
 def backendLabel = failoverUsed ? 'mock-failover' : (simulated ? 'mock' : 'real')
 
-logger.info('[P1AZ] DECISION: ' + outcome + ' | backend=' + backendLabel + ' | sub=' + sub + ' | tool=' + toolName + ' | method=' + mcpMethod + ' | vertical=' + vertical)
+// ── Classify obligations carried on the decision ──────────────────────────────
+// A gate does not always arrive as INDETERMINATE. The mock authz server returns
+// INDETERMINATE for step-up/consent, but LIVE PingOne Authorize returns
+// `decision: PERMIT` with the applied rule effects in `statements[]` — so
+// branching on INDETERMINATE alone forwarded a gated call against the cloud
+// policy while gating correctly against the mock.
+//
+// Same vocabulary and precedence as the BFF's authorizeObligations.js: strip
+// separators, uppercase, then match most-specific first. Step-up outranks
+// consent when both bands fire (a $600 transfer is over BOTH the 500 step-up
+// and the 250 consent threshold, and must demo as step-up).
+def classifyStatements = { stmts ->
+    def kinds = [] as Set
+    (stmts instanceof List ? stmts : []).each { st ->
+        def raw = String.valueOf((st instanceof Map ? (st.code ?: st.name ?: st.id) : st) ?: '')
+        def key = raw.toUpperCase().replaceAll('[^A-Z0-9]', '')
+        if (!key) return
+        if (key.contains('HITLCONSENT'))                             kinds << 'consent'
+        else if (key.contains('STEPUP'))                             kinds << 'stepUp'
+        else if (key.contains('HITL') || key.contains('HUMANAPPROVAL')) kinds << 'hitl'
+    }
+    if (kinds.contains('stepUp')) return 'stepUp'
+    if (kinds.contains('consent')) return 'consent'
+    if (kinds.contains('hitl')) return 'hitl'
+    return null
+}
+// Obligations are only meaningful on a non-DENY decision — a DENY is terminal
+// and never negotiable by satisfying an obligation.
+def obligationKind = (outcome == 'DENY') ? null : classifyStatements(authorizeFullResponse?.statements)
+
+logger.info('[P1AZ] DECISION: ' + outcome + ' | backend=' + backendLabel + ' | sub=' + sub +
+    ' | tool=' + toolName + ' | method=' + mcpMethod + ' | vertical=' + vertical +
+    ' | obligation=' + (obligationKind ?: 'none'))
 
 // ── Build audit trail ─────────────────────────────────────────────────────────
 // mcpAudit mirrors what McpAuditFilter records to audit/mcp.audit.json
@@ -836,12 +876,35 @@ def auditTrail = [
         [filter: 'TokenIntrospection', result: (introspectionData?.active == true ? 'passed' : (introspectionData != null ? 'blocked' : 'skipped'))],
         [filter: 'P1AZDecision', result: (outcome == 'PERMIT' ? 'forwarded' : 'blocked'), decision: outcome],
     ],
-    denyingFilter: (outcome == 'PERMIT' ? null : 'P1AZDecision'),
-    lastFilter: (outcome == 'PERMIT' ? 'P1AZDecision' : null),
+    // A PERMIT carrying an unsatisfied obligation does not reach the backend, so
+    // it is not a "forwarded" outcome — P1AZDecision is where the call stopped.
+    denyingFilter: (outcome == 'PERMIT' && !obligationKind ? null : 'P1AZDecision'),
+    lastFilter: (outcome == 'PERMIT' && !obligationKind ? 'P1AZDecision' : null),
 ]
 def auditTrailJson = JsonOutput.toJson(auditTrail)
 
-if (outcome == 'PERMIT') {
+// Step-up obligation: the caller must complete MFA, not find a human. Answer 428
+// with a distinct error code so the agent drives the MFA modal and retries with a
+// stronger Acr, which stops matching the step-up condition and discharges it.
+// (A verified HITL receipt cannot satisfy this — different mechanism.)
+if (obligationKind == 'stepUp') {
+    logger.info('[P1AZ] step-up obligation on tool=' + toolName + ' — 428')
+    def stepUp = new Response(Status.valueOf(428))
+    stepUp.headers.put('Content-Type', 'application/json')
+    stepUp.headers.put('X-Gw-Audit-Trail', [auditTrailJson])
+    stepUp.entity.setString(JsonOutput.toJson([
+        error         : 'step_up_required',
+        message       : 'Step-up authentication required',
+        decision      : outcome,
+        tool          : toolName,
+        mcp_method    : mcpMethod,
+        backend       : backendLabel,
+        login_required: false,
+    ]))
+    return Promises.newResultPromise(stepUp)
+}
+
+if (outcome == 'PERMIT' && !obligationKind) {
     // thenOnResult takes ResultHandler (void side-effect) — returns the same Promise<Response,E>.
     // then() in IG 2026.x takes org.forgerock.util.Function (synchronous), not AsyncFunction;
     // the old as-AsyncFunction coercion threw MissingMethodException at runtime.
@@ -873,11 +936,13 @@ if (outcome == 'PERMIT') {
     return p
 }
 
-// INDETERMINATE — PingOne Authorize is asking for a human, not refusing the call.
+// A human is required — PingOne Authorize is asking for approval, not refusing the
+// call. Two shapes mean the same thing and both must land here: the mock's bare
+// INDETERMINATE, and a live PERMIT carrying a consent/HITL obligation statement.
 // Mint a challenge and answer 428 Precondition Required so the agent can drive the
 // consent and retry with `_hitl_challenge_id`. A DENY still falls through to 403
 // below: only the PDP decides which of the two this is.
-if (outcome == 'INDETERMINATE') {
+if (outcome == 'INDETERMINATE' || obligationKind == 'consent' || obligationKind == 'hitl') {
     // Anti-loop: a receipt that verified above and STILL yields INDETERMINATE means
     // the policy never discharges consent (misconfiguration). Re-challenging would
     // spin the agent forever, so fail distinctly (mirrors both Node gateway paths).

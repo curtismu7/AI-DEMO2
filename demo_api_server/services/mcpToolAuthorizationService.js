@@ -1377,4 +1377,8 @@ module.exports = {
   RESOURCE_OWNER_TOOLS,
   // Exported for direct unit testing of Transaction-policy precedence (UC6/7/8).
   _applyTransactionPolicy,
+  // Exported so the pipeline can attach step_up_method to a step-up 428 that the
+  // GATEWAY decided. The per-use-case method lives in the use-case catalog, which
+  // the gateway has no knowledge of, so the BFF resolves it on relay.
+  resolveStepUpMethod,
 };
