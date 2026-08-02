@@ -62,13 +62,26 @@ function readEnvValue(file, key) {
 
 function upsertEnvValue(file, key, value) {
   let s = '';
-  try { s = fs.readFileSync(file, 'utf8'); } catch (_) { /* create */ }
+  try {
+    s = fs.readFileSync(file, 'utf8');
+  } catch (err) {
+    // ONLY a genuinely absent file may fall through to "create". This catch used
+    // to swallow every error, so a transient EACCES/EISDIR (a chmod, a bind-mount
+    // hiccup during run-docker.sh) left s = '' and the writeFile below replaced a
+    // populated .env with a 3-line file — destroying every other
+    // compose-interpolated var, with no backup, while still exiting 0.
+    if (err.code !== 'ENOENT') {
+      throw new Error(`refusing to rewrite ${file}: could not read it (${err.code || err.message})`);
+    }
+  }
   if (new RegExp(`^${key}=`, 'm').test(s)) {
     s = s.replace(new RegExp(`^${key}=.*$`, 'm'), `${key}=${value}`);
   } else {
     s += `${s.endsWith('\n') || s === '' ? '' : '\n'}\n# apikey-dispatch demo: auto-provisioned; must equal vault DEMO_API_RESOURCE_SERVER_KEY\n${key}=${value}\n`;
   }
-  fs.writeFileSync(file, s);
+  // 0600: a fresh .env holds the minted plaintext service key, and the default
+  // umask made it world-readable (the vault itself is written 0600).
+  fs.writeFileSync(file, s, { mode: 0o600 });
 }
 
 function vault(args, input) {

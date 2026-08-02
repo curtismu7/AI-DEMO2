@@ -943,16 +943,25 @@ async function configureVault(opts = {}) {
   }
 
   // If no password was supplied via flag or env, prompt the user interactively.
-  // Input is not masked (readline limitation) — we warn the user.
   // Leaving it blank skips vault setup.
+  //
+  // The prompt is MASKED. This used to call readlineFreeText and print "input
+  // will be visible as you type" — readlineFreeText accepts a `secret` option
+  // but ignores it, so the vault master password was echoed to the terminal and
+  // into any scrollback or screen recording. docs/vault.md T-269-26 claimed this
+  // path refused to prompt at all. Reuse the same @inquirer/password helper the
+  // vault CLI uses rather than adding a second prompt implementation.
   let resolvedPassword = password;
   if (!resolvedPassword) {
     if (!interactive) {
       _skip('no --vault-password and no VAULT_PASSWORD env — skipping vault setup');
       return { ok: true };
     }
-    console.log('  Note: input will be visible as you type.');
-    const entered = await readlineFreeText('Vault password (leave blank to skip vault setup)');
+    const entered = (
+      await require('./vault.js')._promptForPassword(
+        'Vault password (leave blank to skip vault setup):',
+      )
+    ).trim();
     if (!entered) {
       _skip('vault setup skipped — run with --vault-password <pw> to set it up later.');
       return { ok: true };

@@ -323,6 +323,29 @@ align_service_api_keys() {
   info "  Service API key aligned across ai-demo-secrets (bridge) + mortgage-secrets (backend)"
 }
 
+# BFF_INTERNAL_SECRET guards the internal-only endpoints (/internal/vault/service-key,
+# /internal/id-token). 03-secrets.yaml.template ships it empty and nothing minted
+# one, so both the BFF and the gateway fell back to the committed literal
+# 'dev-shared-secret-change-me' — public knowledge in this repo. Any workload with
+# pod-network reach to api-server:3001 could then read the backend service keys.
+# Mint once and ship the SAME value to every consumer that compares it.
+align_internal_secret() {
+  local secret
+  secret=$(grep -E '^BFF_INTERNAL_SECRET=.+' "$ASSET_ROOT/demo_api_server/.env" 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"')
+  case "$secret" in
+    ""|dev-shared-secret-change-me)
+      secret="$(openssl rand -hex 32)"
+      warn "  BFF_INTERNAL_SECRET missing/default in demo_api_server/.env — minted a deploy-local internal secret"
+      ;;
+  esac
+  local s
+  for s in ai-demo-secrets gateway-secrets agent-secrets ping-gateway-secrets; do
+    printf '{"stringData":{"BFF_INTERNAL_SECRET":"%s"}}' "$secret" \
+      | kubectl patch secret "$s" --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null 2>&1 || true
+  done
+  info "  BFF_INTERNAL_SECRET aligned across BFF + gateway + agent + ping-gateway"
+}
+
 # ── Per-service secrets (one per .env, mirroring docker-compose env_file) ─────
 info "Creating per-service secrets from each service's .env..."
 secret_from_envfile ai-demo-secrets   "$ASSET_ROOT/demo_api_server/.env"    # BFF (master)
@@ -337,6 +360,7 @@ secret_from_envfile langchain-secrets "$ASSET_ROOT/langchain_agent/.env"    # La
 secret_from_envfile gateway-secrets   "$ASSET_ROOT/demo_mcp_gateway/.env"   # MCP gateway
 secret_from_envfile agent-secrets        "$ASSET_ROOT/demo_agent_service/.env" # Agent service
 secret_from_envfile ping-gateway-secrets "$ASSET_ROOT/ping-gateway/.env"        # PingGateway (IG)
+align_internal_secret                                                       # one internal secret across every consumer (must run after all four exist)
 
 # Privilege proxy: ENV_PROXY_TOKEN from the gateway wizard, stored in
 # ping-mcpgw/config/proxy-token (one line, the raw JWT).

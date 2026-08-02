@@ -18,23 +18,20 @@
  *   403  forbidden           — missing or wrong x-internal-gateway-secret
  */
 const express = require('express');
-const crypto = require('crypto');
+// Resolved per call — routes are required long before the vault opens, so a
+// module-scope snapshot could never see a vault-supplied BFF_INTERNAL_SECRET.
+const {
+  DEFAULT_INTERNAL_SECRET,
+  internalSecret,
+  isDefaultInternalSecret,
+  internalSecretMatches,
+} = require('../utils/internalSecret');
 const router = express.Router();
 const mcpAuditStore = require('../services/lmdb/mcpAuditStore.lmdb');
 
-// Must match demo_mcp_gateway/src/config.ts DEFAULT_BFF_INTERNAL_SECRET and
-// routes/agentIdToken.js. Production startup refuses this literal elsewhere.
-const DEFAULT_INTERNAL_SECRET = 'dev-shared-secret-change-me';
-const INTERNAL_SECRET = process.env.BFF_INTERNAL_SECRET || DEFAULT_INTERNAL_SECRET;
-const INTERNAL_SECRET_BUF = Buffer.from(INTERNAL_SECRET);
 
 function _secretOk(presented) {
-  const buf = typeof presented === 'string' ? Buffer.from(presented) : null;
-  return (
-    !!buf &&
-    buf.length === INTERNAL_SECRET_BUF.length &&
-    crypto.timingSafeEqual(buf, INTERNAL_SECRET_BUF)
-  );
+  return internalSecretMatches(presented);
 }
 
 router.post('/mcp-audit', express.json(), (req, res) => {

@@ -192,13 +192,28 @@ export HELIX_API_KEY="$(npm run --silent vault:get HELIX_API_KEY)"
 When the BFF or MCP Gateway needs a secret at startup, the resolution
 order is:
 
-1. **Vault** (`lib/vault.openVault` reads it at startup, copies into
-   in-memory configStore cache with `{persist: false}`) — wins when
-   `secrets.vault` exists AND `VAULT_PASSWORD` is set.
-2. **`process.env`** — used directly when the vault has no entry for
-   the requested key, or when no vault file exists.
+1. **`process.env`** — a deploy-time env var ALWAYS wins. This is deliberate:
+   `docker-compose`/k8s env must be able to override a stored value so a stale
+   LMDB entry from a past UI toggle cannot silently shadow a deployment-level
+   setting (see `REGRESSION_PLAN.md` §4 2026-07-26). See the consequence below.
+2. **Vault** (`lib/vault.openVault` reads it at startup, copies into the
+   in-memory configStore cache with `{persist: false}`) — used when
+   `secrets.vault` exists, `VAULT_PASSWORD` is set, and no env var supplies
+   the key.
 3. **`configStore` LMDB** — encrypted at rest with `SESSION_SECRET`;
    used as a fallback for values written via `/setup` or `/admin`.
+
+> **Consequence — a leftover `.env` value shadows its vault entry.** After
+> migrating a secret into the vault, remove it from `.env` or the old value keeps
+> winning. `getEffective()` (`services/configStore.js`) implements this order for
+> every key; the `BOOTSTRAP_ALLOWLIST` branch differs only in persistence
+> behavior, not precedence.
+>
+> **Exception —** the narrow `ENV_EXPORT_ALLOWLIST` in `services/vaultLoader.js`
+> (currently just `BFF_INTERNAL_SECRET`) is copied FROM the vault INTO
+> `process.env` at load, because its consumers read `process.env` directly and
+> never consult configStore. Those consumers must read it lazily: routes are
+> required long before the vault opens.
 
 The vault NEVER overrides values that are explicitly set in `process.env`
 *after* vault load — the loader writes to the in-memory cache, not back
@@ -327,14 +342,23 @@ there.
     npm run vault:migrate-from-env
 ```
 
-### setupFresh.js fail-fast contract (Phase 269 Plan 05 Task 3)
+### setupFresh.js password contract (Phase 269 Plan 05 Task 3)
 
 `npm run setup:fresh` invokes the vault setup phase between bootstrap
-and Helix. It REFUSES to prompt for the vault password interactively —
-Node's built-in readline does not mask password input safely on
-`/dev/tty` across all terminals (see [`scripts/setupFresh.js`](../banking_api_server/scripts/setupFresh.js)
-`readlineFreeText` comment around line 905 for the historical
-rationale).
+and Helix. In interactive mode it prompts for the vault password using
+`@inquirer/password` (masked with `*`) — the same helper the vault CLI
+uses.
+
+> **History.** This section previously stated that `configureVault()`
+> REFUSES to prompt interactively, because Node's built-in readline does
+> not mask password input safely. The refusal was later replaced with a
+> plain `readlineFreeText` prompt that printed "input will be visible as
+> you type" — `readlineFreeText` accepts a `secret` option but ignores
+> it, so the vault master password was echoed to the terminal and into
+> any scrollback or screen recording, while this doc and threat-model row
+> T-269-26 still claimed the refusal was in place. The prompt is now
+> genuinely masked, which satisfies both the original intent and the
+> convenience the change was after.
 
 The operator MUST supply the password one of three ways:
 
@@ -420,10 +444,10 @@ detailed STRIDE register.
 | T-269-20 | Information disclosure | Gateway error path leaks Argon2/KEK/DEK via stack trace | **mitigated** — only `err.message` logged, never `err.stack`; grep test asserts | 04 |
 | T-269-21 | Information disclosure | Migration logs the secret value | **mitigated** — migration logs ONLY name + length (`copied HELIX_API_KEY (length=64 chars)`); sentinel-grep test asserts | 05 |
 | T-269-22 | Tampering | Accidental overwrite of vault entry on re-run | **mitigated** — default behavior SKIPS when entry exists; `--force` flag required | 05 |
-| T-269-23 | Spoofing | Migration accepts arbitrary env var name | **mitigated** — closed `ALLOWED_ENV_VARS` allowlist of 9 specific names; arbitrary `MY_RANDOM` / `LD_PRELOAD` ignored | 05 |
+| T-269-23 | Spoofing | Migration accepts arbitrary env var name | **mitigated** — closed `ALLOWED_ENV_VARS` allowlist (see `scripts/vault-migrate.js` for the current list — it has grown past the original 9); arbitrary `MY_RANDOM` / `LD_PRELOAD` ignored | 05 |
 | T-269-24 | Information disclosure | Docs leak placeholders that look real | **mitigated** — all examples use obvious placeholders (`<your-strong-passphrase>`, `s3cret-place-holder`, `xxxx...xxxx`); no real-looking tokens | 05 |
 | T-269-25 | Tampering | REGRESSION_PLAN edit silently changes existing rows | **mitigated** — edit is APPEND-ONLY to §1 table; `git diff REGRESSION_PLAN.md \| grep "^-" \| wc -l` returns 0 | 05 |
-| T-269-26 | Information disclosure | setupFresh leaks vault password via interactive typing | **mitigated** — `configureVault()` REFUSES to prompt interactively; fail-fast with clear error if no `--vault-password` and no `VAULT_PASSWORD` env in interactive TTY mode | 05 |
+| T-269-26 | Information disclosure | setupFresh leaks vault password via interactive typing | **mitigated** — `configureVault()` prompts via `@inquirer/password` (masked, `mask: '*'`), the same helper the vault CLI uses. It previously used `readlineFreeText`, which accepts a `secret` option but IGNORES it, so the password was echoed to the terminal | 05 |
 | T-269-27 | Information disclosure | `--vault-password` argv visible in `/proc/<pid>/cmdline` | **accepted** — documented tradeoff; operators on shared machines should prefer `export VAULT_PASSWORD=...` (per-process, not visible to other PIDs); CLI `--help` warns | 05 |
 | T-269-28 | Tampering | Vault created but secrets NOT migrated → two sources of truth | **mitigated** — `vault:migrate-from-env` runs IMMEDIATELY after `vault:create` in setupFresh; migrate failure fails the whole phase with exit 1 (no half-state) | 05 |
 | T-269-29 | Denial of service | Re-run of setupFresh prompts again and overwrites existing vault | **mitigated** — `configureVault` detects existing vault file at the configured path and skips creation; logs `vault present at <path> — skipping creation` | 05 |

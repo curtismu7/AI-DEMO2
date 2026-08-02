@@ -73,12 +73,19 @@ describe('GET /internal/vault/service-key', () => {
   // The mortgage backend hard-rejects the committed defaults at boot, so a
   // bridge serving one in production can only yield a confusing downstream
   // 401 ("backend rejected the service API key"). Fail HERE instead.
-  describe('committed-default guard (NODE_ENV=production)', () => {
-    const prevNodeEnv = process.env.NODE_ENV;
-    afterEach(() => { process.env.NODE_ENV = prevNodeEnv; });
+  // The guard keys off VAULT_INTERNAL_STRICT, NOT NODE_ENV: k8s and
+  // docker-compose both pin the BFF to NODE_ENV=development deliberately (the
+  // simulated Authorize service requires it), so the old NODE_ENV==='production'
+  // condition was dead code in every real deployment.
+  describe('committed-default guard (VAULT_INTERNAL_STRICT=true)', () => {
+    const prevStrict = process.env.VAULT_INTERNAL_STRICT;
+    afterEach(() => {
+      if (prevStrict === undefined) delete process.env.VAULT_INTERNAL_STRICT;
+      else process.env.VAULT_INTERNAL_STRICT = prevStrict;
+    });
 
     test('503 key_not_provisioned when the resolved value is a committed default', async () => {
-      process.env.NODE_ENV = 'production';
+      process.env.VAULT_INTERNAL_STRICT = 'true';
       configStore.getEffective.mockReturnValue('demo-mortgage-key-0000');
       const res = await request(buildApp())
         .get('/internal/vault/service-key')
@@ -88,8 +95,8 @@ describe('GET /internal/vault/service-key', () => {
       expect(res.body.error).toBe('key_not_provisioned');
     });
 
-    test('200 in production for a real (non-default) key', async () => {
-      process.env.NODE_ENV = 'production';
+    test('200 under strict mode for a real (non-default) key', async () => {
+      process.env.VAULT_INTERNAL_STRICT = 'true';
       configStore.getEffective.mockReturnValue('mortgage-abc123def456');
       const res = await request(buildApp())
         .get('/internal/vault/service-key')
