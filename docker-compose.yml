@@ -118,7 +118,17 @@ services:
       MCP_PINGGATEWAY_URL: "http://ping-gateway:8080"
       # Default MCP endpoint offered by the /privilege-mcp-client page.
       # host.docker.internal resolves to the host machine's local MCP server (self-signed TLS).
-      PRIVILEGE_MCPGW_URL: "https://privilege.pingone.com/api/mcp"
+      # MCP endpoint the Privilege client page defaults to. This must be the
+      # GATEWAY FRONTEND (ping-mcpgw, profile mcpgw), not the Privilege tenant
+      # cloud API: https://privilege.pingone.com/api/mcp answers 401 "User is
+      # not authorized" to every token this environment can mint, including one
+      # from the env's own "Privilege Cloud MCP Gateway" app, because that aud
+      # belongs to the demo tenant. It also 401s its own
+      # .well-known/oauth-protected-resource and sends no WWW-Authenticate, so
+      # discoverAuth() never learns the real authorization server and silently
+      # falls back to the demo environment's PingOne.
+      # Overridable so the SE cluster can point at https://ai-demo.ping-devops.com/mcpgw.
+      PRIVILEGE_MCPGW_URL: "${PRIVILEGE_MCPGW_URL:-https://local.ping-devops.com:8680/mcp}"
       PRIVILEGE_SSO_ENV_ID: "01d89b06-66d5-430e-9f28-65636843788b"
       PRIVILEGE_SSO_CLIENT_ID: "6586d3de-b916-454c-84e5-6d21b572a534"
       PRIVILEGE_SSO_CLIENT_SECRET: "jGVDouSatx~uDxOeYC-TjY5qzPFnVUid21JjjDvGn7JZAM0zVqIBSlK_U_tdRAxJ"
