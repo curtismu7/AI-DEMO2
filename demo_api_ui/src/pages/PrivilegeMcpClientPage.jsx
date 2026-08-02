@@ -164,7 +164,9 @@ export default function PrivilegeMcpClientPage() {
       if (!silent) appendChat('system', `Discovered ${nextTools.length} tools from MCP server.`);
     } catch (err) {
       setTools([]);
-      if (err.message?.toLowerCase().includes('not authorized')) {
+      if (err.message?.toLowerCase().includes('not authenticated')) {
+        setAuthenticated(false);
+      } else if (err.message?.toLowerCase().includes('not authorized')) {
         setShowBlockedModal(true);
       }
       if (!silent) appendChat('system', `Refresh failed: ${err.message}`);
