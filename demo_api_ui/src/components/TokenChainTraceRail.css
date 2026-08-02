@@ -1,6 +1,17 @@
 /* TokenChainTraceRail — portal-brand styling, single-column by construction.
  * Dark header bars match ExchangeModeToggle (#16325c). */
 .tctr {
+  --tctr-bg: #ffffff;
+  --tctr-text: #0f172a;
+  --tctr-muted: #64748b;
+  --tctr-border: #e8eef7;
+  --tctr-header-bg: #16325c;
+  --tctr-header-text: #ffffff;
+  --tctr-row-hover: #f1f5f9;
+  --tctr-step-body-bg: #f8fafc;
+  --tctr-tab-active: #16325c;
+  --tctr-pill-bg: #eef2f9;
+
   background: #fff;
   font-size: 12.5px;
   color: #0f172a;
@@ -8,9 +19,14 @@
   box-shadow: none;
 }
 
+.tctr {
+  background: var(--tctr-bg);
+  color: var(--tctr-text);
+}
+
 .tctr-head {
-  background: #16325c;
-  color: #fff;
+  background: var(--tctr-header-bg);
+  color: var(--tctr-header-text);
   padding: 10px 12px;
   display: flex;
   align-items: center;
@@ -20,12 +36,15 @@
 .tctr-head-actions {
   display: flex; align-items: center; gap: 6px;
 }
+.tctr-theme-btn,
 .tctr-legend-btn,
 .tctr-clear-btn {
   background: none; border: 1px solid rgba(255, 255, 255, 0.35);
   font-size: 11px; border-radius: 5px; padding: 3px 8px; cursor: pointer;
 }
+.tctr-theme-btn { color: #e2e8f0; }
 .tctr-legend-btn { color: #e2e8f0; }
+.tctr-theme-btn:hover { background: rgba(255, 255, 255, 0.15); color: #fff; }
 .tctr-clear-btn {
   color: #f87171;
   border-color: rgba(248, 113, 113, 0.55);
@@ -62,7 +81,7 @@
 
 .tctr-chain-line {
   display: flex; align-items: center; gap: 6px; padding: 10px 12px;
-  border-bottom: 1px solid #e8eef7; font-weight: 600; flex-wrap: wrap;
+  border-bottom: 1px solid var(--tctr-border); font-weight: 600; flex-wrap: wrap;
 }
 .tctr-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .tctr-dot--user { background: #f472b6; }
@@ -75,19 +94,19 @@
 }
 
 .tctr-sec-label {
-  font-size: 10.5px; font-weight: 700; color: #64748b; text-transform: uppercase;
+  font-size: 10.5px; font-weight: 700; color: var(--tctr-muted); text-transform: uppercase;
   letter-spacing: 0.06em; padding: 8px 12px 2px;
 }
 
 /* Step cards — solid divider for clear separation between rows */
-.tctr-step { border-bottom: 1px solid #d4ddea; }
+.tctr-step { border-bottom: 1px solid var(--tctr-border); }
 .tctr-step:last-of-type { border-bottom: none; }
 .tctr-step > summary {
   list-style: none; display: flex; align-items: center; gap: 7px;
   padding: 9px 12px; cursor: pointer; font-size: 12px;
 }
 .tctr-step > summary::-webkit-details-marker { display: none; }
-.tctr-step > summary:hover { background: #f1f5f9; }
+.tctr-step > summary:hover { background: var(--tctr-row-hover); }
 .tctr-ic { width: 15px; text-align: center; flex-shrink: 0; }
 .tctr-ic--done { color: #16a34a; }
 .tctr-ic--active { color: var(--brand-navy, #1d4ed8); }
@@ -136,7 +155,7 @@
 
 .tctr-step-body {
   padding: 10px 12px 12px 24px; font-size: 12px; color: #334155;
-  background: var(--brand-light-gray, #f8fafc); border-top: 1px solid #eef2f9;
+  background: var(--tctr-step-body-bg); border-top: 1px solid var(--tctr-border);
 }
 .tctr-step-body h4 {
   font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em;
@@ -150,7 +169,7 @@
 .tctr-why-lbl { font-weight: 700; margin-right: 4px; }
 .tctr-story {
   margin: 0 12px 10px; padding: 10px 12px; border-radius: 8px;
-  border: 1px solid #e2e8f0; background: #f8fafc;
+  border: 1px solid var(--tctr-border); background: var(--tctr-step-body-bg);
 }
 .tctr-story--ok { border-color: #86efac; background: #f0fdf4; }
 .tctr-story--error { border-color: #fca5a5; background: #fef2f2; }
@@ -246,20 +265,20 @@
 
 /* Tab strip */
 .tctr-tabs {
-  display: flex; gap: 4px; padding: 8px 12px 0; border-bottom: 1px solid #e8eef7;
+  display: flex; gap: 4px; padding: 8px 12px 0; border-bottom: 1px solid var(--tctr-border);
 }
 .tctr-tab {
   background: none; border: none; border-bottom: 2px solid transparent;
-  padding: 6px 10px; font-size: 12px; font-weight: 600; color: #64748b;
+  padding: 6px 10px; font-size: 12px; font-weight: 600; color: var(--tctr-muted);
   cursor: pointer; display: flex; align-items: center; gap: 5px;
 }
-.tctr-tab:hover { color: #16325c; }
-.tctr-tab--active { color: #16325c; border-bottom-color: #16325c; }
+.tctr-tab:hover { color: var(--tctr-tab-active); }
+.tctr-tab--active { color: var(--tctr-tab-active); border-bottom-color: var(--tctr-tab-active); }
 .tctr-tab-count {
-  font-size: 10.5px; font-weight: 700; color: #64748b;
-  background: #eef2f9; border-radius: 999px; padding: 0 6px;
+  font-size: 10.5px; font-weight: 700; color: var(--tctr-muted);
+  background: var(--tctr-pill-bg); border-radius: 999px; padding: 0 6px;
 }
-.tctr-tab--active .tctr-tab-count { background: #dbe4f0; color: #16325c; }
+.tctr-tab--active .tctr-tab-count { background: #dbe4f0; color: var(--tctr-tab-active); }
 
 /* Trust tab — DPoP / RAR posture (shown when ff_dpop / ff_rar or evidence) */
 .tctr-trust {
@@ -328,4 +347,161 @@
   padding: 1px 5px;
   border-radius: 4px;
   word-break: break-word;
+}
+
+/* Dark mode. Keyed to the OS preference, matching the convention used by
+   the other dark-capable component stylesheets in this directory - the app
+   has no global data-theme attribute for a component selector to hang off. */
+@media (prefers-color-scheme: dark) {
+  .tctr {
+    --tctr-bg: #0f172a;
+    --tctr-text: #e2e8f0;
+    --tctr-muted: #94a3b8;
+    --tctr-border: #22324a;
+    --tctr-header-bg: #102847;
+    --tctr-header-text: #f8fafc;
+    --tctr-row-hover: #17253a;
+    --tctr-step-body-bg: #111b2d;
+    --tctr-tab-active: #bfdbfe;
+    --tctr-pill-bg: #1e293b;
+  }
+
+  .tctr .tctr-step > summary,
+  .tctr .tctr-story-headline,
+  .tctr .tctr-step-body,
+  .tctr .tctr-step-body h4,
+  .tctr .tctr-kv-k,
+  .tctr .tctr-kv-v,
+  .tctr .tctr-acc > summary,
+  .tctr .tctr-tok-claims {
+    color: #dbeafe;
+  }
+
+  .tctr .tctr-arrow,
+  .tctr .tctr-step-chev,
+  .tctr .tctr-sc-note,
+  .tctr .tctr-story-bits,
+  .tctr .tctr-tok-role,
+  .tctr .tctr-tok-empty,
+  .tctr .tctr-mcp-empty {
+    color: #94a3b8;
+  }
+
+  .tctr .tctr-tok-inspect {
+    background: #17253a;
+    border-color: #334155;
+    color: #bfdbfe;
+  }
+
+  /* ── Dark-mode overrides for hardcoded light values ─────────────────────── */
+
+  /* Step row backgrounds — done/notinpath use hardcoded light bg; in dark mode
+     the inherited text color is light, making text invisible on those rows. */
+  .tctr .tctr-step[data-status="done"] > summary {
+    background: rgba(22, 163, 74, 0.12);
+  }
+
+  .tctr .tctr-step[data-status="done"] > summary:hover {
+    background: rgba(22, 163, 74, 0.2);
+  }
+
+  .tctr .tctr-step[data-status="notinpath"] {
+    background: rgba(148, 163, 184, 0.06);
+  }
+
+  .tctr .tctr-step[data-status="error"] > summary {
+    color: #f87171;
+  }
+
+  /* Lane badges */
+  .tctr .tctr-lane--pingone   { background: rgba(30, 64, 175, 0.4);  color: #93c5fd; }
+
+  .tctr .tctr-lane--chat      { background: rgba(157, 23, 77, 0.35); color: #f9a8d4; }
+
+  .tctr .tctr-lane--agent     { background: rgba(126, 34, 206, 0.35); color: #d8b4fe; }
+
+  .tctr .tctr-lane--llm       { background: rgba(91, 33, 182, 0.35); color: #c4b5fd; }
+
+  .tctr .tctr-lane--heuristics{ background: rgba(154, 52, 18, 0.35); color: #fdba74; }
+
+  .tctr .tctr-lane--bff       { background: rgba(51, 65, 85, 0.4);   color: #cbd5e1; }
+
+  .tctr .tctr-lane--authz     { background: rgba(146, 64, 14, 0.35); color: #fcd34d; }
+
+  .tctr .tctr-lane--gateway   { background: rgba(14, 116, 144, 0.35); color: #67e8f9; }
+
+  .tctr .tctr-lane--mcp       { background: rgba(4, 120, 87, 0.35);  color: #6ee7b7; }
+
+  .tctr .tctr-lane--api       { background: rgba(185, 28, 28, 0.35); color: #fca5a5; }
+
+  .tctr .tctr-lane--notinpath { background: rgba(100, 116, 139, 0.15); color: #64748b; border-color: #475569; }
+
+  /* Story/run-result banners */
+  .tctr .tctr-story--ok     { border-color: rgba(134, 239, 172, 0.4); background: rgba(22, 163, 74, 0.1); }
+
+  .tctr .tctr-story--error  { border-color: rgba(252, 165, 165, 0.4); background: rgba(220, 38, 38, 0.1); }
+
+  .tctr .tctr-story--active { border-color: rgba(147, 197, 253, 0.4); background: rgba(59, 130, 246, 0.1); }
+
+  /* Why/context box */
+  .tctr .tctr-why {
+    background: rgba(30, 58, 138, 0.2);
+    border-color: rgba(191, 219, 254, 0.2);
+    color: #bfdbfe;
+  }
+
+  /* Token cards */
+  .tctr .tctr-tok--user  { background: rgba(244, 114, 182, 0.12); border-color: #f472b6; }
+
+  .tctr .tctr-tok--agent { background: rgba(192, 132, 252, 0.12); border-color: #c084fc; }
+
+  .tctr .tctr-tok--mcp   { background: rgba(52, 211, 153, 0.12);  border-color: #34d399; }
+
+  .tctr .tctr-tok-role { background: rgba(255, 255, 255, 0.08); }
+
+  /* Decision badges */
+  .tctr .tctr-decision--permit { background: rgba(22, 163, 74, 0.15); color: #86efac; border-color: rgba(134, 239, 172, 0.4); }
+
+  .tctr .tctr-decision--deny,
+  .tctr .tctr-decision--indeterminate { background: rgba(220, 38, 38, 0.15); color: #fca5a5; border-color: rgba(252, 165, 165, 0.4); }
+
+  .tctr .tctr-decision--step_up { background: rgba(217, 119, 6, 0.15); color: #fcd34d; border-color: rgba(252, 211, 77, 0.4); }
+
+  /* RFC reference tags */
+  .tctr .tctr-rfc { background: rgba(55, 48, 163, 0.35); color: #a5b4fc; }
+
+  /* Scope diff chips */
+  .tctr .tctr-sc       { background: #1e293b; }
+
+  .tctr .tctr-sc--kept { background: rgba(22, 163, 74, 0.2); color: #86efac; }
+
+  /* Token summary accordion */
+  .tctr .tctr-acc { border-top-color: var(--tctr-border); }
+
+  .tctr .tctr-count { background: #1e293b; color: #94a3b8; }
+
+  .tctr .tctr-tab--active .tctr-tab-count { background: rgba(191, 219, 254, 0.15); }
+
+  .tctr .tctr-tok-inspect {
+    background: #17253a;
+    border-color: #334155;
+    color: #bfdbfe;
+  }
+
+  /* Trust rows */
+  .tctr .tctr-trust__row--ok { background: rgba(22, 163, 74, 0.1); border-color: rgba(134, 239, 172, 0.3); }
+
+  .tctr .tctr-trust__row--ok .tctr-trust__badge { background: rgba(22, 163, 74, 0.15); border-color: rgba(134, 239, 172, 0.35); color: #86efac; }
+
+  .tctr .tctr-trust__row--off { background: #111b2d; border-color: #334155; }
+
+  .tctr .tctr-trust__row--off .tctr-trust__badge { background: #1e293b; border-color: #334155; color: #94a3b8; }
+
+  .tctr .tctr-trust { color: #dbeafe; }
+
+  .tctr .tctr-trust > p { color: #94a3b8; }
+
+  .tctr .tctr-trust__row strong { color: #e2e8f0; }
+
+  .tctr .tctr-trust__row code { background: rgba(255, 255, 255, 0.06); }
 }
