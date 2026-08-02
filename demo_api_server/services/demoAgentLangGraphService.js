@@ -18,6 +18,35 @@ const ACTIVITY_ANALYSIS_RE = /\b(unusual|suspicious|anomal\w*|irregular|out of t
 const ACTIVITY_ROWS_FOR_PROMPT = 25;
 
 /**
+ * The vertical's OWN activity/read tool, or null when it declares none.
+ *
+ * Deliberately NOT `READ_PRIMARY_TOOL_BY_VERTICAL[activeId] || 'get_my_transactions'`.
+ * That default SELECTED banking's tool for every vertical missing from the map,
+ * bypassing the vertical's tool surface entirely. PR #1250 stopped a PLUGIN-LESS
+ * vertical executing it, but a vertical whose plugin returns NOT_MY_TOOL for
+ * names it does not own still falls through to the `legacy` executor — which on
+ * the agent path is banking's. `airlines` is exactly that shape (MCP-backed, so
+ * config/verticals/airlines/index.js disowns every non-stub name), and it landed
+ * on main already leaking: "spot any unusual activity" in an airlines session ran
+ * banking's get_my_transactions and injected a real banking row into the prompt.
+ *
+ * A miss must therefore yield NO tool rather than a fallback, so a vertical added
+ * later cannot inherit banking's by omission — the pre-fetch is simply skipped and
+ * the model answers without grounded rows, which is visible rather than silent.
+ *
+ * `banking` is named here rather than added to the map because READ_PRIMARY_TOOL_BY_VERTICAL
+ * also drives per-vertical use-case chip OVERRIDES (config/useCases.js
+ * READ_PER_VERTICAL), where banking is the baseline being overridden, not an entry.
+ *
+ * @param {string} activeId resolved active vertical id
+ * @returns {string|null} tool name, or null when the vertical declares none
+ */
+function readPrimaryToolFor(activeId) {
+  return READ_PRIMARY_TOOL_BY_VERTICAL[activeId]
+    || (activeId === 'banking' ? 'get_my_transactions' : null);
+}
+
+/**
  * Render a tool's activity payload as a compact table.
  *
  * Raw output is ~141 rows of verbose JSON (uuids, null account ids, ISO stamps,
@@ -1791,8 +1820,12 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     // here either). Do NOT assume the LLM path yields a 428; do NOT remove the
     // heuristic floor believing it does.
 
-    // Load conversation history for continuity (per-user, per-vertical thread)
-    const verticalForHistory = vertical || 'banking';
+    // Load conversation history for continuity (per-user, per-vertical thread).
+    // The RESOLVED id, not the raw request param: `vertical || 'banking'` ignored
+    // the session's pin, so a healthcare session that sent no `vertical` param
+    // loaded the user's BANKING thread and replayed it into a healthcare prompt.
+    // activeId is the same value toolSchemas / systemPrompt / executeTool use.
+    const verticalForHistory = activeId;
     const historyMessages = conversationStore.getHistory(userId, verticalForHistory) || [];
     const messages = [...historyMessages, { role: 'user', content: message }];
 
@@ -1812,8 +1845,10 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     // governed executor the loop would have used makes the claim true and emits
     // the evidence, instead of leaving the model to decide whether the demo works.
     const preToolsCalled = [];
-    if (ACTIVITY_ANALYSIS_RE.test(String(message || ''))) {
-      const activityTool = READ_PRIMARY_TOOL_BY_VERTICAL[activeId] || 'get_my_transactions';
+    const activityTool = ACTIVITY_ANALYSIS_RE.test(String(message || ''))
+      ? readPrimaryToolFor(activeId)
+      : null;
+    if (activityTool) {
       try {
         const activity = await executeTool(activityTool, {});
         const compact = compactActivityForPrompt(activity);
@@ -2043,5 +2078,5 @@ module.exports = {
   // Public for routes/agentTool.js — external LLM agents' tool callback runs
   // the same A2A fast-path as dispatchVerticalIntent for a2aDelegated tools.
   executeA2aDelegation,
-  __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation, normalizeVerticalToolArgs, applyAdminCustomerContext },
+  __test: { resolveToolSchemas, resolveExecuteTool, dispatchVerticalIntent, buildVerticalReply, executeA2aDelegation, normalizeVerticalToolArgs, applyAdminCustomerContext, readPrimaryToolFor },
 };

@@ -58,9 +58,22 @@ function build() {
 
   function listAll() { return loader.list(); }
 
+  // Why `id` may not become a session's active vertical, or null when it may.
+  // ONE definition, shared by the two doors that set req.session.active_vertical:
+  // POST /api/vertical-manifest/active (maps it to 403 / 404) and the demo-agent
+  // `vertical` body param (which just declines to pin). They diverged before —
+  // the agent param pinned any slug matching [a-z][a-z0-9-]*, so a hidden,
+  // deprecated vertical became active by walking around the switcher's guard.
+  function activationRefusal(id) {
+    if (HIDDEN_IDS.has(id)) return 'hidden';
+    if (!loader.get(id)) return 'unknown';
+    return null;
+  }
+
   return {
     init, _reset,
     list, listAll,
+    activationRefusal,
     loader,
     plugins,
     overlay: resolver.overlay,
