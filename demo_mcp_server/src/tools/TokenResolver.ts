@@ -113,7 +113,24 @@ export class TokenResolver {
           );
         }
         token = agentToken;
-        logger.debug(`[BankingToolProvider] Using BFF-exchanged delegated token for ${tool.name} (no Step 9 resource exchange)`);
+        // With STRICT_AUTH off — the local default — the throw above does not
+        // fire and a banking DATA tool silently forwards an un-narrowed
+        // gateway-audience token. The Banking API usually enforces its own
+        // resource audience (enduser.ping.demo), so it answers 401
+        // invalid_token, and from downstream that reads as a broken token rather
+        // than an unset env var. debug-level hid the one clue at normal log
+        // levels; warn names the cause and the fix at the point of origin.
+        if (tokenExchangeService && !tool.vertical) {
+          logger.warn(
+            `[BankingToolProvider] Step 9 resource exchange DISABLED for banking data tool '${tool.name}' ` +
+            `(BANKING_API_RESOURCE_URI unset) — forwarding the gateway-audience token to the Banking API. ` +
+            `If the Banking API enforces a different audience it will reject this with 401 invalid_token. ` +
+            `To enable: set BANKING_API_RESOURCE_URI to the Banking API audience and grant the ` +
+            `token-exchanger app a scope on that resource.`,
+          );
+        } else {
+          logger.debug(`[BankingToolProvider] Using BFF-exchanged delegated token for ${tool.name} (no Step 9 resource exchange)`);
+        }
         return { token, source: 'agent-passthrough' };
       }
     } else {
