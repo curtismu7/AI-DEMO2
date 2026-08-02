@@ -1,24 +1,13 @@
 'use strict';
 
 /**
- * Investment MCP tool definitions.
- *
- * Each tool declares:
- *   name         — JSON-RPC tool name (matches router.ts in mcp-gateway)
- *   description  — shown to LLM
- *   inputSchema  — JSON Schema for arguments
- *   requiredScopes — scopes the inbound token must carry
+ * Investment MCP tool definitions. The shared tool shape lives in toolTypes.ts
+ * because this server now hosts more than one namespace.
  */
 
-export interface InvestTool {
-  name: string;
-  description: string;
-  inputSchema: Record<string, unknown>;
-  requiredScopes: string[];
-  readOnly: boolean;
-}
+import { McpToolDef } from './toolTypes';
 
-export const INVEST_TOOLS: InvestTool[] = [
+export const INVEST_TOOLS: McpToolDef[] = [
   {
     name: 'get_investment_accounts',
     description: 'List all investment accounts for the authenticated user.',
@@ -78,14 +67,3 @@ export const INVEST_TOOLS: InvestTool[] = [
     readOnly: true,
   },
 ];
-
-export function filterByScopes(tools: InvestTool[], tokenScopes: string[]): InvestTool[] {
-  // Empty scope list → only tools that require no scopes (parity with
-  // demo_mcp_server toolScopeMap.filterToolsByScope). Advertising the full
-  // catalog to zero-scope tokens violates least-privilege.
-  if (tokenScopes.length === 0) {
-    return tools.filter((t) => t.requiredScopes.length === 0);
-  }
-  const has = (s: string) => tokenScopes.includes(s) || tokenScopes.includes('*');
-  return tools.filter((t) => t.requiredScopes.length === 0 || t.requiredScopes.every(has));
-}

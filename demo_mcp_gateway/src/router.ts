@@ -44,6 +44,16 @@ const INVEST_TOOLS = new Set([
   'get_portfolio_summary',
 ]);
 
+// Airlines vertical (United). Same physical backend and same audience as the
+// invest tools — demo_mcp_resource_server — so they route to the 'invest'
+// target. They differ in where the data comes from: these are answered from
+// that server's own SQLite database rather than proxied back to the BFF.
+const AIRLINES_TOOLS = new Set([
+  'get_airline_bookings',
+  'get_flight_status',
+  'check_seat_availability',
+]);
+
 // demo_mcp_jwt_verifier (Python/FastMCP) — JWT/JWKS diagnostic tools, ported
 // from jwt-verifier-mcp-server/src/actions/*.ts. Tool names must match exactly.
 const JWT_VERIFIER_TOOLS = new Set([
@@ -89,6 +99,7 @@ const BANKING_DATA_ROUTE_FOR_TOOL: Record<string, 'accounts' | 'transactions'> =
 
 export function routeTool(toolName: string): BackendTarget {
   if (INVEST_TOOLS.has(toolName))        return 'invest';
+  if (AIRLINES_TOOLS.has(toolName))      return 'invest';
   if (JWT_VERIFIER_TOOLS.has(toolName))  return 'jwtverifier';
   if (APIKEY_TOOLS.has(toolName))        return 'apikey';
   if (DUALTOKEN_TOOLS.has(toolName))     return 'dualtoken';
