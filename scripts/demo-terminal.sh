@@ -150,9 +150,121 @@ demo_detect_docker() {
   return 0
 }
 
-# demo_machine_banner <native|docker>
+# Which launchers this box can actually run. Specs alone are not enough: ./run.sh
+# needs a local Node + Python toolchain, and ./run-pingaws.sh needs cluster
+# credentials no amount of RAM substitutes for.
+# Populates LAUNCHER_{NATIVE,DOCKER,CLUSTER}_OK plus a _WHY string for each.
+demo_detect_launchers() {
+  if [[ -n "${LAUNCHERS_DETECTED:-}" ]]; then return 0; fi
+  LAUNCHERS_DETECTED=1
+  local ver major kubecfg
+
+  # ── ./run.sh — Node >= NODE_MIN_VERSION (20) and python3 on PATH.
+  LAUNCHER_NATIVE_OK=0
+  LAUNCHER_NATIVE_WHY=""
+  if ! command -v node >/dev/null 2>&1; then
+    LAUNCHER_NATIVE_WHY="node not installed"
+  elif ! command -v python3 >/dev/null 2>&1; then
+    LAUNCHER_NATIVE_WHY="python3 not installed"
+  else
+    ver="$(node --version 2>/dev/null || true)"
+    major="${ver#v}"
+    major="$(_demo_int "${major%%.*}")"
+    if [[ "${major}" -lt 20 ]]; then
+      LAUNCHER_NATIVE_WHY="node ${ver} is below the required v20"
+    else
+      LAUNCHER_NATIVE_OK=1
+      LAUNCHER_NATIVE_WHY="starts every service natively — no lean mode"
+    fi
+  fi
+
+  # ── ./run-docker.sh — CLI present and daemon answering.
+  LAUNCHER_DOCKER_OK=0
+  LAUNCHER_DOCKER_WHY=""
+  demo_detect_docker
+  if ! command -v docker >/dev/null 2>&1; then
+    LAUNCHER_DOCKER_WHY="docker not installed"
+  elif [[ "${DOCKER_MEM_BYTES}" -le 0 ]]; then
+    LAUNCHER_DOCKER_WHY="docker daemon not responding — start Docker Desktop / OrbStack"
+  else
+    LAUNCHER_DOCKER_OK=1
+    LAUNCHER_DOCKER_WHY="lean core by default, stop optional groups on demand"
+  fi
+
+  # ── ./run-pingaws.sh — kubectl, a kubeconfig, and a derivable SE namespace.
+  LAUNCHER_CLUSTER_OK=0
+  LAUNCHER_CLUSTER_WHY=""
+  kubecfg="${KUBECONFIG:-${HOME}/.kube/config}"
+  if ! command -v kubectl >/dev/null 2>&1; then
+    LAUNCHER_CLUSTER_WHY="kubectl not installed"
+  elif [[ ! -f "${kubecfg}" ]]; then
+    LAUNCHER_CLUSTER_WHY="no kubeconfig — ./run-pingaws.sh kubeconfig"
+  elif [[ -z "${PING_EMAIL:-}" && -z "${SE_NAMESPACE:-}" ]] &&
+       ! grep -q '^PING_EMAIL=' "${BASEDIR:-.}/demo_api_server/.env" 2>/dev/null; then
+    LAUNCHER_CLUSTER_WHY="namespace not derivable — set PING_EMAIL or SE_NAMESPACE"
+  else
+    LAUNCHER_CLUSTER_OK=1
+    LAUNCHER_CLUSTER_WHY="runs on the SE cluster — this machine only builds and pushes"
+  fi
+  return 0
+}
+
+# The launcher table. `best` is chosen from what is reachable AND what fits:
+# a box too small for the local stack is a reason to use the cluster, not a
+# reason to recommend a launcher that will thrash.
+# demo_launcher_table <current mode: native|docker|cluster>
+demo_launcher_table() {
+  local current="${1:-}" best="" gb8=8589934592
+  demo_detect_launchers
+
+  if [[ "${LAUNCHER_DOCKER_OK}" -eq 1 && "${DOCKER_MEM_BYTES}" -ge ${gb8} ]]; then
+    best="docker"
+  elif [[ "${LAUNCHER_DOCKER_OK}" -eq 1 && "${LAUNCHER_CLUSTER_OK}" -eq 1 ]]; then
+    best="cluster"          # Docker works but is cramped — the cluster has room.
+  elif [[ "${LAUNCHER_DOCKER_OK}" -eq 1 ]]; then
+    best="docker"
+  elif [[ "${LAUNCHER_NATIVE_OK}" -eq 1 ]]; then
+    best="native"
+  elif [[ "${LAUNCHER_CLUSTER_OK}" -eq 1 ]]; then
+    best="cluster"
+  fi
+
+  echo ""
+  echo -e "  ${WHITE}${BOLD}WHICH LAUNCHER${RESET}"
+  _demo_launcher_row "docker"  "./run-docker.sh " "${LAUNCHER_DOCKER_OK}"  "${LAUNCHER_DOCKER_WHY}"  "${best}" "${current}"
+  _demo_launcher_row "native"  "./run.sh        " "${LAUNCHER_NATIVE_OK}"  "${LAUNCHER_NATIVE_WHY}"  "${best}" "${current}"
+  _demo_launcher_row "cluster" "./run-pingaws.sh" "${LAUNCHER_CLUSTER_OK}" "${LAUNCHER_CLUSTER_WHY}" "${best}" "${current}"
+
+  if [[ -n "${current}" && -n "${best}" && "${current}" != "${best}" ]]; then
+    echo ""
+    demo_warn "You are running the ${current} launcher; ${best} is the better fit on this machine."
+  fi
+  return 0
+}
+
+# _demo_launcher_row <key> <label> <ok> <why> <best> <current>
+_demo_launcher_row() {
+  local key="$1" label="$2" ok="$3" why="$4" best="$5" current="$6" tag color suffix=""
+  if [[ "${ok}" -ne 1 ]]; then
+    tag="N/A "; color="${DIM}"
+  elif [[ "${key}" == "${best}" ]]; then
+    tag="BEST"; color="${GREEN}"
+  else
+    tag="OK  "; color="${RESET}"
+  fi
+  [[ "${key}" == "${current}" ]] && suffix="  ${DIM}(current)${RESET}"
+  echo -e "    ${color}${BOLD}${tag}${RESET}  ${color}${label}${RESET}  ${DIM}${why}${RESET}${suffix}"
+  return 0
+}
+
+# demo_machine_banner <native|docker|cluster>
+# Idempotent per process tree: run-pingaws.sh execs run-k8.sh, and the panel
+# should not print twice across that handoff.
 demo_machine_banner() {
   local mode="${1:-native}" budget_bytes budget_label
+  if [[ -n "${DEMO_MACHINE_BANNER_SHOWN:-}" ]]; then return 0; fi
+  export DEMO_MACHINE_BANNER_SHOWN=1
+
   demo_detect_host
   budget_bytes="${HOST_MEM_BYTES}"
   budget_label="host RAM"
@@ -165,17 +277,22 @@ demo_machine_banner() {
     fi
   fi
 
+  # Populated for every mode — the Docker ceiling is part of choosing a launcher,
+  # not just part of running one.
+  demo_detect_launchers
+
   echo ""
   demo_box_open "${CYAN}" "MACHINE"
   demo_box_row "${CYAN}" "$(printf '%-9s %s' 'Model' "${HOST_MODEL}  (${HOST_OS}/${HOST_ARCH})")"
   demo_box_row "${CYAN}" "$(printf '%-9s %s' 'CPU' "${HOST_CPU} — ${HOST_CORES} cores")"
   demo_box_row "${CYAN}" "$(printf '%-9s %s GB' 'Memory' "$(_demo_gb "${HOST_MEM_BYTES}")")"
-  if [[ "${mode}" == "docker" && "${DOCKER_MEM_BYTES:-0}" -gt 0 ]]; then
+  if [[ "${DOCKER_MEM_BYTES:-0}" -gt 0 ]]; then
     demo_box_row "${CYAN}" "$(printf '%-9s %s GB limit / %s CPUs  (%s)' \
       'Docker' "$(_demo_gb "${DOCKER_MEM_BYTES}")" "${DOCKER_CPUS}" "${DOCKER_ENGINE}")"
   fi
   demo_box_close "${CYAN}"
 
+  demo_launcher_table "${mode}"
   demo_machine_advice "${mode}" "${budget_bytes}" "${budget_label}"
   echo ""
   return 0
@@ -189,6 +306,17 @@ demo_machine_advice() {
   local gb8=8589934592 gb16=17179869184
 
   echo ""
+
+  # Cluster mode: the services run on the SE cluster, so local memory sizing
+  # says nothing. What this machine still does is build and push images.
+  if [[ "${mode}" == "cluster" ]]; then
+    demo_ok "Services run on the SE cluster — local memory is not the constraint."
+    if [[ "${HOST_CORES}" -gt 0 && "${HOST_CORES}" -lt 4 ]]; then
+      demo_warn "${HOST_CORES} cores — the local image build before the push will be slow."
+    fi
+    return 0
+  fi
+
   if [[ "${bytes}" -le 0 ]]; then
     demo_warn "Could not read ${label} — skipping run suggestions."
     return 0

@@ -40,6 +40,16 @@ BASEDIR="$(cd "$(dirname "$0")" && pwd)"
 source "${BASEDIR}/scripts/demo-terminal.sh"
 demo_init_terminal
 
+# Handled before anything else runs: `machine` reports what this box is and
+# which launcher suits it, so it has to stay read-only. Everything below this
+# point has side effects — vault lookup, cert generation, log file creation.
+case "${1:-}" in
+  machine|specs)
+    demo_machine_banner native
+    exit 0
+    ;;
+esac
+
 # ── Auto-load VAULT_PASSWORD from .env files ──────────────────────────────────
 # If VAULT_PASSWORD is not already set in the shell environment, try to source
 # it from the root .env or demo_api_server/.env (in that order). This lets
@@ -989,6 +999,7 @@ cmd_help() {
   echo "    fresh      Run setup:fresh (initial install / PingOne bootstrap)"
   echo "    fresh <f>  Run setup:fresh with a migration bundle (.tar.gz)"
   echo "    test       Run full test suite (API, UI, MCP)"
+  echo "    machine    Show this machine's specs and which launcher fits it"
   echo "    help       Show this message"
   echo ""
   echo -e "${WHITE}${BOLD}  Port Layout:${RESET}"

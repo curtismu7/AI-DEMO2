@@ -616,6 +616,18 @@ show_help() {
   grep '^#' "$0" | grep -v '#!/' | sed 's/^# \?//'
 }
 
+# Machine panel ahead of any command that builds or deploys. Skipped when
+# run-pingaws.sh already printed it before exec'ing into this script.
+case "${1:-all}" in
+  machine|specs)
+    demo_machine_banner cluster
+    exit 0
+    ;;
+  all|build|deploy|restart|sim-deploy|se-build|se-deploy|se-all|aws-build|aws-deploy|aws-all)
+    demo_machine_banner cluster
+    ;;
+esac
+
 case "${1:-all}" in
   all)        check_prereqs; kill_all; build; deploy; forward ;;
   build)      build ;;

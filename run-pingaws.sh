@@ -32,6 +32,10 @@ set -euo pipefail
 BASEDIR="$(cd "$(dirname "$0")" && pwd)"
 RUN_K8="$BASEDIR/run-k8.sh"
 
+# shellcheck source=scripts/demo-terminal.sh
+source "${BASEDIR}/scripts/demo-terminal.sh"
+demo_init_terminal
+
 usage() {
   cat <<'EOF'
 run-pingaws.sh — Ping SE AWS cluster (https://ai-demo.ping-devops.com)
@@ -48,6 +52,7 @@ Usage:
   ./run-pingaws.sh update config    push .env / configmaps (no image rebuild)
   ./run-pingaws.sh update pingone   re-register OAuth redirect URIs for SE URL
   ./run-pingaws.sh kubeconfig       install SE kubeconfig (scripts/install-se-kubeconfig.sh)
+  ./run-pingaws.sh machine          show machine specs and which launcher fits
   ./run-pingaws.sh help
 
 Prerequisites: Docker Desktop, kubectl context `us`, gh auth, SE namespace.
@@ -59,6 +64,19 @@ EOF
 
 cmd="${1:-start}"
 shift || true
+
+# Banner before the exec below — every branch here hands off with exec, so this
+# is the last point at which this process still owns the terminal. The function
+# exports DEMO_MACHINE_BANNER_SHOWN, so run-k8.sh will not print it again.
+case "$cmd" in
+  machine|specs)
+    demo_machine_banner cluster
+    exit 0
+    ;;
+  start|all|se-all|""|build|se-build|deploy|se-deploy|update)
+    demo_machine_banner cluster
+    ;;
+esac
 
 case "$cmd" in
   start|all|se-all|"")

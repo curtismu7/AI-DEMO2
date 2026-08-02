@@ -1553,6 +1553,10 @@ COMMAND="${1:-start}"
 shift || true
 
 case "${COMMAND}" in
+  machine|specs)
+    demo_machine_banner docker
+    exit 0
+    ;;
   start)
     cmd_start "$@"
     ;;
