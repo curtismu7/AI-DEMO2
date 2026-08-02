@@ -82,6 +82,7 @@ export default function ProtocolViewer({ flowSpec, executionState, onExecutionSt
           <SequenceDiagram
             flowSpec={flowSpec}
             currentStep={executionState.currentStep}
+            results={executionState.results}
           />
           <ExecutionControls
             onExecute={handleExecute}
