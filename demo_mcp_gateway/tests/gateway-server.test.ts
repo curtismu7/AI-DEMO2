@@ -50,6 +50,8 @@ const stubConfig: GatewayConfig = {
   gatewayResourceUri: GATEWAY_AUDIENCE,
   mcpOlbWsUrl: 'ws://localhost:8080',
   mcpResourceServerWsUrl: 'ws://localhost:8081',
+  mcpResourceServerHttpUrl: 'http://localhost:8081',
+  mcpResourceServerApiKey: '',
   mcpOlbResourceUri: 'https://mcp-olb.example.com',
   mcpResourceServerResourceUri: 'https://mcp-resource-server.example.com',
   pingAuthorizeEndpoint: '',

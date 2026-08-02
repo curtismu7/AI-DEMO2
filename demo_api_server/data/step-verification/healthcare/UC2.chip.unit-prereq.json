@@ -6,7 +6,7 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "sensitive_patient_records",
-  "checkedAt": "2026-07-31",
+  "checkedAt": "2026-08-02",
   "requiredFlags": [
     "ff_a2a_delegation",
     "ff_mcp_gateway_pinggateway"
