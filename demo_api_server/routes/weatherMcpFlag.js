@@ -12,22 +12,20 @@
  *   403  forbidden                — missing or wrong x-internal-gateway-secret
  */
 const express = require('express');
-const crypto = require('crypto');
+// Resolved per call — routes are required long before the vault opens, so a
+// module-scope snapshot could never see a vault-supplied BFF_INTERNAL_SECRET.
+const {
+  DEFAULT_INTERNAL_SECRET,
+  internalSecret,
+  isDefaultInternalSecret,
+  internalSecretMatches,
+} = require('../utils/internalSecret');
 const router = express.Router();
 const configStore = require('../services/configStore');
 
-const DEFAULT_INTERNAL_SECRET = 'dev-shared-secret-change-me';
-const INTERNAL_SECRET = process.env.BFF_INTERNAL_SECRET || DEFAULT_INTERNAL_SECRET;
-const INTERNAL_SECRET_BUF = Buffer.from(INTERNAL_SECRET);
 
 router.get('/feature-flags/weather-mcp-showcase', (req, res) => {
-  const presented = req.headers['x-internal-gateway-secret'];
-  const presentedBuf = typeof presented === 'string' ? Buffer.from(presented) : null;
-  if (
-    !presentedBuf ||
-    presentedBuf.length !== INTERNAL_SECRET_BUF.length ||
-    !crypto.timingSafeEqual(presentedBuf, INTERNAL_SECRET_BUF)
-  ) {
+  if (!internalSecretMatches(req.headers['x-internal-gateway-secret'])) {
     return res.status(403).json({ error: 'forbidden' });
   }
 

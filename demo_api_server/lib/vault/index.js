@@ -41,7 +41,7 @@ const {
   verifyFileHmac,
   canonicalJson,
 } = require('./format');
-const { recordAudit } = require('./audit');
+const { recordAudit, assertAuditWritable } = require('./audit');
 const {
   VaultIntegrityError,
   VaultAuthError,
@@ -109,6 +109,10 @@ async function createVault(filePath, password) {
   if (fs.existsSync(filePath)) {
     throw new Error('vault: file already exists: ' + filePath);
   }
+  // Fail closed: a vault whose audit log cannot be written would let a local
+  // attacker mutate secrets leaving no trace. Checked AFTER the existence and
+  // password guards so it cannot mask their more specific errors.
+  assertAuditWritable(auditPath(filePath));
   const salt = crypto.randomBytes(16);
   const kek = Buffer.from(await deriveKek(password, salt));
   const envelope = {
@@ -150,6 +154,9 @@ async function openVault(filePath, password) {
     });
     throw new VaultNotFoundError('vault: file not found at ' + filePath);
   }
+  // Fail closed: see createVault. Ordered after the not-found guard so a missing
+  // vault still reports VaultNotFoundError rather than an audit error.
+  assertAuditWritable(auditPath(filePath));
   const buf = await fsp.readFile(filePath);
   // Identity of the bytes this handle was built from; save() refuses to publish
   // over a different generation.

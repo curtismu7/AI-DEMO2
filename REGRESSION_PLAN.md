@@ -102,6 +102,94 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-02 — Vault subsystem failed open in six places; two hardening guards were dead code
+
+**Files changed:** `oauth-mcp/src/index.ts`, `demo_mcp_gateway/src/vault.ts`,
+`demo_api_server/services/vaultLoader.js`, `demo_api_server/lib/vault/audit.js`,
+`demo_api_server/lib/vault/index.js`, `demo_api_server/utils/internalSecret.js` (new),
+`demo_api_server/routes/{vaultServiceKey,agentIdToken,agentTool,mcpAuditIngest,weatherMcpFlag,braveMcpFlag}.js`,
+`demo_api_server/scripts/{ensure-service-keys,setupFresh}.js`,
+`k8s/20-api-server-deployment.yaml`, `k8s/create-secrets.sh`, `docs/vault.md`,
+`demo_api_server/tests/vault/vault.failClosed.test.js` (new),
+`demo_api_server/tests/vaultServiceKey.test.js`.
+
+**What was broken:** the high-severity findings from the same vault review that
+produced the entry below.
+
+1. **Twin MCP servers disagreed.** `oauth-mcp/src/index.ts` warned and booted on
+   a vault load failure; its byte-identical twin `demo_mcp_server` exits 1.
+   `docker-compose.yml` builds the `mcp-server` service from `./oauth-mcp`, so
+   the Docker path ran the fail-open copy — a wrong `VAULT_PASSWORD` booted
+   anyway, `loadConfiguration()` walked its secret fallback chain, and the server
+   introspected as a different PingOne client (`active:false` on every token).
+2. **Gateway allowlist dropped `PINGONE_`.** `config.ts` PREFERS
+   `PINGONE_MCP_GATEWAY_CLIENT_ID/SECRET`, but `vault.ts` skipped that prefix, so
+   a vault-stored gateway credential silently fell back to a stale `.env` value —
+   RFC 8693 exchange client ≠ RFC 7662 introspection client, every tool call
+   401'd, both sides logged "vault loaded".
+3. **Missing vault file failed OPEN.** `vaultLoader`'s `existsSync` check ran
+   BEFORE the missing-password guard, so deleting the file (or a bind mount that
+   did not materialize) booted the BFF with every vault secret absent and only an
+   info-level log — `server.js` logs only when `result.loaded` is true.
+4. **Two hardening guards were unreachable.** `vaultServiceKey.js`,
+   `agentIdToken.js`, and `agentTool.js` all keyed their insecure-default kill
+   switch off `NODE_ENV === 'production'`, but `k8s/20-api-server-deployment.yaml`
+   and `docker-compose.yml` both pin the BFF to `development` deliberately (the
+   simulated Authorize service requires it). The guards could never fire, and
+   `k8s/03-secrets.yaml.template` ships `BFF_INTERNAL_SECRET: ""` which
+   `create-secrets.sh` never populated — so the committed literal
+   `dev-shared-secret-change-me` was live in-cluster and any workload with
+   pod-network reach to `api-server:3001` could read the backend service keys.
+5. **Audit failures were swallowed.** `chmod 0444 secrets.vault.audit.log`
+   silenced the entire trail while every vault operation kept succeeding, and the
+   log was created at the process umask (0644) while the vault itself is 0600.
+6. **The vault could not actually replace `.env`.** Vault entries reached
+   configStore only, but six routes read `process.env.BFF_INTERNAL_SECRET` at
+   require-time — and routes mount at `server.js:302` while the vault loads
+   around line 2500. Following `vault-migrate.js`'s own instruction to strip
+   migrated entries from `.env` therefore dropped every one of them to the public
+   default.
+
+Plus: `ensure-service-keys.js` swallowed EVERY `.env` read error (not just
+ENOENT), so a transient EACCES/EISDIR replaced a populated `.env` with a 3-line
+file and still exited 0; `setupFresh.js` prompted for the vault master password
+UNMASKED (`readlineFreeText` accepts a `secret` option and ignores it) while
+`docs/vault.md` T-269-26 claimed it refused to prompt at all.
+
+**What was fixed:** oauth-mcp fails closed like its twin; `PINGONE_` added to the
+gateway allowlist; `VAULT_REQUIRED=true` opts a deployment into fail-closed on a
+missing vault file (default stays a no-op so a fresh clone runs); the kill
+switches key off `VAULT_INTERNAL_STRICT`, which `20-api-server-deployment.yaml`
+now sets and which `create-secrets.sh` backs by minting a real
+`BFF_INTERNAL_SECRET` and fanning the same value to BFF + gateway + agent +
+ping-gateway; `recordAudit` fails closed on `set`/`delete`/`rotate` (recorded
+before anything persists) and `assertAuditWritable()` runs at open/create to
+cover `save`, which audits after its rename; the audit log is created 0600; a new
+`utils/internalSecret.js` resolves the shared secret per call and the six
+consumers use it, with `vaultLoader` exporting a narrow
+`ENV_EXPORT_ALLOWLIST` (currently just `BFF_INTERNAL_SECRET`) into `process.env`;
+`upsertEnvValue` rethrows any non-ENOENT read error and writes 0600;
+`setupFresh` prompts via `@inquirer/password`.
+
+**Do not break:** the kill switches must NOT be re-keyed to `NODE_ENV` — it is
+pinned to `development` on purpose. `ENV_EXPORT_ALLOWLIST` must stay an explicit
+name list, never a prefix (a vault entry named `LD_PRELOAD` must never reach
+`process.env` — T-269-17). `assertAuditWritable` must stay ordered AFTER the
+not-found and already-exists guards so it cannot mask their more specific errors.
+`internalSecret()` must not be cached at module scope.
+
+**Verify:** `CI=true npx jest tests/vault/ tests/vaultServiceKey.test.js
+tests/routes/adminVault.*.test.js src/__tests__/vaultLoader.*.test.js` (235/235);
+`CI=true npx jest --testPathPattern='step-up-gate|authorize-gate|runtime-settings-api|transaction-flows|demo-scenario-api|agentTool|mcpAudit|weatherMcp|braveMcp|agentIdToken|ensure-service-keys'`
+(132/132); `npx tsc --noEmit` clean in both `demo_mcp_gateway` and `oauth-mcp`.
+Revert-to-RED confirmed: reverting `audit.js`, `lib/vault/index.js`,
+`vaultLoader.js`, and `utils/internalSecret.js` gives 7 failed / 2 passed.
+
+**Precedence note (docs corrected, code unchanged):** `docs/vault.md` claimed the
+vault outranks `process.env`. `configStore.getEffective` does the opposite and
+that is deliberate — see the 2026-07-26 entry. The doc now states the real order
+(`.env` > vault > LMDB) and its consequence: a leftover `.env` value shadows its
+vault entry.
 ### 2026-08-02 — Vault master password was readable from an unauthenticated endpoint; `save()` was not atomic
 
 **Files changed:** `demo_api_server/services/apiCallTrackerService.js`,
