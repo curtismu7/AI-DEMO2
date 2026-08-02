@@ -211,6 +211,121 @@ describe('fallbackDataResolver', () => {
       expect(intent.vertical).toBe('banking');
     });
 
+    // --- the cascade must not outrank the active vertical -----------------
+    //
+    // parseForFallback consults the active vertical LAST, after parseBanking,
+    // parseEducation and six literal-vertical keyword branches, so whichever
+    // branch matched first won. Two distinct classes of theft came out of that,
+    // and each needs its own guard.
+
+    /*
+     * Class 1 — actions that live inside parseBanking but are cross-vertical BY
+     * THEIR OWN DEFINITION, exactly like the web_search catch-all above.
+     * UNUSUAL_PATTERNS_RE's comment says the sec_llm_analyze chip "ships this
+     * exact text in EVERY vertical manifest" (9 manifests), INVEST_FEATURE_RE is
+     * labelled "Cross-vertical invest / portfolio chip", VERTICAL_FEATURE_RE
+     * exists so "NL phrases for non-banking verticals also map to
+     * vertical_feature_demo", and the MCP-tools phrasing ships in 10 manifests.
+     * None reads banking data; each dispatches the ACTIVE vertical's feature or
+     * tool. So none may carry a banking claim.
+     */
+    const CROSS_VERTICAL_ACTIONS = [
+      ['spot any unusual activity', 'unusual_patterns'],
+      ['any suspicious charges', 'unusual_patterns'],
+      ['show my health record', 'vertical_feature_demo'],
+      ['show permit status', 'vertical_feature_demo'],
+      ['show portfolio status', 'invest_demo'],
+      ['Show me the tools available from the PingOne MCP server', 'mcp_tools'],
+    ];
+
+    it.each(CROSS_VERTICAL_ACTIONS)(
+      'does not tag the cross-vertical %j intent with the banking vertical',
+      (prompt, action) => {
+        const intent = nlIntentParser.parseForFallback(prompt, {
+          verticalId: 'healthcare',
+        });
+        // The intent itself survives — only the vertical claim is dropped.
+        expect(intent.banking && intent.banking.action).toBe(action);
+        expect(intent.vertical).toBeUndefined();
+      }
+    );
+
+    it.each(CROSS_VERTICAL_ACTIONS)(
+      'keeps the active government vertical for the cross-vertical prompt %j',
+      async (prompt) => {
+        const result = await fallbackDataResolver.resolveFallbackChips(prompt, {
+          verticalId: 'government',
+        });
+        expect(result.verticalId).toBe('government');
+        expect(leaksBanking(result.chips)).toBe(false);
+        expect(leaksBanking(result.suggestions || [])).toBe(false);
+      }
+    );
+
+    /*
+     * Class 2 — the literal-vertical keyword sweep. Those branches GUESS a
+     * vertical from bare nouns, and a guess must never overrule a vertical the
+     * user is demonstrably already in: retail's \borders?\b took manufacturing's
+     * own "show my work orders" while manufacturing was the active vertical.
+     */
+    const KEYWORD_SWEEP_THEFTS = [
+      ['show my work orders', 'manufacturing'],
+      ['which work orders are overdue', 'manufacturing'],
+      ['check for irregular orders', 'healthcare'],
+      ['my reward points', 'retail'],
+      ['schedule a production run', 'manufacturing'],
+      ['register for a course', 'workforce'],
+    ];
+
+    it.each(KEYWORD_SWEEP_THEFTS)(
+      'keeps the active vertical for %j typed in %s',
+      async (prompt, vertical) => {
+        const intent = nlIntentParser.parseForFallback(prompt, {
+          verticalId: vertical,
+        });
+        expect(intent.vertical).toBe(vertical);
+
+        const result = await fallbackDataResolver.resolveFallbackChips(prompt, {
+          verticalId: vertical,
+        });
+        expect(result.verticalId).toBe(vertical);
+        expect(leaksBanking(result.chips)).toBe(false);
+      }
+    );
+
+    /*
+     * The sweep is not deleted, only demoted. With NO active vertical there is
+     * nothing to outrank and guessing is the only thing it can usefully do, so
+     * it must still guess — otherwise the demotion would silently turn every
+     * context-free prompt into a no-match.
+     */
+    it('still guesses a vertical from keywords when none is active', async () => {
+      const cases = [
+        ['show my work orders', 'retail'],
+        ['my reward points', 'sporting-goods'],
+        ['register for a course', 'university'],
+        ['request time off', 'workforce'],
+      ];
+      for (const [prompt, expected] of cases) {
+        const intent = nlIntentParser.parseForFallback(prompt, {
+          verticalId: undefined,
+        });
+        expect(intent.vertical).toBe(expected);
+      }
+    });
+
+    /*
+     * A branch whose vertical IS the active one still reports its own kind
+     * rather than degrading to 'unknown' — the demotion changes which branch may
+     * win, not what a legitimate win looks like.
+     */
+    it('lets the active vertical own keyword branch confirm it', () => {
+      const intent = nlIntentParser.parseForFallback('track my order', {
+        verticalId: 'retail',
+      });
+      expect(intent).toEqual({ kind: 'retail', vertical: 'retail' });
+    });
+
     it('returns a no-match with the active vertical own suggestions for a vertical with no fallback chip file', async () => {
       const result = await fallbackDataResolver.resolveFallbackChips(
         'hello world',

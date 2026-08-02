@@ -133,26 +133,40 @@ const PINNED_BANKING_ACTION_WINS = [
 ];
 
 /*
- * PINNED: the same shape, one layer out. parseForFallback is an ordered cascade
- * — parseBanking, then parseEducation, then a keyword sweep for retail /
- * sporting-goods / government / workforce / university / manufacturing — and
- * every branch in it outranks the active vertical. So a chip message typed in
- * ANY vertical resolves to whichever branch claims it first.
+ * PINNED: the same shape as PINNED_BANKING_ACTION_WINS, at chip-message scale.
  *
- * 30 of the 120 manifest chip messages coerce even when typed in their OWN
- * vertical: manufacturing's "show my work orders" returns RETAIL chips inside
- * manufacturing, healthcare's "show my health record" returns BANKING chips
- * inside healthcare. That is the eighth instance of the shape, found by this
- * gate and left unfixed on purpose — the fix belongs in nlIntentParser.js, not
- * here.
+ * This list used to hold 52 entries covering TWO different defects. The cascade
+ * defect is now fixed in nlIntentParser.js and 32 of them are gone; what is left
+ * is one class, and it is the open product decision above rather than a bug.
+ *
+ * WHAT WAS FIXED (32 deleted). parseForFallback was an ordered cascade whose
+ * every branch outranked the active vertical, so a chip message typed in ANY
+ * vertical went to whichever branch claimed it first — 30 of the 123 manifest
+ * chip messages coerced even inside their OWN vertical. Two changes ended that:
+ *   - The literal-vertical keyword branches (retail / sporting-goods /
+ *     government / workforce / university / manufacturing) now only GUESS when
+ *     no vertical is active, and the active vertical's own branch is consulted
+ *     before any other's. That retired all 22 keyword-sweep pins, including
+ *     manufacturing's "show my work orders" which retail's \borders?\b took.
+ *   - Five parseBanking actions that are cross-vertical by their own definition
+ *     (unusual_patterns, vertical_feature_demo, invest_demo, mcp_tools, plus
+ *     web_search from #1232) no longer carry a banking claim, so the active
+ *     vertical stands. That retired the other 10, including healthcare's
+ *     "show my health record".
+ *
+ * WHAT REMAINS (20). Every surviving entry is a genuine banking ACTION —
+ * transactions x6, transfer x5, balance x4, accounts x3, mortgage_demo,
+ * sensitive_account_details — reached because the phrasing genuinely overlaps
+ * banking's ("pto balance", "order history"). Whether a real banking action
+ * should outrank the active vertical is the SAME open decision pinned in
+ * PINNED_BANKING_ACTION_WINS; settling it there settles these too.
  *
  * Each entry is [prompt, verticalItResolvesTo]. The outcome does not depend on
- * which vertical is active (verified across all 12), so one key per prompt is
- * exact. Fixing a row means DELETING it — the gate fails on a pin that no
- * longer reproduces.
+ * which vertical is active, so one key per prompt is exact. Fixing a row means
+ * DELETING it — the gate fails on a pin that no longer reproduces.
  */
 const PINNED_CASCADE_COERCIONS = [
-  // -> banking (parseBanking claims it)
+  // -> banking (parseBanking claims it as a real banking action)
   ['show last 5 transactions for this customer', 'banking'],
   ['show all accounts for this customer', 'banking'],
   ['adjust account balance', 'banking'],
@@ -162,54 +176,17 @@ const PINNED_CASCADE_COERCIONS = [
   ['show my mortgage', 'banking'],
   ['run an intent-bound transfer within my RAR grant', 'banking'],
   ['get my accounts', 'banking'],
-  ['show my health record', 'banking'],
   ['show my accounts', 'banking'],
   ['recent transactions', 'banking'],
   ['show my sensitive account details', 'banking'],
   ['transfer $600 from checking to savings with CIBA approval', 'banking'],
-  ['show permit status', 'banking'],
   ['Summarize my recent visits', 'banking'],
-  ['show portfolio status', 'banking'],
   ['show my trade history', 'banking'],
-  ['How is my portfolio performing year to date?', 'banking'],
-  ['show work order status', 'banking'],
-  ['Show me the tools available from the PingOne MCP server', 'banking'],
-  ['show my large purchase', 'banking'],
   ['order history', 'banking'],
   ['store credit balance', 'banking'],
   ['Compare my recent purchases side by side', 'banking'],
   ['transfer my membership', 'banking'],
-  ['view my gear order', 'banking'],
-  ['show enrollment status', 'banking'],
   ['pto balance', 'banking'],
-  ['view my expense report', 'banking'],
-  // -> government (keyword sweep: permit / benefit / document / application / claim)
-  ['pay a permit fee', 'government'],
-  ['release my permit record', 'government'],
-  // -> retail (keyword sweep: order / purchase / return / refund / cart / checkout)
-  ['show my work orders', 'retail'],
-  ['release my work order', 'retail'],
-  ['which work orders are overdue', 'retail'],
-  ['get my work orders', 'retail'],
-  ['list my orders', 'retail'],
-  ['order status', 'retail'],
-  ['checkout', 'retail'],
-  ['track my order', 'retail'],
-  // -> sporting-goods (keyword sweep: points / redeem / rewards / gear / membership)
-  ['my reward points', 'sporting-goods'],
-  ['What should I buy with my points?', 'sporting-goods'],
-  ['my gear', 'sporting-goods'],
-  ['my loyalty points', 'sporting-goods'],
-  // -> university (keyword sweep: grades / courses / transcript / enrollment / semester)
-  ['show my enrolled courses', 'university'],
-  ['register for a course', 'university'],
-  ['release my official transcript', 'university'],
-  ['get my courses', 'university'],
-  // -> workforce (keyword sweep: schedule / time off / expense / leave / payroll)
-  ['schedule a production run', 'workforce'],
-  ['submit an expense', 'workforce'],
-  ['request time off', 'workforce'],
-  ['submit a $600 expense with manager approval', 'workforce'],
 ];
 
 /*
@@ -222,27 +199,31 @@ const PINNED_CASCADE_COERCIONS = [
  * they are listed, and every PASSING run prints them as a ⚠️ block, which is the
  * opposite of the silence that let seven of these accumulate.
  *
- * Sites 8 and 9 (the agent-path `|| banking` defaults) were FIXED by #1250 and
- * #1257 and are no longer listed. What remains below is the parser cascade —
- * the root cause the fixes did not address — and one latent lookup hazard.
+ * FIXED — the list is now EMPTY. Sites 8 and 9 (the agent-path `|| banking`
+ * defaults) went with #1250 and #1257. The last three entries were the parser
+ * cascade itself, the root cause those two did not address, and it is now fixed
+ * in nlIntentParser.js:
+ *   - 'spot any unusual activity' and 'any suspicious charges' hit
+ *     parseBanking's unusual_patterns, whose own declaration says the
+ *     sec_llm_analyze chip "ships this exact text in EVERY vertical manifest"
+ *     and must resolve the same way "regardless of vertical". It no longer
+ *     carries a banking claim, so the active vertical stands. This also makes
+ *     the fallback path agree with the agent path, which #1257 had already
+ *     pointed at the ACTIVE vertical's read tool.
+ *   - 'check for irregular orders' was taken by the retail keyword branch's
+ *     \borders?\b. That branch now only guesses when no vertical is active.
+ *
+ * The list is emptied rather than deleted so the stale-pin check below stays
+ * wired: with it empty, every ACTIVITY_ANALYSIS_PROMPT is now ASSERTED to keep
+ * the active vertical instead of merely being reported — strictly stronger than
+ * the entries were. Re-adding a key here is the documented way to record a
+ * regression if one is ever accepted again.
+ *
+ * 'anything anomalous in my records' was already absent and stays that way: it
+ * kept the active vertical even before this fix, so it has always been a
+ * POSITIVE case in the corpus rather than a pre-excused one.
  */
-const KNOWN_UNFIXED_COERCIONS = [
-  // The parser cascade, reached through the activity-analysis phrasings that
-  // used to feed site 8. #1257 fixed the CONSUMER (readPrimaryToolFor no longer
-  // hands a vertical banking's tool); the RESOLUTION still coerces, so on the
-  // fallback surface these still return banking's chips from every vertical.
-  // Same mechanism as PINNED_CASCADE_COERCIONS, kept here rather than there
-  // because a chip message coercing is a documented product wart, whereas a
-  // free-text security question coercing is a bug nobody has decided to accept.
-  ['spot any unusual activity', 'banking'],
-  ['any suspicious charges', 'banking'],
-  // Where parseBanking does not claim it, the keyword cascade does: the word
-  // "orders" hands this one to retail instead. Same shape, different thief.
-  ['check for irregular orders', 'retail'],
-  // 'anything anomalous in my records' is deliberately absent: it keeps the
-  // active vertical today, so it is a POSITIVE case in the corpus and any
-  // future coercion of it fails the gate rather than being pre-excused.
-];
+const KNOWN_UNFIXED_COERCIONS = [];
 
 /*
  * FIXED — readPrimaryToolFor() now guards the lookup with hasOwnProperty,
