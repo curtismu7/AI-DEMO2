@@ -7,5 +7,5 @@
   "errorClass": null,
   "primaryTool": "create_transfer",
   "checkedAt": "2026-08-02",
-  "verifiedBy": "demo_api_server/src/__tests__/ciba.test.js, cibaService.test.js, cibaSimulatedService.test.js"
+  "verifiedBy": "demo_api_server/src/__tests__/ciba.test.js, demo_api_server/src/__tests__/cibaService.test.js, demo_api_server/src/__tests__/cibaSimulatedService.test.js, demo_api_server/src/__tests__/pingOneAuthorizeRetry.test.js"
 }
