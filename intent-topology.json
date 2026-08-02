@@ -20,65 +20,9 @@
     }
   },
   "gaps": {
-    "blocking": 26,
+    "blocking": 0,
     "informational": 5,
     "issues": [
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "banking",
-        "chipId": "bk-a2a",
-        "code": "tool_mismatch",
-        "detail": "declares \"get_sensitive_account_details\" but heuristics resolve action \"sensitive_account_details\" -> \"sensitive_account_details\""
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "banking",
-        "chipId": "bk-bad-scope",
-        "code": "missing_declared_tool",
-        "detail": "mode=both declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"look up all customers\" goes"
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "banking",
-        "chipId": "bk-dpop",
-        "code": "missing_declared_tool",
-        "detail": "mode=direct declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"fire a token with the wrong audience at the gateway\" goes"
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "banking",
-        "chipId": "bk8",
-        "code": "missing_declared_tool",
-        "detail": "mode=llm declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"What are my biggest categories\" goes"
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "government",
-        "chipId": "gv6",
-        "code": "missing_declared_tool",
-        "detail": "mode=llm declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"which permits expire soon\" goes"
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "healthcare",
-        "chipId": "hc9",
-        "code": "missing_declared_tool",
-        "detail": "mode=llm declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"Summarize my recent visits\" goes"
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "investment",
-        "chipId": "inv-llm",
-        "code": "missing_declared_tool",
-        "detail": "mode=llm declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"How is my portfolio performing year to date?\" goes"
-      },
       {
         "severity": "warn",
         "check": "phrase-collision",
@@ -86,110 +30,6 @@
         "chipId": "inv1+inv-direct",
         "code": "phrase_duplicate",
         "detail": "2 chips share the phrase \"show my portfolios\": inv1->view_portfolios, inv-direct->view_portfolios"
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "manufacturing",
-        "chipId": "mf6",
-        "code": "missing_declared_tool",
-        "detail": "mode=llm declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"which work orders are overdue\" goes"
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "oauth-teaching",
-        "chipId": "ot10",
-        "code": "missing_declared_tool",
-        "detail": "mode=both declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"what is step-up authentication\" goes"
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "oauth-teaching",
-        "chipId": "ot11",
-        "code": "missing_declared_tool",
-        "detail": "mode=both declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"demonstrate a real token exchange\" goes"
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "oauth-teaching",
-        "chipId": "ot12",
-        "code": "missing_declared_tool",
-        "detail": "mode=both declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"demonstrate hitl approval\" goes"
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "oauth-teaching",
-        "chipId": "ot1",
-        "code": "missing_declared_tool",
-        "detail": "mode=both declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"what is oauth\" goes"
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "oauth-teaching",
-        "chipId": "ot2",
-        "code": "missing_declared_tool",
-        "detail": "mode=both declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"what is the authorization code flow with pkce\" goes"
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "oauth-teaching",
-        "chipId": "ot3",
-        "code": "missing_declared_tool",
-        "detail": "mode=both declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"what is the difference between an id token and an access token\" goes"
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "oauth-teaching",
-        "chipId": "ot4",
-        "code": "missing_declared_tool",
-        "detail": "mode=both declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"explain scopes and least privilege\" goes"
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "oauth-teaching",
-        "chipId": "ot5",
-        "code": "missing_declared_tool",
-        "detail": "mode=both declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"explain refresh tokens\" goes"
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "oauth-teaching",
-        "chipId": "ot6",
-        "code": "missing_declared_tool",
-        "detail": "mode=both declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"what is the client credentials grant\" goes"
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "oauth-teaching",
-        "chipId": "ot7",
-        "code": "missing_declared_tool",
-        "detail": "mode=both declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"how does token exchange work (rfc 8693)\" goes"
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "oauth-teaching",
-        "chipId": "ot8",
-        "code": "missing_declared_tool",
-        "detail": "mode=both declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"what is act and may_act delegation\" goes"
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "oauth-teaching",
-        "chipId": "ot9",
-        "code": "missing_declared_tool",
-        "detail": "mode=both declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"what is token introspection\" goes"
       },
       {
         "severity": "warn",
@@ -208,60 +48,12 @@
         "detail": "2 chips share the phrase \"list my orders\": rt1->list_orders, rt-direct->list_orders"
       },
       {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "retail",
-        "chipId": "rt10",
-        "code": "missing_declared_tool",
-        "detail": "mode=both declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"Any deals on what I viewed?\" goes"
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "retail",
-        "chipId": "rt5",
-        "code": "missing_declared_tool",
-        "detail": "mode=both declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"order history\" goes"
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "retail",
-        "chipId": "rt8",
-        "code": "missing_declared_tool",
-        "detail": "mode=both declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"What should I buy with my points?\" goes"
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "retail",
-        "chipId": "rt9",
-        "code": "missing_declared_tool",
-        "detail": "mode=both declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"Compare my recent purchases side by side\" goes"
-      },
-      {
         "severity": "warn",
         "check": "phrase-collision",
         "vertical": "sporting-goods",
         "chipId": "sg4+sg-direct",
         "code": "phrase_duplicate",
         "detail": "2 chips share the phrase \"order status\": sg4->gear_order_status, sg-direct->gear_order_status"
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "university",
-        "chipId": "un8",
-        "code": "missing_declared_tool",
-        "detail": "mode=llm declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"am I on track to graduate\" goes"
-      },
-      {
-        "severity": "fail",
-        "check": "resolution",
-        "vertical": "workforce",
-        "chipId": "wf10",
-        "code": "missing_declared_tool",
-        "detail": "mode=llm declares no tool / denyTool / featurePage.mcpTool, so nothing can be proven about where \"What's still waiting on my manager's sign-off?\" goes"
       },
       {
         "severity": "warn",
@@ -292,7 +84,7 @@
           "mode": "both",
           "declaredTool": "get_sensitive_account_details",
           "declaredToolSource": "chips10[].tool",
-          "resolvedTool": "sensitive_account_details",
+          "resolvedTool": "get_sensitive_account_details",
           "resolverPath": "heuristic:banking",
           "overlayPrecedence": "vertical",
           "heuristicAction": "sensitive_account_details",
@@ -572,15 +364,15 @@
           "chipId": "bk-bad-scope",
           "message": "look up all customers",
           "mode": "both",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "test_wrong_scope",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": "test_wrong_scope",
           "resolverPath": "heuristic:banking",
           "overlayPrecedence": "vertical",
           "heuristicAction": "test_wrong_scope",
           "clientDispatched": false,
           "offeredToLlm": false,
-          "reachable": false
+          "reachable": true
         }
       }
     },
@@ -664,15 +456,15 @@
           "chipId": "bk8",
           "message": "What are my biggest categories",
           "mode": "llm",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "get_my_transactions",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": null,
           "resolverPath": "llm",
-          "overlayPrecedence": "none",
+          "overlayPrecedence": "vertical",
           "heuristicAction": "spending_summary",
           "clientDispatched": true,
-          "offeredToLlm": false,
-          "reachable": false
+          "offeredToLlm": true,
+          "reachable": true
         }
       }
     },
@@ -923,15 +715,15 @@
           "chipId": "bk-dpop",
           "message": "fire a token with the wrong audience at the gateway",
           "mode": "direct",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "test_wrong_audience",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": null,
           "resolverPath": "direct",
-          "overlayPrecedence": "none",
+          "overlayPrecedence": "vertical",
           "heuristicAction": null,
           "clientDispatched": false,
           "offeredToLlm": false,
-          "reachable": false
+          "reachable": true
         }
       }
     },
@@ -1196,15 +988,15 @@
           "chipId": "gv6",
           "message": "which permits expire soon",
           "mode": "llm",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "view_permits",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": null,
           "resolverPath": "llm",
-          "overlayPrecedence": "none",
+          "overlayPrecedence": "vertical",
           "heuristicAction": null,
           "clientDispatched": false,
-          "offeredToLlm": false,
-          "reachable": false
+          "offeredToLlm": true,
+          "reachable": true
         }
       }
     },
@@ -1334,15 +1126,15 @@
           "chipId": "hc9",
           "message": "Summarize my recent visits",
           "mode": "llm",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "view_records",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": null,
           "resolverPath": "llm",
-          "overlayPrecedence": "none",
+          "overlayPrecedence": "vertical",
           "heuristicAction": null,
           "clientDispatched": false,
-          "offeredToLlm": false,
-          "reachable": false
+          "offeredToLlm": true,
+          "reachable": true
         }
       }
     },
@@ -1645,16 +1437,16 @@
           "vertical": "investment",
           "chipId": "inv-llm",
           "message": "How is my portfolio performing year to date?",
-          "mode": "llm",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "mode": "both",
+          "declaredTool": "show_investment",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": "show_investment",
-          "resolverPath": "llm",
+          "resolverPath": "heuristic:banking+client",
           "overlayPrecedence": "none",
           "heuristicAction": "invest_demo",
           "clientDispatched": true,
           "offeredToLlm": false,
-          "reachable": false
+          "reachable": true
         }
       }
     },
@@ -1761,15 +1553,15 @@
           "chipId": "mf6",
           "message": "which work orders are overdue",
           "mode": "llm",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "view_work_orders",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": null,
           "resolverPath": "llm",
-          "overlayPrecedence": "none",
+          "overlayPrecedence": "vertical",
           "heuristicAction": null,
           "clientDispatched": false,
-          "offeredToLlm": false,
-          "reachable": false
+          "offeredToLlm": true,
+          "reachable": true
         }
       }
     },
@@ -1839,15 +1631,15 @@
           "chipId": "ot10",
           "message": "what is step-up authentication",
           "mode": "both",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "explain_concept",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": "explain_concept",
           "resolverPath": "heuristic:vertical",
           "overlayPrecedence": "vertical",
           "heuristicAction": "explain_concept",
           "clientDispatched": false,
-          "offeredToLlm": false,
-          "reachable": false
+          "offeredToLlm": true,
+          "reachable": true
         }
       }
     },
@@ -1862,15 +1654,15 @@
           "chipId": "ot11",
           "message": "demonstrate a real token exchange",
           "mode": "both",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "demonstrate_token_exchange",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": "demonstrate_token_exchange",
           "resolverPath": "heuristic:vertical",
           "overlayPrecedence": "vertical",
           "heuristicAction": "demonstrate_token_exchange",
           "clientDispatched": false,
-          "offeredToLlm": false,
-          "reachable": false
+          "offeredToLlm": true,
+          "reachable": true
         }
       }
     },
@@ -1885,15 +1677,15 @@
           "chipId": "ot12",
           "message": "demonstrate hitl approval",
           "mode": "both",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "demonstrate_hitl",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": "demonstrate_hitl",
           "resolverPath": "heuristic:vertical",
           "overlayPrecedence": "vertical",
           "heuristicAction": "demonstrate_hitl",
           "clientDispatched": false,
-          "offeredToLlm": false,
-          "reachable": false
+          "offeredToLlm": true,
+          "reachable": true
         }
       }
     },
@@ -1908,15 +1700,15 @@
           "chipId": "ot1",
           "message": "what is oauth",
           "mode": "both",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "explain_concept",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": "explain_concept",
           "resolverPath": "heuristic:vertical",
           "overlayPrecedence": "vertical",
           "heuristicAction": "explain_concept",
           "clientDispatched": false,
-          "offeredToLlm": false,
-          "reachable": false
+          "offeredToLlm": true,
+          "reachable": true
         }
       }
     },
@@ -1931,15 +1723,15 @@
           "chipId": "ot2",
           "message": "what is the authorization code flow with pkce",
           "mode": "both",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "explain_concept",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": "explain_concept",
           "resolverPath": "heuristic:vertical",
           "overlayPrecedence": "vertical",
           "heuristicAction": "explain_concept",
           "clientDispatched": false,
-          "offeredToLlm": false,
-          "reachable": false
+          "offeredToLlm": true,
+          "reachable": true
         }
       }
     },
@@ -1954,15 +1746,15 @@
           "chipId": "ot3",
           "message": "what is the difference between an id token and an access token",
           "mode": "both",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "explain_concept",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": "explain_concept",
           "resolverPath": "heuristic:vertical",
           "overlayPrecedence": "vertical",
           "heuristicAction": "explain_concept",
           "clientDispatched": false,
-          "offeredToLlm": false,
-          "reachable": false
+          "offeredToLlm": true,
+          "reachable": true
         }
       }
     },
@@ -1977,15 +1769,15 @@
           "chipId": "ot4",
           "message": "explain scopes and least privilege",
           "mode": "both",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "explain_concept",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": "explain_concept",
           "resolverPath": "heuristic:vertical",
           "overlayPrecedence": "vertical",
           "heuristicAction": "explain_concept",
           "clientDispatched": false,
-          "offeredToLlm": false,
-          "reachable": false
+          "offeredToLlm": true,
+          "reachable": true
         }
       }
     },
@@ -2000,15 +1792,15 @@
           "chipId": "ot5",
           "message": "explain refresh tokens",
           "mode": "both",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "explain_concept",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": "explain_concept",
           "resolverPath": "heuristic:vertical",
           "overlayPrecedence": "vertical",
           "heuristicAction": "explain_concept",
           "clientDispatched": false,
-          "offeredToLlm": false,
-          "reachable": false
+          "offeredToLlm": true,
+          "reachable": true
         }
       }
     },
@@ -2023,15 +1815,15 @@
           "chipId": "ot6",
           "message": "what is the client credentials grant",
           "mode": "both",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "explain_concept",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": "explain_concept",
           "resolverPath": "heuristic:vertical",
           "overlayPrecedence": "vertical",
           "heuristicAction": "explain_concept",
           "clientDispatched": false,
-          "offeredToLlm": false,
-          "reachable": false
+          "offeredToLlm": true,
+          "reachable": true
         }
       }
     },
@@ -2046,15 +1838,15 @@
           "chipId": "ot7",
           "message": "how does token exchange work (rfc 8693)",
           "mode": "both",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "explain_concept",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": "explain_concept",
           "resolverPath": "heuristic:vertical",
           "overlayPrecedence": "vertical",
           "heuristicAction": "explain_concept",
           "clientDispatched": false,
-          "offeredToLlm": false,
-          "reachable": false
+          "offeredToLlm": true,
+          "reachable": true
         }
       }
     },
@@ -2069,15 +1861,15 @@
           "chipId": "ot8",
           "message": "what is act and may_act delegation",
           "mode": "both",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "explain_concept",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": "explain_concept",
           "resolverPath": "heuristic:vertical",
           "overlayPrecedence": "vertical",
           "heuristicAction": "explain_concept",
           "clientDispatched": false,
-          "offeredToLlm": false,
-          "reachable": false
+          "offeredToLlm": true,
+          "reachable": true
         }
       }
     },
@@ -2092,15 +1884,15 @@
           "chipId": "ot9",
           "message": "what is token introspection",
           "mode": "both",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "explain_concept",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": "explain_concept",
           "resolverPath": "heuristic:vertical",
           "overlayPrecedence": "vertical",
           "heuristicAction": "explain_concept",
           "clientDispatched": false,
-          "offeredToLlm": false,
-          "reachable": false
+          "offeredToLlm": true,
+          "reachable": true
         }
       }
     },
@@ -2230,15 +2022,15 @@
           "chipId": "rt10",
           "message": "Any deals on what I viewed?",
           "mode": "both",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "view_recently_viewed",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": "view_recently_viewed",
           "resolverPath": "heuristic:vertical",
           "overlayPrecedence": "vertical",
           "heuristicAction": "view_recently_viewed",
           "clientDispatched": false,
-          "offeredToLlm": false,
-          "reachable": false
+          "offeredToLlm": true,
+          "reachable": true
         }
       }
     },
@@ -2345,15 +2137,15 @@
           "chipId": "rt5",
           "message": "order history",
           "mode": "both",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "list_orders",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": "list_orders",
           "resolverPath": "heuristic:vertical",
           "overlayPrecedence": "vertical",
           "heuristicAction": "list_orders",
           "clientDispatched": false,
-          "offeredToLlm": false,
-          "reachable": false
+          "offeredToLlm": true,
+          "reachable": true
         }
       }
     },
@@ -2414,15 +2206,15 @@
           "chipId": "rt8",
           "message": "What should I buy with my points?",
           "mode": "both",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "rewards_balance",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": "rewards_balance",
           "resolverPath": "heuristic:vertical",
           "overlayPrecedence": "vertical",
           "heuristicAction": "rewards_balance",
           "clientDispatched": false,
-          "offeredToLlm": false,
-          "reachable": false
+          "offeredToLlm": true,
+          "reachable": true
         }
       }
     },
@@ -2437,15 +2229,15 @@
           "chipId": "rt9",
           "message": "Compare my recent purchases side by side",
           "mode": "both",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "list_orders",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": "list_orders",
           "resolverPath": "heuristic:vertical",
           "overlayPrecedence": "vertical",
           "heuristicAction": "list_orders",
           "clientDispatched": false,
-          "offeredToLlm": false,
-          "reachable": false
+          "offeredToLlm": true,
+          "reachable": true
         }
       }
     },
@@ -2667,15 +2459,15 @@
           "chipId": "un8",
           "message": "am I on track to graduate",
           "mode": "llm",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "view_degree_audit",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": null,
           "resolverPath": "llm",
-          "overlayPrecedence": "none",
+          "overlayPrecedence": "vertical",
           "heuristicAction": null,
           "clientDispatched": false,
-          "offeredToLlm": false,
-          "reachable": false
+          "offeredToLlm": true,
+          "reachable": true
         }
       }
     },
@@ -2690,15 +2482,15 @@
           "chipId": "wf10",
           "message": "What's still waiting on my manager's sign-off?",
           "mode": "llm",
-          "declaredTool": null,
-          "declaredToolSource": null,
+          "declaredTool": "list_expenses",
+          "declaredToolSource": "chips10[].tool",
           "resolvedTool": null,
           "resolverPath": "llm",
-          "overlayPrecedence": "none",
+          "overlayPrecedence": "vertical",
           "heuristicAction": null,
           "clientDispatched": false,
-          "offeredToLlm": false,
-          "reachable": false
+          "offeredToLlm": true,
+          "reachable": true
         }
       }
     },

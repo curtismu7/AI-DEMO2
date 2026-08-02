@@ -13,6 +13,11 @@ const ACTION_TO_TOOL = {
   balance: 'get_account_balance',
   accounts: 'get_my_accounts',
   transactions: 'get_my_transactions',
+  // The 7th (and previously only missing) inverse of banking's own
+  // TOOL_NAME_TO_ACTION map (config/verticals/banking/index.js:337-345). The
+  // heuristic action is the alias — tagged heuristicOnly so it is never
+  // LLM-callable — and get_sensitive_account_details is the real MCP tool.
+  sensitive_account_details: 'get_sensitive_account_details',
   branch_hours: 'get_branch_hours',
   weather: 'get_weather',
   mortgage_demo: 'show_mortgage',
