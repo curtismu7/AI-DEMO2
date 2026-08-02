@@ -724,6 +724,10 @@ services:
         required: false
     volumes:
       - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
+      # Airlines SQLite database. Bind (not named volume) on purpose: the DB proof
+      # is "edit airlines.db from the host with sqlite3 and the next chip click
+      # shows the new value". Seeded on first open from the image's seed/ dir.
+      - ./demo_mcp_resource_server/data:/app/data
     networks:
       - ai-demo
     depends_on:

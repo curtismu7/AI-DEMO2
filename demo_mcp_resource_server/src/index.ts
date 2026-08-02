@@ -3,8 +3,12 @@
 /**
  * banking-mcp-resource-server — entry point
  *
- * MCP server for investment tools. Runs over WebSocket (same protocol as banking_mcp_server).
- * Validates inbound token aud === MCP_SERVER_RESOURCE_URI (mcp-resource-server.ping.demo).
+ * MCP server for investment and airlines tools. Runs over WebSocket (same
+ * protocol as banking_mcp_server). Validates inbound token aud ===
+ * MCP_SERVER_RESOURCE_URI (mcp-resource-server.ping.demo).
+ *
+ * The invest tools proxy back to the BFF; the airlines tools are served from
+ * this server's own SQLite database (src/db/airlinesDb.ts).
  *
  * HTTP surfaces (same port):
  *   GET  /.well-known/oauth-protected-resource  — RFC 9728 metadata
@@ -20,8 +24,8 @@ import crypto from 'crypto';
 import { createServer, IncomingMessage, ServerResponse } from 'http';
 import WebSocket from 'ws';
 import jwt from 'jsonwebtoken';
-import { INVEST_TOOLS, filterByScopes } from './tools/investTools';
-import { dispatchTool } from './tools/investToolHandler';
+import { filterByScopes } from './tools/toolTypes';
+import { ALL_TOOLS, SUPPORTED_SCOPES, dispatch, findTool } from './tools/registry';
 import { decodeAndValidate, extractScopes, TokenError } from './server/tokenValidator';
 
 // Security guard: SKIP_TOKEN_SIGNATURE_VALIDATION downgrades JWT signature
@@ -74,10 +78,10 @@ function apiKeyMatches(presented: string): boolean {
   return crypto.timingSafeEqual(d, API_KEY_DIGEST);
 }
 
-// Must match the requiredScopes the invest tools declare (investTools.ts), so a
-// client reading this RFC 9728 metadata requests a scope that actually unlocks
-// tools — all invest tools require 'invest:read'.
-const INVEST_SCOPES = ['invest:read'];
+// SUPPORTED_SCOPES is derived from the tool catalog (tools/registry.ts), so a
+// client reading this RFC 9728 metadata always requests a scope that actually
+// unlocks tools — 'invest:read' for the invest namespace, 'airlines:read' for
+// the SQLite-backed airlines namespace.
 
 // ---------------------------------------------------------------------------
 // HTTP: RFC 9728 metadata + health
@@ -93,7 +97,7 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
     const metadata: Record<string, unknown> = {
       resource: RESOURCE_URI,
       bearer_methods_supported: ['header'],
-      scopes_supported: INVEST_SCOPES,
+      scopes_supported: SUPPORTED_SCOPES,
       resource_name: RESOURCE_NAME,
       resource_documentation: 'https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization',
     };
@@ -204,7 +208,7 @@ async function handleMessage(
       return;
     }
     const scopes = extractScopes(decoded);
-    const tools = filterByScopes(INVEST_TOOLS, scopes).map((t) => ({
+    const tools = filterByScopes(ALL_TOOLS, scopes).map((t) => ({
       name: t.name,
       description: t.description,
       inputSchema: t.inputSchema,
@@ -227,7 +231,7 @@ async function handleMessage(
     }
 
     // Per-tool scope check
-    const tool = INVEST_TOOLS.find((t) => t.name === toolName);
+    const tool = findTool(toolName);
     if (!tool) {
       send(rpcResult(id, { content: [{ type: 'text', text: `Unknown tool: ${toolName}` }], isError: true }));
       return;
@@ -246,7 +250,7 @@ async function handleMessage(
     }
 
     try {
-      const result = await dispatchTool(toolName, args, token);
+      const result = await dispatch(toolName, args, token, decoded.sub);
       send(rpcResult(id, {
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
         isError: false,
@@ -296,7 +300,7 @@ httpServer.listen(PORT, HOST, () => {
   console.log(`[mcp-resource-server] Running on ${HOST}:${PORT}`);
   console.log(`[mcp-resource-server] Resource URI (aud): ${RESOURCE_URI}`);
   console.log(`[mcp-resource-server] RFC 9728: http://localhost:${PORT}/.well-known/oauth-protected-resource`);
-  console.log(`[mcp-resource-server] Tools: ${INVEST_TOOLS.map((t) => t.name).join(', ')}`);
+  console.log(`[mcp-resource-server] Tools: ${ALL_TOOLS.map((t) => t.name).join(', ')}`);
 });
 
 process.on('SIGINT', () => { httpServer.close(); process.exit(0); });

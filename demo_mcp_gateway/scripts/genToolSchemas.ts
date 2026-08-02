@@ -11,10 +11,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { BankingToolRegistry } from '../../demo_mcp_server/src/tools/BankingToolRegistry';
 import { INVEST_TOOLS } from '../../demo_mcp_resource_server/src/tools/investTools';
+import { AIRLINES_TOOLS } from '../../demo_mcp_resource_server/src/tools/airlinesTools';
 import { GATEWAY_TOOLS } from '../src/gatewayTools';
 
 export interface ToolSchemaEntry {
-  source: 'olb' | 'invest' | 'gateway';
+  source: 'olb' | 'invest' | 'airlines' | 'gateway';
   inputSchema: Record<string, unknown>;
 }
 export interface ToolSchemaArtifact {
@@ -33,6 +34,9 @@ export function buildToolSchemas(): ToolSchemaArtifact {
   }
   for (const t of INVEST_TOOLS) {
     tools[t.name] = { source: 'invest', inputSchema: t.inputSchema };
+  }
+  for (const t of AIRLINES_TOOLS) {
+    tools[t.name] = { source: 'airlines', inputSchema: t.inputSchema };
   }
   for (const t of GATEWAY_TOOLS) {
     tools[t.name] = { source: 'gateway', inputSchema: t.inputSchema };
