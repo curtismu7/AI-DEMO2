@@ -15,13 +15,12 @@ function resolveAuditUserId(req, userSub) {
 }
 
 /**
- * The Transaction/Amount secondary decision is either a real live PingOne
- * Transaction-endpoint decision (`source: 'transaction-policy'`) or a LOCAL
- * amount-ladder decision synthesized by mcpToolAuthorizationService.js's
- * `_localAmountLimitFallback` when that endpoint errored/was unreachable
- * (`source: 'transaction-policy-fallback'`) — never a PingOne decision.
- * Label the card's engine accordingly so it never claims PingOne decided
- * something it never saw.
+ * The Transaction/Amount secondary decision is a real live PingOne
+ * Transaction-endpoint decision (`source: 'transaction-policy'`). The local
+ * amount-ladder that used to synthesize one when that endpoint was unreachable
+ * (`source: 'transaction-policy-fallback'`) is gone — that path now fails closed.
+ * The fallback label is still recognised here so a Token Chain card replayed
+ * from an older audit record is not relabelled as a PingOne decision.
  */
 function secondaryEvaluationEngine(secondaryEvaluation) {
   return secondaryEvaluation && secondaryEvaluation.source === 'transaction-policy-fallback'

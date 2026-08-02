@@ -889,7 +889,17 @@ export function buildAuthorizeMcpRequest(
       // Both non-PERMIT branches below render it, so the gate is computed once
       // here rather than only on the insufficient_scope branch.
       const deniedLocally = authzDecision.policySource === 'local-fallback';
-      res.writeHead(403, {
+      // An INDETERMINATE is not a refusal — the PDP is asking for a human. It
+      // answers 428 Precondition Required (the precondition being an approved
+      // consent receipt) so callers can branch on the status alone; a real DENY
+      // stays 403.
+      //
+      // `!hitlApproved` matters: an INDETERMINATE that survives an already-verified
+      // receipt is the anti-loop case below (policy misconfiguration), which is
+      // terminal — answering 428 there would invite the agent to retry forever.
+      const nonPermitStatus =
+        authzDecision.decision === 'INDETERMINATE' && !hitlApproved ? 428 : 403;
+      res.writeHead(nonPermitStatus, {
         'Content-Type': 'application/json',
         'WWW-Authenticate': `Bearer realm="PingOne", resource_metadata="${selfBaseUrl(_req, config.port)}/.well-known/oauth-protected-resource"`,
       });

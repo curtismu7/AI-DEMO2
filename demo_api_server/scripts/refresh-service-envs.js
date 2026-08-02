@@ -520,6 +520,15 @@ async function main() {
     INTENT_TOKEN_SECRET:            fb('INTENT_TOKEN_SECRET') || fb('SESSION_SECRET'),
     BFF_VAULT_KEY_URL:              'https://api.ping.demo:3001/internal/vault/service-key',
     PG_API_RESOURCE_SERVER_URL:        'http://api-resource-server:8082',
+    // HITL is enforced at this gateway now: p1az-decision.groovy turns a PingOne
+    // Authorize INDETERMINATE into a minted challenge + 428, and verifies the
+    // receipt on retry. Both must come from here rather than compose, for the
+    // same reason BFF_INTERNAL_SECRET does — the secret has to be the SAME value
+    // the HITL service and the BFF hold, and a compose `environment:` default
+    // would override env_file with a wrong one. Without them the filter fails
+    // closed (503), never open.
+    HITL_INTERNAL_SECRET:           fb('HITL_INTERNAL_SECRET'),
+    HITL_SERVICE_URL:               'http://hitl-service:3009',
     // PingGateway Groovy P1AZ filter — mirrors BFF PingOne Authorize (real backend).
     // P1AZ_DECISION_ENDPOINT_ID is the MCP decision endpoint (same as
     // authorize_mcp_decision_endpoint_id). It is NOT a worker — the worker is

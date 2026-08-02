@@ -133,6 +133,60 @@ Do not "simplify" the merge back to `{ ...session.config, ...req.body }`.
 one-line merge restored, the new spec fails `Expected: "seeded-client-id"
 Received: ""`.
 
+### 2026-08-02 — HITL consent (UC8) was decided by BFF code, and no gateway could emit a 428
+
+**Files changed:** `ping-gateway/scripts/groovy/p1az-decision.groovy`,
+`demo_hitl_service/src/receiptVerification.js` (new),
+`demo_hitl_service/src/routes/challenges.js`,
+`demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts`,
+`demo_api_server/services/mcpGatewayClient.js`,
+`demo_api_server/services/mcpToolAuthorizationService.js`,
+`demo_api_server/scripts/refresh-service-envs.js`.
+
+**What was broken:** three things, all pointing the same way. (1) PingGateway —
+the gateway the BFF actually calls in Docker
+(`MCP_GATEWAY_HTTP_URL: http://ping-gateway:8080`) — flattened every PingOne
+Authorize `INDETERMINATE` to a 403 and said so in a comment: *"HITL is not
+handled at this layer."* There was no consent path through the production
+gateway at all. (2) The Node gateway did run HITL but answered **403** for it, so
+"a human must approve" and "you may not do this" were the same status on the
+wire. (3) `mcpToolAuthorizationService._localAmountLimitFallback` re-imposed a
+hardcoded $2500 DENY / $600 step-up / $300 HITL ladder in BFF JavaScript whenever
+the Transaction decision endpoint PERMITted without an obligation *or* errored —
+so a UC8 consent prompt could be produced entirely by BFF code and was
+indistinguishable, in the demo, from a PingOne Authorize decision.
+
+**What was fixed:** PingGateway is now a real HITL PEP: on `INDETERMINATE` it
+mints a challenge at the HITL service and returns **428** with the `challengeId`,
+and on retry it verifies the echoed `_hitl_challenge_id` before setting
+`HitlApproved`/`HitlChallengeId` on the P1AZ request (the same attribute names
+the Node gateway sends). The receipt rules are not hand-ported into Groovy —
+`POST /challenges/:id/verify` on the HITL service is the one implementation, and
+IG calls it. The Node gateway's INDETERMINATE now answers 428 as well (a rejected
+receipt stays 403 — it is terminal). `mcpGatewayClient` learned the 428 and keeps
+recognising the old 403 body for a gateway that has not been redeployed. The
+local amount ladder is deleted: a bare PERMIT stays PERMIT, and an unreachable
+Transaction endpoint blocks with `authorization_unavailable` (503) instead of
+substituting hardcoded thresholds.
+
+**Do not break:** no path may become fail-open. `_hitl_challenge_id` is never
+trusted as a raw flag — the challenge must be approved, unexpired, and bound to
+the same user + agent + tool + amount + payee, and every unproven path (HITL
+service unreachable, unconfigured, unparseable, challenge creation failed) fails
+closed with a 503. `Status.valueOf(428)` in the Groovy is deliberate: this IG
+build's `chf-http-core` has no `PRECONDITION_REQUIRED` constant (verified with
+`javap`) and naming a missing one throws at request time. The direct-transfer
+HITL path (`routes/transactions.js`, `transactionConsentChallenge.js`) is
+untouched, as are the gate's DENY / step-up / group-deny / UC16 branches.
+
+**Verify:** `cd demo_api_server && CI=true npx jest --forceExit --maxWorkers=4`
+(654 suites, 7876 passed, 0 failed — the default worker count flakes on
+contention and fails a different disjoint set each run). `cd demo_mcp_gateway &&
+npm run build` (exit 0) + `CI=true npx jest --forceExit` (473 passed).
+`cd demo_hitl_service && CI=true npx jest` (44 passed; `hitl-teachlog-migration`
+fails identically on clean `main`). `npm run topology:verify` (437 passed).
+Groovy parsed against the running IG's own Groovy 4.0.28.
+
 ### 2026-08-02 — Token Chain rail went dark on load with no control; text as small as 9px
 
 **Files changed:** `demo_api_ui/src/components/TokenChainTraceRail.css`,
