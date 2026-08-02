@@ -102,6 +102,37 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-02 — Privilege MCP sign-in stuck on "Client ID is required before auth start."
+
+**Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_server/tests/routes/privilegeMcpClient.config.test.js` (new).
+
+**What was broken:** `POST /api/privilege-mcp/config` merged the request body
+over the session config unconditionally, blank strings included. The client page
+posts its whole local config immediately before `/auth/start` (and before
+`/chat`), and that local config starts empty — it is only filled once the
+mount-time `/state` fetch resolves. One click made before that resolved sent
+`clientId: ""`, which overwrote the value seeded from `PRIVILEGE_SSO_CLIENT_ID`.
+The overwrite stuck for the life of the session (`clientSessions` is an in-memory
+Map keyed by session id), so `/state` then returned a blank clientId, the page
+re-rendered blank, and every later click re-posted blank —
+`400 {"error":"Client ID is required before auth start."}` forever, with a
+correctly configured environment. Only a BFF restart cleared it.
+
+**What was fixed:** `/config` now filters `undefined`/`null`/`""` out of the body
+before merging — blank means "unchanged", not "clear this". Non-blank values
+still overwrite, so the settings panel keeps working.
+
+**Do not break:** the OAuth PKCE flow, `redirect_uri` derivation from
+`x-forwarded-host`, `session.pendingAuth`, and the `/auth/start` clientId guard
+itself are unchanged — the guard is correct, it was being fed a blanked config.
+Do not "simplify" the merge back to `{ ...session.config, ...req.body }`.
+
+**Verify:** `cd demo_api_server && CI=true npx jest --testPathPattern='step-up-gate|authorize-gate|runtime-settings-api|transaction-flows|demo-scenario-api|privilegeMcpClient' --testPathIgnorePatterns="/node_modules/" "/tests/real/" --forceExit`
+→ 10 suites, 105 tests, 0 failed. Revert-to-RED confirmed: with the old
+one-line merge restored, the new spec fails `Expected: "seeded-client-id"
+Received: ""`.
+
 ### 2026-08-02 — HITL consent (UC8) was decided by BFF code, and no gateway could emit a 428
 
 **Files changed:** `ping-gateway/scripts/groovy/p1az-decision.groovy`,
