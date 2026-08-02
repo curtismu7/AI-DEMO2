@@ -1145,11 +1145,17 @@ services:
     profiles: ["mcpgw"]
     image: public.ecr.aws/s7q1z8z4/privilege-proxy
     container_name: ai-demo-ping-mcpgw
-    command: /procyon/bin/cyonproxy -hostname local.ping-devops.com -listen :8680
+    # 8623 is the product's MCP traffic port (the gateway's own docs; k8s ingress
+    # maps 443 -> 8623). The previous `-listen :8680` opened no reachable MCP
+    # listener at all: inside the container only 8090 (loopback) was bound, so
+    # :8680 accepted a TCP connection from the host port-forward and immediately
+    # closed it — "UND_ERR_SOCKET" from the BFF, connection refused container to
+    # container.
+    command: /procyon/bin/cyonproxy -hostname local.ping-devops.com -listen :8623
     environment:
       ENV_PROXY_TOKEN: "${PRIVILEGE_PROXY_TOKEN:-}"
     ports:
-      - "8680:8680"
+      - "8623:8623"
       - "8620:8620"
       - "8690:8690"
     volumes:
@@ -1165,6 +1171,14 @@ services:
       - mcpgw-ssl:/procyon/ssl
       - mcpgw-logs:/var/log/procyon
       - mcpgw-recordings:/procyon/recordings
+      # pingone.env — SERVER_URL + the OIDC endpoints the gateway uses to
+      # authenticate MCP clients. It was authored into ping-mcpgw/config (the BFF
+      # writes it via PUT /api/privilege-mcp/env) but NEVER mounted here, so the
+      # proxy never saw it. Its own docs call a missing SERVER_URL a cause of
+      # "gateway does not behave as expected", which matches a proxy that enrolls
+      # fine and then serves nothing. Directory mount, not a single file: a
+      # single-file bind goes stale when the host file is replaced.
+      - ./ping-mcpgw/config:/var/lib/procyon/config
     networks:
       ai-demo:
         aliases:
