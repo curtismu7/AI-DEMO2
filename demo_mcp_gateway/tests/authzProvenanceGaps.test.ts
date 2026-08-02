@@ -143,7 +143,9 @@ describe('F8 — the hitl_required branch gates required_scopes too', () => {
       reason: 'HITL_REQUIRED',
       policySource: 'p1az',
     }));
-    expect(status()).toBe(403);
+    // 428, not 403: the PDP asked for a human, it did not refuse the call. The
+    // precondition the caller must satisfy is an approved consent receipt.
+    expect(status()).toBe(428);
     expect(body().error).toBe('hitl_required');
     // The token's scopes are not what is missing — a human is.
     expect(body()).not.toHaveProperty('required_scopes');
