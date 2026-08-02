@@ -22,16 +22,34 @@ export function verticalDisplayName(verticalId) {
     .join(" ");
 }
 
+/**
+ * "CareConnect (Healthcare)" — the brand keeps the demo immersive, the vertical
+ * states what actually scoped the refusal. A vertical whose manifest has no
+ * `identity.displayName` falls back to the vertical alone rather than rendering
+ * empty parentheses, and a brand identical to the vertical is not repeated.
+ */
+export function noMatchSubject(verticalId, brandName) {
+  const name = verticalDisplayName(verticalId);
+  const brand = typeof brandName === "string" ? brandName.trim() : "";
+  // No vertical means nothing scoped the refusal, so a brand alone would be a
+  // lie about what happened — the caller renders "No vertical is active".
+  if (!name) return null;
+  if (!brand || brand.toLowerCase() === name.toLowerCase()) return name;
+  return `${brand} (${name})`;
+}
+
 export default function AgentNoMatchCard({
   verticalId = null,
+  brandName = null,
   intentsConsidered,
   closestCandidate,
   suggestions = [],
   onSelect,
 }) {
   const name = verticalDisplayName(verticalId);
-  const heading = name
-    ? `No matching action in ${name}`
+  const subject = noMatchSubject(verticalId, brandName);
+  const heading = subject
+    ? `No matching action in ${subject}`
     : "No vertical is active";
   const why = name
     ? `${name} has no action for that request, and the agent will not answer it using another vertical's data.`

@@ -114,6 +114,23 @@ vi.mock("../../services/bffAxios", () => ({
   },
 }));
 
+// The brand is only available client-side, from the manifest the
+// VerticalProvider already loaded. `mockManifest = null` reproduces a vertical
+// whose manifest carries no identity.displayName.
+let mockManifest = null;
+vi.mock("../../vertical/useVertical", () => ({
+  useVertical: () => ({
+    activeId: "healthcare",
+    pageManifest: mockManifest,
+    agentManifest: mockManifest,
+    adminManifest: null,
+    pageMockData: null,
+    isAdminScope: false,
+    isAdmin: false,
+    refetch: () => {},
+  }),
+}));
+
 import AIAgent from "../AIAgent";
 
 const customerUser = {
@@ -149,6 +166,7 @@ function jsonResponse(body) {
 beforeEach(() => {
   localStorage.clear();
   nlCalls = [];
+  mockManifest = { id: "healthcare", identity: { displayName: "CareConnect" } };
   bffGet.mockReset();
   bffGet.mockResolvedValue({ data: NO_MATCH_BODY });
   global.fetch = vi.fn((url, opts) => {
@@ -186,16 +204,30 @@ async function askUnroutablePrompt() {
 }
 
 describe("no-match response rendering", () => {
-  it("names the active vertical and explains the refusal instead of failing silently", async () => {
+  it("names the brand and vertical and explains the refusal instead of failing silently", async () => {
     await askUnroutablePrompt();
     await waitFor(() => {
-      expect(screen.getByText(/No matching action in Healthcare/)).toBeInTheDocument();
+      expect(screen.getByText(/No matching action in/)).toBeInTheDocument();
     });
+    expect(document.querySelector(".ba-nomatch-head")).toHaveTextContent(
+      "No matching action in CareConnect (Healthcare)",
+    );
     expect(
       screen.getByText(/will not answer it using another vertical's data/i),
     ).toBeInTheDocument();
     expect(screen.getByText("Intents considered")).toBeInTheDocument();
     expect(screen.getByText("8")).toBeInTheDocument();
+  });
+
+  it("names the vertical alone when the manifest carries no brand", async () => {
+    mockManifest = { id: "healthcare" };
+    await askUnroutablePrompt();
+    await waitFor(() => {
+      expect(screen.getByText(/No matching action in/)).toBeInTheDocument();
+    });
+    const head = document.querySelector(".ba-nomatch-head");
+    expect(head).toHaveTextContent("No matching action in Healthcare");
+    expect(head.textContent).not.toMatch(/[()]|undefined|null/);
   });
 
   it("asks the BFF for the active vertical's no-match detail", async () => {

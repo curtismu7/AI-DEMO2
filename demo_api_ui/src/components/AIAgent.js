@@ -6346,6 +6346,7 @@ export default function BankingAgent({
           source: _source,
           noMatch: true,
           noMatchVerticalId: noMatch.verticalId,
+          noMatchBrandName: noMatch.brandName,
           noMatchIntentsConsidered: noMatch.intentsConsidered,
           noMatchClosestCandidate: noMatch.closestCandidate,
           noMatchSuggestions: noMatch.suggestions,
@@ -6379,9 +6380,19 @@ export default function BankingAgent({
         params: { prompt: text, verticalId: effectiveVerticalId || "" },
       });
       if (!data?.noMatch || !data.message) return null;
+      const verticalId = data.verticalId || null;
       return {
         message: data.message,
-        verticalId: data.verticalId || null,
+        verticalId,
+        // The server sends only the id; the brand lives in the manifest the
+        // VerticalProvider already loaded. That manifest describes the ACTIVE
+        // vertical, so if the server resolved a different one we have no brand
+        // for it — send none and let the card name the vertical alone rather
+        // than labelling it with the wrong brand.
+        brandName:
+          verticalId && verticalId === effectiveVerticalId
+            ? pageManifest?.identity?.displayName || null
+            : null,
         intentsConsidered: data.intentsConsidered,
         closestCandidate: data.closestCandidate,
         suggestions: Array.isArray(data.suggestions) ? data.suggestions : [],
@@ -9918,6 +9929,7 @@ export default function BankingAgent({
                           <div className="banking-agent-msg-bubble banking-agent-msg-bubble--session-fix">
                             <AgentNoMatchCard
                               verticalId={msg.noMatchVerticalId}
+                              brandName={msg.noMatchBrandName}
                               intentsConsidered={msg.noMatchIntentsConsidered}
                               closestCandidate={msg.noMatchClosestCandidate}
                               suggestions={msg.noMatchSuggestions}

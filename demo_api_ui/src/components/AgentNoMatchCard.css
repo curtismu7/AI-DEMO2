@@ -3,6 +3,12 @@
    opaque surface and dark text so contrast never depends on the active
    vertical's accent colour (REGRESSION_PLAN §0: no muted/low-contrast text). */
 
+/* The agent panel is narrow and the heading carries brand + vertical
+   ("CareConnect (Healthcare)"), so every text node here wraps at spaces first
+   and breaks a single over-long token only as a last resort. Nothing in the
+   card may establish a horizontal scroll — min-width:0 stops the flex children
+   from claiming their intrinsic width and forcing the panel body wider. */
+
 .ba-nomatch-card {
   border: 2px solid var(--brand-warning);
   border-left-width: 5px;
@@ -11,6 +17,8 @@
   background: var(--brand-white);
   color: var(--brand-dark-gray);
   max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .ba-nomatch-head {
@@ -18,6 +26,7 @@
   font-weight: 700;
   line-height: 1.35;
   color: var(--brand-dark-gray);
+  overflow-wrap: anywhere;
 }
 
 .ba-nomatch-why {
@@ -25,6 +34,7 @@
   font-size: 13px;
   line-height: 1.5;
   color: var(--brand-dark-gray);
+  overflow-wrap: anywhere;
 }
 
 .ba-nomatch-diag {
@@ -44,8 +54,10 @@
 
 .ba-nomatch-diag-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 6px;
+  gap: 2px 6px;
+  min-width: 0;
   font-size: 12px;
   line-height: 1.5;
 }
@@ -57,8 +69,10 @@
 
 .ba-nomatch-diag-row dd {
   margin: 0;
+  min-width: 0;
   font-family: var(--font-family-mono);
   color: var(--brand-dark-gray);
+  overflow-wrap: anywhere;
 }
 
 .ba-nomatch-suggest {
@@ -70,6 +84,7 @@
   font-weight: 600;
   color: var(--brand-dark-gray);
   margin-bottom: 8px;
+  overflow-wrap: anywhere;
 }
 
 .ba-nomatch-chips {
@@ -79,6 +94,10 @@
 }
 
 .ba-nomatch-chip {
+  max-width: 100%;
+  min-width: 0;
+  text-align: left;
+  overflow-wrap: anywhere;
   padding: var(--btn-padding-sm);
   min-height: var(--btn-height-sm);
   font-family: inherit;

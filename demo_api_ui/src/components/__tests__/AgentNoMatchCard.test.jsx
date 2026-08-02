@@ -1,7 +1,10 @@
 import React from "react";
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen } from "@testing-library/react";
-import AgentNoMatchCard, { verticalDisplayName } from "../AgentNoMatchCard";
+import AgentNoMatchCard, {
+  noMatchSubject,
+  verticalDisplayName,
+} from "../AgentNoMatchCard";
 
 const suggestions = [
   { id: "hc1", label: "View my care plan", message: "show my care plan", tool: "care_plan" },
@@ -9,9 +12,55 @@ const suggestions = [
 ];
 
 describe("AgentNoMatchCard", () => {
-  it("names the failure and the active vertical in the heading", () => {
-    render(<AgentNoMatchCard verticalId="healthcare" intentsConsidered={8} suggestions={suggestions} />);
-    expect(screen.getByText(/No matching action in Healthcare/)).toBeInTheDocument();
+  it("names the failure, the brand and the vertical in the heading", () => {
+    const { container } = render(
+      <AgentNoMatchCard
+        verticalId="healthcare"
+        brandName="CareConnect"
+        intentsConsidered={8}
+        suggestions={suggestions}
+      />,
+    );
+    expect(container.querySelector(".ba-nomatch-head")).toHaveTextContent(
+      "No matching action in CareConnect (Healthcare)",
+    );
+  });
+
+  it("falls back to the vertical alone when the manifest has no brand", () => {
+    const { container } = render(
+      <AgentNoMatchCard verticalId="healthcare" intentsConsidered={8} suggestions={suggestions} />,
+    );
+    const head = container.querySelector(".ba-nomatch-head");
+    expect(head).toHaveTextContent("No matching action in Healthcare");
+    expect(head.textContent).not.toMatch(/[()]/);
+    expect(head.textContent).not.toMatch(/undefined|null/);
+  });
+
+  it("does not render empty parentheses for a blank brand", () => {
+    const { container } = render(
+      <AgentNoMatchCard
+        verticalId="healthcare"
+        brandName="   "
+        intentsConsidered={8}
+        suggestions={suggestions}
+      />,
+    );
+    expect(container.querySelector(".ba-nomatch-head").textContent).not.toMatch(/[()]/);
+  });
+
+  it("does not repeat a brand that is already the vertical name", () => {
+    const { container } = render(
+      <AgentNoMatchCard
+        verticalId="investment"
+        brandName="Investment"
+        intentsConsidered={4}
+        suggestions={[]}
+      />,
+    );
+    expect(container.querySelector(".ba-nomatch-head")).toHaveTextContent(
+      "No matching action in Investment",
+    );
+    expect(container.querySelector(".ba-nomatch-head").textContent).not.toMatch(/[()]/);
   });
 
   it("explains that another vertical's data will not be used", () => {
@@ -83,5 +132,15 @@ describe("AgentNoMatchCard", () => {
     expect(verticalDisplayName("sporting-goods")).toBe("Sporting Goods");
     expect(verticalDisplayName("banking")).toBe("Banking");
     expect(verticalDisplayName(null)).toBeNull();
+  });
+
+  it("keeps the title-cased vertical inside the parentheses", () => {
+    expect(noMatchSubject("sporting-goods", "Peak Outfitters")).toBe(
+      "Peak Outfitters (Sporting Goods)",
+    );
+    expect(noMatchSubject("sporting-goods", null)).toBe("Sporting Goods");
+    expect(noMatchSubject("sporting-goods", undefined)).toBe("Sporting Goods");
+    // No vertical means nothing scoped the refusal — a brand alone would misstate it.
+    expect(noMatchSubject(null, "CareConnect")).toBeNull();
   });
 });
