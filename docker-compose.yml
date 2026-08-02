@@ -1143,7 +1143,15 @@ services:
       - "8620:8620"
       - "8690:8690"
     volumes:
-      - ./ping-mcpgw/config/proxy-token:/procyon/ssl/proxy-token.data:ro
+      # NO single-file bind of the enrollment token here. cyonproxy REWRITES
+      # /procyon/ssl/proxy-token.data at startup (it swaps the short-lived
+      # wizard JWT for a long-lived one), so a :ro bind made it exit 1 on every
+      # boot — "ProxyToken write to /procyon/ssl/proxy-token.data failed …
+      # read-only file system" — and a :rw single-file bind breaks the same way
+      # as soon as the proxy replaces rather than truncates the file.
+      # The token arrives via ENV_PROXY_TOKEN (above) and the proxy persists its
+      # exchanged copy into this writable volume, which is what the vendor's own
+      # `docker run` does with -v /var/lib/procyon/ssl:/procyon/ssl.
       - mcpgw-ssl:/procyon/ssl
       - mcpgw-logs:/var/log/procyon
       - mcpgw-recordings:/procyon/recordings

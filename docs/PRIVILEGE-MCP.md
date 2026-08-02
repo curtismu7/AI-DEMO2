@@ -205,27 +205,53 @@ the demo still shows nothing.
 
 ## Current state (verified 2026-08-02)
 
-The client and relay are healthy. The live path to Privilege is not, for three separate
-reasons:
+The client and relay are healthy. The gateway now enrolls and holds a command stream to the
+Privilege control plane. Two blockers remain before the end-to-end path works, and both are
+console-side. Items 1 and 2 below are fixed and kept for the record — they explain why this
+never ran before.
 
-**1. The enrollment token expired.**
+**1. The enrollment token expired — RESOLVED 2026-08-02.** The previous token expired
+`2026-08-01T13:23:48Z` and the hand-run container had started six minutes *after* that, so
+it never enrolled. A fresh token from the console wizard is installed and the gateway now
+reaches the control plane:
 
 ```
-ping-mcpgw/config/proxy-token   iss "Procyon Inc."
-exp 2026-08-01T13:23:48Z        expired
+Node e40f4540-… established command stream to CB3FD36F-…
+node e40f4540-… received watch event: MedusaLinkEvent
+Sending reachable objects update
 ```
 
-The running proxy container started `2026-08-01T13:29:58Z` — six minutes *after* its own
-token expired — and has emitted one log line since. It never enrolled. Renewal is a console
-step: [`ping-mcpgw/RENEW-TOKEN.md`](../ping-mcpgw/RENEW-TOKEN.md).
+Renewal is a console step: [`ping-mcpgw/RENEW-TOKEN.md`](../ping-mcpgw/RENEW-TOKEN.md).
 
-**2. The running proxy is not the Compose service.** The live container is named
-`privilege-proxy`, carries **no Compose labels**, and publishes no ports — it was started by
-hand. The Compose service `ping-mcpgw` (container `ai-demo-ping-mcpgw`, profile `mcpgw`,
-ports 8680/8620/8690) is not running. Use `docker compose --profile mcpgw up -d ping-mcpgw`
-so the token mount and ports come from source.
+**2. The Compose service could never start — RESOLVED 2026-08-02.** It mounted the
+enrollment token as a **read-only single file**, but `cyonproxy` rewrites
+`/procyon/ssl/proxy-token.data` at startup and writes its generated cert material beside it.
+Every boot ended:
 
-**3. The client points at the Privilege cloud API, not a gateway.**
+```
+Error getting proxy cert: ProxyToken write to /procyon/ssl/proxy-token.data failed.
+error: open /procyon/ssl/proxy-token.data: read-only file system
+fatal: Error creating edge proxy
+```
+
+The token now arrives only via `ENV_PROXY_TOKEN` and `/procyon/ssl` is the writable
+`mcpgw-ssl` volume — matching the vendor's own `docker run -v /var/lib/procyon/ssl:/procyon/ssl`.
+That is also why a hand-run container was up instead of the Compose service: the Compose
+one crash-looped.
+
+**3. The gateway is enrolled but not yet serving `:8680`** — `https://local.ping-devops.com:8680`
+does not answer, and the control plane reports `Error sending update to mesh controller:
+rpc error: code = Unknown desc = not found`. Two console-side items remain:
+
+- No **MCP Server application** is attached to cluster `ai-demo-se` yet — README step 4
+  (Frontend URL `https://local.ping-devops.com:8680`, MCP Server URL `http://mcp-server:8080/mcp`).
+  Until an application exists there is no MCP frontend for the proxy to serve.
+- A **stale duplicate node** is still registered: `9a8bddf5-1dc6-4d3c-93c9-69fc2e2df587`
+  (created 2026-08-01T22:55Z) claims the same `ProxyURL local.ping-devops.com:8680` as the
+  live node `e40f4540-…`, which the proxy logs as a node conflict. Delete the old node in
+  the console.
+
+**4. The client points at the Privilege cloud API, not a gateway.**
 `PRIVILEGE_MCPGW_URL` is `https://privilege.pingone.com/api/mcp`, while
 `ping-mcpgw/README.md` specifies the gateway frontend `https://local.ping-devops.com:8680`.
 Every call therefore returns:
@@ -248,10 +274,13 @@ successfully (`authenticated: true`) and still receives the same 401.
 
 ### Order to fix
 
-1. Renew the enrollment token and start the gateway **via Compose**, then confirm it
-   connects outbound to `grpc.privilege.pingone.com:443`.
-2. Point `PRIVILEGE_MCPGW_URL` at the gateway frontend (`https://local.ping-devops.com:8680`).
-3. Re-run sign-in and `tools/list`. Discovery should now read the gateway's own
+1. ~~Renew the enrollment token and start the gateway via Compose~~ — done 2026-08-02;
+   the gateway is enrolled and holds a command stream to the control plane.
+2. In the Privilege console: delete the stale node `9a8bddf5-…`, then attach an **MCP Server
+   application** to cluster `ai-demo-se` (README step 4). Confirm
+   `https://local.ping-devops.com:8680` starts answering.
+3. Point `PRIVILEGE_MCPGW_URL` at that gateway frontend instead of the cloud API.
+4. Re-run sign-in and `tools/list`. Discovery should now read the gateway's own
    `authorization_uri`/`token_uri` instead of falling back to the demo environment.
 
 ## Troubleshooting
