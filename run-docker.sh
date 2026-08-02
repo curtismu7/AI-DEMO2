@@ -353,22 +353,25 @@ git_sync_check() {
 }
 
 # ── Local LLM (host) lifecycle ───────────────────────────────────────────────
-# LLM_BACKEND selects the host LLM backend (platform-aware default via resolve-llm-backend.sh):
-#   unset    — omlx on Apple Silicon Mac; llamacpp elsewhere (never omlx on Linux)
+# This launcher always uses llamacpp. oMLX would take :8090 on the host, which
+# is the port the llm-proxy container binds — running it here means the
+# container is skipped and tier routing never engages. oMLX is reserved for
+# ./run.sh, where nothing competes for the port.
+#
 #   llamacpp — 2-tier llama.cpp proxy; llm-proxy container on :8090 routes to
 #              host tiers :8091 (small) / :8096 (big) via tier-manager :8097
-#   omlx     — oMLX on host :8090; llm-proxy container is skipped (port clash);
-#              containers reach host via host.docker.internal:8090
-#   mlx      — Apple mlx-lm on host :8090 (fallback); same skip as omlx
+#   omlx/mlx — native-only; resolve_llm_backend downgrades them here with a warning
 #
 # (k8s is unaffected — there llama.cpp runs as an in-cluster pod; see run-k8.sh.)
 # shellcheck source=demo_llm_proxy/resolve-llm-backend.sh
 source "${BASEDIR}/demo_llm_proxy/resolve-llm-backend.sh"
-_LLM_BACKEND="$(resolve_llm_backend)"
+# Called bare, not in $( ): a command substitution resolves in a subshell and
+# LLM_BACKEND_RESOLVE_WARN dies with it, silently swallowing the downgrade
+# notice. RESOLVED_LLM_BACKEND is exported by the resolver for exactly this.
+resolve_llm_backend docker >/dev/null
+_LLM_BACKEND="${RESOLVED_LLM_BACKEND}"
 if [[ -n "${LLM_BACKEND_RESOLVE_WARN:-}" ]]; then
   warn "${LLM_BACKEND_RESOLVE_WARN}"
-elif [[ -z "${LLM_BACKEND:-}" && "${_LLM_BACKEND}" == "omlx" ]]; then
-  ok "Apple Silicon Mac — defaulting to oMLX (override: LLM_BACKEND=llamacpp)"
 fi
 LLAMACPP_MODEL="${LLAMACPP_MODEL:-phi-4-mini-instruct}"   # model id label reported to services
 _LLAMACPP_PIDFILE="/tmp/demo-llamacpp.pid"          # legacy single-server pidfile (cleanup only)
@@ -412,6 +415,19 @@ _clear_8090_squatter() {
     warn "raw llama-server bound to :8090 shadows the LLM proxy — stopping it (PID ${pids})"
     kill $pids 2>/dev/null || true
     rm -f "$_LLAMACPP_PIDFILE"
+  fi
+
+  # oMLX is a Python process, so the llama-only match above walks straight past
+  # it. Left running it holds :8090 and the llm-proxy container fails to bind —
+  # the exact failure this launcher no longer opts into. A ./run.sh session
+  # earlier in the day is the usual way it ends up here.
+  if lsof -nP -iTCP:8090 -sTCP:LISTEN >/dev/null 2>&1; then
+    if [[ -f "$_OMLX_SCRIPT" ]]; then
+      warn "host oMLX holds :8090 — stopping it so the llm-proxy container can bind"
+      bash "$_OMLX_SCRIPT" stop 2>/dev/null || true
+    else
+      warn "something still holds :8090 — the llm-proxy container may fail to bind"
+    fi
   fi
 }
 
