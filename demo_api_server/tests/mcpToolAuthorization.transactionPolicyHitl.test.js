@@ -1,7 +1,9 @@
 /**
- * UC8/UC7 amount bands on the MCP path: Transaction-policy HITL/consent must
- * promote onto the gate, and a local amount-band fallback must fire when the
- * Transaction consult PERMITs without an obligation (live vertical writes).
+ * UC8/UC7 amount bands on the MCP path: a Transaction-policy HITL/consent
+ * obligation must promote onto the gate, and nothing else may. The BFF no longer
+ * carries a local amount ladder — PingOne Authorize is the only thing that turns
+ * an amount into a gate, and an unreachable Transaction endpoint fails closed
+ * rather than substituting hardcoded thresholds.
  */
 jest.mock('../services/pingOneAuthorizeService', () => ({
   evaluateTransaction: jest.fn(),
@@ -56,7 +58,11 @@ describe('_applyTransactionPolicy — HITL/step-up for MCP write tools', () => {
     expect(out.transactionPolicyHitl).toBe(true);
   });
 
-  test('local amount-band fallback: $300 → HITL when Transaction attaches nothing', async () => {
+  test('$300 with a bare Transaction PERMIT stays PERMIT — no local ladder', async () => {
+    // The BFF used to re-impose $300 HITL / $600 step-up / $2500 DENY in code
+    // whenever the PDP attached no obligation, so the demo could not tell a
+    // PingOne Authorize decision from a hardcoded one. PingOne Authorize decides
+    // or nothing does.
     pingOneAuthorizeService.evaluateTransaction.mockResolvedValueOnce({
       decision: 'PERMIT',
       consentRequired: false,
@@ -70,11 +76,12 @@ describe('_applyTransactionPolicy — HITL/step-up for MCP write tools', () => {
       acr: 'Password',
       useCaseId: 'hitl-consent',
     });
-    expect(out.hitlRequired).toBe(true);
-    expect(out.transactionPolicyFallback).toBe(true);
+    expect(out.hitlRequired).toBeFalsy();
+    expect(out.stepUpRequired).toBeFalsy();
+    expect(out.decision).toBe('PERMIT');
   });
 
-  test('local amount-band fallback: $600 → STEP_UP', async () => {
+  test('$600 with a bare Transaction PERMIT stays PERMIT — no local ladder', async () => {
     pingOneAuthorizeService.evaluateTransaction.mockResolvedValueOnce({
       decision: 'PERMIT',
       consentRequired: false,
@@ -87,8 +94,27 @@ describe('_applyTransactionPolicy — HITL/step-up for MCP write tools', () => {
       userId: 'user-1',
       acr: 'Password',
     });
-    expect(out.stepUpRequired).toBe(true);
-    expect(out.transactionPolicyFallback).toBe(true);
+    expect(out.stepUpRequired).toBeFalsy();
+    expect(out.decision).toBe('PERMIT');
+  });
+
+  test('a failed Transaction consult fails closed, it does not fall back to local bands', async () => {
+    // Previously a 429 REQUEST_LIMITED here silently handed the decision to the
+    // BFF's own amount ladder. With no PDP answer there is no decision to
+    // enforce, so the call is blocked and the reason says so.
+    pingOneAuthorizeService.evaluateTransaction.mockRejectedValueOnce(
+      new Error('REQUEST_LIMITED'),
+    );
+    const out = await _applyTransactionPolicy(base, {
+      amount: 300,
+      transactionType: 'transfer',
+      userId: 'user-1',
+      acr: 'Password',
+      useCaseId: 'hitl-consent',
+    });
+    expect(out.transactionPolicyUnavailable).toBe(true);
+    expect(out.hitlRequired).toBeFalsy();
+    expect(out.secondaryEvaluation.decision).toBe('UNAVAILABLE');
   });
 
   test('step-up outranks consent from Transaction', async () => {

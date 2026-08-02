@@ -485,6 +485,37 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         );
     }
 
+    // 428 Precondition Required — the PDP asked for a human, the gateway minted a
+    // challenge. Both gateways now answer 428 for this (PingGateway's
+    // p1az-decision.groovy and the Node gateway's authorizeMcpRequest); the 403
+    // branch below still recognises the same body for a gateway that has not been
+    // redeployed yet. A rejected receipt stays 403 there — it is terminal, and
+    // re-opening the consent modal on it would loop.
+    if (status === 428) {
+        const body428 = response.data || {};
+        console.warn(
+            '[mcpGatewayClient] 428 HITL required: tool=%s challengeId=%s',
+            body428.tool || '(?)',
+            body428.challengeId || '(none)',
+        );
+        throw Object.assign(
+            new Error(body428.message || 'Human approval required'),
+            {
+                code: 'mcp_tool_error',
+                httpStatus: 428,
+                gatewayErrorCode: body428.error || 'hitl_required',
+                hitl: true,
+                rpcData: {
+                    hitl: true,
+                    challengeId: body428.challengeId || null,
+                    challenge_type: body428.challenge_type || 'consent',
+                    instructions: body428.message || body428.instructions,
+                },
+                gwAuditTrail: _parseGwAuditTrail(response),
+            },
+        );
+    }
+
     if (status === 403) {
         // Log only structured error fields — not the full body which may echo
         // parts of the Authorization header in some gateway implementations.

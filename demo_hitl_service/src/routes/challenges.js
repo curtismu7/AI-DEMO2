@@ -5,6 +5,7 @@
  *
  *   POST   /challenges                  — create a new HITL challenge
  *   GET    /challenges/:id              — poll challenge status
+ *   POST   /challenges/:id/verify       — is this receipt spendable by this caller?
  *   POST   /challenges/:id/respond      — human approves or denies
  *   GET    /challenges                  — list challenges (admin / dashboard)
  */
@@ -12,6 +13,7 @@
 const express = require('express');
 const router = express.Router();
 const store = require('../store/challengeStore');
+const { verifyReceipt } = require('../receiptVerification');
 const { notifyUser } = require('../notifier');
 const { teachLog } = require('../teachLogger');
 const { emitHop } = require('../transactionHop');
@@ -91,6 +93,32 @@ router.get('/:id', requireSecret, (req, res) => {
     expiresAt: new Date(challenge.expiresAt).toISOString(),
     resolvedAt: challenge.resolvedAt ? new Date(challenge.resolvedAt).toISOString() : null,
   });
+});
+
+// POST /challenges/:id/verify
+// Body: { userId?, agentId?, tool?, amount?, params? }
+// Answers "may THIS caller spend this receipt?" so a caller that cannot reuse
+// the gateway's TypeScript rules (PingGateway's Groovy p1az-decision script)
+// still gets identical binding enforcement instead of a hand-ported third copy.
+//
+// A failed binding check is a 200 with `{ ok: false, message }`, not a 4xx: the
+// caller must be able to tell "receipt rejected" (re-challenge / deny) from
+// "HITL service unreachable" (fail closed with a 503 of its own).
+router.post('/:id/verify', requireSecret, (req, res) => {
+  const { userId, agentId, tool, amount, params } = req.body || {};
+  const challenge = store.get(req.params.id);
+  if (!challenge) {
+    return res.status(200).json({ ok: false, message: 'HITL challenge not found' });
+  }
+
+  const result = verifyReceipt(challenge, { userId, agentId, tool, amount, params });
+  teachLog.info('hitl receipt verification', {
+    challengeId: req.params.id,
+    tool: tool || null,
+    ok: result.ok,
+    reason: result.ok ? null : result.message,
+  });
+  res.status(200).json(result);
 });
 
 // POST /challenges/:id/respond
