@@ -156,6 +156,79 @@ Structural keys missing: `delegation` and `featurePage` from all four Class B
 verticals; `identity` from admin and admin-console; `demoUsers` from
 pingone-admin.
 
+## Use-case parity: coverage is nearly there, the proof is not
+
+Requirement: every Class A vertical demos the same use cases with similar
+results. Measured against the step-verification ledger.
+
+**Coverage is close.** 26 numbered use cases across Class A; **24 are universal**
+to all 9 verticals. Only two gaps:
+
+- **UC5** — banking only (`UC5.attack.unit-ref.json`, `triggerType: attack`).
+  Missing in the other 8.
+- **Three retail-only entries** — `agent-lifecycle-list-orders`,
+  `agent-lifecycle-revoke`, `ciba-out-of-band-approval`. Missing in the other 8.
+
+32 missing cells. That is a fill-in job, not a rebuild.
+
+### ⚠️ The proof is hollow for half the ledger
+
+446 ledger entries. **Every single one is `PASS`.** No non-`PASS` entry exists
+anywhere in the ledger.
+
+| Measure | Count |
+|---|---|
+| Total entries | 446 |
+| `status: PASS` | 446 (100%) |
+| `provesDeclaredOnly: true` | 225 (50%) |
+| `flagsAssumedOn: true` | 225 |
+| `flagsOffDetected` non-empty | 207 |
+
+Exactly **25 declaration-only entries per vertical**, uniform across all nine —
+so the hollow half is itself perfectly at parity, which is why the ledger reads
+as if the verticals already match.
+
+Worked example, `government/UC9.chip.unit-prereq.json`:
+
+```json
+{
+  "vertical": "government", "useCaseId": "UC9",
+  "mode": "unit-prereq", "status": "PASS",
+  "primaryTool": "pay_fee",
+  "requiredFlags": ["ff_authorize_group_policy", "ff_mcp_gateway_pinggateway"],
+  "flagsAssumedOn": true,
+  "provesDeclaredOnly": true,
+  "flagsOffDetected": ["ff_authorize_group_policy", "ff_mcp_gateway_pinggateway"]
+}
+```
+
+It reports `PASS` while recording that both required flags were **off**, that
+they were *assumed* on, and that it proves the declaration only. UC9 is the
+sensitive-data group-gate case — and government has no `groups` block at all.
+It passes while the gate does not exist.
+
+Mode distribution shows the same shape: 229 `unit-prereq` and 148 `unit-parse`
+out of 446. Only **5 entries in the entire ledger** exercise a real agent path
+(3 `llamacpp`, 2 `heuristic`).
+
+This is the same defect as `catalog.test.js:223` — green that means less than it
+appears — and it is why "similar results" cannot be verified today.
+
+### What Stage 0 must do about it
+
+1. **Fill the 32 missing cells** — UC5 and the three lifecycle/CIBA cases across
+   the other 8 verticals.
+2. **Separate declared from proven.** A `provesDeclaredOnly: true` entry must not
+   count as coverage. The parity gate counts proven entries only.
+3. **Require flags actually on.** An entry whose `flagsOffDetected` is non-empty
+   is not a pass. Either run it with the flags on or record it as unproven.
+4. **Raise the real-path floor.** Five real-agent entries across nine verticals
+   cannot support a claim about behavioural parity. Every vertical needs its
+   declared use cases exercised on a real path, not just parsed.
+
+Expect the ledger to go red when this lands. That is the point — it is currently
+green because it does not check.
+
 ## Negative-intent parity: all three, every Class A vertical
 
 Decided. Each of the 9 customer verticals carries all three deliberate failures:
@@ -495,20 +568,28 @@ untouched — failures surface as build errors, not demo surprises. Stage 2 keep
 4. **Step-verification:** every vertical has a ledger directory with coverage for
    its declared use cases, including admin, admin-console and oauth-teaching,
    which have none today.
-5. `npm run verticals:check` fails on a deliberately mis-declared chip tool.
-6. `npm run verticals:check` fails on a deliberate phrase collision within a
+5. **Use-case parity:** all 9 Class A verticals cover the same use-case set —
+   UC5 and the three lifecycle/CIBA cases exist everywhere, not just in banking
+   and retail.
+6. **Ledger honesty:** zero entries counted as coverage while carrying
+   `provesDeclaredOnly: true` or a non-empty `flagsOffDetected`. A run with the
+   required flags off is recorded as unproven, not `PASS`. The ledger is capable
+   of recording a failure and has recorded at least one during development —
+   a ledger that has only ever emitted `PASS` proves nothing.
+7. `npm run verticals:check` fails on a deliberately mis-declared chip tool.
+8. `npm run verticals:check` fails on a deliberate phrase collision within a
    vertical, and on a deliberate overlay tool-name shadow.
-7. `pingone-admin` chips resolve through heuristics with `LLM_BACKEND=llamacpp`
+9. `pingone-admin` chips resolve through heuristics with `LLM_BACKEND=llamacpp`
    and report non-empty `toolsCalled`.
-8. `npm run intent:sweep:llm` reports zero contradictions across all chip phrases
-   (heuristic tool equals LLM tool, or the LLM abstains).
-9. Stage 2: with `ff_authorize_group_policy` ON, a $5,000 transfer for a Standard
-   user is denied by **real** PingOne Authorize — verified against the cloud
-   decision, not the mock — and the same denial reproduces after a fresh snapshot
-   import, with the `act` mapping intact.
-10. Stage 2: all **nine** `sensitive_*` tools are group-gated. A non-privileged
+10. `npm run intent:sweep:llm` reports zero contradictions across all chip phrases
+    (heuristic tool equals LLM tool, or the LLM abstains).
+11. Stage 2: with `ff_authorize_group_policy` ON, a $5,000 transfer for a Standard
+    user is denied by **real** PingOne Authorize — verified against the cloud
+    decision, not the mock — and the same denial reproduces after a fresh snapshot
+    import, with the `act` mapping intact.
+12. Stage 2: all **nine** `sensitive_*` tools are group-gated. A non-privileged
     user is denied each one by real P1AZ, in every one of the nine verticals —
     including the four that have no gate today (government, investment,
     manufacturing, university).
-11. `cd demo_api_server && CI=true npm test -- --forceExit` green.
-12. `npm run topology:verify` green.
+13. `cd demo_api_server && CI=true npm test -- --forceExit` green.
+14. `npm run topology:verify` green.
