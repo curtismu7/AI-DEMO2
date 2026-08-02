@@ -102,6 +102,99 @@ read the configured host. A new browser origin must be added to ALL of:
 
 Reverse-chronological, newest first.
 
+### 2026-08-02 — Intent Token minted with NO `permitted_tools` claim when the request named a prototype key (#1258)
+
+**Files changed:** `demo_api_server/services/intentTokenService.js`,
+`demo_api_server/services/nlIntentParser.js`,
+`demo_api_server/services/geminiNlIntent.js`,
+`demo_api_server/services/demoAgentLangGraphService.js`,
+`demo_api_server/scripts/check-vertical-coercion.js`,
+`demo_api_server/tests/services/verticalLookup.prototypeKeys.test.js` (new).
+
+**What was broken:** `permittedToolsForIntent` looked up two plain-object maps
+with a bare subscript and no own-property guard —
+`INTENT_TO_PERMITTED_TOOLS[intent]` and `READ_ONLY_TOOLS_BY_VERTICAL[vertical]`
+(`services/intentTokenService.js:175` and `:180` before the fix). Both keys
+arrive from the request, and `parseVerticalParam`'s `VALID_VERTICAL_RE`
+(`/^[a-z][a-z0-9-]*$/`, `services/nlIntentParser.js:818`) accepts `constructor`,
+so the lookup resolved the INHERITED `Object` constructor instead of `undefined`
+and the `||` fallback written for a miss never fired. `permitted_tools` became a
+function, and `JSON.stringify` DROPS a function value — the minted token carried
+no `permitted_tools` claim at all (`intentTokenService.js:205` feeds `sign()`).
+Reached through the real route: `POST /api/agent/invoke`
+(`routes/agentInvokeRoute.js:125`, mounted at `server.js:1107`) with
+`vertical:"constructor"` and any prompt `extractIntentAndConfidence`
+(`nlIntentParser.js:212`) leaves at `intent:'unknown'` — the common case, not an
+exotic one.
+
+Three sibling lookups carried the same defect and were guarded in the same PR:
+`FEATURE_TRIGGERS` (`nlIntentParser.js` — `?.` guards only nullish, so
+`featureTrigger?.test(t)` was called on a function that has no `.test`;
+`POST /api/demo-agent/nl {vertical:"constructor"}` answered a hard HTTP 500
+`nl_parse_failed`), `THEME_OVERRIDES` (`geminiNlIntent.js` — the `Object`
+constructor's native-code source was string-concatenated into the LLM system
+prompt), and `READ_PRIMARY_TOOL_BY_VERTICAL` (`demoAgentLangGraphService.js` —
+truthy, so the caller's `if (activityTool)` passed and
+`verticalDispatch.executeToolFor` was handed a function where a tool name
+belongs).
+
+**Effect verified, not assumed:** the dropped claim did NOT silently disable the
+control. Both gateways test membership with a list check that an absent claim
+fails — `Array.isArray(payload.permitted_tools) && …includes(toolName)`
+(`demo_mcp_gateway/src/intentTokenValidator.ts:99-100`) and
+`(permitted instanceof List) && permitted.contains(toolName)`
+(`ping-gateway/scripts/groovy/p1az-decision.groovy:434`) — so `IntentMatchesTool`
+went to `'false'` with `IntentTokenValid` still `'true'`, which is precisely the
+mock authz server's Rule 4b DENY (`demo_authz_server/routes/decision.js:954`).
+The BFF holds no local `permitted_tools` enforcement; its `?? []` reads
+(`server.js:2031`, `routes/agentRun.js:288`, `routes/agentInvokeRoute.js:256`,
+`services/agentMcpTokenService.js:276`) are Token Chain display payloads only. So
+the observable damage was a denied tool call plus an empty permitted-tools list
+in the rail — a fidelity and evidence bug on a fail-closed path, not an authz
+bypass. The comment at `scripts/check-vertical-coercion.js:264` still asserts
+"every consumer reads absent as unrestricted"; that reading is wrong for the
+enforcement path and should be treated as stale.
+
+**What was fixed:** an `Object.prototype.hasOwnProperty.call(map, key)` guard on
+all four lookups — the same one-liner, for the same reason, as the precedent
+already in `config/fallback-chips/loader.js:24-26` (#1214).
+`intentTokenService` wraps it in a local `ownEntry(map, key)`. Own keys behave
+identically, so no real vertical's permitted-tools list, feature trigger, prompt
+theme or activity tool changes. The coercion gate's
+`KNOWN_UNFIXED_PROTOTYPE_LOOKUP` pin was emptied rather than deleted, so
+`constructor` and `toString` now flow into the bogus-id sweep instead of being
+excluded from it, and re-adding a key stays the documented way to record a
+revert.
+
+**Do not break:** the guard must stay on all four lookups, and any NEW
+`map[requestSuppliedKey]` lookup needs the same treatment — the maps are plain
+objects, so every one of them inherits `constructor`, `toString`, `valueOf` and
+`hasOwnProperty`. Do not "simplify" `ownEntry` back to a bare subscript.
+**Never assert this class with `JSON.stringify`:** it renders a function as
+`undefined` and drops the key, so an inherited-key hit reads as a clean pass —
+that false-safe made this exact bug look harmless to two separate
+investigations. Assertions must use `typeof` / `Array.isArray`.
+
+Two follow-ups are open, so the class is not fully closed. (1) An absent
+`permitted_tools` is fail-closed at both gateways today, but nothing *requires*
+that: the guard closed the mint path we found, and a fail-closed rule at mint
+time (refuse to sign a token whose `permitted_tools` is not an array) would close
+the ones we have not. Branch `intent-token-fail-closed` is reserved for it and
+carries no commits beyond `main` yet. (2) A class-level fix —
+`Object.assign(Object.create(null), {…})` at each map definition, or a shared
+`lookupByVertical(map, id)` helper — would let all four hand-written guards be
+deleted. Not yet done.
+
+**Verify:** `demo_api_server/tests/services/verticalLookup.prototypeKeys.test.js`
+— 32 tests (`5N + 7`, matrixed with `it.each` over
+`['constructor','__proto__','toString','valueOf','hasOwnProperty']`), plus
+controls asserting that real verticals still resolve their own tool, trigger,
+theme and read-tool list. `__proto__` is in the matrix but is rejected by
+`VALID_VERTICAL_RE`'s leading-character rule — the map, not the router, is where
+this has to be safe. Each guard was proven by individual revert-to-RED. The
+coercion gate (`node demo_api_server/scripts/check-vertical-coercion.js`, wired
+into root `npm run hygiene:check`) exits 0.
+
 ### 2026-08-02 — Privilege MCP sign-in stuck on "Client ID is required before auth start."
 
 **Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
