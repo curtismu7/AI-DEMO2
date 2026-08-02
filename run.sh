@@ -527,6 +527,26 @@ preflight_checks() {
     bash "${BASEDIR}/demo_llm_proxy/start-omlx.sh" start
   }
 
+  # Mirror of run-docker.sh's :8090 clearing, in the other direction. The Compose
+  # stack's llm-proxy publishes :8090, so if it is up, oMLX cannot bind — and the
+  # readiness probe below would answer yes for the *container* and report "oMLX
+  # already serving :8090" about a process that never started. A false success
+  # like that is far harder to spot than a failed bind, so clear the port first.
+  _release_8090_from_containers() {
+    command -v docker >/dev/null 2>&1 || return 0
+    local names
+    names=$(docker ps --filter "publish=${llamacpp_port}" --format '{{.Names}}' 2>/dev/null) || true
+    [[ -n "$names" ]] || return 0
+    warn "container(s) hold :${llamacpp_port} — stopping so the host backend can bind: $(echo "$names" | tr '\n' ' ')"
+    # shellcheck disable=SC2086
+    docker stop $names >/dev/null 2>&1 || true
+  }
+
+  if [[ ("$llm_backend" == "omlx" || "$llm_backend" == "mlx") \
+        && ("$llamacpp_host" == "localhost" || "$llamacpp_host" == "127.0.0.1") ]]; then
+    _release_8090_from_containers
+  fi
+
   if [[ "$llamacpp_host" != "localhost" && "$llamacpp_host" != "127.0.0.1" ]]; then
     # Remote LLM — just check reachability, never try to start locally
     if curl -sf --max-time 3 "${llamacpp_base}/health" >/dev/null 2>&1 \
