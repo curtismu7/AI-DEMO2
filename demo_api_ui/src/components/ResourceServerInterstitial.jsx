@@ -15,23 +15,23 @@ const SERVERS = {
   },
   invest: {
     id: 'invest',
-    name: 'MCP Invest',
+    name: 'MCP Resource Server',
     port: 8081,
     protocol: 'WebSocket',
     auth: 'JWT + RFC 8693 Token Exchange',
     audience: 'mcp-invest.ping.demo',
     color: '#047857',
-    description: 'Investment portfolio server — accounts, balances, holdings, transactions',
+    description: 'Dedicated MCP resource server — investment portfolios, balances, holdings, transactions',
   },
   apikey: {
     id: 'apikey',
-    name: 'Mortgage Service',
+    name: 'API Resource Server',
     port: 8082,
     protocol: 'HTTP REST',
     auth: 'X-API-Key (gateway-swapped)',
     audience: '(none — API key auth)',
     color: '#d97706',
-    description: 'Vertical feature backend — gateway swaps OAuth bearer for service API key',
+    description: 'REST API resource server — gateway swaps OAuth bearer for service API key',
   },
 };
 
@@ -147,7 +147,7 @@ export default function ResourceServerInterstitial({ toolName, onDismiss }) {
           {targetId === 'invest' && (
             <p>
               <code>{toolName}</code> is an investment tool. The gateway recognizes this tool belongs
-              to the investment domain and routes it to MCP Invest on port 8081. A separate token
+              to the investment domain and routes it to the MCP Resource Server on port 8081. A separate token
               exchange narrows the audience to <code>mcp-invest.ping.demo</code>, isolating
               investment data from core banking.
             </p>

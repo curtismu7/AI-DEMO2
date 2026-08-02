@@ -8,8 +8,8 @@
 | `demo_mcp_server` | (embedded in BFF) | RFC 8693 token + scope topology | Main tool registry (40+ banking, 199 vertical) |
 | `demo_mcp_gateway` | 7474 | Token introspection + audience binding | Enforces auth, rate limits, dispositions |
 | `demo_mcp_weather` | 8896 | None (internal bridge) | HTTP-to-stdio wrapper for weather MCP |
-| `demo_mcp_invest` | — | `invest:read` scope | Investment portfolio tools |
-| `demo_mortgage_service` | 8082 | X-API-Key (SHA256 constant-time) | Per-vertical records, api_key disposition |
+| `demo_mcp_invest` | 8081 | `invest:read` scope + RFC 8693 | **MCP Resource Server** — investment portfolio tools |
+| `demo_mortgage_service` | 8082 | X-API-Key (SHA256 constant-time) | **API Resource Server** — gateway swaps OAuth bearer for API key |
 | `demo_authz_server` | 8081 | (simulated) | PingOne Authorize decision simulator |
 
 ---
@@ -88,7 +88,7 @@ RFC 8693 nested-act token exchange with scope narrowing at each hop. Generalist 
 
 ---
 
-## Feature/Vertical API-Key Tools (gateway-swapped)
+## Feature/Vertical API-Key Tools (gateway-swapped → API Resource Server)
 
 | Tool | Disposition | Backend |
 |------|-------------|---------|
@@ -106,7 +106,7 @@ Gateway intercepts the OAuth bearer token, validates the tool scope, then substi
 
 ---
 
-## Investment Tools (demo_mcp_invest)
+## Investment Tools (MCP Resource Server — demo_mcp_invest)
 
 | Tool | Description |
 |------|-------------|
@@ -187,3 +187,56 @@ UC30 (weather permit), UC31 (weather deny), UC32 (live policy flip)
 | Scopes | `demo_api_server/config/scopes.js` |
 | Scope topology | `scope-topology.json` |
 | Vertical configs | `demo_api_server/config/verticals/` |
+| Intent token service | `demo_api_server/services/intentTokenService.js` |
+| Intent token validator (gateway) | `demo_mcp_gateway/src/intentTokenValidator.ts` |
+| RS interstitial component | `demo_api_ui/src/components/ResourceServerInterstitial.jsx` |
+
+---
+
+## Intent Token Binding (UC15, UC17)
+
+The BFF mints a signed JWT (`X-Intent-Token` header) before every tool call. The gateway validates it on the request path.
+
+| Stage | Component | Action |
+|-------|-----------|--------|
+| 1. Extract | BFF (`agentRun.js`) | NLP extracts `intent` + `confidence` from user prompt |
+| 2. Mint | BFF (`intentTokenService.js`) | Signs JWT with `{userId, sessionId, intent, confidence, permitted_tools[]}` |
+| 3. Attach | BFF | Sets `X-Intent-Token` header on outbound MCP request |
+| 4. Validate | Gateway (`intentTokenValidator.ts`) | Verifies signature, expiry, checks tool ∈ `permitted_tools` |
+| 5. Enforce | Gateway | If `INTENT_TOKEN_REQUIRED=true` and invalid → DENY 401 |
+
+Feature flag: `ff_intent_token_enabled` (default on). Gateway enforcement: `INTENT_TOKEN_REQUIRED` env var.
+
+---
+
+## Resource Server Page Routing
+
+Three dedicated RS pages show tool results in a full UI experience (not just returning text to the agent chat). Each vertical should route at least one use case to an RS page.
+
+### The 3 Resource Server Pages
+
+| RS Page | Route | Backend Service | Shows |
+|---------|-------|-----------------|-------|
+| **MCP Server (OLB)** | `/resource-server` | `demo_mcp_server` | Token claims, accounts, transactions — proves delegated access |
+| **MCP Resource Server** | `/resource-server` (invest tab) | `demo_mcp_invest` | Portfolio, holdings, investment transactions |
+| **API Resource Server** | `/resource-server` (apikey tab) | `demo_mortgage_service` | Vertical-specific records, API key swap proof |
+
+### Vertical → RS Page Mapping
+
+Each vertical has at least 1 UC that navigates to a dedicated RS page (instead of returning to chat):
+
+| Vertical | RS Page Target | Trigger UC / Tool | What the page shows |
+|----------|---------------|-------------------|---------------------|
+| Banking | MCP Server (OLB) | UC1 / `get_my_accounts` | Account list + token claims |
+| Healthcare | API Resource Server | UC33-health / `show_health_record` | Patient record + API key proof |
+| Retail | API Resource Server | UC33-retail / `show_gear_order` | Order detail + gateway swap |
+| Government | API Resource Server | UC33-gov / `show_permit` | Permit record |
+| University | API Resource Server | UC33-edu / `show_enrollment` | Enrollment record |
+| Workforce | API Resource Server | UC33-work / `show_expense_report` | Expense report |
+| Sporting Goods | API Resource Server | UC33-sport / `show_gear_order` | Gear order |
+| Manufacturing | API Resource Server | UC33-mfg / `show_work_order` | Work order + supplier details |
+| Investment | MCP Resource Server | UC33-invest / `get_portfolio_summary` | Full portfolio view |
+
+### Demo Point
+
+This proves that agentic tool calls can **navigate the user to a dedicated page** — not just return text to the chat. The RS page displays the resource server's response with full token inspection, showing exactly which RS processed the request and how the credential was presented.

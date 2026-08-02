@@ -1394,7 +1394,7 @@ export default function ArchitectureTokenFlowPage({ user }) {
       <ArchitectureDiagramPage
         title="Token Flow Diagram"
         imageSrc="/architecture/token-flow.png"
-        imageAlt="Token flow sequence: User, Web App, Chatbot, Agent (BFF in-process LangGraph), LLM, PingOne, Agent Gateway, PingOne Authorization Server, HITL Service, MCP OLB, MCP Invest, Resource Server — RFC 8693 exchanges, Phase 266 credential paths, and HITL consent escalation"
+        imageAlt="Token flow sequence: User, Web App, Chatbot, Agent (BFF in-process LangGraph), LLM, PingOne, Agent Gateway, PingOne Authorization Server, HITL Service, MCP OLB, MCP Resource Server, API Resource Server — RFC 8693 exchanges, Phase 266 credential paths, and HITL consent escalation"
         regions={TOKEN_FLOW_REGIONS}
         activeRegions={activeRegions}
         regionLabels={regionLabels}

@@ -35,7 +35,7 @@
  *   PA Ping Authorize   → pingauthorize-tf
  *   HITL HITL Service   → hitl-tf
  *   MCP MCP OLB         → mcp-olb
- *   INV MCP Invest      → mcp-invest
+ *   INV MCP Resource Server → mcp-invest
  *   RS Resource Server  → oauth-rs
  */
 export const TOKEN_FLOW_REGIONS = [
@@ -121,7 +121,7 @@ export const TOKEN_FLOW_REGIONS = [
   },
   {
     id: "mcp-invest",
-    label: "MCP Invest Server",
+    label: "MCP Resource Server",
     bounds: { xPct: 80.8, yPct: 1, wPct: 6.8, hPct: 98 },
     triggers: ["mcp", "agent_prompt"],
     tags: ["agent_prompt/heuristic_tool"],

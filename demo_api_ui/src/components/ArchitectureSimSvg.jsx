@@ -315,11 +315,11 @@ function ArchitectureSimSvg({ nodeStates = {}, edgeStates = {} }) {
       <SimNode id="n-agent"      x={COL.mcpGw}    y={ROW.mid} label="Agent Service" sub=":3006 / :8888"
         tooltip="Agent Service — LangChain (:8888) / OpenAI Agents (:8891) / Mastra (:8892) / Pydantic AI (:8893) / LM Studio (:3006); translates natural language to MCP tool calls"
         state={ns('n-agent')} />
-      <SimNode id="n-mcp-invest" x={COL.services} y={ROW.mid} label="MCP Invest"    sub=":8081"
-        tooltip="MCP Invest (:8081) — investment and portfolio tools; separate MCP server instance for financial data"
+      <SimNode id="n-mcp-invest" x={COL.services} y={ROW.mid} label="MCP Resource Server" sub=":8081"
+        tooltip="MCP Resource Server (:8081) — dedicated MCP resource server for investment and portfolio tools; separate instance for financial data"
         state={ns('n-mcp-invest')} />
-      <SimNode id="n-mortgage"   x={COL.services} y={ROW.mid + NH + 10} label="Mortgage Svc" sub=":8082"
-        tooltip="Mortgage Service (:8082) — legacy service using API key auth; reached via Ping Agent Gateway Path A (api_key disposition); not PingOne-aware"
+      <SimNode id="n-mortgage"   x={COL.services} y={ROW.mid + NH + 10} label="API Resource Server" sub=":8082"
+        tooltip="API Resource Server (:8082) — REST API resource server using API key auth; reached via Ping Agent Gateway Path A (api_key disposition)"
         state={ns('n-mortgage')} />
       <SimNode id="n-pingone"    x={COL.external} y={ROW.mid} label="PingOne"        sub="OAuth AS"
         tooltip="PingOne — OAuth 2.0 Authorization Server and Identity Provider; issues tokens, validates may_act for RFC 8693 token exchange, enforces PKCE"

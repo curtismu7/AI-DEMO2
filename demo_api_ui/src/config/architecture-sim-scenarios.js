@@ -269,7 +269,7 @@ export const SCENARIOS = [
         nodes: ['n-mcp-gw'],
         edges: ['e-bff-mcpgw'],
         desc: 'Ping Agent Gateway drops the Bearer token — the downstream service cannot validate PingOne JWTs.',
-        why: 'Token translation is a gateway responsibility. The Mortgage Service is a legacy service that uses API keys. Rather than rearchitecting it, the gateway consumes the OAuth token for its own validation and presents credentials the downstream service already understands.',
+        why: 'Token translation is a gateway responsibility. The API Resource Server is a service that uses API keys. Rather than rearchitecting it, the gateway consumes the OAuth token for its own validation and presents credentials the downstream service already understands.',
       },
       {
         nodes: ['n-mcp-gw'],
@@ -280,8 +280,8 @@ export const SCENARIOS = [
       {
         nodes: ['n-mortgage'],
         edges: ['e-mcpgw-mortgage'],
-        desc: 'Request forwarded to Mortgage Service (:8082) — home loan data returned. ✅',
-        why: 'The Mortgage Service trusts only requests with the correct API key, which is only known to the gateway. The service is therefore only reachable through the Ping Agent Gateway trust boundary — it cannot be called directly from the internet, even if its port were exposed.',
+        desc: 'Request forwarded to API Resource Server (:8082) — data returned. ✅',
+        why: 'The API Resource Server trusts only requests with the correct API key, which is only known to the gateway. The service is therefore only reachable through the Ping Agent Gateway trust boundary — it cannot be called directly from the internet, even if its port were exposed.',
       },
     ],
   },

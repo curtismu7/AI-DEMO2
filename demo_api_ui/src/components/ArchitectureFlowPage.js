@@ -275,7 +275,7 @@ const INITIAL_NODES = [
     type: "arch",
     position: { x: 780, y: 560 },
     data: {
-      label: "MCP Invest",
+      label: "MCP Resource Server",
       label2: "banking_mcp_invest :8081",
       icon: "🛠️",
       colorClass: "",

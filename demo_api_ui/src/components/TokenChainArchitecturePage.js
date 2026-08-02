@@ -42,7 +42,7 @@ graph LR
 
     subgraph MCPs["🔌 MCP SERVERS"]
       MCP_OLB["MCP OLB<br/>mcp-olb.bxf.com"]
-      MCP_Invest["MCP Invest<br/>mcp-invest.bxf.com"]
+      MCP_Invest["MCP Resource Server<br/>mcp-invest.bxf.com"]
     end
 
     subgraph Resources["📊 RESOURCES"]
