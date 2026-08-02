@@ -129,6 +129,53 @@ test('PERMIT — PingGateway aud accepted when MCP_GW_RESOURCE_URI lists both au
   assert.strictEqual(res.body.decision, 'PERMIT', `reason: ${res.body && res.body.reason}`);
 });
 
+// The live deployment sets BOTH: PINGONE_RESOURCE_MCP_GATEWAY_URI is the single
+// MINTING audience (one token gets one aud) while MCP_GW_RESOURCE_URI lists every
+// identity the gateway ANSWERS to. First-var-wins made the narrow minting value
+// shadow the list, so every Node-gateway tools/list DENYed with invalid_aud and
+// discovery silently degraded to the local catalog.
+test('PERMIT — accepted auds union across vars, not first-var-wins', async () => {
+  process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI = GATEWAY_AUD; // narrow minting value
+  process.env.MCP_GW_RESOURCE_URI = BOTH_AUDS;                // full accepted list
+  delete process.env.MCP_GATEWAY_RESOURCE_URI;
+  fresh();
+  const res = makeRes();
+  await decisionHandler(
+    {
+      params: { workerId: 'p' },
+      body: {
+        parameters: groovyParams({
+          DecisionContext: 'McpToolsList',
+          McpMethod: 'tools/list',
+          ToolName: '',
+          TokenScopes: 'gateway:mcp:invoke',
+          TokenAudActual: GATEWAY_ID,
+          TokenAudience: GATEWAY_ID,
+          McpResourceUri: BOTH_AUDS,
+        }),
+      },
+    },
+    res,
+  );
+  delete process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI;
+  assert.strictEqual(res.body.decision, 'PERMIT', `reason: ${res.body && res.body.reason}`);
+});
+
+test('DENY — a foreign aud is still rejected when the union is in play', async () => {
+  process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI = GATEWAY_AUD;
+  process.env.MCP_GW_RESOURCE_URI = BOTH_AUDS;
+  delete process.env.MCP_GATEWAY_RESOURCE_URI;
+  fresh();
+  const res = makeRes();
+  await decisionHandler(
+    { params: { workerId: 'p' }, body: { parameters: groovyParams({ TokenAudActual: FOREIGN_AUD }) } },
+    res,
+  );
+  delete process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI;
+  assert.strictEqual(res.body.decision, 'DENY');
+  assert.match(res.body.reason, /invalid_aud/);
+});
+
 test('PERMIT — user_profile_card (Path B) with PingGateway aud', async () => {
   process.env.MCP_GW_RESOURCE_URI = BOTH_AUDS;
   delete process.env.MCP_GATEWAY_RESOURCE_URI;

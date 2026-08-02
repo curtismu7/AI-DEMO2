@@ -49,19 +49,29 @@ const { emitHop } = require('../transactionHop');
 // guards (aud/exp/iat/nbf/iss, user lookup, intent) stay env/SoT driven and are NOT
 // editable. See docs/ACT_CLAIM_VERIFICATION.md for the may_act semantics.
 
-// Env override first (deployment can pin it), else the SoT (scope-topology.json
-// gateway resource uri), else the canonical demo literal as a last resort.
-// Comma-separated list is supported so Path B (dual_token) can land on the Node
-// gateway with a PingGateway-minted aud while PINGONE_RESOURCE_MCP_GATEWAY_URI lists both.
-const EXPECTED_AUD_RAW = process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI ||
-  process.env.MCP_GATEWAY_RESOURCE_URI ||
-  process.env.MCP_GW_RESOURCE_URI ||
-  scopeTopology.gatewayAudience() ||
-  'mcpgateway.ping.demo';
-const EXPECTED_AUDS = String(EXPECTED_AUD_RAW)
-  .split(',')
+// Every identity the gateway answers to, UNIONED across the env overrides and the
+// SoT (scope-topology.json gateway resource uri), with the canonical demo literal
+// as a last resort. Comma-separated lists are supported so Path B (dual_token) can
+// land on the Node gateway with a PingGateway-minted aud.
+//
+// Union, NOT first-var-wins: these vars do not mean the same thing. The live stack
+// sets PINGONE_RESOURCE_MCP_GATEWAY_URI to the single MINTING audience (a token
+// gets one aud) and MCP_GW_RESOURCE_URI to the full list the gateway ACCEPTS.
+// Ranking the narrow minting value first made it shadow the list, so every Node
+// gateway tools/list DENYed `invalid_aud` and discovery degraded to the local
+// catalog. Widening is bounded: only explicitly configured gateway URIs join the
+// set — an unconfigured or foreign aud is still rejected.
+const EXPECTED_AUDS = Array.from(new Set([
+  process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI,
+  process.env.MCP_GATEWAY_RESOURCE_URI,
+  process.env.MCP_GW_RESOURCE_URI,
+  scopeTopology.gatewayAudience(),
+]
+  .filter(Boolean)
+  .flatMap((v) => String(v).split(','))
   .map((s) => s.trim())
-  .filter(Boolean);
+  .filter(Boolean)));
+if (!EXPECTED_AUDS.length) EXPECTED_AUDS.push('mcpgateway.ping.demo');
 const EXPECTED_AUD = EXPECTED_AUDS[0];
 
 const _issEnvId  = process.env.PINGONE_ENVIRONMENT_ID || '';
