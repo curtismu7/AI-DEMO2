@@ -19,19 +19,6 @@
   box-shadow: none;
 }
 
-.tctr[data-theme="dark"] {
-  --tctr-bg: #0f172a;
-  --tctr-text: #e2e8f0;
-  --tctr-muted: #94a3b8;
-  --tctr-border: #22324a;
-  --tctr-header-bg: #102847;
-  --tctr-header-text: #f8fafc;
-  --tctr-row-hover: #17253a;
-  --tctr-step-body-bg: #111b2d;
-  --tctr-tab-active: #bfdbfe;
-  --tctr-pill-bg: #1e293b;
-}
-
 .tctr {
   background: var(--tctr-bg);
   color: var(--tctr-text);
@@ -293,33 +280,6 @@
 }
 .tctr-tab--active .tctr-tab-count { background: #dbe4f0; color: var(--tctr-tab-active); }
 
-.tctr[data-theme="dark"] .tctr-step > summary,
-.tctr[data-theme="dark"] .tctr-story-headline,
-.tctr[data-theme="dark"] .tctr-step-body,
-.tctr[data-theme="dark"] .tctr-step-body h4,
-.tctr[data-theme="dark"] .tctr-kv-k,
-.tctr[data-theme="dark"] .tctr-kv-v,
-.tctr[data-theme="dark"] .tctr-acc > summary,
-.tctr[data-theme="dark"] .tctr-tok-claims {
-  color: #dbeafe;
-}
-
-.tctr[data-theme="dark"] .tctr-arrow,
-.tctr[data-theme="dark"] .tctr-step-chev,
-.tctr[data-theme="dark"] .tctr-sc-note,
-.tctr[data-theme="dark"] .tctr-story-bits,
-.tctr[data-theme="dark"] .tctr-tok-role,
-.tctr[data-theme="dark"] .tctr-tok-empty,
-.tctr[data-theme="dark"] .tctr-mcp-empty {
-  color: #94a3b8;
-}
-
-.tctr[data-theme="dark"] .tctr-tok-inspect {
-  background: #17253a;
-  border-color: #334155;
-  color: #bfdbfe;
-}
-
 /* Trust tab — DPoP / RAR posture (shown when ff_dpop / ff_rar or evidence) */
 .tctr-trust {
   display: flex;
@@ -389,83 +349,159 @@
   word-break: break-word;
 }
 
-/* ── Dark-mode overrides for hardcoded light values ─────────────────────── */
+/* Dark mode. Keyed to the OS preference, matching the convention used by
+   the other dark-capable component stylesheets in this directory - the app
+   has no global data-theme attribute for a component selector to hang off. */
+@media (prefers-color-scheme: dark) {
+  .tctr {
+    --tctr-bg: #0f172a;
+    --tctr-text: #e2e8f0;
+    --tctr-muted: #94a3b8;
+    --tctr-border: #22324a;
+    --tctr-header-bg: #102847;
+    --tctr-header-text: #f8fafc;
+    --tctr-row-hover: #17253a;
+    --tctr-step-body-bg: #111b2d;
+    --tctr-tab-active: #bfdbfe;
+    --tctr-pill-bg: #1e293b;
+  }
 
-/* Step row backgrounds — done/notinpath use hardcoded light bg; in dark mode
-   the inherited text color is light, making text invisible on those rows. */
-.tctr[data-theme="dark"] .tctr-step[data-status="done"] > summary {
-  background: rgba(22, 163, 74, 0.12);
+  .tctr .tctr-step > summary,
+  .tctr .tctr-story-headline,
+  .tctr .tctr-step-body,
+  .tctr .tctr-step-body h4,
+  .tctr .tctr-kv-k,
+  .tctr .tctr-kv-v,
+  .tctr .tctr-acc > summary,
+  .tctr .tctr-tok-claims {
+    color: #dbeafe;
+  }
+
+  .tctr .tctr-arrow,
+  .tctr .tctr-step-chev,
+  .tctr .tctr-sc-note,
+  .tctr .tctr-story-bits,
+  .tctr .tctr-tok-role,
+  .tctr .tctr-tok-empty,
+  .tctr .tctr-mcp-empty {
+    color: #94a3b8;
+  }
+
+  .tctr .tctr-tok-inspect {
+    background: #17253a;
+    border-color: #334155;
+    color: #bfdbfe;
+  }
+
+  /* ── Dark-mode overrides for hardcoded light values ─────────────────────── */
+
+  /* Step row backgrounds — done/notinpath use hardcoded light bg; in dark mode
+     the inherited text color is light, making text invisible on those rows. */
+  .tctr .tctr-step[data-status="done"] > summary {
+    background: rgba(22, 163, 74, 0.12);
+  }
+
+  .tctr .tctr-step[data-status="done"] > summary:hover {
+    background: rgba(22, 163, 74, 0.2);
+  }
+
+  .tctr .tctr-step[data-status="notinpath"] {
+    background: rgba(148, 163, 184, 0.06);
+  }
+
+  .tctr .tctr-step[data-status="error"] > summary {
+    color: #f87171;
+  }
+
+  /* Lane badges */
+  .tctr .tctr-lane--pingone   { background: rgba(30, 64, 175, 0.4);  color: #93c5fd; }
+
+  .tctr .tctr-lane--chat      { background: rgba(157, 23, 77, 0.35); color: #f9a8d4; }
+
+  .tctr .tctr-lane--agent     { background: rgba(126, 34, 206, 0.35); color: #d8b4fe; }
+
+  .tctr .tctr-lane--llm       { background: rgba(91, 33, 182, 0.35); color: #c4b5fd; }
+
+  .tctr .tctr-lane--heuristics{ background: rgba(154, 52, 18, 0.35); color: #fdba74; }
+
+  .tctr .tctr-lane--bff       { background: rgba(51, 65, 85, 0.4);   color: #cbd5e1; }
+
+  .tctr .tctr-lane--authz     { background: rgba(146, 64, 14, 0.35); color: #fcd34d; }
+
+  .tctr .tctr-lane--gateway   { background: rgba(14, 116, 144, 0.35); color: #67e8f9; }
+
+  .tctr .tctr-lane--mcp       { background: rgba(4, 120, 87, 0.35);  color: #6ee7b7; }
+
+  .tctr .tctr-lane--api       { background: rgba(185, 28, 28, 0.35); color: #fca5a5; }
+
+  .tctr .tctr-lane--notinpath { background: rgba(100, 116, 139, 0.15); color: #64748b; border-color: #475569; }
+
+  /* Story/run-result banners */
+  .tctr .tctr-story--ok     { border-color: rgba(134, 239, 172, 0.4); background: rgba(22, 163, 74, 0.1); }
+
+  .tctr .tctr-story--error  { border-color: rgba(252, 165, 165, 0.4); background: rgba(220, 38, 38, 0.1); }
+
+  .tctr .tctr-story--active { border-color: rgba(147, 197, 253, 0.4); background: rgba(59, 130, 246, 0.1); }
+
+  /* Why/context box */
+  .tctr .tctr-why {
+    background: rgba(30, 58, 138, 0.2);
+    border-color: rgba(191, 219, 254, 0.2);
+    color: #bfdbfe;
+  }
+
+  /* Token cards */
+  .tctr .tctr-tok--user  { background: rgba(244, 114, 182, 0.12); border-color: #f472b6; }
+
+  .tctr .tctr-tok--agent { background: rgba(192, 132, 252, 0.12); border-color: #c084fc; }
+
+  .tctr .tctr-tok--mcp   { background: rgba(52, 211, 153, 0.12);  border-color: #34d399; }
+
+  .tctr .tctr-tok-role { background: rgba(255, 255, 255, 0.08); }
+
+  /* Decision badges */
+  .tctr .tctr-decision--permit { background: rgba(22, 163, 74, 0.15); color: #86efac; border-color: rgba(134, 239, 172, 0.4); }
+
+  .tctr .tctr-decision--deny,
+  .tctr .tctr-decision--indeterminate { background: rgba(220, 38, 38, 0.15); color: #fca5a5; border-color: rgba(252, 165, 165, 0.4); }
+
+  .tctr .tctr-decision--step_up { background: rgba(217, 119, 6, 0.15); color: #fcd34d; border-color: rgba(252, 211, 77, 0.4); }
+
+  /* RFC reference tags */
+  .tctr .tctr-rfc { background: rgba(55, 48, 163, 0.35); color: #a5b4fc; }
+
+  /* Scope diff chips */
+  .tctr .tctr-sc       { background: #1e293b; }
+
+  .tctr .tctr-sc--kept { background: rgba(22, 163, 74, 0.2); color: #86efac; }
+
+  /* Token summary accordion */
+  .tctr .tctr-acc { border-top-color: var(--tctr-border); }
+
+  .tctr .tctr-count { background: #1e293b; color: #94a3b8; }
+
+  .tctr .tctr-tab--active .tctr-tab-count { background: rgba(191, 219, 254, 0.15); }
+
+  .tctr .tctr-tok-inspect {
+    background: #17253a;
+    border-color: #334155;
+    color: #bfdbfe;
+  }
+
+  /* Trust rows */
+  .tctr .tctr-trust__row--ok { background: rgba(22, 163, 74, 0.1); border-color: rgba(134, 239, 172, 0.3); }
+
+  .tctr .tctr-trust__row--ok .tctr-trust__badge { background: rgba(22, 163, 74, 0.15); border-color: rgba(134, 239, 172, 0.35); color: #86efac; }
+
+  .tctr .tctr-trust__row--off { background: #111b2d; border-color: #334155; }
+
+  .tctr .tctr-trust__row--off .tctr-trust__badge { background: #1e293b; border-color: #334155; color: #94a3b8; }
+
+  .tctr .tctr-trust { color: #dbeafe; }
+
+  .tctr .tctr-trust > p { color: #94a3b8; }
+
+  .tctr .tctr-trust__row strong { color: #e2e8f0; }
+
+  .tctr .tctr-trust__row code { background: rgba(255, 255, 255, 0.06); }
 }
-.tctr[data-theme="dark"] .tctr-step[data-status="done"] > summary:hover {
-  background: rgba(22, 163, 74, 0.2);
-}
-.tctr[data-theme="dark"] .tctr-step[data-status="notinpath"] {
-  background: rgba(148, 163, 184, 0.06);
-}
-.tctr[data-theme="dark"] .tctr-step[data-status="error"] > summary {
-  color: #f87171;
-}
-
-/* Lane badges */
-.tctr[data-theme="dark"] .tctr-lane--pingone   { background: rgba(30, 64, 175, 0.4);  color: #93c5fd; }
-.tctr[data-theme="dark"] .tctr-lane--chat      { background: rgba(157, 23, 77, 0.35); color: #f9a8d4; }
-.tctr[data-theme="dark"] .tctr-lane--agent     { background: rgba(126, 34, 206, 0.35); color: #d8b4fe; }
-.tctr[data-theme="dark"] .tctr-lane--llm       { background: rgba(91, 33, 182, 0.35); color: #c4b5fd; }
-.tctr[data-theme="dark"] .tctr-lane--heuristics{ background: rgba(154, 52, 18, 0.35); color: #fdba74; }
-.tctr[data-theme="dark"] .tctr-lane--bff       { background: rgba(51, 65, 85, 0.4);   color: #cbd5e1; }
-.tctr[data-theme="dark"] .tctr-lane--authz     { background: rgba(146, 64, 14, 0.35); color: #fcd34d; }
-.tctr[data-theme="dark"] .tctr-lane--gateway   { background: rgba(14, 116, 144, 0.35); color: #67e8f9; }
-.tctr[data-theme="dark"] .tctr-lane--mcp       { background: rgba(4, 120, 87, 0.35);  color: #6ee7b7; }
-.tctr[data-theme="dark"] .tctr-lane--api       { background: rgba(185, 28, 28, 0.35); color: #fca5a5; }
-.tctr[data-theme="dark"] .tctr-lane--notinpath { background: rgba(100, 116, 139, 0.15); color: #64748b; border-color: #475569; }
-
-/* Story/run-result banners */
-.tctr[data-theme="dark"] .tctr-story--ok     { border-color: rgba(134, 239, 172, 0.4); background: rgba(22, 163, 74, 0.1); }
-.tctr[data-theme="dark"] .tctr-story--error  { border-color: rgba(252, 165, 165, 0.4); background: rgba(220, 38, 38, 0.1); }
-.tctr[data-theme="dark"] .tctr-story--active { border-color: rgba(147, 197, 253, 0.4); background: rgba(59, 130, 246, 0.1); }
-
-/* Why/context box */
-.tctr[data-theme="dark"] .tctr-why {
-  background: rgba(30, 58, 138, 0.2);
-  border-color: rgba(191, 219, 254, 0.2);
-  color: #bfdbfe;
-}
-
-/* Token cards */
-.tctr[data-theme="dark"] .tctr-tok--user  { background: rgba(244, 114, 182, 0.12); border-color: #f472b6; }
-.tctr[data-theme="dark"] .tctr-tok--agent { background: rgba(192, 132, 252, 0.12); border-color: #c084fc; }
-.tctr[data-theme="dark"] .tctr-tok--mcp   { background: rgba(52, 211, 153, 0.12);  border-color: #34d399; }
-.tctr[data-theme="dark"] .tctr-tok-role { background: rgba(255, 255, 255, 0.08); }
-
-/* Decision badges */
-.tctr[data-theme="dark"] .tctr-decision--permit { background: rgba(22, 163, 74, 0.15); color: #86efac; border-color: rgba(134, 239, 172, 0.4); }
-.tctr[data-theme="dark"] .tctr-decision--deny,
-.tctr[data-theme="dark"] .tctr-decision--indeterminate { background: rgba(220, 38, 38, 0.15); color: #fca5a5; border-color: rgba(252, 165, 165, 0.4); }
-.tctr[data-theme="dark"] .tctr-decision--step_up { background: rgba(217, 119, 6, 0.15); color: #fcd34d; border-color: rgba(252, 211, 77, 0.4); }
-
-/* RFC reference tags */
-.tctr[data-theme="dark"] .tctr-rfc { background: rgba(55, 48, 163, 0.35); color: #a5b4fc; }
-
-/* Scope diff chips */
-.tctr[data-theme="dark"] .tctr-sc       { background: #1e293b; }
-.tctr[data-theme="dark"] .tctr-sc--kept { background: rgba(22, 163, 74, 0.2); color: #86efac; }
-
-/* Token summary accordion */
-.tctr[data-theme="dark"] .tctr-acc { border-top-color: var(--tctr-border); }
-.tctr[data-theme="dark"] .tctr-count { background: #1e293b; color: #94a3b8; }
-.tctr[data-theme="dark"] .tctr-tab--active .tctr-tab-count { background: rgba(191, 219, 254, 0.15); }
-.tctr[data-theme="dark"] .tctr-tok-inspect {
-  background: #17253a;
-  border-color: #334155;
-  color: #bfdbfe;
-}
-
-/* Trust rows */
-.tctr[data-theme="dark"] .tctr-trust__row--ok { background: rgba(22, 163, 74, 0.1); border-color: rgba(134, 239, 172, 0.3); }
-.tctr[data-theme="dark"] .tctr-trust__row--ok .tctr-trust__badge { background: rgba(22, 163, 74, 0.15); border-color: rgba(134, 239, 172, 0.35); color: #86efac; }
-.tctr[data-theme="dark"] .tctr-trust__row--off { background: #111b2d; border-color: #334155; }
-.tctr[data-theme="dark"] .tctr-trust__row--off .tctr-trust__badge { background: #1e293b; border-color: #334155; color: #94a3b8; }
-.tctr[data-theme="dark"] .tctr-trust { color: #dbeafe; }
-.tctr[data-theme="dark"] .tctr-trust > p { color: #94a3b8; }
-.tctr[data-theme="dark"] .tctr-trust__row strong { color: #e2e8f0; }
-.tctr[data-theme="dark"] .tctr-trust__row code { background: rgba(255, 255, 255, 0.06); }
