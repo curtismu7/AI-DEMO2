@@ -1300,9 +1300,16 @@ function parseForFallback(text, verticalCtx = {}) {
     return { ...bankingIntent, vertical: 'banking' };
   }
 
+  // Protocol/AI teaching intents ("what is PAR", "explain step-up") open an
+  // education panel; they carry no tool and belong to no vertical. Returning
+  // one WITHOUT a vertical lets the caller keep the active vertical — tagging
+  // them 'banking' pulled account and transfer chips into healthcare and every
+  // other vertical. The early return still matters: falling through would let
+  // the keyword cascade below claim them ("equipment", "schedule", "inventory")
+  // and coerce them to a different wrong vertical instead.
   const educationIntent = parseEducation(t);
   if (educationIntent && educationIntent.kind !== 'none') {
-    return { ...educationIntent, vertical: 'banking' }; // Education uses banking vertical
+    return { ...educationIntent };
   }
 
   // Detect retail vertical keywords
