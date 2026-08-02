@@ -46,6 +46,25 @@
   );
 }
 
+/* Split3 dashboard (embedded agent layout) is a one-page viewport layout: the
+   shell is exactly viewport-tall and every scroll happens inside a column.
+   Scoped with :has() so it only engages when that dashboard is actually
+   rendered — Bottom/Float layouts, the clinical split, and every other route
+   keep the default scrolling shell above. */
+.App:has(.user-dashboard--split3) {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.App:has(.user-dashboard--split3) main.main-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow: hidden;
+}
+
 /* Quick nav (signed-in /, /admin, /dashboard only) — extra stack + content inset */
 .App.App--has-quick-nav {
   --float-edge: 12px;

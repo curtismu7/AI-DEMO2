@@ -152,6 +152,52 @@ gate are untouched by this change.
 `cd demo_api_server && CI=true npx jest src/__tests__/attackSimulator.authorizeEvidence.test.js src/__tests__/mcpToolPipeline.confusedDeputy.test.js src/__tests__/bffMcpToolExecutor.runPipelineForSim.test.js --testPathIgnorePatterns="/node_modules/"` (12 passed);
 `cd demo_authz_server && node --test decision.confused-deputy.test.js decision.mockCloudParity.test.js` (20 passed).
 **mcp-gateway has no src mount — rebuild it (`docker compose build mcp-gateway && docker compose up -d mcp-gateway`) or the running stack keeps the old image.**
+### 2026-08-01 — Embedded agent transcript did not scroll; page scrolled instead
+
+**Files changed:** `demo_api_ui/src/components/UserDashboard.css`
+(`.ud-body--dashboard-split3` row track + grid-child `min-height`,
+`.user-dashboard--split3` sizing), `demo_api_ui/src/theme/refinedDashboardV2.css`
+(`min-height: 100vh !important` split out and excluded from split3),
+`demo_api_ui/src/App.css` (`:has(.user-dashboard--split3)` viewport lock). CSS only.
+
+**What was broken:** two defects on the Embedded (middle) dashboard layout.
+(1) The split3 grid used `grid-template-rows: 1fr`, which is `minmax(auto, 1fr)`,
+so the row's automatic minimum grew to the agent transcript's content height, and
+grid items default to `min-height: auto`. Nothing in the chain above
+`.banking-agent-messages` ever had a definite height, so the transcript grew
+instead of scrolling and its overflow was clipped by `.ud-agent-column`
+(`overflow: clip`) — measured: injecting 40 rows took `clientHeight` 571 → 2906
+with `scrollHeight === clientHeight`, i.e. no scrollbar, content unreachable.
+(2) `.user-dashboard--split3` sized itself `calc(100vh - var(--topnav-height, 60px))`
+while `refinedDashboardV2.css` forced `min-height: 100vh !important` over its
+`min-height: unset`. The dashboard starts ~88px down the page, so at a 900px
+viewport it ran to y=988 and the document scrolled 177px with the agent's
+composer 15px below the fold.
+
+**What was fixed:** row track is `minmax(0, 1fr)` and split3 grid children get
+`min-height: 0`, so the columns can shrink and the transcript becomes the
+scroller. The 100vh floor is now scoped `:not(.user-dashboard--split3)`, and the
+shell is viewport-tall via `.App:has(.user-dashboard--split3)` + a flex
+`main.main-content`, so split3 fills the remainder with no vh arithmetic.
+
+**Do not break:** the `:has()` scoping is load-bearing — it is what keeps the
+viewport lock off every other route. Bottom dock, Float, and the clinical split
+(`.user-dashboard--clinical-split`) never carry `--split3` and must keep the
+default scrolling shell. Do not restore `grid-template-rows: 1fr` or drop the
+`> * { min-height: 0 }` rule; either one alone re-breaks the transcript. Do not
+reintroduce `100vh`/`--topnav-height` math on the split3 root — the 60px default
+does not match the real 88px offset. No JS changed: `middleAgentOpen` init,
+bottom-dock route gating, and `banking-agent-fab` classes are untouched.
+
+**Verify:** `cd demo_api_ui && npm run test:unit && npm run build` (build exits 0;
+22 pre-existing failures in `uiRegression`, `UserDashboardPing2026`,
+`executionEngine`, `spinnerService`, `tokenInspector` are identical before and
+after this change). End-to-end on `/dashboard` in the Embedded layout at
+1600x900: appending 40 rows to `.banking-agent-messages` must leave
+`document.scrollHeight === clientHeight` (no page scroll) while the transcript
+reports `scrollHeight > clientHeight` (measured 2906 > 328), and the composer
+must stay inside the viewport (measured bottom 738). `/use-cases` and `/` must
+keep `.App { overflow-y: visible }`.
 
 ### 2026-07-30 — AG-UI agent tool calls 400'd after JSON-RPC wire mismatch (#1108)
 
